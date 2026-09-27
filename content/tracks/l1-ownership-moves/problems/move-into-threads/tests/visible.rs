@@ -9,3 +9,18 @@ fn three_chunks() {
 fn empty() {
     check!(r#"[]"#, parallel_sum(vec![]), 0);
 }
+
+#[test]
+fn single_chunk() {
+    check!(r#"[[10, 20]]"#, parallel_sum(vec![vec![10, 20]]), 30);
+}
+
+#[test]
+fn one_empty_chunk() {
+    check!(r#"[[]]"#, parallel_sum(vec![vec![]]), 0);
+}
+
+#[test]
+fn zeros() {
+    check!(r#"[[0, 0], [0]]"#, parallel_sum(vec![vec![0, 0], vec![0]]), 0);
+}

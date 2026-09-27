@@ -9,3 +9,8 @@ summary = "Recursion first (base cases, trusting the call, divide and conquer), 
 slug = "recursion"
 name = "Recursion"
 band = "easy"
+
+[[stages]]
+slug = "first-backtracking"
+name = "First backtracking"
+band = "easy"

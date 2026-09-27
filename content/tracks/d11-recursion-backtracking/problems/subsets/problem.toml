@@ -1,0 +1,41 @@
+slug = "subsets"
+title = "Subsets"
+mode = "write"
+level = "easy"
+stage = "first-backtracking"
+order = 6
+status = "ready"
+tags = ["backtracking", "Vec"]
+companies = ["Meta", "Amazon", "Google", "Apple", "Microsoft", "Bloomberg", "Uber"]
+teaches = [
+  "Backtracking in its smallest form: for each value, leave it out, then take it.",
+  "One `&mut Vec` path shared by every call: push, recurse, pop; clone it only when you record an answer.",
+]
+constraints = ["0 ≤ nums.len() ≤ 18", "the values are distinct"]
+follow_up = "Generate the subsets with a bitmask loop instead. When is the recursive version easier to adapt?"
+related = ["D12"]
+
+[[examples]]
+input = "nums = [1, 2, 3]"
+output = "[[], [1], [2], [1, 2], [3], [1, 3], [2, 3], [1, 2, 3]]"
+
+[[examples]]
+input = "nums = [0]"
+output = "[[], [0]]"
+
+[[hints]]
+kind = "approach"
+text = "Each value is either in or out. Recurse on the rest of the slice twice: once without it, once with it."
+
+[[hints]]
+kind = "rust"
+text = "`nums.split_first()` gives `Some((&first, rest))` or `None` at the end; record `path.clone()` there."
+
+[[hints]]
+kind = "edge case"
+text = "The empty set is a subset, so `subsets(&[])` returns `[[]]`, not `[]`."
+
+[solution]
+explanation = "The recursion is a binary tree of depth n with 2ⁿ leaves, one per subset. The path is pushed and popped in place, so the only copies are the answers themselves."
+time = "O(n · 2ⁿ)"
+space = "O(n) besides the output"

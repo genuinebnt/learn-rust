@@ -1,0 +1,41 @@
+slug = "combinations"
+title = "Combinations"
+mode = "write"
+level = "easy"
+stage = "first-backtracking"
+order = 7
+status = "ready"
+tags = ["backtracking", "pruning"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"]
+teaches = [
+  "Choose values in increasing order so every combination is built exactly once.",
+  "First pruning: stop when too few values are left to fill the combination.",
+]
+constraints = ["1 ≤ n ≤ 30", "0 ≤ k ≤ n", "the answer has at most 2·10⁵ combinations"]
+follow_up = "Without the pruning, how many calls does `combine(30, 28)` make, and how many answers does it produce?"
+related = ["D12"]
+
+[[examples]]
+input = "n = 4, k = 2"
+output = "[[1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]]"
+
+[[examples]]
+input = "n = 1, k = 1"
+output = "[[1]]"
+
+[[hints]]
+kind = "approach"
+text = "Pick the numbers in increasing order: after choosing x, the next pick starts at x + 1."
+
+[[hints]]
+kind = "rust"
+text = "`fn go(next: u32, n: u32, k: usize, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>)`; record when `path.len() == k`."
+
+[[hints]]
+kind = "edge case"
+text = "If only `need` more values are missing, starting past `n - need + 1` can never finish. Stop the loop there."
+
+[solution]
+explanation = "Increasing order makes each combination appear once. The loop bound `n + 1 - need` cuts every branch that can't reach k values, so the work is proportional to the answer instead of to all 2ⁿ subsets."
+time = "O(k · C(n, k))"
+space = "O(k) besides the output"

@@ -10,6 +10,7 @@ teaches = [
   "`Rc::as_ptr` for node identity.",
   "`Weak` for non-owning back pointers.",
 ]
+constraints = ["0 ≤ list length ≤ 10⁵"]
 follow_up = "Convert the arena back into `RNode`s. Why is that direction easier?"
 related = ["S7", "D9"]
 

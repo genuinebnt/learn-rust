@@ -10,6 +10,7 @@ teaches = [
   "Lookahead with shared borrows, then mutation.",
   "A single `&mut` slot cursor.",
 ]
+constraints = ["0 ≤ list length ≤ 2·10⁵"]
 follow_up = "Could you avoid the second walk to the group's tail? What would you need to hold onto?"
 
 [[hints]]

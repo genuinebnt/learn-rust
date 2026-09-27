@@ -10,6 +10,7 @@ teaches = [
   "`Option::as_deref` for reading lists.",
   "Slow/fast pointers with shared references.",
 ]
+constraints = ["0 ≤ list length ≤ 2·10⁵"]
 follow_up = "Return a `&mut ListNode` instead. What changes, and why can't you keep two `&mut` cursors?"
 
 [[hints]]

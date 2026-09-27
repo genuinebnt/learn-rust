@@ -10,6 +10,7 @@ teaches = [
   "Heap of keys + indices, with ownership kept elsewhere.",
   "`Reverse` for a min-heap.",
 ]
+constraints = ["0 ≤ k ≤ 5·10⁴", "0 ≤ total length ≤ 2·10⁵"]
 follow_up = "Solve it by merging pairs of lists (divide and conquer). Compare the costs."
 related = ["D7", "S5"]
 

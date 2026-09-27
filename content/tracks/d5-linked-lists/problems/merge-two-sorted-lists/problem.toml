@@ -10,6 +10,7 @@ teaches = [
   "`&mut Option<Box<Node>>` tail cursors.",
   "`Option::insert` returning `&mut T`.",
 ]
+constraints = ["0 ≤ total length ≤ 2·10⁵"]
 follow_up = "How would you merge in place if you could only have `&mut` to the lists, not ownership?"
 
 [[hints]]

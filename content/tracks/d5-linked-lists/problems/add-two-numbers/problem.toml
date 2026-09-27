@@ -10,6 +10,7 @@ teaches = [
   "Consuming two lists in step.",
   "Building output with a tail cursor.",
 ]
+constraints = ["0 ≤ digits per number ≤ 10⁵", "no leading zeros, except the number 0"]
 follow_up = "The digits come most significant first instead. What changes?"
 
 [[hints]]

@@ -10,6 +10,7 @@ teaches = [
   "Arenas of indices for cyclic structures.",
   "Floyd's cycle detection.",
 ]
+constraints = ["0 ≤ next.len() ≤ 2·10⁵"]
 follow_up = "How would you get a cycle with `Rc<RefCell<Node>>`, and what happens to its memory?"
 related = ["D9", "S7"]
 

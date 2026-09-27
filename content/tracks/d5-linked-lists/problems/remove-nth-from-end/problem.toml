@@ -10,6 +10,7 @@ teaches = [
   "Stepping a `&mut Option<Box<_>>` cursor.",
   "Removing through the slot, not the previous node.",
 ]
+constraints = ["0 ≤ list length ≤ 2·10⁵"]
 follow_up = "Do it in one pass. What would you have to give up or use (e.g. indices, `unsafe`)?"
 
 [[hints]]

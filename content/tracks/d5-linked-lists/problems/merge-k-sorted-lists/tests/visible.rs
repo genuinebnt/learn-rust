@@ -9,3 +9,18 @@ fn three() {
 fn none() {
     check!(r#"[]"#, merge_k(vec![]), None);
 }
+
+#[test]
+fn one_empty_list() {
+    check!(r#"[[]]"#, merge_k(vec![None]), None);
+}
+
+#[test]
+fn single_list() {
+    check!(r#"[[1,2,3]]"#, values(&merge_k(vec![list(&[1, 2, 3])])), vec![1, 2, 3]);
+}
+
+#[test]
+fn some_empty() {
+    check!(r#"[[],[2],[],[1,3]]"#, values(&merge_k(vec![None, list(&[2]), None, list(&[1, 3])])), vec![1, 2, 3]);
+}

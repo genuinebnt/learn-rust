@@ -10,6 +10,7 @@ teaches = [
   "Splitting a list at a `&mut` cursor with `take()`.",
   "Interleaving an owned list into a borrowed one.",
 ]
+constraints = ["0 ≤ list length ≤ 2·10⁵"]
 follow_up = "Undo the reordering (restore the original order) in O(1) space."
 
 [[hints]]

@@ -9,6 +9,7 @@ tags = ["split", "reverse", "as_deref"]
 teaches = [
   "How a function's signature decides which algorithms are possible.",
 ]
+constraints = ["0 ≤ list length ≤ 2·10⁵"]
 follow_up = "Change the signature to take `&mut Option<Box<ListNode>>` and restore the list before returning."
 
 [[hints]]

@@ -10,6 +10,7 @@ teaches = [
   "Walking with `as_mut()`.",
   "Splicing with `take().and_then(..)`.",
 ]
+constraints = ["0 ≤ list length ≤ 2·10⁵"]
 follow_up = "Remove every value that has duplicates (so [1,1,2] becomes [2])."
 
 [[hints]]

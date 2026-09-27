@@ -9,6 +9,7 @@ tags = ["Option<Box<_>>", "take", "Blind 75"]
 teaches = [
   "Moving boxes between `Option`s with `take()`.",
 ]
+constraints = ["0 ≤ list length ≤ 10⁵"]
 follow_up = "Write the recursive version. What limits how long a list it can handle?"
 
 [[examples]]

@@ -282,13 +282,14 @@ This is the "microservices" portfolio piece, and every stage is testable.
 | 2b | **Q concept cards** (card mode: mockup → build) + the §10.2 additions to L4, L5, S4, S6, S7 | The spoken half of interviews; reuses the review queue (§10) |
 | 2c | **AI assistant** (§11), in the order of §11.3 | Needs the hardened tests (2a) so the AI reviews correct code, and the review queue (2) for the assisted flag |
 | 3 | ~~6.1 vendored crates~~ done | Unblocked the concurrency/backend half of the curriculum |
+| 3b | **F · Performance Rust** (CURRICULUM §6.1), agreed 2026-09-27: first the runner support (`[perf]` in problem.toml, release builds, counting allocator, timing helpers, assembly checks, new crates), then F2 and F4 (exact checks), then F1, F3, F5–F7 | Owner's request: HPC, compilers, databases, kernels |
 | 4 | C1–C4, B1–B6, M1–M2 content; shortline project | The backend SDE-2/SDE-3 core |
 | 4b | S12 bytes & encodings, S13 std drills (std-only, can start any time) · K1–K3 crates, grepr and chatd projects (after step 3) | Everyday fluency; §9 |
 | 5 | **X1 Rust in combination** + 6.2 compile-fail tests + X2 | SDE-3 depth; the interviews' hardest Rust questions |
 | 6 | B7 microservice patterns + `ordersvc`, with turmoil | Builds on 3–4 |
 | 7 | A1–A6 advanced algorithms | SDE-3 tier; A5/A6 double as system-design material |
 | 8 | M3 anti-patterns, M4 review mode (6.3, 6.4) | Practice-oriented polish |
-| 9 | Y1–Y5 systems, S11, C3, C5 with Miri (6.6) | The SDE-3 systems path |
+| 9 | Y2, Y3, Y5 systems, S11, C3, C5 with Miri (6.6) (Y1 and Y4 moved into F) | The SDE-3 systems path |
 
 Rough size: +20 (X1) +12 (X2) +76 (A1–A6) +16 (B7) +22 (M1 widening, M3, M4) +78 (§9: S12, S13, K1–K3, C4/C5/B4/D13
 additions) ≈ 224 problems beyond CURRICULUM.md's 400-odd, plus the grepr and chatd projects.
@@ -399,7 +400,7 @@ the plan.
 | Smart pointers, interior mutability, `Weak`, core traits, I/O, time/processes, `mem`/`ptr`/alloc | S7–S11 |
 | Threads, `Send`/`Sync`, locks, `Condvar`, channels, actors, atomics and orderings, lock-free, rayon | C1–C3, C6 |
 | async/await, Tokio, `select!`, cancellation, `Pin`, wakers, executors, `Stream` | C4, C5, §9 |
-| Layout, niches, `repr`, unsafe, aliasing, Miri, FFI, performance, testing, fuzzing, loom | Y1–Y5 |
+| Unsafe, aliasing, Miri, FFI, testing, fuzzing, loom · layout, niches, `repr`, allocation, hashing, SIMD, performance | Y2, Y3, Y5 · F1–F7 |
 | axum, tower, sqlx, networking, resilience, observability, serde, clap, rand, regex | B1–B6, K1–K3 |
 | Design patterns and anti-patterns · DSA canon · niche algorithms | M1, M3, D1–D14, A1–A6 |
 
@@ -416,9 +417,9 @@ the plan.
 | `FromIterator`/`Extend` for your own type (making `collect()` work), `Sum` | Idiomatic custom collections | S6 | +1 |
 | Never type `!`, `Infallible`, diverging functions | Occasional "what's the type of `panic!()`" | L7 | +1 |
 | Editions and **Rust 2024 changes** (RPIT capture, tail-expression temporary scope, `unsafe extern`, `static mut` refs, let chains) | Staying current; the tail-temporary change bites real code | L9 · new stage *Editions* | +2 |
-| `build.rs`, `cfg`/`cfg_attr`, release profiles (LTO, `codegen-units`, `panic = "abort"`), `cargo tree`/`expand` | Build and deploy questions for senior roles | L9, Y4 | +3 |
+| `build.rs`, `cfg`/`cfg_attr`, release profiles (LTO, `codegen-units`, `panic = "abort"`), `cargo tree`/`expand` | Build and deploy questions for senior roles | L9, F1 | +3 |
 | Hashing: SipHash and HashDoS, `BuildHasher`, FxHash/ahash trade-offs | "Why is Rust's `HashMap` slower than C++'s?" | S4 | +1 |
-| Global allocators (jemalloc/mimalloc), allocation profiling | Performance roles | Y4 | +1 |
+| Global allocators (jemalloc/mimalloc), allocation profiling | Performance roles | F3 | +1 |
 | Concurrency extras: `Barrier`, `thread::park`/`unpark`, `Once`, "shared memory vs message passing" trade-offs | Classic concurrency follow-ups | C1, C2 | +2 |
 | Async extras: runtime flavours (`current_thread` vs `multi_thread`), `LocalSet` for `!Send` futures, `async fn` in `dyn` traits (`async-trait` vs native), why there's no async `Drop` | Senior async interviews | C4, C5 | +3 |
 | Mocking and snapshot tests (`mockall`, `insta`) | "How do you test code with a database/HTTP dependency?" | Y5, K2 | +2 |

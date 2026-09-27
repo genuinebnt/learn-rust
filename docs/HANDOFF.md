@@ -217,7 +217,7 @@ Updated 2026-09-27 after D9, D12, L4, L5 and S1 were finished. Everything that p
 Anything uncommitted in a checkout was unverified; delete it (`git status`, `git checkout -- <path>`, remove new folders)
 or verify and commit it. `cargo run -q -p anneal-cli -- list` shows each track's written count.
 
-**Order the owner set: Graphs → DP (both done 2026-09-27) → Rust exercises (L4, L5, S1 done) → Tries → the rest; Trees deferred by the owner (2026-09-27).** Hand
+**Order the owner set: Graphs → DP (both done 2026-09-27) → Rust exercises (L4, L5, S1 done) → Tries → the rest; Trees deferred by the owner (2026-09-27). Since 2026-09-27 the owner wants **one agent at a time**, in this order: D11 → D7 → L2–L3 senior pass → S2–S4 senior pass; F · Performance Rust follows once its runner support lands.** Hand
 [authoring/write-track.md](authoring/write-track.md) to an agent per track (fill `{TRACK}`, `{SPEC}`, `{FOLDER}`,
 `{CODE}`, `{ORDER}`, `{SEEDS}`); it continues from the spec as it stands. Agents sharing a checkout commit only their own
 `tools/author/<track>.py` + `content/tracks/<folder>`, verify with `--jobs 1` (4 CPUs), and retry a rejected push
@@ -230,7 +230,8 @@ test, `wrong/` solutions and `companies` (`verify` enforces the counts and `wron
 | 2 | D10 Tries (d10.py, order 11) | 11/25: First tries, Tries at work | String algorithms, Hard tries & strings; seeds from 1012 | Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; D10's zero-copy tokenizer must be harder than L3's |
 | 3 | D11 Recursion & backtracking (d11.py, order 12) | 15/28: Recursion, First backtracking, Choices & grids 6/12 | generate-parentheses, different-ways-to-add-parentheses, word-search, palindrome-partitioning, restore-ip-addresses, Fix: recursive closure can't borrow the grid (flood fill → inner `fn`); then Constraints & pruning; seeds from 1127 | |
 | 4 | D8 Intervals & greedy (d8.py, order 9) | 13/29: First greedy, Intervals | Greedy choices (9), Hard greedy (7); seeds 814–829 | |
-| 5 | Not started | | D7 Heaps, D13, D14; L6–L8; S5–S9 (ROADMAP §7 step 1) | write each track's CURRICULUM table first if it still needs the LeetCode 250 pass |
+| 5 | **F · Performance Rust** (new section, CURRICULUM §6.1) | 0/92; runner support in progress | runner `[perf]` support first, then F2, F4 | replaces Y1 and Y4; grading order: size → counters → asm → relative timing |
+| 6 | Not started | | D7 Heaps, D13, D14; L6–L8; S5–S9 (ROADMAP §7 step 1) | write each track's CURRICULUM table first if it still needs the LeetCode 250 pass |
 
 #### Every problem not written yet (checklist)
 

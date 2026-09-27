@@ -20,7 +20,8 @@ old packet in `docs/rust template/`, reused by ID: W1–W98 write exercises, B1�
 | Rust Standard Library | S | 11 | ~178 | knowing std's types, their costs, and how they work inside |
 | Data Structures & Algorithms | D | 14 | 275 | the two DSA coding rounds, solved in idiomatic Rust |
 | Concurrency & Async | C | 6 | ~98 | threads, channels, atomics, Tokio: most backend Rust roles |
-| Systems Rust | Y | 5 | ~68 | memory, unsafe, FFI, performance, verification (SDE-3 depth) |
+| Systems Rust | Y | 3 | ~40 | unsafe, FFI, verification (SDE-3 depth). Y1 and Y4 moved into F |
+| Performance Rust | F | 7 | ~92 | layout, allocation, hashing, CPU-level tricks, lock-free, serialization, graded on real measurements (SDE-3) |
 | Backend Rust | B | 6 | ~80 | axum, tower, sqlx, protocols, resilience, observability |
 | Design in Rust | M | 2 | 24 | the machine-coding / LLD round |
 | Projects | P | 5 | 38 stages | take-homes and "build a small service" |
@@ -407,12 +408,7 @@ The "design this class" round. Concurrent versions live in C1 and C2.
 
 ## 6. Section Y · Systems Rust (SDE-3)
 
-### Y1 · Memory & layout: 14
-| Band | Stage | Problems |
-|---|---|---|
-| Easy | Use | stack vs heap · `size_of` of common types · (★) `Box<[T]>` vs `Vec<T>` |
-| Medium | Understand | alignment & padding · field reordering · niche optimisation · enum layout · drop glue · (★) shrink a struct by 40 % |
-| Hard | Build | (★) W55 generational arena · W23 mmap scanner |
+### Y1 · Memory & layout: moved to F2 (layout) and F3 (arenas, mmap) on 2026-09-27
 
 ### Y2 · Unsafe Rust: 16
 | Band | Stage | Problems |
@@ -428,12 +424,7 @@ The "design this class" round. Concurrent versions live in C1 and C2.
 | Medium | Understand | callbacks from C · panics across the boundary · (★) who frees this pointer? |
 | Hard | Build | (★) safe Rust wrapper over a small C library (bindgen) |
 
-### Y4 · Performance engineering: 14
-| Band | Stage | Problems |
-|---|---|---|
-| Easy | Measure | criterion benchmark · `black_box` · (★) count allocations in a hot loop |
-| Medium | Understand | cache locality & struct-of-arrays · false sharing (`repr(align(64))`) · W41 capacity planning · inlining & monomorphization · (★) make this 5× faster |
-| Hard | Build | (★) read a flamegraph and fix the hot spot · SIMD-friendly loop · zero-allocation parser |
+### Y4 · Performance engineering: moved to F1 (measure, inlining, asm) and F5 (SIMD, locality) on 2026-09-27
 
 ### Y5 · Testing & verification: 14
 | Band | Stage | Problems |
@@ -441,6 +432,84 @@ The "design this class" round. Concurrent versions live in C1 and C2.
 | Easy | Use | unit, integration & doc tests · (★) `#[should_panic]` vs `Result` tests |
 | Medium | Understand | testable design with injected traits · proptest on an earlier solution · (★) find the bug the unit tests missed |
 | Hard | Build | Miri on your unsafe code · loom model-check of a lock · (★) cargo-fuzz a parser |
+
+---
+
+## 6.1 Section F · Performance Rust (SDE-3)
+
+What high-performance Rust looks like in production: databases, compilers, HPC, kernels and low-latency backends.
+Every problem is a scenario taken from real code (the source is named where there is one), not a micro-benchmark
+for its own sake. Owner's bar applies (HANDOFF §4): senior level, and every technique written by hand at least once.
+
+**How these problems are graded.** Timing is the least reliable signal, so each problem uses the most exact check
+that fits, in this order:
+1. **Layout:** `size_of` / `align_of` assertions (exact).
+2. **Work counters:** a counting global allocator (`anneal_prelude::allocs(|| ..)`), an instrumented `Hasher`,
+   comparison counters. Exact and machine-independent.
+3. **Assembly:** the runner emits the solution's release assembly and tests assert on one function's body: no
+   `panic_bounds_check`, vector registers present, a `#[cold]` path moved out of line. Checks are written to pass on
+   both x86_64 (the cloud runner) and aarch64 (the owner's Mac under OrbStack).
+4. **Relative timing:** reference baseline and solution run in the same process, median of N, and the solution must
+   beat the baseline by a wide margin (≥ 3–5×). Only for big wins, so machine load can't flip the result.
+
+Problems opt in with `[perf]` in problem.toml (`release = true`, `asm = true`, `count_allocs = true`); release
+problems run with `--test-threads=1`. Correctness tests (visible/hidden, `wrong/`) still apply as everywhere else.
+
+### F1 · Measure & read the machine: SDE-3 · 12
+| Band | Stage | Problems | Production source |
+|---|---|---|---|
+| Easy | Measure | `black_box` and the benchmark that measures nothing · count allocations in a hot loop · (★) Fix: a request handler that allocates 9 times per call → 0 | criterion, dhat |
+| Medium | Read the code | bounds-check elimination (`assert!` up front, `chunks_exact`, iterators) · `#[inline]` / `#[inline(never)]` / `#[cold]` on an error path · generic vs `dyn` in a hot loop, read in the asm · (★) Fix: JSON field extractor 8× slower than it should be (bounds checks + `format!`) | rustc's `#[cold]` diagnostics paths, serde_json |
+| Hard | Build settings | LTO / `codegen-units` / `panic = "abort"` / PGO: predict and explain · monomorphization bloat → the inner-fn trick, counted in asm symbols · (★) profile-guided fix of a log-scanner hot spot (counter-graded) | ripgrep, cargo-bloat |
+
+### F2 · Data layout: SDE-3 · 14
+| Band | Stage | Problems | Production source |
+|---|---|---|---|
+| Easy | Size it | padding and field order (`size_of` quiz, then shrink) · niches: `Option<NonZeroU32>`, `Option<Box<T>>`, `Option<&T>` · (★) bitflags in a `u8` vs six `bool`s, with a `const fn` API | bitflags, the Linux kernel's flag words |
+| Medium | Pick the representation | box the large enum variant (`large_enum_variant`) · `Box<[T]>` / `Arc<str>` / `Arc<[T]>` vs `Vec` / `String` / `Arc<Vec<T>>` · SmallVec for mostly-small lists · inline small strings · `repr(C)` vs `repr(packed)` and E0793 (reference to a packed field) · (★) shrink an order-book price level from 96 B to 32 B with the same API | rustc's `TyKind` / `SmallVec` operands, compact_str, exchange order books |
+| Hard | Locality | AoS → SoA for a particle update (timing-graded) · hot/cold field split · (★) a slotted page for a B-tree node: header, slot array, cell heap in one `[u8; 4096]` | SQLite and Postgres page layout |
+
+### F3 · Memory & allocation: SDE-3 · 14
+| Band | Stage | Problems | Production source |
+|---|---|---|---|
+| Easy | Allocate less | reuse buffers (`clear` vs new, `with_capacity`, W41 capacity planning) · `Cow` in a normaliser · (★) zero-copy request-line parser (`&'a str` out, 0 allocations) | hyper / httparse |
+| Medium | Arenas and pools | bump arena for an AST (bumpalo) · typed-index arena with `struct ExprId(u32)` (W55 generational arena) · slab for connection state · string interner returning `Symbol(u32)` · (★) `Bytes`-style refcounted slices: split a buffer without copying | rustc `TypedArena` / `IndexVec` / `Symbol`, la-arena, tokio slab, the bytes crate |
+| Hard | Allocators | counting `GlobalAlloc` · bump allocator behind `GlobalAlloc` (W17) · object pool with `Drop` returning to the pool · (★) buddy page allocator over a bitmap (kernel style) · W23 mmap scanner | Linux buddy allocator, jemalloc arenas |
+
+### F4 · Hashing & purpose-built structures: SDE-3 · 16
+| Band | Stage | Problems | Production source |
+|---|---|---|---|
+| Easy | Hashing | SipHash vs FxHash vs aHash: when each is right (HashDoS) · identity hasher for integer keys · (★) a `BuildHasher` for a hot `HashMap<u32, _>`, counter-graded | rustc-hash in rustc, nohash-hasher |
+| Medium | Right structure for the job | precomputed hashes and hashbrown's raw-entry lookups · sorted `Vec` + binary search vs `BTreeMap` for read-mostly data · bitset and Roaring-style bitmap for row selection · bloom filter per SST · radix sort for `u64` keys · LRU on a slab with index links · (★) open addressing with SwissTable-style control bytes | hashbrown, Arrow/DataFusion selection vectors, RocksDB/sled bloom filters |
+| Hard | Database cores | skiplist memtable · FST / trie route table · (★) buffer pool with CLOCK eviction and pin counts | RocksDB memtable, tantivy FST, Postgres buffer manager |
+
+### F5 · CPU-level tricks: SDE-3 · 14
+| Band | Stage | Problems | Production source |
+|---|---|---|---|
+| Easy | Branches | branchless select and clamp · lookup table for a classifier · (★) popcount / `trailing_zeros` iteration over a bitset | hashbrown's bitmask iteration |
+| Medium | Vectorize | SWAR "has zero byte" newline scan · auto-vectorized sum with 8 accumulators, and why float order blocks it · division by a constant · prefix sums · (★) `std::arch` intrinsics (AVX2 and NEON behind `cfg`, runtime detection, scalar fallback) | memchr in ripgrep, simd-json |
+| Hard | Cache and SIMD | loop tiling / cache blocking for matmul (timing-graded) · Arrow-style filter kernel with a selection bitmap · (★) CSV/log tokenizer at GB/s: SIMD-classify structural bytes | simd-json / simdjson stage 1, Polars kernels |
+
+### F6 · Concurrency performance: SDE-3 · 12 (after C3)
+| Band | Stage | Problems | Production source |
+|---|---|---|---|
+| Medium | Contention | false sharing and `CachePadded` / `repr(align(64))` · per-thread sharded counters · sharded `RwLock<HashMap>` · what `Relaxed` vs `SeqCst` costs · rayon granularity · (★) Fix: a metrics counter that doesn't scale past 2 threads | crossbeam-utils, dashmap, the Linux kernel's per-CPU counters |
+| Hard | Lock-free | SPSC ring buffer (submission-queue style) · seqlock · RCU config reload with arc-swap · Treiber stack with epoch reclamation · (★) lock-free HdrHistogram-style latency histogram | io_uring SQ/CQ, crossbeam-epoch, arc-swap |
+
+### F7 · I/O & serialization: SDE-3 · 10
+| Band | Stage | Problems | Production source |
+|---|---|---|---|
+| Easy | Output | `BufWriter` and `write!` vs `format!` · (★) itoa-style integer formatting into a stack buffer | itoa / ryu |
+| Medium | Encodings | varint / LEB128 · delta + bit-packing for posting lists · serde borrowing (`&'de str`, `#[serde(borrow)]`) · bytemuck casts of `#[repr(C)]` records · (★) columnar vs row encoding of a batch | protobuf, tantivy, Arrow |
+| Hard | Storage formats | (★) write-ahead-log records: length prefix, CRC32, zero-copy reader, torn-write recovery | RocksDB / etcd WAL |
+
+**Capstones** (one per domain, each the ★ of its track above or a stage of kvlite): compiler front end (lexer +
+interner + arena AST, F3/F5), database scan (columnar filter with a selection bitmap, F4/F5), HPC kernel (SoA +
+tiled matmul, F2/F5), kernel memory (buddy + slab, F3), low-latency service (zero-alloc parser + sharded metrics, F1/F6).
+
+**Runner support this section needs** (ROADMAP §7 step 3b): `[perf]` in problem.toml, release builds, the counting
+allocator and timing helpers in the test prelude, assembly emission, and new vendored crates (bumpalo, smallvec,
+hashbrown, rustc-hash, ahash, memchr, bytemuck, arc-swap, crossbeam-utils).
 
 ---
 
@@ -521,7 +590,7 @@ Each project's stages are ordered easy → hard.
 |---|---|---|---|
 | **shortline**: URL shortener API | health route → typed errors → create link → persistence → redirects → API-key auth → rate limiting → background jobs & graceful shutdown → tracing & metrics (9) | SDE-2 | B1–B3, B6 |
 | **jobq**: Postgres job queue | schema & enqueue → `SKIP LOCKED` workers → leases & heartbeats (W86) → retries (W13, W98) → idempotency keys (W87) → outbox (W88) → shutdown & metrics (7) | SDE-3 | B3, B5, C4 |
-| **kvlite**: key-value store | in-memory + CLI → WAL & recovery (W51) → compaction → memtable + SSTables (W56) → bloom filters → range scans → concurrent readers → benchmarks (8) | SDE-3 | S9, Y4, C1 |
+| **kvlite**: key-value store | in-memory + CLI → WAL & recovery (W51) → compaction → memtable + SSTables (W56) → bloom filters → range scans → concurrent readers → benchmarks (8) | SDE-3 | S9, F1, F4, C1 |
 | **minirt**: async executor | future by hand → single-threaded executor + Waker → timers → I/O reactor (W58) → spawn & JoinHandle → work-stealing pool (6) | SDE-3 | C5 |
 | **raft-lite**: consensus | partitionable network → leader election (W82) → log replication → commit & apply → persistence → snapshots → linearizable reads → chaos tests (8) | stretch | C4, W80–W83 |
 
@@ -603,9 +672,9 @@ The week-1 test-out sweep usually removes 15–25 %.
 | 15 | D14 Hard | L3 Hard, C1 Hard | jobq or kvlite 1–2 |
 | 16 | D9 Hard (SCC) | C3, S11 | project 3–4 · M2 × 2 |
 | 17 | D12 Hard | C4 Hard, C5 Medium | project 5–6 · machine coding mock |
-| 18 | D6 Hard, D5 Hard | Y1, Y2 | project 7–8 · full loop |
+| 18 | D6 Hard, D5 Hard | F2, Y2 | project 7–8 · full loop |
 | 19 | D7 Hard, D8 Hard | C5 Hard, S3/S7 Hard builds | minirt 1–2 · M2 × 2 |
-| 20 | D10 Hard, D11 Hard | Y4, L4–L5 Hard | minirt 3–4 · Rust depth mock |
+| 20 | D10 Hard, D11 Hard | F1, F3, L4–L5 Hard | minirt 3–4 · Rust depth mock |
 | 21 | D9 flows, D13 Hard | B1–B6 Hard, Y3 | M2 × 2 |
 | 22 | capstones for D7–D14 | L10, Y5 Hard, C6 | full loop |
 | 23 | weakest stages by readiness | weakest tracks | M2 × 2 |
@@ -623,7 +692,7 @@ System design (H) runs alongside from week 10 at about 1.5 hours a week.
 
 **SDE-3 ready** when all of these hold at once:
 - the SDE-2 gate, still holding
-- ≥ 70 % of Hard stages across D, L, S; C1–C5 ≥ 75 %; Y1, Y2, Y4 ≥ 50 %
+- ≥ 70 % of Hard stages across D, L, S; C1–C5 ≥ 75 %; F1–F3, Y2 ≥ 50 %
 - jobq or kvlite complete; minirt stages 1–4
 - four M2 problems solved unassisted inside 75 minutes
 - two full-loop mocks ≥ 3.3
@@ -638,7 +707,8 @@ System design (H) runs alongside from week 10 at about 1.5 hours a week.
 | S | ~178 | W3, W9, W17, W22, W27, W29, W30, W32, W41 · ~490 harden subs as Medium drills | ~110 |
 | D | 275 | Blind 75 · graphs seed (32) · W8, W14, W20, W31, W33, W42–W46, W48, W55, W59, W64, W84, W85, W90 | ~150 |
 | C | ~98 | B3, B6, B9, W2, W4, W5, W7, W12, W13, W18, W19, W24, W26, W34, W35, W50, W57, W58, W69–W77 | ~70 |
-| Y | ~68 | B8, W17, W23, W41, W55 | ~60 |
+| Y | ~40 | B8 | ~38 |
+| F | ~92 | W17, W23, W41, W55 | ~88 |
 | B | ~80 | W28, W86–W93, W96–W98 | ~70 |
 | M | 24 | LLD1–8, TR1, TR2, TR4, DP1–18, W49 | tests + harden stages |
 | P | 38 stages | W51, W56, W58, W71, W82, W86–W88 | tests for every stage |

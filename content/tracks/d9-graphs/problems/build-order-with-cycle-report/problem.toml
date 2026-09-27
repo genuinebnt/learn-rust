@@ -6,6 +6,7 @@ stage = "topological-sort"
 order = 13
 status = "ready"
 tags = ["Result", "BinaryHeap", "Reverse"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
 teaches = [
   "`Result<Vec<_>, Vec<_>>` carrying data on both sides.",
   "The lexicographically smallest topological order with a min-heap.",

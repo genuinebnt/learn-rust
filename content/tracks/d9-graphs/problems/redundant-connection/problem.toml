@@ -6,6 +6,7 @@ stage = "union-find-mst"
 order = 22
 status = "ready"
 tags = ["union-find"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
 teaches = [
   "Union-find in a `Vec<usize>`.",
   "Path halving in a loop, no recursion.",

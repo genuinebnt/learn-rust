@@ -6,6 +6,7 @@ stage = "traversal"
 order = 6
 status = "ready"
 tags = ["Rc<RefCell>", "HashMap", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"]
 teaches = [
   "`Rc::as_ptr` as an identity key.",
   "Deep-copying shared, cyclic structure.",

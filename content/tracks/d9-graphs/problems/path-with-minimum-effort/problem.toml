@@ -6,6 +6,7 @@ stage = "shortest-paths"
 order = 19
 status = "ready"
 tags = ["Dijkstra", "grid", "abs_diff"]
+companies = ["Meta", "Amazon", "Google"]
 teaches = [
   "Dijkstra with a max-of-edges path cost.",
   "`u32::abs_diff` instead of signed casts.",

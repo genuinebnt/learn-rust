@@ -6,6 +6,7 @@ stage = "shortest-paths"
 order = 20
 status = "ready"
 tags = ["0-1 BFS", "VecDeque"]
+companies = ["Google"]
 teaches = [
   "`push_front` for 0-cost edges, `push_back` for 1-cost edges.",
   "Shortest paths without a heap when weights are 0 or 1.",

@@ -6,6 +6,7 @@ stage = "traversal"
 order = 5
 status = "ready"
 tags = ["flood fill", "grid", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "LinkedIn", "Uber"]
 teaches = [
   "Grid neighbours with `wrapping_sub` and one bounds check.",
   "An explicit stack instead of recursion.",

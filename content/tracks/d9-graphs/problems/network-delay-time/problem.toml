@@ -6,6 +6,7 @@ stage = "shortest-paths"
 order = 16
 status = "ready"
 tags = ["dijkstra", "BinaryHeap", "Reverse<T>", "Option"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
 teaches = [
   "`BinaryHeap` is a max-heap; `Reverse` flips it.",
   "Lazy deletion instead of decrease-key.",

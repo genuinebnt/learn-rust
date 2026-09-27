@@ -6,6 +6,7 @@ stage = "traversal"
 order = 9
 status = "ready"
 tags = ["reverse BFS", "grid", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
 teaches = [
   "Search backwards from the targets instead of forwards from every cell.",
   "A closure returning an owned `Vec<Vec<bool>>`.",

@@ -6,6 +6,7 @@ stage = "union-find-mst"
 order = 24
 status = "ready"
 tags = ["union-find", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "LinkedIn"]
 teaches = [
   "Counting sets by counting successful unions.",
 ]

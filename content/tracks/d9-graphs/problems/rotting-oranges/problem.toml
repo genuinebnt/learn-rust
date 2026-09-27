@@ -6,6 +6,7 @@ stage = "traversal"
 order = 8
 status = "ready"
 tags = ["multi-source BFS", "VecDeque", "Option"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "DoorDash"]
 teaches = [
   "Multi-source BFS: seed the queue with every source.",
   "`Option` for 'impossible' instead of `-1`.",

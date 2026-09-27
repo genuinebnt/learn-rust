@@ -6,6 +6,7 @@ stage = "scc-bridges-arenas"
 order = 29
 status = "ready"
 tags = ["bridges", "lowlink", "edge ids"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
 teaches = [
   "Skipping the parent edge by id, so parallel edges count.",
   "Reusing the state-struct pattern.",

@@ -6,6 +6,7 @@ stage = "topological-sort"
 order = 15
 status = "ready"
 tags = ["topological sort", "BTreeSet", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Airbnb", "Uber"]
 teaches = [
   "Deriving edges from adjacent pairs with `windows(2)`.",
   "Fixed-size arrays for a 26-letter alphabet.",

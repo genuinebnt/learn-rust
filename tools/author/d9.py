@@ -1,4 +1,4 @@
-from author import T, write_track
+from author import T, write_track, tag_companies
 
 P = []
 
@@ -6744,6 +6744,26 @@ P.append(dict(
     notes=("Successive shortest paths stays optimal because the residual graph never has a negative cycle. Johnson potentials would let you use Dijkstra instead of SPFA.", "O(F · V · E)", "O(V + E)"),
     follow_up="Add Johnson potentials so each round can use Dijkstra. What invariant makes the reduced costs non-negative?",
 ))
+
+COMPANIES = {
+    "number-of-islands": ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "LinkedIn", "Uber"],
+    "clone-graph": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"],
+    "rotting-oranges": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "DoorDash"],
+    "pacific-atlantic-water-flow": ["Meta", "Amazon", "Google", "Microsoft"],
+    "word-ladder": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "LinkedIn", "Uber"],
+    "course-schedule": ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Uber"],
+    "build-order-with-cycle-report": ["Meta", "Amazon", "Google", "Microsoft"],
+    "alien-dictionary": ["Meta", "Amazon", "Google", "Microsoft", "Airbnb", "Uber"],
+    "cheapest-flights-within-k-stops": ["Meta", "Amazon", "Google", "Microsoft", "Airbnb", "Uber"],
+    "path-with-minimum-effort": ["Meta", "Amazon", "Google"],
+    "zero-one-bfs-on-a-grid": ["Google"],
+    "redundant-connection": ["Meta", "Amazon", "Google", "Microsoft"],
+    "graph-valid-tree": ["Meta", "Amazon", "Google", "LinkedIn"],
+    "number-of-connected-components": ["Meta", "Amazon", "Google", "Microsoft", "LinkedIn"],
+    "critical-connections": ["Meta", "Amazon", "Google", "Microsoft"],
+    "bipartite-check": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"],
+}
+tag_companies([p for p in P if "title" in p], COMPANIES)
 
 STAGES = [
     ("representation", "Representation", "easy"),

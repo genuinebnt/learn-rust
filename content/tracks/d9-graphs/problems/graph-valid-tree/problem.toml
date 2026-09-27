@@ -6,6 +6,7 @@ stage = "union-find-mst"
 order = 23
 status = "ready"
 tags = ["union-find", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "LinkedIn"]
 teaches = [
   "A tree is connected with exactly n − 1 edges.",
   "Early return on the first cycle.",

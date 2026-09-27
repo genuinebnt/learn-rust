@@ -6,6 +6,7 @@ stage = "shortest-paths"
 order = 18
 status = "ready"
 tags = ["Bellman–Ford", "snapshot"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Airbnb", "Uber"]
 teaches = [
   "Bounded Bellman–Ford: one round per edge used.",
   "Why each round reads from a snapshot.",

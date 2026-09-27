@@ -6,6 +6,7 @@ stage = "traversal"
 order = 11
 status = "ready"
 tags = ["BFS", "HashSet<&[u8]>"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "LinkedIn", "Uber"]
 teaches = [
   "BFS over implicit neighbours.",
   "Removing from the set as you enqueue, instead of a separate `seen`.",

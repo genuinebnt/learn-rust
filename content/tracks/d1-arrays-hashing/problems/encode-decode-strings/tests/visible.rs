@@ -14,3 +14,13 @@ fn delimiters_inside() {
 fn empty_strings() {
     check!(r#"["", ""]"#, decode(&encode(&["", ""])), vec!["", ""]);
 }
+
+#[test]
+fn no_words() {
+    check!(r#"[]"#, decode(&encode(&[])), Vec::<String>::new());
+}
+
+#[test]
+fn one_empty_string() {
+    check!(r#"[""]"#, decode(&encode(&[""])), vec![""]);
+}

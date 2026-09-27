@@ -14,3 +14,13 @@ fn longer() {
 fn single() {
     check!(r#"nums = [1]"#, majority(&[1]), 1);
 }
+
+#[test]
+fn majority_not_first() {
+    check!(r#"nums = [1, 2, 2]"#, majority(&[1, 2, 2]), 2);
+}
+
+#[test]
+fn negative() {
+    check!(r#"nums = [-1, 5, -1]"#, majority(&[-1, 5, -1]), -1);
+}

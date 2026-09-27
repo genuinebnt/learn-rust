@@ -14,3 +14,13 @@ fn with_zero() {
 fn pair() {
     check!(r#"nums = [2, 3]"#, product_except_self(&[2, 3]), vec![3, 2]);
 }
+
+#[test]
+fn two_zeros() {
+    check!(r#"nums = [0, 4, 0]"#, product_except_self(&[0, 4, 0]), vec![0, 0, 0]);
+}
+
+#[test]
+fn negatives() {
+    check!(r#"nums = [-1, -2, -3]"#, product_except_self(&[-1, -2, -3]), vec![6, 3, 2]);
+}

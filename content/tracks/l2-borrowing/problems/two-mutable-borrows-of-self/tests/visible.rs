@@ -20,3 +20,17 @@ fn leaves_stocked_items() {
     inv.restock_low();
     check!("nuts 40", (inv.qty("nuts"), inv.log().len()), (Some(40), 0));
 }
+
+#[test]
+fn five_is_not_low() {
+    let mut inv = Inventory::new(&[("washers", 5), ("pins", 4)]);
+    inv.restock_low();
+    check!("washers 5, pins 4", (inv.qty("washers"), inv.qty("pins")), (Some(5), Some(14)));
+}
+
+#[test]
+fn empty_inventory() {
+    let mut inv = Inventory::new(&[]);
+    inv.restock_low();
+    check!("no items", inv.log().len(), 0);
+}

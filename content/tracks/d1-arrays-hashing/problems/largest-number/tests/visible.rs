@@ -14,3 +14,13 @@ fn five() {
 fn single_digit() {
     check!(r#"nums = [1]"#, largest_number(&[1]), "1");
 }
+
+#[test]
+fn zeros() {
+    check!(r#"nums = [0, 0]"#, largest_number(&[0, 0]), "0");
+}
+
+#[test]
+fn three_thirty() {
+    check!(r#"nums = [3, 30]"#, largest_number(&[3, 30]), "330");
+}

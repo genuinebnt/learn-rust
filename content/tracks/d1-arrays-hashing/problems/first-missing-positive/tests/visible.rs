@@ -14,3 +14,13 @@ fn next_after_run() {
 fn all_large() {
     check!(r#"nums = [7, 8, 9, 11, 12]"#, first_missing_positive(&mut [7, 8, 9, 11, 12]), 1);
 }
+
+#[test]
+fn duplicates() {
+    check!(r#"nums = [1, 1]"#, first_missing_positive(&mut [1, 1]), 2);
+}
+
+#[test]
+fn empty() {
+    check!(r#"nums = []"#, first_missing_positive(&mut []), 1);
+}

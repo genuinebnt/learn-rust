@@ -14,3 +14,13 @@ fn not_enough() {
 fn different_letter() {
     check!(r#"note = "a", magazine = "b""#, can_construct("a", "b"), false);
 }
+
+#[test]
+fn empty_note() {
+    check!(r#"note = "", magazine = "abc""#, can_construct("", "abc"), true);
+}
+
+#[test]
+fn each_letter_used_once() {
+    check!(r#"note = "aab", magazine = "baa""#, can_construct("aab", "baa"), true);
+}

@@ -211,7 +211,7 @@ async fn fix_this_solution_passes_visible_and_hidden() {
     )
     .await;
     assert_eq!(r.status, RunStatus::Passed, "{r:#?}");
-    assert_eq!((r.passed, r.total), (11, 11));
+    assert_eq!((r.passed, r.total), (13, 13));
 }
 
 #[tokio::test]

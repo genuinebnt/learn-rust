@@ -14,3 +14,18 @@ fn nine() {
 fn empty() {
     check!(r#"nums = []"#, longest_consecutive(&[]), 0);
 }
+
+#[test]
+fn duplicates_inside_run() {
+    check!(r#"nums = [1, 2, 2, 3]"#, longest_consecutive(&[1, 2, 2, 3]), 3);
+}
+
+#[test]
+fn negatives() {
+    check!(r#"nums = [-3, -2, -1, 5]"#, longest_consecutive(&[-3, -2, -1, 5]), 3);
+}
+
+#[test]
+fn leetcode_repeat_zero_one() {
+    check!(r#"nums = [1, 0, 1, 2]"#, longest_consecutive(&[1, 0, 1, 2]), 3);
+}

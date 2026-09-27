@@ -29,6 +29,10 @@ P.append(dict(
         T("four_numbers", "nums = [1, 2, 3, 4]", "running_sum(&[1, 2, 3, 4])", "vec![1, 3, 6, 10]"),
         T("empty", "nums = []", "running_sum(&[])", "Vec::<i32>::new()"),
         T("single", "nums = [5]", "running_sum(&[5])", "vec![5]"),
+        T("negatives", "nums = [3, -1, -2]", "running_sum(&[3, -1, -2])", "vec![3, 2, 0]"),
+        T("zeros_keep_the_total", "nums = [2, 0, 0, 1]", "running_sum(&[2, 0, 0, 1])", "vec![2, 2, 2, 3]"),
+        T("leetcode_ones", "nums = [1, 1, 1, 1, 1]", "running_sum(&[1, 1, 1, 1, 1])", "vec![1, 2, 3, 4, 5]"),
+        T("leetcode_mixed", "nums = [3, 1, 2, 10, 1]", "running_sum(&[3, 1, 2, 10, 1])", "vec![3, 4, 6, 16, 17]"),
     ],
     hidden=[
         T("negatives", "nums = [3, -1, -2]", "running_sum(&[3, -1, -2])", "vec![3, 2, 0]"),
@@ -115,6 +119,9 @@ P.append(dict(
         T("three", "nums = [1, 2, 1]", "concat_twice(&[1, 2, 1])", "vec![1, 2, 1, 1, 2, 1]"),
         T("empty", "nums = []", "concat_twice(&[])", "Vec::<i32>::new()"),
         T("single", "nums = [5]", "concat_twice(&[5])", "vec![5, 5]"),
+        T("order_kept", "nums = [3, 1, 2]", "concat_twice(&[3, 1, 2])", "vec![3, 1, 2, 3, 1, 2]"),
+        T("negatives", "nums = [-1, 0]", "concat_twice(&[-1, 0])", "vec![-1, 0, -1, 0]"),
+        T("leetcode_four", "nums = [1, 3, 2, 1]", "concat_twice(&[1, 3, 2, 1])", "vec![1, 3, 2, 1, 1, 3, 2, 1]"),
     ],
     hidden=[
         T("one", "nums = [7]", "concat_twice(&[7])", "vec![7, 7]"),
@@ -198,6 +205,7 @@ P.append(dict(
         T("middle", "nums = [3, 2, 4], target = 6", "two_sum(&[3, 2, 4], 6)", "Some((1, 2))"),
         T("same_value_twice", "nums = [3, 3], target = 6", "two_sum(&[3, 3], 6)", "Some((0, 1))"),
         T("no_pair", "nums = [1, 2, 3], target = 7", "two_sum(&[1, 2, 3], 7)", "None"),
+        T("negatives", "nums = [-3, 4, 3, 90], target = 0", "two_sum(&[-3, 4, 3, 90], 0)", "Some((0, 2))"),
     ],
     hidden=[
         T("negatives", "nums = [-3, 4, 3, 90], target = 0", "two_sum(&[-3, 4, 3, 90], 0)", "Some((0, 2))"),
@@ -292,6 +300,9 @@ P.append(dict(
         T("has_duplicate", "nums = [1, 2, 3, 1]", "contains_duplicate(&[1, 2, 3, 1])", "true"),
         T("all_distinct", "nums = [1, 2, 3, 4]", "contains_duplicate(&[1, 2, 3, 4])", "false"),
         T("empty", "nums = []", "contains_duplicate(&[])", "false"),
+        T("single", "nums = [1]", "contains_duplicate(&[1])", "false"),
+        T("repeat_far_apart", "nums = [5, 1, 2, 3, 5]", "contains_duplicate(&[5, 1, 2, 3, 5])", "true"),
+        T("leetcode_many_repeats", "nums = [1, 1, 1, 3, 3, 4, 3, 2, 4, 2]", "contains_duplicate(&[1, 1, 1, 3, 3, 4, 3, 2, 4, 2])", "true"),
     ],
     hidden=[
         T("many_repeats", "nums = [1, 1, 1, 3, 3, 4, 3, 2, 4, 2]", "contains_duplicate(&[1, 1, 1, 3, 3, 4, 3, 2, 4, 2])", "true"),
@@ -368,6 +379,8 @@ P.append(dict(
         T("anagram", "s = \"anagram\", t = \"nagaram\"", 'is_anagram("anagram", "nagaram")', "true"),
         T("not_anagram", "s = \"rat\", t = \"car\"", 'is_anagram("rat", "car")', "false"),
         T("different_lengths", "s = \"ab\", t = \"a\"", 'is_anagram("ab", "a")', "false"),
+        T("same_letters_different_counts", "s = \"aab\", t = \"abb\"", 'is_anagram("aab", "abb")', "false"),
+        T("empty", "s = \"\", t = \"\"", 'is_anagram("", "")', "true"),
     ],
     hidden=[
         T("empty", "s = \"\", t = \"\"", 'is_anagram("", "")', "true"),
@@ -470,6 +483,8 @@ P.append(dict(
         T("in_range", "v = [4, 5, 6], i = 1", "nth_or_zero(&[4, 5, 6], 1)", "5"),
         T("past_the_end", "v = [4, 5, 6], i = 3", "nth_or_zero(&[4, 5, 6], 3)", "0"),
         T("empty", "v = [], i = 0", "nth_or_zero(&[], 0)", "0"),
+        T("first", "v = [4, 5, 6], i = 0", "nth_or_zero(&[4, 5, 6], 0)", "4"),
+        T("last", "v = [4, 5, 6], i = 2", "nth_or_zero(&[4, 5, 6], 2)", "6"),
     ],
     hidden=[
         T("empty", "v = [], i = 0", "nth_or_zero(&[], 0)", "0"),
@@ -533,6 +548,8 @@ P.append(dict(
         T("small", "nums = [3, 2, 3]", "majority(&[3, 2, 3])", "3"),
         T("longer", "nums = [2, 2, 1, 1, 1, 2, 2]", "majority(&[2, 2, 1, 1, 1, 2, 2])", "2"),
         T("single", "nums = [1]", "majority(&[1])", "1"),
+        T("majority_not_first", "nums = [1, 2, 2]", "majority(&[1, 2, 2])", "2"),
+        T("negative", "nums = [-1, 5, -1]", "majority(&[-1, 5, -1])", "-1"),
     ],
     hidden=[
         T("single", "nums = [9]", "majority(&[9])", "9"),
@@ -617,6 +634,8 @@ P.append(dict(
         T("enough", "note = \"aa\", magazine = \"aab\"", 'can_construct("aa", "aab")', "true"),
         T("not_enough", "note = \"aa\", magazine = \"ab\"", 'can_construct("aa", "ab")', "false"),
         T("different_letter", "note = \"a\", magazine = \"b\"", 'can_construct("a", "b")', "false"),
+        T("empty_note", "note = \"\", magazine = \"abc\"", 'can_construct("", "abc")', "true"),
+        T("each_letter_used_once", "note = \"aab\", magazine = \"baa\"", 'can_construct("aab", "baa")', "true"),
     ],
     hidden=[
         T("empty_note", "note = \"\", magazine = \"\"", 'can_construct("", "")', "true"),
@@ -710,6 +729,8 @@ P.append(dict(
         T("egg_add", "s = \"egg\", t = \"add\"", 'is_isomorphic("egg", "add")', "true"),
         T("foo_bar", "s = \"foo\", t = \"bar\"", 'is_isomorphic("foo", "bar")', "false"),
         T("paper_title", "s = \"paper\", t = \"title\"", 'is_isomorphic("paper", "title")', "true"),
+        T("two_letters_to_one", "s = \"ab\", t = \"aa\"", 'is_isomorphic("ab", "aa")', "false"),
+        T("empty", "s = \"\", t = \"\"", 'is_isomorphic("", "")', "true"),
     ],
     hidden=[
         T("two_to_one", "s = \"ab\", t = \"aa\"", 'is_isomorphic("ab", "aa")', "false"),
@@ -829,6 +850,8 @@ P.append(dict(
         T("repeats", "text = \"a b a c a\"", 'word_counts("a b a c a")', 'std::collections::HashMap::from([("a", 3), ("b", 1), ("c", 1)])'),
         T("empty", "text = \"\"", 'word_counts("")', "std::collections::HashMap::new()"),
         T("one_word_twice", "text = \"hi hi\"", 'word_counts("hi hi")', 'std::collections::HashMap::from([("hi", 2)])'),
+        T("case_sensitive", "text = \"Go go\"", 'word_counts("Go go")', 'std::collections::HashMap::from([("Go", 1), ("go", 1)])'),
+        T("extra_whitespace", "text = \" a  a \"", 'word_counts(" a  a ")', 'std::collections::HashMap::from([("a", 2)])'),
     ],
     hidden=[
         T("whitespace", "text = \"  x\\n x\\tx  \"", 'word_counts("  x\\n x\\tx  ")', 'std::collections::HashMap::from([("x", 3)])'),
@@ -915,6 +938,9 @@ P.append(dict(
         T("classic", "[\"eat\", \"tea\", \"tan\", \"ate\", \"nat\", \"bat\"]", 'group_anagrams(&["eat", "tea", "tan", "ate", "nat", "bat"])', 'vec![vec!["ate", "eat", "tea"], vec!["bat"], vec!["nat", "tan"]]'),
         T("empty_string", "[\"\"]", 'group_anagrams(&[""])', 'vec![vec![""]]'),
         T("single_letters", "[\"a\", \"b\", \"a\"]", 'group_anagrams(&["a", "b", "a"])', 'vec![vec!["a", "a"], vec!["b"]]'),
+        T("repeat_counts_matter", "[\"a\", \"aa\"]", 'group_anagrams(&["a", "aa"])', 'vec![vec!["a"], vec!["aa"]]'),
+        T("no_words", "[]", "group_anagrams(&[])", "Vec::<Vec<String>>::new()"),
+        T("leetcode_single_letter", "[\"a\"]", 'group_anagrams(&["a"])', 'vec![vec!["a"]]'),
     ],
     hidden=[
         T("no_words", "[]", "group_anagrams(&[])", "Vec::<Vec<String>>::new()"),
@@ -1045,6 +1071,8 @@ P.append(dict(
         T("two_most", "nums = [1, 1, 1, 2, 2, 3], k = 2", "top_k_frequent(&[1, 1, 1, 2, 2, 3], 2)", "vec![1, 2]"),
         T("single", "nums = [1], k = 1", "top_k_frequent(&[1], 1)", "vec![1]"),
         T("ties_by_value", "nums = [4, 4, 1, 1, 7], k = 2", "top_k_frequent(&[4, 4, 1, 1, 7], 2)", "vec![1, 4]"),
+        T("all_distinct", "nums = [5, 3, 9], k = 3", "top_k_frequent(&[5, 3, 9], 3)", "vec![3, 5, 9]"),
+        T("count_beats_value", "nums = [1, 5, 5, 1, 5], k = 2", "top_k_frequent(&[1, 5, 5, 1, 5], 2)", "vec![5, 1]"),
     ],
     hidden=[
         T("all_distinct", "nums = [5, 3, 9], k = 3", "top_k_frequent(&[5, 3, 9], 3)", "vec![3, 5, 9]"),
@@ -1151,6 +1179,8 @@ P.append(dict(
         T("four", "nums = [1, 2, 3, 4]", "product_except_self(&[1, 2, 3, 4])", "vec![24, 12, 8, 6]"),
         T("with_zero", "nums = [-1, 1, 0, -3, 3]", "product_except_self(&[-1, 1, 0, -3, 3])", "vec![0, 0, 9, 0, 0]"),
         T("pair", "nums = [2, 3]", "product_except_self(&[2, 3])", "vec![3, 2]"),
+        T("two_zeros", "nums = [0, 4, 0]", "product_except_self(&[0, 4, 0])", "vec![0, 0, 0]"),
+        T("negatives", "nums = [-1, -2, -3]", "product_except_self(&[-1, -2, -3])", "vec![6, 3, 2]"),
     ],
     hidden=[
         T("two_zeros", "nums = [0, 4, 0]", "product_except_self(&[0, 4, 0])", "vec![0, 0, 0]"),
@@ -1240,6 +1270,8 @@ P.append(dict(
         T("ones", "nums = [1, 1, 1], k = 2", "subarray_sum(&[1, 1, 1], 2)", "2"),
         T("mixed", "nums = [1, 2, 3], k = 3", "subarray_sum(&[1, 2, 3], 3)", "2"),
         T("negatives", "nums = [1, -1, 0], k = 0", "subarray_sum(&[1, -1, 0], 0)", "3"),
+        T("none", "nums = [5, 5], k = 3", "subarray_sum(&[5, 5], 3)", "0"),
+        T("single", "nums = [5], k = 5", "subarray_sum(&[5], 5)", "1"),
     ],
     hidden=[
         T("none", "nums = [5, 5], k = 3", "subarray_sum(&[5, 5], 3)", "0"),
@@ -1367,6 +1399,8 @@ P.append(dict(
         T("round_trip", "[\"lint\", \"code\", \"love\", \"you\"]", 'decode(&encode(&["lint", "code", "love", "you"]))', 'vec!["lint", "code", "love", "you"]'),
         T("delimiters_inside", "[\"a#b\", \"12#\", \"#\"]", 'decode(&encode(&["a#b", "12#", "#"]))', 'vec!["a#b", "12#", "#"]'),
         T("empty_strings", "[\"\", \"\"]", 'decode(&encode(&["", ""]))', 'vec!["", ""]'),
+        T("no_words", "[]", "decode(&encode(&[]))", "Vec::<String>::new()"),
+        T("one_empty_string", "[\"\"]", 'decode(&encode(&[""]))', 'vec![""]'),
     ],
     hidden=[
         T("no_words", "[]", "decode(&encode(&[]))", "Vec::<String>::new()"),
@@ -1489,6 +1523,8 @@ P.append(dict(
         T("small", "nums = [1, -2, 3]", "max_prefix_sum(&[1, -2, 3])", "Some(2)"),
         T("empty", "nums = []", "max_prefix_sum(&[])", "None"),
         T("past_i32_max", "nums = [i32::MAX, 1]", "max_prefix_sum(&[i32::MAX, 1])", "Some(2_147_483_648)"),
+        T("all_negative", "nums = [-5, -1]", "max_prefix_sum(&[-5, -1])", "Some(-5)"),
+        T("peak_in_middle", "nums = [1, 2, -10, 4]", "max_prefix_sum(&[1, 2, -10, 4])", "Some(3)"),
     ],
     hidden=[
         T("many_large", "nums = [2_000_000_000; 4]", "max_prefix_sum(&[2_000_000_000; 4])", "Some(8_000_000_000)"),
@@ -1584,6 +1620,8 @@ P.append(dict(
         T("mixed", "nums = [2, 0, 2, 1, 1, 0]", "{ let mut v = vec![2, 0, 2, 1, 1, 0]; sort_colors(&mut v); v }", "vec![0, 0, 1, 1, 2, 2]"),
         T("three", "nums = [2, 0, 1]", "{ let mut v = vec![2, 0, 1]; sort_colors(&mut v); v }", "vec![0, 1, 2]"),
         T("single", "nums = [0]", "{ let mut v = vec![0]; sort_colors(&mut v); v }", "vec![0]"),
+        T("empty", "nums = []", "{ let mut v: Vec<u8> = vec![]; sort_colors(&mut v); v }", "Vec::<u8>::new()"),
+        T("reversed", "nums = [2, 2, 1, 1, 0, 0]", "{ let mut v = vec![2, 2, 1, 1, 0, 0]; sort_colors(&mut v); v }", "vec![0, 0, 1, 1, 2, 2]"),
     ],
     hidden=[
         T("empty", "nums = []", "{ let mut v: Vec<u8> = vec![]; sort_colors(&mut v); v }", "Vec::<u8>::new()"),
@@ -1685,6 +1723,8 @@ P.append(dict(
         T("two", "nums = [10, 2]", "largest_number(&[10, 2])", '"210"'),
         T("five", "nums = [3, 30, 34, 5, 9]", "largest_number(&[3, 30, 34, 5, 9])", '"9534330"'),
         T("single_digit", "nums = [1]", "largest_number(&[1])", '"1"'),
+        T("zeros", "nums = [0, 0]", "largest_number(&[0, 0])", '"0"'),
+        T("three_thirty", "nums = [3, 30]", "largest_number(&[3, 30])", '"330"'),
     ],
     hidden=[
         T("zeros", "nums = [0, 0]", "largest_number(&[0, 0])", '"0"'),
@@ -1797,6 +1837,8 @@ P.append(dict(
         T("second", "nums = [3, 2, 1, 5, 6, 4], k = 2", "kth_largest(&mut [3, 2, 1, 5, 6, 4], 2)", "5"),
         T("with_duplicates", "nums = [3, 2, 3, 1, 2, 4, 5, 5, 6], k = 4", "kth_largest(&mut [3, 2, 3, 1, 2, 4, 5, 5, 6], 4)", "4"),
         T("single", "nums = [1], k = 1", "kth_largest(&mut [1], 1)", "1"),
+        T("repeated_max", "nums = [5, 5, 4], k = 2", "kth_largest(&mut [5, 5, 4], 2)", "5"),
+        T("negatives", "nums = [-1, -5, -3], k = 2", "kth_largest(&mut [-1, -5, -3], 2)", "-3"),
     ],
     hidden=[
         T("largest", "nums = [7, -1], k = 1", "kth_largest(&mut [7, -1], 1)", "7"),
@@ -1898,6 +1940,9 @@ P.append(dict(
         T("four", "nums = [100, 4, 200, 1, 3, 2]", "longest_consecutive(&[100, 4, 200, 1, 3, 2])", "4"),
         T("nine", "nums = [0, 3, 7, 2, 5, 8, 4, 6, 0, 1]", "longest_consecutive(&[0, 3, 7, 2, 5, 8, 4, 6, 0, 1])", "9"),
         T("empty", "nums = []", "longest_consecutive(&[])", "0"),
+        T("duplicates_inside_run", "nums = [1, 2, 2, 3]", "longest_consecutive(&[1, 2, 2, 3])", "3"),
+        T("negatives", "nums = [-3, -2, -1, 5]", "longest_consecutive(&[-3, -2, -1, 5])", "3"),
+        T("leetcode_repeat_zero_one", "nums = [1, 0, 1, 2]", "longest_consecutive(&[1, 0, 1, 2])", "3"),
     ],
     hidden=[
         T("extremes", "nums = [i32::MAX, i32::MIN, i32::MAX - 1]", "longest_consecutive(&[i32::MAX, i32::MIN, i32::MAX - 1])", "2"),
@@ -2017,6 +2062,8 @@ P.append(dict(
         T("plain", "[2.5, -1.0, 1.0]", '{ let mut v = vec![2.5, -1.0, 1.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-1", "1", "2.5"]'),
         T("nan_goes_last", "[3.0, NaN, 1.0]", '{ let mut v = vec![3.0, f64::NAN, 1.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["1", "3", "NaN"]'),
         T("negatives", "[-0.5, -2.0, 4.0]", '{ let mut v = vec![-0.5, -2.0, 4.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-2", "-0.5", "4"]'),
+        T("infinities", "[inf, -inf, 0.0]", '{ let mut v = vec![f64::INFINITY, f64::NEG_INFINITY, 0.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-inf", "0", "inf"]'),
+        T("several_nans", "[NaN, 2.0, NaN]", '{ let mut v = vec![f64::NAN, 2.0, f64::NAN]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["2", "NaN", "NaN"]'),
     ],
     hidden=[
         T("infinities", "[inf, -inf, 0.0]", '{ let mut v = vec![f64::INFINITY, f64::NEG_INFINITY, 0.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-inf", "0", "inf"]'),
@@ -2094,6 +2141,8 @@ P.append(dict(
         T("gap_at_two", "nums = [3, 4, -1, 1]", "first_missing_positive(&mut [3, 4, -1, 1])", "2"),
         T("next_after_run", "nums = [1, 2, 0]", "first_missing_positive(&mut [1, 2, 0])", "3"),
         T("all_large", "nums = [7, 8, 9, 11, 12]", "first_missing_positive(&mut [7, 8, 9, 11, 12])", "1"),
+        T("duplicates", "nums = [1, 1]", "first_missing_positive(&mut [1, 1])", "2"),
+        T("empty", "nums = []", "first_missing_positive(&mut [])", "1"),
     ],
     hidden=[
         T("duplicates", "nums = [1, 1]", "first_missing_positive(&mut [1, 1])", "2"),
@@ -2208,6 +2257,8 @@ P.append(dict(
         T("mixed", "[5, 2, 9, 1, 5, 6]", "{ let mut v = vec![5, 2, 9, 1, 5, 6]; quicksort(&mut v); v }", "vec![1, 2, 5, 5, 6, 9]"),
         T("empty", "[]", "{ let mut v: Vec<i32> = vec![]; quicksort(&mut v); v }", "Vec::<i32>::new()"),
         T("two", "[2, 1]", "{ let mut v = vec![2, 1]; quicksort(&mut v); v }", "vec![1, 2]"),
+        T("duplicates", "[3, 1, 3, 1, 3]", "{ let mut v = vec![3, 1, 3, 1, 3]; quicksort(&mut v); v }", "vec![1, 1, 3, 3, 3]"),
+        T("reversed", "[5, 4, 3, 2, 1]", "{ let mut v = vec![5, 4, 3, 2, 1]; quicksort(&mut v); v }", "vec![1, 2, 3, 4, 5]"),
     ],
     hidden=[
         """
@@ -2388,6 +2439,8 @@ P.append(dict(
         T("diagonal", "points = [(1,1), (2,2), (3,3)]", "max_points(&[(1, 1), (2, 2), (3, 3)])", "3"),
         T("mixed", "points = [(1,1), (3,2), (5,3), (4,1), (2,3), (1,4)]", "max_points(&[(1, 1), (3, 2), (5, 3), (4, 1), (2, 3), (1, 4)])", "4"),
         T("single", "points = [(0,0)]", "max_points(&[(0, 0)])", "1"),
+        T("duplicates", "points = [(1,1), (1,1), (2,3)]", "max_points(&[(1, 1), (1, 1), (2, 3)])", "3"),
+        T("vertical", "points = [(2,1), (2,5), (2,-3), (0,0)]", "max_points(&[(2, 1), (2, 5), (2, -3), (0, 0)])", "3"),
     ],
     hidden=[
         T("duplicates", "points = [(1,1), (1,1), (2,3)]", "max_points(&[(1, 1), (1, 1), (2, 3)])", "3"),

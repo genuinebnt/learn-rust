@@ -14,3 +14,13 @@ fn not_anagram() {
 fn different_lengths() {
     check!(r#"s = "ab", t = "a""#, is_anagram("ab", "a"), false);
 }
+
+#[test]
+fn same_letters_different_counts() {
+    check!(r#"s = "aab", t = "abb""#, is_anagram("aab", "abb"), false);
+}
+
+#[test]
+fn empty() {
+    check!(r#"s = "", t = """#, is_anagram("", ""), true);
+}

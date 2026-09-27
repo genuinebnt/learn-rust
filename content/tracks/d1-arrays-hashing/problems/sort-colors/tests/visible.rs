@@ -14,3 +14,13 @@ fn three() {
 fn single() {
     check!(r#"nums = [0]"#, { let mut v = vec![0]; sort_colors(&mut v); v }, vec![0]);
 }
+
+#[test]
+fn empty() {
+    check!(r#"nums = []"#, { let mut v: Vec<u8> = vec![]; sort_colors(&mut v); v }, Vec::<u8>::new());
+}
+
+#[test]
+fn reversed() {
+    check!(r#"nums = [2, 2, 1, 1, 0, 0]"#, { let mut v = vec![2, 2, 1, 1, 0, 0]; sort_colors(&mut v); v }, vec![0, 0, 1, 1, 2, 2]);
+}

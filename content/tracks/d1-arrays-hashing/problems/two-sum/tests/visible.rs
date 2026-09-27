@@ -19,3 +19,8 @@ fn same_value_twice() {
 fn no_pair() {
     check!(r#"nums = [1, 2, 3], target = 7"#, two_sum(&[1, 2, 3], 7), None);
 }
+
+#[test]
+fn negatives() {
+    check!(r#"nums = [-3, 4, 3, 90], target = 0"#, two_sum(&[-3, 4, 3, 90], 0), Some((0, 2)));
+}

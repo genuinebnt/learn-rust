@@ -1148,7 +1148,55 @@ P.append(dict(
     hidden=[
         T("two_zeros", "nums = [0, 4, 0]", "product_except_self(&[0, 4, 0])", "vec![0, 0, 0]"),
         T("pair", "nums = [3, 5]", "product_except_self(&[3, 5])", "vec![5, 3]"),
+        T("all_negative", "nums = [-1, -2, -3]", "product_except_self(&[-1, -2, -3])", "vec![6, 3, 2]"),
+        T("zero_first", "nums = [0, 1, 2, 3]", "product_except_self(&[0, 1, 2, 3])", "vec![6, 0, 0, 0]"),
+        T("zero_last", "nums = [2, 3, 0]", "product_except_self(&[2, 3, 0])", "vec![0, 0, 6]"),
+        T("pair_with_zero", "nums = [0, 5]", "product_except_self(&[0, 5])", "vec![5, 0]"),
+        T("ones", "nums = [1, 1, 1, 1]", "product_except_self(&[1, 1, 1, 1])", "vec![1, 1, 1, 1]"),
+        T("near_i32_max", "nums = [46340, 46340, 1]", "product_except_self(&[46_340, 46_340, 1])", "vec![46_340, 46_340, 2_147_395_600]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(13);
+            for _ in 0..300 {
+                let n = 2 + rng.below(7);
+                let nums: Vec<i32> = rng.vec(n, -3, 3);
+                let want: Vec<i32> = (0..n).map(|i| (0..n).filter(|&j| j != i).map(|j| nums[j]).product()).collect();
+                check!(format!("nums = {nums:?}"), product_except_self(&nums), want);
+            }
+        }
+
+        #[test]
+        fn scale_100k() {
+            let nums: Vec<i32> = (0..100_000).map(|i| if i % 3 == 0 { -1 } else { 1 }).collect();
+            let out = product_except_self(&nums);
+            // 33334 factors of -1: the total is 1, so out[i] is 1 / nums[i] = nums[i].
+            check!("nums = [-1, 1, 1, -1, 1, 1, …] (100000 values)", out == nums, true);
+        }
+        """,
     ],
+    wrong=dict(
+        quadratic="""
+            pub fn product_except_self(nums: &[i32]) -> Vec<i32> {
+                (0..nums.len())
+                    .map(|i| nums.iter().enumerate().filter(|&(j, _)| j != i).map(|(_, &x)| x).product())
+                    .collect()
+            }
+        """,
+        division_one_zero_only="""
+            pub fn product_except_self(nums: &[i32]) -> Vec<i32> {
+                let nonzero: i32 = nums.iter().filter(|&&x| x != 0).product();
+                let has_zero = nums.contains(&0);
+                nums.iter()
+                    .map(|&x| match (x, has_zero) {
+                        (0, _) => nonzero,
+                        (_, true) => 0,
+                        _ => nonzero / x,
+                    })
+                    .collect()
+            }
+        """,
+    ),
     hints=[("approach", "out[i] = (product of everything left of i) × (product of everything right of i)."),
            ("approach", "Fill `out` with the left products in one pass, then multiply in the right products walking backwards.")],
     notes=("Two passes, one running product each. Division would fail on zeros anyway.", "O(n)", "O(1) beyond the output"),
@@ -1161,7 +1209,7 @@ P.append(dict(
     teaches=["A subarray sum is a difference of two prefix sums.", "Count prefix sums in a `HashMap<i64, usize>`, widening to avoid overflow."],
     statement="Return how many contiguous, non-empty subarrays of `nums` sum to `k`.",
     examples=[("nums = [1, 1, 1], k = 2", "2")],
-    constraints=["1 ≤ nums.len() ≤ 2·10⁴", "|nums[i]| ≤ 1000"],
+    constraints=["1 ≤ nums.len() ≤ 2·10⁵", "|nums[i]| ≤ 1000"],
     starter="""
         pub fn subarray_sum(nums: &[i32], k: i32) -> usize {
             todo!()
@@ -1189,7 +1237,78 @@ P.append(dict(
     hidden=[
         T("none", "nums = [5, 5], k = 3", "subarray_sum(&[5, 5], 3)", "0"),
         T("all_zero", "nums = [0; 100], k = 0", "subarray_sum(&[0; 100], 0)", "5050"),
+        T("single_match", "nums = [5], k = 5", "subarray_sum(&[5], 5)", "1"),
+        T("single_miss", "nums = [5], k = -5", "subarray_sum(&[5], -5)", "0"),
+        T("negative_k", "nums = [-1, -1, 1], k = -1", "subarray_sum(&[-1, -1, 1], -1)", "3"),
+        T("alternating_zero", "nums = [1, -1, 1, -1], k = 0", "subarray_sum(&[1, -1, 1, -1], 0)", "4"),
+        T("whole_array", "nums = [3, 4, 7], k = 14", "subarray_sum(&[3, 4, 7], 14)", "1"),
+        T("bounds", "nums = [1000, -1000, 1000], k = 1000", "subarray_sum(&[1000, -1000, 1000], 1000)", "3"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(14);
+            for _ in 0..300 {
+                let n = 1 + rng.below(12);
+                let nums: Vec<i32> = rng.vec(n, -3, 3);
+                let k = rng.int(-4, 4) as i32;
+                let want = (0..n).flat_map(|i| (i + 1..=n).map(move |j| (i, j))).filter(|&(i, j)| nums[i..j].iter().sum::<i32>() == k).count();
+                check!(format!("nums = {nums:?}, k = {k}"), subarray_sum(&nums, k), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k_zeros() {
+            check!("nums = [0; 200000], k = 0", subarray_sum(&vec![0; 200_000], 0), 20_000_100_000);
+        }
+        """,
     ],
+    wrong=dict(
+        quadratic="""
+            pub fn subarray_sum(nums: &[i32], k: i32) -> usize {
+                let mut count = 0;
+                for i in 0..nums.len() {
+                    let mut sum = 0;
+                    for &x in &nums[i..] {
+                        sum += x;
+                        if sum == k {
+                            count += 1;
+                        }
+                    }
+                }
+                count
+            }
+        """,
+        sliding_window="""
+            pub fn subarray_sum(nums: &[i32], k: i32) -> usize {
+                let (mut left, mut sum, mut count) = (0, 0, 0);
+                for right in 0..nums.len() {
+                    sum += nums[right];
+                    while sum > k && left < right {
+                        sum -= nums[left];
+                        left += 1;
+                    }
+                    if sum == k {
+                        count += 1;
+                    }
+                }
+                count
+            }
+        """,
+        no_empty_prefix="""
+            use std::collections::HashMap;
+
+            pub fn subarray_sum(nums: &[i32], k: i32) -> usize {
+                let mut seen: HashMap<i64, usize> = HashMap::new();
+                let (mut sum, mut count) = (0i64, 0usize);
+                for &x in nums {
+                    sum += x as i64;
+                    count += seen.get(&(sum - k as i64)).copied().unwrap_or(0);
+                    *seen.entry(sum).or_insert(0) += 1;
+                }
+                count
+            }
+        """,
+    ),
     hints=[("approach", "sum(i..j) = prefix[j] − prefix[i]. For each prefix, how many earlier prefixes equal prefix − k?"),
            ("rust", "Seed the map with `(0, 1)` so subarrays that start at index 0 count.")],
     notes=("The map counts how many earlier prefixes had each sum. Negative numbers rule out a sliding window, which is why this needs prefix sums.", "O(n)", "O(n)"),
@@ -1245,7 +1364,79 @@ P.append(dict(
     hidden=[
         T("no_words", "[]", "decode(&encode(&[]))", "Vec::<String>::new()"),
         T("unicode", "[\"héllo\", \"🦀#rust\"]", 'decode(&encode(&["héllo", "🦀#rust"]))', 'vec!["héllo", "🦀#rust"]'),
+        T("one_empty_string", "[\"\"]", 'decode(&encode(&[""]))', 'vec![""]'),
+        T("digits_only", "[\"123\", \"4\", \"56\"]", 'decode(&encode(&["123", "4", "56"]))', 'vec!["123", "4", "56"]'),
+        T("looks_like_a_frame", "[\"3#abc\", \"0#\"]", 'decode(&encode(&["3#abc", "0#"]))', 'vec!["3#abc", "0#"]'),
+        T("control_chars", "[\"a\\nb\", \"\\t\", \"\\0\"]", 'decode(&encode(&["a\\nb", "\\t", "\\0"]))', 'vec!["a\\nb", "\\t", "\\0"]'),
+        T("long_word", "[\"x\" × 1000, \"y\"]", 'decode(&encode(&["x".repeat(1000).as_str(), "y"]))', 'vec!["x".repeat(1000), "y".to_string()]'),
+        T("empty_between", "[\"a\", \"\", \"b\"]", 'decode(&encode(&["a", "", "b"]))', 'vec!["a", "", "b"]'),
+        """
+        #[test]
+        fn random_round_trip() {
+            let mut rng = anneal_prelude::Rng::new(15);
+            for _ in 0..300 {
+                let n = rng.below(6);
+                let owned: Vec<String> = (0..n).map(|_| { let len = rng.below(12); rng.string(len, "a#1é🦀") }).collect();
+                let words: Vec<&str> = owned.iter().map(String::as_str).collect();
+                check!(format!("{words:?}"), decode(&encode(&words)), owned.clone());
+            }
+        }
+
+        #[test]
+        fn scale_200k_words() {
+            let owned: Vec<String> = (0..200_000).map(|i| format!("{i}#")).collect();
+            let words: Vec<&str> = owned.iter().map(String::as_str).collect();
+            check!("[\\"0#\\", \\"1#\\", …, \\"199999#\\"]", decode(&encode(&words)) == owned, true);
+        }
+        """,
     ],
+    wrong=dict(
+        join_on_delimiter="""
+            pub fn encode(words: &[&str]) -> String {
+                words.join("#")
+            }
+
+            pub fn decode(s: &str) -> Vec<String> {
+                if s.is_empty() {
+                    return Vec::new();
+                }
+                s.split('#').map(String::from).collect()
+            }
+        """,
+        char_count_prefix="""
+            pub fn encode(words: &[&str]) -> String {
+                words.iter().map(|w| format!("{}#{}", w.chars().count(), w)).collect()
+            }
+
+            pub fn decode(s: &str) -> Vec<String> {
+                let mut out = Vec::new();
+                let mut rest = s;
+                while let Some(hash) = rest.find('#') {
+                    let len: usize = rest[..hash].parse().expect("length prefix");
+                    let word: String = rest[hash + 1..].chars().take(len).collect();
+                    rest = &rest[hash + 1 + len..];
+                    out.push(word);
+                }
+                out
+            }
+        """,
+        one_digit_length="""
+            pub fn encode(words: &[&str]) -> String {
+                words.iter().map(|w| format!("{}#{}", w.len() % 10, w)).collect()
+            }
+
+            pub fn decode(s: &str) -> Vec<String> {
+                let mut out = Vec::new();
+                let mut rest = s;
+                while !rest.is_empty() {
+                    let len = (rest.as_bytes()[0] - b'0') as usize;
+                    out.push(rest[2..2 + len].to_string());
+                    rest = &rest[2 + len..];
+                }
+                out
+            }
+        """,
+    ),
     hints=[("approach", "A delimiter alone fails when words contain it. Prefix each word with its length."),
            ("rust", "Use byte lengths (`str::len`) and byte slicing; whole words always start and end on char boundaries.")],
     notes=("The length tells `decode` exactly how many bytes to take, so the content can contain anything.", "O(total length)", "O(total length)"),
@@ -1295,7 +1486,56 @@ P.append(dict(
     hidden=[
         T("many_large", "nums = [2_000_000_000; 4]", "max_prefix_sum(&[2_000_000_000; 4])", "Some(8_000_000_000)"),
         T("all_negative", "nums = [-5, -1]", "max_prefix_sum(&[-5, -1])", "Some(-5)"),
+        T("single", "nums = [7]", "max_prefix_sum(&[7])", "Some(7)"),
+        T("single_negative", "nums = [-7]", "max_prefix_sum(&[-7])", "Some(-7)"),
+        T("peak_in_middle", "nums = [1, 2, -10, 4]", "max_prefix_sum(&[1, 2, -10, 4])", "Some(3)"),
+        T("zeros", "nums = [0, 0]", "max_prefix_sum(&[0, 0])", "Some(0)"),
+        T("below_i32_min", "nums = [i32::MIN, i32::MIN]", "max_prefix_sum(&[i32::MIN, i32::MIN])", "Some(i32::MIN as i64)"),
+        T("dips_below_then_recovers", "nums = [i32::MIN, -1, i32::MAX, i32::MAX, 5]", "max_prefix_sum(&[i32::MIN, -1, i32::MAX, i32::MAX, 5])", "Some(2_147_483_650)"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(16);
+            for _ in 0..300 {
+                let n = rng.below(8);
+                let nums: Vec<i32> = rng.vec(n, i32::MIN as i64, i32::MAX as i64);
+                let want = (1..=n).map(|k| nums[..k].iter().map(|&x| x as i64).sum::<i64>()).max();
+                check!(format!("nums = {nums:?}"), max_prefix_sum(&nums), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k_max() {
+            check!("nums = [i32::MAX; 200000]", max_prefix_sum(&vec![i32::MAX; 200_000]), Some(i32::MAX as i64 * 200_000));
+        }
+        """,
     ],
+    wrong=dict(
+        wrapping="""
+            /// The largest sum of `nums[..k]` over k ≥ 1.
+            pub fn max_prefix_sum(nums: &[i32]) -> Option<i64> {
+                let mut sum: i32 = 0;
+                let mut best: Option<i64> = None;
+                for &x in nums {
+                    sum = sum.wrapping_add(x);
+                    best = Some(best.map_or(sum as i64, |b| b.max(sum as i64)));
+                }
+                best
+            }
+        """,
+        saturating="""
+            /// The largest sum of `nums[..k]` over k ≥ 1.
+            pub fn max_prefix_sum(nums: &[i32]) -> Option<i64> {
+                let mut sum: i32 = 0;
+                let mut best: Option<i64> = None;
+                for &x in nums {
+                    sum = sum.saturating_add(x);
+                    best = Some(best.map_or(sum as i64, |b| b.max(sum as i64)));
+                }
+                best
+            }
+        """,
+    ),
     hints=[("rust", "The accumulator overflows, not the result. What type should `sum` be?"),
            ("rust", "`i64::from(x)` widens losslessly; `as` would also work here.")],
     notes=("Debug builds check arithmetic and panic; release builds wrap. Widening the accumulator fixes both.", "O(n)", "O(1)"),
@@ -1341,7 +1581,71 @@ P.append(dict(
         T("empty", "nums = []", "{ let mut v: Vec<u8> = vec![]; sort_colors(&mut v); v }", "Vec::<u8>::new()"),
         T("all_twos", "nums = [2, 2, 2]", "{ let mut v = vec![2, 2, 2]; sort_colors(&mut v); v }", "vec![2, 2, 2]"),
         T("long", "nums = [2, 1, 0] × 1000", "{ let mut v: Vec<u8> = [2, 1, 0].repeat(1000); sort_colors(&mut v); (v[999], v[1000], v[2000], v[2999]) }", "(0, 1, 2, 2)"),
+        T("single", "nums = [1]", "{ let mut v = vec![1]; sort_colors(&mut v); v }", "vec![1]"),
+        T("pair", "nums = [1, 0]", "{ let mut v = vec![1, 0]; sort_colors(&mut v); v }", "vec![0, 1]"),
+        T("already_sorted", "nums = [0, 0, 1, 2]", "{ let mut v = vec![0, 0, 1, 2]; sort_colors(&mut v); v }", "vec![0, 0, 1, 2]"),
+        T("reversed", "nums = [2, 2, 1, 1, 0, 0]", "{ let mut v = vec![2, 2, 1, 1, 0, 0]; sort_colors(&mut v); v }", "vec![0, 0, 1, 1, 2, 2]"),
+        T("no_ones", "nums = [2, 0, 2, 0]", "{ let mut v = vec![2, 0, 2, 0]; sort_colors(&mut v); v }", "vec![0, 0, 2, 2]"),
+        T("all_zeros", "nums = [0, 0, 0]", "{ let mut v = vec![0, 0, 0]; sort_colors(&mut v); v }", "vec![0, 0, 0]"),
+        """
+        #[test]
+        fn random_vs_sort() {
+            let mut rng = anneal_prelude::Rng::new(17);
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let nums: Vec<u8> = rng.vec(n, 0, 2);
+                let mut want = nums.clone();
+                want.sort();
+                let mut got = nums.clone();
+                sort_colors(&mut got);
+                check!(format!("nums = {nums:?}"), got, want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let mut rng = anneal_prelude::Rng::new(18);
+            let mut v: Vec<u8> = rng.vec(200_000, 0, 2);
+            let mut want = v.clone();
+            want.sort();
+            sort_colors(&mut v);
+            check!("200000 random values in 0..=2", v == want, true);
+        }
+        """,
     ],
+    wrong=dict(
+        mid_advances_after_high_swap="""
+            pub fn sort_colors(nums: &mut [u8]) {
+                let (mut low, mut mid, mut high) = (0, 0, nums.len());
+                while mid < high {
+                    match nums[mid] {
+                        0 => {
+                            nums.swap(low, mid);
+                            low += 1;
+                            mid += 1;
+                        }
+                        1 => mid += 1,
+                        _ => {
+                            high -= 1;
+                            nums.swap(mid, high);
+                            mid += 1;
+                        }
+                    }
+                }
+            }
+        """,
+        bubble_sort="""
+            pub fn sort_colors(nums: &mut [u8]) {
+                for i in 0..nums.len() {
+                    for j in 0..nums.len() - 1 - i {
+                        if nums[j] > nums[j + 1] {
+                            nums.swap(j, j + 1);
+                        }
+                    }
+                }
+            }
+        """,
+    ),
     hints=[("approach", "Keep three regions: 0s at the front, 2s at the back, 1s in the middle."),
            ("edge case", "After swapping with the back, the value you swapped in hasn't been looked at yet.")],
     notes=("An exclusive `high` bound avoids underflow on empty input. Counting and rewriting is two passes; this is one.", "O(n)", "O(1)"),
@@ -1376,7 +1680,87 @@ P.append(dict(
     hidden=[
         T("zeros", "nums = [0, 0]", "largest_number(&[0, 0])", '"0"'),
         T("shared_prefix", "nums = [121, 12]", "largest_number(&[121, 12])", '"12121"'),
+        T("single_zero", "nums = [0]", "largest_number(&[0])", '"0"'),
+        T("single", "nums = [42]", "largest_number(&[42])", '"42"'),
+        T("zeros_and_one", "nums = [0, 0, 1]", "largest_number(&[0, 0, 1])", '"100"'),
+        T("three_thirty", "nums = [3, 30]", "largest_number(&[3, 30])", '"330"'),
+        T("long_shared_prefix", "nums = [824, 8247]", "largest_number(&[824, 8247])", '"8248247"'),
+        T("u32_max", "nums = [4294967295, 9]", "largest_number(&[u32::MAX, 9])", '"94294967295"'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn permutations(xs: &mut Vec<u32>, k: usize, best: &mut String) {
+                if k == xs.len() {
+                    let s: String = xs.iter().map(|x| x.to_string()).collect();
+                    if s > *best {
+                        *best = s;
+                    }
+                    return;
+                }
+                for i in k..xs.len() {
+                    xs.swap(k, i);
+                    permutations(xs, k + 1, best);
+                    xs.swap(k, i);
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(19);
+            for _ in 0..200 {
+                let n = 1 + rng.below(5);
+                let nums: Vec<u32> = (0..n).map(|_| *rng.pick(&[0, 1, 3, 9, 10, 30, 34, 90, 99, 121, 12, 300])).collect();
+                let mut best = String::new();
+                permutations(&mut nums.clone(), 0, &mut best);
+                if best.starts_with('0') {
+                    best = "0".into();
+                }
+                check!(format!("nums = {nums:?}"), largest_number(&nums), best);
+            }
+        }
+
+        #[test]
+        fn scale_100k() {
+            let nums: Vec<u32> = (0..100_000).collect();
+            let out = largest_number(&nums);
+            check!("nums = 0..100000", (out.len(), out.starts_with("99999999999999999998999979"), out.ends_with("1000100000")), (488_890, true, true));
+        }
+        """,
     ],
+    wrong=dict(
+        lexicographic_descending="""
+            pub fn largest_number(nums: &[u32]) -> String {
+                let mut parts: Vec<String> = nums.iter().map(u32::to_string).collect();
+                parts.sort_unstable_by(|a, b| b.cmp(a));
+                if parts.first().is_some_and(|p| p == "0") {
+                    return "0".into();
+                }
+                parts.concat()
+            }
+        """,
+        leading_zeros_kept="""
+            pub fn largest_number(nums: &[u32]) -> String {
+                let mut parts: Vec<String> = nums.iter().map(u32::to_string).collect();
+                parts.sort_unstable_by(|a, b| (b.clone() + a).cmp(&(a.clone() + b)));
+                parts.concat()
+            }
+        """,
+        selection_sort="""
+            pub fn largest_number(nums: &[u32]) -> String {
+                let mut parts: Vec<String> = nums.iter().map(u32::to_string).collect();
+                for i in 0..parts.len() {
+                    let mut best = i;
+                    for j in i + 1..parts.len() {
+                        if parts[j].clone() + &parts[best] > parts[best].clone() + &parts[j] {
+                            best = j;
+                        }
+                    }
+                    parts.swap(i, best);
+                }
+                if parts.first().is_some_and(|p| p == "0") {
+                    return "0".into();
+                }
+                parts.concat()
+            }
+        """,
+    ),
     hints=[("approach", "For two numbers a and b, put a first if the string ab is larger than ba."),
            ("edge case", "What does `[0, 0]` return?")],
     notes=("The comparator is transitive, so a sort works. Leading zeros only happen when every number is 0.", "O(n log n · d)", "O(n · d)"),

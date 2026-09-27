@@ -10,7 +10,7 @@ teaches = [
   "A subarray sum is a difference of two prefix sums.",
   "Count prefix sums in a `HashMap<i64, usize>`, widening to avoid overflow.",
 ]
-constraints = ["1 ≤ nums.len() ≤ 2·10⁴", "|nums[i]| ≤ 1000"]
+constraints = ["1 ≤ nums.len() ≤ 2·10⁵", "|nums[i]| ≤ 1000"]
 follow_up = "Why doesn't a sliding window work here when it does for positive-only inputs?"
 related = ["S4"]
 

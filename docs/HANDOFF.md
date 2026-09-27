@@ -92,7 +92,7 @@ and what's next, in order.
 ### Locally (macOS, OrbStack)
 
 ```sh
-docker compose up -d                                                    # Postgres 18 on :5434
+docker compose up -d                                                    # Postgres 18 on :5435
 docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker   # sandbox image
 (cd web && pnpm install && pnpm build)
 cargo run -p anneal-api                                                 # http://127.0.0.1:8787
@@ -121,7 +121,7 @@ API on :8787 serves `web/dist`, so rebuild the web app after frontend changes.
 |---|---|---|
 | Content authoring and checking | a Rust toolchain only (edition 2024, so rustc ≥ 1.85; the image uses 1.98) | `cargo run -q -p anneal-cli -- validate`, then `cargo run -q -p anneal-cli -- verify <track>` |
 | Unit tests (content, runner, rules) | Rust | `cargo test -p anneal-content -p anneal-runner -p anneal-rules` |
-| API tests | Postgres | `cargo test -p anneal-api` (`DATABASE_URL` is forced to localhost:5434 in `.cargo/config.toml`, so start Postgres there or edit the config) |
+| API tests | Postgres | `cargo test -p anneal-api` (`DATABASE_URL` is forced to localhost:5435 in `.cargo/config.toml`, so start Postgres there or edit the config) |
 | Web type-check and build | Node + pnpm/npm | `cd web && npx tsc -b --noEmit && npm run build` |
 
 Notes on the cloud setup:
@@ -133,9 +133,10 @@ Notes on the cloud setup:
 Cloud-session setup that worked on 2026-09-27 (Ubuntu container, running as root):
 
 ```sh
-# Postgres 16 is installed but stopped, on 5432. The app and tests expect 5434.
-sed -i "s/^port = 5432/port = 5434/" /etc/postgresql/16/main/postgresql.conf && pg_ctlcluster 16 main start
-su postgres -c "psql -p 5434 -c \"CREATE ROLE anneal LOGIN PASSWORD 'anneal' SUPERUSER\"; psql -p 5434 -c 'CREATE DATABASE anneal OWNER anneal'"
+# Postgres 16 is installed but stopped, on 5432. The app and tests expect 5435 (moved from 5434 on 2026-09-27;
+# if yours already runs on 5434, change `port = 5434` to 5435 in postgresql.conf and restart it).
+sed -i "s/^port = 5432/port = 5435/" /etc/postgresql/16/main/postgresql.conf && pg_ctlcluster 16 main start
+su postgres -c "psql -p 5435 -c \"CREATE ROLE anneal LOGIN PASSWORD 'anneal' SUPERUSER\"; psql -p 5435 -c 'CREATE DATABASE anneal OWNER anneal'"
 rustup component add rust-analyzer          # the API's LSP test and the workspace need it
 ANNEAL_SANDBOX=host cargo run -p anneal-api  # after `cd web && npm run build`; delete web/package-lock.json (the repo uses pnpm)
 export CHROME=/opt/pw-browsers/chromium-*/chrome-linux/chrome   # for tools/ui-check.mjs
@@ -150,7 +151,7 @@ things to watch:
 - **Clean up test data.** Checks that run or submit code create attempts in the dev database. Clear them with:
 
 ```sh
-psql postgres://anneal:anneal@127.0.0.1:5434/anneal -c "TRUNCATE attempts, reviews, focus_time, scratch CASCADE"
+psql postgres://anneal:anneal@127.0.0.1:5435/anneal -c "TRUNCATE attempts, reviews, focus_time, scratch CASCADE"
 ```
 
 ## 4. How the owner works (follow these)
@@ -278,7 +279,7 @@ Also pending:
 - **Browser check** of the workspace toggles (autocomplete / rust-analyzer / borrow lanes now saved as editor settings,
   lanes off by default): not clicked through yet.
 - **Final pass** once the tracks are written: `anneal verify` on every track, `cargo test -p anneal-content -p
-  anneal-runner -p anneal-rules -p anneal-api` (the API tests need Postgres on :5434 and the `rust-analyzer` component),
+  anneal-runner -p anneal-rules -p anneal-api` (the API tests need Postgres on :5435 and the `rust-analyzer` component),
   update §2's counts and ROADMAP §0.
 
 Done this session (for reference): verifier `wrong/` solutions + prelude `Rng` + host-kill fix; test hardening of all 13

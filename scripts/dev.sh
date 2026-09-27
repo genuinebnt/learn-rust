@@ -24,7 +24,7 @@ docker compose up -d --wait postgres >/dev/null
 cleanup() { trap - INT TERM EXIT; kill 0 2>/dev/null || true; }
 trap cleanup INT TERM EXIT
 
-# cargo-watch kills and restarts the server on every change.
-cargo watch -q -w crates -w content -w Cargo.toml -w Cargo.lock -x "run -q -p anneal-api" &
+# cargo-watch kills and restarts the server on every change (.cargo holds the database URL).
+cargo watch -q -w crates -w content -w Cargo.toml -w Cargo.lock -w .cargo -x "run -q -p anneal-api" &
 pnpm -C web dev &
 wait

@@ -5,21 +5,32 @@ level = "hard"
 stage = "borrow-checker-limits"
 order = 37
 status = "ready"
-tags = ["RefCell", "split borrows"]
+tags = ["RefCell", "split borrows", "associated functions", "&mut self"]
 teaches = [
   "Reach for split borrows before interior mutability.",
+  "Turn a `&mut self` helper into an associated function over the fields it touches.",
+  "`RefCell` moves borrow errors from compile time to run time.",
 ]
-follow_up = "When is RefCell genuinely the right tool?"
+follow_up = "When is `RefCell` genuinely the right tool, and what would you check in review when you see one?"
 related = ["L2", "S7"]
 
 [[hints]]
 kind = "rust"
-text = "Inside one method, `self.items.iter_mut()` and `self.total` borrow different fields. Why was the RefCell ever needed?"
+text = "Once the fields are plain, `for p in self.items.iter_mut()` and `self.total += *p` borrow different fields: that's allowed. What isn't allowed is calling `self.note(..)`, a `&mut self` method, inside that loop."
+
+[[hints]]
+kind = "rust"
+text = "Make `note` an associated function over exactly what it touches: the log and the count. `Self::note(&mut self.log, n, msg)` borrows only `self.log`."
+
+[[hints]]
+kind = "rust"
+text = "The item count for `double_all` and `drop_above` is the count at the start of the call, so read it before the loop."
 
 [solution]
-explanation = "RefCell turned a compile-time guarantee into a runtime check that could panic. With `&mut self` and field paths, the split borrow needs neither."
-time = "O(n)"
-space = "O(1)"
+explanation = "`RefCell` turned compile-time guarantees into run-time checks, and the checks failed: `note` borrows `items` while `double_all` and `drop_above` hold it mutably, so both panic. Without the `RefCell`s the same mistake is a compile error (a `&mut self` call inside a loop over `self.items`), and the fix is the one the compiler points to: split the borrow. Field paths are disjoint (`self.items`, `self.total`, `self.log`), and edition-2021 closures, like `retain`'s, capture only the fields they name. The helper stops taking `self` and takes the fields it needs instead. Methods that change the cart take `&mut self`, which makes the mutation visible in the API.\n\nReach for `RefCell` when the mutation really happens through shared references you can't restructure (a graph with shared nodes, callbacks into the owner); inside one struct's own methods, split borrows almost always suffice."
+time = "O(n) per call"
+space = "O(1) extra"
 
 [rules]
-forbid_types = ["RefCell", "Cell"]
+forbid_methods = ["clone"]
+forbid_types = ["RefCell", "Cell", "Rc"]

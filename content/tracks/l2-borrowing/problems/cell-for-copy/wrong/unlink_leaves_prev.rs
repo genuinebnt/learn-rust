@@ -39,7 +39,6 @@ impl<'a> Node<'a> {
         if let (Some(p), Some(n)) = (prev, next) {
             if !std::ptr::eq(p, self) {
                 p.next.set(Some(n));
-                n.prev.set(Some(p));
             }
         }
     }

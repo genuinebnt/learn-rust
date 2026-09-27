@@ -39,9 +39,8 @@ impl Scheduler {
     /// Returns how many jobs ran.
     pub fn run(&self) -> usize {
         let mut ran = 0;
-        loop {
-            let next = self.queue.borrow_mut().pop();
-            let Some(job) = next else { break };
+        let jobs = self.queue.take();
+        for job in jobs.into_iter().rev() {
             self.done.borrow_mut().push(job);
             if job > 0 && job % 2 == 0 {
                 self.submit(job / 2);

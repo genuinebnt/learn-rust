@@ -1,28 +1,15 @@
 from author import T, write_track
 
-HM = "std::collections::HashMap"
 P = []
 
 
-def fix(slug, title, level, stage, tags, statement, starter, solution, visible, hidden, hints, notes, follow_up, teaches, rules=None, related=("L2",)):
-    return dict(slug=slug, title=title, mode="fix", level=level, stage=stage, tags=tags, statement=statement, starter=starter,
-                solution=solution, visible=visible, hidden=hidden, hints=hints, notes=notes, follow_up=follow_up,
-                teaches=teaches, rules=rules or dict(methods=["clone"]), related=list(related))
-
-
-def write(slug, title, level, stage, tags, statement, starter, solution, visible, hidden, hints, notes, follow_up, teaches, related=("L2",)):
-    return dict(slug=slug, title=title, level=level, stage=stage, tags=tags, statement=statement, starter=starter,
-                solution=solution, visible=visible, hidden=hidden, hints=hints, notes=notes, follow_up=follow_up,
-                teaches=teaches, related=list(related))
-
-
-def fixp(slug, title, level, stage, tags, statement, starter, solution, visible, hidden, hints, notes, follow_up, teaches, rules=None, related=("L2",), wrong=None):
+def fix(slug, title, level, stage, tags, statement, starter, solution, visible, hidden, hints, notes, follow_up, teaches, rules=None, related=("L2",), wrong=None):
     return dict(slug=slug, title=title, mode="fix", level=level, stage=stage, tags=tags, statement=statement, starter=starter,
                 solution=solution, visible=visible, hidden=hidden, hints=hints, notes=notes, follow_up=follow_up,
                 teaches=teaches, rules=rules, related=list(related), wrong=wrong)
 
 
-def writep(slug, title, level, stage, tags, statement, starter, solution, visible, hidden, hints, notes, follow_up, teaches, related=("L2",), wrong=None):
+def write(slug, title, level, stage, tags, statement, starter, solution, visible, hidden, hints, notes, follow_up, teaches, related=("L2",), wrong=None):
     return dict(slug=slug, title=title, level=level, stage=stage, tags=tags, statement=statement, starter=starter,
                 solution=solution, visible=visible, hidden=hidden, hints=hints, notes=notes, follow_up=follow_up,
                 teaches=teaches, related=list(related), wrong=wrong)
@@ -142,7 +129,7 @@ def series_case(name, pts, holder, gain):
     return T(name, f"record {desc}", call, f'("{holder}".to_string(), {gain})')
 
 
-P.append(fixp(
+P.append(fix(
     "fix-push-while-holding-a-reference", "Fix: push while holding a reference", "easy", "shared-vs-unique", ["E0502", "E0382", "indices over references"],
     """
         `Series::record` doesn't compile. It reads the current record before pushing the new point, and answers
@@ -305,7 +292,7 @@ INBOX_SOLUTION = INBOX_HEAD + INBOX_IMPL + INBOX_TAIL
 INBOX_SETUP = 'let mut inbox = Inbox::new();\ninbox.push(1, "ann", "hello");\ninbox.push(2, "boss", "report?");\ninbox.push(3, "bob", "lunch");'
 INBOX_DESC = 'inbox 1 ann "hello", 2 boss "report?", 3 bob "lunch"'
 
-P.append(fixp(
+P.append(fix(
     "many-readers-one-writer", "Many readers, one writer", "easy", "shared-vs-unique", ["&self vs &mut self", "Option<&T>", "as_deref", "get_or_insert_with", "iter_mut"],
     """
         `triage` uses an `Inbox` API that doesn't exist yet. Write `impl Inbox` with these methods. Pick each
@@ -538,7 +525,7 @@ for _old, _new in [
 WH_SETUP = 'let mut w = Warehouse::new();\nw.receive("bolt", 10);\nw.receive("nut", 4);'
 WH_DESC = "receive bolt 10, nut 4"
 
-P.append(fixp(
+P.append(fix(
     "fix-mut-from-shared-self", "Fix: &mut in every position", "easy", "shared-vs-unique", ["E0596", "E0594", "E0499", "iter_mut", "get_mut", "FnMut"],
     """
         `Warehouse` doesn't compile: in several places it has shared access where it needs unique access. Each
@@ -696,7 +683,7 @@ def words_case(name, text, k, want):
     return T(name, f'text = "{rust_text}", k = {k}', f'top_words("{rust_text}", {k})', exp)
 
 
-P.append(writep(
+P.append(write(
     "most-repeated-word", "Count words without cloning", "easy", "shared-vs-unique", ["&str", "HashMap", "Hash", "borrowed keys"],
     """
         Return the `k` most frequent words of `text` with their counts: most frequent first, a tie going to the
@@ -859,7 +846,7 @@ def acc(xs):
     return "vec![" + ", ".join(f"Account {{ id: {i}, balance: {b} }}" for i, b in xs) + "]"
 
 
-P.append(fixp(
+P.append(fix(
     "fix-mutate-through-shared-ref", "Fix: a &mut behind a & is read-only", "easy", "shared-vs-unique", ["E0594", "E0596", "&&mut T", "&mut &T"],
     """
         This doesn't compile. Two functions try to write through a reference that only grants reading, even
@@ -1030,7 +1017,7 @@ def frames_auto(name, buf, size):
     return frames_case(name, buf, size, n, after)
 
 
-P.append(fixp(
+P.append(fix(
     "split-first-mut", "Fix: one &mut slice, several parts", "easy", "shared-vs-unique", ["E0502", "E0499", "split_first_mut", "split_last_mut", "split_at_mut", "chunks_exact_mut"],
     """
         None of these three functions compiles: each one needs a mutable borrow of one part of a slice while
@@ -1229,7 +1216,7 @@ def render_auto(name, before, items):
     return render_case(name, before, items, render_py(before, items))
 
 
-P.append(fixp(
+P.append(fix(
     "fix-borrow-kept-alive", "Fix: borrows that live longer than they look", "easy", "where-borrows-end", ["NLL", "E0502", "E0499", "Drop", "scopes"],
     """
         `render` doesn't compile. Three borrows each outlive the place where you'd expect them to end: one is
@@ -1401,7 +1388,7 @@ pub fn intern_edges<'i>(interner: &'i mut Interner, edges: &[(&str, &str)]) -> (
 }
 """
 
-P.append(fixp(
+P.append(fix(
     "end-borrow-before-mutating", "Fix: a &mut method that returns a borrow", "easy", "where-borrows-end", ["E0499", "E0502", "&mut self -> &T", "reborrow as shared"],
     """
         `intern` takes `&mut self` and returns a `&str` into the interner. `intern_all` and `intern_edges` keep
@@ -1556,7 +1543,7 @@ def runs_case(name, text, want):
     return T(name, f'input "{shown}"', f'key_runs("{shown}".as_bytes()).unwrap()', exp)
 
 
-P.append(fixp(
+P.append(fix(
     "fix-read-after-clear", "Fix: a reused buffer and a borrow of the last line", "easy", "where-borrows-end", ["E0502", "BufRead::read_line", "Option::replace", "allocation"],
     """
         `key_runs` reads lines into one reused `String`, the usual way to avoid an allocation per line. It
@@ -1779,7 +1766,7 @@ impl Index {
 IX_SETUP = 'let mut ix = Index::new();\nix.add(1, "rust borrow check");\nix.add(2, "rust rust lifetimes");\nix.add(5, "borrow");'
 IX_DESC = 'add 1 "rust borrow check", 2 "rust rust lifetimes", 5 "borrow"'
 
-P.append(writep(
+P.append(write(
     "entry-returns-a-borrow", "The entry API and when not to use it", "easy", "where-borrows-end", ["HashMap::entry", "get_mut", "or_default", "retain", "allocation"],
     """
         Write the methods of `Index`, an inverted index from words to the documents that contain them, plus a
@@ -1982,7 +1969,7 @@ def report_auto(name, text, header, with_alerts=True):
     return report_case(name, text, header, out, alerts, n, with_alerts)
 
 
-P.append(fixp(
+P.append(fix(
     "fix-moved-mut-into-generic", "Fix: a &mut moved where you meant to lend it", "medium", "reborrows", ["E0382", "reborrow", "as_deref_mut", "Iterator::by_ref"],
     """
         `report` doesn't compile: three things it means to lend are moved instead, each of a different kind.
@@ -2180,7 +2167,7 @@ impl Meter {
 
 METER_NEW = "let mut m = Meter { readings: vec![], offset: 0, log: vec![] };"
 
-P.append(fixp(
+P.append(fix(
     "fix-closure-borrows", "Fix: closures hold what they capture", "medium", "reborrows", ["E0502", "E0382", "closures", "disjoint captures", "FnMut", "&mut F"],
     """
         `Meter` doesn't compile. Each of its three methods uses a closure, and each closure borrows something
@@ -2375,7 +2362,7 @@ def with_body(key, body):
     return list_src(b)
 
 
-P.append(writep(
+P.append(write(
     "mut-cursor-loop", "&mut cursors in a loop", "medium", "reborrows", ["&mut in loops", "Option<Box<T>>", "NLL", "as_deref_mut"],
     """
         Write four methods of a singly linked list, each by walking a `&mut` cursor down the list: `push_back`,
@@ -2557,7 +2544,7 @@ def script_case(name, v):
              f"(vec![{', '.join(map(str, after))}], vec![{', '.join(map(str, log))}])")
 
 
-P.append(fixp(
+P.append(fix(
     "two-phase-borrows", "Fix: where two-phase borrows stop", "medium", "reborrows", ["two-phase borrows", "E0502", "E0499", "DerefMut", "IndexMut"],
     """
         `script` doesn't compile, but not every suspicious-looking line is at fault: `v.push(v.len() as i32)`
@@ -2728,7 +2715,7 @@ impl<'a> Round<'a> {
 
 ROUND_SETUP = 'let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];\nlet mut log = String::new();'
 
-P.append(fixp(
+P.append(fix(
     "fix-two-mut-into-players", "Fix: a struct of &mut: reborrow, sequence, hand back", "medium", "reborrows", ["E0499", "E0507", "reborrow", "&mut fields", "mem::replace"],
     """
         `Round` holds two `&mut` borrowed from its caller, and none of its methods compiles. Fix them. After
@@ -2903,7 +2890,7 @@ pub fn fan_out(sinks: &mut [Box<dyn Sink>], xs: &[i32]) -> Vec<usize> {
 SINK_TAIL_SOLUTION = sub(SINK_TAIL_STARTER, "    emit_all(sink, xs);\n    emit_all(sink, xs);\n    emit_all(Tee(sink, count), xs);", "    emit_all(&mut *sink, xs);\n    emit_all(&mut *sink, xs);\n    emit_all(Tee(&mut *sink, count), xs);")
 SINK_SOLUTION = SINK_HEAD + SINK_IMPLS + SINK_TAIL_SOLUTION
 
-P.append(fixp(
+P.append(fix(
     "explicit-reborrow-generic-sink", "Lend a sink: impl Sink for &mut S", "medium", "reborrows", ["reborrow", "blanket impls", "?Sized", "Box<dyn Trait>"],
     """
         `emit_all` takes its sink by value, the way std's generic sinks and iterators do. `pipeline` and
@@ -3045,7 +3032,7 @@ impl<T> ExactSizeIterator for StepMut<'_, T> {}
 """
 
 
-P.append(writep(
+P.append(write(
     "stride-iter-mut", "An iterator that hands out &mut", "medium", "reborrows", ["IterMut", "mem::take", "split_first_mut", "reborrow lifetimes"],
     """
         Implement `next`, `size_hint` and `next_back` for `StepMut`, which yields every `step`-th element of a
@@ -3197,7 +3184,7 @@ def merge_case(name, xs):
              setup=f"let mut v = evs({lit});\nlet n = merge_runs(&mut v);")
 
 
-P.append(fixp(
+P.append(fix(
     "fix-remove-while-iterating", "Fix: remove while iterating, merging into the survivor", "medium", "iterator-invalidation", ["E0502", "dedup_by", "O(n) removal"],
     """
         `merge_runs` doesn't compile: it removes from the `Vec` it's iterating and writes to the element before.
@@ -3360,7 +3347,7 @@ def pool_state(expr="p"):
     return f"{expr}.conns.iter().map(|c| (c.id, c.idle, c.tokens)).collect::<Vec<_>>()"
 
 
-P.append(writep(
+P.append(write(
     "retain-mut", "retain_mut with the rest of self", "medium", "iterator-invalidation", ["retain_mut", "disjoint closure captures", "mem::take", "iter_mut().find"],
     """
         Write `tick`, `use_conn` and `drain_closed` for a connection pool. `tick` updates some connections and
@@ -3526,7 +3513,7 @@ def expand_case(name, tasks, rules):
     return T(name, desc, f"run({tl}, {rl})", f"({len(out) - len(tasks)}, {want})")
 
 
-P.append(fixp(
+P.append(fix(
     "fix-push-while-iterating", "Fix: push to the Vec you iterate", "medium", "iterator-invalidation", ["E0502", "worklists", "index loops"],
     """
         `expand` doesn't compile: it pushes to `tasks` while iterating over it. Here that's the point, since
@@ -3684,7 +3671,7 @@ def life_auto(name, w, h, alive, steps):
     return life_case(name, w, h, str(list(alive)), steps, str(life_py(w, h, alive, steps)))
 
 
-P.append(writep(
+P.append(write(
     "collect-then-mutate", "Read one buffer, write the other", "medium", "iterator-invalidation", ["double buffering", "mem::swap", "disjoint fields", "allocation"],
     """
         Write `Life::step`. Every cell's next state depends on its neighbours' *old* states, so updating the grid
@@ -3858,7 +3845,7 @@ def q_case(name, desc, ops, want, setup=Q_SETUP):
     return T(name, f"{Q_DESC}; {desc}" if setup == Q_SETUP else desc, ops, want, setup=setup)
 
 
-P.append(writep(
+P.append(write(
     "extract-if", "Move jobs out: extract_if, drain, rotate", "medium", "iterator-invalidation", ["extract_if", "drain", "rotate_left", "lazy iterators"],
     """
         Write three ways of taking jobs out of a queue without cloning any: the first few expired jobs, the next
@@ -4052,7 +4039,7 @@ def sess_case(name, xs, now):
     return T(name, desc, "(removed, bytes(&m))", f"({rv}, {lv})", setup=f"let mut m = sessions({lit});\nlet removed = expire(&mut m, {now});")
 
 
-P.append(fixp(
+P.append(fix(
     "fix-map-mutation-during-iteration", "Fix: HashMap mutation during iteration", "medium", "iterator-invalidation", ["E0502", "HashMap::extract_if", "get_mut", "order independence"],
     """
         `expire` doesn't compile: it removes entries from the map it's iterating and edits other entries on the
@@ -4236,7 +4223,7 @@ for _old, _new in [
 ED_MACROS = 'e.macros = vec![Macro::Append("!".to_string()), Macro::Replace("a".to_string(), "o".to_string()), Macro::Upper];'
 ED_DESC = 'macros [Append "!", Replace "a" with "o", Upper]'
 
-P.append(fixp(
+P.append(fix(
     "fix-field-borrow-and-mut-method", "Fix: a field borrowed across a &mut self call", "medium", "split-borrows", ["E0502", "E0507", "mem::take", "take and restore"],
     """
         `Editor` doesn't compile: three methods hold a borrow of one field (or try to move one) while calling
@@ -4363,7 +4350,7 @@ pub fn for_each_adjacent_mut<T>(v: &mut [T], mut f: impl FnMut(&mut T, &mut T)) 
 CARRY = "|a: &mut u32, b: &mut u32| { *b += *a / 10; *a %= 10; }"
 BUBBLE = "|a: &mut i32, b: &mut i32| if *a > *b { std::mem::swap(a, b) }"
 
-P.append(writep(
+P.append(write(
     "pair-mut", "Two &mut into one slice, and adjacent pairs", "medium", "split-borrows", ["split_at_mut", "no windows_mut", "FnMut(&mut T, &mut T)"],
     """
         Write `pair_mut`, which returns `&mut` to two different elements at once, and `for_each_adjacent_mut`,
@@ -4535,7 +4522,7 @@ WORKER_SOLUTION = worker_src(WORKER_BODIES)
 WORKER_STARTER = worker_src({k: "        todo!()\n" for k in WORKER_BODIES})
 WK = "let mut w = Worker { state: State::Idle, log: vec![], max_tries: 3 };"
 
-P.append(writep(
+P.append(write(
     "destructure-self", "Destructure &mut self: binding modes and mem::replace", "medium", "split-borrows", ["patterns", "default binding modes", "let else", "mem::replace", "state machines"],
     """
         Write the transitions of a small worker state machine. The job name moves from state to state as the
@@ -4717,7 +4704,7 @@ def sv_case(name, desc, v, call, want):
     return T(name, f"{v}; {desc}".replace("'", '"'), f"{{ let mut v = {lit}; {call}; v }}", w)
 
 
-P.append(fixp(
+P.append(fix(
     "fix-swap-without-swap", "Fix: move values between slots of one slice", "medium", "split-borrows", ["E0499", "E0502", "mem::take", "mem::replace", "split_at_mut", "extend_from_within"],
     """
         None of these compiles: each holds two borrows into `v` at once. Fix them without `swap`, `rotate_*`,
@@ -4868,7 +4855,7 @@ DOC_SOLUTION = doc_src(DOC_BODIES)
 DOC_STARTER = doc_src({k: ("    todo!()\n" if k == "hashtags" else "        todo!()\n") for k in DOC_BODIES})
 DOC_NEW = 'let mut d = Document { title: "Draft".to_string(), tags: vec![], lines: vec![], words: 0 };'
 
-P.append(writep(
+P.append(write(
     "view-struct", "View structs over disjoint fields", "medium", "split-borrows", ["view structs", "lifetimes", "destructuring", "E0499"],
     """
         `Header` and `Body` are views: each bundles `&mut` borrows of some of `Document`'s fields. Write the
@@ -5029,7 +5016,7 @@ for _old, _new in [
 SHOP_NEW = 'let mut s = Shop::new(vec![shop::Item { name: "pen".into(), price: 5 }, shop::Item { name: "lamp".into(), price: 40 }, shop::Item { name: "desk".into(), price: 300 }], 10);'
 SHOP_DESC = "pen 5, lamp 40, desk 300; discount 10%"
 
-P.append(fixp(
+P.append(fix(
     "fix-borrow-through-getter", "Fix: getters borrow all of self", "medium", "split-borrows", ["E0502", "E0499", "getters", "privacy", "split accessors"],
     """
         `sale` and `flag_expensive` don't compile: each borrows the shop through one accessor while calling
@@ -5105,907 +5092,1246 @@ Syntax to remember: `pub fn items_and_log(&mut self) -> (&[Item], &mut Vec<Strin
 
 # ---------------------------------------------------------------- borrow-checker limits (hard)
 
-P.append(fix(
-    "fix-get-or-insert", "Fix: get-or-insert without the entry API", "hard", "borrow-checker-limits", ["NLL case 3", "E0502"],
-    "`get_or_insert` doesn't compile, even though it's correct. This is a known limit of today's borrow checker. Fix it without the entry API.",
-    """
-    use std::collections::HashMap;
+CACHE_HEAD = r"""
+use std::collections::HashMap;
 
-    /// The value for `key`, inserting `default` first if it's missing.
-    pub fn get_or_insert<'m>(map: &'m mut HashMap<u32, String>, key: u32, default: &str) -> &'m String {
-        if let Some(v) = map.get(&key) {
+pub struct Cache {
+    map: HashMap<u32, String>,
+    order: Vec<u32>,
+    misses: usize,
+}
+
+impl Cache {
+    pub fn new() -> Self {
+        Cache { map: HashMap::new(), order: Vec::new(), misses: 0 }
+    }
+
+    /// Keys in the order they were first stored.
+    pub fn order(&self) -> &[u32] {
+        &self.order
+    }
+
+    pub fn misses(&self) -> usize {
+        self.misses
+    }
+"""
+
+CACHE_STARTER = CACHE_HEAD + r"""
+    /// The value for `key`. If it's missing, counts a miss, records the key's order, and stores `make()`.
+    /// `make` runs only on a miss.
+    pub fn get_or_make(&mut self, key: u32, make: impl FnOnce() -> String) -> &String {
+        if let Some(v) = self.map.get(&key) {
             return v;
         }
-        map.insert(key, default.to_string());
-        &map[&key]
+        self.misses += 1;
+        self.order.push(key);
+        self.map.insert(key, make());
+        &self.map[&key]
     }
-    """,
-    """
-    use std::collections::HashMap;
 
-    /// The value for `key`, inserting `default` first if it's missing.
-    pub fn get_or_insert<'m>(map: &'m mut HashMap<u32, String>, key: u32, default: &str) -> &'m String {
-        if !map.contains_key(&key) {
-            map.insert(key, default.to_string());
-        }
-        &map[&key]
-    }
-    """,
-    [T("existing", "{1: \"one\"}, key 1", '{ let mut m = std::collections::HashMap::from([(1, "one".to_string())]); get_or_insert(&mut m, 1, "x").clone() }', '"one".to_string()'),
-     T("missing", "{}, key 2", '{ let mut m = std::collections::HashMap::new(); let v = get_or_insert(&mut m, 2, "two").clone(); (v, m.len()) }', '("two".to_string(), 1)')],
-    [T("default_not_used_twice", "call twice for key 3", '{ let mut m = std::collections::HashMap::new(); get_or_insert(&mut m, 3, "a"); get_or_insert(&mut m, 3, "b").clone() }', '"a".to_string()')],
-    [("rust", "Returning `v` from inside the `if let` makes the borrow last for `'m` on every path, including the one that inserts."),
-     ("approach", "Check with something that returns a `bool`, not a reference, then look the key up once more.")],
-    ("This is NLL \"problem case #3\": conditionally returning a borrow extends it to the whole function. Polonius, the next borrow checker, accepts the original. The fix costs one extra lookup.", "O(1)", "O(1)"),
-    "Why does the entry API avoid this problem entirely?",
-    ["NLL problem case 3: a conditionally returned borrow is live on every path.", "Restructure so the check returns a value, not a reference."],
-    rules=dict(methods=["entry", "clone"]),
-))
-
-P.append(fix(
-    "fix-conditional-return-of-borrow", "Fix: conditional return of a borrow", "hard", "borrow-checker-limits", ["NLL case 3", "Polonius"],
-    "`first_long_or_push` returns the first word longer than `n`, or pushes `\"fallback\"` and returns that. It's correct, but it doesn't compile.",
-    """
-    /// The first word longer than `n`; otherwise pushes "fallback" and returns it.
-    pub fn first_long_or_push(words: &mut Vec<String>, n: usize) -> &String {
-        for w in words.iter() {
-            if w.len() > n {
-                return w;
+    /// Like `get_or_make`, for editing the value in place.
+    pub fn get_or_make_mut(&mut self, key: u32, make: impl FnOnce() -> String) -> &mut String {
+        match self.map.get_mut(&key) {
+            Some(v) => v,
+            None => {
+                self.misses += 1;
+                self.order.push(key);
+                self.map.insert(key, make());
+                self.map.get_mut(&key).unwrap()
             }
         }
-        words.push("fallback".to_string());
-        words.last().expect("just pushed")
     }
-    """,
-    """
-    /// The first word longer than `n`; otherwise pushes "fallback" and returns it.
-    pub fn first_long_or_push(words: &mut Vec<String>, n: usize) -> &String {
-        if let Some(i) = words.iter().position(|w| w.len() > n) {
-            return &words[i];
-        }
-        words.push("fallback".to_string());
-        words.last().expect("just pushed")
-    }
-    """,
-    [T("found", "[\"a\", \"long\"], n = 2", '{ let mut v = vec!["a".to_string(), "long".to_string()]; first_long_or_push(&mut v, 2).clone() }', '"long".to_string()'),
-     T("fallback", "[\"a\"], n = 5", '{ let mut v = vec!["a".to_string()]; let r = first_long_or_push(&mut v, 5).clone(); (r, v.len()) }', '("fallback".to_string(), 2)')],
-    [T("empty", "[], n = 0", "{ let mut v = vec![]; first_long_or_push(&mut v, 0).clone() }", '"fallback".to_string()')],
-    [("rust", "Find an index first. An index doesn't borrow the Vec, so the push path is free to mutate it.")],
-    ("Searching for a `usize` ends the borrow before the decision, so neither path conflicts.", "O(n)", "O(1)"),
-    "Could you write a test that proves this is safe even though rustc rejects the original?",
-    ["Return indices from searches when a later branch needs to mutate."],
-))
-
-P.append(write(
-    "get-disjoint-mut", "get_disjoint_mut with index checks", "hard", "borrow-checker-limits", ["get_disjoint_mut", "Result"],
-    """
-    Move `amount` from account `from` to account `to`. Return `Err("same account")`,
-    `Err("no such account")` or `Err("insufficient funds")` without changing anything when the move isn't allowed.
-    """,
-    """
-    pub fn transfer(balances: &mut [i64], from: usize, to: usize, amount: i64) -> Result<(), &'static str> {
-        todo!()
-    }
-    """,
-    """
-    use std::slice::GetDisjointMutError;
-
-    pub fn transfer(balances: &mut [i64], from: usize, to: usize, amount: i64) -> Result<(), &'static str> {
-        let [a, b] = balances.get_disjoint_mut([from, to]).map_err(|e| match e {
-            GetDisjointMutError::OverlappingIndices => "same account",
-            GetDisjointMutError::IndexOutOfBounds => "no such account",
-        })?;
-        if *a < amount {
-            return Err("insufficient funds");
-        }
-        *a -= amount;
-        *b += amount;
-        Ok(())
-    }
-    """,
-    [T("moves", "[10, 0], 0 → 1, 4", "{ let mut b = [10, 0]; (transfer(&mut b, 0, 1, 4), b) }", "(Ok(()), [6, 4])"),
-     T("same", "0 → 0", "{ let mut b = [10]; transfer(&mut b, 0, 0, 1) }", 'Err("same account")')],
-    [T("out_of_bounds", "0 → 7", "{ let mut b = [10, 0]; transfer(&mut b, 0, 7, 1) }", 'Err("no such account")'),
-     T("insufficient", "[1, 0], 0 → 1, 5", "{ let mut b = [1, 0]; (transfer(&mut b, 0, 1, 5), b) }", '(Err("insufficient funds"), [1, 0])')],
-    [("rust", "`slice::get_disjoint_mut([i, j])` returns `[&mut T; 2]`, or an error saying which check failed.")],
-    ("std checks bounds and overlap once and hands back an array of `&mut`, with no `unsafe` in your code.", "O(1)", "O(1)"),
-    "How would you generalise this to N accounts in one atomic batch?",
-    ["`get_disjoint_mut` does the index checks for you."],
-    related=("L2", "S3"),
-))
-
-P.append(write(
-    "cell-for-copy", "When Cell beats RefCell", "hard", "borrow-checker-limits", ["Cell", "interior mutability"],
-    "Each `Node` counts its visits through a shared `&Node`. Use `Cell<u32>`; no `RefCell`, no `&mut`.",
-    """
-    use std::cell::Cell;
-
-    pub struct Node {
-        pub name: String,
-        visits: Cell<u32>,
-    }
-
-    impl Node {
-        pub fn new(name: &str) -> Self {
-            todo!()
-        }
-
-        /// Records a visit and returns the new count.
-        pub fn visit(&self) -> u32 {
-            todo!()
-        }
-
-        pub fn visits(&self) -> u32 {
-            todo!()
-        }
-    }
-    """,
-    """
-    use std::cell::Cell;
-
-    pub struct Node {
-        pub name: String,
-        visits: Cell<u32>,
-    }
-
-    impl Node {
-        pub fn new(name: &str) -> Self {
-            Node { name: name.to_string(), visits: Cell::new(0) }
-        }
-
-        /// Records a visit and returns the new count.
-        pub fn visit(&self) -> u32 {
-            let n = self.visits.get() + 1;
-            self.visits.set(n);
-            n
-        }
-
-        pub fn visits(&self) -> u32 {
-            self.visits.get()
-        }
-    }
-    """,
-    [T("counts", "visit 3 times", '{ let n = Node::new("a"); n.visit(); n.visit(); (n.visit(), n.visits()) }', "(3, 3)"),
-     T("shared_refs", "two &Node to the same node", '{ let n = Node::new("a"); let (x, y) = (&n, &n); x.visit(); y.visit(); n.visits() }', "2")],
-    [T("in_a_vec", "visit through a Vec<&Node>", '{ let a = Node::new("a"); let b = Node::new("b"); let all = vec![&a, &b, &a]; for n in &all { n.visit(); } (a.visits(), b.visits()) }', "(2, 1)")],
-    [("rust", "`Cell` moves `Copy` values in and out with `get`/`set` and never hands out a reference, so there's nothing to track at runtime.")],
-    ("`Cell` is zero-cost interior mutability for `Copy` types; `RefCell` adds a borrow counter and can panic. Neither is `Sync`.", "O(1)", "O(1)"),
-    "Why is `Cell` safe even though it mutates through `&self`?",
-    ["`Cell<T>` for `Copy` values: no references out, no runtime checks."],
-    related=("L2", "S7"),
-))
-
-P.append(fix(
-    "fix-borrowmuterror", "Fix: BorrowMutError at runtime", "hard", "borrow-checker-limits", ["RefCell", "panic"],
-    "`Registry::add` compiles but panics with `already borrowed`. Fix it.",
-    """
-    use std::cell::RefCell;
-
-    pub struct Registry {
-        names: RefCell<Vec<String>>,
-    }
-
-    impl Registry {
-        pub fn new() -> Self {
-            Registry { names: RefCell::new(Vec::new()) }
-        }
-
-        /// Adds `name` unless it's already there.
-        pub fn add(&self, name: &str) {
-            let names = self.names.borrow();
-            if !names.iter().any(|n| n == name) {
-                self.names.borrow_mut().push(name.to_string());
-            }
-        }
-
-        pub fn len(&self) -> usize {
-            self.names.borrow().len()
-        }
-    }
-    """,
-    """
-    use std::cell::RefCell;
-
-    pub struct Registry {
-        names: RefCell<Vec<String>>,
-    }
-
-    impl Registry {
-        pub fn new() -> Self {
-            Registry { names: RefCell::new(Vec::new()) }
-        }
-
-        /// Adds `name` unless it's already there.
-        pub fn add(&self, name: &str) {
-            let exists = self.names.borrow().iter().any(|n| n == name);
-            if !exists {
-                self.names.borrow_mut().push(name.to_string());
-            }
-        }
-
-        pub fn len(&self) -> usize {
-            self.names.borrow().len()
-        }
-    }
-    """,
-    [T("adds_once", "add \"a\" twice, \"b\" once", '{ let r = Registry::new(); r.add("a"); r.add("a"); r.add("b"); r.len() }', "2")],
-    [T("empty", "new registry", "Registry::new().len()", "0")],
-    [("rust", "`borrow()` returns a guard that holds the shared borrow until it's dropped. When is `names` dropped?")],
-    ("The guard lived to the end of the function, so `borrow_mut` found it still active and panicked. Ending the shared borrow in the same statement fixes it.", "O(n)", "O(1)"),
-    "Why does RefCell panic instead of returning an error by default, and when would you use `try_borrow_mut`?",
-    ["`RefCell` enforces the borrow rules at runtime, through guards.", "Guard lifetimes are scopes; end them early."],
-    related=("L2", "S7"),
-))
-
-P.append(fix(
-    "fix-refcell-guard-across-call", "Fix: a RefCell guard held across a call", "hard", "borrow-checker-limits", ["Ref", "RefMut", "panic"],
-    "`deposit` compiles but panics. Fix it so it records the new total after each deposit.",
-    """
-    use std::cell::RefCell;
-
-    pub struct Bank {
-        balances: RefCell<Vec<i64>>,
-        audit: RefCell<Vec<String>>,
-    }
-
-    impl Bank {
-        pub fn new(accounts: usize) -> Self {
-            Bank { balances: RefCell::new(vec![0; accounts]), audit: RefCell::new(Vec::new()) }
-        }
-
-        fn total(&self) -> i64 {
-            self.balances.borrow().iter().sum()
-        }
-
-        /// Adds `amount` to account `i` and records the new total.
-        pub fn deposit(&self, i: usize, amount: i64) {
-            let mut balances = self.balances.borrow_mut();
-            balances[i] += amount;
-            self.audit.borrow_mut().push(format!("total {}", self.total()));
-        }
-
-        pub fn audit(&self) -> Vec<String> {
-            self.audit.borrow().to_vec()
-        }
-    }
-    """,
-    """
-    use std::cell::RefCell;
-
-    pub struct Bank {
-        balances: RefCell<Vec<i64>>,
-        audit: RefCell<Vec<String>>,
-    }
-
-    impl Bank {
-        pub fn new(accounts: usize) -> Self {
-            Bank { balances: RefCell::new(vec![0; accounts]), audit: RefCell::new(Vec::new()) }
-        }
-
-        fn total(&self) -> i64 {
-            self.balances.borrow().iter().sum()
-        }
-
-        /// Adds `amount` to account `i` and records the new total.
-        pub fn deposit(&self, i: usize, amount: i64) {
-            self.balances.borrow_mut()[i] += amount;
-            let total = self.total();
-            self.audit.borrow_mut().push(format!("total {total}"));
-        }
-
-        pub fn audit(&self) -> Vec<String> {
-            self.audit.borrow().to_vec()
-        }
-    }
-    """,
-    [T("records", "deposit 5 into 0, 7 into 1", "{ let b = Bank::new(2); b.deposit(0, 5); b.deposit(1, 7); b.audit() }", 'vec!["total 5", "total 12"]')],
-    [T("negative", "deposit -3", "{ let b = Bank::new(1); b.deposit(0, -3); b.audit() }", 'vec!["total -3"]')],
-    [("rust", "`total()` calls `borrow()` while `balances`, a `RefMut` guard, is still alive in `deposit`.")],
-    ("A guard that outlives its statement is the usual cause of RefCell panics, and the call hides it. Writing through a temporary guard ends it at the semicolon.", "O(n)", "O(1)"),
-    "How would you find this bug in a large codebase before it panics in production?",
-    ["`RefMut` guards held across calls into the same RefCell."],
-    related=("L2", "S7"),
-))
-
-P.append(fix(
-    "fix-refcell-to-split-borrow", "Fix: RefCell where a split borrow suffices", "hard", "borrow-checker-limits", ["RefCell", "split borrows"],
-    "`Cart` uses a `RefCell` to get around a borrow error that a split borrow solves. Remove the `RefCell`. Keep the same public methods.",
-    """
-    use std::cell::RefCell;
-
-    pub struct Cart {
-        items: RefCell<Vec<u32>>,
-        total: u32,
-    }
-
-    impl Cart {
-        pub fn new() -> Self {
-            Cart { items: RefCell::new(Vec::new()), total: 0 }
-        }
-
-        pub fn add(&mut self, price: u32) {
-            self.items.borrow_mut().push(price);
-            self.total += price;
-        }
-
-        /// Doubles every price and keeps the total in step.
-        pub fn double_all(&mut self) {
-            for p in self.items.borrow_mut().iter_mut() {
-                self.total += *p;
-                *p *= 2;
-            }
-        }
-
-        pub fn total(&self) -> u32 {
-            self.total
-        }
-
-        pub fn items(&self) -> Vec<u32> {
-            self.items.borrow().to_vec()
-        }
-    }
-    """,
-    """
-    pub struct Cart {
-        items: Vec<u32>,
-        total: u32,
-    }
-
-    impl Cart {
-        pub fn new() -> Self {
-            Cart { items: Vec::new(), total: 0 }
-        }
-
-        pub fn add(&mut self, price: u32) {
-            self.items.push(price);
-            self.total += price;
-        }
-
-        /// Doubles every price and keeps the total in step.
-        pub fn double_all(&mut self) {
-            for p in self.items.iter_mut() {
-                self.total += *p;
-                *p *= 2;
-            }
-        }
-
-        pub fn total(&self) -> u32 {
-            self.total
-        }
-
-        pub fn items(&self) -> Vec<u32> {
-            self.items.to_vec()
-        }
-    }
-    """,
-    [T("doubles", "add 3, 4; double", "{ let mut c = Cart::new(); c.add(3); c.add(4); c.double_all(); (c.items(), c.total()) }", "(vec![6, 8], 14)")],
-    [T("empty", "double an empty cart", "{ let mut c = Cart::new(); c.double_all(); (c.items(), c.total()) }", "(vec![], 0)")],
-    [("rust", "Inside one method, `self.items.iter_mut()` and `self.total` borrow different fields. Why was the RefCell ever needed?")],
-    ("RefCell turned a compile-time guarantee into a runtime check that could panic. With `&mut self` and field paths, the split borrow needs neither.", "O(n)", "O(1)"),
-    "When is RefCell genuinely the right tool?",
-    ["Reach for split borrows before interior mutability."],
-    rules=dict(types=["RefCell", "Cell"]),
-    related=("L2", "S7"),
-))
-
-
-EXTRA = {
-    "fix-borrowmuterror": T("order_kept", "add \"b\", \"a\"", '{ let r = Registry::new(); r.add("b"); r.add("a"); r.add("b"); r.len() }', "2"),
-    "fix-refcell-guard-across-call": T("same_account", "deposit 1 into 0 twice", "{ let b = Bank::new(1); b.deposit(0, 1); b.deposit(0, 1); b.audit() }", 'vec!["total 1", "total 2"]'),
-    "fix-refcell-to-split-borrow": T("double_twice", "add 1; double twice", "{ let mut c = Cart::new(); c.add(1); c.double_all(); c.double_all(); (c.items(), c.total()) }", "(vec![4], 4)"),
 }
-for p in P:
-    if p["slug"] in EXTRA:
-        p["visible"].append(EXTRA[p["slug"]])
-
-# ---------------------------------------------------------------- test hardening
-# Per problem: more visible cases (the rules that are easy to misread), hidden edge cases, a seeded random
-# comparison against a brute-force model, a scale test where complexity matters, and `wrong` solutions that
-# `anneal verify` checks the tests reject. Fix-mode wrong solutions obey the problem's rules.
-MORE = {}
-
-GOI_WRONG = """
-    use std::collections::HashMap;
-
-    /// The value for `key`, inserting `default` first if it's missing.
-    pub fn get_or_insert<'m>(map: &'m mut HashMap<u32, String>, key: u32, default: &str) -> &'m String {
-        BODY
-    }
 """
-MORE["fix-get-or-insert"] = dict(
-    visible=[
-        T("empty_default", "{}, key 0, default \"\"", '{ let mut m = std::collections::HashMap::new(); let v = get_or_insert(&mut m, 0, "").clone(); (v, m.len()) }', "(String::new(), 1)"),
-        T("existing_not_replaced", "{1: \"one\"}, key 1, default \"x\"", '{ let mut m = std::collections::HashMap::from([(1, "one".to_string())]); get_or_insert(&mut m, 1, "x"); (m[&1].clone(), m.len()) }', '("one".to_string(), 1)'),
-        T("different_keys", "keys 1 then 2", '{ let mut m = std::collections::HashMap::new(); get_or_insert(&mut m, 1, "a"); let v = get_or_insert(&mut m, 2, "b").clone(); (v, m.len()) }', '("b".to_string(), 2)'),
-    ],
-    hidden=[
-        T("many_keys", "1000 keys", '{ let mut m = std::collections::HashMap::new(); for k in 0..1000 { get_or_insert(&mut m, k, "v"); } m.len() }', "1000"),
-        T("u32_max_key", "key u32::MAX", '{ let mut m = std::collections::HashMap::new(); get_or_insert(&mut m, u32::MAX, "big").clone() }', '"big".to_string()'),
-        T("unicode_default", "default \"ünï\"", '{ let mut m = std::collections::HashMap::new(); get_or_insert(&mut m, 7, "ünï").clone() }', '"ünï".to_string()'),
-        T("returns_the_stored_value", "the result points into the map", '{ let mut m = std::collections::HashMap::new(); let p: *const String = get_or_insert(&mut m, 5, "v"); p == &m[&5] as *const String }', "true"),
-        T("existing_empty_value", "{4: \"\"}, key 4, default \"d\"", '{ let mut m = std::collections::HashMap::from([(4, String::new())]); get_or_insert(&mut m, 4, "d").clone() }', "String::new()"),
-        T("others_untouched", "{1: \"a\"}, key 2", '{ let mut m = std::collections::HashMap::from([(1, "a".to_string())]); get_or_insert(&mut m, 2, "b"); m[&1].clone() }', '"a".to_string()'),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2027);
-            for _ in 0..200 {
-                let mut m = std::collections::HashMap::new();
-                let mut model: Vec<(u32, String)> = Vec::new();
-                let mut log = Vec::new();
-                let n = rng.below(10);
-                for _ in 0..n {
-                    let key = rng.below(5) as u32;
-                    let d = rng.string(2, "xy");
-                    log.push(format!("({key}, {d:?})"));
-                    let got = get_or_insert(&mut m, key, &d).clone();
-                    let want = match model.iter().find(|(k, _)| *k == key) {
-                        Some((_, v)) => v.clone(),
-                        None => {
-                            model.push((key, d.clone()));
-                            d.clone()
-                        }
-                    };
-                    check!(log.join(", "), got, want);
-                }
-                check!(log.join(", "), m.len(), model.len());
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        always_inserts=GOI_WRONG.replace("BODY", """map.insert(key, default.to_string());
-        &map[&key]"""),
-        forgets_to_insert=GOI_WRONG.replace("BODY", """if !map.contains_key(&key) {
-            return Box::leak(Box::new(default.to_string()));
-        }
-        &map[&key]"""),
-    ),
-)
 
-FLP_WRONG = """
-    /// The first word longer than `n`; otherwise pushes "fallback" and returns it.
-    pub fn first_long_or_push(words: &mut Vec<String>, n: usize) -> &String {
-        if let Some(i) = words.iter().FIND {
-            return &words[i];
+CACHE_SOLUTION = CACHE_HEAD + r"""
+    /// The value for `key`. If it's missing, counts a miss, records the key's order, and stores `make()`.
+    /// `make` runs only on a miss.
+    pub fn get_or_make(&mut self, key: u32, make: impl FnOnce() -> String) -> &String {
+        if !self.map.contains_key(&key) {
+            self.misses += 1;
+            self.order.push(key);
+            self.map.insert(key, make());
         }
-        words.push("fallback".to_string());
-        words.last().expect("just pushed")
+        &self.map[&key]
     }
+
+    /// Like `get_or_make`, for editing the value in place.
+    pub fn get_or_make_mut(&mut self, key: u32, make: impl FnOnce() -> String) -> &mut String {
+        if !self.map.contains_key(&key) {
+            self.misses += 1;
+            self.order.push(key);
+            self.map.insert(key, make());
+        }
+        self.map.get_mut(&key).unwrap()
+    }
+}
 """
-MORE["fix-conditional-return-of-borrow"] = dict(
-    visible=[
-        T("exactly_n_is_not_longer", "[\"abc\"], n = 3", '{ let mut v = vec!["abc".to_string()]; let r = first_long_or_push(&mut v, 3).clone(); (r, v.len()) }', '("fallback".to_string(), 2)'),
-        T("first_of_several", "[\"aaa\", \"bbbb\", \"ccccc\"], n = 2", '{ let mut v = vec!["aaa".to_string(), "bbbb".to_string(), "ccccc".to_string()]; first_long_or_push(&mut v, 2).clone() }', '"aaa".to_string()'),
-        T("empty", "[], n = 0", "{ let mut v = vec![]; first_long_or_push(&mut v, 0).clone() }", '"fallback".to_string()'),
-    ],
-    hidden=[
-        T("no_push_when_found", "[\"a\", \"b\", \"long\"], n = 3", '{ let mut v = vec!["a".to_string(), "b".to_string(), "long".to_string()]; let r = first_long_or_push(&mut v, 3).clone(); (r, v.len()) }', '("long".to_string(), 3)'),
-        T("n_zero", "[\"x\"], n = 0", '{ let mut v = vec!["x".to_string()]; first_long_or_push(&mut v, 0).clone() }', '"x".to_string()'),
-        T("existing_fallback_word", "[\"fallback\"], n = 8", '{ let mut v = vec!["fallback".to_string()]; first_long_or_push(&mut v, 8); v.len() }', "2"),
-        T("unicode_bytes", "[\"日本\"], n = 5", '{ let mut v = vec!["日本".to_string()]; first_long_or_push(&mut v, 5).clone() }', '"日本".to_string()'),
-        T("n_max", "[\"abc\"], n = usize::MAX", '{ let mut v = vec!["abc".to_string()]; first_long_or_push(&mut v, usize::MAX).clone() }', '"fallback".to_string()'),
-        T("twice_pushes_twice", "[], n = 10, twice", "{ let mut v = vec![]; first_long_or_push(&mut v, 10); first_long_or_push(&mut v, 10); v.len() }", "2"),
-        T("fallback_found_second_time", "[], n = 3, twice", "{ let mut v = vec![]; first_long_or_push(&mut v, 3); first_long_or_push(&mut v, 3); v.len() }", "1"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2028);
-            for _ in 0..300 {
-                let k = rng.below(5);
-                let words: Vec<String> = (0..k).map(|_| { let l = rng.below(5); rng.string(l, "ab") }).collect();
-                let n = rng.below(5);
-                let mut want_v = words.clone();
-                let want = match words.iter().position(|w| w.len() > n) {
-                    Some(i) => words[i].clone(),
-                    None => {
-                        want_v.push("fallback".to_string());
-                        "fallback".to_string()
-                    }
-                };
-                let mut v = words.clone();
-                let got = first_long_or_push(&mut v, n).clone();
-                check!(format!("words = {words:?}, n = {n}"), (got, v), (want, want_v));
-            }
-        }
-        """,
-    ],
+
+CA = "let mut c = Cache::new();"
+
+P.append(fix(
+    "fix-get-or-insert", "Fix: get-or-insert without the entry API", "hard", "borrow-checker-limits", ["NLL problem case 3", "E0502", "E0499", "Polonius"],
+    """
+        Neither method compiles, though both are correct: this is a known limit of today's borrow checker.
+        Fix them without the entry API, without calling `make` on a hit, and without cloning any value.
+    """,
+    CACHE_STARTER,
+    CACHE_SOLUTION,
+    [T("hit_and_miss", "get_or_make 1 (\"one\"), then 1 again (\"uno\")", '(c.get_or_make(1, || "one".to_string()).clone(), c.get_or_make(1, || "uno".to_string()).clone(), c.misses())', '("one".to_string(), "one".to_string(), 1)', setup=CA),
+     T("make_runs_only_on_a_miss", "get_or_make 5 twice, counting calls to make", "calls", "1",
+       setup=CA + '\nlet mut calls = 0;\nc.get_or_make(5, || { calls += 1; "x".to_string() });\nc.get_or_make(5, || { calls += 1; "y".to_string() });'),
+     T("edit_in_place", "get_or_make_mut 2 (\"a\") += \"b\", then += \"c\"", 'c.get_or_make(2, String::new).clone()', '"abc".to_string()',
+       setup=CA + '\nc.get_or_make_mut(2, || "a".to_string()).push(\'b\');\nc.get_or_make_mut(2, || "z".to_string()).push(\'c\');'),
+     T("order_of_first_store", "keys 3, 1, 3, 2, 1", "(c.order().to_vec(), c.misses())", "(vec![3, 1, 2], 3)",
+       setup=CA + "\nfor k in [3, 1, 3, 2, 1] {\n    c.get_or_make(k, || k.to_string());\n}"),
+     T("empty_value", "get_or_make 0 (\"\")", 'c.get_or_make(0, String::new).len()', "0", setup=CA)],
+    [T("mut_then_shared", "get_or_make_mut 4 = \"w\", get_or_make 4", 'c.get_or_make(4, || "no".to_string()).clone()', '"w".to_string()', setup=CA + '\n*c.get_or_make_mut(4, String::new) = "w".to_string();'),
+     T("mut_hit_keeps_value", "get_or_make 6 (\"k\"), get_or_make_mut 6 (\"no\")", 'c.get_or_make_mut(6, || "no".to_string()).clone()', '"k".to_string()', setup=CA + '\nc.get_or_make(6, || "k".to_string());'),
+     T("mut_make_once", "get_or_make_mut 7 twice, counting make", "calls", "1", setup=CA + '\nlet mut calls = 0;\nc.get_or_make_mut(7, || { calls += 1; String::new() });\nc.get_or_make_mut(7, || { calls += 1; String::new() });'),
+     T("misses_mixed", "keys 1, 2 via get_or_make, 2, 3 via get_or_make_mut", "(c.misses(), c.order().to_vec())", "(3, vec![1, 2, 3])",
+       setup=CA + "\nc.get_or_make(1, String::new);\nc.get_or_make(2, String::new);\nc.get_or_make_mut(2, String::new);\nc.get_or_make_mut(3, String::new);"),
+     T("key_zero_and_max", "keys 0 and u32::MAX", '(c.get_or_make(0, || "lo".to_string()).clone(), c.get_or_make(u32::MAX, || "hi".to_string()).clone())', '("lo".to_string(), "hi".to_string())', setup=CA),
+     T("returned_value_is_stored", "the &String from get_or_make_mut is the stored one", "p == c.get_or_make(9, String::new).as_ptr()", "true",
+       setup=CA + '\nlet p = c.get_or_make_mut(9, || "stored".to_string()).as_ptr();'),
+     T("new_cache", "new cache", "(c.misses(), c.order().len())", "(0, 0)", setup=CA),
+     T("unicode_value", "get_or_make 1 (\"日本\")", 'c.get_or_make(1, || "日本".to_string()).clone()', '"日本".to_string()', setup=CA),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6230);
+         for _ in 0..300 {
+             let mut c = Cache::new();
+             let mut model: Vec<(u32, String)> = Vec::new();
+             let mut misses = 0;
+             let mut ops = Vec::new();
+             for step in 0..10 {
+                 let k = rng.below(4) as u32;
+                 let made = format!("v{step}");
+                 if model.iter().all(|e| e.0 != k) {
+                     misses += 1;
+                     model.push((k, made.clone()));
+                 }
+                 let want = model.iter().find(|e| e.0 == k).unwrap().1.clone();
+                 if rng.bool() {
+                     ops.push(format!("get_or_make({k})"));
+                     check!(ops.join(", "), c.get_or_make(k, || made).clone(), want);
+                 } else {
+                     ops.push(format!("get_or_make_mut({k}) += \"!\""));
+                     let v = c.get_or_make_mut(k, || made);
+                     check!(ops.join(", "), v.clone(), want);
+                     v.push('!');
+                     model.iter_mut().find(|e| e.0 == k).unwrap().1.push('!');
+                 }
+             }
+             let order: Vec<u32> = model.iter().map(|e| e.0).collect();
+             check!(format!("{}; misses, order", ops.join(", ")), (c.misses(), c.order().to_vec()), (misses, order));
+         }
+     }
+
+     #[test]
+     fn many_keys() {
+         let mut c = Cache::new();
+         for i in 0..200_000u32 {
+             c.get_or_make(i % 50_000, || i.to_string());
+         }
+         check!("200000 lookups over 50000 keys", (c.misses(), c.get_or_make(49_999, String::new).clone()), (50_000, "49999".to_string()));
+     }
+     """],
+    [("rust", "Returning `v` from inside `if let Some(v) = self.map.get(&key)` makes that borrow last for the whole output lifetime. NLL doesn't track that it's only on the returning path, so the borrow counts as live on the insert path too."),
+     ("rust", "The `match` version fails for the same reason: the `Some` arm returns the borrow, so the scrutinee's borrow is live in the `None` arm."),
+     ("rust", "Decide with something that returns a `bool` (`contains_key`), mutate if needed, then look the key up once more and return that borrow.")],
+    ("""This is NLL's \"problem case #3\": when a borrow is conditionally returned, the region of the returned reference must cover the whole rest of the function, and NLL applies that region to the borrow on every path, including the path that doesn't return. So the `insert` counts as a conflict. Polonius, the next borrow checker (`-Zpolonius` on nightly), reasons per path and accepts the original.
+
+The standard workaround separates the decision from the borrow: `contains_key` returns a `bool`, so nothing is borrowed across the insert, and one final lookup produces the returned reference. It costs an extra hash lookup on hits. The entry API avoids that (`entry(key).or_insert_with(make)`) because the entry owns the decision, which is why it exists. Returning something that isn't a borrow (a `bool`, a copy, an index) from the early branch also compiles; only a returned *reference* triggers the problem.
+
+Syntax to remember: `if !self.map.contains_key(&key) { self.map.insert(key, make()); } &self.map[&key]` · `self.map.get_mut(&key).unwrap()`.""", "O(1) expected", "O(1)"),
+    "Rewrite `get_or_make` with the entry API. What does `or_insert_with` do that the two-lookup version can't?",
+    ["NLL problem case 3: a conditionally returned borrow is live on every path.", "Decide with a `bool`, mutate, then borrow once for the return.", "Polonius accepts the original."],
+    rules=dict(methods=["entry", "clone", "cloned", "to_owned"]),
     wrong=dict(
-        last_long=FLP_WRONG.replace("FIND", "rposition(|w| w.len() > n)"),
-        at_least_n=FLP_WRONG.replace("FIND", "position(|w| w.len() >= n)"),
+        counts_every_call=sub(CACHE_SOLUTION, "    pub fn get_or_make(&mut self, key: u32, make: impl FnOnce() -> String) -> &String {\n        if !self.map.contains_key(&key) {\n            self.misses += 1;",
+                              "    pub fn get_or_make(&mut self, key: u32, make: impl FnOnce() -> String) -> &String {\n        self.misses += 1;\n        if !self.map.contains_key(&key) {"),
+        mut_overwrites=sub(CACHE_SOLUTION, "        if !self.map.contains_key(&key) {\n            self.misses += 1;\n            self.order.push(key);\n            self.map.insert(key, make());\n        }\n        self.map.get_mut(&key).unwrap()",
+                           "        let v = make();\n        if !self.map.contains_key(&key) {\n            self.misses += 1;\n            self.order.push(key);\n        }\n        self.map.insert(key, v);\n        self.map.get_mut(&key).unwrap()"),
+        order_on_every_call=sub(CACHE_SOLUTION, "        if !self.map.contains_key(&key) {\n            self.misses += 1;\n            self.order.push(key);\n            self.map.insert(key, make());\n        }\n        &self.map[&key]",
+                                "        self.order.push(key);\n        if !self.map.contains_key(&key) {\n            self.misses += 1;\n            self.map.insert(key, make());\n        }\n        &self.map[&key]"),
     ),
-)
+))
 
-MORE["get-disjoint-mut"] = dict(
-    visible=[
-        T("exact_balance", "[5, 0], 0 → 1, 5", "{ let mut b = [5, 0]; (transfer(&mut b, 0, 1, 5), b) }", "(Ok(()), [0, 5])"),
-        T("reverse", "[0, 10], 1 → 0, 3", "{ let mut b = [0, 10]; (transfer(&mut b, 1, 0, 3), b) }", "(Ok(()), [3, 7])"),
-        T("same_checked_before_funds", "[0], 0 → 0, 5", "{ let mut b = [0]; transfer(&mut b, 0, 0, 5) }", 'Err("same account")'),
-    ],
-    hidden=[
-        T("from_out_of_bounds", "[1, 2], 9 → 0", "{ let mut b = [1, 2]; transfer(&mut b, 9, 0, 1) }", 'Err("no such account")'),
-        T("unchanged_on_error", "[10, 0], 0 → 7", "{ let mut b = [10, 0]; (transfer(&mut b, 0, 7, 1), b) }", '(Err("no such account"), [10, 0])'),
-        T("negative_source", "[-5, 0], 0 → 1, 1", "{ let mut b = [-5, 0]; (transfer(&mut b, 0, 1, 1), b) }", '(Err("insufficient funds"), [-5, 0])'),
-        T("zero_amount", "[0, 0], 0 → 1, 0", "{ let mut b = [0, 0]; (transfer(&mut b, 0, 1, 0), b) }", "(Ok(()), [0, 0])"),
-        T("large_values", "[i64::MAX, 0], move all", "{ let mut b = [i64::MAX, 0]; (transfer(&mut b, 0, 1, i64::MAX), b) }", "(Ok(()), [0, i64::MAX])"),
-        T("empty_slice", "[], 0 → 1", "{ let mut b: [i64; 0] = []; transfer(&mut b, 0, 1, 1) }", 'Err("no such account")'),
-        T("middle_untouched", "[5, 5, 5], 0 → 2, 5", "{ let mut b = [5, 5, 5]; (transfer(&mut b, 0, 2, 5), b) }", "(Ok(()), [0, 5, 10])"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2029);
-            for _ in 0..300 {
-                let len = rng.below(4);
-                let b0: Vec<i64> = rng.vec(len, -5, 20);
-                let from = rng.below(len + 2);
-                let to = rng.below(len + 2);
-                let amount = rng.int(0, 25);
-                if from == to && from >= len {
-                    continue;
-                }
-                let mut want_b = b0.clone();
-                let want = if from >= len || to >= len {
-                    Err("no such account")
-                } else if from == to {
-                    Err("same account")
-                } else if b0[from] < amount {
-                    Err("insufficient funds")
-                } else {
-                    want_b[from] -= amount;
-                    want_b[to] += amount;
-                    Ok(())
-                };
-                let mut b = b0.clone();
-                let got = transfer(&mut b, from, to, amount);
-                check!(format!("balances {b0:?}, {from} → {to}, {amount}"), (got, b), (want, want_b));
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        funds_before_same="""
-            pub fn transfer(balances: &mut [i64], from: usize, to: usize, amount: i64) -> Result<(), &'static str> {
-                if from >= balances.len() || to >= balances.len() {
-                    return Err("no such account");
-                }
-                if balances[from] < amount {
-                    return Err("insufficient funds");
-                }
-                if from == to {
-                    return Err("same account");
-                }
-                balances[from] -= amount;
-                balances[to] += amount;
-                Ok(())
-            }
-        """,
-        needs_more_than_amount="""
-            use std::slice::GetDisjointMutError;
+TRIE_HEAD = r"""
+use std::collections::HashMap;
 
-            pub fn transfer(balances: &mut [i64], from: usize, to: usize, amount: i64) -> Result<(), &'static str> {
-                let [a, b] = balances.get_disjoint_mut([from, to]).map_err(|e| match e {
-                    GetDisjointMutError::OverlappingIndices => "same account",
-                    GetDisjointMutError::IndexOutOfBounds => "no such account",
-                })?;
-                if *a <= amount {
-                    return Err("insufficient funds");
-                }
-                *a -= amount;
-                *b += amount;
-                Ok(())
-            }
-        """,
-    ),
-)
-
-NODE_WRONG = """
-    use std::cell::Cell;
-
-    pub struct Node {
-        pub name: String,
-        visits: Cell<u32>,
-    }
-
-    impl Node {
-        pub fn new(name: &str) -> Self {
-            Node { name: name.to_string(), visits: Cell::new(START) }
-        }
-
-        /// Records a visit and returns the new count.
-        pub fn visit(&self) -> u32 {
-            VISIT
-        }
-
-        pub fn visits(&self) -> u32 {
-            self.visits.get()
-        }
-    }
+#[derive(Default)]
+pub struct Node {
+    pub count: u32,
+    pub kids: HashMap<char, Node>,
+}
 """
-MORE["cell-for-copy"] = dict(
-    visible=[
-        T("new_is_zero", "new node \"x\"", 'Node::new("x").visits()', "0"),
-        T("visit_returns_new_count", "first visit", 'Node::new("x").visit()', "1"),
-        T("independent_nodes", "visit a twice, b never", '{ let a = Node::new("a"); let b = Node::new("b"); a.visit(); a.visit(); (a.visits(), b.visits()) }', "(2, 0)"),
-    ],
-    hidden=[
-        T("name_kept", "name \"héllo\"", 'Node::new("héllo").name', '"héllo".to_string()'),
-        T("empty_name", "name \"\"", 'Node::new("").name', "String::new()"),
-        T("visits_does_not_count", "call visits() three times", '{ let n = Node::new("a"); n.visits(); n.visits(); n.visits() }', "0"),
-        T("many", "10000 visits", '{ let n = Node::new("a"); for _ in 0..10_000 { n.visit(); } n.visits() }', "10_000"),
-        T("through_rc", "two Rc handles to one node", '{ let n = std::rc::Rc::new(Node::new("a")); let m = std::rc::Rc::clone(&n); n.visit(); m.visit(); n.visits() }', "2"),
-        T("returns_sequence", "visit three times", '{ let n = Node::new("a"); (n.visit(), n.visit(), n.visit()) }', "(1, 2, 3)"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2030);
-            for _ in 0..200 {
-                let k = 1 + rng.below(4);
-                let nodes: Vec<Node> = (0..k).map(|i| Node::new(&i.to_string())).collect();
-                let mut model = vec![0u32; k];
-                let mut log = Vec::new();
-                let steps = rng.below(12);
-                for _ in 0..steps {
-                    let i = rng.below(k);
-                    log.push(i);
-                    model[i] += 1;
-                    check!(format!("visits {log:?}"), nodes[i].visit(), model[i]);
-                }
-                check!(format!("visits {log:?}"), nodes.iter().map(|n| n.visits()).collect::<Vec<_>>(), model);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        returns_old_count=NODE_WRONG.replace("START", "0").replace("VISIT", """let n = self.visits.get();
-            self.visits.set(n + 1);
-            n"""),
-        starts_at_one=NODE_WRONG.replace("START", "1").replace("VISIT", """let n = self.visits.get() + 1;
-            self.visits.set(n);
-            n"""),
-    ),
-)
 
-REG_WRONG = """
-    use std::cell::RefCell;
-
-    pub struct Registry {
-        names: RefCell<Vec<String>>,
-    }
-
-    impl Registry {
-        pub fn new() -> Self {
-            Registry { names: RefCell::new(Vec::new()) }
-        }
-
-        /// Adds `name` unless it's already there.
-        pub fn add(&self, name: &str) {
-            BODY
-        }
-
-        pub fn len(&self) -> usize {
-            self.names.borrow().len()
+TRIE_STARTER = TRIE_HEAD + r"""
+/// The node reached by following `path` from `root` as far as it exists (the root when even the first char
+/// is missing).
+pub fn deepest_mut<'a>(root: &'a mut Node, path: &str) -> &'a mut Node {
+    let mut cur = root;
+    for c in path.chars() {
+        match cur.kids.get_mut(&c) {
+            Some(next) => cur = next,
+            None => return cur,
         }
     }
+    cur
+}
+
+/// Extends the trie by one node along `path` from the deepest existing node, bumps that node's count, and
+/// returns it. When the whole path already exists, bumps its end node.
+pub fn grow<'a>(root: &'a mut Node, path: &str) -> &'a mut Node {
+    let depth = depth_of(root, path);
+    let node = deepest_mut(root, path);
+    let node = match path.chars().nth(depth) {
+        Some(c) => node.kids.entry(c).or_default(),
+        None => node,
+    };
+    node.count += 1;
+    node
+}
+
+fn depth_of(root: &Node, path: &str) -> usize {
+    let mut cur = root;
+    let mut depth = 0;
+    for c in path.chars() {
+        match cur.kids.get(&c) {
+            Some(next) => cur = next,
+            None => break,
+        }
+        depth += 1;
+    }
+    depth
+}
+
+/// The first word longer than `n` bytes; otherwise pushes "fallback" and returns that.
+pub fn first_long_or_push(words: &mut Vec<String>, n: usize) -> &mut String {
+    for w in words.iter_mut() {
+        if w.len() > n {
+            return w;
+        }
+    }
+    words.push("fallback".to_string());
+    words.last_mut().unwrap()
+}
 """
-MORE["fix-borrowmuterror"] = dict(
-    visible=[
-        T("single", "add \"x\"", '{ let r = Registry::new(); r.add("x"); r.len() }', "1"),
-        T("case_sensitive", "add \"a\", \"A\"", '{ let r = Registry::new(); r.add("a"); r.add("A"); r.len() }', "2"),
-        T("empty", "new registry", "Registry::new().len()", "0"),
-    ],
-    hidden=[
-        T("empty_name", "add \"\" twice", '{ let r = Registry::new(); r.add(""); r.add(""); r.len() }', "1"),
-        T("unicode", "add \"é\" twice", '{ let r = Registry::new(); r.add("é"); r.add("é"); r.len() }', "1"),
-        T("many_distinct", "1000 names", "{ let r = Registry::new(); for i in 0..1000 { r.add(&i.to_string()); } r.len() }", "1000"),
-        T("many_duplicates", "1000 adds of 10 names", "{ let r = Registry::new(); for i in 0..1000 { r.add(&(i % 10).to_string()); } r.len() }", "10"),
-        T("shared_refs", "add through two &Registry", '{ let r = Registry::new(); let (a, b) = (&r, &r); a.add("x"); b.add("y"); b.add("x"); r.len() }', "2"),
-        T("prefix_is_different", "add \"ab\", \"a\"", '{ let r = Registry::new(); r.add("ab"); r.add("a"); r.len() }', "2"),
-        T("spaces_matter", "add \"a\", \"a \"", '{ let r = Registry::new(); r.add("a"); r.add("a "); r.len() }', "2"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2031);
-            for _ in 0..300 {
-                let r = Registry::new();
-                let mut model: Vec<String> = Vec::new();
-                let n = rng.below(10);
-                let mut log = Vec::new();
-                for _ in 0..n {
-                    let l = 1 + rng.below(2);
-                    let name = rng.string(l, "aAb");
-                    r.add(&name);
-                    if !model.contains(&name) {
-                        model.push(name.clone());
-                    }
-                    log.push(name);
-                }
-                check!(format!("adds {log:?}"), r.len(), model.len());
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        try_borrow_skips=REG_WRONG.replace("BODY", """let names = self.names.borrow();
-            if !names.iter().any(|n| n == name) {
-                if let Ok(mut m) = self.names.try_borrow_mut() {
-                    m.push(name.to_string());
-                }
-            }"""),
-        ignores_case=REG_WRONG.replace("BODY", """let exists = self.names.borrow().iter().any(|n| n.eq_ignore_ascii_case(name));
-            if !exists {
-                self.names.borrow_mut().push(name.to_string());
-            }"""),
-    ),
-)
 
-BANK_WRONG = """
-    use std::cell::RefCell;
-
-    pub struct Bank {
-        balances: RefCell<Vec<i64>>,
-        audit: RefCell<Vec<String>>,
-    }
-
-    impl Bank {
-        pub fn new(accounts: usize) -> Self {
-            Bank { balances: RefCell::new(vec![0; accounts]), audit: RefCell::new(Vec::new()) }
-        }
-
-        fn total(&self) -> i64 {
-            self.balances.borrow().iter().sum()
-        }
-
-        /// Adds `amount` to account `i` and records the new total.
-        pub fn deposit(&self, i: usize, amount: i64) {
-            BODY
-        }
-
-        pub fn audit(&self) -> Vec<String> {
-            self.audit.borrow().to_vec()
+TRIE_SOLUTION = sub(sub(TRIE_STARTER, r"""    let mut cur = root;
+    for c in path.chars() {
+        match cur.kids.get_mut(&c) {
+            Some(next) => cur = next,
+            None => return cur,
         }
     }
+    cur
+""", r"""    let mut cur = root;
+    for c in path.chars() {
+        if !cur.kids.contains_key(&c) {
+            break;
+        }
+        cur = cur.kids.get_mut(&c).unwrap();
+    }
+    cur
+"""), r"""    for w in words.iter_mut() {
+        if w.len() > n {
+            return w;
+        }
+    }
+    words.push("fallback".to_string());
+    words.last_mut().unwrap()
+""", r"""    match words.iter().position(|w| w.len() > n) {
+        Some(i) => &mut words[i],
+        None => {
+            words.push("fallback".to_string());
+            words.last_mut().unwrap()
+        }
+    }
+""")
+
+TRIE_HELPER = r"""
+fn build(words: &[&str]) -> Node {
+    let mut root = Node::default();
+    for w in words {
+        let mut cur = &mut root;
+        for c in w.chars() {
+            cur = cur.kids.entry(c).or_default();
+        }
+        cur.count += 1;
+    }
+    root
+}
+
+fn depth(root: &mut Node, path: &str) -> usize {
+    let target: *const Node = deepest_mut(root, path);
+    let mut cur: &Node = root;
+    let mut d = 0;
+    for c in path.chars() {
+        if std::ptr::eq(cur, target) {
+            return d;
+        }
+        match cur.kids.get(&c) {
+            Some(next) => cur = next,
+            None => return usize::MAX,
+        }
+        d += 1;
+    }
+    if std::ptr::eq(cur, target) { d } else { usize::MAX }
+}
+
+fn words(xs: &[&str]) -> Vec<String> {
+    xs.iter().map(|s| s.to_string()).collect()
+}
 """
-MORE["fix-refcell-guard-across-call"] = dict(
-    visible=[
-        T("three_accounts", "deposit 1, 2, 3 into accounts 0, 1, 2", "{ let b = Bank::new(3); b.deposit(0, 1); b.deposit(1, 2); b.deposit(2, 3); b.audit() }", 'vec!["total 1", "total 3", "total 6"]'),
-        T("withdraw", "deposit 10, then -4", "{ let b = Bank::new(1); b.deposit(0, 10); b.deposit(0, -4); b.audit() }", 'vec!["total 10", "total 6"]'),
-        T("no_deposits", "new bank", "Bank::new(2).audit()", "Vec::<String>::new()"),
-    ],
-    hidden=[
-        T("zero_deposit", "deposit 0", "{ let b = Bank::new(1); b.deposit(0, 0); b.audit() }", 'vec!["total 0"]'),
-        T("large", "deposit i64::MAX / 2 into two accounts", "{ let b = Bank::new(2); b.deposit(0, i64::MAX / 2); b.deposit(1, i64::MAX / 2); b.audit()[1].clone() }", 'format!("total {}", i64::MAX - 1)'),
-        T("many", "1000 deposits of 1", "{ let b = Bank::new(4); for i in 0..1000 { b.deposit(i % 4, 1); } let a = b.audit(); (a.len(), a[999].clone()) }", '(1000, "total 1000".to_string())'),
-        T("other_accounts_count", "deposit 5 into 0, then 1 into 2", "{ let b = Bank::new(3); b.deposit(0, 5); b.deposit(2, 1); b.audit() }", 'vec!["total 5", "total 6"]'),
-        T("back_to_zero", "deposit 7, then -7", "{ let b = Bank::new(2); b.deposit(1, 7); b.deposit(1, -7); b.audit() }", 'vec!["total 7", "total 0"]'),
-        T("audit_is_a_copy", "read the audit twice", "{ let b = Bank::new(1); b.deposit(0, 2); let first = b.audit(); b.deposit(0, 2); (first.len(), b.audit().len()) }", "(1, 2)"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2032);
-            for _ in 0..300 {
-                let k = 1 + rng.below(4);
-                let b = Bank::new(k);
-                let mut total = 0i64;
-                let mut want = Vec::new();
-                let mut log = Vec::new();
-                let n = rng.below(8);
-                for _ in 0..n {
-                    let i = rng.below(k);
-                    let amount = rng.int(-50, 50);
-                    b.deposit(i, amount);
-                    total += amount;
-                    want.push(format!("total {total}"));
-                    log.push(format!("{amount} into {i}"));
-                }
-                check!(format!("{k} accounts; {}", log.join(", ")), b.audit(), want);
-            }
-        }
-        """,
-    ],
+
+P.append(fix(
+    "fix-conditional-return-of-borrow", "Fix: return a borrow on one path, mutate on another", "hard", "borrow-checker-limits", ["NLL problem case 3", "Polonius", "E0499", "trie descent"],
+    """
+        `deepest_mut` and `first_long_or_push` are correct and don't compile: each returns a mutable borrow from
+        inside a loop on one path and keeps using the same data on another. Fix both without `unsafe`, without
+        cloning, and without changing any signature. `grow` depends on `deepest_mut`.
+    """,
+    TRIE_STARTER,
+    TRIE_SOLUTION,
+    [TRIE_HELPER,
+     T("deepest_example", "trie {car, cat}; path \"cart\"", 'depth(&mut root, "cart")', "3", setup='let mut root = build(&["car", "cat"]);'),
+     T("deepest_missing_first", "trie {car}; path \"dog\"", 'depth(&mut root, "dog")', "0", setup='let mut root = build(&["car"]);'),
+     T("grow_one_node_at_a_time", "trie {}; grow \"ab\" three times", '(grow(&mut root, "ab").count, grow(&mut root, "ab").count, grow(&mut root, "ab").count)', "(1, 1, 2)", setup="let mut root = Node::default();"),
+     T("first_long", "[\"a\", \"long\", \"longer\"], n 2: append \"!\"", '{ first_long_or_push(&mut v, 2).push(\'!\'); v }', 'words(&["a", "long!", "longer"])', setup='let mut v = words(&["a", "long", "longer"]);'),
+     T("fallback", "[\"a\"], n 5: append \"?\"", '{ first_long_or_push(&mut v, 5).push(\'?\'); v }', 'words(&["a", "fallback?"])', setup='let mut v = words(&["a"]);'),
+     T("empty_path", "trie {a}; path \"\"", 'depth(&mut root, "")', "0", setup='let mut root = build(&["a"]);')],
+    [TRIE_HELPER,
+     T("full_path_exists", "trie {abc}; path \"abc\"", 'depth(&mut root, "abc")', "3", setup='let mut root = build(&["abc"]);'),
+     T("deepest_is_mutable", "trie {ab}; deepest(\"abz\").count += 5; then count of \"ab\"", '{ deepest_mut(&mut root, "abz").count += 5; deepest_mut(&mut root, "ab").count }', "6", setup='let mut root = build(&["ab"]);'),
+     T("grow_existing_path", "trie {ab}; grow \"ab\"", 'grow(&mut root, "ab").count', "2", setup='let mut root = build(&["ab"]);'),
+     T("grow_empty_path", "trie {}; grow \"\"", '(grow(&mut root, "").count, root.kids.len())', "(1, 0)", setup="let mut root = Node::default();"),
+     T("unicode_path", "trie {日本}; path \"日本語\"", 'depth(&mut root, "日本語")', "2", setup='let mut root = build(&["日本"]);'),
+     T("first_long_empty", "[], n 0", '{ first_long_or_push(&mut v, 0); v }', 'words(&["fallback"])', setup="let mut v: Vec<String> = vec![];"),
+     T("first_long_is_strict", "[\"ab\"], n 2", '{ first_long_or_push(&mut v, 2); v }', 'words(&["ab", "fallback"])', setup='let mut v = words(&["ab"]);'),
+     T("first_long_is_first", "[\"xyz\", \"abc\"], n 1", '{ first_long_or_push(&mut v, 1).clear(); v }', 'words(&["", "abc"])', setup='let mut v = words(&["xyz", "abc"]);'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6231);
+         for _ in 0..300 {
+             let mut owned = Vec::new();
+             for _ in 0..rng.below(4) {
+                 owned.push(String::new());
+             }
+             for w in owned.iter_mut() {
+                 let len = 1 + (w.len() % 3);
+                 w.push_str(&"ab"[..len.min(2)]);
+             }
+             let refs: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+             let mut root = build(&refs);
+             let len = rng.below(5);
+             let path = rng.string(len, "ab");
+             let mut want = 0;
+             {
+                 let mut cur = &root;
+                 for c in path.chars() {
+                     match cur.kids.get(&c) {
+                         Some(n) => {
+                             cur = n;
+                             want += 1;
+                         }
+                         None => break,
+                     }
+                 }
+             }
+             check!(format!("trie {refs:?}; path {path:?}"), depth(&mut root, &path), want);
+             let before: u32 = grow(&mut root, &path).count;
+             check!(format!("trie {refs:?}; grow {path:?}: count"), before >= 1, true);
+
+             let n = rng.below(4);
+             let mut v: Vec<String> = (0..rng.below(4)).map(|_| "x".repeat(rng.below(4))).collect();
+             let start = v.clone();
+             let mut want = v.clone();
+             match want.iter().position(|w| w.len() > n) {
+                 Some(i) => want[i].push('!'),
+                 None => want.push("fallback!".to_string()),
+             }
+             first_long_or_push(&mut v, n).push('!');
+             check!(format!("first_long_or_push({start:?}, {n})"), v, want);
+         }
+     }
+
+     #[test]
+     fn deep_trie() {
+         let path: String = "ab".repeat(5_000);
+         let mut root = Node::default();
+         for _ in 0..3 {
+             grow(&mut root, &path[..100]);
+         }
+         let mut v: Vec<String> = (0..100_000).map(|i| if i == 99_999 { "long".to_string() } else { String::new() }).collect();
+         first_long_or_push(&mut v, 3).push('!');
+         check!("grow a 100-char path 3 times; then 100000 words, the long one last", (depth(&mut root, &path), v[99_999].clone(), v.len()), (3, "long!".to_string(), 100_000));
+     }
+     """],
+    [("rust", "In `deepest_mut`, `cur.kids.get_mut(&c)` either moves the cursor forward or is abandoned while `cur` itself is returned. NLL can't see that the borrow is dead on the `None` path, because on the other path it flows into `cur`, which is returned."),
+     ("rust", "Check first with a method that returns no borrow (`contains_key`), then take the `&mut` only on the path that keeps it."),
+     ("rust", "In `first_long_or_push`, find an index with a shared search (`position`); an index borrows nothing, so the push path is free, and `&mut words[i]` is taken only on the returning path.")],
+    ("""Both functions hit the same NLL limit as the entry-less get-or-insert (problem case #3), in a loop. A mutable borrow that's returned (or flows into a variable that's returned) on one path is treated as live on every path, so the other path's use of the same data conflicts. The loop makes it worse: in `deepest_mut`, `get_mut`'s borrow flows into `cur`, and `cur` is returned, so the borrow is considered live even on the `None` arm, where `cur` itself is returned. Polonius accepts both originals.
+
+The fix is always to decide without holding the borrow: `contains_key` (a `bool`) before `get_mut`, or `position` (an index) before indexing. The cost is a second lookup per step, which is why the entry API and `Vec::iter().position` exist. `grow` shows why the trie version matters: the returned `&mut Node` lets the caller keep extending from the deepest node.
+
+Syntax to remember: `if !cur.kids.contains_key(&c) { break; } cur = cur.kids.get_mut(&c).unwrap();` · `match words.iter().position(|w| w.len() > n) { Some(i) => &mut words[i], None => { words.push(..); words.last_mut().unwrap() } }`.""", "O(len) descent; O(n) search", "O(1)"),
+    "How would you write `deepest_mut` recursively, and why does recursion sidestep the problem?",
+    ["A borrow returned on one path is live on all paths under NLL.", "Decide with a `bool` or an index, then borrow.", "Polonius (nightly `-Zpolonius`) accepts these."],
+    rules=dict(methods=["clone", "entry_ref", "cloned"], unsafe=True),
     wrong=dict(
-        total_before_deposit=BANK_WRONG.replace("BODY", """let total = self.total();
-            self.balances.borrow_mut()[i] += amount;
-            self.audit.borrow_mut().push(format!("total {total}"));"""),
-        records_the_account=BANK_WRONG.replace("BODY", """let balance = {
-                let mut balances = self.balances.borrow_mut();
-                balances[i] += amount;
-                balances[i]
-            };
-            self.audit.borrow_mut().push(format!("total {balance}"));"""),
+        deepest_stops_one_early=sub(TRIE_SOLUTION, "        if !cur.kids.contains_key(&c) {\n            break;\n        }\n        cur = cur.kids.get_mut(&c).unwrap();",
+                                    "        if !cur.kids.get(&c).is_some_and(|k| !k.kids.is_empty()) {\n            break;\n        }\n        cur = cur.kids.get_mut(&c).unwrap();"),
+        last_long_word=sub(TRIE_SOLUTION, "match words.iter().position(|w| w.len() > n) {", "match words.iter().rposition(|w| w.len() > n) {"),
+        long_at_least=sub(TRIE_SOLUTION, "match words.iter().position(|w| w.len() > n) {", "match words.iter().position(|w| w.len() >= n) {"),
     ),
-)
+))
 
-CART_WRONG = """
-    pub struct Cart {
-        items: Vec<u32>,
-        total: u32,
-    }
+BANK_ENUM = r"""
+use std::slice::GetDisjointMutError;
 
-    impl Cart {
-        pub fn new() -> Self {
-            Cart { items: Vec::new(), total: 0 }
-        }
-
-        pub fn add(&mut self, price: u32) {
-            self.items.push(price);
-            self.total += price;
-        }
-
-        /// Doubles every price and keeps the total in step.
-        pub fn double_all(&mut self) {
-            BODY
-        }
-
-        pub fn total(&self) -> u32 {
-            self.total
-        }
-
-        pub fn items(&self) -> Vec<u32> {
-            self.items.to_vec()
-        }
-    }
+#[derive(Debug, PartialEq)]
+pub enum SettleError {
+    /// An index appears twice.
+    SameAccount,
+    /// An index is out of bounds.
+    NoSuchAccount,
+    /// The deltas don't add up to zero.
+    Unbalanced,
+    /// Some balance would go negative.
+    Insufficient,
+}
 """
-MORE["fix-refcell-to-split-borrow"] = dict(
-    visible=[
-        T("add_after_double", "add 1; double; add 5", "{ let mut c = Cart::new(); c.add(1); c.double_all(); c.add(5); (c.items(), c.total()) }", "(vec![2, 5], 7)"),
-        T("no_double", "add 1, 2", "{ let mut c = Cart::new(); c.add(1); c.add(2); (c.items(), c.total()) }", "(vec![1, 2], 3)"),
-        T("empty", "double an empty cart", "{ let mut c = Cart::new(); c.double_all(); (c.items(), c.total()) }", "(vec![], 0)"),
-    ],
-    hidden=[
-        T("single", "add 7; double", "{ let mut c = Cart::new(); c.add(7); c.double_all(); (c.items(), c.total()) }", "(vec![14], 14)"),
-        T("zero_price", "add 0; double", "{ let mut c = Cart::new(); c.add(0); c.double_all(); (c.items(), c.total()) }", "(vec![0], 0)"),
-        T("duplicates", "add 3, 3; double", "{ let mut c = Cart::new(); c.add(3); c.add(3); c.double_all(); (c.items(), c.total()) }", "(vec![6, 6], 12)"),
-        T("large", "add 2^30; double", "{ let mut c = Cart::new(); c.add(1 << 30); c.double_all(); (c.items(), c.total()) }", "(vec![1 << 31], 1 << 31)"),
-        T("many", "1000 × add 1; double", "{ let mut c = Cart::new(); for _ in 0..1000 { c.add(1); } c.double_all(); (c.items().len(), c.total()) }", "(1000, 2000)"),
-        T("new_is_empty", "new cart", "{ let c = Cart::new(); (c.items(), c.total()) }", "(vec![], 0)"),
-        T("three_doubles", "add 1, 2; double 3 times", "{ let mut c = Cart::new(); c.add(1); c.add(2); c.double_all(); c.double_all(); c.double_all(); (c.items(), c.total()) }", "(vec![8, 16], 24)"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2033);
-            for _ in 0..300 {
-                let mut c = Cart::new();
-                let mut items: Vec<u32> = Vec::new();
-                let mut log = Vec::new();
-                let n = rng.below(10);
-                for _ in 0..n {
-                    if rng.below(3) == 0 {
-                        c.double_all();
-                        items.iter_mut().for_each(|p| *p *= 2);
-                        log.push("double".to_string());
-                    } else {
-                        let p = rng.below(100) as u32;
-                        c.add(p);
-                        items.push(p);
-                        log.push(format!("add {p}"));
-                    }
-                }
-                let total: u32 = items.iter().sum();
-                check!(log.join(", "), (c.items(), c.total()), (items, total));
-            }
-        }
-        """,
-    ],
+
+SETTLE_DOCS = r"""
+/// Applies `deltas[k]` to account `idx[k]` for every k, all or nothing. On error nothing changes. Index errors
+/// are reported as std's `get_disjoint_mut` finds them, then `Unbalanced`, then `Insufficient`.
+pub fn settle<const N: usize>(balances: &mut [i64], idx: [usize; N], deltas: [i64; N]) -> Result<(), SettleError> {
+"""
+
+TRANSFER_DOCS = r"""
+/// Moves `amount` (>= 0) from account `from` to account `to`, with the same rules as `settle`.
+pub fn transfer(balances: &mut [i64], from: usize, to: usize, amount: i64) -> Result<(), SettleError> {
+"""
+
+SETTLE_BODY = r"""    let accounts = balances.get_disjoint_mut(idx).map_err(|e| match e {
+        GetDisjointMutError::IndexOutOfBounds => SettleError::NoSuchAccount,
+        GetDisjointMutError::OverlappingIndices => SettleError::SameAccount,
+    })?;
+    if deltas.iter().sum::<i64>() != 0 {
+        return Err(SettleError::Unbalanced);
+    }
+    if accounts.iter().zip(&deltas).any(|(a, d)| **a + d < 0) {
+        return Err(SettleError::Insufficient);
+    }
+    for (a, d) in accounts.into_iter().zip(deltas) {
+        *a += d;
+    }
+    Ok(())
+}
+"""
+
+TRANSFER_BODY = "    settle(balances, [from, to], [-amount, amount])\n}\n"
+
+SETTLE_SOLUTION = BANK_ENUM + SETTLE_DOCS + SETTLE_BODY + TRANSFER_DOCS + TRANSFER_BODY
+SETTLE_STARTER = BANK_ENUM.replace("use std::slice::GetDisjointMutError;\n", "") + SETTLE_DOCS + "    todo!()\n}\n" + TRANSFER_DOCS + "    todo!()\n}\n"
+
+P.append(write(
+    "get-disjoint-mut", "All-or-nothing settlement with get_disjoint_mut", "hard", "borrow-checker-limits", ["get_disjoint_mut", "const generics", "GetDisjointMutError", "atomic updates"],
+    """
+        Write `settle`, which applies N balance changes at once or none at all, and `transfer` in terms of it.
+        You need `&mut` to N accounts of one slice at the same time; std's `slice::get_disjoint_mut` checks
+        the indices and hands them out. No `unsafe`, no cloning the balances.
+    """,
+    SETTLE_STARTER,
+    SETTLE_SOLUTION,
+    [T("transfer_example", "[10, 0], 0 -> 1, 4", "{ let mut b = [10, 0]; (transfer(&mut b, 0, 1, 4), b) }", "(Ok(()), [6, 4])"),
+     T("settle_three_way", "[5, 5, 5], idx [0, 1, 2], deltas [-5, 2, 3]", "{ let mut b = [5, 5, 5]; (settle(&mut b, [0, 1, 2], [-5, 2, 3]), b) }", "(Ok(()), [0, 7, 8])"),
+     T("same_account", "transfer 1 -> 1", "{ let mut b = [1, 1]; (transfer(&mut b, 1, 1, 1), b) }", "(Err(SettleError::SameAccount), [1, 1])"),
+     T("no_such_account", "transfer 0 -> 7", "{ let mut b = [1, 1]; transfer(&mut b, 0, 7, 1) }", "Err(SettleError::NoSuchAccount)"),
+     T("unbalanced", "settle [0, 1] by [5, -4]", "{ let mut b = [9, 9]; (settle(&mut b, [0, 1], [5, -4]), b) }", "(Err(SettleError::Unbalanced), [9, 9])"),
+     T("insufficient_changes_nothing", "[3, 0, 1], settle [0, 1, 2] by [2, 1, -3]", "{ let mut b = [3, 0, 1]; (settle(&mut b, [0, 1, 2], [2, 1, -3]), b) }", "(Err(SettleError::Insufficient), [3, 0, 1])")],
+    [T("settle_nothing", "settle with N = 0", "{ let mut b = [4]; (settle(&mut b, [], []), b) }", "(Ok(()), [4])"),
+     T("settle_one_zero", "settle [0] by [0]", "{ let mut b = [4]; (settle(&mut b, [0], [0]), b) }", "(Ok(()), [4])"),
+     T("settle_one_nonzero", "settle [0] by [3]", "{ let mut b = [4]; settle(&mut b, [0], [3]) }", "Err(SettleError::Unbalanced)"),
+     T("drain_to_zero", "[7, 0], 0 -> 1, 7", "{ let mut b = [7, 0]; (transfer(&mut b, 0, 1, 7), b) }", "(Ok(()), [0, 7])"),
+     T("unordered_indices", "[1, 2, 3, 4], idx [3, 0, 2], deltas [-4, 1, 3]", "{ let mut b = [1, 2, 3, 4]; (settle(&mut b, [3, 0, 2], [-4, 1, 3]), b) }", "(Ok(()), [2, 2, 6, 0])"),
+     T("index_error_before_balance", "idx [0, 9] and unbalanced deltas", "{ let mut b = [1, 1]; settle(&mut b, [0, 9], [1, 1]) }", "Err(SettleError::NoSuchAccount)"),
+     T("overlap_before_balance", "idx [1, 1] and unbalanced deltas", "{ let mut b = [1, 1]; settle(&mut b, [1, 1], [1, 1]) }", "Err(SettleError::SameAccount)"),
+     T("empty_slice", "no accounts; transfer 0 -> 1", "transfer(&mut [], 0, 1, 0)", "Err(SettleError::NoSuchAccount)"),
+     T("balance_before_funds", "[0, 0], settle by [-1, 2]", "{ let mut b = [0, 0]; settle(&mut b, [0, 1], [-1, 2]) }", "Err(SettleError::Unbalanced)"),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6232);
+         for _ in 0..400 {
+             let n = rng.below(5);
+             let start: Vec<i64> = rng.vec(n, 0, 6);
+             let idx = [rng.below(n + 1), rng.below(n + 1), rng.below(n + 1)];
+             let mut deltas = [rng.int(-4, 4), rng.int(-4, 4), 0];
+             deltas[2] = if rng.below(4) == 0 { rng.int(-3, 3) } else { -deltas[0] - deltas[1] };
+             let mut b = start.clone();
+             let got = settle(&mut b, idx, deltas);
+             let mut want_b = start.clone();
+             let mut idx_err = None;
+             for k in 0..3 {
+                 if idx[k] >= n {
+                     idx_err = Some(SettleError::NoSuchAccount);
+                     break;
+                 }
+                 if idx[..k].contains(&idx[k]) {
+                     idx_err = Some(SettleError::SameAccount);
+                     break;
+                 }
+             }
+             let want = if let Some(e) = idx_err {
+                 Err(e)
+             } else if deltas.iter().sum::<i64>() != 0 {
+                 Err(SettleError::Unbalanced)
+             } else if (0..3).any(|k| start[idx[k]] + deltas[k] < 0) {
+                 Err(SettleError::Insufficient)
+             } else {
+                 for k in 0..3 {
+                     want_b[idx[k]] += deltas[k];
+                 }
+                 Ok(())
+             };
+             check!(format!("balances {start:?}, idx {idx:?}, deltas {deltas:?}"), (got, b), (want, want_b));
+         }
+     }
+
+     #[test]
+     fn many_transfers() {
+         let mut b = vec![1i64; 100_000];
+         let mut ok = 0;
+         for i in 0..99_999 {
+             let amount = b[i];
+             if transfer(&mut b, i, i + 1, amount).is_ok() {
+                 ok += 1;
+             }
+         }
+         check!("100000 accounts of 1, each passing everything to the next", (ok, b[99_999], b[0]), (99_999, 100_000, 0));
+     }
+     """],
+    [("rust", "`balances.get_disjoint_mut(idx)` takes `[usize; N]` and returns `Result<[&mut i64; N], GetDisjointMutError>`: every index checked for bounds and overlap once, then N live `&mut` into one slice."),
+     ("rust", "All or nothing: do every check (sum, no negative result) before the first write. The `&mut`s you got can be read too."),
+     ("rust", "`settle<const N: usize>` lets the caller pick N; `transfer` is `settle` with N = 2.")],
+    ("""N simultaneous `&mut` into one slice need a proof that the indices are distinct and in bounds; `get_disjoint_mut` does it at run time (O(N²) comparisons, fine for small N) and returns an array of `&mut`, with the `unsafe` inside std. Everything after that is ordinary code, and the all-or-nothing rule is just ordering: validate through the borrows first, write last. A const generic keeps the array sizes in the types, so `idx` and `deltas` can't disagree in length.
+
+Syntax to remember: `pub fn settle<const N: usize>(b: &mut [i64], idx: [usize; N], deltas: [i64; N])` · `let accounts = b.get_disjoint_mut(idx).map_err(|e| match e { GetDisjointMutError::IndexOutOfBounds => .., GetDisjointMutError::OverlappingIndices => .. })?;` · `for (a, d) in accounts.into_iter().zip(deltas) { *a += d; }`.""", "O(N²) checks + O(N)", "O(1)"),
+    "How would you settle a batch whose size is only known at run time, with a `&[usize]` of indices?",
+    ["`get_disjoint_mut` checks bounds and overlap, then hands out N `&mut`.", "Validate everything before the first write.", "Const generics tie array lengths together."],
+    related=("L2", "S3"),
     wrong=dict(
-        adds_the_doubled_price=CART_WRONG.replace("BODY", """for p in self.items.iter_mut() {
-                *p *= 2;
-                self.total += *p;
-            }"""),
-        doubles_a_copy=CART_WRONG.replace("BODY", """for mut p in self.items.to_vec() {
-                self.total += p;
-                p *= 2;
-            }"""),
+        writes_before_checking_funds=sub(SETTLE_SOLUTION, "    if accounts.iter().zip(&deltas).any(|(a, d)| **a + d < 0) {\n        return Err(SettleError::Insufficient);\n    }\n    for (a, d) in accounts.into_iter().zip(deltas) {\n        *a += d;\n    }\n    Ok(())",
+                                          "    let mut short = false;\n    for (a, d) in accounts.into_iter().zip(deltas) {\n        *a += d;\n        short |= *a < 0;\n    }\n    if short {\n        return Err(SettleError::Insufficient);\n    }\n    Ok(())"),
+        zero_counts_as_insufficient=sub(SETTLE_SOLUTION, "**a + d < 0", "**a + d <= 0"),
+        no_balance_check=sub(SETTLE_SOLUTION, "    if deltas.iter().sum::<i64>() != 0 {\n        return Err(SettleError::Unbalanced);\n    }\n", ""),
     ),
+))
+
+RING_HEAD = r"""
+use std::cell::Cell;
+
+/// A node in a doubly linked ring. The links are plain shared references, so every node can be reached from
+/// every other one while all of them are only borrowed.
+pub struct Node<'a> {
+    pub name: String,
+    visits: Cell<u32>,
+    next: Cell<Option<&'a Node<'a>>>,
+    prev: Cell<Option<&'a Node<'a>>>,
+}
+"""
+
+RING_DOCS = dict(
+    new="    pub fn new(name: &str) -> Self {\n",
+    visits="    pub fn visits(&self) -> u32 {\n",
+    next="    pub fn next(&self) -> Option<&'a Node<'a>> {\n",
+    prev="    pub fn prev(&self) -> Option<&'a Node<'a>> {\n",
+    link="    /// Makes `other` come right after `self`: `self.next` is `other` and `other.prev` is `self`.\n    pub fn link(&'a self, other: &'a Node<'a>) {\n",
+    unlink="    /// Takes `self` out of its ring: its neighbours link to each other, and `self` links to nothing. A node\n    /// alone in its ring (linked to itself) just ends up unlinked.\n    pub fn unlink(&self) {\n",
+    ring="/// Links `nodes` into one ring, in order, the last back to the first.\npub fn ring<'a>(nodes: &'a [Node<'a>]) {\n",
+    walk="/// Starting at `start`, visits `steps` nodes along `next` links (counting each visit on the node), stopping\n/// early at a node with no `next`. Returns the names visited.\npub fn walk<'a>(start: &'a Node<'a>, steps: usize) -> Vec<&'a str> {\n",
 )
 
-for p in P:
-    m = MORE.get(p["slug"])
-    if m:
-        p["visible"] += m["visible"]
-        # A hidden case promoted to visible leaves hidden.
-        shown = {(t[3], t[4]) for t in p["visible"] if not isinstance(t, str)}
-        p["hidden"] = [t for t in p["hidden"] if isinstance(t, str) or (t[3], t[4]) not in shown] + m["hidden"]
-        p["wrong"] = m["wrong"]
+RING_BODIES = dict(
+    new="        Node { name: name.to_string(), visits: Cell::new(0), next: Cell::new(None), prev: Cell::new(None) }\n",
+    visits="        self.visits.get()\n",
+    next="        self.next.get()\n",
+    prev="        self.prev.get()\n",
+    link="        self.next.set(Some(other));\n        other.prev.set(Some(self));\n",
+    unlink="""        let (prev, next) = (self.prev.take(), self.next.take());
+        if let (Some(p), Some(n)) = (prev, next) {
+            if !std::ptr::eq(p, self) {
+                p.next.set(Some(n));
+                n.prev.set(Some(p));
+            }
+        }
+""",
+    ring="""    for pair in nodes.windows(2) {
+        pair[0].link(&pair[1]);
+    }
+    if let (Some(first), Some(last)) = (nodes.first(), nodes.last()) {
+        last.link(first);
+    }
+""",
+    walk="""    let mut out = Vec::with_capacity(steps);
+    let mut cur = Some(start);
+    while let Some(node) = cur {
+        if out.len() == steps {
+            break;
+        }
+        node.visits.set(node.visits.get() + 1);
+        out.push(node.name.as_str());
+        cur = node.next.get();
+    }
+    out
+""",
+)
+
+
+def ring_src(bodies):
+    out = RING_HEAD + "\nimpl<'a> Node<'a> {\n"
+    for k in ("new", "visits", "next", "prev", "link", "unlink"):
+        out += RING_DOCS[k] + bodies[k] + "    }\n\n"
+    out = out.rstrip("\n") + "\n}\n\n"
+    for k in ("ring", "walk"):
+        out += RING_DOCS[k] + bodies[k] + "}\n\n"
+    return out.rstrip("\n") + "\n"
+
+
+RING_SOLUTION = ring_src(RING_BODIES)
+RING_STARTER = ring_src({k: ("    todo!()\n" if k in ("ring", "walk") else "        todo!()\n") for k in RING_BODIES})
+ABC = 'let nodes = [Node::new("a"), Node::new("b"), Node::new("c")];\nring(&nodes);'
+
+P.append(write(
+    "cell-for-copy", "Cell links between shared nodes", "hard", "borrow-checker-limits", ["Cell", "interior mutability", "arenas", "Option<&T> is Copy", "invariance"],
+    """
+        Write a doubly linked ring whose nodes live in an ordinary slice and point at each other with shared
+        references. Everything goes through `&Node`: linking, unlinking and counting visits all mutate through
+        shared borrows, with `Cell` and no `RefCell`, `Rc` or `unsafe`.
+    """,
+    RING_STARTER,
+    RING_SOLUTION,
+    [T("walk_the_ring", "ring a, b, c; walk 5 from a", '(walk(&nodes[0], 5), nodes.iter().map(|n| n.visits()).collect::<Vec<_>>())', '(vec!["a", "b", "c", "a", "b"], vec![2, 2, 1])', setup=ABC),
+     T("backwards", "ring a, b, c; prev of a, prev of that", 'nodes[0].prev().and_then(|n| n.prev()).map(|n| n.name.as_str())', 'Some("b")', setup=ABC),
+     T("unlink_middle", "ring a, b, c; unlink b; walk 4 from a", '(walk(&nodes[0], 4), nodes[1].next().is_none(), nodes[2].prev().map(|n| n.name.as_str()))', '(vec!["a", "c", "a", "c"], true, Some("a"))', setup=ABC + "\nnodes[1].unlink();"),
+     T("single_node_ring", "ring [solo]; walk 3", 'walk(&nodes[0], 3)', 'vec!["solo", "solo", "solo"]', setup='let nodes = [Node::new("solo")];\nring(&nodes);'),
+     T("unlinked_node_walks_once", "a lone node, never linked; walk 3", '(walk(&n, 3), n.visits())', '(vec!["x"], 1)', setup='let n = Node::new("x");'),
+     T("link_by_hand", "a -> b by hand; walk 5 from a", '(walk(&a, 5), b.prev().map(|n| n.name.as_str()))', '(vec!["a", "b"], Some("a"))', setup='let (a, b) = (Node::new("a"), Node::new("b"));\na.link(&b);')],
+    [T("walk_zero", "ring a, b, c; walk 0", '(walk(&nodes[0], 0).len(), nodes[0].visits())', "(0, 0)", setup=ABC),
+     T("empty_ring", "ring of no nodes", '{ let nodes: [Node; 0] = []; ring(&nodes); 0 }', "0"),
+     T("unlink_solo", "ring [solo]; unlink; next and prev", '(nodes[0].next().is_none(), nodes[0].prev().is_none(), walk(&nodes[0], 3))', '(true, true, vec!["solo"])', setup='let nodes = [Node::new("solo")];\nring(&nodes);\nnodes[0].unlink();'),
+     T("unlink_two_of_three", "ring a, b, c; unlink a, then b; walk 3 from c", 'walk(&nodes[2], 3)', 'vec!["c", "c", "c"]', setup=ABC + "\nnodes[0].unlink();\nnodes[1].unlink();"),
+     T("unlink_one_of_two", "ring a, b; unlink a; walk 3 from b", '(walk(&nodes[1], 3), nodes[1].prev().map(|n| n.name.as_str()))', '(vec!["b", "b", "b"], Some("b"))', setup='let nodes = [Node::new("a"), Node::new("b")];\nring(&nodes);\nnodes[0].unlink();'),
+     T("relink_after_unlink", "ring a, b, c; unlink b; link c -> b, b -> a; walk 4 from a", 'walk(&nodes[0], 4)', 'vec!["a", "c", "b", "a"]', setup=ABC + "\nnodes[1].unlink();\nnodes[2].link(&nodes[1]);\nnodes[1].link(&nodes[0]);"),
+     T("visits_accumulate", "ring a, b; walk 3 twice from a", '{ walk(&nodes[0], 3); walk(&nodes[0], 3); (nodes[0].visits(), nodes[1].visits()) }', "(4, 2)", setup='let nodes = [Node::new("a"), Node::new("b")];\nring(&nodes);'),
+     T("names_borrow_the_nodes", "walk returns the nodes' own names", 'walk(&nodes[0], 1)[0].as_ptr() == nodes[0].name.as_ptr()', "true", setup=ABC),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6233);
+         for _ in 0..300 {
+             let n = 1 + rng.below(6);
+             let nodes: Vec<Node> = (0..n).map(|i| Node::new(&format!("n{i}"))).collect();
+             ring(&nodes);
+             let mut model: Vec<usize> = (0..n).collect();
+             let mut ops = Vec::new();
+             for _ in 0..rng.below(n) {
+                 let k = rng.below(n);
+                 nodes[k].unlink();
+                 model.retain(|&x| x != k);
+                 ops.push(format!("unlink n{k}"));
+             }
+             let start = rng.below(n);
+             let steps = rng.below(8);
+             let want: Vec<String> = match model.iter().position(|&x| x == start) {
+                 Some(p) => (0..steps).map(|s| format!("n{}", model[(p + s) % model.len()])).collect(),
+                 None => (0..steps.min(1)).map(|_| format!("n{start}")).collect(),
+             };
+             let got: Vec<String> = walk(&nodes[start], steps).iter().map(|s| s.to_string()).collect();
+             check!(format!("ring of {n}; {}; walk {steps} from n{start}", ops.join(", ")), got, want);
+         }
+     }
+
+     #[test]
+     fn big_ring() {
+         let nodes: Vec<Node> = (0..100_000).map(|i| Node::new(&i.to_string())).collect();
+         ring(&nodes);
+         for k in (1..100_000).step_by(2) {
+             nodes[k].unlink();
+         }
+         let w = walk(&nodes[0], 50_001);
+         check!("ring of 100000, odd ones unlinked, walk 50001", (w.len(), w[49_999], w[50_000], nodes[0].visits()), (50_001, "99998", "0", 2));
+     }
+     """],
+    [("rust", "`Option<&'a Node<'a>>` is `Copy`, so `Cell<Option<&Node>>` can hand out copies with `get` and change with `set`, through a shared `&Node`. `Cell::take` returns the value and leaves `None`."),
+     ("rust", "`link(&'a self, ..)` needs `self` borrowed for `'a`, because it stores `&self` inside another node."),
+     ("rust", "A node alone in its ring is its own neighbour: in `unlink`, don't relink it to itself.")],
+    ("""`Cell<T>` allows mutation through `&` by never handing out a reference to its contents: `get` copies out (so `T: Copy`), `set` and `replace` swap in, `take` leaves `Default`. There's nothing to track at run time, unlike `RefCell`'s borrow counter. Shared references are `Copy`, so `Cell<Option<&'a Node<'a>>>` is the classic way to build cyclic structures over nodes that live in an arena (here, a slice): every node is only ever shared, and the links change in place. The price is invariance: a `Cell<&'a T>` fixes `'a` exactly, so all the nodes must share one lifetime, and they can't be moved or dropped while linked. `rustc` builds its type graphs this way. `Cell` isn't `Sync`, so none of this crosses threads.
+
+Syntax to remember: `next: Cell<Option<&'a Node<'a>>>` · `self.next.set(Some(other))` · `let (p, n) = (self.prev.take(), self.next.take());` · `self.visits.set(self.visits.get() + 1)` (or `self.visits.update(|v| v + 1)`) · `pub fn link(&'a self, other: &'a Node<'a>)`.""", "O(1) link and unlink; O(steps) walk", "O(1) extra"),
+    "Why must `Node<'a>` be invariant in `'a`, and what would go wrong if `Cell<&'a T>` were covariant?",
+    ["`Cell` mutates `Copy` values through `&`: `get`, `set`, `replace`, `take`.", "Shared references are `Copy`, so they can live in a `Cell`.", "Arenas plus `Cell` links give cyclic graphs without `Rc`."],
+    related=("L2", "L3", "S7"),
+    wrong=dict(
+        unlink_leaves_prev=sub(RING_SOLUTION, "                p.next.set(Some(n));\n                n.prev.set(Some(p));\n", "                p.next.set(Some(n));\n"),
+        ring_not_closed=sub(RING_SOLUTION, "    if let (Some(first), Some(last)) = (nodes.first(), nodes.last()) {\n        last.link(first);\n    }\n", ""),
+        walk_counts_start_twice=sub(RING_SOLUTION, "        node.visits.set(node.visits.get() + 1);\n", "        node.visits.set(node.visits.get() + if out.is_empty() { 2 } else { 1 });\n"),
+    ),
+))
+
+SCHED_HEAD = r"""
+use std::cell::RefCell;
+use std::collections::HashMap;
+
+pub struct Scheduler {
+    queue: RefCell<Vec<u32>>,
+    seen: RefCell<HashMap<u32, u32>>,
+    done: RefCell<Vec<u32>>,
+}
+"""
+
+SCHED_STARTER = SCHED_HEAD + r"""
+impl Scheduler {
+    pub fn new() -> Self {
+        Scheduler { queue: RefCell::new(Vec::new()), seen: RefCell::new(HashMap::new()), done: RefCell::new(Vec::new()) }
+    }
+
+    /// Counts a submission of `job`, and queues it if the counts had no entry for it yet. Returns whether it
+    /// queued.
+    pub fn submit(&self, job: u32) -> bool {
+        let seen = self.seen.borrow();
+        let first = !seen.contains_key(&job);
+        *self.seen.borrow_mut().entry(job).or_insert(0) += 1;
+        if first {
+            self.queue.borrow_mut().push(job);
+        }
+        first
+    }
+
+    /// How many times `job` was submitted. A job never submitted gets an entry with 0.
+    pub fn count(&self, job: u32) -> u32 {
+        if let Some(n) = self.seen.borrow().get(&job) {
+            *n
+        } else {
+            self.seen.borrow_mut().insert(job, 0);
+            0
+        }
+    }
+
+    /// Runs queued jobs, newest first, until the queue is empty. Running an even job above 0 submits job / 2.
+    /// Returns how many jobs ran.
+    pub fn run(&self) -> usize {
+        let mut ran = 0;
+        while let Some(job) = self.queue.borrow_mut().pop() {
+            self.done.borrow_mut().push(job);
+            if job > 0 && job % 2 == 0 {
+                self.submit(job / 2);
+            }
+            ran += 1;
+        }
+        ran
+    }
+
+    pub fn done(&self) -> Vec<u32> {
+        self.done.borrow().to_vec()
+    }
+
+    /// How many jobs have an entry in the submission counts.
+    pub fn known(&self) -> usize {
+        self.seen.borrow().len()
+    }
+}
+"""
+
+SCHED_SOLUTION = SCHED_STARTER
+for _old, _new in [
+    ("        let seen = self.seen.borrow();\n        let first = !seen.contains_key(&job);\n", "        let first = !self.seen.borrow().contains_key(&job);\n"),
+    ("        if let Some(n) = self.seen.borrow().get(&job) {\n            *n\n        } else {\n            self.seen.borrow_mut().insert(job, 0);\n            0\n        }\n",
+     "        let known = self.seen.borrow().get(&job).copied();\n        match known {\n            Some(n) => n,\n            None => {\n                self.seen.borrow_mut().insert(job, 0);\n                0\n            }\n        }\n"),
+    ("        while let Some(job) = self.queue.borrow_mut().pop() {\n", "        loop {\n            let next = self.queue.borrow_mut().pop();\n            let Some(job) = next else { break };\n"),
+]:
+    SCHED_SOLUTION = sub(SCHED_SOLUTION, _old, _new)
+
+SC = "let s = Scheduler::new();"
+
+P.append(fix(
+    "fix-borrowmuterror", "Fix: BorrowMutError from guards you can't see", "hard", "borrow-checker-limits", ["RefCell", "BorrowMutError", "temporaries", "if let", "while let"],
+    """
+        `Scheduler` compiles, and three of its methods panic with `already borrowed`. Each holds a `RefCell`
+        guard longer than it looks: one in a `let`, one in the condition of an `if let`, one in the condition of
+        a `while let`. Fix them without `try_borrow*` and without changing what the methods do.
+    """,
+    SCHED_STARTER,
+    SCHED_SOLUTION,
+    [T("submit_once", "submit 3, 3, 5", "(s.submit(3), s.submit(3), s.submit(5), s.count(3))", "(true, false, true, 2)", setup=SC),
+     T("count_unknown", "count(9) on a new scheduler", "(s.count(9), s.known())", "(0, 1)", setup=SC),
+     T("run_follow_ups", "submit 12; run", "(s.run(), s.done())", "(3, vec![12, 6, 3])", setup=SC + "\ns.submit(12);"),
+     T("run_newest_first", "submit 1, 5, 7; run", "(s.run(), s.done())", "(3, vec![7, 5, 1])", setup=SC + "\nfor j in [1, 5, 7] {\n    s.submit(j);\n}"),
+     T("follow_up_already_seen", "submit 3, 6; run", "(s.run(), s.done(), s.count(3))", "(2, vec![6, 3], 2)", setup=SC + "\ns.submit(3);\ns.submit(6);")],
+    [T("empty_run", "run on a new scheduler", "(s.run(), s.done())", "(0, vec![])", setup=SC),
+     T("zero_job", "submit 0; run", "(s.run(), s.done())", "(1, vec![0])", setup=SC + "\ns.submit(0);"),
+     T("power_of_two", "submit 16; run", "(s.run(), s.done())", "(5, vec![16, 8, 4, 2, 1])", setup=SC + "\ns.submit(16);"),
+     T("run_twice", "submit 4; run; submit 4, 9; run", "{ s.run(); s.submit(4); s.submit(9); (s.run(), s.done()) }", "(1, vec![4, 2, 1, 9])", setup=SC + "\ns.submit(4);"),
+     T("count_after_run", "submit 8; run; count 8, 4, 2, 1", "{ s.run(); (s.count(8), s.count(4), s.count(2), s.count(1)) }", "(1, 1, 1, 1)", setup=SC + "\ns.submit(8);"),
+     T("count_seeds_once", "count 5 twice, then submit 5", "(s.count(5), s.count(5), s.submit(5), s.count(5))", "(0, 0, false, 1)", setup=SC),
+     T("known_counts_entries", "submit 1, 1, 2; count 7", "{ s.submit(1); s.submit(1); s.submit(2); s.count(7); s.known() }", "3", setup=SC),
+     T("big_job", "submit u32::MAX - 1 (even); run", "(s.run(), s.done()[1])", "(2, u32::MAX / 2)", setup=SC + "\ns.submit(u32::MAX - 1);"),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         use std::collections::HashMap;
+         let mut rng = anneal_prelude::Rng::new(6234);
+         for _ in 0..300 {
+             let s = Scheduler::new();
+             let (mut queue, mut seen, mut done): (Vec<u32>, HashMap<u32, u32>, Vec<u32>) = (vec![], HashMap::new(), vec![]);
+             let mut ops = Vec::new();
+             fn submit(queue: &mut Vec<u32>, seen: &mut HashMap<u32, u32>, job: u32) -> bool {
+                 let first = !seen.contains_key(&job);
+                 *seen.entry(job).or_insert(0) += 1;
+                 if first {
+                     queue.push(job);
+                 }
+                 first
+             }
+             for _ in 0..6 {
+                 match rng.below(3) {
+                     0 => {
+                         let j = rng.below(20) as u32;
+                         ops.push(format!("submit {j}"));
+                         check!(ops.join(", "), s.submit(j), submit(&mut queue, &mut seen, j));
+                     }
+                     1 => {
+                         let j = rng.below(20) as u32;
+                         let want = *seen.entry(j).or_insert(0);
+                         ops.push(format!("count {j}"));
+                         check!(ops.join(", "), s.count(j), want);
+                     }
+                     _ => {
+                         let mut ran = 0;
+                         while let Some(j) = queue.pop() {
+                             done.push(j);
+                             if j > 0 && j % 2 == 0 {
+                                 submit(&mut queue, &mut seen, j / 2);
+                             }
+                             ran += 1;
+                         }
+                         ops.push("run".to_string());
+                         check!(ops.join(", "), s.run(), ran);
+                     }
+                 }
+             }
+             check!(format!("{}; done, known", ops.join(", ")), (s.done(), s.known()), (done, seen.len()));
+         }
+     }
+     """],
+    [("rust", "`let seen = self.seen.borrow();` keeps a `Ref` guard until the end of `submit`, so the `borrow_mut` two lines later panics. End the shared borrow in the statement that needs it."),
+     ("rust", "In edition 2021, a temporary in the condition of an `if let` (the `Ref` from `self.seen.borrow()`) lives until the end of the whole `if let ... else`, including the `else` block. Copy the answer out in a `let` first."),
+     ("rust", "`while let Some(job) = self.queue.borrow_mut().pop()` keeps the `RefMut` alive for the whole loop body, where `submit` pushes to the same queue. Pop in its own statement.")],
+    ("""`RefCell` enforces the borrow rules at run time through guards (`Ref`, `RefMut`), and a guard lives as long as the value holding it. That's easy to see for `let seen = self.seen.borrow();` (the end of the block) and easy to miss for temporaries. A temporary created in the scrutinee of `match`, `if let` or `while let` lives until the end of that whole expression, so the guard covers every arm, the loop body, and (in edition 2021) the `else` block. Edition 2024 drops `if let` temporaries before `else`, but `match` and `while let` scrutinees still hold theirs. The fix is always to finish with the guard in its own statement: copy the value out (`.copied()`, `.pop()` into a `let`), then act on it.
+
+Syntax to remember: `let first = !self.seen.borrow().contains_key(&job);` · `let known = self.seen.borrow().get(&job).copied();` · `loop { let next = self.queue.borrow_mut().pop(); let Some(job) = next else { break }; .. }`.""", "O(1) per call; O(jobs) run", "O(1) extra"),
+    "`clippy::await_holding_refcell_ref` exists for a related bug. What does an `.await` have in common with the `while let` body here?",
+    ["A `RefCell` guard lives as long as the variable or temporary holding it.", "Scrutinee temporaries of `match`, `if let` (2021) and `while let` live through the whole expression.", "Copy out, then act."],
+    rules=dict(methods=["try_borrow", "try_borrow_mut", "clone", "as_ptr", "get_mut"]),
+    related=("L2", "S7"),
+    wrong=dict(
+        run_takes_the_queue=sub(SCHED_SOLUTION, "        loop {\n            let next = self.queue.borrow_mut().pop();\n            let Some(job) = next else { break };\n",
+                                "        let jobs = self.queue.take();\n        for job in jobs.into_iter().rev() {\n"),
+        count_forgets_to_seed=sub(SCHED_SOLUTION, "            None => {\n                self.seen.borrow_mut().insert(job, 0);\n                0\n            }\n", "            None => 0,\n"),
+        counts_only_first=sub(SCHED_SOLUTION, "        *self.seen.borrow_mut().entry(job).or_insert(0) += 1;\n        if first {\n", "        if first {\n            self.seen.borrow_mut().insert(job, 1);\n"),
+    ),
+))
+
+BUS_HEAD_STARTER = r"""
+use std::cell::RefCell;
+
+pub struct Bus {
+    listeners: RefCell<Vec<Box<dyn Fn(&Bus, &str)>>>,
+    log: RefCell<Vec<String>>,
+}
+"""
+
+BUS_HEAD_SOLUTION = r"""
+use std::cell::RefCell;
+use std::rc::Rc;
+
+pub struct Bus {
+    listeners: RefCell<Vec<Rc<dyn Fn(&Bus, &str)>>>,
+    log: RefCell<Vec<String>>,
+}
+"""
+
+BUS_IMPL_STARTER = r"""
+impl Bus {
+    pub fn new() -> Self {
+        Bus { listeners: RefCell::new(Vec::new()), log: RefCell::new(Vec::new()) }
+    }
+
+    pub fn subscribe(&self, f: impl Fn(&Bus, &str) + 'static) {
+        self.listeners.borrow_mut().push(Box::new(f));
+    }
+
+    /// Logs `event`, then calls every listener subscribed so far, in order. A listener may emit more events
+    /// (each handled completely, right away) and may subscribe new listeners, which hear only later events.
+    pub fn emit(&self, event: &str) {
+        self.log.borrow_mut().push(event.to_string());
+        for l in self.listeners.borrow().iter() {
+            l(self, event);
+        }
+    }
+
+    /// Emits again, in order, every event logged before this call.
+    pub fn replay(&self) {
+        for e in self.log.borrow().iter() {
+            self.emit(e);
+        }
+    }
+
+    pub fn log(&self) -> Vec<String> {
+        self.log.borrow().to_vec()
+    }
+}
+"""
+
+BUS_IMPL_SOLUTION = r"""
+impl Bus {
+    pub fn new() -> Self {
+        Bus { listeners: RefCell::new(Vec::new()), log: RefCell::new(Vec::new()) }
+    }
+
+    pub fn subscribe(&self, f: impl Fn(&Bus, &str) + 'static) {
+        self.listeners.borrow_mut().push(Rc::new(f));
+    }
+
+    /// Logs `event`, then calls every listener subscribed so far, in order. A listener may emit more events
+    /// (each handled completely, right away) and may subscribe new listeners, which hear only later events.
+    pub fn emit(&self, event: &str) {
+        self.log.borrow_mut().push(event.to_string());
+        let listeners = self.listeners.borrow().clone();
+        for l in listeners {
+            l(self, event);
+        }
+    }
+
+    /// Emits again, in order, every event logged before this call.
+    pub fn replay(&self) {
+        let n = self.log.borrow().len();
+        for i in 0..n {
+            let e = self.log.borrow()[i].clone();
+            self.emit(&e);
+        }
+    }
+
+    pub fn log(&self) -> Vec<String> {
+        self.log.borrow().to_vec()
+    }
+}
+"""
+
+BUS_SOLUTION = BUS_HEAD_SOLUTION + BUS_IMPL_SOLUTION
+BUS_NEW = "let bus = Bus::new();"
+
+P.append(fix(
+    "fix-refcell-guard-across-call", "Fix: re-entrant callbacks and a RefCell guard", "hard", "borrow-checker-limits", ["RefCell", "re-entrancy", "Rc<dyn Fn>", "snapshots", "observer"],
+    """
+        `Bus` compiles, but a listener that subscribes another listener panics, and so does `replay`. Both call
+        out while holding a `RefCell` guard that the callee needs. Fix them. You may change how listeners are
+        stored. Listeners must stay free to emit and subscribe from inside a call, with the semantics in the
+        doc comments.
+    """,
+    BUS_HEAD_STARTER + BUS_IMPL_STARTER,
+    BUS_SOLUTION,
+    [T("emit_in_order", "two listeners logging \"1:<e>\" and \"2:<e>\" into a shared Vec; emit x", "seen.borrow().clone()", 'vec!["1:x".to_string(), "2:x".to_string()]',
+       setup=BUS_NEW + '\nlet seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));\nfor k in 1..=2 {\n    let seen = seen.clone();\n    bus.subscribe(move |_, e| seen.borrow_mut().push(format!("{k}:{e}")));\n}\nbus.emit("x");'),
+     T("subscribe_from_a_listener", "a listener that subscribes a logger on \"add\"; emit add, then ping", "bus.log()", '["add", "ping", "heard ping"].map(String::from).to_vec()',
+       setup=BUS_NEW + '\nbus.subscribe(|b, e| {\n    if e == "add" {\n        b.subscribe(|b, e| if !e.starts_with("heard") { b.emit(&format!("heard {e}")) });\n    }\n});\nbus.emit("add");\nbus.emit("ping");'),
+     T("nested_emit", "a listener that answers \"ping\" with \"pong\"; emit ping", "bus.log()", '["ping", "pong"].map(String::from).to_vec()',
+       setup=BUS_NEW + '\nbus.subscribe(|b, e| if e == "ping" { b.emit("pong") });\nbus.emit("ping");'),
+     T("replay", "no listeners; emit a, b; replay", "bus.log()", '["a", "b", "a", "b"].map(String::from).to_vec()', setup=BUS_NEW + '\nbus.emit("a");\nbus.emit("b");\nbus.replay();'),
+     T("replay_with_answers", "ping -> pong listener; emit ping; replay", "bus.log()", '["ping", "pong", "ping", "pong", "pong"].map(String::from).to_vec()',
+       setup=BUS_NEW + '\nbus.subscribe(|b, e| if e == "ping" { b.emit("pong") });\nbus.emit("ping");\nbus.replay();')],
+    [T("no_events", "new bus; replay", "bus.log().len()", "0", setup=BUS_NEW + "\nbus.replay();"),
+     T("nested_reaches_all_listeners", "listener 1 answers a with b; listener 2 records everything; emit a", "seen.borrow().clone()", 'vec!["b".to_string(), "a".to_string()]',
+       setup=BUS_NEW + '\nlet seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));\nbus.subscribe(|b, e| if e == "a" { b.emit("b") });\nlet s2 = seen.clone();\nbus.subscribe(move |_, e| s2.borrow_mut().push(e.to_string()));\nbus.emit("a");'),
+     T("new_listener_misses_current_event", "listener subscribes a counter on every event; emit x, y", "count.get()", "1",
+       setup=BUS_NEW + '\nlet count = std::rc::Rc::new(std::cell::Cell::new(0));\nlet c = count.clone();\nbus.subscribe(move |b, _| {\n    let c = c.clone();\n    b.subscribe(move |_, _| c.set(c.get() + 1));\n});\nbus.emit("x");\nbus.emit("y");'),
+     T("chain", "listeners: a -> b, b -> c; emit a", "bus.log()", '["a", "b", "c"].map(String::from).to_vec()',
+       setup=BUS_NEW + '\nbus.subscribe(|b, e| if e == "a" { b.emit("b") });\nbus.subscribe(|b, e| if e == "b" { b.emit("c") });\nbus.emit("a");'),
+     T("depth_first", "a -> [b, c] from two listeners, b -> d; emit a", "bus.log()", '["a", "b", "d", "c"].map(String::from).to_vec()',
+       setup=BUS_NEW + '\nbus.subscribe(|b, e| match e { "a" => b.emit("b"), "b" => b.emit("d"), _ => {} });\nbus.subscribe(|b, e| if e == "a" { b.emit("c") });\nbus.emit("a");'),
+     T("replay_twice", "emit a; replay; replay", "bus.log()", '["a", "a", "a", "a"].map(String::from).to_vec()', setup=BUS_NEW + '\nbus.emit("a");\nbus.replay();\nbus.replay();'),
+     T("replay_from_a_listener", "a listener that replays on \"again\" (once); emit x, again", "bus.log()", '["x", "again", "x", "again"].map(String::from).to_vec()',
+       setup=BUS_NEW + '\nlet done = std::rc::Rc::new(std::cell::Cell::new(false));\nlet d = done.clone();\nbus.subscribe(move |b, e| if e == "again" && !d.get() {\n    d.set(true);\n    b.replay();\n});\nbus.emit("x");\nbus.emit("again");'),
+     T("unicode_events", "emit 日本; replay", "bus.log()", '["日本", "日本"].map(String::from).to_vec()', setup=BUS_NEW + '\nbus.emit("日本");\nbus.replay();'),
+     r"""
+     #[test]
+     fn many_listeners() {
+         let bus = Bus::new();
+         let hits = std::rc::Rc::new(std::cell::Cell::new(0u64));
+         for _ in 0..1000 {
+             let h = hits.clone();
+             bus.subscribe(move |_, _| h.set(h.get() + 1));
+         }
+         for i in 0..100 {
+             bus.emit(&i.to_string());
+         }
+         check!("1000 listeners, 100 events", (hits.get(), bus.log().len()), (100_000, 100));
+     }
+     """],
+    [("rust", "`for l in self.listeners.borrow().iter()` holds a `Ref` for the whole loop. A listener that subscribes needs `borrow_mut` on the same cell: panic. Nested `emit` only needs `borrow`, so it seems fine until someone subscribes."),
+     ("rust", "Taking the listeners out while calling them (`mem::take`) breaks nested emits: they'd find no listeners. Instead call a snapshot. With `Rc<dyn Fn>` instead of `Box<dyn Fn>`, copying the list clones pointers, not closures."),
+     ("rust", "`replay` holds a `Ref` on `log` while `emit` pushes to it. Read the length first, then fetch each event in its own short borrow.")],
+    ("""Callbacks make every `RefCell` guard dangerous: while you hold one, you've handed control to code that may come back into the same object (re-entrancy). The observer pattern hits this twice. Iterating the listeners with a guard alive fails as soon as a listener subscribes. Taking the list out with `mem::take` fixes the panic but breaks nested emits, which would find the list empty. Snapshotting is what works: store listeners as `Rc<dyn Fn>`, clone the `Vec` of `Rc`s (a refcount bump each), release the guard, then call. New subscribers go into the live list and hear only later events, and nested emits see every listener. `replay` has the same shape with the log; reading one event per short borrow (cloning that one `String`) avoids holding the guard while `emit` pushes.
+
+Syntax to remember: `listeners: RefCell<Vec<Rc<dyn Fn(&Bus, &str)>>>` · `let listeners = self.listeners.borrow().clone(); for l in listeners { l(self, event); }` · `let n = self.log.borrow().len();`.""", "O(listeners) per emit", "O(listeners) per emit for the snapshot"),
+    "What happens with the snapshot approach if a listener unsubscribes itself, and how would you support that?",
+    ["Don't hold a `RefCell` guard across a callback.", "Snapshot a list of `Rc` handles instead of taking the list out.", "Take-and-restore breaks re-entrant reads."],
+    rules=dict(methods=["try_borrow", "try_borrow_mut", "take", "replace"]),
+    related=("L2", "S7"),
+    wrong=dict(
+        new_listeners_hear_current_event=BUS_HEAD_SOLUTION + sub(BUS_IMPL_SOLUTION, "        let listeners = self.listeners.borrow().clone();\n        for l in listeners {\n            l(self, event);\n        }\n",
+                                                                 "        let mut i = 0;\n        loop {\n            let next = self.listeners.borrow().get(i).cloned();\n            let Some(l) = next else { break };\n            l(self, event);\n            i += 1;\n        }\n"),
+        replay_backwards=BUS_HEAD_SOLUTION + sub(BUS_IMPL_SOLUTION, "        for i in 0..n {\n", "        for i in (0..n).rev() {\n"),
+    ),
+))
+
+CART_STARTER = r"""
+use std::cell::RefCell;
+
+pub struct Cart {
+    items: RefCell<Vec<u32>>,
+    total: RefCell<u32>,
+    log: RefCell<Vec<String>>,
+}
+
+impl Cart {
+    pub fn new() -> Self {
+        Cart { items: RefCell::new(Vec::new()), total: RefCell::new(0), log: RefCell::new(Vec::new()) }
+    }
+
+    /// Logs "[<n>] <msg>", where n is the number of items right now.
+    fn note(&self, msg: String) {
+        let n = self.items.borrow().len();
+        self.log.borrow_mut().push(format!("[{n}] {msg}"));
+    }
+
+    /// Adds an item and logs "add <price>" (after adding it).
+    pub fn add(&self, price: u32) {
+        self.items.borrow_mut().push(price);
+        *self.total.borrow_mut() += price;
+        self.note(format!("add {price}"));
+    }
+
+    /// Doubles every price, keeping the total in step, and logs "double <old> -> <new>" for each item.
+    pub fn double_all(&self) {
+        for p in self.items.borrow_mut().iter_mut() {
+            *self.total.borrow_mut() += *p;
+            *p *= 2;
+            self.note(format!("double {} -> {p}", *p / 2));
+        }
+    }
+
+    /// Removes every item priced above `max`, keeping the total in step, and logs "drop <price>" for each
+    /// (the count in the log line is the number of items before any were dropped). Returns how many.
+    pub fn drop_above(&self, max: u32) -> usize {
+        let mut dropped = 0;
+        self.items.borrow_mut().retain(|&p| {
+            if p <= max {
+                return true;
+            }
+            *self.total.borrow_mut() -= p;
+            self.note(format!("drop {p}"));
+            dropped += 1;
+            false
+        });
+        dropped
+    }
+
+    pub fn total(&self) -> u32 {
+        *self.total.borrow()
+    }
+
+    pub fn items(&self) -> Vec<u32> {
+        self.items.borrow().to_vec()
+    }
+
+    pub fn log(&self) -> Vec<String> {
+        self.log.borrow().to_vec()
+    }
+}
+"""
+
+CART_SOLUTION = r"""
+pub struct Cart {
+    items: Vec<u32>,
+    total: u32,
+    log: Vec<String>,
+}
+
+impl Cart {
+    pub fn new() -> Self {
+        Cart { items: Vec::new(), total: 0, log: Vec::new() }
+    }
+
+    /// Logs "[<n>] <msg>".
+    fn note(log: &mut Vec<String>, n: usize, msg: String) {
+        log.push(format!("[{n}] {msg}"));
+    }
+
+    /// Adds an item and logs "add <price>" (after adding it).
+    pub fn add(&mut self, price: u32) {
+        self.items.push(price);
+        self.total += price;
+        Self::note(&mut self.log, self.items.len(), format!("add {price}"));
+    }
+
+    /// Doubles every price, keeping the total in step, and logs "double <old> -> <new>" for each item.
+    pub fn double_all(&mut self) {
+        let n = self.items.len();
+        for p in self.items.iter_mut() {
+            self.total += *p;
+            *p *= 2;
+            Self::note(&mut self.log, n, format!("double {} -> {p}", *p / 2));
+        }
+    }
+
+    /// Removes every item priced above `max`, keeping the total in step, and logs "drop <price>" for each
+    /// (the count in the log line is the number of items before any were dropped). Returns how many.
+    pub fn drop_above(&mut self, max: u32) -> usize {
+        let n = self.items.len();
+        let mut dropped = 0;
+        self.items.retain(|&p| {
+            if p <= max {
+                return true;
+            }
+            self.total -= p;
+            Self::note(&mut self.log, n, format!("drop {p}"));
+            dropped += 1;
+            false
+        });
+        dropped
+    }
+
+    pub fn total(&self) -> u32 {
+        self.total
+    }
+
+    pub fn items(&self) -> Vec<u32> {
+        self.items.to_vec()
+    }
+
+    pub fn log(&self) -> Vec<String> {
+        self.log.to_vec()
+    }
+}
+"""
+
+CT = "let mut c = Cart::new();"
+
+P.append(fix(
+    "fix-refcell-to-split-borrow", "Fix: RefCell where a split borrow suffices", "hard", "borrow-checker-limits", ["RefCell", "split borrows", "associated functions", "&mut self"],
+    """
+        `Cart` wraps every field in a `RefCell` to get around borrow errors, and still panics at run time in
+        two of its methods. Remove every `RefCell` (and `Cell`): take `&mut self` where a method changes the
+        cart, and let the compiler's split borrows do the work. The public methods keep their names, arguments
+        and results.
+    """,
+    CART_STARTER,
+    CART_SOLUTION,
+    [T("add_and_double", "add 3, 4; double_all", "{ c.add(3); c.add(4); c.double_all(); (c.items(), c.total(), c.log()) }",
+       '(vec![6, 8], 14, ["[1] add 3", "[2] add 4", "[2] double 3 -> 6", "[2] double 4 -> 8"].map(String::from).to_vec())', setup=CT),
+     T("drop_above", "add 5, 50, 7, 70; drop_above 10", "{ for p in [5, 50, 7, 70] { c.add(p); } (c.drop_above(10), c.items(), c.total(), c.log()[4..].to_vec()) }",
+       '(2, vec![5, 7], 12, ["[4] drop 50", "[4] drop 70"].map(String::from).to_vec())', setup=CT),
+     T("empty_cart", "double and drop on an empty cart", "{ c.double_all(); (c.drop_above(0), c.total(), c.log().len()) }", "(0, 0, 0)", setup=CT),
+     T("drop_is_strict", "add 10; drop_above 10", "{ c.add(10); (c.drop_above(10), c.items()) }", "(0, vec![10])", setup=CT),
+     T("double_twice", "add 1; double twice", "{ c.add(1); c.double_all(); c.double_all(); (c.items(), c.total()) }", "(vec![4], 4)", setup=CT)],
+    [T("drop_everything", "add 3, 4; drop_above 0", "{ c.add(3); c.add(4); (c.drop_above(0), c.items(), c.total()) }", "(2, vec![], 0)", setup=CT),
+     T("zero_price", "add 0; double", "{ c.add(0); c.double_all(); (c.total(), c.log()) }", '(0, ["[1] add 0", "[1] double 0 -> 0"].map(String::from).to_vec())', setup=CT),
+     T("add_after_drop", "add 9, 1; drop_above 5; add 2", "{ c.add(9); c.add(1); c.drop_above(5); c.add(2); c.log() }", '["[1] add 9", "[2] add 1", "[2] drop 9", "[2] add 2"].map(String::from).to_vec()', setup=CT),
+     T("keeps_order", "add 1, 9, 2, 8, 3; drop_above 5", "{ for p in [1, 9, 2, 8, 3] { c.add(p); } c.drop_above(5); c.items() }", "vec![1, 2, 3]", setup=CT),
+     T("large_prices", "add 1 << 30; double", "{ c.add(1 << 30); c.double_all(); (c.total(), c.items()) }", "(1 << 31, vec![1 << 31])", setup=CT),
+     T("readers_side_by_side", "add 2; items, total and log read together", "{ c.add(2); let (i, t, l) = (c.items(), c.total(), c.log()); (i, t, l.len()) }", "(vec![2], 2, 1)", setup=CT),
+     T("double_then_drop", "add 3, 6; double; drop_above 10", "{ c.add(3); c.add(6); c.double_all(); (c.drop_above(10), c.items(), c.total()) }", "(1, vec![6], 6)", setup=CT),
+     T("log_count_is_before_dropping", "add 20, 30, 40; drop_above 25", "{ for p in [20, 30, 40] { c.add(p); } c.drop_above(25); c.log()[3..].to_vec() }", '["[3] drop 30", "[3] drop 40"].map(String::from).to_vec()', setup=CT),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6235);
+         for _ in 0..300 {
+             let mut c = Cart::new();
+             let (mut items, mut log): (Vec<u32>, Vec<String>) = (vec![], vec![]);
+             let mut ops = Vec::new();
+             for _ in 0..8 {
+                 match rng.below(3) {
+                     0 => {
+                         let p = rng.below(20) as u32;
+                         c.add(p);
+                         items.push(p);
+                         log.push(format!("[{}] add {p}", items.len()));
+                         ops.push(format!("add {p}"));
+                     }
+                     1 => {
+                         c.double_all();
+                         let n = items.len();
+                         for p in items.iter_mut() {
+                             log.push(format!("[{n}] double {p} -> {}", *p * 2));
+                             *p *= 2;
+                         }
+                         ops.push("double_all".to_string());
+                     }
+                     _ => {
+                         let max = rng.below(30) as u32;
+                         let n = items.len();
+                         let before = items.len();
+                         for p in items.iter().filter(|&&p| p > max) {
+                             log.push(format!("[{n}] drop {p}"));
+                         }
+                         items.retain(|&p| p <= max);
+                         ops.push(format!("drop_above {max}"));
+                         check!(ops.join(", "), c.drop_above(max), before - items.len());
+                     }
+                 }
+             }
+             let total: u32 = items.iter().sum();
+             check!(format!("{}; state", ops.join(", ")), (c.items(), c.total(), c.log()), (items, total, log));
+         }
+     }
+
+     #[test]
+     fn big_cart() {
+         let mut c = Cart::new();
+         for i in 0..100_000 {
+             c.add(i % 10);
+         }
+         c.double_all();
+         let dropped = c.drop_above(10);
+         check!("100000 items of 0..9, doubled, drop above 10", (dropped, c.total(), c.log().len()), (40_000, 300_000, 240_000));
+     }
+     """],
+    [("rust", "Once the fields are plain, `for p in self.items.iter_mut()` and `self.total += *p` borrow different fields: that's allowed. What isn't allowed is calling `self.note(..)`, a `&mut self` method, inside that loop."),
+     ("rust", "Make `note` an associated function over exactly what it touches: the log and the count. `Self::note(&mut self.log, n, msg)` borrows only `self.log`."),
+     ("rust", "The item count for `double_all` and `drop_above` is the count at the start of the call, so read it before the loop.")],
+    ("""`RefCell` turned compile-time guarantees into run-time checks, and the checks failed: `note` borrows `items` while `double_all` and `drop_above` hold it mutably, so both panic. Without the `RefCell`s the same mistake is a compile error (a `&mut self` call inside a loop over `self.items`), and the fix is the one the compiler points to: split the borrow. Field paths are disjoint (`self.items`, `self.total`, `self.log`), and edition-2021 closures, like `retain`'s, capture only the fields they name. The helper stops taking `self` and takes the fields it needs instead. Methods that change the cart take `&mut self`, which makes the mutation visible in the API.
+
+Reach for `RefCell` when the mutation really happens through shared references you can't restructure (a graph with shared nodes, callbacks into the owner); inside one struct's own methods, split borrows almost always suffice.""", "O(n) per call", "O(1) extra"),
+    "When is `RefCell` genuinely the right tool, and what would you check in review when you see one?",
+    ["Reach for split borrows before interior mutability.", "Turn a `&mut self` helper into an associated function over the fields it touches.", "`RefCell` moves borrow errors from compile time to run time."],
+    rules=dict(types=["RefCell", "Cell", "Rc"], methods=["clone"]),
+    related=("L2", "S7"),
+    wrong=dict(
+        drop_keeps_total=sub(CART_SOLUTION, "            self.total -= p;\n", ""),
+        double_adds_new_price=sub(CART_SOLUTION, "            self.total += *p;\n            *p *= 2;\n", "            *p *= 2;\n            self.total += *p;\n"),
+        count_after_dropping=sub(CART_SOLUTION, "            Self::note(&mut self.log, n, format!(\"drop {p}\"));\n            dropped += 1;\n", "            dropped += 1;\n            Self::note(&mut self.log, n - dropped, format!(\"drop {p}\"));\n"),
+    ),
+))
+
+
 
 STAGES = [
     ("shared-vs-unique", "Shared vs unique", "easy"),

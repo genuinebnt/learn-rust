@@ -1,1 +1,2 @@
-`get_or_insert` doesn't compile, even though it's correct. This is a known limit of today's borrow checker. Fix it without the entry API.
+Neither method compiles, though both are correct: this is a known limit of today's borrow checker.
+Fix them without the entry API, without calling `make` on a hit, and without cloning any value.

@@ -1,25 +1,36 @@
 slug = "fix-conditional-return-of-borrow"
-title = "Fix: conditional return of a borrow"
+title = "Fix: return a borrow on one path, mutate on another"
 mode = "fix"
 level = "hard"
 stage = "borrow-checker-limits"
 order = 32
 status = "ready"
-tags = ["NLL case 3", "Polonius"]
+tags = ["NLL problem case 3", "Polonius", "E0499", "trie descent"]
 teaches = [
-  "Return indices from searches when a later branch needs to mutate.",
+  "A borrow returned on one path is live on all paths under NLL.",
+  "Decide with a `bool` or an index, then borrow.",
+  "Polonius (nightly `-Zpolonius`) accepts these.",
 ]
-follow_up = "Could you write a test that proves this is safe even though rustc rejects the original?"
+follow_up = "How would you write `deepest_mut` recursively, and why does recursion sidestep the problem?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "Find an index first. An index doesn't borrow the Vec, so the push path is free to mutate it."
+text = "In `deepest_mut`, `cur.kids.get_mut(&c)` either moves the cursor forward or is abandoned while `cur` itself is returned. NLL can't see that the borrow is dead on the `None` path, because on the other path it flows into `cur`, which is returned."
+
+[[hints]]
+kind = "rust"
+text = "Check first with a method that returns no borrow (`contains_key`), then take the `&mut` only on the path that keeps it."
+
+[[hints]]
+kind = "rust"
+text = "In `first_long_or_push`, find an index with a shared search (`position`); an index borrows nothing, so the push path is free, and `&mut words[i]` is taken only on the returning path."
 
 [solution]
-explanation = "Searching for a `usize` ends the borrow before the decision, so neither path conflicts."
-time = "O(n)"
+explanation = "Both functions hit the same NLL limit as the entry-less get-or-insert (problem case #3), in a loop. A mutable borrow that's returned (or flows into a variable that's returned) on one path is treated as live on every path, so the other path's use of the same data conflicts. The loop makes it worse: in `deepest_mut`, `get_mut`'s borrow flows into `cur`, and `cur` is returned, so the borrow is considered live even on the `None` arm, where `cur` itself is returned. Polonius accepts both originals.\n\nThe fix is always to decide without holding the borrow: `contains_key` (a `bool`) before `get_mut`, or `position` (an index) before indexing. The cost is a second lookup per step, which is why the entry API and `Vec::iter().position` exist. `grow` shows why the trie version matters: the returned `&mut Node` lets the caller keep extending from the deepest node.\n\nSyntax to remember: `if !cur.kids.contains_key(&c) { break; } cur = cur.kids.get_mut(&c).unwrap();` · `match words.iter().position(|w| w.len() > n) { Some(i) => &mut words[i], None => { words.push(..); words.last_mut().unwrap() } }`."
+time = "O(len) descent; O(n) search"
 space = "O(1)"
 
 [rules]
-forbid_methods = ["clone"]
+forbid_methods = ["clone", "entry_ref", "cloned"]
+forbid_unsafe = true

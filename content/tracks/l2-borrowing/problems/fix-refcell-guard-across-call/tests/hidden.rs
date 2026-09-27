@@ -1,58 +1,96 @@
 use solution::*;
 
 #[test]
-fn negative() {
-    check!(r#"deposit -3"#, { let b = Bank::new(1); b.deposit(0, -3); b.audit() }, vec!["total -3"]);
+fn no_events() {
+    let bus = Bus::new();
+    bus.replay();
+    check!(r#"new bus; replay"#, bus.log().len(), 0);
 }
 
 #[test]
-fn zero_deposit() {
-    check!(r#"deposit 0"#, { let b = Bank::new(1); b.deposit(0, 0); b.audit() }, vec!["total 0"]);
+fn nested_reaches_all_listeners() {
+    let bus = Bus::new();
+    let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    bus.subscribe(|b, e| if e == "a" { b.emit("b") });
+    let s2 = seen.clone();
+    bus.subscribe(move |_, e| s2.borrow_mut().push(e.to_string()));
+    bus.emit("a");
+    check!(r#"listener 1 answers a with b; listener 2 records everything; emit a"#, seen.borrow().clone(), vec!["b".to_string(), "a".to_string()]);
 }
 
 #[test]
-fn large() {
-    check!(r#"deposit i64::MAX / 2 into two accounts"#, { let b = Bank::new(2); b.deposit(0, i64::MAX / 2); b.deposit(1, i64::MAX / 2); b.audit()[1].clone() }, format!("total {}", i64::MAX - 1));
+fn new_listener_misses_current_event() {
+    let bus = Bus::new();
+    let count = std::rc::Rc::new(std::cell::Cell::new(0));
+    let c = count.clone();
+    bus.subscribe(move |b, _| {
+        let c = c.clone();
+        b.subscribe(move |_, _| c.set(c.get() + 1));
+    });
+    bus.emit("x");
+    bus.emit("y");
+    check!(r#"listener subscribes a counter on every event; emit x, y"#, count.get(), 1);
 }
 
 #[test]
-fn many() {
-    check!(r#"1000 deposits of 1"#, { let b = Bank::new(4); for i in 0..1000 { b.deposit(i % 4, 1); } let a = b.audit(); (a.len(), a[999].clone()) }, (1000, "total 1000".to_string()));
+fn chain() {
+    let bus = Bus::new();
+    bus.subscribe(|b, e| if e == "a" { b.emit("b") });
+    bus.subscribe(|b, e| if e == "b" { b.emit("c") });
+    bus.emit("a");
+    check!(r#"listeners: a -> b, b -> c; emit a"#, bus.log(), ["a", "b", "c"].map(String::from).to_vec());
 }
 
 #[test]
-fn other_accounts_count() {
-    check!(r#"deposit 5 into 0, then 1 into 2"#, { let b = Bank::new(3); b.deposit(0, 5); b.deposit(2, 1); b.audit() }, vec!["total 5", "total 6"]);
+fn depth_first() {
+    let bus = Bus::new();
+    bus.subscribe(|b, e| match e { "a" => b.emit("b"), "b" => b.emit("d"), _ => {} });
+    bus.subscribe(|b, e| if e == "a" { b.emit("c") });
+    bus.emit("a");
+    check!(r#"a -> [b, c] from two listeners, b -> d; emit a"#, bus.log(), ["a", "b", "d", "c"].map(String::from).to_vec());
 }
 
 #[test]
-fn back_to_zero() {
-    check!(r#"deposit 7, then -7"#, { let b = Bank::new(2); b.deposit(1, 7); b.deposit(1, -7); b.audit() }, vec!["total 7", "total 0"]);
+fn replay_twice() {
+    let bus = Bus::new();
+    bus.emit("a");
+    bus.replay();
+    bus.replay();
+    check!(r#"emit a; replay; replay"#, bus.log(), ["a", "a", "a", "a"].map(String::from).to_vec());
 }
 
 #[test]
-fn audit_is_a_copy() {
-    check!(r#"read the audit twice"#, { let b = Bank::new(1); b.deposit(0, 2); let first = b.audit(); b.deposit(0, 2); (first.len(), b.audit().len()) }, (1, 2));
+fn replay_from_a_listener() {
+    let bus = Bus::new();
+    let done = std::rc::Rc::new(std::cell::Cell::new(false));
+    let d = done.clone();
+    bus.subscribe(move |b, e| if e == "again" && !d.get() {
+        d.set(true);
+        b.replay();
+    });
+    bus.emit("x");
+    bus.emit("again");
+    check!(r#"a listener that replays on "again" (once); emit x, again"#, bus.log(), ["x", "again", "x", "again"].map(String::from).to_vec());
 }
 
 #[test]
-fn random_vs_model() {
-    let mut rng = anneal_prelude::Rng::new(2032);
-    for _ in 0..300 {
-        let k = 1 + rng.below(4);
-        let b = Bank::new(k);
-        let mut total = 0i64;
-        let mut want = Vec::new();
-        let mut log = Vec::new();
-        let n = rng.below(8);
-        for _ in 0..n {
-            let i = rng.below(k);
-            let amount = rng.int(-50, 50);
-            b.deposit(i, amount);
-            total += amount;
-            want.push(format!("total {total}"));
-            log.push(format!("{amount} into {i}"));
-        }
-        check!(format!("{k} accounts; {}", log.join(", ")), b.audit(), want);
+fn unicode_events() {
+    let bus = Bus::new();
+    bus.emit("日本");
+    bus.replay();
+    check!(r#"emit 日本; replay"#, bus.log(), ["日本", "日本"].map(String::from).to_vec());
+}
+
+#[test]
+fn many_listeners() {
+    let bus = Bus::new();
+    let hits = std::rc::Rc::new(std::cell::Cell::new(0u64));
+    for _ in 0..1000 {
+        let h = hits.clone();
+        bus.subscribe(move |_, _| h.set(h.get() + 1));
     }
+    for i in 0..100 {
+        bus.emit(&i.to_string());
+    }
+    check!("1000 listeners, 100 events", (hits.get(), bus.log().len()), (100_000, 100));
 }

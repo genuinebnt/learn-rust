@@ -19,9 +19,12 @@ impl Bus {
     /// (each handled completely, right away) and may subscribe new listeners, which hear only later events.
     pub fn emit(&self, event: &str) {
         self.log.borrow_mut().push(event.to_string());
-        let listeners = self.listeners.borrow().clone();
-        for l in listeners {
+        let mut i = 0;
+        loop {
+            let next = self.listeners.borrow().get(i).cloned();
+            let Some(l) = next else { break };
             l(self, event);
+            i += 1;
         }
     }
 

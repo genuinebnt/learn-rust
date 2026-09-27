@@ -1,26 +1,39 @@
 use solution::*;
 
 #[test]
-fn existing() {
-    check!(r#"{1: "one"}, key 1"#, { let mut m = std::collections::HashMap::from([(1, "one".to_string())]); get_or_insert(&mut m, 1, "x").clone() }, "one".to_string());
+fn hit_and_miss() {
+    let mut c = Cache::new();
+    check!(r#"get_or_make 1 ("one"), then 1 again ("uno")"#, (c.get_or_make(1, || "one".to_string()).clone(), c.get_or_make(1, || "uno".to_string()).clone(), c.misses()), ("one".to_string(), "one".to_string(), 1));
 }
 
 #[test]
-fn missing() {
-    check!(r#"{}, key 2"#, { let mut m = std::collections::HashMap::new(); let v = get_or_insert(&mut m, 2, "two").clone(); (v, m.len()) }, ("two".to_string(), 1));
+fn make_runs_only_on_a_miss() {
+    let mut c = Cache::new();
+    let mut calls = 0;
+    c.get_or_make(5, || { calls += 1; "x".to_string() });
+    c.get_or_make(5, || { calls += 1; "y".to_string() });
+    check!(r#"get_or_make 5 twice, counting calls to make"#, calls, 1);
 }
 
 #[test]
-fn empty_default() {
-    check!(r#"{}, key 0, default """#, { let mut m = std::collections::HashMap::new(); let v = get_or_insert(&mut m, 0, "").clone(); (v, m.len()) }, (String::new(), 1));
+fn edit_in_place() {
+    let mut c = Cache::new();
+    c.get_or_make_mut(2, || "a".to_string()).push('b');
+    c.get_or_make_mut(2, || "z".to_string()).push('c');
+    check!(r#"get_or_make_mut 2 ("a") += "b", then += "c""#, c.get_or_make(2, String::new).clone(), "abc".to_string());
 }
 
 #[test]
-fn existing_not_replaced() {
-    check!(r#"{1: "one"}, key 1, default "x""#, { let mut m = std::collections::HashMap::from([(1, "one".to_string())]); get_or_insert(&mut m, 1, "x"); (m[&1].clone(), m.len()) }, ("one".to_string(), 1));
+fn order_of_first_store() {
+    let mut c = Cache::new();
+    for k in [3, 1, 3, 2, 1] {
+        c.get_or_make(k, || k.to_string());
+    }
+    check!(r#"keys 3, 1, 3, 2, 1"#, (c.order().to_vec(), c.misses()), (vec![3, 1, 2], 3));
 }
 
 #[test]
-fn different_keys() {
-    check!(r#"keys 1 then 2"#, { let mut m = std::collections::HashMap::new(); get_or_insert(&mut m, 1, "a"); let v = get_or_insert(&mut m, 2, "b").clone(); (v, m.len()) }, ("b".to_string(), 2));
+fn empty_value() {
+    let mut c = Cache::new();
+    check!(r#"get_or_make 0 ("")"#, c.get_or_make(0, String::new).len(), 0);
 }

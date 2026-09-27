@@ -5,26 +5,31 @@ level = "hard"
 stage = "borrow-checker-limits"
 order = 31
 status = "ready"
-tags = ["NLL case 3", "E0502"]
+tags = ["NLL problem case 3", "E0502", "E0499", "Polonius"]
 teaches = [
   "NLL problem case 3: a conditionally returned borrow is live on every path.",
-  "Restructure so the check returns a value, not a reference.",
+  "Decide with a `bool`, mutate, then borrow once for the return.",
+  "Polonius accepts the original.",
 ]
-follow_up = "Why does the entry API avoid this problem entirely?"
+follow_up = "Rewrite `get_or_make` with the entry API. What does `or_insert_with` do that the two-lookup version can't?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "Returning `v` from inside the `if let` makes the borrow last for `'m` on every path, including the one that inserts."
+text = "Returning `v` from inside `if let Some(v) = self.map.get(&key)` makes that borrow last for the whole output lifetime. NLL doesn't track that it's only on the returning path, so the borrow counts as live on the insert path too."
 
 [[hints]]
-kind = "approach"
-text = "Check with something that returns a `bool`, not a reference, then look the key up once more."
+kind = "rust"
+text = "The `match` version fails for the same reason: the `Some` arm returns the borrow, so the scrutinee's borrow is live in the `None` arm."
+
+[[hints]]
+kind = "rust"
+text = "Decide with something that returns a `bool` (`contains_key`), mutate if needed, then look the key up once more and return that borrow."
 
 [solution]
-explanation = "This is NLL \"problem case #3\": conditionally returning a borrow extends it to the whole function. Polonius, the next borrow checker, accepts the original. The fix costs one extra lookup."
-time = "O(1)"
+explanation = "This is NLL's \"problem case #3\": when a borrow is conditionally returned, the region of the returned reference must cover the whole rest of the function, and NLL applies that region to the borrow on every path, including the path that doesn't return. So the `insert` counts as a conflict. Polonius, the next borrow checker (`-Zpolonius` on nightly), reasons per path and accepts the original.\n\nThe standard workaround separates the decision from the borrow: `contains_key` returns a `bool`, so nothing is borrowed across the insert, and one final lookup produces the returned reference. It costs an extra hash lookup on hits. The entry API avoids that (`entry(key).or_insert_with(make)`) because the entry owns the decision, which is why it exists. Returning something that isn't a borrow (a `bool`, a copy, an index) from the early branch also compiles; only a returned *reference* triggers the problem.\n\nSyntax to remember: `if !self.map.contains_key(&key) { self.map.insert(key, make()); } &self.map[&key]` · `self.map.get_mut(&key).unwrap()`."
+time = "O(1) expected"
 space = "O(1)"
 
 [rules]
-forbid_methods = ["entry", "clone"]
+forbid_methods = ["entry", "clone", "cloned", "to_owned"]

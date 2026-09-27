@@ -25,8 +25,8 @@ impl Cart {
     pub fn double_all(&mut self) {
         let n = self.items.len();
         for p in self.items.iter_mut() {
-            self.total += *p;
             *p *= 2;
+            self.total += *p;
             Self::note(&mut self.log, n, format!("double {} -> {p}", *p / 2));
         }
     }

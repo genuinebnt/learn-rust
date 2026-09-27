@@ -64,7 +64,7 @@ pub fn walk<'a>(start: &'a Node<'a>, steps: usize) -> Vec<&'a str> {
         if out.len() == steps {
             break;
         }
-        node.visits.set(node.visits.get() + 1);
+        node.visits.set(node.visits.get() + if out.is_empty() { 2 } else { 1 });
         out.push(node.name.as_str());
         cur = node.next.get();
     }

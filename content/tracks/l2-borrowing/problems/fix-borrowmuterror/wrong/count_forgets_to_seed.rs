@@ -28,10 +28,7 @@ impl Scheduler {
         let known = self.seen.borrow().get(&job).copied();
         match known {
             Some(n) => n,
-            None => {
-                self.seen.borrow_mut().insert(job, 0);
-                0
-            }
+            None => 0,
         }
     }
 

@@ -28,7 +28,7 @@ impl Bus {
     /// Emits again, in order, every event logged before this call.
     pub fn replay(&self) {
         let n = self.log.borrow().len();
-        for i in 0..n {
+        for i in (0..n).rev() {
             let e = self.log.borrow()[i].clone();
             self.emit(&e);
         }

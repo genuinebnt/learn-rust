@@ -40,7 +40,6 @@ impl Cart {
             if p <= max {
                 return true;
             }
-            self.total -= p;
             Self::note(&mut self.log, n, format!("drop {p}"));
             dropped += 1;
             false

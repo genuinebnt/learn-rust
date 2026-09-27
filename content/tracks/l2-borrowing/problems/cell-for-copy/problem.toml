@@ -1,22 +1,32 @@
 slug = "cell-for-copy"
-title = "When Cell beats RefCell"
+title = "Cell links between shared nodes"
 mode = "write"
 level = "hard"
 stage = "borrow-checker-limits"
 order = 34
 status = "ready"
-tags = ["Cell", "interior mutability"]
+tags = ["Cell", "interior mutability", "arenas", "Option<&T> is Copy", "invariance"]
 teaches = [
-  "`Cell<T>` for `Copy` values: no references out, no runtime checks.",
+  "`Cell` mutates `Copy` values through `&`: `get`, `set`, `replace`, `take`.",
+  "Shared references are `Copy`, so they can live in a `Cell`.",
+  "Arenas plus `Cell` links give cyclic graphs without `Rc`.",
 ]
-follow_up = "Why is `Cell` safe even though it mutates through `&self`?"
-related = ["L2", "S7"]
+follow_up = "Why must `Node<'a>` be invariant in `'a`, and what would go wrong if `Cell<&'a T>` were covariant?"
+related = ["L2", "L3", "S7"]
 
 [[hints]]
 kind = "rust"
-text = "`Cell` moves `Copy` values in and out with `get`/`set` and never hands out a reference, so there's nothing to track at runtime."
+text = "`Option<&'a Node<'a>>` is `Copy`, so `Cell<Option<&Node>>` can hand out copies with `get` and change with `set`, through a shared `&Node`. `Cell::take` returns the value and leaves `None`."
+
+[[hints]]
+kind = "rust"
+text = "`link(&'a self, ..)` needs `self` borrowed for `'a`, because it stores `&self` inside another node."
+
+[[hints]]
+kind = "rust"
+text = "A node alone in its ring is its own neighbour: in `unlink`, don't relink it to itself."
 
 [solution]
-explanation = "`Cell` is zero-cost interior mutability for `Copy` types; `RefCell` adds a borrow counter and can panic. Neither is `Sync`."
-time = "O(1)"
-space = "O(1)"
+explanation = "`Cell<T>` allows mutation through `&` by never handing out a reference to its contents: `get` copies out (so `T: Copy`), `set` and `replace` swap in, `take` leaves `Default`. There's nothing to track at run time, unlike `RefCell`'s borrow counter. Shared references are `Copy`, so `Cell<Option<&'a Node<'a>>>` is the classic way to build cyclic structures over nodes that live in an arena (here, a slice): every node is only ever shared, and the links change in place. The price is invariance: a `Cell<&'a T>` fixes `'a` exactly, so all the nodes must share one lifetime, and they can't be moved or dropped while linked. `rustc` builds its type graphs this way. `Cell` isn't `Sync`, so none of this crosses threads.\n\nSyntax to remember: `next: Cell<Option<&'a Node<'a>>>` · `self.next.set(Some(other))` · `let (p, n) = (self.prev.take(), self.next.take());` · `self.visits.set(self.visits.get() + 1)` (or `self.visits.update(|v| v + 1)`) · `pub fn link(&'a self, other: &'a Node<'a>)`."
+time = "O(1) link and unlink; O(steps) walk"
+space = "O(1) extra"

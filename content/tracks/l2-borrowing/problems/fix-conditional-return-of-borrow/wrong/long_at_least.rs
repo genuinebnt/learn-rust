@@ -11,10 +11,10 @@ pub struct Node {
 pub fn deepest_mut<'a>(root: &'a mut Node, path: &str) -> &'a mut Node {
     let mut cur = root;
     for c in path.chars() {
-        match cur.kids.get_mut(&c) {
-            Some(next) => cur = next,
-            None => return cur,
+        if !cur.kids.contains_key(&c) {
+            break;
         }
+        cur = cur.kids.get_mut(&c).unwrap();
     }
     cur
 }
@@ -47,11 +47,11 @@ fn depth_of(root: &Node, path: &str) -> usize {
 
 /// The first word longer than `n` bytes; otherwise pushes "fallback" and returns that.
 pub fn first_long_or_push(words: &mut Vec<String>, n: usize) -> &mut String {
-    for w in words.iter_mut() {
-        if w.len() > n {
-            return w;
+    match words.iter().position(|w| w.len() >= n) {
+        Some(i) => &mut words[i],
+        None => {
+            words.push("fallback".to_string());
+            words.last_mut().unwrap()
         }
     }
-    words.push("fallback".to_string());
-    words.last_mut().unwrap()
 }

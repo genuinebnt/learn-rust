@@ -50,9 +50,6 @@ pub fn ring<'a>(nodes: &'a [Node<'a>]) {
     for pair in nodes.windows(2) {
         pair[0].link(&pair[1]);
     }
-    if let (Some(first), Some(last)) = (nodes.first(), nodes.last()) {
-        last.link(first);
-    }
 }
 
 /// Starting at `start`, visits `steps` nodes along `next` links (counting each visit on the node), stopping

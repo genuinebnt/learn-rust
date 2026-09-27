@@ -1,62 +1,100 @@
 use solution::*;
 
 #[test]
-fn default_not_used_twice() {
-    check!(r#"call twice for key 3"#, { let mut m = std::collections::HashMap::new(); get_or_insert(&mut m, 3, "a"); get_or_insert(&mut m, 3, "b").clone() }, "a".to_string());
+fn mut_then_shared() {
+    let mut c = Cache::new();
+    *c.get_or_make_mut(4, String::new) = "w".to_string();
+    check!(r#"get_or_make_mut 4 = "w", get_or_make 4"#, c.get_or_make(4, || "no".to_string()).clone(), "w".to_string());
 }
 
 #[test]
-fn many_keys() {
-    check!(r#"1000 keys"#, { let mut m = std::collections::HashMap::new(); for k in 0..1000 { get_or_insert(&mut m, k, "v"); } m.len() }, 1000);
+fn mut_hit_keeps_value() {
+    let mut c = Cache::new();
+    c.get_or_make(6, || "k".to_string());
+    check!(r#"get_or_make 6 ("k"), get_or_make_mut 6 ("no")"#, c.get_or_make_mut(6, || "no".to_string()).clone(), "k".to_string());
 }
 
 #[test]
-fn u32_max_key() {
-    check!(r#"key u32::MAX"#, { let mut m = std::collections::HashMap::new(); get_or_insert(&mut m, u32::MAX, "big").clone() }, "big".to_string());
+fn mut_make_once() {
+    let mut c = Cache::new();
+    let mut calls = 0;
+    c.get_or_make_mut(7, || { calls += 1; String::new() });
+    c.get_or_make_mut(7, || { calls += 1; String::new() });
+    check!(r#"get_or_make_mut 7 twice, counting make"#, calls, 1);
 }
 
 #[test]
-fn unicode_default() {
-    check!(r#"default "ünï""#, { let mut m = std::collections::HashMap::new(); get_or_insert(&mut m, 7, "ünï").clone() }, "ünï".to_string());
+fn misses_mixed() {
+    let mut c = Cache::new();
+    c.get_or_make(1, String::new);
+    c.get_or_make(2, String::new);
+    c.get_or_make_mut(2, String::new);
+    c.get_or_make_mut(3, String::new);
+    check!(r#"keys 1, 2 via get_or_make, 2, 3 via get_or_make_mut"#, (c.misses(), c.order().to_vec()), (3, vec![1, 2, 3]));
 }
 
 #[test]
-fn returns_the_stored_value() {
-    check!(r#"the result points into the map"#, { let mut m = std::collections::HashMap::new(); let p: *const String = get_or_insert(&mut m, 5, "v"); p == &m[&5] as *const String }, true);
+fn key_zero_and_max() {
+    let mut c = Cache::new();
+    check!(r#"keys 0 and u32::MAX"#, (c.get_or_make(0, || "lo".to_string()).clone(), c.get_or_make(u32::MAX, || "hi".to_string()).clone()), ("lo".to_string(), "hi".to_string()));
 }
 
 #[test]
-fn existing_empty_value() {
-    check!(r#"{4: ""}, key 4, default "d""#, { let mut m = std::collections::HashMap::from([(4, String::new())]); get_or_insert(&mut m, 4, "d").clone() }, String::new());
+fn returned_value_is_stored() {
+    let mut c = Cache::new();
+    let p = c.get_or_make_mut(9, || "stored".to_string()).as_ptr();
+    check!(r#"the &String from get_or_make_mut is the stored one"#, p == c.get_or_make(9, String::new).as_ptr(), true);
 }
 
 #[test]
-fn others_untouched() {
-    check!(r#"{1: "a"}, key 2"#, { let mut m = std::collections::HashMap::from([(1, "a".to_string())]); get_or_insert(&mut m, 2, "b"); m[&1].clone() }, "a".to_string());
+fn new_cache() {
+    let mut c = Cache::new();
+    check!(r#"new cache"#, (c.misses(), c.order().len()), (0, 0));
+}
+
+#[test]
+fn unicode_value() {
+    let mut c = Cache::new();
+    check!(r#"get_or_make 1 ("日本")"#, c.get_or_make(1, || "日本".to_string()).clone(), "日本".to_string());
 }
 
 #[test]
 fn random_vs_model() {
-    let mut rng = anneal_prelude::Rng::new(2027);
-    for _ in 0..200 {
-        let mut m = std::collections::HashMap::new();
+    let mut rng = anneal_prelude::Rng::new(6230);
+    for _ in 0..300 {
+        let mut c = Cache::new();
         let mut model: Vec<(u32, String)> = Vec::new();
-        let mut log = Vec::new();
-        let n = rng.below(10);
-        for _ in 0..n {
-            let key = rng.below(5) as u32;
-            let d = rng.string(2, "xy");
-            log.push(format!("({key}, {d:?})"));
-            let got = get_or_insert(&mut m, key, &d).clone();
-            let want = match model.iter().find(|(k, _)| *k == key) {
-                Some((_, v)) => v.clone(),
-                None => {
-                    model.push((key, d.clone()));
-                    d.clone()
-                }
-            };
-            check!(log.join(", "), got, want);
+        let mut misses = 0;
+        let mut ops = Vec::new();
+        for step in 0..10 {
+            let k = rng.below(4) as u32;
+            let made = format!("v{step}");
+            if model.iter().all(|e| e.0 != k) {
+                misses += 1;
+                model.push((k, made.clone()));
+            }
+            let want = model.iter().find(|e| e.0 == k).unwrap().1.clone();
+            if rng.bool() {
+                ops.push(format!("get_or_make({k})"));
+                check!(ops.join(", "), c.get_or_make(k, || made).clone(), want);
+            } else {
+                ops.push(format!("get_or_make_mut({k}) += \"!\""));
+                let v = c.get_or_make_mut(k, || made);
+                check!(ops.join(", "), v.clone(), want);
+                v.push('!');
+                model.iter_mut().find(|e| e.0 == k).unwrap().1.push('!');
+            }
         }
-        check!(log.join(", "), m.len(), model.len());
+        let order: Vec<u32> = model.iter().map(|e| e.0).collect();
+        check!(format!("{}; misses, order", ops.join(", ")), (c.misses(), c.order().to_vec()), (misses, order));
     }
+}
+
+#[test]
+fn many_keys() {
+    let mut c = Cache::new();
+    for i in 0..200_000u32 {
+        c.get_or_make(i % 50_000, || i.to_string());
+    }
+    check!("200000 lookups over 50000 keys", (c.misses(), c.get_or_make(49_999, String::new).clone()), (50_000, "49999".to_string()));
 }

@@ -1,26 +1,35 @@
 slug = "fix-borrowmuterror"
-title = "Fix: BorrowMutError at runtime"
+title = "Fix: BorrowMutError from guards you can't see"
 mode = "fix"
 level = "hard"
 stage = "borrow-checker-limits"
 order = 35
 status = "ready"
-tags = ["RefCell", "panic"]
+tags = ["RefCell", "BorrowMutError", "temporaries", "if let", "while let"]
 teaches = [
-  "`RefCell` enforces the borrow rules at runtime, through guards.",
-  "Guard lifetimes are scopes; end them early.",
+  "A `RefCell` guard lives as long as the variable or temporary holding it.",
+  "Scrutinee temporaries of `match`, `if let` (2021) and `while let` live through the whole expression.",
+  "Copy out, then act.",
 ]
-follow_up = "Why does RefCell panic instead of returning an error by default, and when would you use `try_borrow_mut`?"
+follow_up = "`clippy::await_holding_refcell_ref` exists for a related bug. What does an `.await` have in common with the `while let` body here?"
 related = ["L2", "S7"]
 
 [[hints]]
 kind = "rust"
-text = "`borrow()` returns a guard that holds the shared borrow until it's dropped. When is `names` dropped?"
+text = "`let seen = self.seen.borrow();` keeps a `Ref` guard until the end of `submit`, so the `borrow_mut` two lines later panics. End the shared borrow in the statement that needs it."
+
+[[hints]]
+kind = "rust"
+text = "In edition 2021, a temporary in the condition of an `if let` (the `Ref` from `self.seen.borrow()`) lives until the end of the whole `if let ... else`, including the `else` block. Copy the answer out in a `let` first."
+
+[[hints]]
+kind = "rust"
+text = "`while let Some(job) = self.queue.borrow_mut().pop()` keeps the `RefMut` alive for the whole loop body, where `submit` pushes to the same queue. Pop in its own statement."
 
 [solution]
-explanation = "The guard lived to the end of the function, so `borrow_mut` found it still active and panicked. Ending the shared borrow in the same statement fixes it."
-time = "O(n)"
-space = "O(1)"
+explanation = "`RefCell` enforces the borrow rules at run time through guards (`Ref`, `RefMut`), and a guard lives as long as the value holding it. That's easy to see for `let seen = self.seen.borrow();` (the end of the block) and easy to miss for temporaries. A temporary created in the scrutinee of `match`, `if let` or `while let` lives until the end of that whole expression, so the guard covers every arm, the loop body, and (in edition 2021) the `else` block. Edition 2024 drops `if let` temporaries before `else`, but `match` and `while let` scrutinees still hold theirs. The fix is always to finish with the guard in its own statement: copy the value out (`.copied()`, `.pop()` into a `let`), then act on it.\n\nSyntax to remember: `let first = !self.seen.borrow().contains_key(&job);` · `let known = self.seen.borrow().get(&job).copied();` · `loop { let next = self.queue.borrow_mut().pop(); let Some(job) = next else { break }; .. }`."
+time = "O(1) per call; O(jobs) run"
+space = "O(1) extra"
 
 [rules]
-forbid_methods = ["clone"]
+forbid_methods = ["try_borrow", "try_borrow_mut", "clone", "as_ptr", "get_mut"]

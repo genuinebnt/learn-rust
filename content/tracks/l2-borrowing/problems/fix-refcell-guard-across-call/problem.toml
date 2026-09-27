@@ -1,25 +1,35 @@
 slug = "fix-refcell-guard-across-call"
-title = "Fix: a RefCell guard held across a call"
+title = "Fix: re-entrant callbacks and a RefCell guard"
 mode = "fix"
 level = "hard"
 stage = "borrow-checker-limits"
 order = 36
 status = "ready"
-tags = ["Ref", "RefMut", "panic"]
+tags = ["RefCell", "re-entrancy", "Rc<dyn Fn>", "snapshots", "observer"]
 teaches = [
-  "`RefMut` guards held across calls into the same RefCell.",
+  "Don't hold a `RefCell` guard across a callback.",
+  "Snapshot a list of `Rc` handles instead of taking the list out.",
+  "Take-and-restore breaks re-entrant reads.",
 ]
-follow_up = "How would you find this bug in a large codebase before it panics in production?"
+follow_up = "What happens with the snapshot approach if a listener unsubscribes itself, and how would you support that?"
 related = ["L2", "S7"]
 
 [[hints]]
 kind = "rust"
-text = "`total()` calls `borrow()` while `balances`, a `RefMut` guard, is still alive in `deposit`."
+text = "`for l in self.listeners.borrow().iter()` holds a `Ref` for the whole loop. A listener that subscribes needs `borrow_mut` on the same cell: panic. Nested `emit` only needs `borrow`, so it seems fine until someone subscribes."
+
+[[hints]]
+kind = "rust"
+text = "Taking the listeners out while calling them (`mem::take`) breaks nested emits: they'd find no listeners. Instead call a snapshot. With `Rc<dyn Fn>` instead of `Box<dyn Fn>`, copying the list clones pointers, not closures."
+
+[[hints]]
+kind = "rust"
+text = "`replay` holds a `Ref` on `log` while `emit` pushes to it. Read the length first, then fetch each event in its own short borrow."
 
 [solution]
-explanation = "A guard that outlives its statement is the usual cause of RefCell panics, and the call hides it. Writing through a temporary guard ends it at the semicolon."
-time = "O(n)"
-space = "O(1)"
+explanation = "Callbacks make every `RefCell` guard dangerous: while you hold one, you've handed control to code that may come back into the same object (re-entrancy). The observer pattern hits this twice. Iterating the listeners with a guard alive fails as soon as a listener subscribes. Taking the list out with `mem::take` fixes the panic but breaks nested emits, which would find the list empty. Snapshotting is what works: store listeners as `Rc<dyn Fn>`, clone the `Vec` of `Rc`s (a refcount bump each), release the guard, then call. New subscribers go into the live list and hear only later events, and nested emits see every listener. `replay` has the same shape with the log; reading one event per short borrow (cloning that one `String`) avoids holding the guard while `emit` pushes.\n\nSyntax to remember: `listeners: RefCell<Vec<Rc<dyn Fn(&Bus, &str)>>>` · `let listeners = self.listeners.borrow().clone(); for l in listeners { l(self, event); }` · `let n = self.log.borrow().len();`."
+time = "O(listeners) per emit"
+space = "O(listeners) per emit for the snapshot"
 
 [rules]
-forbid_methods = ["clone"]
+forbid_methods = ["try_borrow", "try_borrow_mut", "take", "replace"]

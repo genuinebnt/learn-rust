@@ -1,22 +1,32 @@
 slug = "get-disjoint-mut"
-title = "get_disjoint_mut with index checks"
+title = "All-or-nothing settlement with get_disjoint_mut"
 mode = "write"
 level = "hard"
 stage = "borrow-checker-limits"
 order = 33
 status = "ready"
-tags = ["get_disjoint_mut", "Result"]
+tags = ["get_disjoint_mut", "const generics", "GetDisjointMutError", "atomic updates"]
 teaches = [
-  "`get_disjoint_mut` does the index checks for you.",
+  "`get_disjoint_mut` checks bounds and overlap, then hands out N `&mut`.",
+  "Validate everything before the first write.",
+  "Const generics tie array lengths together.",
 ]
-follow_up = "How would you generalise this to N accounts in one atomic batch?"
+follow_up = "How would you settle a batch whose size is only known at run time, with a `&[usize]` of indices?"
 related = ["L2", "S3"]
 
 [[hints]]
 kind = "rust"
-text = "`slice::get_disjoint_mut([i, j])` returns `[&mut T; 2]`, or an error saying which check failed."
+text = "`balances.get_disjoint_mut(idx)` takes `[usize; N]` and returns `Result<[&mut i64; N], GetDisjointMutError>`: every index checked for bounds and overlap once, then N live `&mut` into one slice."
+
+[[hints]]
+kind = "rust"
+text = "All or nothing: do every check (sum, no negative result) before the first write. The `&mut`s you got can be read too."
+
+[[hints]]
+kind = "rust"
+text = "`settle<const N: usize>` lets the caller pick N; `transfer` is `settle` with N = 2."
 
 [solution]
-explanation = "std checks bounds and overlap once and hands back an array of `&mut`, with no `unsafe` in your code."
-time = "O(1)"
+explanation = "N simultaneous `&mut` into one slice need a proof that the indices are distinct and in bounds; `get_disjoint_mut` does it at run time (O(N²) comparisons, fine for small N) and returns an array of `&mut`, with the `unsafe` inside std. Everything after that is ordinary code, and the all-or-nothing rule is just ordering: validate through the borrows first, write last. A const generic keeps the array sizes in the types, so `idx` and `deltas` can't disagree in length.\n\nSyntax to remember: `pub fn settle<const N: usize>(b: &mut [i64], idx: [usize; N], deltas: [i64; N])` · `let accounts = b.get_disjoint_mut(idx).map_err(|e| match e { GetDisjointMutError::IndexOutOfBounds => .., GetDisjointMutError::OverlappingIndices => .. })?;` · `for (a, d) in accounts.into_iter().zip(deltas) { *a += d; }`."
+time = "O(N²) checks + O(N)"
 space = "O(1)"

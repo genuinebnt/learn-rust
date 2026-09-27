@@ -1,26 +1,37 @@
 use solution::*;
 
 #[test]
-fn adds_once() {
-    check!(r#"add "a" twice, "b" once"#, { let r = Registry::new(); r.add("a"); r.add("a"); r.add("b"); r.len() }, 2);
+fn submit_once() {
+    let s = Scheduler::new();
+    check!(r#"submit 3, 3, 5"#, (s.submit(3), s.submit(3), s.submit(5), s.count(3)), (true, false, true, 2));
 }
 
 #[test]
-fn order_kept() {
-    check!(r#"add "b", "a""#, { let r = Registry::new(); r.add("b"); r.add("a"); r.add("b"); r.len() }, 2);
+fn count_unknown() {
+    let s = Scheduler::new();
+    check!(r#"count(9) on a new scheduler"#, (s.count(9), s.known()), (0, 1));
 }
 
 #[test]
-fn single() {
-    check!(r#"add "x""#, { let r = Registry::new(); r.add("x"); r.len() }, 1);
+fn run_follow_ups() {
+    let s = Scheduler::new();
+    s.submit(12);
+    check!(r#"submit 12; run"#, (s.run(), s.done()), (3, vec![12, 6, 3]));
 }
 
 #[test]
-fn case_sensitive() {
-    check!(r#"add "a", "A""#, { let r = Registry::new(); r.add("a"); r.add("A"); r.len() }, 2);
+fn run_newest_first() {
+    let s = Scheduler::new();
+    for j in [1, 5, 7] {
+        s.submit(j);
+    }
+    check!(r#"submit 1, 5, 7; run"#, (s.run(), s.done()), (3, vec![7, 5, 1]));
 }
 
 #[test]
-fn empty() {
-    check!(r#"new registry"#, Registry::new().len(), 0);
+fn follow_up_already_seen() {
+    let s = Scheduler::new();
+    s.submit(3);
+    s.submit(6);
+    check!(r#"submit 3, 6; run"#, (s.run(), s.done(), s.count(3)), (2, vec![6, 3], 2));
 }

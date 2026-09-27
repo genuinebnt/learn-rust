@@ -16,8 +16,8 @@ impl Scheduler {
     /// queued.
     pub fn submit(&self, job: u32) -> bool {
         let first = !self.seen.borrow().contains_key(&job);
-        *self.seen.borrow_mut().entry(job).or_insert(0) += 1;
         if first {
+            self.seen.borrow_mut().insert(job, 1);
             self.queue.borrow_mut().push(job);
         }
         first

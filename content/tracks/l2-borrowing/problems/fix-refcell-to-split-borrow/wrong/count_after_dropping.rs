@@ -41,8 +41,8 @@ impl Cart {
                 return true;
             }
             self.total -= p;
-            Self::note(&mut self.log, n, format!("drop {p}"));
             dropped += 1;
+            Self::note(&mut self.log, n - dropped, format!("drop {p}"));
             false
         });
         dropped

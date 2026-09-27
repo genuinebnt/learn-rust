@@ -176,35 +176,44 @@ The test conventions:
 
 ## 6. What's next, in order (ROADMAP §7)
 
-### 6.0 In flight (2026-09-27): read this first if a session stopped mid-work
+### 6.0 Pending work (stopped 2026-09-27 at the plan limit): start here
 
-Heavy content work was running on parallel agents when this was written. Everything that has passed `anneal verify` is
-committed and pushed to `master`, one commit per track or stage; anything uncommitted in the working tree was
-unverified and can be thrown away (`git status`, then `git checkout -- <path>` / delete new folders).
-To see where each track stands: `git log --oneline`, `cargo run -q -p anneal-cli -- list`, and compare with the
-CURRICULUM.md tables.
+All agents were stopped. Everything that passed `anneal verify` is committed on `master`, one commit per track or stage.
+Anything uncommitted in a checkout was unverified; delete it (`git status`, `git checkout -- <path>`, remove new folders)
+or verify and commit it. `cargo run -q -p anneal-cli -- list` shows each track's written count.
 
-The instructions the agents follow are in [authoring/](authoring/): `harden-track.md` (bring an existing track to the
-test bar) and `write-track.md` (write a new track from its CURRICULUM table). Fill the `{TRACK}`, `{SPEC}`, `{FOLDER}`,
-`{CODE}`, `{ORDER}`, `{SEEDS}` placeholders and hand one to an agent per track; agents share the checkout, so each
-commits only its own `tools/author/<track>.py` and `content/tracks/<folder>`, verifies with `--jobs 1`, and pushes.
+**Order the owner set: finish tracks one at a time, Graphs → DP → Trees → Tries → the rest.** Hand
+[authoring/write-track.md](authoring/write-track.md) to an agent per track (fill `{TRACK}`, `{SPEC}`, `{FOLDER}`,
+`{CODE}`, `{ORDER}`, `{SEEDS}`); it continues from the spec as it stands. Agents sharing a checkout commit only their own
+`tools/author/<track>.py` + `content/tracks/<folder>`, verify with `--jobs 1` (4 CPUs), and retry a rejected push
+without pulling. Each new problem needs ≥5 visible (LeetCode's examples), ≥8 hidden, a seeded random check, a scale
+test, `wrong/` solutions and `companies` (`verify` enforces the counts and `wrong/`).
 
-**Owner's order (2026-09-27): finish tracks one at a time, Graphs (D9 extension) → DP (D12) → Trees (D6) → Tries (D10) →
-the rest (D8, D11, D4/S1 hardening).** Paused agents committed their last finished stage; resume a track from the next
-stage in its CURRICULUM table.
+| # | Track | Done | Next (in CURRICULUM order) | Notes |
+|---|---|---|---|---|
+| 1 | D9 Graphs (d9.py, order 7, seeds 901–999) | 49/58: Representation, Grid & graph traversal, BFS patterns, Topological sort | Shortest paths: City with fewest reachable neighbours (Floyd–Warshall), Swim in rising water · Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary | existing problems keep their slugs; `network-delay-time` is hand-written (`keep`) |
+| 2 | D12 DP (d12.py, order 10, seeds 1201–1299) | 39/57: 1-D basics, 1-D choices, 2-D grids, Strings, Knapsack, State machines | Intervals & games (6) · Bitmasks & digits (5) · Hard strings (3) · DP the Rust way (4) | |
+| 3 | D6 Trees (d6.py, order 6) | 8/44: Basics | Traversals, Levels & recursion, BSTs, Ownership-shaped trees; seeds from 609 | reuse `TREE` / `HELP` in d6.py; deep trees run in `big_stack`; count-nodes scale test uses a shared-`Rc` complete tree |
+| 4 | D10 Tries (d10.py, order 11) | 11/25: First tries, Tries at work | String algorithms, Hard tries & strings; seeds from 1012 | Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; D10's zero-copy tokenizer must be harder than L3's |
+| 5 | D11 Recursion & backtracking (d11.py, order 12) | 15/28: Recursion, First backtracking, Choices & grids 6/12 | generate-parentheses, different-ways-to-add-parentheses, word-search, palindrome-partitioning, restore-ip-addresses, Fix: recursive closure can't borrow the grid (flood fill → inner `fn`); then Constraints & pruning; seeds from 1127 | |
+| 6 | D8 Intervals & greedy (d8.py, order 9) | 13/29: First greedy, Intervals | Greedy choices (9), Hard greedy (7); seeds 814–829 | |
+| 7 | Not started | | D7 Heaps, D13, D14; L4–L8; S5–S9 (ROADMAP §7 step 1) | write each track's CURRICULUM table first if it still needs the LeetCode 250 pass |
 
-| Work | State | Resume by |
-|---|---|---|
-| Verifier `wrong/` + prelude `Rng` + host kill fix | ✅ done | |
-| Test hardening, bar ≥5 visible (LeetCode examples) / ≥8 hidden / random / scale / `wrong/` | ✅ all 13 original tracks (S1 last, 2a25637) | `harden-track.md` for any track whose problems fail the bar (count `#[test]`s, `wrong/`) |
-| New tracks from CURRICULUM (LeetCode 250 coverage): D6 Trees 44, D8 Greedy 29, D10 Tries 25, D11 Recursion & backtracking 28, D12 DP 57 | ⏳ being written stage by stage (check `list`) | `write-track.md`; the spec keeps what's written, continue with the next stage in the CURRICULUM table |
-| D9 Graphs extension 35 → 58 (new stages Grid & graph traversal, BFS patterns, Hard traversals) | ⏳ queued after D9/D4/S1 hardening | `write-track.md` on d9.py: add the italic problems, restage existing ones, keep slugs; `network-delay-time` stays hand-written (`keep`) |
-| Paused tracks (resume points) | D6: Basics done (8/44, 6c829c3); next Traversals, seeds from 609; reuse `TREE`/`HELP` helpers in d6.py, deep trees run in `big_stack` · D8: First greedy + Intervals done (13/29, 4398c13); next Greedy choices then Hard greedy, seeds 814–829 · D11: Recursion + First backtracking done, Choices & grids 6/12 (15/28); next generate-parentheses, different-ways-to-add-parentheses, word-search, palindrome-partitioning, restore-ip-addresses, Fix: recursive closure can't borrow the grid (flood fill → inner `fn`), then Constraints & pruning; seeds from 1127 · D10: First tries + Tries at work done (11/25, aae5435); next String algorithms, then Hard tries & strings (Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; the D10 zero-copy tokenizer is a harder one than L3's); seeds from 1012 | resume the agent, or hand `write-track.md` to a new one with the spec as it stands |
-| Company tags (`companies` in problem.toml, validated against `COMPANIES` in `crates/content/src/model.rs`, served by the API) | ✅ data layer, D1 D2 D3 D5 tagged · ⏳ other DSA tracks (agents tag as they go; `tag_companies()` in author.py) | add a `COMPANIES = {slug: [...]}` map + `tag_companies(P, COMPANIES)` to the spec. Priority FAANG + Microsoft, then big tech; databases / Rust shops only with a real reason |
-| Company column + filter in the track table | ✅ built from the approved mockup (35b532e) · browser check at 1280/1440 still to do | `tools/ui-check.mjs` on `/t/<track>` with the API running |
-| Raise verifier minimums to 5 visible / 8 hidden / ≥1 `wrong/` | ✅ `verify_one` in `crates/cli/src/main.rs` enforces them | |
-| Final pass | ⏳ | `anneal verify` on every track, `cargo test -p anneal-content -p anneal-runner -p anneal-rules`, update §2 counts and ROADMAP §0 |
+Also pending:
+- **Company tags** on the L/S tracks' LeetCode-style problems (S2 `reverse-each-word`, `word-frequency`; S3
+  `rotate-in-place`, `remove-duplicates-sorted`, `chunks-and-windows`): add a `COMPANIES` map + `tag_companies(P, COMPANIES)`
+  to the spec, as in d1.py. DSA tracks get tags as they are written.
+- **Proposal awaiting the owner:** track cards show only written problems ("8 problems"); show "8 of 44 written" and
+  don't mark a track done while CURRICULUM plans more (`web/src/pages/SectionPage.tsx`, `stateOf`).
+- **Browser check** of the workspace toggles (autocomplete / rust-analyzer / borrow lanes now saved as editor settings,
+  lanes off by default): not clicked through yet.
+- **Final pass** once the tracks are written: `anneal verify` on every track, `cargo test -p anneal-content -p
+  anneal-runner -p anneal-rules -p anneal-api` (the API tests need Postgres on :5434 and the `rust-analyzer` component),
+  update §2's counts and ROADMAP §0.
 
+Done this session (for reference): verifier `wrong/` solutions + prelude `Rng` + host-kill fix; test hardening of all 13
+original tracks and the stricter `verify` minimums; CURRICULUM extended for D6/D8/D9/D10/D11/D12; company tags (model,
+validation, API, track-page column and filter); saved workspace toggles.
 
 ### 6.1 Test hardening (step 2a): in progress, start here
 

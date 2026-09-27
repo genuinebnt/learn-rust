@@ -1,0 +1,40 @@
+slug = "fix-move-out-of-option"
+title = "Fix: move out of an Option behind &mut"
+mode = "fix"
+level = "medium"
+stage = "understand-it"
+order = 11
+status = "ready"
+tags = ["take", "replace", "as_deref_mut"]
+teaches = [
+  "You can't move a value out of `&mut self`; you can swap something else in.",
+  "`Option::take` leaves `None`; `Option::replace` leaves the new value. Both return the old one.",
+  "`as_deref_mut` turns `&mut Option<String>` into `Option<&mut str>` without moving.",
+]
+follow_up = "How do `take` and `replace` relate to `std::mem::take` and `std::mem::replace`? When would you reach for `mem::swap`?"
+related = ["L2", "L3"]
+
+[[examples]]
+input = "start(\"a\"), start(\"b\")"
+output = "second call returns Some(\"a\"); current = Some(\"b\")"
+
+[[examples]]
+input = "start(\"a\"), finish()"
+output = "true; current = None, done = [\"a\"]"
+
+[[hints]]
+kind = "approach"
+text = "Moving out would leave `self.current` holding nothing, which Rust doesn't allow behind a reference. Put a value back in the same step."
+
+[[hints]]
+kind = "rust"
+text = "`self.current.take()` returns the old `Option` and leaves `None`; `self.current.replace(x)` leaves `Some(x)`. To borrow instead of move, go through `as_mut()` or `as_deref_mut()`."
+
+[solution]
+explanation = "`take` and `replace` are `mem::replace` specialised for `Option`: they move the old value out and put a valid one back, so `&mut self` is never left half-empty. `current_mut` never needed to move at all. API reminder: `take()`, `replace(v)`, `insert(v) -> &mut T`, `get_or_insert_with(f) -> &mut T`, `as_mut()`, `as_deref_mut()`."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone", "cloned", "to_owned", "to_string"]
+max_changed_lines = 5

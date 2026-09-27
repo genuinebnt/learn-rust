@@ -260,6 +260,217 @@ P.append(dict(
 ))
 
 P.append(dict(
+    slug="order-total", title="Sum into Option: an order total", level="easy", stage="use-it", tags=["try_fold", "zip", "checked_mul"],
+    teaches=["`try_fold` (or `sum::<Option<_>>()`) stops at the first `None`.", "`ok()` + `zip` + `checked_*` keep every failure an `Option` instead of a panic."],
+    statement="""
+        Each line is `(price_cents, qty)` as text. Return the sum of `price * qty` over all lines, or `None` if
+        any field isn't a `u64` or any product or the running total doesn't fit in a `u64`.
+    """,
+    examples=[("lines = [(\"250\", \"4\"), (\"100\", \"1\")]", "Some(1100)"), ("lines = [(\"5\", \"2\"), (\"oops\", \"1\")]", "None")],
+    constraints=["Fields are parsed exactly as `str::parse::<u64>` does: no trimming."],
+    starter="""
+        pub fn order_total(lines: &[(&str, &str)]) -> Option<u64> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn order_total(lines: &[(&str, &str)]) -> Option<u64> {
+            lines.iter().try_fold(0u64, |total, &(price, qty)| {
+                let (p, q) = price.parse::<u64>().ok().zip(qty.parse::<u64>().ok())?;
+                total.checked_add(p.checked_mul(q)?)
+            })
+        }
+    """,
+    visible=[
+        T("two_lines", "lines = [(\"250\", \"4\"), (\"100\", \"1\")]", 'order_total(&[("250", "4"), ("100", "1")])', "Some(1100)"),
+        T("empty_order", "lines = []", "order_total(&[])", "Some(0)"),
+        T("bad_qty", "lines = [(\"250\", \"x\")]", 'order_total(&[("250", "x")])', "None"),
+        T("one_bad_line_spoils_the_total", "lines = [(\"5\", \"2\"), (\"oops\", \"1\")]", 'order_total(&[("5", "2"), ("oops", "1")])', "None"),
+        T("product_overflow_is_none", "lines = [(\"4294967296\", \"4294967296\")]", 'order_total(&[("4294967296", "4294967296")])', "None"),
+    ],
+    hidden=[
+        T("zero_qty", "lines = [(\"999\", \"0\"), (\"1\", \"1\")]", 'order_total(&[("999", "0"), ("1", "1")])', "Some(1)"),
+        T("product_exactly_max", "lines = [(\"4294967295\", \"4294967297\")]", 'order_total(&[("4294967295", "4294967297")])', "Some(u64::MAX)"),
+        T("sum_exactly_max", "lines = [(\"18446744073709551614\", \"1\"), (\"1\", \"1\")]", 'order_total(&[("18446744073709551614", "1"), ("1", "1")])', "Some(u64::MAX)"),
+        T("sum_overflow_is_none", "lines = [(\"18446744073709551615\", \"1\"), (\"1\", \"1\")]", 'order_total(&[("18446744073709551615", "1"), ("1", "1")])', "None"),
+        T("field_too_big", "lines = [(\"18446744073709551616\", \"1\")]", 'order_total(&[("18446744073709551616", "1")])', "None"),
+        T("negative_price", "lines = [(\"-1\", \"1\")]", 'order_total(&[("-1", "1")])', "None"),
+        T("empty_field", "lines = [(\"\", \"1\")]", 'order_total(&[("", "1")])', "None"),
+        T("plus_sign_parses", "lines = [(\"+5\", \"2\")]", 'order_total(&[("+5", "2")])', "Some(10)"),
+        T("spaces_do_not_parse", "lines = [(\"5\", \" 2\")]", 'order_total(&[("5", " 2")])', "None"),
+        T("full_width_digits", "lines = [(\"５\", \"2\")]", 'order_total(&[("５", "2")])', "None"),
+        T("bad_line_first", "lines = [(\"x\", \"1\"), (\"5\", \"2\")]", 'order_total(&[("x", "1"), ("5", "2")])', "None"),
+        """
+        fn brute(s: &str) -> Option<u128> {
+            let digits = s.strip_prefix('+').unwrap_or(s);
+            if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+                return None;
+            }
+            let n = digits.bytes().fold(0u128, |n, b| (n * 10 + u128::from(b - b'0')).min(1 << 70));
+            (n <= u128::from(u64::MAX)).then_some(n)
+        }
+
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1311);
+            let field = |rng: &mut anneal_prelude::Rng| match rng.below(6) {
+                0 => {
+                    let len = rng.below(4);
+                    rng.string(len, "012+x")
+                }
+                1 => rng.int(0, i64::MAX).to_string(),
+                2 => (u64::MAX - rng.below(3) as u64).to_string(),
+                _ => rng.int(0, 1000).to_string(),
+            };
+            for _ in 0..400 {
+                let n = rng.below(5);
+                let mut owned: Vec<(String, String)> = Vec::new();
+                for _ in 0..n {
+                    let p = field(&mut rng);
+                    let q = field(&mut rng);
+                    owned.push((p, q));
+                }
+                let lines: Vec<(&str, &str)> = owned.iter().map(|(p, q)| (p.as_str(), q.as_str())).collect();
+                let mut want = Some(0u128);
+                for (p, q) in &lines {
+                    want = match (want, brute(p), brute(q)) {
+                        (Some(t), Some(p), Some(q)) if p * q <= u128::from(u64::MAX) && t + p * q <= u128::from(u64::MAX) => Some(t + p * q),
+                        _ => None,
+                    };
+                }
+                check!(format!("lines = {lines:?}"), order_total(&lines), want.map(|t| t as u64));
+            }
+        }
+
+        #[test]
+        fn scale_many_lines() {
+            let owned: Vec<(String, String)> = (0..200_000u64).map(|i| (i.to_string(), "2".to_string())).collect();
+            let lines: Vec<(&str, &str)> = owned.iter().map(|(p, q)| (p.as_str(), q.as_str())).collect();
+            check!("200000 lines (i, 2) for i below 200000", order_total(&lines), Some(39_999_800_000u64));
+        }
+        """,
+    ],
+    wrong=dict(
+        sum_panics_on_overflow="""
+            pub fn order_total(lines: &[(&str, &str)]) -> Option<u64> {
+                lines
+                    .iter()
+                    .map(|&(price, qty)| {
+                        let (p, q) = price.parse::<u64>().ok().zip(qty.parse::<u64>().ok())?;
+                        p.checked_mul(q)
+                    })
+                    .sum()
+            }
+        """,
+        skips_bad_lines="""
+            pub fn order_total(lines: &[(&str, &str)]) -> Option<u64> {
+                lines
+                    .iter()
+                    .filter_map(|&(price, qty)| price.parse::<u64>().ok().zip(qty.parse::<u64>().ok()))
+                    .try_fold(0u64, |total, (p, q)| total.checked_add(p.checked_mul(q)?))
+            }
+        """,
+        saturates="""
+            pub fn order_total(lines: &[(&str, &str)]) -> Option<u64> {
+                lines.iter().try_fold(0u64, |total, &(price, qty)| {
+                    let (p, q) = price.parse::<u64>().ok().zip(qty.parse::<u64>().ok())?;
+                    Some(total.saturating_add(p.saturating_mul(q)))
+                })
+            }
+        """,
+    ),
+    hints=[("approach", "One bad line makes the whole answer `None`, so the loop has to stop early with `None`."),
+           ("rust", "`iter.try_fold(0u64, |acc, x| -> Option<u64> { ... })` stops at the first `None`, and `?` works inside the closure. `a.ok().zip(b.ok())?` gets both fields or bails."),
+           ("edge case", "`sum::<Option<u64>>()` short-circuits too, but its `+` panics on overflow in debug builds. Use `checked_mul` and `checked_add`.")],
+    notes=("`try_fold` threads the running total and stops at the first `None`, whether it came from a parse, a product or the sum. API reminder: `Option<T>` and `Result<T, E>` implement `Sum` and `Product` (`iter.sum::<Option<u64>>()`), `x.ok()` drops an error, `a.zip(b)` is `Some((x, y))` only when both are `Some`, and `checked_add`/`checked_mul` return `Option`.", "O(total length of the fields)", "O(1)"),
+    follow_up="How would you report which line failed and why, instead of just `None`?",
+    related=["S4", "L8"],
+))
+
+THEME_GUARD = """
+        /// The chosen colour, else the palette's first colour, else "black".
+        pub fn theme<'a>(chosen: Option<&'a str>, palette: &[&'a str]) -> &'a str {
+            if chosen.is_none() && palette.is_empty() {
+                return "black";
+            }
+            chosen.unwrap_or(palette[0])
+        }
+
+        /// The byte length of the colour `theme` would pick, but 0 instead of "black".
+        pub fn theme_len(chosen: Option<&str>, palette: &[&str]) -> usize {
+            if chosen.is_none() && palette.is_empty() {
+                return 0;
+            }
+            chosen.map_or(palette[0].len(), str::len)
+        }
+"""
+
+P.append(dict(
+    slug="fix-eager-unwrap-or", title="Fix: unwrap_or and map_or panic on a Some", mode="fix", level="easy", stage="use-it", tags=["unwrap_or_else", "map_or_else", "lazy evaluation"],
+    teaches=["Arguments to `unwrap_or` and `map_or` are evaluated before the call, even when the `Option` is `Some`.", "The `_else` variants take closures and run them only on `None`; `map_or_else` takes the default closure first."],
+    statement="""
+        Both functions panic with *index out of bounds* when a colour was chosen but the palette is empty,
+        although neither needs the palette then. Fix them.
+    """,
+    examples=[("theme(Some(\"red\"), [])", "\"red\""), ("theme_len(Some(\"red\"), [])", "3"), ("theme_len(None, [\"blue\"])", "4")],
+    starter=THEME_GUARD,
+    solution=THEME_GUARD.replace("chosen.unwrap_or(palette[0])", "chosen.unwrap_or_else(|| palette[0])").replace("chosen.map_or(palette[0].len(), str::len)", "chosen.map_or_else(|| palette[0].len(), str::len)"),
+    rules=dict(lines=10),
+    visible=[
+        T("chosen_wins", "chosen = Some(\"red\"), palette = [\"blue\", \"green\"]", '(theme(Some("red"), &["blue", "green"]), theme_len(Some("red"), &["blue", "green"]))', '("red", 3)'),
+        T("first_of_palette", "chosen = None, palette = [\"blue\", \"green\"]", '(theme(None, &["blue", "green"]), theme_len(None, &["blue", "green"]))', '("blue", 4)'),
+        T("nothing_at_all", "chosen = None, palette = []", "(theme(None, &[]), theme_len(None, &[]))", '("black", 0)'),
+        T("theme_with_empty_palette", "chosen = Some(\"red\"), palette = []", 'theme(Some("red"), &[])', '"red"'),
+        T("theme_len_with_empty_palette", "chosen = Some(\"red\"), palette = []", 'theme_len(Some("red"), &[])', "3"),
+    ],
+    hidden=[
+        T("empty_choice_is_still_a_choice", "chosen = Some(\"\"), palette = [\"blue\"]", '(theme(Some(""), &["blue"]), theme_len(Some(""), &["blue"]))', '("", 0)'),
+        T("single_colour", "chosen = None, palette = [\"teal\"]", '(theme(None, &["teal"]), theme_len(None, &["teal"]))', '("teal", 4)'),
+        T("chosen_black", "chosen = Some(\"black\"), palette = []", '(theme(Some("black"), &[]), theme_len(Some("black"), &[]))', '("black", 5)'),
+        T("chosen_in_palette", "chosen = Some(\"green\"), palette = [\"blue\", \"green\"]", 'theme(Some("green"), &["blue", "green"])', '"green"'),
+        T("empty_first_colour", "chosen = None, palette = [\"\", \"blue\"]", '(theme(None, &["", "blue"]), theme_len(None, &["", "blue"]))', '("", 0)'),
+        T("unicode_choice_empty_palette", "chosen = Some(\"青\"), palette = []", '(theme(Some("青"), &[]), theme_len(Some("青"), &[]))', '("青", 3)'),
+        T("unicode_palette_length_in_bytes", "chosen = None, palette = [\"rosé\", \"青\"]", '(theme(None, &["rosé", "青"]), theme_len(None, &["rosé", "青"]))', '("rosé", 5)'),
+        T("empty_choice_empty_palette", "chosen = Some(\"\"), palette = []", '(theme(Some(""), &[]), theme_len(Some(""), &[]))', '("", 0)'),
+        T("returns_the_chosen_str", "chosen = Some(c), palette = []", "std::ptr::eq(theme(Some(c), &[]).as_ptr(), c.as_ptr())", "true", setup='let c = "crimson";'),
+        T("long_palette", "chosen = None, palette = 100000 colours", "(theme(None, &palette), theme_len(None, &palette))", '("c0", 2)', setup='let names: Vec<String> = (0..100_000).map(|i| format!("c{i}")).collect();\nlet palette: Vec<&str> = names.iter().map(|s| s.as_str()).collect();'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1312);
+            let colours = ["red", "blue", "", "black", "青"];
+            for _ in 0..300 {
+                let chosen = if rng.bool() { Some(*rng.pick(&colours)) } else { None };
+                let n = rng.below(4);
+                let mut palette: Vec<&str> = Vec::new();
+                for _ in 0..n {
+                    palette.push(*rng.pick(&colours));
+                }
+                let want = match (chosen, palette.first()) {
+                    (Some(c), _) => Some(c),
+                    (None, Some(&p)) => Some(p),
+                    (None, None) => None,
+                };
+                let desc = format!("chosen = {chosen:?}, palette = {palette:?}");
+                check!(format!("theme, {desc}"), theme(chosen, &palette), want.unwrap_or("black"));
+                check!(format!("theme_len, {desc}"), theme_len(chosen, &palette), want.map_or(0, str::len));
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        empty_palette_ignores_the_choice=THEME_GUARD.replace("if chosen.is_none() && palette.is_empty() {", "if palette.is_empty() {"),
+        palette_wins=THEME_GUARD.replace("chosen.unwrap_or(palette[0])", "palette.first().copied().or(chosen).unwrap_or(\"black\")").replace("chosen.map_or(palette[0].len(), str::len)", "palette.first().or(chosen.as_ref()).map_or(0, |s| s.len())"),
+        only_theme_fixed=THEME_GUARD.replace("chosen.unwrap_or(palette[0])", "chosen.unwrap_or_else(|| palette[0])"),
+    ),
+    hints=[("approach", "The panic comes from `palette[0]`, which runs before `unwrap_or` or `map_or` even look at `chosen`."),
+           ("rust", "`unwrap_or_else(|| ...)` and `map_or_else(|| default, f)` only run the default closure on `None`. Note the order: default first, then `f`.")],
+    notes=("Arguments are evaluated before a call, so `unwrap_or(palette[0])` indexes even when it isn't needed. API reminder: `unwrap_or` / `unwrap_or_else(|| ..)` / `unwrap_or_default()`, `map_or(default, f)` / `map_or_else(|| default, f)`, `or(opt)` / `or_else(|| opt)`. Clippy's `or_fun_call` lint flags the eager forms when the default is a call. The idiomatic `theme` is `chosen.or_else(|| palette.first().copied()).unwrap_or(\"black\")`.", "O(1)", "O(1)"),
+    follow_up="When is the eager `unwrap_or` the better choice, and why does `map_or_else` put the default closure first?",
+    related=["S4"],
+))
+
+P.append(dict(
     slug="as-ref-as-mut-as-deref", title="as_ref, as_mut and as_deref", level="medium", stage="understand-it", tags=["as_deref", "as_mut"],
     teaches=["`as_deref` turns `&Option<String>` into `Option<&str>`.", "`as_mut` edits the value inside an `Option` in place."],
     statement="""
@@ -572,6 +783,217 @@ P.append(dict(
     related=["L8"],
 ))
 
+STORE = """
+        use std::collections::HashMap;
+
+        #[derive(Debug, PartialEq, Eq)]
+        pub enum StoreError {
+            Corrupt(String),
+            Missing(String),
+        }
+
+        pub struct Store {
+            data: HashMap<String, String>,
+        }
+
+        impl Store {
+            pub fn new(pairs: &[(&str, &str)]) -> Store {
+                Store { data: pairs.iter().map(|&(k, v)| (k.to_string(), v.to_string())).collect() }
+            }
+
+            /// `Ok(None)` if `key` is absent, `Err(Corrupt(key))` if its value isn't an integer.
+            pub fn get(&self, key: &str) -> Result<Option<i64>, StoreError> {
+                match self.data.get(key) {
+                    None => Ok(None),
+                    Some(v) => v.parse().map(Some).map_err(|_| StoreError::Corrupt(key.to_string())),
+                }
+            }
+        }
+"""
+
+P.append(dict(
+    slug="result-of-option", title="Result<Option<T>> and ?", level="medium", stage="understand-it", tags=["?", "Option", "err"],
+    teaches=["`?` on a `Result<Option<T>, E>` leaves the `Option` for you to handle.", "`.ok()` would silently turn an error into \"missing\"; `.err()` keeps only the error."],
+    statement="""
+        `Store::get` returns `Ok(None)` for a missing key and `Err(Corrupt(key))` for a value that isn't an integer.
+        Write `require`, which reports a missing key as `Err(Missing(key))`, and `sum_or_zero`, which adds up
+        `keys` and counts missing ones as 0. Both pass the first `Corrupt` error straight through.
+        Then write `first_corrupt`, which returns the error of the first corrupt key in `keys`, or `None`.
+    """,
+    examples=[("store = {a: \"5\", b: \"x\"}, require(\"c\")", "Err(Missing(\"c\"))"), ("store = {a: \"5\", b: \"x\"}, sum_or_zero([\"a\", \"c\"])", "Ok(5)")],
+    constraints=["Values fit in an `i64`, and so does every sum."],
+    starter=STORE + """
+        pub fn require(store: &Store, key: &str) -> Result<i64, StoreError> {
+            todo!()
+        }
+
+        pub fn sum_or_zero(store: &Store, keys: &[&str]) -> Result<i64, StoreError> {
+            todo!()
+        }
+
+        pub fn first_corrupt(store: &Store, keys: &[&str]) -> Option<StoreError> {
+            todo!()
+        }
+    """,
+    solution=STORE + """
+        pub fn require(store: &Store, key: &str) -> Result<i64, StoreError> {
+            store.get(key)?.ok_or_else(|| StoreError::Missing(key.to_string()))
+        }
+
+        pub fn sum_or_zero(store: &Store, keys: &[&str]) -> Result<i64, StoreError> {
+            let mut total = 0;
+            for key in keys {
+                total += store.get(key)?.unwrap_or(0);
+            }
+            Ok(total)
+        }
+
+        pub fn first_corrupt(store: &Store, keys: &[&str]) -> Option<StoreError> {
+            keys.iter().find_map(|k| store.get(k).err())
+        }
+    """,
+    visible=[
+        T("require_present", "store = {a: \"5\"}, require(\"a\")", 'require(&Store::new(&[("a", "5")]), "a")', "Ok(5)"),
+        T("require_missing", "store = {a: \"5\"}, require(\"b\")", 'require(&Store::new(&[("a", "5")]), "b")', 'Err(StoreError::Missing("b".to_string()))'),
+        T("require_corrupt", "store = {a: \"x\"}, require(\"a\")", 'require(&Store::new(&[("a", "x")]), "a")', 'Err(StoreError::Corrupt("a".to_string()))'),
+        T("sum_counts_missing_as_zero", "store = {a: \"5\", b: \"-2\"}, sum_or_zero([\"a\", \"b\", \"c\"])", 'sum_or_zero(&Store::new(&[("a", "5"), ("b", "-2")]), &["a", "b", "c"])', "Ok(3)"),
+        T("sum_stops_at_corrupt", "store = {a: \"1\", b: \"x\"}, sum_or_zero([\"a\", \"b\"])", 'sum_or_zero(&Store::new(&[("a", "1"), ("b", "x")]), &["a", "b"])', 'Err(StoreError::Corrupt("b".to_string()))'),
+    ],
+    hidden=[
+        T("first_corrupt_none", "store = {a: \"1\", b: \"x\"}, first_corrupt([\"a\", \"c\"])", 'first_corrupt(&Store::new(&[("a", "1"), ("b", "x")]), &["a", "c"])', "None"),
+        T("first_corrupt_first_wins", "store = {a: \"x\", b: \"y\"}, first_corrupt([\"c\", \"b\", \"a\"])", 'first_corrupt(&Store::new(&[("a", "x"), ("b", "y")]), &["c", "b", "a"])', 'Some(StoreError::Corrupt("b".to_string()))'),
+        T("first_corrupt_no_keys", "store = {a: \"x\"}, first_corrupt([])", 'first_corrupt(&Store::new(&[("a", "x")]), &[])', "None"),
+        T("sum_no_keys", "store = {a: \"x\"}, sum_or_zero([])", 'sum_or_zero(&Store::new(&[("a", "x")]), &[])', "Ok(0)"),
+        T("sum_all_missing", "store = {}, sum_or_zero([\"a\", \"b\"])", 'sum_or_zero(&Store::new(&[]), &["a", "b"])', "Ok(0)"),
+        T("sum_repeated_key", "store = {a: \"5\"}, sum_or_zero([\"a\", \"a\"])", 'sum_or_zero(&Store::new(&[("a", "5")]), &["a", "a"])', "Ok(10)"),
+        T("sum_first_corrupt_wins", "store = {a: \"x\", b: \"y\"}, sum_or_zero([\"c\", \"b\", \"a\"])", 'sum_or_zero(&Store::new(&[("a", "x"), ("b", "y")]), &["c", "b", "a"])', 'Err(StoreError::Corrupt("b".to_string()))'),
+        T("sum_corrupt_key_not_asked", "store = {a: \"2\", b: \"x\"}, sum_or_zero([\"a\"])", 'sum_or_zero(&Store::new(&[("a", "2"), ("b", "x")]), &["a"])', "Ok(2)"),
+        T("require_empty_value", "store = {a: \"\"}, require(\"a\")", 'require(&Store::new(&[("a", "")]), "a")', 'Err(StoreError::Corrupt("a".to_string()))'),
+        T("require_zero_is_present", "store = {a: \"0\"}, require(\"a\")", 'require(&Store::new(&[("a", "0")]), "a")', "Ok(0)"),
+        T("require_i64_bounds", "store = {lo: \"-9223372036854775808\", hi: \"9223372036854775807\"}", '(require(&s, "lo"), require(&s, "hi"))', "(Ok(i64::MIN), Ok(i64::MAX))", setup='let s = Store::new(&[("lo", "-9223372036854775808"), ("hi", "9223372036854775807")]);'),
+        T("require_empty_key", "store = {a: \"1\"}, require(\"\")", 'require(&Store::new(&[("a", "1")]), "")', 'Err(StoreError::Missing(String::new()))'),
+        T("require_unicode_key", "store = {ключ: \"7\"}, require(\"ключ\"), require(\"клю\")", '(require(&s, "ключ"), require(&s, "клю"))', '(Ok(7), Err(StoreError::Missing("клю".to_string())))', setup='let s = Store::new(&[("ключ", "7")]);'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1313);
+            let names = ["a", "b", "c", "d"];
+            let values = ["1", "-3", "10", "x", "", "7"];
+            for _ in 0..400 {
+                let mut pairs: Vec<(&str, &str)> = Vec::new();
+                for &k in &names {
+                    if rng.bool() {
+                        pairs.push((k, *rng.pick(&values)));
+                    }
+                }
+                let store = Store::new(&pairs);
+                let n = rng.below(5);
+                let mut keys: Vec<&str> = Vec::new();
+                for _ in 0..n {
+                    keys.push(*rng.pick(&names));
+                }
+                let lookup = |k: &str| pairs.iter().find(|(pk, _)| *pk == k).map(|(_, v)| *v);
+                let key = *rng.pick(&names);
+                let want_one = match lookup(key) {
+                    None => Err(StoreError::Missing(key.to_string())),
+                    Some(v) => v.parse::<i64>().map_err(|_| StoreError::Corrupt(key.to_string())),
+                };
+                check!(format!("store = {pairs:?}, require({key:?})"), require(&store, key), want_one);
+                let mut want: Result<i64, StoreError> = Ok(0);
+                for &k in &keys {
+                    match lookup(k).map(|v| v.parse::<i64>()) {
+                        None => {}
+                        Some(Ok(v)) => {
+                            if let Ok(t) = &mut want {
+                                *t += v;
+                            }
+                        }
+                        Some(Err(_)) => {
+                            want = Err(StoreError::Corrupt(k.to_string()));
+                            break;
+                        }
+                    }
+                }
+                check!(format!("store = {pairs:?}, sum_or_zero({keys:?})"), sum_or_zero(&store, &keys), want);
+                let want_first = keys.iter().find(|&&k| lookup(k).is_some_and(|v| v.parse::<i64>().is_err())).map(|k| StoreError::Corrupt(k.to_string()));
+                check!(format!("store = {pairs:?}, first_corrupt({keys:?})"), first_corrupt(&store, &keys), want_first);
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        corrupt_reads_as_missing=STORE + """
+        pub fn require(store: &Store, key: &str) -> Result<i64, StoreError> {
+            store.get(key).ok().flatten().ok_or_else(|| StoreError::Missing(key.to_string()))
+        }
+
+        pub fn sum_or_zero(store: &Store, keys: &[&str]) -> Result<i64, StoreError> {
+            let mut total = 0;
+            for key in keys {
+                total += store.get(key)?.unwrap_or(0);
+            }
+            Ok(total)
+        }
+
+        pub fn first_corrupt(store: &Store, keys: &[&str]) -> Option<StoreError> {
+            keys.iter().find_map(|k| store.get(k).err())
+        }
+        """,
+        sum_skips_corrupt=STORE + """
+        pub fn require(store: &Store, key: &str) -> Result<i64, StoreError> {
+            store.get(key)?.ok_or_else(|| StoreError::Missing(key.to_string()))
+        }
+
+        pub fn sum_or_zero(store: &Store, keys: &[&str]) -> Result<i64, StoreError> {
+            Ok(keys.iter().map(|k| store.get(k).ok().flatten().unwrap_or(0)).sum())
+        }
+
+        pub fn first_corrupt(store: &Store, keys: &[&str]) -> Option<StoreError> {
+            keys.iter().find_map(|k| store.get(k).err())
+        }
+        """,
+        require_defaults_to_zero=STORE + """
+        pub fn require(store: &Store, key: &str) -> Result<i64, StoreError> {
+            Ok(store.get(key)?.unwrap_or(0))
+        }
+
+        pub fn sum_or_zero(store: &Store, keys: &[&str]) -> Result<i64, StoreError> {
+            let mut total = 0;
+            for key in keys {
+                total += store.get(key)?.unwrap_or(0);
+            }
+            Ok(total)
+        }
+
+        pub fn first_corrupt(store: &Store, keys: &[&str]) -> Option<StoreError> {
+            keys.iter().find_map(|k| store.get(k).err())
+        }
+        """,
+        first_corrupt_reports_the_last=STORE + """
+        pub fn require(store: &Store, key: &str) -> Result<i64, StoreError> {
+            store.get(key)?.ok_or_else(|| StoreError::Missing(key.to_string()))
+        }
+
+        pub fn sum_or_zero(store: &Store, keys: &[&str]) -> Result<i64, StoreError> {
+            let mut total = 0;
+            for key in keys {
+                total += store.get(key)?.unwrap_or(0);
+            }
+            Ok(total)
+        }
+
+        pub fn first_corrupt(store: &Store, keys: &[&str]) -> Option<StoreError> {
+            keys.iter().filter_map(|k| store.get(k).err()).last()
+        }
+        """,
+    ),
+    hints=[("rust", "`store.get(key)?` has type `Option<i64>`: the `?` deals with the error layer, then you deal with the option layer."),
+           ("edge case", "`store.get(key).ok().flatten()` compiles, but it turns `Corrupt` into \"missing\". Keep the two layers apart.")],
+    notes=("`Result<Option<T>, E>` means \"the lookup can fail, and a successful lookup can find nothing\". `?` peels the `Result`; `ok_or_else` or `unwrap_or` decides what absence means for each caller. API reminder: `r.ok()` is `Option<T>`, `r.err()` is `Option<E>`, `find_map` returns the first `Some`, and `transpose` flips `Result<Option<T>, E>` and `Option<Result<T, E>>`.", "O(k) for k keys", "O(1)"),
+    follow_up="Why do database and cache clients return `Result<Option<T>, E>` rather than an error variant for \"not found\"?",
+    related=["S6", "L8"],
+))
+
 P.append(dict(
     slug="collect-into-result", title="Collect into Result<Vec<_>, _>", level="medium", stage="understand-it", tags=["collect", "FromIterator"],
     teaches=["`collect::<Result<Vec<_>, _>>()` stops at the first error.", "`map_err` to add context per item."],
@@ -690,6 +1112,312 @@ P.append(dict(
     notes=("`collect` short-circuits on the first `Err`, so later items aren't parsed.", "O(n)", "O(n)"),
     follow_up="How would you collect every error instead of just the first?",
     related=["S6", "L8"],
+))
+
+WORKER_HEAD = """
+        #[derive(Debug, Default)]
+        pub struct Worker {
+            pub current: Option<String>,
+            pub done: Vec<String>,
+        }
+"""
+
+P.append(dict(
+    slug="fix-move-out-of-option", title="Fix: move out of an Option behind &mut", mode="fix", level="medium", stage="understand-it", tags=["take", "replace", "as_deref_mut"],
+    teaches=["You can't move a value out of `&mut self`; you can swap something else in.", "`Option::take` leaves `None`; `Option::replace` leaves the new value. Both return the old one.", "`as_deref_mut` turns `&mut Option<String>` into `Option<&mut str>` without moving."],
+    statement="""
+        `start` begins a task and returns the one it interrupted, `finish` moves the current task to `done`, and
+        `current_mut` lets the caller edit the current task in place. None of them compile:
+        *cannot move out of `self.current`* (E0507). Fix them without cloning.
+    """,
+    examples=[("start(\"a\"), start(\"b\")", "second call returns Some(\"a\"); current = Some(\"b\")"), ("start(\"a\"), finish()", "true; current = None, done = [\"a\"]")],
+    starter=WORKER_HEAD + """
+        impl Worker {
+            /// Starts `task` and returns the task it interrupted, if any.
+            pub fn start(&mut self, task: String) -> Option<String> {
+                let old = self.current;
+                self.current = Some(task);
+                old
+            }
+
+            /// Moves the current task to `done`. Returns false if there was none.
+            pub fn finish(&mut self) -> bool {
+                match self.current {
+                    Some(task) => {
+                        self.done.push(task);
+                        true
+                    }
+                    None => false,
+                }
+            }
+
+            /// The current task, for editing in place.
+            pub fn current_mut(&mut self) -> Option<&mut str> {
+                self.current.map(|mut s| s.as_mut_str())
+            }
+        }
+    """,
+    solution=WORKER_HEAD + """
+        impl Worker {
+            /// Starts `task` and returns the task it interrupted, if any.
+            pub fn start(&mut self, task: String) -> Option<String> {
+                self.current.replace(task)
+            }
+
+            /// Moves the current task to `done`. Returns false if there was none.
+            pub fn finish(&mut self) -> bool {
+                match self.current.take() {
+                    Some(task) => {
+                        self.done.push(task);
+                        true
+                    }
+                    None => false,
+                }
+            }
+
+            /// The current task, for editing in place.
+            pub fn current_mut(&mut self) -> Option<&mut str> {
+                self.current.as_deref_mut()
+            }
+        }
+    """,
+    rules=dict(methods=["clone", "cloned", "to_owned", "to_string"], lines=5),
+    visible=[
+        T("start_when_idle", "start(\"a\") on a new worker", '{ let mut w = Worker::default(); let r = w.start("a".into()); (r, w.current) }', '(None, Some("a".to_string()))'),
+        T("start_interrupts", "start(\"a\"), start(\"b\")", '{ let mut w = Worker::default(); w.start("a".into()); let r = w.start("b".into()); (r, w.current) }', '(Some("a".to_string()), Some("b".to_string()))'),
+        T("finish_moves_to_done", "start(\"a\"), finish()", '{ let mut w = Worker::default(); w.start("a".into()); let r = w.finish(); (r, w.current, w.done) }', '(true, None, vec!["a".to_string()])'),
+        T("finish_when_idle", "finish() on a new worker", "{ let mut w = Worker::default(); let r = w.finish(); (r, w.current, w.done) }", "(false, None, Vec::<String>::new())"),
+        T("finish_twice", "start(\"a\"), finish(), finish()", '{ let mut w = Worker::default(); w.start("a".into()); (w.finish(), w.finish(), w.done) }', '(true, false, vec!["a".to_string()])'),
+    ],
+    hidden=[
+        T("current_mut_edits_in_place", "start(\"ab\"), uppercase through current_mut()", '{ let mut w = Worker::default(); w.start("ab".into()); if let Some(s) = w.current_mut() { s.make_ascii_uppercase(); } w.current }', 'Some("AB".to_string())'),
+        T("current_mut_when_idle", "current_mut() on a new worker", "Worker::default().current_mut().is_none()", "true"),
+        T("current_mut_then_finish", "start(\"a\"), uppercase through current_mut(), finish()", '{ let mut w = Worker::default(); w.start("a".into()); if let Some(s) = w.current_mut() { s.make_ascii_uppercase(); } w.finish(); (w.current, w.done) }', '(None, vec!["A".to_string()])'),
+        T("interrupted_task_is_not_done", "start(\"a\"), start(\"b\"), finish()", '{ let mut w = Worker::default(); w.start("a".into()); w.start("b".into()); w.finish(); (w.current, w.done) }', '(None, vec!["b".to_string()])'),
+        T("empty_task_name", "start(\"\"), finish(), finish()", '{ let mut w = Worker::default(); w.start(String::new()); (w.finish(), w.finish(), w.current, w.done) }', '(true, false, None, vec![String::new()])'),
+        T("restart_after_finish", "start(\"a\"), finish(), start(\"b\")", '{ let mut w = Worker::default(); w.start("a".into()); w.finish(); let r = w.start("b".into()); (r, w.current, w.done) }', '(None, Some("b".to_string()), vec!["a".to_string()])'),
+        T("done_keeps_order", "a, b, c each started and finished", '{ let mut w = Worker::default(); for t in ["a", "b", "c"] { w.start(t.into()); w.finish(); } w.done }', 'vec!["a".to_string(), "b".to_string(), "c".to_string()]'),
+        T("same_task_twice", "start(\"a\"), start(\"a\")", '{ let mut w = Worker::default(); w.start("a".into()); let r = w.start("a".into()); (r, w.current) }', '(Some("a".to_string()), Some("a".to_string()))'),
+        T("unicode_task", "start(\"修复 🦀\"), finish()", '{ let mut w = Worker::default(); w.start("修复 🦀".into()); (w.finish(), w.done) }', '(true, vec!["修复 🦀".to_string()])'),
+        T("start_keeps_done", "done = [\"x\"], start(\"a\")", '{ let mut w = Worker { current: None, done: vec!["x".into()] }; w.start("a".into()); w.done }', 'vec!["x".to_string()]'),
+        T("start_moves_not_copies", "start(t) returns the same buffer later", "{ let mut w = Worker::default(); w.start(t); w.start(\"b\".into()).map(|s| s.as_ptr()) }", "Some(p)", setup='let t = String::from("a");\nlet p = t.as_ptr();'),
+        """
+        #[test]
+        fn random_vs_model() {
+            let mut rng = anneal_prelude::Rng::new(1314);
+            let names = ["a", "b", "", "ç"];
+            for _ in 0..300 {
+                let mut w = Worker::default();
+                let mut cur: Option<String> = None;
+                let mut done: Vec<String> = Vec::new();
+                let mut log: Vec<String> = Vec::new();
+                let n = rng.below(8);
+                for _ in 0..n {
+                    if rng.bool() {
+                        let t = rng.pick(&names).to_string();
+                        log.push(format!("start({t:?})"));
+                        let want = std::mem::replace(&mut cur, Some(t.clone()));
+                        check!(log.join(", "), w.start(t), want);
+                    } else {
+                        log.push("finish()".to_string());
+                        let want = match std::mem::take(&mut cur) {
+                            Some(t) => {
+                                done.push(t);
+                                true
+                            }
+                            None => false,
+                        };
+                        check!(log.join(", "), w.finish(), want);
+                    }
+                }
+                check!(format!("state after {}", log.join(", ")), (w.current, w.done), (cur, done));
+            }
+        }
+
+        #[test]
+        fn many_tasks() {
+            let mut w = Worker::default();
+            for i in 0..100_000 {
+                w.start(i.to_string());
+                w.finish();
+            }
+            check!("100000 tasks started and finished", (w.current, w.done.len(), w.done[99_999].clone()), (None, 100_000, "99999".to_string()));
+        }
+        """,
+    ],
+    wrong=dict(
+        finish_leaves_an_empty_string=WORKER_HEAD + """
+        impl Worker {
+            /// Starts `task` and returns the task it interrupted, if any.
+            pub fn start(&mut self, task: String) -> Option<String> {
+                self.current.replace(task)
+            }
+
+            /// Moves the current task to `done`. Returns false if there was none.
+            pub fn finish(&mut self) -> bool {
+                match self.current.as_mut() {
+                    Some(task) => {
+                        self.done.push(std::mem::take(task));
+                        true
+                    }
+                    None => false,
+                }
+            }
+
+            /// The current task, for editing in place.
+            pub fn current_mut(&mut self) -> Option<&mut str> {
+                self.current.as_deref_mut()
+            }
+        }
+        """,
+        start_ignored_when_busy=WORKER_HEAD + """
+        impl Worker {
+            /// Starts `task` and returns the task it interrupted, if any.
+            pub fn start(&mut self, task: String) -> Option<String> {
+                if self.current.is_some() {
+                    return Some(task);
+                }
+                self.current = Some(task);
+                None
+            }
+
+            /// Moves the current task to `done`. Returns false if there was none.
+            pub fn finish(&mut self) -> bool {
+                match self.current.take() {
+                    Some(task) => {
+                        self.done.push(task);
+                        true
+                    }
+                    None => false,
+                }
+            }
+
+            /// The current task, for editing in place.
+            pub fn current_mut(&mut self) -> Option<&mut str> {
+                self.current.as_deref_mut()
+            }
+        }
+        """,
+    ),
+    hints=[("approach", "Moving out would leave `self.current` holding nothing, which Rust doesn't allow behind a reference. Put a value back in the same step."),
+           ("rust", "`self.current.take()` returns the old `Option` and leaves `None`; `self.current.replace(x)` leaves `Some(x)`. To borrow instead of move, go through `as_mut()` or `as_deref_mut()`.")],
+    notes=("`take` and `replace` are `mem::replace` specialised for `Option`: they move the old value out and put a valid one back, so `&mut self` is never left half-empty. `current_mut` never needed to move at all. API reminder: `take()`, `replace(v)`, `insert(v) -> &mut T`, `get_or_insert_with(f) -> &mut T`, `as_mut()`, `as_deref_mut()`.", "O(1)", "O(1)"),
+    follow_up="How do `take` and `replace` relate to `std::mem::take` and `std::mem::replace`? When would you reach for `mem::swap`?",
+    related=["L2", "L3"],
+))
+
+SIZE_HEAD = """
+        use std::num::{ParseFloatError, ParseIntError};
+
+        #[derive(Debug, PartialEq)]
+        pub enum SizeError {
+            Missing(&'static str),
+            BadInt(ParseIntError),
+            BadFloat(ParseFloatError),
+        }
+"""
+
+SIZE_TAIL = """
+        fn field<'a>(s: &'a str, name: &'static str) -> Result<&'a str, SizeError> {
+            s.split(';')
+                .find_map(|kv| kv.strip_prefix(name)?.strip_prefix('='))
+                .ok_or(SizeError::Missing(name))
+        }
+
+        /// Parses "width=80;height=24;scale=1.5" into (80, 24, 1.5). The scale is optional and defaults to 1.0.
+        pub fn size(s: &str) -> Result<(u32, u32, f64), SizeError> {
+            let w = field(s, "width")?.parse::<u32>()?;
+            let h = field(s, "height")?.parse::<u32>()?;
+            let scale = match field(s, "scale") {
+                Ok(v) => v.parse::<f64>()?,
+                Err(_) => 1.0,
+            };
+            Ok((w, h, scale))
+        }
+"""
+
+SIZE_FROM = """
+        impl From<ParseIntError> for SizeError {
+            fn from(e: ParseIntError) -> Self {
+                SizeError::BadInt(e)
+            }
+        }
+
+        impl From<ParseFloatError> for SizeError {
+            fn from(e: ParseFloatError) -> Self {
+                SizeError::BadFloat(e)
+            }
+        }
+"""
+
+P.append(dict(
+    slug="fix-question-mark-from", title="Fix: ? can't convert the error", mode="fix", level="medium", stage="understand-it", tags=["?", "From", "E0277"],
+    teaches=["`?` converts the error with `From::from` before returning it.", "One `impl From` per source error type makes every `?` on it work."],
+    statement="""
+        `size` parses `"width=80;height=24;scale=1.5"`. It doesn't compile: *`?` couldn't convert the error to `SizeError`*
+        (E0277), three times. Make it compile without touching `size` or `field`, keeping each parse error in its variant.
+    """,
+    examples=[("s = \"width=80;height=24\"", "Ok((80, 24, 1.0))"), ("s = \"width=80;height=24;scale=big\"", "Err(BadFloat(..))")],
+    starter=SIZE_HEAD + SIZE_TAIL,
+    solution=SIZE_HEAD + SIZE_FROM + SIZE_TAIL,
+    rules=dict(methods=["map_err", "unwrap", "expect", "ok", "unwrap_or"], lines=12),
+    visible=[
+        T("all_fields", "s = \"width=80;height=24;scale=1.5\"", 'size("width=80;height=24;scale=1.5")', "Ok((80, 24, 1.5))"),
+        T("scale_defaults_to_one", "s = \"height=24;width=80\"", 'size("height=24;width=80")', "Ok((80, 24, 1.0))"),
+        T("missing_height", "s = \"width=80\"", 'size("width=80")', 'Err(SizeError::Missing("height"))'),
+        T("bad_width", "s = \"width=abc;height=1\"", 'size("width=abc;height=1")', 'Err(SizeError::BadInt("abc".parse::<u32>().unwrap_err()))'),
+        T("bad_scale", "s = \"width=1;height=1;scale=big\"", 'size("width=1;height=1;scale=big")', 'Err(SizeError::BadFloat("big".parse::<f64>().unwrap_err()))'),
+    ],
+    hidden=[
+        T("empty_input", "s = \"\"", 'size("")', 'Err(SizeError::Missing("width"))'),
+        T("empty_value", "s = \"width=;height=1\"", 'size("width=;height=1")', 'Err(SizeError::BadInt("".parse::<u32>().unwrap_err()))'),
+        T("negative_height", "s = \"width=80;height=-1\"", 'size("width=80;height=-1")', 'Err(SizeError::BadInt("-1".parse::<u32>().unwrap_err()))'),
+        T("width_overflows", "s = \"width=4294967296;height=1\"", 'size("width=4294967296;height=1")', 'Err(SizeError::BadInt("4294967296".parse::<u32>().unwrap_err()))'),
+        T("bounds", "s = \"width=4294967295;height=0;scale=-0.5\"", 'size("width=4294967295;height=0;scale=-0.5")', "Ok((u32::MAX, 0, -0.5))"),
+        T("empty_scale", "s = \"width=1;height=2;scale=\"", 'size("width=1;height=2;scale=")', 'Err(SizeError::BadFloat("".parse::<f64>().unwrap_err()))'),
+        T("int_scale_is_fine", "s = \"scale=3;width=1;height=2\"", 'size("scale=3;width=1;height=2")', "Ok((1, 2, 3.0))"),
+        T("bad_width_before_missing_height", "s = \"width=x\"", 'size("width=x")', 'Err(SizeError::BadInt("x".parse::<u32>().unwrap_err()))'),
+        T("missing_width_before_bad_height", "s = \"height=x\"", 'size("height=x")', 'Err(SizeError::Missing("width"))'),
+        T("int_error_before_float_error", "s = \"scale=z;width=1;height=y\"", 'size("scale=z;width=1;height=y")', 'Err(SizeError::BadInt("y".parse::<u32>().unwrap_err()))'),
+        T("first_width_wins", "s = \"width=1;width=2;height=3\"", 'size("width=1;width=2;height=3")', "Ok((1, 3, 1.0))"),
+        T("full_width_digit", "s = \"width=８;height=1\"", 'size("width=８;height=1")', 'Err(SizeError::BadInt("８".parse::<u32>().unwrap_err()))'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1315);
+            let values = ["0", "7", "42", "-1", "", "x", "4294967295", "4294967296", "+3", "2.5", "1e3"];
+            for _ in 0..300 {
+                let w = rng.bool().then(|| *rng.pick(&values));
+                let h = rng.bool().then(|| *rng.pick(&values));
+                let sc = rng.bool().then(|| *rng.pick(&values));
+                let mut parts: Vec<String> = Vec::new();
+                for (name, v) in [("width", w), ("height", h), ("scale", sc)] {
+                    if let Some(v) = v {
+                        parts.push(format!("{name}={v}"));
+                    }
+                }
+                rng.shuffle(&mut parts);
+                let s = parts.join(";");
+                let int = |v: Option<&str>, name: &'static str| v.ok_or(SizeError::Missing(name))?.parse::<u32>().map_err(SizeError::BadInt);
+                let want = int(w, "width").and_then(|x| {
+                    let y = int(h, "height")?;
+                    let z = sc.map_or(Ok(1.0), |v| v.parse::<f64>().map_err(SizeError::BadFloat))?;
+                    Ok((x, y, z))
+                });
+                check!(format!("s = {s:?}"), size(&s), want);
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        float_error_becomes_missing=SIZE_HEAD + SIZE_FROM.replace("SizeError::BadFloat(e)", "SizeError::Missing(\"scale\")").replace("fn from(e: ParseFloatError)", "fn from(_: ParseFloatError)") + SIZE_TAIL,
+        bad_number_becomes_zero=SIZE_HEAD + SIZE_FROM + SIZE_TAIL.replace("let w = field(s, \"width\")?.parse::<u32>()?;\n            let h = field(s, \"height\")?.parse::<u32>()?;", "let w = field(s, \"width\")?.parse::<u32>().unwrap_or(0);\n            let h = field(s, \"height\")?.parse::<u32>().unwrap_or(0);"),
+    ),
+    hints=[("approach", "`x?` on `Err(e)` returns `Err(From::from(e))`. Which `From` impls are missing?"),
+           ("rust", "`impl From<ParseIntError> for SizeError { fn from(e: ParseIntError) -> Self { SizeError::BadInt(e) } }`, and the same for `ParseFloatError`.")],
+    notes=("Each `From` impl is written once, and every `?` on that error type in a function returning `SizeError` uses it. `map_err` at each call site works too but repeats itself; `thiserror`'s `#[from]` generates exactly these impls. API reminder: `?` needs `From<SourceError> for TargetError`; on `Option` it needs the function to return `Option`.", "O(n)", "O(1)"),
+    follow_up="When would you prefer `map_err` at the call site over a `From` impl? What goes wrong with two variants that wrap the same source type?",
+    related=["L8", "L10"],
 ))
 
 P.append(dict(
@@ -975,6 +1703,203 @@ P.append(dict(
     notes=("`filter` uses a match guard to keep ownership of `v`. `unwrap_or_else` only calls `f` on `None`, which is the point of the `_else` variants.", "O(1) each", "O(1)"),
     follow_up="Why does `Option<&T>` have the same size as `&T`?",
     related=["L7", "L6", "Y1"],
+))
+
+MY_OPTION_BORROW = """
+        #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+        pub enum MyOption<T> {
+            Some(T),
+            None,
+        }
+
+        impl<T> MyOption<T> {
+            pub fn as_ref(&self) -> MyOption<&T> {
+                match self {
+                    MyOption::Some(v) => MyOption::Some(v),
+                    MyOption::None => MyOption::None,
+                }
+            }
+            pub fn as_mut(&mut self) -> MyOption<&mut T> {
+                match self {
+                    MyOption::Some(v) => MyOption::Some(v),
+                    MyOption::None => MyOption::None,
+                }
+            }
+            pub fn insert(&mut self, value: T) -> &mut T {
+                *self = MyOption::Some(value);
+                match self {
+                    MyOption::Some(v) => v,
+                    MyOption::None => unreachable!(),
+                }
+            }
+            pub fn replace(&mut self, value: T) -> MyOption<T> {
+                std::mem::replace(self, MyOption::Some(value))
+            }
+            pub fn get_or_insert_with(&mut self, f: impl FnOnce() -> T) -> &mut T {
+                if let MyOption::None = self {
+                    *self = MyOption::Some(f());
+                }
+                match self {
+                    MyOption::Some(v) => v,
+                    MyOption::None => unreachable!(),
+                }
+            }
+            pub fn zip<U>(self, other: MyOption<U>) -> MyOption<(T, U)> {
+                match (self, other) {
+                    (MyOption::Some(a), MyOption::Some(b)) => MyOption::Some((a, b)),
+                    _ => MyOption::None,
+                }
+            }
+            pub fn xor(self, other: MyOption<T>) -> MyOption<T> {
+                match (self, other) {
+                    (MyOption::Some(a), MyOption::None) => MyOption::Some(a),
+                    (MyOption::None, MyOption::Some(b)) => MyOption::Some(b),
+                    _ => MyOption::None,
+                }
+            }
+            pub fn map_or_else<U>(self, default: impl FnOnce() -> U, f: impl FnOnce(T) -> U) -> U {
+                match self {
+                    MyOption::Some(v) => f(v),
+                    MyOption::None => default(),
+                }
+            }
+        }
+
+        impl<T> MyOption<MyOption<T>> {
+            pub fn flatten(self) -> MyOption<T> {
+                match self {
+                    MyOption::Some(inner) => inner,
+                    MyOption::None => MyOption::None,
+                }
+            }
+        }
+
+        impl<T: Copy> MyOption<&T> {
+            pub fn copied(self) -> MyOption<T> {
+                match self {
+                    MyOption::Some(&v) => MyOption::Some(v),
+                    MyOption::None => MyOption::None,
+                }
+            }
+        }
+    """
+
+P.append(dict(
+    slug="my-option-borrowing", title="MyOption: borrowing and in-place methods", level="hard", stage="build-it", tags=["enum", "borrowing", "impl blocks"],
+    teaches=["`as_ref` / `as_mut` turn `&MyOption<T>` into `MyOption<&T>` by matching on a reference.", "`get_or_insert_with` must fill the slot first and borrow second, or the borrow checker objects.", "`flatten` and `copied` exist only for some `T`, so they live in `impl` blocks for `MyOption<MyOption<T>>` and `MyOption<&T>`."],
+    statement="""
+        Implement ten more `Option` methods on `MyOption`, each behaving like std's: `as_ref`, `as_mut`, `insert`,
+        `replace`, `get_or_insert_with`, `zip`, `xor`, `map_or_else`, and `flatten` and `copied` in their own `impl` blocks.
+        Closures must run only when std's would.
+    """,
+    starter="""
+        #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+        pub enum MyOption<T> {
+            Some(T),
+            None,
+        }
+
+        impl<T> MyOption<T> {
+            pub fn as_ref(&self) -> MyOption<&T> { todo!() }
+            pub fn as_mut(&mut self) -> MyOption<&mut T> { todo!() }
+            pub fn insert(&mut self, value: T) -> &mut T { todo!() }
+            pub fn replace(&mut self, value: T) -> MyOption<T> { todo!() }
+            pub fn get_or_insert_with(&mut self, f: impl FnOnce() -> T) -> &mut T { todo!() }
+            pub fn zip<U>(self, other: MyOption<U>) -> MyOption<(T, U)> { todo!() }
+            pub fn xor(self, other: MyOption<T>) -> MyOption<T> { todo!() }
+            pub fn map_or_else<U>(self, default: impl FnOnce() -> U, f: impl FnOnce(T) -> U) -> U { todo!() }
+        }
+
+        impl<T> MyOption<MyOption<T>> {
+            pub fn flatten(self) -> MyOption<T> { todo!() }
+        }
+
+        impl<T: Copy> MyOption<&T> {
+            pub fn copied(self) -> MyOption<T> { todo!() }
+        }
+    """,
+    solution=MY_OPTION_BORROW,
+    visible=[
+        T("as_ref_borrows", "Some(String::from(\"hi\"))", '{ let o = MyOption::Some(String::from("hi")); let r = o.as_ref() == MyOption::Some(&"hi".to_string()); (r, o) }', '(true, MyOption::Some("hi".to_string()))'),
+        T("as_mut_edits_in_place", "Some(String::from(\"hi\")), push '!'", "{ let mut o = MyOption::Some(String::from(\"hi\")); if let MyOption::Some(s) = o.as_mut() { s.push('!'); } o }", 'MyOption::Some("hi!".to_string())'),
+        T("replace_returns_the_old_value", "Some(1), replace(2)", "{ let mut o = MyOption::Some(1); let old = o.replace(2); (old, o) }", "(MyOption::Some(1), MyOption::Some(2))"),
+        T("get_or_insert_with_fills_none", "None, get_or_insert_with(|| 5), then += 1", "{ let mut o = MyOption::None; *o.get_or_insert_with(|| 5) += 1; o }", "MyOption::Some(6)"),
+        T("zip_xor_map_or_else", "Some(1), Some(\"a\"), None", '(MyOption::Some(1).zip(MyOption::Some("a")), MyOption::Some(1).xor(MyOption::Some(2)), MyOption::<i32>::None.map_or_else(|| -1, |x| x * 2))', '(MyOption::Some((1, "a")), MyOption::None, -1)'),
+    ],
+    hidden=[
+        T("as_ref_none", "None", "MyOption::<String>::None.as_ref()", "MyOption::None"),
+        T("as_ref_points_inside", "Some(String::from(\"x\"))", "{ let o = MyOption::Some(String::from(\"x\")); let same = match (o.as_ref(), &o) { (MyOption::Some(r), MyOption::Some(s)) => std::ptr::eq(r, s), _ => false }; same }", "true"),
+        T("as_mut_none", "None", "{ let mut o = MyOption::<i32>::None; let r = o.as_mut() == MyOption::None; (r, o) }", "(true, MyOption::None)"),
+        T("insert_overwrites", "Some(1), insert(2), then += 10", "{ let mut o = MyOption::Some(1); *o.insert(2) += 10; o }", "MyOption::Some(12)"),
+        T("insert_into_none", "None, insert(String::from(\"a\")), push 'b'", '{ let mut o = MyOption::None; o.insert(String::from("a")).push(\'b\'); o }', 'MyOption::Some("ab".to_string())'),
+        T("flatten_all_shapes", "Some(Some(1)), Some(None), None", "(MyOption::Some(MyOption::Some(1)).flatten(), MyOption::Some(MyOption::<i32>::None).flatten(), MyOption::<MyOption<i32>>::None.flatten())", "(MyOption::Some(1), MyOption::None, MyOption::None)"),
+        T("flatten_one_level_only", "Some(Some(Some(1)))", "MyOption::Some(MyOption::Some(MyOption::Some(1))).flatten()", "MyOption::Some(MyOption::Some(1))"),
+        T("copied_from_as_ref", "Some(7).as_ref().copied(), None", "{ let o = MyOption::Some(7); (o.as_ref().copied(), MyOption::<&u8>::None.copied(), o) }", "(MyOption::Some(7), MyOption::None, MyOption::Some(7))"),
+        T("replace_none", "None, replace(\"a\")", '{ let mut o = MyOption::None; let old = o.replace("a"); (old, o) }', '(MyOption::None, MyOption::Some("a"))'),
+        T("get_or_insert_with_keeps_some", "Some(3), get_or_insert_with(panics)", "{ let mut o = MyOption::Some(3); let v = *o.get_or_insert_with(|| panic!(\"should not run\")); (v, o) }", "(3, MyOption::Some(3))"),
+        T("get_or_insert_with_calls_once", "None, get_or_insert_with twice", "{ let mut calls = 0; let mut o = MyOption::None; o.get_or_insert_with(|| { calls += 1; 7 }); o.get_or_insert_with(|| { calls += 1; 8 }); (o, calls) }", "(MyOption::Some(7), 1)"),
+        T("get_or_insert_with_returns_the_slot", "Some(vec![1]), push 2 through the reference", "{ let mut o = MyOption::Some(vec![1]); o.get_or_insert_with(Vec::new).push(2); o }", "MyOption::Some(vec![1, 2])"),
+        T("zip_with_none", "Some(1) zip None, None zip Some(1)", "(MyOption::Some(1).zip(MyOption::<u8>::None), MyOption::<u8>::None.zip(MyOption::Some(1)))", "(MyOption::None, MyOption::None)"),
+        T("xor_exactly_one", "Some(1) xor None, None xor Some(2), None xor None", "(MyOption::Some(1).xor(MyOption::None), MyOption::None.xor(MyOption::Some(2)), MyOption::<i32>::None.xor(MyOption::None))", "(MyOption::Some(1), MyOption::Some(2), MyOption::None)"),
+        T("map_or_else_some_skips_default", "Some(4)", "MyOption::Some(4).map_or_else(|| panic!(\"should not run\"), |x| x * 2)", "8"),
+        T("map_or_else_none_skips_f", "None", "MyOption::<i32>::None.map_or_else(|| 0, |x| -> i32 { panic!(\"should not run: {x}\") })", "0"),
+        T("map_or_else_moves_the_value", "Some(String::from(\"abc\"))", 'MyOption::Some(String::from("abc")).map_or_else(String::new, |s| s + "!")', '"abc!".to_string()'),
+        """
+        fn mine<T>(o: Option<T>) -> MyOption<T> {
+            match o {
+                Some(v) => MyOption::Some(v),
+                None => MyOption::None,
+            }
+        }
+
+        #[test]
+        fn random_vs_std_option() {
+            let mut rng = anneal_prelude::Rng::new(1316);
+            for _ in 0..300 {
+                let a = if rng.bool() { Some(rng.int(-5, 5) as i32) } else { None };
+                let b = if rng.bool() { Some(rng.int(-5, 5) as i32) } else { None };
+                let d = rng.int(-5, 5) as i32;
+                let desc = format!("a = {a:?}, b = {b:?}, d = {d}");
+                let m = mine(a);
+                check!(format!("as_ref, {desc}"), m.as_ref(), mine(a.as_ref()));
+                let (mut m, mut s) = (mine(a), a);
+                if let MyOption::Some(x) = m.as_mut() {
+                    *x += d;
+                }
+                if let Some(x) = s.as_mut() {
+                    *x += d;
+                }
+                check!(format!("as_mut then += d, {desc}"), m, mine(s));
+                let (mut m, mut s) = (mine(a), a);
+                check!(format!("replace(d), {desc}"), (m.replace(d), m), (mine(s.replace(d)), mine(s)));
+                let (mut m, mut s) = (mine(a), a);
+                let (mut calls_m, mut calls_s) = (0, 0);
+                let got = *m.get_or_insert_with(|| { calls_m += 1; d });
+                let want = *s.get_or_insert_with(|| { calls_s += 1; d });
+                check!(format!("get_or_insert_with(d), {desc}"), (got, m, calls_m), (want, mine(s), calls_s));
+                check!(format!("a.zip(b), {desc}"), mine(a).zip(mine(b)), mine(a.zip(b)));
+                check!(format!("a.xor(b), {desc}"), mine(a).xor(mine(b)), mine(a.xor(b)));
+                check!(format!("map_or_else(d, x * 3), {desc}"), mine(a).map_or_else(|| d, |x| x * 3), a.map_or_else(|| d, |x| x * 3));
+                let (mut m, mut s) = (mine(a), a);
+                check!(format!("insert(d), {desc}"), (*m.insert(d), m), (*s.insert(d), mine(s)));
+                let nested = if rng.bool() { Some(b) } else { None };
+                check!(format!("flatten, nested = {nested:?}"), mine(nested.map(mine)).flatten(), mine(nested.flatten()));
+                check!(format!("as_ref().copied(), {desc}"), mine(a).as_ref().copied(), mine(a.as_ref().copied()));
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        eager_get_or_insert_with=MY_OPTION_BORROW.replace("if let MyOption::None = self {\n                    *self = MyOption::Some(f());", "let v = f();\n                if let MyOption::None = self {\n                    *self = MyOption::Some(v);"),
+        xor_keeps_the_first=MY_OPTION_BORROW.replace("(MyOption::Some(a), MyOption::None) => MyOption::Some(a),", "(MyOption::Some(a), _) => MyOption::Some(a),"),
+        insert_keeps_the_old_value=MY_OPTION_BORROW.replace("*self = MyOption::Some(value);\n                match self {", "if let MyOption::None = self {\n                    *self = MyOption::Some(value);\n                }\n                match self {"),
+    ),
+    hints=[("rust", "Matching on `&self` binds `v` as `&T` (match ergonomics), so `as_ref` is the same two-arm `match` as `map`."),
+           ("rust", "In `get_or_insert_with`, first write `*self = MyOption::Some(f())` if it's `None`, then `match self` and return the `&mut` from the `Some` arm."),
+           ("edge case", "`insert` always overwrites; only `get_or_insert_with` keeps an existing value. `xor` is `Some` only when exactly one side is.")],
+    notes=("`as_ref` and `as_mut` are why most combinators can take `self` by value: borrow first, then consume the borrowed option. `get_or_insert_with` fills the slot before borrowing it, because returning a borrow from one arm while assigning in the other is a case today's borrow checker rejects. API reminder: `insert(v)` overwrites, `get_or_insert(v)` / `get_or_insert_with(f)` keep what's there; `copied()` / `cloned()` turn `Option<&T>` into `Option<T>`; `flatten()` removes one level of `Option<Option<T>>`.", "O(1) each", "O(1)"),
+    follow_up="Why does std's `get_or_insert_with` use `unreachable_unchecked` (or an equivalent) for the `None` arm, and is `unreachable!()` good enough here?",
+    related=["L2", "L6"],
 ))
 
 MY_RESULT = """

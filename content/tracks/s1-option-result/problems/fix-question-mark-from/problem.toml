@@ -1,0 +1,39 @@
+slug = "fix-question-mark-from"
+title = "Fix: ? can't convert the error"
+mode = "fix"
+level = "medium"
+stage = "understand-it"
+order = 12
+status = "ready"
+tags = ["?", "From", "E0277"]
+teaches = [
+  "`?` converts the error with `From::from` before returning it.",
+  "One `impl From` per source error type makes every `?` on it work.",
+]
+follow_up = "When would you prefer `map_err` at the call site over a `From` impl? What goes wrong with two variants that wrap the same source type?"
+related = ["L8", "L10"]
+
+[[examples]]
+input = "s = \"width=80;height=24\""
+output = "Ok((80, 24, 1.0))"
+
+[[examples]]
+input = "s = \"width=80;height=24;scale=big\""
+output = "Err(BadFloat(..))"
+
+[[hints]]
+kind = "approach"
+text = "`x?` on `Err(e)` returns `Err(From::from(e))`. Which `From` impls are missing?"
+
+[[hints]]
+kind = "rust"
+text = "`impl From<ParseIntError> for SizeError { fn from(e: ParseIntError) -> Self { SizeError::BadInt(e) } }`, and the same for `ParseFloatError`."
+
+[solution]
+explanation = "Each `From` impl is written once, and every `?` on that error type in a function returning `SizeError` uses it. `map_err` at each call site works too but repeats itself; `thiserror`'s `#[from]` generates exactly these impls. API reminder: `?` needs `From<SourceError> for TargetError`; on `Option` it needs the function to return `Option`."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["map_err", "unwrap", "expect", "ok", "unwrap_or"]
+max_changed_lines = 12

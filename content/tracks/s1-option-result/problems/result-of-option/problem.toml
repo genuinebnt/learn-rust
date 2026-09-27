@@ -1,0 +1,36 @@
+slug = "result-of-option"
+title = "Result<Option<T>> and ?"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 9
+status = "ready"
+tags = ["?", "Option", "err"]
+teaches = [
+  "`?` on a `Result<Option<T>, E>` leaves the `Option` for you to handle.",
+  "`.ok()` would silently turn an error into \"missing\"; `.err()` keeps only the error.",
+]
+constraints = ["Values fit in an `i64`, and so does every sum."]
+follow_up = "Why do database and cache clients return `Result<Option<T>, E>` rather than an error variant for \"not found\"?"
+related = ["S6", "L8"]
+
+[[examples]]
+input = "store = {a: \"5\", b: \"x\"}, require(\"c\")"
+output = "Err(Missing(\"c\"))"
+
+[[examples]]
+input = "store = {a: \"5\", b: \"x\"}, sum_or_zero([\"a\", \"c\"])"
+output = "Ok(5)"
+
+[[hints]]
+kind = "rust"
+text = "`store.get(key)?` has type `Option<i64>`: the `?` deals with the error layer, then you deal with the option layer."
+
+[[hints]]
+kind = "edge case"
+text = "`store.get(key).ok().flatten()` compiles, but it turns `Corrupt` into \"missing\". Keep the two layers apart."
+
+[solution]
+explanation = "`Result<Option<T>, E>` means \"the lookup can fail, and a successful lookup can find nothing\". `?` peels the `Result`; `ok_or_else` or `unwrap_or` decides what absence means for each caller. API reminder: `r.ok()` is `Option<T>`, `r.err()` is `Option<E>`, `find_map` returns the first `Some`, and `transpose` flips `Result<Option<T>, E>` and `Option<Result<T, E>>`."
+time = "O(k) for k keys"
+space = "O(1)"

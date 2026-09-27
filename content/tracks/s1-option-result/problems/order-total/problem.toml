@@ -1,0 +1,40 @@
+slug = "order-total"
+title = "Sum into Option: an order total"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 4
+status = "ready"
+tags = ["try_fold", "zip", "checked_mul"]
+teaches = [
+  "`try_fold` (or `sum::<Option<_>>()`) stops at the first `None`.",
+  "`ok()` + `zip` + `checked_*` keep every failure an `Option` instead of a panic.",
+]
+constraints = ["Fields are parsed exactly as `str::parse::<u64>` does: no trimming."]
+follow_up = "How would you report which line failed and why, instead of just `None`?"
+related = ["S4", "L8"]
+
+[[examples]]
+input = "lines = [(\"250\", \"4\"), (\"100\", \"1\")]"
+output = "Some(1100)"
+
+[[examples]]
+input = "lines = [(\"5\", \"2\"), (\"oops\", \"1\")]"
+output = "None"
+
+[[hints]]
+kind = "approach"
+text = "One bad line makes the whole answer `None`, so the loop has to stop early with `None`."
+
+[[hints]]
+kind = "rust"
+text = "`iter.try_fold(0u64, |acc, x| -> Option<u64> { ... })` stops at the first `None`, and `?` works inside the closure. `a.ok().zip(b.ok())?` gets both fields or bails."
+
+[[hints]]
+kind = "edge case"
+text = "`sum::<Option<u64>>()` short-circuits too, but its `+` panics on overflow in debug builds. Use `checked_mul` and `checked_add`."
+
+[solution]
+explanation = "`try_fold` threads the running total and stops at the first `None`, whether it came from a parse, a product or the sum. API reminder: `Option<T>` and `Result<T, E>` implement `Sum` and `Product` (`iter.sum::<Option<u64>>()`), `x.ok()` drops an error, `a.zip(b)` is `Some((x, y))` only when both are `Some`, and `checked_add`/`checked_mul` return `Option`."
+time = "O(total length of the fields)"
+space = "O(1)"

@@ -1,0 +1,42 @@
+slug = "fix-eager-unwrap-or"
+title = "Fix: unwrap_or and map_or panic on a Some"
+mode = "fix"
+level = "easy"
+stage = "use-it"
+order = 5
+status = "ready"
+tags = ["unwrap_or_else", "map_or_else", "lazy evaluation"]
+teaches = [
+  "Arguments to `unwrap_or` and `map_or` are evaluated before the call, even when the `Option` is `Some`.",
+  "The `_else` variants take closures and run them only on `None`; `map_or_else` takes the default closure first.",
+]
+follow_up = "When is the eager `unwrap_or` the better choice, and why does `map_or_else` put the default closure first?"
+related = ["S4"]
+
+[[examples]]
+input = "theme(Some(\"red\"), [])"
+output = "\"red\""
+
+[[examples]]
+input = "theme_len(Some(\"red\"), [])"
+output = "3"
+
+[[examples]]
+input = "theme_len(None, [\"blue\"])"
+output = "4"
+
+[[hints]]
+kind = "approach"
+text = "The panic comes from `palette[0]`, which runs before `unwrap_or` or `map_or` even look at `chosen`."
+
+[[hints]]
+kind = "rust"
+text = "`unwrap_or_else(|| ...)` and `map_or_else(|| default, f)` only run the default closure on `None`. Note the order: default first, then `f`."
+
+[solution]
+explanation = "Arguments are evaluated before a call, so `unwrap_or(palette[0])` indexes even when it isn't needed. API reminder: `unwrap_or` / `unwrap_or_else(|| ..)` / `unwrap_or_default()`, `map_or(default, f)` / `map_or_else(|| default, f)`, `or(opt)` / `or_else(|| opt)`. Clippy's `or_fun_call` lint flags the eager forms when the default is a call. The idiomatic `theme` is `chosen.or_else(|| palette.first().copied()).unwrap_or(\"black\")`."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 10

@@ -1,0 +1,41 @@
+slug = "decode-ways"
+title = "Decode ways"
+mode = "write"
+level = "medium"
+stage = "1d-choices"
+order = 8
+status = "ready"
+tags = ["1-D DP", "as_bytes", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Uber", "Bloomberg", "Salesforce"]
+teaches = [
+  "A choice of one or two characters per step: the climbing-stairs recurrence with conditions.",
+  "Working on `as_bytes()` and comparing against byte literals like `b'0'`.",
+]
+constraints = ["1 ≤ s.len() ≤ 100", "s holds only the digits 0–9", "the answer fits in a u64"]
+follow_up = "How does the recurrence change if `*` may stand for any digit 1–9 (LeetCode 639)?"
+related = ["D11", "S2"]
+
+[[examples]]
+input = "s = \"226\""
+output = "3 (\"2 2 6\", \"22 6\", \"2 26\")"
+
+[[examples]]
+input = "s = \"06\""
+output = "0"
+
+[[hints]]
+kind = "approach"
+text = "Let ways(i) count decodings of the first i digits. Digit i on its own adds ways(i - 1) if it isn't '0'; digits i - 1 and i together add ways(i - 2) if they form 10..=26."
+
+[[hints]]
+kind = "rust"
+text = "Walk `s.as_bytes()` and compare with byte literals (`b'0'`, `b'2'`, `b'6'`). Two rolling `u64`s are enough."
+
+[[hints]]
+kind = "edge case"
+text = "\"06\" is not a code, \"10\" and \"20\" only decode as pairs, and \"30\" makes the whole string undecodable."
+
+[solution]
+explanation = "It is climbing stairs where each step of 1 or 2 digits is allowed only if those digits form a letter. ways(0) = 1 seeds the empty prefix."
+time = "O(n)"
+space = "O(1)"

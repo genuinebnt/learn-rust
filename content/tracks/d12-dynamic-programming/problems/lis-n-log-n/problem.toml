@@ -1,0 +1,37 @@
+slug = "lis-n-log-n"
+title = "Longest increasing subsequence in O(n log n)"
+mode = "write"
+level = "medium"
+stage = "1d-choices"
+order = 16
+status = "ready"
+tags = ["binary search", "partition_point"]
+companies = ["Google", "Amazon", "Meta", "Microsoft"]
+teaches = [
+  "Patience sorting: keep the smallest possible tail for every length, and binary-search where each value goes.",
+  "`slice::partition_point` as a lower bound.",
+]
+constraints = ["0 ≤ nums.len() ≤ 2·10⁵", "nums[i] fits in an i32"]
+follow_up = "How would you recover an actual longest subsequence with this method? (Store, for each element, the index of its predecessor.)"
+related = ["D4"]
+
+[[examples]]
+input = "nums = [0, 1, 0, 3, 2, 3]"
+output = "4"
+
+[[hints]]
+kind = "approach"
+text = "Keep tails[k], the smallest value that can end an increasing subsequence of length k + 1. Each new x either extends the longest one or lowers the first tail that is ≥ x."
+
+[[hints]]
+kind = "rust"
+text = "`tails.partition_point(|&t| t < x)` is the index of the first tail ≥ x (a lower bound), in O(log n)."
+
+[[hints]]
+kind = "edge case"
+text = "Using `t <= x` (an upper bound) lets equal values extend each other: [0, 0, 1, 1] would count 4."
+
+[solution]
+explanation = "`tails` stays sorted, and replacing a tail with a smaller value never shortens anything, it only makes later extensions easier. Its length is the answer; its contents are not necessarily a real subsequence."
+time = "O(n log n)"
+space = "O(n)"

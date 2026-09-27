@@ -1,0 +1,41 @@
+slug = "perfect-squares"
+title = "Perfect squares"
+mode = "write"
+level = "medium"
+stage = "1d-choices"
+order = 11
+status = "ready"
+tags = ["unbounded knapsack", "1-D DP"]
+companies = ["Google", "Amazon", "Meta", "Apple", "Microsoft", "Adobe", "Uber"]
+teaches = [
+  "Coin change where the coins are the squares up to n.",
+  "Looping `j` while `j * j <= i` instead of a floating-point square root.",
+]
+constraints = ["1 ≤ n ≤ 10⁵"]
+follow_up = "How would BFS from n find the answer, and when would it beat the table?"
+related = ["D13", "D9"]
+
+[[examples]]
+input = "n = 12"
+output = "3 (4 + 4 + 4)"
+
+[[examples]]
+input = "n = 13"
+output = "2 (4 + 9)"
+
+[[hints]]
+kind = "approach"
+text = "This is Coin change with the squares 1, 4, 9, … ≤ n as the coins: fewest(i) = 1 + min over j of fewest(i - j²)."
+
+[[hints]]
+kind = "rust"
+text = "Loop `while j * j <= i` on integers; `(n as f64).sqrt()` can be off by one for large values."
+
+[[hints]]
+kind = "edge case"
+text = "Taking the largest square first fails: 12 = 9 + 1 + 1 + 1 greedily, but 4 + 4 + 4 is three."
+
+[solution]
+explanation = "Each i tries every square below it as the last one. There are about √i of those, so the table costs O(n√n). The answer is never more than 4 (Lagrange's four-square theorem)."
+time = "O(n√n)"
+space = "O(n)"

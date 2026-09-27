@@ -5,19 +5,23 @@ level = "medium"
 stage = "clones-and-drops"
 order = 11
 status = "ready"
-tags = ["Drop", "RAII", "unwinding"]
+tags = ["Drop", "RAII", "unwinding", "mem::forget", "E0509"]
 teaches = [
-  "RAII: acquire in a constructor, release in `Drop`.",
-  "`Drop` runs on early return and during a panic too.",
+  "RAII: acquire in a constructor, release in `Drop`; unwinding runs it too.",
+  "A consuming method on a `Drop` type needs `mem::forget` or a flag to skip the destructor.",
 ]
-follow_up = "What happens to your guard if someone calls `std::mem::forget` on it?"
+follow_up = "What happens to your guard if a caller calls `std::mem::forget` on it, and why is that allowed in safe code?"
 related = ["C1", "B6"]
 
 [[hints]]
 kind = "rust"
-text = "Record the enter in `enter` and the exit in `drop`; the compiler inserts the drop on every exit path."
+text = "Record the enter in `enter` and the exit in `drop`; the compiler inserts the drop on every exit path, unwinding included."
+
+[[hints]]
+kind = "rust"
+text = "`finish` takes `self`, so the span is dropped when `finish` returns and `drop` would record a second exit. You can't move fields out of a type that implements `Drop` (E0509) to avoid that. What function stops a value's destructor from running?"
 
 [solution]
-explanation = "Unwinding runs destructors, so the exit is recorded even when the code inside panics. This is how `MutexGuard`, `File` and tracing spans work."
+explanation = "Unwinding runs destructors, so the exit is recorded even when the code inside panics: this is how `MutexGuard`, `File` and tracing spans work. A consuming method on a `Drop` type still ends in a drop, and destructuring `self` to dodge it is E0509. `mem::forget(self)` skips the destructor; it's safe (leaking is not undefined behaviour) and here leaks nothing, since the fields are only references. With fields that own memory, you'd instead keep a `done: bool` or an `Option` field and have `Drop` check it.\n\nSyntax to remember: `impl Drop for Span<'_> { fn drop(&mut self) { .. } }` · `pub fn finish(self, status: &str)` · `std::mem::forget(self)`."
 time = "O(1)"
 space = "O(1)"

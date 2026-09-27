@@ -58,32 +58,47 @@ fn moved_span_exits_where_it_ends() {
 }
 
 #[test]
-fn in_a_loop() {
+fn finish_in_a_loop() {
     let log = RefCell::new(Vec::new());
-    for name in ["x", "y"] {
-        let _s = Span::enter(name, &log);
+    for (i, name) in ["x", "y", "z"].into_iter().enumerate() {
+        let s = Span::enter(name, &log);
+        if i == 1 {
+            s.finish("skipped");
+        }
     }
-    check!("a span per loop iteration", log.into_inner(), vec!["enter x", "exit x", "enter y", "exit y"]);
+    check!("x dropped, y finished, z dropped", log.into_inner(), vec!["enter x", "exit x", "enter y", "exit y: skipped", "enter z", "exit z"]);
 }
 
 #[test]
-fn forgotten_span_never_exits() {
+fn finish_with_empty_status() {
     let log = RefCell::new(Vec::new());
-    std::mem::forget(Span::enter("lost", &log));
-    check!("mem::forget(span)", log.into_inner(), vec!["enter lost"]);
+    Span::enter("e", &log).finish("");
+    check!("finish(\"\")", log.into_inner(), vec!["enter e", "exit e: "]);
+}
+
+#[test]
+fn panic_after_finish() {
+    let log = RefCell::new(Vec::new());
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        Span::enter("a", &log).finish("ok");
+        let _b = Span::enter("b", &log);
+        panic!("boom");
+    }));
+    check!("a finished, then b panics", log.into_inner(), vec!["enter a", "exit a: ok", "enter b", "exit b"]);
 }
 
 #[test]
 fn random_vs_model() {
     const NAMES: [&str; 4] = ["p", "q", "r", "s"];
-    let mut rng = anneal_prelude::Rng::new(1110);
+    let mut rng = anneal_prelude::Rng::new(6109);
     for _ in 0..200 {
         let log = RefCell::new(Vec::new());
         let mut want = Vec::new();
         let mut ops = Vec::new();
         {
             let mut open: Vec<(Span, &str)> = Vec::new();
-            for _ in 0..rng.below(12) {
+            let steps = rng.below(12);
+            for _ in 0..steps {
                 if rng.bool() || open.is_empty() {
                     let name = *rng.pick(&NAMES);
                     want.push(format!("enter {name}"));
@@ -92,9 +107,15 @@ fn random_vs_model() {
                 } else {
                     let i = rng.below(open.len());
                     let (span, name) = open.remove(i);
-                    want.push(format!("exit {name}"));
-                    ops.push(format!("drop {name}"));
-                    drop(span);
+                    if rng.bool() {
+                        want.push(format!("exit {name}: ok"));
+                        ops.push(format!("finish {name}"));
+                        span.finish("ok");
+                    } else {
+                        want.push(format!("exit {name}"));
+                        ops.push(format!("drop {name}"));
+                        drop(span);
+                    }
                 }
             }
             while let Some((span, name)) = open.pop() {

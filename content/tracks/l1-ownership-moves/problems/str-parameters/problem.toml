@@ -1,27 +1,27 @@
 slug = "str-parameters"
-title = "&str parameters take both"
-mode = "write"
+title = "Parameters that take &str and String alike"
+mode = "fix"
 level = "easy"
 stage = "passing-values"
 order = 7
 status = "ready"
-tags = ["&str", "deref coercion"]
+tags = ["&str", "AsRef<str>", "IntoIterator", "deref coercion"]
 teaches = [
-  "`&str` accepts literals and `&String` through deref coercion.",
-  "Iterating words and taking the first char of each.",
+  "`&str` parameters accept literals and `&String`; return slices of the input.",
+  "`AsRef<str>` and `IntoIterator<Item: AsRef<str>>` accept owned and borrowed text alike.",
 ]
-follow_up = "When is `impl AsRef<str>` a better parameter than `&str`?"
-related = ["S2"]
+follow_up = "When would you take `impl AsRef<Path>` instead of `&str` for a path, and why does std do that?"
+related = ["S2", "L5"]
 
 [[hints]]
 kind = "rust"
-text = "`split_whitespace`, then the first `char` of each word, then uppercase."
+text = "`&String` derefs to `&str`, but a `&str` can't become a `&String`. Take `&str`, and return `&str` slices of it: elision ties the output to the input."
 
 [[hints]]
 kind = "rust"
-text = "`char::to_uppercase` returns an iterator, since some characters uppercase to more than one."
+text = "For `join_nonempty`, a generic `S: AsRef<str>` accepts `&[&str]` and `&[String]`. For `count_word`, take `I: IntoIterator` with `I::Item: AsRef<str>`."
 
 [solution]
-explanation = "Taking `&str` means callers never allocate to call you. `flat_map(char::to_uppercase)` handles characters whose uppercase form is longer."
+explanation = "`&str` is the parameter for text you only read: literals are `&str`, and `&String` coerces to it. Returning a slice of the input (`split_whitespace().next()`, `rsplit_once`) costs nothing, and elision ties the result's lifetime to the parameter. For collections, `AsRef<str>` accepts both element types, and `IntoIterator` with an `AsRef<str>` item accepts owned vectors, borrowed vectors and lazy iterators alike.\n\nSyntax to remember: `fn join_nonempty<S: AsRef<str>>(parts: &[S], sep: &str) -> String` · `fn count_word<I>(words: I, needle: &str) -> usize where I: IntoIterator, I::Item: AsRef<str>` · `name.rsplit_once('.')?`."
 time = "O(n)"
-space = "O(k)"
+space = "O(1) except the joined String"

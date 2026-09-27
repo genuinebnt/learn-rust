@@ -1,26 +1,26 @@
 use solution::*;
 
 #[test]
-fn three() {
-    check!(r#"name = "ann""#, { let mut out = vec![]; greet_thrice("ann".into(), &mut out); out }, vec!["hello, ann"; 3]);
+fn example() {
+    check!(r#"[("a", 1), ("a", 2), ("b", 3), ("a", 4)]"#, group_runs(vec![("a".to_string(), 1), ("a".to_string(), 2), ("b".to_string(), 3), ("a".to_string(), 4)]), (vec![("a".to_string(), vec![1, 2]), ("b".to_string(), vec![3]), ("a".to_string(), vec![4])], 4));
 }
 
 #[test]
-fn appends() {
-    check!(r#"out already holds one line"#, { let mut out = vec!["hi".to_string()]; greet_thrice("bo".into(), &mut out); out.len() }, 4);
+fn empty() {
+    check!(r#"[]"#, group_runs(vec![]), (vec![], 0));
 }
 
 #[test]
-fn unicode_name() {
-    check!(r#"name = "zoë""#, { let mut out = vec![]; greet_thrice("zoë".into(), &mut out); out }, vec!["hello, zoë"; 3]);
+fn one_record() {
+    check!(r#"[("x", 9)]"#, group_runs(vec![("x".to_string(), 9)]), (vec![("x".to_string(), vec![9])], 1));
 }
 
 #[test]
-fn empty_name_visible() {
-    check!(r#"name = """#, { let mut out = vec![]; greet_thrice(String::new(), &mut out); out }, vec!["hello, "; 3]);
+fn all_same_key() {
+    check!(r#"[("k", 1), ("k", 2), ("k", 3)]"#, group_runs(vec![("k".to_string(), 1), ("k".to_string(), 2), ("k".to_string(), 3)]), (vec![("k".to_string(), vec![1, 2, 3])], 3));
 }
 
 #[test]
-fn existing_line_kept() {
-    check!(r#"out = ["x"], name = "kim""#, { let mut out = vec!["x".to_string()]; greet_thrice("kim".into(), &mut out); out }, vec!["x", "hello, kim", "hello, kim", "hello, kim"]);
+fn all_different() {
+    check!(r#"[("a", 1), ("b", 2), ("c", 3)]"#, group_runs(vec![("a".to_string(), 1), ("b".to_string(), 2), ("c".to_string(), 3)]), (vec![("a".to_string(), vec![1]), ("b".to_string(), vec![2]), ("c".to_string(), vec![3])], 3));
 }

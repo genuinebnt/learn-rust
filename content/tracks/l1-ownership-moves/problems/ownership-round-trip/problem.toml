@@ -1,23 +1,28 @@
 slug = "ownership-round-trip"
-title = "Take ownership, give it back"
+title = "Hand ownership back on failure"
 mode = "write"
 level = "easy"
 stage = "moves-and-copy"
 order = 4
 status = "ready"
-tags = ["ownership", "return values"]
+tags = ["ownership", "builder", "Result", "FromUtf8Error"]
 teaches = [
-  "A function can take a value, change it, and hand it back.",
-  "Moving a `Vec` or `String` never copies the heap data.",
+  "A builder method takes `mut self` and returns `Self`.",
+  "Return ownership inside the `Err`, so a failed call doesn't eat the caller's value.",
+  "`from_utf8` / `into_bytes` convert without copying.",
 ]
-follow_up = "When would you take `&mut Vec<i64>` instead of taking and returning it?"
-related = ["S3"]
+follow_up = "When would you take `&mut Vec<String>` instead of taking and returning ownership?"
+related = ["S1", "S2"]
 
 [[hints]]
 kind = "rust"
-text = "Parameters can be declared `mut v: Vec<i64>` when you own them."
+text = "A builder that takes `self` needs `mut self` to change a field, then returns `self`."
+
+[[hints]]
+kind = "rust"
+text = "`String::from_utf8(v)` fails with a `FromUtf8Error` that still owns the bytes: `e.into_bytes()` gets them back. `String::into_bytes` turns a rejected message back into its bytes, also without copying."
 
 [solution]
-explanation = "The hidden test checks the buffer pointer: moving a `Vec` in and out keeps the same heap allocation."
-time = "O(n)"
+explanation = "Moving a `String` or `Vec` moves three words (pointer, length, capacity); the heap buffer stays put, which the tests check through `as_ptr`. When a function takes ownership and might fail, return the value in the error, as std does: `String::from_utf8` → `FromUtf8Error::into_bytes`, `Mutex::into_inner`, `mpsc::SendError(T)`. `?` then passes the owned value up after `map_err`.\n\nSyntax to remember: `pub fn limit(mut self, bytes: usize) -> Self` · `String::from_utf8(raw).map_err(|e| e.into_bytes())?` · `self.push(msg).map_err(String::into_bytes)`."
+time = "O(1) per push, plus the UTF-8 check"
 space = "O(1) extra"

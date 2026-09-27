@@ -1,65 +1,108 @@
 use solution::*;
 
 #[test]
-fn empty() {
-    check!(r#"v = []"#, push_sum(vec![]), vec![0]);
+fn no_limit() {
+    let mut out = Outbox::new();
+    check!(r#"new(), push 10000 bytes"#, (out.push("x".repeat(10_000)), out.remaining() > 1_000_000), (Ok(()), true));
 }
 
 #[test]
-fn same_buffer() {
-    check!(r#"v with capacity 10"#, { let mut v = Vec::with_capacity(10); v.push(5); let p = v.as_ptr(); let out = push_sum(v); out.as_ptr() == p }, true);
+fn limit_zero_empty_message() {
+    let mut out = Outbox::new().limit(0);
+    check!(r#"limit 0, push "" then "a""#, (out.push(String::new()), out.push("a".into())), (Ok(()), Err("a".to_string())));
 }
 
 #[test]
-fn single() {
-    check!(r#"v = [7]"#, push_sum(vec![7]), vec![7, 7]);
+fn reject_keeps_budget() {
+    let mut out = Outbox::new().limit(4);
+    check!(r#"limit 4, push "abcde" (rejected) then "abcd""#, (out.push("abcde".into()), out.push("abcd".into()), out.remaining()), (Err("abcde".to_string()), Ok(()), 0));
 }
 
 #[test]
-fn negatives() {
-    check!(r#"v = [-5, 2]"#, push_sum(vec![-5, 2]), vec![-5, 2, -3]);
+fn bytes_not_chars() {
+    let mut out = Outbox::new().limit(4);
+    check!(r#"limit 4, push "日本" (6 bytes) then "é" (2 bytes)"#, (out.push("日本".into()), out.push("é".into()), out.remaining()), (Err("日本".to_string()), Ok(()), 2));
 }
 
 #[test]
-fn cancels_out() {
-    check!(r#"v = [5, -5]"#, push_sum(vec![5, -5]), vec![5, -5, 0]);
+fn valid_but_too_big_bytes_come_back() {
+    let mut out = Outbox::new().limit(1);
+    let raw = b"ok".to_vec();
+    let ptr = raw.as_ptr();
+    let err = out.push_bytes(raw);
+    let same = err.as_ref().err().map(|b| b.as_ptr()) == Some(ptr);
+    check!(r#"limit 1, push_bytes(b"ok")"#, (err, same), (Err(b"ok".to_vec()), true));
 }
 
 #[test]
-fn beyond_i32() {
-    check!(r#"v = [3000000000, 3000000000]"#, push_sum(vec![3_000_000_000, 3_000_000_000]), vec![3_000_000_000, 3_000_000_000, 6_000_000_000]);
+fn truncated_utf8() {
+    let mut out = Outbox::new();
+    check!(r#"push_bytes of "é" missing its last byte"#, out.push_bytes(vec![0xc3]), Err(vec![0xc3]));
 }
 
 #[test]
-fn near_i64_max() {
-    check!(r#"v = [i64::MAX / 2, i64::MAX / 2]"#, push_sum(vec![i64::MAX / 2, i64::MAX / 2]), vec![i64::MAX / 2, i64::MAX / 2, i64::MAX - 1]);
+fn order_kept() {
+    let mut out = Outbox::new();
+    out.push("a".into()).unwrap();
+    out.push_bytes(b"b".to_vec()).unwrap();
+    out.push("c".into()).unwrap();
+    check!(r#"push "a", push_bytes(b"b"), push "c""#, out.into_messages(), vec!["a", "b", "c"]);
 }
 
 #[test]
-fn swap_unicode() {
-    check!(r#"a = "ünï", b = "日本""#, swap_owned("ünï".into(), "日本".into()), ("日本".to_string(), "ünï".to_string()));
+fn messages_are_the_pushed_strings() {
+    let mut out = Outbox::new();
+    let s = String::from("mine");
+    let ptr = s.as_ptr();
+    out.push(s).unwrap();
+    let msgs = out.into_messages();
+    check!(r#"into_messages returns the pushed String itself"#, msgs[0].as_ptr() == ptr, true);
 }
 
 #[test]
-fn swap_same_buffers() {
-    check!(r#"a and b keep their heap buffers"#, { let (a, b) = (String::from("left"), String::from("right")); let (pa, pb) = (a.as_ptr(), b.as_ptr()); let (x, y) = swap_owned(a, b); (x.as_ptr() == pb, y.as_ptr() == pa) }, (true, true));
+fn empty_outbox() {
+    check!(r#"new().into_messages()"#, Outbox::new().into_messages(), Vec::<String>::new());
 }
 
 #[test]
-fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(1104);
+fn random_vs_model() {
+    let mut rng = anneal_prelude::Rng::new(6104);
     for _ in 0..300 {
-        let n = rng.below(20);
-        let v: Vec<i64> = rng.vec(n, -1_000_000_000_000, 1_000_000_000_000);
-        let mut want = v.clone();
-        want.push(v.iter().sum());
-        check!(format!("v = {v:?}"), push_sum(v.clone()), want);
+        let limit = rng.below(12);
+        let mut out = Outbox::new().limit(limit);
+        let (mut used, mut kept) = (0usize, Vec::new());
+        let mut ops = Vec::new();
+        for _ in 0..rng.below(8) {
+            let len = rng.below(5);
+            let mut raw = rng.string(len, "aé").into_bytes();
+            if rng.below(4) == 0 && !raw.is_empty() {
+                raw.pop();
+            }
+            ops.push(format!("push_bytes({raw:?})"));
+            let fits = match std::str::from_utf8(&raw) {
+                Ok(s) if s.len() <= limit - used => Some(s.to_string()),
+                _ => None,
+            };
+            let want = match &fits {
+                Some(_) => Ok(()),
+                None => Err(raw.clone()),
+            };
+            if let Some(s) = fits {
+                used += s.len();
+                kept.push(s);
+            }
+            check!(format!("limit {limit}, {ops:?}"), out.push_bytes(raw), want);
+        }
+        check!(format!("limit {limit}, {ops:?}, remaining"), out.remaining(), limit - used);
+        check!(format!("limit {limit}, {ops:?}, into_messages"), out.into_messages(), kept);
     }
 }
 
 #[test]
-fn long_vec() {
-    let v: Vec<i64> = (1..=200_000).collect();
-    let out = push_sum(v);
-    check!("v = 1..=200000", (out.len(), out[199_999], out[200_000]), (200_001, 200_000, 20_000_100_000));
+fn many_messages() {
+    let mut out = Outbox::new().limit(1_000_000);
+    for i in 0..200_000 {
+        let _ = out.push(format!("{}", i % 10));
+    }
+    check!("200000 one-byte messages", (out.remaining(), out.into_messages().len()), (800_000, 200_000));
 }

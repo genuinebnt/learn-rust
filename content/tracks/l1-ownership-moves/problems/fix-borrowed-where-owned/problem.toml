@@ -5,22 +5,23 @@ level = "easy"
 stage = "passing-values"
 order = 6
 status = "ready"
-tags = ["E0308", "&str to String"]
+tags = ["E0308", "impl Into<String>", "&str to String"]
 teaches = [
-  "A struct that owns its data needs a `String`, not a `&str`.",
-  "`to_string`, `to_owned`, `String::from` and `into` all make the copy.",
+  "An owning struct needs owned values: convert borrowed arguments.",
+  "`impl Into<String>` moves a `String` in and copies a `&str` once.",
 ]
-follow_up = "When would you make the constructor take `impl Into<String>`?"
+follow_up = "When is `impl Into<String>` a worse choice than `&str` for a constructor parameter?"
 related = ["S2", "L3"]
 
 [[hints]]
 kind = "rust"
-text = "The field is a `String`, the parameter a `&str`. Something has to make the owned copy."
+text = "Each field is owned and each argument borrowed: something must make an owned copy of each one (`to_string`, `String::from`, `to_owned`, `into`)."
+
+[[hints]]
+kind = "rust"
+text = "To accept a `String` without copying it, and a `&str` too, take `name: impl Into<String>` and call `.into()`. `From<String> for String` is the identity: it moves."
 
 [solution]
-explanation = "If the struct stored `&str` instead, it would need a lifetime and couldn't outlive its input, which the hidden test relies on."
-time = "O(n)"
+explanation = "A struct that owns its data needs owned values; a `&str` field would need a lifetime and couldn't outlive its input (the test `outlives_its_inputs`). Taking `&str` and copying is fine for borrowed callers, but a caller who already owns a `String` would pay for a copy it doesn't need. `impl Into<String>` takes either: a `&str` is copied once, a `String` is moved in (the tests count allocations to check).\n\nSyntax to remember: `name: impl Into<String>` then `name.into()` · `aliases.iter().map(|a| a.to_string()).collect()` · `note.map(String::from)` (or `note.map(str::to_owned)`). `Option<impl Into<String>>` would make a bare `None` ambiguous at the call site, which is why `note` stays `Option<&str>`."
+time = "O(n) in the bytes copied"
 space = "O(n)"
-
-[rules]
-max_changed_lines = 1

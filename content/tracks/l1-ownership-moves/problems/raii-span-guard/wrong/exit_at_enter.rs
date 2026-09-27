@@ -11,6 +11,13 @@ impl<'a> Span<'a> {
         log.borrow_mut().push(format!("exit {name}"));
         Span { name, log }
     }
+
+    /// Ends the span with a status: records "exit <name>: <status>" instead of the plain exit.
+    pub fn finish(self, status: &str) {
+        self.log.borrow_mut().push(format!("exit {}: {status}", self.name));
+        // The exit is recorded; don't let Drop record another. Nothing here owns heap memory, so nothing leaks.
+        std::mem::forget(self);
+    }
 }
 
 impl Drop for Span<'_> {

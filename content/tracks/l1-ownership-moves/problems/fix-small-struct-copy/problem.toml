@@ -1,27 +1,28 @@
 slug = "fix-small-struct-copy"
-title = "Fix: a small struct that should be Copy"
+title = "Fix: Copy, Clone and what derive asks for"
 mode = "fix"
 level = "easy"
 stage = "moves-and-copy"
 order = 2
 status = "ready"
-tags = ["Copy", "derive", "E0382"]
+tags = ["Copy", "Clone", "derive", "PhantomData"]
 teaches = [
-  "Types are moved by default; `Copy` types are duplicated bit for bit.",
-  "When a type can and should be `Copy`.",
+  "`Copy` needs `Clone` and all-`Copy` fields; `String` fields rule it out.",
+  "Derives bound every type parameter; hand-written impls don't have to.",
+  "`Copy` and `Drop` are mutually exclusive (E0184).",
 ]
-follow_up = "Why can't a struct containing a `String` be `Copy`, and why is that a good thing?"
-related = ["S8"]
+follow_up = "Why can't a type be both `Copy` and `Drop`? What would go wrong if it could?"
+related = ["L5", "S8"]
 
 [[hints]]
 kind = "rust"
-text = "Which derive lets a value be used again after it's passed by value? It needs a second derive alongside it."
+text = "`Copy` needs `Clone` as well, and every field must be `Copy`. A `String` field rules it out."
+
+[[hints]]
+kind = "rust"
+text = "`#[derive(Clone, Copy)]` on `Id<T>` generates `impl<T: Clone> Clone for Id<T>` and `impl<T: Copy> Copy for Id<T>`, so `Id<Opaque>` wouldn't be either. Write those impls yourself, with no bound on `T`."
 
 [solution]
-explanation = "`Copy` needs `Clone` too, and every field must be `Copy`. Small plain-data types like points should be `Copy`; anything owning heap memory can't be."
+explanation = "`Copy` is a promise that a bitwise copy is a complete copy: every field must be `Copy` (so no `String`, `Vec` or `Box`), and the type can't implement `Drop` (E0184), since two copies would both run it. `Copy` also requires `Clone`, whose impl for a `Copy` type should just be `*self`.\n\nDerives add a bound on every type parameter, whether or not a field uses it. `PhantomData<T>` makes that visible: an `Id<T>` is only a `u32`, yet `derive(Copy)` would make `Id<Opaque>` non-`Copy`. Hand-written impls with no bound fix it.\n\nSyntax to remember: `impl<T> Clone for Id<T> { fn clone(&self) -> Self { *self } }` · `impl<T> Copy for Id<T> {}` · `impl<T> Hash for Id<T> { fn hash<H: Hasher>(&self, state: &mut H) { self.raw.hash(state) } }` · `impl<T> fmt::Debug for Id<T> { fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, \"Id({})\", self.raw) } }`."
 time = "O(1)"
 space = "O(1)"
-
-[rules]
-forbid_methods = ["clone"]
-max_changed_lines = 1

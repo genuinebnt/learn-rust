@@ -1,58 +1,78 @@
 use solution::*;
 
 #[test]
-fn empty_name() {
-    check!(r#"name = """#, { let mut out = vec![]; greet_thrice(String::new(), &mut out); out[2].clone() }, "hello, ".to_string());
+fn empty_key() {
+    check!(r#"[("", 1), ("", 2), ("a", 3)]"#, group_runs(vec![("".to_string(), 1), ("".to_string(), 2), ("a".to_string(), 3)]), (vec![("".to_string(), vec![1, 2]), ("a".to_string(), vec![3])], 3));
 }
 
 #[test]
-fn empty_name_all_three() {
-    check!(r#"name = """#, { let mut out = vec![]; greet_thrice(String::new(), &mut out); out }, vec!["hello, "; 3]);
+fn empty_key_after_other() {
+    check!(r#"[("a", 1), ("", 2)]"#, group_runs(vec![("a".to_string(), 1), ("".to_string(), 2)]), (vec![("a".to_string(), vec![1]), ("".to_string(), vec![2])], 2));
 }
 
 #[test]
-fn keeps_existing_first() {
-    check!(r#"out = ["hi"], name = "bo""#, { let mut out = vec!["hi".to_string()]; greet_thrice("bo".into(), &mut out); out }, vec!["hi", "hello, bo", "hello, bo", "hello, bo"]);
+fn alternating() {
+    check!(r#"[("a", 1), ("b", 2), ("a", 3), ("b", 4)]"#, group_runs(vec![("a".to_string(), 1), ("b".to_string(), 2), ("a".to_string(), 3), ("b".to_string(), 4)]), (vec![("a".to_string(), vec![1]), ("b".to_string(), vec![2]), ("a".to_string(), vec![3]), ("b".to_string(), vec![4])], 4));
 }
 
 #[test]
-fn third_is_full() {
-    check!(r#"name = "ann", the last push"#, { let mut out = vec![]; greet_thrice("ann".into(), &mut out); out[2].clone() }, "hello, ann".to_string());
+fn repeated_values() {
+    check!(r#"[("a", 5), ("a", 5), ("b", 5)]"#, group_runs(vec![("a".to_string(), 5), ("a".to_string(), 5), ("b".to_string(), 5)]), (vec![("a".to_string(), vec![5, 5]), ("b".to_string(), vec![5])], 3));
 }
 
 #[test]
-fn name_with_spaces() {
-    check!(r#"name = "ann lee""#, { let mut out = vec![]; greet_thrice("ann lee".into(), &mut out); out }, vec!["hello, ann lee"; 3]);
+fn case_sensitive() {
+    check!(r#"[("a", 1), ("A", 2)]"#, group_runs(vec![("a".to_string(), 1), ("A".to_string(), 2)]), (vec![("a".to_string(), vec![1]), ("A".to_string(), vec![2])], 2));
 }
 
 #[test]
-fn called_twice() {
-    check!(r#"greet_thrice("a"), then greet_thrice("b")"#, { let mut out = vec![]; greet_thrice("a".into(), &mut out); greet_thrice("b".into(), &mut out); out }, vec!["hello, a", "hello, a", "hello, a", "hello, b", "hello, b", "hello, b"]);
+fn long_last_run() {
+    check!(r#"[("a", 1), ("b", 2), ("b", 3), ("b", 4)]"#, group_runs(vec![("a".to_string(), 1), ("b".to_string(), 2), ("b".to_string(), 3), ("b".to_string(), 4)]), (vec![("a".to_string(), vec![1]), ("b".to_string(), vec![2, 3, 4])], 4));
 }
 
 #[test]
-fn independent_strings() {
-    check!(r#"change out[0] afterwards"#, { let mut out = vec![]; greet_thrice("x".into(), &mut out); out[0].push('!'); out }, vec!["hello, x!", "hello, x", "hello, x"]);
+fn unicode_keys() {
+    check!(r#"[("é", 1), ("é", 2), ("e", 3)]"#, group_runs(vec![("é".to_string(), 1), ("é".to_string(), 2), ("e".to_string(), 3)]), (vec![("é".to_string(), vec![1, 2]), ("e".to_string(), vec![3])], 3));
 }
 
 #[test]
-fn long_name() {
-    check!(r#"name = 10000 × 'n'"#, { let mut out = vec![]; greet_thrice("n".repeat(10_000), &mut out); out.iter().map(|s| s.len()).collect::<Vec<_>>() }, vec![10_007; 3]);
+fn extreme_values() {
+    check!(r#"[("m", 0), ("m", u32::MAX)]"#, group_runs(vec![("m".to_string(), 0), ("m".to_string(), u32::MAX)]), (vec![("m".to_string(), vec![0, u32::MAX])], 2));
+}
+
+#[test]
+fn keys_are_not_copied() {
+    let records: Vec<(String, u32)> = vec![("left".to_string(), 1), ("right".to_string(), 2)];
+    let ptrs: Vec<*const u8> = records.iter().map(|(k, _)| k.as_ptr()).collect();
+    let (groups, _) = group_runs(records);
+    let got: Vec<*const u8> = groups.iter().map(|(k, _)| k.as_ptr()).collect();
+    check!("[(\"left\", 1), (\"right\", 2)]: each key is the record's own String", got == ptrs, true);
 }
 
 #[test]
 fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(1103);
+    let mut rng = anneal_prelude::Rng::new(6103);
     for _ in 0..300 {
-        let before = rng.below(4);
-        let len = rng.below(8);
-        let name = rng.string(len, "abé ");
-        let mut out: Vec<String> = (0..before).map(|i| format!("old {i}")).collect();
-        let mut want = out.clone();
-        for _ in 0..3 {
-            want.push(format!("hello, {name}"));
+        let n = rng.below(10);
+        let mut records = Vec::new();
+        for _ in 0..n {
+            let len = rng.below(2);
+            records.push((rng.string(len, "ab"), rng.below(10) as u32));
         }
-        greet_thrice(name.clone(), &mut out);
-        check!(format!("name = {name:?}, out had {before} lines"), out, want);
+        let mut want: Vec<(String, Vec<u32>)> = Vec::new();
+        for (k, v) in &records {
+            match want.last_mut() {
+                Some((last, vs)) if last == k => vs.push(*v),
+                _ => want.push((k.clone(), vec![*v])),
+            }
+        }
+        check!(format!("records = {records:?}"), group_runs(records.clone()), (want, n));
     }
+}
+
+#[test]
+fn many_records() {
+    let records: Vec<(String, u32)> = (0..200_000u32).map(|i| (format!("k{}", i / 4), i)).collect();
+    let (groups, n) = group_runs(records);
+    check!("200000 records, 4 per key", (groups.len(), n, groups[49_999].1.clone()), (50_000, 200_000, vec![199_996, 199_997, 199_998, 199_999]));
 }

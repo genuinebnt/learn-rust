@@ -1,23 +1,28 @@
 slug = "move-into-threads"
-title = "Move data into threads"
+title = "Move data into threads, or borrow it with scope"
 mode = "write"
 level = "medium"
 stage = "closures-take-ownership"
 order = 13
 status = "ready"
-tags = ["thread::spawn", "move", "'static"]
+tags = ["thread::spawn", "thread::scope", "move", "'static"]
 teaches = [
-  "`thread::spawn` needs a `'static` closure: move the data in.",
-  "`JoinHandle::join` returns the thread's result.",
+  "`thread::spawn` needs `'static`: move owned data in.",
+  "`thread::scope` lets threads borrow; `move` copies references and loop locals in.",
+  "Start every thread before joining any.",
 ]
-follow_up = "How would `std::thread::scope` let the threads borrow the chunks instead?"
-related = ["C1"]
+follow_up = "How would you share one big `Vec` with `thread::spawn`ed threads without copying it, and when is that better than `scope`?"
+related = ["C1", "L3"]
 
 [[hints]]
 kind = "rust"
-text = "`move ||` moves each chunk into its thread; collect the handles before joining so the threads run concurrently."
+text = "`thread::spawn` needs `F: 'static`: `move` the chunk into the closure. Collect every `JoinHandle` before joining, or the threads run one after another."
+
+[[hints]]
+kind = "rust"
+text = "`thread::scope(|s| { ... s.spawn(move || ...) ... })` lets threads borrow from outside, because the scope joins them all before it returns. `move` there copies the `&[u64]` (a reference is `Copy`) along with the loop's locals."
 
 [solution]
-explanation = "Collecting the handles first matters: joining inside the same `map` would run the threads one after another."
+explanation = "`thread::spawn` can't borrow: the thread might outlive the caller, so the closure must be `'static` and own what it uses. `thread::scope` (Rust 1.63) guarantees every thread it spawns is joined before `scope` returns, so its threads may borrow `data`. They still need `move`, but only to take the loop's locals (`piece`, a `&[u64]`) by value instead of borrowing variables that change on the next iteration.\n\nSyntax to remember: `thread::spawn(move || chunk.iter().sum::<u64>())` · `handle.join()` returns `Result<T, Box<dyn Any + Send>>` · `thread::scope(|s| { let h = s.spawn(move || ..); h.join().unwrap() })`."
 time = "O(n) work"
-space = "O(k) threads"
+space = "O(parts) threads"

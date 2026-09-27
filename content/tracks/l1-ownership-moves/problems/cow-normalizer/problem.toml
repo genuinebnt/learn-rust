@@ -5,20 +5,24 @@ level = "medium"
 stage = "clones-and-drops"
 order = 9
 status = "ready"
-tags = ["Cow", "borrow or own"]
+tags = ["Cow", "borrow or own", "clone on write"]
 teaches = [
-  "`Cow<'_, str>` returns the input borrowed when nothing changed, owned when it did.",
-  "Checking before allocating.",
+  "`Cow` borrows in the common case and owns only when it had to change something.",
+  "`Cow::to_mut` copies a borrowed value on first write and reuses an owned one.",
 ]
-follow_up = "Where does std itself return `Cow`?"
+follow_up = "Where does std itself return `Cow`, and why there?"
 related = ["S2", "S7"]
 source = "W39"
 
 [[hints]]
 kind = "rust"
-text = "`Cow::Borrowed(s)` costs nothing; `Cow::Owned(String)` when you had to change it."
+text = "`trim_end` returns a slice of the input, so trimming alone never needs to allocate. Only tabs force `Cow::Owned`."
+
+[[hints]]
+kind = "rust"
+text = "`Cow::to_mut` gives `&mut String`: it copies a borrowed value into an owned one first, and hands an owned one over as it is."
 
 [solution]
-explanation = "Most inputs have no tabs, so most calls allocate nothing. `Cow<str>` derefs to `&str`, so callers barely notice the difference."
+explanation = "`Cow<'a, str>` is either a `&'a str` or a `String`, and derefs to `&str` either way. Returning `Cow::Borrowed(trimmed)` for the common case means most lines cost nothing; only a tab forces an allocation. `to_mut` is clone-on-write: the first write to a borrowed value makes the owned copy, and writes to an owned value go straight to its buffer. Building a new `String` in `with_newline` would copy owned lines that already had room.\n\nSyntax to remember: `fn normalize(s: &str) -> Cow<'_, str>` · `Cow::Borrowed(x)` / `Cow::Owned(y)` · `line.to_mut().push('\\n')` · `cow.into_owned()`."
 time = "O(n)"
-space = "O(n) only when changed"
+space = "O(n) only when a tab is replaced"

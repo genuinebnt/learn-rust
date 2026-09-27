@@ -8,51 +8,60 @@ fn run() -> Vec<&'static str> {
     log.into_inner()
 }
 
-fn at(names: &[&str], name: &str) -> Option<usize> {
-    names.iter().position(|n| *n == name)
+fn before(names: &[&str], x: &str, y: &str) -> bool {
+    let at = |n: &str| names.iter().position(|m| *m == n);
+    at(x) < at(y)
 }
 
-#[test]
-fn ignored_drops_first() {
-    let log = RefCell::new(Vec::new());
-    scene(&log);
-    check!("first drop in scene()", PREDICTED[0], log.borrow()[0]);
-}
-
-#[test]
-fn each_name_once() {
-    let mut names = PREDICTED.to_vec();
-    names.sort();
-    names.dedup();
-    check!("distinct names in PREDICTED", names.len(), 6);
+fn same_order(x: &str, y: &str) -> (bool, bool) {
+    (before(&PREDICTED, x, y), before(&run(), x, y))
 }
 
 #[test]
 fn explicit_drop_second() {
-    check!("second drop in scene(): drop(a)", PREDICTED[1], run()[1]);
+    check!("second drop: drop(a)", PREDICTED[1], run()[1]);
 }
 
 #[test]
-fn c_before_b() {
-    let (p, r) = (PREDICTED, run());
-    check!("c and b: `let _ = b;` doesn't move b", (at(&p, "c") < at(&p, "b")), (at(&r, "c") < at(&r, "b")));
+fn arm_local_before_scrutinee_temporary() {
+    let (p, r) = same_order("inner", "scrutinee");
+    check!("inner before scrutinee?", p, r);
+}
+
+#[test]
+fn let_underscore_does_not_move() {
+    let (p, r) = same_order("c", "b");
+    check!("c before b? (`let _ = b;`)", p, r);
+}
+
+#[test]
+fn vec_elements_in_order() {
+    let (p, r) = same_order("v0", "v1");
+    check!("v0 before v1?", p, r);
+}
+
+#[test]
+fn shadowing_does_not_drop() {
+    let (p, r) = same_order("x1", "v1");
+    check!("x1 before v1? (shadowed by the second _x)", p, r);
+}
+
+#[test]
+fn shadowed_after_shadowing() {
+    let (p, r) = same_order("x2", "x1");
+    check!("x2 before x1?", p, r);
 }
 
 #[test]
 fn fields_in_declaration_order() {
-    let (p, r) = (PREDICTED, run());
-    check!("Pair's fields first and second", (at(&p, "first") < at(&p, "second")), (at(&r, "first") < at(&r, "second")));
+    let (p, r) = same_order("first", "second");
+    check!("first before second?", p, r);
 }
 
 #[test]
 fn pair_drops_last() {
-    let (p, r) = (PREDICTED, run());
-    check!("the last two drops (the Pair)", (p[4], p[5]), (r[4], r[5]));
-}
-
-#[test]
-fn locals_in_reverse() {
-    check!("third and fourth drops in scene()", (PREDICTED[2], PREDICTED[3]), (run()[2], run()[3]));
+    let r = run();
+    check!("the last two drops", (PREDICTED[10], PREDICTED[11]), (r[10], r[11]));
 }
 
 #[test]

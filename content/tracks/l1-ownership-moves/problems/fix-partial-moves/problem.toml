@@ -1,0 +1,36 @@
+slug = "fix-partial-moves"
+title = "Fix: partial moves (E0382, E0507, E0509)"
+mode = "fix"
+level = "hard"
+stage = "partial-moves-and-mem"
+order = 15
+status = "ready"
+tags = ["partial moves", "E0507", "E0509", "Drop"]
+teaches = [
+  "Partial moves: other fields stay usable, the whole value doesn't.",
+  "Nothing moves out from behind `&` (E0507); borrow with `as_ref`.",
+  "A `Drop` type can't be partially moved (E0509): `mem::take` the field.",
+]
+follow_up = "Why does Rust forbid moving a field out of a `Drop` type, when it allows it for any other struct?"
+related = ["L2", "S1"]
+
+[[hints]]
+kind = "rust"
+text = "`describe` only has `&Request`, and `unwrap_or_default` takes the `Option` by value. Read the length through a reference: `as_ref()` or `as_deref()`."
+
+[[hints]]
+kind = "rust"
+text = "In `route`, moving fields out one by one is fine; what fails is using `req` as a whole after some of it has gone. Do that first."
+
+[[hints]]
+kind = "rust"
+text = "You can't move a field out of a type that implements `Drop` (E0509), because `drop` needs the whole value. Swap something in its place: `Request` is `Default`."
+
+[solution]
+explanation = "A struct can be moved out of field by field: after `let Request { method, path, .. } = req;`, `req.headers`, `req.body` and the `Copy` field `req.id` are still usable, but `req` as a whole isn't (so `describe(&req)` must come first). Behind a `&`, nothing can be moved out (E0507): borrow the inside with `as_ref()`. A type that implements `Drop` can't be partially moved at all (E0509), since its destructor needs every field. Take the field with `mem::take` (or `mem::replace`) and let the rest drop normally, which returns the slot. `mem::forget(p)` would also compile and silently keep the slot.\n\nSyntax to remember: `let Request { method, path, .. } = req;` · `let Request { ref path, .. } = *r;` binds by reference inside a by-value pattern · `req.body.as_ref().map_or(0, |b| b.len())` · `route(std::mem::take(&mut p.req))` with `mut p`."
+time = "O(headers + body)"
+space = "O(1) extra"
+
+[rules]
+forbid_methods = ["clone", "cloned", "to_owned", "to_vec", "to_string"]
+forbid_unsafe = true

@@ -1,26 +1,35 @@
 use solution::*;
 
+/// No derives at all.
+struct Opaque;
+
 #[test]
-fn midpoints() {
-    check!(r#"a = (0,0), b = (2,2), c = (4,0)"#, two_midpoints(Point { x: 0, y: 0 }, Point { x: 2, y: 2 }, Point { x: 4, y: 0 }), (Point { x: 1, y: 1 }, Point { x: 2, y: 0 }));
+fn pixel_reused() {
+    let p = Pixel { at: Point { x: 1, y: 2 }, rgb: [9, 9, 9] };
+    check!(r#"trail(p, 3) with p = (1, 2), then p again"#, (trail(p, 3), p), (vec![Pixel { at: Point { x: 1, y: 2 }, rgb: [9, 9, 9] }, Pixel { at: Point { x: 2, y: 2 }, rgb: [9, 9, 9] }, Pixel { at: Point { x: 3, y: 2 }, rgb: [9, 9, 9] }], Pixel { at: Point { x: 1, y: 2 }, rgb: [9, 9, 9] }));
 }
 
 #[test]
-fn reuse_after_call() {
-    check!(r#"a = (1, 1) used after passing by value"#, { let a = Point { x: 1, y: 1 }; let _ = midpoint(a, a); a }, Point { x: 1, y: 1 });
+fn fork_is_deep() {
+    let s = Sprite { name: "hero".to_string(), at: Point { x: 0, y: 0 } };
+    let (a, b) = fork(&s, Point { x: 5, y: 5 });
+    check!(r#"fork a sprite named "hero" to (5, 5)"#, (a.name == b.name, a.name.as_ptr() != b.name.as_ptr(), b.at), (true, true, Point { x: 5, y: 5 }));
 }
 
 #[test]
-fn all_same() {
-    check!(r#"a = b = c = (3, 5)"#, two_midpoints(Point { x: 3, y: 5 }, Point { x: 3, y: 5 }, Point { x: 3, y: 5 }), (Point { x: 3, y: 5 }, Point { x: 3, y: 5 }));
+fn common_opaque_ids() {
+    let a: Vec<Id<Opaque>> = vec![Id::new(1), Id::new(2), Id::new(3)];
+    let b: Vec<Id<Opaque>> = vec![Id::new(3), Id::new(1)];
+    check!(r#"a = [1, 2, 3], b = [3, 1] as Id<Opaque>"#, common(&a, &b), vec![Id::new(1), Id::new(3)]);
 }
 
 #[test]
-fn odd_sums_truncate() {
-    check!(r#"a = (0, 0), b = (1, 3), c = (-1, -3)"#, two_midpoints(Point { x: 0, y: 0 }, Point { x: 1, y: 3 }, Point { x: -1, y: -3 }), (Point { x: 0, y: 1 }, Point { x: 0, y: -1 }));
+fn id_debug() {
+    check!(r#"format!("{:?}", Id::<Opaque>::new(7))"#, format!("{:?}", Id::<Opaque>::new(7)), "Id(7)");
 }
 
 #[test]
-fn b_usable_after() {
-    check!(r#"b used again after two_midpoints"#, { let b = Point { x: 2, y: 2 }; let _ = two_midpoints(Point { x: 0, y: 0 }, b, Point { x: 4, y: 4 }); b }, Point { x: 2, y: 2 });
+fn id_in_hash_set() {
+    let set: std::collections::HashSet<Id<Opaque>> = [Id::new(1), Id::new(2), Id::new(1)].into_iter().collect();
+    check!(r#"Id<Opaque> 1, 2, 1 into a HashSet"#, set.len(), 2);
 }

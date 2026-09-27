@@ -1,0 +1,32 @@
+slug = "box-linked-stack"
+title = "Box moves: a linked stack"
+mode = "write"
+level = "hard"
+stage = "partial-moves-and-mem"
+order = 19
+status = "ready"
+tags = ["Box", "Option<Box<T>>", "Option::take", "Drop"]
+teaches = [
+  "`Box` moves are pointer moves: relinking reuses the allocation.",
+  "`*boxed` moves a value out of a `Box`; `Option::take` moves boxes out of `&mut` fields.",
+  "Long linked lists need an iterative `Drop`.",
+]
+follow_up = "How would you add `iter()` returning `impl Iterator<Item = &T>`, and why does `iter_mut` need `take()` as well?"
+related = ["D5", "S7"]
+
+[[hints]]
+kind = "rust"
+text = "Every step is `Option::take` plus assignment: take the head, then put nodes back where they belong. `*node` moves the node out of its `Box` (only `Box` allows that)."
+
+[[hints]]
+kind = "rust"
+text = "`peek` borrows through the box: `self.head.as_deref().map(|n| &n.value)`."
+
+[[hints]]
+kind = "rust"
+text = "The compiler's drop for `Option<Box<Node>>` drops `next` inside `next` inside ...: one stack frame per node. Unlink the nodes in a loop in your own `Drop`. With a `Drop` impl, `into_vec(self)` can't move `self.head` out any more (E0509): take it, or `pop` in a loop."
+
+[solution]
+explanation = "`Box<T>` owns one heap allocation, and moving the `Box` moves only the pointer: relinking nodes never touches the allocator, which the tests check by counting allocations and by the top value's address. `*boxed` moves the value out of a `Box` (the one smart pointer that allows it) and frees the allocation, which `pop` wants and `reverse` must avoid, so `reverse` and `move_top_to` relink boxes with `take()`. The compiler-generated drop of a list recurses once per node; a long list overflows the stack, hence the loop in `Drop`. And once `Stack` implements `Drop`, its fields can't be moved out of a `self` by value (E0509), so `into_vec` takes `mut self` and pops.\n\nSyntax to remember: `let Node { value, next } = *node;` · `self.head.as_deref().map(|n| &n.value)` · `while let Some(mut node) = rest { rest = node.next.take(); ... }`."
+time = "O(1) push, pop, peek, move; O(n) reverse, drop"
+space = "O(n)"

@@ -28,29 +28,32 @@ fn early_return_still_exits() {
 }
 
 #[test]
-fn normal_return_exits() {
+fn finish_records_status_once() {
     let log = RefCell::new(Vec::new());
-    early(&log, false);
-    check!("return at the end of the function", log.into_inner(), vec!["enter work", "exit work"]);
+    {
+        let s = Span::enter("job", &log);
+        s.finish("ok");
+    }
+    check!("enter job, finish(\"ok\")", log.into_inner(), vec!["enter job", "exit job: ok"]);
 }
 
 #[test]
-fn single_span() {
+fn finish_inner_then_outer_drops() {
     let log = RefCell::new(Vec::new());
     {
-        let _s = Span::enter("only", &log);
+        let _outer = Span::enter("outer", &log);
+        let inner = Span::enter("inner", &log);
+        inner.finish("done");
     }
-    check!("one span in a block", log.into_inner(), vec!["enter only", "exit only"]);
+    check!("inner finished, outer dropped", log.into_inner(), vec!["enter outer", "enter inner", "exit inner: done", "exit outer"]);
 }
 
 #[test]
-fn sequential_spans() {
+fn let_underscore_exits_at_once() {
     let log = RefCell::new(Vec::new());
     {
-        let _a = Span::enter("a", &log);
+        let _ = Span::enter("gone", &log);
+        let _kept = Span::enter("kept", &log);
     }
-    {
-        let _b = Span::enter("b", &log);
-    }
-    check!("span a, then span b", log.into_inner(), vec!["enter a", "exit a", "enter b", "exit b"]);
+    check!("let _ = Span::enter(..), then let _kept", log.into_inner(), vec!["enter gone", "exit gone", "enter kept", "exit kept"]);
 }

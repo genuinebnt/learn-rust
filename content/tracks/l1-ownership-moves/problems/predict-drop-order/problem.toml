@@ -5,27 +5,28 @@ level = "medium"
 stage = "clones-and-drops"
 order = 10
 status = "ready"
-tags = ["Drop", "scopes"]
+tags = ["Drop", "scopes", "temporaries", "shadowing"]
 teaches = [
-  "Locals drop in reverse order of declaration; struct fields in declaration order.",
-  "`let _ = expr;` drops a temporary immediately, and `let _ = x;` doesn't move `x`.",
+  "Locals drop in reverse declaration order; fields and Vec elements in order.",
+  "`let _ = expr` drops a temporary at once, and doesn't move a named value.",
+  "Scrutinee temporaries live to the end of the `match`; shadowing doesn't drop.",
 ]
 follow_up = "Why does `let _guard = mutex.lock()` hold the lock while `let _ = mutex.lock()` releases it at once?"
 related = ["S8", "C1"]
 
 [[hints]]
 kind = "rust"
-text = "`let _ = value;` binds nothing. What happens to a temporary nobody owns?"
+text = "`let _ = value;` binds nothing, so a temporary is dropped at once, and `let _ = b;` doesn't move `b` at all."
 
 [[hints]]
 kind = "rust"
-text = "`let _ = b;` doesn't move `b`: `_` isn't a binding."
+text = "A temporary in a `match` scrutinee lives until the end of the whole `match`, so it outlives everything inside the arms."
 
 [[hints]]
 kind = "rust"
-text = "Local variables drop in reverse order of declaration; a struct's fields drop in the order they're declared."
+text = "Shadowing hides a variable; it doesn't drop it. Locals drop in reverse order of declaration; a struct's fields and a Vec's elements drop in order."
 
 [solution]
-explanation = "The two `let _` lines are the usual traps: the first drops a temporary immediately, the second does nothing at all."
+explanation = "The rules, in the order the traps appear: `let _ = expr` drops a temporary at the end of the statement; `_` isn't a binding, so `let _ = b` moves nothing. Shadowing creates a second variable; the first lives to the end of the scope. `drop(a)` moves `a` into a function that drops it. A temporary in a `match` scrutinee lives to the end of the `match` statement, which is why `match mutex.lock().unwrap().x { .. }` holds the lock through every arm. At the end of scope, locals drop in reverse declaration order; each struct drops its fields in declaration order, and a `Vec` drops its elements front to back."
 time = "—"
 space = "—"

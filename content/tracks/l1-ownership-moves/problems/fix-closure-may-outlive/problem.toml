@@ -1,26 +1,31 @@
 slug = "fix-closure-may-outlive"
-title = "Fix: closure may outlive the function"
+title = "Fix: closures that outlive their function (E0373)"
 mode = "fix"
 level = "medium"
 stage = "closures-take-ownership"
 order = 12
 status = "ready"
-tags = ["E0373", "move"]
+tags = ["E0373", "move", "impl Fn", "Box<dyn FnOnce>"]
 teaches = [
-  "A returned closure can't borrow a local: the local dies with the function.",
-  "`move` makes the closure own what it captures.",
+  "`move` closures own their captures: a copy for `Copy` values, the value itself otherwise.",
+  "A returned closure can't borrow a local; one that keeps a borrowed parameter needs `+ '_`.",
+  "`Box<dyn FnOnce()>` is called by value, once.",
 ]
-follow_up = "Why is this closure `FnMut` and not `Fn`?"
-related = ["L6"]
+follow_up = "Why is `counter`'s closure `FnMut`, the labeler's `Fn`, and each greeter `FnOnce`?"
+related = ["L6", "L3"]
 
 [[hints]]
 kind = "rust"
-text = "`n` lives on `counter`'s stack. The closure outlives that frame. How does it keep `n`?"
+text = "A closure borrows what it uses unless told otherwise. `move` makes it take its captures: a copy for a `Copy` value like `n` or `limit`, the value itself for a `String`."
+
+[[hints]]
+kind = "rust"
+text = "`move` alone doesn't fix `labeler`: the closure would own a `&str` borrowed from the caller, and the returned type would need to say so (`+ '_`). The caller drops its `String` first, so the closure needs its own copy."
 
 [solution]
-explanation = "`move` copies `n` into the closure, which then owns its own counter. Each call mutates that copy, hence `FnMut`."
-time = "O(1)"
-space = "O(1)"
+explanation = "A closure that outlives its stack frame can't borrow the frame's locals (E0373). `move` makes it own its captures: `n` and `limit` are `Copy`, so each closure gets a copy (`counter` then mutates its own `n`, hence `FnMut`); `name` is a `String`, so it moves into its job, and calling a `Box<dyn FnOnce>` consumes the job. For `labeler`, `move` would capture the `&str` itself, and in edition 2021 the opaque return type must then name that borrow (`impl Fn(u32) -> String + '_`). That compiles, but the test drops the prefix before calling, so the closure has to own a `String`: one copy at construction, none per call.\n\nSyntax to remember: `move |n| format!(\"{prefix}{n}\")` · `Vec<Box<dyn FnOnce() -> String>>` · `impl Fn(u32) -> String + '_` for a closure that may keep a borrow."
+time = "O(1) per call"
+space = "O(1) per closure"
 
 [rules]
-max_changed_lines = 1
+forbid_methods = ["clone"]

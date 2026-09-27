@@ -2,33 +2,37 @@ use solution::*;
 
 use std::cell::RefCell;
 
-#[test]
-fn prediction_matches_the_run() {
+fn run() -> Vec<&'static str> {
     let log = RefCell::new(Vec::new());
     scene(&log);
-    check!("scene()", PREDICTED.to_vec(), log.into_inner());
+    log.into_inner()
 }
 
 #[test]
-fn six_names() {
-    check!(r#"PREDICTED"#, PREDICTED.iter().filter(|n| **n != "?").count(), 6);
+fn prediction_matches_the_run() {
+    check!("scene()", PREDICTED.to_vec(), run());
+}
+
+#[test]
+fn twelve_names() {
+    check!("names filled in", PREDICTED.iter().filter(|n| **n != "?").count(), 12);
 }
 
 #[test]
 fn known_names() {
-    check!(r#"PREDICTED"#, PREDICTED.iter().all(|n| ["a", "b", "c", "first", "second", "ignored"].contains(n)), true);
+    let mut p = PREDICTED.to_vec();
+    p.sort();
+    let mut r = run();
+    r.sort();
+    check!("the names in PREDICTED, sorted", p, r);
 }
 
 #[test]
 fn first_drop() {
-    let log = RefCell::new(Vec::new());
-    scene(&log);
-    check!("the first name dropped", PREDICTED[0], log.into_inner()[0]);
+    check!("the first name dropped", PREDICTED[0], run()[0]);
 }
 
 #[test]
 fn last_drop() {
-    let log = RefCell::new(Vec::new());
-    scene(&log);
-    check!("the last name dropped", PREDICTED[5], log.into_inner()[5]);
+    check!("the last name dropped", PREDICTED[11], run()[11]);
 }

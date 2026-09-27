@@ -1,1 +1,2 @@
-`take_first` should move the first name out and leave an empty string in its place. It doesn't compile. `names` is never empty.
+Every method here tries to move a value out of `self`, which it only borrows, so none of them compiles.
+Fix each one without cloning, without allocating anything new, and without changing what it does.

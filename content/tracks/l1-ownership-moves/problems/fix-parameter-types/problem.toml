@@ -5,22 +5,26 @@ level = "easy"
 stage = "passing-values"
 order = 5
 status = "ready"
-tags = ["&T", "&mut T", "API design"]
+tags = ["&T", "&mut T", "&mut Vec vs &mut [T]", "API design"]
 teaches = [
-  "Take `&[T]` to read, `&mut [T]` to change in place, and `Vec<T>` to consume.",
-  "The signature tells the caller what happens to their value.",
+  "`&[T]` reads, `&mut [T]` edits in place, `&mut Vec<T>` can change the length, `Vec<T>` consumes.",
+  "Returning a borrow ties the result to the argument.",
 ]
-follow_up = "Why `&mut [String]` instead of `&mut Vec<String>` for `shout_all`?"
+follow_up = "Why take `&mut [String]` rather than `&mut Vec<String>` when you can, and what does the caller gain?"
 related = ["L2", "S3"]
 
 [[hints]]
 kind = "approach"
-text = "Which of these only reads, which changes in place, and which consumes the words?"
+text = "For each function: does it only read, change the words in place, change how many there are, or keep them?"
+
+[[hints]]
+kind = "rust"
+text = "A slice can't grow or shrink. What does `retain` need?"
 
 [solution]
-explanation = "`shout_all` taking the Vec by value uppercased a copy that was then dropped, a silent bug the new signature makes impossible."
+explanation = "The parameter type is the contract: `&[String]` reads, `&mut [String]` edits elements in place, `&mut Vec<String>` may also change the length (`retain`, `push`, `truncate`), and `Vec<String>` consumes. In the starter, `shout_all` and `drop_short` changed a moved-in copy that was then dropped, a silent bug the new signatures make impossible. `longest` borrows, so its result points into the caller's words (elision ties it to `words`).\n\nSyntax to remember: `pub fn longest(words: &[String]) -> Option<&str>` · `.map(|w| w.as_str())` (or `.map(String::as_str)`)."
 time = "O(n)"
 space = "O(1)"
 
 [rules]
-forbid_methods = ["clone", "to_vec", "to_owned"]
+forbid_methods = ["clone", "cloned", "to_vec", "to_owned", "to_string"]

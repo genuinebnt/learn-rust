@@ -1,26 +1,30 @@
 use solution::*;
 
 #[test]
-fn tabs() {
-    check!(r#""a\tb""#, normalize("a\tb"), "a    b");
+fn tabs_replaced() {
+    check!(r#"normalize("a\tb")"#, normalize("a\tb"), "a    b");
 }
 
 #[test]
-fn no_tabs_borrowed() {
-    check!(r#""plain""#, matches!(normalize("plain"), std::borrow::Cow::Borrowed("plain")), true);
+fn trim_only_borrows() {
+    use std::borrow::Cow;
+    check!(r#"normalize("plain   ") is a borrowed slice"#, matches!(normalize("plain   "), Cow::Borrowed("plain")), true);
 }
 
 #[test]
-fn two_tabs() {
-    check!(r#""\tx\t""#, normalize("\tx\t"), "    x    ");
+fn trailing_tab_is_trimmed_not_replaced() {
+    use std::borrow::Cow;
+    check!(r#"normalize("x \t") borrows "x""#, matches!(normalize("x \t"), Cow::Borrowed("x")), true);
 }
 
 #[test]
-fn empty_visible() {
-    check!(r#""""#, normalize(""), "");
+fn newline_added() {
+    use std::borrow::Cow;
+    check!(r#"with_newline(Borrowed("hi"))"#, with_newline(Cow::Borrowed("hi")), "hi\n");
 }
 
 #[test]
-fn changed_is_owned() {
-    check!(r#""x\ty""#, matches!(normalize("x\ty"), std::borrow::Cow::Owned(_)), true);
+fn newline_kept_borrowed() {
+    use std::borrow::Cow;
+    check!(r#"with_newline(Borrowed("done\n")) stays borrowed"#, matches!(with_newline(Cow::Borrowed("done\n")), Cow::Borrowed("done\n")), true);
 }

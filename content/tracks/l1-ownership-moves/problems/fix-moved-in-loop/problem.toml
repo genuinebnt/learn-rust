@@ -1,27 +1,31 @@
 slug = "fix-moved-in-loop"
-title = "Fix: value moved in a loop"
+title = "Fix: values moved in a loop"
 mode = "fix"
 level = "easy"
 stage = "moves-and-copy"
 order = 3
 status = "ready"
-tags = ["E0382", "&str"]
+tags = ["E0382", "loops", "mem::take"]
 teaches = [
-  "A value moved in the first iteration isn't there for the second.",
-  "Borrow in helpers that only read.",
+  "A moved-from variable can be assigned again, but not read.",
+  "`mem::take` moves a value out of a `&mut` place and leaves the default behind.",
+  "`for x in vec` consumes the vector.",
 ]
-follow_up = "Why is `&str` a better parameter type than `&String`?"
-related = ["L2", "S2"]
+follow_up = "Why does `run.drain(..).collect()` compile but cost more than `mem::take(&mut run)`?"
+related = ["S3"]
 
 [[hints]]
 kind = "rust"
-text = "`greeting` only reads the name. Does it need to own it?"
+text = "After `groups.push((key, run))`, both are gone. `key` gets a new value on the next line, so that's fine. `run` is used again. What could you push instead, that leaves an empty `Vec` behind?"
+
+[[hints]]
+kind = "rust"
+text = "`for (k, v) in records` consumes `records`. Read what you need from it before the loop."
 
 [solution]
-explanation = "`greeting` only formats, so borrowing `&str` is the right signature; `&name` derefs from `&String`."
+explanation = "A moved-from variable can't be read, but it can be assigned again: `key = k` re-initialises `key`, so moving it into `groups` is fine. `run` is read after the move, so push `std::mem::take(&mut run)` instead: it moves the full `Vec` out and leaves `Vec::new()`, which doesn't allocate. (`run = Vec::new()` straight after the push also works: it's the same re-initialisation.) `for (k, v) in records` consumes the vector, so count first.\n\nSyntax to remember: `std::mem::take(&mut v)` (needs `Default`) · `std::mem::replace(&mut v, new)` (any type)."
 time = "O(n)"
-space = "O(n)"
+space = "O(n) for the output"
 
 [rules]
-forbid_methods = ["clone"]
-max_changed_lines = 2
+forbid_methods = ["clone", "cloned", "to_owned", "to_vec", "collect", "to_string"]

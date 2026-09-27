@@ -1,31 +1,30 @@
 slug = "fix-move-out-of-index"
-title = "Fix: move out of an index"
+title = "Fix: moving out of &mut (E0507)"
 mode = "fix"
 level = "hard"
 stage = "partial-moves-and-mem"
-order = 15
+order = 16
 status = "ready"
-tags = ["E0507", "mem::take"]
+tags = ["E0507", "mem::take", "mem::replace", "mem::swap", "Option::take"]
 teaches = [
-  "You can't move a value out of a `Vec` by indexing: it would leave a hole.",
-  "`mem::take` swaps in `Default` and hands you the value.",
+  "You can't move out of a `&mut` place; exchange with `mem::take`, `mem::replace`, `mem::swap` or `Option::take`.",
+  "The empty `String` and `Vec` cost nothing to swap in.",
 ]
-follow_up = "When would you use `swap_remove` or `remove` instead?"
-related = ["S11", "S3"]
+follow_up = "When would `Vec::swap_remove` or `Vec::remove` be the right way to take an item instead?"
+related = ["S11", "S3", "S1"]
 
 [[hints]]
 kind = "rust"
-text = "Moving out of `names[0]` would leave the Vec with an invalid slot. What could you swap in?"
+text = "Moving out through `&mut self` would leave a hole in `self`. Each fix moves something else in at the same time."
 
 [[hints]]
 kind = "rust"
-text = "`String` has a cheap `Default`: the empty string, with no allocation."
+text = "`mem::take(&mut x)` leaves `Default::default()`; `mem::replace(&mut x, v)` leaves `v`; `mem::swap(&mut a, &mut b)` exchanges; `opt.take()` leaves `None`."
 
 [solution]
-explanation = "`mem::take(&mut x)` is `mem::replace(&mut x, Default::default())`. The Vec stays valid throughout."
-time = "O(1)"
+explanation = "A `&mut` place must hold a valid value at every moment, so you can't move out of one (E0507); you can only exchange. `mem::take` swaps in the default (`String::new()` and `Vec::new()` don't allocate), `mem::replace` swaps in a value you choose, `mem::swap` exchanges two places, and `Option::take` is `mem::replace(opt, None)`. Swapping `self.items` and `other.items` borrows two different places mutably at once, which is fine; `mem::swap(self, other)` would compile too, but it swaps the names and jobs as well.\n\nSyntax to remember: `std::mem::take(&mut self.items[0])` · `std::mem::replace(&mut self.current, next)` · `std::mem::swap(&mut self.items, &mut other.items)` · `self.current.take()`."
+time = "O(1) per call"
 space = "O(1)"
 
 [rules]
-forbid_methods = ["clone", "to_string", "to_owned"]
-max_changed_lines = 2
+forbid_methods = ["clone", "cloned", "to_owned", "to_string", "to_vec", "collect", "drain"]

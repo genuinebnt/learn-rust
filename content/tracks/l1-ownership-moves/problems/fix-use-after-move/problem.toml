@@ -5,27 +5,28 @@ level = "easy"
 stage = "moves-and-copy"
 order = 1
 status = "ready"
-tags = ["E0382", "move"]
+tags = ["E0382", "move", "partial moves"]
 teaches = [
-  "Passing a `Vec` by value moves it; the caller can't use it afterwards.",
-  "Read what you need before handing a value away.",
+  "`for x in vec` moves the Vec; `for x in &vec` borrows it.",
+  "Methods taking `self` (like `unwrap_or`) move out of the field.",
+  "Partial moves: other fields stay usable after one field is moved out.",
 ]
-follow_up = "When should a function take `Vec<T>` rather than `&[T]`?"
-related = ["L2"]
-
-[[examples]]
-input = "text = \"the quick fox\""
-output = "(3, \"quick\")"
+follow_up = "`longest_item` could also stay `Vec<String> -> Option<String>` if `describe` called it last. What would that cost the caller?"
+related = ["L2", "S1"]
 
 [[hints]]
 kind = "rust"
-text = "After `longest_word(words)`, `words` belongs to `longest_word`. What do you still need from it?"
+text = "Three things take ownership here: a method that takes `self`, passing to a function, and a `for` loop over a `Vec`. Which of them does the code need to own?"
+
+[[hints]]
+kind = "rust"
+text = "Moving `batch.label` out doesn't stop you using `batch.items` or `batch.id`: that's a partial move. What you can't do is read `batch.label` again afterwards."
 
 [solution]
-explanation = "Reading `len()` before the move is the whole fix. Changing `longest_word` to borrow `&[String]` also works, but then it has to clone the result."
+explanation = "`for item in v` calls `IntoIterator::into_iter(v)`, which takes the `Vec`; `for item in &v` borrows it. `Option::unwrap_or` takes `self`, so read `is_none()` first. `longest_item` only reads, so it should borrow and return `Option<&str>` pointing into the items. Moving `batch.label` out is a partial move: `batch.id` (a `Copy` field) and `batch.items` stay usable, and the final `(line, batch.items)` moves the other field out.\n\nAside: `unwrap_or(format!(..))` builds the fallback string even when there's a label; `unwrap_or_else(|| format!(..))` only when needed."
 time = "O(n)"
-space = "O(n)"
+space = "O(1) extra"
 
 [rules]
-forbid_methods = ["clone"]
-max_changed_lines = 2
+forbid_methods = ["clone", "cloned", "to_owned", "to_vec"]
+max_changed_lines = 10

@@ -1,19 +1,29 @@
-pub struct Document<'a> {
-    text: &'a str,
+pub struct Index<'a> {
+    lines: Vec<&'a str>,
 }
 
-impl<'a> Document<'a> {
+impl<'a> Index<'a> {
     pub fn new(text: &'a str) -> Self {
-        Document { text }
+        Index { lines: text.lines().collect() }
     }
 
-    /// The longest line; the first one on a tie.
+    /// The longest line; the first on a tie.
     pub fn longest_line(&self) -> &'a str {
-        self.text.lines().fold("", |best, l| if l.len() > best.len() { l } else { best })
+        self.lines.iter().copied().fold("", |best, l| if l.len() > best.len() { l } else { best })
     }
 
     /// Every line containing `word`.
     pub fn lines_with(&self, word: &str) -> Vec<&'a str> {
-        self.text.lines().filter(|l| l.contains(word)).collect()
+        self.lines.iter().copied().filter(|l| l.contains(word)).collect()
+    }
+
+    /// The lines, in order.
+    pub fn iter(&self) -> impl Iterator<Item = &'a str> + '_ {
+        self.lines.iter().copied()
+    }
+
+    /// Hands the lines over.
+    pub fn into_lines(self) -> Vec<&'a str> {
+        self.lines
     }
 }

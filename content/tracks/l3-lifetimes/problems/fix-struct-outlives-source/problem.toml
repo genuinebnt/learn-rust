@@ -1,31 +1,35 @@
 slug = "fix-struct-outlives-source"
-title = "Fix: struct outlives its source (E0597)"
+title = "Fix: a struct that outlives what it borrows"
 mode = "fix"
 level = "easy"
 stage = "structs-holding-refs"
 order = 7
 status = "ready"
-tags = ["E0597"]
+tags = ["E0515", "E0597", "struct lifetimes", "borrow the input"]
 teaches = [
-  "A struct's borrow must not outlive what it points at.",
-  "Borrow from the caller's data, not a temporary copy.",
+  "A struct's lifetime parameter is a borrow it can't outlive.",
+  "Borrow the caller's data, not a local copy of it.",
+  "Copying a `&'a str` out of a struct keeps the original lifetime.",
 ]
-follow_up = "If you really did need to transform each document, how would you keep the excerpts valid?"
+follow_up = "`titles` builds `ex` and returns slices after `ex` is dropped. Why does that compile, when returning `&ex[0]` wouldn't?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "Each `Excerpt` borrows from `trimmed`, which is dropped at the end of each loop iteration, but the excerpts are read after the loop."
+text = "`Excerpt::of(&normalized)` borrows a `String` created in this loop turn, and it's dropped at the end of the turn while `out` still holds the excerpt: the returned `Vec` would point at freed memory (E0515; in other shapes, E0597). Does anything need normalizing? `str::lines` already strips a trailing `\\r`."
 
 [[hints]]
 kind = "rust"
-text = "`d.trim()` is already a `&str` borrowed from `docs`, which lives long enough. No need for a copy."
+text = "`body_excerpt` copies the part after \"---\" into a new `String` just to borrow it. `split_once` already gives you a slice of `raw`."
+
+[[hints]]
+kind = "rust"
+text = "`max_by_key` keeps the last of equal maxima; the spec wants the first. And `best.clone()` makes a copy that dies at the end of the statement."
 
 [solution]
-explanation = "Borrowing from the long-lived input instead of a per-iteration copy fixes the error and removes an allocation."
-time = "O(total length)"
-space = "O(n)"
+explanation = "A struct with a lifetime parameter is a borrow with fields: `Excerpt<'a>` can't outlive the `str` it points into. Every failing line here borrows a `String` the function created (a normalized copy, a `to_string`, a `clone`), which is dropped at the end of its loop turn, block or statement, while the excerpt escapes. The fix is to borrow the caller's data all the way through: slices of `docs` and `raw` live as long as the caller keeps them, which is what `Vec<Excerpt<'_>>` in the signature promises. The copies were never needed: `lines()` handles `\\r\\n`, and `split_once` returns slices.\n\n`titles` shows the flip side: `ex.iter().map(|e| e.title)` copies each `&'a str` out of the excerpts, so the titles borrow the documents, not `ex`, and outlive it."
+time = "O(total text)"
+space = "O(n) excerpts"
 
 [rules]
-forbid_methods = ["clone", "to_owned"]
-max_changed_lines = 1
+forbid_methods = ["clone", "to_string", "to_owned", "replace", "leak", "into"]

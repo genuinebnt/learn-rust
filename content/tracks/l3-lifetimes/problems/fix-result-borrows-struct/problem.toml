@@ -5,26 +5,32 @@ level = "easy"
 stage = "structs-holding-refs"
 order = 8
 status = "ready"
-tags = ["'a vs '_"]
+tags = ["'a vs '_", "elision rule 3", "impl Trait + '_", "E0106"]
 teaches = [
-  "Methods on borrowing structs can return the struct's lifetime.",
-  "Elision picks `self`, which is often too short.",
+  "`&self` outputs get the borrow of `self`, not the struct's `'a`.",
+  "Name `'a` for data the struct only points at.",
+  "An iterator can borrow `self` and yield `'a` items.",
 ]
-follow_up = "Why is the first version not wrong, just less useful?"
+follow_up = "When is `-> &str` (tied to `&self`) the right choice on a struct that holds `&'a str`?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "An elided output in a `&self` method borrows from `self`, the short-lived `Document`. The lines really come from `text`, which lives for `'a`."
+text = "Elision rule 3 ties every output of a `&self` method to `&self`. But these results are slices of the text, which lives for `'a`, longer than any borrow of the `Index`. Name `'a` in the output."
 
 [[hints]]
 kind = "rust"
-text = "Say so: return `&'a str` and `Vec<&'a str>`."
+text = "`iter` really does borrow both: the `Vec` inside `self` (to iterate it) and the text (its items). Items `&'a str`, iterator `+ '_`."
+
+[[hints]]
+kind = "rust"
+text = "`into_lines(self)` has no reference input at all, so elision has nothing to use (E0106); the lines' lifetime is `'a`."
 
 [solution]
-explanation = "`&'a str` means 'as long as the text', `&str` from `&self` means 'as long as this Document'. The body compiles either way; only callers see the difference."
+explanation = "Inside `impl<'a> Index<'a>`, `&self` is really `&'s Index<'a>` with `'a: 's`: the text outlives any borrow of the index. Elision gives a `&self` method's output `'s`, which is correct for data owned by the struct (like a `&[&str]` of `self.lines`) but too short for data the struct only points at. Writing `&'a str` promises callers the longer lifetime, and the body can deliver it because copying a `&'a str` out of `self.lines` keeps `'a`. `iter` needs both lifetimes: the iterator borrows `self.lines` (`+ '_`) and yields `&'a str`. `into_lines(self)` consumes the index and has no reference input, so the output's lifetime must be named.\n\nSyntax to remember: `fn longest_line(&self) -> &'a str` · `fn iter(&self) -> impl Iterator<Item = &'a str> + '_` · `fn into_lines(self) -> Vec<&'a str>`."
 time = "O(n)"
-space = "O(k)"
+space = "O(1) extra"
 
 [rules]
-max_changed_lines = 2
+forbid_methods = ["clone", "to_string", "to_owned", "leak"]
+max_changed_lines = 4

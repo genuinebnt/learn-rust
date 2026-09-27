@@ -27,25 +27,25 @@ pub fn titles(docs: &[String]) -> Vec<&str> {
 
 /// The excerpt of every document, in order.
 pub fn excerpts(docs: &[String]) -> Vec<Excerpt<'_>> {
-    let mut out = Vec::new();
-    for d in docs {
-        let normalized = d.replace("\r\n", "\n");
-        out.push(Excerpt::of(&normalized));
-    }
-    out
+    docs.iter().map(|d| Excerpt::of(d)).collect()
 }
 
 /// The excerpt of what follows the first "---" line in `raw`, or of all of `raw` if there's no such line.
 pub fn body_excerpt(raw: &str) -> Excerpt<'_> {
-    let body = match raw.split_once("---\n") {
-        Some((_, rest)) => rest.to_string(),
-        None => raw.to_string(),
+    let body = match raw.rsplit_once("---\n") {
+        Some((_, rest)) => rest,
+        None => raw,
     };
-    Excerpt::of(&body)
+    Excerpt::of(body)
 }
 
 /// The excerpt of the document with the most lines (the first on a tie), or None if there are none.
 pub fn biggest(docs: &[String]) -> Option<Excerpt<'_>> {
-    let best = docs.iter().max_by_key(|d| d.lines().count())?;
-    Some(Excerpt::of(&best.clone()))
+    let mut best: Option<&String> = None;
+    for d in docs {
+        if best.map_or(true, |b| d.lines().count() > b.lines().count()) {
+            best = Some(d);
+        }
+    }
+    Some(Excerpt::of(best?))
 }

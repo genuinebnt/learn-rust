@@ -1,53 +1,82 @@
 use solution::*;
 
 #[test]
-fn none() {
-    check!(r#"[]"#, first_lines(&[]).len(), 0);
+fn no_docs() {
+    check!(r#"[]"#, (excerpts(&[]).len(), biggest(&[])), (0, None));
 }
 
 #[test]
 fn empty_doc() {
-    check!(r#"[""]"#, first_lines(&[String::new()]), vec![String::new()]);
+    let docs = [""].map(String::from);
+    check!(r#"[""]"#, excerpts(&docs), vec![Excerpt { title: "", first_line: "" }]);
 }
 
 #[test]
-fn inner_spaces_kept() {
-    check!(r#"["a b \nc"]"#, first_lines(&["a b \nc".to_string()]), vec!["a b ".to_string()]);
+fn only_blank_after_title() {
+    let docs = ["T\n \n	\n"].map(String::from);
+    check!(r#"["T\n \n\t\n"]"#, excerpts(&docs), vec![Excerpt { title: "T", first_line: "" }]);
 }
 
 #[test]
-fn crlf() {
-    check!(r#"["a\r\nb"]"#, first_lines(&["a\r\nb".to_string()]), vec!["a".to_string()]);
+fn separator_first() {
+    check!(r#""---\nA\nB""#, body_excerpt("---\nA\nB"), Excerpt { title: "A", first_line: "B" });
 }
 
 #[test]
-fn unicode_whitespace() {
-    check!(r#"["\u{3000}x\u{3000}"]"#, first_lines(&["\u{3000}x\u{3000}".to_string()]), vec!["x".to_string()]);
+fn two_separators() {
+    check!(r#""x\n---\ny\n---\nz""#, body_excerpt("x\n---\ny\n---\nz"), Excerpt { title: "y", first_line: "---" });
 }
 
 #[test]
-fn tabs() {
-    check!(r#"["\t\tx\ty"]"#, first_lines(&["\t\tx\ty".to_string()]), vec!["x\ty".to_string()]);
+fn biggest_later_wins() {
+    let docs = ["a", "b\nc\nd", "e\nf"].map(String::from);
+    check!(r#"["a", "b\nc\nd", "e\nf"]"#, biggest(&docs), Some(Excerpt { title: "b", first_line: "c" }));
 }
 
 #[test]
-fn order_kept() {
-    check!(r#"["b", "a", "c"]"#, first_lines(&["b".to_string(), "a".to_string(), "c".to_string()]), vec!["b".to_string(), "a".to_string(), "c".to_string()]);
+fn biggest_counts_lines_not_bytes() {
+    let docs = ["long line here", "a\nb"].map(String::from);
+    check!(r#"["long line here", "a\nb"]"#, biggest(&docs), Some(Excerpt { title: "a", first_line: "b" }));
 }
 
 #[test]
-fn many_docs() {
-    let docs: Vec<String> = (0..1000).map(|i| format!("  {i}\nrest")).collect();
-    check!(r#"1000 docs "  n\nrest""#, first_lines(&docs), (0..1000).map(|i| i.to_string()).collect::<Vec<_>>());
+fn body_points_into_raw() {
+    let raw = String::from("---\nZ");
+    check!(r#"body_excerpt's title points into raw"#, body_excerpt(&raw).title.as_ptr() == raw[4..].as_ptr(), true);
 }
 
 #[test]
-fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(307);
+fn unicode() {
+    let docs = ["日本\r\n 語 "].map(String::from);
+    check!(r#"["日本\r\n 語 "]"#, excerpts(&docs), vec![Excerpt { title: "日本", first_line: "語" }]);
+}
+
+#[test]
+fn random_vs_model() {
+    let mut rng = anneal_prelude::Rng::new(6306);
     for _ in 0..300 {
         let n = rng.below(4);
-        let docs: Vec<String> = (0..n).map(|_| { let len = rng.below(8); rng.string(len, "a \n") }).collect();
-        let want: Vec<String> = docs.iter().map(|d| d.trim().split('\n').next().unwrap_or("").to_string()).collect();
-        check!(format!("docs = {docs:?}"), first_lines(&docs), want);
+        let mut docs: Vec<String> = Vec::new();
+        for _ in 0..n {
+            let len = rng.below(10);
+            docs.push(rng.string(len, "ab \n\r"));
+        }
+        let model = |d: &str| {
+            let mut lines = d.lines().map(str::trim);
+            let t = lines.next().unwrap_or("").to_string();
+            let f = lines.find(|l| !l.is_empty()).unwrap_or("").to_string();
+            (t, f)
+        };
+        let got: Vec<(String, String)> = excerpts(&docs).iter().map(|e| (e.title.to_string(), e.first_line.to_string())).collect();
+        let want: Vec<(String, String)> = docs.iter().map(|d| model(d)).collect();
+        check!(format!("excerpts({docs:?})"), got, want);
+        let mut best: Option<&String> = None;
+        for d in &docs {
+            if best.map_or(true, |b| d.lines().count() > b.lines().count()) {
+                best = Some(d);
+            }
+        }
+        let got = biggest(&docs).map(|e| (e.title.to_string(), e.first_line.to_string()));
+        check!(format!("biggest({docs:?})"), got, best.map(|b| model(b)));
     }
 }

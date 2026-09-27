@@ -1,62 +1,66 @@
 use solution::*;
 
 #[test]
-fn tie() {
-    check!(r#""ab\ncd""#, Document::new("ab\ncd").longest_line(), "ab");
+fn empty_text() {
+    check!(r#""""#, (Index::new("").longest_line(), Index::new("").into_lines().len()), ("", 0));
 }
 
 #[test]
-fn single_line() {
-    check!(r#""only""#, Document::new("only").longest_line(), "only");
+fn longest_tie_first() {
+    check!(r#""ab\ncd""#, Index::new("ab\ncd").longest_line(), "ab");
+}
+
+#[test]
+fn lines_with_none() {
+    check!(r#"no line contains "zz""#, Index::new("a\nb").lines_with("zz").len(), 0);
+}
+
+#[test]
+fn lines_with_empty_word() {
+    check!(r#"every line contains """#, Index::new("a\nb").lines_with(""), vec!["a", "b"]);
+}
+
+#[test]
+fn results_point_into_text() {
+    let text = String::from("fn main\nlet x\nfn helper\n");
+    check!(r#"longest_line points into the text"#, Index::new(&text).longest_line().as_ptr() == text[14..].as_ptr(), true);
+}
+
+#[test]
+fn iter_twice() {
+    let text = String::from("fn main\nlet x\nfn helper\n");
+    let ix = Index::new(&text);
+    check!(r#"iter() twice while the index lives"#, (ix.iter().count(), ix.iter().last()), (3, Some("fn helper")));
 }
 
 #[test]
 fn crlf() {
-    let d = Document::new("ab\r\nc");
-    check!(r#""ab\r\nc""#, (d.longest_line(), d.lines_with("b")), ("ab", vec!["ab"]));
+    check!(r#""a\r\nbb\r\n""#, Index::new("a\r\nbb\r\n").into_lines(), vec!["a", "bb"]);
 }
 
 #[test]
-fn trailing_newline() {
-    check!(r#""a\nbb\n""#, Document::new("a\nbb\n").lines_with(""), vec!["a", "bb"]);
+fn unicode_longest() {
+    check!(r#""ééé\nabcd""#, Index::new("ééé\nabcd").longest_line(), "ééé");
 }
 
 #[test]
-fn case_sensitive() {
-    check!(r#""Rust\nrust", word "rust""#, Document::new("Rust\nrust").lines_with("rust"), vec!["rust"]);
-}
-
-#[test]
-fn unicode() {
-    check!(r#""éé\nabc", longest by bytes"#, Document::new("éé\nabc").longest_line(), "éé");
-}
-
-#[test]
-fn blank_lines() {
-    check!(r#""\n\nx\n""#, Document::new("\n\nx\n").longest_line(), "x");
-}
-
-#[test]
-fn word_in_the_middle() {
-    check!(r#""one two\nthree", word "tw""#, Document::new("one two\nthree").lines_with("tw"), vec!["one two"]);
-}
-
-#[test]
-fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(308);
+fn random_vs_model() {
+    let mut rng = anneal_prelude::Rng::new(6307);
     for _ in 0..300 {
-        let n = rng.below(10);
-        let text = rng.string(n, "ab\n");
-        let lines: Vec<&str> = text.split('\n').collect();
-        let lines = if text.ends_with('\n') { &lines[..lines.len() - 1] } else { &lines[..] };
+        let len = rng.below(14);
+        let text = rng.string(len, "ab\n");
+        let lines: Vec<&str> = text.lines().collect();
         let mut longest = "";
-        for l in lines {
+        for &l in &lines {
             if l.len() > longest.len() {
                 longest = l;
             }
         }
-        let with_b: Vec<&str> = lines.iter().copied().filter(|l| l.contains('b')).collect();
-        let d = Document::new(&text);
-        check!(format!("text = {text:?}"), (d.longest_line(), d.lines_with("b")), (longest, with_b));
+        let with: Vec<&str> = lines.iter().copied().filter(|l| l.contains("ab")).collect();
+        let got = {
+            let ix = Index::new(&text);
+            (ix.longest_line(), ix.lines_with("ab"), ix.iter().collect::<Vec<_>>())
+        };
+        check!(format!("text {text:?}"), got, (longest, with, lines.clone()));
     }
 }

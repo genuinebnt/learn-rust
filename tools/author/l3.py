@@ -907,235 +907,272 @@ P.append(write(
     ),
 ))
 
+EXCERPT_HEAD = r"""
+use std::cmp::Reverse;
+
+#[derive(Debug, PartialEq)]
+pub struct Excerpt<'a> {
+    pub title: &'a str,
+    pub first_line: &'a str,
+}
+
+impl<'a> Excerpt<'a> {
+    /// The title is the document's first line, trimmed. `first_line` is the first non-blank line after it,
+    /// trimmed ("" if there's none). Lines may end in "\n" or "\r\n".
+    pub fn of(doc: &'a str) -> Self {
+        let mut lines = doc.lines().map(str::trim);
+        let title = lines.next().unwrap_or("");
+        let first_line = lines.find(|l| !l.is_empty()).unwrap_or("");
+        Excerpt { title, first_line }
+    }
+}
+
+/// Every document's title, longest first (in document order on a tie).
+pub fn titles(docs: &[String]) -> Vec<&str> {
+    let ex = excerpts(docs);
+    let mut t: Vec<&str> = ex.iter().map(|e| e.title).collect();
+    t.sort_by_key(|s| Reverse(s.len()));
+    t
+}
+"""
+
+EXCERPT_STARTER = EXCERPT_HEAD + r"""
+/// The excerpt of every document, in order.
+pub fn excerpts(docs: &[String]) -> Vec<Excerpt<'_>> {
+    let mut out = Vec::new();
+    for d in docs {
+        let normalized = d.replace("\r\n", "\n");
+        out.push(Excerpt::of(&normalized));
+    }
+    out
+}
+
+/// The excerpt of what follows the first "---" line in `raw`, or of all of `raw` if there's no such line.
+pub fn body_excerpt(raw: &str) -> Excerpt<'_> {
+    let body = match raw.split_once("---\n") {
+        Some((_, rest)) => rest.to_string(),
+        None => raw.to_string(),
+    };
+    Excerpt::of(&body)
+}
+
+/// The excerpt of the document with the most lines (the first on a tie), or None if there are none.
+pub fn biggest(docs: &[String]) -> Option<Excerpt<'_>> {
+    let best = docs.iter().max_by_key(|d| d.lines().count())?;
+    Some(Excerpt::of(&best.clone()))
+}
+"""
+
+EXCERPT_SOLUTION = EXCERPT_HEAD + r"""
+/// The excerpt of every document, in order.
+pub fn excerpts(docs: &[String]) -> Vec<Excerpt<'_>> {
+    docs.iter().map(|d| Excerpt::of(d)).collect()
+}
+
+/// The excerpt of what follows the first "---" line in `raw`, or of all of `raw` if there's no such line.
+pub fn body_excerpt(raw: &str) -> Excerpt<'_> {
+    let body = match raw.split_once("---\n") {
+        Some((_, rest)) => rest,
+        None => raw,
+    };
+    Excerpt::of(body)
+}
+
+/// The excerpt of the document with the most lines (the first on a tie), or None if there are none.
+pub fn biggest(docs: &[String]) -> Option<Excerpt<'_>> {
+    let mut best: Option<&String> = None;
+    for d in docs {
+        if best.map_or(true, |b| d.lines().count() > b.lines().count()) {
+            best = Some(d);
+        }
+    }
+    Some(Excerpt::of(best?))
+}
+"""
+
+
+def docs_lit(xs):
+    return "[" + ", ".join('"' + x.replace("\n", "\\n").replace("\r", "\\r") + '"' for x in xs) + "].map(String::from)"
+
+
+def ex(t, f):
+    return f'Excerpt {{ title: "{t}", first_line: "{f}" }}'
+
+
 P.append(fix(
-    "fix-struct-outlives-source", "Fix: struct outlives its source (E0597)", "easy", "structs-holding-refs", ["E0597"],
-    "`first_lines` collects an `Excerpt` per document, then reads them all. It doesn't compile.",
+    "fix-struct-outlives-source", "Fix: a struct that outlives what it borrows", "easy", "structs-holding-refs", ["E0515", "E0597", "struct lifetimes", "borrow the input"],
     """
-    pub struct Excerpt<'a> {
-        pub text: &'a str,
-    }
-
-    /// The first line of each document, after trimming the document.
-    pub fn first_lines(docs: &[String]) -> Vec<String> {
-        let mut excerpts = Vec::new();
-        for d in docs {
-            let trimmed = d.trim().to_string();
-            excerpts.push(Excerpt { text: trimmed.lines().next().unwrap_or("") });
-        }
-        excerpts.iter().map(|e| e.text.to_string()).collect()
-    }
+        `excerpts`, `body_excerpt` and `biggest` each build an `Excerpt` from a `String` they made
+        themselves, which dies at the end of the function (or the loop turn) while the `Excerpt` still
+        borrows it. Fix them so every `Excerpt` borrows the caller's documents, with no copies. `biggest` also
+        has a bug the compiler can't see. `Excerpt::of` and `titles` are fine.
     """,
-    """
-    pub struct Excerpt<'a> {
-        pub text: &'a str,
-    }
-
-    /// The first line of each document, after trimming the document.
-    pub fn first_lines(docs: &[String]) -> Vec<String> {
-        let mut excerpts = Vec::new();
-        for d in docs {
-            let trimmed = d.trim();
-            excerpts.push(Excerpt { text: trimmed.lines().next().unwrap_or("") });
-        }
-        excerpts.iter().map(|e| e.text.to_string()).collect()
-    }
-    """,
-    [T("two_docs", '["  hello\\nworld", "x"]', 'first_lines(&["  hello\\nworld".to_string(), "x".to_string()])', 'vec!["hello".to_string(), "x".to_string()]'),
-     T("blank_doc", '["\\n"]', 'first_lines(&["\\n".to_string()])', 'vec![String::new()]'),
-     T("none", "[]", "first_lines(&[]).len()", "0"),
-     T("trailing_spaces", '["hi  "]', 'first_lines(&["hi  ".to_string()])', 'vec!["hi".to_string()]'),
-     T("leading_blank_lines", '["\\n\\n  a\\nb"]', 'first_lines(&["\\n\\n  a\\nb".to_string()])', 'vec!["a".to_string()]')],
-    [T("none", "[]", "first_lines(&[]).len()", "0"),
-     T("empty_doc", '[""]', 'first_lines(&[String::new()])', 'vec![String::new()]'),
-     T("inner_spaces_kept", '["a b \\nc"]', 'first_lines(&["a b \\nc".to_string()])', 'vec!["a b ".to_string()]'),
-     T("crlf", '["a\\r\\nb"]', 'first_lines(&["a\\r\\nb".to_string()])', 'vec!["a".to_string()]'),
-     T("unicode_whitespace", '["\\u{3000}x\\u{3000}"]', 'first_lines(&["\\u{3000}x\\u{3000}".to_string()])', 'vec!["x".to_string()]'),
-     T("tabs", '["\\t\\tx\\ty"]', 'first_lines(&["\\t\\tx\\ty".to_string()])', 'vec!["x\\ty".to_string()]'),
-     T("order_kept", '["b", "a", "c"]', 'first_lines(&["b".to_string(), "a".to_string(), "c".to_string()])', 'vec!["b".to_string(), "a".to_string(), "c".to_string()]'),
-     T("many_docs", "1000 docs \"  n\\nrest\"", "first_lines(&docs)", "(0..1000).map(|i| i.to_string()).collect::<Vec<_>>()",
-       setup='let docs: Vec<String> = (0..1000).map(|i| format!("  {i}\\nrest")).collect();'),
-     """
+    EXCERPT_STARTER,
+    EXCERPT_SOLUTION,
+    [T("excerpts_example", '["Intro\\n\\nfirst words", " Notes \\r\\n body\\r\\n"]', "excerpts(&docs)", f'vec![{ex("Intro", "first words")}, {ex("Notes", "body")}]', setup='let docs = ' + docs_lit(["Intro\n\nfirst words", " Notes \r\n body\r\n"]) + ';'),
+     T("body_excerpt_example", '"meta\\n---\\nTitle\\ntext"', 'body_excerpt("meta\\n---\\nTitle\\ntext")', ex("Title", "text")),
+     T("body_without_separator", '"Just\\none"', 'body_excerpt("Just\\none")', ex("Just", "one")),
+     T("biggest_first_on_tie", '["a\\nb", "c\\nd", "e"]', "biggest(&docs)", f'Some({ex("a", "b")})', setup='let docs = ' + docs_lit(["a\nb", "c\nd", "e"]) + ';'),
+     T("titles_longest_first", '["ab", "abcd", "xy"]', "titles(&docs)", 'vec!["abcd", "ab", "xy"]', setup='let docs = ' + docs_lit(["ab", "abcd", "xy"]) + ';'),
+     T("excerpts_borrow_the_docs", "the title points into the document", "excerpts(&docs)[0].title.as_ptr() == docs[0][1..].as_ptr()", "true", setup='let docs = ' + docs_lit([" T"]) + ';')],
+    [T("no_docs", "[]", "(excerpts(&[]).len(), biggest(&[]))", "(0, None)"),
+     T("empty_doc", '[""]', "excerpts(&docs)", f'vec![{ex("", "")}]', setup='let docs = ' + docs_lit([""]) + ';'),
+     T("only_blank_after_title", '["T\\n \\n\\t\\n"]', "excerpts(&docs)", f'vec![{ex("T", "")}]', setup='let docs = ' + docs_lit(["T\n \n\t\n"]) + ';'),
+     T("separator_first", '"---\\nA\\nB"', 'body_excerpt("---\\nA\\nB")', ex("A", "B")),
+     T("two_separators", '"x\\n---\\ny\\n---\\nz"', 'body_excerpt("x\\n---\\ny\\n---\\nz")', ex("y", "---")),
+     T("biggest_later_wins", '["a", "b\\nc\\nd", "e\\nf"]', "biggest(&docs)", f'Some({ex("b", "c")})', setup='let docs = ' + docs_lit(["a", "b\nc\nd", "e\nf"]) + ';'),
+     T("biggest_counts_lines_not_bytes", '["long line here", "a\\nb"]', "biggest(&docs)", f'Some({ex("a", "b")})', setup='let docs = ' + docs_lit(["long line here", "a\nb"]) + ';'),
+     T("body_points_into_raw", "body_excerpt's title points into raw", 'body_excerpt(&raw).title.as_ptr() == raw[4..].as_ptr()', "true", setup='let raw = String::from("---\\nZ");'),
+     T("unicode", '["日本\\r\\n 語 "]', "excerpts(&docs)", f'vec![{ex("日本", "語")}]', setup='let docs = ' + docs_lit(["日本\r\n 語 "]) + ';'),
+     r"""
      #[test]
-     fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(307);
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6306);
          for _ in 0..300 {
              let n = rng.below(4);
-             let docs: Vec<String> = (0..n).map(|_| { let len = rng.below(8); rng.string(len, "a \\n") }).collect();
-             let want: Vec<String> = docs.iter().map(|d| d.trim().split('\\n').next().unwrap_or("").to_string()).collect();
-             check!(format!("docs = {docs:?}"), first_lines(&docs), want);
+             let mut docs: Vec<String> = Vec::new();
+             for _ in 0..n {
+                 let len = rng.below(10);
+                 docs.push(rng.string(len, "ab \n\r"));
+             }
+             let model = |d: &str| {
+                 let mut lines = d.lines().map(str::trim);
+                 let t = lines.next().unwrap_or("").to_string();
+                 let f = lines.find(|l| !l.is_empty()).unwrap_or("").to_string();
+                 (t, f)
+             };
+             let got: Vec<(String, String)> = excerpts(&docs).iter().map(|e| (e.title.to_string(), e.first_line.to_string())).collect();
+             let want: Vec<(String, String)> = docs.iter().map(|d| model(d)).collect();
+             check!(format!("excerpts({docs:?})"), got, want);
+             let mut best: Option<&String> = None;
+             for d in &docs {
+                 if best.map_or(true, |b| d.lines().count() > b.lines().count()) {
+                     best = Some(d);
+                 }
+             }
+             let got = biggest(&docs).map(|e| (e.title.to_string(), e.first_line.to_string()));
+             check!(format!("biggest({docs:?})"), got, best.map(|b| model(b)));
          }
      }
      """],
-    [("rust", "Each `Excerpt` borrows from `trimmed`, which is dropped at the end of each loop iteration, but the excerpts are read after the loop."),
-     ("rust", "`d.trim()` is already a `&str` borrowed from `docs`, which lives long enough. No need for a copy.")],
-    ("Borrowing from the long-lived input instead of a per-iteration copy fixes the error and removes an allocation.", "O(total length)", "O(n)"),
-    "If you really did need to transform each document, how would you keep the excerpts valid?",
-    ["A struct's borrow must not outlive what it points at.", "Borrow from the caller's data, not a temporary copy."],
-    rules=dict(methods=["clone", "to_owned"], lines=1),
+    [("rust", "`Excerpt::of(&normalized)` borrows a `String` created in this loop turn, and it's dropped at the end of the turn while `out` still holds the excerpt: the returned `Vec` would point at freed memory (E0515; in other shapes, E0597). Does anything need normalizing? `str::lines` already strips a trailing `\\r`."),
+     ("rust", "`body_excerpt` copies the part after \"---\" into a new `String` just to borrow it. `split_once` already gives you a slice of `raw`."),
+     ("rust", "`max_by_key` keeps the last of equal maxima; the spec wants the first. And `best.clone()` makes a copy that dies at the end of the statement.")],
+    ("""A struct with a lifetime parameter is a borrow with fields: `Excerpt<'a>` can't outlive the `str` it points into. Every failing line here borrows a `String` the function created (a normalized copy, a `to_string`, a `clone`), which is dropped at the end of its loop turn, block or statement, while the excerpt escapes. The fix is to borrow the caller's data all the way through: slices of `docs` and `raw` live as long as the caller keeps them, which is what `Vec<Excerpt<'_>>` in the signature promises. The copies were never needed: `lines()` handles `\\r\\n`, and `split_once` returns slices.
+
+`titles` shows the flip side: `ex.iter().map(|e| e.title)` copies each `&'a str` out of the excerpts, so the titles borrow the documents, not `ex`, and outlive it.""", "O(total text)", "O(n) excerpts"),
+    "`titles` builds `ex` and returns slices after `ex` is dropped. Why does that compile, when returning `&ex[0]` wouldn't?",
+    ["A struct's lifetime parameter is a borrow it can't outlive.", "Borrow the caller's data, not a local copy of it.", "Copying a `&'a str` out of a struct keeps the original lifetime."],
+    rules=dict(methods=["clone", "to_string", "to_owned", "replace", "leak", "into"]),
     wrong=dict(
-        drops_the_trim="""
-            pub struct Excerpt<'a> {
-                pub text: &'a str,
-            }
-
-            /// The first line of each document, after trimming the document.
-            pub fn first_lines(docs: &[String]) -> Vec<String> {
-                let mut excerpts = Vec::new();
-                for d in docs {
-                    let trimmed = d.as_str();
-                    excerpts.push(Excerpt { text: trimmed.lines().next().unwrap_or("") });
-                }
-                excerpts.iter().map(|e| e.text.to_string()).collect()
-            }
-        """,
-        trims_only_the_start="""
-            pub struct Excerpt<'a> {
-                pub text: &'a str,
-            }
-
-            /// The first line of each document, after trimming the document.
-            pub fn first_lines(docs: &[String]) -> Vec<String> {
-                let mut excerpts = Vec::new();
-                for d in docs {
-                    let trimmed = d.trim_start();
-                    excerpts.push(Excerpt { text: trimmed.lines().next().unwrap_or("") });
-                }
-                excerpts.iter().map(|e| e.text.to_string()).collect()
-            }
-        """,
+        biggest_last_on_tie=sub(EXCERPT_SOLUTION, "if best.map_or(true, |b| d.lines().count() > b.lines().count()) {", "if best.map_or(true, |b| d.lines().count() >= b.lines().count()) {"),
+        body_after_last_separator=sub(EXCERPT_SOLUTION, 'match raw.split_once("---\\n") {', 'match raw.rsplit_once("---\\n") {'),
+        biggest_by_bytes=sub(EXCERPT_SOLUTION, "if best.map_or(true, |b| d.lines().count() > b.lines().count()) {", "if best.map_or(true, |b| d.len() > b.len()) {"),
     ),
 ))
 
+INDEX_STARTER = r"""
+pub struct Index<'a> {
+    lines: Vec<&'a str>,
+}
+
+impl<'a> Index<'a> {
+    pub fn new(text: &'a str) -> Self {
+        Index { lines: text.lines().collect() }
+    }
+
+    /// The longest line; the first on a tie.
+    pub fn longest_line(&self) -> &str {
+        self.lines.iter().copied().fold("", |best, l| if l.len() > best.len() { l } else { best })
+    }
+
+    /// Every line containing `word`.
+    pub fn lines_with(&self, word: &str) -> Vec<&str> {
+        self.lines.iter().copied().filter(|l| l.contains(word)).collect()
+    }
+
+    /// The lines, in order.
+    pub fn iter(&self) -> impl Iterator<Item = &str> {
+        self.lines.iter().copied()
+    }
+
+    /// Hands the lines over.
+    pub fn into_lines(self) -> Vec<&str> {
+        self.lines
+    }
+}
+"""
+
+INDEX_SOLUTION = INDEX_STARTER
+for _old, _new in [
+    ("    pub fn longest_line(&self) -> &str {", "    pub fn longest_line(&self) -> &'a str {"),
+    ("    pub fn lines_with(&self, word: &str) -> Vec<&str> {", "    pub fn lines_with(&self, word: &str) -> Vec<&'a str> {"),
+    ("    pub fn iter(&self) -> impl Iterator<Item = &str> {", "    pub fn iter(&self) -> impl Iterator<Item = &'a str> + '_ {"),
+    ("    pub fn into_lines(self) -> Vec<&str> {", "    pub fn into_lines(self) -> Vec<&'a str> {"),
+]:
+    INDEX_SOLUTION = sub(INDEX_SOLUTION, _old, _new)
+
+TXT = 'let text = String::from("fn main\\nlet x\\nfn helper\\n");'
+
 P.append(fix(
-    "fix-result-borrows-struct", "Fix: the result borrows the struct, not the text", "easy", "structs-holding-refs", ["'a vs '_"],
-    "`Document` compiles, but callers can't keep a result after the `Document` is gone. Fix the signatures so the tests compile.",
+    "fix-result-borrows-struct", "Fix: the result borrows the struct, not the text", "easy", "structs-holding-refs", ["'a vs '_", "elision rule 3", "impl Trait + '_", "E0106"],
     """
-    pub struct Document<'a> {
-        text: &'a str,
-    }
-
-    impl<'a> Document<'a> {
-        pub fn new(text: &'a str) -> Self {
-            Document { text }
-        }
-
-        /// The longest line; the first one on a tie.
-        pub fn longest_line(&self) -> &str {
-            self.text.lines().fold("", |best, l| if l.len() > best.len() { l } else { best })
-        }
-
-        /// Every line containing `word`.
-        pub fn lines_with(&self, word: &str) -> Vec<&str> {
-            self.text.lines().filter(|l| l.contains(word)).collect()
-        }
-    }
+        `Index` holds slices of a text. Its methods' results are slices of that text too, but elision ties
+        them to `&self`, so callers can't keep them once the `Index` is gone, and `into_lines` doesn't
+        compile at all. Fix the four return types so each says what it really borrows. The tests drop the
+        `Index` and keep the results.
     """,
-    """
-    pub struct Document<'a> {
-        text: &'a str,
-    }
-
-    impl<'a> Document<'a> {
-        pub fn new(text: &'a str) -> Self {
-            Document { text }
-        }
-
-        /// The longest line; the first one on a tie.
-        pub fn longest_line(&self) -> &'a str {
-            self.text.lines().fold("", |best, l| if l.len() > best.len() { l } else { best })
-        }
-
-        /// Every line containing `word`.
-        pub fn lines_with(&self, word: &str) -> Vec<&'a str> {
-            self.text.lines().filter(|l| l.contains(word)).collect()
-        }
-    }
-    """,
-    [T("longest_outlives_doc", "text \"a\\nlonger line\\nb\"; drop the Document", "line", '"longer line"',
-       setup='let text = String::from("a\\nlonger line\\nb");\nlet line;\n{\n    let doc = Document::new(&text);\n    line = doc.longest_line();\n}'),
-     T("lines_outlive_doc", "lines with \"x\"; drop the Document", "found", 'vec!["x1", "2x"]',
-       setup='let text = String::from("x1\\nno\\n2x");\nlet found;\n{\n    let doc = Document::new(&text);\n    found = doc.lines_with("x");\n}'),
-     T("tie", '"ab\\ncd"', 'Document::new("ab\\ncd").longest_line()', '"ab"'),
-     T("empty_text", '""', '(d.longest_line(), d.lines_with("x"))', '("", Vec::<&str>::new())', setup='let d = Document::new("");'),
-     T("no_line_matches", '"a\\nb", word "z"', 'Document::new("a\\nb").lines_with("z")', "Vec::<&str>::new()")],
-    [T("tie", '"ab\\ncd"', 'Document::new("ab\\ncd").longest_line()', '"ab"'),
-     T("single_line", '"only"', 'Document::new("only").longest_line()', '"only"'),
-     T("crlf", '"ab\\r\\nc"', '(d.longest_line(), d.lines_with("b"))', '("ab", vec!["ab"])', setup='let d = Document::new("ab\\r\\nc");'),
-     T("trailing_newline", '"a\\nbb\\n"', 'Document::new("a\\nbb\\n").lines_with("")', 'vec!["a", "bb"]'),
-     T("case_sensitive", '"Rust\\nrust", word "rust"', 'Document::new("Rust\\nrust").lines_with("rust")', 'vec!["rust"]'),
-     T("unicode", '"éé\\nabc", longest by bytes', 'Document::new("éé\\nabc").longest_line()', '"éé"'),
-     T("blank_lines", '"\\n\\nx\\n"', 'Document::new("\\n\\nx\\n").longest_line()', '"x"'),
-     T("word_in_the_middle", '"one two\\nthree", word "tw"', 'Document::new("one two\\nthree").lines_with("tw")', 'vec!["one two"]'),
-     """
+    INDEX_STARTER,
+    INDEX_SOLUTION,
+    [T("longest_line_outlives_index", TXT + " longest_line, then drop the index", "l", '"fn helper"', setup=TXT + "\nlet l = Index::new(&text).longest_line();"),
+     T("lines_with", "lines containing \"fn\", after the index is dropped", "v", 'vec!["fn main", "fn helper"]', setup=TXT + '\nlet v = Index::new(&text).lines_with("fn");'),
+     T("iter_items_outlive_index", "collect iter() into a Vec, drop the index", "v", 'vec!["fn main", "let x", "fn helper"]', setup=TXT + "\nlet v: Vec<&str> = {\n    let ix = Index::new(&text);\n    ix.iter().collect()\n};"),
+     T("into_lines", "into_lines", "Index::new(&text).into_lines()", 'vec!["fn main", "let x", "fn helper"]', setup=TXT),
+     T("lines_with_temporary_word", "lines_with a word that's dropped first", "v", 'vec!["let x"]', setup=TXT + '\nlet ix = Index::new(&text);\nlet v = ix.lines_with(&String::from("x"));')],
+    [T("empty_text", "\"\"", '(Index::new("").longest_line(), Index::new("").into_lines().len())', '("", 0)'),
+     T("longest_tie_first", "\"ab\\ncd\"", 'Index::new("ab\\ncd").longest_line()', '"ab"'),
+     T("lines_with_none", "no line contains \"zz\"", 'Index::new("a\\nb").lines_with("zz").len()', "0"),
+     T("lines_with_empty_word", "every line contains \"\"", 'Index::new("a\\nb").lines_with("")', 'vec!["a", "b"]'),
+     T("results_point_into_text", "longest_line points into the text", "Index::new(&text).longest_line().as_ptr() == text[14..].as_ptr()", "true", setup=TXT),
+     T("iter_twice", "iter() twice while the index lives", "(ix.iter().count(), ix.iter().last())", '(3, Some("fn helper"))', setup=TXT + "\nlet ix = Index::new(&text);"),
+     T("crlf", "\"a\\r\\nbb\\r\\n\"", 'Index::new("a\\r\\nbb\\r\\n").into_lines()', 'vec!["a", "bb"]'),
+     T("unicode_longest", "\"ééé\\nabcd\"", 'Index::new("ééé\\nabcd").longest_line()', '"ééé"'),
+     r"""
      #[test]
-     fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(308);
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6307);
          for _ in 0..300 {
-             let n = rng.below(10);
-             let text = rng.string(n, "ab\\n");
-             let lines: Vec<&str> = text.split('\\n').collect();
-             let lines = if text.ends_with('\\n') { &lines[..lines.len() - 1] } else { &lines[..] };
+             let len = rng.below(14);
+             let text = rng.string(len, "ab\n");
+             let lines: Vec<&str> = text.lines().collect();
              let mut longest = "";
-             for l in lines {
+             for &l in &lines {
                  if l.len() > longest.len() {
                      longest = l;
                  }
              }
-             let with_b: Vec<&str> = lines.iter().copied().filter(|l| l.contains('b')).collect();
-             let d = Document::new(&text);
-             check!(format!("text = {text:?}"), (d.longest_line(), d.lines_with("b")), (longest, with_b));
+             let with: Vec<&str> = lines.iter().copied().filter(|l| l.contains("ab")).collect();
+             let got = {
+                 let ix = Index::new(&text);
+                 (ix.longest_line(), ix.lines_with("ab"), ix.iter().collect::<Vec<_>>())
+             };
+             check!(format!("text {text:?}"), got, (longest, with, lines.clone()));
          }
      }
      """],
-    [("rust", "An elided output in a `&self` method borrows from `self`, the short-lived `Document`. The lines really come from `text`, which lives for `'a`."),
-     ("rust", "Say so: return `&'a str` and `Vec<&'a str>`.")],
-    ("`&'a str` means 'as long as the text', `&str` from `&self` means 'as long as this Document'. The body compiles either way; only callers see the difference.", "O(n)", "O(k)"),
-    "Why is the first version not wrong, just less useful?",
-    ["Methods on borrowing structs can return the struct's lifetime.", "Elision picks `self`, which is often too short."],
-    rules=dict(lines=2),
+    [("rust", "Elision rule 3 ties every output of a `&self` method to `&self`. But these results are slices of the text, which lives for `'a`, longer than any borrow of the `Index`. Name `'a` in the output."),
+     ("rust", "`iter` really does borrow both: the `Vec` inside `self` (to iterate it) and the text (its items). Items `&'a str`, iterator `+ '_`."),
+     ("rust", "`into_lines(self)` has no reference input at all, so elision has nothing to use (E0106); the lines' lifetime is `'a`.")],
+    ("""Inside `impl<'a> Index<'a>`, `&self` is really `&'s Index<'a>` with `'a: 's`: the text outlives any borrow of the index. Elision gives a `&self` method's output `'s`, which is correct for data owned by the struct (like a `&[&str]` of `self.lines`) but too short for data the struct only points at. Writing `&'a str` promises callers the longer lifetime, and the body can deliver it because copying a `&'a str` out of `self.lines` keeps `'a`. `iter` needs both lifetimes: the iterator borrows `self.lines` (`+ '_`) and yields `&'a str`. `into_lines(self)` consumes the index and has no reference input, so the output's lifetime must be named.
+
+Syntax to remember: `fn longest_line(&self) -> &'a str` · `fn iter(&self) -> impl Iterator<Item = &'a str> + '_` · `fn into_lines(self) -> Vec<&'a str>`.""", "O(n)", "O(1) extra"),
+    "When is `-> &str` (tied to `&self`) the right choice on a struct that holds `&'a str`?",
+    ["`&self` outputs get the borrow of `self`, not the struct's `'a`.", "Name `'a` for data the struct only points at.", "An iterator can borrow `self` and yield `'a` items."],
+    rules=dict(methods=["clone", "to_string", "to_owned", "leak"], lines=4),
     wrong=dict(
-        last_line_on_tie="""
-            pub struct Document<'a> {
-                text: &'a str,
-            }
-
-            impl<'a> Document<'a> {
-                pub fn new(text: &'a str) -> Self {
-                    Document { text }
-                }
-
-                /// The longest line; the first one on a tie.
-                pub fn longest_line(&self) -> &'a str {
-                    self.text.lines().fold("", |best, l| if l.len() >= best.len() { l } else { best })
-                }
-
-                /// Every line containing `word`.
-                pub fn lines_with(&self, word: &str) -> Vec<&'a str> {
-                    self.text.lines().filter(|l| l.contains(word)).collect()
-                }
-            }
-        """,
-        splits_on_newline="""
-            pub struct Document<'a> {
-                text: &'a str,
-            }
-
-            impl<'a> Document<'a> {
-                pub fn new(text: &'a str) -> Self {
-                    Document { text }
-                }
-
-                /// The longest line; the first one on a tie.
-                pub fn longest_line(&self) -> &'a str {
-                    self.text.split('\\n').fold("", |best, l| if l.len() > best.len() { l } else { best })
-                }
-
-                /// Every line containing `word`.
-                pub fn lines_with(&self, word: &str) -> Vec<&'a str> {
-                    self.text.split('\\n').filter(|l| l.contains(word)).collect()
-                }
-            }
-        """,
+        longest_last_on_tie=sub(INDEX_SOLUTION, "if l.len() > best.len() { l } else { best }", "if l.len() >= best.len() { l } else { best }"),
+        lines_with_starts=sub(INDEX_SOLUTION, "filter(|l| l.contains(word))", "filter(|l| l.starts_with(word))"),
+        iter_reversed=sub(INDEX_SOLUTION, "        self.lines.iter().copied()\n    }\n\n    /// Hands", "        self.lines.iter().rev().copied()\n    }\n\n    /// Hands"),
     ),
 ))
 

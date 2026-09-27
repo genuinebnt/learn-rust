@@ -8,22 +8,22 @@ impl<'a> Index<'a> {
     }
 
     /// The longest line; the first on a tie.
-    pub fn longest_line(&self) -> &str {
-        self.lines.iter().copied().fold("", |best, l| if l.len() > best.len() { l } else { best })
+    pub fn longest_line(&self) -> &'a str {
+        self.lines.iter().copied().fold("", |best, l| if l.len() >= best.len() { l } else { best })
     }
 
     /// Every line containing `word`.
-    pub fn lines_with(&self, word: &str) -> Vec<&str> {
+    pub fn lines_with(&self, word: &str) -> Vec<&'a str> {
         self.lines.iter().copied().filter(|l| l.contains(word)).collect()
     }
 
     /// The lines, in order.
-    pub fn iter(&self) -> impl Iterator<Item = &str> {
+    pub fn iter(&self) -> impl Iterator<Item = &'a str> + '_ {
         self.lines.iter().copied()
     }
 
     /// Hands the lines over.
-    pub fn into_lines(self) -> Vec<&str> {
+    pub fn into_lines(self) -> Vec<&'a str> {
         self.lines
     }
 }

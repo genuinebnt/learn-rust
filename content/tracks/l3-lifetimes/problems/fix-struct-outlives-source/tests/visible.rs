@@ -1,26 +1,35 @@
 use solution::*;
 
 #[test]
-fn two_docs() {
-    check!(r#"["  hello\nworld", "x"]"#, first_lines(&["  hello\nworld".to_string(), "x".to_string()]), vec!["hello".to_string(), "x".to_string()]);
+fn excerpts_example() {
+    let docs = ["Intro\n\nfirst words", " Notes \r\n body\r\n"].map(String::from);
+    check!(r#"["Intro\n\nfirst words", " Notes \r\n body\r\n"]"#, excerpts(&docs), vec![Excerpt { title: "Intro", first_line: "first words" }, Excerpt { title: "Notes", first_line: "body" }]);
 }
 
 #[test]
-fn blank_doc() {
-    check!(r#"["\n"]"#, first_lines(&["\n".to_string()]), vec![String::new()]);
+fn body_excerpt_example() {
+    check!(r#""meta\n---\nTitle\ntext""#, body_excerpt("meta\n---\nTitle\ntext"), Excerpt { title: "Title", first_line: "text" });
 }
 
 #[test]
-fn none() {
-    check!(r#"[]"#, first_lines(&[]).len(), 0);
+fn body_without_separator() {
+    check!(r#""Just\none""#, body_excerpt("Just\none"), Excerpt { title: "Just", first_line: "one" });
 }
 
 #[test]
-fn trailing_spaces() {
-    check!(r#"["hi  "]"#, first_lines(&["hi  ".to_string()]), vec!["hi".to_string()]);
+fn biggest_first_on_tie() {
+    let docs = ["a\nb", "c\nd", "e"].map(String::from);
+    check!(r#"["a\nb", "c\nd", "e"]"#, biggest(&docs), Some(Excerpt { title: "a", first_line: "b" }));
 }
 
 #[test]
-fn leading_blank_lines() {
-    check!(r#"["\n\n  a\nb"]"#, first_lines(&["\n\n  a\nb".to_string()]), vec!["a".to_string()]);
+fn titles_longest_first() {
+    let docs = ["ab", "abcd", "xy"].map(String::from);
+    check!(r#"["ab", "abcd", "xy"]"#, titles(&docs), vec!["abcd", "ab", "xy"]);
+}
+
+#[test]
+fn excerpts_borrow_the_docs() {
+    let docs = [" T"].map(String::from);
+    check!(r#"the title points into the document"#, excerpts(&docs)[0].title.as_ptr() == docs[0][1..].as_ptr(), true);
 }

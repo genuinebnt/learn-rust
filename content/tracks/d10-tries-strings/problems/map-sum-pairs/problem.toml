@@ -1,0 +1,37 @@
+slug = "map-sum-pairs"
+title = "Map sum pairs"
+mode = "write"
+level = "easy"
+stage = "first-tries"
+order = 5
+status = "ready"
+tags = ["trie", "HashMap", "i64"]
+companies = ["Amazon"]
+teaches = [
+  "Store an aggregate in every trie node so a prefix query is one walk.",
+  "Overwrites apply a delta, which needs the old value from a `HashMap`.",
+]
+constraints = ["keys: 1–50 lowercase ASCII letters", "values: any i32", "up to 10⁵ calls"]
+follow_up = "How would you support `remove(key)`?"
+related = ["S4"]
+
+[[examples]]
+input = "insert(\"apple\", 3); sum(\"ap\"); insert(\"app\", 2); sum(\"ap\")"
+output = "3, then 5"
+
+[[hints]]
+kind = "approach"
+text = "Keep, in every trie node, the sum of the values below it. `sum` is then one walk down the prefix."
+
+[[hints]]
+kind = "rust"
+text = "`HashMap::insert` returns the old value, so `val - old.unwrap_or(0)` is the delta to add along the key's path."
+
+[[hints]]
+kind = "edge case"
+text = "Inserting an existing key replaces its value; adding `val` again would count it twice."
+
+[solution]
+explanation = "Every node on a key's path counts that key, so adding the change in value along the path keeps all totals right. Each call is O(key length), independent of how many keys are stored."
+time = "O(L) per call"
+space = "O(total letters × 26)"

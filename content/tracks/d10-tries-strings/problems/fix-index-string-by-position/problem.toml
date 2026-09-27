@@ -1,0 +1,39 @@
+slug = "fix-index-string-by-position"
+title = "Fix: indexing a String by position"
+mode = "fix"
+level = "easy"
+stage = "first-tries"
+order = 3
+status = "ready"
+tags = ["E0277", "chars"]
+teaches = [
+  "`str` can't be indexed by `usize`: a position in characters isn't a position in bytes.",
+  "`chars().nth(i)` walks to the i-th character and returns `None` past the end.",
+]
+follow_up = "When is indexing bytes (`word.as_bytes()[i]`) the right choice, and what must you know about the input first?"
+related = ["S2", "L2"]
+
+[[examples]]
+input = "word = \"héllo\", i = 1"
+output = "Some('é')"
+
+[[examples]]
+input = "word = \"hello\", i = 5"
+output = "None"
+
+[[hints]]
+kind = "rust"
+text = "UTF-8 characters take 1 to 4 bytes, so Rust won't guess what `word[i]` means. Ask for characters explicitly with `word.chars()`."
+
+[[hints]]
+kind = "edge case"
+text = "`word.len()` counts bytes. `\"héllo\".len()` is 6, but it has 5 characters."
+
+[solution]
+explanation = "`chars().nth(i)` decodes characters from the start, so it's O(i), and it already returns `None` past the end, which makes the length check unnecessary. If you need many positions, collect `chars()` into a `Vec<char>` once."
+time = "O(i)"
+space = "O(1)"
+
+[rules]
+forbid_unsafe = true
+max_changed_lines = 2

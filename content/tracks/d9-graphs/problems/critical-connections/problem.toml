@@ -3,7 +3,7 @@ title = "Critical connections"
 mode = "write"
 level = "hard"
 stage = "scc-bridges-arenas"
-order = 45
+order = 52
 status = "ready"
 tags = ["bridges", "lowlink", "edge ids"]
 companies = ["Meta", "Amazon", "Google", "Microsoft"]
@@ -11,7 +11,7 @@ teaches = [
   "Skipping the parent edge by id, so parallel edges count.",
   "Reusing the state-struct pattern.",
 ]
-constraints = ["n ≤ 5000"]
+constraints = ["n ≤ 2·10⁵", "edges ≤ 4·10⁵"]
 follow_up = "How would you find articulation points (critical nodes) instead?"
 
 [[examples]]

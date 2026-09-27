@@ -1,0 +1,39 @@
+slug = "bus-routes"
+title = "Bus routes"
+mode = "write"
+level = "hard"
+stage = "hard-traversals"
+order = 47
+status = "ready"
+tags = ["BFS on routes", "HashMap"]
+teaches = [
+  "Choosing the right nodes for BFS: routes, not stops.",
+  "Visiting each route once so the work is linear in the input.",
+]
+constraints = ["routes.len() ≤ 500", "total stops over all routes ≤ 10⁵", "stops < 10⁶"]
+follow_up = "What if each ride also had a fare and you wanted the cheapest trip rather than the fewest buses?"
+
+[[examples]]
+input = "routes = [[1,2,7], [3,6,7]], source = 1, target = 6"
+output = "Some(2)"
+
+[[examples]]
+input = "routes = [[7,12], [4,5,15], [6], [15,19], [9,12,13]], source = 15, target = 12"
+output = "None"
+
+[[hints]]
+kind = "approach"
+text = "Make each bus a BFS node: two buses are adjacent if they share a stop. Start from every bus through `source`; the BFS depth is the number of buses."
+
+[[hints]]
+kind = "rust"
+text = "Build `HashMap<u32, Vec<usize>>` from stop to buses. Taking a stop's list out with `remove` guarantees each list is walked once."
+
+[[hints]]
+kind = "edge case"
+text = "`source == target` needs 0 buses even if no bus stops there. BFS over stops that re-reads a whole route for every stop on it is quadratic."
+
+[solution]
+explanation = "Every bus is queued once and every stop's bus list is read once, so the work is linear in the total route length."
+time = "O(Σ|route|)"
+space = "O(Σ|route|)"

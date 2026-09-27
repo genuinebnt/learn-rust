@@ -7532,6 +7532,1620 @@ P.append(dict(
     related=["L2"],
 ))
 
+P.append(dict(
+    slug="accounts-merge", title="Accounts merge", level="medium", stage="union-find-mst",
+    tags=["union-find", "HashMap", "interning"],
+    teaches=["Union-find over values: give each email an index first.", "Grouping by root with a `HashMap<usize, Vec<_>>`."],
+    statement="""
+        Each account is a name followed by one or more emails. Two accounts belong to the same person if they
+        share an email, and that links transitively. Two accounts with the same name but no shared email are
+        different people. Merge the accounts: each result is the name followed by the person's emails, sorted
+        and without repeats. Return the merged accounts sorted.
+    """,
+    examples=[('accounts = [["John","johnsmith@mail.com","john_newyork@mail.com"], ["John","johnsmith@mail.com","john00@mail.com"], ["Mary","mary@mail.com"], ["John","johnnybravo@mail.com"]]',
+               '[["John","john00@mail.com","john_newyork@mail.com","johnsmith@mail.com"], ["John","johnnybravo@mail.com"], ["Mary","mary@mail.com"]]')],
+    constraints=["accounts.len() ≤ 10⁵", "every account has a name and at least one email", "accounts that share an email have the same name"],
+    starter="""
+        pub fn accounts_merge(accounts: &[Vec<&str>]) -> Vec<Vec<String>> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::HashMap;
+
+        pub fn accounts_merge(accounts: &[Vec<&str>]) -> Vec<Vec<String>> {
+            fn root(parent: &mut [usize], mut x: usize) -> usize {
+                while parent[x] != x {
+                    parent[x] = parent[parent[x]];
+                    x = parent[x];
+                }
+                x
+            }
+
+            // Every distinct email gets an index; `owner[e]` is the first account that listed it.
+            let mut id: HashMap<&str, usize> = HashMap::new();
+            let mut parent: Vec<usize> = Vec::new();
+            let mut owner: Vec<usize> = Vec::new();
+            for (a, account) in accounts.iter().enumerate() {
+                let mut first = None;
+                for &email in &account[1..] {
+                    let e = *id.entry(email).or_insert_with(|| {
+                        parent.push(parent.len());
+                        owner.push(a);
+                        parent.len() - 1
+                    });
+                    match first {
+                        None => first = Some(e),
+                        Some(f) => {
+                            let (rf, re) = (root(&mut parent, f), root(&mut parent, e));
+                            parent[re] = rf;
+                        }
+                    }
+                }
+            }
+
+            let mut groups: HashMap<usize, Vec<&str>> = HashMap::new();
+            for (&email, &e) in &id {
+                let r = root(&mut parent, e);
+                groups.entry(r).or_default().push(email);
+            }
+            let mut out: Vec<Vec<String>> = groups
+                .into_iter()
+                .map(|(r, mut emails)| {
+                    emails.sort_unstable();
+                    let mut merged = vec![accounts[owner[r]][0].to_string()];
+                    merged.extend(emails.into_iter().map(String::from));
+                    merged
+                })
+                .collect();
+            out.sort_unstable();
+            out
+        }
+    """,
+    visible=[
+        T("leetcode_example", '[["John","johnsmith@mail.com","john_newyork@mail.com"], ["John","johnsmith@mail.com","john00@mail.com"], ["Mary","mary@mail.com"], ["John","johnnybravo@mail.com"]]',
+          'accounts_merge(&[vec!["John", "johnsmith@mail.com", "john_newyork@mail.com"], vec!["John", "johnsmith@mail.com", "john00@mail.com"], vec!["Mary", "mary@mail.com"], vec!["John", "johnnybravo@mail.com"]])',
+          'vec![vec!["John", "john00@mail.com", "john_newyork@mail.com", "johnsmith@mail.com"], vec!["John", "johnnybravo@mail.com"], vec!["Mary", "mary@mail.com"]]'),
+        T("nothing_to_merge", '[["Gabe","Gabe0@m.co","Gabe3@m.co","Gabe1@m.co"], ["Kevin","Kevin3@m.co","Kevin5@m.co","Kevin0@m.co"], ["Ethan","Ethan5@m.co","Ethan4@m.co","Ethan0@m.co"]]',
+          'accounts_merge(&[vec!["Gabe", "Gabe0@m.co", "Gabe3@m.co", "Gabe1@m.co"], vec!["Kevin", "Kevin3@m.co", "Kevin5@m.co", "Kevin0@m.co"], vec!["Ethan", "Ethan5@m.co", "Ethan4@m.co", "Ethan0@m.co"]])',
+          'vec![vec!["Ethan", "Ethan0@m.co", "Ethan4@m.co", "Ethan5@m.co"], vec!["Gabe", "Gabe0@m.co", "Gabe1@m.co", "Gabe3@m.co"], vec!["Kevin", "Kevin0@m.co", "Kevin3@m.co", "Kevin5@m.co"]]'),
+        T("one_account", '[["Ann","a@x"]]', 'accounts_merge(&[vec!["Ann", "a@x"]])', 'vec![vec!["Ann", "a@x"]]'),
+        T("same_name_is_not_enough", '[["Ann","a@x"], ["Ann","b@x"]]', 'accounts_merge(&[vec!["Ann", "a@x"], vec!["Ann", "b@x"]])', 'vec![vec!["Ann", "a@x"], vec!["Ann", "b@x"]]'),
+        T("linked_through_a_third_account", '[["Ann","a@x","b@x"], ["Ann","c@x","d@x"], ["Ann","b@x","c@x"]]',
+          'accounts_merge(&[vec!["Ann", "a@x", "b@x"], vec!["Ann", "c@x", "d@x"], vec!["Ann", "b@x", "c@x"]])', 'vec![vec!["Ann", "a@x", "b@x", "c@x", "d@x"]]'),
+    ],
+    hidden=[
+        T("repeated_email_in_one_account", '[["Ann","a@x","a@x"]]', 'accounts_merge(&[vec!["Ann", "a@x", "a@x"]])', 'vec![vec!["Ann", "a@x"]]'),
+        T("identical_accounts", '[["Bob","b@x"], ["Bob","b@x"]]', 'accounts_merge(&[vec!["Bob", "b@x"], vec!["Bob", "b@x"]])', 'vec![vec!["Bob", "b@x"]]'),
+        T("empty", "accounts = []", "accounts_merge(&[])", "Vec::<Vec<String>>::new()"),
+        T("long_chain_listed_backwards", '[["C","e@x","f@x"], ["C","d@x","e@x"], ["C","c@x","d@x"], ["C","b@x","c@x"], ["C","a@x","b@x"]]',
+          'accounts_merge(&[vec!["C", "e@x", "f@x"], vec!["C", "d@x", "e@x"], vec!["C", "c@x", "d@x"], vec!["C", "b@x", "c@x"], vec!["C", "a@x", "b@x"]])',
+          'vec![vec!["C", "a@x", "b@x", "c@x", "d@x", "e@x", "f@x"]]'),
+        T("two_groups_joined_late", '[["D","a@x"], ["D","b@x"], ["D","c@x","a@x"], ["D","c@x","b@x"]]',
+          'accounts_merge(&[vec!["D", "a@x"], vec!["D", "b@x"], vec!["D", "c@x", "a@x"], vec!["D", "c@x", "b@x"]])', 'vec![vec!["D", "a@x", "b@x", "c@x"]]'),
+        T("sorted_by_name_then_email", '[["Zed","z@x"], ["Amy","y@x"], ["Amy","b@x"]]', 'accounts_merge(&[vec!["Zed", "z@x"], vec!["Amy", "y@x"], vec!["Amy", "b@x"]])',
+          'vec![vec!["Amy", "b@x"], vec!["Amy", "y@x"], vec!["Zed", "z@x"]]'),
+        T("unicode", '[["Zoë","ü@x","a@x"], ["Zoë","a@x"]]', 'accounts_merge(&[vec!["Zoë", "ü@x", "a@x"], vec!["Zoë", "a@x"]])', 'vec![vec!["Zoë", "a@x", "ü@x"]]'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            use std::collections::BTreeSet;
+            let mut rng = anneal_prelude::Rng::new(951);
+            let names = ["Ann", "Bob"];
+            for _ in 0..300 {
+                let people = 1 + rng.below(4);
+                let name_of: Vec<&str> = (0..people).map(|_| *rng.pick(&names)).collect();
+                let count = 1 + rng.below(6);
+                let mut owned: Vec<Vec<String>> = Vec::new();
+                for _ in 0..count {
+                    let p = rng.below(people);
+                    let k = 1 + rng.below(3);
+                    let mut account = vec![name_of[p].to_string()];
+                    for _ in 0..k {
+                        let j = rng.below(3);
+                        account.push(format!("p{p}_{j}@m"));
+                    }
+                    owned.push(account);
+                }
+                let accounts: Vec<Vec<&str>> = owned.iter().map(|a| a.iter().map(|s| s.as_str()).collect()).collect();
+                // Brute force: merge any two groups that share an email until nothing changes.
+                let mut groups: Vec<(String, BTreeSet<String>)> = owned.iter().map(|a| (a[0].clone(), a[1..].iter().cloned().collect())).collect();
+                'outer: loop {
+                    for i in 0..groups.len() {
+                        for j in i + 1..groups.len() {
+                            if !groups[i].1.is_disjoint(&groups[j].1) {
+                                let (_, moved) = groups.remove(j);
+                                groups[i].1.extend(moved);
+                                continue 'outer;
+                            }
+                        }
+                    }
+                    break;
+                }
+                let mut want: Vec<Vec<String>> = groups.into_iter().map(|(n, e)| std::iter::once(n).chain(e).collect()).collect();
+                want.sort();
+                check!(format!("accounts = {accounts:?}"), accounts_merge(&accounts), want);
+            }
+        }
+
+        #[test]
+        fn scale_all_separate_50k() {
+            let n = 50_000;
+            let owned: Vec<[String; 2]> = (0..n).map(|i| [format!("P{i:06}"), format!("e{i:06}@x")]).collect();
+            let accounts: Vec<Vec<&str>> = owned.iter().rev().map(|[a, b]| vec![a.as_str(), b.as_str()]).collect();
+            let out = accounts_merge(&accounts);
+            check!("50000 accounts, no shared emails, listed in reverse", (out.len(), out[0].clone(), out[n - 1].clone()),
+                   (n, vec!["P000000".to_string(), "e000000@x".to_string()], vec!["P049999".to_string(), "e049999@x".to_string()]));
+        }
+
+        #[test]
+        fn scale_scrambled_chain_50k() {
+            // Account i holds e_i and e_(i+1); listed in a scrambled order, they all merge into one.
+            let n = 50_000;
+            let emails: Vec<String> = (0..=n).map(|i| format!("e{i:06}@x")).collect();
+            let accounts: Vec<Vec<&str>> = (0..n).map(|k| k * 7919 % n).map(|i| vec!["Ann", emails[i].as_str(), emails[i + 1].as_str()]).collect();
+            let out = accounts_merge(&accounts);
+            check!("50000 accounts chained by shared emails, scrambled", (out.len(), out[0].len(), out[0][1].clone(), out[0][n + 1].clone()),
+                   (1, n + 2, "e000000@x".to_string(), "e050000@x".to_string()));
+        }
+        """,
+    ],
+    wrong=dict(
+        scan_every_group="""
+            use std::collections::HashSet;
+
+            pub fn accounts_merge(accounts: &[Vec<&str>]) -> Vec<Vec<String>> {
+                let mut groups: Vec<(String, HashSet<String>)> = Vec::new();
+                for account in accounts {
+                    let mut merged: HashSet<String> = account[1..].iter().map(|e| e.to_string()).collect();
+                    let mut kept = Vec::new();
+                    for (name, emails) in groups {
+                        if account[1..].iter().any(|e| emails.contains(*e)) {
+                            merged.extend(emails);
+                        } else {
+                            kept.push((name, emails));
+                        }
+                    }
+                    kept.push((account[0].to_string(), merged));
+                    groups = kept;
+                }
+                let mut out: Vec<Vec<String>> = groups
+                    .into_iter()
+                    .map(|(name, emails)| {
+                        let mut emails: Vec<String> = emails.into_iter().collect();
+                        emails.sort_unstable();
+                        std::iter::once(name).chain(emails).collect()
+                    })
+                    .collect();
+                out.sort_unstable();
+                out
+            }
+        """,
+        first_matching_group_only="""
+            use std::collections::BTreeSet;
+
+            pub fn accounts_merge(accounts: &[Vec<&str>]) -> Vec<Vec<String>> {
+                let mut groups: Vec<(String, BTreeSet<String>)> = Vec::new();
+                for account in accounts {
+                    let emails = account[1..].iter().map(|e| e.to_string());
+                    match groups.iter_mut().find(|(_, g)| account[1..].iter().any(|e| g.contains(*e))) {
+                        Some((_, g)) => g.extend(emails),
+                        None => groups.push((account[0].to_string(), emails.collect())),
+                    }
+                }
+                let mut out: Vec<Vec<String>> = groups.into_iter().map(|(n, e)| std::iter::once(n).chain(e).collect()).collect();
+                out.sort_unstable();
+                out
+            }
+        """,
+        merge_by_name="""
+            use std::collections::{BTreeMap, BTreeSet};
+
+            pub fn accounts_merge(accounts: &[Vec<&str>]) -> Vec<Vec<String>> {
+                let mut by_name: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+                for account in accounts {
+                    by_name.entry(account[0]).or_default().extend(account[1..].iter().copied());
+                }
+                by_name.into_iter().map(|(n, e)| std::iter::once(n).chain(e).map(String::from).collect()).collect()
+            }
+        """,
+    ),
+    hints=[("approach", "Union-find over emails: join every email in an account to the account's first email. Then group emails by their root."),
+           ("rust", "Intern emails with `HashMap<&str, usize>` so the union-find works on `Vec<usize>`. Remember which account first listed each email to get the name back."),
+           ("edge case", "A later account can join two groups that were separate so far; merging into the first matching group misses that.")],
+    notes=("Interning turns strings into indices, so union-find runs on a `Vec<usize>`. Sorting the emails dominates.", "O(E log E) for E emails", "O(E)"),
+    follow_up="Solve it with a DFS over an email graph instead. Which version is easier to get right under time pressure?",
+    related=["S4"],
+))
+
+P.append(dict(
+    slug="min-cost-to-connect-all-points", title="Min cost to connect all points", level="medium", stage="union-find-mst",
+    tags=["MST", "Prim", "dense graph"],
+    teaches=["Prim's algorithm with an array instead of a heap on a complete graph.", "O(n²) beats sorting n² edges when every pair is an edge."],
+    statement="""
+        Connecting two points costs their Manhattan distance `|x1 - x2| + |y1 - y2|`. Return the minimum total
+        cost to connect all the points, so there is a path between every pair.
+    """,
+    examples=[("points = [(0,0), (2,2), (3,10), (5,2), (7,0)]", "20"), ("points = [(3,12), (-2,5), (-4,1)]", "18")],
+    constraints=["1 ≤ points.len() ≤ 3000 (LeetCode: 1000)", "-10⁶ ≤ x, y ≤ 10⁶", "points are distinct"],
+    starter="""
+        pub fn min_cost_connect_points(points: &[(i32, i32)]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn min_cost_connect_points(points: &[(i32, i32)]) -> u64 {
+            let n = points.len();
+            let dist = |a: usize, b: usize| u64::from(points[a].0.abs_diff(points[b].0) + points[a].1.abs_diff(points[b].1));
+            // best[v]: the cheapest link from v to the tree so far.
+            let mut best = vec![u64::MAX; n];
+            let mut inside = vec![false; n];
+            let mut total = 0;
+            let mut u = 0;
+            for _ in 1..n {
+                inside[u] = true;
+                let mut next = None;
+                for v in 0..n {
+                    if inside[v] {
+                        continue;
+                    }
+                    best[v] = best[v].min(dist(u, v));
+                    if next.map_or(true, |w: usize| best[v] < best[w]) {
+                        next = Some(v);
+                    }
+                }
+                let v = next.expect("an outside point remains");
+                total += best[v];
+                u = v;
+            }
+            total
+        }
+    """,
+    visible=[
+        T("leetcode_example", "points = [(0,0), (2,2), (3,10), (5,2), (7,0)]", "min_cost_connect_points(&[(0, 0), (2, 2), (3, 10), (5, 2), (7, 0)])", "20"),
+        T("negative_coordinates", "points = [(3,12), (-2,5), (-4,1)]", "min_cost_connect_points(&[(3, 12), (-2, 5), (-4, 1)])", "18"),
+        T("one_point", "points = [(0,0)]", "min_cost_connect_points(&[(0, 0)])", "0"),
+        T("two_points", "points = [(1,1), (4,-3)]", "min_cost_connect_points(&[(1, 1), (4, -3)])", "7"),
+        T("not_a_chain_in_input_order", "points = [(0,0), (10,0), (1,0)]", "min_cost_connect_points(&[(0, 0), (10, 0), (1, 0)])", "10"),
+    ],
+    hidden=[
+        T("star_beats_path", "points = [(0,0), (1,0), (-1,0), (0,1), (0,-1)]", "min_cost_connect_points(&[(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)])", "4"),
+        T("far_corners", "points = [(-10⁶,-10⁶), (10⁶,10⁶), (-10⁶,10⁶), (10⁶,-10⁶)]",
+          "min_cost_connect_points(&[(-1_000_000, -1_000_000), (1_000_000, 1_000_000), (-1_000_000, 1_000_000), (1_000_000, -1_000_000)])", "6_000_000"),
+        T("collinear", "points = [(0,5), (0,1), (0,3), (0,2)]", "min_cost_connect_points(&[(0, 5), (0, 1), (0, 3), (0, 2)])", "4"),
+        T("two_clusters", "points = [(0,0), (1,1), (100,100), (101,100)]", "min_cost_connect_points(&[(0, 0), (1, 1), (100, 100), (101, 100)])", "201"),
+        T("diagonal_neighbours", "points = [(0,0), (1,1), (2,2), (3,3)]", "min_cost_connect_points(&[(0, 0), (1, 1), (2, 2), (3, 3)])", "6"),
+        T("cheapest_link_found_late", "points = [(0,0), (5,0), (5,1), (0,6)]", "min_cost_connect_points(&[(0, 0), (5, 0), (5, 1), (0, 6)])", "12"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(952);
+            for _ in 0..300 {
+                let n = 1 + rng.below(8);
+                let mut points: Vec<(i32, i32)> = Vec::new();
+                while points.len() < n {
+                    let p = (rng.int(-6, 6) as i32, rng.int(-6, 6) as i32);
+                    if !points.contains(&p) {
+                        points.push(p);
+                    }
+                }
+                // Brute force: Kruskal over every pair.
+                let mut edges: Vec<(u64, usize, usize)> = Vec::new();
+                for a in 0..n {
+                    for b in a + 1..n {
+                        edges.push((((points[a].0 - points[b].0).abs() + (points[a].1 - points[b].1).abs()) as u64, a, b));
+                    }
+                }
+                edges.sort();
+                let mut comp: Vec<usize> = (0..n).collect();
+                let mut want = 0;
+                for (w, a, b) in edges {
+                    let (ca, cb) = (comp[a], comp[b]);
+                    if ca != cb {
+                        want += w;
+                        for c in comp.iter_mut() {
+                            if *c == cb {
+                                *c = ca;
+                            }
+                        }
+                    }
+                }
+                check!(format!("points = {points:?}"), min_cost_connect_points(&points), want);
+            }
+        }
+
+        #[test]
+        fn scale_3000_points() {
+            // 3000 distinct pseudo-random points in [-10⁶, 10⁶]² (LCG seed 11).
+            let mut x: u64 = 11;
+            let mut next = || { x = x.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407); x >> 33 };
+            let mut points: Vec<(i32, i32)> = Vec::new();
+            for _ in 0..3000 {
+                let a = (next() % 2_000_001) as i32 - 1_000_000;
+                let b = (next() % 2_000_001) as i32 - 1_000_000;
+                points.push((a, b));
+            }
+            check!("3000 pseudo-random points", min_cost_connect_points(&points), 89_732_897);
+        }
+        """,
+    ],
+    wrong=dict(
+        scan_every_pair_each_step="""
+            pub fn min_cost_connect_points(points: &[(i32, i32)]) -> u64 {
+                let n = points.len();
+                let dist = |a: usize, b: usize| u64::from(points[a].0.abs_diff(points[b].0) + points[a].1.abs_diff(points[b].1));
+                let mut inside = vec![false; n];
+                inside[0] = true;
+                let mut total = 0;
+                for _ in 1..n {
+                    let mut best: Option<(u64, usize)> = None;
+                    for u in (0..n).filter(|&u| inside[u]) {
+                        for v in (0..n).filter(|&v| !inside[v]) {
+                            let d = dist(u, v);
+                            if best.map_or(true, |(b, _)| d < b) {
+                                best = Some((d, v));
+                            }
+                        }
+                    }
+                    let (d, v) = best.unwrap();
+                    inside[v] = true;
+                    total += d;
+                }
+                total
+            }
+        """,
+        link_to_last_added_only="""
+            pub fn min_cost_connect_points(points: &[(i32, i32)]) -> u64 {
+                let n = points.len();
+                let dist = |a: usize, b: usize| u64::from(points[a].0.abs_diff(points[b].0) + points[a].1.abs_diff(points[b].1));
+                let mut inside = vec![false; n];
+                let mut total = 0;
+                let mut u = 0;
+                for _ in 1..n {
+                    inside[u] = true;
+                    let v = (0..n).filter(|&v| !inside[v]).min_by_key(|&v| dist(u, v)).unwrap();
+                    total += dist(u, v);
+                    u = v;
+                }
+                total
+            }
+        """,
+    ),
+    hints=[("approach", "Every pair is an edge, so there are n² of them. Prim's grows one tree: keep `best[v]`, the cheapest link from each outside point to the tree, and add the smallest each round."),
+           ("rust", "Two `Vec`s (`best`, `inside`) and a linear scan per round; no heap needed on a complete graph. `i32::abs_diff` gives a `u32` with no overflow."),
+           ("edge case", "After adding a point, refresh `best` for every outside point: the cheapest link may be to any tree point, not just the newest.")],
+    notes=("On a complete graph, array-based Prim is O(n²), while Kruskal or heap-Prim touch all n² edges plus a log factor.", "O(n²)", "O(n)"),
+    follow_up="With 10⁵ points, how would you avoid looking at all n² pairs? (Hint: for Manhattan distance, each point needs only a few candidate neighbours.)",
+    related=["D8"],
+))
+
+# ---------------------------------------------------------------- hard traversals
+
+P.append(dict(
+    slug="sliding-puzzle", title="Sliding puzzle", level="hard", stage="hard-traversals",
+    tags=["BFS on states", "state encoding"],
+    teaches=["BFS where each node is a whole board.", "A precomputed neighbour table for the blank's moves."],
+    statement="""
+        A 2 × 3 board holds the tiles `1`–`5` and one blank, `0`. A move swaps the blank with a tile directly
+        above, below, left or right of it. Return the fewest moves to reach `[[1, 2, 3], [4, 5, 0]]`, or `None`
+        if it can't be reached.
+    """,
+    examples=[("board = [[1,2,3],[4,0,5]]", "Some(1)"), ("board = [[1,2,3],[5,4,0]]", "None"), ("board = [[4,1,2],[5,0,3]]", "Some(5)")],
+    constraints=["board holds each of 0..=5 exactly once"],
+    starter="""
+        pub fn sliding_puzzle(board: [[u8; 3]; 2]) -> Option<u32> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::{HashMap, VecDeque};
+
+        pub fn sliding_puzzle(board: [[u8; 3]; 2]) -> Option<u32> {
+            // Cells 0 1 2 / 3 4 5; the blank at cell i can swap with these cells.
+            const NEXT: [&[usize]; 6] = [&[1, 3], &[0, 2, 4], &[1, 5], &[0, 4], &[1, 3, 5], &[2, 4]];
+            let goal = [1, 2, 3, 4, 5, 0];
+            let start = [board[0][0], board[0][1], board[0][2], board[1][0], board[1][1], board[1][2]];
+            let mut dist: HashMap<[u8; 6], u32> = HashMap::from([(start, 0)]);
+            let mut queue = VecDeque::from([start]);
+            while let Some(state) = queue.pop_front() {
+                let d = dist[&state];
+                if state == goal {
+                    return Some(d);
+                }
+                let blank = state.iter().position(|&t| t == 0).expect("one blank");
+                for &cell in NEXT[blank] {
+                    let mut next = state;
+                    next.swap(blank, cell);
+                    if !dist.contains_key(&next) {
+                        dist.insert(next, d + 1);
+                        queue.push_back(next);
+                    }
+                }
+            }
+            None
+        }
+    """,
+    visible=[
+        T("one_move", "board = [[1,2,3],[4,0,5]]", "sliding_puzzle([[1, 2, 3], [4, 0, 5]])", "Some(1)"),
+        T("unsolvable", "board = [[1,2,3],[5,4,0]]", "sliding_puzzle([[1, 2, 3], [5, 4, 0]])", "None"),
+        T("five_moves", "board = [[4,1,2],[5,0,3]]", "sliding_puzzle([[4, 1, 2], [5, 0, 3]])", "Some(5)"),
+        T("already_solved", "board = [[1,2,3],[4,5,0]]", "sliding_puzzle([[1, 2, 3], [4, 5, 0]])", "Some(0)"),
+        T("fourteen_moves", "board = [[3,2,4],[1,5,0]]", "sliding_puzzle([[3, 2, 4], [1, 5, 0]])", "Some(14)"),
+    ],
+    hidden=[
+        T("hardest_board", "board = [[4,5,0],[1,2,3]]", "sliding_puzzle([[4, 5, 0], [1, 2, 3]])", "Some(21)"),
+        T("blank_first", "board = [[0,1,2],[3,4,5]]", "sliding_puzzle([[0, 1, 2], [3, 4, 5]])", "Some(15)"),
+        T("reversed", "board = [[5,4,3],[2,1,0]]", "sliding_puzzle([[5, 4, 3], [2, 1, 0]])", "Some(14)"),
+        T("row_end_is_not_next_to_row_start", "board = [[1,2,0],[3,4,5]]", "sliding_puzzle([[1, 2, 0], [3, 4, 5]])", "Some(13)"),
+        T("blank_moves_down", "board = [[1,2,0],[4,5,3]]", "sliding_puzzle([[1, 2, 0], [4, 5, 3]])", "Some(1)"),
+        T("blank_bottom_left", "board = [[1,2,3],[0,4,5]]", "sliding_puzzle([[1, 2, 3], [0, 4, 5]])", "Some(2)"),
+        T("two_tiles_swapped", "board = [[2,1,3],[4,5,0]]", "sliding_puzzle([[2, 1, 3], [4, 5, 0]])", "None"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            use std::collections::{HashMap, VecDeque};
+            // Brute force: one BFS backwards from the goal over flat boards, with moves found by coordinates.
+            let goal = vec![1u8, 2, 3, 4, 5, 0];
+            let mut dist: HashMap<Vec<u8>, u32> = HashMap::from([(goal.clone(), 0)]);
+            let mut queue = VecDeque::from([goal]);
+            while let Some(s) = queue.pop_front() {
+                let z = s.iter().position(|&t| t == 0).unwrap();
+                let (r, c) = (z / 3, z % 3);
+                for (nr, nc) in [(r ^ 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                    if nc < 3 {
+                        let mut t = s.clone();
+                        t.swap(z, nr * 3 + nc);
+                        if !dist.contains_key(&t) {
+                            dist.insert(t.clone(), dist[&s] + 1);
+                            queue.push_back(t);
+                        }
+                    }
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(953);
+            for _ in 0..300 {
+                let mut flat = vec![0u8, 1, 2, 3, 4, 5];
+                rng.shuffle(&mut flat);
+                let board = [[flat[0], flat[1], flat[2]], [flat[3], flat[4], flat[5]]];
+                check!(format!("board = {board:?}"), sliding_puzzle(board), dist.get(&flat).copied());
+            }
+        }
+
+        #[test]
+        fn every_board() {
+            // All 720 boards: half are solvable, taking 4544 moves in total, 21 at most.
+            let mut solvable = 0;
+            let (mut total, mut most) = (0, 0);
+            for code in 0..46_656u32 {
+                let flat: Vec<u8> = (0..6).map(|i| (code / 6u32.pow(i) % 6) as u8).collect();
+                if (0..6u8).all(|t| flat.contains(&t)) {
+                    if let Some(d) = sliding_puzzle([[flat[0], flat[1], flat[2]], [flat[3], flat[4], flat[5]]]) {
+                        solvable += 1;
+                        total += d;
+                        most = most.max(d);
+                    }
+                }
+            }
+            check!("all 720 boards: (solvable, total moves, most moves)", (solvable, total, most), (360, 4544, 21));
+        }
+        """,
+    ],
+    wrong=dict(
+        wraps_between_rows="""
+            use std::collections::{HashMap, VecDeque};
+
+            pub fn sliding_puzzle(board: [[u8; 3]; 2]) -> Option<u32> {
+                let goal = [1, 2, 3, 4, 5, 0];
+                let start = [board[0][0], board[0][1], board[0][2], board[1][0], board[1][1], board[1][2]];
+                let mut dist: HashMap<[u8; 6], u32> = HashMap::from([(start, 0)]);
+                let mut queue = VecDeque::from([start]);
+                while let Some(state) = queue.pop_front() {
+                    let d = dist[&state];
+                    if state == goal {
+                        return Some(d);
+                    }
+                    let blank = state.iter().position(|&t| t == 0).unwrap();
+                    // Treats the board as one row of six, plus up/down.
+                    for cell in [blank.wrapping_sub(1), blank + 1, blank.wrapping_sub(3), blank + 3] {
+                        if cell < 6 {
+                            let mut next = state;
+                            next.swap(blank, cell);
+                            if !dist.contains_key(&next) {
+                                dist.insert(next, d + 1);
+                                queue.push_back(next);
+                            }
+                        }
+                    }
+                }
+                None
+            }
+        """,
+        manhattan_guess="""
+            pub fn sliding_puzzle(board: [[u8; 3]; 2]) -> Option<u32> {
+                let mut total = 0;
+                for r in 0..2 {
+                    for c in 0..3 {
+                        let t = board[r][c] as usize;
+                        let home = if t == 0 { 5 } else { t - 1 };
+                        total += (r.abs_diff(home / 3) + c.abs_diff(home % 3)) as u32;
+                    }
+                }
+                Some(total)
+            }
+        """,
+    ),
+    hints=[("approach", "Each board is a node; its neighbours are the boards one swap of the blank away. BFS from the start finds the fewest moves. There are only 720 boards."),
+           ("rust", "Flatten the board to `[u8; 6]`: it's `Copy`, `Hash` and `Eq`, so it works directly as a `HashMap` key. A table `NEXT[i]` lists the cells the blank at `i` can swap with."),
+           ("edge case", "Cell 2 (end of the top row) and cell 3 (start of the bottom row) are not neighbours. Half of all boards can't be solved; BFS just runs out of states.")],
+    notes=("BFS explores at most 360 reachable boards, each with at most 3 moves. The unreachable half differ from the goal by an odd permutation.", "O(6! · 6)", "O(6!)"),
+    follow_up="For a 4 × 4 board BFS is far too slow. How would A* with a Manhattan-distance heuristic help?",
+))
+
+P.append(dict(
+    slug="bus-routes", title="Bus routes", level="hard", stage="hard-traversals",
+    tags=["BFS on routes", "HashMap"],
+    teaches=["Choosing the right nodes for BFS: routes, not stops.", "Visiting each route once so the work is linear in the input."],
+    statement="""
+        `routes[i]` lists the stops bus `i` visits; it loops forever, so you can ride it between any two of its
+        stops. Starting at stop `source`, return the fewest buses you must take to reach stop `target`, or
+        `None` if you can't. If `source == target` you need no bus.
+    """,
+    examples=[("routes = [[1,2,7], [3,6,7]], source = 1, target = 6", "Some(2)"),
+              ("routes = [[7,12], [4,5,15], [6], [15,19], [9,12,13]], source = 15, target = 12", "None")],
+    constraints=["routes.len() ≤ 500", "total stops over all routes ≤ 10⁵", "stops < 10⁶"],
+    starter="""
+        pub fn num_buses_to_destination(routes: &[Vec<u32>], source: u32, target: u32) -> Option<u32> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::{HashMap, VecDeque};
+
+        pub fn num_buses_to_destination(routes: &[Vec<u32>], source: u32, target: u32) -> Option<u32> {
+            if source == target {
+                return Some(0);
+            }
+            let mut buses_at: HashMap<u32, Vec<usize>> = HashMap::new();
+            for (bus, route) in routes.iter().enumerate() {
+                for &stop in route {
+                    buses_at.entry(stop).or_default().push(bus);
+                }
+            }
+            let mut taken = vec![false; routes.len()];
+            let mut queue = VecDeque::new();
+            for &bus in buses_at.get(&source).into_iter().flatten() {
+                if !taken[bus] {
+                    taken[bus] = true;
+                    queue.push_back((bus, 1));
+                }
+            }
+            while let Some((bus, count)) = queue.pop_front() {
+                if routes[bus].contains(&target) {
+                    return Some(count);
+                }
+                for stop in &routes[bus] {
+                    // Removing the stop means its bus list is scanned only once.
+                    for next in buses_at.remove(stop).into_iter().flatten() {
+                        if !taken[next] {
+                            taken[next] = true;
+                            queue.push_back((next, count + 1));
+                        }
+                    }
+                }
+            }
+            None
+        }
+    """,
+    visible=[
+        T("change_once", "routes = [[1,2,7], [3,6,7]], source = 1, target = 6", "num_buses_to_destination(&[vec![1, 2, 7], vec![3, 6, 7]], 1, 6)", "Some(2)"),
+        T("unreachable", "routes = [[7,12], [4,5,15], [6], [15,19], [9,12,13]], source = 15, target = 12",
+          "num_buses_to_destination(&[vec![7, 12], vec![4, 5, 15], vec![6], vec![15, 19], vec![9, 12, 13]], 15, 12)", "None"),
+        T("already_there", "routes = [[1,2]], source = 2, target = 2", "num_buses_to_destination(&[vec![1, 2]], 2, 2)", "Some(0)"),
+        T("count_buses_not_stops", "routes = [[1,2,3,4,5]], source = 1, target = 5", "num_buses_to_destination(&[vec![1, 2, 3, 4, 5]], 1, 5)", "Some(1)"),
+        T("routes_loop", "routes = [[5,1,9]], source = 9, target = 5", "num_buses_to_destination(&[vec![5, 1, 9]], 9, 5)", "Some(1)"),
+    ],
+    hidden=[
+        T("already_there_with_no_bus", "routes = [[1,2]], source = 7, target = 7", "num_buses_to_destination(&[vec![1, 2]], 7, 7)", "Some(0)"),
+        T("source_on_no_route", "routes = [[1,2]], source = 3, target = 2", "num_buses_to_destination(&[vec![1, 2]], 3, 2)", "None"),
+        T("target_on_no_route", "routes = [[1,2]], source = 1, target = 3", "num_buses_to_destination(&[vec![1, 2]], 1, 3)", "None"),
+        T("no_routes", "routes = [], source = 1, target = 2", "num_buses_to_destination(&[], 1, 2)", "None"),
+        T("three_buses", "routes = [[1,2], [2,3], [3,4], [1,9]], source = 1, target = 4", "num_buses_to_destination(&[vec![1, 2], vec![2, 3], vec![3, 4], vec![1, 9]], 1, 4)", "Some(3)"),
+        T("shortcut_bus", "routes = [[1,2], [2,3], [3,4], [1,5,4]], source = 1, target = 4", "num_buses_to_destination(&[vec![1, 2], vec![2, 3], vec![3, 4], vec![1, 5, 4]], 1, 4)", "Some(1)"),
+        T("big_stop_numbers", "routes = [[0,999999], [999999,500000]], source = 0, target = 500000",
+          "num_buses_to_destination(&[vec![0, 999_999], vec![999_999, 500_000]], 0, 500_000)", "Some(2)"),
+        T("repeated_stops_and_routes", "routes = [[1,1,2], [1,1,2], [2,3,2]], source = 1, target = 3", "num_buses_to_destination(&[vec![1, 1, 2], vec![1, 1, 2], vec![2, 3, 2]], 1, 3)", "Some(2)"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(954);
+            for _ in 0..300 {
+                let count = rng.below(6);
+                let routes: Vec<Vec<u32>> = (0..count).map(|_| { let len = 1 + rng.below(4); rng.vec(len, 0, 8) }).collect();
+                let (source, target) = (rng.int(0, 8) as u32, rng.int(0, 8) as u32);
+                // Brute force: relax "buses to reach each stop" over every route until nothing changes.
+                let mut best = vec![u32::MAX; 9];
+                best[source as usize] = 0;
+                for _ in 0..=count {
+                    for route in &routes {
+                        let fewest = route.iter().map(|&s| best[s as usize]).min().unwrap();
+                        if fewest != u32::MAX {
+                            for &s in route {
+                                best[s as usize] = best[s as usize].min(fewest + 1);
+                            }
+                        }
+                    }
+                }
+                let want = (best[target as usize] != u32::MAX).then_some(best[target as usize]);
+                check!(format!("routes = {routes:?}, source = {source}, target = {target}"), num_buses_to_destination(&routes, source, target), want);
+            }
+        }
+
+        #[test]
+        fn scale_one_long_route() {
+            // Bus 0 visits 0..99998; bus 1 links its last stop to 200000.
+            let routes = vec![(0..99_998).collect::<Vec<u32>>(), vec![99_997, 200_000]];
+            check!("one route of 99998 stops, then a second bus", num_buses_to_destination(&routes, 0, 200_000), Some(2));
+        }
+
+        #[test]
+        fn scale_500_buses_in_a_chain() {
+            // Bus i visits 199i..=199i+199, and its last stop is bus i+1's first.
+            let routes: Vec<Vec<u32>> = (0..500u32).map(|i| (199 * i..=199 * i + 199).collect()).collect();
+            check!("500 routes of 200 stops, each sharing one stop with the next", num_buses_to_destination(&routes, 0, 199 * 499 + 199), Some(500));
+        }
+        """,
+    ],
+    wrong=dict(
+        bfs_on_stops_rescans_routes="""
+            use std::collections::{HashMap, HashSet, VecDeque};
+
+            pub fn num_buses_to_destination(routes: &[Vec<u32>], source: u32, target: u32) -> Option<u32> {
+                if source == target {
+                    return Some(0);
+                }
+                let mut buses_at: HashMap<u32, Vec<usize>> = HashMap::new();
+                for (bus, route) in routes.iter().enumerate() {
+                    for &stop in route {
+                        buses_at.entry(stop).or_default().push(bus);
+                    }
+                }
+                let mut seen = HashSet::from([source]);
+                let mut queue = VecDeque::from([(source, 0)]);
+                while let Some((stop, count)) = queue.pop_front() {
+                    for &bus in buses_at.get(&stop).into_iter().flatten() {
+                        for &next in &routes[bus] {
+                            if next == target {
+                                return Some(count + 1);
+                            }
+                            if seen.insert(next) {
+                                queue.push_back((next, count + 1));
+                            }
+                        }
+                    }
+                }
+                None
+            }
+        """,
+        counts_transfers="""
+            use std::collections::{HashMap, VecDeque};
+
+            pub fn num_buses_to_destination(routes: &[Vec<u32>], source: u32, target: u32) -> Option<u32> {
+                if source == target {
+                    return Some(0);
+                }
+                let mut buses_at: HashMap<u32, Vec<usize>> = HashMap::new();
+                for (bus, route) in routes.iter().enumerate() {
+                    for &stop in route {
+                        buses_at.entry(stop).or_default().push(bus);
+                    }
+                }
+                let mut taken = vec![false; routes.len()];
+                let mut queue = VecDeque::new();
+                for &bus in buses_at.get(&source).into_iter().flatten() {
+                    if !taken[bus] {
+                        taken[bus] = true;
+                        queue.push_back((bus, 0));
+                    }
+                }
+                while let Some((bus, changes)) = queue.pop_front() {
+                    if routes[bus].contains(&target) {
+                        return Some(changes);
+                    }
+                    for stop in &routes[bus] {
+                        for next in buses_at.remove(stop).into_iter().flatten() {
+                            if !taken[next] {
+                                taken[next] = true;
+                                queue.push_back((next, changes + 1));
+                            }
+                        }
+                    }
+                }
+                None
+            }
+        """,
+        needs_a_route_at_source="""
+            use std::collections::{HashMap, VecDeque};
+
+            pub fn num_buses_to_destination(routes: &[Vec<u32>], source: u32, target: u32) -> Option<u32> {
+                let mut buses_at: HashMap<u32, Vec<usize>> = HashMap::new();
+                for (bus, route) in routes.iter().enumerate() {
+                    for &stop in route {
+                        buses_at.entry(stop).or_default().push(bus);
+                    }
+                }
+                let start = buses_at.get(&source)?.clone();
+                if source == target {
+                    return Some(0);
+                }
+                let mut taken = vec![false; routes.len()];
+                let mut queue = VecDeque::new();
+                for bus in start {
+                    if !taken[bus] {
+                        taken[bus] = true;
+                        queue.push_back((bus, 1));
+                    }
+                }
+                while let Some((bus, count)) = queue.pop_front() {
+                    if routes[bus].contains(&target) {
+                        return Some(count);
+                    }
+                    for stop in &routes[bus] {
+                        for next in buses_at.remove(stop).into_iter().flatten() {
+                            if !taken[next] {
+                                taken[next] = true;
+                                queue.push_back((next, count + 1));
+                            }
+                        }
+                    }
+                }
+                None
+            }
+        """,
+    ),
+    hints=[("approach", "Make each bus a BFS node: two buses are adjacent if they share a stop. Start from every bus through `source`; the BFS depth is the number of buses."),
+           ("rust", "Build `HashMap<u32, Vec<usize>>` from stop to buses. Taking a stop's list out with `remove` guarantees each list is walked once."),
+           ("edge case", "`source == target` needs 0 buses even if no bus stops there. BFS over stops that re-reads a whole route for every stop on it is quadratic.")],
+    notes=("Every bus is queued once and every stop's bus list is read once, so the work is linear in the total route length.", "O(Σ|route|)", "O(Σ|route|)"),
+    follow_up="What if each ride also had a fare and you wanted the cheapest trip rather than the fewest buses?",
+))
+
+P.append(dict(
+    slug="making-a-large-island", title="Making a large island", level="hard", stage="hard-traversals",
+    tags=["grid", "component labels", "flood fill"],
+    teaches=["Label every island once, then answer each question from the labels.", "Counting a neighbour island once even when it touches from several sides."],
+    statement="""
+        `grid` holds `1` (land) and `0` (water). An island is a group of land cells joined up, down, left or
+        right. You may turn at most one `0` into `1`. Return the size of the largest island you can end up with.
+    """,
+    examples=[("grid = [[1,0],[0,1]]", "3"), ("grid = [[1,1],[1,0]]", "4"), ("grid = [[1,1],[1,1]]", "4")],
+    constraints=["1 ≤ rows, cols ≤ 500 (LeetCode's grid is square)", "cells are 0 or 1"],
+    starter="""
+        pub fn largest_island(grid: &[Vec<u8>]) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn largest_island(grid: &[Vec<u8>]) -> usize {
+            let (h, w) = (grid.len(), grid[0].len());
+            // label[r][c] is the island id of a land cell (from 1); size[id] is that island's size.
+            let mut label = vec![vec![0usize; w]; h];
+            let mut size = vec![0usize];
+            for sr in 0..h {
+                for sc in 0..w {
+                    if grid[sr][sc] != 1 || label[sr][sc] != 0 {
+                        continue;
+                    }
+                    let id = size.len();
+                    label[sr][sc] = id;
+                    let mut stack = vec![(sr, sc)];
+                    let mut count = 0;
+                    while let Some((r, c)) = stack.pop() {
+                        count += 1;
+                        for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                            if nr < h && nc < w && grid[nr][nc] == 1 && label[nr][nc] == 0 {
+                                label[nr][nc] = id;
+                                stack.push((nr, nc));
+                            }
+                        }
+                    }
+                    size.push(count);
+                }
+            }
+
+            // With no water to flip, the answer is the biggest island as it stands.
+            let mut best = size.iter().copied().max().unwrap_or(0);
+            for r in 0..h {
+                for c in 0..w {
+                    if grid[r][c] != 0 {
+                        continue;
+                    }
+                    let mut ids: Vec<usize> = Vec::with_capacity(4);
+                    for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                        if nr < h && nc < w && label[nr][nc] != 0 && !ids.contains(&label[nr][nc]) {
+                            ids.push(label[nr][nc]);
+                        }
+                    }
+                    best = best.max(1 + ids.iter().map(|&id| size[id]).sum::<usize>());
+                }
+            }
+            best
+        }
+    """,
+    visible=[
+        T("join_two_islands", "grid = [[1,0],[0,1]]", "largest_island(&[vec![1, 0], vec![0, 1]])", "3"),
+        T("fill_the_gap", "grid = [[1,1],[1,0]]", "largest_island(&[vec![1, 1], vec![1, 0]])", "4"),
+        T("no_water_to_flip", "grid = [[1,1],[1,1]]", "largest_island(&[vec![1, 1], vec![1, 1]])", "4"),
+        T("only_water", "grid = [[0]]", "largest_island(&[vec![0]])", "1"),
+        T("same_island_on_every_side", "grid = [[1,1,1],[1,0,1],[1,1,1]]", "largest_island(&[vec![1, 1, 1], vec![1, 0, 1], vec![1, 1, 1]])", "9"),
+    ],
+    hidden=[
+        T("join_four", "grid = [[0,1,0],[1,0,1],[0,1,0]]", "largest_island(&[vec![0, 1, 0], vec![1, 0, 1], vec![0, 1, 0]])", "5"),
+        T("single_land", "grid = [[1]]", "largest_island(&[vec![1]])", "1"),
+        T("all_water", "grid = 3×3 of 0", "largest_island(&[vec![0, 0, 0], vec![0, 0, 0], vec![0, 0, 0]])", "1"),
+        T("one_row", "grid = [[1,1,0,1,1]]", "largest_island(&[vec![1, 1, 0, 1, 1]])", "5"),
+        T("gap_too_wide", "grid = [[1,0,0,1]]", "largest_island(&[vec![1, 0, 0, 1]])", "2"),
+        T("one_column", "grid = [[1],[0],[1]]", "largest_island(&[vec![1], vec![0], vec![1]])", "3"),
+        T("u_shape_touches_twice", "grid = [[1,0,1],[1,0,1],[1,1,1]]", "largest_island(&[vec![1, 0, 1], vec![1, 0, 1], vec![1, 1, 1]])", "8"),
+        T("corner_joins_two", "grid = [[1,1,0,1],[0,0,0,1]]", "largest_island(&[vec![1, 1, 0, 1], vec![0, 0, 0, 1]])", "5"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(955);
+            for _ in 0..300 {
+                let (h, w) = (1 + rng.below(5), 1 + rng.below(5));
+                let grid: Vec<Vec<u8>> = (0..h).map(|_| rng.vec(w, 0, 1)).collect();
+                // Brute force: flip each 0 in turn and measure the island around it.
+                let mut want = 0;
+                let mut any_water = false;
+                for r in 0..h {
+                    for c in 0..w {
+                        if grid[r][c] != 0 {
+                            continue;
+                        }
+                        any_water = true;
+                        let mut g = grid.clone();
+                        g[r][c] = 1;
+                        let mut seen = vec![vec![false; w]; h];
+                        seen[r][c] = true;
+                        let mut stack = vec![(r, c)];
+                        let mut count = 0;
+                        while let Some((y, x)) = stack.pop() {
+                            count += 1;
+                            for (ny, nx) in [(y.wrapping_sub(1), x), (y + 1, x), (y, x.wrapping_sub(1)), (y, x + 1)] {
+                                if ny < h && nx < w && g[ny][nx] == 1 && !seen[ny][nx] {
+                                    seen[ny][nx] = true;
+                                    stack.push((ny, nx));
+                                }
+                            }
+                        }
+                        want = want.max(count);
+                    }
+                }
+                if !any_water {
+                    want = h * w;
+                }
+                check!(format!("grid = {grid:?}"), largest_island(&grid), want);
+            }
+        }
+
+        #[test]
+        fn scale_lattice_of_lakes_500() {
+            // Water at every (odd row, odd column): 62500 one-cell lakes inside one island of 187500.
+            let grid: Vec<Vec<u8>> = (0..500).map(|r| (0..500).map(|c| u8::from(r % 2 == 0 || c % 2 == 0)).collect()).collect();
+            check!("500×500, water at every odd (row, column)", largest_island(&grid), 187_501);
+        }
+
+        #[test]
+        fn scale_two_halves_500() {
+            // Column 250 is water; flipping any cell of it joins the two halves.
+            let grid: Vec<Vec<u8>> = (0..500).map(|_| (0..500).map(|c| u8::from(c != 250)).collect()).collect();
+            check!("500×500, all land except column 250", largest_island(&grid), 249_501);
+        }
+        """,
+    ],
+    wrong=dict(
+        flip_each_zero_and_flood="""
+            pub fn largest_island(grid: &[Vec<u8>]) -> usize {
+                let (h, w) = (grid.len(), grid[0].len());
+                let mut best = 0;
+                let mut any_water = false;
+                let mut seen = vec![vec![0usize; w]; h];
+                let mut round = 0;
+                for r in 0..h {
+                    for c in 0..w {
+                        if grid[r][c] != 0 {
+                            continue;
+                        }
+                        any_water = true;
+                        round += 1;
+                        seen[r][c] = round;
+                        let mut stack = vec![(r, c)];
+                        let mut count = 0;
+                        while let Some((y, x)) = stack.pop() {
+                            count += 1;
+                            for (ny, nx) in [(y.wrapping_sub(1), x), (y + 1, x), (y, x.wrapping_sub(1)), (y, x + 1)] {
+                                if ny < h && nx < w && grid[ny][nx] == 1 && seen[ny][nx] != round {
+                                    seen[ny][nx] = round;
+                                    stack.push((ny, nx));
+                                }
+                            }
+                        }
+                        best = best.max(count);
+                    }
+                }
+                if any_water { best } else { h * w }
+            }
+        """,
+        neighbour_islands_not_deduplicated="""
+            pub fn largest_island(grid: &[Vec<u8>]) -> usize {
+                let (h, w) = (grid.len(), grid[0].len());
+                let mut label = vec![vec![0usize; w]; h];
+                let mut size = vec![0usize];
+                for sr in 0..h {
+                    for sc in 0..w {
+                        if grid[sr][sc] != 1 || label[sr][sc] != 0 {
+                            continue;
+                        }
+                        let id = size.len();
+                        label[sr][sc] = id;
+                        let mut stack = vec![(sr, sc)];
+                        let mut count = 0;
+                        while let Some((r, c)) = stack.pop() {
+                            count += 1;
+                            for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                                if nr < h && nc < w && grid[nr][nc] == 1 && label[nr][nc] == 0 {
+                                    label[nr][nc] = id;
+                                    stack.push((nr, nc));
+                                }
+                            }
+                        }
+                        size.push(count);
+                    }
+                }
+                let mut best = size.iter().copied().max().unwrap_or(0);
+                for r in 0..h {
+                    for c in 0..w {
+                        if grid[r][c] == 0 {
+                            let mut total = 1;
+                            for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                                if nr < h && nc < w && label[nr][nc] != 0 {
+                                    total += size[label[nr][nc]];
+                                }
+                            }
+                            best = best.max(total);
+                        }
+                    }
+                }
+                best
+            }
+        """,
+        forgets_the_all_land_grid="""
+            pub fn largest_island(grid: &[Vec<u8>]) -> usize {
+                let (h, w) = (grid.len(), grid[0].len());
+                let mut label = vec![vec![0usize; w]; h];
+                let mut size = vec![0usize];
+                for sr in 0..h {
+                    for sc in 0..w {
+                        if grid[sr][sc] != 1 || label[sr][sc] != 0 {
+                            continue;
+                        }
+                        let id = size.len();
+                        label[sr][sc] = id;
+                        let mut stack = vec![(sr, sc)];
+                        let mut count = 0;
+                        while let Some((r, c)) = stack.pop() {
+                            count += 1;
+                            for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                                if nr < h && nc < w && grid[nr][nc] == 1 && label[nr][nc] == 0 {
+                                    label[nr][nc] = id;
+                                    stack.push((nr, nc));
+                                }
+                            }
+                        }
+                        size.push(count);
+                    }
+                }
+                let mut best = 0;
+                for r in 0..h {
+                    for c in 0..w {
+                        if grid[r][c] == 0 {
+                            let mut ids: Vec<usize> = Vec::new();
+                            for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                                if nr < h && nc < w && label[nr][nc] != 0 && !ids.contains(&label[nr][nc]) {
+                                    ids.push(label[nr][nc]);
+                                }
+                            }
+                            best = best.max(1 + ids.iter().map(|&id| size[id]).sum::<usize>());
+                        }
+                    }
+                }
+                best
+            }
+        """,
+    ),
+    hints=[("approach", "First give every island an id and record its size. Then each 0 is worth 1 plus the sizes of the distinct islands next to it."),
+           ("rust", "Label with an explicit stack (`Vec<(usize, usize)>`): a 250 000-cell island would overflow the call stack with recursion. At most 4 neighbour ids, so a small `Vec` with `contains` dedupes them."),
+           ("edge case", "The same island can touch a 0 on two sides; count it once. A grid with no 0 at all has nothing to flip.")],
+    notes=("One labelling pass and one pass over the zeros, each O(1) per cell. Flipping each 0 and re-flooding is O((rows · cols)²).", "O(rows · cols)", "O(rows · cols)"),
+    follow_up="What if you could flip up to k zeros?",
+    related=["D6"],
+))
+
+P.append(dict(
+    slug="shortest-path-to-get-all-keys", title="Shortest path to get all keys", level="hard", stage="hard-traversals",
+    tags=["BFS on states", "bitmask"],
+    teaches=["BFS over (cell, keys held): the same cell is a new state once you hold more keys.", "A key set as a bitmask in a `u32`."],
+    statement="""
+        `grid` rows hold `@` (start), `.` (open), `#` (wall), keys `a`–`f` and locks `A`–`F`. Each step moves
+        up, down, left or right. Stepping on a key picks it up; you can walk through a lock only while holding
+        its key. The keys are the first `k` letters, one of each, and a lock only appears if its key does.
+        Return the fewest steps to hold every key, or `None` if you can't.
+    """,
+    examples=[('grid = ["@.a..", "###.#", "b.A.B"]', "Some(8)"), ('grid = ["@..aA", "..B#.", "....b"]', "Some(6)"), ('grid = ["@Aa"]', "None")],
+    constraints=["1 ≤ rows, cols ≤ 30", "0 ≤ k ≤ 6", "exactly one @"],
+    starter="""
+        pub fn shortest_path_all_keys(grid: &[&str]) -> Option<u32> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::VecDeque;
+
+        pub fn shortest_path_all_keys(grid: &[&str]) -> Option<u32> {
+            let g: Vec<&[u8]> = grid.iter().map(|r| r.as_bytes()).collect();
+            let (h, w) = (g.len(), g[0].len());
+            let mut start = (0, 0);
+            let mut all = 0u32;
+            for r in 0..h {
+                for c in 0..w {
+                    match g[r][c] {
+                        b'@' => start = (r, c),
+                        k @ b'a'..=b'f' => all |= 1 << (k - b'a'),
+                        _ => {}
+                    }
+                }
+            }
+
+            // One state per (cell, keys held): index (r * w + c) * 64 + keys.
+            let mut seen = vec![false; h * w * 64];
+            seen[(start.0 * w + start.1) * 64] = true;
+            let mut queue = VecDeque::from([(start.0, start.1, 0u32, 0u32)]);
+            while let Some((r, c, keys, steps)) = queue.pop_front() {
+                if keys == all {
+                    return Some(steps);
+                }
+                for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                    if nr >= h || nc >= w {
+                        continue;
+                    }
+                    let cell = g[nr][nc];
+                    let mut held = keys;
+                    match cell {
+                        b'#' => continue,
+                        b'A'..=b'F' if keys & (1 << (cell - b'A')) == 0 => continue,
+                        b'a'..=b'f' => held |= 1 << (cell - b'a'),
+                        _ => {}
+                    }
+                    let i = (nr * w + nc) * 64 + held as usize;
+                    if !seen[i] {
+                        seen[i] = true;
+                        queue.push_back((nr, nc, held, steps + 1));
+                    }
+                }
+            }
+            None
+        }
+    """,
+    visible=[
+        T("leetcode_example", 'grid = ["@.a..", "###.#", "b.A.B"]', 'shortest_path_all_keys(&["@.a..", "###.#", "b.A.B"])', "Some(8)"),
+        T("pick_the_nearer_key_first", 'grid = ["@..aA", "..B#.", "....b"]', 'shortest_path_all_keys(&["@..aA", "..B#.", "....b"])', "Some(6)"),
+        T("key_behind_its_own_lock", 'grid = ["@Aa"]', 'shortest_path_all_keys(&["@Aa"])', "None"),
+        T("walk_back_through_the_start", 'grid = ["a.@.A.b"]', 'shortest_path_all_keys(&["a.@.A.b"])', "Some(8)"),
+        T("no_keys", 'grid = ["@"]', 'shortest_path_all_keys(&["@"])', "Some(0)"),
+    ],
+    hidden=[
+        T("keys_in_passing", 'grid = ["@ab"]', 'shortest_path_all_keys(&["@ab"])', "Some(2)"),
+        T("walled_off", 'grid = ["@#a"]', 'shortest_path_all_keys(&["@#a"])', "None"),
+        T("cheaper_order", 'grid = ["b..@.a"]', 'shortest_path_all_keys(&["b..@.a"])', "Some(7)"),
+        T("second_key_unreachable", 'grid = ["@.a", "###", "A.b"]', 'shortest_path_all_keys(&["@.a", "###", "A.b"])', "None"),
+        T("locks_in_a_cycle", 'grid = ["a#@", "B.A", "#.b"]', 'shortest_path_all_keys(&["a#@", "B.A", "#.b"])', "None"),
+        T("one_column", 'grid = ["a", ".", "@", "b"]', 'shortest_path_all_keys(&["a", ".", "@", "b"])', "Some(4)"),
+        T("six_keys_in_a_row", 'grid = ["@abcdef"]', 'shortest_path_all_keys(&["@abcdef"])', "Some(6)"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            use std::collections::VecDeque;
+            // Brute force: try every order of the keys, walking between them with the keys collected so far.
+            fn walk(g: &[Vec<u8>], from: (usize, usize), to: (usize, usize), keys: u32) -> Option<u32> {
+                let (h, w) = (g.len(), g[0].len());
+                let mut dist = vec![vec![None; w]; h];
+                dist[from.0][from.1] = Some(0);
+                let mut queue = VecDeque::from([from]);
+                while let Some((r, c)) = queue.pop_front() {
+                    let d = dist[r][c].unwrap();
+                    if (r, c) == to {
+                        return Some(d);
+                    }
+                    for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                        if nr >= h || nc >= w || dist[nr][nc].is_some() {
+                            continue;
+                        }
+                        let cell = g[nr][nc];
+                        if cell == b'#' || (cell.is_ascii_uppercase() && keys & (1 << (cell - b'A')) == 0) {
+                            continue;
+                        }
+                        dist[nr][nc] = Some(d + 1);
+                        queue.push_back((nr, nc));
+                    }
+                }
+                None
+            }
+            fn orders(k: usize) -> Vec<Vec<usize>> {
+                if k == 0 {
+                    return vec![vec![]];
+                }
+                let mut out = Vec::new();
+                for rest in orders(k - 1) {
+                    for i in 0..=rest.len() {
+                        let mut o = rest.clone();
+                        o.insert(i, k - 1);
+                        out.push(o);
+                    }
+                }
+                out
+            }
+
+            let mut rng = anneal_prelude::Rng::new(956);
+            for _ in 0..300 {
+                let (h, w) = (1 + rng.below(4), 2 + rng.below(4));
+                let mut g: Vec<Vec<u8>> = (0..h).map(|_| (0..w).map(|_| if rng.below(4) == 0 { b'#' } else { b'.' }).collect()).collect();
+                let mut cells: Vec<(usize, usize)> = (0..h).flat_map(|r| (0..w).map(move |c| (r, c))).collect();
+                rng.shuffle(&mut cells);
+                let k = rng.below(4).min((cells.len() - 1) / 2);
+                g[cells[0].0][cells[0].1] = b'@';
+                let mut spot = vec![(0, 0); k];
+                for i in 0..k {
+                    spot[i] = cells[1 + i];
+                    g[spot[i].0][spot[i].1] = b'a' + i as u8;
+                    if rng.bool() {
+                        g[cells[1 + k + i].0][cells[1 + k + i].1] = b'A' + i as u8;
+                    }
+                }
+                let mut want: Option<u32> = None;
+                for order in orders(k) {
+                    let (mut at, mut keys, mut total) = (cells[0], 0u32, Some(0));
+                    for &i in &order {
+                        total = match (total, walk(&g, at, spot[i], keys)) {
+                            (Some(t), Some(d)) => Some(t + d),
+                            _ => None,
+                        };
+                        at = spot[i];
+                        keys |= 1 << i;
+                    }
+                    if let Some(t) = total {
+                        want = Some(want.map_or(t, |x: u32| x.min(t)));
+                    }
+                }
+                let rows: Vec<String> = g.iter().map(|r| String::from_utf8(r.clone()).unwrap()).collect();
+                let refs: Vec<&str> = rows.iter().map(|r| r.as_str()).collect();
+                check!(format!("grid = {rows:?}"), shortest_path_all_keys(&refs), want);
+            }
+        }
+
+        #[test]
+        fn largest_grid_six_keys() {
+            let grid = [
+                "......#.#..#....#...#..##.#...",
+                "..##....##..#..#.....De.###...",
+                "........#####..#...#.###..##.#",
+                "...###...##.##..#...##...#.#.#",
+                "##........#.......#.#.A.#...#.",
+                ".#.#.#..#...........#.....##..",
+                "...b#..#.##.#####.....#..#.#..",
+                "###.......#.....###....#.#.#..",
+                "...#........#.d..#...#....#..#",
+                "....##.....#..###............#",
+                ".#.##.#####.##..###.#.....##..",
+                ".#.....#C..........##.......##",
+                "#...#.....#.#...B..##...#..##.",
+                "#....E##.##.###.##...#.#......",
+                ".....##.....###...#.##......#.",
+                ".###.###...#......#...#..##...",
+                "..#.#..#.#...#...##.......#...",
+                "..#........#..#.#.......#....#",
+                "#.#..#....#..#..#........#....",
+                ".#.##..........#.#...#..#..#..",
+                "........#...##.#...#.#.......#",
+                "#..####..a##.##.##F..#..#.###.",
+                ".#..##.###.##..#.#...#.....#..",
+                ".#.c....#.#...###.#.........#.",
+                "#..##...#........#.#..#..#..#.",
+                "#..#..#.#.###.....##....#.....",
+                "f.....#..............#...#.#..",
+                ".#...##..#.##..#.#...#.#@...#.",
+                "........#....#..#.........#...",
+                "......#.#...#..##.#..####.....",
+            ];
+            check!("30×30 grid, 30% walls, six keys and six locks", shortest_path_all_keys(&grid), Some(150));
+        }
+        """,
+    ],
+    wrong=dict(
+        seen_ignores_keys="""
+            use std::collections::VecDeque;
+
+            pub fn shortest_path_all_keys(grid: &[&str]) -> Option<u32> {
+                let g: Vec<&[u8]> = grid.iter().map(|r| r.as_bytes()).collect();
+                let (h, w) = (g.len(), g[0].len());
+                let mut start = (0, 0);
+                let mut all = 0u32;
+                for r in 0..h {
+                    for c in 0..w {
+                        match g[r][c] {
+                            b'@' => start = (r, c),
+                            k @ b'a'..=b'f' => all |= 1 << (k - b'a'),
+                            _ => {}
+                        }
+                    }
+                }
+                let mut seen = vec![vec![false; w]; h];
+                seen[start.0][start.1] = true;
+                let mut queue = VecDeque::from([(start.0, start.1, 0u32, 0u32)]);
+                while let Some((r, c, keys, steps)) = queue.pop_front() {
+                    if keys == all {
+                        return Some(steps);
+                    }
+                    for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                        if nr >= h || nc >= w || seen[nr][nc] {
+                            continue;
+                        }
+                        let cell = g[nr][nc];
+                        let mut held = keys;
+                        match cell {
+                            b'#' => continue,
+                            b'A'..=b'F' if keys & (1 << (cell - b'A')) == 0 => continue,
+                            b'a'..=b'f' => held |= 1 << (cell - b'a'),
+                            _ => {}
+                        }
+                        seen[nr][nc] = true;
+                        queue.push_back((nr, nc, held, steps + 1));
+                    }
+                }
+                None
+            }
+        """,
+        locks_ignored="""
+            use std::collections::VecDeque;
+
+            pub fn shortest_path_all_keys(grid: &[&str]) -> Option<u32> {
+                let g: Vec<&[u8]> = grid.iter().map(|r| r.as_bytes()).collect();
+                let (h, w) = (g.len(), g[0].len());
+                let mut start = (0, 0);
+                let mut all = 0u32;
+                for r in 0..h {
+                    for c in 0..w {
+                        match g[r][c] {
+                            b'@' => start = (r, c),
+                            k @ b'a'..=b'f' => all |= 1 << (k - b'a'),
+                            _ => {}
+                        }
+                    }
+                }
+                let mut seen = vec![false; h * w * 64];
+                seen[(start.0 * w + start.1) * 64] = true;
+                let mut queue = VecDeque::from([(start.0, start.1, 0u32, 0u32)]);
+                while let Some((r, c, keys, steps)) = queue.pop_front() {
+                    if keys == all {
+                        return Some(steps);
+                    }
+                    for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                        if nr >= h || nc >= w || g[nr][nc] == b'#' {
+                            continue;
+                        }
+                        let mut held = keys;
+                        if g[nr][nc].is_ascii_lowercase() {
+                            held |= 1 << (g[nr][nc] - b'a');
+                        }
+                        let i = (nr * w + nc) * 64 + held as usize;
+                        if !seen[i] {
+                            seen[i] = true;
+                            queue.push_back((nr, nc, held, steps + 1));
+                        }
+                    }
+                }
+                None
+            }
+        """,
+        assumes_six_keys="""
+            use std::collections::VecDeque;
+
+            pub fn shortest_path_all_keys(grid: &[&str]) -> Option<u32> {
+                let g: Vec<&[u8]> = grid.iter().map(|r| r.as_bytes()).collect();
+                let (h, w) = (g.len(), g[0].len());
+                let mut start = (0, 0);
+                for r in 0..h {
+                    for c in 0..w {
+                        if g[r][c] == b'@' {
+                            start = (r, c);
+                        }
+                    }
+                }
+                let all = 0b11_1111u32;
+                let mut seen = vec![false; h * w * 64];
+                seen[(start.0 * w + start.1) * 64] = true;
+                let mut queue = VecDeque::from([(start.0, start.1, 0u32, 0u32)]);
+                while let Some((r, c, keys, steps)) = queue.pop_front() {
+                    if keys == all {
+                        return Some(steps);
+                    }
+                    for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                        if nr >= h || nc >= w {
+                            continue;
+                        }
+                        let cell = g[nr][nc];
+                        let mut held = keys;
+                        match cell {
+                            b'#' => continue,
+                            b'A'..=b'F' if keys & (1 << (cell - b'A')) == 0 => continue,
+                            b'a'..=b'f' => held |= 1 << (cell - b'a'),
+                            _ => {}
+                        }
+                        let i = (nr * w + nc) * 64 + held as usize;
+                        if !seen[i] {
+                            seen[i] = true;
+                            queue.push_back((nr, nc, held, steps + 1));
+                        }
+                    }
+                }
+                None
+            }
+        """,
+    ),
+    hints=[("approach", "A state is (row, col, keys held). BFS over states: after picking up a key, cells you already visited are worth visiting again."),
+           ("rust", "Keys fit in a `u32` bitmask (`1 << (b - b'a')`); `seen` can be a flat `Vec<bool>` of `rows · cols · 64`. `match` on the byte with ranges like `b'a'..=b'f'` and a guard for locks."),
+           ("edge case", "Count the keys in the grid instead of assuming six. With no keys the answer is 0.")],
+    notes=("There are rows · cols · 2^k states and each has four moves, so BFS is linear in that product.", "O(rows · cols · 2^k)", "O(rows · cols · 2^k)"),
+    follow_up="Could you shrink the search to a graph over just the start and the keys, with distances between them?",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="reconstruct-itinerary", title="Reconstruct itinerary", level="hard", stage="hard-traversals",
+    tags=["Euler path", "Hierholzer", "interning"],
+    teaches=["Hierholzer's algorithm: finish a node when it runs out of edges, then reverse.", "Popping the smallest neighbour from a Vec sorted in reverse."],
+    statement="""
+        Each ticket `(from, to)` is a flight. Starting at `"JFK"`, use every ticket exactly once. Of all the
+        itineraries that do, return the smallest one comparing airports in order (so at each choice, the
+        alphabetically smaller airport wins if it still leads to a full itinerary). The tickets always form at
+        least one valid itinerary. Recursion is fine: the large tests run with a big stack.
+    """,
+    examples=[('tickets = [("MUC","LHR"), ("JFK","MUC"), ("SFO","SJC"), ("LHR","SFO")]', '["JFK","MUC","LHR","SFO","SJC"]'),
+              ('tickets = [("JFK","SFO"), ("JFK","ATL"), ("SFO","ATL"), ("ATL","JFK"), ("ATL","SFO")]', '["JFK","ATL","JFK","SFO","ATL","SFO"]')],
+    constraints=["tickets.len() ≤ 2·10⁵ (LeetCode: 300)", "airport names are ASCII"],
+    starter="""
+        pub fn find_itinerary(tickets: &[(&str, &str)]) -> Vec<String> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::HashMap;
+
+        pub fn find_itinerary(tickets: &[(&str, &str)]) -> Vec<String> {
+            // Intern airports so the graph is plain indices.
+            let mut id: HashMap<&str, usize> = HashMap::from([("JFK", 0)]);
+            let mut name = vec!["JFK"];
+            let mut out: Vec<Vec<usize>> = vec![Vec::new()];
+            for &(from, to) in tickets {
+                for airport in [from, to] {
+                    id.entry(airport).or_insert_with(|| {
+                        name.push(airport);
+                        out.push(Vec::new());
+                        name.len() - 1
+                    });
+                }
+                out[id[from]].push(id[to]);
+            }
+            // Largest first, so `pop` hands out the smallest.
+            for next in &mut out {
+                next.sort_unstable_by(|&a, &b| name[b].cmp(name[a]));
+            }
+
+            // Hierholzer: walk until stuck, then that airport is finished; finished airports come out in reverse.
+            let mut stack = vec![0];
+            let mut route = Vec::with_capacity(tickets.len() + 1);
+            while let Some(&u) = stack.last() {
+                match out[u].pop() {
+                    Some(v) => stack.push(v),
+                    None => route.push(stack.pop().expect("stack is not empty")),
+                }
+            }
+            route.iter().rev().map(|&u| name[u].to_string()).collect()
+        }
+    """,
+    visible=[
+        T("one_way_through", 'tickets = [("MUC","LHR"), ("JFK","MUC"), ("SFO","SJC"), ("LHR","SFO")]',
+          'find_itinerary(&[("MUC", "LHR"), ("JFK", "MUC"), ("SFO", "SJC"), ("LHR", "SFO")])', 'vec!["JFK", "MUC", "LHR", "SFO", "SJC"]'),
+        T("smallest_of_several", 'tickets = [("JFK","SFO"), ("JFK","ATL"), ("SFO","ATL"), ("ATL","JFK"), ("ATL","SFO")]',
+          'find_itinerary(&[("JFK", "SFO"), ("JFK", "ATL"), ("SFO", "ATL"), ("ATL", "JFK"), ("ATL", "SFO")])', 'vec!["JFK", "ATL", "JFK", "SFO", "ATL", "SFO"]'),
+        T("no_tickets", "tickets = []", "find_itinerary(&[])", 'vec!["JFK"]'),
+        T("smallest_is_a_dead_end", 'tickets = [("JFK","KUL"), ("JFK","NRT"), ("NRT","JFK")]',
+          'find_itinerary(&[("JFK", "KUL"), ("JFK", "NRT"), ("NRT", "JFK")])', 'vec!["JFK", "NRT", "JFK", "KUL"]'),
+        T("repeated_ticket", 'tickets = [("JFK","ATL"), ("ATL","JFK"), ("JFK","ATL"), ("ATL","JFK")]',
+          'find_itinerary(&[("JFK", "ATL"), ("ATL", "JFK"), ("JFK", "ATL"), ("ATL", "JFK")])', 'vec!["JFK", "ATL", "JFK", "ATL", "JFK"]'),
+    ],
+    hidden=[
+        T("single_ticket", 'tickets = [("JFK","LAX")]', 'find_itinerary(&[("JFK", "LAX")])', 'vec!["JFK", "LAX"]'),
+        T("self_loop_first", 'tickets = [("JFK","AAA"), ("JFK","JFK")]', 'find_itinerary(&[("JFK", "AAA"), ("JFK", "JFK")])', 'vec!["JFK", "JFK", "AAA"]'),
+        T("dead_end_deeper_down", 'tickets = [("JFK","AAA"), ("AAA","BBB"), ("AAA","CCC"), ("CCC","AAA")]',
+          'find_itinerary(&[("JFK", "AAA"), ("AAA", "BBB"), ("AAA", "CCC"), ("CCC", "AAA")])', 'vec!["JFK", "AAA", "CCC", "AAA", "BBB"]'),
+        T("two_detours", 'tickets = [("JFK","AAA"), ("JFK","BBB"), ("BBB","JFK"), ("JFK","CCC"), ("CCC","JFK")]',
+          'find_itinerary(&[("JFK", "AAA"), ("JFK", "BBB"), ("BBB", "JFK"), ("JFK", "CCC"), ("CCC", "JFK")])', 'vec!["JFK", "BBB", "JFK", "CCC", "JFK", "AAA"]'),
+        T("ends_back_home", 'tickets = [("JFK","SFO"), ("SFO","ATL"), ("ATL","JFK")]', 'find_itinerary(&[("JFK", "SFO"), ("SFO", "ATL"), ("ATL", "JFK")])', 'vec!["JFK", "SFO", "ATL", "JFK"]'),
+        T("never_back_to_start", 'tickets = [("JFK","ZZZ"), ("ZZZ","AAA"), ("AAA","ZZZ"), ("ZZZ","BBB")]',
+          'find_itinerary(&[("JFK", "ZZZ"), ("ZZZ", "AAA"), ("AAA", "ZZZ"), ("ZZZ", "BBB")])', 'vec!["JFK", "ZZZ", "AAA", "ZZZ", "BBB"]'),
+        T("leetcode_tricky", 'tickets = [("EZE","AXA"), ("TIA","ANU"), ("ANU","JFK"), ("JFK","ANU"), ("ANU","EZE"), ("TIA","ANU"), ("AXA","TIA"), ("TIA","JFK"), ("ANU","TIA"), ("JFK","TIA")]',
+          'find_itinerary(&[("EZE", "AXA"), ("TIA", "ANU"), ("ANU", "JFK"), ("JFK", "ANU"), ("ANU", "EZE"), ("TIA", "ANU"), ("AXA", "TIA"), ("TIA", "JFK"), ("ANU", "TIA"), ("JFK", "TIA")])',
+          'vec!["JFK", "ANU", "EZE", "AXA", "TIA", "ANU", "JFK", "TIA", "ANU", "TIA", "JFK"]'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // Brute force: depth-first over tickets in sorted order; the first full itinerary is the smallest.
+            fn search<'a>(at: &'a str, tickets: &[(&'a str, &'a str)], used: &mut Vec<bool>, path: &mut Vec<&'a str>) -> bool {
+                if path.len() == tickets.len() + 1 {
+                    return true;
+                }
+                let mut options: Vec<usize> = (0..tickets.len()).filter(|&i| !used[i] && tickets[i].0 == at).collect();
+                options.sort_by_key(|&i| tickets[i].1);
+                for i in options {
+                    used[i] = true;
+                    path.push(tickets[i].1);
+                    if search(tickets[i].1, tickets, used, path) {
+                        return true;
+                    }
+                    path.pop();
+                    used[i] = false;
+                }
+                false
+            }
+
+            let mut rng = anneal_prelude::Rng::new(957);
+            let airports = ["JFK", "ATL", "SFO", "LHR"];
+            for _ in 0..300 {
+                // A random walk from JFK, shuffled, is always a valid ticket set.
+                let len = rng.below(9);
+                let mut at = "JFK";
+                let mut tickets: Vec<(&str, &str)> = Vec::new();
+                for _ in 0..len {
+                    let to = *rng.pick(&airports);
+                    tickets.push((at, to));
+                    at = to;
+                }
+                rng.shuffle(&mut tickets);
+                let mut path = vec!["JFK"];
+                search("JFK", &tickets, &mut vec![false; tickets.len()], &mut path);
+                let want: Vec<String> = path.iter().map(|s| s.to_string()).collect();
+                check!(format!("tickets = {tickets:?}"), find_itinerary(&tickets), want);
+            }
+        }
+
+        fn big_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+            std::thread::Builder::new().stack_size(512 << 20).spawn(f).unwrap().join().unwrap()
+        }
+
+        #[test]
+        fn scale_dead_end_tried_first() {
+            // JFK has 50000 round trips to B00000..B49999 and one ticket to AAAAAA, which starts a
+            // 100000-ticket path that never returns. AAAAAA is the smallest choice every time but must come last.
+            let got = big_stack(|| {
+                let k = 50_000;
+                let l = 100_000;
+                let names: Vec<String> = (0..k).map(|i| format!("B{i:05}")).chain((1..=l).map(|i| format!("P{i:05}"))).collect();
+                let mut tickets: Vec<(&str, &str)> = Vec::new();
+                for b in &names[..k] {
+                    tickets.push(("JFK", b.as_str()));
+                    tickets.push((b.as_str(), "JFK"));
+                }
+                tickets.push(("JFK", "AAAAAA"));
+                tickets.push(("AAAAAA", names[k].as_str()));
+                for i in k..k + l - 1 {
+                    tickets.push((names[i].as_str(), names[i + 1].as_str()));
+                }
+                let out = find_itinerary(&tickets);
+                (out.len(), out[1].clone(), out[2 * k].clone(), out[2 * k + 1].clone(), out[out.len() - 1].clone())
+            });
+            check!("50000 round trips from JFK, then a 100001-ticket one-way chain",
+                   got, (200_002, "B00000".to_string(), "JFK".to_string(), "AAAAAA".to_string(), "P100000".to_string()));
+        }
+        """,
+    ],
+    wrong=dict(
+        greedy_smallest_first="""
+            use std::collections::HashMap;
+
+            pub fn find_itinerary(tickets: &[(&str, &str)]) -> Vec<String> {
+                let mut out: HashMap<&str, Vec<&str>> = HashMap::new();
+                for &(from, to) in tickets {
+                    out.entry(from).or_default().push(to);
+                }
+                for next in out.values_mut() {
+                    next.sort_unstable_by(|a, b| b.cmp(a));
+                }
+                let mut route = vec!["JFK".to_string()];
+                let mut at = "JFK";
+                while let Some(next) = out.get_mut(at).and_then(|n| n.pop()) {
+                    route.push(next.to_string());
+                    at = next;
+                }
+                route
+            }
+        """,
+        backtracking="""
+            use std::collections::HashMap;
+
+            fn search<'a>(at: &'a str, out: &HashMap<&'a str, Vec<(&'a str, usize)>>, used: &mut [bool], path: &mut Vec<&'a str>, total: usize) -> bool {
+                if path.len() == total + 1 {
+                    return true;
+                }
+                if let Some(next) = out.get(at) {
+                    for &(to, id) in next {
+                        if used[id] {
+                            continue;
+                        }
+                        used[id] = true;
+                        path.push(to);
+                        if search(to, out, used, path, total) {
+                            return true;
+                        }
+                        path.pop();
+                        used[id] = false;
+                    }
+                }
+                false
+            }
+
+            pub fn find_itinerary(tickets: &[(&str, &str)]) -> Vec<String> {
+                let mut out: HashMap<&str, Vec<(&str, usize)>> = HashMap::new();
+                for (id, &(from, to)) in tickets.iter().enumerate() {
+                    out.entry(from).or_default().push((to, id));
+                }
+                for next in out.values_mut() {
+                    next.sort_unstable();
+                }
+                let mut path = vec!["JFK"];
+                search("JFK", &out, &mut vec![false; tickets.len()], &mut path, tickets.len());
+                path.into_iter().map(String::from).collect()
+            }
+        """,
+        pops_the_largest="""
+            use std::collections::HashMap;
+
+            pub fn find_itinerary(tickets: &[(&str, &str)]) -> Vec<String> {
+                let mut out: HashMap<&str, Vec<&str>> = HashMap::new();
+                for &(from, to) in tickets {
+                    out.entry(from).or_default().push(to);
+                }
+                for next in out.values_mut() {
+                    next.sort_unstable();
+                }
+                let mut stack = vec!["JFK"];
+                let mut route = Vec::new();
+                while let Some(&u) = stack.last() {
+                    match out.get_mut(u).and_then(|n| n.pop()) {
+                        Some(v) => stack.push(v),
+                        None => route.push(stack.pop().unwrap()),
+                    }
+                }
+                route.iter().rev().map(|s| s.to_string()).collect()
+            }
+        """,
+    ),
+    hints=[("approach", "Hierholzer: from JFK keep taking the smallest unused ticket. When an airport has none left, it's finished: add it to the route. The route comes out backwards."),
+           ("rust", "Sort each airport's destinations largest first so `Vec::pop` gives the smallest. An explicit `stack` of airports replaces the recursion."),
+           ("edge case", "The smallest choice can be the one-way branch that must be flown last. Greedy without Hierholzer strands tickets; backtracking finds the answer but can retry that branch once per visit.")],
+    notes=("Each ticket is pushed and popped once, so after sorting the walk is linear. An airport is added to the route only when all its tickets are used, which is what puts a dead-end branch at the end.", "O(E log E)", "O(E)"),
+    follow_up="How would you check first whether an Euler path from JFK exists at all?",
+))
+
 # ---------------------------------------------------------------- SCC, bridges & arenas
 
 P.append(dict(
@@ -7540,10 +9154,10 @@ P.append(dict(
     teaches=["Recursive algorithms with lots of state: a struct and a `&mut self` method.", "Copying a `&'a` field out of `self` before looping over it."],
     statement="""
         Return the strongly connected components of a directed graph. Sort each component ascending, and the
-        list of components by their smallest node.
+        list of components by their smallest node. Recursion is fine: the large tests run with a big stack.
     """,
     examples=[("adj = [[1], [2], [0, 3], [4], [5], [3]]", "[[0, 1, 2], [3, 4, 5]]")],
-    constraints=["n ≤ 5000"],
+    constraints=["n ≤ 2·10⁵", "edges ≤ 4·10⁵"],
     starter="""
         pub fn strongly_connected(adj: &[Vec<usize>]) -> Vec<Vec<usize>> {
             todo!()
@@ -7674,9 +9288,93 @@ P.append(dict(
             let out = strongly_connected(&adj);
             check!("2500 two-cycles joined in a chain", (out.len(), out[0].clone(), out[2499].clone()), (2500, vec![0, 1], vec![4998, 4999]));
         }
+
+        fn big_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+            std::thread::Builder::new().stack_size(512 << 20).spawn(f).unwrap().join().unwrap()
+        }
+
+        #[test]
+        fn scale_path_with_back_edges_200k() {
+            // i → i + 1 and i → i − 1: one component, 200000 deep, with a back edge at every level.
+            let got = big_stack(|| {
+                let n: usize = 200_000;
+                let adj: Vec<Vec<usize>> = (0..n).map(|i| (i + 1..n).take(1).chain(i.checked_sub(1)).collect()).collect();
+                let out = strongly_connected(&adj);
+                (out.len(), out[0].len(), out[0][n - 1])
+            });
+            check!("n = 200000, i → i + 1 and i → i − 1", got, (1, 200_000, 199_999));
+        }
+
+        #[test]
+        fn scale_chain_of_pairs_200k() {
+            // 2i ↔ 2i+1 and 2i+1 → 2i+2, with the numbering reversed so the DFS starts at the far end.
+            let got = big_stack(|| {
+                let n = 200_000;
+                let forward: Vec<Vec<usize>> = (0..n).map(|u| if u % 2 == 0 { vec![u + 1] } else if u + 1 < n { vec![u - 1, u + 1] } else { vec![u - 1] }).collect();
+                let adj: Vec<Vec<usize>> = forward.into_iter().rev().map(|next| next.into_iter().map(|v| n - 1 - v).collect()).collect();
+                let out = strongly_connected(&adj);
+                (out.len(), out[0].clone(), out[99_999].clone())
+            });
+            check!("n = 200000, 100000 two-cycles in a chain", got, (100_000, vec![0, 1], vec![199_998, 199_999]));
+        }
         """,
     ],
     wrong=dict(
+        stack_contains_instead_of_a_flag="""
+            struct Tarjan<'a> {
+                adj: &'a [Vec<usize>],
+                index: Vec<Option<usize>>,
+                low: Vec<usize>,
+                stack: Vec<usize>,
+                next: usize,
+                out: Vec<Vec<usize>>,
+            }
+
+            impl Tarjan<'_> {
+                fn visit(&mut self, u: usize) {
+                    self.index[u] = Some(self.next);
+                    self.low[u] = self.next;
+                    self.next += 1;
+                    self.stack.push(u);
+                    let adj = self.adj;
+                    for &v in &adj[u] {
+                        match self.index[v] {
+                            None => {
+                                self.visit(v);
+                                self.low[u] = self.low[u].min(self.low[v]);
+                            }
+                            Some(iv) if self.stack.contains(&v) => self.low[u] = self.low[u].min(iv),
+                            Some(_) => {}
+                        }
+                    }
+                    if self.index[u] == Some(self.low[u]) {
+                        let mut component = Vec::new();
+                        loop {
+                            let w = self.stack.pop().unwrap();
+                            component.push(w);
+                            if w == u {
+                                break;
+                            }
+                        }
+                        component.sort_unstable();
+                        self.out.push(component);
+                    }
+                }
+            }
+
+            pub fn strongly_connected(adj: &[Vec<usize>]) -> Vec<Vec<usize>> {
+                let n = adj.len();
+                let mut t = Tarjan { adj, index: vec![None; n], low: vec![0; n], stack: Vec::new(), next: 0, out: Vec::new() };
+                for u in 0..n {
+                    if t.index[u].is_none() {
+                        t.visit(u);
+                    }
+                }
+                let mut out = t.out;
+                out.sort_unstable();
+                out
+            }
+        """,
         ignores_on_stack="""
             struct Tarjan<'a> {
                 adj: &'a [Vec<usize>],
@@ -7789,7 +9487,8 @@ P.append(dict(
     ),
     hints=[("approach", "Tarjan: number nodes in DFS order and track the lowest number reachable (`low`). A node whose `low` equals its own number roots a component; pop the stack down to it."),
            ("rust", "Put the state in a struct and write `fn visit(&mut self, u)`. Six parameters threaded through a free function is the alternative."),
-           ("rust", "`for &v in &self.adj[u]` borrows `self` across `self.visit(v)`. `let adj = self.adj;` copies the `&[_]` out first.")],
+           ("rust", "`for &v in &self.adj[u]` borrows `self` across `self.visit(v)`. `let adj = self.adj;` copies the `&[_]` out first."),
+           ("edge case", "Keep `on_stack` as a `Vec<bool>`: `stack.contains(&v)` makes each check O(n) and the whole search quadratic.")],
     notes=("Each node is pushed and popped once, and each edge is examined once. Only nodes still on the stack can lower `low`; the rest belong to components already emitted.", "O(V + E)", "O(V)"),
     follow_up="Rewrite this without recursion so a 10⁶-node path doesn't overflow the stack.",
     related=["L2"],
@@ -7801,10 +9500,10 @@ P.append(dict(
     teaches=["Skipping the parent edge by id, so parallel edges count.", "Reusing the state-struct pattern."],
     statement="""
         Return every edge of the undirected graph on nodes `0..n` whose removal disconnects the graph (the
-        bridges). Write each as `(smaller, larger)` and sort the list.
+        bridges). Write each as `(smaller, larger)` and sort the list. Recursion is fine: the large tests run with a big stack.
     """,
     examples=[("n = 4, edges = [(0,1), (1,2), (2,0), (1,3)]", "[(1, 3)]")],
-    constraints=["n ≤ 5000"],
+    constraints=["n ≤ 2·10⁵", "edges ≤ 4·10⁵"],
     starter="""
         pub fn critical_connections(n: usize, edges: &[(usize, usize)]) -> Vec<(usize, usize)> {
             todo!()
@@ -7919,9 +9618,69 @@ P.append(dict(
             let out = critical_connections(5000, &edges);
             check!("n = 5000, cycle on 0..2500 plus a path to 4999", (out.len(), out[0], out[2499]), (2500, (2499, 2500), (4998, 4999)));
         }
+
+        fn big_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+            std::thread::Builder::new().stack_size(512 << 20).spawn(f).unwrap().join().unwrap()
+        }
+
+        #[test]
+        fn scale_cycle_then_path_200k() {
+            // A cycle through 0..100000, then a path 99999-100000-…-199999: 100000 bridges, DFS 200000 deep.
+            let got = big_stack(|| {
+                let n = 200_000;
+                let mut edges: Vec<(usize, usize)> = (0..n / 2).map(|i| (i, (i + 1) % (n / 2))).collect();
+                edges.extend((n / 2 - 1..n - 1).map(|i| (i + 1, i)));
+                let out = critical_connections(n, &edges);
+                (out.len(), out[0], out[out.len() - 1])
+            });
+            check!("n = 200000, cycle on 0..100000 plus a path to 199999", got, (100_000, (99_999, 100_000), (199_998, 199_999)));
+        }
+
+        #[test]
+        fn scale_doubled_path_200k() {
+            // Every edge of the path 0-1-…-199998 appears twice, so none is a bridge; then one pendant edge.
+            let got = big_stack(|| {
+                let n = 200_000;
+                let mut edges: Vec<(usize, usize)> = (0..n - 2).flat_map(|i| [(i, i + 1), (i + 1, i)]).collect();
+                edges.push((n - 2, n - 1));
+                critical_connections(n, &edges)
+            });
+            check!("n = 200000, path 0..199998 with every edge doubled, plus (199998, 199999)", got, vec![(199_998, 199_999)]);
+        }
         """,
     ],
     wrong=dict(
+        remove_each_edge_and_search="""
+            pub fn critical_connections(n: usize, edges: &[(usize, usize)]) -> Vec<(usize, usize)> {
+                let mut adj = vec![Vec::new(); n];
+                for (id, &(a, b)) in edges.iter().enumerate() {
+                    adj[a].push((b, id));
+                    adj[b].push((a, id));
+                }
+                let mut out = Vec::new();
+                for (skip, &(a, b)) in edges.iter().enumerate() {
+                    let mut seen = vec![false; n];
+                    seen[a] = true;
+                    let mut stack = vec![a];
+                    while let Some(u) = stack.pop() {
+                        if u == b {
+                            break;
+                        }
+                        for &(v, id) in &adj[u] {
+                            if id != skip && !seen[v] {
+                                seen[v] = true;
+                                stack.push(v);
+                            }
+                        }
+                    }
+                    if !seen[b] {
+                        out.push((a.min(b), a.max(b)));
+                    }
+                }
+                out.sort_unstable();
+                out
+            }
+        """,
         skips_the_parent_node="""
             struct Bridges<'a> {
                 adj: &'a [Vec<usize>],
@@ -8510,6 +10269,29 @@ P.append(dict(
           setup='let r = Node::root("r");\nlet weak: Vec<_> = (0..1000).map(|i| std::rc::Rc::downgrade(&r.add_child(&i.to_string()))).collect();\ndrop(r);'),
         T("child_kept_while_root_lives", "keep the root, drop the child handle, then ask the root", "r.child_names().len()", "1",
           setup='let r = Node::root("r");\ndrop(r.add_child("c"));'),
+        """
+        #[test]
+        fn random_trees_vs_model() {
+            let mut rng = anneal_prelude::Rng::new(958);
+            for _ in 0..200 {
+                let n = 1 + rng.below(12);
+                let parent: Vec<usize> = (0..n).map(|i| if i == 0 { 0 } else { rng.below(i) }).collect();
+                let mut nodes = vec![Node::root("n0")];
+                for i in 1..n {
+                    let child = nodes[parent[i]].add_child(&format!("n{i}"));
+                    nodes.push(child);
+                }
+                let got: Vec<(Option<String>, Vec<String>)> = nodes.iter().map(|x| (x.parent_name(), x.child_names())).collect();
+                // Model: the parent array itself.
+                let want: Vec<(Option<String>, Vec<String>)> =
+                    (0..n).map(|i| ((i > 0).then(|| format!("n{}", parent[i])), (i + 1..n).filter(|&j| parent[j] == i).map(|j| format!("n{j}")).collect())).collect();
+                let weak: Vec<_> = nodes.iter().map(std::rc::Rc::downgrade).collect();
+                drop(nodes);
+                let freed = weak.iter().all(|w| w.upgrade().is_none());
+                check!(format!("parents = {parent:?}"), (got, freed), (want, true));
+            }
+        }
+        """,
     ],
     wrong=dict(
         weak_children="""

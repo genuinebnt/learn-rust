@@ -74,3 +74,32 @@ fn cycle_then_path_5000() {
     let out = critical_connections(5000, &edges);
     check!("n = 5000, cycle on 0..2500 plus a path to 4999", (out.len(), out[0], out[2499]), (2500, (2499, 2500), (4998, 4999)));
 }
+
+fn big_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+    std::thread::Builder::new().stack_size(512 << 20).spawn(f).unwrap().join().unwrap()
+}
+
+#[test]
+fn scale_cycle_then_path_200k() {
+    // A cycle through 0..100000, then a path 99999-100000-…-199999: 100000 bridges, DFS 200000 deep.
+    let got = big_stack(|| {
+        let n = 200_000;
+        let mut edges: Vec<(usize, usize)> = (0..n / 2).map(|i| (i, (i + 1) % (n / 2))).collect();
+        edges.extend((n / 2 - 1..n - 1).map(|i| (i + 1, i)));
+        let out = critical_connections(n, &edges);
+        (out.len(), out[0], out[out.len() - 1])
+    });
+    check!("n = 200000, cycle on 0..100000 plus a path to 199999", got, (100_000, (99_999, 100_000), (199_998, 199_999)));
+}
+
+#[test]
+fn scale_doubled_path_200k() {
+    // Every edge of the path 0-1-…-199998 appears twice, so none is a bridge; then one pendant edge.
+    let got = big_stack(|| {
+        let n = 200_000;
+        let mut edges: Vec<(usize, usize)> = (0..n - 2).flat_map(|i| [(i, i + 1), (i + 1, i)]).collect();
+        edges.push((n - 2, n - 1));
+        critical_connections(n, &edges)
+    });
+    check!("n = 200000, path 0..199998 with every edge doubled, plus (199998, 199999)", got, vec![(199_998, 199_999)]);
+}

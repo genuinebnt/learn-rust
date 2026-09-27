@@ -1,0 +1,36 @@
+slug = "accounts-merge"
+title = "Accounts merge"
+mode = "write"
+level = "medium"
+stage = "union-find-mst"
+order = 42
+status = "ready"
+tags = ["union-find", "HashMap", "interning"]
+teaches = [
+  "Union-find over values: give each email an index first.",
+  "Grouping by root with a `HashMap<usize, Vec<_>>`.",
+]
+constraints = ["accounts.len() ≤ 10⁵", "every account has a name and at least one email", "accounts that share an email have the same name"]
+follow_up = "Solve it with a DFS over an email graph instead. Which version is easier to get right under time pressure?"
+related = ["S4"]
+
+[[examples]]
+input = "accounts = [[\"John\",\"johnsmith@mail.com\",\"john_newyork@mail.com\"], [\"John\",\"johnsmith@mail.com\",\"john00@mail.com\"], [\"Mary\",\"mary@mail.com\"], [\"John\",\"johnnybravo@mail.com\"]]"
+output = "[[\"John\",\"john00@mail.com\",\"john_newyork@mail.com\",\"johnsmith@mail.com\"], [\"John\",\"johnnybravo@mail.com\"], [\"Mary\",\"mary@mail.com\"]]"
+
+[[hints]]
+kind = "approach"
+text = "Union-find over emails: join every email in an account to the account's first email. Then group emails by their root."
+
+[[hints]]
+kind = "rust"
+text = "Intern emails with `HashMap<&str, usize>` so the union-find works on `Vec<usize>`. Remember which account first listed each email to get the name back."
+
+[[hints]]
+kind = "edge case"
+text = "A later account can join two groups that were separate so far; merging into the first matching group misses that."
+
+[solution]
+explanation = "Interning turns strings into indices, so union-find runs on a `Vec<usize>`. Sorting the emails dominates."
+time = "O(E log E) for E emails"
+space = "O(E)"

@@ -1,0 +1,43 @@
+slug = "sliding-puzzle"
+title = "Sliding puzzle"
+mode = "write"
+level = "hard"
+stage = "hard-traversals"
+order = 46
+status = "ready"
+tags = ["BFS on states", "state encoding"]
+teaches = [
+  "BFS where each node is a whole board.",
+  "A precomputed neighbour table for the blank's moves.",
+]
+constraints = ["board holds each of 0..=5 exactly once"]
+follow_up = "For a 4 × 4 board BFS is far too slow. How would A* with a Manhattan-distance heuristic help?"
+
+[[examples]]
+input = "board = [[1,2,3],[4,0,5]]"
+output = "Some(1)"
+
+[[examples]]
+input = "board = [[1,2,3],[5,4,0]]"
+output = "None"
+
+[[examples]]
+input = "board = [[4,1,2],[5,0,3]]"
+output = "Some(5)"
+
+[[hints]]
+kind = "approach"
+text = "Each board is a node; its neighbours are the boards one swap of the blank away. BFS from the start finds the fewest moves. There are only 720 boards."
+
+[[hints]]
+kind = "rust"
+text = "Flatten the board to `[u8; 6]`: it's `Copy`, `Hash` and `Eq`, so it works directly as a `HashMap` key. A table `NEXT[i]` lists the cells the blank at `i` can swap with."
+
+[[hints]]
+kind = "edge case"
+text = "Cell 2 (end of the top row) and cell 3 (start of the bottom row) are not neighbours. Half of all boards can't be solved; BFS just runs out of states."
+
+[solution]
+explanation = "BFS explores at most 360 reachable boards, each with at most 3 moves. The unreachable half differ from the goal by an odd permutation."
+time = "O(6! · 6)"
+space = "O(6!)"

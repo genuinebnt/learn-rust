@@ -72,3 +72,32 @@ fn chain_of_pairs_5000() {
     let out = strongly_connected(&adj);
     check!("2500 two-cycles joined in a chain", (out.len(), out[0].clone(), out[2499].clone()), (2500, vec![0, 1], vec![4998, 4999]));
 }
+
+fn big_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+    std::thread::Builder::new().stack_size(512 << 20).spawn(f).unwrap().join().unwrap()
+}
+
+#[test]
+fn scale_path_with_back_edges_200k() {
+    // i → i + 1 and i → i − 1: one component, 200000 deep, with a back edge at every level.
+    let got = big_stack(|| {
+        let n: usize = 200_000;
+        let adj: Vec<Vec<usize>> = (0..n).map(|i| (i + 1..n).take(1).chain(i.checked_sub(1)).collect()).collect();
+        let out = strongly_connected(&adj);
+        (out.len(), out[0].len(), out[0][n - 1])
+    });
+    check!("n = 200000, i → i + 1 and i → i − 1", got, (1, 200_000, 199_999));
+}
+
+#[test]
+fn scale_chain_of_pairs_200k() {
+    // 2i ↔ 2i+1 and 2i+1 → 2i+2, with the numbering reversed so the DFS starts at the far end.
+    let got = big_stack(|| {
+        let n = 200_000;
+        let forward: Vec<Vec<usize>> = (0..n).map(|u| if u % 2 == 0 { vec![u + 1] } else if u + 1 < n { vec![u - 1, u + 1] } else { vec![u - 1] }).collect();
+        let adj: Vec<Vec<usize>> = forward.into_iter().rev().map(|next| next.into_iter().map(|v| n - 1 - v).collect()).collect();
+        let out = strongly_connected(&adj);
+        (out.len(), out[0].clone(), out[99_999].clone())
+    });
+    check!("n = 200000, 100000 two-cycles in a chain", got, (100_000, vec![0, 1], vec![199_998, 199_999]));
+}

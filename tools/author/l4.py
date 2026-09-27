@@ -2395,6 +2395,641 @@ Syntax: `trait Shape: DynShape { fn scaled(&self, k: f64) -> Self where Self: Si
     ),
 ))
 
+# ---------------------------------------------------------------- operator traits (medium)
+
+VEC2_HEAD = r"""
+use std::iter::Sum;
+use std::ops::{Add, AddAssign, Mul, Neg, Sub};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Vec2 {
+    pub x: i64,
+    pub y: i64,
+}
+"""
+
+VEC2_IMPLS = r"""
+impl Add for Vec2 {
+    type Output = Vec2;
+
+    fn add(self, o: Vec2) -> Vec2 {
+        Vec2 { x: self.x + o.x, y: self.y + o.y }
+    }
+}
+
+impl Sub for Vec2 {
+    type Output = Vec2;
+
+    fn sub(self, o: Vec2) -> Vec2 {
+        Vec2 { x: self.x - o.x, y: self.y - o.y }
+    }
+}
+
+impl Neg for Vec2 {
+    type Output = Vec2;
+
+    fn neg(self) -> Vec2 {
+        Vec2 { x: -self.x, y: -self.y }
+    }
+}
+
+impl AddAssign for Vec2 {
+    fn add_assign(&mut self, o: Vec2) {
+        self.x += o.x;
+        self.y += o.y;
+    }
+}
+
+/// Scaling: v * k.
+impl Mul<i64> for Vec2 {
+    type Output = Vec2;
+
+    fn mul(self, k: i64) -> Vec2 {
+        Vec2 { x: self.x * k, y: self.y * k }
+    }
+}
+
+/// Scaling: k * v. Allowed although i64 is foreign, because Vec2 is local.
+impl Mul<Vec2> for i64 {
+    type Output = Vec2;
+
+    fn mul(self, v: Vec2) -> Vec2 {
+        v * self
+    }
+}
+
+/// Dot product.
+impl Mul for Vec2 {
+    type Output = i64;
+
+    fn mul(self, o: Vec2) -> i64 {
+        self.x * o.x + self.y * o.y
+    }
+}
+
+impl Sum for Vec2 {
+    fn sum<I: Iterator<Item = Vec2>>(iter: I) -> Vec2 {
+        iter.fold(Vec2::default(), |a, b| a + b)
+    }
+}
+
+impl<'a> Sum<&'a Vec2> for Vec2 {
+    fn sum<I: Iterator<Item = &'a Vec2>>(iter: I) -> Vec2 {
+        iter.copied().sum()
+    }
+}
+"""
+
+VEC2_TAIL = r"""
+/// The sum of all the points.
+pub fn total(points: &[Vec2]) -> Vec2 {
+    points.iter().sum()
+}
+
+/// Start at the origin and take each step `count` times.
+pub fn walk(steps: &[(Vec2, i64)]) -> Vec2 {
+    let mut p = Vec2::default();
+    for &(d, count) in steps {
+        p += d * count;
+    }
+    p
+}
+"""
+
+VEC2_SOLUTION = VEC2_HEAD + VEC2_IMPLS + VEC2_TAIL
+
+P.append(fix(
+    "vec2-operators", "Operator overloading: Add, Mul, Neg and Sum", "medium", "operator-traits", ["Add", "Mul", "Neg", "AddAssign", "Sum", "operator traits"],
+    """
+        Give `Vec2` its operators; `total`, `walk` and the tests use them.
+
+        - `a + b`, `a - b`, `-a`, and `a += b`.
+        - Scaling by an `i64` from either side: `v * 3` and `3 * v`.
+        - `a * b` is the dot product, an `i64`.
+        - Summing an iterator of `Vec2` or of `&Vec2` with `.sum()`.
+    """,
+    VEC2_HEAD + "\n// TODO: the operator impls.\n" + VEC2_TAIL,
+    VEC2_SOLUTION,
+    [T("add_sub_neg", "a = (1, 2), b = (10, 20): a + b, b - a, -a", "(a + b, b - a, -a)", "(Vec2 { x: 11, y: 22 }, Vec2 { x: 9, y: 18 }, Vec2 { x: -1, y: -2 })",
+       setup="let (a, b) = (Vec2 { x: 1, y: 2 }, Vec2 { x: 10, y: 20 });"),
+     T("scale_both_sides", "v = (2, -3): v * 3, 3 * v", "(v * 3, 3 * v)", "(Vec2 { x: 6, y: -9 }, Vec2 { x: 6, y: -9 })", setup="let v = Vec2 { x: 2, y: -3 };"),
+     T("dot_product", "(1, 2) * (3, 4)", "Vec2 { x: 1, y: 2 } * Vec2 { x: 3, y: 4 }", "11"),
+     T("walk_steps", "walk [((1, 0), 3), ((0, 1), 2)]", "walk(&[(Vec2 { x: 1, y: 0 }, 3), (Vec2 { x: 0, y: 1 }, 2)])", "Vec2 { x: 3, y: 2 }"),
+     T("sum_owned_and_borrowed", "sum of [(1, 1), (2, 3)], owned and by reference", "(v.iter().sum::<Vec2>(), v.into_iter().sum::<Vec2>())", "(Vec2 { x: 3, y: 4 }, Vec2 { x: 3, y: 4 })",
+       setup="let v = vec![Vec2 { x: 1, y: 1 }, Vec2 { x: 2, y: 3 }];")],
+    [T("total_empty", "total(&[])", "total(&[])", "Vec2 { x: 0, y: 0 }"),
+     T("add_assign", "p += (5, -5) twice", "p", "Vec2 { x: 11, y: -9 }", setup="let mut p = Vec2 { x: 1, y: 1 };\np += Vec2 { x: 5, y: -5 };\np += Vec2 { x: 5, y: -5 };"),
+     T("perpendicular_dot", "(3, 4) * (-4, 3)", "Vec2 { x: 3, y: 4 } * Vec2 { x: -4, y: 3 }", "0"),
+     T("scale_by_zero", "0 * (7, 8)", "0 * Vec2 { x: 7, y: 8 }", "Vec2 { x: 0, y: 0 }"),
+     T("scale_by_negative", "(7, -8) * -2", "Vec2 { x: 7, y: -8 } * -2", "Vec2 { x: -14, y: 16 }"),
+     T("double_negation", "-(-(5, 6))", "-(-Vec2 { x: 5, y: 6 })", "Vec2 { x: 5, y: 6 }"),
+     T("walk_backwards", "walk [((2, 1), -3)]", "walk(&[(Vec2 { x: 2, y: 1 }, -3)])", "Vec2 { x: -6, y: -3 }"),
+     T("sub_is_not_commutative", "(0, 0) - (1, 2)", "Vec2 { x: 0, y: 0 } - Vec2 { x: 1, y: 2 }", "Vec2 { x: -1, y: -2 }"),
+     T("sum_of_mapped", "(1..=4) mapped to (i, i*i), summed", "(1..=4).map(|i| Vec2 { x: i, y: i * i }).sum::<Vec2>()", "Vec2 { x: 10, y: 30 }"),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4414);
+         for _ in 0..300 {
+             let c: Vec<i64> = rng.vec(4, -50, 50);
+             let k = rng.int(-9, 9);
+             let (a, b) = (Vec2 { x: c[0], y: c[1] }, Vec2 { x: c[2], y: c[3] });
+             let d = format!("a = {a:?}, b = {b:?}, k = {k}");
+             check!(d.clone(), a + b * k, Vec2 { x: c[0] + c[2] * k, y: c[1] + c[3] * k });
+             check!(d.clone(), k * (a - b), Vec2 { x: k * (c[0] - c[2]), y: k * (c[1] - c[3]) });
+             check!(d.clone(), a * b, c[0] * c[2] + c[1] * c[3]);
+             check!(d.clone(), -a + b, Vec2 { x: c[2] - c[0], y: c[3] - c[1] });
+             let n = rng.below(5);
+             let pts: Vec<Vec2> = (0..n).map(|_| Vec2 { x: rng.int(-9, 9), y: rng.int(-9, 9) }).collect();
+             let want = pts.iter().fold((0, 0), |(x, y), p| (x + p.x, y + p.y));
+             check!(format!("total({pts:?})"), total(&pts), Vec2 { x: want.0, y: want.1 });
+         }
+     }
+     """],
+    [("rust", "Each binary operator is a trait with a right-hand type and an `Output`: `impl Mul<i64> for Vec2 { type Output = Vec2; .. }`, and the dot product is `impl Mul for Vec2 { type Output = i64; .. }`. For `3 * v`, implement on the left type: `impl Mul<Vec2> for i64`."),
+     ("rust", "`.sum()` needs `impl Sum for Vec2` for owned items and `impl<'a> Sum<&'a Vec2> for Vec2` for borrowed ones.")],
+    ("""Operators are traits in `std::ops`; the right-hand side is a type parameter (default `Self`) and the result an associated type, so `Vec2 * i64` and `Vec2 * Vec2` can return different things. `impl Mul<Vec2> for i64` is allowed by coherence because a local type appears in it. `+=` is a separate trait (`AddAssign`), and `Iterator::sum` goes through `Sum<A>`.
+
+Syntax: `impl Mul<i64> for Vec2 { type Output = Vec2; fn mul(self, k: i64) -> Vec2 { .. } }` · `impl Neg for Vec2 { type Output = Vec2; fn neg(self) -> Vec2 }` · `impl AddAssign for Vec2 { fn add_assign(&mut self, o: Vec2) }` · `impl<'a> Sum<&'a Vec2> for Vec2 { fn sum<I: Iterator<Item = &'a Vec2>>(iter: I) -> Vec2 }`.""", "O(1) per operation", "O(1)"),
+    "Would you also implement `Mul<Vec2> for Vec2` as the dot product in a real library? What does `nalgebra` do instead?",
+    ["Operator traits have an `Rhs` parameter and an `Output` type.", "Foreign-left impls like `impl Mul<Vec2> for i64` are fine when a local type appears.", "`Sum` for owned and `&'a` items."],
+    related=("S6", "S8"),
+    wrong=dict(
+        dot_is_cross=sub(VEC2_SOLUTION, "self.x * o.x + self.y * o.y", "self.x * o.y - self.y * o.x"),
+        left_scale_x_only=sub(VEC2_SOLUTION, "    fn mul(self, v: Vec2) -> Vec2 {\n        v * self\n    }", "    fn mul(self, v: Vec2) -> Vec2 {\n        Vec2 { x: v.x * self, y: v.y }\n    }"),
+        sub_reversed=sub(VEC2_SOLUTION, "Vec2 { x: self.x - o.x, y: self.y - o.y }", "Vec2 { x: o.x - self.x, y: o.y - self.y }"),
+    ),
+))
+
+POLY_STARTER = r"""
+use std::ops::{Add, AddAssign};
+
+/// Coefficients from the constant term up: Poly(vec![1, 0, 3]) is 1 + 3x².
+/// No trailing zeros: the zero polynomial is Poly(vec![]).
+#[derive(Debug, PartialEq, Eq)]
+pub struct Poly(pub Vec<i64>);
+
+impl Add for Poly {
+    type Output = Poly;
+
+    fn add(self, rhs: Poly) -> Poly {
+        let (mut long, short) = if self.0.len() >= rhs.0.len() { (self.0, rhs.0) } else { (rhs.0, self.0) };
+        for (i, c) in short.into_iter().enumerate() {
+            long[i] += c;
+        }
+        while long.last() == Some(&0) {
+            long.pop();
+        }
+        Poly(long)
+    }
+}
+
+/// The sum of all the polynomials.
+pub fn sum_all(ps: &[Poly]) -> Poly {
+    ps.iter().fold(Poly(vec![]), |acc, p| acc + p)
+}
+"""
+
+POLY_ADDED = r"""
+impl AddAssign<&Poly> for Poly {
+    fn add_assign(&mut self, rhs: &Poly) {
+        if self.0.len() < rhs.0.len() {
+            self.0.resize(rhs.0.len(), 0);
+        }
+        for (a, b) in self.0.iter_mut().zip(&rhs.0) {
+            *a += b;
+        }
+        while self.0.last() == Some(&0) {
+            self.0.pop();
+        }
+    }
+}
+
+/// Reuses the left side's buffer.
+impl Add<&Poly> for Poly {
+    type Output = Poly;
+
+    fn add(mut self, rhs: &Poly) -> Poly {
+        self += rhs;
+        self
+    }
+}
+
+impl Add<&Poly> for &Poly {
+    type Output = Poly;
+
+    fn add(self, rhs: &Poly) -> Poly {
+        Poly(Vec::with_capacity(self.0.len().max(rhs.0.len()))) + self + rhs
+    }
+}
+"""
+
+POLY_SOLUTION = sub(POLY_STARTER, "\n/// The sum of all the polynomials.", POLY_ADDED + "\n/// The sum of all the polynomials.")
+
+P.append(fix(
+    "fix-add-for-references", "Fix: adding through references (E0308)", "medium", "operator-traits", ["E0308", "Add<&T>", "AddAssign", "operator traits"],
+    """
+        `sum_all` doesn't compile: `Poly` only adds by value, and `p` is a `&Poly`. Make these work without cloning
+        a polynomial:
+
+        - `poly + &other`, reusing `poly`'s buffer;
+        - `&a + &b`, leaving both usable;
+        - `poly += &other`.
+
+        Results never end in zeros.
+    """,
+    POLY_STARTER,
+    POLY_SOLUTION,
+    [T("sum_all_three", "sum_all([1 + 2x, 3, x²])", "sum_all(&[Poly(vec![1, 2]), Poly(vec![3]), Poly(vec![0, 0, 1])])", "Poly(vec![4, 2, 1])"),
+     T("owned_plus_ref", "Poly [1, 2] + &Poly [0, 0, 5]", "Poly(vec![1, 2]) + &Poly(vec![0, 0, 5])", "Poly(vec![1, 2, 5])"),
+     T("ref_plus_ref_keeps_both", "&a + &b, then a and b", "(&a + &b, a, b)", "(Poly(vec![3, 3]), Poly(vec![1, 2]), Poly(vec![2, 1]))",
+       setup="let a = Poly(vec![1, 2]);\nlet b = Poly(vec![2, 1]);"),
+     T("add_assign_ref", "p = [5]; p += &[1, 1]", "p", "Poly(vec![6, 1])", setup="let mut p = Poly(vec![5]);\np += &Poly(vec![1, 1]);"),
+     T("cancelling_trims", "[1, 2] + &[0, -2]", "Poly(vec![1, 2]) + &Poly(vec![0, -2])", "Poly(vec![1])")],
+    [T("sum_all_empty", "sum_all(&[])", "sum_all(&[])", "Poly(vec![])"),
+     T("all_cancel", "&[1, -1] + &[-1, 1]", "&Poly(vec![1, -1]) + &Poly(vec![-1, 1])", "Poly(vec![])"),
+     T("zero_plus_zero", "Poly [] + &Poly []", "Poly(vec![]) + &Poly(vec![])", "Poly(vec![])"),
+     T("longer_right", "[1] + &[0, 0, 0, 4]", "Poly(vec![1]) + &Poly(vec![0, 0, 0, 4])", "Poly(vec![1, 0, 0, 4])"),
+     T("add_assign_trims", "p = [1, 2, 3]; p += &[0, 0, -3]", "p", "Poly(vec![1, 2])", setup="let mut p = Poly(vec![1, 2, 3]);\np += &Poly(vec![0, 0, -3]);"),
+     T("add_assign_self_copy", "p += &q twice", "p", "Poly(vec![2, 4])", setup="let mut p = Poly(vec![]);\nlet q = Poly(vec![1, 2]);\np += &q;\np += &q;"),
+     T("owned_by_value_still_works", "Poly [1] + Poly [2]", "Poly(vec![1]) + Poly(vec![2])", "Poly(vec![3])"),
+     T("chained", "&a + &b + &c", "&a + &b + &c", "Poly(vec![1, 1, 1])", setup="let (a, b, c) = (Poly(vec![1]), Poly(vec![0, 1]), Poly(vec![0, 0, 1]));"),
+     T("sum_all_many", "sum_all of 1000 copies of [1, -1, 2]", "sum_all(&ps)", "Poly(vec![1000, -1000, 2000])", setup="let ps: Vec<Poly> = (0..1000).map(|_| Poly(vec![1, -1, 2])).collect();"),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4415);
+         for _ in 0..300 {
+             let n = rng.below(5);
+             let mut ps = Vec::new();
+             for _ in 0..n {
+                 let len = rng.below(4);
+                 let mut c: Vec<i64> = rng.vec(len, -2, 2);
+                 while c.last() == Some(&0) {
+                     c.pop();
+                 }
+                 ps.push(Poly(c));
+             }
+             let width = ps.iter().map(|p| p.0.len()).max().unwrap_or(0);
+             let mut want = vec![0i64; width];
+             for p in &ps {
+                 for (i, c) in p.0.iter().enumerate() {
+                     want[i] += c;
+                 }
+             }
+             while want.last() == Some(&0) {
+                 want.pop();
+             }
+             check!(format!("sum_all({ps:?})"), sum_all(&ps), Poly(want.clone()));
+             if n >= 2 {
+                 let mut acc = Poly(vec![]);
+                 for p in &ps {
+                     acc += p;
+                 }
+                 check!(format!("+= over {ps:?}"), acc, Poly(want.clone()));
+                 let pair = &ps[0] + &ps[1];
+                 let mut w2 = vec![0i64; ps[0].0.len().max(ps[1].0.len())];
+                 for p in &ps[..2] {
+                     for (i, c) in p.0.iter().enumerate() {
+                         w2[i] += c;
+                     }
+                 }
+                 while w2.last() == Some(&0) {
+                     w2.pop();
+                 }
+                 check!(format!("{:?} + {:?}", ps[0], ps[1]), pair, Poly(w2));
+             }
+         }
+     }
+     """],
+    [("rust", "`Add` has a type parameter for the right side: implement `Add<&Poly> for Poly` and `Add<&Poly> for &Poly`, each with `type Output = Poly`. `AddAssign<&Poly> for Poly` gives `+=`."),
+     ("approach", "Write the in-place addition once, in `add_assign`, and build the other two on it: `Poly + &Poly` is `self += rhs; self`."),
+     ("edge case", "Pad the left side when the right one is longer, and pop trailing zeros after adding.")],
+    ("""`a + b` desugars to `Add::add(a, b)`, which takes both sides by value. For non-`Copy` types that means implementing the trait again for references (`impl Add<&Poly> for &Poly`), as `String + &str` and `BigInt` do. Taking the left side by value lets `+` reuse its buffer, so a fold does no reallocation beyond growth.
+
+Syntax: `impl Add<&Poly> for Poly { type Output = Poly; fn add(mut self, rhs: &Poly) -> Poly { self += rhs; self } }` · `impl AddAssign<&Poly> for Poly { fn add_assign(&mut self, rhs: &Poly) }`.""", "O(len) per addition", "O(len)"),
+    "`String` implements `Add<&str>` but not `Add<String>` or `&String + &str`. Why that choice?",
+    ["Operators take operands by value; add impls for `&T` to add through references.", "Write the mutating version once and derive the others from it."],
+    rules=dict(methods=["clone", "cloned", "to_vec", "to_owned"]),
+    related=("S3", "S8"),
+    wrong=dict(
+        no_trim=sub(POLY_SOLUTION, "            *a += b;\n        }\n        while self.0.last() == Some(&0) {\n            self.0.pop();\n        }", "            *a += b;\n        }"),
+        drops_longer_tail=sub(POLY_SOLUTION, "        if self.0.len() < rhs.0.len() {\n            self.0.resize(rhs.0.len(), 0);\n        }\n", ""),
+    ),
+))
+
+MATRIX_SOLUTION = r"""
+use std::ops::{Add, Index, IndexMut, Mul};
+
+/// A rows × cols matrix, stored row by row in one Vec.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Matrix<T> {
+    rows: usize,
+    cols: usize,
+    data: Vec<T>,
+}
+
+impl<T: Copy + Default> Matrix<T> {
+    /// Every entry `T::default()`.
+    pub fn zeros(rows: usize, cols: usize) -> Self {
+        Matrix { rows, cols, data: vec![T::default(); rows * cols] }
+    }
+
+    /// Panics if the rows have different lengths. No rows gives a 0 × 0 matrix.
+    pub fn from_rows(rows: Vec<Vec<T>>) -> Self {
+        let r = rows.len();
+        let c = rows.first().map_or(0, Vec::len);
+        assert!(rows.iter().all(|row| row.len() == c), "rows have different lengths");
+        Matrix { rows: r, cols: c, data: rows.into_iter().flatten().collect() }
+    }
+
+    pub fn transpose(&self) -> Self {
+        let mut t = Matrix::zeros(self.cols, self.rows);
+        for r in 0..self.rows {
+            for c in 0..self.cols {
+                t[(c, r)] = self[(r, c)];
+            }
+        }
+        t
+    }
+}
+
+impl<T> Matrix<T> {
+    pub fn rows(&self) -> usize {
+        self.rows
+    }
+
+    pub fn cols(&self) -> usize {
+        self.cols
+    }
+
+    /// Row `r` as a slice. Panics if `r` is out of range.
+    pub fn row(&self, r: usize) -> &[T] {
+        assert!(r < self.rows, "row {r} out of range");
+        &self.data[r * self.cols..(r + 1) * self.cols]
+    }
+
+    /// Every row, top to bottom.
+    pub fn rows_iter(&self) -> impl Iterator<Item = &[T]> {
+        (0..self.rows).map(move |r| self.row(r))
+    }
+}
+
+/// m[(r, c)]. Panics if `r` or `c` is out of range.
+impl<T> Index<(usize, usize)> for Matrix<T> {
+    type Output = T;
+
+    fn index(&self, (r, c): (usize, usize)) -> &T {
+        assert!(r < self.rows && c < self.cols, "({r}, {c}) is outside {}x{}", self.rows, self.cols);
+        &self.data[r * self.cols + c]
+    }
+}
+
+impl<T> IndexMut<(usize, usize)> for Matrix<T> {
+    fn index_mut(&mut self, (r, c): (usize, usize)) -> &mut T {
+        assert!(r < self.rows && c < self.cols, "({r}, {c}) is outside {}x{}", self.rows, self.cols);
+        &mut self.data[r * self.cols + c]
+    }
+}
+
+/// Element-wise sum. Panics if the shapes differ.
+impl<T: Copy + Add<Output = T>> Add for Matrix<T> {
+    type Output = Matrix<T>;
+
+    fn add(mut self, rhs: Matrix<T>) -> Matrix<T> {
+        assert!(self.rows == rhs.rows && self.cols == rhs.cols, "shapes differ");
+        for (a, &b) in self.data.iter_mut().zip(&rhs.data) {
+            *a = *a + b;
+        }
+        self
+    }
+}
+
+/// Matrix product. Panics unless `self.cols() == rhs.rows()`.
+impl<'a, T: Copy + Default + Add<Output = T> + Mul<Output = T>> Mul for &'a Matrix<T> {
+    type Output = Matrix<T>;
+
+    fn mul(self, rhs: &'a Matrix<T>) -> Matrix<T> {
+        assert_eq!(self.cols, rhs.rows, "inner dimensions differ");
+        let mut out = Matrix::zeros(self.rows, rhs.cols);
+        for i in 0..self.rows {
+            for k in 0..self.cols {
+                let a = self[(i, k)];
+                for j in 0..rhs.cols {
+                    out[(i, j)] = out[(i, j)] + a * rhs[(k, j)];
+                }
+            }
+        }
+        out
+    }
+}
+"""
+
+MATRIX_STARTER = r"""
+use std::ops::{Add, Index, IndexMut, Mul};
+
+/// A rows × cols matrix, stored row by row in one Vec.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Matrix<T> {
+    rows: usize,
+    cols: usize,
+    data: Vec<T>,
+}
+
+impl<T: Copy + Default> Matrix<T> {
+    /// Every entry `T::default()`.
+    pub fn zeros(rows: usize, cols: usize) -> Self {
+        todo!()
+    }
+
+    /// Panics if the rows have different lengths. No rows gives a 0 × 0 matrix.
+    pub fn from_rows(rows: Vec<Vec<T>>) -> Self {
+        todo!()
+    }
+
+    pub fn transpose(&self) -> Self {
+        todo!()
+    }
+}
+
+impl<T> Matrix<T> {
+    pub fn rows(&self) -> usize {
+        todo!()
+    }
+
+    pub fn cols(&self) -> usize {
+        todo!()
+    }
+
+    /// Row `r` as a slice. Panics if `r` is out of range.
+    pub fn row(&self, r: usize) -> &[T] {
+        todo!()
+    }
+
+    /// Every row, top to bottom.
+    pub fn rows_iter(&self) -> impl Iterator<Item = &[T]> {
+        // TODO: replace the placeholder.
+        std::iter::from_fn(|| todo!())
+    }
+}
+
+/// m[(r, c)]. Panics if `r` or `c` is out of range.
+impl<T> Index<(usize, usize)> for Matrix<T> {
+    type Output = T;
+
+    fn index(&self, (r, c): (usize, usize)) -> &T {
+        todo!()
+    }
+}
+
+impl<T> IndexMut<(usize, usize)> for Matrix<T> {
+    fn index_mut(&mut self, (r, c): (usize, usize)) -> &mut T {
+        todo!()
+    }
+}
+
+/// Element-wise sum. Panics if the shapes differ.
+impl<T: Copy + Add<Output = T>> Add for Matrix<T> {
+    type Output = Matrix<T>;
+
+    fn add(self, rhs: Matrix<T>) -> Matrix<T> {
+        todo!()
+    }
+}
+
+/// Matrix product. Panics unless `self.cols() == rhs.rows()`.
+impl<'a, T: Copy + Default + Add<Output = T> + Mul<Output = T>> Mul for &'a Matrix<T> {
+    type Output = Matrix<T>;
+
+    fn mul(self, rhs: &'a Matrix<T>) -> Matrix<T> {
+        todo!()
+    }
+}
+"""
+
+MATRIX_HELP = r"""
+fn m(rows: &[&[i64]]) -> Matrix<i64> {
+    Matrix::from_rows(rows.iter().map(|r| r.to_vec()).collect())
+}
+
+fn panics<R>(f: impl FnOnce() -> R) -> bool {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).is_err()
+}
+"""
+
+P.append(write(
+    "matrix-operators", "Matrix<T> with operator overloading (W47)", "medium", "operator-traits", ["Index", "IndexMut", "Add", "Mul", "generic bounds"],
+    """
+        Implement a generic `Matrix<T>` stored in one `Vec<T>`, row by row. The bounds on each `impl` are already
+        chosen; notice which operations need which.
+
+        - `zeros`, `from_rows` (panics on ragged rows), `transpose`, `rows`, `cols`, `row(r)` and `rows_iter()`.
+        - `m[(r, c)]` reads and writes an entry, and panics if either index is out of range.
+        - `a + b` adds element-wise; `&a * &b` is the matrix product. Both panic on mismatched shapes.
+    """,
+    MATRIX_STARTER,
+    MATRIX_SOLUTION,
+    [MATRIX_HELP,
+     T("add", "[[1,2],[3,4]] + [[5,6],[7,8]]", "m(&[&[1, 2], &[3, 4]]) + m(&[&[5, 6], &[7, 8]])", "m(&[&[6, 8], &[10, 12]])"),
+     T("product", "&[[1,2],[3,4]] * &[[5,6],[7,8]]", "&m(&[&[1, 2], &[3, 4]]) * &m(&[&[5, 6], &[7, 8]])", "m(&[&[19, 22], &[43, 50]])"),
+     T("transpose_non_square", "transpose [[1,2,3],[4,5,6]]", "m(&[&[1, 2, 3], &[4, 5, 6]]).transpose()", "m(&[&[1, 4], &[2, 5], &[3, 6]])"),
+     T("index_mut_then_row", "a[(1, 0)] = 9; a.row(1)", "(a.row(1).to_vec(), a[(0, 1)])", "(vec![9, 4], 2)", setup="let mut a = m(&[&[1, 2], &[3, 4]]);\na[(1, 0)] = 9;"),
+     T("rows_iter_sums", "row sums of [[1,2],[3,4]]", "m(&[&[1, 2], &[3, 4]]).rows_iter().map(|r| r.iter().sum::<i64>()).collect::<Vec<_>>()", "vec![3, 7]"),
+     T("column_out_of_range_panics", "a[(0, 2)] on a 2×2", "panics(|| a[(0, 2)])", "true", setup="let a = m(&[&[1, 2], &[3, 4]]);")],
+    [MATRIX_HELP,
+     T("row_out_of_range_panics", "a[(2, 0)] on a 2×2", "panics(|| a[(2, 0)])", "true", setup="let a = m(&[&[1, 2], &[3, 4]]);"),
+     T("mul_shape_mismatch_panics", "2×2 times 3×1", "panics(|| &a * &b)", "true", setup="let a = m(&[&[1, 2], &[3, 4]]);\nlet b = m(&[&[1], &[2], &[3]]);"),
+     T("add_shape_mismatch_panics", "2×1 + 1×2", "panics(|| m(&[&[1], &[2]]) + m(&[&[1, 2]]))", "true"),
+     T("ragged_panics", "from_rows [[1, 2], [3]]", "panics(|| m(&[&[1, 2], &[3]]))", "true"),
+     T("non_square_product", "2×3 times 3×1", "&m(&[&[1, 2, 3], &[4, 5, 6]]) * &m(&[&[1], &[0], &[-1]])", "m(&[&[-2], &[-2]])"),
+     T("empty", "from_rows(vec![])", "(e.rows(), e.cols(), e.rows_iter().count())", "(0, 0, 0)", setup="let e: Matrix<i64> = Matrix::from_rows(vec![]);"),
+     T("zero_width_rows", "zeros(3, 0).rows_iter()", "z.rows_iter().map(|r| r.len()).collect::<Vec<_>>()", "vec![0, 0, 0]", setup="let z: Matrix<i64> = Matrix::zeros(3, 0);"),
+     T("inner_dimension_zero", "(2×0) * (0×3)", "&Matrix::<i64>::zeros(2, 0) * &Matrix::zeros(0, 3)", "Matrix::zeros(2, 3)"),
+     T("floats", "&[[0.5, 1.5]] * &[[2.0], [4.0]]", "&Matrix::from_rows(vec![vec![0.5, 1.5]]) * &Matrix::from_rows(vec![vec![2.0], vec![4.0]])", "Matrix::from_rows(vec![vec![7.0]])"),
+     T("transpose_twice", "transpose of transpose", "a.transpose().transpose() == a", "true", setup="let a = m(&[&[1, 2, 3], &[4, 5, 6]]);"),
+     """
+     #[test]
+     fn any_ring_type() {
+         // T only needs Copy + Default + Add + Mul.
+         #[derive(Debug, Clone, Copy, PartialEq, Default)]
+         struct Mod7(u8);
+         impl std::ops::Add for Mod7 {
+             type Output = Mod7;
+             fn add(self, o: Mod7) -> Mod7 {
+                 Mod7((self.0 + o.0) % 7)
+             }
+         }
+         impl std::ops::Mul for Mod7 {
+             type Output = Mod7;
+             fn mul(self, o: Mod7) -> Mod7 {
+                 Mod7((self.0 * o.0) % 7)
+             }
+         }
+         let a = Matrix::from_rows(vec![vec![Mod7(3), Mod7(4)], vec![Mod7(5), Mod7(6)]]);
+         let b = Matrix::from_rows(vec![vec![Mod7(2), Mod7(0)], vec![Mod7(1), Mod7(3)]]);
+         check!("[[3,4],[5,6]] * [[2,0],[1,3]] mod 7", &a * &b, Matrix::from_rows(vec![vec![Mod7(3), Mod7(5)], vec![Mod7(2), Mod7(4)]]));
+     }
+     """,
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4416);
+         for _ in 0..200 {
+             let (r, k, c) = (rng.below(4) + 1, rng.below(4) + 1, rng.below(4) + 1);
+             let a: Vec<Vec<i64>> = (0..r).map(|_| rng.vec(k, -5, 5)).collect();
+             let b: Vec<Vec<i64>> = (0..k).map(|_| rng.vec(c, -5, 5)).collect();
+             let mut want = vec![vec![0i64; c]; r];
+             for i in 0..r {
+                 for j in 0..c {
+                     for x in 0..k {
+                         want[i][j] += a[i][x] * b[x][j];
+                     }
+                 }
+             }
+             let (ma, mb) = (Matrix::from_rows(a.clone()), Matrix::from_rows(b.clone()));
+             check!(format!("{a:?} * {b:?}"), &ma * &mb, Matrix::from_rows(want));
+             let at: Vec<Vec<i64>> = (0..k).map(|j| (0..r).map(|i| a[i][j]).collect()).collect();
+             check!(format!("transpose {a:?}"), ma.transpose(), Matrix::from_rows(at));
+             let doubled: Vec<Vec<i64>> = a.iter().map(|row| row.iter().map(|x| 2 * x).collect()).collect();
+             check!(format!("{a:?} + itself"), ma.clone() + ma.clone(), Matrix::from_rows(doubled));
+             let (i, j) = (rng.below(r), rng.below(k));
+             check!(format!("{a:?}[({i}, {j})]"), ma[(i, j)], a[i][j]);
+         }
+     }
+     """,
+     """
+     #[test]
+     fn scale_200x200() {
+         let n = 200;
+         let a: Matrix<i64> = Matrix::from_rows((0..n).map(|i| (0..n).map(|j| ((i * 7 + j * 3) % 11) as i64).collect()).collect());
+         let mut id = Matrix::zeros(n, n);
+         for i in 0..n {
+             id[(i, i)] = 1;
+         }
+         check!("A * I == A for 200 × 200", &a * &id == a, true);
+         let ones: Matrix<i64> = Matrix::from_rows(vec![vec![1; n]; n]);
+         let sq = &ones * &ones;
+         check!("ones * ones, every entry", sq.rows_iter().all(|r| r.iter().all(|&x| x == n as i64)), true);
+     }
+     """],
+    [("rust", "Store `data[r * cols + c]`. Check `c < cols` yourself: `(0, cols)` lands inside the Vec (on the next row), so the Vec's own bounds check won't catch it."),
+     ("rust", "`Mul for &'a Matrix<T>` has `Rhs = &'a Matrix<T>`, so `&a * &b` borrows both. `rows_iter` can map row numbers to `self.row(r)`; `chunks(cols)` panics when `cols == 0`."),
+     ("approach", "Loop `i, k, j` in the product so the inner loop walks rows of both `rhs` and `out`.")],
+    ("""`Index`/`IndexMut` let a type choose its key (`(usize, usize)` here) and return a reference into itself. `IndexMut` requires `Index` and reuses its `Output`. The trait bounds say what each operation needs: `zeros` needs `Default`, `transpose` and the product need `Copy`, the product needs `Add` and `Mul` on `T`. Implementing `Mul` for `&Matrix` avoids consuming large operands.
+
+Syntax: `impl<T> Index<(usize, usize)> for Matrix<T> { type Output = T; fn index(&self, (r, c): (usize, usize)) -> &T }` · `impl<T> IndexMut<(usize, usize)> for Matrix<T> { fn index_mut(&mut self, (r, c): (usize, usize)) -> &mut T }` · `impl<'a, T: ..> Mul for &'a Matrix<T> { type Output = Matrix<T>; .. }`.""", "O(r·k·c) product; O(r·c) add and transpose", "O(r·c)"),
+    "How would you make `a + b` work for `&Matrix` too without writing the loop twice? What about `Matrix<BigInt>`, which isn't `Copy`?",
+    ["`Index<Idx>` picks the key type; `IndexMut` reuses `Output`.", "Check every index dimension yourself in flat storage.", "Put only the bounds each operation needs on its `impl`."],
+    related=("S3", "D13"),
+    wrong=dict(
+        elementwise_product=sub(MATRIX_SOLUTION, "        assert_eq!(self.cols, rhs.rows, \"inner dimensions differ\");\n        let mut out = Matrix::zeros(self.rows, rhs.cols);\n        for i in 0..self.rows {\n            for k in 0..self.cols {\n                let a = self[(i, k)];\n                for j in 0..rhs.cols {\n                    out[(i, j)] = out[(i, j)] + a * rhs[(k, j)];\n                }\n            }\n        }\n        out",
+                                "        let mut out = self.clone();\n        for (a, &b) in out.data.iter_mut().zip(&rhs.data) {\n            *a = *a * b;\n        }\n        out"),
+        no_column_check=sub(sub(MATRIX_SOLUTION, "        assert!(r < self.rows && c < self.cols, \"({r}, {c}) is outside {}x{}\", self.rows, self.cols);\n        &self.data[r * self.cols + c]", "        &self.data[r * self.cols + c]"),
+                            "        assert!(r < self.rows && c < self.cols, \"({r}, {c}) is outside {}x{}\", self.rows, self.cols);\n        &mut self.data[r * self.cols + c]", "        &mut self.data[r * self.cols + c]"),
+        rows_iter_chunks=sub(MATRIX_SOLUTION, "(0..self.rows).map(move |r| self.row(r))", "self.data.chunks(self.cols)"),
+    ),
+))
+
 STAGES = [
     ("define-implement", "Define & implement", "easy"),
     ("static-vs-dynamic", "Static vs dynamic", "medium"),

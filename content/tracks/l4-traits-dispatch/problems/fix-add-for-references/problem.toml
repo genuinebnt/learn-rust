@@ -1,0 +1,34 @@
+slug = "fix-add-for-references"
+title = "Fix: adding through references (E0308)"
+mode = "fix"
+level = "medium"
+stage = "operator-traits"
+order = 15
+status = "ready"
+tags = ["E0308", "Add<&T>", "AddAssign", "operator traits"]
+teaches = [
+  "Operators take operands by value; add impls for `&T` to add through references.",
+  "Write the mutating version once and derive the others from it.",
+]
+follow_up = "`String` implements `Add<&str>` but not `Add<String>` or `&String + &str`. Why that choice?"
+related = ["S3", "S8"]
+
+[[hints]]
+kind = "rust"
+text = "`Add` has a type parameter for the right side: implement `Add<&Poly> for Poly` and `Add<&Poly> for &Poly`, each with `type Output = Poly`. `AddAssign<&Poly> for Poly` gives `+=`."
+
+[[hints]]
+kind = "approach"
+text = "Write the in-place addition once, in `add_assign`, and build the other two on it: `Poly + &Poly` is `self += rhs; self`."
+
+[[hints]]
+kind = "edge case"
+text = "Pad the left side when the right one is longer, and pop trailing zeros after adding."
+
+[solution]
+explanation = "`a + b` desugars to `Add::add(a, b)`, which takes both sides by value. For non-`Copy` types that means implementing the trait again for references (`impl Add<&Poly> for &Poly`), as `String + &str` and `BigInt` do. Taking the left side by value lets `+` reuse its buffer, so a fold does no reallocation beyond growth.\n\nSyntax: `impl Add<&Poly> for Poly { type Output = Poly; fn add(mut self, rhs: &Poly) -> Poly { self += rhs; self } }` · `impl AddAssign<&Poly> for Poly { fn add_assign(&mut self, rhs: &Poly) }`."
+time = "O(len) per addition"
+space = "O(len)"
+
+[rules]
+forbid_methods = ["clone", "cloned", "to_vec", "to_owned"]

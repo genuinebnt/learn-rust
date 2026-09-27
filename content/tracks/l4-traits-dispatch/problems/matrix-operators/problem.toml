@@ -1,0 +1,32 @@
+slug = "matrix-operators"
+title = "Matrix<T> with operator overloading (W47)"
+mode = "write"
+level = "medium"
+stage = "operator-traits"
+order = 16
+status = "ready"
+tags = ["Index", "IndexMut", "Add", "Mul", "generic bounds"]
+teaches = [
+  "`Index<Idx>` picks the key type; `IndexMut` reuses `Output`.",
+  "Check every index dimension yourself in flat storage.",
+  "Put only the bounds each operation needs on its `impl`.",
+]
+follow_up = "How would you make `a + b` work for `&Matrix` too without writing the loop twice? What about `Matrix<BigInt>`, which isn't `Copy`?"
+related = ["S3", "D13"]
+
+[[hints]]
+kind = "rust"
+text = "Store `data[r * cols + c]`. Check `c < cols` yourself: `(0, cols)` lands inside the Vec (on the next row), so the Vec's own bounds check won't catch it."
+
+[[hints]]
+kind = "rust"
+text = "`Mul for &'a Matrix<T>` has `Rhs = &'a Matrix<T>`, so `&a * &b` borrows both. `rows_iter` can map row numbers to `self.row(r)`; `chunks(cols)` panics when `cols == 0`."
+
+[[hints]]
+kind = "approach"
+text = "Loop `i, k, j` in the product so the inner loop walks rows of both `rhs` and `out`."
+
+[solution]
+explanation = "`Index`/`IndexMut` let a type choose its key (`(usize, usize)` here) and return a reference into itself. `IndexMut` requires `Index` and reuses its `Output`. The trait bounds say what each operation needs: `zeros` needs `Default`, `transpose` and the product need `Copy`, the product needs `Add` and `Mul` on `T`. Implementing `Mul` for `&Matrix` avoids consuming large operands.\n\nSyntax: `impl<T> Index<(usize, usize)> for Matrix<T> { type Output = T; fn index(&self, (r, c): (usize, usize)) -> &T }` · `impl<T> IndexMut<(usize, usize)> for Matrix<T> { fn index_mut(&mut self, (r, c): (usize, usize)) -> &mut T }` · `impl<'a, T: ..> Mul for &'a Matrix<T> { type Output = Matrix<T>; .. }`."
+time = "O(r·k·c) product; O(r·c) add and transpose"
+space = "O(r·c)"

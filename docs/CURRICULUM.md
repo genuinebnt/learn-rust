@@ -315,7 +315,7 @@ suggestions per typed prefix) and once as the full hard design with hot counts.
 | Band | Stage | Problems | Rust habit |
 |---|---|---|---|
 | Easy | First tries | Longest common prefix · Implement trie† · Fix: indexing a `String` by position (E0277) · Longest word in dictionary · Map sum pairs | `[Option<Box<Node>>; 26]` |
-| Medium | Tries at work | Add & search words† · Replace words · Search suggestions system (autocomplete) · Trie with counts and erase · Fix: recursive trie insert vs the borrow checker · Prefix and suffix search | `get_or_insert_with` cursors |
+| Medium | Tries at work | Replace words · Fix: recursive trie insert vs the borrow checker · Add & search words† · Search suggestions system (autocomplete) · Trie with counts and erase · Prefix and suffix search | `get_or_insert_with` cursors |
 | Medium | String algorithms | Find the first occurrence (KMP) · Repeated substring pattern · Longest palindromic substring† · Palindromic substrings† · String to integer · Repeated DNA sequences | rolling hash with `wrapping_mul` |
 | Hard | Hard tries & strings | Word search II† · Autocomplete system with hot counts (W31) · Max XOR (bit trie) · Stream of characters · Concatenated words · Palindrome pairs · Shortest palindrome (KMP) · Zero-copy tokenizer (W36) | lifetimes on `&str` slices |
 

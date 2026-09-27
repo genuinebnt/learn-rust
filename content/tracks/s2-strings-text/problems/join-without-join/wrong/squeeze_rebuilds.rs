@@ -1,8 +1,7 @@
 /// `words` joined by `sep`, in one allocation of exactly the final size.
 pub fn join_words(words: &[&str], sep: &str) -> String {
     let len = words.iter().map(|w| w.len()).sum::<usize>() + sep.len() * words.len().saturating_sub(1);
-    let _ = len;
-    let mut out = String::new();
+    let mut out = String::with_capacity(len);
     for (i, w) in words.iter().enumerate() {
         if i > 0 {
             out.push_str(sep);
@@ -15,15 +14,17 @@ pub fn join_words(words: &[&str], sep: &str) -> String {
 /// Drops leading and trailing whitespace, and in each inner run of whitespace keeps only its first
 /// character. In place, no allocation.
 pub fn squeeze(s: &mut String) {
+    let mut out = String::with_capacity(s.len());
     let mut after_space = true;
-    s.retain(|c| {
-        let space = c.is_whitespace();
-        let keep = !(space && after_space);
-        after_space = space;
-        keep
-    });
-    let end = s.trim_end().len();
-    s.truncate(end);
+    for c in s.chars() {
+        if !(c.is_whitespace() && after_space) {
+            out.push(c);
+        }
+        after_space = c.is_whitespace();
+    }
+    let end = out.trim_end().len();
+    out.truncate(end);
+    *s = out;
 }
 
 /// Removes the first complete line from `buf` and returns it without its "\n" or "\r\n".

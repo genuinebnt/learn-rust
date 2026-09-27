@@ -1,30 +1,46 @@
 slug = "join-without-join"
-title = "Build a String in one allocation"
+title = "One allocation, then edit in place"
 mode = "write"
 level = "easy"
 stage = "use"
 order = 6
 status = "ready"
-tags = ["with_capacity", "push_str"]
+tags = ["with_capacity", "retain", "drain", "truncate", "count_allocs"]
 teaches = [
-  "`String::with_capacity` when you know the final size.",
-  "`push_str` into one buffer instead of repeated `+`.",
+  "`String::with_capacity(exact)` when the final length is known: one allocation, then only copies.",
+  "`String::retain` with a stateful closure edits in place; `truncate` after `trim_end().len()` drops the tail.",
+  "`drain(..=i)` removes a prefix and hands it back, and shifts everything after it: fine for a small buffer, quadratic for a whole file.",
 ]
-follow_up = "How does `[&str]::join` compute its capacity internally?"
+follow_up = "How does `[&str]::join` compute its capacity, and why can `pop_line` not return a `&str` into `buf`?"
 
 [[examples]]
-input = "words = [\"a\", \"bc\", \"d\"], sep = \", \""
+input = "join_words(&[\"a\", \"bc\", \"d\"], \", \")"
 output = "\"a, bc, d\""
+
+[[examples]]
+input = "squeeze on \"  a \\t b  \""
+output = "\"a b\""
+
+[[examples]]
+input = "pop_line on \"GET /\\r\\nHost: x\\r\\npart\""
+output = "Some(\"GET /\"), then buf = \"Host: x\\r\\npart\""
 
 [[hints]]
 kind = "approach"
-text = "Total length is the sum of the word lengths plus one separator between each pair."
+text = "The joined length is the sum of the word lengths plus one separator between each pair (none for 0 or 1 words)."
 
 [[hints]]
 kind = "rust"
-text = "`saturating_sub(1)` keeps the separator count at 0 for an empty slice."
+text = "`s.retain(|c| …)` visits each `char` once, in order, and the closure is `FnMut`, so it can remember whether the previous char was whitespace. Then `s.truncate(s.trim_end().len())`."
+
+[[hints]]
+kind = "rust"
+text = "`buf.drain(..=nl)` removes bytes `0..=nl` and yields them as `char`s; `collect::<String>()` gathers them."
 
 [solution]
-explanation = "Lengths are in bytes, which is what `String` capacity counts, so Unicode separators need no special case. One allocation, then only copies."
+explanation = "Lengths are bytes, which is what `String` capacity counts, so the separator count times `sep.len()` is exact for any text. `retain` and `truncate` rewrite the buffer in place: the pointer and capacity don't change. `drain(..=nl)` is the idiomatic \"take a prefix\", but it moves every remaining byte to the front, so popping every line of an n-byte buffer this way is O(n²). That's fine for a socket buffer that holds a few lines; for a whole file, keep a read offset (or use `BufRead::read_line`). Syntax to remember: `String::with_capacity(n)`, `s.retain(|c| keep)`, `s.truncate(byte_len)`, `s.drain(range)` (yields `char`s; the range is in bytes and must be on char boundaries), `s.split_off(at)` (returns the tail), `s.clear()` (keeps the capacity)."
 time = "O(total length)"
-space = "O(total length)"
+space = "O(total length) for join_words, O(1) extra for squeeze"
+
+[perf]
+count_allocs = true

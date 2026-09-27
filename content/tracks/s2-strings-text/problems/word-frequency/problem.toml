@@ -31,6 +31,6 @@ kind = "rust"
 text = "Sort with `b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0))` for count-descending, then alphabetical."
 
 [solution]
-explanation = "Taking `R: BufRead` means the same code reads a file, stdin or a byte slice in tests. Memory grows with the number of distinct words, not the input size."
+explanation = "Taking `R: BufRead` means the same code reads a file, stdin or a byte slice in tests. Memory grows with the number of distinct words, not the input size. `lines()` allocates a fresh `String` per line; a hot loop would reuse one buffer with `read_line(&mut buf)` and `buf.clear()`. Syntax to remember: `for line in input.lines() { let line = line?; … }`, `raw.trim_matches(|c: char| !c.is_alphanumeric())`, `*map.entry(k).or_insert(0) += 1`, `v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)))`."
 time = "O(n + k log k)"
 space = "O(k)"

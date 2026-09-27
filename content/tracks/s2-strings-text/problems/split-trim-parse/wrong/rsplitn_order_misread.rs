@@ -39,7 +39,7 @@ pub fn parse_log(line: &str) -> Option<LogLine<'_>> {
     let message = parts.next().unwrap_or("");
     let millis = message
         .rsplitn(2, ' ')
-        .next()
+        .last()
         .and_then(|word| word.strip_suffix("ms"))
         .filter(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
         .and_then(|n| n.parse().ok());

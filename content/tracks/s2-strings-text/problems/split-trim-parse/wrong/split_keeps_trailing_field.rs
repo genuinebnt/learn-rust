@@ -10,7 +10,7 @@ pub enum CsvError {
 
 pub fn sum_csv(line: &str) -> Result<i64, CsvError> {
     let mut total = 0i64;
-    for (i, field) in line.split_terminator(',').enumerate() {
+    for (i, field) in line.split(',').enumerate() {
         let field = field.trim();
         if field.is_empty() {
             return Err(CsvError::Empty(i + 1));

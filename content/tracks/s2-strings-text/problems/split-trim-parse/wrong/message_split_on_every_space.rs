@@ -31,7 +31,7 @@ pub struct LogLine<'a> {
 }
 
 pub fn parse_log(line: &str) -> Option<LogLine<'_>> {
-    let mut parts = line.splitn(4, ' ');
+    let mut parts = line.split(' ');
     let (date, time, level) = (parts.next()?, parts.next()?, parts.next()?);
     if date.is_empty() || time.is_empty() || level.is_empty() {
         return None;

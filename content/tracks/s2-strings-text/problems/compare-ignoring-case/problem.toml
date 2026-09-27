@@ -1,21 +1,47 @@
 slug = "compare-ignoring-case"
-title = "Compare ignoring case without allocating"
+title = "Case: ASCII folding vs Unicode mapping"
 mode = "write"
 level = "easy"
 stage = "use"
 order = 4
 status = "ready"
-tags = ["eq_ignore_ascii_case", "zero allocation"]
+tags = ["eq_ignore_ascii_case", "make_ascii_lowercase", "to_uppercase", "to_lowercase", "count_allocs"]
 teaches = [
-  "`eq_ignore_ascii_case` compares without building lowercase copies.",
+  "Protocol text (commands, header names) is ASCII: `eq_ignore_ascii_case` and `make_ascii_lowercase` work in place and never allocate.",
+  "Human text needs Unicode case mapping, which can change the length: `'ß'.to_uppercase()` is `\"SS\"`, so `char::to_uppercase` returns an iterator, not a `char`.",
+  "`str::to_lowercase` knows context that per-char mapping doesn't: a word-final `Σ` becomes `ς`.",
 ]
-follow_up = "What would you use for case-insensitive comparison of arbitrary Unicode text?"
+follow_up = "Why does `\"İ\".to_lowercase().len()` differ from `\"İ\".len()`, and what breaks if you lower-case a string and then slice it at offsets found in the original?"
+related = ["S4"]
+
+[[examples]]
+input = "is_command(\"  QUIT\\n\", \"quit\")"
+output = "true"
+
+[[examples]]
+input = "title_case(\"ÉCOLE straße\")"
+output = "\"École Straße\""
+
+[[examples]]
+input = "title_case(\"ßig\")"
+output = "\"SSig\""
 
 [[hints]]
 kind = "rust"
-text = "`str::eq_ignore_ascii_case` compares byte by byte, folding ASCII letters, with no allocation."
+text = "`eq_ignore_ascii_case` compares without building copies; `make_ascii_lowercase` rewrites the bytes in place (ASCII case changes never change the length)."
+
+[[hints]]
+kind = "rust"
+text = "`c.to_uppercase()` is an iterator of `char`s: `out.extend(c.to_uppercase())`. After `chars.next()`, `chars.as_str()` is the rest of the word, borrowed."
+
+[[hints]]
+kind = "edge case"
+text = "Lower-case the rest of the word as a `&str`, not char by char: `\"ΟΔΟΣ\"` ends in a final sigma, `ς`."
 
 [solution]
-explanation = "Lowercasing both sides allocates two Strings per comparison; `eq_ignore_ascii_case` allocates nothing. It only folds ASCII, which is right for commands and keywords."
+explanation = "Two different jobs share the word \"case\". Protocol identifiers are ASCII, so compare and fold them byte by byte: `eq_ignore_ascii_case`, `make_ascii_lowercase` and `to_ascii_lowercase` never allocate (except the last, which returns a copy) and never touch non-ASCII bytes. Human text needs Unicode case mapping, which is not one char to one char: `ß` → `SS`, `ﬁ` → `FI`, `İ` → `i̇` (two chars), and `Σ` lowercases to `ς` at the end of a word, which only `str::to_lowercase` knows (it looks at the neighbours). For case-insensitive *comparison* of human text you want case folding and normalisation (the `unicase` or `icu` crates), not `to_lowercase() ==`. Syntax to remember: `a.eq_ignore_ascii_case(b)`, `s.make_ascii_lowercase()` / `make_ascii_uppercase()`, `s.to_ascii_lowercase()` (new `String`), `c.to_uppercase()` → `ToUppercase` iterator, `s.to_lowercase()` → `String`, `chars.as_str()`."
 time = "O(n)"
-space = "O(1)"
+space = "O(n) for title_case, O(1) for the others"
+
+[perf]
+count_allocs = true

@@ -1,26 +1,26 @@
 use solution::*;
 
 #[test]
-fn spaces() {
+fn sums_trimmed_fields() {
     check!(r#""1, 2 ,3""#, sum_csv("1, 2 ,3"), Ok(6));
 }
 
 #[test]
-fn bad_field() {
-    check!(r#""1,x""#, sum_csv("1,x").is_err(), true);
+fn trailing_comma_allowed() {
+    check!(r#""1,2,""#, sum_csv("1,2,"), Ok(3));
 }
 
 #[test]
-fn single() {
-    check!(r#""42""#, sum_csv("42"), Ok(42));
+fn inner_empty_field() {
+    check!(r#""1,,3""#, sum_csv("1,,3"), Err(CsvError::Empty(2)));
 }
 
 #[test]
-fn negatives() {
-    check!(r#""-1, 1, -5""#, sum_csv("-1, 1, -5"), Ok(-5));
+fn bad_field_says_where() {
+    check!(r#""4, x1 ,5""#, sum_csv("4, x1 ,5"), Err(CsvError::Bad(2, "x1".to_string())));
 }
 
 #[test]
-fn empty_field_skipped() {
-    check!(r#""1,,2,""#, sum_csv("1,,2,"), Ok(3));
+fn log_message_keeps_spaces() {
+    check!(r#""2024-05-01 12:00:03 WARN slow query took 250ms""#, parse_log("2024-05-01 12:00:03 WARN slow query took 250ms"), Some(LogLine { date: "2024-05-01", time: "12:00:03", level: "WARN", message: "slow query took 250ms", millis: Some(250) }));
 }

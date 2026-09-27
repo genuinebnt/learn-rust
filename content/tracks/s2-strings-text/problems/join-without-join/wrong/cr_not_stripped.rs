@@ -1,8 +1,7 @@
 /// `words` joined by `sep`, in one allocation of exactly the final size.
 pub fn join_words(words: &[&str], sep: &str) -> String {
     let len = words.iter().map(|w| w.len()).sum::<usize>() + sep.len() * words.len().saturating_sub(1);
-    let _ = len;
-    let mut out = String::new();
+    let mut out = String::with_capacity(len);
     for (i, w) in words.iter().enumerate() {
         if i > 0 {
             out.push_str(sep);
@@ -32,8 +31,6 @@ pub fn pop_line(buf: &mut String) -> Option<String> {
     let nl = buf.find('\n')?;
     let mut line: String = buf.drain(..=nl).collect();
     line.pop();
-    if line.ends_with('\r') {
-        line.pop();
-    }
+
     Some(line)
 }

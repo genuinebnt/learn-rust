@@ -3,7 +3,7 @@ use std::fmt::Write;
 /// One line per row, each ending in '\n': the name left-aligned and padded to the longest name, " | ",
 /// then the value with `prec` decimals, right-aligned to the widest formatted value.
 pub fn table(rows: &[(&str, f64)], prec: usize) -> String {
-    let name_w = rows.iter().map(|(name, _)| name.chars().count()).max().unwrap_or(0);
+    let name_w = rows.iter().map(|(name, _)| name.len()).max().unwrap_or(0);
     let value_w = rows.iter().map(|(_, v)| format!("{v:.prec$}").len()).max().unwrap_or(0);
     let mut out = String::new();
     for (name, value) in rows {
@@ -16,7 +16,7 @@ pub fn table(rows: &[(&str, f64)], prec: usize) -> String {
 /// groups of 8 joined by '_'.
 pub fn register(value: u32) -> String {
     let [a, b, c, d] = value.to_be_bytes();
-    format!("{value:#08x} = {a:08b}_{b:08b}_{c:08b}_{d:08b}")
+    format!("{value:#010x} = {a:08b}_{b:08b}_{c:08b}_{d:08b}")
 }
 
 /// One `hexdump -C` line for up to 16 bytes starting at `offset`.

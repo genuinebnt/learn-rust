@@ -5,31 +5,40 @@ level = "easy"
 stage = "use"
 order = 2
 status = "ready"
-tags = ["split", "parse", "Result"]
+tags = ["split_terminator", "splitn", "rsplitn", "parse", "checked_add"]
 teaches = [
-  "`split(',').map(str::trim)` pipelines.",
-  "Summing an iterator of `Result`s into a `Result`.",
+  "`split_terminator` forgives one trailing separator; `split` would yield an empty last field.",
+  "`splitn(4, ' ')` stops splitting after three cuts, so the last piece keeps its spaces; `rsplitn` counts from the end and yields the last piece first.",
+  "Errors that say where: `enumerate` + `map_err`, and `checked_add` for a total that can overflow.",
 ]
-follow_up = "How would you report which field failed, and at what position?"
+follow_up = "Real CSV allows quoted fields that contain commas. Why does that rule out `split`, and what would a zero-copy field iterator return for a field with an escaped quote?"
 related = ["S1"]
 
 [[examples]]
-input = "\"1, 2 ,3\""
+input = "sum_csv(\"1, 2 ,3,\")"
 output = "Ok(6)"
 
 [[examples]]
-input = "\"1,x\""
-output = "Err(..)"
+input = "sum_csv(\"1,,3\")"
+output = "Err(Empty(2))"
+
+[[examples]]
+input = "parse_log(\"2024-05-01 12:00:03 WARN slow query took 250ms\")"
+output = "level \"WARN\", message \"slow query took 250ms\", millis Some(250)"
 
 [[hints]]
 kind = "rust"
-text = "`str::trim` and `str::parse::<i64>` can be passed to `map` directly."
+text = "`\"1,2,\".split(',')` yields `[\"1\", \"2\", \"\"]`; `split_terminator(',')` yields `[\"1\", \"2\"]`, but only one trailing comma is forgiven."
 
 [[hints]]
 kind = "rust"
-text = "`Sum` is implemented for `Result<T, E>`: summing `Result`s stops at the first `Err`."
+text = "`line.splitn(4, ' ')` yields at most 4 pieces; the 4th is everything after the third space. `s.rsplitn(2, ' ').next()` is the last word."
+
+[[hints]]
+kind = "edge case"
+text = "`\"+5\".parse::<u64>()` is `Ok(5)`: check the digits yourself if a sign isn't allowed."
 
 [solution]
-explanation = "The whole function is one pipeline. Summing into `Result` short-circuits on the first bad field, so no manual loop or early return is needed."
+explanation = "Both functions are one pass over borrowed pieces. `split_terminator` is `split` that forgives one trailing separator (think lines that end with `\\n`); `splitn(n, pat)` is the tool when the last field may contain the separator, and `rsplitn` counts from the right and yields right-to-left, so its first item is the *last* piece. Summing with `checked_add` makes the overflow a reported error instead of a debug-build panic or a silent wrap in release. `str::parse` for integers accepts a leading `+`, which is why the digits are checked first. Syntax to remember: `s.split_terminator(',')`, `s.splitn(4, ' ')`, `s.rsplitn(2, ' ')`, `.enumerate()`, `.map_err(|_| E::Bad(i + 1, f.to_string()))?`, `a.checked_add(b).ok_or(E::Overflow)?`, `s.bytes().all(|b| b.is_ascii_digit())`."
 time = "O(n)"
 space = "O(1)"

@@ -15,8 +15,8 @@ pub fn table(rows: &[(&str, f64)], prec: usize) -> String {
 /// "0x" and 8 lowercase hex digits, " = ", then the 32 bits, most significant byte first, in four
 /// groups of 8 joined by '_'.
 pub fn register(value: u32) -> String {
-    let [a, b, c, d] = value.to_be_bytes();
-    format!("{value:#08x} = {a:08b}_{b:08b}_{c:08b}_{d:08b}")
+    let [a, b, c, d] = value.to_le_bytes();
+    format!("{value:#010x} = {a:08b}_{b:08b}_{c:08b}_{d:08b}")
 }
 
 /// One `hexdump -C` line for up to 16 bytes starting at `offset`.

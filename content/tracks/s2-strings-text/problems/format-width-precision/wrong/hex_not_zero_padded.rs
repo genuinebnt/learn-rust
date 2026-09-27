@@ -16,14 +16,14 @@ pub fn table(rows: &[(&str, f64)], prec: usize) -> String {
 /// groups of 8 joined by '_'.
 pub fn register(value: u32) -> String {
     let [a, b, c, d] = value.to_be_bytes();
-    format!("{value:#08x} = {a:08b}_{b:08b}_{c:08b}_{d:08b}")
+    format!("{value:#010x} = {a:08b}_{b:08b}_{c:08b}_{d:08b}")
 }
 
 /// One `hexdump -C` line for up to 16 bytes starting at `offset`.
 pub fn hexdump_line(offset: usize, bytes: &[u8]) -> String {
     let mut hex = String::with_capacity(49);
     for (i, b) in bytes.iter().enumerate() {
-        write!(hex, "{b:02x} ").unwrap();
+        write!(hex, "{b:x} ").unwrap();
         if i == 7 {
             hex.push(' ');
         }

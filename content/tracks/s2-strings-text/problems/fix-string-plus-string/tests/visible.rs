@@ -1,26 +1,26 @@
 use solution::*;
 
 #[test]
-fn name() {
-    check!(r#""Ada", "Lovelace""#, full_name("Ada".into(), "Lovelace".into()), "Lovelace, Ada".to_string());
+fn plain_row() {
+    check!(r#"["a", "b", "c"]"#, csv_row(&["a", "b", "c"]), "a,b,c".to_string());
 }
 
 #[test]
-fn tagged() {
-    check!(r#""ferris", 7"#, tag("ferris", 7), "ferris#7".to_string());
+fn comma_is_quoted() {
+    check!(r#""b,c""#, csv_field("b,c"), "\"b,c\"".to_string());
 }
 
 #[test]
-fn tag_two_digits() {
-    check!(r#""x", 42"#, tag("x", 42), "x#42".to_string());
+fn quote_is_doubled() {
+    check!(r#""say \"hi\"""#, csv_field("say \"hi\""), "\"say \"\"hi\"\"\"".to_string());
 }
 
 #[test]
-fn empty_last() {
-    check!(r#""Ada", """#, full_name("Ada".into(), String::new()), ", Ada".to_string());
+fn empty_first_field() {
+    check!(r#"["", "x"]"#, csv_row(&["", "x"]), ",x".to_string());
 }
 
 #[test]
-fn last_comes_first() {
-    check!(r#""Grace", "Hopper""#, full_name("Grace".into(), "Hopper".into()), "Hopper, Grace".to_string());
+fn no_fields() {
+    check!(r#"[]"#, csv_row(&[]), String::new());
 }

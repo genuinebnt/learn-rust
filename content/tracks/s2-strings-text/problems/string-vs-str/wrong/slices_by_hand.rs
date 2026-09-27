@@ -8,10 +8,9 @@ pub fn extension(path: &str) -> Option<&str> {
 
 /// `s` without one pair of matching surrounding quotes, `"…"` or `'…'`; otherwise `s` unchanged.
 pub fn unquote(s: &str) -> &str {
-    for q in ['"', '\''] {
-        if let Some(inner) = s.strip_prefix(q).and_then(|rest| rest.strip_suffix(q)) {
-            return inner;
-        }
+    let b = s.as_bytes();
+    if !b.is_empty() && (b[0] == b'"' || b[0] == b'\'') && b[b.len() - 1] == b[0] {
+        return &s[1..s.len() - 1];
     }
     s
 }

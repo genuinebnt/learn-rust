@@ -1,35 +1,44 @@
 slug = "string-vs-str"
-title = "String vs &str"
+title = "String vs &str: borrow the pieces"
 mode = "write"
 level = "easy"
 stage = "use"
 order = 1
 status = "ready"
-tags = ["&str", "String", "deref"]
+tags = ["&str", "rsplit_once", "strip_prefix", "insert_str", "reserve"]
 teaches = [
-  "Take `&str`, return `String` when you build something new.",
-  "A `&String` coerces to `&str`, so `&str` parameters accept both.",
+  "Return `&str` when the answer is a piece of the input: no allocation, and the lifetime ties it to the input.",
+  "`rsplit_once` splits at the last match; `strip_prefix`/`strip_suffix` remove exactly one occurrence, `trim_matches` removes all of them.",
+  "Edit a `String` through `&mut String`: `reserve` once, then `insert_str` or `push_str`.",
 ]
-follow_up = "When would you take `impl Into<String>` instead of `&str`?"
-related = ["L1"]
+follow_up = "When is `impl Into<String>` a better parameter than `&str`, and when is `impl AsRef<str>` better than both?"
+related = ["L1", "L3"]
 
 [[examples]]
-input = "greet(\"Ada\")"
-output = "\"Hello, Ada!\""
+input = "extension(\"src/a.tar.gz\")"
+output = "Some(\"gz\")"
 
 [[examples]]
-input = "first_word(\"hello world\")"
-output = "\"hello\""
+input = "unquote(\"'it'\")"
+output = "\"it\""
+
+[[examples]]
+input = "add_param on \"http://h/p?a=1#top\", \"k\", \"v\""
+output = "\"http://h/p?a=1&k=v#top\""
 
 [[hints]]
 kind = "rust"
-text = "A `&str` parameter accepts string literals and `&String` alike, thanks to deref coercion."
+text = "`path.rsplit_once('/')` gives the last component; `name.rsplit_once('.')` then splits off the extension. Check that neither side is empty."
 
 [[hints]]
 kind = "rust"
-text = "`first_word` can return a slice of its input; no allocation needed."
+text = "`s.strip_prefix('\"').and_then(|r| r.strip_suffix('\"'))` removes exactly one quote from each end, and fails cleanly on a lone `\"`."
+
+[[hints]]
+kind = "edge case"
+text = "`\"\\\"\"` is one character: slicing `&s[1..s.len() - 1]` is `&s[1..0]`, which panics."
 
 [solution]
-explanation = "`String` owns a growable buffer; `&str` borrows some UTF-8 text from anywhere. Taking `&str` is the most flexible parameter; returning `String` is right when you build new text."
+explanation = "Every answer that is a piece of the input is a `&str` into it: no allocation, and the signature `fn(&str) -> &str` says the result lives as long as the argument (lifetime elision). `trim_matches` is the wrong tool for quotes: it strips *every* leading and trailing match, so `\"\"a\"\"` loses both pairs. `add_param` works on the `String` in place: `reserve` once for the total, then `insert_str` before the fragment (which shifts only the fragment's bytes). Syntax to remember: `s.rsplit_once('/')` → `Option<(&str, &str)>` (split at the last match; `split_once` at the first), `s.strip_prefix(p)` / `strip_suffix(p)` → `Option<&str>`, `cond.then_some(v)`, `s.ends_with(['?', '&'])` (a char array is a pattern), `buf.insert_str(byte_idx, \"…\")`, `buf.reserve(additional)`."
 time = "O(n)"
-space = "O(n) for greet"
+space = "O(1) extra"

@@ -1,34 +1,44 @@
 slug = "format-width-precision"
-title = "format! width & precision"
+title = "format! specs: tables, registers, hexdump"
 mode = "write"
 level = "easy"
 stage = "use"
 order = 5
 status = "ready"
-tags = ["format!", "alignment", "{:#x}"]
+tags = ["format!", "writeln!", "{:>w$.p$}", "{:#010x}", "{:08b}", "{:02x}"]
 teaches = [
-  "`{:<10}` / `{:>8.2}`: alignment, width, precision.",
-  "Precision on a string truncates it; `#` adds `0x`, and the width includes it.",
+  "Widths and precisions can come from variables: `{v:>w$.p$}`. Width counts `char`s, not bytes.",
+  "`{:#010x}`: `#` adds `0x` and the width 10 includes it. `{:08b}` zero-pads binary.",
+  "`write!`/`writeln!` into a `String` needs `std::fmt::Write` in scope and returns a `fmt::Result`.",
 ]
-follow_up = "How would you make the column widths configurable at runtime (`{:>width$}`)?"
+follow_up = "`format!(\"{v:.prec$}\")` allocates once per row just to measure the width. How would you measure it without allocating?"
+related = ["L4"]
 
 [[examples]]
-input = "receipt_line(\"Coffee\", 2, 3.5)"
-output = "\"Coffee      2     3.50\""
+input = "table(&[(\"coffee\", 3.5), (\"tea\", 12.25)], 2)"
+output = "\"coffee |  3.50\\ntea    | 12.25\\n\""
 
 [[examples]]
-input = "hex_id(255)"
-output = "\"0x000000ff\""
+input = "register(0xdead)"
+output = "\"0x0000dead = 00000000_00000000_11011110_10101101\""
+
+[[examples]]
+input = "hexdump_line(0x10, b\"Hi!\\n\")"
+output = "\"00000010  48 69 21 0a                                       |Hi!.|\""
 
 [[hints]]
 kind = "rust"
-text = "`{:<10}` pads to 10 on the right; `{:.10}` on a string keeps at most 10 characters. Combine as `{item:<10.10}`."
+text = "`{name:<name_w$}` and `{value:>value_w$.prec$}` take the width and precision from variables. The widest value is the longest `format!(\"{v:.prec$}\")`."
 
 [[hints]]
 kind = "rust"
-text = "`{:#010x}`: `#` adds `0x`, `0` pads with zeros, and the width 10 includes the `0x`."
+text = "`use std::fmt::Write;` then `writeln!(out, \"…\").unwrap()` (it can't fail on a `String`, but returns a `fmt::Result`). `value.to_be_bytes()` gives the bytes most significant first; `{a:08b}` prints one as 8 binary digits."
+
+[[hints]]
+kind = "edge case"
+text = "`b as char` on a byte ≥ 0x80 gives a Latin-1 character like `é`, which is two bytes of UTF-8. Only ASCII graphic bytes and space are shown."
 
 [solution]
-explanation = "One `format!` call does all the layout. The same specifiers work in `write!`, `println!` and `Display` impls that call `f.pad`."
-time = "O(1)"
-space = "O(1)"
+explanation = "The format mini-language does all of it: `<`/`>`/`^` align, the number after them is a minimum width (in `char`s), `.p` is precision for floats (and truncation for strings), `0` pads numbers with zeros after the sign, `#` adds `0x`/`0b` and counts toward the width. `name$` takes an argument by name, so runtime widths need no string building. `write!` into a `String` goes through `fmt::Write`, which conflicts with `io::Write` if both are imported by name (import one `as _`). Syntax to remember: `{:<8}` `{:>8.2}` `{:^8}` `{:*>8}`, `{v:>w$.p$}`, `{:#010x}` `{:08b}` `{:02X}` `{:e}` `{:+}`, positional `{0} {1} {0}`, named `format!(\"{n}\", n = x)`, `{:?}` / `{:#?}`, `use std::fmt::Write; write!(s, …)?`."
+time = "O(total output)"
+space = "O(total output)"

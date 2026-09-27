@@ -1,8 +1,7 @@
 /// `words` joined by `sep`, in one allocation of exactly the final size.
 pub fn join_words(words: &[&str], sep: &str) -> String {
     let len = words.iter().map(|w| w.len()).sum::<usize>() + sep.len() * words.len().saturating_sub(1);
-    let _ = len;
-    let mut out = String::new();
+    let mut out = String::with_capacity(len);
     for (i, w) in words.iter().enumerate() {
         if i > 0 {
             out.push_str(sep);
@@ -15,7 +14,7 @@ pub fn join_words(words: &[&str], sep: &str) -> String {
 /// Drops leading and trailing whitespace, and in each inner run of whitespace keeps only its first
 /// character. In place, no allocation.
 pub fn squeeze(s: &mut String) {
-    let mut after_space = true;
+    let mut after_space = false;
     s.retain(|c| {
         let space = c.is_whitespace();
         let keep = !(space && after_space);

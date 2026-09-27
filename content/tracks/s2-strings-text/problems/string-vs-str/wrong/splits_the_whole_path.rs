@@ -1,7 +1,7 @@
 /// The extension of the last path component: "src/a.tar.gz" → Some("gz").
 /// A leading dot is part of the name (".bashrc" has none), and so is a trailing one ("notes." has none).
 pub fn extension(path: &str) -> Option<&str> {
-    let name = path.rsplit_once('/').map_or(path, |(_, name)| name);
+    let name = path;
     let (stem, ext) = name.rsplit_once('.')?;
     (!stem.is_empty() && !ext.is_empty()).then_some(ext)
 }

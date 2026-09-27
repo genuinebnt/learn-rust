@@ -1,26 +1,28 @@
 use solution::*;
 
 #[test]
-fn command() {
+fn command_matches() {
     check!(r#""  QUIT \n", "quit""#, is_command("  QUIT \n", "quit"), true);
 }
 
 #[test]
-fn count() {
-    check!(r#""The cat saw the THE", "the""#, count_word("The cat saw the THE", "the"), 3);
+fn prefix_is_not_the_command() {
+    check!(r#""quitter", "quit""#, is_command("quitter", "quit"), false);
 }
 
 #[test]
-fn different_word() {
-    check!(r#""help", "quit""#, is_command("help", "quit"), false);
+fn header_lowercased() {
+    let mut h = String::from("Content-Type");
+    normalize_header(&mut h);
+    check!(r#""Content-Type""#, h, "content-type".to_string());
 }
 
 #[test]
-fn whole_words_only() {
-    check!(r#""cats cat category", "CAT""#, count_word("cats cat category", "CAT"), 1);
+fn title_accented() {
+    check!(r#""ÉCOLE maternelle""#, title_case("ÉCOLE maternelle"), "École Maternelle".to_string());
 }
 
 #[test]
-fn any_whitespace() {
-    check!(r#""a\nA\ta", "a""#, count_word("a\nA\ta", "a"), 3);
+fn title_sharp_s_expands() {
+    check!(r#""ßig""#, title_case("ßig"), "SSig".to_string());
 }

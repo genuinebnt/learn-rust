@@ -1,11 +1,15 @@
-pub fn greet(name: &str) -> String {
+/// The extension of the last path component: "src/a.tar.gz" → Some("gz").
+/// A leading dot is part of the name (".bashrc" has none), and so is a trailing one ("notes." has none).
+pub fn extension(path: &str) -> Option<&str> {
     todo!()
 }
 
-pub fn exclaim(s: &mut String) {
+/// `s` without one pair of matching surrounding quotes, `"…"` or `'…'`; otherwise `s` unchanged.
+pub fn unquote(s: &str) -> &str {
     todo!()
 }
 
-pub fn first_word(s: &str) -> &str {
+/// Adds `key=value` to the query of `url`, in place. A `#fragment` stays at the end.
+pub fn add_param(url: &mut String, key: &str, value: &str) {
     todo!()
 }

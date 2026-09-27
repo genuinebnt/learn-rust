@@ -1,29 +1,42 @@
 slug = "fix-string-plus-string"
-title = "Fix: + with two Strings"
+title = "Fix: a CSV writer built with +"
 mode = "fix"
 level = "easy"
 stage = "use"
 order = 3
 status = "ready"
-tags = ["E0308", "E0369", "Add"]
+tags = ["E0369", "E0308", "Add<&str>", "AddAssign<&str>", "CSV quoting"]
 teaches = [
-  "`String + &str` consumes the left side and borrows the right.",
-  "`&str + ...` doesn't exist; use `format!`.",
+  "`String + &str` is the only `+` for strings: the left side is an owned `String` (its buffer is reused), the right a `&str`. There's no `char + String` and no `+= char`.",
+  "`&String` derefs to `&str`, so `row += &field` works; `row + field` with an owned `String` on the right doesn't.",
+  "\"Is this the first item?\" is a question about the index, not about whether the output is empty so far.",
 ]
-follow_up = "Why is `a + &b` often faster than `format!(\"{a}{b}\")`?"
+follow_up = "`csv_row` allocates one `String` per field and then copies it. How would you write the quoted field straight into `row` instead?"
+
+[[examples]]
+input = "csv_row(&[\"a\", \"b,c\", \"say \\\"hi\\\"\"])"
+output = "\"a,\\\"b,c\\\",\\\"say \\\"\\\"hi\\\"\\\"\\\"\""
+
+[[examples]]
+input = "csv_row(&[\"\", \"x\"])"
+output = "\",x\""
 
 [[hints]]
 kind = "rust"
-text = "`impl Add<&str> for String` is the only `+` for strings: left side owned `String`, right side `&str`."
+text = "`impl Add<&str> for String` is the whole story: `owned + &str`. A `char` goes in with `push`, another `String` with `+= &other`, and a mix with `format!`."
 
 [[hints]]
 kind = "rust"
-text = "A `&str` on the left can't grow, and a number isn't a `&str`. `format!` handles both."
+text = "`s.contains([',', '\"', '\\r', '\\n'])`: an array of chars is a pattern that matches any of them."
+
+[[hints]]
+kind = "edge case"
+text = "`csv_row(&[\"\", \"x\"])` must be `\",x\"`: after the first field the row is still empty."
 
 [solution]
-explanation = "`+` reuses the left `String`'s buffer, which is why it takes it by value. `&first` derefs `&String` to `&str`. For anything mixed, `format!` is clearer."
-time = "O(n)"
-space = "O(n)"
+explanation = "`+` takes the left `String` by value so it can append into that buffer; the right side is only read, so it's a `&str`. That's why `'\"' + s` (no `Add` for `char`), `row + csv_field(f)` (a `String` on the right) and `row += ','` (`AddAssign<&str>` only) don't compile. `&csv_field(f)` borrows the temporary as `&String`, which derefs to `&str`. The two logic bugs are the interesting part: quoting only on commas corrupts any field with a quote or newline, and `!row.is_empty()` confuses \"nothing written yet\" with \"first field\", so an empty first field loses its separator. Syntax to remember: `s.push(c)`, `s.push_str(t)`, `s += &t`, `s.contains([',', '\"'])`, `s.replace('\"', \"\\\"\\\"\")`, `format!(\"\\\"{}\\\"\", x)`."
+time = "O(total length)"
+space = "O(total length)"
 
 [rules]
-max_changed_lines = 2
+max_changed_lines = 10

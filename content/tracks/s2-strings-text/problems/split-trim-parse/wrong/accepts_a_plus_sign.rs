@@ -41,7 +41,6 @@ pub fn parse_log(line: &str) -> Option<LogLine<'_>> {
         .rsplitn(2, ' ')
         .next()
         .and_then(|word| word.strip_suffix("ms"))
-        .filter(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
-        .and_then(|n| n.parse().ok());
+                        .and_then(|n| n.parse().ok());
     Some(LogLine { date, time, level, message, millis })
 }

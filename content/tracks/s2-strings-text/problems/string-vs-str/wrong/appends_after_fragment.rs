@@ -18,7 +18,7 @@ pub fn unquote(s: &str) -> &str {
 
 /// Adds `key=value` to the query of `url`, in place. A `#fragment` stays at the end.
 pub fn add_param(url: &mut String, key: &str, value: &str) {
-    let end = url.find('#').unwrap_or(url.len());
+    let end = url.len();
     let head = &url[..end];
     let sep = if !head.contains('?') {
         "?"

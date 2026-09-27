@@ -8,562 +8,921 @@ def rs(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '".to_string()'
 
 
-def receipt(item, qty, price):
-    return f"{item:<10.10}{qty:>3} {price:>8.2f}"
+def sub(s, old, new):
+    """str.replace that fails loudly when `old` isn't there (a wrong solution that silently equals the reference)."""
+    assert old in s, f"not found: {old[:60]!r}"
+    return s.replace(old, new)
 
 
 # ---------------------------------------------------------------- use (easy)
 
+PATHS_SOL = r"""
+        /// The extension of the last path component: "src/a.tar.gz" → Some("gz").
+        /// A leading dot is part of the name (".bashrc" has none), and so is a trailing one ("notes." has none).
+        pub fn extension(path: &str) -> Option<&str> {
+            let name = path.rsplit_once('/').map_or(path, |(_, name)| name);
+            let (stem, ext) = name.rsplit_once('.')?;
+            (!stem.is_empty() && !ext.is_empty()).then_some(ext)
+        }
+
+        /// `s` without one pair of matching surrounding quotes, `"…"` or `'…'`; otherwise `s` unchanged.
+        pub fn unquote(s: &str) -> &str {
+            for q in ['"', '\''] {
+                if let Some(inner) = s.strip_prefix(q).and_then(|rest| rest.strip_suffix(q)) {
+                    return inner;
+                }
+            }
+            s
+        }
+
+        /// Adds `key=value` to the query of `url`, in place. A `#fragment` stays at the end.
+        pub fn add_param(url: &mut String, key: &str, value: &str) {
+            let end = url.find('#').unwrap_or(url.len());
+            let head = &url[..end];
+            let sep = if !head.contains('?') {
+                "?"
+            } else if head.ends_with(['?', '&']) {
+                ""
+            } else {
+                "&"
+            };
+            url.reserve(sep.len() + key.len() + 1 + value.len());
+            let mut at = end;
+            for piece in [sep, key, "=", value] {
+                url.insert_str(at, piece);
+                at += piece.len();
+            }
+        }
+"""
+
+PATHS_STARTER = r"""
+        /// The extension of the last path component: "src/a.tar.gz" → Some("gz").
+        /// A leading dot is part of the name (".bashrc" has none), and so is a trailing one ("notes." has none).
+        pub fn extension(path: &str) -> Option<&str> {
+            todo!()
+        }
+
+        /// `s` without one pair of matching surrounding quotes, `"…"` or `'…'`; otherwise `s` unchanged.
+        pub fn unquote(s: &str) -> &str {
+            todo!()
+        }
+
+        /// Adds `key=value` to the query of `url`, in place. A `#fragment` stays at the end.
+        pub fn add_param(url: &mut String, key: &str, value: &str) {
+            todo!()
+        }
+"""
+
+
+def url_after(url, k, v):
+    end = url.find("#")
+    end = len(url) if end < 0 else end
+    head = url[:end]
+    sep = "?" if "?" not in head else ("" if head.endswith(("?", "&")) else "&")
+    return url[:end] + sep + k + "=" + v + url[end:]
+
+
+def ap(name, url, k, v):
+    return T(name, f'url = "{url}", key = "{k}", value = "{v}"', "u", f'"{url_after(url, k, v)}".to_string()',
+             setup=f'let mut u = String::from("{url}");\nadd_param(&mut u, "{k}", "{v}");')
+
+
 P.append(dict(
-    slug="string-vs-str", title="String vs &str", level="easy", stage="use",
-    tags=["&str", "String", "deref"],
-    teaches=["Take `&str`, return `String` when you build something new.", "A `&String` coerces to `&str`, so `&str` parameters accept both."],
+    slug="string-vs-str", title="String vs &str: borrow the pieces", level="easy", stage="use",
+    tags=["&str", "rsplit_once", "strip_prefix", "insert_str", "reserve"],
+    teaches=[
+        "Return `&str` when the answer is a piece of the input: no allocation, and the lifetime ties it to the input.",
+        "`rsplit_once` splits at the last match; `strip_prefix`/`strip_suffix` remove exactly one occurrence, `trim_matches` removes all of them.",
+        "Edit a `String` through `&mut String`: `reserve` once, then `insert_str` or `push_str`.",
+    ],
     statement="""
-        - `greet` returns `"Hello, <name>!"`.
-        - `exclaim` appends `!` to a `String` in place.
-        - `first_word` returns the text before the first space, borrowed from the input.
+        Three small helpers that a config or HTTP layer needs. The first two return a slice of their input;
+        the third edits a `String` in place.
+
+        - `extension(path)`: the extension of the last `/`-separated component. `"src/a.tar.gz"` → `Some("gz")`.
+          A dot in a directory name doesn't count, a leading dot is part of the name (`".bashrc"` → `None`),
+          and a trailing dot gives no extension (`"notes."` → `None`).
+        - `unquote(s)`: `s` without **one** pair of matching surrounding quotes, `"…"` or `'…'`. Anything else is
+          returned unchanged.
+        - `add_param(url, key, value)`: adds `key=value` to the query string of `url`. Use `?` if the URL has no
+          query yet, `&` otherwise, and no separator if the query already ends with `?` or `&`. A `#fragment`
+          stays at the end, and a `?` inside the fragment doesn't start a query.
     """,
-    examples=[('greet("Ada")', '"Hello, Ada!"'), ('first_word("hello world")', '"hello"')],
-    starter="""
-        pub fn greet(name: &str) -> String {
-            todo!()
-        }
-
-        pub fn exclaim(s: &mut String) {
-            todo!()
-        }
-
-        pub fn first_word(s: &str) -> &str {
-            todo!()
-        }
-    """,
-    solution="""
-        pub fn greet(name: &str) -> String {
-            format!("Hello, {name}!")
-        }
-
-        pub fn exclaim(s: &mut String) {
-            s.push('!');
-        }
-
-        pub fn first_word(s: &str) -> &str {
-            s.split(' ').next().unwrap_or(s)
-        }
-    """,
+    examples=[('extension("src/a.tar.gz")', 'Some("gz")'), ("unquote(\"'it'\")", '"it"'),
+              ('add_param on "http://h/p?a=1#top", "k", "v"', '"http://h/p?a=1&k=v#top"')],
+    starter=PATHS_STARTER,
+    solution=PATHS_SOL,
     visible=[
-        T("greets_literal_and_owned", 'greet("Ada") and greet(&String::from("Bo"))', '(greet("Ada"), greet(&name))', '("Hello, Ada!".to_string(), "Hello, Bo!".to_string())',
-          setup='let name = String::from("Bo");'),
-        T("first", '"hello world"', 'first_word("hello world")', '"hello"'),
-        T("exclaim_once", 'exclaim on "wow"', "s", '"wow!".to_string()', setup='let mut s = String::from("wow");\nexclaim(&mut s);'),
-        T("first_whole_word", '"rust"', 'first_word("rust")', '"rust"'),
-        T("greet_empty", '""', 'greet("")', '"Hello, !".to_string()'),
+        T("extension_last_dot", '"src/archive.tar.gz"', 'extension("src/archive.tar.gz")', 'Some("gz")'),
+        T("dotfile_has_no_extension", '".bashrc"', 'extension(".bashrc")', "None"),
+        T("unquote_one_pair", '"\\"hi\\"" and "\'hi\'"', "(unquote(\"\\\"hi\\\"\"), unquote(\"'hi'\"))", '("hi", "hi")'),
+        ap("first_param", "http://h/p", "k", "v"),
+        ap("param_before_fragment", "http://h/p?a=1#top", "k", "v"),
     ],
     hidden=[
-        T("in_place", 'exclaim twice on "wow"', "s", '"wow!!".to_string()', setup='let mut s = String::from("wow");\nexclaim(&mut s);\nexclaim(&mut s);'),
-        T("no_space", '"single"', 'first_word("single")', '"single"'),
-        T("leading_space", '" x"', 'first_word(" x")', '""'),
-        T("first_empty", '""', 'first_word("")', '""'),
-        T("two_spaces", '"a  b"', 'first_word("a  b")', '"a"'),
-        T("tab_is_not_a_space", '"a\\tb c"', 'first_word("a\\tb c")', '"a\\tb"'),
-        T("trailing_space", '"ab "', 'first_word("ab ")', '"ab"'),
-        T("unicode", '"héllo wörld" and greet("日本")', '(first_word("héllo wörld"), greet("日本"))', '("héllo", "Hello, 日本!".to_string())'),
-        T("exclaim_empty", "exclaim on \"\"", "s", '"!".to_string()', setup="let mut s = String::new();\nexclaim(&mut s);"),
-        T("borrows_input", "first_word points into its input", "first_word(&s).as_ptr() == s.as_ptr()", "true", setup='let s = String::from("abc def");'),
+        T("dot_in_directory", '"v1.2/README"', 'extension("v1.2/README")', "None"),
+        T("trailing_dot", '"notes."', 'extension("notes.")', "None"),
+        T("hidden_file_with_extension", '"dir/.env.local"', 'extension("dir/.env.local")', 'Some("local")'),
+        T("extension_edge_names", '"", "/", "..", "a/b/"', '[extension(""), extension("/"), extension(".."), extension("a/b/")]', "[None; 4]"),
+        T("double_dot", '"a..b"', 'extension("a..b")', 'Some("b")'),
+        T("unicode_extension", '"文書/報告.テキスト"', 'extension("文書/報告.テキスト")', 'Some("テキスト")'),
+        T("extension_borrows_input", "extension points into its input", "extension(&s).map(|e| e.as_ptr()) == Some(s[4..].as_ptr())", "true",
+          setup='let s = String::from("a/b.rs");'),
+        T("lone_quote_is_not_a_pair", '"\\""', 'unquote("\\"")', '"\\""'),
+        T("empty_quotes", '"\\"\\"" and "\'\'"', "(unquote(\"\\\"\\\"\"), unquote(\"''\"))", '("", "")'),
+        T("only_one_pair_removed", '"\\"\\"a\\"\\""', 'unquote("\\"\\"a\\"\\"")', '"\\"a\\""'),
+        T("mismatched_quotes", '"\\"a\'" and "\'a\\""', "(unquote(\"\\\"a'\"), unquote(\"'a\\\"\"))", "(\"\\\"a'\", \"'a\\\"\")"),
+        T("inner_quotes_kept", "\"'it\\\"s'\"", "unquote(\"'it\\\"s'\")", "\"it\\\"s\""),
+        T("unicode_quotes_untouched", '"«x»" and "é"', '(unquote("«x»"), unquote("é"))', '("«x»", "é")'),
+        T("unquote_borrows_input", "unquote points into its input", "unquote(&s).as_ptr() == s[1..].as_ptr()", "true", setup="let s = String::from(\"'abc'\");"),
+        ap("second_param", "http://h/p?a=1", "b", "2"),
+        ap("query_ends_with_question_mark", "http://h/p?", "k", "v"),
+        ap("query_ends_with_ampersand", "http://h/p?a=1&", "k", "v"),
+        ap("question_mark_in_fragment", "http://h/p#a?b", "k", "v"),
+        ap("empty_fragment", "http://h/#", "k", ""),
+        ap("unicode_value", "http://h/", "q", "café"),
+        T("add_twice", '"http://h" + a=1 + b=2', "u", '"http://h?a=1&b=2".to_string()',
+          setup='let mut u = String::from("http://h");\nadd_param(&mut u, "a", "1");\nadd_param(&mut u, "b", "2");'),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2201);
-            for _ in 0..300 {
-                let len = rng.below(10);
-                let s = rng.string(len, "ab é\\t");
-                let want = match s.find(' ') {
-                    Some(i) => &s[..i],
-                    None => &s[..],
+            let mut rng = anneal_prelude::Rng::new(7201);
+            for _ in 0..400 {
+                let len = rng.below(9);
+                let path = rng.string(len, "a./é");
+                let name = match path.rfind('/') {
+                    Some(i) => &path[i + 1..],
+                    None => &path[..],
                 };
-                let mut shouted = s.clone();
-                exclaim(&mut shouted);
-                check!(format!("s = {s:?}"), (first_word(&s), greet(&s), shouted), (want, format!("Hello, {s}!"), format!("{s}!")));
+                let want_ext = match name.rfind('.') {
+                    Some(i) if i > 0 && i + 1 < name.len() => Some(&name[i + 1..]),
+                    _ => None,
+                };
+                let len = rng.below(6);
+                let q = rng.string(len, "a\\"'");
+                let b = q.as_bytes();
+                let want_q = if b.len() >= 2 && (b[0] == b'"' || b[0] == b'\\'') && b[b.len() - 1] == b[0] { &q[1..q.len() - 1] } else { &q[..] };
+                let len = rng.below(7);
+                let url = rng.string(len, "h?&#=");
+                let end = url.find('#').unwrap_or(url.len());
+                let sep = if !url[..end].contains('?') { "?" } else if url[..end].ends_with('?') || url[..end].ends_with('&') { "" } else { "&" };
+                let want_url = format!("{}{sep}k=v{}", &url[..end], &url[end..]);
+                let mut got_url = url.clone();
+                add_param(&mut got_url, "k", "v");
+                check!(format!("path = {path:?}, s = {q:?}, url = {url:?}"), (extension(&path), unquote(&q), got_url), (want_ext, want_q, want_url));
             }
         }
         """,
     ],
     wrong=dict(
-        any_whitespace="""
-            pub fn greet(name: &str) -> String {
-                format!("Hello, {name}!")
+        splits_the_whole_path=sub(PATHS_SOL, "let name = path.rsplit_once('/').map_or(path, |(_, name)| name);", "let name = path;"),
+        trims_every_quote=sub(PATHS_SOL, """for q in ['"', '\\''] {
+                if let Some(inner) = s.strip_prefix(q).and_then(|rest| rest.strip_suffix(q)) {
+                    return inner;
+                }
             }
-
-            pub fn exclaim(s: &mut String) {
-                s.push('!');
+            s""", """s.trim_matches(|c| c == '"' || c == '\\'')"""),
+        slices_by_hand=sub(PATHS_SOL, """for q in ['"', '\\''] {
+                if let Some(inner) = s.strip_prefix(q).and_then(|rest| rest.strip_suffix(q)) {
+                    return inner;
+                }
             }
-
-            pub fn first_word(s: &str) -> &str {
-                s.split_whitespace().next().unwrap_or("")
+            s""", """let b = s.as_bytes();
+            if !b.is_empty() && (b[0] == b'"' || b[0] == b'\\'') && b[b.len() - 1] == b[0] {
+                return &s[1..s.len() - 1];
             }
-        """,
-        no_space_gives_empty="""
-            pub fn greet(name: &str) -> String {
-                format!("Hello, {name}!")
-            }
-
-            pub fn exclaim(s: &mut String) {
-                s.push('!');
-            }
-
-            pub fn first_word(s: &str) -> &str {
-                &s[..s.find(' ').unwrap_or(0)]
-            }
-        """,
+            s"""),
+        appends_after_fragment=sub(PATHS_SOL, "let end = url.find('#').unwrap_or(url.len());", "let end = url.len();"),
     ),
-    hints=[("rust", "A `&str` parameter accepts string literals and `&String` alike, thanks to deref coercion."),
-           ("rust", "`first_word` can return a slice of its input; no allocation needed.")],
-    notes=("`String` owns a growable buffer; `&str` borrows some UTF-8 text from anywhere. Taking `&str` is the most flexible parameter; returning `String` is right when you build new text.", "O(n)", "O(n) for greet"),
-    follow_up="When would you take `impl Into<String>` instead of `&str`?",
-    related=["L1"],
+    hints=[("rust", "`path.rsplit_once('/')` gives the last component; `name.rsplit_once('.')` then splits off the extension. Check that neither side is empty."),
+           ("rust", "`s.strip_prefix('\"').and_then(|r| r.strip_suffix('\"'))` removes exactly one quote from each end, and fails cleanly on a lone `\"`."),
+           ("edge case", "`\"\\\"\"` is one character: slicing `&s[1..s.len() - 1]` is `&s[1..0]`, which panics.")],
+    notes=("""Every answer that is a piece of the input is a `&str` into it: no allocation, and the signature `fn(&str) -> &str` says the result lives as long as the argument (lifetime elision). `trim_matches` is the wrong tool for quotes: it strips *every* leading and trailing match, so `""a""` loses both pairs. `add_param` works on the `String` in place: `reserve` once for the total, then `insert_str` before the fragment (which shifts only the fragment's bytes). Syntax to remember: `s.rsplit_once('/')` → `Option<(&str, &str)>` (split at the last match; `split_once` at the first), `s.strip_prefix(p)` / `strip_suffix(p)` → `Option<&str>`, `cond.then_some(v)`, `s.ends_with(['?', '&'])` (a char array is a pattern), `buf.insert_str(byte_idx, "…")`, `buf.reserve(additional)`.""", "O(n)", "O(1) extra"),
+    follow_up="When is `impl Into<String>` a better parameter than `&str`, and when is `impl AsRef<str>` better than both?",
+    related=["L1", "L3"],
 ))
+
+CSV_SOL = r"""
+        #[derive(Debug, PartialEq)]
+        pub enum CsvError {
+            /// Field `n` (counting from 1) is empty.
+            Empty(usize),
+            /// Field `n` isn't an integer; the trimmed text.
+            Bad(usize, String),
+            /// A running total doesn't fit in an `i64`.
+            Overflow,
+        }
+
+        pub fn sum_csv(line: &str) -> Result<i64, CsvError> {
+            let mut total = 0i64;
+            for (i, field) in line.split_terminator(',').enumerate() {
+                let field = field.trim();
+                if field.is_empty() {
+                    return Err(CsvError::Empty(i + 1));
+                }
+                let n: i64 = field.parse().map_err(|_| CsvError::Bad(i + 1, field.to_string()))?;
+                total = total.checked_add(n).ok_or(CsvError::Overflow)?;
+            }
+            Ok(total)
+        }
+
+        #[derive(Debug, PartialEq)]
+        pub struct LogLine<'a> {
+            pub date: &'a str,
+            pub time: &'a str,
+            pub level: &'a str,
+            pub message: &'a str,
+            pub millis: Option<u64>,
+        }
+
+        pub fn parse_log(line: &str) -> Option<LogLine<'_>> {
+            let mut parts = line.splitn(4, ' ');
+            let (date, time, level) = (parts.next()?, parts.next()?, parts.next()?);
+            if date.is_empty() || time.is_empty() || level.is_empty() {
+                return None;
+            }
+            let message = parts.next().unwrap_or("");
+            let millis = message
+                .rsplitn(2, ' ')
+                .next()
+                .and_then(|word| word.strip_suffix("ms"))
+                .filter(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+                .and_then(|n| n.parse().ok());
+            Some(LogLine { date, time, level, message, millis })
+        }
+"""
+
+CSV_STARTER = r"""
+        #[derive(Debug, PartialEq)]
+        pub enum CsvError {
+            /// Field `n` (counting from 1) is empty.
+            Empty(usize),
+            /// Field `n` isn't an integer; the trimmed text.
+            Bad(usize, String),
+            /// A running total doesn't fit in an `i64`.
+            Overflow,
+        }
+
+        pub fn sum_csv(line: &str) -> Result<i64, CsvError> {
+            todo!()
+        }
+
+        #[derive(Debug, PartialEq)]
+        pub struct LogLine<'a> {
+            pub date: &'a str,
+            pub time: &'a str,
+            pub level: &'a str,
+            pub message: &'a str,
+            pub millis: Option<u64>,
+        }
+
+        pub fn parse_log(line: &str) -> Option<LogLine<'_>> {
+            todo!()
+        }
+"""
+
+
+def lg(date, time, level, message, millis):
+    m = "None" if millis is None else f"Some({millis})"
+    return f'Some(LogLine {{ date: "{date}", time: "{time}", level: "{level}", message: "{message}", millis: {m} }})'
+
 
 P.append(dict(
     slug="split-trim-parse", title="split, trim, parse", level="easy", stage="use",
-    tags=["split", "parse", "Result"],
-    teaches=["`split(',').map(str::trim)` pipelines.", "Summing an iterator of `Result`s into a `Result`."],
+    tags=["split_terminator", "splitn", "rsplitn", "parse", "checked_add"],
+    teaches=[
+        "`split_terminator` forgives one trailing separator; `split` would yield an empty last field.",
+        "`splitn(4, ' ')` stops splitting after three cuts, so the last piece keeps its spaces; `rsplitn` counts from the end and yields the last piece first.",
+        "Errors that say where: `enumerate` + `map_err`, and `checked_add` for a total that can overflow.",
+    ],
     statement="""
-        Sum a comma-separated list of integers. Spaces around numbers don't matter and empty fields are
-        skipped. Return the parse error if any field isn't an integer.
-    """,
-    examples=[('"1, 2 ,3"', "Ok(6)"), ('"1,x"', "Err(..)")],
-    starter="""
-        use std::num::ParseIntError;
+        **`sum_csv(line)`** adds up comma-separated integers. Fields are trimmed. A single trailing comma is
+        allowed (`"1,2,"`), but any other empty field is `Empty(n)`, with fields counted from 1. A field that
+        isn't an `i64` is `Bad(n, trimmed_text)`, and `Overflow` if the running total leaves `i64`. The first
+        problem from the left wins. An empty line sums to 0.
 
-        pub fn sum_csv(line: &str) -> Result<i64, ParseIntError> {
-            todo!()
-        }
+        **`parse_log(line)`** splits `"<date> <time> <level> <message>"` on single spaces. The message is the
+        rest of the line, spaces and all, and may be empty or missing. Date, time and level must be non-empty.
+        `millis` is `Some(n)` when the message's last space-separated word is one or more ASCII digits followed
+        by `ms` and `n` fits in a `u64`. The message itself is kept whole.
     """,
-    solution="""
-        use std::num::ParseIntError;
-
-        pub fn sum_csv(line: &str) -> Result<i64, ParseIntError> {
-            line.split(',')
-                .map(str::trim)
-                .filter(|f| !f.is_empty())
-                .map(str::parse::<i64>)
-                .sum()
-        }
-    """,
+    examples=[('sum_csv("1, 2 ,3,")', "Ok(6)"), ('sum_csv("1,,3")', "Err(Empty(2))"),
+              ('parse_log("2024-05-01 12:00:03 WARN slow query took 250ms")', 'level "WARN", message "slow query took 250ms", millis Some(250)')],
+    starter=CSV_STARTER,
+    solution=CSV_SOL,
     visible=[
-        T("spaces", '"1, 2 ,3"', 'sum_csv("1, 2 ,3")', "Ok(6)"),
-        T("bad_field", '"1,x"', 'sum_csv("1,x").is_err()', "true"),
-        T("single", '"42"', 'sum_csv("42")', "Ok(42)"),
-        T("negatives", '"-1, 1, -5"', 'sum_csv("-1, 1, -5")', "Ok(-5)"),
-        T("empty_field_skipped", '"1,,2,"', 'sum_csv("1,,2,")', "Ok(3)"),
+        T("sums_trimmed_fields", '"1, 2 ,3"', 'sum_csv("1, 2 ,3")', "Ok(6)"),
+        T("trailing_comma_allowed", '"1,2,"', 'sum_csv("1,2,")', "Ok(3)"),
+        T("inner_empty_field", '"1,,3"', 'sum_csv("1,,3")', "Err(CsvError::Empty(2))"),
+        T("bad_field_says_where", '"4, x1 ,5"', 'sum_csv("4, x1 ,5")', 'Err(CsvError::Bad(2, "x1".to_string()))'),
+        T("log_message_keeps_spaces", '"2024-05-01 12:00:03 WARN slow query took 250ms"', 'parse_log("2024-05-01 12:00:03 WARN slow query took 250ms")',
+          lg("2024-05-01", "12:00:03", "WARN", "slow query took 250ms", 250)),
     ],
     hidden=[
-        T("empty", '""', 'sum_csv("")', "Ok(0)"),
-        T("empty_fields_and_negatives", '" -4 ,, 10"', 'sum_csv(" -4 ,, 10")', "Ok(6)"),
-        T("float_is_not_int", '"1.5"', 'sum_csv("1.5").is_err()', "true"),
-        T("only_commas", '",,,"', 'sum_csv(",,,")', "Ok(0)"),
-        T("only_spaces", '"   "', 'sum_csv("   ")', "Ok(0)"),
-        T("plus_sign", '"+5,+6"', 'sum_csv("+5,+6")', "Ok(11)"),
-        T("tabs_trimmed", '"\\t3\\t,4\\n"', 'sum_csv("\\t3\\t,4\\n")', "Ok(7)"),
-        T("space_inside_field", '"1 2,3"', 'sum_csv("1 2,3").is_err()', "true"),
+        T("empty_line", '""', 'sum_csv("")', "Ok(0)"),
+        T("lone_comma", '","', 'sum_csv(",")', "Err(CsvError::Empty(1))"),
+        T("two_trailing_commas", '"1,2,,"', 'sum_csv("1,2,,")', "Err(CsvError::Empty(3))"),
+        T("trailing_comma_then_space", '"1,2, "', 'sum_csv("1,2, ")', "Err(CsvError::Empty(3))"),
+        T("blank_field", '"   "', 'sum_csv("   ")', "Err(CsvError::Empty(1))"),
+        T("first_problem_wins", '"1,x,,y"', 'sum_csv("1,x,,y")', 'Err(CsvError::Bad(2, "x".to_string()))'),
+        T("float_is_bad", '"1.5"', 'sum_csv("1.5")', 'Err(CsvError::Bad(1, "1.5".to_string()))'),
+        T("inner_space_is_bad", '"1 2,3"', 'sum_csv("1 2,3")', 'Err(CsvError::Bad(1, "1 2".to_string()))'),
+        T("signs_and_tabs", '"\\t+5\\t,-7\\n"', 'sum_csv("\\t+5\\t,-7\\n")', "Ok(-2)"),
         T("beyond_i32", '"3000000000,3000000000"', 'sum_csv("3000000000,3000000000")', "Ok(6_000_000_000)"),
         T("i64_bounds", '"9223372036854775807,-9223372036854775808"', 'sum_csv("9223372036854775807,-9223372036854775808")', "Ok(-1)"),
-        T("too_big_for_i64", '"9223372036854775808"', 'sum_csv("9223372036854775808").is_err()', "true"),
-        T("bad_field_last", '"1,2,3,4,z"', 'sum_csv("1,2,3,4,z").is_err()', "true"),
+        T("running_total_overflows", '"9223372036854775807,1,-1"', 'sum_csv("9223372036854775807,1,-1")', "Err(CsvError::Overflow)"),
+        T("field_too_big", '"9223372036854775808"', 'sum_csv("9223372036854775808")', 'Err(CsvError::Bad(1, "9223372036854775808".to_string()))'),
+        T("log_without_millis", '"d t INFO started"', 'parse_log("d t INFO started")', lg("d", "t", "INFO", "started", None)),
+        T("log_missing_message", '"d t INFO"', 'parse_log("d t INFO")', lg("d", "t", "INFO", "", None)),
+        T("log_empty_message", '"d t INFO "', 'parse_log("d t INFO ")', lg("d", "t", "INFO", "", None)),
+        T("log_too_short", '"d t" and ""', '(parse_log("d t"), parse_log(""))', "(None, None)"),
+        T("log_double_space", '"d  t INFO x" (empty time)', 'parse_log("d  t INFO x")', "None"),
+        T("log_millis_only_message", '"d t DEBUG 7ms"', 'parse_log("d t DEBUG 7ms")', lg("d", "t", "DEBUG", "7ms", 7)),
+        T("log_millis_must_be_last", '"d t INFO 5ms later"', 'parse_log("d t INFO 5ms later")', lg("d", "t", "INFO", "5ms later", None)),
+        T("log_millis_digits_only", '"d t I x +5ms", "d t I x ms", "d t I x 5 ms"', '[parse_log("d t I x +5ms"), parse_log("d t I x ms"), parse_log("d t I x 5 ms")].map(|l| l.unwrap().millis)', "[None; 3]"),
+        T("log_millis_too_big", '"d t I x 18446744073709551616ms"', 'parse_log("d t I x 18446744073709551616ms").unwrap().millis', "None"),
+        T("log_millis_u64_max", '"d t I 18446744073709551615ms"', 'parse_log("d t I 18446744073709551615ms").unwrap().millis', "Some(u64::MAX)"),
+        T("log_unicode_message", '"d t INFO café ☕ 3ms"', 'parse_log("d t INFO café ☕ 3ms")', lg("d", "t", "INFO", "café ☕ 3ms", 3)),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2202);
-            let pieces = ["", " ", "7", " -3 ", "12", "x", "1e3", "0"];
+            let mut rng = anneal_prelude::Rng::new(7202);
+            let pieces = ["", " ", "7", " -3 ", "12", "x", "0", "9223372036854775807"];
             for _ in 0..400 {
                 let n = rng.below(6);
-                let mut fields = Vec::new();
+                let mut fields: Vec<&str> = Vec::new();
                 for _ in 0..n {
                     fields.push(*rng.pick(&pieces));
                 }
-                let line = fields.join(",");
-                let mut total = 0i64;
-                let mut bad = false;
-                for f in &fields {
-                    match f.trim() {
-                        "" => {}
-                        "7" => total += 7,
-                        "-3" => total -= 3,
-                        "12" => total += 12,
-                        "0" => {}
-                        _ => bad = true,
+                let mut line = fields.join(",");
+                if rng.bool() {
+                    line.push(',');
+                }
+                let mut want = Ok(0i64);
+                let mut cut: Vec<&str> = line.split(',').collect();
+                if line.ends_with(',') {
+                    cut.pop();
+                }
+                if line.is_empty() {
+                    cut.clear();
+                }
+                for (i, f) in cut.iter().enumerate() {
+                    let f = f.trim();
+                    let step = if f.is_empty() {
+                        Err(CsvError::Empty(i + 1))
+                    } else {
+                        match f.parse::<i64>() {
+                            Err(_) => Err(CsvError::Bad(i + 1, f.to_string())),
+                            Ok(v) => want.as_ref().ok().and_then(|t: &i64| t.checked_add(v)).ok_or(CsvError::Overflow),
+                        }
+                    };
+                    match step {
+                        Ok(t) => want = Ok(t),
+                        Err(e) => {
+                            want = Err(e);
+                            break;
+                        }
                     }
                 }
-                check!(format!("line = {line:?}"), sum_csv(&line).ok(), if bad { None } else { Some(total) });
+                check!(format!("line = {line:?}"), sum_csv(&line), want);
             }
         }
 
         #[test]
         fn scale_200k_fields() {
             let line = "1, ".repeat(200_000);
-            check!("line = \\"1, 1, …\\" (200000 fields)", sum_csv(&line), Ok(200_000));
+            check!("line = \\"1, 1, …\\" (200000 fields, then a trailing space)", sum_csv(&line), Err(CsvError::Empty(200_001)));
+            let line = "1,".repeat(200_000);
+            check!("line = \\"1,1,…,\\" (200000 fields and a trailing comma)", sum_csv(&line), Ok(200_000));
         }
         """,
     ],
     wrong=dict(
-        empty_fields_fail="""
-            use std::num::ParseIntError;
-
-            pub fn sum_csv(line: &str) -> Result<i64, ParseIntError> {
-                line.split(',').map(str::trim).map(str::parse::<i64>).sum()
-            }
-        """,
-        skips_bad_fields="""
-            use std::num::ParseIntError;
-
-            pub fn sum_csv(line: &str) -> Result<i64, ParseIntError> {
-                Ok(line.split(',').filter_map(|f| f.trim().parse::<i64>().ok()).sum())
-            }
-        """,
-        parses_i32="""
-            use std::num::ParseIntError;
-
-            pub fn sum_csv(line: &str) -> Result<i64, ParseIntError> {
-                let mut total = 0i64;
-                for f in line.split(',').map(str::trim).filter(|f| !f.is_empty()) {
-                    total += f.parse::<i32>()? as i64;
-                }
-                Ok(total)
-            }
-        """,
+        split_keeps_trailing_field=sub(CSV_SOL, "line.split_terminator(',')", "line.split(',')"),
+        wrapping_total=sub(CSV_SOL, "total = total.checked_add(n).ok_or(CsvError::Overflow)?;", "total = total.wrapping_add(n);"),
+        message_split_on_every_space=sub(CSV_SOL, """let mut parts = line.splitn(4, ' ');
+            let (date, time, level) = (parts.next()?, parts.next()?, parts.next()?);""", """let mut parts = line.split(' ');
+            let (date, time, level) = (parts.next()?, parts.next()?, parts.next()?);"""),
+        rsplitn_order_misread=sub(CSV_SOL, """.rsplitn(2, ' ')
+                .next()""", """.rsplitn(2, ' ')
+                .last()"""),
+        accepts_a_plus_sign=sub(CSV_SOL, ".filter(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))\n", ""),
     ),
-    hints=[("rust", "`str::trim` and `str::parse::<i64>` can be passed to `map` directly."),
-           ("rust", "`Sum` is implemented for `Result<T, E>`: summing `Result`s stops at the first `Err`.")],
-    notes=("The whole function is one pipeline. Summing into `Result` short-circuits on the first bad field, so no manual loop or early return is needed.", "O(n)", "O(1)"),
-    follow_up="How would you report which field failed, and at what position?",
+    hints=[("rust", "`\"1,2,\".split(',')` yields `[\"1\", \"2\", \"\"]`; `split_terminator(',')` yields `[\"1\", \"2\"]`, but only one trailing comma is forgiven."),
+           ("rust", "`line.splitn(4, ' ')` yields at most 4 pieces; the 4th is everything after the third space. `s.rsplitn(2, ' ').next()` is the last word."),
+           ("edge case", "`\"+5\".parse::<u64>()` is `Ok(5)`: check the digits yourself if a sign isn't allowed.")],
+    notes=("""Both functions are one pass over borrowed pieces. `split_terminator` is `split` that forgives one trailing separator (think lines that end with `\\n`); `splitn(n, pat)` is the tool when the last field may contain the separator, and `rsplitn` counts from the right and yields right-to-left, so its first item is the *last* piece. Summing with `checked_add` makes the overflow a reported error instead of a debug-build panic or a silent wrap in release. `str::parse` for integers accepts a leading `+`, which is why the digits are checked first. Syntax to remember: `s.split_terminator(',')`, `s.splitn(4, ' ')`, `s.rsplitn(2, ' ')`, `.enumerate()`, `.map_err(|_| E::Bad(i + 1, f.to_string()))?`, `a.checked_add(b).ok_or(E::Overflow)?`, `s.bytes().all(|b| b.is_ascii_digit())`.""", "O(n)", "O(1)"),
+    follow_up="Real CSV allows quoted fields that contain commas. Why does that rule out `split`, and what would a zero-copy field iterator return for a field with an escaped quote?",
     related=["S1"],
 ))
 
+CSVW_SOL = r"""
+        /// One CSV field. A field that contains a comma, a double quote, `\r` or `\n` is wrapped in double
+        /// quotes, with each inner double quote doubled. Any other field is written as it is.
+        pub fn csv_field(s: &str) -> String {
+            if s.contains([',', '"', '\r', '\n']) {
+                format!("\"{}\"", s.replace('"', "\"\""))
+            } else {
+                s.to_string()
+            }
+        }
+
+        /// The fields as one CSV row, separated by commas.
+        pub fn csv_row(fields: &[&str]) -> String {
+            let mut row = String::new();
+            for (i, f) in fields.iter().enumerate() {
+                if i > 0 {
+                    row.push(',');
+                }
+                row += &csv_field(f);
+            }
+            row
+        }
+"""
+
+CSVW_STARTER = r"""
+        /// One CSV field. A field that contains a comma, a double quote, `\r` or `\n` is wrapped in double
+        /// quotes, with each inner double quote doubled. Any other field is written as it is.
+        pub fn csv_field(s: &str) -> String {
+            if s.contains(',') {
+                '"' + s.replace('"', "\"\"") + '"'
+            } else {
+                s
+            }
+        }
+
+        /// The fields as one CSV row, separated by commas.
+        pub fn csv_row(fields: &[&str]) -> String {
+            let mut row = String::new();
+            for f in fields {
+                if !row.is_empty() {
+                    row += ',';
+                }
+                row = row + csv_field(f);
+            }
+            row
+        }
+"""
+
 P.append(dict(
-    slug="fix-string-plus-string", title="Fix: + with two Strings", mode="fix", level="easy", stage="use",
-    tags=["E0308", "E0369", "Add"],
-    teaches=["`String + &str` consumes the left side and borrows the right.", "`&str + ...` doesn't exist; use `format!`."],
-    statement="Both functions should build a new string. Neither compiles.",
-    starter="""
-        /// "last, first"
-        pub fn full_name(first: String, last: String) -> String {
-            last + ", " + first
-        }
-
-        /// "name#id"
-        pub fn tag(name: &str, id: u32) -> String {
-            name + "#" + id
-        }
+    slug="fix-string-plus-string", title="Fix: a CSV writer built with +", mode="fix", level="easy", stage="use",
+    tags=["E0369", "E0308", "Add<&str>", "AddAssign<&str>", "CSV quoting"],
+    teaches=[
+        "`String + &str` is the only `+` for strings: the left side is an owned `String` (its buffer is reused), the right a `&str`. There's no `char + String` and no `+= char`.",
+        "`&String` derefs to `&str`, so `row += &field` works; `row + field` with an owned `String` on the right doesn't.",
+        "\"Is this the first item?\" is a question about the index, not about whether the output is empty so far.",
+    ],
+    statement="""
+        A tiny CSV writer (RFC 4180 quoting). It doesn't compile, and once it does it still writes wrong rows.
+        Make both functions match their doc comments.
     """,
-    solution="""
-        /// "last, first"
-        pub fn full_name(first: String, last: String) -> String {
-            last + ", " + &first
-        }
-
-        /// "name#id"
-        pub fn tag(name: &str, id: u32) -> String {
-            format!("{name}#{id}")
-        }
-    """,
+    examples=[('csv_row(&["a", "b,c", "say \\"hi\\""])', '"a,\\"b,c\\",\\"say \\"\\"hi\\"\\"\\""'), ('csv_row(&["", "x"])', '",x"')],
+    starter=CSVW_STARTER,
+    solution=CSVW_SOL,
     visible=[
-        T("name", '"Ada", "Lovelace"', 'full_name("Ada".into(), "Lovelace".into())', rs("Lovelace, Ada")),
-        T("tagged", '"ferris", 7', 'tag("ferris", 7)', rs("ferris#7")),
-        T("tag_two_digits", '"x", 42', 'tag("x", 42)', rs("x#42")),
-        T("empty_last", '"Ada", ""', 'full_name("Ada".into(), String::new())', rs(", Ada")),
-        T("last_comes_first", '"Grace", "Hopper"', 'full_name("Grace".into(), "Hopper".into())', rs("Hopper, Grace")),
+        T("plain_row", '["a", "b", "c"]', 'csv_row(&["a", "b", "c"])', '"a,b,c".to_string()'),
+        T("comma_is_quoted", '"b,c"', 'csv_field("b,c")', '"\\"b,c\\"".to_string()'),
+        T("quote_is_doubled", '"say \\"hi\\""', 'csv_field("say \\"hi\\"")', '"\\"say \\"\\"hi\\"\\"\\"".to_string()'),
+        T("empty_first_field", '["", "x"]', 'csv_row(&["", "x"])', '",x".to_string()'),
+        T("no_fields", "[]", "csv_row(&[])", "String::new()"),
     ],
     hidden=[
-        T("empty_first", '"", "X"', 'full_name(String::new(), "X".into())', rs("X, ")),
-        T("zero", '"a", 0', 'tag("a", 0)', rs("a#0")),
-        T("max_id", '"a", u32::MAX', 'tag("a", u32::MAX)', rs("a#4294967295")),
-        T("ten", '"v", 10', 'tag("v", 10)', rs("v#10")),
-        T("empty_name_tag", '"", 5', 'tag("", 5)', rs("#5")),
-        T("both_empty", '"", ""', "full_name(String::new(), String::new())", rs(", ")),
-        T("unicode_names", '"Zoë", "Ünal"', 'full_name("Zoë".into(), "Ünal".into())', '"Ünal, Zoë".to_string()'),
-        T("unicode_tag", '"日本", 3', 'tag("日本", 3)', '"日本#3".to_string()'),
+        T("newline_is_quoted", '"a\\nb"', 'csv_field("a\\nb")', '"\\"a\\nb\\"".to_string()'),
+        T("carriage_return_is_quoted", '"a\\rb"', 'csv_field("a\\rb")', '"\\"a\\rb\\"".to_string()'),
+        T("lone_quote", '"\\""', 'csv_field("\\"")', '"\\"\\"\\"\\"".to_string()'),
+        T("plain_field_unchanged", '"hello world"', 'csv_field("hello world")', '"hello world".to_string()'),
+        T("empty_field", '""', 'csv_field("")', "String::new()"),
+        T("all_empty_fields", '["", "", ""]', 'csv_row(&["", "", ""])', '",,".to_string()'),
+        T("one_empty_field", '[""]', 'csv_row(&[""])', "String::new()"),
+        T("mixed_row", '["id", "a,b", "", "x\\"y"]', 'csv_row(&["id", "a,b", "", "x\\"y"])', '"id,\\"a,b\\",,\\"x\\"\\"y\\"".to_string()'),
+        T("unicode_fields", '["café", "日本,語"]', 'csv_row(&["café", "日本,語"])', '"café,\\"日本,語\\"".to_string()'),
+        T("single_quote_not_special", "\"it's\"", "csv_field(\"it's\")", "\"it's\".to_string()"),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2203);
-            for _ in 0..300 {
-                let (l1, l2) = (rng.below(6), rng.below(6));
-                let first = rng.string(l1, "ab é");
-                let last = rng.string(l2, "xy ü");
-                let id = rng.next_u64() as u32 >> rng.below(32);
-                let want = (format!("{last}, {first}"), format!("{first}#{id}"));
-                check!(format!("first = {first:?}, last = {last:?}, id = {id}"), (full_name(first.clone(), last.clone()), tag(&first, id)), want);
+            let mut rng = anneal_prelude::Rng::new(7203);
+            for _ in 0..400 {
+                let n = rng.below(5);
+                let mut fields = Vec::new();
+                for _ in 0..n {
+                    let len = rng.below(4);
+                    fields.push(rng.string(len, "a,\\"\\né "));
+                }
+                let mut want = String::new();
+                for (i, f) in fields.iter().enumerate() {
+                    if i > 0 {
+                        want.push(',');
+                    }
+                    if f.chars().any(|c| c == ',' || c == '"' || c == '\\n' || c == '\\r') {
+                        want.push('"');
+                        for c in f.chars() {
+                            if c == '"' {
+                                want.push('"');
+                            }
+                            want.push(c);
+                        }
+                        want.push('"');
+                    } else {
+                        want.push_str(f);
+                    }
+                }
+                let refs: Vec<&str> = fields.iter().map(|f| f.as_str()).collect();
+                check!(format!("fields = {fields:?}"), csv_row(&refs), want);
             }
+        }
+
+        #[test]
+        fn scale_100k_fields() {
+            let fields = vec!["a\\"b"; 100_000];
+            let row = csv_row(&fields);
+            check!("fields = [\\"a\\\\\\"b\\"; 100000]", (row.len(), &row[..13]), (100_000 * 7 - 1, "\\"a\\"\\"b\\",\\"a\\"\\"b\\""));
         }
         """,
     ],
     wrong=dict(
-        first_then_last="""
-            /// "last, first"
-            pub fn full_name(first: String, last: String) -> String {
-                first + ", " + &last
-            }
-
-            /// "name#id"
-            pub fn tag(name: &str, id: u32) -> String {
-                format!("{name}#{id}")
-            }
-        """,
-        digit_as_char="""
-            /// "last, first"
-            pub fn full_name(first: String, last: String) -> String {
-                last + ", " + &first
-            }
-
-            /// "name#id"
-            pub fn tag(name: &str, id: u32) -> String {
-                name.to_string() + "#" + &((b'0' + id as u8) as char).to_string()
-            }
-        """,
+        only_commas_quoted=sub(CSVW_SOL, "s.contains([',', '\"', '\\r', '\\n'])", "s.contains(',')"),
+        first_check_by_emptiness=sub(CSVW_SOL, """for (i, f) in fields.iter().enumerate() {
+                if i > 0 {""", """for f in fields {
+                if !row.is_empty() {"""),
+        backslash_escapes=sub(CSVW_SOL, """s.replace('"', "\\"\\"")""", """s.replace('"', "\\\\\\"")"""),
     ),
-    hints=[("rust", "`impl Add<&str> for String` is the only `+` for strings: left side owned `String`, right side `&str`."),
-           ("rust", "A `&str` on the left can't grow, and a number isn't a `&str`. `format!` handles both.")],
-    notes=("`+` reuses the left `String`'s buffer, which is why it takes it by value. `&first` derefs `&String` to `&str`. For anything mixed, `format!` is clearer.", "O(n)", "O(n)"),
-    follow_up="Why is `a + &b` often faster than `format!(\"{a}{b}\")`?",
-    rules=dict(lines=2),
+    hints=[("rust", "`impl Add<&str> for String` is the whole story: `owned + &str`. A `char` goes in with `push`, another `String` with `+= &other`, and a mix with `format!`."),
+           ("rust", "`s.contains([',', '\"', '\\r', '\\n'])`: an array of chars is a pattern that matches any of them."),
+           ("edge case", "`csv_row(&[\"\", \"x\"])` must be `\",x\"`: after the first field the row is still empty.")],
+    notes=("""`+` takes the left `String` by value so it can append into that buffer; the right side is only read, so it's a `&str`. That's why `'"' + s` (no `Add` for `char`), `row + csv_field(f)` (a `String` on the right) and `row += ','` (`AddAssign<&str>` only) don't compile. `&csv_field(f)` borrows the temporary as `&String`, which derefs to `&str`. The two logic bugs are the interesting part: quoting only on commas corrupts any field with a quote or newline, and `!row.is_empty()` confuses "nothing written yet" with "first field", so an empty first field loses its separator. Syntax to remember: `s.push(c)`, `s.push_str(t)`, `s += &t`, `s.contains([',', '"'])`, `s.replace('"', "\\"\\"")`, `format!("\\"{}\\"", x)`.""", "O(total length)", "O(total length)"),
+    follow_up="`csv_row` allocates one `String` per field and then copies it. How would you write the quoted field straight into `row` instead?",
+    rules=dict(lines=10),
 ))
 
-P.append(dict(
-    slug="compare-ignoring-case", title="Compare ignoring case without allocating", level="easy", stage="use",
-    tags=["eq_ignore_ascii_case", "zero allocation"],
-    teaches=["`eq_ignore_ascii_case` compares without building lowercase copies."],
-    statement="""
-        - `is_command`: does `input`, with surrounding whitespace ignored, name `command`, ignoring ASCII case?
-        - `count_word`: how many whitespace-separated words of `text` equal `word`, ignoring ASCII case?
-
-        Don't allocate: no `to_lowercase` or `to_uppercase`.
-    """,
-    starter="""
-        pub fn is_command(input: &str, command: &str) -> bool {
-            todo!()
-        }
-
-        pub fn count_word(text: &str, word: &str) -> usize {
-            todo!()
-        }
-    """,
-    solution="""
+CASE_SOL = r"""
+        /// Does `input`, ignoring surrounding whitespace, name `command`, ignoring ASCII case? No allocation.
         pub fn is_command(input: &str, command: &str) -> bool {
             input.trim().eq_ignore_ascii_case(command)
         }
 
-        pub fn count_word(text: &str, word: &str) -> usize {
-            text.split_whitespace().filter(|w| w.eq_ignore_ascii_case(word)).count()
+        /// Lower-cases an HTTP header name in place. Only ASCII letters change. No allocation.
+        pub fn normalize_header(name: &mut String) {
+            name.make_ascii_lowercase();
         }
+
+        /// Each whitespace-separated word with its first character in upper case and the rest in lower case,
+        /// by the full Unicode rules. Words are joined by single spaces.
+        pub fn title_case(s: &str) -> String {
+            let mut out = String::with_capacity(s.len());
+            for word in s.split_whitespace() {
+                if !out.is_empty() {
+                    out.push(' ');
+                }
+                let mut chars = word.chars();
+                if let Some(first) = chars.next() {
+                    out.extend(first.to_uppercase());
+                    out.push_str(&chars.as_str().to_lowercase());
+                }
+            }
+            out
+        }
+"""
+
+CASE_STARTER = r"""
+        /// Does `input`, ignoring surrounding whitespace, name `command`, ignoring ASCII case? No allocation.
+        pub fn is_command(input: &str, command: &str) -> bool {
+            todo!()
+        }
+
+        /// Lower-cases an HTTP header name in place. Only ASCII letters change. No allocation.
+        pub fn normalize_header(name: &mut String) {
+            todo!()
+        }
+
+        /// Each whitespace-separated word with its first character in upper case and the rest in lower case,
+        /// by the full Unicode rules. Words are joined by single spaces.
+        pub fn title_case(s: &str) -> String {
+            todo!()
+        }
+"""
+
+P.append(dict(
+    slug="compare-ignoring-case", title="Case: ASCII folding vs Unicode mapping", level="easy", stage="use",
+    tags=["eq_ignore_ascii_case", "make_ascii_lowercase", "to_uppercase", "to_lowercase", "count_allocs"],
+    teaches=[
+        "Protocol text (commands, header names) is ASCII: `eq_ignore_ascii_case` and `make_ascii_lowercase` work in place and never allocate.",
+        "Human text needs Unicode case mapping, which can change the length: `'ß'.to_uppercase()` is `\"SS\"`, so `char::to_uppercase` returns an iterator, not a `char`.",
+        "`str::to_lowercase` knows context that per-char mapping doesn't: a word-final `Σ` becomes `ς`.",
+    ],
+    statement="""
+        - `is_command(input, command)`: does `input`, with surrounding whitespace ignored, equal `command`,
+          ignoring ASCII case? No allocation.
+        - `normalize_header(name)`: lower-case an HTTP header name in place. Only ASCII letters change (header
+          names are ASCII; leave anything else as it is). No allocation.
+        - `title_case(s)`: for display. In each whitespace-separated word, the first character goes to upper
+          case and the rest to lower case, by the full Unicode rules. Join the words with single spaces.
     """,
+    examples=[('is_command("  QUIT\\n", "quit")', "true"), ('title_case("ÉCOLE straße")', '"École Straße"'), ('title_case("ßig")', '"SSig"')],
+    starter=CASE_STARTER,
+    solution=CASE_SOL,
     visible=[
-        T("command", '"  QUIT \\n", "quit"', 'is_command("  QUIT \\n", "quit")', "true"),
-        T("count", '"The cat saw the THE", "the"', 'count_word("The cat saw the THE", "the")', "3"),
-        T("different_word", '"help", "quit"', 'is_command("help", "quit")', "false"),
-        T("whole_words_only", '"cats cat category", "CAT"', 'count_word("cats cat category", "CAT")', "1"),
-        T("any_whitespace", '"a\\nA\\ta", "a"', 'count_word("a\\nA\\ta", "a")', "3"),
+        T("command_matches", '"  QUIT \\n", "quit"', 'is_command("  QUIT \\n", "quit")', "true"),
+        T("prefix_is_not_the_command", '"quitter", "quit"', 'is_command("quitter", "quit")', "false"),
+        T("header_lowercased", '"Content-Type"', "h", '"content-type".to_string()', setup='let mut h = String::from("Content-Type");\nnormalize_header(&mut h);'),
+        T("title_accented", '"ÉCOLE maternelle"', 'title_case("ÉCOLE maternelle")', '"École Maternelle".to_string()'),
+        T("title_sharp_s_expands", '"ßig"', 'title_case("ßig")', '"SSig".to_string()'),
     ],
     hidden=[
-        T("prefix_is_not_equal", '"quitter", "quit"', 'is_command("quitter", "quit")', "false"),
-        T("none", '"", "a"', 'count_word("", "a")', "0"),
-        T("empty_command", '"   ", ""', 'is_command("   ", "")', "true"),
-        T("command_not_trimmed", '"QUIT", "quit "', 'is_command("QUIT", "quit ")', "false"),
-        T("inner_space_kept", '"qu it", "quit"', 'is_command("qu it", "quit")', "false"),
-        T("ascii_only_command", '"É", "é"', 'is_command("É", "é")', "false"),
-        T("ascii_only_count", '"ÉCOLE école École", "école"', 'count_word("ÉCOLE école École", "école")', "1"),
-        T("punctuation_counts", '"the, the. the", "the"', 'count_word("the, the. the", "the")', "1"),
-        T("empty_word", '"a b", ""', 'count_word("a b", "")', "0"),
+        T("command_not_unicode_folded", '"É", "é"', 'is_command("É", "é")', "false"),
+        T("command_inner_space", '"qu it", "quit"', 'is_command("qu it", "quit")', "false"),
+        T("command_untrimmed_command", '"QUIT", "quit "', 'is_command("QUIT", "quit ")', "false"),
+        T("empty_command", '"  ", ""', 'is_command("  ", "")', "true"),
+        T("command_no_allocation", 'is_command("  HeLp  ", "help")', "(ok, n.count)", "(true, 0)", setup='let (ok, n) = anneal_prelude::allocs(|| is_command("  HeLp  ", "help"));'),
+        T("header_non_ascii_untouched", '"X-Ünïcode"', "h", '"x-Ünïcode".to_string()', setup='let mut h = String::from("X-Ünïcode");\nnormalize_header(&mut h);'),
+        T("header_no_allocation", '"ACCEPT-ENCODING" in place', "(h.as_str(), n.count)", '("accept-encoding", 0)',
+          setup='let mut h = String::from("ACCEPT-ENCODING");\nlet ((), n) = anneal_prelude::allocs(|| normalize_header(&mut h));'),
+        T("title_final_sigma", '"ΟΔΟΣ ΣΑΣ"', 'title_case("ΟΔΟΣ ΣΑΣ")', '"Οδος Σας".to_string()'),
+        T("title_whitespace_collapsed", '"  a\\tb \\n c  "', 'title_case("  a\\tb \\n c  ")', '"A B C".to_string()'),
+        T("title_empty", '"" and "   "', '(title_case(""), title_case("   "))', "(String::new(), String::new())"),
+        T("title_ligature", '"ﬁne"', 'title_case("ﬁne")', '"FIne".to_string()'),
+        T("title_dotted_capital_i_in_the_rest", '"AİR"', 'title_case("AİR")', '"Ai\\u{307}r".to_string()'),
+        T("title_digits_and_cjk", '"3RD 日本語"', 'title_case("3RD 日本語")', '"3rd 日本語".to_string()'),
+        T("title_already_title", '"Hello World"', 'title_case("Hello World")', '"Hello World".to_string()'),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2204);
-            let words = ["ab", "AB", "aB", "ba", "a", "abc", "Ab"];
-            for _ in 0..300 {
-                let n = rng.below(6);
-                let mut text = String::new();
-                for _ in 0..n {
-                    text.push_str(*rng.pick(&words));
-                    text.push_str(*rng.pick(&[" ", "  ", "\\n", "\\t"]));
+            let mut rng = anneal_prelude::Rng::new(7204);
+            for _ in 0..400 {
+                let len = rng.below(10);
+                let s = rng.string(len, "aBéÉßΣσ \\t");
+                let mut words = Vec::new();
+                for w in s.split_whitespace() {
+                    let mut it = w.chars();
+                    let first: String = it.next().map(|c| c.to_uppercase().collect()).unwrap_or_default();
+                    words.push(first + &it.as_str().to_lowercase());
                 }
-                let word = *rng.pick(&words);
-                let fold = |s: &str| -> Vec<u8> { s.bytes().map(|b| if b.is_ascii_uppercase() { b + 32 } else { b }).collect() };
-                let want = text.split_whitespace().filter(|w| fold(w) == fold(word)).count();
-                let padded = format!(" {word}\\t");
-                check!(format!("text = {text:?}, word = {word:?}"), (count_word(&text, word), is_command(&padded, &word.to_uppercase())), (want, true));
+                let mut h = s.clone();
+                let want_h: String = s.chars().map(|c| if c.is_ascii_uppercase() { c.to_ascii_lowercase() } else { c }).collect();
+                normalize_header(&mut h);
+                let cmd = s.trim().to_ascii_uppercase();
+                check!(format!("s = {s:?}"), (title_case(&s), h, is_command(&s, &cmd)), (words.join(" "), want_h, true));
             }
         }
 
         #[test]
         fn scale_200k_words() {
-            let text = "Go gO go stop ".repeat(50_000);
-            check!("text = \\"Go gO go stop …\\" (200000 words), word = \\"GO\\"", count_word(&text, "GO"), 150_000);
+            let s = "hELLO wORLD ".repeat(100_000);
+            let out = title_case(&s);
+            check!("s = \\"hELLO wORLD …\\" (200000 words)", (out.len(), &out[..12]), (1_199_999, "Hello World "));
         }
         """,
     ],
     wrong=dict(
-        unicode_lowercase="""
-            pub fn is_command(input: &str, command: &str) -> bool {
-                input.trim().to_lowercase() == command.to_lowercase()
-            }
-
-            pub fn count_word(text: &str, word: &str) -> usize {
-                text.split_whitespace().filter(|w| w.to_lowercase() == word.to_lowercase()).count()
-            }
-        """,
-        prefix_match="""
-            pub fn is_command(input: &str, command: &str) -> bool {
-                let input = input.trim();
-                input.len() >= command.len() && input.as_bytes()[..command.len()].eq_ignore_ascii_case(command.as_bytes())
-            }
-
-            pub fn count_word(text: &str, word: &str) -> usize {
-                text.split_whitespace().filter(|w| w.eq_ignore_ascii_case(word)).count()
-            }
-        """,
-        split_on_space="""
-            pub fn is_command(input: &str, command: &str) -> bool {
-                input.trim().eq_ignore_ascii_case(command)
-            }
-
-            pub fn count_word(text: &str, word: &str) -> usize {
-                text.split(' ').filter(|w| w.eq_ignore_ascii_case(word)).count()
-            }
-        """,
+        lowercase_allocates=sub(CASE_SOL, "input.trim().eq_ignore_ascii_case(command)", "input.trim().to_lowercase() == command.to_lowercase()"),
+        header_rebuilt=sub(CASE_SOL, "name.make_ascii_lowercase();", "*name = name.to_lowercase();"),
+        ascii_first_letter=sub(CASE_SOL, "out.extend(first.to_uppercase());", "out.push(first.to_ascii_uppercase());"),
+        one_char_of_the_upper_case=sub(CASE_SOL, "out.extend(first.to_uppercase());", "out.extend(first.to_uppercase().next());"),
+        rest_lowercased_per_char=sub(CASE_SOL, "out.push_str(&chars.as_str().to_lowercase());", "out.extend(chars.flat_map(char::to_lowercase));"),
     ),
-    hints=[("rust", "`str::eq_ignore_ascii_case` compares byte by byte, folding ASCII letters, with no allocation.")],
-    notes=("Lowercasing both sides allocates two Strings per comparison; `eq_ignore_ascii_case` allocates nothing. It only folds ASCII, which is right for commands and keywords.", "O(n)", "O(1)"),
-    follow_up="What would you use for case-insensitive comparison of arbitrary Unicode text?",
-    rules=dict(methods=["to_lowercase", "to_uppercase", "to_ascii_lowercase", "to_ascii_uppercase"]),
+    hints=[("rust", "`eq_ignore_ascii_case` compares without building copies; `make_ascii_lowercase` rewrites the bytes in place (ASCII case changes never change the length)."),
+           ("rust", "`c.to_uppercase()` is an iterator of `char`s: `out.extend(c.to_uppercase())`. After `chars.next()`, `chars.as_str()` is the rest of the word, borrowed."),
+           ("edge case", "Lower-case the rest of the word as a `&str`, not char by char: `\"ΟΔΟΣ\"` ends in a final sigma, `ς`.")],
+    notes=("""Two different jobs share the word "case". Protocol identifiers are ASCII, so compare and fold them byte by byte: `eq_ignore_ascii_case`, `make_ascii_lowercase` and `to_ascii_lowercase` never allocate (except the last, which returns a copy) and never touch non-ASCII bytes. Human text needs Unicode case mapping, which is not one char to one char: `ß` → `SS`, `ﬁ` → `FI`, `İ` → `i̇` (two chars), and `Σ` lowercases to `ς` at the end of a word, which only `str::to_lowercase` knows (it looks at the neighbours). For case-insensitive *comparison* of human text you want case folding and normalisation (the `unicase` or `icu` crates), not `to_lowercase() ==`. Syntax to remember: `a.eq_ignore_ascii_case(b)`, `s.make_ascii_lowercase()` / `make_ascii_uppercase()`, `s.to_ascii_lowercase()` (new `String`), `c.to_uppercase()` → `ToUppercase` iterator, `s.to_lowercase()` → `String`, `chars.as_str()`.""", "O(n)", "O(n) for title_case, O(1) for the others"),
+    follow_up="Why does `\"İ\".to_lowercase().len()` differ from `\"İ\".len()`, and what breaks if you lower-case a string and then slice it at offsets found in the original?",
+    related=["S4"],
+    perf=dict(allocs=True),
 ))
 
+
+def receipt_table(rows, prec):
+    nw = max((len(n) for n, _ in rows), default=0)
+    vals = [f"{v:.{prec}f}" for _, v in rows]
+    vw = max((len(v) for v in vals), default=0)
+    return "".join(f"{n:<{nw}} | {v:>{vw}}\n" for (n, _), v in zip(rows, vals))
+
+
+def rs_lit(s):
+    return json_str(s) + ".to_string()"
+
+
+def json_str(s):
+    import json
+    return json.dumps(s, ensure_ascii=False)
+
+
+def register(v):
+    b = v.to_bytes(4, "big")
+    return f"{v:#010x} = " + "_".join(f"{x:08b}" for x in b)
+
+
+def hexline(off, bs):
+    h = ""
+    for i, b in enumerate(bs):
+        h += f"{b:02x} "
+        if i == 7:
+            h += " "
+    a = "".join(chr(b) if 0x20 <= b < 0x7f else "." for b in bs)
+    return f"{off:08x}  {h:<49} |{a}|"
+
+
+def tb(name, desc, rows, prec):
+    rust_rows = "&[" + ", ".join(f"({json_str(n)}, {v!r})" for n, v in rows) + "]"
+    return T(name, desc, f"table({rust_rows}, {prec})", rs_lit(receipt_table(rows, prec)))
+
+
+def hx(name, off, bs):
+    lit = 'b"' + "".join(f"\\x{b:02x}" for b in bs) + '"'
+    return T(name, f"offset {off:#x}, bytes {bytes(bs)!r}".replace('"', "'"), f"hexdump_line({off:#x}, {lit})", rs_lit(hexline(off, bs)))
+
+
+FMT_SOL = r"""
+        use std::fmt::Write;
+
+        /// One line per row, each ending in '\n': the name left-aligned and padded to the longest name, " | ",
+        /// then the value with `prec` decimals, right-aligned to the widest formatted value.
+        pub fn table(rows: &[(&str, f64)], prec: usize) -> String {
+            let name_w = rows.iter().map(|(name, _)| name.chars().count()).max().unwrap_or(0);
+            let value_w = rows.iter().map(|(_, v)| format!("{v:.prec$}").len()).max().unwrap_or(0);
+            let mut out = String::new();
+            for (name, value) in rows {
+                writeln!(out, "{name:<name_w$} | {value:>value_w$.prec$}").unwrap();
+            }
+            out
+        }
+
+        /// "0x" and 8 lowercase hex digits, " = ", then the 32 bits, most significant byte first, in four
+        /// groups of 8 joined by '_'.
+        pub fn register(value: u32) -> String {
+            let [a, b, c, d] = value.to_be_bytes();
+            format!("{value:#010x} = {a:08b}_{b:08b}_{c:08b}_{d:08b}")
+        }
+
+        /// One `hexdump -C` line for up to 16 bytes starting at `offset`.
+        pub fn hexdump_line(offset: usize, bytes: &[u8]) -> String {
+            let mut hex = String::with_capacity(49);
+            for (i, b) in bytes.iter().enumerate() {
+                write!(hex, "{b:02x} ").unwrap();
+                if i == 7 {
+                    hex.push(' ');
+                }
+            }
+            let ascii: String = bytes.iter().map(|&b| if b.is_ascii_graphic() || b == b' ' { b as char } else { '.' }).collect();
+            format!("{offset:08x}  {hex:<49} |{ascii}|")
+        }
+"""
+
+FMT_STARTER = r"""
+        use std::fmt::Write;
+
+        /// One line per row, each ending in '\n': the name left-aligned and padded to the longest name, " | ",
+        /// then the value with `prec` decimals, right-aligned to the widest formatted value.
+        pub fn table(rows: &[(&str, f64)], prec: usize) -> String {
+            todo!()
+        }
+
+        /// "0x" and 8 lowercase hex digits, " = ", then the 32 bits, most significant byte first, in four
+        /// groups of 8 joined by '_'.
+        pub fn register(value: u32) -> String {
+            todo!()
+        }
+
+        /// One `hexdump -C` line for up to 16 bytes starting at `offset`.
+        pub fn hexdump_line(offset: usize, bytes: &[u8]) -> String {
+            todo!()
+        }
+"""
+
 P.append(dict(
-    slug="format-width-precision", title="format! width & precision", level="easy", stage="use",
-    tags=["format!", "alignment", "{:#x}"],
-    teaches=["`{:<10}` / `{:>8.2}`: alignment, width, precision.", "Precision on a string truncates it; `#` adds `0x`, and the width includes it."],
+    slug="format-width-precision", title="format! specs: tables, registers, hexdump", level="easy", stage="use",
+    tags=["format!", "writeln!", "{:>w$.p$}", "{:#010x}", "{:08b}", "{:02x}"],
+    teaches=[
+        "Widths and precisions can come from variables: `{v:>w$.p$}`. Width counts `char`s, not bytes.",
+        "`{:#010x}`: `#` adds `0x` and the width 10 includes it. `{:08b}` zero-pads binary.",
+        "`write!`/`writeln!` into a `String` needs `std::fmt::Write` in scope and returns a `fmt::Result`.",
+    ],
     statement="""
-        - `receipt_line`: the item left-aligned in 10 columns (cut to 10 if longer), the quantity
-          right-aligned in 3, a space, then the price right-aligned in 8 with two decimals.
-        - `hex_id`: the id as `0x` plus 8 zero-padded lowercase hex digits.
+        Three formatters. Use format specs for all the padding; no manual space counting.
 
-        Use format specifiers, not manual padding.
+        - `table(rows, prec)`: one line per row, each ending in `\\n`. The name is left-aligned and padded to the
+          longest name (in characters), then `" | "`, then the value with `prec` decimals, right-aligned to the
+          widest formatted value.
+        - `register(value)`: `0x` and 8 lowercase hex digits, `" = "`, then the 32 bits, most significant byte
+          first, as four groups of 8 joined by `_`.
+        - `hexdump_line(offset, bytes)` (at most 16 bytes), as `hexdump -C` prints it: the offset as 8 hex
+          digits, two spaces, then each byte as 2 lowercase hex digits and a space, with one extra space after
+          the 8th byte. That hex part is padded with spaces to 49 columns. Then a space, `|`, each byte as its
+          ASCII character if it's printable (graphic or a space) and `.` otherwise, and `|`.
     """,
-    examples=[('receipt_line("Coffee", 2, 3.5)', repr(receipt("Coffee", 2, 3.5)).replace("'", '"')), ("hex_id(255)", '"0x000000ff"')],
-    starter="""
-        pub fn receipt_line(item: &str, qty: u32, price: f64) -> String {
-            todo!()
-        }
-
-        pub fn hex_id(id: u32) -> String {
-            todo!()
-        }
-    """,
-    solution="""
-        pub fn receipt_line(item: &str, qty: u32, price: f64) -> String {
-            format!("{item:<10.10}{qty:>3} {price:>8.2}")
-        }
-
-        pub fn hex_id(id: u32) -> String {
-            format!("{id:#010x}")
-        }
-    """,
+    examples=[("table(&[(\"coffee\", 3.5), (\"tea\", 12.25)], 2)", json_str(receipt_table([("coffee", 3.5), ("tea", 12.25)], 2))),
+              ("register(0xdead)", json_str(register(0xdead))),
+              ('hexdump_line(0x10, b"Hi!\\n")', json_str(hexline(0x10, b"Hi!\n")))],
+    starter=FMT_STARTER,
+    solution=FMT_SOL,
     visible=[
-        T("coffee", '"Coffee", 2, 3.5', 'receipt_line("Coffee", 2, 3.5)', rs(receipt("Coffee", 2, 3.5))),
-        T("hex", "255", "hex_id(255)", rs("0x000000ff")),
-        T("hex_zero", "0", "hex_id(0)", rs("0x00000000")),
-        T("ten_char_item", '"Croissant!", 3, 2.5', 'receipt_line("Croissant!", 3, 2.5)', rs(receipt("Croissant!", 3, 2.5))),
-        T("rounds_price", '"Tea", 1, 2.999', 'receipt_line("Tea", 1, 2.999)', rs(receipt("Tea", 1, 2.999))),
+        tb("table_two_rows", '[("coffee", 3.5), ("tea", 12.25)], prec 2', [("coffee", 3.5), ("tea", 12.25)], 2),
+        tb("table_empty", "[], prec 2", [], 2),
+        T("register_small", "0xdead", "register(0xdead)", rs_lit(register(0xdead))),
+        hx("hexdump_short_line", 0x10, list(b"Hi!\n")),
+        hx("hexdump_full_line", 0, list(b"0123456789abcdef")),
     ],
     hidden=[
-        T("long_item_cut", '"Cappuccino grande", 1, 4.25', 'receipt_line("Cappuccino grande", 1, 4.25)', rs(receipt("Cappuccino grande", 1, 4.25))),
-        T("big_price", '"Tea", 120, 1234.5', 'receipt_line("Tea", 120, 1234.5)', rs(receipt("Tea", 120, 1234.5))),
-        T("max_id", "u32::MAX", "hex_id(u32::MAX)", rs("0xffffffff")),
-        T("hex_letters", "0xDEADBEEF", "hex_id(0xDEAD_BEEF)", rs("0xdeadbeef")),
-        T("hex_sixteen", "16", "hex_id(16)", rs("0x00000010")),
-        T("empty_item", '"", 0, 0.0', 'receipt_line("", 0, 0.0)', rs(receipt("", 0, 0.0))),
-        T("wide_qty", '"Bag", 1000, 1.0 (the width is a minimum)', 'receipt_line("Bag", 1000, 1.0)', rs(receipt("Bag", 1000, 1.0))),
-        T("wide_price", '"Car", 1, 123456.789', 'receipt_line("Car", 1, 123456.789)', rs(receipt("Car", 1, 123456.789))),
-        T("negative_price", '"Refund", 1, -3.5', 'receipt_line("Refund", 1, -3.5)', rs(receipt("Refund", 1, -3.5))),
-        T("unicode_item", '"Crème brûlée", 2, 7.25', 'receipt_line("Crème brûlée", 2, 7.25)', rs(receipt("Crème brûlée", 2, 7.25))),
+        tb("table_unicode_names", '[("crème", 1.0), ("tea", 2.0)], prec 1: width in chars', [("crème", 1.0), ("tea", 2.0)], 1),
+        tb("table_negative_value", '[("in", 10.0), ("out", -3.75)], prec 2', [("in", 10.0), ("out", -3.75)], 2),
+        tb("table_prec_zero", '[("a", 3.25), ("bb", 100.0)], prec 0', [("a", 3.25), ("bb", 100.0)], 0),
+        tb("table_prec_four", '[("pi", 3.14159265)], prec 4', [("pi", 3.14159265)], 4),
+        tb("table_empty_name", '[("", 1.0), ("x", 22.5)], prec 1', [("", 1.0), ("x", 22.5)], 1),
+        T("table_cjk_name", '[("日本", 1.0), ("abc", 1.0)], prec 0', 'table(&[("日本", 1.0), ("abc", 1.0)], 0)', '"日本  | 1\\nabc | 1\\n".to_string()'),
+        T("register_zero_and_max", "0 and u32::MAX", "(register(0), register(u32::MAX))", f"({rs_lit(register(0))}, {rs_lit(register(0xffffffff))})"),
+        T("register_byte_order", "0x01020304", "register(0x0102_0304)", rs_lit(register(0x01020304))),
+        T("register_high_bit", "0x80000001", "register(0x8000_0001)", rs_lit(register(0x80000001))),
+        hx("hexdump_empty", 0x20, []),
+        hx("hexdump_eight_bytes", 0x8, list(b"ABCDEFGH")),
+        hx("hexdump_nine_bytes", 0x8, list(b"ABCDEFGHI")),
+        hx("hexdump_control_and_high_bytes", 0xFF, [0, 9, 0x1f, 0x7f, 0x80, 0xc3, 0xa9, 0xff, 0x20, 0x7e]),
+        hx("hexdump_large_offset", 0x12345678, list(b"z")),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2205);
+            let mut rng = anneal_prelude::Rng::new(7205);
             for _ in 0..300 {
-                let len = rng.below(14);
-                let item = rng.string(len, "abcé ");
-                let qty = rng.below(1500) as u32;
-                let price = rng.int(-100_000, 10_000_000) as f64 / 100.0;
-                let mut want: String = item.chars().take(10).collect();
-                while want.chars().count() < 10 {
-                    want.push(' ');
+                let n = rng.below(5);
+                let mut names = Vec::new();
+                let mut values = Vec::new();
+                for _ in 0..n {
+                    let len = rng.below(6);
+                    names.push(rng.string(len, "abé日"));
+                    values.push(rng.int(-100_000, 1_000_000) as f64 / 64.0);
                 }
-                let q = qty.to_string();
-                want.push_str(&" ".repeat(3usize.saturating_sub(q.len())));
-                want.push_str(&q);
-                want.push(' ');
-                let p = format!("{price:.2}");
-                want.push_str(&" ".repeat(8usize.saturating_sub(p.len())));
-                want.push_str(&p);
-                let id = rng.next_u64() as u32;
-                let mut hex = String::new();
+                let prec = rng.below(4);
+                let rows: Vec<(&str, f64)> = names.iter().map(|s| s.as_str()).zip(values.iter().copied()).collect();
+                let shown: Vec<String> = values.iter().map(|v| format!("{v:.prec$}")).collect();
+                let nw = names.iter().map(|s| s.chars().count()).max().unwrap_or(0);
+                let vw = shown.iter().map(|s| s.len()).max().unwrap_or(0);
+                let mut want = String::new();
+                for (name, v) in names.iter().zip(&shown) {
+                    want += name;
+                    want += &" ".repeat(nw - name.chars().count());
+                    want += " | ";
+                    want += &" ".repeat(vw - v.len());
+                    want += v;
+                    want.push('\\n');
+                }
+                let value = rng.next_u64() as u32;
+                let mut reg = String::from("0x");
                 for shift in (0..8).rev() {
-                    hex.push(char::from_digit((id >> (shift * 4)) & 0xf, 16).unwrap());
+                    reg.push(char::from_digit((value >> (shift * 4)) & 0xf, 16).unwrap());
                 }
-                check!(format!("item = {item:?}, qty = {qty}, price = {price}, id = {id}"), (receipt_line(&item, qty, price), hex_id(id)), (want, format!("0x{hex}")));
+                reg += " = ";
+                for bit in (0..32).rev() {
+                    reg.push(if value >> bit & 1 == 1 { '1' } else { '0' });
+                    if bit % 8 == 0 && bit > 0 {
+                        reg.push('_');
+                    }
+                }
+                let len = rng.below(17);
+                let bytes: Vec<u8> = rng.vec(len, 0, 255);
+                let offset = rng.below(1 << 20);
+                let mut line = String::new();
+                for shift in (0..8).rev() {
+                    line.push(char::from_digit(((offset >> (shift * 4)) & 0xf) as u32, 16).unwrap());
+                }
+                line += "  ";
+                let mut hex = String::new();
+                for (i, b) in bytes.iter().enumerate() {
+                    hex.push(char::from_digit((b >> 4) as u32, 16).unwrap());
+                    hex.push(char::from_digit((b & 0xf) as u32, 16).unwrap());
+                    hex.push(' ');
+                    if i == 7 {
+                        hex.push(' ');
+                    }
+                }
+                while hex.len() < 49 {
+                    hex.push(' ');
+                }
+                line += &hex;
+                line += " |";
+                for &b in &bytes {
+                    line.push(if (0x20..0x7f).contains(&b) { b as char } else { '.' });
+                }
+                line.push('|');
+                check!(format!("rows = {rows:?}, prec = {prec}, value = {value}, offset = {offset}, bytes = {bytes:?}"),
+                       (table(&rows, prec), register(value), hexdump_line(offset, &bytes)), (want, reg, line));
             }
         }
         """,
     ],
     wrong=dict(
-        width_excludes_prefix="""
-            pub fn receipt_line(item: &str, qty: u32, price: f64) -> String {
-                format!("{item:<10.10}{qty:>3} {price:>8.2}")
-            }
-
-            pub fn hex_id(id: u32) -> String {
-                format!("{id:#08x}")
-            }
-        """,
-        item_not_cut="""
-            pub fn receipt_line(item: &str, qty: u32, price: f64) -> String {
-                format!("{item:<10}{qty:>3} {price:>8.2}")
-            }
-
-            pub fn hex_id(id: u32) -> String {
-                format!("{id:#010x}")
-            }
-        """,
-        upper_hex="""
-            pub fn receipt_line(item: &str, qty: u32, price: f64) -> String {
-                format!("{item:<10.10}{qty:>3} {price:>8.2}")
-            }
-
-            pub fn hex_id(id: u32) -> String {
-                format!("0x{id:08X}")
-            }
-        """,
+        width_in_bytes=sub(FMT_SOL, "name.chars().count()", "name.len()"),
+        width_excludes_prefix=sub(FMT_SOL, "{value:#010x}", "{value:#08x}"),
+        little_endian_bytes=sub(FMT_SOL, "value.to_be_bytes()", "value.to_le_bytes()"),
+        hex_not_zero_padded=sub(FMT_SOL, 'write!(hex, "{b:02x} ")', 'write!(hex, "{b:x} ")'),
+        latin1_ascii_column=sub(FMT_SOL, "if b.is_ascii_graphic() || b == b' ' { b as char } else { '.' }", "if b.is_ascii_control() { '.' } else { b as char }"),
     ),
-    hints=[("rust", "`{:<10}` pads to 10 on the right; `{:.10}` on a string keeps at most 10 characters. Combine as `{item:<10.10}`."),
-           ("rust", "`{:#010x}`: `#` adds `0x`, `0` pads with zeros, and the width 10 includes the `0x`.")],
-    notes=("One `format!` call does all the layout. The same specifiers work in `write!`, `println!` and `Display` impls that call `f.pad`.", "O(1)", "O(1)"),
-    follow_up="How would you make the column widths configurable at runtime (`{:>width$}`)?",
-    rules=dict(methods=["repeat"]),
+    hints=[("rust", "`{name:<name_w$}` and `{value:>value_w$.prec$}` take the width and precision from variables. The widest value is the longest `format!(\"{v:.prec$}\")`."),
+           ("rust", "`use std::fmt::Write;` then `writeln!(out, \"…\").unwrap()` (it can't fail on a `String`, but returns a `fmt::Result`). `value.to_be_bytes()` gives the bytes most significant first; `{a:08b}` prints one as 8 binary digits."),
+           ("edge case", "`b as char` on a byte ≥ 0x80 gives a Latin-1 character like `é`, which is two bytes of UTF-8. Only ASCII graphic bytes and space are shown.")],
+    notes=("""The format mini-language does all of it: `<`/`>`/`^` align, the number after them is a minimum width (in `char`s), `.p` is precision for floats (and truncation for strings), `0` pads numbers with zeros after the sign, `#` adds `0x`/`0b` and counts toward the width. `name$` takes an argument by name, so runtime widths need no string building. `write!` into a `String` goes through `fmt::Write`, which conflicts with `io::Write` if both are imported by name (import one `as _`). Syntax to remember: `{:<8}` `{:>8.2}` `{:^8}` `{:*>8}`, `{v:>w$.p$}`, `{:#010x}` `{:08b}` `{:02X}` `{:e}` `{:+}`, positional `{0} {1} {0}`, named `format!(\"{n}\", n = x)`, `{:?}` / `{:#?}`, `use std::fmt::Write; write!(s, …)?`.""", "O(total output)", "O(total output)"),
+    follow_up="`format!(\"{v:.prec$}\")` allocates once per row just to measure the width. How would you measure it without allocating?",
+    related=["L4"],
 ))
 
-P.append(dict(
-    slug="join-without-join", title="Build a String in one allocation", level="easy", stage="use",
-    tags=["with_capacity", "push_str"],
-    teaches=["`String::with_capacity` when you know the final size.", "`push_str` into one buffer instead of repeated `+`."],
-    statement="""
-        Join `words` with `sep` between them, without `join` or `concat`. Compute the final length first and
-        allocate once.
-    """,
-    examples=[('words = ["a", "bc", "d"], sep = ", "', '"a, bc, d"')],
-    starter="""
-        pub fn join_words(words: &[&str], sep: &str) -> String {
-            todo!()
-        }
-    """,
-    solution="""
+JOIN_SOL = r"""
+        /// `words` joined by `sep`, in one allocation of exactly the final size.
         pub fn join_words(words: &[&str], sep: &str) -> String {
             let len = words.iter().map(|w| w.len()).sum::<usize>() + sep.len() * words.len().saturating_sub(1);
             let mut out = String::with_capacity(len);
@@ -575,28 +934,114 @@ P.append(dict(
             }
             out
         }
+
+        /// Drops leading and trailing whitespace, and in each inner run of whitespace keeps only its first
+        /// character. In place, no allocation.
+        pub fn squeeze(s: &mut String) {
+            let mut after_space = true;
+            s.retain(|c| {
+                let space = c.is_whitespace();
+                let keep = !(space && after_space);
+                after_space = space;
+                keep
+            });
+            let end = s.trim_end().len();
+            s.truncate(end);
+        }
+
+        /// Removes the first complete line from `buf` and returns it without its "\n" or "\r\n".
+        /// `None`, with `buf` unchanged, when `buf` holds no '\n' yet.
+        pub fn pop_line(buf: &mut String) -> Option<String> {
+            let nl = buf.find('\n')?;
+            let mut line: String = buf.drain(..=nl).collect();
+            line.pop();
+            if line.ends_with('\r') {
+                line.pop();
+            }
+            Some(line)
+        }
+"""
+
+JOIN_STARTER = r"""
+        /// `words` joined by `sep`, in one allocation of exactly the final size.
+        pub fn join_words(words: &[&str], sep: &str) -> String {
+            todo!()
+        }
+
+        /// Drops leading and trailing whitespace, and in each inner run of whitespace keeps only its first
+        /// character. In place, no allocation.
+        pub fn squeeze(s: &mut String) {
+            todo!()
+        }
+
+        /// Removes the first complete line from `buf` and returns it without its "\n" or "\r\n".
+        /// `None`, with `buf` unchanged, when `buf` holds no '\n' yet.
+        pub fn pop_line(buf: &mut String) -> Option<String> {
+            todo!()
+        }
+"""
+
+
+def sq(name, s, want):
+    return T(name, json_str(s), "s", rs_lit(want), setup=f"let mut s = String::from({json_str(s)});\nsqueeze(&mut s);")
+
+
+P.append(dict(
+    slug="join-without-join", title="One allocation, then edit in place", level="easy", stage="use",
+    tags=["with_capacity", "retain", "drain", "truncate", "count_allocs"],
+    teaches=[
+        "`String::with_capacity(exact)` when the final length is known: one allocation, then only copies.",
+        "`String::retain` with a stateful closure edits in place; `truncate` after `trim_end().len()` drops the tail.",
+        "`drain(..=i)` removes a prefix and hands it back, and shifts everything after it: fine for a small buffer, quadratic for a whole file.",
+    ],
+    statement="""
+        - `join_words(words, sep)`: `words` with `sep` between them, without `join`, `concat`, `collect` or
+          `fold`, in **one** allocation of exactly the final size (an empty result allocates nothing).
+        - `squeeze(s)`: drop leading and trailing whitespace, and in each inner run of whitespace keep only its
+          first character (`"a \\t b"` → `"a b"`, `"a\\t b"` → `"a\\tb"`). In place, no allocation.
+        - `pop_line(buf)`: `buf` is a network read buffer. Remove the first complete line and return it
+          without its `\\n` or `\\r\\n`; the rest stays in `buf`. If `buf` holds no `\\n` yet, return `None`
+          and leave `buf` as it is.
     """,
+    examples=[('join_words(&["a", "bc", "d"], ", ")', '"a, bc, d"'), ('squeeze on "  a \\t b  "', '"a b"'),
+              ('pop_line on "GET /\\r\\nHost: x\\r\\npart"', 'Some("GET /"), then buf = "Host: x\\r\\npart"')],
+    starter=JOIN_STARTER,
+    solution=JOIN_SOL,
     visible=[
-        T("three", 'words = ["a", "bc", "d"], sep = ", "', 'join_words(&["a", "bc", "d"], ", ")', rs("a, bc, d")),
-        T("one", 'words = ["solo"], sep = "-"', 'join_words(&["solo"], "-")', rs("solo")),
-        T("no_words", 'words = [], sep = ", "', 'join_words(&[], ", ")', "String::new()"),
-        T("no_trailing_sep", 'words = ["a", "b"], sep = "+"', 'join_words(&["a", "b"], "+")', rs("a+b")),
-        T("empty_words_keep_seps", 'words = ["", "", ""], sep = "-"', 'join_words(&["", "", ""], "-")', rs("--")),
+        T("join_three", 'words = ["a", "bc", "d"], sep = ", "', 'join_words(&["a", "bc", "d"], ", ")', rs("a, bc, d")),
+        T("join_one_allocation", 'words = ["abc"; 10], sep = ", "', "(s.len(), s.capacity(), n.count)", "(48, 48, 1)",
+          setup='let (s, n) = anneal_prelude::allocs(|| join_words(&["abc"; 10], ", "));'),
+        sq("squeeze_runs", "  a \t b  c ", "a b c"),
+        T("pop_crlf_line", '"GET /\\r\\nHost: x\\r\\npart"', "(first, buf.as_str())", '(Some("GET /".to_string()), "Host: x\\r\\npart")',
+          setup='let mut buf = String::from("GET /\\r\\nHost: x\\r\\npart");\nlet first = pop_line(&mut buf);'),
+        T("pop_incomplete_line", '"partial"', "(pop_line(&mut buf), buf.as_str())", '(None, "partial")', setup='let mut buf = String::from("partial");'),
     ],
     hidden=[
-        T("none", "words = [], sep = \"-\"", 'join_words(&[], "-")', "String::new()"),
-        T("empty_sep", 'words = ["a", "b"], sep = ""', 'join_words(&["a", "b"], "")', rs("ab")),
-        T("unicode_sep", 'words = ["x", "y"], sep = " → "', 'join_words(&["x", "y"], " → ")', '"x → y".to_string()'),
-        T("single_empty_word", 'words = [""], sep = "-"', 'join_words(&[""], "-")', "String::new()"),
-        T("unicode_words", 'words = ["日本", "é"], sep = "/"', 'join_words(&["日本", "é"], "/")', '"日本/é".to_string()'),
-        T("long_sep", 'words = ["a", "b", "c"], sep = "<->"', 'join_words(&["a", "b", "c"], "<->")', rs("a<->b<->c")),
-        T("one_allocation", 'words = ["abc"; 10], sep = ", ": capacity is exactly the length', '{ let s = join_words(&["abc"; 10], ", "); (s.len(), s.capacity()) }', "(48, 48)"),
-        T("exact_capacity_unicode", 'words = ["é", "日"], sep = " → ": capacity is exactly the length', '{ let s = join_words(&["é", "日"], " → "); (s.len(), s.capacity()) }', "(10, 10)"),
+        T("join_empty", 'words = [], sep = "-"', "(s.capacity(), n.count)", "(0, 0)", setup='let (s, n) = anneal_prelude::allocs(|| join_words(&[], "-"));'),
+        T("join_empty_words_keep_separators", 'words = ["", "", ""], sep = "-"', 'join_words(&["", "", ""], "-")', rs("--")),
+        T("join_one_word", 'words = ["solo"], sep = "-"', 'join_words(&["solo"], "-")', rs("solo")),
+        T("join_unicode_exact_capacity", 'words = ["é", "日"], sep = " → "', "(s.as_str(), s.len(), s.capacity(), n.count)", '("é → 日", 10, 10, 1)',
+          setup='let (s, n) = anneal_prelude::allocs(|| join_words(&["é", "日"], " → "));'),
+        T("join_empty_sep", 'words = ["a", "b"], sep = ""', 'join_words(&["a", "b"], "")', rs("ab")),
+        sq("squeeze_keeps_first_of_run", "a\t b", "a\tb"),
+        sq("squeeze_only_spaces", " \t\n ", ""),
+        sq("squeeze_empty", "", ""),
+        sq("squeeze_nothing_to_do", "a b", "a b"),
+        sq("squeeze_unicode_whitespace", "\u3000a\u00a0\u00a0b\u2003", "a\u00a0b"),
+        sq("squeeze_trailing_run", "x \n\n", "x"),
+        T("squeeze_in_place", '"  lots   of   space  " in place', "(s.as_str(), s.as_ptr() == ptr, s.capacity() == cap, n.count)", '("lots of space", true, true, 0)',
+          setup='let mut s = String::from("  lots   of   space  ");\nlet (ptr, cap) = (s.as_ptr(), s.capacity());\nlet ((), n) = anneal_prelude::allocs(|| squeeze(&mut s));'),
+        T("pop_lines_in_order", '"a\\nb\\r\\n\\nc"', "(a, b, c, d, buf.as_str())", '(Some("a".to_string()), Some("b".to_string()), Some(String::new()), None, "c")',
+          setup='let mut buf = String::from("a\\nb\\r\\n\\nc");\nlet (a, b, c, d) = (pop_line(&mut buf), pop_line(&mut buf), pop_line(&mut buf), pop_line(&mut buf));'),
+        T("pop_bare_cr_kept_inside", '"a\\rb\\n"', "(pop_line(&mut buf), buf.as_str())", '(Some("a\\rb".to_string()), "")', setup='let mut buf = String::from("a\\rb\\n");'),
+        T("pop_cr_without_lf_waits", '"abc\\r"', "(pop_line(&mut buf), buf.as_str())", '(None, "abc\\r")', setup='let mut buf = String::from("abc\\r");'),
+        T("pop_unicode_line", '"héllo 日本\\nnext"', "(pop_line(&mut buf), buf.as_str())", '(Some("héllo 日本".to_string()), "next")', setup='let mut buf = String::from("héllo 日本\\nnext");'),
+        T("pop_empty_buffer", '""', "pop_line(&mut buf)", "None", setup="let mut buf = String::new();"),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2206);
-            for _ in 0..300 {
+            let mut rng = anneal_prelude::Rng::new(7206);
+            for _ in 0..400 {
                 let n = rng.below(6);
                 let mut words = Vec::new();
                 for _ in 0..n {
@@ -606,66 +1051,92 @@ P.append(dict(
                 let len = rng.below(3);
                 let sep = rng.string(len, ",→");
                 let refs: Vec<&str> = words.iter().map(|w| w.as_str()).collect();
-                let mut want = String::new();
+                let mut want_join = String::new();
                 for (i, w) in words.iter().enumerate() {
                     if i > 0 {
-                        want += &sep;
+                        want_join += &sep;
                     }
-                    want += w;
+                    want_join += w;
+                }
+                let len = rng.below(10);
+                let text = rng.string(len, "a \\t\\né");
+                let mut want_sq = String::new();
+                let mut prev_space = true;
+                for c in text.chars() {
+                    if !(c.is_whitespace() && prev_space) {
+                        want_sq.push(c);
+                    }
+                    prev_space = c.is_whitespace();
+                }
+                while want_sq.ends_with(char::is_whitespace) {
+                    want_sq.pop();
+                }
+                let mut got_sq = text.clone();
+                squeeze(&mut got_sq);
+                let len = rng.below(10);
+                let raw = rng.string(len, "ab\\r\\n");
+                let mut buf = raw.clone();
+                let mut got_lines = Vec::new();
+                while let Some(line) = pop_line(&mut buf) {
+                    got_lines.push(line);
+                }
+                let (mut want_lines, mut rest) = (Vec::new(), raw.as_str());
+                while let Some(i) = rest.find('\\n') {
+                    let line = &rest[..i];
+                    want_lines.push(line.strip_suffix('\\r').unwrap_or(line).to_string());
+                    rest = &rest[i + 1..];
                 }
                 let got = join_words(&refs, &sep);
-                check!(format!("words = {words:?}, sep = {sep:?}"), (got.capacity(), got), (want.len(), want));
+                check!(format!("words = {words:?}, sep = {sep:?}, squeeze {text:?}, buf = {raw:?}"),
+                       (got.capacity(), got, got_sq, got_lines, buf), (want_join.len(), want_join, want_sq, want_lines, rest.to_string()));
             }
         }
 
         #[test]
-        fn scale_500k_words() {
+        fn scale_500k() {
             let words = vec!["ab"; 500_000];
             let s = join_words(&words, ",");
-            check!("words = [\\"ab\\"; 500000], sep = \\",\\"", (s.len(), &s[..5], &s[s.len() - 5..]), (1_499_999, "ab,ab", "ab,ab"));
+            check!("words = [\\"ab\\"; 500000], sep = \\",\\"", (s.len(), s.capacity(), &s[..5]), (1_499_999, 1_499_999, "ab,ab"));
+            let mut t = "a  \\t ".repeat(200_000);
+            squeeze(&mut t);
+            check!("squeeze \\"a  \\\\t a  \\\\t …\\" (1000000 chars)", (t.len(), &t[..6]), (399_999, "a a a "));
         }
         """,
     ],
     wrong=dict(
-        grows_as_it_goes="""
-            pub fn join_words(words: &[&str], sep: &str) -> String {
-                let mut out = String::new();
-                for (i, w) in words.iter().enumerate() {
-                    if i > 0 {
-                        out.push_str(sep);
-                    }
-                    out.push_str(w);
+        grows_as_it_goes=sub(JOIN_SOL, "let mut out = String::with_capacity(len);", "let _ = len;\n            let mut out = String::new();"),
+        squeeze_rebuilds=sub(JOIN_SOL, """let mut after_space = true;
+            s.retain(|c| {
+                let space = c.is_whitespace();
+                let keep = !(space && after_space);
+                after_space = space;
+                keep
+            });
+            let end = s.trim_end().len();
+            s.truncate(end);""", """let mut out = String::with_capacity(s.len());
+            let mut after_space = true;
+            for c in s.chars() {
+                if !(c.is_whitespace() && after_space) {
+                    out.push(c);
                 }
-                out
+                after_space = c.is_whitespace();
             }
-        """,
-        rebuilds_each_time="""
-            pub fn join_words(words: &[&str], sep: &str) -> String {
-                let mut out = String::new();
-                for (i, w) in words.iter().enumerate() {
-                    out = if i == 0 { w.to_string() } else { format!("{out}{sep}{w}") };
-                }
-                out.shrink_to_fit();
-                out
-            }
-        """,
-        trailing_separator="""
-            pub fn join_words(words: &[&str], sep: &str) -> String {
-                let len = words.iter().map(|w| w.len() + sep.len()).sum::<usize>();
-                let mut out = String::with_capacity(len);
-                for w in words {
-                    out.push_str(w);
-                    out.push_str(sep);
-                }
-                out
-            }
-        """,
+            let end = out.trim_end().len();
+            out.truncate(end);
+            *s = out;"""),
+        squeeze_keeps_one_leading=sub(JOIN_SOL, "let mut after_space = true;", "let mut after_space = false;"),
+        newline_left_in_buffer=sub(JOIN_SOL, """let mut line: String = buf.drain(..=nl).collect();
+            line.pop();""", """let mut line: String = buf.drain(..nl).collect();"""),
+        cr_not_stripped=sub(JOIN_SOL, """if line.ends_with('\\r') {
+                line.pop();
+            }""", ""),
     ),
-    hints=[("approach", "Total length is the sum of the word lengths plus one separator between each pair."),
-           ("rust", "`saturating_sub(1)` keeps the separator count at 0 for an empty slice.")],
-    notes=("Lengths are in bytes, which is what `String` capacity counts, so Unicode separators need no special case. One allocation, then only copies.", "O(total length)", "O(total length)"),
-    follow_up="How does `[&str]::join` compute its capacity internally?",
-    rules=dict(methods=["join", "concat", "collect", "fold"]),
+    hints=[("approach", "The joined length is the sum of the word lengths plus one separator between each pair (none for 0 or 1 words)."),
+           ("rust", "`s.retain(|c| …)` visits each `char` once, in order, and the closure is `FnMut`, so it can remember whether the previous char was whitespace. Then `s.truncate(s.trim_end().len())`."),
+           ("rust", "`buf.drain(..=nl)` removes bytes `0..=nl` and yields them as `char`s; `collect::<String>()` gathers them.")],
+    notes=("""Lengths are bytes, which is what `String` capacity counts, so the separator count times `sep.len()` is exact for any text. `retain` and `truncate` rewrite the buffer in place: the pointer and capacity don't change. `drain(..=nl)` is the idiomatic "take a prefix", but it moves every remaining byte to the front, so popping every line of an n-byte buffer this way is O(n²). That's fine for a socket buffer that holds a few lines; for a whole file, keep a read offset (or use `BufRead::read_line`). Syntax to remember: `String::with_capacity(n)`, `s.retain(|c| keep)`, `s.truncate(byte_len)`, `s.drain(range)` (yields `char`s; the range is in bytes and must be on char boundaries), `s.split_off(at)` (returns the tail), `s.clear()` (keeps the capacity).""", "O(total length)", "O(total length) for join_words, O(1) extra for squeeze"),
+    follow_up="How does `[&str]::join` compute its capacity, and why can `pop_line` not return a `&str` into `buf`?",
+    perf=dict(allocs=True),
 ))
 
 P.append(dict(
@@ -834,7 +1305,7 @@ P.append(dict(
     hints=[("rust", "`BufRead::lines()` yields `io::Result<String>`; `let line = line?;` propagates a read or UTF-8 error."),
            ("rust", "`raw.trim_matches(|c: char| !c.is_alphanumeric())` strips punctuation from both ends only."),
            ("rust", "Sort with `b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0))` for count-descending, then alphabetical.")],
-    notes=("Taking `R: BufRead` means the same code reads a file, stdin or a byte slice in tests. Memory grows with the number of distinct words, not the input size.", "O(n + k log k)", "O(k)"),
+    notes=("Taking `R: BufRead` means the same code reads a file, stdin or a byte slice in tests. Memory grows with the number of distinct words, not the input size. `lines()` allocates a fresh `String` per line; a hot loop would reuse one buffer with `read_line(&mut buf)` and `buf.clear()`. Syntax to remember: `for line in input.lines() { let line = line?; … }`, `raw.trim_matches(|c: char| !c.is_alphanumeric())`, `*map.entry(k).or_insert(0) += 1`, `v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)))`.", "O(n + k log k)", "O(k)"),
     follow_up="How would you find the top 10 words without sorting all k of them?",
     related=["S4", "S1"],
 ))

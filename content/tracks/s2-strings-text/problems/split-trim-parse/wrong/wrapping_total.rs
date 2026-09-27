@@ -16,7 +16,7 @@ pub fn sum_csv(line: &str) -> Result<i64, CsvError> {
             return Err(CsvError::Empty(i + 1));
         }
         let n: i64 = field.parse().map_err(|_| CsvError::Bad(i + 1, field.to_string()))?;
-        total = total.checked_add(n).ok_or(CsvError::Overflow)?;
+        total = total.wrapping_add(n);
     }
     Ok(total)
 }

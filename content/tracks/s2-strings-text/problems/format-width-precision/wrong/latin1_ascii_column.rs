@@ -16,7 +16,7 @@ pub fn table(rows: &[(&str, f64)], prec: usize) -> String {
 /// groups of 8 joined by '_'.
 pub fn register(value: u32) -> String {
     let [a, b, c, d] = value.to_be_bytes();
-    format!("{value:#08x} = {a:08b}_{b:08b}_{c:08b}_{d:08b}")
+    format!("{value:#010x} = {a:08b}_{b:08b}_{c:08b}_{d:08b}")
 }
 
 /// One `hexdump -C` line for up to 16 bytes starting at `offset`.
@@ -28,6 +28,6 @@ pub fn hexdump_line(offset: usize, bytes: &[u8]) -> String {
             hex.push(' ');
         }
     }
-    let ascii: String = bytes.iter().map(|&b| if b.is_ascii_graphic() || b == b' ' { b as char } else { '.' }).collect();
+    let ascii: String = bytes.iter().map(|&b| if b.is_ascii_control() { '.' } else { b as char }).collect();
     format!("{offset:08x}  {hex:<49} |{ascii}|")
 }

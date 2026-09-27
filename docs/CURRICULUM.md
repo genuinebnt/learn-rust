@@ -266,13 +266,16 @@ Order to work through: D1 → D2 → D3 → D4 → D5 → D6 → D9 → D7 → D
 | Medium | Cursors | Remove Nth from end† · Reorder list† · Add two numbers · Palindrome list · Linked list cycle† (index arena) · Copy list with random pointer | `&mut Option<Box<_>>` cursors, arenas |
 | Hard | Beyond Box | Merge k sorted† · Reverse nodes in k-group · Doubly linked deque with `Rc` / `Weak` · Unsafe doubly linked list with `NonNull` (after Y2) | why doubly-linked is hard in Rust |
 
-### D6 · Trees & BSTs: core · 24
+### D6 · Trees & BSTs: core · 44
+Extended 2026-09-27 to cover the LeetCode 250 tree problems. LeetCode's `Option<Rc<RefCell<TreeNode>>>` shape with shared
+`tree(&[Option<i32>])` / `level_order_values` helpers; the hard band moves to Rust-native shapes.
 | Band | Stage | Problems | Rust habit |
 |---|---|---|---|
-| Easy | Basics | Max depth† · Same tree† · Invert tree† · Symmetric tree · Sorted array → BST · Fix: `BorrowMutError` in a tree walk | `Option<Rc<RefCell<TreeNode>>>` (LeetCode's shape) |
-| Medium | Traversal & recursion | Level order† · Iterative inorder · Diameter · Balanced tree · Subtree of another† · Path sum II · Right side view | `VecDeque`, tuples returned up the stack |
-| Medium | BSTs | Validate BST† · Kth smallest† · LCA of BST† · LCA of binary tree · Build from preorder / inorder† | `Option<i64>` bounds |
-| Hard | Ownership-shaped trees | Max path sum† · Serialize / deserialize† · Insert & delete in an `Option<Box<Node>>` BST · In-order iterator with lifetimes (W43) · Arena tree with typed indices (W55) · Parent pointers with `Weak` | arenas vs `Rc<RefCell>` |
+| Easy | Basics | Max depth† · Min depth · Same tree† · Invert tree† · Symmetric tree · Path sum · Sorted array → BST · Fix: `BorrowMutError` in a tree walk | `Option<Rc<RefCell<TreeNode>>>` (LeetCode's shape), `borrow()` scopes |
+| Easy | Traversals | Preorder · Inorder · Postorder · Leaf-similar trees · Count nodes | recursive helpers with `&mut Vec` |
+| Medium | Levels & recursion | Average of levels · Level order† · Zigzag level order · Right side view · Iterative inorder · Diameter · Balanced tree · Subtree of another† · Count good nodes · Path sum II · Sum root-to-leaf numbers · Max width · Flatten to linked list · Vertical order traversal | `VecDeque`, tuples returned up the stack |
+| Medium | BSTs | Search in a BST · Insert into a BST · Validate BST† · Kth smallest† · LCA of BST† · LCA of binary tree · Build from preorder / inorder† · Delete node in a BST · BST iterator | `Option<i64>` bounds |
+| Hard | Ownership-shaped trees | Max path sum† · Binary tree cameras · Recover BST · Serialize / deserialize† · Insert & delete in an `Option<Box<Node>>` BST · In-order iterator with lifetimes (W43) · Arena tree with typed indices (W55) · Parent pointers with `Weak` | arenas vs `Rc<RefCell>` |
 
 ### D7 · Heaps & priority queues: core · 13
 | Band | Stage | Problems | Rust habit |
@@ -281,22 +284,28 @@ Order to work through: D1 → D2 → D3 → D4 → D5 → D6 → D9 → D7 → D
 | Medium | Heaps at work | K closest points · Task scheduler (W46) · Reorganize string · Merge k sorted arrays · Top K frequent words | tuple ordering, custom `Ord` |
 | Hard | Two heaps & merges | Find median from data stream† · IPO · Smallest range covering k lists · External merge sort (W64) · Single-threaded CPU | lazy deletion |
 
-### D8 · Intervals & greedy: core · 16
+### D8 · Intervals & greedy: core · 29
+Extended 2026-09-27 to cover the LeetCode 250 greedy and interval problems.
 | Band | Stage | Problems | Rust habit |
 |---|---|---|---|
-| Easy | First greedy | Meeting rooms† · Maximum subarray† · Best time to buy/sell II · Assign cookies | `sort_unstable_by_key` |
-| Medium | Intervals & choices | Merge intervals† (W45) · Insert interval† · Non-overlapping† · Meeting rooms II† · Jump game† · Jump game II · Gas station · Partition labels | sweep lines |
-| Hard | Hard greedy | Min interval to include each query · Hand of straights · Employee free time · Candy | `BTreeMap` counts, heaps |
+| Easy | First greedy | Assign cookies · Lemonade change · Can place flowers · Meeting rooms† · Maximum subarray† · Best time to buy/sell II | `sort_unstable_by_key` |
+| Medium | Intervals | Merge intervals† (W45) · Insert interval† · Non-overlapping† · Min arrows to burst balloons · Meeting rooms II† · Interval list intersections · Car pooling | sweep lines, `(i32, i32)` tuples |
+| Medium | Greedy choices | Jump game† · Jump game II · Gas station · Partition labels · Boats to save people · Two city scheduling · Min add to make parentheses valid · Valid parenthesis string · Queue reconstruction by height | exchange arguments, `Vec::insert` |
+| Hard | Hard greedy | Hand of straights · Remove K digits · Candy · Min interval to include each query · Employee free time · Min refueling stops · Course schedule III | `BTreeMap` counts, heaps |
 
-### D9 · Graphs: core · 35
-The designed seed (32, in `TrackGraphs.dc.html`) plus three Blind 75 problems it was missing.
+### D9 · Graphs: core · 58
+The designed seed (32, in `TrackGraphs.dc.html`) plus three Blind 75 problems, extended 2026-09-27 with 23 LeetCode 250
+problems so every stage opens gently and the common patterns (grid BFS, BFS on states, Floyd–Warshall, Prim, Euler paths)
+are covered. New problems in *italics*.
 | Band | Stage | Problems |
 |---|---|---|
-| Easy | Representation | Build an adjacency list · Edge list to CSR · Fix: a graph that owns its nodes · Degree counts with iterators |
-| Easy | Traversal | Number of islands† · Clone graph† · Fix: recursive closure DFS · Rotting oranges · **Pacific Atlantic†** · Iterative DFS · Word ladder |
-| Medium | Topological sort | Course schedule† · Build order with cycle report · Fix: invalidation in Kahn's · Alien dictionary† |
-| Medium | Shortest paths | Network delay time · Fix: heap ordering with a custom Ord · Cheapest flights within K stops · Path with minimum effort · 0-1 BFS · Dijkstra over generic weights (W42) |
-| Medium | Union-find & MST | Redundant connection · **Graph valid tree†** · **Connected components†** · Kruskal's MST · Union-find as a struct (W20) · Fix: two `&mut` into one parent Vec |
+| Easy | Representation | *Find center of star graph* · Build an adjacency list · Degree counts with iterators · *Find if path exists* · Edge list to CSR · Fix: a graph that owns its nodes |
+| Easy | Grid & graph traversal | *Flood fill* · *Island perimeter* · Number of islands† · *Max area of island* · *Number of provinces* · *Keys and rooms* · Iterative DFS · Fix: recursive closure DFS · Clone graph† |
+| Medium | BFS patterns | Rotting oranges · *01 matrix* · *Shortest path in binary matrix* · *Surrounded regions* · **Pacific Atlantic†** · *Open the lock* · Word ladder · *Evaluate division* |
+| Medium | Topological sort | Course schedule† · *Course schedule II* · Build order with cycle report · Fix: invalidation in Kahn's · *Minimum height trees* · Alien dictionary† |
+| Medium | Shortest paths | Network delay time · Fix: heap ordering with a custom Ord · Path with minimum effort · Cheapest flights within K stops · *City with the fewest reachable neighbours (Floyd–Warshall)* · *Swim in rising water* · 0-1 BFS · Dijkstra over generic weights (W42) |
+| Medium | Union-find & MST | **Connected components†** · **Graph valid tree†** · Redundant connection · Union-find as a struct (W20) · *Accounts merge* · Kruskal's MST · *Min cost to connect all points (Prim)* · Fix: two `&mut` into one parent Vec |
+| Hard | Hard traversals | *Sliding puzzle* · *Bus routes* · *Making a large island* · *Shortest path to get all keys* · *Reconstruct itinerary (Hierholzer)* |
 | Hard | SCC, bridges & arenas | Tarjan's SCC · Critical connections · Arena-allocated graph · Fix: `Rc<RefCell<Node>>` cycle leak |
 | Hard | Flows & matching | Bipartite check · Edmonds–Karp · Hopcroft–Karp · Min-cost flow |
 
@@ -307,23 +316,30 @@ The designed seed (32, in `TrackGraphs.dc.html`) plus three Blind 75 problems it
 | Medium | Tries & string algorithms | Add & search words† · Replace words · Longest palindromic substring† · Palindromic substrings† · String to integer · Repeated DNA sequences · Fix: recursive trie insert vs the borrow checker | `get_or_insert_with` cursors, rolling hash with `wrapping_mul` |
 | Hard | Hard strings | Word search II† · Autocomplete system (W31) · Max XOR (bit trie) · Shortest palindrome (KMP) · Zero-copy tokenizer (W36) | lifetimes on `&str` slices |
 
-### D11 · Backtracking: core · 16
+### D11 · Recursion & backtracking: core · 28
+Extended 2026-09-27: a pure-recursion stage first (base case, trust the recursive call, divide and conquer), then
+backtracking, built up from the LeetCode 250 problems.
 | Band | Stage | Problems | Rust habit |
 |---|---|---|---|
-| Easy | First recursion | Subsets · Combinations · Letter combinations | `&mut Vec` push / recurse / pop |
-| Medium | Choices & grids | Subsets II · Permutations · Permutations II · Combination sum† · Combination sum II · Generate parentheses · Word search† · Palindrome partitioning · Fix: recursive closure can't borrow the grid mutably | inner `fn` with explicit `&mut` params |
-| Hard | Constraints & pruning | N-Queens (bitmasks) · Sudoku solver · Partition to K equal subsets · Word break II | `u16` masks, sort-desc pruning |
+| Easy | Recursion | Pow(x, n) (fast power) · K-th symbol in grammar · Tower of Hanoi · Merge sort · Fix: unbounded recursion (base case) | recursion on slices, `split_at` |
+| Easy | First backtracking | Subsets · Combinations · Letter combinations · Binary watch | `&mut Vec` push / recurse / pop |
+| Medium | Choices & grids | Subsets II · Permutations · Permutations II · Combination sum† · Combination sum II · Combination sum III · Generate parentheses · Different ways to add parentheses · Word search† · Palindrome partitioning · Restore IP addresses · Fix: recursive closure can't borrow the grid mutably | inner `fn` with explicit `&mut` params |
+| Hard | Constraints & pruning | N-Queens (bitmasks) · N-Queens II · Sudoku solver · Matchsticks to square · Partition to K equal subsets · Word break II · Expression add operators | `u16` masks, sort-desc pruning |
 
-### D12 · Dynamic programming: core · 35
+### D12 · Dynamic programming: core · 57
+Extended 2026-09-27 to cover the LeetCode 250 DP problems. Each stage opens with the smallest version of its idea
+(memoised recursion, then the table, then the rolling variables).
 | Band | Stage | Problems | Rust habit |
 |---|---|---|---|
-| Easy | 1-D basics | Climbing stairs† · Min cost climbing stairs · House robber† · House robber II† · Decode ways† | rolling variables |
-| Medium | 1-D choices | Coin change† · Coin change II · Word break† · LIS† (n log n) · Max product subarray† | `partition_point` for LIS |
-| Medium | 2-D grids | Unique paths† · Unique paths II · Minimum path sum · Maximal square | one-row rolling `Vec` |
-| Medium | Strings | LCS† · Edit distance · Distinct subsequences · Interleaving string · Longest palindromic subsequence | `as_bytes()`, `u64` counts |
-| Medium | Knapsack | 0/1 knapsack · Partition equal subset sum · Target sum · Ones and zeroes | iterate capacity backwards |
-| Hard | Intervals & games | Burst balloons · Stone game · Min cost to cut a stick · Palindrome partitioning II | `dp[i][j]` by length |
-| Hard | Bitmasks & state machines | Stock with cooldown · Stock with fee · Shortest path visiting all nodes · Ways to wear hats | `u32` masks, state enums |
+| Easy | 1-D basics | Fibonacci (memo vs table) · Climbing stairs† · Min cost climbing stairs · Pascal's triangle · Counting bits · House robber† · House robber II† | rolling variables |
+| Medium | 1-D choices | Decode ways† · Delete and earn · Coin change† · Perfect squares · Coin change II · Word break† · Max product subarray† · LIS† (O(n²)) · LIS in O(n log n) · Russian doll envelopes | `partition_point` for LIS |
+| Medium | 2-D grids | Unique paths† · Unique paths II · Minimum path sum · Triangle · Maximal square · Dungeon game | one-row rolling `Vec` |
+| Medium | Strings | LCS† · Delete operation for two strings · Longest palindromic subsequence · Edit distance · Interleaving string · Distinct subsequences | `as_bytes()`, `u64` counts |
+| Medium | Knapsack | 0/1 knapsack · Partition equal subset sum · Target sum · Last stone weight II · Ones and zeroes | iterate capacity backwards |
+| Medium | State machines | Paint house · Stock with cooldown · Stock with fee · Stock III · Stock IV | state enums, `[i64; K]` |
+| Hard | Intervals & games | Unique BSTs · Predict the winner · Stone game · Palindrome partitioning II · Min cost to cut a stick · Burst balloons | `dp[i][j]` by length |
+| Hard | Bitmasks & digits | Count numbers with unique digits · Numbers at most N from a digit set · Can I win · Shortest path visiting all nodes · Ways to wear hats | `u32` masks, digit DP |
+| Hard | Hard strings | Longest valid parentheses · Wildcard matching · Regular expression matching | `Vec<Vec<bool>>` vs rolling rows |
 | Hard | DP the Rust way | Generic memoization engine (W44) · Fix: recursive memo closure (E0499) · Top-down → bottom-up rewrite · House robber III on a tree | owned `HashMap` keys |
 
 ### D13 · Matrix, bits & math: core · 16

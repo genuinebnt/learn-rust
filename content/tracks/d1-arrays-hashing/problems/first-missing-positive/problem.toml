@@ -6,6 +6,7 @@ stage = "in-place"
 order = 22
 status = "ready"
 tags = ["in place", "swap"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Oracle"]
 teaches = [
   "Use the array itself as the hash: put value v at index v − 1.",
   "`swap` in a `while` until the slot is right.",

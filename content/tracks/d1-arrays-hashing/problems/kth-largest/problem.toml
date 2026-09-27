@@ -6,6 +6,7 @@ stage = "sorting-order"
 order = 19
 status = "ready"
 tags = ["select_nth_unstable", "quickselect"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "LinkedIn", "Salesforce"]
 teaches = [
   "`select_nth_unstable` is quickselect in std: O(n) on average.",
   "Converting 'kth largest' to an ascending index.",

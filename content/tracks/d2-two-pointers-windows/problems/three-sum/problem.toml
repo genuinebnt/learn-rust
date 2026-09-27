@@ -6,6 +6,7 @@ stage = "pointers"
 order = 7
 status = "ready"
 tags = ["two pointers", "dedup", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg"]
 teaches = [
   "Sort, fix one value, two-pointer the rest.",
   "Skip equal neighbours to avoid duplicate triplets.",

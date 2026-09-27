@@ -6,6 +6,7 @@ stage = "windows"
 order = 13
 status = "ready"
 tags = ["fixed window", "[u8; 26]"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Oracle"]
 teaches = [
   "A fixed-size window with two count arrays, compared in O(26).",
 ]

@@ -6,6 +6,7 @@ stage = "monotonic-parsing"
 order = 7
 status = "ready"
 tags = ["sorting", "exact arithmetic"]
+companies = ["Meta", "Amazon", "Google"]
 teaches = [
   "Exact comparisons of ratios by cross-multiplication.",
   "Processing sorted items against a running 'fleet ahead'.",

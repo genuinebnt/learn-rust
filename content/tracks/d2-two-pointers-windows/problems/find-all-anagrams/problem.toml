@@ -6,6 +6,7 @@ stage = "windows"
 order = 14
 status = "ready"
 tags = ["fixed window"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Uber"]
 teaches = [
   "The same window as permutation-in-string, collecting every start index.",
 ]

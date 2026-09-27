@@ -6,6 +6,7 @@ stage = "hard-stacks"
 order = 13
 status = "ready"
 tags = ["HashMap", "Vec<Vec<_>>"]
+companies = ["Apple", "Amazon", "Google", "Microsoft"]
 teaches = [
   "Bucketing by frequency: `Vec<Vec<T>>`.",
   "Split borrows across struct fields.",

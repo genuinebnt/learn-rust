@@ -1,4 +1,4 @@
-from author import T, prob, write_track
+from author import T, prob, write_track, tag_companies
 
 # LeetCode's list shape plus two helpers, shared by most problems (given in both starter and solution).
 LIST = """
@@ -2304,6 +2304,23 @@ STAGES = [
     ("cursors", "Cursors", "medium"),
     ("beyond-box", "Beyond Box", "hard"),
 ]
+
+# Companies known to ask each problem (names from COMPANIES in crates/content/src/model.rs).
+COMPANIES = {
+    "reverse-linked-list": ["Amazon", "Meta", "Microsoft", "Apple", "Google", "Bloomberg", "Adobe"],
+    "merge-two-sorted-lists": ["Amazon", "Microsoft", "Meta", "Apple", "Google", "Bloomberg", "Adobe"],
+    "remove-duplicates-from-sorted-list": ["Amazon", "Microsoft", "Apple", "Adobe"],
+    "middle-of-the-list": ["Amazon", "Apple", "Microsoft", "Google", "Adobe"],
+    "remove-nth-from-end": ["Meta", "Amazon", "Microsoft", "Google", "Apple", "Bloomberg"],
+    "reorder-list": ["Amazon", "Meta", "Microsoft", "Google", "Adobe"],
+    "add-two-numbers": ["Amazon", "Microsoft", "Meta", "Apple", "Google", "Bloomberg", "Adobe"],
+    "palindrome-linked-list": ["Meta", "Amazon", "Microsoft", "Apple", "Google", "Bloomberg"],
+    "linked-list-cycle": ["Amazon", "Microsoft", "Apple", "Google", "Meta", "Bloomberg", "Goldman Sachs"],
+    "copy-list-with-random-pointer": ["Amazon", "Meta", "Microsoft", "Bloomberg", "Google", "Apple"],
+    "merge-k-sorted-lists": ["Amazon", "Meta", "Google", "Microsoft", "Apple", "Uber", "Bloomberg"],
+    "reverse-nodes-in-k-group": ["Amazon", "Microsoft", "Meta", "Google", "Apple", "Bloomberg"],
+}
+tag_companies(P, COMPANIES)
 
 if __name__ == "__main__":
     n = write_track("d5-linked-lists", "D5", "Linked lists", "D", "core", 5,

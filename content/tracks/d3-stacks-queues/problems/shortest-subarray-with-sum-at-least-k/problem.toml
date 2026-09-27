@@ -6,6 +6,7 @@ stage = "hard-stacks"
 order = 14
 status = "ready"
 tags = ["prefix sums", "monotonic deque"]
+companies = ["Meta", "Amazon", "Google", "Goldman Sachs"]
 teaches = [
   "Prefix sums + a monotonic deque.",
   "`VecDeque` as a double-ended work list.",

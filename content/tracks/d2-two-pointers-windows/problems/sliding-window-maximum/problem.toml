@@ -6,6 +6,7 @@ stage = "hard-windows"
 order = 17
 status = "ready"
 tags = ["VecDeque", "monotonic queue"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber"]
 teaches = [
   "A monotonic deque of indices: the front is always the window's max.",
   "`VecDeque::pop_back` while the new value dominates.",

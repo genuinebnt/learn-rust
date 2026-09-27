@@ -6,6 +6,7 @@ stage = "two-ends"
 order = 4
 status = "ready"
 tags = ["two pointers", "stable"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg"]
 teaches = [
   "A write index that trails a read index.",
   "Stable in-place compaction.",

@@ -6,6 +6,7 @@ stage = "monotonic-parsing"
 order = 9
 status = "ready"
 tags = ["mem::take", "stack of frames"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Atlassian", "Bloomberg"]
 teaches = [
   "`std::mem::take` to move out of a `&mut`.",
   "A stack of frames for nested structure.",

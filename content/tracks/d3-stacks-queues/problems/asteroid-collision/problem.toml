@@ -6,6 +6,7 @@ stage = "monotonic-parsing"
 order = 8
 status = "ready"
 tags = ["stack", "labelled continue"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "DoorDash", "Salesforce", "Uber"]
 teaches = [
   "Labelled loops.",
   "Resolving a new item against the top of a stack repeatedly.",

@@ -6,6 +6,7 @@ stage = "cursors"
 order = 7
 status = "ready"
 tags = ["split", "reverse", "interleave", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Adobe"]
 teaches = [
   "Splitting a list at a `&mut` cursor with `take()`.",
   "Interleaving an owned list into a borrowed one.",

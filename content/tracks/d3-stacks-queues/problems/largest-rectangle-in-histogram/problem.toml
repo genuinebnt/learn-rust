@@ -6,6 +6,7 @@ stage = "hard-stacks"
 order = 11
 status = "ready"
 tags = ["monotonic stack", "u64"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber"]
 teaches = [
   "Monotonic stacks for nearest-smaller boundaries.",
   "Sentinels via `get(..).unwrap_or(..)`.",

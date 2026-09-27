@@ -6,6 +6,7 @@ stage = "grouping-prefix-sums"
 order = 12
 status = "ready"
 tags = ["HashMap", "sort_by", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber", "Oracle"]
 teaches = [
   "Count, then sort by a composite key with `then`.",
   "`Ordering::reverse` for descending order.",

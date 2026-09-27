@@ -6,6 +6,7 @@ stage = "owned-lists"
 order = 3
 status = "ready"
 tags = ["as_mut", "and_then"]
+companies = ["Apple", "Amazon", "Microsoft", "Adobe"]
 teaches = [
   "Walking with `as_mut()`.",
   "Splicing with `take().and_then(..)`.",

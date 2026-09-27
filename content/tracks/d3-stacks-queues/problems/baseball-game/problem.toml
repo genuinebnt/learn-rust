@@ -6,6 +6,7 @@ stage = "stack-basics"
 order = 3
 status = "ready"
 tags = ["slice patterns", "Option"]
+companies = ["Amazon"]
 teaches = [
   "Slice patterns with `let ... else`.",
   "`?` on `Option`.",

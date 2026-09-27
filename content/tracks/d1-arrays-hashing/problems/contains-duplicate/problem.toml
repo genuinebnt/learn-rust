@@ -6,6 +6,7 @@ stage = "vec-and-slices"
 order = 4
 status = "ready"
 tags = ["HashSet", "Blind 75"]
+companies = ["Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg"]
 teaches = [
   "`HashSet::insert` returns `false` when the value was already there.",
   "`any` stops at the first match.",

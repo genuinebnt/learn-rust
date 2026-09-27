@@ -6,6 +6,7 @@ stage = "monotonic-parsing"
 order = 5
 status = "ready"
 tags = ["RPN", "parse"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "LinkedIn"]
 teaches = [
   "Operand order when popping.",
   "Parse first, then treat the token as an operator.",

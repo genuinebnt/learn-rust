@@ -6,6 +6,7 @@ stage = "grouping-prefix-sums"
 order = 15
 status = "ready"
 tags = ["String", "framing", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "LinkedIn", "Uber"]
 teaches = [
   "Length-prefix framing survives any content, including the delimiter.",
   "Slicing a `&str` by byte offsets that fall on char boundaries.",

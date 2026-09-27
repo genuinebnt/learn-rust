@@ -6,6 +6,7 @@ stage = "monotonic-parsing"
 order = 6
 status = "ready"
 tags = ["monotonic stack"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Salesforce", "Uber"]
 teaches = [
   "Monotonic stacks of indices.",
 ]

@@ -6,6 +6,7 @@ stage = "two-ends"
 order = 2
 status = "ready"
 tags = ["swap", "two pointers"]
+companies = ["Apple", "Amazon", "Microsoft", "Adobe"]
 teaches = [
   "`slice::swap` with two indices.",
   "Why a `String` can't be reversed byte by byte, but a `&mut [u8]` can.",

@@ -6,6 +6,7 @@ stage = "in-place"
 order = 24
 status = "ready"
 tags = ["gcd", "HashMap"]
+companies = ["Apple", "Amazon", "Google", "LinkedIn", "Uber"]
 teaches = [
   "Normalise slopes with gcd instead of floats.",
   "Handle duplicate points separately.",

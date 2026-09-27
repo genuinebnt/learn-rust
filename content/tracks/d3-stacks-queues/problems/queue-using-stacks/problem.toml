@@ -6,6 +6,7 @@ stage = "stack-basics"
 order = 2
 status = "ready"
 tags = ["amortised O(1)", "drain"]
+companies = ["Apple", "Amazon", "Microsoft", "Bloomberg", "Goldman Sachs"]
 teaches = [
   "Amortised analysis: pay for a move once.",
   "`drain(..).rev()` into `extend`.",

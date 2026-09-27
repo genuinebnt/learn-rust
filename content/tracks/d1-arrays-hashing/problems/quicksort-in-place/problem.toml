@@ -6,6 +6,7 @@ stage = "in-place"
 order = 23
 status = "ready"
 tags = ["split_at_mut", "recursion", "mem::take"]
+companies = ["Amazon", "Google", "Microsoft"]
 teaches = [
   "Hoare partitioning handles many equal keys.",
   "Recurse on the smaller half to bound stack depth.",

@@ -6,6 +6,7 @@ stage = "windows"
 order = 11
 status = "ready"
 tags = ["sliding window", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg", "Uber"]
 teaches = [
   "A window that jumps its left edge past the last repeat.",
   "`[Option<usize>; 256]` as a last-seen table for bytes.",

@@ -6,6 +6,7 @@ stage = "cursors"
 order = 9
 status = "ready"
 tags = ["split", "reverse", "as_deref"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg"]
 teaches = [
   "How a function's signature decides which algorithms are possible.",
 ]

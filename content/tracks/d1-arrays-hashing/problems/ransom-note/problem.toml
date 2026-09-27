@@ -6,6 +6,7 @@ stage = "counting"
 order = 8
 status = "ready"
 tags = ["counting", "[u8; 26]"]
+companies = ["Apple", "Amazon", "Microsoft", "Adobe"]
 teaches = [
   "Count what you have, then spend it.",
   "Early return from a loop once a count goes negative.",

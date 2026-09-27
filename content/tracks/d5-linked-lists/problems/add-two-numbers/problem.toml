@@ -6,6 +6,7 @@ stage = "cursors"
 order = 8
 status = "ready"
 tags = ["carry", "tail cursor"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg"]
 teaches = [
   "Consuming two lists in step.",
   "Building output with a tail cursor.",

@@ -158,3 +158,23 @@ def prob(slug, title, level, stage, tags, statement, starter, solution, visible,
     if mode == "write":
         d.pop("rules", None)
     return d
+
+
+def _company_order():
+    """The names in COMPANIES (crates/content/src/model.rs), in their listed order: FAANG first."""
+    model = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "crates", "content", "src", "model.rs")
+    return [m for m in re.findall(r'\("([^"]+)", "(?:FAANG|Big tech|Databases|Rust shops)"\)', open(model).read())]
+
+
+def tag_companies(problems, by_slug):
+    """Sets each problem's `companies` from {slug: [names]}, in COMPANIES order. Unknown slugs or names fail loudly."""
+    order = _company_order()
+    slugs = {p["slug"] for p in problems}
+    assert not set(by_slug) - slugs, f"no such problems: {sorted(set(by_slug) - slugs)}"
+    for slug, names in by_slug.items():
+        bad = [n for n in names if n not in order]
+        assert not bad, f"{slug}: unknown companies {bad}"
+        assert len(set(names)) == len(names), f"{slug}: repeated company"
+    for p in problems:
+        if p["slug"] in by_slug:
+            p["companies"] = sorted(by_slug[p["slug"]], key=order.index)

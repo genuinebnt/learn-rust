@@ -6,6 +6,7 @@ stage = "owned-lists"
 order = 2
 status = "ready"
 tags = ["tail cursor", "Option::insert", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg"]
 teaches = [
   "`&mut Option<Box<Node>>` tail cursors.",
   "`Option::insert` returning `&mut T`.",

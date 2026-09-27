@@ -6,6 +6,7 @@ stage = "cursors"
 order = 10
 status = "ready"
 tags = ["arena", "Floyd", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs"]
 teaches = [
   "Arenas of indices for cyclic structures.",
   "Floyd's cycle detection.",

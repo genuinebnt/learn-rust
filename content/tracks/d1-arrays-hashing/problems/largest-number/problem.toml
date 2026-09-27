@@ -6,6 +6,7 @@ stage = "sorting-order"
 order = 18
 status = "ready"
 tags = ["sort_by", "String"]
+companies = ["Apple", "Amazon", "Google", "Microsoft", "Salesforce"]
 teaches = [
   "A custom comparator: compare `a + b` with `b + a`.",
   "Edge case: all zeros.",

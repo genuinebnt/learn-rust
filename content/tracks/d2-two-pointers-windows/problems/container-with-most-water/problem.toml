@@ -6,6 +6,7 @@ stage = "pointers"
 order = 8
 status = "ready"
 tags = ["two pointers", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs"]
 teaches = [
   "Move the shorter wall; the taller one can't do better with less width.",
 ]

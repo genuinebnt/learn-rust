@@ -6,6 +6,7 @@ stage = "sorting-order"
 order = 17
 status = "ready"
 tags = ["Dutch flag", "swap"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Adobe"]
 teaches = [
   "Three-way partitioning in one pass with `swap`.",
   "Why `mid` doesn't advance after swapping with `high`.",

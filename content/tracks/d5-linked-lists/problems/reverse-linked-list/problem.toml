@@ -6,6 +6,7 @@ stage = "owned-lists"
 order = 1
 status = "ready"
 tags = ["Option<Box<_>>", "take", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg"]
 teaches = [
   "Moving boxes between `Option`s with `take()`.",
 ]

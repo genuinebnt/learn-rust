@@ -6,6 +6,7 @@ stage = "vec-and-slices"
 order = 5
 status = "ready"
 tags = ["[u8; 26]", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "Uber"]
 teaches = [
   "A fixed `[i32; 26]` beats a `HashMap` for a small alphabet.",
   "`bytes()` when input is ASCII.",

@@ -6,6 +6,7 @@ stage = "hard-windows"
 order = 15
 status = "ready"
 tags = ["sliding window", "lifetimes", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Airbnb", "LinkedIn", "Uber"]
 teaches = [
   "Grow the window until it covers `t`, then shrink it while it still does.",
   "Return a `&'a str` borrowed from the input instead of allocating.",

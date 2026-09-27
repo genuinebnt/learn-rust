@@ -6,6 +6,7 @@ stage = "cursors"
 order = 11
 status = "ready"
 tags = ["Rc::as_ptr", "Weak", "arena"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg"]
 teaches = [
   "`Rc::as_ptr` for node identity.",
   "`Weak` for non-owning back pointers.",

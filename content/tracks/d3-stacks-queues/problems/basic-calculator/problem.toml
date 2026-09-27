@@ -6,6 +6,7 @@ stage = "hard-stacks"
 order = 12
 status = "ready"
 tags = ["parsing", "stack of (sum, sign)"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "DoorDash", "Uber"]
 teaches = [
   "Iterative parsing with an explicit stack.",
   "Unary minus as '0 minus'.",

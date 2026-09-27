@@ -6,6 +6,7 @@ stage = "owned-lists"
 order = 4
 status = "ready"
 tags = ["as_deref", "slow/fast"]
+companies = ["Apple", "Amazon", "Google", "Microsoft", "Adobe"]
 teaches = [
   "`Option::as_deref` for reading lists.",
   "Slow/fast pointers with shared references.",

@@ -6,6 +6,7 @@ stage = "pointers"
 order = 9
 status = "ready"
 tags = ["two pointers"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Bloomberg"]
 teaches = [
   "Same shape as 3Sum, tracking the best distance instead of exact matches.",
   "`abs_diff` for distances without overflow.",

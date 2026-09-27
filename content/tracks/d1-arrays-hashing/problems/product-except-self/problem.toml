@@ -6,6 +6,7 @@ stage = "grouping-prefix-sums"
 order = 13
 status = "ready"
 tags = ["prefix products", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Goldman Sachs", "Uber"]
 teaches = [
   "Prefix and suffix passes over the same output buffer.",
   "`iter().rev()` with an index for the backward pass.",

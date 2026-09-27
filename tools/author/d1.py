@@ -1,4 +1,4 @@
-from author import T, write_track
+from author import T, write_track, tag_companies
 
 P = []
 
@@ -2581,6 +2581,31 @@ STAGES = [
     ("sorting-order", "Sorting & order", "medium"),
     ("in-place", "In place", "hard"),
 ]
+
+# Companies known to ask each problem (names from COMPANIES in crates/content/src/model.rs).
+COMPANIES = {
+    "running-sum": ["Amazon", "Apple", "Adobe", "Bloomberg"],
+    "concatenation-of-array": ["Amazon", "Adobe"],
+    "two-sum": ["Google", "Amazon", "Meta", "Apple", "Microsoft", "Bloomberg", "Adobe", "Uber"],
+    "contains-duplicate": ["Amazon", "Apple", "Microsoft", "Google", "Adobe", "Bloomberg"],
+    "valid-anagram": ["Amazon", "Meta", "Google", "Microsoft", "Bloomberg", "Uber"],
+    "majority-element": ["Google", "Amazon", "Apple", "Microsoft", "Adobe", "Bloomberg"],
+    "ransom-note": ["Amazon", "Apple", "Microsoft", "Adobe"],
+    "isomorphic-strings": ["Google", "Amazon", "LinkedIn", "Apple", "Adobe"],
+    "group-anagrams": ["Amazon", "Meta", "Google", "Microsoft", "Apple", "Uber", "Bloomberg", "Goldman Sachs"],
+    "top-k-frequent": ["Amazon", "Meta", "Google", "Apple", "Microsoft", "Uber", "Oracle"],
+    "product-except-self": ["Amazon", "Meta", "Apple", "Microsoft", "Google", "Uber", "Goldman Sachs"],
+    "subarray-sum-equals-k": ["Meta", "Google", "Amazon", "Microsoft", "Bloomberg", "Uber"],
+    "encode-decode-strings": ["Google", "Meta", "Amazon", "Microsoft", "LinkedIn", "Uber"],
+    "sort-colors": ["Microsoft", "Amazon", "Meta", "Google", "Apple", "Adobe"],
+    "largest-number": ["Amazon", "Microsoft", "Google", "Apple", "Salesforce"],
+    "kth-largest": ["Meta", "Amazon", "Google", "Microsoft", "LinkedIn", "Apple", "Salesforce"],
+    "longest-consecutive": ["Google", "Amazon", "Meta", "Microsoft", "Uber", "Salesforce"],
+    "first-missing-positive": ["Amazon", "Google", "Microsoft", "Meta", "Apple", "Oracle"],
+    "quicksort-in-place": ["Amazon", "Microsoft", "Google"],
+    "max-points-on-a-line": ["Google", "Amazon", "LinkedIn", "Apple", "Uber"],
+}
+tag_companies(P, COMPANIES)
 
 if __name__ == "__main__":
     n = write_track("d1-arrays-hashing", "D1", "Arrays & hashing", "D", "core", 1,

@@ -6,6 +6,7 @@ stage = "vec-and-slices"
 order = 1
 status = "ready"
 tags = ["scan", "Vec"]
+companies = ["Apple", "Amazon", "Adobe", "Bloomberg"]
 teaches = [
   "`iter().scan` carries state through an iterator chain.",
   "Borrow a slice in, return an owned `Vec` out.",

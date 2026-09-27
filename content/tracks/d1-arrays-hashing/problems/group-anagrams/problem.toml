@@ -6,6 +6,7 @@ stage = "grouping-prefix-sums"
 order = 11
 status = "ready"
 tags = ["HashMap", "sort", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs", "Uber"]
 teaches = [
   "A sorted `Vec<u8>` of letters is a hashable key for an anagram class.",
   "`entry(key).or_default().push(..)`.",

@@ -6,6 +6,7 @@ stage = "beyond-box"
 order = 12
 status = "ready"
 tags = ["BinaryHeap", "Reverse", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Uber"]
 teaches = [
   "Heap of keys + indices, with ownership kept elsewhere.",
   "`Reverse` for a min-heap.",

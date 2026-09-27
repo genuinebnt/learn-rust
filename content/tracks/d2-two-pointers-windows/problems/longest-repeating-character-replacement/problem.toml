@@ -6,6 +6,7 @@ stage = "windows"
 order = 12
 status = "ready"
 tags = ["sliding window", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Uber"]
 teaches = [
   "A window is valid when `len − most_common ≤ k`.",
   "The max count never needs to decrease.",

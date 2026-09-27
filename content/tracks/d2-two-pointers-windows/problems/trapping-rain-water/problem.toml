@@ -6,6 +6,7 @@ stage = "hard-windows"
 order = 16
 status = "ready"
 tags = ["two pointers"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs", "Uber"]
 teaches = [
   "Water at a position is bounded by the lower of the tallest walls on each side.",
   "Two pointers carry both running maxima.",

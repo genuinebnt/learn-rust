@@ -6,6 +6,7 @@ stage = "vec-and-slices"
 order = 2
 status = "ready"
 tags = ["slices", "repeat"]
+companies = ["Amazon", "Adobe"]
 teaches = [
   "`slice::repeat` and `concat` build a new `Vec` from slices.",
   "`Vec::with_capacity` avoids regrowing when you know the size.",

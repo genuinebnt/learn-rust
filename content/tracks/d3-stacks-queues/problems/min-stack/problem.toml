@@ -6,6 +6,7 @@ stage = "stack-basics"
 order = 4
 status = "ready"
 tags = ["stack of tuples"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs"]
 teaches = [
   "Stacks of tuples carrying derived state.",
 ]

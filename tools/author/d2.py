@@ -1,4 +1,4 @@
-from author import T, write_track
+from author import T, write_track, tag_companies
 
 P = []
 
@@ -2479,6 +2479,28 @@ STAGES = [
     ("windows", "Windows", "medium"),
     ("hard-windows", "Hard windows", "hard"),
 ]
+
+# Companies known to ask each problem (names from COMPANIES in crates/content/src/model.rs).
+COMPANIES = {
+    "valid-palindrome": ["Meta", "Microsoft", "Amazon", "Apple", "Google", "Bloomberg"],
+    "reverse-string": ["Amazon", "Apple", "Microsoft", "Adobe"],
+    "merge-sorted-array": ["Meta", "Amazon", "Microsoft", "Apple", "Google", "Bloomberg"],
+    "move-zeroes": ["Meta", "Amazon", "Apple", "Microsoft", "Google", "Bloomberg"],
+    "two-sum-sorted": ["Amazon", "Google", "Microsoft", "Apple", "Adobe"],
+    "three-sum": ["Meta", "Amazon", "Apple", "Google", "Microsoft", "Bloomberg", "Adobe"],
+    "container-with-most-water": ["Amazon", "Google", "Meta", "Microsoft", "Apple", "Bloomberg", "Goldman Sachs"],
+    "three-sum-closest": ["Meta", "Amazon", "Google", "Apple", "Bloomberg"],
+    "best-time-to-buy-and-sell-stock": ["Amazon", "Meta", "Microsoft", "Google", "Apple", "Bloomberg", "Goldman Sachs", "Uber"],
+    "longest-substring-without-repeating": ["Amazon", "Google", "Meta", "Microsoft", "Apple", "Bloomberg", "Adobe", "Uber"],
+    "longest-repeating-character-replacement": ["Google", "Amazon", "Meta", "Microsoft", "Uber"],
+    "permutation-in-string": ["Microsoft", "Amazon", "Google", "Meta", "Oracle"],
+    "find-all-anagrams": ["Amazon", "Meta", "Microsoft", "Google", "Uber"],
+    "minimum-window-substring": ["Meta", "Amazon", "Google", "LinkedIn", "Microsoft", "Apple", "Uber", "Airbnb"],
+    "trapping-rain-water": ["Amazon", "Google", "Meta", "Microsoft", "Apple", "Bloomberg", "Goldman Sachs", "Uber"],
+    "sliding-window-maximum": ["Amazon", "Google", "Microsoft", "Meta", "Apple", "Uber"],
+    "four-sum": ["Amazon", "Apple", "Google", "Microsoft", "Bloomberg"],
+}
+tag_companies(P, COMPANIES)
 
 if __name__ == "__main__":
     n = write_track("d2-two-pointers-windows", "D2", "Two pointers & sliding window", "D", "core", 2,

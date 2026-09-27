@@ -6,6 +6,7 @@ stage = "two-ends"
 order = 3
 status = "ready"
 tags = ["two pointers", "from the back"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg"]
 teaches = [
   "Fill from the back so nothing is overwritten before it's read.",
 ]

@@ -1,4 +1,4 @@
-from author import T, prob, write_track
+from author import T, prob, write_track, tag_companies
 
 P = []
 
@@ -2126,6 +2126,24 @@ STAGES = [
     ("monotonic-parsing", "Monotonic & parsing", "medium"),
     ("hard-stacks", "Hard stacks", "hard"),
 ]
+
+# Companies known to ask each problem (names from COMPANIES in crates/content/src/model.rs).
+COMPANIES = {
+    "valid-parentheses": ["Amazon", "Meta", "Google", "Microsoft", "Apple", "Bloomberg", "LinkedIn"],
+    "queue-using-stacks": ["Amazon", "Microsoft", "Apple", "Bloomberg", "Goldman Sachs"],
+    "baseball-game": ["Amazon"],
+    "min-stack": ["Amazon", "Bloomberg", "Google", "Microsoft", "Meta", "Apple", "Goldman Sachs"],
+    "evaluate-rpn": ["LinkedIn", "Amazon", "Google", "Microsoft", "Meta"],
+    "daily-temperatures": ["Meta", "Amazon", "Google", "Microsoft", "Uber", "Salesforce"],
+    "car-fleet": ["Google", "Amazon", "Meta"],
+    "asteroid-collision": ["Amazon", "Google", "Microsoft", "Meta", "Uber", "Salesforce", "DoorDash"],
+    "decode-string": ["Google", "Amazon", "Meta", "Microsoft", "Bloomberg", "Apple", "Atlassian"],
+    "largest-rectangle-in-histogram": ["Amazon", "Google", "Microsoft", "Meta", "Apple", "Uber"],
+    "basic-calculator": ["Google", "Meta", "Amazon", "Microsoft", "Uber", "DoorDash"],
+    "max-frequency-stack": ["Amazon", "Apple", "Google", "Microsoft"],
+    "shortest-subarray-with-sum-at-least-k": ["Google", "Amazon", "Meta", "Goldman Sachs"],
+}
+tag_companies(P, COMPANIES)
 
 if __name__ == "__main__":
     n = write_track("d3-stacks-queues", "D3", "Stacks & queues", "D", "core", 3,

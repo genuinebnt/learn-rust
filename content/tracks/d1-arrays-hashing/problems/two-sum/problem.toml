@@ -6,6 +6,7 @@ stage = "vec-and-slices"
 order = 3
 status = "ready"
 tags = ["HashMap", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg", "Uber"]
 teaches = [
   "One pass with a `HashMap` from value to index.",
   "`Option<(usize, usize)>` instead of a `[-1, -1]` sentinel.",

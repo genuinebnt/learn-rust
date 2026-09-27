@@ -6,6 +6,7 @@ stage = "windows"
 order = 10
 status = "ready"
 tags = ["running min", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs", "Uber"]
 teaches = [
   "Track the lowest price so far; each day is a potential sell.",
 ]

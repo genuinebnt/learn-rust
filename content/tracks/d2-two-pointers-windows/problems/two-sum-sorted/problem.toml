@@ -6,6 +6,7 @@ stage = "pointers"
 order = 6
 status = "ready"
 tags = ["two pointers"]
+companies = ["Apple", "Amazon", "Google", "Microsoft", "Adobe"]
 teaches = [
   "On sorted input, move the pointer that brings the sum toward the target.",
   "O(1) space versus the hash-map version.",

@@ -6,6 +6,7 @@ stage = "stack-basics"
 order = 1
 status = "ready"
 tags = ["stack", "bytes", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "LinkedIn"]
 teaches = [
   "`Vec` as a stack: `push` / `pop` / `last`.",
   "`match` on byte literals.",

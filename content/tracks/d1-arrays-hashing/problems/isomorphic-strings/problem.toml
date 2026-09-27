@@ -6,6 +6,7 @@ stage = "counting"
 order = 9
 status = "ready"
 tags = ["HashMap", "bytes"]
+companies = ["Apple", "Amazon", "Google", "Adobe", "LinkedIn"]
 teaches = [
   "A mapping must be one-to-one both ways, so check both directions.",
   "`[Option<u8>; 256]` as a byte-to-byte map.",

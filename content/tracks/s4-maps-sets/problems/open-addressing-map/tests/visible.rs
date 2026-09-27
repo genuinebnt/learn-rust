@@ -14,3 +14,13 @@ fn replace() {
 fn remove() {
     check!(r#"insert 5, remove 5"#, { let mut m = OpenMap::new(); m.insert(5, 'x'); (m.remove(5), m.get(5).copied(), m.remove(5), m.len()) }, (Some('x'), None, None, 0));
 }
+
+#[test]
+fn remove_missing() {
+    check!(r#"remove 9 from an empty map"#, { let mut m: OpenMap<u8> = OpenMap::new(); (m.remove(9), m.len(), m.get(9).copied()) }, (None, 0, None));
+}
+
+#[test]
+fn reinsert_after_remove() {
+    check!(r#"insert 3; remove 3; insert 3 again"#, { let mut m = OpenMap::new(); m.insert(3, "a"); m.remove(3); (m.insert(3, "b"), m.get(3).copied(), m.len()) }, (None, Some("b"), 1));
+}

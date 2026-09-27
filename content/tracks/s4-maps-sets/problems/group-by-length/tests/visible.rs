@@ -9,3 +9,18 @@ fn mixed() {
 fn empty() {
     check!(r#"[]"#, group_by_len(&[]), std::collections::HashMap::new());
 }
+
+#[test]
+fn empty_string() {
+    check!(r#"["", "a", ""]"#, group_by_len(&["", "a", ""]), std::collections::HashMap::from([(0, vec!["", ""]), (1, vec!["a"])]));
+}
+
+#[test]
+fn input_order_kept() {
+    check!(r#"["bb", "aa", "cc"]"#, group_by_len(&["bb", "aa", "cc"]), std::collections::HashMap::from([(2, vec!["bb", "aa", "cc"])]));
+}
+
+#[test]
+fn single() {
+    check!(r#"["a"]"#, group_by_len(&["a"]), std::collections::HashMap::from([(1, vec!["a"])]));
+}

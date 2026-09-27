@@ -3,7 +3,7 @@
 pub fn line_col(src: &str, at: usize) -> Option<(usize, usize)> {
     let before = src.get(..at)?;
     let line_start = before.rfind('\n').map_or(0, |i| i + 1);
-    let line = before.bytes().filter(|&b| b == b'\n').count() + 1;
+    let line = before.matches('\n').count() + 1;
     Some((line, before[line_start..].chars().count() + 1))
 }
 

@@ -1318,7 +1318,7 @@ LC_SOL = r"""
         pub fn line_col(src: &str, at: usize) -> Option<(usize, usize)> {
             let before = src.get(..at)?;
             let line_start = before.rfind('\n').map_or(0, |i| i + 1);
-            let line = before.bytes().filter(|&b| b == b'\n').count() + 1;
+            let line = before.matches('\n').count() + 1;
             Some((line, before[line_start..].chars().count() + 1))
         }
 
@@ -1475,7 +1475,7 @@ P.append(dict(
     hints=[("rust", "`src.get(..at)?` is `None` both past the end and inside a character. From there, lines are the `\\n` count plus one, and the column is the chars after the last `\\n`."),
            ("rust", "`s.match_indices(needle)` yields `(byte_offset, &str)` for non-overlapping matches. Keep a running char count and add only `s[prev..i].chars().count()` each time."),
            ("edge case", "`char_to_byte(s, count)` is `Some(s.len())`: chain `std::iter::once(s.len())` after the `char_indices` offsets.")],
-    notes=("""`str` indexes by byte because that's O(1); anything "per character" is a scan. The conversions are cheap if you make one pass: `line_col` counts newlines on bytes (safe, because every byte of a multi-byte UTF-8 character is ≥ 0x80) and chars only on the last line, and `find_all` converts each match incrementally, so the whole thing is O(n) instead of O(n) per match. `get` is the non-panicking twin of indexing for exactly this "maybe not a boundary" case. Real editors (LSP) want UTF-16 columns, which is `c.len_utf16()` summed instead of a char count. Syntax to remember: `s.get(a..b)` → `Option<&str>`, `s.char_indices()`, `s.match_indices(p)` / `rmatch_indices`, `s.matches(p).count()`, `s.bytes().filter(|&b| b == b'\\n').count()`, `s.rfind('\\n')`, `c.len_utf8()` / `len_utf16()`.""", "O(n)", "O(matches)"),
+    notes=("""`str` indexes by byte because that's O(1); anything "per character" is a scan. The conversions are cheap if you make one pass: `line_col` counts newlines with `matches('\\n')` (a byte scan would be just as safe, because every byte of a multi-byte UTF-8 character is ≥ 0x80) and chars only on the last line, and `find_all` converts each match incrementally, so the whole thing is O(n) instead of O(n) per match. `get` is the non-panicking twin of indexing for exactly this "maybe not a boundary" case. Real editors (LSP) want UTF-16 columns, which is `c.len_utf16()` summed instead of a char count. Syntax to remember: `s.get(a..b)` → `Option<&str>`, `s.char_indices()`, `s.match_indices(p)` / `rmatch_indices`, `s.matches(p).count()`, `s.bytes().filter(|&b| b == b'\\n').count()`, `s.rfind('\\n')`, `c.len_utf8()` / `len_utf16()`.""", "O(n)", "O(matches)"),
     follow_up="The Language Server Protocol counts columns in UTF-16 code units by default. What changes, and which characters make UTF-16 and char counts differ?",
 ))
 

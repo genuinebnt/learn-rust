@@ -1,53 +1,90 @@
 use solution::*;
 
 #[test]
-fn longest_in_middle() {
-    check!(r#"["a", "abcd", "ab"]"#, { let mut v = vec!["a".to_string(), "abcd".to_string(), "ab".to_string()]; append_longest(&mut v); v.last().cloned() }, Some("abcd!".to_string()));
+fn self_loop_edge() {
+    let mut i = Interner::new();
+    let (pairs, added) = intern_edges(&mut i, &[("a", "a")]);
+    check!(r#"intern_edges([("a", "a")])"#, (pairs.clone(), added, pairs[0].0.as_ptr() == pairs[0].1.as_ptr()), (vec![("a", "a")], 1, true));
 }
 
 #[test]
-fn tie_takes_last() {
-    check!(r#"["aa", "bb", "c"]"#, { let mut v = vec!["aa".to_string(), "bb".to_string(), "c".to_string()]; append_longest(&mut v); v.last().cloned() }, Some("bb!".to_string()));
+fn same_pointer_as_intern() {
+    let mut i = Interner::new();
+    let p = i.intern("k").as_ptr();
+    let q = intern_all(&mut i, &["k"])[0].as_ptr();
+    check!(r#"intern("k"), then intern_all(["k"])"#, p == q, true);
 }
 
 #[test]
-fn empty_word() {
-    check!(r#"[""]"#, { let mut v = vec![String::new()]; append_longest(&mut v); v }, vec![String::new(), "!".to_string()]);
+fn all_already_known() {
+    let mut i = Interner::new();
+    i.intern("a");
+    i.intern("b");
+    let (pairs, added) = intern_edges(&mut i, &[("b", "a")]);
+    check!(r#"intern a, b; intern_edges([("b", "a")])"#, (pairs, added), (vec![("b", "a")], 0));
 }
 
 #[test]
-fn unicode() {
-    check!(r#"["日本語", "ab"]"#, { let mut v = vec!["日本語".to_string(), "ab".to_string()]; append_longest(&mut v); v.last().cloned() }, Some("日本語!".to_string()));
+fn empty_name() {
+    let mut i = Interner::new();
+    let r = intern_all(&mut i, &["", ""]);
+    check!(r#"intern_all(["", ""])"#, (r.clone(), r[0].as_ptr() == r[1].as_ptr()), (vec!["", ""], true));
 }
 
 #[test]
-fn grows_by_one() {
-    check!(r#"10 words"#, { let mut v: Vec<String> = (0..10).map(|i| i.to_string()).collect(); append_longest(&mut v); v.len() }, 11);
+fn unicode_names() {
+    let mut i = Interner::new();
+    let r = intern_all(&mut i, &["日本", "é", "日本"]);
+    check!(r#"intern_all(["日本", "é", "日本"])"#, r, vec!["日本", "é", "日本"]);
 }
 
 #[test]
-fn original_untouched() {
-    check!(r#"["b", "aaa", "c"]"#, { let mut v = vec!["b".to_string(), "aaa".to_string(), "c".to_string()]; append_longest(&mut v); v }, vec!["b".to_string(), "aaa".to_string(), "c".to_string(), "aaa!".to_string()]);
+fn get_after_intern_all() {
+    let mut i = Interner::new();
+    check!(r#"intern_all(["m"]), then get("m"), get("n")"#, { intern_all(&mut i, &["m"]); (i.get("m"), i.get("n")) }, (Some("m"), None));
 }
 
 #[test]
-fn called_twice() {
-    check!(r#"["ab"], twice"#, { let mut v = vec!["ab".to_string()]; append_longest(&mut v); append_longest(&mut v); v }, vec!["ab".to_string(), "ab!".to_string(), "ab!!".to_string()]);
+fn edges_order_kept() {
+    let mut i = Interner::new();
+    let (pairs, added) = intern_edges(&mut i, &[("c", "b"), ("a", "c")]);
+    check!(r#"intern_edges([("c", "b"), ("a", "c")])"#, (pairs, added), (vec![("c", "b"), ("a", "c")], 3));
 }
 
 #[test]
-fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(2008);
+fn random_vs_model() {
+    let mut rng = anneal_prelude::Rng::new(6208);
     for _ in 0..300 {
-        let n = rng.below(6);
-        let words: Vec<String> = (0..n).map(|_| { let l = rng.below(5); rng.string(l, "ab") }).collect();
-        let mut want = words.clone();
-        if let Some(m) = words.iter().map(|w| w.len()).max() {
-            let i = words.iter().rposition(|w| w.len() == m).unwrap();
-            want.push(format!("{}!", words[i]));
+        let n = rng.below(8);
+        let mut owned = Vec::new();
+        for _ in 0..n {
+            owned.push(rng.string(1, "abc"));
         }
-        let mut got = words.clone();
-        append_longest(&mut got);
-        check!(format!("words = {words:?}"), got, want);
+        let names: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+        let mut i = Interner::new();
+        let got = intern_all(&mut i, &names);
+        // Equal names share one stored String.
+        let mut shared = true;
+        for x in 0..got.len() {
+            for y in 0..got.len() {
+                if (got[x] == got[y]) != (got[x].as_ptr() == got[y].as_ptr()) {
+                    shared = false;
+                }
+            }
+        }
+        let got: Vec<String> = got.iter().map(|s| s.to_string()).collect();
+        let mut distinct = names.clone();
+        distinct.sort();
+        distinct.dedup();
+        check!(format!("intern_all({names:?})"), (got, shared, i.len()), (owned.clone(), true, distinct.len()));
     }
+}
+
+#[test]
+fn many_edges() {
+    let owned: Vec<String> = (0..1000).map(|k| format!("n{k}")).collect();
+    let edges: Vec<(&str, &str)> = (0..100_000).map(|k| (owned[k % 1000].as_str(), owned[(k * 7 + 3) % 1000].as_str())).collect();
+    let mut i = Interner::new();
+    let (pairs, added) = intern_edges(&mut i, &edges);
+    check!("100000 edges over 1000 names", (pairs.len(), added, pairs[99_999]), (100_000, 1000, ("n999", "n996")));
 }

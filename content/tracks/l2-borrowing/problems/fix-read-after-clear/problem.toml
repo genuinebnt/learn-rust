@@ -1,26 +1,31 @@
 slug = "fix-read-after-clear"
-title = "Fix: keep the length, not the reference"
+title = "Fix: a reused buffer and a borrow of the last line"
 mode = "fix"
 level = "easy"
 stage = "where-borrows-end"
 order = 9
 status = "ready"
-tags = ["E0502"]
+tags = ["E0502", "BufRead::read_line", "Option::replace", "allocation"]
 teaches = [
-  "Hold the data you need, not a reference to it, across a mutation.",
+  "A slice of a reused buffer can't outlive the next `clear`.",
+  "Keep owned data only for what must survive, and only when it changes.",
+  "`Option::replace` swaps in a new value and returns the old one.",
 ]
-follow_up = "What would happen in C++ if you read `longest` after `clear()`?"
+follow_up = "`BufRead::lines()` would make this compile with no thought at all. What does it cost, and when is that fine?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "`longest` points at a String that `clear` frees. What do you actually need from it?"
+text = "`prev` is a `&str` into `buf`, and the next turn of the loop clears and refills `buf` while `prev` is still needed. What must the run's key be, if the buffer can't hold it?"
+
+[[hints]]
+kind = "rust"
+text = "Own the key: `Option<String>`. Compare with `prev.as_deref() == Some(key)` so a repeated key costs nothing, and only on a new key swap the old one out with `prev.replace(key.to_string())`."
 
 [solution]
-explanation = "Keeping a `usize` instead of a `&String` ends the borrow before `clear`."
-time = "O(n)"
-space = "O(1)"
+explanation = "Reusing one buffer is exactly what makes a slice of it short-lived: `clear` and `read_line` need `&mut buf`, so no `&str` into it may survive to the next line. The key that has to outlive the line becomes an owned `String`, but only when it changes: `prev.as_deref() == Some(key)` compares without allocating, and `Option::replace` stores the new key and hands back the old one to push, so there's one allocation per run. Allocating `key.to_string()` on every line would compile too, and cost one allocation per line.\n\nSyntax to remember: `while input.read_line(&mut buf)? != 0` (or `loop` with `buf.clear()` first) · `buf.trim_end_matches(['\\n', '\\r'])` · `prev.as_deref() == Some(key)` · `if let Some(old) = prev.replace(new) { .. }`."
+time = "O(total bytes)"
+space = "O(longest line + output)"
 
 [rules]
-forbid_methods = ["clone"]
-max_changed_lines = 2
+forbid_methods = ["clone", "to_owned", "lines"]

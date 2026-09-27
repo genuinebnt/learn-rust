@@ -57,7 +57,7 @@ impl Index {
                 list.remove(i);
                 changed += 1;
             }
-            !list.is_empty()
+            true
         });
         changed
     }

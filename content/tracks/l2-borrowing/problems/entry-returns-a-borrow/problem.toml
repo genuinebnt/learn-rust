@@ -1,23 +1,32 @@
 slug = "entry-returns-a-borrow"
-title = "The entry API returns a borrow"
+title = "The entry API and when not to use it"
 mode = "write"
 level = "easy"
 stage = "where-borrows-end"
 order = 10
 status = "ready"
-tags = ["HashMap::entry", "lifetimes"]
+tags = ["HashMap::entry", "get_mut", "or_default", "retain", "allocation"]
 teaches = [
-  "The entry API hands back a borrow into the map.",
-  "Lifetimes connect the output to the map, not to the key.",
+  "`entry` returns a borrow into the map, but costs an owned key.",
+  "`get_mut` then `insert` avoids the allocation for hits.",
+  "`retain` edits and filters a map in place.",
 ]
-follow_up = "Why does `entry` take the key by value?"
+follow_up = "`hashbrown`'s `entry_ref` takes a borrowed key and allocates only on insert. Why can't std's `entry` do that with its current signature?"
 related = ["L2", "S4"]
 
 [[hints]]
 kind = "rust"
-text = "`or_default()` returns `&mut V` borrowed from the map for `'m`."
+text = "`entry(key)` needs an owned key, so `entry(w.to_string())` allocates on every call, hit or miss. `get_mut(w)` looks up by `&str` (a `HashMap<String, _>` accepts any `&Q` where `String: Borrow<Q>`), and you insert only on a miss."
+
+[[hints]]
+kind = "rust"
+text = "`if let Some(n) = map.get_mut(k) { .. return *n; }` then `insert` compiles: what's returned is a copy, not a borrow. `docs_mut` has to return a borrow, and there `entry(..).or_default()` is the simple answer."
+
+[[hints]]
+kind = "rust"
+text = "`HashMap::retain(|k, v| ..)` hands the closure `&mut V`, so it can edit each list before deciding whether to keep it."
 
 [solution]
-explanation = "One lookup, and the returned `&mut` keeps the map borrowed for as long as the caller uses it."
-time = "O(1)"
-space = "O(1)"
+explanation = "The entry API does one lookup and returns `&mut V` borrowed from the map, which is what `docs_mut` needs: `entry(word.to_string()).or_default()`. Its cost is the owned key, built on every call. On a hot path where most keys already exist, look up by `&str` first: `get_mut` for the hit, `insert` for the miss. That shape compiles because the hit branch returns a number, not a borrow; returning the `&mut` from `get_mut` early and inserting otherwise is the borrow checker's known blind spot (NLL problem case 3, in the Hard stage). `docs` returns a slice borrowed from `&self`; `map_or(&[], Vec::as_slice)` gives an empty slice for a missing word.\n\nSyntax to remember: `map.entry(k).or_default()` · `map.entry(k).and_modify(|n| *n += 1).or_insert(1)` (also allocates `k` every time) · `map.get(word).map_or(&[], Vec::as_slice)` · `map.retain(|_, v| { ..; !v.is_empty() })`."
+time = "O(words) for add; O(1) expected per lookup; O(total postings) remove_doc"
+space = "O(1) extra"

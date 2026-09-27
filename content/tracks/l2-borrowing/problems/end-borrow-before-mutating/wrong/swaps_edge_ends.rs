@@ -36,21 +36,22 @@ impl Interner {
 
 /// Interns every name and returns the stored names, in the same order.
 pub fn intern_all<'i>(interner: &'i mut Interner, names: &[&str]) -> Vec<&'i str> {
-    let mut out = Vec::new();
     for n in names {
-        out.push(interner.intern(n));
+        interner.intern(n);
     }
-    out
+    let interner: &'i Interner = interner;
+    names.iter().map(|n| interner.get(n).unwrap()).collect()
 }
 
 /// Interns both ends of every edge. Returns the edges as pairs of stored names, and how many names were new.
 pub fn intern_edges<'i>(interner: &'i mut Interner, edges: &[(&str, &str)]) -> (Vec<(&'i str, &'i str)>, usize) {
     let before = interner.len();
-    let mut out = Vec::new();
     for &(a, b) in edges {
-        let a = interner.intern(a);
-        let b = interner.intern(b);
-        out.push((a, b));
+        interner.intern(a);
+        interner.intern(b);
     }
-    (out, interner.len() - before)
+    let added = interner.len() - before;
+    let interner = &*interner;
+    let pairs = edges.iter().map(|&(a, b)| (interner.get(b).unwrap(), interner.get(a).unwrap())).collect();
+    (pairs, added)
 }

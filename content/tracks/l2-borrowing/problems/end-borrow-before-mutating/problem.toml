@@ -1,22 +1,31 @@
 slug = "end-borrow-before-mutating"
-title = "End the borrow before you mutate"
-mode = "write"
+title = "Fix: a &mut method that returns a borrow"
+mode = "fix"
 level = "easy"
 stage = "where-borrows-end"
 order = 8
 status = "ready"
-tags = ["NLL", "format!"]
+tags = ["E0499", "E0502", "&mut self -> &T", "reborrow as shared"]
 teaches = [
-  "Produce an owned value inside the borrow, mutate after it.",
+  "`&mut self -> &T` keeps `self` mutably borrowed while the `&T` lives.",
+  "Mutate first, then reborrow as shared (`&*r`) for many readers.",
+  "Ids are the other way out.",
 ]
-follow_up = "Why does `words.push(format!(\"{}!\", words[0]))` compile?"
+follow_up = "`intern(&self, ..)` with interior mutability would let callers hold several results at once. What would the `names` storage have to guarantee for that to be sound?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "`format!` makes an owned `String` while `longest` is borrowed; after that, nothing borrows `words`."
+text = "A method `fn intern(&mut self, ..) -> &str` ties its result to the `&mut self` borrow. As long as the `&str` lives, the interner stays *mutably* borrowed: you can't call `intern` again, nor even `len`. There's no automatic downgrade to a shared borrow."
+
+[[hints]]
+kind = "rust"
+text = "Do all the mutation first and throw the results away. Then reborrow the interner as shared (`let interner = &*interner;`) and look every name up with `get`, which takes `&self`: shared borrows can coexist."
 
 [solution]
-explanation = "The shared borrow from `max_by_key` ends once `format!` returns, so `push` is allowed on the next line."
-time = "O(n)"
-space = "O(len)"
+explanation = "A signature like `fn intern(&mut self, name: &str) -> &str` means the returned `&str` keeps `self` mutably borrowed for as long as it's used, even though it only reads. So the results of two calls can't be held at once. The fix splits the work into phases: intern everything (discarding the results), then turn the `&'i mut Interner` into a `&'i Interner` (`&*interner`, or a `let` with that type) and collect `get` results. Many shared borrows can coexist, and they can live for all of `'i` because the unique borrow is never used again. `intern_edges` must also read `len()` before taking those borrows, or compute it before them.\n\nThe other classic fix is an API change: return a `Copy` id (`Symbol(u32)`) from `intern` and add `resolve(&self, Symbol) -> &str`. That's what `rustc` and the `string-interner` crate do."
+time = "O(n) expected"
+space = "O(1) extra"
+
+[rules]
+forbid_methods = ["clone", "to_owned", "leak"]

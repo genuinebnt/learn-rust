@@ -1,26 +1,54 @@
 use solution::*;
 
 #[test]
-fn creates_and_reuses() {
-    check!(r#"push 1 then 2 under "a""#, { let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "a").push(1); get_or_create(&mut m, "a").push(2); m["a"].clone() }, vec![1, 2]);
+fn docs_example() {
+    let mut ix = Index::new();
+    ix.add(1, "rust borrow check");
+    ix.add(2, "rust rust lifetimes");
+    ix.add(5, "borrow");
+    check!(r#"add 1 "rust borrow check", 2 "rust rust lifetimes", 5 "borrow""#, (ix.docs("rust"), ix.docs("borrow"), ix.docs("check")), (&[1u32, 2][..], &[1u32, 5][..], &[1u32][..]));
 }
 
 #[test]
-fn existing_kept() {
-    check!(r#""k" already maps to [9]"#, { let mut m = std::collections::HashMap::from([("k".to_string(), vec![9])]); get_or_create(&mut m, "k").push(1); m["k"].clone() }, vec![9, 1]);
+fn unknown_word_is_empty() {
+    let mut ix = Index::new();
+    ix.add(1, "rust borrow check");
+    ix.add(2, "rust rust lifetimes");
+    ix.add(5, "borrow");
+    check!(r#"add 1 "rust borrow check", 2 "rust rust lifetimes", 5 "borrow"; docs("go")"#, (ix.docs("go"), ix.words()), (&[][..], 4));
 }
 
 #[test]
-fn new_is_empty() {
-    check!(r#"missing key "n""#, { let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "n").is_empty() }, true);
+fn docs_mut_creates_and_edits() {
+    let mut ix = Index::new();
+    ix.add(1, "rust borrow check");
+    ix.add(2, "rust rust lifetimes");
+    ix.add(5, "borrow");
+    ix.docs_mut("go").push(9);
+    ix.docs_mut("rust").retain(|&d| d != 1);
+    check!(r#"add 1 "rust borrow check", 2 "rust rust lifetimes", 5 "borrow"; docs_mut("go").push(9); docs_mut("rust").retain(|&d| d != 1)"#, (ix.docs("go"), ix.docs("rust")), (&[9u32][..], &[2u32][..]));
 }
 
 #[test]
-fn does_not_replace() {
-    check!(r#""k" already maps to [1, 2]"#, { let mut m = std::collections::HashMap::from([("k".to_string(), vec![1, 2])]); get_or_create(&mut m, "k").len() }, 2);
+fn hit_counts() {
+    let mut ix = Index::new();
+    check!(r#"hit rust, rust, go, rust"#, (ix.hit("rust"), ix.hit("rust"), ix.hit("go"), ix.hit("rust")), (1, 2, 1, 3));
 }
 
 #[test]
-fn separate_keys() {
-    check!(r#""a" and "b""#, { let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "a").push(1); get_or_create(&mut m, "b"); m.len() }, 2);
+fn remove_doc() {
+    let mut ix = Index::new();
+    ix.add(1, "rust borrow check");
+    ix.add(2, "rust rust lifetimes");
+    ix.add(5, "borrow");
+    check!(r#"add 1 "rust borrow check", 2 "rust rust lifetimes", 5 "borrow"; remove_doc(1)"#, (ix.remove_doc(1), ix.docs("rust"), ix.docs("check"), ix.words()), (3, &[2u32][..], &[][..], 3));
+}
+
+#[test]
+fn repeated_word_listed_once() {
+    let mut ix = Index::new();
+    ix.add(1, "rust borrow check");
+    ix.add(2, "rust rust lifetimes");
+    ix.add(5, "borrow");
+    check!(r#"add 1 "rust borrow check", 2 "rust rust lifetimes", 5 "borrow"; docs("rust") after doc 2 said it twice"#, ix.docs("rust"), &[1u32, 2][..]);
 }

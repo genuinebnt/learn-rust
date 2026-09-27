@@ -15,15 +15,9 @@ impl Index {
     /// already has.
     pub fn add(&mut self, doc: u32, text: &str) {
         for w in text.split_whitespace() {
-            match self.postings.get_mut(w) {
-                Some(list) => {
-                    if list.last() != Some(&doc) {
-                        list.push(doc);
-                    }
-                }
-                None => {
-                    self.postings.insert(w.to_string(), vec![doc]);
-                }
+            let list = self.postings.entry(w.to_string()).or_default();
+            if list.last() != Some(&doc) {
+                list.push(doc);
             }
         }
     }

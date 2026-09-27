@@ -1,27 +1,35 @@
 slug = "fix-borrow-kept-alive"
-title = "Fix: a borrow kept alive by a later use"
+title = "Fix: borrows that live longer than they look"
 mode = "fix"
 level = "easy"
 stage = "where-borrows-end"
 order = 7
 status = "ready"
-tags = ["E0499", "NLL"]
+tags = ["NLL", "E0502", "E0499", "Drop", "scopes"]
 teaches = [
-  "A borrow ends at its last use, not at the end of the block.",
-  "Reordering is often the whole fix.",
+  "A borrow ends at its last use: later reads, the next loop turn and `Drop` all count.",
+  "Borrow from the input instead of the output you're building.",
+  "End a guard with `drop(x)` or a block.",
 ]
-follow_up = "What did borrows look like before non-lexical lifetimes (Rust 2018)?"
+follow_up = "`std::mem::forget(batch)` also makes this compile. What does it break?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "A borrow lasts until its last use. Where is `first` last used?"
+text = "A borrow lasts until its last use. `title` is used after `out.push`, and a `&mut` from `first_mut` can't coexist with `is_empty` or `push`. Can one `match` both use the title and handle its absence?"
+
+[[hints]]
+kind = "rust"
+text = "`longest` points into `out` and survives into the next turn of the loop, where `out.push` runs again. The items themselves are in `items`, which nobody mutates: borrow from there."
+
+[[hints]]
+kind = "rust"
+text = "`Batch` has a `Drop` impl, so its borrow of `out` lasts until it's dropped at the end of the scope, not until its last use. End it explicitly (`drop(batch)`) or give it a block."
 
 [solution]
-explanation = "With non-lexical lifetimes, `first`'s borrow ends after `make_ascii_uppercase`, so moving that line up is the fix."
+explanation = "With non-lexical lifetimes a borrow ends at its last use, and three things count as a use that's easy to miss. A later read (`title` after the push): matching `out.first_mut()` handles both cases, and the `None` arm can push because no binding holds the borrow there. A loop: a reference stored in a variable that the next turn reads is live across the loop's back edge, so each `out.push` conflicts with the previous turn's `longest`. Borrowing from `items` instead removes the conflict, since the output was never needed. A destructor: a value whose type implements `Drop` uses its borrows when it's dropped, so `batch` holds `out` to the end of the scope. `drop(batch)` (or `{ let mut batch = ..; .. }`) ends it where you choose, which is also when the footer lands, so `out.len()` must come after.\n\nThis is why a `MutexGuard` or `RefMut` held in a `let` keeps its lock until the end of the block."
 time = "O(n)"
-space = "O(1)"
+space = "O(1) extra"
 
 [rules]
-forbid_methods = ["clone"]
-max_changed_lines = 2
+forbid_methods = ["clone", "to_owned"]

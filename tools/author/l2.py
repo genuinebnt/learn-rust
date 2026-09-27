@@ -1130,115 +1130,764 @@ Syntax to remember: `let Some((head, rest)) = v.split_first_mut() else { return 
 
 # ---------------------------------------------------------------- where borrows end (easy)
 
-P.append(fix(
-    "fix-borrow-kept-alive", "Fix: a borrow kept alive by a later use", "easy", "where-borrows-end", ["E0499", "NLL"],
-    "`shout_first` should uppercase the first name and then append `!` to every name. It doesn't compile.",
-    """
-    /// Uppercases the first name, then appends "!" to every name.
-    pub fn shout_first(names: &mut Vec<String>) {
-        let first = &mut names[0];
-        for n in names.iter_mut() {
-            n.push('!');
-        }
-        first.make_ascii_uppercase();
+BATCH_HEAD = r"""
+/// Collects lines and appends them to `out` when it's dropped.
+pub struct Batch<'a> {
+    out: &'a mut Vec<String>,
+    buf: Vec<String>,
+}
+
+impl<'a> Batch<'a> {
+    pub fn new(out: &'a mut Vec<String>) -> Self {
+        Batch { out, buf: Vec::new() }
     }
-    """,
-    """
-    /// Uppercases the first name, then appends "!" to every name.
-    pub fn shout_first(names: &mut Vec<String>) {
-        let first = &mut names[0];
-        first.make_ascii_uppercase();
-        for n in names.iter_mut() {
-            n.push('!');
+
+    pub fn line(&mut self, s: String) {
+        self.buf.push(s);
+    }
+}
+
+impl Drop for Batch<'_> {
+    fn drop(&mut self) {
+        self.out.append(&mut self.buf);
+    }
+}
+
+/// Renders `items` into `out`:
+/// - if `out` already has lines, its first line is a title: append " (cont.)" to it; otherwise push "untitled";
+/// - push each item as "- <item>";
+/// - through a `Batch`, add "<n> items, longest: <item>", naming the first of the longest items (by bytes), or
+///   "-" when there are none.
+/// Returns how many lines `out` has afterwards.
+"""
+
+RENDER_STARTER = BATCH_HEAD + r"""pub fn render(out: &mut Vec<String>, items: &[&str]) -> usize {
+    let title = out.first_mut();
+    if out.is_empty() {
+        out.push("untitled".to_string());
+    }
+    if let Some(t) = title {
+        t.push_str(" (cont.)");
+    }
+    let mut longest: Option<&str> = None;
+    for item in items {
+        out.push(format!("- {item}"));
+        let line = &out[out.len() - 1][2..];
+        if longest.map_or(true, |l| line.len() > l.len()) {
+            longest = Some(line);
         }
     }
+    let mut batch = Batch::new(out);
+    batch.line(format!("{} items, longest: {}", items.len(), longest.unwrap_or("-")));
+    out.len()
+}
+"""
+
+RENDER_SOLUTION = BATCH_HEAD + r"""pub fn render(out: &mut Vec<String>, items: &[&str]) -> usize {
+    match out.first_mut() {
+        Some(title) => title.push_str(" (cont.)"),
+        None => out.push("untitled".to_string()),
+    }
+    let mut longest: Option<&str> = None;
+    for item in items {
+        out.push(format!("- {item}"));
+        if longest.map_or(true, |l| item.len() > l.len()) {
+            longest = Some(item);
+        }
+    }
+    let mut batch = Batch::new(out);
+    batch.line(format!("{} items, longest: {}", items.len(), longest.unwrap_or("-")));
+    drop(batch);
+    out.len()
+}
+"""
+
+
+def render_case(name, before, items, after):
+    b = "vec![" + ", ".join(f'"{x}".to_string()' for x in before) + "]" if before else "Vec::<String>::new()"
+    it = "[" + ", ".join(f'"{x}"' for x in items) + "]"
+    want = "vec![" + ", ".join(f'"{x}".to_string()' for x in after) + "]"
+    return T(name, f"out = {before}, items = {it}".replace("'", '"'), f"{{ let mut out = {b}; let items: [&str; {len(items)}] = {it}; let n = render(&mut out, &items); (n, out) }}", f"({len(after)}, {want})")
+
+
+def render_py(before, items):
+    out = list(before)
+    if out:
+        out[0] += " (cont.)"
+    else:
+        out.append("untitled")
+    longest = None
+    for it in items:
+        out.append(f"- {it}")
+        if longest is None or len(it.encode()) > len(longest.encode()):
+            longest = it
+    out.append(f"{len(items)} items, longest: {longest if longest is not None else '-'}")
+    return out
+
+
+def render_auto(name, before, items):
+    return render_case(name, before, items, render_py(before, items))
+
+
+P.append(fixp(
+    "fix-borrow-kept-alive", "Fix: borrows that live longer than they look", "easy", "where-borrows-end", ["NLL", "E0502", "E0499", "Drop", "scopes"],
+    """
+        `render` doesn't compile. Three borrows each outlive the place where you'd expect them to end: one is
+        used again after a mutation, one is carried into the next turn of a loop, and one belongs to a value
+        that still has work to do when it's dropped. Fix it without cloning, and keep `Batch` as it is.
     """,
-    [T("two", "names = [\"ann\", \"bo\"]", '{ let mut v = vec!["ann".to_string(), "bo".to_string()]; shout_first(&mut v); v }', 'vec!["ANN!".to_string(), "bo!".to_string()]')],
-    [T("one", "names = [\"x\"]", '{ let mut v = vec!["x".to_string()]; shout_first(&mut v); v }', 'vec!["X!".to_string()]')],
-    [("rust", "A borrow lasts until its last use. Where is `first` last used?")],
-    ("With non-lexical lifetimes, `first`'s borrow ends after `make_ascii_uppercase`, so moving that line up is the fix.", "O(n)", "O(1)"),
-    "What did borrows look like before non-lexical lifetimes (Rust 2018)?",
-    ["A borrow ends at its last use, not at the end of the block.", "Reordering is often the whole fix."],
-    rules=dict(methods=["clone"], lines=2),
+    RENDER_STARTER,
+    RENDER_SOLUTION,
+    [render_auto("new_document", [], ["apples", "kiwi"]),
+     render_auto("continues_a_title", ["Shopping"], ["milk"]),
+     render_auto("no_items", [], []),
+     render_auto("first_longest_wins", [], ["ab", "cd", "e"]),
+     render_auto("keeps_earlier_lines", ["T", "- x", "1 items, longest: x"], ["yy"]),
+     render_auto("longest_is_by_bytes", [], ["ééé", "abcd"])],
+    [render_auto("title_twice", ["T (cont.)"], []),
+     render_auto("empty_title", [""], ["a"]),
+     render_auto("empty_item", [], ["", "a"]),
+     render_auto("only_empty_items", [], ["", ""]),
+     render_auto("dash_item", [], ["-"]),
+     render_auto("unicode_items", ["日誌"], ["東京", "abc"]),
+     render_auto("later_longer", [], ["a", "bb", "ccc"]),
+     T("called_twice", "render([\"a\"]) twice into one out", '{ let mut out = Vec::new(); render(&mut out, &["a"]); let n = render(&mut out, &["bb"]); (n, out) }',
+       '(5, ["untitled (cont.)", "- a", "1 items, longest: a", "- bb", "1 items, longest: bb"].map(String::from).to_vec())'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6207);
+         for _ in 0..300 {
+             let before_len = rng.below(3);
+             let mut before = Vec::new();
+             for _ in 0..before_len {
+                 let len = rng.below(3);
+                 before.push(rng.string(len, "Tt"));
+             }
+             let n = rng.below(6);
+             let mut owned = Vec::new();
+             for _ in 0..n {
+                 let len = rng.below(4);
+                 owned.push(rng.string(len, "ab"));
+             }
+             let items: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+             let mut want = before.clone();
+             match want.first_mut() {
+                 Some(t) => t.push_str(" (cont.)"),
+                 None => want.push("untitled".to_string()),
+             }
+             let mut longest: Option<&str> = None;
+             for it in &items {
+                 want.push(format!("- {it}"));
+                 if longest.map_or(true, |l| it.len() > l.len()) {
+                     longest = Some(it);
+                 }
+             }
+             want.push(format!("{} items, longest: {}", items.len(), longest.unwrap_or("-")));
+             let mut out = before.clone();
+             let got = render(&mut out, &items);
+             check!(format!("out = {before:?}, items = {items:?}"), (got, out), (want.len(), want));
+         }
+     }
+
+     #[test]
+     fn many_items() {
+         let owned: Vec<String> = (0..100_000).map(|i| if i == 77_777 { "x".repeat(9) } else { "y".repeat(i % 8) }).collect();
+         let items: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+         let mut out = Vec::new();
+         let n = render(&mut out, &items);
+         check!("100000 items, one of 9 bytes", (n, out[n - 1].clone()), (100_002, "100000 items, longest: xxxxxxxxx".to_string()));
+     }
+     """],
+    [("rust", "A borrow lasts until its last use. `title` is used after `out.push`, and a `&mut` from `first_mut` can't coexist with `is_empty` or `push`. Can one `match` both use the title and handle its absence?"),
+     ("rust", "`longest` points into `out` and survives into the next turn of the loop, where `out.push` runs again. The items themselves are in `items`, which nobody mutates: borrow from there."),
+     ("rust", "`Batch` has a `Drop` impl, so its borrow of `out` lasts until it's dropped at the end of the scope, not until its last use. End it explicitly (`drop(batch)`) or give it a block.")],
+    ("""With non-lexical lifetimes a borrow ends at its last use, and three things count as a use that's easy to miss. A later read (`title` after the push): matching `out.first_mut()` handles both cases, and the `None` arm can push because no binding holds the borrow there. A loop: a reference stored in a variable that the next turn reads is live across the loop's back edge, so each `out.push` conflicts with the previous turn's `longest`. Borrowing from `items` instead removes the conflict, since the output was never needed. A destructor: a value whose type implements `Drop` uses its borrows when it's dropped, so `batch` holds `out` to the end of the scope. `drop(batch)` (or `{ let mut batch = ..; .. }`) ends it where you choose, which is also when the footer lands, so `out.len()` must come after.
+
+This is why a `MutexGuard` or `RefMut` held in a `let` keeps its lock until the end of the block.""", "O(n)", "O(1) extra"),
+    "`std::mem::forget(batch)` also makes this compile. What does it break?",
+    ["A borrow ends at its last use: later reads, the next loop turn and `Drop` all count.", "Borrow from the input instead of the output you're building.", "End a guard with `drop(x)` or a block."],
+    rules=dict(methods=["clone", "to_owned"]),
+    wrong=dict(
+        forgets_the_batch=sub(RENDER_SOLUTION, "    drop(batch);\n", "    std::mem::forget(batch);\n"),
+        counts_before_the_footer=sub(RENDER_SOLUTION, "    let mut batch = Batch::new(out);\n    batch.line(format!(\"{} items, longest: {}\", items.len(), longest.unwrap_or(\"-\")));\n    drop(batch);\n    out.len()",
+                                     "    let n = out.len();\n    let mut batch = Batch::new(out);\n    batch.line(format!(\"{} items, longest: {}\", items.len(), longest.unwrap_or(\"-\")));\n    n"),
+        last_longest=sub(RENDER_SOLUTION, "item.len() > l.len()", "item.len() >= l.len()"),
+    ),
 ))
 
-P.append(write(
-    "end-borrow-before-mutating", "End the borrow before you mutate", "easy", "where-borrows-end", ["NLL", "format!"],
-    "Append a copy of the longest word, with `!` added, to `words`. Build the new `String` while you're reading, then push.",
-    """
-    pub fn append_longest(words: &mut Vec<String>) {
-        todo!()
+INTERNER_HEAD = r"""
+use std::collections::HashMap;
+
+/// Stores each distinct name once. Callers compare and hash the `&str`s it hands out instead of copying names.
+pub struct Interner {
+    ids: HashMap<String, usize>,
+    names: Vec<String>,
+}
+
+impl Interner {
+    pub fn new() -> Self {
+        Interner { ids: HashMap::new(), names: Vec::new() }
     }
-    """,
-    """
-    pub fn append_longest(words: &mut Vec<String>) {
-        let shouted = match words.iter().max_by_key(|w| w.len()) {
-            Some(longest) => format!("{longest}!"),
-            None => return,
+
+    /// Stores `name` if it's new, and returns the stored name.
+    pub fn intern(&mut self, name: &str) -> &str {
+        let i = match self.ids.get(name) {
+            Some(&i) => i,
+            None => {
+                self.ids.insert(name.to_string(), self.names.len());
+                self.names.push(name.to_string());
+                self.names.len() - 1
+            }
         };
-        words.push(shouted);
+        &self.names[i]
     }
+
+    /// The stored name equal to `name`, if it has been interned.
+    pub fn get(&self, name: &str) -> Option<&str> {
+        self.ids.get(name).map(|&i| self.names[i].as_str())
+    }
+
+    pub fn len(&self) -> usize {
+        self.names.len()
+    }
+}
+"""
+
+INTERNER_STARTER = INTERNER_HEAD + r"""
+/// Interns every name and returns the stored names, in the same order.
+pub fn intern_all<'i>(interner: &'i mut Interner, names: &[&str]) -> Vec<&'i str> {
+    let mut out = Vec::new();
+    for n in names {
+        out.push(interner.intern(n));
+    }
+    out
+}
+
+/// Interns both ends of every edge. Returns the edges as pairs of stored names, and how many names were new.
+pub fn intern_edges<'i>(interner: &'i mut Interner, edges: &[(&str, &str)]) -> (Vec<(&'i str, &'i str)>, usize) {
+    let before = interner.len();
+    let mut out = Vec::new();
+    for &(a, b) in edges {
+        let a = interner.intern(a);
+        let b = interner.intern(b);
+        out.push((a, b));
+    }
+    (out, interner.len() - before)
+}
+"""
+
+INTERNER_SOLUTION = INTERNER_HEAD + r"""
+/// Interns every name and returns the stored names, in the same order.
+pub fn intern_all<'i>(interner: &'i mut Interner, names: &[&str]) -> Vec<&'i str> {
+    for n in names {
+        interner.intern(n);
+    }
+    let interner: &'i Interner = interner;
+    names.iter().map(|n| interner.get(n).unwrap()).collect()
+}
+
+/// Interns both ends of every edge. Returns the edges as pairs of stored names, and how many names were new.
+pub fn intern_edges<'i>(interner: &'i mut Interner, edges: &[(&str, &str)]) -> (Vec<(&'i str, &'i str)>, usize) {
+    let before = interner.len();
+    for &(a, b) in edges {
+        interner.intern(a);
+        interner.intern(b);
+    }
+    let added = interner.len() - before;
+    let interner = &*interner;
+    let pairs = edges.iter().map(|&(a, b)| (interner.get(a).unwrap(), interner.get(b).unwrap())).collect();
+    (pairs, added)
+}
+"""
+
+P.append(fixp(
+    "end-borrow-before-mutating", "Fix: a &mut method that returns a borrow", "easy", "where-borrows-end", ["E0499", "E0502", "&mut self -> &T", "reborrow as shared"],
+    """
+        `intern` takes `&mut self` and returns a `&str` into the interner. `intern_all` and `intern_edges` keep
+        those `&str`s while calling `intern` again, and neither compiles. Fix both functions without changing
+        `Interner` and without copying any name: the `&str`s they return must be the interner's stored names.
     """,
-    [T("appends", "[\"hi\", \"hello\"]", '{ let mut v = vec!["hi".to_string(), "hello".to_string()]; append_longest(&mut v); v }', 'vec!["hi".to_string(), "hello".to_string(), "hello!".to_string()]')],
-    [T("empty", "[]", "{ let mut v: Vec<String> = vec![]; append_longest(&mut v); v.len() }", "0")],
-    [("rust", "`format!` makes an owned `String` while `longest` is borrowed; after that, nothing borrows `words`.")],
-    ("The shared borrow from `max_by_key` ends once `format!` returns, so `push` is allowed on the next line.", "O(n)", "O(len)"),
-    "Why does `words.push(format!(\"{}!\", words[0]))` compile?",
-    ["Produce an owned value inside the borrow, mutate after it."],
+    INTERNER_STARTER,
+    INTERNER_SOLUTION,
+    [T("intern_all_example", "intern_all([\"a\", \"b\", \"a\"])", "(r.clone(), r[0].as_ptr() == r[2].as_ptr())", '(vec!["a", "b", "a"], true)',
+       setup='let mut i = Interner::new();\nlet r = intern_all(&mut i, &["a", "b", "a"]);'),
+     T("intern_all_then_len", "intern_all([\"x\", \"x\", \"y\"]), then len()", '{ intern_all(&mut i, &["x", "x", "y"]); i.len() }', "2", setup="let mut i = Interner::new();"),
+     T("edges_example", "intern_edges([(\"a\", \"b\"), (\"b\", \"c\")])", "(pairs.clone(), added, pairs[0].1.as_ptr() == pairs[1].0.as_ptr())", '(vec![("a", "b"), ("b", "c")], 3, true)',
+       setup='let mut i = Interner::new();\nlet (pairs, added) = intern_edges(&mut i, &[("a", "b"), ("b", "c")]);'),
+     T("edges_counts_only_new_names", "intern \"a\" first, then intern_edges([(\"a\", \"z\")])", "(pairs, added)", '(vec![("a", "z")], 1)',
+       setup='let mut i = Interner::new();\ni.intern("a");\nlet (pairs, added) = intern_edges(&mut i, &[("a", "z")]);'),
+     T("empty_inputs", "intern_all([]), intern_edges([])", '{ let a = intern_all(&mut i, &[]).len(); let (p, n) = intern_edges(&mut i, &[]); (a, p.len(), n) }', "(0, 0, 0)", setup="let mut i = Interner::new();")],
+    [T("self_loop_edge", "intern_edges([(\"a\", \"a\")])", "(pairs.clone(), added, pairs[0].0.as_ptr() == pairs[0].1.as_ptr())", '(vec![("a", "a")], 1, true)',
+       setup='let mut i = Interner::new();\nlet (pairs, added) = intern_edges(&mut i, &[("a", "a")]);'),
+     T("same_pointer_as_intern", "intern(\"k\"), then intern_all([\"k\"])", "p == q", "true",
+       setup='let mut i = Interner::new();\nlet p = i.intern("k").as_ptr();\nlet q = intern_all(&mut i, &["k"])[0].as_ptr();'),
+     T("all_already_known", "intern a, b; intern_edges([(\"b\", \"a\")])", "(pairs, added)", '(vec![("b", "a")], 0)',
+       setup='let mut i = Interner::new();\ni.intern("a");\ni.intern("b");\nlet (pairs, added) = intern_edges(&mut i, &[("b", "a")]);'),
+     T("empty_name", "intern_all([\"\", \"\"])", "(r.clone(), r[0].as_ptr() == r[1].as_ptr())", '(vec!["", ""], true)',
+       setup='let mut i = Interner::new();\nlet r = intern_all(&mut i, &["", ""]);'),
+     T("unicode_names", "intern_all([\"日本\", \"é\", \"日本\"])", "r", 'vec!["日本", "é", "日本"]', setup='let mut i = Interner::new();\nlet r = intern_all(&mut i, &["日本", "é", "日本"]);'),
+     T("get_after_intern_all", "intern_all([\"m\"]), then get(\"m\"), get(\"n\")", '{ intern_all(&mut i, &["m"]); (i.get("m"), i.get("n")) }', '(Some("m"), None)', setup="let mut i = Interner::new();"),
+     T("edges_order_kept", "intern_edges([(\"c\", \"b\"), (\"a\", \"c\")])", "(pairs, added)", '(vec![("c", "b"), ("a", "c")], 3)',
+       setup='let mut i = Interner::new();\nlet (pairs, added) = intern_edges(&mut i, &[("c", "b"), ("a", "c")]);'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6208);
+         for _ in 0..300 {
+             let n = rng.below(8);
+             let mut owned = Vec::new();
+             for _ in 0..n {
+                 owned.push(rng.string(1, "abc"));
+             }
+             let names: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+             let mut i = Interner::new();
+             let got = intern_all(&mut i, &names);
+             // Equal names share one stored String.
+             let mut shared = true;
+             for x in 0..got.len() {
+                 for y in 0..got.len() {
+                     if (got[x] == got[y]) != (got[x].as_ptr() == got[y].as_ptr()) {
+                         shared = false;
+                     }
+                 }
+             }
+             let got: Vec<String> = got.iter().map(|s| s.to_string()).collect();
+             let mut distinct = names.clone();
+             distinct.sort();
+             distinct.dedup();
+             check!(format!("intern_all({names:?})"), (got, shared, i.len()), (owned.clone(), true, distinct.len()));
+         }
+     }
+
+     #[test]
+     fn many_edges() {
+         let owned: Vec<String> = (0..1000).map(|k| format!("n{k}")).collect();
+         let edges: Vec<(&str, &str)> = (0..100_000).map(|k| (owned[k % 1000].as_str(), owned[(k * 7 + 3) % 1000].as_str())).collect();
+         let mut i = Interner::new();
+         let (pairs, added) = intern_edges(&mut i, &edges);
+         check!("100000 edges over 1000 names", (pairs.len(), added, pairs[99_999]), (100_000, 1000, ("n999", "n996")));
+     }
+     """],
+    [("rust", "A method `fn intern(&mut self, ..) -> &str` ties its result to the `&mut self` borrow. As long as the `&str` lives, the interner stays *mutably* borrowed: you can't call `intern` again, nor even `len`. There's no automatic downgrade to a shared borrow."),
+     ("rust", "Do all the mutation first and throw the results away. Then reborrow the interner as shared (`let interner = &*interner;`) and look every name up with `get`, which takes `&self`: shared borrows can coexist.")],
+    ("""A signature like `fn intern(&mut self, name: &str) -> &str` means the returned `&str` keeps `self` mutably borrowed for as long as it's used, even though it only reads. So the results of two calls can't be held at once. The fix splits the work into phases: intern everything (discarding the results), then turn the `&'i mut Interner` into a `&'i Interner` (`&*interner`, or a `let` with that type) and collect `get` results. Many shared borrows can coexist, and they can live for all of `'i` because the unique borrow is never used again. `intern_edges` must also read `len()` before taking those borrows, or compute it before them.
+
+The other classic fix is an API change: return a `Copy` id (`Symbol(u32)`) from `intern` and add `resolve(&self, Symbol) -> &str`. That's what `rustc` and the `string-interner` crate do.""", "O(n) expected", "O(1) extra"),
+    "`intern(&self, ..)` with interior mutability would let callers hold several results at once. What would the `names` storage have to guarantee for that to be sound?",
+    ["`&mut self -> &T` keeps `self` mutably borrowed while the `&T` lives.", "Mutate first, then reborrow as shared (`&*r`) for many readers.", "Ids are the other way out."],
+    rules=dict(methods=["clone", "to_owned", "leak"]),
+    wrong=dict(
+        counts_every_name=sub(INTERNER_SOLUTION, "    let added = interner.len() - before;\n", "    let added = 2 * edges.len() + before - before;\n"),
+        counts_before_interning=sub(INTERNER_SOLUTION, "    let before = interner.len();\n    for &(a, b) in edges {\n        interner.intern(a);\n        interner.intern(b);\n    }\n    let added = interner.len() - before;\n",
+                                    "    let added = interner.len();\n    for &(a, b) in edges {\n        interner.intern(a);\n        interner.intern(b);\n    }\n"),
+        swaps_edge_ends=sub(INTERNER_SOLUTION, "(interner.get(a).unwrap(), interner.get(b).unwrap())", "(interner.get(b).unwrap(), interner.get(a).unwrap())"),
+    ),
 ))
 
-P.append(fix(
-    "fix-read-after-clear", "Fix: keep the length, not the reference", "easy", "where-borrows-end", ["E0502"],
-    "`longest_then_clear` should clear the list and return the length of its longest word. It doesn't compile.",
-    """
-    /// Clears `words` and returns the length of the longest one (0 if empty).
-    pub fn longest_then_clear(words: &mut Vec<String>) -> usize {
-        let longest = words.iter().max_by_key(|w| w.len());
-        words.clear();
-        longest.map_or(0, |w| w.len())
+RUNS_DOC = r"""
+use std::io::{self, BufRead};
+
+/// Counts runs of consecutive lines with the same key. A line's key is the text before its first ':', or the
+/// whole line (without its line ending) when it has none. Returns each run's key and length, in order.
+"""
+
+RUNS_STARTER = RUNS_DOC + r"""pub fn key_runs<R: BufRead>(mut input: R) -> io::Result<Vec<(String, usize)>> {
+    let mut runs: Vec<(String, usize)> = Vec::new();
+    let mut buf = String::new();
+    let mut prev: Option<&str> = None;
+    let mut count = 0;
+    loop {
+        buf.clear();
+        if input.read_line(&mut buf)? == 0 {
+            break;
+        }
+        let line = buf.trim_end_matches(['\n', '\r']);
+        let key = line.split(':').next().unwrap_or(line);
+        if prev == Some(key) {
+            count += 1;
+        } else {
+            if let Some(p) = prev {
+                runs.push((p.to_string(), count));
+            }
+            prev = Some(key);
+            count = 1;
+        }
     }
-    """,
-    """
-    /// Clears `words` and returns the length of the longest one (0 if empty).
-    pub fn longest_then_clear(words: &mut Vec<String>) -> usize {
-        let longest = words.iter().map(|w| w.len()).max();
-        words.clear();
-        longest.unwrap_or(0)
+    if let Some(p) = prev {
+        runs.push((p.to_string(), count));
     }
+    Ok(runs)
+}
+"""
+
+RUNS_SOLUTION = RUNS_DOC + r"""pub fn key_runs<R: BufRead>(mut input: R) -> io::Result<Vec<(String, usize)>> {
+    let mut runs: Vec<(String, usize)> = Vec::new();
+    let mut buf = String::new();
+    let mut prev: Option<String> = None;
+    let mut count = 0;
+    loop {
+        buf.clear();
+        if input.read_line(&mut buf)? == 0 {
+            break;
+        }
+        let line = buf.trim_end_matches(['\n', '\r']);
+        let key = line.split(':').next().unwrap_or(line);
+        if prev.as_deref() == Some(key) {
+            count += 1;
+        } else {
+            if let Some(p) = prev.replace(key.to_string()) {
+                runs.push((p, count));
+            }
+            count = 1;
+        }
+    }
+    if let Some(p) = prev {
+        runs.push((p, count));
+    }
+    Ok(runs)
+}
+"""
+
+
+def runs_case(name, text, want):
+    shown = text.replace("\n", "\\n").replace("\r", "\\r")
+    exp = "vec![" + ", ".join(f'("{k}".to_string(), {n})' for k, n in want) + "]" if want else "Vec::<(String, usize)>::new()"
+    return T(name, f'input "{shown}"', f'key_runs("{shown}".as_bytes()).unwrap()', exp)
+
+
+P.append(fixp(
+    "fix-read-after-clear", "Fix: a reused buffer and a borrow of the last line", "easy", "where-borrows-end", ["E0502", "BufRead::read_line", "Option::replace", "allocation"],
+    """
+        `key_runs` reads lines into one reused `String`, the usual way to avoid an allocation per line. It
+        doesn't compile: the previous line's key is a slice of the buffer that `clear` and `read_line` are about
+        to overwrite. Fix it. Keep the single `read_line` buffer, and allocate once per run, not once per line:
+        a hidden test counts allocations.
     """,
-    [T("clears", "[\"a\", \"abc\"]", '{ let mut v = vec!["a".to_string(), "abc".to_string()]; let n = longest_then_clear(&mut v); (n, v.len()) }', "(3, 0)")],
-    [T("empty", "[]", "{ let mut v: Vec<String> = vec![]; longest_then_clear(&mut v) }", "0")],
-    [("rust", "`longest` points at a String that `clear` frees. What do you actually need from it?")],
-    ("Keeping a `usize` instead of a `&String` ends the borrow before `clear`.", "O(n)", "O(1)"),
-    "What would happen in C++ if you read `longest` after `clear()`?",
-    ["Hold the data you need, not a reference to it, across a mutation."],
-    rules=dict(methods=["clone"], lines=2),
+    RUNS_STARTER,
+    RUNS_SOLUTION,
+    [runs_case("example", "a:1\na:2\nb:3\na:4\n", [("a", 2), ("b", 1), ("a", 1)]),
+     runs_case("empty_input", "", []),
+     runs_case("no_colon_uses_whole_line", "x\nx\ny\n", [("x", 2), ("y", 1)]),
+     runs_case("first_colon_only", "k:v:w\nk:z\n", [("k", 2)]),
+     runs_case("no_final_newline", "a:1\nb:2", [("a", 1), ("b", 1)]),
+     runs_case("crlf", "a\r\na:2\r\n", [("a", 2)])],
+    [ALLOC_COUNTER,
+     runs_case("empty_lines", "\n\na\n", [("", 2), ("a", 1)]),
+     runs_case("empty_key", ":x\n:y\nz\n", [("", 2), ("z", 1)]),
+     runs_case("key_equals_line", "a\na:1\n", [("a", 2)]),
+     runs_case("single_line", "only", [("only", 1)]),
+     runs_case("alternating", "a\nb\na\nb\n", [("a", 1), ("b", 1), ("a", 1), ("b", 1)]),
+     runs_case("unicode_keys", "日本:1\n日本:2\né\n", [("日本", 2), ("é", 1)]),
+     runs_case("spaces_are_kept", " a:1\na:2\n", [(" a", 1), ("a", 1)]),
+     runs_case("lone_cr_kept_inside", "a\rb\n", [("a\\rb", 1)]),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6209);
+         for _ in 0..300 {
+             let n = rng.below(8);
+             let mut text = String::new();
+             for _ in 0..n {
+                 let len = rng.below(4);
+                 text.push_str(&rng.string(len, "ab:"));
+                 text.push('\n');
+             }
+             let mut want: Vec<(String, usize)> = Vec::new();
+             for line in text.lines() {
+                 let key = line.split(':').next().unwrap();
+                 match want.last_mut() {
+                     Some((k, c)) if k == key => *c += 1,
+                     _ => want.push((key.to_string(), 1)),
+                 }
+             }
+             check!(format!("input {text:?}"), key_runs(text.as_bytes()).unwrap(), want);
+         }
+     }
+
+     #[test]
+     fn allocates_per_run_not_per_line() {
+         let mut text = String::new();
+         for i in 0..200_000 {
+             text.push_str(&format!("key{}:{i}\n", i / 200));
+         }
+         let (runs, n) = allocs(|| key_runs(text.as_bytes()).unwrap());
+         check!("200000 lines in 1000 runs of 200", (runs.len(), runs[999].clone()), (1000, ("key999".to_string(), 200)));
+         check!("200000 lines in 1000 runs: at most 1100 allocations (one per line would be 200000)", n <= 1100, true);
+     }
+     """],
+    [("rust", "`prev` is a `&str` into `buf`, and the next turn of the loop clears and refills `buf` while `prev` is still needed. What must the run's key be, if the buffer can't hold it?"),
+     ("rust", "Own the key: `Option<String>`. Compare with `prev.as_deref() == Some(key)` so a repeated key costs nothing, and only on a new key swap the old one out with `prev.replace(key.to_string())`.")],
+    ("""Reusing one buffer is exactly what makes a slice of it short-lived: `clear` and `read_line` need `&mut buf`, so no `&str` into it may survive to the next line. The key that has to outlive the line becomes an owned `String`, but only when it changes: `prev.as_deref() == Some(key)` compares without allocating, and `Option::replace` stores the new key and hands back the old one to push, so there's one allocation per run. Allocating `key.to_string()` on every line would compile too, and cost one allocation per line.
+
+Syntax to remember: `while input.read_line(&mut buf)? != 0` (or `loop` with `buf.clear()` first) · `buf.trim_end_matches(['\\n', '\\r'])` · `prev.as_deref() == Some(key)` · `if let Some(old) = prev.replace(new) { .. }`.""", "O(total bytes)", "O(longest line + output)"),
+    "`BufRead::lines()` would make this compile with no thought at all. What does it cost, and when is that fine?",
+    ["A slice of a reused buffer can't outlive the next `clear`.", "Keep owned data only for what must survive, and only when it changes.", "`Option::replace` swaps in a new value and returns the old one."],
+    rules=dict(methods=["clone", "to_owned", "lines"]),
+    wrong=dict(
+        allocates_per_line=r"""
+            use std::io::{self, BufRead};
+
+            pub fn key_runs<R: BufRead>(mut input: R) -> io::Result<Vec<(String, usize)>> {
+                let mut runs: Vec<(String, usize)> = Vec::new();
+                let mut buf = String::new();
+                let mut prev: Option<String> = None;
+                let mut count = 0;
+                loop {
+                    buf.clear();
+                    if input.read_line(&mut buf)? == 0 {
+                        break;
+                    }
+                    let line = buf.trim_end_matches(['\n', '\r']);
+                    let key = line.split(':').next().unwrap_or(line).to_string();
+                    if prev.as_ref() == Some(&key) {
+                        count += 1;
+                    } else {
+                        if let Some(p) = prev.take() {
+                            runs.push((p, count));
+                        }
+                        count = 1;
+                    }
+                    prev = Some(key);
+                }
+                if let Some(p) = prev {
+                    runs.push((p, count));
+                }
+                Ok(runs)
+            }
+        """,
+        drops_the_last_run=sub(RUNS_SOLUTION, "    if let Some(p) = prev {\n        runs.push((p, count));\n    }\n", ""),
+        keeps_the_newline=sub(RUNS_SOLUTION, "let line = buf.trim_end_matches(['\\n', '\\r']);", "let line = buf.trim_end_matches('\\n');"),
+    ),
 ))
 
-P.append(write(
-    "entry-returns-a-borrow", "The entry API returns a borrow", "easy", "where-borrows-end", ["HashMap::entry", "lifetimes"],
-    "Return a `&mut Vec<u32>` for `key` in `map`, creating an empty one if needed.",
-    """
-    use std::collections::HashMap;
+INDEX_HEAD = r"""
+use std::collections::HashMap;
 
-    pub fn get_or_create<'m>(map: &'m mut HashMap<String, Vec<u32>>, key: &str) -> &'m mut Vec<u32> {
+pub struct Index {
+    postings: HashMap<String, Vec<u32>>,
+    hits: HashMap<String, u64>,
+}
+"""
+
+INDEX_STARTER = INDEX_HEAD + r"""
+impl Index {
+    pub fn new() -> Self {
+        Index { postings: HashMap::new(), hits: HashMap::new() }
+    }
+
+    /// Records that document `doc` contains each whitespace-separated word of `text`. A document is listed once
+    /// per word, and documents are added in increasing id order. Must not allocate a key for a word the index
+    /// already has.
+    pub fn add(&mut self, doc: u32, text: &str) {
         todo!()
     }
-    """,
-    """
-    use std::collections::HashMap;
 
-    pub fn get_or_create<'m>(map: &'m mut HashMap<String, Vec<u32>>, key: &str) -> &'m mut Vec<u32> {
-        map.entry(key.to_string()).or_default()
+    /// The documents containing `word`, in increasing order (empty if none).
+    pub fn docs(&self, word: &str) -> &[u32] {
+        todo!()
     }
+
+    /// The posting list of `word`, created empty if it's missing, for the caller to edit.
+    pub fn docs_mut(&mut self, word: &str) -> &mut Vec<u32> {
+        todo!()
+    }
+
+    /// Counts a lookup of `word` and returns how many times it has been looked up, this one included. Must not
+    /// allocate for a word looked up before.
+    pub fn hit(&mut self, word: &str) -> u64 {
+        todo!()
+    }
+
+    /// Removes `doc` from every posting list and drops lists that become empty. Returns how many lists changed.
+    pub fn remove_doc(&mut self, doc: u32) -> usize {
+        todo!()
+    }
+
+    /// How many words have a posting list.
+    pub fn words(&self) -> usize {
+        self.postings.len()
+    }
+}
+"""
+
+INDEX_SOLUTION = INDEX_HEAD + r"""
+impl Index {
+    pub fn new() -> Self {
+        Index { postings: HashMap::new(), hits: HashMap::new() }
+    }
+
+    /// Records that document `doc` contains each whitespace-separated word of `text`. A document is listed once
+    /// per word, and documents are added in increasing id order. Must not allocate a key for a word the index
+    /// already has.
+    pub fn add(&mut self, doc: u32, text: &str) {
+        for w in text.split_whitespace() {
+            match self.postings.get_mut(w) {
+                Some(list) => {
+                    if list.last() != Some(&doc) {
+                        list.push(doc);
+                    }
+                }
+                None => {
+                    self.postings.insert(w.to_string(), vec![doc]);
+                }
+            }
+        }
+    }
+
+    /// The documents containing `word`, in increasing order (empty if none).
+    pub fn docs(&self, word: &str) -> &[u32] {
+        self.postings.get(word).map_or(&[], Vec::as_slice)
+    }
+
+    /// The posting list of `word`, created empty if it's missing, for the caller to edit.
+    pub fn docs_mut(&mut self, word: &str) -> &mut Vec<u32> {
+        self.postings.entry(word.to_string()).or_default()
+    }
+
+    /// Counts a lookup of `word` and returns how many times it has been looked up, this one included. Must not
+    /// allocate for a word looked up before.
+    pub fn hit(&mut self, word: &str) -> u64 {
+        if let Some(n) = self.hits.get_mut(word) {
+            *n += 1;
+            return *n;
+        }
+        self.hits.insert(word.to_string(), 1);
+        1
+    }
+
+    /// Removes `doc` from every posting list and drops lists that become empty. Returns how many lists changed.
+    pub fn remove_doc(&mut self, doc: u32) -> usize {
+        let mut changed = 0;
+        self.postings.retain(|_, list| {
+            if let Ok(i) = list.binary_search(&doc) {
+                list.remove(i);
+                changed += 1;
+            }
+            !list.is_empty()
+        });
+        changed
+    }
+
+    /// How many words have a posting list.
+    pub fn words(&self) -> usize {
+        self.postings.len()
+    }
+}
+"""
+
+IX_SETUP = 'let mut ix = Index::new();\nix.add(1, "rust borrow check");\nix.add(2, "rust rust lifetimes");\nix.add(5, "borrow");'
+IX_DESC = 'add 1 "rust borrow check", 2 "rust rust lifetimes", 5 "borrow"'
+
+P.append(writep(
+    "entry-returns-a-borrow", "The entry API and when not to use it", "easy", "where-borrows-end", ["HashMap::entry", "get_mut", "or_default", "retain", "allocation"],
+    """
+        Write the methods of `Index`, an inverted index from words to the documents that contain them, plus a
+        count of lookups per word. Two methods must not allocate for a word they've seen before; a hidden test
+        counts allocations. `docs_mut` returns a borrow into the map that the caller edits.
     """,
-    [T("creates_and_reuses", "push 1 then 2 under \"a\"", '{ let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "a").push(1); get_or_create(&mut m, "a").push(2); m["a"].clone() }', "vec![1, 2]")],
-    [T("separate_keys", "\"a\" and \"b\"", '{ let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "a").push(1); get_or_create(&mut m, "b"); m.len() }', "2")],
-    [("rust", "`or_default()` returns `&mut V` borrowed from the map for `'m`.")],
-    ("One lookup, and the returned `&mut` keeps the map borrowed for as long as the caller uses it.", "O(1)", "O(1)"),
-    "Why does `entry` take the key by value?",
-    ["The entry API hands back a borrow into the map.", "Lifetimes connect the output to the map, not to the key."],
+    INDEX_STARTER,
+    INDEX_SOLUTION,
+    [T("docs_example", IX_DESC, '(ix.docs("rust"), ix.docs("borrow"), ix.docs("check"))', "(&[1u32, 2][..], &[1u32, 5][..], &[1u32][..])", setup=IX_SETUP),
+     T("unknown_word_is_empty", IX_DESC + "; docs(\"go\")", '(ix.docs("go"), ix.words())', "(&[][..], 4)", setup=IX_SETUP),
+     T("docs_mut_creates_and_edits", IX_DESC + "; docs_mut(\"go\").push(9); docs_mut(\"rust\").retain(|&d| d != 1)", '(ix.docs("go"), ix.docs("rust"))', "(&[9u32][..], &[2u32][..])",
+       setup=IX_SETUP + '\nix.docs_mut("go").push(9);\nix.docs_mut("rust").retain(|&d| d != 1);'),
+     T("hit_counts", "hit rust, rust, go, rust", '(ix.hit("rust"), ix.hit("rust"), ix.hit("go"), ix.hit("rust"))', "(1, 2, 1, 3)", setup="let mut ix = Index::new();"),
+     T("remove_doc", IX_DESC + "; remove_doc(1)", '(ix.remove_doc(1), ix.docs("rust"), ix.docs("check"), ix.words())', "(3, &[2u32][..], &[][..], 3)", setup=IX_SETUP),
+     T("repeated_word_listed_once", IX_DESC + "; docs(\"rust\") after doc 2 said it twice", 'ix.docs("rust")', "&[1u32, 2][..]", setup=IX_SETUP)],
+    [ALLOC_COUNTER,
+     T("remove_unknown_doc", IX_DESC + "; remove_doc(3)", "(ix.remove_doc(3), ix.words())", "(0, 4)", setup=IX_SETUP),
+     T("remove_all_docs", IX_DESC + "; remove_doc 1, 2, 5", "(ix.remove_doc(1), ix.remove_doc(2), ix.remove_doc(5), ix.words())", "(3, 2, 1, 0)", setup=IX_SETUP),
+     T("empty_text", "add 1 \"\", add 2 \"   \"", "ix.words()", "0", setup='let mut ix = Index::new();\nix.add(1, "");\nix.add(2, "   ");'),
+     T("case_sensitive", "add 1 \"Rust rust\"", '(ix.docs("Rust"), ix.docs("rust"), ix.docs("RUST"))', "(&[1u32][..], &[1u32][..], &[][..])", setup='let mut ix = Index::new();\nix.add(1, "Rust rust");'),
+     T("tabs_and_newlines", "add 3 \"a\\tb\\n a\"", '(ix.docs("a"), ix.docs("b"))', "(&[3u32][..], &[3u32][..])", setup='let mut ix = Index::new();\nix.add(3, "a\\tb\\n a");'),
+     T("hit_is_separate_from_docs", IX_DESC + "; hit(\"rust\")", '(ix.hit("rust"), ix.docs("rust"))', "(1, &[1u32, 2][..])", setup=IX_SETUP),
+     T("docs_mut_existing_keeps_list", IX_DESC + "; docs_mut(\"borrow\") without editing", '{ ix.docs_mut("borrow"); (ix.docs("borrow"), ix.words()) }', "(&[1u32, 5][..], 4)", setup=IX_SETUP),
+     T("docs_mut_missing_then_empty", "docs_mut(\"x\") on a new index", '{ ix.docs_mut("x"); (ix.docs("x"), ix.words()) }', "(&[][..], 1)", setup="let mut ix = Index::new();"),
+     T("unicode_words", "add 4 \"日本 café 日本\"", '(ix.docs("日本"), ix.docs("café"))', "(&[4u32][..], &[4u32][..])", setup='let mut ix = Index::new();\nix.add(4, "日本 café 日本");'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         use std::collections::BTreeMap;
+         let mut rng = anneal_prelude::Rng::new(6210);
+         for _ in 0..200 {
+             let mut ix = Index::new();
+             let mut model: BTreeMap<String, Vec<u32>> = BTreeMap::new();
+             let mut ops = Vec::new();
+             let mut doc = 0;
+             for _ in 0..8 {
+                 if rng.below(3) > 0 {
+                     doc += 1 + rng.below(2) as u32;
+                     let len = rng.below(8);
+                     let text = rng.string(len, "ab c");
+                     ix.add(doc, &text);
+                     for w in text.split_whitespace() {
+                         let list = model.entry(w.to_string()).or_default();
+                         if list.last() != Some(&doc) {
+                             list.push(doc);
+                         }
+                     }
+                     ops.push(format!("add {doc} {text:?}"));
+                 } else {
+                     let d = 1 + rng.below(doc as usize + 1) as u32;
+                     let mut changed = 0;
+                     model.retain(|_, list| {
+                         if let Some(i) = list.iter().position(|&x| x == d) {
+                             list.remove(i);
+                             changed += 1;
+                         }
+                         !list.is_empty()
+                     });
+                     ops.push(format!("remove_doc {d}"));
+                     check!(ops.join(", "), ix.remove_doc(d), changed);
+                 }
+             }
+             check!(format!("{}; words()", ops.join(", ")), ix.words(), model.len());
+             for w in ["a", "b", "ab", "ba", "c", "zz"] {
+                 let want: &[u32] = model.get(w).map_or(&[], |v| v.as_slice());
+                 check!(format!("{}; docs({w:?})", ops.join(", ")), ix.docs(w), want);
+             }
+         }
+     }
+
+     #[test]
+     fn known_words_do_not_allocate() {
+         let mut ix = Index::new();
+         let words = ["alpha", "beta", "gamma", "delta"];
+         for w in words {
+             ix.hit(w);
+         }
+         let (_, n) = allocs(|| {
+             for i in 0..100_000 {
+                 ix.hit(words[i % 4]);
+             }
+         });
+         check!("100000 hits on 4 known words: allocations", n, 0);
+         check!("hits on alpha", ix.hit("alpha"), 25_002);
+         let text = words.repeat(25_000).join(" ");
+         ix.add(1, &text);
+         let (_, n) = allocs(|| ix.add(2, &text));
+         check!("add(2, 100000 words, 4 known): at most 16 allocations (a key per word would be 100000)", n <= 16, true);
+         check!("docs(gamma)", ix.docs("gamma"), &[1u32, 2][..]);
+     }
+     """],
+    [("rust", "`entry(key)` needs an owned key, so `entry(w.to_string())` allocates on every call, hit or miss. `get_mut(w)` looks up by `&str` (a `HashMap<String, _>` accepts any `&Q` where `String: Borrow<Q>`), and you insert only on a miss."),
+     ("rust", "`if let Some(n) = map.get_mut(k) { .. return *n; }` then `insert` compiles: what's returned is a copy, not a borrow. `docs_mut` has to return a borrow, and there `entry(..).or_default()` is the simple answer."),
+     ("rust", "`HashMap::retain(|k, v| ..)` hands the closure `&mut V`, so it can edit each list before deciding whether to keep it.")],
+    ("""The entry API does one lookup and returns `&mut V` borrowed from the map, which is what `docs_mut` needs: `entry(word.to_string()).or_default()`. Its cost is the owned key, built on every call. On a hot path where most keys already exist, look up by `&str` first: `get_mut` for the hit, `insert` for the miss. That shape compiles because the hit branch returns a number, not a borrow; returning the `&mut` from `get_mut` early and inserting otherwise is the borrow checker's known blind spot (NLL problem case 3, in the Hard stage). `docs` returns a slice borrowed from `&self`; `map_or(&[], Vec::as_slice)` gives an empty slice for a missing word.
+
+Syntax to remember: `map.entry(k).or_default()` · `map.entry(k).and_modify(|n| *n += 1).or_insert(1)` (also allocates `k` every time) · `map.get(word).map_or(&[], Vec::as_slice)` · `map.retain(|_, v| { ..; !v.is_empty() })`.""", "O(words) for add; O(1) expected per lookup; O(total postings) remove_doc", "O(1) extra"),
+    "`hashbrown`'s `entry_ref` takes a borrowed key and allocates only on insert. Why can't std's `entry` do that with its current signature?",
+    ["`entry` returns a borrow into the map, but costs an owned key.", "`get_mut` then `insert` avoids the allocation for hits.", "`retain` edits and filters a map in place."],
     related=("L2", "S4"),
+    wrong=dict(
+        hit_through_entry=sub(INDEX_SOLUTION, "        if let Some(n) = self.hits.get_mut(word) {\n            *n += 1;\n            return *n;\n        }\n        self.hits.insert(word.to_string(), 1);\n        1",
+                              "        *self.hits.entry(word.to_string()).and_modify(|n| *n += 1).or_insert(1)"),
+        add_through_entry=sub(INDEX_SOLUTION, "            match self.postings.get_mut(w) {\n                Some(list) => {\n                    if list.last() != Some(&doc) {\n                        list.push(doc);\n                    }\n                }\n                None => {\n                    self.postings.insert(w.to_string(), vec![doc]);\n                }\n            }",
+                              "            let list = self.postings.entry(w.to_string()).or_default();\n            if list.last() != Some(&doc) {\n                list.push(doc);\n            }"),
+        lists_a_doc_twice=sub(INDEX_SOLUTION, "                    if list.last() != Some(&doc) {\n                        list.push(doc);\n                    }", "                    list.push(doc);"),
+        keeps_empty_lists=sub(INDEX_SOLUTION, "            !list.is_empty()\n", "            true\n"),
+    ),
 ))
 
 # ---------------------------------------------------------------- reborrows (medium)
@@ -2310,10 +2959,6 @@ P.append(fix(
 
 
 EXTRA = {
-    "fix-borrow-kept-alive": T("mixed_case", "names = [\"Rust\", \"go\", \"C\"]", '{ let mut v = vec!["Rust".to_string(), "go".to_string(), "C".to_string()]; shout_first(&mut v); v }', 'vec!["RUST!".to_string(), "go!".to_string(), "C!".to_string()]'),
-    "end-borrow-before-mutating": T("first_longest_wins", "[\"ab\", \"cd\"]", '{ let mut v = vec!["ab".to_string(), "cd".to_string()]; append_longest(&mut v); v.last().cloned() }', 'Some("cd!".to_string())'),
-    "fix-read-after-clear": T("single", "[\"hello\"]", '{ let mut v = vec!["hello".to_string()]; longest_then_clear(&mut v) }', "5"),
-    "entry-returns-a-borrow": T("existing_kept", "\"k\" already maps to [9]", '{ let mut m = std::collections::HashMap::from([("k".to_string(), vec![9])]); get_or_create(&mut m, "k").push(1); m["k"].clone() }', "vec![9, 1]"),
     "helpers-take-mut": T("both_trimmed", "\" Go\", \"GO  \"", '{ let (mut a, mut b) = (" Go".to_string(), "GO  ".to_string()); (same_after_normalizing(&mut a, &mut b), b) }', '(true, "go".to_string())'),
     "two-phase-borrows": T("zero_times", "v = [4], n = 0", "{ let mut v = vec![4]; push_lengths(&mut v, 0); v }", "vec![4]"),
     "fix-two-mut-into-players": T("backwards", "scores [0, 10], move 10 from 1 to 0", "{ let mut p = [Player { score: 0 }, Player { score: 10 }]; transfer(&mut p, 1, 0, 10); (p[0].score, p[1].score) }", "(10, 0)"),
@@ -2342,223 +2987,6 @@ for p in P:
 # comparison against a brute-force model, a scale test where complexity matters, and `wrong` solutions that
 # `anneal verify` checks the tests reject. Fix-mode wrong solutions obey the problem's rules.
 MORE = {}
-
-MORE["fix-borrow-kept-alive"] = dict(
-    visible=[
-        T("already_upper", "names = [\"ABC\", \"d\"]", '{ let mut v = vec!["ABC".to_string(), "d".to_string()]; shout_first(&mut v); v }', 'vec!["ABC!".to_string(), "d!".to_string()]'),
-        T("only_first_uppercased", "names = [\"a\", \"b\", \"c\"]", '{ let mut v = vec!["a".to_string(), "b".to_string(), "c".to_string()]; shout_first(&mut v); v }', 'vec!["A!".to_string(), "b!".to_string(), "c!".to_string()]'),
-        T("one", "names = [\"x\"]", '{ let mut v = vec!["x".to_string()]; shout_first(&mut v); v }', 'vec!["X!".to_string()]'),
-    ],
-    hidden=[
-        T("ascii_only", "names = [\"straße\", \"b\"]", '{ let mut v = vec!["straße".to_string(), "b".to_string()]; shout_first(&mut v); v }', 'vec!["STRAßE!".to_string(), "b!".to_string()]'),
-        T("accents_untouched", "names = [\"é\"]", '{ let mut v = vec!["é".to_string()]; shout_first(&mut v); v }', 'vec!["é!".to_string()]'),
-        T("letters_and_digits", "names = [\"a1b2\"]", '{ let mut v = vec!["a1b2".to_string()]; shout_first(&mut v); v }', 'vec!["A1B2!".to_string()]'),
-        T("empty_first", "names = [\"\", \"x\"]", '{ let mut v = vec![String::new(), "x".to_string()]; shout_first(&mut v); v }', 'vec!["!".to_string(), "x!".to_string()]'),
-        T("duplicates", "names = [\"x\", \"x\"]", '{ let mut v = vec!["x".to_string(), "x".to_string()]; shout_first(&mut v); v }', 'vec!["X!".to_string(), "x!".to_string()]'),
-        T("spaces", "names = [\"hi there\"]", '{ let mut v = vec!["hi there".to_string()]; shout_first(&mut v); v }', 'vec!["HI THERE!".to_string()]'),
-        T("many", "1000 names \"n\"", '{ let mut v = vec!["n".to_string(); 1000]; shout_first(&mut v); (v.len(), v[0].clone(), v[999].clone()) }', '(1000, "N!".to_string(), "n!".to_string())'),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2007);
-            for _ in 0..300 {
-                let n = 1 + rng.below(5);
-                let names: Vec<String> = (0..n).map(|_| { let l = rng.below(4); rng.string(l, "abXY1é") }).collect();
-                let want: Vec<String> = names.iter().enumerate().map(|(i, s)| if i == 0 { format!("{}!", s.to_ascii_uppercase()) } else { format!("{s}!") }).collect();
-                let mut got = names.clone();
-                shout_first(&mut got);
-                check!(format!("names = {names:?}"), got, want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        unicode_uppercase="""
-            /// Uppercases the first name, then appends "!" to every name.
-            pub fn shout_first(names: &mut Vec<String>) {
-                for n in names.iter_mut() {
-                    n.push('!');
-                }
-                names[0] = names[0].to_uppercase();
-            }
-        """,
-    ),
-)
-
-MORE["end-borrow-before-mutating"] = dict(
-    visible=[
-        T("single", "[\"x\"]", '{ let mut v = vec!["x".to_string()]; append_longest(&mut v); v }', 'vec!["x".to_string(), "x!".to_string()]'),
-        T("longest_first", "[\"abc\", \"a\", \"b\"]", '{ let mut v = vec!["abc".to_string(), "a".to_string(), "b".to_string()]; append_longest(&mut v); v }', 'vec!["abc".to_string(), "a".to_string(), "b".to_string(), "abc!".to_string()]'),
-        T("empty", "[]", "{ let mut v: Vec<String> = vec![]; append_longest(&mut v); v.len() }", "0"),
-    ],
-    hidden=[
-        T("longest_in_middle", "[\"a\", \"abcd\", \"ab\"]", '{ let mut v = vec!["a".to_string(), "abcd".to_string(), "ab".to_string()]; append_longest(&mut v); v.last().cloned() }', 'Some("abcd!".to_string())'),
-        T("tie_takes_last", "[\"aa\", \"bb\", \"c\"]", '{ let mut v = vec!["aa".to_string(), "bb".to_string(), "c".to_string()]; append_longest(&mut v); v.last().cloned() }', 'Some("bb!".to_string())'),
-        T("empty_word", "[\"\"]", '{ let mut v = vec![String::new()]; append_longest(&mut v); v }', 'vec![String::new(), "!".to_string()]'),
-        T("unicode", "[\"日本語\", \"ab\"]", '{ let mut v = vec!["日本語".to_string(), "ab".to_string()]; append_longest(&mut v); v.last().cloned() }', 'Some("日本語!".to_string())'),
-        T("grows_by_one", "10 words", "{ let mut v: Vec<String> = (0..10).map(|i| i.to_string()).collect(); append_longest(&mut v); v.len() }", "11"),
-        T("original_untouched", "[\"b\", \"aaa\", \"c\"]", '{ let mut v = vec!["b".to_string(), "aaa".to_string(), "c".to_string()]; append_longest(&mut v); v }', 'vec!["b".to_string(), "aaa".to_string(), "c".to_string(), "aaa!".to_string()]'),
-        T("called_twice", "[\"ab\"], twice", '{ let mut v = vec!["ab".to_string()]; append_longest(&mut v); append_longest(&mut v); v }', 'vec!["ab".to_string(), "ab!".to_string(), "ab!!".to_string()]'),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2008);
-            for _ in 0..300 {
-                let n = rng.below(6);
-                let words: Vec<String> = (0..n).map(|_| { let l = rng.below(5); rng.string(l, "ab") }).collect();
-                let mut want = words.clone();
-                if let Some(m) = words.iter().map(|w| w.len()).max() {
-                    let i = words.iter().rposition(|w| w.len() == m).unwrap();
-                    want.push(format!("{}!", words[i]));
-                }
-                let mut got = words.clone();
-                append_longest(&mut got);
-                check!(format!("words = {words:?}"), got, want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        first_longest="""
-            pub fn append_longest(words: &mut Vec<String>) {
-                let shouted = match words.iter().reduce(|a, b| if b.len() > a.len() { b } else { a }) {
-                    Some(longest) => format!("{longest}!"),
-                    None => return,
-                };
-                words.push(shouted);
-            }
-        """,
-        shouts_on_empty="""
-            pub fn append_longest(words: &mut Vec<String>) {
-                let longest = words.iter().max_by_key(|w| w.len()).map_or("", |w| w.as_str());
-                let shouted = format!("{longest}!");
-                words.push(shouted);
-            }
-        """,
-    ),
-)
-
-MORE["fix-read-after-clear"] = dict(
-    visible=[
-        T("tie", "[\"ab\", \"cd\", \"e\"]", '{ let mut v = vec!["ab".to_string(), "cd".to_string(), "e".to_string()]; let n = longest_then_clear(&mut v); (n, v.len()) }', "(2, 0)"),
-        T("longest_first", "[\"ccc\", \"a\"]", '{ let mut v = vec!["ccc".to_string(), "a".to_string()]; longest_then_clear(&mut v) }', "3"),
-        T("empty", "[]", "{ let mut v: Vec<String> = vec![]; longest_then_clear(&mut v) }", "0"),
-    ],
-    hidden=[
-        T("empty_strings", "[\"\", \"\"]", "{ let mut v = vec![String::new(), String::new()]; longest_then_clear(&mut v) }", "0"),
-        T("unicode_bytes", "[\"日本\"]", '{ let mut v = vec!["日本".to_string()]; longest_then_clear(&mut v) }', "6"),
-        T("longest_last", "[\"a\", \"bb\", \"ccc\"]", '{ let mut v = vec!["a".to_string(), "bb".to_string(), "ccc".to_string()]; longest_then_clear(&mut v) }', "3"),
-        T("reuse_after_clear", "clear, push \"z\", clear again", '{ let mut v = vec!["abc".to_string()]; longest_then_clear(&mut v); v.push("z".to_string()); (longest_then_clear(&mut v), v.is_empty()) }', "(1, true)"),
-        T("many", "1000 words of lengths i % 50", '{ let mut v: Vec<String> = (0..1000).map(|i| "x".repeat(i % 50)).collect(); (longest_then_clear(&mut v), v.len()) }', "(49, 0)"),
-        T("one_long_many_short", "[\"a\" × 5, \"abcdefgh\"]", '{ let mut v = vec!["a".to_string(); 5]; v.push("abcdefgh".to_string()); longest_then_clear(&mut v) }', "8"),
-        T("single_empty", "[\"\"]", "{ let mut v = vec![String::new()]; (longest_then_clear(&mut v), v.len()) }", "(0, 0)"),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2009);
-            for _ in 0..300 {
-                let n = rng.below(8);
-                let words: Vec<String> = (0..n).map(|_| { let l = rng.below(6); rng.string(l, "aé") }).collect();
-                let want = words.iter().map(|w| w.len()).max().unwrap_or(0);
-                let mut v = words.clone();
-                let got = longest_then_clear(&mut v);
-                check!(format!("words = {words:?}"), (got, v.len()), (want, 0));
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        count_not_length="""
-            /// Clears `words` and returns the length of the longest one (0 if empty).
-            pub fn longest_then_clear(words: &mut Vec<String>) -> usize {
-                let longest = words.len();
-                words.clear();
-                longest
-            }
-        """,
-        first_word="""
-            /// Clears `words` and returns the length of the longest one (0 if empty).
-            pub fn longest_then_clear(words: &mut Vec<String>) -> usize {
-                let longest = words.first().map(|w| w.len());
-                words.clear();
-                longest.unwrap_or(0)
-            }
-        """,
-    ),
-)
-
-MORE["entry-returns-a-borrow"] = dict(
-    visible=[
-        T("new_is_empty", "missing key \"n\"", '{ let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "n").is_empty() }', "true"),
-        T("does_not_replace", "\"k\" already maps to [1, 2]", '{ let mut m = std::collections::HashMap::from([("k".to_string(), vec![1, 2])]); get_or_create(&mut m, "k").len() }', "2"),
-        T("separate_keys", "\"a\" and \"b\"", '{ let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "a").push(1); get_or_create(&mut m, "b"); m.len() }', "2"),
-    ],
-    hidden=[
-        T("empty_key", "key \"\"", '{ let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "").push(5); m[""].clone() }', "vec![5]"),
-        T("unicode_key", "key \"ключ\"", '{ let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "ключ").push(1); m.contains_key("ключ") }', "true"),
-        T("mutate_through_return", "extend then retain", '{ let mut m = std::collections::HashMap::new(); let v = get_or_create(&mut m, "a"); v.extend([1, 2, 3]); v.retain(|&x| x != 2); m["a"].clone() }', "vec![1, 3]"),
-        T("case_sensitive", "\"a\" and \"A\"", '{ let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "a"); get_or_create(&mut m, "A"); m.len() }', "2"),
-        T("many_keys", "10000 keys", "{ let mut m = std::collections::HashMap::new(); for i in 0..10_000u32 { get_or_create(&mut m, &i.to_string()).push(i); } (m.len(), m[\"9999\"].clone()) }", "(10_000, vec![9999])"),
-        T("other_keys_untouched", "{a: [1]}, create \"b\"", '{ let mut m = std::collections::HashMap::from([("a".to_string(), vec![1])]); get_or_create(&mut m, "b").push(2); (m["a"].clone(), m["b"].clone()) }', "(vec![1], vec![2])"),
-        T("max_value", "push u32::MAX", '{ let mut m = std::collections::HashMap::new(); get_or_create(&mut m, "x").push(u32::MAX); m["x"].clone() }', "vec![u32::MAX]"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2010);
-            for _ in 0..200 {
-                let mut m: std::collections::HashMap<String, Vec<u32>> = std::collections::HashMap::new();
-                let mut model: Vec<(String, Vec<u32>)> = Vec::new();
-                let mut log = Vec::new();
-                let n = rng.below(12);
-                for _ in 0..n {
-                    let key = rng.string(1, "abc");
-                    let x = rng.below(100) as u32;
-                    let push = rng.bool();
-                    let v = get_or_create(&mut m, &key);
-                    if push {
-                        v.push(x);
-                    }
-                    let pos = match model.iter().position(|(k, _)| *k == key) {
-                        Some(p) => p,
-                        None => {
-                            model.push((key.clone(), vec![]));
-                            model.len() - 1
-                        }
-                    };
-                    if push {
-                        model[pos].1.push(x);
-                    }
-                    log.push(if push { format!("{key} push {x}") } else { key.clone() });
-                }
-                let mut got: Vec<(String, Vec<u32>)> = m.into_iter().collect();
-                got.sort();
-                model.sort();
-                check!(log.join(", "), got, model);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        replaces_existing="""
-            use std::collections::HashMap;
-
-            pub fn get_or_create<'m>(map: &'m mut HashMap<String, Vec<u32>>, key: &str) -> &'m mut Vec<u32> {
-                map.insert(key.to_string(), Vec::new());
-                map.get_mut(key).unwrap()
-            }
-        """,
-        forgets_to_insert="""
-            use std::collections::HashMap;
-
-            pub fn get_or_create<'m>(map: &'m mut HashMap<String, Vec<u32>>, key: &str) -> &'m mut Vec<u32> {
-                if !map.contains_key(key) {
-                    return Box::leak(Box::new(Vec::new()));
-                }
-                map.get_mut(key).unwrap()
-            }
-        """,
-    ),
-)
 
 MORE["fix-moved-mut-into-generic"] = dict(
     visible=[

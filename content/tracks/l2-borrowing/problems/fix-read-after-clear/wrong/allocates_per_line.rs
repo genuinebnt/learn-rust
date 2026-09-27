@@ -1,11 +1,9 @@
 use std::io::{self, BufRead};
 
-/// Counts runs of consecutive lines with the same key. A line's key is the text before its first ':', or the
-/// whole line (without its line ending) when it has none. Returns each run's key and length, in order.
 pub fn key_runs<R: BufRead>(mut input: R) -> io::Result<Vec<(String, usize)>> {
     let mut runs: Vec<(String, usize)> = Vec::new();
     let mut buf = String::new();
-    let mut prev: Option<&str> = None;
+    let mut prev: Option<String> = None;
     let mut count = 0;
     loop {
         buf.clear();
@@ -13,19 +11,19 @@ pub fn key_runs<R: BufRead>(mut input: R) -> io::Result<Vec<(String, usize)>> {
             break;
         }
         let line = buf.trim_end_matches(['\n', '\r']);
-        let key = line.split(':').next().unwrap_or(line);
-        if prev == Some(key) {
+        let key = line.split(':').next().unwrap_or(line).to_string();
+        if prev.as_ref() == Some(&key) {
             count += 1;
         } else {
-            if let Some(p) = prev {
-                runs.push((p.to_string(), count));
+            if let Some(p) = prev.take() {
+                runs.push((p, count));
             }
-            prev = Some(key);
             count = 1;
         }
+        prev = Some(key);
     }
     if let Some(p) = prev {
-        runs.push((p.to_string(), count));
+        runs.push((p, count));
     }
     Ok(runs)
 }

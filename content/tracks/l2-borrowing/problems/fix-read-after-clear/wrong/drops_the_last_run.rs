@@ -5,7 +5,7 @@ use std::io::{self, BufRead};
 pub fn key_runs<R: BufRead>(mut input: R) -> io::Result<Vec<(String, usize)>> {
     let mut runs: Vec<(String, usize)> = Vec::new();
     let mut buf = String::new();
-    let mut prev: Option<&str> = None;
+    let mut prev: Option<String> = None;
     let mut count = 0;
     loop {
         buf.clear();
@@ -14,18 +14,14 @@ pub fn key_runs<R: BufRead>(mut input: R) -> io::Result<Vec<(String, usize)>> {
         }
         let line = buf.trim_end_matches(['\n', '\r']);
         let key = line.split(':').next().unwrap_or(line);
-        if prev == Some(key) {
+        if prev.as_deref() == Some(key) {
             count += 1;
         } else {
-            if let Some(p) = prev {
-                runs.push((p.to_string(), count));
+            if let Some(p) = prev.replace(key.to_string()) {
+                runs.push((p, count));
             }
-            prev = Some(key);
             count = 1;
         }
-    }
-    if let Some(p) = prev {
-        runs.push((p.to_string(), count));
     }
     Ok(runs)
 }

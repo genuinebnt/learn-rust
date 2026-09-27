@@ -1,8 +1,45 @@
-/// Uppercases the first name, then appends "!" to every name.
-pub fn shout_first(names: &mut Vec<String>) {
-    let first = &mut names[0];
-    first.make_ascii_uppercase();
-    for n in names.iter_mut() {
-        n.push('!');
+/// Collects lines and appends them to `out` when it's dropped.
+pub struct Batch<'a> {
+    out: &'a mut Vec<String>,
+    buf: Vec<String>,
+}
+
+impl<'a> Batch<'a> {
+    pub fn new(out: &'a mut Vec<String>) -> Self {
+        Batch { out, buf: Vec::new() }
     }
+
+    pub fn line(&mut self, s: String) {
+        self.buf.push(s);
+    }
+}
+
+impl Drop for Batch<'_> {
+    fn drop(&mut self) {
+        self.out.append(&mut self.buf);
+    }
+}
+
+/// Renders `items` into `out`:
+/// - if `out` already has lines, its first line is a title: append " (cont.)" to it; otherwise push "untitled";
+/// - push each item as "- <item>";
+/// - through a `Batch`, add "<n> items, longest: <item>", naming the first of the longest items (by bytes), or
+///   "-" when there are none.
+/// Returns how many lines `out` has afterwards.
+pub fn render(out: &mut Vec<String>, items: &[&str]) -> usize {
+    match out.first_mut() {
+        Some(title) => title.push_str(" (cont.)"),
+        None => out.push("untitled".to_string()),
+    }
+    let mut longest: Option<&str> = None;
+    for item in items {
+        out.push(format!("- {item}"));
+        if longest.map_or(true, |l| item.len() > l.len()) {
+            longest = Some(item);
+        }
+    }
+    let mut batch = Batch::new(out);
+    batch.line(format!("{} items, longest: {}", items.len(), longest.unwrap_or("-")));
+    drop(batch);
+    out.len()
 }

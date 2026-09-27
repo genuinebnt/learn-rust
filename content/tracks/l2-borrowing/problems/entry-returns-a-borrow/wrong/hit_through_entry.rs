@@ -41,12 +41,7 @@ impl Index {
     /// Counts a lookup of `word` and returns how many times it has been looked up, this one included. Must not
     /// allocate for a word looked up before.
     pub fn hit(&mut self, word: &str) -> u64 {
-        if let Some(n) = self.hits.get_mut(word) {
-            *n += 1;
-            return *n;
-        }
-        self.hits.insert(word.to_string(), 1);
-        1
+        *self.hits.entry(word.to_string()).and_modify(|n| *n += 1).or_insert(1)
     }
 
     /// Removes `doc` from every posting list and drops lists that become empty. Returns how many lists changed.

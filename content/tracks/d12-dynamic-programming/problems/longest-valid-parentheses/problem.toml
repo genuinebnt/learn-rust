@@ -1,0 +1,41 @@
+slug = "longest-valid-parentheses"
+title = "Longest valid parentheses"
+mode = "write"
+level = "hard"
+stage = "hard-strings"
+order = 51
+status = "ready"
+tags = ["1-D DP", "as_bytes", "parentheses"]
+companies = ["Amazon", "Google", "Meta", "Microsoft", "Bloomberg", "ByteDance"]
+teaches = [
+  "`dp[i]` = the longest valid run ending exactly at i, and jumping back over it to find the matching `(`.",
+  "`checked_sub` for an index that might go below zero.",
+]
+constraints = ["0 ≤ s.len() ≤ 2·10⁵", "s holds only '(' and ')'"]
+follow_up = "Can you do it in O(1) extra space? (Count opens and closes left to right, then right to left.)"
+related = ["D3"]
+
+[[examples]]
+input = "s = \")()())\""
+output = "4 (\"()()\")"
+
+[[examples]]
+input = "s = \"(()\""
+output = "2"
+
+[[hints]]
+kind = "approach"
+text = "Let run[i] be the longest valid substring that ends exactly at i. Only a ')' can end one: it either closes the '(' right before it, or the '(' just before the valid run that ends at i - 1."
+
+[[hints]]
+kind = "rust"
+text = "Work on `s.as_bytes()`. `i.checked_sub(run[i - 1] + 1)` gives the index of the '(' to look for, or `None` if it would fall off the front."
+
+[[hints]]
+kind = "edge case"
+text = "After matching, add the run that ends just before that '(' as well: \"()(())\" is 6, not 4. Unmatched brackets anywhere break a run: \"()(()\" is 2."
+
+[solution]
+explanation = "Each ')' looks at one earlier position, found by skipping the valid run before it, and then glues on the run before that. A stack of indices, or two counter passes (left to right and right to left), also work in O(n)."
+time = "O(n)"
+space = "O(n)"

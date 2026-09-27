@@ -1,0 +1,41 @@
+slug = "wildcard-matching"
+title = "Wildcard matching"
+mode = "write"
+level = "hard"
+stage = "hard-strings"
+order = 52
+status = "ready"
+tags = ["2-D DP", "rolling row", "chars"]
+companies = ["Google", "Meta", "Amazon", "Microsoft", "Apple", "Bloomberg"]
+teaches = [
+  "`match[i][j]` over prefixes, where `*` either matches nothing or eats one more character.",
+  "Keeping only the previous row, and collecting `chars()` so `?` matches a whole character.",
+]
+constraints = ["0 ≤ s.chars().count(), p.chars().count() ≤ 4000"]
+follow_up = "There's also a greedy two-pointer method that remembers only the last '*'. Why is backing up to the last star enough?"
+related = ["D2", "D11"]
+
+[[examples]]
+input = "s = \"adceb\", p = \"*a*b\""
+output = "true"
+
+[[examples]]
+input = "s = \"cb\", p = \"?a\""
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "match(i, j): do the first i characters of s match the first j of p? A '*' either matches nothing, match(i, j - 1), or takes one more character, match(i - 1, j). A '?' or equal character needs match(i - 1, j - 1)."
+
+[[hints]]
+kind = "rust"
+text = "Collect both into `Vec<char>` first. Row i only needs row i - 1, so keep two `Vec<bool>`s of length p.len() + 1."
+
+[[hints]]
+kind = "edge case"
+text = "The empty string still matches a pattern of only '*'s, so the first row is true while the pattern starts with stars. Letting a '*' grab greedily without backing off fails on \"adceb\" / \"*a*b\"."
+
+[solution]
+explanation = "Trying every split for each '*' is exponential. The table has (n + 1)(m + 1) cells, each an O(1) look at its neighbours, because \"'*' takes one more character\" stays in the same column."
+time = "O(n · m)"
+space = "O(m)"

@@ -6644,6 +6644,528 @@ P.append(dict(
     related=["D11", "D13"],
 ))
 
+# ---------------------------------------------------------------- Hard strings (hard)
+
+
+P.append(dict(
+    slug="longest-valid-parentheses", title="Longest valid parentheses", level="hard", stage="hard-strings",
+    tags=["1-D DP", "as_bytes", "parentheses"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "Bloomberg", "ByteDance"],
+    teaches=["`dp[i]` = the longest valid run ending exactly at i, and jumping back over it to find the matching `(`.",
+             "`checked_sub` for an index that might go below zero."],
+    statement="""
+        `s` contains only `(` and `)`. Return the length of the longest substring (a contiguous
+        run) that is a well-formed parentheses string.
+    """,
+    examples=[("s = \")()())\"", "4 (\"()()\")"), ("s = \"(()\"", "2")],
+    constraints=["0 ≤ s.len() ≤ 2·10⁵", "s holds only '(' and ')'"],
+    starter="""
+        pub fn longest_valid_parentheses(s: &str) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn longest_valid_parentheses(s: &str) -> usize {
+            let b = s.as_bytes();
+            // run[i] = the length of the longest valid substring ending exactly at i.
+            let mut run = vec![0usize; b.len()];
+            for i in 1..b.len() {
+                if b[i] != b')' {
+                    continue;
+                }
+                // Jump back over the valid run ending at i - 1 (empty if b[i - 1] is '(').
+                // The byte before it must be the '(' that this ')' closes.
+                if let Some(open) = i.checked_sub(run[i - 1] + 1) {
+                    if b[open] == b'(' {
+                        // The run ending just before that '(' joins on too: "()" + "(())".
+                        let before = if open > 0 { run[open - 1] } else { 0 };
+                        run[i] = run[i - 1] + 2 + before;
+                    }
+                }
+            }
+            run.into_iter().max().unwrap_or(0)
+        }
+    """,
+    visible=[
+        T("leetcode_open_first", "s = \"(()\"", 'longest_valid_parentheses("(()")', "2"),
+        T("leetcode_middle", "s = \")()())\"", 'longest_valid_parentheses(")()())")', "4"),
+        T("leetcode_empty", "s = \"\"", 'longest_valid_parentheses("")', "0"),
+        T("must_be_contiguous", "s = \"()(()\"", 'longest_valid_parentheses("()(()")', "2"),
+        T("nested_after_pair", "s = \"()(())\"", 'longest_valid_parentheses("()(())")', "6"),
+    ],
+    hidden=[
+        T("empty", "s = \"\"", 'longest_valid_parentheses("")', "0"),
+        T("single_open", "s = \"(\"", 'longest_valid_parentheses("(")', "0"),
+        T("single_close", "s = \")\"", 'longest_valid_parentheses(")")', "0"),
+        T("backwards_pair", "s = \")(\"", 'longest_valid_parentheses(")(")', "0"),
+        T("all_open", "s = \"((((\"", 'longest_valid_parentheses("((((")', "0"),
+        T("nested_inside", "s = \"(()())\"", 'longest_valid_parentheses("(()())")', "6"),
+        T("extra_close_in_middle", "s = \"(()))())(\"", 'longest_valid_parentheses("(()))())(")', "4"),
+        T("closes_at_the_start", "s = \")))((()\"", 'longest_valid_parentheses(")))((()")', "2"),
+        T("deep_in_the_middle", "s = \")()(((())))(\"", 'longest_valid_parentheses(")()(((())))(")', "10"),
+        T("opens_left_unclosed", "s = \"(()(((()\"", 'longest_valid_parentheses("(()(((()")', "2"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let valid = |t: &[u8]| {
+                let mut depth = 0i32;
+                for &c in t {
+                    depth += if c == b'(' { 1 } else { -1 };
+                    if depth < 0 {
+                        return false;
+                    }
+                }
+                depth == 0
+            };
+            let mut rng = anneal_prelude::Rng::new(1251);
+            for _ in 0..300 {
+                let n = rng.below(15);
+                let s = rng.string(n, "()");
+                let b = s.as_bytes();
+                let mut want = 0;
+                for i in 0..b.len() {
+                    for j in i..=b.len() {
+                        if valid(&b[i..j]) {
+                            want = want.max(j - i);
+                        }
+                    }
+                }
+                check!(format!("s = {s:?}"), longest_valid_parentheses(&s), want);
+            }
+        }
+
+        #[test]
+        fn scale_nested_200000() {
+            let s = "(".repeat(100_000) + &")".repeat(100_000);
+            check!("s = 100000 × '(' then 100000 × ')'", longest_valid_parentheses(&s), 200_000);
+        }
+
+        #[test]
+        fn scale_unclosed_200000() {
+            let s = "(".repeat(100_001) + &"()".repeat(49_999);
+            check!("s = 100001 × '(' then 49999 × \\"()\\"", longest_valid_parentheses(&s), 99_998);
+        }
+        """,
+    ],
+    wrong=dict(
+        count_matched_pairs="""
+            pub fn longest_valid_parentheses(s: &str) -> usize {
+                // Counts every matched pair, even when they aren't next to each other.
+                let mut open = 0;
+                let mut pairs = 0;
+                for c in s.bytes() {
+                    if c == b'(' {
+                        open += 1;
+                    } else if open > 0 {
+                        open -= 1;
+                        pairs += 1;
+                    }
+                }
+                2 * pairs
+            }
+        """,
+        left_to_right_only="""
+            pub fn longest_valid_parentheses(s: &str) -> usize {
+                let (mut open, mut close, mut best) = (0, 0, 0);
+                for c in s.bytes() {
+                    if c == b'(' {
+                        open += 1;
+                    } else {
+                        close += 1;
+                    }
+                    if open == close {
+                        best = best.max(2 * close);
+                    } else if close > open {
+                        open = 0;
+                        close = 0;
+                    }
+                }
+                best
+            }
+        """,
+        every_start="""
+            pub fn longest_valid_parentheses(s: &str) -> usize {
+                let b = s.as_bytes();
+                let mut best = 0;
+                for i in 0..b.len() {
+                    let mut depth = 0i32;
+                    for j in i..b.len() {
+                        depth += if b[j] == b'(' { 1 } else { -1 };
+                        if depth < 0 {
+                            break;
+                        }
+                        if depth == 0 {
+                            best = best.max(j + 1 - i);
+                        }
+                    }
+                }
+                best
+            }
+        """,
+    ),
+    hints=[("approach", "Let run[i] be the longest valid substring that ends exactly at i. Only a ')' can end one: it either closes the '(' right before it, or the '(' just before the valid run that ends at i - 1."),
+           ("rust", "Work on `s.as_bytes()`. `i.checked_sub(run[i - 1] + 1)` gives the index of the '(' to look for, or `None` if it would fall off the front."),
+           ("edge case", "After matching, add the run that ends just before that '(' as well: \"()(())\" is 6, not 4. Unmatched brackets anywhere break a run: \"()(()\" is 2.")],
+    notes=("Each ')' looks at one earlier position, found by skipping the valid run before it, and then glues on the run before that. A stack of indices, or two counter passes (left to right and right to left), also work in O(n).", "O(n)", "O(n)"),
+    follow_up="Can you do it in O(1) extra space? (Count opens and closes left to right, then right to left.)",
+    related=["D3"],
+))
+
+P.append(dict(
+    slug="wildcard-matching", title="Wildcard matching", level="hard", stage="hard-strings",
+    tags=["2-D DP", "rolling row", "chars"],
+    companies=["Google", "Meta", "Amazon", "Microsoft", "Apple", "Bloomberg"],
+    teaches=["`match[i][j]` over prefixes, where `*` either matches nothing or eats one more character.",
+             "Keeping only the previous row, and collecting `chars()` so `?` matches a whole character."],
+    statement="""
+        Return whether the pattern `p` matches all of `s`. In `p`, `?` matches any single
+        character, `*` matches any sequence of characters (including none), and every other
+        character matches itself. Characters are Unicode scalar values, so `?` matches `é` or `🦀`.
+    """,
+    examples=[("s = \"adceb\", p = \"*a*b\"", "true"), ("s = \"cb\", p = \"?a\"", "false")],
+    constraints=["0 ≤ s.chars().count(), p.chars().count() ≤ 4000"],
+    starter="""
+        pub fn is_match(s: &str, p: &str) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn is_match(s: &str, p: &str) -> bool {
+            let s: Vec<char> = s.chars().collect();
+            let p: Vec<char> = p.chars().collect();
+            // row[j] = whether the first i characters of s match the first j of p, for the current i.
+            // With i = 0 only a run of leading '*'s matches.
+            let mut row = vec![false; p.len() + 1];
+            row[0] = true;
+            for j in 1..=p.len() {
+                row[j] = row[j - 1] && p[j - 1] == '*';
+            }
+            for &c in &s {
+                let mut next = vec![false; p.len() + 1];
+                for j in 1..=p.len() {
+                    next[j] = match p[j - 1] {
+                        // '*' matches nothing (next[j - 1]) or also takes c (row[j]).
+                        '*' => next[j - 1] || row[j],
+                        '?' => row[j - 1],
+                        q => row[j - 1] && q == c,
+                    };
+                }
+                row = next;
+            }
+            row[p.len()]
+        }
+    """,
+    visible=[
+        T("leetcode_too_short", "s = \"aa\", p = \"a\"", 'is_match("aa", "a")', "false"),
+        T("leetcode_star", "s = \"aa\", p = \"*\"", 'is_match("aa", "*")', "true"),
+        T("leetcode_question", "s = \"cb\", p = \"?a\"", 'is_match("cb", "?a")', "false"),
+        T("both_empty", "s = \"\", p = \"\"", 'is_match("", "")', "true"),
+        T("star_matches_nothing", "s = \"\", p = \"*\"", 'is_match("", "*")', "true"),
+        T("two_stars", "s = \"adceb\", p = \"*a*b\"", 'is_match("adceb", "*a*b")', "true"),
+    ],
+    hidden=[
+        T("question_needs_a_char", "s = \"\", p = \"?\"", 'is_match("", "?")', "false"),
+        T("empty_pattern", "s = \"a\", p = \"\"", 'is_match("a", "")', "false"),
+        T("leetcode_no_match", "s = \"acdcb\", p = \"a*c?b\"", 'is_match("acdcb", "a*c?b")', "false"),
+        T("unicode_question", "s = \"héllo\", p = \"h?llo\"", 'is_match("héllo", "h?llo")', "true"),
+        T("emoji_each_one_char", "s = \"🦀🦀\", p = \"??\"", 'is_match("🦀🦀", "??")', "true"),
+        T("emoji_too_short", "s = \"🦀\", p = \"??\"", 'is_match("🦀", "??")', "false"),
+        T("many_stars", "s = \"aaaa\", p = \"***a\"", 'is_match("aaaa", "***a")', "true"),
+        T("stars_and_questions", "s = \"abcabczzzde\", p = \"*abc???de*\"", 'is_match("abcabczzzde", "*abc???de*")', "true"),
+        T("mississippi", "s = \"mississippi\", p = \"m??*ss*?i*pi\"", 'is_match("mississippi", "m??*ss*?i*pi")', "false"),
+        T("one_question_too_many", "s = \"ab\", p = \"*?*?*?\"", 'is_match("ab", "*?*?*?")', "false"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn matches(s: &[char], p: &[char]) -> bool {
+                match p.split_first() {
+                    None => s.is_empty(),
+                    Some(('*', rest)) => (0..=s.len()).any(|k| matches(&s[k..], rest)),
+                    Some((&q, rest)) => !s.is_empty() && (q == '?' || q == s[0]) && matches(&s[1..], rest),
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1252);
+            for _ in 0..400 {
+                let (n, m) = (rng.below(9), rng.below(7));
+                let s = rng.string(n, "abé");
+                let p = rng.string(m, "ab?*é");
+                let (sc, pc): (Vec<char>, Vec<char>) = (s.chars().collect(), p.chars().collect());
+                check!(format!("s = {s:?}, p = {p:?}"), is_match(&s, &p), matches(&sc, &pc));
+            }
+        }
+
+        #[test]
+        fn scale_many_stars() {
+            let s = "a".repeat(3000);
+            let p = "*a".repeat(12) + "b";
+            check!("s = 3000 × 'a', p = 12 × \\"*a\\" then \\"b\\"", is_match(&s, &p), false);
+        }
+
+        #[test]
+        fn scale_long_pattern() {
+            let s = "a".repeat(4000);
+            let p = "*".to_string() + &"a".repeat(2000) + "*b";
+            check!("s = 4000 × 'a', p = '*' + 2000 × 'a' + \\"*b\\"", is_match(&s, &p), false);
+            let p = "*".to_string() + &"?".repeat(1999) + "*a";
+            check!("s = 4000 × 'a', p = '*' + 1999 × '?' + \\"*a\\"", is_match(&s, &p), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        plain_recursion="""
+            fn matches(s: &[char], p: &[char]) -> bool {
+                match p.split_first() {
+                    None => s.is_empty(),
+                    Some(('*', rest)) => (0..=s.len()).any(|k| matches(&s[k..], rest)),
+                    Some((&q, rest)) => !s.is_empty() && (q == '?' || q == s[0]) && matches(&s[1..], rest),
+                }
+            }
+
+            pub fn is_match(s: &str, p: &str) -> bool {
+                let s: Vec<char> = s.chars().collect();
+                let p: Vec<char> = p.chars().collect();
+                matches(&s, &p)
+            }
+        """,
+        star_is_greedy="""
+            pub fn is_match(s: &str, p: &str) -> bool {
+                // Lets each '*' swallow characters until the next pattern character shows up, never backing off.
+                let s: Vec<char> = s.chars().collect();
+                let p: Vec<char> = p.chars().collect();
+                let (mut i, mut j) = (0, 0);
+                while j < p.len() {
+                    match p[j] {
+                        '*' => {
+                            j += 1;
+                            match p.get(j) {
+                                None => return true,
+                                Some('?') | Some('*') => {}
+                                Some(&q) => {
+                                    while i < s.len() && s[i] != q {
+                                        i += 1;
+                                    }
+                                }
+                            }
+                        }
+                        q => {
+                            if i == s.len() || (q != '?' && q != s[i]) {
+                                return false;
+                            }
+                            i += 1;
+                            j += 1;
+                        }
+                    }
+                }
+                i == s.len()
+            }
+        """,
+        bytes_not_chars="""
+            pub fn is_match(s: &str, p: &str) -> bool {
+                let s = s.as_bytes();
+                let p = p.as_bytes();
+                let mut row = vec![false; p.len() + 1];
+                row[0] = true;
+                for j in 1..=p.len() {
+                    row[j] = row[j - 1] && p[j - 1] == b'*';
+                }
+                for &c in s {
+                    let mut next = vec![false; p.len() + 1];
+                    for j in 1..=p.len() {
+                        next[j] = match p[j - 1] {
+                            b'*' => next[j - 1] || row[j],
+                            b'?' => row[j - 1],
+                            q => row[j - 1] && q == c,
+                        };
+                    }
+                    row = next;
+                }
+                row[p.len()]
+            }
+        """,
+    ),
+    hints=[("approach", "match(i, j): do the first i characters of s match the first j of p? A '*' either matches nothing, match(i, j - 1), or takes one more character, match(i - 1, j). A '?' or equal character needs match(i - 1, j - 1)."),
+           ("rust", "Collect both into `Vec<char>` first. Row i only needs row i - 1, so keep two `Vec<bool>`s of length p.len() + 1."),
+           ("edge case", "The empty string still matches a pattern of only '*'s, so the first row is true while the pattern starts with stars. Letting a '*' grab greedily without backing off fails on \"adceb\" / \"*a*b\".")],
+    notes=("Trying every split for each '*' is exponential. The table has (n + 1)(m + 1) cells, each an O(1) look at its neighbours, because \"'*' takes one more character\" stays in the same column.", "O(n · m)", "O(m)"),
+    follow_up="There's also a greedy two-pointer method that remembers only the last '*'. Why is backing up to the last star enough?",
+    related=["D2", "D11"],
+))
+
+P.append(dict(
+    slug="regular-expression-matching", title="Regular expression matching", level="hard", stage="hard-strings",
+    tags=["2-D DP", "chars"],
+    companies=["Google", "Meta", "Amazon", "Microsoft", "Apple", "Uber", "Airbnb"],
+    teaches=["Reading the pattern in units: a character, or a character with `*` after it.",
+             "`ok[i][j]` over suffixes, filled from the back so every lookup is ready."],
+    statement="""
+        Return whether the pattern `p` matches all of `s`. In `p`, `.` matches any single
+        character, and `x*` (any character or `.` followed by `*`) matches zero or more copies of
+        `x`. Every other character matches itself. Characters are Unicode scalar values. Every `*`
+        in `p` follows a character that isn't `*`.
+    """,
+    examples=[("s = \"aa\", p = \"a*\"", "true"), ("s = \"aab\", p = \"c*a*b\"", "true (c* matches nothing)"),
+              ("s = \"mississippi\", p = \"mis*is*p*.\"", "false")],
+    constraints=["0 ≤ s.chars().count(), p.chars().count() ≤ 2000", "p is well formed"],
+    starter="""
+        pub fn is_match(s: &str, p: &str) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn is_match(s: &str, p: &str) -> bool {
+            let s: Vec<char> = s.chars().collect();
+            let p: Vec<char> = p.chars().collect();
+            let (n, m) = (s.len(), p.len());
+            // ok[i][j] = whether s[i..] matches p[j..]. An empty pattern matches only the empty rest.
+            let mut ok = vec![vec![false; m + 1]; n + 1];
+            ok[n][m] = true;
+            for i in (0..=n).rev() {
+                for j in (0..m).rev() {
+                    let first = i < n && (p[j] == '.' || p[j] == s[i]);
+                    ok[i][j] = if j + 1 < m && p[j + 1] == '*' {
+                        // Skip "x*" entirely, or let it eat s[i] and stay on the same unit.
+                        ok[i][j + 2] || (first && ok[i + 1][j])
+                    } else {
+                        first && ok[i + 1][j + 1]
+                    };
+                }
+            }
+            ok[0][0]
+        }
+    """,
+    visible=[
+        T("leetcode_too_short", "s = \"aa\", p = \"a\"", 'is_match("aa", "a")', "false"),
+        T("leetcode_star_repeats", "s = \"aa\", p = \"a*\"", 'is_match("aa", "a*")', "true"),
+        T("leetcode_dot_star", "s = \"ab\", p = \".*\"", 'is_match("ab", ".*")', "true"),
+        T("star_can_match_nothing", "s = \"aab\", p = \"c*a*b\"", 'is_match("aab", "c*a*b")', "true"),
+        T("mississippi", "s = \"mississippi\", p = \"mis*is*p*.\"", 'is_match("mississippi", "mis*is*p*.")', "false"),
+        T("both_empty", "s = \"\", p = \"\"", 'is_match("", "")', "true"),
+    ],
+    hidden=[
+        T("empty_vs_star", "s = \"\", p = \"a*\"", 'is_match("", "a*")', "true"),
+        T("empty_vs_dot", "s = \"\", p = \".\"", 'is_match("", ".")', "false"),
+        T("dot_star_then_more", "s = \"ab\", p = \".*c\"", 'is_match("ab", ".*c")', "false"),
+        T("star_gives_one_back", "s = \"aaa\", p = \"a*a\"", 'is_match("aaa", "a*a")', "true"),
+        T("zero_copies_between", "s = \"aaa\", p = \"ab*a*c*a\"", 'is_match("aaa", "ab*a*c*a")', "true"),
+        T("trailing_star", "s = \"a\", p = \"ab*\"", 'is_match("a", "ab*")', "true"),
+        T("dot_star_backtracks", "s = \"bbbba\", p = \".*a*a\"", 'is_match("bbbba", ".*a*a")', "true"),
+        T("pattern_too_long", "s = \"a\", p = \".*..a*\"", 'is_match("a", ".*..a*")', "false"),
+        T("unicode_dot", "s = \"é\", p = \".\"", 'is_match("é", ".")', "true"),
+        T("unicode_star", "s = \"ééé\", p = \"é*\"", 'is_match("ééé", "é*")', "true"),
+        T("several_dot_stars", "s = \"aasdfasdfasdfasdfas\", p = \"aasdf.*asdf.*asdf.*asdf.*s\"",
+          'is_match("aasdfasdfasdfasdfas", "aasdf.*asdf.*asdf.*asdf.*s")', "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn matches(s: &[char], p: &[char]) -> bool {
+                if p.is_empty() {
+                    return s.is_empty();
+                }
+                let first = !s.is_empty() && (p[0] == '.' || p[0] == s[0]);
+                if p.len() >= 2 && p[1] == '*' {
+                    matches(s, &p[2..]) || (first && matches(&s[1..], p))
+                } else {
+                    first && matches(&s[1..], &p[1..])
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1253);
+            let units = ["a", "b", "é", ".", "a*", "b*", ".*", "é*"];
+            for _ in 0..400 {
+                let n = rng.below(9);
+                let s = rng.string(n, "abé");
+                let k = rng.below(6);
+                let p: String = (0..k).map(|_| *rng.pick(&units)).collect();
+                let (sc, pc): (Vec<char>, Vec<char>) = (s.chars().collect(), p.chars().collect());
+                check!(format!("s = {s:?}, p = {p:?}"), is_match(&s, &p), matches(&sc, &pc));
+            }
+        }
+
+        #[test]
+        fn scale_many_stars() {
+            let s = "a".repeat(40);
+            let p = "a*".repeat(20) + "b";
+            check!("s = 40 × 'a', p = 20 × \\"a*\\" then \\"b\\"", is_match(&s, &p), false);
+        }
+
+        #[test]
+        fn scale_long() {
+            let s = "a".repeat(2000);
+            let p = "a*".repeat(1000);
+            check!("s = 2000 × 'a', p = 1000 × \\"a*\\"", is_match(&s, &p), true);
+            let p = ".*".to_string() + &"a".repeat(1998) + "b";
+            check!("s = 2000 × 'a', p = \\".*\\" + 1998 × 'a' + \\"b\\"", is_match(&s, &p), false);
+        }
+        """,
+    ],
+    wrong=dict(
+        plain_recursion="""
+            fn matches(s: &[char], p: &[char]) -> bool {
+                if p.is_empty() {
+                    return s.is_empty();
+                }
+                let first = !s.is_empty() && (p[0] == '.' || p[0] == s[0]);
+                if p.len() >= 2 && p[1] == '*' {
+                    matches(s, &p[2..]) || (first && matches(&s[1..], p))
+                } else {
+                    first && matches(&s[1..], &p[1..])
+                }
+            }
+
+            pub fn is_match(s: &str, p: &str) -> bool {
+                let s: Vec<char> = s.chars().collect();
+                let p: Vec<char> = p.chars().collect();
+                matches(&s, &p)
+            }
+        """,
+        star_needs_one_copy="""
+            pub fn is_match(s: &str, p: &str) -> bool {
+                let s: Vec<char> = s.chars().collect();
+                let p: Vec<char> = p.chars().collect();
+                let (n, m) = (s.len(), p.len());
+                let mut ok = vec![vec![false; m + 1]; n + 1];
+                ok[n][m] = true;
+                for i in (0..=n).rev() {
+                    for j in (0..m).rev() {
+                        let first = i < n && (p[j] == '.' || p[j] == s[i]);
+                        ok[i][j] = if j + 1 < m && p[j + 1] == '*' {
+                            // One or more copies: forgets that x* can match nothing.
+                            first && (ok[i + 1][j] || ok[i + 1][j + 2])
+                        } else {
+                            first && ok[i + 1][j + 1]
+                        };
+                    }
+                }
+                ok[0][0]
+            }
+        """,
+        bytes_not_chars="""
+            pub fn is_match(s: &str, p: &str) -> bool {
+                let (s, p) = (s.as_bytes(), p.as_bytes());
+                let (n, m) = (s.len(), p.len());
+                let mut ok = vec![vec![false; m + 1]; n + 1];
+                ok[n][m] = true;
+                for i in (0..=n).rev() {
+                    for j in (0..m).rev() {
+                        let first = i < n && (p[j] == b'.' || p[j] == s[i]);
+                        ok[i][j] = if j + 1 < m && p[j + 1] == b'*' {
+                            ok[i][j + 2] || (first && ok[i + 1][j])
+                        } else {
+                            first && ok[i + 1][j + 1]
+                        };
+                    }
+                }
+                ok[0][0]
+            }
+        """,
+    ),
+    hints=[("approach", "Look at the pattern one unit at a time from position j. If p[j + 1] is '*', either skip the unit (j + 2) or, when p[j] matches s[i], use it once and stay at j. Otherwise p[j] must match s[i] and both move on."),
+           ("rust", "Collect `chars()` into `Vec`s, then fill `ok: Vec<Vec<bool>>` of size (n + 1) × (m + 1) from the bottom-right: `ok[i][j]` needs `ok[i][j + 2]`, `ok[i + 1][j]` and `ok[i + 1][j + 1]`."),
+           ("edge case", "`x*` can match zero copies, so an empty s can still match \"a*b*\". Row n (s used up) isn't all false.")],
+    notes=("The plain recursion re-solves the same (i, j) suffix pair many times, exponentially often with patterns like a*a*a*…; there are only (n + 1)(m + 1) pairs, each O(1).", "O(n · m)", "O(n · m), or O(m) with two rows"),
+    follow_up="How would you add `+` (one or more)? Could you rewrite it with two rolling rows?",
+    related=["D11"],
+))
+
 STAGES = [
     ("1d-basics", "1-D basics", "easy"),
     ("1d-choices", "1-D choices", "medium"),

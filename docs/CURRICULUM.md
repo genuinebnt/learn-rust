@@ -309,12 +309,15 @@ are covered. New problems in *italics*.
 | Hard | SCC, bridges & arenas | Tarjan's SCC · Critical connections · Arena-allocated graph · Fix: `Rc<RefCell<Node>>` cycle leak |
 | Hard | Flows & matching | Bipartite check · Edmonds–Karp · Hopcroft–Karp · Min-cost flow |
 
-### D10 · Tries & strings: core · 15
+### D10 · Tries & strings: core · 25
+Extended 2026-09-27 with the LeetCode 250 trie problems; autocomplete comes twice, once as a medium (top three
+suggestions per typed prefix) and once as the full hard design with hot counts.
 | Band | Stage | Problems | Rust habit |
 |---|---|---|---|
-| Easy | First tries | Longest common prefix · Implement trie† · Fix: indexing a `String` by position (E0277) | `[Option<Box<Node>>; 26]` |
-| Medium | Tries & string algorithms | Add & search words† · Replace words · Longest palindromic substring† · Palindromic substrings† · String to integer · Repeated DNA sequences · Fix: recursive trie insert vs the borrow checker | `get_or_insert_with` cursors, rolling hash with `wrapping_mul` |
-| Hard | Hard strings | Word search II† · Autocomplete system (W31) · Max XOR (bit trie) · Shortest palindrome (KMP) · Zero-copy tokenizer (W36) | lifetimes on `&str` slices |
+| Easy | First tries | Longest common prefix · Implement trie† · Fix: indexing a `String` by position (E0277) · Longest word in dictionary · Map sum pairs | `[Option<Box<Node>>; 26]` |
+| Medium | Tries at work | Add & search words† · Replace words · Search suggestions system (autocomplete) · Trie with counts and erase · Fix: recursive trie insert vs the borrow checker · Prefix and suffix search | `get_or_insert_with` cursors |
+| Medium | String algorithms | Find the first occurrence (KMP) · Repeated substring pattern · Longest palindromic substring† · Palindromic substrings† · String to integer · Repeated DNA sequences | rolling hash with `wrapping_mul` |
+| Hard | Hard tries & strings | Word search II† · Autocomplete system with hot counts (W31) · Max XOR (bit trie) · Stream of characters · Concatenated words · Palindrome pairs · Shortest palindrome (KMP) · Zero-copy tokenizer (W36) | lifetimes on `&str` slices |
 
 ### D11 · Recursion & backtracking: core · 28
 Extended 2026-09-27: a pure-recursion stage first (base case, trust the recursive call, divide and conquer), then

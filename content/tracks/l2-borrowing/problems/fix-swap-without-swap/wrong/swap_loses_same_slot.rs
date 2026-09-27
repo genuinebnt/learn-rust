@@ -2,9 +2,6 @@ use std::mem::take;
 
 /// Swaps `v[i]` and `v[j]`. `i` may equal `j`.
 pub fn swap_items(v: &mut [String], i: usize, j: usize) {
-    if i == j {
-        return;
-    }
     let tmp = take(&mut v[i]);
     v[i] = std::mem::replace(&mut v[j], tmp);
 }

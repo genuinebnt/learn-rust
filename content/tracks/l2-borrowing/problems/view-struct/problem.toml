@@ -1,22 +1,32 @@
 slug = "view-struct"
-title = "A view struct over two fields"
+title = "View structs over disjoint fields"
 mode = "write"
 level = "medium"
 stage = "split-borrows"
 order = 29
 status = "ready"
-tags = ["lifetimes", "view structs"]
+tags = ["view structs", "lifetimes", "destructuring", "E0499"]
 teaches = [
-  "View structs: a named bundle of disjoint field borrows.",
+  "A view struct bundles disjoint field borrows.",
+  "Two `&mut self` calls can't hand out views that coexist; one `split` can.",
+  "Destructure `self` to prove disjointness.",
 ]
-follow_up = "When does a view struct beat passing several `&mut` parameters?"
+follow_up = "When is a view struct better than a method that takes several `&mut` field parameters?"
 related = ["L2", "L3"]
 
 [[hints]]
 kind = "rust"
-text = "A struct of `&mut` field references carries the split borrow around as one value."
+text = "`header` and `body` are one struct literal each, borrowing two fields: `Header { title: &mut self.title, tags: &mut self.tags }`."
+
+[[hints]]
+kind = "rust"
+text = "`let h = doc.header(); let b = doc.body();` is two `&mut self` borrows alive together (E0499), even though the fields differ: a method borrows all of `self`. `split` makes both views from one borrow; destructure `self` into its fields first."
+
+[[hints]]
+kind = "rust"
+text = "A view's methods reach the fields through its references: `self.title.push_str(..)` auto-derefs, `*self.words += n` needs the explicit `*`."
 
 [solution]
-explanation = "`body` stays untouched and unborrowed by the view, which is the point of a view struct."
-time = "O(n)"
-space = "O(1)"
+explanation = "A view struct names a set of disjoint field borrows so they can travel together: into a function, into a method with its own name, back out of a method. A `&mut self` method that returns one view borrows all of `self`, though, so two such calls can't overlap. `split` is where the disjointness gets proven: `let Document { title, tags, lines, words } = self;` produces four independent `&mut` borrows, and they go into two views that live side by side. `hashtags` then reads `body.lines` while `header.tag(..)` pushes to the tags, which the compiler accepts because the two views share nothing. The views' lifetime `'_` ties them to the one `&mut self` borrow, so the document is unusable while either lives.\n\nSyntax to remember: `pub fn split(&mut self) -> (Header<'_>, Body<'_>) { let Document { title, tags, lines, words } = self; (Header { title, tags }, Body { lines, words }) }` · `impl Header<'_> { .. }` · `*self.words += n`."
+time = "O(total words) for hashtags (O(tags) per check)"
+space = "O(1) extra"

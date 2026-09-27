@@ -1,26 +1,41 @@
 use solution::*;
 
 #[test]
-fn saves() {
-    check!(r#"text "ab", append "c""#, { let mut e = Editor { text: "ab".into(), history: vec![] }; e.append("c"); (e.text, e.history) }, ("abc".to_string(), vec!["ab".to_string()]));
+fn run_macros_example() {
+    let mut e = Editor::new("banana");
+    e.macros = vec![Macro::Append("!".to_string()), Macro::Replace("a".to_string(), "o".to_string()), Macro::Upper];
+    e.run_macros();
+    e.run_macros();
+    check!(r#"text "banana"; macros [Append "!", Replace "a" with "o", Upper]; run twice"#, (e.text.as_str(), e.log().to_vec(), e.macros.len()), ("BONONO!!", ["1. append !", "2. replace a with o", "3. upper", "4. append !", "5. replace a with o", "6. upper"].map(String::from).to_vec(), 3));
 }
 
 #[test]
-fn empty_append() {
-    check!(r#"text "a", append """#, { let mut e = Editor { text: "a".into(), history: vec![] }; e.append(""); (e.text, e.history.len()) }, ("a".to_string(), 1));
+fn cut_then_paste_twice() {
+    let mut e = Editor::new("hi");
+    e.cut();
+    e.paste();
+    e.paste();
+    check!(r#"text "hi"; cut; paste; paste"#, (e.text.as_str(), e.clipboard.as_str(), e.log().to_vec()), ("hihi", "hi", ["1. cut 2 bytes", "2. paste hi", "3. paste hi"].map(String::from).to_vec()));
 }
 
 #[test]
-fn unicode() {
-    check!(r#"text "é", append "ß""#, { let mut e = Editor { text: "é".into(), history: vec![] }; e.append("ß"); (e.text, e.history) }, ("éß".to_string(), vec!["é".to_string()]));
+fn cut_moves_the_text() {
+    let mut e = Editor::new("moved");
+    let p = e.text.as_ptr();
+    e.cut();
+    check!(r#"text "moved"; cut"#, (p == e.clipboard.as_ptr(), e.text.is_empty()), (true, true));
 }
 
 #[test]
-fn existing_history() {
-    check!(r#"history ["old"], text "t", append "x""#, { let mut e = Editor { text: "t".into(), history: vec!["old".into()] }; e.append("x"); e.history }, vec!["old".to_string(), "t".to_string()]);
+fn no_macros() {
+    let mut e = Editor::new("x");
+    e.run_macros();
+    check!(r#"text "x"; run_macros"#, (e.text.as_str(), e.log().len()), ("x", 0));
 }
 
 #[test]
-fn twice() {
-    check!(r#"append "x" then "y""#, { let mut e = Editor { text: String::new(), history: vec![] }; e.append("x"); e.append("y"); e.history }, vec![String::new(), "x".to_string()]);
+fn paste_empty_clipboard() {
+    let mut e = Editor::new("a");
+    e.paste();
+    check!(r#"text "a"; paste"#, (e.text.as_str(), e.log().to_vec()), ("a", vec!["1. paste ".to_string()]));
 }

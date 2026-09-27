@@ -1,25 +1,35 @@
 slug = "fix-borrow-through-getter"
-title = "Fix: borrow through a getter"
+title = "Fix: getters borrow all of self"
 mode = "fix"
 level = "medium"
 stage = "split-borrows"
 order = 30
 status = "ready"
-tags = ["E0502", "getters"]
+tags = ["E0502", "E0499", "getters", "privacy", "split accessors"]
 teaches = [
-  "Borrow checking is per function: a getter borrows all of `self`.",
+  "A getter's signature borrows all of `self`.",
+  "Inside the impl, borrow fields directly.",
+  "Across a privacy boundary, export a method that splits the borrow.",
 ]
-follow_up = "Why can't the borrow checker see through the getter's body?"
+follow_up = "Could the compiler ever look inside `items_mut` to see that it only borrows one field? What would that cost?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "`self.items()` borrows all of `self` for as long as the loop runs. What borrows only the `items` field?"
+text = "`self.items_mut()` borrows all of `self` for the whole loop, so `self.discount()` and `self.log_mut()` can't run inside it. The compiler doesn't look into a getter's body; its signature says \"all of `self`\"."
+
+[[hints]]
+kind = "rust"
+text = "Inside the `impl`, use the fields: `self.items.iter_mut()`, `self.discount`, `self.log`. Field paths are disjoint."
+
+[[hints]]
+kind = "rust"
+text = "Outside the module the fields are private, so the fix has to come from `Shop`: one method that returns `(&[Item], &mut Vec<String>)`, borrowing both fields in one call."
 
 [solution]
-explanation = "Getters hide which field they touch, so the compiler assumes all of `self`. Inside the impl, use the field directly."
+explanation = "Borrow checking is per function and trusts signatures: `fn items(&self) -> &[Item]` means \"the result borrows all of `self`\", whatever the body touches. So a getter's result conflicts with every `&mut self` call, including `log_mut()`, even though the fields are disjoint. Inside the `impl`, field paths show the disjointness directly. Outside the module, privacy hides the fields, and the owner of the type has to export the split: a method returning several borrows from one `&mut self` call, (`&self.items`, `&mut self.log`), which the caller destructures. That is the pattern behind `slice::split_at_mut`, `HashMap::get_disjoint_mut` and view structs.\n\nSyntax to remember: `pub fn items_and_log(&mut self) -> (&[Item], &mut Vec<String>) { (&self.items, &mut self.log) }` · `let (items, log) = shop.items_and_log();`."
 time = "O(n)"
-space = "O(k)"
+space = "O(1)"
 
 [rules]
-forbid_methods = ["clone", "to_vec"]
+forbid_methods = ["clone", "collect", "to_vec", "to_owned", "cloned"]

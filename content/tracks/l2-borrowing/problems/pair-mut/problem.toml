@@ -1,22 +1,32 @@
 slug = "pair-mut"
-title = "Two &mut into one slice"
+title = "Two &mut into one slice, and adjacent pairs"
 mode = "write"
 level = "medium"
 stage = "split-borrows"
 order = 26
 status = "ready"
-tags = ["split_at_mut"]
+tags = ["split_at_mut", "no windows_mut", "FnMut(&mut T, &mut T)"]
 teaches = [
-  "Two `&mut` into one slice via `split_at_mut`.",
+  "`split_at_mut` gives two disjoint `&mut` halves.",
+  "Return pairs in the caller's order.",
+  "A callback can visit overlapping windows; an iterator can't.",
 ]
-follow_up = "std has `get_disjoint_mut`. What does it check that this doesn't?"
+follow_up = "Why can't `for_each_adjacent_mut` be an `Iterator<Item = (&mut T, &mut T)>`?"
 related = ["L2", "S3"]
 
 [[hints]]
 kind = "rust"
-text = "Split at the larger index: the smaller one is in the left half, the larger is the first element of the right half."
+text = "`split_at_mut(mid)` gives `(&mut v[..mid], &mut v[mid..])`, two borrows that can't overlap. Split at the larger index: the smaller one is in the left half, the larger is the first element of the right half."
+
+[[hints]]
+kind = "rust"
+text = "Return the pair in the caller's order, `(v[i], v[j])`, even when `i > j`."
+
+[[hints]]
+kind = "rust"
+text = "For adjacent pairs, split at each `k` in turn: `left[k - 1]` and `right[0]`. Each split's borrows end before the next one starts."
 
 [solution]
-explanation = "`split_at_mut` gives two borrows that can't overlap; returning them in the caller's order is the last detail."
-time = "O(1)"
+explanation = "Two `&mut` into one slice need proof that they don't overlap, and `split_at_mut` is that proof: it checks `mid <= len` once and returns two disjoint halves (with `unsafe` inside std). A pair is the last element of one half and the first of the other. The adjacent-pairs helper is the loop version: split at each `k`, call `f`, and the borrows end before the next split, so later calls see earlier changes. That's also why std has `chunks_mut` but no `windows_mut`: an iterator's items can all be alive at once, and overlapping windows would alias. A callback that finishes before the next pair is made avoids the problem.\n\nSyntax to remember: `let (left, right) = v.split_at_mut(hi);` · `Some(if i < j { (a, b) } else { (b, a) })` · `fn f<T>(v: &mut [T], mut f: impl FnMut(&mut T, &mut T))` · std's own: `v.get_disjoint_mut([i, j])`."
+time = "O(1) pair_mut; O(n) adjacent"
 space = "O(1)"

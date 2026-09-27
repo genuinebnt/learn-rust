@@ -19,40 +19,59 @@ pub struct Body<'a> {
 
 impl Document {
     pub fn header(&mut self) -> Header<'_> {
-        todo!()
+        Header { title: &mut self.title, tags: &mut self.tags }
     }
 
     pub fn body(&mut self) -> Body<'_> {
-        todo!()
+        Body { lines: &mut self.lines, words: &mut self.words }
     }
 
     /// Both views at once.
     pub fn split(&mut self) -> (Header<'_>, Body<'_>) {
-        todo!()
+        let Document { title, tags, lines, words } = self;
+        (Header { title, tags }, Body { lines, words })
     }
 }
 
 impl Header<'_> {
     /// Adds `tag` unless it's already there. Returns whether it was added.
     pub fn tag(&mut self, tag: &str) -> bool {
-        todo!()
+        if self.tags.iter().any(|t| t == tag) {
+            return false;
+        }
+        self.tags.push(tag.to_string());
+        true
     }
 
     /// Sets the title and adds the tag "edited" (once).
     pub fn retitle(&mut self, title: &str) {
-        todo!()
+        self.title.clear();
+        self.title.push_str(title);
+        self.tag("edited");
     }
 }
 
 impl Body<'_> {
     /// Appends a line and adds its whitespace-separated words to the count.
     pub fn push_line(&mut self, line: &str) {
-        todo!()
+        *self.words += line.split_whitespace().count();
+        self.lines.push(line.to_string());
     }
 }
 
 /// Adds every word of the body that starts with '#' as a tag, without the '#' (skipping a bare "#"), in order,
 /// unless it's already a tag. Returns how many tags were added.
 pub fn hashtags(doc: &mut Document) -> usize {
-    todo!()
+    let (mut header, body) = doc.split();
+    let mut added = 0;
+    for line in body.lines.iter() {
+        for word in line.split_whitespace() {
+            if let Some(tag) = Some(word).filter(|w| w.len() > 1 && w.starts_with('#')) {
+                if header.tag(tag) {
+                    added += 1;
+                }
+            }
+        }
+    }
+    added
 }

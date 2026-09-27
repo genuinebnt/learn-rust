@@ -20,7 +20,9 @@ pub fn rotate3(v: &mut [String], i: usize, j: usize, k: usize) {
 /// Appends a copy of `v[j]` to `v[i]`. `i` may equal `j` (the string doubles).
 pub fn append_copy(v: &mut [String], i: usize, j: usize) {
     if i == j {
-        v[i].extend_from_within(..);
+        let s = take(&mut v[j]);
+        v[i].push_str(&s);
+        v[j] = s;
         return;
     }
     let (lo, hi) = (i.min(j), i.max(j));

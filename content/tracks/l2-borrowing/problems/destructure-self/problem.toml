@@ -1,22 +1,32 @@
 slug = "destructure-self"
-title = "Destructure self into field borrows"
+title = "Destructure &mut self: binding modes and mem::replace"
 mode = "write"
 level = "medium"
 stage = "split-borrows"
 order = 27
 status = "ready"
-tags = ["patterns", "split borrows"]
+tags = ["patterns", "default binding modes", "let else", "mem::replace", "state machines"]
 teaches = [
-  "Destructuring `&mut self` splits it into field borrows.",
+  "Destructuring `&mut self` gives disjoint `&mut` fields.",
+  "Default binding modes make pattern bindings `&mut` automatically.",
+  "`mem::replace` moves an enum out of `&mut` to change variant without cloning.",
 ]
-follow_up = "Why can't you write `update(&mut self.values, &mut self.total, &mut self.max, x)` through a getter?"
+follow_up = "What would `retry` look like if `State::Busy` held a `Box<dyn Job>` instead of a `String`, and giving up had to hand the job to a callback?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "`let Stats { values, total, max } = self;` gives three separate `&mut` borrows, one per field."
+text = "`let Worker { state, log, max_tries } = self;` on a `&mut Worker` binds each field as a `&mut` (default binding modes), all at once. Then `let State::Busy { job, tries } = state else { .. }` binds `job: &mut String` and `tries: &mut u32`."
+
+[[hints]]
+kind = "rust"
+text = "To move `job` from `Busy` into `Done`, take the whole state out: `std::mem::replace(&mut self.state, State::Idle)` returns the old state by value, and you can destructure it and move its fields. Put it back if it wasn't the state you wanted."
+
+[[hints]]
+kind = "rust"
+text = "Assigning `*state = State::Idle` while `job` is still borrowed from it won't compile; log first, then assign."
 
 [solution]
-explanation = "Destructuring a `&mut Stats` binds each field by `&mut` (default binding modes), which is how you hand several fields to one call."
-time = "O(n)"
+explanation = "Matching on a `&mut` value binds its fields as `&mut` without writing `ref mut`: that's default binding modes, and destructuring `self` itself gives separate `&mut` borrows of every field at once, so a state's fields and `log` can be used together. Borrowing is enough while the state stays the same variant. Changing variant while keeping a field (the job `String`) needs ownership of the old state, and you only have `&mut self`: `mem::replace(&mut self.state, State::Idle)` moves the old state out and leaves a valid placeholder, the `match` moves `job` into the new variant, and a non-matching state is put back unchanged. `Option::take` is the same trick for `Option`.\n\nSyntax to remember: `let Worker { state, log, max_tries } = self;` · `let State::Busy { job, tries } = state else { return None };` · `match std::mem::replace(&mut self.state, State::Idle) { State::Busy { job, .. } => .., other => self.state = other }`."
+time = "O(len of the job name) per log line"
 space = "O(1)"

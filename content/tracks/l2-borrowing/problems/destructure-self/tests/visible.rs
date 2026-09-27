@@ -1,26 +1,38 @@
 use solution::*;
 
 #[test]
-fn records() {
-    check!(r#"xs = [1.5, 4.0, 2.5]"#, { let mut s = Stats { values: vec![], total: 0.0, max: f64::MIN }; s.record_all(&[1.5, 4.0, 2.5]); (s.values.len(), s.total, s.max) }, (3, 8.0, 4.0));
+fn full_cycle() {
+    let mut w = Worker { state: State::Idle, log: vec![], max_tries: 3 };
+    check!(r#"max 3; start a; retry; finish 7; collect"#, (w.start("a"), w.retry(), w.finish(7), w.collect(), w.state == State::Idle, w.log.clone()), (true, Some(1), true, Some(("a".to_string(), 7)), true, ["start a", "retry a #1", "done a"].map(String::from).to_vec()));
 }
 
 #[test]
-fn keeps_max() {
-    check!(r#"max 10, xs = [3]"#, { let mut s = Stats { values: vec![], total: 0.0, max: 10.0 }; s.record_all(&[3.0]); s.max }, 10.0);
+fn give_up() {
+    let mut w = Worker { state: State::Idle, log: vec![], max_tries: 3 };
+    w.start("b");
+    check!(r#"max 3; start b; retry 3 times"#, (w.retry(), w.retry(), w.retry(), w.state == State::Idle, w.log.last().cloned()), (Some(1), Some(2), None, true, Some("give up b".to_string())));
 }
 
 #[test]
-fn negatives() {
-    check!(r#"max f64::MIN, xs = [-2.0, -1.0]"#, { let mut s = Stats { values: vec![], total: 0.0, max: f64::MIN }; s.record_all(&[-2.0, -1.0]); (s.total, s.max) }, (-3.0, -1.0));
+fn wrong_state_changes_nothing() {
+    let mut w = Worker { state: State::Idle, log: vec![], max_tries: 3 };
+    check!(r#"idle: retry, finish, collect"#, (w.retry(), w.finish(1), w.collect(), w.log.len()), (None, false, None, 0));
 }
 
 #[test]
-fn total_accumulates() {
-    check!(r#"total 10.0, xs = [1.0, 2.0]"#, { let mut s = Stats { values: vec![], total: 10.0, max: 0.0 }; s.record_all(&[1.0, 2.0]); s.total }, 13.0);
+fn start_when_busy() {
+    let mut w = Worker { state: State::Idle, log: vec![], max_tries: 3 };
+    w.start("a");
+    check!(r#"start a; start b"#, (w.start("b"), w.state == State::Busy { job: "a".to_string(), tries: 0 }), (false, true));
 }
 
 #[test]
-fn empty() {
-    check!(r#"xs = []"#, { let mut s = Stats { values: vec![], total: 1.0, max: 0.0 }; s.record_all(&[]); (s.values.len(), s.total) }, (0, 1.0));
+fn job_is_moved() {
+    let mut w = Worker { state: State::Idle, log: vec![], max_tries: 3 };
+    w.start("j");
+    let busy = match &w.state { State::Busy { job, .. } => job.as_ptr(), _ => std::ptr::null() };
+    w.finish(1);
+    let done = match &w.state { State::Done { job, .. } => job.as_ptr(), _ => std::ptr::null() };
+    let out = w.collect().unwrap().0.as_ptr();
+    check!(r#"start j; finish; collect: the same String throughout"#, (busy == done, done == out), (true, true));
 }

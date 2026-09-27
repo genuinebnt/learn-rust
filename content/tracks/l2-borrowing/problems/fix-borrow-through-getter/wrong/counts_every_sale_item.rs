@@ -48,9 +48,7 @@ pub mod shop {
                 if it.price >= min {
                     let new = it.price - it.price * self.discount / 100;
                     self.log.push(format!("{}: {} -> {new}", it.name, it.price));
-                    if new != it.price {
-                        n += 1;
-                    }
+                    n += 1;
                     it.price = new;
                 }
             }

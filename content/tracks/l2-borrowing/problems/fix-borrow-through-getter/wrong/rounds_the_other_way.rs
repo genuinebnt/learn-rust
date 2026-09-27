@@ -46,7 +46,7 @@ pub mod shop {
             let mut n = 0;
             for it in self.items.iter_mut() {
                 if it.price >= min {
-                    let new = it.price - it.price * self.discount / 100;
+                    let new = it.price * (100 - self.discount) / 100;
                     self.log.push(format!("{}: {} -> {new}", it.name, it.price));
                     if new != it.price {
                         n += 1;

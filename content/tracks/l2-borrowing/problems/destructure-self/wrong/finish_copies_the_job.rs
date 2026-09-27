@@ -44,7 +44,7 @@ impl Worker {
         match std::mem::replace(&mut self.state, State::Idle) {
             State::Busy { job, .. } => {
                 self.log.push(format!("done {job}"));
-                self.state = State::Done { job, result };
+                self.state = State::Done { job: job.as_str().to_string(), result };
                 true
             }
             other => {

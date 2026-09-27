@@ -4151,297 +4151,956 @@ Syntax to remember: `let gone: Vec<(u32, Session)> = map.extract_if(|_, s| s.exp
 
 P.append(dict(slug="two-mutable-borrows-of-self"))  # written by hand; keeps its position
 
-P.append(fix(
-    "fix-field-borrow-and-mut-method", "Fix: borrow a field while calling a &mut method", "medium", "split-borrows", ["E0502"],
-    "`append` should save the current text to history, then append `more`. It doesn't compile.",
-    """
-    pub struct Editor {
-        pub text: String,
-        pub history: Vec<String>,
+EDITOR_HEAD = r"""
+pub enum Macro {
+    Append(String),
+    Upper,
+    Replace(String, String),
+}
+
+pub struct Editor {
+    pub text: String,
+    pub clipboard: String,
+    pub macros: Vec<Macro>,
+    log: Vec<String>,
+}
+"""
+
+EDITOR_STARTER = EDITOR_HEAD + r"""
+impl Editor {
+    pub fn new(text: &str) -> Self {
+        Editor { text: String::from(text), clipboard: String::new(), macros: Vec::new(), log: Vec::new() }
     }
 
-    impl Editor {
-        fn save_snapshot(&mut self, s: &str) {
-            self.history.push(s.to_string());
-        }
-
-        /// Saves the current text, then appends `more`.
-        pub fn append(&mut self, more: &str) {
-            let before = &self.text;
-            self.save_snapshot(before);
-            self.text.push_str(more);
-        }
-    }
-    """,
-    """
-    pub struct Editor {
-        pub text: String,
-        pub history: Vec<String>,
+    pub fn log(&self) -> &[String] {
+        &self.log
     }
 
-    impl Editor {
-        /// Saves the current text, then appends `more`.
-        pub fn append(&mut self, more: &str) {
-            self.history.push(self.text.to_string());
-            self.text.push_str(more);
-        }
-    }
-    """,
-    [T("saves", "text \"ab\", append \"c\"", '{ let mut e = Editor { text: "ab".into(), history: vec![] }; e.append("c"); (e.text, e.history) }', '("abc".to_string(), vec!["ab".to_string()])')],
-    [T("twice", "append \"x\" then \"y\"", '{ let mut e = Editor { text: String::new(), history: vec![] }; e.append("x"); e.append("y"); e.history }', 'vec![String::new(), "x".to_string()]')],
-    [("rust", "`save_snapshot(&mut self, ..)` needs all of `self` while `before` borrows `self.text`."),
-     ("rust", "Touch the fields directly: `self.history` and `self.text` are disjoint.")],
-    ("Field paths borrow one field each, so reading `self.text` while pushing to `self.history` is fine inside one function.", "O(n)", "O(n)"),
-    "How else could `save_snapshot` be written so it doesn't need all of `self`?",
-    ["A `&mut self` method borrows the whole struct; field paths borrow one field."],
-))
-
-P.append(write(
-    "pair-mut", "Two &mut into one slice", "medium", "split-borrows", ["split_at_mut"],
-    "Return mutable references to `v[i]` and `v[j]` at once, or `None` if they're the same index or out of bounds.",
-    """
-    pub fn pair_mut<T>(v: &mut [T], i: usize, j: usize) -> Option<(&mut T, &mut T)> {
-        todo!()
-    }
-    """,
-    """
-    pub fn pair_mut<T>(v: &mut [T], i: usize, j: usize) -> Option<(&mut T, &mut T)> {
-        if i == j || i >= v.len() || j >= v.len() {
-            return None;
-        }
-        let (lo, hi) = (i.min(j), i.max(j));
-        let (left, right) = v.split_at_mut(hi);
-        let (a, b) = (&mut left[lo], &mut right[0]);
-        Some(if i < j { (a, b) } else { (b, a) })
-    }
-    """,
-    [T("both", "v = [1, 2, 3], i = 0, j = 2", "{ let mut v = [1, 2, 3]; if let Some((a, b)) = pair_mut(&mut v, 0, 2) { std::mem::swap(a, b); } v }", "[3, 2, 1]"),
-     T("same_index", "i = j = 1", "pair_mut(&mut [1, 2], 1, 1).is_none()", "true")],
-    [T("order_kept", "i = 2, j = 0", "{ let mut v = [10, 20, 30]; let (a, b) = pair_mut(&mut v, 2, 0).unwrap(); (*a, *b) }", "(30, 10)"),
-     T("out_of_bounds", "j = 5", "pair_mut(&mut [1, 2], 0, 5).is_none()", "true")],
-    [("rust", "Split at the larger index: the smaller one is in the left half, the larger is the first element of the right half.")],
-    ("`split_at_mut` gives two borrows that can't overlap; returning them in the caller's order is the last detail.", "O(1)", "O(1)"),
-    "std has `get_disjoint_mut`. What does it check that this doesn't?",
-    ["Two `&mut` into one slice via `split_at_mut`."],
-    related=("L2", "S3"),
-))
-
-P.append(write(
-    "destructure-self", "Destructure self into field borrows", "medium", "split-borrows", ["patterns", "split borrows"],
-    "Record each value: push it to `values`, add it to `total`, and raise `max`. Use the helper `update`, which needs three `&mut` at once.",
-    """
-    pub struct Stats {
-        pub values: Vec<f64>,
-        pub total: f64,
-        pub max: f64,
+    /// Adds "<n>. <what>" to the log, numbered from 1.
+    fn note(&mut self, what: &str) {
+        let n = self.log.len() + 1;
+        self.log.push(format!("{n}. {what}"));
     }
 
-    fn update(values: &mut Vec<f64>, total: &mut f64, max: &mut f64, x: f64) {
-        values.push(x);
-        *total += x;
-        *max = max.max(x);
-    }
-
-    impl Stats {
-        pub fn record_all(&mut self, xs: &[f64]) {
-            todo!()
-        }
-    }
-    """,
-    """
-    pub struct Stats {
-        pub values: Vec<f64>,
-        pub total: f64,
-        pub max: f64,
-    }
-
-    fn update(values: &mut Vec<f64>, total: &mut f64, max: &mut f64, x: f64) {
-        values.push(x);
-        *total += x;
-        *max = max.max(x);
-    }
-
-    impl Stats {
-        pub fn record_all(&mut self, xs: &[f64]) {
-            let Stats { values, total, max } = self;
-            for &x in xs {
-                update(values, total, max, x);
+    /// Applies `m` to the text and notes "append <s>", "upper" or "replace <a> with <b>".
+    fn apply(&mut self, m: &Macro) {
+        match m {
+            Macro::Append(s) => {
+                self.text.push_str(s);
+                self.note(&format!("append {s}"));
+            }
+            Macro::Upper => {
+                self.text.make_ascii_uppercase();
+                self.note("upper");
+            }
+            Macro::Replace(a, b) => {
+                self.text = self.text.replace(a.as_str(), b);
+                self.note(&format!("replace {a} with {b}"));
             }
         }
     }
+
+    /// Applies every macro, in order. The macros stay for next time.
+    pub fn run_macros(&mut self) {
+        for m in &self.macros {
+            self.apply(m);
+        }
+    }
+
+    /// Moves the text into the clipboard (replacing what was there), leaving the text empty, and notes
+    /// "cut <n> bytes".
+    pub fn cut(&mut self) {
+        self.clipboard = self.text;
+        self.note(&format!("cut {} bytes", self.clipboard.len()));
+    }
+
+    /// Appends the clipboard to the text (the clipboard keeps it) and notes "paste <clipboard>".
+    pub fn paste(&mut self) {
+        let clip = &self.clipboard;
+        self.note(&format!("paste {clip}"));
+        self.text.push_str(clip);
+    }
+}
+"""
+
+EDITOR_SOLUTION = EDITOR_STARTER
+for _old, _new in [
+    ("        for m in &self.macros {\n            self.apply(m);\n        }\n",
+     "        let macros = std::mem::take(&mut self.macros);\n        for m in &macros {\n            self.apply(m);\n        }\n        self.macros = macros;\n"),
+    ("        self.clipboard = self.text;\n", "        self.clipboard = std::mem::take(&mut self.text);\n"),
+    ("        let clip = &self.clipboard;\n        self.note(&format!(\"paste {clip}\"));\n        self.text.push_str(clip);\n",
+     "        self.text.push_str(&self.clipboard);\n        let msg = format!(\"paste {}\", self.clipboard);\n        self.note(&msg);\n"),
+]:
+    EDITOR_SOLUTION = sub(EDITOR_SOLUTION, _old, _new)
+
+ED_MACROS = 'e.macros = vec![Macro::Append("!".to_string()), Macro::Replace("a".to_string(), "o".to_string()), Macro::Upper];'
+ED_DESC = 'macros [Append "!", Replace "a" with "o", Upper]'
+
+P.append(fixp(
+    "fix-field-borrow-and-mut-method", "Fix: a field borrowed across a &mut self call", "medium", "split-borrows", ["E0502", "E0507", "mem::take", "take and restore"],
+    """
+        `Editor` doesn't compile: three methods hold a borrow of one field (or try to move one) while calling
+        `note` or `apply`, which take all of `self`. Fix them without cloning anything and without changing
+        `note` or `apply`.
     """,
-    [T("records", "xs = [1.5, 4.0, 2.5]", "{ let mut s = Stats { values: vec![], total: 0.0, max: f64::MIN }; s.record_all(&[1.5, 4.0, 2.5]); (s.values.len(), s.total, s.max) }", "(3, 8.0, 4.0)")],
-    [T("empty", "xs = []", "{ let mut s = Stats { values: vec![], total: 1.0, max: 0.0 }; s.record_all(&[]); (s.values.len(), s.total) }", "(0, 1.0)")],
-    [("rust", "`let Stats { values, total, max } = self;` gives three separate `&mut` borrows, one per field.")],
-    ("Destructuring a `&mut Stats` binds each field by `&mut` (default binding modes), which is how you hand several fields to one call.", "O(n)", "O(1)"),
-    "Why can't you write `update(&mut self.values, &mut self.total, &mut self.max, x)` through a getter?",
-    ["Destructuring `&mut self` splits it into field borrows."],
+    EDITOR_STARTER,
+    EDITOR_SOLUTION,
+    [T("run_macros_example", 'text "banana"; ' + ED_DESC + "; run twice", "(e.text.as_str(), e.log().to_vec(), e.macros.len())",
+       '("BONONO!!", ["1. append !", "2. replace a with o", "3. upper", "4. append !", "5. replace a with o", "6. upper"].map(String::from).to_vec(), 3)',
+       setup='let mut e = Editor::new("banana");\n' + ED_MACROS + "\ne.run_macros();\ne.run_macros();"),
+     T("cut_then_paste_twice", 'text "hi"; cut; paste; paste', "(e.text.as_str(), e.clipboard.as_str(), e.log().to_vec())", '("hihi", "hi", ["1. cut 2 bytes", "2. paste hi", "3. paste hi"].map(String::from).to_vec())',
+       setup='let mut e = Editor::new("hi");\ne.cut();\ne.paste();\ne.paste();'),
+     T("cut_moves_the_text", 'text "moved"; cut', "(p == e.clipboard.as_ptr(), e.text.is_empty())", "(true, true)", setup='let mut e = Editor::new("moved");\nlet p = e.text.as_ptr();\ne.cut();'),
+     T("no_macros", 'text "x"; run_macros', "(e.text.as_str(), e.log().len())", '("x", 0)', setup='let mut e = Editor::new("x");\ne.run_macros();'),
+     T("paste_empty_clipboard", 'text "a"; paste', "(e.text.as_str(), e.log().to_vec())", '("a", vec!["1. paste ".to_string()])', setup='let mut e = Editor::new("a");\ne.paste();')],
+    [T("cut_replaces_clipboard", 'text "one"; cut; text = "two"; cut', "(e.clipboard.as_str(), e.text.as_str())", '("two", "")', setup='let mut e = Editor::new("one");\ne.cut();\ne.text.push_str("two");\ne.cut();'),
+     T("cut_empty", "text \"\"; cut", "e.log().to_vec()", 'vec!["1. cut 0 bytes".to_string()]', setup='let mut e = Editor::new("");\ne.cut();'),
+     T("macros_see_earlier_macros", 'text "a"; [Append "a", Replace "aa" with "b"]', "e.text.as_str()", '"b"', setup='let mut e = Editor::new("a");\ne.macros = vec![Macro::Append("a".to_string()), Macro::Replace("aa".to_string(), "b".to_string())];\ne.run_macros();'),
+     T("macros_kept_in_order", 'run once, then add a macro and run', "e.text.as_str()", '"XY!Z"',
+       setup='let mut e = Editor::new("x");\ne.macros = vec![Macro::Upper, Macro::Append("Y".to_string())];\ne.run_macros();\ne.macros.push(Macro::Append("!".to_string()));\ne.text = "X".to_string();\ne.run_macros();\ne.text.push(\'Z\');'),
+     T("unicode_cut", 'text "日本"; cut', "e.log().to_vec()", 'vec!["1. cut 6 bytes".to_string()]', setup='let mut e = Editor::new("日本");\ne.cut();'),
+     T("paste_after_cut_restores", 'text "abc"; cut; paste', "(e.text.as_str(), e.clipboard.as_str())", '("abc", "abc")', setup='let mut e = Editor::new("abc");\ne.cut();\ne.paste();'),
+     T("log_numbering_continues", "cut, paste, run [Upper]", "e.log().to_vec()", '["1. cut 1 bytes", "2. paste q", "3. upper"].map(String::from).to_vec()',
+       setup='let mut e = Editor::new("q");\ne.cut();\ne.paste();\ne.macros = vec![Macro::Upper];\ne.run_macros();'),
+     T("macro_pointer_stable", "the macros Vec is the same allocation after run_macros", "p == e.macros.as_ptr()", "true",
+       setup='let mut e = Editor::new("q");\ne.macros = vec![Macro::Upper, Macro::Upper];\nlet p = e.macros.as_ptr();\ne.run_macros();'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6224);
+         for _ in 0..300 {
+             let len = rng_len(&mut rng);
+             let start = rng.string(len, "ab");
+             let mut e = Editor::new(&start);
+             let (mut text, mut clip, mut log) = (start.clone(), String::new(), Vec::<String>::new());
+             let mut ops = Vec::new();
+             for _ in 0..5 {
+                 match rng.below(3) {
+                     0 => {
+                         e.cut();
+                         clip = std::mem::take(&mut text);
+                         log.push(format!("{}. cut {} bytes", log.len() + 1, clip.len()));
+                         ops.push("cut");
+                     }
+                     1 => {
+                         e.paste();
+                         text.push_str(&clip);
+                         log.push(format!("{}. paste {clip}", log.len() + 1));
+                         ops.push("paste");
+                     }
+                     _ => {
+                         e.macros = vec![Macro::Replace("a".to_string(), "b".to_string()), Macro::Append("a".to_string())];
+                         e.run_macros();
+                         text = text.replace('a', "b") + "a";
+                         log.push(format!("{}. replace a with b", log.len() + 1));
+                         log.push(format!("{}. append a", log.len() + 1));
+                         ops.push("run [Replace a b, Append a]");
+                     }
+                 }
+             }
+             check!(format!("text {start:?}; {}", ops.join(", ")), (e.text.clone(), e.clipboard.clone(), e.log().to_vec()), (text, clip, log));
+         }
+     }
+
+     fn rng_len(rng: &mut anneal_prelude::Rng) -> usize {
+         rng.below(4)
+     }
+     """],
+    [("rust", "`for m in &self.macros { self.apply(m) }` borrows `self.macros` for the loop while `apply` wants all of `self`. Move the macros out (`mem::take`), run them, put them back."),
+     ("rust", "`self.clipboard = self.text` tries to move a field out of `&mut self` (E0507). `mem::take` moves it and leaves an empty `String`."),
+     ("rust", "In `paste`, `clip` is still used after `note` needs `&mut self`. (Reading it inside `note`'s own arguments is fine: that's a two-phase borrow.) Finish with the clipboard before the call, or reach it through the field again afterwards.")],
+    ("""A method that takes `&mut self` borrows every field, so it can't run while you hold a borrow of any one of them. Three ways out, one per method. Take and restore: `let macros = mem::take(&mut self.macros); ..; self.macros = macros;` detaches the field for the duration of the calls. (While it's out, `apply` would see an empty `macros`, and a panic in between would lose it; both are acceptable here.) Move with a replacement: you can't move a field out of `&mut self`, but `mem::take` (or `mem::replace`) swaps something in. Finish with the borrow before the call: compute the owned message, then call `note`.
+
+Another fix for `run_macros` changes the helper's shape: make `apply` an associated function over the fields it touches (`fn apply(text: &mut String, log: &mut Vec<String>, m: &Macro)`), and the call borrows disjoint fields.
+
+Syntax to remember: `let macros = std::mem::take(&mut self.macros);` · `self.clipboard = std::mem::take(&mut self.text);` · `std::mem::replace(&mut self.state, State::Idle)`.""", "O(total text) per call", "O(1) extra"),
+    "`mem::take` needs `Default`. How would you take and restore a field whose type has no cheap default?",
+    ["A `&mut self` call conflicts with any live borrow of a field.", "Take and restore: `mem::take` the field, use it, put it back.", "Finish the borrow before the call."],
+    rules=dict(methods=["clone", "to_owned", "to_string", "cloned"]),
+    wrong=dict(
+        macros_not_restored=sub(EDITOR_SOLUTION, "        self.macros = macros;\n", ""),
+        cut_counts_after_taking=sub(EDITOR_SOLUTION, 'self.note(&format!("cut {} bytes", self.clipboard.len()));', 'self.note(&format!("cut {} bytes", self.text.len()));'),
+        paste_moves_the_clipboard=sub(EDITOR_SOLUTION, "        self.text.push_str(&self.clipboard);\n        let msg = format!(\"paste {}\", self.clipboard);\n",
+                                      "        let clip = std::mem::take(&mut self.clipboard);\n        self.text.push_str(&clip);\n        let msg = format!(\"paste {clip}\");\n"),
+    ),
 ))
 
-P.append(fix(
-    "fix-swap-without-swap", "Fix: swap two Vec elements", "medium", "split-borrows", ["E0499", "mem::take"],
-    "`swap_items` should exchange two elements. It doesn't compile. Fix it without `slice::swap` or `mem::swap`.",
-    """
-    /// Swaps the elements at `i` and `j`.
-    pub fn swap_items(v: &mut [String], i: usize, j: usize) {
-        let a = &mut v[i];
-        let b = &mut v[j];
-        let tmp = std::mem::take(a);
-        *a = std::mem::take(b);
-        *b = tmp;
+PAIR_STARTER = r"""
+/// Mutable references to `v[i]` and `v[j]`, in that order. `None` if `i == j` or either is out of bounds.
+pub fn pair_mut<T>(v: &mut [T], i: usize, j: usize) -> Option<(&mut T, &mut T)> {
+    todo!()
+}
+
+/// Calls `f(&mut v[k], &mut v[k + 1])` for every adjacent pair, left to right. Later calls see the changes
+/// earlier calls made.
+pub fn for_each_adjacent_mut<T>(v: &mut [T], mut f: impl FnMut(&mut T, &mut T)) {
+    todo!()
+}
+"""
+
+PAIR_SOLUTION = r"""
+/// Mutable references to `v[i]` and `v[j]`, in that order. `None` if `i == j` or either is out of bounds.
+pub fn pair_mut<T>(v: &mut [T], i: usize, j: usize) -> Option<(&mut T, &mut T)> {
+    if i == j || i >= v.len() || j >= v.len() {
+        return None;
     }
-    """,
-    """
-    /// Swaps the elements at `i` and `j`.
-    pub fn swap_items(v: &mut [String], i: usize, j: usize) {
-        if i == j {
-            return;
-        }
-        let (lo, hi) = (i.min(j), i.max(j));
-        let (left, right) = v.split_at_mut(hi);
-        let (a, b) = (&mut left[lo], &mut right[0]);
-        let tmp = std::mem::take(a);
-        *a = std::mem::take(b);
-        *b = tmp;
+    let (lo, hi) = (i.min(j), i.max(j));
+    let (left, right) = v.split_at_mut(hi);
+    let (a, b) = (&mut left[lo], &mut right[0]);
+    Some(if i < j { (a, b) } else { (b, a) })
+}
+
+/// Calls `f(&mut v[k], &mut v[k + 1])` for every adjacent pair, left to right. Later calls see the changes
+/// earlier calls made.
+pub fn for_each_adjacent_mut<T>(v: &mut [T], mut f: impl FnMut(&mut T, &mut T)) {
+    for k in 1..v.len() {
+        let (left, right) = v.split_at_mut(k);
+        f(&mut left[k - 1], &mut right[0]);
     }
+}
+"""
+
+CARRY = "|a: &mut u32, b: &mut u32| { *b += *a / 10; *a %= 10; }"
+BUBBLE = "|a: &mut i32, b: &mut i32| if *a > *b { std::mem::swap(a, b) }"
+
+P.append(writep(
+    "pair-mut", "Two &mut into one slice, and adjacent pairs", "medium", "split-borrows", ["split_at_mut", "no windows_mut", "FnMut(&mut T, &mut T)"],
+    """
+        Write `pair_mut`, which returns `&mut` to two different elements at once, and `for_each_adjacent_mut`,
+        which hands a closure each adjacent pair mutably: the `windows_mut` that std doesn't have. No `unsafe`,
+        and no `get_disjoint_mut` (write the split yourself).
     """,
-    [T("swaps", "[\"a\", \"b\", \"c\"], 0 ↔ 2", '{ let mut v = ["a", "b", "c"].map(String::from); swap_items(&mut v, 0, 2); v }', '["c", "b", "a"].map(String::from)')],
-    [T("same_index", "1 ↔ 1", '{ let mut v = ["a", "b"].map(String::from); swap_items(&mut v, 1, 1); v }', '["a", "b"].map(String::from)'),
-     T("reversed", "2 ↔ 0", '{ let mut v = ["a", "b", "c"].map(String::from); swap_items(&mut v, 2, 0); v }', '["c", "b", "a"].map(String::from)')],
-    [("rust", "Two live `&mut v[..]` won't compile. Split the slice so each index is in its own half."),
-     ("edge case", "`i == j` must be handled before splitting.")],
-    ("`slice::swap` does exactly this with raw pointers inside std. Splitting the slice is the safe equivalent.", "O(1)", "O(1)"),
-    "How does `slice::swap` implement this internally?",
-    ["`split_at_mut` for two disjoint `&mut`."],
-    rules=dict(methods=["swap", "clone"]),
+    PAIR_STARTER,
+    PAIR_SOLUTION,
+    [T("pair_swap", "v = [1, 2, 3], pair (0, 2), swap", "{ let mut v = [1, 2, 3]; if let Some((a, b)) = pair_mut(&mut v, 0, 2) { std::mem::swap(a, b); } v }", "[3, 2, 1]"),
+     T("pair_order_kept", "v = [10, 20, 30], pair (2, 0)", "{ let mut v = [10, 20, 30]; let (a, b) = pair_mut(&mut v, 2, 0).unwrap(); (*a, *b) }", "(30, 10)"),
+     T("pair_none", "pair (1, 1) and (0, 5) of a 2-element slice", "(pair_mut(&mut [1, 2], 1, 1).is_none(), pair_mut(&mut [1, 2], 0, 5).is_none())", "(true, true)"),
+     T("carry_digits", "digits [15, 9, 3] (least significant first), carry", "{ let mut v = [15u32, 9, 3]; for_each_adjacent_mut(&mut v, " + CARRY + "); v }", "[5, 0, 4]"),
+     T("bubble_pass", "one bubble pass over [3, 1, 2, 0]", "{ let mut v = [3, 1, 2, 0]; for_each_adjacent_mut(&mut v, " + BUBBLE + "); v }", "[1, 2, 0, 3]"),
+     T("short_slices", "for_each_adjacent_mut on [] and [7]: calls", "{ let mut n = 0; for_each_adjacent_mut(&mut [0u8; 0], |_, _| n += 1); for_each_adjacent_mut(&mut [7], |_, _| n += 1); n }", "0")],
+    [T("pair_adjacent", "v = [1, 2], pair (1, 0), a += 10", "{ let mut v = [1, 2]; let (a, _) = pair_mut(&mut v, 1, 0).unwrap(); *a += 10; v }", "[1, 12]"),
+     T("pair_at_end", "pair (0, len - 1) of 5", "{ let mut v = [0, 1, 2, 3, 4]; let (a, b) = pair_mut(&mut v, 0, 4).unwrap(); (*a, *b) }", "(0, 4)"),
+     T("pair_empty", "pair (0, 1) of []", "pair_mut(&mut [0u8; 0], 0, 1).is_none()", "true"),
+     T("pair_i_out", "pair (3, 0) of 3", "pair_mut(&mut [1, 2, 3], 3, 0).is_none()", "true"),
+     T("pair_strings", "pair (1, 0) of [\"a\", \"b\"], push b onto a", '{ let mut v = ["a", "b"].map(String::from); let (b, a) = pair_mut(&mut v, 1, 0).unwrap(); a.push_str(b); v }', '["ab", "b"].map(String::from)'),
+     T("prefix_sums", "[1, 2, 3, 4], b += a", "{ let mut v = [1, 2, 3, 4]; for_each_adjacent_mut(&mut v, |a, b| *b += *a); v }", "[1, 3, 6, 10]"),
+     T("visits_in_order", "record pairs of [1, 2, 3]", "{ let mut seen = vec![]; for_each_adjacent_mut(&mut [1, 2, 3], |a, b| seen.push((*a, *b))); seen }", "vec![(1, 2), (2, 3)]"),
+     T("carry_through_nines", "digits [10, 9, 9, 0]", "{ let mut v = [10u32, 9, 9, 0]; for_each_adjacent_mut(&mut v, " + CARRY + "); v }", "[0, 0, 0, 1]"),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6225);
+         for _ in 0..300 {
+             let n = rng.below(7);
+             let v: Vec<i32> = rng.vec(n, -9, 9);
+             let (i, j) = (rng.below(n + 2), rng.below(n + 2));
+             let mut got = v.clone();
+             let pair = pair_mut(&mut got, i, j).map(|(a, b)| {
+                 let seen = (*a, *b);
+                 *a += 100;
+                 *b -= 100;
+                 seen
+             });
+             let mut want = v.clone();
+             let want_pair = if i != j && i < n && j < n {
+                 let seen = (v[i], v[j]);
+                 want[i] += 100;
+                 want[j] -= 100;
+                 Some(seen)
+             } else {
+                 None
+             };
+             check!(format!("pair_mut({v:?}, {i}, {j})"), (pair, got), (want_pair, want));
+
+             let mut got = v.clone();
+             for_each_adjacent_mut(&mut got, |a, b| {
+                 *b = *b * 2 - *a;
+                 *a += 1;
+             });
+             let mut want = v.clone();
+             for k in 1..n {
+                 want[k] = want[k] * 2 - want[k - 1];
+                 want[k - 1] += 1;
+             }
+             check!(format!("for_each_adjacent_mut({v:?}, b = 2b - a, a += 1)"), got, want);
+         }
+     }
+
+     #[test]
+     fn long_slice() {
+         let mut v = vec![1u64; 200_000];
+         for_each_adjacent_mut(&mut v, |a, b| *b += *a);
+         check!("prefix sums of 200000 ones", (v[0], v[199_999]), (1, 200_000));
+     }
+     """],
+    [("rust", "`split_at_mut(mid)` gives `(&mut v[..mid], &mut v[mid..])`, two borrows that can't overlap. Split at the larger index: the smaller one is in the left half, the larger is the first element of the right half."),
+     ("rust", "Return the pair in the caller's order, `(v[i], v[j])`, even when `i > j`."),
+     ("rust", "For adjacent pairs, split at each `k` in turn: `left[k - 1]` and `right[0]`. Each split's borrows end before the next one starts.")],
+    ("""Two `&mut` into one slice need proof that they don't overlap, and `split_at_mut` is that proof: it checks `mid <= len` once and returns two disjoint halves (with `unsafe` inside std). A pair is the last element of one half and the first of the other. The adjacent-pairs helper is the loop version: split at each `k`, call `f`, and the borrows end before the next split, so later calls see earlier changes. That's also why std has `chunks_mut` but no `windows_mut`: an iterator's items can all be alive at once, and overlapping windows would alias. A callback that finishes before the next pair is made avoids the problem.
+
+Syntax to remember: `let (left, right) = v.split_at_mut(hi);` · `Some(if i < j { (a, b) } else { (b, a) })` · `fn f<T>(v: &mut [T], mut f: impl FnMut(&mut T, &mut T))` · std's own: `v.get_disjoint_mut([i, j])`.""", "O(1) pair_mut; O(n) adjacent", "O(1)"),
+    "Why can't `for_each_adjacent_mut` be an `Iterator<Item = (&mut T, &mut T)>`?",
+    ["`split_at_mut` gives two disjoint `&mut` halves.", "Return pairs in the caller's order.", "A callback can visit overlapping windows; an iterator can't."],
+    related=("L2", "S3"),
+    wrong=dict(
+        pair_sorted_order=sub(PAIR_SOLUTION, "Some(if i < j { (a, b) } else { (b, a) })", "Some((a, b))"),
+        right_to_left=sub(PAIR_SOLUTION, "    for k in 1..v.len() {", "    for k in (1..v.len()).rev() {"),
+        pair_bounds_off_by_one=sub(PAIR_SOLUTION, "if i == j || i >= v.len() || j >= v.len() {", "if i == j || i > v.len() || j > v.len() {"),
+    ),
 ))
 
-P.append(write(
-    "view-struct", "A view struct over two fields", "medium", "split-borrows", ["lifetimes", "view structs"],
-    "`Document::header()` returns a `Header` holding `&mut` to the title and tags at once. `Header::retitle` sets the title and adds an `\"edited\"` tag.",
+WORKER_HEAD = r"""
+#[derive(Debug, PartialEq)]
+pub enum State {
+    Idle,
+    Busy { job: String, tries: u32 },
+    Done { job: String, result: u64 },
+}
+
+pub struct Worker {
+    pub state: State,
+    pub log: Vec<String>,
+    pub max_tries: u32,
+}
+"""
+
+WORKER_DOCS = dict(
+    start="""    /// Idle → Busy with `job` and 0 tries, logging "start <job>". Anything else: no change, `false`.
+    pub fn start(&mut self, job: &str) -> bool {
+""",
+    retry="""    /// Busy: counts a try and logs "retry <job> #<tries>". When tries reaches `max_tries` the worker gives up:
+    /// back to Idle, logging "give up <job>" instead, and `None`. Otherwise returns the new tries count.
+    /// Not busy: no change, `None`.
+    pub fn retry(&mut self) -> Option<u32> {
+""",
+    finish="""    /// Busy → Done with the same job `String` (moved, not copied) and `result`, logging "done <job>".
+    /// Anything else: no change, `false`.
+    pub fn finish(&mut self, result: u64) -> bool {
+""",
+    collect="""    /// Done → Idle, handing back the job and result. Anything else: no change, `None`.
+    pub fn collect(&mut self) -> Option<(String, u64)> {
+""",
+)
+
+WORKER_BODIES = dict(
+    start="""        if self.state != State::Idle {
+            return false;
+        }
+        self.log.push(format!("start {job}"));
+        self.state = State::Busy { job: job.to_string(), tries: 0 };
+        true
+""",
+    retry="""        let Worker { state, log, max_tries } = self;
+        let State::Busy { job, tries } = state else { return None };
+        *tries += 1;
+        if *tries < *max_tries {
+            log.push(format!("retry {job} #{tries}"));
+            return Some(*tries);
+        }
+        log.push(format!("give up {job}"));
+        *state = State::Idle;
+        None
+""",
+    finish="""        match std::mem::replace(&mut self.state, State::Idle) {
+            State::Busy { job, .. } => {
+                self.log.push(format!("done {job}"));
+                self.state = State::Done { job, result };
+                true
+            }
+            other => {
+                self.state = other;
+                false
+            }
+        }
+""",
+    collect="""        match std::mem::replace(&mut self.state, State::Idle) {
+            State::Done { job, result } => Some((job, result)),
+            other => {
+                self.state = other;
+                None
+            }
+        }
+""",
+)
+
+
+def worker_src(bodies):
+    out = WORKER_HEAD + "\nimpl Worker {\n"
+    for k in ("start", "retry", "finish", "collect"):
+        out += WORKER_DOCS[k] + bodies[k] + "    }\n\n"
+    return out.rstrip("\n") + "\n}\n"
+
+
+WORKER_SOLUTION = worker_src(WORKER_BODIES)
+WORKER_STARTER = worker_src({k: "        todo!()\n" for k in WORKER_BODIES})
+WK = "let mut w = Worker { state: State::Idle, log: vec![], max_tries: 3 };"
+
+P.append(writep(
+    "destructure-self", "Destructure &mut self: binding modes and mem::replace", "medium", "split-borrows", ["patterns", "default binding modes", "let else", "mem::replace", "state machines"],
     """
-    pub struct Document {
-        pub title: String,
-        pub body: String,
-        pub tags: Vec<String>,
-    }
-
-    pub struct Header<'a> {
-        pub title: &'a mut String,
-        pub tags: &'a mut Vec<String>,
-    }
-
-    impl Document {
-        pub fn header(&mut self) -> Header<'_> {
-            todo!()
-        }
-    }
-
-    impl Header<'_> {
-        pub fn retitle(&mut self, new_title: &str) {
-            todo!()
-        }
-    }
+        Write the transitions of a small worker state machine. The job name moves from state to state as the
+        same `String`: no copies (a test compares pointers). Each method updates the state and the log in the
+        same call, so you'll need borrows of both at once, and to move a field out of a `&mut self`.
     """,
+    WORKER_STARTER,
+    WORKER_SOLUTION,
+    [T("full_cycle", "max 3; start a; retry; finish 7; collect", "(w.start(\"a\"), w.retry(), w.finish(7), w.collect(), w.state == State::Idle, w.log.clone())",
+       '(true, Some(1), true, Some(("a".to_string(), 7)), true, ["start a", "retry a #1", "done a"].map(String::from).to_vec())', setup=WK),
+     T("give_up", "max 3; start b; retry 3 times", "(w.retry(), w.retry(), w.retry(), w.state == State::Idle, w.log.last().cloned())", '(Some(1), Some(2), None, true, Some("give up b".to_string()))', setup=WK + '\nw.start("b");'),
+     T("wrong_state_changes_nothing", "idle: retry, finish, collect", "(w.retry(), w.finish(1), w.collect(), w.log.len())", "(None, false, None, 0)", setup=WK),
+     T("start_when_busy", "start a; start b", "(w.start(\"b\"), w.state == State::Busy { job: \"a\".to_string(), tries: 0 })", "(false, true)", setup=WK + '\nw.start("a");'),
+     T("job_is_moved", "start j; finish; collect: the same String throughout", "(busy == done, done == out)", "(true, true)",
+       setup=WK + '\nw.start("j");\nlet busy = match &w.state { State::Busy { job, .. } => job.as_ptr(), _ => std::ptr::null() };\nw.finish(1);\nlet done = match &w.state { State::Done { job, .. } => job.as_ptr(), _ => std::ptr::null() };\nlet out = w.collect().unwrap().0.as_ptr();')],
+    [T("max_one", "max 1; start; retry", "(w.retry(), w.log.clone())", '(None, ["start x", "give up x"].map(String::from).to_vec())', setup='let mut w = Worker { state: State::Idle, log: vec![], max_tries: 1 };\nw.start("x");'),
+     T("finish_when_done", "start; finish 1; finish 2", "(w.finish(2), w.collect())", '(false, Some(("x".to_string(), 1)))', setup=WK + '\nw.start("x");\nw.finish(1);'),
+     T("start_when_done", "start; finish; start y", "(w.start(\"y\"), w.log.len())", "(false, 2)", setup=WK + '\nw.start("x");\nw.finish(1);'),
+     T("collect_twice", "start; finish; collect twice", "(w.collect().is_some(), w.collect())", "(true, None)", setup=WK + '\nw.start("x");\nw.finish(1);'),
+     T("restart_after_give_up", "max 3; start a; retry x3; start b; retry", "(w.start(\"b\"), w.retry(), w.log.len())", "(true, Some(1), 6)", setup=WK + '\nw.start("a");\nfor _ in 0..3 {\n    w.retry();\n}'),
+     T("retry_after_finish", "start; finish; retry", "(w.retry(), w.state == State::Done { job: \"x\".to_string(), result: 5 })", "(None, true)", setup=WK + '\nw.start("x");\nw.finish(5);'),
+     T("unicode_job", "start 日本; finish 0; collect", "(w.collect(), w.log.clone())", '(Some(("日本".to_string(), 0)), ["start 日本", "done 日本"].map(String::from).to_vec())', setup=WK + '\nw.start("日本");\nw.finish(0);'),
+     T("tries_kept_in_state", "max 5; start; retry x2", "w.state", 'State::Busy { job: "t".to_string(), tries: 2 }', setup='let mut w = Worker { state: State::Idle, log: vec![], max_tries: 5 };\nw.start("t");\nw.retry();\nw.retry();'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         // 0 idle, 1 busy, 2 done
+         let mut rng = anneal_prelude::Rng::new(6226);
+         for _ in 0..300 {
+             let max = 1 + rng.below(3) as u32;
+             let mut w = Worker { state: State::Idle, log: vec![], max_tries: max };
+             let (mut phase, mut job, mut tries, mut result) = (0, String::new(), 0u32, 0u64);
+             let mut log: Vec<String> = Vec::new();
+             let mut ops = Vec::new();
+             for step in 0..8 {
+                 match rng.below(4) {
+                     0 => {
+                         let name = format!("j{step}");
+                         let want = phase == 0;
+                         if want {
+                             phase = 1;
+                             job = name.clone();
+                             tries = 0;
+                             log.push(format!("start {name}"));
+                         }
+                         ops.push(format!("start {name}"));
+                         check!(format!("max {max}; {}", ops.join(", ")), w.start(&name), want);
+                     }
+                     1 => {
+                         let want = if phase == 1 {
+                             tries += 1;
+                             if tries < max {
+                                 log.push(format!("retry {job} #{tries}"));
+                                 Some(tries)
+                             } else {
+                                 log.push(format!("give up {job}"));
+                                 phase = 0;
+                                 None
+                             }
+                         } else {
+                             None
+                         };
+                         ops.push("retry".to_string());
+                         check!(format!("max {max}; {}", ops.join(", ")), w.retry(), want);
+                     }
+                     2 => {
+                         let want = phase == 1;
+                         if want {
+                             phase = 2;
+                             result = step as u64;
+                             log.push(format!("done {job}"));
+                         }
+                         ops.push(format!("finish {step}"));
+                         check!(format!("max {max}; {}", ops.join(", ")), w.finish(step as u64), want);
+                     }
+                     _ => {
+                         let want = if phase == 2 {
+                             phase = 0;
+                             Some((job.clone(), result))
+                         } else {
+                             None
+                         };
+                         ops.push("collect".to_string());
+                         check!(format!("max {max}; {}", ops.join(", ")), w.collect(), want);
+                     }
+                 }
+             }
+             check!(format!("max {max}; {}; log", ops.join(", ")), w.log.clone(), log);
+         }
+     }
+     """],
+    [("rust", "`let Worker { state, log, max_tries } = self;` on a `&mut Worker` binds each field as a `&mut` (default binding modes), all at once. Then `let State::Busy { job, tries } = state else { .. }` binds `job: &mut String` and `tries: &mut u32`."),
+     ("rust", "To move `job` from `Busy` into `Done`, take the whole state out: `std::mem::replace(&mut self.state, State::Idle)` returns the old state by value, and you can destructure it and move its fields. Put it back if it wasn't the state you wanted."),
+     ("rust", "Assigning `*state = State::Idle` while `job` is still borrowed from it won't compile; log first, then assign.")],
+    ("""Matching on a `&mut` value binds its fields as `&mut` without writing `ref mut`: that's default binding modes, and destructuring `self` itself gives separate `&mut` borrows of every field at once, so a state's fields and `log` can be used together. Borrowing is enough while the state stays the same variant. Changing variant while keeping a field (the job `String`) needs ownership of the old state, and you only have `&mut self`: `mem::replace(&mut self.state, State::Idle)` moves the old state out and leaves a valid placeholder, the `match` moves `job` into the new variant, and a non-matching state is put back unchanged. `Option::take` is the same trick for `Option`.
+
+Syntax to remember: `let Worker { state, log, max_tries } = self;` · `let State::Busy { job, tries } = state else { return None };` · `match std::mem::replace(&mut self.state, State::Idle) { State::Busy { job, .. } => .., other => self.state = other }`.""", "O(len of the job name) per log line", "O(1)"),
+    "What would `retry` look like if `State::Busy` held a `Box<dyn Job>` instead of a `String`, and giving up had to hand the job to a callback?",
+    ["Destructuring `&mut self` gives disjoint `&mut` fields.", "Default binding modes make pattern bindings `&mut` automatically.", "`mem::replace` moves an enum out of `&mut` to change variant without cloning."],
+    wrong=dict(
+        give_up_one_late=sub(WORKER_SOLUTION, "if *tries < *max_tries {", "if *tries <= *max_tries {"),
+        finish_copies_the_job=sub(WORKER_SOLUTION, "                self.state = State::Done { job, result };", "                self.state = State::Done { job: job.as_str().to_string(), result };"),
+        collect_leaves_done=worker_src(dict(WORKER_BODIES, collect="""        match &self.state {
+            State::Done { job, result } => Some((job.to_string(), *result)),
+            _ => None,
+        }
+""")),
+    ),
+))
+
+SWAP_STARTER = r"""
+use std::mem::take;
+
+/// Swaps `v[i]` and `v[j]`. `i` may equal `j`.
+pub fn swap_items(v: &mut [String], i: usize, j: usize) {
+    let a = &mut v[i];
+    let b = &mut v[j];
+    let tmp = take(a);
+    *a = take(b);
+    *b = tmp;
+}
+
+/// Rotates three distinct slots: `v[i]` gets `v[j]`'s value, `v[j]` gets `v[k]`'s, `v[k]` gets `v[i]`'s.
+pub fn rotate3(v: &mut [String], i: usize, j: usize, k: usize) {
+    let (a, b, c) = (&mut v[i], &mut v[j], &mut v[k]);
+    let first = take(a);
+    *a = take(b);
+    *b = take(c);
+    *c = first;
+}
+
+/// Appends a copy of `v[j]` to `v[i]`. `i` may equal `j` (the string doubles).
+pub fn append_copy(v: &mut [String], i: usize, j: usize) {
+    v[i].push_str(&v[j]);
+}
+"""
+
+SWAP_SOLUTION = r"""
+use std::mem::take;
+
+/// Swaps `v[i]` and `v[j]`. `i` may equal `j`.
+pub fn swap_items(v: &mut [String], i: usize, j: usize) {
+    if i == j {
+        return;
+    }
+    let tmp = take(&mut v[i]);
+    v[i] = std::mem::replace(&mut v[j], tmp);
+}
+
+/// Rotates three distinct slots: `v[i]` gets `v[j]`'s value, `v[j]` gets `v[k]`'s, `v[k]` gets `v[i]`'s.
+pub fn rotate3(v: &mut [String], i: usize, j: usize, k: usize) {
+    let first = take(&mut v[i]);
+    v[i] = take(&mut v[j]);
+    v[j] = take(&mut v[k]);
+    v[k] = first;
+}
+
+/// Appends a copy of `v[j]` to `v[i]`. `i` may equal `j` (the string doubles).
+pub fn append_copy(v: &mut [String], i: usize, j: usize) {
+    if i == j {
+        v[i].extend_from_within(..);
+        return;
+    }
+    let (lo, hi) = (i.min(j), i.max(j));
+    let (left, right) = v.split_at_mut(hi);
+    let (a, b) = (&mut left[lo], &mut right[0]);
+    if i < j {
+        a.push_str(b);
+    } else {
+        b.push_str(a);
+    }
+}
+"""
+
+
+def sv_case(name, desc, v, call, want):
+    lit = "[" + ", ".join(f'"{x}"' for x in v) + "].map(String::from)"
+    w = "[" + ", ".join(f'"{x}"' for x in want) + "].map(String::from)"
+    return T(name, f"{v}; {desc}".replace("'", '"'), f"{{ let mut v = {lit}; {call}; v }}", w)
+
+
+P.append(fixp(
+    "fix-swap-without-swap", "Fix: move values between slots of one slice", "medium", "split-borrows", ["E0499", "E0502", "mem::take", "mem::replace", "split_at_mut", "extend_from_within"],
     """
-    pub struct Document {
-        pub title: String,
-        pub body: String,
-        pub tags: Vec<String>,
-    }
-
-    pub struct Header<'a> {
-        pub title: &'a mut String,
-        pub tags: &'a mut Vec<String>,
-    }
-
-    impl Document {
-        pub fn header(&mut self) -> Header<'_> {
-            Header { title: &mut self.title, tags: &mut self.tags }
-        }
-    }
-
-    impl Header<'_> {
-        pub fn retitle(&mut self, new_title: &str) {
-            self.title.clear();
-            self.title.push_str(new_title);
-            self.tags.push("edited".to_string());
-        }
-    }
+        None of these compiles: each holds two borrows into `v` at once. Fix them without `swap`, `rotate_*`,
+        or copying any string you don't have to. Two of them never need two live borrows at all. The third
+        does, except in one case.
     """,
-    [T("retitles", "title \"old\"", '{ let mut d = Document { title: "old".into(), body: "text".into(), tags: vec![] }; d.header().retitle("new"); (d.title, d.tags, d.body) }', '("new".to_string(), vec!["edited".to_string()], "text".to_string())')],
-    [T("twice", "retitle twice", '{ let mut d = Document { title: String::new(), body: String::new(), tags: vec![] }; let mut h = d.header(); h.retitle("a"); h.retitle("b"); d.tags.len() }', "2")],
-    [("rust", "A struct of `&mut` field references carries the split borrow around as one value.")],
-    ("`body` stays untouched and unborrowed by the view, which is the point of a view struct.", "O(n)", "O(1)"),
-    "When does a view struct beat passing several `&mut` parameters?",
-    ["View structs: a named bundle of disjoint field borrows."],
+    SWAP_STARTER,
+    SWAP_SOLUTION,
+    [sv_case("swap_example", "swap_items(0, 2)", ["a", "b", "c"], "swap_items(&mut v, 0, 2)", ["c", "b", "a"]),
+     sv_case("swap_same_slot", "swap_items(1, 1)", ["a", "b"], "swap_items(&mut v, 1, 1)", ["a", "b"]),
+     sv_case("rotate3_example", "rotate3(0, 1, 2)", ["x", "y", "z"], "rotate3(&mut v, 0, 1, 2)", ["y", "z", "x"]),
+     sv_case("append_copy_example", "append_copy(0, 1)", ["ab", "cd"], "append_copy(&mut v, 0, 1)", ["abcd", "cd"]),
+     sv_case("append_copy_backwards", "append_copy(1, 0)", ["ab", "cd"], "append_copy(&mut v, 1, 0)", ["ab", "cdab"]),
+     sv_case("append_to_itself", "append_copy(0, 0)", ["ab"], "append_copy(&mut v, 0, 0)", ["abab"])],
+    [sv_case("swap_backwards", "swap_items(2, 0)", ["a", "b", "c"], "swap_items(&mut v, 2, 0)", ["c", "b", "a"]),
+     sv_case("swap_adjacent", "swap_items(0, 1)", ["x", "y"], "swap_items(&mut v, 0, 1)", ["y", "x"]),
+     sv_case("swap_single", "swap_items(0, 0)", ["only"], "swap_items(&mut v, 0, 0)", ["only"]),
+     sv_case("rotate3_reversed_indices", "rotate3(2, 1, 0)", ["x", "y", "z"], "rotate3(&mut v, 2, 1, 0)", ["z", "x", "y"]),
+     sv_case("rotate3_spread", "rotate3(0, 3, 1)", ["a", "b", "c", "d"], "rotate3(&mut v, 0, 3, 1)", ["d", "a", "c", "b"]),
+     sv_case("append_empty", "append_copy(0, 1)", ["a", ""], "append_copy(&mut v, 0, 1)", ["a", ""]),
+     sv_case("append_empty_self", "append_copy(1, 1)", ["a", ""], "append_copy(&mut v, 1, 1)", ["a", ""]),
+     sv_case("append_unicode", "append_copy(2, 0)", ["日本", "-", "x"], "append_copy(&mut v, 2, 0)", ["日本", "-", "x日本"]),
+     T("strings_moved_not_copied", "swap_items(0, 1) moves the Strings", "(v[0].as_ptr() == p1, v[1].as_ptr() == p0)", "(true, true)",
+       setup='let mut v = ["first", "second"].map(String::from);\nlet (p0, p1) = (v[0].as_ptr(), v[1].as_ptr());\nswap_items(&mut v, 0, 1);'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6227);
+         for _ in 0..300 {
+             let n = 3 + rng.below(3);
+             let mut v: Vec<String> = Vec::new();
+             for _ in 0..n {
+                 let len = 1 + rng_len(&mut rng);
+                 v.push(rng.string(len, "ab"));
+             }
+             let (i, j) = (rng.below(n), rng.below(n));
+             let mut got = v.clone();
+             swap_items(&mut got, i, j);
+             let mut want = v.clone();
+             want.swap(i, j);
+             check!(format!("{v:?}; swap_items({i}, {j})"), got, want);
+             let mut got = v.clone();
+             append_copy(&mut got, i, j);
+             let mut want = v.clone();
+             let add = v[j].clone();
+             want[i].push_str(&add);
+             check!(format!("{v:?}; append_copy({i}, {j})"), got, want);
+             let mut idx: Vec<usize> = (0..n).collect();
+             rng.shuffle(&mut idx);
+             let (a, b, c) = (idx[0], idx[1], idx[2]);
+             let mut got = v.clone();
+             rotate3(&mut got, a, b, c);
+             let mut want = v.clone();
+             want[a] = v[b].clone();
+             want[b] = v[c].clone();
+             want[c] = v[a].clone();
+             check!(format!("{v:?}; rotate3({a}, {b}, {c})"), got, want);
+         }
+     }
+
+     fn rng_len(rng: &mut anneal_prelude::Rng) -> usize {
+         rng.below(3)
+     }
+     """],
+    [("rust", "`let a = &mut v[i]; let b = &mut v[j];` is two live `&mut` into `v`, which is never allowed, whatever the indices. Do you need both at once? `mem::take(&mut v[i])` is one short borrow; `mem::replace(&mut v[j], x)` puts `x` in and hands back what was there."),
+     ("rust", "Sequencing through `take` breaks when `i == j`: the first `take` empties the slot you're about to read. Test for it."),
+     ("rust", "`append_copy` really does need `v[i]` and `v[j]` alive together (appending without copying `v[j]` first): split the slice. When `i == j` there's nothing to split; `String::extend_from_within(..)` appends a copy of the string to itself.")],
+    ("""Moving values between slots doesn't need two live borrows: `take` moves a value out through a borrow that ends at the semicolon, and `replace` swaps a value in and returns the old one, so a swap is `let tmp = take(&mut v[i]); v[i] = replace(&mut v[j], tmp);` and a rotation is a chain of takes. The catch is aliasing by value: with `i == j` the first `take` empties the only slot, so the result is an empty string unless you return early. (`slice::swap` handles it with raw pointers inside std.) Reading one slot while growing another is different: both must be alive, so split the slice at the larger index. `i == j` is again special, since a `String` can't be borrowed shared and unique at once, and `extend_from_within(..)` copies within its own buffer.
+
+Syntax to remember: `let tmp = std::mem::take(&mut v[i]);` · `v[i] = std::mem::replace(&mut v[j], tmp);` · `let (left, right) = v.split_at_mut(hi);` · `s.extend_from_within(..)`.""", "O(1) swaps; O(len) appends", "O(1) extra"),
+    "`mem::swap(&mut a.x, &mut b.x)` compiles when `a` and `b` are different variables. When does the same code on `v[i].x` and `v[j].x` need a split instead?",
+    ["`take` and `replace` move values through short, sequential borrows.", "Sequenced moves break when two indices are equal.", "Split only when two borrows must be alive together."],
+    rules=dict(methods=["swap", "clone", "to_string", "to_owned", "rotate_left", "rotate_right", "swap_with_slice", "get_disjoint_mut", "cloned"]),
+    wrong=dict(
+        swap_loses_same_slot=sub(SWAP_SOLUTION, "    if i == j {\n        return;\n    }\n    let tmp = take(&mut v[i]);", "    let tmp = take(&mut v[i]);"),
+        self_append_via_take=sub(SWAP_SOLUTION, "        v[i].extend_from_within(..);\n", "        let s = take(&mut v[j]);\n        v[i].push_str(&s);\n        v[j] = s;\n"),
+        rotate3_backwards=sub(SWAP_SOLUTION, "    let first = take(&mut v[i]);\n    v[i] = take(&mut v[j]);\n    v[j] = take(&mut v[k]);\n    v[k] = first;",
+                              "    let first = take(&mut v[k]);\n    v[k] = take(&mut v[j]);\n    v[j] = take(&mut v[i]);\n    v[i] = first;"),
+    ),
+))
+
+DOC_HEAD = r"""
+pub struct Document {
+    pub title: String,
+    pub tags: Vec<String>,
+    pub lines: Vec<String>,
+    pub words: usize,
+}
+
+/// The title and tags, borrowed mutably together.
+pub struct Header<'a> {
+    pub title: &'a mut String,
+    pub tags: &'a mut Vec<String>,
+}
+
+/// The lines and word count, borrowed mutably together.
+pub struct Body<'a> {
+    pub lines: &'a mut Vec<String>,
+    pub words: &'a mut usize,
+}
+"""
+
+DOC_DOCS = dict(
+    header="    pub fn header(&mut self) -> Header<'_> {\n",
+    body="    pub fn body(&mut self) -> Body<'_> {\n",
+    split="    /// Both views at once.\n    pub fn split(&mut self) -> (Header<'_>, Body<'_>) {\n",
+    tag="    /// Adds `tag` unless it's already there. Returns whether it was added.\n    pub fn tag(&mut self, tag: &str) -> bool {\n",
+    retitle="    /// Sets the title and adds the tag \"edited\" (once).\n    pub fn retitle(&mut self, title: &str) {\n",
+    push="    /// Appends a line and adds its whitespace-separated words to the count.\n    pub fn push_line(&mut self, line: &str) {\n",
+    hashtags="/// Adds every word of the body that starts with '#' as a tag, without the '#' (skipping a bare \"#\"), in order,\n/// unless it's already a tag. Returns how many tags were added.\npub fn hashtags(doc: &mut Document) -> usize {\n",
+)
+
+DOC_BODIES = dict(
+    header="        Header { title: &mut self.title, tags: &mut self.tags }\n",
+    body="        Body { lines: &mut self.lines, words: &mut self.words }\n",
+    split="        let Document { title, tags, lines, words } = self;\n        (Header { title, tags }, Body { lines, words })\n",
+    tag="        if self.tags.iter().any(|t| t == tag) {\n            return false;\n        }\n        self.tags.push(tag.to_string());\n        true\n",
+    retitle="        self.title.clear();\n        self.title.push_str(title);\n        self.tag(\"edited\");\n",
+    push="        *self.words += line.split_whitespace().count();\n        self.lines.push(line.to_string());\n",
+    hashtags="""    let (mut header, body) = doc.split();
+    let mut added = 0;
+    for line in body.lines.iter() {
+        for word in line.split_whitespace() {
+            if let Some(tag) = word.strip_prefix('#').filter(|t| !t.is_empty()) {
+                if header.tag(tag) {
+                    added += 1;
+                }
+            }
+        }
+    }
+    added
+""",
+)
+
+
+def doc_src(bodies):
+    out = DOC_HEAD + "\nimpl Document {\n"
+    for k in ("header", "body", "split"):
+        out += DOC_DOCS[k] + bodies[k] + "    }\n\n"
+    out = out.rstrip("\n") + "\n}\n\nimpl Header<'_> {\n"
+    for k in ("tag", "retitle"):
+        out += DOC_DOCS[k] + bodies[k] + "    }\n\n"
+    out = out.rstrip("\n") + "\n}\n\nimpl Body<'_> {\n" + DOC_DOCS["push"] + bodies["push"] + "    }\n}\n\n"
+    return out + DOC_DOCS["hashtags"] + bodies["hashtags"] + "}\n"
+
+
+DOC_SOLUTION = doc_src(DOC_BODIES)
+DOC_STARTER = doc_src({k: ("    todo!()\n" if k == "hashtags" else "        todo!()\n") for k in DOC_BODIES})
+DOC_NEW = 'let mut d = Document { title: "Draft".to_string(), tags: vec![], lines: vec![], words: 0 };'
+
+P.append(writep(
+    "view-struct", "View structs over disjoint fields", "medium", "split-borrows", ["view structs", "lifetimes", "destructuring", "E0499"],
+    """
+        `Header` and `Body` are views: each bundles `&mut` borrows of some of `Document`'s fields. Write the
+        methods that make them and use them, and `hashtags`, which reads the body while it adds tags to the
+        header. Two views made by two `&mut self` calls can't be alive together; `split` has to make both.
+    """,
+    DOC_STARTER,
+    DOC_SOLUTION,
+    [T("views_together", "split; push a line and retitle while both are alive", "(d.title.as_str(), d.tags.clone(), d.lines.clone(), d.words)", '("Final", vec!["edited".to_string()], vec!["two words".to_string()], 2)',
+       setup=DOC_NEW + '\n{\n    let (mut h, mut b) = d.split();\n    b.push_line("two words");\n    h.retitle("Final");\n}'),
+     T("hashtags_example", "lines \"see #rust and #borrowck\", \"#rust again #\"", "(hashtags(&mut d), d.tags.clone())", '(2, vec!["rust".to_string(), "borrowck".to_string()])',
+       setup=DOC_NEW + '\nd.body().push_line("see #rust and #borrowck");\nd.body().push_line("#rust again #");'),
+     T("retitle_tags_once", "retitle twice", "(d.title.as_str(), d.tags.clone())", '("B", vec!["edited".to_string()])', setup=DOC_NEW + '\nd.header().retitle("A");\nd.header().retitle("B");'),
+     T("tag_reports", "tag x, x, y", "{ let mut h = d.header(); (h.tag(\"x\"), h.tag(\"x\"), h.tag(\"y\")) }", "(true, false, true)", setup=DOC_NEW),
+     T("word_count", "push \"a b  c\", \"\", \" d \"", "(d.words, d.lines.len())", "(4, 3)", setup=DOC_NEW + '\nlet mut b = d.body();\nb.push_line("a b  c");\nb.push_line("");\nb.push_line(" d ");')],
+    [T("hashtags_existing_tag", "tags [rust]; line \"#rust #go\"", "(hashtags(&mut d), d.tags.clone())", '(1, vec!["rust".to_string(), "go".to_string()])', setup=DOC_NEW + '\nd.tags.push("rust".to_string());\nd.body().push_line("#rust #go");'),
+     T("hashtags_none", "line \"no tags here\"", "(hashtags(&mut d), d.tags.len())", "(0, 0)", setup=DOC_NEW + '\nd.body().push_line("no tags here");'),
+     T("hashtags_empty_doc", "empty document", "hashtags(&mut d)", "0", setup=DOC_NEW),
+     T("hashtag_mid_word_ignored", "line \"a#b ##c\"", "(hashtags(&mut d), d.tags.clone())", '(1, vec!["#c".to_string()])', setup=DOC_NEW + '\nd.body().push_line("a#b ##c");'),
+     T("hashtag_unicode", "line \"#日本 #é\"", "d.tags.clone()", '["日本", "é"].map(String::from).to_vec()', setup=DOC_NEW + '\nd.body().push_line("#日本 #é");\nhashtags(&mut d);'),
+     T("retitle_empty", "retitle \"\"", "(d.title.as_str(), d.tags.len())", '("", 1)', setup=DOC_NEW + '\nd.header().retitle("");'),
+     T("edited_already_there", "tags [edited]; retitle", "d.tags.clone()", 'vec!["edited".to_string()]', setup=DOC_NEW + '\nd.tags.push("edited".to_string());\nd.header().retitle("x");'),
+     T("words_accumulate", "words 5; push \"x y\"", "d.words", "7", setup=DOC_NEW + '\nd.words = 5;\nd.body().push_line("x y");'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6228);
+         for _ in 0..300 {
+             let mut d = Document { title: String::new(), tags: vec![], lines: vec![], words: 0 };
+             let mut lines = Vec::new();
+             for _ in 0..rng_len(&mut rng) {
+                 let len = rng.below(8);
+                 lines.push(rng.string(len, "#ab "));
+             }
+             for l in &lines {
+                 d.body().push_line(l);
+             }
+             let mut tags: Vec<String> = Vec::new();
+             let mut added = 0;
+             for l in &lines {
+                 for w in l.split_whitespace() {
+                     if let Some(t) = w.strip_prefix('#') {
+                         if !t.is_empty() && !tags.iter().any(|x| x == t) {
+                             tags.push(t.to_string());
+                             added += 1;
+                         }
+                     }
+                 }
+             }
+             let words: usize = lines.iter().map(|l| l.split_whitespace().count()).sum();
+             let got = hashtags(&mut d);
+             check!(format!("lines {lines:?}"), (got, d.tags.clone(), d.words), (added, tags, words));
+         }
+     }
+
+     fn rng_len(rng: &mut anneal_prelude::Rng) -> usize {
+         rng.below(5)
+     }
+     """],
+    [("rust", "`header` and `body` are one struct literal each, borrowing two fields: `Header { title: &mut self.title, tags: &mut self.tags }`."),
+     ("rust", "`let h = doc.header(); let b = doc.body();` is two `&mut self` borrows alive together (E0499), even though the fields differ: a method borrows all of `self`. `split` makes both views from one borrow; destructure `self` into its fields first."),
+     ("rust", "A view's methods reach the fields through its references: `self.title.push_str(..)` auto-derefs, `*self.words += n` needs the explicit `*`.")],
+    ("""A view struct names a set of disjoint field borrows so they can travel together: into a function, into a method with its own name, back out of a method. A `&mut self` method that returns one view borrows all of `self`, though, so two such calls can't overlap. `split` is where the disjointness gets proven: `let Document { title, tags, lines, words } = self;` produces four independent `&mut` borrows, and they go into two views that live side by side. `hashtags` then reads `body.lines` while `header.tag(..)` pushes to the tags, which the compiler accepts because the two views share nothing. The views' lifetime `'_` ties them to the one `&mut self` borrow, so the document is unusable while either lives.
+
+Syntax to remember: `pub fn split(&mut self) -> (Header<'_>, Body<'_>) { let Document { title, tags, lines, words } = self; (Header { title, tags }, Body { lines, words }) }` · `impl Header<'_> { .. }` · `*self.words += n`.""", "O(total words) for hashtags (O(tags) per check)", "O(1) extra"),
+    "When is a view struct better than a method that takes several `&mut` field parameters?",
+    ["A view struct bundles disjoint field borrows.", "Two `&mut self` calls can't hand out views that coexist; one `split` can.", "Destructure `self` to prove disjointness."],
     related=("L2", "L3"),
+    wrong=dict(
+        retitle_tags_every_time=sub(DOC_SOLUTION, '        self.tag("edited");\n', '        self.tags.push("edited".to_string());\n'),
+        keeps_the_hash=sub(DOC_SOLUTION, "if let Some(tag) = word.strip_prefix('#').filter(|t| !t.is_empty()) {", "if let Some(tag) = Some(word).filter(|w| w.len() > 1 && w.starts_with('#')) {"),
+        counts_lines_not_words=sub(DOC_SOLUTION, "*self.words += line.split_whitespace().count();", "*self.words += 1;"),
+    ),
 ))
 
-P.append(fix(
-    "fix-borrow-through-getter", "Fix: borrow through a getter", "medium", "split-borrows", ["E0502", "getters"],
-    "`log_expensive` should log every price above `limit`. It doesn't compile.",
-    """
+SHOP_STARTER = r"""
+pub mod shop {
+    pub struct Item {
+        pub name: String,
+        pub price: u32,
+    }
+
     pub struct Shop {
-        items: Vec<u32>,
+        items: Vec<Item>,
         log: Vec<String>,
+        discount: u32,
     }
 
     impl Shop {
-        pub fn new(items: Vec<u32>) -> Self {
-            Shop { items, log: Vec::new() }
+        pub fn new(items: Vec<Item>, discount: u32) -> Self {
+            Shop { items, log: Vec::new(), discount }
         }
 
-        fn items(&self) -> &[u32] {
+        pub fn items(&self) -> &[Item] {
             &self.items
         }
 
-        /// Logs every price above `limit`.
-        pub fn log_expensive(&mut self, limit: u32) {
-            for p in self.items() {
-                if *p > limit {
-                    self.log.push(format!("expensive: {p}"));
-                }
-            }
+        pub fn items_mut(&mut self) -> &mut [Item] {
+            &mut self.items
         }
 
         pub fn log(&self) -> &[String] {
             &self.log
         }
+
+        pub fn log_mut(&mut self) -> &mut Vec<String> {
+            &mut self.log
+        }
+
+        pub fn discount(&self) -> u32 {
+            self.discount
+        }
+
+        /// Takes `discount` percent (rounded down) off every item priced at least `min`, logging
+        /// "<name>: <old> -> <new>". Returns how many items changed price.
+        pub fn sale(&mut self, min: u32) -> usize {
+            let mut n = 0;
+            for it in self.items_mut() {
+                if it.price >= min {
+                    let new = it.price - it.price * self.discount() / 100;
+                    self.log_mut().push(format!("{}: {} -> {new}", it.name, it.price));
+                    if new != it.price {
+                        n += 1;
+                    }
+                    it.price = new;
+                }
+            }
+            n
+        }
     }
-    """,
+}
+
+pub use shop::Shop;
+
+/// Logs "expensive: <name>" in the shop's log for every item priced above `limit`, in order. Returns how many.
+pub fn flag_expensive(shop: &mut Shop, limit: u32) -> usize {
+    let mut n = 0;
+    for it in shop.items() {
+        if it.price > limit {
+            shop.log_mut().push(format!("expensive: {}", it.name));
+            n += 1;
+        }
+    }
+    n
+}
+"""
+
+SHOP_SOLUTION = SHOP_STARTER
+for _old, _new in [
+    ("            for it in self.items_mut() {\n", "            for it in self.items.iter_mut() {\n"),
+    ("                    let new = it.price - it.price * self.discount() / 100;\n                    self.log_mut().push(", "                    let new = it.price - it.price * self.discount / 100;\n                    self.log.push("),
+    ("        pub fn discount(&self) -> u32 {\n            self.discount\n        }\n",
+     "        pub fn discount(&self) -> u32 {\n            self.discount\n        }\n\n        /// The items and the log, borrowed together.\n        pub fn items_and_log(&mut self) -> (&[Item], &mut Vec<String>) {\n            (&self.items, &mut self.log)\n        }\n"),
+    ("    let mut n = 0;\n    for it in shop.items() {\n        if it.price > limit {\n            shop.log_mut().push(", "    let mut n = 0;\n    let (items, log) = shop.items_and_log();\n    for it in items {\n        if it.price > limit {\n            log.push("),
+]:
+    SHOP_SOLUTION = sub(SHOP_SOLUTION, _old, _new)
+
+SHOP_NEW = 'let mut s = Shop::new(vec![shop::Item { name: "pen".into(), price: 5 }, shop::Item { name: "lamp".into(), price: 40 }, shop::Item { name: "desk".into(), price: 300 }], 10);'
+SHOP_DESC = "pen 5, lamp 40, desk 300; discount 10%"
+
+P.append(fixp(
+    "fix-borrow-through-getter", "Fix: getters borrow all of self", "medium", "split-borrows", ["E0502", "E0499", "getters", "privacy", "split accessors"],
     """
-    pub struct Shop {
-        items: Vec<u32>,
-        log: Vec<String>,
-    }
-
-    impl Shop {
-        pub fn new(items: Vec<u32>) -> Self {
-            Shop { items, log: Vec::new() }
-        }
-
-        /// Logs every price above `limit`.
-        pub fn log_expensive(&mut self, limit: u32) {
-            for p in &self.items {
-                if *p > limit {
-                    self.log.push(format!("expensive: {p}"));
-                }
-            }
-        }
-
-        pub fn log(&self) -> &[String] {
-            &self.log
-        }
-    }
+        `sale` and `flag_expensive` don't compile: each borrows the shop through one accessor while calling
+        another. `flag_expensive` lives outside the `shop` module, so it can't touch the private fields. Fix
+        both without cloning or collecting anything. You may add one method to `Shop`.
     """,
-    [T("logs", "items [5, 50, 500], limit 40", "{ let mut s = Shop::new(vec![5, 50, 500]); s.log_expensive(40); s.log().to_vec() }", 'vec!["expensive: 50", "expensive: 500"]')],
-    [T("none", "items [1], limit 40", "{ let mut s = Shop::new(vec![1]); s.log_expensive(40); s.log().len() }", "0")],
-    [("rust", "`self.items()` borrows all of `self` for as long as the loop runs. What borrows only the `items` field?")],
-    ("Getters hide which field they touch, so the compiler assumes all of `self`. Inside the impl, use the field directly.", "O(n)", "O(k)"),
-    "Why can't the borrow checker see through the getter's body?",
-    ["Borrow checking is per function: a getter borrows all of `self`."],
-    rules=dict(methods=["clone", "to_vec"]),
+    SHOP_STARTER,
+    SHOP_SOLUTION,
+    [T("flag_expensive_example", SHOP_DESC + "; flag above 30", "(flag_expensive(&mut s, 30), s.log().to_vec())", '(2, vec!["expensive: lamp".to_string(), "expensive: desk".to_string()])', setup=SHOP_NEW),
+     T("sale_example", SHOP_DESC + "; sale from 40", "(s.sale(40), s.items().iter().map(|i| i.price).collect::<Vec<_>>(), s.log().to_vec())", '(2, vec![5, 36, 270], vec!["lamp: 40 -> 36".to_string(), "desk: 300 -> 270".to_string()])', setup=SHOP_NEW),
+     T("sale_rounds_down", "price 15, discount 10%", "(s.sale(0), s.items()[0].price)", "(1, 14)", setup='let mut s = Shop::new(vec![shop::Item { name: "x".into(), price: 15 }], 10);'),
+     T("unchanged_price_not_counted", "price 5, discount 10%", "(s.sale(0), s.log().to_vec())", '(0, vec!["x: 5 -> 5".to_string()])', setup='let mut s = Shop::new(vec![shop::Item { name: "x".into(), price: 5 }], 10);'),
+     T("limit_is_strict", SHOP_DESC + "; flag above 40", "flag_expensive(&mut s, 40)", "1", setup=SHOP_NEW)],
+    [T("empty_shop", "no items", "(flag_expensive(&mut s, 0), s.sale(0), s.log().len())", "(0, 0, 0)", setup="let mut s = Shop::new(vec![], 50);"),
+     T("sale_then_flag", SHOP_DESC + "; sale from 0; flag above 35", "(flag_expensive(&mut s, 35), s.log().len())", "(2, 5)", setup=SHOP_NEW + "\ns.sale(0);"),
+     T("zero_discount", "discount 0; sale", "(s.sale(0), s.items()[2].price)", "(0, 300)", setup=SHOP_NEW.replace("], 10);", "], 0);")),
+     T("full_discount", "discount 100; sale from 40", "(s.sale(40), s.items().iter().map(|i| i.price).collect::<Vec<_>>())", "(2, vec![5, 0, 0])", setup=SHOP_NEW.replace("], 10);", "], 100);")),
+     T("sale_twice", SHOP_DESC + "; sale from 300 twice", "(s.sale(300), s.sale(300), s.items()[2].price)", "(1, 0, 270)", setup=SHOP_NEW),
+     T("big_price", "price u32::MAX / 100, discount 50", "(s.sale(0), s.items()[0].price)", "(1, 21474836)", setup='let mut s = Shop::new(vec![shop::Item { name: "x".into(), price: 42949672 }], 50);'),
+     T("flag_none", SHOP_DESC + "; flag above 1000", "(flag_expensive(&mut s, 1000), s.log().len())", "(0, 0)", setup=SHOP_NEW),
+     T("log_keeps_order", SHOP_DESC + "; flag above 0; flag above 100", "s.log().to_vec()", '["expensive: pen", "expensive: lamp", "expensive: desk", "expensive: desk"].map(String::from).to_vec()', setup=SHOP_NEW + "\nflag_expensive(&mut s, 0);\nflag_expensive(&mut s, 100);"),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6229);
+         for _ in 0..300 {
+             let n = rng.below(6);
+             let prices: Vec<u32> = rng.vec(n, 0, 200);
+             let disc = rng.below(101) as u32;
+             let (min, limit) = (rng.below(200) as u32, rng.below(200) as u32);
+             let mut s = Shop::new(prices.iter().enumerate().map(|(i, &p)| shop::Item { name: format!("i{i}"), price: p }).collect(), disc);
+             let mut log = Vec::new();
+             let mut changed = 0;
+             let mut after = prices.clone();
+             for (i, p) in after.iter_mut().enumerate() {
+                 if *p >= min {
+                     let new = *p - *p * disc / 100;
+                     log.push(format!("i{i}: {p} -> {new}"));
+                     if new != *p {
+                         changed += 1;
+                     }
+                     *p = new;
+                 }
+             }
+             let mut flagged = 0;
+             for (i, p) in after.iter().enumerate() {
+                 if *p > limit {
+                     log.push(format!("expensive: i{i}"));
+                     flagged += 1;
+                 }
+             }
+             let got = (s.sale(min), flag_expensive(&mut s, limit));
+             let got_prices: Vec<u32> = s.items().iter().map(|i| i.price).collect();
+             check!(format!("prices {prices:?}, discount {disc}; sale({min}); flag_expensive({limit})"), (got, got_prices, s.log().to_vec()), ((changed, flagged), after, log));
+         }
+     }
+     """],
+    [("rust", "`self.items_mut()` borrows all of `self` for the whole loop, so `self.discount()` and `self.log_mut()` can't run inside it. The compiler doesn't look into a getter's body; its signature says \"all of `self`\"."),
+     ("rust", "Inside the `impl`, use the fields: `self.items.iter_mut()`, `self.discount`, `self.log`. Field paths are disjoint."),
+     ("rust", "Outside the module the fields are private, so the fix has to come from `Shop`: one method that returns `(&[Item], &mut Vec<String>)`, borrowing both fields in one call.")],
+    ("""Borrow checking is per function and trusts signatures: `fn items(&self) -> &[Item]` means \"the result borrows all of `self`\", whatever the body touches. So a getter's result conflicts with every `&mut self` call, including `log_mut()`, even though the fields are disjoint. Inside the `impl`, field paths show the disjointness directly. Outside the module, privacy hides the fields, and the owner of the type has to export the split: a method returning several borrows from one `&mut self` call, (`&self.items`, `&mut self.log`), which the caller destructures. That is the pattern behind `slice::split_at_mut`, `HashMap::get_disjoint_mut` and view structs.
+
+Syntax to remember: `pub fn items_and_log(&mut self) -> (&[Item], &mut Vec<String>) { (&self.items, &mut self.log) }` · `let (items, log) = shop.items_and_log();`.""", "O(n)", "O(1)"),
+    "Could the compiler ever look inside `items_mut` to see that it only borrows one field? What would that cost?",
+    ["A getter's signature borrows all of `self`.", "Inside the impl, borrow fields directly.", "Across a privacy boundary, export a method that splits the borrow."],
+    rules=dict(methods=["clone", "collect", "to_vec", "to_owned", "cloned"]),
+    wrong=dict(
+        rounds_the_other_way=sub(SHOP_SOLUTION, "let new = it.price - it.price * self.discount / 100;", "let new = it.price * (100 - self.discount) / 100;"),
+        flags_at_limit=sub(SHOP_SOLUTION, "        if it.price > limit {\n            log.push(", "        if it.price >= limit {\n            log.push("),
+        counts_every_sale_item=sub(SHOP_SOLUTION, "                    if new != it.price {\n                        n += 1;\n                    }\n", "                    n += 1;\n"),
+    ),
 ))
 
 # ---------------------------------------------------------------- borrow-checker limits (hard)
@@ -4831,11 +5490,6 @@ P.append(fix(
 
 
 EXTRA = {
-    "fix-field-borrow-and-mut-method": T("empty_append", "text \"a\", append \"\"", '{ let mut e = Editor { text: "a".into(), history: vec![] }; e.append(""); (e.text, e.history.len()) }', '("a".to_string(), 1)'),
-    "destructure-self": T("keeps_max", "max 10, xs = [3]", "{ let mut s = Stats { values: vec![], total: 0.0, max: 10.0 }; s.record_all(&[3.0]); s.max }", "10.0"),
-    "fix-swap-without-swap": T("adjacent", "[\"x\", \"y\"], 0 ↔ 1", '{ let mut v = ["x", "y"].map(String::from); swap_items(&mut v, 0, 1); v }', '["y", "x"].map(String::from)'),
-    "view-struct": T("keeps_tags", "tags [\"draft\"]", '{ let mut d = Document { title: "t".into(), body: String::new(), tags: vec!["draft".into()] }; d.header().retitle("u"); d.tags }', 'vec!["draft".to_string(), "edited".to_string()]'),
-    "fix-borrow-through-getter": T("at_limit", "items [40], limit 40", "{ let mut s = Shop::new(vec![40]); s.log_expensive(40); s.log().len() }", "0"),
     "fix-borrowmuterror": T("order_kept", "add \"b\", \"a\"", '{ let r = Registry::new(); r.add("b"); r.add("a"); r.add("b"); r.len() }', "2"),
     "fix-refcell-guard-across-call": T("same_account", "deposit 1 into 0 twice", "{ let b = Bank::new(1); b.deposit(0, 1); b.deposit(0, 1); b.audit() }", 'vec!["total 1", "total 2"]'),
     "fix-refcell-to-split-borrow": T("double_twice", "add 1; double twice", "{ let mut c = Cart::new(); c.add(1); c.double_all(); c.double_all(); (c.items(), c.total()) }", "(vec![4], 4)"),
@@ -4849,364 +5503,6 @@ for p in P:
 # comparison against a brute-force model, a scale test where complexity matters, and `wrong` solutions that
 # `anneal verify` checks the tests reject. Fix-mode wrong solutions obey the problem's rules.
 MORE = {}
-
-EDITOR_WRONG = """
-    pub struct Editor {
-        pub text: String,
-        pub history: Vec<String>,
-    }
-
-    impl Editor {
-        /// Saves the current text, then appends `more`.
-        pub fn append(&mut self, more: &str) {
-            BODY
-        }
-    }
-"""
-MORE["fix-field-borrow-and-mut-method"] = dict(
-    visible=[
-        T("unicode", "text \"é\", append \"ß\"", '{ let mut e = Editor { text: "é".into(), history: vec![] }; e.append("ß"); (e.text, e.history) }', '("éß".to_string(), vec!["é".to_string()])'),
-        T("existing_history", "history [\"old\"], text \"t\", append \"x\"", '{ let mut e = Editor { text: "t".into(), history: vec!["old".into()] }; e.append("x"); e.history }', 'vec!["old".to_string(), "t".to_string()]'),
-        T("twice", "append \"x\" then \"y\"", '{ let mut e = Editor { text: String::new(), history: vec![] }; e.append("x"); e.append("y"); e.history }', 'vec![String::new(), "x".to_string()]'),
-    ],
-    hidden=[
-        T("three_appends", "append \"a\", \"b\", \"c\"", '{ let mut e = Editor { text: String::new(), history: vec![] }; e.append("a"); e.append("b"); e.append("c"); (e.text, e.history) }', '("abc".to_string(), vec![String::new(), "a".to_string(), "ab".to_string()])'),
-        T("snapshot_is_before", "text \"x\", append \"y\"", '{ let mut e = Editor { text: "x".into(), history: vec![] }; e.append("y"); e.history }', 'vec!["x".to_string()]'),
-        T("empty_both", "text \"\", append \"\"", '{ let mut e = Editor { text: String::new(), history: vec![] }; e.append(""); (e.text, e.history) }', "(String::new(), vec![String::new()])"),
-        T("long", "text 1000 × \"a\"", '{ let mut e = Editor { text: "a".repeat(1000), history: vec![] }; e.append("b"); (e.history[0].len(), e.text.len()) }', "(1000, 1001)"),
-        T("newline", "text \"a\\n\", append \"b\"", '{ let mut e = Editor { text: "a\\n".into(), history: vec![] }; e.append("b"); (e.text, e.history) }', '("a\\nb".to_string(), vec!["a\\n".to_string()])'),
-        T("many_appends", "100 appends of \"x\"", '{ let mut e = Editor { text: String::new(), history: vec![] }; for _ in 0..100 { e.append("x"); } (e.history.len(), e.history[99].len(), e.text.len()) }', "(100, 99, 100)"),
-        T("same_text_twice", "text \"q\", append \"\" twice", '{ let mut e = Editor { text: "q".into(), history: vec![] }; e.append(""); e.append(""); e.history }', 'vec!["q".to_string(), "q".to_string()]'),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2022);
-            for _ in 0..300 {
-                let n = rng.below(6);
-                let parts: Vec<String> = (0..n).map(|_| { let l = rng.below(3); rng.string(l, "ab") }).collect();
-                let mut e = Editor { text: String::new(), history: vec![] };
-                let (mut text, mut history) = (String::new(), Vec::new());
-                for p in &parts {
-                    e.append(p);
-                    history.push(text.clone());
-                    text.push_str(p);
-                }
-                check!(format!("appends {parts:?}"), (e.text, e.history), (text, history));
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        saves_after=EDITOR_WRONG.replace("BODY", """self.text.push_str(more);
-            self.history.push(self.text.to_string());"""),
-        saves_the_addition=EDITOR_WRONG.replace("BODY", """self.history.push(more.to_string());
-            self.text.push_str(more);"""),
-    ),
-)
-
-PAIR_WRONG = """
-    pub fn pair_mut<T>(v: &mut [T], i: usize, j: usize) -> Option<(&mut T, &mut T)> {
-        if CHECK {
-            return None;
-        }
-        let (lo, hi) = (i.min(j), i.max(j));
-        let (left, right) = v.split_at_mut(hi);
-        let (a, b) = (&mut left[lo], &mut right[0]);
-        RET
-    }
-"""
-MORE["pair-mut"] = dict(
-    visible=[
-        T("adjacent", "v = [1, 2], i = 0, j = 1", "{ let mut v = [1, 2]; if let Some((a, b)) = pair_mut(&mut v, 0, 1) { std::mem::swap(a, b); } v }", "[2, 1]"),
-        T("order_kept", "i = 2, j = 0", "{ let mut v = [10, 20, 30]; let (a, b) = pair_mut(&mut v, 2, 0).unwrap(); (*a, *b) }", "(30, 10)"),
-        T("i_out_of_bounds", "v = [1, 2], i = 2, j = 0", "pair_mut(&mut [1, 2], 2, 0).is_none()", "true"),
-    ],
-    hidden=[
-        T("empty_slice", "v = [], i = 0, j = 1", "pair_mut::<i32>(&mut [], 0, 1).is_none()", "true"),
-        T("both_out_equal", "v = [1, 2], i = j = 5", "pair_mut(&mut [1, 2], 5, 5).is_none()", "true"),
-        T("j_is_len", "v = [1, 2, 3], i = 0, j = 3", "pair_mut(&mut [1, 2, 3], 0, 3).is_none()", "true"),
-        T("strings", "v = [\"a\", \"b\"], push to both", '{ let mut v = vec!["a".to_string(), "b".to_string()]; if let Some((a, b)) = pair_mut(&mut v, 1, 0) { a.push(\'1\'); b.push(\'0\'); } v }', 'vec!["a0".to_string(), "b1".to_string()]'),
-        T("last_and_first", "v = 0..10, i = 9, j = 0", "{ let mut v: Vec<i32> = (0..10).collect(); let (a, b) = pair_mut(&mut v, 9, 0).unwrap(); (*a, *b) }", "(9, 0)"),
-        T("usize_max", "i = usize::MAX", "pair_mut(&mut [1, 2], usize::MAX, 0).is_none()", "true"),
-        T("writes_land", "v = [0, 0, 0], set v[1] = 7, v[2] = 8", "{ let mut v = [0, 0, 0]; let (a, b) = pair_mut(&mut v, 1, 2).unwrap(); *a = 7; *b = 8; v }", "[0, 7, 8]"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2023);
-            for _ in 0..300 {
-                let n = rng.below(6);
-                let v0: Vec<i32> = rng.vec(n, 0, 99);
-                let i = rng.below(n + 2);
-                let j = rng.below(n + 2);
-                let mut v = v0.clone();
-                let got = pair_mut(&mut v, i, j).map(|(a, b)| {
-                    let r = (*a, *b);
-                    *a = -1;
-                    *b = -2;
-                    r
-                });
-                let mut want_v = v0.clone();
-                let want = if i != j && i < n && j < n {
-                    want_v[i] = -1;
-                    want_v[j] = -2;
-                    Some((v0[i], v0[j]))
-                } else {
-                    None
-                };
-                check!(format!("v = {v0:?}, i = {i}, j = {j}"), (got, v), (want, want_v));
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        only_checks_j=PAIR_WRONG.replace("CHECK", "i == j || j >= v.len()").replace("RET", "Some(if i < j { (a, b) } else { (b, a) })"),
-        sorted_order=PAIR_WRONG.replace("CHECK", "i == j || i >= v.len() || j >= v.len()").replace("RET", "Some((a, b))"),
-    ),
-)
-
-STATS_WRONG = """
-    pub struct Stats {
-        pub values: Vec<f64>,
-        pub total: f64,
-        pub max: f64,
-    }
-
-    fn update(values: &mut Vec<f64>, total: &mut f64, max: &mut f64, x: f64) {
-        values.push(x);
-        *total += x;
-        *max = max.max(x);
-    }
-
-    impl Stats {
-        pub fn record_all(&mut self, xs: &[f64]) {
-            BODY
-        }
-    }
-"""
-MORE["destructure-self"] = dict(
-    visible=[
-        T("negatives", "max f64::MIN, xs = [-2.0, -1.0]", "{ let mut s = Stats { values: vec![], total: 0.0, max: f64::MIN }; s.record_all(&[-2.0, -1.0]); (s.total, s.max) }", "(-3.0, -1.0)"),
-        T("total_accumulates", "total 10.0, xs = [1.0, 2.0]", "{ let mut s = Stats { values: vec![], total: 10.0, max: 0.0 }; s.record_all(&[1.0, 2.0]); s.total }", "13.0"),
-        T("empty", "xs = []", "{ let mut s = Stats { values: vec![], total: 1.0, max: 0.0 }; s.record_all(&[]); (s.values.len(), s.total) }", "(0, 1.0)"),
-    ],
-    hidden=[
-        T("single", "xs = [5.0]", "{ let mut s = Stats { values: vec![], total: 0.0, max: f64::MIN }; s.record_all(&[5.0]); (s.values, s.total, s.max) }", "(vec![5.0], 5.0, 5.0)"),
-        T("appends_to_existing", "values [1.0], xs = [2.0, 3.0]", "{ let mut s = Stats { values: vec![1.0], total: 1.0, max: 1.0 }; s.record_all(&[2.0, 3.0]); s.values }", "vec![1.0, 2.0, 3.0]"),
-        T("max_from_xs", "max 0.0, xs = [0.5, 0.25]", "{ let mut s = Stats { values: vec![], total: 0.0, max: 0.0 }; s.record_all(&[0.5, 0.25]); s.max }", "0.5"),
-        T("order_kept", "xs = [3.0, 1.0, 2.0]", "{ let mut s = Stats { values: vec![], total: 0.0, max: 0.0 }; s.record_all(&[3.0, 1.0, 2.0]); s.values }", "vec![3.0, 1.0, 2.0]"),
-        T("duplicates", "xs = [2.0, 2.0]", "{ let mut s = Stats { values: vec![], total: 0.0, max: f64::MIN }; s.record_all(&[2.0, 2.0]); (s.values.len(), s.total, s.max) }", "(2, 4.0, 2.0)"),
-        T("many", "1000 × 1.0", "{ let mut s = Stats { values: vec![], total: 0.0, max: 0.0 }; s.record_all(&vec![1.0; 1000]); (s.values.len(), s.total, s.max) }", "(1000, 1000.0, 1.0)"),
-        T("called_twice", "xs = [1.0], then [4.0]", "{ let mut s = Stats { values: vec![], total: 0.0, max: f64::MIN }; s.record_all(&[1.0]); s.record_all(&[4.0]); (s.values, s.total, s.max) }", "(vec![1.0, 4.0], 5.0, 4.0)"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2024);
-            for _ in 0..300 {
-                let n0 = rng.below(4);
-                let v0: Vec<f64> = (0..n0).map(|_| rng.int(-50, 50) as f64).collect();
-                let total0 = rng.int(-100, 100) as f64;
-                let max0 = rng.int(-60, 60) as f64;
-                let k = rng.below(6);
-                let xs: Vec<f64> = (0..k).map(|_| rng.int(-50, 50) as f64).collect();
-                let mut s = Stats { values: v0.clone(), total: total0, max: max0 };
-                s.record_all(&xs);
-                let mut values = v0.clone();
-                values.extend(&xs);
-                let want = (values, total0 + xs.iter().sum::<f64>(), xs.iter().fold(max0, |m, &x| m.max(x)));
-                check!(format!("values {v0:?}, total {total0}, max {max0}, xs = {xs:?}"), (s.values, s.total, s.max), want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        overwrites_total=STATS_WRONG.replace("BODY", """let Stats { values, total, max } = self;
-            *total = 0.0;
-            for &x in xs {
-                update(values, total, max, x);
-            }"""),
-        ignores_old_max=STATS_WRONG.replace("BODY", """let Stats { values, total, max } = self;
-            *max = f64::MIN;
-            for &x in xs {
-                update(values, total, max, x);
-            }"""),
-    ),
-)
-
-SWAP_WRONG = """
-    /// Swaps the elements at `i` and `j`.
-    pub fn swap_items(v: &mut [String], i: usize, j: usize) {
-        BODY
-    }
-"""
-MORE["fix-swap-without-swap"] = dict(
-    visible=[
-        T("unicode", "[\"é\", \"ß\"], 0 ↔ 1", '{ let mut v = ["é", "ß"].map(String::from); swap_items(&mut v, 0, 1); v }', '["ß", "é"].map(String::from)'),
-        T("same_index", "1 ↔ 1", '{ let mut v = ["a", "b"].map(String::from); swap_items(&mut v, 1, 1); v }', '["a", "b"].map(String::from)'),
-        T("reversed", "2 ↔ 0", '{ let mut v = ["a", "b", "c"].map(String::from); swap_items(&mut v, 2, 0); v }', '["c", "b", "a"].map(String::from)'),
-    ],
-    hidden=[
-        T("middle", "[\"a\", \"b\", \"c\", \"d\"], 1 ↔ 2", '{ let mut v = ["a", "b", "c", "d"].map(String::from); swap_items(&mut v, 1, 2); v }', '["a", "c", "b", "d"].map(String::from)'),
-        T("empty_strings", "[\"\", \"x\"], 0 ↔ 1", '{ let mut v = ["", "x"].map(String::from); swap_items(&mut v, 0, 1); v }', '["x", ""].map(String::from)'),
-        T("same_values", "[\"a\", \"a\"], 0 ↔ 1", '{ let mut v = ["a", "a"].map(String::from); swap_items(&mut v, 0, 1); v }', '["a", "a"].map(String::from)'),
-        T("last_first", "5 names, 4 ↔ 0", '{ let mut v = ["a", "b", "c", "d", "e"].map(String::from); swap_items(&mut v, 4, 0); v }', '["e", "b", "c", "d", "a"].map(String::from)'),
-        T("swap_back", "0 ↔ 2 twice", '{ let mut v = ["a", "b", "c"].map(String::from); swap_items(&mut v, 0, 2); swap_items(&mut v, 2, 0); v }', '["a", "b", "c"].map(String::from)'),
-        T("single_same", "[\"z\"], 0 ↔ 0", '{ let mut v = ["z"].map(String::from); swap_items(&mut v, 0, 0); v }', '["z"].map(String::from)'),
-        T("in_a_vec", "1000 names, 0 ↔ 999", "{ let mut v: Vec<String> = (0..1000).map(|i| i.to_string()).collect(); swap_items(&mut v, 0, 999); (v[0].clone(), v[999].clone(), v[500].clone()) }", '("999".to_string(), "0".to_string(), "500".to_string())'),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2025);
-            for _ in 0..300 {
-                let n = 1 + rng.below(6);
-                let v0: Vec<String> = (0..n).map(|_| { let l = rng.below(3); rng.string(l, "ab") }).collect();
-                let i = rng.below(n);
-                let j = rng.below(n);
-                let mut want = v0.clone();
-                want.swap(i, j);
-                let mut got = v0.clone();
-                swap_items(&mut got, i, j);
-                check!(format!("v = {v0:?}, {i} ↔ {j}"), got, want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        no_same_index_check=SWAP_WRONG.replace("BODY", """let (lo, hi) = (i.min(j), i.max(j));
-        let (left, right) = v.split_at_mut(hi);
-        let (a, b) = (&mut left[lo], &mut right[0]);
-        let tmp = std::mem::take(a);
-        *a = std::mem::take(b);
-        *b = tmp;"""),
-        assumes_i_before_j=SWAP_WRONG.replace("BODY", """if i == j {
-            return;
-        }
-        let (left, right) = v.split_at_mut(j);
-        let (a, b) = (&mut left[i], &mut right[0]);
-        let tmp = std::mem::take(a);
-        *a = std::mem::take(b);
-        *b = tmp;"""),
-        takes_twice=SWAP_WRONG.replace("BODY", """if i == j {
-            return;
-        }
-        let (lo, hi) = (i.min(j), i.max(j));
-        let (left, right) = v.split_at_mut(hi);
-        let (a, b) = (&mut left[lo], &mut right[0]);
-        *a = std::mem::take(b);
-        *b = std::mem::take(a);"""),
-    ),
-)
-
-VIEW_WRONG = """
-    pub struct Document {
-        pub title: String,
-        pub body: String,
-        pub tags: Vec<String>,
-    }
-
-    pub struct Header<'a> {
-        pub title: &'a mut String,
-        pub tags: &'a mut Vec<String>,
-    }
-
-    impl Document {
-        pub fn header(&mut self) -> Header<'_> {
-            Header { title: &mut self.title, tags: &mut self.tags }
-        }
-    }
-
-    impl Header<'_> {
-        pub fn retitle(&mut self, new_title: &str) {
-            BODY
-        }
-    }
-"""
-MORE["view-struct"] = dict(
-    visible=[
-        T("shorter_title", "title \"abc\", retitle \"x\"", '{ let mut d = Document { title: "abc".into(), body: String::new(), tags: vec![] }; d.header().retitle("x"); d.title }', '"x".to_string()'),
-        T("empty_title", "retitle \"\"", '{ let mut d = Document { title: "t".into(), body: String::new(), tags: vec![] }; d.header().retitle(""); (d.title, d.tags) }', '(String::new(), vec!["edited".to_string()])'),
-        T("twice", "retitle twice", '{ let mut d = Document { title: String::new(), body: String::new(), tags: vec![] }; let mut h = d.header(); h.retitle("a"); h.retitle("b"); d.tags.len() }', "2"),
-    ],
-    hidden=[
-        T("unicode_title", "retitle \"日本\"", '{ let mut d = Document { title: "t".into(), body: String::new(), tags: vec![] }; d.header().retitle("日本"); d.title }', '"日本".to_string()'),
-        T("header_fields_point_into_doc", "push through the header's fields", '{ let mut d = Document { title: "a".into(), body: String::new(), tags: vec![] }; let h = d.header(); h.title.push_str("!"); h.tags.push("t".into()); (d.title, d.tags) }', '("a!".to_string(), vec!["t".to_string()])'),
-        T("body_untouched", "body \"keep\"", '{ let mut d = Document { title: "t".into(), body: "keep".into(), tags: vec![] }; d.header().retitle("u"); d.body }', '"keep".to_string()'),
-        T("twice_last_wins", "retitle \"a\" then \"b\"", '{ let mut d = Document { title: String::new(), body: String::new(), tags: vec![] }; let mut h = d.header(); h.retitle("a"); h.retitle("b"); (d.title, d.tags) }', '("b".to_string(), vec!["edited".to_string(), "edited".to_string()])'),
-        T("existing_tags_order", "tags [\"x\", \"y\"]", '{ let mut d = Document { title: String::new(), body: String::new(), tags: vec!["x".into(), "y".into()] }; d.header().retitle("t"); d.tags }', 'vec!["x".to_string(), "y".to_string(), "edited".to_string()]'),
-        T("same_title", "title \"t\", retitle \"t\"", '{ let mut d = Document { title: "t".into(), body: String::new(), tags: vec![] }; d.header().retitle("t"); d.title }', '"t".to_string()'),
-        T("long_title", "retitle with 1000 chars", '{ let mut d = Document { title: "old".into(), body: String::new(), tags: vec![] }; let t = "z".repeat(1000); d.header().retitle(&t); d.title.len() }', "1000"),
-        T("body_readable_after", "body stays usable", '{ let mut d = Document { title: String::new(), body: "b".into(), tags: vec![] }; { let mut h = d.header(); h.retitle("n"); } d.body.push_str("!"); d.body }', '"b!".to_string()'),
-    ],
-    wrong=dict(
-        no_clear=VIEW_WRONG.replace("BODY", """self.title.push_str(new_title);
-            self.tags.push("edited".to_string());"""),
-        tag_first=VIEW_WRONG.replace("BODY", """self.title.clear();
-            self.title.push_str(new_title);
-            self.tags.insert(0, "edited".to_string());"""),
-    ),
-)
-
-SHOP_WRONG = """
-    pub struct Shop {
-        items: Vec<u32>,
-        log: Vec<String>,
-    }
-
-    impl Shop {
-        pub fn new(items: Vec<u32>) -> Self {
-            Shop { items, log: Vec::new() }
-        }
-
-        /// Logs every price above `limit`.
-        pub fn log_expensive(&mut self, limit: u32) {
-            BODY
-        }
-
-        pub fn log(&self) -> &[String] {
-            &self.log
-        }
-    }
-"""
-MORE["fix-borrow-through-getter"] = dict(
-    visible=[
-        T("order", "items [9, 1, 8], limit 5", "{ let mut s = Shop::new(vec![9, 1, 8]); s.log_expensive(5); s.log().to_vec() }", 'vec!["expensive: 9", "expensive: 8"]'),
-        T("empty_items", "items [], limit 0", "{ let mut s = Shop::new(vec![]); s.log_expensive(0); s.log().len() }", "0"),
-        T("none", "items [1], limit 40", "{ let mut s = Shop::new(vec![1]); s.log_expensive(40); s.log().len() }", "0"),
-    ],
-    hidden=[
-        T("all_expensive", "items [100, 200], limit 0", "{ let mut s = Shop::new(vec![100, 200]); s.log_expensive(0); s.log().to_vec() }", 'vec!["expensive: 100", "expensive: 200"]'),
-        T("limit_near_max", "items [u32::MAX], limit u32::MAX - 1", "{ let mut s = Shop::new(vec![u32::MAX]); s.log_expensive(u32::MAX - 1); s.log().to_vec() }", 'vec!["expensive: 4294967295"]'),
-        T("limit_max", "items [u32::MAX], limit u32::MAX", "{ let mut s = Shop::new(vec![u32::MAX]); s.log_expensive(u32::MAX); s.log().len() }", "0"),
-        T("duplicates", "items [7, 7], limit 6", "{ let mut s = Shop::new(vec![7, 7]); s.log_expensive(6); s.log().len() }", "2"),
-        T("called_twice", "items [9], limit 5, twice", "{ let mut s = Shop::new(vec![9]); s.log_expensive(5); s.log_expensive(5); s.log().to_vec() }", 'vec!["expensive: 9", "expensive: 9"]'),
-        T("zero_price", "items [0], limit 0", "{ let mut s = Shop::new(vec![0]); s.log_expensive(0); s.log().len() }", "0"),
-        T("many", "items 0..10000, limit 4999", "{ let mut s = Shop::new((0..10_000).collect()); s.log_expensive(4999); (s.log().len(), s.log()[0].clone()) }", '(5000, "expensive: 5000".to_string())'),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2026);
-            for _ in 0..300 {
-                let n = rng.below(8);
-                let items: Vec<u32> = rng.vec(n, 0, 20);
-                let limit = rng.int(0, 20) as u32;
-                let want: Vec<String> = items.iter().filter(|&&p| p > limit).map(|p| format!("expensive: {p}")).collect();
-                let mut s = Shop::new(items.clone());
-                s.log_expensive(limit);
-                check!(format!("items {items:?}, limit {limit}"), s.log().to_vec(), want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        at_limit_counts=SHOP_WRONG.replace("BODY", """for p in &self.items {
-                if *p >= limit {
-                    self.log.push(format!("expensive: {p}"));
-                }
-            }"""),
-        stops_at_first_cheap=SHOP_WRONG.replace("BODY", """for p in self.items.iter().take_while(|p| **p > limit) {
-                self.log.push(format!("expensive: {p}"));
-            }"""),
-    ),
-)
 
 GOI_WRONG = """
     use std::collections::HashMap;

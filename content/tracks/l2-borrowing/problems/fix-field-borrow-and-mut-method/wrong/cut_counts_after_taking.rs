@@ -46,22 +46,24 @@ impl Editor {
 
     /// Applies every macro, in order. The macros stay for next time.
     pub fn run_macros(&mut self) {
-        for m in &self.macros {
+        let macros = std::mem::take(&mut self.macros);
+        for m in &macros {
             self.apply(m);
         }
+        self.macros = macros;
     }
 
     /// Moves the text into the clipboard (replacing what was there), leaving the text empty, and notes
     /// "cut <n> bytes".
     pub fn cut(&mut self) {
-        self.clipboard = self.text;
-        self.note(&format!("cut {} bytes", self.clipboard.len()));
+        self.clipboard = std::mem::take(&mut self.text);
+        self.note(&format!("cut {} bytes", self.text.len()));
     }
 
     /// Appends the clipboard to the text (the clipboard keeps it) and notes "paste <clipboard>".
     pub fn paste(&mut self) {
-        let clip = &self.clipboard;
-        self.note(&format!("paste {clip}"));
-        self.text.push_str(clip);
+        self.text.push_str(&self.clipboard);
+        let msg = format!("paste {}", self.clipboard);
+        self.note(&msg);
     }
 }

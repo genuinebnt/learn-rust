@@ -1,29 +1,35 @@
 slug = "fix-field-borrow-and-mut-method"
-title = "Fix: borrow a field while calling a &mut method"
+title = "Fix: a field borrowed across a &mut self call"
 mode = "fix"
 level = "medium"
 stage = "split-borrows"
 order = 25
 status = "ready"
-tags = ["E0502"]
+tags = ["E0502", "E0507", "mem::take", "take and restore"]
 teaches = [
-  "A `&mut self` method borrows the whole struct; field paths borrow one field.",
+  "A `&mut self` call conflicts with any live borrow of a field.",
+  "Take and restore: `mem::take` the field, use it, put it back.",
+  "Finish the borrow before the call.",
 ]
-follow_up = "How else could `save_snapshot` be written so it doesn't need all of `self`?"
+follow_up = "`mem::take` needs `Default`. How would you take and restore a field whose type has no cheap default?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "`save_snapshot(&mut self, ..)` needs all of `self` while `before` borrows `self.text`."
+text = "`for m in &self.macros { self.apply(m) }` borrows `self.macros` for the loop while `apply` wants all of `self`. Move the macros out (`mem::take`), run them, put them back."
 
 [[hints]]
 kind = "rust"
-text = "Touch the fields directly: `self.history` and `self.text` are disjoint."
+text = "`self.clipboard = self.text` tries to move a field out of `&mut self` (E0507). `mem::take` moves it and leaves an empty `String`."
+
+[[hints]]
+kind = "rust"
+text = "In `paste`, `clip` is still used after `note` needs `&mut self`. (Reading it inside `note`'s own arguments is fine: that's a two-phase borrow.) Finish with the clipboard before the call, or reach it through the field again afterwards."
 
 [solution]
-explanation = "Field paths borrow one field each, so reading `self.text` while pushing to `self.history` is fine inside one function."
-time = "O(n)"
-space = "O(n)"
+explanation = "A method that takes `&mut self` borrows every field, so it can't run while you hold a borrow of any one of them. Three ways out, one per method. Take and restore: `let macros = mem::take(&mut self.macros); ..; self.macros = macros;` detaches the field for the duration of the calls. (While it's out, `apply` would see an empty `macros`, and a panic in between would lose it; both are acceptable here.) Move with a replacement: you can't move a field out of `&mut self`, but `mem::take` (or `mem::replace`) swaps something in. Finish with the borrow before the call: compute the owned message, then call `note`.\n\nAnother fix for `run_macros` changes the helper's shape: make `apply` an associated function over the fields it touches (`fn apply(text: &mut String, log: &mut Vec<String>, m: &Macro)`), and the call borrows disjoint fields.\n\nSyntax to remember: `let macros = std::mem::take(&mut self.macros);` · `self.clipboard = std::mem::take(&mut self.text);` · `std::mem::replace(&mut self.state, State::Idle)`."
+time = "O(total text) per call"
+space = "O(1) extra"
 
 [rules]
-forbid_methods = ["clone"]
+forbid_methods = ["clone", "to_owned", "to_string", "cloned"]

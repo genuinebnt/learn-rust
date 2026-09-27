@@ -1,29 +1,35 @@
 slug = "fix-swap-without-swap"
-title = "Fix: swap two Vec elements"
+title = "Fix: move values between slots of one slice"
 mode = "fix"
 level = "medium"
 stage = "split-borrows"
 order = 28
 status = "ready"
-tags = ["E0499", "mem::take"]
+tags = ["E0499", "E0502", "mem::take", "mem::replace", "split_at_mut", "extend_from_within"]
 teaches = [
-  "`split_at_mut` for two disjoint `&mut`.",
+  "`take` and `replace` move values through short, sequential borrows.",
+  "Sequenced moves break when two indices are equal.",
+  "Split only when two borrows must be alive together.",
 ]
-follow_up = "How does `slice::swap` implement this internally?"
+follow_up = "`mem::swap(&mut a.x, &mut b.x)` compiles when `a` and `b` are different variables. When does the same code on `v[i].x` and `v[j].x` need a split instead?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "Two live `&mut v[..]` won't compile. Split the slice so each index is in its own half."
+text = "`let a = &mut v[i]; let b = &mut v[j];` is two live `&mut` into `v`, which is never allowed, whatever the indices. Do you need both at once? `mem::take(&mut v[i])` is one short borrow; `mem::replace(&mut v[j], x)` puts `x` in and hands back what was there."
 
 [[hints]]
-kind = "edge case"
-text = "`i == j` must be handled before splitting."
+kind = "rust"
+text = "Sequencing through `take` breaks when `i == j`: the first `take` empties the slot you're about to read. Test for it."
+
+[[hints]]
+kind = "rust"
+text = "`append_copy` really does need `v[i]` and `v[j]` alive together (appending without copying `v[j]` first): split the slice. When `i == j` there's nothing to split; `String::extend_from_within(..)` appends a copy of the string to itself."
 
 [solution]
-explanation = "`slice::swap` does exactly this with raw pointers inside std. Splitting the slice is the safe equivalent."
-time = "O(1)"
-space = "O(1)"
+explanation = "Moving values between slots doesn't need two live borrows: `take` moves a value out through a borrow that ends at the semicolon, and `replace` swaps a value in and returns the old one, so a swap is `let tmp = take(&mut v[i]); v[i] = replace(&mut v[j], tmp);` and a rotation is a chain of takes. The catch is aliasing by value: with `i == j` the first `take` empties the only slot, so the result is an empty string unless you return early. (`slice::swap` handles it with raw pointers inside std.) Reading one slot while growing another is different: both must be alive, so split the slice at the larger index. `i == j` is again special, since a `String` can't be borrowed shared and unique at once, and `extend_from_within(..)` copies within its own buffer.\n\nSyntax to remember: `let tmp = std::mem::take(&mut v[i]);` · `v[i] = std::mem::replace(&mut v[j], tmp);` · `let (left, right) = v.split_at_mut(hi);` · `s.extend_from_within(..)`."
+time = "O(1) swaps; O(len) appends"
+space = "O(1) extra"
 
 [rules]
-forbid_methods = ["swap", "clone"]
+forbid_methods = ["swap", "clone", "to_string", "to_owned", "rotate_left", "rotate_right", "swap_with_slice", "get_disjoint_mut", "cloned"]

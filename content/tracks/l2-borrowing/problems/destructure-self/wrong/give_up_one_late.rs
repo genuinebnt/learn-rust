@@ -29,7 +29,7 @@ impl Worker {
         let Worker { state, log, max_tries } = self;
         let State::Busy { job, tries } = state else { return None };
         *tries += 1;
-        if *tries < *max_tries {
+        if *tries <= *max_tries {
             log.push(format!("retry {job} #{tries}"));
             return Some(*tries);
         }

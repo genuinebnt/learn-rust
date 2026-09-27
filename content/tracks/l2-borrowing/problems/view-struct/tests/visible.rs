@@ -1,26 +1,44 @@
 use solution::*;
 
 #[test]
-fn retitles() {
-    check!(r#"title "old""#, { let mut d = Document { title: "old".into(), body: "text".into(), tags: vec![] }; d.header().retitle("new"); (d.title, d.tags, d.body) }, ("new".to_string(), vec!["edited".to_string()], "text".to_string()));
+fn views_together() {
+    let mut d = Document { title: "Draft".to_string(), tags: vec![], lines: vec![], words: 0 };
+    {
+        let (mut h, mut b) = d.split();
+        b.push_line("two words");
+        h.retitle("Final");
+    }
+    check!(r#"split; push a line and retitle while both are alive"#, (d.title.as_str(), d.tags.clone(), d.lines.clone(), d.words), ("Final", vec!["edited".to_string()], vec!["two words".to_string()], 2));
 }
 
 #[test]
-fn keeps_tags() {
-    check!(r#"tags ["draft"]"#, { let mut d = Document { title: "t".into(), body: String::new(), tags: vec!["draft".into()] }; d.header().retitle("u"); d.tags }, vec!["draft".to_string(), "edited".to_string()]);
+fn hashtags_example() {
+    let mut d = Document { title: "Draft".to_string(), tags: vec![], lines: vec![], words: 0 };
+    d.body().push_line("see #rust and #borrowck");
+    d.body().push_line("#rust again #");
+    check!(r##"lines "see #rust and #borrowck", "#rust again #""##, (hashtags(&mut d), d.tags.clone()), (2, vec!["rust".to_string(), "borrowck".to_string()]));
 }
 
 #[test]
-fn shorter_title() {
-    check!(r#"title "abc", retitle "x""#, { let mut d = Document { title: "abc".into(), body: String::new(), tags: vec![] }; d.header().retitle("x"); d.title }, "x".to_string());
+fn retitle_tags_once() {
+    let mut d = Document { title: "Draft".to_string(), tags: vec![], lines: vec![], words: 0 };
+    d.header().retitle("A");
+    d.header().retitle("B");
+    check!(r#"retitle twice"#, (d.title.as_str(), d.tags.clone()), ("B", vec!["edited".to_string()]));
 }
 
 #[test]
-fn empty_title() {
-    check!(r#"retitle """#, { let mut d = Document { title: "t".into(), body: String::new(), tags: vec![] }; d.header().retitle(""); (d.title, d.tags) }, (String::new(), vec!["edited".to_string()]));
+fn tag_reports() {
+    let mut d = Document { title: "Draft".to_string(), tags: vec![], lines: vec![], words: 0 };
+    check!(r#"tag x, x, y"#, { let mut h = d.header(); (h.tag("x"), h.tag("x"), h.tag("y")) }, (true, false, true));
 }
 
 #[test]
-fn twice() {
-    check!(r#"retitle twice"#, { let mut d = Document { title: String::new(), body: String::new(), tags: vec![] }; let mut h = d.header(); h.retitle("a"); h.retitle("b"); d.tags.len() }, 2);
+fn word_count() {
+    let mut d = Document { title: "Draft".to_string(), tags: vec![], lines: vec![], words: 0 };
+    let mut b = d.body();
+    b.push_line("a b  c");
+    b.push_line("");
+    b.push_line(" d ");
+    check!(r#"push "a b  c", "", " d ""#, (d.words, d.lines.len()), (4, 3));
 }

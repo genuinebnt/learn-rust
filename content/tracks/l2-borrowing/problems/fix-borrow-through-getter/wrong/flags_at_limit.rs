@@ -66,7 +66,7 @@ pub fn flag_expensive(shop: &mut Shop, limit: u32) -> usize {
     let mut n = 0;
     let (items, log) = shop.items_and_log();
     for it in items {
-        if it.price > limit {
+        if it.price >= limit {
             log.push(format!("expensive: {}", it.name));
             n += 1;
         }

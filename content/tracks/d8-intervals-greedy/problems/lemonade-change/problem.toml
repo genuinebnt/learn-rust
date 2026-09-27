@@ -1,0 +1,37 @@
+slug = "lemonade-change"
+title = "Lemonade change"
+mode = "write"
+level = "easy"
+stage = "first-greedy"
+order = 2
+status = "ready"
+tags = ["greedy", "simulation"]
+companies = ["Amazon"]
+teaches = [
+  "Greedy means spending the least flexible resource first.",
+  "Early `return false` from inside a `for` loop.",
+]
+constraints = ["0 ≤ bills.len() ≤ 2·10⁵", "bills[i] ∈ {5, 10, 20}"]
+follow_up = "If lemonade cost 5 and bills could be any of 5, 10, 20, 50, would the same greedy rule still work?"
+related = ["S1"]
+
+[[examples]]
+input = "bills = [5, 5, 5, 10, 20]"
+output = "true"
+
+[[examples]]
+input = "bills = [5, 5, 10, 10, 20]"
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "Only the count of 5s and 10s in the till matters. A 20 can never be given back as change."
+
+[[hints]]
+kind = "edge case"
+text = "For a 20, give a 10 and a 5 when you can: a 10 only helps with 20s, while 5s help with everyone."
+
+[solution]
+explanation = "Keep two counters. Paying 15 with 10 + 5 keeps more 5s than 5 + 5 + 5, and 5s are strictly more useful, so that choice is always safe."
+time = "O(n)"
+space = "O(1)"

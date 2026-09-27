@@ -1,0 +1,26 @@
+code = "D8"
+name = "Intervals & greedy"
+section = "D"
+tier = "core"
+order = 9
+summary = "Sort, sweep and choose: merging intervals, sweep lines and greedy exchange arguments, with tuples, sort keys and heaps."
+
+[[stages]]
+slug = "first-greedy"
+name = "First greedy"
+band = "easy"
+
+[[stages]]
+slug = "intervals"
+name = "Intervals"
+band = "medium"
+
+[[stages]]
+slug = "greedy-choices"
+name = "Greedy choices"
+band = "medium"
+
+[[stages]]
+slug = "hard-greedy"
+name = "Hard greedy"
+band = "hard"

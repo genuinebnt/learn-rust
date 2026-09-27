@@ -1,0 +1,37 @@
+slug = "assign-cookies"
+title = "Assign cookies"
+mode = "write"
+level = "easy"
+stage = "first-greedy"
+order = 1
+status = "ready"
+tags = ["greedy", "sorting", "two pointers"]
+companies = ["Amazon"]
+teaches = [
+  "Sort both sides, then match the smallest cookie that still works.",
+  "`to_vec()` plus `sort_unstable()` when the caller's slice must stay untouched.",
+]
+constraints = ["0 ≤ greed.len(), cookies.len() ≤ 2·10⁵", "1 ≤ greed[i], cookies[j] ≤ 2³² − 1"]
+follow_up = "If each child could take several cookies whose sizes add up to their greed, is greedy still optimal?"
+related = ["D2", "S3"]
+
+[[examples]]
+input = "greed = [1, 2, 3], cookies = [1, 1]"
+output = "1"
+
+[[examples]]
+input = "greed = [1, 2], cookies = [1, 2, 3]"
+output = "2"
+
+[[hints]]
+kind = "approach"
+text = "The least greedy child is the easiest to please. Give each cookie, smallest first, to the least greedy child it satisfies."
+
+[[hints]]
+kind = "rust"
+text = "Copy each slice with `to_vec()`, `sort_unstable()` both, then walk the cookies with one index into the children."
+
+[solution]
+explanation = "After sorting, a cookie too small for the least greedy waiting child is too small for everyone, so skip it; otherwise using it on that child never hurts (exchange argument)."
+time = "O(n log n + m log m)"
+space = "O(n + m) for the sorted copies"

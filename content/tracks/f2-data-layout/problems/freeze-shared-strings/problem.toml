@@ -1,0 +1,45 @@
+slug = "freeze-shared-strings"
+title = "Frozen, shared, or growing"
+mode = "fix"
+level = "medium"
+stage = "pick-the-representation"
+order = 5
+status = "ready"
+tags = ["Arc<str>", "Arc<[T]>", "Box<[T]>", "interning", "allocation"]
+teaches = [
+  "`Arc<str>` / `Arc<[T]>` put the count and the data in one allocation behind a 16-byte fat pointer; `Arc<String>` / `Arc<Vec<T>>` take two allocations and two hops.",
+  "Choose per field: `Vec` for what grows, a boxed or shared slice for what's frozen, a shared `str` for what's repeated.",
+  "`Arc<str>: Borrow<str>` lets a `HashSet<Arc<str>>` interner look up by `&str` without allocating.",
+]
+constraints = ["labels arrive sorted by name, with distinct names", "series ids are dense from 0"]
+follow_up = "Replace the `Arc<str>` symbols with `u32` ids into a symbol table. What does `Series` shrink to, what does `labels_of` return then, and what does the query engine lose?"
+related = ["S7", "F3", "F4"]
+source = "Prometheus TSDB head block and its stringlabels build; rustc's Lrc<str> source text"
+
+[[examples]]
+input = "add_series(\"up\", [(\"env\", \"prod\"), (\"job\", \"api\")]) after both were added before"
+output = "1 allocation"
+
+[[examples]]
+input = "labels_of(id)"
+output = "0 allocations"
+
+[[hints]]
+kind = "approach"
+text = "Ask of each field: does it grow, is it frozen, is it repeated? Samples grow (`Vec`). Labels are frozen and handed out (`Arc<[_]>`). Names and values repeat across series (intern them as `Arc<str>` in a `HashSet`)."
+
+[[hints]]
+kind = "rust"
+text = "`HashSet<Arc<str>>::get(s)` works with `s: &str` because `Arc<str>: Borrow<str>`; `Arc::from(s)` makes the one allocation. `iter.map(..).collect::<Arc<[_]>>()` allocates once when the iterator knows its length."
+
+[[hints]]
+kind = "edge case"
+text = "`Arc<String>` and `Arc<Vec<T>>` are 8 bytes, but each costs two allocations, and a `HashSet<Arc<String>>` can't be searched with a `&str` without building a `String` first."
+
+[solution]
+explanation = "Pick each field's type by how it's used. `samples` grows, so it stays a `Vec` (24 bytes: pointer, capacity, length). `labels` never changes after creation and is handed to queries that outlive the head, so it's an `Arc<[(Arc<str>, Arc<str>)]>`: one allocation holding the reference counts and the pairs, a 16-byte fat pointer, and `labels_of` is a count bump. `Box<[T]>` would be the choice for frozen data with one owner: 16 bytes and no spare capacity. The strings repeat across thousands of series, so they're interned once as `Arc<str>` in a `HashSet`, which can be searched with a plain `&str` because `Arc<str>: Borrow<str>`.\n\nThe two-level versions are the trap: `Arc<String>` and `Arc<Vec<T>>` are thinner (8 bytes) but take two allocations and two dependent loads, and a `HashSet<Arc<String>>` can only be searched by building a `String`. Prometheus fought the same costs in Go: its `stringlabels` build packs a series' labels into one string, and its head block interns symbols."
+time = "O(k) per add_series with k labels; O(1) labels_of"
+space = "56 bytes per series + one shared copy of each string"
+
+[perf]
+count_allocs = true

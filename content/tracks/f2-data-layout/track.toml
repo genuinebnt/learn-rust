@@ -9,3 +9,8 @@ summary = "How many bytes a value takes and where they sit: padding, niches, enu
 slug = "size-it"
 name = "Size it"
 band = "easy"
+
+[[stages]]
+slug = "pick-the-representation"
+name = "Pick the representation"
+band = "medium"

@@ -1,0 +1,49 @@
+slug = "inline-small-strings"
+title = "Inline small strings"
+mode = "write"
+level = "medium"
+stage = "pick-the-representation"
+order = 7
+status = "ready"
+tags = ["small string optimisation", "enum layout", "Box<str>", "Borrow", "Hash"]
+teaches = [
+  "Small-string optimisation: short strings live inside the 24 bytes a `String` would spend on pointer, capacity and length.",
+  "The heap variant has to be as small as the inline one: `Box<str>` (16 bytes) keeps the enum at 24; `String` would make it 32.",
+  "`Borrow<str>` is a contract: `Hash`, `Eq` and `Ord` must match `str`'s, or `HashSet<SmallStr>::contains(\"x\")` silently misses.",
+]
+constraints = ["lengths are in bytes (UTF-8), not chars", "no crates (compact_str, smol_str)"]
+follow_up = "compact_str keeps 24 bytes inline in a 24-byte value. Where does it put the length and the tag, and why does UTF-8 make that possible?"
+related = ["S2", "S8"]
+source = "compact_str, smol_str (rust-analyzer)"
+
+[[examples]]
+input = "SmallStr::new(\"DE\"): allocations, is_inline()"
+output = "0, true"
+
+[[examples]]
+input = "SmallStr::new(\"a string of 23 bytes...\"): allocations, is_inline()"
+output = "1, false"
+
+[[examples]]
+input = "HashSet<SmallStr> holding \"DE\": contains(\"DE\")"
+output = "true"
+
+[[hints]]
+kind = "approach"
+text = "An enum with two variants: `Inline { len: u8, buf: [u8; 22] }` and a heap variant. Work out each variant's size with the tag byte: the inline one is 1 + 1 + 22 = 24 bytes, so the heap one must fit in 24 too."
+
+[[hints]]
+kind = "rust"
+text = "`Box<str>` is a 16-byte fat pointer, so the heap variant is tag + padding + 16 = 24. `String` is 24 on its own, which makes the enum 32. Wrap the enum in a `pub struct SmallStr(Repr)` so callers can't build a broken one."
+
+[[hints]]
+kind = "edge case"
+text = "Don't derive `Hash` or `Ord` on the enum: derived ones see the tag, the length and the padding bytes, not the string, and `HashSet<SmallStr>::contains(\"x\")` stops finding values. Delegate all three to `as_str()`."
+
+[solution]
+explanation = "A `String` is 24 bytes of pointer, capacity and length before it stores anything, so a short string can live in those 24 bytes instead: a one-byte tag, a length, and 22 bytes of text. The heap variant must fit the same 24 bytes, which rules out `String` (the enum becomes 32) and leaves `Box<str>`: an immutable string doesn't need a capacity, so a 16-byte fat pointer is enough. Both variants leave the tag's other values free, so `Option<SmallStr>` is still 24.\n\n`Borrow<str>` is what lets a `HashSet<SmallStr>` or `BTreeSet<SmallStr>` be searched with `&str`, and it comes with a contract: `Eq`, `Hash` and `Ord` must give the same answers as on the borrowed `str`. Derived impls on the enum would hash the tag, length and zero padding, and order by length first, so lookups silently miss. The same trade shows up in production: smol_str (rust-analyzer) keeps 23 bytes inline, and compact_str squeezes 24 by using the last byte as both length and tag, because a UTF-8 string's last byte is never 0xC0 or above."
+time = "O(n) to build; O(1) as_str (plus a UTF-8 check of ≤ 22 bytes here)"
+space = "24 bytes inline; + len bytes on the heap past 22"
+
+[perf]
+count_allocs = true

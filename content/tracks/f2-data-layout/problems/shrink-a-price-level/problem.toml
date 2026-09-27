@@ -1,0 +1,45 @@
+slug = "shrink-a-price-level"
+title = "Shrink a price level to 32 bytes"
+mode = "fix"
+level = "medium"
+stage = "pick-the-representation"
+order = 10
+status = "ready"
+tags = ["order book", "intrusive list", "arena", "niche", "generational index", "allocation"]
+teaches = [
+  "Every field of a hot struct needs a reason: remove what's derivable (side, active), what belongs to the parent (symbol), and what can be narrowed (`u32` ticks, `Option<Slot>` in 4 bytes).",
+  "An intrusive FIFO through an arena replaces a `VecDeque` per level: the level holds `head` and `tail`, cancels are O(1), and nothing allocates once the arena has room.",
+  "Arena slots are reused, so handles carry a generation: a stale `OrderId` must not cancel the order that took its slot.",
+]
+constraints = ["at most u32::MAX − 1 orders rest at once", "timestamps are passed in, not read from a clock"]
+follow_up = "Prices cluster near the touch. How would you replace the `BTreeMap` with an array indexed by tick offset from a moving base, and what happens when the price walks off the end of it?"
+related = ["F3", "D14", "D5"]
+source = "exchange matching engines (LMAX Disruptor-style order books), intrusive lists in the Linux kernel"
+
+[[examples]]
+input = "size_of::<PriceLevel>()"
+output = "32"
+
+[[examples]]
+input = "asks: 5 @ 101, 3 @ 100, 4 @ 100; execute(Bid, 6)"
+output = "fills 3 @ 100 (2nd order), 3 @ 100 (3rd order)"
+
+[[hints]]
+kind = "approach"
+text = "List what each byte is for. The symbol is the book's; the side is which map you're in; `active` is `count > 0`; the price fits in `u32`. The queue is the big one: keep the orders in one arena `Vec` and link each level's orders through it, so the level only stores `head` and `tail`."
+
+[[hints]]
+kind = "rust"
+text = "Arena indices as `NonZeroU32` (`index + 1`) make `Option<Slot>` 4 bytes, so head, tail, count and price fit in 16 bytes next to `qty` and the timestamp. A level only exists after something touched it, so the timestamp doesn't need to be an `Option` (16 bytes) at all."
+
+[[hints]]
+kind = "edge case"
+text = "Freed slots go on a free list and get reused, so an `OrderId` must carry the slot's generation: bump it on free and check it on cancel, or a stale id cancels someone else's order."
+
+[solution]
+explanation = "A 96-byte level is mostly things it doesn't need. The symbol is the same for every level, so it moves to the book. The side is implied by which map holds the level, `active` is `count > 0`, and prices fit in `u32` ticks. `Option<u64>` is 16 bytes because `u64` has no niche, but a level only exists once an order touched it, so the timestamp is a plain `u64`. The `VecDeque` (32 bytes plus its own allocation) becomes an intrusive FIFO: orders live in one arena `Vec`, each with `prev`/`next` slots, and the level keeps `head` and `tail` as `Option<Slot>`, which the `NonZeroU32` niche keeps at 4 bytes each. The result is `qty`, `last_update`, `price`, `count`, `head`, `tail`: 8 + 8 + 4 + 4 + 4 + 4 = 32 bytes, two levels per cache line.\n\nBehaviour improves with the layout: cancel unlinks in O(1) instead of scanning, freed slots are reused through a free list threaded through `next`, and once the arena is reserved no add or cancel allocates. Reuse brings the ABA problem, so each `OrderId` packs the slot with a generation that moves on when the slot is freed. Real engines (LMAX-style exchange engines and the order books in trading firms' market-data handlers) use exactly this: pooled order nodes, intrusive per-level queues, and levels in an array or tree keyed by tick."
+time = "O(log L) to find a level, O(1) to link or unlink an order"
+space = "32 bytes per level + one arena slot per order"
+
+[perf]
+count_allocs = true

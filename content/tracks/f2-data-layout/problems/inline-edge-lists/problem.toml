@@ -1,0 +1,46 @@
+slug = "inline-edge-lists"
+title = "Inline edge lists for a CFG"
+mode = "fix"
+level = "medium"
+stage = "pick-the-representation"
+order = 6
+status = "ready"
+tags = ["SmallVec", "inline capacity", "compiler IR", "allocation", "critical edges"]
+teaches = [
+  "`SmallVec<[T; N]>` stores up to N items inline and spills to the heap after; most CFG blocks have 1 or 2 edges, so most never allocate.",
+  "Pick N from the element size: with smallvec's `union` layout, 16 bytes of inline items cost nothing over the 24 bytes of a `Vec`; each 8 bytes more grows every block.",
+  "Critical-edge splitting: an edge from a multi-successor block to a multi-predecessor block needs its own block before code can be placed on it.",
+]
+constraints = ["a graph has at most 2³² − 1 blocks", "add_edge ignores an edge that already exists", "self-loops are edges like any other"]
+follow_up = "rustc's dep graph uses `SmallVec<[DepNodeIndex; 8]>` for edges. How would you pick N from a profile, and what does a spilled `SmallVec` cost compared with a `Vec`?"
+related = ["S3", "D9", "F3"]
+source = "rustc MIR predecessors (SmallVec<[BasicBlock; 4]>), the smallvec crate, LLVM SplitCriticalEdges"
+crates = ["smallvec"]
+
+[[examples]]
+input = "0 -> 1, 0 -> 2, 1 -> 2; split_critical_edges()"
+output = "1: new block 3 on 0 -> 2; succs(0) = [1, 3], preds(2) = [3, 1]"
+
+[[examples]]
+input = "1000 four-way switches built after with_capacity(6000)"
+output = "0 allocations"
+
+[[hints]]
+kind = "approach"
+text = "Most lists hold 1 to 4 ids. Keep that many inline in the block and fall back to the heap only for the rare big switch: `smallvec::SmallVec<[BlockId; N]>` does exactly that."
+
+[[hints]]
+kind = "rust"
+text = "With the `union` feature, `SmallVec<[T; N]>` is `max(N * size_of::<T>(), 16) + 8` bytes: a length/capacity word plus a union of the inline array and (pointer, length). `[BlockId; 4]` is 16 bytes, so it costs no more than a `Vec`."
+
+[[hints]]
+kind = "edge case"
+text = "When splitting, overwrite the edge in place in both lists (`succs[i] = mid`, and `from`'s position in `to`'s preds) so the order of the other edges doesn't change. A self-loop on a block with several successors is critical too."
+
+[solution]
+explanation = "`SmallVec<[T; N]>` keeps up to N items inline and moves them to the heap when it outgrows them. The size question decides N: with the `union` feature it's one word (the length while inline, the capacity once spilled) plus a union of the inline array and the heap's (pointer, length), so any array up to 16 bytes is free: `SmallVec<[u32; 4]>` is 24 bytes, exactly a `Vec`. Eight inline ids would make every block 88 bytes, most of it empty; two would allocate for every 3- and 4-way branch. N = 4 is what rustc uses for its MIR predecessor lists (`IndexVec<BasicBlock, SmallVec<[BasicBlock; 4]>>`). The trade-off: every access checks whether it's spilled, and moving a `SmallVec` copies its inline items.\n\nCritical-edge splitting is a standard pass (rustc's `AddCallGuards`, LLVM's `SplitCriticalEdges`): an edge from a block with several successors into a block with several predecessors has nowhere to put code that must run only on that edge, so it gets a block of its own."
+time = "O(1) add_edge for small degrees; O(E · d) to split"
+space = "24 bytes per edge list; heap only past 4 edges"
+
+[perf]
+count_allocs = true

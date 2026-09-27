@@ -1,0 +1,42 @@
+slug = "eight-byte-instructions"
+title = "An 8-byte IR instruction"
+mode = "fix"
+level = "medium"
+stage = "pick-the-representation"
+order = 9
+status = "ready"
+tags = ["enum layout", "side tables", "u32 indices", "compiler IR", "interpreter"]
+teaches = [
+  "rustc lays each enum variant's fields out around the tag, so `{ u8, u32 }` after a tag byte is 8 bytes, not 12.",
+  "Anything that doesn't fit (an `i64`, a `Vec`) moves to a side pool and the instruction keeps a `u32` index: no allocation per instruction, no fat pointer.",
+  "Cranelift and rustc assert their instruction sizes (`InstructionData` is 16 bytes) because the size multiplies across every function compiled.",
+]
+constraints = ["up to 2³² − 1 instructions, constants and jump tables", "registers are u8"]
+follow_up = "Cranelift stores an instruction's result types and value lists outside `InstructionData` too. Where would you keep the argument list of a `Call` with any number of arguments, still at 8 bytes per instruction?"
+related = ["F3", "L7"]
+source = "Cranelift InstructionData (cranelift-codegen ir/instructions.rs), rustc static_assert_size!"
+
+[[examples]]
+input = "size_of::<Inst>(), size_of::<Option<Inst>>()"
+output = "8, 8"
+
+[[examples]]
+input = "sum of i * i for i in 0..10, run(1000)"
+output = "Some(285)"
+
+[[hints]]
+kind = "approach"
+text = "The tag takes a byte, which leaves 7 bytes of an 8-byte, 4-aligned value: room for a few `u8` registers and one `u32`. An `i64` or a `Vec` can't fit, so store those in pools on `Program` and keep a `u32` index in the instruction."
+
+[[hints]]
+kind = "rust"
+text = "rustc lays out each variant separately after the tag, so `BrIf { cond: u8, target: u32 }` puts `cond` at byte 1 and `target` at byte 4: 8 bytes. `Box<[u32]>` is 16 bytes (pointer + length) and would make every instruction 24."
+
+[[hints]]
+kind = "edge case"
+text = "Keep `BrTable`'s semantics exact: the index is an `i64`, so compare it before narrowing. `i as u32 as usize` turns 2³² + 1 into 1 instead of taking the default."
+
+[solution]
+explanation = "Enum layout works per variant: the tag goes first and each variant's fields are placed after it in whatever order packs them best, so a variant with a `u8` and a `u32` fits in 8 bytes with the tag in byte 0. What doesn't fit moves out: the `i64` constant into a `consts` pool, the jump table into a `tables` pool, each named by a `u32`. A `Box<[u32]>` in the variant would work but costs a fat pointer (16 bytes, so the instruction is 24) and one allocation per table; a pool index is 4 bytes and the pools are two vectors per function. `Option<Inst>` stays 8 because the tag has unused values.\n\nThis is how production IRs are built. Cranelift's `InstructionData` holds `Value`/`Block`/`JumpTable`/`Constant` entity indices (all `u32`) and has a test pinning it to 16 bytes; rustc wraps its hot enums in `static_assert_size!`. A function with 100k instructions is 800 KB here instead of 3.2 MB, and the dispatch loop fits 8 instructions per cache line instead of 2."
+time = "O(1) per instruction executed"
+space = "8 bytes per instruction + pools"

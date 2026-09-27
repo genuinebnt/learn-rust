@@ -1,0 +1,42 @@
+slug = "fix-packed-zip-header"
+title = "Fix: an unaligned ZIP header"
+mode = "fix"
+level = "medium"
+stage = "pick-the-representation"
+order = 8
+status = "ready"
+tags = ["repr(packed)", "repr(C)", "E0793", "unaligned access", "zero-copy parsing"]
+teaches = [
+  "`#[repr(C)]` pads fields to their alignment; an on-disk format with a `u32` at offset 14 needs `#[repr(C, packed)]`.",
+  "A packed struct has alignment 1, which is what makes casting a `&[u8]` at any offset to it sound.",
+  "E0793: no references to packed fields, including the hidden ones in `format!` and `&self` methods; copy the value out (`{ self.x }`, an accessor, `read_unaligned`).",
+]
+constraints = ["headers are little-endian", "archives may start with junk before the first header (a self-extractor stub)", "keep the unsafe cast in view; no copying the header out"]
+follow_up = "The `object` crate avoids `repr(packed)` by using fields like `U32Bytes<LE>` (a `[u8; 4]`). What does that buy over packed, and what does it cost at each read?"
+related = ["Y2", "Y3", "F7"]
+source = "ZIP APPNOTE 4.3.7 (local file header); the zip and object crates"
+
+[[examples]]
+input = "size_of::<LocalHeader>(), align_of::<LocalHeader>()"
+output = "30, 1"
+
+[[examples]]
+input = "LocalHeader::view(&archive[1..]) for a header at offset 1"
+output = "the right crc32 and sizes"
+
+[[hints]]
+kind = "approach"
+text = "The format has no padding: `crc32` sits at offset 14, which isn't a multiple of 4. Only a packed layout puts it there, and a packed struct has alignment 1."
+
+[[hints]]
+kind = "rust"
+text = "`#[repr(C, packed)]` keeps the order and removes the padding. Then every reference to a field is an error (E0793): `format!(\"{}\", self.crc32)` and `self.method.eq(&0)` both borrow. Copy the value out instead: an accessor, or `{ self.crc32 }` in braces."
+
+[[hints]]
+kind = "edge case"
+text = "`#[derive(Debug, PartialEq, Hash)]` still work on a packed struct: rustc makes them copy each field instead of borrowing it (so every field must be `Copy`). Reading a packed field through a raw pointer needs `ptr::read_unaligned(&raw const (*p).crc32)`."
+
+[solution]
+explanation = "`#[repr(C)]` gives C's layout, and C pads a `u32` to a multiple of 4, so the struct had `crc32` at 16, not 14, and was 32 bytes with alignment 4. `#[repr(C, packed)]` keeps the order and drops the padding: 30 bytes, alignment 1, every field at its on-disk offset. Alignment 1 is what makes `view` sound: casting `&[u8]` at any offset to `&LocalHeader` is only valid if `LocalHeader` needs no alignment, and in a debug build the old code panics with a misaligned-pointer check at odd offsets.\n\nPacked has a price: a reference to a field might be unaligned, and `&u32` must always be aligned, so taking one is an error (E0793). References hide in `format!` arguments and `&self` methods like `eq`, so the fix is to copy each field out first (the accessors, or `{ self.crc32 }`). Derives keep working because rustc generates them to copy each field, which is also why a packed struct can't derive over a non-`Copy` field. The CPU pays for unaligned loads on some targets, which is fine for parsing a header once. With a raw pointer, use `ptr::read_unaligned(&raw const (*p).crc32)`.\n\nReal parsers do the same: the `zip` and `object` crates read packed little-endian records in place (`object` uses `U32<LittleEndian>` byte-array fields, which have alignment 1 with no `packed` at all)."
+time = "O(1) per header; O(n) for entries"
+space = "no copies: headers are read in place"

@@ -1,0 +1,45 @@
+slug = "box-the-large-variant"
+title = "Box the large variant"
+mode = "fix"
+level = "medium"
+stage = "pick-the-representation"
+order = 4
+status = "ready"
+tags = ["enum layout", "large_enum_variant", "Box", "thin vs fat pointers", "allocation"]
+teaches = [
+  "An enum is as big as its largest variant plus the tag, so one rare 1.5 KB variant makes every `Tick` 1.5 KB.",
+  "Box the large, rare variant: the enum shrinks to the size of its common variants and only packets allocate.",
+  "`Box<T>` is a thin 8-byte pointer; `Box<[u8]>` and `Vec<u8>` carry a length (16 and 24 bytes), which here decides whether the enum is 16 bytes or 24.",
+]
+constraints = ["payloads are 0 to 1500 bytes", "the enum's small variants keep their shape"]
+follow_up = "Packets arrive in bursts of thousands. What would you use instead of one `Box` per packet, and what does `Event` hold then?"
+related = ["S7", "F3"]
+source = "clippy large_enum_variant; rustc's static_assert_size! on ast::Expr and mir::Statement"
+
+[[examples]]
+input = "size_of::<Event>(), size_of::<Option<Event>>()"
+output = "16, 16"
+
+[[examples]]
+input = "allocations for Event::packet(7, b\"hello\")"
+output = "1"
+
+[[hints]]
+kind = "approach"
+text = "The enum is as large as its largest variant. Move the packet's buffer behind a pointer so that variant is 8 bytes, the same as `Tick(u64)`."
+
+[[hints]]
+kind = "rust"
+text = "`Packet(Box<Packet>)` with `struct Packet { conn, len, data: [u8; MTU] }` is a thin pointer. `Box<[u8]>` is a fat pointer (pointer + length, 16 bytes), which with the tag makes the enum 24; `Box<Vec<u8>>` is thin but allocates twice."
+
+[[hints]]
+kind = "edge case"
+text = "`Option<Event>` stays 16 bytes on its own: the tag byte has unused values, and `None` takes one of them."
+
+[solution]
+explanation = "An enum's size is its largest variant plus the tag, rounded to its alignment, so one rare 1506-byte variant makes every tick 1512 bytes, and a queue of a million events 1.5 GB. Boxing the rare variant makes it a thin 8-byte pointer: the enum becomes a tag byte, padding and 8 bytes of payload (`u64`, two `u32`s or the `Box`), 16 in total, and a million-event queue is 16 MB. Only packets allocate, once each. The payload representation matters: `Box<[u8]>` is a fat pointer (16 bytes, so the enum is 24), `Vec<u8>` is 24 (enum 32), and `Box<Vec<u8>>` is thin but costs two allocations per packet. `Option<Event>` stays 16 bytes because the tag byte has spare values.\n\nThis is clippy's `large_enum_variant` lint, and why rustc guards its hot enums with `static_assert_size!` (`ast::Expr`, `mir::Statement`): a variant added carelessly would grow every value."
+time = "O(1) per event; one allocation per packet"
+space = "16 bytes per queued event + 1508 per packet"
+
+[perf]
+count_allocs = true

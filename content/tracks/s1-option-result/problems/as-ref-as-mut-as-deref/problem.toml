@@ -1,23 +1,40 @@
 slug = "as-ref-as-mut-as-deref"
-title = "as_ref, as_mut and as_deref"
+title = "as_ref, as_deref and friends"
 mode = "write"
 level = "medium"
 stage = "understand-it"
 order = 6
 status = "ready"
-tags = ["as_deref", "as_mut"]
+tags = ["as_deref", "as_deref_mut", "get_or_insert_with", "Option::iter"]
 teaches = [
-  "`as_deref` turns `&Option<String>` into `Option<&str>`.",
-  "`as_mut` edits the value inside an `Option` in place.",
+  "`as_deref` turns `&Option<String>` into `Option<&str>` and `&Option<Vec<T>>` into `Option<&[T]>`, without moving or cloning.",
+  "An `Option` is an iterator of zero or one items: `chain(opt)` and `opt.iter().flatten()` skip the `None` case.",
+  "`get_or_insert_with` creates the value on first use and hands back `&mut` to it.",
 ]
-follow_up = "What's the difference between `Option<&T>` and `&Option<T>` as a parameter type?"
-related = ["S7", "L2"]
+follow_up = "Why does `Option<Vec<String>>` often turn into a plain `Vec<String>` in a good API, and when is the `None`/empty distinction worth keeping?"
+related = ["S7", "L2", "S6"]
+
+[[examples]]
+input = "name \"Ada\", nickname \"ace\", emails [\"a@x\"]"
+output = "handles = [\"Ada\", \"ace\", \"a@x\"]"
+
+[[examples]]
+input = "emails = Some([])"
+output = "primary_email = None"
+
+[[hints]]
+kind = "approach"
+text = "Every function borrows through the `Option` rather than taking the value out of it. Only `add_email` ever creates anything."
 
 [[hints]]
 kind = "rust"
-text = "`user.nickname.map(..)` would move out of a borrowed struct. Convert `&Option<String>` to `Option<&str>` first."
+text = "`as_deref()` on `Option<Vec<String>>` gives `Option<&[String]>`, so `?` then `.first()` works. An `Option` implements `IntoIterator`, so `iter.chain(opt)` and `opt.iter().flatten()` just work."
+
+[[hints]]
+kind = "edge case"
+text = "`Some(vec![])` has no first email: don't index. `add_email` must keep what's already there."
 
 [solution]
-explanation = "`as_deref` borrows through the `Option` and derefs `String` to `str`; the result's lifetime is tied to `user`."
-time = "O(1)"
-space = "O(1)"
+explanation = "`user.nickname.map(..)` would move the `String` out of a borrowed struct; the `as_*` family converts `&Option<T>` into `Option<&T>` (and `as_deref` goes one step further, through `Deref`), after which every by-value combinator is fine. Treating `Option` as a 0-or-1 item iterator removes the `if let` from `handles`. Syntax to remember: `as_ref()` → `Option<&T>`, `as_mut()` → `Option<&mut T>`, `as_deref()` → `Option<&T::Target>` (`&str`, `&[T]`), `as_deref_mut()` → `Option<&mut str>`, `opt.iter()` / `iter_mut()`, `get_or_insert_with(Vec::new)` → `&mut Vec<_>`."
+time = "O(1) for all but handles, which is O(number of emails)"
+space = "O(number of emails) for handles"

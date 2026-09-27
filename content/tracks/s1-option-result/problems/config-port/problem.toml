@@ -1,27 +1,41 @@
 slug = "config-port"
-title = "Read a port from config"
+title = "Read a server config"
 mode = "write"
 level = "easy"
 stage = "use-it"
 order = 1
 status = "ready"
-tags = ["ok_or", "map_err", "and_then"]
+tags = ["ok_or_else", "or_else", "is_some_and", "unwrap_or_default"]
 teaches = [
-  "`ok_or` turns a missing value into an error.",
-  "`and_then` chains a second fallible step; `map_err` shapes the error.",
+  "`ok_or_else` + `and_then` + `?` turn \"missing\" and \"malformed\" into two different errors.",
+  "`filter` before `or_else`: an empty value must fall through to the next key, not stop the chain.",
+  "Absent means default, present-but-bad is an error: `.parse().ok().unwrap_or(d)` silently merges the two.",
+  "`is_some_and`, `cloned().unwrap_or_default()` for the one-liners.",
 ]
-follow_up = "When would you return a custom error enum instead of `String`?"
+follow_up = "How would you report every bad field at once instead of the first? What would a typed `ConfigError` enum buy the caller over `String`?"
 related = ["L8", "S4"]
 
+[[examples]]
+input = "cfg = {port: \"80\"}"
+output = "Ok(Server { host: \"127.0.0.1\", port: 80, tls: false, name: \"\", workers: 1 })"
+
+[[examples]]
+input = "cfg = {host: \"\", bind: \"0.0.0.0\", port: \"0\"}"
+output = "Err(\"invalid port: 0\")"
+
 [[hints]]
-kind = "rust"
-text = "`HashMap<String, _>::get` accepts a `&str` key."
+kind = "approach"
+text = "Handle each field as its own small chain; only `port` and `workers` can fail, and `?` returns their errors in the order you write them."
 
 [[hints]]
 kind = "rust"
-text = "`ok_or_else`, then `and_then`, then `map_err` inside."
+text = "`cfg.get(\"port\").ok_or_else(..).and_then(|v| v.parse::<u16>().ok().filter(..).ok_or_else(..))?`. For `host`, `a.or_else(|| b)` tries `b` only when `a` is `None`."
+
+[[hints]]
+kind = "edge case"
+text = "`cfg.get(\"host\").or_else(..).filter(|v| !v.is_empty())` drops to the default when `host` is empty even if `bind` is set. Filter each key first."
 
 [solution]
-explanation = "The chain reads top to bottom as the three outcomes. `ok_or_else` avoids building the error string on the happy path."
-time = "O(1)"
-space = "O(1)"
+explanation = "Each field is one chain, and the chains say what absence means: required (`ok_or_else`), optional with a fallback key (`or_else`), a flag (`is_some_and`), a default (`unwrap_or_default`). The trap in `workers` is merging \"absent\" with \"malformed\": `v.parse().ok().unwrap_or(1)` would run a server with the default when someone typed `workers = many`. Syntax to remember: `opt.ok_or_else(|| e)`, `opt.or_else(|| other)`, `opt.filter(|v| pred)`, `opt.is_some_and(|v| pred)` (and `res.is_ok_and`), `map.get(k).cloned().unwrap_or_default()`, `opt.map_or(default, f)`."
+time = "O(total length of the values)"
+space = "O(1) beyond the output"

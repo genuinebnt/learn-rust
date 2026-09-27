@@ -3,7 +3,7 @@ title = "MyOption: borrowing and in-place methods"
 mode = "write"
 level = "hard"
 stage = "build-it"
-order = 15
+order = 16
 status = "ready"
 tags = ["enum", "borrowing", "impl blocks"]
 teaches = [
@@ -24,9 +24,9 @@ text = "In `get_or_insert_with`, first write `*self = MyOption::Some(f())` if it
 
 [[hints]]
 kind = "edge case"
-text = "`insert` always overwrites; only `get_or_insert_with` keeps an existing value. `xor` is `Some` only when exactly one side is."
+text = "`insert` always overwrites; only `get_or_insert_with` keeps an existing value. `inspect` hands the closure a reference and returns `self` unchanged."
 
 [solution]
-explanation = "`as_ref` and `as_mut` are why most combinators can take `self` by value: borrow first, then consume the borrowed option. `get_or_insert_with` fills the slot before borrowing it, because returning a borrow from one arm while assigning in the other is a case today's borrow checker rejects. API reminder: `insert(v)` overwrites, `get_or_insert(v)` / `get_or_insert_with(f)` keep what's there; `copied()` / `cloned()` turn `Option<&T>` into `Option<T>`; `flatten()` removes one level of `Option<Option<T>>`."
+explanation = "`as_ref` and `as_mut` are why most combinators can take `self` by value: borrow first, then consume the borrowed option. `get_or_insert_with` fills the slot before borrowing it, because returning a borrow from one arm while assigning in the other is a case today's borrow checker rejects. API reminder: `insert(v)` overwrites, `get_or_insert(v)` / `get_or_insert_with(f)` keep what's there; `copied()` / `cloned()` turn `Option<&T>` into `Option<T>`; `flatten()` removes one level of `Option<Option<T>>`; `inspect(|v| log(v))` peeks without consuming (`Result` has `inspect` and `inspect_err`)."
 time = "O(1) each"
 space = "O(1)"

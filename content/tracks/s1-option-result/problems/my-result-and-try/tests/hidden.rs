@@ -49,6 +49,16 @@ fn map_changes_type() {
     check!(r#"Ok("abc")"#, MyResult::<&str, ()>::Ok("abc").map(str::len), MyResult::Ok(3));
 }
 
+#[test]
+fn is_ok_and() {
+    check!(r#"Ok(4), Ok(5), Err(4) with is_ok_and(even)"#, (MyResult::<i32, i32>::Ok(4).is_ok_and(|x| x % 2 == 0), MyResult::<i32, i32>::Ok(5).is_ok_and(|x| x % 2 == 0), MyResult::<i32, i32>::Err(4).is_ok_and(|x| panic!("should not run: {x}"))), (true, false, false));
+}
+
+#[test]
+fn ok_drops_the_error() {
+    check!(r#"Ok("a").ok(), Err(1).ok()"#, (MyResult::<&str, i32>::Ok("a").ok(), MyResult::<&str, i32>::Err(1).ok()), (Some("a"), None));
+}
+
 fn sum3(a: MyResult<i32, String>, b: MyResult<i32, String>, c: MyResult<i32, String>, steps: &mut u32) -> MyResult<i32, String> {
     let x = try_my!(a);
     *steps += 1;
@@ -124,6 +134,8 @@ fn random_vs_std_result() {
         check!(format!("map(x * 2), {desc}"), mine(a.clone()).map(|x| x * 2), mine(a.clone().map(|x| x * 2)));
         check!(format!("map_err(push '!'), {desc}"), mine(a.clone()).map_err(|e| e + "!"), mine(a.clone().map_err(|e| e + "!")));
         check!(format!("and_then(positive), {desc}"), mine(a.clone()).and_then(|x| if x > 0 { MyResult::Ok(x) } else { MyResult::Err("neg".to_string()) }), mine(a.clone().and_then(|x| if x > 0 { Ok(x) } else { Err("neg".to_string()) })));
+        check!(format!("is_ok_and(positive), {desc}"), mine(a.clone()).is_ok_and(|x| x > 0), a.clone().is_ok_and(|x| x > 0));
+        check!(format!("ok(), {desc}"), mine(a.clone()).ok(), a.clone().ok());
         check!(format!("try_my!(a) + try_my!(b), {desc}"), add_mine(mine(a.clone()), mine(b.clone())), mine(add_std(a, b)));
     }
 }

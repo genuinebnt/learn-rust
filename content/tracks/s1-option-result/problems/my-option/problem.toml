@@ -3,25 +3,30 @@ title = "Build MyOption<T>"
 mode = "write"
 level = "hard"
 stage = "build-it"
-order = 14
+order = 15
 status = "ready"
-tags = ["enum", "generics", "mem::replace"]
+tags = ["enum", "generics", "mem::replace", "Iterator"]
 teaches = [
-  "Every combinator is a `match` on two variants.",
-  "`take` needs `mem::replace` to move out of `&mut self`.",
+  "Every combinator is a `match` on two variants; the lazy ones call their closure in one arm only.",
+  "`unwrap_or_default` is available only when `T: Default`: a `where` clause on a single method.",
+  "`take` needs `mem::replace` to move out of `&mut self`, and an iterator over an `Option` is `take` in a loop.",
 ]
-follow_up = "Why does `Option<&T>` have the same size as `&T`?"
-related = ["L7", "L6", "Y1"]
+follow_up = "Why does `Option<&T>` have the same size as `&T`, and would `MyOption<&T>` too? What does `Option::iter` gain from also implementing `ExactSizeIterator`?"
+related = ["L7", "L6", "Y1", "S6"]
 
 [[hints]]
 kind = "approach"
-text = "Each method is one `match` on `Some(v)` / `None`."
+text = "Each method is one `match` on `Some(v)` / `None`. The `_else` and `_and` methods call their closure in one arm only."
 
 [[hints]]
 kind = "rust"
-text = "`take` has `&mut self` and must return the old value. `std::mem::replace` swaps in `None`."
+text = "A bound on one method: `pub fn unwrap_or_default(self) -> T where T: Default`. `take` is `std::mem::replace(self, MyOption::None)`."
+
+[[hints]]
+kind = "edge case"
+text = "`Iter::next` must leave `None` behind, or the iterator never ends: take the inner reference out, don't copy it."
 
 [solution]
-explanation = "`filter` uses a match guard to keep ownership of `v`. `unwrap_or_else` only calls `f` on `None`, which is the point of the `_else` variants."
+explanation = "The lazy/eager split is the whole design: `and(other)` and `or(other)` take a value you already have, `and_then(f)` and `or_else(f)` take a closure that runs only when needed. `unwrap_or_default` shows that methods can have their own bounds, so `MyOption<Token>` still works as long as nobody calls it. `iter` borrows (`Iter<'a, T>` holds a `MyOption<&'a T>`) and is `take` in a loop; std's `Option::iter` is the same, plus `DoubleEndedIterator` and `ExactSizeIterator`. Syntax to remember: `fn m(self) -> T where T: Default`, `pub struct Iter<'a, T> { inner: MyOption<&'a T> }`, `impl<'a, T> Iterator for Iter<'a, T> { type Item = &'a T; fn next(&mut self) -> Option<&'a T> }`, `pub fn iter(&self) -> Iter<'_, T>`."
 time = "O(1) each"
 space = "O(1)"

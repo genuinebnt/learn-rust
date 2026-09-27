@@ -42,12 +42,11 @@ impl<T> MyOption<T> {
             _ => MyOption::None,
         }
     }
-    pub fn xor(self, other: MyOption<T>) -> MyOption<T> {
-        match (self, other) {
-            (MyOption::Some(a), _) => MyOption::Some(a),
-            (MyOption::None, MyOption::Some(b)) => MyOption::Some(b),
-            _ => MyOption::None,
+    pub fn inspect(self, f: impl FnOnce(&T)) -> MyOption<T> {
+        if let MyOption::Some(v) = &self {
+            f(v);
         }
+        MyOption::None
     }
     pub fn map_or_else<U>(self, default: impl FnOnce() -> U, f: impl FnOnce(T) -> U) -> U {
         match self {

@@ -11,7 +11,7 @@ impl<T> MyOption<T> {
     pub fn replace(&mut self, value: T) -> MyOption<T> { todo!() }
     pub fn get_or_insert_with(&mut self, f: impl FnOnce() -> T) -> &mut T { todo!() }
     pub fn zip<U>(self, other: MyOption<U>) -> MyOption<(T, U)> { todo!() }
-    pub fn xor(self, other: MyOption<T>) -> MyOption<T> { todo!() }
+    pub fn inspect(self, f: impl FnOnce(&T)) -> MyOption<T> { todo!() }
     pub fn map_or_else<U>(self, default: impl FnOnce() -> U, f: impl FnOnce(T) -> U) -> U { todo!() }
 }
 

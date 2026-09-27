@@ -2,261 +2,514 @@ from author import T, write_track
 
 P = []
 
-P.append(dict(
-    slug="config-port", title="Read a port from config", level="easy", stage="use-it", tags=["ok_or", "map_err", "and_then"],
-    teaches=["`ok_or` turns a missing value into an error.", "`and_then` chains a second fallible step; `map_err` shapes the error."],
-    statement="""
-        Read the `"port"` key from `cfg` and parse it as a `u16`.
-        Return `Err("missing port")` if the key is absent and `Err("invalid port: <value>")` if it doesn't parse.
-    """,
-    starter="""
+CONFIG_HEAD = """
         use std::collections::HashMap;
 
-        pub fn port(cfg: &HashMap<String, String>) -> Result<u16, String> {
+        #[derive(Debug, PartialEq, Eq)]
+        pub struct Server {
+            pub host: String,
+            pub port: u16,
+            pub tls: bool,
+            pub name: String,
+            pub workers: usize,
+        }
+"""
+
+CONFIG_SOL = CONFIG_HEAD + """
+        pub fn server(cfg: &HashMap<String, String>) -> Result<Server, String> {
+            // An empty value counts as unset, so filter each key before falling back.
+            let set = |key: &str| cfg.get(key).filter(|v| !v.is_empty());
+            let host = set("host").or_else(|| set("bind")).map_or("127.0.0.1", String::as_str).to_string();
+            let port = cfg
+                .get("port")
+                .ok_or_else(|| "missing port".to_string())
+                .and_then(|v| v.parse::<u16>().ok().filter(|&p| p != 0).ok_or_else(|| format!("invalid port: {v}")))?;
+            let workers = match cfg.get("workers") {
+                None => 1,
+                Some(v) => v.parse::<usize>().ok().filter(|&w| w > 0).ok_or_else(|| format!("invalid workers: {v}"))?,
+            };
+            Ok(Server {
+                host,
+                port,
+                tls: cfg.get("tls").is_some_and(|v| v == "on"),
+                name: cfg.get("name").cloned().unwrap_or_default(),
+                workers,
+            })
+        }
+"""
+
+CONFIG_TESTS = """
+        use std::collections::HashMap;
+
+        fn cfg(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+            pairs.iter().map(|&(k, v)| (k.to_string(), v.to_string())).collect()
+        }
+
+        fn srv(host: &str, port: u16, tls: bool, name: &str, workers: usize) -> Result<Server, String> {
+            Ok(Server { host: host.to_string(), port, tls, name: name.to_string(), workers })
+        }
+"""
+
+P.append(dict(
+    slug="config-port", title="Read a server config", level="easy", stage="use-it", tags=["ok_or_else", "or_else", "is_some_and", "unwrap_or_default"],
+    teaches=[
+        "`ok_or_else` + `and_then` + `?` turn \"missing\" and \"malformed\" into two different errors.",
+        "`filter` before `or_else`: an empty value must fall through to the next key, not stop the chain.",
+        "Absent means default, present-but-bad is an error: `.parse().ok().unwrap_or(d)` silently merges the two.",
+        "`is_some_and`, `cloned().unwrap_or_default()` for the one-liners.",
+    ],
+    statement="""
+        Build a `Server` from a string map `cfg`:
+
+        - `host`: the `"host"` value, else the `"bind"` value, else `"127.0.0.1"`. An empty value counts as unset.
+        - `port`: required. `Err("missing port")` if absent, `Err("invalid port: <value>")` unless it's a `u16` other than 0.
+        - `tls`: true only when `"tls"` is exactly `"on"`.
+        - `name`: the `"name"` value, or `""`.
+        - `workers`: 1 if absent, otherwise a `usize` of at least 1, else `Err("invalid workers: <value>")`.
+
+        Check the port before the workers. Values are parsed as they are: no trimming.
+    """,
+    examples=[("cfg = {port: \"80\"}", "Ok(Server { host: \"127.0.0.1\", port: 80, tls: false, name: \"\", workers: 1 })"),
+              ("cfg = {host: \"\", bind: \"0.0.0.0\", port: \"0\"}", "Err(\"invalid port: 0\")")],
+    starter=CONFIG_HEAD + """
+        pub fn server(cfg: &HashMap<String, String>) -> Result<Server, String> {
             todo!()
         }
     """,
-    solution="""
-        use std::collections::HashMap;
-
-        pub fn port(cfg: &HashMap<String, String>) -> Result<u16, String> {
-            cfg.get("port")
-                .ok_or_else(|| "missing port".to_string())
-                .and_then(|v| v.parse().map_err(|_| format!("invalid port: {v}")))
-        }
-    """,
+    solution=CONFIG_SOL,
     visible=[
-        T("valid", "port = \"8080\"", 'port(&std::collections::HashMap::from([("port".to_string(), "8080".to_string())]))', "Ok(8080)"),
-        T("missing", "no port key", "port(&std::collections::HashMap::new())", 'Err("missing port".to_string())'),
-        T("not_a_number", "port = \"abc\"", 'port(&std::collections::HashMap::from([("port".to_string(), "abc".to_string())]))', 'Err("invalid port: abc".to_string())'),
-        T("zero", "port = \"0\"", 'port(&std::collections::HashMap::from([("port".to_string(), "0".to_string())]))', "Ok(0)"),
-        T("too_big_for_u16", "port = \"65536\"", 'port(&std::collections::HashMap::from([("port".to_string(), "65536".to_string())]))', 'Err("invalid port: 65536".to_string())'),
+        CONFIG_TESTS,
+        T("everything_set", "host = \"db.local\", port = \"5432\", tls = \"on\", name = \"primary\", workers = \"8\"",
+          'server(&cfg(&[("host", "db.local"), ("port", "5432"), ("tls", "on"), ("name", "primary"), ("workers", "8")]))', 'srv("db.local", 5432, true, "primary", 8)'),
+        T("only_a_port", "port = \"80\"", 'server(&cfg(&[("port", "80")]))', 'srv("127.0.0.1", 80, false, "", 1)'),
+        T("missing_port", "host = \"a\"", 'server(&cfg(&[("host", "a")]))', 'Err("missing port".to_string())'),
+        T("empty_host_falls_back_to_bind", "host = \"\", bind = \"0.0.0.0\", port = \"80\"", 'server(&cfg(&[("host", ""), ("bind", "0.0.0.0"), ("port", "80")]))', 'srv("0.0.0.0", 80, false, "", 1)'),
+        T("port_zero_is_invalid", "port = \"0\"", 'server(&cfg(&[("port", "0")]))', 'Err("invalid port: 0".to_string())'),
     ],
     hidden=[
-        T("out_of_range", "port = \"70000\"", 'port(&std::collections::HashMap::from([("port".to_string(), "70000".to_string())]))', 'Err("invalid port: 70000".to_string())'),
-        T("largest", "port = \"65535\"", 'port(&std::collections::HashMap::from([("port".to_string(), "65535".to_string())]))', "Ok(65535)"),
-        T("negative", "port = \"-1\"", 'port(&std::collections::HashMap::from([("port".to_string(), "-1".to_string())]))', 'Err("invalid port: -1".to_string())'),
-        T("surrounding_space", "port = \" 80\"", 'port(&std::collections::HashMap::from([("port".to_string(), " 80".to_string())]))', 'Err("invalid port:  80".to_string())'),
-        T("empty_value", "port = \"\"", 'port(&std::collections::HashMap::from([("port".to_string(), "".to_string())]))', 'Err("invalid port: ".to_string())'),
-        T("other_keys_only", "host = \"localhost\", Port = \"80\"", 'port(&std::collections::HashMap::from([("host".to_string(), "localhost".to_string()), ("Port".to_string(), "80".to_string())]))', 'Err("missing port".to_string())'),
-        T("unicode_digits", "port = \"８０\" (full-width digits)", 'port(&std::collections::HashMap::from([("port".to_string(), "８０".to_string())]))', 'Err("invalid port: ８０".to_string())'),
+        CONFIG_TESTS,
+        T("host_beats_bind", "host = \"a\", bind = \"b\", port = \"1\"", 'server(&cfg(&[("host", "a"), ("bind", "b"), ("port", "1")]))', 'srv("a", 1, false, "", 1)'),
+        T("bind_only", "bind = \"b\", port = \"1\"", 'server(&cfg(&[("bind", "b"), ("port", "1")]))', 'srv("b", 1, false, "", 1)'),
+        T("host_and_bind_both_empty", "host = \"\", bind = \"\", port = \"1\"", 'server(&cfg(&[("host", ""), ("bind", ""), ("port", "1")]))', 'srv("127.0.0.1", 1, false, "", 1)'),
+        T("port_bounds", "port = \"65535\", then port = \"65536\"", '(server(&cfg(&[("port", "65535")])), server(&cfg(&[("port", "65536")])))', '(srv("127.0.0.1", 65535, false, "", 1), Err("invalid port: 65536".to_string()))'),
+        T("port_not_trimmed_or_signed", "port = \" 80\", then port = \"-1\"", '(server(&cfg(&[("port", " 80")])), server(&cfg(&[("port", "-1")])))', '(Err("invalid port:  80".to_string()), Err("invalid port: -1".to_string()))'),
+        T("empty_port_is_invalid_not_missing", "port = \"\"", 'server(&cfg(&[("port", "")]))', 'Err("invalid port: ".to_string())'),
+        T("workers_zero", "port = \"80\", workers = \"0\"", 'server(&cfg(&[("port", "80"), ("workers", "0")]))', 'Err("invalid workers: 0".to_string())'),
+        T("workers_garbage_is_not_the_default", "port = \"80\", workers = \"many\"", 'server(&cfg(&[("port", "80"), ("workers", "many")]))', 'Err("invalid workers: many".to_string())'),
+        T("empty_workers_is_invalid", "port = \"80\", workers = \"\"", 'server(&cfg(&[("port", "80"), ("workers", "")]))', 'Err("invalid workers: ".to_string())'),
+        T("port_checked_before_workers", "port = \"x\", workers = \"0\"", 'server(&cfg(&[("port", "x"), ("workers", "0")]))', 'Err("invalid port: x".to_string())'),
+        T("missing_port_before_workers", "workers = \"0\"", 'server(&cfg(&[("workers", "0")]))', 'Err("missing port".to_string())'),
+        T("tls_only_exactly_on", "tls = \"ON\" / \"true\" / \"on\"",
+          '[server(&cfg(&[("port", "1"), ("tls", "ON")])), server(&cfg(&[("port", "1"), ("tls", "true")])), server(&cfg(&[("port", "1"), ("tls", "on")]))].map(|r| r.map(|s| s.tls))', "[Ok(false), Ok(false), Ok(true)]"),
+        T("unicode_values", "host = \"прокси\", name = \"café ☕\", port = \"443\"", 'server(&cfg(&[("host", "прокси"), ("name", "café ☕"), ("port", "443")]))', 'srv("прокси", 443, false, "café ☕", 1)'),
+        T("empty_config", "{}", "server(&HashMap::new())", 'Err("missing port".to_string())'),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(1301);
+            let mut rng = anneal_prelude::Rng::new(7101);
+            let keys = ["host", "bind", "port", "tls", "name", "workers"];
+            let values = ["", "a", "on", "0", "1", "80", "65535", "65536", "-1", " 8", "x"];
             for _ in 0..400 {
-                let len = rng.below(7);
-                let v = rng.string(len, "0123456789012345678x-");
-                let mut cfg = std::collections::HashMap::new();
-                let present = rng.below(5) > 0;
-                if present {
-                    cfg.insert("port".to_string(), v.clone());
+                let mut pairs: Vec<(&str, &str)> = Vec::new();
+                for &k in &keys {
+                    if rng.below(3) > 0 {
+                        pairs.push((k, *rng.pick(&values)));
+                    }
                 }
-                // Brute force: digits only, no sign, value at most 65535.
-                let want = if !present {
-                    Err("missing port".to_string())
-                } else if !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()) && v.bytes().fold(0u64, |n, b| (n * 10 + u64::from(b - b'0')).min(1 << 20)) <= 65_535 {
-                    Ok(v.bytes().fold(0u16, |n, b| n * 10 + u16::from(b - b'0')))
-                } else {
-                    Err(format!("invalid port: {v}"))
-                };
-                check!(format!("cfg = {cfg:?}"), port(&cfg), want);
+                let get = |k: &str| pairs.iter().find(|(pk, _)| *pk == k).map(|(_, v)| *v);
+                let want = (|| {
+                    let port = match get("port") {
+                        None => return Err("missing port".to_string()),
+                        Some(v) => match v.parse::<u16>() {
+                            Ok(p) if p > 0 => p,
+                            _ => return Err(format!("invalid port: {v}")),
+                        },
+                    };
+                    let workers = match get("workers") {
+                        None => 1,
+                        Some(v) => match v.parse::<usize>() {
+                            Ok(w) if w > 0 => w,
+                            _ => return Err(format!("invalid workers: {v}")),
+                        },
+                    };
+                    let host = match (get("host"), get("bind")) {
+                        (Some(h), _) if !h.is_empty() => h,
+                        (_, Some(b)) if !b.is_empty() => b,
+                        _ => "127.0.0.1",
+                    };
+                    srv(host, port, get("tls") == Some("on"), get("name").unwrap_or(""), workers)
+                })();
+                check!(format!("cfg = {pairs:?}"), server(&cfg(&pairs)), want);
             }
         }
         """,
     ],
     wrong=dict(
-        parse_wide_then_cast="""
-            use std::collections::HashMap;
-
-            pub fn port(cfg: &HashMap<String, String>) -> Result<u16, String> {
-                cfg.get("port")
-                    .ok_or_else(|| "missing port".to_string())
-                    .and_then(|v| v.parse::<u32>().map(|p| p as u16).map_err(|_| format!("invalid port: {v}")))
-            }
-        """,
-        trims_the_value="""
-            use std::collections::HashMap;
-
-            pub fn port(cfg: &HashMap<String, String>) -> Result<u16, String> {
-                cfg.get("port")
-                    .ok_or_else(|| "missing port".to_string())
-                    .and_then(|v| v.trim().parse().map_err(|_| format!("invalid port: {v}")))
-            }
-        """,
-        missing_is_zero="""
-            use std::collections::HashMap;
-
-            pub fn port(cfg: &HashMap<String, String>) -> Result<u16, String> {
-                let v = cfg.get("port").map(String::as_str).unwrap_or("0");
-                v.parse().map_err(|_| format!("invalid port: {v}"))
-            }
-        """,
+        filter_after_fallback=CONFIG_SOL.replace('let host = set("host").or_else(|| set("bind"))', 'let host = cfg.get("host").or_else(|| cfg.get("bind")).filter(|v| !v.is_empty())'),
+        port_zero_allowed=CONFIG_SOL.replace(".filter(|&p| p != 0)", ""),
+        bad_workers_become_the_default=CONFIG_SOL.replace('Some(v) => v.parse::<usize>().ok().filter(|&w| w > 0).ok_or_else(|| format!("invalid workers: {v}"))?,', "Some(v) => v.parse::<usize>().ok().filter(|&w| w > 0).unwrap_or(1),"),
     ),
-    hints=[("rust", "`HashMap<String, _>::get` accepts a `&str` key."), ("rust", "`ok_or_else`, then `and_then`, then `map_err` inside.")],
-    notes=("The chain reads top to bottom as the three outcomes. `ok_or_else` avoids building the error string on the happy path.", "O(1)", "O(1)"),
-    follow_up="When would you return a custom error enum instead of `String`?",
+    hints=[("approach", "Handle each field as its own small chain; only `port` and `workers` can fail, and `?` returns their errors in the order you write them."),
+           ("rust", "`cfg.get(\"port\").ok_or_else(..).and_then(|v| v.parse::<u16>().ok().filter(..).ok_or_else(..))?`. For `host`, `a.or_else(|| b)` tries `b` only when `a` is `None`."),
+           ("edge case", "`cfg.get(\"host\").or_else(..).filter(|v| !v.is_empty())` drops to the default when `host` is empty even if `bind` is set. Filter each key first.")],
+    notes=("""Each field is one chain, and the chains say what absence means: required (`ok_or_else`), optional with a fallback key (`or_else`), a flag (`is_some_and`), a default (`unwrap_or_default`). The trap in `workers` is merging "absent" with "malformed": `v.parse().ok().unwrap_or(1)` would run a server with the default when someone typed `workers = many`. Syntax to remember: `opt.ok_or_else(|| e)`, `opt.or_else(|| other)`, `opt.filter(|v| pred)`, `opt.is_some_and(|v| pred)` (and `res.is_ok_and`), `map.get(k).cloned().unwrap_or_default()`, `opt.map_or(default, f)`.""", "O(total length of the values)", "O(1) beyond the output"),
+    follow_up="How would you report every bad field at once instead of the first? What would a typed `ConfigError` enum buy the caller over `String`?",
     related=["L8", "S4"],
 ))
 
+JSON_TYPE = """
+        #[derive(Debug, Clone, PartialEq)]
+        pub enum Json {
+            Null,
+            Bool(bool),
+            Num(f64),
+            Str(String),
+            Arr(Vec<Json>),
+            /// Fields in document order. Keys may repeat; the first one wins.
+            Obj(Vec<(String, Json)>),
+        }
+"""
+
+JSON_SOL = JSON_TYPE + """
+        /// The value at a dotted `path` such as `"users.0.name"`, or `None`. The empty path is `root` itself.
+        pub fn get<'a>(root: &'a Json, path: &str) -> Option<&'a Json> {
+            if path.is_empty() {
+                return Some(root);
+            }
+            let mut node = root;
+            for seg in path.split('.') {
+                node = match node {
+                    Json::Obj(fields) => &fields.iter().find(|(k, _)| k == seg)?.1,
+                    Json::Arr(items) => {
+                        if seg.is_empty() || !seg.bytes().all(|b| b.is_ascii_digit()) {
+                            return None;
+                        }
+                        items.get(seg.parse::<usize>().ok()?)?
+                    }
+                    _ => return None,
+                };
+            }
+            Some(node)
+        }
+
+        /// The number at `path`, if there is a number there.
+        pub fn num_at(root: &Json, path: &str) -> Option<f64> {
+            let Json::Num(n) = get(root, path)? else {
+                return None;
+            };
+            Some(*n)
+        }
+
+        /// True if `path` exists and holds `null`.
+        pub fn is_null_at(root: &Json, path: &str) -> bool {
+            matches!(get(root, path), Some(Json::Null))
+        }
+"""
+
+JSON_TESTS = """
+        fn s(x: &str) -> Json {
+            Json::Str(x.to_string())
+        }
+
+        fn obj(fields: Vec<(&str, Json)>) -> Json {
+            Json::Obj(fields.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
+        }
+
+        /// {"users": [{"name": "Ada", "age": 36, "admin": true, "boss": null}, {"name": "Linus", "age": 54}],
+        ///  "0": "zero", "": {"x": 1}, "dup": 1, "dup": 2, "count": 2, "none": null}
+        fn doc() -> Json {
+            obj(vec![
+                ("users", Json::Arr(vec![
+                    obj(vec![("name", s("Ada")), ("age", Json::Num(36.0)), ("admin", Json::Bool(true)), ("boss", Json::Null)]),
+                    obj(vec![("name", s("Linus")), ("age", Json::Num(54.0))]),
+                ])),
+                ("0", s("zero")),
+                ("", obj(vec![("x", Json::Num(1.0))])),
+                ("dup", Json::Num(1.0)),
+                ("dup", Json::Num(2.0)),
+                ("count", Json::Num(2.0)),
+                ("none", Json::Null),
+            ])
+        }
+"""
+
 P.append(dict(
-    slug="question-mark-on-option", title="? on Option", level="easy", stage="use-it", tags=["?", "Option"],
-    teaches=["`?` works on `Option` in a function that returns `Option`.", "Chaining lookups without nested `match`."],
-    statement="Return the length of the third whitespace-separated word of `s`, or `None` if there are fewer than three.",
-    examples=[("s = \"the quick brown fox\"", "Some(5)")],
-    starter="""
-        pub fn third_word_len(s: &str) -> Option<usize> {
+    slug="question-mark-on-option", title="? on Option: walk a JSON path", level="easy", stage="use-it", tags=["?", "let else", "matches!"],
+    teaches=[
+        "`?` on every step of a lookup chain: a missing key, a bad index and an out-of-range index all become `None`.",
+        "`let ... else` pulls one variant out of an enum or bails; `matches!` answers \"is it this variant?\" without binding.",
+        "`\"\".split('.')` yields one empty segment, so the empty path needs its own case.",
+    ],
+    statement="""
+        Write three lookups into a `Json` value by a dotted path such as `"users.0.name"`:
+
+        - `get` returns the value at the path, or `None`. On an object a segment is a key (even if it looks like a
+          number; the first matching key wins). On an array it's an index made of decimal digits only. Anything else,
+          or a segment that goes nowhere, is `None`. The empty path is `root` itself.
+        - `num_at` returns the number at the path, if there is a number there.
+        - `is_null_at` is true only if the path exists and holds `null`. A missing path is not `null`.
+
+        None of them may panic.
+    """,
+    examples=[("path = \"users.1.name\"", "Some(Str(\"Linus\"))"), ("path = \"users.5\"", "None"), ("is_null_at(\"users.1.boss\")", "false: missing, not null")],
+    starter=JSON_TYPE + """
+        /// The value at a dotted `path` such as `"users.0.name"`, or `None`. The empty path is `root` itself.
+        pub fn get<'a>(root: &'a Json, path: &str) -> Option<&'a Json> {
+            todo!()
+        }
+
+        /// The number at `path`, if there is a number there.
+        pub fn num_at(root: &Json, path: &str) -> Option<f64> {
+            todo!()
+        }
+
+        /// True if `path` exists and holds `null`.
+        pub fn is_null_at(root: &Json, path: &str) -> bool {
             todo!()
         }
     """,
-    solution="""
-        pub fn third_word_len(s: &str) -> Option<usize> {
-            Some(s.split_whitespace().nth(2)?.len())
-        }
-    """,
+    solution=JSON_SOL,
     visible=[
-        T("four_words", "s = \"the quick brown fox\"", 'third_word_len("the quick brown fox")', "Some(5)"),
-        T("two_words", "s = \"hi there\"", 'third_word_len("hi there")', "None"),
-        T("exactly_three", "s = \"a bb ccc\"", 'third_word_len("a bb ccc")', "Some(3)"),
-        T("empty_string", "s = \"\"", 'third_word_len("")', "None"),
-        T("tabs_and_newlines_separate_words", "s = \"a\\tbb\\nccc\"", 'third_word_len("a\\tbb\\nccc")', "Some(3)"),
+        JSON_TESTS,
+        T("nested_lookup", "doc, path = \"users.1.name\"", 'get(&doc(), "users.1.name").cloned()', 'Some(s("Linus"))'),
+        T("number_at_a_path", "doc, num_at(\"users.0.age\"), num_at(\"users.0.name\")", '(num_at(&doc(), "users.0.age"), num_at(&doc(), "users.0.name"))', "(Some(36.0), None)"),
+        T("empty_path_is_the_root", "doc, path = \"\"", 'get(&d, "") == Some(&d)', "true", setup="let d = doc();"),
+        T("index_out_of_range", "doc, path = \"users.5\"", 'get(&doc(), "users.5").cloned()', "None"),
+        T("missing_is_not_null", "doc, is_null_at(\"users.0.boss\"), is_null_at(\"users.1.boss\")", '(is_null_at(&doc(), "users.0.boss"), is_null_at(&doc(), "users.1.boss"))', "(true, false)"),
     ],
     hidden=[
-        T("extra_spaces", "s = \"  a  bb   ccc \"", 'third_word_len("  a  bb   ccc ")', "Some(3)"),
-        T("empty", "s = \"\"", 'third_word_len("")', "None"),
-        T("only_spaces", "s = \"     \"", 'third_word_len("     ")', "None"),
-        T("two_words_trailing_space", "s = \"a b \"", 'third_word_len("a b ")', "None"),
-        T("length_in_bytes", "s = \"a b héllo\"", 'third_word_len("a b héllo")', "Some(6)"),
-        T("punctuation_is_part_of_a_word", "s = \"one, two, three!\"", 'third_word_len("one, two, three!")', "Some(6)"),
+        JSON_TESTS,
+        T("digit_key_on_an_object", "doc, path = \"0\"", 'get(&doc(), "0").cloned()', 'Some(s("zero"))'),
+        T("empty_key_segment", "doc, path = \".x\"", 'num_at(&doc(), ".x")', "Some(1.0)"),
+        T("trailing_dot_on_an_array", "doc, path = \"users.\"", 'get(&doc(), "users.").cloned()', "None"),
+        T("plus_sign_is_not_an_index", "doc, path = \"users.+1\"", 'get(&doc(), "users.+1").cloned()', "None"),
+        T("leading_zero_index", "doc, path = \"users.01.age\"", 'num_at(&doc(), "users.01.age")', "Some(54.0)"),
+        T("huge_index_does_not_panic", "doc, path = \"users.99999999999999999999999\"", 'get(&doc(), "users.99999999999999999999999").cloned()', "None"),
+        T("negative_index", "doc, path = \"users.-1\"", 'get(&doc(), "users.-1").cloned()', "None"),
+        T("path_through_a_scalar", "doc, path = \"count.0\" and \"users.0.name.x\"", '(get(&doc(), "count.0").cloned(), get(&doc(), "users.0.name.x").cloned())', "(None, None)"),
+        T("path_through_null", "doc, path = \"none.x\"", 'get(&doc(), "none.x").cloned()', "None"),
+        T("first_duplicate_key_wins", "doc, path = \"dup\"", 'num_at(&doc(), "dup")', "Some(1.0)"),
+        T("null_at_the_top", "doc, is_null_at(\"none\"), is_null_at(\"nope\"), is_null_at(\"\")", '(is_null_at(&doc(), "none"), is_null_at(&doc(), "nope"), is_null_at(&doc(), ""))', "(true, false, false)"),
+        T("scalar_root", "root = 7, path = \"\" and \"a\"", '(num_at(&Json::Num(7.0), ""), get(&Json::Num(7.0), "a"))', "(Some(7.0), None)"),
+        T("num_at_on_a_bool", "doc, num_at(\"users.0.admin\")", 'num_at(&doc(), "users.0.admin")', "None"),
+        T("unicode_key", "{\"ключ\": [true]}, path = \"ключ.0\"", 'get(&obj(vec![("ключ", Json::Arr(vec![Json::Bool(true)]))]), "ключ.0").cloned()', "Some(Json::Bool(true))"),
+        T("borrows_from_the_root", "doc, path = \"users.0\"", 'std::ptr::eq(get(&d, "users.0").unwrap(), match &d { Json::Obj(f) => match &f[0].1 { Json::Arr(a) => &a[0], _ => unreachable!() }, _ => unreachable!() })', "true", setup="let d = doc();"),
         """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(1302);
-            for _ in 0..400 {
-                let len = rng.below(15);
-                let s = rng.string(len, "ab é\\t\\n");
-                let words: Vec<&str> = s.split(|c: char| c.is_whitespace()).filter(|w| !w.is_empty()).collect();
-                check!(format!("s = {s:?}"), third_word_len(&s), words.get(2).map(|w| w.len()));
+        fn brute<'a>(node: &'a Json, segs: &[&str]) -> Option<&'a Json> {
+            let Some((first, rest)) = segs.split_first() else {
+                return Some(node);
+            };
+            let next = match node {
+                Json::Obj(fields) => fields.iter().find(|(k, _)| k == first).map(|(_, v)| v),
+                Json::Arr(items) if !first.is_empty() && first.chars().all(|c| c.is_ascii_digit()) && first.len() < 5 => items.get(first.parse::<usize>().unwrap()),
+                _ => None,
+            };
+            brute(next?, rest)
+        }
+
+        fn random_json(rng: &mut anneal_prelude::Rng, depth: usize) -> Json {
+            let kind = if depth == 0 { rng.below(3) } else { rng.below(6) };
+            match kind {
+                0 => Json::Null,
+                1 => Json::Num(rng.int(-3, 3) as f64),
+                2 => Json::Str("s".to_string()),
+                3 | 4 => {
+                    let n = rng.below(4);
+                    let mut fields = Vec::new();
+                    for _ in 0..n {
+                        let k = rng.pick(&["a", "b", "0", "1", ""]).to_string();
+                        fields.push((k, random_json(rng, depth - 1)));
+                    }
+                    Json::Obj(fields)
+                }
+                _ => {
+                    let n = rng.below(4);
+                    let mut items = Vec::new();
+                    for _ in 0..n {
+                        items.push(random_json(rng, depth - 1));
+                    }
+                    Json::Arr(items)
+                }
             }
         }
 
         #[test]
-        fn long_input() {
-            let s = format!("x yy {} {}", "z".repeat(100_000), "w ".repeat(100_000));
-            check!("s = \\"x yy \\" + 100000 × z + 100000 more words", third_word_len(&s), Some(100_000));
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(7102);
+            for _ in 0..400 {
+                let root = random_json(&mut rng, 3);
+                let n = rng.below(4);
+                let mut segs: Vec<&str> = Vec::new();
+                for _ in 0..n {
+                    segs.push(*rng.pick(&["a", "b", "0", "1", "2", "", "+1", "01"]));
+                }
+                let path = segs.join(".");
+                let want = if path.is_empty() { Some(&root) } else { brute(&root, &segs) };
+                let desc = format!("root = {root:?}, path = {path:?}");
+                check!(desc.clone(), get(&root, &path), want);
+                check!(format!("num_at, {desc}"), num_at(&root, &path), match want { Some(Json::Num(x)) => Some(*x), _ => None });
+                check!(format!("is_null_at, {desc}"), is_null_at(&root, &path), want == Some(&Json::Null));
+            }
+        }
+
+        #[test]
+        fn deep_path() {
+            let mut root = Json::Num(42.0);
+            for i in 0..1000 {
+                root = if i % 2 == 0 { Json::Arr(vec![Json::Null, root]) } else { obj(vec![("k", root)]) };
+            }
+            let path = vec!["k", "1"].repeat(500).join(".");
+            check!("1000 levels, alternating arrays and objects", num_at(&root, &path), Some(42.0));
         }
         """,
     ],
     wrong=dict(
-        split_on_single_spaces="""
-            pub fn third_word_len(s: &str) -> Option<usize> {
-                Some(s.split(' ').nth(2)?.len())
-            }
-        """,
-        counts_chars="""
-            pub fn third_word_len(s: &str) -> Option<usize> {
-                Some(s.split_whitespace().nth(2)?.chars().count())
-            }
-        """,
-        nth_counts_from_one="""
-            pub fn third_word_len(s: &str) -> Option<usize> {
-                Some(s.split_whitespace().nth(3)?.len())
-            }
-        """,
+        empty_path_looks_up_the_empty_key=JSON_SOL.replace("            if path.is_empty() {\n                return Some(root);\n            }\n", ""),
+        plus_sign_index=JSON_SOL.replace("                        if seg.is_empty() || !seg.bytes().all(|b| b.is_ascii_digit()) {\n                            return None;\n                        }\n", ""),
+        missing_counts_as_null=JSON_SOL.replace("matches!(get(root, path), Some(Json::Null))", "get(root, path).is_none_or(|v| matches!(v, Json::Null))"),
+        digits_always_index=JSON_SOL.replace("Json::Obj(fields) => &fields.iter().find(|(k, _)| k == seg)?.1,", "Json::Obj(fields) if seg.parse::<usize>().is_err() => &fields.iter().find(|(k, _)| k == seg)?.1,"),
     ),
-    hints=[("rust", "`nth(2)` returns an `Option<&str>`. What does `?` do with `None`?")],
-    notes=("`?` returns `None` early, so the happy path is one line.", "O(n)", "O(1)"),
-    follow_up="How does `?` decide what to return when used on a `Result` inside a function returning `Option`?",
-    related=["S6"],
+    hints=[("approach", "Walk the segments, replacing `node` with its child each time. Every way a step can fail should be a `?` or a `return None`."),
+           ("rust", "`fields.iter().find(|(k, _)| k == seg)?` and `items.get(i)?` never panic. `let Json::Num(n) = get(root, path)? else { return None };` and `matches!(x, Some(Json::Null))`."),
+           ("edge case", "`\"\".split('.')` yields one segment, `\"\"`. And `\"+1\".parse::<usize>()` is `Ok(1)`.")],
+    notes=("""`?` turns a chain of fallible steps into straight-line code: the function returns `None` at the first step that finds nothing. `let else` is the refutable-pattern version of `let`, for when only one variant is useful and everything else bails. `matches!` is the boolean form of `match`. Semantics matter as much as syntax here: missing and `null` are different answers, a digit-looking key on an object is still a key, and `usize::from_str` accepts a leading `+`. Syntax to remember: `let Json::Num(n) = expr else { return None };` (the `else` block must diverge), `matches!(v, Some(Json::Null))`, `matches!(c, 'a'..='z' | '_')`, `opt.is_none_or(f)`.""", "O(total length of the path + keys scanned)", "O(1)"),
+    follow_up="How would you return an error that says which segment failed, and why? Would `get` still be written with `?`?",
+    related=["S6", "L7"],
 ))
 
-P.append(dict(
-    slug="sentinel-to-option", title="Wrap a sentinel API in Option", level="easy", stage="use-it", tags=["TryFrom", "Option"],
-    teaches=["Convert `-1`-style sentinels to `Option` at the boundary.", "`usize::try_from(i32)` rejects negatives for you."],
-    statement="""
-        `legacy_find` returns an index, or `-1` if the value isn't there. Write `find`, which returns
-        `Option<usize>`, by calling `legacy_find`. Don't rewrite the search.
-    """,
-    starter="""
-        /// Legacy code: the index of `x` in `v`, or -1. Leave it as it is.
+SENTINEL_LEGACY = """
+        use std::time::Duration;
+
+        /// Legacy: the index of `x` in `v`, or -1. Leave it as it is.
         fn legacy_find(v: &[i32], x: i32) -> i32 {
             v.iter().position(|&y| y == x).map_or(-1, |i| i as i32)
         }
 
-        /// The index of `x` in `v`, or `None`.
-        pub fn find(v: &[i32], x: i32) -> Option<usize> {
-            todo!()
+        /// Legacy: the byte offset of the last `c` in `s`, or `usize::MAX` (C++'s `npos`). Leave it as it is.
+        fn legacy_rfind(s: &str, c: char) -> usize {
+            s.rfind(c).unwrap_or(usize::MAX)
         }
-    """,
-    solution="""
-        /// Legacy code: the index of `x` in `v`, or -1. Leave it as it is.
-        fn legacy_find(v: &[i32], x: i32) -> i32 {
-            v.iter().position(|&y| y == x).map_or(-1, |i| i as i32)
-        }
+"""
 
+SENTINEL_SOL = SENTINEL_LEGACY + """
         /// The index of `x` in `v`, or `None`.
         pub fn find(v: &[i32], x: i32) -> Option<usize> {
             usize::try_from(legacy_find(v, x)).ok()
         }
+
+        /// The byte offset of the last `c` in `s`, or `None`.
+        pub fn rfind(s: &str, c: char) -> Option<usize> {
+            Some(legacy_rfind(s, c)).filter(|&i| i != usize::MAX)
+        }
+
+        /// The `ms` argument for the legacy `wait(ms)`: -1 waits forever, 0 polls, n > 0 waits up to n ms.
+        pub fn timeout_ms(t: Option<Duration>) -> i64 {
+            t.map_or(-1, |d| i64::try_from(d.as_nanos().div_ceil(1_000_000)).unwrap_or(i64::MAX))
+        }
+"""
+
+P.append(dict(
+    slug="sentinel-to-option", title="Sentinels at the API boundary", level="easy", stage="use-it", tags=["TryFrom", "Option", "sentinels"],
+    teaches=[
+        "Turn `-1` and `npos`-style sentinels into `Option` where the legacy API meets yours, and back again on the way out.",
+        "`usize::try_from(i32)` rejects the sentinel for you; `as usize` turns -1 into 18446744073709551615.",
+        "Going the other way, a real value must never collide with a sentinel: round and clamp so `Some(d)` can't become -1 or 0.",
+    ],
+    statement="""
+        Wrap two legacy searches and one legacy argument (don't rewrite the searches):
+
+        - `find` returns the index `legacy_find` reports, or `None` for its `-1`.
+        - `rfind` returns the offset `legacy_rfind` reports, or `None` for its `usize::MAX`.
+        - `timeout_ms` converts a timeout for a legacy `wait(ms: i64)`, where `-1` waits forever, `0` returns at once,
+          and `n > 0` waits up to `n` ms. `None` means wait forever. A `Some` timeout must never become `-1` or `0`
+          unless it is zero: round up to whole milliseconds, and clamp to `i64::MAX`.
     """,
+    examples=[("find([4, 8, 15], 8)", "Some(1)"), ("rfind(\"a/b/c\", '/')", "Some(3)"), ("timeout_ms(Some(500µs))", "1: a zero would poll in a loop")],
+    starter=SENTINEL_LEGACY + """
+        /// The index of `x` in `v`, or `None`.
+        pub fn find(v: &[i32], x: i32) -> Option<usize> {
+            todo!()
+        }
+
+        /// The byte offset of the last `c` in `s`, or `None`.
+        pub fn rfind(s: &str, c: char) -> Option<usize> {
+            todo!()
+        }
+
+        /// The `ms` argument for the legacy `wait(ms)`: -1 waits forever, 0 polls, n > 0 waits up to n ms.
+        pub fn timeout_ms(t: Option<Duration>) -> i64 {
+            todo!()
+        }
+    """,
+    solution=SENTINEL_SOL,
     visible=[
-        T("found", "v = [4, 8, 15], x = 8", "find(&[4, 8, 15], 8)", "Some(1)"),
-        T("missing", "v = [4, 8, 15], x = 16", "find(&[4, 8, 15], 16)", "None"),
-        T("empty_slice", "v = [], x = 0", "find(&[], 0)", "None"),
-        T("index_zero_is_found", "v = [7, 3], x = 7", "find(&[7, 3], 7)", "Some(0)"),
-        T("searching_for_minus_one", "v = [5, -1], x = -1", "find(&[5, -1], -1)", "Some(1)"),
+        "use std::time::Duration;",
+        T("find_found_and_missing", "find([4, 8, 15], 8), find([4, 8, 15], 16)", "(find(&[4, 8, 15], 8), find(&[4, 8, 15], 16))", "(Some(1), None)"),
+        T("index_zero_is_found", "find([7, 3], 7), rfind(\"/x\", '/')", "(find(&[7, 3], 7), rfind(\"/x\", '/'))", "(Some(0), Some(0))"),
+        T("rfind_last_match", "rfind(\"a/b/c\", '/'), rfind(\"abc\", '/')", "(rfind(\"a/b/c\", '/'), rfind(\"abc\", '/'))", "(Some(3), None)"),
+        T("timeouts", "None, Some(0), Some(250 ms)", "(timeout_ms(None), timeout_ms(Some(Duration::ZERO)), timeout_ms(Some(Duration::from_millis(250))))", "(-1, 0, 250)"),
+        T("sub_millisecond_rounds_up", "Some(500 µs)", "timeout_ms(Some(Duration::from_micros(500)))", "1"),
     ],
     hidden=[
-        T("empty", "v = [], x = 1", "find(&[], 1)", "None"),
-        T("first", "v = [-1, -1], x = -1", "find(&[-1, -1], -1)", "Some(0)"),
-        T("last", "v = [1, 2, 3], x = 3", "find(&[1, 2, 3], 3)", "Some(2)"),
-        T("extremes", "v = [i32::MIN, i32::MAX], x = i32::MAX", "find(&[i32::MIN, i32::MAX], i32::MAX)", "Some(1)"),
-        T("single_missing", "v = [0], x = 1", "find(&[0], 1)", "None"),
-        T("duplicates_give_the_first", "v = [2, 5, 5, 5], x = 5", "find(&[2, 5, 5, 5], 5)", "Some(1)"),
-        T("minus_one_absent", "v = [0, 1], x = -1", "find(&[0, 1], -1)", "None"),
+        "use std::time::Duration;",
+        T("find_empty", "find([], 0)", "find(&[], 0)", "None"),
+        T("searching_for_minus_one", "find([5, -1], -1), find([0, 1], -1)", "(find(&[5, -1], -1), find(&[0, 1], -1))", "(Some(1), None)"),
+        T("find_duplicates_give_the_first", "find([2, 5, 5, 5], 5)", "find(&[2, 5, 5, 5], 5)", "Some(1)"),
+        T("find_extremes", "find([i32::MIN, i32::MAX], i32::MAX)", "find(&[i32::MIN, i32::MAX], i32::MAX)", "Some(1)"),
+        T("rfind_is_a_byte_offset", "rfind(\"héllo wörld\", 'ö')", "rfind(\"héllo wörld\", 'ö')", "Some(8)"),
+        T("rfind_empty_string", "rfind(\"\", 'a')", "rfind(\"\", 'a')", "None"),
+        T("rfind_multibyte_char", "rfind(\"🦀x🦀\", '🦀')", "rfind(\"🦀x🦀\", '🦀')", "Some(5)"),
+        T("one_nanosecond", "Some(1 ns)", "timeout_ms(Some(Duration::from_nanos(1)))", "1"),
+        T("rounds_up_not_to_nearest", "Some(1.000001 ms), Some(1.999 ms), Some(2 ms)", "(timeout_ms(Some(Duration::from_nanos(1_000_001))), timeout_ms(Some(Duration::from_micros(1999))), timeout_ms(Some(Duration::from_millis(2))))", "(2, 2, 2)"),
+        T("long_timeouts_clamp", "Some(Duration::MAX), Some(u64::MAX seconds)", "(timeout_ms(Some(Duration::MAX)), timeout_ms(Some(Duration::from_secs(u64::MAX))))", "(i64::MAX, i64::MAX)"),
+        T("largest_exact_timeout", "Some(i64::MAX ms)", "timeout_ms(Some(Duration::from_millis(i64::MAX as u64)))", "i64::MAX"),
+        T("just_past_i64_max_ms", "Some(i64::MAX ms + 1 ns)", "timeout_ms(Some(Duration::from_millis(i64::MAX as u64) + Duration::from_nanos(1)))", "i64::MAX"),
+        T("a_day", "Some(1 day)", "timeout_ms(Some(Duration::from_secs(86_400)))", "86_400_000"),
         T("large_index", "v = 0..10⁶, x = 999999", "find(&v, 999_999)", "Some(999_999)", setup="let v: Vec<i32> = (0..1_000_000).collect();"),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(1303);
+            let mut rng = anneal_prelude::Rng::new(7103);
             for _ in 0..400 {
                 let n = rng.below(8);
                 let v: Vec<i32> = rng.vec(n, -3, 3);
                 let x = rng.int(-4, 4) as i32;
-                check!(format!("v = {v:?}, x = {x}"), find(&v, x), v.iter().position(|&y| y == x));
+                check!(format!("find(v = {v:?}, x = {x})"), find(&v, x), v.iter().position(|&y| y == x));
+                let len = rng.below(8);
+                let s = rng.string(len, "ab/é");
+                let c = *rng.pick(&['/', 'é', 'z']);
+                let want = s.char_indices().filter(|&(_, ch)| ch == c).map(|(i, _)| i).last();
+                check!(format!("rfind(s = {s:?}, c = {c:?})"), rfind(&s, c), want);
+                let t = match rng.below(4) {
+                    0 => None,
+                    1 => Some(Duration::from_nanos(rng.int(0, 3_000_000) as u64)),
+                    2 => Some(Duration::new(rng.int(0, i64::MAX) as u64, rng.int(0, 999_999_999) as u32)),
+                    _ => Some(Duration::new(u64::MAX - rng.below(3) as u64, rng.int(0, 999_999_999) as u32)),
+                };
+                let want = match t {
+                    None => -1,
+                    Some(d) => {
+                        let ms = (d.as_nanos() + 999_999) / 1_000_000;
+                        if ms > i64::MAX as u128 { i64::MAX } else { ms as i64 }
+                    }
+                };
+                check!(format!("timeout_ms({t:?})"), timeout_ms(t), want);
             }
         }
         """,
     ],
     wrong=dict(
-        cast_the_sentinel="""
-            /// Legacy code: the index of `x` in `v`, or -1. Leave it as it is.
-            fn legacy_find(v: &[i32], x: i32) -> i32 {
-                v.iter().position(|&y| y == x).map_or(-1, |i| i as i32)
-            }
-
-            /// The index of `x` in `v`, or `None`.
-            pub fn find(v: &[i32], x: i32) -> Option<usize> {
-                Some(legacy_find(v, x) as usize)
-            }
-        """,
-        positive_means_found="""
-            /// Legacy code: the index of `x` in `v`, or -1. Leave it as it is.
-            fn legacy_find(v: &[i32], x: i32) -> i32 {
-                v.iter().position(|&y| y == x).map_or(-1, |i| i as i32)
-            }
-
-            /// The index of `x` in `v`, or `None`.
-            pub fn find(v: &[i32], x: i32) -> Option<usize> {
-                let i = legacy_find(v, x);
-                (i > 0).then_some(i as usize)
-            }
-        """,
+        cast_the_sentinel=SENTINEL_SOL.replace("usize::try_from(legacy_find(v, x)).ok()", "Some(legacy_find(v, x) as usize)"),
+        positive_means_found=SENTINEL_SOL.replace("usize::try_from(legacy_find(v, x)).ok()", "let i = legacy_find(v, x);\n            (i > 0).then_some(i as usize)"),
+        truncates_to_whole_ms=SENTINEL_SOL.replace("d.as_nanos().div_ceil(1_000_000)", "d.as_millis()"),
+        casts_the_millis=SENTINEL_SOL.replace("i64::try_from(d.as_nanos().div_ceil(1_000_000)).unwrap_or(i64::MAX)", "d.as_nanos().div_ceil(1_000_000) as i64"),
     ),
-    hints=[("rust", "A negative `i32` can't become a `usize`. Which conversion reports that?")],
-    notes=("`try_from` fails exactly on the sentinel, so there's no magic number in the new code.", "O(n)", "O(1)"),
-    follow_up="Where else do sentinels hide in std or C APIs, and how do their Rust wrappers expose them?",
-    related=["S8", "Y3"],
+    hints=[("approach", "Each wrapper is one conversion at the boundary. On the way out, ask what each legacy value means before you pick one."),
+           ("rust", "`usize::try_from(i).ok()`, `Some(i).filter(|&i| i != usize::MAX)`, `opt.map_or(-1, |d| ...)`, `u128::div_ceil`, `i64::try_from(x).unwrap_or(i64::MAX)`."),
+           ("edge case", "`Duration::as_millis` truncates, so 500 µs becomes 0, which means \"poll\". And `as i64` on a huge `u128` wraps, possibly to -1.")],
+    notes=("""Sentinels are in-band signals: one value of the type is stolen to mean \"nothing\". The wrapper's job is to take it out at the boundary, and on the way back in to make sure no real value lands on a stolen one. `timeout_ms` has two collisions: truncating a sub-millisecond timeout gives 0 (a busy poll, a real bug mio and std guard against by rounding up), and a wrapping cast of a huge one can give -1 (wait forever) or any negative. Syntax to remember: `usize::try_from(x).ok()`, `opt.filter(|v| ..)`, `cond.then_some(v)`, `opt.map_or(default, f)`, `n.div_ceil(d)`, `Duration::from_micros` / `as_nanos() -> u128`.""", "O(n) for the searches, O(1) for the timeout", "O(1)"),
+    follow_up="Why does `Option<usize>` cost 16 bytes while `Option<NonZeroUsize>` costs 8, and when would you store the sentinel form anyway?",
+    related=["S8", "Y3", "S10"],
 ))
 
 P.append(dict(
@@ -470,317 +723,498 @@ P.append(dict(
     related=["S4"],
 ))
 
-P.append(dict(
-    slug="as-ref-as-mut-as-deref", title="as_ref, as_mut and as_deref", level="medium", stage="understand-it", tags=["as_deref", "as_mut"],
-    teaches=["`as_deref` turns `&Option<String>` into `Option<&str>`.", "`as_mut` edits the value inside an `Option` in place."],
-    statement="""
-        Write `display_name`, which returns the nickname if there is one and the name otherwise, and
-        `shout_nickname`, which uppercases the nickname in place. Neither may clone.
-    """,
-    starter="""
+USER_TYPE = """
         pub struct User {
             pub name: String,
             pub nickname: Option<String>,
+            pub emails: Option<Vec<String>>,
         }
+"""
 
-        pub fn display_name(user: &User) -> &str {
-            todo!()
-        }
-
-        pub fn shout_nickname(user: &mut User) {
-            todo!()
-        }
-    """,
-    solution="""
-        pub struct User {
-            pub name: String,
-            pub nickname: Option<String>,
-        }
-
+USER_SOL = USER_TYPE + """
+        /// The nickname if there is one, else the name.
         pub fn display_name(user: &User) -> &str {
             user.nickname.as_deref().unwrap_or(&user.name)
         }
 
+        /// The first email, if the user has any.
+        pub fn primary_email(user: &User) -> Option<&str> {
+            user.emails.as_deref()?.first().map(String::as_str)
+        }
+
+        /// The name, then the nickname if any, then every email.
+        pub fn handles(user: &User) -> Vec<&str> {
+            std::iter::once(user.name.as_str())
+                .chain(user.nickname.as_deref())
+                .chain(user.emails.iter().flatten().map(String::as_str))
+                .collect()
+        }
+
+        /// Uppercases the nickname (ASCII only) in place.
         pub fn shout_nickname(user: &mut User) {
-            if let Some(n) = user.nickname.as_mut() {
+            if let Some(n) = user.nickname.as_deref_mut() {
                 n.make_ascii_uppercase();
             }
         }
+
+        /// Appends `email`, creating the list if there is none.
+        pub fn add_email(user: &mut User, email: String) {
+            user.emails.get_or_insert_with(Vec::new).push(email);
+        }
+"""
+
+USER_TESTS = """
+        fn user(name: &str, nickname: Option<&str>, emails: Option<&[&str]>) -> User {
+            User {
+                name: name.to_string(),
+                nickname: nickname.map(|n| n.to_string()),
+                emails: emails.map(|es| es.iter().map(|e| e.to_string()).collect()),
+            }
+        }
+"""
+
+P.append(dict(
+    slug="as-ref-as-mut-as-deref", title="as_ref, as_deref and friends", level="medium", stage="understand-it", tags=["as_deref", "as_deref_mut", "get_or_insert_with", "Option::iter"],
+    teaches=[
+        "`as_deref` turns `&Option<String>` into `Option<&str>` and `&Option<Vec<T>>` into `Option<&[T]>`, without moving or cloning.",
+        "An `Option` is an iterator of zero or one items: `chain(opt)` and `opt.iter().flatten()` skip the `None` case.",
+        "`get_or_insert_with` creates the value on first use and hands back `&mut` to it.",
+    ],
+    statement="""
+        `User` has a name, maybe a nickname, and maybe a list of emails (`Some(vec![])` is a user with no emails). Write,
+        without cloning anything:
+
+        - `display_name`: the nickname if there is one (even an empty one), else the name.
+        - `primary_email`: the first email, or `None`.
+        - `handles`: the name, then the nickname if any, then every email, in that order.
+        - `shout_nickname`: uppercases the nickname in place (ASCII only).
+        - `add_email`: appends an email, creating the list if it's `None`.
     """,
+    examples=[("name \"Ada\", nickname \"ace\", emails [\"a@x\"]", "handles = [\"Ada\", \"ace\", \"a@x\"]"), ("emails = Some([])", "primary_email = None")],
+    starter=USER_TYPE + """
+        /// The nickname if there is one, else the name.
+        pub fn display_name(user: &User) -> &str {
+            todo!()
+        }
+
+        /// The first email, if the user has any.
+        pub fn primary_email(user: &User) -> Option<&str> {
+            todo!()
+        }
+
+        /// The name, then the nickname if any, then every email.
+        pub fn handles(user: &User) -> Vec<&str> {
+            todo!()
+        }
+
+        /// Uppercases the nickname (ASCII only) in place.
+        pub fn shout_nickname(user: &mut User) {
+            todo!()
+        }
+
+        /// Appends `email`, creating the list if there is none.
+        pub fn add_email(user: &mut User, email: String) {
+            todo!()
+        }
+    """,
+    solution=USER_SOL,
     visible=[
-        T("nickname_wins", "name \"Ada\", nickname \"ace\"", "display_name(&u)", '"ace"', setup='let u = User { name: "Ada".into(), nickname: Some("ace".into()) };'),
-        T("falls_back", "name \"Ada\", no nickname", "display_name(&u)", '"Ada"', setup='let u = User { name: "Ada".into(), nickname: None };'),
-        T("shout", "nickname \"ace\"", '{ let mut u = User { name: "Ada".into(), nickname: Some("ace".into()) }; shout_nickname(&mut u); u.nickname }', 'Some("ACE".to_string())'),
-        T("empty_nickname_still_wins", "name \"Ada\", nickname \"\"", "display_name(&u)", '""', setup='let u = User { name: "Ada".into(), nickname: Some(String::new()) };'),
-        T("shout_leaves_the_name_alone", "name \"Ada\", nickname \"ace\"", '{ let mut u = User { name: "Ada".into(), nickname: Some("ace".into()) }; shout_nickname(&mut u); (u.nickname, u.name) }', '(Some("ACE".to_string()), "Ada".to_string())'),
+        USER_TESTS,
+        T("nickname_wins", "name \"Ada\", nickname \"ace\"", "(display_name(&u), display_name(&v))", '("ace", "Ada")', setup='let u = user("Ada", Some("ace"), None);\nlet v = user("Ada", None, None);'),
+        T("handles_in_order", "name \"Ada\", nickname \"ace\", emails [\"a@x\", \"b@y\"]", "handles(&u)", 'vec!["Ada", "ace", "a@x", "b@y"]', setup='let u = user("Ada", Some("ace"), Some(&["a@x", "b@y"]));'),
+        T("empty_email_list_has_no_primary", "emails = Some([]), then None, then [\"a@x\"]", "(primary_email(&a), primary_email(&b), primary_email(&c))", '(None, None, Some("a@x"))',
+          setup='let a = user("A", None, Some(&[]));\nlet b = user("B", None, None);\nlet c = user("C", None, Some(&["a@x"]));'),
+        T("add_email_creates_the_list", "emails = None, add \"a@x\", add \"b@y\"", "u.emails", 'Some(vec!["a@x".to_string(), "b@y".to_string()])',
+          setup='let mut u = user("Ada", None, None);\nadd_email(&mut u, "a@x".to_string());\nadd_email(&mut u, "b@y".to_string());'),
+        T("shout_leaves_the_name_alone", "name \"Ada\", nickname \"ace\"", "(u.nickname, u.name)", '(Some("ACE".to_string()), "Ada".to_string())', setup='let mut u = user("Ada", Some("ace"), None);\nshout_nickname(&mut u);'),
     ],
     hidden=[
-        T("shout_none", "no nickname", '{ let mut u = User { name: "Ada".into(), nickname: None }; shout_nickname(&mut u); (u.nickname, u.name) }', '(None, "Ada".to_string())'),
-        T("empty_name_no_nickname", "name \"\", no nickname", "display_name(&u)", '""', setup='let u = User { name: String::new(), nickname: None };'),
-        T("unicode_nickname", "name \"Ada\", nickname \"zoë 🦀\"", "display_name(&u)", '"zoë 🦀"', setup='let u = User { name: "Ada".into(), nickname: Some("zoë 🦀".into()) };'),
-        T("shout_mixed", "nickname \"a1-bC d\"", '{ let mut u = User { name: "x".into(), nickname: Some("a1-bC d".into()) }; shout_nickname(&mut u); u.nickname }', 'Some("A1-BC D".to_string())'),
-        T("shout_twice", "nickname \"ace\", shouted twice", '{ let mut u = User { name: "x".into(), nickname: Some("ace".into()) }; shout_nickname(&mut u); shout_nickname(&mut u); u.nickname }', 'Some("ACE".to_string())'),
-        T("shout_empty_nickname", "nickname \"\"", '{ let mut u = User { name: "Ada".into(), nickname: Some(String::new()) }; shout_nickname(&mut u); (u.nickname, u.name) }', '(Some(String::new()), "Ada".to_string())'),
-        T("borrows_the_nickname", "name \"Ada\", nickname \"ace\"", "std::ptr::eq(display_name(&u).as_ptr(), u.nickname.as_ref().map_or(std::ptr::null(), |n| n.as_ptr()))", "true", setup='let u = User { name: "Ada".into(), nickname: Some("ace".into()) };'),
-        T("borrows_the_name", "name \"Ada\", no nickname", "std::ptr::eq(display_name(&u).as_ptr(), u.name.as_ptr())", "true", setup='let u = User { name: "Ada".into(), nickname: None };'),
+        USER_TESTS,
+        T("empty_nickname_still_wins", "name \"Ada\", nickname \"\"", "display_name(&u)", '""', setup='let u = user("Ada", Some(""), None);'),
+        T("handles_without_extras", "name \"Ada\" only; then emails = Some([])", "(handles(&a), handles(&b))", '(vec!["Ada"], vec!["Ada"])', setup='let a = user("Ada", None, None);\nlet b = user("Ada", None, Some(&[]));'),
+        T("handles_keep_an_empty_nickname", "name \"Ada\", nickname \"\", emails [\"a@x\"]", "handles(&u)", 'vec!["Ada", "", "a@x"]', setup='let u = user("Ada", Some(""), Some(&["a@x"]));'),
+        T("add_email_appends_to_an_empty_list", "emails = Some([]), add \"a@x\"", "u.emails", 'Some(vec!["a@x".to_string()])', setup='let mut u = user("Ada", None, Some(&[]));\nadd_email(&mut u, "a@x".to_string());'),
+        T("add_email_keeps_existing", "emails = [\"a@x\"], add \"b@y\"", "(primary_email(&u).map(str::to_string), u.emails.as_ref().map(Vec::len))", '(Some("a@x".to_string()), Some(2))', setup='let mut u = user("Ada", None, Some(&["a@x"]));\nadd_email(&mut u, "b@y".to_string());'),
+        T("add_email_moves_the_string", "add an email and keep its buffer", "u.emails.as_ref().map(|es| es[0].as_ptr())", "Some(p)", setup='let mut u = user("Ada", None, None);\nlet e = String::from("a@x");\nlet p = e.as_ptr();\nadd_email(&mut u, e);'),
+        T("shout_none", "no nickname", "(u.nickname, u.name)", '(None, "Ada".to_string())', setup='let mut u = user("Ada", None, None);\nshout_nickname(&mut u);'),
+        T("shout_mixed_and_unicode", "nickname \"a1-bC é\"", "u.nickname", 'Some("A1-BC é".to_string())', setup='let mut u = user("x", Some("a1-bC é"), None);\nshout_nickname(&mut u);'),
+        T("shout_twice", "nickname \"ace\", shouted twice", "u.nickname", 'Some("ACE".to_string())', setup='let mut u = user("x", Some("ace"), None);\nshout_nickname(&mut u);\nshout_nickname(&mut u);'),
+        T("display_name_borrows", "nickname \"ace\", and none", "(std::ptr::eq(display_name(&u).as_ptr(), u.nickname.as_ref().unwrap().as_ptr()), std::ptr::eq(display_name(&v).as_ptr(), v.name.as_ptr()))", "(true, true)",
+          setup='let u = user("Ada", Some("ace"), None);\nlet v = user("Ada", None, None);'),
+        T("primary_email_borrows", "emails [\"a@x\"]", "std::ptr::eq(primary_email(&u).unwrap().as_ptr(), u.emails.as_ref().unwrap()[0].as_ptr())", "true", setup='let u = user("Ada", None, Some(&["a@x"]));'),
+        T("handles_borrow", "name \"Ada\", nickname \"ace\", emails [\"a@x\"]", "hs.iter().zip([u.name.as_ptr(), u.nickname.as_ref().unwrap().as_ptr(), u.emails.as_ref().unwrap()[0].as_ptr()]).all(|(h, p)| std::ptr::eq(h.as_ptr(), p))", "true",
+          setup='let u = user("Ada", Some("ace"), Some(&["a@x"]));\nlet hs = handles(&u);'),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(1304);
+            let mut rng = anneal_prelude::Rng::new(7104);
             for _ in 0..300 {
                 let len = rng.below(4);
                 let name = rng.string(len, "abZ ");
-                let has = rng.bool();
-                let len = rng.below(4);
-                let nick = rng.string(len, "xyQ!");
-                let nickname = if has { Some(nick.clone()) } else { None };
-                let mut u = User { name: name.clone(), nickname: nickname.clone() };
-                let desc = format!("name = {name:?}, nickname = {nickname:?}");
-                let want = if has { nick.clone() } else { name.clone() };
-                check!(desc.clone(), display_name(&u).to_string(), want);
+                let nickname = if rng.bool() {
+                    let len = rng.below(4);
+                    Some(rng.string(len, "xyQ!é"))
+                } else {
+                    None
+                };
+                let emails: Option<Vec<String>> = if rng.bool() {
+                    let n = rng.below(3);
+                    Some((0..n).map(|i| format!("e{i}@x")).collect())
+                } else {
+                    None
+                };
+                let mut u = User { name: name.clone(), nickname: nickname.clone(), emails: emails.clone() };
+                let desc = format!("name = {name:?}, nickname = {nickname:?}, emails = {emails:?}");
+                let mut want: Vec<String> = vec![name.clone()];
+                if let Some(n) = &nickname {
+                    want.push(n.clone());
+                }
+                if let Some(es) = &emails {
+                    want.extend(es.iter().cloned());
+                }
+                check!(format!("display_name, {desc}"), display_name(&u).to_string(), nickname.clone().unwrap_or(name.clone()));
+                check!(format!("primary_email, {desc}"), primary_email(&u).map(str::to_string), emails.as_ref().and_then(|es| es.first().cloned()));
+                check!(format!("handles, {desc}"), handles(&u).iter().map(|h| h.to_string()).collect::<Vec<_>>(), want);
                 shout_nickname(&mut u);
-                check!(format!("shout: {desc}"), (u.nickname, u.name), (nickname.map(|n| n.to_ascii_uppercase()), name));
+                add_email(&mut u, "new@x".to_string());
+                let mut es = emails.clone().unwrap_or_default();
+                es.push("new@x".to_string());
+                check!(format!("shout + add_email, {desc}"), (u.nickname, u.emails, u.name), (nickname.map(|n| n.to_ascii_uppercase()), Some(es), name));
             }
+        }
+
+        #[test]
+        fn scale_many_emails() {
+            let mut u = user("Ada", Some("ace"), None);
+            for i in 0..200_000 {
+                add_email(&mut u, format!("{i}@x"));
+            }
+            let hs = handles(&u);
+            check!("200000 add_email calls, then handles", (hs.len(), hs[2], hs[200_001], primary_email(&u)), (200_002, "0@x", "199999@x", Some("0@x")));
         }
         """,
     ],
     wrong=dict(
-        empty_nickname_falls_back="""
-            pub struct User {
-                pub name: String,
-                pub nickname: Option<String>,
-            }
-
-            pub fn display_name(user: &User) -> &str {
-                user.nickname.as_deref().filter(|n| !n.is_empty()).unwrap_or(&user.name)
-            }
-
-            pub fn shout_nickname(user: &mut User) {
-                if let Some(n) = user.nickname.as_mut() {
-                    n.make_ascii_uppercase();
-                }
-            }
-        """,
-        shout_fills_in_the_name="""
-            pub struct User {
-                pub name: String,
-                pub nickname: Option<String>,
-            }
-
-            pub fn display_name(user: &User) -> &str {
-                user.nickname.as_deref().unwrap_or(&user.name)
-            }
-
-            pub fn shout_nickname(user: &mut User) {
-                let n = user.nickname.get_or_insert_with(|| user.name.clone());
-                n.make_ascii_uppercase();
-            }
-        """,
+        empty_nickname_falls_back=USER_SOL.replace("user.nickname.as_deref().unwrap_or(&user.name)", "user.nickname.as_deref().filter(|n| !n.is_empty()).unwrap_or(&user.name)"),
+        indexes_the_first_email=USER_SOL.replace("user.emails.as_deref()?.first().map(String::as_str)", "user.emails.as_ref().map(|es| es[0].as_str())"),
+        add_email_replaces_the_list=USER_SOL.replace("user.emails.get_or_insert_with(Vec::new).push(email);", "user.emails = Some(vec![email]);"),
+        clones_the_list=USER_SOL.replace("user.emails.get_or_insert_with(Vec::new).push(email);", "let mut es = user.emails.clone().unwrap_or_default();\n            es.push(email);\n            user.emails = Some(es);"),
+        emails_before_nickname=USER_SOL.replace(".chain(user.nickname.as_deref())\n                .chain(user.emails.iter().flatten().map(String::as_str))", ".chain(user.emails.iter().flatten().map(String::as_str))\n                .chain(user.nickname.as_deref())"),
     ),
-    hints=[("rust", "`user.nickname.map(..)` would move out of a borrowed struct. Convert `&Option<String>` to `Option<&str>` first.")],
-    notes=("`as_deref` borrows through the `Option` and derefs `String` to `str`; the result's lifetime is tied to `user`.", "O(1)", "O(1)"),
-    follow_up="What's the difference between `Option<&T>` and `&Option<T>` as a parameter type?",
-    related=["S7", "L2"],
+    hints=[("approach", "Every function borrows through the `Option` rather than taking the value out of it. Only `add_email` ever creates anything."),
+           ("rust", "`as_deref()` on `Option<Vec<String>>` gives `Option<&[String]>`, so `?` then `.first()` works. An `Option` implements `IntoIterator`, so `iter.chain(opt)` and `opt.iter().flatten()` just work."),
+           ("edge case", "`Some(vec![])` has no first email: don't index. `add_email` must keep what's already there.")],
+    notes=("""`user.nickname.map(..)` would move the `String` out of a borrowed struct; the `as_*` family converts `&Option<T>` into `Option<&T>` (and `as_deref` goes one step further, through `Deref`), after which every by-value combinator is fine. Treating `Option` as a 0-or-1 item iterator removes the `if let` from `handles`. Syntax to remember: `as_ref()` → `Option<&T>`, `as_mut()` → `Option<&mut T>`, `as_deref()` → `Option<&T::Target>` (`&str`, `&[T]`), `as_deref_mut()` → `Option<&mut str>`, `opt.iter()` / `iter_mut()`, `get_or_insert_with(Vec::new)` → `&mut Vec<_>`.""", "O(1) for all but handles, which is O(number of emails)", "O(number of emails) for handles"),
+    follow_up="Why does `Option<Vec<String>>` often turn into a plain `Vec<String>` in a good API, and when is the `None`/empty distinction worth keeping?",
+    related=["S7", "L2", "S6"],
 ))
 
+PROFILE_HEAD = """
+        use std::collections::HashMap;
+
+        pub struct Profile {
+            pub name: String,
+            nickname: Option<String>,
+            pub labels: HashMap<u32, String>,
+        }
+"""
+
+PROFILE_STARTER = PROFILE_HEAD + """
+        impl Profile {
+            pub fn new(name: &str, nickname: Option<&str>) -> Profile {
+                Profile { name: String::from(name), nickname: nickname.map(String::from), labels: HashMap::new() }
+            }
+
+            /// The nickname, if any.
+            pub fn nickname(&self) -> &Option<String> {
+                &self.nickname
+            }
+
+            /// The label for `id`, if any.
+            pub fn label(&self, id: u32) -> Option<&String> {
+                self.labels.get(&id)
+            }
+        }
+
+        /// "Hello, <nickname>!" if there is a nickname, else "Hello, <name>!".
+        pub fn greeting(name: &String, nickname: &Option<String>) -> String {
+            format!("Hello, {}!", nickname.as_ref().unwrap_or(name))
+        }
+
+        /// The label for `id`, or `default`.
+        pub fn label_or<'a>(p: &'a Profile, id: u32, default: &'a String) -> &'a String {
+            p.label(id).unwrap_or(default)
+        }
+"""
+
+PROFILE_SOL = PROFILE_HEAD + """
+        impl Profile {
+            pub fn new(name: &str, nickname: Option<&str>) -> Profile {
+                Profile { name: String::from(name), nickname: nickname.map(String::from), labels: HashMap::new() }
+            }
+
+            /// The nickname, if any.
+            pub fn nickname(&self) -> Option<&str> {
+                self.nickname.as_deref()
+            }
+
+            /// The label for `id`, if any.
+            pub fn label(&self, id: u32) -> Option<&str> {
+                self.labels.get(&id).map(String::as_str)
+            }
+        }
+
+        /// "Hello, <nickname>!" if there is a nickname, else "Hello, <name>!".
+        pub fn greeting(name: &str, nickname: Option<&str>) -> String {
+            format!("Hello, {}!", nickname.unwrap_or(name))
+        }
+
+        /// The label for `id`, or `default`.
+        pub fn label_or<'a>(p: &'a Profile, id: u32, default: &'a str) -> &'a str {
+            p.label(id).unwrap_or(default)
+        }
+"""
+
+PROFILE_TESTS = """
+        fn profile(name: &str, nickname: Option<&str>, labels: &[(u32, &str)]) -> Profile {
+            let mut p = Profile::new(name, nickname);
+            for &(id, l) in labels {
+                p.labels.insert(id, l.to_string());
+            }
+            p
+        }
+"""
+
 P.append(dict(
-    slug="option-ref-to-str", title="Option<&String> to Option<&str>", level="medium", stage="understand-it", tags=["Option", "lifetimes"],
-    teaches=["`map(String::as_str)` and `map_or` over borrowed values.", "One lifetime for a map and a default."],
-    statement="Write `label`, which looks up a label by id, and `label_or`, which falls back to `default`. Neither may allocate.",
-    starter="""
-        use std::collections::HashMap;
+    slug="option-ref-to-str", title="Fix: &Option<String> in an API", mode="fix", level="medium", stage="understand-it", tags=["Option<&str>", "as_deref", "API design"],
+    teaches=[
+        "Take and return `Option<&str>`, not `&Option<String>` or `Option<&String>`: the first accepts every caller, the others demand an owned `String` somewhere.",
+        "`as_deref()` and `map(String::as_str)` convert at the one place that owns the data.",
+        "A returned `&str` borrows from whichever input it came from, so both inputs share the lifetime.",
+    ],
+    statement="""
+        The tests don't compile. They call this API the way real callers do: with string literals, with `Option<&str>`
+        from other code, and comparing results against `Some("...")`. Every signature here demands an owned `String`
+        (or a reference to one) that those callers don't have.
 
-        pub fn label(labels: &HashMap<u32, String>, id: u32) -> Option<&str> {
-            todo!()
-        }
-
-        pub fn label_or<'a>(labels: &'a HashMap<u32, String>, id: u32, default: &'a str) -> &'a str {
-            todo!()
-        }
+        Fix the four signatures, and their bodies, so every test compiles and passes. Don't clone or allocate
+        anywhere except the `format!` that builds the greeting.
     """,
-    solution="""
-        use std::collections::HashMap;
-
-        pub fn label(labels: &HashMap<u32, String>, id: u32) -> Option<&str> {
-            labels.get(&id).map(String::as_str)
-        }
-
-        pub fn label_or<'a>(labels: &'a HashMap<u32, String>, id: u32, default: &'a str) -> &'a str {
-            label(labels, id).unwrap_or(default)
-        }
-    """,
+    examples=[("greeting(\"Ada\", Some(\"ace\"))", "\"Hello, ace!\""), ("label_or(&p, 7, \"?\")", "\"?\"")],
+    starter=PROFILE_STARTER,
+    solution=PROFILE_SOL,
+    rules=dict(methods=["clone", "cloned", "to_owned", "to_string", "into"], lines=12),
     visible=[
-        T("found", "labels = {1: \"one\"}, id = 1", "label(&m, 1)", 'Some("one")', setup='let m = std::collections::HashMap::from([(1, "one".to_string())]);'),
-        T("missing", "labels = {}, id = 7", "label(&m, 7)", "None", setup="let m = std::collections::HashMap::new();"),
-        T("default", "labels = {}, id = 7, default = \"?\"", 'label_or(&m, 7, "?")', '"?"', setup="let m = std::collections::HashMap::new();"),
-        T("default_not_used_when_found", "labels = {1: \"one\", 2: \"two\"}, id = 2, default = \"?\"", 'label_or(&m, 2, "?")', '"two"', setup='let m = std::collections::HashMap::from([(1, "one".to_string()), (2, "two".to_string())]);'),
-        T("empty_label_is_still_a_label", "labels = {3: \"\"}, id = 3, default = \"?\"", '(label(&m, 3), label_or(&m, 3, "?"))', '(Some(""), "")', setup='let m = std::collections::HashMap::from([(3, String::new())]);'),
+        PROFILE_TESTS,
+        T("greeting_with_literals", "greeting(\"Ada\", Some(\"ace\")), greeting(\"Ada\", None)", '(greeting("Ada", Some("ace")), greeting("Ada", None))', '("Hello, ace!".to_string(), "Hello, Ada!".to_string())'),
+        T("greeting_from_a_profile", "profile Ada / ace", "greeting(&p.name, p.nickname())", '"Hello, ace!".to_string()', setup='let p = profile("Ada", Some("ace"), &[]);'),
+        T("nickname_compares_to_a_literal", "profile Ada / ace, and Ada / none", '(p.nickname() == Some("ace"), q.nickname())', "(true, None)", setup='let p = profile("Ada", Some("ace"), &[]);\nlet q = profile("Ada", None, &[]);'),
+        T("label_lookup", "labels {1: \"one\"}, label(1), label(2)", "(p.label(1), p.label(2))", '(Some("one"), None)', setup='let p = profile("Ada", None, &[(1, "one")]);'),
+        T("label_or_with_a_literal_default", "labels {1: \"one\"}, label_or(1, \"?\"), label_or(7, \"?\")", '(label_or(&p, 1, "?"), label_or(&p, 7, "?"))', '("one", "?")', setup='let p = profile("Ada", None, &[(1, "one")]);'),
     ],
     hidden=[
-        T("default_unused", "labels = {2: \"two\"}, id = 2", 'label_or(&m, 2, "?")', '"two"', setup='let m = std::collections::HashMap::from([(2, "two".to_string())]);'),
-        T("other_id", "labels = {1: \"one\"}, id = 2", "label(&m, 2)", "None", setup='let m = std::collections::HashMap::from([(1, "one".to_string())]);'),
-        T("id_zero", "labels = {0: \"zero\"}, id = 0", "label(&m, 0)", 'Some("zero")', setup='let m = std::collections::HashMap::from([(0, "zero".to_string())]);'),
-        T("id_max", "labels = {u32::MAX: \"max\"}, id = u32::MAX", 'label_or(&m, u32::MAX, "?")', '"max"', setup='let m = std::collections::HashMap::from([(u32::MAX, "max".to_string())]);'),
-        T("empty_default", "labels = {}, id = 1, default = \"\"", 'label_or(&m, 1, "")', '""', setup="let m = std::collections::HashMap::new();"),
-        T("unicode_label", "labels = {5: \"café ☕\"}, id = 5", "label(&m, 5)", 'Some("café ☕")', setup='let m = std::collections::HashMap::from([(5, "café ☕".to_string())]);'),
-        T("borrows_from_the_map", "labels = {1: \"one\"}, id = 1", 'std::ptr::eq(label_or(&m, 1, "?").as_ptr(), m[&1].as_ptr())', "true", setup='let m = std::collections::HashMap::from([(1, "one".to_string())]);'),
-        T("returns_the_default_itself", "labels = {}, id = 1, default = d", "std::ptr::eq(label_or(&m, 1, d).as_ptr(), d.as_ptr())", "true", setup='let m = std::collections::HashMap::new(); let d = "fallback";'),
+        PROFILE_TESTS,
+        T("empty_nickname_is_still_a_nickname", "profile Ada / \"\"", "greeting(&p.name, p.nickname())", '"Hello, !".to_string()', setup='let p = profile("Ada", Some(""), &[]);'),
+        T("empty_label_is_still_a_label", "labels {3: \"\"}", '(p.label(3), label_or(&p, 3, "?"))', '(Some(""), "")', setup='let p = profile("Ada", None, &[(3, "")]);'),
+        T("id_extremes", "labels {0: \"zero\", u32::MAX: \"max\"}", '(label_or(&p, 0, "?"), label_or(&p, u32::MAX, "?"), p.label(1))', '("zero", "max", None)', setup='let p = profile("Ada", None, &[(0, "zero"), (u32::MAX, "max")]);'),
+        T("unicode", "profile \"Zoë\" / \"🦀\", label {5: \"café ☕\"}", '(greeting(&p.name, p.nickname()), p.label(5))', '("Hello, 🦀!".to_string(), Some("café ☕"))', setup='let p = profile("Zoë", Some("🦀"), &[(5, "café ☕")]);'),
+        T("greeting_with_an_owned_option", "nickname: Option<String> held by the caller", "greeting(\"Ada\", nick.as_deref())", '"Hello, bo!".to_string()', setup='let nick: Option<String> = Some("bo".into());'),
+        T("no_nickname_uses_the_name", "profile Zed / none", "greeting(&p.name, p.nickname())", '"Hello, Zed!".to_string()', setup='let p = profile("Zed", None, &[]);'),
+        T("label_or_borrows_from_the_map", "labels {1: \"one\"}", 'std::ptr::eq(label_or(&p, 1, "?").as_ptr(), p.labels[&1].as_ptr())', "true", setup='let p = profile("Ada", None, &[(1, "one")]);'),
+        T("label_or_returns_the_default_itself", "labels {}, default d", "std::ptr::eq(label_or(&p, 1, d).as_ptr(), d.as_ptr())", "true", setup='let p = profile("Ada", None, &[]);\nlet d = "fallback";'),
+        T("default_from_a_short_lived_string", "default is a local String", "label_or(&p, 9, &local).len()", "5", setup='let p = profile("Ada", None, &[]);\nlet local = String::from("local");'),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(1305);
+            let mut rng = anneal_prelude::Rng::new(7105);
             for _ in 0..300 {
-                let n = rng.below(6);
-                let mut m = std::collections::HashMap::new();
+                let n = rng.below(5);
                 let mut pairs: Vec<(u32, String)> = Vec::new();
                 for _ in 0..n {
-                    let k = rng.below(8) as u32;
+                    let k = rng.below(6) as u32;
                     let len = rng.below(3);
                     let v = rng.string(len, "ab");
-                    m.insert(k, v.clone());
                     pairs.retain(|(pk, _)| *pk != k);
                     pairs.push((k, v));
                 }
-                let id = rng.below(8) as u32;
-                let want = pairs.iter().find(|(k, _)| *k == id).map(|(_, v)| v.as_str());
-                check!(format!("labels = {m:?}, id = {id}"), label(&m, id), want);
-                check!(format!("labels = {m:?}, id = {id}, default = \\"-\\""), label_or(&m, id, "-"), want.unwrap_or("-"));
+                let refs: Vec<(u32, &str)> = pairs.iter().map(|(k, v)| (*k, v.as_str())).collect();
+                let nick = if rng.bool() { Some(*rng.pick(&["", "x", "ß"])) } else { None };
+                let p = profile("N", nick, &refs);
+                let id = rng.below(6) as u32;
+                let want = refs.iter().find(|(k, _)| *k == id).map(|(_, v)| *v);
+                let desc = format!("nickname = {nick:?}, labels = {refs:?}, id = {id}");
+                check!(format!("label, {desc}"), p.label(id), want);
+                check!(format!("label_or, {desc}"), label_or(&p, id, "-"), want.unwrap_or("-"));
+                check!(format!("greeting, {desc}"), greeting(&p.name, p.nickname()), format!("Hello, {}!", nick.unwrap_or("N")));
             }
         }
 
         #[test]
         fn scale_many_lookups() {
-            let n: u32 = 200_000;
-            let m: std::collections::HashMap<u32, String> = (0..n).map(|i| (i * 2, "x".to_string())).collect();
-            let mut found = 0usize;
-            for id in 0..2 * n {
-                if label_or(&m, id, "").len() == 1 {
-                    found += 1;
-                }
+            let mut p = profile("Ada", None, &[]);
+            for i in 0..200_000u32 {
+                p.labels.insert(i * 2, "x".into());
             }
+            let found = (0..400_000u32).filter(|&id| label_or(&p, id, "").len() == 1).count();
             check!("200000 labels (even ids), look up every id below 400000", found, 200_000);
         }
         """,
     ],
     wrong=dict(
-        empty_label_is_missing="""
-            use std::collections::HashMap;
-
-            pub fn label(labels: &HashMap<u32, String>, id: u32) -> Option<&str> {
-                labels.get(&id).map(String::as_str).filter(|s| !s.is_empty())
-            }
-
-            pub fn label_or<'a>(labels: &'a HashMap<u32, String>, id: u32, default: &'a str) -> &'a str {
-                label(labels, id).unwrap_or(default)
-            }
-        """,
-        linear_scan="""
-            use std::collections::HashMap;
-
-            pub fn label(labels: &HashMap<u32, String>, id: u32) -> Option<&str> {
-                labels.iter().find(|(k, _)| **k == id).map(|(_, v)| v.as_str())
-            }
-
-            pub fn label_or<'a>(labels: &'a HashMap<u32, String>, id: u32, default: &'a str) -> &'a str {
-                label(labels, id).unwrap_or(default)
-            }
-        """,
+        empty_nickname_falls_back=PROFILE_SOL.replace("nickname.unwrap_or(name)", "nickname.filter(|n| !n.is_empty()).unwrap_or(name)"),
+        empty_label_is_missing=PROFILE_SOL.replace("self.labels.get(&id).map(String::as_str)", "self.labels.get(&id).map(String::as_str).filter(|l| !l.is_empty())"),
     ),
-    hints=[("rust", "`get` gives `Option<&String>`. `String::as_str` turns `&String` into `&str`.")],
-    notes=("`label_or` needs both inputs to outlive the result, so they share `'a`.", "O(1)", "O(1)"),
-    follow_up="Why can't `label_or` return `&str` without naming a lifetime?",
-    related=["L3", "S4"],
+    hints=[("approach", "Read the call sites in the tests: what types do they pass, and what do they compare the results with?"),
+           ("rust", "Parameters: `&str` and `Option<&str>`. Returns: `Option<&str>` and `&'a str`. Inside, `self.nickname.as_deref()` and `self.labels.get(&id).map(String::as_str)`."),
+           ("edge case", "`nickname.unwrap_or(name)` needs both sides to be `&str`; with `name: &str` it just works.")],
+    notes=("""`&Option<String>` says \"I need a reference to an `Option` that owns a `String`\", so a caller holding a `&str` or an `Option<&str>` must allocate one just to call you. `Option<&str>` says \"maybe a string slice\", which every caller can produce for free: `Some(\"lit\")`, `opt.as_deref()`, `s.get(..)`. The same goes for returns: a getter returning `&Option<String>` leaks the field's type into every caller. It's also smaller: `Option<&str>` is two words with the null pointer as `None`. Clippy flags these as `ref_option` and `ptr_arg`. Syntax to remember: `self.field.as_deref()` (`&Option<String>` → `Option<&str>`), `map.get(k).map(String::as_str)`, `fn f<'a>(a: &'a X, d: &'a str) -> &'a str`.""", "O(1) per call", "O(1)"),
+    follow_up="When is `&Option<T>` the right parameter type after all? What changes if `T` is `Copy`?",
+    related=["L3", "S4", "L2"],
 ))
 
-P.append(dict(
-    slug="transpose", title="Option<Result> and transpose", level="medium", stage="understand-it", tags=["transpose", "ParseIntError"],
-    teaches=["`transpose` swaps `Option<Result<T, E>>` and `Result<Option<T>, E>`.", "`map(str::parse)` on an `Option`."],
-    statement="Parse an optional string. No input is `Ok(None)`; a valid number is `Ok(Some(n))`; anything else is an error.",
-    starter="""
+TRANSPOSE_SOL = """
         use std::num::ParseIntError;
 
-        pub fn parse_optional(s: Option<&str>) -> Result<Option<i32>, ParseIntError> {
-            todo!()
-        }
-    """,
-    solution="""
-        use std::num::ParseIntError;
-
+        /// No input is `Ok(None)`; a number is `Ok(Some(n))`; anything else is an error.
         pub fn parse_optional(s: Option<&str>) -> Result<Option<i32>, ParseIntError> {
             s.map(str::parse).transpose()
         }
+
+        /// After trimming: a blank line or a `#` comment is `Ok(None)`; anything else must be a number.
+        pub fn parse_line(line: &str) -> Result<Option<i64>, ParseIntError> {
+            let t = line.trim();
+            (!t.is_empty() && !t.starts_with('#')).then(|| t.parse()).transpose()
+        }
+
+        /// Every number in `text`, in order, or the 1-based line number and error of the first bad line.
+        pub fn parse_file(text: &str) -> Result<Vec<i64>, (usize, ParseIntError)> {
+            text.lines()
+                .enumerate()
+                .filter_map(|(i, line)| parse_line(line).map_err(|e| (i + 1, e)).transpose())
+                .collect()
+        }
+"""
+
+P.append(dict(
+    slug="transpose", title="transpose: skip blanks, keep errors", level="medium", stage="understand-it", tags=["transpose", "filter_map", "ParseIntError"],
+    teaches=[
+        "`transpose` swaps `Option<Result<T, E>>` and `Result<Option<T>, E>`, so `?` or `collect` can see the error.",
+        "`filter_map(|x| f(x).transpose())` drops the `Ok(None)` items and keeps both values and errors for `collect::<Result<Vec<_>, _>>()`.",
+        "`.ok().flatten()` compiles too, and silently throws the errors away.",
+    ],
+    statement="""
+        A data file has one integer per line; blank lines and lines starting with `#` (after trimming) are ignored.
+        Write:
+
+        - `parse_optional`: `None` is `Ok(None)`, a number is `Ok(Some(n))`, anything else is the parse error.
+        - `parse_line`: `Ok(None)` for a blank or comment line, `Ok(Some(n))` for a number (trimmed), else the error.
+        - `parse_file`: every number in order, or `Err((line, error))` for the first bad line, numbered from 1.
     """,
+    examples=[("parse_file(\"1\\n# two\\n\\n3\")", "Ok([1, 3])"), ("parse_file(\"1\\nx\\ny\")", "Err((2, <invalid digit>))")],
+    starter="""
+        use std::num::ParseIntError;
+
+        /// No input is `Ok(None)`; a number is `Ok(Some(n))`; anything else is an error.
+        pub fn parse_optional(s: Option<&str>) -> Result<Option<i32>, ParseIntError> {
+            todo!()
+        }
+
+        /// After trimming: a blank line or a `#` comment is `Ok(None)`; anything else must be a number.
+        pub fn parse_line(line: &str) -> Result<Option<i64>, ParseIntError> {
+            todo!()
+        }
+
+        /// Every number in `text`, in order, or the 1-based line number and error of the first bad line.
+        pub fn parse_file(text: &str) -> Result<Vec<i64>, (usize, ParseIntError)> {
+            todo!()
+        }
+    """,
+    solution=TRANSPOSE_SOL,
     visible=[
-        T("none", "s = None", "parse_optional(None)", "Ok(None)"),
-        T("number", "s = Some(\"42\")", 'parse_optional(Some("42"))', "Ok(Some(42))"),
-        T("bad", "s = Some(\"x\")", 'parse_optional(Some("x")).is_err()', "true"),
-        T("empty_string_is_an_error_not_none", "s = Some(\"\")", 'parse_optional(Some("")).is_err()', "true"),
-        T("too_big_for_i32", "s = Some(\"2147483648\")", 'parse_optional(Some("2147483648")).is_err()', "true"),
+        """
+        fn err<T>(s: &str) -> Result<T, std::num::ParseIntError> {
+            Err(s.parse::<i64>().unwrap_err())
+        }
+        """,
+        T("optional", "parse_optional(None), (Some(\"42\")), (Some(\"x\"))", 'parse_optional(None).unwrap() == None && parse_optional(Some("42")) == Ok(Some(42)) && parse_optional(Some("x")).is_err()', "true"),
+        T("lines", "parse_line(\" 7 \"), (\"\"), (\"# note\"), (\"7x\")", '(parse_line(" 7 "), parse_line(""), parse_line("# note"), parse_line("7x"))', '(Ok(Some(7)), Ok(None), Ok(None), err("7x"))'),
+        T("file_skips_blanks_and_comments", "\"1\\n# two\\n\\n3\"", 'parse_file("1\\n# two\\n\\n3")', "Ok(vec![1, 3])"),
+        T("file_reports_the_first_bad_line", "\"1\\nx\\ny\"", 'parse_file("1\\nx\\ny")', 'err("x").map_err(|e| (2, e))'),
+        T("empty_file", "\"\"", 'parse_file("")', "Ok(vec![])"),
     ],
     hidden=[
-        T("negative", "s = Some(\"-7\")", 'parse_optional(Some("-7"))', "Ok(Some(-7))"),
-        T("empty_string", "s = Some(\"\")", 'parse_optional(Some("")).is_err()', "true"),
-        T("zero", "s = Some(\"0\")", 'parse_optional(Some("0"))', "Ok(Some(0))"),
-        T("i32_max", "s = Some(\"2147483647\")", 'parse_optional(Some("2147483647"))', "Ok(Some(i32::MAX))"),
-        T("i32_min", "s = Some(\"-2147483648\")", 'parse_optional(Some("-2147483648"))', "Ok(Some(i32::MIN))"),
-        T("below_i32_min", "s = Some(\"-2147483649\")", 'parse_optional(Some("-2147483649"))', 'Err("-2147483649".parse::<i32>().unwrap_err())'),
-        T("leading_space", "s = Some(\" 5\")", 'parse_optional(Some(" 5"))', 'Err(" 5".parse::<i32>().unwrap_err())'),
-        T("decimal", "s = Some(\"1.0\")", 'parse_optional(Some("1.0"))', 'Err("1.0".parse::<i32>().unwrap_err())'),
-        T("keeps_the_parse_error", "s = Some(\"\")", 'parse_optional(Some("")).map_err(|e| e.kind().clone())', "Err(std::num::IntErrorKind::Empty)"),
-        T("full_width_digits", "s = Some(\"４２\")", 'parse_optional(Some("４２")).is_err()', "true"),
+        """
+        fn err<T>(s: &str) -> Result<T, std::num::ParseIntError> {
+            Err(s.parse::<i64>().unwrap_err())
+        }
+        """,
+        T("empty_string_is_an_error_not_none", "parse_optional(Some(\"\"))", 'parse_optional(Some("")).map_err(|e| e.kind().clone())', "Err(std::num::IntErrorKind::Empty)"),
+        T("optional_bounds", "Some(\"-2147483648\"), Some(\"2147483648\")", '(parse_optional(Some("-2147483648")), parse_optional(Some("2147483648")).map_err(|e| e.kind().clone()))', "(Ok(Some(i32::MIN)), Err(std::num::IntErrorKind::PosOverflow))"),
+        T("optional_is_not_trimmed", "Some(\" 5\")", 'parse_optional(Some(" 5")).is_err()', "true"),
+        T("indented_comment", "\"  # x\" and \"\\t\"", '(parse_line("  # x"), parse_line("\\t"))', "(Ok(None), Ok(None))"),
+        T("no_inline_comments", "\"5 # five\"", 'parse_line("5 # five")', 'err("5 # five")'),
+        T("hash_inside_a_number", "\"-#1\"", 'parse_line("-#1")', 'err("-#1")'),
+        T("crlf_line_endings", "\"1\\r\\n2\\r\\n\"", 'parse_file("1\\r\\n2\\r\\n")', "Ok(vec![1, 2])"),
+        T("only_comments", "\"# a\\n\\n  # b\"", 'parse_file("# a\\n\\n  # b")', "Ok(vec![])"),
+        T("line_numbers_count_skipped_lines", "\"# header\\n\\n5\\nfive\"", 'parse_file("# header\\n\\n5\\nfive")', 'err("five").map_err(|e| (4, e))'),
+        T("first_line_bad", "\"x\\n1\"", 'parse_file("x\\n1")', 'err("x").map_err(|e| (1, e))'),
+        T("i64_bounds", "\"-9223372036854775808\\n9223372036854775807\"", 'parse_file("-9223372036854775808\\n9223372036854775807")', "Ok(vec![i64::MIN, i64::MAX])"),
+        T("overflow_is_an_error", "\"1\\n9223372036854775808\"", 'parse_file("1\\n9223372036854775808").map_err(|(n, e)| (n, e.kind().clone()))', "Err((2, std::num::IntErrorKind::PosOverflow))"),
+        T("unicode_digits", "\"٣\"", 'parse_file("٣")', 'err("٣").map_err(|e| (1, e))'),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(1306);
+            let mut rng = anneal_prelude::Rng::new(7106);
+            let pieces = ["1", "-4", "20", "", "  ", "# c", " #", "x", "3 ", " 9", "+2", "#1", "1#"];
             for _ in 0..400 {
-                let s = match rng.below(4) {
-                    0 => None,
-                    1 => {
-                        let len = rng.below(5);
-                        Some(rng.string(len, "01-+ x9"))
+                let n = rng.below(6);
+                let mut lines: Vec<&str> = Vec::new();
+                for _ in 0..n {
+                    lines.push(*rng.pick(&pieces));
+                }
+                let text = lines.join("\\n");
+                let mut want: Result<Vec<i64>, (usize, std::num::ParseIntError)> = Ok(Vec::new());
+                for (i, l) in text.lines().enumerate() {
+                    let t = l.trim();
+                    if t.is_empty() || t.starts_with('#') {
+                        continue;
                     }
-                    2 => Some(rng.int(-3_000_000_000, 3_000_000_000).to_string()),
-                    _ => Some((i64::from(i32::MAX) + rng.int(-2, 2)).to_string()),
-                };
-                let want = match &s {
-                    None => Ok(None),
-                    Some(t) => t.parse::<i32>().map(Some),
-                };
-                check!(format!("s = {s:?}"), parse_optional(s.as_deref()), want);
+                    match t.parse::<i64>() {
+                        Ok(v) => want.as_mut().unwrap().push(v),
+                        Err(e) => {
+                            want = Err((i + 1, e));
+                            break;
+                        }
+                    }
+                }
+                check!(format!("text = {text:?}"), parse_file(&text), want);
+                let s = if rng.bool() { Some(*rng.pick(&pieces)) } else { None };
+                check!(format!("parse_optional({s:?})"), parse_optional(s), s.map(|t| t.parse::<i32>()).transpose());
             }
+        }
+
+        #[test]
+        fn scale_bad_line_at_the_end() {
+            let mut text: String = (0..200_000).map(|i| if i % 3 == 0 { "# c\\n".to_string() } else { format!("{i}\\n") }).collect();
+            let want: Vec<i64> = (0..200_000).filter(|i| i % 3 != 0).collect();
+            check!("200000 lines, every third a comment", parse_file(&text), Ok(want));
+            text.push_str("oops\\n");
+            check!("the same, then \\"oops\\" on line 200001", parse_file(&text).map_err(|(n, _)| n), Err(200_001));
         }
         """,
     ],
     wrong=dict(
-        empty_is_none="""
-            use std::num::ParseIntError;
-
-            pub fn parse_optional(s: Option<&str>) -> Result<Option<i32>, ParseIntError> {
-                match s {
-                    None | Some("") => Ok(None),
-                    Some(t) => t.parse().map(Some),
-                }
-            }
-        """,
-        trims_first="""
-            use std::num::ParseIntError;
-
-            pub fn parse_optional(s: Option<&str>) -> Result<Option<i32>, ParseIntError> {
-                s.map(|t| t.trim().parse()).transpose()
-            }
-        """,
-        parse_wide_then_cast="""
-            use std::num::ParseIntError;
-
-            pub fn parse_optional(s: Option<&str>) -> Result<Option<i32>, ParseIntError> {
-                s.map(|t| t.parse::<i64>().map(|n| n as i32)).transpose()
-            }
-        """,
+        skips_bad_lines=TRANSPOSE_SOL.replace(".filter_map(|(i, line)| parse_line(line).map_err(|e| (i + 1, e)).transpose())\n                .collect()", ".filter_map(|(_, line)| parse_line(line).ok().flatten())\n                .map(Ok)\n                .collect()"),
+        zero_based_line_numbers=TRANSPOSE_SOL.replace("(i + 1, e)", "(i, e)"),
+        comment_check_before_trim=TRANSPOSE_SOL.replace("(!t.is_empty() && !t.starts_with('#'))", "(!t.is_empty() && !line.starts_with('#'))"),
+        empty_is_none=TRANSPOSE_SOL.replace("s.map(str::parse).transpose()", "s.filter(|t| !t.is_empty()).map(str::parse).transpose()"),
     ),
-    hints=[("rust", "`s.map(str::parse)` has type `Option<Result<i32, _>>`. Which way round do you need it?")],
-    notes=("`transpose` exists for exactly this: the caller can then use `?` on the result.", "O(n)", "O(1)"),
-    follow_up="Where do you hit `Option<Result<..>>` in real code?",
-    related=["L8"],
+    hints=[("approach", "Write `parse_line` first; `parse_file` is then one iterator chain over `lines().enumerate()`."),
+           ("rust", "`cond.then(|| t.parse())` is `Option<Result<..>>`; `.transpose()` makes it `Result<Option<..>>`. In `parse_file`, `filter_map` wants an `Option`, so transpose back and collect into `Result<Vec<_>, _>`."),
+           ("edge case", "Line numbers count every line, including the skipped ones. `\"  # x\"` is a comment once trimmed.")],
+    notes=("""`Result<Option<T>, E>` (\"it worked, and maybe there was something\") and `Option<Result<T, E>>` (\"maybe there was something, and it may have failed\") carry the same information; `transpose` converts between them so the next step can use its natural tool: `?` wants the `Result` outside, `filter_map` wants the `Option` outside. `collect::<Result<Vec<_>, _>>()` then stops at the first `Err`. Syntax to remember: `opt.map(str::parse).transpose()`, `cond.then(|| expr)` (lazy) vs `cond.then_some(v)` (eager), `iter.filter_map(|x| f(x).transpose()).collect::<Result<Vec<_>, _>>()`, `err.kind()` → `&IntErrorKind`.""", "O(n)", "O(number of values)"),
+    follow_up="How would you collect every bad line instead of stopping at the first? Where else does `Option<Result<..>>` appear in std (hint: `Iterator::next` on a fallible reader)?",
+    related=["L8", "S6", "S9"],
 ))
 
 STORE = """
@@ -994,70 +1428,128 @@ P.append(dict(
     related=["S6", "L8"],
 ))
 
+COLLECT_SOL = """
+        fn parse(s: &str) -> Result<i32, String> {
+            s.parse().map_err(|_| format!("bad number: {s}"))
+        }
+
+        /// Every item as an `i32`, or the error for the first bad one.
+        pub fn parse_all(items: &[&str]) -> Result<Vec<i32>, String> {
+            items.iter().map(|s| parse(s)).collect()
+        }
+
+        /// The sum of every item as an `i64`, or the error for the first bad one. No intermediate `Vec`.
+        pub fn sum_all(items: &[&str]) -> Result<i64, String> {
+            items.iter().map(|s| parse(s).map(i64::from)).sum()
+        }
+
+        /// Every item, or every error in order.
+        pub fn parse_every_error(items: &[&str]) -> Result<Vec<i32>, Vec<String>> {
+            let (good, bad): (Vec<_>, Vec<_>) = items.iter().map(|s| parse(s)).partition(Result::is_ok);
+            if bad.is_empty() {
+                Ok(good.into_iter().flatten().collect())
+            } else {
+                Err(bad.into_iter().filter_map(Result::err).collect())
+            }
+        }
+
+        /// Runs `check` on each item in order and stops at the first error.
+        pub fn validate(items: &[&str], mut check: impl FnMut(&str) -> Result<(), String>) -> Result<(), String> {
+            items.iter().map(|s| check(s)).collect()
+        }
+"""
+
 P.append(dict(
-    slug="collect-into-result", title="Collect into Result<Vec<_>, _>", level="medium", stage="understand-it", tags=["collect", "FromIterator"],
-    teaches=["`collect::<Result<Vec<_>, _>>()` stops at the first error.", "`map_err` to add context per item."],
-    statement="Parse every item as an `i32`. Return all of them, or `Err(\"bad number: <item>\")` for the first one that doesn't parse.",
+    slug="collect-into-result", title="Collect into Result: first error or every error", level="medium", stage="understand-it", tags=["collect", "FromIterator", "Sum", "partition"],
+    teaches=[
+        "`Result<C, E>` implements `FromIterator<Result<T, E>>` for any collection `C`, including `()`; it stops at the first `Err`.",
+        "`Result` also implements `Sum` and `Product`, so `sum::<Result<i64, _>>()` short-circuits without a `Vec`.",
+        "Collecting every error is a different shape: `partition(Result::is_ok)` and then unwrap each side.",
+    ],
+    statement="""
+        An item is good if it parses as an `i32`; a bad item's error is `"bad number: <item>"`. Write:
+
+        - `parse_all`: every value, or the first error.
+        - `sum_all`: the sum as an `i64`, or the first error, without building a `Vec`.
+        - `parse_every_error`: every value, or **every** error, in order.
+        - `validate`: calls `check` on each item in order and returns its first error. Items after that error must
+          not be checked.
+    """,
+    examples=[("parse_all([\"1\", \"x\", \"y\"])", "Err(\"bad number: x\")"), ("parse_every_error([\"1\", \"x\", \"y\"])", "Err([\"bad number: x\", \"bad number: y\"])")],
     starter="""
+        /// Every item as an `i32`, or the error for the first bad one.
         pub fn parse_all(items: &[&str]) -> Result<Vec<i32>, String> {
             todo!()
         }
-    """,
-    solution="""
-        pub fn parse_all(items: &[&str]) -> Result<Vec<i32>, String> {
-            items
-                .iter()
-                .map(|s| s.parse().map_err(|_| format!("bad number: {s}")))
-                .collect()
+
+        /// The sum of every item as an `i64`, or the error for the first bad one. No intermediate `Vec`.
+        pub fn sum_all(items: &[&str]) -> Result<i64, String> {
+            todo!()
+        }
+
+        /// Every item, or every error in order.
+        pub fn parse_every_error(items: &[&str]) -> Result<Vec<i32>, Vec<String>> {
+            todo!()
+        }
+
+        /// Runs `check` on each item in order and stops at the first error.
+        pub fn validate(items: &[&str], mut check: impl FnMut(&str) -> Result<(), String>) -> Result<(), String> {
+            todo!()
         }
     """,
+    solution=COLLECT_SOL,
     visible=[
-        T("all_good", "[\"1\", \"2\", \"3\"]", 'parse_all(&["1", "2", "3"])', "Ok(vec![1, 2, 3])"),
-        T("first_bad", "[\"1\", \"x\", \"y\"]", 'parse_all(&["1", "x", "y"])', 'Err("bad number: x".to_string())'),
-        T("no_items", "[]", "parse_all(&[])", "Ok(vec![])"),
-        T("signs", "[\"-1\", \"+2\"]", 'parse_all(&["-1", "+2"])', "Ok(vec![-1, 2])"),
-        T("empty_item_is_bad", "[\"1\", \"\"]", 'parse_all(&["1", ""])', 'Err("bad number: ".to_string())'),
+        T("parse_all_good_and_bad", "[\"1\", \"2\", \"3\"] and [\"1\", \"x\", \"y\"]", '(parse_all(&["1", "2", "3"]), parse_all(&["1", "x", "y"]))', '(Ok(vec![1, 2, 3]), Err("bad number: x".to_string()))'),
+        T("sum_does_not_overflow_i32", "[\"2147483647\", \"2147483647\"]", 'sum_all(&["2147483647", "2147483647"])', "Ok(4_294_967_294)"),
+        T("every_error", "[\"1\", \"x\", \"2\", \"y\"]", 'parse_every_error(&["1", "x", "2", "y"])', 'Err(vec!["bad number: x".to_string(), "bad number: y".to_string()])'),
+        T("validate_stops_at_the_first_error", "items a, bad, c, bad2; check fails on \"bad…\"", "(r, seen)", '(Err("bad".to_string()), vec!["a".to_string(), "bad".to_string()])',
+          setup='let mut seen = Vec::new();\nlet r = validate(&["a", "bad", "c", "bad2"], |s| {\n    seen.push(s.to_string());\n    if s.starts_with("bad") { Err(s.to_string()) } else { Ok(()) }\n});'),
+        T("no_items", "[]", "(parse_all(&[]), sum_all(&[]), parse_every_error(&[]), validate(&[], |_| Err(\"never\".to_string())))", "(Ok(vec![]), Ok(0), Ok(vec![]), Ok(()))"),
     ],
     hidden=[
-        T("empty", "[]", "parse_all(&[])", "Ok(vec![])"),
-        T("overflow", "[\"99999999999\"]", 'parse_all(&["99999999999"])', 'Err("bad number: 99999999999".to_string())'),
-        T("bounds", "[\"-2147483648\", \"2147483647\"]", 'parse_all(&["-2147483648", "2147483647"])', "Ok(vec![i32::MIN, i32::MAX])"),
-        T("just_past_max", "[\"2147483648\"]", 'parse_all(&["2147483648"])', 'Err("bad number: 2147483648".to_string())'),
-        T("spaces_are_bad", "[\"1\", \" 2\"]", 'parse_all(&["1", " 2"])', 'Err("bad number:  2".to_string())'),
-        T("last_is_bad", "[\"1\", \"2\", \"3.5\"]", 'parse_all(&["1", "2", "3.5"])', 'Err("bad number: 3.5".to_string())'),
-        T("order_and_duplicates_kept", "[\"3\", \"1\", \"3\"]", 'parse_all(&["3", "1", "3"])', "Ok(vec![3, 1, 3])"),
-        T("unicode_item", "[\"7\", \"٣\"]", 'parse_all(&["7", "٣"])', 'Err("bad number: ٣".to_string())'),
+        T("empty_item_is_bad", "[\"1\", \"\"]", 'parse_all(&["1", ""])', 'Err("bad number: ".to_string())'),
+        T("i32_bounds", "[\"-2147483648\", \"2147483647\"], and \"2147483648\"", '(parse_all(&["-2147483648", "2147483647"]), parse_all(&["2147483648"]))', '(Ok(vec![i32::MIN, i32::MAX]), Err("bad number: 2147483648".to_string()))'),
+        T("sum_negative_bounds", "[\"-2147483648\", \"-2147483648\", \"5\"]", 'sum_all(&["-2147483648", "-2147483648", "5"])', "Ok(-4_294_967_291)"),
+        T("sum_first_error", "[\"1\", \"x\", \"y\"]", 'sum_all(&["1", "x", "y"])', 'Err("bad number: x".to_string())'),
+        T("every_error_all_good", "[\"3\", \"1\", \"3\"]", 'parse_every_error(&["3", "1", "3"])', "Ok(vec![3, 1, 3])"),
+        T("every_error_keeps_duplicates", "[\"x\", \"x\", \" 1\"]", 'parse_every_error(&["x", "x", " 1"])', 'Err(vec!["bad number: x".to_string(), "bad number: x".to_string(), "bad number:  1".to_string()])'),
+        T("validate_all_good_checks_everything", "[\"a\", \"b\", \"c\"]", "(r, calls)", "(Ok(()), 3)", setup='let mut calls = 0;\nlet r = validate(&["a", "b", "c"], |_| {\n    calls += 1;\n    Ok(())\n});'),
+        T("validate_first_item_fails", "[\"x\", \"y\"], check always fails", "(r, calls)", '(Err("x!".to_string()), 1)', setup='let mut calls = 0;\nlet r = validate(&["x", "y"], |s| {\n    calls += 1;\n    Err(format!("{s}!"))\n});'),
+        T("order_kept", "[\"3\", \"-1\", \"+2\"]", 'parse_all(&["3", "-1", "+2"])', "Ok(vec![3, -1, 2])"),
+        T("unicode_item", "[\"7\", \"٣\"]", 'parse_every_error(&["7", "٣"])', 'Err(vec!["bad number: ٣".to_string()])'),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(1307);
+            let mut rng = anneal_prelude::Rng::new(7107);
             for _ in 0..400 {
                 let n = rng.below(6);
                 let mut items: Vec<String> = Vec::new();
                 for _ in 0..n {
-                    if rng.below(5) == 0 {
+                    if rng.below(4) == 0 {
                         let len = rng.below(3);
                         items.push(rng.string(len, "x1-"));
-                    } else {
+                    } else if rng.bool() {
                         items.push(rng.int(-99, 99).to_string());
+                    } else {
+                        items.push(rng.int(i64::from(i32::MAX) - 2, i64::from(i32::MAX) + 1).to_string());
                     }
                 }
                 let refs: Vec<&str> = items.iter().map(|s| s.as_str()).collect();
-                let mut want: Result<Vec<i32>, String> = Ok(Vec::new());
-                for s in &refs {
-                    match s.parse::<i32>() {
-                        Ok(v) => {
-                            if let Ok(out) = &mut want {
-                                out.push(v);
-                            }
-                        }
-                        Err(_) => {
-                            want = Err(format!("bad number: {s}"));
-                            break;
-                        }
-                    }
-                }
-                check!(format!("items = {refs:?}"), parse_all(&refs), want);
+                let parsed: Vec<Result<i32, String>> = refs.iter().map(|s| s.parse::<i32>().map_err(|_| format!("bad number: {s}"))).collect();
+                let first_err = parsed.iter().find_map(|r| r.clone().err());
+                let errs: Vec<String> = parsed.iter().filter_map(|r| r.clone().err()).collect();
+                let vals: Vec<i32> = parsed.iter().filter_map(|r| r.clone().ok()).collect();
+                let desc = format!("items = {refs:?}");
+                check!(format!("parse_all, {desc}"), parse_all(&refs), match &first_err { Some(e) => Err(e.clone()), None => Ok(vals.clone()) });
+                check!(format!("sum_all, {desc}"), sum_all(&refs), match &first_err { Some(e) => Err(e.clone()), None => Ok(vals.iter().map(|&v| i64::from(v)).sum()) });
+                check!(format!("parse_every_error, {desc}"), parse_every_error(&refs), if errs.is_empty() { Ok(vals.clone()) } else { Err(errs.clone()) });
+                let mut calls = 0;
+                let got = validate(&refs, |s| {
+                    calls += 1;
+                    s.parse::<i32>().map(|_| ()).map_err(|_| s.to_string())
+                });
+                let stop = parsed.iter().position(|r| r.is_err());
+                check!(format!("validate, {desc}"), (got, calls), (stop.map_or(Ok(()), |i| Err(refs[i].to_string())), stop.map_or(refs.len(), |i| i + 1)));
             }
         }
 
@@ -1066,51 +1558,24 @@ P.append(dict(
             let mut items: Vec<String> = (0..200_000).map(|i: i32| (i - 100_000).to_string()).collect();
             let refs: Vec<&str> = items.iter().map(|s| s.as_str()).collect();
             let want: Vec<i32> = (0..200_000).map(|i| i - 100_000).collect();
-            check!("200000 numbers from -100000 up", parse_all(&refs), Ok(want));
+            check!("200000 numbers from -100000 up", (parse_all(&refs), sum_all(&refs), parse_every_error(&refs)), (Ok(want.clone()), Ok(-100_000), Ok(want)));
             items.push("oops".to_string());
             let refs: Vec<&str> = items.iter().map(|s| s.as_str()).collect();
-            check!("the same 200000 numbers, then \\"oops\\"", parse_all(&refs), Err("bad number: oops".to_string()));
+            check!("the same 200000 numbers, then \\"oops\\"", (parse_all(&refs), parse_every_error(&refs)), (Err("bad number: oops".to_string()), Err(vec!["bad number: oops".to_string()])));
         }
         """,
     ],
     wrong=dict(
-        reports_the_last_bad_item="""
-            pub fn parse_all(items: &[&str]) -> Result<Vec<i32>, String> {
-                let mut out = Vec::new();
-                let mut err = None;
-                for s in items {
-                    match s.parse() {
-                        Ok(n) => out.push(n),
-                        Err(_) => err = Some(format!("bad number: {s}")),
-                    }
-                }
-                match err {
-                    Some(e) => Err(e),
-                    None => Ok(out),
-                }
-            }
-        """,
-        skips_blank_items="""
-            pub fn parse_all(items: &[&str]) -> Result<Vec<i32>, String> {
-                items
-                    .iter()
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.parse().map_err(|_| format!("bad number: {s}")))
-                    .collect()
-            }
-        """,
-        trims_items="""
-            pub fn parse_all(items: &[&str]) -> Result<Vec<i32>, String> {
-                items
-                    .iter()
-                    .map(|s| s.trim().parse().map_err(|_| format!("bad number: {s}")))
-                    .collect()
-            }
-        """,
+        sums_in_i32=COLLECT_SOL.replace("items.iter().map(|s| parse(s).map(i64::from)).sum()", "items.iter().map(|s| parse(s)).sum::<Result<i32, String>>().map(i64::from)"),
+        validate_checks_everything=COLLECT_SOL.replace("items.iter().map(|s| check(s)).collect()\n", "let results: Vec<Result<(), String>> = items.iter().map(|s| check(s)).collect();\n            results.into_iter().collect()\n"),
+        only_the_first_error=COLLECT_SOL.replace("Err(bad.into_iter().filter_map(Result::err).collect())", "Err(bad.into_iter().filter_map(Result::err).take(1).collect())"),
+        reports_the_last_bad_item=COLLECT_SOL.replace("items.iter().map(|s| parse(s)).collect()\n", "let mut out = Vec::new();\n            let mut err = None;\n            for s in items {\n                match parse(s) {\n                    Ok(n) => out.push(n),\n                    Err(e) => err = Some(e),\n                }\n            }\n            err.map_or(Ok(out), Err)\n"),
     ),
-    hints=[("rust", "`Result<Vec<T>, E>` implements `FromIterator<Result<T, E>>`.")],
-    notes=("`collect` short-circuits on the first `Err`, so later items aren't parsed.", "O(n)", "O(n)"),
-    follow_up="How would you collect every error instead of just the first?",
+    hints=[("approach", "Three of the four are one `collect` or `sum` with the right target type; only `parse_every_error` needs two passes."),
+           ("rust", "`.collect::<Result<Vec<_>, _>>()`, `.sum::<Result<i64, _>>()`, `.collect::<Result<(), _>>()`. For every error: `let (good, bad): (Vec<_>, Vec<_>) = iter.partition(Result::is_ok);`."),
+           ("edge case", "Two `i32::MAX` items overflow an `i32` sum: convert each value to `i64` before adding.")],
+    notes=("""The short-circuiting impls are `impl<A, E, V: FromIterator<A>> FromIterator<Result<A, E>> for Result<V, E>` and `impl<T: Sum<U>, U, E> Sum<Result<U, E>> for Result<T, E>`: they pull items until the first `Err` and drop the rest of the iterator, so later items are never produced (which `validate`'s call count shows). `()` implements `FromIterator<()>`, which is why `collect::<Result<(), _>>()` works; `try_for_each` is the same thing spelled as a loop. Collecting all errors can't short-circuit by definition. Syntax to remember: `collect::<Result<Vec<_>, _>>()`, `sum::<Result<i64, _>>()`, `collect::<Option<Vec<_>>>()`, `partition(Result::is_ok)`, `results.into_iter().flatten()` (the `Ok` values), `filter_map(Result::err)`.""", "O(n)", "O(n) for the Vec results, O(1) for sum_all and validate"),
+    follow_up="How would you return both the good values and the errors? When does collecting every error make an API worse?",
     related=["S6", "L8"],
 ))
 
@@ -1422,10 +1887,11 @@ P.append(dict(
 
 P.append(dict(
     slug="fix-unwrap-on-input", title="Fix: unwrap on user input", mode="fix", level="medium", stage="understand-it", tags=["unwrap", "Result", "?"],
-    teaches=["`unwrap` on input you don't control is a crash waiting for a user.", "Return errors that say what was wrong."],
+    teaches=["`unwrap` on input you don't control is a crash waiting for a user.", "`f64::from_str` accepts `NaN`, `inf`, `infinity` and `1e999` (which overflows to infinity): parsing isn't validating.", "Return errors that say what was wrong."],
     statement="""
         `average` takes comma-separated numbers like `"1, 2, 3"`. It panics on anything unexpected.
-        Return `Err("no numbers")` for blank input and `Err("not a number: <item>")` for a bad item.
+        Return `Err("no numbers")` for blank input and `Err("not a number: <item>")` (the trimmed item) for the first
+        item that isn't a finite number.
     """,
     starter="""
         /// The average of comma-separated numbers, e.g. "1, 2, 3".
@@ -1444,7 +1910,7 @@ P.append(dict(
                 .split(',')
                 .map(|s| {
                     let s = s.trim();
-                    s.parse::<f64>().map_err(|_| format!("not a number: {s}"))
+                    s.parse::<f64>().ok().filter(|x| x.is_finite()).ok_or_else(|| format!("not a number: {s}"))
                 })
                 .collect::<Result<Vec<f64>, String>>()?;
             Ok(nums.iter().sum::<f64>() / nums.len() as f64)
@@ -1468,6 +1934,11 @@ P.append(dict(
         T("first_bad_item_wins", "\"a, b\"", 'average("a, b")', 'Err("not a number: a".to_string())'),
         T("only_a_comma", "\",\"", 'average(",")', 'Err("not a number: ".to_string())'),
         T("unicode_item", "\"1, ２\"", 'average("1, ２")', 'Err("not a number: ２".to_string())'),
+        T("nan_is_not_a_number", "\"1, NaN\"", 'average("1, NaN")', 'Err("not a number: NaN".to_string())'),
+        T("infinities_are_not_numbers", "\"inf\", \"-infinity\"", '(average("inf"), average("2, -infinity"))', '(Err("not a number: inf".to_string()), Err("not a number: -infinity".to_string()))'),
+        T("overflowing_literal", "\"1e999\"", 'average("1e999")', 'Err("not a number: 1e999".to_string())'),
+        T("large_but_finite", "\"1e300, -1e300, 3\"", 'average("1e300, -1e300, 3")', "Ok(1.0)"),
+        T("exponents_and_signs", "\"+1.5e1, -5\"", 'average("+1.5e1, -5")', "Ok(5.0)"),
         """
         #[test]
         fn random_vs_brute_force() {
@@ -1495,6 +1966,22 @@ P.append(dict(
         """,
     ],
     wrong=dict(
+        accepts_nan_and_infinity="""
+            /// The average of comma-separated numbers, e.g. "1, 2, 3".
+            pub fn average(input: &str) -> Result<f64, String> {
+                if input.trim().is_empty() {
+                    return Err("no numbers".into());
+                }
+                let nums = input
+                    .split(',')
+                    .map(|s| {
+                        let s = s.trim();
+                        s.parse::<f64>().map_err(|_| format!("not a number: {s}"))
+                    })
+                    .collect::<Result<Vec<f64>, String>>()?;
+                Ok(nums.iter().sum::<f64>() / nums.len() as f64)
+            }
+        """,
         blank_check_after_parsing="""
             /// The average of comma-separated numbers, e.g. "1, 2, 3".
             pub fn average(input: &str) -> Result<f64, String> {
@@ -1541,10 +2028,187 @@ P.append(dict(
         """,
     ),
     hints=[("rust", "Turn each parse into a `Result` with a message, then collect into `Result<Vec<_>, _>` and use `?`."),
-           ("edge case", "Blank input would otherwise divide by zero or fail on the empty item.")],
-    notes=("Every failure path now returns a message instead of panicking. The blank check has to come first, or `\"\"` reports `not a number: `.", "O(n)", "O(n)"),
+           ("edge case", "Blank input would otherwise divide by zero or fail on the empty item. And try `\"NaN\".parse::<f64>()`.")],
+    notes=("Every failure path now returns a message instead of panicking. The blank check has to come first, or `\"\"` reports `not a number: `. `f64`'s parser follows IEEE 754 text forms, so `NaN`, `inf` and out-of-range literals parse successfully; one `NaN` then poisons the average silently, which is worse than the panic it replaced. Syntax to remember: `s.parse::<f64>().ok().filter(|x| x.is_finite()).ok_or_else(|| msg)`, `.collect::<Result<Vec<_>, _>>()?`.", "O(n)", "O(n)"),
     follow_up="Which unwraps in a codebase are fine, and how would you document them?",
     related=["L8"],
+))
+
+NICHE_STARTER = """
+        /// A binary search tree in one `Vec`. Links are indices into `nodes`; the root is `nodes[0]`.
+        #[derive(Debug)]
+        pub struct Node {
+            pub key: i32,
+            pub left: Option<u32>,
+            pub right: Option<u32>,
+        }
+
+        #[derive(Debug, Default)]
+        pub struct Tree {
+            pub nodes: Vec<Node>,
+        }
+
+        impl Tree {
+            pub fn new() -> Tree {
+                Tree { nodes: Vec::new() }
+            }
+
+            /// Inserts `key`. Returns false if it was already there.
+            pub fn insert(&mut self, key: i32) -> bool {
+                if self.nodes.is_empty() {
+                    self.nodes.push(Node { key, left: None, right: None });
+                    return true;
+                }
+                let new = u32::try_from(self.nodes.len()).expect("too many nodes");
+                let mut i = 0;
+                loop {
+                    let node = &mut self.nodes[i];
+                    let link = if key < node.key {
+                        &mut node.left
+                    } else if key > node.key {
+                        &mut node.right
+                    } else {
+                        return false;
+                    };
+                    match *link {
+                        Some(next) => i = next as usize,
+                        None => {
+                            *link = Some(new);
+                            break;
+                        }
+                    }
+                }
+                self.nodes.push(Node { key, left: None, right: None });
+                true
+            }
+
+            pub fn contains(&self, key: i32) -> bool {
+                let mut link = if self.nodes.is_empty() { None } else { Some(0) };
+                while let Some(i) = link {
+                    let node = &self.nodes[i as usize];
+                    if key == node.key {
+                        return true;
+                    }
+                    link = if key < node.key { node.left } else { node.right };
+                }
+                false
+            }
+
+            /// The keys in ascending order.
+            pub fn in_order(&self) -> Vec<i32> {
+                let mut out = Vec::with_capacity(self.nodes.len());
+                let mut stack = Vec::new();
+                let mut link = if self.nodes.is_empty() { None } else { Some(0) };
+                loop {
+                    while let Some(i) = link {
+                        stack.push(i);
+                        link = self.nodes[i as usize].left;
+                    }
+                    let Some(i) = stack.pop() else { break };
+                    out.push(self.nodes[i as usize].key);
+                    link = self.nodes[i as usize].right;
+                }
+                out
+            }
+        }
+"""
+
+# Index 0 is the root, which is never anyone's child, so a child link is never 0 and fits a NonZeroU32 as is.
+NICHE_SOL = (NICHE_STARTER
+    .replace("/// A binary search tree in one `Vec`.", "use std::num::NonZeroU32;\n\n        /// A binary search tree in one `Vec`.")
+    .replace("pub left: Option<u32>,\n            pub right: Option<u32>,", "// The root is nodes[0] and is never a child, so a child index is never 0.\n            pub left: Option<NonZeroU32>,\n            pub right: Option<NonZeroU32>,")
+    .replace('let new = u32::try_from(self.nodes.len()).expect("too many nodes");', 'let new = u32::try_from(self.nodes.len()).ok().and_then(NonZeroU32::new).expect("too many nodes");')
+    .replace("Some(next) => i = next as usize,", "Some(next) => i = next.get() as usize,")
+    .replace("let mut link = if self.nodes.is_empty() { None } else { Some(0) };\n                while let Some(i) = link {\n                    let node = &self.nodes[i as usize];",
+             "let mut link = if self.nodes.is_empty() { None } else { Some(0) };\n                while let Some(i) = link {\n                    let node = &self.nodes[i];")
+    .replace("link = if key < node.key { node.left } else { node.right };", "link = (if key < node.key { node.left } else { node.right }).map(|n| n.get() as usize);")
+    .replace("let mut link = if self.nodes.is_empty() { None } else { Some(0) };\n                loop {", "let mut link: Option<usize> = if self.nodes.is_empty() { None } else { Some(0) };\n                loop {")
+    .replace("link = self.nodes[i as usize].left;", "link = self.nodes[i].left.map(|n| n.get() as usize);")
+    .replace("out.push(self.nodes[i as usize].key);\n                    link = self.nodes[i as usize].right;", "out.push(self.nodes[i].key);\n                    link = self.nodes[i].right.map(|n| n.get() as usize);"))
+
+NICHE_U16 = (NICHE_STARTER
+    .replace("pub left: Option<u32>,\n            pub right: Option<u32>,", "pub left: Option<u16>,\n            pub right: Option<u16>,")
+    .replace('let new = u32::try_from(self.nodes.len()).expect("too many nodes");', "let new = self.nodes.len() as u16;"))
+
+NICHE_PLUS_ONE_BUG = NICHE_SOL.replace("u32::try_from(self.nodes.len()).ok().and_then(NonZeroU32::new)", "u32::try_from(self.nodes.len() + 1).ok().and_then(NonZeroU32::new)")
+
+P.append(dict(
+    slug="fix-option-niche", title="Fix: Option<u32> links bloat every node", mode="fix", level="medium", stage="understand-it", tags=["niche optimization", "NonZeroU32", "size_of"],
+    teaches=[
+        "`Option<T>` is free only when `T` has a niche, a bit pattern it never uses: references, `Box`, `NonNull`, `NonZero*`, `bool`, `char`, enums.",
+        "`Option<u32>` has no spare value, so it needs a separate tag and doubles to 8 bytes; `Option<NonZeroU32>` stays 4.",
+        "Arena and slab code keeps `Option` links compact by making index 0 impossible (or storing index + 1).",
+    ],
+    statement="""
+        `Tree` stores a binary search tree in one `Vec`, with child links as indices. It works, but it will hold
+        hundreds of millions of nodes, and each `Node` is 20 bytes: `i32` + two `Option<u32>` of 8 bytes each.
+
+        Get `Node` down to **12 bytes** without changing what the tree does. The links must stay `Option`s (the tests
+        call `.is_none()` on them), and the tree must still work past 65 536 nodes. No `unsafe`.
+    """,
+    examples=[("size_of::<Node>()", "12"), ("insert 5, 3, 8; in_order()", "[3, 5, 8]")],
+    starter=NICHE_STARTER,
+    solution=NICHE_SOL,
+    rules=dict(unsafe=True, lines=16),
+    visible=[
+        T("node_is_twelve_bytes", "size_of::<Node>()", "std::mem::size_of::<Node>()", "12"),
+        T("insert_and_in_order", "insert 5, 3, 8, 3", "(r, t.in_order())", "([true, true, true, false], vec![3, 5, 8])", setup="let mut t = Tree::new();\nlet r = [5, 3, 8, 3].map(|k| t.insert(k));"),
+        T("contains", "insert 5, 3, 8; contains 3, 4, 8", "(t.contains(3), t.contains(4), t.contains(8))", "(true, false, true)", setup="let mut t = Tree::new();\nfor k in [5, 3, 8] {\n    t.insert(k);\n}"),
+        T("links_are_options", "insert 5, 3: root's right and the leaf's links", "(t.nodes[0].left.is_some(), t.nodes[0].right.is_none(), t.nodes[1].left.is_none(), t.nodes[1].right.is_none())", "(true, true, true, true)", setup="let mut t = Tree::new();\nt.insert(5);\nt.insert(3);"),
+        T("empty_tree", "Tree::new()", "(t.contains(0), t.in_order())", "(false, Vec::<i32>::new())", setup="let t = Tree::new();"),
+    ],
+    hidden=[
+        T("single_node", "insert 7", "(t.contains(7), t.in_order(), t.nodes[0].left.is_none() && t.nodes[0].right.is_none())", "(true, vec![7], true)", setup="let mut t = Tree::new();\nt.insert(7);"),
+        T("extreme_keys", "insert i32::MIN, i32::MAX, 0", "t.in_order()", "vec![i32::MIN, 0, i32::MAX]", setup="let mut t = Tree::new();\nfor k in [i32::MIN, i32::MAX, 0] {\n    t.insert(k);\n}"),
+        T("duplicates_ignored", "insert 1, 1, 1", "(t.nodes.len(), t.in_order())", "(1, vec![1])", setup="let mut t = Tree::new();\nfor _ in 0..3 {\n    t.insert(1);\n}"),
+        T("sorted_inserts_make_a_right_spine", "insert 1..=5", "(t.in_order(), t.nodes.iter().all(|n| n.left.is_none()))", "(vec![1, 2, 3, 4, 5], true)", setup="let mut t = Tree::new();\nfor k in 1..=5 {\n    t.insert(k);\n}"),
+        T("reverse_inserts_make_a_left_spine", "insert 5, 4, 3, 2, 1", "(t.in_order(), t.nodes.iter().all(|n| n.right.is_none()))", "(vec![1, 2, 3, 4, 5], true)", setup="let mut t = Tree::new();\nfor k in (1..=5).rev() {\n    t.insert(k);\n}"),
+        T("zero_key_is_an_ordinary_key", "insert 0, -1, 1", "(t.contains(0), t.contains(-1), t.contains(1), t.contains(2))", "(true, true, true, false)", setup="let mut t = Tree::new();\nfor k in [0, -1, 1] {\n    t.insert(k);\n}"),
+        T("vec_of_nodes_is_smaller", "size_of::<Node>() * 1000", "std::mem::size_of::<Node>() * 1000", "12_000"),
+        T("mixed_signs", "insert -5, 5, -3, 3, 0", "(t.in_order(), t.contains(-3), t.contains(-4))", "(vec![-5, -3, 0, 3, 5], true, false)", setup="let mut t = Tree::new();\nfor k in [-5, 5, -3, 3, 0] {\n    t.insert(k);\n}"),
+        """
+        #[test]
+        fn random_vs_btreeset() {
+            let mut rng = anneal_prelude::Rng::new(7108);
+            for _ in 0..300 {
+                let n = rng.below(20);
+                let keys: Vec<i32> = rng.vec(n, -10, 10);
+                let mut t = Tree::new();
+                let mut model = std::collections::BTreeSet::new();
+                for &k in &keys {
+                    check!(format!("insert {k} after {model:?}"), t.insert(k), model.insert(k));
+                }
+                check!(format!("in_order after inserting {keys:?}"), t.in_order(), model.iter().copied().collect::<Vec<_>>());
+                let q = rng.int(-11, 11) as i32;
+                check!(format!("contains {q} after inserting {keys:?}"), t.contains(q), model.contains(&q));
+            }
+        }
+
+        #[test]
+        fn scale_past_u16() {
+            let mut rng = anneal_prelude::Rng::new(7109);
+            let mut keys: Vec<i32> = (0..150_000).map(|i| i * 3).collect();
+            rng.shuffle(&mut keys);
+            let mut t = Tree::new();
+            for &k in &keys {
+                t.insert(k);
+            }
+            let hits = (0..450_000).filter(|&k| t.contains(k)).count();
+            let sorted = t.in_order();
+            check!("150000 shuffled keys 0, 3, 6, …: hits among 0..450000, and in_order", (hits, sorted.len(), sorted[149_999], sorted.windows(2).all(|w| w[0] < w[1])), (150_000, 150_000, 449_997, true));
+        }
+        """,
+    ],
+    wrong=dict(
+        u16_links=NICHE_U16,
+        off_by_one_link=NICHE_PLUS_ONE_BUG,
+    ),
+    hints=[("approach", "`Option<u32>` needs somewhere to store \"is this `Some`\", because every `u32` is a valid value. Which integer type rules out one value, and which index can never be a child link?"),
+           ("rust", "`std::num::NonZeroU32`: `NonZeroU32::new(x)` returns `Option<NonZeroU32>` (`None` for 0), and `n.get()` gives the `u32` back."),
+           ("edge case", "The root is index 0 and is never anyone's child, so a child link is always at least 1. `u16` links would fit, but break past 65 536 nodes.")],
+    notes=("""A niche is a bit pattern a type promises never to hold. The compiler uses it to encode `None`, so `Option<&T>`, `Option<Box<T>>`, `Option<NonNull<T>>`, `Option<fn()>` and `Option<NonZeroU32>` are exactly the size of the inner type; that much is guaranteed. Plain integers have no niche, so `Option<u32>` adds a tag and padding: 8 bytes. That's why linked structures in Rust use `Option<Box<Node>>` without a second thought, and why index-based arenas use `NonZeroU32` handles (index 0 reserved, or index + 1 stored). Other niches are real but unguaranteed: `Option<Vec<T>>`, `Option<String>` and `Option<Option<bool>>` also stay the same size today. Syntax to remember: `NonZeroU32::new(x) -> Option<NonZeroU32>`, `n.get()`, `std::mem::size_of::<T>()`, `u32::try_from(len).ok().and_then(NonZeroU32::new)`.""", "O(h) insert and contains, O(n) in_order", "12 bytes per node"),
+    follow_up="What would you do if index 0 had to be a valid child too? How do generational arenas (slotmap) pack an index and a generation into one `Option`-friendly handle?",
+    related=["S11", "Y1", "D6"],
 ))
 
 MY_OPTION = """
@@ -1555,22 +2219,25 @@ MY_OPTION = """
         }
 
         impl<T> MyOption<T> {
-            pub fn is_some(&self) -> bool {
-                matches!(self, MyOption::Some(_))
-            }
-            pub fn is_none(&self) -> bool {
-                !self.is_some()
-            }
-            pub fn unwrap_or(self, default: T) -> T {
+            pub fn is_some_and(self, f: impl FnOnce(T) -> bool) -> bool {
                 match self {
-                    MyOption::Some(v) => v,
-                    MyOption::None => default,
+                    MyOption::Some(v) => f(v),
+                    MyOption::None => false,
                 }
             }
             pub fn unwrap_or_else(self, f: impl FnOnce() -> T) -> T {
                 match self {
                     MyOption::Some(v) => v,
                     MyOption::None => f(),
+                }
+            }
+            pub fn unwrap_or_default(self) -> T
+            where
+                T: Default,
+            {
+                match self {
+                    MyOption::Some(v) => v,
+                    MyOption::None => T::default(),
                 }
             }
             pub fn map<U>(self, f: impl FnOnce(T) -> U) -> MyOption<U> {
@@ -1585,16 +2252,16 @@ MY_OPTION = """
                     MyOption::None => MyOption::None,
                 }
             }
-            pub fn or(self, other: MyOption<T>) -> MyOption<T> {
+            pub fn and<U>(self, other: MyOption<U>) -> MyOption<U> {
                 match self {
-                    MyOption::Some(_) => self,
-                    MyOption::None => other,
+                    MyOption::Some(_) => other,
+                    MyOption::None => MyOption::None,
                 }
             }
-            pub fn ok_or<E>(self, err: E) -> Result<T, E> {
+            pub fn or_else(self, f: impl FnOnce() -> MyOption<T>) -> MyOption<T> {
                 match self {
-                    MyOption::Some(v) => Ok(v),
-                    MyOption::None => Err(err),
+                    MyOption::Some(v) => MyOption::Some(v),
+                    MyOption::None => f(),
                 }
             }
             pub fn filter(self, keep: impl FnOnce(&T) -> bool) -> MyOption<T> {
@@ -1606,16 +2273,46 @@ MY_OPTION = """
             pub fn take(&mut self) -> MyOption<T> {
                 std::mem::replace(self, MyOption::None)
             }
+            pub fn iter(&self) -> Iter<'_, T> {
+                Iter {
+                    inner: match self {
+                        MyOption::Some(v) => MyOption::Some(v),
+                        MyOption::None => MyOption::None,
+                    },
+                }
+            }
+        }
+
+        /// Yields a reference to the value, at most once.
+        pub struct Iter<'a, T> {
+            inner: MyOption<&'a T>,
+        }
+
+        impl<'a, T> Iterator for Iter<'a, T> {
+            type Item = &'a T;
+
+            fn next(&mut self) -> Option<&'a T> {
+                match self.inner.take() {
+                    MyOption::Some(v) => Some(v),
+                    MyOption::None => None,
+                }
+            }
         }
     """
 
 P.append(dict(
-    slug="my-option", title="Build MyOption<T>", level="hard", stage="build-it", tags=["enum", "generics", "mem::replace"],
-    teaches=["Every combinator is a `match` on two variants.", "`take` needs `mem::replace` to move out of `&mut self`."],
+    slug="my-option", title="Build MyOption<T>", level="hard", stage="build-it", tags=["enum", "generics", "mem::replace", "Iterator"],
+    teaches=[
+        "Every combinator is a `match` on two variants; the lazy ones call their closure in one arm only.",
+        "`unwrap_or_default` is available only when `T: Default`: a `where` clause on a single method.",
+        "`take` needs `mem::replace` to move out of `&mut self`, and an iterator over an `Option` is `take` in a loop.",
+    ],
     statement="""
-        Implement `MyOption<T>`, a copy of `Option<T>`, with ten methods:
-        `is_some`, `is_none`, `unwrap_or`, `unwrap_or_else`, `map`, `and_then`, `or`, `ok_or`, `filter`, `take`.
-        Each should behave like std's version.
+        Implement `MyOption<T>`, a copy of `Option<T>`, with ten methods that behave like std's:
+        `is_some_and`, `unwrap_or_else`, `unwrap_or_default`, `map`, `and_then`, `and`, `or_else`, `filter`, `take`
+        and `iter`. `iter` returns an `Iter` that yields `&T` at most once.
+
+        Closures must run only when std's would, and at most once.
     """,
     starter="""
         #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -1625,45 +2322,59 @@ P.append(dict(
         }
 
         impl<T> MyOption<T> {
-            pub fn is_some(&self) -> bool { todo!() }
-            pub fn is_none(&self) -> bool { todo!() }
-            pub fn unwrap_or(self, default: T) -> T { todo!() }
+            pub fn is_some_and(self, f: impl FnOnce(T) -> bool) -> bool { todo!() }
             pub fn unwrap_or_else(self, f: impl FnOnce() -> T) -> T { todo!() }
+            pub fn unwrap_or_default(self) -> T where T: Default { todo!() }
             pub fn map<U>(self, f: impl FnOnce(T) -> U) -> MyOption<U> { todo!() }
             pub fn and_then<U>(self, f: impl FnOnce(T) -> MyOption<U>) -> MyOption<U> { todo!() }
-            pub fn or(self, other: MyOption<T>) -> MyOption<T> { todo!() }
-            pub fn ok_or<E>(self, err: E) -> Result<T, E> { todo!() }
+            pub fn and<U>(self, other: MyOption<U>) -> MyOption<U> { todo!() }
+            pub fn or_else(self, f: impl FnOnce() -> MyOption<T>) -> MyOption<T> { todo!() }
             pub fn filter(self, keep: impl FnOnce(&T) -> bool) -> MyOption<T> { todo!() }
             pub fn take(&mut self) -> MyOption<T> { todo!() }
+            pub fn iter(&self) -> Iter<'_, T> { todo!() }
+        }
+
+        /// Yields a reference to the value, at most once.
+        pub struct Iter<'a, T> {
+            inner: MyOption<&'a T>,
+        }
+
+        impl<'a, T> Iterator for Iter<'a, T> {
+            type Item = &'a T;
+
+            fn next(&mut self) -> Option<&'a T> {
+                todo!()
+            }
         }
     """,
     solution=MY_OPTION,
     visible=[
-        T("is_some_none", "Some(1), None", "(MyOption::Some(1).is_some(), MyOption::<i32>::None.is_none())", "(true, true)"),
         T("map_and_then", "Some(2)", "MyOption::Some(2).map(|x| x * 10).and_then(|x| if x > 5 { MyOption::Some(x + 1) } else { MyOption::None })", "MyOption::Some(21)"),
-        T("unwrap_or", "None", "MyOption::None.unwrap_or(7)", "7"),
+        T("is_some_and", "Some(4), Some(5), None", "(MyOption::Some(4).is_some_and(|x| x % 2 == 0), MyOption::Some(5).is_some_and(|x| x % 2 == 0), MyOption::<i32>::None.is_some_and(|_| true))", "(true, false, false)"),
         T("take", "Some(\"a\")", '{ let mut o = MyOption::Some("a"); let t = o.take(); (t, o) }', '(MyOption::Some("a"), MyOption::None)'),
-        T("or_keeps_the_first", "Some(1) or Some(2)", "MyOption::Some(1).or(MyOption::Some(2))", "MyOption::Some(1)"),
+        T("and_or_else", "Some(1).and(Some(\"x\")), None.or_else(|| Some(3))", '(MyOption::Some(1).and(MyOption::Some("x")), MyOption::None.or_else(|| MyOption::Some(3)))', '(MyOption::Some("x"), MyOption::Some(3))'),
+        T("iter_yields_once", "Some(7).iter(), None.iter()", "(MyOption::Some(7).iter().copied().take(5).collect::<Vec<_>>(), MyOption::<i32>::None.iter().take(5).count())", "(vec![7], 0)"),
     ],
     hidden=[
-        T("or", "None or Some(3)", "MyOption::None.or(MyOption::Some(3))", "MyOption::Some(3)"),
-        T("ok_or", "None", 'MyOption::<u8>::None.ok_or("missing")', 'Err("missing")'),
-        T("filter", "Some(4), Some(5)", "(MyOption::Some(4).filter(|x| x % 2 == 0), MyOption::Some(5).filter(|x| x % 2 == 0))", "(MyOption::Some(4), MyOption::None)"),
+        T("unwrap_or_default", "None::<String>, Some(\"x\"), None::<Vec<u8>>", '(MyOption::<String>::None.unwrap_or_default(), MyOption::Some("x".to_string()).unwrap_or_default(), MyOption::<Vec<u8>>::None.unwrap_or_default())', '(String::new(), "x".to_string(), Vec::new())'),
         T("unwrap_or_else_lazy", "Some(1)", "MyOption::Some(1).unwrap_or_else(|| panic!(\"should not run\"))", "1"),
-        T("is_some_is_none_false", "None, Some(1)", "(MyOption::<i32>::None.is_some(), MyOption::Some(1).is_none())", "(false, false)"),
-        T("unwrap_or_some", "Some(5)", "MyOption::Some(5).unwrap_or(7)", "5"),
         T("unwrap_or_else_none", "None", "MyOption::None.unwrap_or_else(|| 9)", "9"),
-        T("map_changes_type", "Some(\"abc\")", "MyOption::Some(\"abc\").map(str::len)", "MyOption::Some(3)"),
-        T("map_none_skips_f", "None", "MyOption::<i32>::None.map(|x| -> i32 { panic!(\"should not run: {x}\") })", "MyOption::None"),
+        T("or_else_keeps_some_and_skips_f", "Some(1).or_else(panics)", "MyOption::Some(1).or_else(|| panic!(\"should not run\"))", "MyOption::Some(1)"),
+        T("or_else_both_none", "None.or_else(|| None)", "MyOption::<i32>::None.or_else(|| MyOption::None)", "MyOption::None"),
+        T("and_with_none", "Some(1).and(None), None.and(Some(2))", "(MyOption::Some(1).and(MyOption::<u8>::None), MyOption::<i32>::None.and(MyOption::Some(2u8)))", "(MyOption::None, MyOption::None)"),
+        T("and_changes_type", "Some(\"s\").and(Some(5u64))", 'MyOption::Some("s").and(MyOption::Some(5u64))', "MyOption::Some(5u64)"),
+        T("is_some_and_skips_f_on_none", "None.is_some_and(panics)", "MyOption::<i32>::None.is_some_and(|x| panic!(\"should not run: {x}\"))", "false"),
+        T("is_some_and_takes_ownership", "Some(String::from(\"hi\")).is_some_and(|s| s.len() == 2)", 'MyOption::Some(String::from("hi")).is_some_and(|s: String| s.len() == 2)', "true"),
+        T("filter", "Some(4), Some(5), None", "(MyOption::Some(4).filter(|x| x % 2 == 0), MyOption::Some(5).filter(|x| x % 2 == 0), MyOption::<i32>::None.filter(|x| panic!(\"should not run: {x}\")))", "(MyOption::Some(4), MyOption::None, MyOption::None)"),
+        T("map_changes_type_and_skips_none", "Some(\"abc\").map(len), None.map(panics)", '(MyOption::Some("abc").map(str::len), MyOption::<i32>::None.map(|x| -> i32 { panic!("should not run: {x}") }))', "(MyOption::Some(3), MyOption::None)"),
         T("and_then_none_skips_f", "None", "MyOption::<i32>::None.and_then(|x| -> MyOption<i32> { panic!(\"should not run: {x}\") })", "MyOption::None"),
-        T("and_then_to_none", "Some(1)", "MyOption::Some(1).and_then(|_| MyOption::<i32>::None)", "MyOption::None"),
-        T("or_both_none", "None or None", "MyOption::<i32>::None.or(MyOption::None)", "MyOption::None"),
-        T("ok_or_some", "Some(3)", 'MyOption::Some(3).ok_or("missing")', "Ok(3)"),
-        T("filter_none_skips_keep", "None", "MyOption::<i32>::None.filter(|x| panic!(\"should not run: {x}\"))", "MyOption::None"),
         T("take_none", "None", "{ let mut o = MyOption::<i32>::None; let t = o.take(); (t, o) }", "(MyOption::None, MyOption::None)"),
         T("take_moves_a_string", "Some(String::from(\"hi\"))", '{ let mut o = MyOption::Some(String::from("hi")); let t = o.take(); (t, o) }', '(MyOption::Some("hi".to_string()), MyOption::None)'),
+        T("iter_stops_after_one", "Some(1).iter(), next() three times", "{ let o = MyOption::Some(1); let mut it = o.iter(); (it.next().copied(), it.next().copied(), it.next().copied()) }", "(Some(1), None, None)"),
+        T("iter_borrows_in_place", "Some(String::from(\"x\")).iter()", '{ let o = MyOption::Some(String::from("x")); let p = o.iter().next().map(|s| s.as_ptr()); let q = match &o { MyOption::Some(s) => Some(s.as_ptr()), MyOption::None => None }; p == q && p.is_some() }', "true"),
+        T("iter_chains_like_std", "[Some(1), None, Some(3)] flattened through iter()", "[MyOption::Some(1), MyOption::None, MyOption::Some(3)].iter().flat_map(|o| o.iter()).copied().take(5).collect::<Vec<_>>()", "vec![1, 3]"),
         """
-        fn mine(o: Option<i32>) -> MyOption<i32> {
+        fn mine<T>(o: Option<T>) -> MyOption<T> {
             match o {
                 Some(v) => MyOption::Some(v),
                 None => MyOption::None,
@@ -1672,37 +2383,45 @@ P.append(dict(
 
         #[test]
         fn random_vs_std_option() {
-            let mut rng = anneal_prelude::Rng::new(1309);
+            let mut rng = anneal_prelude::Rng::new(7110);
             for _ in 0..300 {
                 let a = if rng.bool() { Some(rng.int(-5, 5) as i32) } else { None };
                 let b = if rng.bool() { Some(rng.int(-5, 5) as i32) } else { None };
                 let d = rng.int(-5, 5) as i32;
-                let desc = format!("a = {a:?}, b = {b:?}, default = {d}");
-                check!(format!("is_some/is_none, {desc}"), (mine(a).is_some(), mine(a).is_none()), (a.is_some(), a.is_none()));
-                check!(format!("unwrap_or, {desc}"), mine(a).unwrap_or(d), a.unwrap_or(d));
-                check!(format!("unwrap_or_else, {desc}"), mine(a).unwrap_or_else(|| d * 2), a.unwrap_or_else(|| d * 2));
+                let desc = format!("a = {a:?}, b = {b:?}, d = {d}");
+                let mut calls = (0, 0);
+                check!(format!("is_some_and(x > d), {desc}"), mine(a).is_some_and(|x| { calls.0 += 1; x > d }), a.is_some_and(|x| { calls.1 += 1; x > d }));
+                let mut calls2 = (0, 0);
+                check!(format!("unwrap_or_else(|| d), {desc}"), mine(a).unwrap_or_else(|| { calls2.0 += 1; d }), a.unwrap_or_else(|| { calls2.1 += 1; d }));
+                check!(format!("unwrap_or_default, {desc}"), mine(a).unwrap_or_default(), a.unwrap_or_default());
                 check!(format!("map(x + d), {desc}"), mine(a).map(|x| x + d), mine(a.map(|x| x + d)));
                 check!(format!("and_then(positive), {desc}"), mine(a).and_then(|x| if x > 0 { MyOption::Some(x * 3) } else { MyOption::None }), mine(a.and_then(|x| if x > 0 { Some(x * 3) } else { None })));
-                check!(format!("a.or(b), {desc}"), mine(a).or(mine(b)), mine(a.or(b)));
-                check!(format!("ok_or(d), {desc}"), mine(a).ok_or(d), a.ok_or(d));
+                check!(format!("a.and(b), {desc}"), mine(a).and(mine(b)), mine(a.and(b)));
+                let mut calls3 = (0, 0);
+                check!(format!("a.or_else(|| b), {desc}"), mine(a).or_else(|| { calls3.0 += 1; mine(b) }), mine(a.or_else(|| { calls3.1 += 1; b })));
                 check!(format!("filter(even), {desc}"), mine(a).filter(|x| x % 2 == 0), mine(a.filter(|x| x % 2 == 0)));
                 let mut m = mine(a);
                 let mut s = a;
                 check!(format!("take, {desc}"), (m.take(), m), (mine(s.take()), mine(s)));
+                check!(format!("iter, {desc}"), mine(a).iter().copied().take(5).collect::<Vec<_>>(), a.iter().copied().collect::<Vec<_>>());
+                check!(format!("closure calls, {desc}"), (calls.0, calls2.0, calls3.0), (calls.1, calls2.1, calls3.1));
             }
         }
         """,
     ],
     wrong=dict(
-        or_prefers_the_other=MY_OPTION.replace("match self {\n                    MyOption::Some(_) => self,\n                    MyOption::None => other,", "match other {\n                    MyOption::Some(_) => other,\n                    MyOption::None => self,"),
-        eager_unwrap_or_else=MY_OPTION.replace("MyOption::None => f(),", "MyOption::None => d,").replace("-> T) -> T {\n                match self {", "-> T) -> T {\n                let d = f();\n                match self {"),
+        eager_or_else=MY_OPTION.replace("pub fn or_else(self, f: impl FnOnce() -> MyOption<T>) -> MyOption<T> {\n                match self {\n                    MyOption::Some(v) => MyOption::Some(v),\n                    MyOption::None => f(),",
+                                        "pub fn or_else(self, f: impl FnOnce() -> MyOption<T>) -> MyOption<T> {\n                let other = f();\n                match self {\n                    MyOption::Some(v) => MyOption::Some(v),\n                    MyOption::None => other,"),
+        and_ignores_self=MY_OPTION.replace("MyOption::Some(_) => other,\n                    MyOption::None => MyOption::None,", "_ => other,"),
+        iter_never_ends=MY_OPTION.replace("match self.inner.take() {", "match self.inner {"),
         filter_drops_matches=MY_OPTION.replace("if keep(&v)", "if !keep(&v)"),
     ),
-    hints=[("approach", "Each method is one `match` on `Some(v)` / `None`."),
-           ("rust", "`take` has `&mut self` and must return the old value. `std::mem::replace` swaps in `None`.")],
-    notes=("`filter` uses a match guard to keep ownership of `v`. `unwrap_or_else` only calls `f` on `None`, which is the point of the `_else` variants.", "O(1) each", "O(1)"),
-    follow_up="Why does `Option<&T>` have the same size as `&T`?",
-    related=["L7", "L6", "Y1"],
+    hints=[("approach", "Each method is one `match` on `Some(v)` / `None`. The `_else` and `_and` methods call their closure in one arm only."),
+           ("rust", "A bound on one method: `pub fn unwrap_or_default(self) -> T where T: Default`. `take` is `std::mem::replace(self, MyOption::None)`."),
+           ("edge case", "`Iter::next` must leave `None` behind, or the iterator never ends: take the inner reference out, don't copy it.")],
+    notes=("""The lazy/eager split is the whole design: `and(other)` and `or(other)` take a value you already have, `and_then(f)` and `or_else(f)` take a closure that runs only when needed. `unwrap_or_default` shows that methods can have their own bounds, so `MyOption<Token>` still works as long as nobody calls it. `iter` borrows (`Iter<'a, T>` holds a `MyOption<&'a T>`) and is `take` in a loop; std's `Option::iter` is the same, plus `DoubleEndedIterator` and `ExactSizeIterator`. Syntax to remember: `fn m(self) -> T where T: Default`, `pub struct Iter<'a, T> { inner: MyOption<&'a T> }`, `impl<'a, T> Iterator for Iter<'a, T> { type Item = &'a T; fn next(&mut self) -> Option<&'a T> }`, `pub fn iter(&self) -> Iter<'_, T>`.""", "O(1) each", "O(1)"),
+    follow_up="Why does `Option<&T>` have the same size as `&T`, and would `MyOption<&T>` too? What does `Option::iter` gain from also implementing `ExactSizeIterator`?",
+    related=["L7", "L6", "Y1", "S6"],
 ))
 
 MY_OPTION_BORROW = """
@@ -1750,12 +2469,11 @@ MY_OPTION_BORROW = """
                     _ => MyOption::None,
                 }
             }
-            pub fn xor(self, other: MyOption<T>) -> MyOption<T> {
-                match (self, other) {
-                    (MyOption::Some(a), MyOption::None) => MyOption::Some(a),
-                    (MyOption::None, MyOption::Some(b)) => MyOption::Some(b),
-                    _ => MyOption::None,
+            pub fn inspect(self, f: impl FnOnce(&T)) -> MyOption<T> {
+                if let MyOption::Some(v) = &self {
+                    f(v);
                 }
+                self
             }
             pub fn map_or_else<U>(self, default: impl FnOnce() -> U, f: impl FnOnce(T) -> U) -> U {
                 match self {
@@ -1789,7 +2507,7 @@ P.append(dict(
     teaches=["`as_ref` / `as_mut` turn `&MyOption<T>` into `MyOption<&T>` by matching on a reference.", "`get_or_insert_with` must fill the slot first and borrow second, or the borrow checker objects.", "`flatten` and `copied` exist only for some `T`, so they live in `impl` blocks for `MyOption<MyOption<T>>` and `MyOption<&T>`."],
     statement="""
         Implement ten more `Option` methods on `MyOption`, each behaving like std's: `as_ref`, `as_mut`, `insert`,
-        `replace`, `get_or_insert_with`, `zip`, `xor`, `map_or_else`, and `flatten` and `copied` in their own `impl` blocks.
+        `replace`, `get_or_insert_with`, `zip`, `inspect`, `map_or_else`, and `flatten` and `copied` in their own `impl` blocks.
         Closures must run only when std's would.
     """,
     starter="""
@@ -1806,7 +2524,7 @@ P.append(dict(
             pub fn replace(&mut self, value: T) -> MyOption<T> { todo!() }
             pub fn get_or_insert_with(&mut self, f: impl FnOnce() -> T) -> &mut T { todo!() }
             pub fn zip<U>(self, other: MyOption<U>) -> MyOption<(T, U)> { todo!() }
-            pub fn xor(self, other: MyOption<T>) -> MyOption<T> { todo!() }
+            pub fn inspect(self, f: impl FnOnce(&T)) -> MyOption<T> { todo!() }
             pub fn map_or_else<U>(self, default: impl FnOnce() -> U, f: impl FnOnce(T) -> U) -> U { todo!() }
         }
 
@@ -1824,7 +2542,7 @@ P.append(dict(
         T("as_mut_edits_in_place", "Some(String::from(\"hi\")), push '!'", "{ let mut o = MyOption::Some(String::from(\"hi\")); if let MyOption::Some(s) = o.as_mut() { s.push('!'); } o }", 'MyOption::Some("hi!".to_string())'),
         T("replace_returns_the_old_value", "Some(1), replace(2)", "{ let mut o = MyOption::Some(1); let old = o.replace(2); (old, o) }", "(MyOption::Some(1), MyOption::Some(2))"),
         T("get_or_insert_with_fills_none", "None, get_or_insert_with(|| 5), then += 1", "{ let mut o = MyOption::None; *o.get_or_insert_with(|| 5) += 1; o }", "MyOption::Some(6)"),
-        T("zip_xor_map_or_else", "Some(1), Some(\"a\"), None", '(MyOption::Some(1).zip(MyOption::Some("a")), MyOption::Some(1).xor(MyOption::Some(2)), MyOption::<i32>::None.map_or_else(|| -1, |x| x * 2))', '(MyOption::Some((1, "a")), MyOption::None, -1)'),
+        T("zip_inspect_map_or_else", "Some(1).zip(Some(\"a\")), Some(5).inspect(log), None.map_or_else(|| -1, ..)", '{ let mut seen = Vec::new(); let r = (MyOption::Some(1).zip(MyOption::Some("a")), MyOption::Some(5).inspect(|x| seen.push(*x)), MyOption::<i32>::None.map_or_else(|| -1, |x| x * 2)); (r, seen) }', '((MyOption::Some((1, "a")), MyOption::Some(5), -1), vec![5])'),
     ],
     hidden=[
         T("as_ref_none", "None", "MyOption::<String>::None.as_ref()", "MyOption::None"),
@@ -1840,7 +2558,8 @@ P.append(dict(
         T("get_or_insert_with_calls_once", "None, get_or_insert_with twice", "{ let mut calls = 0; let mut o = MyOption::None; o.get_or_insert_with(|| { calls += 1; 7 }); o.get_or_insert_with(|| { calls += 1; 8 }); (o, calls) }", "(MyOption::Some(7), 1)"),
         T("get_or_insert_with_returns_the_slot", "Some(vec![1]), push 2 through the reference", "{ let mut o = MyOption::Some(vec![1]); o.get_or_insert_with(Vec::new).push(2); o }", "MyOption::Some(vec![1, 2])"),
         T("zip_with_none", "Some(1) zip None, None zip Some(1)", "(MyOption::Some(1).zip(MyOption::<u8>::None), MyOption::<u8>::None.zip(MyOption::Some(1)))", "(MyOption::None, MyOption::None)"),
-        T("xor_exactly_one", "Some(1) xor None, None xor Some(2), None xor None", "(MyOption::Some(1).xor(MyOption::None), MyOption::None.xor(MyOption::Some(2)), MyOption::<i32>::None.xor(MyOption::None))", "(MyOption::Some(1), MyOption::Some(2), MyOption::None)"),
+        T("inspect_none_skips_f", "None.inspect(panics)", "MyOption::<i32>::None.inspect(|x| panic!(\"should not run: {x}\"))", "MyOption::None"),
+        T("inspect_does_not_move_the_value", "Some(String::from(\"hi\")).inspect(record the pointer)", '{ let s = String::from("hi"); let p = s.as_ptr(); let mut seen = None; let o = MyOption::Some(s).inspect(|v| seen = Some(v.as_ptr())); (seen == Some(p), o) }', '(true, MyOption::Some("hi".to_string()))'),
         T("map_or_else_some_skips_default", "Some(4)", "MyOption::Some(4).map_or_else(|| panic!(\"should not run\"), |x| x * 2)", "8"),
         T("map_or_else_none_skips_f", "None", "MyOption::<i32>::None.map_or_else(|| 0, |x| -> i32 { panic!(\"should not run: {x}\") })", "0"),
         T("map_or_else_moves_the_value", "Some(String::from(\"abc\"))", 'MyOption::Some(String::from("abc")).map_or_else(String::new, |s| s + "!")', '"abc!".to_string()'),
@@ -1878,7 +2597,9 @@ P.append(dict(
                 let want = *s.get_or_insert_with(|| { calls_s += 1; d });
                 check!(format!("get_or_insert_with(d), {desc}"), (got, m, calls_m), (want, mine(s), calls_s));
                 check!(format!("a.zip(b), {desc}"), mine(a).zip(mine(b)), mine(a.zip(b)));
-                check!(format!("a.xor(b), {desc}"), mine(a).xor(mine(b)), mine(a.xor(b)));
+                let (mut seen_m, mut seen_s) = (Vec::new(), Vec::new());
+                check!(format!("inspect(log), {desc}"), mine(a).inspect(|x| seen_m.push(*x)), mine(a.inspect(|x| seen_s.push(*x))));
+                check!(format!("inspect calls, {desc}"), seen_m, seen_s);
                 check!(format!("map_or_else(d, x * 3), {desc}"), mine(a).map_or_else(|| d, |x| x * 3), a.map_or_else(|| d, |x| x * 3));
                 let (mut m, mut s) = (mine(a), a);
                 check!(format!("insert(d), {desc}"), (*m.insert(d), m), (*s.insert(d), mine(s)));
@@ -1891,13 +2612,13 @@ P.append(dict(
     ],
     wrong=dict(
         eager_get_or_insert_with=MY_OPTION_BORROW.replace("if let MyOption::None = self {\n                    *self = MyOption::Some(f());", "let v = f();\n                if let MyOption::None = self {\n                    *self = MyOption::Some(v);"),
-        xor_keeps_the_first=MY_OPTION_BORROW.replace("(MyOption::Some(a), MyOption::None) => MyOption::Some(a),", "(MyOption::Some(a), _) => MyOption::Some(a),"),
+        inspect_drops_the_value=MY_OPTION_BORROW.replace("                    f(v);\n                }\n                self", "                    f(v);\n                }\n                MyOption::None"),
         insert_keeps_the_old_value=MY_OPTION_BORROW.replace("*self = MyOption::Some(value);\n                match self {", "if let MyOption::None = self {\n                    *self = MyOption::Some(value);\n                }\n                match self {"),
     ),
     hints=[("rust", "Matching on `&self` binds `v` as `&T` (match ergonomics), so `as_ref` is the same two-arm `match` as `map`."),
            ("rust", "In `get_or_insert_with`, first write `*self = MyOption::Some(f())` if it's `None`, then `match self` and return the `&mut` from the `Some` arm."),
-           ("edge case", "`insert` always overwrites; only `get_or_insert_with` keeps an existing value. `xor` is `Some` only when exactly one side is.")],
-    notes=("`as_ref` and `as_mut` are why most combinators can take `self` by value: borrow first, then consume the borrowed option. `get_or_insert_with` fills the slot before borrowing it, because returning a borrow from one arm while assigning in the other is a case today's borrow checker rejects. API reminder: `insert(v)` overwrites, `get_or_insert(v)` / `get_or_insert_with(f)` keep what's there; `copied()` / `cloned()` turn `Option<&T>` into `Option<T>`; `flatten()` removes one level of `Option<Option<T>>`.", "O(1) each", "O(1)"),
+           ("edge case", "`insert` always overwrites; only `get_or_insert_with` keeps an existing value. `inspect` hands the closure a reference and returns `self` unchanged.")],
+    notes=("`as_ref` and `as_mut` are why most combinators can take `self` by value: borrow first, then consume the borrowed option. `get_or_insert_with` fills the slot before borrowing it, because returning a borrow from one arm while assigning in the other is a case today's borrow checker rejects. API reminder: `insert(v)` overwrites, `get_or_insert(v)` / `get_or_insert_with(f)` keep what's there; `copied()` / `cloned()` turn `Option<&T>` into `Option<T>`; `flatten()` removes one level of `Option<Option<T>>`; `inspect(|v| log(v))` peeks without consuming (`Result` has `inspect` and `inspect_err`).", "O(1) each", "O(1)"),
     follow_up="Why does std's `get_or_insert_with` use `unreachable_unchecked` (or an equivalent) for the `None` arm, and is `unreachable!()` good enough here?",
     related=["L2", "L6"],
 ))
@@ -1928,6 +2649,18 @@ MY_RESULT = """
                     MyResult::Err(e) => MyResult::Err(e),
                 }
             }
+            pub fn is_ok_and(self, f: impl FnOnce(T) -> bool) -> bool {
+                match self {
+                    MyResult::Ok(v) => f(v),
+                    MyResult::Err(_) => false,
+                }
+            }
+            pub fn ok(self) -> Option<T> {
+                match self {
+                    MyResult::Ok(v) => Some(v),
+                    MyResult::Err(_) => None,
+                }
+            }
         }
 
         /// Like `?` for `MyResult`: the value on `Ok`, an early return on `Err`.
@@ -1944,9 +2677,9 @@ MY_RESULT = """
 
 P.append(dict(
     slug="my-result-and-try", title="Build MyResult and a ? macro", level="hard", stage="build-it", tags=["macro_rules!", "From", "early return"],
-    teaches=["`?` is a match plus an early return plus `From::from` on the error.", "`#[macro_export]` and `$crate` paths."],
+    teaches=["`?` is a match plus an early return plus `From::from` on the error.", "`#[macro_export]` and `$crate` paths.", "`is_ok_and` and `ok` are the `Result` side of `is_some_and` and `ok_or`."],
     statement="""
-        Implement `map`, `map_err` and `and_then` on `MyResult<T, E>`, and a macro `try_my!(expr)`
+        Implement `map`, `map_err`, `and_then`, `is_ok_and` and `ok` on `MyResult<T, E>`, and a macro `try_my!(expr)`
         that evaluates to the value on `Ok` and otherwise returns `MyResult::Err(From::from(e))` from
         the enclosing function, like `?`.
     """,
@@ -1961,6 +2694,8 @@ P.append(dict(
             pub fn map<U>(self, f: impl FnOnce(T) -> U) -> MyResult<U, E> { todo!() }
             pub fn map_err<F>(self, f: impl FnOnce(E) -> F) -> MyResult<T, F> { todo!() }
             pub fn and_then<U>(self, f: impl FnOnce(T) -> MyResult<U, E>) -> MyResult<U, E> { todo!() }
+            pub fn is_ok_and(self, f: impl FnOnce(T) -> bool) -> bool { todo!() }
+            pub fn ok(self) -> Option<T> { todo!() }
         }
 
         /// Like `?` for `MyResult`: the value on `Ok`, an early return on `Err`.
@@ -2024,6 +2759,8 @@ P.append(dict(
         T("map_err_skips_f_on_ok", "Ok(1)", 'MyResult::<i32, i32>::Ok(1).map_err(|e| -> i32 { panic!("should not run: {e}") })', "MyResult::Ok(1)"),
         T("and_then_ok_to_err", "Ok(1)", 'MyResult::<i32, &str>::Ok(1).and_then(|_| MyResult::<i32, &str>::Err("late"))', 'MyResult::Err("late")'),
         T("map_changes_type", "Ok(\"abc\")", 'MyResult::<&str, ()>::Ok("abc").map(str::len)', "MyResult::Ok(3)"),
+        T("is_ok_and", "Ok(4), Ok(5), Err(4) with is_ok_and(even)", "(MyResult::<i32, i32>::Ok(4).is_ok_and(|x| x % 2 == 0), MyResult::<i32, i32>::Ok(5).is_ok_and(|x| x % 2 == 0), MyResult::<i32, i32>::Err(4).is_ok_and(|x| panic!(\"should not run: {x}\")))", "(true, false, false)"),
+        T("ok_drops_the_error", "Ok(\"a\").ok(), Err(1).ok()", '(MyResult::<&str, i32>::Ok("a").ok(), MyResult::<&str, i32>::Err(1).ok())', '(Some("a"), None)'),
         """
         fn sum3(a: MyResult<i32, String>, b: MyResult<i32, String>, c: MyResult<i32, String>, steps: &mut u32) -> MyResult<i32, String> {
             let x = try_my!(a);
@@ -2100,17 +2837,20 @@ P.append(dict(
                 check!(format!("map(x * 2), {desc}"), mine(a.clone()).map(|x| x * 2), mine(a.clone().map(|x| x * 2)));
                 check!(format!("map_err(push '!'), {desc}"), mine(a.clone()).map_err(|e| e + "!"), mine(a.clone().map_err(|e| e + "!")));
                 check!(format!("and_then(positive), {desc}"), mine(a.clone()).and_then(|x| if x > 0 { MyResult::Ok(x) } else { MyResult::Err("neg".to_string()) }), mine(a.clone().and_then(|x| if x > 0 { Ok(x) } else { Err("neg".to_string()) })));
+                check!(format!("is_ok_and(positive), {desc}"), mine(a.clone()).is_ok_and(|x| x > 0), a.clone().is_ok_and(|x| x > 0));
+                check!(format!("ok(), {desc}"), mine(a.clone()).ok(), a.clone().ok());
                 check!(format!("try_my!(a) + try_my!(b), {desc}"), add_mine(mine(a.clone()), mine(b.clone())), mine(add_std(a, b)));
             }
         }
         """,
     ],
     wrong=dict(
+        is_ok_and_true_on_err=MY_RESULT.replace("MyResult::Err(_) => false,", "MyResult::Err(_) => true,"),
         try_panics_on_err=MY_RESULT.replace("$crate::MyResult::Err(e) => return $crate::MyResult::Err(::core::convert::From::from(e)),", "$crate::MyResult::Err(_) => panic!(\"try_my! on an Err\"),"),
     ),
     hints=[("approach", "`?` on `Err(e)` returns `Err(From::from(e))` from the whole function."),
            ("rust", "Inside `macro_rules!`, `return` returns from the function the macro is used in. Name the enum as `$crate::MyResult` so it resolves anywhere.")],
-    notes=("The `From::from` call is what lets `?` convert a library error into your application's error type.", "O(1)", "O(1)"),
+    notes=("The `From::from` call is what lets `?` convert a library error into your application's error type. A `macro_rules!` body is expanded in place, so `return` leaves the caller's function, and `$e` is evaluated exactly once because the macro binds it with `match`. Syntax to remember: `#[macro_export] macro_rules! try_my { ($e:expr) => { match $e { ... } }; }`, `$crate::MyResult`, `::core::convert::From::from(e)`, `res.is_ok_and(|v| ..)`, `res.ok()` / `res.err()`.", "O(1)", "O(1)"),
     follow_up="What trait does real `?` use, and why isn't it stable to implement yourself?",
     related=["L8", "L10"],
 ))

@@ -21,6 +21,6 @@ fn get_or_insert_with_fills_none() {
 }
 
 #[test]
-fn zip_xor_map_or_else() {
-    check!(r#"Some(1), Some("a"), None"#, (MyOption::Some(1).zip(MyOption::Some("a")), MyOption::Some(1).xor(MyOption::Some(2)), MyOption::<i32>::None.map_or_else(|| -1, |x| x * 2)), (MyOption::Some((1, "a")), MyOption::None, -1));
+fn zip_inspect_map_or_else() {
+    check!(r#"Some(1).zip(Some("a")), Some(5).inspect(log), None.map_or_else(|| -1, ..)"#, { let mut seen = Vec::new(); let r = (MyOption::Some(1).zip(MyOption::Some("a")), MyOption::Some(5).inspect(|x| seen.push(*x)), MyOption::<i32>::None.map_or_else(|| -1, |x| x * 2)); (r, seen) }, ((MyOption::Some((1, "a")), MyOption::Some(5), -1), vec![5]));
 }

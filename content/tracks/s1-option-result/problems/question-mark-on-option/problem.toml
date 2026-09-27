@@ -1,27 +1,44 @@
 slug = "question-mark-on-option"
-title = "? on Option"
+title = "? on Option: walk a JSON path"
 mode = "write"
 level = "easy"
 stage = "use-it"
 order = 2
 status = "ready"
-tags = ["?", "Option"]
+tags = ["?", "let else", "matches!"]
 teaches = [
-  "`?` works on `Option` in a function that returns `Option`.",
-  "Chaining lookups without nested `match`.",
+  "`?` on every step of a lookup chain: a missing key, a bad index and an out-of-range index all become `None`.",
+  "`let ... else` pulls one variant out of an enum or bails; `matches!` answers \"is it this variant?\" without binding.",
+  "`\"\".split('.')` yields one empty segment, so the empty path needs its own case.",
 ]
-follow_up = "How does `?` decide what to return when used on a `Result` inside a function returning `Option`?"
-related = ["S6"]
+follow_up = "How would you return an error that says which segment failed, and why? Would `get` still be written with `?`?"
+related = ["S6", "L7"]
 
 [[examples]]
-input = "s = \"the quick brown fox\""
-output = "Some(5)"
+input = "path = \"users.1.name\""
+output = "Some(Str(\"Linus\"))"
+
+[[examples]]
+input = "path = \"users.5\""
+output = "None"
+
+[[examples]]
+input = "is_null_at(\"users.1.boss\")"
+output = "false: missing, not null"
+
+[[hints]]
+kind = "approach"
+text = "Walk the segments, replacing `node` with its child each time. Every way a step can fail should be a `?` or a `return None`."
 
 [[hints]]
 kind = "rust"
-text = "`nth(2)` returns an `Option<&str>`. What does `?` do with `None`?"
+text = "`fields.iter().find(|(k, _)| k == seg)?` and `items.get(i)?` never panic. `let Json::Num(n) = get(root, path)? else { return None };` and `matches!(x, Some(Json::Null))`."
+
+[[hints]]
+kind = "edge case"
+text = "`\"\".split('.')` yields one segment, `\"\"`. And `\"+1\".parse::<usize>()` is `Ok(1)`."
 
 [solution]
-explanation = "`?` returns `None` early, so the happy path is one line."
-time = "O(n)"
+explanation = "`?` turns a chain of fallible steps into straight-line code: the function returns `None` at the first step that finds nothing. `let else` is the refutable-pattern version of `let`, for when only one variant is useful and everything else bails. `matches!` is the boolean form of `match`. Semantics matter as much as syntax here: missing and `null` are different answers, a digit-looking key on an object is still a key, and `usize::from_str` accepts a leading `+`. Syntax to remember: `let Json::Num(n) = expr else { return None };` (the `else` block must diverge), `matches!(v, Some(Json::Null))`, `matches!(c, 'a'..='z' | '_')`, `opt.is_none_or(f)`."
+time = "O(total length of the path + keys scanned)"
 space = "O(1)"

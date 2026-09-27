@@ -1,26 +1,28 @@
 use solution::*;
 
-#[test]
-fn found() {
-    check!(r#"v = [4, 8, 15], x = 8"#, find(&[4, 8, 15], 8), Some(1));
-}
+use std::time::Duration;
 
 #[test]
-fn missing() {
-    check!(r#"v = [4, 8, 15], x = 16"#, find(&[4, 8, 15], 16), None);
-}
-
-#[test]
-fn empty_slice() {
-    check!(r#"v = [], x = 0"#, find(&[], 0), None);
+fn find_found_and_missing() {
+    check!(r#"find([4, 8, 15], 8), find([4, 8, 15], 16)"#, (find(&[4, 8, 15], 8), find(&[4, 8, 15], 16)), (Some(1), None));
 }
 
 #[test]
 fn index_zero_is_found() {
-    check!(r#"v = [7, 3], x = 7"#, find(&[7, 3], 7), Some(0));
+    check!(r#"find([7, 3], 7), rfind("/x", '/')"#, (find(&[7, 3], 7), rfind("/x", '/')), (Some(0), Some(0)));
 }
 
 #[test]
-fn searching_for_minus_one() {
-    check!(r#"v = [5, -1], x = -1"#, find(&[5, -1], -1), Some(1));
+fn rfind_last_match() {
+    check!(r#"rfind("a/b/c", '/'), rfind("abc", '/')"#, (rfind("a/b/c", '/'), rfind("abc", '/')), (Some(3), None));
+}
+
+#[test]
+fn timeouts() {
+    check!(r#"None, Some(0), Some(250 ms)"#, (timeout_ms(None), timeout_ms(Some(Duration::ZERO)), timeout_ms(Some(Duration::from_millis(250)))), (-1, 0, 250));
+}
+
+#[test]
+fn sub_millisecond_rounds_up() {
+    check!(r#"Some(500 µs)"#, timeout_ms(Some(Duration::from_micros(500))), 1);
 }

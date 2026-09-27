@@ -1,0 +1,44 @@
+slug = "fix-option-niche"
+title = "Fix: Option<u32> links bloat every node"
+mode = "fix"
+level = "medium"
+stage = "understand-it"
+order = 14
+status = "ready"
+tags = ["niche optimization", "NonZeroU32", "size_of"]
+teaches = [
+  "`Option<T>` is free only when `T` has a niche, a bit pattern it never uses: references, `Box`, `NonNull`, `NonZero*`, `bool`, `char`, enums.",
+  "`Option<u32>` has no spare value, so it needs a separate tag and doubles to 8 bytes; `Option<NonZeroU32>` stays 4.",
+  "Arena and slab code keeps `Option` links compact by making index 0 impossible (or storing index + 1).",
+]
+follow_up = "What would you do if index 0 had to be a valid child too? How do generational arenas (slotmap) pack an index and a generation into one `Option`-friendly handle?"
+related = ["S11", "Y1", "D6"]
+
+[[examples]]
+input = "size_of::<Node>()"
+output = "12"
+
+[[examples]]
+input = "insert 5, 3, 8; in_order()"
+output = "[3, 5, 8]"
+
+[[hints]]
+kind = "approach"
+text = "`Option<u32>` needs somewhere to store \"is this `Some`\", because every `u32` is a valid value. Which integer type rules out one value, and which index can never be a child link?"
+
+[[hints]]
+kind = "rust"
+text = "`std::num::NonZeroU32`: `NonZeroU32::new(x)` returns `Option<NonZeroU32>` (`None` for 0), and `n.get()` gives the `u32` back."
+
+[[hints]]
+kind = "edge case"
+text = "The root is index 0 and is never anyone's child, so a child link is always at least 1. `u16` links would fit, but break past 65 536 nodes."
+
+[solution]
+explanation = "A niche is a bit pattern a type promises never to hold. The compiler uses it to encode `None`, so `Option<&T>`, `Option<Box<T>>`, `Option<NonNull<T>>`, `Option<fn()>` and `Option<NonZeroU32>` are exactly the size of the inner type; that much is guaranteed. Plain integers have no niche, so `Option<u32>` adds a tag and padding: 8 bytes. That's why linked structures in Rust use `Option<Box<Node>>` without a second thought, and why index-based arenas use `NonZeroU32` handles (index 0 reserved, or index + 1 stored). Other niches are real but unguaranteed: `Option<Vec<T>>`, `Option<String>` and `Option<Option<bool>>` also stay the same size today. Syntax to remember: `NonZeroU32::new(x) -> Option<NonZeroU32>`, `n.get()`, `std::mem::size_of::<T>()`, `u32::try_from(len).ok().and_then(NonZeroU32::new)`."
+time = "O(h) insert and contains, O(n) in_order"
+space = "12 bytes per node"
+
+[rules]
+forbid_unsafe = true
+max_changed_lines = 16

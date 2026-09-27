@@ -1,23 +1,40 @@
 slug = "collect-into-result"
-title = "Collect into Result<Vec<_>, _>"
+title = "Collect into Result: first error or every error"
 mode = "write"
 level = "medium"
 stage = "understand-it"
 order = 10
 status = "ready"
-tags = ["collect", "FromIterator"]
+tags = ["collect", "FromIterator", "Sum", "partition"]
 teaches = [
-  "`collect::<Result<Vec<_>, _>>()` stops at the first error.",
-  "`map_err` to add context per item.",
+  "`Result<C, E>` implements `FromIterator<Result<T, E>>` for any collection `C`, including `()`; it stops at the first `Err`.",
+  "`Result` also implements `Sum` and `Product`, so `sum::<Result<i64, _>>()` short-circuits without a `Vec`.",
+  "Collecting every error is a different shape: `partition(Result::is_ok)` and then unwrap each side.",
 ]
-follow_up = "How would you collect every error instead of just the first?"
+follow_up = "How would you return both the good values and the errors? When does collecting every error make an API worse?"
 related = ["S6", "L8"]
+
+[[examples]]
+input = "parse_all([\"1\", \"x\", \"y\"])"
+output = "Err(\"bad number: x\")"
+
+[[examples]]
+input = "parse_every_error([\"1\", \"x\", \"y\"])"
+output = "Err([\"bad number: x\", \"bad number: y\"])"
+
+[[hints]]
+kind = "approach"
+text = "Three of the four are one `collect` or `sum` with the right target type; only `parse_every_error` needs two passes."
 
 [[hints]]
 kind = "rust"
-text = "`Result<Vec<T>, E>` implements `FromIterator<Result<T, E>>`."
+text = "`.collect::<Result<Vec<_>, _>>()`, `.sum::<Result<i64, _>>()`, `.collect::<Result<(), _>>()`. For every error: `let (good, bad): (Vec<_>, Vec<_>) = iter.partition(Result::is_ok);`."
+
+[[hints]]
+kind = "edge case"
+text = "Two `i32::MAX` items overflow an `i32` sum: convert each value to `i64` before adding."
 
 [solution]
-explanation = "`collect` short-circuits on the first `Err`, so later items aren't parsed."
+explanation = "The short-circuiting impls are `impl<A, E, V: FromIterator<A>> FromIterator<Result<A, E>> for Result<V, E>` and `impl<T: Sum<U>, U, E> Sum<Result<U, E>> for Result<T, E>`: they pull items until the first `Err` and drop the rest of the iterator, so later items are never produced (which `validate`'s call count shows). `()` implements `FromIterator<()>`, which is why `collect::<Result<(), _>>()` works; `try_for_each` is the same thing spelled as a loop. Collecting all errors can't short-circuit by definition. Syntax to remember: `collect::<Result<Vec<_>, _>>()`, `sum::<Result<i64, _>>()`, `collect::<Option<Vec<_>>>()`, `partition(Result::is_ok)`, `results.into_iter().flatten()` (the `Ok` values), `filter_map(Result::err)`."
 time = "O(n)"
-space = "O(n)"
+space = "O(n) for the Vec results, O(1) for sum_all and validate"

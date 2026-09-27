@@ -66,8 +66,13 @@ fn zip_with_none() {
 }
 
 #[test]
-fn xor_exactly_one() {
-    check!(r#"Some(1) xor None, None xor Some(2), None xor None"#, (MyOption::Some(1).xor(MyOption::None), MyOption::None.xor(MyOption::Some(2)), MyOption::<i32>::None.xor(MyOption::None)), (MyOption::Some(1), MyOption::Some(2), MyOption::None));
+fn inspect_none_skips_f() {
+    check!(r#"None.inspect(panics)"#, MyOption::<i32>::None.inspect(|x| panic!("should not run: {x}")), MyOption::None);
+}
+
+#[test]
+fn inspect_does_not_move_the_value() {
+    check!(r#"Some(String::from("hi")).inspect(record the pointer)"#, { let s = String::from("hi"); let p = s.as_ptr(); let mut seen = None; let o = MyOption::Some(s).inspect(|v| seen = Some(v.as_ptr())); (seen == Some(p), o) }, (true, MyOption::Some("hi".to_string())));
 }
 
 #[test]
@@ -118,7 +123,9 @@ fn random_vs_std_option() {
         let want = *s.get_or_insert_with(|| { calls_s += 1; d });
         check!(format!("get_or_insert_with(d), {desc}"), (got, m, calls_m), (want, mine(s), calls_s));
         check!(format!("a.zip(b), {desc}"), mine(a).zip(mine(b)), mine(a.zip(b)));
-        check!(format!("a.xor(b), {desc}"), mine(a).xor(mine(b)), mine(a.xor(b)));
+        let (mut seen_m, mut seen_s) = (Vec::new(), Vec::new());
+        check!(format!("inspect(log), {desc}"), mine(a).inspect(|x| seen_m.push(*x)), mine(a.inspect(|x| seen_s.push(*x))));
+        check!(format!("inspect calls, {desc}"), seen_m, seen_s);
         check!(format!("map_or_else(d, x * 3), {desc}"), mine(a).map_or_else(|| d, |x| x * 3), a.map_or_else(|| d, |x| x * 3));
         let (mut m, mut s) = (mine(a), a);
         check!(format!("insert(d), {desc}"), (*m.insert(d), m), (*s.insert(d), mine(s)));

@@ -1,23 +1,44 @@
 slug = "option-ref-to-str"
-title = "Option<&String> to Option<&str>"
-mode = "write"
+title = "Fix: &Option<String> in an API"
+mode = "fix"
 level = "medium"
 stage = "understand-it"
 order = 7
 status = "ready"
-tags = ["Option", "lifetimes"]
+tags = ["Option<&str>", "as_deref", "API design"]
 teaches = [
-  "`map(String::as_str)` and `map_or` over borrowed values.",
-  "One lifetime for a map and a default.",
+  "Take and return `Option<&str>`, not `&Option<String>` or `Option<&String>`: the first accepts every caller, the others demand an owned `String` somewhere.",
+  "`as_deref()` and `map(String::as_str)` convert at the one place that owns the data.",
+  "A returned `&str` borrows from whichever input it came from, so both inputs share the lifetime.",
 ]
-follow_up = "Why can't `label_or` return `&str` without naming a lifetime?"
-related = ["L3", "S4"]
+follow_up = "When is `&Option<T>` the right parameter type after all? What changes if `T` is `Copy`?"
+related = ["L3", "S4", "L2"]
+
+[[examples]]
+input = "greeting(\"Ada\", Some(\"ace\"))"
+output = "\"Hello, ace!\""
+
+[[examples]]
+input = "label_or(&p, 7, \"?\")"
+output = "\"?\""
+
+[[hints]]
+kind = "approach"
+text = "Read the call sites in the tests: what types do they pass, and what do they compare the results with?"
 
 [[hints]]
 kind = "rust"
-text = "`get` gives `Option<&String>`. `String::as_str` turns `&String` into `&str`."
+text = "Parameters: `&str` and `Option<&str>`. Returns: `Option<&str>` and `&'a str`. Inside, `self.nickname.as_deref()` and `self.labels.get(&id).map(String::as_str)`."
+
+[[hints]]
+kind = "edge case"
+text = "`nickname.unwrap_or(name)` needs both sides to be `&str`; with `name: &str` it just works."
 
 [solution]
-explanation = "`label_or` needs both inputs to outlive the result, so they share `'a`."
-time = "O(1)"
+explanation = "`&Option<String>` says \"I need a reference to an `Option` that owns a `String`\", so a caller holding a `&str` or an `Option<&str>` must allocate one just to call you. `Option<&str>` says \"maybe a string slice\", which every caller can produce for free: `Some(\"lit\")`, `opt.as_deref()`, `s.get(..)`. The same goes for returns: a getter returning `&Option<String>` leaks the field's type into every caller. It's also smaller: `Option<&str>` is two words with the null pointer as `None`. Clippy flags these as `ref_option` and `ptr_arg`. Syntax to remember: `self.field.as_deref()` (`&Option<String>` → `Option<&str>`), `map.get(k).map(String::as_str)`, `fn f<'a>(a: &'a X, d: &'a str) -> &'a str`."
+time = "O(1) per call"
 space = "O(1)"
+
+[rules]
+forbid_methods = ["clone", "cloned", "to_owned", "to_string", "into"]
+max_changed_lines = 12

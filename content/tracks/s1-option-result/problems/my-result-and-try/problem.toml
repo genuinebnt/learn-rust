@@ -3,12 +3,13 @@ title = "Build MyResult and a ? macro"
 mode = "write"
 level = "hard"
 stage = "build-it"
-order = 16
+order = 17
 status = "ready"
 tags = ["macro_rules!", "From", "early return"]
 teaches = [
   "`?` is a match plus an early return plus `From::from` on the error.",
   "`#[macro_export]` and `$crate` paths.",
+  "`is_ok_and` and `ok` are the `Result` side of `is_some_and` and `ok_or`.",
 ]
 follow_up = "What trait does real `?` use, and why isn't it stable to implement yourself?"
 related = ["L8", "L10"]
@@ -22,6 +23,6 @@ kind = "rust"
 text = "Inside `macro_rules!`, `return` returns from the function the macro is used in. Name the enum as `$crate::MyResult` so it resolves anywhere."
 
 [solution]
-explanation = "The `From::from` call is what lets `?` convert a library error into your application's error type."
+explanation = "The `From::from` call is what lets `?` convert a library error into your application's error type. A `macro_rules!` body is expanded in place, so `return` leaves the caller's function, and `$e` is evaluated exactly once because the macro binds it with `match`. Syntax to remember: `#[macro_export] macro_rules! try_my { ($e:expr) => { match $e { ... } }; }`, `$crate::MyResult`, `::core::convert::From::from(e)`, `res.is_ok_and(|v| ..)`, `res.ok()` / `res.err()`."
 time = "O(1)"
 space = "O(1)"

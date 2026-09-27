@@ -46,6 +46,31 @@ fn unicode_item() {
 }
 
 #[test]
+fn nan_is_not_a_number() {
+    check!(r#""1, NaN""#, average("1, NaN"), Err("not a number: NaN".to_string()));
+}
+
+#[test]
+fn infinities_are_not_numbers() {
+    check!(r#""inf", "-infinity""#, (average("inf"), average("2, -infinity")), (Err("not a number: inf".to_string()), Err("not a number: -infinity".to_string())));
+}
+
+#[test]
+fn overflowing_literal() {
+    check!(r#""1e999""#, average("1e999"), Err("not a number: 1e999".to_string()));
+}
+
+#[test]
+fn large_but_finite() {
+    check!(r#""1e300, -1e300, 3""#, average("1e300, -1e300, 3"), Ok(1.0));
+}
+
+#[test]
+fn exponents_and_signs() {
+    check!(r#""+1.5e1, -5""#, average("+1.5e1, -5"), Ok(5.0));
+}
+
+#[test]
 fn random_vs_brute_force() {
     let mut rng = anneal_prelude::Rng::new(1308);
     for _ in 0..400 {

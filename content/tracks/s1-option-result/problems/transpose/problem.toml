@@ -1,23 +1,40 @@
 slug = "transpose"
-title = "Option<Result> and transpose"
+title = "transpose: skip blanks, keep errors"
 mode = "write"
 level = "medium"
 stage = "understand-it"
 order = 8
 status = "ready"
-tags = ["transpose", "ParseIntError"]
+tags = ["transpose", "filter_map", "ParseIntError"]
 teaches = [
-  "`transpose` swaps `Option<Result<T, E>>` and `Result<Option<T>, E>`.",
-  "`map(str::parse)` on an `Option`.",
+  "`transpose` swaps `Option<Result<T, E>>` and `Result<Option<T>, E>`, so `?` or `collect` can see the error.",
+  "`filter_map(|x| f(x).transpose())` drops the `Ok(None)` items and keeps both values and errors for `collect::<Result<Vec<_>, _>>()`.",
+  "`.ok().flatten()` compiles too, and silently throws the errors away.",
 ]
-follow_up = "Where do you hit `Option<Result<..>>` in real code?"
-related = ["L8"]
+follow_up = "How would you collect every bad line instead of stopping at the first? Where else does `Option<Result<..>>` appear in std (hint: `Iterator::next` on a fallible reader)?"
+related = ["L8", "S6", "S9"]
+
+[[examples]]
+input = "parse_file(\"1\\n# two\\n\\n3\")"
+output = "Ok([1, 3])"
+
+[[examples]]
+input = "parse_file(\"1\\nx\\ny\")"
+output = "Err((2, <invalid digit>))"
+
+[[hints]]
+kind = "approach"
+text = "Write `parse_line` first; `parse_file` is then one iterator chain over `lines().enumerate()`."
 
 [[hints]]
 kind = "rust"
-text = "`s.map(str::parse)` has type `Option<Result<i32, _>>`. Which way round do you need it?"
+text = "`cond.then(|| t.parse())` is `Option<Result<..>>`; `.transpose()` makes it `Result<Option<..>>`. In `parse_file`, `filter_map` wants an `Option`, so transpose back and collect into `Result<Vec<_>, _>`."
+
+[[hints]]
+kind = "edge case"
+text = "Line numbers count every line, including the skipped ones. `\"  # x\"` is a comment once trimmed."
 
 [solution]
-explanation = "`transpose` exists for exactly this: the caller can then use `?` on the result."
+explanation = "`Result<Option<T>, E>` (\"it worked, and maybe there was something\") and `Option<Result<T, E>>` (\"maybe there was something, and it may have failed\") carry the same information; `transpose` converts between them so the next step can use its natural tool: `?` wants the `Result` outside, `filter_map` wants the `Option` outside. `collect::<Result<Vec<_>, _>>()` then stops at the first `Err`. Syntax to remember: `opt.map(str::parse).transpose()`, `cond.then(|| expr)` (lazy) vs `cond.then_some(v)` (eager), `iter.filter_map(|x| f(x).transpose()).collect::<Result<Vec<_>, _>>()`, `err.kind()` → `&IntErrorKind`."
 time = "O(n)"
-space = "O(1)"
+space = "O(number of values)"

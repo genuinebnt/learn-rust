@@ -8,6 +8,7 @@ status = "ready"
 tags = ["unwrap", "Result", "?"]
 teaches = [
   "`unwrap` on input you don't control is a crash waiting for a user.",
+  "`f64::from_str` accepts `NaN`, `inf`, `infinity` and `1e999` (which overflows to infinity): parsing isn't validating.",
   "Return errors that say what was wrong.",
 ]
 follow_up = "Which unwraps in a codebase are fine, and how would you document them?"
@@ -19,10 +20,10 @@ text = "Turn each parse into a `Result` with a message, then collect into `Resul
 
 [[hints]]
 kind = "edge case"
-text = "Blank input would otherwise divide by zero or fail on the empty item."
+text = "Blank input would otherwise divide by zero or fail on the empty item. And try `\"NaN\".parse::<f64>()`."
 
 [solution]
-explanation = "Every failure path now returns a message instead of panicking. The blank check has to come first, or `\"\"` reports `not a number: `."
+explanation = "Every failure path now returns a message instead of panicking. The blank check has to come first, or `\"\"` reports `not a number: `. `f64`'s parser follows IEEE 754 text forms, so `NaN`, `inf` and out-of-range literals parse successfully; one `NaN` then poisons the average silently, which is worse than the panic it replaced. Syntax to remember: `s.parse::<f64>().ok().filter(|x| x.is_finite()).ok_or_else(|| msg)`, `.collect::<Result<Vec<_>, _>>()?`."
 time = "O(n)"
 space = "O(n)"
 

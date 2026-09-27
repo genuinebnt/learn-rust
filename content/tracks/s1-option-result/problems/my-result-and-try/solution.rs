@@ -23,6 +23,18 @@ impl<T, E> MyResult<T, E> {
             MyResult::Err(e) => MyResult::Err(e),
         }
     }
+    pub fn is_ok_and(self, f: impl FnOnce(T) -> bool) -> bool {
+        match self {
+            MyResult::Ok(v) => f(v),
+            MyResult::Err(_) => false,
+        }
+    }
+    pub fn ok(self) -> Option<T> {
+        match self {
+            MyResult::Ok(v) => Some(v),
+            MyResult::Err(_) => None,
+        }
+    }
 }
 
 /// Like `?` for `MyResult`: the value on `Ok`, an early return on `Err`.

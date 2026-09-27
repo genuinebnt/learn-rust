@@ -1,23 +1,44 @@
 slug = "sentinel-to-option"
-title = "Wrap a sentinel API in Option"
+title = "Sentinels at the API boundary"
 mode = "write"
 level = "easy"
 stage = "use-it"
 order = 3
 status = "ready"
-tags = ["TryFrom", "Option"]
+tags = ["TryFrom", "Option", "sentinels"]
 teaches = [
-  "Convert `-1`-style sentinels to `Option` at the boundary.",
-  "`usize::try_from(i32)` rejects negatives for you.",
+  "Turn `-1` and `npos`-style sentinels into `Option` where the legacy API meets yours, and back again on the way out.",
+  "`usize::try_from(i32)` rejects the sentinel for you; `as usize` turns -1 into 18446744073709551615.",
+  "Going the other way, a real value must never collide with a sentinel: round and clamp so `Some(d)` can't become -1 or 0.",
 ]
-follow_up = "Where else do sentinels hide in std or C APIs, and how do their Rust wrappers expose them?"
-related = ["S8", "Y3"]
+follow_up = "Why does `Option<usize>` cost 16 bytes while `Option<NonZeroUsize>` costs 8, and when would you store the sentinel form anyway?"
+related = ["S8", "Y3", "S10"]
+
+[[examples]]
+input = "find([4, 8, 15], 8)"
+output = "Some(1)"
+
+[[examples]]
+input = "rfind(\"a/b/c\", '/')"
+output = "Some(3)"
+
+[[examples]]
+input = "timeout_ms(Some(500µs))"
+output = "1: a zero would poll in a loop"
+
+[[hints]]
+kind = "approach"
+text = "Each wrapper is one conversion at the boundary. On the way out, ask what each legacy value means before you pick one."
 
 [[hints]]
 kind = "rust"
-text = "A negative `i32` can't become a `usize`. Which conversion reports that?"
+text = "`usize::try_from(i).ok()`, `Some(i).filter(|&i| i != usize::MAX)`, `opt.map_or(-1, |d| ...)`, `u128::div_ceil`, `i64::try_from(x).unwrap_or(i64::MAX)`."
+
+[[hints]]
+kind = "edge case"
+text = "`Duration::as_millis` truncates, so 500 µs becomes 0, which means \"poll\". And `as i64` on a huge `u128` wraps, possibly to -1."
 
 [solution]
-explanation = "`try_from` fails exactly on the sentinel, so there's no magic number in the new code."
-time = "O(n)"
+explanation = "Sentinels are in-band signals: one value of the type is stolen to mean \"nothing\". The wrapper's job is to take it out at the boundary, and on the way back in to make sure no real value lands on a stolen one. `timeout_ms` has two collisions: truncating a sub-millisecond timeout gives 0 (a busy poll, a real bug mio and std guard against by rounding up), and a wrapping cast of a huge one can give -1 (wait forever) or any negative. Syntax to remember: `usize::try_from(x).ok()`, `opt.filter(|v| ..)`, `cond.then_some(v)`, `opt.map_or(default, f)`, `n.div_ceil(d)`, `Duration::from_micros` / `as_nanos() -> u128`."
+time = "O(n) for the searches, O(1) for the timeout"
 space = "O(1)"

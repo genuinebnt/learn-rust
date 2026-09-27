@@ -14,7 +14,7 @@ Needs Rust with the `rust-analyzer` and `rust-src` components (`rustup component
 pnpm, and OrbStack (the sandbox is pinned to the `orbstack` Docker context).
 
 ```sh
-docker compose up -d                                                    # Postgres on :5434
+docker compose up -d                                                    # Postgres on :5435
 docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker   # sandbox image (rebuild after changing docker/deps)
 (cd web && pnpm install && pnpm build)
 cargo run -p anneal-api                                                 # http://localhost:8787

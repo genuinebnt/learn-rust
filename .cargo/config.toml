@@ -1,7 +1,7 @@
 # Local development defaults for cargo commands run in this repo.
 [env]
 # The API reads this. A real environment variable of the same name wins.
-ANNEAL_DATABASE_URL = { value = "postgres://anneal:anneal@localhost:5434/anneal", force = false }
+ANNEAL_DATABASE_URL = { value = "postgres://anneal:anneal@localhost:5435/anneal", force = false }
 # Only sqlx's test harness reads DATABASE_URL here. It's forced so a DATABASE_URL
 # exported for another project never points anneal's tests at that database.
-DATABASE_URL = { value = "postgres://anneal:anneal@localhost:5434/anneal", force = true }
+DATABASE_URL = { value = "postgres://anneal:anneal@localhost:5435/anneal", force = true }

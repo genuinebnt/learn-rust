@@ -17,3 +17,26 @@ fn needs_undo() {
     }
     check!(r#"0→1 (1), 0→2 (1), 1→2 (1), 1→3 (1), 2→3 (1)"#, net.max_flow(0, 3), 2);
 }
+
+#[test]
+fn single_edge() {
+    let mut net = FlowNetwork::new(2);
+    net.add_edge(0, 1, 5);
+    check!(r#"0→1 (5)"#, net.max_flow(0, 1), 5);
+}
+
+#[test]
+fn bottleneck_in_series() {
+    let mut net = FlowNetwork::new(4);
+    net.add_edge(0, 1, 10);
+    net.add_edge(1, 2, 3);
+    net.add_edge(2, 3, 10);
+    check!(r#"0→1 (10), 1→2 (3), 2→3 (10)"#, net.max_flow(0, 3), 3);
+}
+
+#[test]
+fn edges_are_directed() {
+    let mut net = FlowNetwork::new(2);
+    net.add_edge(1, 0, 5);
+    check!(r#"1→0 (5); flow from 0 to 1"#, net.max_flow(0, 1), 0);
+}

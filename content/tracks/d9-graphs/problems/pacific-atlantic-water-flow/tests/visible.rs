@@ -9,3 +9,18 @@ fn example() {
 fn single() {
     check!(r#"heights = [[1]]"#, pacific_atlantic(&[vec![1]]), vec![(0, 0)]);
 }
+
+#[test]
+fn single_row_touches_both() {
+    check!(r#"heights = [[1,2,3]]"#, pacific_atlantic(&[vec![1, 2, 3]]), vec![(0, 0), (0, 1), (0, 2)]);
+}
+
+#[test]
+fn pit_drains_nowhere() {
+    check!(r#"heights = [[3,3,3],[3,1,3],[3,3,3]]"#, pacific_atlantic(&[vec![3, 3, 3], vec![3, 1, 3], vec![3, 3, 3]]), vec![(0, 0), (0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1), (2, 2)]);
+}
+
+#[test]
+fn spiral() {
+    check!(r#"heights = [[1,2,3],[8,9,4],[7,6,5]]"#, pacific_atlantic(&[vec![1, 2, 3], vec![8, 9, 4], vec![7, 6, 5]]), vec![(0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)]);
+}

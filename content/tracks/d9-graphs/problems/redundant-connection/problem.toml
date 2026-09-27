@@ -10,6 +10,7 @@ teaches = [
   "Union-find in a `Vec<usize>`.",
   "Path halving in a loop, no recursion.",
 ]
+constraints = ["2 ≤ n ≤ 2·10⁵"]
 follow_up = "How does the problem change if the graph is directed (a rooted tree plus one edge)?"
 
 [[examples]]

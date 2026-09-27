@@ -9,3 +9,18 @@ fn cheapest_first() {
 fn ties() {
     check!(r#"costs b 2, a 2"#, run_order(vec![Job { cost: 2, name: "b" }, Job { cost: 2, name: "a" }]), vec!["a", "b"]);
 }
+
+#[test]
+fn no_jobs() {
+    check!(r#"no jobs"#, run_order(vec![]), Vec::<&str>::new());
+}
+
+#[test]
+fn single_job() {
+    check!(r#"costs only 4"#, run_order(vec![Job { cost: 4, name: "only" }]), vec!["only"]);
+}
+
+#[test]
+fn all_same_cost() {
+    check!(r#"costs c 7, a 7, b 7"#, run_order(vec![Job { cost: 7, name: "c" }, Job { cost: 7, name: "a" }, Job { cost: 7, name: "b" }]), vec!["a", "b", "c"]);
+}

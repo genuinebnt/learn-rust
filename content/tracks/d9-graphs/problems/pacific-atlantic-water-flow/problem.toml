@@ -10,7 +10,7 @@ teaches = [
   "Search backwards from the targets instead of forwards from every cell.",
   "A closure returning an owned `Vec<Vec<bool>>`.",
 ]
-constraints = ["1 ≤ rows, cols ≤ 200"]
+constraints = ["1 ≤ rows, cols ≤ 300"]
 follow_up = "How would you parallelise the two searches?"
 
 [[examples]]

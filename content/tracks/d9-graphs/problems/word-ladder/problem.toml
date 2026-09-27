@@ -10,7 +10,7 @@ teaches = [
   "BFS over implicit neighbours.",
   "Removing from the set as you enqueue, instead of a separate `seen`.",
 ]
-constraints = ["1 ≤ word length ≤ 10", "words.len() ≤ 5000"]
+constraints = ["1 ≤ word length ≤ 10", "words.len() ≤ 2·10⁵"]
 follow_up = "How would bidirectional BFS change the running time?"
 related = ["S2", "S4"]
 

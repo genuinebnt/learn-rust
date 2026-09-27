@@ -10,6 +10,7 @@ teaches = [
   "Sort edges, keep those that join two components.",
   "`Option` for 'no spanning tree'.",
 ]
+constraints = ["1 ≤ n ≤ 10⁵", "edges.len() ≤ 2·10⁵", "weights ≤ 10¹²"]
 follow_up = "When is Prim's algorithm a better choice than Kruskal's?"
 related = ["D8"]
 

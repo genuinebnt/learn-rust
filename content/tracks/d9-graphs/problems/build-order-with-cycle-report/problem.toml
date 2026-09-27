@@ -10,6 +10,7 @@ teaches = [
   "`Result<Vec<_>, Vec<_>>` carrying data on both sides.",
   "The lexicographically smallest topological order with a min-heap.",
 ]
+constraints = ["1 ≤ n ≤ 2·10⁵", "deps.len() ≤ 2·10⁵"]
 follow_up = "How would you print one cycle as a path for the error message?"
 related = ["S1", "D7"]
 

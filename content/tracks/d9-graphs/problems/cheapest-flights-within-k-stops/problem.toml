@@ -10,7 +10,7 @@ teaches = [
   "Bounded Bellman–Ford: one round per edge used.",
   "Why each round reads from a snapshot.",
 ]
-constraints = ["1 ≤ n ≤ 100", "flights.len() ≤ n · (n − 1)", "0 ≤ k < n"]
+constraints = ["1 ≤ n ≤ 100", "flights.len() ≤ n · (n − 1)", "1 ≤ price ≤ 10⁴", "0 ≤ k < n"]
 follow_up = "How would you adapt Dijkstra to this problem, and when would it beat Bellman–Ford?"
 
 [[examples]]

@@ -10,7 +10,7 @@ teaches = [
   "Multi-source BFS: seed the queue with every source.",
   "`Option` for 'impossible' instead of `-1`.",
 ]
-constraints = ["1 ≤ rows, cols ≤ 100"]
+constraints = ["1 ≤ rows, cols ≤ 500"]
 follow_up = "How would the answer change if some oranges took two minutes to spread rot?"
 related = ["S1"]
 

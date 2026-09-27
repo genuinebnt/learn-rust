@@ -10,7 +10,7 @@ teaches = [
   "A tree is connected with exactly n − 1 edges.",
   "Early return on the first cycle.",
 ]
-constraints = ["1 ≤ n ≤ 2000"]
+constraints = ["1 ≤ n ≤ 2·10⁵"]
 follow_up = "Solve it with BFS instead. What does each approach need to remember?"
 
 [[examples]]

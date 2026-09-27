@@ -10,7 +10,7 @@ teaches = [
   "Dijkstra with a max-of-edges path cost.",
   "`u32::abs_diff` instead of signed casts.",
 ]
-constraints = ["1 ≤ rows, cols ≤ 100", "heights ≤ 10⁶"]
+constraints = ["1 ≤ rows, cols ≤ 300", "heights ≤ 10⁶"]
 follow_up = "Solve it with binary search on the answer plus BFS. Which is simpler to get right?"
 
 [[examples]]

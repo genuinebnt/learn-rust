@@ -10,7 +10,7 @@ teaches = [
   "Kahn's algorithm: repeatedly take nodes with in-degree 0.",
   "Iterative, so deep chains can't overflow.",
 ]
-constraints = ["1 ≤ n ≤ 10⁵", "prereqs.len() ≤ 10⁵"]
+constraints = ["1 ≤ n ≤ 2·10⁵", "prereqs.len() ≤ 2·10⁵"]
 follow_up = "How would you report one actual cycle, not just that one exists?"
 
 [[examples]]

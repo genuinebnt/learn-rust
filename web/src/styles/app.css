@@ -293,3 +293,12 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .swatch[data-swatch="sky"] > span { background: oklch(0.76 0.10 238); }
 .swatch[data-swatch="teal"] > span { background: oklch(0.78 0.10 192); }
 .acct-menu .acct-out { margin-top: 6px; border-top: 1px solid var(--line2); border-radius: 0 0 5px 5px; text-align: left; }
+
+/* editor tab bar: file tabs scroll when tight, Run and Run tests stay put */
+.ftab-list { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; overflow-x: auto; scrollbar-width: none; }
+.ftab-list::-webkit-scrollbar { display: none; }
+.ftabs .tools { padding-left: 12px; }
+.ebtn { height: 26px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; font: 500 12px var(--sans); color: var(--fg); white-space: nowrap; }
+.ebtn:hover:not(:disabled) { border-color: var(--acc); }
+.ebtn:disabled { opacity: .45; cursor: not-allowed; }
+.ebtn kbd { font: 400 10.5px var(--mono); color: var(--dim); }

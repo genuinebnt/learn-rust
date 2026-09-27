@@ -233,8 +233,17 @@ function Loaded({ p }: { p: ProblemDetail }) {
     showConsole("output");
     scratch.mutate();
   };
-  const doRun = () => !busy && p.status === "ready" && run.mutate();
-  const doSubmit = () => !busy && p.status === "ready" && submit.mutate();
+  // Test runs report in the tests panel, so they bring it back if it was hidden.
+  const doRun = () => {
+    if (busy || p.status !== "ready") return;
+    setRightOpen(1);
+    run.mutate();
+  };
+  const doSubmit = () => {
+    if (busy || p.status !== "ready") return;
+    setRightOpen(1);
+    submit.mutate();
+  };
   const failure = run.error ?? submit.error ?? scratch.error;
 
   const runs = p.runs;
@@ -505,27 +514,41 @@ function Loaded({ p }: { p: ProblemDetail }) {
           {/* ---------- centre: editor, actions, console ---------- */}
           <section className="pane c">
             <div className="ftabs">
-              <button className={`ftab${file === "lib" ? " on" : ""}`} onClick={() => setFile("lib")}>
-                src/lib.rs
-                {code !== (latest?.code ?? p.starter) && <span className="dot" style={{ background: "var(--mut)" }} title="Changed since the last test run" />}
-              </button>
-              <button className={`ftab${file === "main" ? " on" : ""}`} onClick={() => setFile("main")} title="Scratch main: Run builds and runs it">
-                main.rs<small>SCRATCH</small>
-              </button>
-              <button className={`ftab${file === "tests" ? " on" : ""}`} onClick={() => setFile("tests")}>
-                tests.rs<small>READ-ONLY</small>
-              </button>
-              {p.hidden_tests && (
-                <button className={`ftab${file === "hidden" ? " on" : ""}`} onClick={() => setFile("hidden")} title="Unlocked by solving">
-                  hidden.rs<small>READ-ONLY</small>
+              <div className="ftab-list">
+                <button className={`ftab${file === "lib" ? " on" : ""}`} onClick={() => setFile("lib")}>
+                  src/lib.rs
+                  {code !== (latest?.code ?? p.starter) && <span className="dot" style={{ background: "var(--mut)" }} title="Changed since the last test run" />}
                 </button>
-              )}
-              {p.solution.unlocked && p.solution.code && (
-                <button className={`ftab${file === "solution" ? " on" : ""}`} onClick={() => setFile("solution")} title="The reference solution">
-                  solution.rs<small>READ-ONLY</small>
+                <button className={`ftab${file === "main" ? " on" : ""}`} onClick={() => setFile("main")} title="Scratch main: Run builds and runs it">
+                  main.rs<small>SCRATCH</small>
                 </button>
-              )}
+                <button className={`ftab${file === "tests" ? " on" : ""}`} onClick={() => setFile("tests")}>
+                  tests.rs<small>READ-ONLY</small>
+                </button>
+                {p.hidden_tests && (
+                  <button className={`ftab${file === "hidden" ? " on" : ""}`} onClick={() => setFile("hidden")} title="Unlocked by solving">
+                    hidden.rs<small>READ-ONLY</small>
+                  </button>
+                )}
+                {p.solution.unlocked && p.solution.code && (
+                  <button className={`ftab${file === "solution" ? " on" : ""}`} onClick={() => setFile("solution")} title="The reference solution">
+                    solution.rs<small>READ-ONLY</small>
+                  </button>
+                )}
+              </div>
               <div className="tools">
+                {/* The scratch tab runs main.rs; every other tab runs the tests against lib.rs. */}
+                {file === "main" ? (
+                  <button className="ebtn" onClick={doScratch} disabled={busy || p.status !== "ready"} title="Build main.rs with your lib.rs and run it (⌘')">
+                    {scratch.isPending ? "Running…" : "▷ Run"}
+                    <kbd>⌘'</kbd>
+                  </button>
+                ) : (
+                  <button className="ebtn" onClick={doRun} disabled={busy || p.status !== "ready"} title="Run the visible tests (⌘↵)">
+                    {run.isPending ? "Testing…" : "Run tests"}
+                    <kbd>⌘↵</kbd>
+                  </button>
+                )}
                 <EditorSettingsButton></EditorSettingsButton>
                 {confirm === "reset" ? (
                   <span className="m" style={{ fontSize: 11, display: "flex", gap: 10 }}>
@@ -734,19 +757,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 <TestsPanel run={shown} cases={cases} hiddenCases={hiddenCases} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
               </div>
               <div className="acts">
-                <button onClick={doScratch} disabled={busy || p.status !== "ready"} title="Build main.rs with your lib.rs and run it (⌘')">
-                  {scratch.isPending ? "Running…" : "▷ Run"}
-                  <span className="m" style={{ fontSize: 10.5, color: "var(--dim)" }}>
-                    ⌘'
-                  </span>
-                </button>
-                <button onClick={doRun} disabled={busy || p.status !== "ready"}>
-                  {run.isPending ? "Running…" : "Run tests"}
-                  <span className="m" style={{ fontSize: 10.5, color: "var(--dim)" }}>
-                    ⌘↵
-                  </span>
-                </button>
-                <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"}>
+                <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"} title="Run the visible and hidden tests (⇧⌘↵)">
                   {submit.isPending ? "Submitting…" : "Submit"}
                 </button>
               </div>

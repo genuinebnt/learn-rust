@@ -1,0 +1,32 @@
+slug = "find-center-of-star-graph"
+title = "Find center of star graph"
+mode = "write"
+level = "easy"
+stage = "representation"
+order = 1
+status = "ready"
+tags = ["edges", "O(1)"]
+companies = ["Amazon", "Microsoft"]
+teaches = [
+  "Destructuring tuples straight out of a slice pattern.",
+  "Using what the input guarantees instead of building a whole graph.",
+]
+constraints = ["2 ≤ edges.len() ≤ 10⁵", "labels are distinct `u32`s"]
+follow_up = "How would you check that the input really is a star, and what would that cost?"
+
+[[examples]]
+input = "edges = [(1, 2), (2, 3), (4, 2)]"
+output = "2"
+
+[[hints]]
+kind = "approach"
+text = "The center touches every edge. Which label do the first two edges have in common?"
+
+[[hints]]
+kind = "rust"
+text = "`let ((a, b), (c, d)) = (edges[0], edges[1]);` pulls out all four labels at once."
+
+[solution]
+explanation = "Only two edges are needed: the center is the one label they share. No adjacency list, no counting."
+time = "O(1)"
+space = "O(1)"

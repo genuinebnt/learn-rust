@@ -12,8 +12,13 @@ band = "easy"
 
 [[stages]]
 slug = "traversal"
-name = "Traversal"
+name = "Grid & graph traversal"
 band = "easy"
+
+[[stages]]
+slug = "bfs-patterns"
+name = "BFS patterns"
+band = "medium"
 
 [[stages]]
 slug = "topological-sort"
@@ -29,6 +34,11 @@ band = "medium"
 slug = "union-find-mst"
 name = "Union-find & MST"
 band = "medium"
+
+[[stages]]
+slug = "hard-traversals"
+name = "Hard traversals"
+band = "hard"
 
 [[stages]]
 slug = "scc-bridges-arenas"

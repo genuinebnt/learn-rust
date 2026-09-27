@@ -7,6 +7,104 @@ NEAR = "[(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)]
 # ---------------------------------------------------------------- representation
 
 P.append(dict(
+    slug="find-center-of-star-graph", title="Find center of star graph", level="easy", stage="representation",
+    tags=["edges", "O(1)"],
+    teaches=["Destructuring tuples straight out of a slice pattern.", "Using what the input guarantees instead of building a whole graph."],
+    statement="""
+        A star graph has one center joined to every other node, and no other edges. Given its `edges` (at least
+        two), return the center's label.
+    """,
+    examples=[("edges = [(1, 2), (2, 3), (4, 2)]", "2")],
+    constraints=["2 ≤ edges.len() ≤ 10⁵", "labels are distinct `u32`s"],
+    starter="""
+        pub fn find_center(edges: &[(u32, u32)]) -> u32 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn find_center(edges: &[(u32, u32)]) -> u32 {
+            // The center is in every edge, so it's whichever end the first two edges share.
+            let ((a, b), (c, d)) = (edges[0], edges[1]);
+            if a == c || a == d {
+                a
+            } else {
+                b
+            }
+        }
+    """,
+    visible=[
+        T("center_in_the_middle", "edges = [(1, 2), (2, 3), (4, 2)]", "find_center(&[(1, 2), (2, 3), (4, 2)])", "2"),
+        T("center_first", "edges = [(1, 2), (5, 1), (1, 3), (1, 4)]", "find_center(&[(1, 2), (5, 1), (1, 3), (1, 4)])", "1"),
+        T("smallest_star", "edges = [(3, 1), (1, 2)]", "find_center(&[(3, 1), (1, 2)])", "1"),
+        T("center_always_second", "edges = [(2, 9), (3, 9), (4, 9)]", "find_center(&[(2, 9), (3, 9), (4, 9)])", "9"),
+        T("center_not_the_smallest_label", "edges = [(7, 100), (100, 1)]", "find_center(&[(7, 100), (100, 1)])", "100"),
+    ],
+    hidden=[
+        T("center_always_first", "edges = [(5, 1), (5, 2), (5, 3)]", "find_center(&[(5, 1), (5, 2), (5, 3)])", "5"),
+        T("first_edge_reversed", "edges = [(2, 8), (8, 3)]", "find_center(&[(2, 8), (8, 3)])", "8"),
+        T("second_edge_reversed", "edges = [(8, 2), (3, 8)]", "find_center(&[(8, 2), (3, 8)])", "8"),
+        T("largest_label", "edges = [(u32::MAX, 0), (1, u32::MAX)]", "find_center(&[(u32::MAX, 0), (1, u32::MAX)])", "u32::MAX"),
+        T("label_zero", "edges = [(4, 0), (0, 6)]", "find_center(&[(4, 0), (0, 6)])", "0"),
+        T("big_star", "center 50000 joined to 1..=100000 except itself", "find_center(&edges)", "50_000",
+          setup="let edges: Vec<(u32, u32)> = (1..=100_000u32).filter(|&v| v != 50_000).map(|v| if v % 2 == 0 { (v, 50_000) } else { (50_000, v) }).collect();"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(934);
+            for _ in 0..300 {
+                let n = 3 + rng.below(8);
+                let mut labels: Vec<u32> = (1..=20).collect();
+                rng.shuffle(&mut labels);
+                let center = labels[0];
+                let mut edges: Vec<(u32, u32)> = labels[1..n].iter().map(|&v| if rng.bool() { (center, v) } else { (v, center) }).collect();
+                rng.shuffle(&mut edges);
+                // Brute force: the label that appears in every edge.
+                let want = labels[..n].iter().copied().find(|&x| edges.iter().all(|&(a, b)| a == x || b == x)).unwrap();
+                check!(format!("edges = {edges:?}"), find_center(&edges), want);
+            }
+        }
+
+        #[test]
+        fn three_node_orientations() {
+            // Every orientation and order of a 3-node star centred on 2.
+            let mut bad = Vec::new();
+            for e0 in [(1, 2), (2, 1)] {
+                for e1 in [(3, 2), (2, 3)] {
+                    for edges in [[e0, e1], [e1, e0]] {
+                        if find_center(&edges) != 2 {
+                            bad.push(edges);
+                        }
+                    }
+                }
+            }
+            check!("all 8 ways to write a star 1-2-3", bad, Vec::<[(u32, u32); 2]>::new());
+        }
+        """,
+    ],
+    wrong=dict(
+        only_compares_first_ends="""
+            pub fn find_center(edges: &[(u32, u32)]) -> u32 {
+                let ((a, b), (c, _)) = (edges[0], edges[1]);
+                if a == c {
+                    a
+                } else {
+                    b
+                }
+            }
+        """,
+        first_label="""
+            pub fn find_center(edges: &[(u32, u32)]) -> u32 {
+                edges[0].0
+            }
+        """,
+    ),
+    hints=[("approach", "The center touches every edge. Which label do the first two edges have in common?"),
+           ("rust", "`let ((a, b), (c, d)) = (edges[0], edges[1]);` pulls out all four labels at once.")],
+    notes=("Only two edges are needed: the center is the one label they share. No adjacency list, no counting.", "O(1)", "O(1)"),
+    follow_up="How would you check that the input really is a star, and what would that cost?",
+))
+
+P.append(dict(
     slug="build-an-adjacency-list", title="Build an adjacency list", level="easy", stage="representation",
     tags=["Vec<Vec<usize>>", "dedup"],
     teaches=["`vec![Vec::new(); n]` clones one empty Vec n times.", "Nodes as `usize` indices, not objects."],
@@ -251,6 +349,173 @@ P.append(dict(
     notes=("`fold` threads an owned Vec through the edges, so no `let mut` outside is needed. `sources` reuses `degrees` and filters on the first field.", "O(V + E)", "O(V)"),
     follow_up="How would you compute the same counts in parallel with rayon?",
     related=["S6"],
+))
+
+P.append(dict(
+    slug="find-if-path-exists", title="Find if path exists in graph", level="easy", stage="representation",
+    tags=["BFS", "Vec<Vec<usize>>"],
+    teaches=["Build the adjacency list once, then search it.", "A `seen` Vec instead of a `HashSet` when nodes are `0..n`."],
+    statement="""
+        The graph on nodes `0..n` is undirected. Return whether there's a path from `source` to `destination`.
+        A node always reaches itself.
+    """,
+    examples=[("n = 3, edges = [(0, 1), (1, 2), (2, 0)], source = 0, destination = 2", "true")],
+    constraints=["1 ≤ n ≤ 2·10⁵", "edges.len() ≤ 2·10⁵"],
+    starter="""
+        pub fn valid_path(n: usize, edges: &[(usize, usize)], source: usize, destination: usize) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn valid_path(n: usize, edges: &[(usize, usize)], source: usize, destination: usize) -> bool {
+            let mut adj = vec![Vec::new(); n];
+            for &(a, b) in edges {
+                adj[a].push(b);
+                adj[b].push(a);
+            }
+            let mut seen = vec![false; n];
+            seen[source] = true;
+            let mut stack = vec![source];
+            while let Some(u) = stack.pop() {
+                if u == destination {
+                    return true;
+                }
+                for &v in &adj[u] {
+                    if !seen[v] {
+                        seen[v] = true;
+                        stack.push(v);
+                    }
+                }
+            }
+            false
+        }
+    """,
+    visible=[
+        T("triangle", "n = 3, edges = [(0, 1), (1, 2), (2, 0)], source = 0, destination = 2", "valid_path(3, &[(0, 1), (1, 2), (2, 0)], 0, 2)", "true"),
+        T("separate_pieces", "n = 6, edges = [(0, 1), (0, 2), (3, 5), (5, 4), (4, 3)], source = 0, destination = 5",
+          "valid_path(6, &[(0, 1), (0, 2), (3, 5), (5, 4), (4, 3)], 0, 5)", "false"),
+        T("source_is_destination", "n = 1, edges = [], source = 0, destination = 0", "valid_path(1, &[], 0, 0)", "true"),
+        T("edges_work_both_ways", "n = 2, edges = [(1, 0)], source = 0, destination = 1", "valid_path(2, &[(1, 0)], 0, 1)", "true"),
+        T("isolated_destination", "n = 3, edges = [(0, 1)], source = 0, destination = 2", "valid_path(3, &[(0, 1)], 0, 2)", "false"),
+    ],
+    hidden=[
+        T("self_loops_only", "n = 2, edges = [(0, 0), (1, 1)], source = 0, destination = 1", "valid_path(2, &[(0, 0), (1, 1)], 0, 1)", "false"),
+        T("repeated_edges", "n = 3, edges = [(0, 1), (1, 0), (0, 1), (1, 2)], source = 2, destination = 0", "valid_path(3, &[(0, 1), (1, 0), (0, 1), (1, 2)], 2, 0)", "true"),
+        T("isolated_source", "n = 4, edges = [(1, 2), (2, 3)], source = 0, destination = 3", "valid_path(4, &[(1, 2), (2, 3)], 0, 3)", "false"),
+        T("reach_backwards_along_a_path", "n = 5, edges = [(0, 1), (1, 2), (2, 3), (3, 4)], source = 4, destination = 0", "valid_path(5, &[(0, 1), (1, 2), (2, 3), (3, 4)], 4, 0)", "true"),
+        T("same_node_isolated", "n = 3, edges = [(0, 1)], source = 2, destination = 2", "valid_path(3, &[(0, 1)], 2, 2)", "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(935);
+            for _ in 0..300 {
+                let n = 1 + rng.below(8);
+                let m = rng.below(8);
+                let edges: Vec<(usize, usize)> = (0..m).map(|_| (rng.below(n), rng.below(n))).collect();
+                let (s, d) = (rng.below(n), rng.below(n));
+                // Brute force: grow the reached set until it stops changing.
+                let mut reached = vec![false; n];
+                reached[s] = true;
+                loop {
+                    let before = reached.iter().filter(|&&r| r).count();
+                    for &(a, b) in &edges {
+                        if reached[a] || reached[b] {
+                            reached[a] = true;
+                            reached[b] = true;
+                        }
+                    }
+                    if reached.iter().filter(|&&r| r).count() == before {
+                        break;
+                    }
+                }
+                check!(format!("n = {n}, edges = {edges:?}, source = {s}, destination = {d}"), valid_path(n, &edges, s, d), reached[d]);
+            }
+        }
+
+        #[test]
+        fn scale_long_path() {
+            // A path 0-1-…-199999 listed from the far end; the destination is the last node.
+            let n = 200_000;
+            let edges: Vec<(usize, usize)> = (1..n).rev().map(|i| (i, i - 1)).collect();
+            check!("n = 200000, path 0-1-…-199999, source = 0, destination = 199999", valid_path(n, &edges, 0, n - 1), true);
+        }
+
+        #[test]
+        fn scale_unreachable() {
+            // Two long paths that never meet.
+            let n = 200_000;
+            let edges: Vec<(usize, usize)> = (2..n).map(|i| (i - 2, i)).collect();
+            check!("n = 200000, evens and odds each form a path; source = 0, destination = 199999", valid_path(n, &edges, 0, n - 1), false);
+        }
+        """,
+    ],
+    wrong=dict(
+        one_direction_only="""
+            pub fn valid_path(n: usize, edges: &[(usize, usize)], source: usize, destination: usize) -> bool {
+                let mut adj = vec![Vec::new(); n];
+                for &(a, b) in edges {
+                    adj[a].push(b);
+                }
+                let mut seen = vec![false; n];
+                seen[source] = true;
+                let mut stack = vec![source];
+                while let Some(u) = stack.pop() {
+                    if u == destination {
+                        return true;
+                    }
+                    for &v in &adj[u] {
+                        if !seen[v] {
+                            seen[v] = true;
+                            stack.push(v);
+                        }
+                    }
+                }
+                false
+            }
+        """,
+        recursive_dfs="""
+            pub fn valid_path(n: usize, edges: &[(usize, usize)], source: usize, destination: usize) -> bool {
+                fn go(u: usize, target: usize, adj: &[Vec<usize>], seen: &mut [bool]) -> bool {
+                    if u == target {
+                        return true;
+                    }
+                    seen[u] = true;
+                    adj[u].iter().any(|&v| !seen[v] && go(v, target, adj, seen))
+                }
+                let mut adj = vec![Vec::new(); n];
+                for &(a, b) in edges {
+                    adj[a].push(b);
+                    adj[b].push(a);
+                }
+                go(source, destination, &adj, &mut vec![false; n])
+            }
+        """,
+        scan_every_edge_each_step="""
+            pub fn valid_path(n: usize, edges: &[(usize, usize)], source: usize, destination: usize) -> bool {
+                let mut seen = vec![false; n];
+                seen[source] = true;
+                let mut stack = vec![source];
+                while let Some(u) = stack.pop() {
+                    if u == destination {
+                        return true;
+                    }
+                    for &(a, b) in edges {
+                        let v = if a == u { b } else if b == u { a } else { continue };
+                        if !seen[v] {
+                            seen[v] = true;
+                            stack.push(v);
+                        }
+                    }
+                }
+                false
+            }
+        """,
+    ),
+    hints=[("approach", "Build an adjacency list, then search from `source` with a stack or queue, marking nodes as you go."),
+           ("rust", "`vec![Vec::new(); n]` for the lists and `vec![false; n]` for `seen`; push each undirected edge both ways."),
+           ("edge case", "A 200,000-node path overflows a recursive DFS. Use an explicit stack.")],
+    notes=("Each node is pushed once and each edge looked at twice. Union-find answers the same question, and pays off when there are many queries.", "O(V + E)", "O(V + E)"),
+    follow_up="With 10⁵ source/destination queries on the same graph, what would you precompute?",
 ))
 
 P.append(dict(
@@ -1274,7 +1539,7 @@ P.append(dict(
 ))
 
 P.append(dict(
-    slug="rotting-oranges", title="Rotting oranges", level="medium", stage="traversal",
+    slug="rotting-oranges", title="Rotting oranges", level="medium", stage="bfs-patterns",
     tags=["multi-source BFS", "VecDeque", "Option"],
     teaches=["Multi-source BFS: seed the queue with every source.", "`Option` for 'impossible' instead of `-1`."],
     statement="""
@@ -1455,7 +1720,7 @@ P.append(dict(
 ))
 
 P.append(dict(
-    slug="pacific-atlantic-water-flow", title="Pacific Atlantic water flow", level="medium", stage="traversal",
+    slug="pacific-atlantic-water-flow", title="Pacific Atlantic water flow", level="medium", stage="bfs-patterns",
     tags=["reverse BFS", "grid", "Blind 75"],
     teaches=["Search backwards from the targets instead of forwards from every cell.", "A closure returning an owned `Vec<Vec<bool>>`."],
     statement="""
@@ -1783,7 +2048,7 @@ P.append(dict(
 ))
 
 P.append(dict(
-    slug="word-ladder", title="Word ladder", level="hard", stage="traversal",
+    slug="word-ladder", title="Word ladder", level="hard", stage="bfs-patterns",
     tags=["BFS", "HashSet<&[u8]>"],
     teaches=["BFS over implicit neighbours.", "Removing from the set as you enqueue, instead of a separate `seen`."],
     statement="""
@@ -6746,6 +7011,8 @@ P.append(dict(
 ))
 
 COMPANIES = {
+    "find-center-of-star-graph": ["Amazon", "Microsoft"],
+    "find-if-path-exists": ["Amazon", "Google", "Microsoft"],
     "number-of-islands": ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "LinkedIn", "Uber"],
     "clone-graph": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"],
     "rotting-oranges": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "DoorDash"],
@@ -6767,16 +7034,54 @@ tag_companies([p for p in P if "title" in p], COMPANIES)
 
 STAGES = [
     ("representation", "Representation", "easy"),
-    ("traversal", "Traversal", "easy"),
+    ("traversal", "Grid & graph traversal", "easy"),
+    ("bfs-patterns", "BFS patterns", "medium"),
     ("topological-sort", "Topological sort", "medium"),
     ("shortest-paths", "Shortest paths", "medium"),
     ("union-find-mst", "Union-find & MST", "medium"),
+    ("hard-traversals", "Hard traversals", "hard"),
     ("scc-bridges-arenas", "SCC, bridges & arenas", "hard"),
     ("flows-matching", "Flows & matching", "hard"),
 ]
+
+# The track's order (docs/CURRICULUM.md, D9). Problems are written above grouped by stage; this sets their positions.
+ORDER = [
+    # representation
+    "find-center-of-star-graph", "build-an-adjacency-list", "degree-counts-with-iterators", "find-if-path-exists", "edge-list-to-csr",
+    "fix-a-graph-that-owns-its-nodes",
+    # grid & graph traversal
+    "flood-fill", "island-perimeter", "number-of-islands", "max-area-of-island", "number-of-provinces", "keys-and-rooms",
+    "iterative-dfs-with-an-explicit-stack", "fix-recursive-closure-dfs", "clone-graph",
+    # BFS patterns
+    "rotting-oranges", "zero-one-matrix", "shortest-path-in-binary-matrix", "surrounded-regions", "pacific-atlantic-water-flow",
+    "open-the-lock", "evaluate-division", "word-ladder",
+    # topological sort
+    "course-schedule", "course-schedule-ii", "build-order-with-cycle-report", "fix-invalidation-in-kahns", "minimum-height-trees",
+    "alien-dictionary",
+    # shortest paths
+    "network-delay-time", "fix-heap-ordering-with-a-custom-ord", "path-with-minimum-effort", "cheapest-flights-within-k-stops",
+    "city-with-fewest-reachable-neighbours", "swim-in-rising-water", "zero-one-bfs-on-a-grid", "dijkstra-over-generic-weights",
+    # union-find & MST
+    "number-of-connected-components", "graph-valid-tree", "redundant-connection", "union-find-as-a-reusable-struct", "accounts-merge",
+    "kruskals-mst", "min-cost-to-connect-all-points", "fix-two-mut-into-one-parent-vec",
+    # hard traversals
+    "sliding-puzzle", "bus-routes", "making-a-large-island", "shortest-path-to-get-all-keys", "reconstruct-itinerary",
+    # SCC, bridges & arenas
+    "tarjans-scc", "critical-connections", "arena-allocated-graph", "fix-rc-refcell-node-cycle-leak",
+    # flows & matching
+    "bipartite-check", "max-flow-with-edmonds-karp", "hopcroft-karp-matching", "min-cost-flow",
+]
+assert len(ORDER) == len(set(ORDER)) == 58
+P.sort(key=lambda p: ORDER.index(p["slug"]))
 
 if __name__ == "__main__":
     n = write_track("d9-graphs", "D9", "Graphs", "D", "core", 7,
                     "Index-based graphs, from adjacency lists to max-flow. Nodes that point at each other can't all own each other.",
                     STAGES, P, keep={"network-delay-time"})
+    # network-delay-time is written by hand; only its position follows ORDER.
+    import os, re
+    from author import ROOT
+    toml = os.path.join(ROOT, "d9-graphs", "problems", "network-delay-time", "problem.toml")
+    text = open(toml).read()
+    open(toml, "w").write(re.sub(r"(?m)^order = \d+$", f"order = {[p['slug'] for p in P].index('network-delay-time') + 1}", text))
     print("D9", n)

@@ -192,12 +192,56 @@ test, `wrong/` solutions and `companies` (`verify` enforces the counts and `wron
 | # | Track | Done | Next (in CURRICULUM order) | Notes |
 |---|---|---|---|---|
 | 1 | D9 Graphs (d9.py, order 7, seeds 901–999) | 49/58: Representation, Grid & graph traversal, BFS patterns, Topological sort | Shortest paths: City with fewest reachable neighbours (Floyd–Warshall), Swim in rising water · Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary | existing problems keep their slugs; `network-delay-time` is hand-written (`keep`) |
-| 2 | D12 DP (d12.py, order 10, seeds 1201–1299) | 39/57: 1-D basics, 1-D choices, 2-D grids, Strings, Knapsack, State machines | Intervals & games (6) · Bitmasks & digits (5) · Hard strings (3) · DP the Rust way (4) | |
+| 2 | D12 DP (d12.py, order 10, seeds 1201–1299) | 39/57: 1-D basics, 1-D choices, 2-D grids, Strings, Knapsack, State machines | Intervals & games (6, written on `wip/d9-d12-unverified`) · Bitmasks & digits (5) · Hard strings (3) · DP the Rust way (4); seeds from 1246 | distinct subsequences uses `wrapping_add` on purpose; stone game returns both totals |
 | 3 | D6 Trees (d6.py, order 6) | 8/44: Basics | Traversals, Levels & recursion, BSTs, Ownership-shaped trees; seeds from 609 | reuse `TREE` / `HELP` in d6.py; deep trees run in `big_stack`; count-nodes scale test uses a shared-`Rc` complete tree |
 | 4 | D10 Tries (d10.py, order 11) | 11/25: First tries, Tries at work | String algorithms, Hard tries & strings; seeds from 1012 | Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; D10's zero-copy tokenizer must be harder than L3's |
 | 5 | D11 Recursion & backtracking (d11.py, order 12) | 15/28: Recursion, First backtracking, Choices & grids 6/12 | generate-parentheses, different-ways-to-add-parentheses, word-search, palindrome-partitioning, restore-ip-addresses, Fix: recursive closure can't borrow the grid (flood fill → inner `fn`); then Constraints & pruning; seeds from 1127 | |
 | 6 | D8 Intervals & greedy (d8.py, order 9) | 13/29: First greedy, Intervals | Greedy choices (9), Hard greedy (7); seeds 814–829 | |
 | 7 | Not started | | D7 Heaps, D13, D14; L4–L8; S5–S9 (ROADMAP §7 step 1) | write each track's CURRICULUM table first if it still needs the LeetCode 250 pass |
+
+**Unverified work saved off `master`:** branch `wip/d9-d12-unverified` (pushed) holds what the D9 and D12 agents had
+written when they stopped. D12's part is the Intervals & games stage (6 problems below), which is complete, with one
+wrong-solution compile fix applied but not re-verified. Check the branch out, run `verify d12` / `verify d9`, fix, and
+commit to `master`; or discard it and rewrite those problems.
+
+#### Every problem not written yet (checklist)
+
+Tick against `cargo run -q -p anneal-cli -- list <track>`. Stage lists are in each track's CURRICULUM table.
+
+- **D9 Graphs (9):** Shortest paths: City with the fewest reachable neighbours (Floyd–Warshall), Swim in rising water ·
+  Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding puzzle, Bus routes,
+  Making a large island, Shortest path to get all keys, Reconstruct itinerary (Hierholzer). Some may be on the wip branch.
+- **D12 DP (18; seeds from 1246):** Intervals & games (on the wip branch): Unique BSTs, Predict the winner, Stone game
+  (returns both players' totals), Palindrome partitioning II, Min cost to cut a stick, Burst balloons · Bitmasks & digits:
+  Count numbers with unique digits, Numbers at most N from a digit set, Can I win, Shortest path visiting all nodes, Ways
+  to wear hats · Hard strings: Longest valid parentheses, Wildcard matching, Regular expression matching · DP the Rust
+  way: Generic memoization engine (W44), Fix: recursive memo closure (E0499), Top-down → bottom-up rewrite, House robber
+  III on a tree.
+- **D6 Trees (36; seeds from 609):** Traversals: Preorder, Inorder, Postorder, Leaf-similar trees, Count nodes · Levels
+  & recursion: Average of levels, Level order, Zigzag level order, Right side view, Iterative inorder, Diameter, Balanced
+  tree, Subtree of another, Count good nodes, Path sum II, Sum root-to-leaf numbers, Max width, Flatten to linked list,
+  Vertical order traversal · BSTs: Search in a BST, Insert into a BST, Validate BST, Kth smallest, LCA of BST, LCA of
+  binary tree, Build from preorder / inorder, Delete node in a BST, BST iterator · Ownership-shaped trees: Max path sum,
+  Binary tree cameras, Recover BST, Serialize / deserialize, Insert & delete in an `Option<Box<Node>>` BST, In-order
+  iterator with lifetimes (W43), Arena tree with typed indices (W55), Parent pointers with `Weak`.
+- **D10 Tries (14; seeds from 1012):** String algorithms: Find the first occurrence (KMP), Repeated substring pattern,
+  Longest palindromic substring, Palindromic substrings, String to integer, Repeated DNA sequences · Hard tries &
+  strings: Word search II, Autocomplete system with hot counts (W31), Max XOR (bit trie), Stream of characters,
+  Concatenated words, Palindrome pairs, Shortest palindrome (KMP), Zero-copy tokenizer (W36).
+- **D11 Recursion & backtracking (13; seeds from 1127):** Choices & grids: Generate parentheses, Different ways to add
+  parentheses, Word search, Palindrome partitioning, Restore IP addresses, Fix: recursive closure can't borrow the grid
+  mutably · Constraints & pruning: N-Queens (bitmasks), N-Queens II, Sudoku solver, Matchsticks to square, Partition to K
+  equal subsets, Word break II, Expression add operators.
+- **D8 Intervals & greedy (16; seeds 814–829):** Greedy choices: Jump game, Jump game II, Gas station, Partition labels,
+  Boats to save people, Two city scheduling, Min add to make parentheses valid, Valid parenthesis string, Queue
+  reconstruction by height · Hard greedy: Hand of straights, Remove K digits, Candy, Min interval to include each query,
+  Employee free time, Min refueling stops, Course schedule III.
+- **Written tracks below their planned size:** S1 Option & Result has 10 of 16, S4 Maps & sets 11 of 18 (the rest are
+  variations of the stage anchors; see their CURRICULUM rows).
+- **Tracks with nothing written** (full lists in CURRICULUM): D7 Heaps 13, D13 Matrix/bits/math 16, D14 Data-structure
+  design 20; L4 Traits 22, L5 Generics 16, L6 Closures 14, L7 Enums 14, L8 Error design 16, L9 Modules 10, L10 Macros 12;
+  S5 Queues & heaps 14, S6 Iterators 22, S7 Smart pointers 20, S8 Core traits 16, S9 I/O 14, S10 Time & processes 8, S11
+  mem/ptr/alloc 12; and sections C (concurrency), Y (systems), B (backend), M, P, H.
 
 Also pending:
 - **Company tags** on the L/S tracks' LeetCode-style problems (S2 `reverse-each-word`, `word-frequency`; S3

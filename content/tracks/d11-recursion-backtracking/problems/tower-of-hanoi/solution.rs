@@ -1,0 +1,13 @@
+pub fn hanoi(n: u32) -> Vec<(u8, u8)> {
+    fn solve(n: u32, from: u8, spare: u8, to: u8, moves: &mut Vec<(u8, u8)>) {
+        if n == 0 {
+            return;
+        }
+        solve(n - 1, from, to, spare, moves);
+        moves.push((from, to));
+        solve(n - 1, spare, from, to, moves);
+    }
+    let mut moves = Vec::with_capacity((1usize << n) - 1);
+    solve(n, 0, 1, 2, &mut moves);
+    moves
+}

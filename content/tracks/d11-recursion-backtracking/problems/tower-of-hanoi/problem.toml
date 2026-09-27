@@ -1,0 +1,36 @@
+slug = "tower-of-hanoi"
+title = "Tower of Hanoi"
+mode = "write"
+level = "easy"
+stage = "recursion"
+order = 3
+status = "ready"
+tags = ["recursion", "Vec"]
+teaches = [
+  "Trust the recursive call: move n − 1 disks out of the way, move the big one, move them back on top.",
+  "An inner `fn` that pushes into a `&mut Vec` shared by every call.",
+]
+constraints = ["0 ≤ n ≤ 20"]
+follow_up = "How many moves does the disk of size k make? Can you print move number m without generating the others?"
+related = ["D12"]
+
+[[examples]]
+input = "n = 2"
+output = "[(0, 1), (0, 2), (1, 2)]"
+
+[[hints]]
+kind = "approach"
+text = "To move n disks from A to C: move n − 1 from A to B, move the largest from A to C, move n − 1 from B to C."
+
+[[hints]]
+kind = "rust"
+text = "Write `fn solve(n, from, spare, to, moves: &mut Vec<(u8, u8)>)` inside `hanoi` and call it once."
+
+[[hints]]
+kind = "edge case"
+text = "n = 0 needs no moves; make that the base case and n = 1 falls out of it."
+
+[solution]
+explanation = "The largest disk moves once, and only when the n − 1 smaller disks are all on the spare, so every shortest solution has this shape: T(n) = 2·T(n − 1) + 1 = 2ⁿ − 1 moves."
+time = "O(2ⁿ)"
+space = "O(n) recursion depth plus the 2ⁿ − 1 moves"

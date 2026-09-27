@@ -1,0 +1,41 @@
+slug = "k-th-symbol-in-grammar"
+title = "K-th symbol in grammar"
+mode = "write"
+level = "easy"
+stage = "recursion"
+order = 2
+status = "ready"
+tags = ["recursion", "bits"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "Describe row n in terms of row n − 1 and recurse on the half that holds k.",
+  "Never build a row that has 2⁶³ symbols: follow one path down instead.",
+]
+constraints = ["1 ≤ n ≤ 64", "1 ≤ k ≤ 2^(n-1)"]
+follow_up = "Why is the answer the parity of `(k - 1).count_ones()`? Write that one-liner and explain it."
+related = ["D13"]
+
+[[examples]]
+input = "n = 2, k = 2"
+output = "1"
+
+[[examples]]
+input = "n = 4, k = 5"
+output = "1"
+
+[[hints]]
+kind = "approach"
+text = "The first half of row n is row n − 1; the second half is row n − 1 with every symbol flipped."
+
+[[hints]]
+kind = "rust"
+text = "The half length is `1u64 << (n - 2)`. Recurse into row n − 1 with `k` or `k - half`."
+
+[[hints]]
+kind = "edge case"
+text = "k counts from 1, so k = 2^(n-2) is still in the first half."
+
+[solution]
+explanation = "Each call moves up one row and keeps only the half that holds k, flipping the answer when k is in the second half. The same walk shows the answer is the parity of the set bits of k − 1."
+time = "O(n)"
+space = "O(n) recursion depth"

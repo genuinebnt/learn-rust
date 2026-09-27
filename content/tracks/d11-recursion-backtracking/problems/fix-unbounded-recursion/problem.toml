@@ -1,0 +1,40 @@
+slug = "fix-unbounded-recursion"
+title = "Fix: unbounded recursion"
+mode = "fix"
+level = "easy"
+stage = "recursion"
+order = 5
+status = "ready"
+tags = ["base case", "split_at", "stack overflow"]
+teaches = [
+  "Every recursive call must get strictly closer to a base case.",
+  "`split_at(len / 2)` on a one-element slice gives back the same element: that call never shrinks.",
+]
+constraints = ["0 ≤ nums.len() ≤ 2·10⁵", "the sum fits in an i64"]
+follow_up = "Rust doesn't guarantee tail-call elimination. When would you turn a recursion like this into a loop?"
+related = ["S3", "D12"]
+
+[[examples]]
+input = "nums = [1, 2, 3, 4]"
+output = "10"
+
+[[hints]]
+kind = "approach"
+text = "Trace `split_sum(&[5])`: what are `left` and `right`, and which call is the same as the one you started with?"
+
+[[hints]]
+kind = "rust"
+text = "A one-element slice needs its own base case: `if nums.len() == 1 { return nums[0]; }`."
+
+[[hints]]
+kind = "edge case"
+text = "Keep the empty-slice case too, or `split_sum(&[])` recurses forever."
+
+[solution]
+explanation = "`split_at(len / 2)` of a one-element slice is `([], [x])`, so the right-hand call gets the same slice back and never reaches a base case. With both base cases every call gets a strictly shorter slice, and the depth is log₂ n."
+time = "O(n)"
+space = "O(log n) recursion depth"
+
+[rules]
+forbid_methods = ["iter", "into_iter"]
+max_changed_lines = 3

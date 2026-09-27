@@ -1,0 +1,11 @@
+code = "D11"
+name = "Recursion & backtracking"
+section = "D"
+tier = "core"
+order = 12
+summary = "Recursion first (base cases, trusting the call, divide and conquer), then backtracking: choose, recurse, undo, and prune."
+
+[[stages]]
+slug = "recursion"
+name = "Recursion"
+band = "easy"

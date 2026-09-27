@@ -1,0 +1,41 @@
+slug = "merge-sort"
+title = "Merge sort"
+mode = "write"
+level = "easy"
+stage = "recursion"
+order = 4
+status = "ready"
+tags = ["divide and conquer", "split_at"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
+teaches = [
+  "Divide and conquer: sort each half, then merge two sorted runs in one pass.",
+  "`split_at` gives two borrowed halves without copying.",
+]
+constraints = ["0 ≤ nums.len() ≤ 2·10⁵", "i32::MIN ≤ nums[i] ≤ i32::MAX"]
+follow_up = "How would you sort in place with a single scratch buffer instead of allocating at every level?"
+related = ["S3", "D4"]
+
+[[examples]]
+input = "nums = [5, 2, 3, 1]"
+output = "[1, 2, 3, 5]"
+
+[[examples]]
+input = "nums = [5, 1, 1, 2, 0, 0]"
+output = "[0, 0, 1, 1, 2, 5]"
+
+[[hints]]
+kind = "approach"
+text = "A slice of 0 or 1 values is sorted. Otherwise sort both halves and merge them with two indices."
+
+[[hints]]
+kind = "rust"
+text = "`let (left, right) = nums.split_at(nums.len() / 2);` then `extend_from_slice` whatever is left of each side."
+
+[[hints]]
+kind = "edge case"
+text = "When one half runs out, the rest of the other half still has to be copied."
+
+[solution]
+explanation = "The recursion is log₂ n levels deep and each level merges n values in total. `<=` in the merge keeps equal values in their original order, which makes merge sort stable."
+time = "O(n log n)"
+space = "O(n) for the merged vectors"

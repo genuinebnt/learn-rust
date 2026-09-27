@@ -24,7 +24,7 @@ and what's next, in order.
 ## 2. Where things stand
 
 **Content:** 18 tracks, 360 problems. Every ready problem meets the test bar (≥5 visible, ≥8 hidden, ≥1 `wrong/`), which
-`anneal verify` enforces. All passed `verify` except the last D9 and D12 commit (see §6.0), which still has to be checked.
+`anneal verify` enforces. All passed `verify` except D12's Intervals & games stage (6 problems, see §6.0), which still has to be checked.
 
 | Track | Problems | Planned |
 |---|---|---|
@@ -216,7 +216,7 @@ test, `wrong/` solutions and `companies` (`verify` enforces the counts and `wron
 
 | # | Track | Done | Next (in CURRICULUM order) | Notes |
 |---|---|---|---|---|
-| 1 | D9 Graphs (d9.py, order 7, seeds 901–999) | 51/58: Representation, Grid & graph traversal, BFS patterns, Topological sort, Shortest paths (last 2 unverified) | Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary | existing problems keep their slugs; `network-delay-time` is hand-written (`keep`) |
+| 1 | D9 Graphs (d9.py, order 7, seeds from 951) | 51/58, verified: Representation, Grid & graph traversal, BFS patterns, Topological sort, Shortest paths | Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary | existing problems keep their slugs; `network-delay-time` is hand-written (`keep`) |
 | 2 | D12 DP (d12.py, order 10, seeds 1201–1299) | 45/57: 1-D basics … State machines, Intervals & games (unverified) | Bitmasks & digits (5) · Hard strings (3) · DP the Rust way (4); seeds from 1246 | distinct subsequences uses `wrapping_add` on purpose; stone game returns both totals |
 | 3 | D6 Trees (d6.py, order 6) | 8/44: Basics | Traversals, Levels & recursion, BSTs, Ownership-shaped trees; seeds from 609 | reuse `TREE` / `HELP` in d6.py; deep trees run in `big_stack`; count-nodes scale test uses a shared-`Rc` complete tree |
 | 4 | D10 Tries (d10.py, order 11) | 11/25: First tries, Tries at work | String algorithms, Hard tries & strings; seeds from 1012 | Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; D10's zero-copy tokenizer must be harder than L3's |
@@ -224,18 +224,20 @@ test, `wrong/` solutions and `companies` (`verify` enforces the counts and `wron
 | 6 | D8 Intervals & greedy (d8.py, order 9) | 13/29: First greedy, Intervals | Greedy choices (9), Hard greedy (7); seeds 814–829 | |
 | 7 | Not started | | D7 Heaps, D13, D14; L4–L8; S5–S9 (ROADMAP §7 step 1) | write each track's CURRICULUM table first if it still needs the LeetCode 250 pass |
 
-**Unverified work on `master`:** the D9 and D12 stages in progress when the agents stopped were committed at the
-owner's request (commit "D9 and D12: stages in progress … (not yet verified)"). `validate` passes; run `verify d9` and
-`verify d12` first and fix any failures (D12's last run had one wrong solution that didn't compile, since patched). The
-same state is also on branch `wip/d9-d12-unverified`, which can be deleted.
+**Unverified work on `master`:** commit 20757e2 ("D9 and D12: stages in progress … (not yet verified)"). Its D9 part
+(Shortest paths) was verified afterwards: `verify d9` → 51 problems, 0 failed. **D12's Intervals & games (6 problems)
+is still unverified**: run `verify d12` first (its last run had one wrong solution that didn't compile, since patched).
+Branch `wip/d9-d12-unverified` duplicates that commit and can be deleted.
 
 #### Every problem not written yet (checklist)
 
 Tick against `cargo run -q -p anneal-cli -- list <track>`. Stage lists are in each track's CURRICULUM table.
 
-- **D9 Graphs (7):** Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding
-  puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary (Hierholzer). (City with
-  the fewest reachable neighbours and Swim in rising water are in the unverified commit.)
+- **D9 Graphs (7; seeds from 951):** Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard
+  traversals: Sliding puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary
+  (Hierholzer). Their slugs are already reserved in `ORDER` in d9.py, and the empty Hard traversals stage is in
+  track.toml. Also below the bar: tarjans-scc and critical-connections have no complexity-catching scale test (their
+  recursive references stay at n ≤ 5000); an iterative rewrite would allow one.
 - **D12 DP (12; seeds from 1246):** (Intervals & games, 6 problems, is in the unverified commit) · Bitmasks & digits:
   Count numbers with unique digits, Numbers at most N from a digit set, Can I win, Shortest path visiting all nodes, Ways
   to wear hats · Hard strings: Longest valid parentheses, Wildcard matching, Regular expression matching · DP the Rust
@@ -344,7 +346,7 @@ Plan (approved):
 
 ## 7. Known rough edges
 
-- The last D9 / D12 commit ("… (not yet verified)") hasn't been through `verify`; run `verify d9` and `verify d12` first.
+- D12's Intervals & games stage hasn't been through `verify`; run `verify d12` first.
 - Track cards count only written problems ("8 problems" for D6's 8 of 44) and would call a partly written track done once
   those are solved. Proposed fix (awaiting the owner): show "8 of 44 written" and use CURRICULUM's size in `stateOf`
   (`web/src/pages/SectionPage.tsx`; sizes in `PLANNED`, `web/src/curriculum.ts`).

@@ -30,11 +30,7 @@ text = "Put the state in a struct and write `fn visit(&mut self, u)`. Six parame
 kind = "rust"
 text = "`for &v in &self.adj[u]` borrows `self` across `self.visit(v)`. `let adj = self.adj;` copies the `&[_]` out first."
 
-[[hints]]
-kind = "edge case"
-text = "Keep `on_stack` as a `Vec<bool>`: `stack.contains(&v)` makes each check O(n) and the whole search quadratic."
-
 [solution]
-explanation = "Each node is pushed and popped once, and each edge is examined once. Only nodes still on the stack can lower `low`; the rest belong to components already emitted."
+explanation = "Each node is pushed and popped once, and each edge is examined once. Only nodes still on the stack can lower `low`; the rest belong to components already emitted. Keep `on_stack` as a `Vec<bool>`: `stack.contains(&v)` makes each check O(n) and the search quadratic."
 time = "O(V + E)"
 space = "O(V)"

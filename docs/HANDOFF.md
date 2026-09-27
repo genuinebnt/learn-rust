@@ -1,6 +1,6 @@
 # anneal · handoff
 
-Last updated 2026-09-27. Read this first if you're picking the project up, whether you're working locally or
+Last updated 2026-09-27 (evening). Read this first if you're picking the project up, whether you're working locally or
 in a cloud session. It covers where things stand, how to run and check the work, how the owner likes to work,
 and what's next, in order.
 
@@ -23,8 +23,8 @@ and what's next, in order.
 
 ## 2. Where things stand
 
-**Content:** 18 tracks, 360 problems. Every ready problem meets the test bar (≥5 visible, ≥8 hidden, ≥1 `wrong/`), which
-`anneal verify` enforces. All passed `verify` except D12's Intervals & games stage (6 problems, see §6.0), which still has to be checked.
+**Content:** 20 tracks, 423 problems. Every ready problem meets the test bar (≥5 visible, ≥8 hidden, ≥1 `wrong/`), which
+`anneal verify` enforces, and every track passed `verify`.
 
 | Track | Problems | Planned |
 |---|---|---|
@@ -35,14 +35,16 @@ and what's next, in order.
 | D5 Linked lists | 15 | 15 |
 | D6 Trees & BSTs | 8 | 44 |
 | D8 Intervals & greedy | 13 | 29 |
-| D9 Graphs | 51 | 58 |
+| D9 Graphs | 58 | 58 |
 | D10 Tries & strings | 11 | 25 |
 | D11 Recursion & backtracking | 15 | 28 |
-| D12 Dynamic programming | 45 | 57 |
+| D12 Dynamic programming | 57 | 57 |
 | L1 Ownership & moves | 18 | 18 |
 | L2 Borrowing | 35 | 35 |
 | L3 Lifetimes | 20 | 20 |
-| S1 Option & Result | 10 | 16 |
+| L4 Traits & dispatch | 22 | 22 |
+| L5 Generics & associated types | 16 | 16 |
+| S1 Option & Result | 16 | 16 |
 | S2 Strings & text | 18 | 18 |
 | S3 Vec & slices | 20 | 20 |
 | S4 Maps & sets | 11 | 18 |
@@ -156,6 +158,12 @@ psql postgres://anneal:anneal@127.0.0.1:5434/anneal -c "TRUNCATE attempts, revie
 - **Do exactly what's asked.** Put extra ideas in a proposal with a recommendation and wait for an answer. Unrequested
   changes were reverted twice. Never drop an existing control while moving things around. "do recommended" means go
   ahead with your recommendations.
+- **Rust tracks are senior-level interview material** (owner, 2026-09-27): the owner is a senior Rust developer. Every
+  problem, the Easy band included, turns on a real trap, trade-off or compiler reason; no tutorial drills, no one-token
+  fixes. Each track must still cover its whole surface: every construct in the topic is written by hand at least once
+  (Easy = several constructs from memory in a non-trivial task), with a "Syntax to remember" line in the notes where
+  one is easy to forget. L4 and L5 put recall problems in fix mode, because `verify` needs a write-mode starter to
+  compile, which would give away the signatures.
 - **Mockups first for new screens and big UI changes.** Publish an HTML mockup and wait for approval. Small
   requested tweaks can be built directly.
 - **No visible scrollbars anywhere** (app.css hides them). Content must fit without them.
@@ -163,8 +171,8 @@ psql postgres://anneal:anneal@127.0.0.1:5434/anneal -c "TRUNCATE attempts, revie
 - **Difficulty colours:** easy = `--grn`, medium = `--warn`, hard = `--bad`. **Area colours:** DSA = `--acc`,
   Rust = `--vio`, Build = `--grn`.
 - **Commits:**
-  - go on `master`;
-  - push to `origin` (github.com/genuinebnt/learn-rust) when asked;
+  - go on `master` (or the session's branch, fast-forwarded into `master`);
+  - **push every commit to `origin/master`** (github.com/genuinebnt/learn-rust), owner's standing request;
   - end each message with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (or your model's line);
   - update the status in this file and in ROADMAP §0 when something lands.
 - **No prettier config exists.** Don't run prettier over files; it reformats everything to 80 columns. Match the
@@ -201,13 +209,14 @@ The test conventions:
 
 ## 6. What's next, in order (ROADMAP §7)
 
-### 6.0 Pending work (stopped 2026-09-27 at the plan limit): start here
+### 6.0 Pending work: start here
 
-All agents were stopped. Everything that passed `anneal verify` is committed on `master`, one commit per track or stage.
+Updated 2026-09-27 after D9, D12, L4, L5 and S1 were finished. Everything that passed `anneal verify` is committed on
+`master`, one commit per track or stage.
 Anything uncommitted in a checkout was unverified; delete it (`git status`, `git checkout -- <path>`, remove new folders)
 or verify and commit it. `cargo run -q -p anneal-cli -- list` shows each track's written count.
 
-**Order the owner set: finish tracks one at a time, Graphs → DP → Trees → Tries → the rest.** Hand
+**Order the owner set: Graphs → DP (both done 2026-09-27) → Rust exercises (L4, L5, S1 done) → Trees → Tries → the rest.** Hand
 [authoring/write-track.md](authoring/write-track.md) to an agent per track (fill `{TRACK}`, `{SPEC}`, `{FOLDER}`,
 `{CODE}`, `{ORDER}`, `{SEEDS}`); it continues from the spec as it stands. Agents sharing a checkout commit only their own
 `tools/author/<track>.py` + `content/tracks/<folder>`, verify with `--jobs 1` (4 CPUs), and retry a rejected push
@@ -216,33 +225,16 @@ test, `wrong/` solutions and `companies` (`verify` enforces the counts and `wron
 
 | # | Track | Done | Next (in CURRICULUM order) | Notes |
 |---|---|---|---|---|
-| 1 | D9 Graphs (d9.py, order 7, seeds from 951) | 51/58, verified: Representation, Grid & graph traversal, BFS patterns, Topological sort, Shortest paths | Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary | existing problems keep their slugs; `network-delay-time` is hand-written (`keep`) |
-| 2 | D12 DP (d12.py, order 10, seeds 1201–1299) | 45/57: 1-D basics … State machines, Intervals & games (unverified) | Bitmasks & digits (5) · Hard strings (3) · DP the Rust way (4); seeds from 1246 | distinct subsequences uses `wrapping_add` on purpose; stone game returns both totals |
-| 3 | D6 Trees (d6.py, order 6) | 8/44: Basics | Traversals, Levels & recursion, BSTs, Ownership-shaped trees; seeds from 609 | reuse `TREE` / `HELP` in d6.py; deep trees run in `big_stack`; count-nodes scale test uses a shared-`Rc` complete tree |
-| 4 | D10 Tries (d10.py, order 11) | 11/25: First tries, Tries at work | String algorithms, Hard tries & strings; seeds from 1012 | Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; D10's zero-copy tokenizer must be harder than L3's |
-| 5 | D11 Recursion & backtracking (d11.py, order 12) | 15/28: Recursion, First backtracking, Choices & grids 6/12 | generate-parentheses, different-ways-to-add-parentheses, word-search, palindrome-partitioning, restore-ip-addresses, Fix: recursive closure can't borrow the grid (flood fill → inner `fn`); then Constraints & pruning; seeds from 1127 | |
-| 6 | D8 Intervals & greedy (d8.py, order 9) | 13/29: First greedy, Intervals | Greedy choices (9), Hard greedy (7); seeds 814–829 | |
-| 7 | Not started | | D7 Heaps, D13, D14; L4–L8; S5–S9 (ROADMAP §7 step 1) | write each track's CURRICULUM table first if it still needs the LeetCode 250 pass |
-
-**Unverified work on `master`:** commit 20757e2 ("D9 and D12: stages in progress … (not yet verified)"). Its D9 part
-(Shortest paths) was verified afterwards: `verify d9` → 51 problems, 0 failed. **D12's Intervals & games (6 problems)
-is still unverified**: run `verify d12` first (its last run had one wrong solution that didn't compile, since patched).
-Branch `wip/d9-d12-unverified` duplicates that commit and can be deleted.
+| 1 | D6 Trees (d6.py, order 6) | 8/44: Basics | Traversals, Levels & recursion, BSTs, Ownership-shaped trees; seeds from 609 | reuse `TREE` / `HELP` in d6.py; deep trees run in `big_stack`; count-nodes scale test uses a shared-`Rc` complete tree |
+| 2 | D10 Tries (d10.py, order 11) | 11/25: First tries, Tries at work | String algorithms, Hard tries & strings; seeds from 1012 | Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; D10's zero-copy tokenizer must be harder than L3's |
+| 3 | D11 Recursion & backtracking (d11.py, order 12) | 15/28: Recursion, First backtracking, Choices & grids 6/12 | generate-parentheses, different-ways-to-add-parentheses, word-search, palindrome-partitioning, restore-ip-addresses, Fix: recursive closure can't borrow the grid (flood fill → inner `fn`); then Constraints & pruning; seeds from 1127 | |
+| 4 | D8 Intervals & greedy (d8.py, order 9) | 13/29: First greedy, Intervals | Greedy choices (9), Hard greedy (7); seeds 814–829 | |
+| 5 | Not started | | D7 Heaps, D13, D14; L6–L8; S5–S9 (ROADMAP §7 step 1) | write each track's CURRICULUM table first if it still needs the LeetCode 250 pass |
 
 #### Every problem not written yet (checklist)
 
 Tick against `cargo run -q -p anneal-cli -- list <track>`. Stage lists are in each track's CURRICULUM table.
 
-- **D9 Graphs (7; seeds from 951):** Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard
-  traversals: Sliding puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary
-  (Hierholzer). Their slugs are already reserved in `ORDER` in d9.py, and the empty Hard traversals stage is in
-  track.toml. Also below the bar: tarjans-scc and critical-connections have no complexity-catching scale test (their
-  recursive references stay at n ≤ 5000); an iterative rewrite would allow one.
-- **D12 DP (12; seeds from 1246):** (Intervals & games, 6 problems, is in the unverified commit) · Bitmasks & digits:
-  Count numbers with unique digits, Numbers at most N from a digit set, Can I win, Shortest path visiting all nodes, Ways
-  to wear hats · Hard strings: Longest valid parentheses, Wildcard matching, Regular expression matching · DP the Rust
-  way: Generic memoization engine (W44), Fix: recursive memo closure (E0499), Top-down → bottom-up rewrite, House robber
-  III on a tree.
 - **D6 Trees (36; seeds from 609):** Traversals: Preorder, Inorder, Postorder, Leaf-similar trees, Count nodes · Levels
   & recursion: Average of levels, Level order, Zigzag level order, Right side view, Iterative inorder, Diameter, Balanced
   tree, Subtree of another, Count good nodes, Path sum II, Sum root-to-leaf numbers, Max width, Flatten to linked list,
@@ -262,12 +254,20 @@ Tick against `cargo run -q -p anneal-cli -- list <track>`. Stage lists are in ea
   Boats to save people, Two city scheduling, Min add to make parentheses valid, Valid parenthesis string, Queue
   reconstruction by height · Hard greedy: Hand of straights, Remove K digits, Candy, Min interval to include each query,
   Employee free time, Min refueling stops, Course schedule III.
-- **Written tracks below their planned size:** S1 Option & Result has 10 of 16, S4 Maps & sets 11 of 18 (the rest are
-  variations of the stage anchors; see their CURRICULUM rows).
+- **Written tracks below their planned size:** S4 Maps & sets has 11 of 18 (the rest are variations of the stage
+  anchors; see its CURRICULUM row).
 - **Tracks with nothing written** (full lists in CURRICULUM): D7 Heaps 13, D13 Matrix/bits/math 16, D14 Data-structure
-  design 20; L4 Traits 22, L5 Generics 16, L6 Closures 14, L7 Enums 14, L8 Error design 16, L9 Modules 10, L10 Macros 12;
+  design 20; L6 Closures 14, L7 Enums 14, L8 Error design 16, L9 Modules 10, L10 Macros 12;
   S5 Queues & heaps 14, S6 Iterators 22, S7 Smart pointers 20, S8 Core traits 16, S9 I/O 14, S10 Time & processes 8, S11
   mem/ptr/alloc 12; and sections C (concurrency), Y (systems), B (backend), M, P, H.
+
+Known gaps and proposals from 2026-09-27:
+- **S1 API not yet written in a solution:** `and`, `or_else`, `is_some_and`/`is_ok_and`, `inspect`, `unwrap_or_default`,
+  `iter()` on `Option`, `let else`, `matches!`, `cloned`, `Option<Box<T>>` niche reasoning.
+- **Proposal awaiting the owner:** a pass over L1–L3 and S1–S4 to fill syntax-coverage gaps and raise the easiest problems
+  to the senior bar in §4.
+- `combination-sum-iii` doesn't catch a permutations-then-dedup solution (~10 s, under the cap); skipped as out of scope.
+- D12's recursive-memo fix is E0500 (what rustc reports), not the E0499 CURRICULUM lists.
 
 Also pending:
 - **Company tags** on the L/S tracks' LeetCode-style problems (S2 `reverse-each-word`, `word-frequency`; S3
@@ -335,7 +335,7 @@ Plan (approved):
 
 - **Step 1 content:**
   - D6 Trees, D7, D8, D12 DP, D10, D11, D13, D14;
-  - L4–L8;
+  - L6–L8 (L4, L5 done);
   - S5–S9.
 
   Track outlines are in CURRICULUM.md. Include the §10.2 additions for L4, L5, S4, S6 and S7.
@@ -346,12 +346,10 @@ Plan (approved):
 
 ## 7. Known rough edges
 
-- D12's Intervals & games stage hasn't been through `verify`; run `verify d12` first.
 - Track cards count only written problems ("8 problems" for D6's 8 of 44) and would call a partly written track done once
   those are solved. Proposed fix (awaiting the owner): show "8 of 44 written" and use CURRICULUM's size in `stateOf`
   (`web/src/pages/SectionPage.tsx`; sizes in `PLANNED`, `web/src/curriculum.ts`).
 - The saved workspace toggles were type-checked and API-tested but not clicked through in a browser.
-- Branch `wip/d9-d12-unverified` on GitHub duplicates that commit and can be deleted.
 - The Run tests button changes width by about 3px between idle and busy.
 - With five file tabs open at 1280px, the tab list scrolls sideways (the scrollbar is hidden). It works, but
   isn't obvious.

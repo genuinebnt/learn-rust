@@ -9487,9 +9487,8 @@ P.append(dict(
     ),
     hints=[("approach", "Tarjan: number nodes in DFS order and track the lowest number reachable (`low`). A node whose `low` equals its own number roots a component; pop the stack down to it."),
            ("rust", "Put the state in a struct and write `fn visit(&mut self, u)`. Six parameters threaded through a free function is the alternative."),
-           ("rust", "`for &v in &self.adj[u]` borrows `self` across `self.visit(v)`. `let adj = self.adj;` copies the `&[_]` out first."),
-           ("edge case", "Keep `on_stack` as a `Vec<bool>`: `stack.contains(&v)` makes each check O(n) and the whole search quadratic.")],
-    notes=("Each node is pushed and popped once, and each edge is examined once. Only nodes still on the stack can lower `low`; the rest belong to components already emitted.", "O(V + E)", "O(V)"),
+           ("rust", "`for &v in &self.adj[u]` borrows `self` across `self.visit(v)`. `let adj = self.adj;` copies the `&[_]` out first.")],
+    notes=("Each node is pushed and popped once, and each edge is examined once. Only nodes still on the stack can lower `low`; the rest belong to components already emitted. Keep `on_stack` as a `Vec<bool>`: `stack.contains(&v)` makes each check O(n) and the search quadratic.", "O(V + E)", "O(V)"),
     follow_up="Rewrite this without recursion so a 10⁶-node path doesn't overflow the stack.",
     related=["L2"],
 ))

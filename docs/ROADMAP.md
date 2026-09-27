@@ -34,14 +34,14 @@ The requests it covers:
 - Designed but not built: Today, Library, Mock interview, Readiness, and the project pages.
 - **Handoff and pending work:** [HANDOFF.md](HANDOFF.md).
 
-**Content:** 13 tracks, 252 verified problems (`anneal verify`, 0 failures).
-Test hardening (§7 step 2a): D1 meets the bar; the other 12 tracks are next.
+**Content:** 20 tracks, 423 verified problems (`anneal verify`, 0 failures). Every problem meets the test bar
+(§7 step 2a). Finished tracks: D1–D5, D9, D12; L1–L5; S1–S3. Partly written: D6, D8, D10, D11, S4 (see HANDOFF §6.0).
 
 | Section | Written | Problems |
 |---|---|---|
-| L Language | L1, L2, L3 | 18 + 35 + 20 |
-| S Standard library | S1, S2, S3, S4 | 10 + 18 + 20 + 11 |
-| D DSA | D1, D2, D3, D4, D5, D9 | 24 + 18 + 14 + 14 + 15 + 35 |
+| L Language | L1, L2, L3, L4, L5 | 18 + 35 + 20 + 22 + 16 |
+| S Standard library | S1, S2, S3, S4 | 16 + 18 + 20 + 11 |
+| D DSA | D1, D2, D3, D4, D5, D6, D8, D9, D10, D11, D12 | 24 + 18 + 14 + 14 + 15 + 8 + 13 + 58 + 11 + 15 + 57 |
 
 **Crates:** problems can depend on a fixed crate set, done 2026-09-27 (§6.1). The set is listed in
 `docker/deps/Cargo.toml`: tokio, futures, bytes, tower, axum, serde, serde_json, toml, anyhow, thiserror,

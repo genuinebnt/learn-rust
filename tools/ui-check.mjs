@@ -15,7 +15,9 @@ if (!url) {
 }
 const bin = process.env.CHROME ?? (process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome");
 const port = 9300 + Math.floor(Math.random() * 500);
-const chrome = spawn(bin, ["--headless=new", "--disable-gpu", "--hide-scrollbars", `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), "anneal-ui-"))}`, "about:blank"], { stdio: "ignore" });
+// Chrome refuses to start as root without --no-sandbox (e.g. in a cloud container).
+const rootOnly = process.getuid?.() === 0 ? ["--no-sandbox"] : [];
+const chrome = spawn(bin, ["--headless=new", "--disable-gpu", "--hide-scrollbars", ...rootOnly, `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), "anneal-ui-"))}`, "about:blank"], { stdio: "ignore" });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let target;

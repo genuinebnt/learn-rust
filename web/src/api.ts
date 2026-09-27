@@ -42,11 +42,20 @@ export interface ProblemSummary {
   order: number;
   status: ContentStatus;
   tags: string[];
+  /** Companies known to ask it, FAANG first. */
+  companies: string[];
   progress: Progress;
+}
+
+export interface CompanyGroup {
+  name: string;
+  companies: string[];
 }
 
 export interface TrackDetail extends TrackSummary {
   problems: ProblemSummary[];
+  /** Every taggable company, grouped (FAANG, Big tech, Databases, Rust shops) and in display order. */
+  company_groups: CompanyGroup[];
 }
 
 export interface Hint {
@@ -146,6 +155,7 @@ export interface ProblemDetail {
   next: string | null;
   statement: string;
   tags: string[];
+  companies: string[];
   teaches: string[];
   constraints: string[];
   examples: { input: string; output: string }[];

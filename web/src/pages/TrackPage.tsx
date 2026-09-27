@@ -19,6 +19,8 @@ export function TrackPage({ slug }: { slug: string }) {
   const q = useQuery({ queryKey: ["track", slug], queryFn: () => api.track(slug) });
   const [stage, setStage] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
+  const [group, setGroup] = useState<string | null>(null);
+  const [company, setCompany] = useState<string | null>(null);
   const t = q.data;
   const area = t ? ((Object.keys(NAV_SECTIONS) as NavArea[]).find((a) => (NAV_SECTIONS[a] as readonly string[]).includes(t.section)) ?? "dsa") : undefined;
 
@@ -39,10 +41,15 @@ export function TrackPage({ slug }: { slug: string }) {
   const workable = t.stages.findIndex((s) => s.ready > 0 && s.solved < s.total);
   const current = workable >= 0 ? workable : t.stages.findIndex((s) => s.solved < s.total);
   const selected = stage ?? null;
-  const rows = t.problems.filter((p) => (!selected || p.stage === selected) && (!tag || p.tags.includes(tag)));
+  const inGroup = (p: { companies: string[] }, g: string) => p.companies.some((c) => t.company_groups.find((x) => x.name === g)?.companies.includes(c));
+  const byCompany = (p: { companies: string[] }) => (company ? p.companies.includes(company) : group ? inGroup(p, group) : true);
+  const inStage = t.problems.filter((p) => !selected || p.stage === selected);
+  const rows = inStage.filter((p) => (!tag || p.tags.includes(tag)) && byCompany(p));
+  const faang = new Set(t.company_groups.find((g) => g.name === "FAANG")?.companies ?? []);
+  const tagged = inStage.filter((p) => p.companies.length > 0);
   const tags = [...new Set(t.problems.filter((p) => !selected || p.stage === selected).flatMap((p) => p.tags))];
   const nextUp = t.problems.find((p) => p.status === "ready" && p.progress !== "solved" && p.progress !== "assisted");
-  const cols = "40px 52px minmax(0,1.5fr) 100px 90px minmax(0,1.1fr) 110px";
+  const cols = "40px 52px minmax(0,1.35fr) 100px 90px minmax(0,.9fr) minmax(0,1.25fr) 110px";
 
   return (
     <>
@@ -155,7 +162,7 @@ export function TrackPage({ slug }: { slug: string }) {
           <section className="sec" style={{ paddingTop: 48 }}>
             <Sech
               title={selected ? `STAGE · ${t.stages.find((s) => s.slug === selected)?.name.toUpperCase()}` : "ALL PROBLEMS"}
-              caption={`${rows.length} problems · ${rows.filter((p) => p.mode === "fix").length} fix-this`}
+              caption={`${rows.length} problems · ${rows.filter((p) => p.mode === "fix").length} fix-this${company ? ` · asked at ${company}` : group ? ` · asked at ${group}` : ""}`}
             />
             <div className="chips" hidden={!selected}>
               {[null, ...tags].map((x) => (
@@ -164,8 +171,40 @@ export function TrackPage({ slug }: { slug: string }) {
                 </button>
               ))}
             </div>
+            {tagged.length > 0 && (
+              <div className="cofilter">
+                <div className="corow">
+                  <span className="colabel">GROUP</span>
+                  <button className={`chip grp${!group && !company ? " on" : ""}`} onClick={() => (setGroup(null), setCompany(null))}>
+                    all
+                  </button>
+                  {t.company_groups.map((g) => {
+                    const n = inStage.filter((p) => inGroup(p, g.name)).length;
+                    return n > 0 ? (
+                      <button key={g.name} className={`chip grp${group === g.name && !company ? " on" : ""}`} onClick={() => (setGroup(g.name), setCompany(null))}>
+                        {g.name} <small>{n}</small>
+                      </button>
+                    ) : null;
+                  })}
+                </div>
+                <div className="corow">
+                  <span className="colabel">COMPANY</span>
+                  {t.company_groups
+                    .filter((g) => !group || g.name === group)
+                    .flatMap((g) => g.companies)
+                    .map((c) => {
+                      const n = inStage.filter((p) => p.companies.includes(c)).length;
+                      return n > 0 ? (
+                        <button key={c} className={`chip${company === c ? " on" : ""}`} onClick={() => setCompany(company === c ? null : c)}>
+                          {c} <small>{n}</small>
+                        </button>
+                      ) : null;
+                    })}
+                </div>
+              </div>
+            )}
             <div className="tblw">
-              <div className="tbl">
+              <div className="tbl tbl-co">
                 <div className="tr th" style={{ gridTemplateColumns: cols }}>
                   <span />
                   <span>#</span>
@@ -173,6 +212,7 @@ export function TrackPage({ slug }: { slug: string }) {
                   <span>MODE</span>
                   <span>LEVEL</span>
                   <span>TAGS</span>
+                  <span>COMPANIES</span>
                   <span style={{ textAlign: "right" }}>STATUS</span>
                 </div>
                 {rows.map((p) => {
@@ -188,6 +228,22 @@ export function TrackPage({ slug }: { slug: string }) {
                         <Level level={p.level} />
                       </span>
                       <span className="tags">{p.tags.join(" · ")}</span>
+                      {p.companies.length > 0 ? (
+                        <span className="cos">
+                          {p.companies.slice(0, 3).map((c) => (
+                            <span key={c} className={`cc${faang.has(c) || c === company ? " faang" : ""}`}>
+                              {c}
+                            </span>
+                          ))}
+                          {p.companies.length > 3 && (
+                            <span className="cc more" title={p.companies.slice(3).join(", ")}>
+                              +{p.companies.length - 3}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="tags">—</span>
+                      )}
                       <span className="best" style={{ color: p.status === "draft" ? "var(--dim)" : p.progress === "not_started" ? "var(--mut)" : "var(--grn)" }}>
                         {p.status === "draft" ? "not written" : progressLabel(p.progress)}
                       </span>
@@ -203,8 +259,10 @@ export function TrackPage({ slug }: { slug: string }) {
                     </div>
                   );
                 })}
+                {rows.length === 0 && <div className="tr tr-empty">No problems here carry that company tag.</div>}
               </div>
             </div>
+            {tagged.length > 0 && <p className="conote">Company tags reflect commonly reported interview questions. They are approximate, not an official list.</p>}
           </section>
         </div>
       </main>

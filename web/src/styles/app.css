@@ -349,3 +349,20 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .cm-tooltip-lint .lens { margin: 0; max-width: 560px; background: color-mix(in oklab, var(--panel) 88%, var(--bad)); box-shadow: 0 12px 32px var(--shadow); }
 .cm-tooltip-lint .lens.lv-warning { background: color-mix(in oklab, var(--panel) 88%, var(--warn)); }
 .cm-tooltip-lint .lens.lv-note, .cm-tooltip-lint .lens.lv-help { background: var(--panel); }
+
+/* Company tags on the track page: a filter above the table and a column in it. */
+.tbl-co { min-width: 1040px; }
+.cofilter { display: grid; gap: 10px; margin-bottom: 16px; }
+.corow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.colabel { width: 84px; flex: none; font: 500 10.5px var(--mono); letter-spacing: 0.2em; color: var(--dim); }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip small { font-size: 10.5px; color: var(--dim); }
+.chip.on small { color: var(--acc); }
+.chip.grp { border-style: dashed; }
+.chip.grp.on { border-style: solid; }
+.cos { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.cc { font: 500 10.5px var(--mono); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--line2); color: var(--mut); white-space: nowrap; }
+.cc.faang { border-color: transparent; background: color-mix(in oklch, var(--fn) 12%, transparent); color: var(--fn); }
+.cc.more { border-style: dashed; color: var(--dim); cursor: help; }
+.tr-empty { font: 400 13px var(--mono); color: var(--dim); }
+.conote { margin: 10px 0 0; font: 400 11.5px var(--mono); color: var(--dim); }

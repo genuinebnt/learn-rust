@@ -68,6 +68,26 @@ pub struct TrackDetail {
     #[serde(flatten)]
     pub summary: TrackSummary,
     pub problems: Vec<ProblemSummary>,
+    /// Every company a problem may be tagged with, grouped and in display order (FAANG first).
+    pub company_groups: Vec<CompanyGroup>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CompanyGroup {
+    pub name: &'static str,
+    pub companies: Vec<&'static str>,
+}
+
+/// `anneal_content::COMPANIES` as groups, keeping its order.
+fn company_groups() -> Vec<CompanyGroup> {
+    let mut groups: Vec<CompanyGroup> = Vec::new();
+    for &(company, group) in anneal_content::COMPANIES {
+        match groups.iter_mut().find(|g| g.name == group) {
+            Some(g) => g.companies.push(company),
+            None => groups.push(CompanyGroup { name: group, companies: vec![company] }),
+        }
+    }
+    groups
 }
 
 #[derive(Debug, Serialize)]
@@ -179,6 +199,7 @@ pub fn track_detail(t: &Track, progress: &HashMap<String, ProgressRow>) -> Track
                 progress: Progress::of(progress.get(&p.id)),
             })
             .collect(),
+        company_groups: company_groups(),
     }
 }
 

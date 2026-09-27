@@ -1,0 +1,36 @@
+slug = "fix-binary-heap-f64"
+title = "Fix: BinaryHeap<f64> won't compile"
+mode = "fix"
+level = "medium"
+stage = "heap-basics"
+order = 3
+status = "ready"
+tags = ["Ord", "total_cmp", "Hash", "E0277"]
+teaches = [
+  "`f64` is only `PartialOrd`/`PartialEq`: NaN breaks totality and reflexivity, so it can't be `Ord`, `Eq` or `Hash`.",
+  "An `Ord` newtype over `total_cmp` must bring `PartialOrd`, `PartialEq` and `Hash` along with it; deriving those next to a hand-written `Ord` makes them disagree.",
+  "`total_cmp` says `Equal` exactly when the bits match, so `to_bits()` is the hash that agrees with it.",
+]
+follow_up = "When would you rather reject NaN at construction (a `NotNan` type with a fallible `new`) than give it a place in the order?"
+related = ["S8", "L4", "D1"]
+
+[[hints]]
+kind = "rust"
+text = "`#[derive(PartialOrd, PartialEq, Hash)]` on an `f64` field gives you f64's rules: NaN ≠ NaN, 0.0 == -0.0, and no `Hash` at all. None of that can become `Eq`/`Ord`."
+
+[[hints]]
+kind = "rust"
+text = "Write `Ord` with `total_cmp`, then define `partial_cmp` as `Some(self.cmp(other))` and `eq` as `self.cmp(other) == Ordering::Equal`, so there's one source of truth."
+
+[[hints]]
+kind = "edge case"
+text = "Equal values must hash equally. Under `total_cmp`, equal means identical bits, so hash `to_bits()`."
+
+[solution]
+explanation = "`BinaryHeap`, `BTreeSet` and `sort` trust `Ord` to be a total order, and `HashSet` trusts `a == b ⇒ hash(a) == hash(b)`. `f64` can't promise either, which is why it stops at `PartialOrd`. The newtype picks `total_cmp` (IEEE 754 totalOrder: −NaN < −∞ < … < −0 < +0 < … < +∞ < +NaN) and routes every other trait through it. Mixing derived `PartialEq`/`PartialOrd` with a hand-written `Ord` compiles, but then `==` and `cmp` disagree on NaN and ±0, and heaps and sets misbehave silently (Clippy: `derive_ord_xor_partial_ord`). Syntax to remember: `impl Hash for T { fn hash<H: Hasher>(&self, state: &mut H) { … } }`."
+time = "O(n log k)"
+space = "O(k)"
+
+[rules]
+forbid_methods = ["partial_cmp", "unwrap", "expect", "unwrap_or", "sort", "sort_by", "sort_unstable", "sort_unstable_by", "sort_by_key"]
+max_changed_lines = 30

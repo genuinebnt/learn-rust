@@ -107,7 +107,10 @@ environment variables is in the doc comment at the top of `crates/api/src/main.r
 | `ANNEAL_DOCKER_CONTEXT` | Docker context; defaults to `orbstack` |
 | `ANNEAL_PASSPHRASE_HASH` | Turns on login |
 
-Day to day, the owner runs **`./scripts/dev.sh`** and uses http://127.0.0.1:5180:
+Day to day, the owner runs **`./scripts/restart.sh`** (stop the dev server, `git pull --rebase --autostash`, start
+it again) or **`./scripts/dev.sh`**, and uses http://127.0.0.1:5180. If another program holds :8787 or :5180, dev.sh
+picks random free ports, prints them, and points Vite's `/api` proxy at the API's port (`ANNEAL_API_PORT` /
+`ANNEAL_WEB_PORT`). In dev mode:
 - `cargo watch` restarts the API when `crates/`, `content/` or the Cargo files change;
 - Vite hot-reloads the web app;
 - `.githooks` reinstalls web dependencies after a pull that changes them.

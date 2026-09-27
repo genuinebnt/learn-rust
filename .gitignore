@@ -5,3 +5,4 @@ web/dist
 *.tsbuildinfo
 /docker/deps/target
 __pycache__/
+/.dev.pid

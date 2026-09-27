@@ -1,0 +1,45 @@
+slug = "n-queens-ii"
+title = "N-Queens II"
+mode = "write"
+level = "hard"
+stage = "constraints-pruning"
+order = 23
+status = "ready"
+tags = ["backtracking", "bitmask", "symmetry"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "When only the count matters, drop the boards: the search state is three masks passed by value.",
+  "Mirror symmetry halves the work: a solution with the first queen in column c mirrors one with it in column n - 1 - c.",
+]
+constraints = ["1 ≤ n ≤ 14"]
+follow_up = "The board also has rotational symmetry. How would you count only one board of each symmetry class?"
+related = ["D13"]
+
+[[examples]]
+input = "n = 4"
+output = "2"
+
+[[examples]]
+input = "n = 1"
+output = "1"
+
+[[examples]]
+input = "n = 8"
+output = "92"
+
+[[hints]]
+kind = "approach"
+text = "The same search as N-Queens, returning a count: 1 when every row has a queen, otherwise the sum over the free columns of the next row."
+
+[[hints]]
+kind = "rust"
+text = "Pass the three `u16` masks by value, so there's nothing to undo. `free.count_ones()` tells you how many columns are left to try."
+
+[[hints]]
+kind = "edge case"
+text = "If you use the mirror trick, the middle column of an odd board is its own mirror: count it once, not twice."
+
+[solution]
+explanation = "Masks make each placement O(1), so the cost is the number of partial boards the search visits; scanning the earlier queens instead multiplies every step by up to n. Reflecting a board left to right maps solutions to solutions and moves the first-row queen from column c to n - 1 - c, so counting the first half of the first row and doubling it halves the work."
+time = "O(n!) at most; far fewer in practice"
+space = "O(n) recursion depth"

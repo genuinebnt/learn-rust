@@ -1,0 +1,45 @@
+slug = "word-break-ii"
+title = "Word break II"
+mode = "write"
+level = "hard"
+stage = "constraints-pruning"
+order = 27
+status = "ready"
+tags = ["backtracking", "DP table", "pruning", "String"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber", "Bloomberg"]
+teaches = [
+  "Prune with a table: first compute which suffixes can be split at all (Word break I, backwards), then search only through positions that can still finish. Every branch then ends in an answer.",
+  "Hand out `&str` slices of `s` along the path and join them only when a sentence is complete.",
+]
+constraints = ["1 ≤ s.len() ≤ 100", "1 ≤ word_dict.len() ≤ 1000", "1 ≤ word.len() ≤ 40", "`s` and the words hold lowercase ASCII letters", "the answer holds at most 20 000 sentences"]
+follow_up = "How would you return only the number of sentences, without building them?"
+related = ["D12", "D10"]
+
+[[examples]]
+input = "s = \"catsanddog\", word_dict = [\"cat\", \"cats\", \"and\", \"sand\", \"dog\"]"
+output = "[\"cats and dog\", \"cat sand dog\"]"
+
+[[examples]]
+input = "s = \"pineapplepenapple\", word_dict = [\"apple\", \"pen\", \"applepen\", \"pine\", \"pineapple\"]"
+output = "[\"pine apple pen apple\", \"pineapple pen apple\", \"pine applepen apple\"]"
+
+[[examples]]
+input = "s = \"catsandog\", word_dict = [\"cats\", \"dog\", \"sand\", \"and\", \"cat\"]"
+output = "[]"
+
+[[hints]]
+kind = "approach"
+text = "Plain backtracking explores every partial split, even ones that can never reach the end. First compute, from the back, which positions `i` have a splittable suffix `s[i..]`; then backtrack only through those."
+
+[[hints]]
+kind = "rust"
+text = "Put the words in a `HashSet<&str>` (this also drops repeated words), keep the path as `Vec<&str>` slices of `s`, and `path.join(\" \")` at the end. Only try pieces up to the longest word's length."
+
+[[hints]]
+kind = "edge case"
+text = "A string whose last letter no word covers has no sentence at all: the table says so before any search."
+
+[solution]
+explanation = "The table is Word break I run backwards: `finishes[i]` is true when some word `s[i..j]` is followed by a position `j` that finishes. With it, the search never steps into a dead position, so every branch produces a sentence and the work is proportional to the output. Checking only whether the whole string splits is not enough: in 36 a's then a b, with the 37-letter word, the string splits, but every other split of the a's is a dead end. A memo of the sentences for each suffix works too, at the cost of storing them."
+time = "O(n · L) for the table (L = longest word) plus O(output)"
+space = "O(n) besides the output"

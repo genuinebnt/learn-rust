@@ -1,0 +1,41 @@
+slug = "matchsticks-to-square"
+title = "Matchsticks to square"
+mode = "write"
+level = "hard"
+stage = "constraints-pruning"
+order = 25
+status = "ready"
+tags = ["backtracking", "pruning", "sort"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "Order the choices so failures come early: placing the longest sticks first cuts dead branches near the root.",
+  "Symmetry pruning: sides with the same current length are interchangeable, so try only the first of them.",
+]
+constraints = ["1 ≤ matchsticks.len() ≤ 20", "1 ≤ matchsticks[i] ≤ 10⁹"]
+follow_up = "Solve it with a DP over subsets of sticks in O(n · 2ⁿ). Which approach wins for n = 20?"
+related = ["D12"]
+
+[[examples]]
+input = "matchsticks = [1, 1, 2, 2, 2]"
+output = "true (sides 2, 2, 1+1, 2)"
+
+[[examples]]
+input = "matchsticks = [3, 3, 3, 3, 4]"
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "Place the sticks one at a time into one of four sides, never letting a side exceed total / 4, and backtrack on failure. Check first that there are at least four sticks and that the total divides by 4."
+
+[[hints]]
+kind = "rust"
+text = "Sum in `u64` (`u64::from(m)`), sort with `sort_unstable_by(|a, b| b.cmp(a))`, and skip side `i` when `sides[..i].contains(&sides[i])`."
+
+[[hints]]
+kind = "edge case"
+text = "Greedy first-fit is not enough: for [13, 13, 6, 4, 6, 2, 5, 3] it puts 6 and 6 together and gets stuck, though 6+4+3 and 6+5+2 both make 13."
+
+[solution]
+explanation = "The search gives each stick one of four sides, so it's 4ⁿ in the worst case. Two cuts make it fast: sorting longest first, because a long stick fits in few places and a failure is found high in the tree instead of after every short stick is placed; and skipping a side whose length equals an earlier side's, which would only repeat that subtree (an empty side is the common case). Once every stick is placed with no side over total / 4, all four sides are exactly total / 4."
+time = "O(4ⁿ) worst case; far less with the cuts"
+space = "O(n) recursion depth"

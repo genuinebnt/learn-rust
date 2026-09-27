@@ -19,3 +19,8 @@ band = "easy"
 slug = "choices-grids"
 name = "Choices & grids"
 band = "medium"
+
+[[stages]]
+slug = "constraints-pruning"
+name = "Constraints & pruning"
+band = "hard"

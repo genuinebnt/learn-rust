@@ -1,0 +1,45 @@
+slug = "expression-add-operators"
+title = "Expression add operators"
+mode = "write"
+level = "hard"
+stage = "constraints-pruning"
+order = 28
+status = "ready"
+tags = ["backtracking", "String", "parsing"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
+teaches = [
+  "Evaluate while you build: carry the running value and the last product term, so `*` can undo that term and multiply it, with no parsing at the leaves.",
+  "One `String` buffer for the expression: push the operator and digits, recurse, `truncate` back.",
+]
+constraints = ["1 ≤ num.len() ≤ 10", "`num` holds only digits", "-2³¹ ≤ target ≤ 2³¹ - 1"]
+follow_up = "How would you add parentheses, or a `/` that truncates towards zero?"
+related = ["D3"]
+
+[[examples]]
+input = "num = \"123\", target = 6"
+output = "[\"1*2*3\", \"1+2+3\"]"
+
+[[examples]]
+input = "num = \"232\", target = 8"
+output = "[\"2*3+2\", \"2+3*2\"]"
+
+[[examples]]
+input = "num = \"3456237490\", target = 9191"
+output = "[]"
+
+[[hints]]
+kind = "approach"
+text = "At each position, choose how many digits the next operand takes, then which operator goes before it. Track the value so far and the last product term instead of evaluating the finished string."
+
+[[hints]]
+kind = "rust"
+text = "For `*`: new value = `value - last + last * operand`, new last = `last * operand`. For `-`, last = `-operand`. Build the expression in one `String` and `truncate(len)` after each recursive call."
+
+[[hints]]
+kind = "edge case"
+text = "Stop extending an operand that starts with `0` after its first digit, and use `i64`: \"2147483648\" is already past `i32::MAX`."
+
+[solution]
+explanation = "There are 4ⁿ⁻¹ ways to fill the gaps, and the answer can hold thousands of them, so the search itself can't be cut much; the work that can go is re-evaluating each finished string. Carrying (value, last term) makes each step O(1): `+` and `-` start a new term, `*` replaces the last term with `last · operand`. The one real prune is the leading-zero rule, which stops a `0` operand from growing."
+time = "O(n · 4ⁿ)"
+space = "O(n) recursion depth besides the output"

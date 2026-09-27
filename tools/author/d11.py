@@ -3296,10 +3296,1795 @@ P.append(dict(
     related=["L6", "D9"],
 ))
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Stage 4 · Constraints & pruning (hard): bitmask constraints, most-constrained-first, sort-desc and symmetry cuts, memo
+# on the used set, and dead-end tables that keep a search output-sensitive.
+# ---------------------------------------------------------------------------------------------------------------------
+
+# A board is n rows of n cells, one queen per row and column, no two on a diagonal.
+QUEENS = """
+fn valid(n: usize, board: &[String]) -> bool {
+    if board.len() != n {
+        return false;
+    }
+    let mut queens = Vec::new(); // (row, column)
+    for (r, row) in board.iter().enumerate() {
+        if row.len() != n || row.bytes().any(|b| b != b'.' && b != b'Q') || row.matches('Q').count() != 1 {
+            return false;
+        }
+        queens.push((r, row.find('Q').unwrap()));
+    }
+    queens.iter().enumerate().all(|(i, &(r1, c1))| queens[i + 1..].iter().all(|&(r2, c2)| c1 != c2 && r2 - r1 != c1.abs_diff(c2)))
+}
+"""
+
+# Every permutation of columns, kept when no two queens share a diagonal: the reference for n ≤ 8.
+QUEENS_BRUTE = """
+fn brute(n: usize) -> Vec<Vec<usize>> {
+    fn go(n: usize, cols: &mut Vec<usize>, out: &mut Vec<Vec<usize>>) {
+        if cols.len() == n {
+            if (0..n).all(|i| (i + 1..n).all(|j| cols[i].abs_diff(cols[j]) != j - i)) {
+                out.push(cols.clone());
+            }
+            return;
+        }
+        for c in 0..n {
+            if !cols.contains(&c) {
+                cols.push(c);
+                go(n, cols, out);
+                cols.pop();
+            }
+        }
+    }
+    let mut out = Vec::new();
+    go(n, &mut Vec::new(), &mut out);
+    out
+}
+"""
+
+P.append(dict(
+    slug="n-queens", title="N-Queens (bitmasks)", level="hard", stage="constraints-pruning", tags=["backtracking", "bitmask", "pruning"],
+    companies=["Apple", "Amazon", "Google", "Microsoft", "Bloomberg"],
+    teaches=["Prune as you place: a queen goes only on a square no earlier queen attacks, so dead boards are never built.",
+             "Three `u16` masks (columns and both diagonals) make \"which squares are free?\" one expression; shifting the "
+             "diagonal masks by one moves them down a row."],
+    statement="""
+        Place `n` queens on an `n × n` chessboard so that no two attack each other: no two share a row, a column or a
+        diagonal. Return every such placement.
+
+        Write each board as `n` strings, one per row from the top, with `Q` for the queen and `.` for an empty square.
+        The boards can come in any order.
+
+        `n` goes up to 12. Trying every arrangement and checking it at the end is far too slow there: check each queen
+        as you place it.
+    """,
+    examples=[("n = 4", "[[\".Q..\", \"...Q\", \"Q...\", \"..Q.\"], [\"..Q.\", \"Q...\", \"...Q\", \".Q..\"]]"), ("n = 1", "[[\"Q\"]]")],
+    constraints=["1 ≤ n ≤ 12"],
+    starter="""
+        pub fn solve_n_queens(n: usize) -> Vec<Vec<String>> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn solve_n_queens(n: usize) -> Vec<Vec<String>> {
+            // Bit c of each mask is column c of the row being filled. `cols`: columns already taken. `diag` / `anti`:
+            // squares attacked along the two diagonals by the queens above.
+            fn place(full: u16, cols: u16, diag: u16, anti: u16, queens: &mut Vec<usize>, out: &mut Vec<Vec<String>>) {
+                if cols == full {
+                    let n = queens.len();
+                    out.push(queens.iter().map(|&q| (0..n).map(|c| if c == q { 'Q' } else { '.' }).collect()).collect());
+                    return;
+                }
+                let mut free = full & !(cols | diag | anti);
+                while free != 0 {
+                    let bit = free & free.wrapping_neg(); // the lowest free column
+                    free ^= bit;
+                    queens.push(bit.trailing_zeros() as usize);
+                    // One row down, a diagonal attack moves one column right (<< 1), an anti-diagonal one left (>> 1).
+                    place(full, cols | bit, (diag | bit) << 1, (anti | bit) >> 1, queens, out);
+                    queens.pop();
+                }
+            }
+            let full = ((1u32 << n) - 1) as u16;
+            let mut out = Vec::new();
+            place(full, 0, 0, 0, &mut Vec::with_capacity(n), &mut out);
+            out
+        }
+    """,
+    visible=[
+        SORTED,
+        QUEENS,
+        T("leetcode_four", "n = 4", "sorted(solve_n_queens(4))", 'vec![vec!["..Q.", "Q...", "...Q", ".Q.."], vec![".Q..", "...Q", "Q...", "..Q."]]'),
+        T("leetcode_one", "n = 1", "solve_n_queens(1)", 'vec![vec!["Q"]]'),
+        T("two_has_none", "n = 2", "solve_n_queens(2)", "Vec::<Vec<String>>::new()"),
+        T("three_has_none", "n = 3", "solve_n_queens(3)", "Vec::<Vec<String>>::new()"),
+        T("five_has_ten", "n = 5: (boards, all valid)", "{ let all = solve_n_queens(5); (all.len(), all.iter().all(|b| valid(5, b))) }", "(10, true)"),
+        T("six_exactly", "n = 6", "sorted(solve_n_queens(6))",
+          'vec![vec!["....Q.", "..Q...", "Q.....", ".....Q", "...Q..", ".Q...."], vec!["...Q..", "Q.....", "....Q.", ".Q....", ".....Q", "..Q..."], '
+          'vec!["..Q...", ".....Q", ".Q....", "....Q.", "Q.....", "...Q.."], vec![".Q....", "...Q..", ".....Q", "Q.....", "..Q...", "....Q."]]'),
+    ],
+    hidden=[
+        SORTED,
+        QUEENS,
+        QUEENS_BRUTE,
+        T("one", "n = 1", "solve_n_queens(1)", 'vec![vec!["Q"]]'),
+        T("two", "n = 2", "solve_n_queens(2).len()", "0"),
+        T("three", "n = 3", "solve_n_queens(3).len()", "0"),
+        T("four_rows_are_n_long", "n = 4: every row has 4 cells", "solve_n_queens(4).iter().flatten().all(|row| row.len() == 4)", "true"),
+        T("seven", "n = 7: (boards, all valid)", "{ let all = solve_n_queens(7); (all.len(), all.iter().all(|b| valid(7, b))) }", "(40, true)"),
+        T("eight_distinct", "n = 8: (distinct boards, all valid)",
+          "{ let mut all = solve_n_queens(8); let ok = all.iter().all(|b| valid(8, b)); all.sort(); all.dedup(); (all.len(), ok) }", "(92, true)"),
+        T("nine", "n = 9", "solve_n_queens(9).len()", "352"),
+        T("ten", "n = 10: (boards, all valid)", "{ let all = solve_n_queens(10); (all.len(), all.iter().all(|b| valid(10, b))) }", "(724, true)"),
+        T("eleven", "n = 11", "solve_n_queens(11).len()", "2680"),
+        """
+        #[test]
+        fn every_n_up_to_8_vs_permutations() {
+            for n in 1..=8 {
+                let want: Vec<Vec<String>> = brute(n)
+                    .into_iter()
+                    .map(|cols| cols.iter().map(|&q| (0..n).map(|c| if c == q { 'Q' } else { '.' }).collect()).collect())
+                    .collect();
+                check!(format!("n = {n}"), sorted(solve_n_queens(n)), sorted(want));
+            }
+        }
+
+        #[test]
+        fn scale_twelve() {
+            let mut all = solve_n_queens(12);
+            let ok = all.iter().all(|b| valid(12, b));
+            all.sort();
+            all.dedup();
+            check!("n = 12: (distinct boards, all valid)", (all.len(), ok), (14200, true));
+        }
+        """,
+    ],
+    wrong=dict(
+        checks_at_the_leaf="""
+            pub fn solve_n_queens(n: usize) -> Vec<Vec<String>> {
+                fn go(n: usize, queens: &mut Vec<usize>, taken: &mut Vec<bool>, out: &mut Vec<Vec<String>>) {
+                    if queens.len() == n {
+                        if (0..n).all(|i| (i + 1..n).all(|j| queens[i].abs_diff(queens[j]) != j - i)) {
+                            out.push(queens.iter().map(|&q| (0..n).map(|c| if c == q { 'Q' } else { '.' }).collect()).collect());
+                        }
+                        return;
+                    }
+                    for c in 0..n {
+                        if !taken[c] {
+                            taken[c] = true;
+                            queens.push(c);
+                            go(n, queens, taken, out);
+                            queens.pop();
+                            taken[c] = false;
+                        }
+                    }
+                }
+                let mut out = Vec::new();
+                go(n, &mut Vec::new(), &mut vec![false; n], &mut out);
+                out
+            }
+        """,
+        one_diagonal_only="""
+            pub fn solve_n_queens(n: usize) -> Vec<Vec<String>> {
+                fn place(full: u16, cols: u16, diag: u16, queens: &mut Vec<usize>, out: &mut Vec<Vec<String>>) {
+                    if cols == full {
+                        let n = queens.len();
+                        out.push(queens.iter().map(|&q| (0..n).map(|c| if c == q { 'Q' } else { '.' }).collect()).collect());
+                        return;
+                    }
+                    let mut free = full & !(cols | diag);
+                    while free != 0 {
+                        let bit = free & free.wrapping_neg();
+                        free ^= bit;
+                        queens.push(bit.trailing_zeros() as usize);
+                        place(full, cols | bit, (diag | bit) << 1, queens, out);
+                        queens.pop();
+                    }
+                }
+                let full = ((1u32 << n) - 1) as u16;
+                let mut out = Vec::new();
+                place(full, 0, 0, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Fill the board row by row, one queen per row. Keep which columns and which diagonals are already attacked, and "
+                        "only try the free squares; a row with no free square is a dead end."),
+           ("rust", "With `u16` masks, the free columns are `full & !(cols | diag | anti)`. Take the lowest with `free & free.wrapping_neg()`, "
+                    "its column is `trailing_zeros()`, and the next row gets `(diag | bit) << 1` and `(anti | bit) >> 1`."),
+           ("edge case", "n = 2 and n = 3 have no solution: return an empty `Vec`, not a board.")],
+    notes=("One queen per row turns the search into choosing a column per row. The masks say, for the next row, which columns are "
+           "attacked from above: straight down (`cols`), and along each diagonal, which drifts one column per row, hence the shifts. "
+           "Every branch the search enters holds a valid partial board, so the work is proportional to the partial boards, not to "
+           "all nⁿ arrangements. Syntax to remember: `x & x.wrapping_neg()` isolates the lowest set bit, `x ^= bit` clears it.",
+           "O(n!) placements at most; far fewer in practice", "O(n) recursion depth besides the output"),
+    follow_up="Why is `u16` enough here, and what changes to reach n = 32 or n = 64?",
+    related=["D13"],
+))
+
+P.append(dict(
+    slug="n-queens-ii", title="N-Queens II", level="hard", stage="constraints-pruning", tags=["backtracking", "bitmask", "symmetry"],
+    companies=["Amazon", "Google", "Microsoft"],
+    teaches=["When only the count matters, drop the boards: the search state is three masks passed by value.",
+             "Mirror symmetry halves the work: a solution with the first queen in column c mirrors one with it in column n - 1 - c."],
+    statement="""
+        Return how many ways there are to place `n` queens on an `n × n` chessboard so that no two attack each other (no two
+        in the same row, column or diagonal).
+
+        `n` goes up to 14 (365 596 solutions). Checking a new queen against every earlier queen is too slow there: each
+        check has to be O(1).
+    """,
+    examples=[("n = 4", "2"), ("n = 1", "1"), ("n = 8", "92")],
+    constraints=["1 ≤ n ≤ 14"],
+    starter="""
+        pub fn total_n_queens(n: usize) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn total_n_queens(n: usize) -> usize {
+            // `cols`, `diag`, `anti`: the columns of the next row attacked from above (see N-Queens).
+            fn count(full: u16, cols: u16, diag: u16, anti: u16) -> usize {
+                if cols == full {
+                    return 1;
+                }
+                let mut free = full & !(cols | diag | anti);
+                let mut total = 0;
+                while free != 0 {
+                    let bit = free & free.wrapping_neg();
+                    free ^= bit;
+                    total += count(full, cols | bit, (diag | bit) << 1, (anti | bit) >> 1);
+                }
+                total
+            }
+            let full = ((1u32 << n) - 1) as u16;
+            let first_row = |c: usize| {
+                let bit = 1u16 << c;
+                count(full, bit, bit << 1, bit >> 1)
+            };
+            // The mirror image of a solution is a solution: count the left half of the first row twice,
+            // and the middle column (odd n) once.
+            let half: usize = (0..n / 2).map(first_row).sum();
+            2 * half + if n % 2 == 1 { first_row(n / 2) } else { 0 }
+        }
+    """,
+    visible=[
+        T("leetcode_four", "n = 4", "total_n_queens(4)", "2"),
+        T("leetcode_one", "n = 1", "total_n_queens(1)", "1"),
+        T("two_has_none", "n = 2", "total_n_queens(2)", "0"),
+        T("three_has_none", "n = 3", "total_n_queens(3)", "0"),
+        T("five_is_odd", "n = 5 (odd: the middle column counts once)", "total_n_queens(5)", "10"),
+        T("eight_queens", "n = 8", "total_n_queens(8)", "92"),
+    ],
+    hidden=[
+        QUEENS_BRUTE,
+        T("one", "n = 1", "total_n_queens(1)", "1"),
+        T("six", "n = 6", "total_n_queens(6)", "4"),
+        T("seven", "n = 7", "total_n_queens(7)", "40"),
+        T("nine", "n = 9", "total_n_queens(9)", "352"),
+        T("ten", "n = 10", "total_n_queens(10)", "724"),
+        T("eleven", "n = 11", "total_n_queens(11)", "2680"),
+        T("twelve", "n = 12", "total_n_queens(12)", "14200"),
+        T("thirteen", "n = 13", "total_n_queens(13)", "73712"),
+        """
+        #[test]
+        fn every_n_up_to_8_vs_permutations() {
+            for n in 1..=8 {
+                check!(format!("n = {n}"), total_n_queens(n), brute(n).len());
+            }
+        }
+
+        #[test]
+        fn scale_fourteen() {
+            check!("n = 14", total_n_queens(14), 365_596);
+        }
+        """,
+    ],
+    wrong=dict(
+        scans_earlier_queens="""
+            pub fn total_n_queens(n: usize) -> usize {
+                fn go(n: usize, queens: &mut Vec<usize>) -> usize {
+                    let row = queens.len();
+                    if row == n {
+                        return 1;
+                    }
+                    let mut total = 0;
+                    for c in 0..n {
+                        if queens.iter().enumerate().all(|(r, &q)| q != c && q.abs_diff(c) != row - r) {
+                            queens.push(c);
+                            total += go(n, queens);
+                            queens.pop();
+                        }
+                    }
+                    total
+                }
+                go(n, &mut Vec::new())
+            }
+        """,
+        doubles_the_middle_column="""
+            pub fn total_n_queens(n: usize) -> usize {
+                fn count(full: u16, cols: u16, diag: u16, anti: u16) -> usize {
+                    if cols == full {
+                        return 1;
+                    }
+                    let mut free = full & !(cols | diag | anti);
+                    let mut total = 0;
+                    while free != 0 {
+                        let bit = free & free.wrapping_neg();
+                        free ^= bit;
+                        total += count(full, cols | bit, (diag | bit) << 1, (anti | bit) >> 1);
+                    }
+                    total
+                }
+                let full = ((1u32 << n) - 1) as u16;
+                (0..(n + 1) / 2).map(|c| 2 * count(full, 1 << c, 1 << c << 1, 1 << c >> 1)).sum()
+            }
+        """,
+    ),
+    hints=[("approach", "The same search as N-Queens, returning a count: 1 when every row has a queen, otherwise the sum over the free "
+                        "columns of the next row."),
+           ("rust", "Pass the three `u16` masks by value, so there's nothing to undo. `free.count_ones()` tells you how many "
+                    "columns are left to try."),
+           ("edge case", "If you use the mirror trick, the middle column of an odd board is its own mirror: count it once, not twice.")],
+    notes=("Masks make each placement O(1), so the cost is the number of partial boards the search visits; scanning the earlier "
+           "queens instead multiplies every step by up to n. Reflecting a board left to right maps solutions to solutions and "
+           "moves the first-row queen from column c to n - 1 - c, so counting the first half of the first row and doubling it "
+           "halves the work.",
+           "O(n!) at most; far fewer in practice", "O(n) recursion depth"),
+    follow_up="The board also has rotational symmetry. How would you count only one board of each symmetry class?",
+    related=["D13"],
+))
+
+def rows9(cells):
+    """81 cells → nine rows separated by spaces, the form the Sudoku tests read and print."""
+    assert len(cells) == 81, cells
+    return " ".join(cells[i:i + 9] for i in range(0, 81, 9))
+
+
+SUDOKU_LC = rows9("53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79")
+SUDOKU_LC_SOLVED = rows9("534678912672195348198342567859761423426853791713924856961537284287419635345286179")
+# Arto Inkala's "AI Escargot" and "Easter Monster": few forced moves, long chains of guesses.
+SUDOKU_ESCARGOT = rows9("1....7.9..3..2...8..96..5....53..9...1..8...26....4...3......1..4......7..7...3..")
+SUDOKU_ESCARGOT_SOLVED = rows9("162857493534129678789643521475312986913586742628794135356478219241935867897261354")
+SUDOKU_EASTER = rows9("1.......2.9.4...5...6...7...5.9.3.......7.......85..4.7.....6...3...9.8...2.....1")
+SUDOKU_EASTER_SOLVED = rows9("174385962293467158586192734451923876928674315367851249719548623635219487842736591")
+# Built against reading-order backtracking: the first row's answer is 987654321, so it tries nearly every value first.
+SUDOKU_ANTI = rows9("..............3.85..1.2.......5.7.....4...1...9.......5......73..2.1........4...9")
+SUDOKU_ANTI_SOLVED = rows9("987654321246173985351928746128537694634892157795461832519286473472319568863745219")
+# The same puzzle with one more given that doesn't clash with any other but leaves no solution.
+SUDOKU_ANTI_DEAD_A = rows9("..............3.85..1.2.......5.7.....4...1...9.......5......73..2.1........4.5.9")
+SUDOKU_ANTI_DEAD_B = rows9("..............3.85..1.2.......5.7.....4...1...9.......5......73..2.1...4....4...9")
+SUDOKU_EMPTY = rows9("." * 81)
+
+SUDOKU = """
+/// Nine rows of nine cells separated by spaces; `.` is an empty cell.
+fn grid(s: &str) -> [[u8; 9]; 9] {
+    let cells: Vec<u8> = s.bytes().filter(|&b| b != b' ').map(|b| if b == b'.' { 0 } else { b - b'0' }).collect();
+    assert_eq!(cells.len(), 81, "a board has 81 cells");
+    let mut board = [[0; 9]; 9];
+    for (i, d) in cells.into_iter().enumerate() {
+        board[i / 9][i % 9] = d;
+    }
+    board
+}
+
+fn show(board: &[[u8; 9]; 9]) -> String {
+    let rows: Vec<String> = board.iter().map(|row| row.iter().map(|&d| if d == 0 { '.' } else { (b'0' + d) as char }).collect()).collect();
+    rows.join(" ")
+}
+
+/// Solves the puzzle: (the returned flag, the board afterwards).
+fn run(puzzle: &str) -> (bool, String) {
+    let mut board = grid(puzzle);
+    let ok = solve_sudoku(&mut board);
+    (ok, show(&board))
+}
+
+/// `board` is full, every row, column and box holds 1–9 once, and the givens of `puzzle` are still there.
+fn completes(puzzle: &[[u8; 9]; 9], board: &[[u8; 9]; 9]) -> bool {
+    let mut seen = [[0u16; 9]; 3];
+    for r in 0..9 {
+        for c in 0..9 {
+            let d = board[r][c];
+            if !(1..=9).contains(&d) || (puzzle[r][c] != 0 && puzzle[r][c] != d) {
+                return false;
+            }
+            for (unit, i) in [(0, r), (1, c), (2, r / 3 * 3 + c / 3)] {
+                if seen[unit][i] >> d & 1 == 1 {
+                    return false;
+                }
+                seen[unit][i] |= 1 << d;
+            }
+        }
+    }
+    true
+}
+"""
+
+SUDOKU_HIDDEN_TESTS = """
+/// Reading-order backtracking that checks a digit by scanning its row, column and box.
+fn brute(board: &mut [[u8; 9]; 9]) -> bool {
+    fn fits(b: &[[u8; 9]; 9], r: usize, c: usize, d: u8) -> bool {
+        (0..9).all(|i| b[r][i] != d && b[i][c] != d && b[r / 3 * 3 + i / 3][c / 3 * 3 + i % 3] != d)
+    }
+    fn go(b: &mut [[u8; 9]; 9], i: usize) -> bool {
+        if i == 81 {
+            return true;
+        }
+        let (r, c) = (i / 9, i % 9);
+        if b[r][c] != 0 {
+            return go(b, i + 1);
+        }
+        for d in 1..=9 {
+            if fits(b, r, c, d) {
+                b[r][c] = d;
+                if go(b, i + 1) {
+                    return true;
+                }
+            }
+        }
+        b[r][c] = 0;
+        false
+    }
+    for r in 0..9 {
+        for c in 0..9 {
+            let d = board[r][c];
+            if d != 0 {
+                board[r][c] = 0;
+                let alone = fits(board, r, c, d);
+                board[r][c] = d;
+                if !alone {
+                    return false;
+                }
+            }
+        }
+    }
+    go(board, 0)
+}
+
+/// A random full grid: the pattern (3·(r % 3) + r / 3 + c) % 9 with bands, rows, stacks, columns and digits shuffled.
+fn random_grid(rng: &mut anneal_prelude::Rng) -> [[u8; 9]; 9] {
+    fn order(rng: &mut anneal_prelude::Rng) -> Vec<usize> {
+        let mut bands = vec![0, 1, 2];
+        rng.shuffle(&mut bands);
+        let mut out = Vec::new();
+        for band in bands {
+            let mut inner = vec![0, 1, 2];
+            rng.shuffle(&mut inner);
+            out.extend(inner.into_iter().map(|i| band * 3 + i));
+        }
+        out
+    }
+    let rows = order(rng);
+    let cols = order(rng);
+    let mut digits: Vec<u8> = (1..=9).collect();
+    rng.shuffle(&mut digits);
+    let mut board = [[0; 9]; 9];
+    for r in 0..9 {
+        for c in 0..9 {
+            let (a, b) = (rows[r], cols[c]);
+            board[r][c] = digits[(3 * (a % 3) + a / 3 + b) % 9];
+        }
+    }
+    board
+}
+
+#[test]
+fn random_vs_reading_order() {
+    let mut rng = anneal_prelude::Rng::new(1133);
+    for _ in 0..150 {
+        let mut puzzle = random_grid(&mut rng);
+        let blanks = rng.int(0, 50) as usize;
+        let mut cells: Vec<usize> = (0..81).collect();
+        rng.shuffle(&mut cells);
+        for &i in &cells[..blanks] {
+            puzzle[i / 9][i % 9] = 0;
+        }
+        if rng.below(3) == 0 {
+            // Overwrite a given: usually a clash, sometimes a puzzle with no solution or a different one.
+            let at = rng.int(blanks as i64, 80) as usize;
+            let i = cells[at];
+            puzzle[i / 9][i % 9] = rng.int(1, 9) as u8;
+        }
+        let mut reference = puzzle;
+        let solvable = brute(&mut reference);
+        let mut board = puzzle;
+        let ok = solve_sudoku(&mut board);
+        let kept = if ok { completes(&puzzle, &board) } else { board == puzzle };
+        check!(format!("board = {}", show(&puzzle)), (ok, kept), (solvable, true));
+    }
+}
+
+#[test]
+fn scale_against_reading_order() {
+    check!("board = @ANTI@", run("@ANTI@"), (true, "@ANTI_SOLVED@".to_string()));
+    check!("board = @DEAD_A@", run("@DEAD_A@"), (false, "@DEAD_A@".to_string()));
+    check!("board = @DEAD_B@", run("@DEAD_B@"), (false, "@DEAD_B@".to_string()));
+}
+""".replace("@ANTI_SOLVED@", SUDOKU_ANTI_SOLVED).replace("@ANTI@", SUDOKU_ANTI).replace("@DEAD_A@", SUDOKU_ANTI_DEAD_A).replace("@DEAD_B@", SUDOKU_ANTI_DEAD_B)
+
+
+def sudoku_case(name, desc, puzzle, want_ok, after):
+    return T(name, f"board = {puzzle}{desc}", f'run("{puzzle}")', f'({str(want_ok).lower()}, "{after}".to_string())')
+
+
+def blank_one(solved, index):
+    cells = solved.replace(" ", "")
+    return rows9(cells[:index] + "." + cells[index + 1:])
+
+
+def put(cells_rows, index, digit):
+    cells = cells_rows.replace(" ", "")
+    return rows9(cells[:index] + digit + cells[index + 1:])
+
+
+SUDOKU_ROW_CLASH = put(put(SUDOKU_EMPTY, 0, "5"), 4, "5")
+SUDOKU_NO_ROOM = rows9("12345678." + "........9" + "." * 63)
+SUDOKU_BOX_CLASH = put(put(SUDOKU_EMPTY, 0, "5"), 10, "5")
+SUDOKU_COL_CLASH = put(put(SUDOKU_EMPTY, 3, "7"), 48, "7")
+# LeetCode's solution with a few cells cleared and one given changed to clash with its column.
+SUDOKU_LATE_CLASH = put(blank_one(blank_one(SUDOKU_LC_SOLVED, 40), 70), 80, "8")
+
+P.append(dict(
+    slug="sudoku-solver", title="Sudoku solver", level="hard", stage="constraints-pruning", tags=["backtracking", "bitmask", "pruning"],
+    companies=["Apple", "Amazon", "Google", "Microsoft", "Uber", "DoorDash"],
+    teaches=["Constraint bookkeeping: a `u16` of used digits per row, column and box gives any cell's candidates in one expression.",
+             "Most constrained cell first: always branch on the empty cell with the fewest candidates, so forced moves cost nothing and "
+             "dead ends show up at once."],
+    statement="""
+        `board` is a 9 × 9 Sudoku: `1` to `9` are given digits and `0` is an empty cell. Fill every empty cell so that each
+        row, each column and each of the nine 3 × 3 boxes holds the digits 1 to 9 once each, and return `true`.
+
+        If that's impossible, including when two givens already clash, return `false` and leave `board` as it was. When a
+        puzzle has more than one solution, any one of them is accepted.
+
+        The tests include puzzles built to defeat backtracking that fills cells in reading order: pick the next cell with
+        more care.
+    """,
+    examples=[("board = LeetCode's example: 53..7.... 6..195... .98....6. 8...6...3 4..8.3..1 7...2...6 .6....28. ...419..5 ....8..79 (. = 0)",
+               "true; board = 534678912 672195348 198342567 859761423 426853791 713924856 961537284 287419635 345286179"),
+              ("board = 5...5.... then eight empty rows", "false; board unchanged (two 5s in the first row)")],
+    constraints=["`board` is 9 × 9, every cell 0 to 9", "the givens may clash, and the puzzle may have no solution or several"],
+    starter="""
+        pub fn solve_sudoku(board: &mut [[u8; 9]; 9]) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn solve_sudoku(board: &mut [[u8; 9]; 9]) -> bool {
+            const DIGITS: u16 = 0b11_1111_1110; // bits 1 to 9
+
+            fn box_of(r: usize, c: usize) -> usize {
+                r / 3 * 3 + c / 3
+            }
+
+            // used[0][row], used[1][column], used[2][box]: bit d is set when digit d is already there.
+            fn search(board: &mut [[u8; 9]; 9], used: &mut [[u16; 9]; 3]) -> bool {
+                // The empty cell with the fewest candidates. One candidate is forced, none is a dead end: stop looking.
+                let mut best: Option<(usize, usize, u16)> = None;
+                'scan: for r in 0..9 {
+                    for c in 0..9 {
+                        if board[r][c] != 0 {
+                            continue;
+                        }
+                        let free = DIGITS & !(used[0][r] | used[1][c] | used[2][box_of(r, c)]);
+                        if best.is_none_or(|(_, _, f)| free.count_ones() < f.count_ones()) {
+                            best = Some((r, c, free));
+                            if free.count_ones() <= 1 {
+                                break 'scan;
+                            }
+                        }
+                    }
+                }
+                let Some((r, c, mut free)) = best else {
+                    return true; // no empty cell left
+                };
+                let units = [(0, r), (1, c), (2, box_of(r, c))];
+                while free != 0 {
+                    let bit = free & free.wrapping_neg();
+                    free ^= bit;
+                    board[r][c] = bit.trailing_zeros() as u8;
+                    for (u, i) in units {
+                        used[u][i] ^= bit;
+                    }
+                    if search(board, used) {
+                        return true;
+                    }
+                    for (u, i) in units {
+                        used[u][i] ^= bit;
+                    }
+                }
+                board[r][c] = 0; // leave the cell as it was found
+                false
+            }
+
+            let mut used = [[0u16; 9]; 3];
+            for (r, row) in board.iter().enumerate() {
+                for (c, &d) in row.iter().enumerate() {
+                    if d == 0 {
+                        continue;
+                    }
+                    let bit = 1 << d;
+                    let units = [(0, r), (1, c), (2, box_of(r, c))];
+                    if units.iter().any(|&(u, i)| used[u][i] & bit != 0) {
+                        return false; // two givens clash
+                    }
+                    for (u, i) in units {
+                        used[u][i] |= bit;
+                    }
+                }
+            }
+            search(board, &mut used)
+        }
+    """,
+    visible=[
+        SUDOKU,
+        sudoku_case("leetcode_example", "", SUDOKU_LC, True, SUDOKU_LC_SOLVED),
+        sudoku_case("already_solved", " (nothing to fill)", SUDOKU_LC_SOLVED, True, SUDOKU_LC_SOLVED),
+        sudoku_case("one_blank", " (one empty cell)", blank_one(SUDOKU_LC_SOLVED, 40), True, SUDOKU_LC_SOLVED),
+        sudoku_case("givens_clash", " (two 5s in the first row)", SUDOKU_ROW_CLASH, False, SUDOKU_ROW_CLASH),
+        sudoku_case("no_digit_fits", " (the first row's last cell needs a 9, and its column has one)", SUDOKU_NO_ROOM, False, SUDOKU_NO_ROOM),
+        T("empty_board", "board = all 0: (returned flag, board is a valid fill)",
+          "{ let mut board = [[0; 9]; 9]; let ok = solve_sudoku(&mut board); (ok, completes(&[[0; 9]; 9], &board)) }", "(true, true)"),
+    ],
+    hidden=[
+        SUDOKU,
+        sudoku_case("box_clash", " (two 5s in the top-left box, different rows and columns)", SUDOKU_BOX_CLASH, False, SUDOKU_BOX_CLASH),
+        sudoku_case("column_clash", " (two 7s in the fourth column)", SUDOKU_COL_CLASH, False, SUDOKU_COL_CLASH),
+        sudoku_case("clash_among_many_givens", " (the last given repeats a digit of its row and column)", SUDOKU_LATE_CLASH, False, SUDOKU_LATE_CLASH),
+        sudoku_case("ai_escargot", "", SUDOKU_ESCARGOT, True, SUDOKU_ESCARGOT_SOLVED),
+        sudoku_case("easter_monster", "", SUDOKU_EASTER, True, SUDOKU_EASTER_SOLVED),
+        sudoku_case("last_cell_blank", " (only the bottom-right cell is empty)", blank_one(SUDOKU_LC_SOLVED, 80), True, SUDOKU_LC_SOLVED),
+        sudoku_case("first_cell_blank", " (only the top-left cell is empty)", blank_one(SUDOKU_LC_SOLVED, 0), True, SUDOKU_LC_SOLVED),
+        T("one_given_row", "board = 123456789 then eight empty rows: (returned flag, board is a valid fill)",
+          '{ let puzzle = grid("123456789 ' + " ".join(["........."] * 8) + '"); let mut board = puzzle; let ok = solve_sudoku(&mut board); (ok, completes(&puzzle, &board)) }',
+          "(true, true)"),
+        T("empty_board", "board = all 0: (returned flag, board is a valid fill)",
+          "{ let mut board = [[0; 9]; 9]; let ok = solve_sudoku(&mut board); (ok, completes(&[[0; 9]; 9], &board)) }", "(true, true)"),
+        SUDOKU_HIDDEN_TESTS,
+    ],
+    wrong=dict(
+        reading_order="""
+            pub fn solve_sudoku(board: &mut [[u8; 9]; 9]) -> bool {
+                fn box_of(r: usize, c: usize) -> usize {
+                    r / 3 * 3 + c / 3
+                }
+                fn search(board: &mut [[u8; 9]; 9], i: usize, used: &mut [[u16; 9]; 3]) -> bool {
+                    if i == 81 {
+                        return true;
+                    }
+                    let (r, c) = (i / 9, i % 9);
+                    if board[r][c] != 0 {
+                        return search(board, i + 1, used);
+                    }
+                    for d in 1..=9u8 {
+                        let bit = 1u16 << d;
+                        if (used[0][r] | used[1][c] | used[2][box_of(r, c)]) & bit != 0 {
+                            continue;
+                        }
+                        board[r][c] = d;
+                        used[0][r] ^= bit;
+                        used[1][c] ^= bit;
+                        used[2][box_of(r, c)] ^= bit;
+                        if search(board, i + 1, used) {
+                            return true;
+                        }
+                        used[0][r] ^= bit;
+                        used[1][c] ^= bit;
+                        used[2][box_of(r, c)] ^= bit;
+                    }
+                    board[r][c] = 0;
+                    false
+                }
+                let mut used = [[0u16; 9]; 3];
+                for r in 0..9 {
+                    for c in 0..9 {
+                        let d = board[r][c];
+                        if d == 0 {
+                            continue;
+                        }
+                        let bit = 1 << d;
+                        if (used[0][r] | used[1][c] | used[2][box_of(r, c)]) & bit != 0 {
+                            return false;
+                        }
+                        used[0][r] |= bit;
+                        used[1][c] |= bit;
+                        used[2][box_of(r, c)] |= bit;
+                    }
+                }
+                search(board, 0, &mut used)
+            }
+        """,
+        trusts_the_givens="""
+            pub fn solve_sudoku(board: &mut [[u8; 9]; 9]) -> bool {
+                const DIGITS: u16 = 0b11_1111_1110;
+                fn box_of(r: usize, c: usize) -> usize {
+                    r / 3 * 3 + c / 3
+                }
+                fn search(board: &mut [[u8; 9]; 9], used: &mut [[u16; 9]; 3]) -> bool {
+                    let mut best: Option<(usize, usize, u16)> = None;
+                    for r in 0..9 {
+                        for c in 0..9 {
+                            if board[r][c] != 0 {
+                                continue;
+                            }
+                            let free = DIGITS & !(used[0][r] | used[1][c] | used[2][box_of(r, c)]);
+                            if best.is_none_or(|(_, _, f)| free.count_ones() < f.count_ones()) {
+                                best = Some((r, c, free));
+                            }
+                        }
+                    }
+                    let Some((r, c, mut free)) = best else {
+                        return true;
+                    };
+                    let units = [(0, r), (1, c), (2, box_of(r, c))];
+                    while free != 0 {
+                        let bit = free & free.wrapping_neg();
+                        free ^= bit;
+                        board[r][c] = bit.trailing_zeros() as u8;
+                        for (u, i) in units {
+                            used[u][i] ^= bit;
+                        }
+                        if search(board, used) {
+                            return true;
+                        }
+                        for (u, i) in units {
+                            used[u][i] ^= bit;
+                        }
+                    }
+                    board[r][c] = 0;
+                    false
+                }
+                let mut used = [[0u16; 9]; 3];
+                for r in 0..9 {
+                    for c in 0..9 {
+                        let d = board[r][c];
+                        if d != 0 {
+                            for (u, i) in [(0, r), (1, c), (2, box_of(r, c))] {
+                                used[u][i] |= 1 << d;
+                            }
+                        }
+                    }
+                }
+                search(board, &mut used)
+            }
+        """,
+        leaves_guesses_behind="""
+            pub fn solve_sudoku(board: &mut [[u8; 9]; 9]) -> bool {
+                const DIGITS: u16 = 0b11_1111_1110;
+                fn box_of(r: usize, c: usize) -> usize {
+                    r / 3 * 3 + c / 3
+                }
+                fn search(board: &mut [[u8; 9]; 9], used: &mut [[u16; 9]; 3]) -> bool {
+                    let mut best: Option<(usize, usize, u16)> = None;
+                    for r in 0..9 {
+                        for c in 0..9 {
+                            if board[r][c] != 0 {
+                                continue;
+                            }
+                            let free = DIGITS & !(used[0][r] | used[1][c] | used[2][box_of(r, c)]);
+                            if best.is_none_or(|(_, _, f)| free.count_ones() < f.count_ones()) {
+                                best = Some((r, c, free));
+                            }
+                        }
+                    }
+                    let Some((r, c, mut free)) = best else {
+                        return true;
+                    };
+                    let units = [(0, r), (1, c), (2, box_of(r, c))];
+                    // Search a copy of the masks, so there's nothing to undo in them.
+                    while free != 0 {
+                        let bit = free & free.wrapping_neg();
+                        free ^= bit;
+                        board[r][c] = bit.trailing_zeros() as u8;
+                        let mut next = *used;
+                        for (u, i) in units {
+                            next[u][i] |= bit;
+                        }
+                        if search(board, &mut next) {
+                            return true;
+                        }
+                    }
+                    false
+                }
+                let mut used = [[0u16; 9]; 3];
+                for r in 0..9 {
+                    for c in 0..9 {
+                        let d = board[r][c];
+                        if d == 0 {
+                            continue;
+                        }
+                        let bit = 1 << d;
+                        let units = [(0, r), (1, c), (2, box_of(r, c))];
+                        if units.iter().any(|&(u, i)| used[u][i] & bit != 0) {
+                            return false;
+                        }
+                        for (u, i) in units {
+                            used[u][i] |= bit;
+                        }
+                    }
+                }
+                search(board, &mut used)
+            }
+        """,
+    ),
+    hints=[("approach", "Keep, for each row, column and box, which digits are used. Then repeatedly pick the empty cell with the fewest "
+                        "candidates, try each, recurse, and undo. Check the givens against each other before you start."),
+           ("rust", "`[[u16; 9]; 3]` holds the used digits (bit d = digit d). A cell's candidates are "
+                    "`0b11_1111_1110 & !(rows[r] | cols[c] | boxes[b])`, and `count_ones()` ranks the cells."),
+           ("edge case", "On `false` the board must be unchanged: set a guessed cell back to 0 when every candidate has failed.")],
+    notes=("Branching on the most constrained cell (the minimum-remaining-values rule) makes forced cells free and finds a "
+           "contradiction, a cell with no candidates, before any more guesses stack on top of it. Reading-order search has no such "
+           "guard: on a puzzle built against it, it enumerates millions of first-row prefixes. The masks make each candidate "
+           "test a few bit operations instead of 27 cell reads. Syntax to remember: a labelled `break 'scan` leaves both loops.",
+           "exponential in the worst case; a few thousand nodes on hard puzzles", "O(81) recursion depth, O(1) masks"),
+    follow_up="Add constraint propagation: when a digit fits in only one cell of a row, column or box, place it at once. How much "
+              "does the search shrink?",
+    related=["D13"],
+))
+
+P.append(dict(
+    slug="matchsticks-to-square", title="Matchsticks to square", level="hard", stage="constraints-pruning", tags=["backtracking", "pruning", "sort"],
+    companies=["Amazon", "Google", "Microsoft"],
+    teaches=["Order the choices so failures come early: placing the longest sticks first cuts dead branches near the root.",
+             "Symmetry pruning: sides with the same current length are interchangeable, so try only the first of them."],
+    statement="""
+        `matchsticks[i]` is the length of a matchstick. Use every matchstick exactly once, without breaking any, to make
+        the four sides of a square. Sticks can be joined end to end within a side. Return `true` if it can be done.
+
+        Lengths go up to 10⁹ and there can be 20 sticks, so the total doesn't fit in a `u32`. The tests include inputs
+        where trying the sticks in the given order takes far too long.
+    """,
+    examples=[("matchsticks = [1, 1, 2, 2, 2]", "true (sides 2, 2, 1+1, 2)"), ("matchsticks = [3, 3, 3, 3, 4]", "false")],
+    constraints=["1 ≤ matchsticks.len() ≤ 20", "1 ≤ matchsticks[i] ≤ 10⁹"],
+    starter="""
+        pub fn makesquare(matchsticks: &[u32]) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn makesquare(matchsticks: &[u32]) -> bool {
+            fn place(sticks: &[u64], sides: &mut [u64; 4], side: u64) -> bool {
+                let Some((&stick, rest)) = sticks.split_first() else {
+                    return true; // every stick placed and no side over `side`: all four are exactly `side`
+                };
+                for i in 0..4 {
+                    // A side as long as an earlier one would repeat that side's subtree.
+                    if sides[i] + stick > side || sides[..i].contains(&sides[i]) {
+                        continue;
+                    }
+                    sides[i] += stick;
+                    if place(rest, sides, side) {
+                        return true;
+                    }
+                    sides[i] -= stick;
+                }
+                false
+            }
+            let mut sticks: Vec<u64> = matchsticks.iter().map(|&m| u64::from(m)).collect();
+            let total: u64 = sticks.iter().sum();
+            if sticks.len() < 4 || !total.is_multiple_of(4) {
+                return false;
+            }
+            // Longest first: they have the fewest places to go, so a dead end shows up near the root.
+            sticks.sort_unstable_by(|a, b| b.cmp(a));
+            let side = total / 4;
+            sticks[0] <= side && place(&sticks, &mut [0; 4], side)
+        }
+    """,
+    visible=[
+        T("leetcode_square", "matchsticks = [1, 1, 2, 2, 2]", "makesquare(&[1, 1, 2, 2, 2])", "true"),
+        T("leetcode_no_square", "matchsticks = [3, 3, 3, 3, 4]", "makesquare(&[3, 3, 3, 3, 4])", "false"),
+        T("four_equal", "matchsticks = [7, 7, 7, 7]", "makesquare(&[7, 7, 7, 7])", "true"),
+        T("too_few_sticks", "matchsticks = [4, 4, 4] (total 12, but only three sticks)", "makesquare(&[4, 4, 4])", "false"),
+        T("stick_longer_than_a_side", "matchsticks = [1, 1, 1, 9] (side would be 3)", "makesquare(&[1, 1, 1, 9])", "false"),
+        T("total_divides_but_no_split", "matchsticks = [3, 3, 3, 3, 2, 2] (side 4: each 3 needs a 1)", "makesquare(&[3, 3, 3, 3, 2, 2])", "false"),
+    ],
+    hidden=[
+        T("single", "matchsticks = [1]", "makesquare(&[1])", "false"),
+        T("four_ones", "matchsticks = [1, 1, 1, 1]", "makesquare(&[1, 1, 1, 1])", "true"),
+        T("total_not_divisible", "matchsticks = [1, 1, 1, 1, 1]", "makesquare(&[1, 1, 1, 1, 1])", "false"),
+        T("three_per_side", "matchsticks = [5, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 3]", "makesquare(&[5, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 3])", "true"),
+        T("leetcode_fifteen", "matchsticks = [5, 5, 5, 5, 16, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4]",
+          "makesquare(&[5, 5, 5, 5, 16, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4])", "false"),
+        T("first_fit_fails", "matchsticks = [13, 13, 6, 4, 6, 2, 5, 3] (side 13: 6+4+3 and 6+5+2)", "makesquare(&[13, 13, 6, 4, 6, 2, 5, 3])", "true"),
+        T("total_past_u32", "matchsticks = [10⁹; 16] (total 1.6·10¹⁰)", "makesquare(&[1_000_000_000; 16])", "true"),
+        T("total_past_u32_no_square", "matchsticks = [10⁹; 16] + [4]", "makesquare(&[vec![1_000_000_000; 16], vec![4]].concat())", "false"),
+        T("unsorted_input", "matchsticks = [2, 1, 2, 1, 2, 2, 1, 1]", "makesquare(&[2, 1, 2, 1, 2, 2, 1, 1])", "true"),
+        """
+        /// Every way to give each stick one of the four sides.
+        fn brute(sticks: &[u32]) -> bool {
+            (0..1usize << (2 * sticks.len())).any(|code| {
+                let mut sides = [0u64; 4];
+                for (i, &s) in sticks.iter().enumerate() {
+                    sides[code >> (2 * i) & 3] += u64::from(s);
+                }
+                sides[0] > 0 && sides.iter().all(|&x| x == sides[0])
+            })
+        }
+
+        #[test]
+        fn random_vs_every_assignment() {
+            let mut rng = anneal_prelude::Rng::new(1134);
+            for _ in 0..300 {
+                let mut sticks: Vec<u32> = Vec::new();
+                if rng.bool() {
+                    let n = rng.int(1, 7) as usize;
+                    sticks = rng.vec(n, 1, 6);
+                } else {
+                    // Four equal sides, some cut in two, sometimes with one stick made longer.
+                    let side = rng.int(2, 9) as u32;
+                    for _ in 0..4 {
+                        let cut = rng.int(0, side as i64 - 1) as u32;
+                        if cut > 0 && sticks.len() < 5 {
+                            sticks.push(cut);
+                            sticks.push(side - cut);
+                        } else {
+                            sticks.push(side);
+                        }
+                    }
+                    if rng.bool() {
+                        let i = rng.below(sticks.len());
+                        sticks[i] += 1;
+                    }
+                    rng.shuffle(&mut sticks);
+                }
+                check!(format!("matchsticks = {sticks:?}"), makesquare(&sticks), brute(&sticks));
+            }
+        }
+
+        #[test]
+        fn scale_twenty_sticks_no_square() {
+            let sticks = [28, 318, 921, 8, 630, 3, 814, 403, 630, 379, 135, 834, 70, 36, 2, 47, 43, 918, 888, 913];
+            check!(format!("matchsticks = {sticks:?}"), makesquare(&sticks), false);
+        }
+
+        #[test]
+        fn scale_twenty_sticks_square() {
+            let sticks = [856, 133, 296, 248, 751, 605, 757, 480, 14, 204, 644, 412, 860, 37, 138, 82, 10, 332, 771, 106];
+            check!(format!("matchsticks = {sticks:?}"), makesquare(&sticks), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        given_order="""
+            pub fn makesquare(matchsticks: &[u32]) -> bool {
+                fn place(sticks: &[u64], sides: &mut [u64; 4], side: u64) -> bool {
+                    let Some((&stick, rest)) = sticks.split_first() else {
+                        return true;
+                    };
+                    for i in 0..4 {
+                        if sides[i] + stick > side || sides[..i].contains(&sides[i]) {
+                            continue;
+                        }
+                        sides[i] += stick;
+                        if place(rest, sides, side) {
+                            return true;
+                        }
+                        sides[i] -= stick;
+                    }
+                    false
+                }
+                let sticks: Vec<u64> = matchsticks.iter().map(|&m| u64::from(m)).collect();
+                let total: u64 = sticks.iter().sum();
+                if sticks.len() < 4 || total % 4 != 0 {
+                    return false;
+                }
+                let side = total / 4;
+                sticks.iter().all(|&s| s <= side) && place(&sticks, &mut [0; 4], side)
+            }
+        """,
+        sums_in_u32="""
+            pub fn makesquare(matchsticks: &[u32]) -> bool {
+                fn place(sticks: &[u32], sides: &mut [u32; 4], side: u32) -> bool {
+                    let Some((&stick, rest)) = sticks.split_first() else {
+                        return true;
+                    };
+                    for i in 0..4 {
+                        if sides[i] + stick > side || sides[..i].contains(&sides[i]) {
+                            continue;
+                        }
+                        sides[i] += stick;
+                        if place(rest, sides, side) {
+                            return true;
+                        }
+                        sides[i] -= stick;
+                    }
+                    false
+                }
+                let mut sticks = matchsticks.to_vec();
+                let total: u32 = sticks.iter().sum();
+                if sticks.len() < 4 || total % 4 != 0 {
+                    return false;
+                }
+                sticks.sort_unstable_by(|a, b| b.cmp(a));
+                let side = total / 4;
+                sticks[0] <= side && place(&sticks, &mut [0; 4], side)
+            }
+        """,
+        first_fit_no_backtracking="""
+            pub fn makesquare(matchsticks: &[u32]) -> bool {
+                let mut sticks: Vec<u64> = matchsticks.iter().map(|&m| u64::from(m)).collect();
+                let total: u64 = sticks.iter().sum();
+                if sticks.len() < 4 || total % 4 != 0 {
+                    return false;
+                }
+                sticks.sort_unstable_by(|a, b| b.cmp(a));
+                let side = total / 4;
+                let mut sides = [0u64; 4];
+                for s in sticks {
+                    match sides.iter_mut().find(|x| **x + s <= side) {
+                        Some(x) => *x += s,
+                        None => return false,
+                    }
+                }
+                true
+            }
+        """,
+    ),
+    hints=[("approach", "Place the sticks one at a time into one of four sides, never letting a side exceed total / 4, and backtrack "
+                        "on failure. Check first that there are at least four sticks and that the total divides by 4."),
+           ("rust", "Sum in `u64` (`u64::from(m)`), sort with `sort_unstable_by(|a, b| b.cmp(a))`, and skip side `i` when "
+                    "`sides[..i].contains(&sides[i])`."),
+           ("edge case", "Greedy first-fit is not enough: for [13, 13, 6, 4, 6, 2, 5, 3] it puts 6 and 6 together and gets stuck, "
+                         "though 6+4+3 and 6+5+2 both make 13.")],
+    notes=("The search gives each stick one of four sides, so it's 4ⁿ in the worst case. Two cuts make it fast: sorting longest "
+           "first, because a long stick fits in few places and a failure is found high in the tree instead of after every "
+           "short stick is placed; and skipping a side whose length equals an earlier side's, which would only repeat that "
+           "subtree (an empty side is the common case). Once every stick is placed with no side over total / 4, all four "
+           "sides are exactly total / 4.",
+           "O(4ⁿ) worst case; far less with the cuts", "O(n) recursion depth"),
+    follow_up="Solve it with a DP over subsets of sticks in O(n · 2ⁿ). Which approach wins for n = 20?",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="partition-to-k-equal-subsets", title="Partition to K equal sum subsets", level="hard", stage="constraints-pruning",
+    tags=["backtracking", "bitmask", "memoization"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "LinkedIn"],
+    teaches=["Fill one bucket at a time: the set of used numbers then fixes everything else, so it can be memoised as a bitmask.",
+             "Two cheaper cuts on top: an empty bucket always takes the largest unused number, and equal numbers are tried once per spot."],
+    statement="""
+        Return `true` if `nums` can be split into `k` non-empty groups with equal sums, every number in exactly one group.
+
+        There can be 20 numbers and many repeats. The tests include inputs where plain backtracking, which retries equal
+        numbers and never remembers a failed state, takes far too long.
+    """,
+    examples=[("nums = [4, 3, 2, 3, 5, 2, 1], k = 4", "true ([5], [1, 4], [2, 3], [2, 3])"), ("nums = [1, 2, 3, 4], k = 3", "false")],
+    constraints=["1 ≤ k ≤ nums.len() ≤ 20", "1 ≤ nums[i] ≤ 10⁴"],
+    starter="""
+        pub fn can_partition_k_subsets(nums: &[u32], k: usize) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn can_partition_k_subsets(nums: &[u32], k: usize) -> bool {
+            // `used`: which numbers are in a bucket. The open bucket holds (sum of used) % target, so `used` is the
+            // whole state, and a state that failed once fails every time: `dead` remembers it.
+            fn fill(nums: &[u32], target: u32, used: u32, open: u32, dead: &mut [bool]) -> bool {
+                if used == (1 << nums.len()) - 1 {
+                    return true;
+                }
+                if dead[used as usize] {
+                    return false;
+                }
+                let mut tried = 0; // equal numbers lead to the same states: try the first one only
+                for i in 0..nums.len() {
+                    if used >> i & 1 == 1 || nums[i] == tried || open + nums[i] > target {
+                        continue;
+                    }
+                    if fill(nums, target, used | 1 << i, (open + nums[i]) % target, dead) {
+                        return true;
+                    }
+                    tried = nums[i];
+                    if open == 0 {
+                        break; // the largest unused number belongs to some bucket: this one is as good as any
+                    }
+                }
+                dead[used as usize] = true;
+                false
+            }
+            let total: u32 = nums.iter().sum();
+            if !total.is_multiple_of(k as u32) {
+                return false;
+            }
+            let target = total / k as u32;
+            let mut nums = nums.to_vec();
+            nums.sort_unstable_by(|a, b| b.cmp(a));
+            nums[0] <= target && fill(&nums, target, 0, 0, &mut vec![false; 1 << nums.len()])
+        }
+    """,
+    visible=[
+        T("leetcode_four_groups", "nums = [4, 3, 2, 3, 5, 2, 1], k = 4", "can_partition_k_subsets(&[4, 3, 2, 3, 5, 2, 1], 4)", "true"),
+        T("leetcode_no_split", "nums = [1, 2, 3, 4], k = 3", "can_partition_k_subsets(&[1, 2, 3, 4], 3)", "false"),
+        T("one_group", "nums = [5, 1], k = 1", "can_partition_k_subsets(&[5, 1], 1)", "true"),
+        T("each_its_own_group", "nums = [2, 2, 2, 2], k = 4", "can_partition_k_subsets(&[2, 2, 2, 2], 4)", "true"),
+        T("number_bigger_than_a_group", "nums = [10, 1, 1], k = 2 (each group would sum to 6)", "can_partition_k_subsets(&[10, 1, 1], 2)", "false"),
+        T("sum_divides_but_no_split", "nums = [1, 5, 5, 5], k = 2 (groups of 8)", "can_partition_k_subsets(&[1, 5, 5, 5], 2)", "false"),
+    ],
+    hidden=[
+        T("single", "nums = [7], k = 1", "can_partition_k_subsets(&[7], 1)", "true"),
+        T("leetcode_fives", "nums = [2, 2, 2, 2, 3, 4, 5], k = 4", "can_partition_k_subsets(&[2, 2, 2, 2, 3, 4, 5], 4)", "false"),
+        T("leetcode_thirties", "nums = [10, 10, 10, 7, 7, 7, 7, 7, 7, 6, 6, 6], k = 3",
+          "can_partition_k_subsets(&[10, 10, 10, 7, 7, 7, 7, 7, 7, 6, 6, 6], 3)", "true"),
+        T("leetcode_mixed", "nums = [4, 15, 1, 1, 1, 1, 3, 11, 1, 10], k = 3", "can_partition_k_subsets(&[4, 15, 1, 1, 1, 1, 3, 11, 1, 10], 3)", "true"),
+        T("leetcode_nine_groups", "nums = [3, 2, 1, 3, 6, 1, 4, 8, 10, 8, 9, 1, 7, 9, 8, 1], k = 9",
+          "can_partition_k_subsets(&[3, 2, 1, 3, 6, 1, 4, 8, 10, 8, 9, 1, 7, 9, 8, 1], 9)", "false"),
+        T("first_fit_fails", "nums = [6, 4, 6, 2, 5, 3], k = 2 (6+4+3 and 6+5+2)", "can_partition_k_subsets(&[6, 4, 6, 2, 5, 3], 2)", "true"),
+        T("pairs", "nums = [1, 1, 1, 1, 2, 2, 2, 2], k = 4", "can_partition_k_subsets(&[1, 1, 1, 1, 2, 2, 2, 2], 4)", "true"),
+        T("twenty_ones", "nums = [1; 20], k = 20", "can_partition_k_subsets(&[1; 20], 20)", "true"),
+        T("big_values", "nums = [10⁴; 20], k = 5", "can_partition_k_subsets(&[10_000; 20], 5)", "true"),
+        T("not_divisible", "nums = [1; 20], k = 3", "can_partition_k_subsets(&[1; 20], 3)", "false"),
+        """
+        /// Every way to give each number one of the k groups.
+        fn brute(nums: &[u32], k: usize) -> bool {
+            (0..k.pow(nums.len() as u32)).any(|mut code| {
+                let mut sums = vec![0u32; k];
+                for &x in nums {
+                    sums[code % k] += x;
+                    code /= k;
+                }
+                sums.iter().all(|&s| s == sums[0])
+            })
+        }
+
+        #[test]
+        fn random_vs_every_assignment() {
+            let mut rng = anneal_prelude::Rng::new(1135);
+            for _ in 0..300 {
+                let n = rng.int(1, 8) as usize;
+                let hi = if rng.bool() { 4 } else { 9 };
+                let nums: Vec<u32> = rng.vec(n, 1, hi);
+                let k = rng.int(1, n.min(4) as i64) as usize;
+                check!(format!("nums = {nums:?}, k = {k}"), can_partition_k_subsets(&nums, k), brute(&nums, k));
+            }
+        }
+
+        #[test]
+        fn scale_repeats_and_parity() {
+            // Groups of 9 each need one of the two 1s, and there are four groups.
+            let nums = [vec![2; 17], vec![1, 1]].concat();
+            check!("nums = [2; 17] + [1, 1], k = 4", can_partition_k_subsets(&nums, 4), false);
+        }
+
+        #[test]
+        fn scale_twenty_distinct() {
+            let nums: Vec<u32> = (1..=20).collect();
+            check!("nums = 1..=20, k = 7", can_partition_k_subsets(&nums, 7), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        plain_backtracking="""
+            pub fn can_partition_k_subsets(nums: &[u32], k: usize) -> bool {
+                fn fill(nums: &[u32], target: u32, used: &mut [bool], k: usize, open: u32, start: usize) -> bool {
+                    if k == 1 {
+                        return true;
+                    }
+                    if open == target {
+                        return fill(nums, target, used, k - 1, 0, 0);
+                    }
+                    for i in start..nums.len() {
+                        if used[i] || open + nums[i] > target {
+                            continue;
+                        }
+                        used[i] = true;
+                        if fill(nums, target, used, k, open + nums[i], i + 1) {
+                            return true;
+                        }
+                        used[i] = false;
+                    }
+                    false
+                }
+                let total: u32 = nums.iter().sum();
+                if total % k as u32 != 0 {
+                    return false;
+                }
+                let target = total / k as u32;
+                let mut nums = nums.to_vec();
+                nums.sort_unstable_by(|a, b| b.cmp(a));
+                nums[0] <= target && fill(&nums, target, &mut vec![false; nums.len()], k, 0, 0)
+            }
+        """,
+        first_fit_no_backtracking="""
+            pub fn can_partition_k_subsets(nums: &[u32], k: usize) -> bool {
+                let total: u32 = nums.iter().sum();
+                if total % k as u32 != 0 {
+                    return false;
+                }
+                let target = total / k as u32;
+                let mut nums = nums.to_vec();
+                nums.sort_unstable_by(|a, b| b.cmp(a));
+                let mut groups = vec![0u32; k];
+                for x in nums {
+                    match groups.iter_mut().find(|g| **g + x <= target) {
+                        Some(g) => *g += x,
+                        None => return false,
+                    }
+                }
+                true
+            }
+        """,
+    ),
+    hints=[("approach", "Fill the groups one at a time, each up to total / k, and move to the next group when one is full. The set of "
+                        "numbers used so far determines the rest of the state, so remember the sets that failed."),
+           ("rust", "Keep the used set in a `u32` bitmask and the failures in `vec![false; 1 << n]`. The open group's sum is "
+                    "`(open + nums[i]) % target` after adding `nums[i]`."),
+           ("edge case", "Sort descending, skip a number equal to one that just failed in the same spot, and when a group is empty "
+                         "put the largest unused number in it rather than trying every number there.")],
+    notes=("Filling groups in order makes the used-set bitmask a complete description of the search state: the full groups are "
+           "interchangeable, and the open group's sum is the used sum modulo the target. So there are at most 2ⁿ states, each "
+           "expanded once thanks to `dead`, which bounds the search at O(n · 2ⁿ). The duplicate skip and the empty-group rule "
+           "cut the constant: without them, [2; 17] + [1, 1] with k = 4 rebuilds the same groups from different copies of 2 "
+           "hundreds of millions of times.",
+           "O(n · 2ⁿ)", "O(2ⁿ) for the memo"),
+    follow_up="Matchsticks to square is the case k = 4. Would this memo help there, and what does it cost in memory for n = 20?",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="word-break-ii", title="Word break II", level="hard", stage="constraints-pruning", tags=["backtracking", "DP table", "pruning", "String"],
+    companies=["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber", "Bloomberg"],
+    teaches=["Prune with a table: first compute which suffixes can be split at all (Word break I, backwards), then search only "
+             "through positions that can still finish. Every branch then ends in an answer.",
+             "Hand out `&str` slices of `s` along the path and join them only when a sentence is complete."],
+    statement="""
+        Insert spaces into `s` so that every piece is a word from `word_dict`, and return every sentence you can make this
+        way. A word can be used any number of times. The dictionary may list a word more than once; each sentence still
+        appears once. The sentences can come in any order.
+
+        `s` can be 100 letters long, and dictionary words 40. The tests include strings with a huge number of partial
+        splits that never finish, where searching without first ruling out dead positions takes far too long.
+    """,
+    examples=[("s = \"catsanddog\", word_dict = [\"cat\", \"cats\", \"and\", \"sand\", \"dog\"]", "[\"cats and dog\", \"cat sand dog\"]"),
+              ("s = \"pineapplepenapple\", word_dict = [\"apple\", \"pen\", \"applepen\", \"pine\", \"pineapple\"]",
+               "[\"pine apple pen apple\", \"pineapple pen apple\", \"pine applepen apple\"]"),
+              ("s = \"catsandog\", word_dict = [\"cats\", \"dog\", \"sand\", \"and\", \"cat\"]", "[]")],
+    constraints=["1 ≤ s.len() ≤ 100", "1 ≤ word_dict.len() ≤ 1000", "1 ≤ word.len() ≤ 40",
+                 "`s` and the words hold lowercase ASCII letters", "the answer holds at most 20 000 sentences"],
+    starter="""
+        pub fn word_break(s: &str, word_dict: &[&str]) -> Vec<String> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::HashSet;
+
+        pub fn word_break(s: &str, word_dict: &[&str]) -> Vec<String> {
+            let words: HashSet<&str> = word_dict.iter().copied().collect();
+            let longest = words.iter().map(|w| w.len()).max().unwrap_or(0);
+            let n = s.len();
+            // finishes[i]: s[i..] splits into words. Built from the back, like Word break I.
+            let mut finishes = vec![false; n + 1];
+            finishes[n] = true;
+            for i in (0..n).rev() {
+                finishes[i] = (i + 1..=n.min(i + longest)).any(|j| finishes[j] && words.contains(&s[i..j]));
+            }
+
+            // Only steps to positions that can still finish, so every branch ends in a sentence.
+            fn build<'a>(s: &'a str, i: usize, words: &HashSet<&str>, longest: usize, finishes: &[bool], path: &mut Vec<&'a str>, out: &mut Vec<String>) {
+                if i == s.len() {
+                    out.push(path.join(" "));
+                    return;
+                }
+                for j in i + 1..=s.len().min(i + longest) {
+                    if finishes[j] && words.contains(&s[i..j]) {
+                        path.push(&s[i..j]);
+                        build(s, j, words, longest, finishes, path, out);
+                        path.pop();
+                    }
+                }
+            }
+            let mut out = Vec::new();
+            if finishes[0] {
+                build(s, 0, &words, longest, &finishes, &mut Vec::new(), &mut out);
+            }
+            out
+        }
+    """,
+    visible=[
+        SORTED,
+        T("leetcode_cats_and_dog", "s = \"catsanddog\", word_dict = [\"cat\", \"cats\", \"and\", \"sand\", \"dog\"]",
+          'sorted(word_break("catsanddog", &["cat", "cats", "and", "sand", "dog"]))', 'vec!["cat sand dog", "cats and dog"]'),
+        T("leetcode_pineapple", "s = \"pineapplepenapple\", word_dict = [\"apple\", \"pen\", \"applepen\", \"pine\", \"pineapple\"]",
+          'sorted(word_break("pineapplepenapple", &["apple", "pen", "applepen", "pine", "pineapple"]))',
+          'vec!["pine apple pen apple", "pine applepen apple", "pineapple pen apple"]'),
+        T("leetcode_no_sentence", "s = \"catsandog\", word_dict = [\"cats\", \"dog\", \"sand\", \"and\", \"cat\"]",
+          'word_break("catsandog", &["cats", "dog", "sand", "and", "cat"])', "Vec::<String>::new()"),
+        T("word_used_twice", "s = \"dogdog\", word_dict = [\"dog\"]", 'word_break("dogdog", &["dog"])', 'vec!["dog dog"]'),
+        T("whole_string_is_a_word", "s = \"apple\", word_dict = [\"apple\", \"app\", \"le\"]", 'sorted(word_break("apple", &["apple", "app", "le"]))',
+          'vec!["app le", "apple"]'),
+        T("repeated_dictionary_word", "s = \"catcat\", word_dict = [\"cat\", \"cat\"]", 'word_break("catcat", &["cat", "cat"])', 'vec!["cat cat"]'),
+    ],
+    hidden=[
+        SORTED,
+        T("single_letter", "s = \"a\", word_dict = [\"a\"]", 'word_break("a", &["a"])', 'vec!["a"]'),
+        T("no_word_fits", "s = \"b\", word_dict = [\"a\"]", 'word_break("b", &["a"])', "Vec::<String>::new()"),
+        T("word_longer_than_s", "s = \"ab\", word_dict = [\"abc\"]", 'word_break("ab", &["abc"])', "Vec::<String>::new()"),
+        T("four_as", "s = \"aaaa\", word_dict = [\"a\", \"aa\"]", 'sorted(word_break("aaaa", &["a", "aa"]))',
+          'vec!["a a a a", "a a aa", "a aa a", "aa a a", "aa aa"]'),
+        T("leetcode_seven_as", "s = \"aaaaaaa\", word_dict = [\"aaaa\", \"aa\", \"a\"]", 'word_break("aaaaaaa", &["aaaa", "aa", "a"]).len()', "31"),
+        T("prefix_trap", "s = \"catsdog\", word_dict = [\"cat\", \"cats\", \"sdog\", \"dog\"]", 'sorted(word_break("catsdog", &["cat", "cats", "sdog", "dog"]))',
+          'vec!["cat sdog", "cats dog"]'),
+        T("last_letter_unmatched", "s = \"aaab\", word_dict = [\"a\", \"aa\", \"aaa\"]", 'word_break("aaab", &["a", "aa", "aaa"])', "Vec::<String>::new()"),
+        T("hundred_letters", "s = \"catsanddog\" × 10, word_dict = [\"cat\", \"cats\", \"and\", \"sand\", \"dog\"]: 2¹⁰ sentences",
+          '{ let s = "catsanddog".repeat(10); let all = word_break(&s, &["cat", "cats", "and", "sand", "dog"]); '
+          '(all.len(), all.iter().all(|x| x.replace(' + "' '" + ', "") == s)) }',
+          "(1024, true)"),
+        """
+        /// Every way to cut `s` into pieces, kept when every piece is a word.
+        fn brute(s: &str, dict: &[&str]) -> Vec<String> {
+            let n = s.len();
+            let mut out = Vec::new();
+            for cuts in 0..1u32 << (n - 1) {
+                let mut pieces = Vec::new();
+                let mut start = 0;
+                for i in 1..=n {
+                    if i == n || cuts >> (i - 1) & 1 == 1 {
+                        pieces.push(&s[start..i]);
+                        start = i;
+                    }
+                }
+                if pieces.iter().all(|p| dict.contains(p)) {
+                    out.push(pieces.join(" "));
+                }
+            }
+            out
+        }
+
+        #[test]
+        fn random_vs_every_cut() {
+            let mut rng = anneal_prelude::Rng::new(1136);
+            for _ in 0..300 {
+                let len = rng.int(1, 10) as usize;
+                let s = rng.string(len, "ab");
+                let count = rng.int(1, 5) as usize;
+                let mut words = Vec::new();
+                for _ in 0..count {
+                    let wlen = rng.int(1, 3) as usize;
+                    words.push(rng.string(wlen, "ab"));
+                }
+                let dict: Vec<&str> = words.iter().map(String::as_str).collect();
+                check!(format!("s = {s:?}, word_dict = {dict:?}"), sorted(word_break(&s, &dict)), sorted(brute(&s, &dict)));
+            }
+        }
+
+        #[test]
+        fn many_sentences() {
+            // Fibonacci(21) ways to write 20 as a sum of 1s and 2s.
+            let s = "a".repeat(20);
+            let mut all = word_break(&s, &["a", "aa"]);
+            all.sort();
+            all.dedup();
+            check!("s = 20 × \\"a\\", word_dict = [\\"a\\", \\"aa\\"]: distinct sentences", all.len(), 10946);
+        }
+
+        #[test]
+        fn scale_no_sentence() {
+            let s = "a".repeat(60) + "b";
+            check!("s = 60 × \\"a\\" + \\"b\\", word_dict = [\\"a\\", \\"aa\\", \\"aaa\\", \\"aaaa\\", \\"aaaaa\\"]",
+                word_break(&s, &["a", "aa", "aaa", "aaaa", "aaaaa"]), Vec::<String>::new());
+        }
+
+        #[test]
+        fn scale_one_long_word() {
+            // Only the 37-letter word covers the b; every split of the a's before it is a dead end.
+            let s = "a".repeat(36) + "b";
+            check!("s = 36 × \\"a\\" + \\"b\\", word_dict = [\\"a\\", \\"aa\\", \\"aaa\\", \\"aaaa\\", s]",
+                word_break(&s, &["a", "aa", "aaa", "aaaa", s.as_str()]), vec![s.clone()]);
+        }
+        """,
+    ],
+    wrong=dict(
+        plain_backtracking="""
+            use std::collections::HashSet;
+
+            pub fn word_break(s: &str, word_dict: &[&str]) -> Vec<String> {
+                fn build<'a>(s: &'a str, i: usize, words: &HashSet<&str>, path: &mut Vec<&'a str>, out: &mut Vec<String>) {
+                    if i == s.len() {
+                        out.push(path.join(" "));
+                        return;
+                    }
+                    for j in i + 1..=s.len() {
+                        if words.contains(&s[i..j]) {
+                            path.push(&s[i..j]);
+                            build(s, j, words, path, out);
+                            path.pop();
+                        }
+                    }
+                }
+                let words: HashSet<&str> = word_dict.iter().copied().collect();
+                let mut out = Vec::new();
+                build(s, 0, &words, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        whole_string_check_only="""
+            use std::collections::HashSet;
+
+            pub fn word_break(s: &str, word_dict: &[&str]) -> Vec<String> {
+                fn build<'a>(s: &'a str, i: usize, words: &HashSet<&str>, path: &mut Vec<&'a str>, out: &mut Vec<String>) {
+                    if i == s.len() {
+                        out.push(path.join(" "));
+                        return;
+                    }
+                    for j in i + 1..=s.len() {
+                        if words.contains(&s[i..j]) {
+                            path.push(&s[i..j]);
+                            build(s, j, words, path, out);
+                            path.pop();
+                        }
+                    }
+                }
+                let words: HashSet<&str> = word_dict.iter().copied().collect();
+                let n = s.len();
+                // Word break I: can s be split at all?
+                let mut splits = vec![false; n + 1];
+                splits[0] = true;
+                for j in 1..=n {
+                    splits[j] = (0..j).any(|i| splits[i] && words.contains(&s[i..j]));
+                }
+                let mut out = Vec::new();
+                if splits[n] {
+                    build(s, 0, &words, &mut Vec::new(), &mut out);
+                }
+                out
+            }
+        """,
+        dictionary_duplicates="""
+            pub fn word_break(s: &str, word_dict: &[&str]) -> Vec<String> {
+                let n = s.len();
+                let mut finishes = vec![false; n + 1];
+                finishes[n] = true;
+                for i in (0..n).rev() {
+                    finishes[i] = word_dict.iter().any(|w| s[i..].starts_with(w) && finishes[i + w.len()]);
+                }
+                fn build<'a>(s: &'a str, i: usize, dict: &[&'a str], finishes: &[bool], path: &mut Vec<&'a str>, out: &mut Vec<String>) {
+                    if i == s.len() {
+                        out.push(path.join(" "));
+                        return;
+                    }
+                    for &w in dict {
+                        if s[i..].starts_with(w) && finishes[i + w.len()] {
+                            path.push(w);
+                            build(s, i + w.len(), dict, finishes, path, out);
+                            path.pop();
+                        }
+                    }
+                }
+                let mut out = Vec::new();
+                if finishes[0] {
+                    build(s, 0, word_dict, &finishes, &mut Vec::new(), &mut out);
+                }
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Plain backtracking explores every partial split, even ones that can never reach the end. First compute, from "
+                        "the back, which positions `i` have a splittable suffix `s[i..]`; then backtrack only through those."),
+           ("rust", "Put the words in a `HashSet<&str>` (this also drops repeated words), keep the path as `Vec<&str>` slices of "
+                    "`s`, and `path.join(\" \")` at the end. Only try pieces up to the longest word's length."),
+           ("edge case", "A string whose last letter no word covers has no sentence at all: the table says so before any search.")],
+    notes=("The table is Word break I run backwards: `finishes[i]` is true when some word `s[i..j]` is followed by a position `j` "
+           "that finishes. With it, the search never steps into a dead position, so every branch produces a sentence and the "
+           "work is proportional to the output. Checking only whether the whole string splits is not enough: in 36 a's then a b, "
+           "with the 37-letter word, the string splits, but every other split of the a's is a dead end. A memo of the sentences "
+           "for each suffix works too, at the cost of storing them.",
+           "O(n · L) for the table (L = longest word) plus O(output)", "O(n) besides the output"),
+    follow_up="How would you return only the number of sentences, without building them?",
+    related=["D12", "D10"],
+))
+
+EXPR_VALUE = """
+/// The value of an expression of digits, `+`, `-` and `*`, or `None` if an operand has a leading zero.
+fn value(expr: &str) -> Option<i64> {
+    let bytes = expr.as_bytes();
+    let (mut total, mut sign, mut start) = (0i64, 1i64, 0);
+    for i in 0..=bytes.len() {
+        if i == bytes.len() || bytes[i] == b'+' || bytes[i] == b'-' {
+            let mut product = 1i64;
+            for operand in expr[start..i].split('*') {
+                if operand.len() > 1 && operand.starts_with('0') {
+                    return None;
+                }
+                product *= operand.parse::<i64>().unwrap();
+            }
+            total += sign * product;
+            if i < bytes.len() {
+                sign = if bytes[i] == b'+' { 1 } else { -1 };
+            }
+            start = i + 1;
+        }
+    }
+    Some(total)
+}
+"""
+
+P.append(dict(
+    slug="expression-add-operators", title="Expression add operators", level="hard", stage="constraints-pruning",
+    tags=["backtracking", "String", "parsing"],
+    companies=["Meta", "Amazon", "Google", "Microsoft"],
+    teaches=["Evaluate while you build: carry the running value and the last product term, so `*` can undo that term and "
+             "multiply it, with no parsing at the leaves.",
+             "One `String` buffer for the expression: push the operator and digits, recurse, `truncate` back."],
+    statement="""
+        `num` is a string of digits. Put `+`, `-` or `*` (or nothing) between each pair of adjacent digits, and return every
+        expression whose value is `target`. `*` binds tighter than `+` and `-`, as usual.
+
+        An operand can't have a leading zero: `05` is not allowed, `0` on its own is. Operands can have up to 10 digits, so
+        they don't all fit in an `i32`. The expressions can come in any order.
+    """,
+    examples=[("num = \"123\", target = 6", "[\"1*2*3\", \"1+2+3\"]"), ("num = \"232\", target = 8", "[\"2*3+2\", \"2+3*2\"]"),
+              ("num = \"3456237490\", target = 9191", "[]")],
+    constraints=["1 ≤ num.len() ≤ 10", "`num` holds only digits", "-2³¹ ≤ target ≤ 2³¹ - 1"],
+    starter="""
+        pub fn add_operators(num: &str, target: i64) -> Vec<String> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn add_operators(num: &str, target: i64) -> Vec<String> {
+            // `value`: the expression so far. `last`: its final product term, which a `*` takes back out and multiplies.
+            fn build(digits: &[u8], i: usize, target: i64, value: i64, last: i64, expr: &mut String, out: &mut Vec<String>) {
+                if i == digits.len() {
+                    if value == target {
+                        out.push(expr.clone());
+                    }
+                    return;
+                }
+                let len = expr.len();
+                let mut operand = 0i64;
+                for j in i..digits.len() {
+                    if j > i && digits[i] == b'0' {
+                        break; // "05" is not an operand
+                    }
+                    operand = operand * 10 + i64::from(digits[j] - b'0');
+                    let text = &digits[i..=j];
+                    if i == 0 {
+                        expr.extend(text.iter().map(|&d| d as char));
+                        build(digits, j + 1, target, operand, operand, expr, out);
+                        expr.truncate(len);
+                        continue;
+                    }
+                    for (op, value, last) in [
+                        ('+', value + operand, operand),
+                        ('-', value - operand, -operand),
+                        ('*', value - last + last * operand, last * operand),
+                    ] {
+                        expr.push(op);
+                        expr.extend(text.iter().map(|&d| d as char));
+                        build(digits, j + 1, target, value, last, expr, out);
+                        expr.truncate(len);
+                    }
+                }
+            }
+            let mut out = Vec::new();
+            build(num.as_bytes(), 0, target, 0, 0, &mut String::with_capacity(2 * num.len()), &mut out);
+            out
+        }
+    """,
+    visible=[
+        SORTED,
+        T("leetcode_six", "num = \"123\", target = 6", 'sorted(add_operators("123", 6))', 'vec!["1*2*3", "1+2+3"]'),
+        T("leetcode_precedence", "num = \"232\", target = 8", 'sorted(add_operators("232", 8))', 'vec!["2*3+2", "2+3*2"]'),
+        T("leetcode_none", "num = \"3456237490\", target = 9191", 'add_operators("3456237490", 9191)', "Vec::<String>::new()"),
+        T("leetcode_no_leading_zero", "num = \"105\", target = 5 (\"1*05\" is not allowed)", 'sorted(add_operators("105", 5))', 'vec!["1*0+5", "10-5"]'),
+        T("leetcode_zeros", "num = \"00\", target = 0", 'sorted(add_operators("00", 0))', 'vec!["0*0", "0+0", "0-0"]'),
+        T("no_operator", "num = \"123\", target = 123", 'add_operators("123", 123)', 'vec!["123"]'),
+    ],
+    hidden=[
+        SORTED,
+        EXPR_VALUE,
+        T("single_zero", "num = \"0\", target = 0", 'add_operators("0", 0)', 'vec!["0"]'),
+        T("single_digit", "num = \"5\", target = 5", 'add_operators("5", 5)', 'vec!["5"]'),
+        T("single_digit_miss", "num = \"5\", target = 3", 'add_operators("5", 3)', "Vec::<String>::new()"),
+        T("times_before_plus", "num = \"123\", target = 7", 'add_operators("123", 7)', 'vec!["1+2*3"]'),
+        T("negative_target", "num = \"123\", target = -4", 'add_operators("123", -4)', 'vec!["1-2-3"]'),
+        T("three_zeros", "num = \"000\", target = 0", 'add_operators("000", 0).len()', "9"),
+        T("leetcode_past_i32", "num = \"2147483648\", target = -2147483648", 'add_operators("2147483648", -2147483648)', "Vec::<String>::new()"),
+        T("ten_nines", "num = \"9999999999\", target = 0: (expressions, all worth 0)",
+          '{ let all = add_operators("9999999999", 0); (all.len(), all.iter().all(|e| value(e) == Some(0))) }', "(3930, true)"),
+        T("big_products", "num = \"999999999\", target = 81", 'sorted(add_operators("999999999", 81))',
+          'vec!["9+9+9+9+9+9+9+9+9", "999-9*99-9-9-9", "999-9-9*99-9-9", "999-9-9-9*99-9", "999-9-9-9-9*99", "999-9-9-9-99*9", '
+          '"999-9-9-99*9-9", "999-9-99*9-9-9", "999-99*9-9-9-9"]'),
+        """
+        /// Every way to put nothing, `+`, `-` or `*` between the digits, kept when the value is `target`.
+        fn brute(num: &str, target: i64) -> Vec<String> {
+            let digits = num.as_bytes();
+            let mut out = Vec::new();
+            for mut code in 0..4usize.pow(digits.len() as u32 - 1) {
+                let mut expr = String::from(digits[0] as char);
+                for &d in &digits[1..] {
+                    match code % 4 {
+                        1 => expr.push('+'),
+                        2 => expr.push('-'),
+                        3 => expr.push('*'),
+                        _ => {}
+                    }
+                    expr.push(d as char);
+                    code /= 4;
+                }
+                if value(&expr) == Some(target) {
+                    out.push(expr);
+                }
+            }
+            out
+        }
+
+        #[test]
+        fn random_vs_every_operator_choice() {
+            let mut rng = anneal_prelude::Rng::new(1137);
+            for _ in 0..300 {
+                let len = rng.int(1, 6) as usize;
+                let num = rng.string(len, "0012359");
+                // Half the targets are the value of some expression, so there's an answer to find.
+                let target = if rng.bool() {
+                    rng.int(-30, 60)
+                } else {
+                    let ops = rng.string(len - 1, " +-*");
+                    let mut expr = String::new();
+                    for (i, d) in num.chars().enumerate() {
+                        if i > 0 && &ops[i - 1..i] != " " {
+                            expr.push_str(&ops[i - 1..i]);
+                        }
+                        expr.push(d);
+                    }
+                    value(&expr).unwrap_or(0)
+                };
+                check!(format!("num = {num:?}, target = {target}"), sorted(add_operators(&num, target)), sorted(brute(&num, target)));
+            }
+        }
+
+        #[test]
+        fn scale_ten_digits() {
+            let all = add_operators("1234567890", 45);
+            let ok = all.iter().all(|e| value(e) == Some(45));
+            check!("num = \\"1234567890\\", target = 45: (expressions, all evaluate to 45)", (all.len(), ok), (473, true));
+        }
+
+        #[test]
+        fn scale_many_zeros() {
+            let all = add_operators("1000000009", 9);
+            let ok = all.iter().all(|e| value(e) == Some(9));
+            check!("num = \\"1000000009\\", target = 9: (expressions, all valid and worth 9)", (all.len(), ok), (3280, true));
+        }
+        """,
+    ],
+    wrong=dict(
+        leading_zeros_allowed="""
+            pub fn add_operators(num: &str, target: i64) -> Vec<String> {
+                fn build(digits: &[u8], i: usize, target: i64, value: i64, last: i64, expr: &mut String, out: &mut Vec<String>) {
+                    if i == digits.len() {
+                        if value == target {
+                            out.push(expr.clone());
+                        }
+                        return;
+                    }
+                    let len = expr.len();
+                    let mut operand = 0i64;
+                    for j in i..digits.len() {
+                        operand = operand * 10 + i64::from(digits[j] - b'0');
+                        let text = &digits[i..=j];
+                        if i == 0 {
+                            expr.extend(text.iter().map(|&d| d as char));
+                            build(digits, j + 1, target, operand, operand, expr, out);
+                            expr.truncate(len);
+                            continue;
+                        }
+                        for (op, value, last) in [
+                            ('+', value + operand, operand),
+                            ('-', value - operand, -operand),
+                            ('*', value - last + last * operand, last * operand),
+                        ] {
+                            expr.push(op);
+                            expr.extend(text.iter().map(|&d| d as char));
+                            build(digits, j + 1, target, value, last, expr, out);
+                            expr.truncate(len);
+                        }
+                    }
+                }
+                let mut out = Vec::new();
+                build(num.as_bytes(), 0, target, 0, 0, &mut String::new(), &mut out);
+                out
+            }
+        """,
+        left_to_right="""
+            pub fn add_operators(num: &str, target: i64) -> Vec<String> {
+                fn build(digits: &[u8], i: usize, target: i64, value: i64, expr: &mut String, out: &mut Vec<String>) {
+                    if i == digits.len() {
+                        if value == target {
+                            out.push(expr.clone());
+                        }
+                        return;
+                    }
+                    let len = expr.len();
+                    let mut operand = 0i64;
+                    for j in i..digits.len() {
+                        if j > i && digits[i] == b'0' {
+                            break;
+                        }
+                        operand = operand * 10 + i64::from(digits[j] - b'0');
+                        let text = &digits[i..=j];
+                        if i == 0 {
+                            expr.extend(text.iter().map(|&d| d as char));
+                            build(digits, j + 1, target, operand, expr, out);
+                            expr.truncate(len);
+                            continue;
+                        }
+                        for (op, value) in [('+', value + operand), ('-', value - operand), ('*', value * operand)] {
+                            expr.push(op);
+                            expr.extend(text.iter().map(|&d| d as char));
+                            build(digits, j + 1, target, value, expr, out);
+                            expr.truncate(len);
+                        }
+                    }
+                }
+                let mut out = Vec::new();
+                build(num.as_bytes(), 0, target, 0, &mut String::new(), &mut out);
+                out
+            }
+        """,
+        i32_operands="""
+            pub fn add_operators(num: &str, target: i64) -> Vec<String> {
+                fn build(digits: &[u8], i: usize, target: i32, value: i32, last: i32, expr: &mut String, out: &mut Vec<String>) {
+                    if i == digits.len() {
+                        if value == target {
+                            out.push(expr.clone());
+                        }
+                        return;
+                    }
+                    let len = expr.len();
+                    let mut operand = 0i32;
+                    for j in i..digits.len() {
+                        if j > i && digits[i] == b'0' {
+                            break;
+                        }
+                        operand = operand * 10 + i32::from(digits[j] - b'0');
+                        let text = &digits[i..=j];
+                        if i == 0 {
+                            expr.extend(text.iter().map(|&d| d as char));
+                            build(digits, j + 1, target, operand, operand, expr, out);
+                            expr.truncate(len);
+                            continue;
+                        }
+                        for (op, value, last) in [
+                            ('+', value + operand, operand),
+                            ('-', value - operand, -operand),
+                            ('*', value - last + last * operand, last * operand),
+                        ] {
+                            expr.push(op);
+                            expr.extend(text.iter().map(|&d| d as char));
+                            build(digits, j + 1, target, value, last, expr, out);
+                            expr.truncate(len);
+                        }
+                    }
+                }
+                let mut out = Vec::new();
+                build(num.as_bytes(), 0, target as i32, 0, 0, &mut String::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "At each position, choose how many digits the next operand takes, then which operator goes before it. Track "
+                        "the value so far and the last product term instead of evaluating the finished string."),
+           ("rust", "For `*`: new value = `value - last + last * operand`, new last = `last * operand`. For `-`, last = `-operand`. "
+                    "Build the expression in one `String` and `truncate(len)` after each recursive call."),
+           ("edge case", "Stop extending an operand that starts with `0` after its first digit, and use `i64`: \"2147483648\" is "
+                         "already past `i32::MAX`.")],
+    notes=("There are 4ⁿ⁻¹ ways to fill the gaps, and the answer can hold thousands of them, so the search itself can't be cut much; "
+           "the work that can go is re-evaluating each finished string. Carrying (value, last term) makes each step O(1): `+` and `-` "
+           "start a new term, `*` replaces the last term with `last · operand`. The one real prune is the leading-zero rule, which "
+           "stops a `0` operand from growing.",
+           "O(n · 4ⁿ)", "O(n) recursion depth besides the output"),
+    follow_up="How would you add parentheses, or a `/` that truncates towards zero?",
+    related=["D3"],
+))
+
 STAGES = [
     ("recursion", "Recursion", "easy"),
     ("first-backtracking", "First backtracking", "easy"),
     ("choices-grids", "Choices & grids", "medium"),
+    ("constraints-pruning", "Constraints & pruning", "hard"),
 ]
 
 if __name__ == "__main__":

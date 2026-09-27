@@ -1,0 +1,45 @@
+slug = "four-byte-optional-index"
+title = "Four-byte optional indices"
+mode = "fix"
+level = "easy"
+stage = "size-it"
+order = 2
+status = "ready"
+tags = ["niche", "NonZeroU32", "Option layout", "newtype index", "chaining"]
+teaches = [
+  "A niche is a bit pattern a type never uses; `Option` stores `None` there and costs nothing (`&T`, `Box<T>`, `NonZero*`, `char`, `bool`, `Vec`).",
+  "No niche, no free `Option`: `Option<f64>` and `Option<u32>` double, and padding is never a niche.",
+  "Give an index type a niche by storing it in a `NonZeroU32` (as `!i` or `i + 1`), like rustc's `newtype_index!`.",
+]
+constraints = ["buckets is a power of two", "indices 0 ≤ i ≤ Idx::MAX = u32::MAX − 1", "no size_of / align_of / offset_of! / Layout in your code"]
+follow_up = "rustc reserves the top 256 values instead of zero. What does that allow that a `NonZeroU32` with `i + 1` doesn't, and why can't stable code do it the same way?"
+related = ["F3", "S7"]
+source = "rustc's newtype_index! (rustc_index), Lua's ltable.c chaining"
+
+[[examples]]
+input = "size_of::<Option<Idx>>(), size_of::<Entry>()"
+output = "4, 12"
+
+[[examples]]
+input = "with_buckets(1); insert(1, 10), insert(2, 20), insert(1, 11); chain_of(1)"
+output = "[2, 1]"
+
+[[hints]]
+kind = "approach"
+text = "`Option<T>` is free when `T` has a bit pattern it never uses. `u32` uses all of them; `NonZeroU32` never uses 0. Map index `i` to a non-zero `u32` and back."
+
+[[hints]]
+kind = "rust"
+text = "`NonZeroU32::new(!(i as u32))` (or `i as u32 + 1`) and `!self.0.get() as usize` back. Both leave exactly one index, `u32::MAX`, unrepresentable, which is why `Idx::MAX` is `u32::MAX - 1`."
+
+[[hints]]
+kind = "edge case"
+text = "Walk a chain with `let mut cur = self.heads[b]; while let Some(i) = cur { ...; cur = entry.next; }`. Padding bytes are never a niche, so `Option<(u8, u32)>` still needs a tag."
+
+[solution]
+explanation = "`Option<T>` costs nothing when `T` has a niche, a bit pattern it can never hold: null for `&T`, `Box<T>` and `Vec`'s pointer, 0 for `NonZero*`, values past `0x10FFFF` for `char`, 2..=255 for `bool` (so `Option<Option<bool>>` is still 1 byte). `u32` and `f64` use every pattern, so `Option<u32>` is 8 bytes and `Option<f64>` 16, and padding doesn't count: `Option<(u8, u32)>` is 12.\n\nrustc's `newtype_index!` gives every compiler index (`BasicBlock`, `Local`, `DefIndex`) a niche by reserving the top values, so `Option<BasicBlock>` stays 4 bytes; in stable Rust the same trick is a `NonZeroU32` holding `!i` or `i + 1`. Here that takes `Entry` from 16 to 12 bytes and every bucket head from 8 to 4: 25% and 50% less memory, for free, in a table with millions of entries. Lua's `ltable.c` chains its hash part the same way, with an integer `next` offset instead of a pointer."
+time = "O(1) expected per insert / get"
+space = "12 bytes per entry + 4 per bucket"
+
+[rules]
+forbid_types = ["size_of", "align_of", "size_of_val", "align_of_val", "offset_of", "Layout"]

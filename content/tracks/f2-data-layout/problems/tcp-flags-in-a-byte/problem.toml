@@ -1,0 +1,46 @@
+slug = "tcp-flags-in-a-byte"
+title = "TCP flags in one byte"
+mode = "fix"
+level = "easy"
+stage = "size-it"
+order = 3
+status = "ready"
+tags = ["bitflags", "const fn", "repr(transparent)", "operator traits", "lookup table"]
+teaches = [
+  "Six `bool`s are six bytes; six bits are one. A `#[repr(transparent)]` newtype over `u8` keeps the wire byte's layout.",
+  "A `const fn` API lets flag sets be built in `const` items and match arms; `const fn` bodies loop with `while`, not `for`.",
+  "`Not` on a flag set must mask to the known bits, and `from_bits` must reject unknown ones.",
+]
+constraints = ["no bitflags crate", "every inherent method is a const fn", "VALID is a const item"]
+follow_up = "The real TCP header has ECE and CWR too (8 bits). What changes in `from_bits`, `!` and `VALID`, and how would you add a flag later without breaking callers that match on `TcpFlags`?"
+related = ["L5", "F5"]
+source = "Linux netfilter (nf_conntrack_proto_tcp.c, tcp_valid_flags), the bitflags crate"
+
+[[examples]]
+input = "size_of::<TcpFlags>(), size_of::<SegmentMeta>()"
+output = "1, 12"
+
+[[examples]]
+input = "format!(\"{:?}\", TcpFlags::SYN | TcpFlags::ACK)"
+output = "\"TcpFlags(SYN | ACK)\""
+
+[[examples]]
+input = "(!TcpFlags::SYN).bits()"
+output = "0x3D"
+
+[[hints]]
+kind = "approach"
+text = "One `u8`, one bit per flag. Every set operation is a single bitwise op; `contains` is `self & other == other`."
+
+[[hints]]
+kind = "rust"
+text = "`#[repr(transparent)] pub struct TcpFlags(u8);` and `pub const fn union(self, other: Self) -> Self`. Build the table in a `const` block: `let mut t = [false; 64]; let mut i = 0; while i < N { ...; i += 1 } t`."
+
+[[hints]]
+kind = "edge case"
+text = "`!` on the byte flips the two unused high bits too: mask with `0x3F`. `from_bits(0x40)` is `None`, and PSH is ignored by validity, so both `x` and `x | PSH` are valid."
+
+[solution]
+explanation = "Six `bool`s cost six bytes because each needs its own address; the six flags fit in one byte, the one on the wire, and `#[repr(transparent)]` guarantees the newtype has exactly `u8`'s layout (it can be passed to C or cast from a header byte). `SegmentMeta` drops from 16 to 12 bytes. Making the API `const fn` means flag sets can be `const` items, which also makes them usable as `match` patterns (the type derives `PartialEq, Eq`), and lets the validity table be computed by the compiler: `const fn` has no `for` or iterators, so the builder uses `while`. The traps are the ones the bitflags crate handles: `!` must mask to the known bits, and `from_bits` must reject unknown ones (`from_bits_truncate` drops them).\n\nNetfilter's conntrack keeps exactly this table (`tcp_valid_flags[]` in `nf_conntrack_proto_tcp.c`), indexed by the flag byte with PSH masked out, and drops segments with invalid combinations such as SYN|FIN.\n\nSyntax to remember: `impl BitOr for TcpFlags { type Output = Self; fn bitor(self, rhs: Self) -> Self }`, `impl BitOrAssign for TcpFlags { fn bitor_assign(&mut self, rhs: Self) }`."
+time = "O(1) per operation"
+space = "1 byte per flag set; a 64-byte table"

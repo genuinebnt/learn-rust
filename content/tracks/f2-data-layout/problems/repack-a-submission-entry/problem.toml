@@ -1,0 +1,45 @@
+slug = "repack-a-submission-entry"
+title = "Repack a submission entry"
+mode = "fix"
+level = "easy"
+stage = "size-it"
+order = 1
+status = "ready"
+tags = ["padding", "repr(C)", "field order", "alignment", "ring buffer"]
+teaches = [
+  "A field starts at a multiple of its alignment; a struct's size is a multiple of its largest alignment (the trailing padding is what makes arrays work).",
+  "`repr(Rust)` lets rustc reorder fields to remove padding (tuples too); `#[repr(C)]` keeps your order, so you pack it by hand.",
+  "io_uring's free-running `u32` head and tail counters: slot = `counter & mask`, length = `tail.wrapping_sub(head)`.",
+]
+constraints = ["entries is a power of two, 1 to 2³¹", "Sqe keeps #[repr(C)], its 12 fields and their types", "no size_of / align_of / offset_of! / Layout in your code"]
+follow_up = "The real io_uring SQE is 64 bytes, and a later kernel added a 128-byte mode. Why keep entries a power of two, and what would a 72-byte entry cost per cache line?"
+related = ["F1", "Y3"]
+source = "Linux io_uring (include/uapi/linux/io_uring.h, struct io_uring_sqe), pahole"
+
+[[examples]]
+input = "size_of::<Sqe>(), offset_of!(Sqe, opcode)"
+output = "48, 0"
+
+[[examples]]
+input = "SqRing::starting_at(4, u32::MAX - 1); push 3 entries"
+output = "len 3, tail 1"
+
+[[hints]]
+kind = "approach"
+text = "Sort the fields in your head by alignment, but keep `opcode` first: the 7 bytes after it must be filled exactly by smaller fields (1 + 2 + 4), after which every 8-byte field is aligned."
+
+[[hints]]
+kind = "rust"
+text = "`#[repr(C)]` lays fields out in declaration order, each at the next multiple of its alignment; a `repr(Rust)` struct or tuple is reordered by rustc. `[T; 0]` is zero bytes but keeps `T`'s alignment."
+
+[[hints]]
+kind = "edge case"
+text = "The counters are compared, never reset: `tail.wrapping_sub(head)` is right even when `tail` has wrapped past `u32::MAX` and `head` hasn't. `tail - head` panics there in a debug build."
+
+[solution]
+explanation = "A field sits at the next multiple of its alignment, and the struct's size rounds up to its largest alignment so that `[T; n]` keeps every element aligned; that trailing padding is why `#[repr(C)] { u64, u8 }` is 16 bytes, and 32 in an array of two. `repr(Rust)` structs and tuples are reordered by rustc (`(u8, u64, u8)` is 16, not 24), but `#[repr(C)]` promises declaration order to C, so you pack it yourself: after `opcode` the next 7 bytes are filled by `flags` (1), `ioprio` (2) and `fd` (4), then the `u64`s, then pairs of 4-byte and 2-byte fields. That's the real `struct io_uring_sqe`'s order, and why its header says `BUILD_BUG_ON(sizeof(struct io_uring_sqe) != 64)`. Dropping `repr(C)` also gets 48 bytes, but then rustc places `opcode` where it likes (offset 46 today) and the C side reads garbage. Tools: `pahole` shows holes in C structs; `-Z print-type-sizes` does it for Rust.\n\nThe ring is the kernel's: counters never reset, the slot is `counter & mask`, and `tail.wrapping_sub(head)` is the length even across the wrap."
+time = "O(1) per push / pop"
+space = "48 bytes per entry"
+
+[rules]
+forbid_types = ["size_of", "align_of", "size_of_val", "align_of_val", "offset_of", "Layout"]

@@ -1,0 +1,11 @@
+code = "F2"
+name = "Data layout"
+section = "F"
+tier = "sde3"
+order = 2
+summary = "How many bytes a value takes and where they sit: padding, niches, enum tags, fat and thin pointers, inline storage, packed records, and laying data out for the cache."
+
+[[stages]]
+slug = "size-it"
+name = "Size it"
+band = "easy"

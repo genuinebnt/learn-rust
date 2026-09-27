@@ -199,10 +199,10 @@ test, `wrong/` solutions and `companies` (`verify` enforces the counts and `wron
 | 6 | D8 Intervals & greedy (d8.py, order 9) | 13/29: First greedy, Intervals | Greedy choices (9), Hard greedy (7); seeds 814–829 | |
 | 7 | Not started | | D7 Heaps, D13, D14; L4–L8; S5–S9 (ROADMAP §7 step 1) | write each track's CURRICULUM table first if it still needs the LeetCode 250 pass |
 
-**Unverified work saved off `master`:** branch `wip/d9-d12-unverified` (pushed) holds what the D9 and D12 agents had
-written when they stopped. D12's part is the Intervals & games stage (6 problems below), which is complete, with one
-wrong-solution compile fix applied but not re-verified. Check the branch out, run `verify d12` / `verify d9`, fix, and
-commit to `master`; or discard it and rewrite those problems.
+**Unverified work on `master`:** the D9 and D12 stages in progress when the agents stopped were committed at the
+owner's request (commit "D9 and D12: stages in progress … (not yet verified)"). `validate` passes; run `verify d9` and
+`verify d12` first and fix any failures (D12's last run had one wrong solution that didn't compile, since patched). The
+same state is also on branch `wip/d9-d12-unverified`, which can be deleted.
 
 #### Every problem not written yet (checklist)
 

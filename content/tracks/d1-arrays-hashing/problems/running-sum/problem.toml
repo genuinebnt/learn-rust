@@ -10,7 +10,7 @@ teaches = [
   "`iter().scan` carries state through an iterator chain.",
   "Borrow a slice in, return an owned `Vec` out.",
 ]
-constraints = ["0 ≤ nums.len() ≤ 10⁴", "|nums[i]| ≤ 10⁴"]
+constraints = ["0 ≤ nums.len() ≤ 2·10⁵", "|nums[i]| ≤ 10⁴"]
 follow_up = "How would you do this in place, and what would the signature need to change to?"
 related = ["S6", "S3"]
 

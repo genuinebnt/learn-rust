@@ -10,7 +10,7 @@ teaches = [
   "One pass with a `HashMap` from value to index.",
   "`Option<(usize, usize)>` instead of a `[-1, -1]` sentinel.",
 ]
-constraints = ["2 ≤ nums.len() ≤ 10⁴", "|nums[i]|, |target| ≤ 10⁹"]
+constraints = ["2 ≤ nums.len() ≤ 10⁵", "|nums[i]|, |target| ≤ 10⁹"]
 follow_up = "If the input were sorted, how would you do it in O(1) extra space?"
 related = ["S4", "S1"]
 

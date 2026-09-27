@@ -9,7 +9,7 @@ P.append(dict(
         Return the running sum of `nums`: element `i` of the result is `nums[0] + … + nums[i]`.
     """,
     examples=[("nums = [1, 2, 3, 4]", "[1, 3, 6, 10]")],
-    constraints=["0 ≤ nums.len() ≤ 10⁴", "|nums[i]| ≤ 10⁴"],
+    constraints=["0 ≤ nums.len() ≤ 2·10⁵", "|nums[i]| ≤ 10⁴"],
     starter="""
         pub fn running_sum(nums: &[i32]) -> Vec<i32> {
             todo!()
@@ -33,7 +33,62 @@ P.append(dict(
     hidden=[
         T("negatives", "nums = [3, -1, -2]", "running_sum(&[3, -1, -2])", "vec![3, 2, 0]"),
         T("ten_thousand_ones", "nums = [1; 10000]", "*running_sum(&[1; 10000]).last().unwrap()", "10000"),
+        T("all_negative", "nums = [-1, -2, -3]", "running_sum(&[-1, -2, -3])", "vec![-1, -3, -6]"),
+        T("zeros", "nums = [0, 0, 0]", "running_sum(&[0, 0, 0])", "vec![0, 0, 0]"),
+        T("single_negative", "nums = [-7]", "running_sum(&[-7])", "vec![-7]"),
+        T("cancels_out", "nums = [5, -5, 5, -5]", "running_sum(&[5, -5, 5, -5])", "vec![5, 0, 5, 0]"),
+        T("past_i16", "nums = [10000; 10]", "running_sum(&[10_000; 10])", "(1..=10).map(|i| i * 10_000).collect::<Vec<i32>>()"),
+        T("min_values", "nums = [-10000; 200000]", "*running_sum(&vec![-10_000; 200_000]).last().unwrap()", "-2_000_000_000"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1);
+            for _ in 0..300 {
+                let n = rng.below(20);
+                let nums: Vec<i32> = rng.vec(n, -10_000, 10_000);
+                let want: Vec<i32> = (0..n).map(|i| nums[..=i].iter().sum()).collect();
+                check!(format!("nums = {nums:?}"), running_sum(&nums), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let nums: Vec<i32> = (0..200_000).map(|i| if i % 2 == 0 { 10_000 } else { -9_999 }).collect();
+            let out = running_sum(&nums);
+            check!("nums = [10000, -9999, …] (200000 values)", (out.len(), out[199_998], out[199_999]), (200_000, 109_999, 100_000));
+        }
+        """,
     ],
+    wrong=dict(
+        quadratic="""
+            pub fn running_sum(nums: &[i32]) -> Vec<i32> {
+                (0..nums.len()).map(|i| nums[..=i].iter().sum()).collect()
+            }
+        """,
+        exclusive_prefix="""
+            pub fn running_sum(nums: &[i32]) -> Vec<i32> {
+                let mut total = 0;
+                nums.iter()
+                    .map(|&x| {
+                        let before = total;
+                        total += x;
+                        before
+                    })
+                    .collect()
+            }
+        """,
+        narrow_accumulator="""
+            pub fn running_sum(nums: &[i32]) -> Vec<i32> {
+                let mut total: i16 = 0;
+                nums.iter()
+                    .map(|&x| {
+                        total = total.wrapping_add(x as i16);
+                        total as i32
+                    })
+                    .collect()
+            }
+        """,
+    ),
     hints=[("approach", "Keep a total as you walk the slice and push it after each element."),
            ("rust", "`iter().scan(0, |total, &x| { *total += x; Some(*total) })` is that loop as an adapter.")],
     notes=("`scan` threads mutable state through the chain; `collect` builds the `Vec` with the right capacity because the length is known.", "O(n)", "O(n) for the output"),
@@ -63,7 +118,46 @@ P.append(dict(
     hidden=[
         T("one", "nums = [7]", "concat_twice(&[7])", "vec![7, 7]"),
         T("length", "nums = 0..1000", "concat_twice(&(0..1000).collect::<Vec<_>>()).len()", "2000"),
+        T("negatives", "nums = [-1, -2]", "concat_twice(&[-1, -2])", "vec![-1, -2, -1, -2]"),
+        T("duplicates", "nums = [4, 4, 5]", "concat_twice(&[4, 4, 5])", "vec![4, 4, 5, 4, 4, 5]"),
+        T("single_zero", "nums = [0]", "concat_twice(&[0])", "vec![0, 0]"),
+        T("extremes", "nums = [i32::MIN, i32::MAX]", "concat_twice(&[i32::MIN, i32::MAX])", "vec![i32::MIN, i32::MAX, i32::MIN, i32::MAX]"),
+        T("order_kept", "nums = [3, 1, 2]", "concat_twice(&[3, 1, 2])", "vec![3, 1, 2, 3, 1, 2]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(2);
+            for _ in 0..200 {
+                let n = rng.below(12);
+                let nums: Vec<i32> = rng.vec(n, -50, 50);
+                let mut want = nums.clone();
+                want.extend(nums.iter().copied());
+                check!(format!("nums = {nums:?}"), concat_twice(&nums), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let nums: Vec<i32> = (0..200_000).collect();
+            let out = concat_twice(&nums);
+            check!("nums = 0..200000", (out.len(), out[199_999], out[200_000], out[399_999]), (400_000, 199_999, 0, 199_999));
+        }
+        """,
     ],
+    wrong=dict(
+        each_twice="""
+            pub fn concat_twice(nums: &[i32]) -> Vec<i32> {
+                nums.iter().flat_map(|&x| [x, x]).collect()
+            }
+        """,
+        second_copy_skips_first="""
+            pub fn concat_twice(nums: &[i32]) -> Vec<i32> {
+                let mut out = nums.to_vec();
+                out.extend_from_slice(nums.get(1..).unwrap_or(&[]));
+                out
+            }
+        """,
+    ),
     hints=[("rust", "Slices have `repeat(n)`; `[a, b].concat()` and `extend_from_slice` work too.")],
     notes=("`nums.repeat(2)` allocates once with the final length.", "O(n)", "O(n)"),
     follow_up="What would change if the input were a `Vec<String>` instead of `&[i32]`?",
@@ -78,7 +172,7 @@ P.append(dict(
         `target`, or `None` if no pair does. When a pair exists, exactly one does.
     """,
     examples=[("nums = [2, 7, 11, 15], target = 9", "Some((0, 1))")],
-    constraints=["2 ≤ nums.len() ≤ 10⁴", "|nums[i]|, |target| ≤ 10⁹"],
+    constraints=["2 ≤ nums.len() ≤ 10⁵", "|nums[i]|, |target| ≤ 10⁹"],
     starter="""
         pub fn two_sum(nums: &[i32], target: i32) -> Option<(usize, usize)> {
             todo!()
@@ -107,7 +201,67 @@ P.append(dict(
     hidden=[
         T("negatives", "nums = [-3, 4, 3, 90], target = 0", "two_sum(&[-3, 4, 3, 90], 0)", "Some((0, 2))"),
         T("large_input", "nums = 0..10000, target = 19997", "two_sum(&(0..10_000).collect::<Vec<i32>>(), 19_997)", "Some((9998, 9999))"),
+        T("zeros", "nums = [0, 4, 3, 0], target = 0", "two_sum(&[0, 4, 3, 0], 0)", "Some((0, 3))"),
+        T("ends", "nums = [5, 1, 2, 7], target = 12", "two_sum(&[5, 1, 2, 7], 12)", "Some((0, 3))"),
+        T("negative_target", "nums = [-1, -2, -3, -4, -5], target = -8", "two_sum(&[-1, -2, -3, -4, -5], -8)", "Some((2, 4))"),
+        T("bounds", "nums = [1000000000, -1000000000, 7], target = -999999993", "two_sum(&[1_000_000_000, -1_000_000_000, 7], -999_999_993)", "Some((1, 2))"),
+        T("far_apart_bounds", "nums = [-1000000000, 3, -1000000000], target = -2000000000", "two_sum(&[-1_000_000_000, 3, -1_000_000_000], -2_000_000_000)", "Some((0, 2))"),
+        T("half_target_once", "nums = [3, 2, 4], target = 6 (3 must not pair with itself)", "two_sum(&[3, 2, 4], 6)", "Some((1, 2))"),
+        T("two_elements_no_pair", "nums = [1, 1], target = 3", "two_sum(&[1, 1], 3)", "None"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(3);
+            let mut tried = 0;
+            while tried < 300 {
+                let n = 2 + rng.below(10);
+                let nums: Vec<i32> = rng.vec(n, -20, 20);
+                let target = rng.int(-40, 40) as i32;
+                let pairs: Vec<(usize, usize)> = (0..n).flat_map(|i| (i + 1..n).map(move |j| (i, j))).filter(|&(i, j)| nums[i] + nums[j] == target).collect();
+                // The problem promises at most one pair.
+                if pairs.len() > 1 {
+                    continue;
+                }
+                tried += 1;
+                check!(format!("nums = {nums:?}, target = {target}"), two_sum(&nums, target), pairs.first().copied());
+            }
+        }
+
+        #[test]
+        fn scale_100k() {
+            let nums: Vec<i32> = (0..100_000).collect();
+            check!("nums = 0..100000, target = 199997", two_sum(&nums, 199_997), Some((99_998, 99_999)));
+        }
+        """,
     ],
+    wrong=dict(
+        quadratic="""
+            pub fn two_sum(nums: &[i32], target: i32) -> Option<(usize, usize)> {
+                for j in 0..nums.len() {
+                    for i in 0..j {
+                        if nums[i] + nums[j] == target {
+                            return Some((i, j));
+                        }
+                    }
+                }
+                None
+            }
+        """,
+        insert_before_lookup="""
+            use std::collections::HashMap;
+
+            pub fn two_sum(nums: &[i32], target: i32) -> Option<(usize, usize)> {
+                let mut seen: HashMap<i32, usize> = HashMap::new();
+                for (j, &x) in nums.iter().enumerate() {
+                    seen.insert(x, j);
+                    if let Some(&i) = seen.get(&(target - x)) {
+                        return Some((i.min(j), i.max(j)));
+                    }
+                }
+                None
+            }
+        """,
+    ),
     hints=[("approach", "For each number, the partner you need is `target - x`. Have you seen it already?"),
            ("rust", "Store value → index in a `HashMap<i32, usize>` and check before inserting, so an element never pairs with itself.")],
     notes=("Checking before inserting handles `[3, 3]` and never pairs an element with itself. Returning `Option` keeps the no-answer case in the type.", "O(n)", "O(n)"),
@@ -141,7 +295,45 @@ P.append(dict(
     hidden=[
         T("many_repeats", "nums = [1, 1, 1, 3, 3, 4, 3, 2, 4, 2]", "contains_duplicate(&[1, 1, 1, 3, 3, 4, 3, 2, 4, 2])", "true"),
         T("large_distinct", "nums = 0..100000", "contains_duplicate(&(0..100_000).collect::<Vec<_>>())", "false"),
+        T("single", "nums = [1]", "contains_duplicate(&[1])", "false"),
+        T("pair", "nums = [2, 2]", "contains_duplicate(&[2, 2])", "true"),
+        T("negatives", "nums = [-3, 1, -3]", "contains_duplicate(&[-3, 1, -3])", "true"),
+        T("zero_and_negative_zero", "nums = [0, -0]", "contains_duplicate(&[0, -0])", "true"),
+        T("extremes_distinct", "nums = [i32::MIN, i32::MAX, 0]", "contains_duplicate(&[i32::MIN, i32::MAX, 0])", "false"),
+        T("extremes_repeated", "nums = [i32::MIN, 5, i32::MIN]", "contains_duplicate(&[i32::MIN, 5, i32::MIN])", "true"),
+        T("far_apart", "nums = [1, 2, 3, 4, 5, 6, 7, 1]", "contains_duplicate(&[1, 2, 3, 4, 5, 6, 7, 1])", "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(4);
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let nums: Vec<i32> = rng.vec(n, -15, 15);
+                let want = (0..n).any(|i| (i + 1..n).any(|j| nums[i] == nums[j]));
+                check!(format!("nums = {nums:?}"), contains_duplicate(&nums), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k_last_repeats_first() {
+            let mut nums: Vec<i32> = (0..200_000).map(|i| i * 7).collect();
+            nums.push(0);
+            check!("nums = [0, 7, 14, …, 1399993, 0]", contains_duplicate(&nums), true);
+        }
+        """,
     ],
+    wrong=dict(
+        quadratic="""
+            pub fn contains_duplicate(nums: &[i32]) -> bool {
+                (0..nums.len()).any(|i| nums[i + 1..].contains(&nums[i]))
+            }
+        """,
+        neighbours_only="""
+            pub fn contains_duplicate(nums: &[i32]) -> bool {
+                nums.windows(2).any(|w| w[0] == w[1])
+            }
+        """,
+    ),
     hints=[("rust", "`HashSet::insert` tells you whether the value was new. Combine it with `any`.")],
     notes=("`any` short-circuits on the first repeat. Sorting a copy is O(n log n) with O(1) extra space if you may reorder the input.", "O(n)", "O(n)"),
     follow_up="How would you do it without extra memory if you're allowed to reorder `nums`?",
@@ -179,7 +371,73 @@ P.append(dict(
     hidden=[
         T("empty", "s = \"\", t = \"\"", 'is_anagram("", "")', "true"),
         T("same_letters_different_counts", "s = \"aab\", t = \"abb\"", 'is_anagram("aab", "abb")', "false"),
+        T("shorter_first", "s = \"a\", t = \"ab\"", 'is_anagram("a", "ab")', "false"),
+        T("one_empty", "s = \"\", t = \"a\"", 'is_anagram("", "a")', "false"),
+        T("single_same", "s = \"z\", t = \"z\"", 'is_anagram("z", "z")', "true"),
+        T("single_different", "s = \"a\", t = \"b\"", 'is_anagram("a", "b")', "false"),
+        T("identical", "s = \"listen\", t = \"listen\"", 'is_anagram("listen", "listen")', "true"),
+        T("whole_alphabet", "s = \"abc…z\", t = \"zyx…a\"", 'is_anagram("abcdefghijklmnopqrstuvwxyz", "zyxwvutsrqponmlkjihgfedcba")', "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(5);
+            for _ in 0..300 {
+                let n = rng.below(8);
+                let s = rng.string(n, "abc");
+                let t = if rng.bool() {
+                    let mut cs: Vec<char> = s.chars().collect();
+                    rng.shuffle(&mut cs);
+                    cs.into_iter().collect()
+                } else {
+                    let m = rng.below(8);
+                    rng.string(m, "abc")
+                };
+                let sorted = |x: &str| { let mut v: Vec<char> = x.chars().collect(); v.sort(); v };
+                check!(format!("s = {s:?}, t = {t:?}"), is_anagram(&s, &t), sorted(&s) == sorted(&t));
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let s = "a".repeat(100_000) + &"b".repeat(100_000);
+            let t = "b".repeat(100_000) + &"a".repeat(100_000);
+            check!("s = a × 100000 then b × 100000, t = the reverse", is_anagram(&s, &t), true);
+        }
+        """,
     ],
+    wrong=dict(
+        same_letter_set="""
+            use std::collections::HashSet;
+
+            pub fn is_anagram(s: &str, t: &str) -> bool {
+                s.len() == t.len() && s.bytes().collect::<HashSet<_>>() == t.bytes().collect::<HashSet<_>>()
+            }
+        """,
+        no_length_check="""
+            pub fn is_anagram(s: &str, t: &str) -> bool {
+                let mut counts = [0i32; 26];
+                for (a, b) in s.bytes().zip(t.bytes()) {
+                    counts[(a - b'a') as usize] += 1;
+                    counts[(b - b'a') as usize] -= 1;
+                }
+                counts.iter().all(|&c| c == 0)
+            }
+        """,
+        quadratic_remove="""
+            pub fn is_anagram(s: &str, t: &str) -> bool {
+                let mut rest: Vec<u8> = t.bytes().collect();
+                for b in s.bytes() {
+                    match rest.iter().position(|&c| c == b) {
+                        Some(i) => {
+                            rest.remove(i);
+                        }
+                        None => return false,
+                    }
+                }
+                rest.is_empty()
+            }
+        """,
+    ),
     hints=[("approach", "Count each letter up for `s` and down for `t`; every count ends at zero for an anagram."),
            ("rust", "Index a `[i32; 26]` with `(byte - b'a') as usize`.")],
     notes=("The length check makes the zip safe to use for both strings. A 26-slot array is cache-friendly and needs no hashing.", "O(n)", "O(1)"),
@@ -214,7 +472,33 @@ P.append(dict(
     hidden=[
         T("empty", "v = [], i = 0", "nth_or_zero(&[], 0)", "0"),
         T("huge_index", "v = [1], i = usize::MAX", "nth_or_zero(&[1], usize::MAX)", "0"),
+        T("first", "v = [4, 5, 6], i = 0", "nth_or_zero(&[4, 5, 6], 0)", "4"),
+        T("last", "v = [4, 5, 6], i = 2", "nth_or_zero(&[4, 5, 6], 2)", "6"),
+        T("negative_value", "v = [-9, 3], i = 0", "nth_or_zero(&[-9, 3], 0)", "-9"),
+        T("empty_huge_index", "v = [], i = usize::MAX", "nth_or_zero(&[], usize::MAX)", "0"),
+        T("far_past_the_end", "v = [1, 2], i = 100", "nth_or_zero(&[1, 2], 100)", "0"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(6);
+            for _ in 0..300 {
+                let n = rng.below(6);
+                let v: Vec<i32> = rng.vec(n, -9, 9);
+                let i = rng.below(8);
+                let want = if i < v.len() { v[i] } else { 0 };
+                check!(format!("v = {v:?}, i = {i}"), nth_or_zero(&v, i), want);
+            }
+        }
+        """,
     ],
+    wrong=dict(
+        off_by_one="""
+            /// The element at `i`, or 0 when `i` is past the end.
+            pub fn nth_or_zero(v: &[i32], i: usize) -> i32 {
+                if i + 1 < v.len() { v[i] } else { 0 }
+            }
+        """,
+    ),
     hints=[("rust", "Slices have a non-panicking lookup that returns `Option<&T>`.")],
     notes=("`get` returns `None` past the end; `copied` and `unwrap_or` turn that into the default without a branch.", "O(1)", "O(1)"),
     follow_up="When is a panic on a bad index the right behaviour, and when isn't it?",
@@ -250,7 +534,49 @@ P.append(dict(
     hidden=[
         T("single", "nums = [9]", "majority(&[9])", "9"),
         T("negative_majority", "nums = [-1, 5, -1, -1, 6]", "majority(&[-1, 5, -1, -1, 6])", "-1"),
+        T("all_same", "nums = [4, 4, 4, 4]", "majority(&[4, 4, 4, 4])", "4"),
+        T("pair", "nums = [5, 5]", "majority(&[5, 5])", "5"),
+        T("majority_at_end", "nums = [1, 2, 3, 2, 2]", "majority(&[1, 2, 3, 2, 2])", "2"),
+        T("majority_at_start", "nums = [7, 7, 7, 1, 2]", "majority(&[7, 7, 7, 1, 2])", "7"),
+        T("extremes", "nums = [i32::MIN, i32::MAX, i32::MIN]", "majority(&[i32::MIN, i32::MAX, i32::MIN])", "i32::MIN"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(7);
+            for _ in 0..300 {
+                let n = 1 + rng.below(15);
+                let m = rng.int(-5, 5) as i32;
+                let copies = n / 2 + 1 + rng.below(n - n / 2);
+                let mut nums: Vec<i32> = vec![m; copies];
+                while nums.len() < n {
+                    nums.push(rng.int(-5, 5) as i32);
+                }
+                rng.shuffle(&mut nums);
+                let want = *nums.iter().find(|&&x| nums.iter().filter(|&&y| y == x).count() * 2 > n).unwrap();
+                check!(format!("nums = {nums:?}"), majority(&nums), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let mut nums: Vec<i32> = (0..100_000).collect();
+            nums.extend(vec![-3; 100_001]);
+            check!("nums = 0..100000, then -3 × 100001", majority(&nums), -3);
+        }
+        """,
     ],
+    wrong=dict(
+        quadratic="""
+            pub fn majority(nums: &[i32]) -> i32 {
+                *nums.iter().find(|&&x| nums.iter().filter(|&&y| y == x).count() * 2 > nums.len()).unwrap()
+            }
+        """,
+        middle_without_sorting="""
+            pub fn majority(nums: &[i32]) -> i32 {
+                nums[nums.len() / 2]
+            }
+        """,
+    ),
     hints=[("approach", "A `HashMap` of counts works. Can you do it with two variables?"),
            ("approach", "Pair each majority element off against a different one; the majority is left over.")],
     notes=("Boyer–Moore keeps one candidate and a count. Because the majority appears more than half the time, it can't be fully cancelled.", "O(n)", "O(1)"),
@@ -291,7 +617,54 @@ P.append(dict(
     hidden=[
         T("empty_note", "note = \"\", magazine = \"\"", 'can_construct("", "")', "true"),
         T("missing_letter", "note = \"z\", magazine = \"abc\"", 'can_construct("z", "abc")', "false"),
+        T("empty_note_any_magazine", "note = \"\", magazine = \"xyz\"", 'can_construct("", "xyz")', "true"),
+        T("empty_magazine", "note = \"a\", magazine = \"\"", 'can_construct("a", "")', "false"),
+        T("exact", "note = \"abc\", magazine = \"cab\"", 'can_construct("abc", "cab")', "true"),
+        T("note_longer", "note = \"aab\", magazine = \"ab\"", 'can_construct("aab", "ab")', "false"),
+        T("letter_z", "note = \"zz\", magazine = \"zaz\"", 'can_construct("zz", "zaz")', "true"),
+        T("one_short", "note = \"aaaa\", magazine = \"aaab\"", 'can_construct("aaaa", "aaab")', "false"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(8);
+            for _ in 0..300 {
+                let (n, m) = (rng.below(7), rng.below(9));
+                let note = rng.string(n, "abc");
+                let magazine = rng.string(m, "abc");
+                let want = note.chars().all(|c| note.matches(c).count() <= magazine.matches(c).count());
+                check!(format!("note = {note:?}, magazine = {magazine:?}"), can_construct(&note, &magazine), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let magazine = "a".repeat(100_000) + &"b".repeat(100_000);
+            let note = "b".repeat(100_000);
+            check!("note = b × 100000, magazine = a × 100000 then b × 100000", can_construct(&note, &magazine), true);
+        }
+        """,
     ],
+    wrong=dict(
+        letter_set_only="""
+            pub fn can_construct(note: &str, magazine: &str) -> bool {
+                note.bytes().all(|b| magazine.as_bytes().contains(&b))
+            }
+        """,
+        quadratic_remove="""
+            pub fn can_construct(note: &str, magazine: &str) -> bool {
+                let mut have: Vec<u8> = magazine.bytes().collect();
+                for b in note.bytes() {
+                    match have.iter().position(|&c| c == b) {
+                        Some(i) => {
+                            have.remove(i);
+                        }
+                        None => return false,
+                    }
+                }
+                true
+            }
+        """,
+    ),
     hints=[("approach", "Count the magazine's letters, then take one away for each letter of the note.")],
     notes=("Checking for zero before decrementing avoids unsigned underflow and exits early.", "O(n + m)", "O(1)"),
     follow_up="If this ran for many notes against one magazine, what would you precompute?",
@@ -337,7 +710,74 @@ P.append(dict(
     hidden=[
         T("two_to_one", "s = \"ab\", t = \"aa\"", 'is_isomorphic("ab", "aa")', "false"),
         T("badc_baba", "s = \"badc\", t = \"baba\"", 'is_isomorphic("badc", "baba")', "false"),
+        T("empty", "s = \"\", t = \"\"", 'is_isomorphic("", "")', "true"),
+        T("single", "s = \"a\", t = \"z\"", 'is_isomorphic("a", "z")', "true"),
+        T("swap", "s = \"ab\", t = \"ba\"", 'is_isomorphic("ab", "ba")', "true"),
+        T("one_to_two", "s = \"aa\", t = \"ab\"", 'is_isomorphic("aa", "ab")', "false"),
+        T("identity", "s = \"abc\", t = \"abc\"", 'is_isomorphic("abc", "abc")', "true"),
+        T("digits_and_symbols", "s = \"1#1\", t = \"a!a\"", 'is_isomorphic("1#1", "a!a")', "true"),
+        T("space_and_upper", "s = \"A b\", t = \"xyx\"", 'is_isomorphic("A b", "xyx")', "false"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(9);
+            for _ in 0..400 {
+                let n = rng.below(8);
+                let s = rng.string(n, "abc");
+                let t = rng.string(n, "xyz");
+                let (a, b) = (s.as_bytes(), t.as_bytes());
+                let want = (0..n).all(|i| (0..n).all(|j| (a[i] == a[j]) == (b[i] == b[j])));
+                check!(format!("s = {s:?}, t = {t:?}"), is_isomorphic(&s, &t), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let s: String = (0..200_000).map(|i| (b'!' + (i % 90) as u8) as char).collect();
+            let t: String = s.bytes().map(|b| (b'!' + (b - b'!' + 1) % 90) as char).collect();
+            check!("s and t = 200000 chars, t shifts each of 90 symbols by one", is_isomorphic(&s, &t), true);
+        }
+        """,
     ],
+    wrong=dict(
+        forward_only="""
+            pub fn is_isomorphic(s: &str, t: &str) -> bool {
+                let mut forward: [Option<u8>; 256] = [None; 256];
+                for (a, b) in s.bytes().zip(t.bytes()) {
+                    match forward[a as usize] {
+                        None => forward[a as usize] = Some(b),
+                        Some(x) if x == b => {}
+                        Some(_) => return false,
+                    }
+                }
+                true
+            }
+        """,
+        lowercase_only="""
+            pub fn is_isomorphic(s: &str, t: &str) -> bool {
+                let mut forward: [Option<u8>; 26] = [None; 26];
+                let mut backward: [Option<u8>; 26] = [None; 26];
+                for (a, b) in s.bytes().zip(t.bytes()) {
+                    let (i, j) = ((a - b'a') as usize, (b - b'a') as usize);
+                    match (forward[i], backward[j]) {
+                        (None, None) => {
+                            forward[i] = Some(b);
+                            backward[j] = Some(a);
+                        }
+                        (Some(x), Some(y)) if x == b && y == a => {}
+                        _ => return false,
+                    }
+                }
+                true
+            }
+        """,
+        quadratic="""
+            pub fn is_isomorphic(s: &str, t: &str) -> bool {
+                let (a, b) = (s.as_bytes(), t.as_bytes());
+                (0..a.len()).all(|i| (i + 1..a.len()).all(|j| (a[i] == a[j]) == (b[i] == b[j])))
+            }
+        """,
+    ),
     hints=[("approach", "Record s→t and t→s. A clash in either direction means no."),
            ("rust", "Bytes index a `[Option<u8>; 256]` directly; no hashing needed.")],
     notes=("One map alone misses `ab` → `aa`, where two letters map to the same one. The reverse map catches it.", "O(n)", "O(1)"),
@@ -387,7 +827,48 @@ P.append(dict(
     ],
     hidden=[
         T("whitespace", "text = \"  x\\n x\\tx  \"", 'word_counts("  x\\n x\\tx  ")', 'std::collections::HashMap::from([("x", 3)])'),
+        T("single_word", "text = \"hello\"", 'word_counts("hello")', 'std::collections::HashMap::from([("hello", 1)])'),
+        T("only_spaces", "text = \"   \"", 'word_counts("   ")', "std::collections::HashMap::new()"),
+        T("all_distinct", "text = \"a b c\"", 'word_counts("a b c")', 'std::collections::HashMap::from([("a", 1), ("b", 1), ("c", 1)])'),
+        T("case_sensitive", "text = \"Go go GO go\"", 'word_counts("Go go GO go")', 'std::collections::HashMap::from([("Go", 1), ("go", 2), ("GO", 1)])'),
+        T("punctuation_kept", "text = \"hi, hi\"", 'word_counts("hi, hi")', 'std::collections::HashMap::from([("hi,", 1), ("hi", 1)])'),
+        T("unicode", "text = \"café 🦀 café\"", 'word_counts("café 🦀 café")', 'std::collections::HashMap::from([("café", 2), ("🦀", 1)])'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(10);
+            let words = ["a", "b", "ab", "ba"];
+            let gaps = [" ", "  ", "\\t", "\\n"];
+            for _ in 0..200 {
+                let n = rng.below(8);
+                let mut text = String::new();
+                for _ in 0..n {
+                    text.push_str(*rng.pick(&gaps));
+                    text.push_str(*rng.pick(&words));
+                }
+                let mut want = std::collections::HashMap::new();
+                for w in text.split_whitespace() {
+                    want.insert(w, text.split_whitespace().filter(|x| *x == w).count());
+                }
+                check!(format!("text = {text:?}"), word_counts(&text), want);
+            }
+        }
+        """,
     ],
+    wrong=dict(
+        split_on_single_space="""
+            use std::collections::HashMap;
+
+            /// How many times each word appears.
+            pub fn word_counts(text: &str) -> HashMap<&str, usize> {
+                let mut counts = HashMap::new();
+                for word in text.split(' ') {
+                    *counts.entry(word).or_insert(0) += 1;
+                }
+                counts
+            }
+        """,
+    ),
     hints=[("rust", "`counts.entry(word)` gives you the slot whether or not it exists yet.")],
     notes=("`entry` hashes once and returns either the existing value or a vacant slot to fill; `or_insert(0)` then yields `&mut usize`.", "O(n)", "O(k) distinct words"),
     follow_up="When would you use `or_insert_with` or `and_modify` instead?",
@@ -432,7 +913,94 @@ P.append(dict(
     hidden=[
         T("no_words", "[]", "group_anagrams(&[])", "Vec::<Vec<String>>::new()"),
         T("duplicates", "[\"ab\", \"ba\", \"ab\"]", 'group_anagrams(&["ab", "ba", "ab"])', 'vec![vec!["ab", "ab", "ba"]]'),
+        T("single_word", "[\"abc\"]", 'group_anagrams(&["abc"])', 'vec![vec!["abc"]]'),
+        T("no_anagrams", "[\"b\", \"a\", \"c\"]", 'group_anagrams(&["b", "a", "c"])', 'vec![vec!["a"], vec!["b"], vec!["c"]]'),
+        T("repeat_counts_matter", "[\"a\", \"aa\", \"aab\", \"abb\"]", 'group_anagrams(&["a", "aa", "aab", "abb"])', 'vec![vec!["a"], vec!["aa"], vec!["aab"], vec!["abb"]]'),
+        T("all_one_group", "[\"cab\", \"bca\", \"abc\"]", 'group_anagrams(&["cab", "bca", "abc"])', 'vec![vec!["abc", "bca", "cab"]]'),
+        T("empty_strings_together", "[\"\", \"a\", \"\"]", 'group_anagrams(&["", "a", ""])', 'vec![vec!["", ""], vec!["a"]]'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(11);
+            for _ in 0..200 {
+                let n = rng.below(8);
+                let owned: Vec<String> = (0..n).map(|_| { let len = rng.below(4); rng.string(len, "abc") }).collect();
+                let words: Vec<&str> = owned.iter().map(String::as_str).collect();
+                let key = |w: &str| { let mut c: Vec<char> = w.chars().collect(); c.sort(); c };
+                let mut want: Vec<Vec<String>> = Vec::new();
+                for w in &words {
+                    match want.iter_mut().find(|g| key(&g[0]) == key(w)) {
+                        Some(g) => g.push(w.to_string()),
+                        None => want.push(vec![w.to_string()]),
+                    }
+                }
+                for g in &mut want {
+                    g.sort();
+                }
+                want.sort();
+                check!(format!("{words:?}"), group_anagrams(&words), want);
+            }
+        }
+
+        #[test]
+        fn scale_54264_classes() {
+            // Every non-decreasing 6-letter word over a..p, plus its reverse: 54264 classes, 108528 words.
+            let mut owned = Vec::new();
+            for a in 0..16u8 { for b in a..16 { for c in b..16 { for d in c..16 { for e in d..16 { for f in e..16 {
+                let w: String = [a, b, c, d, e, f].iter().map(|&x| (b'a' + x) as char).collect();
+                owned.push(w.chars().rev().collect::<String>());
+                owned.push(w);
+            } } } } } }
+            let words: Vec<&str> = owned.iter().map(String::as_str).collect();
+            let groups = group_anagrams(&words);
+            check!("108528 words in 54264 anagram classes", (groups.len(), groups[0].clone()), (54_264, vec!["aaaaaa".to_string(), "aaaaaa".to_string()]));
+        }
+        """,
     ],
+    wrong=dict(
+        letter_set_key="""
+            use std::collections::HashMap;
+
+            pub fn group_anagrams(words: &[&str]) -> Vec<Vec<String>> {
+                let mut groups: HashMap<Vec<u8>, Vec<String>> = HashMap::new();
+                for &w in words {
+                    let mut key = w.as_bytes().to_vec();
+                    key.sort_unstable();
+                    key.dedup();
+                    groups.entry(key).or_default().push(w.to_string());
+                }
+                let mut out: Vec<Vec<String>> = groups.into_values().collect();
+                for g in &mut out {
+                    g.sort();
+                }
+                out.sort();
+                out
+            }
+        """,
+        linear_scan_of_groups="""
+            pub fn group_anagrams(words: &[&str]) -> Vec<Vec<String>> {
+                let key = |w: &str| {
+                    let mut k = w.as_bytes().to_vec();
+                    k.sort_unstable();
+                    k
+                };
+                let mut groups: Vec<(Vec<u8>, Vec<String>)> = Vec::new();
+                for &w in words {
+                    let k = key(w);
+                    match groups.iter_mut().find(|(g, _)| *g == k) {
+                        Some((_, g)) => g.push(w.to_string()),
+                        None => groups.push((k, vec![w.to_string()])),
+                    }
+                }
+                let mut out: Vec<Vec<String>> = groups.into_iter().map(|(_, g)| g).collect();
+                for g in &mut out {
+                    g.sort();
+                }
+                out.sort();
+                out
+            }
+        """,
+    ),
     hints=[("approach", "Anagrams have the same letters in sorted order. Use that as a map key."),
            ("rust", "`Vec<u8>` is `Hash + Eq`, so it can key a `HashMap` directly.")],
     notes=("Sorting each word costs O(k log k); a `[u8; 26]` count array is another valid key and avoids the sort.", "O(n · k log k)", "O(n · k)"),
@@ -475,7 +1043,68 @@ P.append(dict(
     hidden=[
         T("all_distinct", "nums = [5, 3, 9], k = 3", "top_k_frequent(&[5, 3, 9], 3)", "vec![3, 5, 9]"),
         T("negatives", "nums = [-1, -1, 2, -1, 2, 3], k = 1", "top_k_frequent(&[-1, -1, 2, -1, 2, 3], 1)", "vec![-1]"),
+        T("all_same", "nums = [8, 8, 8], k = 1", "top_k_frequent(&[8, 8, 8], 1)", "vec![8]"),
+        T("tie_picks_smaller", "nums = [9, 2, 9, 2], k = 1", "top_k_frequent(&[9, 2, 9, 2], 1)", "vec![2]"),
+        T("negative_breaks_tie", "nums = [3, -3, 3, -3, 0], k = 2", "top_k_frequent(&[3, -3, 3, -3, 0], 2)", "vec![-3, 3]"),
+        T("count_beats_value", "nums = [1, 5, 5, 1, 5], k = 2", "top_k_frequent(&[1, 5, 5, 1, 5], 2)", "vec![5, 1]"),
+        T("extremes", "nums = [i32::MAX, i32::MIN, i32::MAX], k = 2", "top_k_frequent(&[i32::MAX, i32::MIN, i32::MAX], 2)", "vec![i32::MAX, i32::MIN]"),
+        T("all_distinct_k", "nums = [4, 1, 3, 2], k = 4", "top_k_frequent(&[4, 1, 3, 2], 4)", "vec![1, 2, 3, 4]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(12);
+            for _ in 0..300 {
+                let n = 1 + rng.below(14);
+                let nums: Vec<i32> = rng.vec(n, -4, 4);
+                let mut distinct = nums.clone();
+                distinct.sort();
+                distinct.dedup();
+                let k = 1 + rng.below(distinct.len());
+                let count = |x: i32| nums.iter().filter(|&&y| y == x).count();
+                // Stable sort by count keeps ascending values within a tie.
+                distinct.sort_by(|a, b| count(*b).cmp(&count(*a)));
+                distinct.truncate(k);
+                check!(format!("nums = {nums:?}, k = {k}"), top_k_frequent(&nums, k), distinct);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            // 100000 distinct values; 0..10 appear three times, everything else twice.
+            let mut nums: Vec<i32> = (0..100_000).flat_map(|x| [x, x]).collect();
+            nums.extend(0..10);
+            check!("nums = each of 0..100000 twice, then 0..10 again; k = 12", top_k_frequent(&nums, 12), vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+        }
+        """,
     ],
+    wrong=dict(
+        ties_by_larger="""
+            use std::collections::HashMap;
+
+            pub fn top_k_frequent(nums: &[i32], k: usize) -> Vec<i32> {
+                let mut counts: HashMap<i32, usize> = HashMap::new();
+                for &x in nums {
+                    *counts.entry(x).or_insert(0) += 1;
+                }
+                let mut by_count: Vec<(i32, usize)> = counts.into_iter().collect();
+                by_count.sort_unstable_by(|a, b| b.1.cmp(&a.1).then(b.0.cmp(&a.0)));
+                by_count.into_iter().take(k).map(|(x, _)| x).collect()
+            }
+        """,
+        quadratic_count="""
+            pub fn top_k_frequent(nums: &[i32], k: usize) -> Vec<i32> {
+                let mut distinct: Vec<i32> = Vec::new();
+                for &x in nums {
+                    if !distinct.contains(&x) {
+                        distinct.push(x);
+                    }
+                }
+                let mut by_count: Vec<(i32, usize)> = distinct.iter().map(|&x| (x, nums.iter().filter(|&&y| y == x).count())).collect();
+                by_count.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+                by_count.into_iter().take(k).map(|(x, _)| x).collect()
+            }
+        """,
+    ),
     hints=[("approach", "Count first. Then you need the k largest counts."),
            ("rust", "Sort `(value, count)` pairs with `b.1.cmp(&a.1).then(a.0.cmp(&b.0))`."),
            ("edge case", "Ties need a rule, or the answer isn't deterministic; here the smaller value wins.")],

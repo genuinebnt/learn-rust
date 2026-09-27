@@ -34,14 +34,15 @@ The requests it covers:
 - Designed but not built: Today, Library, Mock interview, Readiness, and the project pages.
 - **Handoff and pending work:** [HANDOFF.md](HANDOFF.md).
 
-**Content:** 20 tracks, 423 verified problems (`anneal verify`, 0 failures). Every problem meets the test bar
-(§7 step 2a). Finished tracks: D1–D5, D9, D12; L1–L5; S1–S3. Partly written: D6, D8, D10, D11, S4 (see HANDOFF §6.0).
+**Content:** 22 tracks, 500 verified problems (`anneal verify`, 0 failures). Every problem meets the test bar.
+Finished: D1–D5, D7–D12; L1–L5 (L1–L3 raised to the senior bar); S1–S3; F2. Partly written: D6 (deferred), S4.
 
 | Section | Written | Problems |
 |---|---|---|
-| L Language | L1, L2, L3, L4, L5 | 18 + 35 + 20 + 22 + 16 |
-| S Standard library | S1, S2, S3, S4 | 16 + 18 + 20 + 11 |
-| D DSA | D1, D2, D3, D4, D5, D6, D8, D9, D10, D11, D12 | 24 + 18 + 14 + 14 + 15 + 8 + 13 + 58 + 11 + 15 + 57 |
+| L Language | L1–L5 | 20 + 37 + 22 + 22 + 16 |
+| S Standard library | S1–S4 | 17 + 18 + 20 + 11 |
+| D DSA | D1–D12 | 24 + 18 + 14 + 14 + 15 + 8 + 13 + 29 + 58 + 25 + 28 + 57 |
+| F Performance | F2 | 14 |
 
 **Crates:** problems can depend on a fixed crate set, done 2026-09-27 (§6.1). The set is listed in
 `docker/deps/Cargo.toml`: tokio, futures, bytes, tower, axum, serde, serde_json, toml, anyhow, thiserror,

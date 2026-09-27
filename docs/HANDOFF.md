@@ -23,7 +23,7 @@ and what's next, in order.
 
 ## 2. Where things stand
 
-**Content:** 20 tracks, 423 problems. Every ready problem meets the test bar (≥5 visible, ≥8 hidden, ≥1 `wrong/`), which
+**Content:** 22 tracks, 500 problems. Every ready problem meets the test bar (≥5 visible, ≥8 hidden, ≥1 `wrong/`), which
 `anneal verify` enforces, and every track passed `verify`.
 
 | Track | Problems | Planned |
@@ -34,20 +34,22 @@ and what's next, in order.
 | D4 Binary search | 14 | 14 |
 | D5 Linked lists | 15 | 15 |
 | D6 Trees & BSTs | 8 | 44 |
-| D8 Intervals & greedy | 13 | 29 |
+| D7 Heaps & priority queues | 13 | 13 |
+| D8 Intervals & greedy | 29 | 29 |
 | D9 Graphs | 58 | 58 |
-| D10 Tries & strings | 11 | 25 |
-| D11 Recursion & backtracking | 15 | 28 |
+| D10 Tries & strings | 25 | 25 |
+| D11 Recursion & backtracking | 28 | 28 |
 | D12 Dynamic programming | 57 | 57 |
-| L1 Ownership & moves | 18 | 18 |
-| L2 Borrowing | 35 | 35 |
-| L3 Lifetimes | 20 | 20 |
+| L1 Ownership & moves | 20 | 20 |
+| L2 Borrowing | 37 | 37 |
+| L3 Lifetimes | 22 | 22 |
 | L4 Traits & dispatch | 22 | 22 |
 | L5 Generics & associated types | 16 | 16 |
-| S1 Option & Result | 16 | 16 |
+| S1 Option & Result | 17 | 17 |
 | S2 Strings & text | 18 | 18 |
 | S3 Vec & slices | 20 | 20 |
 | S4 Maps & sets | 11 | 18 |
+| F2 Data layout | 14 | 14 |
 
 **Built:**
 - **Catalog:** the section catalog pages (Rustfinity-style) and the track page.
@@ -233,7 +235,7 @@ Updated 2026-09-27 after D9, D12, L4, L5 and S1 were finished. Everything that p
 Anything uncommitted in a checkout was unverified; delete it (`git status`, `git checkout -- <path>`, remove new folders)
 or verify and commit it. `cargo run -q -p anneal-cli -- list` shows each track's written count.
 
-**Order the owner set: Graphs → DP (both done 2026-09-27) → Rust exercises (L4, L5, S1 done) → Tries → the rest; Trees deferred by the owner (2026-09-27). Since 2026-09-27 the owner wants **one agent at a time**, in this order: D11 (done) → D7 → **F2 Data layout** → L2–L3 senior pass → S2–S4 senior pass → F4 and the rest of F.** Hand
+**Order the owner set: Graphs → DP (both done 2026-09-27) → Rust exercises (L4, L5, S1 done) → Tries → the rest; Trees deferred by the owner (2026-09-27). Since 2026-09-27 the owner wants **one agent at a time**, in this order: D11, D7, F2, and the L1–L3 senior pass are done → S2–S4 senior pass → F4 and the rest of F.** Hand
 [authoring/write-track.md](authoring/write-track.md) to an agent per track (fill `{TRACK}`, `{SPEC}`, `{FOLDER}`,
 `{CODE}`, `{ORDER}`, `{SEEDS}`); it continues from the spec as it stands. Agents sharing a checkout commit only their own
 `tools/author/<track>.py` + `content/tracks/<folder>`, verify with `--jobs 1` (4 CPUs), and retry a rejected push

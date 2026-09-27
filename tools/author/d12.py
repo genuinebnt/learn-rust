@@ -4958,6 +4958,801 @@ P.append(dict(
     related=["D7"],
 ))
 
+# ---------------------------------------------------------------- Intervals & games (hard)
+
+P.append(dict(
+    slug="unique-binary-search-trees", title="Unique binary search trees", level="medium", stage="intervals-games", tags=["Catalan", "1-D DP"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "Apple", "Bloomberg"],
+    teaches=["Splitting on the root: the left and right subtrees are independent smaller problems.",
+             "A sum of products over every split, the pattern behind the interval DPs in this stage."],
+    statement="""
+        Return how many structurally different binary search trees hold exactly the keys
+        `1..=n`. The empty tree (n = 0) counts as one.
+    """,
+    examples=[("n = 3", "5")],
+    constraints=["0 ≤ n ≤ 36"],
+    starter="""
+        pub fn num_trees(n: u32) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn num_trees(n: u32) -> u64 {
+            let n = n as usize;
+            // trees[k] = shapes of a BST with k keys. With root r, the left side has r - 1
+            // keys and the right side k - r, and any left shape pairs with any right shape.
+            let mut trees = vec![0u64; n + 1];
+            trees[0] = 1;
+            for k in 1..=n {
+                trees[k] = (0..k).map(|left| trees[left] * trees[k - 1 - left]).sum();
+            }
+            trees[n]
+        }
+    """,
+    visible=[
+        T("leetcode_three", "n = 3", "num_trees(3)", "5"),
+        T("leetcode_one", "n = 1", "num_trees(1)", "1"),
+        T("empty_tree", "n = 0", "num_trees(0)", "1"),
+        T("two", "n = 2", "num_trees(2)", "2"),
+        T("four", "n = 4", "num_trees(4)", "14"),
+    ],
+    hidden=[
+        T("empty_tree", "n = 0", "num_trees(0)", "1"),
+        T("five", "n = 5", "num_trees(5)", "42"),
+        T("ten", "n = 10", "num_trees(10)", "16_796"),
+        T("leetcode_max", "n = 19", "num_trees(19)", "1_767_263_190"),
+        T("past_u32", "n = 20", "num_trees(20)", "6_564_120_420"),
+        T("thirty_five", "n = 35", "num_trees(35)", "3_116_285_494_907_301_262"),
+        T("largest", "n = 36", "num_trees(36)", "11_959_798_385_860_453_492"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn count(k: usize) -> u64 {
+                if k == 0 { 1 } else { (0..k).map(|l| count(l) * count(k - 1 - l)).sum() }
+            }
+            let mut rng = anneal_prelude::Rng::new(1240);
+            for _ in 0..200 {
+                let n = rng.below(13);
+                check!(format!("n = {n}"), num_trees(n as u32), count(n));
+            }
+        }
+
+        #[test]
+        fn every_n_up_to_36() {
+            // Catalan numbers also satisfy C(k + 1) = C(k) · 2(2k + 1) / (k + 2).
+            let mut c: u128 = 1;
+            for k in 0..=36u32 {
+                check!(format!("n = {k}"), num_trees(k) as u128, c);
+                c = c * 2 * (2 * k as u128 + 1) / (k as u128 + 2);
+            }
+        }
+
+        #[test]
+        fn scale_36_repeated() {
+            // Without the table, splitting on every root is about 3^36 calls.
+            check!("n = 36, called 1000 times", (0..1000).map(|_| num_trees(36)).min(), Some(11_959_798_385_860_453_492));
+        }
+        """,
+    ],
+    wrong=dict(
+        plain_recursion="""
+            pub fn num_trees(n: u32) -> u64 {
+                if n == 0 { 1 } else { (0..n).map(|l| num_trees(l) * num_trees(n - 1 - l)).sum() }
+            }
+        """,
+        factorial_formula="""
+            pub fn num_trees(n: u32) -> u64 {
+                let fact = |k: u64| (1..=k).product::<u64>();
+                let n = n as u64;
+                fact(2 * n) / (fact(n + 1) * fact(n))
+            }
+        """,
+        empty_tree_is_zero="""
+            pub fn num_trees(n: u32) -> u64 {
+                let n = n as usize;
+                let mut trees = vec![0u64; n + 1];
+                trees[0] = 1;
+                for k in 1..=n {
+                    trees[k] = (0..k).map(|left| trees[left] * trees[k - 1 - left]).sum();
+                }
+                if n == 0 { 0 } else { trees[n] }
+            }
+        """,
+    ),
+    hints=[("approach", "Choose the root r. The keys below it form the left subtree (r - 1 keys) and the keys above form the right (n - r keys); multiply their counts and add over every r."),
+           ("rust", "Fill a `Vec<u64>` from 0 up with `(0..k).map(|l| trees[l] * trees[k - 1 - l]).sum()`."),
+           ("edge case", "trees[0] = 1: an empty side is one shape, not zero, or every tree with a leaf root disappears.")],
+    notes=("Only the number of keys on each side matters, not which keys, so the state is one integer. These are the Catalan numbers.", "O(n²)", "O(n)"),
+    follow_up="How would you build every such tree (Unique binary search trees II), and how many are there for n = 8?",
+    related=["D6", "D13"],
+))
+
+P.append(dict(
+    slug="predict-the-winner", title="Predict the winner", level="medium", stage="intervals-games", tags=["interval DP", "minimax"],
+    companies=["Google", "Amazon", "Microsoft", "Meta"],
+    teaches=["Game DP as a score difference: the mover's best lead on `nums[i..=j]` is what they take minus the opponent's best lead after.",
+             "Filling `dp[i][j]` by interval length, in one rolling row."],
+    statement="""
+        Two players take turns removing a number from either end of `nums` and adding it to
+        their score. Player 1 moves first, and both play as well as possible. Return whether
+        player 1 ends with at least as many points as player 2 (a tie counts as a win).
+    """,
+    examples=[("nums = [1, 5, 2]", "false"), ("nums = [1, 5, 233, 7]", "true (take 1, then 233)")],
+    constraints=["0 ≤ nums.len() ≤ 1000", "0 ≤ nums[i] ≤ 10⁷"],
+    starter="""
+        pub fn predict_the_winner(nums: &[u32]) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn predict_the_winner(nums: &[u32]) -> bool {
+            let n = nums.len();
+            // For the current i, lead[j] = the mover's best (own score - other's score) on nums[i..=j].
+            // Before updating it still holds nums[i + 1..=j].
+            let mut lead = vec![0i64; n];
+            for i in (0..n).rev() {
+                lead[i] = nums[i] as i64;
+                for j in i + 1..n {
+                    lead[j] = (nums[i] as i64 - lead[j]).max(nums[j] as i64 - lead[j - 1]);
+                }
+            }
+            lead.last().map_or(true, |&d| d >= 0)
+        }
+    """,
+    visible=[
+        T("leetcode_three", "nums = [1, 5, 2]", "predict_the_winner(&[1, 5, 2])", "false"),
+        T("leetcode_four", "nums = [1, 5, 233, 7]", "predict_the_winner(&[1, 5, 233, 7])", "true"),
+        T("empty", "nums = []", "predict_the_winner(&[])", "true"),
+        T("single", "nums = [5]", "predict_the_winner(&[5])", "true"),
+        T("tie_counts_as_a_win", "nums = [1, 1]", "predict_the_winner(&[1, 1])", "true"),
+    ],
+    hidden=[
+        T("single_zero", "nums = [0]", "predict_the_winner(&[0])", "true"),
+        T("middle_is_big", "nums = [1, 3, 1]", "predict_the_winner(&[1, 3, 1])", "false"),
+        T("five", "nums = [2, 4, 55, 6, 8]", "predict_the_winner(&[2, 4, 55, 6, 8])", "false"),
+        T("take_the_small_end", "nums = [1, 2, 99]", "predict_the_winner(&[1, 2, 99])", "true"),
+        T("four_greedy_loses", "nums = [3, 9, 1, 2]", "predict_the_winner(&[3, 9, 1, 2])", "true"),
+        T("seven", "nums = [0, 0, 7, 6, 5, 6, 1]", "predict_the_winner(&[0, 0, 7, 6, 5, 6, 1])", "false"),
+        T("twenty", "nums = [10, 17, 11, 16, 17, 9, 14, 17, 18, 13, 11, 4, 17, 18, 15, 3, 13, 9, 11, 7]",
+          "predict_the_winner(&[10, 17, 11, 16, 17, 9, 14, 17, 18, 13, 11, 4, 17, 18, 15, 3, 13, 9, 11, 7])", "true"),
+        T("big_values", "nums = [10⁷; 999]", "predict_the_winner(&[10_000_000; 999])", "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn lead(nums: &[u32]) -> i64 {
+                match nums {
+                    [] => 0,
+                    [x] => *x as i64,
+                    [first, .., last] => (*first as i64 - lead(&nums[1..])).max(*last as i64 - lead(&nums[..nums.len() - 1])),
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1241);
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let nums: Vec<u32> = rng.vec(n, 0, 20);
+                check!(format!("nums = {nums:?}"), predict_the_winner(&nums), lead(&nums) >= 0);
+            }
+        }
+
+        #[test]
+        fn scale_1000() {
+            let nums: Vec<u32> = (0..1000u32).map(|i| i * 7919 % 1000).collect();
+            check!("nums[i] = (7919·i) % 1000, 1000 numbers", predict_the_winner(&nums), true);
+        }
+
+        #[test]
+        fn scale_999_loses() {
+            let nums: Vec<u32> = (0..999u64).map(|i| (i * 104_729 % 997) as u32).collect();
+            check!("nums[i] = (104729·i) % 997, 999 numbers", predict_the_winner(&nums), false);
+        }
+        """,
+    ],
+    wrong=dict(
+        take_the_bigger_end="""
+            pub fn predict_the_winner(nums: &[u32]) -> bool {
+                let (mut lo, mut hi) = (0, nums.len());
+                let mut scores = [0u64; 2];
+                let mut turn = 0;
+                while lo < hi {
+                    if nums[lo] >= nums[hi - 1] {
+                        scores[turn] += nums[lo] as u64;
+                        lo += 1;
+                    } else {
+                        scores[turn] += nums[hi - 1] as u64;
+                        hi -= 1;
+                    }
+                    turn ^= 1;
+                }
+                scores[0] >= scores[1]
+            }
+        """,
+        tie_is_a_loss="""
+            pub fn predict_the_winner(nums: &[u32]) -> bool {
+                let n = nums.len();
+                let mut lead = vec![0i64; n];
+                for i in (0..n).rev() {
+                    lead[i] = nums[i] as i64;
+                    for j in i + 1..n {
+                        lead[j] = (nums[i] as i64 - lead[j]).max(nums[j] as i64 - lead[j - 1]);
+                    }
+                }
+                lead.last().map_or(false, |&d| d > 0)
+            }
+        """,
+        plain_recursion="""
+            fn lead(nums: &[u32]) -> i64 {
+                match nums {
+                    [] => 0,
+                    [x] => *x as i64,
+                    [first, .., last] => (*first as i64 - lead(&nums[1..])).max(*last as i64 - lead(&nums[..nums.len() - 1])),
+                }
+            }
+
+            pub fn predict_the_winner(nums: &[u32]) -> bool {
+                lead(nums) >= 0
+            }
+        """,
+    ),
+    hints=[("approach", "Let lead(i, j) be the best score difference for whoever moves on nums[i..=j]. Taking an end gives that number minus the opponent's best lead on what's left."),
+           ("rust", "Fill by increasing length, or with one `Vec<i64>`: loop i downwards and j upwards; `lead[j]` still holds (i + 1, j) and `lead[j - 1]` already holds (i, j - 1)."),
+           ("edge case", "Taking the bigger end each turn is not optimal: [1, 5, 233, 7] needs player 1 to take the 1.")],
+    notes=("Scoring the game as a difference makes it zero-sum, so one number per interval suffices: my lead = what I take - your lead afterwards. Every interval depends on the two intervals one shorter.", "O(n²)", "O(n)"),
+    follow_up="When the length is even, player 1 can always at least tie without any DP. Why? (Take all even or all odd positions.)",
+    related=["D11"],
+))
+
+P.append(dict(
+    slug="stone-game", title="Stone game", level="medium", stage="intervals-games", tags=["interval DP", "minimax"],
+    companies=["Google", "Amazon", "Microsoft", "Meta"],
+    teaches=["Recovering both players' totals from the total and the difference.",
+             "Reusing an interval DP when the question asks for more than yes or no."],
+    statement="""
+        Alice and Bob take turns taking the whole pile at either end of the row `piles`; Alice
+        goes first. Each wants to finish with as many stones as possible and plays perfectly.
+        Return `(alice, bob)`: the stones each one ends with.
+    """,
+    examples=[("piles = [3, 7, 2, 3]", "(10, 5)"), ("piles = [5, 3, 4, 5]", "(9, 8)")],
+    constraints=["0 ≤ piles.len() ≤ 1000", "0 ≤ piles[i] ≤ 10⁶"],
+    starter="""
+        pub fn stone_game(piles: &[u32]) -> (u64, u64) {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn stone_game(piles: &[u32]) -> (u64, u64) {
+            let n = piles.len();
+            // Maximising your own total is maximising (yours - theirs), because the total is fixed.
+            // lead[j] for the current i = the mover's best difference on piles[i..=j].
+            let mut lead = vec![0i64; n];
+            for i in (0..n).rev() {
+                lead[i] = piles[i] as i64;
+                for j in i + 1..n {
+                    lead[j] = (piles[i] as i64 - lead[j]).max(piles[j] as i64 - lead[j - 1]);
+                }
+            }
+            let total: i64 = piles.iter().map(|&p| p as i64).sum();
+            let diff = lead.last().copied().unwrap_or(0);
+            // alice + bob = total and alice - bob = diff.
+            (((total + diff) / 2) as u64, ((total - diff) / 2) as u64)
+        }
+    """,
+    visible=[
+        T("four_piles", "piles = [3, 7, 2, 3]", "stone_game(&[3, 7, 2, 3])", "(10, 5)"),
+        T("leetcode_four", "piles = [5, 3, 4, 5]", "stone_game(&[5, 3, 4, 5])", "(9, 8)"),
+        T("empty", "piles = []", "stone_game(&[])", "(0, 0)"),
+        T("one_pile", "piles = [4]", "stone_game(&[4])", "(4, 0)"),
+        T("two_piles", "piles = [1, 2]", "stone_game(&[1, 2])", "(2, 1)"),
+        T("bob_can_win", "piles = [1, 100, 1]", "stone_game(&[1, 100, 1])", "(2, 100)"),
+    ],
+    hidden=[
+        T("empty", "piles = []", "stone_game(&[])", "(0, 0)"),
+        T("three", "piles = [2, 1, 1]", "stone_game(&[2, 1, 1])", "(3, 1)"),
+        T("greedy_trap", "piles = [3, 9, 1, 2]", "stone_game(&[3, 9, 1, 2])", "(11, 4)"),
+        T("ties", "piles = [5, 5, 5, 5]", "stone_game(&[5, 5, 5, 5])", "(10, 10)"),
+        T("close", "piles = [7, 8, 8, 10]", "stone_game(&[7, 8, 8, 10])", "(18, 15)"),
+        T("zeros", "piles = [0, 0, 0]", "stone_game(&[0, 0, 0])", "(0, 0)"),
+        T("big", "piles = [10⁶; 1000]", "stone_game(&[1_000_000; 1000])", "(500_000_000, 500_000_000)"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // Returns (mover's total, other's total).
+            fn play(p: &[u32]) -> (u64, u64) {
+                match p {
+                    [] => (0, 0),
+                    [first, .., last] => {
+                        let (other_l, me_l) = play(&p[1..]);
+                        let (other_r, me_r) = play(&p[..p.len() - 1]);
+                        let left = (*first as u64 + me_l, other_l);
+                        let right = (*last as u64 + me_r, other_r);
+                        if left.0 >= right.0 { left } else { right }
+                    }
+                    [x] => (*x as u64, 0),
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1242);
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let piles: Vec<u32> = rng.vec(n, 0, 20);
+                check!(format!("piles = {piles:?}"), stone_game(&piles), play(&piles));
+            }
+        }
+
+        #[test]
+        fn scale_1000() {
+            let piles: Vec<u32> = (0..1000u32).map(|i| i * 7919 % 1000).collect();
+            check!("piles[i] = (7919·i) % 1000, 1000 piles", stone_game(&piles), (250_000, 249_500));
+        }
+        """,
+    ],
+    wrong=dict(
+        take_the_bigger_end="""
+            pub fn stone_game(piles: &[u32]) -> (u64, u64) {
+                let (mut lo, mut hi) = (0, piles.len());
+                let mut scores = [0u64; 2];
+                let mut turn = 0;
+                while lo < hi {
+                    if piles[lo] >= piles[hi - 1] {
+                        scores[turn] += piles[lo] as u64;
+                        lo += 1;
+                    } else {
+                        scores[turn] += piles[hi - 1] as u64;
+                        hi -= 1;
+                    }
+                    turn ^= 1;
+                }
+                (scores[0], scores[1])
+            }
+        """,
+        bob_first="""
+            pub fn stone_game(piles: &[u32]) -> (u64, u64) {
+                let n = piles.len();
+                let mut lead = vec![0i64; n];
+                for i in (0..n).rev() {
+                    lead[i] = piles[i] as i64;
+                    for j in i + 1..n {
+                        lead[j] = (piles[i] as i64 - lead[j]).max(piles[j] as i64 - lead[j - 1]);
+                    }
+                }
+                let total: i64 = piles.iter().map(|&p| p as i64).sum();
+                let diff = lead.last().copied().unwrap_or(0);
+                (((total - diff) / 2) as u64, ((total + diff) / 2) as u64)
+            }
+        """,
+        plain_recursion="""
+            fn lead(p: &[u32]) -> i64 {
+                match p {
+                    [] => 0,
+                    [x] => *x as i64,
+                    [first, .., last] => (*first as i64 - lead(&p[1..])).max(*last as i64 - lead(&p[..p.len() - 1])),
+                }
+            }
+
+            pub fn stone_game(piles: &[u32]) -> (u64, u64) {
+                let total: i64 = piles.iter().map(|&p| p as i64).sum();
+                let diff = lead(piles);
+                (((total + diff) / 2) as u64, ((total - diff) / 2) as u64)
+            }
+        """,
+    ),
+    hints=[("approach", "Since the stones add up to a fixed total, each player maximising their own total is the same as maximising their lead. Compute Alice's best lead as in Predict the winner."),
+           ("rust", "Then solve alice + bob = total, alice - bob = lead: `((total + lead) / 2, (total - lead) / 2)` in `i64`, cast at the end."),
+           ("edge case", "Bob can come out ahead when the length is odd: [1, 100, 1] gives (2, 100).")],
+    notes=("One interval DP gives the lead; the totals follow from two linear equations. In LeetCode's version (even count, odd total) Alice always wins, but the totals still need the DP.", "O(n²)", "O(n)"),
+    follow_up="Why can Alice always win when the number of piles is even and the total is odd?",
+    related=["D11"],
+))
+
+P.append(dict(
+    slug="palindrome-partitioning-ii", title="Palindrome partitioning II", level="hard", stage="intervals-games", tags=["1-D DP", "palindromes"],
+    companies=["Amazon", "Google", "Microsoft", "Meta", "Bloomberg"],
+    teaches=["Combining two DPs: which substrings are palindromes, and the fewest pieces for each prefix.",
+             "Expanding around each centre to visit every palindrome once, in O(n²) total."],
+    statement="""
+        Cut `s` into pieces that are all palindromes. Return the fewest cuts needed (a string
+        that is already a palindrome, or is empty, needs none).
+    """,
+    examples=[("s = \"aab\"", "1 (\"aa\" | \"b\")")],
+    constraints=["0 ≤ s.len() ≤ 2000", "s is ASCII lowercase letters"],
+    starter="""
+        pub fn min_cut(s: &str) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn min_cut(s: &str) -> usize {
+            let s = s.as_bytes();
+            let n = s.len();
+            // pieces[k] = the fewest palindromes that s[..k] splits into.
+            let mut pieces: Vec<usize> = (0..=n).collect();
+            for center in 0..n {
+                // Odd palindromes around s[center], then even ones around s[center], s[center + 1].
+                for (mut lo, mut hi) in [(center, center), (center, center + 1)] {
+                    while hi < n && s[lo] == s[hi] {
+                        // s[lo..=hi] is a palindrome: s[..lo] then this piece.
+                        pieces[hi + 1] = pieces[hi + 1].min(pieces[lo] + 1);
+                        if lo == 0 {
+                            break;
+                        }
+                        lo -= 1;
+                        hi += 1;
+                    }
+                }
+            }
+            pieces[n].saturating_sub(1)
+        }
+    """,
+    visible=[
+        T("leetcode_aab", "s = \"aab\"", "min_cut(\"aab\")", "1"),
+        T("leetcode_a", "s = \"a\"", "min_cut(\"a\")", "0"),
+        T("leetcode_ab", "s = \"ab\"", "min_cut(\"ab\")", "1"),
+        T("empty", "s = \"\"", "min_cut(\"\")", "0"),
+        T("already_a_palindrome", "s = \"aba\"", "min_cut(\"aba\")", "0"),
+        T("longest_first_is_a_trap", "s = \"bbab\" (\"b\" | \"bab\")", "min_cut(\"bbab\")", "1"),
+    ],
+    hidden=[
+        T("empty", "s = \"\"", "min_cut(\"\")", "0"),
+        T("all_different", "s = \"abcde\"", "min_cut(\"abcde\")", "4"),
+        T("all_same", "s = \"aaaa\"", "min_cut(\"aaaa\")", "0"),
+        T("two_pieces", "s = \"cdd\"", "min_cut(\"cdd\")", "1"),
+        T("even_palindromes", "s = \"abccbc\"", "min_cut(\"abccbc\")", "2"),
+        T("greedy_trap", "s = \"ababbbabbababa\"", "min_cut(\"ababbbabbababa\")", "3"),
+        T("long_mixed", "s = \"eegiicgaeadbcfacfhifdbiehbgejcaeggcgbahfcajfhjjdgj\"", "min_cut(\"eegiicgaeadbcfacfhifdbiehbgejcaeggcgbahfcajfhjjdgj\")", "42"),
+        T("longest_all_same", "s = \"aaa…a\" (2000)", "min_cut(&\"a\".repeat(2000))", "0"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn fewest_pieces(s: &[u8]) -> usize {
+                if s.is_empty() {
+                    return 0;
+                }
+                (1..=s.len()).filter(|&k| s[..k].iter().eq(s[..k].iter().rev())).map(|k| 1 + fewest_pieces(&s[k..])).min().unwrap()
+            }
+            let mut rng = anneal_prelude::Rng::new(1243);
+            for _ in 0..300 {
+                let n = rng.below(11);
+                let s = rng.string(n, "ab");
+                check!(format!("s = {s:?}"), min_cut(&s), fewest_pieces(s.as_bytes()).saturating_sub(1));
+            }
+        }
+
+        #[test]
+        fn scale_2000() {
+            let s: String = (0..2000u64).map(|i| (b'a' + (i * i / 7 % 3) as u8) as char).collect();
+            check!("s[i] = 'a' + (i² / 7) % 3, 2000 characters", min_cut(&s), 3);
+        }
+
+        #[test]
+        fn scale_all_a_then_b() {
+            // Every substring of the a's is a palindrome: checking each one from scratch is O(n³).
+            let s = format!("{}b", "a".repeat(1999));
+            check!("s = 1999 a's then b", min_cut(&s), 1);
+        }
+        """,
+    ],
+    wrong=dict(
+        longest_palindrome_prefix="""
+            pub fn min_cut(s: &str) -> usize {
+                let s = s.as_bytes();
+                let (mut start, mut pieces) = (0, 0usize);
+                while start < s.len() {
+                    let end = (start + 1..=s.len()).rev().find(|&e| s[start..e].iter().eq(s[start..e].iter().rev())).unwrap();
+                    start = end;
+                    pieces += 1;
+                }
+                pieces.saturating_sub(1)
+            }
+        """,
+        checks_every_substring="""
+            pub fn min_cut(s: &str) -> usize {
+                let s = s.as_bytes();
+                let n = s.len();
+                let mut pieces: Vec<usize> = (0..=n).collect();
+                for end in 1..=n {
+                    for start in 0..end {
+                        if s[start..end].iter().eq(s[start..end].iter().rev()) {
+                            pieces[end] = pieces[end].min(pieces[start] + 1);
+                        }
+                    }
+                }
+                pieces[n].saturating_sub(1)
+            }
+        """,
+        plain_recursion="""
+            fn fewest_pieces(s: &[u8]) -> usize {
+                if s.is_empty() {
+                    return 0;
+                }
+                (1..=s.len()).filter(|&k| s[..k].iter().eq(s[..k].iter().rev())).map(|k| 1 + fewest_pieces(&s[k..])).min().unwrap()
+            }
+
+            pub fn min_cut(s: &str) -> usize {
+                fewest_pieces(s.as_bytes()).saturating_sub(1)
+            }
+        """,
+    ),
+    hints=[("approach", "pieces(k) = the fewest palindromes for s[..k] = 1 + min over palindromes s[j..k] of pieces(j). The answer is pieces(n) - 1."),
+           ("rust", "Instead of testing every (j, k), expand around each centre (odd and even); every palindrome s[lo..=hi] you reach updates `pieces[hi + 1]` from `pieces[lo]`."),
+           ("edge case", "Cutting off the longest palindrome first is greedy and can cost more: \"bbab\" → \"bb\" | \"a\" | \"b\" (2 cuts) instead of \"b\" | \"bab\" (1).")],
+    notes=("Centre expansion visits each palindrome once in O(1) and stops at the first mismatch, so the whole thing is O(n²) with O(n) memory. Palindromes ending at lo - 1 have centres before the current one, so pieces[lo] is final when it's read.", "O(n²)", "O(n)"),
+    follow_up="How would you list one optimal partition? And all partitions (Palindrome partitioning I, a backtracking problem)?",
+    related=["D11", "D10"],
+))
+
+P.append(dict(
+    slug="minimum-cost-to-cut-a-stick", title="Minimum cost to cut a stick", level="hard", stage="intervals-games", tags=["interval DP", "dp[i][j] by length"],
+    companies=["Google", "Amazon", "Microsoft", "Meta"],
+    teaches=["Interval DP over the cut points: pick which cut happens first inside an interval.",
+             "Sorting the points and adding both ends of the stick as sentinels."],
+    statement="""
+        A stick runs from 0 to `n`. `cuts` lists the positions where it must be cut, in no
+        particular order. Cutting a piece costs its current length, and you may do the cuts in any
+        order. Return the cheapest total.
+    """,
+    examples=[("n = 7, cuts = [1, 3, 4, 5]", "16 (cut at 3, then 5, then 1, then 4: 7 + 4 + 3 + 2)")],
+    constraints=["2 ≤ n ≤ 10⁶", "0 ≤ cuts.len() ≤ 200", "cuts are distinct and 0 < cuts[i] < n"],
+    starter="""
+        pub fn min_cost(n: u32, cuts: &[u32]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn min_cost(n: u32, cuts: &[u32]) -> u64 {
+            let mut pts: Vec<u64> = Vec::with_capacity(cuts.len() + 2);
+            pts.push(0);
+            pts.extend(cuts.iter().map(|&c| c as u64));
+            pts.push(n as u64);
+            pts.sort_unstable();
+            let m = pts.len();
+            // cost[i][j] = the cheapest way to make every cut strictly between pts[i] and pts[j].
+            let mut cost = vec![vec![0u64; m]; m];
+            for len in 2..m {
+                for i in 0..m - len {
+                    let j = i + len;
+                    // Whichever cut k goes first costs the whole piece, then splits it in two.
+                    let best = (i + 1..j).map(|k| cost[i][k] + cost[k][j]).min().unwrap();
+                    cost[i][j] = pts[j] - pts[i] + best;
+                }
+            }
+            cost[0][m - 1]
+        }
+    """,
+    visible=[
+        T("leetcode_seven", "n = 7, cuts = [1, 3, 4, 5]", "min_cost(7, &[1, 3, 4, 5])", "16"),
+        T("leetcode_nine", "n = 9, cuts = [5, 6, 1, 4, 2]", "min_cost(9, &[5, 6, 1, 4, 2])", "22"),
+        T("no_cuts", "n = 5, cuts = []", "min_cost(5, &[])", "0"),
+        T("one_cut", "n = 2, cuts = [1]", "min_cost(2, &[1])", "2"),
+        T("order_matters", "n = 10, cuts = [2, 5] (cutting 5 first is cheaper)", "min_cost(10, &[2, 5])", "15"),
+    ],
+    hidden=[
+        T("no_cuts", "n = 5, cuts = []", "min_cost(5, &[])", "0"),
+        T("middle", "n = 100, cuts = [50]", "min_cost(100, &[50])", "100"),
+        T("reversed_input", "n = 10, cuts = [5, 2]", "min_cost(10, &[5, 2])", "15"),
+        T("near_the_ends", "n = 1000000, cuts = [1, 999999]", "min_cost(1_000_000, &[1, 999_999])", "1_999_999"),
+        T("every_point", "n = 5, cuts = [1, 2, 3, 4]", "min_cost(5, &[1, 2, 3, 4])", "12"),
+        T("nineteen_cuts", "n = 30, cuts = [13, 25, 16, 20, 26, 5, 27, 8, 23, 14, 6, 15, 21, 24, 29, 1, 19, 9, 3]",
+          "min_cost(30, &[13, 25, 16, 20, 26, 5, 27, 8, 23, 14, 6, 15, 21, 24, 29, 1, 19, 9, 3])", "127"),
+        T("unsorted_six", "n = 20, cuts = [17, 3, 11, 8, 14, 5]", "min_cost(20, &[17, 3, 11, 8, 14, 5])", "57"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // Try every cut first on the piece [lo, hi], then recurse on both halves.
+            fn cheapest(lo: u32, hi: u32, cuts: &[u32]) -> u64 {
+                let inside: Vec<u32> = cuts.iter().copied().filter(|&c| lo < c && c < hi).collect();
+                inside.iter().map(|&c| (hi - lo) as u64 + cheapest(lo, c, &inside) + cheapest(c, hi, &inside)).min().unwrap_or(0)
+            }
+            let mut rng = anneal_prelude::Rng::new(1244);
+            for _ in 0..300 {
+                let n = rng.int(2, 15) as u32;
+                let mut cuts: Vec<u32> = (1..n).filter(|_| rng.below(3) == 0).collect();
+                cuts.truncate(6);
+                rng.shuffle(&mut cuts);
+                check!(format!("n = {n}, cuts = {cuts:?}"), min_cost(n, &cuts), cheapest(0, n, &cuts));
+            }
+        }
+
+        #[test]
+        fn scale_200_cuts() {
+            let cuts: Vec<u32> = (0..200u32).map(|i| i * 7919 % 999_999 + 1).collect();
+            check!("n = 1000000, cuts[i] = (7919·i) % 999999 + 1, 200 cuts", min_cost(1_000_000, &cuts), 7_575_883);
+        }
+        """,
+    ],
+    wrong=dict(
+        cuts_in_given_order="""
+            pub fn min_cost(n: u32, cuts: &[u32]) -> u64 {
+                let mut pieces: Vec<(u32, u32)> = vec![(0, n)];
+                let mut total = 0u64;
+                for &c in cuts {
+                    let k = pieces.iter().position(|&(a, b)| a < c && c < b).unwrap();
+                    let (a, b) = pieces.swap_remove(k);
+                    total += (b - a) as u64;
+                    pieces.push((a, c));
+                    pieces.push((c, b));
+                }
+                total
+            }
+        """,
+        middle_cut_first="""
+            fn split(lo: u32, hi: u32, cuts: &[u32]) -> u64 {
+                let inside: Vec<u32> = cuts.iter().copied().filter(|&c| lo < c && c < hi).collect();
+                let mid = (lo + hi) / 2;
+                match inside.iter().copied().min_by_key(|&c| c.abs_diff(mid)) {
+                    None => 0,
+                    Some(c) => (hi - lo) as u64 + split(lo, c, &inside) + split(c, hi, &inside),
+                }
+            }
+
+            pub fn min_cost(n: u32, cuts: &[u32]) -> u64 {
+                split(0, n, cuts)
+            }
+        """,
+        plain_recursion="""
+            fn cheapest(pts: &[u64]) -> u64 {
+                if pts.len() <= 2 {
+                    return 0;
+                }
+                let len = pts[pts.len() - 1] - pts[0];
+                (1..pts.len() - 1).map(|k| len + cheapest(&pts[..=k]) + cheapest(&pts[k..])).min().unwrap()
+            }
+
+            pub fn min_cost(n: u32, cuts: &[u32]) -> u64 {
+                let mut pts: Vec<u64> = cuts.iter().map(|&c| c as u64).collect();
+                pts.push(0);
+                pts.push(n as u64);
+                pts.sort_unstable();
+                cheapest(&pts)
+            }
+        """,
+    ),
+    hints=[("approach", "Sort the cuts and add 0 and n. For the piece between points i and j, the first cut k costs pts[j] - pts[i] and leaves the pieces (i, k) and (k, j)."),
+           ("rust", "`cost[i][j]` in a `Vec<Vec<u64>>`, filled by increasing `len = j - i` so both halves are ready; `(i + 1..j).map(..).min().unwrap()` picks the best first cut."),
+           ("edge case", "The input order is not the cutting order, and it isn't sorted. Cutting nearest the middle first isn't always optimal either.")],
+    notes=("Once a cut is made, the two sides never interact, so each piece between two chosen points is an independent subproblem. There are O(c²) pieces and each tries O(c) first cuts.", "O(c³) for c cuts", "O(c²)"),
+    follow_up="This is the same shape as optimal BST and matrix-chain multiplication. Can you name the choice and the cost in each?",
+    related=["D8"],
+))
+
+P.append(dict(
+    slug="burst-balloons", title="Burst balloons", level="hard", stage="intervals-games", tags=["interval DP", "dp[i][j] by length"],
+    companies=["Google", "Amazon", "Meta", "Microsoft", "Apple"],
+    teaches=["Choosing the LAST action in an interval so its neighbours are fixed: the key trick of interval DP.",
+             "Padding with sentinel 1s so edge balloons need no special case."],
+    statement="""
+        Balloon `i` shows the number `nums[i]`. Bursting it earns `left × nums[i] × right`, where
+        `left` and `right` are the numbers on the balloons currently next to it (1 if there is none
+        on that side). Burst them all, in any order. Return the most coins you can earn.
+    """,
+    examples=[("nums = [3, 1, 5, 8]", "167 (burst 1, 5, 3, 8: 15 + 120 + 24 + 8)")],
+    constraints=["0 ≤ nums.len() ≤ 300", "0 ≤ nums[i] ≤ 100"],
+    starter="""
+        pub fn max_coins(nums: &[u32]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn max_coins(nums: &[u32]) -> u64 {
+            // Sentinel 1s at both ends: a balloon at the edge multiplies by 1.
+            let mut a: Vec<u64> = Vec::with_capacity(nums.len() + 2);
+            a.push(1);
+            a.extend(nums.iter().map(|&x| x as u64));
+            a.push(1);
+            let m = a.len();
+            // best[i][j] = the most coins from bursting every balloon strictly between i and j.
+            // If k is the LAST one burst there, its neighbours at that moment are i and j.
+            let mut best = vec![vec![0u64; m]; m];
+            for len in 2..m {
+                for i in 0..m - len {
+                    let j = i + len;
+                    best[i][j] = (i + 1..j).map(|k| best[i][k] + best[k][j] + a[i] * a[k] * a[j]).max().unwrap();
+                }
+            }
+            best[0][m - 1]
+        }
+    """,
+    visible=[
+        T("leetcode_four", "nums = [3, 1, 5, 8]", "max_coins(&[3, 1, 5, 8])", "167"),
+        T("leetcode_two", "nums = [1, 5]", "max_coins(&[1, 5])", "10"),
+        T("empty", "nums = []", "max_coins(&[])", "0"),
+        T("one", "nums = [7]", "max_coins(&[7])", "7"),
+        T("three", "nums = [2, 3, 4]", "max_coins(&[2, 3, 4])", "36"),
+    ],
+    hidden=[
+        T("empty", "nums = []", "max_coins(&[])", "0"),
+        T("zero_and_one", "nums = [0, 1]", "max_coins(&[0, 1])", "1"),
+        T("four_big", "nums = [9, 76, 64, 21]", "max_coins(&[9, 76, 64, 21])", "116_718"),
+        T("max_values", "nums = [100, 100, 100]", "max_coins(&[100, 100, 100])", "1_010_100"),
+        T("with_zeros", "nums = [8, 2, 6, 8, 9, 8, 1, 4, 1, 5, 3, 0, 7, 7, 0, 4, 2, 2, 5]",
+          "max_coins(&[8, 2, 6, 8, 9, 8, 1, 4, 1, 5, 3, 0, 7, 7, 0, 4, 2, 2, 5])", "3630"),
+        T("single_zero", "nums = [0]", "max_coins(&[0])", "0"),
+        T("all_zero", "nums = [0, 0, 0]", "max_coins(&[0, 0, 0])", "0"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn best(v: &mut Vec<u64>) -> u64 {
+                let mut top = 0;
+                for k in 0..v.len() {
+                    let left = if k > 0 { v[k - 1] } else { 1 };
+                    let right = if k + 1 < v.len() { v[k + 1] } else { 1 };
+                    let x = v.remove(k);
+                    top = top.max(left * x * right + best(v));
+                    v.insert(k, x);
+                }
+                top
+            }
+            let mut rng = anneal_prelude::Rng::new(1245);
+            for _ in 0..200 {
+                let n = rng.below(7);
+                let nums: Vec<u32> = rng.vec(n, 0, 9);
+                let mut v: Vec<u64> = nums.iter().map(|&x| x as u64).collect();
+                check!(format!("nums = {nums:?}"), max_coins(&nums), best(&mut v));
+            }
+        }
+
+        #[test]
+        fn scale_300() {
+            let nums: Vec<u32> = (0..300u32).map(|i| i * 7919 % 100 + 1).collect();
+            check!("nums[i] = (7919·i) % 100 + 1, 300 balloons", max_coins(&nums), 112_945_464);
+        }
+        """,
+    ],
+    wrong=dict(
+        smallest_first="""
+            pub fn max_coins(nums: &[u32]) -> u64 {
+                let mut v: Vec<u64> = nums.iter().map(|&x| x as u64).collect();
+                let mut total = 0;
+                while !v.is_empty() {
+                    let k = (0..v.len()).min_by_key(|&i| v[i]).unwrap();
+                    let left = if k > 0 { v[k - 1] } else { 1 };
+                    let right = if k + 1 < v.len() { v[k + 1] } else { 1 };
+                    total += left * v[k] * right;
+                    v.remove(k);
+                }
+                total
+            }
+        """,
+        k_bursts_first="""
+            pub fn max_coins(nums: &[u32]) -> u64 {
+                let mut a: Vec<u64> = vec![1];
+                a.extend(nums.iter().map(|&x| x as u64));
+                a.push(1);
+                let m = a.len();
+                let mut best = vec![vec![0u64; m]; m];
+                for len in 2..m {
+                    for i in 0..m - len {
+                        let j = i + len;
+                        best[i][j] = (i + 1..j).map(|k| best[i][k] + best[k][j] + a[k - 1] * a[k] * a[k + 1]).max().unwrap();
+                    }
+                }
+                best[0][m - 1]
+            }
+        """,
+        plain_recursion="""
+            fn best(v: &mut Vec<u64>) -> u64 {
+                let mut top = 0;
+                for k in 0..v.len() {
+                    let left = if k > 0 { v[k - 1] } else { 1 };
+                    let right = if k + 1 < v.len() { v[k + 1] } else { 1 };
+                    let x = v.remove(k);
+                    top = top.max(left * x * right + best(v));
+                    v.insert(k, x);
+                }
+                top
+            }
+
+            pub fn max_coins(nums: &[u32]) -> u64 {
+                let mut v: Vec<u64> = nums.iter().map(|&x| x as u64).collect();
+                best(&mut v)
+            }
+        """,
+    ),
+    hints=[("approach", "Think about the last balloon k burst between two fixed balloons i and j: when it goes, its neighbours are exactly i and j, and the two sides were solved independently before."),
+           ("rust", "Pad the numbers with a 1 at each end, then fill `best[i][j]` by increasing j - i: max over k of best[i][k] + best[k][j] + a[i]·a[k]·a[j]."),
+           ("edge case", "Choosing the FIRST balloon to burst doesn't split the problem, because its neighbours' neighbours change afterwards. Bursting the smallest first is not optimal either.")],
+    notes=("Fixing the last balloon in an interval freezes its neighbours at the interval's ends, which makes the left and right parts independent. There are O(n²) intervals and each tries O(n) last balloons.", "O(n³)", "O(n²)"),
+    follow_up="Why does \"first to burst\" fail to give independent subproblems, while \"last to burst\" works?",
+    related=["D11"],
+))
+
 STAGES = [
     ("1d-basics", "1-D basics", "easy"),
     ("1d-choices", "1-D choices", "medium"),

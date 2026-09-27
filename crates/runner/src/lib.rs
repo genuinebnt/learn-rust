@@ -7,6 +7,10 @@
 //! 2. `cargo test --no-run` under the compile time limit,
 //! 3. `cargo test` with libtest's JSON output under the test time limit, one suite per test file.
 //!
+//! A problem's `[perf]` changes this: `release` builds and runs the tests with `--release`, one test at a
+//! time; `asm` first compiles the library alone and writes its assembly next to the test prelude, where
+//! `anneal_prelude::asm` reads it; `count_allocs` installs a counting global allocator in the tests.
+//!
 //! Builds share a target directory per cache key, so repeated runs of the same
 //! problem compile incrementally. In [`Sandbox::Docker`] the container has no
 //! network, a read-only root filesystem, capped memory, CPU and processes, and
@@ -37,6 +41,19 @@ pub struct Submission<'a> {
     pub hidden_tests: Option<&'a str>,
     /// Crates from the allowed set (`docker/deps/Cargo.toml`) the problem depends on.
     pub crates: &'a [String],
+    /// Release build, assembly and allocation counting for performance problems.
+    pub perf: Perf,
+}
+
+/// How a performance problem is built and measured (`[perf]` in problem.toml). All off by default.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Perf {
+    /// `--release`, one test at a time.
+    pub release: bool,
+    /// Emit the library's release assembly for `anneal_prelude::asm`.
+    pub asm: bool,
+    /// Install the counting allocator behind `anneal_prelude::allocs`.
+    pub count_allocs: bool,
 }
 
 /// What to run for "Run": the user's library plus a scratch `main` that calls into it.
@@ -236,6 +253,26 @@ impl Runner {
         if sub.hidden_tests.is_some() {
             targets.extend(["--test", "hidden"]);
         }
+        if sub.perf.release {
+            targets.push("--release");
+        }
+        if sub.perf.asm {
+            // The library alone, in one codegen unit so every function lands in one file. The tests
+            // `include_str!` the result, so this runs before they're built.
+            let mut asm = with_offline(&["rustc", "--offline", "--lib", "--release", "--message-format=json-diagnostic-rendered-ansi"]);
+            // rustc leaves small non-generic functions to their callers (cross-crate inlining), so a
+            // library compiled alone wouldn't contain them. The threshold flag is unstable, which
+            // `RUSTC_BOOTSTRAP` (set for the JSON test output) allows.
+            asm.extend(["--", "--emit", project::ASM_EMIT, "-C", "codegen-units=1", "-Z", "cross-crate-inline-threshold=never"]);
+            let out = exec::cargo(&cfg.sandbox, work.path(), &target, &asm, cfg.compile_timeout).await?;
+            if out.timed_out {
+                return Ok(finish(RunStatus::Timeout, diagnostics, Vec::new(), start));
+            }
+            if parse::build_failed(&out.stdout) {
+                diagnostics.extend(parse::diagnostics(&out.stdout).into_iter().filter(Diagnostic::is_error));
+                return Ok(finish(RunStatus::CompileError, diagnostics, Vec::new(), start));
+            }
+        }
         // Build first, under the compile limit, so the test limit only counts test time.
         let mut build = with_offline(&["test", "--offline", "--no-run", "--message-format=json-diagnostic-rendered-ansi"]);
         build.extend(&targets);
@@ -278,6 +315,10 @@ impl Runner {
             // Keep println!/dbg! output from passing tests too, for the Output panel.
             "--show-output",
         ]);
+        if sub.perf.release {
+            // Timings mean nothing while other tests compete for the CPU.
+            run.push("--test-threads=1");
+        }
         let out = exec::cargo(&cfg.sandbox, work.path(), &target, &run, cfg.test_timeout).await?;
         let tests = parse::tests(&out.stdout, &out.stderr);
         let status = if out.timed_out {

@@ -124,8 +124,9 @@ fn section_rank(s: Section) -> u8 {
         Section::StandardLibrary => 2,
         Section::Concurrency => 3,
         Section::Systems => 4,
-        Section::Backend => 5,
-        Section::Design => 6,
+        Section::Performance => 5,
+        Section::Backend => 6,
+        Section::Design => 7,
     }
 }
 
@@ -324,6 +325,7 @@ fn check_problem(
     if meta.rules.is_some() && meta.mode != Mode::Fix {
         issues.push(issue(file, "rules only apply to fix-this problems"));
     }
+    check_perf(meta, files, file, issues);
     if meta.status == Status::Draft {
         return;
     }
@@ -356,6 +358,25 @@ fn check_problem(
             file,
             "ready problems need an interview follow_up question",
         ));
+    }
+}
+
+/// The prelude's measuring helpers only exist, or only mean something, when `[perf]` turns them on.
+fn check_perf(meta: &ProblemFile, files: &ProblemFiles, file: &Path, issues: &mut Vec<Issue>) {
+    let perf = meta.perf.unwrap_or_default();
+    let tests = [&files.visible_tests, &files.hidden_tests].into_iter().flatten().map(String::as_str).collect::<Vec<_>>().join("\n");
+    let needs = [
+        ("anneal_prelude::asm", perf.asm, "asm = true"),
+        ("anneal_prelude::allocs", perf.count_allocs, "count_allocs = true"),
+        ("anneal_prelude::assert_faster", perf.release, "release = true"),
+    ];
+    for (helper, on, flag) in needs {
+        if tests.contains(helper) && !on {
+            issues.push(issue(file, format!("tests use {helper}, which needs [perf] {flag}")));
+        }
+    }
+    if perf.asm && !perf.release {
+        issues.push(issue(file, "[perf] asm = true inspects release code; set release = true too"));
     }
 }
 

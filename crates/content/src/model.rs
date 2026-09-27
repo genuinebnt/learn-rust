@@ -35,6 +35,8 @@ pub enum Section {
     Concurrency,
     #[serde(rename = "Y")]
     Systems,
+    #[serde(rename = "F")]
+    Performance,
     #[serde(rename = "B")]
     Backend,
     #[serde(rename = "M")]
@@ -49,6 +51,7 @@ impl Section {
             Section::StandardLibrary => 'S',
             Section::Concurrency => 'C',
             Section::Systems => 'Y',
+            Section::Performance => 'F',
             Section::Backend => 'B',
             Section::Design => 'M',
         }
@@ -189,6 +192,25 @@ pub struct ProblemFile {
     /// Crates from the sandbox's crate set (`docker/deps/Cargo.toml`), e.g. `["tokio", "serde"]`.
     #[serde(default)]
     pub crates: Vec<String>,
+    /// How a performance problem (section F) is built and measured. Absent for everything else.
+    #[serde(default)]
+    pub perf: Option<Perf>,
+}
+
+/// `[perf]` in problem.toml: what a performance problem's tests need from the runner.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Perf {
+    /// Build and run the tests with `--release`, one test at a time, so timings mean something.
+    #[serde(default)]
+    pub release: bool,
+    /// Emit the solution's release assembly for `anneal_prelude::asm` checks.
+    #[serde(default)]
+    pub asm: bool,
+    /// Install the counting global allocator behind `anneal_prelude::allocs`. Leave it off when the
+    /// solution defines its own `#[global_allocator]`.
+    #[serde(default)]
+    pub count_allocs: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

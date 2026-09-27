@@ -208,6 +208,7 @@ pub fn parse_sections(s: &str) -> Vec<Section> {
             "S" => Some(Section::StandardLibrary),
             "C" => Some(Section::Concurrency),
             "Y" => Some(Section::Systems),
+            "F" => Some(Section::Performance),
             "B" => Some(Section::Backend),
             "M" => Some(Section::Design),
             _ => None,

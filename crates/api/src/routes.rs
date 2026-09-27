@@ -227,6 +227,7 @@ async fn execute(s: &AppState, id: &str, code: &str, with_hidden: bool) -> ApiRe
                 visible_tests: visible,
                 hidden_tests: hidden,
                 crates: &p.meta.crates,
+                perf: runner_perf(p.meta.perf),
             },
         )
         .await?;
@@ -299,6 +300,7 @@ pub async fn lsp(
     let lib_rs = store::draft(&s.db, &id).await?.unwrap_or(starter);
     let visible_tests = p.files.visible_tests.clone().unwrap_or_default();
     let crates = p.meta.crates.clone();
+    let perf = runner_perf(p.meta.perf);
     let permit = s.lsp.slots.clone().try_acquire_owned().map_err(|_| {
         ApiError::Busy(
             "rust-analyzer is already running for 3 editors; close one and try again".into(),
@@ -313,6 +315,7 @@ pub async fn lsp(
                 lib_rs,
                 visible_tests,
                 crates,
+                perf,
             },
         )
         .await
@@ -321,4 +324,10 @@ pub async fn lsp(
         }
         drop(permit);
     }))
+}
+
+/// A problem's `[perf]` as the runner takes it; all off when there's none.
+fn runner_perf(perf: Option<anneal_content::Perf>) -> anneal_runner::Perf {
+    let p = perf.unwrap_or_default();
+    anneal_runner::Perf { release: p.release, asm: p.asm, count_allocs: p.count_allocs }
 }

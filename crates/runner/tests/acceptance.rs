@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use anneal_content::{Catalog, Problem};
 use anneal_runner::{
-    Outcome, RunResult, RunStatus, Runner, RunnerConfig, Sandbox, Submission, Suite,
+    Outcome, Perf, RunResult, RunStatus, Runner, RunnerConfig, Sandbox, Submission, Suite,
 };
 
 /// The workspace from the WorkspaceSplit design: the `u32::MAX` sentinel leaks out.
@@ -85,7 +85,7 @@ async fn submit(r: &Runner, id: &str, lib_rs: &str, visible: &str, hidden: &str)
             lib_rs,
             visible_tests: visible,
             hidden_tests: Some(hidden),
-        crates: &[],
+        crates: &[], perf: Perf::default(),
         },
     )
     .await
@@ -162,7 +162,7 @@ async fn run_without_hidden_tests_reports_visible_only() {
         lib_rs: NETWORK_DELAY_SENTINEL_BUG,
         visible_tests: &visible,
         hidden_tests: None,
-        crates: &[],
+        crates: &[], perf: Perf::default(),
     };
     let r = runner(Sandbox::Host)
         .run("d9-network-delay-time", &sub)
@@ -224,7 +224,7 @@ async fn prints_from_passing_tests_are_kept() {
         1,
     );
     let r = runner(Sandbox::Host);
-    let sub = Submission { lib_rs: &noisy, visible_tests: &visible, hidden_tests: None, crates: &[] };
+    let sub = Submission { lib_rs: &noisy, visible_tests: &visible, hidden_tests: None, crates: &[], perf: Perf::default() };
     let result = r.run("prints", &sub).await.unwrap();
     assert_eq!(result.status, RunStatus::Passed, "{result:#?}");
     let out: Vec<&str> = result.tests.iter().map(|t| t.stdout.as_str()).collect();
@@ -263,10 +263,99 @@ fn ranges() {
 }
 "#;
     let r = runner(Sandbox::Host);
-    let sub = Submission { lib_rs: "pub fn add(a: i32, b: i32) -> i32 { a + b }", visible_tests: tests, hidden_tests: None, crates: &[] };
+    let sub = Submission { lib_rs: "pub fn add(a: i32, b: i32) -> i32 { a + b }", visible_tests: tests, hidden_tests: None, crates: &[], perf: Perf::default() };
     let result = r.run("rng", &sub).await.unwrap();
     assert_eq!(result.status, RunStatus::Passed, "{result:#?}");
     assert_eq!(result.passed, 2);
+}
+
+const PERF_LIB: &str = r#"
+pub fn total(xs: &[u32]) -> u32 {
+    xs.iter().fold(0, |a, &x| a.wrapping_add(x))
+}
+
+pub fn odd_slots(xs: &[u32], n: usize) -> u32 {
+    let mut s = 0u32;
+    for i in 0..n {
+        s = s.wrapping_add(xs[i * 2 + 1]);
+    }
+    s
+}
+
+pub struct Grid(pub Vec<u32>);
+
+impl Grid {
+    pub fn row_sum(&self, w: usize, r: usize) -> u32 {
+        self.0[r * w..(r + 1) * w].iter().sum()
+    }
+}
+
+pub fn squares(n: u32) -> Vec<u32> {
+    (0..n).map(|i| i * i).collect()
+}
+"#;
+
+/// `[perf]`: release build, the library's assembly (both manglings, methods, small functions rustc would
+/// otherwise leave to callers), the counting allocator and relative timing.
+#[tokio::test]
+async fn perf_helpers_measure_the_release_build() {
+    let tests = r#"use solution::*;
+
+#[test]
+fn assembly() {
+    let fns = anneal_prelude::asm::functions();
+    let total = anneal_prelude::asm::function("total");
+    assert!(!anneal_prelude::asm::instructions(&total).is_empty(), "{fns:?}");
+    assert!(!anneal_prelude::asm::calls(&total, "panic_bounds_check"));
+    assert!(anneal_prelude::asm::calls(&anneal_prelude::asm::function("odd_slots"), "panic_bounds_check"));
+    assert!(!anneal_prelude::asm::function("Grid::row_sum").is_empty(), "{fns:?}");
+}
+
+#[test]
+#[should_panic(expected = "no function \"missing\"")]
+fn unknown_function() {
+    anneal_prelude::asm::function("missing");
+}
+
+#[test]
+fn allocations() {
+    let (v, a) = anneal_prelude::allocs(|| squares(1000));
+    assert_eq!(v.len(), 1000);
+    assert_eq!(a.count, 1);
+    assert_eq!(a.bytes, 4000);
+    let ((), none) = anneal_prelude::allocs(|| ());
+    assert_eq!(none.count, 0);
+}
+
+#[test]
+fn timing() {
+    let xs: Vec<u32> = (0..200_000).collect();
+    let slow = |xs: &[u32]| xs.iter().map(|&x| std::hint::black_box(x)).fold(0u32, |a, x| a.wrapping_add(x));
+    anneal_prelude::assert_faster("sum", 1.0, 5, || slow(&xs), || total(&xs));
+    assert!(anneal_prelude::median_time(3, || total(&xs)) < std::time::Duration::from_secs(1));
+}
+"#;
+    let r = runner(Sandbox::Host);
+    let perf = Perf { release: true, asm: true, count_allocs: true };
+    let sub = Submission { lib_rs: PERF_LIB, visible_tests: tests, hidden_tests: None, crates: &[], perf };
+    let result = r.run("perf", &sub).await.unwrap();
+    assert_eq!(result.status, RunStatus::Passed, "{result:#?}");
+    assert_eq!(result.passed, 4);
+}
+
+/// Timing a debug build would pass or fail at random, so `assert_faster` refuses to.
+#[tokio::test]
+async fn assert_faster_refuses_debug_builds() {
+    let tests = r#"#[test]
+fn timing() {
+    anneal_prelude::assert_faster("noop", 1.0, 3, || 1, || 1);
+}
+"#;
+    let r = runner(Sandbox::Host);
+    let sub = Submission { lib_rs: "", visible_tests: tests, hidden_tests: None, crates: &[], perf: Perf::default() };
+    let result = r.run("perf-debug", &sub).await.unwrap();
+    assert_eq!(result.status, RunStatus::Failed, "{result:#?}");
+    assert!(result.tests[0].panic.as_deref().unwrap_or("").contains("needs [perf] release = true"), "{result:#?}");
 }
 
 #[tokio::test]
@@ -286,7 +375,7 @@ async fn infinite_loop_times_out_and_is_killed() {
                 lib_rs: spin,
                 visible_tests: &visible,
                 hidden_tests: None,
-        crates: &[],
+        crates: &[], perf: Perf::default(),
             },
         )
         .await
@@ -365,7 +454,7 @@ fn crate_set() -> Vec<String> {
 
 async fn run_with_crates(sandbox: Sandbox) -> RunResult {
     let crates = crate_set();
-    let sub = Submission { lib_rs: CRATES_LIB, visible_tests: CRATES_TESTS, hidden_tests: None, crates: &crates };
+    let sub = Submission { lib_rs: CRATES_LIB, visible_tests: CRATES_TESTS, hidden_tests: None, crates: &crates, perf: Perf::default() };
     runner(sandbox).run("crates-demo", &sub).await.unwrap()
 }
 
@@ -378,7 +467,7 @@ async fn problems_can_use_crates_from_the_set() {
 #[tokio::test]
 async fn crates_outside_the_set_are_refused() {
     let crates = vec!["left-pad".to_string()];
-    let sub = Submission { lib_rs: "", visible_tests: "", hidden_tests: None, crates: &crates };
+    let sub = Submission { lib_rs: "", visible_tests: "", hidden_tests: None, crates: &crates, perf: Perf::default() };
     let err = runner(Sandbox::Host).run("crates-unknown", &sub).await.unwrap_err();
     assert!(matches!(err, anneal_runner::RunnerError::UnknownCrate(ref c) if c == "left-pad"), "{err}");
 }

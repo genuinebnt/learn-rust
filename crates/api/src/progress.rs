@@ -28,7 +28,7 @@ pub fn budget(mode: Mode, level: Band) -> u32 {
 
 const AREAS: [(&str, &[Section]); 3] = [
     ("dsa", &[Section::Dsa]),
-    ("rust", &[Section::Language, Section::StandardLibrary, Section::Concurrency, Section::Systems]),
+    ("rust", &[Section::Language, Section::StandardLibrary, Section::Concurrency, Section::Systems, Section::Performance]),
     ("build", &[Section::Backend, Section::Design]),
 ];
 

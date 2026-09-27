@@ -294,6 +294,22 @@ This is the "microservices" portfolio piece, and every stage is testable.
 Rough size: +20 (X1) +12 (X2) +76 (A1–A6) +16 (B7) +22 (M1 widening, M3, M4) +78 (§9: S12, S13, K1–K3, C4/C5/B4/D13
 additions) ≈ 224 problems beyond CURRICULUM.md's 400-odd, plus the grepr and chatd projects.
 
+### 7.1 Sections planned for later (owner, 2026-09-27; not scheduled yet)
+
+Each becomes a CURRICULUM section with the owner's senior bar (HANDOFF §4) once the order above reaches it. Most are
+challenge sets built on real scenarios, and several reuse F's runner support for measuring.
+
+| Section | What it would cover |
+|---|---|
+| HFT / low latency | order books, market-data feed handlers (binary protocols, ITCH-style), lock-free queues between pinned threads, latency histograms, allocation-free hot paths |
+| Cryptography | constant-time comparison, hashing and MACs, AEAD with the RustCrypto crates, key handling and zeroize, Merkle trees, what not to write yourself |
+| CLI tools | clap, exit codes, streaming stdin/stdout, signals, progress output, config layering: ripgrep/fd-style tools |
+| DBMS internals | pages and buffer pool, B+tree, LSM (memtable, SSTables, compaction), WAL and recovery, MVCC, a query executor (volcano vs vectorized); extends kvlite |
+| Blockchain | hashing chains, Merkle proofs, UTXO vs account state, signatures, a toy consensus/gossip; ties to the old Web3 packet (W3-1–12) |
+| Advent of Code | timed puzzle sets in idiomatic Rust: parsing with `split`/`nom`, grids, simulation, memoization; a speed-solving mode |
+| `no_std` | `core` vs `alloc`, `#![no_std]` libraries, panic handlers, fixed-capacity collections (heapless), embedded-style drivers (was Y6 in §10.2) |
+| Testing & benchmarking | unit/integration/doc tests, proptest, fuzzing, snapshot tests, mocking, Miri and loom (grows out of Y5); criterion / divan / iai-callgrind benchmarks, statistics of benchmark noise, CI regression gates |
+
 ---
 
 ## 8. Open questions

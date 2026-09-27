@@ -67,6 +67,8 @@ pub struct SessionFiles {
     pub visible_tests: String,
     /// The problem's crates; rust-analyzer resolves them from crates.io on the host.
     pub crates: Vec<String>,
+    /// The problem's `[perf]`, so the prelude rust-analyzer sees has the same helpers.
+    pub perf: anneal_runner::Perf,
 }
 
 /// Runs one editor session until either side goes away.
@@ -89,6 +91,7 @@ pub async fn session(
             visible_tests: &files.visible_tests,
             hidden_tests: None,
             crates: &files.crates,
+            perf: files.perf,
         },
         false,
     )?;

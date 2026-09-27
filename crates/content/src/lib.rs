@@ -7,4 +7,4 @@ mod catalog;
 pub mod model;
 
 pub use catalog::{Catalog, Issue, LoadError, Loaded, Problem, ProblemFiles, Track};
-pub use model::{Band, COMPANIES, Mode, Rules, Section, Status, Tier};
+pub use model::{Band, COMPANIES, Mode, Perf, Rules, Section, Status, Tier};

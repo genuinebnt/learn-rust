@@ -208,6 +208,19 @@ The test conventions:
 - The workspace parses `check!` calls to show input and expected values per test (`web/src/workspace/testcases.ts`).
 - Problem crates use edition 2021, and the package is named `solution`.
 
+Performance problems (section F, CURRICULUM §6.1) add `[perf]` to problem.toml. `validate` rejects tests that use a
+helper their `[perf]` doesn't turn on.
+
+| `[perf]` key | Runner does | Tests get (`anneal_prelude::…`) |
+|---|---|---|
+| `release = true` | `--release` build and run, `--test-threads=1` | `assert_faster(what, factor, runs, baseline, yours)`: medians, interleaved; prints the ratio and fails with a `check!`-style report. `median_time(runs, f)` works in any build |
+| `asm = true` (needs `release`) | compiles the library alone first (`cargo rustc --release -- --emit asm -C codegen-units=1 -Z cross-crate-inline-threshold=never`) into `tests/anneal/solution.s` | `asm::function("total")` or `asm::function("Matrix::mul")`: that function's instructions; `asm::calls(body, "panic_bounds_check")`, `asm::uses_simd(body)` (x86_64 and aarch64), `asm::instructions(body)`, `asm::functions()`. Handles legacy and v0 mangling (v0 is what the runner gets, because `RUSTC_BOOTSTRAP` is set). Only non-generic functions can be inspected |
+| `count_allocs = true` | installs a counting `#[global_allocator]` in the test binaries | `allocs(\|\| f())` → `(result, Allocs { count, bytes })`, this thread only. Leave it off when the solution defines its own global allocator |
+
+The performance crates (bumpalo, smallvec, hashbrown, rustc-hash, ahash, memchr, bytemuck, arc-swap) were added to
+`docker/deps` on 2026-09-27: **rebuild the runner image** (`docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker`)
+before a problem that uses them runs in the Docker sandbox. Host runs (and `verify`) fetch them from crates.io.
+
 ## 6. What's next, in order (ROADMAP §7)
 
 ### 6.0 Pending work: start here
@@ -230,7 +243,7 @@ test, `wrong/` solutions and `companies` (`verify` enforces the counts and `wron
 | 2 | D10 Tries (d10.py, order 11) | 11/25: First tries, Tries at work | String algorithms, Hard tries & strings; seeds from 1012 | Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; D10's zero-copy tokenizer must be harder than L3's |
 | 3 | D11 Recursion & backtracking (d11.py, order 12) | 15/28: Recursion, First backtracking, Choices & grids 6/12 | generate-parentheses, different-ways-to-add-parentheses, word-search, palindrome-partitioning, restore-ip-addresses, Fix: recursive closure can't borrow the grid (flood fill → inner `fn`); then Constraints & pruning; seeds from 1127 | |
 | 4 | D8 Intervals & greedy (d8.py, order 9) | 13/29: First greedy, Intervals | Greedy choices (9), Hard greedy (7); seeds 814–829 | |
-| 5 | **F · Performance Rust** (new section, CURRICULUM §6.1) | 0/92; runner support in progress | runner `[perf]` support first, then F2, F4 | replaces Y1 and Y4; grading order: size → counters → asm → relative timing |
+| 5 | **F · Performance Rust** (new section, CURRICULUM §6.1) | 0/92; runner support built 2026-09-27 (§5) | runner `[perf]` support first, then F2, F4 | replaces Y1 and Y4; grading order: size → counters → asm → relative timing |
 | 6 | Not started | | D7 Heaps, D13, D14; L6–L8; S5–S9 (ROADMAP §7 step 1) | write each track's CURRICULUM table first if it still needs the LeetCode 250 pass |
 
 #### Every problem not written yet (checklist)

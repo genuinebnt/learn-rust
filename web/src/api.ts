@@ -2,7 +2,7 @@
 
 export type Band = "easy" | "medium" | "hard";
 export type Mode = "write" | "fix" | "stage";
-export type Section = "D" | "L" | "S" | "C" | "Y" | "B" | "M";
+export type Section = "D" | "L" | "S" | "C" | "Y" | "F" | "B" | "M";
 export type Tier = "core" | "light" | "sde3";
 export type ContentStatus = "draft" | "ready";
 export type Progress = "not_started" | "started" | "solved" | "assisted";

@@ -21,7 +21,7 @@ old packet in `docs/rust template/`, reused by ID: W1–W98 write exercises, B1�
 | Data Structures & Algorithms | D | 14 | 275 | the two DSA coding rounds, solved in idiomatic Rust |
 | Concurrency & Async | C | 6 | ~98 | threads, channels, atomics, Tokio: most backend Rust roles |
 | Systems Rust | Y | 3 | ~40 | unsafe, FFI, verification (SDE-3 depth). Y1 and Y4 moved into F |
-| Performance Rust | F | 7 | ~92 | layout, allocation, hashing, CPU-level tricks, lock-free, serialization, graded on real measurements (SDE-3) |
+| Performance Rust | F | 7 | ~96 | layout, allocation, hashing, CPU-level tricks, lock-free, serialization, graded on real measurements (SDE-3) |
 | Backend Rust | B | 6 | ~80 | axum, tower, sqlx, protocols, resilience, observability |
 | Design in Rust | M | 2 | 24 | the machine-coding / LLD round |
 | Projects | P | 5 | 38 stages | take-homes and "build a small service" |
@@ -490,10 +490,11 @@ problems run with `--test-threads=1`. Correctness tests (visible/hidden, `wrong/
 | Medium | Vectorize | SWAR "has zero byte" newline scan · auto-vectorized sum with 8 accumulators, and why float order blocks it · division by a constant · prefix sums · (★) `std::arch` intrinsics (AVX2 and NEON behind `cfg`, runtime detection, scalar fallback) | memchr in ripgrep, simd-json |
 | Hard | Cache and SIMD | loop tiling / cache blocking for matmul (timing-graded) · Arrow-style filter kernel with a selection bitmap · (★) CSV/log tokenizer at GB/s: SIMD-classify structural bytes | simd-json / simdjson stage 1, Polars kernels |
 
-### F6 · Concurrency performance: SDE-3 · 12 (after C3)
+### F6 · Concurrency performance: SDE-3 · 16 (after C3)
 | Band | Stage | Problems | Production source |
 |---|---|---|---|
-| Medium | Contention | false sharing and `CachePadded` / `repr(align(64))` · per-thread sharded counters · sharded `RwLock<HashMap>` · what `Relaxed` vs `SeqCst` costs · rayon granularity · (★) Fix: a metrics counter that doesn't scale past 2 threads | crossbeam-utils, dashmap, the Linux kernel's per-CPU counters |
+| Medium | Contention | false sharing and `CachePadded` / `repr(align(64))` · per-thread sharded counters · sharded `RwLock<HashMap>` · what `Relaxed` vs `SeqCst` / `fetch_add` vs a CAS loop costs · rayon granularity · (★) Fix: a metrics counter that doesn't scale past 2 threads | crossbeam-utils, dashmap, the Linux kernel's per-CPU counters |
+| Medium | Waiting | `Condvar` vs spinning vs `thread::park`: a bounded work queue three ways, and when each wins · spin-then-park backoff · batching wake-ups · (★) Fix: a `Condvar` queue with lost wake-ups and a thundering herd | parking_lot, crossbeam's `Backoff`, tokio's blocking pool |
 | Hard | Lock-free | SPSC ring buffer (submission-queue style) · seqlock · RCU config reload with arc-swap · Treiber stack with epoch reclamation · (★) lock-free HdrHistogram-style latency histogram | io_uring SQ/CQ, crossbeam-epoch, arc-swap |
 
 ### F7 · I/O & serialization: SDE-3 · 10
@@ -708,7 +709,7 @@ System design (H) runs alongside from week 10 at about 1.5 hours a week.
 | D | 275 | Blind 75 · graphs seed (32) · W8, W14, W20, W31, W33, W42–W46, W48, W55, W59, W64, W84, W85, W90 | ~150 |
 | C | ~98 | B3, B6, B9, W2, W4, W5, W7, W12, W13, W18, W19, W24, W26, W34, W35, W50, W57, W58, W69–W77 | ~70 |
 | Y | ~40 | B8 | ~38 |
-| F | ~92 | W17, W23, W41, W55 | ~88 |
+| F | ~96 | W17, W23, W41, W55 | ~92 |
 | B | ~80 | W28, W86–W93, W96–W98 | ~70 |
 | M | 24 | LLD1–8, TR1, TR2, TR4, DP1–18, W49 | tests + harden stages |
 | P | 38 stages | W51, W56, W58, W71, W82, W86–W88 | tests for every stage |

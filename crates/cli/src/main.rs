@@ -191,6 +191,7 @@ async fn main() -> anyhow::Result<ExitCode> {
                         visible_tests: visible,
                         hidden_tests: hidden,
                         crates: &p.meta.crates,
+                        perf: runner_perf(p.meta.perf),
                     },
                 )
                 .await?;
@@ -218,6 +219,7 @@ struct Case {
     wrong: Vec<(String, String)>,
     rules: Option<anneal_content::Rules>,
     crates: Vec<String>,
+    perf: anneal_runner::Perf,
 }
 
 async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::Result<ExitCode> {
@@ -242,6 +244,7 @@ async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::
                 wrong: f.wrong.clone(),
                 rules: p.meta.rules.clone(),
                 crates: p.meta.crates.clone(),
+                perf: runner_perf(p.meta.perf),
             };
             let (runner, slots) = (runner.clone(), slots.clone());
             tasks.spawn(async move {
@@ -326,7 +329,7 @@ async fn verify_one(runner: &Runner, c: &Case) -> Vec<String> {
 }
 
 async fn submit(runner: &Runner, c: &Case, code: &str) -> Result<RunResult, anneal_runner::RunnerError> {
-    runner.run(&c.id, &Submission { lib_rs: code, visible_tests: &c.visible, hidden_tests: Some(&c.hidden), crates: &c.crates }).await
+    runner.run(&c.id, &Submission { lib_rs: code, visible_tests: &c.visible, hidden_tests: Some(&c.hidden), crates: &c.crates, perf: c.perf }).await
 }
 
 /// The first compiler error or failing test, for a one-line report.
@@ -418,4 +421,10 @@ fn unknown_crates(catalog: &Catalog) -> Vec<String> {
                 .map(move |c| format!("{}: crate {c:?} isn't in docker/deps/Cargo.toml", p.dir.join("problem.toml").display()))
         })
         .collect()
+}
+
+/// A problem's `[perf]` as the runner takes it; all off when there's none.
+fn runner_perf(perf: Option<anneal_content::Perf>) -> anneal_runner::Perf {
+    let p = perf.unwrap_or_default();
+    anneal_runner::Perf { release: p.release, asm: p.asm, count_allocs: p.count_allocs }
 }

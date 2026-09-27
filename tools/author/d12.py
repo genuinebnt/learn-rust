@@ -2082,6 +2082,777 @@ P.append(dict(
     related=["D4", "D8"],
 ))
 
+# ---------------------------------------------------------------- 2-D grids (medium)
+
+P.append(dict(
+    slug="unique-paths", title="Unique paths", level="medium", stage="2d-grids", tags=["2-D DP", "rolling row", "Blind 75"],
+    companies=["Amazon", "Google", "Meta", "Apple", "Microsoft", "Bloomberg", "Goldman Sachs"],
+    teaches=["A grid DP where each cell adds the cell above and the cell to the left.",
+             "One rolling row: updating `row[j] += row[j - 1]` in place reads \"above\" and \"left\" at once."],
+    statement="""
+        A robot starts in the top-left cell of an `m × n` grid and may only move right or down.
+        Return how many different paths reach the bottom-right cell.
+    """,
+    examples=[("m = 3, n = 7", "28"), ("m = 3, n = 2", "3")],
+    constraints=["1 ≤ m, n ≤ 100", "the answer fits in a u64"],
+    starter="""
+        pub fn unique_paths(m: usize, n: usize) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn unique_paths(m: usize, n: usize) -> u64 {
+            // row[j] = paths to (i, j). The first row is all 1s (only moves right).
+            let mut row = vec![1u64; n];
+            for _ in 1..m {
+                for j in 1..n {
+                    row[j] += row[j - 1]; // above (old row[j]) + left (new row[j - 1])
+                }
+            }
+            row[n - 1]
+        }
+    """,
+    visible=[
+        T("leetcode_three_by_seven", "m = 3, n = 7", "unique_paths(3, 7)", "28"),
+        T("leetcode_three_by_two", "m = 3, n = 2", "unique_paths(3, 2)", "3"),
+        T("one_cell", "m = 1, n = 1", "unique_paths(1, 1)", "1"),
+        T("one_row", "m = 1, n = 100", "unique_paths(1, 100)", "1"),
+        T("two_by_two", "m = 2, n = 2", "unique_paths(2, 2)", "2"),
+    ],
+    hidden=[
+        T("one_cell", "m = 1, n = 1", "unique_paths(1, 1)", "1"),
+        T("one_column", "m = 100, n = 1", "unique_paths(100, 1)", "1"),
+        T("two_rows", "m = 2, n = 100", "unique_paths(2, 100)", "100"),
+        T("ten_by_ten", "m = 10, n = 10", "unique_paths(10, 10)", "48_620"),
+        T("symmetric", "m = 7, n = 3", "unique_paths(7, 3)", "28"),
+        T("leetcode_large", "m = 23, n = 12", "unique_paths(23, 12)", "193_536_720"),
+        T("thirty_three", "m = 33, n = 33", "unique_paths(33, 33)", "1_832_624_140_942_590_534"),
+        T("largest_square", "m = 34, n = 34", "unique_paths(34, 34)", "7_219_428_434_016_265_740"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn count(i: usize, j: usize) -> u64 {
+                if i == 0 || j == 0 { 1 } else { count(i - 1, j) + count(i, j - 1) }
+            }
+            let mut rng = anneal_prelude::Rng::new(1218);
+            for _ in 0..300 {
+                let m = rng.int(1, 10) as usize;
+                let n = rng.int(1, 10) as usize;
+                check!(format!("m = {m}, n = {n}"), unique_paths(m, n), count(m - 1, n - 1));
+            }
+        }
+
+        #[test]
+        fn scale_many_grids() {
+            // Plain recursion visits every path: about 10¹⁸ of them for 33 × 33.
+            let total: u64 = (1..=30).map(|k| unique_paths(k, 30) % 1_000_007).sum();
+            check!("sum over m = 1..=30 of unique_paths(m, 30) % 1000007", (total, unique_paths(33, 33)), (12_292_783, 1_832_624_140_942_590_534));
+        }
+        """,
+    ],
+    wrong=dict(
+        plain_recursion="""
+            pub fn unique_paths(m: usize, n: usize) -> u64 {
+                if m == 1 || n == 1 { 1 } else { unique_paths(m - 1, n) + unique_paths(m, n - 1) }
+            }
+        """,
+        factorials="""
+            pub fn unique_paths(m: usize, n: usize) -> u64 {
+                let fact = |k: usize| (1..=k as u64).product::<u64>();
+                fact(m + n - 2) / (fact(m - 1) * fact(n - 1))
+            }
+        """,
+        one_row_too_many="""
+            pub fn unique_paths(m: usize, n: usize) -> u64 {
+                let mut row = vec![1u64; n];
+                for _ in 0..m {
+                    for j in 1..n {
+                        row[j] += row[j - 1];
+                    }
+                }
+                row[n - 1]
+            }
+        """,
+    ),
+    hints=[("approach", "paths(i, j) = paths(i - 1, j) + paths(i, j - 1), and every cell in the first row or column has one path."),
+           ("rust", "Keep one `Vec<u64>` row. `row[j] += row[j - 1]` adds the new left value to the old above value in place."),
+           ("edge case", "The closed form C(m + n - 2, m - 1) is right, but computing it with factorials overflows a `u64` from 21! on.")],
+    notes=("Each cell is reached from above or from the left, so its count is the sum of those two. A single row is enough because the update reads the old value (above) and the freshly updated one (left).", "O(m × n)", "O(n)"),
+    follow_up="How would you compute C(m + n - 2, m - 1) directly without overflowing?",
+    related=["D13"],
+))
+
+P.append(dict(
+    slug="unique-paths-ii", title="Unique paths II", level="medium", stage="2d-grids", tags=["2-D DP", "rolling row"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "Bloomberg"],
+    teaches=["An obstacle cell has 0 paths, and that zero flows on to the cells after it.",
+             "Iterating a grid of rows (`&[Vec<u8>]`) with one rolling row."],
+    statement="""
+        Same robot, but `grid[i][j] == 1` marks an obstacle the robot can't enter (0 is free).
+        Return how many paths reach the bottom-right cell. If the start or the end is an obstacle,
+        there are none.
+    """,
+    examples=[("grid = [[0, 0, 0], [0, 1, 0], [0, 0, 0]]", "2")],
+    constraints=["1 ≤ m, n ≤ 100", "grid[i][j] is 0 or 1", "the path count to every cell fits in a u64"],
+    starter="""
+        pub fn unique_paths_with_obstacles(grid: &[Vec<u8>]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn unique_paths_with_obstacles(grid: &[Vec<u8>]) -> u64 {
+            let n = grid.first().map_or(0, |r| r.len());
+            // row[j] = paths to (i, j). Seed one path "arriving" at the start.
+            let mut row = vec![0u64; n];
+            if n > 0 {
+                row[0] = 1;
+            }
+            for cells in grid {
+                for j in 0..n {
+                    if cells[j] == 1 {
+                        row[j] = 0;
+                    } else if j > 0 {
+                        row[j] += row[j - 1];
+                    }
+                }
+            }
+            row.last().copied().unwrap_or(0)
+        }
+    """,
+    visible=[
+        T("leetcode_center_rock", "grid = [[0, 0, 0], [0, 1, 0], [0, 0, 0]]", "unique_paths_with_obstacles(&[vec![0, 0, 0], vec![0, 1, 0], vec![0, 0, 0]])", "2"),
+        T("leetcode_two_by_two", "grid = [[0, 1], [0, 0]]", "unique_paths_with_obstacles(&[vec![0, 1], vec![0, 0]])", "1"),
+        T("one_free_cell", "grid = [[0]]", "unique_paths_with_obstacles(&[vec![0]])", "1"),
+        T("one_blocked_cell", "grid = [[1]]", "unique_paths_with_obstacles(&[vec![1]])", "0"),
+        T("start_blocked", "grid = [[1, 0], [0, 0]]", "unique_paths_with_obstacles(&[vec![1, 0], vec![0, 0]])", "0"),
+        T("end_blocked", "grid = [[0, 0], [0, 1]]", "unique_paths_with_obstacles(&[vec![0, 0], vec![0, 1]])", "0"),
+    ],
+    hidden=[
+        T("one_blocked_cell", "grid = [[1]]", "unique_paths_with_obstacles(&[vec![1]])", "0"),
+        T("start_blocked", "grid = [[1, 0], [0, 0]]", "unique_paths_with_obstacles(&[vec![1, 0], vec![0, 0]])", "0"),
+        T("first_row_cut_off", "grid = [[0, 1, 0], [0, 0, 0]]", "unique_paths_with_obstacles(&[vec![0, 1, 0], vec![0, 0, 0]])", "1"),
+        T("wall", "grid = [[0, 0], [1, 1], [0, 0]]", "unique_paths_with_obstacles(&[vec![0, 0], vec![1, 1], vec![0, 0]])", "0"),
+        T("single_row_blocked", "grid = [[0, 0, 1, 0]]", "unique_paths_with_obstacles(&[vec![0, 0, 1, 0]])", "0"),
+        T("single_column", "grid = [[0], [0], [0]]", "unique_paths_with_obstacles(&[vec![0], vec![0], vec![0]])", "1"),
+        T("single_column_blocked", "grid = [[0], [1], [0]]", "unique_paths_with_obstacles(&[vec![0], vec![1], vec![0]])", "0"),
+        T("scattered", "grid = [[0, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]]",
+          "unique_paths_with_obstacles(&[vec![0, 0, 0, 0], vec![0, 1, 0, 0], vec![0, 0, 0, 1], vec![1, 0, 0, 0]])", "3"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn count(g: &[Vec<u8>], i: usize, j: usize) -> u64 {
+                if g[i][j] == 1 {
+                    return 0;
+                }
+                if i == 0 && j == 0 {
+                    return 1;
+                }
+                (if i > 0 { count(g, i - 1, j) } else { 0 }) + (if j > 0 { count(g, i, j - 1) } else { 0 })
+            }
+            let mut rng = anneal_prelude::Rng::new(1219);
+            for _ in 0..300 {
+                let m = rng.int(1, 7) as usize;
+                let n = rng.int(1, 7) as usize;
+                let grid: Vec<Vec<u8>> = (0..m).map(|_| (0..n).map(|_| (rng.below(4) == 0) as u8).collect()).collect();
+                check!(format!("grid = {grid:?}"), unique_paths_with_obstacles(&grid), count(&grid, m - 1, n - 1));
+            }
+        }
+
+        #[test]
+        fn scale_free_33() {
+            let grid = vec![vec![0u8; 33]; 33];
+            check!("grid = 33 × 33, no obstacles", unique_paths_with_obstacles(&grid), 1_832_624_140_942_590_534);
+        }
+
+        #[test]
+        fn scale_rocks_33() {
+            let grid: Vec<Vec<u8>> = (0..33usize)
+                .map(|i| (0..33usize).map(|j| ((i * 7 + j * 3) % 11 == 5 && (i, j) != (0, 0) && (i, j) != (32, 32)) as u8).collect())
+                .collect();
+            check!("grid = 33 × 33, rock where (7i + 3j) % 11 == 5", unique_paths_with_obstacles(&grid), 105_440_613_552_200);
+        }
+        """,
+    ],
+    wrong=dict(
+        edges_always_one="""
+            pub fn unique_paths_with_obstacles(grid: &[Vec<u8>]) -> u64 {
+                let (m, n) = (grid.len(), grid[0].len());
+                let mut paths = vec![vec![0u64; n]; m];
+                for i in 0..m {
+                    for j in 0..n {
+                        paths[i][j] = if grid[i][j] == 1 {
+                            0
+                        } else if i == 0 || j == 0 {
+                            1
+                        } else {
+                            paths[i - 1][j] + paths[i][j - 1]
+                        };
+                    }
+                }
+                paths[m - 1][n - 1]
+            }
+        """,
+        plain_recursion="""
+            fn count(g: &[Vec<u8>], i: usize, j: usize) -> u64 {
+                if g[i][j] == 1 {
+                    return 0;
+                }
+                if i == 0 && j == 0 {
+                    return 1;
+                }
+                (if i > 0 { count(g, i - 1, j) } else { 0 }) + (if j > 0 { count(g, i, j - 1) } else { 0 })
+            }
+
+            pub fn unique_paths_with_obstacles(grid: &[Vec<u8>]) -> u64 {
+                count(grid, grid.len() - 1, grid[0].len() - 1)
+            }
+        """,
+    ),
+    hints=[("approach", "Same recurrence as Unique paths, except an obstacle cell is 0. Seed the start with 1 (or 0 if it's a rock)."),
+           ("rust", "One `Vec<u64>` row: for each cell, set `row[j] = 0` on a rock, else `row[j] += row[j - 1]` for j > 0."),
+           ("edge case", "A rock in the first row blocks every cell to its right in that row; don't initialise the first row and column to 1 blindly.")],
+    notes=("Rocks contribute 0, and that zero propagates: cells past a rock in the first row or column are unreachable. Seeding row[0] = 1 before the first row handles a rock at the start too.", "O(m × n)", "O(n)"),
+    follow_up="What if the robot could also move diagonally, or if some cells cost more to cross?",
+    related=["D9"],
+))
+
+P.append(dict(
+    slug="minimum-path-sum", title="Minimum path sum", level="medium", stage="2d-grids", tags=["2-D DP", "rolling row"],
+    companies=["Amazon", "Google", "Meta", "Apple", "Microsoft", "Goldman Sachs"],
+    teaches=["The min-cost version of the grid walk: each cell adds its value to the cheaper of above and left.",
+             "Seeding a rolling row with `u64::MAX` so the first row only takes from the left."],
+    statement="""
+        Every cell of a non-empty grid holds a cost. Moving only right or down from the top-left to
+        the bottom-right, return the smallest total cost of the cells on the path (both ends
+        included).
+    """,
+    examples=[("grid = [[1, 3, 1], [1, 5, 1], [4, 2, 1]]", "7 (1 → 3 → 1 → 1 → 1)")],
+    constraints=["1 ≤ m, n ≤ 1000", "0 ≤ grid[i][j] ≤ 10⁴"],
+    starter="""
+        pub fn min_path_sum(grid: &[Vec<u32>]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn min_path_sum(grid: &[Vec<u32>]) -> u64 {
+            let n = grid[0].len();
+            // best[j] = cheapest path to (i, j). Before the first row only the start is reachable.
+            let mut best = vec![u64::MAX; n];
+            best[0] = 0;
+            for row in grid {
+                for j in 0..n {
+                    let from = if j > 0 { best[j].min(best[j - 1]) } else { best[0] };
+                    best[j] = from + row[j] as u64;
+                }
+            }
+            best[n - 1]
+        }
+    """,
+    visible=[
+        T("leetcode_three_by_three", "grid = [[1, 3, 1], [1, 5, 1], [4, 2, 1]]", "min_path_sum(&[vec![1, 3, 1], vec![1, 5, 1], vec![4, 2, 1]])", "7"),
+        T("leetcode_two_by_three", "grid = [[1, 2, 3], [4, 5, 6]]", "min_path_sum(&[vec![1, 2, 3], vec![4, 5, 6]])", "12"),
+        T("one_cell", "grid = [[5]]", "min_path_sum(&[vec![5]])", "5"),
+        T("one_row", "grid = [[1, 2, 3]]", "min_path_sum(&[vec![1, 2, 3]])", "6"),
+        T("one_column", "grid = [[1], [2], [3]]", "min_path_sum(&[vec![1], vec![2], vec![3]])", "6"),
+    ],
+    hidden=[
+        T("one_cell", "grid = [[0]]", "min_path_sum(&[vec![0]])", "0"),
+        T("zeros", "grid = [[0, 0], [0, 0]]", "min_path_sum(&[vec![0, 0], vec![0, 0]])", "0"),
+        T("tie", "grid = [[1, 2], [1, 1]]", "min_path_sum(&[vec![1, 2], vec![1, 1]])", "3"),
+        T("winding", "grid = [[1, 1, 9, 9], [5, 1, 9, 9], [5, 9, 9, 9], [1, 1, 1, 1]]",
+          "min_path_sum(&[vec![1, 1, 9, 9], vec![5, 1, 9, 9], vec![5, 9, 9, 9], vec![1, 1, 1, 1]])", "15"),
+        T("greedy_trap", "grid = 7 × 8 (LeetCode)",
+          "min_path_sum(&[vec![1, 4, 8, 6, 2, 2, 1, 7], vec![4, 7, 3, 1, 4, 5, 5, 1], vec![8, 8, 2, 1, 1, 8, 0, 1], vec![8, 9, 2, 9, 8, 0, 8, 9], vec![5, 7, 5, 7, 1, 8, 5, 5], vec![7, 0, 9, 4, 5, 6, 5, 6], vec![4, 9, 9, 7, 9, 1, 9, 0]])", "47"),
+        T("long_row", "grid = [[10000; 1000]]", "min_path_sum(&[vec![10_000; 1000]])", "10_000_000"),
+        T("past_u32", "grid = 1000 × 1000 of 10000", "min_path_sum(&vec![vec![10_000; 1000]; 1000])", "19_990_000"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn cheapest(g: &[Vec<u32>], i: usize, j: usize) -> u64 {
+                let here = g[i][j] as u64;
+                match (i, j) {
+                    (0, 0) => here,
+                    (0, _) => here + cheapest(g, 0, j - 1),
+                    (_, 0) => here + cheapest(g, i - 1, 0),
+                    _ => here + cheapest(g, i - 1, j).min(cheapest(g, i, j - 1)),
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1220);
+            for _ in 0..300 {
+                let m = rng.int(1, 6) as usize;
+                let n = rng.int(1, 6) as usize;
+                let grid: Vec<Vec<u32>> = (0..m).map(|_| rng.vec(n, 0, 9)).collect();
+                check!(format!("grid = {grid:?}"), min_path_sum(&grid), cheapest(&grid, m - 1, n - 1));
+            }
+        }
+
+        #[test]
+        fn scale_1000() {
+            let grid: Vec<Vec<u32>> = (0..1000u32).map(|i| (0..1000u32).map(|j| (i * 31 + j * 17) % 100).collect()).collect();
+            check!("grid[i][j] = (31i + 17j) % 100, 1000 × 1000", min_path_sum(&grid), 72_771);
+        }
+        """,
+    ],
+    wrong=dict(
+        greedy_cheaper_neighbour="""
+            pub fn min_path_sum(grid: &[Vec<u32>]) -> u64 {
+                let (m, n) = (grid.len(), grid[0].len());
+                let (mut i, mut j) = (0, 0);
+                let mut total = grid[0][0] as u64;
+                while (i, j) != (m - 1, n - 1) {
+                    if i == m - 1 {
+                        j += 1;
+                    } else if j == n - 1 || grid[i + 1][j] <= grid[i][j + 1] {
+                        i += 1;
+                    } else {
+                        j += 1;
+                    }
+                    total += grid[i][j] as u64;
+                }
+                total
+            }
+        """,
+        plain_recursion="""
+            fn cheapest(g: &[Vec<u32>], i: usize, j: usize) -> u64 {
+                let here = g[i][j] as u64;
+                match (i, j) {
+                    (0, 0) => here,
+                    (0, _) => here + cheapest(g, 0, j - 1),
+                    (_, 0) => here + cheapest(g, i - 1, 0),
+                    _ => here + cheapest(g, i - 1, j).min(cheapest(g, i, j - 1)),
+                }
+            }
+
+            pub fn min_path_sum(grid: &[Vec<u32>]) -> u64 {
+                cheapest(grid, grid.len() - 1, grid[0].len() - 1)
+            }
+        """,
+        first_row_not_summed="""
+            pub fn min_path_sum(grid: &[Vec<u32>]) -> u64 {
+                let (m, n) = (grid.len(), grid[0].len());
+                let mut best = vec![vec![0u64; n]; m];
+                for i in 0..m {
+                    for j in 0..n {
+                        let here = grid[i][j] as u64;
+                        best[i][j] = match (i, j) {
+                            (0, _) => here,
+                            (_, 0) => here + best[i - 1][0],
+                            _ => here + best[i - 1][j].min(best[i][j - 1]),
+                        };
+                    }
+                }
+                best[m - 1][n - 1]
+            }
+        """,
+    ),
+    hints=[("approach", "best(i, j) = grid[i][j] + min(best(i - 1, j), best(i, j - 1)); the first row and column have only one way in."),
+           ("rust", "A rolling `Vec<u64>` seeded with `u64::MAX` except `best[0] = 0` makes the first row take only from the left without special cases."),
+           ("edge case", "Stepping to the cheaper neighbour each time is not optimal: a cheap step can lead into an expensive region.")],
+    notes=("Each cell is entered from above or from the left, so its best cost is its own value plus the cheaper of those two. Sweeping rows top to bottom and cells left to right means both are ready.", "O(m × n)", "O(n)"),
+    follow_up="How would you print the path itself, and how would the approach change if moves in all four directions were allowed? (Then it's Dijkstra.)",
+    related=["D9"],
+))
+
+P.append(dict(
+    slug="triangle", title="Triangle", level="medium", stage="2d-grids", tags=["2-D DP", "bottom-up"],
+    companies=["Amazon", "Google", "Apple", "Microsoft", "Bloomberg"],
+    teaches=["Solving bottom-up so every cell has exactly two choices below it and the answer lands at the top.",
+             "Reusing one `Vec` that shrinks by one live cell per row."],
+    statement="""
+        Walk from the top of a triangle of numbers to the bottom row. From position `c` in one row
+        you may step to position `c` or `c + 1` in the next. Return the smallest possible sum of
+        the numbers on the walk.
+    """,
+    examples=[("triangle = [[2], [3, 4], [6, 5, 7], [4, 1, 8, 3]]", "11 (2 + 3 + 5 + 1)")],
+    constraints=["1 ≤ triangle.len() ≤ 2000", "triangle[r].len() == r + 1", "-10⁴ ≤ triangle[r][c] ≤ 10⁴"],
+    starter="""
+        pub fn minimum_total(triangle: &[Vec<i32>]) -> i64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn minimum_total(triangle: &[Vec<i32>]) -> i64 {
+            // below[c] = the cheapest walk from (r, c) down to the bottom, filled from the last row up.
+            let mut below: Vec<i64> = triangle[triangle.len() - 1].iter().map(|&x| x as i64).collect();
+            for row in triangle.iter().rev().skip(1) {
+                for (c, &x) in row.iter().enumerate() {
+                    below[c] = x as i64 + below[c].min(below[c + 1]);
+                }
+            }
+            below[0]
+        }
+    """,
+    visible=[
+        T("leetcode_four_rows", "triangle = [[2], [3, 4], [6, 5, 7], [4, 1, 8, 3]]", "minimum_total(&[vec![2], vec![3, 4], vec![6, 5, 7], vec![4, 1, 8, 3]])", "11"),
+        T("leetcode_one_row", "triangle = [[-10]]", "minimum_total(&[vec![-10]])", "-10"),
+        T("two_rows", "triangle = [[1], [2, 3]]", "minimum_total(&[vec![1], vec![2, 3]])", "3"),
+        T("cheap_first_step_is_a_trap", "triangle = [[1], [2, 3], [100, 100, 1]]", "minimum_total(&[vec![1], vec![2, 3], vec![100, 100, 1]])", "5"),
+        T("steps_must_be_adjacent", "triangle = [[-1], [2, 3], [1, -1, -3]]", "minimum_total(&[vec![-1], vec![2, 3], vec![1, -1, -3]])", "-1"),
+    ],
+    hidden=[
+        T("one_row", "triangle = [[7]]", "minimum_total(&[vec![7]])", "7"),
+        T("zeros", "triangle = [[0], [0, 0]]", "minimum_total(&[vec![0], vec![0, 0]])", "0"),
+        T("greedy_trap", "triangle = [[1], [2, 3], [100, 100, 1]]", "minimum_total(&[vec![1], vec![2, 3], vec![100, 100, 1]])", "5"),
+        T("not_row_minimums", "triangle = [[-1], [2, 3], [1, -1, -3]]", "minimum_total(&[vec![-1], vec![2, 3], vec![1, -1, -3]])", "-1"),
+        T("all_max", "triangle = [[10000], [10000, 10000]]", "minimum_total(&[vec![10_000], vec![10_000, 10_000]])", "20_000"),
+        T("all_min", "triangle = [[-10000], [-10000, -10000], [-10000, -10000, -10000]]",
+          "minimum_total(&[vec![-10_000], vec![-10_000, -10_000], vec![-10_000, -10_000, -10_000]])", "-30_000"),
+        T("deep_negative", "triangle = 1000 rows of -10000", "minimum_total(&(1..=1000).map(|r| vec![-10_000; r]).collect::<Vec<_>>())", "-10_000_000"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn walk(t: &[Vec<i32>], r: usize, c: usize) -> i64 {
+                let here = t[r][c] as i64;
+                if r + 1 == t.len() { here } else { here + walk(t, r + 1, c).min(walk(t, r + 1, c + 1)) }
+            }
+            let mut rng = anneal_prelude::Rng::new(1221);
+            for _ in 0..300 {
+                let rows = rng.int(1, 10) as usize;
+                let tri: Vec<Vec<i32>> = (1..=rows).map(|len| rng.vec(len, -9, 9)).collect();
+                check!(format!("triangle = {tri:?}"), minimum_total(&tri), walk(&tri, 0, 0));
+            }
+        }
+
+        #[test]
+        fn scale_2000_rows() {
+            let tri: Vec<Vec<i32>> = (0..2000i32).map(|r| (0..=r).map(|c| (r * 7 + c * 13) % 201 - 100).collect()).collect();
+            check!("triangle[r][c] = (7r + 13c) % 201 - 100, 2000 rows", minimum_total(&tri), -58_605);
+        }
+        """,
+    ],
+    wrong=dict(
+        greedy_smaller_child="""
+            pub fn minimum_total(triangle: &[Vec<i32>]) -> i64 {
+                let mut c = 0;
+                let mut total = triangle[0][0] as i64;
+                for row in &triangle[1..] {
+                    if row[c + 1] < row[c] {
+                        c += 1;
+                    }
+                    total += row[c] as i64;
+                }
+                total
+            }
+        """,
+        row_minimums="""
+            pub fn minimum_total(triangle: &[Vec<i32>]) -> i64 {
+                triangle.iter().map(|row| *row.iter().min().unwrap() as i64).sum()
+            }
+        """,
+        plain_recursion="""
+            fn walk(t: &[Vec<i32>], r: usize, c: usize) -> i64 {
+                let here = t[r][c] as i64;
+                if r + 1 == t.len() { here } else { here + walk(t, r + 1, c).min(walk(t, r + 1, c + 1)) }
+            }
+
+            pub fn minimum_total(triangle: &[Vec<i32>]) -> i64 {
+                walk(triangle, 0, 0)
+            }
+        """,
+    ),
+    hints=[("approach", "Go bottom-up: the best walk from (r, c) is triangle[r][c] plus the better of the best walks from (r + 1, c) and (r + 1, c + 1)."),
+           ("rust", "Start `below` as the last row (as `i64`), then for each row above update `below[c]` left to right; `below[c + 1]` hasn't been overwritten yet."),
+           ("edge case", "Stepping to the smaller child greedily fails when a small number leads to a big one below.")],
+    notes=("Bottom-up, every cell has exactly two children and the answer ends up at below[0]; top-down you would need to take a min over the whole last row. Each row reuses the same `Vec`.", "O(n²) for n rows (every cell once)", "O(n)"),
+    follow_up="Can you do it in O(1) extra space by overwriting the input, and when would that be acceptable?",
+    related=["D11"],
+))
+
+P.append(dict(
+    slug="maximal-square", title="Maximal square", level="medium", stage="2d-grids", tags=["2-D DP", "rolling row"],
+    companies=["Google", "Amazon", "Meta", "Apple", "Microsoft", "Bloomberg"],
+    teaches=["A square ending at (i, j) is limited by the smallest square above, to the left and diagonally up-left.",
+             "Keeping the up-left value in a variable while updating one row in place."],
+    statement="""
+        `matrix` is a grid of `'0'` and `'1'` characters, one string per row. Return the area of
+        the largest square made only of `'1'`s.
+    """,
+    examples=[("matrix = [\"10100\", \"10111\", \"11111\", \"10010\"]", "4 (a 2 × 2 square)")],
+    constraints=["0 ≤ rows, columns ≤ 1000", "every row has the same length and holds only '0' and '1'"],
+    starter="""
+        pub fn maximal_square(matrix: &[&str]) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn maximal_square(matrix: &[&str]) -> usize {
+            let cols = matrix.first().map_or(0, |r| r.len());
+            // side[j + 1] = the largest all-'1' square whose bottom-right corner is (i, j).
+            let mut side = vec![0usize; cols + 1];
+            let mut best = 0;
+            for row in matrix {
+                let mut up_left = 0;
+                for (j, &b) in row.as_bytes().iter().enumerate() {
+                    let up = side[j + 1];
+                    side[j + 1] = if b == b'1' { 1 + up_left.min(up).min(side[j]) } else { 0 };
+                    up_left = up;
+                    best = best.max(side[j + 1]);
+                }
+            }
+            best * best
+        }
+    """,
+    visible=[
+        T("leetcode_four_rows", "matrix = [\"10100\", \"10111\", \"11111\", \"10010\"]", "maximal_square(&[\"10100\", \"10111\", \"11111\", \"10010\"])", "4"),
+        T("leetcode_diagonal", "matrix = [\"01\", \"10\"]", "maximal_square(&[\"01\", \"10\"])", "1"),
+        T("leetcode_zero", "matrix = [\"0\"]", "maximal_square(&[\"0\"])", "0"),
+        T("empty", "matrix = []", "maximal_square(&[])", "0"),
+        T("area_not_side", "matrix = [\"111\", \"111\", \"111\"]", "maximal_square(&[\"111\", \"111\", \"111\"])", "9"),
+    ],
+    hidden=[
+        T("empty", "matrix = []", "maximal_square(&[])", "0"),
+        T("single_one", "matrix = [\"1\"]", "maximal_square(&[\"1\"])", "1"),
+        T("row_of_zeros", "matrix = [\"0000\"]", "maximal_square(&[\"0000\"])", "0"),
+        T("rectangle", "matrix = [\"1111\", \"1111\"]", "maximal_square(&[\"1111\", \"1111\"])", "4"),
+        T("hole_in_the_middle", "matrix = [\"111\", \"101\", \"111\"]", "maximal_square(&[\"111\", \"101\", \"111\"])", "1"),
+        T("rounded_corners", "matrix = [\"0110\", \"1111\", \"1111\", \"0110\"]", "maximal_square(&[\"0110\", \"1111\", \"1111\", \"0110\"])", "4"),
+        T("square_at_the_edge", "matrix = [\"1110\", \"1110\", \"1101\"]", "maximal_square(&[\"1110\", \"1110\", \"1101\"])", "4"),
+        T("bottom_right", "matrix = [\"11110\", \"11110\", \"11011\", \"11111\"]", "maximal_square(&[\"11110\", \"11110\", \"11011\", \"11111\"])", "4"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1222);
+            for _ in 0..300 {
+                let m = rng.int(0, 6) as usize;
+                let n = rng.int(1, 6) as usize;
+                let rows: Vec<String> = (0..m).map(|_| rng.string(n, "1110")).collect();
+                let refs: Vec<&str> = rows.iter().map(|r| r.as_str()).collect();
+                let g: Vec<&[u8]> = rows.iter().map(|r| r.as_bytes()).collect();
+                let mut want = 0;
+                for i in 0..m {
+                    for j in 0..n {
+                        for k in 1..=(m - i).min(n - j) {
+                            if (i..i + k).all(|r| (j..j + k).all(|c| g[r][c] == b'1')) {
+                                want = want.max(k * k);
+                            }
+                        }
+                    }
+                }
+                check!(format!("matrix = {rows:?}"), maximal_square(&refs), want);
+            }
+        }
+
+        #[test]
+        fn scale_all_ones() {
+            let rows = vec!["1".repeat(1000); 1000];
+            let refs: Vec<&str> = rows.iter().map(|r| r.as_str()).collect();
+            check!("matrix = 1000 × 1000 of '1'", maximal_square(&refs), 1_000_000);
+        }
+
+        #[test]
+        fn scale_scattered_zeros() {
+            let rows: Vec<String> = (0..1000usize).map(|i| (0..1000usize).map(|j| if (i * i + j * 7) % 97 == 0 { '0' } else { '1' }).collect()).collect();
+            let refs: Vec<&str> = rows.iter().map(|r| r.as_str()).collect();
+            check!("matrix = 1000 × 1000, '0' where (i² + 7j) % 97 == 0", maximal_square(&refs), 576);
+        }
+        """,
+    ],
+    wrong=dict(
+        returns_the_side="""
+            pub fn maximal_square(matrix: &[&str]) -> usize {
+                let cols = matrix.first().map_or(0, |r| r.len());
+                let mut side = vec![0usize; cols + 1];
+                let mut best = 0;
+                for row in matrix {
+                    let mut up_left = 0;
+                    for (j, &b) in row.as_bytes().iter().enumerate() {
+                        let up = side[j + 1];
+                        side[j + 1] = if b == b'1' { 1 + up_left.min(up).min(side[j]) } else { 0 };
+                        up_left = up;
+                        best = best.max(side[j + 1]);
+                    }
+                }
+                best
+            }
+        """,
+        forgets_the_diagonal="""
+            pub fn maximal_square(matrix: &[&str]) -> usize {
+                let cols = matrix.first().map_or(0, |r| r.len());
+                let mut side = vec![0usize; cols + 1];
+                let mut best = 0;
+                for row in matrix {
+                    for (j, &b) in row.as_bytes().iter().enumerate() {
+                        side[j + 1] = if b == b'1' { 1 + side[j + 1].min(side[j]) } else { 0 };
+                        best = best.max(side[j + 1]);
+                    }
+                }
+                best * best
+            }
+        """,
+        grow_every_square="""
+            pub fn maximal_square(matrix: &[&str]) -> usize {
+                let g: Vec<&[u8]> = matrix.iter().map(|r| r.as_bytes()).collect();
+                let (m, n) = (g.len(), g.first().map_or(0, |r| r.len()));
+                let mut best = 0;
+                for i in 0..m {
+                    for j in 0..n {
+                        let mut k = 1;
+                        while i + k <= m && j + k <= n && (i..i + k).all(|r| (j..j + k).all(|c| g[r][c] == b'1')) {
+                            best = best.max(k);
+                            k += 1;
+                        }
+                    }
+                }
+                best * best
+            }
+        """,
+    ),
+    hints=[("approach", "side(i, j) = 1 + min(side(i - 1, j), side(i, j - 1), side(i - 1, j - 1)) when the cell is '1', else 0. The answer is the largest side, squared."),
+           ("rust", "Compare `row.as_bytes()[j]` with `b'1'`. In one rolling row, save the old `side[j + 1]` before overwriting it: it is the next cell's up-left."),
+           ("edge case", "The question asks for the area, not the side. A missing diagonal cell must shrink the square: [\"111\", \"101\", \"111\"] → 1.")],
+    notes=("A square with corner (i, j) of side k needs squares of side k - 1 ending above, to the left and up-left, so the smallest of the three limits it. The row is updated in place with one saved value for the diagonal.", "O(m × n)", "O(n)"),
+    follow_up="How would you find the largest rectangle of 1s instead? (Histogram + monotonic stack per row.)",
+    related=["D3"],
+))
+
+P.append(dict(
+    slug="dungeon-game", title="Dungeon game", level="hard", stage="2d-grids", tags=["2-D DP", "backwards DP"],
+    companies=["Google", "Amazon", "Microsoft", "Meta"],
+    teaches=["Solving from the goal backwards when the constraint (health never below 1) depends on the future, not the past.",
+             "Clamping with `.max(1)` at every step."],
+    statement="""
+        A knight starts in the top-left room of a dungeon and must reach the princess in the
+        bottom-right room, moving only right or down. Each room changes his health by
+        `dungeon[i][j]` (negative hurts, positive heals), including the first and last rooms. If
+        his health ever drops to 0 or below, he dies. Return the least starting health that gets
+        him through.
+    """,
+    examples=[("dungeon = [[-2, -3, 3], [-5, -10, 1], [10, 30, -5]]", "7 (right, right, down, down)")],
+    constraints=["1 ≤ m, n ≤ 500", "-1000 ≤ dungeon[i][j] ≤ 1000"],
+    starter="""
+        pub fn calculate_minimum_hp(dungeon: &[Vec<i32>]) -> i64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn calculate_minimum_hp(dungeon: &[Vec<i32>]) -> i64 {
+            let n = dungeon[0].len();
+            // need[j] = the least health to enter room (i, j) and survive to the end.
+            // Extra slot n and the "row below" start at MAX, except the princess's exit.
+            let mut need = vec![i64::MAX; n + 1];
+            need[n - 1] = 1;
+            for row in dungeon.iter().rev() {
+                for j in (0..n).rev() {
+                    let next = need[j].min(need[j + 1]); // down or right
+                    need[j] = (next - row[j] as i64).max(1);
+                }
+            }
+            need[0]
+        }
+    """,
+    visible=[
+        T("leetcode_three_by_three", "dungeon = [[-2, -3, 3], [-5, -10, 1], [10, 30, -5]]", "calculate_minimum_hp(&[vec![-2, -3, 3], vec![-5, -10, 1], vec![10, 30, -5]])", "7"),
+        T("leetcode_one_room", "dungeon = [[0]]", "calculate_minimum_hp(&[vec![0]])", "1"),
+        T("healing_room", "dungeon = [[100]] (health must start at least 1)", "calculate_minimum_hp(&[vec![100]])", "1"),
+        T("hurting_room", "dungeon = [[-5]]", "calculate_minimum_hp(&[vec![-5]])", "6"),
+        T("biggest_sum_is_not_safest", "dungeon = [[3, -20, 30], [-3, 4, 0]]", "calculate_minimum_hp(&[vec![3, -20, 30], vec![-3, 4, 0]])", "1"),
+    ],
+    hidden=[
+        T("one_room", "dungeon = [[0]]", "calculate_minimum_hp(&[vec![0]])", "1"),
+        T("known_trap", "dungeon = [[1, -3, 3], [0, -2, 0], [-3, -3, -3]]", "calculate_minimum_hp(&[vec![1, -3, 3], vec![0, -2, 0], vec![-3, -3, -3]])", "3"),
+        T("avoid_the_pit", "dungeon = [[0, 5], [-1000, 0]]", "calculate_minimum_hp(&[vec![0, 5], vec![-1000, 0]])", "1"),
+        T("heal_comes_too_late", "dungeon = [[1, -2, 3], [2, -2, -2]]", "calculate_minimum_hp(&[vec![1, -2, 3], vec![2, -2, -2]])", "2"),
+        T("one_row", "dungeon = [[-1000, -1000, -1000]]", "calculate_minimum_hp(&[vec![-1000, -1000, -1000]])", "3001"),
+        T("one_column", "dungeon = [[2], [1]]", "calculate_minimum_hp(&[vec![2], vec![1]])", "1"),
+        T("last_room_hurts", "dungeon = [[0, 0, 0], [1, 1, -1]]", "calculate_minimum_hp(&[vec![0, 0, 0], vec![1, 1, -1]])", "1"),
+        T("worst_case", "dungeon = 500 × 500 of -1000", "calculate_minimum_hp(&vec![vec![-1000; 500]; 500])", "999_001"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // Try every path; each needs 1 - (its lowest running total), at least 1.
+            fn walk(d: &[Vec<i32>], i: usize, j: usize, sum: i64, low: i64, best: &mut i64) {
+                let sum = sum + d[i][j] as i64;
+                let low = low.min(sum);
+                if i + 1 == d.len() && j + 1 == d[0].len() {
+                    *best = (*best).min((1 - low).max(1));
+                    return;
+                }
+                if i + 1 < d.len() {
+                    walk(d, i + 1, j, sum, low, best);
+                }
+                if j + 1 < d[0].len() {
+                    walk(d, i, j + 1, sum, low, best);
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1223);
+            for _ in 0..300 {
+                let m = rng.int(1, 5) as usize;
+                let n = rng.int(1, 5) as usize;
+                let d: Vec<Vec<i32>> = (0..m).map(|_| rng.vec(n, -10, 10)).collect();
+                let mut want = i64::MAX;
+                walk(&d, 0, 0, 0, i64::MAX, &mut want);
+                check!(format!("dungeon = {d:?}"), calculate_minimum_hp(&d), want);
+            }
+        }
+
+        #[test]
+        fn scale_500() {
+            let d: Vec<Vec<i32>> = (0..500i32).map(|i| (0..500i32).map(|j| (i * 37 + j * 91) % 2001 - 1000).collect()).collect();
+            check!("dungeon[i][j] = (37i + 91j) % 2001 - 1000, 500 × 500", calculate_minimum_hp(&d), 5996);
+        }
+        """,
+    ],
+    wrong=dict(
+        forward_largest_sum="""
+            pub fn calculate_minimum_hp(dungeon: &[Vec<i32>]) -> i64 {
+                let (m, n) = (dungeon.len(), dungeon[0].len());
+                // (running sum, lowest running sum) along the path with the larger sum.
+                let mut best = vec![vec![(0i64, 0i64); n]; m];
+                for i in 0..m {
+                    for j in 0..n {
+                        let prev = match (i, j) {
+                            (0, 0) => (0, 0),
+                            (0, _) => best[0][j - 1],
+                            (_, 0) => best[i - 1][0],
+                            _ => if best[i - 1][j].0 >= best[i][j - 1].0 { best[i - 1][j] } else { best[i][j - 1] },
+                        };
+                        let sum = prev.0 + dungeon[i][j] as i64;
+                        best[i][j] = (sum, prev.1.min(sum));
+                    }
+                }
+                1 - best[m - 1][n - 1].1
+            }
+        """,
+        no_clamp="""
+            pub fn calculate_minimum_hp(dungeon: &[Vec<i32>]) -> i64 {
+                let n = dungeon[0].len();
+                let mut need = vec![i64::MAX; n + 1];
+                need[n - 1] = 1;
+                for row in dungeon.iter().rev() {
+                    for j in (0..n).rev() {
+                        let next = need[j].min(need[j + 1]);
+                        need[j] = next - row[j] as i64;
+                    }
+                }
+                need[0].max(1)
+            }
+        """,
+        plain_recursion="""
+            fn need(d: &[Vec<i32>], i: usize, j: usize) -> i64 {
+                let (m, n) = (d.len(), d[0].len());
+                let next = if i + 1 == m && j + 1 == n {
+                    1
+                } else {
+                    let down = if i + 1 < m { need(d, i + 1, j) } else { i64::MAX };
+                    let right = if j + 1 < n { need(d, i, j + 1) } else { i64::MAX };
+                    down.min(right)
+                };
+                (next - d[i][j] as i64).max(1)
+            }
+
+            pub fn calculate_minimum_hp(dungeon: &[Vec<i32>]) -> i64 {
+                need(dungeon, 0, 0)
+            }
+        """,
+    ),
+    hints=[("approach", "Work backwards: need(i, j) = max(1, min(need(i + 1, j), need(i, j + 1)) - dungeon[i][j]). The princess's room needs 1 after its effect."),
+           ("rust", "A rolling `Vec<i64>` of width n + 1 filled with `i64::MAX`, with the slot below the princess set to 1, avoids edge cases; walk rows and columns in reverse."),
+           ("edge case", "Going forwards and keeping the path with the biggest total fails: a path can end rich but dip too low on the way. Health must also never be required below 1.")],
+    notes=("Forwards, a cell would need two numbers (current health and the lowest point) and neither dominates. Backwards, one number suffices: the least health on entry. The `.max(1)` says that a big heal later can't pay for dying now.", "O(m × n)", "O(n)"),
+    follow_up="Why doesn't a forward DP work here? Give a small grid where it fails.",
+    related=["D4"],
+))
+
 STAGES = [
     ("1d-basics", "1-D basics", "easy"),
     ("1d-choices", "1-D choices", "medium"),

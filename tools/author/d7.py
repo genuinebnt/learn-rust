@@ -1705,6 +1705,1357 @@ P.append(dict(
     related=["D1", "S4", "L3"],
 ))
 
+# ---------------------------------------------------------------- two heaps & merges (hard)
+
+MEDIAN_SOLUTION = """
+    use std::cmp::Reverse;
+    use std::collections::{BinaryHeap, HashMap};
+
+    #[derive(Default)]
+    pub struct MedianFinder {
+        /// The smaller half, largest on top.
+        low: BinaryHeap<i32>,
+        /// The larger half, smallest on top.
+        high: BinaryHeap<Reverse<i32>>,
+        /// Live sizes of the halves (the heaps may also hold removed copies).
+        low_len: usize,
+        high_len: usize,
+        /// Copies of each value still in the stream.
+        live: HashMap<i32, usize>,
+        /// Removed copies still sitting inside a heap, dropped when they reach a top.
+        doomed: HashMap<i32, usize>,
+    }
+
+    impl MedianFinder {
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn add_num(&mut self, num: i32) {
+            *self.live.entry(num).or_insert(0) += 1;
+            if self.low.peek().is_none_or(|&top| num <= top) {
+                self.low.push(num);
+                self.low_len += 1;
+            } else {
+                self.high.push(Reverse(num));
+                self.high_len += 1;
+            }
+            self.rebalance();
+        }
+
+        pub fn remove_num(&mut self, num: i32) -> bool {
+            match self.live.get_mut(&num) {
+                Some(c) => {
+                    *c -= 1;
+                    if *c == 0 {
+                        self.live.remove(&num);
+                    }
+                }
+                None => return false,
+            }
+            *self.doomed.entry(num).or_insert(0) += 1;
+            // Tops are always live, so this says which half the copy belongs to.
+            if self.low.peek().is_some_and(|&top| num <= top) {
+                self.low_len -= 1;
+            } else {
+                self.high_len -= 1;
+            }
+            self.prune();
+            self.rebalance();
+            true
+        }
+
+        /// `&self` works because every mutation leaves both tops live.
+        pub fn find_median(&self) -> Option<f64> {
+            let &lo = self.low.peek()?;
+            if self.low_len > self.high_len {
+                return Some(lo as f64);
+            }
+            let &Reverse(hi) = self.high.peek()?;
+            // In f64, not i32: i32::MAX + i32::MAX overflows.
+            Some((lo as f64 + hi as f64) / 2.0)
+        }
+
+        fn take_doomed(&mut self, v: i32) -> bool {
+            match self.doomed.get_mut(&v) {
+                Some(c) => {
+                    *c -= 1;
+                    if *c == 0 {
+                        self.doomed.remove(&v);
+                    }
+                    true
+                }
+                None => false,
+            }
+        }
+
+        /// Pops removed copies off both tops.
+        fn prune(&mut self) {
+            while let Some(&top) = self.low.peek() {
+                if !self.take_doomed(top) {
+                    break;
+                }
+                self.low.pop();
+            }
+            while let Some(&Reverse(top)) = self.high.peek() {
+                if !self.take_doomed(top) {
+                    break;
+                }
+                self.high.pop();
+            }
+        }
+
+        /// Keeps low_len == high_len or low_len == high_len + 1.
+        fn rebalance(&mut self) {
+            if self.low_len > self.high_len + 1 {
+                if let Some(x) = self.low.pop() {
+                    self.high.push(Reverse(x));
+                    self.low_len -= 1;
+                    self.high_len += 1;
+                }
+                self.prune();
+            } else if self.high_len > self.low_len {
+                if let Some(Reverse(x)) = self.high.pop() {
+                    self.low.push(x);
+                    self.high_len -= 1;
+                    self.low_len += 1;
+                }
+                self.prune();
+            }
+        }
+    }
+"""
+
+
+def ops(setup_ops):
+    """Rust statements for a sequence like "add 1; add 2; remove 1" on `m`."""
+    lines = ["let mut m = MedianFinder::new();"]
+    for op in setup_ops.split("; "):
+        verb, arg = op.split(" ", 1)
+        lines.append(f"m.{'add_num' if verb == 'add' else 'remove_num'}({arg});")
+    return "\n".join(lines)
+
+
+P.append(dict(
+    slug="find-median-from-data-stream", title="Find median from data stream", level="hard", stage="two-heaps-merges",
+    tags=["two heaps", "lazy deletion", "Reverse", "Blind 75"],
+    companies=["Amazon", "Meta", "Google", "Microsoft", "Apple", "Uber", "Goldman Sachs"],
+    teaches=["Two heaps: a max-heap for the smaller half and a `Reverse` min-heap for the larger half, sizes within one.",
+             "Lazy deletion: `BinaryHeap` can't remove from the middle, so record the removal and drop the copy when it reaches a top.",
+             "Keep both tops live after every mutation so `find_median` can take `&self`."],
+    statement="""
+        Build a `MedianFinder` over a multiset of numbers:
+
+        - `add_num(num)` adds one copy of `num`;
+        - `remove_num(num)` removes one copy of `num` and returns `true`, or returns `false` if there is none;
+        - `find_median()` returns the median of the numbers currently held, or `None` when there are none.
+          With an even count it's the mean of the two middle values (so it can end in `.5`).
+
+        Every operation must be O(log n) amortized.
+    """,
+    examples=[("add 1, add 2, find_median, add 3, find_median", "Some(1.5), Some(2.0)"),
+              ("add 1, add 2, add 3, remove 2, find_median", "Some(2.0)")],
+    constraints=["up to 3·10⁵ operations", "values are any i32"],
+    starter="""
+        pub struct MedianFinder {
+            // your fields
+        }
+
+        impl MedianFinder {
+            pub fn new() -> Self {
+                todo!()
+            }
+
+            pub fn add_num(&mut self, num: i32) {
+                todo!()
+            }
+
+            pub fn remove_num(&mut self, num: i32) -> bool {
+                todo!()
+            }
+
+            pub fn find_median(&self) -> Option<f64> {
+                todo!()
+            }
+        }
+    """,
+    solution=MEDIAN_SOLUTION,
+    visible=[
+        T("leetcode_example", "add 1, add 2, find_median, add 3, find_median", "(a, m.find_median())", "(Some(1.5), Some(2.0))",
+          setup="let mut m = MedianFinder::new();\nm.add_num(1);\nm.add_num(2);\nlet a = m.find_median();\nm.add_num(3);"),
+        T("empty", "new, find_median", "MedianFinder::new().find_median()", "None"),
+        T("remove_the_middle", "add 1, add 2, add 3, remove 2 → [1, 3]", "(removed, m.find_median())", "(true, Some(2.0))",
+          setup=ops("add 1; add 2; add 3") + "\nlet removed = m.remove_num(2);"),
+        T("remove_missing_value", "add 5, remove 7", "(m.remove_num(7), m.find_median())", "(false, Some(5.0))", setup=ops("add 5")),
+        T("duplicates_are_copies", "add 4, add 4, add 9, remove 4 → [4, 9]", "(m.remove_num(4), m.find_median())", "(true, Some(6.5))",
+          setup=ops("add 4; add 4; add 9")),
+        T("large_values_average", "add i32::MAX, add i32::MAX - 2", "m.find_median()", "Some(2147483646.0)",
+          setup="let mut m = MedianFinder::new();\nm.add_num(i32::MAX);\nm.add_num(i32::MAX - 2);"),
+    ],
+    hidden=[
+        T("extremes_average", "add i32::MIN, add i32::MAX", "m.find_median()", "Some(-0.5)", setup=ops("add i32::MIN; add i32::MAX")),
+        T("remove_everything", "add 3, add 1, remove 1, remove 3", "(m.find_median(), m.remove_num(3))", "(None, false)",
+          setup=ops("add 3; add 1; remove 1; remove 3")),
+        T("refill_after_empty", "add 2, remove 2, add 8, add 6", "m.find_median()", "Some(7.0)", setup=ops("add 2; remove 2; add 8; add 6")),
+        T("same_value_on_both_sides", "add 5, add 5, remove 5, find, remove 5, find, remove 5",
+          "(a, b, m.remove_num(5))", "(Some(5.0), None, false)",
+          setup="let mut m = MedianFinder::new();\nm.add_num(5);\nm.add_num(5);\nm.remove_num(5);\nlet a = m.find_median();\nm.remove_num(5);\nlet b = m.find_median();"),
+        T("remove_from_the_bottom", "add 1..=7, remove 1, remove 2 → [3..=7]", "m.find_median()", "Some(5.0)",
+          setup=ops("add 1; add 2; add 3; add 4; add 5; add 6; add 7; remove 1; remove 2")),
+        T("remove_from_the_top", "add 1..=7, remove 7, remove 6, remove 5 → [1..=4]", "m.find_median()", "Some(2.5)",
+          setup=ops("add 1; add 2; add 3; add 4; add 5; add 6; add 7; remove 7; remove 6; remove 5")),
+        T("negatives", "add -5, add -1, add -3, add -2", "m.find_median()", "Some(-2.5)", setup=ops("add -5; add -1; add -3; add -2")),
+        T("descending_adds", "add 9, 8, 7, 6, 5", "m.find_median()", "Some(7.0)", setup=ops("add 9; add 8; add 7; add 6; add 5")),
+        T("remove_twice_one_copy", "add 3, add 3, remove 3, remove 3, remove 3", "(a, b, c)", "(true, true, false)",
+          setup="let mut m = MedianFinder::new();\nm.add_num(3);\nm.add_num(3);\nlet (a, b, c) = (m.remove_num(3), m.remove_num(3), m.remove_num(3));"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(714);
+            for _ in 0..300 {
+                let mut m = MedianFinder::new();
+                let mut bag: Vec<i32> = Vec::new();
+                let mut log = Vec::new();
+                let steps = rng.below(30);
+                for _ in 0..steps {
+                    let v = rng.int(-3, 3) as i32;
+                    match rng.below(5) {
+                        0 | 1 => {
+                            m.add_num(v);
+                            bag.push(v);
+                            log.push(format!("add {v}"));
+                        }
+                        2 => {
+                            let want = bag.iter().position(|&x| x == v).map(|i| bag.swap_remove(i)).is_some();
+                            log.push(format!("remove {v}"));
+                            check!(log.join(", "), m.remove_num(v), want);
+                        }
+                        _ => {
+                            let mut s = bag.clone();
+                            s.sort_unstable();
+                            let n = s.len();
+                            let want = match n {
+                                0 => None,
+                                _ if n % 2 == 1 => Some(s[n / 2] as f64),
+                                _ => Some((s[n / 2 - 1] as f64 + s[n / 2] as f64) / 2.0),
+                            };
+                            log.push("find_median".to_string());
+                            check!(log.join(", "), m.find_median(), want);
+                        }
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn scale_sliding_window() {
+            // Reference: a Fenwick tree of counts over the values 0..2^18; k-th smallest by binary lifting.
+            const N: usize = 1 << 18;
+            fn bump(tree: &mut [i64], v: usize, d: i64) {
+                let mut i = v + 1;
+                while i <= N {
+                    tree[i] += d;
+                    i += i & i.wrapping_neg();
+                }
+            }
+            fn kth(tree: &[i64], mut k: i64) -> f64 {
+                let (mut pos, mut step) = (0, N);
+                while step > 0 {
+                    if pos + step <= N && tree[pos + step] < k {
+                        pos += step;
+                        k -= tree[pos];
+                    }
+                    step >>= 1;
+                }
+                pos as f64
+            }
+            let mut tree = vec![0i64; N + 1];
+            let mut rng = anneal_prelude::Rng::new(715);
+            let vals: Vec<i32> = rng.vec(150_000, 0, N as i64 - 1);
+            let mut m = MedianFinder::new();
+            let mut first_wrong = None;
+            for (i, &v) in vals.iter().enumerate() {
+                m.add_num(v);
+                bump(&mut tree, v as usize, 1);
+                // A window of the last 50000 values: remove the one that falls out.
+                if i >= 50_000 {
+                    let old = vals[i - 50_000];
+                    m.remove_num(old);
+                    bump(&mut tree, old as usize, -1);
+                }
+                let n = (i + 1).min(50_000) as i64;
+                let want = if n % 2 == 1 { kth(&tree, (n + 1) / 2) } else { (kth(&tree, n / 2) + kth(&tree, n / 2 + 1)) / 2.0 };
+                if m.find_median() != Some(want) && first_wrong.is_none() {
+                    first_wrong = Some(i);
+                }
+            }
+            check!("150000 random values, a window of the last 50000 (add one, remove the oldest, find_median); first step with a wrong median", first_wrong, None);
+        }
+        """,
+    ],
+    wrong=dict(
+        sort_on_every_find="""
+            #[derive(Default)]
+            pub struct MedianFinder {
+                values: Vec<i32>,
+            }
+
+            impl MedianFinder {
+                pub fn new() -> Self {
+                    Self::default()
+                }
+
+                pub fn add_num(&mut self, num: i32) {
+                    self.values.push(num);
+                }
+
+                pub fn remove_num(&mut self, num: i32) -> bool {
+                    match self.values.iter().position(|&x| x == num) {
+                        Some(i) => {
+                            self.values.swap_remove(i);
+                            true
+                        }
+                        None => false,
+                    }
+                }
+
+                pub fn find_median(&self) -> Option<f64> {
+                    let mut s = self.values.clone();
+                    s.sort_unstable();
+                    let n = s.len();
+                    match n {
+                        0 => None,
+                        _ if n % 2 == 1 => Some(s[n / 2] as f64),
+                        _ => Some((s[n / 2 - 1] as f64 + s[n / 2] as f64) / 2.0),
+                    }
+                }
+            }
+        """,
+        sum_in_i32=MEDIAN_SOLUTION.replace("Some((lo as f64 + hi as f64) / 2.0)", "Some((lo + hi) as f64 / 2.0)"),
+        strict_side_test=MEDIAN_SOLUTION.replace("if self.low.peek().is_some_and(|&top| num <= top) {", "if self.low.peek().is_some_and(|&top| num < top) {"),
+    ),
+    hints=[("approach", "Split the numbers into a lower half (max-heap) and an upper half (min-heap) whose sizes differ by at most one; the median is on the tops."),
+           ("rust", "`BinaryHeap` has no `remove`. Count removed copies in a `HashMap<i32, usize>` and pop them only when they surface; balance the halves by *live* sizes, not `len()`."),
+           ("edge case", "Average the two middles in `f64`: `i32::MAX + i32::MAX` overflows. And a removed value equal to the lower top belongs to the lower half.")],
+    notes=("The lower half's top and the upper half's top straddle the median. Adding goes to the side the value belongs to, then one top may move "
+           "across to restore the sizes. Removal is lazy: the copy is marked in `doomed` and the live size of its half drops; any doomed copy that "
+           "reaches a top is popped then. Each copy is pushed and popped at most a constant number of times, so everything is O(log n) amortized. "
+           "Since every mutation prunes the tops, `find_median` only peeks. A sorted `Vec` with binary search is simpler but O(n) per update.",
+           "O(log n) amortized per operation", "O(n), including removed copies not yet popped"),
+    follow_up="Sliding window median gives you the window as a slice and a width k. Which parts of this design would you keep?",
+    related=["S5", "S4", "D14"],
+))
+
+P.append(dict(
+    slug="ipo", title="IPO", level="hard", stage="two-heaps-merges", tags=["two heaps", "greedy", "Reverse"],
+    companies=["Amazon", "Google", "Microsoft"],
+    teaches=["Two heaps with different keys: a min-heap by capital holds locked projects, a max-heap by profit holds the affordable ones.",
+             "Capital only grows, so each project moves from locked to affordable once.",
+             "`u64` for capital: `w` plus many profits outgrows `u32`."],
+    statement="""
+        You start with capital `w` and may finish at most `k` projects, one after another. Project `i` needs
+        at least `capital[i]` to start, and finishing it adds `profits[i]` to your capital (starting it costs nothing).
+        Each project can be done once. Return the largest capital you can end with.
+    """,
+    examples=[("k = 2, w = 0, profits = [1, 2, 3], capital = [0, 1, 1]", "4"), ("k = 3, w = 0, profits = [1, 2, 3], capital = [0, 1, 2]", "6")],
+    constraints=["0 ≤ k ≤ 10⁵", "0 ≤ n ≤ 10⁵, profits.len() == capital.len()", "0 ≤ w, capital[i] ≤ 10¹²", "0 ≤ profits[i] ≤ 10⁹"],
+    starter="""
+        pub fn find_maximized_capital(k: usize, w: u64, profits: &[u64], capital: &[u64]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
+
+        pub fn find_maximized_capital(k: usize, mut w: u64, profits: &[u64], capital: &[u64]) -> u64 {
+            // Projects we can't afford yet, cheapest first.
+            let mut locked: BinaryHeap<Reverse<(u64, u64)>> = capital.iter().zip(profits).map(|(&c, &p)| Reverse((c, p))).collect();
+            // Projects we can afford, most profitable first.
+            let mut affordable: BinaryHeap<u64> = BinaryHeap::new();
+            for _ in 0..k {
+                while let Some(&Reverse((c, p))) = locked.peek() {
+                    if c > w {
+                        break;
+                    }
+                    locked.pop();
+                    affordable.push(p);
+                }
+                let Some(p) = affordable.pop() else {
+                    break;
+                };
+                w += p;
+            }
+            w
+        }
+    """,
+    visible=[
+        T("leetcode_one", "k = 2, w = 0, profits = [1, 2, 3], capital = [0, 1, 1]", "find_maximized_capital(2, 0, &[1, 2, 3], &[0, 1, 1])", "4"),
+        T("leetcode_two", "k = 3, w = 0, profits = [1, 2, 3], capital = [0, 1, 2]", "find_maximized_capital(3, 0, &[1, 2, 3], &[0, 1, 2])", "6"),
+        T("nothing_affordable", "k = 3, w = 1, profits = [5, 9], capital = [2, 3]", "find_maximized_capital(3, 1, &[5, 9], &[2, 3])", "1"),
+        T("k_zero", "k = 0, w = 7, profits = [100], capital = [0]", "find_maximized_capital(0, 7, &[100], &[0])", "7"),
+        T("each_project_once", "k = 5, w = 0, profits = [4], capital = [0]", "find_maximized_capital(5, 0, &[4], &[0])", "4"),
+        T("unlock_the_big_one_first", "k = 2, w = 0, profits = [1, 1, 10], capital = [0, 0, 1]", "find_maximized_capital(2, 0, &[1, 1, 10], &[0, 0, 1])", "11"),
+    ],
+    hidden=[
+        T("no_projects", "k = 4, w = 3, profits = [], capital = []", "find_maximized_capital(4, 3, &[], &[])", "3"),
+        T("capital_exactly_w", "k = 1, w = 5, profits = [2], capital = [5]", "find_maximized_capital(1, 5, &[2], &[5])", "7"),
+        T("zero_profit_projects", "k = 3, w = 0, profits = [0, 0, 0], capital = [0, 0, 1]", "find_maximized_capital(3, 0, &[0, 0, 0], &[0, 0, 1])", "0"),
+        T("several_unlock_at_once", "k = 2, w = 0, profits = [1, 3, 5, 2], capital = [0, 1, 1, 1]", "find_maximized_capital(2, 0, &[1, 3, 5, 2], &[0, 1, 1, 1])", "6"),
+        T("past_u32", "k = 3, w = 4000000000, profits = [10⁹; 3], capital = [0; 3]",
+          "find_maximized_capital(3, 4_000_000_000, &[1_000_000_000; 3], &[0; 3])", "7_000_000_000"),
+        T("chain", "k = 4, w = 1, profits = [1, 2, 4, 8], capital = [1, 2, 4, 8]", "find_maximized_capital(4, 1, &[1, 2, 4, 8], &[1, 2, 4, 8])", "16"),
+        T("best_affordable_not_best_overall", "k = 1, w = 2, profits = [3, 100], capital = [2, 3]", "find_maximized_capital(1, 2, &[3, 100], &[2, 3])", "5"),
+        T("k_larger_than_n", "k = 100, w = 0, profits = [1, 2], capital = [0, 0]", "find_maximized_capital(100, 0, &[1, 2], &[0, 0])", "3"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // Try every order of every affordable project, up to k of them.
+            fn best(k: usize, w: u64, profits: &[u64], capital: &[u64], used: &mut [bool]) -> u64 {
+                let mut out = w;
+                if k == 0 {
+                    return out;
+                }
+                for i in 0..profits.len() {
+                    if !used[i] && capital[i] <= w {
+                        used[i] = true;
+                        out = out.max(best(k - 1, w + profits[i], profits, capital, used));
+                        used[i] = false;
+                    }
+                }
+                out
+            }
+            let mut rng = anneal_prelude::Rng::new(716);
+            for _ in 0..300 {
+                let n = rng.below(7);
+                let profits: Vec<u64> = rng.vec(n, 0, 6);
+                let capital: Vec<u64> = rng.vec(n, 0, 8);
+                let k = rng.below(5);
+                let w = rng.int(0, 3) as u64;
+                let want = best(k, w, &profits, &capital, &mut vec![false; n]);
+                check!(format!("k = {k}, w = {w}, profits = {profits:?}, capital = {capital:?}"), find_maximized_capital(k, w, &profits, &capital), want);
+            }
+        }
+
+        #[test]
+        fn scale_100k_projects() {
+            let mut rng = anneal_prelude::Rng::new(717);
+            let n = 100_000;
+            let profits: Vec<u64> = rng.vec(n, 1, 1000);
+            // Every 1000th project is free, so there is always somewhere to start.
+            let capital: Vec<u64> = (0..n).map(|i| if i % 1000 == 0 { 0 } else { rng.int(0, 40_000_000) as u64 }).collect();
+            let k = 50_000;
+            // Reference: the same greedy with a sorted Vec and a BTreeMap multiset of affordable profits.
+            let mut order: Vec<usize> = (0..n).collect();
+            order.sort_unstable_by_key(|&i| capital[i]);
+            let mut bag = std::collections::BTreeMap::new();
+            let (mut w, mut next) = (0u64, 0);
+            for _ in 0..k {
+                while next < n && capital[order[next]] <= w {
+                    *bag.entry(profits[order[next]]).or_insert(0u32) += 1;
+                    next += 1;
+                }
+                let Some(mut e) = bag.last_entry() else { break };
+                w += *e.key();
+                *e.get_mut() -= 1;
+                if *e.get() == 0 {
+                    e.remove();
+                }
+            }
+            check!("n = 100000 random projects (profit 1..=1000, capital 0..=4·10⁷, every 1000th free), k = 50000, w = 0", find_maximized_capital(k, 0, &profits, &capital), w);
+        }
+        """,
+    ],
+    wrong=dict(
+        rescan_every_round="""
+            pub fn find_maximized_capital(k: usize, mut w: u64, profits: &[u64], capital: &[u64]) -> u64 {
+                let mut done = vec![false; profits.len()];
+                for _ in 0..k {
+                    let best = (0..profits.len()).filter(|&i| !done[i] && capital[i] <= w).max_by_key(|&i| profits[i]);
+                    let Some(i) = best else { break };
+                    done[i] = true;
+                    w += profits[i];
+                }
+                w
+            }
+        """,
+        unlock_one_per_round="""
+            use std::cmp::Reverse;
+            use std::collections::BinaryHeap;
+
+            pub fn find_maximized_capital(k: usize, mut w: u64, profits: &[u64], capital: &[u64]) -> u64 {
+                let mut locked: BinaryHeap<Reverse<(u64, u64)>> = capital.iter().zip(profits).map(|(&c, &p)| Reverse((c, p))).collect();
+                let mut affordable: BinaryHeap<u64> = BinaryHeap::new();
+                for _ in 0..k {
+                    if let Some(&Reverse((c, p))) = locked.peek() {
+                        if c <= w {
+                            locked.pop();
+                            affordable.push(p);
+                        }
+                    }
+                    let Some(p) = affordable.pop() else {
+                        break;
+                    };
+                    w += p;
+                }
+                w
+            }
+        """,
+        cheapest_first="""
+            pub fn find_maximized_capital(k: usize, mut w: u64, profits: &[u64], capital: &[u64]) -> u64 {
+                let mut order: Vec<usize> = (0..profits.len()).collect();
+                order.sort_by_key(|&i| (capital[i], std::cmp::Reverse(profits[i])));
+                for &i in order.iter().take(k) {
+                    if capital[i] > w {
+                        break;
+                    }
+                    w += profits[i];
+                }
+                w
+            }
+        """,
+    ),
+    hints=[("approach", "At each step, do the most profitable project you can afford. Finishing it only raises capital, so nothing affordable ever becomes unaffordable."),
+           ("rust", "Keep locked projects in `BinaryHeap<Reverse<(capital, profit)>>`; before each pick, move every one with `capital <= w` into a `BinaryHeap<u64>` of profits."),
+           ("edge case", "Stop early when nothing is affordable, and move *all* newly affordable projects, not just one per round.")],
+    notes=("Exchange argument: any plan that skips the most profitable affordable project can swap it in without ending lower, because capital "
+           "only grows. Each project moves from the capital heap to the profit heap once and leaves it at most once, so the total is "
+           "O((n + k) log n). Sorting by capital with an index pointer replaces the first heap equally well.", "O((n + k) log n)", "O(n)"),
+    follow_up="What changes if starting a project also costs its capital (you pay `capital[i]` and get back `capital[i] + profits[i]`)?",
+    related=["D8", "S5"],
+))
+
+P.append(dict(
+    slug="smallest-range-covering-k-lists", title="Smallest range covering elements from K lists", level="hard", stage="two-heaps-merges",
+    tags=["BinaryHeap", "k-way merge", "i64"],
+    companies=["Google", "Amazon", "Microsoft", "Uber"],
+    teaches=["Merge the lists with a heap of their current heads while tracking the largest head: the heads always form a candidate range.",
+             "Advancing the list with the smallest head is the only move that can shrink the range.",
+             "Range widths in `i64`: `i32::MAX - i32::MIN` overflows `i32`."],
+    statement="""
+        Every list in `lists` is sorted ascending. Return the smallest range `(lo, hi)` (inclusive) that contains at least
+        one number from every list. Range `(a, b)` is smaller than `(c, d)` if `b − a < d − c`, or if the widths are
+        equal and `a < c`. Return `None` if there are no lists or some list is empty.
+
+        Values can be any `i32`.
+    """,
+    examples=[("lists = [[4, 10, 15, 24, 26], [0, 9, 12, 20], [5, 18, 22, 30]]", "Some((20, 24))"), ("lists = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]", "Some((1, 1))")],
+    constraints=["0 ≤ lists.len() ≤ 2·10⁴", "total length N ≤ 2·10⁵", "values are any i32"],
+    starter="""
+        pub fn smallest_range(lists: &[Vec<i32>]) -> Option<(i32, i32)> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
+
+        pub fn smallest_range(lists: &[Vec<i32>]) -> Option<(i32, i32)> {
+            // One head per list: (value, list, index). The heads always cover every list.
+            let mut heap = BinaryHeap::with_capacity(lists.len());
+            let mut hi = i32::MIN;
+            for (l, list) in lists.iter().enumerate() {
+                let &first = list.first()?;
+                hi = hi.max(first);
+                heap.push(Reverse((first, l, 0)));
+            }
+            let mut best: Option<(i32, i32)> = None;
+            while let Some(Reverse((lo, l, i))) = heap.pop() {
+                let width = |(a, b): (i32, i32)| b as i64 - a as i64;
+                // lo never decreases, so on equal widths the first range found has the smaller start.
+                if best.is_none_or(|b| width((lo, hi)) < width(b)) {
+                    best = Some((lo, hi));
+                }
+                // Once a list runs out, no range without its last head can cover it.
+                let Some(&next) = lists[l].get(i + 1) else {
+                    break;
+                };
+                hi = hi.max(next);
+                heap.push(Reverse((next, l, i + 1)));
+            }
+            best
+        }
+    """,
+    visible=[
+        T("leetcode_one", "lists = [[4, 10, 15, 24, 26], [0, 9, 12, 20], [5, 18, 22, 30]]",
+          "smallest_range(&[vec![4, 10, 15, 24, 26], vec![0, 9, 12, 20], vec![5, 18, 22, 30]])", "Some((20, 24))"),
+        T("leetcode_same_lists", "lists = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]", "smallest_range(&[vec![1, 2, 3], vec![1, 2, 3], vec![1, 2, 3]])", "Some((1, 1))"),
+        T("single_list", "lists = [[5, 8]]", "smallest_range(&[vec![5, 8]])", "Some((5, 5))"),
+        T("equal_widths_take_smaller_start", "lists = [[1, 10], [4, 13]] ((1, 4) and (10, 13) both have width 3)",
+          "smallest_range(&[vec![1, 10], vec![4, 13]])", "Some((1, 4))"),
+        T("no_lists", "lists = []", "smallest_range(&[])", "None"),
+        T("an_empty_list", "lists = [[1, 2], []]", "smallest_range(&[vec![1, 2], vec![]])", "None"),
+    ],
+    hidden=[
+        T("full_i32_width", "lists = [[i32::MIN], [i32::MAX]]", "smallest_range(&[vec![i32::MIN], vec![i32::MAX]])", "Some((i32::MIN, i32::MAX))"),
+        T("wide_then_narrow", "lists = [[i32::MIN, 0], [1, i32::MAX]]", "smallest_range(&[vec![i32::MIN, 0], vec![1, i32::MAX]])", "Some((0, 1))"),
+        T("negatives", "lists = [[-10, -5], [-7, 3], [-6]]", "smallest_range(&[vec![-10, -5], vec![-7, 3], vec![-6]])", "Some((-7, -5))"),
+        T("duplicates_inside_a_list", "lists = [[1, 1, 1, 9], [9, 9]]", "smallest_range(&[vec![1, 1, 1, 9], vec![9, 9]])", "Some((9, 9))"),
+        T("one_long_list", "lists = [0..1000, [500]]", "smallest_range(&[(0..1000).collect(), vec![500]])", "Some((500, 500))"),
+        T("disjoint_blocks", "lists = [[1, 2, 3], [10, 11], [20]]", "smallest_range(&[vec![1, 2, 3], vec![10, 11], vec![20]])", "Some((3, 20))"),
+        T("answer_at_the_end", "lists = [[1, 100], [50, 101], [80, 102]]", "smallest_range(&[vec![1, 100], vec![50, 101], vec![80, 102]])", "Some((100, 102))"),
+        T("empty_list_last", "lists = [[1], [2], []]", "smallest_range(&[vec![1], vec![2], vec![]])", "None"),
+        T("many_equal_widths", "lists = [[0, 5, 10], [2, 7, 12]]", "smallest_range(&[vec![0, 5, 10], vec![2, 7, 12]])", "Some((0, 2))"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(718);
+            for _ in 0..300 {
+                let k = rng.below(4);
+                let mut lists: Vec<Vec<i32>> = Vec::new();
+                for _ in 0..k {
+                    let len = rng.below(5);
+                    let mut v: Vec<i32> = rng.vec(len, -8, 8);
+                    v.sort_unstable();
+                    lists.push(v);
+                }
+                let values: Vec<i32> = lists.concat();
+                let mut want: Option<(i32, i32)> = None;
+                if k > 0 && lists.iter().all(|l| !l.is_empty()) {
+                    for &a in &values {
+                        for &b in &values {
+                            let covers = a <= b && lists.iter().all(|l| l.iter().any(|&x| a <= x && x <= b));
+                            if covers && want.is_none_or(|(c, d)| (b - a, a) < (d - c, c)) {
+                                want = Some((a, b));
+                            }
+                        }
+                    }
+                }
+                check!(format!("lists = {lists:?}"), smallest_range(&lists), want);
+            }
+        }
+
+        #[test]
+        fn scale_10k_lists() {
+            let mut rng = anneal_prelude::Rng::new(719);
+            let lists: Vec<Vec<i32>> = (0..10_000)
+                .map(|_| {
+                    let mut v: Vec<i32> = rng.vec(20, -1_000_000_000, 1_000_000_000);
+                    v.sort_unstable();
+                    v
+                })
+                .collect();
+            // Reference: a sliding window over all values sorted, counting how many lists it covers.
+            let mut all: Vec<(i32, usize)> = lists.iter().enumerate().flat_map(|(l, v)| v.iter().map(move |&x| (x, l))).collect();
+            all.sort_unstable();
+            let (mut count, mut covered, mut left) = (vec![0usize; lists.len()], 0, 0);
+            let mut want: Option<(i32, i32)> = None;
+            for right in 0..all.len() {
+                if count[all[right].1] == 0 {
+                    covered += 1;
+                }
+                count[all[right].1] += 1;
+                while covered == lists.len() {
+                    let (a, b) = (all[left].0, all[right].0);
+                    if want.is_none_or(|(c, d)| (b as i64 - a as i64) < (d as i64 - c as i64)) {
+                        want = Some((a, b));
+                    }
+                    count[all[left].1] -= 1;
+                    if count[all[left].1] == 0 {
+                        covered -= 1;
+                    }
+                    left += 1;
+                }
+            }
+            check!("10000 sorted lists of 20 random values in ±10⁹", smallest_range(&lists), want);
+        }
+        """,
+    ],
+    wrong=dict(
+        scan_all_heads="""
+            pub fn smallest_range(lists: &[Vec<i32>]) -> Option<(i32, i32)> {
+                if lists.is_empty() || lists.iter().any(|l| l.is_empty()) {
+                    return None;
+                }
+                let mut pos = vec![0; lists.len()];
+                let mut best: Option<(i32, i32)> = None;
+                loop {
+                    let lo_list = (0..lists.len()).min_by_key(|&l| lists[l][pos[l]]).unwrap();
+                    let lo = lists[lo_list][pos[lo_list]];
+                    let hi = (0..lists.len()).map(|l| lists[l][pos[l]]).max().unwrap();
+                    if best.is_none_or(|(a, b)| (hi as i64 - lo as i64) < (b as i64 - a as i64)) {
+                        best = Some((lo, hi));
+                    }
+                    pos[lo_list] += 1;
+                    if pos[lo_list] == lists[lo_list].len() {
+                        return best;
+                    }
+                }
+            }
+        """,
+        width_in_i32="""
+            use std::cmp::Reverse;
+            use std::collections::BinaryHeap;
+
+            pub fn smallest_range(lists: &[Vec<i32>]) -> Option<(i32, i32)> {
+                let mut heap = BinaryHeap::new();
+                let mut hi = i32::MIN;
+                for (l, list) in lists.iter().enumerate() {
+                    let &first = list.first()?;
+                    hi = hi.max(first);
+                    heap.push(Reverse((first, l, 0)));
+                }
+                let mut best: Option<(i32, i32)> = None;
+                while let Some(Reverse((lo, l, i))) = heap.pop() {
+                    if best.is_none_or(|(a, b)| hi - lo < b - a) {
+                        best = Some((lo, hi));
+                    }
+                    let Some(&next) = lists[l].get(i + 1) else {
+                        break;
+                    };
+                    hi = hi.max(next);
+                    heap.push(Reverse((next, l, i + 1)));
+                }
+                best
+            }
+        """,
+        later_tie_wins="""
+            use std::cmp::Reverse;
+            use std::collections::BinaryHeap;
+
+            pub fn smallest_range(lists: &[Vec<i32>]) -> Option<(i32, i32)> {
+                let mut heap = BinaryHeap::new();
+                let mut hi = i32::MIN;
+                for (l, list) in lists.iter().enumerate() {
+                    let &first = list.first()?;
+                    hi = hi.max(first);
+                    heap.push(Reverse((first, l, 0)));
+                }
+                let mut best: Option<(i32, i32)> = None;
+                while let Some(Reverse((lo, l, i))) = heap.pop() {
+                    if best.is_none_or(|(a, b)| hi as i64 - lo as i64 <= b as i64 - a as i64) {
+                        best = Some((lo, hi));
+                    }
+                    let Some(&next) = lists[l].get(i + 1) else {
+                        break;
+                    };
+                    hi = hi.max(next);
+                    heap.push(Reverse((next, l, i + 1)));
+                }
+                best
+            }
+        """,
+    ),
+    hints=[("approach", "Take one element from each list: the range from their minimum to their maximum covers every list. To shrink it, you can only advance the list holding the minimum."),
+           ("rust", "A min-heap of `Reverse((value, list, index))` gives the minimum head; keep the maximum head in a plain variable, since it only grows."),
+           ("edge case", "Stop as soon as the list with the minimum head runs out. Compare widths as `i64`, and keep the first range on ties.")],
+    notes=("The current heads always cover all k lists, so `[min head, max head]` is a candidate. Any better range must drop the current minimum, "
+           "so pop it and push the next element from the same list; the maximum can only grow, so one variable tracks it. When a list is "
+           "exhausted no later candidate can cover it. Each of the N elements enters the heap once.", "O(N log k)", "O(k)"),
+    follow_up="How would you solve it with a sliding window over all values sorted together, and when would you prefer that?",
+    related=["D2", "D5", "S5"],
+))
+
+# Test helper for the k-way merge: a run that counts its reads.
+MERGE_HELPERS = """
+use std::cell::Cell;
+use std::rc::Rc;
+
+/// A run that counts how many items have been read from it.
+struct Counted<I> {
+    inner: I,
+    reads: Rc<Cell<usize>>,
+}
+
+impl<I: Iterator> Iterator for Counted<I> {
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<I::Item> {
+        let x = self.inner.next();
+        if x.is_some() {
+            self.reads.set(self.reads.get() + 1);
+        }
+        x
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+"""
+
+# Hidden tests only: an item type with no traits at all.
+REC = """
+/// No Clone, Copy, Debug, PartialEq or Ord: the merge must only move items.
+struct Rec {
+    key: u32,
+    tag: &'static str,
+}
+"""
+
+KMERGE_HEAD = """
+    use std::cmp::Ordering;
+    use std::collections::BinaryHeap;
+
+    /// A run's current item with its key. Ordered so that `BinaryHeap` (a max-heap) pops the smallest
+    /// key first, and on equal keys the lowest run. The item itself is never compared.
+    struct Head<K, T> {
+        key: K,
+        run: usize,
+        item: T,
+    }
+
+    impl<K: Ord, T> Ord for Head<K, T> {
+        fn cmp(&self, other: &Self) -> Ordering {
+            other.key.cmp(&self.key).then_with(|| other.run.cmp(&self.run))
+        }
+    }
+
+    impl<K: Ord, T> PartialOrd for Head<K, T> {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl<K: Ord, T> PartialEq for Head<K, T> {
+        fn eq(&self, other: &Self) -> bool {
+            self.cmp(other) == Ordering::Equal
+        }
+    }
+
+    impl<K: Ord, T> Eq for Head<K, T> {}
+"""
+
+KMERGE_REST = """
+    /// Merges runs that are each sorted by `key` into one sorted stream.
+    pub struct KMerge<I: Iterator, K, F> {
+        runs: Vec<I>,
+        key: F,
+        /// At most one item per run: the next one it has to offer.
+        heap: BinaryHeap<Head<K, I::Item>>,
+    }
+
+    pub fn kmerge_by_key<I, K, F>(mut runs: Vec<I>, mut key: F) -> KMerge<I, K, F>
+    where
+        I: Iterator,
+        K: Ord,
+        F: FnMut(&I::Item) -> K,
+    {
+        let mut heap = BinaryHeap::with_capacity(runs.len());
+        for (run, it) in runs.iter_mut().enumerate() {
+            if let Some(item) = it.next() {
+                heap.push(Head { key: key(&item), run, item });
+            }
+        }
+        KMerge { runs, key, heap }
+    }
+
+    impl<I, K, F> Iterator for KMerge<I, K, F>
+    where
+        I: Iterator,
+        K: Ord,
+        F: FnMut(&I::Item) -> K,
+    {
+        type Item = I::Item;
+
+        fn next(&mut self) -> Option<I::Item> {
+            let Head { run, item, .. } = self.heap.pop()?;
+            // Refill from the same run only; an exhausted run is never polled again.
+            if let Some(next) = self.runs[run].next() {
+                let key = (self.key)(&next);
+                self.heap.push(Head { key, run, item: next });
+            }
+            Some(item)
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let held = self.heap.len();
+            self.runs.iter().fold((held, Some(held)), |(lo, hi), run| {
+                let (a, b) = run.size_hint();
+                (lo.saturating_add(a), hi.zip(b).and_then(|(h, b)| h.checked_add(b)))
+            })
+        }
+    }
+"""
+
+P.append(dict(
+    slug="external-merge-sort", title="External merge sort", level="hard", stage="two-heaps-merges", source="W64",
+    tags=["k-way merge", "custom Ord", "Iterator", "generics"],
+    teaches=["The merge phase of external sort as a lazy `Iterator`: one buffered item per run, O(log k) per item.",
+             "A heap entry with a hand-written `Ord` over `(key, run)` that never compares the payload, so items need no traits.",
+             "Stability from the run index, and a key computed once per item because `Ord` can't call the key closure.",
+             "Syntax to remember: `impl<I, K, F> Iterator for KMerge<I, K, F> where I: Iterator, K: Ord, F: FnMut(&I::Item) -> K`."],
+    statement="""
+        External sorting handles data too big for memory: sort chunks into *runs* on disk, then merge the runs in
+        one streaming pass. Write that merge. `kmerge_by_key(runs, key)` takes iterators that each yield items in
+        ascending `key` order and returns an iterator over all their items in ascending `key` order.
+
+        - **Lazy:** hold at most one unreturned item per run. The tests watch how far each run has been read.
+        - **Stable:** equal keys come out in run order (run 0 first), and a run's own items keep their order.
+        - **One key per item:** call `key` exactly once for each item; keys may be expensive (think parsing a record).
+        - **Any item type:** items need no `Clone`, `Ord` or `Debug`; only keys are compared.
+        - **`size_hint`:** items held plus the runs' own hints, exact when every run's hint is exact.
+    """,
+    examples=[("runs = [[1, 4, 9], [2, 3], []], key = |x| *x", "1, 2, 3, 4, 9"),
+              ("runs = [[(1, \"a\")], [(1, \"b\"), (2, \"c\")]], key = |r| r.0", "(1, \"a\"), (1, \"b\"), (2, \"c\")")],
+    constraints=["0 ≤ runs ≤ 2·10⁴", "total items N ≤ 2·10⁵ in the tests"],
+    starter="""
+        /// Merges runs that are each sorted by `key` into one sorted stream.
+        pub struct KMerge<I: Iterator, K, F> {
+            runs: Vec<I>,
+            key: F,
+            // Add what you need, and drop this marker once K and I::Item are used elsewhere.
+            _marker: std::marker::PhantomData<(K, I::Item)>,
+        }
+
+        pub fn kmerge_by_key<I, K, F>(runs: Vec<I>, key: F) -> KMerge<I, K, F>
+        where
+            I: Iterator,
+            K: Ord,
+            F: FnMut(&I::Item) -> K,
+        {
+            todo!()
+        }
+
+        impl<I, K, F> Iterator for KMerge<I, K, F>
+        where
+            I: Iterator,
+            K: Ord,
+            F: FnMut(&I::Item) -> K,
+        {
+            type Item = I::Item;
+
+            fn next(&mut self) -> Option<I::Item> {
+                todo!()
+            }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                todo!()
+            }
+        }
+    """,
+    solution=KMERGE_HEAD.rstrip("\n") + "\n" + KMERGE_REST,
+    use="use solution::*;\n" + MERGE_HELPERS.rstrip("\n"),
+    visible=[
+        T("three_runs", "runs = [[1, 4, 9], [2, 3], []], key = |x| *x",
+          "kmerge_by_key(vec![vec![1, 4, 9].into_iter(), vec![2, 3].into_iter(), vec![].into_iter()], |x: &i32| *x).collect::<Vec<_>>()", "vec![1, 2, 3, 4, 9]"),
+        T("no_runs", "runs = []", "kmerge_by_key(Vec::<std::vec::IntoIter<i32>>::new(), |x: &i32| *x).count()", "0"),
+        T("equal_keys_in_run_order", 'runs = [[(1, "a0"), (2, "a1")], [(1, "b0"), (1, "b1")]], key = |r| r.0',
+          'kmerge_by_key(vec![vec![(1, "a0"), (2, "a1")].into_iter(), vec![(1, "b0"), (1, "b1")].into_iter()], |r: &(u32, &str)| r.0).collect::<Vec<_>>()',
+          'vec![(1, "a0"), (1, "b0"), (1, "b1"), (2, "a1")]'),
+        T("key_called_once_per_item", "runs = [[5, 7], [1, 6, 8]], counting key calls", "(out, calls.get())", "(vec![1, 5, 6, 7, 8], 5)",
+          setup="let calls = Cell::new(0);\nlet out: Vec<u32> = kmerge_by_key(vec![vec![5, 7].into_iter(), vec![1, 6, 8].into_iter()], |x: &u32| {\n    calls.set(calls.get() + 1);\n    *x\n})\n.collect();"),
+        T("reads_lazily", "runs = [[0, 10, 20], [1, 11, 21], [2, 12, 22]], take 4: no run read more than one item past what it returned",
+          "ahead.iter().all(|&a| a <= 1)", "true",
+          setup="let reads: Vec<Rc<Cell<usize>>> = (0..3).map(|_| Rc::new(Cell::new(0))).collect();\n"
+                "let runs: Vec<Counted<std::vec::IntoIter<u32>>> = (0..3u32).map(|r| Counted { inner: vec![r, r + 10, r + 20].into_iter(), reads: reads[r as usize].clone() }).collect();\n"
+                "let taken: Vec<u32> = kmerge_by_key(runs, |x: &u32| *x).take(4).collect();\n"
+                "let ahead: Vec<usize> = (0..3u32).map(|r| reads[r as usize].get() - taken.iter().filter(|&&x| x % 10 == r).count()).collect();"),
+        T("exact_size_hint", "runs = [[1, 3], [2]]: size_hint before and after one next()", "(before, after)", "((3, Some(3)), (2, Some(2)))",
+          setup="let mut m = kmerge_by_key(vec![vec![1, 3].into_iter(), vec![2].into_iter()], |x: &i32| *x);\nlet before = m.size_hint();\nm.next();\nlet after = m.size_hint();"),
+        T("descending_with_reverse_key", "runs = [[9, 4, 1], [8, 2]] (each descending), key = |x| Reverse(*x)",
+          "kmerge_by_key(vec![vec![9, 4, 1].into_iter(), vec![8, 2].into_iter()], |x: &i32| std::cmp::Reverse(*x)).collect::<Vec<_>>()", "vec![9, 8, 4, 2, 1]"),
+    ],
+    hidden=[
+        REC,
+        T("empty_runs_between", "runs = [[], [1], [], [0, 2], []]",
+          "kmerge_by_key(vec![vec![], vec![1], vec![], vec![0, 2], vec![]].into_iter().map(Vec::into_iter).collect(), |x: &i32| *x).collect::<Vec<_>>()", "vec![0, 1, 2]"),
+        T("items_without_traits", 'runs of Rec { key, tag } with no derives: [[(2, "x"), (3, "y")], [(2, "z")]]', "out", 'vec![(2, "x"), (2, "z"), (3, "y")]',
+          setup='let runs = vec![vec![Rec { key: 2, tag: "x" }, Rec { key: 3, tag: "y" }].into_iter(), vec![Rec { key: 2, tag: "z" }].into_iter()];\n'
+                'let out: Vec<(u32, &str)> = kmerge_by_key(runs, |r: &Rec| r.key).map(|r| (r.key, r.tag)).collect();'),
+        T("owned_strings_by_length", 'runs = [["a", "ccc"], ["bb", "dd", "eeee"]] as Strings, key = len',
+          "kmerge_by_key(runs, |s: &String| s.len()).collect::<Vec<_>>()", 'vec!["a", "bb", "dd", "ccc", "eeee"]',
+          setup='let runs: Vec<std::vec::IntoIter<String>> = vec![vec!["a".to_string(), "ccc".to_string()].into_iter(), vec!["bb".to_string(), "dd".to_string(), "eeee".to_string()].into_iter()];'),
+        T("stops_before_the_tripwire", "run 0 = [1, 2, 10, then panics if read]; run 1 = [3, 4, 5]; take 3",
+          "m.take(3).collect::<Vec<_>>()", "vec![1, 2, 3]",
+          setup='let trip: Box<dyn Iterator<Item = u32>> = Box::new([1, 2, 10].into_iter().chain(std::iter::from_fn(|| -> Option<u32> { panic!("read further than needed") })));\n'
+                "let other: Box<dyn Iterator<Item = u32>> = Box::new([3, 4, 5].into_iter());\n"
+                "let m = kmerge_by_key(vec![trip, other], |x: &u32| *x);"),
+        T("unknown_length_run", "runs = [[1, 2], a from_fn run with no upper bound]: size_hint().1",
+          "m.size_hint().1", "None",
+          setup="let mut n = 0;\nlet open: Box<dyn Iterator<Item = u32>> = Box::new(std::iter::from_fn(move || { n += 1; (n <= 3).then_some(n) }));\n"
+                "let closed: Box<dyn Iterator<Item = u32>> = Box::new(vec![1, 2].into_iter());\n"
+                "let m = kmerge_by_key(vec![closed, open], |x: &u32| *x);"),
+        T("stable_many_runs_same_key", "10 runs, each [(7, run)]", "kmerge_by_key(runs, |r: &(u32, usize)| r.0).map(|r| r.1).collect::<Vec<_>>()", "(0..10).collect::<Vec<usize>>()",
+          setup="let runs: Vec<std::vec::IntoIter<(u32, usize)>> = (0..10).map(|r| vec![(7, r)].into_iter()).collect();"),
+        T("one_run", "runs = [[3, 3, 5]]", "kmerge_by_key(vec![vec![3, 3, 5].into_iter()], |x: &i32| *x).collect::<Vec<_>>()", "vec![3, 3, 5]"),
+        T("extreme_keys", "runs = [[i64::MIN, i64::MAX], [0]]", "kmerge_by_key(vec![vec![i64::MIN, i64::MAX].into_iter(), vec![0].into_iter()], |x: &i64| *x).collect::<Vec<_>>()",
+          "vec![i64::MIN, 0, i64::MAX]"),
+        """
+        #[test]
+        fn random_vs_stable_sort() {
+            let mut rng = anneal_prelude::Rng::new(720);
+            for _ in 0..300 {
+                let k = rng.below(6);
+                let mut runs: Vec<Vec<(u32, usize, usize)>> = Vec::new();
+                for r in 0..k {
+                    let len = rng.below(6);
+                    let mut keys: Vec<u32> = rng.vec(len, 0, 4);
+                    keys.sort_unstable();
+                    runs.push(keys.into_iter().enumerate().map(|(i, key)| (key, r, i)).collect());
+                }
+                let reads: Vec<Rc<Cell<usize>>> = (0..k).map(|_| Rc::new(Cell::new(0))).collect();
+                let calls = Cell::new(0);
+                let mut m = kmerge_by_key(
+                    runs.iter().zip(&reads).map(|(v, c)| Counted { inner: v.clone().into_iter(), reads: c.clone() }).collect(),
+                    |x: &(u32, usize, usize)| {
+                        calls.set(calls.get() + 1);
+                        x.0
+                    },
+                );
+                // Never more than one unreturned item per run.
+                let mut returned = vec![0; k];
+                let mut got = Vec::new();
+                let mut lazy = true;
+                while let Some(x) = m.next() {
+                    returned[x.1] += 1;
+                    lazy &= (0..k).all(|r| reads[r].get() <= returned[r] + 1);
+                    got.push(x);
+                }
+                let mut want: Vec<(u32, usize, usize)> = runs.concat();
+                want.sort();
+                let n = want.len();
+                check!(format!("runs (key, run, index) = {runs:?}; (merged, lazy, key calls)"), (got, lazy, calls.get()), (want, true, n));
+            }
+        }
+
+        #[test]
+        fn size_hint_brackets_what_is_left() {
+            // Filtered runs report (0, Some(n)): the hint must still bracket the true remainder at every step.
+            let runs: Vec<std::iter::Filter<std::vec::IntoIter<u32>, fn(&u32) -> bool>> =
+                (0..4).map(|r| (0..10).map(|i| i * 4 + r).collect::<Vec<u32>>().into_iter().filter((|x: &u32| x % 3 != 0) as fn(&u32) -> bool)).collect();
+            let total = (0..40u32).filter(|x| x % 3 != 0).count();
+            let mut m = kmerge_by_key(runs, |x: &u32| *x);
+            let mut left = total;
+            let mut ok = true;
+            loop {
+                let (lo, hi) = m.size_hint();
+                ok &= lo <= left && hi.is_some_and(|h| left <= h);
+                if m.next().is_none() {
+                    break;
+                }
+                left -= 1;
+            }
+            check!("4 filtered runs over 0..40 without multiples of 3: lo <= remaining <= hi at every step", (ok, left), (true, 0));
+        }
+
+        #[test]
+        fn scale_10k_runs() {
+            let mut rng = anneal_prelude::Rng::new(721);
+            let runs: Vec<Vec<u32>> = (0..10_000)
+                .map(|_| {
+                    let mut v: Vec<u32> = rng.vec(20, 0, 1_000_000_000);
+                    v.sort_unstable();
+                    v
+                })
+                .collect();
+            let mut want = runs.concat();
+            want.sort_unstable();
+            let got: Vec<u32> = kmerge_by_key(runs.into_iter().map(Vec::into_iter).collect(), |x: &u32| *x).collect();
+            check!("10000 runs of 20 random values", got == want, true);
+        }
+        """,
+    ],
+    wrong=dict(
+        collect_and_sort="""
+            use std::marker::PhantomData;
+
+            /// Merges runs that are each sorted by `key` into one sorted stream.
+            pub struct KMerge<I: Iterator, K, F> {
+                items: std::vec::IntoIter<(K, usize, I::Item)>,
+                _key: PhantomData<F>,
+            }
+
+            pub fn kmerge_by_key<I, K, F>(runs: Vec<I>, mut key: F) -> KMerge<I, K, F>
+            where
+                I: Iterator,
+                K: Ord,
+                F: FnMut(&I::Item) -> K,
+            {
+                let mut all = Vec::new();
+                for (run, it) in runs.into_iter().enumerate() {
+                    for item in it {
+                        all.push((key(&item), run, item));
+                    }
+                }
+                // Stable, so equal keys keep run order.
+                all.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+                KMerge { items: all.into_iter(), _key: PhantomData }
+            }
+
+            impl<I, K, F> Iterator for KMerge<I, K, F>
+            where
+                I: Iterator,
+                K: Ord,
+                F: FnMut(&I::Item) -> K,
+            {
+                type Item = I::Item;
+
+                fn next(&mut self) -> Option<I::Item> {
+                    self.items.next().map(|(_, _, item)| item)
+                }
+
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.items.size_hint()
+                }
+            }
+        """,
+        ties_ignore_the_run=KMERGE_HEAD.replace("other.key.cmp(&self.key).then_with(|| other.run.cmp(&self.run))", "other.key.cmp(&self.key)").rstrip("\n") + "\n" + KMERGE_REST,
+        scan_every_head="""
+            /// Merges runs that are each sorted by `key` into one sorted stream.
+            pub struct KMerge<I: Iterator, K, F> {
+                runs: Vec<I>,
+                key: F,
+                heads: Vec<Option<(K, I::Item)>>,
+            }
+
+            pub fn kmerge_by_key<I, K, F>(mut runs: Vec<I>, mut key: F) -> KMerge<I, K, F>
+            where
+                I: Iterator,
+                K: Ord,
+                F: FnMut(&I::Item) -> K,
+            {
+                let heads = runs.iter_mut().map(|it| it.next().map(|x| (key(&x), x))).collect();
+                KMerge { runs, key, heads }
+            }
+
+            impl<I, K, F> Iterator for KMerge<I, K, F>
+            where
+                I: Iterator,
+                K: Ord,
+                F: FnMut(&I::Item) -> K,
+            {
+                type Item = I::Item;
+
+                fn next(&mut self) -> Option<I::Item> {
+                    let mut best: Option<usize> = None;
+                    for r in 0..self.heads.len() {
+                        if let Some((k, _)) = &self.heads[r] {
+                            if best.is_none_or(|b| k < &self.heads[b].as_ref().unwrap().0) {
+                                best = Some(r);
+                            }
+                        }
+                    }
+                    let r = best?;
+                    let refill = self.runs[r].next().map(|x| ((self.key)(&x), x));
+                    let (_, item) = std::mem::replace(&mut self.heads[r], refill)?;
+                    Some(item)
+                }
+
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    let held = self.heads.iter().filter(|h| h.is_some()).count();
+                    self.runs.iter().fold((held, Some(held)), |(lo, hi), run| {
+                        let (a, b) = run.size_hint();
+                        (lo.saturating_add(a), hi.zip(b).and_then(|(h, b)| h.checked_add(b)))
+                    })
+                }
+            }
+        """,
+    ),
+    hints=[("approach", "Keep one pending item per run in a min-heap keyed by `(key, run)`. Pop the smallest, then read the next item from that same run."),
+           ("rust", "`Ord` can't see your key closure, so compute the key when an item enters the heap and store it next to the item in a `Head { key, run, item }`. Implement `Ord` by hand on `(key, run)`, reversed for a min-heap, and never touch `item`; derives would demand `Ord` on the item."),
+           ("edge case", "Stability comes from the run index in the ordering. `size_hint` must count the items sitting in the heap, and add upper bounds with `checked_add`.")],
+    notes=("This is the merge phase of external sort (and of LSM-tree compaction): each run is a sorted file read sequentially, and memory holds "
+           "one item per run. The heap entry carries its precomputed key, so the closure runs once per item and `Ord` stays a pure function of "
+           "stored data. Comparing `(key, run)` makes the merge stable, which is what lets a multi-pass external sort stay stable. Because only "
+           "keys are compared, `Head<K, T>` implements `PartialEq`/`Eq`/`PartialOrd`/`Ord` for any `T`. Collecting everything and sorting "
+           "would need all N items in memory at once, which is the one thing external sort exists to avoid.",
+           "O(N log k)", "O(k)"),
+    follow_up="With k = 10 000 runs, a heap costs log k comparisons per item. How does a tournament (loser) tree cut that, and why do databases use one?",
+    related=["D5", "S6", "L5"],
+))
+
+P.append(dict(
+    slug="single-threaded-cpu", title="Single-threaded CPU", level="hard", stage="two-heaps-merges", tags=["BinaryHeap", "simulation", "u64"],
+    companies=["Amazon", "Google", "Microsoft"],
+    teaches=["Sort by arrival once, then feed a min-heap of `Reverse((processing, index))` as the clock passes arrivals.",
+             "When nothing is waiting, jump the clock to the next arrival instead of ticking.",
+             "The clock is `u64`: 10⁵ tasks of up to ~4·10⁹ each overflow `u32`."],
+    statement="""
+        `tasks[i] = (enqueue_time, processing_time)`. A single CPU runs tasks one at a time, to completion:
+
+        - when it's free and tasks are waiting, it starts the one with the shortest processing time, breaking ties by
+          smaller index;
+        - when it's free and nothing is waiting, it idles until the next task arrives;
+        - a task whose enqueue time equals the moment the CPU becomes free is already waiting.
+
+        Return the indices in the order the CPU runs them.
+    """,
+    examples=[("tasks = [(1, 2), (2, 4), (3, 2), (4, 1)]", "[0, 2, 3, 1]"), ("tasks = [(7, 10), (7, 12), (7, 5), (7, 4), (7, 2)]", "[4, 3, 2, 0, 1]")],
+    constraints=["0 ≤ tasks.len() ≤ 10⁵", "enqueue and processing times are any u32"],
+    starter="""
+        pub fn get_order(tasks: &[(u32, u32)]) -> Vec<usize> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
+
+        pub fn get_order(tasks: &[(u32, u32)]) -> Vec<usize> {
+            let mut arrivals: Vec<usize> = (0..tasks.len()).collect();
+            arrivals.sort_unstable_by_key(|&i| (tasks[i].0, i));
+            // Waiting tasks: shortest processing time first, then smallest index.
+            let mut waiting: BinaryHeap<Reverse<(u32, usize)>> = BinaryHeap::new();
+            let mut out = Vec::with_capacity(tasks.len());
+            let mut clock: u64 = 0;
+            let mut next = 0;
+            while out.len() < tasks.len() {
+                if waiting.is_empty() {
+                    // Idle: jump straight to the next arrival.
+                    clock = clock.max(tasks[arrivals[next]].0 as u64);
+                }
+                while next < arrivals.len() && tasks[arrivals[next]].0 as u64 <= clock {
+                    let i = arrivals[next];
+                    waiting.push(Reverse((tasks[i].1, i)));
+                    next += 1;
+                }
+                if let Some(Reverse((time, i))) = waiting.pop() {
+                    clock += time as u64;
+                    out.push(i);
+                }
+            }
+            out
+        }
+    """,
+    visible=[
+        T("leetcode_one", "tasks = [(1, 2), (2, 4), (3, 2), (4, 1)]", "get_order(&[(1, 2), (2, 4), (3, 2), (4, 1)])", "vec![0, 2, 3, 1]"),
+        T("leetcode_same_arrival", "tasks = [(7, 10), (7, 12), (7, 5), (7, 4), (7, 2)]", "get_order(&[(7, 10), (7, 12), (7, 5), (7, 4), (7, 2)])", "vec![4, 3, 2, 0, 1]"),
+        T("empty", "tasks = []", "get_order(&[])", "Vec::<usize>::new()"),
+        T("idle_until_the_next_arrival", "tasks = [(10, 1), (0, 1)]", "get_order(&[(10, 1), (0, 1)])", "vec![1, 0]"),
+        T("ties_by_index", "tasks = [(0, 5), (0, 5), (0, 5)]", "get_order(&[(0, 5), (0, 5), (0, 5)])", "vec![0, 1, 2]"),
+        T("arrival_at_finish_counts", "tasks = [(0, 2), (2, 1), (1, 3)] (at time 2 both 1 and 2 wait)", "get_order(&[(0, 2), (2, 1), (1, 3)])", "vec![0, 1, 2]"),
+    ],
+    hidden=[
+        T("single", "tasks = [(5, 5)]", "get_order(&[(5, 5)])", "vec![0]"),
+        T("clock_past_u32", "tasks = [(0, 4000000000), (1, 4000000000), (2, 1)]", "get_order(&[(0, 4_000_000_000), (1, 4_000_000_000), (2, 1)])", "vec![0, 2, 1]"),
+        T("long_idle_gap", "tasks = [(4000000000, 1), (5, 1)]", "get_order(&[(4_000_000_000, 1), (5, 1)])", "vec![1, 0]"),
+        T("max_times", "tasks = [(u32::MAX, u32::MAX), (u32::MAX, 0)]", "get_order(&[(u32::MAX, u32::MAX), (u32::MAX, 0)])", "vec![1, 0]"),
+        T("late_short_task_waits", "tasks = [(0, 10), (1, 1), (2, 5)]", "get_order(&[(0, 10), (1, 1), (2, 5)])", "vec![0, 1, 2]"),
+        T("zero_processing", "tasks = [(3, 0), (3, 0), (0, 3)]", "get_order(&[(3, 0), (3, 0), (0, 3)])", "vec![2, 0, 1]"),
+        T("shorter_wins_over_earlier", "tasks = [(0, 1), (1, 9), (1, 2)]", "get_order(&[(0, 1), (1, 9), (1, 2)])", "vec![0, 2, 1]"),
+        T("unsorted_arrivals", "tasks = [(9, 1), (3, 1), (6, 1), (0, 1)]", "get_order(&[(9, 1), (3, 1), (6, 1), (0, 1)])", "vec![3, 1, 2, 0]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(722);
+            for _ in 0..300 {
+                let n = rng.below(9);
+                let tasks: Vec<(u32, u32)> = (0..n).map(|_| (rng.int(0, 10) as u32, rng.int(0, 4) as u32)).collect();
+                let mut done = vec![false; n];
+                let mut clock = 0u64;
+                let mut want = Vec::new();
+                while want.len() < n {
+                    let pick = (0..n).filter(|&i| !done[i] && tasks[i].0 as u64 <= clock).min_by_key(|&i| (tasks[i].1, i));
+                    match pick {
+                        Some(i) => {
+                            done[i] = true;
+                            clock += tasks[i].1 as u64;
+                            want.push(i);
+                        }
+                        None => clock = (0..n).filter(|&i| !done[i]).map(|i| tasks[i].0 as u64).min().unwrap(),
+                    }
+                }
+                check!(format!("tasks = {tasks:?}"), get_order(&tasks), want);
+            }
+        }
+
+        #[test]
+        fn scale_100k_all_at_once() {
+            let mut rng = anneal_prelude::Rng::new(723);
+            let tasks: Vec<(u32, u32)> = (0..100_000).map(|_| (0, rng.int(1, 1_000_000) as u32)).collect();
+            let mut want: Vec<usize> = (0..tasks.len()).collect();
+            want.sort_unstable_by_key(|&i| (tasks[i].1, i));
+            check!("100000 tasks all enqueued at 0, random processing times", get_order(&tasks) == want, true);
+        }
+
+        #[test]
+        fn scale_100k_spread_out() {
+            // Task i arrives at 10·i and takes 9 or 10: each one ends before the next arrives, often with an idle gap.
+            let tasks: Vec<(u32, u32)> = (0..100_000u32).map(|i| (10 * i, 9 + i % 2)).collect();
+            check!("100000 tasks arriving every 10, taking 9 or 10", get_order(&tasks) == (0..100_000).collect::<Vec<usize>>(), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        scan_waiting_tasks="""
+            pub fn get_order(tasks: &[(u32, u32)]) -> Vec<usize> {
+                let n = tasks.len();
+                let mut done = vec![false; n];
+                let mut clock = 0u64;
+                let mut out = Vec::new();
+                while out.len() < n {
+                    let pick = (0..n).filter(|&i| !done[i] && tasks[i].0 as u64 <= clock).min_by_key(|&i| (tasks[i].1, i));
+                    match pick {
+                        Some(i) => {
+                            done[i] = true;
+                            clock += tasks[i].1 as u64;
+                            out.push(i);
+                        }
+                        None => clock = (0..n).filter(|&i| !done[i]).map(|i| tasks[i].0 as u64).min().unwrap(),
+                    }
+                }
+                out
+            }
+        """,
+        u32_clock="""
+            use std::cmp::Reverse;
+            use std::collections::BinaryHeap;
+
+            pub fn get_order(tasks: &[(u32, u32)]) -> Vec<usize> {
+                let mut arrivals: Vec<usize> = (0..tasks.len()).collect();
+                arrivals.sort_unstable_by_key(|&i| (tasks[i].0, i));
+                let mut waiting: BinaryHeap<Reverse<(u32, usize)>> = BinaryHeap::new();
+                let mut out = Vec::new();
+                let mut clock: u32 = 0;
+                let mut next = 0;
+                while out.len() < tasks.len() {
+                    if waiting.is_empty() {
+                        clock = clock.max(tasks[arrivals[next]].0);
+                    }
+                    while next < arrivals.len() && tasks[arrivals[next]].0 <= clock {
+                        let i = arrivals[next];
+                        waiting.push(Reverse((tasks[i].1, i)));
+                        next += 1;
+                    }
+                    if let Some(Reverse((time, i))) = waiting.pop() {
+                        clock += time;
+                        out.push(i);
+                    }
+                }
+                out
+            }
+        """,
+        tick_while_idle="""
+            use std::cmp::Reverse;
+            use std::collections::BinaryHeap;
+
+            pub fn get_order(tasks: &[(u32, u32)]) -> Vec<usize> {
+                let mut arrivals: Vec<usize> = (0..tasks.len()).collect();
+                arrivals.sort_unstable_by_key(|&i| (tasks[i].0, i));
+                let mut waiting: BinaryHeap<Reverse<(u32, usize)>> = BinaryHeap::new();
+                let mut out = Vec::new();
+                let mut clock: u64 = 0;
+                let mut next = 0;
+                while out.len() < tasks.len() {
+                    while next < arrivals.len() && tasks[arrivals[next]].0 as u64 <= clock {
+                        let i = arrivals[next];
+                        waiting.push(Reverse((tasks[i].1, i)));
+                        next += 1;
+                    }
+                    match waiting.pop() {
+                        Some(Reverse((time, i))) => {
+                            clock += time as u64;
+                            out.push(i);
+                        }
+                        // Nothing waiting: let one unit of time pass.
+                        None => clock += 1,
+                    }
+                }
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Process arrivals in time order. Keep the tasks that have arrived in a min-heap by (processing time, index); each time the CPU is free, pop one and advance the clock by its processing time."),
+           ("rust", "Sort indices by `(enqueue, index)` once and walk them with a pointer. `BinaryHeap<Reverse<(u32, usize)>>` gives shortest-first with index tie-breaks for free."),
+           ("edge case", "If nothing is waiting, set the clock to the next arrival rather than ticking. Keep the clock in `u64`.")],
+    notes=("Two structures play different roles: the sorted arrival list says *when* tasks become available, the heap says *which* available task "
+           "runs next. The tuple `(processing, index)` inside `Reverse` encodes the whole selection rule. Jumping the clock over idle stretches "
+           "makes the run time independent of the time values.", "O(n log n)", "O(n)"),
+    follow_up="With m identical CPUs instead of one, what second heap would you add?",
+    related=["D8", "S5"],
+))
+
 STAGES = [
     ("heap-basics", "Heap basics", "easy"),
     ("heaps-at-work", "Heaps at work", "medium"),

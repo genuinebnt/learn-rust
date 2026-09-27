@@ -1,0 +1,42 @@
+slug = "ipo"
+title = "IPO"
+mode = "write"
+level = "hard"
+stage = "two-heaps-merges"
+order = 10
+status = "ready"
+tags = ["two heaps", "greedy", "Reverse"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "Two heaps with different keys: a min-heap by capital holds locked projects, a max-heap by profit holds the affordable ones.",
+  "Capital only grows, so each project moves from locked to affordable once.",
+  "`u64` for capital: `w` plus many profits outgrows `u32`.",
+]
+constraints = ["0 ≤ k ≤ 10⁵", "0 ≤ n ≤ 10⁵, profits.len() == capital.len()", "0 ≤ w, capital[i] ≤ 10¹²", "0 ≤ profits[i] ≤ 10⁹"]
+follow_up = "What changes if starting a project also costs its capital (you pay `capital[i]` and get back `capital[i] + profits[i]`)?"
+related = ["D8", "S5"]
+
+[[examples]]
+input = "k = 2, w = 0, profits = [1, 2, 3], capital = [0, 1, 1]"
+output = "4"
+
+[[examples]]
+input = "k = 3, w = 0, profits = [1, 2, 3], capital = [0, 1, 2]"
+output = "6"
+
+[[hints]]
+kind = "approach"
+text = "At each step, do the most profitable project you can afford. Finishing it only raises capital, so nothing affordable ever becomes unaffordable."
+
+[[hints]]
+kind = "rust"
+text = "Keep locked projects in `BinaryHeap<Reverse<(capital, profit)>>`; before each pick, move every one with `capital <= w` into a `BinaryHeap<u64>` of profits."
+
+[[hints]]
+kind = "edge case"
+text = "Stop early when nothing is affordable, and move *all* newly affordable projects, not just one per round."
+
+[solution]
+explanation = "Exchange argument: any plan that skips the most profitable affordable project can swap it in without ending lower, because capital only grows. Each project moves from the capital heap to the profit heap once and leaves it at most once, so the total is O((n + k) log n). Sorting by capital with an index pointer replaces the first heap equally well."
+time = "O((n + k) log n)"
+space = "O(n)"

@@ -1,0 +1,43 @@
+slug = "external-merge-sort"
+title = "External merge sort"
+mode = "write"
+level = "hard"
+stage = "two-heaps-merges"
+order = 12
+status = "ready"
+tags = ["k-way merge", "custom Ord", "Iterator", "generics"]
+teaches = [
+  "The merge phase of external sort as a lazy `Iterator`: one buffered item per run, O(log k) per item.",
+  "A heap entry with a hand-written `Ord` over `(key, run)` that never compares the payload, so items need no traits.",
+  "Stability from the run index, and a key computed once per item because `Ord` can't call the key closure.",
+  "Syntax to remember: `impl<I, K, F> Iterator for KMerge<I, K, F> where I: Iterator, K: Ord, F: FnMut(&I::Item) -> K`.",
+]
+constraints = ["0 ≤ runs ≤ 2·10⁴", "total items N ≤ 2·10⁵ in the tests"]
+follow_up = "With k = 10 000 runs, a heap costs log k comparisons per item. How does a tournament (loser) tree cut that, and why do databases use one?"
+related = ["D5", "S6", "L5"]
+source = "W64"
+
+[[examples]]
+input = "runs = [[1, 4, 9], [2, 3], []], key = |x| *x"
+output = "1, 2, 3, 4, 9"
+
+[[examples]]
+input = "runs = [[(1, \"a\")], [(1, \"b\"), (2, \"c\")]], key = |r| r.0"
+output = "(1, \"a\"), (1, \"b\"), (2, \"c\")"
+
+[[hints]]
+kind = "approach"
+text = "Keep one pending item per run in a min-heap keyed by `(key, run)`. Pop the smallest, then read the next item from that same run."
+
+[[hints]]
+kind = "rust"
+text = "`Ord` can't see your key closure, so compute the key when an item enters the heap and store it next to the item in a `Head { key, run, item }`. Implement `Ord` by hand on `(key, run)`, reversed for a min-heap, and never touch `item`; derives would demand `Ord` on the item."
+
+[[hints]]
+kind = "edge case"
+text = "Stability comes from the run index in the ordering. `size_hint` must count the items sitting in the heap, and add upper bounds with `checked_add`."
+
+[solution]
+explanation = "This is the merge phase of external sort (and of LSM-tree compaction): each run is a sorted file read sequentially, and memory holds one item per run. The heap entry carries its precomputed key, so the closure runs once per item and `Ord` stays a pure function of stored data. Comparing `(key, run)` makes the merge stable, which is what lets a multi-pass external sort stay stable. Because only keys are compared, `Head<K, T>` implements `PartialEq`/`Eq`/`PartialOrd`/`Ord` for any `T`. Collecting everything and sorting would need all N items in memory at once, which is the one thing external sort exists to avoid."
+time = "O(N log k)"
+space = "O(k)"

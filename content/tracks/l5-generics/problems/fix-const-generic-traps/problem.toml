@@ -1,0 +1,36 @@
+slug = "fix-const-generic-traps"
+title = "Fix: const generic traps"
+mode = "fix"
+level = "medium"
+stage = "compile-time-rust"
+order = 9
+status = "ready"
+tags = ["const generics", "E0277", "array::from_fn", "inline const"]
+teaches = [
+  "`[x; N]` needs `Copy`; `array::from_fn` doesn't.",
+  "No arithmetic on const parameters in types on stable; an extra parameter plus `const { assert!() }`.",
+  "`N = 0` is a legal const argument.",
+]
+follow_up = "`concat::<i32, 2, 2, 5>(...)` is rejected, but only when it's instantiated. Why can't the check happen at the definition, and how does `generic_const_exprs` change that?"
+related = ["L5", "S3", "Y1"]
+
+[[hints]]
+kind = "rust"
+text = "`[expr; N]` copies `expr`, so it needs `Copy` (or a constant). `std::array::from_fn(|_| ...)` builds each element separately. For a ring that needs nothing from `T`, store `[Option<T>; N]`."
+
+[[hints]]
+kind = "rust"
+text = "`[T; A + B]` is 'generic parameters may not be used in const operations': stable Rust can't compute with const parameters in types. Take a third `const C: usize` and check `A + B == C` in an inline `const { assert!(...) }` block."
+
+[[hints]]
+kind = "edge"
+text = "`% N` with `N == 0` divides by zero. Return the item before touching the array."
+
+[solution]
+explanation = "Const generics make lengths part of the type, but stable Rust only lets a const parameter stand alone in a type (`[T; N]`), not in arithmetic (`[T; A + B]`, which needs the unstable `generic_const_exprs`). The usual workaround is an extra parameter plus a compile-time check: `const { assert!(A + B == C) }` fails the build for a bad `C` after monomorphization. Syntax to remember: `impl<T, const N: usize> Ring<T, N> { pub const CAPACITY: usize = N; }`, `std::array::from_fn(|i| ...)`, and a call with the turbofish `concat::<char, 1, 2, 3>(...)`."
+time = "O(1) per push; O(A + B) concat"
+space = "O(N)"
+
+[rules]
+forbid_types = ["Vec", "VecDeque"]
+forbid_unsafe = true

@@ -1,0 +1,31 @@
+slug = "const-fn-crc-table"
+title = "const fn: a CRC table built at compile time"
+mode = "write"
+level = "medium"
+stage = "compile-time-rust"
+order = 10
+status = "ready"
+tags = ["const fn", "associated consts", "const generics"]
+teaches = [
+  "`const fn` and its limits: `while` loops, no iterators.",
+  "Associated consts on const-generic types, evaluated per instantiation.",
+]
+follow_up = "What happens if `make_table` panics (say, an index out of bounds) when `TABLE` is evaluated? When is that error reported?"
+related = ["L5", "Y4"]
+
+[[hints]]
+kind = "rust"
+text = "`for` loops aren't allowed in a `const fn` (they call `Iterator::next`, which isn't const). Loop with `while` and a counter."
+
+[[hints]]
+kind = "approach"
+text = "Table: for each byte `b`, start with `crc = b` and run the 8 shift-and-XOR steps. Checksum: `crc = TABLE[(crc ^ byte) as usize]` for each byte, starting from 0."
+
+[[hints]]
+kind = "rust"
+text = "Inside the impl, the table is `Self::TABLE`. It's an associated const, evaluated at compile time once per `POLY` that's used."
+
+[solution]
+explanation = "A `const fn` can run at compile time, so `TABLE` costs nothing at run time and `checksum` works in `const` items. The limits are what make it 'understand' level: no `for`, no iterator adaptors, no trait method calls (like `Iterator::next` or most operators on generic types), and `while` with manual counters instead. An associated const on a const-generic type (`impl<const POLY: u8> Crc8<POLY> { pub const TABLE: [u8; 256] = make_table(POLY); }`) is evaluated per instantiation. Syntax to remember: `Crc8::<0x07>::TABLE`."
+time = "O(n) per checksum; the table is built at compile time"
+space = "256 bytes per polynomial, in the binary"

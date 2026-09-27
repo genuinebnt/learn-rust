@@ -586,6 +586,7 @@ where
 MBK_OK = "    F: FnMut(&T) -> &K,\n    K: Ord + ?Sized,"
 
 PERSON = """
+#[allow(dead_code)]
 struct Person {
     name: String,
     age: u32,
@@ -1197,8 +1198,7 @@ P.append(write(
     """,
     GRAPH_STARTER,
     GRAPH_SOLUTION,
-    [LADDER,
-     T("shortest_in_grid", '"...\\n.#.\\n..." from (0, 0) to (2, 2): length and ends', 'shortest_path(&Grid::from("...\\n.#.\\n..."), (0, 0), (2, 2)).map(|p| (p.len(), p[0], p[p.len() - 1]))',
+    [T("shortest_in_grid", '"...\\n.#.\\n..." from (0, 0) to (2, 2): length and ends', 'shortest_path(&Grid::from("...\\n.#.\\n..."), (0, 0), (2, 2)).map(|p| (p.len(), p[0], p[p.len() - 1]))',
        "Some((5, (0, 0), (2, 2)))"),
      T("unreachable_is_none", "edges [[1], [2], [], [0]], from 2 to 0", "shortest_path(&AdjList { edges: vec![vec![1], vec![2], vec![], vec![0]] }, 2, 0)", "None"),
      T("adj_list", "edges [[1], [2], [], [0]], start 0", "reachable(&AdjList { edges: vec![vec![1], vec![2], vec![], vec![0]] }, 0)", "3"),
@@ -1559,9 +1559,843 @@ P.append(write(
     ),
 ))
 
+
+# ---------------------------------------------------------------- compile-time rust (medium)
+
+RING_STARTER = """
+/// A fixed-capacity ring buffer. Pushing onto a full ring evicts and returns the oldest item.
+pub struct Ring<T, const N: usize> {
+    items: [T; N],
+    start: usize,
+    len: usize,
+}
+
+impl<T: Default, const N: usize> Ring<T, N> {
+    pub fn new() -> Self {
+        Ring { items: [T::default(); N], start: 0, len: 0 }
+    }
+}
+
+impl<T, const N: usize> Ring<T, N> {
+    pub const CAPACITY: usize = N;
+
+    /// Adds `x` as the newest item; if the ring was full, returns the evicted oldest one.
+    pub fn push(&mut self, x: T) -> Option<T> {
+        if self.len == N {
+            let old = std::mem::replace(&mut self.items[self.start], x);
+            self.start = (self.start + 1) % N;
+            Some(old)
+        } else {
+            self.items[(self.start + self.len) % N] = x;
+            self.len += 1;
+            None
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Oldest first.
+    pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
+        (0..self.len).map(move |i| &self.items[(self.start + i) % N])
+    }
+}
+
+/// `a` followed by `b`.
+pub fn concat<T: Copy + Default, const A: usize, const B: usize>(a: [T; A], b: [T; B]) -> [T; A + B] {
+    let mut out = [T::default(); A + B];
+    out[..A].copy_from_slice(&a);
+    out[A..].copy_from_slice(&b);
+    out
+}
+"""
+
+
+def ring_solution(zero_guard="        if N == 0 {\n            return Some(x);\n        }\n", iter_index="(self.start + i) % N", concat_iter="a.into_iter().chain(b)"):
+    return f"""
+/// A fixed-capacity ring buffer. Pushing onto a full ring evicts and returns the oldest item.
+pub struct Ring<T, const N: usize> {{
+    // Option<T> slots: an empty ring needs no T at all, so no `T: Default` and no `T: Copy`.
+    items: [Option<T>; N],
+    start: usize,
+    len: usize,
+}}
+
+impl<T, const N: usize> Ring<T, N> {{
+    pub const CAPACITY: usize = N;
+
+    pub fn new() -> Self {{
+        // `[None; N]` would need `Option<T>: Copy`; from_fn builds each slot separately.
+        Ring {{ items: std::array::from_fn(|_| None), start: 0, len: 0 }}
+    }}
+
+    /// Adds `x` as the newest item; if the ring was full, returns the evicted oldest one.
+    pub fn push(&mut self, x: T) -> Option<T> {{
+{zero_guard}        if self.len == N {{
+            let old = self.items[self.start].replace(x);
+            self.start = (self.start + 1) % N;
+            old
+        }} else {{
+            self.items[(self.start + self.len) % N] = Some(x);
+            self.len += 1;
+            None
+        }}
+    }}
+
+    pub fn len(&self) -> usize {{
+        self.len
+    }}
+
+    /// Oldest first.
+    pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {{
+        (0..self.len).map(move |i| self.items[{iter_index}].as_ref().unwrap())
+    }}
+}}
+
+/// `a` followed by `b`. `[T; A + B]` isn't allowed on stable, so the caller's length `C` is checked at compile time.
+pub fn concat<T, const A: usize, const B: usize, const C: usize>(a: [T; A], b: [T; B]) -> [T; C] {{
+    const {{ assert!(A + B == C, "concat: C must be A + B") }};
+    let mut items = {concat_iter};
+    std::array::from_fn(|_| items.next().unwrap())
+}}
+"""
+
+
+TOKEN2 = """
+/// No derives: not Default, Clone or Copy.
+struct Token(u32);
+"""
+
+P.append(fix(
+    "fix-const-generic-traps", "Fix: const generic traps", "medium", "compile-time-rust", ["const generics", "E0277", "array::from_fn", "inline const"],
+    """
+        `Ring<T, N>` is a fixed-capacity ring buffer and `concat` joins two arrays. Neither compiles, and neither
+        should need anything from `T`: the tests use `String` and a `Token` type with no derives.
+
+        - `Ring::new()` must work for any `T`, and `N` may be `0` (a zero-capacity ring hands every pushed item
+          straight back).
+        - `concat` returns `[T; C]`, where the caller picks `C` (usually by annotating the result) and it must equal
+          `A + B`.
+
+        Keep the storage in arrays.
+    """,
+    RING_STARTER,
+    ring_solution(),
+    [TOKEN2,
+     T("ring_of_strings", "Ring<String, 2>: push a, b, c", "(pushed, r.iter().cloned().collect::<Vec<_>>())", '(vec![None, None, Some("a".to_string())], vec!["b".to_string(), "c".to_string()])',
+       setup='let mut r: Ring<String, 2> = Ring::new();\nlet pushed: Vec<Option<String>> = ["a", "b", "c"].iter().map(|s| r.push(s.to_string())).collect();'),
+     T("no_default_needed", "Ring<Token, 2>: push 1, 2, 3", "(evicted, r.iter().map(|t| t.0).collect::<Vec<_>>())", "(Some(1), vec![2, 3])",
+       setup="let mut r: Ring<Token, 2> = Ring::new();\nr.push(Token(1));\nr.push(Token(2));\nlet evicted = r.push(Token(3)).map(|t| t.0);"),
+     T("zero_capacity", "Ring<i32, 0>: push 5", "(r.push(5), r.len(), Ring::<i32, 0>::CAPACITY)", "(Some(5), 0, 0)", setup="let mut r: Ring<i32, 0> = Ring::new();"),
+     T("concat_ints", "concat([1, 2], [3, 4, 5]) as [i32; 5]", "c", "[1, 2, 3, 4, 5]", setup="let c: [i32; 5] = concat([1, 2], [3, 4, 5]);"),
+     T("concat_strings", 'concat(["a"], ["b", "c"]) as Strings', "c", '["a".to_string(), "b".to_string(), "c".to_string()]',
+       setup='let c: [String; 3] = concat(["a".to_string()], ["b".to_string(), "c".to_string()]);')],
+    [TOKEN2,
+     T("capacity_is_a_const", "const CAP: usize = Ring::<u8, 4>::CAPACITY", "CAP", "4", setup="const CAP: usize = Ring::<u8, 4>::CAPACITY;"),
+     T("empty_ring", "Ring<i32, 3>::new()", "(r.len(), r.iter().count())", "(0, 0)", setup="let r: Ring<i32, 3> = Ring::new();"),
+     T("wraps_many_times", "Ring<u32, 3>: push 0..10", "(r.len(), r.iter().copied().collect::<Vec<_>>())", "(3, vec![7, 8, 9])",
+       setup="let mut r: Ring<u32, 3> = Ring::new();\nfor i in 0..10 {\n    r.push(i);\n}"),
+     T("zero_capacity_tokens", "Ring<Token, 0>: push Token(9)", "r.push(Token(9)).map(|t| t.0)", "Some(9)", setup="let mut r: Ring<Token, 0> = Ring::new();"),
+     T("capacity_one", "Ring<char, 1>: push a, b", "(r.push('a'), r.push('b'), r.iter().copied().collect::<String>())", "(None, Some('a'), \"b\".to_string())",
+       setup="let mut r: Ring<char, 1> = Ring::new();"),
+     T("concat_empty", "concat([], []) as [u8; 0]", "c.len()", "0", setup="let c: [u8; 0] = concat([], []);"),
+     T("concat_turbofish", "concat::<char, 1, 2, 3>(['a'], ['b', 'c'])", "concat::<char, 1, 2, 3>(['a'], ['b', 'c'])", "['a', 'b', 'c']"),
+     T("concat_tokens", "concat([Token(1)], [Token(2)])", "c.map(|t| t.0)", "[1, 2]", setup="let c: [Token; 2] = concat([Token(1)], [Token(2)]);"),
+     T("drops_evicted_and_remaining", "Rc clones through a Ring<Rc<i32>, 2>, then drop it", "std::rc::Rc::strong_count(&rc)", "1",
+       setup="let rc = std::rc::Rc::new(0);\nlet mut r: Ring<std::rc::Rc<i32>, 2> = Ring::new();\nfor _ in 0..5 {\n    r.push(rc.clone());\n}\ndrop(r);"),
+     """
+     #[test]
+     fn random_vs_vecdeque() {
+         let mut rng = anneal_prelude::Rng::new(4510);
+         for _ in 0..300 {
+             let mut r: Ring<i64, 4> = Ring::new();
+             let mut model = std::collections::VecDeque::new();
+             let n = rng.below(12);
+             let xs: Vec<i64> = rng.vec(n, -9, 9);
+             for &x in &xs {
+                 let want = if model.len() == 4 { model.pop_front() } else { None };
+                 model.push_back(x);
+                 check!(format!("push {xs:?} into Ring<_, 4>"), r.push(x), want);
+             }
+             check!(format!("push {xs:?} into Ring<_, 4>"), (r.len(), r.iter().copied().collect::<Vec<_>>()), (model.len(), model.iter().copied().collect::<Vec<_>>()));
+         }
+     }
+
+     #[test]
+     fn random_concat() {
+         let mut rng = anneal_prelude::Rng::new(4511);
+         for _ in 0..200 {
+             let a: [i32; 3] = [rng.int(-9, 9) as i32, rng.int(-9, 9) as i32, rng.int(-9, 9) as i32];
+             let b: [i32; 2] = [rng.int(-9, 9) as i32, rng.int(-9, 9) as i32];
+             let c: [i32; 5] = concat(a, b);
+             check!(format!("concat({a:?}, {b:?})"), c.to_vec(), [a.to_vec(), b.to_vec()].concat());
+         }
+     }
+     """],
+    [("rust", "`[expr; N]` copies `expr`, so it needs `Copy` (or a constant). `std::array::from_fn(|_| ...)` builds each element separately. For a ring that needs nothing from `T`, store `[Option<T>; N]`."),
+     ("rust", "`[T; A + B]` is 'generic parameters may not be used in const operations': stable Rust can't compute with const parameters in types. Take a third `const C: usize` and check `A + B == C` in an inline `const { assert!(...) }` block."),
+     ("edge", "`% N` with `N == 0` divides by zero. Return the item before touching the array.")],
+    ("""Const generics make lengths part of the type, but stable Rust only lets a const parameter stand alone in a type (`[T; N]`), not in arithmetic (`[T; A + B]`, which needs the unstable `generic_const_exprs`). The usual workaround is an extra parameter plus a compile-time check: `const { assert!(A + B == C) }` fails the build for a bad `C` after monomorphization. Syntax to remember: `impl<T, const N: usize> Ring<T, N> { pub const CAPACITY: usize = N; }`, `std::array::from_fn(|i| ...)`, and a call with the turbofish `concat::<char, 1, 2, 3>(...)`.""", "O(1) per push; O(A + B) concat", "O(N)"),
+    "`concat::<i32, 2, 2, 5>(...)` is rejected, but only when it's instantiated. Why can't the check happen at the definition, and how does `generic_const_exprs` change that?",
+    ["`[x; N]` needs `Copy`; `array::from_fn` doesn't.", "No arithmetic on const parameters in types on stable; an extra parameter plus `const { assert!() }`.", "`N = 0` is a legal const argument."],
+    rules=dict(types=["Vec", "VecDeque"], unsafe=True),
+    related=("L5", "S3", "Y1"),
+    wrong=dict(
+        forgets_zero_capacity=ring_solution(zero_guard=""),
+        newest_first=ring_solution(iter_index="(self.start + self.len - 1 - i) % N"),
+        concat_b_first=ring_solution(concat_iter="b.into_iter().chain(a)"),
+    ),
+))
+
+
+def crc(table_body=None, checksum_body=None):
+    table_body = table_body or """    let mut table = [0u8; 256];
+    let mut b = 0;
+    // `for` loops call Iterator::next, which isn't const; use `while`.
+    while b < 256 {
+        let mut crc = b as u8;
+        let mut bit = 0;
+        while bit < 8 {
+            crc = if crc & 0x80 != 0 { (crc << 1) ^ poly } else { crc << 1 };
+            bit += 1;
+        }
+        table[b] = crc;
+        b += 1;
+    }
+    table"""
+    checksum_body = checksum_body or """        let mut crc = 0u8;
+        let mut i = 0;
+        while i < data.len() {
+            crc = Self::TABLE[(crc ^ data[i]) as usize];
+            i += 1;
+        }
+        crc"""
+    return f"""
+/// CRC-8 with polynomial `POLY`: initial value 0, no reflection, no final XOR.
+pub struct Crc8<const POLY: u8>;
+
+/// `table[b]` is the CRC of the single byte `b`.
+pub const fn make_table(poly: u8) -> [u8; 256] {{
+{table_body}
+}}
+
+impl<const POLY: u8> Crc8<POLY> {{
+    /// Built at compile time, once per polynomial.
+    pub const TABLE: [u8; 256] = make_table(POLY);
+
+    pub const fn checksum(data: &[u8]) -> u8 {{
+{checksum_body}
+    }}
+}}
+"""
+
+
+CRC_STARTER = crc(table_body="    // TODO: build the table. (A placeholder, so the crate compiles.)\n    [0; 256]",
+                  checksum_body="        // TODO: one table lookup per byte. (A placeholder, so the crate compiles.)\n        0")
+
+P.append(write(
+    "const-fn-crc-table", "const fn: a CRC table built at compile time", "medium", "compile-time-rust", ["const fn", "associated consts", "const generics"],
+    """
+        Implement CRC-8 for any polynomial `POLY` (initial value 0, bits processed most significant first, no final
+        XOR). For each input byte: `crc ^= byte`, then 8 times shift `crc` left by one, XORing in `POLY` whenever the
+        bit shifted out was 1.
+
+        `make_table(poly)` returns `table[b]` = the CRC of the single byte `b`. `Crc8::<POLY>::TABLE` stores it,
+        computed by the compiler, and `checksum` does one table lookup per byte:
+        `crc = TABLE[(crc ^ byte) as usize]`. Both must be usable in `const` items; the tests call them there.
+    """,
+    CRC_STARTER,
+    crc(),
+    [T("check_value_smbus", 'const C: u8 = Crc8::<0x07>::checksum(b"123456789")', "C", "0xF4", setup='const C: u8 = Crc8::<0x07>::checksum(b"123456789");'),
+     T("table_entries", "Crc8::<0x07>::TABLE[1], [2], [0x80]", "(T[1], T[2], T[0x80])", "(0x07, 0x0E, 0x89)", setup="const T: [u8; 256] = Crc8::<0x07>::TABLE;"),
+     T("empty_input", "checksum(b\"\")", 'Crc8::<0x07>::checksum(b"")', "0"),
+     T("another_polynomial", 'Crc8::<0x31>::checksum(b"123456789")', 'Crc8::<0x31>::checksum(b"123456789")', "0xA2"),
+     T("runtime_data", "checksum of a String's bytes at run time", "Crc8::<0x07>::checksum(s.as_bytes())", "0x9E", setup='let s = String::from("héllo");')],
+    [T("single_byte_is_table_entry", "checksum(b\"a\") == TABLE[b'a']", '(Crc8::<0x07>::checksum(b"a"), Crc8::<0x07>::TABLE[b\'a\' as usize])', "(0x20, 0x20)"),
+     T("zero_byte", "checksum(&[0])", "Crc8::<0x07>::checksum(&[0])", "0"),
+     T("table_zero_entry", "TABLE[0] for two polynomials", "(Crc8::<0x07>::TABLE[0], Crc8::<0x31>::TABLE[0])", "(0, 0)"),
+     T("table_last_entry", "TABLE[0xFF] for 0x07 and 0x31", "(Crc8::<0x07>::TABLE[0xFF], Crc8::<0x31>::TABLE[0xFF])", "(0xF3, 0xAC)"),
+     T("make_table_directly", "const M: [u8; 256] = make_table(0x31)", "(M[1], M[0x80])", "(0x31, 0x7A)", setup="const M: [u8; 256] = make_table(0x31);"),
+     T("poly_0x1d", 'Crc8::<0x1D>::checksum(b"123456789")', 'Crc8::<0x1D>::checksum(b"123456789")', "0x37"),
+     T("poly_0x9b_in_const", 'const X: u8 = Crc8::<0x9B>::checksum(b"123456789")', "X", "0xEA", setup='const X: u8 = Crc8::<0x9B>::checksum(b"123456789");'),
+     T("all_bytes", "checksum of 0..=255", "Crc8::<0x07>::checksum(&bytes)", "0x14", setup="let bytes: Vec<u8> = (0..=255).collect();"),
+     T("appending_the_crc_gives_zero", "data followed by its own CRC checks to 0", "Crc8::<0x07>::checksum(&data)", "0",
+       setup='let mut data = b"anneal".to_vec();\ndata.push(Crc8::<0x07>::checksum(&data));'),
+     """
+     fn bitwise(data: &[u8], poly: u8) -> u8 {
+         let mut crc = 0u8;
+         for &b in data {
+             crc ^= b;
+             for _ in 0..8 {
+                 crc = if crc & 0x80 != 0 { (crc << 1) ^ poly } else { crc << 1 };
+             }
+         }
+         crc
+     }
+
+     #[test]
+     fn random_vs_bitwise() {
+         let mut rng = anneal_prelude::Rng::new(4512);
+         for _ in 0..300 {
+             let n = rng.below(20);
+             let data: Vec<u8> = rng.vec(n, 0, 255);
+             check!(format!("data = {data:?}"), (Crc8::<0x07>::checksum(&data), Crc8::<0x31>::checksum(&data), Crc8::<0xD5>::checksum(&data)),
+                    (bitwise(&data, 0x07), bitwise(&data, 0x31), bitwise(&data, 0xD5)));
+         }
+     }
+
+     #[test]
+     fn tables_vs_bitwise() {
+         const T7: [u8; 256] = Crc8::<0x07>::TABLE;
+         for b in 0..=255u8 {
+             check!(format!("TABLE[{b}] for 0x07"), T7[b as usize], bitwise(&[b], 0x07));
+         }
+     }
+     """],
+    [("rust", "`for` loops aren't allowed in a `const fn` (they call `Iterator::next`, which isn't const). Loop with `while` and a counter."),
+     ("approach", "Table: for each byte `b`, start with `crc = b` and run the 8 shift-and-XOR steps. Checksum: `crc = TABLE[(crc ^ byte) as usize]` for each byte, starting from 0."),
+     ("rust", "Inside the impl, the table is `Self::TABLE`. It's an associated const, evaluated at compile time once per `POLY` that's used.")],
+    ("""A `const fn` can run at compile time, so `TABLE` costs nothing at run time and `checksum` works in `const` items. The limits are what make it 'understand' level: no `for`, no iterator adaptors, no trait method calls (like `Iterator::next` or most operators on generic types), and `while` with manual counters instead. An associated const on a const-generic type (`impl<const POLY: u8> Crc8<POLY> { pub const TABLE: [u8; 256] = make_table(POLY); }`) is evaluated per instantiation. Syntax to remember: `Crc8::<0x07>::TABLE`.""", "O(n) per checksum; the table is built at compile time", "256 bytes per polynomial, in the binary"),
+    "What happens if `make_table` panics (say, an index out of bounds) when `TABLE` is evaluated? When is that error reported?",
+    ["`const fn` and its limits: `while` loops, no iterators.", "Associated consts on const-generic types, evaluated per instantiation."],
+    related=("L5", "Y4"),
+    wrong=dict(
+        init_ff=crc(checksum_body="""        let mut crc = 0xFFu8;
+        let mut i = 0;
+        while i < data.len() {
+            crc = Self::TABLE[(crc ^ data[i]) as usize];
+            i += 1;
+        }
+        crc"""),
+        shifts_seven_times=crc(table_body="""    let mut table = [0u8; 256];
+    let mut b = 0;
+    while b < 256 {
+        let mut crc = b as u8;
+        let mut bit = 0;
+        while bit < 7 {
+            crc = if crc & 0x80 != 0 { (crc << 1) ^ poly } else { crc << 1 };
+            bit += 1;
+        }
+        table[b] = crc;
+        b += 1;
+    }
+    table"""),
+        index_by_byte_only=crc(checksum_body="""        let mut crc = 0u8;
+        let mut i = 0;
+        while i < data.len() {
+            crc ^= Self::TABLE[data[i] as usize];
+            i += 1;
+        }
+        crc"""),
+    ),
+))
+
+
+def sorted_vec(pos="self.items.partition_point(|y| O::cmp(y, &x) != Ordering::Greater)", contains="self.items.binary_search_by(|y| O::cmp(y, x)).is_ok()", asc="a.cmp(b)"):
+    return f"""
+use std::cmp::Ordering;
+use std::marker::PhantomData;
+
+/// How to order items. Implementors are zero-sized: the strategy lives in the type, not in the value.
+pub trait Order {{
+    fn cmp<T: Ord>(a: &T, b: &T) -> Ordering;
+}}
+
+pub struct Asc;
+pub struct Desc;
+
+impl Order for Asc {{
+    fn cmp<T: Ord>(a: &T, b: &T) -> Ordering {{
+        {asc}
+    }}
+}}
+
+impl Order for Desc {{
+    fn cmp<T: Ord>(a: &T, b: &T) -> Ordering {{
+        b.cmp(a)
+    }}
+}}
+
+/// Items kept sorted by `O`, ascending unless you say otherwise.
+pub struct SortedVec<T, O = Asc> {{
+    items: Vec<T>,
+    order: PhantomData<O>,
+}}
+
+impl<T: Ord, O: Order> SortedVec<T, O> {{
+    pub fn new() -> Self {{
+        SortedVec {{ items: Vec::new(), order: PhantomData }}
+    }}
+
+    /// Inserts `x` after any items that compare equal to it.
+    pub fn insert(&mut self, x: T) {{
+        let i = {pos};
+        self.items.insert(i, x);
+    }}
+
+    /// Whether some item compares equal to `x` under `O`.
+    pub fn contains(&self, x: &T) -> bool {{
+        {contains}
+    }}
+
+    pub fn as_slice(&self) -> &[T] {{
+        &self.items
+    }}
+
+    /// The same items sorted by another order; equal items keep their relative order.
+    pub fn reorder<O2: Order>(mut self) -> SortedVec<T, O2> {{
+        self.items.sort_by(O2::cmp);
+        SortedVec {{ items: self.items, order: PhantomData }}
+    }}
+}}
+
+impl<T: Ord, O: Order> FromIterator<T> for SortedVec<T, O> {{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {{
+        let mut v = SortedVec::new();
+        for x in iter {{
+            v.insert(x);
+        }}
+        v
+    }}
+}}
+"""
+
+
+SORTED_STARTER = """
+use std::cmp::Ordering;
+use std::marker::PhantomData;
+
+/// How to order items. Implementors are zero-sized: the strategy lives in the type, not in the value.
+pub trait Order {
+    fn cmp<T: Ord>(a: &T, b: &T) -> Ordering;
+}
+
+pub struct Asc;
+pub struct Desc;
+
+impl Order for Asc {
+    fn cmp<T: Ord>(a: &T, b: &T) -> Ordering {
+        todo!()
+    }
+}
+
+impl Order for Desc {
+    fn cmp<T: Ord>(a: &T, b: &T) -> Ordering {
+        todo!()
+    }
+}
+
+/// Items kept sorted by `O`, ascending unless you say otherwise.
+pub struct SortedVec<T, O = Asc> {
+    items: Vec<T>,
+    order: PhantomData<O>,
+}
+
+impl<T: Ord, O: Order> SortedVec<T, O> {
+    pub fn new() -> Self {
+        todo!()
+    }
+
+    /// Inserts `x` after any items that compare equal to it.
+    pub fn insert(&mut self, x: T) {
+        todo!()
+    }
+
+    /// Whether some item compares equal to `x` under `O`.
+    pub fn contains(&self, x: &T) -> bool {
+        todo!()
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        todo!()
+    }
+
+    /// The same items sorted by another order; equal items keep their relative order.
+    pub fn reorder<O2: Order>(self) -> SortedVec<T, O2> {
+        todo!()
+    }
+}
+
+impl<T: Ord, O: Order> FromIterator<T> for SortedVec<T, O> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        todo!()
+    }
+}
+"""
+
+JOB = """
+/// Ordered by priority only, so equal-priority jobs are distinguishable.
+#[derive(Debug, PartialEq, Eq)]
+struct Job(u8, &'static str);
+
+impl PartialOrd for Job {
+    fn partial_cmp(&self, o: &Job) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(o))
+    }
+}
+
+impl Ord for Job {
+    fn cmp(&self, o: &Job) -> std::cmp::Ordering {
+        self.0.cmp(&o.0)
+    }
+}
+
+/// A test-defined strategy: everything is equal.
+#[allow(dead_code)]
+struct Unordered;
+
+impl Order for Unordered {
+    fn cmp<T: Ord>(_: &T, _: &T) -> std::cmp::Ordering {
+        std::cmp::Ordering::Equal
+    }
+}
+
+fn names<O: Order>(v: &SortedVec<Job, O>) -> Vec<&'static str> {
+    v.as_slice().iter().map(|j| j.1).collect()
+}
+"""
+
+P.append(write(
+    "zero-sized-strategies", "Zero-sized strategy types", "medium", "compile-time-rust", ["zero-sized types", "PhantomData", "default type parameters"],
+    """
+        `SortedVec<T, O>` keeps its items sorted by the strategy `O`, a zero-sized type: `Asc` (the default, so
+        `SortedVec<T>` means ascending) or `Desc`, or one the caller defines. Because `O` is a type, a
+        `SortedVec<i32, Desc>` is exactly as big as a `Vec<i32>`.
+
+        - `insert` puts `x` **after** any items that compare equal to it, in O(log n) comparisons.
+        - `contains` says whether some item compares equal to `x` under `O`, in O(log n).
+        - `reorder::<O2>()` re-sorts into another strategy; equal items keep their relative order.
+        - `collect()` builds one by inserting each item in turn.
+    """,
+    SORTED_STARTER,
+    sorted_vec(),
+    [JOB,
+     T("default_is_ascending", "SortedVec<i32> from [3, 1, 2]", "v.as_slice()", "[1, 2, 3]", setup="let v: SortedVec<i32> = vec![3, 1, 2].into_iter().collect();"),
+     T("descending", "SortedVec<i32, Desc> from [3, 1, 2]", "v.as_slice()", "[3, 2, 1]", setup="let v: SortedVec<i32, Desc> = vec![3, 1, 2].into_iter().collect();"),
+     T("equal_items_keep_insertion_order", "jobs (1, a), (0, b), (1, c), (0, d)", "names(&v)", 'vec!["b", "d", "a", "c"]',
+       setup='let v: SortedVec<Job> = vec![Job(1, "a"), Job(0, "b"), Job(1, "c"), Job(0, "d")].into_iter().collect();'),
+     T("reorder_is_stable", "the same jobs, reordered to Desc", "names(&v.reorder::<Desc>())", 'vec!["a", "c", "b", "d"]',
+       setup='let v: SortedVec<Job> = vec![Job(1, "a"), Job(0, "b"), Job(1, "c"), Job(0, "d")].into_iter().collect();'),
+     T("zero_cost", "size_of SortedVec<u64, Desc> vs Vec<u64>", "(std::mem::size_of::<SortedVec<u64, Desc>>(), std::mem::size_of::<Asc>())", "(std::mem::size_of::<Vec<u64>>(), 0)")],
+    [JOB,
+     T("contains", "[1, 5, 9] contains 5 and 6", "(v.contains(&5), v.contains(&6))", "(true, false)", setup="let v: SortedVec<i32> = vec![9, 1, 5].into_iter().collect();"),
+     T("contains_desc", "Desc [1, 5, 9] contains 1 and 0", "(v.contains(&1), v.contains(&0))", "(true, false)", setup="let v: SortedVec<i32, Desc> = vec![9, 1, 5].into_iter().collect();"),
+     T("empty", "new SortedVec<String>", "(v.as_slice().len(), v.contains(&String::new()))", "(0, false)", setup="let v: SortedVec<String> = SortedVec::new();"),
+     T("strings", 'insert "pear", "Apple", "fig"', "v.as_slice()", '["Apple", "fig", "pear"]',
+       setup='let mut v = SortedVec::<&str>::new();\nfor w in ["pear", "Apple", "fig"] {\n    v.insert(w);\n}'),
+     T("your_own_strategy", "Unordered keeps insertion order", "names(&v)", 'vec!["x", "y", "z"]',
+       setup='let v: SortedVec<Job, Unordered> = vec![Job(2, "x"), Job(0, "y"), Job(1, "z")].into_iter().collect();'),
+     T("reorder_back_and_forth", "[2, 1, 3] asc -> desc -> asc", "v.reorder::<Desc>().reorder::<Asc>().as_slice().to_vec()", "vec![1, 2, 3]",
+       setup="let v: SortedVec<i32> = vec![2, 1, 3].into_iter().collect();"),
+     T("duplicates_in_desc", "Desc jobs (0, a), (1, b), (0, c)", "names(&v)", 'vec!["b", "a", "c"]',
+       setup='let v: SortedVec<Job, Desc> = vec![Job(0, "a"), Job(1, "b"), Job(0, "c")].into_iter().collect();'),
+     T("zero_sized_strategies", "size_of Asc, Desc, Unordered", "(std::mem::size_of::<Asc>(), std::mem::size_of::<Desc>(), std::mem::size_of::<Unordered>())", "(0, 0, 0)"),
+     T("extremes", "i64::MIN, i64::MAX, 0", "v.as_slice()", "[i64::MIN, 0, i64::MAX]", setup="let v: SortedVec<i64> = vec![i64::MAX, i64::MIN, 0].into_iter().collect();"),
+     """
+     #[test]
+     fn random_vs_stable_sort() {
+         let mut rng = anneal_prelude::Rng::new(4513);
+         let tags = ["a", "b", "c", "d", "e", "f", "g", "h"];
+         for _ in 0..300 {
+             let n = rng.below(8);
+             let pris: Vec<u8> = rng.vec(n, 0, 3);
+             let jobs = || pris.iter().zip(tags).map(|(&p, t)| Job(p, t));
+             let asc: SortedVec<Job> = jobs().collect();
+             let desc: SortedVec<Job, Desc> = jobs().collect();
+             let mut want_asc: Vec<Job> = jobs().collect();
+             want_asc.sort_by(|a, b| a.0.cmp(&b.0));
+             let mut want_desc: Vec<Job> = jobs().collect();
+             want_desc.sort_by(|a, b| b.0.cmp(&a.0));
+             let probe = Job(rng.int(0, 4) as u8, "?");
+             let has = pris.contains(&probe.0);
+             check!(format!("priorities = {pris:?}, probe = {}", probe.0), (names(&asc), names(&desc), asc.contains(&probe), desc.contains(&probe)),
+                    (want_asc.iter().map(|j| j.1).collect::<Vec<_>>(), want_desc.iter().map(|j| j.1).collect::<Vec<_>>(), has, has));
+         }
+     }
+
+     #[test]
+     fn scale_insert_and_lookup() {
+         let n = 200_000u64;
+         let v: SortedVec<u64> = (0..n).map(|x| x * 2).collect();
+         let found = (0..2 * n).filter(|x| v.contains(x)).count();
+         check!("200000 sorted inserts, 400000 lookups", (v.as_slice().len(), found), (200_000, 200_000));
+     }
+     """],
+    [("rust", "`PhantomData<O>` puts `O` in the type at zero size; call the strategy as `O::cmp(a, b)`. `SortedVec<T, O = Asc>` is a default type parameter, like `HashMap<K, V, S = RandomState>`."),
+     ("approach", "Insert at `partition_point(|y| O::cmp(y, &x) != Ordering::Greater)`: the first position after every item that's not greater. `binary_search_by` returns *some* equal position, which breaks the order of equal items."),
+     ("rust", "`reorder` moves the items into a `SortedVec<T, O2>`, a new type; `sort_by` is stable, so equal items keep their order.")],
+    ("""Zero-sized strategy types are how std parameterises behaviour without a runtime cost: `HashMap<K, V, S = RandomState>`, `Vec<T, A = Global>`. The strategy is picked at compile time and monomorphized into the code, so there's no function pointer and no field. Syntax to remember: `pub struct SortedVec<T, O = Asc> { items: Vec<T>, order: PhantomData<O> }` and `v.reorder::<Desc>()`.""", "O(log n) comparisons per insert plus the O(n) shift; O(log n) contains", "O(n)"),
+    "`HashMap::new()` only exists for `S = RandomState`, while `with_hasher` works for any `S`. Why can't `new` be generic over `S`?",
+    ["Zero-sized strategy types in `PhantomData`.", "Default type parameters on a struct: `SortedVec<T, O = Asc>`.", "Stable insertion with `partition_point`."],
+    related=("L5", "S4", "D4"),
+    wrong=dict(
+        unstable_insert=sorted_vec(pos="match self.items.binary_search_by(|y| O::cmp(y, &x)) { Ok(i) | Err(i) => i }"),
+        linear_contains=sorted_vec(contains="self.items.iter().any(|y| O::cmp(y, x) == Ordering::Equal)"),
+        insert_before_equals=sorted_vec(pos="self.items.partition_point(|y| O::cmp(y, &x) == Ordering::Less)"),
+    ),
+))
+
+
+def matrix(transpose=None, mul_index="self.rows[i][k].clone() * rhs.rows[k][j].clone()", identity_cell="if r == c { one.clone() } else { T::default() }"):
+    transpose = transpose or """        let mut rows = self.rows.map(|row| row.into_iter());
+        Matrix { rows: std::array::from_fn(|_| std::array::from_fn(|r| rows[r].next().unwrap())) }"""
+    return f"""
+use std::ops::{{Add, Mul}};
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Matrix<T, const R: usize, const C: usize> {{
+    rows: [[T; C]; R],
+}}
+
+impl<T, const R: usize, const C: usize> Matrix<T, R, C> {{
+    pub const ROWS: usize = R;
+    pub const COLS: usize = C;
+
+    pub fn from_rows(rows: [[T; C]; R]) -> Self {{
+        Matrix {{ rows }}
+    }}
+
+    pub fn into_rows(self) -> [[T; C]; R] {{
+        self.rows
+    }}
+
+    pub fn get(&self, r: usize, c: usize) -> Option<&T> {{
+        self.rows.get(r)?.get(c)
+    }}
+
+    /// Moves every element; needs nothing from T.
+    pub fn transpose(self) -> Matrix<T, C, R> {{
+{transpose}
+    }}
+}}
+
+/// Only square matrices have an identity.
+impl<T: Clone + Default, const N: usize> Matrix<T, N, N> {{
+    pub fn identity(one: T) -> Self {{
+        Matrix {{ rows: std::array::from_fn(|r| std::array::from_fn(|c| {identity_cell})) }}
+    }}
+}}
+
+impl<T: Add<Output = T>, const R: usize, const C: usize> Add for Matrix<T, R, C> {{
+    type Output = Matrix<T, R, C>;
+
+    fn add(self, rhs: Self) -> Self::Output {{
+        let mut right = rhs.rows.map(|row| row.into_iter());
+        let mut r = 0;
+        Matrix {{
+            rows: self.rows.map(|row| {{
+                let out = row.map(|x| x + right[r].next().unwrap());
+                r += 1;
+                out
+            }}),
+        }}
+    }}
+}}
+
+/// (R x K) * (K x C) = (R x C). A shape mismatch is a type error.
+impl<T, const R: usize, const K: usize, const C: usize> Mul<Matrix<T, K, C>> for Matrix<T, R, K>
+where
+    T: Clone + Default + Add<Output = T> + Mul<Output = T>,
+{{
+    type Output = Matrix<T, R, C>;
+
+    fn mul(self, rhs: Matrix<T, K, C>) -> Self::Output {{
+        Matrix {{
+            rows: std::array::from_fn(|i| {{
+                std::array::from_fn(|j| {{
+                    let mut sum = T::default();
+                    for k in 0..K {{
+                        sum = sum + {mul_index};
+                    }}
+                    sum
+                }})
+            }}),
+        }}
+    }}
+}}
+"""
+
+
+MATRIX_STARTER = """
+use std::ops::{Add, Mul};
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Matrix<T, const R: usize, const C: usize> {
+    rows: [[T; C]; R],
+}
+
+impl<T, const R: usize, const C: usize> Matrix<T, R, C> {
+    pub const ROWS: usize = R;
+    pub const COLS: usize = C;
+
+    pub fn from_rows(rows: [[T; C]; R]) -> Self {
+        todo!()
+    }
+
+    pub fn into_rows(self) -> [[T; C]; R] {
+        todo!()
+    }
+
+    pub fn get(&self, r: usize, c: usize) -> Option<&T> {
+        todo!()
+    }
+
+    /// Moves every element; needs nothing from T.
+    pub fn transpose(self) -> Matrix<T, C, R> {
+        todo!()
+    }
+}
+
+/// Only square matrices have an identity.
+impl<T: Clone + Default, const N: usize> Matrix<T, N, N> {
+    pub fn identity(one: T) -> Self {
+        todo!()
+    }
+}
+
+impl<T: Add<Output = T>, const R: usize, const C: usize> Add for Matrix<T, R, C> {
+    type Output = Matrix<T, R, C>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
+}
+
+/// (R x K) * (K x C) = (R x C). A shape mismatch is a type error.
+impl<T, const R: usize, const K: usize, const C: usize> Mul<Matrix<T, K, C>> for Matrix<T, R, K>
+where
+    T: Clone + Default + Add<Output = T> + Mul<Output = T>,
+{
+    type Output = Matrix<T, R, C>;
+
+    fn mul(self, rhs: Matrix<T, K, C>) -> Self::Output {
+        todo!()
+    }
+}
+"""
+
+MOVE_ONLY = """
+/// Neither Clone nor Copy nor Default.
+#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
+struct Cell(u32);
+
+/// A number that is Clone but not Copy.
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Default)]
+struct Big(i128);
+
+impl std::ops::Add for Big {
+    type Output = Big;
+    fn add(self, o: Big) -> Big {
+        Big(self.0 + o.0)
+    }
+}
+
+impl std::ops::Mul for Big {
+    type Output = Big;
+    fn mul(self, o: Big) -> Big {
+        Big(self.0 * o.0)
+    }
+}
+"""
+
+P.append(write(
+    "shape-typed-matrix", "A matrix whose shape is its type", "medium", "compile-time-rust", ["const generics", "associated consts", "array::from_fn", "operator traits"],
+    """
+        `Matrix<T, R, C>` stores `[[T; C]; R]`, so multiplying a 2×3 by a 2×3 is a type error, not a panic. Fill in
+        the methods and operators; the signatures and bounds are given.
+
+        - `get(r, c)` is `None` out of range.
+        - `transpose` must **move** the elements: it needs nothing from `T`, and the tests transpose a type that
+          can't be cloned.
+        - `identity(one)` exists only for square matrices; off-diagonal cells are `T::default()`.
+        - `+` is element-wise; `*` is the matrix product.
+    """,
+    MATRIX_STARTER,
+    matrix(),
+    [MOVE_ONLY,
+     T("multiply_shapes", "(2x3) * (3x2)", "(a * b).into_rows()", "[[58, 64], [139, 154]]",
+       setup="let a = Matrix::from_rows([[1, 2, 3], [4, 5, 6]]);\nlet b = Matrix::from_rows([[7, 8], [9, 10], [11, 12]]);"),
+     T("result_type_is_2_by_4", "(2x3) * (3x4) has type Matrix<i32, 2, 4>", "(Matrix::<i32, 2, 4>::ROWS, Matrix::<i32, 2, 4>::COLS, p.get(1, 3).copied())", "(2, 4, Some(0))",
+       setup="let a = Matrix::from_rows([[1, 0, 0], [0, 1, 0]]);\nlet b: Matrix<i32, 3, 4> = Matrix::from_rows([[0; 4]; 3]);\nlet p: Matrix<i32, 2, 4> = a * b;"),
+     T("transpose_moves", "transpose a 2x3 of non-Clone Cells", "m.transpose().into_rows()", "[[Cell(1), Cell(4)], [Cell(2), Cell(5)], [Cell(3), Cell(6)]]",
+       setup="let m = Matrix::from_rows([[Cell(1), Cell(2), Cell(3)], [Cell(4), Cell(5), Cell(6)]]);"),
+     T("identity", "Matrix::<i32, 3, 3>::identity(1)", "Matrix::<i32, 3, 3>::identity(1).into_rows()", "[[1, 0, 0], [0, 1, 0], [0, 0, 1]]"),
+     T("get_out_of_range", "2x2: get(0, 1), get(2, 0), get(0, 2)", "(m.get(0, 1).copied(), m.get(2, 0), m.get(0, 2))", "(Some(2), None, None)",
+       setup="let m = Matrix::from_rows([[1, 2], [3, 4]]);")],
+    [MOVE_ONLY,
+     T("add", "[[1, 2]] + [[10, 20]]", "(Matrix::from_rows([[1, 2]]) + Matrix::from_rows([[10, 20]])).into_rows()", "[[11, 22]]"),
+     T("identity_is_neutral", "I * A == A for a 2x2 of f64", "(Matrix::<f64, 2, 2>::identity(1.0) * a.clone()) == a", "true",
+       setup="let a = Matrix::from_rows([[1.5, -2.0], [0.25, 4.0]]);"),
+     T("big_numbers", "Big (non-Copy) 2x2 product", "(a * b).into_rows()", "[[Big(19), Big(22)], [Big(43), Big(50)]]",
+       setup="let a = Matrix::from_rows([[Big(1), Big(2)], [Big(3), Big(4)]]);\nlet b = Matrix::from_rows([[Big(5), Big(6)], [Big(7), Big(8)]]);"),
+     T("row_times_column", "(1x3) * (3x1)", "(Matrix::from_rows([[1, 2, 3]]) * Matrix::from_rows([[4], [5], [6]])).into_rows()", "[[32]]"),
+     T("column_times_row", "(2x1) * (1x2)", "(Matrix::from_rows([[1], [2]]) * Matrix::from_rows([[3, 4]])).into_rows()", "[[3, 4], [6, 8]]"),
+     T("transpose_twice", "transpose twice gives the original", "m.clone().transpose().transpose() == m", "true",
+       setup='let m = Matrix::from_rows([["a", "b", "c"], ["d", "e", "f"]]);'),
+     T("empty_shapes", "a 0x3 matrix transposed is 3x0", "(Matrix::<u8, 3, 0>::ROWS, m.transpose().into_rows().len())", "(3, 3)",
+       setup="let m: Matrix<u8, 0, 3> = Matrix::from_rows([]);"),
+     T("zero_inner_dimension", "(2x0) * (0x2) is all zeros", "(a * b).into_rows()", "[[0, 0], [0, 0]]",
+       setup="let a: Matrix<i32, 2, 0> = Matrix::from_rows([[], []]);\nlet b: Matrix<i32, 0, 2> = Matrix::from_rows([]);"),
+     T("identity_of_big", "Matrix::<Big, 2, 2>::identity(Big(1))", "Matrix::<Big, 2, 2>::identity(Big(1)).into_rows()", "[[Big(1), Big(0)], [Big(0), Big(1)]]"),
+     T("wrapping", "Wrapping<u8> product overflows per cell", "(a * b).into_rows()", "[[Wrapping(0u8)]]",
+       setup="use std::num::Wrapping;\nlet a = Matrix::from_rows([[Wrapping(16u8), Wrapping(16u8)]]);\nlet b = Matrix::from_rows([[Wrapping(8u8)], [Wrapping(8u8)]]);"),
+     """
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4514);
+         for _ in 0..300 {
+             let mut a = [[0i64; 3]; 2];
+             let mut b = [[0i64; 4]; 3];
+             for row in a.iter_mut() {
+                 for x in row.iter_mut() {
+                     *x = rng.int(-9, 9);
+                 }
+             }
+             for row in b.iter_mut() {
+                 for x in row.iter_mut() {
+                     *x = rng.int(-9, 9);
+                 }
+             }
+             let mut want = [[0i64; 4]; 2];
+             for i in 0..2 {
+                 for j in 0..4 {
+                     for k in 0..3 {
+                         want[i][j] += a[i][k] * b[k][j];
+                     }
+                 }
+             }
+             let mut want_t = [[0i64; 2]; 3];
+             for i in 0..2 {
+                 for j in 0..3 {
+                     want_t[j][i] = a[i][j];
+                 }
+             }
+             let ma = Matrix::from_rows(a);
+             check!(format!("a = {a:?}, b = {b:?}"), ((ma.clone() * Matrix::from_rows(b)).into_rows(), ma.clone().transpose().into_rows(), (ma.clone() + ma).into_rows()),
+                    (want, want_t, a.map(|row| row.map(|x| 2 * x))));
+         }
+     }
+     """],
+    [("rust", "Build arrays with `std::array::from_fn(|i| ...)`: it calls the closure once per index, in order, so it works for any `T`."),
+     ("rust", "To move elements out of `[[T; C]; R]`, turn each row into an iterator (`rows.map(|row| row.into_iter())`) and pull `next()` from row `r` while building column-major output."),
+     ("edge", "Zero-sized dimensions are legal: a `2×0` times a `0×2` is a `2×2` of `T::default()`.")],
+    ("""With the shape in the type, the compiler checks dimensions once, when the code is written, and every size is known at compile time, so the arrays live inline without a heap allocation. Syntax to remember: `impl<T, const R: usize, const K: usize, const C: usize> Mul<Matrix<T, K, C>> for Matrix<T, R, K>`; a square-only impl is `impl<T, const N: usize> Matrix<T, N, N>`; associated consts `Matrix::<i32, 2, 4>::ROWS`.""", "O(R·K·C) multiply; O(R·C) transpose and add", "O(R·C), inline"),
+    "When would you pick `Vec`-backed matrices with runtime shapes instead? What does each `Matrix<T, R, C>` instantiation cost in binary size?",
+    ["Const generic shapes turn dimension bugs into type errors.", "`array::from_fn` and moving out of arrays with `into_iter`.", "Impls for a subset of shapes (`Matrix<T, N, N>`)."],
+    related=("L5", "L4"),
+    wrong=dict(
+        product_indexes_wrong=matrix(mul_index="self.rows[i][k].clone() * rhs.rows[k][k % C].clone()"),
+        identity_everywhere=matrix(identity_cell="one.clone()"),
+    ),
+))
+
 STAGES = [
     ("generic-code", "Generic code", "easy"),
     ("bounds-associated-types", "Bounds & associated types", "medium"),
+    ("compile-time-rust", "Compile-time Rust", "medium"),
 ]
 
 # `source` and `examples` are optional; drop empty ones so problem.toml stays tidy.

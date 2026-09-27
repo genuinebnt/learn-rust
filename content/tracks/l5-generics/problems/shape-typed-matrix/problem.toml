@@ -1,0 +1,32 @@
+slug = "shape-typed-matrix"
+title = "A matrix whose shape is its type"
+mode = "write"
+level = "medium"
+stage = "compile-time-rust"
+order = 12
+status = "ready"
+tags = ["const generics", "associated consts", "array::from_fn", "operator traits"]
+teaches = [
+  "Const generic shapes turn dimension bugs into type errors.",
+  "`array::from_fn` and moving out of arrays with `into_iter`.",
+  "Impls for a subset of shapes (`Matrix<T, N, N>`).",
+]
+follow_up = "When would you pick `Vec`-backed matrices with runtime shapes instead? What does each `Matrix<T, R, C>` instantiation cost in binary size?"
+related = ["L5", "L4"]
+
+[[hints]]
+kind = "rust"
+text = "Build arrays with `std::array::from_fn(|i| ...)`: it calls the closure once per index, in order, so it works for any `T`."
+
+[[hints]]
+kind = "rust"
+text = "To move elements out of `[[T; C]; R]`, turn each row into an iterator (`rows.map(|row| row.into_iter())`) and pull `next()` from row `r` while building column-major output."
+
+[[hints]]
+kind = "edge"
+text = "Zero-sized dimensions are legal: a `2×0` times a `0×2` is a `2×2` of `T::default()`."
+
+[solution]
+explanation = "With the shape in the type, the compiler checks dimensions once, when the code is written, and every size is known at compile time, so the arrays live inline without a heap allocation. Syntax to remember: `impl<T, const R: usize, const K: usize, const C: usize> Mul<Matrix<T, K, C>> for Matrix<T, R, K>`; a square-only impl is `impl<T, const N: usize> Matrix<T, N, N>`; associated consts `Matrix::<i32, 2, 4>::ROWS`."
+time = "O(R·K·C) multiply; O(R·C) transpose and add"
+space = "O(R·C), inline"

@@ -1,0 +1,32 @@
+slug = "zero-sized-strategies"
+title = "Zero-sized strategy types"
+mode = "write"
+level = "medium"
+stage = "compile-time-rust"
+order = 11
+status = "ready"
+tags = ["zero-sized types", "PhantomData", "default type parameters"]
+teaches = [
+  "Zero-sized strategy types in `PhantomData`.",
+  "Default type parameters on a struct: `SortedVec<T, O = Asc>`.",
+  "Stable insertion with `partition_point`.",
+]
+follow_up = "`HashMap::new()` only exists for `S = RandomState`, while `with_hasher` works for any `S`. Why can't `new` be generic over `S`?"
+related = ["L5", "S4", "D4"]
+
+[[hints]]
+kind = "rust"
+text = "`PhantomData<O>` puts `O` in the type at zero size; call the strategy as `O::cmp(a, b)`. `SortedVec<T, O = Asc>` is a default type parameter, like `HashMap<K, V, S = RandomState>`."
+
+[[hints]]
+kind = "approach"
+text = "Insert at `partition_point(|y| O::cmp(y, &x) != Ordering::Greater)`: the first position after every item that's not greater. `binary_search_by` returns *some* equal position, which breaks the order of equal items."
+
+[[hints]]
+kind = "rust"
+text = "`reorder` moves the items into a `SortedVec<T, O2>`, a new type; `sort_by` is stable, so equal items keep their order."
+
+[solution]
+explanation = "Zero-sized strategy types are how std parameterises behaviour without a runtime cost: `HashMap<K, V, S = RandomState>`, `Vec<T, A = Global>`. The strategy is picked at compile time and monomorphized into the code, so there's no function pointer and no field. Syntax to remember: `pub struct SortedVec<T, O = Asc> { items: Vec<T>, order: PhantomData<O> }` and `v.reorder::<Desc>()`."
+time = "O(log n) comparisons per insert plus the O(n) shift; O(log n) contains"
+space = "O(n)"

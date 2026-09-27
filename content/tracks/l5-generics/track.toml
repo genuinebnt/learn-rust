@@ -14,3 +14,8 @@ band = "easy"
 slug = "bounds-associated-types"
 name = "Bounds & associated types"
 band = "medium"
+
+[[stages]]
+slug = "compile-time-rust"
+name = "Compile-time Rust"
+band = "medium"

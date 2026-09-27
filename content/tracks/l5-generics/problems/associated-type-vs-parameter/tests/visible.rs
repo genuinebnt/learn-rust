@@ -1,23 +1,5 @@
 use solution::*;
 
-/// A word ladder: nodes are borrowed words, edges join words that differ in one letter.
-struct Ladder<'w> {
-    words: &'w [&'w str],
-}
-
-impl<'w> Graph for Ladder<'w> {
-    type Node = &'w str;
-    fn neighbors(&self, w: &&'w str) -> Vec<&'w str> {
-        self.words
-            .iter()
-            .copied()
-            .filter(|x| x.len() == w.len() && x.chars().zip(w.chars()).filter(|(a, b)| a != b).count() == 1)
-            .collect()
-    }
-}
-
-const WORDS: [&str; 10] = ["cold", "cord", "card", "ward", "warm", "worm", "word", "wore", "core", "bore"];
-
 #[test]
 fn shortest_in_grid() {
     check!(r#""...\n.#.\n..." from (0, 0) to (2, 2): length and ends"#, shortest_path(&Grid::from("...\n.#.\n..."), (0, 0), (2, 2)).map(|p| (p.len(), p[0], p[p.len() - 1])), Some((5, (0, 0), (2, 2))));

@@ -4322,6 +4322,642 @@ P.append(dict(
     related=["D2"],
 ))
 
+# ---------------------------------------------------------------- State machines (medium)
+
+P.append(dict(
+    slug="paint-house", title="Paint house", level="medium", stage="state-machines", tags=["state DP", "[u64; 3]"],
+    companies=["Amazon", "Google", "LinkedIn", "Microsoft"],
+    teaches=["The state is \"the colour of the last house\": three numbers carried from house to house.",
+             "A fixed-size array `[u64; 3]` rebuilt each step instead of a table."],
+    statement="""
+        `costs[i][c]` is the cost of painting house `i` with colour `c` (red, green or blue). No
+        two neighbouring houses may have the same colour. Return the cheapest way to paint every
+        house.
+    """,
+    examples=[("costs = [[17, 2, 17], [16, 16, 5], [14, 3, 19]]", "10 (green, blue, green)")],
+    constraints=["0 ≤ costs.len() ≤ 2·10⁵", "0 ≤ costs[i][c] ≤ 10⁴"],
+    starter="""
+        pub fn min_cost(costs: &[[u32; 3]]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn min_cost(costs: &[[u32; 3]]) -> u64 {
+            // best[c] = the cheapest way to paint the houses so far, the last one in colour c.
+            let mut best = [0u64; 3];
+            for house in costs {
+                best = [
+                    house[0] as u64 + best[1].min(best[2]),
+                    house[1] as u64 + best[0].min(best[2]),
+                    house[2] as u64 + best[0].min(best[1]),
+                ];
+            }
+            best.into_iter().min().unwrap()
+        }
+    """,
+    visible=[
+        T("leetcode_three", "costs = [[17, 2, 17], [16, 16, 5], [14, 3, 19]]", "min_cost(&[[17, 2, 17], [16, 16, 5], [14, 3, 19]])", "10"),
+        T("leetcode_one", "costs = [[7, 6, 2]]", "min_cost(&[[7, 6, 2]])", "2"),
+        T("no_houses", "costs = []", "min_cost(&[])", "0"),
+        T("neighbours_differ", "costs = [[1, 2, 3], [1, 2, 3]]", "min_cost(&[[1, 2, 3], [1, 2, 3]])", "3"),
+        T("cheapest_first_is_a_trap", "costs = [[1, 100, 100], [1, 100, 100], [100, 1, 100]]", "min_cost(&[[1, 100, 100], [1, 100, 100], [100, 1, 100]])", "102"),
+    ],
+    hidden=[
+        T("no_houses", "costs = []", "min_cost(&[])", "0"),
+        T("one_house_zero", "costs = [[0, 5, 5]]", "min_cost(&[[0, 5, 5]])", "0"),
+        T("two_houses", "costs = [[1, 5, 3], [2, 9, 4]]", "min_cost(&[[1, 5, 3], [2, 9, 4]])", "5"),
+        T("five_houses", "costs = [[5, 8, 6], [19, 14, 13], [7, 5, 12], [14, 15, 17], [3, 20, 10]]", "min_cost(&[[5, 8, 6], [19, 14, 13], [7, 5, 12], [14, 15, 17], [3, 20, 10]])", "43"),
+        T("ties", "costs = [[3, 5, 3], [6, 17, 6], [7, 13, 18], [9, 10, 18]]", "min_cost(&[[3, 5, 3], [6, 17, 6], [7, 13, 18], [9, 10, 18]])", "26"),
+        T("all_max", "costs = [[10000; 3]; 3]", "min_cost(&[[10_000; 3]; 3])", "30_000"),
+        T("past_u32", "costs = [[10000, 10000, 10000]; 1000000]", "min_cost(&vec![[10_000; 3]; 1_000_000])", "10_000_000_000"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn cheapest(costs: &[[u32; 3]], last: usize) -> u64 {
+                match costs {
+                    [] => 0,
+                    [house, rest @ ..] => (0..3).filter(|&c| c != last).map(|c| house[c] as u64 + cheapest(rest, c)).min().unwrap(),
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1235);
+            for _ in 0..300 {
+                let n = rng.below(8);
+                let mut costs: Vec<[u32; 3]> = Vec::new();
+                for _ in 0..n {
+                    let r = rng.int(0, 9) as u32;
+                    let g = rng.int(0, 9) as u32;
+                    let b = rng.int(0, 9) as u32;
+                    costs.push([r, g, b]);
+                }
+                check!(format!("costs = {costs:?}"), min_cost(&costs), cheapest(&costs, 3));
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let costs: Vec<[u32; 3]> = (0..200_000u64).map(|i| [(i * 7919 % 10_000) as u32, (i * 104_729 % 10_000) as u32, (i * 15_485_863 % 10_000) as u32]).collect();
+            check!("costs[i] = [(7919·i), (104729·i), (15485863·i)] % 10000, 200000 houses", min_cost(&costs), 549_408_720);
+        }
+        """,
+    ],
+    wrong=dict(
+        cheapest_different_colour="""
+            pub fn min_cost(costs: &[[u32; 3]]) -> u64 {
+                let mut last = 3;
+                let mut total = 0u64;
+                for house in costs {
+                    let c = (0..3).filter(|&c| c != last).min_by_key(|&c| house[c]).unwrap();
+                    total += house[c] as u64;
+                    last = c;
+                }
+                total
+            }
+        """,
+        ignores_neighbours="""
+            pub fn min_cost(costs: &[[u32; 3]]) -> u64 {
+                costs.iter().map(|h| *h.iter().min().unwrap() as u64).sum()
+            }
+        """,
+        plain_recursion="""
+            fn cheapest(costs: &[[u32; 3]], last: usize) -> u64 {
+                match costs {
+                    [] => 0,
+                    [house, rest @ ..] => (0..3).filter(|&c| c != last).map(|c| house[c] as u64 + cheapest(rest, c)).min().unwrap(),
+                }
+            }
+
+            pub fn min_cost(costs: &[[u32; 3]]) -> u64 {
+                cheapest(costs, 3)
+            }
+        """,
+    ),
+    hints=[("approach", "Carry three numbers: the cheapest total so far if the last house is red, green or blue. Each new colour adds its cost to the cheaper of the other two."),
+           ("rust", "Rebuild a `[u64; 3]` per house with an array literal; `best.into_iter().min().unwrap()` at the end (an empty street leaves `[0, 0, 0]`)."),
+           ("edge case", "Picking the cheapest allowed colour house by house is greedy and can force an expensive house later.")],
+    notes=("The only thing a house needs to know about the past is the previous colour, so three running totals are the whole state. Each step is constant work.", "O(n)", "O(1)"),
+    follow_up="With k colours instead of 3, how do you avoid O(n·k²)? (Keep the smallest and second-smallest of the previous row.)",
+    related=["D8"],
+))
+
+P.append(dict(
+    slug="best-time-to-buy-and-sell-stock-with-cooldown", title="Best time to buy and sell stock with cooldown", level="medium", stage="state-machines",
+    tags=["state machine", "stocks"],
+    companies=["Amazon", "Google", "Meta", "Apple", "Microsoft", "Bloomberg"],
+    teaches=["Modelling a day as a state machine: holding, just sold (cooling down), or free to buy.",
+             "Updating all states from yesterday's values at once with a tuple assignment."],
+    statement="""
+        `prices[i]` is a stock's price on day `i`. You may buy and sell as many times as you like,
+        holding at most one share at a time, but after you sell you must wait one day before
+        buying again. Return the largest total profit.
+    """,
+    examples=[("prices = [1, 2, 3, 0, 2]", "3 (buy, sell, cooldown, buy, sell)")],
+    constraints=["0 ≤ prices.len() ≤ 2·10⁵", "0 ≤ prices[i] ≤ 10⁴"],
+    starter="""
+        pub fn max_profit(prices: &[u32]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn max_profit(prices: &[u32]) -> u64 {
+            // The best profit so far if, at the end of today, you are…
+            let impossible = i64::MIN / 2; // below any real profit, and safe to add to
+            let mut holding = impossible; // …holding a share
+            let mut cooling = impossible; // …not holding, having sold today
+            let mut free = 0i64; // …not holding, free to buy tomorrow
+            for &p in prices {
+                let p = p as i64;
+                (holding, cooling, free) = (holding.max(free - p), holding + p, free.max(cooling));
+            }
+            free.max(cooling) as u64
+        }
+    """,
+    visible=[
+        T("leetcode_five", "prices = [1, 2, 3, 0, 2]", "max_profit(&[1, 2, 3, 0, 2])", "3"),
+        T("leetcode_one", "prices = [1]", "max_profit(&[1])", "0"),
+        T("empty", "prices = []", "max_profit(&[])", "0"),
+        T("falling", "prices = [5, 4, 3]", "max_profit(&[5, 4, 3])", "0"),
+        T("cooldown_costs_a_trade", "prices = [1, 2, 1, 2]", "max_profit(&[1, 2, 1, 2])", "1"),
+    ],
+    hidden=[
+        T("empty", "prices = []", "max_profit(&[])", "0"),
+        T("rising", "prices = [1, 2, 4]", "max_profit(&[1, 2, 4])", "3"),
+        T("dip_first", "prices = [2, 1, 4]", "max_profit(&[2, 1, 4])", "3"),
+        T("skip_a_small_trade", "prices = [6, 1, 6, 4, 3, 0, 2]", "max_profit(&[6, 1, 6, 4, 3, 0, 2])", "7"),
+        T("one_trade_beats_two", "prices = [1, 4, 2]", "max_profit(&[1, 4, 2])", "3"),
+        T("flat", "prices = [3, 3, 3]", "max_profit(&[3, 3, 3])", "0"),
+        T("mixed", "prices = [3, 3, 5, 0, 0, 3, 1, 4]", "max_profit(&[3, 3, 5, 0, 0, 3, 1, 4])", "6"),
+        T("big_swings", "prices = [0, 10000] × 1000", "max_profit(&[0u32, 10_000].repeat(1000))", "5_000_000"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn best(p: &[u32], holding: bool) -> i64 {
+                match p {
+                    [] => 0,
+                    [x, rest @ ..] => {
+                        let x = *x as i64;
+                        let wait = best(rest, holding);
+                        if holding {
+                            wait.max(x + best(rest.get(1..).unwrap_or(&[]), false))
+                        } else {
+                            wait.max(-x + best(rest, true))
+                        }
+                    }
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1236);
+            for _ in 0..300 {
+                let n = rng.below(11);
+                let prices: Vec<u32> = rng.vec(n, 0, 9);
+                check!(format!("prices = {prices:?}"), max_profit(&prices), best(&prices, false) as u64);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let prices: Vec<u32> = (0..200_000u32).map(|i| i * 7919 % 10_000).collect();
+            check!("prices[i] = (7919·i) % 10000, 200000 days", max_profit(&prices), 329_588_780);
+        }
+        """,
+    ],
+    wrong=dict(
+        no_cooldown="""
+            pub fn max_profit(prices: &[u32]) -> u64 {
+                prices.windows(2).map(|w| w[1].saturating_sub(w[0]) as u64).sum()
+            }
+        """,
+        cooldown_after_buying="""
+            pub fn max_profit(prices: &[u32]) -> u64 {
+                let (mut holding, mut just_bought, mut free) = (i64::MIN / 2, i64::MIN / 2, 0i64);
+                for &p in prices {
+                    let p = p as i64;
+                    (holding, just_bought, free) = (holding.max(just_bought), free - p, free.max(holding + p));
+                }
+                free as u64
+            }
+        """,
+        plain_recursion="""
+            fn best(p: &[u32], holding: bool) -> i64 {
+                match p {
+                    [] => 0,
+                    [x, rest @ ..] => {
+                        let x = *x as i64;
+                        let wait = best(rest, holding);
+                        if holding {
+                            wait.max(x + best(rest.get(1..).unwrap_or(&[]), false))
+                        } else {
+                            wait.max(-x + best(rest, true))
+                        }
+                    }
+                }
+            }
+
+            pub fn max_profit(prices: &[u32]) -> u64 {
+                best(prices, false) as u64
+            }
+        """,
+    ),
+    hints=[("approach", "Three states at the end of each day: holding, just sold (so tomorrow is a cooldown), and free. Holding comes from holding or buying from free; just sold comes from holding; free comes from free or cooling."),
+           ("rust", "Three `i64`s updated together: `(holding, cooling, free) = (holding.max(free - p), holding + p, free.max(cooling));` reads only yesterday's values."),
+           ("edge case", "Start `holding` and `cooling` at a very negative value (not `i64::MIN`, which overflows when you add a price).")],
+    notes=("Each day's best profit per state depends only on yesterday's three numbers. The cooldown is the rule that the buy transition leaves from free, not from cooling.", "O(n)", "O(1)"),
+    follow_up="Draw the state machine. How does it change for a two-day cooldown?",
+    related=["L7", "D8"],
+))
+
+P.append(dict(
+    slug="best-time-to-buy-and-sell-stock-with-transaction-fee", title="Best time to buy and sell stock with transaction fee", level="medium", stage="state-machines",
+    tags=["state machine", "stocks"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "Bloomberg"],
+    teaches=["The two-state machine (holding / free), with the fee paid on the sell transition.",
+             "Why taking every price rise stops working once each trade costs something."],
+    statement="""
+        `prices[i]` is the price on day `i`. You may trade as often as you like, holding at most
+        one share at a time, but each completed trade (a buy and its sell) costs `fee`. Return the
+        largest total profit.
+    """,
+    examples=[("prices = [1, 3, 2, 8, 4, 9], fee = 2", "8 (buy 1 sell 8, buy 4 sell 9)")],
+    constraints=["0 ≤ prices.len() ≤ 2·10⁵", "0 ≤ prices[i], fee ≤ 5·10⁴"],
+    starter="""
+        pub fn max_profit(prices: &[u32], fee: u32) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn max_profit(prices: &[u32], fee: u32) -> u64 {
+            let fee = fee as i64;
+            // The best profit so far if, at the end of today, you are holding a share / not.
+            let (mut holding, mut free) = (i64::MIN / 2, 0i64);
+            for &p in prices {
+                let p = p as i64;
+                (holding, free) = (holding.max(free - p), free.max(holding + p - fee));
+            }
+            free as u64
+        }
+    """,
+    visible=[
+        T("leetcode_fee_two", "prices = [1, 3, 2, 8, 4, 9], fee = 2", "max_profit(&[1, 3, 2, 8, 4, 9], 2)", "8"),
+        T("leetcode_fee_three", "prices = [1, 3, 7, 5, 10, 3], fee = 3", "max_profit(&[1, 3, 7, 5, 10, 3], 3)", "6"),
+        T("empty", "prices = [], fee = 1", "max_profit(&[], 1)", "0"),
+        T("one_day", "prices = [5], fee = 1", "max_profit(&[5], 1)", "0"),
+        T("fee_eats_the_gain", "prices = [1, 3], fee = 5", "max_profit(&[1, 3], 5)", "0"),
+        T("no_fee", "prices = [1, 3, 2, 4], fee = 0", "max_profit(&[1, 3, 2, 4], 0)", "4"),
+    ],
+    hidden=[
+        T("empty", "prices = [], fee = 0", "max_profit(&[], 0)", "0"),
+        T("break_even", "prices = [1, 5], fee = 4", "max_profit(&[1, 5], 4)", "0"),
+        T("just_worth_it", "prices = [1, 5], fee = 3", "max_profit(&[1, 5], 3)", "1"),
+        T("falling", "prices = [9, 8, 7, 1, 2], fee = 3", "max_profit(&[9, 8, 7, 1, 2], 3)", "0"),
+        T("hold_through_dips", "prices = [4, 5, 2, 4, 3, 3, 1, 2, 5, 4], fee = 1", "max_profit(&[4, 5, 2, 4, 3, 3, 1, 2, 5, 4], 1)", "4"),
+        T("big_values", "prices = [0, 50000] × 1000, fee = 1", "max_profit(&[0u32, 50_000].repeat(1000), 1)", "49_999_000"),
+        T("huge_fee", "prices = [0, 50000], fee = 50000", "max_profit(&[0, 50_000], 50_000)", "0"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn best(p: &[u32], fee: i64, holding: bool) -> i64 {
+                match p {
+                    [] => 0,
+                    [x, rest @ ..] => {
+                        let x = *x as i64;
+                        let wait = best(rest, fee, holding);
+                        if holding { wait.max(x - fee + best(rest, fee, false)) } else { wait.max(-x + best(rest, fee, true)) }
+                    }
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1237);
+            for _ in 0..300 {
+                let n = rng.below(11);
+                let prices: Vec<u32> = rng.vec(n, 0, 9);
+                let fee = rng.int(0, 4) as u32;
+                check!(format!("prices = {prices:?}, fee = {fee}"), max_profit(&prices, fee), best(&prices, fee as i64, false) as u64);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let prices: Vec<u32> = (0..200_000u32).map(|i| i * 7919 % 10_000).collect();
+            check!("prices[i] = (7919·i) % 10000, 200000 days, fee = 50", max_profit(&prices, 50), 327_507_780);
+        }
+        """,
+    ],
+    wrong=dict(
+        ignores_the_fee="""
+            pub fn max_profit(prices: &[u32], _fee: u32) -> u64 {
+                prices.windows(2).map(|w| w[1].saturating_sub(w[0]) as u64).sum()
+            }
+        """,
+        fee_on_every_rise="""
+            pub fn max_profit(prices: &[u32], fee: u32) -> u64 {
+                prices.windows(2).map(|w| w[1].saturating_sub(w[0]).saturating_sub(fee) as u64).sum()
+            }
+        """,
+        plain_recursion="""
+            fn best(p: &[u32], fee: i64, holding: bool) -> i64 {
+                match p {
+                    [] => 0,
+                    [x, rest @ ..] => {
+                        let x = *x as i64;
+                        let wait = best(rest, fee, holding);
+                        if holding { wait.max(x - fee + best(rest, fee, false)) } else { wait.max(-x + best(rest, fee, true)) }
+                    }
+                }
+            }
+
+            pub fn max_profit(prices: &[u32], fee: u32) -> u64 {
+                best(prices, fee as i64, false) as u64
+            }
+        """,
+    ),
+    hints=[("approach", "Two states: holding a share or not. Holding = max(keep holding, buy today from not-holding); not holding = max(stay out, sell today from holding and pay the fee)."),
+           ("rust", "`(holding, free) = (holding.max(free - p), free.max(holding + p - fee));` with `i64` values and `holding` starting very negative."),
+           ("edge case", "Taking every up-day as its own trade pays the fee many times; one long trade through small dips can be better: [1, 3, 2, 8, 4, 9] with fee 2.")],
+    notes=("The fee is charged once per sell, so the machine decides by itself when holding through a small dip beats selling and re-buying.", "O(n)", "O(1)"),
+    follow_up="Why is it equivalent to charge the fee when buying instead of when selling?",
+    related=["L7"],
+))
+
+P.append(dict(
+    slug="best-time-to-buy-and-sell-stock-iii", title="Best time to buy and sell stock III", level="hard", stage="state-machines", tags=["state machine", "stocks"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "Apple", "Bloomberg", "Goldman Sachs"],
+    teaches=["Four states in a line: after the first buy, first sell, second buy, second sell.",
+             "Updating the states in order within a day, which is safe because a same-day buy and sell earns nothing."],
+    statement="""
+        `prices[i]` is the price on day `i`. Make at most two trades (buy then sell), never
+        holding more than one share. Return the largest total profit.
+    """,
+    examples=[("prices = [3, 3, 5, 0, 0, 3, 1, 4]", "6 (buy 0 sell 3, buy 1 sell 4)")],
+    constraints=["0 ≤ prices.len() ≤ 2·10⁵", "0 ≤ prices[i] ≤ 10⁵"],
+    starter="""
+        pub fn max_profit(prices: &[u32]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn max_profit(prices: &[u32]) -> u64 {
+            // The best profit so far after the first buy, first sell, second buy, second sell.
+            let impossible = i64::MIN / 2;
+            let (mut buy1, mut sell1, mut buy2, mut sell2) = (impossible, 0i64, impossible, 0i64);
+            for &p in prices {
+                let p = p as i64;
+                buy1 = buy1.max(-p);
+                sell1 = sell1.max(buy1 + p);
+                buy2 = buy2.max(sell1 - p);
+                sell2 = sell2.max(buy2 + p);
+            }
+            sell2 as u64
+        }
+    """,
+    visible=[
+        T("leetcode_eight", "prices = [3, 3, 5, 0, 0, 3, 1, 4]", "max_profit(&[3, 3, 5, 0, 0, 3, 1, 4])", "6"),
+        T("leetcode_rising", "prices = [1, 2, 3, 4, 5]", "max_profit(&[1, 2, 3, 4, 5])", "4"),
+        T("leetcode_falling", "prices = [7, 6, 4, 3, 1]", "max_profit(&[7, 6, 4, 3, 1])", "0"),
+        T("empty", "prices = []", "max_profit(&[])", "0"),
+        T("one_day", "prices = [1]", "max_profit(&[1])", "0"),
+        T("at_most_two", "prices = [1, 5, 2, 6, 3, 7] (three rises, only two trades)", "max_profit(&[1, 5, 2, 6, 3, 7])", "9"),
+    ],
+    hidden=[
+        T("empty", "prices = []", "max_profit(&[])", "0"),
+        T("leetcode_ten", "prices = [1, 2, 4, 2, 5, 7, 2, 4, 9, 0]", "max_profit(&[1, 2, 4, 2, 5, 7, 2, 4, 9, 0])", "13"),
+        T("two_small", "prices = [2, 1, 2, 0, 1]", "max_profit(&[2, 1, 2, 0, 1])", "2"),
+        T("two_trades", "prices = [3, 2, 6, 5, 0, 3]", "max_profit(&[3, 2, 6, 5, 0, 3])", "7"),
+        T("flat", "prices = [4, 4, 4, 4]", "max_profit(&[4, 4, 4, 4])", "0"),
+        T("one_big_rise", "prices = [0, 100000]", "max_profit(&[0, 100_000])", "100_000"),
+        T("many_swings", "prices = [0, 100000] × 1000", "max_profit(&[0u32, 100_000].repeat(1000))", "200_000"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn best(p: &[u32], holding: bool, left: usize) -> i64 {
+                match p {
+                    [] => 0,
+                    [x, rest @ ..] => {
+                        let x = *x as i64;
+                        let wait = best(rest, holding, left);
+                        if holding {
+                            wait.max(x + best(rest, false, left))
+                        } else if left > 0 {
+                            wait.max(-x + best(rest, true, left - 1))
+                        } else {
+                            wait
+                        }
+                    }
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1238);
+            for _ in 0..300 {
+                let n = rng.below(11);
+                let prices: Vec<u32> = rng.vec(n, 0, 9);
+                check!(format!("prices = {prices:?}"), max_profit(&prices), best(&prices, false, 2) as u64);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let prices: Vec<u32> = (0..200_000u32).map(|i| i * 7919 % 10_000).collect();
+            check!("prices[i] = (7919·i) % 10000, 200000 days", max_profit(&prices), 19_998);
+        }
+        """,
+    ],
+    wrong=dict(
+        two_biggest_rises="""
+            pub fn max_profit(prices: &[u32]) -> u64 {
+                let mut runs: Vec<u64> = Vec::new();
+                let mut start = 0;
+                for i in 1..=prices.len() {
+                    if i == prices.len() || prices[i] <= prices[i - 1] {
+                        if i - 1 > start {
+                            runs.push((prices[i - 1] - prices[start]) as u64);
+                        }
+                        start = i;
+                    }
+                }
+                runs.sort_unstable_by(|a, b| b.cmp(a));
+                runs.iter().take(2).sum()
+            }
+        """,
+        one_trade="""
+            pub fn max_profit(prices: &[u32]) -> u64 {
+                let (mut low, mut best) = (u32::MAX, 0u32);
+                for &p in prices {
+                    low = low.min(p);
+                    best = best.max(p - low);
+                }
+                best as u64
+            }
+        """,
+        every_split_point="""
+            fn one_trade(prices: &[u32]) -> u64 {
+                let (mut low, mut best) = (u32::MAX, 0u32);
+                for &p in prices {
+                    low = low.min(p);
+                    best = best.max(p - low);
+                }
+                best as u64
+            }
+
+            pub fn max_profit(prices: &[u32]) -> u64 {
+                (0..=prices.len()).map(|k| one_trade(&prices[..k]) + one_trade(&prices[k..])).max().unwrap_or(0)
+            }
+        """,
+    ),
+    hints=[("approach", "Track four running bests: after buying once, after selling once, after buying a second time, after selling a second time. Each one feeds the next."),
+           ("rust", "Four `i64`s. Updating them in order within the same day is fine: buying and selling on one day adds 0."),
+           ("edge case", "The two best separate rises aren't always the answer: merging two rises into one trade can free a trade for a bigger one.")],
+    notes=("buy1 = max(buy1, -p), sell1 = max(sell1, buy1 + p), buy2 = max(buy2, sell1 - p), sell2 = max(sell2, buy2 + p). The chain enforces the order of trades; unused trades just stay at 0 profit.", "O(n)", "O(1)"),
+    follow_up="Another way: best single trade in prices[..k] plus best in prices[k..], for every k, with two passes. Write it and compare.",
+    related=["D2"],
+))
+
+P.append(dict(
+    slug="best-time-to-buy-and-sell-stock-iv", title="Best time to buy and sell stock IV", level="hard", stage="state-machines", tags=["state machine", "stocks", "Vec<i64>"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "Apple", "Bloomberg"],
+    teaches=["The same chain with `k` links: `buy[j]` and `sell[j]` for j = 1..=k.",
+             "Spotting when `k` stops mattering (k ≥ n / 2) and switching to the greedy answer."],
+    statement="""
+        `prices[i]` is the price on day `i`. Make at most `k` trades (buy then sell), never holding
+        more than one share. Return the largest total profit.
+    """,
+    examples=[("k = 2, prices = [3, 2, 6, 5, 0, 3]", "7 (buy 2 sell 6, buy 0 sell 3)")],
+    constraints=["0 ≤ k ≤ 10⁵", "0 ≤ prices.len() ≤ 2·10⁵", "0 ≤ prices[i] ≤ 10⁴"],
+    starter="""
+        pub fn max_profit(k: usize, prices: &[u32]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn max_profit(k: usize, prices: &[u32]) -> u64 {
+            // With k ≥ n / 2 you can take every rise, so k no longer limits anything.
+            if k >= prices.len() / 2 {
+                return prices.windows(2).map(|w| w[1].saturating_sub(w[0]) as u64).sum();
+            }
+            // buy[j] / sell[j] = the best profit after the j-th buy / j-th sell.
+            let mut buy = vec![i64::MIN / 2; k + 1];
+            let mut sell = vec![0i64; k + 1];
+            for &p in prices {
+                let p = p as i64;
+                for j in 1..=k {
+                    buy[j] = buy[j].max(sell[j - 1] - p);
+                    sell[j] = sell[j].max(buy[j] + p);
+                }
+            }
+            sell[k] as u64
+        }
+    """,
+    visible=[
+        T("leetcode_three_days", "k = 2, prices = [2, 4, 1]", "max_profit(2, &[2, 4, 1])", "2"),
+        T("leetcode_six_days", "k = 2, prices = [3, 2, 6, 5, 0, 3]", "max_profit(2, &[3, 2, 6, 5, 0, 3])", "7"),
+        T("no_trades_allowed", "k = 0, prices = [1, 5]", "max_profit(0, &[1, 5])", "0"),
+        T("empty", "k = 1, prices = []", "max_profit(1, &[])", "0"),
+        T("one_trade", "k = 1, prices = [1, 5, 2, 6, 3, 7]", "max_profit(1, &[1, 5, 2, 6, 3, 7])", "6"),
+        T("k_larger_than_needed", "k = 100, prices = [1, 2, 1, 2, 1, 2]", "max_profit(100, &[1, 2, 1, 2, 1, 2])", "3"),
+    ],
+    hidden=[
+        T("empty_no_trades", "k = 0, prices = []", "max_profit(0, &[])", "0"),
+        T("two_of_three", "k = 2, prices = [1, 5, 2, 6, 3, 7]", "max_profit(2, &[1, 5, 2, 6, 3, 7])", "9"),
+        T("three_of_three", "k = 3, prices = [1, 5, 2, 6, 3, 7]", "max_profit(3, &[1, 5, 2, 6, 3, 7])", "12"),
+        T("four_of_three", "k = 4, prices = [1, 5, 2, 6, 3, 7]", "max_profit(4, &[1, 5, 2, 6, 3, 7])", "12"),
+        T("falling", "k = 3, prices = [7, 6, 4, 3, 1]", "max_profit(3, &[7, 6, 4, 3, 1])", "0"),
+        T("one_day", "k = 5, prices = [4]", "max_profit(5, &[4])", "0"),
+        T("merge_to_save_a_trade", "k = 2, prices = [1, 2, 4, 2, 5, 7, 2, 4, 9, 0]", "max_profit(2, &[1, 2, 4, 2, 5, 7, 2, 4, 9, 0])", "13"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn best(p: &[u32], holding: bool, left: usize) -> i64 {
+                match p {
+                    [] => 0,
+                    [x, rest @ ..] => {
+                        let x = *x as i64;
+                        let wait = best(rest, holding, left);
+                        if holding {
+                            wait.max(x + best(rest, false, left))
+                        } else if left > 0 {
+                            wait.max(-x + best(rest, true, left - 1))
+                        } else {
+                            wait
+                        }
+                    }
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1239);
+            for _ in 0..300 {
+                let n = rng.below(11);
+                let prices: Vec<u32> = rng.vec(n, 0, 9);
+                let k = rng.int(0, 4) as usize;
+                check!(format!("k = {k}, prices = {prices:?}"), max_profit(k, &prices), best(&prices, false, k) as u64);
+            }
+        }
+
+        #[test]
+        fn scale_k_100() {
+            let prices: Vec<u32> = (0..20_000u32).map(|i| i * 7919 % 1000).collect();
+            check!("k = 100, prices[i] = (7919·i) % 1000, 20000 days", max_profit(100, &prices), 98_700);
+        }
+
+        #[test]
+        fn scale_huge_k() {
+            let prices: Vec<u32> = (0..200_000u32).map(|i| i * 7919 % 10_000).collect();
+            check!("k = 100000, prices[i] = (7919·i) % 10000, 200000 days", max_profit(100_000, &prices), 329_588_780);
+        }
+        """,
+    ],
+    wrong=dict(
+        no_shortcut_for_big_k="""
+            pub fn max_profit(k: usize, prices: &[u32]) -> u64 {
+                let mut buy = vec![i64::MIN / 2; k + 1];
+                let mut sell = vec![0i64; k + 1];
+                for &p in prices {
+                    let p = p as i64;
+                    for j in 1..=k {
+                        buy[j] = buy[j].max(sell[j - 1] - p);
+                        sell[j] = sell[j].max(buy[j] + p);
+                    }
+                }
+                sell[k] as u64
+            }
+        """,
+        one_trade_too_many="""
+            pub fn max_profit(k: usize, prices: &[u32]) -> u64 {
+                let k = k + 1;
+                if k >= prices.len() / 2 {
+                    return prices.windows(2).map(|w| w[1].saturating_sub(w[0]) as u64).sum();
+                }
+                let mut buy = vec![i64::MIN / 2; k + 1];
+                let mut sell = vec![0i64; k + 1];
+                for &p in prices {
+                    let p = p as i64;
+                    for j in 1..=k {
+                        buy[j] = buy[j].max(sell[j - 1] - p);
+                        sell[j] = sell[j].max(buy[j] + p);
+                    }
+                }
+                sell[k] as u64
+            }
+        """,
+        buy_and_sell_count_separately="""
+            pub fn max_profit(k: usize, prices: &[u32]) -> u64 {
+                let k = k / 2;
+                if k >= prices.len() / 2 {
+                    return prices.windows(2).map(|w| w[1].saturating_sub(w[0]) as u64).sum();
+                }
+                let mut buy = vec![i64::MIN / 2; k + 1];
+                let mut sell = vec![0i64; k + 1];
+                for &p in prices {
+                    let p = p as i64;
+                    for j in 1..=k {
+                        buy[j] = buy[j].max(sell[j - 1] - p);
+                        sell[j] = sell[j].max(buy[j] + p);
+                    }
+                }
+                sell[k] as u64
+            }
+        """,
+    ),
+    hints=[("approach", "Generalise Stock III: buy[j] = max(buy[j], sell[j - 1] - p) and sell[j] = max(sell[j], buy[j] + p) for every j from 1 to k."),
+           ("rust", "Two `Vec<i64>` of length k + 1, with `buy` starting very negative. The inner loop over j runs once per day."),
+           ("edge case", "Each trade needs two days, so k ≥ n / 2 means \"unlimited\": return the sum of all rises, or an O(n·k) loop with k = 10⁵ is far too slow.")],
+    notes=("The states form a chain of 2k steps; each day advances every link at most once. Capping k at n / 2 keeps the work at O(n · min(k, n)).", "O(n · min(k, n))", "O(min(k, n))"),
+    follow_up="There is an O(n log n) method for any k using a heap of rise/fall pairs. Can you sketch why merging trades works?",
+    related=["D7"],
+))
+
 STAGES = [
     ("1d-basics", "1-D basics", "easy"),
     ("1d-choices", "1-D choices", "medium"),

@@ -1,0 +1,37 @@
+slug = "best-time-to-buy-and-sell-stock-with-transaction-fee"
+title = "Best time to buy and sell stock with transaction fee"
+mode = "write"
+level = "medium"
+stage = "state-machines"
+order = 37
+status = "ready"
+tags = ["state machine", "stocks"]
+companies = ["Amazon", "Google", "Meta", "Microsoft", "Bloomberg"]
+teaches = [
+  "The two-state machine (holding / free), with the fee paid on the sell transition.",
+  "Why taking every price rise stops working once each trade costs something.",
+]
+constraints = ["0 ≤ prices.len() ≤ 2·10⁵", "0 ≤ prices[i], fee ≤ 5·10⁴"]
+follow_up = "Why is it equivalent to charge the fee when buying instead of when selling?"
+related = ["L7"]
+
+[[examples]]
+input = "prices = [1, 3, 2, 8, 4, 9], fee = 2"
+output = "8 (buy 1 sell 8, buy 4 sell 9)"
+
+[[hints]]
+kind = "approach"
+text = "Two states: holding a share or not. Holding = max(keep holding, buy today from not-holding); not holding = max(stay out, sell today from holding and pay the fee)."
+
+[[hints]]
+kind = "rust"
+text = "`(holding, free) = (holding.max(free - p), free.max(holding + p - fee));` with `i64` values and `holding` starting very negative."
+
+[[hints]]
+kind = "edge case"
+text = "Taking every up-day as its own trade pays the fee many times; one long trade through small dips can be better: [1, 3, 2, 8, 4, 9] with fee 2."
+
+[solution]
+explanation = "The fee is charged once per sell, so the machine decides by itself when holding through a small dip beats selling and re-buying."
+time = "O(n)"
+space = "O(1)"

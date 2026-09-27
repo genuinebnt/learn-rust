@@ -1,0 +1,37 @@
+slug = "best-time-to-buy-and-sell-stock-with-cooldown"
+title = "Best time to buy and sell stock with cooldown"
+mode = "write"
+level = "medium"
+stage = "state-machines"
+order = 36
+status = "ready"
+tags = ["state machine", "stocks"]
+companies = ["Amazon", "Google", "Meta", "Apple", "Microsoft", "Bloomberg"]
+teaches = [
+  "Modelling a day as a state machine: holding, just sold (cooling down), or free to buy.",
+  "Updating all states from yesterday's values at once with a tuple assignment.",
+]
+constraints = ["0 ≤ prices.len() ≤ 2·10⁵", "0 ≤ prices[i] ≤ 10⁴"]
+follow_up = "Draw the state machine. How does it change for a two-day cooldown?"
+related = ["L7", "D8"]
+
+[[examples]]
+input = "prices = [1, 2, 3, 0, 2]"
+output = "3 (buy, sell, cooldown, buy, sell)"
+
+[[hints]]
+kind = "approach"
+text = "Three states at the end of each day: holding, just sold (so tomorrow is a cooldown), and free. Holding comes from holding or buying from free; just sold comes from holding; free comes from free or cooling."
+
+[[hints]]
+kind = "rust"
+text = "Three `i64`s updated together: `(holding, cooling, free) = (holding.max(free - p), holding + p, free.max(cooling));` reads only yesterday's values."
+
+[[hints]]
+kind = "edge case"
+text = "Start `holding` and `cooling` at a very negative value (not `i64::MIN`, which overflows when you add a price)."
+
+[solution]
+explanation = "Each day's best profit per state depends only on yesterday's three numbers. The cooldown is the rule that the buy transition leaves from free, not from cooling."
+time = "O(n)"
+space = "O(1)"

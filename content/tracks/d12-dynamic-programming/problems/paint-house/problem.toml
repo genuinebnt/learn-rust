@@ -1,0 +1,37 @@
+slug = "paint-house"
+title = "Paint house"
+mode = "write"
+level = "medium"
+stage = "state-machines"
+order = 35
+status = "ready"
+tags = ["state DP", "[u64; 3]"]
+companies = ["Amazon", "Google", "LinkedIn", "Microsoft"]
+teaches = [
+  "The state is \"the colour of the last house\": three numbers carried from house to house.",
+  "A fixed-size array `[u64; 3]` rebuilt each step instead of a table.",
+]
+constraints = ["0 ≤ costs.len() ≤ 2·10⁵", "0 ≤ costs[i][c] ≤ 10⁴"]
+follow_up = "With k colours instead of 3, how do you avoid O(n·k²)? (Keep the smallest and second-smallest of the previous row.)"
+related = ["D8"]
+
+[[examples]]
+input = "costs = [[17, 2, 17], [16, 16, 5], [14, 3, 19]]"
+output = "10 (green, blue, green)"
+
+[[hints]]
+kind = "approach"
+text = "Carry three numbers: the cheapest total so far if the last house is red, green or blue. Each new colour adds its cost to the cheaper of the other two."
+
+[[hints]]
+kind = "rust"
+text = "Rebuild a `[u64; 3]` per house with an array literal; `best.into_iter().min().unwrap()` at the end (an empty street leaves `[0, 0, 0]`)."
+
+[[hints]]
+kind = "edge case"
+text = "Picking the cheapest allowed colour house by house is greedy and can force an expensive house later."
+
+[solution]
+explanation = "The only thing a house needs to know about the past is the previous colour, so three running totals are the whole state. Each step is constant work."
+time = "O(n)"
+space = "O(1)"

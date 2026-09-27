@@ -1,0 +1,37 @@
+slug = "best-time-to-buy-and-sell-stock-iv"
+title = "Best time to buy and sell stock IV"
+mode = "write"
+level = "hard"
+stage = "state-machines"
+order = 39
+status = "ready"
+tags = ["state machine", "stocks", "Vec<i64>"]
+companies = ["Amazon", "Google", "Meta", "Microsoft", "Apple", "Bloomberg"]
+teaches = [
+  "The same chain with `k` links: `buy[j]` and `sell[j]` for j = 1..=k.",
+  "Spotting when `k` stops mattering (k ≥ n / 2) and switching to the greedy answer.",
+]
+constraints = ["0 ≤ k ≤ 10⁵", "0 ≤ prices.len() ≤ 2·10⁵", "0 ≤ prices[i] ≤ 10⁴"]
+follow_up = "There is an O(n log n) method for any k using a heap of rise/fall pairs. Can you sketch why merging trades works?"
+related = ["D7"]
+
+[[examples]]
+input = "k = 2, prices = [3, 2, 6, 5, 0, 3]"
+output = "7 (buy 2 sell 6, buy 0 sell 3)"
+
+[[hints]]
+kind = "approach"
+text = "Generalise Stock III: buy[j] = max(buy[j], sell[j - 1] - p) and sell[j] = max(sell[j], buy[j] + p) for every j from 1 to k."
+
+[[hints]]
+kind = "rust"
+text = "Two `Vec<i64>` of length k + 1, with `buy` starting very negative. The inner loop over j runs once per day."
+
+[[hints]]
+kind = "edge case"
+text = "Each trade needs two days, so k ≥ n / 2 means \"unlimited\": return the sum of all rises, or an O(n·k) loop with k = 10⁵ is far too slow."
+
+[solution]
+explanation = "The states form a chain of 2k steps; each day advances every link at most once. Capping k at n / 2 keeps the work at O(n · min(k, n))."
+time = "O(n · min(k, n))"
+space = "O(min(k, n))"

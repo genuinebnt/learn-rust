@@ -101,7 +101,7 @@ fn failing(r: &RunResult) -> Vec<(Suite, &str)> {
 }
 
 #[tokio::test]
-async fn network_delay_sentinel_bug_scores_4_of_6() {
+async fn network_delay_sentinel_bug_scores_9_of_14() {
     let c = catalog();
     let (_, _, visible, hidden) = problem(&c, "d9-network-delay-time");
     let r = submit(
@@ -114,11 +114,14 @@ async fn network_delay_sentinel_bug_scores_4_of_6() {
     .await;
 
     assert_eq!(r.status, RunStatus::Failed);
-    assert_eq!((r.passed, r.total), (4, 6));
+    assert_eq!((r.passed, r.total), (9, 14));
     assert_eq!(
         failing(&r),
         vec![
             (Suite::Hidden, "dense_n100"),
+            (Suite::Hidden, "edges_are_directed"),
+            (Suite::Hidden, "only_source_reachable"),
+            (Suite::Hidden, "random_vs_bellman_ford"),
             (Suite::Visible, "unreachable_returns_none")
         ]
     );
@@ -136,7 +139,7 @@ async fn network_delay_sentinel_bug_scores_4_of_6() {
 }
 
 #[tokio::test]
-async fn network_delay_reference_passes_6_of_6() {
+async fn network_delay_reference_passes_14_of_14() {
     let c = catalog();
     let (_, solution, visible, hidden) = problem(&c, "d9-network-delay-time");
     let r = submit(
@@ -148,7 +151,7 @@ async fn network_delay_reference_passes_6_of_6() {
     )
     .await;
     assert_eq!(r.status, RunStatus::Passed, "{r:#?}");
-    assert_eq!((r.passed, r.total), (6, 6));
+    assert_eq!((r.passed, r.total), (14, 14));
 }
 
 #[tokio::test]
@@ -311,7 +314,7 @@ async fn docker_sandbox_matches_host() {
     .await;
     assert_eq!(
         (bug.status, bug.passed, bug.total),
-        (RunStatus::Failed, 4, 6),
+        (RunStatus::Failed, 9, 14),
         "{bug:#?}"
     );
     let ok = submit(
@@ -324,7 +327,7 @@ async fn docker_sandbox_matches_host() {
     .await;
     assert_eq!(
         (ok.status, ok.passed, ok.total),
-        (RunStatus::Passed, 6, 6),
+        (RunStatus::Passed, 14, 14),
         "{ok:#?}"
     );
 }

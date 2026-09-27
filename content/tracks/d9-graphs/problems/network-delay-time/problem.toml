@@ -11,7 +11,7 @@ teaches = [
   "Lazy deletion instead of decrease-key.",
   "Sentinels vs `Option` at the boundary.",
 ]
-constraints = ["1 ≤ n ≤ 100", "1 ≤ times.len() ≤ 6000", "0 ≤ w ≤ 100 · no self-loops"]
+constraints = ["1 ≤ n ≤ 10⁵", "1 ≤ times.len() ≤ 2·10⁵", "0 ≤ w ≤ 100 · no self-loops"]
 follow_up = "What breaks if weights can be negative, and what would you use instead?"
 related = ["S5", "S1", "L4"]
 source = "W42"

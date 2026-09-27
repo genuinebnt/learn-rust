@@ -1,0 +1,28 @@
+slug = "closures-generic-vs-dyn"
+title = "Closures: generic vs dyn"
+mode = "write"
+level = "medium"
+stage = "static-vs-dynamic"
+order = 7
+status = "ready"
+tags = ["FnMut", "dyn FnMut", "Box<dyn Trait + Send + 'a>"]
+teaches = [
+  "`Box<dyn Trait>` means `Box<dyn Trait + 'static>`; write `+ 'a` to allow borrows.",
+  "Auto traits must be named on the object type: `dyn FnMut(..) + Send`.",
+  "FnMut needs `&mut` to call.",
+]
+follow_up = "The steps could be `Box<dyn Fn>` instead of `FnMut`. What would callers lose, and what would `Pipeline` gain?"
+related = ["L6", "C1"]
+
+[[hints]]
+kind = "rust"
+text = "Different closures have different types, so the Vec holds `Box<dyn FnMut(i64) -> i64 + ...>`. A bare `Box<dyn FnMut(..)>` means `+ 'static`, which rejects closures that borrow locals; and the box must say `+ Send` for the pipeline to be `Send`."
+
+[[hints]]
+kind = "rust"
+text = "Calling an `FnMut` needs `&mut`: `mut f: F` in the parameter list, and `iter_mut()` over the boxes."
+
+[solution]
+explanation = "Generic `F: FnMut` gets its own compiled copy per closure and can inline it; `&mut dyn FnMut` is one copy with an indirect call. To store closures of different types you need trait objects, and the object type carries every promise: auto traits (`+ Send`) and the borrow region (`+ 'a`). Without `+ 'a`, `Box<dyn Trait>` defaults to `'static`.\n\nSyntax: `Vec<Box<dyn FnMut(i64) -> i64 + Send + 'a>>` · `fn push(&mut self, step: impl FnMut(i64) -> i64 + Send + 'a)`."
+time = "O(n) per run"
+space = "O(steps)"

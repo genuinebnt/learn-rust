@@ -1,0 +1,32 @@
+slug = "shapes-both-ways"
+title = "Shapes both ways: generic vs dyn"
+mode = "fix"
+level = "medium"
+stage = "static-vs-dynamic"
+order = 6
+status = "ready"
+tags = ["static dispatch", "dyn Trait", "?Sized", "forwarding impls"]
+teaches = [
+  "Generic = monomorphised, static calls; `dyn` = one copy, vtable calls through a fat pointer.",
+  "`impl<S: Trait + ?Sized> Trait for Box<S>` makes boxes and trait objects usable with generic code.",
+  "`max_by` keeps the last maximum.",
+]
+follow_up = "What does `total_area_generic::<Box<dyn Shape>>` compile to: static calls, dynamic calls, or both?"
+related = ["L5", "S7"]
+
+[[hints]]
+kind = "rust"
+text = "`Box<dyn Shape>` is not a `Shape`: only `dyn Shape` is. Forward the trait: `impl<S: Shape + ?Sized> Shape for Box<S>`, and the same for `&S`. Without `?Sized`, `S` can't be `dyn Shape`."
+
+[[hints]]
+kind = "rust"
+text = "Inside the forwarding impl, call `(**self).area()`. Plain `self.area()` finds the Box impl again and recurses forever."
+
+[[hints]]
+kind = "edge case"
+text = "`max_by` returns the last maximum. Use `reduce` with a strict `>` (or `min_by` on the reversed order)."
+
+[solution]
+explanation = "`T: Shape` is monomorphised: a copy per concrete type, calls inlined. `&dyn Shape` is a fat pointer (data + vtable, two words), and each call is an indirect jump. Forwarding impls with `?Sized` let one generic function accept owned values, references and trait objects alike; std does the same for `Iterator`, `Read`, `Fn` and others.\n\nSyntax: `impl<S: Shape + ?Sized> Shape for Box<S> { fn area(&self) -> f64 { (**self).area() } }`. Every generic parameter has an implicit `Sized` bound; `?Sized` removes it."
+time = "O(n)"
+space = "O(1)"

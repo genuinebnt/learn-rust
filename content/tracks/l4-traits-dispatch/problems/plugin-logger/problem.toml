@@ -1,0 +1,32 @@
+slug = "plugin-logger"
+title = "Plugin logger with trait objects (W6)"
+mode = "write"
+level = "medium"
+stage = "static-vs-dynamic"
+order = 10
+status = "ready"
+tags = ["dyn Trait", "decorator", "Send + Sync", "forwarding impls"]
+teaches = [
+  "Decorators over `Box<dyn Trait>` compose at run time.",
+  "Wrappers must forward every default method they don't want swallowed.",
+  "Keep `+ Send + Sync` on the stored object type.",
+]
+follow_up = "`Tee` could be generic, `Tee<A: Logger, B: Logger>`. When would you pick that over `Vec<Box<dyn Logger>>`?"
+related = ["L5", "C1"]
+
+[[hints]]
+kind = "approach"
+text = "Each wrapper owns a `BoxLogger` and does its one job before delegating. `Tee` owns a `Vec<BoxLogger>`."
+
+[[hints]]
+kind = "rust"
+text = "Store exactly `BoxLogger`: a field of `Box<dyn Logger>` drops the `Send + Sync` promise, and then `Arc<Tee>` can't cross threads. In the `Arc<L>` impl, `?Sized` lets `L` be `dyn Logger + Send + Sync`."
+
+[[hints]]
+kind = "edge case"
+text = "The default `flush` does nothing, so any wrapper that doesn't override it silently swallows flushes. That includes `Arc<L>`."
+
+[solution]
+explanation = "A decorator owns a `Box<dyn Trait>` and implements the same trait, so wrappers nest freely and each only knows its own job. A default method on the trait is a trap for wrappers: they must override it to forward, or the call stops there. The forwarding impl for `Arc<L>` with `L: ?Sized` makes shared sinks and `Arc<dyn Logger>` usable wherever a logger is.\n\nSyntax: `type BoxLogger = Box<dyn Logger + Send + Sync>;` · `impl<L: Logger + ?Sized> Logger for Arc<L> { fn log(&self, l: Level, m: &str) { (**self).log(l, m) } fn flush(&self) { (**self).flush() } }`."
+time = "O(depth) per message"
+space = "O(wrappers)"

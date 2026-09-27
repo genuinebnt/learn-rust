@@ -15,6 +15,12 @@ def write(slug, title, level, stage, tags, statement, starter, solution, visible
                 teaches=teaches, related=list(related), source=source, examples=list(examples), wrong=wrong)
 
 
+def sub(s, old, new):
+    """str.replace that fails loudly when `old` isn't there (a wrong solution that silently equals the reference)."""
+    assert old in s, f"not found: {old[:60]!r}"
+    return s.replace(old, new)
+
+
 # ---------------------------------------------------------------- define & implement (easy)
 # The easy band is recall: the starter is the code that *uses* the traits, and the solver writes the trait layer
 # from memory. Those starters can't compile until it's written, so these problems use fix mode.
@@ -829,6 +835,1059 @@ Syntax: `fn f(xs: impl IntoIterator<Item = impl AsRef<str>>)` · `fn g() -> impl
         bytes_not_chars=ITER_ARGS_SOLUTION.replace("w.as_ref().chars().count()", "w.as_ref().len()"),
         compose_backwards=ITER_ARGS_SOLUTION.replace("move |x| g(f(x))", "move |x| f(g(x))"),
         evens_exclusive=ITER_ARGS_SOLUTION.replace("(0..=limit).step_by(2)", "(0..limit).step_by(2)"),
+    ),
+))
+
+# ---------------------------------------------------------------- static vs dynamic (medium)
+
+BOTH_WAYS_HEAD = r"""
+use std::f64::consts::PI;
+
+pub trait Shape {
+    fn area(&self) -> f64;
+    fn name(&self) -> String;
+}
+
+pub struct Circle {
+    pub radius: f64,
+}
+
+pub struct Rectangle {
+    pub width: f64,
+    pub height: f64,
+}
+
+impl Shape for Circle {
+    fn area(&self) -> f64 {
+        PI * self.radius * self.radius
+    }
+
+    fn name(&self) -> String {
+        format!("circle({})", self.radius)
+    }
+}
+
+impl Shape for Rectangle {
+    fn area(&self) -> f64 {
+        self.width * self.height
+    }
+
+    fn name(&self) -> String {
+        format!("rect({}x{})", self.width, self.height)
+    }
+}
+"""
+
+BOTH_WAYS_FNS = r"""
+/// Static dispatch: compiled once per `T`, calls resolved at compile time.
+pub fn total_area_generic<T: Shape>(shapes: &[T]) -> f64 {
+    shapes.iter().map(|s| s.area()).sum()
+}
+
+/// Dynamic dispatch: compiled once, every call goes through the vtable.
+pub fn total_area_dyn(shapes: &[&dyn Shape]) -> f64 {
+    shapes.iter().map(|s| s.area()).sum()
+}
+
+/// The shape with the largest area; the first of them on a tie.
+pub fn largest<T: Shape>(shapes: &[T]) -> Option<&T> {
+    LARGEST
+}
+"""
+
+BOTH_WAYS_FORWARD = r"""
+impl<S: Shape + ?Sized> Shape for Box<S> {
+    fn area(&self) -> f64 {
+        (**self).area()
+    }
+
+    fn name(&self) -> String {
+        (**self).name()
+    }
+}
+
+impl<S: Shape + ?Sized> Shape for &S {
+    fn area(&self) -> f64 {
+        (**self).area()
+    }
+
+    fn name(&self) -> String {
+        (**self).name()
+    }
+}
+"""
+
+LARGEST_BUGGY = "shapes.iter().max_by(|a, b| a.area().total_cmp(&b.area()))"
+LARGEST_FIXED = "shapes.iter().reduce(|best, s| if s.area() > best.area() { s } else { best })"
+
+BOTH_WAYS_SOLUTION = BOTH_WAYS_HEAD + BOTH_WAYS_FORWARD + BOTH_WAYS_FNS.replace("LARGEST", LARGEST_FIXED)
+
+P.append(fix(
+    "shapes-both-ways", "Shapes both ways: generic vs dyn", "medium", "static-vs-dynamic", ["static dispatch", "dyn Trait", "?Sized", "forwarding impls"],
+    """
+        Two bugs:
+
+        - The tests pass `Vec<Box<dyn Shape>>`, `Vec<&dyn Shape>` and `Vec<&Circle>` to the generic functions.
+          None of that compiles (E0277).
+        - `largest` returns the last of several equally large shapes, not the first.
+
+        Fix both without changing any function's signature.
+    """,
+    BOTH_WAYS_HEAD + BOTH_WAYS_FNS.replace("LARGEST", LARGEST_BUGGY),
+    BOTH_WAYS_SOLUTION,
+    [T("generic_on_one_type", "total_area_generic(&[Circle 1, Circle 2])", 'format!("{:.4}", total_area_generic(&[Circle { radius: 1.0 }, Circle { radius: 2.0 }]))', '"15.7080"'),
+     T("generic_on_boxes", "total_area_generic(&[Box Circle 1, Box Rect 2x3])", 'format!("{:.4}", total_area_generic(&boxes))', '"9.1416"',
+       setup="let boxes: Vec<Box<dyn Shape>> = vec![Box::new(Circle { radius: 1.0 }), Box::new(Rectangle { width: 2.0, height: 3.0 })];"),
+     T("dyn_on_refs", "total_area_dyn(&[&Rect 1x1, &Rect 2x2])", "total_area_dyn(&[&a, &b])", "5.0",
+       setup="let a = Rectangle { width: 1.0, height: 1.0 };\nlet b = Rectangle { width: 2.0, height: 2.0 };"),
+     T("largest_tie_is_first", "largest(&[Rect 2x3, Rect 3x2])", "largest(&[Rectangle { width: 2.0, height: 3.0 }, Rectangle { width: 3.0, height: 2.0 }]).map(|s| s.name())", 'Some("rect(2x3)".to_string())'),
+     T("largest_boxed", "largest(&[Box Circle 1, Box Rect 1x4])", "largest(&boxes).map(|s| s.name())", 'Some("rect(1x4)".to_string())',
+       setup="let boxes: Vec<Box<dyn Shape>> = vec![Box::new(Circle { radius: 1.0 }), Box::new(Rectangle { width: 1.0, height: 4.0 })];"),
+     T("largest_empty", "largest::<Circle>(&[])", "largest::<Circle>(&[]).is_none()", "true")],
+    [T("generic_on_dyn_refs", "total_area_generic(&[&dyn Rect 1x2, &dyn Rect 3x1])", "total_area_generic(&refs)", "5.0",
+       setup="let (a, b) = (Rectangle { width: 1.0, height: 2.0 }, Rectangle { width: 3.0, height: 1.0 });\nlet refs: Vec<&dyn Shape> = vec![&a, &b];"),
+     T("generic_on_plain_refs", "total_area_generic(&[&Rect 2x2])", "total_area_generic(&[&r])", "4.0", setup="let r = Rectangle { width: 2.0, height: 2.0 };"),
+     T("box_of_box", "total_area_generic(&[Box<Box<Rect 3x3>>])", "total_area_generic(&[Box::new(Box::new(Rectangle { width: 3.0, height: 3.0 }))])", "9.0"),
+     T("largest_dyn_tie", "largest(&[&dyn Rect 1x6, &dyn Rect 6x1, &dyn Rect 2x3])", "largest(&refs).map(|s| s.name())", 'Some("rect(1x6)".to_string())',
+       setup="let (a, b, c) = (Rectangle { width: 1.0, height: 6.0 }, Rectangle { width: 6.0, height: 1.0 }, Rectangle { width: 2.0, height: 3.0 });\nlet refs: Vec<&dyn Shape> = vec![&a, &b, &c];"),
+     T("largest_tie_in_the_middle", "areas [1, 4, 4, 2]", "largest(&v).map(|s| s.name())", 'Some("rect(2x2)".to_string())',
+       setup="let v = [Rectangle { width: 1.0, height: 1.0 }, Rectangle { width: 2.0, height: 2.0 }, Rectangle { width: 4.0, height: 1.0 }, Rectangle { width: 2.0, height: 1.0 }];"),
+     T("largest_all_zero", "areas [0, 0]", "largest(&[Rectangle { width: 0.0, height: 1.0 }, Rectangle { width: 1.0, height: 0.0 }]).map(|s| s.name())", 'Some("rect(0x1)".to_string())'),
+     T("largest_returns_the_element", "largest points into the slice", "std::ptr::eq(largest(&v).unwrap(), &v[1])", "true",
+       setup="let v = [Circle { radius: 1.0 }, Circle { radius: 3.0 }, Circle { radius: 2.0 }];"),
+     T("name_through_box", "Box<dyn Shape>::name", "b.name()", '"circle(2.5)"', setup="let b: Box<dyn Shape> = Box::new(Circle { radius: 2.5 });"),
+     T("empty_totals", "total_area_generic::<Box<dyn Shape>>(&[]), total_area_dyn(&[])", "(total_area_generic::<Box<dyn Shape>>(&[]), total_area_dyn(&[]))", "(0.0, 0.0)"),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4406);
+         for _ in 0..300 {
+             let n = rng.below(6);
+             let dims: Vec<(f64, f64)> = (0..n).map(|_| (rng.int(0, 3) as f64, rng.int(0, 3) as f64)).collect();
+             let boxes: Vec<Box<dyn Shape>> = dims.iter().map(|&(w, h)| Box::new(Rectangle { width: w, height: h }) as Box<dyn Shape>).collect();
+             let mut best: Option<usize> = None;
+             for (i, &(w, h)) in dims.iter().enumerate() {
+                 if best.map_or(true, |b| w * h > dims[b].0 * dims[b].1) {
+                     best = Some(i);
+                 }
+             }
+             let want = best.map(|i| format!("rect({}x{})", dims[i].0, dims[i].1));
+             check!(format!("largest({dims:?})"), largest(&boxes).map(|s| s.name()), want);
+             check!(format!("total({dims:?})"), total_area_generic(&boxes), dims.iter().map(|&(w, h)| w * h).sum::<f64>());
+         }
+     }
+     """],
+    [("rust", "`Box<dyn Shape>` is not a `Shape`: only `dyn Shape` is. Forward the trait: `impl<S: Shape + ?Sized> Shape for Box<S>`, and the same for `&S`. Without `?Sized`, `S` can't be `dyn Shape`."),
+     ("rust", "Inside the forwarding impl, call `(**self).area()`. Plain `self.area()` finds the Box impl again and recurses forever."),
+     ("edge case", "`max_by` returns the last maximum. Use `reduce` with a strict `>` (or `min_by` on the reversed order).")],
+    ("""`T: Shape` is monomorphised: a copy per concrete type, calls inlined. `&dyn Shape` is a fat pointer (data + vtable, two words), and each call is an indirect jump. Forwarding impls with `?Sized` let one generic function accept owned values, references and trait objects alike; std does the same for `Iterator`, `Read`, `Fn` and others.
+
+Syntax: `impl<S: Shape + ?Sized> Shape for Box<S> { fn area(&self) -> f64 { (**self).area() } }`. Every generic parameter has an implicit `Sized` bound; `?Sized` removes it.""", "O(n)", "O(1)"),
+    "What does `total_area_generic::<Box<dyn Shape>>` compile to: static calls, dynamic calls, or both?",
+    ["Generic = monomorphised, static calls; `dyn` = one copy, vtable calls through a fat pointer.", "`impl<S: Trait + ?Sized> Trait for Box<S>` makes boxes and trait objects usable with generic code.",
+     "`max_by` keeps the last maximum."],
+    related=("L5", "S7"),
+    wrong=dict(
+        forwarding_recurses=BOTH_WAYS_HEAD + BOTH_WAYS_FORWARD.replace("(**self)", "self") + BOTH_WAYS_FNS.replace("LARGEST", LARGEST_FIXED),
+        still_last_on_tie=BOTH_WAYS_HEAD + BOTH_WAYS_FORWARD + BOTH_WAYS_FNS.replace("LARGEST", LARGEST_BUGGY),
+    ),
+))
+
+CLOSURES_SOLUTION = r"""
+/// Applies `f` to `start` `n` times. Generic: one copy per closure type.
+pub fn apply_n<F: FnMut(i64) -> i64>(start: i64, n: u32, mut f: F) -> i64 {
+    let mut x = start;
+    for _ in 0..n {
+        x = f(x);
+    }
+    x
+}
+
+/// The same through a trait object: one copy, called through a vtable.
+pub fn apply_n_dyn(start: i64, n: u32, f: &mut dyn FnMut(i64) -> i64) -> i64 {
+    let mut x = start;
+    for _ in 0..n {
+        x = f(x);
+    }
+    x
+}
+
+/// Steps run in the order they were pushed. Steps may borrow local state (`'a`), and a whole
+/// pipeline can be moved to another thread.
+pub struct Pipeline<'a> {
+    steps: Vec<Box<dyn FnMut(i64) -> i64 + Send + 'a>>,
+}
+
+impl<'a> Pipeline<'a> {
+    pub fn new() -> Self {
+        Pipeline { steps: Vec::new() }
+    }
+
+    pub fn push(&mut self, step: impl FnMut(i64) -> i64 + Send + 'a) -> &mut Self {
+        self.steps.push(Box::new(step));
+        self
+    }
+
+    pub fn len(&self) -> usize {
+        self.steps.len()
+    }
+
+    /// Threads `x` through every step.
+    pub fn run(&mut self, x: i64) -> i64 {
+        self.steps.iter_mut().fold(x, |acc, step| step(acc))
+    }
+}
+"""
+
+P.append(write(
+    "closures-generic-vs-dyn", "Closures: generic vs dyn", "medium", "static-vs-dynamic", ["FnMut", "dyn FnMut", "Box<dyn Trait + Send + 'a>"],
+    """
+        - `apply_n` and `apply_n_dyn` apply `f` to `start`, `n` times: one generic, one through `&mut dyn FnMut`.
+        - `Pipeline` stores steps of different closure types and threads a value through them in push order.
+          Steps may mutate what they capture, may borrow local variables (the `'a`), and a pipeline must be
+          movable to another thread. Choose the field type.
+    """,
+    r"""
+    use std::marker::PhantomData;
+
+    /// Applies `f` to `start` `n` times. Generic: one copy per closure type.
+    pub fn apply_n<F: FnMut(i64) -> i64>(start: i64, n: u32, f: F) -> i64 {
+        todo!()
+    }
+
+    /// The same through a trait object: one copy, called through a vtable.
+    pub fn apply_n_dyn(start: i64, n: u32, f: &mut dyn FnMut(i64) -> i64) -> i64 {
+        todo!()
+    }
+
+    /// Steps run in the order they were pushed. Steps may borrow local state (`'a`), and a whole
+    /// pipeline can be moved to another thread.
+    pub struct Pipeline<'a> {
+        // TODO: the steps. (Remove this placeholder.)
+        _todo: PhantomData<&'a ()>,
+    }
+
+    impl<'a> Pipeline<'a> {
+        pub fn new() -> Self {
+            todo!()
+        }
+
+        pub fn push(&mut self, step: impl FnMut(i64) -> i64 + Send + 'a) -> &mut Self {
+            todo!()
+        }
+
+        pub fn len(&self) -> usize {
+            todo!()
+        }
+
+        /// Threads `x` through every step.
+        pub fn run(&mut self, x: i64) -> i64 {
+            todo!()
+        }
+    }
+    """,
+    CLOSURES_SOLUTION,
+    [T("apply_n_doubles", "apply_n(1, 5, |x| x * 2)", "apply_n(1, 5, |x| x * 2)", "32"),
+     T("apply_n_dyn_counts_calls", "apply_n_dyn(0, 3, &mut counting), then calls", "(apply_n_dyn(0, 3, &mut counting), calls)", "(3, 3)",
+       setup="let mut calls = 0;\nlet mut counting = |x: i64| {\n    calls += 1;\n    x + 1\n};"),
+     T("pipeline_in_push_order", "push(+1), push(*2); run(5)", "p.run(5)", "12", setup="let mut p = Pipeline::new();\np.push(|x| x + 1).push(|x| x * 2);"),
+     T("steps_borrow_locals", "a step pushes every input into a local Vec; run(1), run(10)", "seen", "vec![1, 10]",
+       setup="let mut seen = Vec::new();\n{\n    let mut p = Pipeline::new();\n    p.push(|x| {\n        seen.push(x);\n        x\n    });\n    p.run(1);\n    p.run(10);\n}"),
+     T("runs_on_another_thread", "push(*3); run(7) on a scoped thread", "std::thread::scope(|s| s.spawn(|| p.run(7)).join().unwrap())", "21",
+       setup="let mut p = Pipeline::new();\np.push(|x| x * 3);")],
+    [T("apply_n_zero_times", "apply_n(9, 0, |x| x + 1)", "apply_n(9, 0, |x| x + 1)", "9"),
+     T("apply_n_stateful", "apply_n(0, 4, add 1, 2, 3, 4)", "apply_n(0, 4, |x| {\n        k += 1;\n        x + k\n    })", "10", setup="let mut k = 0;"),
+     T("apply_n_dyn_zero_calls", "apply_n_dyn(5, 0, ..) doesn't call f", "(apply_n_dyn(5, 0, &mut f), calls)", "(5, 0)",
+       setup="let mut calls = 0;\nlet mut f = |x: i64| {\n    calls += 1;\n    x\n};"),
+     T("empty_pipeline", "Pipeline::new().run(4)", "(p.run(4), p.len())", "(4, 0)", setup="let mut p = Pipeline::new();"),
+     T("state_kept_between_runs", "running total step; run(1), run(2), run(3)", "(p.run(1), p.run(2), p.run(3))", "(1, 3, 6)",
+       setup="let mut p = Pipeline::new();\nlet mut total = 0;\np.push(move |x| {\n    total += x;\n    total\n});"),
+     T("order_matters", "push(*2), push(+1); run(5)", "p.run(5)", "11", setup="let mut p = Pipeline::new();\np.push(|x| x * 2).push(|x| x + 1);"),
+     T("len_counts_steps", "three pushes", "p.len()", "3", setup="let mut p = Pipeline::new();\np.push(|x| x).push(|x| x).push(|x| -x);"),
+     T("moved_owned_state", "a step owning a Vec of offsets", "p.run(0)", "6", setup="let offsets = vec![1, 2, 3];\nlet mut p = Pipeline::new();\np.push(move |x| x + offsets.iter().sum::<i64>());"),
+     """
+     #[test]
+     fn pipeline_is_send() {
+         fn assert_send<T: Send>(_: &T) {}
+         let mut hits = 0;
+         let mut p = Pipeline::new();
+         p.push(|x| {
+             hits += 1;
+             x - 1
+         });
+         assert_send(&p);
+         let got = std::thread::scope(|s| s.spawn(move || p.run(10)).join().unwrap());
+         check!("run(10) on another thread, then hits", (got, hits), (9, 1));
+     }
+     """,
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4407);
+         for _ in 0..300 {
+             let n = rng.below(6);
+             let ops: Vec<(bool, i64)> = (0..n).map(|_| (rng.bool(), rng.int(-3, 3))).collect();
+             let start = rng.int(-10, 10);
+             let mut p = Pipeline::new();
+             for &(add, k) in &ops {
+                 if add {
+                     p.push(move |x| x + k);
+                 } else {
+                     p.push(move |x| x * k);
+                 }
+             }
+             let want = ops.iter().fold(start, |x, &(add, k)| if add { x + k } else { x * k });
+             check!(format!("ops = {ops:?}, start = {start}"), p.run(start), want);
+             let times = rng.below(8) as u32;
+             check!(format!("apply_n({start}, {times}, +3)"), apply_n(start, times, |x| x + 3), start + 3 * times as i64);
+         }
+     }
+     """],
+    [("rust", "Different closures have different types, so the Vec holds `Box<dyn FnMut(i64) -> i64 + ...>`. A bare `Box<dyn FnMut(..)>` means `+ 'static`, which rejects closures that borrow locals; and the box must say `+ Send` for the pipeline to be `Send`."),
+     ("rust", "Calling an `FnMut` needs `&mut`: `mut f: F` in the parameter list, and `iter_mut()` over the boxes.")],
+    ("""Generic `F: FnMut` gets its own compiled copy per closure and can inline it; `&mut dyn FnMut` is one copy with an indirect call. To store closures of different types you need trait objects, and the object type carries every promise: auto traits (`+ Send`) and the borrow region (`+ 'a`). Without `+ 'a`, `Box<dyn Trait>` defaults to `'static`.
+
+Syntax: `Vec<Box<dyn FnMut(i64) -> i64 + Send + 'a>>` · `fn push(&mut self, step: impl FnMut(i64) -> i64 + Send + 'a)`.""", "O(n) per run", "O(steps)"),
+    "The steps could be `Box<dyn Fn>` instead of `FnMut`. What would callers lose, and what would `Pipeline` gain?",
+    ["`Box<dyn Trait>` means `Box<dyn Trait + 'static>`; write `+ 'a` to allow borrows.", "Auto traits must be named on the object type: `dyn FnMut(..) + Send`.", "FnMut needs `&mut` to call."],
+    related=("L6", "C1"),
+    wrong=dict(
+        run_reversed=sub(CLOSURES_SOLUTION, "self.steps.iter_mut().fold", "self.steps.iter_mut().rev().fold"),
+        apply_n_one_extra=sub(CLOSURES_SOLUTION, "    let mut x = start;\n    for _ in 0..n {\n        x = f(x);\n    }\n    x\n}\n\n/// The same", "    let mut x = start;\n    for _ in 0..=n {\n        x = f(x);\n    }\n    x\n}\n\n/// The same"),
+    ),
+))
+
+BUS_STARTER = r"""
+use std::cell::Cell;
+use std::rc::Rc;
+use std::thread;
+
+pub trait Handler {
+    /// A reply to `event`, or None.
+    fn handle(&self, event: &str) -> Option<String>;
+}
+
+/// Counts the events it sees. Whoever holds a clone of `count` can read it.
+pub struct Counter {
+    pub count: Rc<Cell<usize>>,
+}
+
+impl Handler for Counter {
+    fn handle(&self, _event: &str) -> Option<String> {
+        self.count.set(self.count.get() + 1);
+        None
+    }
+}
+
+/// Replies with `prefix` + the event.
+pub struct Echo {
+    pub prefix: String,
+}
+
+impl Handler for Echo {
+    fn handle(&self, event: &str) -> Option<String> {
+        Some(format!("{}{}", self.prefix, event))
+    }
+}
+
+#[derive(Default)]
+pub struct Bus {
+    handlers: Vec<Box<dyn Handler>>,
+}
+
+impl Bus {
+    pub fn register(&mut self, h: Box<dyn Handler>) {
+        self.handlers.push(h);
+    }
+
+    /// For each event in order, every handler's reply in registration order.
+    pub fn dispatch(&self, events: &[&str]) -> Vec<String> {
+        let mut out = Vec::new();
+        for e in events {
+            for h in &self.handlers {
+                out.extend(h.handle(e));
+            }
+        }
+        out
+    }
+}
+
+/// Dispatches on a worker thread.
+pub fn dispatch_in_background(bus: Bus, events: Vec<String>) -> Vec<String> {
+    thread::spawn(move || {
+        let refs: Vec<&str> = events.iter().map(String::as_str).collect();
+        bus.dispatch(&refs)
+    })
+    .join()
+    .unwrap()
+}
+"""
+
+BUS_SOLUTION = (BUS_STARTER
+                .replace("use std::cell::Cell;\nuse std::rc::Rc;\n", "use std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\n")
+                .replace("pub count: Rc<Cell<usize>>,", "pub count: Arc<AtomicUsize>,")
+                .replace("self.count.set(self.count.get() + 1);", "self.count.fetch_add(1, Ordering::Relaxed);")
+                .replace("Vec<Box<dyn Handler>>", "Vec<Box<dyn Handler + Send>>")
+                .replace("h: Box<dyn Handler>", "h: Box<dyn Handler + Send>"))
+
+P.append(fix(
+    "fix-dyn-send", "Fix: dyn Handler can't be sent between threads (E0277)", "medium", "static-vs-dynamic", ["E0277", "Send", "auto traits", "dyn Trait + Send"],
+    """
+        `dispatch_in_background` doesn't compile: `dyn Handler` cannot be sent between threads safely. Make a `Bus`
+        sendable. `Counter` must still share its count with the caller, now as `Arc<AtomicUsize>`.
+
+        Handlers that are `Send` but not `Sync` (a `Cell` inside, say) must still be accepted.
+    """,
+    BUS_STARTER,
+    BUS_SOLUTION,
+    [T("echo_in_background", "Echo \"> \", events [a, b]", 'dispatch_in_background(bus, vec!["a".into(), "b".into()])', 'vec!["> a", "> b"]',
+       setup='let mut bus = Bus::default();\nbus.register(Box::new(Echo { prefix: "> ".into() }));'),
+     T("counter_shared_with_caller", "Counter, three events in background, then read count", "count.load(std::sync::atomic::Ordering::SeqCst)", "3",
+       setup='let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));\nlet mut bus = Bus::default();\nbus.register(Box::new(Counter { count: count.clone() }));\ndispatch_in_background(bus, vec!["x".into(), "y".into(), "z".into()]);'),
+     T("dispatch_order", "Echo 1, Echo 2; events [a, b]", 'bus.dispatch(&["a", "b"])', 'vec!["1a", "2a", "1b", "2b"]',
+       setup='let mut bus = Bus::default();\nbus.register(Box::new(Echo { prefix: "1".into() }));\nbus.register(Box::new(Echo { prefix: "2".into() }));'),
+     T("no_handlers", "empty bus", 'dispatch_in_background(Bus::default(), vec!["a".into()])', "Vec::<String>::new()"),
+     """
+     #[test]
+     fn send_but_not_sync_handler() {
+         // Cell is Send but not Sync: a bus that moves to one thread doesn't need Sync.
+         struct Tally(std::cell::Cell<u32>);
+         impl Handler for Tally {
+             fn handle(&self, e: &str) -> Option<String> {
+                 self.0.set(self.0.get() + 1);
+                 Some(format!("{e}#{}", self.0.get()))
+             }
+         }
+         let mut bus = Bus::default();
+         bus.register(Box::new(Tally(std::cell::Cell::new(0))));
+         check!("Tally, events [a, b]", dispatch_in_background(bus, vec!["a".into(), "b".into()]), vec!["a#1", "b#2"]);
+     }
+     """],
+    [T("no_events", "Echo, no events", "dispatch_in_background(bus, vec![])", "Vec::<String>::new()",
+       setup='let mut bus = Bus::default();\nbus.register(Box::new(Echo { prefix: "!".into() }));'),
+     T("counter_skipped_in_replies", "Counter then Echo; events [e]", 'bus.dispatch(&["e"])', 'vec!["~e"]',
+       setup='let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));\nlet mut bus = Bus::default();\nbus.register(Box::new(Counter { count }));\nbus.register(Box::new(Echo { prefix: "~".into() }));'),
+     T("counter_zero_events", "Counter, no events", "count.load(std::sync::atomic::Ordering::SeqCst)", "0",
+       setup='let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));\nlet mut bus = Bus::default();\nbus.register(Box::new(Counter { count: count.clone() }));\ndispatch_in_background(bus, vec![]);'),
+     T("two_counters_one_count", "two Counters sharing one count, two events", "count.load(std::sync::atomic::Ordering::SeqCst)", "4",
+       setup='let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));\nlet mut bus = Bus::default();\nbus.register(Box::new(Counter { count: count.clone() }));\nbus.register(Box::new(Counter { count: count.clone() }));\ndispatch_in_background(bus, vec!["a".into(), "b".into()]);'),
+     T("unicode_events", "Echo \"» \", events [é, 日本]", 'dispatch_in_background(bus, vec!["é".into(), "日本".into()])', 'vec!["» é", "» 日本"]',
+       setup='let mut bus = Bus::default();\nbus.register(Box::new(Echo { prefix: "» ".into() }));'),
+     T("dispatch_on_this_thread_too", "Echo, dispatch(&[q])", 'bus.dispatch(&["q"])', 'vec!["-q"]',
+       setup='let mut bus = Bus::default();\nbus.register(Box::new(Echo { prefix: "-".into() }));'),
+     """
+     #[test]
+     fn bus_is_send() {
+         fn assert_send<T: Send>(_: &T) {}
+         let bus = Bus::default();
+         assert_send(&bus);
+         check!("Bus is Send", true, true);
+     }
+     """,
+     """
+     #[test]
+     fn handler_with_non_static_free_data() {
+         // A handler owning a Vec, moved to the worker with the bus.
+         struct Replies(Vec<&'static str>);
+         impl Handler for Replies {
+             fn handle(&self, e: &str) -> Option<String> {
+                 self.0.iter().find(|r| r.starts_with(e)).map(|r| r.to_string())
+             }
+         }
+         let mut bus = Bus::default();
+         bus.register(Box::new(Replies(vec!["hi there", "bye now"])));
+         check!("Replies, events [bye, hi, x]", dispatch_in_background(bus, vec!["bye".into(), "hi".into(), "x".into()]), vec!["bye now", "hi there"]);
+     }
+     """,
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4408);
+         for _ in 0..200 {
+             let hn = rng.below(4);
+             let prefixes: Vec<String> = (0..hn).map(|_| { let len = rng.below(3); rng.string(len, "pq") }).collect();
+             let en = rng.below(4);
+             let events: Vec<String> = (0..en).map(|_| { let len = rng.below(3); rng.string(len, "ab") }).collect();
+             let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+             let mut bus = Bus::default();
+             bus.register(Box::new(Counter { count: count.clone() }));
+             for p in &prefixes {
+                 bus.register(Box::new(Echo { prefix: p.clone() }));
+             }
+             let mut want = Vec::new();
+             for e in &events {
+                 for p in &prefixes {
+                     want.push(format!("{p}{e}"));
+                 }
+             }
+             check!(format!("prefixes = {prefixes:?}, events = {events:?}"), dispatch_in_background(bus, events.clone()), want);
+             check!(format!("count after {events:?}"), count.load(std::sync::atomic::Ordering::SeqCst), events.len());
+         }
+     }
+     """],
+    [("rust", "A trait object only has the auto traits its type names. `Box<dyn Handler>` isn't `Send` even if every handler happens to be; write `Box<dyn Handler + Send>` (or make `Send` a supertrait)."),
+     ("rust", "Then `Counter` stops qualifying: `Rc` and `Cell` aren't `Send`. `Arc<AtomicUsize>` is the thread-safe version of `Rc<Cell<usize>>`."),
+     ("edge case", "Moving the bus to one thread needs `Send`, not `Sync`. Asking for `+ Send + Sync` would reject handlers that hold a `Cell`.")],
+    ("""`Send` and `Sync` are auto traits: the compiler implements them for a concrete type from its fields, but a trait object erases the type, so `dyn Handler` has only the auto traits you write (`dyn Handler + Send`). Putting `Send` in the object type (or as a supertrait) makes every handler prove it at `register`. Ask for exactly what the use needs: moving to one thread is `Send`; sharing `&Bus` across threads would be `Sync`.
+
+Syntax: `Vec<Box<dyn Handler + Send>>` · `trait Handler: Send { .. }` (supertrait form) · `Arc<AtomicUsize>` with `fetch_add(1, Ordering::Relaxed)`.""", "O(events × handlers)", "O(replies)"),
+    "Would you put `Send` on the trait (`trait Handler: Send`) or on the object type? What does each choice cost other users of the trait?",
+    ["Trait objects carry only the auto traits written on them.", "`Rc`/`Cell` → `Arc`/atomics to cross threads.", "Ask for `Send` or `Sync` according to how the value is used."],
+    rules=dict(types=["Rc"], unsafe=True),
+    related=("C1", "S7"),
+    wrong=dict(
+        handler_major_order=sub(BUS_SOLUTION, "        for e in events {\n            for h in &self.handlers {\n                out.extend(h.handle(e));\n            }\n        }",
+                                "        for h in &self.handlers {\n            for e in events {\n                out.extend(h.handle(e));\n            }\n        }"),
+        store_not_add=sub(BUS_SOLUTION, "self.count.fetch_add(1, Ordering::Relaxed);", "self.count.store(1, Ordering::Relaxed);"),
+    ),
+))
+
+ENTITY_SOLUTION = r"""
+use std::any::{Any, TypeId};
+
+/// A piece of data attached to an entity. At most one of each type per entity.
+pub trait Component: Any {
+    fn name(&self) -> String;
+}
+
+#[derive(Default)]
+pub struct Entity {
+    components: Vec<Box<dyn Component>>,
+}
+
+impl Entity {
+    fn position<T: Component>(&self) -> Option<usize> {
+        // `(**c)` is the dyn Component, so type_id comes from its vtable: the concrete type.
+        self.components.iter().position(|c| (**c).type_id() == TypeId::of::<T>())
+    }
+
+    /// Adds `c`, replacing a component of the same type in place. Returns the one it replaced.
+    pub fn insert<T: Component>(&mut self, c: T) -> Option<T> {
+        match self.position::<T>() {
+            Some(i) => {
+                let new: Box<dyn Component> = Box::new(c);
+                let old: Box<dyn Any> = std::mem::replace(&mut self.components[i], new) as Box<dyn Component>;
+                old.downcast::<T>().ok().map(|b| *b)
+            }
+            None => {
+                self.components.push(Box::new(c));
+                None
+            }
+        }
+    }
+
+    pub fn get<T: Component>(&self) -> Option<&T> {
+        self.components.iter().find_map(|c| {
+            let any: &dyn Any = &**c;
+            any.downcast_ref::<T>()
+        })
+    }
+
+    pub fn get_mut<T: Component>(&mut self) -> Option<&mut T> {
+        self.components.iter_mut().find_map(|c| {
+            let any: &mut dyn Any = &mut **c;
+            any.downcast_mut::<T>()
+        })
+    }
+
+    pub fn remove<T: Component>(&mut self) -> Option<T> {
+        let i = self.position::<T>()?;
+        let b: Box<dyn Any> = self.components.remove(i);
+        b.downcast::<T>().ok().map(|b| *b)
+    }
+
+    /// The components' names in insertion order.
+    pub fn names(&self) -> Vec<String> {
+        self.components.iter().map(|c| c.name()).collect()
+    }
+}
+"""
+
+ENTITY_TEST_TYPES = r"""
+#[derive(Debug, PartialEq)]
+struct Pos(i32, i32);
+impl Component for Pos {
+    fn name(&self) -> String {
+        "pos".into()
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct Health(u32);
+impl Component for Health {
+    fn name(&self) -> String {
+        format!("health {}", self.0)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct Tag<T>(T);
+impl<T: std::fmt::Debug + 'static> Component for Tag<T> {
+    fn name(&self) -> String {
+        format!("tag {:?}", self.0)
+    }
+}
+"""
+
+P.append(write(
+    "any-downcasting", "Downcasting with Any", "medium", "static-vs-dynamic", ["Any", "TypeId", "downcast", "trait upcasting"],
+    """
+        An `Entity` holds at most one component of each type as `Box<dyn Component>`. Implement it:
+
+        - `insert` adds a component, or replaces the one of the same type *in place* and returns the old value.
+        - `get`, `get_mut` and `remove` find the component of type `T`; `remove` hands it back by value.
+        - `names` lists `name()` of each component in insertion order.
+
+        Components are defined by users of the crate (the tests define their own), so `Component` can't grow new
+        required methods.
+    """,
+    r"""
+    use std::any::Any;
+
+    /// A piece of data attached to an entity. At most one of each type per entity.
+    pub trait Component: Any {
+        fn name(&self) -> String;
+    }
+
+    #[derive(Default)]
+    pub struct Entity {
+        components: Vec<Box<dyn Component>>,
+    }
+
+    impl Entity {
+        /// Adds `c`, replacing a component of the same type in place. Returns the one it replaced.
+        pub fn insert<T: Component>(&mut self, c: T) -> Option<T> {
+            todo!()
+        }
+
+        pub fn get<T: Component>(&self) -> Option<&T> {
+            todo!()
+        }
+
+        pub fn get_mut<T: Component>(&mut self) -> Option<&mut T> {
+            todo!()
+        }
+
+        pub fn remove<T: Component>(&mut self) -> Option<T> {
+            todo!()
+        }
+
+        /// The components' names in insertion order.
+        pub fn names(&self) -> Vec<String> {
+            todo!()
+        }
+    }
+    """,
+    ENTITY_SOLUTION,
+    [ENTITY_TEST_TYPES,
+     T("insert_then_get", "insert Pos(1, 2); get::<Pos>()", "e.get::<Pos>()", "Some(&Pos(1, 2))", setup="let mut e = Entity::default();\ne.insert(Pos(1, 2));"),
+     T("missing_type", "insert Pos; get::<Health>()", "e.get::<Health>()", "None", setup="let mut e = Entity::default();\ne.insert(Pos(0, 0));"),
+     T("replace_returns_old", "insert Pos(1, 2), insert Pos(3, 4)", "(old, e.get::<Pos>(), e.names())", '(Some(Pos(1, 2)), Some(&Pos(3, 4)), vec!["pos".to_string()])',
+       setup="let mut e = Entity::default();\ne.insert(Pos(1, 2));\nlet old = e.insert(Pos(3, 4));"),
+     T("get_mut_edits", "get_mut::<Health>() then += 5", "e.get::<Health>()", "Some(&Health(15))",
+       setup="let mut e = Entity::default();\ne.insert(Health(10));\ne.get_mut::<Health>().unwrap().0 += 5;"),
+     T("remove_by_value", "insert Health(7), remove::<Health>()", "(e.remove::<Health>(), e.get::<Health>())", "(Some(Health(7)), None)",
+       setup="let mut e = Entity::default();\ne.insert(Health(7));")],
+    [ENTITY_TEST_TYPES,
+     T("replace_keeps_position", "insert Pos, Health(1), Tag(\"a\"); replace Health(2)", "e.names()", 'vec!["pos", "health 2", "tag \\"a\\""]',
+       setup='let mut e = Entity::default();\ne.insert(Pos(0, 0));\ne.insert(Health(1));\ne.insert(Tag("a"));\ne.insert(Health(2));'),
+     T("remove_keeps_order", "insert Pos, Health, Tag(1u8); remove Health", "(e.names(), e.get::<Tag<u8>>())", '(vec!["pos".to_string(), "tag 1".to_string()], Some(&Tag(1u8)))',
+       setup="let mut e = Entity::default();\ne.insert(Pos(0, 0));\ne.insert(Health(9));\ne.insert(Tag(1u8));\ne.remove::<Health>();"),
+     T("remove_missing", "remove::<Pos>() on empty", "Entity::default().remove::<Pos>()", "None"),
+     T("empty_names", "Entity::default().names()", "Entity::default().names()", "Vec::<String>::new()"),
+     T("generic_types_are_distinct", "Tag(1u8) and Tag(1u16)", "(e.get::<Tag<u8>>(), e.get::<Tag<u16>>(), e.names().len())", "(Some(&Tag(1u8)), Some(&Tag(2u16)), 2)",
+       setup="let mut e = Entity::default();\ne.insert(Tag(1u8));\ne.insert(Tag(2u16));"),
+     T("insert_new_returns_none", "insert Pos into empty", "Entity::default().insert(Pos(5, 5))", "None"),
+     T("get_mut_missing", "get_mut::<Pos>() on empty", "Entity::default().get_mut::<Pos>().is_none()", "true"),
+     T("remove_then_insert_appends", "insert Pos, Health; remove Pos; insert Pos", "e.names()", 'vec!["health 3", "pos"]',
+       setup="let mut e = Entity::default();\ne.insert(Pos(0, 0));\ne.insert(Health(3));\ne.remove::<Pos>();\ne.insert(Pos(1, 1));"),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(4409);
+         for _ in 0..200 {
+             let mut e = Entity::default();
+             let mut model: Vec<(usize, i32)> = Vec::new();
+             let mut log = Vec::new();
+             for _ in 0..10 {
+                 let kind = rng.below(3);
+                 let v = rng.int(0, 9) as i32;
+                 let pos = model.iter().position(|&(k, _)| k == kind);
+                 if rng.below(3) == 0 {
+                     log.push(format!("remove {kind}"));
+                     let got = match kind {
+                         0 => e.remove::<Pos>().map(|p| p.0),
+                         1 => e.remove::<Health>().map(|h| h.0 as i32),
+                         _ => e.remove::<Tag<i32>>().map(|t| t.0),
+                     };
+                     let want = pos.map(|i| model.remove(i).1);
+                     check!(log.join(", "), got, want);
+                 } else {
+                     log.push(format!("insert {kind}={v}"));
+                     let got = match kind {
+                         0 => e.insert(Pos(v, 0)).map(|p| p.0),
+                         1 => e.insert(Health(v as u32)).map(|h| h.0 as i32),
+                         _ => e.insert(Tag(v)).map(|t| t.0),
+                     };
+                     let want = match pos {
+                         Some(i) => Some(std::mem::replace(&mut model[i].1, v)),
+                         None => {
+                             model.push((kind, v));
+                             None
+                         }
+                     };
+                     check!(log.join(", "), got, want);
+                 }
+                 let want_names: Vec<String> = model.iter().map(|&(k, v)| match k { 0 => "pos".to_string(), 1 => format!("health {v}"), _ => format!("tag {v}") }).collect();
+                 check!(log.join(", "), e.names(), want_names);
+             }
+         }
+     }
+     """],
+    [("rust", "`Component: Any` makes `type_id` part of every `dyn Component` vtable. Since Rust 1.86 a `&dyn Component` also upcasts to `&dyn Any` (and `Box<dyn Component>` to `Box<dyn Any>`), which has `downcast_ref`, `downcast_mut` and `downcast`."),
+     ("edge case", "Call `type_id` on the trait object, `(**c).type_id()`, not on `c`: `c` is a `&Box<dyn Component>`, and `Box<dyn Component>` is itself `Any`, so you'd get the Box's type id and match nothing.")],
+    ("""`Any` gives a `'static` type a runtime `TypeId`; downcasting compares it with `TypeId::of::<T>()` and casts on a match. With `Any` as a supertrait, the object can be upcast (`&dyn Component` → `&dyn Any`, stable since 1.86); before that, the usual trick was a required `fn as_any(&self) -> &dyn Any`. The classic bug is taking `type_id` of the smart pointer instead of the object.
+
+Syntax: `let a: &dyn Any = &**c; a.downcast_ref::<T>()` · `let b: Box<dyn Any> = boxed; b.downcast::<T>()` → `Result<Box<T>, Box<dyn Any>>`.""", "O(components) per call", "O(components)"),
+    "An ECS with thousands of entities wouldn't scan a Vec of boxes. What layout would you use, and where would `TypeId` still appear?",
+    ["`trait Component: Any` + upcasting to `dyn Any` enables downcasts.", "Call `type_id` on the object, not on the Box.", "`Box<dyn Any>::downcast` returns the value by value."],
+    related=("S7", "S11"),
+    wrong=dict(
+        type_id_of_the_box=sub(ENTITY_SOLUTION, "(**c).type_id()", "c.type_id()"),
+        replace_appends=sub(ENTITY_SOLUTION, "                let new: Box<dyn Component> = Box::new(c);\n                let old: Box<dyn Any> = std::mem::replace(&mut self.components[i], new) as Box<dyn Component>;\n                old.downcast::<T>().ok().map(|b| *b)",
+                            "                let new: Box<dyn Component> = Box::new(c);\n                let old: Box<dyn Any> = self.components.remove(i);\n                self.components.push(new);\n                old.downcast::<T>().ok().map(|b| *b)"),
+    ),
+))
+
+LOGGER_HEAD = r"""
+use std::sync::Arc;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Level {
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+pub trait Logger {
+    fn log(&self, level: Level, msg: &str);
+
+    /// Pushes out anything buffered. Does nothing by default; every wrapper must pass it on.
+    fn flush(&self) {}
+}
+
+/// A logger that can be shared across threads.
+pub type BoxLogger = Box<dyn Logger + Send + Sync>;
+"""
+
+LOGGER_SOLUTION = LOGGER_HEAD + r"""
+/// Prepends `prefix` to every message.
+pub struct PrefixLogger {
+    prefix: String,
+    inner: BoxLogger,
+}
+
+impl PrefixLogger {
+    pub fn new(prefix: &str, inner: BoxLogger) -> Self {
+        PrefixLogger { prefix: prefix.to_string(), inner }
+    }
+}
+
+impl Logger for PrefixLogger {
+    fn log(&self, level: Level, msg: &str) {
+        self.inner.log(level, &format!("{}{}", self.prefix, msg));
+    }
+
+    fn flush(&self) {
+        self.inner.flush();
+    }
+}
+
+/// Drops messages below `min`.
+pub struct LevelFilter {
+    min: Level,
+    inner: BoxLogger,
+}
+
+impl LevelFilter {
+    pub fn new(min: Level, inner: BoxLogger) -> Self {
+        LevelFilter { min, inner }
+    }
+}
+
+impl Logger for LevelFilter {
+    fn log(&self, level: Level, msg: &str) {
+        if level >= self.min {
+            self.inner.log(level, msg);
+        }
+    }
+
+    fn flush(&self) {
+        self.inner.flush();
+    }
+}
+
+/// Sends every message to all its sinks, in order.
+pub struct Tee {
+    sinks: Vec<BoxLogger>,
+}
+
+impl Tee {
+    pub fn new(sinks: Vec<BoxLogger>) -> Self {
+        Tee { sinks }
+    }
+}
+
+impl Logger for Tee {
+    fn log(&self, level: Level, msg: &str) {
+        for s in &self.sinks {
+            s.log(level, msg);
+        }
+    }
+
+    fn flush(&self) {
+        for s in &self.sinks {
+            s.flush();
+        }
+    }
+}
+
+/// Lets one logger be shared by several wrappers.
+impl<L: Logger + ?Sized> Logger for Arc<L> {
+    fn log(&self, level: Level, msg: &str) {
+        (**self).log(level, msg);
+    }
+
+    fn flush(&self) {
+        (**self).flush();
+    }
+}
+"""
+
+LOGGER_REC = r"""
+use std::sync::{Arc, Mutex};
+
+struct Rec(Mutex<Vec<String>>);
+
+impl Logger for Rec {
+    fn log(&self, level: Level, msg: &str) {
+        self.0.lock().unwrap().push(format!("{level:?} {msg}"));
+    }
+    fn flush(&self) {
+        self.0.lock().unwrap().push("flush".into());
+    }
+}
+
+fn rec() -> Arc<Rec> {
+    Arc::new(Rec(Mutex::new(Vec::new())))
+}
+
+fn lines(r: &Rec) -> Vec<String> {
+    r.0.lock().unwrap().clone()
+}
+"""
+
+P.append(write(
+    "plugin-logger", "Plugin logger with trait objects (W6)", "medium", "static-vs-dynamic", ["dyn Trait", "decorator", "Send + Sync", "forwarding impls"],
+    """
+        Build composable loggers over `Box<dyn Logger + Send + Sync>`:
+
+        - `PrefixLogger` prepends its prefix to each message and passes it on.
+        - `LevelFilter` passes on only messages at or above `min`.
+        - `Tee` sends each message to all its sinks, in order.
+        - `Arc<L>` is a `Logger` too, so one sink can sit under several wrappers.
+
+        `flush` has an empty default, but every wrapper must pass it on. Loggers get shared across threads.
+    """,
+    r"""
+    use std::sync::Arc;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub enum Level {
+        Debug,
+        Info,
+        Warn,
+        Error,
+    }
+
+    pub trait Logger {
+        fn log(&self, level: Level, msg: &str);
+
+        /// Pushes out anything buffered. Does nothing by default; every wrapper must pass it on.
+        fn flush(&self) {}
+    }
+
+    /// A logger that can be shared across threads.
+    pub type BoxLogger = Box<dyn Logger + Send + Sync>;
+
+    /// Prepends `prefix` to every message.
+    pub struct PrefixLogger {
+        // TODO
+    }
+
+    impl PrefixLogger {
+        pub fn new(prefix: &str, inner: BoxLogger) -> Self {
+            todo!()
+        }
+    }
+
+    impl Logger for PrefixLogger {
+        fn log(&self, level: Level, msg: &str) {
+            todo!()
+        }
+    }
+
+    /// Drops messages below `min`.
+    pub struct LevelFilter {
+        // TODO
+    }
+
+    impl LevelFilter {
+        pub fn new(min: Level, inner: BoxLogger) -> Self {
+            todo!()
+        }
+    }
+
+    impl Logger for LevelFilter {
+        fn log(&self, level: Level, msg: &str) {
+            todo!()
+        }
+    }
+
+    /// Sends every message to all its sinks, in order.
+    pub struct Tee {
+        // TODO
+    }
+
+    impl Tee {
+        pub fn new(sinks: Vec<BoxLogger>) -> Self {
+            todo!()
+        }
+    }
+
+    impl Logger for Tee {
+        fn log(&self, level: Level, msg: &str) {
+            todo!()
+        }
+    }
+
+    /// Lets one logger be shared by several wrappers.
+    impl<L: Logger + ?Sized> Logger for Arc<L> {
+        fn log(&self, level: Level, msg: &str) {
+            todo!()
+        }
+    }
+    """,
+    LOGGER_SOLUTION,
+    [LOGGER_REC,
+     T("prefix", "PrefixLogger(\"[db] \") → rec; Info \"up\"", "lines(&r)", 'vec!["Info [db] up"]',
+       setup='let r = rec();\nPrefixLogger::new("[db] ", Box::new(r.clone())).log(Level::Info, "up");'),
+     T("filter_at_or_above", "LevelFilter(Warn) → rec; Info a, Warn b, Error c", "lines(&r)", 'vec!["Warn b", "Error c"]',
+       setup='let r = rec();\nlet f = LevelFilter::new(Level::Warn, Box::new(r.clone()));\nf.log(Level::Info, "a");\nf.log(Level::Warn, "b");\nf.log(Level::Error, "c");'),
+     T("nested", "Prefix(\"a:\", Tee[r1, Prefix(\"b:\", r2)]); Info x", "(lines(&r1), lines(&r2))", '(vec!["Info a:x".to_string()], vec!["Info b:a:x".to_string()])',
+       setup='let (r1, r2) = (rec(), rec());\nlet l = PrefixLogger::new("a:", Box::new(Tee::new(vec![Box::new(r1.clone()), Box::new(PrefixLogger::new("b:", Box::new(r2.clone())))])));\nl.log(Level::Info, "x");'),
+     T("flush_passes_through", "Prefix(Filter(Tee[r1, r2])).flush()", "(lines(&r1), lines(&r2))", '(vec!["flush".to_string()], vec!["flush".to_string()])',
+       setup='let (r1, r2) = (rec(), rec());\nlet l = PrefixLogger::new("p", Box::new(LevelFilter::new(Level::Error, Box::new(Tee::new(vec![Box::new(r1.clone()), Box::new(r2.clone())])))));\nl.flush();'),
+     """
+     #[test]
+     fn shared_across_threads() {
+         let r = rec();
+         let root: Arc<dyn Logger + Send + Sync> = Arc::new(Tee::new(vec![Box::new(PrefixLogger::new("t", Box::new(r.clone())))]));
+         std::thread::scope(|s| {
+             for i in 0..4 {
+                 let root = &root;
+                 s.spawn(move || root.log(Level::Info, &i.to_string()));
+             }
+         });
+         let mut got = lines(&r);
+         got.sort();
+         check!("4 threads log through one Tee", got, vec!["Info t0", "Info t1", "Info t2", "Info t3"]);
+     }
+     """],
+    [LOGGER_REC,
+     T("filter_error_only", "LevelFilter(Error); Debug, Info, Warn", "lines(&r)", "Vec::<String>::new()",
+       setup='let r = rec();\nlet f = LevelFilter::new(Level::Error, Box::new(r.clone()));\nf.log(Level::Debug, "a");\nf.log(Level::Info, "b");\nf.log(Level::Warn, "c");'),
+     T("filter_debug_passes_all", "LevelFilter(Debug); Debug d", "lines(&r)", 'vec!["Debug d"]',
+       setup='let r = rec();\nLevelFilter::new(Level::Debug, Box::new(r.clone())).log(Level::Debug, "d");'),
+     T("nested_filters", "Filter(Info, Filter(Error)); Warn w, Error e", "lines(&r)", 'vec!["Error e"]',
+       setup='let r = rec();\nlet l = LevelFilter::new(Level::Info, Box::new(LevelFilter::new(Level::Error, Box::new(r.clone()))));\nl.log(Level::Warn, "w");\nl.log(Level::Error, "e");'),
+     T("tee_order", "Tee[Prefix(\"1\", r), Prefix(\"2\", r)]; Warn x", "lines(&r)", 'vec!["Warn 1x", "Warn 2x"]',
+       setup='let r = rec();\nTee::new(vec![Box::new(PrefixLogger::new("1", Box::new(r.clone()))), Box::new(PrefixLogger::new("2", Box::new(r.clone())))]).log(Level::Warn, "x");'),
+     T("empty_tee", "Tee[] log and flush", "true", "true", setup='let t = Tee::new(vec![]);\nt.log(Level::Info, "x");\nt.flush();'),
+     T("arc_forwards_flush", "shared Arc<Tee[r]> under a Prefix; flush", "lines(&r)", 'vec!["flush"]',
+       setup='let r = rec();\nlet shared = Arc::new(Tee::new(vec![Box::new(r.clone())]));\nlet l = PrefixLogger::new("x", Box::new(Arc::clone(&shared)));\nl.flush();'),
+     T("filter_forwards_flush", "LevelFilter(Error) → rec; flush", "lines(&r)", 'vec!["flush"]',
+       setup='let r = rec();\nLevelFilter::new(Level::Error, Box::new(r.clone())).flush();'),
+     T("unicode_prefix", "Prefix(\"» \"); Error é", "lines(&r)", 'vec!["Error » é"]',
+       setup='let r = rec();\nPrefixLogger::new("» ", Box::new(r.clone())).log(Level::Error, "é");'),
+     """
+     #[test]
+     fn default_flush_sink() {
+         // A sink that keeps the default flush: flushing a Tee around it must not fail.
+         struct Quiet;
+         impl Logger for Quiet {
+             fn log(&self, _: Level, _: &str) {}
+         }
+         let r = rec();
+         let t = Tee::new(vec![Box::new(Quiet), Box::new(r.clone())]);
+         t.flush();
+         check!("Tee[Quiet, r].flush()", lines(&r), vec!["flush"]);
+     }
+     """,
+     r"""
+     #[test]
+     fn random_chains_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(4410);
+         let levels = [Level::Debug, Level::Info, Level::Warn, Level::Error];
+         for _ in 0..200 {
+             // Outermost first: Some(prefix) or None + a filter level.
+             let n = rng.below(5);
+             let chain: Vec<(Option<String>, Level)> = (0..n)
+                 .map(|_| if rng.bool() { let len = rng.below(3); (Some(rng.string(len, "ab")), Level::Debug) } else { (None, *rng.pick(&levels)) })
+                 .collect();
+             let r = rec();
+             let mut l: BoxLogger = Box::new(r.clone());
+             for (p, min) in chain.iter().rev() {
+                 l = match p {
+                     Some(p) => Box::new(PrefixLogger::new(p, l)),
+                     None => Box::new(LevelFilter::new(*min, l)),
+                 };
+             }
+             let mut want = Vec::new();
+             for i in 0..3 {
+                 let level = *rng.pick(&levels);
+                 let msg = format!("m{i}");
+                 l.log(level, &msg);
+                 let mut text = msg;
+                 let mut pass = true;
+                 for (p, min) in &chain {
+                     match p {
+                         Some(p) => text = format!("{p}{text}"),
+                         None => pass &= level >= *min,
+                     }
+                 }
+                 if pass {
+                     want.push(format!("{level:?} {text}"));
+                 }
+             }
+             check!(format!("chain = {chain:?}"), lines(&r), want);
+         }
+     }
+     """],
+    [("approach", "Each wrapper owns a `BoxLogger` and does its one job before delegating. `Tee` owns a `Vec<BoxLogger>`."),
+     ("rust", "Store exactly `BoxLogger`: a field of `Box<dyn Logger>` drops the `Send + Sync` promise, and then `Arc<Tee>` can't cross threads. In the `Arc<L>` impl, `?Sized` lets `L` be `dyn Logger + Send + Sync`."),
+     ("edge case", "The default `flush` does nothing, so any wrapper that doesn't override it silently swallows flushes. That includes `Arc<L>`.")],
+    ("""A decorator owns a `Box<dyn Trait>` and implements the same trait, so wrappers nest freely and each only knows its own job. A default method on the trait is a trap for wrappers: they must override it to forward, or the call stops there. The forwarding impl for `Arc<L>` with `L: ?Sized` makes shared sinks and `Arc<dyn Logger>` usable wherever a logger is.
+
+Syntax: `type BoxLogger = Box<dyn Logger + Send + Sync>;` · `impl<L: Logger + ?Sized> Logger for Arc<L> { fn log(&self, l: Level, m: &str) { (**self).log(l, m) } fn flush(&self) { (**self).flush() } }`.""", "O(depth) per message", "O(wrappers)"),
+    "`Tee` could be generic, `Tee<A: Logger, B: Logger>`. When would you pick that over `Vec<Box<dyn Logger>>`?",
+    ["Decorators over `Box<dyn Trait>` compose at run time.", "Wrappers must forward every default method they don't want swallowed.", "Keep `+ Send + Sync` on the stored object type."],
+    related=("L5", "C1"),
+    wrong=dict(
+        filter_strictly_above=sub(LOGGER_SOLUTION, "if level >= self.min {", "if level > self.min {"),
+        tee_swallows_flush=sub(LOGGER_SOLUTION, "\n    fn flush(&self) {\n        for s in &self.sinks {\n            s.flush();\n        }\n    }\n", "\n"),
+        arc_swallows_flush=sub(LOGGER_SOLUTION, "\n    fn flush(&self) {\n        (**self).flush();\n    }\n", "\n"),
     ),
 ))
 

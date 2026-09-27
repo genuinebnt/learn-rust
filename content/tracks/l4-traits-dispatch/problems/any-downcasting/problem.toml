@@ -1,0 +1,28 @@
+slug = "any-downcasting"
+title = "Downcasting with Any"
+mode = "write"
+level = "medium"
+stage = "static-vs-dynamic"
+order = 9
+status = "ready"
+tags = ["Any", "TypeId", "downcast", "trait upcasting"]
+teaches = [
+  "`trait Component: Any` + upcasting to `dyn Any` enables downcasts.",
+  "Call `type_id` on the object, not on the Box.",
+  "`Box<dyn Any>::downcast` returns the value by value.",
+]
+follow_up = "An ECS with thousands of entities wouldn't scan a Vec of boxes. What layout would you use, and where would `TypeId` still appear?"
+related = ["S7", "S11"]
+
+[[hints]]
+kind = "rust"
+text = "`Component: Any` makes `type_id` part of every `dyn Component` vtable. Since Rust 1.86 a `&dyn Component` also upcasts to `&dyn Any` (and `Box<dyn Component>` to `Box<dyn Any>`), which has `downcast_ref`, `downcast_mut` and `downcast`."
+
+[[hints]]
+kind = "edge case"
+text = "Call `type_id` on the trait object, `(**c).type_id()`, not on `c`: `c` is a `&Box<dyn Component>`, and `Box<dyn Component>` is itself `Any`, so you'd get the Box's type id and match nothing."
+
+[solution]
+explanation = "`Any` gives a `'static` type a runtime `TypeId`; downcasting compares it with `TypeId::of::<T>()` and casts on a match. With `Any` as a supertrait, the object can be upcast (`&dyn Component` → `&dyn Any`, stable since 1.86); before that, the usual trick was a required `fn as_any(&self) -> &dyn Any`. The classic bug is taking `type_id` of the smart pointer instead of the object.\n\nSyntax: `let a: &dyn Any = &**c; a.downcast_ref::<T>()` · `let b: Box<dyn Any> = boxed; b.downcast::<T>()` → `Result<Box<T>, Box<dyn Any>>`."
+time = "O(components) per call"
+space = "O(components)"

@@ -1,0 +1,36 @@
+slug = "fix-dyn-send"
+title = "Fix: dyn Handler can't be sent between threads (E0277)"
+mode = "fix"
+level = "medium"
+stage = "static-vs-dynamic"
+order = 8
+status = "ready"
+tags = ["E0277", "Send", "auto traits", "dyn Trait + Send"]
+teaches = [
+  "Trait objects carry only the auto traits written on them.",
+  "`Rc`/`Cell` → `Arc`/atomics to cross threads.",
+  "Ask for `Send` or `Sync` according to how the value is used.",
+]
+follow_up = "Would you put `Send` on the trait (`trait Handler: Send`) or on the object type? What does each choice cost other users of the trait?"
+related = ["C1", "S7"]
+
+[[hints]]
+kind = "rust"
+text = "A trait object only has the auto traits its type names. `Box<dyn Handler>` isn't `Send` even if every handler happens to be; write `Box<dyn Handler + Send>` (or make `Send` a supertrait)."
+
+[[hints]]
+kind = "rust"
+text = "Then `Counter` stops qualifying: `Rc` and `Cell` aren't `Send`. `Arc<AtomicUsize>` is the thread-safe version of `Rc<Cell<usize>>`."
+
+[[hints]]
+kind = "edge case"
+text = "Moving the bus to one thread needs `Send`, not `Sync`. Asking for `+ Send + Sync` would reject handlers that hold a `Cell`."
+
+[solution]
+explanation = "`Send` and `Sync` are auto traits: the compiler implements them for a concrete type from its fields, but a trait object erases the type, so `dyn Handler` has only the auto traits you write (`dyn Handler + Send`). Putting `Send` in the object type (or as a supertrait) makes every handler prove it at `register`. Ask for exactly what the use needs: moving to one thread is `Send`; sharing `&Bus` across threads would be `Sync`.\n\nSyntax: `Vec<Box<dyn Handler + Send>>` · `trait Handler: Send { .. }` (supertrait form) · `Arc<AtomicUsize>` with `fetch_add(1, Ordering::Relaxed)`."
+time = "O(events × handlers)"
+space = "O(replies)"
+
+[rules]
+forbid_types = ["Rc"]
+forbid_unsafe = true

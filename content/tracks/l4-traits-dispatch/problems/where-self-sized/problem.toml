@@ -1,0 +1,32 @@
+slug = "where-self-sized"
+title = "Cloning trait objects: where Self: Sized and clone_box"
+mode = "fix"
+level = "medium"
+stage = "object-safety"
+order = 13
+status = "ready"
+tags = ["E0038", "where Self: Sized", "blanket impls", "dyn clone"]
+teaches = [
+  "A supertrait that returns `Self` (like `Clone`) blocks `dyn`.",
+  "`clone_box` via a blanket impl + `impl Clone for Box<dyn Trait>`.",
+  "`where Self: Sized` keeps `Self`-returning methods for concrete types.",
+]
+follow_up = "Why does the blanket impl need `'static`? What would you change to clone `Box<dyn Shape + 'a>`?"
+related = ["L5", "S8"]
+
+[[hints]]
+kind = "approach"
+text = "Split the trait: the object-safe methods that return `Box<dyn Shape>` (`clone_box`, `scaled_box`) go in a helper supertrait with one blanket impl for every `T: Shape + Clone + 'static`. Then `impl Clone for Box<dyn Shape>` calls `clone_box`."
+
+[[hints]]
+kind = "rust"
+text = "`scaled` returns `Self`, so it needs `where Self: Sized`. Implementors may leave that clause off in their impls."
+
+[[hints]]
+kind = "edge case"
+text = "In `impl Clone for Box<dyn Shape>`, call `(**self).clone_box()`: on the Box itself, method lookup could pick `Box`'s own `clone` and recurse."
+
+[solution]
+explanation = "`Clone` returns `Self`, so it can't be called on `dyn Shape`, and a supertrait `Clone` makes the whole trait dyn-incompatible. The standard fix (what the `dyn-clone` crate does) is a helper trait with a `clone_box(&self) -> Box<dyn Shape>` method, implemented once by a blanket impl for every clonable shape, plus `impl Clone for Box<dyn Shape>`. Methods that return `Self` stay available on concrete types with `where Self: Sized`.\n\nSyntax: `trait Shape: DynShape { fn scaled(&self, k: f64) -> Self where Self: Sized; }` · `impl<T: Shape + Clone + 'static> DynShape for T { fn clone_box(&self) -> Box<dyn Shape> { Box::new(self.clone()) } }` · `impl Clone for Box<dyn Shape> { fn clone(&self) -> Self { (**self).clone_box() } }`."
+time = "O(n) to clone a scene"
+space = "O(n)"

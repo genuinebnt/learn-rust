@@ -1,0 +1,30 @@
+slug = "fix-self-in-argument"
+title = "Fix: Self in a trait that must be dyn (E0038)"
+mode = "fix"
+level = "medium"
+stage = "object-safety"
+order = 11
+status = "ready"
+tags = ["E0038", "dyn compatibility", "where Self: Sized"]
+teaches = [
+  "Methods without a receiver, or with `Self` in arguments, break dyn compatibility.",
+  "`where Self: Sized` removes a method from the vtable; change the signature if trait objects need it.",
+]
+follow_up = "`PartialOrd` uses `&Rhs` with `Rhs = Self`. How would you sort a `Vec<Box<dyn Player>>` without a trait object implementing `Ord`?"
+related = ["L5"]
+
+[[hints]]
+kind = "approach"
+text = "Read both notes under E0038. `new` returns `Self` with no receiver, so it can't go in a vtable, and no caller of `dyn Player` needs it. `beats` takes `&Self`, which for `dyn Player` would have to be the same hidden type."
+
+[[hints]]
+kind = "rust"
+text = "`where Self: Sized` on `new` keeps it for concrete types and leaves it out of `dyn Player`. That escape doesn't work for `beats`, since `winner` calls it on trait objects; take `other: &dyn Player` instead."
+
+[solution]
+explanation = "A trait is dyn-compatible when every method can be called through a vtable without knowing the concrete type. Associated functions without `self`, `Self` in argument or return position, and generic methods break that. Mark a method `where Self: Sized` when trait objects don't need it; change its signature (`&Self` → `&dyn Player`) when they do. A side effect: `&Self` also forbade comparing a `Human` with a `Team`.\n\nSyntax: `fn new(name: &str, score: u32) -> Self where Self: Sized;` · `fn beats(&self, other: &dyn Player) -> bool`."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 6

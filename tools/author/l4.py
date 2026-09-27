@@ -1891,6 +1891,510 @@ Syntax: `type BoxLogger = Box<dyn Logger + Send + Sync>;` · `impl<L: Logger + ?
     ),
 ))
 
+# ---------------------------------------------------------------- object safety (medium)
+
+PLAYER_TRAIT = r"""
+pub trait Player {
+    fn new(name: &str, score: u32) -> Self;
+    fn name(&self) -> String;
+    fn score(&self) -> u32;
+
+    /// True if `self` ranks above `other`: a higher score, or the same score and a name that sorts first.
+    fn beats(&self, other: &Self) -> bool {
+        self.score() > other.score() || (self.score() == other.score() && self.name() < other.name())
+    }
+}
+"""
+
+PLAYER_REST = r"""
+pub struct Human {
+    pub name: String,
+    pub score: u32,
+}
+
+/// A team's name is its members joined with "+".
+pub struct Team {
+    pub members: Vec<String>,
+    pub score: u32,
+}
+
+impl Player for Human {
+    fn new(name: &str, score: u32) -> Self {
+        Human { name: name.to_string(), score }
+    }
+
+    fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn score(&self) -> u32 {
+        self.score
+    }
+}
+
+impl Player for Team {
+    fn new(name: &str, score: u32) -> Self {
+        Team { members: name.split('+').map(String::from).collect(), score }
+    }
+
+    fn name(&self) -> String {
+        self.members.join("+")
+    }
+
+    fn score(&self) -> u32 {
+        self.score
+    }
+}
+
+/// The player nobody beats; the first of them on an exact tie. None if there are no players.
+pub fn winner(players: &[Box<dyn Player>]) -> Option<&dyn Player> {
+    let mut best: Option<&dyn Player> = None;
+    for p in players {
+        if best.map_or(true, |b| p.beats(b)) {
+            best = Some(p.as_ref());
+        }
+    }
+    best
+}
+"""
+
+PLAYER_FIXED = (PLAYER_TRAIT.replace("fn new(name: &str, score: u32) -> Self;", "fn new(name: &str, score: u32) -> Self\n    where\n        Self: Sized;")
+                .replace("other: &Self", "other: &dyn Player"))
+
+P.append(fix(
+    "fix-self-in-argument", "Fix: Self in a trait that must be dyn (E0038)", "medium", "object-safety", ["E0038", "dyn compatibility", "where Self: Sized"],
+    """
+        `winner` doesn't compile: `Player` is not dyn-compatible, for two different reasons. Fix the trait so that
+        `winner` works and players of different types can be compared (`human.beats(&team)`). Keep `new`.
+    """,
+    PLAYER_TRAIT + PLAYER_REST,
+    PLAYER_FIXED + PLAYER_REST,
+    [T("winner_mixed", "Human ann 5, Team a+b 7, Human bo 6", "winner(&ps).map(|p| p.name())", 'Some("a+b".to_string())',
+       setup='let ps: Vec<Box<dyn Player>> = vec![Box::new(Human::new("ann", 5)), Box::new(Team::new("a+b", 7)), Box::new(Human::new("bo", 6))];'),
+     T("beats_across_types", "Human zed 3 beats Team x+y 2", 'Human::new("zed", 3).beats(&Team::new("x+y", 2))', "true"),
+     T("tie_broken_by_name", "Team b+c 4 vs Human al 4", '(Team::new("b+c", 4).beats(&Human::new("al", 4)), Human::new("al", 4).beats(&Team::new("b+c", 4)))', "(false, true)"),
+     T("exact_tie_first_wins", "two Humans \"x\" 1", "std::ptr::addr_eq(winner(&ps).unwrap(), ps[0].as_ref())", "true",
+       setup='let ps: Vec<Box<dyn Player>> = vec![Box::new(Human::new("x", 1)), Box::new(Human::new("x", 1))];'),
+     T("no_players", "winner(&[])", "winner(&[]).is_none()", "true")],
+    [T("never_beats_itself", "h.beats(&h)", "h.beats(&h)", "false", setup='let h = Human::new("a", 1);'),
+     T("team_new_splits", "Team::new(\"p+q+r\", 0).members", 'Team::new("p+q+r", 0).members', 'vec!["p", "q", "r"]'),
+     T("single_player", "one Team", "winner(&ps).map(|p| p.score())", "Some(9)", setup='let ps: Vec<Box<dyn Player>> = vec![Box::new(Team::new("solo", 9))];'),
+     T("winner_by_name", "scores all 2: dan, b+z, cat", "winner(&ps).map(|p| p.name())", 'Some("b+z".to_string())',
+       setup='let ps: Vec<Box<dyn Player>> = vec![Box::new(Human::new("dan", 2)), Box::new(Team::new("b+z", 2)), Box::new(Human::new("cat", 2))];'),
+     T("winner_last", "scores 1, 2, 3", "winner(&ps).map(|p| p.name())", 'Some("c".to_string())',
+       setup='let ps: Vec<Box<dyn Player>> = vec![Box::new(Human::new("a", 1)), Box::new(Human::new("b", 2)), Box::new(Human::new("c", 3))];'),
+     T("zero_scores", "scores 0, 0", "winner(&ps).map(|p| p.name())", 'Some("m".to_string())',
+       setup='let ps: Vec<Box<dyn Player>> = vec![Box::new(Human::new("m", 0)), Box::new(Human::new("n", 0))];'),
+     T("dyn_beats_dyn", "ps[0].beats(ps[1].as_ref())", "ps[0].beats(ps[1].as_ref())", "true",
+       setup='let ps: Vec<Box<dyn Player>> = vec![Box::new(Human::new("a", u32::MAX)), Box::new(Team::new("b", 0))];'),
+     """
+     #[test]
+     fn a_new_player_type() {
+         // Constructors stay available on concrete types.
+         struct Bot(u32);
+         impl Player for Bot {
+             fn new(_name: &str, score: u32) -> Self {
+                 Bot(score)
+             }
+             fn name(&self) -> String {
+                 format!("bot{}", self.0)
+             }
+             fn score(&self) -> u32 {
+                 self.0
+             }
+         }
+         let ps: Vec<Box<dyn Player>> = vec![Box::new(Human::new("h", 4)), Box::new(Bot::new("", 4))];
+         check!("Human h 4, Bot 4", winner(&ps).map(|p| p.name()), Some("bot4".to_string()));
+     }
+     """,
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4411);
+         for _ in 0..300 {
+             let n = rng.below(6);
+             let specs: Vec<(String, u32, bool)> = (0..n).map(|_| (rng.string(1, "ab"), rng.below(3) as u32, rng.bool())).collect();
+             let ps: Vec<Box<dyn Player>> = specs
+                 .iter()
+                 .map(|(name, score, team)| if *team { Box::new(Team::new(name, *score)) as Box<dyn Player> } else { Box::new(Human::new(name, *score)) })
+                 .collect();
+             let mut best: Option<usize> = None;
+             for (i, (name, score, _)) in specs.iter().enumerate() {
+                 if best.map_or(true, |b| *score > specs[b].1 || (*score == specs[b].1 && *name < specs[b].0)) {
+                     best = Some(i);
+                 }
+             }
+             let got = winner(&ps).map(|w| ps.iter().position(|p| std::ptr::addr_eq(p.as_ref(), w)).unwrap());
+             check!(format!("players = {specs:?}"), got, best);
+         }
+     }
+     """],
+    [("approach", "Read both notes under E0038. `new` returns `Self` with no receiver, so it can't go in a vtable, and no caller of `dyn Player` needs it. `beats` takes `&Self`, which for `dyn Player` would have to be the same hidden type."),
+     ("rust", "`where Self: Sized` on `new` keeps it for concrete types and leaves it out of `dyn Player`. That escape doesn't work for `beats`, since `winner` calls it on trait objects; take `other: &dyn Player` instead.")],
+    ("""A trait is dyn-compatible when every method can be called through a vtable without knowing the concrete type. Associated functions without `self`, `Self` in argument or return position, and generic methods break that. Mark a method `where Self: Sized` when trait objects don't need it; change its signature (`&Self` → `&dyn Player`) when they do. A side effect: `&Self` also forbade comparing a `Human` with a `Team`.
+
+Syntax: `fn new(name: &str, score: u32) -> Self where Self: Sized;` · `fn beats(&self, other: &dyn Player) -> bool`.""", "O(n)", "O(1)"),
+    "`PartialOrd` uses `&Rhs` with `Rhs = Self`. How would you sort a `Vec<Box<dyn Player>>` without a trait object implementing `Ord`?",
+    ["Methods without a receiver, or with `Self` in arguments, break dyn compatibility.", "`where Self: Sized` removes a method from the vtable; change the signature if trait objects need it."],
+    rules=dict(lines=6),
+    related=("L5",),
+    wrong=dict(
+        ties_go_to_self=sub(PLAYER_FIXED, "self.score() == other.score() && self.name() < other.name()", "self.score() == other.score() && self.name() <= other.name()") + PLAYER_REST,
+        last_on_tie=PLAYER_FIXED + sub(PLAYER_REST, "best.map_or(true, |b| p.beats(b))", "best.map_or(true, |b| !b.beats(p.as_ref()))"),
+    ),
+))
+
+STORE_STARTER = r"""
+use std::collections::BTreeMap;
+use std::fmt::Display;
+
+pub trait Store {
+    fn get(&self, key: &str) -> Option<String>;
+    /// Stores `value` formatted with Display.
+    fn put<V: Display>(&mut self, key: &str, value: V);
+    /// The keys in sorted order.
+    fn keys(&self) -> impl Iterator<Item = &str>;
+}
+
+#[derive(Default)]
+pub struct MemStore {
+    map: BTreeMap<String, String>,
+}
+
+impl Store for MemStore {
+    fn get(&self, key: &str) -> Option<String> {
+        self.map.get(key).cloned()
+    }
+
+    fn put<V: Display>(&mut self, key: &str, value: V) {
+        self.map.insert(key.to_string(), value.to_string());
+    }
+
+    fn keys(&self) -> impl Iterator<Item = &str> {
+        self.map.keys().map(String::as_str)
+    }
+}
+
+/// Stores values uppercased.
+#[derive(Default)]
+pub struct UpperStore {
+    map: BTreeMap<String, String>,
+}
+
+impl Store for UpperStore {
+    fn get(&self, key: &str) -> Option<String> {
+        self.map.get(key).cloned()
+    }
+
+    fn put<V: Display>(&mut self, key: &str, value: V) {
+        self.map.insert(key.to_string(), value.to_string().to_uppercase());
+    }
+
+    fn keys(&self) -> impl Iterator<Item = &str> {
+        self.map.keys().map(String::as_str)
+    }
+}
+
+/// A view of `inner` under a key prefix: key "k" here is "<prefix>k" in `inner`.
+pub struct Prefixed {
+    pub prefix: String,
+    pub inner: Box<dyn Store>,
+}
+
+impl Store for Prefixed {
+    fn get(&self, key: &str) -> Option<String> {
+        self.inner.get(&format!("{}{}", self.prefix, key))
+    }
+
+    fn put<V: Display>(&mut self, key: &str, value: V) {
+        self.inner.put(&format!("{}{}", self.prefix, key), value);
+    }
+
+    /// Only the inner keys under the prefix, with the prefix removed.
+    fn keys(&self) -> impl Iterator<Item = &str> {
+        self.inner.keys().filter_map(|k| k.strip_prefix(self.prefix.as_str()))
+    }
+}
+
+/// One of each basic store.
+pub fn all_stores() -> Vec<Box<dyn Store>> {
+    vec![Box::new(MemStore::default()), Box::new(UpperStore::default())]
+}
+"""
+
+STORE_SOLUTION = (STORE_STARTER
+                  .replace("fn put<V: Display>(&mut self, key: &str, value: V)", "fn put(&mut self, key: &str, value: &dyn Display)")
+                  .replace("fn keys(&self) -> impl Iterator<Item = &str>;", "fn keys(&self) -> Box<dyn Iterator<Item = &str> + '_>;")
+                  .replace("fn keys(&self) -> impl Iterator<Item = &str> {\n        self.map.keys().map(String::as_str)",
+                           "fn keys(&self) -> Box<dyn Iterator<Item = &str> + '_> {\n        Box::new(self.map.keys().map(String::as_str))")
+                  .replace("fn keys(&self) -> impl Iterator<Item = &str> {\n        self.inner.keys().filter_map(|k| k.strip_prefix(self.prefix.as_str()))",
+                           "fn keys(&self) -> Box<dyn Iterator<Item = &str> + '_> {\n        Box::new(self.inner.keys().filter_map(move |k| k.strip_prefix(self.prefix.as_str())))"))
+assert "impl Iterator" not in STORE_SOLUTION and "<V" not in STORE_SOLUTION
+
+P.append(fix(
+    "fix-generic-method-dyn", "Fix: generic and impl Trait methods in a dyn trait (E0038)", "medium", "object-safety", ["E0038", "generic methods", "RPITIT", "&dyn Display"],
+    """
+        Nothing here compiles: `Store` is used as `dyn Store`, but it isn't dyn-compatible. Fix it so every store
+        works behind `Box<dyn Store>`. Callers pass values by reference, any `Display` type: `store.put("n", &5)`.
+    """,
+    STORE_STARTER,
+    STORE_SOLUTION,
+    [T("put_and_get_each_store", "for each of all_stores(): put(\"n\", &5), put(\"s\", &\"hi\")", "got", 'vec![(Some("5".to_string()), Some("hi".to_string())), (Some("5".to_string()), Some("HI".to_string()))]',
+       setup='let mut got = Vec::new();\nfor mut s in all_stores() {\n    s.put("n", &5);\n    s.put("s", &"hi");\n    got.push((s.get("n"), s.get("s")));\n}'),
+     T("keys_sorted", "put b, a, c", "s.keys().collect::<Vec<_>>()", 'vec!["a", "b", "c"]',
+       setup='let mut s: Box<dyn Store> = Box::new(MemStore::default());\nfor k in ["b", "a", "c"] {\n    s.put(k, &1);\n}'),
+     T("prefixed_view", "Prefixed(\"user:\") over MemStore; put name=ann", '(p.get("name"), p.inner.get("user:name"))', '(Some("ann".to_string()), Some("ann".to_string()))',
+       setup='let mut p = Prefixed { prefix: "user:".into(), inner: Box::new(MemStore::default()) };\np.put("name", &"ann");'),
+     T("prefixed_keys", "inner keys user:a, user:b, zzz", "p.keys().collect::<Vec<_>>()", 'vec!["a", "b"]',
+       setup='let mut inner = MemStore::default();\nfor k in ["user:b", "zzz", "user:a"] {\n    inner.put(k, &0);\n}\nlet p = Prefixed { prefix: "user:".into(), inner: Box::new(inner) };'),
+     T("missing_key", "get(\"x\") on an empty store", 'MemStore::default().get("x")', "None")],
+    [T("floats_and_chars", "put(\"f\", &2.5), put(\"c\", &'é') in UpperStore", '(s.get("f"), s.get("c"))', '(Some("2.5".to_string()), Some("É".to_string()))',
+       setup="let mut s: Box<dyn Store> = Box::new(UpperStore::default());\ns.put(\"f\", &2.5);\ns.put(\"c\", &'é');"),
+     T("overwrite", "put k=1 then k=2", '(s.get("k"), s.keys().count())', '(Some("2".to_string()), 1)',
+       setup='let mut s: Box<dyn Store> = Box::new(MemStore::default());\ns.put("k", &1);\ns.put("k", &2);'),
+     T("upper_keeps_keys", "UpperStore put(\"key\", &\"v\")", "(s.keys().collect::<Vec<_>>(), s.get(\"key\"))", '(vec!["key"], Some("V".to_string()))',
+       setup='let mut s = UpperStore::default();\ns.put("key", &"v");'),
+     T("empty_keys", "MemStore::default().keys()", "MemStore::default().keys().count()", "0"),
+     T("prefixed_over_upper", "Prefixed(\"p/\") over UpperStore; put x=abc", '(p.get("x"), p.inner.keys().collect::<Vec<_>>())', '(Some("ABC".to_string()), vec!["p/x"])',
+       setup='let mut p = Prefixed { prefix: "p/".into(), inner: Box::new(UpperStore::default()) };\np.put("x", &"abc");'),
+     T("nested_prefixed", "Prefixed(\"a/\", Prefixed(\"b/\", MemStore)); put k", '(p.get("k"), p.keys().collect::<Vec<_>>())', '(Some("1".to_string()), vec!["k"])',
+       setup='let inner = Prefixed { prefix: "b/".into(), inner: Box::new(MemStore::default()) };\nlet mut p = Prefixed { prefix: "a/".into(), inner: Box::new(inner) };\np.put("k", &1);'),
+     T("empty_prefix", "Prefixed(\"\") sees every key", "p.keys().collect::<Vec<_>>()", 'vec!["x", "y"]',
+       setup='let mut inner = MemStore::default();\ninner.put("y", &0);\ninner.put("x", &0);\nlet p = Prefixed { prefix: String::new(), inner: Box::new(inner) };'),
+     """
+     #[test]
+     fn user_display_type() {
+         struct Point(i32, i32);
+         impl std::fmt::Display for Point {
+             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                 write!(f, "({}, {})", self.0, self.1)
+             }
+         }
+         let mut s: Box<dyn Store> = Box::new(MemStore::default());
+         s.put("p", &Point(1, -2));
+         check!("put(\\"p\\", &Point(1, -2))", s.get("p"), Some("(1, -2)".to_string()));
+     }
+     """,
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(4412);
+         for _ in 0..200 {
+             let mut p = Prefixed { prefix: "u:".into(), inner: Box::new(MemStore::default()) };
+             let mut model = std::collections::BTreeMap::new();
+             for _ in 0..8 {
+                 let k = rng.string(1, "abc");
+                 let v = rng.int(0, 99);
+                 p.put(&k, &v);
+                 model.insert(k, v.to_string());
+             }
+             let keys: Vec<String> = p.keys().map(String::from).collect();
+             check!(format!("model = {model:?}"), keys, model.keys().cloned().collect::<Vec<_>>());
+             for (k, v) in &model {
+                 check!(format!("get({k:?})"), p.get(k), Some(v.clone()));
+             }
+         }
+     }
+     """],
+    [("approach", "The compiler lists two reasons: a generic method (`put`) and a method returning `impl Trait` (`keys`). Both mean one method per concrete type, which a vtable can't hold."),
+     ("rust", "Take the value as `&dyn Display`, and return `Box<dyn Iterator<Item = &str> + '_>`. The `'_` ties the iterator to `&self`; in `Prefixed`, the closure borrows `self.prefix`, so it needs `move` to capture `self` by reference."),
+     ("edge case", "`where Self: Sized` would make the trait compile, but then `put` and `keys` couldn't be called on `Box<dyn Store>` at all.")],
+    ("""Every method of a dyn-compatible trait needs exactly one vtable entry. A generic method has one instantiation per type argument, and `-> impl Trait` in a trait (RPITIT) has one hidden type per impl, so neither fits. Type-erase them: generic arguments become `&dyn Trait`, returned `impl Trait` becomes `Box<dyn Trait + '_>`. The cost is a heap allocation per `keys` call and a vtable call per item.
+
+Syntax: `fn put(&mut self, key: &str, value: &dyn Display);` · `fn keys(&self) -> Box<dyn Iterator<Item = &str> + '_>;`.""", "O(log n) get/put; O(n) keys", "O(1) extra"),
+    "How would you keep a zero-cost generic `put<V: Display>` for concrete stores while `dyn Store` still works? (Think extension traits.)",
+    ["Generic methods and `-> impl Trait` methods aren't dyn-compatible.", "Erase them: `&dyn Trait` arguments, `Box<dyn Trait + '_>` returns."],
+    related=("L5", "S6"),
+    wrong=dict(
+        upper_keys_too=sub(STORE_SOLUTION, "self.map.insert(key.to_string(), value.to_string().to_uppercase());", "self.map.insert(key.to_uppercase(), value.to_string().to_uppercase());"),
+        prefixed_keys_unstripped=sub(STORE_SOLUTION, "Box::new(self.inner.keys().filter_map(move |k| k.strip_prefix(self.prefix.as_str())))",
+                                     "Box::new(self.inner.keys().filter(move |k| k.starts_with(self.prefix.as_str())))"),
+    ),
+))
+
+CLONE_HEAD = r"""
+#[derive(Clone, Debug, PartialEq)]
+pub struct Circle {
+    pub r: f64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Rect {
+    pub w: f64,
+    pub h: f64,
+}
+"""
+
+CLONE_IMPLS = r"""
+impl Shape for Circle {
+    fn area(&self) -> f64 {
+        std::f64::consts::PI * self.r * self.r
+    }
+
+    fn name(&self) -> String {
+        format!("circle({})", self.r)
+    }
+
+    fn scaled(&self, k: f64) -> Self {
+        Circle { r: self.r * k }
+    }
+}
+
+impl Shape for Rect {
+    fn area(&self) -> f64 {
+        self.w * self.h
+    }
+
+    fn name(&self) -> String {
+        format!("rect({}x{})", self.w, self.h)
+    }
+
+    fn scaled(&self, k: f64) -> Self {
+        Rect { w: self.w * k, h: self.h * k }
+    }
+}
+"""
+
+CLONE_FNS = r"""
+/// A copy of the scene that later edits to `scene` don't affect.
+pub fn snapshot(scene: &Vec<Box<dyn Shape>>) -> Vec<Box<dyn Shape>> {
+    scene.clone()
+}
+
+/// Every shape scaled by `k`.
+pub fn scale_all(scene: &[Box<dyn Shape>], k: f64) -> Vec<Box<dyn Shape>> {
+    scene.iter().map(|s| s.scaled_box(k)).collect()
+}
+"""
+
+CLONE_TRAIT_SOLUTION = r"""
+pub trait Shape: DynShape {
+    fn area(&self) -> f64;
+    fn name(&self) -> String;
+
+    /// A copy scaled by `k` (every length times k).
+    fn scaled(&self, k: f64) -> Self
+    where
+        Self: Sized;
+}
+
+/// The dyn-compatible half, written once for every `Clone` shape by the blanket impl below.
+pub trait DynShape {
+    fn clone_box(&self) -> Box<dyn Shape>;
+    fn scaled_box(&self, k: f64) -> Box<dyn Shape>;
+}
+
+impl<T: Shape + Clone + 'static> DynShape for T {
+    fn clone_box(&self) -> Box<dyn Shape> {
+        Box::new(self.clone())
+    }
+
+    fn scaled_box(&self, k: f64) -> Box<dyn Shape> {
+        Box::new(self.scaled(k))
+    }
+}
+
+impl Clone for Box<dyn Shape> {
+    fn clone(&self) -> Self {
+        (**self).clone_box()
+    }
+}
+"""
+
+CLONE_SOLUTION = CLONE_TRAIT_SOLUTION + CLONE_HEAD + CLONE_IMPLS + CLONE_FNS
+
+P.append(fix(
+    "where-self-sized", "Cloning trait objects: where Self: Sized and clone_box", "medium", "object-safety", ["E0038", "where Self: Sized", "blanket impls", "dyn clone"],
+    """
+        `Shape: Clone` makes `dyn Shape` impossible (E0038), and `scale_all` calls a `scaled_box` that doesn't
+        exist. Make both functions work:
+
+        - `Vec<Box<dyn Shape>>` must be cloneable, so `snapshot` compiles as written.
+        - `scaled_box(&self, k) -> Box<dyn Shape>` must work on `dyn Shape`, and `scaled` must keep returning the
+          concrete type.
+        - Shapes defined elsewhere (the tests define one) derive `Clone` and implement only `area`, `name` and
+          `scaled`.
+    """,
+    r"""
+    pub trait Shape: Clone {
+        fn area(&self) -> f64;
+        fn name(&self) -> String;
+
+        /// A copy scaled by `k` (every length times k).
+        fn scaled(&self, k: f64) -> Self;
+    }
+    """ + CLONE_HEAD + CLONE_IMPLS + CLONE_FNS,
+    CLONE_SOLUTION,
+    [T("snapshot_is_independent", "snapshot, then replace scene[0]", "(snap[0].name(), scene[0].name())", '("circle(1)".to_string(), "rect(1x1)".to_string())',
+       setup="let mut scene: Vec<Box<dyn Shape>> = vec![Box::new(Circle { r: 1.0 })];\nlet snap = snapshot(&scene);\nscene[0] = Box::new(Rect { w: 1.0, h: 1.0 });"),
+     T("scale_all_names", "scale_all([Circle 1, Rect 2x3], 2)", "scale_all(&scene, 2.0).iter().map(|s| s.name()).collect::<Vec<_>>()", 'vec!["circle(2)", "rect(4x6)"]',
+       setup="let scene: Vec<Box<dyn Shape>> = vec![Box::new(Circle { r: 1.0 }), Box::new(Rect { w: 2.0, h: 3.0 })];"),
+     T("scaled_stays_concrete", "Circle { r: 1.5 }.scaled(2.0)", "Circle { r: 1.5 }.scaled(2.0)", "Circle { r: 3.0 }"),
+     T("vec_clone", "scene.clone() keeps names", "scene.clone().iter().map(|s| s.name()).collect::<Vec<_>>()", 'vec!["rect(1x2)"]',
+       setup="let scene: Vec<Box<dyn Shape>> = vec![Box::new(Rect { w: 1.0, h: 2.0 })];"),
+     """
+     #[test]
+     fn a_new_shape_gets_clone_box() {
+         #[derive(Clone)]
+         struct Sq(f64);
+         impl Shape for Sq {
+             fn area(&self) -> f64 {
+                 self.0 * self.0
+             }
+             fn name(&self) -> String {
+                 format!("sq({})", self.0)
+             }
+             fn scaled(&self, k: f64) -> Self {
+                 Sq(self.0 * k)
+             }
+         }
+         let scene: Vec<Box<dyn Shape>> = vec![Box::new(Sq(3.0))];
+         check!("scale_all([Sq(3)], 0.5)[0].area()", scale_all(&scene, 0.5)[0].area(), 2.25);
+         check!("snapshot([Sq(3)])[0].name()", snapshot(&scene)[0].name(), "sq(3)");
+     }
+     """],
+    [T("box_clone_is_a_new_allocation", "b.clone() vs b", "std::ptr::addr_eq(b.as_ref(), c.as_ref())", "false",
+       setup="let b: Box<dyn Shape> = Box::new(Circle { r: 1.0 });\nlet c = b.clone();"),
+     T("scaled_box_on_dyn", "Box<dyn Shape> Rect 2x2 .scaled_box(1.5)", "b.scaled_box(1.5).area()", "9.0", setup="let b: Box<dyn Shape> = Box::new(Rect { w: 2.0, h: 2.0 });"),
+     T("scale_by_zero", "scale_all([Rect 3x4], 0)", "scale_all(&scene, 0.0)[0].area()", "0.0", setup="let scene: Vec<Box<dyn Shape>> = vec![Box::new(Rect { w: 3.0, h: 4.0 })];"),
+     T("scale_leaves_input", "scale_all then read the input", "(scale_all(&scene, 3.0)[0].name(), scene[0].name())", '("circle(6)".to_string(), "circle(2)".to_string())',
+       setup="let scene: Vec<Box<dyn Shape>> = vec![Box::new(Circle { r: 2.0 })];"),
+     T("empty_scene", "snapshot(&vec![]), scale_all(&[], 2)", "(snapshot(&vec![]).len(), scale_all(&[], 2.0).len())", "(0, 0)"),
+     T("rect_scaled", "Rect { w: 1, h: 4 }.scaled(0.5)", "Rect { w: 1.0, h: 4.0 }.scaled(0.5)", "Rect { w: 0.5, h: 2.0 }"),
+     T("clone_of_clone", "b.clone().clone()", "b.clone().clone().name()", '"circle(7)"', setup="let b: Box<dyn Shape> = Box::new(Circle { r: 7.0 });"),
+     T("circle_area_scales_by_k_squared", "Circle 1 scaled_box(3)", 'format!("{:.4}", Circle { r: 1.0 }.scaled_box(3.0).area())', '"28.2743"'),
+     T("snapshot_many", "snapshot of 3 shapes", "snapshot(&scene).iter().map(|s| s.name()).collect::<Vec<_>>()", 'vec!["circle(1)", "rect(2x2)", "circle(3)"]',
+       setup="let scene: Vec<Box<dyn Shape>> = vec![Box::new(Circle { r: 1.0 }), Box::new(Rect { w: 2.0, h: 2.0 }), Box::new(Circle { r: 3.0 })];"),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4413);
+         for _ in 0..200 {
+             let n = rng.below(5);
+             let dims: Vec<(f64, f64)> = (0..n).map(|_| (rng.int(1, 4) as f64, rng.int(1, 4) as f64)).collect();
+             let scene: Vec<Box<dyn Shape>> = dims.iter().map(|&(w, h)| Box::new(Rect { w, h }) as Box<dyn Shape>).collect();
+             let k = rng.int(0, 4) as f64 / 2.0;
+             let got: Vec<f64> = scale_all(&scene, k).iter().map(|s| s.area()).collect();
+             let want: Vec<f64> = dims.iter().map(|&(w, h)| w * k * h * k).collect();
+             check!(format!("scale_all({dims:?}, {k})"), got, want);
+         }
+     }
+     """],
+    [("approach", "Split the trait: the object-safe methods that return `Box<dyn Shape>` (`clone_box`, `scaled_box`) go in a helper supertrait with one blanket impl for every `T: Shape + Clone + 'static`. Then `impl Clone for Box<dyn Shape>` calls `clone_box`."),
+     ("rust", "`scaled` returns `Self`, so it needs `where Self: Sized`. Implementors may leave that clause off in their impls."),
+     ("edge case", "In `impl Clone for Box<dyn Shape>`, call `(**self).clone_box()`: on the Box itself, method lookup could pick `Box`'s own `clone` and recurse.")],
+    ("""`Clone` returns `Self`, so it can't be called on `dyn Shape`, and a supertrait `Clone` makes the whole trait dyn-incompatible. The standard fix (what the `dyn-clone` crate does) is a helper trait with a `clone_box(&self) -> Box<dyn Shape>` method, implemented once by a blanket impl for every clonable shape, plus `impl Clone for Box<dyn Shape>`. Methods that return `Self` stay available on concrete types with `where Self: Sized`.
+
+Syntax: `trait Shape: DynShape { fn scaled(&self, k: f64) -> Self where Self: Sized; }` · `impl<T: Shape + Clone + 'static> DynShape for T { fn clone_box(&self) -> Box<dyn Shape> { Box::new(self.clone()) } }` · `impl Clone for Box<dyn Shape> { fn clone(&self) -> Self { (**self).clone_box() } }`.""", "O(n) to clone a scene", "O(n)"),
+    "Why does the blanket impl need `'static`? What would you change to clone `Box<dyn Shape + 'a>`?",
+    ["A supertrait that returns `Self` (like `Clone`) blocks `dyn`.", "`clone_box` via a blanket impl + `impl Clone for Box<dyn Trait>`.", "`where Self: Sized` keeps `Self`-returning methods for concrete types."],
+    related=("L5", "S8"),
+    wrong=dict(
+        rect_scales_width_only=sub(CLONE_SOLUTION, "Rect { w: self.w * k, h: self.h * k }", "Rect { w: self.w * k, h: self.h }"),
+        circle_scales_by_k_squared=sub(CLONE_SOLUTION, "Circle { r: self.r * k }", "Circle { r: self.r * k * k }"),
+    ),
+))
+
 STAGES = [
     ("define-implement", "Define & implement", "easy"),
     ("static-vs-dynamic", "Static vs dynamic", "medium"),

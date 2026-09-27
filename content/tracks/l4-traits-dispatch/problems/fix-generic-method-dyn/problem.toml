@@ -1,0 +1,31 @@
+slug = "fix-generic-method-dyn"
+title = "Fix: generic and impl Trait methods in a dyn trait (E0038)"
+mode = "fix"
+level = "medium"
+stage = "object-safety"
+order = 12
+status = "ready"
+tags = ["E0038", "generic methods", "RPITIT", "&dyn Display"]
+teaches = [
+  "Generic methods and `-> impl Trait` methods aren't dyn-compatible.",
+  "Erase them: `&dyn Trait` arguments, `Box<dyn Trait + '_>` returns.",
+]
+follow_up = "How would you keep a zero-cost generic `put<V: Display>` for concrete stores while `dyn Store` still works? (Think extension traits.)"
+related = ["L5", "S6"]
+
+[[hints]]
+kind = "approach"
+text = "The compiler lists two reasons: a generic method (`put`) and a method returning `impl Trait` (`keys`). Both mean one method per concrete type, which a vtable can't hold."
+
+[[hints]]
+kind = "rust"
+text = "Take the value as `&dyn Display`, and return `Box<dyn Iterator<Item = &str> + '_>`. The `'_` ties the iterator to `&self`; in `Prefixed`, the closure borrows `self.prefix`, so it needs `move` to capture `self` by reference."
+
+[[hints]]
+kind = "edge case"
+text = "`where Self: Sized` would make the trait compile, but then `put` and `keys` couldn't be called on `Box<dyn Store>` at all."
+
+[solution]
+explanation = "Every method of a dyn-compatible trait needs exactly one vtable entry. A generic method has one instantiation per type argument, and `-> impl Trait` in a trait (RPITIT) has one hidden type per impl, so neither fits. Type-erase them: generic arguments become `&dyn Trait`, returned `impl Trait` becomes `Box<dyn Trait + '_>`. The cost is a heap allocation per `keys` call and a vtable call per item.\n\nSyntax: `fn put(&mut self, key: &str, value: &dyn Display);` · `fn keys(&self) -> Box<dyn Iterator<Item = &str> + '_>;`."
+time = "O(log n) get/put; O(n) keys"
+space = "O(1) extra"

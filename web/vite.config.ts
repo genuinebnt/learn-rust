@@ -5,6 +5,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
+    // 127.0.0.1 explicitly: with plain "localhost", another server on the same port's IPv4 address can shadow Vite.
+    host: "127.0.0.1",
     port: 5180,
     strictPort: true,
     // ws: true carries the rust-analyzer WebSocket at /api/lsp/{id}.

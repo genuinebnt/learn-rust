@@ -1,0 +1,28 @@
+slug = "impl-trait-arguments"
+title = "impl Trait in argument and return position"
+mode = "fix"
+level = "easy"
+stage = "define-implement"
+order = 5
+status = "ready"
+tags = ["impl Trait", "IntoIterator", "AsRef", "Box<dyn Iterator>"]
+teaches = [
+  "`impl Trait` arguments: caller-chosen generic.",
+  "`impl Trait` returns: one callee-chosen type; list every trait callers need.",
+  "Different types per branch → `Box<dyn Trait + '_>`.",
+]
+follow_up = "Why can't a caller write `compose::<SomeType, _>(...)` with `impl Trait` arguments, and when does that matter?"
+related = ["L5", "S6"]
+
+[[hints]]
+kind = "rust"
+text = "Arguments: `impl IntoIterator<Item = impl AsRef<str>>`, `impl Display` items, `impl Fn(&str) -> bool` (a `fn` pointer can't capture). Returns: `impl Fn(i64) -> i64` and `impl Iterator<Item = u64> + Clone`: callers may only use what the signature promises."
+
+[[hints]]
+kind = "rust"
+text = "`impl Trait` in return position is one concrete type, so `if`/`else` returning `Rev<Iter>` and `Iter` fails (E0308). Box both branches as `Box<dyn Iterator<Item = &i32> + '_>`."
+
+[solution]
+explanation = "In argument position `impl Trait` is an anonymous generic: the caller picks the type and each call site is monomorphised. In return position it's one hidden type the function picks, and callers see only the listed traits (so `+ Clone` must be written to be usable). Two different types need `Box<dyn Trait + '_>` (or an enum like `Either`).\n\nSyntax: `fn f(xs: impl IntoIterator<Item = impl AsRef<str>>)` · `fn g() -> impl Iterator<Item = u64> + Clone` · `-> Box<dyn Iterator<Item = &i32> + '_>` (`'_` ties the box to the borrowed input)."
+time = "O(n)"
+space = "O(1) extra (evens is lazy)"

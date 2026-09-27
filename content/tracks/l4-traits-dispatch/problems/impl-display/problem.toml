@@ -1,0 +1,27 @@
+slug = "impl-display"
+title = "impl Display, and a Debug that hides secrets"
+mode = "fix"
+level = "easy"
+stage = "define-implement"
+order = 3
+status = "ready"
+tags = ["Display", "Debug", "derive vs manual impls", "Formatter"]
+teaches = [
+  "Derive when the generated impl is right; write it by hand when it isn't (secrets, ignored fields).",
+  "`f.pad` for width; `debug_struct` for Debug.",
+]
+follow_up = "Which derives are safe to keep on a type holding a secret, and which would you also write by hand?"
+related = ["S2", "S8"]
+
+[[hints]]
+kind = "rust"
+text = "`write!(f, ...)` ignores the caller's width; build the text, then `f.pad(&text)`. `i64::MIN.abs()` overflows, `unsigned_abs()` doesn't, and `-50 / 100` is 0, so keep the sign apart."
+
+[[hints]]
+kind = "rust"
+text = "Remove `Debug` from the derive list, then use `f.debug_struct(\"Credentials\").field(..).finish()`. It handles `{:#?}` and escaping; a hand-written `write!` doesn't."
+
+[solution]
+explanation = "`#[derive(Debug)]` prints every field, secrets included. A manual impl with the `debug_*` builders keeps the derived look, pretty-printing and escaping. For `Display`, `Formatter::pad` applies width, fill and alignment.\n\nSyntax: `impl fmt::Display for Money { fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { ... } }` · `f.debug_struct(\"Name\").field(\"a\", &self.a).finish()` · `finish_non_exhaustive()` prints `..` for hidden fields."
+time = "O(digits)"
+space = "O(digits)"

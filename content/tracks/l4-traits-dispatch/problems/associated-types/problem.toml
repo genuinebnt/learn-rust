@@ -1,0 +1,32 @@
+slug = "associated-types"
+title = "Associated types, consts and generic traits"
+mode = "fix"
+level = "easy"
+stage = "define-implement"
+order = 4
+status = "ready"
+tags = ["associated types", "associated consts", "generic traits", "fully qualified syntax"]
+teaches = [
+  "Associated types: one output per implementing type.",
+  "Generic traits: many impls per type, picked by type annotation or fully qualified syntax.",
+  "Bounds can constrain associated types: `D::Output: Debug`.",
+]
+follow_up = "`Iterator` uses an associated `Item`; `From<T>` is generic. Why did std choose differently for each?"
+related = ["L5"]
+
+[[hints]]
+kind = "rust"
+text = "Declare `type Output;` and `const NAME: &'static str;` in the trait; each impl writes `type Output = Vec<i64>;` and `const NAME: &'static str = \"csv\";`."
+
+[[hints]]
+kind = "rust"
+text = "`first_decoded` needs `where D: Decoder, D::Output: Debug`. In `to_both`, `c.convert()` has two candidates: let the expected type choose, or write `<Celsius as Convert<Kelvin>>::convert(c)`."
+
+[[hints]]
+kind = "edge case"
+text = "Collecting an iterator of `Option<i64>` into `Option<Vec<i64>>` stops at the first `None`."
+
+[solution]
+explanation = "Use an associated type when each implementor has exactly one natural output (`Decoder::Output`); use a generic trait `Convert<T>` when one type can implement it several times. With several impls, the caller picks one by the expected type or with fully qualified syntax.\n\nSyntax: `trait Decoder { type Output; const NAME: &'static str; fn decode(&self, input: &str) -> Option<Self::Output>; }` · bounds on an associated type: `where D: Decoder, D::Output: Debug` · `<Celsius as Convert<Kelvin>>::convert(c)`."
+time = "O(n) per decode"
+space = "O(n)"

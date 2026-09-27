@@ -1,0 +1,27 @@
+slug = "default-methods"
+title = "Default methods"
+mode = "fix"
+level = "easy"
+stage = "define-implement"
+order = 2
+status = "ready"
+tags = ["default methods", "generic methods", "where Self: Sized"]
+teaches = [
+  "Defaults call required methods through `self`, so overrides are seen.",
+  "Generic methods need `where Self: Sized` in a dyn-compatible trait.",
+]
+follow_up = "How else could `count_where` stay callable on `dyn Metric`? What does each option cost?"
+related = ["L5"]
+
+[[hints]]
+kind = "approach"
+text = "`report` must call `self.mean()`, not recompute the mean, or `Throughput`'s override never shows."
+
+[[hints]]
+kind = "rust"
+text = "A generic method can't go in a vtable, so `dyn Metric` is rejected (E0038) while `count_where` is generic. Add `where Self: Sized` to that one method: it stays callable on concrete types and is left out of `dyn Metric`."
+
+[solution]
+explanation = "Default methods are written once in the trait and may call the required ones; an impl can override any of them, and the other defaults then call the override (dispatch goes through `self`). A generic method has one copy per type argument, which a vtable can't hold, so it needs `where Self: Sized` for the trait to stay dyn-compatible.\n\nSyntax: `fn count_where<F: Fn(f64) -> bool>(&self, pred: F) -> usize where Self: Sized { ... }` (the `where` goes after the return type, before the body)."
+time = "O(n) per call"
+space = "O(1)"

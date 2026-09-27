@@ -1,0 +1,31 @@
+code = "L4"
+name = "Traits & dispatch"
+section = "L"
+tier = "core"
+order = 4
+summary = "Traits say what a type can do. Generics pick the code at compile time; trait objects pick it at run time."
+
+[[stages]]
+slug = "define-implement"
+name = "Define & implement"
+band = "easy"
+
+[[stages]]
+slug = "static-vs-dynamic"
+name = "Static vs dynamic"
+band = "medium"
+
+[[stages]]
+slug = "object-safety"
+name = "Object safety"
+band = "medium"
+
+[[stages]]
+slug = "operator-traits"
+name = "Operator traits"
+band = "medium"
+
+[[stages]]
+slug = "coherence-extension"
+name = "Coherence & extension"
+band = "hard"

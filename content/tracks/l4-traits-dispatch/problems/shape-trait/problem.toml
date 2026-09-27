@@ -1,0 +1,28 @@
+slug = "shape-trait"
+title = "A Shape trait"
+mode = "fix"
+level = "easy"
+stage = "define-implement"
+order = 1
+status = "ready"
+tags = ["supertraits", "associated consts", "default methods", "fully qualified syntax"]
+teaches = [
+  "Supertraits: `trait Shape: Named`.",
+  "Associated consts are declared in the trait and set per impl.",
+  "Fully qualified syntax picks between same-named methods.",
+]
+follow_up = "Why can't `Vec<Box<dyn Shape>>` exist here, and how would you change `Shape` so it can?"
+related = ["L5", "S8"]
+
+[[hints]]
+kind = "rust"
+text = "A supertrait goes after a colon: `trait Shape: Named { ... }`. An associated const is declared `const SIDES: u32;` in the trait and given a value in each impl."
+
+[[hints]]
+kind = "rust"
+text = "Inside `describe`, read the const through `Self::SIDES`. In `both_names`, `r.name()` is ambiguous because `Rect` has two `name` methods; name the trait: `Named::name(r)` or `<Rect as Label>::name(r)`."
+
+[solution]
+explanation = "A supertrait `Shape: Named` means every `Shape` is also `Named`, so `Shape`'s defaults (and any `S: Shape` code) can call `name`. An associated const is per type, read as `Self::SIDES` or `<Rect as Shape>::SIDES`. When two traits give a type methods with the same name, call one with fully qualified syntax.\n\nSyntax: `trait Shape: Named { const SIDES: u32; fn describe(&self) -> String { ... } }` · `impl Shape for Rect { const SIDES: u32 = 4; ... }` · `<Rect as Label>::name(r)`.\n\nA trait with an associated const is not dyn-compatible: `dyn Shape` has no single value for `SIDES`."
+time = "O(1)"
+space = "O(1)"

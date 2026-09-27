@@ -10,6 +10,7 @@ teaches = [
   "Same shape as 3Sum, tracking the best distance instead of exact matches.",
   "`abs_diff` for distances without overflow.",
 ]
+constraints = ["3 ≤ nums.len() ≤ 5000", "|nums[i]| ≤ 10⁴", "|target| ≤ 10⁵"]
 follow_up = "How would you return the triplet itself, not just its sum?"
 related = ["D1"]
 

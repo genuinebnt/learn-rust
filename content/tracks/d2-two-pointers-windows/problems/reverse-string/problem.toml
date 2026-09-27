@@ -10,6 +10,7 @@ teaches = [
   "`slice::swap` with two indices.",
   "Why a `String` can't be reversed byte by byte, but a `&mut [u8]` can.",
 ]
+constraints = ["0 ≤ s.len() ≤ 2·10⁵"]
 follow_up = "How would you reverse the characters of a UTF-8 string, and what about grapheme clusters?"
 related = ["S2", "S3"]
 

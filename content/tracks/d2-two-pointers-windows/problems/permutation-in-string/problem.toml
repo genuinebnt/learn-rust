@@ -9,6 +9,7 @@ tags = ["fixed window", "[u8; 26]"]
 teaches = [
   "A fixed-size window with two count arrays, compared in O(26).",
 ]
+constraints = ["1 ≤ pattern.len(), s.len() ≤ 2·10⁵"]
 follow_up = "How would you avoid comparing all 26 counts on every step?"
 related = ["D1"]
 
@@ -25,6 +26,6 @@ kind = "rust"
 text = "Arrays implement `==` element-wise."
 
 [solution]
-explanation = "Comparing two `[u16; 26]` arrays is 26 comparisons, so each step is O(1)."
+explanation = "Comparing two `[u32; 26]` arrays is 26 comparisons, so each step is O(1)."
 time = "O(n)"
 space = "O(1)"

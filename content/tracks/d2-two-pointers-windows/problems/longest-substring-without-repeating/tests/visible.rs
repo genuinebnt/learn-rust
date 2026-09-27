@@ -14,3 +14,13 @@ fn all_same() {
 fn pwwkew() {
     check!(r#"s = "pwwkew""#, length_of_longest_substring("pwwkew"), 3);
 }
+
+#[test]
+fn empty() {
+    check!(r#"s = """#, length_of_longest_substring(""), 0);
+}
+
+#[test]
+fn single() {
+    check!(r#"s = "x""#, length_of_longest_substring("x"), 1);
+}

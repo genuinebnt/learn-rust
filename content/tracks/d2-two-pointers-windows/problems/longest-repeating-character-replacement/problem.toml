@@ -10,6 +10,7 @@ teaches = [
   "A window is valid when `len − most_common ≤ k`.",
   "The max count never needs to decrease.",
 ]
+constraints = ["0 ≤ s.len() ≤ 2·10⁵"]
 follow_up = "Why is it safe not to recompute `most` when the window shrinks?"
 related = ["S2"]
 

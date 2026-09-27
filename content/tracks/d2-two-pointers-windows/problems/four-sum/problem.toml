@@ -10,6 +10,7 @@ teaches = [
   "Two fixed loops plus two pointers.",
   "Widen to i64: four i32s can overflow.",
 ]
+constraints = ["0 ≤ nums.len() ≤ 600"]
 follow_up = "Write k-sum recursively. What's the complexity?"
 related = ["D1"]
 

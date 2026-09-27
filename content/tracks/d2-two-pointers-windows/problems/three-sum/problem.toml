@@ -10,6 +10,7 @@ teaches = [
   "Sort, fix one value, two-pointer the rest.",
   "Skip equal neighbours to avoid duplicate triplets.",
 ]
+constraints = ["0 ≤ nums.len() ≤ 5000"]
 follow_up = "How does this generalise to k-sum?"
 related = ["D1"]
 

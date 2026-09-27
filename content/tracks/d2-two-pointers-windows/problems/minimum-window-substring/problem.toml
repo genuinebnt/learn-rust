@@ -10,6 +10,7 @@ teaches = [
   "Grow the window until it covers `t`, then shrink it while it still does.",
   "Return a `&'a str` borrowed from the input instead of allocating.",
 ]
+constraints = ["0 ≤ s.len() ≤ 2·10⁵", "1 ≤ t.len() ≤ 2·10⁵"]
 follow_up = "Why does the signature need `'a` on `s` but not on `t`?"
 related = ["L3", "S2"]
 

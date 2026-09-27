@@ -5,7 +5,7 @@ pub fn find_anagrams(s: &str, p: &str) -> Vec<usize> {
         return out;
     }
     let idx = |b: u8| (b - b'a') as usize;
-    let (mut want, mut have) = ([0u16; 26], [0u16; 26]);
+    let (mut want, mut have) = ([0u32; 26], [0u32; 26]);
     for &b in p {
         want[idx(b)] += 1;
     }

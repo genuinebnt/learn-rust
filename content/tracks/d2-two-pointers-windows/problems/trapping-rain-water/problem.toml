@@ -10,6 +10,7 @@ teaches = [
   "Water at a position is bounded by the lower of the tallest walls on each side.",
   "Two pointers carry both running maxima.",
 ]
+constraints = ["0 ≤ heights.len() ≤ 2·10⁵"]
 follow_up = "How would you solve it with a monotonic stack, and what does that version compute differently?"
 related = ["D3"]
 

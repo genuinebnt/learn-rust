@@ -10,6 +10,7 @@ teaches = [
   "A window that jumps its left edge past the last repeat.",
   "`[Option<usize>; 256]` as a last-seen table for bytes.",
 ]
+constraints = ["0 ≤ s.len() ≤ 2·10⁵"]
 follow_up = "How would you return the substring itself as a `&str`?"
 related = ["S2"]
 

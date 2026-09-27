@@ -9,6 +9,7 @@ tags = ["two pointers", "Blind 75"]
 teaches = [
   "Move the shorter wall; the taller one can't do better with less width.",
 ]
+constraints = ["0 ≤ heights.len() ≤ 2·10⁵"]
 follow_up = "Why is it safe to discard the shorter wall for good?"
 related = ["D1"]
 

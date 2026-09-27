@@ -4,7 +4,7 @@ pub fn check_inclusion(pattern: &str, s: &str) -> bool {
         return false;
     }
     let idx = |b: u8| (b - b'a') as usize;
-    let (mut want, mut have) = ([0u16; 26], [0u16; 26]);
+    let (mut want, mut have) = ([0u32; 26], [0u32; 26]);
     for &b in p {
         want[idx(b)] += 1;
     }

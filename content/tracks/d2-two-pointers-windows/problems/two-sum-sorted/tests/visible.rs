@@ -14,3 +14,13 @@ fn outer() {
 fn none() {
     check!(r#"nums = [1, 2], target = 5"#, two_sum_sorted(&[1, 2], 5), None);
 }
+
+#[test]
+fn negative() {
+    check!(r#"nums = [-1, 0], target = -1"#, two_sum_sorted(&[-1, 0], -1), Some((0, 1)));
+}
+
+#[test]
+fn empty() {
+    check!(r#"nums = [], target = 0"#, two_sum_sorted(&[], 0), None);
+}

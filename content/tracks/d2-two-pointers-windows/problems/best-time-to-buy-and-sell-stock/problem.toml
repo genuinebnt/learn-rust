@@ -9,6 +9,7 @@ tags = ["running min", "Blind 75"]
 teaches = [
   "Track the lowest price so far; each day is a potential sell.",
 ]
+constraints = ["0 ≤ prices.len() ≤ 2·10⁵"]
 follow_up = "What if you may buy and sell many times, or with a cooldown?"
 related = ["D12"]
 

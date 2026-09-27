@@ -14,3 +14,18 @@ fn race_a_car() {
 fn only_punctuation() {
     check!(r#"s = " .,""#, is_palindrome(" .,"), true);
 }
+
+#[test]
+fn single_space() {
+    check!(r#"s = " ""#, is_palindrome(" "), true);
+}
+
+#[test]
+fn empty() {
+    check!(r#"s = """#, is_palindrome(""), true);
+}
+
+#[test]
+fn case_ignored() {
+    check!(r#"s = "No lemon, no melon""#, is_palindrome("No lemon, no melon"), true);
+}

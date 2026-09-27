@@ -10,6 +10,7 @@ teaches = [
   "A write index that trails a read index.",
   "Stable in-place compaction.",
 ]
+constraints = ["0 ≤ nums.len() ≤ 2·10⁵"]
 follow_up = "How does this relate to `Vec::retain`?"
 related = ["S3"]
 

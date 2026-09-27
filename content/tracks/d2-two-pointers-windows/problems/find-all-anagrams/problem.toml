@@ -9,6 +9,7 @@ tags = ["fixed window"]
 teaches = [
   "The same window as permutation-in-string, collecting every start index.",
 ]
+constraints = ["0 ≤ s.len(), p.len() ≤ 2·10⁵"]
 follow_up = "Could you return an iterator of indices instead of a Vec?"
 related = ["S6"]
 

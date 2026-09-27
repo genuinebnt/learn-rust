@@ -9,6 +9,7 @@ tags = ["two pointers", "from the back"]
 teaches = [
   "Fill from the back so nothing is overwritten before it's read.",
 ]
+constraints = ["0 ≤ m, nums2.len() ≤ 10⁵", "nums1.len() = m + nums2.len()"]
 follow_up = "How would you merge k sorted arrays?"
 related = ["D7"]
 

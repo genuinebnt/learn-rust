@@ -10,6 +10,7 @@ teaches = [
   "Two indices walking inward over `as_bytes()`.",
   "`is_ascii_alphanumeric` and `eq_ignore_ascii_case` instead of allocating a cleaned copy.",
 ]
+constraints = ["0 ≤ s.len() ≤ 2·10⁵"]
 follow_up = "What changes if the input is arbitrary Unicode and 'letter' means a Unicode letter?"
 related = ["S2"]
 

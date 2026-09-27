@@ -19,3 +19,8 @@ fn unwrap_or() {
 fn take() {
     check!(r#"Some("a")"#, { let mut o = MyOption::Some("a"); let t = o.take(); (t, o) }, (MyOption::Some("a"), MyOption::None));
 }
+
+#[test]
+fn or_keeps_the_first() {
+    check!(r#"Some(1) or Some(2)"#, MyOption::Some(1).or(MyOption::Some(2)), MyOption::Some(1));
+}

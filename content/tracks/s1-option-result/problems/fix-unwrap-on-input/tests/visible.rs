@@ -14,3 +14,13 @@ fn bad_item() {
 fn blank() {
     check!(r#""""#, average(""), Err("no numbers".to_string()));
 }
+
+#[test]
+fn single() {
+    check!(r#""5""#, average("5"), Ok(5.0));
+}
+
+#[test]
+fn empty_item_is_not_a_number() {
+    check!(r#""1,,2""#, average("1,,2"), Err("not a number: ".to_string()));
+}

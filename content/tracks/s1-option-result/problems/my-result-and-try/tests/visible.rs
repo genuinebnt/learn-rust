@@ -20,3 +20,13 @@ fn try_returns_early() {
 fn map() {
     check!(r#"Ok(2)"#, MyResult::<i32, ()>::Ok(2).map(|x| x * 3), MyResult::Ok(6));
 }
+
+#[test]
+fn map_err_leaves_ok_alone() {
+    check!(r#"Ok(2)"#, MyResult::<i32, i32>::Ok(2).map_err(|e| e + 1), MyResult::Ok(2));
+}
+
+#[test]
+fn and_then_chains() {
+    check!(r#"Ok(2)"#, MyResult::<i32, String>::Ok(2).and_then(|v| MyResult::Ok(v * 10)), MyResult::Ok(20));
+}

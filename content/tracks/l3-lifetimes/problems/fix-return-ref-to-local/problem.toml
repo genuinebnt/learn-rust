@@ -27,4 +27,5 @@ time = "O(n)"
 space = "O(n)"
 
 [rules]
+forbid_methods = ["leak"]
 max_changed_lines = 2

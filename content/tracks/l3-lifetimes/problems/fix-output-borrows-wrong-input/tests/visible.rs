@@ -15,3 +15,18 @@ fn temporary_prefix() {
 fn no_match() {
     check!(r#""abc", "x""#, after("abc", "x"), None);
 }
+
+#[test]
+fn whole() {
+    check!(r#""abc", "abc""#, after("abc", "abc"), Some(""));
+}
+
+#[test]
+fn empty_prefix() {
+    check!(r#""abc", """#, after("abc", ""), Some("abc"));
+}
+
+#[test]
+fn only_at_the_start() {
+    check!(r#""a key: b", "key: ""#, after("a key: b", "key: "), None);
+}

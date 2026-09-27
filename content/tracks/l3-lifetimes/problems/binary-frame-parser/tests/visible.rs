@@ -12,3 +12,18 @@ fn one_frame() {
 fn bad_magic() {
     check!(r#"b"XX\x01\x00\x00""#, parse_frame(b"XX\x01\x00\x00"), None);
 }
+
+#[test]
+fn empty_buffer() {
+    check!(r#"b"""#, (parse_frame(b""), parse_all(b"")), (None, Some(vec![])));
+}
+
+#[test]
+fn truncated_payload() {
+    check!(r#"length 5, only 3 bytes"#, parse_frame(b"AN\x01\x00\x05abc"), None);
+}
+
+#[test]
+fn two_frames() {
+    check!(r#"two frames back to back"#, parse_all(b"AN\x01\x00\x01aAN\x02\x00\x00").map(|v| v.iter().map(|f| f.kind).collect::<Vec<_>>()), Some(vec![1, 2]));
+}

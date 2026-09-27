@@ -21,3 +21,18 @@ fn parts_outlive_sep() {
     }
     check!(r#"text "a--b", separator dropped"#, parts, vec!["a", "b"]);
 }
+
+#[test]
+fn no_sep() {
+    check!(r#""abc", ",""#, Splitter::new("abc", ",").parts(), vec!["abc"]);
+}
+
+#[test]
+fn first_without_sep() {
+    check!(r#""abc", ",""#, Splitter::new("abc", ",").first(), "abc");
+}
+
+#[test]
+fn empty_pieces_kept() {
+    check!(r#""a,,b,", ",""#, Splitter::new("a,,b,", ",").parts(), vec!["a", "", "b", ""]);
+}

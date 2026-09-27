@@ -15,3 +15,18 @@ fn longest_outlives_tokenizer() {
     }
     check!(r#""a bb ccc dd""#, best, Some("ccc"));
 }
+
+#[test]
+fn empty() {
+    check!(r#""""#, Tokenizer::new("").count(), 0);
+}
+
+#[test]
+fn number_then_ident() {
+    check!(r#""12ab _x9""#, Tokenizer::new("12ab _x9").collect::<Vec<_>>(), vec![Token::Number("12"), Token::Ident("ab"), Token::Ident("_x9")]);
+}
+
+#[test]
+fn no_idents() {
+    check!(r#""1 + 2""#, longest_ident(Tokenizer::new("1 + 2")), None);
+}

@@ -17,3 +17,21 @@ fn tokens_outlive_parser() {
     }
     check!(r#""a b"; drop the parser after one advance"#, first, Some("a"));
 }
+
+#[test]
+fn comma() {
+    let mut p = Parser::<Comma>::new("a, b,,c , ");
+    let tokens: Vec<&str> = std::iter::from_fn(|| p.advance()).collect();
+    check!(r#""a, b,,c , " with Comma"#, tokens, vec!["a", "b", "c"]);
+}
+
+#[test]
+fn before_first() {
+    check!(r#"current() before advance"#, Parser::<Whitespace>::new("x").current(), None);
+}
+
+#[test]
+fn empty() {
+    let mut p = Parser::<Whitespace>::new("");
+    check!(r#""" with Whitespace"#, (p.advance(), p.current()), (None, None));
+}

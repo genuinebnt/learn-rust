@@ -233,7 +233,7 @@ Updated 2026-09-27 after D9, D12, L4, L5 and S1 were finished. Everything that p
 Anything uncommitted in a checkout was unverified; delete it (`git status`, `git checkout -- <path>`, remove new folders)
 or verify and commit it. `cargo run -q -p anneal-cli -- list` shows each track's written count.
 
-**Order the owner set: Graphs → DP (both done 2026-09-27) → Rust exercises (L4, L5, S1 done) → Tries → the rest; Trees deferred by the owner (2026-09-27). Since 2026-09-27 the owner wants **one agent at a time**, in this order: D11 → D7 → L2–L3 senior pass → S2–S4 senior pass; F · Performance Rust follows once its runner support lands.** Hand
+**Order the owner set: Graphs → DP (both done 2026-09-27) → Rust exercises (L4, L5, S1 done) → Tries → the rest; Trees deferred by the owner (2026-09-27). Since 2026-09-27 the owner wants **one agent at a time**, in this order: D11 (done) → D7 → **F2 Data layout** → L2–L3 senior pass → S2–S4 senior pass → F4 and the rest of F.** Hand
 [authoring/write-track.md](authoring/write-track.md) to an agent per track (fill `{TRACK}`, `{SPEC}`, `{FOLDER}`,
 `{CODE}`, `{ORDER}`, `{SEEDS}`); it continues from the spec as it stands. Agents sharing a checkout commit only their own
 `tools/author/<track>.py` + `content/tracks/<folder>`, verify with `--jobs 1` (4 CPUs), and retry a rejected push

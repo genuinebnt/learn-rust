@@ -188,6 +188,9 @@ P.append(dict(
         T("many", "10000 words of lengths 0..10", '{ let ws: Vec<String> = (0..10_000).map(|i| "a".repeat(i % 10)).collect(); let refs: Vec<&str> = ws.iter().map(|w| w.as_str()).collect(); let g = group_by_len(&refs); (g.len(), g[&0].len(), g[&9].len()) }', "(10, 1000, 1000)"),
         T("three_groups", "[\"a\", \"bbb\", \"cc\", \"d\"]", 'group_by_len(&["a", "bbb", "cc", "d"])', f'{HM}::from([(1, vec!["a", "d"]), (2, vec!["cc"]), (3, vec!["bbb"])])'),
         T("spaces_count", "[\" \", \"  \"]", 'group_by_len(&[" ", "  "])', f'{HM}::from([(1, vec![" "]), (2, vec!["  "])])'),
+        T("scale_many_distinct_lengths", "200000 slices of one string, 50000 distinct lengths",
+          "(g.len(), g[&0].len(), g[&49_999].len(), std::ptr::eq(g[&49_999][3], &big[..49_999]))", "(50_000, 4, 4, true)",
+          setup="let big = \"a\".repeat(50_000);\nlet refs: Vec<&str> = (0..200_000).map(|i| &big[..i % 50_000]).collect();\nlet g = group_by_len(&refs);"),
         """
         #[test]
         fn random_vs_model() {
@@ -245,6 +248,17 @@ P.append(dict(
                     groups.entry(w.chars().count()).or_default().push(w);
                 }
                 groups
+            }
+        """,
+        filters_once_per_length="""
+            use std::collections::{HashMap, HashSet};
+
+            pub fn group_by_len<'a>(words: &[&'a str]) -> HashMap<usize, Vec<&'a str>> {
+                let lengths: HashSet<usize> = words.iter().map(|w| w.len()).collect();
+                lengths
+                    .into_iter()
+                    .map(|len| (len, words.iter().copied().filter(|w| w.len() == len).collect()))
+                    .collect()
             }
         """,
     ),
@@ -426,6 +440,9 @@ P.append(dict(
         T("mixed_empties", "[\"\", \"a\", \"\"]", 'index(&["", "a", ""]).len()', "1"),
         T("upper_sorts_first", "[\"apple\", \"Apple\"]", 'index(&["apple", "Apple"])[&\'a\'].clone()', 'vec!["Apple".to_string(), "apple".to_string()]'),
         T("many", "10000 words over 26 letters", '{ let ws: Vec<String> = (0..10_000u32).map(|i| format!("{}{}", char::from(b\'a\' + (i % 26) as u8), i)).collect(); let refs: Vec<&str> = ws.iter().map(|w| w.as_str()).collect(); let idx = index(&refs); (idx.len(), idx[&\'a\'].len(), idx[&\'z\'][0].clone()) }', '(26, 385, "z1013".to_string())'),
+        T("scale_one_letter_reverse_order", "400000 words starting with 'a', in descending order",
+          "(idx.len(), idx[&'a'].len(), idx[&'a'][0].clone(), idx[&'a'][399_999].clone())", '(1, 400_000, "a000000".to_string(), "a399999".to_string())',
+          setup="let ws: Vec<String> = (0..400_000).rev().map(|i| format!(\"a{i:06}\")).collect();\nlet refs: Vec<&str> = ws.iter().map(|w| w.as_str()).collect();\nlet idx = index(&refs);"),
         """
         #[test]
         fn random_vs_model() {
@@ -454,6 +471,21 @@ P.append(dict(
         lists_not_sorted=INDEX_WRONG.replace("FIRST", "if let Some(first) = w.chars().next()").replace("PUSH", "w.to_string()").replace("SORT", ""),
         lowercases_the_words=INDEX_WRONG.replace("FIRST", "if let Some(first) = w.chars().next()").replace("PUSH", "w.to_lowercase()").replace("SORT", "list.sort();"),
         indexes_empty_words=INDEX_WRONG.replace("FIRST", "if let Some(first) = Some(w.chars().next().unwrap_or(' '))").replace("PUSH", "w.to_string()").replace("SORT", "list.sort();"),
+        inserts_in_sorted_place="""
+            use std::collections::BTreeMap;
+
+            pub fn index(words: &[&str]) -> BTreeMap<char, Vec<String>> {
+                let mut idx: BTreeMap<char, Vec<String>> = BTreeMap::new();
+                for w in words {
+                    if let Some(first) = w.chars().next() {
+                        let list = idx.entry(first.to_ascii_lowercase()).or_default();
+                        let at = list.binary_search(&w.to_string()).unwrap_or_else(|at| at);
+                        list.insert(at, w.to_string());
+                    }
+                }
+                idx
+            }
+        """,
     ),
 ))
 

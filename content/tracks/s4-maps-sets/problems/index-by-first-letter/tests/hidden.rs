@@ -41,6 +41,14 @@ fn many() {
 }
 
 #[test]
+fn scale_one_letter_reverse_order() {
+    let ws: Vec<String> = (0..400_000).rev().map(|i| format!("a{i:06}")).collect();
+    let refs: Vec<&str> = ws.iter().map(|w| w.as_str()).collect();
+    let idx = index(&refs);
+    check!(r#"400000 words starting with 'a', in descending order"#, (idx.len(), idx[&'a'].len(), idx[&'a'][0].clone(), idx[&'a'][399_999].clone()), (1, 400_000, "a000000".to_string(), "a399999".to_string()));
+}
+
+#[test]
 fn random_vs_model() {
     let mut rng = anneal_prelude::Rng::new(4004);
     for _ in 0..300 {

@@ -36,6 +36,14 @@ fn spaces_count() {
 }
 
 #[test]
+fn scale_many_distinct_lengths() {
+    let big = "a".repeat(50_000);
+    let refs: Vec<&str> = (0..200_000).map(|i| &big[..i % 50_000]).collect();
+    let g = group_by_len(&refs);
+    check!(r#"200000 slices of one string, 50000 distinct lengths"#, (g.len(), g[&0].len(), g[&49_999].len(), std::ptr::eq(g[&49_999][3], &big[..49_999])), (50_000, 4, 4, true));
+}
+
+#[test]
 fn random_vs_model() {
     let mut rng = anneal_prelude::Rng::new(4002);
     for _ in 0..300 {

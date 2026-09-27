@@ -16,3 +16,13 @@ fn row() {
 fn out_of_bounds() {
     check!(r#"3×2 grid"#, { let mut g = Grid::new(3, 2); (g.get(3, 0), g.set(0, 2, 1), g.row(2).is_none()) }, (None, false, true));
 }
+
+#[test]
+fn fresh_row() {
+    check!(r#"2×3 grid, row 0"#, Grid::new(2, 3).row(0).map(|r| r.to_vec()), Some(vec![0, 0]));
+}
+
+#[test]
+fn set_in_bounds() {
+    check!(r#"2×2 grid, set (1, 0) = 4"#, { let mut g = Grid::new(2, 2); (g.set(1, 0, 4), g.get(1, 0), g.get(0, 1)) }, (true, Some(4), Some(0)));
+}

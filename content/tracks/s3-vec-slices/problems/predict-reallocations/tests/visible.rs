@@ -24,3 +24,18 @@ fn final_capacity() {
     }
     check!("capacity after 100 pushes", FINAL_CAPACITY, w.capacity());
 }
+
+#[test]
+fn some_reallocations() {
+    check!(r#"REALLOCATIONS"#, REALLOCATIONS > 0, true);
+}
+
+#[test]
+fn room_for_all_100() {
+    check!(r#"FINAL_CAPACITY"#, FINAL_CAPACITY >= 100, true);
+}
+
+#[test]
+fn capacity_is_a_power_of_two() {
+    check!(r#"FINAL_CAPACITY"#, FINAL_CAPACITY.is_power_of_two(), true);
+}

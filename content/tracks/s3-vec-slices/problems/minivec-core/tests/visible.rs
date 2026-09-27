@@ -14,3 +14,13 @@ fn growth() {
 fn get() {
     check!(r#"push "a", "b""#, { let mut v = MiniVec::new(); v.push(String::from("a")); v.push(String::from("b")); (v.get(1).cloned(), v.get(2).cloned()) }, (Some("b".to_string()), None));
 }
+
+#[test]
+fn get_on_empty() {
+    check!(r#"new MiniVec, get(0)"#, MiniVec::<i32>::new().get(0).copied(), None);
+}
+
+#[test]
+fn len_tracks_pushes_and_pops() {
+    check!(r#"push 1, 2, 3, pop"#, { let mut v = MiniVec::new(); v.push(1); v.push(2); v.push(3); v.pop(); (v.len(), v.get(1).copied(), v.get(2).copied()) }, (2, Some(2), None));
+}

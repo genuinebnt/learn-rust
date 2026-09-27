@@ -1,0 +1,10 @@
+pub fn join_with(parts: &[&str], sep: &str) -> String {
+    let mut out = String::new();
+    for (i, p) in parts.iter().enumerate() {
+        if i > 0 {
+            out.push_str(sep);
+        }
+        out.push_str(p);
+    }
+    out
+}

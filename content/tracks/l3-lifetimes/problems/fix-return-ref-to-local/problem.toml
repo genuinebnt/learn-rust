@@ -1,31 +1,35 @@
 slug = "fix-return-ref-to-local"
-title = "Fix: returning a reference to a local"
+title = "Fix: returning references to locals (E0515, E0106)"
 mode = "fix"
 level = "easy"
 stage = "elision"
 order = 2
 status = "ready"
-tags = ["E0515"]
+tags = ["E0515", "E0106", "Cow", "borrow or own"]
 teaches = [
-  "A reference can only point at data that outlives the function.",
-  "New data means an owned return type.",
+  "Nothing created inside a function can be borrowed by its result.",
+  "`Cow` borrows when it can and owns when it must.",
+  "`max_by_key` returns the last maximum.",
 ]
-follow_up = "When could you return `&str` from a function that sometimes creates new text? (See `Cow`.)"
+follow_up = "When would you return `impl Iterator<Item = &str> + '_` from `clean_lines` instead of a `Vec`, and what would the caller give up?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "`s` is dropped when the function returns. A reference to it would dangle."
+text = "A `String` or `Vec` created inside the function is dropped when it returns, so no reference to it can escape (E0515). Return the owned value itself."
 
 [[hints]]
 kind = "rust"
-text = "The text is new, so the function must hand over ownership: return `String`."
+text = "`slug` often doesn't need a new string at all. `Cow<'_, str>` is either `Borrowed(&str)` from the input or `Owned(String)`: decide which before allocating."
+
+[[hints]]
+kind = "rust"
+text = "`fn f(paths: Vec<String>) -> Option<&str>` has no input lifetime for the output to borrow (E0106). If the function doesn't need to own the paths, take `&[String]`. And `max_by_key` returns the *last* maximum."
 
 [solution]
-explanation = "No lifetime annotation can fix this: the data doesn't exist in any input. When a function creates text, it returns an owned value."
+explanation = "A reference can only point at something that outlives the call: an input, or `'static` data. Locals, including values built with `format!`, `join` or `collect`, die at the return, so the fix is to hand them back by value (`String`, `Vec<&str>`, whose elements still borrow the input). A parameter taken by value is a local too, which is why `longest_file_name(paths: Vec<String>) -> Option<&str>` has nothing to borrow from; taking `&[String]` makes the paths the caller's, and the result borrows them. `Cow` is the middle ground when the output is often identical to the input: borrow in that case and own only when something changed, so the common path allocates nothing. Separately, `Iterator::max_by_key` keeps the last of equal maxima; \"first on a tie\" needs a strict comparison.\n\nSyntax to remember: `fn slug(text: &str) -> Cow<'_, str>` · `Cow::Borrowed(text)` / `Cow::Owned(s)` · `c.to_lowercase().eq([c])` (lowercasing leaves `c` alone)."
 time = "O(n)"
-space = "O(n)"
+space = "O(n) only when the slug differs"
 
 [rules]
-forbid_methods = ["leak"]
-max_changed_lines = 2
+forbid_methods = ["leak", "clone"]

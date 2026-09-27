@@ -1,63 +1,72 @@
 use solution::*;
 
 #[test]
-fn longer_second() {
-    check!(r#""abc", "abcd""#, longest("abc", "abcd"), "abcd");
+fn longest_empty_strings() {
+    check!(r#"longest("", "")"#, longest("", ""), "");
 }
 
 #[test]
-fn owned_inputs() {
-    let a = String::from("xy");
-    let b = String::from("xyz!");
-    check!(r#"two Strings"#, longest(&a, &b), "xyz!");
+fn longest_by_bytes() {
+    check!(r#"longest("ééé", "abcd")"#, longest("ééé", "abcd"), "ééé");
 }
 
 #[test]
-fn tie_returns_first_pointer() {
-    let a = String::from("ab");
-    let b = String::from("ab");
-    check!(r#""ab", "ab" (two different Strings)"#, std::ptr::eq(longest(&a, &b), a.as_str()), true);
+fn longest_of_first_tie() {
+    check!(r#"longest_of(["xy", "ab", "z"])"#, longest_of(&["xy", "ab", "z"]), Some("xy"));
 }
 
 #[test]
-fn second_empty() {
-    check!(r#""a", """#, longest("a", ""), "a");
+fn longest_of_single() {
+    check!(r#"longest_of([""])"#, longest_of(&[""]), Some(""));
 }
 
 #[test]
-fn unicode() {
-    check!(r#""é", "ab c""#, longest("é", "ab c"), "ab c");
+fn keep_longest_tie_keeps() {
+    check!(r#"best "ab"; keep_longest("cd")"#, { let mut best = "ab"; (keep_longest(&mut best, "cd"), best) }, (false, "ab"));
 }
 
 #[test]
-fn spaces_count() {
-    check!(r#""a  ", "bc""#, longest("a  ", "bc"), "a  ");
+fn keep_longest_from_static() {
+    check!(r#"best starts as a literal, then a line from a String"#, { let s = String::from("longer"); let mut best = "x"; keep_longest(&mut best, &s); best.to_string() }, "longer".to_string());
 }
 
 #[test]
-fn used_while_both_live() {
-    let a = String::from("hello");
-    let len;
-    {
-        let b = String::from("hi");
-        len = longest(&a, &b).len();
-    }
-    check!(r#"result used inside the scope of the shorter-lived String"#, len, 5);
+fn longest_mixed_lifetimes() {
+    check!(r#"longest(literal, String) used while the String lives"#, { let s = String::from("dynamic"); longest("st", &s).len() }, 7);
 }
 
 #[test]
-fn long_strings() {
-    check!(r#"10000 × "a" vs 10001 × "b""#, longest(&"a".repeat(10_000), &"b".repeat(10_001)).len(), 10_001);
+fn result_is_an_input() {
+    let (a, b) = (String::from("x"), String::from("yy"));
+    check!(r#"longest returns one of its inputs, not a copy"#, longest(&a, &b).as_ptr() == b.as_ptr(), true);
 }
 
 #[test]
 fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(303);
+    let mut rng = anneal_prelude::Rng::new(6303);
     for _ in 0..300 {
-        let (la, lb) = (rng.below(5), rng.below(5));
-        let a = rng.string(la, "xy");
-        let b = rng.string(lb, "xy");
-        let want = if b.len() > a.len() { b.as_str() } else { a.as_str() };
-        check!(format!("a = {a:?}, b = {b:?}"), std::ptr::eq(longest(&a, &b), want), true);
+        let n = rng.below(6);
+        let mut owned = Vec::new();
+        for _ in 0..n {
+            let len = rng.below(5);
+            owned.push(rng.string(len, "ab"));
+        }
+        let words: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+        let mut want: Option<&str> = None;
+        for &w in &words {
+            if want.map_or(true, |b| w.len() > b.len()) {
+                want = Some(w);
+            }
+        }
+        check!(format!("longest_of({words:?})"), longest_of(&words), want);
+        let mut best = "";
+        for &w in &words {
+            keep_longest(&mut best, w);
+        }
+        check!(format!("keep_longest over {words:?}"), best, want.unwrap_or(""));
+        if n >= 2 {
+            let expect = if words[1].len() > words[0].len() { words[1] } else { words[0] };
+            check!(format!("longest({:?}, {:?})", words[0], words[1]), longest(words[0], words[1]), expect);
+        }
     }
 }

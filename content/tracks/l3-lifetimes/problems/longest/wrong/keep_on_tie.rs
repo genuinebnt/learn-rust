@@ -20,7 +20,7 @@ pub fn longest_of<'a>(words: &[&'a str]) -> Option<&'a str> {
 
 /// Makes `best` point at `line` if `line` is longer. Returns whether it did.
 pub fn keep_longest<'a>(best: &mut &'a str, line: &'a str) -> bool {
-    if line.len() > best.len() {
+    if line.len() >= best.len() {
         *best = line;
         true
     } else {

@@ -15,444 +15,610 @@ def write(slug, title, level, stage, tags, statement, starter, solution, visible
                 teaches=teaches, related=list(related), source=source, examples=list(examples), wrong=wrong)
 
 
+def sub(s, old, new):
+    """str.replace that fails loudly when `old` isn't there (a wrong solution that silently equals the reference)."""
+    assert old in s, f"not found: {old[:60]!r}"
+    return s.replace(old, new)
+
+
+# Counts heap allocations made on the current test thread, for tests that check nothing is copied per item.
+ALLOC_COUNTER = r"""
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
+
+struct CountingAlloc;
+
+thread_local! {
+    static ALLOCS: Cell<usize> = const { Cell::new(0) };
+}
+
+unsafe impl GlobalAlloc for CountingAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let _ = ALLOCS.try_with(|n| n.set(n.get() + 1));
+        unsafe { System.alloc(layout) }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let _ = ALLOCS.try_with(|n| n.set(n.get() + 1));
+        unsafe { System.realloc(ptr, layout, new_size) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+#[global_allocator]
+static GLOBAL: CountingAlloc = CountingAlloc;
+
+/// Runs `f` and returns its result with the number of allocations (and reallocations) it made.
+fn allocs<R>(f: impl FnOnce() -> R) -> (R, usize) {
+    let before = ALLOCS.with(|n| n.get());
+    let r = f();
+    (r, ALLOCS.with(|n| n.get()) - before)
+}
+"""
+
+
 # ---------------------------------------------------------------- elision (easy)
 
-P.append(write(
-    "when-elision-picks-self", "When elision picks &self", "easy", "elision", ["elision", "&self"],
-    """
-        Fill in `Config`. The signatures are written with elided lifetimes; the tests check what they
-        borrow from. In particular, the result of `tag_with_prefix` must stay usable after `prefix` is gone.
-    """,
-    """
-    pub struct Config {
-        name: String,
-        tags: Vec<String>,
+GLOSS_HEAD = r"""
+use std::collections::HashMap;
+
+pub struct Glossary {
+    terms: HashMap<String, String>,
+}
+
+/// The first word of `text`: everything before the first space.
+pub fn first_word(text: &str) -> &str {
+    text.split(' ').next().unwrap_or("")
+}
+"""
+
+GLOSS_STARTER = GLOSS_HEAD + r"""
+impl Glossary {
+    pub fn new(pairs: &[(&str, &str)]) -> Self {
+        Glossary { terms: pairs.iter().map(|&(w, d)| (w.to_string(), d.to_string())).collect() }
     }
 
-    impl Config {
-        pub fn new(name: &str, tags: &[&str]) -> Self {
-            todo!()
-        }
-
-        pub fn name(&self) -> &str {
-            todo!()
-        }
-
-        /// The first tag that starts with `prefix`.
-        pub fn tag_with_prefix(&self, prefix: &str) -> Option<&str> {
-            todo!()
-        }
-    }
-    """,
-    """
-    pub struct Config {
-        name: String,
-        tags: Vec<String>,
+    /// The definition of `word`.
+    pub fn define(&self, word: &str) -> Option<&str> {
+        self.terms.get(word).map(String::as_str)
     }
 
-    impl Config {
-        pub fn new(name: &str, tags: &[&str]) -> Self {
-            Config { name: name.to_string(), tags: tags.iter().map(|t| t.to_string()).collect() }
-        }
+    /// The definition of `word`, or `word` itself when the glossary doesn't have it.
+    pub fn define_or_echo(&self, word: &str) -> &str {
+        self.define(word).unwrap_or(word)
+    }
 
-        pub fn name(&self) -> &str {
-            &self.name
-        }
-
-        /// The first tag that starts with `prefix`.
-        pub fn tag_with_prefix(&self, prefix: &str) -> Option<&str> {
-            self.tags.iter().map(String::as_str).find(|t| t.starts_with(prefix))
+    /// Whichever of `a` and `b` has the longer definition (`a` on a tie; no definition counts as length 0).
+    pub fn pick(&self, a: &str, b: &str) -> &str {
+        let len = |w: &str| self.define(w).map_or(0, str::len);
+        if len(b) > len(a) {
+            b
+        } else {
+            a
         }
     }
-    """,
-    [T("outlives_prefix", "tags [\"env:prod\", \"team:core\"], prefix \"team:\" dropped before use", "found", 'Some("team:core")',
-       setup='let c = Config::new("app", &["env:prod", "team:core"]);\nlet found;\n{\n    let p = String::from("team:");\n    found = c.tag_with_prefix(&p);\n}'),
-     T("name", "name \"app\"", 'Config::new("app", &[]).name().to_string()', '"app".to_string()'),
-     T("first_match", "tags [\"env:prod\", \"team:core\"], prefix \"env:\"", 'Config::new("app", &["env:prod", "team:core"]).tag_with_prefix("env:").map(str::to_string)', 'Some("env:prod".to_string())'),
-     T("no_tags", "tags [], prefix \"env:\"", 'Config::new("app", &[]).tag_with_prefix("env:").is_none()', "true"),
-     T("prefix_not_substring", "tags [\"env:prod\"], prefix \"prod\"", 'Config::new("app", &["env:prod"]).tag_with_prefix("prod").is_none()', "true")],
-    [T("missing", "prefix \"x\"", 'Config::new("a", &["b"]).tag_with_prefix("x").is_none()', "true"),
-     T("first_of_many", "tags [\"k:1\", \"k:2\"]", 'Config::new("a", &["k:1", "k:2"]).tag_with_prefix("k:").map(str::to_string)', 'Some("k:1".to_string())'),
-     T("empty_prefix", "tags [\"a\", \"b\"], prefix \"\"", 'Config::new("x", &["a", "b"]).tag_with_prefix("").map(str::to_string)', 'Some("a".to_string())'),
-     T("whole_tag", "tags [\"env\"], prefix \"env\"", 'Config::new("x", &["env"]).tag_with_prefix("env").map(str::to_string)', 'Some("env".to_string())'),
-     T("prefix_longer_than_tag", "tags [\"en\"], prefix \"env\"", 'Config::new("x", &["en"]).tag_with_prefix("env").is_none()', "true"),
-     T("case_sensitive", "tags [\"Env:x\", \"env:y\"], prefix \"env\"", 'Config::new("x", &["Env:x", "env:y"]).tag_with_prefix("env").map(str::to_string)', 'Some("env:y".to_string())'),
-     T("unicode", "tags [\"été:1\", \"éte:2\"], prefix \"ét\"", 'Config::new("x", &["été:1", "éte:2"]).tag_with_prefix("ét").map(str::to_string)', 'Some("été:1".to_string())'),
-     T("empty_name", "name \"\"", 'Config::new("", &["t"]).name().to_string()', "String::new()"),
-     T("name_from_temporaries", "name read from a Config built from temporaries", "n", '"svc-été"',
-       setup='let c = Config::new(&String::from("svc-été"), &[&String::from("t")]);\nlet n = c.name();'),
-     """
-     #[test]
-     fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(301);
-         for _ in 0..300 {
-             let n = rng.below(5);
-             let tags: Vec<String> = (0..n).map(|_| { let len = rng.below(4); rng.string(len, "ab:") }).collect();
-             let plen = rng.below(3);
-             let prefix = rng.string(plen, "ab:");
-             let refs: Vec<&str> = tags.iter().map(String::as_str).collect();
-             let c = Config::new("x", &refs);
-             let want = tags.iter().find(|t| t.starts_with(prefix.as_str())).cloned();
-             check!(format!("tags = {tags:?}, prefix = {prefix:?}"), c.tag_with_prefix(&prefix).map(str::to_string), want);
-         }
-     }
-     """],
-    [("rust", "Elision rule 3: in a method with `&self`, every elided output lifetime is `self`'s. The other inputs get their own lifetimes."),
-     ("rust", "`self.tags.iter().map(String::as_str)` gives `&str`s borrowed from `self`.")],
-    ("Because the output borrows only from `self`, `prefix` can be a temporary. Writing `<'a>(&'a self, prefix: &'a str)` would tie them together and break the first test.", "O(n)", "O(1)"),
-    "Write out the full signature of `tag_with_prefix` with every lifetime explicit.",
-    ["Elision rule 3: outputs of `&self` methods borrow from `self`.", "Other reference parameters get independent lifetimes."],
-    wrong=dict(
-        contains_not_prefix="""
-            pub struct Config {
-                name: String,
-                tags: Vec<String>,
-            }
+}
 
-            impl Config {
-                pub fn new(name: &str, tags: &[&str]) -> Self {
-                    Config { name: name.to_string(), tags: tags.iter().map(|t| t.to_string()).collect() }
-                }
+/// The definition of the first word of `text`.
+pub fn define_first(g: &Glossary, text: &str) -> Option<&str> {
+    g.define(first_word(text))
+}
+"""
 
-                pub fn name(&self) -> &str {
-                    &self.name
-                }
+GLOSS_SOLUTION = GLOSS_STARTER
+for _old, _new in [
+    ("    pub fn define_or_echo(&self, word: &str) -> &str {", "    pub fn define_or_echo<'a>(&'a self, word: &'a str) -> &'a str {"),
+    ("    pub fn pick(&self, a: &str, b: &str) -> &str {", "    pub fn pick<'w>(&self, a: &'w str, b: &'w str) -> &'w str {"),
+    ("pub fn define_first(g: &Glossary, text: &str) -> Option<&str> {", "pub fn define_first<'g>(g: &'g Glossary, text: &str) -> Option<&'g str> {"),
+]:
+    GLOSS_SOLUTION = sub(GLOSS_SOLUTION, _old, _new)
 
-                /// The first tag that starts with `prefix`.
-                pub fn tag_with_prefix(&self, prefix: &str) -> Option<&str> {
-                    self.tags.iter().map(String::as_str).find(|t| t.contains(prefix))
-                }
-            }
-        """,
-        last_match="""
-            pub struct Config {
-                name: String,
-                tags: Vec<String>,
-            }
-
-            impl Config {
-                pub fn new(name: &str, tags: &[&str]) -> Self {
-                    Config { name: name.to_string(), tags: tags.iter().map(|t| t.to_string()).collect() }
-                }
-
-                pub fn name(&self) -> &str {
-                    &self.name
-                }
-
-                /// The first tag that starts with `prefix`.
-                pub fn tag_with_prefix(&self, prefix: &str) -> Option<&str> {
-                    self.tags.iter().map(String::as_str).filter(|t| t.starts_with(prefix)).last()
-                }
-            }
-        """,
-        ignores_case="""
-            pub struct Config {
-                name: String,
-                tags: Vec<String>,
-            }
-
-            impl Config {
-                pub fn new(name: &str, tags: &[&str]) -> Self {
-                    Config { name: name.to_string(), tags: tags.iter().map(|t| t.to_string()).collect() }
-                }
-
-                pub fn name(&self) -> &str {
-                    &self.name
-                }
-
-                /// The first tag that starts with `prefix`.
-                pub fn tag_with_prefix(&self, prefix: &str) -> Option<&str> {
-                    self.tags.iter().map(String::as_str).find(|t| t.to_lowercase().starts_with(&prefix.to_lowercase()))
-                }
-            }
-        """,
-    ),
-))
+G = 'let g = Glossary::new(&[("rust", "a language"), ("borrow", "a loan"), ("ok", "fine")]);'
+GD = 'glossary {rust: "a language", borrow: "a loan", ok: "fine"}'
 
 P.append(fix(
-    "fix-return-ref-to-local", "Fix: returning a reference to a local", "easy", "elision", ["E0515"],
-    "`slug` should lowercase the text and join its words with `-`. It doesn't compile.",
+    "when-elision-picks-self", "Fix: which input the elided lifetime picks", "easy", "elision", ["elision rules", "E0106", "&self"],
     """
-    /// Lowercases `text` and joins its words with "-".
-    pub fn slug(text: &str) -> &str {
-        let s = text.split_whitespace().collect::<Vec<_>>().join("-").to_lowercase();
-        &s
-    }
+        Three signatures here don't compile, or compile to something callers can't use, because elision picked
+        the wrong input for the output to borrow from. Fix them by writing the lifetimes that say what each
+        output really borrows. The tests keep results after the other inputs are gone. `define` and
+        `first_word` are right as they are.
     """,
-    """
-    /// Lowercases `text` and joins its words with "-".
-    pub fn slug(text: &str) -> String {
-        let s = text.split_whitespace().collect::<Vec<_>>().join("-").to_lowercase();
-        s
-    }
-    """,
-    [T("two_words", '"Hello World"', 'slug("Hello World")', '"hello-world".to_string()'),
-     T("extra_spaces", '"  Rust  Is Fun "', 'slug("  Rust  Is Fun ")', '"rust-is-fun".to_string()'),
-     T("empty", '""', 'slug("")', "String::new()"),
-     T("one_word", '"Rust"', 'slug("Rust")', '"rust".to_string()'),
-     T("tabs_and_newlines", '"a\\tB\\nc"', 'slug("a\\tB\\nc")', '"a-b-c".to_string()')],
-    [T("empty", '""', 'slug("")', "String::new()"),
-     T("only_spaces", '"   "', 'slug("   ")', "String::new()"),
-     T("digits", '"Top 10 List"', 'slug("Top 10 List")', '"top-10-list".to_string()'),
-     T("hyphens_kept", '"Pre-Order now"', 'slug("Pre-Order now")', '"pre-order-now".to_string()'),
-     T("unicode_lowercase", '"Ünïcode ÉTÉ"', 'slug("Ünïcode ÉTÉ")', '"ünïcode-été".to_string()'),
-     T("unicode_space", '"a\\u{3000}B"', 'slug("a\\u{3000}B")', '"a-b".to_string()'),
-     T("mixed_case_words", '"hELLO wORLD"', 'slug("hELLO wORLD")', '"hello-world".to_string()'),
-     T("already_slug", '"already-a-slug"', 'slug("already-a-slug")', '"already-a-slug".to_string()'),
-     """
+    GLOSS_STARTER,
+    GLOSS_SOLUTION,
+    [T("define_or_echo_example", GD + "; define_or_echo rust, go", '(g.define_or_echo("rust"), g.define_or_echo("go"))', '("a language", "go")', setup=G),
+     T("pick_outlives_the_glossary", GD + "; pick(ok, borrow), then drop the glossary", "w", '"borrow"', setup=G + '\nlet (a, b) = (String::from("ok"), String::from("borrow"));\nlet w = g.pick(&a, &b);\ndrop(g);'),
+     T("define_first_outlives_the_text", GD + "; define_first of a temporary \"rust is fun\"", "d", 'Some("a language")', setup=G + '\nlet d = define_first(&g, &String::from("rust is fun"));'),
+     T("pick_tie_goes_to_a", GD + "; pick(zzz, yyy): neither defined", 'g.pick("zzz", "yyy")', '"zzz"', setup=G),
+     T("echo_of_a_temporary", GD + "; define_or_echo of a word that's dropped after the call", "s", '"x".to_string()', setup=G + '\nlet s = g.define_or_echo(&String::from("x")).to_string();'),
+     T("first_word_example", "first_word(\"hello world\"), first_word(\"\")", '(first_word("hello world"), first_word(""))', '("hello", "")')],
+    [T("define_missing", GD + "; define go", 'g.define("go")', "None", setup=G),
+     T("pick_longer_second", GD + "; pick(ok, rust)", 'g.pick("ok", "rust")', '"rust"', setup=G),
+     T("pick_equal_definitions", "glossary {a: \"xx\", b: \"yy\"}; pick(b, a)", 'g.pick("b", "a")', '"b"', setup='let g = Glossary::new(&[("a", "xx"), ("b", "yy")]);'),
+     T("define_first_unknown", GD + "; define_first(\"go fast\")", 'define_first(&g, "go fast")', "None", setup=G),
+     T("define_first_leading_space", GD + "; define_first(\" rust\")", 'define_first(&g, " rust")', "None", setup=G),
+     T("empty_glossary", "empty glossary; define_or_echo \"\"", 'g.define_or_echo("")', '""', setup="let g = Glossary::new(&[]);"),
+     T("echo_empty_definition", "glossary {e: \"\"}; define_or_echo e", 'g.define_or_echo("e")', '""', setup='let g = Glossary::new(&[("e", "")]);'),
+     T("unicode", "glossary {日本: \"Japan\"}; define_first(\"日本 語\")", 'define_first(&g, "日本 語")', 'Some("Japan")', setup='let g = Glossary::new(&[("日本", "Japan")]);'),
+     r"""
      #[test]
-     fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(302);
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6301);
+         let words = ["a", "b", "c", "d"];
          for _ in 0..300 {
-             let n = rng.below(12);
-             let text = rng.string(n, "aB \\t");
-             let mut want = String::new();
-             for w in text.split(|c: char| c == ' ' || c == '\\t').filter(|w| !w.is_empty()) {
-                 if !want.is_empty() {
-                     want.push('-');
+             let mut defs: Vec<(String, String)> = Vec::new();
+             for w in words {
+                 if rng.bool() {
+                     let len = rng.below(4);
+                     defs.push((w.to_string(), rng.string(len, "xy")));
                  }
-                 want.push_str(&w.to_lowercase());
              }
-             check!(format!("text = {text:?}"), slug(&text), want);
+             let pairs: Vec<(&str, &str)> = defs.iter().map(|(w, d)| (w.as_str(), d.as_str())).collect();
+             let g = Glossary::new(&pairs);
+             let def = |w: &str| defs.iter().find(|e| e.0 == w).map(|e| e.1.clone());
+             let (a, b) = (rng.pick(&words).to_string(), rng.pick(&words).to_string());
+             let la = def(&a).map_or(0, |d| d.len());
+             let lb = def(&b).map_or(0, |d| d.len());
+             let want = if lb > la { b.clone() } else { a.clone() };
+             check!(format!("defs {defs:?}; pick({a}, {b})"), g.pick(&a, &b).to_string(), want);
+             check!(format!("defs {defs:?}; define_or_echo({a})"), g.define_or_echo(&a).to_string(), def(&a).unwrap_or(a.clone()));
+             let text = format!("{b} {a}");
+             check!(format!("defs {defs:?}; define_first({text:?})"), define_first(&g, &text).map(String::from), def(&b));
          }
      }
      """],
-    [("rust", "`s` is dropped when the function returns. A reference to it would dangle."),
-     ("rust", "The text is new, so the function must hand over ownership: return `String`.")],
-    ("No lifetime annotation can fix this: the data doesn't exist in any input. When a function creates text, it returns an owned value.", "O(n)", "O(n)"),
-    "When could you return `&str` from a function that sometimes creates new text? (See `Cow`.)",
-    ["A reference can only point at data that outlives the function.", "New data means an owned return type."],
-    rules=dict(lines=2, methods=["leak"]),
+    [("rust", "The elision rules: each elided input lifetime is a separate parameter; with exactly one input lifetime, outputs get it; with `&self` or `&mut self`, outputs get `self`'s. Otherwise you must write it (E0106)."),
+     ("rust", "`pick` returns `a` or `b`, never the glossary's data, but rule 3 ties its output to `&self`. `define_or_echo` can return either, so both inputs need the same lifetime."),
+     ("rust", "`define_first` has two reference inputs and no `self`: elision gives up. The result comes from the glossary.")],
+    ("""Elision only fills in the common cases, and it looks at the signature, not the body. Rule 1: each elided lifetime in the inputs is its own parameter. Rule 2: if there's exactly one input lifetime, every elided output lifetime is that one (`first_word`). Rule 3: if there's `&self` or `&mut self`, outputs get `self`'s lifetime (`define`). Anything else needs names. `pick` compiles only if its output is tied to `a` and `b`; rule 3 would tie it to `self` and reject returning `a`. `define_or_echo` may return data from either `self` or `word`, so both must share `'a`. `define_first` must say the result borrows from `g`, not `text`: the tests drop the text first.
+
+Syntax to remember: `fn pick<'w>(&self, a: &'w str, b: &'w str) -> &'w str` · `fn define_or_echo<'a>(&'a self, word: &'a str) -> &'a str` · `fn define_first<'g>(g: &'g Glossary, text: &str) -> Option<&'g str>`.""", "O(1) expected per lookup", "O(1)"),
+    "Rule 3 favours `self` even when a method returns data from an argument. Why was that the right default for the language?",
+    ["The three elision rules.", "Name the lifetime of the input the output really borrows from.", "Tying outputs to too many inputs is also wrong."],
+    rules=dict(methods=["clone", "to_owned", "leak"], lines=4),
     wrong=dict(
-        returns_input_slice="""
-            /// Lowercases `text` and joins its words with "-".
-            pub fn slug(text: &str) -> &str {
-                let s = text.split_whitespace().collect::<Vec<_>>().join("-").to_lowercase();
-                text.trim()
-            }
-        """,
-        leaks_the_string="""
-            /// Lowercases `text` and joins its words with "-".
-            pub fn slug(text: &str) -> &str {
-                let s = text.split_whitespace().collect::<Vec<_>>().join("-").to_lowercase();
-                Box::leak(s.into_boxed_str())
-            }
-        """,
+        pick_tie_goes_to_b=sub(GLOSS_SOLUTION, "if len(b) > len(a) {", "if len(b) >= len(a) {"),
+        echo_empty=sub(GLOSS_SOLUTION, "self.define(word).unwrap_or(word)", 'self.define(word).unwrap_or("")'),
+        first_word_trimmed=sub(GLOSS_SOLUTION, "    g.define(first_word(text))", "    g.define(first_word(text.trim_start()))"),
     ),
 ))
 
-P.append(fix(
-    "longest", "longest(a, b)", "easy", "elision", ["E0106", "lifetime parameters"],
-    "`longest` returns the longer of two strings (`a` on a tie). It doesn't compile.",
-    """
-    /// The longer of `a` and `b`; `a` on a tie.
-    pub fn longest(a: &str, b: &str) -> &str {
-        if b.len() > a.len() {
-            b
-        } else {
-            a
+LOCAL_STARTER = r"""
+use std::borrow::Cow;
+
+/// `text` lowercased, with its words joined by "-". When `text` is already in that form (no whitespace, no
+/// char that lowercasing changes), the result borrows `text` instead of allocating.
+pub fn slug(text: &str) -> &str {
+    let s = text.split_whitespace().collect::<Vec<_>>().join("-").to_lowercase();
+    &s
+}
+
+/// The non-blank lines of `text`, trimmed, in order.
+pub fn clean_lines(text: &str) -> &[&str] {
+    let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    &lines
+}
+
+/// The file name (the part after the last '/') of the path with the longest file name; the first on a tie.
+pub fn longest_file_name(paths: Vec<String>) -> Option<&str> {
+    paths.iter().map(|p| p.rsplit('/').next().unwrap()).max_by_key(|n| n.len())
+}
+"""
+
+LOCAL_SOLUTION = r"""
+use std::borrow::Cow;
+
+/// `text` lowercased, with its words joined by "-". When `text` is already in that form (no whitespace, no
+/// char that lowercasing changes), the result borrows `text` instead of allocating.
+pub fn slug(text: &str) -> Cow<'_, str> {
+    if text.chars().all(|c| !c.is_whitespace() && c.to_lowercase().eq([c])) {
+        return Cow::Borrowed(text);
+    }
+    Cow::Owned(text.split_whitespace().collect::<Vec<_>>().join("-").to_lowercase())
+}
+
+/// The non-blank lines of `text`, trimmed, in order.
+pub fn clean_lines(text: &str) -> Vec<&str> {
+    text.lines().map(str::trim).filter(|l| !l.is_empty()).collect()
+}
+
+/// The file name (the part after the last '/') of the path with the longest file name; the first on a tie.
+pub fn longest_file_name(paths: &[String]) -> Option<&str> {
+    let mut best: Option<&str> = None;
+    for p in paths {
+        let name = p.rsplit('/').next().unwrap();
+        if best.map_or(true, |b| name.len() > b.len()) {
+            best = Some(name);
         }
     }
-    """,
+    best
+}
+"""
+
+
+def paths_lit(xs):
+    return "[" + ", ".join(f'"{x}"' for x in xs) + "].map(String::from)"
+
+
+P.append(fix(
+    "fix-return-ref-to-local", "Fix: returning references to locals (E0515, E0106)", "easy", "elision", ["E0515", "E0106", "Cow", "borrow or own"],
     """
-    /// The longer of `a` and `b`; `a` on a tie.
-    pub fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
-        if b.len() > a.len() {
-            b
-        } else {
-            a
+        None of these compiles: each returns a reference to something the function itself owns, which dies at
+        the end of the call. Change the return types (and for `longest_file_name`, the parameter) so that
+        each result owns what it must and borrows what it can. `longest_file_name` also has a bug the compiler
+        can't see; the doc comment is the spec.
+    """,
+    LOCAL_STARTER,
+    LOCAL_SOLUTION,
+    [T("slug_example", "slug(\"Hello  Big World\")", 'slug("Hello  Big World")', '"hello-big-world"'),
+     T("slug_borrows_when_unchanged", "slug(\"already-a-slug\") is std::borrow::Cow::Borrowed", 'matches!(slug("already-a-slug"), std::borrow::Cow::Borrowed("already-a-slug"))', "true"),
+     T("clean_lines_example", "clean_lines(\"  a \\n\\n b\\n   \")", 'clean_lines("  a \\n\\n b\\n   ")', 'vec!["a", "b"]'),
+     T("longest_file_name_example", "[\"src/main.rs\", \"lib/very_long.rs\", \"x/y.rs\"]", "longest_file_name(&paths)", 'Some("very_long.rs")', setup=f'let paths = {paths_lit(["src/main.rs", "lib/very_long.rs", "x/y.rs"])};'),
+     T("tie_goes_to_the_first", "[\"a/xx\", \"b/yy\"]", "longest_file_name(&paths)", 'Some("xx")', setup=f'let paths = {paths_lit(["a/xx", "b/yy"])};'),
+     T("empty_inputs", "slug(\"\"), clean_lines(\"\"), longest_file_name([])", '(slug(""), clean_lines(""), longest_file_name(&[]))', '(std::borrow::Cow::Borrowed(""), Vec::<&str>::new(), None)')],
+    [ALLOC_COUNTER,
+     T("slug_uppercase_is_owned", "slug(\"ABC\") is owned", 'matches!(slug("ABC"), std::borrow::Cow::Owned(_))', "true"),
+     T("slug_unicode", "slug(\"Ünïcode Straße\")", 'slug("Ünïcode Straße")', '"ünïcode-straße"'),
+     T("slug_non_ascii_uppercase", "slug(\"Ünï\")", 'slug("Ünï")', '"ünï"'),
+     T("slug_tabs_newlines", "slug(\"a\\tb\\nc\")", 'slug("a\\tb\\nc")', '"a-b-c"'),
+     T("slug_leading_space_is_owned", "slug(\" a\")", '(slug(" a").clone(), matches!(slug(" a"), std::borrow::Cow::Owned(_)))', '(std::borrow::Cow::<str>::Borrowed("a"), true)'),
+     T("no_slash", "[\"plain\", \"a/bc\"]", "longest_file_name(&paths)", 'Some("plain")', setup=f'let paths = {paths_lit(["plain", "a/bc"])};'),
+     T("trailing_slash", "[\"dir/\", \"a/b\"]", "longest_file_name(&paths)", 'Some("b")', setup=f'let paths = {paths_lit(["dir/", "a/b"])};'),
+     T("clean_lines_crlf", "clean_lines(\"x\\r\\ny\\r\\n\")", 'clean_lines("x\\r\\ny\\r\\n")', 'vec!["x", "y"]'),
+     T("results_borrow_the_input", "clean_lines points into the text", 'clean_lines(&text)[0].as_ptr() == text[2..].as_ptr()', "true", setup='let text = String::from("  q\\n");'),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6302);
+         for _ in 0..300 {
+             let len = rng.below(10);
+             let text = rng.string(len, "aB -\n/");
+             let want_slug = text.split_whitespace().collect::<Vec<_>>().join("-").to_lowercase();
+             check!(format!("slug({text:?})"), slug(&text).into_owned(), want_slug.clone());
+             check!(format!("slug({text:?}) borrows iff unchanged"), matches!(slug(&text), std::borrow::Cow::Borrowed(_)), want_slug == text);
+             let want_lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+             check!(format!("clean_lines({text:?})"), clean_lines(&text), want_lines.clone());
+             let paths: Vec<String> = want_lines.iter().map(|l| l.to_string()).collect();
+             let mut best: Option<&str> = None;
+             for p in &paths {
+                 let n = p.rsplit('/').next().unwrap();
+                 if best.map_or(true, |b| n.len() > b.len()) {
+                     best = Some(n);
+                 }
+             }
+             check!(format!("longest_file_name({paths:?})"), longest_file_name(&paths), best);
+         }
+     }
+
+     #[test]
+     fn unchanged_slug_does_not_allocate() {
+         let text = "already-lowercase-".repeat(10_000);
+         let (s, n) = allocs(|| slug(&text).len());
+         check!("slug of a 180000-byte slug: allocations", (s, n), (180_000, 0));
+     }
+     """],
+    [("rust", "A `String` or `Vec` created inside the function is dropped when it returns, so no reference to it can escape (E0515). Return the owned value itself."),
+     ("rust", "`slug` often doesn't need a new string at all. `Cow<'_, str>` is either `Borrowed(&str)` from the input or `Owned(String)`: decide which before allocating."),
+     ("rust", "`fn f(paths: Vec<String>) -> Option<&str>` has no input lifetime for the output to borrow (E0106). If the function doesn't need to own the paths, take `&[String]`. And `max_by_key` returns the *last* maximum.")],
+    ("""A reference can only point at something that outlives the call: an input, or `'static` data. Locals, including values built with `format!`, `join` or `collect`, die at the return, so the fix is to hand them back by value (`String`, `Vec<&str>`, whose elements still borrow the input). A parameter taken by value is a local too, which is why `longest_file_name(paths: Vec<String>) -> Option<&str>` has nothing to borrow from; taking `&[String]` makes the paths the caller's, and the result borrows them. `Cow` is the middle ground when the output is often identical to the input: borrow in that case and own only when something changed, so the common path allocates nothing. Separately, `Iterator::max_by_key` keeps the last of equal maxima; \"first on a tie\" needs a strict comparison.
+
+Syntax to remember: `fn slug(text: &str) -> Cow<'_, str>` · `Cow::Borrowed(text)` / `Cow::Owned(s)` · `c.to_lowercase().eq([c])` (lowercasing leaves `c` alone).""", "O(n)", "O(n) only when the slug differs"),
+    "When would you return `impl Iterator<Item = &str> + '_` from `clean_lines` instead of a `Vec`, and what would the caller give up?",
+    ["Nothing created inside a function can be borrowed by its result.", "`Cow` borrows when it can and owns when it must.", "`max_by_key` returns the last maximum."],
+    rules=dict(methods=["leak", "clone"]),
+    wrong=dict(
+        last_on_a_tie=sub(LOCAL_SOLUTION, "if best.map_or(true, |b| name.len() > b.len()) {", "if best.map_or(true, |b| name.len() >= b.len()) {"),
+        always_owned=sub(LOCAL_SOLUTION, "    if text.chars().all(|c| !c.is_whitespace() && c.to_lowercase().eq([c])) {\n        return Cow::Borrowed(text);\n    }\n", ""),
+        borrows_uppercase=sub(LOCAL_SOLUTION, "c.to_lowercase().eq([c])", "!c.is_ascii_uppercase()"),
+    ),
+))
+
+LONGEST_STARTER = r"""
+/// The longer of `a` and `b`; `a` on a tie.
+pub fn longest(a: &str, b: &str) -> &str {
+    if b.len() > a.len() {
+        b
+    } else {
+        a
+    }
+}
+
+/// The longest of `words` (the first on a tie), or None if there are none.
+pub fn longest_of(words: &[&str]) -> Option<&str> {
+    let mut best: Option<&str> = None;
+    for &w in words {
+        if best.map_or(true, |b| w.len() > b.len()) {
+            best = Some(w);
         }
     }
+    best
+}
+
+/// Makes `best` point at `line` if `line` is longer. Returns whether it did.
+pub fn keep_longest(best: &mut &str, line: &str) -> bool {
+    if line.len() > best.len() {
+        *best = line;
+        true
+    } else {
+        false
+    }
+}
+"""
+
+LONGEST_SOLUTION = LONGEST_STARTER
+for _old, _new in [
+    ("pub fn longest(a: &str, b: &str) -> &str {", "pub fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {"),
+    ("pub fn longest_of(words: &[&str]) -> Option<&str> {\n    let mut best: Option<&str> = None;", "pub fn longest_of<'a>(words: &[&'a str]) -> Option<&'a str> {\n    let mut best: Option<&'a str> = None;"),
+    ("pub fn keep_longest(best: &mut &str, line: &str) -> bool {", "pub fn keep_longest<'a>(best: &mut &'a str, line: &'a str) -> bool {"),
+]:
+    LONGEST_SOLUTION = sub(LONGEST_SOLUTION, _old, _new)
+
+P.append(fix(
+    "longest", "longest(a, b), and what the result borrows", "easy", "elision", ["E0106", "lifetime parameters", "&mut &'a str"],
+    """
+        None of these compiles. Fix the three signatures, with the lifetimes callers need: the tests keep
+        `longest_of`'s result after the slice of words is gone, and store lines of their own into
+        `keep_longest`'s `best`. No copying.
     """,
-    [T("longer_first", '"apple", "fig"', 'longest("apple", "fig")', '"apple"'),
-     T("tie", '"ab", "cd"', 'longest("ab", "cd")', '"ab"'),
-     T("longer_second", '"abc", "abcd"', 'longest("abc", "abcd")', '"abcd"'),
-     T("both_empty", '"", ""', 'longest("", "")', '""'),
-     T("one_empty", '"", "a"', 'longest("", "a")', '"a"')],
-    [T("longer_second", '"abc", "abcd"', 'longest("abc", "abcd")', '"abcd"'),
-     T("owned_inputs", "two Strings", "longest(&a, &b)", '"xyz!"', setup='let a = String::from("xy");\nlet b = String::from("xyz!");'),
-     T("tie_returns_first_pointer", '"ab", "ab" (two different Strings)', "std::ptr::eq(longest(&a, &b), a.as_str())", "true",
-       setup='let a = String::from("ab");\nlet b = String::from("ab");'),
-     T("second_empty", '"a", ""', 'longest("a", "")', '"a"'),
-     T("unicode", '"é", "ab c"', 'longest("é", "ab c")', '"ab c"'),
-     T("spaces_count", '"a  ", "bc"', 'longest("a  ", "bc")', '"a  "'),
-     T("used_while_both_live", "result used inside the scope of the shorter-lived String", "len", "5",
-       setup='let a = String::from("hello");\nlet len;\n{\n    let b = String::from("hi");\n    len = longest(&a, &b).len();\n}'),
-     T("long_strings", "10000 × \"a\" vs 10001 × \"b\"", 'longest(&"a".repeat(10_000), &"b".repeat(10_001)).len()', "10_001"),
-     """
+    LONGEST_STARTER,
+    LONGEST_SOLUTION,
+    [T("longest_example", "longest(\"hi\", \"hello\")", 'longest("hi", "hello")', '"hello"'),
+     T("longest_tie", "longest(\"ab\", \"cd\")", 'longest("ab", "cd")', '"ab"'),
+     T("longest_of_outlives_the_slice", "longest_of a temporary Vec of [\"a\", \"ccc\", \"bb\"]", "w", 'Some("ccc")',
+       setup='let (a, b, c) = (String::from("a"), String::from("ccc"), String::from("bb"));\nlet w = longest_of(&vec![a.as_str(), b.as_str(), c.as_str()]);'),
+     T("keep_longest_in_a_loop", "best = \"\"; keep_longest over lines of \"ab\\nabcd\\nxyzw\\na\"", "(best, changed)", '("abcd", 2)',
+       setup='let text = String::from("ab\\nabcd\\nxyzw\\na");\nlet mut best: &str = "";\nlet mut changed = 0;\nfor line in text.lines() {\n    if keep_longest(&mut best, line) {\n        changed += 1;\n    }\n}'),
+     T("longest_of_empty", "longest_of([])", "longest_of(&[])", "None")],
+    [T("longest_empty_strings", "longest(\"\", \"\")", 'longest("", "")', '""'),
+     T("longest_by_bytes", "longest(\"ééé\", \"abcd\")", 'longest("ééé", "abcd")', '"ééé"'),
+     T("longest_of_first_tie", "longest_of([\"xy\", \"ab\", \"z\"])", 'longest_of(&["xy", "ab", "z"])', 'Some("xy")'),
+     T("longest_of_single", "longest_of([\"\"])", 'longest_of(&[""])', 'Some("")'),
+     T("keep_longest_tie_keeps", "best \"ab\"; keep_longest(\"cd\")", '{ let mut best = "ab"; (keep_longest(&mut best, "cd"), best) }', '(false, "ab")'),
+     T("keep_longest_from_static", "best starts as a literal, then a line from a String", '{ let s = String::from("longer"); let mut best = "x"; keep_longest(&mut best, &s); best.to_string() }', '"longer".to_string()'),
+     T("longest_mixed_lifetimes", "longest(literal, String) used while the String lives", '{ let s = String::from("dynamic"); longest("st", &s).len() }', "7"),
+     T("result_is_an_input", "longest returns one of its inputs, not a copy", 'longest(&a, &b).as_ptr() == b.as_ptr()', "true", setup='let (a, b) = (String::from("x"), String::from("yy"));'),
+     r"""
      #[test]
      fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(303);
+         let mut rng = anneal_prelude::Rng::new(6303);
          for _ in 0..300 {
-             let (la, lb) = (rng.below(5), rng.below(5));
-             let a = rng.string(la, "xy");
-             let b = rng.string(lb, "xy");
-             let want = if b.len() > a.len() { b.as_str() } else { a.as_str() };
-             check!(format!("a = {a:?}, b = {b:?}"), std::ptr::eq(longest(&a, &b), want), true);
+             let n = rng.below(6);
+             let mut owned = Vec::new();
+             for _ in 0..n {
+                 let len = rng.below(5);
+                 owned.push(rng.string(len, "ab"));
+             }
+             let words: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+             let mut want: Option<&str> = None;
+             for &w in &words {
+                 if want.map_or(true, |b| w.len() > b.len()) {
+                     want = Some(w);
+                 }
+             }
+             check!(format!("longest_of({words:?})"), longest_of(&words), want);
+             let mut best = "";
+             for &w in &words {
+                 keep_longest(&mut best, w);
+             }
+             check!(format!("keep_longest over {words:?}"), best, want.unwrap_or(""));
+             if n >= 2 {
+                 let expect = if words[1].len() > words[0].len() { words[1] } else { words[0] };
+                 check!(format!("longest({:?}, {:?})", words[0], words[1]), longest(words[0], words[1]), expect);
+             }
          }
      }
      """],
-    [("rust", "The result could borrow from either input, and elision can't choose between two."),
-     ("rust", "Declare one lifetime `'a` and use it for both inputs and the output: the result lives as long as the shorter of the two.")],
-    ("`'a` becomes the overlap of the two borrows, which is exactly as long as the result can safely be used.", "O(1)", "O(1)"),
-    "Why can't the compiler infer the output lifetime from the body?",
-    ["Two reference inputs and a reference output need an explicit lifetime.", "One shared `'a` means 'valid while both are'."],
-    rules=dict(lines=1),
+    [("rust", "`longest` has two reference inputs and no `self`, so elision can't choose (E0106). The result may be either input, so both get the same lifetime `'a`: the result lives as long as the shorter of the two."),
+     ("rust", "`longest_of(words: &[&str])` has two lifetimes hiding in one parameter: the slice's and the strings'. That's two input lifetimes, so elision gives up. Tying the output to the slice (`&'a [&'a str]`) compiles but dies with the slice; name only the strings' lifetime: `&[&'a str]`."),
+     ("rust", "In `keep_longest(best: &mut &str, line: &str)` the three elided lifetimes are all different, so `*best = line` would store a reference that may die first. `line` must live as long as what `best` holds.")],
+    ("""A lifetime parameter is a constraint the caller must satisfy, and the signature has to state exactly the one the body needs. `longest` may return either input, so both share `'a`, and the result lives no longer than the shorter-lived argument. `longest_of` is the subtle one: `&[&str]` hides two lifetimes, the borrow of the slice and the borrow of the strings. Tying the output to the slice would make the answer die with a temporary `Vec` even though it points into longer-lived strings. Naming the inner one (`&[&'a str] -> Option<&'a str>`) fixes that. `keep_longest` writes `line` into `*best`, so `line` must outlive what `best` holds: `&mut &'a str, &'a str`. The outer `&mut` keeps its own, shorter lifetime.
+
+Syntax to remember: `fn longest<'a>(a: &'a str, b: &'a str) -> &'a str` · `fn longest_of<'a>(words: &[&'a str]) -> Option<&'a str>` · `fn keep_longest<'a>(best: &mut &'a str, line: &'a str) -> bool`.""", "O(n)", "O(1)"),
+    "In `keep_longest`, why must the lifetime inside `&mut &'a str` match `line`'s exactly, while a `&'a str` argument can be shortened freely?",
+    ["Two inputs, no `self`: write the lifetime.", "`&[&'a str]` has two lifetimes; tie outputs to the inner one.", "Storing through `&mut &'a T` requires the new value to live for `'a`."],
+    rules=dict(methods=["clone", "to_string", "to_owned", "leak"], lines=5),
     wrong=dict(
-        tie_goes_to_b="""
-            /// The longer of `a` and `b`; `a` on a tie.
-            pub fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
-                if b.len() >= a.len() {
-                    b
-                } else {
-                    a
-                }
-            }
-        """,
-        ignores_whitespace="""
-            /// The longer of `a` and `b`; `a` on a tie.
-            pub fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
-                if b.trim().len() > a.trim().len() {
-                    b
-                } else {
-                    a
-                }
-            }
-        """,
+        tie_goes_to_b=sub(LONGEST_SOLUTION, "    if b.len() > a.len() {", "    if b.len() >= a.len() {"),
+        longest_of_last=sub(LONGEST_SOLUTION, "if best.map_or(true, |b| w.len() > b.len()) {", "if best.map_or(true, |b| w.len() >= b.len()) {"),
+        keep_on_tie=sub(LONGEST_SOLUTION, "    if line.len() > best.len() {", "    if line.len() >= best.len() {"),
     ),
 ))
 
+WRONG_INPUT_STARTER = r"""
+use std::collections::HashMap;
+
+/// The part of `line` after `prefix`, if `line` starts with it.
+pub fn after<'a>(line: &'a str, prefix: &'a str) -> Option<&'a str> {
+    line.strip_prefix(prefix)
+}
+
+/// The value for `key`.
+pub fn lookup<'m>(map: &'m HashMap<String, String>, key: &'m str) -> Option<&'m str> {
+    map.get(key).map(String::as_str)
+}
+
+/// `value`, or `default` when there's none.
+pub fn or_default<'a>(value: Option<&'a str>, default: &'a str) -> &'a str {
+    value.unwrap_or(default)
+}
+
+/// Settings looked up in `local` first, then in `global`. Global settings usually live for the whole
+/// program; local ones for one request.
+pub struct Layered<'g, 'l> {
+    pub global: &'g [(&'g str, &'g str)],
+    pub local: &'l [(&'l str, &'l str)],
+}
+
+impl<'g, 'l> Layered<'g, 'l> {
+    pub fn get(&self, key: &str) -> Option<&'l str> {
+        self.local.iter().chain(self.global.iter()).find(|e| e.0 == key).map(|e| e.1)
+    }
+}
+"""
+
+WRONG_INPUT_SOLUTION = WRONG_INPUT_STARTER
+for _old, _new in [
+    ("pub fn after<'a>(line: &'a str, prefix: &'a str) -> Option<&'a str> {", "pub fn after<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {"),
+    ("pub fn lookup<'m>(map: &'m HashMap<String, String>, key: &'m str) -> Option<&'m str> {", "pub fn lookup<'m>(map: &'m HashMap<String, String>, key: &str) -> Option<&'m str> {"),
+    ("impl<'g, 'l> Layered<'g, 'l> {", "impl<'g: 'l, 'l> Layered<'g, 'l> {"),
+]:
+    WRONG_INPUT_SOLUTION = sub(WRONG_INPUT_SOLUTION, _old, _new)
+
+GLOBAL = 'const GLOBAL: &[(&str, &str)] = &[("color", "auto"), ("pager", "less")];'
+
 P.append(fix(
-    "fix-output-borrows-wrong-input", "Fix: the output borrows the wrong input", "easy", "elision", ["over-constrained lifetimes"],
-    "`after` compiles, but callers can't use it with a temporary prefix. Fix the signature so the tests compile.",
+    "fix-output-borrows-wrong-input", "Fix: lifetimes that tie too much, or too little", "easy", "elision", ["over-constrained lifetimes", "'a: 'b", "outlives bounds"],
     """
-    /// The part of `line` after `prefix`, if `line` starts with it.
-    pub fn after<'a>(line: &'a str, prefix: &'a str) -> Option<&'a str> {
-        line.strip_prefix(prefix)
-    }
+        `after` and `lookup` compile, but tie their results to an input they don't borrow from, so the tests
+        (which pass temporaries there) don't compile. `Layered::get` doesn't compile at all: it returns a
+        global setting as if it were a local one. Fix all three with lifetimes alone. `or_default` is right as
+        it is.
     """,
-    """
-    /// The part of `line` after `prefix`, if `line` starts with it.
-    pub fn after<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {
-        line.strip_prefix(prefix)
-    }
-    """,
-    [T("temporary_prefix", "line \"key: value\", prefix dropped before use", "rest", 'Some("value")',
-       setup='let line = String::from("key: value");\nlet rest;\n{\n    let p = String::from("key: ");\n    rest = after(&line, &p);\n}'),
-     T("no_match", '"abc", "x"', 'after("abc", "x")', "None"),
-     T("whole", '"abc", "abc"', 'after("abc", "abc")', 'Some("")'),
-     T("empty_prefix", '"abc", ""', 'after("abc", "")', 'Some("abc")'),
-     T("only_at_the_start", '"a key: b", "key: "', 'after("a key: b", "key: ")', "None")],
-    [T("whole", '"abc", "abc"', 'after("abc", "abc")', 'Some("")'),
-     T("prefix_longer", '"ab", "abc"', 'after("ab", "abc")', "None"),
-     T("empty_line", '"", ""', 'after("", "")', 'Some("")'),
-     T("empty_line_nonempty_prefix", '"", "a"', 'after("", "a")', "None"),
-     T("repeated_prefix_removed_once", '"abab", "ab"', 'after("abab", "ab")', 'Some("ab")'),
-     T("case_sensitive", '"Key: v", "key: "', 'after("Key: v", "key: ")', "None"),
-     T("unicode", '"héllo", "hé"', 'after("héllo", "hé")', 'Some("llo")'),
-     T("borrows_line", "result points into line", "std::ptr::eq(rest.as_ptr(), line[4..].as_ptr())", "true",
-       setup='let line = String::from("key=value");\nlet rest = after(&line, "key=").unwrap();'),
-     """
+    WRONG_INPUT_STARTER,
+    WRONG_INPUT_SOLUTION,
+    [T("after_with_temporary_prefix", "after(\"key=value\", a temporary \"key=\")", "v", 'Some("value")', setup='let line = String::from("key=value");\nlet v = after(&line, &String::from("key="));'),
+     T("lookup_with_temporary_key", "map {a: 1}; lookup of a temporary \"a\"", "v", 'Some("1")', setup='let map = std::collections::HashMap::from([("a".to_string(), "1".to_string())]);\nlet v = lookup(&map, &"a".to_string());'),
+     T("layered_local_wins", "global {color: auto, pager: less}; local {color: never}", '(layered.get("color"), layered.get("pager"), layered.get("x"))', '(Some("never"), Some("less"), None)',
+       setup=GLOBAL + '\nlet local = [("color", "never")];\nlet layered = Layered { global: GLOBAL, local: &local };'),
+     T("layered_local_from_a_string", "local value borrowed from a request String", 'layered.get("user")', 'Some("ann")',
+       setup=GLOBAL + '\nlet req = String::from("user=ann");\nlet (k, v) = req.split_once(\'=\').unwrap();\nlet local = [(k, v)];\nlet layered = Layered { global: GLOBAL, local: &local };'),
+     T("or_default_example", "or_default(None, \"d\"), or_default(Some(\"v\"), \"d\")", '(or_default(None, "d"), or_default(Some("v"), "d"))', '("d", "v")')],
+    [T("after_no_match", "after(\"abc\", \"x\")", 'after("abc", "x")', "None"),
+     T("after_empty_prefix", "after(\"abc\", \"\")", 'after("abc", "")', 'Some("abc")'),
+     T("after_whole_line", "after(\"abc\", \"abc\")", 'after("abc", "abc")', 'Some("")'),
+     T("lookup_missing", "map {}; lookup x", 'lookup(&m, "x")', "None", setup="let m = std::collections::HashMap::new();"),
+     T("layered_empty_local", "local {}", 'layered.get("pager")', 'Some("less")', setup=GLOBAL + '\nlet layered = Layered { global: GLOBAL, local: &[] };'),
+     T("layered_first_local_duplicate", "local {a: 1, a: 2}", 'layered.get("a")', 'Some("1")', setup=GLOBAL + '\nlet local = [("a", "1"), ("a", "2")];\nlet layered = Layered { global: GLOBAL, local: &local };'),
+     T("after_result_points_into_line", "after's result borrows the line", 'after(&line, "ab").unwrap().as_ptr() == line[2..].as_ptr()', "true", setup='let line = String::from("abcd");'),
+     T("lookup_result_outlives_key_scope", "lookup result used after the key's block", "v.len()", "3", setup='let map = std::collections::HashMap::from([("k".to_string(), "val".to_string())]);\nlet v = {\n    let key = String::from("k");\n    lookup(&map, &key).unwrap()\n};'),
+     r"""
      #[test]
-     fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(304);
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6304);
          for _ in 0..300 {
-             let (ln, pn) = (rng.below(6), rng.below(4));
-             let line = rng.string(ln, "ab");
-             let prefix = rng.string(pn, "ab");
-             let want = if line.len() >= prefix.len() && line[..prefix.len()] == prefix { Some(&line[prefix.len()..]) } else { None };
-             check!(format!("line = {line:?}, prefix = {prefix:?}"), after(&line, &prefix), want);
+             let len = rng.below(5);
+             let line = rng.string(len, "ab");
+             let plen = rng.below(3);
+             let prefix = rng.string(plen, "ab");
+             check!(format!("after({line:?}, {prefix:?})"), after(&line, &prefix), line.strip_prefix(prefix.as_str()));
+             let keys = ["a", "b", "c"];
+             let global: Vec<(&str, &str)> = keys.iter().filter(|_| rng.bool()).map(|&k| (k, "g")).collect();
+             let local: Vec<(&str, &str)> = keys.iter().filter(|_| rng.bool()).map(|&k| (k, "l")).collect();
+             let layered = Layered { global: &global, local: &local };
+             for k in keys {
+                 let want = local.iter().chain(global.iter()).find(|e| e.0 == k).map(|e| e.1);
+                 check!(format!("global {global:?}, local {local:?}; get({k})"), layered.get(k), want);
+             }
          }
      }
      """],
-    [("rust", "The result is a slice of `line` only. Which parameter does it need to be tied to?")],
-    ("Tying `prefix` to `'a` forces the prefix to live as long as the result. Only list a lifetime on an input when the output really borrows from it.", "O(n)", "O(1)"),
-    "What does the signature say to callers, and what does it say to the function body?",
-    ["Put a lifetime only on the inputs the output borrows from."],
-    rules=dict(lines=1),
+    [("rust", "A lifetime on a parameter that the output doesn't borrow from still constrains the caller: they must keep that argument alive as long as the result. Give such parameters their own (elided) lifetime."),
+     ("rust", "`Layered::get` returns `&'l str`, but a global value is a `&'g str`. That's fine only when `'g` outlives `'l`. Say so: `impl<'g: 'l, 'l>` (or `where 'g: 'l`)."),
+     ("rust", "`or_default` really can return either input, so there one shared lifetime is right.")],
+    ("""Over-constraining is the quiet lifetime bug: `after<'a>(line: &'a str, prefix: &'a str) -> Option<&'a str>` compiles, but forces every caller to keep `prefix` alive as long as the result, although the result only ever points into `line`. The fix is to leave `prefix` (and `lookup`'s `key`) with an elided lifetime of its own. The opposite case needs a relation between lifetimes: `get` may return a global value where a local-lifetime one is promised, which is sound only if `'g: 'l` (\"`'g` outlives `'l`\"). With that bound, `&'g str` shrinks to `&'l str` by covariance. The bound costs callers nothing here, since global settings are the longer-lived ones.
+
+Syntax to remember: `fn after<'a>(line: &'a str, prefix: &str) -> Option<&'a str>` · `impl<'g: 'l, 'l> Layered<'g, 'l>` · or `struct Layered<'g: 'l, 'l>` / `where 'g: 'l`.""", "O(n)", "O(1)"),
+    "Why does `'g: 'l` on the impl suffice, when the struct itself doesn't declare it?",
+    ["Tie outputs only to the inputs they borrow from.", "`'a: 'b` lets a longer borrow stand in for a shorter one.", "Some functions genuinely need one lifetime for two inputs."],
+    rules=dict(methods=["clone", "to_string", "to_owned", "leak"], lines=3),
     wrong=dict(
-        finds_prefix_anywhere="""
-            /// The part of `line` after `prefix`, if `line` starts with it.
-            pub fn after<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {
-                line.split_once(prefix).map(|(_, rest)| rest)
-            }
-        """,
-        trim_start_matches="""
-            /// The part of `line` after `prefix`, if `line` starts with it.
-            pub fn after<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {
-                Some(line.trim_start_matches(prefix))
-            }
-        """,
+        global_wins=sub(WRONG_INPUT_SOLUTION, "self.local.iter().chain(self.global.iter())", "self.global.iter().chain(self.local.iter())"),
+        after_contains=sub(WRONG_INPUT_SOLUTION, "    line.strip_prefix(prefix)\n", "    line.find(prefix).map(|i| &line[i + prefix.len()..])\n"),
+        default_first=sub(WRONG_INPUT_SOLUTION, "    value.unwrap_or(default)\n", "    if default.is_empty() { value.unwrap_or(default) } else { default }\n"),
     ),
 ))
 
+CAPTURE_STARTER = r"""
+/// Words of `text` longer than `min` chars, as owned `String`s.
+pub fn long_words(text: &str, min: usize) -> impl Iterator<Item = String> {
+    text.split_whitespace().filter(move |w| w.chars().count() > min).map(String::from)
+}
+
+/// Pairs up `a` and `b` element by element (stopping at the shorter one).
+pub fn pairs<'a, 'b>(a: &'a [u32], b: &'b [u32]) -> impl Iterator<Item = (u32, u32)> + 'a + 'b {
+    a.iter().copied().zip(b.iter().copied())
+}
+
+/// The values of `v`, sorted, as a snapshot: later changes to `v` don't affect it.
+pub fn sorted_snapshot(v: &Vec<u32>) -> impl Iterator<Item = u32> + '_ {
+    let mut copy = v.to_vec();
+    copy.sort_unstable();
+    copy.into_iter()
+}
+"""
+
+CAPTURE_SOLUTION = CAPTURE_STARTER
+for _old, _new in [
+    ("pub fn long_words(text: &str, min: usize) -> impl Iterator<Item = String> {", "pub fn long_words(text: &str, min: usize) -> impl Iterator<Item = String> + '_ {"),
+    ("-> impl Iterator<Item = (u32, u32)> + 'a + 'b {", "-> impl Iterator<Item = (u32, u32)> + use<'a, 'b> {"),
+    ("pub fn sorted_snapshot(v: &Vec<u32>) -> impl Iterator<Item = u32> + '_ {", "pub fn sorted_snapshot(v: &Vec<u32>) -> impl Iterator<Item = u32> + use<> {"),
+]:
+    CAPTURE_SOLUTION = sub(CAPTURE_SOLUTION, _old, _new)
+
 P.append(fix(
-    "fix-impl-trait-hides-borrow", "Fix: impl Trait hides a borrow (E0700)", "medium", "elision", ["E0700", "impl Trait", "+ '_"],
-    "`long_words` doesn't compile in edition 2021, even though its items are owned `String`s.",
+    "fix-impl-trait-hides-borrow", "Fix: what an impl Trait return captures", "medium", "elision", ["E0700", "impl Trait", "+ '_", "use<..>", "precise capturing"],
     """
-    /// Words of `text` longer than `min` characters, as owned Strings.
-    pub fn long_words(text: &str, min: usize) -> impl Iterator<Item = String> {
-        text.split_whitespace().filter(move |w| w.chars().count() > min).map(String::from)
-    }
+        Each function returns `impl Iterator`, and each says the wrong thing about what the hidden iterator
+        borrows. `long_words` and `pairs` don't compile; `sorted_snapshot` compiles but claims to borrow `v`,
+        so the tests (which change `v` while the snapshot is alive) don't. Fix only the return types.
     """,
-    """
-    /// Words of `text` longer than `min` characters, as owned Strings.
-    pub fn long_words(text: &str, min: usize) -> impl Iterator<Item = String> + '_ {
-        text.split_whitespace().filter(move |w| w.chars().count() > min).map(String::from)
-    }
-    """,
-    [T("filters", '"a quick brown fox", 3', 'long_words("a quick brown fox", 3).collect::<Vec<_>>()', 'vec!["quick".to_string(), "brown".to_string()]'),
-     T("none", '"a b", 5', 'long_words("a b", 5).count()', "0"),
-     T("empty", '"", 0', 'long_words("", 0).count()', "0"),
-     T("strictly_longer", '"abc abcd", 3', 'long_words("abc abcd", 3).collect::<Vec<_>>()', 'vec!["abcd".to_string()]'),
-     T("min_zero_keeps_all", '"x yy", 0', 'long_words("x yy", 0).collect::<Vec<_>>()', 'vec!["x".to_string(), "yy".to_string()]')],
-    [T("unicode", '"héllo hi", 4', 'long_words("héllo hi", 4).collect::<Vec<_>>()', 'vec!["héllo".to_string()]'),
-     T("chars_not_bytes", '"héllo", 5', 'long_words("héllo", 5).count()', "0"),
-     T("emoji", '"😀😀 a", 1', 'long_words("😀😀 a", 1).collect::<Vec<_>>()', 'vec!["😀😀".to_string()]'),
-     T("tabs_and_newlines", '"alpha\\tbeta\\ngamma", 4', 'long_words("alpha\\tbeta\\ngamma", 4).collect::<Vec<_>>()', 'vec!["alpha".to_string(), "gamma".to_string()]'),
-     T("only_spaces", '"   ", 0', 'long_words("   ", 0).count()', "0"),
-     T("order_kept", '"ccc a bbb", 2', 'long_words("ccc a bbb", 2).collect::<Vec<_>>()', 'vec!["ccc".to_string(), "bbb".to_string()]'),
-     T("words_outlive_text", "collect, then drop the text", "words", 'vec!["longer".to_string()]',
-       setup='let words: Vec<String>;\n{\n    let text = String::from("a longer b");\n    words = long_words(&text, 2).collect();\n}'),
-     T("lazy", '"one three five", 3: take(1)', 'long_words("one three five", 3).take(1).collect::<Vec<_>>()', 'vec!["three".to_string()]'),
-     """
+    CAPTURE_STARTER,
+    CAPTURE_SOLUTION,
+    [T("long_words_example", "long_words(\"a quick brown fox\", 3)", 'long_words("a quick brown fox", 3).collect::<Vec<_>>()', 'vec!["quick".to_string(), "brown".to_string()]'),
+     T("pairs_example", "pairs([1, 2, 3], [10, 20])", "pairs(&[1, 2, 3], &[10, 20]).collect::<Vec<_>>()", "vec![(1, 10), (2, 20)]"),
+     T("pairs_lifetimes_differ", "pairs(a long-lived slice, a temporary Vec) collected in the temporary's scope", "got", "vec![(5, 7)]",
+       setup="let a = vec![5u32, 6];\nlet got: Vec<(u32, u32)> = {\n    let b = vec![7u32];\n    pairs(&a, &b).collect()\n};"),
+     T("snapshot_survives_changes", "take a snapshot of [3, 1, 2], then push 0 to v", "(snap.collect::<Vec<_>>(), v)", "(vec![1, 2, 3], vec![3, 1, 2, 0])",
+       setup="let mut v = vec![3u32, 1, 2];\nlet snap = sorted_snapshot(&v);\nv.push(0);"),
+     T("long_words_counts_chars", "long_words(\"héllo abc\", 4)", 'long_words("héllo abc", 4).collect::<Vec<_>>()', 'vec!["héllo".to_string()]')],
+    [T("long_words_none", "long_words(\"a b\", 5)", 'long_words("a b", 5).count()', "0"),
+     T("long_words_strict", "long_words(\"abcd abcde\", 4)", 'long_words("abcd abcde", 4).collect::<Vec<_>>()', 'vec!["abcde".to_string()]'),
+     T("long_words_whitespace", "long_words(\"\\tlong\\nwords  \", 0)", 'long_words("\\tlong\\nwords  ", 0).collect::<Vec<_>>()', 'vec!["long".to_string(), "words".to_string()]'),
+     T("pairs_empty", "pairs([], [1])", "pairs(&[], &[1]).count()", "0"),
+     T("pairs_first_shorter", "pairs([1], [2, 3])", "pairs(&[1], &[2, 3]).collect::<Vec<_>>()", "vec![(1, 2)]"),
+     T("snapshot_empty", "sorted_snapshot([])", "sorted_snapshot(&vec![]).count()", "0"),
+     T("snapshot_duplicates", "sorted_snapshot([2, 2, 1])", "sorted_snapshot(&vec![2, 2, 1]).collect::<Vec<_>>()", "vec![1, 2, 2]"),
+     T("snapshot_outlives_v", "snapshot, then drop v", "{ let s = { let v = vec![9u32, 8]; sorted_snapshot(&v) }; s.collect::<Vec<_>>() }", "vec![8, 9]"),
+     r"""
      #[test]
      fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(305);
+         let mut rng = anneal_prelude::Rng::new(6305);
          for _ in 0..300 {
-             let n = rng.below(14);
-             let text = rng.string(n, "aé ");
-             let min = rng.below(4);
-             let want: Vec<String> = text.split(' ').filter(|w| !w.is_empty() && w.chars().count() > min).map(String::from).collect();
-             check!(format!("text = {text:?}, min = {min}"), long_words(&text, min).collect::<Vec<_>>(), want);
+             let (n, m) = (rng.below(6), rng.below(6));
+             let a: Vec<u32> = rng.vec(n, 0, 9);
+             let b: Vec<u32> = rng.vec(m, 0, 9);
+             let want: Vec<(u32, u32)> = a.iter().copied().zip(b.iter().copied()).collect();
+             check!(format!("pairs({a:?}, {b:?})"), pairs(&a, &b).collect::<Vec<_>>(), want);
+             let mut v = a.clone();
+             let snap = sorted_snapshot(&v);
+             v.clear();
+             let mut want = a.clone();
+             want.sort();
+             check!(format!("sorted_snapshot({a:?})"), snap.collect::<Vec<_>>(), want);
+             let len = rng.below(12);
+             let text = rng.string(len, "ab é");
+             let min = rng.below(3);
+             let want: Vec<String> = text.split_whitespace().filter(|w| w.chars().count() > min).map(String::from).collect();
+             check!(format!("long_words({text:?}, {min})"), long_words(&text, min).collect::<Vec<_>>(), want);
          }
      }
      """],
-    [("rust", "The iterator still reads from `text` while you iterate, but `impl Iterator<Item = String>` doesn't say so."),
-     ("rust", "Add `+ '_` to the return type to say the iterator borrows from the input.")],
-    ("In edition 2021, `impl Trait` only captures lifetimes that appear in its bounds; `+ '_` adds the input's. Edition 2024 captures all in-scope lifetimes by default, and `use<..>` narrows it.", "O(n)", "O(1)"),
-    "When would you want an `impl Trait` return type that does not capture an input lifetime?",
-    ["`impl Trait` return types and captured lifetimes.", "`+ '_` as 'borrows from the input'."],
-    rules=dict(lines=1),
+    [("rust", "In edition 2021, a returned `impl Trait` captures the function's type parameters but not its lifetimes, unless the bounds mention them. `long_words`'s iterator borrows `text`, so say so: `+ '_`."),
+     ("rust", "`+ 'a + 'b` means \"the hidden type outlives both `'a` and `'b`\", which a type holding a `&'a` and a `&'b` can't promise. Precise capturing says \"it may use these\" instead: `+ use<'a, 'b>`."),
+     ("rust", "`sorted_snapshot` returns an iterator over its own copy; claiming `+ '_` makes callers keep `v` borrowed. `use<>` (or no bound at all in edition 2021) says it captures nothing.")],
+    ("""The caller of a function returning `impl Trait` only sees the bounds, so the bounds must say which lifetimes the hidden type may hold. Edition 2021's rule: type parameters are captured automatically, lifetimes only if they appear in the bounds, hence E0700 for `long_words` until `+ '_` names the borrow. With two lifetimes, `+ 'a + 'b` is the wrong tool: it's an outlives bound, requiring the iterator to outlive each lifetime, which a type containing both references can't do unless one outlives the other. Precise capturing (`+ use<'a, 'b>`, stable since 1.82) states captures without outlives requirements. Edition 2024 flips the default: every in-scope lifetime is captured, and `use<>` (or `use<'a>`) opts out, which is what `sorted_snapshot` needs to let callers mutate `v` while the snapshot lives. Writing it now is correct in both editions.
+
+Syntax to remember: `-> impl Iterator<Item = String> + '_` · `-> impl Iterator<Item = (u32, u32)> + use<'a, 'b>` · `-> impl Iterator<Item = u32> + use<>` · generic: `+ use<'a, T>` (list the type parameters too).""", "O(n)", "O(n) for the snapshot"),
+    "Under edition 2024 rules, which of these three signatures would need a `use<..>` bound, and which would change meaning without one?",
+    ["2021: `impl Trait` captures type parameters, not lifetimes, unless named.", "`use<'a, 'b>` states captures; `+ 'a` is an outlives bound.", "2024 captures everything by default; `use<>` opts out."],
+    rules=dict(methods=["collect", "clone", "leak"], lines=3),
     wrong=dict(
-        counts_bytes="""
-            /// Words of `text` longer than `min` characters, as owned Strings.
-            pub fn long_words(text: &str, min: usize) -> impl Iterator<Item = String> + '_ {
-                text.split_whitespace().filter(move |w| w.len() > min).map(String::from)
-            }
-        """,
-        at_least_min="""
-            /// Words of `text` longer than `min` characters, as owned Strings.
-            pub fn long_words(text: &str, min: usize) -> impl Iterator<Item = String> + '_ {
-                text.split_whitespace().filter(move |w| w.chars().count() >= min).map(String::from)
-            }
-        """,
-        splits_on_spaces_only="""
-            /// Words of `text` longer than `min` characters, as owned Strings.
-            pub fn long_words(text: &str, min: usize) -> impl Iterator<Item = String> + '_ {
-                text.split(' ').filter(move |w| w.chars().count() > min).map(String::from)
-            }
-        """,
+        words_at_least_min=sub(CAPTURE_SOLUTION, "w.chars().count() > min", "w.chars().count() >= min"),
+        counts_bytes=sub(CAPTURE_SOLUTION, "w.chars().count() > min", "w.len() > min"),
+        snapshot_unsorted=sub(CAPTURE_SOLUTION, "    copy.sort_unstable();\n", ""),
     ),
 ))
 

@@ -1,26 +1,33 @@
 use solution::*;
 
 #[test]
-fn two_words() {
-    check!(r#""Hello World""#, slug("Hello World"), "hello-world".to_string());
+fn slug_example() {
+    check!(r#"slug("Hello  Big World")"#, slug("Hello  Big World"), "hello-big-world");
 }
 
 #[test]
-fn extra_spaces() {
-    check!(r#""  Rust  Is Fun ""#, slug("  Rust  Is Fun "), "rust-is-fun".to_string());
+fn slug_borrows_when_unchanged() {
+    check!(r#"slug("already-a-slug") is std::borrow::Cow::Borrowed"#, matches!(slug("already-a-slug"), std::borrow::Cow::Borrowed("already-a-slug")), true);
 }
 
 #[test]
-fn empty() {
-    check!(r#""""#, slug(""), String::new());
+fn clean_lines_example() {
+    check!(r#"clean_lines("  a \n\n b\n   ")"#, clean_lines("  a \n\n b\n   "), vec!["a", "b"]);
 }
 
 #[test]
-fn one_word() {
-    check!(r#""Rust""#, slug("Rust"), "rust".to_string());
+fn longest_file_name_example() {
+    let paths = ["src/main.rs", "lib/very_long.rs", "x/y.rs"].map(String::from);
+    check!(r#"["src/main.rs", "lib/very_long.rs", "x/y.rs"]"#, longest_file_name(&paths), Some("very_long.rs"));
 }
 
 #[test]
-fn tabs_and_newlines() {
-    check!(r#""a\tB\nc""#, slug("a\tB\nc"), "a-b-c".to_string());
+fn tie_goes_to_the_first() {
+    let paths = ["a/xx", "b/yy"].map(String::from);
+    check!(r#"["a/xx", "b/yy"]"#, longest_file_name(&paths), Some("xx"));
+}
+
+#[test]
+fn empty_inputs() {
+    check!(r#"slug(""), clean_lines(""), longest_file_name([])"#, (slug(""), clean_lines(""), longest_file_name(&[])), (std::borrow::Cow::Borrowed(""), Vec::<&str>::new(), None));
 }

@@ -1,27 +1,36 @@
 slug = "when-elision-picks-self"
-title = "When elision picks &self"
-mode = "write"
+title = "Fix: which input the elided lifetime picks"
+mode = "fix"
 level = "easy"
 stage = "elision"
 order = 1
 status = "ready"
-tags = ["elision", "&self"]
+tags = ["elision rules", "E0106", "&self"]
 teaches = [
-  "Elision rule 3: outputs of `&self` methods borrow from `self`.",
-  "Other reference parameters get independent lifetimes.",
+  "The three elision rules.",
+  "Name the lifetime of the input the output really borrows from.",
+  "Tying outputs to too many inputs is also wrong.",
 ]
-follow_up = "Write out the full signature of `tag_with_prefix` with every lifetime explicit."
+follow_up = "Rule 3 favours `self` even when a method returns data from an argument. Why was that the right default for the language?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "Elision rule 3: in a method with `&self`, every elided output lifetime is `self`'s. The other inputs get their own lifetimes."
+text = "The elision rules: each elided input lifetime is a separate parameter; with exactly one input lifetime, outputs get it; with `&self` or `&mut self`, outputs get `self`'s. Otherwise you must write it (E0106)."
 
 [[hints]]
 kind = "rust"
-text = "`self.tags.iter().map(String::as_str)` gives `&str`s borrowed from `self`."
+text = "`pick` returns `a` or `b`, never the glossary's data, but rule 3 ties its output to `&self`. `define_or_echo` can return either, so both inputs need the same lifetime."
+
+[[hints]]
+kind = "rust"
+text = "`define_first` has two reference inputs and no `self`: elision gives up. The result comes from the glossary."
 
 [solution]
-explanation = "Because the output borrows only from `self`, `prefix` can be a temporary. Writing `<'a>(&'a self, prefix: &'a str)` would tie them together and break the first test."
-time = "O(n)"
+explanation = "Elision only fills in the common cases, and it looks at the signature, not the body. Rule 1: each elided lifetime in the inputs is its own parameter. Rule 2: if there's exactly one input lifetime, every elided output lifetime is that one (`first_word`). Rule 3: if there's `&self` or `&mut self`, outputs get `self`'s lifetime (`define`). Anything else needs names. `pick` compiles only if its output is tied to `a` and `b`; rule 3 would tie it to `self` and reject returning `a`. `define_or_echo` may return data from either `self` or `word`, so both must share `'a`. `define_first` must say the result borrows from `g`, not `text`: the tests drop the text first.\n\nSyntax to remember: `fn pick<'w>(&self, a: &'w str, b: &'w str) -> &'w str` · `fn define_or_echo<'a>(&'a self, word: &'a str) -> &'a str` · `fn define_first<'g>(g: &'g Glossary, text: &str) -> Option<&'g str>`."
+time = "O(1) expected per lookup"
 space = "O(1)"
+
+[rules]
+forbid_methods = ["clone", "to_owned", "leak"]
+max_changed_lines = 4

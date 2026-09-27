@@ -1,55 +1,73 @@
 use solution::*;
 
 #[test]
-fn whole() {
-    check!(r#""abc", "abc""#, after("abc", "abc"), Some(""));
+fn after_no_match() {
+    check!(r#"after("abc", "x")"#, after("abc", "x"), None);
 }
 
 #[test]
-fn prefix_longer() {
-    check!(r#""ab", "abc""#, after("ab", "abc"), None);
+fn after_empty_prefix() {
+    check!(r#"after("abc", "")"#, after("abc", ""), Some("abc"));
 }
 
 #[test]
-fn empty_line() {
-    check!(r#""", """#, after("", ""), Some(""));
+fn after_whole_line() {
+    check!(r#"after("abc", "abc")"#, after("abc", "abc"), Some(""));
 }
 
 #[test]
-fn empty_line_nonempty_prefix() {
-    check!(r#""", "a""#, after("", "a"), None);
+fn lookup_missing() {
+    let m = std::collections::HashMap::new();
+    check!(r#"map {}; lookup x"#, lookup(&m, "x"), None);
 }
 
 #[test]
-fn repeated_prefix_removed_once() {
-    check!(r#""abab", "ab""#, after("abab", "ab"), Some("ab"));
+fn layered_empty_local() {
+    const GLOBAL: &[(&str, &str)] = &[("color", "auto"), ("pager", "less")];
+    let layered = Layered { global: GLOBAL, local: &[] };
+    check!(r#"local {}"#, layered.get("pager"), Some("less"));
 }
 
 #[test]
-fn case_sensitive() {
-    check!(r#""Key: v", "key: ""#, after("Key: v", "key: "), None);
+fn layered_first_local_duplicate() {
+    const GLOBAL: &[(&str, &str)] = &[("color", "auto"), ("pager", "less")];
+    let local = [("a", "1"), ("a", "2")];
+    let layered = Layered { global: GLOBAL, local: &local };
+    check!(r#"local {a: 1, a: 2}"#, layered.get("a"), Some("1"));
 }
 
 #[test]
-fn unicode() {
-    check!(r#""héllo", "hé""#, after("héllo", "hé"), Some("llo"));
+fn after_result_points_into_line() {
+    let line = String::from("abcd");
+    check!(r#"after's result borrows the line"#, after(&line, "ab").unwrap().as_ptr() == line[2..].as_ptr(), true);
 }
 
 #[test]
-fn borrows_line() {
-    let line = String::from("key=value");
-    let rest = after(&line, "key=").unwrap();
-    check!(r#"result points into line"#, std::ptr::eq(rest.as_ptr(), line[4..].as_ptr()), true);
+fn lookup_result_outlives_key_scope() {
+    let map = std::collections::HashMap::from([("k".to_string(), "val".to_string())]);
+    let v = {
+        let key = String::from("k");
+        lookup(&map, &key).unwrap()
+    };
+    check!(r#"lookup result used after the key's block"#, v.len(), 3);
 }
 
 #[test]
-fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(304);
+fn random_vs_model() {
+    let mut rng = anneal_prelude::Rng::new(6304);
     for _ in 0..300 {
-        let (ln, pn) = (rng.below(6), rng.below(4));
-        let line = rng.string(ln, "ab");
-        let prefix = rng.string(pn, "ab");
-        let want = if line.len() >= prefix.len() && line[..prefix.len()] == prefix { Some(&line[prefix.len()..]) } else { None };
-        check!(format!("line = {line:?}, prefix = {prefix:?}"), after(&line, &prefix), want);
+        let len = rng.below(5);
+        let line = rng.string(len, "ab");
+        let plen = rng.below(3);
+        let prefix = rng.string(plen, "ab");
+        check!(format!("after({line:?}, {prefix:?})"), after(&line, &prefix), line.strip_prefix(prefix.as_str()));
+        let keys = ["a", "b", "c"];
+        let global: Vec<(&str, &str)> = keys.iter().filter(|_| rng.bool()).map(|&k| (k, "g")).collect();
+        let local: Vec<(&str, &str)> = keys.iter().filter(|_| rng.bool()).map(|&k| (k, "l")).collect();
+        let layered = Layered { global: &global, local: &local };
+        for k in keys {
+            let want = local.iter().chain(global.iter()).find(|e| e.0 == k).map(|e| e.1);
+            check!(format!("global {global:?}, local {local:?}; get({k})"), layered.get(k), want);
+        }
     }
 }

@@ -1,30 +1,36 @@
 slug = "longest"
-title = "longest(a, b)"
+title = "longest(a, b), and what the result borrows"
 mode = "fix"
 level = "easy"
 stage = "elision"
 order = 3
 status = "ready"
-tags = ["E0106", "lifetime parameters"]
+tags = ["E0106", "lifetime parameters", "&mut &'a str"]
 teaches = [
-  "Two reference inputs and a reference output need an explicit lifetime.",
-  "One shared `'a` means 'valid while both are'.",
+  "Two inputs, no `self`: write the lifetime.",
+  "`&[&'a str]` has two lifetimes; tie outputs to the inner one.",
+  "Storing through `&mut &'a T` requires the new value to live for `'a`.",
 ]
-follow_up = "Why can't the compiler infer the output lifetime from the body?"
+follow_up = "In `keep_longest`, why must the lifetime inside `&mut &'a str` match `line`'s exactly, while a `&'a str` argument can be shortened freely?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "The result could borrow from either input, and elision can't choose between two."
+text = "`longest` has two reference inputs and no `self`, so elision can't choose (E0106). The result may be either input, so both get the same lifetime `'a`: the result lives as long as the shorter of the two."
 
 [[hints]]
 kind = "rust"
-text = "Declare one lifetime `'a` and use it for both inputs and the output: the result lives as long as the shorter of the two."
+text = "`longest_of(words: &[&str])` has two lifetimes hiding in one parameter: the slice's and the strings'. That's two input lifetimes, so elision gives up. Tying the output to the slice (`&'a [&'a str]`) compiles but dies with the slice; name only the strings' lifetime: `&[&'a str]`."
+
+[[hints]]
+kind = "rust"
+text = "In `keep_longest(best: &mut &str, line: &str)` the three elided lifetimes are all different, so `*best = line` would store a reference that may die first. `line` must live as long as what `best` holds."
 
 [solution]
-explanation = "`'a` becomes the overlap of the two borrows, which is exactly as long as the result can safely be used."
-time = "O(1)"
+explanation = "A lifetime parameter is a constraint the caller must satisfy, and the signature has to state exactly the one the body needs. `longest` may return either input, so both share `'a`, and the result lives no longer than the shorter-lived argument. `longest_of` is the subtle one: `&[&str]` hides two lifetimes, the borrow of the slice and the borrow of the strings. Tying the output to the slice would make the answer die with a temporary `Vec` even though it points into longer-lived strings. Naming the inner one (`&[&'a str] -> Option<&'a str>`) fixes that. `keep_longest` writes `line` into `*best`, so `line` must outlive what `best` holds: `&mut &'a str, &'a str`. The outer `&mut` keeps its own, shorter lifetime.\n\nSyntax to remember: `fn longest<'a>(a: &'a str, b: &'a str) -> &'a str` · `fn longest_of<'a>(words: &[&'a str]) -> Option<&'a str>` · `fn keep_longest<'a>(best: &mut &'a str, line: &'a str) -> bool`."
+time = "O(n)"
 space = "O(1)"
 
 [rules]
-max_changed_lines = 1
+forbid_methods = ["clone", "to_string", "to_owned", "leak"]
+max_changed_lines = 5

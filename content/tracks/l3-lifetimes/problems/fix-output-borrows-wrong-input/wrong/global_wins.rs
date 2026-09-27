@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 /// The part of `line` after `prefix`, if `line` starts with it.
-pub fn after<'a>(line: &'a str, prefix: &'a str) -> Option<&'a str> {
+pub fn after<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {
     line.strip_prefix(prefix)
 }
 
 /// The value for `key`.
-pub fn lookup<'m>(map: &'m HashMap<String, String>, key: &'m str) -> Option<&'m str> {
+pub fn lookup<'m>(map: &'m HashMap<String, String>, key: &str) -> Option<&'m str> {
     map.get(key).map(String::as_str)
 }
 
@@ -22,8 +22,8 @@ pub struct Layered<'g, 'l> {
     pub local: &'l [(&'l str, &'l str)],
 }
 
-impl<'g, 'l> Layered<'g, 'l> {
+impl<'g: 'l, 'l> Layered<'g, 'l> {
     pub fn get(&self, key: &str) -> Option<&'l str> {
-        self.local.iter().chain(self.global.iter()).find(|e| e.0 == key).map(|e| e.1)
+        self.global.iter().chain(self.local.iter()).find(|e| e.0 == key).map(|e| e.1)
     }
 }

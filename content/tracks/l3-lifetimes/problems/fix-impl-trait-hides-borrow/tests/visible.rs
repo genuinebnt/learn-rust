@@ -1,26 +1,34 @@
 use solution::*;
 
 #[test]
-fn filters() {
-    check!(r#""a quick brown fox", 3"#, long_words("a quick brown fox", 3).collect::<Vec<_>>(), vec!["quick".to_string(), "brown".to_string()]);
+fn long_words_example() {
+    check!(r#"long_words("a quick brown fox", 3)"#, long_words("a quick brown fox", 3).collect::<Vec<_>>(), vec!["quick".to_string(), "brown".to_string()]);
 }
 
 #[test]
-fn none() {
-    check!(r#""a b", 5"#, long_words("a b", 5).count(), 0);
+fn pairs_example() {
+    check!(r#"pairs([1, 2, 3], [10, 20])"#, pairs(&[1, 2, 3], &[10, 20]).collect::<Vec<_>>(), vec![(1, 10), (2, 20)]);
 }
 
 #[test]
-fn empty() {
-    check!(r#""", 0"#, long_words("", 0).count(), 0);
+fn pairs_lifetimes_differ() {
+    let a = vec![5u32, 6];
+    let got: Vec<(u32, u32)> = {
+        let b = vec![7u32];
+        pairs(&a, &b).collect()
+    };
+    check!(r#"pairs(a long-lived slice, a temporary Vec) collected in the temporary's scope"#, got, vec![(5, 7)]);
 }
 
 #[test]
-fn strictly_longer() {
-    check!(r#""abc abcd", 3"#, long_words("abc abcd", 3).collect::<Vec<_>>(), vec!["abcd".to_string()]);
+fn snapshot_survives_changes() {
+    let mut v = vec![3u32, 1, 2];
+    let snap = sorted_snapshot(&v);
+    v.push(0);
+    check!(r#"take a snapshot of [3, 1, 2], then push 0 to v"#, (snap.collect::<Vec<_>>(), v), (vec![1, 2, 3], vec![3, 1, 2, 0]));
 }
 
 #[test]
-fn min_zero_keeps_all() {
-    check!(r#""x yy", 0"#, long_words("x yy", 0).collect::<Vec<_>>(), vec!["x".to_string(), "yy".to_string()]);
+fn long_words_counts_chars() {
+    check!(r#"long_words("héllo abc", 4)"#, long_words("héllo abc", 4).collect::<Vec<_>>(), vec!["héllo".to_string()]);
 }

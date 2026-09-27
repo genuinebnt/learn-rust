@@ -1,25 +1,36 @@
 slug = "fix-output-borrows-wrong-input"
-title = "Fix: the output borrows the wrong input"
+title = "Fix: lifetimes that tie too much, or too little"
 mode = "fix"
 level = "easy"
 stage = "elision"
 order = 4
 status = "ready"
-tags = ["over-constrained lifetimes"]
+tags = ["over-constrained lifetimes", "'a: 'b", "outlives bounds"]
 teaches = [
-  "Put a lifetime only on the inputs the output borrows from.",
+  "Tie outputs only to the inputs they borrow from.",
+  "`'a: 'b` lets a longer borrow stand in for a shorter one.",
+  "Some functions genuinely need one lifetime for two inputs.",
 ]
-follow_up = "What does the signature say to callers, and what does it say to the function body?"
+follow_up = "Why does `'g: 'l` on the impl suffice, when the struct itself doesn't declare it?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "The result is a slice of `line` only. Which parameter does it need to be tied to?"
+text = "A lifetime on a parameter that the output doesn't borrow from still constrains the caller: they must keep that argument alive as long as the result. Give such parameters their own (elided) lifetime."
+
+[[hints]]
+kind = "rust"
+text = "`Layered::get` returns `&'l str`, but a global value is a `&'g str`. That's fine only when `'g` outlives `'l`. Say so: `impl<'g: 'l, 'l>` (or `where 'g: 'l`)."
+
+[[hints]]
+kind = "rust"
+text = "`or_default` really can return either input, so there one shared lifetime is right."
 
 [solution]
-explanation = "Tying `prefix` to `'a` forces the prefix to live as long as the result. Only list a lifetime on an input when the output really borrows from it."
+explanation = "Over-constraining is the quiet lifetime bug: `after<'a>(line: &'a str, prefix: &'a str) -> Option<&'a str>` compiles, but forces every caller to keep `prefix` alive as long as the result, although the result only ever points into `line`. The fix is to leave `prefix` (and `lookup`'s `key`) with an elided lifetime of its own. The opposite case needs a relation between lifetimes: `get` may return a global value where a local-lifetime one is promised, which is sound only if `'g: 'l` (\"`'g` outlives `'l`\"). With that bound, `&'g str` shrinks to `&'l str` by covariance. The bound costs callers nothing here, since global settings are the longer-lived ones.\n\nSyntax to remember: `fn after<'a>(line: &'a str, prefix: &str) -> Option<&'a str>` · `impl<'g: 'l, 'l> Layered<'g, 'l>` · or `struct Layered<'g: 'l, 'l>` / `where 'g: 'l`."
 time = "O(n)"
 space = "O(1)"
 
 [rules]
-max_changed_lines = 1
+forbid_methods = ["clone", "to_string", "to_owned", "leak"]
+max_changed_lines = 3

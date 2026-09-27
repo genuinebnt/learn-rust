@@ -1,30 +1,36 @@
 slug = "fix-impl-trait-hides-borrow"
-title = "Fix: impl Trait hides a borrow (E0700)"
+title = "Fix: what an impl Trait return captures"
 mode = "fix"
 level = "medium"
 stage = "elision"
 order = 5
 status = "ready"
-tags = ["E0700", "impl Trait", "+ '_"]
+tags = ["E0700", "impl Trait", "+ '_", "use<..>", "precise capturing"]
 teaches = [
-  "`impl Trait` return types and captured lifetimes.",
-  "`+ '_` as 'borrows from the input'.",
+  "2021: `impl Trait` captures type parameters, not lifetimes, unless named.",
+  "`use<'a, 'b>` states captures; `+ 'a` is an outlives bound.",
+  "2024 captures everything by default; `use<>` opts out.",
 ]
-follow_up = "When would you want an `impl Trait` return type that does not capture an input lifetime?"
+follow_up = "Under edition 2024 rules, which of these three signatures would need a `use<..>` bound, and which would change meaning without one?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "The iterator still reads from `text` while you iterate, but `impl Iterator<Item = String>` doesn't say so."
+text = "In edition 2021, a returned `impl Trait` captures the function's type parameters but not its lifetimes, unless the bounds mention them. `long_words`'s iterator borrows `text`, so say so: `+ '_`."
 
 [[hints]]
 kind = "rust"
-text = "Add `+ '_` to the return type to say the iterator borrows from the input."
+text = "`+ 'a + 'b` means \"the hidden type outlives both `'a` and `'b`\", which a type holding a `&'a` and a `&'b` can't promise. Precise capturing says \"it may use these\" instead: `+ use<'a, 'b>`."
+
+[[hints]]
+kind = "rust"
+text = "`sorted_snapshot` returns an iterator over its own copy; claiming `+ '_` makes callers keep `v` borrowed. `use<>` (or no bound at all in edition 2021) says it captures nothing."
 
 [solution]
-explanation = "In edition 2021, `impl Trait` only captures lifetimes that appear in its bounds; `+ '_` adds the input's. Edition 2024 captures all in-scope lifetimes by default, and `use<..>` narrows it."
+explanation = "The caller of a function returning `impl Trait` only sees the bounds, so the bounds must say which lifetimes the hidden type may hold. Edition 2021's rule: type parameters are captured automatically, lifetimes only if they appear in the bounds, hence E0700 for `long_words` until `+ '_` names the borrow. With two lifetimes, `+ 'a + 'b` is the wrong tool: it's an outlives bound, requiring the iterator to outlive each lifetime, which a type containing both references can't do unless one outlives the other. Precise capturing (`+ use<'a, 'b>`, stable since 1.82) states captures without outlives requirements. Edition 2024 flips the default: every in-scope lifetime is captured, and `use<>` (or `use<'a>`) opts out, which is what `sorted_snapshot` needs to let callers mutate `v` while the snapshot lives. Writing it now is correct in both editions.\n\nSyntax to remember: `-> impl Iterator<Item = String> + '_` · `-> impl Iterator<Item = (u32, u32)> + use<'a, 'b>` · `-> impl Iterator<Item = u32> + use<>` · generic: `+ use<'a, T>` (list the type parameters too)."
 time = "O(n)"
-space = "O(1)"
+space = "O(n) for the snapshot"
 
 [rules]
-max_changed_lines = 1
+forbid_methods = ["collect", "clone", "leak"]
+max_changed_lines = 3

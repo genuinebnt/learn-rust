@@ -3,7 +3,7 @@ use std::borrow::Cow;
 /// `text` lowercased, with its words joined by "-". When `text` is already in that form (no whitespace, no
 /// char that lowercasing changes), the result borrows `text` instead of allocating.
 pub fn slug(text: &str) -> Cow<'_, str> {
-    if text.chars().all(|c| !c.is_whitespace() && c.to_lowercase().eq([c])) {
+    if text.chars().all(|c| !c.is_whitespace() && !c.is_ascii_uppercase()) {
         return Cow::Borrowed(text);
     }
     Cow::Owned(text.split_whitespace().collect::<Vec<_>>().join("-").to_lowercase())

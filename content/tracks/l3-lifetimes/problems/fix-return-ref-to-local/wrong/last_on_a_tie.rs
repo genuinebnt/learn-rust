@@ -19,7 +19,7 @@ pub fn longest_file_name(paths: &[String]) -> Option<&str> {
     let mut best: Option<&str> = None;
     for p in paths {
         let name = p.rsplit('/').next().unwrap();
-        if best.map_or(true, |b| name.len() > b.len()) {
+        if best.map_or(true, |b| name.len() >= b.len()) {
             best = Some(name);
         }
     }

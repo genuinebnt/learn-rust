@@ -11,7 +11,7 @@ pub fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
 pub fn longest_of<'a>(words: &[&'a str]) -> Option<&'a str> {
     let mut best: Option<&'a str> = None;
     for &w in words {
-        if best.map_or(true, |b| w.len() > b.len()) {
+        if best.map_or(true, |b| w.len() >= b.len()) {
             best = Some(w);
         }
     }

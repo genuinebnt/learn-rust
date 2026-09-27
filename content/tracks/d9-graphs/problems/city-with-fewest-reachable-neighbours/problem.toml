@@ -1,0 +1,36 @@
+slug = "city-with-fewest-reachable-neighbours"
+title = "City with the fewest reachable neighbours"
+mode = "write"
+level = "medium"
+stage = "shortest-paths"
+order = 34
+status = "ready"
+tags = ["Floyd–Warshall", "all pairs", "u64"]
+companies = ["Amazon", "Google", "Microsoft", "Uber"]
+teaches = [
+  "Floyd–Warshall: three loops, with the middle node outermost.",
+  "`Option<u64>` or a wide type so 'no path' can't overflow.",
+]
+constraints = ["2 ≤ n ≤ 100", "roads.len() ≤ n · (n − 1) / 2"]
+follow_up = "When would running Dijkstra from every city beat Floyd–Warshall?"
+
+[[examples]]
+input = "n = 4, roads = [(0,1,3), (1,2,1), (1,3,4), (2,3,1)], threshold = 4"
+output = "3"
+
+[[hints]]
+kind = "approach"
+text = "You need the shortest distance between every pair of cities. With n ≤ 100, Floyd–Warshall's O(n³) is simple and fast enough."
+
+[[hints]]
+kind = "rust"
+text = "Loop `k` (the city a path may pass through) outermost. Swapping the loops gives wrong distances, not a crash."
+
+[[hints]]
+kind = "edge case"
+text = "Use `u64` (or `Option`) for distances: adding two large `u32` lengths, or 'unreachable' plus anything, overflows."
+
+[solution]
+explanation = "After round k, `dist[i][j]` is the shortest path using only cities 0..=k in between, which is why k must be the outer loop. Scanning cities from the largest down and keeping the first minimum handles the tie rule."
+time = "O(n³)"
+space = "O(n²)"

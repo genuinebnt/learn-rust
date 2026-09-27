@@ -5651,6 +5651,380 @@ P.append(dict(
 ))
 
 P.append(dict(
+    slug="city-with-fewest-reachable-neighbours", title="City with the fewest reachable neighbours", level="medium", stage="shortest-paths",
+    tags=["Floyd–Warshall", "all pairs", "u64"],
+    teaches=["Floyd–Warshall: three loops, with the middle node outermost.", "`Option<u64>` or a wide type so 'no path' can't overflow."],
+    statement="""
+        `n` cities are joined by undirected roads `(a, b, length)`. A city can reach another if the shortest route
+        between them is at most `threshold` long. Return the city that can reach the fewest other cities; on a
+        tie, the one with the largest number.
+    """,
+    examples=[("n = 4, roads = [(0,1,3), (1,2,1), (1,3,4), (2,3,1)], threshold = 4", "3")],
+    constraints=["2 ≤ n ≤ 100", "roads.len() ≤ n · (n − 1) / 2"],
+    starter="""
+        pub fn find_the_city(n: usize, roads: &[(usize, usize, u32)], threshold: u32) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn find_the_city(n: usize, roads: &[(usize, usize, u32)], threshold: u32) -> usize {
+            // u64 so two u32 lengths can be added without overflow.
+            let mut dist = vec![vec![u64::MAX; n]; n];
+            for (i, row) in dist.iter_mut().enumerate() {
+                row[i] = 0;
+            }
+            for &(a, b, len) in roads {
+                let len = u64::from(len);
+                dist[a][b] = dist[a][b].min(len);
+                dist[b][a] = dist[b][a].min(len);
+            }
+            // The middle city goes outermost: after round k, paths may pass through cities 0..=k.
+            for k in 0..n {
+                for i in 0..n {
+                    if dist[i][k] == u64::MAX {
+                        continue;
+                    }
+                    for j in 0..n {
+                        if dist[k][j] != u64::MAX && dist[i][k] + dist[k][j] < dist[i][j] {
+                            dist[i][j] = dist[i][k] + dist[k][j];
+                        }
+                    }
+                }
+            }
+            let reach = |i: usize| (0..n).filter(|&j| j != i && dist[i][j] <= u64::from(threshold)).count();
+            // min_by_key keeps the first minimum, so scan from the largest city down.
+            (0..n).rev().min_by_key(|&i| reach(i)).expect("n ≥ 2")
+        }
+    """,
+    visible=[
+        T("four_cities", "n = 4, roads = [(0,1,3), (1,2,1), (1,3,4), (2,3,1)], threshold = 4", "find_the_city(4, &[(0, 1, 3), (1, 2, 1), (1, 3, 4), (2, 3, 1)], 4)", "3"),
+        T("five_cities", "n = 5, roads = [(0,1,2), (0,4,8), (1,2,3), (1,4,2), (2,3,1), (3,4,1)], threshold = 2",
+          "find_the_city(5, &[(0, 1, 2), (0, 4, 8), (1, 2, 3), (1, 4, 2), (2, 3, 1), (3, 4, 1)], 2)", "0"),
+        T("no_roads_tie_goes_to_the_largest", "n = 2, roads = [], threshold = 5", "find_the_city(2, &[], 5)", "1"),
+        T("shortest_route_not_fewest_roads", "n = 3, roads = [(0,1,10), (0,2,1), (2,1,1)], threshold = 2", "find_the_city(3, &[(0, 1, 10), (0, 2, 1), (2, 1, 1)], 2)", "2"),
+        T("end_of_a_line", "n = 4, path 0-1-2-3 of length 1 each, threshold = 1", "find_the_city(4, &[(0, 1, 1), (1, 2, 1), (2, 3, 1)], 1)", "3"),
+    ],
+    hidden=[
+        T("threshold_zero", "n = 3, roads = [(0,1,5), (1,2,5)], threshold = 0", "find_the_city(3, &[(0, 1, 5), (1, 2, 5)], 0)", "2"),
+        T("parallel_roads", "n = 3, roads = [(0,1,10), (0,1,1), (1,2,1)], threshold = 1", "find_the_city(3, &[(0, 1, 10), (0, 1, 1), (1, 2, 1)], 1)", "2"),
+        T("huge_lengths", "n = 3, roads = [(0,1,4·10⁹), (1,2,4·10⁹)], threshold = u32::MAX",
+          "find_the_city(3, &[(0, 1, 4_000_000_000), (1, 2, 4_000_000_000)], u32::MAX)", "2"),
+        T("long_road_over_a_big_threshold", "n = 3, roads = [(0,1,4·10⁹), (1,2,1)], threshold = 3·10⁹",
+          "find_the_city(3, &[(0, 1, 4_000_000_000), (1, 2, 1)], 3_000_000_000)", "0"),
+        T("route_through_a_later_city", "n = 4, roads = [(0,3,1), (3,1,1), (1,2,9)], threshold = 2", "find_the_city(4, &[(0, 3, 1), (3, 1, 1), (1, 2, 9)], 2)", "2"),
+        T("isolated_city_wins", "n = 4, roads = [(0,1,1), (1,2,1), (2,0,1)], threshold = 3", "find_the_city(4, &[(0, 1, 1), (1, 2, 1), (2, 0, 1)], 3)", "3"),
+        T("everyone_reaches_everyone", "n = 3, roads = [(0,1,1), (1,2,1), (0,2,1)], threshold = 10", "find_the_city(3, &[(0, 1, 1), (1, 2, 1), (0, 2, 1)], 10)", "2"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(949);
+            for _ in 0..300 {
+                let n = 2 + rng.below(5);
+                let m = rng.below(8);
+                let roads: Vec<(usize, usize, u32)> = (0..m).map(|_| { let a = rng.below(n); let b = (a + 1 + rng.below(n - 1)) % n; (a, b, rng.int(1, 9) as u32) }).collect();
+                let threshold = rng.int(0, 15) as u32;
+                // Brute force: Bellman-Ford from every city.
+                let reach = |s: usize| {
+                    let mut d = vec![u64::MAX; n];
+                    d[s] = 0;
+                    for _ in 0..n {
+                        for &(a, b, w) in &roads {
+                            for (x, y) in [(a, b), (b, a)] {
+                                if d[x] != u64::MAX && d[x] + u64::from(w) < d[y] {
+                                    d[y] = d[x] + u64::from(w);
+                                }
+                            }
+                        }
+                    }
+                    (0..n).filter(|&j| j != s && d[j] <= u64::from(threshold)).count()
+                };
+                let counts: Vec<usize> = (0..n).map(reach).collect();
+                let best = *counts.iter().min().unwrap();
+                let want = (0..n).filter(|&i| counts[i] == best).max().unwrap();
+                check!(format!("n = {n}, roads = {roads:?}, threshold = {threshold}"), find_the_city(n, &roads, threshold), want);
+            }
+        }
+
+        #[test]
+        fn hundred_cities() {
+            let n = 100;
+            let roads: Vec<(usize, usize, u32)> = (0..n)
+                .flat_map(|i: usize| (i + 1..n).filter(move |&j| (i * 31 + j * 17) % 5 == 0).map(move |j| (i, j, ((i * i * 7 + j * 13 + i * j) % 997 + 1) as u32)))
+                .collect();
+            check!("100 cities, 990 roads, threshold = 300", find_the_city(n, &roads, 300), 73);
+        }
+        """,
+    ],
+    wrong=dict(
+        middle_loop_innermost="""
+            pub fn find_the_city(n: usize, roads: &[(usize, usize, u32)], threshold: u32) -> usize {
+                let mut dist = vec![vec![u64::MAX; n]; n];
+                for (i, row) in dist.iter_mut().enumerate() {
+                    row[i] = 0;
+                }
+                for &(a, b, len) in roads {
+                    let len = u64::from(len);
+                    dist[a][b] = dist[a][b].min(len);
+                    dist[b][a] = dist[b][a].min(len);
+                }
+                for i in 0..n {
+                    for j in 0..n {
+                        for k in 0..n {
+                            if dist[i][k] != u64::MAX && dist[k][j] != u64::MAX && dist[i][k] + dist[k][j] < dist[i][j] {
+                                dist[i][j] = dist[i][k] + dist[k][j];
+                            }
+                        }
+                    }
+                }
+                let reach = |i: usize| (0..n).filter(|&j| j != i && dist[i][j] <= u64::from(threshold)).count();
+                (0..n).rev().min_by_key(|&i| reach(i)).unwrap()
+            }
+        """,
+        tie_goes_to_the_smallest="""
+            pub fn find_the_city(n: usize, roads: &[(usize, usize, u32)], threshold: u32) -> usize {
+                let mut dist = vec![vec![u64::MAX; n]; n];
+                for (i, row) in dist.iter_mut().enumerate() {
+                    row[i] = 0;
+                }
+                for &(a, b, len) in roads {
+                    let len = u64::from(len);
+                    dist[a][b] = dist[a][b].min(len);
+                    dist[b][a] = dist[b][a].min(len);
+                }
+                for k in 0..n {
+                    for i in 0..n {
+                        for j in 0..n {
+                            if dist[i][k] != u64::MAX && dist[k][j] != u64::MAX && dist[i][k] + dist[k][j] < dist[i][j] {
+                                dist[i][j] = dist[i][k] + dist[k][j];
+                            }
+                        }
+                    }
+                }
+                let reach = |i: usize| (0..n).filter(|&j| j != i && dist[i][j] <= u64::from(threshold)).count();
+                (0..n).min_by_key(|&i| reach(i)).unwrap()
+            }
+        """,
+        lengths_in_u32="""
+            pub fn find_the_city(n: usize, roads: &[(usize, usize, u32)], threshold: u32) -> usize {
+                const FAR: u32 = u32::MAX / 2;
+                let mut dist = vec![vec![FAR; n]; n];
+                for (i, row) in dist.iter_mut().enumerate() {
+                    row[i] = 0;
+                }
+                for &(a, b, len) in roads {
+                    dist[a][b] = dist[a][b].min(len);
+                    dist[b][a] = dist[b][a].min(len);
+                }
+                for k in 0..n {
+                    for i in 0..n {
+                        for j in 0..n {
+                            if dist[i][k] + dist[k][j] < dist[i][j] {
+                                dist[i][j] = dist[i][k] + dist[k][j];
+                            }
+                        }
+                    }
+                }
+                let reach = |i: usize| (0..n).filter(|&j| j != i && dist[i][j] <= threshold).count();
+                (0..n).rev().min_by_key(|&i| reach(i)).unwrap()
+            }
+        """,
+    ),
+    hints=[("approach", "You need the shortest distance between every pair of cities. With n ≤ 100, Floyd–Warshall's O(n³) is simple and fast enough."),
+           ("rust", "Loop `k` (the city a path may pass through) outermost. Swapping the loops gives wrong distances, not a crash."),
+           ("edge case", "Use `u64` (or `Option`) for distances: adding two large `u32` lengths, or 'unreachable' plus anything, overflows.")],
+    notes=("After round k, `dist[i][j]` is the shortest path using only cities 0..=k in between, which is why k must be the outer loop. Scanning cities from the largest down and keeping the first minimum handles the tie rule.", "O(n³)", "O(n²)"),
+    follow_up="When would running Dijkstra from every city beat Floyd–Warshall?",
+))
+
+P.append(dict(
+    slug="swim-in-rising-water", title="Swim in rising water", level="hard", stage="shortest-paths",
+    tags=["Dijkstra", "minimax path", "BinaryHeap"],
+    teaches=["Dijkstra where a path costs its highest cell, not its sum.", "`max` instead of `+` keeps Dijkstra's greedy choice valid."],
+    statement="""
+        `grid[r][c]` is the ground height of each cell of a square pool. At time `t` the water is `t` deep, and you
+        can swim between side-by-side cells whose heights are both at most `t`, instantly. Return the smallest `t`
+        at which you can get from the top-left cell to the bottom-right one.
+    """,
+    examples=[("grid = [[0,2],[1,3]]", "3")],
+    constraints=["1 ≤ n ≤ 300", "0 ≤ height ≤ 10⁹"],
+    starter="""
+        pub fn swim_in_water(grid: &[Vec<u32>]) -> u32 {
+            todo!()
+        }
+    """,
+    solution=f"""
+        use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
+
+        pub fn swim_in_water(grid: &[Vec<u32>]) -> u32 {{
+            let n = grid.len();
+            let mut best = vec![vec![u32::MAX; n]; n];
+            best[0][0] = grid[0][0];
+            let mut heap = BinaryHeap::from([Reverse((grid[0][0], 0usize, 0usize))]);
+            while let Some(Reverse((t, r, c))) = heap.pop() {{
+                if (r, c) == (n - 1, n - 1) {{
+                    return t;
+                }}
+                if t > best[r][c] {{
+                    continue;
+                }}
+                for (nr, nc) in {NEAR} {{
+                    if nr < n && nc < n {{
+                        let next = t.max(grid[nr][nc]);
+                        if next < best[nr][nc] {{
+                            best[nr][nc] = next;
+                            heap.push(Reverse((next, nr, nc)));
+                        }}
+                    }}
+                }}
+            }}
+            unreachable!("every cell of a grid is reachable")
+        }}
+    """,
+    visible=[
+        T("wait_for_the_corner", "grid = [[0,2],[1,3]]", "swim_in_water(&[vec![0, 2], vec![1, 3]])", "3"),
+        T("spiral", "grid = [[0,1,2,3,4],[24,23,22,21,5],[12,13,14,15,16],[11,17,18,19,20],[10,9,8,7,6]]",
+          "swim_in_water(&[vec![0, 1, 2, 3, 4], vec![24, 23, 22, 21, 5], vec![12, 13, 14, 15, 16], vec![11, 17, 18, 19, 20], vec![10, 9, 8, 7, 6]])", "16"),
+        T("one_cell", "grid = [[0]]", "swim_in_water(&[vec![0]])", "0"),
+        T("start_is_the_highest", "grid = [[3,2],[0,1]]", "swim_in_water(&[vec![3, 2], vec![0, 1]])", "3"),
+        T("low_road_around", "grid = [[0,9,9],[1,9,9],[2,3,4]]", "swim_in_water(&[vec![0, 9, 9], vec![1, 9, 9], vec![2, 3, 4]])", "4"),
+    ],
+    hidden=[
+        T("go_around_the_peak", "grid = [[5,4,3],[6,7,2],[9,8,1]]", "swim_in_water(&[vec![5, 4, 3], vec![6, 7, 2], vec![9, 8, 1]])", "5"),
+        T("single_high_cell", "grid = [[1000000000]]", "swim_in_water(&[vec![1_000_000_000]])", "1_000_000_000"),
+        T("flat", "grid = [[7,7],[7,7]]", "swim_in_water(&[vec![7, 7], vec![7, 7]])", "7"),
+        T("detour_below_the_wall", "grid = [[0,8,1],[1,8,1],[1,1,1]]",
+          "swim_in_water(&[vec![0, 8, 1], vec![1, 8, 1], vec![1, 1, 1]])", "1"),
+        T("row_major_ramp", "grid[r][c] = 3r + c on 3×3", "swim_in_water(&[vec![0, 1, 2], vec![3, 4, 5], vec![6, 7, 8]])", "8"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(950);
+            for _ in 0..300 {
+                let n = 1 + rng.below(5);
+                let grid: Vec<Vec<u32>> = (0..n).map(|_| rng.vec(n, 0, 20)).collect();
+                // Brute force: the first water level at which a flood fill from the start reaches the end.
+                let mut want = 0;
+                loop {
+                    let mut seen = vec![vec![false; n]; n];
+                    let mut stack = Vec::new();
+                    if grid[0][0] <= want {
+                        seen[0][0] = true;
+                        stack.push((0usize, 0usize));
+                    }
+                    while let Some((r, c)) = stack.pop() {
+                        for (a, b) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                            if a < n && b < n && !seen[a][b] && grid[a][b] <= want {
+                                seen[a][b] = true;
+                                stack.push((a, b));
+                            }
+                        }
+                    }
+                    if seen[n - 1][n - 1] {
+                        break;
+                    }
+                    want += 1;
+                }
+                check!(format!("grid = {grid:?}"), swim_in_water(&grid), want);
+            }
+        }
+
+        #[test]
+        fn scale_ramp_300() {
+            // Heights rise row by row, so every level up to the last matters.
+            let n = 300;
+            let grid: Vec<Vec<u32>> = (0..n).map(|r| (0..n).map(|c| (r * n + c) as u32).collect()).collect();
+            check!("300×300, grid[r][c] = 300r + c", swim_in_water(&grid), 89_999);
+        }
+
+        #[test]
+        fn scale_high_wall() {
+            // A full row of very high cells across the middle; the lowest of them is the answer.
+            let n = 300;
+            let grid: Vec<Vec<u32>> = (0..n).map(|r| (0..n).map(|c| if r == 150 { (n * n + c) as u32 } else { ((r * n + c) % 1000) as u32 }).collect()).collect();
+            check!("300×300 with a wall of heights 90000.. in row 150", swim_in_water(&grid), 90_000);
+        }
+        """,
+    ],
+    wrong=dict(
+        raise_the_water_one_step_at_a_time="""
+            pub fn swim_in_water(grid: &[Vec<u32>]) -> u32 {
+                let n = grid.len();
+                let mut t = grid[0][0].max(grid[n - 1][n - 1]);
+                loop {
+                    let mut seen = vec![vec![false; n]; n];
+                    seen[0][0] = true;
+                    let mut stack = vec![(0usize, 0usize)];
+                    while let Some((r, c)) = stack.pop() {
+                        for (a, b) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                            if a < n && b < n && !seen[a][b] && grid[a][b] <= t {
+                                seen[a][b] = true;
+                                stack.push((a, b));
+                            }
+                        }
+                    }
+                    if seen[n - 1][n - 1] {
+                        return t;
+                    }
+                    t += 1;
+                }
+            }
+        """,
+        right_and_down_only="""
+            pub fn swim_in_water(grid: &[Vec<u32>]) -> u32 {
+                let n = grid.len();
+                let mut best = vec![vec![u32::MAX; n]; n];
+                for r in 0..n {
+                    for c in 0..n {
+                        let from = if r == 0 && c == 0 { 0 } else {
+                            let up = if r > 0 { best[r - 1][c] } else { u32::MAX };
+                            let left = if c > 0 { best[r][c - 1] } else { u32::MAX };
+                            up.min(left)
+                        };
+                        best[r][c] = from.max(grid[r][c]);
+                    }
+                }
+                best[n - 1][n - 1]
+            }
+        """,
+        ignores_the_start_height="""
+            use std::cmp::Reverse;
+            use std::collections::BinaryHeap;
+
+            pub fn swim_in_water(grid: &[Vec<u32>]) -> u32 {
+                let n = grid.len();
+                let mut best = vec![vec![u32::MAX; n]; n];
+                best[0][0] = 0;
+                let mut heap = BinaryHeap::from([Reverse((0u32, 0usize, 0usize))]);
+                while let Some(Reverse((t, r, c))) = heap.pop() {
+                    if (r, c) == (n - 1, n - 1) {
+                        return t;
+                    }
+                    if t > best[r][c] {
+                        continue;
+                    }
+                    for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                        if nr < n && nc < n {
+                            let next = t.max(grid[nr][nc]);
+                            if next < best[nr][nc] {
+                                best[nr][nc] = next;
+                                heap.push(Reverse((next, nr, nc)));
+                            }
+                        }
+                    }
+                }
+                unreachable!()
+            }
+        """,
+    ),
+    hints=[("approach", "A route's time is its highest cell. Find the route whose highest cell is lowest."),
+           ("approach", "That's Dijkstra with `max` instead of `+`: pop the cell with the lowest 'time so far', and a neighbour's time is `max(time, height)`."),
+           ("edge case", "You start standing in the top-left cell, so its height counts too.")],
+    notes=("`max` never decreases along a path, which is all Dijkstra needs to stop at the target the first time it's popped. Binary search on t plus a flood fill is the other classic solution, at O(n² log H).", "O(n² log n)", "O(n²)"),
+    follow_up="Solve it with union-find, adding cells in order of height until the corners join.",
+))
+
+P.append(dict(
     slug="zero-one-bfs-on-a-grid", title="0-1 BFS on a grid", level="hard", stage="shortest-paths",
     tags=["0-1 BFS", "VecDeque"],
     teaches=["`push_front` for 0-cost edges, `push_back` for 1-cost edges.", "Shortest paths without a heap when weights are 0 or 1."],
@@ -9099,6 +9473,8 @@ P.append(dict(
 ))
 
 COMPANIES = {
+    "city-with-fewest-reachable-neighbours": ["Amazon", "Google", "Microsoft", "Uber"],
+    "swim-in-rising-water": ["Meta", "Amazon", "Google", "Microsoft", "Uber"],
     "course-schedule-ii": ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber"],
     "minimum-height-trees": ["Meta", "Amazon", "Google", "Microsoft"],
     "zero-one-matrix": ["Meta", "Amazon", "Google", "Microsoft", "Uber"],

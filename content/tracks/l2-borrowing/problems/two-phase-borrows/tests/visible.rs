@@ -1,26 +1,26 @@
 use solution::*;
 
 #[test]
-fn three() {
-    check!(r#"v = [], n = 3"#, { let mut v = vec![]; push_lengths(&mut v, 3); v }, vec![0, 1, 2]);
-}
-
-#[test]
-fn zero_times() {
-    check!(r#"v = [4], n = 0"#, { let mut v = vec![4]; push_lengths(&mut v, 0); v }, vec![4]);
+fn empty() {
+    check!(r#"script([])"#, { let mut v: Vec<i32> = Vec::<i32>::new(); let mut log = Vec::new(); script(&mut v, &mut log); (v, log) }, (vec![2, 2, 2, 2], vec![1, 0]));
 }
 
 #[test]
 fn one() {
-    check!(r#"v = [], n = 1"#, { let mut v = vec![]; push_lengths(&mut v, 1); v }, vec![0]);
+    check!(r#"script([7])"#, { let mut v: Vec<i32> = vec![7]; let mut log = Vec::new(); script(&mut v, &mut log); (v, log) }, (vec![1, 1, 10, 10, 10, 1, 1], vec![3, 3]));
 }
 
 #[test]
-fn existing() {
-    check!(r#"v = [9], n = 2"#, { let mut v = vec![9]; push_lengths(&mut v, 2); v }, vec![9, 1, 2]);
+fn three() {
+    check!(r#"script([1, 2, 3])"#, { let mut v: Vec<i32> = vec![1, 2, 3]; let mut log = Vec::new(); script(&mut v, &mut log); (v, log) }, (vec![3, 3, 3, 3, 3, 3, 3], vec![4, 0]));
 }
 
 #[test]
-fn zero_on_empty() {
-    check!(r#"v = [], n = 0"#, { let mut v = vec![]; push_lengths(&mut v, 0); v }, Vec::<usize>::new());
+fn descending() {
+    check!(r#"script([9, 5, 1, 0])"#, { let mut v: Vec<i32> = vec![9, 5, 1, 0]; let mut log = Vec::new(); script(&mut v, &mut log); (v, log) }, (vec![5, 15, 15, 15, 5, 15], vec![2, 4]));
+}
+
+#[test]
+fn negatives() {
+    check!(r#"script([-4, 8, -2, 6, 0])"#, { let mut v: Vec<i32> = vec![-4, 8, -2, 6, 0]; let mut log = Vec::new(); script(&mut v, &mut log); (v, log) }, (vec![8, 8, 8, 8], vec![1, 0]));
 }

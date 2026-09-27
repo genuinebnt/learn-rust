@@ -1,0 +1,36 @@
+slug = "fix-closure-borrows"
+title = "Fix: closures hold what they capture"
+mode = "fix"
+level = "medium"
+stage = "reborrows"
+order = 12
+status = "ready"
+tags = ["E0502", "E0382", "closures", "disjoint captures", "FnMut", "&mut F"]
+teaches = [
+  "A closure keeps its captures borrowed for as long as it lives.",
+  "Edition 2021 closures capture field paths, not all of `self`.",
+  "Recursing with `&mut f` on a generic `F` never stops instantiating; take `&mut F`.",
+]
+follow_up = "`&mut dyn FnMut(i32)` would also fix `walk`. What does it cost compared with `&mut F`?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "In `calibrate`, the closure calls `self.offset()`, a method, so it captures all of `self` while `self.readings` is borrowed mutably. A closure that reads the field `self.offset` captures only that field (edition 2021)."
+
+[[hints]]
+kind = "rust"
+text = "In `record`, `add` holds `&mut above` for as long as `add` lives, and it lives until its last call in the next batch. Could each batch get its own closure?"
+
+[[hints]]
+kind = "rust"
+text = "`walk(inner, f)` moves `f` in a loop. `walk(inner, &mut f)` compiles, but each level instantiates `walk` with one more `&mut`: `walk::<&mut &mut &mut F>`, without end. Make `walk` take `f: &mut F` so every level passes the same type."
+
+[solution]
+explanation = "A closure's captures are borrows that last as long as the closure. `calibrate`'s closure calls a method on `self`, which captures `self` whole; since edition 2021, a closure that names a field (`self.offset`) captures only that path, so it's disjoint from `self.readings`. In `record`, `add` mutably borrows `above` until its last use, which the loop puts in the next batch, after the read in `format!`. Creating the closure inside the loop ends its borrow each time; `self.log.push` never conflicted, because `add` captures `self.readings`, not `self`.\n\n`walk` moves `f` into the recursive call. `&mut f` fixes the move (`&mut F` implements `FnMut` too), but the recursion is then polymorphic: `walk::<F>` calls `walk::<&mut F>`, which calls `walk::<&mut &mut F>`, and monomorphization never ends. Taking `f: &mut F` keeps one type at every depth, and passing `f` down is an implicit reborrow.\n\nSyntax to remember: `fn walk<F: FnMut(i32)>(items: &[Item], f: &mut F)` · `walk(items, &mut |x| { .. })` · `|r| *r += self.offset` (a field, not a method)."
+time = "O(n)"
+space = "O(depth) stack"
+
+[rules]
+forbid_methods = ["clone", "collect", "to_vec"]
+forbid_types = ["Cell", "RefCell"]

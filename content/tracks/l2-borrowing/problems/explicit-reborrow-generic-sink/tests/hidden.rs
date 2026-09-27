@@ -1,51 +1,68 @@
 use solution::*;
 
 #[test]
-fn negatives() {
-    check!(r#"xs = [-1, i32::MIN]"#, { let mut v = vec![]; emit_twice(&mut v, &[-1, i32::MIN]); v }, vec![-1, i32::MIN, -1, i32::MIN]);
+fn pipeline_empty() {
+    check!(r#"xs []"#, { let (mut v, mut c) = (vec![9], Count(0)); (pipeline(&mut v, &mut c, &[]), c.0) }, (1, 0));
 }
 
 #[test]
-fn duplicates() {
-    check!(r#"xs = [2, 2]"#, { let mut v = vec![]; emit_twice(&mut v, &[2, 2]); v }, vec![2, 2, 2, 2]);
+fn pipeline_keeps_existing() {
+    check!(r#"sink [5], xs [1]"#, { let (mut v, mut c) = (vec![5], Count(1)); let n = pipeline(&mut v, &mut c, &[1]); (n, v, c.0) }, (4, vec![5, 1, 1, 1], 2));
 }
 
 #[test]
-fn existing_kept() {
-    check!(r#"sink = [9, 9], xs = [1]"#, { let mut v = vec![9, 9]; emit_twice(&mut v, &[1]); v }, vec![9, 9, 1, 1]);
+fn fan_out_empty() {
+    check!(r#"no sinks"#, fan_out(&mut [], &[1]), Vec::<usize>::new());
 }
 
 #[test]
-fn large() {
-    check!(r#"xs = 0..10000"#, { let xs: Vec<i32> = (0..10_000).collect(); let mut v = vec![]; emit_twice(&mut v, &xs); (v.len(), v[9_999], v[10_000]) }, (20_000, 9_999, 0));
+fn nested_lending() {
+    check!(r#"emit_all into &mut &mut Vec"#, { let mut v = Vec::new(); let mut r = &mut v; emit_all(&mut r, &[6]); emit_all(r, &[7]); v }, vec![6, 7]);
 }
 
 #[test]
-fn max() {
-    check!(r#"xs = [i32::MAX]"#, { let mut v = vec![]; emit_twice(&mut v, &[i32::MAX]); v }, vec![i32::MAX, i32::MAX]);
+fn box_dyn_by_value() {
+    check!(r#"emit_all(Box<dyn Sink> by value) then nothing"#, { let b: Box<dyn Sink> = Box::new(Count(0)); let mut b = b; emit_all(&mut b, &[1]); emit_all(&mut b, &[2]); b.len() }, 2);
 }
 
 #[test]
-fn called_twice() {
-    check!(r#"xs = [4], twice"#, { let mut v = vec![]; emit_twice(&mut v, &[4]); emit_twice(&mut v, &[4]); v }, vec![4, 4, 4, 4]);
+fn tee_of_lent_sinks() {
+    check!(r#"Tee(&mut a, &mut b)"#, { let (mut a, mut b) = (Vec::new(), Count(0)); emit_all(Tee(&mut a, &mut b), &[1, 2]); (a, b.0) }, (vec![1, 2], 2));
 }
 
 #[test]
-fn two_distinct() {
-    check!(r#"xs = [1, 2]"#, { let mut v = vec![0]; emit_twice(&mut v, &[1, 2]); v }, vec![0, 1, 2, 1, 2]);
+fn tee_of_boxed() {
+    check!(r#"Tee(Box<dyn Sink>, Count) through &mut"#, { let mut t = Tee(Box::new(vec![0]) as Box<dyn Sink>, Count(0)); emit_all(&mut t, &[3]); (t.0.len(), t.1.len()) }, (2, 1));
+}
+
+#[test]
+fn fan_out_repeated() {
+    check!(r#"fan_out twice into [Count(0)]"#, { let mut s: Vec<Box<dyn Sink>> = vec![Box::new(Count(0))]; fan_out(&mut s, &[1, 1]); fan_out(&mut s, &[1]) }, vec![3]);
 }
 
 #[test]
 fn random_vs_model() {
-    let mut rng = anneal_prelude::Rng::new(2015);
+    let mut rng = anneal_prelude::Rng::new(6216);
     for _ in 0..300 {
-        let n0 = rng.below(4);
-        let start: Vec<i32> = rng.vec(n0, -9, 9);
         let n = rng.below(6);
-        let xs: Vec<i32> = rng.vec(n, -100, 100);
+        let xs: Vec<i32> = rng.vec(n, -9, 9);
+        let len = rng.below(3);
+        let start: Vec<i32> = rng.vec(len, 0, 9);
+        let c0 = rng.below(5);
         let mut v = start.clone();
-        emit_twice(&mut v, &xs);
-        let want: Vec<i32> = start.iter().chain(&xs).chain(&xs).copied().collect();
-        check!(format!("sink = {start:?}, xs = {xs:?}"), v, want);
+        let mut c = Count(c0);
+        let got = pipeline(&mut v, &mut c, &xs);
+        let mut want = start.clone();
+        for _ in 0..3 {
+            want.extend_from_slice(&xs);
+        }
+        check!(format!("sink {start:?}, count {c0}, xs {xs:?}"), (got, v, c.0), (want.len(), want, c0 + n));
     }
+}
+
+#[test]
+fn many_values() {
+    let xs: Vec<i32> = (0..100_000).collect();
+    let mut s: Vec<Box<dyn Sink>> = vec![Box::new(Vec::new()), Box::new(Count(0))];
+    check!("fan_out 100000 values into [Vec, Count]", fan_out(&mut s, &xs), vec![100_000, 100_000]);
 }

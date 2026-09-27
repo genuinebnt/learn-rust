@@ -1,22 +1,36 @@
 slug = "two-phase-borrows"
-title = "vec.push(vec.len()) and two-phase borrows"
-mode = "write"
+title = "Fix: where two-phase borrows stop"
+mode = "fix"
 level = "medium"
 stage = "reborrows"
-order = 13
+order = 14
 status = "ready"
-tags = ["two-phase borrows"]
+tags = ["two-phase borrows", "E0502", "E0499", "DerefMut", "IndexMut"]
 teaches = [
-  "Two-phase borrows: reserve, evaluate arguments, then activate.",
+  "Two-phase borrows: reserve the receiver's `&mut`, let arguments read, then activate.",
+  "They don't cover `DerefMut` autoderef, `IndexMut`, `&mut` arguments or closures.",
+  "Hoist a value just before the line that needs it.",
 ]
-follow_up = "Why doesn't `let r = &mut v; r.push(v.len());` compile?"
+follow_up = "`v.swap(0, v.len() - 1)` compiles when `v: &mut [i32]` and fails when `v: &mut Vec<i32>`. Why?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "It looks like a shared and a mutable borrow at once. It compiles because the mutable borrow of an autoref'd method receiver isn't active until the arguments are evaluated."
+text = "A two-phase borrow reserves the `&mut` for an autoref'd method call, lets the arguments read the value, then activates the borrow. That's why `v.push(v.len())` compiles. Which of the failing calls aren't `Vec`'s own methods?"
+
+[[hints]]
+kind = "rust"
+text = "`swap` and `rotate_left` are slice methods: `v.swap(..)` first calls `DerefMut::deref_mut(v)` to get a `&mut [i32]`, and that call is an ordinary `&mut` borrow. `v[i] += x` goes through `IndexMut` the same way."
+
+[[hints]]
+kind = "rust"
+text = "Two-phase only lets arguments *read*. `v.pop()` needs `&mut v` itself, and a closure argument keeps its borrow for the whole call. Hoist what the arguments need into a `let` just before the line, not at the top: the length changes between steps."
 
 [solution]
-explanation = "Two-phase borrows exist precisely so `v.push(v.len())` compiles. They only apply to autoref'd method calls and compound assignment."
-time = "O(n)"
-space = "O(1) amortised"
+explanation = "Two-phase borrows are the special case that makes `v.push(v.len())` legal: for an autoref'd method receiver (and compound assignment on primitives), the `&mut v` is only *reserved* while the arguments are evaluated, and they may read `v` in that time. It stops at four things here. A method found through `Deref` (`swap`, `rotate_left`, `get_mut`, `sort` are `[T]`'s methods, so `deref_mut` runs first and activates the borrow). An overloaded index (`v[v.len() - 1] += ..` calls `index_mut(&mut v, ..)` before the index is known). An argument that needs `&mut v` itself (`v.insert(0, v.pop().unwrap())`). And a closure argument (`retain(|&x| x >= v[0])`), which holds its borrow for the whole call. `Vec`'s own methods (`push`, `insert`, `truncate`, `resize`, `extend_from_within`) work, as does anything that mutates a *different* value (`log.push(..)`).\n\nThe trap in the fix is hoisting one `let n = v.len()` to the top: steps 1, 3 and 5 change the length."
+time = "O(n) per step"
+space = "O(1) extra"
+
+[rules]
+forbid_methods = ["clone", "to_vec"]
+max_changed_lines = 12

@@ -1,0 +1,32 @@
+slug = "stride-iter-mut"
+title = "An iterator that hands out &mut"
+mode = "write"
+level = "medium"
+stage = "reborrows"
+order = 17
+status = "ready"
+tags = ["IterMut", "mem::take", "split_first_mut", "reborrow lifetimes"]
+teaches = [
+  "A reborrow through `&mut self` can't be returned with the outer lifetime `'a`.",
+  "`mem::take` moves a `&'a mut [T]` out of a field (the empty slice is its default).",
+  "Split, keep one piece, store the rest back.",
+]
+follow_up = "Why can't you write a `windows_mut` iterator in this style, when `chunks_mut` works?"
+related = ["L2", "L3"]
+
+[[hints]]
+kind = "rust"
+text = "`self.rest.split_first_mut()` in `next` reborrows through `&mut self`, so the pieces live only as long as that call's borrow of `self`, not `'a` (\"lifetime may not live long enough\"). You need to move the `&'a mut [T]` out of `self`, not borrow it."
+
+[[hints]]
+kind = "rust"
+text = "`&mut [T]` implements `Default` (the empty slice), so `std::mem::take(&mut self.rest)` moves the full-lifetime slice out and leaves an empty one. Split what you took, keep one piece, and put the rest back."
+
+[[hints]]
+kind = "rust"
+text = "From the back, the last element this iterator would yield is at `(len - 1) / step * step`, not necessarily `len - 1`."
+
+[solution]
+explanation = "`next(&mut self) -> Option<&'a mut T>` promises items that outlive the `&mut self` borrow. Reborrowing `self.rest` can't deliver that: a reborrow of `*self.rest` through `&mut self` is limited to that borrow, or two calls to `next` could return aliasing `&mut`s. Moving the `&'a mut [T]` out of `self` is allowed: `mem::take` swaps in the empty slice and returns the original with its full `'a`. Split it into the item and the remainder (`split_first_mut`, or `split_at_mut` from the back), then store the remainder back. Each item is carved off and never reachable from the iterator again, which is why `collect()`ing them all is sound. std's `slice::IterMut` does the same with raw pointers.\n\nSyntax to remember: `let rest = std::mem::take(&mut self.rest);` · `let (first, tail) = rest.split_first_mut()?;` · `self.rest = &mut tail[skip..];` · `len.div_ceil(step)`."
+time = "O(1) per item"
+space = "O(1)"

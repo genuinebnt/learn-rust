@@ -1,29 +1,35 @@
 slug = "fix-two-mut-into-players"
-title = "Fix: two &mut into one Vec"
+title = "Fix: a struct of &mut: reborrow, sequence, hand back"
 mode = "fix"
 level = "medium"
 stage = "reborrows"
-order = 14
+order = 15
 status = "ready"
-tags = ["E0499"]
+tags = ["E0499", "E0507", "reborrow", "&mut fields", "mem::replace"]
 teaches = [
-  "The borrow checker reasons about the whole slice, not individual indices.",
+  "Through `&mut self`, a `&mut` field can be reborrowed (`&mut *self.f`) but not moved out.",
+  "Only a by-value `self` can hand a field back with its full lifetime.",
+  "Sequence `Copy` reads and writes instead of holding two `&mut`.",
 ]
-follow_up = "What if you really need both `&mut` at once?"
+follow_up = "`fn finish(&mut self) -> &mut [Player]` also compiles. Which caller code would it reject that `finish(self)` accepts?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "Two `&mut` into the same slice can't be alive at once, even for different indices: the compiler can't prove `from != to`."
+text = "`let a = &mut self.players[from]; let b = &mut self.players[to];` can't compile even for different indices, and `from == to` is allowed anyway. Do you need both at once? The scores are `u32`: read, then write each one in its own statement."
 
 [[hints]]
-kind = "approach"
-text = "Do you need both references at the same time?"
+kind = "rust"
+text = "`record(self.log, ..)` tries to move the `&'a mut String` out of `*self`, which you only have through `&mut self` (E0507). `&mut *self.log` lends it for the call instead."
+
+[[hints]]
+kind = "rust"
+text = "From `&mut self` you can only lend what's inside for as long as *that* borrow lasts, not for `'a`. To hand the players back for all of `'a`, `finish` has to take the `Round` by value."
 
 [solution]
-explanation = "Each statement borrows the slice for one line, so the borrows never overlap. It also handles `from == to` correctly, which two live `&mut`s couldn't."
-time = "O(1)"
+explanation = "A struct of `&'a mut` fields is a bundle of loans, and the rules for using them depend on how you hold the struct. Through `&mut self`, you can reborrow a field (`&mut *self.log`) for as long as `self` is borrowed, but you can't move it out: that's E0507, which a generic parameter like `record`'s `W` triggers because nothing reborrows implicitly there. Returning `&'a mut [Player]` from `&mut self` is impossible for the same reason: the longest reborrow you can make of `*self.players` is the lifetime of `&mut self`. Taking `self` by value owns the fields, so `finish(self)` can move `self.players` out with its full `'a`. The test that uses the players after the `Round` is gone checks exactly that.\n\n`transfer` never needs two `&mut` at once: the scores are `Copy`, so compute `moved`, then update `from` and `to` in separate statements, which also makes `from == to` harmless. `split_at_mut` would need a special case for it. `rename` shows the disjoint case that does compile: `p` borrows `*self.players` while `&mut *self.log` borrows another field."
+time = "O(1) per call"
 space = "O(1)"
 
 [rules]
-forbid_methods = ["clone"]
+forbid_methods = ["clone", "swap", "take", "split_at_mut", "get_disjoint_mut"]

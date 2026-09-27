@@ -1,26 +1,52 @@
 use solution::*;
 
 #[test]
-fn moves() {
-    check!(r#"scores [10, 0], move 4 from 0 to 1"#, { let mut p = [Player { score: 10 }, Player { score: 0 }]; transfer(&mut p, 0, 1, 4); (p[0].score, p[1].score) }, (6, 4));
+fn transfer_and_finish() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    let (ps, moved) = {
+        let mut r = Round::new(&mut players, &mut log);
+        let moved = r.transfer(0, 1, 4);
+        (r.finish(), moved)
+    };
+    check!(r#"ann 10, bo 3; transfer 0 -> 1, 4; finish"#, (ps.iter().map(|p| p.score).collect::<Vec<_>>(), moved), (vec![6, 7], 4));
 }
 
 #[test]
-fn backwards() {
-    check!(r#"scores [0, 10], move 10 from 1 to 0"#, { let mut p = [Player { score: 0 }, Player { score: 10 }]; transfer(&mut p, 1, 0, 10); (p[0].score, p[1].score) }, (10, 0));
+fn log_lines() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    {
+        let mut r = Round::new(&mut players, &mut log);
+        r.transfer(1, 0, 3);
+        r.rename(1, "cy");
+        r.finish();
+    }
+    check!(r#"ann 10, bo 3; transfer 1 -> 0, 3; rename 1 to "cy"; finish"#, log, "bo -> ann: 3\nbo is now cy\nround over\n".to_string());
 }
 
 #[test]
-fn zero_points() {
-    check!(r#"scores [3, 4], move 0 from 0 to 1"#, { let mut p = [Player { score: 3 }, Player { score: 4 }]; transfer(&mut p, 0, 1, 0); (p[0].score, p[1].score) }, (3, 4));
+fn transfer_is_capped() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    let moved = Round::new(&mut players, &mut log).transfer(1, 0, 50);
+    check!(r#"ann 10, bo 3; transfer 1 -> 0, 50"#, (moved, players[0].score, players[1].score), (3, 13, 0));
 }
 
 #[test]
 fn same_player() {
-    check!(r#"scores [5], move 3 from 0 to 0"#, { let mut p = [Player { score: 5 }]; transfer(&mut p, 0, 0, 3); p[0].score }, 5);
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    let moved = Round::new(&mut players, &mut log).transfer(0, 0, 5);
+    check!(r#"ann 10; transfer 0 -> 0, 5"#, (moved, players[0].score, log), (5, 10, "ann -> ann: 5\n".to_string()));
 }
 
 #[test]
-fn middle_untouched() {
-    check!(r#"scores [1, 2, 3], move 1 from 0 to 2"#, { let mut p = [Player { score: 1 }, Player { score: 2 }, Player { score: 3 }]; transfer(&mut p, 0, 2, 1); (p[0].score, p[1].score, p[2].score) }, (0, 2, 4));
+fn players_outlive_the_round() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    let ps = Round::new(&mut players, &mut log).finish();
+    ps[0].name = "zed".to_string();
+    ps[1].score = 99;
+    check!(r#"finish, then edit the players through the returned slice"#, (players[0].name.clone(), players[1].score), ("zed".to_string(), 99));
 }

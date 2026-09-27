@@ -1,23 +1,32 @@
 slug = "explicit-reborrow-generic-sink"
-title = "Explicit reborrow with &mut *r"
-mode = "write"
+title = "Lend a sink: impl Sink for &mut S"
+mode = "fix"
 level = "medium"
 stage = "reborrows"
-order = 15
+order = 16
 status = "ready"
-tags = ["reborrow", "generics"]
+tags = ["reborrow", "blanket impls", "?Sized", "Box<dyn Trait>"]
 teaches = [
-  "`&mut *r` reborrows explicitly.",
-  "Blanket impls for `&mut S` let callers lend a sink instead of giving it away.",
+  "A blanket `impl Trait for &mut T` lets by-value generic APIs borrow instead of consume.",
+  "`(**self).method()` reaches the value behind `&mut &mut T`.",
+  "`?Sized` admits trait objects.",
 ]
-follow_up = "Why do std's `io::Write` and `Iterator` have the same `impl for &mut T` pattern?"
+follow_up = "Why does std implement `Iterator` for `&mut I` but not for `&I`?"
 related = ["L2", "L4"]
 
 [[hints]]
 kind = "rust"
-text = "`emit_all` takes `S` by value. Passing `sink` moves the `&mut Vec`; `&mut *sink` passes a new, shorter borrow."
+text = "`impl<S: Sink + ?Sized> Sink for &mut S` forwards each method to the `S` behind the reference. Without `?Sized`, `S` can't be `dyn Sink`, so `&mut dyn Sink` wouldn't be a sink."
+
+[[hints]]
+kind = "rust"
+text = "Inside that impl `self` is `&mut &mut S`. `self.put(x)` finds this very impl again and recurses forever; `(**self).put(x)` reaches the `S`."
+
+[[hints]]
+kind = "rust"
+text = "With the impl in place, passing `sink` still moves the `&mut Vec<i32>`: the parameter is a generic `S`, so there's no implicit reborrow. `&mut *sink` lends a fresh one."
 
 [solution]
-explanation = "The blanket `impl Sink for &mut S` is what makes passing a `&mut` possible at all; the explicit reborrow keeps `sink` usable."
+explanation = "A function that takes a sink by value (`S: Sink`) can still be lent one, if `&mut S` is itself a sink: that's the blanket impl std writes for `io::Write`, `fmt::Write`, `Iterator`, `Hasher` and others. It forwards through `(**self)`, because `self.put(x)` on a `&mut &mut S` resolves to the same impl and recurses. `?Sized` lets `S` be `dyn Sink`, and a matching impl for `Box<S>` makes a `Box<dyn Sink>` a sink as well (so `&mut Box<dyn Sink>` is one too, which is what `fan_out` passes). Even with the impl, `emit_all(sink, xs)` moves `sink`, because implicit reborrows only happen where the parameter type is known to be `&mut`; `&mut *sink` lends it and leaves `sink` usable.\n\nSyntax to remember: `impl<S: Sink + ?Sized> Sink for &mut S { fn put(&mut self, x: i32) { (**self).put(x) } }` · the same for `Box<S>` · `emit_all(&mut *sink, xs)`."
 time = "O(n)"
 space = "O(1)"

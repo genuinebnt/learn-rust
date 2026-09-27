@@ -1,0 +1,32 @@
+slug = "mut-cursor-loop"
+title = "&mut cursors in a loop"
+mode = "write"
+level = "medium"
+stage = "reborrows"
+order = 13
+status = "ready"
+tags = ["&mut in loops", "Option<Box<T>>", "NLL", "as_deref_mut"]
+teaches = [
+  "A `&mut` cursor advances by reborrowing through itself.",
+  "NLL rejects a borrow that flows into the cursor on one path and must be dead on another; check first, then borrow.",
+  "Match arms with guards bind separate borrows.",
+]
+follow_up = "Why must `List` implement `Drop` by hand, when `Box` already frees its contents?"
+related = ["L2", "D5"]
+
+[[hints]]
+kind = "rust"
+text = "The cursor is `let mut cur = &mut self.head;` (an `&mut Option<Box<Node>>`) and advancing is `cur = &mut node.next;`. When the loop ends, `*cur` is the slot to write into."
+
+[[hints]]
+kind = "rust"
+text = "`while let Some(node) = cur { if stop { break; } cur = &mut node.next; }` is rejected: the borrow in `node` flows into `cur` on one path, so NLL keeps it alive on the `break` path too. Test first with a shared look (`cur.as_ref().is_some_and(..)`), then take the `&mut` only to advance."
+
+[[hints]]
+kind = "rust"
+text = "For `remove_if`, a `match` with one arm per case (`None`, `Some(node) if pred(node.val)`, `Some(node)`) gives each arm its own borrow, so the removing arm can assign to `*cur`."
+
+[solution]
+explanation = "A `&mut` cursor is reborrowed on every step: `cur = &mut node.next` borrows through the old `cur`, which is never used again, so the chain of borrows stays linear. `push_back` and `last_mut` are the plain loop. The other two hit a limit of NLL: in `while let Some(node) = cur { if cond { break } cur = &mut node.next }` the borrow held by `node` must outlive `cur` on the advancing path, and NLL's regions don't distinguish paths, so after `break` `*cur` still counts as borrowed (E0499/E0506; Polonius accepts it). The workarounds keep the `&mut` borrow off the stopping path: check through a shared borrow first and reborrow only to advance (`cur = &mut cur.as_mut().unwrap().next`), or match with guards so each arm binds its own borrow.\n\nSyntax to remember: `let mut cur = &mut self.head;` · `while cur.as_ref().is_some_and(|n| n.val <= val) { cur = &mut cur.as_mut().unwrap().next; }` · `*cur = Some(Box::new(Node { val, next: cur.take() }))` · `match cur { Some(node) if pred(node.val) => *cur = node.next.take(), Some(node) => cur = &mut node.next, None => break }`."
+time = "O(n) per operation"
+space = "O(1)"

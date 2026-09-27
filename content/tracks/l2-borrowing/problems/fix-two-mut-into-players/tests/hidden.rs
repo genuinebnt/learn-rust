@@ -1,54 +1,107 @@
 use solution::*;
 
 #[test]
-fn three_players() {
-    check!(r#"scores [5, 5, 5], move 3 from 2 to 0"#, { let mut p = [Player { score: 5 }, Player { score: 5 }, Player { score: 5 }]; transfer(&mut p, 2, 0, 3); (p[0].score, p[1].score, p[2].score) }, (8, 5, 2));
+fn zero_points() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    let moved = Round::new(&mut players, &mut log).transfer(0, 1, 0);
+    check!(r#"transfer 0 -> 1, 0"#, (moved, players[0].score, log), (0, 10, "ann -> bo: 0\n".to_string()));
 }
 
 #[test]
-fn all_points() {
-    check!(r#"scores [7, 0], move 7 from 0 to 1"#, { let mut p = [Player { score: 7 }, Player { score: 0 }]; transfer(&mut p, 0, 1, 7); (p[0].score, p[1].score) }, (0, 7));
+fn from_empty_player() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    players[1].score = 0;
+    let moved = Round::new(&mut players, &mut log).transfer(1, 0, 5);
+    check!(r#"bo 0; transfer 1 -> 0, 5"#, (moved, players[0].score), (0, 10));
 }
 
 #[test]
-fn u32_max() {
-    check!(r#"scores [u32::MAX, 0], move all"#, { let mut p = [Player { score: u32::MAX }, Player { score: 0 }]; transfer(&mut p, 0, 1, u32::MAX); (p[0].score, p[1].score) }, (0, u32::MAX));
+fn exact_balance() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    let moved = Round::new(&mut players, &mut log).transfer(1, 0, 3);
+    check!(r#"transfer 1 -> 0, 3"#, (moved, players[1].score), (3, 0));
 }
 
 #[test]
-fn repeated() {
-    check!(r#"scores [0, 9], move 3 from 1 to 0, three times"#, { let mut p = [Player { score: 0 }, Player { score: 9 }]; for _ in 0..3 { transfer(&mut p, 1, 0, 3); } (p[0].score, p[1].score) }, (9, 0));
+fn rename_twice() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    {
+        let mut r = Round::new(&mut players, &mut log);
+        r.rename(0, "x");
+        r.rename(0, "y");
+    }
+    check!(r#"rename 0 to x, then y"#, (players[0].name.clone(), log), ("y".to_string(), "ann is now x\nx is now y\n".to_string()));
 }
 
 #[test]
-fn same_player_full() {
-    check!(r#"scores [u32::MAX], move 5 from 0 to 0"#, { let mut p = [Player { score: u32::MAX }]; transfer(&mut p, 0, 0, 5); p[0].score }, u32::MAX);
+fn rename_empty() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    Round::new(&mut players, &mut log).rename(1, "");
+    check!(r#"rename 1 to """#, log, "bo is now \n".to_string());
 }
 
 #[test]
-fn same_player_all() {
-    check!(r#"scores [4], move 4 from 0 to 0"#, { let mut p = [Player { score: 4 }]; transfer(&mut p, 0, 0, 4); p[0].score }, 4);
+fn log_is_appended() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    log.push_str("start\n");
+    Round::new(&mut players, &mut log).finish();
+    check!(r#"log starts "start\n"; finish"#, log, "start\nround over\n".to_string());
 }
 
 #[test]
-fn in_a_vec() {
-    check!(r#"1000 players with 1 point; move from 999 to 0"#, { let mut p: Vec<Player> = (0..1000).map(|_| Player { score: 1 }).collect(); transfer(&mut p, 999, 0, 1); (p[0].score, p[999].score) }, (2, 0));
+fn transfer_after_rename_uses_new_name() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    {
+        let mut r = Round::new(&mut players, &mut log);
+        r.rename(0, "al");
+        r.transfer(0, 1, 1);
+    }
+    check!(r#"rename 0 to "al"; transfer 0 -> 1, 1"#, log, "ann is now al\nal -> bo: 1\n".to_string());
+}
+
+#[test]
+fn no_log_without_calls() {
+    let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];
+    let mut log = String::new();
+    let _ = Round::new(&mut players, &mut log);
+    check!(r#"new round, dropped"#, log.len(), 0);
 }
 
 #[test]
 fn random_vs_model() {
-    let mut rng = anneal_prelude::Rng::new(2014);
+    let mut rng = anneal_prelude::Rng::new(6215);
     for _ in 0..300 {
-        let n = 1 + rng.below(5);
-        let scores: Vec<u32> = rng.vec(n, 0, 20);
-        let from = rng.below(n);
-        let to = rng.below(n);
-        let points = rng.int(0, scores[from] as i64) as u32;
-        let mut p: Vec<Player> = scores.iter().map(|&s| Player { score: s }).collect();
-        transfer(&mut p, from, to, points);
-        let mut want = scores.clone();
-        want[from] -= points;
-        want[to] += points;
-        check!(format!("scores {scores:?}, move {points} from {from} to {to}"), p.iter().map(|x| x.score).collect::<Vec<_>>(), want);
+        let n = 1 + rng.below(4);
+        let start: Vec<u32> = rng.vec(n, 0, 9);
+        let mut players: Vec<Player> = start.iter().enumerate().map(|(i, &s)| Player { name: format!("p{i}"), score: s }).collect();
+        let mut model = start.clone();
+        let mut want_log = String::new();
+        let mut log = String::new();
+        let mut ops = Vec::new();
+        let mut moves = Vec::new();
+        {
+            let mut r = Round::new(&mut players, &mut log);
+            for _ in 0..5 {
+                let (f, t, pts) = (rng.below(n), rng.below(n), rng.below(8) as u32);
+                let moved = pts.min(model[f]);
+                model[f] -= moved;
+                model[t] += moved;
+                want_log.push_str(&format!("p{f} -> p{t}: {moved}\n"));
+                ops.push(format!("transfer {f} -> {t}, {pts}"));
+                moves.push((r.transfer(f, t, pts), moved));
+            }
+            let ps = r.finish();
+            want_log.push_str("round over\n");
+            let got: Vec<u32> = ps.iter().map(|p| p.score).collect();
+            check!(format!("scores {start:?}; {}", ops.join(", ")), got, model.clone());
+        }
+        check!(format!("scores {start:?}; {}; moved and log", ops.join(", ")), (moves.iter().map(|m| m.0).collect::<Vec<_>>(), log), (moves.iter().map(|m| m.1).collect::<Vec<_>>(), want_log));
     }
 }

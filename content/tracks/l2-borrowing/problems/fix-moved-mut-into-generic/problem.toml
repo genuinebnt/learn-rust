@@ -1,31 +1,36 @@
 slug = "fix-moved-mut-into-generic"
-title = "Fix: a &mut moved into a generic call"
+title = "Fix: a &mut moved where you meant to lend it"
 mode = "fix"
 level = "medium"
 stage = "reborrows"
 order = 11
 status = "ready"
-tags = ["E0382", "reborrow"]
+tags = ["E0382", "reborrow", "as_deref_mut", "Iterator::by_ref"]
 teaches = [
-  "Implicit reborrows happen only when the target type is known to be `&mut`.",
-  "`&mut *r` is an explicit reborrow.",
+  "A `&mut` moves into a generic parameter; `&mut *r` lends it instead.",
+  "`Option<&mut T>::as_deref_mut()` reborrows the inner `&mut`.",
+  "`Iterator::by_ref()` lends an iterator to a consuming adapter.",
 ]
-follow_up = "Why does calling `out.push_str(s)` twice not have this problem?"
+follow_up = "`fmt::Write` has `impl<W: Write + ?Sized> Write for &mut W`. Without it, could `put(&mut *out, ..)` work at all?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "When a parameter's type is exactly `&mut T`, Rust reborrows automatically. When it's a generic `W`, the `&mut` itself is moved."
+text = "Three moves: `out` (a `&mut String`) into `put`'s generic `W`, `lines` into `take`, and `alerts` (an `Option<&mut Vec<String>>`) into `note` inside a loop. None of them is `Copy`."
 
 [[hints]]
 kind = "rust"
-text = "`&mut *out` makes a fresh, shorter borrow to pass, leaving `out` usable."
+text = "A `&mut` passed where the parameter type is exactly `&mut T` is reborrowed automatically; into a generic `W` it's moved. `&mut *out` lends a fresh, shorter borrow. Iterators have `by_ref()` for the same purpose."
+
+[[hints]]
+kind = "rust"
+text = "For `Option<&mut T>`, `as_deref_mut()` gives an `Option<&mut T>` that reborrows the one inside, leaving `alerts` usable. `note` has one more call after the loop: that one can take `alerts` itself."
 
 [solution]
-explanation = "A `&mut` isn't `Copy`, so passing it to a generic parameter moves it. `fmt::Write` has `impl Write for &mut W`, so a reborrow fits the generic and keeps the original."
-time = "O(n)"
-space = "O(1)"
+explanation = "`&mut T` isn't `Copy`, so using one by value moves it. Rust inserts a reborrow (`&mut *out`) only where it knows the target type is a `&mut`; a generic parameter `W` isn't known to be one, so `put(out, ..)` moves `out` into `W = &mut String`. The same holds for anything that wraps a `&mut`: an `Option<&mut Vec<String>>` moves into `note`, and an iterator moves into `take` (its adapters take `self`). Each has its own way to lend: `&mut *out`; `alerts.as_deref_mut()` (or `alerts.as_mut().map(|a| &mut **a)`), which needs `mut alerts`; and `lines.by_ref()`, which is `&mut I`, itself an iterator. The last use of each can still move.\n\nSyntax to remember: `put(&mut *out, s)` · `fn f(mut alerts: Option<&mut Vec<String>>)` then `alerts.as_deref_mut()` · `lines.by_ref().take(n)`."
+time = "O(total length)"
+space = "O(header)"
 
 [rules]
-forbid_methods = ["clone"]
-max_changed_lines = 1
+forbid_methods = ["clone", "to_owned"]
+max_changed_lines = 9

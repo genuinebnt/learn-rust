@@ -1892,205 +1892,1240 @@ Syntax to remember: `map.entry(k).or_default()` · `map.entry(k).and_modify(|n| 
 
 # ---------------------------------------------------------------- reborrows (medium)
 
-P.append(fix(
-    "fix-moved-mut-into-generic", "Fix: a &mut moved into a generic call", "medium", "reborrows", ["E0382", "reborrow"],
-    "`write_twice` should write `s` into `out` twice. It doesn't compile.",
+REPORT_HEAD = r"""
+use std::fmt::Write;
+
+/// Writes `s` into `w`. Like most generic sinks, it takes the writer by value.
+fn put<W: Write>(mut w: W, s: &str) {
+    w.write_str(s).expect("writing to a String can't fail");
+}
+
+/// Adds `msg` to `alerts`, if there are alerts to add to.
+fn note(alerts: Option<&mut Vec<String>>, msg: &str) {
+    if let Some(a) = alerts {
+        a.push(msg.to_string());
+    }
+}
+
+/// Writes the first `header` lines as "[<line> / <line>]", then every remaining line as "; <line>". Each
+/// remaining line that starts with '!' is also noted in `alerts` (when given), and the last note is
+/// "<n> lines", where n counts the remaining lines. Returns n.
+"""
+
+REPORT_STARTER = REPORT_HEAD + r"""pub fn report<'a, I>(out: &mut String, mut lines: I, header: usize, alerts: Option<&mut Vec<String>>) -> usize
+where
+    I: Iterator<Item = &'a str>,
+{
+    let head: Vec<&str> = lines.take(header).collect();
+    put(out, "[");
+    put(out, &head.join(" / "));
+    put(out, "]");
+    let mut n = 0;
+    for line in lines {
+        put(out, "; ");
+        put(out, line);
+        if line.starts_with('!') {
+            note(alerts, line);
+        }
+        n += 1;
+    }
+    note(alerts, &format!("{n} lines"));
+    n
+}
+"""
+
+REPORT_SOLUTION = REPORT_HEAD + r"""pub fn report<'a, I>(out: &mut String, mut lines: I, header: usize, mut alerts: Option<&mut Vec<String>>) -> usize
+where
+    I: Iterator<Item = &'a str>,
+{
+    let head: Vec<&str> = lines.by_ref().take(header).collect();
+    put(&mut *out, "[");
+    put(&mut *out, &head.join(" / "));
+    put(&mut *out, "]");
+    let mut n = 0;
+    for line in lines {
+        put(&mut *out, "; ");
+        put(&mut *out, line);
+        if line.starts_with('!') {
+            note(alerts.as_deref_mut(), line);
+        }
+        n += 1;
+    }
+    note(alerts, &format!("{n} lines"));
+    n
+}
+"""
+
+
+def report_case(name, text, header, out, alerts, n, with_alerts=True):
+    shown = text.replace("\n", "\\n")
+    if with_alerts:
+        al = "vec![" + ", ".join(f'"{a}".to_string()' for a in alerts) + "]" if alerts else "Vec::<String>::new()"
+        call = f'{{ let mut out = String::new(); let mut alerts = Vec::new(); let n = report(&mut out, "{shown}".lines(), {header}, Some(&mut alerts)); (out, alerts, n) }}'
+        return T(name, f'lines "{shown}", header {header}, with alerts', call, f'("{out}".to_string(), {al}, {n})')
+    call = f'{{ let mut out = String::new(); let n = report(&mut out, "{shown}".lines(), {header}, None); (out, n) }}'
+    return T(name, f'lines "{shown}", header {header}, no alerts', call, f'("{out}".to_string(), {n})')
+
+
+def report_py(text, header):
+    lines = text.split("\n")
+    if lines[-1] == "":
+        lines.pop()
+    head, rest = lines[:header], lines[header:]
+    out = "[" + " / ".join(head) + "]" + "".join("; " + l for l in rest)
+    alerts = [l for l in rest if l.startswith("!")] + [f"{len(rest)} lines"]
+    return out, alerts, len(rest)
+
+
+def report_auto(name, text, header, with_alerts=True):
+    out, alerts, n = report_py(text, header)
+    return report_case(name, text, header, out, alerts, n, with_alerts)
+
+
+P.append(fixp(
+    "fix-moved-mut-into-generic", "Fix: a &mut moved where you meant to lend it", "medium", "reborrows", ["E0382", "reborrow", "as_deref_mut", "Iterator::by_ref"],
     """
-    use std::fmt::Write;
-
-    fn put<W: Write>(mut w: W, s: &str) {
-        w.write_str(s).expect("writing to a String can't fail");
-    }
-
-    /// Writes `s` into `out`, twice.
-    pub fn write_twice(out: &mut String, s: &str) {
-        put(out, s);
-        put(out, s);
-    }
+        `report` doesn't compile: three things it means to lend are moved instead, each of a different kind.
+        Fix it without collecting all the lines first and without changing `put` or `note`.
     """,
-    """
-    use std::fmt::Write;
+    REPORT_STARTER,
+    REPORT_SOLUTION,
+    [report_auto("example", "Title\nv1\nok\n!disk full", 2),
+     report_auto("no_header", "a\n!b", 0),
+     report_auto("header_longer_than_input", "a\nb", 5),
+     report_auto("without_alerts", "h\n!x\ny", 1, with_alerts=False),
+     report_auto("empty_input", "", 1),
+     T("appends_to_existing_output", "out = \">\", lines \"h\\nb\", header 1", '{ let mut out = String::from(">"); report(&mut out, "h\\nb".lines(), 1, None); out }', '">[h]; b".to_string()')],
+    [report_auto("every_line_alert", "!a\n!b\n!c", 1),
+     report_auto("bang_in_header_not_noted", "!h\nx", 1),
+     report_auto("bang_not_first_char", "h\na!\n !b", 1),
+     report_auto("empty_lines", "\n\nx\n", 1),
+     report_auto("unicode", "日本\n!é", 1),
+     report_auto("header_exactly_all", "a\nb", 2),
+     report_auto("header_zero_empty", "", 0),
+     T("keeps_existing_alerts", "alerts [\"old\"], lines \"h\\n!x\", header 1", '{ let mut out = String::new(); let mut alerts = vec!["old".to_string()]; report(&mut out, "h\\n!x".lines(), 1, Some(&mut alerts)); alerts }', 'vec!["old", "!x", "1 lines"]'),
+     T("any_iterator", "lines from a Vec, header 1", '{ let v = vec!["a", "!b"]; let mut out = String::new(); let n = report(&mut out, v.into_iter(), 1, None); (out, n) }', '("[a]; !b".to_string(), 1)'),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6211);
+         for _ in 0..300 {
+             let n = rng.below(7);
+             let mut owned = Vec::new();
+             for _ in 0..n {
+                 let len = rng.below(3);
+                 owned.push(rng.string(len, "!a"));
+             }
+             let header = rng.below(5);
+             let lines: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+             let (head, rest) = lines.split_at(header.min(lines.len()));
+             let mut want_out = format!("[{}]", head.join(" / "));
+             let mut want_alerts: Vec<String> = Vec::new();
+             for l in rest {
+                 want_out.push_str(&format!("; {l}"));
+                 if l.starts_with('!') {
+                     want_alerts.push(l.to_string());
+                 }
+             }
+             want_alerts.push(format!("{} lines", rest.len()));
+             let mut out = String::new();
+             let mut alerts = Vec::new();
+             let got = report(&mut out, lines.iter().copied(), header, Some(&mut alerts));
+             check!(format!("lines {lines:?}, header {header}"), (out, alerts, got), (want_out, want_alerts, rest.len()));
+         }
+     }
 
-    fn put<W: Write>(mut w: W, s: &str) {
-        w.write_str(s).expect("writing to a String can't fail");
-    }
+     #[test]
+     fn long_input() {
+         let text = "x\n!y\n".repeat(50_000);
+         let mut out = String::new();
+         let mut alerts = Vec::new();
+         let n = report(&mut out, text.lines(), 2, Some(&mut alerts));
+         check!("100000 lines, header 2", (n, alerts.len(), out.len(), alerts[49_999].clone()), (99_998, 50_000, 350_001, "99998 lines".to_string()));
+     }
+     """],
+    [("rust", "Three moves: `out` (a `&mut String`) into `put`'s generic `W`, `lines` into `take`, and `alerts` (an `Option<&mut Vec<String>>`) into `note` inside a loop. None of them is `Copy`."),
+     ("rust", "A `&mut` passed where the parameter type is exactly `&mut T` is reborrowed automatically; into a generic `W` it's moved. `&mut *out` lends a fresh, shorter borrow. Iterators have `by_ref()` for the same purpose."),
+     ("rust", "For `Option<&mut T>`, `as_deref_mut()` gives an `Option<&mut T>` that reborrows the one inside, leaving `alerts` usable. `note` has one more call after the loop: that one can take `alerts` itself.")],
+    ("""`&mut T` isn't `Copy`, so using one by value moves it. Rust inserts a reborrow (`&mut *out`) only where it knows the target type is a `&mut`; a generic parameter `W` isn't known to be one, so `put(out, ..)` moves `out` into `W = &mut String`. The same holds for anything that wraps a `&mut`: an `Option<&mut Vec<String>>` moves into `note`, and an iterator moves into `take` (its adapters take `self`). Each has its own way to lend: `&mut *out`; `alerts.as_deref_mut()` (or `alerts.as_mut().map(|a| &mut **a)`), which needs `mut alerts`; and `lines.by_ref()`, which is `&mut I`, itself an iterator. The last use of each can still move.
 
-    /// Writes `s` into `out`, twice.
-    pub fn write_twice(out: &mut String, s: &str) {
-        put(&mut *out, s);
-        put(out, s);
-    }
-    """,
-    [T("twice", "s = \"ab\"", "{ let mut o = String::new(); write_twice(&mut o, \"ab\"); o }", "\"abab\".to_string()"),
-     T("keeps_existing", "out = \"x\", s = \"y\"", "{ let mut o = String::from(\"x\"); write_twice(&mut o, \"y\"); o }", "\"xyy\".to_string()")],
-    [T("empty", "s = \"\"", "{ let mut o = String::from(\"z\"); write_twice(&mut o, \"\"); o }", "\"z\".to_string()")],
-    [("rust", "When a parameter's type is exactly `&mut T`, Rust reborrows automatically. When it's a generic `W`, the `&mut` itself is moved."),
-     ("rust", "`&mut *out` makes a fresh, shorter borrow to pass, leaving `out` usable.")],
-    ("A `&mut` isn't `Copy`, so passing it to a generic parameter moves it. `fmt::Write` has `impl Write for &mut W`, so a reborrow fits the generic and keeps the original.", "O(n)", "O(1)"),
-    "Why does calling `out.push_str(s)` twice not have this problem?",
-    ["Implicit reborrows happen only when the target type is known to be `&mut`.", "`&mut *r` is an explicit reborrow."],
-    rules=dict(methods=["clone"], lines=1),
+Syntax to remember: `put(&mut *out, s)` · `fn f(mut alerts: Option<&mut Vec<String>>)` then `alerts.as_deref_mut()` · `lines.by_ref().take(n)`.""", "O(total length)", "O(header)"),
+    "`fmt::Write` has `impl<W: Write + ?Sized> Write for &mut W`. Without it, could `put(&mut *out, ..)` work at all?",
+    ["A `&mut` moves into a generic parameter; `&mut *r` lends it instead.", "`Option<&mut T>::as_deref_mut()` reborrows the inner `&mut`.", "`Iterator::by_ref()` lends an iterator to a consuming adapter."],
+    rules=dict(methods=["clone", "to_owned"], lines=9),
+    wrong=dict(
+        alerts_taken_once=sub(REPORT_SOLUTION, "note(alerts.as_deref_mut(), line);", "note(alerts.take(), line);"),
+        header_counted=sub(REPORT_SOLUTION, "    let mut n = 0;\n", "    let mut n = head.len();\n"),
+        head_joined_without_spaces=sub(REPORT_SOLUTION, 'head.join(" / ")', 'head.join("/")'),
+    ),
 ))
 
-P.append(write(
-    "helpers-take-mut", "Pass &mut to a helper, twice", "medium", "reborrows", ["&mut", "implicit reborrow"],
-    "Write `normalize`, which trims and lowercases a string in place, and `same_after_normalizing`, which normalizes both and compares them.",
-    """
-    pub fn normalize(s: &mut String) {
-        todo!()
+METER_HEAD = r"""
+/// A nested list of readings.
+pub enum Item {
+    One(i32),
+    Many(Vec<Item>),
+}
+
+pub struct Meter {
+    pub readings: Vec<i32>,
+    pub offset: i32,
+    pub log: Vec<String>,
+}
+"""
+
+METER_STARTER = METER_HEAD + r"""
+/// Calls `f` on every reading in `items`, depth first, in order.
+fn walk<F: FnMut(i32)>(items: &[Item], mut f: F) {
+    for it in items {
+        match it {
+            Item::One(x) => f(*x),
+            Item::Many(inner) => walk(inner, f),
+        }
+    }
+}
+
+impl Meter {
+    fn offset(&self) -> i32 {
+        self.offset
     }
 
-    pub fn same_after_normalizing(a: &mut String, b: &mut String) -> bool {
-        todo!()
-    }
-    """,
-    """
-    pub fn normalize(s: &mut String) {
-        let trimmed = s.trim().to_lowercase();
-        *s = trimmed;
+    /// Adds the offset to every recorded reading.
+    pub fn calibrate(&mut self) {
+        self.readings.iter_mut().for_each(|r| *r += self.offset());
     }
 
-    pub fn same_after_normalizing(a: &mut String, b: &mut String) -> bool {
-        normalize(a);
-        normalize(b);
-        a == b
+    /// Records every value of every batch. After each batch, logs "batch <i>: <n> above" where n counts the
+    /// values above `limit` so far. Returns the final count.
+    pub fn record(&mut self, batches: &[&[i32]], limit: i32) -> usize {
+        let mut above = 0;
+        let mut add = |x: i32| {
+            self.readings.push(x);
+            if x > limit {
+                above += 1;
+            }
+        };
+        for (i, batch) in batches.iter().enumerate() {
+            for &x in *batch {
+                add(x);
+            }
+            self.log.push(format!("batch {i}: {above} above"));
+        }
+        above
     }
+
+    /// Records every reading in `items`, depth first, and returns their sum.
+    pub fn record_nested(&mut self, items: &[Item]) -> i64 {
+        let mut sum = 0;
+        walk(items, |x| {
+            self.readings.push(x);
+            sum += x as i64;
+        });
+        sum
+    }
+}
+"""
+
+METER_SOLUTION = METER_HEAD + r"""
+/// Calls `f` on every reading in `items`, depth first, in order.
+fn walk<F: FnMut(i32)>(items: &[Item], f: &mut F) {
+    for it in items {
+        match it {
+            Item::One(x) => f(*x),
+            Item::Many(inner) => walk(inner, f),
+        }
+    }
+}
+
+impl Meter {
+    fn offset(&self) -> i32 {
+        self.offset
+    }
+
+    /// Adds the offset to every recorded reading.
+    pub fn calibrate(&mut self) {
+        self.readings.iter_mut().for_each(|r| *r += self.offset);
+    }
+
+    /// Records every value of every batch. After each batch, logs "batch <i>: <n> above" where n counts the
+    /// values above `limit` so far. Returns the final count.
+    pub fn record(&mut self, batches: &[&[i32]], limit: i32) -> usize {
+        let mut above = 0;
+        for (i, batch) in batches.iter().enumerate() {
+            let mut add = |x: i32| {
+                self.readings.push(x);
+                if x > limit {
+                    above += 1;
+                }
+            };
+            for &x in *batch {
+                add(x);
+            }
+            self.log.push(format!("batch {i}: {above} above"));
+        }
+        above
+    }
+
+    /// Records every reading in `items`, depth first, and returns their sum.
+    pub fn record_nested(&mut self, items: &[Item]) -> i64 {
+        let mut sum = 0;
+        walk(items, &mut |x| {
+            self.readings.push(x);
+            sum += x as i64;
+        });
+        sum
+    }
+}
+"""
+
+METER_NEW = "let mut m = Meter { readings: vec![], offset: 0, log: vec![] };"
+
+P.append(fixp(
+    "fix-closure-borrows", "Fix: closures hold what they capture", "medium", "reborrows", ["E0502", "E0382", "closures", "disjoint captures", "FnMut", "&mut F"],
+    """
+        `Meter` doesn't compile. Each of its three methods uses a closure, and each closure borrows something
+        for longer, or more broadly, than the code around it expects. Fix them. `walk` must stay generic over
+        the closure type (no `dyn`), and no reading may be copied into a temporary collection.
+
+        One fix that looks right for `walk` compiles, and then fails to build for a different reason. Read that
+        error carefully.
     """,
-    [T("equal", "\"  Rust \", \"rust\"", '{ let (mut a, mut b) = ("  Rust ".to_string(), "rust".to_string()); (same_after_normalizing(&mut a, &mut b), a) }', '(true, "rust".to_string())')],
-    [T("different", "\"a\", \"b\"", '{ let (mut a, mut b) = ("a".to_string(), "b".to_string()); same_after_normalizing(&mut a, &mut b) }', "false")],
-    [("rust", "Passing `a` (a `&mut String`) to `normalize(s: &mut String)` reborrows it, so `a` is usable afterwards.")],
-    ("Each call reborrows `a` for just the call, which is why `a == b` still works.", "O(n)", "O(n)"),
-    "Could `normalize` avoid allocating a new String?",
-    ["Implicit reborrowing when passing `&mut` to a `&mut` parameter."],
+    METER_STARTER,
+    METER_SOLUTION,
+    [T("calibrate_example", "readings [1, 2], offset 10; calibrate", "{ let mut m = Meter { readings: vec![1, 2], offset: 10, log: vec![] }; m.calibrate(); m.readings }", "vec![11, 12]"),
+     T("record_logs_each_batch", "batches [[5, 20], [30], []], limit 10", "{ " + METER_NEW + " let n = m.record(&[&[5, 20], &[30], &[]], 10); (n, m.readings, m.log) }",
+       '(2, vec![5, 20, 30], ["batch 0: 1 above", "batch 1: 2 above", "batch 2: 2 above"].map(String::from).to_vec())'),
+     T("record_nested_depth_first", "[1, [2, [3]], 4]", "{ " + METER_NEW + " let s = m.record_nested(&[Item::One(1), Item::Many(vec![Item::One(2), Item::Many(vec![Item::One(3)])]), Item::One(4)]); (s, m.readings) }", "(10, vec![1, 2, 3, 4])"),
+     T("record_nothing", "no batches", "{ " + METER_NEW + " (m.record(&[], 0), m.log.len()) }", "(0, 0)"),
+     T("limit_is_strict", "batch [10, 11], limit 10", "{ " + METER_NEW + " m.record(&[&[10, 11]], 10) }", "1"),
+     T("record_then_calibrate", "offset -1; record [[3]] limit 0; calibrate", "{ let mut m = Meter { readings: vec![], offset: -1, log: vec![] }; m.record(&[&[3]], 0); m.calibrate(); m.readings }", "vec![2]")],
+    [T("calibrate_empty", "no readings", "{ let mut m = Meter { readings: vec![], offset: 5, log: vec![] }; m.calibrate(); m.readings.len() }", "0"),
+     T("calibrate_twice", "readings [0], offset 3; calibrate twice", "{ let mut m = Meter { readings: vec![0], offset: 3, log: vec![] }; m.calibrate(); m.calibrate(); m.readings }", "vec![6]"),
+     T("record_appends", "readings [9]; record [[1]] limit 5", "{ let mut m = Meter { readings: vec![9], offset: 0, log: vec![\"x\".to_string()] }; m.record(&[&[1]], 5); (m.readings, m.log.len()) }", "(vec![9, 1], 2)"),
+     T("record_negative_limit", "batch [-3, -1, 0], limit -2", "{ " + METER_NEW + " m.record(&[&[-3, -1, 0]], -2) }", "2"),
+     T("nested_empty", "[[], [[]]]", "{ " + METER_NEW + " (m.record_nested(&[Item::Many(vec![]), Item::Many(vec![Item::Many(vec![])])]), m.readings.len()) }", "(0, 0)"),
+     T("nested_sum_is_i64", "[i32::MAX, i32::MAX]", "{ " + METER_NEW + " m.record_nested(&[Item::One(i32::MAX), Item::Many(vec![Item::One(i32::MAX)])]) }", "2 * i32::MAX as i64"),
+     T("nested_order", "[[3, 1], 2]", "{ " + METER_NEW + " m.record_nested(&[Item::Many(vec![Item::One(3), Item::One(1)]), Item::One(2)]); m.readings }", "vec![3, 1, 2]"),
+     T("record_count_carries_over", "batches [[11], [1], [12]], limit 10", "{ " + METER_NEW + " m.record(&[&[11], &[1], &[12]], 10); m.log }", '["batch 0: 1 above", "batch 1: 1 above", "batch 2: 2 above"].map(String::from).to_vec()'),
+     r"""
+     fn nest(depth: usize, leaf: i32) -> Item {
+         let mut it = Item::One(leaf);
+         for _ in 0..depth {
+             it = Item::Many(vec![it]);
+         }
+         it
+     }
+
+     #[test]
+     fn deep_and_wide() {
+         let mut m = Meter { readings: vec![], offset: 1, log: vec![] };
+         let items: Vec<Item> = (0..20_000).map(|i| nest(i % 5, i as i32)).collect();
+         let s = m.record_nested(&items);
+         m.calibrate();
+         check!("20000 items nested up to 4 deep, then calibrate", (s, m.readings.len(), m.readings[19_999]), (199_990_000, 20_000, 20_000));
+     }
+
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6212);
+         for _ in 0..300 {
+             let nb = rng.below(4);
+             let mut batches: Vec<Vec<i32>> = Vec::new();
+             for _ in 0..nb {
+                 let len = rng.below(4);
+                 batches.push(rng.vec(len, -5, 5));
+             }
+             let limit = rng.int(-3, 3) as i32;
+             let offset = rng.int(-2, 2) as i32;
+             let refs: Vec<&[i32]> = batches.iter().map(|b| b.as_slice()).collect();
+             let mut m = Meter { readings: vec![], offset, log: vec![] };
+             let n = m.record(&refs, limit);
+             m.calibrate();
+             let mut above = 0;
+             let mut log = Vec::new();
+             for (i, b) in batches.iter().enumerate() {
+                 above += b.iter().filter(|&&x| x > limit).count();
+                 log.push(format!("batch {i}: {above} above"));
+             }
+             let readings: Vec<i32> = batches.concat().iter().map(|x| x + offset).collect();
+             check!(format!("batches {batches:?}, limit {limit}, offset {offset}"), (n, m.readings, m.log), (above, readings, log));
+         }
+     }
+     """],
+    [("rust", "In `calibrate`, the closure calls `self.offset()`, a method, so it captures all of `self` while `self.readings` is borrowed mutably. A closure that reads the field `self.offset` captures only that field (edition 2021)."),
+     ("rust", "In `record`, `add` holds `&mut above` for as long as `add` lives, and it lives until its last call in the next batch. Could each batch get its own closure?"),
+     ("rust", "`walk(inner, f)` moves `f` in a loop. `walk(inner, &mut f)` compiles, but each level instantiates `walk` with one more `&mut`: `walk::<&mut &mut &mut F>`, without end. Make `walk` take `f: &mut F` so every level passes the same type.")],
+    ("""A closure's captures are borrows that last as long as the closure. `calibrate`'s closure calls a method on `self`, which captures `self` whole; since edition 2021, a closure that names a field (`self.offset`) captures only that path, so it's disjoint from `self.readings`. In `record`, `add` mutably borrows `above` until its last use, which the loop puts in the next batch, after the read in `format!`. Creating the closure inside the loop ends its borrow each time; `self.log.push` never conflicted, because `add` captures `self.readings`, not `self`.
+
+`walk` moves `f` into the recursive call. `&mut f` fixes the move (`&mut F` implements `FnMut` too), but the recursion is then polymorphic: `walk::<F>` calls `walk::<&mut F>`, which calls `walk::<&mut &mut F>`, and monomorphization never ends. Taking `f: &mut F` keeps one type at every depth, and passing `f` down is an implicit reborrow.
+
+Syntax to remember: `fn walk<F: FnMut(i32)>(items: &[Item], f: &mut F)` · `walk(items, &mut |x| { .. })` · `|r| *r += self.offset` (a field, not a method).""", "O(n)", "O(depth) stack"),
+    "`&mut dyn FnMut(i32)` would also fix `walk`. What does it cost compared with `&mut F`?",
+    ["A closure keeps its captures borrowed for as long as it lives.", "Edition 2021 closures capture field paths, not all of `self`.", "Recursing with `&mut f` on a generic `F` never stops instantiating; take `&mut F`."],
+    rules=dict(methods=["clone", "collect", "to_vec"], types=["Cell", "RefCell"]),
+    wrong=dict(
+        count_per_batch=sub(sub(METER_SOLUTION, "        let mut above = 0;\n        for (i, batch) in batches.iter().enumerate() {\n            let mut add",
+                                "        let mut total = 0;\n        for (i, batch) in batches.iter().enumerate() {\n            let mut above = 0;\n            let mut add"),
+                            "            self.log.push(format!(\"batch {i}: {above} above\"));\n        }\n        above\n", "            self.log.push(format!(\"batch {i}: {above} above\"));\n            total += above;\n        }\n        total\n"),
+        calibrate_with_stale_offset=sub(METER_SOLUTION, "self.readings.iter_mut().for_each(|r| *r += self.offset);", "let offset = self.offset().max(0);\n        self.readings.iter_mut().for_each(|r| *r += offset);"),
+        walk_skips_nested=sub(METER_SOLUTION, "            Item::Many(inner) => walk(inner, f),\n", "            Item::Many(inner) => {\n                if let Some(Item::One(x)) = inner.first() {\n                    f(*x);\n                }\n            }\n"),
+    ),
 ))
 
-P.append(write(
-    "two-phase-borrows", "vec.push(vec.len()) and two-phase borrows", "medium", "reborrows", ["two-phase borrows"],
-    "Push `v.len()` onto `v`, `n` times. Write it as `v.push(v.len())`.",
-    """
-    pub fn push_lengths(v: &mut Vec<usize>, n: usize) {
-        todo!()
+LIST_HEAD = r"""
+pub struct Node {
+    pub val: i32,
+    pub next: Option<Box<Node>>,
+}
+
+/// A singly linked list. Lists can be long, so nothing here may recurse.
+pub struct List {
+    head: Option<Box<Node>>,
+}
+
+impl List {
+    pub fn from_slice(xs: &[i32]) -> Self {
+        let mut head = None;
+        for &val in xs.iter().rev() {
+            head = Some(Box::new(Node { val, next: head }));
+        }
+        List { head }
     }
-    """,
-    """
-    pub fn push_lengths(v: &mut Vec<usize>, n: usize) {
-        for _ in 0..n {
-            // Two-phase borrow: `&mut v` is reserved, `v.len()` reads, then the push activates.
-            v.push(v.len());
+
+    pub fn to_vec(&self) -> Vec<i32> {
+        let mut out = Vec::new();
+        let mut cur = self.head.as_deref();
+        while let Some(node) = cur {
+            out.push(node.val);
+            cur = node.next.as_deref();
+        }
+        out
+    }
+"""
+
+LIST_TAIL = r"""
+impl Drop for List {
+    fn drop(&mut self) {
+        let mut cur = self.head.take();
+        while let Some(mut node) = cur {
+            cur = node.next.take();
         }
     }
+}
+"""
+
+LIST_DOCS = dict(
+    push_back="    /// Appends `val` at the end.\n    pub fn push_back(&mut self, val: i32) {\n",
+    insert="    /// Inserts `val` just before the first element greater than `val` (at the end if there's none), so a\n    /// sorted list stays sorted and `val` goes after any equal elements.\n    pub fn insert_sorted(&mut self, val: i32) {\n",
+    remove="    /// Removes every element `pred` accepts and returns how many it removed. `pred` sees each element once,\n    /// in order.\n    pub fn remove_if(&mut self, mut pred: impl FnMut(i32) -> bool) -> usize {\n",
+    last="    /// The last element, for editing.\n    pub fn last_mut(&mut self) -> Option<&mut i32> {\n",
+)
+
+LIST_BODIES = dict(
+    push_back="""        let mut cur = &mut self.head;
+        while let Some(node) = cur {
+            cur = &mut node.next;
+        }
+        *cur = Some(Box::new(Node { val, next: None }));
+""",
+    insert="""        let mut cur = &mut self.head;
+        while cur.as_ref().is_some_and(|node| node.val <= val) {
+            cur = &mut cur.as_mut().unwrap().next;
+        }
+        let rest = cur.take();
+        *cur = Some(Box::new(Node { val, next: rest }));
+""",
+    remove="""        let mut removed = 0;
+        let mut cur = &mut self.head;
+        loop {
+            match cur {
+                None => break,
+                Some(node) if pred(node.val) => {
+                    *cur = node.next.take();
+                    removed += 1;
+                }
+                Some(node) => cur = &mut node.next,
+            }
+        }
+        removed
+""",
+    last="""        let mut cur = self.head.as_deref_mut()?;
+        while let Some(next) = cur.next.as_deref_mut() {
+            cur = next;
+        }
+        Some(&mut cur.val)
+""",
+)
+
+
+def list_src(bodies):
+    out = LIST_HEAD
+    for k in ("push_back", "insert", "remove", "last"):
+        out += "\n" + LIST_DOCS[k] + bodies[k] + "    }\n"
+    return out + "}\n" + LIST_TAIL
+
+
+LIST_SOLUTION = list_src(LIST_BODIES)
+LIST_STARTER = list_src({k: "        todo!()\n" for k in LIST_BODIES}).replace("mut pred: impl", "pred: impl")
+
+
+def with_body(key, body):
+    b = dict(LIST_BODIES)
+    b[key] = body
+    return list_src(b)
+
+
+P.append(writep(
+    "mut-cursor-loop", "&mut cursors in a loop", "medium", "reborrows", ["&mut in loops", "Option<Box<T>>", "NLL", "as_deref_mut"],
+    """
+        Write four methods of a singly linked list, each by walking a `&mut` cursor down the list: `push_back`,
+        `insert_sorted`, `remove_if` and `last_mut`. Lists in the tests are long, so no recursion (that's also
+        why `Drop` is written out).
+
+        The shortest cursor loops for two of these are rejected by today's borrow checker even though they're
+        sound. When that happens, rearrange the loop rather than reaching for `unsafe` or a second pass.
     """,
-    [T("three", "v = [], n = 3", "{ let mut v = vec![]; push_lengths(&mut v, 3); v }", "vec![0, 1, 2]")],
-    [T("existing", "v = [9], n = 2", "{ let mut v = vec![9]; push_lengths(&mut v, 2); v }", "vec![9, 1, 2]")],
-    [("rust", "It looks like a shared and a mutable borrow at once. It compiles because the mutable borrow of an autoref'd method receiver isn't active until the arguments are evaluated.")],
-    ("Two-phase borrows exist precisely so `v.push(v.len())` compiles. They only apply to autoref'd method calls and compound assignment.", "O(n)", "O(1) amortised"),
-    "Why doesn't `let r = &mut v; r.push(v.len());` compile?",
-    ["Two-phase borrows: reserve, evaluate arguments, then activate."],
+    LIST_STARTER,
+    LIST_SOLUTION,
+    [T("push_back", "[1, 2]; push_back 3", "{ let mut l = List::from_slice(&[1, 2]); l.push_back(3); l.to_vec() }", "vec![1, 2, 3]"),
+     T("insert_sorted_middle", "[1, 3, 5]; insert_sorted 4", "{ let mut l = List::from_slice(&[1, 3, 5]); l.insert_sorted(4); l.to_vec() }", "vec![1, 3, 4, 5]"),
+     T("insert_after_equal", "[5, 3]; insert_sorted 5", "{ let mut l = List::from_slice(&[5, 3]); l.insert_sorted(5); l.to_vec() }", "vec![5, 3, 5]"),
+     T("remove_if_example", "[1, 2, 3, 4, 6]; remove even", "{ let mut l = List::from_slice(&[1, 2, 3, 4, 6]); let n = l.remove_if(|x| x % 2 == 0); (n, l.to_vec()) }", "(3, vec![1, 3])"),
+     T("last_mut_example", "[7, 8, 9]; last += 100", "{ let mut l = List::from_slice(&[7, 8, 9]); *l.last_mut().unwrap() += 100; l.to_vec() }", "vec![7, 8, 109]"),
+     T("empty_list", "[]", "{ let mut l = List::from_slice(&[]); (l.last_mut().is_none(), l.remove_if(|_| true), { l.insert_sorted(1); l.to_vec() }) }", "(true, 0, vec![1])")],
+    [T("push_back_empty", "[]; push_back 1, 2", "{ let mut l = List::from_slice(&[]); l.push_back(1); l.push_back(2); l.to_vec() }", "vec![1, 2]"),
+     T("insert_at_front", "[2, 3]; insert_sorted 1", "{ let mut l = List::from_slice(&[2, 3]); l.insert_sorted(1); l.to_vec() }", "vec![1, 2, 3]"),
+     T("insert_at_end", "[1, 2]; insert_sorted 9", "{ let mut l = List::from_slice(&[1, 2]); l.insert_sorted(9); l.to_vec() }", "vec![1, 2, 9]"),
+     T("insert_unsorted", "[1, 9, 2]; insert_sorted 5", "{ let mut l = List::from_slice(&[1, 9, 2]); l.insert_sorted(5); l.to_vec() }", "vec![1, 5, 9, 2]"),
+     T("remove_all", "[4, 4, 4]; remove 4", "{ let mut l = List::from_slice(&[4, 4, 4]); (l.remove_if(|x| x == 4), l.to_vec(), l.last_mut().is_none()) }", "(3, vec![], true)"),
+     T("remove_adjacent", "[1, 2, 2, 3, 2]; remove 2", "{ let mut l = List::from_slice(&[1, 2, 2, 3, 2]); let n = l.remove_if(|x| x == 2); (n, l.to_vec()) }", "(3, vec![1, 3])"),
+     T("remove_sees_each_once_in_order", "[5, 6, 7, 8]; remove every other visited", "{ let mut l = List::from_slice(&[5, 6, 7, 8]); let mut seen = vec![]; let mut k = 0; let n = l.remove_if(|x| { seen.push(x); k += 1; k % 2 == 1 }); (n, l.to_vec(), seen) }", "(2, vec![6, 8], vec![5, 6, 7, 8])"),
+     T("last_after_remove", "[1, 2, 3]; remove 3; last", "{ let mut l = List::from_slice(&[1, 2, 3]); l.remove_if(|x| x == 3); l.last_mut().copied() }", "Some(2)"),
+     T("push_after_last_edit", "[1]; last = 5; push_back 6", "{ let mut l = List::from_slice(&[1]); *l.last_mut().unwrap() = 5; l.push_back(6); l.to_vec() }", "vec![5, 6]"),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6213);
+         for _ in 0..300 {
+             let n = rng.below(6);
+             let start: Vec<i32> = rng.vec(n, 0, 5);
+             let mut l = List::from_slice(&start);
+             let mut model = start.clone();
+             let mut ops = Vec::new();
+             for _ in 0..6 {
+                 let v = rng.int(0, 5) as i32;
+                 match rng.below(4) {
+                     0 => {
+                         l.push_back(v);
+                         model.push(v);
+                         ops.push(format!("push_back {v}"));
+                     }
+                     1 => {
+                         l.insert_sorted(v);
+                         let at = model.iter().position(|&x| x > v).unwrap_or(model.len());
+                         model.insert(at, v);
+                         ops.push(format!("insert_sorted {v}"));
+                     }
+                     2 => {
+                         let before = model.len();
+                         model.retain(|&x| x != v);
+                         ops.push(format!("remove_if(== {v})"));
+                         check!(format!("{start:?}; {}", ops.join(", ")), l.remove_if(|x| x == v), before - model.len());
+                     }
+                     _ => {
+                         if let Some(x) = l.last_mut() {
+                             *x += 10;
+                         }
+                         if let Some(x) = model.last_mut() {
+                             *x += 10;
+                         }
+                         ops.push("last += 10".to_string());
+                     }
+                 }
+             }
+             check!(format!("{start:?}; {}", ops.join(", ")), l.to_vec(), model);
+         }
+     }
+
+     #[test]
+     fn long_list() {
+         let xs: Vec<i32> = (0..200_000).collect();
+         let mut l = List::from_slice(&xs);
+         l.insert_sorted(199_998);
+         l.push_back(7);
+         let removed = l.remove_if(|x| x % 2 == 1);
+         *l.last_mut().unwrap() = -1;
+         let v = l.to_vec();
+         check!("0..200000; insert_sorted 199998; push_back 7; remove odd; last = -1", (removed, v.len(), v[99_999], v[100_000]), (100_001, 100_001, 199_998, -1));
+     }
+     """],
+    [("rust", "The cursor is `let mut cur = &mut self.head;` (an `&mut Option<Box<Node>>`) and advancing is `cur = &mut node.next;`. When the loop ends, `*cur` is the slot to write into."),
+     ("rust", "`while let Some(node) = cur { if stop { break; } cur = &mut node.next; }` is rejected: the borrow in `node` flows into `cur` on one path, so NLL keeps it alive on the `break` path too. Test first with a shared look (`cur.as_ref().is_some_and(..)`), then take the `&mut` only to advance."),
+     ("rust", "For `remove_if`, a `match` with one arm per case (`None`, `Some(node) if pred(node.val)`, `Some(node)`) gives each arm its own borrow, so the removing arm can assign to `*cur`.")],
+    ("""A `&mut` cursor is reborrowed on every step: `cur = &mut node.next` borrows through the old `cur`, which is never used again, so the chain of borrows stays linear. `push_back` and `last_mut` are the plain loop. The other two hit a limit of NLL: in `while let Some(node) = cur { if cond { break } cur = &mut node.next }` the borrow held by `node` must outlive `cur` on the advancing path, and NLL's regions don't distinguish paths, so after `break` `*cur` still counts as borrowed (E0499/E0506; Polonius accepts it). The workarounds keep the `&mut` borrow off the stopping path: check through a shared borrow first and reborrow only to advance (`cur = &mut cur.as_mut().unwrap().next`), or match with guards so each arm binds its own borrow.
+
+Syntax to remember: `let mut cur = &mut self.head;` · `while cur.as_ref().is_some_and(|n| n.val <= val) { cur = &mut cur.as_mut().unwrap().next; }` · `*cur = Some(Box::new(Node { val, next: cur.take() }))` · `match cur { Some(node) if pred(node.val) => *cur = node.next.take(), Some(node) => cur = &mut node.next, None => break }`.""", "O(n) per operation", "O(1)"),
+    "Why must `List` implement `Drop` by hand, when `Box` already frees its contents?",
+    ["A `&mut` cursor advances by reborrowing through itself.", "NLL rejects a borrow that flows into the cursor on one path and must be dead on another; check first, then borrow.", "Match arms with guards bind separate borrows."],
+    related=("L2", "D5"),
+    wrong=dict(
+        insert_before_equal=sub(LIST_SOLUTION, "node.val <= val", "node.val < val"),
+        remove_first_only=sub(LIST_SOLUTION, "                    *cur = node.next.take();\n                    removed += 1;\n", "                    *cur = node.next.take();\n                    removed += 1;\n                    break;\n"),
+        last_is_head=with_body("last", "        self.head.as_deref_mut().map(|n| &mut n.val)\n"),
+    ),
 ))
 
-P.append(fix(
-    "fix-two-mut-into-players", "Fix: two &mut into one Vec", "medium", "reborrows", ["E0499"],
-    "`transfer` should move points from one player to another. It doesn't compile.",
-    """
-    pub struct Player {
-        pub score: u32,
-    }
+SCRIPT_DOC = r"""
+/// Runs these steps on `v` in order. "len" always means the length at that step.
+///  1. push len
+///  2. swap the first and last elements
+///  3. insert a copy of the first element at index len / 2
+///  4. add len to the last element
+///  5. move the last element to the front
+///  6. rotate left by len / 3
+///  7. remove every element smaller than the first
+///  8. log len
+///  9. drop the last len / 4 elements
+/// 10. pad with two copies of the last element
+/// 11. append a copy of the first len / 2 elements
+/// 12. log how many elements are greater than the first
+"""
 
-    /// Moves `points` from player `from` to player `to`.
-    pub fn transfer(players: &mut [Player], from: usize, to: usize, points: u32) {
-        let a = &mut players[from];
-        let b = &mut players[to];
-        a.score -= points;
-        b.score += points;
-    }
-    """,
-    """
-    pub struct Player {
-        pub score: u32,
-    }
+SCRIPT_STARTER = SCRIPT_DOC + r"""pub fn script(v: &mut Vec<i32>, log: &mut Vec<usize>) {
+    v.push(v.len() as i32);
+    v.swap(0, v.len() - 1);
+    v.insert(v.len() / 2, v[0]);
+    v[v.len() - 1] += v.len() as i32;
+    v.insert(0, v.pop().unwrap());
+    v.rotate_left(v.len() / 3);
+    v.retain(|&x| x >= v[0]);
+    log.push(v.len());
+    v.truncate(v.len() - v.len() / 4);
+    v.resize(v.len() + 2, v[v.len() - 1]);
+    v.extend_from_within(..v.len() / 2);
+    log.push(v.iter().filter(|&&x| x > v[0]).count());
+}
+"""
 
-    /// Moves `points` from player `from` to player `to`.
-    pub fn transfer(players: &mut [Player], from: usize, to: usize, points: u32) {
-        players[from].score -= points;
-        players[to].score += points;
-    }
+SCRIPT_SOLUTION = SCRIPT_DOC + r"""pub fn script(v: &mut Vec<i32>, log: &mut Vec<usize>) {
+    v.push(v.len() as i32);
+    let n = v.len();
+    v.swap(0, n - 1);
+    v.insert(v.len() / 2, v[0]);
+    let n = v.len();
+    v[n - 1] += n as i32;
+    let last = v.pop().unwrap();
+    v.insert(0, last);
+    let n = v.len();
+    v.rotate_left(n / 3);
+    let first = v[0];
+    v.retain(|&x| x >= first);
+    log.push(v.len());
+    v.truncate(v.len() - v.len() / 4);
+    v.resize(v.len() + 2, v[v.len() - 1]);
+    v.extend_from_within(..v.len() / 2);
+    log.push(v.iter().filter(|&&x| x > v[0]).count());
+}
+"""
+
+
+def script_py(v):
+    v = list(v)
+    log = []
+    v.append(len(v))
+    v[0], v[-1] = v[-1], v[0]
+    v.insert(len(v) // 2, v[0])
+    v[-1] += len(v)
+    last = v.pop()
+    v.insert(0, last)
+    k = len(v) // 3
+    v = v[k:] + v[:k]
+    first = v[0]
+    v = [x for x in v if x >= first]
+    log.append(len(v))
+    v = v[:len(v) - len(v) // 4]
+    v += [v[-1]] * 2
+    v += v[:len(v) // 2]
+    log.append(sum(1 for x in v if x > v[0]))
+    return v, log
+
+
+def script_case(name, v):
+    after, log = script_py(v)
+    rv = "vec![" + ", ".join(map(str, v)) + "]" if v else "Vec::<i32>::new()"
+    return T(name, f"script({v})", f"{{ let mut v: Vec<i32> = {rv}; let mut log = Vec::new(); script(&mut v, &mut log); (v, log) }}",
+             f"(vec![{', '.join(map(str, after))}], vec![{', '.join(map(str, log))}])")
+
+
+P.append(fixp(
+    "two-phase-borrows", "Fix: where two-phase borrows stop", "medium", "reborrows", ["two-phase borrows", "E0502", "E0499", "DerefMut", "IndexMut"],
+    """
+        `script` doesn't compile, but not every suspicious-looking line is at fault: `v.push(v.len() as i32)`
+        compiles, and so do several others that read `v` inside a call that mutates it. Fix only the lines the
+        compiler rejects, keeping each step's meaning.
     """,
-    [T("moves", "scores [10, 0], move 4 from 0 to 1", "{ let mut p = [Player { score: 10 }, Player { score: 0 }]; transfer(&mut p, 0, 1, 4); (p[0].score, p[1].score) }", "(6, 4)")],
-    [T("same_player", "scores [5], move 3 from 0 to 0", "{ let mut p = [Player { score: 5 }]; transfer(&mut p, 0, 0, 3); p[0].score }", "5")],
-    [("rust", "Two `&mut` into the same slice can't be alive at once, even for different indices: the compiler can't prove `from != to`."),
-     ("approach", "Do you need both references at the same time?")],
-    ("Each statement borrows the slice for one line, so the borrows never overlap. It also handles `from == to` correctly, which two live `&mut`s couldn't.", "O(1)", "O(1)"),
-    "What if you really need both `&mut` at once?",
-    ["The borrow checker reasons about the whole slice, not individual indices."],
+    SCRIPT_STARTER,
+    SCRIPT_SOLUTION,
+    [script_case("empty", []),
+     script_case("one", [7]),
+     script_case("three", [1, 2, 3]),
+     script_case("descending", [9, 5, 1, 0]),
+     script_case("negatives", [-4, 8, -2, 6, 0])],
+    [script_case("zeros", [0, 0, 0]),
+     script_case("two", [5, 5]),
+     script_case("six", [3, 1, 4, 1, 5, 9]),
+     script_case("big_first", [100, 1, 2, 3, 4, 5, 6]),
+     script_case("all_negative", [-1, -2, -3, -4]),
+     script_case("mixed_eight", [2, 7, 1, 8, 2, 8, 1, 8]),
+     script_case("ten", list(range(10))),
+     script_case("ten_desc", list(range(10, 0, -1))),
+     r"""
+     fn model(v: &mut Vec<i32>) -> Vec<usize> {
+         let mut log = Vec::new();
+         let n = v.len() as i32;
+         v.push(n);
+         let n = v.len();
+         v.swap(0, n - 1);
+         let (at, first) = (v.len() / 2, v[0]);
+         v.insert(at, first);
+         let n = v.len();
+         v[n - 1] += n as i32;
+         let last = v.pop().unwrap();
+         v.insert(0, last);
+         let n = v.len();
+         v.rotate_left(n / 3);
+         let first = v[0];
+         v.retain(|&x| x >= first);
+         log.push(v.len());
+         let n = v.len();
+         v.truncate(n - n / 4);
+         let last = v[v.len() - 1];
+         v.push(last);
+         v.push(last);
+         let half = v[..v.len() / 2].to_vec();
+         v.extend(half);
+         let first = v[0];
+         log.push(v.iter().filter(|&&x| x > first).count());
+         log
+     }
+
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6214);
+         for _ in 0..400 {
+             let n = rng.below(12);
+             let start: Vec<i32> = rng.vec(n, -20, 20);
+             let mut want = start.clone();
+             let want_log = model(&mut want);
+             let mut got = start.clone();
+             let mut log = Vec::new();
+             script(&mut got, &mut log);
+             check!(format!("script({start:?})"), (got, log), (want, want_log));
+         }
+     }
+     """],
+    [("rust", "A two-phase borrow reserves the `&mut` for an autoref'd method call, lets the arguments read the value, then activates the borrow. That's why `v.push(v.len())` compiles. Which of the failing calls aren't `Vec`'s own methods?"),
+     ("rust", "`swap` and `rotate_left` are slice methods: `v.swap(..)` first calls `DerefMut::deref_mut(v)` to get a `&mut [i32]`, and that call is an ordinary `&mut` borrow. `v[i] += x` goes through `IndexMut` the same way."),
+     ("rust", "Two-phase only lets arguments *read*. `v.pop()` needs `&mut v` itself, and a closure argument keeps its borrow for the whole call. Hoist what the arguments need into a `let` just before the line, not at the top: the length changes between steps.")],
+    ("""Two-phase borrows are the special case that makes `v.push(v.len())` legal: for an autoref'd method receiver (and compound assignment on primitives), the `&mut v` is only *reserved* while the arguments are evaluated, and they may read `v` in that time. It stops at four things here. A method found through `Deref` (`swap`, `rotate_left`, `get_mut`, `sort` are `[T]`'s methods, so `deref_mut` runs first and activates the borrow). An overloaded index (`v[v.len() - 1] += ..` calls `index_mut(&mut v, ..)` before the index is known). An argument that needs `&mut v` itself (`v.insert(0, v.pop().unwrap())`). And a closure argument (`retain(|&x| x >= v[0])`), which holds its borrow for the whole call. `Vec`'s own methods (`push`, `insert`, `truncate`, `resize`, `extend_from_within`) work, as does anything that mutates a *different* value (`log.push(..)`).
+
+The trap in the fix is hoisting one `let n = v.len()` to the top: steps 1, 3 and 5 change the length.""", "O(n) per step", "O(1) extra"),
+    "`v.swap(0, v.len() - 1)` compiles when `v: &mut [i32]` and fails when `v: &mut Vec<i32>`. Why?",
+    ["Two-phase borrows: reserve the receiver's `&mut`, let arguments read, then activate.", "They don't cover `DerefMut` autoderef, `IndexMut`, `&mut` arguments or closures.", "Hoist a value just before the line that needs it."],
+    rules=dict(methods=["clone", "to_vec"], lines=12),
+    wrong=dict(
+        length_hoisted_once=sub(sub(SCRIPT_SOLUTION, "    let n = v.len();\n    v[n - 1] += n as i32;\n", "    v[n - 1] += n as i32;\n"), "    let n = v.len();\n    v.rotate_left(n / 3);\n", "    v.rotate_left(n / 3);\n"),
+        first_read_before_rotating=sub(SCRIPT_SOLUTION, "    let n = v.len();\n    v.rotate_left(n / 3);\n    let first = v[0];\n", "    let first = v[0];\n    let n = v.len();\n    v.rotate_left(n / 3);\n"),
+        last_to_front_by_swap=sub(SCRIPT_SOLUTION, "    let last = v.pop().unwrap();\n    v.insert(0, last);\n", "    let n = v.len();\n    v.swap(0, n - 1);\n"),
+    ),
 ))
 
-P.append(write(
-    "explicit-reborrow-generic-sink", "Explicit reborrow with &mut *r", "medium", "reborrows", ["reborrow", "generics"],
-    "Using `emit_all` (don't change it), write `emit_twice`, which emits `xs` into `sink` twice.",
+ROUND_HEAD = r"""
+use std::fmt::Write;
+
+#[derive(Debug, PartialEq)]
+pub struct Player {
+    pub name: String,
+    pub score: u32,
+}
+
+/// Appends `line` and a newline to any text sink, taken by value.
+fn record<W: Write>(mut log: W, line: &str) {
+    writeln!(log, "{line}").expect("writing to a String can't fail");
+}
+
+/// One round of a game. It borrows the players and the log from the caller for `'a`.
+pub struct Round<'a> {
+    players: &'a mut [Player],
+    log: &'a mut String,
+}
+"""
+
+ROUND_STARTER = ROUND_HEAD + r"""
+impl<'a> Round<'a> {
+    pub fn new(players: &'a mut [Player], log: &'a mut String) -> Self {
+        Round { players, log }
+    }
+
+    /// Moves up to `points` from player `from` to player `to` (never more than `from` has), logs
+    /// "<from's name> -> <to's name>: <moved>", and returns how many points moved.
+    pub fn transfer(&mut self, from: usize, to: usize, points: u32) -> u32 {
+        let a = &mut self.players[from];
+        let b = &mut self.players[to];
+        let moved = points.min(a.score);
+        a.score -= moved;
+        b.score += moved;
+        record(self.log, &format!("{} -> {}: {moved}", a.name, b.name));
+        moved
+    }
+
+    /// Renames player `i` and logs "<old> is now <new>".
+    pub fn rename(&mut self, i: usize, new: &str) {
+        let p = &mut self.players[i];
+        let old = std::mem::replace(&mut p.name, new.to_string());
+        record(self.log, &format!("{old} is now {}", p.name));
+    }
+
+    /// Ends the round: logs "round over" and hands the players back for the rest of `'a`.
+    pub fn finish(&mut self) -> &'a mut [Player] {
+        record(self.log, "round over");
+        self.players
+    }
+}
+"""
+
+ROUND_SOLUTION = ROUND_HEAD + r"""
+impl<'a> Round<'a> {
+    pub fn new(players: &'a mut [Player], log: &'a mut String) -> Self {
+        Round { players, log }
+    }
+
+    /// Moves up to `points` from player `from` to player `to` (never more than `from` has), logs
+    /// "<from's name> -> <to's name>: <moved>", and returns how many points moved.
+    pub fn transfer(&mut self, from: usize, to: usize, points: u32) -> u32 {
+        let moved = points.min(self.players[from].score);
+        self.players[from].score -= moved;
+        self.players[to].score += moved;
+        let (a, b) = (&self.players[from], &self.players[to]);
+        record(&mut *self.log, &format!("{} -> {}: {moved}", a.name, b.name));
+        moved
+    }
+
+    /// Renames player `i` and logs "<old> is now <new>".
+    pub fn rename(&mut self, i: usize, new: &str) {
+        let p = &mut self.players[i];
+        let old = std::mem::replace(&mut p.name, new.to_string());
+        record(&mut *self.log, &format!("{old} is now {}", p.name));
+    }
+
+    /// Ends the round: logs "round over" and hands the players back for the rest of `'a`.
+    pub fn finish(self) -> &'a mut [Player] {
+        record(self.log, "round over");
+        self.players
+    }
+}
+"""
+
+ROUND_SETUP = 'let mut players = vec![Player { name: "ann".into(), score: 10 }, Player { name: "bo".into(), score: 3 }];\nlet mut log = String::new();'
+
+P.append(fixp(
+    "fix-two-mut-into-players", "Fix: a struct of &mut: reborrow, sequence, hand back", "medium", "reborrows", ["E0499", "E0507", "reborrow", "&mut fields", "mem::replace"],
     """
-    pub trait Sink {
-        fn put(&mut self, x: i32);
-    }
-
-    impl Sink for Vec<i32> {
-        fn put(&mut self, x: i32) {
-            self.push(x);
-        }
-    }
-
-    impl<S: Sink + ?Sized> Sink for &mut S {
-        fn put(&mut self, x: i32) {
-            (**self).put(x);
-        }
-    }
-
-    /// Don't change this.
-    pub fn emit_all<S: Sink>(mut sink: S, xs: &[i32]) {
-        for &x in xs {
-            sink.put(x);
-        }
-    }
-
-    pub fn emit_twice(sink: &mut Vec<i32>, xs: &[i32]) {
-        todo!()
-    }
+        `Round` holds two `&mut` borrowed from its caller, and none of its methods compiles. Fix them. After
+        `finish`, the caller must be able to keep using the players for as long as the original borrow lasts,
+        even once the `Round` itself is gone. Transferring from a player to the same player is allowed (it
+        moves nothing but is logged).
     """,
+    ROUND_STARTER,
+    ROUND_SOLUTION,
+    [T("transfer_and_finish", "ann 10, bo 3; transfer 0 -> 1, 4; finish", "(ps.iter().map(|p| p.score).collect::<Vec<_>>(), moved)", "(vec![6, 7], 4)",
+       setup=ROUND_SETUP + "\nlet (ps, moved) = {\n    let mut r = Round::new(&mut players, &mut log);\n    let moved = r.transfer(0, 1, 4);\n    (r.finish(), moved)\n};"),
+     T("log_lines", "ann 10, bo 3; transfer 1 -> 0, 3; rename 1 to \"cy\"; finish", "log", '"bo -> ann: 3\\nbo is now cy\\nround over\\n".to_string()',
+       setup=ROUND_SETUP + '\n{\n    let mut r = Round::new(&mut players, &mut log);\n    r.transfer(1, 0, 3);\n    r.rename(1, "cy");\n    r.finish();\n}'),
+     T("transfer_is_capped", "ann 10, bo 3; transfer 1 -> 0, 50", "(moved, players[0].score, players[1].score)", "(3, 13, 0)",
+       setup=ROUND_SETUP + "\nlet moved = Round::new(&mut players, &mut log).transfer(1, 0, 50);"),
+     T("same_player", "ann 10; transfer 0 -> 0, 5", "(moved, players[0].score, log)", '(5, 10, "ann -> ann: 5\\n".to_string())',
+       setup=ROUND_SETUP + "\nlet moved = Round::new(&mut players, &mut log).transfer(0, 0, 5);"),
+     T("players_outlive_the_round", "finish, then edit the players through the returned slice", "(players[0].name.clone(), players[1].score)", '("zed".to_string(), 99)',
+       setup=ROUND_SETUP + '\nlet ps = Round::new(&mut players, &mut log).finish();\nps[0].name = "zed".to_string();\nps[1].score = 99;')],
+    [T("zero_points", "transfer 0 -> 1, 0", "(moved, players[0].score, log)", '(0, 10, "ann -> bo: 0\\n".to_string())', setup=ROUND_SETUP + "\nlet moved = Round::new(&mut players, &mut log).transfer(0, 1, 0);"),
+     T("from_empty_player", "bo 0; transfer 1 -> 0, 5", "(moved, players[0].score)", "(0, 10)", setup=ROUND_SETUP + "\nplayers[1].score = 0;\nlet moved = Round::new(&mut players, &mut log).transfer(1, 0, 5);"),
+     T("exact_balance", "transfer 1 -> 0, 3", "(moved, players[1].score)", "(3, 0)", setup=ROUND_SETUP + "\nlet moved = Round::new(&mut players, &mut log).transfer(1, 0, 3);"),
+     T("rename_twice", "rename 0 to x, then y", "(players[0].name.clone(), log)", '("y".to_string(), "ann is now x\\nx is now y\\n".to_string())',
+       setup=ROUND_SETUP + '\n{\n    let mut r = Round::new(&mut players, &mut log);\n    r.rename(0, "x");\n    r.rename(0, "y");\n}'),
+     T("rename_empty", "rename 1 to \"\"", "log", '"bo is now \\n".to_string()', setup=ROUND_SETUP + '\nRound::new(&mut players, &mut log).rename(1, "");'),
+     T("log_is_appended", "log starts \"start\\n\"; finish", "log", '"start\\nround over\\n".to_string()', setup=ROUND_SETUP + '\nlog.push_str("start\\n");\nRound::new(&mut players, &mut log).finish();'),
+     T("transfer_after_rename_uses_new_name", "rename 0 to \"al\"; transfer 0 -> 1, 1", "log", '"ann is now al\\nal -> bo: 1\\n".to_string()',
+       setup=ROUND_SETUP + '\n{\n    let mut r = Round::new(&mut players, &mut log);\n    r.rename(0, "al");\n    r.transfer(0, 1, 1);\n}'),
+     T("no_log_without_calls", "new round, dropped", "log.len()", "0", setup=ROUND_SETUP + "\nlet _ = Round::new(&mut players, &mut log);"),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6215);
+         for _ in 0..300 {
+             let n = 1 + rng.below(4);
+             let start: Vec<u32> = rng.vec(n, 0, 9);
+             let mut players: Vec<Player> = start.iter().enumerate().map(|(i, &s)| Player { name: format!("p{i}"), score: s }).collect();
+             let mut model = start.clone();
+             let mut want_log = String::new();
+             let mut log = String::new();
+             let mut ops = Vec::new();
+             let mut moves = Vec::new();
+             {
+                 let mut r = Round::new(&mut players, &mut log);
+                 for _ in 0..5 {
+                     let (f, t, pts) = (rng.below(n), rng.below(n), rng.below(8) as u32);
+                     let moved = pts.min(model[f]);
+                     model[f] -= moved;
+                     model[t] += moved;
+                     want_log.push_str(&format!("p{f} -> p{t}: {moved}\n"));
+                     ops.push(format!("transfer {f} -> {t}, {pts}"));
+                     moves.push((r.transfer(f, t, pts), moved));
+                 }
+                 let ps = r.finish();
+                 want_log.push_str("round over\n");
+                 let got: Vec<u32> = ps.iter().map(|p| p.score).collect();
+                 check!(format!("scores {start:?}; {}", ops.join(", ")), got, model.clone());
+             }
+             check!(format!("scores {start:?}; {}; moved and log", ops.join(", ")), (moves.iter().map(|m| m.0).collect::<Vec<_>>(), log), (moves.iter().map(|m| m.1).collect::<Vec<_>>(), want_log));
+         }
+     }
+     """],
+    [("rust", "`let a = &mut self.players[from]; let b = &mut self.players[to];` can't compile even for different indices, and `from == to` is allowed anyway. Do you need both at once? The scores are `u32`: read, then write each one in its own statement."),
+     ("rust", "`record(self.log, ..)` tries to move the `&'a mut String` out of `*self`, which you only have through `&mut self` (E0507). `&mut *self.log` lends it for the call instead."),
+     ("rust", "From `&mut self` you can only lend what's inside for as long as *that* borrow lasts, not for `'a`. To hand the players back for all of `'a`, `finish` has to take the `Round` by value.")],
+    ("""A struct of `&'a mut` fields is a bundle of loans, and the rules for using them depend on how you hold the struct. Through `&mut self`, you can reborrow a field (`&mut *self.log`) for as long as `self` is borrowed, but you can't move it out: that's E0507, which a generic parameter like `record`'s `W` triggers because nothing reborrows implicitly there. Returning `&'a mut [Player]` from `&mut self` is impossible for the same reason: the longest reborrow you can make of `*self.players` is the lifetime of `&mut self`. Taking `self` by value owns the fields, so `finish(self)` can move `self.players` out with its full `'a`. The test that uses the players after the `Round` is gone checks exactly that.
+
+`transfer` never needs two `&mut` at once: the scores are `Copy`, so compute `moved`, then update `from` and `to` in separate statements, which also makes `from == to` harmless. `split_at_mut` would need a special case for it. `rename` shows the disjoint case that does compile: `p` borrows `*self.players` while `&mut *self.log` borrows another field.""", "O(1) per call", "O(1)"),
+    "`fn finish(&mut self) -> &mut [Player]` also compiles. Which caller code would it reject that `finish(self)` accepts?",
+    ["Through `&mut self`, a `&mut` field can be reborrowed (`&mut *self.f`) but not moved out.", "Only a by-value `self` can hand a field back with its full lifetime.", "Sequence `Copy` reads and writes instead of holding two `&mut`."],
+    rules=dict(methods=["clone", "swap", "take", "split_at_mut", "get_disjoint_mut"]),
+    wrong=dict(
+        uncapped=sub(sub(ROUND_SOLUTION, "let moved = points.min(self.players[from].score);", "let moved = points;"), "self.players[from].score -= moved;", "self.players[from].score = self.players[from].score.saturating_sub(moved);"),
+        logs_to_before_from=sub(ROUND_SOLUTION, "let (a, b) = (&self.players[from], &self.players[to]);", "let (a, b) = (&self.players[to], &self.players[from]);"),
+        finish_forgets_to_log=sub(ROUND_SOLUTION, "        record(self.log, \"round over\");\n        self.players", "        self.players"),
+    ),
+))
+
+SINK_HEAD = r"""
+pub trait Sink {
+    fn put(&mut self, x: i32);
+    /// How many values this sink has taken.
+    fn len(&self) -> usize;
+}
+
+impl Sink for Vec<i32> {
+    fn put(&mut self, x: i32) {
+        self.push(x);
+    }
+
+    fn len(&self) -> usize {
+        Vec::len(self)
+    }
+}
+
+/// Counts values without keeping them.
+pub struct Count(pub usize);
+
+impl Sink for Count {
+    fn put(&mut self, _: i32) {
+        self.0 += 1;
+    }
+
+    fn len(&self) -> usize {
+        self.0
+    }
+}
+
+/// Sends every value to both sinks, `A` first.
+pub struct Tee<A, B>(pub A, pub B);
+
+impl<A: Sink, B: Sink> Sink for Tee<A, B> {
+    fn put(&mut self, x: i32) {
+        self.0.put(x);
+        self.1.put(x);
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+/// Emits every value into `sink`. Like std's generic sinks, it takes the sink by value.
+pub fn emit_all<S: Sink>(mut sink: S, xs: &[i32]) {
+    for &x in xs {
+        sink.put(x);
+    }
+}
+"""
+
+SINK_IMPLS = r"""
+impl<S: Sink + ?Sized> Sink for &mut S {
+    fn put(&mut self, x: i32) {
+        (**self).put(x);
+    }
+
+    fn len(&self) -> usize {
+        (**self).len()
+    }
+}
+
+impl<S: Sink + ?Sized> Sink for Box<S> {
+    fn put(&mut self, x: i32) {
+        (**self).put(x);
+    }
+
+    fn len(&self) -> usize {
+        (**self).len()
+    }
+}
+"""
+
+SINK_TAIL_STARTER = r"""
+/// Emits `xs` into `sink` twice, then into `sink` and `count` together through a `Tee`. Returns how many values
+/// `sink` holds afterwards.
+pub fn pipeline(sink: &mut Vec<i32>, count: &mut Count, xs: &[i32]) -> usize {
+    emit_all(sink, xs);
+    emit_all(sink, xs);
+    emit_all(Tee(sink, count), xs);
+    sink.len()
+}
+
+/// Emits `xs` into every sink and returns their lengths afterwards.
+pub fn fan_out(sinks: &mut [Box<dyn Sink>], xs: &[i32]) -> Vec<usize> {
+    for s in sinks.iter_mut() {
+        emit_all(s, xs);
+    }
+    sinks.iter().map(|s| s.len()).collect()
+}
+"""
+
+SINK_TAIL_SOLUTION = sub(SINK_TAIL_STARTER, "    emit_all(sink, xs);\n    emit_all(sink, xs);\n    emit_all(Tee(sink, count), xs);", "    emit_all(&mut *sink, xs);\n    emit_all(&mut *sink, xs);\n    emit_all(Tee(&mut *sink, count), xs);")
+SINK_SOLUTION = SINK_HEAD + SINK_IMPLS + SINK_TAIL_SOLUTION
+
+P.append(fixp(
+    "explicit-reborrow-generic-sink", "Lend a sink: impl Sink for &mut S", "medium", "reborrows", ["reborrow", "blanket impls", "?Sized", "Box<dyn Trait>"],
     """
-    pub trait Sink {
-        fn put(&mut self, x: i32);
-    }
-
-    impl Sink for Vec<i32> {
-        fn put(&mut self, x: i32) {
-            self.push(x);
-        }
-    }
-
-    impl<S: Sink + ?Sized> Sink for &mut S {
-        fn put(&mut self, x: i32) {
-            (**self).put(x);
-        }
-    }
-
-    /// Don't change this.
-    pub fn emit_all<S: Sink>(mut sink: S, xs: &[i32]) {
-        for &x in xs {
-            sink.put(x);
-        }
-    }
-
-    pub fn emit_twice(sink: &mut Vec<i32>, xs: &[i32]) {
-        emit_all(&mut *sink, xs);
-        emit_all(sink, xs);
-    }
+        `emit_all` takes its sink by value, the way std's generic sinks and iterators do. `pipeline` and
+        `fan_out` want to lend theirs instead, and don't compile. Make `&mut S` and `Box<S>` sinks for every
+        sink `S`, trait objects included, the way std does for `io::Write` and `Iterator`. Then fix `pipeline`
+        so it can still use `sink` after lending it.
     """,
-    [T("twice", "xs = [7, 8]", "{ let mut v = vec![]; emit_twice(&mut v, &[7, 8]); v }", "vec![7, 8, 7, 8]")],
-    [T("empty", "xs = []", "{ let mut v = vec![1]; emit_twice(&mut v, &[]); v }", "vec![1]")],
-    [("rust", "`emit_all` takes `S` by value. Passing `sink` moves the `&mut Vec`; `&mut *sink` passes a new, shorter borrow.")],
-    ("The blanket `impl Sink for &mut S` is what makes passing a `&mut` possible at all; the explicit reborrow keeps `sink` usable.", "O(n)", "O(1)"),
-    "Why do std's `io::Write` and `Iterator` have the same `impl for &mut T` pattern?",
-    ["`&mut *r` reborrows explicitly.", "Blanket impls for `&mut S` let callers lend a sink instead of giving it away."],
+    SINK_HEAD + "\n// TODO: Sink for &mut S and Box<S>.\n" + SINK_TAIL_STARTER,
+    SINK_SOLUTION,
+    [T("pipeline_example", "sink [], count 0, xs [7, 8]", "{ let (mut v, mut c) = (Vec::new(), Count(0)); let n = pipeline(&mut v, &mut c, &[7, 8]); (n, v, c.0) }", "(6, vec![7, 8, 7, 8, 7, 8], 2)"),
+     T("fan_out_example", "sinks [Vec [1], Count(5)], xs [2, 3]", "{ let mut s: Vec<Box<dyn Sink>> = vec![Box::new(vec![1]), Box::new(Count(5))]; fan_out(&mut s, &[2, 3]) }", "vec![3, 7]"),
+     T("lend_a_trait_object", "emit_all into a &mut dyn Sink, then read the Vec", "{ let mut v = vec![0]; { let d: &mut dyn Sink = &mut v; emit_all(d, &[4]); } v }", "vec![0, 4]"),
+     T("box_is_a_sink", "emit_all into a Box<Count>", "{ let mut b = Box::new(Count(0)); emit_all(&mut b, &[1, 2, 3]); b.len() }", "3"),
+     T("lend_twice", "emit_all(&mut v, [1]) twice", "{ let mut v = Vec::new(); emit_all(&mut v, &[1]); emit_all(&mut v, &[1]); v }", "vec![1, 1]")],
+    [T("pipeline_empty", "xs []", "{ let (mut v, mut c) = (vec![9], Count(0)); (pipeline(&mut v, &mut c, &[]), c.0) }", "(1, 0)"),
+     T("pipeline_keeps_existing", "sink [5], xs [1]", "{ let (mut v, mut c) = (vec![5], Count(1)); let n = pipeline(&mut v, &mut c, &[1]); (n, v, c.0) }", "(4, vec![5, 1, 1, 1], 2)"),
+     T("fan_out_empty", "no sinks", "fan_out(&mut [], &[1])", "Vec::<usize>::new()"),
+     T("nested_lending", "emit_all into &mut &mut Vec", "{ let mut v = Vec::new(); let mut r = &mut v; emit_all(&mut r, &[6]); emit_all(r, &[7]); v }", "vec![6, 7]"),
+     T("box_dyn_by_value", "emit_all(Box<dyn Sink> by value) then nothing", "{ let b: Box<dyn Sink> = Box::new(Count(0)); let mut b = b; emit_all(&mut b, &[1]); emit_all(&mut b, &[2]); b.len() }", "2"),
+     T("tee_of_lent_sinks", "Tee(&mut a, &mut b)", "{ let (mut a, mut b) = (Vec::new(), Count(0)); emit_all(Tee(&mut a, &mut b), &[1, 2]); (a, b.0) }", "(vec![1, 2], 2)"),
+     T("tee_of_boxed", "Tee(Box<dyn Sink>, Count) through &mut", "{ let mut t = Tee(Box::new(vec![0]) as Box<dyn Sink>, Count(0)); emit_all(&mut t, &[3]); (t.0.len(), t.1.len()) }", "(2, 1)"),
+     T("fan_out_repeated", "fan_out twice into [Count(0)]", "{ let mut s: Vec<Box<dyn Sink>> = vec![Box::new(Count(0))]; fan_out(&mut s, &[1, 1]); fan_out(&mut s, &[1]) }", "vec![3]"),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6216);
+         for _ in 0..300 {
+             let n = rng.below(6);
+             let xs: Vec<i32> = rng.vec(n, -9, 9);
+             let len = rng.below(3);
+             let start: Vec<i32> = rng.vec(len, 0, 9);
+             let c0 = rng.below(5);
+             let mut v = start.clone();
+             let mut c = Count(c0);
+             let got = pipeline(&mut v, &mut c, &xs);
+             let mut want = start.clone();
+             for _ in 0..3 {
+                 want.extend_from_slice(&xs);
+             }
+             check!(format!("sink {start:?}, count {c0}, xs {xs:?}"), (got, v, c.0), (want.len(), want, c0 + n));
+         }
+     }
+
+     #[test]
+     fn many_values() {
+         let xs: Vec<i32> = (0..100_000).collect();
+         let mut s: Vec<Box<dyn Sink>> = vec![Box::new(Vec::new()), Box::new(Count(0))];
+         check!("fan_out 100000 values into [Vec, Count]", fan_out(&mut s, &xs), vec![100_000, 100_000]);
+     }
+     """],
+    [("rust", "`impl<S: Sink + ?Sized> Sink for &mut S` forwards each method to the `S` behind the reference. Without `?Sized`, `S` can't be `dyn Sink`, so `&mut dyn Sink` wouldn't be a sink."),
+     ("rust", "Inside that impl `self` is `&mut &mut S`. `self.put(x)` finds this very impl again and recurses forever; `(**self).put(x)` reaches the `S`."),
+     ("rust", "With the impl in place, passing `sink` still moves the `&mut Vec<i32>`: the parameter is a generic `S`, so there's no implicit reborrow. `&mut *sink` lends a fresh one.")],
+    ("""A function that takes a sink by value (`S: Sink`) can still be lent one, if `&mut S` is itself a sink: that's the blanket impl std writes for `io::Write`, `fmt::Write`, `Iterator`, `Hasher` and others. It forwards through `(**self)`, because `self.put(x)` on a `&mut &mut S` resolves to the same impl and recurses. `?Sized` lets `S` be `dyn Sink`, and a matching impl for `Box<S>` makes a `Box<dyn Sink>` a sink as well (so `&mut Box<dyn Sink>` is one too, which is what `fan_out` passes). Even with the impl, `emit_all(sink, xs)` moves `sink`, because implicit reborrows only happen where the parameter type is known to be `&mut`; `&mut *sink` lends it and leaves `sink` usable.
+
+Syntax to remember: `impl<S: Sink + ?Sized> Sink for &mut S { fn put(&mut self, x: i32) { (**self).put(x) } }` · the same for `Box<S>` · `emit_all(&mut *sink, xs)`.""", "O(n)", "O(1)"),
+    "Why does std implement `Iterator` for `&mut I` but not for `&I`?",
+    ["A blanket `impl Trait for &mut T` lets by-value generic APIs borrow instead of consume.", "`(**self).method()` reaches the value behind `&mut &mut T`.", "`?Sized` admits trait objects."],
     related=("L2", "L4"),
+    wrong=dict(
+        box_counts_nothing=sub(SINK_SOLUTION, "impl<S: Sink + ?Sized> Sink for Box<S> {\n    fn put(&mut self, x: i32) {\n        (**self).put(x);\n    }\n\n    fn len(&self) -> usize {\n        (**self).len()\n    }",
+                               "impl<S: Sink + ?Sized> Sink for Box<S> {\n    fn put(&mut self, x: i32) {\n        (**self).put(x);\n    }\n\n    fn len(&self) -> usize {\n        0\n    }"),
+        tee_gets_a_copy=sub(SINK_SOLUTION, "emit_all(Tee(&mut *sink, count), xs);", "emit_all(Tee(Vec::new(), count), xs);"),
+        mut_ref_puts_twice=sub(SINK_SOLUTION, "impl<S: Sink + ?Sized> Sink for &mut S {\n    fn put(&mut self, x: i32) {\n        (**self).put(x);\n    }",
+                               "impl<S: Sink + ?Sized> Sink for &mut S {\n    fn put(&mut self, x: i32) {\n        if x != 0 {\n            (**self).put(x);\n        }\n    }"),
+    ),
+))
+
+STEP_HEAD = r"""
+/// Every `step`-th element of a slice, starting with the first, handed out as `&mut`.
+pub struct StepMut<'a, T> {
+    rest: &'a mut [T],
+    step: usize,
+}
+
+/// `v[0], v[step], v[2 * step], ...` as `&mut`. Panics if `step` is 0.
+pub fn step_mut<T>(v: &mut [T], step: usize) -> StepMut<'_, T> {
+    assert!(step > 0, "step must be positive");
+    StepMut { rest: v, step }
+}
+"""
+
+STEP_STARTER = STEP_HEAD + r"""
+impl<'a, T> Iterator for StepMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<&'a mut T> {
+        todo!()
+    }
+
+    /// Exact: how many elements are left.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        todo!()
+    }
+}
+
+impl<T> DoubleEndedIterator for StepMut<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+
+impl<T> ExactSizeIterator for StepMut<'_, T> {}
+"""
+
+STEP_SOLUTION = STEP_HEAD + r"""
+impl<'a, T> Iterator for StepMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<&'a mut T> {
+        let rest = std::mem::take(&mut self.rest);
+        let (first, tail) = rest.split_first_mut()?;
+        let skip = (self.step - 1).min(tail.len());
+        self.rest = &mut tail[skip..];
+        Some(first)
+    }
+
+    /// Exact: how many elements are left.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let n = self.rest.len().div_ceil(self.step);
+        (n, Some(n))
+    }
+}
+
+impl<T> DoubleEndedIterator for StepMut<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let rest = std::mem::take(&mut self.rest);
+        if rest.is_empty() {
+            return None;
+        }
+        let last = (rest.len() - 1) / self.step * self.step;
+        let (init, tail) = rest.split_at_mut(last);
+        self.rest = init;
+        tail.first_mut()
+    }
+}
+
+impl<T> ExactSizeIterator for StepMut<'_, T> {}
+"""
+
+
+P.append(writep(
+    "stride-iter-mut", "An iterator that hands out &mut", "medium", "reborrows", ["IterMut", "mem::take", "split_first_mut", "reborrow lifetimes"],
+    """
+        Implement `next`, `size_hint` and `next_back` for `StepMut`, which yields every `step`-th element of a
+        slice as `&mut`. The items must be able to live together (the tests collect them all and then write
+        through each), and there's no `unsafe`.
+    """,
+    STEP_STARTER,
+    STEP_SOLUTION,
+    [T("every_other", "[1, 2, 3, 4, 5], step 2; add 10 to each", "{ let mut v = [1, 2, 3, 4, 5]; for x in step_mut(&mut v, 2) { *x += 10; } v }", "[11, 2, 13, 4, 15]"),
+     T("items_live_together", "[1, 2, 3, 4], step 3; collect, then write through each", "{ let mut v = [1, 2, 3, 4]; let refs: Vec<&mut i32> = step_mut(&mut v, 3).collect(); for r in refs { *r = 0; } v }", "[0, 2, 3, 0]"),
+     T("len_is_exact", "len of step_mut on 7 elements, steps 1, 2, 3, 7, 8", "{ let mut v = [0; 7]; (step_mut(&mut v, 1).len(), step_mut(&mut v, 2).len(), step_mut(&mut v, 3).len(), step_mut(&mut v, 7).len(), step_mut(&mut v, 8).len()) }", "(7, 4, 3, 1, 1)"),
+     T("reversed", "[0, 1, 2, 3, 4, 5, 6], step 3, reversed", "{ let mut v = [0, 1, 2, 3, 4, 5, 6]; step_mut(&mut v, 3).rev().map(|x| *x).collect::<Vec<_>>() }", "vec![6, 3, 0]"),
+     T("back_when_unaligned", "[0, 1, 2, 3, 4, 5], step 4: next_back", "{ let mut v = [0, 1, 2, 3, 4, 5]; step_mut(&mut v, 4).next_back().copied() }", "Some(4)"),
+     T("empty", "[], step 2", "{ let mut v: [i32; 0] = []; let mut it = step_mut(&mut v, 2); (it.len(), it.next().is_none(), it.next_back().is_none()) }", "(0, true, true)")],
+    [T("step_one", "[1, 2, 3], step 1", "{ let mut v = [1, 2, 3]; step_mut(&mut v, 1).map(|x| *x).collect::<Vec<_>>() }", "vec![1, 2, 3]"),
+     T("step_larger_than_len", "[5, 6], step 10", "{ let mut v = [5, 6]; step_mut(&mut v, 10).map(|x| *x).collect::<Vec<_>>() }", "vec![5]"),
+     T("both_ends_meet", "[0..9], step 2: next, next_back, next, next_back, next, next", "{ let mut v = [0, 1, 2, 3, 4, 5, 6, 7, 8]; let mut it = step_mut(&mut v, 2); let a = [it.next().copied(), it.next_back().copied(), it.next().copied(), it.next_back().copied(), it.next().copied(), it.next().copied()]; a }", "[Some(0), Some(8), Some(2), Some(6), Some(4), None]"),
+     T("len_after_next_back", "[0..10], step 3: next_back then len", "{ let mut v = [0; 10]; let mut it = step_mut(&mut v, 3); it.next_back(); it.len() }", "3"),
+     T("len_after_next", "[0..10], step 3: next then len", "{ let mut v = [0; 10]; let mut it = step_mut(&mut v, 3); it.next(); it.len() }", "3"),
+     T("strings", "[\"a\", \"b\", \"c\"], step 2: push '!'", '{ let mut v = ["a", "b", "c"].map(String::from); for s in step_mut(&mut v, 2) { s.push(\'!\'); } v }', '["a!", "b", "c!"].map(String::from)'),
+     T("single", "[9], step 1: next_back, then next", "{ let mut v = [9]; let mut it = step_mut(&mut v, 1); (it.next_back().copied(), it.next().is_none()) }", "(Some(9), true)"),
+     T("zip_two_iterators", "swap v[0,2,4] with v[1,3,5] via split_at_mut halves", "{ let mut v = [1, 2, 3, 4, 5, 6]; let (a, b) = v.split_at_mut(3); for (x, y) in step_mut(a, 1).zip(step_mut(b, 1)) { std::mem::swap(x, y); } v }", "[4, 5, 6, 1, 2, 3]"),
+     r"""
+     #[test]
+     fn step_zero_panics() {
+         let mut v = [1, 2];
+         let r = std::panic::catch_unwind(move || step_mut(&mut v, 0).count());
+         check!("step_mut(.., 0) panics", r.is_err(), true);
+     }
+
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6217);
+         for _ in 0..400 {
+             let n = rng.below(12);
+             let step = 1 + rng.below(5);
+             let v: Vec<i32> = (0..n as i32).collect();
+             let mut left: Vec<i32> = v.iter().copied().step_by(step).collect();
+             let mut got_v = v.clone();
+             let mut it = step_mut(&mut got_v, step);
+             let mut ops = Vec::new();
+             for _ in 0..6 {
+                 let back = rng.bool();
+                 let want = if back { left.pop() } else if left.is_empty() { None } else { Some(left.remove(0)) };
+                 let got = if back { it.next_back() } else { it.next() };
+                 ops.push(if back { "next_back" } else { "next" });
+                 let got = got.map(|x| {
+                     let seen = *x;
+                     *x = -1;
+                     seen
+                 });
+                 check!(format!("0..{n}, step {step}: {}", ops.join(", ")), (got, it.len()), (want, left.len()));
+             }
+         }
+     }
+
+     #[test]
+     fn big_slice() {
+         let mut v: Vec<u32> = (0..1_000_000).collect();
+         for x in step_mut(&mut v, 1000) {
+             *x = 7;
+         }
+         let n = step_mut(&mut v, 3).len();
+         check!("1000000 elements: step 1000 writes, then len at step 3", (n, v[999_000], v[999_001]), (333_334, 7, 999_001));
+     }
+     """],
+    [("rust", "`self.rest.split_first_mut()` in `next` reborrows through `&mut self`, so the pieces live only as long as that call's borrow of `self`, not `'a` (\"lifetime may not live long enough\"). You need to move the `&'a mut [T]` out of `self`, not borrow it."),
+     ("rust", "`&mut [T]` implements `Default` (the empty slice), so `std::mem::take(&mut self.rest)` moves the full-lifetime slice out and leaves an empty one. Split what you took, keep one piece, and put the rest back."),
+     ("rust", "From the back, the last element this iterator would yield is at `(len - 1) / step * step`, not necessarily `len - 1`.")],
+    ("""`next(&mut self) -> Option<&'a mut T>` promises items that outlive the `&mut self` borrow. Reborrowing `self.rest` can't deliver that: a reborrow of `*self.rest` through `&mut self` is limited to that borrow, or two calls to `next` could return aliasing `&mut`s. Moving the `&'a mut [T]` out of `self` is allowed: `mem::take` swaps in the empty slice and returns the original with its full `'a`. Split it into the item and the remainder (`split_first_mut`, or `split_at_mut` from the back), then store the remainder back. Each item is carved off and never reachable from the iterator again, which is why `collect()`ing them all is sound. std's `slice::IterMut` does the same with raw pointers.
+
+Syntax to remember: `let rest = std::mem::take(&mut self.rest);` · `let (first, tail) = rest.split_first_mut()?;` · `self.rest = &mut tail[skip..];` · `len.div_ceil(step)`.""", "O(1) per item", "O(1)"),
+    "Why can't you write a `windows_mut` iterator in this style, when `chunks_mut` works?",
+    ["A reborrow through `&mut self` can't be returned with the outer lifetime `'a`.", "`mem::take` moves a `&'a mut [T]` out of a field (the empty slice is its default).", "Split, keep one piece, store the rest back."],
+    related=("L2", "L3"),
+    wrong=dict(
+        skips_one_too_many=sub(STEP_SOLUTION, "let skip = (self.step - 1).min(tail.len());", "let skip = self.step.min(tail.len());"),
+        size_hint_rounds_down=sub(STEP_SOLUTION, "let n = self.rest.len().div_ceil(self.step);", "let n = self.rest.len() / self.step;"),
+        back_from_the_very_end=sub(STEP_SOLUTION, "let last = (rest.len() - 1) / self.step * self.step;", "let last = rest.len() - 1;"),
+    ),
 ))
 
 # ---------------------------------------------------------------- iterator invalidation (medium)
@@ -2959,10 +3994,6 @@ P.append(fix(
 
 
 EXTRA = {
-    "helpers-take-mut": T("both_trimmed", "\" Go\", \"GO  \"", '{ let (mut a, mut b) = (" Go".to_string(), "GO  ".to_string()); (same_after_normalizing(&mut a, &mut b), b) }', '(true, "go".to_string())'),
-    "two-phase-borrows": T("zero_times", "v = [4], n = 0", "{ let mut v = vec![4]; push_lengths(&mut v, 0); v }", "vec![4]"),
-    "fix-two-mut-into-players": T("backwards", "scores [0, 10], move 10 from 1 to 0", "{ let mut p = [Player { score: 0 }, Player { score: 10 }]; transfer(&mut p, 1, 0, 10); (p[0].score, p[1].score) }", "(10, 0)"),
-    "explicit-reborrow-generic-sink": T("appends", "sink = [0], xs = [1]", "{ let mut v = vec![0]; emit_twice(&mut v, &[1]); v }", "vec![0, 1, 1]"),
     "fix-remove-while-iterating": T("nothing_matches", "[\"a\"], prefix \"z\"", '{ let mut v = vec!["a".to_string()]; remove_prefixed(&mut v, "z"); v.len() }', "1"),
     "retain-mut": T("all_zero", "[0, 0]", "{ let mut v = vec![0, 0]; drop_zeros_and_halve(&mut v); v }", "vec![]"),
     "fix-push-while-iterating": T("two_starred", "[\"a*\", \"b*\"]", '{ let mut v: Vec<String> = ["a*", "b*"].map(String::from).to_vec(); expand(&mut v); v.len() }', "6"),
@@ -2987,276 +4018,6 @@ for p in P:
 # comparison against a brute-force model, a scale test where complexity matters, and `wrong` solutions that
 # `anneal verify` checks the tests reject. Fix-mode wrong solutions obey the problem's rules.
 MORE = {}
-
-MORE["fix-moved-mut-into-generic"] = dict(
-    visible=[
-        T("unicode", "s = \"é\"", "{ let mut o = String::new(); write_twice(&mut o, \"é\"); o }", "\"éé\".to_string()"),
-        T("called_twice", "write \"ab\" twice, twice", "{ let mut o = String::new(); write_twice(&mut o, \"ab\"); write_twice(&mut o, \"ab\"); o }", "\"abababab\".to_string()"),
-        T("empty", "s = \"\"", "{ let mut o = String::from(\"z\"); write_twice(&mut o, \"\"); o }", "\"z\".to_string()"),
-    ],
-    hidden=[
-        T("single_char", "s = \"a\"", "{ let mut o = String::new(); write_twice(&mut o, \"a\"); o }", "\"aa\".to_string()"),
-        T("with_newline", "s = \"a\\n\"", "{ let mut o = String::new(); write_twice(&mut o, \"a\\n\"); o }", "\"a\\na\\n\".to_string()"),
-        T("long", "s = 1000 × \"x\"", "{ let mut o = String::new(); let s = \"x\".repeat(1000); write_twice(&mut o, &s); o.len() }", "2000"),
-        T("emoji", "s = \"🦀\"", "{ let mut o = String::new(); write_twice(&mut o, \"🦀\"); o }", "\"🦀🦀\".to_string()"),
-        T("existing_unicode", "out = \"ü\", s = \"-\"", "{ let mut o = String::from(\"ü\"); write_twice(&mut o, \"-\"); o }", "\"ü--\".to_string()"),
-        T("spaces", "out = \"a\", s = \" \"", "{ let mut o = String::from(\"a\"); write_twice(&mut o, \" \"); o }", "\"a  \".to_string()"),
-        T("both_empty", "out = \"\", s = \"\"", "{ let mut o = String::new(); write_twice(&mut o, \"\"); o }", "String::new()"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2011);
-            for _ in 0..300 {
-                let lo = rng.below(4);
-                let start = rng.string(lo, "xyé");
-                let ls = rng.below(4);
-                let s = rng.string(ls, "ab é");
-                let mut o = start.clone();
-                write_twice(&mut o, &s);
-                check!(format!("out = {start:?}, s = {s:?}"), o, format!("{start}{s}{s}"));
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        writes_into_a_copy="""
-            use std::fmt::Write;
-
-            fn put<W: Write>(mut w: W, s: &str) {
-                w.write_str(s).expect("writing to a String can't fail");
-            }
-
-            /// Writes `s` into `out`, twice.
-            pub fn write_twice(out: &mut String, s: &str) {
-                put(out.to_string(), s);
-                put(out, s);
-            }
-        """,
-    ),
-)
-
-HELPERS_WRONG = """
-    pub fn normalize(s: &mut String) {
-        let trimmed = BODY;
-        *s = trimmed;
-    }
-
-    pub fn same_after_normalizing(a: &mut String, b: &mut String) -> bool {
-        normalize(a);
-        normalize(b);
-        a == b
-    }
-"""
-MORE["helpers-take-mut"] = dict(
-    visible=[
-        T("normalize_only", "\"  MiXeD  \"", '{ let mut s = "  MiXeD  ".to_string(); normalize(&mut s); s }', '"mixed".to_string()'),
-        T("inner_spaces_kept", "\"a  b\", \"a b\"", '{ let (mut a, mut b) = ("a  b".to_string(), "a b".to_string()); same_after_normalizing(&mut a, &mut b) }', "false"),
-        T("empty_strings", "\"\", \"\"", "{ let (mut a, mut b) = (String::new(), String::new()); (same_after_normalizing(&mut a, &mut b), a) }", "(true, String::new())"),
-    ],
-    hidden=[
-        T("only_spaces", "\"   \", \"\"", '{ let (mut a, mut b) = ("   ".to_string(), String::new()); (same_after_normalizing(&mut a, &mut b), a) }', "(true, String::new())"),
-        T("unicode_lowercase", "\"ÉCOLE\", \"école\"", '{ let (mut a, mut b) = ("ÉCOLE".to_string(), "école".to_string()); (same_after_normalizing(&mut a, &mut b), a) }', '(true, "école".to_string())'),
-        T("tabs_newlines", "\"\\tHi\\n\", \"hi\"", '{ let (mut a, mut b) = ("\\tHi\\n".to_string(), "hi".to_string()); (same_after_normalizing(&mut a, &mut b), a) }', '(true, "hi".to_string())'),
-        T("both_changed", "\"X \", \" x\"", '{ let (mut a, mut b) = ("X ".to_string(), " x".to_string()); same_after_normalizing(&mut a, &mut b); (a, b) }', '("x".to_string(), "x".to_string())'),
-        T("different_after_trim", "\"ab\", \"a b\"", '{ let (mut a, mut b) = ("ab".to_string(), "a b".to_string()); same_after_normalizing(&mut a, &mut b) }', "false"),
-        T("trailing_only", "\"go  \", \"go\"", '{ let (mut a, mut b) = ("go  ".to_string(), "go".to_string()); same_after_normalizing(&mut a, &mut b) }', "true"),
-        T("normalize_idempotent", "normalize \" A \" twice", '{ let mut s = " A ".to_string(); normalize(&mut s); normalize(&mut s); s }', '"a".to_string()'),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2012);
-            for _ in 0..300 {
-                let la = rng.below(6);
-                let a0 = rng.string(la, " aAéÉ\\t");
-                let lb = rng.below(6);
-                let b0 = rng.string(lb, " aAéÉ\\t");
-                let (mut a, mut b) = (a0.clone(), b0.clone());
-                let got = same_after_normalizing(&mut a, &mut b);
-                let (na, nb) = (a0.trim().to_lowercase(), b0.trim().to_lowercase());
-                check!(format!("a = {a0:?}, b = {b0:?}"), (got, a, b), (na == nb, na, nb));
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        ascii_lowercase=HELPERS_WRONG.replace("BODY", "s.trim().to_ascii_lowercase()"),
-        trims_start_only=HELPERS_WRONG.replace("BODY", "s.trim_start().to_lowercase()"),
-    ),
-)
-
-MORE["two-phase-borrows"] = dict(
-    visible=[
-        T("one", "v = [], n = 1", "{ let mut v = vec![]; push_lengths(&mut v, 1); v }", "vec![0]"),
-        T("existing", "v = [9], n = 2", "{ let mut v = vec![9]; push_lengths(&mut v, 2); v }", "vec![9, 1, 2]"),
-        T("zero_on_empty", "v = [], n = 0", "{ let mut v = vec![]; push_lengths(&mut v, 0); v }", "Vec::<usize>::new()"),
-    ],
-    hidden=[
-        T("long_existing", "v = [5, 5, 5], n = 1", "{ let mut v = vec![5, 5, 5]; push_lengths(&mut v, 1); v }", "vec![5, 5, 5, 3]"),
-        T("thousand", "v = [], n = 1000", "{ let mut v = vec![]; push_lengths(&mut v, 1000); (v.len(), v[999]) }", "(1000, 999)"),
-        T("called_twice", "n = 2, then n = 2", "{ let mut v = vec![]; push_lengths(&mut v, 2); push_lengths(&mut v, 2); v }", "vec![0, 1, 2, 3]"),
-        T("from_ten", "v = [0; 10], n = 3", "{ let mut v = vec![0; 10]; push_lengths(&mut v, 3); v[10..].to_vec() }", "vec![10, 11, 12]"),
-        T("values_equal_index", "v = [], n = 50", "{ let mut v = vec![]; push_lengths(&mut v, 50); v.iter().enumerate().all(|(i, &x)| i == x) }", "true"),
-        T("large", "v = [], n = 200000", "{ let mut v = vec![]; push_lengths(&mut v, 200_000); (v.len(), v[199_999]) }", "(200_000, 199_999)"),
-        T("big_values_kept", "v = [usize::MAX], n = 1", "{ let mut v = vec![usize::MAX]; push_lengths(&mut v, 1); v }", "vec![usize::MAX, 1]"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2013);
-            for _ in 0..300 {
-                let n0 = rng.below(5);
-                let start: Vec<usize> = rng.vec(n0, 0, 9);
-                let n = rng.below(6);
-                let mut v = start.clone();
-                push_lengths(&mut v, n);
-                let mut want = start.clone();
-                for _ in 0..n {
-                    want.push(want.len());
-                }
-                check!(format!("v = {start:?}, n = {n}"), v, want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        pushes_the_counter="""
-            pub fn push_lengths(v: &mut Vec<usize>, n: usize) {
-                for i in 0..n {
-                    v.push(i);
-                }
-            }
-        """,
-        length_after_push="""
-            pub fn push_lengths(v: &mut Vec<usize>, n: usize) {
-                for _ in 0..n {
-                    v.push(0);
-                    let last = v.len() - 1;
-                    v[last] = v.len();
-                }
-            }
-        """,
-    ),
-)
-
-PLAYERS_WRONG = """
-    pub struct Player {
-        pub score: u32,
-    }
-
-    /// Moves `points` from player `from` to player `to`.
-    pub fn transfer(players: &mut [Player], from: usize, to: usize, points: u32) {
-        BODY
-    }
-"""
-MORE["fix-two-mut-into-players"] = dict(
-    visible=[
-        T("zero_points", "scores [3, 4], move 0 from 0 to 1", "{ let mut p = [Player { score: 3 }, Player { score: 4 }]; transfer(&mut p, 0, 1, 0); (p[0].score, p[1].score) }", "(3, 4)"),
-        T("same_player", "scores [5], move 3 from 0 to 0", "{ let mut p = [Player { score: 5 }]; transfer(&mut p, 0, 0, 3); p[0].score }", "5"),
-        T("middle_untouched", "scores [1, 2, 3], move 1 from 0 to 2", "{ let mut p = [Player { score: 1 }, Player { score: 2 }, Player { score: 3 }]; transfer(&mut p, 0, 2, 1); (p[0].score, p[1].score, p[2].score) }", "(0, 2, 4)"),
-    ],
-    hidden=[
-        T("three_players", "scores [5, 5, 5], move 3 from 2 to 0", "{ let mut p = [Player { score: 5 }, Player { score: 5 }, Player { score: 5 }]; transfer(&mut p, 2, 0, 3); (p[0].score, p[1].score, p[2].score) }", "(8, 5, 2)"),
-        T("all_points", "scores [7, 0], move 7 from 0 to 1", "{ let mut p = [Player { score: 7 }, Player { score: 0 }]; transfer(&mut p, 0, 1, 7); (p[0].score, p[1].score) }", "(0, 7)"),
-        T("u32_max", "scores [u32::MAX, 0], move all", "{ let mut p = [Player { score: u32::MAX }, Player { score: 0 }]; transfer(&mut p, 0, 1, u32::MAX); (p[0].score, p[1].score) }", "(0, u32::MAX)"),
-        T("repeated", "scores [0, 9], move 3 from 1 to 0, three times", "{ let mut p = [Player { score: 0 }, Player { score: 9 }]; for _ in 0..3 { transfer(&mut p, 1, 0, 3); } (p[0].score, p[1].score) }", "(9, 0)"),
-        T("same_player_full", "scores [u32::MAX], move 5 from 0 to 0", "{ let mut p = [Player { score: u32::MAX }]; transfer(&mut p, 0, 0, 5); p[0].score }", "u32::MAX"),
-        T("same_player_all", "scores [4], move 4 from 0 to 0", "{ let mut p = [Player { score: 4 }]; transfer(&mut p, 0, 0, 4); p[0].score }", "4"),
-        T("in_a_vec", "1000 players with 1 point; move from 999 to 0", "{ let mut p: Vec<Player> = (0..1000).map(|_| Player { score: 1 }).collect(); transfer(&mut p, 999, 0, 1); (p[0].score, p[999].score) }", "(2, 0)"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2014);
-            for _ in 0..300 {
-                let n = 1 + rng.below(5);
-                let scores: Vec<u32> = rng.vec(n, 0, 20);
-                let from = rng.below(n);
-                let to = rng.below(n);
-                let points = rng.int(0, scores[from] as i64) as u32;
-                let mut p: Vec<Player> = scores.iter().map(|&s| Player { score: s }).collect();
-                transfer(&mut p, from, to, points);
-                let mut want = scores.clone();
-                want[from] -= points;
-                want[to] += points;
-                check!(format!("scores {scores:?}, move {points} from {from} to {to}"), p.iter().map(|x| x.score).collect::<Vec<_>>(), want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        adds_first=PLAYERS_WRONG.replace("BODY", """players[to].score += points;
-        players[from].score -= points;"""),
-        swapped_direction=PLAYERS_WRONG.replace("BODY", """players[from].score += points;
-        players[to].score -= points;"""),
-    ),
-)
-
-SINK_WRONG = """
-    pub trait Sink {
-        fn put(&mut self, x: i32);
-    }
-
-    impl Sink for Vec<i32> {
-        fn put(&mut self, x: i32) {
-            self.push(x);
-        }
-    }
-
-    impl<S: Sink + ?Sized> Sink for &mut S {
-        fn put(&mut self, x: i32) {
-            (**self).put(x);
-        }
-    }
-
-    /// Don't change this.
-    pub fn emit_all<S: Sink>(mut sink: S, xs: &[i32]) {
-        for &x in xs {
-            sink.put(x);
-        }
-    }
-
-    pub fn emit_twice(sink: &mut Vec<i32>, xs: &[i32]) {
-        BODY
-    }
-"""
-MORE["explicit-reborrow-generic-sink"] = dict(
-    visible=[
-        T("order_kept", "xs = [3, 1, 2]", "{ let mut v = vec![]; emit_twice(&mut v, &[3, 1, 2]); v }", "vec![3, 1, 2, 3, 1, 2]"),
-        T("single", "xs = [5]", "{ let mut v = vec![]; emit_twice(&mut v, &[5]); v }", "vec![5, 5]"),
-        T("empty", "xs = []", "{ let mut v = vec![1]; emit_twice(&mut v, &[]); v }", "vec![1]"),
-    ],
-    hidden=[
-        T("negatives", "xs = [-1, i32::MIN]", "{ let mut v = vec![]; emit_twice(&mut v, &[-1, i32::MIN]); v }", "vec![-1, i32::MIN, -1, i32::MIN]"),
-        T("duplicates", "xs = [2, 2]", "{ let mut v = vec![]; emit_twice(&mut v, &[2, 2]); v }", "vec![2, 2, 2, 2]"),
-        T("existing_kept", "sink = [9, 9], xs = [1]", "{ let mut v = vec![9, 9]; emit_twice(&mut v, &[1]); v }", "vec![9, 9, 1, 1]"),
-        T("large", "xs = 0..10000", "{ let xs: Vec<i32> = (0..10_000).collect(); let mut v = vec![]; emit_twice(&mut v, &xs); (v.len(), v[9_999], v[10_000]) }", "(20_000, 9_999, 0)"),
-        T("max", "xs = [i32::MAX]", "{ let mut v = vec![]; emit_twice(&mut v, &[i32::MAX]); v }", "vec![i32::MAX, i32::MAX]"),
-        T("called_twice", "xs = [4], twice", "{ let mut v = vec![]; emit_twice(&mut v, &[4]); emit_twice(&mut v, &[4]); v }", "vec![4, 4, 4, 4]"),
-        T("two_distinct", "xs = [1, 2]", "{ let mut v = vec![0]; emit_twice(&mut v, &[1, 2]); v }", "vec![0, 1, 2, 1, 2]"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2015);
-            for _ in 0..300 {
-                let n0 = rng.below(4);
-                let start: Vec<i32> = rng.vec(n0, -9, 9);
-                let n = rng.below(6);
-                let xs: Vec<i32> = rng.vec(n, -100, 100);
-                let mut v = start.clone();
-                emit_twice(&mut v, &xs);
-                let want: Vec<i32> = start.iter().chain(&xs).chain(&xs).copied().collect();
-                check!(format!("sink = {start:?}, xs = {xs:?}"), v, want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        each_value_twice=SINK_WRONG.replace("BODY", """for &x in xs {
-            sink.put(x);
-            sink.put(x);
-        }"""),
-        into_a_copy=SINK_WRONG.replace("BODY", """emit_all(sink.to_vec(), xs);
-        emit_all(sink, xs);"""),
-    ),
-)
 
 REMOVE_WRONG = """
     /// Removes every name starting with `prefix`.
@@ -4529,4 +5290,13 @@ if __name__ == "__main__":
     n = write_track("l2-borrowing", "L2", "Borrowing", "L", "core", 2,
                     "Aliasing XOR mutation: reason about what each borrow covers and how long it lives, instead of fighting the compiler.",
                     STAGES, P, keep={"two-mutable-borrows-of-self"})
+    # The hand-written problem keeps its files, but its position follows the spec.
+    import os
+    import re
+    from author import ROOT
+    toml = os.path.join(ROOT, "l2-borrowing", "problems", "two-mutable-borrows-of-self", "problem.toml")
+    pos = [p["slug"] for p in P].index("two-mutable-borrows-of-self") + 1
+    if os.path.exists(toml):
+        text = open(toml).read()
+        open(toml, "w").write(re.sub(r"(?m)^order = \d+$", f"order = {pos}", text))
     print("L2", n)

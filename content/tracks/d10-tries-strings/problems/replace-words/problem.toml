@@ -1,0 +1,37 @@
+slug = "replace-words"
+title = "Replace words"
+mode = "write"
+level = "medium"
+stage = "tries-at-work"
+order = 6
+status = "ready"
+tags = ["trie", "split"]
+companies = ["Amazon", "Uber"]
+teaches = [
+  "Stop a trie walk at the first node that ends a word: that's the shortest matching prefix.",
+  "`split(' ')` borrows each word; `join` builds the one output `String`.",
+]
+constraints = ["0 ≤ roots.len() ≤ 2·10⁵, roots are 1–100 lowercase letters", "sentence: up to 10⁶ bytes"]
+follow_up = "How would you do this with a `HashSet` of roots instead of a trie, and what does it cost?"
+related = ["S2", "S4"]
+
+[[examples]]
+input = "roots = [\"cat\", \"bat\", \"rat\"], sentence = \"the cattle was rattled by the battery\""
+output = "\"the cat was rat by the bat\""
+
+[[hints]]
+kind = "approach"
+text = "Put the roots in a trie. For each word, walk down its letters and stop at the first node that ends a root."
+
+[[hints]]
+kind = "rust"
+text = "Return the length of the root you found; `&word[..len]` is then a slice of the sentence, so the only allocation is the final `join`."
+
+[[hints]]
+kind = "edge case"
+text = "Stop at the *first* marked node, not the deepest: with roots `cat` and `ca`, `cattle` becomes `ca`."
+
+[solution]
+explanation = "Each word costs at most its own length in trie steps, independent of how many roots there are. Checking every root per word is O(roots × words), which the hidden test makes too slow."
+time = "O(total root letters + sentence length)"
+space = "O(total root letters × 26)"

@@ -1,0 +1,39 @@
+slug = "fix-recursive-trie-insert"
+title = "Fix: recursive trie insert vs the borrow checker"
+mode = "fix"
+level = "medium"
+stage = "tries-at-work"
+order = 7
+status = "ready"
+tags = ["E0499", "get_or_insert_with", "NLL"]
+teaches = [
+  "Returning a borrow from one branch keeps it alive on the other branch too (E0499/E0506), a known limit of today's borrow checker.",
+  "`Option::get_or_insert_with` does the check and the insert in one call and returns the `&mut` you need.",
+]
+follow_up = "How would you write `node_for` as a loop instead of recursion, and does the same borrow problem appear?"
+related = ["L2", "L3", "S1"]
+
+[[examples]]
+input = "insert \"car\", \"cart\"; contains \"car\", \"ca\""
+output = "true, false"
+
+[[hints]]
+kind = "rust"
+text = "The borrow returned from the `if let` branch has lifetime `'a`, so the checker treats `node.children[i]` as borrowed for all of `'a`, even on the path that didn't return. Avoid holding a borrow across the check."
+
+[[hints]]
+kind = "rust"
+text = "`slot.get_or_insert_with(Default::default)` returns `&mut Box<Node>`, creating the child only when the slot is `None`. One call, one borrow."
+
+[[hints]]
+kind = "edge case"
+text = "Deleting the `if let` compiles too, but then every insert replaces existing children and loses the words below them."
+
+[solution]
+explanation = "The original is correct code that today's borrow checker (NLL) rejects: a reference returned from a conditional branch extends the borrow over the whole function. Polonius, the next checker, accepts it. `get_or_insert_with` sidesteps the problem because there's no branch holding a borrow."
+time = "O(L) per insert"
+space = "O(L) recursion depth"
+
+[rules]
+forbid_unsafe = true
+max_changed_lines = 5

@@ -1,0 +1,37 @@
+slug = "add-and-search-words"
+title = "Add & search words"
+mode = "write"
+level = "medium"
+stage = "tries-at-work"
+order = 8
+status = "ready"
+tags = ["trie", "DFS", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft"]
+teaches = [
+  "A wildcard turns a trie walk into a depth-first search over every child.",
+  "Slice patterns (`split_first`) make the recursion read like the definition.",
+]
+constraints = ["words: 1–25 lowercase letters", "patterns: 1–25 characters from a–z and '.', at most 3 dots", "up to 10⁵ calls"]
+follow_up = "If most searches had no dots, how would you make them O(1) on average?"
+related = ["D11", "S1"]
+
+[[examples]]
+input = "add \"bad\", \"dad\", \"mad\"; search \"pad\", \"bad\", \".ad\", \"b..\""
+output = "false, true, true, true"
+
+[[hints]]
+kind = "approach"
+text = "Store the words in a trie. A letter follows one child; a `.` must try every child, so search is a depth-first search."
+
+[[hints]]
+kind = "rust"
+text = "`match pattern.split_first()` gives three arms: `None` (check the end flag), `Some((b'.', rest))` (try `children.iter().flatten()` with `any`), and a letter."
+
+[[hints]]
+kind = "edge case"
+text = "Following only the first child for a `.` misses words in other branches: `ab`, `cd` and the pattern `.d`."
+
+[solution]
+explanation = "Without dots a search is one walk, O(L). Each dot multiplies the branches by at most 26, so a pattern with d dots costs O(26^d · L) in the worst case, but real tries are sparse and `any` stops at the first match."
+time = "add O(L); search O(26^d · L) worst case"
+space = "O(total letters × 26)"

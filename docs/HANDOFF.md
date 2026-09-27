@@ -66,6 +66,10 @@ and what's next, in order.
 - The problem bar never scrolls. Tag pills drop out first, then the breadcrumb truncates.
 - The console hides until the next run, then opens on whichever tab has something to show.
 - The Borrows tab was **removed** on request. Borrow lanes live in the editor only.
+- Hovering a rust-analyzer error shows the same card as the inline lens after a run (`web/src/workspace/diagcard.ts`,
+  used by the lens and by `richDiagnostics()` in `lsp.ts`, which replaces lsp-client's `serverDiagnostics`). The type/docs
+  hover, completion docs and signature help share its look: a tinted header with the signature, then the docs ("editor
+  popups" in app.css).
 
 ## 3. Running it
 

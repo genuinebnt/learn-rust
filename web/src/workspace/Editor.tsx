@@ -22,6 +22,7 @@ import { serverCompletionSource } from "@codemirror/lsp-client";
 import { tags as t } from "@lezer/highlight";
 import type { Diagnostic } from "../api";
 import type { LaneModel } from "./lanes";
+import { diagCard } from "./diagcard";
 import { inlayHints, refreshInlays } from "./inlay";
 import type { RaSession } from "./lsp";
 
@@ -51,8 +52,9 @@ const theme = EditorView.theme({
   },
   "&.cm-focused": { outline: "none" },
   ".cm-matchingBracket": { backgroundColor: "var(--acc-bg)", color: "inherit" },
-  ".cm-tooltip": { backgroundColor: "var(--panel)", border: "1px solid var(--line)", borderRadius: "5px", color: "var(--fg)" },
-  ".cm-tooltip-autocomplete ul li": { fontFamily: "var(--mono)", padding: "2px 10px" },
+  // Every popup shares one frame; app.css ("editor popups") styles what goes inside.
+  ".cm-tooltip": { backgroundColor: "var(--panel)", border: "1px solid var(--line)", borderRadius: "8px", color: "var(--fg)", boxShadow: "0 12px 32px var(--shadow)" },
+  ".cm-tooltip-autocomplete ul li": { fontFamily: "var(--mono)", padding: "3px 12px 3px 8px", borderRadius: "5px" },
   ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: "var(--acc-bg)", color: "var(--fg)" },
   ".cm-squig": { textDecoration: "underline wavy var(--bad)", textUnderlineOffset: "4px" },
   ".cm-errline": { backgroundColor: "var(--bad-bg)" },
@@ -76,8 +78,7 @@ class LensWidget extends WidgetType {
     return other.d.rendered === this.d.rendered;
   }
   toDOM(view: EditorView) {
-    const el = document.createElement("div");
-    el.className = "lens cm-lens";
+    const el = diagCard(this.d, this.lines);
     const close = document.createElement("button");
     close.className = "lens-x";
     close.title = "Hide this error until the next run";
@@ -88,39 +89,6 @@ class LensWidget extends WidgetType {
       view.dispatch({ effects: dismissLens.of(this.d.rendered) });
     });
     el.append(close);
-    const head = document.createElement("div");
-    const code = document.createElement("span");
-    code.style.cssText = "color:var(--bad);font-weight:600";
-    code.textContent = `error${this.d.code ? `[${this.d.code}]` : ""}`;
-    head.append(code, ` ${this.d.message}`);
-    el.append(head);
-    const labelled = this.d.spans.filter((s) => s.file === "src/lib.rs" && s.label);
-    if (labelled.length) {
-      const grid = document.createElement("div");
-      grid.className = "gr";
-      for (const s of labelled) {
-        const line = this.lines[s.line_start - 1] ?? "";
-        const text = s.line_start === s.line_end ? line.slice(s.col_start - 1, s.col_end - 1) : line.slice(s.col_start - 1).trim();
-        const num = document.createElement("span");
-        num.style.color = "var(--dim)";
-        num.textContent = `${s.line_start} │`;
-        const snip = document.createElement("span");
-        snip.style.color = s.primary ? "var(--bad)" : "var(--acc)";
-        snip.textContent = text.length > 30 ? `${text.slice(0, 28)}…` : text;
-        const label = document.createElement("span");
-        label.textContent = s.label ?? "";
-        grid.append(num, snip, label);
-      }
-      el.append(grid);
-    }
-    const foot = document.createElement("small");
-    for (const text of [this.d.code ? `rustc --explain ${this.d.code}` : null, ...this.d.notes.slice(0, 1)]) {
-      if (!text) continue;
-      const s = document.createElement("span");
-      s.textContent = text;
-      foot.append(s);
-    }
-    if (foot.childElementCount) el.append(foot);
     return el;
   }
   ignoreEvent() {

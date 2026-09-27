@@ -46,18 +46,41 @@ a.tile:hover { border-color: var(--line); }
 .compiler pre.err { color: var(--fg); }
 .diff { min-height: 40px; }
 
-/* rust-analyzer docs in completion info and hover tooltips */
-.cm-tooltip .cm-completionInfo,
-.cm-tooltip-hover .cm-tooltip-section,
-.cm-completionInfo { max-width: 460px; max-height: 360px; overflow: auto; padding: 10px 12px; font: 400 12.5px/1.55 var(--sans); color: var(--mut); }
-.cm-tooltip-hover { max-width: 560px; max-height: 420px; overflow: auto; }
-.cm-completionInfo h1, .cm-completionInfo h2, .cm-completionInfo h3,
-.cm-tooltip-hover h1, .cm-tooltip-hover h2, .cm-tooltip-hover h3 { margin: 12px 0 4px; font: 600 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
-.cm-completionInfo p, .cm-tooltip-hover p { margin: 0 0 8px; }
-.cm-completionInfo pre, .cm-tooltip-hover pre { margin: 0 0 8px; padding: 8px 10px; border-radius: 4px; background: var(--raise); font: 400 11.5px/1.55 var(--mono); overflow-x: auto; }
-.cm-completionInfo code, .cm-tooltip-hover code { font-size: 11.5px; }
-.cm-tooltip-hover { font: 400 12.5px/1.55 var(--sans); color: var(--mut); }
-.cm-completionDetail { font-style: normal; color: var(--dim); margin-left: 12px; }
+/* ---------- editor popups ----------
+   One family with the diagnostic card (diagcard.ts): a tinted header with the code that matters (the signature),
+   then readable docs, then examples as inset code. Hover, completion docs, signature help and the list share it. */
+.cm-editor .cm-tooltip.cm-tooltip-hover { max-width: 560px; max-height: 440px; overflow: auto; border-color: color-mix(in oklab, var(--acc) 35%, var(--line)); }
+.cm-editor .cm-lsp-hover-tooltip, .cm-editor .cm-completionInfo, .cm-editor .cm-lsp-signature-tooltip { font: 400 12.5px/1.6 var(--sans); color: var(--mut); }
+.cm-editor .cm-tooltip-hover .cm-lsp-hover-tooltip { padding: 0 0 4px; }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > *, .cm-editor .cm-tooltip.cm-completionInfo > * { margin-left: 14px; margin-right: 14px; }
+/* header: the leading code blocks (rust-analyzer sends the module path, then the signature) */
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > pre:first-child,
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > pre:first-child + pre { margin: 0; padding: 10px 14px; border-radius: 0; background: color-mix(in oklab, var(--acc) 7%, var(--panel)); font: 500 12.5px/1.55 var(--mono); color: var(--fg); white-space: pre-wrap; }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > pre:first-child:has(+ pre) { padding-bottom: 0; font-size: 11px; font-weight: 400; }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > pre:first-child:has(+ pre) * { color: var(--dim) !important; }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > pre:first-child:not(:has(+ pre)),
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > pre:first-child + pre { border-bottom: 1px solid var(--line2); }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > hr { display: none; }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > p, .cm-editor .cm-tooltip.cm-completionInfo p, .cm-editor .cm-tooltip .cm-lsp-signature-documentation p { margin-top: 10px; margin-bottom: 0; max-width: 62ch; }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > p:last-child, .cm-editor .cm-tooltip .cm-lsp-hover-tooltip > pre:last-child { margin-bottom: 10px; }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip h1, .cm-editor .cm-tooltip .cm-lsp-hover-tooltip h2, .cm-editor .cm-tooltip .cm-lsp-hover-tooltip h3,
+.cm-editor .cm-tooltip.cm-completionInfo h1, .cm-editor .cm-tooltip.cm-completionInfo h2, .cm-editor .cm-tooltip.cm-completionInfo h3,
+.cm-editor .cm-tooltip .cm-lsp-signature-documentation h1, .cm-editor .cm-tooltip .cm-lsp-signature-documentation h2 { margin-top: 14px; margin-bottom: 0; font: 600 10px var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip > pre:not(:first-child):not(:first-child + pre),
+.cm-editor .cm-tooltip.cm-completionInfo pre, .cm-editor .cm-tooltip .cm-lsp-signature-documentation pre { margin-top: 8px; margin-bottom: 0; padding: 8px 10px; border: 1px solid var(--line2); border-radius: 5px; background: var(--bg); font: 400 11.5px/1.55 var(--mono); color: var(--fg); overflow-x: auto; }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip p code, .cm-editor .cm-tooltip.cm-completionInfo p code, .cm-editor .cm-tooltip .cm-lsp-signature-documentation code { padding: 1px 5px; border-radius: 3px; background: var(--raise); font: 400 11.5px var(--mono); color: var(--fg); }
+.cm-editor .cm-tooltip .cm-lsp-hover-tooltip a, .cm-editor .cm-tooltip.cm-completionInfo a { color: var(--acc); }
+/* completion list and its docs panel */
+.cm-editor .cm-tooltip-autocomplete > ul { padding: 4px; font-size: 12.5px; }
+.cm-editor .cm-tooltip.cm-completionInfo { max-width: 460px; max-height: 360px; overflow: auto; padding: 0 0 10px; margin-left: 6px; }
+.cm-editor .cm-tooltip.cm-completionInfo > :first-child { margin-top: 10px; }
+.cm-editor .cm-tooltip .cm-completionDetail { font-style: normal; color: var(--dim); margin-left: 12px; }
+/* signature help: the signature is the header, the active parameter in the accent */
+.cm-editor .cm-lsp-signature-tooltip { padding: 0; max-width: 560px; }
+.cm-editor .cm-tooltip .cm-lsp-signature { display: block; padding: 8px 14px; background: color-mix(in oklab, var(--acc) 7%, var(--panel)); font: 500 12.5px/1.55 var(--mono); color: var(--fg); }
+.cm-editor .cm-tooltip .cm-lsp-signature-tooltip .cm-lsp-active-parameter, .cm-editor .cm-tooltip .cm-lsp-signature b, .cm-editor .cm-tooltip .cm-lsp-signature strong { color: var(--acc); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.cm-editor .cm-tooltip .cm-lsp-signature-documentation { padding: 0 14px 10px; border-top: 1px solid var(--line2); }
+.cm-editor .cm-tooltip .cm-lsp-signature-num { padding: 8px 14px 0; font: 500 10.5px var(--mono); color: var(--dim); }
 
 /* No visible scrollbars anywhere; everything still scrolls. */
 * { scrollbar-width: none; }
@@ -316,3 +339,13 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .subbar .wtitle { flex: 0 0 auto; }
 .subpills { display: flex; flex-wrap: wrap; gap: 6px; flex: 0 3 auto; min-width: 0; height: 22px; overflow: hidden; align-items: center; }
 .subbar .sbr { flex: none; }
+
+/* diagnostic cards (diagcard.ts): the level sets the frame; in a hover tooltip the card is the whole tooltip */
+.lens.lv-warning { border-color: var(--warn); background: var(--warn-bg); }
+.lens.lv-note, .lens.lv-help { border-color: var(--line); background: var(--raise); }
+.cm-tooltip.cm-tooltip-lint { padding: 0; border: 0; background: transparent; }
+.cm-tooltip-lint .cm-diagnostic { padding: 0; margin: 0; border-left: 0; }
+.cm-tooltip-lint .cm-diagnostic + .cm-diagnostic { margin-top: 6px; }
+.cm-tooltip-lint .lens { margin: 0; max-width: 560px; background: color-mix(in oklab, var(--panel) 88%, var(--bad)); box-shadow: 0 12px 32px var(--shadow); }
+.cm-tooltip-lint .lens.lv-warning { background: color-mix(in oklab, var(--panel) 88%, var(--warn)); }
+.cm-tooltip-lint .lens.lv-note, .cm-tooltip-lint .lens.lv-help { background: var(--panel); }

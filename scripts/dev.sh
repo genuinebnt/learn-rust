@@ -4,6 +4,9 @@
 #
 #   ./scripts/dev.sh        then open the web URL it prints (normally http://127.0.0.1:5180)
 #
+# The API's own port (normally :8787) serves web/dist, which dev mode rebuilds on every change too, so either URL
+# is current; only the Vite one hot-reloads without a page refresh.
+#
 # The API wants :8787 and the web app :5180. When another program holds one of them, a random free port is used
 # instead, and the web app's /api proxy follows the API wherever it lands. ANNEAL_API_PORT / ANNEAL_WEB_PORT
 # choose different preferred ports. scripts/restart.sh stops a running instance, pulls, and starts this.
@@ -44,4 +47,6 @@ echo "anneal: web http://127.0.0.1:$web_port   api http://127.0.0.1:$api_port"
 # cargo-watch kills and restarts the server on every change (.cargo holds the database URL).
 cargo watch -q -w crates -w content -w Cargo.toml -w Cargo.lock -w .cargo -x "run -q -p anneal-api" &
 pnpm -C web dev &
+# The API also serves the built app from web/dist at the API's port; keep that copy current too.
+pnpm -C web exec vite build --watch --logLevel warn >/dev/null &
 wait

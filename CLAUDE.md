@@ -4,7 +4,8 @@ Personal Rust interview-prep platform: axum API (`crates/api`), sandboxed runner
 content (`content/tracks`), React SPA (`web`).
 
 **Start with [docs/HANDOFF.md](docs/HANDOFF.md).** It covers the current state, how to run and check the work,
-the owner's working rules, and the pending work in order.
+the owner's working rules, and the pending work in order. **§6.0 is the pick-up point**: what's unfinished per track,
+a checklist of every problem not yet written, and the agent instructions in [docs/authoring/](docs/authoring/).
 
 The rules that matter most:
 

@@ -23,23 +23,29 @@ and what's next, in order.
 
 ## 2. Where things stand
 
-**Content:** 13 tracks, 252 problems, all passing `anneal verify`:
+**Content:** 18 tracks, 360 problems. Every ready problem meets the test bar (≥5 visible, ≥8 hidden, ≥1 `wrong/`), which
+`anneal verify` enforces. All passed `verify` except the last D9 and D12 commit (see §6.0), which still has to be checked.
 
-| Track | Problems |
-|---|---|
-| D1 Arrays & hashing | 24 |
-| D2 Two pointers & windows | 18 |
-| D3 Stacks & queues | 14 |
-| D4 Binary search | 14 |
-| D5 Linked lists | 15 |
-| D9 Graphs | 35 |
-| L1 Ownership & moves | 18 |
-| L2 Borrowing | 35 |
-| L3 Lifetimes | 20 |
-| S1 Option & Result | 10 |
-| S2 Strings & text | 18 |
-| S3 Vec & slices | 20 |
-| S4 Maps & sets | 11 |
+| Track | Problems | Planned |
+|---|---|---|
+| D1 Arrays & hashing | 24 | 24 |
+| D2 Two pointers & windows | 18 | 18 |
+| D3 Stacks & queues | 14 | 14 |
+| D4 Binary search | 14 | 14 |
+| D5 Linked lists | 15 | 15 |
+| D6 Trees & BSTs | 8 | 44 |
+| D8 Intervals & greedy | 13 | 29 |
+| D9 Graphs | 51 | 58 |
+| D10 Tries & strings | 11 | 25 |
+| D11 Recursion & backtracking | 15 | 28 |
+| D12 Dynamic programming | 45 | 57 |
+| L1 Ownership & moves | 18 | 18 |
+| L2 Borrowing | 35 | 35 |
+| L3 Lifetimes | 20 | 20 |
+| S1 Option & Result | 10 | 16 |
+| S2 Strings & text | 18 | 18 |
+| S3 Vec & slices | 20 | 20 |
+| S4 Maps & sets | 11 | 18 |
 
 **Built:**
 - **Catalog:** the section catalog pages (Rustfinity-style) and the track page.
@@ -51,8 +57,14 @@ and what's next, in order.
 - **Progress dashboards:** overview, Rust stats, reviews.
 - **Spaced repetition.**
 - **Login:** a single-user passphrase.
-- **Settings:** editor (font, size, Vim with `jk`/`kj`) and accent colour.
+- **Settings:** editor (font, size, Vim with `jk`/`kj`), accent colour, and the workspace toggles (below).
 - **Crates in problems:** vendored into the runner image.
+- **Company tags:** `companies = [...]` in `problem.toml`, names from `COMPANIES` in `crates/content/src/model.rs` (grouped
+  FAANG / Big tech / Databases / Rust shops; `validate` rejects others). The track page has a COMPANIES column (three
+  chips, FAANG first and tinted, `+n`) and GROUP / COMPANY filter chips. Tags are approximate (commonly reported
+  questions), and the page says so.
+- **Verifier:** `anneal verify` runs each problem's `wrong/*.rs` and fails if one passes or doesn't compile; the test
+  prelude has a seeded `anneal_prelude::Rng` for randomized brute-force comparisons.
 
 **Designed but not built** (all in `anneal-screens.html`): Today, Library, Mock interview, Readiness, the project pages.
 
@@ -63,6 +75,8 @@ and what's next, in order.
   - Run tests and Submit reopen the right panel if it's hidden.
 - Layout icons at the **top right of the problem bar** show or hide the left panel (⌘B), the console (⌘J) and the right panel (⌥⌘B). Hidden panels disappear completely: no rails, no strips.
 - The status bar holds clickable toggles: rust-analyzer, autocomplete, and borrow lanes (lanes only on problems that have them).
+  They are saved editor settings (`autocomplete`, `rust_analyzer`, `borrow_lanes` in `crates/api/src/settings.rs`), so
+  they carry across problems and reloads. **Borrow lanes are off by default** (owner's request).
 - The problem bar never scrolls. Tag pills drop out first, then the breadcrumb truncates.
 - The console hides until the next run, then opens on whichever tab has something to show.
 - The Borrows tab was **removed** on request. Borrow lanes live in the editor only.
@@ -113,6 +127,17 @@ Notes on the cloud setup:
 - Problems that list `crates = [...]` fetch them from crates.io when run on the host, so they need network access.
 - In a cloud session, content work and backend code are the safest things to do. UI work needs the owner's
   review anyway (§4).
+
+Cloud-session setup that worked on 2026-09-27 (Ubuntu container, running as root):
+
+```sh
+# Postgres 16 is installed but stopped, on 5432. The app and tests expect 5434.
+sed -i "s/^port = 5432/port = 5434/" /etc/postgresql/16/main/postgresql.conf && pg_ctlcluster 16 main start
+su postgres -c "psql -p 5434 -c \"CREATE ROLE anneal LOGIN PASSWORD 'anneal' SUPERUSER\"; psql -p 5434 -c 'CREATE DATABASE anneal OWNER anneal'"
+rustup component add rust-analyzer          # the API's LSP test and the workspace need it
+ANNEAL_SANDBOX=host cargo run -p anneal-api  # after `cd web && npm run build`; delete web/package-lock.json (the repo uses pnpm)
+export CHROME=/opt/pw-browsers/chromium-*/chrome-linux/chrome   # for tools/ui-check.mjs
+```
 
 ### Checking UI without screenshots
 
@@ -191,8 +216,8 @@ test, `wrong/` solutions and `companies` (`verify` enforces the counts and `wron
 
 | # | Track | Done | Next (in CURRICULUM order) | Notes |
 |---|---|---|---|---|
-| 1 | D9 Graphs (d9.py, order 7, seeds 901–999) | 49/58: Representation, Grid & graph traversal, BFS patterns, Topological sort | Shortest paths: City with fewest reachable neighbours (Floyd–Warshall), Swim in rising water · Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary | existing problems keep their slugs; `network-delay-time` is hand-written (`keep`) |
-| 2 | D12 DP (d12.py, order 10, seeds 1201–1299) | 39/57: 1-D basics, 1-D choices, 2-D grids, Strings, Knapsack, State machines | Intervals & games (6, written on `wip/d9-d12-unverified`) · Bitmasks & digits (5) · Hard strings (3) · DP the Rust way (4); seeds from 1246 | distinct subsequences uses `wrapping_add` on purpose; stone game returns both totals |
+| 1 | D9 Graphs (d9.py, order 7, seeds 901–999) | 51/58: Representation, Grid & graph traversal, BFS patterns, Topological sort, Shortest paths (last 2 unverified) | Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary | existing problems keep their slugs; `network-delay-time` is hand-written (`keep`) |
+| 2 | D12 DP (d12.py, order 10, seeds 1201–1299) | 45/57: 1-D basics … State machines, Intervals & games (unverified) | Bitmasks & digits (5) · Hard strings (3) · DP the Rust way (4); seeds from 1246 | distinct subsequences uses `wrapping_add` on purpose; stone game returns both totals |
 | 3 | D6 Trees (d6.py, order 6) | 8/44: Basics | Traversals, Levels & recursion, BSTs, Ownership-shaped trees; seeds from 609 | reuse `TREE` / `HELP` in d6.py; deep trees run in `big_stack`; count-nodes scale test uses a shared-`Rc` complete tree |
 | 4 | D10 Tries (d10.py, order 11) | 11/25: First tries, Tries at work | String algorithms, Hard tries & strings; seeds from 1012 | Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; D10's zero-copy tokenizer must be harder than L3's |
 | 5 | D11 Recursion & backtracking (d11.py, order 12) | 15/28: Recursion, First backtracking, Choices & grids 6/12 | generate-parentheses, different-ways-to-add-parentheses, word-search, palindrome-partitioning, restore-ip-addresses, Fix: recursive closure can't borrow the grid (flood fill → inner `fn`); then Constraints & pruning; seeds from 1127 | |
@@ -208,11 +233,10 @@ same state is also on branch `wip/d9-d12-unverified`, which can be deleted.
 
 Tick against `cargo run -q -p anneal-cli -- list <track>`. Stage lists are in each track's CURRICULUM table.
 
-- **D9 Graphs (9):** Shortest paths: City with the fewest reachable neighbours (Floyd–Warshall), Swim in rising water ·
-  Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding puzzle, Bus routes,
-  Making a large island, Shortest path to get all keys, Reconstruct itinerary (Hierholzer). Some may be on the wip branch.
-- **D12 DP (18; seeds from 1246):** Intervals & games (on the wip branch): Unique BSTs, Predict the winner, Stone game
-  (returns both players' totals), Palindrome partitioning II, Min cost to cut a stick, Burst balloons · Bitmasks & digits:
+- **D9 Graphs (7):** Union-find & MST: Accounts merge, Min cost to connect all points (Prim) · Hard traversals: Sliding
+  puzzle, Bus routes, Making a large island, Shortest path to get all keys, Reconstruct itinerary (Hierholzer). (City with
+  the fewest reachable neighbours and Swim in rising water are in the unverified commit.)
+- **D12 DP (12; seeds from 1246):** (Intervals & games, 6 problems, is in the unverified commit) · Bitmasks & digits:
   Count numbers with unique digits, Numbers at most N from a digit set, Can I win, Shortest path visiting all nodes, Ways
   to wear hats · Hard strings: Longest valid parentheses, Wildcard matching, Regular expression matching · DP the Rust
   way: Generic memoization engine (W44), Fix: recursive memo closure (E0499), Top-down → bottom-up rewrite, House robber
@@ -259,7 +283,7 @@ Done this session (for reference): verifier `wrong/` solutions + prelude `Rng` +
 original tracks and the stricter `verify` minimums; CURRICULUM extended for D6/D8/D9/D10/D11/D12; company tags (model,
 validation, API, track-page column and filter); saved workspace toggles.
 
-### 6.1 Test hardening (step 2a): in progress, start here
+### 6.1 Test hardening (step 2a): done 2026-09-27
 
 **Status (2026-09-27):** plan steps 1 and 2 are built, and step 3 is done for **D1** (every problem has ≥5 visible, ≥8 hidden, a
 seeded random comparison, a scale test where one makes sense, and 1–3 `wrong/*.rs`). **Next: D2**, then down the table in §2.
@@ -320,6 +344,12 @@ Plan (approved):
 
 ## 7. Known rough edges
 
+- The last D9 / D12 commit ("… (not yet verified)") hasn't been through `verify`; run `verify d9` and `verify d12` first.
+- Track cards count only written problems ("8 problems" for D6's 8 of 44) and would call a partly written track done once
+  those are solved. Proposed fix (awaiting the owner): show "8 of 44 written" and use CURRICULUM's size in `stateOf`
+  (`web/src/pages/SectionPage.tsx`; sizes in `PLANNED`, `web/src/curriculum.ts`).
+- The saved workspace toggles were type-checked and API-tested but not clicked through in a browser.
+- Branch `wip/d9-d12-unverified` on GitHub duplicates that commit and can be deleted.
 - The Run tests button changes width by about 3px between idle and busy.
 - With five file tabs open at 1280px, the tab list scrolls sideways (the scrollbar is hidden). It works, but
   isn't obvious.

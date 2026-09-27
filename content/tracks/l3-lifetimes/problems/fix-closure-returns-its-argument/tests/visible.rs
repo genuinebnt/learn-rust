@@ -1,27 +1,29 @@
 use solution::*;
 
 #[test]
-fn trims() {
-    check!(r#""  a \n\n b\n""#, trimmed_lines("  a \n\n b\n"), vec!["a", "b"]);
+fn trimmed_lines_example() {
+    check!(r#"trimmed_lines("  a \n\n b")"#, trimmed_lines("  a \n\n b"), vec!["a", "b"]);
 }
 
 #[test]
-fn owned_input() {
-    let input = String::from("x\n  y  ");
-    check!(r#"input from a String: "x\n  y  ""#, trimmed_lines(&input), vec!["x", "y"]);
+fn first_fields_example() {
+    check!(r#"first_fields("a,b\nc\n,d")"#, first_fields("a,b\nc\n,d"), vec!["a", "c", ""]);
 }
 
 #[test]
-fn empty() {
-    check!(r#""""#, trimmed_lines(""), Vec::<&str>::new());
+fn comment_stripper_example() {
+    check!(r###"comment_stripper().run("## note ")"###, comment_stripper().run("## note "), "note");
 }
 
 #[test]
-fn inner_spaces_kept() {
-    check!(r#""  a b  ""#, trimmed_lines("  a b  "), vec!["a b"]);
+fn results_borrow_the_input() {
+    let t = String::from("x,y");
+    check!(r#"first_fields' result points into the text"#, first_fields(&t)[0].as_ptr() == t.as_ptr(), true);
 }
 
 #[test]
-fn all_blank() {
-    check!(r#"" \n\t\n""#, trimmed_lines(" \n\t\n").len(), 0);
+fn pipeline_result_outlives_pipeline() {
+    let s = String::from("# kept");
+    let out = comment_stripper().run(&s);
+    check!(r#"run a dropped pipeline's steps on a String"#, out, "kept");
 }

@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-fn add_defaults(names: &mut Vec<&'static str>) {
+fn add_defaults<'a>(names: &mut Vec<&'a str>) {
     names.push("root");
     names.push("admin");
 }
@@ -13,8 +13,8 @@ pub fn all_names(input: &str) -> Vec<&str> {
 }
 
 /// Keeps in `slot` the shorter of its current value and `candidate` (the current one on a tie).
-pub fn keep_shortest(slot: &Cell<&'static str>, candidate: &str) {
-    if candidate.len() < slot.get().len() {
+pub fn keep_shortest<'a>(slot: &Cell<&'a str>, candidate: &'a str) {
+    if candidate.len() <= slot.get().len() {
         slot.set(candidate);
     }
 }
@@ -31,7 +31,7 @@ pub fn shortest_line(text: &str) -> &str {
 }
 
 /// Applies `measure` to `s`.
-pub fn apply(measure: fn(&'static str) -> usize, s: &str) -> usize {
+pub fn apply(measure: fn(&str) -> usize, s: &str) -> usize {
     measure(s)
 }
 

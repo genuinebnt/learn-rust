@@ -1,0 +1,35 @@
+slug = "trait-lifetimes-parse"
+title = "Lifetimes in traits: Parse<'a> and for<'a> Parse<'a>"
+mode = "fix"
+level = "hard"
+stage = "variance-hrtbs"
+order = 19
+status = "ready"
+tags = ["trait lifetime parameters", "HRTB", "DeserializeOwned pattern", "E0597"]
+teaches = [
+  "Trait lifetime parameters let impls borrow from input.",
+  "`T: Parse<'a>` for borrowed input; `T: for<'a> Parse<'a>` for owned results.",
+  "`Parse<'static>` is not \"owned\".",
+]
+follow_up = "Why can't `read_owned::<&str>` ever compile, and what error would you expect?"
+related = ["L3", "L5"]
+
+[[hints]]
+kind = "rust"
+text = "An impl for a borrowing type ties the trait's lifetime to the type's: `impl<'a> Parse<'a> for Pair<'a>`. The parsed value then borrows the text it came from."
+
+[[hints]]
+kind = "rust"
+text = "`T: Parse<'static>` asks for a type that can parse `'static` text, and `&line` isn't `'static` (E0597). What `read_owned` needs is a type that can parse text of *any* lifetime, however short."
+
+[[hints]]
+kind = "rust"
+text = "That's a higher-ranked bound: `where T: for<'a> Parse<'a>`. `u32` and `String` satisfy it; `&str` and `Pair` only implement `Parse` for their own lifetime, so they're rejected, which is the point. serde calls this bound `DeserializeOwned`."
+
+[solution]
+explanation = "A lifetime parameter on a trait lets implementations return values that borrow their input. Borrowing types implement it for the matching lifetime only (`impl<'a> Parse<'a> for &'a str`), owning types for all of them (`impl<'a> Parse<'a> for u32`). Generic code then picks one of two bounds. `T: Parse<'a>` for a specific `'a` lets `T` borrow from input that lives that long (`fields`). `T: for<'a> Parse<'a>` says `T` can be parsed from input of any lifetime, which in practice means it borrows nothing, and it's the only bound that works when the input is a local buffer the function drops (`read_owned`). `Parse<'static>` looks similar and is wrong: it demands `'static` input. serde's `Deserialize<'de>` and `DeserializeOwned` (defined as `for<'de> Deserialize<'de>`) are exactly this pair.\n\nSyntax to remember: `impl<'a> Parse<'a> for Pair<'a> { fn parse(s: &'a str) -> Option<Self> { .. } }` · `where T: for<'a> Parse<'a>` · `line.split(',').map(T::parse).collect::<Option<Vec<T>>>()`."
+time = "O(n)"
+space = "O(fields)"
+
+[rules]
+forbid_methods = ["leak", "clone"]

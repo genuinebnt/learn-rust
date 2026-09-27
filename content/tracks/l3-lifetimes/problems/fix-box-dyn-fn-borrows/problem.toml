@@ -1,34 +1,36 @@
 slug = "fix-box-dyn-fn-borrows"
-title = "Fix: Box<dyn Fn> that borrows"
+title = "Fix: trait objects that borrow (dyn Trait + 'a)"
 mode = "fix"
 level = "hard"
 stage = "variance-hrtbs"
-order = 21
+order = 22
 status = "ready"
-tags = ["trait object lifetimes", "Box<dyn Fn + 'a>"]
+tags = ["trait object lifetimes", "default object bounds", "Box<dyn Fn + 'a>", "E0521"]
 teaches = [
-  "Default `'static` bounds on boxed trait objects.",
-  "`+ 'a` for trait objects that borrow.",
+  "`Box<dyn Trait>` defaults to `+ 'static`.",
+  "`&'r dyn Trait` defaults to `+ 'r`.",
+  "Write `dyn Trait + 'a` when the object borrows.",
 ]
-follow_up = "When would you return `impl Fn(&str) -> bool + 'a` instead of a Box?"
+follow_up = "What's the default object lifetime of `Arc<Mutex<dyn Trait>>`, and how would you store borrowing handlers in one?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "`Box<dyn Trait>` with no lifetime means `Box<dyn Trait + 'static>`: the closure may not borrow anything short-lived."
+text = "A trait object type always has a lifetime bound, and when you don't write one it's filled in: `Box<dyn Trait>` means `Box<dyn Trait + 'static>`. A closure that captures a `&'a` borrow isn't `'static`."
 
 [[hints]]
 kind = "rust"
-text = "Add a lifetime bound to the trait object: `+ 'a`. `+ '_` won't do here, because `&[&str]` has two elided lifetimes."
+text = "Say how long the object may live: `Box<dyn Fn(&str) -> bool + 'a>`, with `'a` tied to what it borrows. Inside a struct with a lifetime parameter, use that parameter."
 
 [[hints]]
 kind = "rust"
-text = "`&'a [&str]` implies the inner strings outlive `'a`, so naming just the outer one is enough."
+text = "Behind a reference the default is different: `&'r dyn Trait` means `&'r (dyn Trait + 'r)`. That's why `count_passing` accepts borrowing closures unchanged."
 
 [solution]
-explanation = "Trait objects carry a lifetime bound, just like references. The default in a `Box` is `'static`; a closure capturing `allowed` lives only as long as `allowed`, so the box has to say so."
-time = "O(k) per call"
-space = "O(1)"
+explanation = "Every `dyn Trait` has an object lifetime bound: how long the erased value may be used, which limits what it may borrow. When omitted, it's defaulted from context: `Box<dyn Trait>` (and `Rc`, `Arc`, `Vec<Box<..>>`) default to `'static`; `&'r dyn Trait` and `&'r mut dyn Trait` default to `'r`; a type with a lifetime bound (`Ref<'a, dyn Trait>`, `struct S<'a, T: 'a + ?Sized>`) uses that. So a boxed closure capturing `allowed: &'a [&str]` needs `+ 'a` spelled out, and so does the field of `Checks<'a>` that `add` (already `+ 'a`) pushes into. `labels` returns boxed `&str`s pointing into `names`, so its objects are `+ '_`. A `&dyn Fn` parameter needed nothing: the reference's own lifetime is the default, so any closure that outlives the call fits.\n\nSyntax to remember: `fn make_filter<'a>(allowed: &'a [&str]) -> Box<dyn Fn(&str) -> bool + 'a>` · `Vec<Box<dyn Display + '_>>` · `&dyn Trait` = `&'r (dyn Trait + 'r)` · `Box<dyn Trait>` = `Box<dyn Trait + 'static>`."
+time = "O(k) per check"
+space = "O(checks)"
 
 [rules]
-max_changed_lines = 1
+forbid_methods = ["to_owned", "leak", "clone", "cloned"]
+max_changed_lines = 4

@@ -1,30 +1,35 @@
 slug = "fix-closure-returns-its-argument"
-title = "Fix: a closure that returns its argument"
+title = "Fix: closures that return a borrow of their argument"
 mode = "fix"
 level = "hard"
 stage = "variance-hrtbs"
-order = 20
+order = 21
 status = "ready"
-tags = ["closure lifetimes", "fn items"]
+tags = ["closure lifetime inference", "higher-ranked closures", "fn items"]
 teaches = [
-  "Closures don't get lifetime elision for their return type.",
-  "Prefer `fn` items or method paths when a callback returns a borrow.",
+  "A closure's signature is inferred where it's created.",
+  "`Fn(&str) -> &str` is higher-ranked; `let`-bound closures aren't.",
+  "Use `fn` items, paths, or inline closures.",
 ]
-follow_up = "How could a closure be made to work here without turning it into a fn?"
+follow_up = "Write a helper `fn hr<F: Fn(&str) -> &str>(f: F) -> F { f }`. Why does `let trim = hr(|s| s.trim());` compile when `let trim = |s: &str| s.trim();` doesn't?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "An annotated `|s: &str|` closure takes any lifetime, but its return type gets one fixed lifetime, so the compiler can't connect the output to the input."
+text = "A `fn` item with an elided signature is generic over the lifetime: `fn trim(s: &str) -> &str` is `for<'a> fn(&'a str) -> &'a str`. A closure's signature is inferred once, when it's created, and a `let`-bound closure with `|s: &str|` gets an input lifetime and an output lifetime that aren't linked."
 
 [[hints]]
 kind = "rust"
-text = "A `fn` item gets the full elision rules: `fn trim(s: &str) -> &str` means 'returns a borrow of `s`'. `.map(str::trim)` works too."
+text = "A closure written directly where an `Fn(&str) -> &str` bound expects it (like `p.add(|s| ..)`) is inferred against that bound, so it becomes higher-ranked. Bound to a `let` first, it isn't."
+
+[[hints]]
+kind = "rust"
+text = "Fixes: use a path (`str::trim`), a nested `fn`, or write the closure inline at the call that has the bound."
 
 [solution]
-explanation = "Closure signatures are inferred, and inference doesn't apply the elision rule that links an output to an input. Named functions (or `str::trim` directly) state the relationship."
+explanation = "The signature `Fn(&str) -> &str` is sugar for `for<'a> Fn(&'a str) -> &'a str`: one closure that works for every lifetime and returns a borrow of its argument. `fn` items get that shape from ordinary elision. Closures don't: their signature is inferred at the point they're created, and without an expected type the compiler gives the parameter's lifetime and the return's lifetime separate inference variables, then can't prove the result outlives what it borrowed. Writing `-> &str` doesn't help, because elision rules don't apply inside closure annotations. When the closure is written in a position that expects a higher-ranked `Fn` (an argument to `add`, `map` with a bound), the expectation is used and it works. So the fixes are to move the closure there, or to use a `fn` item or a path like `str::trim`. (The unstable `for<'a> |s: &'a str| -> &'a str` syntax would state it directly.)\n\nSyntax to remember: `text.lines().map(str::trim)` · `fn first(s: &str) -> &str { .. }` nested in a function · `Box<dyn Fn(&str) -> &str>` = `Box<dyn for<'a> Fn(&'a str) -> &'a str>`."
 time = "O(n)"
-space = "O(k)"
+space = "O(lines)"
 
 [rules]
-max_changed_lines = 3
+forbid_methods = ["to_string", "to_owned", "leak", "clone"]

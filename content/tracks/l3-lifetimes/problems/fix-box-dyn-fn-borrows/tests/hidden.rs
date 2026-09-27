@@ -1,68 +1,73 @@
 use solution::*;
 
 #[test]
-fn many_calls() {
-    let allowed = vec!["a"];
-    let f = make_filter(&allowed);
-    let words = ["a", "b", "a"];
-    check!(r#"allowed ["a"]"#, words.iter().filter(|w| f(w)).count(), 2);
+fn filter_empty_allowed() {
+    check!(r#"allowed []"#, make_filter(&[])("a"), false);
 }
 
 #[test]
-fn empty_word_allowed() {
-    let allowed = [""];
-    let f = make_filter(&allowed);
-    check!(r#"allowed [""]: """#, (f(""), f("x")), (true, false));
+fn filter_case_sensitive() {
+    check!(r#"allowed ["A"]: test a"#, make_filter(&["A"])("a"), false);
 }
 
 #[test]
-fn empty_word_not_allowed() {
-    check!(r#"allowed ["a"]: """#, make_filter(&["a"])(""), false);
+fn checks_all_pass() {
+    check!(r#"one check that always passes"#, { let mut c = Checks::new(); c.add("any", |_| true); c.failures("q").len() }, 0);
 }
 
 #[test]
-fn unicode() {
-    let allowed = ["café"];
-    let f = make_filter(&allowed);
-    check!(r#"allowed ["café"]: "café", "cafe""#, (f("café"), f("cafe")), (true, false));
+fn checks_order() {
+    let mut c = Checks::new();
+    c.add("c", |_| false);
+    c.add("a", |_| false);
+    c.add("b", |w| w.is_empty());
+    check!(r#"three failing checks"#, c.failures("z"), vec!["c", "a", "b"]);
 }
 
 #[test]
-fn duplicates() {
-    check!(r#"allowed ["x", "x"]"#, make_filter(&["x", "x"])("x"), true);
+fn checks_static_closure() {
+    let mut c = Checks::new();
+    c.add("digit", |w| w.chars().all(|ch| ch.is_ascii_digit()));
+    check!(r#"a check with no borrows"#, (c.failures("12"), c.failures("1a")), (Vec::<&str>::new(), vec!["digit"]));
 }
 
 #[test]
-fn word_from_a_short_string() {
-    let allowed = ["tmp"];
-    let f = make_filter(&allowed);
-    let ok = { let w = String::from("tmp"); f(&w) };
-    check!(r#"the word is a String dropped right after the call"#, ok, true);
+fn count_passing_empty() {
+    check!(r#"no words"#, count_passing(&[], &|_| true), 0);
 }
 
 #[test]
-fn whitespace_matters() {
-    check!(r#"allowed ["a"]: " a""#, make_filter(&["a"])(" a"), false);
+fn labels_empty() {
+    check!(r#"labels of []"#, labels(&[]).len(), 0);
 }
 
 #[test]
-fn many_allowed() {
-    let owned: Vec<String> = (0..1000).map(|i| format!("n{i}")).collect();
-    let allowed: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
-    let f = make_filter(&allowed);
-    check!(r#"allowed n0..n999, ask n999 and n1000"#, (f("n999"), f("n1000")), (true, false));
+fn labels_point_into_names() {
+    let names = vec![String::from("a"), String::from("b")];
+    check!(r#"a label displays the name it borrows"#, format!("{}{}", labels(&names)[1], labels(&names)[0]), "ba".to_string());
 }
 
 #[test]
 fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(320);
+    let mut rng = anneal_prelude::Rng::new(6317);
+    let pool = ["a", "b", "c", "ab", "ba"];
     for _ in 0..300 {
-        let n = rng.below(4);
-        let owned: Vec<String> = (0..n).map(|_| { let len = rng.below(3); rng.string(len, "ab") }).collect();
-        let allowed: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
-        let len = rng.below(3);
-        let word = rng.string(len, "ab");
+        let k = rng.below(4);
+        let allowed: Vec<&str> = (0..k).map(|_| *rng.pick(&pool)).collect();
         let f = make_filter(&allowed);
-        check!(format!("allowed = {allowed:?}, word = {word:?}"), f(&word), allowed.contains(&word.as_str()));
+        let w = *rng.pick(&pool);
+        check!(format!("allowed {allowed:?}; {w}"), f(w), allowed.contains(&w));
+        let min = rng.below(3);
+        let mut c = Checks::new();
+        c.add("min", |x| x.len() >= min);
+        c.add("allowed", |x| allowed.contains(&x));
+        let mut want = Vec::new();
+        if w.len() < min {
+            want.push("min");
+        }
+        if !allowed.contains(&w) {
+            want.push("allowed");
+        }
+        check!(format!("allowed {allowed:?}, min {min}; failures({w})"), c.failures(w), want);
     }
 }

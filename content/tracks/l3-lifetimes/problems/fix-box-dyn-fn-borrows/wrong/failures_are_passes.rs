@@ -1,13 +1,13 @@
 use std::fmt::Display;
 
 /// A predicate accepting exactly the words in `allowed`.
-pub fn make_filter(allowed: &[&str]) -> Box<dyn Fn(&str) -> bool> {
+pub fn make_filter<'a>(allowed: &'a [&str]) -> Box<dyn Fn(&str) -> bool + 'a> {
     Box::new(move |w| allowed.contains(&w))
 }
 
 /// Named checks. Checks may borrow data that lives for `'a`.
 pub struct Checks<'a> {
-    list: Vec<(String, Box<dyn Fn(&str) -> bool>)>,
+    list: Vec<(String, Box<dyn Fn(&str) -> bool + 'a>)>,
 }
 
 impl<'a> Checks<'a> {
@@ -21,7 +21,7 @@ impl<'a> Checks<'a> {
 
     /// The names of the checks `word` fails, in the order they were added.
     pub fn failures(&self, word: &str) -> Vec<&str> {
-        self.list.iter().filter(|(_, c)| !c(word)).map(|(n, _)| n.as_str()).collect()
+        self.list.iter().filter(|(_, c)| c(word)).map(|(n, _)| n.as_str()).collect()
     }
 }
 
@@ -31,6 +31,6 @@ pub fn count_passing(words: &[&str], check: &dyn Fn(&str) -> bool) -> usize {
 }
 
 /// Each name as something displayable, for later.
-pub fn labels(names: &[String]) -> Vec<Box<dyn Display>> {
+pub fn labels(names: &[String]) -> Vec<Box<dyn Display + '_>> {
     names.iter().map(|n| Box::new(n.as_str()) as Box<dyn Display>).collect()
 }

@@ -1,56 +1,56 @@
 use solution::*;
 
 #[test]
-fn all_blank() {
-    check!(r#"" \n\t\n""#, trimmed_lines(" \n\t\n").len(), 0);
+fn trimmed_empty() {
+    check!(r#"trimmed_lines("")"#, trimmed_lines("").len(), 0);
 }
 
 #[test]
-fn single_line() {
-    check!(r#""solo""#, trimmed_lines("solo"), vec!["solo"]);
+fn first_fields_empty_line() {
+    check!(r#"first_fields("\n")"#, first_fields("\n"), vec![""]);
 }
 
 #[test]
-fn tabs() {
-    check!(r#""\ta\t\n\tb""#, trimmed_lines("\ta\t\n\tb"), vec!["a", "b"]);
+fn stripper_order() {
+    check!(r#"" #x": whitespace first, so '#' stays"#, comment_stripper().run(" #x"), "#x");
 }
 
 #[test]
-fn crlf() {
-    check!(r#""a \r\n b\r\n""#, trimmed_lines("a \r\n b\r\n"), vec!["a", "b"]);
+fn stripper_no_comment() {
+    check!(r#""plain""#, comment_stripper().run("plain"), "plain");
 }
 
 #[test]
-fn unicode_whitespace() {
-    check!(r#""\u{3000}é\u{a0}""#, trimmed_lines("\u{3000}é\u{a0}"), vec!["é"]);
+fn stripper_only_hashes() {
+    check!(r####""###""####, comment_stripper().run("###"), "");
 }
 
 #[test]
-fn order_kept() {
-    check!(r#""c\nb\na""#, trimmed_lines("c\nb\na"), vec!["c", "b", "a"]);
+fn empty_pipeline() {
+    check!(r#"Pipeline::new().run(" x ")"#, Pipeline::new().run(" x "), " x ");
 }
 
 #[test]
-fn points_into_input() {
-    let input = String::from("  hi  ");
-    let lines = trimmed_lines(&input);
-    check!(r#"the trimmed line points into the String"#, std::ptr::eq(lines[0].as_ptr(), input[2..].as_ptr()), true);
+fn custom_pipeline() {
+    check!(r#"add inline closures: take 3 bytes, trim end"#, { let mut p = Pipeline::new(); p.add(|s| &s[..s.len().min(3)]); p.add(|s| s.trim_end()); p.run("ab cd") }, "ab");
 }
 
 #[test]
-fn many_lines() {
-    let input: String = (0..1000).map(|i| format!("  {i}  \n")).collect();
-    let lines = trimmed_lines(&input);
-    check!(r#"1000 lines "  n  ""#, (lines.len(), lines[999]), (1000, "999"));
+fn trimmed_unicode_spaces() {
+    check!(r#"trimmed_lines("\u{3000}x\u{3000}")"#, trimmed_lines("\u{3000}x\u{3000}"), vec!["x"]);
 }
 
 #[test]
 fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(319);
+    let mut rng = anneal_prelude::Rng::new(6316);
+    let p = comment_stripper();
     for _ in 0..300 {
-        let n = rng.below(12);
-        let text = rng.string(n, "ab \n");
-        let want: Vec<&str> = text.split('\n').map(|l| l.trim_matches(' ')).filter(|l| !l.is_empty()).collect();
-        check!(format!("text = {text:?}"), trimmed_lines(&text), want);
+        let len = rng.below(10);
+        let text = rng.string(len, "a #,\n");
+        let want: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+        check!(format!("trimmed_lines({text:?})"), trimmed_lines(&text), want);
+        let want: Vec<&str> = text.lines().map(|l| l.split(',').next().unwrap_or("")).collect();
+        check!(format!("first_fields({text:?})"), first_fields(&text), want);
+        check!(format!("comment_stripper().run({text:?})"), p.run(&text), text.trim_start_matches('#').trim());
     }
 }

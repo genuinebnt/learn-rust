@@ -1,1 +1,3 @@
-`all_names` collects borrowed names, then adds two defaults. It doesn't compile, even though the defaults are string literals.
+Three signatures ask for `'static` where a shorter lifetime would do, and variance keeps the compiler
+from quietly shortening it. Fix them so `all_names`, `shortest_line` and `apply` work on borrowed
+text. `shorten` compiles already: it's the case where variance does let `'static` shrink.

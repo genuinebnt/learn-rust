@@ -1,62 +1,66 @@
 use solution::*;
 
 #[test]
-fn one() {
-    let input = String::from("x");
-    check!(r#"input "x" from a String"#, all_names(&input).len(), 3);
+fn all_names_empty() {
+    check!(r#"all_names("")"#, all_names(""), vec!["root", "admin"]);
 }
 
 #[test]
-fn crlf() {
-    check!(r#""a\r\nb""#, all_names("a\r\nb"), vec!["a", "b", "root", "admin"]);
+fn shortest_none() {
+    check!(r#"shortest_line("")"#, shortest_line(""), "(none)");
 }
 
 #[test]
-fn root_already_there() {
-    check!(r#""root""#, all_names("root"), vec!["root", "root", "admin"]);
+fn shortest_tie_first() {
+    check!(r#"shortest_line("ab\ncd")"#, shortest_line("ab\ncd"), "ab");
 }
 
 #[test]
-fn unicode() {
-    check!(r#""émile\nzoë""#, all_names("émile\nzoë"), vec!["émile", "zoë", "root", "admin"]);
+fn shortest_empty_line() {
+    check!(r#"shortest_line("a\n\nb")"#, shortest_line("a\n\nb"), "");
 }
 
 #[test]
-fn spaces_kept() {
-    check!(r#"" a ""#, all_names(" a "), vec![" a ", "root", "admin"]);
+fn keep_shortest_tie() {
+    check!(r#"slot "ab"; keep_shortest("cd")"#, { let slot = std::cell::Cell::new("ab"); keep_shortest(&slot, "cd"); slot.get() }, "ab");
 }
 
 #[test]
-fn names_point_into_input() {
-    let input = String::from("bob");
-    let names = all_names(&input);
-    check!(r#"first name points into the String"#, std::ptr::eq(names[0].as_ptr(), input.as_ptr()), true);
+fn apply_custom_fn() {
+    fn commas(s: &str) -> usize {
+        s.matches(',').count()
+    }
+    let s = String::from("a,b,c");
+    check!(r#"apply(a fn counting commas, "a,b,c")"#, apply(commas, &s), 2);
 }
 
 #[test]
-fn defaults_last() {
-    let input: String = (0..1000).map(|i| format!("n{i}\n")).collect();
-    let names = all_names(&input);
-    check!(r#"1000 names"#, (names.len(), names[999], names[1000], names[1001]), (1002, "n999", "root", "admin"));
+fn apply_to_a_literal() {
+    check!(r#"apply(str::len, "")"#, apply(str::len, ""), 0);
 }
 
 #[test]
-fn only_newlines() {
-    check!(r#""\n\n""#, all_names("\n\n"), vec!["", "", "root", "admin"]);
+fn shortest_unicode_bytes() {
+    check!(r#"shortest_line("éé\nabc")"#, shortest_line("éé\nabc"), "abc");
 }
 
 #[test]
 fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(316);
+    let mut rng = anneal_prelude::Rng::new(6314);
     for _ in 0..300 {
-        let n = rng.below(10);
-        let input = rng.string(n, "ab\n");
-        let mut want: Vec<&str> = input.split('\n').collect();
-        if input.is_empty() || input.ends_with('\n') {
-            want.pop();
+        let len = rng.below(12);
+        let text = rng.string(len, "ab\n");
+        let mut best: Option<&str> = None;
+        for l in text.lines() {
+            if best.map_or(true, |b| l.len() < b.len()) {
+                best = Some(l);
+            }
         }
+        check!(format!("shortest_line({text:?})"), shortest_line(&text), best.unwrap_or("(none)"));
+        let mut want: Vec<&str> = text.lines().collect();
         want.push("root");
         want.push("admin");
-        check!(format!("input = {input:?}"), all_names(&input), want);
+        check!(format!("all_names({text:?})"), all_names(&text), want);
+        check!(format!("apply(str::len, {text:?})"), apply(str::len, &text), text.len());
     }
 }

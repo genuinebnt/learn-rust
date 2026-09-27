@@ -1,34 +1,35 @@
 use solution::*;
 
 #[test]
-fn filters() {
-    let owned = vec![String::from("red"), String::from("blue")];
-    let allowed: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+fn make_filter_example() {
+    let allowed = vec!["a", "b"];
     let f = make_filter(&allowed);
-    check!(r#"allowed ["red", "blue"] built from Strings"#, (f("red"), f("green")), (true, false));
+    check!(r#"allowed ["a", "b"]: test a, c"#, (f("a"), f("c")), (true, false));
 }
 
 #[test]
-fn empty() {
-    check!(r#"allowed []"#, make_filter(&[])("x"), false);
+fn checks_borrow_locals() {
+    let min = 3;
+    let list = vec![String::from("abc")];
+    let mut c = Checks::new();
+    c.add("long", |w| w.len() >= min);
+    c.add("listed", |w| list.iter().any(|x| x == w));
+    check!(r#"checks: min length from a local, in a local list"#, c.failures("xy"), vec!["long", "listed"]);
 }
 
 #[test]
-fn many_calls() {
-    let allowed = vec!["a"];
-    let f = make_filter(&allowed);
-    let words = ["a", "b", "a"];
-    check!(r#"allowed ["a"]"#, words.iter().filter(|w| f(w)).count(), 2);
+fn count_passing_borrowed_closure() {
+    let limit = 3;
+    check!(r#"count words shorter than a local limit"#, count_passing(&["a", "abc", "ab"], &|w| w.len() < limit), 2);
 }
 
 #[test]
-fn exact_match_only() {
-    let allowed = ["red"];
-    let f = make_filter(&allowed);
-    check!(r#"allowed ["red"]: "re", "reds""#, (f("re"), f("reds"), f("red")), (false, false, true));
+fn labels_example() {
+    let names = vec![String::from("x"), String::from("yz")];
+    check!(r#"labels of ["x", "yz"]"#, labels(&names).iter().map(|l| l.to_string()).collect::<Vec<_>>(), vec!["x".to_string(), "yz".to_string()]);
 }
 
 #[test]
-fn case_sensitive() {
-    check!(r#"allowed ["Red"]: "red""#, make_filter(&["Red"])("red"), false);
+fn no_checks() {
+    check!(r#"no checks: failures of anything"#, Checks::new().failures("w").len(), 0);
 }

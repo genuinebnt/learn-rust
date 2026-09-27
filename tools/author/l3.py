@@ -2572,101 +2572,115 @@ Syntax to remember: `fn pin<T: Describe + 'a>(&mut self, item: T)` · `fn boxed<
 
 # ---------------------------------------------------------------- variance & HRTBs (hard)
 
+VAR_STARTER = r"""
+use std::cell::Cell;
+
+fn add_defaults(names: &mut Vec<&'static str>) {
+    names.push("root");
+    names.push("admin");
+}
+
+/// The names in `input` (one per line), then "root" and "admin".
+pub fn all_names(input: &str) -> Vec<&str> {
+    let mut names: Vec<&str> = input.lines().collect();
+    add_defaults(&mut names);
+    names
+}
+
+/// Keeps in `slot` the shorter of its current value and `candidate` (the current one on a tie).
+pub fn keep_shortest(slot: &Cell<&'static str>, candidate: &str) {
+    if candidate.len() < slot.get().len() {
+        slot.set(candidate);
+    }
+}
+
+/// The shortest line of `text` (the first on a tie), or "(none)" when there are no lines.
+pub fn shortest_line(text: &str) -> &str {
+    let mut lines = text.lines();
+    let Some(first) = lines.next() else { return "(none)" };
+    let slot = Cell::new(first);
+    for line in lines {
+        keep_shortest(&slot, line);
+    }
+    slot.get()
+}
+
+/// Applies `measure` to `s`.
+pub fn apply(measure: fn(&'static str) -> usize, s: &str) -> usize {
+    measure(s)
+}
+
+/// The same names, typed as shorter-lived references.
+pub fn shorten<'a>(v: Vec<&'static str>) -> Vec<&'a str> {
+    v
+}
+"""
+
+VAR_SOLUTION = VAR_STARTER
+for _old, _new in [
+    ("fn add_defaults(names: &mut Vec<&'static str>) {", "fn add_defaults<'a>(names: &mut Vec<&'a str>) {"),
+    ("pub fn keep_shortest(slot: &Cell<&'static str>, candidate: &str) {", "pub fn keep_shortest<'a>(slot: &Cell<&'a str>, candidate: &'a str) {"),
+    ("pub fn apply(measure: fn(&'static str) -> usize, s: &str) -> usize {", "pub fn apply(measure: fn(&str) -> usize, s: &str) -> usize {"),
+]:
+    VAR_SOLUTION = sub(VAR_SOLUTION, _old, _new)
+
 P.append(fix(
-    "fix-mut-invariance", "Fix: &mut T is invariant", "hard", "variance-hrtbs", ["variance", "&mut T"],
-    "`all_names` collects borrowed names, then adds two defaults. It doesn't compile, even though the defaults are string literals.",
+    "fix-mut-invariance", "Fix: variance of &mut, Cell and fn pointers", "hard", "variance-hrtbs", ["variance", "invariance", "Cell", "contravariance", "fn pointers"],
     """
-    fn add_defaults(names: &mut Vec<&'static str>) {
-        names.push("root");
-        names.push("admin");
-    }
-
-    /// The names in `input` (one per line), then the defaults.
-    pub fn all_names(input: &str) -> Vec<&str> {
-        let mut names: Vec<&str> = input.lines().collect();
-        add_defaults(&mut names);
-        names
-    }
+        Three signatures ask for `'static` where a shorter lifetime would do, and variance keeps the compiler
+        from quietly shortening it. Fix them so `all_names`, `shortest_line` and `apply` work on borrowed
+        text. `shorten` compiles already: it's the case where variance does let `'static` shrink.
     """,
-    """
-    fn add_defaults<'a>(names: &mut Vec<&'a str>) {
-        names.push("root");
-        names.push("admin");
-    }
-
-    /// The names in `input` (one per line), then the defaults.
-    pub fn all_names(input: &str) -> Vec<&str> {
-        let mut names: Vec<&str> = input.lines().collect();
-        add_defaults(&mut names);
-        names
-    }
-    """,
-    [T("owned_input", 'input "alice\\nbob" from a String', "all_names(&input)", 'vec!["alice", "bob", "root", "admin"]', setup='let input = String::from("alice\\nbob");'),
-     T("empty", '""', 'all_names("")', 'vec!["root", "admin"]'),
-     T("one", 'input "x" from a String', "all_names(&input)", 'vec!["x", "root", "admin"]', setup='let input = String::from("x");'),
-     T("trailing_newline", '"a\\n"', 'all_names("a\\n")', 'vec!["a", "root", "admin"]'),
-     T("blank_line_kept", '"a\\n\\nb"', 'all_names("a\\n\\nb")', 'vec!["a", "", "b", "root", "admin"]')],
-    [T("one", 'input "x" from a String', "all_names(&input).len()", "3", setup='let input = String::from("x");'),
-     T("crlf", '"a\\r\\nb"', 'all_names("a\\r\\nb")', 'vec!["a", "b", "root", "admin"]'),
-     T("root_already_there", '"root"', 'all_names("root")', 'vec!["root", "root", "admin"]'),
-     T("unicode", '"émile\\nzoë"', 'all_names("émile\\nzoë")', 'vec!["émile", "zoë", "root", "admin"]'),
-     T("spaces_kept", '" a "', 'all_names(" a ")', 'vec![" a ", "root", "admin"]'),
-     T("names_point_into_input", "first name points into the String", "std::ptr::eq(names[0].as_ptr(), input.as_ptr())", "true",
-       setup='let input = String::from("bob");\nlet names = all_names(&input);'),
-     T("defaults_last", "1000 names", "(names.len(), names[999], names[1000], names[1001])", '(1002, "n999", "root", "admin")',
-       setup='let input: String = (0..1000).map(|i| format!("n{i}\\n")).collect();\nlet names = all_names(&input);'),
-     T("only_newlines", '"\\n\\n"', 'all_names("\\n\\n")', 'vec!["", "", "root", "admin"]'),
-     """
+    VAR_STARTER,
+    VAR_SOLUTION,
+    [T("all_names_example", "all_names(\"ann\\nbo\")", 'all_names("ann\\nbo")', 'vec!["ann", "bo", "root", "admin"]'),
+     T("all_names_borrows_input", "all_names of a String, first name points into it", "all_names(&text)[0].as_ptr() == text.as_ptr()", "true", setup='let text = String::from("zed");'),
+     T("keep_shortest_with_locals", "slot \"longer\"; keep_shortest(a local \"ab\")", "slot.get()", '"ab"', setup='let local = String::from("ab");\nlet slot = std::cell::Cell::new("longer");\nkeep_shortest(&slot, &local);'),
+     T("shortest_line_example", "shortest_line(\"abc\\nx\\nyy\")", 'shortest_line("abc\\nx\\nyy")', '"x"'),
+     T("apply_to_a_local", "apply(str::len, a local String)", "apply(str::len, &s)", "5", setup='let s = String::from("hello");'),
+     T("shorten_example", "shorten([\"a\"])", 'shorten(vec!["a"])', 'vec!["a"]')],
+    [T("all_names_empty", "all_names(\"\")", 'all_names("")', 'vec!["root", "admin"]'),
+     T("shortest_none", "shortest_line(\"\")", 'shortest_line("")', '"(none)"'),
+     T("shortest_tie_first", "shortest_line(\"ab\\ncd\")", 'shortest_line("ab\\ncd")', '"ab"'),
+     T("shortest_empty_line", "shortest_line(\"a\\n\\nb\")", 'shortest_line("a\\n\\nb")', '""'),
+     T("keep_shortest_tie", "slot \"ab\"; keep_shortest(\"cd\")", '{ let slot = std::cell::Cell::new("ab"); keep_shortest(&slot, "cd"); slot.get() }', '"ab"'),
+     T("apply_custom_fn", "apply(a fn counting commas, \"a,b,c\")", "apply(commas, &s)", "2", setup='fn commas(s: &str) -> usize {\n    s.matches(\',\').count()\n}\nlet s = String::from("a,b,c");'),
+     T("apply_to_a_literal", "apply(str::len, \"\")", 'apply(str::len, "")', "0"),
+     T("shortest_unicode_bytes", "shortest_line(\"éé\\nabc\")", 'shortest_line("éé\\nabc")', '"abc"'),
+     r"""
      #[test]
      fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(316);
+         let mut rng = anneal_prelude::Rng::new(6314);
          for _ in 0..300 {
-             let n = rng.below(10);
-             let input = rng.string(n, "ab\\n");
-             let mut want: Vec<&str> = input.split('\\n').collect();
-             if input.is_empty() || input.ends_with('\\n') {
-                 want.pop();
+             let len = rng.below(12);
+             let text = rng.string(len, "ab\n");
+             let mut best: Option<&str> = None;
+             for l in text.lines() {
+                 if best.map_or(true, |b| l.len() < b.len()) {
+                     best = Some(l);
+                 }
              }
+             check!(format!("shortest_line({text:?})"), shortest_line(&text), best.unwrap_or("(none)"));
+             let mut want: Vec<&str> = text.lines().collect();
              want.push("root");
              want.push("admin");
-             check!(format!("input = {input:?}"), all_names(&input), want);
+             check!(format!("all_names({text:?})"), all_names(&text), want);
+             check!(format!("apply(str::len, {text:?})"), apply(str::len, &text), text.len());
          }
      }
      """],
-    [("rust", "`&'static str` coerces to `&'a str`, so why not `Vec<&'a str>` to `Vec<&'static str>` behind a `&mut`?"),
-     ("rust", "Through `&mut`, the function could also read the Vec as `&'static str`s, or store longer-lived references into it, so the element type must match exactly: `&mut T` is invariant in `T`."),
-     ("rust", "Make `add_defaults` generic over the element lifetime. Pushing a `&'static str` into a `Vec<&'a str>` is fine.")],
-    ("Covariance lets `&'static str` shrink to `&'a str`. Behind `&mut`, the type can't change at all, because the callee could write a short-lived value where a long-lived one is expected, or vice versa. The generic version asks for exactly what it needs.", "O(n)", "O(n)"),
-    "Show the unsound program the compiler would accept if `&mut T` were covariant.",
-    ["`&mut T` is invariant in `T`.", "Generalise the callee instead of the caller."],
-    rules=dict(lines=1),
+    [("rust", "`&'a T` is covariant: a `&'static str` can stand in for a `&'a str`. `&mut T` is invariant in `T`: through a `&mut Vec<&'static str>`, `add_defaults` could store `'static` data, so the `Vec` must really hold `&'static str`s, and a `Vec<&'a str>` can't be passed."),
+     ("rust", "`Cell<T>` is invariant in `T` for the same reason as `&mut T`: it allows writes through a shared reference."),
+     ("rust", "Function arguments are contravariant: a `fn(&'static str)` only accepts `'static` strings. `fn(&str)` (really `for<'a> fn(&'a str)`) accepts any, and `str::len` is one.")],
+    ("""Variance is what lets the compiler shorten lifetimes silently, and where it's absent you must write the right lifetime yourself. `&'a T`, `Box<T>`, `Vec<T>` are covariant, so `shorten` compiles: a `Vec<&'static str>` is a `Vec<&'a str>`. Anything that allows writing a `T` is invariant in `T`: `&mut T`, `Cell<T>`, `RefCell<T>`, `*mut T`. If `&mut Vec<&'static str>` accepted a `Vec<&'a str>`, the callee could push a `'static` string (fine) but the caller could also have pushed short-lived ones that the callee then treats as `'static` (not fine), so the types must match exactly. The fix is to make the helpers generic over `'a`. Function arguments go the other way (contravariant): a function that accepts any `&str` can stand in for one that only needs `&'static str`, but not the reverse, so `apply` should ask for the more general `fn(&str)`.
+
+Syntax to remember: `fn add_defaults<'a>(names: &mut Vec<&'a str>)` · `fn keep_shortest<'a>(slot: &Cell<&'a str>, candidate: &'a str)` · `fn apply(measure: fn(&str) -> usize, ..)` = `for<'a> fn(&'a str) -> usize`.""", "O(n)", "O(n)"),
+    "Show the unsound program `&mut Vec<&'static str>` being covariant would allow.",
+    ["`&T`, `Box<T>`, `Vec<T>`: covariant.", "`&mut T`, `Cell<T>`: invariant in `T`.", "`fn(T)`: contravariant in its argument."],
+    rules=dict(methods=["to_string", "leak", "clone", "to_owned"], lines=3),
     wrong=dict(
-        defaults_into_a_scratch_vec="""
-            fn add_defaults(names: &mut Vec<&'static str>) {
-                names.push("root");
-                names.push("admin");
-            }
-
-            /// The names in `input` (one per line), then the defaults.
-            pub fn all_names(input: &str) -> Vec<&str> {
-                let mut names: Vec<&str> = input.lines().collect();
-                add_defaults(&mut Vec::new());
-                names
-            }
-        """,
-        only_the_defaults="""
-            fn add_defaults(names: &mut Vec<&'static str>) {
-                names.push("root");
-                names.push("admin");
-            }
-
-            /// The names in `input` (one per line), then the defaults.
-            pub fn all_names(input: &str) -> Vec<&str> {
-                let mut names: Vec<&str> = Vec::new();
-                add_defaults(&mut names);
-                names
-            }
-        """,
+        keep_shortest_replaces_on_tie=sub(VAR_SOLUTION, "    if candidate.len() < slot.get().len() {", "    if candidate.len() <= slot.get().len() {"),
+        defaults_first=sub(VAR_SOLUTION, "    let mut names: Vec<&str> = input.lines().collect();\n    add_defaults(&mut names);\n    names", "    let mut names: Vec<&str> = Vec::new();\n    add_defaults(&mut names);\n    names.extend(input.lines());\n    names"),
     ),
 ))
 
@@ -2874,6 +2888,126 @@ P.append(write(
                 }
             }
         """,
+    ),
+))
+
+PARSE_HEAD = r"""
+use std::io::BufRead;
+
+/// A type that can be parsed out of text living for `'a`. Types that borrow from the text implement it for
+/// that `'a`; types that own their data implement it for every `'a`.
+pub trait Parse<'a>: Sized {
+    fn parse(s: &'a str) -> Option<Self>;
+}
+
+impl<'a> Parse<'a> for u32 {
+    fn parse(s: &'a str) -> Option<Self> {
+        s.trim().parse().ok()
+    }
+}
+
+impl<'a> Parse<'a> for String {
+    fn parse(s: &'a str) -> Option<Self> {
+        Some(s.trim().to_string())
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Pair<'a> {
+    pub key: &'a str,
+    pub value: &'a str,
+}
+"""
+
+PARSE_IMPLS = r"""
+impl<'a> Parse<'a> for &'a str {
+    fn parse(s: &'a str) -> Option<Self> {
+        Some(s.trim())
+    }
+}
+
+impl<'a> Parse<'a> for Pair<'a> {
+    fn parse(s: &'a str) -> Option<Self> {
+        let (key, value) = s.split_once('=')?;
+        Some(Pair { key: key.trim(), value: value.trim() })
+    }
+}
+"""
+
+PARSE_TAIL_STARTER = r"""
+/// Parses every comma-separated field of `line`; None if any field fails. Results may borrow from `line`.
+pub fn fields<'a, T: Parse<'a>>(line: &'a str) -> Option<Vec<T>> {
+    line.split(',').map(T::parse).collect()
+}
+
+/// Reads one line from `input` and parses it. The line is gone by the time the caller gets the value, so
+/// only types that own their data can come back.
+pub fn read_owned<T: Parse<'static>>(mut input: impl BufRead) -> Option<T> {
+    let mut line = String::new();
+    input.read_line(&mut line).ok()?;
+    T::parse(&line)
+}
+"""
+
+PARSE_TAIL_SOLUTION = sub(PARSE_TAIL_STARTER, "pub fn read_owned<T: Parse<'static>>(mut input: impl BufRead) -> Option<T> {", "pub fn read_owned<T>(mut input: impl BufRead) -> Option<T>\nwhere\n    T: for<'a> Parse<'a>,\n{")
+PARSE_SOLUTION = PARSE_HEAD + PARSE_IMPLS + PARSE_TAIL_SOLUTION
+
+P.append(fix(
+    "trait-lifetimes-parse", "Lifetimes in traits: Parse<'a> and for<'a> Parse<'a>", "hard", "variance-hrtbs", ["trait lifetime parameters", "HRTB", "DeserializeOwned pattern", "E0597"],
+    """
+        `Parse<'a>` is modelled on serde's `Deserialize<'de>`: the lifetime lets a parsed value borrow from the
+        text. Implement it for `&'a str` (the field, trimmed) and for `Pair<'a>` (`key=value`, both parts
+        trimmed, `None` without an `=`), so that `fields` can return borrowed values. Then fix `read_owned`,
+        whose bound can't work: it parses a `String` it owns and drops.
+    """,
+    PARSE_HEAD + "\n// TODO: Parse for &'a str and for Pair<'a>.\n" + PARSE_TAIL_STARTER,
+    PARSE_SOLUTION,
+    [T("fields_of_pairs", "fields::<Pair>(\"a=1, b = 2\")", 'fields::<Pair>("a=1, b = 2")', 'Some(vec![Pair { key: "a", value: "1" }, Pair { key: "b", value: "2" }])'),
+     T("fields_of_strs", "fields::<&str>(\" x ,y\")", 'fields::<&str>(" x ,y")', 'Some(vec!["x", "y"])'),
+     T("fields_of_numbers", "fields::<u32>(\"1, 2,3\")", 'fields::<u32>("1, 2,3")', "Some(vec![1, 2, 3])"),
+     T("read_owned_number", "read_owned::<u32>(\" 42\\n\")", 'read_owned::<u32>(" 42\\n".as_bytes())', "Some(42)"),
+     T("read_owned_string", "read_owned::<String>(\"hi \\nnext\")", 'read_owned::<String>("hi \\nnext".as_bytes())', 'Some("hi".to_string())'),
+     T("pair_without_equals", "fields::<Pair>(\"a=1,b\")", 'fields::<Pair>("a=1,b")', "None")],
+    [T("fields_borrow_the_line", "fields::<&str> results point into the line", 'fields::<&str>(&line).unwrap()[1].as_ptr() == line[3..].as_ptr()', "true", setup='let line = String::from("ab,cd");'),
+     T("fields_bad_number", "fields::<u32>(\"1,x\")", 'fields::<u32>("1,x")', "None"),
+     T("fields_empty_line", "fields::<&str>(\"\")", 'fields::<&str>("")', 'Some(vec![""])'),
+     T("pair_second_equals_in_value", "fields::<Pair>(\"k=a=b\")", 'fields::<Pair>("k=a=b")', 'Some(vec![Pair { key: "k", value: "a=b" }])'),
+     T("pair_empty_parts", "fields::<Pair>(\" = \")", 'fields::<Pair>(" = ")', 'Some(vec![Pair { key: "", value: "" }])'),
+     T("read_owned_empty", "read_owned::<u32>(\"\")", 'read_owned::<u32>("".as_bytes())', "None"),
+     T("read_owned_crlf", "read_owned::<u32>(\"7\\r\\n\")", 'read_owned::<u32>("7\\r\\n".as_bytes())', "Some(7)"),
+     T("fields_strings_owned", "fields::<String>(\"a, b\") outlive the line", "v", 'Some(vec!["a".to_string(), "b".to_string()])', setup='let v = { let line = String::from("a, b"); fields::<String>(&line) };'),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6315);
+         for _ in 0..300 {
+             let len = rng.below(12);
+             let line = rng.string(len, "ab =,");
+             let want: Option<Vec<(String, String)>> = line
+                 .split(',')
+                 .map(|f| f.split_once('=').map(|(k, v)| (k.trim().to_string(), v.trim().to_string())))
+                 .collect();
+             let got = fields::<Pair>(&line).map(|v| v.into_iter().map(|p| (p.key.to_string(), p.value.to_string())).collect::<Vec<_>>());
+             check!(format!("fields::<Pair>({line:?})"), got, want);
+             let want: Vec<&str> = line.split(',').map(str::trim).collect();
+             check!(format!("fields::<&str>({line:?})"), fields::<&str>(&line), Some(want));
+         }
+     }
+     """],
+    [("rust", "An impl for a borrowing type ties the trait's lifetime to the type's: `impl<'a> Parse<'a> for Pair<'a>`. The parsed value then borrows the text it came from."),
+     ("rust", "`T: Parse<'static>` asks for a type that can parse `'static` text, and `&line` isn't `'static` (E0597). What `read_owned` needs is a type that can parse text of *any* lifetime, however short."),
+     ("rust", "That's a higher-ranked bound: `where T: for<'a> Parse<'a>`. `u32` and `String` satisfy it; `&str` and `Pair` only implement `Parse` for their own lifetime, so they're rejected, which is the point. serde calls this bound `DeserializeOwned`.")],
+    ("""A lifetime parameter on a trait lets implementations return values that borrow their input. Borrowing types implement it for the matching lifetime only (`impl<'a> Parse<'a> for &'a str`), owning types for all of them (`impl<'a> Parse<'a> for u32`). Generic code then picks one of two bounds. `T: Parse<'a>` for a specific `'a` lets `T` borrow from input that lives that long (`fields`). `T: for<'a> Parse<'a>` says `T` can be parsed from input of any lifetime, which in practice means it borrows nothing, and it's the only bound that works when the input is a local buffer the function drops (`read_owned`). `Parse<'static>` looks similar and is wrong: it demands `'static` input. serde's `Deserialize<'de>` and `DeserializeOwned` (defined as `for<'de> Deserialize<'de>`) are exactly this pair.
+
+Syntax to remember: `impl<'a> Parse<'a> for Pair<'a> { fn parse(s: &'a str) -> Option<Self> { .. } }` · `where T: for<'a> Parse<'a>` · `line.split(',').map(T::parse).collect::<Option<Vec<T>>>()`.""", "O(n)", "O(fields)"),
+    "Why can't `read_owned::<&str>` ever compile, and what error would you expect?",
+    ["Trait lifetime parameters let impls borrow from input.", "`T: Parse<'a>` for borrowed input; `T: for<'a> Parse<'a>` for owned results.", "`Parse<'static>` is not \"owned\"."],
+    rules=dict(methods=["leak", "clone"]),
+    related=("L3", "L5"),
+    wrong=dict(
+        pair_untrimmed=PARSE_HEAD + sub(PARSE_IMPLS, "Some(Pair { key: key.trim(), value: value.trim() })", "Some(Pair { key, value: value.trim() })") + PARSE_TAIL_SOLUTION,
+        pair_splits_last_equals=PARSE_HEAD + sub(PARSE_IMPLS, "s.split_once('=')?", "s.rsplit_once('=')?") + PARSE_TAIL_SOLUTION,
+        str_untrimmed=PARSE_HEAD + sub(PARSE_IMPLS, "        Some(s.trim())\n", "        Some(s)\n") + PARSE_TAIL_SOLUTION,
     ),
 ))
 
@@ -3245,145 +3379,240 @@ P.append(write(
     ),
 ))
 
+CLOSURE_HEAD = r"""
+/// Transformations applied in order.
+pub struct Pipeline {
+    steps: Vec<Box<dyn Fn(&str) -> &str>>,
+}
+
+impl Pipeline {
+    pub fn new() -> Self {
+        Pipeline { steps: Vec::new() }
+    }
+
+    pub fn add(&mut self, f: impl Fn(&str) -> &str + 'static) {
+        self.steps.push(Box::new(f));
+    }
+
+    pub fn run<'a>(&self, s: &'a str) -> &'a str {
+        self.steps.iter().fold(s, |acc, f| f(acc))
+    }
+}
+"""
+
+CLOSURE_STARTER = CLOSURE_HEAD + r"""
+/// Every line of `text`, trimmed, skipping blank ones.
+pub fn trimmed_lines(text: &str) -> Vec<&str> {
+    let trim = |s: &str| s.trim();
+    text.lines().map(trim).filter(|l| !l.is_empty()).collect()
+}
+
+/// The first comma-separated field of every line.
+pub fn first_fields(text: &str) -> Vec<&str> {
+    let first = |s: &str| -> &str { s.split(',').next().unwrap_or("") };
+    text.lines().map(first).collect()
+}
+
+/// A pipeline that strips leading '#'s, then surrounding whitespace.
+pub fn comment_stripper() -> Pipeline {
+    let strip = |s: &str| s.trim_start_matches('#');
+    let mut p = Pipeline::new();
+    p.add(strip);
+    p.add(|s| s.trim());
+    p
+}
+"""
+
+CLOSURE_SOLUTION = CLOSURE_HEAD + r"""
+/// Every line of `text`, trimmed, skipping blank ones.
+pub fn trimmed_lines(text: &str) -> Vec<&str> {
+    text.lines().map(str::trim).filter(|l| !l.is_empty()).collect()
+}
+
+/// The first comma-separated field of every line.
+pub fn first_fields(text: &str) -> Vec<&str> {
+    fn first(s: &str) -> &str {
+        s.split(',').next().unwrap_or("")
+    }
+    text.lines().map(first).collect()
+}
+
+/// A pipeline that strips leading '#'s, then surrounding whitespace.
+pub fn comment_stripper() -> Pipeline {
+    let mut p = Pipeline::new();
+    p.add(|s| s.trim_start_matches('#'));
+    p.add(|s| s.trim());
+    p
+}
+"""
+
 P.append(fix(
-    "fix-closure-returns-its-argument", "Fix: a closure that returns its argument", "hard", "variance-hrtbs", ["closure lifetimes", "fn items"],
-    "`trimmed_lines` doesn't compile, although `str::trim` itself is fine.",
+    "fix-closure-returns-its-argument", "Fix: closures that return a borrow of their argument", "hard", "variance-hrtbs", ["closure lifetime inference", "higher-ranked closures", "fn items"],
     """
-    /// Every line of `text`, trimmed, skipping blank ones.
-    pub fn trimmed_lines(text: &str) -> Vec<&str> {
-        let trim = |s: &str| s.trim();
-        text.lines().map(trim).filter(|l| !l.is_empty()).collect()
-    }
+        Three closures return a slice of their argument, and none of them compiles, even the one that spells
+        out `-> &str`. The same bodies compile as `fn` items, and `Pipeline::add` accepts closures written
+        inline. Fix the three functions; `Pipeline` itself is fine.
     """,
-    """
-    /// Every line of `text`, trimmed, skipping blank ones.
-    pub fn trimmed_lines(text: &str) -> Vec<&str> {
-        fn trim(s: &str) -> &str {
-            s.trim()
-        }
-        text.lines().map(trim).filter(|l| !l.is_empty()).collect()
-    }
-    """,
-    [T("trims", '"  a \\n\\n b\\n"', 'trimmed_lines("  a \\n\\n b\\n")', 'vec!["a", "b"]'),
-     T("owned_input", 'input from a String: "x\\n  y  "', "trimmed_lines(&input)", 'vec!["x", "y"]', setup='let input = String::from("x\\n  y  ");'),
-     T("empty", '""', 'trimmed_lines("")', "Vec::<&str>::new()"),
-     T("inner_spaces_kept", '"  a b  "', 'trimmed_lines("  a b  ")', 'vec!["a b"]'),
-     T("all_blank", '" \\n\\t\\n"', 'trimmed_lines(" \\n\\t\\n").len()', "0")],
-    [T("all_blank", '" \\n\\t\\n"', 'trimmed_lines(" \\n\\t\\n").len()', "0"),
-     T("single_line", '"solo"', 'trimmed_lines("solo")', 'vec!["solo"]'),
-     T("tabs", '"\\ta\\t\\n\\tb"', 'trimmed_lines("\\ta\\t\\n\\tb")', 'vec!["a", "b"]'),
-     T("crlf", '"a \\r\\n b\\r\\n"', 'trimmed_lines("a \\r\\n b\\r\\n")', 'vec!["a", "b"]'),
-     T("unicode_whitespace", '"\\u{3000}é\\u{a0}"', 'trimmed_lines("\\u{3000}é\\u{a0}")', 'vec!["é"]'),
-     T("order_kept", '"c\\nb\\na"', 'trimmed_lines("c\\nb\\na")', 'vec!["c", "b", "a"]'),
-     T("points_into_input", "the trimmed line points into the String", "std::ptr::eq(lines[0].as_ptr(), input[2..].as_ptr())", "true",
-       setup='let input = String::from("  hi  ");\nlet lines = trimmed_lines(&input);'),
-     T("many_lines", "1000 lines \"  n  \"", "(lines.len(), lines[999])", '(1000, "999")',
-       setup='let input: String = (0..1000).map(|i| format!("  {i}  \\n")).collect();\nlet lines = trimmed_lines(&input);'),
-     """
+    CLOSURE_STARTER,
+    CLOSURE_SOLUTION,
+    [T("trimmed_lines_example", "trimmed_lines(\"  a \\n\\n b\")", 'trimmed_lines("  a \\n\\n b")', 'vec!["a", "b"]'),
+     T("first_fields_example", "first_fields(\"a,b\\nc\\n,d\")", 'first_fields("a,b\\nc\\n,d")', 'vec!["a", "c", ""]'),
+     T("comment_stripper_example", "comment_stripper().run(\"## note \")", 'comment_stripper().run("## note ")', '"note"'),
+     T("results_borrow_the_input", "first_fields' result points into the text", "first_fields(&t)[0].as_ptr() == t.as_ptr()", "true", setup='let t = String::from("x,y");'),
+     T("pipeline_result_outlives_pipeline", "run a dropped pipeline's steps on a String", "out", '"kept"', setup='let s = String::from("# kept");\nlet out = comment_stripper().run(&s);')],
+    [T("trimmed_empty", "trimmed_lines(\"\")", 'trimmed_lines("").len()', "0"),
+     T("first_fields_empty_line", "first_fields(\"\\n\")", 'first_fields("\\n")', 'vec![""]'),
+     T("stripper_order", "\" #x\": whitespace first, so '#' stays", 'comment_stripper().run(" #x")', '"#x"'),
+     T("stripper_no_comment", "\"plain\"", 'comment_stripper().run("plain")', '"plain"'),
+     T("stripper_only_hashes", "\"###\"", 'comment_stripper().run("###")', '""'),
+     T("empty_pipeline", "Pipeline::new().run(\" x \")", 'Pipeline::new().run(" x ")', '" x "'),
+     T("custom_pipeline", "add inline closures: take 3 bytes, trim end", '{ let mut p = Pipeline::new(); p.add(|s| &s[..s.len().min(3)]); p.add(|s| s.trim_end()); p.run("ab cd") }', '"ab"'),
+     T("trimmed_unicode_spaces", "trimmed_lines(\"\\u{3000}x\\u{3000}\")", 'trimmed_lines("\\u{3000}x\\u{3000}")', 'vec!["x"]'),
+     r"""
      #[test]
      fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(319);
+         let mut rng = anneal_prelude::Rng::new(6316);
+         let p = comment_stripper();
          for _ in 0..300 {
-             let n = rng.below(12);
-             let text = rng.string(n, "ab \\n");
-             let want: Vec<&str> = text.split('\\n').map(|l| l.trim_matches(' ')).filter(|l| !l.is_empty()).collect();
-             check!(format!("text = {text:?}"), trimmed_lines(&text), want);
+             let len = rng.below(10);
+             let text = rng.string(len, "a #,\n");
+             let want: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+             check!(format!("trimmed_lines({text:?})"), trimmed_lines(&text), want);
+             let want: Vec<&str> = text.lines().map(|l| l.split(',').next().unwrap_or("")).collect();
+             check!(format!("first_fields({text:?})"), first_fields(&text), want);
+             check!(format!("comment_stripper().run({text:?})"), p.run(&text), text.trim_start_matches('#').trim());
          }
      }
      """],
-    [("rust", "An annotated `|s: &str|` closure takes any lifetime, but its return type gets one fixed lifetime, so the compiler can't connect the output to the input."),
-     ("rust", "A `fn` item gets the full elision rules: `fn trim(s: &str) -> &str` means 'returns a borrow of `s`'. `.map(str::trim)` works too.")],
-    ("Closure signatures are inferred, and inference doesn't apply the elision rule that links an output to an input. Named functions (or `str::trim` directly) state the relationship.", "O(n)", "O(k)"),
-    "How could a closure be made to work here without turning it into a fn?",
-    ["Closures don't get lifetime elision for their return type.", "Prefer `fn` items or method paths when a callback returns a borrow."],
-    rules=dict(lines=3),
+    [("rust", "A `fn` item with an elided signature is generic over the lifetime: `fn trim(s: &str) -> &str` is `for<'a> fn(&'a str) -> &'a str`. A closure's signature is inferred once, when it's created, and a `let`-bound closure with `|s: &str|` gets an input lifetime and an output lifetime that aren't linked."),
+     ("rust", "A closure written directly where an `Fn(&str) -> &str` bound expects it (like `p.add(|s| ..)`) is inferred against that bound, so it becomes higher-ranked. Bound to a `let` first, it isn't."),
+     ("rust", "Fixes: use a path (`str::trim`), a nested `fn`, or write the closure inline at the call that has the bound.")],
+    ("""The signature `Fn(&str) -> &str` is sugar for `for<'a> Fn(&'a str) -> &'a str`: one closure that works for every lifetime and returns a borrow of its argument. `fn` items get that shape from ordinary elision. Closures don't: their signature is inferred at the point they're created, and without an expected type the compiler gives the parameter's lifetime and the return's lifetime separate inference variables, then can't prove the result outlives what it borrowed. Writing `-> &str` doesn't help, because elision rules don't apply inside closure annotations. When the closure is written in a position that expects a higher-ranked `Fn` (an argument to `add`, `map` with a bound), the expectation is used and it works. So the fixes are to move the closure there, or to use a `fn` item or a path like `str::trim`. (The unstable `for<'a> |s: &'a str| -> &'a str` syntax would state it directly.)
+
+Syntax to remember: `text.lines().map(str::trim)` · `fn first(s: &str) -> &str { .. }` nested in a function · `Box<dyn Fn(&str) -> &str>` = `Box<dyn for<'a> Fn(&'a str) -> &'a str>`.""", "O(n)", "O(lines)"),
+    "Write a helper `fn hr<F: Fn(&str) -> &str>(f: F) -> F { f }`. Why does `let trim = hr(|s| s.trim());` compile when `let trim = |s: &str| s.trim();` doesn't?",
+    ["A closure's signature is inferred where it's created.", "`Fn(&str) -> &str` is higher-ranked; `let`-bound closures aren't.", "Use `fn` items, paths, or inline closures."],
+    rules=dict(methods=["to_string", "to_owned", "leak", "clone"]),
     wrong=dict(
-        trims_only_the_start="""
-            /// Every line of `text`, trimmed, skipping blank ones.
-            pub fn trimmed_lines(text: &str) -> Vec<&str> {
-                text.lines().map(str::trim_start).filter(|l| !l.is_empty()).collect()
-            }
-        """,
-        splits_into_words="""
-            /// Every line of `text`, trimmed, skipping blank ones.
-            pub fn trimmed_lines(text: &str) -> Vec<&str> {
-                text.split_whitespace().collect()
-            }
-        """,
+        strip_after_trim=sub(CLOSURE_SOLUTION, "    p.add(|s| s.trim_start_matches('#'));\n    p.add(|s| s.trim());\n", "    p.add(|s| s.trim());\n    p.add(|s| s.trim_start_matches('#'));\n"),
+        last_field=sub(CLOSURE_SOLUTION, "s.split(',').next().unwrap_or(\"\")", "s.rsplit(',').next().unwrap_or(\"\")"),
+        keeps_blank_lines=sub(CLOSURE_SOLUTION, "    text.lines().map(str::trim).filter(|l| !l.is_empty()).collect()", "    text.lines().filter(|l| !l.is_empty()).map(str::trim).collect()"),
     ),
 ))
 
+DYN_STARTER = r"""
+use std::fmt::Display;
+
+/// A predicate accepting exactly the words in `allowed`.
+pub fn make_filter(allowed: &[&str]) -> Box<dyn Fn(&str) -> bool> {
+    Box::new(move |w| allowed.contains(&w))
+}
+
+/// Named checks. Checks may borrow data that lives for `'a`.
+pub struct Checks<'a> {
+    list: Vec<(String, Box<dyn Fn(&str) -> bool>)>,
+}
+
+impl<'a> Checks<'a> {
+    pub fn new() -> Self {
+        Checks { list: Vec::new() }
+    }
+
+    pub fn add(&mut self, name: &str, check: impl Fn(&str) -> bool + 'a) {
+        self.list.push((name.to_string(), Box::new(check)));
+    }
+
+    /// The names of the checks `word` fails, in the order they were added.
+    pub fn failures(&self, word: &str) -> Vec<&str> {
+        self.list.iter().filter(|(_, c)| !c(word)).map(|(n, _)| n.as_str()).collect()
+    }
+}
+
+/// How many of `words` pass `check`.
+pub fn count_passing(words: &[&str], check: &dyn Fn(&str) -> bool) -> usize {
+    words.iter().filter(|w| check(w)).count()
+}
+
+/// Each name as something displayable, for later.
+pub fn labels(names: &[String]) -> Vec<Box<dyn Display>> {
+    names.iter().map(|n| Box::new(n.as_str()) as Box<dyn Display>).collect()
+}
+"""
+
+DYN_SOLUTION = DYN_STARTER
+for _old, _new in [
+    ("pub fn make_filter(allowed: &[&str]) -> Box<dyn Fn(&str) -> bool> {", "pub fn make_filter<'a>(allowed: &'a [&str]) -> Box<dyn Fn(&str) -> bool + 'a> {"),
+    ("    list: Vec<(String, Box<dyn Fn(&str) -> bool>)>,", "    list: Vec<(String, Box<dyn Fn(&str) -> bool + 'a>)>,"),
+    ("pub fn labels(names: &[String]) -> Vec<Box<dyn Display>> {\n    names.iter().map(|n| Box::new(n.as_str()) as Box<dyn Display>).collect()",
+     "pub fn labels(names: &[String]) -> Vec<Box<dyn Display + '_>> {\n    names.iter().map(|n| Box::new(n.as_str()) as Box<dyn Display>).collect()"),
+]:
+    DYN_SOLUTION = sub(DYN_SOLUTION, _old, _new)
+
 P.append(fix(
-    "fix-box-dyn-fn-borrows", "Fix: Box<dyn Fn> that borrows", "hard", "variance-hrtbs", ["trait object lifetimes", "Box<dyn Fn + 'a>"],
-    "`make_filter` builds a predicate from a borrowed allow-list. It doesn't compile.",
+    "fix-box-dyn-fn-borrows", "Fix: trait objects that borrow (dyn Trait + 'a)", "hard", "variance-hrtbs", ["trait object lifetimes", "default object bounds", "Box<dyn Fn + 'a>", "E0521"],
     """
-    /// A predicate that accepts exactly the words in `allowed`.
-    pub fn make_filter(allowed: &[&str]) -> Box<dyn Fn(&str) -> bool> {
-        Box::new(move |w| allowed.iter().any(|&a| a == w))
-    }
+        Three trait objects here borrow data, but their types don't allow it, so `make_filter`, `Checks` and
+        `labels` don't compile. Fix the types, without copying the borrowed data. `count_passing` takes a
+        `&dyn Fn` that may borrow anything and is right as it is: work out why it needs no change.
     """,
-    """
-    /// A predicate that accepts exactly the words in `allowed`.
-    pub fn make_filter<'a>(allowed: &'a [&str]) -> Box<dyn Fn(&str) -> bool + 'a> {
-        Box::new(move |w| allowed.iter().any(|&a| a == w))
-    }
-    """,
-    [T("filters", 'allowed ["red", "blue"] built from Strings', "(f(\"red\"), f(\"green\"))", "(true, false)",
-       setup='let owned = vec![String::from("red"), String::from("blue")];\nlet allowed: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();\nlet f = make_filter(&allowed);'),
-     T("empty", "allowed []", 'make_filter(&[])("x")', "false"),
-     T("many_calls", 'allowed ["a"]', 'words.iter().filter(|w| f(w)).count()', "2",
-       setup='let allowed = vec!["a"];\nlet f = make_filter(&allowed);\nlet words = ["a", "b", "a"];'),
-     T("exact_match_only", 'allowed ["red"]: "re", "reds"', '(f("re"), f("reds"), f("red"))', "(false, false, true)",
-       setup='let allowed = ["red"];\nlet f = make_filter(&allowed);'),
-     T("case_sensitive", 'allowed ["Red"]: "red"', 'make_filter(&["Red"])("red")', "false")],
-    [T("many_calls", 'allowed ["a"]', 'words.iter().filter(|w| f(w)).count()', "2",
-       setup='let allowed = vec!["a"];\nlet f = make_filter(&allowed);\nlet words = ["a", "b", "a"];'),
-     T("empty_word_allowed", 'allowed [""]: ""', '(f(""), f("x"))', "(true, false)", setup='let allowed = [""];\nlet f = make_filter(&allowed);'),
-     T("empty_word_not_allowed", 'allowed ["a"]: ""', 'make_filter(&["a"])("")', "false"),
-     T("unicode", 'allowed ["café"]: "café", "cafe"', '(f("café"), f("cafe"))', "(true, false)", setup='let allowed = ["café"];\nlet f = make_filter(&allowed);'),
-     T("duplicates", 'allowed ["x", "x"]', 'make_filter(&["x", "x"])("x")', "true"),
-     T("word_from_a_short_string", "the word is a String dropped right after the call", "ok", "true",
-       setup='let allowed = ["tmp"];\nlet f = make_filter(&allowed);\nlet ok = { let w = String::from("tmp"); f(&w) };'),
-     T("whitespace_matters", 'allowed ["a"]: " a"', 'make_filter(&["a"])(" a")', "false"),
-     T("many_allowed", "allowed n0..n999, ask n999 and n1000", '(f("n999"), f("n1000"))', "(true, false)",
-       setup='let owned: Vec<String> = (0..1000).map(|i| format!("n{i}")).collect();\nlet allowed: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();\nlet f = make_filter(&allowed);'),
-     """
+    DYN_STARTER,
+    DYN_SOLUTION,
+    [T("make_filter_example", "allowed [\"a\", \"b\"]: test a, c", "(f(\"a\"), f(\"c\"))", "(true, false)", setup='let allowed = vec!["a", "b"];\nlet f = make_filter(&allowed);'),
+     T("checks_borrow_locals", "checks: min length from a local, in a local list", "c.failures(\"xy\")", 'vec!["long", "listed"]',
+       setup='let min = 3;\nlet list = vec![String::from("abc")];\nlet mut c = Checks::new();\nc.add("long", |w| w.len() >= min);\nc.add("listed", |w| list.iter().any(|x| x == w));'),
+     T("count_passing_borrowed_closure", "count words shorter than a local limit", 'count_passing(&["a", "abc", "ab"], &|w| w.len() < limit)', "2", setup="let limit = 3;"),
+     T("labels_example", "labels of [\"x\", \"yz\"]", "labels(&names).iter().map(|l| l.to_string()).collect::<Vec<_>>()", 'vec!["x".to_string(), "yz".to_string()]', setup='let names = vec![String::from("x"), String::from("yz")];'),
+     T("no_checks", "no checks: failures of anything", 'Checks::new().failures("w").len()', "0")],
+    [T("filter_empty_allowed", "allowed []", 'make_filter(&[])("a")', "false"),
+     T("filter_case_sensitive", "allowed [\"A\"]: test a", 'make_filter(&["A"])("a")', "false"),
+     T("checks_all_pass", "one check that always passes", '{ let mut c = Checks::new(); c.add("any", |_| true); c.failures("q").len() }', "0"),
+     T("checks_order", "three failing checks", 'c.failures("z")', 'vec!["c", "a", "b"]', setup='let mut c = Checks::new();\nc.add("c", |_| false);\nc.add("a", |_| false);\nc.add("b", |w| w.is_empty());'),
+     T("checks_static_closure", "a check with no borrows", '(c.failures("12"), c.failures("1a"))', '(Vec::<&str>::new(), vec!["digit"])', setup='let mut c = Checks::new();\nc.add("digit", |w| w.chars().all(|ch| ch.is_ascii_digit()));'),
+     T("count_passing_empty", "no words", 'count_passing(&[], &|_| true)', "0"),
+     T("labels_empty", "labels of []", "labels(&[]).len()", "0"),
+     T("labels_point_into_names", "a label displays the name it borrows", 'format!("{}{}", labels(&names)[1], labels(&names)[0])', '"ba".to_string()', setup='let names = vec![String::from("a"), String::from("b")];'),
+     r"""
      #[test]
      fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(320);
+         let mut rng = anneal_prelude::Rng::new(6317);
+         let pool = ["a", "b", "c", "ab", "ba"];
          for _ in 0..300 {
-             let n = rng.below(4);
-             let owned: Vec<String> = (0..n).map(|_| { let len = rng.below(3); rng.string(len, "ab") }).collect();
-             let allowed: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
-             let len = rng.below(3);
-             let word = rng.string(len, "ab");
+             let k = rng.below(4);
+             let allowed: Vec<&str> = (0..k).map(|_| *rng.pick(&pool)).collect();
              let f = make_filter(&allowed);
-             check!(format!("allowed = {allowed:?}, word = {word:?}"), f(&word), allowed.contains(&word.as_str()));
+             let w = *rng.pick(&pool);
+             check!(format!("allowed {allowed:?}; {w}"), f(w), allowed.contains(&w));
+             let min = rng.below(3);
+             let mut c = Checks::new();
+             c.add("min", |x| x.len() >= min);
+             c.add("allowed", |x| allowed.contains(&x));
+             let mut want = Vec::new();
+             if w.len() < min {
+                 want.push("min");
+             }
+             if !allowed.contains(&w) {
+                 want.push("allowed");
+             }
+             check!(format!("allowed {allowed:?}, min {min}; failures({w})"), c.failures(w), want);
          }
      }
      """],
-    [("rust", "`Box<dyn Trait>` with no lifetime means `Box<dyn Trait + 'static>`: the closure may not borrow anything short-lived."),
-     ("rust", "Add a lifetime bound to the trait object: `+ 'a`. `+ '_` won't do here, because `&[&str]` has two elided lifetimes."),
-     ("rust", "`&'a [&str]` implies the inner strings outlive `'a`, so naming just the outer one is enough.")],
-    ("Trait objects carry a lifetime bound, just like references. The default in a `Box` is `'static`; a closure capturing `allowed` lives only as long as `allowed`, so the box has to say so.", "O(k) per call", "O(1)"),
-    "When would you return `impl Fn(&str) -> bool + 'a` instead of a Box?",
-    ["Default `'static` bounds on boxed trait objects.", "`+ 'a` for trait objects that borrow."],
-    rules=dict(lines=1),
+    [("rust", "A trait object type always has a lifetime bound, and when you don't write one it's filled in: `Box<dyn Trait>` means `Box<dyn Trait + 'static>`. A closure that captures a `&'a` borrow isn't `'static`."),
+     ("rust", "Say how long the object may live: `Box<dyn Fn(&str) -> bool + 'a>`, with `'a` tied to what it borrows. Inside a struct with a lifetime parameter, use that parameter."),
+     ("rust", "Behind a reference the default is different: `&'r dyn Trait` means `&'r (dyn Trait + 'r)`. That's why `count_passing` accepts borrowing closures unchanged.")],
+    ("""Every `dyn Trait` has an object lifetime bound: how long the erased value may be used, which limits what it may borrow. When omitted, it's defaulted from context: `Box<dyn Trait>` (and `Rc`, `Arc`, `Vec<Box<..>>`) default to `'static`; `&'r dyn Trait` and `&'r mut dyn Trait` default to `'r`; a type with a lifetime bound (`Ref<'a, dyn Trait>`, `struct S<'a, T: 'a + ?Sized>`) uses that. So a boxed closure capturing `allowed: &'a [&str]` needs `+ 'a` spelled out, and so does the field of `Checks<'a>` that `add` (already `+ 'a`) pushes into. `labels` returns boxed `&str`s pointing into `names`, so its objects are `+ '_`. A `&dyn Fn` parameter needed nothing: the reference's own lifetime is the default, so any closure that outlives the call fits.
+
+Syntax to remember: `fn make_filter<'a>(allowed: &'a [&str]) -> Box<dyn Fn(&str) -> bool + 'a>` · `Vec<Box<dyn Display + '_>>` · `&dyn Trait` = `&'r (dyn Trait + 'r)` · `Box<dyn Trait>` = `Box<dyn Trait + 'static>`.""", "O(k) per check", "O(checks)"),
+    "What's the default object lifetime of `Arc<Mutex<dyn Trait>>`, and how would you store borrowing handlers in one?",
+    ["`Box<dyn Trait>` defaults to `+ 'static`.", "`&'r dyn Trait` defaults to `+ 'r`.", "Write `dyn Trait + 'a` when the object borrows."],
+    rules=dict(methods=["to_owned", "leak", "clone", "cloned"], lines=4),
     wrong=dict(
-        prefix_match="""
-            /// A predicate that accepts exactly the words in `allowed`.
-            pub fn make_filter<'a>(allowed: &'a [&str]) -> Box<dyn Fn(&str) -> bool + 'a> {
-                Box::new(move |w| allowed.iter().any(|&a| a.starts_with(w)))
-            }
-        """,
-        ignores_case="""
-            /// A predicate that accepts exactly the words in `allowed`.
-            pub fn make_filter<'a>(allowed: &'a [&str]) -> Box<dyn Fn(&str) -> bool + 'a> {
-                Box::new(move |w| allowed.iter().any(|&a| a.eq_ignore_ascii_case(w)))
-            }
-        """,
+        filter_prefix=sub(DYN_SOLUTION, "Box::new(move |w| allowed.contains(&w))", "Box::new(move |w| allowed.iter().any(|a| a.starts_with(w)))"),
+        failures_are_passes=sub(DYN_SOLUTION, ".filter(|(_, c)| !c(word))", ".filter(|(_, c)| c(word))"),
+        labels_reversed=sub(DYN_SOLUTION, "    names.iter().map(|n| Box::new(n.as_str()) as Box<dyn Display>).collect()", "    names.iter().rev().map(|n| Box::new(n.as_str()) as Box<dyn Display>).collect()"),
     ),
 ))
+
 
 STAGES = [
     ("elision", "Elision", "easy"),

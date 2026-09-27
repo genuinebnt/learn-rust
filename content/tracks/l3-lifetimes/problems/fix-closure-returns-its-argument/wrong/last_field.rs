@@ -19,21 +19,21 @@ impl Pipeline {
 
 /// Every line of `text`, trimmed, skipping blank ones.
 pub fn trimmed_lines(text: &str) -> Vec<&str> {
-    let trim = |s: &str| s.trim();
-    text.lines().map(trim).filter(|l| !l.is_empty()).collect()
+    text.lines().map(str::trim).filter(|l| !l.is_empty()).collect()
 }
 
 /// The first comma-separated field of every line.
 pub fn first_fields(text: &str) -> Vec<&str> {
-    let first = |s: &str| -> &str { s.split(',').next().unwrap_or("") };
+    fn first(s: &str) -> &str {
+        s.rsplit(',').next().unwrap_or("")
+    }
     text.lines().map(first).collect()
 }
 
 /// A pipeline that strips leading '#'s, then surrounding whitespace.
 pub fn comment_stripper() -> Pipeline {
-    let strip = |s: &str| s.trim_start_matches('#');
     let mut p = Pipeline::new();
-    p.add(strip);
+    p.add(|s| s.trim_start_matches('#'));
     p.add(|s| s.trim());
     p
 }

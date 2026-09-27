@@ -1,28 +1,36 @@
 use solution::*;
 
 #[test]
-fn owned_input() {
-    let input = String::from("alice\nbob");
-    check!(r#"input "alice\nbob" from a String"#, all_names(&input), vec!["alice", "bob", "root", "admin"]);
+fn all_names_example() {
+    check!(r#"all_names("ann\nbo")"#, all_names("ann\nbo"), vec!["ann", "bo", "root", "admin"]);
 }
 
 #[test]
-fn empty() {
-    check!(r#""""#, all_names(""), vec!["root", "admin"]);
+fn all_names_borrows_input() {
+    let text = String::from("zed");
+    check!(r#"all_names of a String, first name points into it"#, all_names(&text)[0].as_ptr() == text.as_ptr(), true);
 }
 
 #[test]
-fn one() {
-    let input = String::from("x");
-    check!(r#"input "x" from a String"#, all_names(&input), vec!["x", "root", "admin"]);
+fn keep_shortest_with_locals() {
+    let local = String::from("ab");
+    let slot = std::cell::Cell::new("longer");
+    keep_shortest(&slot, &local);
+    check!(r#"slot "longer"; keep_shortest(a local "ab")"#, slot.get(), "ab");
 }
 
 #[test]
-fn trailing_newline() {
-    check!(r#""a\n""#, all_names("a\n"), vec!["a", "root", "admin"]);
+fn shortest_line_example() {
+    check!(r#"shortest_line("abc\nx\nyy")"#, shortest_line("abc\nx\nyy"), "x");
 }
 
 #[test]
-fn blank_line_kept() {
-    check!(r#""a\n\nb""#, all_names("a\n\nb"), vec!["a", "", "b", "root", "admin"]);
+fn apply_to_a_local() {
+    let s = String::from("hello");
+    check!(r#"apply(str::len, a local String)"#, apply(str::len, &s), 5);
+}
+
+#[test]
+fn shorten_example() {
+    check!(r#"shorten(["a"])"#, shorten(vec!["a"]), vec!["a"]);
 }

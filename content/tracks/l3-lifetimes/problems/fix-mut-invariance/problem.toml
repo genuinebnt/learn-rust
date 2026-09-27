@@ -1,34 +1,36 @@
 slug = "fix-mut-invariance"
-title = "Fix: &mut T is invariant"
+title = "Fix: variance of &mut, Cell and fn pointers"
 mode = "fix"
 level = "hard"
 stage = "variance-hrtbs"
 order = 17
 status = "ready"
-tags = ["variance", "&mut T"]
+tags = ["variance", "invariance", "Cell", "contravariance", "fn pointers"]
 teaches = [
-  "`&mut T` is invariant in `T`.",
-  "Generalise the callee instead of the caller.",
+  "`&T`, `Box<T>`, `Vec<T>`: covariant.",
+  "`&mut T`, `Cell<T>`: invariant in `T`.",
+  "`fn(T)`: contravariant in its argument.",
 ]
-follow_up = "Show the unsound program the compiler would accept if `&mut T` were covariant."
+follow_up = "Show the unsound program `&mut Vec<&'static str>` being covariant would allow."
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "`&'static str` coerces to `&'a str`, so why not `Vec<&'a str>` to `Vec<&'static str>` behind a `&mut`?"
+text = "`&'a T` is covariant: a `&'static str` can stand in for a `&'a str`. `&mut T` is invariant in `T`: through a `&mut Vec<&'static str>`, `add_defaults` could store `'static` data, so the `Vec` must really hold `&'static str`s, and a `Vec<&'a str>` can't be passed."
 
 [[hints]]
 kind = "rust"
-text = "Through `&mut`, the function could also read the Vec as `&'static str`s, or store longer-lived references into it, so the element type must match exactly: `&mut T` is invariant in `T`."
+text = "`Cell<T>` is invariant in `T` for the same reason as `&mut T`: it allows writes through a shared reference."
 
 [[hints]]
 kind = "rust"
-text = "Make `add_defaults` generic over the element lifetime. Pushing a `&'static str` into a `Vec<&'a str>` is fine."
+text = "Function arguments are contravariant: a `fn(&'static str)` only accepts `'static` strings. `fn(&str)` (really `for<'a> fn(&'a str)`) accepts any, and `str::len` is one."
 
 [solution]
-explanation = "Covariance lets `&'static str` shrink to `&'a str`. Behind `&mut`, the type can't change at all, because the callee could write a short-lived value where a long-lived one is expected, or vice versa. The generic version asks for exactly what it needs."
+explanation = "Variance is what lets the compiler shorten lifetimes silently, and where it's absent you must write the right lifetime yourself. `&'a T`, `Box<T>`, `Vec<T>` are covariant, so `shorten` compiles: a `Vec<&'static str>` is a `Vec<&'a str>`. Anything that allows writing a `T` is invariant in `T`: `&mut T`, `Cell<T>`, `RefCell<T>`, `*mut T`. If `&mut Vec<&'static str>` accepted a `Vec<&'a str>`, the callee could push a `'static` string (fine) but the caller could also have pushed short-lived ones that the callee then treats as `'static` (not fine), so the types must match exactly. The fix is to make the helpers generic over `'a`. Function arguments go the other way (contravariant): a function that accepts any `&str` can stand in for one that only needs `&'static str`, but not the reverse, so `apply` should ask for the more general `fn(&str)`.\n\nSyntax to remember: `fn add_defaults<'a>(names: &mut Vec<&'a str>)` · `fn keep_shortest<'a>(slot: &Cell<&'a str>, candidate: &'a str)` · `fn apply(measure: fn(&str) -> usize, ..)` = `for<'a> fn(&'a str) -> usize`."
 time = "O(n)"
 space = "O(n)"
 
 [rules]
-max_changed_lines = 1
+forbid_methods = ["to_string", "leak", "clone", "to_owned"]
+max_changed_lines = 3

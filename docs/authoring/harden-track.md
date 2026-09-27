@@ -60,8 +60,7 @@ COMMITS (other agents share this same git checkout, on branch master):
     git commit -q -m "<CODE> test hardening: <one line summary>" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
     Claude-Session: https://claude.ai/code/session_01VjzPuKbSra7ibnx8sphC8G" -- tools/author/<track>.py content/tracks/<track-folder> && \
     git push origin master
-  If git reports `index.lock` exists, wait a few seconds and retry. If the push is rejected, run
-  `git pull --rebase origin master` and push again. Never force-push, never amend, never commit other paths.
+  If git reports `index.lock` exists, wait a few seconds and retry. If the push is rejected (another agent pushed at the same moment), wait a few seconds and push again; don't pull, since every commit is already in this shared checkout. Never force-push, never amend, never commit other paths.
 
 REPORT at the end, per track: problems changed, constraints you raised, anything you could not bring to the bar and
 why, notable real gaps the wrong solutions exposed, and the final verify line.

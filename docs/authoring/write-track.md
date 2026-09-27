@@ -62,7 +62,7 @@ COMMITS (other agents share this checkout, branch master; commit often so work s
     git commit -q -m "{CODE}: <stage name> (<n> problems)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
     Claude-Session: https://claude.ai/code/session_01VjzPuKbSra7ibnx8sphC8G" -- tools/author/{SPEC} content/tracks/{FOLDER} && \
     git push origin master
-  On `index.lock`, wait and retry. On a rejected push, `git pull --rebase origin master` then push. Never force-push or
+  On `index.lock`, wait and retry. On a rejected push (another agent pushed at the same moment), wait a few seconds and push again; don't pull, since every commit is already in this shared checkout. Never force-push or
   amend, never commit other paths.
 
 REPORT at the end: problems written per stage, anything you left out or changed from the curriculum list and why,

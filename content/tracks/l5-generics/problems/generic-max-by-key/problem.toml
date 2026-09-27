@@ -1,0 +1,31 @@
+slug = "generic-max-by-key"
+title = "Generic max_by_key"
+mode = "write"
+level = "medium"
+stage = "generic-code"
+order = 4
+status = "ready"
+tags = ["generics", "FnMut", "trait bounds"]
+teaches = [
+  "Choose bounds from what the body does: calling `key` needs `FnMut`, comparing needs `Ord`.",
+  "Keep computed keys instead of calling the closure twice.",
+]
+follow_up = "Why `FnMut` rather than `Fn` for `key`? What would a caller lose if you asked for `Fn`?"
+related = ["L5", "S6", "L6"]
+
+[[hints]]
+kind = "approach"
+text = "Walk the items once, keeping the best item together with its key, so the best key is never recomputed."
+
+[[hints]]
+kind = "rust"
+text = "Comparing keys needs `K: Ord`. Store `Option<(&T, K)>`; comparing `k > *bk` borrows the stored key instead of copying it."
+
+[[hints]]
+kind = "edge"
+text = "Use strictly greater (`>`), so an equal key later on doesn't replace the first."
+
+[solution]
+explanation = "The bounds say exactly what the body uses: `F: FnMut(&T) -> K` to call the key (mutably, so it can count or cache), `K: Ord` to compare. No `Clone` or `Copy` is needed because the best key is kept, not re-made."
+time = "O(n) key calls"
+space = "O(1)"

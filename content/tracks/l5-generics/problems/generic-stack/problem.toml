@@ -1,0 +1,32 @@
+slug = "generic-stack"
+title = "Stack<T>"
+mode = "write"
+level = "easy"
+stage = "generic-code"
+order = 1
+status = "ready"
+tags = ["generics", "Option", "impl<T>"]
+teaches = [
+  "`struct Stack<T>` and `impl<T> Stack<T>`.",
+  "Don't add `Clone`/`Copy`/`Debug` bounds a container doesn't need.",
+]
+follow_up = "Why does `peek` return `Option<&T>` rather than `Option<T>`? What bound would `Option<T>` need?"
+related = ["L5", "S3"]
+source = "W1"
+
+[[hints]]
+kind = "rust"
+text = "Every method is one call on the inner `Vec`: `push`, `pop`, `last`, `last_mut`, `len`, `is_empty`."
+
+[[hints]]
+kind = "rust"
+text = "`Vec::pop` already returns `Option<T>`, so an empty stack needs no special case."
+
+[[hints]]
+kind = "edge"
+text = "`peek` returns `Option<&T>`: a borrow, so it needs no `Clone` bound and doesn't move the item out."
+
+[solution]
+explanation = "A generic type is written once and compiled for each `T` it's used with. `impl<T>` with no bounds means every method must work for any `T`, which is why `peek` lends a reference instead of copying."
+time = "O(1) amortised per operation"
+space = "O(n)"

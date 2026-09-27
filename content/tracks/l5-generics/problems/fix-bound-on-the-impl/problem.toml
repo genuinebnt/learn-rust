@@ -1,0 +1,30 @@
+slug = "fix-bound-on-the-impl"
+title = "Fix: the bound belongs on the impl (E0277)"
+mode = "fix"
+level = "easy"
+stage = "generic-code"
+order = 3
+status = "ready"
+tags = ["E0277", "trait bounds", "Display"]
+teaches = [
+  "Put a bound on the impl that needs it, not on the type.",
+  "Conditional trait impls: `impl<T: Display> Display for Pair<T>`.",
+]
+follow_up = "Why do most std types put bounds on their impls rather than on the struct definition?"
+related = ["L5"]
+
+[[hints]]
+kind = "rust"
+text = "`{}` needs `T: Display`. Only the `Display` impl formats `T`, so only that impl needs the bound."
+
+[[hints]]
+kind = "rust"
+text = "Putting `T: Display` on the struct itself would make every `Pair` need it, and the `swap` tests would stop compiling."
+
+[solution]
+explanation = "Bounds on an `impl` block apply only to that impl: `Pair<Vec<i32>>` still has `new` and `swap`, it just isn't `Display`. std does the same: `Vec<T>` exists for any `T`, and is `Clone` only when `T: Clone`."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 1

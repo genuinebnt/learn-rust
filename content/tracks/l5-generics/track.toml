@@ -1,0 +1,11 @@
+code = "L5"
+name = "Generics & associated types"
+section = "L"
+tier = "core"
+order = 5
+summary = "Generic code is written once and compiled per type. Bounds say what a type must do; associated types, const generics and marker types move rules into the type checker."
+
+[[stages]]
+slug = "generic-code"
+name = "Generic code"
+band = "easy"

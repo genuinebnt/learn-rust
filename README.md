@@ -20,7 +20,10 @@ docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker   # sandbo
 cargo run -p anneal-api                                                 # http://localhost:8787
 ```
 
-**Day to day, use dev mode:** `./scripts/dev.sh`, then open http://127.0.0.1:5180. The API restarts whenever
+**Day to day, use dev mode:** `./scripts/dev.sh`, then open the web URL it prints (normally
+http://127.0.0.1:5180; if :8787 or :5180 is taken by another program it picks a random free port and says so).
+**`./scripts/restart.sh`** stops a running dev server, runs `git pull --rebase --autostash`, and starts dev mode
+again. The API restarts whenever
 `crates/`, `content/` or the Cargo files change, and the web app hot-reloads through Vite (which proxies `/api`
 to the server). A `git pull` is picked up the same way. The script also points git at `.githooks`, whose
 post-merge/post-rewrite hooks run `pnpm install` when web dependencies change and warn when `docker/` changed

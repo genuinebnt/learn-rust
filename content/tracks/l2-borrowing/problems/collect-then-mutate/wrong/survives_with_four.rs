@@ -40,7 +40,7 @@ impl Life {
             for x in 0..self.w {
                 let n = self.live_neighbors(x, y);
                 let i = y * self.w + x;
-                self.next[i] = matches!((self.cells[i], n), (true, 2) | (_, 3));
+                self.next[i] = matches!((self.cells[i], n), (true, 2) | (true, 4) | (_, 3));
             }
         }
         std::mem::swap(&mut self.cells, &mut self.next);

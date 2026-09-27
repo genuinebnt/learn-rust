@@ -1,58 +1,126 @@
 use solution::*;
 
-#[test]
-fn none() {
-    check!(r#"deadline 50; now 10"#, { let mut v = vec![Job { name: "a", deadline: 50 }]; take_expired(&mut v, 10).len() }, 0);
+fn queue(xs: &[(&str, u64)]) -> Queue {
+    Queue { jobs: xs.iter().map(|&(n, d)| Job { name: n.to_string(), deadline: d }).collect() }
+}
+
+fn sv(xs: &[&str]) -> Vec<String> {
+    xs.iter().map(|s| s.to_string()).collect()
+}
+
+fn names(jobs: &[Job]) -> Vec<String> {
+    jobs.iter().map(|j| j.name.to_string()).collect()
 }
 
 #[test]
-fn now_zero() {
-    check!(r#"deadline 0; now 0"#, { let mut v = vec![Job { name: "a", deadline: 0 }]; (take_expired(&mut v, 0).len(), v.len()) }, (0, 1));
+fn empty_queue() {
+    let mut q = queue(&[]);
+    check!(r#"empty queue: all three"#, (q.take_expired(9, 9).len(), q.next_batch(3).len(), q.defer("a")), (0, 0, false));
 }
 
 #[test]
-fn u64_max() {
-    check!(r#"deadline u64::MAX - 1; now u64::MAX"#, { let mut v = vec![Job { name: "a", deadline: u64::MAX - 1 }, Job { name: "b", deadline: u64::MAX }]; let gone = take_expired(&mut v, u64::MAX); (gone.len(), v[0].name) }, (1, "b"));
+fn nothing_expired() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; take_expired(now 0, limit 9)"#, (q.take_expired(0, 9).len(), q.jobs.len()), (0, 5));
 }
 
 #[test]
-fn same_deadlines() {
-    check!(r#"deadlines 5, 5; now 6"#, { let mut v = vec![Job { name: "a", deadline: 5 }, Job { name: "b", deadline: 5 }]; let gone = take_expired(&mut v, 6); (gone.len(), v.len()) }, (2, 0));
+fn all_expired() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; take_expired(now 100, limit 9)"#, (names(&q.take_expired(100, 9)), q.jobs.len()), (sv(&["a", "b", "c", "d", "e"]), 0));
 }
 
 #[test]
-fn returns_the_jobs() {
-    check!(r#"deadlines 1, 20; now 10"#, { let mut v = vec![Job { name: "a", deadline: 1 }, Job { name: "b", deadline: 20 }]; take_expired(&mut v, 10) }, vec![Job { name: "a", deadline: 1 }]);
+fn batch_zero() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; next_batch(0)"#, (q.next_batch(0).len(), q.jobs.len()), (0, 5));
 }
 
 #[test]
-fn many() {
-    check!(r#"1000 jobs with deadlines 0..1000; now 500"#, { let mut v: Vec<Job> = (0..1000).map(|d| Job { name: "j", deadline: d }).collect(); let gone = take_expired(&mut v, 500); (gone.len(), v.len(), gone[499].deadline, v[0].deadline) }, (500, 500, 499, 500));
+fn defer_last_is_noop() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; defer("e")"#, (q.defer("e"), names(&q.jobs)), (true, sv(&["a", "b", "c", "d", "e"])));
 }
 
 #[test]
-fn called_twice() {
-    check!(r#"deadlines 3, 7; now 5 then 8"#, { let mut v = vec![Job { name: "a", deadline: 3 }, Job { name: "b", deadline: 7 }]; let x = take_expired(&mut v, 5).len(); let y = take_expired(&mut v, 8).len(); (x, y, v.len()) }, (1, 1, 0));
+fn defer_first_duplicate() {
+    let mut q = queue(&[("x", 1), ("y", 2), ("x", 3)]);
+    check!(r#"jobs x 1, y 2, x 3; defer("x")"#, (q.defer("x"), q.jobs.iter().map(|j| j.deadline).collect::<Vec<_>>()), (true, vec![2, 3, 1]));
+}
+
+#[test]
+fn jobs_moved_not_copied() {
+    let mut q = queue(&[("k", 1)]);
+    let p = q.jobs[0].name.as_ptr();
+    let got = q.take_expired(2, 1);
+    check!(r#"take_expired keeps the job's own String"#, (got[0].name.as_ptr() == p, got.len()), (true, 1));
+}
+
+#[test]
+fn take_expired_twice() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; take_expired(now 10, limit 1) twice"#, { let a = q.take_expired(10, 1); let b = q.take_expired(10, 1); (names(&a), names(&b), names(&q.jobs)) }, (sv(&["a"]), sv(&["c"]), sv(&["b", "d", "e"])));
 }
 
 #[test]
 fn random_vs_model() {
-    const NAMES: [&str; 5] = ["a", "b", "c", "d", "e"];
-    let mut rng = anneal_prelude::Rng::new(2020);
+    let mut rng = anneal_prelude::Rng::new(6222);
     for _ in 0..300 {
         let n = rng.below(8);
-        let specs: Vec<(&'static str, u64)> = (0..n).map(|_| { let name = *rng.pick(&NAMES); (name, rng.below(10) as u64) }).collect();
-        let now = rng.below(11) as u64;
-        let make = |keep: bool| -> Vec<Job> { specs.iter().filter(|s| (s.1 < now) != keep).map(|&(name, deadline)| Job { name, deadline }).collect() };
-        let mut jobs: Vec<Job> = specs.iter().map(|&(name, deadline)| Job { name, deadline }).collect();
-        let gone = take_expired(&mut jobs, now);
-        check!(format!("jobs = {specs:?}, now = {now}"), (gone, jobs), (make(false), make(true)));
+        let start: Vec<(String, u64)> = (0..n).map(|i| (format!("{}{i}", rng.string(1, "ab")), rng.below(10) as u64)).collect();
+        let mut q = Queue { jobs: start.iter().map(|(s, d)| Job { name: s.clone(), deadline: *d }).collect() };
+        let mut model = start.clone();
+        let mut ops = Vec::new();
+        for _ in 0..4 {
+            match rng.below(3) {
+                0 => {
+                    let (now, limit) = (rng.below(10) as u64, rng.below(4));
+                    let mut want = Vec::new();
+                    let mut kept = Vec::new();
+                    for (s, d) in model {
+                        if d < now && want.len() < limit {
+                            want.push(s);
+                        } else {
+                            kept.push((s, d));
+                        }
+                    }
+                    model = kept;
+                    ops.push(format!("take_expired({now}, {limit})"));
+                    let got: Vec<String> = q.take_expired(now, limit).into_iter().map(|j| j.name).collect();
+                    check!(format!("{start:?}; {}", ops.join(", ")), got, want);
+                }
+                1 => {
+                    let k = rng.below(4);
+                    let want: Vec<String> = model.drain(..k.min(model.len())).map(|(s, _)| s).collect();
+                    ops.push(format!("next_batch({k})"));
+                    let got: Vec<String> = q.next_batch(k).into_iter().map(|j| j.name).collect();
+                    check!(format!("{start:?}; {}", ops.join(", ")), got, want);
+                }
+                _ => {
+                    let name = format!("{}{}", rng.string(1, "ab"), rng.below(n + 1));
+                    let want = match model.iter().position(|(s, _)| *s == name) {
+                        Some(i) => {
+                            let j = model.remove(i);
+                            model.push(j);
+                            true
+                        }
+                        None => false,
+                    };
+                    ops.push(format!("defer({name:?})"));
+                    check!(format!("{start:?}; {}", ops.join(", ")), q.defer(&name), want);
+                }
+            }
+        }
+        let got: Vec<(String, u64)> = q.jobs.iter().map(|j| (j.name.clone(), j.deadline)).collect();
+        check!(format!("{start:?}; {}; queue", ops.join(", ")), got, model);
     }
 }
 
 #[test]
-fn scale_300k_expired_first() {
-    let mut v: Vec<Job> = (0..300_000u64).map(|i| Job { name: "j", deadline: if i < 150_000 { i } else { 1_000_000 + i } }).collect();
-    let gone = take_expired(&mut v, 150_000);
-    check!("150000 expired jobs then 150000 live ones", (gone.len(), v.len(), gone[149_999].deadline, v[0].deadline), (150_000, 150_000, 149_999, 1_150_000));
+fn long_queue() {
+    let mut q = Queue { jobs: (0..200_000).map(|i| Job { name: format!("j{i}"), deadline: i % 2 }).collect() };
+    let gone = q.take_expired(1, 150_000);
+    let batch = q.next_batch(1);
+    let deferred = q.defer("j1");
+    check!("200000 jobs, half expired", (gone.len(), gone[99_999].name.clone(), batch[0].name.clone(), deferred, q.jobs.len(), q.jobs[99_998].name.clone()), (100_000, "j199998".to_string(), "j1".to_string(), false, 99_999, "j199999".to_string()));
 }

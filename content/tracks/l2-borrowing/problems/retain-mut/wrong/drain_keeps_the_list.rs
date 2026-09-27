@@ -59,6 +59,6 @@ impl Pool {
 
     /// Hands over the ids closed so far, oldest first, and starts a new list.
     pub fn drain_closed(&mut self) -> Vec<u32> {
-        std::mem::take(&mut self.closed)
+        self.closed.iter().copied().collect()
     }
 }

@@ -10,7 +10,7 @@ pub fn merge_runs(events: &mut Vec<Event>) -> usize {
     let before = events.len();
     events.dedup_by(|cur, prev| {
         if cur.key == prev.key {
-            prev.count += cur.count;
+            cur.count += prev.count;
             true
         } else {
             false

@@ -38,7 +38,7 @@ impl Pool {
                 self.closed.push(c.id);
                 return false;
             }
-            c.tokens = c.tokens.saturating_add(self.refill).min(self.cap);
+            c.tokens = c.tokens.saturating_add(self.refill);
             true
         });
         before - self.conns.len()

@@ -34,7 +34,7 @@ impl Pool {
         let before = self.conns.len();
         self.conns.retain_mut(|c| {
             c.idle += dt;
-            if c.idle > self.max_idle {
+            if c.idle >= self.max_idle {
                 self.closed.push(c.id);
                 return false;
             }

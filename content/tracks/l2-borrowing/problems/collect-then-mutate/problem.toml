@@ -1,22 +1,32 @@
 slug = "collect-then-mutate"
-title = "Two passes: read, then write"
+title = "Read one buffer, write the other"
 mode = "write"
 level = "medium"
 stage = "iterator-invalidation"
 order = 21
 status = "ready"
-tags = ["two passes"]
+tags = ["double buffering", "mem::swap", "disjoint fields", "allocation"]
 teaches = [
-  "Separate reading and writing into two passes.",
+  "Compute the new generation from the old one only.",
+  "Double-buffer with `mem::swap` instead of allocating a snapshot.",
+  "A `&self` helper can't run inside an `iter_mut` over a field; compute first, then write.",
 ]
-follow_up = "Could you do this in one pass?"
-related = ["L2"]
+follow_up = "LeetCode's in-place version (289) encodes the next state in spare bits of each cell. When is that better than a second buffer?"
+related = ["L2", "D13"]
 
 [[hints]]
-kind = "approach"
-text = "The average depends on every value, so compute it in a first pass before changing anything."
+kind = "rust"
+text = "Writing the new state into `self.cells` as you go means later cells see some new neighbours. Compute into `self.next`, reading only `self.cells`, then make `next` the current generation."
+
+[[hints]]
+kind = "rust"
+text = "`self.next.iter_mut()` plus a call to `self.live_neighbors(..)` inside the loop won't compile: the method borrows all of `self`. Compute the count into a local first, then write one cell of `self.next` by index."
+
+[[hints]]
+kind = "rust"
+text = "`self.cells = self.next.clone()` allocates every step. `std::mem::swap(&mut self.cells, &mut self.next)` exchanges the two buffers in O(1); the stale one gets overwritten next time."
 
 [solution]
-explanation = "The first pass's shared borrow ends before `iter_mut` starts. Summing in `u64` avoids overflow."
-time = "O(n)"
-space = "O(1)"
+explanation = "Every cell's next state depends on the old generation, so the new one has to be written somewhere else: that's the read-then-write rule of iterator invalidation, applied to a whole grid. Keeping two buffers and swapping them avoids a snapshot allocation per step: `mem::swap` exchanges the `Vec` headers (pointer, length, capacity), not the cells. Borrowing matters inside the loop: `live_neighbors(&self, ..)` borrows all of `self`, so it can't run while an `iter_mut()` over `self.next` is alive; computing `n` first and then assigning `self.next[i]` keeps the borrows sequential. (An assignment evaluates its right-hand side before the place it writes to.)\n\nSyntax to remember: `std::mem::swap(&mut self.cells, &mut self.next)` · `matches!((alive, n), (true, 2) | (_, 3))`."
+time = "O(w · h) per step"
+space = "O(1) extra (two buffers owned by `Life`)"

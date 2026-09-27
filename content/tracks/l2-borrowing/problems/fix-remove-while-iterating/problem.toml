@@ -1,26 +1,30 @@
 slug = "fix-remove-while-iterating"
-title = "Fix: remove while iterating"
+title = "Fix: remove while iterating, merging into the survivor"
 mode = "fix"
 level = "medium"
 stage = "iterator-invalidation"
 order = 18
 status = "ready"
-tags = ["E0502", "retain"]
+tags = ["E0502", "dedup_by", "O(n) removal"]
 teaches = [
-  "Mutating a Vec invalidates iterators over it; the borrow checker stops it at compile time.",
-  "`retain` is the in-place filter.",
+  "Removing inside an iteration is rejected; index loops skip elements and cost O(n²).",
+  "`dedup_by` gives `&mut` to the current element and the previous survivor, in that order.",
 ]
-follow_up = "How would you do this in C++ safely (erase-remove)?"
+follow_up = "How would you merge runs in a `VecDeque` or a `HashMap` by insertion order, where there's no `dedup_by`?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "Even if it compiled, removing inside the loop would skip the element after each removal. Which method filters a Vec in place?"
+text = "`for (i, e) in events.iter()` holds a shared borrow of the whole `Vec` for the loop, so neither `events[i - 1].count += ..` nor `events.remove(i)` can happen inside it. And `remove` shifts the tail on every call."
+
+[[hints]]
+kind = "rust"
+text = "`Vec::dedup_by(|a, b| ..)` removes consecutive elements the closure accepts, in one pass. It gives you `&mut` to both: `a` is the element being considered, `b` the one before it that was kept. The order of the arguments matters here."
 
 [solution]
-explanation = "`retain` keeps order, visits each element once and shifts the survivors once. The hidden test's adjacent matches are what an index loop gets wrong."
+explanation = "Removing while iterating is what the borrow checker forbids and what makes index loops wrong: after `remove(i)` the next element slides into `i` and gets skipped, and every removal shifts the tail, O(n²) in all. std's in-place filters do one pass with a read and a write cursor: `retain` for a per-element test, and `dedup_by` when the decision involves the previous survivor. `dedup_by` passes `&mut` to both elements, so it can merge before discarding: the closure gets `(current, previous_kept)`, and merging into the second argument keeps the counts. Merging into the first adds them to the event that's about to be dropped.\n\nSyntax to remember: `v.dedup_by(|cur, prev| { if cur.key == prev.key { prev.count += cur.count; true } else { false } })` · `v.dedup_by_key(|e| e.key.clone())` (no merging)."
 time = "O(n)"
 space = "O(1)"
 
 [rules]
-forbid_methods = ["clone"]
+forbid_methods = ["remove", "clone", "swap_remove", "to_owned"]

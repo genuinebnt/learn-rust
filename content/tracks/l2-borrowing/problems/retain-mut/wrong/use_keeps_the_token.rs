@@ -49,7 +49,6 @@ impl Pool {
     pub fn use_conn(&mut self, id: u32) -> bool {
         match self.conns.iter_mut().find(|c| c.id == id) {
             Some(c) if c.tokens > 0 => {
-                c.tokens -= 1;
                 c.idle = 0;
                 true
             }

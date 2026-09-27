@@ -1,22 +1,32 @@
 slug = "retain-mut"
-title = "retain_mut instead of an index loop"
+title = "retain_mut with the rest of self"
 mode = "write"
 level = "medium"
 stage = "iterator-invalidation"
 order = 19
 status = "ready"
-tags = ["retain_mut"]
+tags = ["retain_mut", "disjoint closure captures", "mem::take", "iter_mut().find"]
 teaches = [
-  "`retain_mut` filters and edits in one pass.",
+  "`retain_mut` edits and filters in one pass.",
+  "Closures capture disjoint fields of `self`; method calls capture it all.",
+  "`mem::take` moves a field out of `&mut self`.",
 ]
-follow_up = "Why did std add `retain_mut` instead of changing `retain`?"
+follow_up = "Why does calling `self.is_stale(c)` inside the closure fail, when reading `self.max_idle` doesn't?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "`retain_mut` gives the predicate `&mut T`, so it can change the element it keeps."
+text = "`retain_mut(|c| ..)` gives the closure `&mut Conn`, so it can update a connection and decide whether to keep it in the same pass."
+
+[[hints]]
+kind = "rust"
+text = "The closure can read `self.max_idle` and push to `self.closed` while `self.conns` is borrowed by `retain_mut`: a closure that names fields captures only those fields. Calling `self.is_stale(c)` would capture all of `self` and fail."
+
+[[hints]]
+kind = "rust"
+text = "`std::mem::take(&mut self.closed)` hands the list over and leaves an empty one, with no copy."
 
 [solution]
-explanation = "One pass, no index arithmetic. Note that 1 halves to 0 but stays, because the check happens before the change."
-time = "O(n)"
-space = "O(1)"
+explanation = "`retain_mut` is the in-place filter that can also edit what it keeps: one pass, order kept, survivors shifted once. The closure needs other parts of `self` too, and that works because edition-2021 closures capture disjoint field paths: `self.max_idle`, `self.refill`, `self.cap` by shared reference and `self.closed` by unique reference, none overlapping `self.conns`. A helper method such as `is_stale(&self, ..)` would borrow all of `self`, conflicting with `retain_mut`'s `&mut self.conns` (E0502), so the condition is written on the fields. `drain_closed` is `mem::take`: move the `Vec` out of a `&mut` field and leave `Vec::new()`, which doesn't allocate.\n\nSyntax to remember: `self.conns.retain_mut(|c| { ..; keep })` · `c.tokens.saturating_add(self.refill).min(self.cap)` · `std::mem::take(&mut self.closed)` · `match self.conns.iter_mut().find(|c| c.id == id) { Some(c) if c.tokens > 0 => .., _ => false }`."
+time = "O(n) per tick"
+space = "O(1) extra"

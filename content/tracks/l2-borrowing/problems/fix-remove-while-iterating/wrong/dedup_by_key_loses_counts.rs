@@ -8,13 +8,6 @@ pub struct Event {
 /// Returns how many events were removed.
 pub fn merge_runs(events: &mut Vec<Event>) -> usize {
     let before = events.len();
-    events.dedup_by(|cur, prev| {
-        if cur.key == prev.key {
-            prev.count += cur.count;
-            true
-        } else {
-            false
-        }
-    });
+    events.dedup_by(|cur, prev| cur.key == prev.key);
     before - events.len()
 }

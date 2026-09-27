@@ -3130,184 +3130,1021 @@ Syntax to remember: `let rest = std::mem::take(&mut self.rest);` · `let (first,
 
 # ---------------------------------------------------------------- iterator invalidation (medium)
 
-P.append(fix(
-    "fix-remove-while-iterating", "Fix: remove while iterating", "medium", "iterator-invalidation", ["E0502", "retain"],
-    "`remove_prefixed` should drop every name starting with `prefix`. It doesn't compile.",
-    """
-    /// Removes every name starting with `prefix`.
-    pub fn remove_prefixed(names: &mut Vec<String>, prefix: &str) {
-        for (i, n) in names.iter().enumerate() {
-            if n.starts_with(prefix) {
-                names.remove(i);
-            }
+EVENT_HEAD = r"""
+#[derive(Debug, PartialEq)]
+pub struct Event {
+    pub key: String,
+    pub count: u32,
+}
+
+/// Merges each run of adjacent events with the same key into the run's first event, adding up the counts.
+/// Returns how many events were removed.
+"""
+
+MERGE_STARTER = EVENT_HEAD + r"""pub fn merge_runs(events: &mut Vec<Event>) -> usize {
+    let mut removed = 0;
+    for (i, e) in events.iter().enumerate() {
+        if i > 0 && e.key == events[i - 1].key {
+            events[i - 1].count += e.count;
+            events.remove(i);
+            removed += 1;
         }
     }
-    """,
+    removed
+}
+"""
+
+MERGE_SOLUTION = EVENT_HEAD + r"""pub fn merge_runs(events: &mut Vec<Event>) -> usize {
+    let before = events.len();
+    events.dedup_by(|cur, prev| {
+        if cur.key == prev.key {
+            prev.count += cur.count;
+            true
+        } else {
+            false
+        }
+    });
+    before - events.len()
+}
+"""
+
+MERGE_HELPER = r"""
+fn evs(xs: &[(&str, u32)]) -> Vec<Event> {
+    xs.iter().map(|&(k, c)| Event { key: k.to_string(), count: c }).collect()
+}
+
+fn pairs(v: &[Event]) -> Vec<(&str, u32)> {
+    v.iter().map(|e| (e.key.as_str(), e.count)).collect()
+}
+"""
+
+
+def merge_py(xs):
+    out = []
+    for k, c in xs:
+        if out and out[-1][0] == k:
+            out[-1] = (k, out[-1][1] + c)
+        else:
+            out.append((k, c))
+    return out
+
+
+def merge_case(name, xs):
+    out = merge_py(xs)
+    lit = "&[" + ", ".join(f'("{k}", {c})' for k, c in xs) + "]"
+    want = "vec![" + ", ".join(f'("{k}", {c})' for k, c in out) + "]" if out else "Vec::<(&str, u32)>::new()"
+    return T(name, f"events {[(k, c) for k, c in xs]}".replace("'", '"'), "(n, pairs(&v))", f"({len(xs) - len(out)}, {want})",
+             setup=f"let mut v = evs({lit});\nlet n = merge_runs(&mut v);")
+
+
+P.append(fixp(
+    "fix-remove-while-iterating", "Fix: remove while iterating, merging into the survivor", "medium", "iterator-invalidation", ["E0502", "dedup_by", "O(n) removal"],
     """
-    /// Removes every name starting with `prefix`.
-    pub fn remove_prefixed(names: &mut Vec<String>, prefix: &str) {
-        names.retain(|n| !n.starts_with(prefix));
-    }
+        `merge_runs` doesn't compile: it removes from the `Vec` it's iterating and writes to the element before.
+        An index loop with `remove` would compile but skip elements and cost O(n²) on long logs. Fix it with one
+        pass over the `Vec`, without `remove` and without cloning any event.
     """,
-    [T("removes", "[\"tmp_a\", \"keep\", \"tmp_b\"], prefix \"tmp\"", '{ let mut v: Vec<String> = ["tmp_a", "keep", "tmp_b"].map(String::from).to_vec(); remove_prefixed(&mut v, "tmp"); v }', 'vec!["keep".to_string()]')],
-    [T("adjacent", "[\"x1\", \"x2\", \"y\"], prefix \"x\"", '{ let mut v: Vec<String> = ["x1", "x2", "y"].map(String::from).to_vec(); remove_prefixed(&mut v, "x"); v }', 'vec!["y".to_string()]')],
-    [("rust", "Even if it compiled, removing inside the loop would skip the element after each removal. Which method filters a Vec in place?")],
-    ("`retain` keeps order, visits each element once and shifts the survivors once. The hidden test's adjacent matches are what an index loop gets wrong.", "O(n)", "O(1)"),
-    "How would you do this in C++ safely (erase-remove)?",
-    ["Mutating a Vec invalidates iterators over it; the borrow checker stops it at compile time.", "`retain` is the in-place filter."],
+    MERGE_STARTER,
+    MERGE_SOLUTION,
+    [MERGE_HELPER,
+     merge_case("example", [("a", 1), ("a", 2), ("b", 5), ("a", 1)]),
+     merge_case("empty", []),
+     merge_case("long_run", [("x", 1), ("x", 1), ("x", 1), ("x", 1)]),
+     merge_case("not_adjacent_not_merged", [("a", 1), ("b", 1), ("a", 1)]),
+     merge_case("two_runs", [("a", 3), ("a", 4), ("b", 1), ("b", 1), ("b", 1)])],
+    [MERGE_HELPER,
+     merge_case("single", [("k", 9)]),
+     merge_case("all_different", [("a", 1), ("b", 2), ("c", 3)]),
+     merge_case("case_sensitive", [("a", 1), ("A", 1), ("a", 1)]),
+     merge_case("zero_counts", [("z", 0), ("z", 0), ("y", 0)]),
+     merge_case("empty_keys", [("", 1), ("", 2), ("e", 3), ("", 4)]),
+     merge_case("run_at_end", [("a", 1), ("b", 1), ("b", 2), ("b", 3)]),
+     merge_case("unicode", [("日", 1), ("日", 1), ("é", 2)]),
+     T("big_counts", "events [(\"m\", 4000000000), (\"m\", 294967295)]", 'pairs(&v)', 'vec![("m", u32::MAX)]', setup='let mut v = evs(&[("m", 4_000_000_000), ("m", 294_967_295)]);\nmerge_runs(&mut v);'),
+     T("survivor_is_the_first", "the merged event is the run's first String", "p == v[0].key.as_ptr()", "true",
+       setup='let mut v = evs(&[("run", 1), ("run", 2)]);\nlet p = v[0].key.as_ptr();\nmerge_runs(&mut v);'),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6218);
+         for _ in 0..300 {
+             let n = rng.below(10);
+             let mut xs: Vec<(String, u32)> = Vec::new();
+             for _ in 0..n {
+                 xs.push((rng.string(1, "ab"), rng.below(5) as u32));
+             }
+             let mut want: Vec<(String, u32)> = Vec::new();
+             for (k, c) in &xs {
+                 match want.last_mut() {
+                     Some((lk, lc)) if lk == k => *lc += c,
+                     _ => want.push((k.clone(), *c)),
+                 }
+             }
+             let mut v: Vec<Event> = xs.iter().map(|(k, c)| Event { key: k.clone(), count: *c }).collect();
+             let removed = merge_runs(&mut v);
+             let got: Vec<(String, u32)> = v.into_iter().map(|e| (e.key, e.count)).collect();
+             check!(format!("events {xs:?}"), (removed, got), (n - want.len(), want));
+         }
+     }
+
+     #[test]
+     fn long_log() {
+         let mut v: Vec<Event> = (0..200_000).map(|i| Event { key: format!("k{}", i / 2), count: 1 }).collect();
+         let removed = merge_runs(&mut v);
+         check!("200000 events in runs of 2", (removed, v.len(), v[99_999].count), (100_000, 100_000, 2));
+     }
+     """],
+    [("rust", "`for (i, e) in events.iter()` holds a shared borrow of the whole `Vec` for the loop, so neither `events[i - 1].count += ..` nor `events.remove(i)` can happen inside it. And `remove` shifts the tail on every call."),
+     ("rust", "`Vec::dedup_by(|a, b| ..)` removes consecutive elements the closure accepts, in one pass. It gives you `&mut` to both: `a` is the element being considered, `b` the one before it that was kept. The order of the arguments matters here.")],
+    ("""Removing while iterating is what the borrow checker forbids and what makes index loops wrong: after `remove(i)` the next element slides into `i` and gets skipped, and every removal shifts the tail, O(n²) in all. std's in-place filters do one pass with a read and a write cursor: `retain` for a per-element test, and `dedup_by` when the decision involves the previous survivor. `dedup_by` passes `&mut` to both elements, so it can merge before discarding: the closure gets `(current, previous_kept)`, and merging into the second argument keeps the counts. Merging into the first adds them to the event that's about to be dropped.
+
+Syntax to remember: `v.dedup_by(|cur, prev| { if cur.key == prev.key { prev.count += cur.count; true } else { false } })` · `v.dedup_by_key(|e| e.key.clone())` (no merging).""", "O(n)", "O(1)"),
+    "How would you merge runs in a `VecDeque` or a `HashMap` by insertion order, where there's no `dedup_by`?",
+    ["Removing inside an iteration is rejected; index loops skip elements and cost O(n²).", "`dedup_by` gives `&mut` to the current element and the previous survivor, in that order."],
+    rules=dict(methods=["remove", "clone", "swap_remove", "to_owned"]),
+    wrong=dict(
+        merges_into_the_dropped=sub(MERGE_SOLUTION, "prev.count += cur.count;", "cur.count += prev.count;"),
+        dedup_by_key_loses_counts=sub(MERGE_SOLUTION, "    events.dedup_by(|cur, prev| {\n        if cur.key == prev.key {\n            prev.count += cur.count;\n            true\n        } else {\n            false\n        }\n    });", "    events.dedup_by(|cur, prev| cur.key == prev.key);"),
+        sorts_first=sub(MERGE_SOLUTION, "    let before = events.len();\n", "    let before = events.len();\n    events.sort_by(|a, b| a.key.cmp(&b.key));\n"),
+    ),
 ))
 
-P.append(write(
-    "retain-mut", "retain_mut instead of an index loop", "medium", "iterator-invalidation", ["retain_mut"],
-    "In one pass, remove the zeros from `v` and halve every value that stays.",
-    """
-    pub fn drop_zeros_and_halve(v: &mut Vec<i32>) {
-        todo!()
+POOL_HEAD = r"""
+#[derive(Debug, PartialEq)]
+pub struct Conn {
+    pub id: u32,
+    pub idle: u64,
+    pub tokens: u32,
+}
+
+pub struct Pool {
+    pub conns: Vec<Conn>,
+    pub max_idle: u64,
+    pub refill: u32,
+    pub cap: u32,
+    closed: Vec<u32>,
+}
+"""
+
+POOL_GIVEN = r"""
+    pub fn new(conns: Vec<Conn>, max_idle: u64, refill: u32, cap: u32) -> Self {
+        Pool { conns, max_idle, refill, cap, closed: Vec::new() }
     }
-    """,
-    """
-    pub fn drop_zeros_and_halve(v: &mut Vec<i32>) {
-        v.retain_mut(|x| {
-            if *x == 0 {
+
+    fn is_stale(&self, c: &Conn) -> bool {
+        c.idle > self.max_idle
+    }
+
+    /// How many connections are idle longer than `max_idle`.
+    pub fn stale_count(&self) -> usize {
+        self.conns.iter().filter(|c| self.is_stale(c)).count()
+    }
+"""
+
+POOL_DOCS = dict(
+    tick="""    /// Ages every connection by `dt`. A connection now idle longer than `max_idle` is closed: removed, with its
+    /// id appended to the closed list. Every other connection gains `refill` tokens, up to `cap`. Keeps the
+    /// order, runs in one pass, and returns how many it closed.
+    pub fn tick(&mut self, dt: u64) -> usize {
+""",
+    use_conn="""    /// Spends one token of connection `id` and resets its idle time. `false` if there's no such connection
+    /// or it has no tokens (then nothing changes).
+    pub fn use_conn(&mut self, id: u32) -> bool {
+""",
+    drain="""    /// Hands over the ids closed so far, oldest first, and starts a new list.
+    pub fn drain_closed(&mut self) -> Vec<u32> {
+""",
+)
+
+POOL_BODIES = dict(
+    tick="""        let before = self.conns.len();
+        self.conns.retain_mut(|c| {
+            c.idle += dt;
+            if c.idle > self.max_idle {
+                self.closed.push(c.id);
                 return false;
             }
-            *x /= 2;
+            c.tokens = c.tokens.saturating_add(self.refill).min(self.cap);
             true
         });
-    }
+        before - self.conns.len()
+""",
+    use_conn="""        match self.conns.iter_mut().find(|c| c.id == id) {
+            Some(c) if c.tokens > 0 => {
+                c.tokens -= 1;
+                c.idle = 0;
+                true
+            }
+            _ => false,
+        }
+""",
+    drain="""        std::mem::take(&mut self.closed)
+""",
+)
+
+
+def pool_src(bodies):
+    out = POOL_HEAD + "\nimpl Pool {" + POOL_GIVEN
+    for k in ("tick", "use_conn", "drain"):
+        out += "\n" + POOL_DOCS[k] + bodies[k] + "    }\n"
+    return out + "}\n"
+
+
+POOL_SOLUTION = pool_src(POOL_BODIES)
+POOL_STARTER = pool_src({k: "        todo!()\n" for k in POOL_BODIES})
+POOL_NEW = "let mut p = Pool::new(vec![Conn { id: 1, idle: 0, tokens: 0 }, Conn { id: 2, idle: 8, tokens: 3 }, Conn { id: 3, idle: 2, tokens: 9 }], 10, 2, 10);"
+POOL_DESC = "conns 1 (idle 0, 0 tokens), 2 (idle 8, 3), 3 (idle 2, 9); max_idle 10, refill 2, cap 10"
+
+
+def pool_state(expr="p"):
+    return f"{expr}.conns.iter().map(|c| (c.id, c.idle, c.tokens)).collect::<Vec<_>>()"
+
+
+P.append(writep(
+    "retain-mut", "retain_mut with the rest of self", "medium", "iterator-invalidation", ["retain_mut", "disjoint closure captures", "mem::take", "iter_mut().find"],
+    """
+        Write `tick`, `use_conn` and `drain_closed` for a connection pool. `tick` updates some connections and
+        removes others in a single pass, recording what it closed in another field of the pool. A hidden test
+        ticks a large pool, so removing connections one at a time is too slow.
     """,
-    [T("mixed", "[4, 0, 6, 0]", "{ let mut v = vec![4, 0, 6, 0]; drop_zeros_and_halve(&mut v); v }", "vec![2, 3]")],
-    [T("halves_to_zero", "[1, 2]", "{ let mut v = vec![1, 2]; drop_zeros_and_halve(&mut v); v }", "vec![0, 1]")],
-    [("rust", "`retain_mut` gives the predicate `&mut T`, so it can change the element it keeps.")],
-    ("One pass, no index arithmetic. Note that 1 halves to 0 but stays, because the check happens before the change.", "O(n)", "O(1)"),
-    "Why did std add `retain_mut` instead of changing `retain`?",
-    ["`retain_mut` filters and edits in one pass."],
+    POOL_STARTER,
+    POOL_SOLUTION,
+    [T("tick_example", POOL_DESC + "; tick 3", "(closed, " + pool_state() + ", p.drain_closed())", "(1, vec![(1, 3, 2), (3, 5, 10)], vec![2])", setup=POOL_NEW + "\nlet closed = p.tick(3);"),
+     T("use_conn", POOL_DESC + "; use 2, use 1, use 9", "(p.use_conn(2), p.use_conn(1), p.use_conn(9), " + pool_state() + ")", "(true, false, false, vec![(1, 0, 0), (2, 0, 2), (3, 2, 9)])", setup=POOL_NEW),
+     T("idle_at_limit_stays", POOL_DESC + "; tick 2", "(p.tick(2), " + pool_state() + ")", "(0, vec![(1, 2, 2), (2, 10, 5), (3, 4, 10)])", setup=POOL_NEW),
+     T("drain_starts_over", POOL_DESC + "; tick 100; drain twice", "(p.drain_closed(), p.drain_closed(), p.conns.len())", "(vec![1, 2, 3], vec![], 0)", setup=POOL_NEW + "\np.tick(100);"),
+     T("use_resets_idle", POOL_DESC + "; tick 1; use 2; tick 2", "(p.tick(2), " + pool_state() + ")", "(0, vec![(1, 3, 4), (2, 2, 6), (3, 5, 10)])", setup=POOL_NEW + "\np.tick(1);\np.use_conn(2);"),
+     T("stale_count_given", "stale_count reads what tick leaves", "p.stale_count()", "0", setup=POOL_NEW + "\np.tick(3);")],
+    [T("empty_pool", "no connections; tick 5", "(p.tick(5), p.drain_closed())", "(0, vec![])", setup="let mut p = Pool::new(vec![], 1, 1, 1);"),
+     T("tick_zero", POOL_DESC + "; tick 0", "(p.tick(0), " + pool_state() + ")", "(0, vec![(1, 0, 2), (2, 8, 5), (3, 2, 10)])", setup=POOL_NEW),
+     T("closed_in_order_across_ticks", POOL_DESC + "; tick 3, tick 6", "{ p.tick(3); p.tick(6); p.drain_closed() }", "vec![2, 3]", setup=POOL_NEW),
+     T("refill_saturates", "tokens u32::MAX - 1, refill 5, cap u32::MAX", "{ p.tick(1); p.conns[0].tokens }", "u32::MAX", setup="let mut p = Pool::new(vec![Conn { id: 7, idle: 0, tokens: u32::MAX - 1 }], 10, 5, u32::MAX);"),
+     T("cap_below_tokens", "tokens 9, cap 4", "{ p.tick(1); p.conns[0].tokens }", "4", setup="let mut p = Pool::new(vec![Conn { id: 7, idle: 0, tokens: 9 }], 10, 0, 4);"),
+     T("use_until_empty", "tokens 2; use 3 times", "(p.use_conn(5), p.use_conn(5), p.use_conn(5), p.conns[0].tokens)", "(true, true, false, 0)", setup="let mut p = Pool::new(vec![Conn { id: 5, idle: 4, tokens: 2 }], 10, 0, 9);"),
+     T("failed_use_keeps_idle", "tokens 0, idle 4; use", "(p.use_conn(5), p.conns[0].idle)", "(false, 4)", setup="let mut p = Pool::new(vec![Conn { id: 5, idle: 4, tokens: 0 }], 10, 0, 9);"),
+     T("duplicate_ids_first_used", "two conns with id 5", "(p.use_conn(5), p.conns[0].tokens, p.conns[1].tokens)", "(true, 0, 1)", setup="let mut p = Pool::new(vec![Conn { id: 5, idle: 0, tokens: 1 }, Conn { id: 5, idle: 0, tokens: 1 }], 10, 0, 9);"),
+     T("max_idle_zero", "max_idle 0; tick 1 closes all", "(p.tick(1), p.drain_closed())", "(2, vec![1, 2])", setup="let mut p = Pool::new(vec![Conn { id: 1, idle: 0, tokens: 0 }, Conn { id: 2, idle: 0, tokens: 0 }], 0, 1, 1);"),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6219);
+         for _ in 0..300 {
+             let n = rng.below(6);
+             let start: Vec<(u32, u64, u32)> = (0..n).map(|i| (i as u32, rng.below(6) as u64, rng.below(5) as u32)).collect();
+             let (max_idle, refill, cap) = (rng.below(8) as u64, rng.below(3) as u32, rng.below(6) as u32);
+             let mut p = Pool::new(start.iter().map(|&(id, idle, tokens)| Conn { id, idle, tokens }).collect(), max_idle, refill, cap);
+             let mut model = start.clone();
+             let mut closed = Vec::new();
+             let mut ops = Vec::new();
+             for _ in 0..5 {
+                 if rng.bool() {
+                     let dt = rng.below(4) as u64;
+                     let before = model.len();
+                     let mut kept = Vec::new();
+                     for (id, idle, tokens) in model {
+                         if idle + dt > max_idle {
+                             closed.push(id);
+                         } else {
+                             kept.push((id, idle + dt, (tokens + refill).min(cap)));
+                         }
+                     }
+                     model = kept;
+                     ops.push(format!("tick {dt}"));
+                     check!(format!("{start:?}, max_idle {max_idle}, refill {refill}, cap {cap}; {}", ops.join(", ")), p.tick(dt), before - model.len());
+                 } else {
+                     let id = rng.below(n + 1) as u32;
+                     let want = match model.iter_mut().find(|c| c.0 == id) {
+                         Some(c) if c.2 > 0 => {
+                             c.2 -= 1;
+                             c.1 = 0;
+                             true
+                         }
+                         _ => false,
+                     };
+                     ops.push(format!("use {id}"));
+                     check!(format!("{start:?}, max_idle {max_idle}, refill {refill}, cap {cap}; {}", ops.join(", ")), p.use_conn(id), want);
+                 }
+             }
+             let got: Vec<(u32, u64, u32)> = p.conns.iter().map(|c| (c.id, c.idle, c.tokens)).collect();
+             check!(format!("{start:?}, max_idle {max_idle}, refill {refill}, cap {cap}; {}; state", ops.join(", ")), (got, p.drain_closed()), (model, closed));
+         }
+     }
+
+     #[test]
+     fn big_pool() {
+         let conns: Vec<Conn> = (0..200_000).map(|i| Conn { id: i, idle: (i % 2) as u64 * 10, tokens: 0 }).collect();
+         let mut p = Pool::new(conns, 5, 1, 3);
+         let closed = p.tick(1);
+         check!("200000 conns, every other one stale", (closed, p.conns.len(), p.conns[99_999].id, p.drain_closed()[99_999]), (100_000, 100_000, 199_998, 199_999));
+     }
+     """],
+    [("rust", "`retain_mut(|c| ..)` gives the closure `&mut Conn`, so it can update a connection and decide whether to keep it in the same pass."),
+     ("rust", "The closure can read `self.max_idle` and push to `self.closed` while `self.conns` is borrowed by `retain_mut`: a closure that names fields captures only those fields. Calling `self.is_stale(c)` would capture all of `self` and fail."),
+     ("rust", "`std::mem::take(&mut self.closed)` hands the list over and leaves an empty one, with no copy.")],
+    ("""`retain_mut` is the in-place filter that can also edit what it keeps: one pass, order kept, survivors shifted once. The closure needs other parts of `self` too, and that works because edition-2021 closures capture disjoint field paths: `self.max_idle`, `self.refill`, `self.cap` by shared reference and `self.closed` by unique reference, none overlapping `self.conns`. A helper method such as `is_stale(&self, ..)` would borrow all of `self`, conflicting with `retain_mut`'s `&mut self.conns` (E0502), so the condition is written on the fields. `drain_closed` is `mem::take`: move the `Vec` out of a `&mut` field and leave `Vec::new()`, which doesn't allocate.
+
+Syntax to remember: `self.conns.retain_mut(|c| { ..; keep })` · `c.tokens.saturating_add(self.refill).min(self.cap)` · `std::mem::take(&mut self.closed)` · `match self.conns.iter_mut().find(|c| c.id == id) { Some(c) if c.tokens > 0 => .., _ => false }`.""", "O(n) per tick", "O(1) extra"),
+    "Why does calling `self.is_stale(c)` inside the closure fail, when reading `self.max_idle` doesn't?",
+    ["`retain_mut` edits and filters in one pass.", "Closures capture disjoint fields of `self`; method calls capture it all.", "`mem::take` moves a field out of `&mut self`."],
+    wrong=dict(
+        closes_at_the_limit=sub(POOL_SOLUTION, "if c.idle > self.max_idle {\n                self.closed.push", "if c.idle >= self.max_idle {\n                self.closed.push"),
+        refill_uncapped=sub(POOL_SOLUTION, "c.tokens = c.tokens.saturating_add(self.refill).min(self.cap);", "c.tokens = c.tokens.saturating_add(self.refill);"),
+        use_keeps_the_token=sub(POOL_SOLUTION, "                c.tokens -= 1;\n", ""),
+        drain_keeps_the_list=sub(POOL_SOLUTION, "        std::mem::take(&mut self.closed)\n", "        self.closed.iter().copied().collect()\n"),
+    ),
 ))
 
-P.append(fix(
-    "fix-push-while-iterating", "Fix: push to the Vec you iterate", "medium", "iterator-invalidation", ["E0502"],
-    "`expand` should add two subtasks for every task ending in `*`. It doesn't compile. Only the original tasks are expanded.",
-    """
-    /// For each task ending in '*', appends "<task>.1" and "<task>.2".
-    pub fn expand(tasks: &mut Vec<String>) {
-        for t in tasks.iter() {
-            if t.ends_with('*') {
-                tasks.push(format!("{t}.1"));
-                tasks.push(format!("{t}.2"));
+EXPAND_DOC = r"""
+use std::collections::HashMap;
+
+/// Expands `tasks` in place: for every task in the list, including ones added by this call, each of its
+/// subtasks in `rules` that isn't in the list yet is appended. Returns how many tasks were added.
+"""
+
+EXPAND_STARTER = EXPAND_DOC + r"""pub fn expand(tasks: &mut Vec<String>, rules: &HashMap<String, Vec<String>>) -> usize {
+    let before = tasks.len();
+    for t in tasks.iter() {
+        if let Some(subs) = rules.get(t) {
+            for s in subs {
+                if !tasks.contains(s) {
+                    tasks.push(s.to_string());
+                }
             }
         }
     }
-    """,
-    """
-    /// For each task ending in '*', appends "<task>.1" and "<task>.2".
-    pub fn expand(tasks: &mut Vec<String>) {
-        let extra: Vec<String> = tasks
-            .iter()
-            .filter(|t| t.ends_with('*'))
-            .flat_map(|t| [format!("{t}.1"), format!("{t}.2")])
-            .collect();
-        tasks.extend(extra);
-    }
-    """,
-    [T("expands", "[\"a*\", \"b\"]", '{ let mut v: Vec<String> = ["a*", "b"].map(String::from).to_vec(); expand(&mut v); v }', 'vec!["a*", "b", "a*.1", "a*.2"]')],
-    [T("none", "[\"x\"]", '{ let mut v = vec!["x".to_string()]; expand(&mut v); v.len() }', "1")],
-    [("approach", "Work out what to add while reading, then add it after the loop.")],
-    ("Collecting first means the new tasks aren't themselves expanded, and the Vec is only mutated once nothing borrows it.", "O(n)", "O(k)"),
-    "What's the equivalent bug in Python, and why doesn't it crash there?",
-    ["Collect, then mutate."],
-))
+    tasks.len() - before
+}
+"""
 
-P.append(write(
-    "collect-then-mutate", "Two passes: read, then write", "medium", "iterator-invalidation", ["two passes"],
-    "Add 10 to every score below the average (integer average, rounded down).",
-    """
-    pub fn bump_below_average(scores: &mut [u32]) {
-        todo!()
-    }
-    """,
-    """
-    pub fn bump_below_average(scores: &mut [u32]) {
-        if scores.is_empty() {
-            return;
-        }
-        let avg = scores.iter().map(|&s| s as u64).sum::<u64>() / scores.len() as u64;
-        for s in scores.iter_mut().filter(|s| (**s as u64) < avg) {
-            *s += 10;
-        }
-    }
-    """,
-    [T("bumps", "[10, 20, 30]", "{ let mut v = [10, 20, 30]; bump_below_average(&mut v); v }", "[20, 20, 30]")],
-    [T("empty", "[]", "{ let mut v: [u32; 0] = []; bump_below_average(&mut v); v }", "[]"),
-     T("all_equal", "[5, 5]", "{ let mut v = [5, 5]; bump_below_average(&mut v); v }", "[5, 5]")],
-    [("approach", "The average depends on every value, so compute it in a first pass before changing anything.")],
-    ("The first pass's shared borrow ends before `iter_mut` starts. Summing in `u64` avoids overflow.", "O(n)", "O(1)"),
-    "Could you do this in one pass?",
-    ["Separate reading and writing into two passes."],
-))
-
-P.append(write(
-    "extract-if", "Partition with extract_if", "medium", "iterator-invalidation", ["extract_if"],
-    "Remove every job whose deadline is before `now` from `jobs` and return them, both in their original order.",
-    """
-    #[derive(Debug, PartialEq)]
-    pub struct Job {
-        pub name: &'static str,
-        pub deadline: u64,
-    }
-
-    pub fn take_expired(jobs: &mut Vec<Job>, now: u64) -> Vec<Job> {
-        todo!()
-    }
-    """,
-    """
-    #[derive(Debug, PartialEq)]
-    pub struct Job {
-        pub name: &'static str,
-        pub deadline: u64,
-    }
-
-    pub fn take_expired(jobs: &mut Vec<Job>, now: u64) -> Vec<Job> {
-        jobs.extract_if(.., |j| j.deadline < now).collect()
-    }
-    """,
-    [T("splits", "deadlines 5, 20, 7; now 10", '{ let mut v = vec![Job { name: "a", deadline: 5 }, Job { name: "b", deadline: 20 }, Job { name: "c", deadline: 7 }]; let gone = take_expired(&mut v, 10); (gone.iter().map(|j| j.name).collect::<Vec<_>>(), v.iter().map(|j| j.name).collect::<Vec<_>>()) }', '(vec!["a", "c"], vec!["b"])')],
-    [T("none", "deadline 50; now 10", '{ let mut v = vec![Job { name: "a", deadline: 50 }]; take_expired(&mut v, 10).len() }', "0")],
-    [("rust", "`Vec::extract_if(range, pred)` removes matching elements and yields them, by value, in order.")],
-    ("One pass, both halves keep their order, and removed jobs are moved out, not cloned.", "O(n)", "O(k)"),
-    "What happens to the Vec if you drop the `ExtractIf` iterator halfway?",
-    ["`extract_if` moves matching elements out while iterating."],
-))
-
-P.append(fix(
-    "fix-map-mutation-during-iteration", "Fix: HashMap mutation during iteration", "medium", "iterator-invalidation", ["E0502", "HashMap::retain"],
-    "`drop_zero` should remove every entry whose value is 0. It doesn't compile.",
-    """
-    use std::collections::HashMap;
-
-    /// Removes every entry whose count is zero.
-    pub fn drop_zero(counts: &mut HashMap<String, u32>) {
-        for (k, v) in counts.iter() {
-            if *v == 0 {
-                counts.remove(k);
+EXPAND_SOLUTION = EXPAND_DOC + r"""pub fn expand(tasks: &mut Vec<String>, rules: &HashMap<String, Vec<String>>) -> usize {
+    let before = tasks.len();
+    let mut i = 0;
+    while i < tasks.len() {
+        if let Some(subs) = rules.get(&tasks[i]) {
+            for s in subs {
+                if !tasks.contains(s) {
+                    tasks.push(s.to_string());
+                }
             }
         }
+        i += 1;
     }
-    """,
-    """
-    use std::collections::HashMap;
+    tasks.len() - before
+}
+"""
 
-    /// Removes every entry whose count is zero.
-    pub fn drop_zero(counts: &mut HashMap<String, u32>) {
-        counts.retain(|_, v| *v != 0);
-    }
+EXPAND_HELPER = r"""
+fn rules(xs: &[(&str, &[&str])]) -> std::collections::HashMap<String, Vec<String>> {
+    xs.iter().map(|(k, v)| (k.to_string(), v.iter().map(|s| s.to_string()).collect())).collect()
+}
+
+fn run(tasks: &[&str], r: &[(&str, &[&str])]) -> (usize, Vec<String>) {
+    let mut t: Vec<String> = tasks.iter().map(|s| s.to_string()).collect();
+    let n = expand(&mut t, &rules(r));
+    (n, t)
+}
+"""
+
+
+def expand_py(tasks, rules):
+    t = list(tasks)
+    i = 0
+    while i < len(t):
+        for s in rules.get(t[i], []):
+            if s not in t:
+                t.append(s)
+        i += 1
+    return t
+
+
+def expand_case(name, tasks, rules):
+    out = expand_py(tasks, dict(rules))
+    tl = "&[" + ", ".join(f'"{x}"' for x in tasks) + "]"
+    rl = "&[" + ", ".join(f'("{k}", &[' + ", ".join(f'"{s}"' for s in v) + "][..])" for k, v in rules) + "]"
+    want = "[" + ", ".join(f'"{x}"' for x in out) + f"].map(String::from).to_vec()" if out else "Vec::<String>::new()"
+    desc = f"tasks {tasks}, rules {dict(rules)}".replace("'", '"')
+    return T(name, desc, f"run({tl}, {rl})", f"({len(out) - len(tasks)}, {want})")
+
+
+P.append(fixp(
+    "fix-push-while-iterating", "Fix: push to the Vec you iterate", "medium", "iterator-invalidation", ["E0502", "worklists", "index loops"],
+    """
+        `expand` doesn't compile: it pushes to `tasks` while iterating over it. Here that's the point, since
+        added tasks must be expanded too. Fix it without a second collection of tasks.
     """,
-    [T("drops", "{a: 0, b: 2}", '{ let mut m = std::collections::HashMap::from([("a".to_string(), 0), ("b".to_string(), 2)]); drop_zero(&mut m); m }', f'{HM}::from([("b".to_string(), 2)])')],
-    [T("all_zero", "{a: 0, b: 0}", '{ let mut m = std::collections::HashMap::from([("a".to_string(), 0), ("b".to_string(), 0)]); drop_zero(&mut m); m.len() }', "0")],
-    [("rust", "Maps have the same in-place filter as Vec.")],
-    ("Removing from a hash table can move other entries, so an iterator over it can't survive a removal.", "O(n)", "O(1)"),
-    "How would you remove the entries and also collect their keys?",
-    ["`HashMap::retain` filters in place."],
+    EXPAND_STARTER,
+    EXPAND_SOLUTION,
+    [EXPAND_HELPER,
+     expand_case("example", ["build"], [("build", ["compile", "test"]), ("test", ["lint"])]),
+     expand_case("nothing_to_expand", ["a", "b"], [("c", ["d"])]),
+     expand_case("already_listed", ["a", "b"], [("a", ["b", "c"])]),
+     expand_case("cycle", ["a"], [("a", ["b"]), ("b", ["a", "c"])]),
+     expand_case("empty_tasks", [], [("a", ["b"])])],
+    [EXPAND_HELPER,
+     expand_case("self_rule", ["a"], [("a", ["a"])]),
+     expand_case("deep_chain", ["a"], [("a", ["b"]), ("b", ["c"]), ("c", ["d"]), ("d", ["e"])]),
+     expand_case("order_is_breadth_first", ["r"], [("r", ["a", "b"]), ("a", ["c"]), ("b", ["d"])]),
+     expand_case("duplicate_subtasks", ["a"], [("a", ["x", "x", "y"])]),
+     expand_case("shared_child", ["a", "b"], [("a", ["c"]), ("b", ["c"]), ("c", ["d"])]),
+     expand_case("empty_rule", ["a"], [("a", [])]),
+     expand_case("no_rules", ["a"], []),
+     expand_case("unicode", ["日本"], [("日本", ["東京"]), ("東京", ["新宿"])]),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6220);
+         let names = ["a", "b", "c", "d", "e", "f"];
+         for _ in 0..300 {
+             let mut r: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+             for n in names {
+                 if rng.bool() {
+                     let k = rng.below(3);
+                     let subs: Vec<String> = (0..k).map(|_| rng.pick(&names).to_string()).collect();
+                     r.insert(n.to_string(), subs);
+                 }
+             }
+             let k = rng.below(3);
+             let start: Vec<String> = (0..k).map(|_| rng.pick(&names).to_string()).collect();
+             let mut want = start.clone();
+             let mut i = 0;
+             while i < want.len() {
+                 for s in r.get(&want[i]).cloned().unwrap_or_default() {
+                     if !want.contains(&s) {
+                         want.push(s);
+                     }
+                 }
+                 i += 1;
+             }
+             let mut got = start.clone();
+             let n = expand(&mut got, &r);
+             let mut shown: Vec<_> = r.iter().collect();
+             shown.sort();
+             check!(format!("tasks {start:?}, rules {shown:?}"), (n, got), (want.len() - start.len(), want));
+         }
+     }
+
+     #[test]
+     fn long_chain() {
+         let r: std::collections::HashMap<String, Vec<String>> = (0..2000).map(|i| (format!("t{i}"), vec![format!("t{}", i + 1)])).collect();
+         let mut tasks = vec!["t0".to_string()];
+         let n = expand(&mut tasks, &r);
+         check!("a chain t0 -> t1 -> ... -> t2000", (n, tasks.last().cloned()), (2000, Some("t2000".to_string())));
+     }
+     """],
+    [("rust", "`for t in tasks.iter()` borrows `tasks` for the whole loop, so `tasks.push` can't happen inside it. An index doesn't borrow anything between uses."),
+     ("rust", "`for i in 0..tasks.len()` evaluates `len()` once, so tasks added during the loop are never visited. The loop condition has to read the length on every turn."),
+     ("rust", "`rules.get(&tasks[i])` borrows `tasks` only for the lookup; the `subs` it returns borrow `rules`, so pushing to `tasks` inside is fine.")],
+    ("""An iterator over a `Vec` holds a borrow of it, because a push may reallocate and leave the iterator pointing at freed memory. When growing the list while walking it is the algorithm (a worklist, breadth-first), walk by index: `while i < tasks.len()` re-reads the length each turn, so appended tasks are visited, and each access `&tasks[i]` is a short borrow that ends before the push. Check where each borrow comes from: `subs` borrows `rules`, not `tasks`, which is what lets the push happen inside the inner loop.
+
+The tempting `for i in 0..tasks.len()` compiles and is wrong: the range is computed once. `tasks.contains` is O(n) per check; for large lists a `HashSet` of indices or owned names would keep the whole thing linear, since a `HashSet<&str>` into `tasks` couldn't coexist with the pushes.""", "O(n · k · n) with contains", "O(1) extra"),
+    "Why can't a `HashSet<&str>` of the names already in `tasks` stay alive while you push?",
+    ["An iterator borrows its collection; an index doesn't.", "`while i < v.len()` sees growth; `for i in 0..v.len()` doesn't.", "Know which collection each borrow comes from."],
+    rules=dict(methods=["clone", "collect", "to_vec", "extend", "drain", "iter"]),
+    wrong=dict(
+        range_computed_once=sub(EXPAND_SOLUTION, "    let mut i = 0;\n    while i < tasks.len() {", "    for i in 0..tasks.len() {").replace("        i += 1;\n", ""),
+        skips_existing_check=sub(EXPAND_SOLUTION, "                if !tasks.contains(s) {\n                    tasks.push(s.to_string());\n                }", "                if tasks.last() != Some(s) {\n                    tasks.push(s.to_string());\n                }"),
+    ),
+))
+assert "while" not in P[-1]["wrong"]["range_computed_once"]
+
+LIFE_HEAD = r"""
+/// Conway's Game of Life on a `w` × `h` grid. Cells outside the grid are dead.
+pub struct Life {
+    w: usize,
+    h: usize,
+    cells: Vec<bool>,
+    next: Vec<bool>,
+}
+
+impl Life {
+    pub fn new(w: usize, h: usize, alive: &[(usize, usize)]) -> Self {
+        let mut cells = vec![false; w * h];
+        for &(x, y) in alive {
+            cells[y * w + x] = true;
+        }
+        Life { w, h, cells, next: vec![false; w * h] }
+    }
+
+    /// Live cells as (x, y), row by row.
+    pub fn alive(&self) -> Vec<(usize, usize)> {
+        (0..self.w * self.h).filter(|&i| self.cells[i]).map(|i| (i % self.w, i / self.w)).collect()
+    }
+
+    fn live_neighbors(&self, x: usize, y: usize) -> usize {
+        let mut n = 0;
+        for ny in y.saturating_sub(1)..=(y + 1).min(self.h - 1) {
+            for nx in x.saturating_sub(1)..=(x + 1).min(self.w - 1) {
+                if (nx, ny) != (x, y) && self.cells[ny * self.w + nx] {
+                    n += 1;
+                }
+            }
+        }
+        n
+    }
+
+    /// Advances one generation: a live cell with 2 or 3 live neighbors lives on, a dead cell with exactly 3
+    /// becomes alive, every other cell is dead. Every cell's fate depends on the old generation only. Must not
+    /// allocate.
+    pub fn step(&mut self) {
+"""
+
+LIFE_STARTER = LIFE_HEAD + "        todo!()\n    }\n}\n"
+LIFE_SOLUTION = LIFE_HEAD + r"""        for y in 0..self.h {
+            for x in 0..self.w {
+                let n = self.live_neighbors(x, y);
+                let i = y * self.w + x;
+                self.next[i] = matches!((self.cells[i], n), (true, 2) | (_, 3));
+            }
+        }
+        std::mem::swap(&mut self.cells, &mut self.next);
+    }
+}
+"""
+
+
+def life_case(name, w, h, alive, steps, want):
+    return T(name, f"{w}x{h}, alive {alive}, {steps} steps",
+             f"{{ let mut l = Life::new({w}, {h}, &{alive}); for _ in 0..{steps} {{ l.step(); }} l.alive() }}", f"vec!{want}" if want else "Vec::<(usize, usize)>::new()")
+
+
+def life_py(w, h, alive, steps):
+    cells = set(alive)
+    for _ in range(steps):
+        nxt = set()
+        for y in range(h):
+            for x in range(w):
+                n = sum((nx, ny) in cells for ny in range(y - 1, y + 2) for nx in range(x - 1, x + 2) if (nx, ny) != (x, y) and 0 <= nx < w and 0 <= ny < h)
+                if n == 3 or ((x, y) in cells and n == 2):
+                    nxt.add((x, y))
+        cells = nxt
+    return sorted(cells, key=lambda c: (c[1], c[0]))
+
+
+def life_auto(name, w, h, alive, steps):
+    return life_case(name, w, h, str(list(alive)), steps, str(life_py(w, h, alive, steps)))
+
+
+P.append(writep(
+    "collect-then-mutate", "Read one buffer, write the other", "medium", "iterator-invalidation", ["double buffering", "mem::swap", "disjoint fields", "allocation"],
+    """
+        Write `Life::step`. Every cell's next state depends on its neighbours' *old* states, so updating the grid
+        in place is wrong, and `step` must not allocate either: a hidden test counts allocations. `Life` already
+        has a second buffer, `next`.
+    """,
+    LIFE_STARTER,
+    LIFE_SOLUTION,
+    [life_auto("blinker", 5, 5, [(1, 2), (2, 2), (3, 2)], 1),
+     life_auto("blinker_twice", 5, 5, [(1, 2), (2, 2), (3, 2)], 2),
+     life_auto("block_is_still", 4, 4, [(1, 1), (2, 1), (1, 2), (2, 2)], 3),
+     life_auto("lonely_cell_dies", 3, 3, [(1, 1)], 1),
+     life_auto("edges_are_dead", 3, 1, [(0, 0), (1, 0), (2, 0)], 1),
+     life_auto("glider", 6, 6, [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)], 4)],
+    [ALLOC_COUNTER,
+     life_auto("empty", 4, 3, [], 2),
+     life_auto("one_by_one", 1, 1, [(0, 0)], 1),
+     life_auto("corner_birth", 2, 2, [(0, 0), (1, 0), (0, 1)], 1),
+     life_auto("full_3x3", 3, 3, [(x, y) for y in range(3) for x in range(3)], 1),
+     life_auto("glider_hits_wall", 5, 5, [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)], 12),
+     life_auto("toad", 6, 6, [(2, 2), (3, 2), (4, 2), (1, 3), (2, 3), (3, 3)], 1),
+     life_auto("wide_row", 7, 2, [(x, 0) for x in range(7)], 2),
+     life_auto("tall", 1, 5, [(0, 1), (0, 2), (0, 3)], 1),
+     r"""
+     fn model(w: usize, h: usize, cells: &[bool]) -> Vec<bool> {
+         let mut out = vec![false; w * h];
+         for y in 0..h {
+             for x in 0..w {
+                 let mut n = 0;
+                 for dy in -1i64..=1 {
+                     for dx in -1i64..=1 {
+                         let (nx, ny) = (x as i64 + dx, y as i64 + dy);
+                         if (dx, dy) != (0, 0) && nx >= 0 && ny >= 0 && (nx as usize) < w && (ny as usize) < h && cells[ny as usize * w + nx as usize] {
+                             n += 1;
+                         }
+                     }
+                 }
+                 out[y * w + x] = n == 3 || (cells[y * w + x] && n == 2);
+             }
+         }
+         out
+     }
+
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6221);
+         for _ in 0..200 {
+             let (w, h) = (1 + rng.below(6), 1 + rng.below(6));
+             let alive: Vec<(usize, usize)> = (0..w * h).filter(|_| rng.below(3) == 0).map(|i| (i % w, i / w)).collect();
+             let mut cells = vec![false; w * h];
+             for &(x, y) in &alive {
+                 cells[y * w + x] = true;
+             }
+             let mut l = Life::new(w, h, &alive);
+             for s in 1..=3 {
+                 cells = model(w, h, &cells);
+                 l.step();
+                 let want: Vec<(usize, usize)> = (0..w * h).filter(|&i| cells[i]).map(|i| (i % w, i / w)).collect();
+                 check!(format!("{w}x{h}, alive {alive:?}, {s} steps"), l.alive(), want);
+             }
+         }
+     }
+
+     #[test]
+     fn step_does_not_allocate() {
+         let alive: Vec<(usize, usize)> = (0..300).flat_map(|y| (0..300).filter(move |x| (x * 7 + y * 13) % 5 < 2).map(move |x| (x, y))).collect();
+         let mut l = Life::new(300, 300, &alive);
+         let (_, n) = allocs(|| {
+             for _ in 0..4 {
+                 l.step();
+             }
+         });
+         check!("300x300 grid, 4 steps: allocations", n, 0);
+         let mut cells = vec![false; 300 * 300];
+         for &(x, y) in &alive {
+             cells[y * 300 + x] = true;
+         }
+         for _ in 0..4 {
+             cells = model(300, 300, &cells);
+         }
+         check!("300x300 grid, 4 steps: live cells", l.alive().len(), cells.iter().filter(|&&c| c).count());
+     }
+     """],
+    [("rust", "Writing the new state into `self.cells` as you go means later cells see some new neighbours. Compute into `self.next`, reading only `self.cells`, then make `next` the current generation."),
+     ("rust", "`self.next.iter_mut()` plus a call to `self.live_neighbors(..)` inside the loop won't compile: the method borrows all of `self`. Compute the count into a local first, then write one cell of `self.next` by index."),
+     ("rust", "`self.cells = self.next.clone()` allocates every step. `std::mem::swap(&mut self.cells, &mut self.next)` exchanges the two buffers in O(1); the stale one gets overwritten next time.")],
+    ("""Every cell's next state depends on the old generation, so the new one has to be written somewhere else: that's the read-then-write rule of iterator invalidation, applied to a whole grid. Keeping two buffers and swapping them avoids a snapshot allocation per step: `mem::swap` exchanges the `Vec` headers (pointer, length, capacity), not the cells. Borrowing matters inside the loop: `live_neighbors(&self, ..)` borrows all of `self`, so it can't run while an `iter_mut()` over `self.next` is alive; computing `n` first and then assigning `self.next[i]` keeps the borrows sequential. (An assignment evaluates its right-hand side before the place it writes to.)
+
+Syntax to remember: `std::mem::swap(&mut self.cells, &mut self.next)` · `matches!((alive, n), (true, 2) | (_, 3))`.""", "O(w · h) per step", "O(1) extra (two buffers owned by `Life`)"),
+    "LeetCode's in-place version (289) encodes the next state in spare bits of each cell. When is that better than a second buffer?",
+    ["Compute the new generation from the old one only.", "Double-buffer with `mem::swap` instead of allocating a snapshot.", "A `&self` helper can't run inside an `iter_mut` over a field; compute first, then write."],
+    related=("L2", "D13"),
+    wrong=dict(
+        updates_in_place=sub(LIFE_SOLUTION, "                self.next[i] = matches!((self.cells[i], n), (true, 2) | (_, 3));\n            }\n        }\n        std::mem::swap(&mut self.cells, &mut self.next);",
+                             "                self.cells[i] = matches!((self.cells[i], n), (true, 2) | (_, 3));\n            }\n        }"),
+        snapshot_each_step=sub(LIFE_SOLUTION, "        std::mem::swap(&mut self.cells, &mut self.next);", "        self.cells = self.next.clone();"),
+        survives_with_four=sub(LIFE_SOLUTION, "(true, 2) | (_, 3)", "(true, 2) | (true, 4) | (_, 3)"),
+    ),
+))
+
+QUEUE_HEAD = r"""
+#[derive(Debug, PartialEq)]
+pub struct Job {
+    pub name: String,
+    pub deadline: u64,
+}
+
+pub struct Queue {
+    pub jobs: Vec<Job>,
+}
+"""
+
+QUEUE_DOCS = dict(
+    expired="""    /// Removes up to `limit` expired jobs (deadline before `now`), taking the earliest in the queue first, and
+    /// returns them in queue order. Expired jobs past the limit stay queued where they are.
+    pub fn take_expired(&mut self, now: u64, limit: usize) -> Vec<Job> {
+""",
+    batch="""    /// Removes the first `n` jobs (all of them if there are fewer) and returns them in order.
+    pub fn next_batch(&mut self, n: usize) -> Vec<Job> {
+""",
+    defer="""    /// Moves the first job named `name` to the back of the queue, keeping the others in order. `false` if
+    /// there's no such job.
+    pub fn defer(&mut self, name: &str) -> bool {
+""",
+)
+
+QUEUE_BODIES = dict(
+    expired="""        self.jobs.extract_if(.., |j| j.deadline < now).take(limit).collect()
+""",
+    batch="""        let n = n.min(self.jobs.len());
+        self.jobs.drain(..n).collect()
+""",
+    defer="""        match self.jobs.iter().position(|j| j.name == name) {
+            Some(i) => {
+                self.jobs[i..].rotate_left(1);
+                true
+            }
+            None => false,
+        }
+""",
+)
+
+
+def queue_src(bodies):
+    out = QUEUE_HEAD + "\nimpl Queue {\n"
+    for k in ("expired", "batch", "defer"):
+        out += QUEUE_DOCS[k] + bodies[k] + "    }\n\n"
+    return out.rstrip("\n") + "\n}\n"
+
+
+QUEUE_SOLUTION = queue_src(QUEUE_BODIES)
+QUEUE_STARTER = queue_src({k: "        todo!()\n" for k in QUEUE_BODIES})
+Q_HELPER = r"""
+fn queue(xs: &[(&str, u64)]) -> Queue {
+    Queue { jobs: xs.iter().map(|&(n, d)| Job { name: n.to_string(), deadline: d }).collect() }
+}
+
+fn sv(xs: &[&str]) -> Vec<String> {
+    xs.iter().map(|s| s.to_string()).collect()
+}
+
+fn names(jobs: &[Job]) -> Vec<String> {
+    jobs.iter().map(|j| j.name.to_string()).collect()
+}
+"""
+Q_SETUP = 'let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);'
+Q_DESC = "jobs a 5, b 20, c 7, d 3, e 50"
+
+
+def q_case(name, desc, ops, want, setup=Q_SETUP):
+    return T(name, f"{Q_DESC}; {desc}" if setup == Q_SETUP else desc, ops, want, setup=setup)
+
+
+P.append(writep(
+    "extract-if", "Move jobs out: extract_if, drain, rotate", "medium", "iterator-invalidation", ["extract_if", "drain", "rotate_left", "lazy iterators"],
+    """
+        Write three ways of taking jobs out of a queue without cloning any: the first few expired jobs, the next
+        batch from the front, and deferring one job to the back. The hidden tests use long queues, so each call
+        must shift the rest of the queue at most once.
+    """,
+    QUEUE_STARTER,
+    QUEUE_SOLUTION,
+    [Q_HELPER,
+     q_case("take_expired", "take_expired(now 10, limit 5)", "(names(&q.take_expired(10, 5)), names(&q.jobs))", '(sv(&["a", "c", "d"]), sv(&["b", "e"]))'),
+     q_case("limit_leaves_the_rest", "take_expired(now 10, limit 2)", "(names(&q.take_expired(10, 2)), names(&q.jobs))", '(sv(&["a", "c"]), sv(&["b", "d", "e"]))'),
+     q_case("next_batch", "next_batch(2), then next_batch(9)", "{ let first = q.next_batch(2); let rest = q.next_batch(9); (names(&first), names(&rest), q.jobs.len()) }", '(sv(&["a", "b"]), sv(&["c", "d", "e"]), 0)'),
+     q_case("defer", "defer(\"b\"), defer(\"z\")", "(q.defer(\"b\"), q.defer(\"z\"), names(&q.jobs))", '(true, false, sv(&["a", "c", "d", "e", "b"]))'),
+     q_case("deadline_is_strict", "take_expired(now 5, limit 9)", "names(&q.take_expired(5, 9))", 'sv(&["d"])'),
+     q_case("limit_zero", "take_expired(now 100, limit 0)", "(q.take_expired(100, 0).len(), q.jobs.len())", "(0, 5)")],
+    [Q_HELPER,
+     q_case("empty_queue", "empty queue: all three", "(q.take_expired(9, 9).len(), q.next_batch(3).len(), q.defer(\"a\"))", "(0, 0, false)", setup="let mut q = queue(&[]);"),
+     q_case("nothing_expired", "take_expired(now 0, limit 9)", "(q.take_expired(0, 9).len(), q.jobs.len())", "(0, 5)"),
+     q_case("all_expired", "take_expired(now 100, limit 9)", "(names(&q.take_expired(100, 9)), q.jobs.len())", '(sv(&["a", "b", "c", "d", "e"]), 0)'),
+     q_case("batch_zero", "next_batch(0)", "(q.next_batch(0).len(), q.jobs.len())", "(0, 5)"),
+     q_case("defer_last_is_noop", "defer(\"e\")", "(q.defer(\"e\"), names(&q.jobs))", '(true, sv(&["a", "b", "c", "d", "e"]))'),
+     q_case("defer_first_duplicate", "jobs x 1, y 2, x 3; defer(\"x\")", "(q.defer(\"x\"), q.jobs.iter().map(|j| j.deadline).collect::<Vec<_>>())", "(true, vec![2, 3, 1])", setup='let mut q = queue(&[("x", 1), ("y", 2), ("x", 3)]);'),
+     q_case("jobs_moved_not_copied", "take_expired keeps the job's own String", "(got[0].name.as_ptr() == p, got.len())", "(true, 1)", setup='let mut q = queue(&[("k", 1)]);\nlet p = q.jobs[0].name.as_ptr();\nlet got = q.take_expired(2, 1);'),
+     q_case("take_expired_twice", "take_expired(now 10, limit 1) twice", "{ let a = q.take_expired(10, 1); let b = q.take_expired(10, 1); (names(&a), names(&b), names(&q.jobs)) }", '(sv(&["a"]), sv(&["c"]), sv(&["b", "d", "e"]))'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6222);
+         for _ in 0..300 {
+             let n = rng.below(8);
+             let start: Vec<(String, u64)> = (0..n).map(|i| (format!("{}{i}", rng.string(1, "ab")), rng.below(10) as u64)).collect();
+             let mut q = Queue { jobs: start.iter().map(|(s, d)| Job { name: s.clone(), deadline: *d }).collect() };
+             let mut model = start.clone();
+             let mut ops = Vec::new();
+             for _ in 0..4 {
+                 match rng.below(3) {
+                     0 => {
+                         let (now, limit) = (rng.below(10) as u64, rng.below(4));
+                         let mut want = Vec::new();
+                         let mut kept = Vec::new();
+                         for (s, d) in model {
+                             if d < now && want.len() < limit {
+                                 want.push(s);
+                             } else {
+                                 kept.push((s, d));
+                             }
+                         }
+                         model = kept;
+                         ops.push(format!("take_expired({now}, {limit})"));
+                         let got: Vec<String> = q.take_expired(now, limit).into_iter().map(|j| j.name).collect();
+                         check!(format!("{start:?}; {}", ops.join(", ")), got, want);
+                     }
+                     1 => {
+                         let k = rng.below(4);
+                         let want: Vec<String> = model.drain(..k.min(model.len())).map(|(s, _)| s).collect();
+                         ops.push(format!("next_batch({k})"));
+                         let got: Vec<String> = q.next_batch(k).into_iter().map(|j| j.name).collect();
+                         check!(format!("{start:?}; {}", ops.join(", ")), got, want);
+                     }
+                     _ => {
+                         let name = format!("{}{}", rng.string(1, "ab"), rng.below(n + 1));
+                         let want = match model.iter().position(|(s, _)| *s == name) {
+                             Some(i) => {
+                                 let j = model.remove(i);
+                                 model.push(j);
+                                 true
+                             }
+                             None => false,
+                         };
+                         ops.push(format!("defer({name:?})"));
+                         check!(format!("{start:?}; {}", ops.join(", ")), q.defer(&name), want);
+                     }
+                 }
+             }
+             let got: Vec<(String, u64)> = q.jobs.iter().map(|j| (j.name.clone(), j.deadline)).collect();
+             check!(format!("{start:?}; {}; queue", ops.join(", ")), got, model);
+         }
+     }
+
+     #[test]
+     fn long_queue() {
+         let mut q = Queue { jobs: (0..200_000).map(|i| Job { name: format!("j{i}"), deadline: i % 2 }).collect() };
+         let gone = q.take_expired(1, 150_000);
+         let batch = q.next_batch(1);
+         let deferred = q.defer("j1");
+         check!("200000 jobs, half expired", (gone.len(), gone[99_999].name.clone(), batch[0].name.clone(), deferred, q.jobs.len(), q.jobs[99_998].name.clone()), (100_000, "j199998".to_string(), "j1".to_string(), false, 99_999, "j199999".to_string()));
+     }
+     """],
+    [("rust", "`Vec::extract_if(range, pred)` removes the matching elements it visits and yields them by value, in order, shifting the rest once. It's lazy: stop it early (with `take`) and the elements it didn't reach, matching or not, stay in the `Vec`."),
+     ("rust", "`drain(..n)` removes a range and yields it; it panics if `n` is past the end."),
+     ("rust", "Moving one element to the back of a sub-slice is `v[i..].rotate_left(1)`: one shift, no remove and push.")],
+    ("""Each method moves `Job`s out of the `Vec` instead of cloning them, and shifts the survivors once. `extract_if` is the removing counterpart of `retain`, and its laziness is part of the contract: `extract_if(.., pred).take(limit)` stops after `limit` matches, and the unvisited tail (including more expired jobs) is kept in place when the iterator is dropped. Collecting everything and truncating would lose the extra jobs. `drain(..n)` needs `n` clamped to the length. `rotate_left(1)` on the tail moves one element to the back in a single pass.
+
+Syntax to remember: `self.jobs.extract_if(.., |j| j.deadline < now).take(limit).collect()` · `self.jobs.drain(..n.min(self.jobs.len())).collect()` · `self.jobs[i..].rotate_left(1)`.""", "O(n) per call", "O(k) for the returned jobs"),
+    "Before `extract_if` was stable, how would you have taken the first `limit` expired jobs in one pass?",
+    ["`extract_if` moves matching elements out, lazily.", "`drain(range)` removes a range; clamp it.", "`rotate_left` on a sub-slice moves one element to the back."],
+    related=("L2", "S3"),
+    wrong=dict(
+        truncates_extra_expired=queue_src(dict(QUEUE_BODIES, expired="""        let mut gone: Vec<Job> = self.jobs.extract_if(.., |j| j.deadline < now).collect();
+        gone.truncate(limit);
+        gone
+""")),
+        defer_swaps_with_last=queue_src(dict(QUEUE_BODIES, defer="""        match self.jobs.iter().position(|j| j.name == name) {
+            Some(i) => {
+                let last = self.jobs.len() - 1;
+                self.jobs.swap(i, last);
+                true
+            }
+            None => false,
+        }
+""")),
+        expired_includes_now=sub(QUEUE_SOLUTION, "j.deadline < now", "j.deadline <= now"),
+    ),
+))
+
+SESSION_HEAD = r"""
+use std::collections::HashMap;
+
+#[derive(Debug, PartialEq)]
+pub struct Session {
+    pub parent: Option<u32>,
+    pub expires: u64,
+    pub bytes: u64,
+}
+
+/// Removes every session that has expired (`expires <= now`). Each removed session's bytes are credited to
+/// its parent, if the parent is still there after this call; credit isn't passed further up. Returns the
+/// removed ids, sorted.
+"""
+
+EXPIRE_STARTER = SESSION_HEAD + r"""pub fn expire(sessions: &mut HashMap<u32, Session>, now: u64) -> Vec<u32> {
+    let mut removed = Vec::new();
+    for (id, s) in sessions.iter() {
+        if s.expires <= now {
+            if let Some(p) = s.parent {
+                if let Some(parent) = sessions.get_mut(&p) {
+                    parent.bytes += s.bytes;
+                }
+            }
+            sessions.remove(id);
+            removed.push(*id);
+        }
+    }
+    removed.sort();
+    removed
+}
+"""
+
+EXPIRE_SOLUTION = SESSION_HEAD + r"""pub fn expire(sessions: &mut HashMap<u32, Session>, now: u64) -> Vec<u32> {
+    let gone: Vec<(u32, Session)> = sessions.extract_if(|_, s| s.expires <= now).collect();
+    let mut removed = Vec::with_capacity(gone.len());
+    for (id, s) in gone {
+        if let Some(parent) = s.parent.and_then(|p| sessions.get_mut(&p)) {
+            parent.bytes += s.bytes;
+        }
+        removed.push(id);
+    }
+    removed.sort_unstable();
+    removed
+}
+"""
+
+SESS_HELPER = r"""
+fn sessions(xs: &[(u32, Option<u32>, u64, u64)]) -> std::collections::HashMap<u32, Session> {
+    xs.iter().map(|&(id, parent, expires, bytes)| (id, Session { parent, expires, bytes })).collect()
+}
+
+fn bytes(m: &std::collections::HashMap<u32, Session>) -> Vec<(u32, u64)> {
+    let mut v: Vec<(u32, u64)> = m.iter().map(|(&id, s)| (id, s.bytes)).collect();
+    v.sort();
+    v
+}
+"""
+
+
+def expire_py(xs, now):
+    gone = [x for x in xs if x[2] <= now]
+    keep = {x[0]: list(x) for x in xs if x[2] > now}
+    for g in gone:
+        if g[1] is not None and g[1] in keep:
+            keep[g[1]][3] += g[3]
+    return sorted(g[0] for g in gone), sorted((k, v[3]) for k, v in keep.items())
+
+
+def sess_case(name, xs, now):
+    removed, left = expire_py(xs, now)
+    lit = "&[" + ", ".join(f"({i}, {'None' if p is None else f'Some({p})'}, {e}, {b})" for i, p, e, b in xs) + "]"
+    desc = "sessions (id, parent, expires, bytes) " + ", ".join(f"({i}, {p}, {e}, {b})" for i, p, e, b in xs) + f"; now {now}"
+    rv = f"vec!{removed}" if removed else "Vec::<u32>::new()"
+    lv = "vec![" + ", ".join(f"({k}, {b})" for k, b in left) + "]" if left else "Vec::<(u32, u64)>::new()"
+    return T(name, desc, "(removed, bytes(&m))", f"({rv}, {lv})", setup=f"let mut m = sessions({lit});\nlet removed = expire(&mut m, {now});")
+
+
+P.append(fixp(
+    "fix-map-mutation-during-iteration", "Fix: HashMap mutation during iteration", "medium", "iterator-invalidation", ["E0502", "HashMap::extract_if", "get_mut", "order independence"],
+    """
+        `expire` doesn't compile: it removes entries from the map it's iterating and edits other entries on the
+        way. Fix it without cloning any session. The result must not depend on the map's iteration order.
+    """,
+    EXPIRE_STARTER,
+    EXPIRE_SOLUTION,
+    [SESS_HELPER,
+     sess_case("example", [(1, None, 100, 10), (2, 1, 5, 3), (3, 1, 50, 4)], 10),
+     sess_case("parent_also_expires", [(1, None, 5, 10), (2, 1, 5, 3)], 10),
+     sess_case("credit_not_passed_up", [(1, 2, 1, 7), (2, 3, 1, 5), (3, None, 99, 0)], 10),
+     sess_case("nothing_expired", [(1, None, 50, 1)], 10),
+     sess_case("expires_at_now", [(4, None, 10, 1), (5, 4, 11, 1)], 10)],
+    [SESS_HELPER,
+     sess_case("empty", [], 3),
+     sess_case("all_expire", [(1, None, 0, 1), (2, 1, 0, 2), (3, 2, 0, 3)], 0),
+     sess_case("missing_parent", [(1, 9, 0, 4), (2, None, 5, 1)], 1),
+     sess_case("self_parent", [(1, 1, 0, 4), (2, 2, 9, 1)], 1),
+     sess_case("siblings_add_up", [(1, None, 9, 0), (2, 1, 1, 3), (3, 1, 1, 4), (4, 1, 1, 5)], 2),
+     sess_case("grandchild_to_live_parent", [(1, None, 9, 0), (2, 1, 9, 0), (3, 2, 1, 6)], 2),
+     sess_case("big_bytes", [(1, None, 9, 1 << 40), (2, 1, 1, 1 << 40)], 1),
+     sess_case("unsorted_ids", [(30, None, 1, 1), (10, None, 1, 1), (20, None, 9, 1)], 5),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6223);
+         for _ in 0..300 {
+             let n = rng.below(8) as u32;
+             let xs: Vec<(u32, Option<u32>, u64, u64)> = (0..n).map(|id| (id, if rng.bool() { Some(rng.below(n as usize + 1) as u32) } else { None }, rng.below(6) as u64, rng.below(10) as u64)).collect();
+             let now = rng.below(6) as u64;
+             let mut want_removed: Vec<u32> = xs.iter().filter(|x| x.2 <= now).map(|x| x.0).collect();
+             want_removed.sort();
+             let mut left: Vec<(u32, u64)> = xs.iter().filter(|x| x.2 > now).map(|x| (x.0, x.3)).collect();
+             for g in xs.iter().filter(|x| x.2 <= now) {
+                 if let Some(p) = g.1 {
+                     if let Some(e) = left.iter_mut().find(|e| e.0 == p) {
+                         e.1 += g.3;
+                     }
+                 }
+             }
+             left.sort();
+             let mut m = sessions(&xs);
+             let removed = expire(&mut m, now);
+             check!(format!("sessions {xs:?}; now {now}"), (removed, bytes(&m)), (want_removed, left));
+         }
+     }
+
+     #[test]
+     fn many_sessions() {
+         let xs: Vec<(u32, Option<u32>, u64, u64)> = (0..200_000u32).map(|id| (id, if id % 2 == 1 { Some(id - 1) } else { None }, if id % 2 == 1 { 5 } else { 100 }, 1)).collect();
+         let mut m = sessions(&xs);
+         let removed = expire(&mut m, 10);
+         let b = bytes(&m);
+         check!("200000 sessions, odd ones expire into their even parent", (removed.len(), b.len(), b[99_999]), (100_000, 100_000, (199_998, 2)));
+     }
+     """],
+    [("rust", "Removing from a hash map can move other entries, so no iterator over it survives a `remove`, and `get_mut` inside the loop is a second borrow of the map. Split the work: first take the expired sessions out, then credit the parents."),
+     ("rust", "`HashMap::extract_if(|k, v| ..)` removes the entries the closure accepts and yields them by value. After it's done, every parent still in the map is one that survives, which is what the crediting rule needs."),
+     ("rust", "Crediting while removing one session at a time depends on the order: a parent that expires later in the loop would pass its children's credit up. Remove all first, then credit.")],
+    ("""Two things go wrong in the original. The borrow checker rejects `remove` and `get_mut` while `iter()` holds the map. And even a version that compiles (collect the ids, then remove one at a time, crediting as it goes) gives order-dependent answers, because whether a parent is "still there" depends on which expired session was handled first, and `HashMap` iteration order is arbitrary. Two phases fix both: `extract_if` moves every expired session out (no clones, one pass), and then each credit goes to a parent that is known to survive. Credit can't flow up a chain, because an expired parent is already gone.
+
+Syntax to remember: `let gone: Vec<(u32, Session)> = map.extract_if(|_, s| s.expires <= now).collect();` · `s.parent.and_then(|p| map.get_mut(&p))` · `HashMap::retain(|_, v| ..)` when there's nothing to hand back.""", "O(n + k log k)", "O(k) for the removed sessions"),
+    "How would you pass the credit all the way up to the nearest surviving ancestor instead?",
+    ["A map can't be mutated while it's iterated; take the matching entries out first.", "`HashMap::extract_if` removes and yields entries by value.", "Results must not depend on hash iteration order."],
+    rules=dict(methods=["clone", "cloned"]),
     related=("L2", "S4"),
+    wrong=dict(
+        credits_while_removing=r"""
+            use std::collections::HashMap;
+
+            #[derive(Debug, PartialEq)]
+            pub struct Session {
+                pub parent: Option<u32>,
+                pub expires: u64,
+                pub bytes: u64,
+            }
+
+            pub fn expire(sessions: &mut HashMap<u32, Session>, now: u64) -> Vec<u32> {
+                let mut ids: Vec<u32> = sessions.iter().filter(|(_, s)| s.expires <= now).map(|(&id, _)| id).collect();
+                ids.sort_unstable();
+                for &id in &ids {
+                    let s = sessions.remove(&id).unwrap();
+                    if let Some(parent) = s.parent.and_then(|p| sessions.get_mut(&p)) {
+                        parent.bytes += s.bytes;
+                    }
+                }
+                ids
+            }
+        """,
+        strictly_before_now=sub(EXPIRE_SOLUTION, "s.expires <= now", "s.expires < now"),
+        credit_lost=sub(EXPIRE_SOLUTION, "            parent.bytes += s.bytes;\n", "            parent.bytes = parent.bytes.max(s.bytes);\n"),
+    ),
 ))
 
 # ---------------------------------------------------------------- split borrows (medium)
@@ -3994,12 +4831,6 @@ P.append(fix(
 
 
 EXTRA = {
-    "fix-remove-while-iterating": T("nothing_matches", "[\"a\"], prefix \"z\"", '{ let mut v = vec!["a".to_string()]; remove_prefixed(&mut v, "z"); v.len() }', "1"),
-    "retain-mut": T("all_zero", "[0, 0]", "{ let mut v = vec![0, 0]; drop_zeros_and_halve(&mut v); v }", "vec![]"),
-    "fix-push-while-iterating": T("two_starred", "[\"a*\", \"b*\"]", '{ let mut v: Vec<String> = ["a*", "b*"].map(String::from).to_vec(); expand(&mut v); v.len() }', "6"),
-    "collect-then-mutate": T("rounds_down", "[1, 2]", "{ let mut v = [1, 2]; bump_below_average(&mut v); v }", "[1, 2]"),
-    "extract-if": T("all_expired", "deadlines 1, 2; now 10", '{ let mut v = vec![Job { name: "a", deadline: 1 }, Job { name: "b", deadline: 2 }]; let gone = take_expired(&mut v, 10); (gone.len(), v.len()) }', "(2, 0)"),
-    "fix-map-mutation-during-iteration": T("empty", "{}", "{ let mut m: std::collections::HashMap<String, u32> = std::collections::HashMap::new(); drop_zero(&mut m); m.len() }", "0"),
     "fix-field-borrow-and-mut-method": T("empty_append", "text \"a\", append \"\"", '{ let mut e = Editor { text: "a".into(), history: vec![] }; e.append(""); (e.text, e.history.len()) }', '("a".to_string(), 1)'),
     "destructure-self": T("keeps_max", "max 10, xs = [3]", "{ let mut s = Stats { values: vec![], total: 0.0, max: 10.0 }; s.record_all(&[3.0]); s.max }", "10.0"),
     "fix-swap-without-swap": T("adjacent", "[\"x\", \"y\"], 0 ↔ 1", '{ let mut v = ["x", "y"].map(String::from); swap_items(&mut v, 0, 1); v }', '["y", "x"].map(String::from)'),
@@ -4018,403 +4849,6 @@ for p in P:
 # comparison against a brute-force model, a scale test where complexity matters, and `wrong` solutions that
 # `anneal verify` checks the tests reject. Fix-mode wrong solutions obey the problem's rules.
 MORE = {}
-
-REMOVE_WRONG = """
-    /// Removes every name starting with `prefix`.
-    pub fn remove_prefixed(names: &mut Vec<String>, prefix: &str) {
-        let mut i = 0;
-        while i < names.len() {
-            BODY
-        }
-    }
-"""
-MORE["fix-remove-while-iterating"] = dict(
-    visible=[
-        T("empty_prefix", "[\"a\", \"b\"], prefix \"\"", '{ let mut v = vec!["a".to_string(), "b".to_string()]; remove_prefixed(&mut v, ""); v }', "Vec::<String>::new()"),
-        T("contains_not_prefix", "[\"a_tmp\"], prefix \"tmp\"", '{ let mut v = vec!["a_tmp".to_string()]; remove_prefixed(&mut v, "tmp"); v }', 'vec!["a_tmp".to_string()]'),
-        T("adjacent", "[\"x1\", \"x2\", \"y\"], prefix \"x\"", '{ let mut v: Vec<String> = ["x1", "x2", "y"].map(String::from).to_vec(); remove_prefixed(&mut v, "x"); v }', 'vec!["y".to_string()]'),
-    ],
-    hidden=[
-        T("empty_list", "[], prefix \"a\"", '{ let mut v: Vec<String> = vec![]; remove_prefixed(&mut v, "a"); v.len() }', "0"),
-        T("all_match", "[\"x\", \"xx\", \"xxx\"], prefix \"x\"", '{ let mut v: Vec<String> = ["x", "xx", "xxx"].map(String::from).to_vec(); remove_prefixed(&mut v, "x"); v.len() }', "0"),
-        T("exact_match", "[\"tmp\"], prefix \"tmp\"", '{ let mut v = vec!["tmp".to_string()]; remove_prefixed(&mut v, "tmp"); v.len() }', "0"),
-        T("case_sensitive", "[\"Tmp\", \"tmp\"], prefix \"tmp\"", '{ let mut v: Vec<String> = ["Tmp", "tmp"].map(String::from).to_vec(); remove_prefixed(&mut v, "tmp"); v }', 'vec!["Tmp".to_string()]'),
-        T("prefix_longer", "[\"tm\"], prefix \"tmp\"", '{ let mut v = vec!["tm".to_string()]; remove_prefixed(&mut v, "tmp"); v }', 'vec!["tm".to_string()]'),
-        T("unicode_prefix", "[\"élan\", \"elan\"], prefix \"é\"", '{ let mut v: Vec<String> = ["élan", "elan"].map(String::from).to_vec(); remove_prefixed(&mut v, "é"); v }', 'vec!["elan".to_string()]'),
-        T("order_kept", "[\"b1\", \"a\", \"b2\", \"c\", \"b3\"], prefix \"b\"", '{ let mut v: Vec<String> = ["b1", "a", "b2", "c", "b3"].map(String::from).to_vec(); remove_prefixed(&mut v, "b"); v }', 'vec!["a".to_string(), "c".to_string()]'),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2016);
-            for _ in 0..300 {
-                let n = rng.below(8);
-                let names: Vec<String> = (0..n).map(|_| { let l = rng.below(4); rng.string(l, "ab") }).collect();
-                let pl = rng.below(3);
-                let prefix = rng.string(pl, "ab");
-                let want: Vec<String> = names.iter().filter(|s| !s.starts_with(prefix.as_str())).cloned().collect();
-                let mut got = names.clone();
-                remove_prefixed(&mut got, &prefix);
-                check!(format!("names = {names:?}, prefix = {prefix:?}"), got, want);
-            }
-        }
-
-        #[test]
-        fn scale_300k_matches_first() {
-            let mut v: Vec<String> = (0..300_000).map(|i| if i < 150_000 { format!("tmp{i}") } else { format!("keep{i}") }).collect();
-            remove_prefixed(&mut v, "tmp");
-            check!("150000 names \\"tmp…\\" then 150000 others, prefix \\"tmp\\"", (v.len(), v[0].as_str() == "keep150000"), (150_000, true));
-        }
-        """,
-    ],
-    wrong=dict(
-        remove_in_a_loop=REMOVE_WRONG.replace("BODY", """if names[i].starts_with(prefix) {
-                names.remove(i);
-            } else {
-                i += 1;
-            }"""),
-        skips_after_remove=REMOVE_WRONG.replace("BODY", """if names[i].starts_with(prefix) {
-                names.remove(i);
-            }
-            i += 1;"""),
-    ),
-)
-
-MORE["retain-mut"] = dict(
-    visible=[
-        T("negatives", "[-3, 0, -4]", "{ let mut v = vec![-3, 0, -4]; drop_zeros_and_halve(&mut v); v }", "vec![-1, -2]"),
-        T("halves_to_zero", "[1, 2]", "{ let mut v = vec![1, 2]; drop_zeros_and_halve(&mut v); v }", "vec![0, 1]"),
-        T("empty", "[]", "{ let mut v: Vec<i32> = vec![]; drop_zeros_and_halve(&mut v); v }", "Vec::<i32>::new()"),
-    ],
-    hidden=[
-        T("no_zeros", "[8, 6]", "{ let mut v = vec![8, 6]; drop_zeros_and_halve(&mut v); v }", "vec![4, 3]"),
-        T("odd", "[7]", "{ let mut v = vec![7]; drop_zeros_and_halve(&mut v); v }", "vec![3]"),
-        T("i32_min", "[i32::MIN]", "{ let mut v = vec![i32::MIN]; drop_zeros_and_halve(&mut v); v }", "vec![-1_073_741_824]"),
-        T("i32_max", "[i32::MAX]", "{ let mut v = vec![i32::MAX]; drop_zeros_and_halve(&mut v); v }", "vec![1_073_741_823]"),
-        T("minus_one", "[-1]", "{ let mut v = vec![-1]; drop_zeros_and_halve(&mut v); v }", "vec![0]"),
-        T("zeros_between", "[0, 2, 0, 0, 4, 0]", "{ let mut v = vec![0, 2, 0, 0, 4, 0]; drop_zeros_and_halve(&mut v); v }", "vec![1, 2]"),
-        T("single_zero", "[0]", "{ let mut v = vec![0]; drop_zeros_and_halve(&mut v); v }", "Vec::<i32>::new()"),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2017);
-            for _ in 0..300 {
-                let n = rng.below(10);
-                let v: Vec<i32> = rng.vec(n, -5, 5);
-                let want: Vec<i32> = v.iter().filter(|&&x| x != 0).map(|&x| x / 2).collect();
-                let mut got = v.clone();
-                drop_zeros_and_halve(&mut got);
-                check!(format!("v = {v:?}"), got, want);
-            }
-        }
-
-        #[test]
-        fn scale_800k_zeros_first() {
-            let mut v = vec![0; 400_000];
-            v.resize(800_000, 6);
-            drop_zeros_and_halve(&mut v);
-            check!("400000 zeros then 400000 sixes", (v.len(), v[0], v[399_999]), (400_000, 3, 3));
-        }
-        """,
-    ],
-    wrong=dict(
-        halve_then_check="""
-            pub fn drop_zeros_and_halve(v: &mut Vec<i32>) {
-                v.retain_mut(|x| {
-                    *x /= 2;
-                    *x != 0
-                });
-            }
-        """,
-        shift_right="""
-            pub fn drop_zeros_and_halve(v: &mut Vec<i32>) {
-                v.retain_mut(|x| {
-                    if *x == 0 {
-                        return false;
-                    }
-                    *x >>= 1;
-                    true
-                });
-            }
-        """,
-        remove_in_a_loop="""
-            pub fn drop_zeros_and_halve(v: &mut Vec<i32>) {
-                let mut i = 0;
-                while i < v.len() {
-                    if v[i] == 0 {
-                        v.remove(i);
-                    } else {
-                        v[i] /= 2;
-                        i += 1;
-                    }
-                }
-            }
-        """,
-    ),
-)
-
-MORE["fix-push-while-iterating"] = dict(
-    visible=[
-        T("star_in_middle", "[\"a*b\"]", '{ let mut v = vec!["a*b".to_string()]; expand(&mut v); v }', 'vec!["a*b"]'),
-        T("order", "[\"b*\", \"x\", \"a*\"]", '{ let mut v: Vec<String> = ["b*", "x", "a*"].map(String::from).to_vec(); expand(&mut v); v }', 'vec!["b*", "x", "a*", "b*.1", "b*.2", "a*.1", "a*.2"]'),
-        T("none", "[\"x\"]", '{ let mut v = vec!["x".to_string()]; expand(&mut v); v.len() }', "1"),
-    ],
-    hidden=[
-        T("empty", "[]", "{ let mut v: Vec<String> = vec![]; expand(&mut v); v.len() }", "0"),
-        T("only_star", "[\"*\"]", '{ let mut v = vec!["*".to_string()]; expand(&mut v); v }', 'vec!["*", "*.1", "*.2"]'),
-        T("double_star", "[\"a**\"]", '{ let mut v = vec!["a**".to_string()]; expand(&mut v); v }', 'vec!["a**", "a**.1", "a**.2"]'),
-        T("unicode", "[\"é*\"]", '{ let mut v = vec!["é*".to_string()]; expand(&mut v); v }', 'vec!["é*", "é*.1", "é*.2"]'),
-        T("duplicates", "[\"a*\", \"a*\"]", '{ let mut v: Vec<String> = ["a*", "a*"].map(String::from).to_vec(); expand(&mut v); v }', 'vec!["a*", "a*", "a*.1", "a*.2", "a*.1", "a*.2"]'),
-        T("star_first", "[\"*a\"]", '{ let mut v = vec!["*a".to_string()]; expand(&mut v); v }', 'vec!["*a"]'),
-        T("many", "1000 starred tasks", '{ let mut v: Vec<String> = (0..1000).map(|i| format!("t{i}*")).collect(); expand(&mut v); (v.len(), v[1000].clone(), v[2999].clone()) }', '(3000, "t0*.1".to_string(), "t999*.2".to_string())'),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2018);
-            for _ in 0..300 {
-                let n = rng.below(6);
-                let tasks: Vec<String> = (0..n).map(|_| { let l = rng.below(4); rng.string(l, "a*") }).collect();
-                let mut want = tasks.clone();
-                for t in &tasks {
-                    if t.ends_with('*') {
-                        want.push(format!("{t}.1"));
-                        want.push(format!("{t}.2"));
-                    }
-                }
-                let mut got = tasks.clone();
-                expand(&mut got);
-                check!(format!("tasks = {tasks:?}"), got, want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        subtasks_inline="""
-            /// For each task ending in '*', appends "<task>.1" and "<task>.2".
-            pub fn expand(tasks: &mut Vec<String>) {
-                let mut out = Vec::new();
-                for t in tasks.iter() {
-                    out.push(format!("{t}"));
-                    if t.ends_with('*') {
-                        out.push(format!("{t}.1"));
-                        out.push(format!("{t}.2"));
-                    }
-                }
-                *tasks = out;
-            }
-        """,
-        contains_star="""
-            /// For each task ending in '*', appends "<task>.1" and "<task>.2".
-            pub fn expand(tasks: &mut Vec<String>) {
-                let extra: Vec<String> = tasks
-                    .iter()
-                    .filter(|t| t.contains('*'))
-                    .flat_map(|t| [format!("{t}.1"), format!("{t}.2")])
-                    .collect();
-                tasks.extend(extra);
-            }
-        """,
-    ),
-)
-
-MORE["collect-then-mutate"] = dict(
-    visible=[
-        T("single", "[7]", "{ let mut v = [7]; bump_below_average(&mut v); v }", "[7]"),
-        T("uses_the_original_average", "[0, 0, 30]", "{ let mut v = [0, 0, 30]; bump_below_average(&mut v); v }", "[10, 10, 30]"),
-        T("empty", "[]", "{ let mut v: [u32; 0] = []; bump_below_average(&mut v); v }", "[]"),
-    ],
-    hidden=[
-        T("floor_average", "[1, 2, 4]", "{ let mut v = [1, 2, 4]; bump_below_average(&mut v); v }", "[11, 2, 4]"),
-        T("strictly_below", "[0, 10]", "{ let mut v = [0, 10]; bump_below_average(&mut v); v }", "[10, 10]"),
-        T("no_overflow", "[u32::MAX, u32::MAX, 0]", "{ let mut v = [u32::MAX, u32::MAX, 0]; bump_below_average(&mut v); v }", "[u32::MAX, u32::MAX, 10]"),
-        T("zeros", "[0, 0, 1]", "{ let mut v = [0, 0, 1]; bump_below_average(&mut v); v }", "[0, 0, 1]"),
-        T("duplicates", "[3, 3, 9]", "{ let mut v = [3, 3, 9]; bump_below_average(&mut v); v }", "[13, 13, 9]"),
-        T("bump_passes_average", "[10, 20, 30, 40]", "{ let mut v = [10, 20, 30, 40]; bump_below_average(&mut v); v }", "[20, 30, 30, 40]"),
-        T("all_zero", "[0, 0]", "{ let mut v = [0, 0]; bump_below_average(&mut v); v }", "[0, 0]"),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2019);
-            for _ in 0..300 {
-                let n = rng.below(8);
-                let v: Vec<u32> = rng.vec(n, 0, 50);
-                let mut want = v.clone();
-                if n > 0 {
-                    let avg = v.iter().map(|&s| s as u64).sum::<u64>() / n as u64;
-                    for s in want.iter_mut() {
-                        if (*s as u64) < avg {
-                            *s += 10;
-                        }
-                    }
-                }
-                let mut got = v.clone();
-                bump_below_average(&mut got);
-                check!(format!("scores = {v:?}"), got, want);
-            }
-        }
-
-        #[test]
-        fn scale_200k() {
-            let mut v: Vec<u32> = (0..200_000).map(|i| i % 100).collect();
-            bump_below_average(&mut v);
-            check!("scores = [0, 1, …, 99] × 2000 (average 49)", (v.iter().map(|&x| x as u64).sum::<u64>(), v[0], v[48], v[49]), (10_880_000, 10, 58, 49));
-        }
-        """,
-    ],
-    wrong=dict(
-        average_in_the_loop="""
-            pub fn bump_below_average(scores: &mut [u32]) {
-                for i in 0..scores.len() {
-                    let avg = scores.iter().map(|&s| s as u64).sum::<u64>() / scores.len() as u64;
-                    if (scores[i] as u64) < avg {
-                        scores[i] += 10;
-                    }
-                }
-            }
-        """,
-        u32_sum="""
-            pub fn bump_below_average(scores: &mut [u32]) {
-                if scores.is_empty() {
-                    return;
-                }
-                let avg = scores.iter().sum::<u32>() / scores.len() as u32;
-                for s in scores.iter_mut().filter(|s| **s < avg) {
-                    *s += 10;
-                }
-            }
-        """,
-    ),
-)
-
-JOB = """
-    #[derive(Debug, PartialEq)]
-    pub struct Job {
-        pub name: &'static str,
-        pub deadline: u64,
-    }
-
-    pub fn take_expired(jobs: &mut Vec<Job>, now: u64) -> Vec<Job> {
-        BODY
-    }
-"""
-MORE["extract-if"] = dict(
-    visible=[
-        T("at_deadline_kept", "deadline 10; now 10", '{ let mut v = vec![Job { name: "a", deadline: 10 }]; let gone = take_expired(&mut v, 10); (gone.len(), v.len()) }', "(0, 1)"),
-        T("order_both", "deadlines 1, 9, 2, 8, 3; now 5", '{ let mut v = vec![Job { name: "a", deadline: 1 }, Job { name: "b", deadline: 9 }, Job { name: "c", deadline: 2 }, Job { name: "d", deadline: 8 }, Job { name: "e", deadline: 3 }]; let gone = take_expired(&mut v, 5); (gone.iter().map(|j| j.name).collect::<Vec<_>>(), v.iter().map(|j| j.name).collect::<Vec<_>>()) }', '(vec!["a", "c", "e"], vec!["b", "d"])'),
-        T("empty", "no jobs", "{ let mut v: Vec<Job> = vec![]; let gone = take_expired(&mut v, 5); (gone.len(), v.len()) }", "(0, 0)"),
-    ],
-    hidden=[
-        T("now_zero", "deadline 0; now 0", '{ let mut v = vec![Job { name: "a", deadline: 0 }]; (take_expired(&mut v, 0).len(), v.len()) }', "(0, 1)"),
-        T("u64_max", "deadline u64::MAX - 1; now u64::MAX", '{ let mut v = vec![Job { name: "a", deadline: u64::MAX - 1 }, Job { name: "b", deadline: u64::MAX }]; let gone = take_expired(&mut v, u64::MAX); (gone.len(), v[0].name) }', '(1, "b")'),
-        T("same_deadlines", "deadlines 5, 5; now 6", '{ let mut v = vec![Job { name: "a", deadline: 5 }, Job { name: "b", deadline: 5 }]; let gone = take_expired(&mut v, 6); (gone.len(), v.len()) }', "(2, 0)"),
-        T("returns_the_jobs", "deadlines 1, 20; now 10", '{ let mut v = vec![Job { name: "a", deadline: 1 }, Job { name: "b", deadline: 20 }]; take_expired(&mut v, 10) }', 'vec![Job { name: "a", deadline: 1 }]'),
-        T("many", "1000 jobs with deadlines 0..1000; now 500", '{ let mut v: Vec<Job> = (0..1000).map(|d| Job { name: "j", deadline: d }).collect(); let gone = take_expired(&mut v, 500); (gone.len(), v.len(), gone[499].deadline, v[0].deadline) }', "(500, 500, 499, 500)"),
-        T("called_twice", "deadlines 3, 7; now 5 then 8", '{ let mut v = vec![Job { name: "a", deadline: 3 }, Job { name: "b", deadline: 7 }]; let x = take_expired(&mut v, 5).len(); let y = take_expired(&mut v, 8).len(); (x, y, v.len()) }', "(1, 1, 0)"),
-        """
-        #[test]
-        fn random_vs_model() {
-            const NAMES: [&str; 5] = ["a", "b", "c", "d", "e"];
-            let mut rng = anneal_prelude::Rng::new(2020);
-            for _ in 0..300 {
-                let n = rng.below(8);
-                let specs: Vec<(&'static str, u64)> = (0..n).map(|_| { let name = *rng.pick(&NAMES); (name, rng.below(10) as u64) }).collect();
-                let now = rng.below(11) as u64;
-                let make = |keep: bool| -> Vec<Job> { specs.iter().filter(|s| (s.1 < now) != keep).map(|&(name, deadline)| Job { name, deadline }).collect() };
-                let mut jobs: Vec<Job> = specs.iter().map(|&(name, deadline)| Job { name, deadline }).collect();
-                let gone = take_expired(&mut jobs, now);
-                check!(format!("jobs = {specs:?}, now = {now}"), (gone, jobs), (make(false), make(true)));
-            }
-        }
-
-        #[test]
-        fn scale_300k_expired_first() {
-            let mut v: Vec<Job> = (0..300_000u64).map(|i| Job { name: "j", deadline: if i < 150_000 { i } else { 1_000_000 + i } }).collect();
-            let gone = take_expired(&mut v, 150_000);
-            check!("150000 expired jobs then 150000 live ones", (gone.len(), v.len(), gone[149_999].deadline, v[0].deadline), (150_000, 150_000, 149_999, 1_150_000));
-        }
-        """,
-    ],
-    wrong=dict(
-        remove_in_a_loop=JOB.replace("BODY", """let mut gone = Vec::new();
-        let mut i = 0;
-        while i < jobs.len() {
-            if jobs[i].deadline < now {
-                gone.push(jobs.remove(i));
-            } else {
-                i += 1;
-            }
-        }
-        gone"""),
-        at_deadline_counts=JOB.replace("BODY", "jobs.extract_if(.., |j| j.deadline <= now).collect()"),
-        swap_remove=JOB.replace("BODY", """let mut gone = Vec::new();
-        let mut i = 0;
-        while i < jobs.len() {
-            if jobs[i].deadline < now {
-                gone.push(jobs.swap_remove(i));
-            } else {
-                i += 1;
-            }
-        }
-        gone"""),
-    ),
-)
-
-MAP_WRONG = """
-    use std::collections::HashMap;
-
-    /// Removes every entry whose count is zero.
-    pub fn drop_zero(counts: &mut HashMap<String, u32>) {
-        BODY
-    }
-"""
-MORE["fix-map-mutation-during-iteration"] = dict(
-    visible=[
-        T("none_zero", "{a: 1, b: 2}", '{ let mut m = std::collections::HashMap::from([("a".to_string(), 1), ("b".to_string(), 2)]); drop_zero(&mut m); m }', f'{HM}::from([("a".to_string(), 1), ("b".to_string(), 2)])'),
-        T("all_zero", "{a: 0, b: 0}", '{ let mut m = std::collections::HashMap::from([("a".to_string(), 0), ("b".to_string(), 0)]); drop_zero(&mut m); m.len() }', "0"),
-        T("values_untouched", "{a: 5, b: 0, c: 7}", '{ let mut m = std::collections::HashMap::from([("a".to_string(), 5), ("b".to_string(), 0), ("c".to_string(), 7)]); drop_zero(&mut m); m }', f'{HM}::from([("a".to_string(), 5), ("c".to_string(), 7)])'),
-    ],
-    hidden=[
-        T("single_zero", "{a: 0}", '{ let mut m = std::collections::HashMap::from([("a".to_string(), 0)]); drop_zero(&mut m); m.len() }', "0"),
-        T("u32_max_kept", "{a: u32::MAX}", '{ let mut m = std::collections::HashMap::from([("a".to_string(), u32::MAX)]); drop_zero(&mut m); m }', f'{HM}::from([("a".to_string(), u32::MAX)])'),
-        T("unicode_keys", "{ä: 0, ö: 1}", '{ let mut m = std::collections::HashMap::from([("ä".to_string(), 0), ("ö".to_string(), 1)]); drop_zero(&mut m); m }', f'{HM}::from([("ö".to_string(), 1)])'),
-        T("empty_key", "{\"\": 0, x: 3}", '{ let mut m = std::collections::HashMap::from([(String::new(), 0), ("x".to_string(), 3)]); drop_zero(&mut m); m }', f'{HM}::from([("x".to_string(), 3)])'),
-        T("many", "10000 keys, every third zero", "{ let mut m: std::collections::HashMap<String, u32> = (0..10_000u32).map(|i| (i.to_string(), i % 3)).collect(); drop_zero(&mut m); m.len() }", "6666"),
-        T("ones_kept", "{a: 1, b: 0}", '{ let mut m = std::collections::HashMap::from([("a".to_string(), 1), ("b".to_string(), 0)]); drop_zero(&mut m); m.contains_key("a") && !m.contains_key("b") }', "true"),
-        T("called_twice", "{a: 0, b: 1}, twice", '{ let mut m = std::collections::HashMap::from([("a".to_string(), 0), ("b".to_string(), 1)]); drop_zero(&mut m); drop_zero(&mut m); m.len() }', "1"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2021);
-            for _ in 0..300 {
-                let n = rng.below(8);
-                let entries: Vec<(String, u32)> = (0..n).map(|_| { let k = rng.string(1, "abcde"); (k, rng.below(3) as u32) }).collect();
-                let mut m: std::collections::HashMap<String, u32> = entries.iter().cloned().collect();
-                let mut want: Vec<(String, u32)> = m.iter().filter(|(_, &v)| v != 0).map(|(k, &v)| (k.clone(), v)).collect();
-                want.sort();
-                drop_zero(&mut m);
-                let mut got: Vec<(String, u32)> = m.into_iter().collect();
-                got.sort();
-                check!(format!("entries = {entries:?}"), got, want);
-            }
-        }
-
-        #[test]
-        fn scale_200k() {
-            let mut m: std::collections::HashMap<String, u32> = (0..200_000u32).map(|i| (format!("k{i}"), i % 2)).collect();
-            drop_zero(&mut m);
-            check!("200000 keys, every other one zero", (m.len(), m.values().all(|&v| v == 1)), (100_000, true));
-        }
-        """,
-    ],
-    wrong=dict(
-        find_then_remove=MAP_WRONG.replace("BODY", """while let Some(k) = counts.iter().find(|(_, v)| **v == 0).map(|(k, _)| k.to_string()) {
-            counts.remove(&k);
-        }"""),
-        drops_first_only=MAP_WRONG.replace("BODY", """let zero = counts.iter().find(|(_, v)| **v == 0).map(|(k, _)| k.to_string());
-        if let Some(k) = zero {
-            counts.remove(&k);
-        }"""),
-    ),
-)
 
 EDITOR_WRONG = """
     pub struct Editor {

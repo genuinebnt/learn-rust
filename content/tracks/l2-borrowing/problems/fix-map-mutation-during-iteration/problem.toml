@@ -5,21 +5,31 @@ level = "medium"
 stage = "iterator-invalidation"
 order = 23
 status = "ready"
-tags = ["E0502", "HashMap::retain"]
+tags = ["E0502", "HashMap::extract_if", "get_mut", "order independence"]
 teaches = [
-  "`HashMap::retain` filters in place.",
+  "A map can't be mutated while it's iterated; take the matching entries out first.",
+  "`HashMap::extract_if` removes and yields entries by value.",
+  "Results must not depend on hash iteration order.",
 ]
-follow_up = "How would you remove the entries and also collect their keys?"
+follow_up = "How would you pass the credit all the way up to the nearest surviving ancestor instead?"
 related = ["L2", "S4"]
 
 [[hints]]
 kind = "rust"
-text = "Maps have the same in-place filter as Vec."
+text = "Removing from a hash map can move other entries, so no iterator over it survives a `remove`, and `get_mut` inside the loop is a second borrow of the map. Split the work: first take the expired sessions out, then credit the parents."
+
+[[hints]]
+kind = "rust"
+text = "`HashMap::extract_if(|k, v| ..)` removes the entries the closure accepts and yields them by value. After it's done, every parent still in the map is one that survives, which is what the crediting rule needs."
+
+[[hints]]
+kind = "rust"
+text = "Crediting while removing one session at a time depends on the order: a parent that expires later in the loop would pass its children's credit up. Remove all first, then credit."
 
 [solution]
-explanation = "Removing from a hash table can move other entries, so an iterator over it can't survive a removal."
-time = "O(n)"
-space = "O(1)"
+explanation = "Two things go wrong in the original. The borrow checker rejects `remove` and `get_mut` while `iter()` holds the map. And even a version that compiles (collect the ids, then remove one at a time, crediting as it goes) gives order-dependent answers, because whether a parent is \"still there\" depends on which expired session was handled first, and `HashMap` iteration order is arbitrary. Two phases fix both: `extract_if` moves every expired session out (no clones, one pass), and then each credit goes to a parent that is known to survive. Credit can't flow up a chain, because an expired parent is already gone.\n\nSyntax to remember: `let gone: Vec<(u32, Session)> = map.extract_if(|_, s| s.expires <= now).collect();` · `s.parent.and_then(|p| map.get_mut(&p))` · `HashMap::retain(|_, v| ..)` when there's nothing to hand back."
+time = "O(n + k log k)"
+space = "O(k) for the removed sessions"
 
 [rules]
-forbid_methods = ["clone"]
+forbid_methods = ["clone", "cloned"]

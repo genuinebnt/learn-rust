@@ -5,21 +5,31 @@ level = "medium"
 stage = "iterator-invalidation"
 order = 20
 status = "ready"
-tags = ["E0502"]
+tags = ["E0502", "worklists", "index loops"]
 teaches = [
-  "Collect, then mutate.",
+  "An iterator borrows its collection; an index doesn't.",
+  "`while i < v.len()` sees growth; `for i in 0..v.len()` doesn't.",
+  "Know which collection each borrow comes from.",
 ]
-follow_up = "What's the equivalent bug in Python, and why doesn't it crash there?"
+follow_up = "Why can't a `HashSet<&str>` of the names already in `tasks` stay alive while you push?"
 related = ["L2"]
 
 [[hints]]
-kind = "approach"
-text = "Work out what to add while reading, then add it after the loop."
+kind = "rust"
+text = "`for t in tasks.iter()` borrows `tasks` for the whole loop, so `tasks.push` can't happen inside it. An index doesn't borrow anything between uses."
+
+[[hints]]
+kind = "rust"
+text = "`for i in 0..tasks.len()` evaluates `len()` once, so tasks added during the loop are never visited. The loop condition has to read the length on every turn."
+
+[[hints]]
+kind = "rust"
+text = "`rules.get(&tasks[i])` borrows `tasks` only for the lookup; the `subs` it returns borrow `rules`, so pushing to `tasks` inside is fine."
 
 [solution]
-explanation = "Collecting first means the new tasks aren't themselves expanded, and the Vec is only mutated once nothing borrows it."
-time = "O(n)"
-space = "O(k)"
+explanation = "An iterator over a `Vec` holds a borrow of it, because a push may reallocate and leave the iterator pointing at freed memory. When growing the list while walking it is the algorithm (a worklist, breadth-first), walk by index: `while i < tasks.len()` re-reads the length each turn, so appended tasks are visited, and each access `&tasks[i]` is a short borrow that ends before the push. Check where each borrow comes from: `subs` borrows `rules`, not `tasks`, which is what lets the push happen inside the inner loop.\n\nThe tempting `for i in 0..tasks.len()` compiles and is wrong: the range is computed once. `tasks.contains` is O(n) per check; for large lists a `HashSet` of indices or owned names would keep the whole thing linear, since a `HashSet<&str>` into `tasks` couldn't coexist with the pushes."
+time = "O(n · k · n) with contains"
+space = "O(1) extra"
 
 [rules]
-forbid_methods = ["clone"]
+forbid_methods = ["clone", "collect", "to_vec", "extend", "drain", "iter"]

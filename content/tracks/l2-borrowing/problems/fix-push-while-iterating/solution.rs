@@ -1,9 +1,19 @@
-/// For each task ending in '*', appends "<task>.1" and "<task>.2".
-pub fn expand(tasks: &mut Vec<String>) {
-    let extra: Vec<String> = tasks
-        .iter()
-        .filter(|t| t.ends_with('*'))
-        .flat_map(|t| [format!("{t}.1"), format!("{t}.2")])
-        .collect();
-    tasks.extend(extra);
+use std::collections::HashMap;
+
+/// Expands `tasks` in place: for every task in the list, including ones added by this call, each of its
+/// subtasks in `rules` that isn't in the list yet is appended. Returns how many tasks were added.
+pub fn expand(tasks: &mut Vec<String>, rules: &HashMap<String, Vec<String>>) -> usize {
+    let before = tasks.len();
+    let mut i = 0;
+    while i < tasks.len() {
+        if let Some(subs) = rules.get(&tasks[i]) {
+            for s in subs {
+                if !tasks.contains(s) {
+                    tasks.push(s.to_string());
+                }
+            }
+        }
+        i += 1;
+    }
+    tasks.len() - before
 }

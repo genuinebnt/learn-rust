@@ -1,22 +1,32 @@
 slug = "extract-if"
-title = "Partition with extract_if"
+title = "Move jobs out: extract_if, drain, rotate"
 mode = "write"
 level = "medium"
 stage = "iterator-invalidation"
 order = 22
 status = "ready"
-tags = ["extract_if"]
+tags = ["extract_if", "drain", "rotate_left", "lazy iterators"]
 teaches = [
-  "`extract_if` moves matching elements out while iterating.",
+  "`extract_if` moves matching elements out, lazily.",
+  "`drain(range)` removes a range; clamp it.",
+  "`rotate_left` on a sub-slice moves one element to the back.",
 ]
-follow_up = "What happens to the Vec if you drop the `ExtractIf` iterator halfway?"
-related = ["L2"]
+follow_up = "Before `extract_if` was stable, how would you have taken the first `limit` expired jobs in one pass?"
+related = ["L2", "S3"]
 
 [[hints]]
 kind = "rust"
-text = "`Vec::extract_if(range, pred)` removes matching elements and yields them, by value, in order."
+text = "`Vec::extract_if(range, pred)` removes the matching elements it visits and yields them by value, in order, shifting the rest once. It's lazy: stop it early (with `take`) and the elements it didn't reach, matching or not, stay in the `Vec`."
+
+[[hints]]
+kind = "rust"
+text = "`drain(..n)` removes a range and yields it; it panics if `n` is past the end."
+
+[[hints]]
+kind = "rust"
+text = "Moving one element to the back of a sub-slice is `v[i..].rotate_left(1)`: one shift, no remove and push."
 
 [solution]
-explanation = "One pass, both halves keep their order, and removed jobs are moved out, not cloned."
-time = "O(n)"
-space = "O(k)"
+explanation = "Each method moves `Job`s out of the `Vec` instead of cloning them, and shifts the survivors once. `extract_if` is the removing counterpart of `retain`, and its laziness is part of the contract: `extract_if(.., pred).take(limit)` stops after `limit` matches, and the unvisited tail (including more expired jobs) is kept in place when the iterator is dropped. Collecting everything and truncating would lose the extra jobs. `drain(..n)` needs `n` clamped to the length. `rotate_left(1)` on the tail moves one element to the back in a single pass.\n\nSyntax to remember: `self.jobs.extract_if(.., |j| j.deadline < now).take(limit).collect()` · `self.jobs.drain(..n.min(self.jobs.len())).collect()` · `self.jobs[i..].rotate_left(1)`."
+time = "O(n) per call"
+space = "O(k) for the returned jobs"

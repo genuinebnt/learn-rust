@@ -1,69 +1,135 @@
 use solution::*;
 
-#[test]
-fn all_equal() {
-    check!(r#"[5, 5]"#, { let mut v = [5, 5]; bump_below_average(&mut v); v }, [5, 5]);
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
+
+struct CountingAlloc;
+
+thread_local! {
+    static ALLOCS: Cell<usize> = const { Cell::new(0) };
+}
+
+unsafe impl GlobalAlloc for CountingAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let _ = ALLOCS.try_with(|n| n.set(n.get() + 1));
+        unsafe { System.alloc(layout) }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let _ = ALLOCS.try_with(|n| n.set(n.get() + 1));
+        unsafe { System.realloc(ptr, layout, new_size) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+#[global_allocator]
+static GLOBAL: CountingAlloc = CountingAlloc;
+
+/// Runs `f` and returns its result with the number of allocations (and reallocations) it made.
+fn allocs<R>(f: impl FnOnce() -> R) -> (R, usize) {
+    let before = ALLOCS.with(|n| n.get());
+    let r = f();
+    (r, ALLOCS.with(|n| n.get()) - before)
 }
 
 #[test]
-fn floor_average() {
-    check!(r#"[1, 2, 4]"#, { let mut v = [1, 2, 4]; bump_below_average(&mut v); v }, [11, 2, 4]);
+fn empty() {
+    check!(r#"4x3, alive [], 2 steps"#, { let mut l = Life::new(4, 3, &[]); for _ in 0..2 { l.step(); } l.alive() }, vec![]);
 }
 
 #[test]
-fn strictly_below() {
-    check!(r#"[0, 10]"#, { let mut v = [0, 10]; bump_below_average(&mut v); v }, [10, 10]);
+fn one_by_one() {
+    check!(r#"1x1, alive [(0, 0)], 1 steps"#, { let mut l = Life::new(1, 1, &[(0, 0)]); for _ in 0..1 { l.step(); } l.alive() }, vec![]);
 }
 
 #[test]
-fn no_overflow() {
-    check!(r#"[u32::MAX, u32::MAX, 0]"#, { let mut v = [u32::MAX, u32::MAX, 0]; bump_below_average(&mut v); v }, [u32::MAX, u32::MAX, 10]);
+fn corner_birth() {
+    check!(r#"2x2, alive [(0, 0), (1, 0), (0, 1)], 1 steps"#, { let mut l = Life::new(2, 2, &[(0, 0), (1, 0), (0, 1)]); for _ in 0..1 { l.step(); } l.alive() }, vec![(0, 0), (1, 0), (0, 1), (1, 1)]);
 }
 
 #[test]
-fn zeros() {
-    check!(r#"[0, 0, 1]"#, { let mut v = [0, 0, 1]; bump_below_average(&mut v); v }, [0, 0, 1]);
+fn full_3x3() {
+    check!(r#"3x3, alive [(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1), (0, 2), (1, 2), (2, 2)], 1 steps"#, { let mut l = Life::new(3, 3, &[(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1), (0, 2), (1, 2), (2, 2)]); for _ in 0..1 { l.step(); } l.alive() }, vec![(0, 0), (2, 0), (0, 2), (2, 2)]);
 }
 
 #[test]
-fn duplicates() {
-    check!(r#"[3, 3, 9]"#, { let mut v = [3, 3, 9]; bump_below_average(&mut v); v }, [13, 13, 9]);
+fn glider_hits_wall() {
+    check!(r#"5x5, alive [(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)], 12 steps"#, { let mut l = Life::new(5, 5, &[(1, 0), (2, 1), (0, 2), (1, 2), (2, 2)]); for _ in 0..12 { l.step(); } l.alive() }, vec![(3, 3), (4, 3), (3, 4), (4, 4)]);
 }
 
 #[test]
-fn bump_passes_average() {
-    check!(r#"[10, 20, 30, 40]"#, { let mut v = [10, 20, 30, 40]; bump_below_average(&mut v); v }, [20, 30, 30, 40]);
+fn toad() {
+    check!(r#"6x6, alive [(2, 2), (3, 2), (4, 2), (1, 3), (2, 3), (3, 3)], 1 steps"#, { let mut l = Life::new(6, 6, &[(2, 2), (3, 2), (4, 2), (1, 3), (2, 3), (3, 3)]); for _ in 0..1 { l.step(); } l.alive() }, vec![(3, 1), (1, 2), (4, 2), (1, 3), (4, 3), (2, 4)]);
 }
 
 #[test]
-fn all_zero() {
-    check!(r#"[0, 0]"#, { let mut v = [0, 0]; bump_below_average(&mut v); v }, [0, 0]);
+fn wide_row() {
+    check!(r#"7x2, alive [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0)], 2 steps"#, { let mut l = Life::new(7, 2, &[(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0)]); for _ in 0..2 { l.step(); } l.alive() }, vec![(1, 0), (5, 0), (1, 1), (5, 1)]);
+}
+
+#[test]
+fn tall() {
+    check!(r#"1x5, alive [(0, 1), (0, 2), (0, 3)], 1 steps"#, { let mut l = Life::new(1, 5, &[(0, 1), (0, 2), (0, 3)]); for _ in 0..1 { l.step(); } l.alive() }, vec![(0, 2)]);
+}
+
+fn model(w: usize, h: usize, cells: &[bool]) -> Vec<bool> {
+    let mut out = vec![false; w * h];
+    for y in 0..h {
+        for x in 0..w {
+            let mut n = 0;
+            for dy in -1i64..=1 {
+                for dx in -1i64..=1 {
+                    let (nx, ny) = (x as i64 + dx, y as i64 + dy);
+                    if (dx, dy) != (0, 0) && nx >= 0 && ny >= 0 && (nx as usize) < w && (ny as usize) < h && cells[ny as usize * w + nx as usize] {
+                        n += 1;
+                    }
+                }
+            }
+            out[y * w + x] = n == 3 || (cells[y * w + x] && n == 2);
+        }
+    }
+    out
 }
 
 #[test]
 fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(2019);
-    for _ in 0..300 {
-        let n = rng.below(8);
-        let v: Vec<u32> = rng.vec(n, 0, 50);
-        let mut want = v.clone();
-        if n > 0 {
-            let avg = v.iter().map(|&s| s as u64).sum::<u64>() / n as u64;
-            for s in want.iter_mut() {
-                if (*s as u64) < avg {
-                    *s += 10;
-                }
-            }
+    let mut rng = anneal_prelude::Rng::new(6221);
+    for _ in 0..200 {
+        let (w, h) = (1 + rng.below(6), 1 + rng.below(6));
+        let alive: Vec<(usize, usize)> = (0..w * h).filter(|_| rng.below(3) == 0).map(|i| (i % w, i / w)).collect();
+        let mut cells = vec![false; w * h];
+        for &(x, y) in &alive {
+            cells[y * w + x] = true;
         }
-        let mut got = v.clone();
-        bump_below_average(&mut got);
-        check!(format!("scores = {v:?}"), got, want);
+        let mut l = Life::new(w, h, &alive);
+        for s in 1..=3 {
+            cells = model(w, h, &cells);
+            l.step();
+            let want: Vec<(usize, usize)> = (0..w * h).filter(|&i| cells[i]).map(|i| (i % w, i / w)).collect();
+            check!(format!("{w}x{h}, alive {alive:?}, {s} steps"), l.alive(), want);
+        }
     }
 }
 
 #[test]
-fn scale_200k() {
-    let mut v: Vec<u32> = (0..200_000).map(|i| i % 100).collect();
-    bump_below_average(&mut v);
-    check!("scores = [0, 1, …, 99] × 2000 (average 49)", (v.iter().map(|&x| x as u64).sum::<u64>(), v[0], v[48], v[49]), (10_880_000, 10, 58, 49));
+fn step_does_not_allocate() {
+    let alive: Vec<(usize, usize)> = (0..300).flat_map(|y| (0..300).filter(move |x| (x * 7 + y * 13) % 5 < 2).map(move |x| (x, y))).collect();
+    let mut l = Life::new(300, 300, &alive);
+    let (_, n) = allocs(|| {
+        for _ in 0..4 {
+            l.step();
+        }
+    });
+    check!("300x300 grid, 4 steps: allocations", n, 0);
+    let mut cells = vec![false; 300 * 300];
+    for &(x, y) in &alive {
+        cells[y * 300 + x] = true;
+    }
+    for _ in 0..4 {
+        cells = model(300, 300, &cells);
+    }
+    check!("300x300 grid, 4 steps: live cells", l.alive().len(), cells.iter().filter(|&&c| c).count());
 }

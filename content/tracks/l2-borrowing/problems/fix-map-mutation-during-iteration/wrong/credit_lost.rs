@@ -15,7 +15,7 @@ pub fn expire(sessions: &mut HashMap<u32, Session>, now: u64) -> Vec<u32> {
     let mut removed = Vec::with_capacity(gone.len());
     for (id, s) in gone {
         if let Some(parent) = s.parent.and_then(|p| sessions.get_mut(&p)) {
-            parent.bytes += s.bytes;
+            parent.bytes = parent.bytes.max(s.bytes);
         }
         removed.push(id);
     }

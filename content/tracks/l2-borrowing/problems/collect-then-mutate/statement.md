@@ -1,1 +1,3 @@
-Add 10 to every score below the average (integer average, rounded down).
+Write `Life::step`. Every cell's next state depends on its neighbours' *old* states, so updating the grid
+in place is wrong, and `step` must not allocate either: a hidden test counts allocations. `Life` already
+has a second buffer, `next`.

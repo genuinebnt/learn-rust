@@ -1,1 +1,3 @@
-Remove every job whose deadline is before `now` from `jobs` and return them, both in their original order.
+Write three ways of taking jobs out of a queue without cloning any: the first few expired jobs, the next
+batch from the front, and deferring one job to the back. The hidden tests use long queues, so each call
+must shift the rest of the queue at most once.

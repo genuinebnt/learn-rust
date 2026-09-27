@@ -1,26 +1,49 @@
 use solution::*;
 
-#[test]
-fn splits() {
-    check!(r#"deadlines 5, 20, 7; now 10"#, { let mut v = vec![Job { name: "a", deadline: 5 }, Job { name: "b", deadline: 20 }, Job { name: "c", deadline: 7 }]; let gone = take_expired(&mut v, 10); (gone.iter().map(|j| j.name).collect::<Vec<_>>(), v.iter().map(|j| j.name).collect::<Vec<_>>()) }, (vec!["a", "c"], vec!["b"]));
+fn queue(xs: &[(&str, u64)]) -> Queue {
+    Queue { jobs: xs.iter().map(|&(n, d)| Job { name: n.to_string(), deadline: d }).collect() }
+}
+
+fn sv(xs: &[&str]) -> Vec<String> {
+    xs.iter().map(|s| s.to_string()).collect()
+}
+
+fn names(jobs: &[Job]) -> Vec<String> {
+    jobs.iter().map(|j| j.name.to_string()).collect()
 }
 
 #[test]
-fn all_expired() {
-    check!(r#"deadlines 1, 2; now 10"#, { let mut v = vec![Job { name: "a", deadline: 1 }, Job { name: "b", deadline: 2 }]; let gone = take_expired(&mut v, 10); (gone.len(), v.len()) }, (2, 0));
+fn take_expired() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; take_expired(now 10, limit 5)"#, (names(&q.take_expired(10, 5)), names(&q.jobs)), (sv(&["a", "c", "d"]), sv(&["b", "e"])));
 }
 
 #[test]
-fn at_deadline_kept() {
-    check!(r#"deadline 10; now 10"#, { let mut v = vec![Job { name: "a", deadline: 10 }]; let gone = take_expired(&mut v, 10); (gone.len(), v.len()) }, (0, 1));
+fn limit_leaves_the_rest() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; take_expired(now 10, limit 2)"#, (names(&q.take_expired(10, 2)), names(&q.jobs)), (sv(&["a", "c"]), sv(&["b", "d", "e"])));
 }
 
 #[test]
-fn order_both() {
-    check!(r#"deadlines 1, 9, 2, 8, 3; now 5"#, { let mut v = vec![Job { name: "a", deadline: 1 }, Job { name: "b", deadline: 9 }, Job { name: "c", deadline: 2 }, Job { name: "d", deadline: 8 }, Job { name: "e", deadline: 3 }]; let gone = take_expired(&mut v, 5); (gone.iter().map(|j| j.name).collect::<Vec<_>>(), v.iter().map(|j| j.name).collect::<Vec<_>>()) }, (vec!["a", "c", "e"], vec!["b", "d"]));
+fn next_batch() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; next_batch(2), then next_batch(9)"#, { let first = q.next_batch(2); let rest = q.next_batch(9); (names(&first), names(&rest), q.jobs.len()) }, (sv(&["a", "b"]), sv(&["c", "d", "e"]), 0));
 }
 
 #[test]
-fn empty() {
-    check!(r#"no jobs"#, { let mut v: Vec<Job> = vec![]; let gone = take_expired(&mut v, 5); (gone.len(), v.len()) }, (0, 0));
+fn defer() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; defer("b"), defer("z")"#, (q.defer("b"), q.defer("z"), names(&q.jobs)), (true, false, sv(&["a", "c", "d", "e", "b"])));
+}
+
+#[test]
+fn deadline_is_strict() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; take_expired(now 5, limit 9)"#, names(&q.take_expired(5, 9)), sv(&["d"]));
+}
+
+#[test]
+fn limit_zero() {
+    let mut q = queue(&[("a", 5), ("b", 20), ("c", 7), ("d", 3), ("e", 50)]);
+    check!(r#"jobs a 5, b 20, c 7, d 3, e 50; take_expired(now 100, limit 0)"#, (q.take_expired(100, 0).len(), q.jobs.len()), (0, 5));
 }

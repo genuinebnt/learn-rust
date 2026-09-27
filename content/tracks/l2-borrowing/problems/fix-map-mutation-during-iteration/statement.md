@@ -1,1 +1,2 @@
-`drop_zero` should remove every entry whose value is 0. It doesn't compile.
+`expire` doesn't compile: it removes entries from the map it's iterating and edits other entries on the
+way. Fix it without cloning any session. The result must not depend on the map's iteration order.

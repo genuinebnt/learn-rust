@@ -43,6 +43,6 @@ impl Life {
                 self.next[i] = matches!((self.cells[i], n), (true, 2) | (_, 3));
             }
         }
-        std::mem::swap(&mut self.cells, &mut self.next);
+        self.cells = self.next.clone();
     }
 }

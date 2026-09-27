@@ -1,0 +1,41 @@
+slug = "permutations-ii"
+title = "Permutations II"
+mode = "write"
+level = "medium"
+stage = "choices-grids"
+order = 12
+status = "ready"
+tags = ["backtracking", "duplicates"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "LinkedIn", "Bloomberg"]
+teaches = [
+  "Sort, then treat equal values as interchangeable: use them left to right only.",
+  "Skip `nums[i]` when it equals `nums[i - 1]` and `nums[i - 1]` is not in the current path.",
+]
+constraints = ["0 ≤ nums.len() ≤ 11", "-10 ≤ nums[i] ≤ 10", "the answer has at most 10⁵ permutations"]
+follow_up = "How many distinct permutations does a multiset have? Check the formula against the scale tests."
+related = ["D12"]
+
+[[examples]]
+input = "nums = [1, 1, 2]"
+output = "[[1, 1, 2], [1, 2, 1], [2, 1, 1]]"
+
+[[examples]]
+input = "nums = [1, 2, 3]"
+output = "all 6 orderings"
+
+[[hints]]
+kind = "approach"
+text = "Sort so equal values are neighbours. Then never use a copy while an equal copy to its left is still unused."
+
+[[hints]]
+kind = "rust"
+text = "The skip is `used[i] || (i > 0 && nums[i] == nums[i - 1] && !used[i - 1])`."
+
+[[hints]]
+kind = "edge case"
+text = "Collecting all n! orderings into a set is too slow: `[0; 10] + [1]` has 39,916,800 orderings but only 11 distinct ones."
+
+[solution]
+explanation = "Forcing equal values to be used left to right means each distinct ordering is built by exactly one path, so no set is needed and dead branches are cut before they grow."
+time = "O(n · answer)"
+space = "O(n) besides the output"

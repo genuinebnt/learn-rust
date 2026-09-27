@@ -14,3 +14,8 @@ band = "easy"
 slug = "first-backtracking"
 name = "First backtracking"
 band = "easy"
+
+[[stages]]
+slug = "choices-grids"
+name = "Choices & grids"
+band = "medium"

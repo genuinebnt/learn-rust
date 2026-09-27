@@ -1165,9 +1165,986 @@ P.append(dict(
     related=["S2"],
 ))
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Stage 3 · Choices & grids (medium): duplicates, reuse, partitions and grids, each with an inner `fn` taking `&mut`.
+# ---------------------------------------------------------------------------------------------------------------------
+
+P.append(dict(
+    slug="subsets-ii", title="Subsets II", level="medium", stage="choices-grids", tags=["backtracking", "duplicates", "sort"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"],
+    teaches=["Sort first so equal values sit together.",
+             "At one depth, only the first of a run of equal values may start a branch: that removes duplicates without a set."],
+    statement="""
+        `nums` may contain repeated values. Return every distinct subset of `nums`: two subsets that hold the same
+        values the same number of times count once.
+
+        The subsets can come in any order, and so can the values inside each subset.
+    """,
+    examples=[("nums = [1, 2, 2]", "[[], [1], [1, 2], [1, 2, 2], [2], [2, 2]]"), ("nums = [0]", "[[], [0]]")],
+    constraints=["0 ≤ nums.len() ≤ 26", "-10 ≤ nums[i] ≤ 10", "the answer has at most 10⁵ subsets"],
+    starter="""
+        pub fn subsets_with_dup(nums: &[i32]) -> Vec<Vec<i32>> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn subsets_with_dup(nums: &[i32]) -> Vec<Vec<i32>> {
+            fn go(nums: &[i32], start: usize, path: &mut Vec<i32>, out: &mut Vec<Vec<i32>>) {
+                out.push(path.clone());
+                for i in start..nums.len() {
+                    // Among equal values, only the first may be chosen at this depth.
+                    if i > start && nums[i] == nums[i - 1] {
+                        continue;
+                    }
+                    path.push(nums[i]);
+                    go(nums, i + 1, path, out);
+                    path.pop();
+                }
+            }
+            let mut sorted = nums.to_vec();
+            sorted.sort_unstable();
+            let mut out = Vec::new();
+            go(&sorted, 0, &mut Vec::new(), &mut out);
+            out
+        }
+    """,
+    visible=[
+        NORM,
+        T("leetcode_one_two_two", "nums = [1, 2, 2]", "norm(subsets_with_dup(&[1, 2, 2]))", "vec![vec![], vec![1], vec![1, 2], vec![1, 2, 2], vec![2], vec![2, 2]]"),
+        T("leetcode_single", "nums = [0]", "norm(subsets_with_dup(&[0]))", "vec![vec![], vec![0]]"),
+        T("empty", "nums = []", "subsets_with_dup(&[])", "vec![Vec::<i32>::new()]"),
+        T("all_equal", "nums = [2, 2, 2]", "norm(subsets_with_dup(&[2, 2, 2]))", "vec![vec![], vec![2], vec![2, 2], vec![2, 2, 2]]"),
+        T("duplicates_not_adjacent", "nums = [4, 4, 1, 4]", "norm(subsets_with_dup(&[4, 4, 1, 4]))", "vec![vec![], vec![1], vec![1, 4], vec![1, 4, 4], vec![1, 4, 4, 4], vec![4], vec![4, 4], vec![4, 4, 4]]"),
+    ],
+    hidden=[
+        NORM,
+        T("distinct_values", "nums = [1, 2, 3]", "subsets_with_dup(&[1, 2, 3]).len()", "8"),
+        T("empty", "nums = []", "subsets_with_dup(&[])", "vec![Vec::<i32>::new()]"),
+        T("negatives", "nums = [-1, 2, -1]", "norm(subsets_with_dup(&[-1, 2, -1]))", "vec![vec![], vec![-1], vec![-1, -1], vec![-1, -1, 2], vec![-1, 2], vec![2]]"),
+        T("two_equal", "nums = [5, 5]", "norm(subsets_with_dup(&[5, 5]))", "vec![vec![], vec![5], vec![5, 5]]"),
+        T("two_pairs", "nums = [3, 1, 3, 1]", "subsets_with_dup(&[3, 1, 3, 1]).len()", "9"),
+        T("pair_kept_after_skipping", "nums = [2, 1, 2]: [2, 2] is there", "norm(subsets_with_dup(&[2, 1, 2])).contains(&vec![2, 2])", "true"),
+        T("extremes", "nums = [10, -10, 10]", "norm(subsets_with_dup(&[10, -10, 10]))", "vec![vec![], vec![-10], vec![-10, 10], vec![-10, 10, 10], vec![10], vec![10, 10]]"),
+        T("ten_distinct", "nums = 0..10", "subsets_with_dup(&(0..10).collect::<Vec<i32>>()).len()", "1024"),
+        """
+        #[test]
+        fn random_vs_bitmasks_and_a_set() {
+            let mut rng = anneal_prelude::Rng::new(1121);
+            for _ in 0..300 {
+                let n = rng.below(10);
+                let nums: Vec<i32> = rng.vec(n, -2, 2);
+                let mut all = std::collections::BTreeSet::new();
+                for mask in 0..1u32 << n {
+                    let mut s: Vec<i32> = (0..n).filter(|&i| mask >> i & 1 == 1).map(|i| nums[i]).collect();
+                    s.sort();
+                    all.insert(s);
+                }
+                check!(format!("nums = {nums:?}"), norm(subsets_with_dup(&nums)), all.into_iter().collect::<Vec<_>>());
+            }
+        }
+
+        #[test]
+        fn scale_twenty_six_equal() {
+            check!("nums = [5; 26]", norm(subsets_with_dup(&vec![5; 26])), (0..=26).map(|k| vec![5; k]).collect::<Vec<_>>());
+        }
+
+        #[test]
+        fn scale_two_runs_of_thirteen() {
+            let mut nums = vec![7; 13];
+            nums.extend(vec![3; 13]);
+            let got = norm(subsets_with_dup(&nums));
+            check!("nums = [7; 13] + [3; 13]", (got.len(), got[195].clone()), (196, vec![7; 13]));
+        }
+        """,
+    ],
+    wrong=dict(
+        all_subsets_then_a_set="""
+            pub fn subsets_with_dup(nums: &[i32]) -> Vec<Vec<i32>> {
+                let mut sorted = nums.to_vec();
+                sorted.sort();
+                let mut seen = std::collections::HashSet::new();
+                for mask in 0..1u64 << sorted.len() {
+                    let s: Vec<i32> = (0..sorted.len()).filter(|&i| mask >> i & 1 == 1).map(|i| sorted[i]).collect();
+                    seen.insert(s);
+                }
+                seen.into_iter().collect()
+            }
+        """,
+        no_sort_first="""
+            pub fn subsets_with_dup(nums: &[i32]) -> Vec<Vec<i32>> {
+                fn go(nums: &[i32], start: usize, path: &mut Vec<i32>, out: &mut Vec<Vec<i32>>) {
+                    out.push(path.clone());
+                    for i in start..nums.len() {
+                        if i > start && nums[i] == nums[i - 1] {
+                            continue;
+                        }
+                        path.push(nums[i]);
+                        go(nums, i + 1, path, out);
+                        path.pop();
+                    }
+                }
+                let mut out = Vec::new();
+                go(nums, 0, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        skips_too_much="""
+            pub fn subsets_with_dup(nums: &[i32]) -> Vec<Vec<i32>> {
+                fn go(nums: &[i32], start: usize, path: &mut Vec<i32>, out: &mut Vec<Vec<i32>>) {
+                    out.push(path.clone());
+                    for i in start..nums.len() {
+                        if i > 0 && nums[i] == nums[i - 1] {
+                            continue;
+                        }
+                        path.push(nums[i]);
+                        go(nums, i + 1, path, out);
+                        path.pop();
+                    }
+                }
+                let mut sorted = nums.to_vec();
+                sorted.sort_unstable();
+                let mut out = Vec::new();
+                go(&sorted, 0, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Sort, then build subsets by choosing the next index in increasing order. At each depth, skip a value equal to the one just before it in the loop."),
+           ("rust", "The skip is `if i > start && nums[i] == nums[i - 1] { continue; }`: `i > start`, not `i > 0`."),
+           ("edge case", "Generating all 2ⁿ subsets and deduplicating with a set is far too slow for `[5; 26]`, which has only 27 answers.")],
+    notes=("After sorting, a run of equal values only matters by how many of them you take. Letting only the first of a run start "
+           "a branch at each depth builds each count once, so the work is proportional to the answer.",
+           "O(n · answer)", "O(n) besides the output"),
+    follow_up="Count the distinct subsets without listing them. What does each run of equal values contribute?",
+    related=["D12", "S4"],
+))
+
+P.append(dict(
+    slug="permutations", title="Permutations", level="medium", stage="choices-grids", tags=["backtracking", "Blind 75"],
+    companies=["Meta", "Amazon", "Google", "Apple", "Microsoft", "LinkedIn", "Bloomberg"],
+    teaches=["A `used` flag per index says which values the current path already holds.",
+             "Undo both the push and the flag on the way back up."],
+    statement="""
+        `nums` holds distinct integers. Return every ordering (permutation) of `nums`.
+
+        The permutations can come in any order; inside each one the order is, of course, what matters.
+    """,
+    examples=[("nums = [1, 2, 3]", "[[1, 2, 3], [1, 3, 2], [2, 1, 3], [2, 3, 1], [3, 1, 2], [3, 2, 1]]"), ("nums = [0, 1]", "[[0, 1], [1, 0]]")],
+    constraints=["0 ≤ nums.len() ≤ 8", "the values are distinct"],
+    starter="""
+        pub fn permute(nums: &[i32]) -> Vec<Vec<i32>> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn permute(nums: &[i32]) -> Vec<Vec<i32>> {
+            fn go(nums: &[i32], used: &mut [bool], path: &mut Vec<i32>, out: &mut Vec<Vec<i32>>) {
+                if path.len() == nums.len() {
+                    out.push(path.clone());
+                    return;
+                }
+                for i in 0..nums.len() {
+                    if used[i] {
+                        continue;
+                    }
+                    used[i] = true;
+                    path.push(nums[i]);
+                    go(nums, used, path, out);
+                    path.pop();
+                    used[i] = false;
+                }
+            }
+            let mut out = Vec::new();
+            go(nums, &mut vec![false; nums.len()], &mut Vec::with_capacity(nums.len()), &mut out);
+            out
+        }
+    """,
+    visible=[
+        SORTED,
+        T("leetcode_three", "nums = [1, 2, 3]", "sorted(permute(&[1, 2, 3]))", "vec![vec![1, 2, 3], vec![1, 3, 2], vec![2, 1, 3], vec![2, 3, 1], vec![3, 1, 2], vec![3, 2, 1]]"),
+        T("leetcode_two", "nums = [0, 1]", "sorted(permute(&[0, 1]))", "vec![vec![0, 1], vec![1, 0]]"),
+        T("leetcode_single", "nums = [1]", "permute(&[1])", "vec![vec![1]]"),
+        T("empty_has_one_ordering", "nums = []", "permute(&[])", "vec![Vec::<i32>::new()]"),
+        T("five_values_give_120", "nums = [1, 2, 3, 4, 5]", "permute(&[1, 2, 3, 4, 5]).len()", "120"),
+    ],
+    hidden=[
+        SORTED,
+        T("empty", "nums = []", "permute(&[])", "vec![Vec::<i32>::new()]"),
+        T("negatives", "nums = [-1, -2]", "sorted(permute(&[-1, -2]))", "vec![vec![-2, -1], vec![-1, -2]]"),
+        T("unsorted_input", "nums = [3, 1, 2]", "sorted(permute(&[3, 1, 2]))", "vec![vec![1, 2, 3], vec![1, 3, 2], vec![2, 1, 3], vec![2, 3, 1], vec![3, 1, 2], vec![3, 2, 1]]"),
+        T("extremes", "nums = [i32::MAX, i32::MIN]", "sorted(permute(&[i32::MAX, i32::MIN]))", "vec![vec![i32::MIN, i32::MAX], vec![i32::MAX, i32::MIN]]"),
+        T("four_distinct", "nums = [4, 3, 2, 1]", "{ let mut p = sorted(permute(&[4, 3, 2, 1])); p.dedup(); p.len() }", "24"),
+        T("each_is_a_rearrangement", "nums = [5, 6, 7, 8]", "permute(&[5, 6, 7, 8]).into_iter().all(|mut p| { p.sort(); p == vec![5, 6, 7, 8] })", "true"),
+        T("six_values", "nums = [1, 2, 3, 4, 5, 6]", "permute(&[1, 2, 3, 4, 5, 6]).len()", "720"),
+        T("zero_and_negatives", "nums = [0, -1, 1]", "sorted(permute(&[0, -1, 1]))", "vec![vec![-1, 0, 1], vec![-1, 1, 0], vec![0, -1, 1], vec![0, 1, -1], vec![1, -1, 0], vec![1, 0, -1]]"),
+        """
+        /// Every ordering of `v` in lexicographic order, by repeated next-permutation steps.
+        fn lexicographic(mut v: Vec<i32>) -> Vec<Vec<i32>> {
+            v.sort();
+            let mut out = vec![v.clone()];
+            loop {
+                let Some(i) = (1..v.len()).rev().find(|&i| v[i - 1] < v[i]) else { return out };
+                let j = (i..v.len()).rev().find(|&j| v[j] > v[i - 1]).unwrap();
+                v.swap(i - 1, j);
+                v[i..].reverse();
+                out.push(v.clone());
+            }
+        }
+
+        #[test]
+        fn random_vs_next_permutation() {
+            let mut rng = anneal_prelude::Rng::new(1122);
+            for _ in 0..200 {
+                let n = rng.below(7);
+                let mut nums: Vec<i32> = (-5..5).collect();
+                rng.shuffle(&mut nums);
+                nums.truncate(n);
+                check!(format!("nums = {nums:?}"), sorted(permute(&nums)), lexicographic(nums.clone()));
+            }
+        }
+
+        #[test]
+        fn scale_eight_values() {
+            let nums = vec![8, 1, 7, 2, 6, 3, 5, 4];
+            check!("nums = [8, 1, 7, 2, 6, 3, 5, 4]", sorted(permute(&nums)) == lexicographic(nums.clone()), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        swaps_not_undone="""
+            pub fn permute(nums: &[i32]) -> Vec<Vec<i32>> {
+                fn go(v: &mut Vec<i32>, k: usize, out: &mut Vec<Vec<i32>>) {
+                    if k == v.len() {
+                        out.push(v.clone());
+                        return;
+                    }
+                    for i in k..v.len() {
+                        v.swap(k, i);
+                        go(v, k + 1, out);
+                    }
+                }
+                let mut out = Vec::new();
+                go(&mut nums.to_vec(), 0, &mut out);
+                out
+            }
+        """,
+        no_used_check="""
+            pub fn permute(nums: &[i32]) -> Vec<Vec<i32>> {
+                fn go(nums: &[i32], path: &mut Vec<i32>, out: &mut Vec<Vec<i32>>) {
+                    if path.len() == nums.len() {
+                        out.push(path.clone());
+                        return;
+                    }
+                    for &x in nums {
+                        path.push(x);
+                        go(nums, path, out);
+                        path.pop();
+                    }
+                }
+                let mut out = Vec::new();
+                go(nums, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Build the permutation one position at a time; any value not used yet can go next."),
+           ("rust", "Pass `used: &mut [bool]` and `path: &mut Vec<i32>` to an inner `fn`; set and clear `used[i]` around the recursive call."),
+           ("edge case", "If you swap values into place instead, swap them back after the call, or later branches see a scrambled slice.")],
+    notes=("The tree has n choices at the first level, n − 1 at the next, and so on: n! leaves, each copied once into the answer.",
+           "O(n · n!)", "O(n) besides the output"),
+    follow_up="How does the in-place swap version work, and what does it save over the `used` array?",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="permutations-ii", title="Permutations II", level="medium", stage="choices-grids", tags=["backtracking", "duplicates"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "LinkedIn", "Bloomberg"],
+    teaches=["Sort, then treat equal values as interchangeable: use them left to right only.",
+             "Skip `nums[i]` when it equals `nums[i - 1]` and `nums[i - 1]` is not in the current path."],
+    statement="""
+        `nums` may contain repeated values. Return every distinct ordering of `nums`: orderings that read the same count
+        once.
+
+        The permutations can come in any order.
+    """,
+    examples=[("nums = [1, 1, 2]", "[[1, 1, 2], [1, 2, 1], [2, 1, 1]]"), ("nums = [1, 2, 3]", "all 6 orderings")],
+    constraints=["0 ≤ nums.len() ≤ 11", "-10 ≤ nums[i] ≤ 10", "the answer has at most 10⁵ permutations"],
+    starter="""
+        pub fn permute_unique(nums: &[i32]) -> Vec<Vec<i32>> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn permute_unique(nums: &[i32]) -> Vec<Vec<i32>> {
+            fn go(nums: &[i32], used: &mut [bool], path: &mut Vec<i32>, out: &mut Vec<Vec<i32>>) {
+                if path.len() == nums.len() {
+                    out.push(path.clone());
+                    return;
+                }
+                for i in 0..nums.len() {
+                    // Equal values are placed left to right: a copy can't go before the one to its left.
+                    if used[i] || (i > 0 && nums[i] == nums[i - 1] && !used[i - 1]) {
+                        continue;
+                    }
+                    used[i] = true;
+                    path.push(nums[i]);
+                    go(nums, used, path, out);
+                    path.pop();
+                    used[i] = false;
+                }
+            }
+            let mut sorted = nums.to_vec();
+            sorted.sort_unstable();
+            let mut out = Vec::new();
+            go(&sorted, &mut vec![false; sorted.len()], &mut Vec::with_capacity(sorted.len()), &mut out);
+            out
+        }
+    """,
+    visible=[
+        SORTED,
+        T("leetcode_one_one_two", "nums = [1, 1, 2]", "sorted(permute_unique(&[1, 1, 2]))", "vec![vec![1, 1, 2], vec![1, 2, 1], vec![2, 1, 1]]"),
+        T("leetcode_distinct", "nums = [1, 2, 3]", "sorted(permute_unique(&[1, 2, 3]))", "vec![vec![1, 2, 3], vec![1, 3, 2], vec![2, 1, 3], vec![2, 3, 1], vec![3, 1, 2], vec![3, 2, 1]]"),
+        T("empty", "nums = []", "permute_unique(&[])", "vec![Vec::<i32>::new()]"),
+        T("all_equal", "nums = [2, 2, 2]", "permute_unique(&[2, 2, 2])", "vec![vec![2, 2, 2]]"),
+        T("duplicates_not_adjacent", "nums = [3, 1, 3]", "sorted(permute_unique(&[3, 1, 3]))", "vec![vec![1, 3, 3], vec![3, 1, 3], vec![3, 3, 1]]"),
+    ],
+    hidden=[
+        SORTED,
+        T("single", "nums = [7]", "permute_unique(&[7])", "vec![vec![7]]"),
+        T("two_pairs", "nums = [1, 1, 2, 2]", "sorted(permute_unique(&[1, 1, 2, 2]))", "vec![vec![1, 1, 2, 2], vec![1, 2, 1, 2], vec![1, 2, 2, 1], vec![2, 1, 1, 2], vec![2, 1, 2, 1], vec![2, 2, 1, 1]]"),
+        T("two_equal", "nums = [-4, -4]", "permute_unique(&[-4, -4])", "vec![vec![-4, -4]]"),
+        T("negatives", "nums = [0, -1, 0]", "sorted(permute_unique(&[0, -1, 0]))", "vec![vec![-1, 0, 0], vec![0, -1, 0], vec![0, 0, -1]]"),
+        T("unsorted_pairs", "nums = [2, 1, 2, 1]", "permute_unique(&[2, 1, 2, 1]).len()", "6"),
+        T("three_kinds", "nums = [1, 1, 2, 2, 3]", "permute_unique(&[1, 1, 2, 2, 3]).len()", "30"),
+        T("six_distinct", "nums = [1, 2, 3, 4, 5, 6]", "permute_unique(&[1, 2, 3, 4, 5, 6]).len()", "720"),
+        T("extremes", "nums = [10, -10, 10]", "sorted(permute_unique(&[10, -10, 10]))", "vec![vec![-10, 10, 10], vec![10, -10, 10], vec![10, 10, -10]]"),
+        """
+        /// Distinct orderings of `v` in lexicographic order; next-permutation skips repeats by itself.
+        fn lexicographic(mut v: Vec<i32>) -> Vec<Vec<i32>> {
+            v.sort();
+            let mut out = vec![v.clone()];
+            loop {
+                let Some(i) = (1..v.len()).rev().find(|&i| v[i - 1] < v[i]) else { return out };
+                let j = (i..v.len()).rev().find(|&j| v[j] > v[i - 1]).unwrap();
+                v.swap(i - 1, j);
+                v[i..].reverse();
+                out.push(v.clone());
+            }
+        }
+
+        #[test]
+        fn random_vs_next_permutation() {
+            let mut rng = anneal_prelude::Rng::new(1123);
+            for _ in 0..300 {
+                let n = rng.below(8);
+                let nums: Vec<i32> = rng.vec(n, -2, 2);
+                check!(format!("nums = {nums:?}"), sorted(permute_unique(&nums)), lexicographic(nums.clone()));
+            }
+        }
+
+        #[test]
+        fn scale_ten_equal_and_one_other() {
+            let mut nums = vec![0; 10];
+            nums.push(1);
+            check!("nums = [0; 10] + [1]", permute_unique(&nums).len(), 11);
+        }
+
+        #[test]
+        fn scale_two_runs_of_five() {
+            let mut nums = vec![1, 1, 1, 1, 1, 3, 2, 2, 2, 2, 2];
+            let got = sorted(permute_unique(&nums));
+            nums.sort();
+            check!("nums = [1, 1, 1, 1, 1, 3, 2, 2, 2, 2, 2]", (got.len(), got[0].clone()), (2772, nums));
+        }
+        """,
+    ],
+    wrong=dict(
+        all_orderings_then_a_set="""
+            pub fn permute_unique(nums: &[i32]) -> Vec<Vec<i32>> {
+                fn go(v: &mut Vec<i32>, k: usize, seen: &mut std::collections::HashSet<Vec<i32>>) {
+                    if k == v.len() {
+                        seen.insert(v.clone());
+                        return;
+                    }
+                    for i in k..v.len() {
+                        v.swap(k, i);
+                        go(v, k + 1, seen);
+                        v.swap(k, i);
+                    }
+                }
+                let mut seen = std::collections::HashSet::new();
+                go(&mut nums.to_vec(), 0, &mut seen);
+                seen.into_iter().collect()
+            }
+        """,
+        no_sort_first="""
+            pub fn permute_unique(nums: &[i32]) -> Vec<Vec<i32>> {
+                fn go(nums: &[i32], used: &mut [bool], path: &mut Vec<i32>, out: &mut Vec<Vec<i32>>) {
+                    if path.len() == nums.len() {
+                        out.push(path.clone());
+                        return;
+                    }
+                    for i in 0..nums.len() {
+                        if used[i] || (i > 0 && nums[i] == nums[i - 1] && !used[i - 1]) {
+                            continue;
+                        }
+                        used[i] = true;
+                        path.push(nums[i]);
+                        go(nums, used, path, out);
+                        path.pop();
+                        used[i] = false;
+                    }
+                }
+                let mut out = Vec::new();
+                go(nums, &mut vec![false; nums.len()], &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        skips_every_copy="""
+            pub fn permute_unique(nums: &[i32]) -> Vec<Vec<i32>> {
+                fn go(nums: &[i32], used: &mut [bool], path: &mut Vec<i32>, out: &mut Vec<Vec<i32>>) {
+                    if path.len() == nums.len() {
+                        out.push(path.clone());
+                        return;
+                    }
+                    for i in 0..nums.len() {
+                        if used[i] || (i > 0 && nums[i] == nums[i - 1]) {
+                            continue;
+                        }
+                        used[i] = true;
+                        path.push(nums[i]);
+                        go(nums, used, path, out);
+                        path.pop();
+                        used[i] = false;
+                    }
+                }
+                let mut sorted = nums.to_vec();
+                sorted.sort_unstable();
+                let mut out = Vec::new();
+                go(&sorted, &mut vec![false; sorted.len()], &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Sort so equal values are neighbours. Then never use a copy while an equal copy to its left is still unused."),
+           ("rust", "The skip is `used[i] || (i > 0 && nums[i] == nums[i - 1] && !used[i - 1])`."),
+           ("edge case", "Collecting all n! orderings into a set is too slow: `[0; 10] + [1]` has 39,916,800 orderings but only 11 distinct ones.")],
+    notes=("Forcing equal values to be used left to right means each distinct ordering is built by exactly one path, "
+           "so no set is needed and dead branches are cut before they grow.", "O(n · answer)", "O(n) besides the output"),
+    follow_up="How many distinct permutations does a multiset have? Check the formula against the scale tests.",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="combination-sum", title="Combination sum", level="medium", stage="choices-grids", tags=["backtracking", "pruning", "Blind 75"],
+    companies=["Meta", "Amazon", "Google", "Apple", "Microsoft", "Airbnb", "Uber", "Bloomberg"],
+    teaches=["Recurse with the same index to allow reuse; move on to allow the next value.",
+             "Sort once, then `break` as soon as a candidate is bigger than what's left."],
+    statement="""
+        `candidates` holds distinct positive integers. Return every combination of them that adds up to `target`. A
+        candidate may be used any number of times. Two combinations are the same if they use each candidate the same
+        number of times, so `[2, 2, 3]` and `[3, 2, 2]` count once.
+
+        The combinations can come in any order, and so can the values inside each one. If none exists, return `[]`.
+    """,
+    examples=[("candidates = [2, 3, 6, 7], target = 7", "[[2, 2, 3], [7]]"), ("candidates = [2], target = 1", "[]")],
+    constraints=["1 ≤ candidates.len() ≤ 30", "1 ≤ candidates[i] ≤ 200, all distinct", "1 ≤ target ≤ 500", "the answer has at most 10⁴ combinations"],
+    starter="""
+        pub fn combination_sum(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn combination_sum(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+            fn go(c: &[u32], start: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                if left == 0 {
+                    out.push(path.clone());
+                    return;
+                }
+                for i in start..c.len() {
+                    if c[i] > left {
+                        break; // sorted: every later candidate is too big as well
+                    }
+                    path.push(c[i]);
+                    go(c, i, left - c[i], path, out); // `i`, not `i + 1`: c[i] may be used again
+                    path.pop();
+                }
+            }
+            let mut c = candidates.to_vec();
+            c.sort_unstable();
+            let mut out = Vec::new();
+            go(&c, 0, target, &mut Vec::new(), &mut out);
+            out
+        }
+    """,
+    visible=[
+        NORM,
+        T("leetcode_seven", "candidates = [2, 3, 6, 7], target = 7", "norm(combination_sum(&[2, 3, 6, 7], 7))", "vec![vec![2, 2, 3], vec![7]]"),
+        T("leetcode_eight", "candidates = [2, 3, 5], target = 8", "norm(combination_sum(&[2, 3, 5], 8))", "vec![vec![2, 2, 2, 2], vec![2, 3, 3], vec![3, 5]]"),
+        T("leetcode_none", "candidates = [2], target = 1", "combination_sum(&[2], 1)", "Vec::<Vec<u32>>::new()"),
+        T("reuse_one_value", "candidates = [3], target = 9", "combination_sum(&[3], 9)", "vec![vec![3, 3, 3]]"),
+        T("order_does_not_matter", "candidates = [1, 2], target = 4", "norm(combination_sum(&[1, 2], 4))", "vec![vec![1, 1, 1, 1], vec![1, 1, 2], vec![2, 2]]"),
+    ],
+    hidden=[
+        NORM,
+        T("unsorted_candidates", "candidates = [8, 2, 3], target = 7", "norm(combination_sum(&[8, 2, 3], 7))", "vec![vec![2, 2, 3]]"),
+        T("all_too_big", "candidates = [5, 9], target = 4", "combination_sum(&[5, 9], 4)", "Vec::<Vec<u32>>::new()"),
+        T("no_mix_reaches", "candidates = [3, 5], target = 4", "combination_sum(&[3, 5], 4)", "Vec::<Vec<u32>>::new()"),
+        T("ones", "candidates = [1], target = 5", "combination_sum(&[1], 5)", "vec![vec![1, 1, 1, 1, 1]]"),
+        T("exact_single", "candidates = [7], target = 7", "combination_sum(&[7], 7)", "vec![vec![7]]"),
+        T("target_100", "candidates = [7, 11, 13], target = 100", "norm(combination_sum(&[7, 11, 13], 100))", "vec![vec![7, 7, 7, 7, 7, 7, 7, 7, 7, 11, 13, 13], vec![7, 7, 7, 7, 7, 7, 7, 7, 11, 11, 11, 11], vec![7, 7, 7, 7, 7, 13, 13, 13, 13, 13], vec![7, 7, 7, 7, 11, 11, 11, 13, 13, 13], vec![7, 7, 7, 11, 11, 11, 11, 11, 11, 13], vec![11, 11, 13, 13, 13, 13, 13, 13]]"),
+        T("big_candidate", "candidates = [200, 100], target = 500", "norm(combination_sum(&[200, 100], 500))", "vec![vec![100, 100, 100, 100, 100], vec![100, 100, 100, 200], vec![100, 200, 200]]"),
+        T("partitions_of_thirty", "candidates = 1..=30, target = 30", "combination_sum(&(1..=30).collect::<Vec<u32>>(), 30).len()", "5604"),
+        """
+        /// Every multiset of candidates summing to each total up to `target`, built bottom-up into sets.
+        fn brute(c: &[u32], target: u32) -> Vec<Vec<u32>> {
+            let mut ways: Vec<std::collections::BTreeSet<Vec<u32>>> = vec![Default::default(); target as usize + 1];
+            ways[0].insert(Vec::new());
+            for t in 1..=target as usize {
+                for &x in c {
+                    if x as usize <= t {
+                        let before: Vec<Vec<u32>> = ways[t - x as usize].iter().cloned().collect();
+                        for mut w in before {
+                            w.push(x);
+                            w.sort();
+                            ways[t].insert(w);
+                        }
+                    }
+                }
+            }
+            ways[target as usize].iter().cloned().collect()
+        }
+
+        #[test]
+        fn random_vs_bottom_up_sets() {
+            let mut rng = anneal_prelude::Rng::new(1124);
+            for _ in 0..300 {
+                let mut pool: Vec<u32> = (1..=12).collect();
+                rng.shuffle(&mut pool);
+                let n = rng.int(1, 5) as usize;
+                pool.truncate(n);
+                let target = rng.int(1, 20) as u32;
+                check!(format!("candidates = {pool:?}, target = {target}"), norm(combination_sum(&pool, target)), brute(&pool, target));
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        orderings_counted_twice="""
+            pub fn combination_sum(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+                fn go(c: &[u32], left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                    if left == 0 {
+                        out.push(path.clone());
+                        return;
+                    }
+                    for &x in c {
+                        if x <= left {
+                            path.push(x);
+                            go(c, left - x, path, out);
+                            path.pop();
+                        }
+                    }
+                }
+                let mut out = Vec::new();
+                go(candidates, target, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        each_used_once="""
+            pub fn combination_sum(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+                fn go(c: &[u32], start: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                    if left == 0 {
+                        out.push(path.clone());
+                        return;
+                    }
+                    for i in start..c.len() {
+                        if c[i] > left {
+                            break;
+                        }
+                        path.push(c[i]);
+                        go(c, i + 1, left - c[i], path, out);
+                        path.pop();
+                    }
+                }
+                let mut c = candidates.to_vec();
+                c.sort_unstable();
+                let mut out = Vec::new();
+                go(&c, 0, target, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        breaks_without_sorting="""
+            pub fn combination_sum(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+                fn go(c: &[u32], start: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                    if left == 0 {
+                        out.push(path.clone());
+                        return;
+                    }
+                    for i in start..c.len() {
+                        if c[i] > left {
+                            break;
+                        }
+                        path.push(c[i]);
+                        go(c, i, left - c[i], path, out);
+                        path.pop();
+                    }
+                }
+                let mut out = Vec::new();
+                go(candidates, 0, target, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Walk the candidates by index. Taking `c[i]` recurses with the same `i` (it may repeat); the loop moving on to `i + 1` is the choice to stop using it."),
+           ("rust", "Pass `left: u32` down and record the path when it hits 0. Sort first so you can `break` once `c[i] > left` (that also avoids a `u32` underflow)."),
+           ("edge case", "Starting every level from index 0 builds `[2, 2, 3]`, `[2, 3, 2]` and `[3, 2, 2]`: only move forward.")],
+    notes=("Choosing candidates in non-decreasing index order makes each multiset appear once. Sorting lets one comparison cut "
+           "the rest of a level.", "O(answer · target / min) in practice; exponential in the worst case", "O(target / min) recursion depth"),
+    follow_up="If you only needed the number of combinations, what DP would replace the backtracking?",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="combination-sum-ii", title="Combination sum II", level="medium", stage="choices-grids", tags=["backtracking", "duplicates", "pruning"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "LinkedIn", "Bloomberg"],
+    teaches=["Combination sum with each element used at most once: recurse with `i + 1`.",
+             "The Subsets II skip removes duplicate combinations when `candidates` has repeats."],
+    statement="""
+        `candidates` may contain repeated values. Return every distinct combination that adds up to `target`, where
+        each element of `candidates` is used at most once. Combinations with the same values the same number of times
+        count once.
+
+        The combinations can come in any order, and so can the values inside each one.
+    """,
+    examples=[("candidates = [10, 1, 2, 7, 6, 1, 5], target = 8", "[[1, 1, 6], [1, 2, 5], [1, 7], [2, 6]]"),
+              ("candidates = [2, 5, 2, 1, 2], target = 5", "[[1, 2, 2], [5]]")],
+    constraints=["1 ≤ candidates.len() ≤ 100", "1 ≤ candidates[i] ≤ 50", "1 ≤ target ≤ 30"],
+    starter="""
+        pub fn combination_sum2(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn combination_sum2(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+            fn go(c: &[u32], start: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                if left == 0 {
+                    out.push(path.clone());
+                    return;
+                }
+                for i in start..c.len() {
+                    if c[i] > left {
+                        break;
+                    }
+                    // Equal values at the same depth would build the same combinations again.
+                    if i > start && c[i] == c[i - 1] {
+                        continue;
+                    }
+                    path.push(c[i]);
+                    go(c, i + 1, left - c[i], path, out);
+                    path.pop();
+                }
+            }
+            let mut c = candidates.to_vec();
+            c.sort_unstable();
+            let mut out = Vec::new();
+            go(&c, 0, target, &mut Vec::new(), &mut out);
+            out
+        }
+    """,
+    visible=[
+        NORM,
+        T("leetcode_target_eight", "candidates = [10, 1, 2, 7, 6, 1, 5], target = 8", "norm(combination_sum2(&[10, 1, 2, 7, 6, 1, 5], 8))", "vec![vec![1, 1, 6], vec![1, 2, 5], vec![1, 7], vec![2, 6]]"),
+        T("leetcode_target_five", "candidates = [2, 5, 2, 1, 2], target = 5", "norm(combination_sum2(&[2, 5, 2, 1, 2], 5))", "vec![vec![1, 2, 2], vec![5]]"),
+        T("none", "candidates = [3], target = 2", "combination_sum2(&[3], 2)", "Vec::<Vec<u32>>::new()"),
+        T("each_used_once", "candidates = [2], target = 4", "combination_sum2(&[2], 4)", "Vec::<Vec<u32>>::new()"),
+        T("repeats_count_once", "candidates = [3, 3, 3, 3], target = 6", "combination_sum2(&[3, 3, 3, 3], 6)", "vec![vec![3, 3]]"),
+    ],
+    hidden=[
+        NORM,
+        T("single_exact", "candidates = [7], target = 7", "combination_sum2(&[7], 7)", "vec![vec![7]]"),
+        T("uses_two_copies", "candidates = [4, 1, 1, 4, 4], target = 9", "norm(combination_sum2(&[4, 1, 1, 4, 4], 9))", "vec![vec![1, 4, 4]]"),
+        T("pair_of_ones", "candidates = [1, 1], target = 2", "combination_sum2(&[1, 1], 2)", "vec![vec![1, 1]]"),
+        T("all_too_big", "candidates = [40, 50], target = 30", "combination_sum2(&[40, 50], 30)", "Vec::<Vec<u32>>::new()"),
+        T("whole_slice", "candidates = [1, 2, 3], target = 6", "norm(combination_sum2(&[1, 2, 3], 6))", "vec![vec![1, 2, 3]]"),
+        T("two_ways", "candidates = [5, 1, 4, 2, 3], target = 5", "norm(combination_sum2(&[5, 1, 4, 2, 3], 5))", "vec![vec![1, 4], vec![2, 3], vec![5]]"),
+        T("big_values", "candidates = [50, 30, 30], target = 30", "combination_sum2(&[50, 30, 30], 30)", "vec![vec![30]]"),
+        T("thirty_from_one_to_thirty", "candidates = 1..=30, target = 30", "combination_sum2(&(1..=30).collect::<Vec<u32>>(), 30).len()", "296"),
+        """
+        #[test]
+        fn random_vs_bitmasks_and_a_set() {
+            let mut rng = anneal_prelude::Rng::new(1125);
+            for _ in 0..300 {
+                let n = rng.int(1, 12) as usize;
+                let c: Vec<u32> = rng.vec(n, 1, 8);
+                let target = rng.int(1, 20) as u32;
+                let mut all = std::collections::BTreeSet::new();
+                for mask in 0..1u32 << n {
+                    let mut s: Vec<u32> = (0..n).filter(|&i| mask >> i & 1 == 1).map(|i| c[i]).collect();
+                    if s.iter().sum::<u32>() == target {
+                        s.sort();
+                        all.insert(s);
+                    }
+                }
+                check!(format!("candidates = {c:?}, target = {target}"), norm(combination_sum2(&c, target)), all.into_iter().collect::<Vec<_>>());
+            }
+        }
+
+        #[test]
+        fn scale_a_hundred_ones() {
+            check!("candidates = [1; 100], target = 30", combination_sum2(&vec![1; 100], 30), vec![vec![1; 30]]);
+        }
+
+        #[test]
+        fn scale_a_hundred_mixed() {
+            let c: Vec<u32> = (0..100).map(|i| i % 5 + 1).collect();
+            check!("candidates = [1, 2, 3, 4, 5] × 20, target = 30", combination_sum2(&c, 30).len(), 651);
+        }
+        """,
+    ],
+    wrong=dict(
+        no_duplicate_skip="""
+            pub fn combination_sum2(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+                fn go(c: &[u32], start: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                    if left == 0 {
+                        out.push(path.clone());
+                        return;
+                    }
+                    for i in start..c.len() {
+                        if c[i] > left {
+                            break;
+                        }
+                        path.push(c[i]);
+                        go(c, i + 1, left - c[i], path, out);
+                        path.pop();
+                    }
+                }
+                let mut c = candidates.to_vec();
+                c.sort_unstable();
+                let mut out = Vec::new();
+                go(&c, 0, target, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        dedupe_with_a_set="""
+            pub fn combination_sum2(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+                fn go(c: &[u32], start: usize, left: u32, path: &mut Vec<u32>, out: &mut std::collections::BTreeSet<Vec<u32>>) {
+                    if left == 0 {
+                        out.insert(path.clone());
+                        return;
+                    }
+                    for i in start..c.len() {
+                        if c[i] > left {
+                            break;
+                        }
+                        path.push(c[i]);
+                        go(c, i + 1, left - c[i], path, out);
+                        path.pop();
+                    }
+                }
+                let mut c = candidates.to_vec();
+                c.sort_unstable();
+                let mut out = std::collections::BTreeSet::new();
+                go(&c, 0, target, &mut Vec::new(), &mut out);
+                out.into_iter().collect()
+            }
+        """,
+        reuses_elements="""
+            pub fn combination_sum2(candidates: &[u32], target: u32) -> Vec<Vec<u32>> {
+                fn go(c: &[u32], start: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                    if left == 0 {
+                        out.push(path.clone());
+                        return;
+                    }
+                    for i in start..c.len() {
+                        if c[i] > left {
+                            break;
+                        }
+                        if i > start && c[i] == c[i - 1] {
+                            continue;
+                        }
+                        path.push(c[i]);
+                        go(c, i, left - c[i], path, out);
+                        path.pop();
+                    }
+                }
+                let mut c = candidates.to_vec();
+                c.sort_unstable();
+                let mut out = Vec::new();
+                go(&c, 0, target, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "It's Combination sum with `i + 1` in the recursive call, plus the Subsets II trick for repeated values."),
+           ("rust", "Sort, then inside the loop: `break` if `c[i] > left`, `continue` if `i > start && c[i] == c[i - 1]`."),
+           ("edge case", "A set of results is not enough: `[1; 100]` with target 30 has C(100, 30) index choices but one answer.")],
+    notes=("Sorting groups equal values, and letting only the first of a group start a branch at each depth builds each "
+           "multiset once. The `break` cuts every branch that can no longer reach the target.",
+           "O(2ⁿ) worst case; far less with the pruning", "O(n) recursion depth"),
+    follow_up="How would you return only the number of distinct combinations, and could a DP do it?",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="combination-sum-iii", title="Combination sum III", level="medium", stage="choices-grids", tags=["backtracking", "pruning"],
+    companies=["Meta", "Amazon", "Google", "Microsoft"],
+    teaches=["Two limits at once: exactly k numbers and exactly the sum n.",
+             "Prune on both: stop when the path is full or the next digit is already too big."],
+    statement="""
+        Return every set of exactly `k` distinct digits from 1 to 9 that adds up to `n`. Each digit is used at most once
+        per set.
+
+        The sets can come in any order, and so can the digits inside each one. If none exists, return `[]`.
+    """,
+    examples=[("k = 3, n = 7", "[[1, 2, 4]]"), ("k = 3, n = 9", "[[1, 2, 6], [1, 3, 5], [2, 3, 4]]"), ("k = 4, n = 1", "[]")],
+    constraints=["1 ≤ k ≤ 9", "1 ≤ n ≤ 60"],
+    starter="""
+        pub fn combination_sum3(k: usize, n: u32) -> Vec<Vec<u32>> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn combination_sum3(k: usize, n: u32) -> Vec<Vec<u32>> {
+            fn go(next: u32, k: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                if path.len() == k {
+                    if left == 0 {
+                        out.push(path.clone());
+                    }
+                    return;
+                }
+                for d in next..=9 {
+                    if d > left {
+                        break;
+                    }
+                    path.push(d);
+                    go(d + 1, k, left - d, path, out);
+                    path.pop();
+                }
+            }
+            let mut out = Vec::new();
+            go(1, k, n, &mut Vec::with_capacity(k), &mut out);
+            out
+        }
+    """,
+    visible=[
+        NORM,
+        T("leetcode_three_seven", "k = 3, n = 7", "norm(combination_sum3(3, 7))", "vec![vec![1, 2, 4]]"),
+        T("leetcode_three_nine", "k = 3, n = 9", "norm(combination_sum3(3, 9))", "vec![vec![1, 2, 6], vec![1, 3, 5], vec![2, 3, 4]]"),
+        T("leetcode_none", "k = 4, n = 1", "combination_sum3(4, 1)", "Vec::<Vec<u32>>::new()"),
+        T("one_digit", "k = 1, n = 5", "combination_sum3(1, 5)", "vec![vec![5]]"),
+        T("digits_stop_at_nine", "k = 1, n = 10", "combination_sum3(1, 10)", "Vec::<Vec<u32>>::new()"),
+    ],
+    hidden=[
+        NORM,
+        T("all_nine", "k = 9, n = 45", "combination_sum3(9, 45)", "vec![vec![1, 2, 3, 4, 5, 6, 7, 8, 9]]"),
+        T("all_nine_wrong_sum", "k = 9, n = 44", "combination_sum3(9, 44)", "Vec::<Vec<u32>>::new()"),
+        T("two_largest", "k = 2, n = 17", "combination_sum3(2, 17)", "vec![vec![8, 9]]"),
+        T("too_big", "k = 2, n = 18", "combination_sum3(2, 18)", "Vec::<Vec<u32>>::new()"),
+        T("no_repeats", "k = 2, n = 2", "combination_sum3(2, 2)", "Vec::<Vec<u32>>::new()"),
+        T("four_twenty", "k = 4, n = 20", "combination_sum3(4, 20).len()", "12"),
+        T("sixty", "k = 9, n = 60", "combination_sum3(9, 60)", "Vec::<Vec<u32>>::new()"),
+        T("zero_not_a_digit", "k = 2, n = 9", "norm(combination_sum3(2, 9))", "vec![vec![1, 8], vec![2, 7], vec![3, 6], vec![4, 5]]"),
+        """
+        #[test]
+        fn every_k_and_n_vs_bitmasks() {
+            let mut rng = anneal_prelude::Rng::new(1126);
+            let mut cases: Vec<(usize, u32)> = (1..=9).flat_map(|k| (1..=60).map(move |n| (k, n))).collect();
+            rng.shuffle(&mut cases);
+            for (k, n) in cases {
+                let want: Vec<Vec<u32>> = (0..512u32)
+                    .filter(|m| m.count_ones() as usize == k && (0..9).filter(|&i| m >> i & 1 == 1).map(|i| i + 1).sum::<u32>() == n)
+                    .map(|m| (0..9).filter(|&i| m >> i & 1 == 1).map(|i| i + 1).collect())
+                    .collect();
+                check!(format!("k = {k}, n = {n}"), norm(combination_sum3(k, n)), norm(want));
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        zero_allowed="""
+            pub fn combination_sum3(k: usize, n: u32) -> Vec<Vec<u32>> {
+                fn go(next: u32, k: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                    if path.len() == k {
+                        if left == 0 {
+                            out.push(path.clone());
+                        }
+                        return;
+                    }
+                    for d in next..=9 {
+                        if d > left {
+                            break;
+                        }
+                        path.push(d);
+                        go(d + 1, k, left - d, path, out);
+                        path.pop();
+                    }
+                }
+                let mut out = Vec::new();
+                go(0, k, n, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        any_count="""
+            pub fn combination_sum3(k: usize, n: u32) -> Vec<Vec<u32>> {
+                fn go(next: u32, k: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                    if left == 0 {
+                        out.push(path.clone());
+                        return;
+                    }
+                    if path.len() > k {
+                        return;
+                    }
+                    for d in next..=9 {
+                        if d > left {
+                            break;
+                        }
+                        path.push(d);
+                        go(d + 1, k, left - d, path, out);
+                        path.pop();
+                    }
+                }
+                let mut out = Vec::new();
+                go(1, k, n, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        digits_repeat="""
+            pub fn combination_sum3(k: usize, n: u32) -> Vec<Vec<u32>> {
+                fn go(next: u32, k: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>) {
+                    if path.len() == k {
+                        if left == 0 {
+                            out.push(path.clone());
+                        }
+                        return;
+                    }
+                    for d in next..=9 {
+                        if d > left {
+                            break;
+                        }
+                        path.push(d);
+                        go(d, k, left - d, path, out);
+                        path.pop();
+                    }
+                }
+                let mut out = Vec::new();
+                go(1, k, n, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Choose digits in increasing order from `next` to 9; stop when you have k of them and check the sum."),
+           ("rust", "`fn go(next: u32, k: usize, left: u32, path: &mut Vec<u32>, out: &mut Vec<Vec<u32>>)`; `break` once `d > left`."),
+           ("edge case", "A full path whose sum is not n is a dead end, and so is a sum reached with fewer than k digits.")],
+    notes=("There are only 2⁹ subsets of the digits, so any correct search is fast; pruning on the remaining sum and the count "
+           "keeps it to the useful branches.", "O(C(9, k) · k)", "O(k)"),
+    follow_up="Could you answer this with one pass over the 512 bitmasks instead? What does that trade?",
+    related=["D12"],
+))
+
 STAGES = [
     ("recursion", "Recursion", "easy"),
     ("first-backtracking", "First backtracking", "easy"),
+    ("choices-grids", "Choices & grids", "medium"),
 ]
 
 if __name__ == "__main__":

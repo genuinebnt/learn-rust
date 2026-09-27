@@ -9,3 +9,8 @@ summary = "Generic code is written once and compiled per type. Bounds say what a
 slug = "generic-code"
 name = "Generic code"
 band = "easy"
+
+[[stages]]
+slug = "bounds-associated-types"
+name = "Bounds & associated types"
+band = "medium"

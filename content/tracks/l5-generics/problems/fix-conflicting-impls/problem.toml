@@ -1,0 +1,32 @@
+slug = "fix-conflicting-impls"
+title = "Fix: conflicting implementations (E0119)"
+mode = "fix"
+level = "medium"
+stage = "bounds-associated-types"
+order = 6
+status = "ready"
+tags = ["E0119", "coherence", "blanket impls", "?Sized"]
+teaches = [
+  "Coherence and overlap: blanket impls vs specific impls (E0119).",
+  "Macro-generated impls for a list of concrete types.",
+  "`?Sized` on a forwarding impl for `&T`.",
+]
+follow_up = "Why does `impl<T: Display> Describe for T` conflict with `impl<T: Describe> Describe for Vec<T>` even though `Vec` isn't `Display` today?"
+related = ["L5", "L4", "L10"]
+
+[[hints]]
+kind = "rust"
+text = "Read the note on E0119: std may add `impl Display for Vec<_>` in a future version, and then your blanket impl and your `Vec` impl would both apply. Coherence rejects that now."
+
+[[hints]]
+kind = "approach"
+text = "Drop the blanket impl. Implement `Describe` per concrete type instead: a small `macro_rules!` over a list of types avoids writing it out twenty times."
+
+[[hints]]
+kind = "rust"
+text = "`\"a\"` inside a `Vec` is a `&str`, so add `impl<T: Describe + ?Sized> Describe for &T` (`?Sized` so `T` can be `str`)."
+
+[solution]
+explanation = "A blanket impl claims every type that meets its bound, including types in other crates and types std might make `Display` later. Coherence must prove no two impls can ever overlap, so `impl<T: Display> Describe for T` rules out `impl<T> Describe for Vec<T>` and any downstream `impl Describe for Celsius`. Concrete impls (often macro-generated, as std does for integers) keep the trait open. Syntax to remember: `impl<T: Describe + ?Sized> Describe for &T`."
+time = "O(n) in the output size"
+space = "O(n)"

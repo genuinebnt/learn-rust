@@ -1,0 +1,33 @@
+slug = "stack-plugs-into-std"
+title = "Stack<T> that plugs into std"
+mode = "fix"
+level = "easy"
+stage = "generic-code"
+order = 1
+status = "ready"
+tags = ["generic impls", "IntoIterator", "FromIterator", "derive bounds"]
+teaches = [
+  "Derives add a bound on every type parameter; hand-written impls don't have to.",
+  "`IntoIterator` for `Stack<T>` and for `&'a Stack<T>`, with their associated types.",
+  "`FromIterator` / `Extend` make `collect()` and `extend()` work.",
+]
+follow_up = "Why does `derive(Clone)` on `struct Wrapper<T>(Rc<T>)` require `T: Clone`, and what would you write instead?"
+related = ["L5", "S6", "L4"]
+source = "W1"
+
+[[hints]]
+kind = "rust"
+text = "`#[derive(Default)]` expands to `impl<T: Default> Default for Stack<T>`. Write the impl by hand with no bound."
+
+[[hints]]
+kind = "rust"
+text = "`IntoIterator` has two associated types. By value: `type IntoIter = Rev<vec::IntoIter<T>>`. By reference: `impl<'a, T> IntoIterator for &'a Stack<T>` with `type Item = &'a T`."
+
+[[hints]]
+kind = "rust"
+text = "`FromIterator` and `Extend` each have one generic method: `fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self`."
+
+[solution]
+explanation = "Each trait is a generic impl on `Stack<T>`; only `Display` needs a bound, so only that impl has one. Syntax to remember:\n`impl<T> FromIterator<T> for Stack<T> { fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self }`,\n`impl<'a, T> IntoIterator for &'a Stack<T> { type Item = &'a T; type IntoIter = Rev<slice::Iter<'a, T>>; fn into_iter(self) -> Self::IntoIter }`,\n`impl<T: fmt::Display> fmt::Display for Stack<T> { fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result }`."
+time = "O(1) amortised per push; O(n) to iterate"
+space = "O(n)"

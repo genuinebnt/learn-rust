@@ -1,0 +1,32 @@
+slug = "typestate-http-builder"
+title = "Typestate HTTP builder"
+mode = "write"
+level = "medium"
+stage = "bounds-associated-types"
+order = 8
+status = "ready"
+tags = ["typestate", "builder", "PhantomData"]
+teaches = [
+  "Typestate: marker types plus `PhantomData` pick which methods exist.",
+  "Consuming builders (`self` in, `Self` out) and moving fields across a state change.",
+]
+follow_up = "How would you require at least one `header` call before `build`, also at compile time? What does each extra state cost the API?"
+related = ["L5", "M1"]
+source = "W11"
+
+[[hints]]
+kind = "rust"
+text = "`PhantomData<S>` makes `S` part of the type at zero size. Split the methods into `impl RequestBuilder<NoUrl>`, `impl<S> RequestBuilder<S>` and `impl RequestBuilder<HasUrl>`."
+
+[[hints]]
+kind = "rust"
+text = "`url` can't return `self` with a new state: `RequestBuilder<HasUrl>` is a different type. Build a new struct, moving each field across (`..self` doesn't work when the type parameter changes)."
+
+[[hints]]
+kind = "edge"
+text = "Carry the headers and timeout across the transition; settings made before `url()` must survive."
+
+[solution]
+explanation = "Typestate moves a runtime check (\"is there a URL?\") into the type system: `build` simply doesn't exist until `url` has succeeded, so `build` can return `Request` instead of `Result`. The states are zero-sized, so this costs nothing at run time."
+time = "O(1) per call"
+space = "O(headers)"

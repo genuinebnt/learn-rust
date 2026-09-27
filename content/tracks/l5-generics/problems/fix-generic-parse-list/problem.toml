@@ -1,0 +1,32 @@
+slug = "fix-generic-parse-list"
+title = "Fix: make parse_list generic"
+mode = "fix"
+level = "easy"
+stage = "generic-code"
+order = 3
+status = "ready"
+tags = ["generic enums", "turbofish", "associated types", "Error"]
+teaches = [
+  "Generic enums and per-impl bounds.",
+  "Naming an associated type in a signature: `T::Err`.",
+  "Turbofish: `parse_list::<T>(s)`.",
+]
+follow_up = "Why does `Error::source` return `&(dyn Error + 'static)`? What would break for a borrowed error type like `E = &'a MyErr`?"
+related = ["L5", "L8", "S1"]
+
+[[hints]]
+kind = "rust"
+text = "Make the enum generic, `ParseListError<E>`, and return `ParseListError<T::Err>`: `T::Err` is `FromStr`'s associated error type."
+
+[[hints]]
+kind = "rust"
+text = "Each impl gets its own bound: `impl<E: fmt::Display> fmt::Display for ParseListError<E>`, `impl<E: Error + 'static> Error for ParseListError<E>`."
+
+[[hints]]
+kind = "edge"
+text = "`Even`'s error is a `String`, which isn't an `Error`. Don't require `T::Err: Error` on `parse_list` itself."
+
+[solution]
+explanation = "A generic error enum keeps the caller's error type instead of flattening it to a string. Syntax to remember: `pub enum ParseListError<E> { Empty, Bad { index: usize, source: E } }`; `pub fn parse_list<T: FromStr>(s: &str) -> Result<Vec<T>, ParseListError<T::Err>>`; calling with a turbofish, `parse_list::<i32>(s)`. `source()` returns `&(dyn Error + 'static)`, hence `E: Error + 'static` on that impl."
+time = "O(n)"
+space = "O(n)"

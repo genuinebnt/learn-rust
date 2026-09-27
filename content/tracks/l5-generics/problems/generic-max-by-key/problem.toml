@@ -1,31 +1,34 @@
 slug = "generic-max-by-key"
-title = "Generic max_by_key"
-mode = "write"
+title = "Generic max_by_key with borrowed keys"
+mode = "fix"
 level = "medium"
 stage = "generic-code"
 order = 4
 status = "ready"
-tags = ["generics", "FnMut", "trait bounds"]
+tags = ["HRTB", "?Sized", "closures returning references"]
 teaches = [
-  "Choose bounds from what the body does: calling `key` needs `FnMut`, comparing needs `Ord`.",
-  "Keep computed keys instead of calling the closure twice.",
+  "Higher-ranked trait bounds: `for<'a> Fn(&'a T) -> &'a K`.",
+  "`?Sized` for type parameters used only behind a reference.",
 ]
-follow_up = "Why `FnMut` rather than `Fn` for `key`? What would a caller lose if you asked for `Fn`?"
-related = ["L5", "S6", "L6"]
-
-[[hints]]
-kind = "approach"
-text = "Walk the items once, keeping the best item together with its key, so the best key is never recomputed."
+follow_up = "Write the where clause with an explicit `for<'a>`. Why can't `Iterator::max_by_key` offer this signature?"
+related = ["L5", "L3", "L6"]
 
 [[hints]]
 kind = "rust"
-text = "Comparing keys needs `K: Ord`. Store `Option<(&T, K)>`; comparing `k > *bk` borrows the stored key instead of copying it."
+text = "`F: FnMut(&T) -> K` means one `K` for every call, whatever the argument's lifetime, so `K` can't borrow from the argument. Tie the output to the input: `F: FnMut(&T) -> &K`."
 
 [[hints]]
-kind = "edge"
-text = "Use strictly greater (`>`), so an equal key later on doesn't replace the first."
+kind = "rust"
+text = "Elided, `FnMut(&T) -> &K` is the higher-ranked `for<'a> FnMut(&'a T) -> &'a K`."
+
+[[hints]]
+kind = "rust"
+text = "`K` is `str` or `[i32]` in the tests. Generic parameters are `Sized` unless you opt out: `K: Ord + ?Sized`."
 
 [solution]
-explanation = "The bounds say exactly what the body uses: `F: FnMut(&T) -> K` to call the key (mutably, so it can count or cache), `K: Ord` to compare. No `Clone` or `Copy` is needed because the best key is kept, not re-made."
+explanation = "The key closure must work for every borrow of an item, so its bound is higher-ranked: `for<'a> FnMut(&'a T) -> &'a K`, which the `Fn(&T) -> &K` sugar writes for you. `K: ?Sized` lets the key be `str` or `[T]` behind the reference. This is exactly why std's `max_by_key` can't return `p.name.as_str()`: its `B` is fixed before any item is borrowed."
 time = "O(n) key calls"
 space = "O(1)"
+
+[rules]
+max_changed_lines = 2

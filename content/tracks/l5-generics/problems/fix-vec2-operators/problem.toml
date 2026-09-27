@@ -1,0 +1,32 @@
+slug = "fix-vec2-operators"
+title = "Fix: operators on Vec2<T> (E0369)"
+mode = "fix"
+level = "easy"
+stage = "generic-code"
+order = 2
+status = "ready"
+tags = ["E0369", "operator traits", "Output = T", "default type parameters"]
+teaches = [
+  "Operator traits: `Add<Output = T>` bindings.",
+  "Default type parameters (`Rhs = Self`).",
+  "The weakest bound per impl; don't make every caller pay for `Copy`.",
+]
+follow_up = "Why is `Add` declared as `trait Add<Rhs = Self>` with an associated `Output`, instead of `trait Add<Rhs, Output>`?"
+related = ["L5", "L4"]
+
+[[hints]]
+kind = "rust"
+text = "`T: Add` isn't enough: `x + y` then has type `<T as Add>::Output`, not `T`. Pin it with `T: Add<Output = T>`."
+
+[[hints]]
+kind = "rust"
+text = "Only `v * k` uses a value twice (`k`), so only that impl needs `Copy`. `+=` needs `AddAssign`, `.sum()` needs a zero: `Default`."
+
+[[hints]]
+kind = "rust"
+text = "`V: Dot` with no argument only works if the trait declares a default: `trait Dot<Rhs = Self>`."
+
+[solution]
+explanation = "Each impl asks for exactly what its body does. Syntax to remember: `impl<T: Add<Output = T>> Add for Vec2<T>` (associated-type binding in a bound); `trait Dot<Rhs = Self>` (default type parameter, as std's `Add<Rhs = Self>`); `impl<T: Mul<Output = T> + Copy> Mul<T> for Vec2<T>` (a non-default `Rhs`). Adding `Copy` everywhere would compile, but it would leak into every caller and shut out `Big`, `BigInt` and friends."
+time = "O(1) per operation"
+space = "O(1)"

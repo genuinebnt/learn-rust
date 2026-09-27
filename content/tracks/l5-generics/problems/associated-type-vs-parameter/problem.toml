@@ -1,0 +1,31 @@
+slug = "associated-type-vs-parameter"
+title = "Associated type vs type parameter"
+mode = "write"
+level = "medium"
+stage = "bounds-associated-types"
+order = 7
+status = "ready"
+tags = ["associated types", "From", "graph traversal"]
+teaches = [
+  "Associated types: one impl per type, picked by the implementor.",
+  "Type parameters: many impls per type, picked by the caller (`From<T>`).",
+]
+follow_up = "Rewrite `Graph` as `trait Graph<N>`. What changes in `reachable`'s signature, and when would that design be the right one?"
+related = ["L5", "L4", "D9"]
+
+[[hints]]
+kind = "approach"
+text = "`reachable`: DFS with a `HashSet<G::Node>`. `shortest_path`: BFS with a `VecDeque` and a `HashMap<G::Node, G::Node>` of parents, which also marks nodes as seen; walk the parents back from `to`."
+
+[[hints]]
+kind = "rust"
+text = "`G::Node` is the graph's own node type. Because it's associated, `reachable<G>` needs no second type parameter, and `reachable(&grid, (0, 0))` needs no annotation."
+
+[[hints]]
+kind = "edge"
+text = "In `Grid::neighbors`, compute moves in `isize` (or check `r > 0`) so row 0 doesn't underflow, and use `.get()` for ragged rows."
+
+[solution]
+explanation = "Syntax to remember: `trait Graph { type Node; fn neighbors(&self, node: &Self::Node) -> Vec<Self::Node>; }`, `impl Graph for Grid { type Node = (usize, usize); ... }`, and in generic code `G::Node` (or `<G as Graph>::Node`). Associated type: one implementation per type, chosen by the implementor (`Iterator::Item`, `Deref::Target`). Type parameter: many implementations per type, chosen by the caller (`From<T>`, `Add<Rhs>`). With `trait Graph<N>`, a type could be a graph over several node types and every caller would have to say which."
+time = "O(V + E)"
+space = "O(V)"

@@ -1,5 +1,6 @@
-Write `max_by_key`: the item whose `key` is largest, or `None` for an empty slice. On a tie, return the
-**first** such item (`Iterator::max_by_key` returns the last one, so don't just call it).
+`max_by_key` returns the item with the largest key, the **first** one on a tie, calling `key` once per item.
+It's shaped like `Iterator::max_by_key`, so the key has to be an owned value. Callers want to compare by a
+field without cloning it: `max_by_key(&people, |p| p.name.as_str())`. Those calls don't compile.
 
-Call `key` exactly once per item: it may be expensive. The keys can be any ordered type, including ones
-that aren't `Copy` or `Clone`, like `String`. Add the bounds the body needs.
+Change the signature so `key` returns a reference **into** the item, including to unsized data like `str`
+and `[i32]`. The body can stay as it is.

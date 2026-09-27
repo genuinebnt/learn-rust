@@ -1,0 +1,34 @@
+slug = "report-any-collection"
+title = "Fix: a Report over any collection (HRTB where clause)"
+mode = "fix"
+level = "medium"
+stage = "bounds-associated-types"
+order = 5
+status = "ready"
+tags = ["where clauses", "HRTB", "IntoIterator"]
+teaches = [
+  "Higher-ranked bounds on a borrowed collection: `for<'a> &'a C: IntoIterator`.",
+  "`where` clauses on projections: `<&'a C as IntoIterator>::Item`.",
+]
+follow_up = "Why doesn't `impl<'a, C> Display for Report<C> where &'a C: IntoIterator` work, even though a free function `fn show<'a, C>(c: &'a C)` could use that bound?"
+related = ["L5", "L3", "S6"]
+
+[[hints]]
+kind = "rust"
+text = "Store `rows: C`. The printing bound isn't on `C` but on `&C`: `&C: IntoIterator`, and its `Item: Display`."
+
+[[hints]]
+kind = "rust"
+text = "Inside `fmt`, `&self.rows` has a lifetime the impl can't name. `impl<'a, C>` won't do; the bound has to hold for every lifetime: `where for<'a> &'a C: IntoIterator`."
+
+[[hints]]
+kind = "rust"
+text = "Name the item type through the reference's impl: `for<'a> <&'a C as IntoIterator>::Item: fmt::Display`."
+
+[solution]
+explanation = "This is the classic use of a higher-ranked bound outside closures: 'iterating any borrow of `C` yields printable items'. Syntax to remember:\n`impl<C> fmt::Display for Report<C> where for<'a> &'a C: IntoIterator, for<'a> <&'a C as IntoIterator>::Item: fmt::Display`.\nBounding `C: IntoIterator + Clone` would compile too, but it clones the whole collection on every print and shuts out `Evens`."
+time = "O(n) per print"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone", "cloned", "to_vec", "to_owned"]

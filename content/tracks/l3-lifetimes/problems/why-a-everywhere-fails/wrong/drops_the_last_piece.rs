@@ -34,7 +34,7 @@ impl<'t, 's> Iterator for Splitter<'t, 's> {
             }
             None => {
                 self.done = true;
-                Some(self.text)
+                if self.text.is_empty() { None } else { Some(self.text) }
             }
         }
     }

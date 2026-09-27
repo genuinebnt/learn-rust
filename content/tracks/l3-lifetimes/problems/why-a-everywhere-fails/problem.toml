@@ -5,26 +5,28 @@ level = "medium"
 stage = "two-lifetimes"
 order = 9
 status = "ready"
-tags = ["two lifetime parameters"]
+tags = ["two lifetime parameters", "E0515", "lifetimes in impls", "Iterator"]
 teaches = [
-  "A struct with two independent lifetime parameters.",
-  "Outputs tied to one field, not the whole struct.",
+  "One lifetime for two borrows is limited by the shorter one.",
+  "Give independent borrows independent parameters.",
+  "Lifetime parameters on trait impls and associated types.",
 ]
-follow_up = "When is one lifetime for several fields the right design?"
+follow_up = "`std::str::Split<'a, P>` has only one lifetime. How does it avoid this problem when the pattern is a `&str`?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "One `'a` for both fields means `'a` can only be as long as the shorter borrow: the separator's."
+text = "With one lifetime for both fields, `&'a str` pieces are only as long-lived as the shorter of the text and the separator: the compiler picks an `'a` that fits both, and `split_lines`'s separator dies at the end of the function."
 
 [[hints]]
 kind = "rust"
-text = "Give the struct two lifetime parameters, and tie the outputs to the text's."
+text = "Give each borrow its own parameter: `Splitter<'t, 's>`, with pieces `&'t str`. The `impl` blocks, including `impl Iterator for`, need both parameters too, and `type Item = &'t str`."
 
 [solution]
-explanation = "With separate `'t` and `'s`, outputs borrow only from the text. Most structs need one lifetime; add a second exactly when outputs come from one field but not another."
-time = "O(n)"
-space = "O(k)"
+explanation = "One lifetime parameter for two borrows means \"both live at least this long\", so `'a` is at most the shorter of the two, and every output typed `&'a str` inherits that limit. Here the pieces only point into `text`, but their type says they might point into `sep`, so `split_lines` can't return them once its local separator is dropped. Separate parameters let the output name the one it borrows. The same parameters appear on every `impl`, including the trait impl, where the associated type `Item = &'t str` fixes what `next` returns. Copying `self.text` (a `&'t str`) out of `&mut self` keeps `'t`, which is why `next` can return pieces that outlive the borrow of the splitter.\n\nSyntax to remember: `pub struct Splitter<'t, 's> { text: &'t str, sep: &'s str }` · `impl<'t, 's> Iterator for Splitter<'t, 's> { type Item = &'t str; fn next(&mut self) -> Option<&'t str> { .. } }`."
+time = "O(n · |sep|)"
+space = "O(1) per piece"
 
 [rules]
-forbid_methods = ["to_string", "to_owned", "clone", "into", "from"]
+forbid_methods = ["split", "split_terminator", "clone", "to_owned", "leak"]
+max_changed_lines = 10

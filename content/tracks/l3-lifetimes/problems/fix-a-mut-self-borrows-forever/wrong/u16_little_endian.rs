@@ -23,7 +23,7 @@ impl<'a> Reader<'a> {
     /// A big-endian `u16`, or None (reading nothing) if fewer than 2 bytes remain.
     pub fn u16(&mut self) -> Option<u16> {
         let b = self.take(2)?;
-        Some(u16::from_be_bytes([b[0], b[1]]))
+        Some(u16::from_le_bytes([b[0], b[1]]))
     }
 
     pub fn remaining(&self) -> usize {

@@ -10,8 +10,10 @@ impl<'a> Reader<'a> {
 
     /// The next `n` bytes, or None (reading nothing) if fewer remain.
     pub fn take(&mut self, n: usize) -> Option<&'a [u8]> {
-        let chunk = self.data.get(self.pos..self.pos + n)?;
-        self.pos += n;
+        let end = (self.pos + n).min(self.data.len());
+        let chunk = self.data.get(self.pos..self.pos + n);
+        self.pos = end;
+        let chunk = chunk?;
         Some(chunk)
     }
 

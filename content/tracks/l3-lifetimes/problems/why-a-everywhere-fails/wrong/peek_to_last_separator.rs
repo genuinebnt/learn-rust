@@ -15,7 +15,7 @@ impl<'t, 's> Splitter<'t, 's> {
         if self.done {
             return None;
         }
-        Some(self.text.find(self.sep).map_or(self.text, |i| &self.text[..i]))
+        Some(self.text.rfind(self.sep).map_or(self.text, |i| &self.text[..i]))
     }
 }
 

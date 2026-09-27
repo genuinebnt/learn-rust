@@ -5,26 +5,32 @@ level = "medium"
 stage = "two-lifetimes"
 order = 12
 status = "ready"
-tags = ["&'a mut self", "E0499"]
+tags = ["&'a mut self", "E0499", "E0502", "&'a mut T<'a>"]
 teaches = [
-  "Never write `&'a mut self` with the struct's own `'a`.",
-  "Outputs can use `'a` while `self` is borrowed briefly.",
+  "`&'a mut self` on `T<'a>` borrows the value for its whole life.",
+  "Name the data's lifetime on outputs, not on the receiver.",
+  "Avoid `&'a mut T<'a>`; `&mut T` is invariant in `T`.",
 ]
-follow_up = "Why does `&'a self` (shared) cause much less trouble than `&'a mut self`?"
+follow_up = "Why can the compiler shorten `'a` in `&'a Reader<'a>` to make a shared borrow shorter, but not in `&'a mut Reader<'a>`?"
 related = ["L3"]
 
 [[hints]]
 kind = "rust"
-text = "`&'a mut self` borrows the Reader mutably for all of `'a`, the lifetime of the data, so the first call locks it for good."
+text = "In `impl<'a> Reader<'a>`, `&'a mut self` means \"borrow this reader mutably for as long as its data lives\". That's as long as the reader can exist, so nothing else can ever touch it. The same goes for `&'a self` once a mutable call is needed later."
 
 [[hints]]
 kind = "rust"
-text = "The chunk comes from `data: &'a [u8]`, not from `self`. The `&mut self` borrow can be short."
+text = "The result's lifetime and the receiver's lifetime are different things. Results borrow the data: `-> Option<&'a [u8]>`. The receiver is a short borrow: plain `&mut self`."
+
+[[hints]]
+kind = "rust"
+text = "`&'a mut Reader<'a>` in `records` is the same mistake from the outside: the caller's reader is borrowed for all of `'a`."
 
 [solution]
-explanation = "Tying `&mut self` to the struct's own lifetime parameter is a classic trap: it compiles, and the struct becomes unusable after one call. The output lifetime `'a` alone says where the bytes come from."
-time = "O(1)"
+explanation = "`&'a mut self` on a type with lifetime `'a` is the classic over-constraint: it says the mutable borrow of the reader lasts as long as the data it points at, and since the reader can't outlive its data, that's the reader's whole remaining life. The first call compiles; every later use is E0499 (or E0502 after `&'a self`). And `&'a mut T<'a>` is worse than it looks because `&mut T` is invariant in `T`: the compiler can't shrink the inner `'a` to make the borrow shorter. The fix separates the two: the receiver is an ordinary short borrow (`&mut self`), and the output names `'a`, because it points into the data. `records` gets the same treatment: `r: &mut Reader<'a>` and `Vec<&'a [u8]>`.\n\nSyntax to remember: `pub fn take(&mut self, n: usize) -> Option<&'a [u8]>` · `pub fn records<'a>(r: &mut Reader<'a>) -> Option<Vec<&'a [u8]>>`."
+time = "O(1) per read"
 space = "O(1)"
 
 [rules]
-max_changed_lines = 1
+forbid_methods = ["clone", "to_vec", "to_owned", "leak"]
+max_changed_lines = 4

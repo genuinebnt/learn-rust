@@ -29,7 +29,7 @@ impl<'t, 's> Iterator for Splitter<'t, 's> {
         match self.text.find(self.sep) {
             Some(i) => {
                 let piece = &self.text[..i];
-                self.text = &self.text[i + self.sep.len()..];
+                self.text = &self.text[i + 1..];
                 Some(piece)
             }
             None => {

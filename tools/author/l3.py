@@ -1178,166 +1178,132 @@ Syntax to remember: `fn longest_line(&self) -> &'a str` · `fn iter(&self) -> im
 
 # ---------------------------------------------------------------- two lifetimes (medium)
 
+SPLIT1_STARTER = r"""
+/// Splits `text` on `sep` (not empty), lazily, like `str::split`. Pieces borrow only from `text`.
+pub struct Splitter<'a> {
+    text: &'a str,
+    sep: &'a str,
+    done: bool,
+}
+
+impl<'a> Splitter<'a> {
+    pub fn new(text: &'a str, sep: &'a str) -> Self {
+        Splitter { text, sep, done: false }
+    }
+
+    /// The next piece, without advancing.
+    pub fn peek(&self) -> Option<&'a str> {
+        if self.done {
+            return None;
+        }
+        Some(self.text.find(self.sep).map_or(self.text, |i| &self.text[..i]))
+    }
+}
+
+impl<'a> Iterator for Splitter<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<&'a str> {
+        if self.done {
+            return None;
+        }
+        match self.text.find(self.sep) {
+            Some(i) => {
+                let piece = &self.text[..i];
+                self.text = &self.text[i + self.sep.len()..];
+                Some(piece)
+            }
+            None => {
+                self.done = true;
+                Some(self.text)
+            }
+        }
+    }
+}
+
+/// Splits every line of `text` on `sep_char`, returning all the pieces in order.
+pub fn split_lines(text: &str, sep_char: char) -> Vec<&str> {
+    let sep = sep_char.to_string();
+    let mut out = Vec::new();
+    for line in text.lines() {
+        out.extend(Splitter::new(line, &sep));
+    }
+    out
+}
+"""
+
+SPLIT1_SOLUTION = SPLIT1_STARTER
+for _old, _new in [
+    ("pub struct Splitter<'a> {\n    text: &'a str,\n    sep: &'a str,", "pub struct Splitter<'t, 's> {\n    text: &'t str,\n    sep: &'s str,"),
+    ("impl<'a> Splitter<'a> {\n    pub fn new(text: &'a str, sep: &'a str) -> Self {", "impl<'t, 's> Splitter<'t, 's> {\n    pub fn new(text: &'t str, sep: &'s str) -> Self {"),
+    ("    pub fn peek(&self) -> Option<&'a str> {", "    pub fn peek(&self) -> Option<&'t str> {"),
+    ("impl<'a> Iterator for Splitter<'a> {\n    type Item = &'a str;\n\n    fn next(&mut self) -> Option<&'a str> {", "impl<'t, 's> Iterator for Splitter<'t, 's> {\n    type Item = &'t str;\n\n    fn next(&mut self) -> Option<&'t str> {"),
+]:
+    SPLIT1_SOLUTION = sub(SPLIT1_SOLUTION, _old, _new)
+
 P.append(fix(
-    "why-a-everywhere-fails", "Why 'a everywhere fails", "medium", "two-lifetimes", ["two lifetime parameters"],
+    "why-a-everywhere-fails", "Why 'a everywhere fails", "medium", "two-lifetimes", ["two lifetime parameters", "E0515", "lifetimes in impls", "Iterator"],
     """
-        `Splitter` borrows the text and the separator with one lifetime `'a`. Callers can't keep a piece
-        after dropping the separator, though pieces only borrow from the text. Fix it so the tests compile.
-        The pieces must stay borrowed: don't copy them into `String`s.
+        `Splitter` borrows the text and the separator with one lifetime `'a`, and its pieces are `&'a str`.
+        So a piece seems to borrow the separator too, and `split_lines`, whose separator is a local
+        `String`, can't return its pieces. Fix `Splitter` so pieces borrow only the text. Don't touch
+        `split_lines`, and keep the pieces borrowed (no copies).
     """,
-    """
-    pub struct Splitter<'a> {
-        text: &'a str,
-        sep: &'a str,
-    }
-
-    impl<'a> Splitter<'a> {
-        pub fn new(text: &'a str, sep: &'a str) -> Self {
-            Splitter { text, sep }
-        }
-
-        pub fn first(&self) -> &'a str {
-            self.text.split(self.sep).next().unwrap_or("")
-        }
-
-        pub fn parts(&self) -> Vec<&'a str> {
-            self.text.split(self.sep).collect()
-        }
-    }
-    """,
-    """
-    pub struct Splitter<'t, 's> {
-        text: &'t str,
-        sep: &'s str,
-    }
-
-    impl<'t, 's> Splitter<'t, 's> {
-        pub fn new(text: &'t str, sep: &'s str) -> Self {
-            Splitter { text, sep }
-        }
-
-        pub fn first(&self) -> &'t str {
-            self.text.split(self.sep).next().unwrap_or("")
-        }
-
-        pub fn parts(&self) -> Vec<&'t str> {
-            self.text.split(self.sep).collect()
-        }
-    }
-    """,
-    [T("first_outlives_sep", "text \"a,b,c\", separator dropped", "first", '"a"',
-       setup='let text = String::from("a,b,c");\nlet first;\n{\n    let sep = String::from(",");\n    first = Splitter::new(&text, &sep).first();\n}'),
-     T("parts_outlive_sep", "text \"a--b\", separator dropped", "parts", 'vec!["a", "b"]',
-       setup='let text = String::from("a--b");\nlet parts;\n{\n    let sep = String::from("--");\n    parts = Splitter::new(&text, &sep).parts();\n}'),
-     T("no_sep", '"abc", ","', 'Splitter::new("abc", ",").parts()', 'vec!["abc"]'),
-     T("first_without_sep", '"abc", ","', 'Splitter::new("abc", ",").first()', '"abc"'),
-     T("empty_pieces_kept", '"a,,b,", ","', 'Splitter::new("a,,b,", ",").parts()', 'vec!["a", "", "b", ""]')],
-    [T("no_sep", '"abc", ","', 'Splitter::new("abc", ",").parts()', 'vec!["abc"]'),
-     T("empty_text", '"", ","', '(Splitter::new("", ",").first(), Splitter::new("", ",").parts())', '("", vec![""])'),
-     T("leading_sep", '",a", ","', '(Splitter::new(",a", ",").first(), Splitter::new(",a", ",").parts())', '("", vec!["", "a"])'),
-     T("text_is_sep", '"--", "--"', 'Splitter::new("--", "--").parts()', 'vec!["", ""]'),
-     T("unicode_sep", '"a→b→c", "→"', 'Splitter::new("a→b→c", "→").parts()', 'vec!["a", "b", "c"]'),
-     T("overlapping_sep", '"aaa", "aa"', 'Splitter::new("aaa", "aa").parts()', 'vec!["", "a"]'),
-     T("both_outlive_sep", "first and parts, separator dropped", "(first, parts)", '("x", vec!["x", "y z"])',
-       setup='let text = String::from("x;y z");\nlet (first, parts);\n{\n    let sep = String::from(";");\n    let s = Splitter::new(&text, &sep);\n    first = s.first();\n    parts = s.parts();\n}'),
-     T("zero_copy", "pieces point into the text", "std::ptr::eq(parts[1].as_ptr(), text[2..].as_ptr())", "true",
-       setup='let text = String::from("a,b");\nlet parts = Splitter::new(&text, ",").parts();'),
-     """
+    SPLIT1_STARTER,
+    SPLIT1_SOLUTION,
+    [T("split_lines_example", "split_lines(\"a,b\\n,c\", ',')", 'split_lines("a,b\\n,c", \',\')', 'vec!["a", "b", "", "c"]'),
+     T("pieces_outlive_the_separator", "collect pieces of \"x--y\" split on a temporary \"--\"", "v", 'vec!["x", "y"]', setup='let text = String::from("x--y");\nlet v: Vec<&str> = Splitter::new(&text, &String::from("--")).collect();'),
+     T("peek_does_not_advance", "\"a;b\" on \";\": peek, next, peek", '(s.peek(), s.next(), s.peek())', '(Some("a"), Some("a"), Some("b"))', setup='let mut s = Splitter::new("a;b", ";");'),
+     T("like_str_split", "\";a;;b;\" on \";\"", 'Splitter::new(";a;;b;", ";").collect::<Vec<_>>()', 'vec!["", "a", "", "b", ""]'),
+     T("no_separator", "\"abc\" on \",\"", 'Splitter::new("abc", ",").collect::<Vec<_>>()', 'vec!["abc"]'),
+     T("empty_text", "\"\" on \",\"", 'Splitter::new("", ",").collect::<Vec<_>>()', 'vec![""]')],
+    [T("split_lines_empty", "split_lines(\"\", ',')", 'split_lines("", \',\').len()', "0"),
+     T("multi_char_separator", "\"a<>b<>c\" on \"<>\"", 'Splitter::new("a<>b<>c", "<>").collect::<Vec<_>>()', 'vec!["a", "b", "c"]'),
+     T("overlapping_separator", "\"aaa\" on \"aa\"", 'Splitter::new("aaa", "aa").collect::<Vec<_>>()', 'vec!["", "a"]'),
+     T("peek_many_separators", "\"a;b;c\" on \";\": peek", 'Splitter::new("a;b;c", ";").peek()', 'Some("a")'),
+     T("peek_after_end", "\"a\": next, then peek", '{ let mut s = Splitter::new("a", ","); s.next(); (s.peek(), s.next()) }', "(None, None)"),
+     T("unicode_separator", "\"日→本→語\" on \"→\"", 'split_lines("日→本→語", \'→\')', 'vec!["日", "本", "語"]'),
+     T("split_lines_crlf", "\"a,b\\r\\nc\"", 'split_lines("a,b\\r\\nc", \',\')', 'vec!["a", "b", "c"]'),
+     T("pieces_point_into_text", "the first piece is a slice of the text", 'Splitter::new(&t, ",").nth(1).unwrap().as_ptr() == t[2..].as_ptr()', "true", setup='let t = String::from("a,b");'),
+     T("peek_outlives_splitter", "peek's result used after the splitter is gone", "p", 'Some("left")', setup='let text = String::from("left|right");\nlet p = { let sep = String::from("|"); Splitter::new(&text, &sep).peek() };'),
+     r"""
      #[test]
      fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(309);
-         for _ in 0..300 {
-             let n = rng.below(10);
-             let text = rng.string(n, "ab,");
-             let sep = if rng.bool() { "," } else { "b," };
-             // Reference: walk the text by hand.
-             let mut want: Vec<&str> = Vec::new();
-             let mut start = 0;
-             let mut i = 0;
-             while i + sep.len() <= text.len() {
-                 if &text[i..i + sep.len()] == sep {
-                     want.push(&text[start..i]);
-                     i += sep.len();
-                     start = i;
-                 } else {
-                     i += 1;
-                 }
-             }
-             want.push(&text[start..]);
-             let s = Splitter::new(&text, sep);
-             check!(format!("text = {text:?}, sep = {sep:?}"), (s.first(), s.parts()), (want[0], want.clone()));
+         let mut rng = anneal_prelude::Rng::new(6308);
+         for _ in 0..400 {
+             let len = rng.below(10);
+             let text = rng.string(len, "ab,\n");
+             let slen = 1 + rng.below(2);
+             let sep = rng.string(slen, "ab,");
+             let want: Vec<&str> = text.split(sep.as_str()).collect();
+             check!(format!("{text:?} on {sep:?}"), Splitter::new(&text, &sep).collect::<Vec<_>>(), want);
+             let want: Vec<&str> = text.lines().flat_map(|l| l.split(',')).collect();
+             check!(format!("split_lines({text:?}, ',')"), split_lines(&text, ','), want);
          }
      }
+
+     #[test]
+     fn long_text() {
+         let text = "ab,".repeat(100_000);
+         let n = split_lines(&text, ',').len();
+         check!("\"ab,\" x 100000", n, 100_001);
+     }
      """],
-    [("rust", "One `'a` for both fields means `'a` can only be as long as the shorter borrow: the separator's."),
-     ("rust", "Give the struct two lifetime parameters, and tie the outputs to the text's.")],
-    ("With separate `'t` and `'s`, outputs borrow only from the text. Most structs need one lifetime; add a second exactly when outputs come from one field but not another.", "O(n)", "O(k)"),
-    "When is one lifetime for several fields the right design?",
-    ["A struct with two independent lifetime parameters.", "Outputs tied to one field, not the whole struct."],
-    rules=dict(methods=["to_string", "to_owned", "clone", "into", "from"]),
+    [("rust", "With one lifetime for both fields, `&'a str` pieces are only as long-lived as the shorter of the text and the separator: the compiler picks an `'a` that fits both, and `split_lines`'s separator dies at the end of the function."),
+     ("rust", "Give each borrow its own parameter: `Splitter<'t, 's>`, with pieces `&'t str`. The `impl` blocks, including `impl Iterator for`, need both parameters too, and `type Item = &'t str`.")],
+    ("""One lifetime parameter for two borrows means \"both live at least this long\", so `'a` is at most the shorter of the two, and every output typed `&'a str` inherits that limit. Here the pieces only point into `text`, but their type says they might point into `sep`, so `split_lines` can't return them once its local separator is dropped. Separate parameters let the output name the one it borrows. The same parameters appear on every `impl`, including the trait impl, where the associated type `Item = &'t str` fixes what `next` returns. Copying `self.text` (a `&'t str`) out of `&mut self` keeps `'t`, which is why `next` can return pieces that outlive the borrow of the splitter.
+
+Syntax to remember: `pub struct Splitter<'t, 's> { text: &'t str, sep: &'s str }` · `impl<'t, 's> Iterator for Splitter<'t, 's> { type Item = &'t str; fn next(&mut self) -> Option<&'t str> { .. } }`.""", "O(n · |sep|)", "O(1) per piece"),
+    "`std::str::Split<'a, P>` has only one lifetime. How does it avoid this problem when the pattern is a `&str`?",
+    ["One lifetime for two borrows is limited by the shorter one.", "Give independent borrows independent parameters.", "Lifetime parameters on trait impls and associated types."],
+    rules=dict(methods=["split", "split_terminator", "clone", "to_owned", "leak"], lines=10),
     wrong=dict(
-        first_is_empty_without_sep="""
-            pub struct Splitter<'t, 's> {
-                text: &'t str,
-                sep: &'s str,
-            }
-
-            impl<'t, 's> Splitter<'t, 's> {
-                pub fn new(text: &'t str, sep: &'s str) -> Self {
-                    Splitter { text, sep }
-                }
-
-                pub fn first(&self) -> &'t str {
-                    self.text.split_once(self.sep).map_or("", |(head, _)| head)
-                }
-
-                pub fn parts(&self) -> Vec<&'t str> {
-                    self.text.split(self.sep).collect()
-                }
-            }
-        """,
-        drops_trailing_empty_piece="""
-            pub struct Splitter<'t, 's> {
-                text: &'t str,
-                sep: &'s str,
-            }
-
-            impl<'t, 's> Splitter<'t, 's> {
-                pub fn new(text: &'t str, sep: &'s str) -> Self {
-                    Splitter { text, sep }
-                }
-
-                pub fn first(&self) -> &'t str {
-                    self.text.split(self.sep).next().unwrap_or("")
-                }
-
-                pub fn parts(&self) -> Vec<&'t str> {
-                    self.text.split_terminator(self.sep).collect()
-                }
-            }
-        """,
-        skips_empty_pieces="""
-            pub struct Splitter<'t, 's> {
-                text: &'t str,
-                sep: &'s str,
-            }
-
-            impl<'t, 's> Splitter<'t, 's> {
-                pub fn new(text: &'t str, sep: &'s str) -> Self {
-                    Splitter { text, sep }
-                }
-
-                pub fn first(&self) -> &'t str {
-                    self.text.split(self.sep).find(|p| !p.is_empty()).unwrap_or("")
-                }
-
-                pub fn parts(&self) -> Vec<&'t str> {
-                    self.text.split(self.sep).filter(|p| !p.is_empty()).collect()
-                }
-            }
-        """,
+        drops_the_last_piece=sub(SPLIT1_SOLUTION, "                self.done = true;\n                Some(self.text)", "                self.done = true;\n                if self.text.is_empty() { None } else { Some(self.text) }"),
+        peek_to_last_separator=sub(SPLIT1_SOLUTION, "self.text.find(self.sep).map_or(self.text, |i| &self.text[..i])", "self.text.rfind(self.sep).map_or(self.text, |i| &self.text[..i])"),
+        skips_one_byte_less=sub(SPLIT1_SOLUTION, "self.text = &self.text[i + self.sep.len()..];", "self.text = &self.text[i + 1..];"),
     ),
 ))
+
 
 P.append(write(
     "zero-copy-tokenizer", "Zero-copy tokenizer", "medium", "two-lifetimes", ["Iterator", "enum with lifetimes"],
@@ -1907,148 +1873,155 @@ P.append(write(
     ),
 ))
 
+READER_STARTER = r"""
+pub struct Reader<'a> {
+    data: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> Reader<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Reader { data, pos: 0 }
+    }
+
+    /// The next `n` bytes, or None (reading nothing) if fewer remain.
+    pub fn take(&'a mut self, n: usize) -> Option<&'a [u8]> {
+        let chunk = self.data.get(self.pos..self.pos + n)?;
+        self.pos += n;
+        Some(chunk)
+    }
+
+    /// The next byte, without reading it.
+    pub fn peek(&'a self) -> Option<u8> {
+        self.data.get(self.pos).copied()
+    }
+
+    /// A big-endian `u16`, or None (reading nothing) if fewer than 2 bytes remain.
+    pub fn u16(&'a mut self) -> Option<u16> {
+        let b = self.take(2)?;
+        Some(u16::from_be_bytes([b[0], b[1]]))
+    }
+
+    pub fn remaining(&self) -> usize {
+        self.data.len() - self.pos
+    }
+}
+
+/// Reads records, each a `u16` length then that many bytes, until the reader is empty. None if a record is
+/// cut short (the reader is then left just after the last whole record).
+pub fn records<'a>(r: &'a mut Reader<'a>) -> Option<Vec<&'a [u8]>> {
+    let mut out = Vec::new();
+    while r.remaining() > 0 {
+        let start = r.pos;
+        let Some(len) = r.u16() else {
+            r.pos = start;
+            return None;
+        };
+        let Some(body) = r.take(usize::from(len)) else {
+            r.pos = start;
+            return None;
+        };
+        out.push(body);
+    }
+    Some(out)
+}
+"""
+
+READER_SOLUTION = READER_STARTER
+for _old, _new in [
+    ("    pub fn take(&'a mut self, n: usize) -> Option<&'a [u8]> {", "    pub fn take(&mut self, n: usize) -> Option<&'a [u8]> {"),
+    ("    pub fn peek(&'a self) -> Option<u8> {", "    pub fn peek(&self) -> Option<u8> {"),
+    ("    pub fn u16(&'a mut self) -> Option<u16> {", "    pub fn u16(&mut self) -> Option<u16> {"),
+    ("pub fn records<'a>(r: &'a mut Reader<'a>) -> Option<Vec<&'a [u8]>> {", "pub fn records<'a>(r: &mut Reader<'a>) -> Option<Vec<&'a [u8]>> {"),
+]:
+    READER_SOLUTION = sub(READER_SOLUTION, _old, _new)
+
 P.append(fix(
-    "fix-a-mut-self-borrows-forever", "Fix: &'a mut self borrows forever", "medium", "two-lifetimes", ["&'a mut self", "E0499"],
-    "`Reader::take` compiles, but a caller can't call it twice. Fix it so the tests compile.",
+    "fix-a-mut-self-borrows-forever", "Fix: &'a mut self borrows forever", "medium", "two-lifetimes", ["&'a mut self", "E0499", "E0502", "&'a mut T<'a>"],
     """
-    pub struct Reader<'a> {
-        data: &'a [u8],
-        pos: usize,
-    }
-
-    impl<'a> Reader<'a> {
-        pub fn new(data: &'a [u8]) -> Self {
-            Reader { data, pos: 0 }
-        }
-
-        /// The next `n` bytes, or None if fewer remain.
-        pub fn take(&'a mut self, n: usize) -> Option<&'a [u8]> {
-            let chunk = self.data.get(self.pos..self.pos + n)?;
-            self.pos += n;
-            Some(chunk)
-        }
-
-        pub fn remaining(&self) -> usize {
-            self.data.len() - self.pos
-        }
-    }
+        `Reader`'s methods compile, but only one call can ever be made on a reader: after the first `take`,
+        `u16` or even `peek`, it stays borrowed for as long as its data. That's why `records`, which reads a
+        reader several times, doesn't compile, and its own signature does the same to its caller. Fix the
+        signatures so readers can be used normally; results must still borrow the data, not the reader.
     """,
-    """
-    pub struct Reader<'a> {
-        data: &'a [u8],
-        pos: usize,
-    }
-
-    impl<'a> Reader<'a> {
-        pub fn new(data: &'a [u8]) -> Self {
-            Reader { data, pos: 0 }
-        }
-
-        /// The next `n` bytes, or None if fewer remain.
-        pub fn take(&mut self, n: usize) -> Option<&'a [u8]> {
-            let chunk = self.data.get(self.pos..self.pos + n)?;
-            self.pos += n;
-            Some(chunk)
-        }
-
-        pub fn remaining(&self) -> usize {
-            self.data.len() - self.pos
-        }
-    }
-    """,
-    [T("twice", "data [1, 2, 3, 4, 5]; take 2, take 3, remaining", "(a, b, r.remaining())", "(Some(&[1u8, 2][..]), Some(&[3u8, 4, 5][..]), 0)",
-       setup="let data = [1u8, 2, 3, 4, 5];\nlet mut r = Reader::new(&data);\nlet a = r.take(2);\nlet b = r.take(3);"),
-     T("too_many", "data [1]; take 9, then take 1", "(x, y)", "(None, Some(&[1u8][..]))",
-       setup="let data = [1u8];\nlet mut r = Reader::new(&data);\nlet x = r.take(9);\nlet y = r.take(1);"),
-     T("zero", "take 0 from empty", "Reader::new(&[]).take(0)", "Some(&[][..])"),
-     T("everything_then_nothing", "data [7, 8]; take 2, take 1", "(a, b, r.remaining())", "(Some(&[7u8, 8][..]), None, 0)",
-       setup="let data = [7u8, 8];\nlet mut r = Reader::new(&data);\nlet a = r.take(2);\nlet b = r.take(1);"),
-     T("failed_take_keeps_position", "data [1, 2, 3]; take 1, take 5, remaining", "(a, b, r.remaining())", "(Some(&[1u8][..]), None, 2)",
-       setup="let data = [1u8, 2, 3];\nlet mut r = Reader::new(&data);\nlet a = r.take(1);\nlet b = r.take(5);")],
-    [T("zero", "take 0 from empty", "Reader::new(&[]).take(0)", "Some(&[][..])"),
-     T("empty_take_one", "take 1 from empty", "Reader::new(&[]).take(1)", "None"),
-     T("remaining_at_start", "data [1, 2, 3]", "Reader::new(&[1, 2, 3]).remaining()", "3"),
-     T("zero_does_not_move", "data [5]; take 0, take 0, take 1", "(a, b, c)", "(Some(&[][..]), Some(&[][..]), Some(&[5u8][..]))",
-       setup="let data = [5u8];\nlet mut r = Reader::new(&data);\nlet a = r.take(0);\nlet b = r.take(0);\nlet c = r.take(1);"),
-     T("chunks_outlive_reader", "take twice, drop the reader, use both chunks", "(a, b)", "(Some(&[1u8][..]), Some(&[2u8, 3][..]))",
-       setup="let data = vec![1u8, 2, 3];\nlet (a, b);\n{\n    let mut r = Reader::new(&data);\n    a = r.take(1);\n    b = r.take(2);\n}"),
-     T("zero_copy", "chunk points into data", "std::ptr::eq(chunk.as_ptr(), data[2..].as_ptr())", "true",
-       setup="let data = [0u8, 1, 2, 3];\nlet mut r = Reader::new(&data);\nr.take(2);\nlet chunk = r.take(2).unwrap();"),
-     T("many_small_takes", "10000 bytes, 10000 takes of 1", "(sum, r.remaining())", "(10_000 * 7, 0)",
-       setup="let data = vec![7u8; 10_000];\nlet mut r = Reader::new(&data);\nlet mut sum = 0u32;\nwhile let Some(c) = r.take(1) {\n    sum += c[0] as u32;\n}"),
-     T("fails_then_exact", "data [1, 2]; take 3, then take 2", "(a, b)", "(None, Some(&[1u8, 2][..]))",
-       setup="let data = [1u8, 2];\nlet mut r = Reader::new(&data);\nlet a = r.take(3);\nlet b = r.take(2);"),
-     """
+    READER_STARTER,
+    READER_SOLUTION,
+    [T("take_twice", "data [1, 2, 3, 4]: take 1, take 2, remaining", "(r.take(1), r.take(2), r.remaining())", "(Some(&[1u8][..]), Some(&[2u8, 3][..]), 1)", setup="let data = [1u8, 2, 3, 4];\nlet mut r = Reader::new(&data);"),
+     T("peek_then_take", "data [7, 8]: peek, take 1, peek", "(r.peek(), r.take(1).map(|b| b[0]), r.peek())", "(Some(7), Some(7), Some(8))", setup="let data = [7u8, 8];\nlet mut r = Reader::new(&data);"),
+     T("u16_big_endian", "data [1, 2, 0xff]: u16, then u16", "(r.u16(), r.u16(), r.remaining())", "(Some(258), None, 1)", setup="let data = [1u8, 2, 0xff];\nlet mut r = Reader::new(&data);"),
+     T("records_then_keep_reading", "records of [0, 2, 'h', 'i', 0, 0]; then remaining", "(recs, r.remaining())", '(Some(vec![&b"hi"[..], &b""[..]]), 0)', setup='let data = [0u8, 2, b\'h\', b\'i\', 0, 0];\nlet mut r = Reader::new(&data);\nlet recs = records(&mut r);'),
+     T("chunks_outlive_the_reader", "take 2 from a reader that's then dropped", "chunk", "Some(&[9u8, 9][..])", setup="let data = [9u8, 9, 9];\nlet chunk = Reader::new(&data).take(2);")],
+    [T("take_too_many", "data [1]: take 2, then take 1", "(r.take(2), r.take(1))", "(None, Some(&[1u8][..]))", setup="let data = [1u8];\nlet mut r = Reader::new(&data);"),
+     T("take_zero", "data []: take 0", "r.take(0)", "Some(&[][..])", setup="let data: [u8; 0] = [];\nlet mut r = Reader::new(&data);"),
+     T("peek_empty", "data []: peek", "Reader::new(&[]).peek()", "None"),
+     T("records_cut_short", "records of [0, 1, 'a', 0, 5, 'b']", "(recs, r.remaining(), r.peek())", "(None, 3, Some(0))", setup='let data = [0u8, 1, b\'a\', 0, 5, b\'b\'];\nlet mut r = Reader::new(&data);\nlet recs = records(&mut r);'),
+     T("records_half_length", "records of [0, 1, 'a', 7]", "(recs, r.remaining())", "(None, 1)", setup="let data = [0u8, 1, b'a', 7];\nlet mut r = Reader::new(&data);\nlet recs = records(&mut r);"),
+     T("records_empty", "records of []", "records(&mut Reader::new(&[]))", "Some(vec![])"),
+     T("u16_max", "data [0xff, 0xff]", "Reader::new(&[0xff, 0xff]).u16()", "Some(u16::MAX)"),
+     T("results_point_into_data", "take returns a slice of the data", "Reader::new(&data).take(1).unwrap().as_ptr() == data.as_ptr()", "true", setup="let data = [5u8];"),
+     r"""
      #[test]
-     fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(312);
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6309);
          for _ in 0..300 {
-             let len = rng.below(10);
-             let data: Vec<u8> = rng.vec(len, 0, 9);
+             let n = rng.below(10);
+             let data: Vec<u8> = rng.vec(n, 0, 3);
              let mut r = Reader::new(&data);
              let mut pos = 0;
-             for _ in 0..6 {
-                 let n = rng.below(5);
-                 let want = if pos + n <= data.len() { pos += n; Some(&data[pos - n..pos]) } else { None };
-                 check!(format!("data = {data:?}, take({n}) at {pos}"), r.take(n), want);
-                 check!(format!("data = {data:?}: remaining"), r.remaining(), data.len() - pos);
+             let mut ops = Vec::new();
+             for _ in 0..5 {
+                 match rng.below(3) {
+                     0 => {
+                         let k = rng.below(4);
+                         let want = data.get(pos..pos + k);
+                         if want.is_some() {
+                             pos += k;
+                         }
+                         ops.push(format!("take {k}"));
+                         check!(format!("{data:?}: {}", ops.join(", ")), r.take(k), want);
+                     }
+                     1 => {
+                         ops.push("peek".to_string());
+                         check!(format!("{data:?}: {}", ops.join(", ")), r.peek(), data.get(pos).copied());
+                     }
+                     _ => {
+                         let want = data.get(pos..pos + 2).map(|b| u16::from_be_bytes([b[0], b[1]]));
+                         if want.is_some() {
+                             pos += 2;
+                         }
+                         ops.push("u16".to_string());
+                         check!(format!("{data:?}: {}", ops.join(", ")), r.u16(), want);
+                     }
+                 }
              }
+             check!(format!("{data:?}: {}; remaining", ops.join(", ")), r.remaining(), data.len() - pos);
          }
      }
+
+     #[test]
+     fn many_records() {
+         let mut data = Vec::new();
+         for i in 0..50_000u32 {
+             data.extend_from_slice(&[0, 2, (i % 256) as u8, 1]);
+         }
+         let mut r = Reader::new(&data);
+         let recs = records(&mut r).unwrap();
+         check!("50000 two-byte records", (recs.len(), recs[49_999], r.remaining()), (50_000, &[(49_999 % 256) as u8, 1][..], 0));
+     }
      """],
-    [("rust", "`&'a mut self` borrows the Reader mutably for all of `'a`, the lifetime of the data, so the first call locks it for good."),
-     ("rust", "The chunk comes from `data: &'a [u8]`, not from `self`. The `&mut self` borrow can be short.")],
-    ("Tying `&mut self` to the struct's own lifetime parameter is a classic trap: it compiles, and the struct becomes unusable after one call. The output lifetime `'a` alone says where the bytes come from.", "O(1)", "O(1)"),
-    "Why does `&'a self` (shared) cause much less trouble than `&'a mut self`?",
-    ["Never write `&'a mut self` with the struct's own `'a`.", "Outputs can use `'a` while `self` is borrowed briefly."],
-    rules=dict(lines=1),
+    [("rust", "In `impl<'a> Reader<'a>`, `&'a mut self` means \"borrow this reader mutably for as long as its data lives\". That's as long as the reader can exist, so nothing else can ever touch it. The same goes for `&'a self` once a mutable call is needed later."),
+     ("rust", "The result's lifetime and the receiver's lifetime are different things. Results borrow the data: `-> Option<&'a [u8]>`. The receiver is a short borrow: plain `&mut self`."),
+     ("rust", "`&'a mut Reader<'a>` in `records` is the same mistake from the outside: the caller's reader is borrowed for all of `'a`.")],
+    ("""`&'a mut self` on a type with lifetime `'a` is the classic over-constraint: it says the mutable borrow of the reader lasts as long as the data it points at, and since the reader can't outlive its data, that's the reader's whole remaining life. The first call compiles; every later use is E0499 (or E0502 after `&'a self`). And `&'a mut T<'a>` is worse than it looks because `&mut T` is invariant in `T`: the compiler can't shrink the inner `'a` to make the borrow shorter. The fix separates the two: the receiver is an ordinary short borrow (`&mut self`), and the output names `'a`, because it points into the data. `records` gets the same treatment: `r: &mut Reader<'a>` and `Vec<&'a [u8]>`.
+
+Syntax to remember: `pub fn take(&mut self, n: usize) -> Option<&'a [u8]>` · `pub fn records<'a>(r: &mut Reader<'a>) -> Option<Vec<&'a [u8]>>`.""", "O(1) per read", "O(1)"),
+    "Why can the compiler shorten `'a` in `&'a Reader<'a>` to make a shared borrow shorter, but not in `&'a mut Reader<'a>`?",
+    ["`&'a mut self` on `T<'a>` borrows the value for its whole life.", "Name the data's lifetime on outputs, not on the receiver.", "Avoid `&'a mut T<'a>`; `&mut T` is invariant in `T`."],
+    rules=dict(methods=["clone", "to_vec", "to_owned", "leak"], lines=4),
     wrong=dict(
-        returns_a_short_chunk="""
-            pub struct Reader<'a> {
-                data: &'a [u8],
-                pos: usize,
-            }
-
-            impl<'a> Reader<'a> {
-                pub fn new(data: &'a [u8]) -> Self {
-                    Reader { data, pos: 0 }
-                }
-
-                /// The next `n` bytes, or None if fewer remain.
-                pub fn take(&mut self, n: usize) -> Option<&'a [u8]> {
-                    let chunk = self.data.get(self.pos..(self.pos + n).min(self.data.len()))?;
-                    self.pos += n;
-                    Some(chunk)
-                }
-
-                pub fn remaining(&self) -> usize {
-                    self.data.len() - self.pos
-                }
-            }
-        """,
-        moves_before_checking="""
-            pub struct Reader<'a> {
-                data: &'a [u8],
-                pos: usize,
-            }
-
-            impl<'a> Reader<'a> {
-                pub fn new(data: &'a [u8]) -> Self {
-                    Reader { data, pos: 0 }
-                }
-
-                /// The next `n` bytes, or None if fewer remain.
-                pub fn take(&mut self, n: usize) -> Option<&'a [u8]> {
-                    self.pos += n;
-                    let chunk = self.data.get(self.pos - n..self.pos)?;
-                    Some(chunk)
-                }
-
-                pub fn remaining(&self) -> usize {
-                    self.data.len().saturating_sub(self.pos)
-                }
-            }
-        """,
+        u16_little_endian=sub(READER_SOLUTION, "Some(u16::from_be_bytes([b[0], b[1]]))", "Some(u16::from_le_bytes([b[0], b[1]]))"),
+        take_moves_on_failure=sub(READER_SOLUTION, "        let chunk = self.data.get(self.pos..self.pos + n)?;\n        self.pos += n;\n", "        let end = (self.pos + n).min(self.data.len());\n        let chunk = self.data.get(self.pos..self.pos + n);\n        self.pos = end;\n        let chunk = chunk?;\n"),
+        records_no_rewind=sub(READER_SOLUTION, "        let Some(body) = r.take(usize::from(len)) else {\n            r.pos = start;\n            return None;\n        };", "        let Some(body) = r.take(usize::from(len)) else {\n            return None;\n        };"),
     ),
 ))
 

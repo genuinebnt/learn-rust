@@ -1,38 +1,34 @@
 use solution::*;
 
 #[test]
-fn first_outlives_sep() {
-    let text = String::from("a,b,c");
-    let first;
-    {
-        let sep = String::from(",");
-        first = Splitter::new(&text, &sep).first();
-    }
-    check!(r#"text "a,b,c", separator dropped"#, first, "a");
+fn split_lines_example() {
+    check!(r#"split_lines("a,b\n,c", ',')"#, split_lines("a,b\n,c", ','), vec!["a", "b", "", "c"]);
 }
 
 #[test]
-fn parts_outlive_sep() {
-    let text = String::from("a--b");
-    let parts;
-    {
-        let sep = String::from("--");
-        parts = Splitter::new(&text, &sep).parts();
-    }
-    check!(r#"text "a--b", separator dropped"#, parts, vec!["a", "b"]);
+fn pieces_outlive_the_separator() {
+    let text = String::from("x--y");
+    let v: Vec<&str> = Splitter::new(&text, &String::from("--")).collect();
+    check!(r#"collect pieces of "x--y" split on a temporary "--""#, v, vec!["x", "y"]);
 }
 
 #[test]
-fn no_sep() {
-    check!(r#""abc", ",""#, Splitter::new("abc", ",").parts(), vec!["abc"]);
+fn peek_does_not_advance() {
+    let mut s = Splitter::new("a;b", ";");
+    check!(r#""a;b" on ";": peek, next, peek"#, (s.peek(), s.next(), s.peek()), (Some("a"), Some("a"), Some("b")));
 }
 
 #[test]
-fn first_without_sep() {
-    check!(r#""abc", ",""#, Splitter::new("abc", ",").first(), "abc");
+fn like_str_split() {
+    check!(r#"";a;;b;" on ";""#, Splitter::new(";a;;b;", ";").collect::<Vec<_>>(), vec!["", "a", "", "b", ""]);
 }
 
 #[test]
-fn empty_pieces_kept() {
-    check!(r#""a,,b,", ",""#, Splitter::new("a,,b,", ",").parts(), vec!["a", "", "b", ""]);
+fn no_separator() {
+    check!(r#""abc" on ",""#, Splitter::new("abc", ",").collect::<Vec<_>>(), vec!["abc"]);
+}
+
+#[test]
+fn empty_text() {
+    check!(r#""" on ",""#, Splitter::new("", ",").collect::<Vec<_>>(), vec![""]);
 }

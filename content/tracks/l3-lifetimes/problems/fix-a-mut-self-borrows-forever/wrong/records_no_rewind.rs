@@ -42,7 +42,6 @@ pub fn records<'a>(r: &mut Reader<'a>) -> Option<Vec<&'a [u8]>> {
             return None;
         };
         let Some(body) = r.take(usize::from(len)) else {
-            r.pos = start;
             return None;
         };
         out.push(body);

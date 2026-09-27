@@ -1,42 +1,37 @@
 use solution::*;
 
 #[test]
-fn twice() {
-    let data = [1u8, 2, 3, 4, 5];
+fn take_twice() {
+    let data = [1u8, 2, 3, 4];
     let mut r = Reader::new(&data);
-    let a = r.take(2);
-    let b = r.take(3);
-    check!(r#"data [1, 2, 3, 4, 5]; take 2, take 3, remaining"#, (a, b, r.remaining()), (Some(&[1u8, 2][..]), Some(&[3u8, 4, 5][..]), 0));
+    check!(r#"data [1, 2, 3, 4]: take 1, take 2, remaining"#, (r.take(1), r.take(2), r.remaining()), (Some(&[1u8][..]), Some(&[2u8, 3][..]), 1));
 }
 
 #[test]
-fn too_many() {
-    let data = [1u8];
-    let mut r = Reader::new(&data);
-    let x = r.take(9);
-    let y = r.take(1);
-    check!(r#"data [1]; take 9, then take 1"#, (x, y), (None, Some(&[1u8][..])));
-}
-
-#[test]
-fn zero() {
-    check!(r#"take 0 from empty"#, Reader::new(&[]).take(0), Some(&[][..]));
-}
-
-#[test]
-fn everything_then_nothing() {
+fn peek_then_take() {
     let data = [7u8, 8];
     let mut r = Reader::new(&data);
-    let a = r.take(2);
-    let b = r.take(1);
-    check!(r#"data [7, 8]; take 2, take 1"#, (a, b, r.remaining()), (Some(&[7u8, 8][..]), None, 0));
+    check!(r#"data [7, 8]: peek, take 1, peek"#, (r.peek(), r.take(1).map(|b| b[0]), r.peek()), (Some(7), Some(7), Some(8)));
 }
 
 #[test]
-fn failed_take_keeps_position() {
-    let data = [1u8, 2, 3];
+fn u16_big_endian() {
+    let data = [1u8, 2, 0xff];
     let mut r = Reader::new(&data);
-    let a = r.take(1);
-    let b = r.take(5);
-    check!(r#"data [1, 2, 3]; take 1, take 5, remaining"#, (a, b, r.remaining()), (Some(&[1u8][..]), None, 2));
+    check!(r#"data [1, 2, 0xff]: u16, then u16"#, (r.u16(), r.u16(), r.remaining()), (Some(258), None, 1));
+}
+
+#[test]
+fn records_then_keep_reading() {
+    let data = [0u8, 2, b'h', b'i', 0, 0];
+    let mut r = Reader::new(&data);
+    let recs = records(&mut r);
+    check!(r#"records of [0, 2, 'h', 'i', 0, 0]; then remaining"#, (recs, r.remaining()), (Some(vec![&b"hi"[..], &b""[..]]), 0));
+}
+
+#[test]
+fn chunks_outlive_the_reader() {
+    let data = [9u8, 9, 9];
+    let chunk = Reader::new(&data).take(2);
+    check!(r#"take 2 from a reader that's then dropped"#, chunk, Some(&[9u8, 9][..]));
 }

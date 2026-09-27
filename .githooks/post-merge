@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# After `git pull` (merge or fast-forward): install new web dependencies and flag a stale runner image.
+# scripts/dev.sh restarts the API and hot-reloads the web app on its own; dependencies are what it can't see.
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+# ORIG_HEAD is where HEAD was before the merge or rebase.
+changed=$(git diff --name-only ORIG_HEAD HEAD 2>/dev/null || true)
+if echo "$changed" | grep -qE '^web/(package\.json|pnpm-lock\.yaml)$'; then
+  echo "anneal: web dependencies changed, running pnpm install"
+  pnpm -C web install --frozen-lockfile
+fi
+if echo "$changed" | grep -qE '^docker/'; then
+  echo "anneal: docker/ changed; rebuild the runner image when you can:"
+  echo "  docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker"
+fi

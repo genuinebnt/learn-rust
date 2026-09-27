@@ -20,8 +20,11 @@ docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker   # sandbo
 cargo run -p anneal-api                                                 # http://localhost:8787
 ```
 
-For UI work with hot reload, run `cargo run -p anneal-api` and `cd web && pnpm dev`, then open
-http://localhost:5180 (Vite proxies `/api` to the server).
+**Day to day, use dev mode:** `./scripts/dev.sh`, then open http://127.0.0.1:5180. The API restarts whenever
+`crates/`, `content/` or the Cargo files change, and the web app hot-reloads through Vite (which proxies `/api`
+to the server). A `git pull` is picked up the same way. The script also points git at `.githooks`, whose
+post-merge/post-rewrite hooks run `pnpm install` when web dependencies change and warn when `docker/` changed
+(rebuild the runner image then).
 
 The server reads its settings from the environment; `cargo run` fills in local defaults from
 `.cargo/config.toml`. See the table at the top of [crates/api/src/main.rs](crates/api/src/main.rs).

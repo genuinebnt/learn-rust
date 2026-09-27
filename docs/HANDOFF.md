@@ -91,8 +91,13 @@ environment variables is in the doc comment at the top of `crates/api/src/main.r
 | `ANNEAL_DOCKER_CONTEXT` | Docker context; defaults to `orbstack` |
 | `ANNEAL_PASSPHRASE_HASH` | Turns on login |
 
-Restart the API after backend changes. It serves `web/dist`, so rebuild the web app after frontend changes, or
-use `pnpm dev`.
+Day to day, the owner runs **`./scripts/dev.sh`** and uses http://127.0.0.1:5180:
+- `cargo watch` restarts the API when `crates/`, `content/` or the Cargo files change;
+- Vite hot-reloads the web app;
+- `.githooks` reinstalls web dependencies after a pull that changes them.
+
+So when you push, the owner's `git pull` puts your change live without a manual restart. Without dev mode, the
+API on :8787 serves `web/dist`, so rebuild the web app after frontend changes.
 
 ### In a cloud session (no Docker, maybe no Postgres)
 

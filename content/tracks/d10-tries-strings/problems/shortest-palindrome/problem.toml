@@ -1,0 +1,41 @@
+slug = "shortest-palindrome"
+title = "Shortest palindrome (KMP)"
+mode = "write"
+level = "hard"
+stage = "hard-tries-strings"
+order = 24
+status = "ready"
+tags = ["KMP", "palindrome", "chars"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "The longest palindromic prefix of `s` is the longest border of `s + separator + reverse(s)`.",
+  "`Option<char>` gives a separator that equals no character, so input containing `#` can't break it.",
+]
+constraints = ["0 ≤ number of characters ≤ 10⁶"]
+follow_up = "How would you find the fewest characters to add at the end instead? And to make it a palindrome by adding anywhere?"
+related = ["D12", "S2"]
+
+[[examples]]
+input = "s = \"aacecaaa\""
+output = "\"aaacecaaa\""
+
+[[examples]]
+input = "s = \"abcd\""
+output = "\"dcbabcd\""
+
+[[hints]]
+kind = "approach"
+text = "Only the longest palindromic prefix of `s` can stay unmirrored; the rest, reversed, goes in front. That prefix is the longest prefix of `s` that is also a suffix of `reverse(s)`: the last KMP border value of `s + separator + reverse(s)`."
+
+[[hints]]
+kind = "rust"
+text = "Build the combined sequence as `Vec<Option<char>>` with `None` as the separator: it can't equal any character. Then `chars[keep..].iter().rev().chain(&chars).collect::<String>()`."
+
+[[hints]]
+kind = "edge case"
+text = "Without a separator the border can run past the middle (`\"aa\"` gives 3 for `\"aaaa\"`). A `'#'` separator fails on input that contains `'#'`."
+
+[solution]
+explanation = "The border table is linear, so the whole thing is O(n). The separator stops a border from spanning both halves, which would claim a palindromic prefix longer than `s`. Checking each prefix from the longest down is O(n²) in the worst case, as in the test where every long prefix is a near-palindrome."
+time = "O(n)"
+space = "O(n)"

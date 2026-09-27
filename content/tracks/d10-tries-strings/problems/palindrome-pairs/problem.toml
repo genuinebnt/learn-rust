@@ -1,0 +1,45 @@
+slug = "palindrome-pairs"
+title = "Palindrome pairs"
+mode = "write"
+level = "hard"
+stage = "hard-tries-strings"
+order = 23
+status = "ready"
+tags = ["palindrome", "HashMap", "split_at"]
+companies = ["Meta", "Amazon", "Google", "Airbnb"]
+teaches = [
+  "Split each word at every position: if one side is a palindrome, the partner must be the other side reversed.",
+  "Skip one of the two whole-word splits, or every equal-length pair is reported twice.",
+]
+constraints = ["0 ≤ words.len() ≤ 2·10⁴", "0 ≤ words[i].len() ≤ 300, total length ≤ 3·10⁵"]
+follow_up = "How would a trie of the reversed words replace the hash map, and what would each node store?"
+related = ["S4", "D1"]
+
+[[examples]]
+input = "words = [\"abcd\", \"dcba\", \"lls\", \"s\", \"sssll\"]"
+output = "[(0, 1), (1, 0), (2, 4), (3, 2)]"
+
+[[examples]]
+input = "words = [\"bat\", \"tab\", \"cat\"]"
+output = "[(0, 1), (1, 0)]"
+
+[[examples]]
+input = "words = [\"a\", \"\"]"
+output = "[(0, 1), (1, 0)]"
+
+[[hints]]
+kind = "approach"
+text = "For `w + x` to be a palindrome with `w` the longer word, `x` reversed is a prefix of `w` and the rest of `w` is a palindrome. So split `w` at every position: if the right part is a palindrome, look up the left part reversed; if the left part is a palindrome, look up the right part reversed (that partner goes in front)."
+
+[[hints]]
+kind = "rust"
+text = "Key a `HashMap<Vec<u8>, usize>` by each word reversed; `get(left)` works with a `&[u8]` because `Vec<u8>: Borrow<[u8]>`. `b.split_at(cut)` gives both sides without allocating."
+
+[[hints]]
+kind = "edge case"
+text = "The split at 0 of one word and the split at the end of its reverse describe the same pair; handle the whole-word case on one side only. `\"\"` pairs with every palindrome, in both orders."
+
+[solution]
+explanation = "Each word tries L + 1 splits, each with an O(L) palindrome check and an O(L) hash lookup: O(n · L²) overall, versus O(n² · L) for checking every pair. A trie of the reversed words (storing, at each node, the words whose remaining part is a palindrome) gives the same bound and is the other textbook answer."
+time = "O(n · L²)"
+space = "O(n · L)"

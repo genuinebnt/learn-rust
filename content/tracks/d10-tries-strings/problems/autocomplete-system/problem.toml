@@ -1,0 +1,37 @@
+slug = "autocomplete-system"
+title = "Autocomplete system with hot counts"
+mode = "write"
+level = "hard"
+stage = "hard-tries-strings"
+order = 19
+status = "ready"
+tags = ["trie", "design", "arena", "autocomplete"]
+companies = ["Amazon", "Google", "Microsoft", "Uber"]
+teaches = [
+  "A cursor that lives between calls can't be a `&Node` inside the struct; keep the nodes in a `Vec` and the cursor as an index.",
+  "Cache the three hottest sentences in every node and update them along one path when a count rises.",
+]
+constraints = ["0 ≤ sentences.len() ≤ 2·10⁴, 1 ≤ sentence length ≤ 100", "times[i] ≤ u32::MAX; counts can grow past it", "up to 10⁴ calls to input"]
+follow_up = "How would you make the suggestions favour recent sentences over old ones (decay the counts over time)?"
+related = ["D14", "S7", "L3"]
+
+[[examples]]
+input = "sentences = [\"i love you\", \"island\", \"iroman\", \"i love leetcode\"], times = [5, 3, 2, 2]; input 'i', ' ', 'a', '#'"
+output = "[\"i love you\", \"island\", \"i love leetcode\"], [\"i love you\", \"i love leetcode\"], [], []"
+
+[[hints]]
+kind = "approach"
+text = "Store the sentences in a trie. In every node, keep the ids of the three hottest sentences below it. A keystroke moves a cursor one node down and returns that node's list; `'#'` raises one sentence's count and refreshes the lists on its path only."
+
+[[hints]]
+kind = "rust"
+text = "The cursor must survive between `input` calls, and a struct can't hold a reference into its own trie. Keep nodes in a `Vec<Node>`, children as `u32` indexes, and the cursor as `Option<usize>`. To sort a node's list by counts while `nodes` is borrowed mutably, destructure: `let Self { nodes, counts, sentences, .. } = self;`."
+
+[[hints]]
+kind = "edge case"
+text = "When a known sentence is typed again, its count rises and it can climb into lists it wasn't in; the cached lists must be updated for old sentences too, not only new ones. Counts start at `u32::MAX` and still grow, so keep them in `u64`."
+
+[solution]
+explanation = "Counts only ever rise, and only for the sentence just finished, so a node's top three can change only by that sentence moving up: insert or reorder it, sort at most four entries, truncate. That makes a keystroke O(1) (plus copying three strings) and `'#'` O(L). Collecting and sorting the whole subtree on every keystroke is the textbook answer and costs O(matches · log matches) per key, which the shared-prefix test makes too slow. The arena (`Vec<Node>` with `u32` links) is also what lets the cursor be plain data."
+time = "input: O(1) per letter, O(L) for '#'; new: O(total length)"
+space = "O(total length × 27)"

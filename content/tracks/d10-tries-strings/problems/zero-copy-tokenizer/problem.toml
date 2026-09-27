@@ -1,0 +1,41 @@
+slug = "zero-copy-tokenizer"
+title = "Zero-copy tokenizer"
+mode = "write"
+level = "hard"
+stage = "hard-tries-strings"
+order = 25
+status = "ready"
+tags = ["lifetimes", "Cow", "Iterator", "parsing"]
+teaches = [
+  "`Iterator<Item = Result<(Token<'a>, Range<usize>), LexError>>`: items borrow the source, not the lexer, so they outlive it.",
+  "`Cow<'a, str>` keeps string literals zero-copy until an escape forces an owned `String`.",
+  "An error ends the stream: a fused iterator stops instead of lexing garbage after it.",
+]
+constraints = ["0 ≤ src.len() ≤ 2·10⁶ bytes"]
+follow_up = "How would you add line and column numbers to errors without making every token pay for them?"
+related = ["L3", "S2", "S6"]
+
+[[examples]]
+input = "src = \"let x1 = 42;\""
+output = "Ident(\"let\") 0..3, Ident(\"x1\") 4..6, Op(\"=\") 7..8, Int(\"42\") 9..11, Op(\";\") 11..12"
+
+[[examples]]
+input = "src = \"a @ b\""
+output = "Ok(Ident(\"a\")), Err(Unexpected { at: 2, ch: '@' }), then None"
+
+[[hints]]
+kind = "approach"
+text = "Skip trivia, look at the first character, and pick the rule: identifier, number, string or operator. Try the two-character operators before the one-character ones. For strings, scan for the closing quote, handling a backslash and the character after it together."
+
+[[hints]]
+kind = "rust"
+text = "`type Item = Result<(Token<'a>, Range<usize>), LexError>` ties tokens to the source's `'a`, not to `&mut self`. Keep `Option<String>` while scanning a string: `None` means no escape yet, so the result is `Cow::Borrowed(&body[..i])`; the first escape copies what came before into a `String`."
+
+[[hints]]
+kind = "edge case"
+text = "After an error, set a flag and return `None` from then on (and you may `impl FusedIterator`). A backslash just before the end is an unterminated string, not a bad escape; `\"ab\\\"` never closes."
+
+[solution]
+explanation = "One pass: every byte is looked at once, so lexing is O(n), and only strings with escapes allocate. The lifetime parameter is what makes it zero-copy: `Token<'a>` borrows the source, so tokens outlive the lexer and cost nothing to produce. `Cow` lets one type carry both the borrowed common case and the owned escaped case. Maximal munch (`->` before `-`) is why the operator list is ordered by length. Finding the byte offset from the start again for every token (or counting characters to get there) makes it O(n²)."
+time = "O(n)"
+space = "O(1) besides owned strings"

@@ -2881,6 +2881,2101 @@ P.append(dict(
     related=["S4", "D13"],
 ))
 
+# ---------------------------------------------------------------- hard tries & strings (hard)
+
+P.append(dict(
+    slug="word-search-ii", title="Word search II", level="hard", stage="hard-tries-strings", tags=["trie", "backtracking", "grid", "Blind 75"],
+    companies=["Meta", "Apple", "Amazon", "Google", "Microsoft", "Airbnb", "Uber"],
+    teaches=["One depth-first search over the board, steered by a trie of all the words, instead of one search per word.",
+             "Prune the trie as words are found: a branch with nothing left to find is cut, so later searches stop at once."],
+    statement="""
+        `board` is a grid of lowercase letters, one `&str` per row. A word is on the board if you can spell it by
+        starting on any cell and stepping up, down, left or right, using each cell at most once in that word.
+
+        Return the words from `words` that are on the board, sorted, each once. The answers are slices of `words`.
+    """,
+    examples=[("board = [\"oaan\", \"etae\", \"ihkr\", \"iflv\"], words = [\"oath\", \"pea\", \"eat\", \"rain\"]", "[\"eat\", \"oath\"]"),
+              ("board = [\"ab\", \"cd\"], words = [\"abcb\"]", "[]")],
+    constraints=["0 ≤ rows, columns ≤ 12, all rows the same length", "0 ≤ words.len() ≤ 3·10⁴", "1 ≤ words[i].len() ≤ 16, lowercase ASCII"],
+    starter="""
+        pub fn find_words<'a>(board: &[&str], words: &[&'a str]) -> Vec<&'a str> {
+            todo!()
+        }
+    """,
+    solution="""
+        #[derive(Default)]
+        struct Node {
+            children: [Option<Box<Node>>; 26],
+            /// The word ending here, until it's found.
+            word: Option<usize>,
+            /// Words not yet found at or below this node.
+            left: usize,
+        }
+
+        /// Searches from cell (r, c), coming from `node`. Returns how many words were found, so callers can prune.
+        fn dfs<'a>(grid: &mut [Vec<u8>], r: usize, c: usize, node: &mut Node, words: &[&'a str], out: &mut Vec<&'a str>) -> usize {
+            let letter = grid[r][c];
+            if letter == b'#' {
+                return 0; // already on the current path
+            }
+            let i = (letter - b'a') as usize;
+            let Some(child) = node.children[i].as_deref_mut() else {
+                return 0;
+            };
+            let mut found = 0;
+            if let Some(w) = child.word.take() {
+                out.push(words[w]);
+                found += 1;
+            }
+            grid[r][c] = b'#';
+            let (rows, cols) = (grid.len(), grid[0].len());
+            if r > 0 && child.left > found {
+                found += dfs(grid, r - 1, c, child, words, out);
+            }
+            if r + 1 < rows && child.left > found {
+                found += dfs(grid, r + 1, c, child, words, out);
+            }
+            if c > 0 && child.left > found {
+                found += dfs(grid, r, c - 1, child, words, out);
+            }
+            if c + 1 < cols && child.left > found {
+                found += dfs(grid, r, c + 1, child, words, out);
+            }
+            grid[r][c] = letter;
+            child.left -= found;
+            if child.left == 0 {
+                node.children[i] = None; // nothing left to find down this branch
+            }
+            found
+        }
+
+        pub fn find_words<'a>(board: &[&str], words: &[&'a str]) -> Vec<&'a str> {
+            let mut unique: Vec<&'a str> = words.to_vec();
+            unique.sort_unstable();
+            unique.dedup();
+            let mut root = Node::default();
+            for (w, word) in unique.iter().enumerate() {
+                let mut node = &mut root;
+                node.left += 1;
+                for b in word.bytes() {
+                    node = node.children[(b - b'a') as usize].get_or_insert_with(Default::default);
+                    node.left += 1;
+                }
+                node.word = Some(w);
+            }
+            let mut grid: Vec<Vec<u8>> = board.iter().map(|row| row.as_bytes().to_vec()).collect();
+            let mut out = Vec::new();
+            for r in 0..grid.len() {
+                for c in 0..grid[r].len() {
+                    if root.left > 0 {
+                        let found = dfs(&mut grid, r, c, &mut root, &unique, &mut out);
+                        root.left -= found;
+                    }
+                }
+            }
+            out.sort_unstable();
+            out
+        }
+    """,
+    visible=[
+        T("leetcode_oath", "board = [\"oaan\", \"etae\", \"ihkr\", \"iflv\"], words = [\"oath\", \"pea\", \"eat\", \"rain\"]",
+          'find_words(&["oaan", "etae", "ihkr", "iflv"], &["oath", "pea", "eat", "rain"])', 'vec!["eat", "oath"]'),
+        T("leetcode_cell_used_twice", "board = [\"ab\", \"cd\"], words = [\"abcb\"] (spelling it would reuse the b)", 'find_words(&["ab", "cd"], &["abcb"])', "Vec::<&str>::new()"),
+        T("no_words", "board = [\"a\"], words = []", 'find_words(&["a"], &[])', "Vec::<&str>::new()"),
+        T("sorted_and_once", "board = [\"ab\"], words = [\"b\", \"a\", \"ab\", \"a\"]", 'find_words(&["ab"], &["b", "a", "ab", "a"])', 'vec!["a", "ab", "b"]'),
+        T("path_turns_corners", "board = [\"ab\", \"dc\"], words = [\"abcd\", \"abdc\"] (no diagonal steps)", 'find_words(&["ab", "dc"], &["abcd", "abdc"])', 'vec!["abcd"]'),
+        T("each_cell_once_per_word", "board = [\"aa\"], words = [\"a\", \"aa\", \"aaa\"]", 'find_words(&["aa"], &["a", "aa", "aaa"])', 'vec!["a", "aa"]'),
+    ],
+    hidden=[
+        T("empty_board", "board = [], words = [\"a\"]", 'find_words(&[], &["a"])', "Vec::<&str>::new()"),
+        T("single_cell", "board = [\"z\"], words = [\"z\", \"y\"]", 'find_words(&["z"], &["z", "y"])', 'vec!["z"]'),
+        T("no_diagonals", "board = [\"ab\", \"cd\"], words = [\"ad\", \"bc\"]", 'find_words(&["ab", "cd"], &["ad", "bc"])', "Vec::<&str>::new()"),
+        T("prefixes_and_words", "board = [\"abc\"], words = [\"a\", \"ab\", \"abc\", \"abcd\", \"cba\"]", 'find_words(&["abc"], &["a", "ab", "abc", "abcd", "cba"])', 'vec!["a", "ab", "abc", "cba"]'),
+        T("snake_through_all", "board = [\"abc\", \"fed\", \"ghi\"], words = [\"abcdefghi\"]", 'find_words(&["abc", "fed", "ghi"], &["abcdefghi"])', 'vec!["abcdefghi"]'),
+        T("leetcode_column", "board = [\"a\", \"a\"], words = [\"aaa\"]", 'find_words(&["a", "a"], &["aaa"])', "Vec::<&str>::new()"),
+        T("found_by_many_paths", "board = [\"aa\", \"aa\"], words = [\"aa\"]", 'find_words(&["aa", "aa"], &["aa"])', 'vec!["aa"]'),
+        T("one_row", "board = [\"hello\"], words = [\"hell\", \"olleh\", \"lol\"]", 'find_words(&["hello"], &["hell", "olleh", "lol"])', 'vec!["hell", "olleh"]'),
+        T("answers_are_the_input_slices", "the answer points into words", "std::ptr::eq(got[0].as_ptr(), w.as_ptr())", "true",
+          setup='let w = String::from("ba");\nlet got = find_words(&["ab"], &[&w]);'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn on_board(g: &mut Vec<Vec<u8>>, r: usize, c: usize, w: &[u8]) -> bool {
+                if g[r][c] != w[0] {
+                    return false;
+                }
+                if w.len() == 1 {
+                    return true;
+                }
+                let keep = g[r][c];
+                g[r][c] = b'#';
+                let (rows, cols) = (g.len(), g[0].len());
+                let ok = (r > 0 && on_board(g, r - 1, c, &w[1..]))
+                    || (r + 1 < rows && on_board(g, r + 1, c, &w[1..]))
+                    || (c > 0 && on_board(g, r, c - 1, &w[1..]))
+                    || (c + 1 < cols && on_board(g, r, c + 1, &w[1..]));
+                g[r][c] = keep;
+                ok
+            }
+            let mut rng = anneal_prelude::Rng::new(1018);
+            for _ in 0..300 {
+                let (rows, cols) = (1 + rng.below(3), 1 + rng.below(3));
+                let board: Vec<String> = (0..rows).map(|_| rng.string(cols, "ab")).collect();
+                let mut words: Vec<String> = Vec::new();
+                for _ in 0..rng.below(6) {
+                    let len = 1 + rng.below(5);
+                    words.push(rng.string(len, "ab"));
+                }
+                let b: Vec<&str> = board.iter().map(|s| s.as_str()).collect();
+                let w: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+                let mut g: Vec<Vec<u8>> = board.iter().map(|s| s.as_bytes().to_vec()).collect();
+                let mut want: Vec<&str> = w
+                    .iter()
+                    .copied()
+                    .filter(|word| (0..rows).any(|r| (0..cols).any(|c| on_board(&mut g, r, c, word.as_bytes()))))
+                    .collect();
+                want.sort_unstable();
+                want.dedup();
+                check!(format!("board = {b:?}, words = {w:?}"), find_words(&b, &w), want);
+            }
+        }
+
+        #[test]
+        fn scale_30k_words_one_search() {
+            // 12 × 12 a's with a b in the corner. 30000 words start with six a's and then leave the board,
+            // so searching once per word repeats the same walk 30000 times.
+            let mut board: Vec<String> = vec!["a".repeat(12); 12];
+            board[11] = format!("{}b", "a".repeat(11));
+            let b: Vec<&str> = board.iter().map(|s| s.as_str()).collect();
+            let mut words: Vec<String> = (0..30_000).map(|i| format!("aaaaaa{}", base10(i * 3, 5).replace('a', "k"))).collect();
+            for w in ["b", "ba", "aab", "bab", "aaaaaaaaab"] {
+                words.push(w.to_string());
+            }
+            let w: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+            check!("12 × 12 board of a's with a b in the corner; 30000 words 'a' × 6 + five letters from b..k, plus b, ba, aab, bab, aaaaaaaaab", find_words(&b, &w), vec!["aaaaaaaaab", "aab", "b", "ba"]);
+        }
+
+        #[test]
+        fn scale_found_words_are_pruned() {
+            // Every word is found on the first long path; without pruning, every cell starts a search through
+            // all self-avoiding paths of 15 steps.
+            let board = vec!["a".repeat(12); 12];
+            let b: Vec<&str> = board.iter().map(|s| s.as_str()).collect();
+            let words: Vec<String> = (1..=16).map(|n| "a".repeat(n)).collect();
+            let w: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+            check!("12 × 12 board of a's, words = 'a' × 1..=16", find_words(&b, &w), w.clone());
+        }
+        """ + BASE10,
+    ],
+    wrong=dict(
+        search_per_word="""
+            fn on_board(g: &mut [Vec<u8>], r: usize, c: usize, w: &[u8]) -> bool {
+                if g[r][c] != w[0] {
+                    return false;
+                }
+                if w.len() == 1 {
+                    return true;
+                }
+                let keep = g[r][c];
+                g[r][c] = b'#';
+                let (rows, cols) = (g.len(), g[0].len());
+                let ok = (r > 0 && on_board(g, r - 1, c, &w[1..]))
+                    || (r + 1 < rows && on_board(g, r + 1, c, &w[1..]))
+                    || (c > 0 && on_board(g, r, c - 1, &w[1..]))
+                    || (c + 1 < cols && on_board(g, r, c + 1, &w[1..]));
+                g[r][c] = keep;
+                ok
+            }
+
+            pub fn find_words<'a>(board: &[&str], words: &[&'a str]) -> Vec<&'a str> {
+                let mut g: Vec<Vec<u8>> = board.iter().map(|s| s.as_bytes().to_vec()).collect();
+                let rows = g.len();
+                let mut out: Vec<&'a str> = Vec::new();
+                for &word in words {
+                    if (0..rows).any(|r| (0..g[r].len()).any(|c| on_board(&mut g, r, c, word.as_bytes()))) {
+                        out.push(word);
+                    }
+                }
+                out.sort_unstable();
+                out.dedup();
+                out
+            }
+        """,
+        trie_without_pruning="""
+            #[derive(Default)]
+            struct Node {
+                children: [Option<Box<Node>>; 26],
+                word: Option<usize>,
+            }
+
+            fn dfs<'a>(grid: &mut [Vec<u8>], r: usize, c: usize, node: &mut Node, words: &[&'a str], out: &mut Vec<&'a str>) {
+                let letter = grid[r][c];
+                if letter == b'#' {
+                    return;
+                }
+                let Some(child) = node.children[(letter - b'a') as usize].as_deref_mut() else {
+                    return;
+                };
+                if let Some(w) = child.word.take() {
+                    out.push(words[w]);
+                }
+                grid[r][c] = b'#';
+                let (rows, cols) = (grid.len(), grid[0].len());
+                if r > 0 {
+                    dfs(grid, r - 1, c, child, words, out);
+                }
+                if r + 1 < rows {
+                    dfs(grid, r + 1, c, child, words, out);
+                }
+                if c > 0 {
+                    dfs(grid, r, c - 1, child, words, out);
+                }
+                if c + 1 < cols {
+                    dfs(grid, r, c + 1, child, words, out);
+                }
+                grid[r][c] = letter;
+            }
+
+            pub fn find_words<'a>(board: &[&str], words: &[&'a str]) -> Vec<&'a str> {
+                let mut root = Node::default();
+                for (w, word) in words.iter().enumerate() {
+                    let mut node = &mut root;
+                    for b in word.bytes() {
+                        node = node.children[(b - b'a') as usize].get_or_insert_with(Default::default);
+                    }
+                    node.word = Some(w);
+                }
+                let mut grid: Vec<Vec<u8>> = board.iter().map(|row| row.as_bytes().to_vec()).collect();
+                let mut out = Vec::new();
+                for r in 0..grid.len() {
+                    for c in 0..grid[r].len() {
+                        dfs(&mut grid, r, c, &mut root, words, &mut out);
+                    }
+                }
+                out.sort_unstable();
+                out.dedup();
+                out
+            }
+        """,
+        cells_reused="""
+            #[derive(Default)]
+            struct Node {
+                children: [Option<Box<Node>>; 26],
+                word: Option<usize>,
+            }
+
+            fn dfs<'a>(grid: &[Vec<u8>], r: usize, c: usize, node: &mut Node, depth: usize, words: &[&'a str], out: &mut Vec<&'a str>) {
+                let Some(child) = node.children[(grid[r][c] - b'a') as usize].as_deref_mut() else {
+                    return;
+                };
+                if let Some(w) = child.word.take() {
+                    out.push(words[w]);
+                }
+                if depth == 16 {
+                    return;
+                }
+                let (rows, cols) = (grid.len(), grid[0].len());
+                if r > 0 {
+                    dfs(grid, r - 1, c, child, depth + 1, words, out);
+                }
+                if r + 1 < rows {
+                    dfs(grid, r + 1, c, child, depth + 1, words, out);
+                }
+                if c > 0 {
+                    dfs(grid, r, c - 1, child, depth + 1, words, out);
+                }
+                if c + 1 < cols {
+                    dfs(grid, r, c + 1, child, depth + 1, words, out);
+                }
+            }
+
+            pub fn find_words<'a>(board: &[&str], words: &[&'a str]) -> Vec<&'a str> {
+                let mut root = Node::default();
+                for (w, word) in words.iter().enumerate() {
+                    let mut node = &mut root;
+                    for b in word.bytes() {
+                        node = node.children[(b - b'a') as usize].get_or_insert_with(Default::default);
+                    }
+                    node.word = Some(w);
+                }
+                let grid: Vec<Vec<u8>> = board.iter().map(|row| row.as_bytes().to_vec()).collect();
+                let mut out = Vec::new();
+                for r in 0..grid.len() {
+                    for c in 0..grid[r].len() {
+                        dfs(&grid, r, c, &mut root, 1, words, &mut out);
+                    }
+                }
+                out.sort_unstable();
+                out.dedup();
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Put all the words in a trie, then start a depth-first search from every cell, moving down the trie as you move across the board. A cell's letter with no matching child ends that branch."),
+           ("rust", "Mark the current path by writing `b'#'` into a `Vec<Vec<u8>>` copy of the board and restore the letter on the way back. Pass `&mut Node` down the recursion; `child.word.take()` reports each word once."),
+           ("edge case", "Count, in each node, the words still unfound below it, and drop the child (`node.children[i] = None`) when that reaches 0. On a board full of one letter this is the difference between stopping after the first path and exploring every path.")],
+    notes=("The trie lets one search check every word at once: a path is abandoned as soon as it isn't a prefix of any remaining word. Removing found words keeps the trie as small as what's left to find, which is what makes the all-same-letter boards fast. The worst case is still exponential in the word length (4 · 3^(L−1) paths from each cell), but the trie shares that work across all words.", "O(rows · cols · 4 · 3^(L−1)) worst case, L = longest word", "O(total letters in words)"),
+    follow_up="If the board were huge and fixed and the words arrived one query at a time, what would you precompute instead?",
+    related=["D11", "D9"],
+))
+
+AUTOCOMPLETE_HELPER = """
+fn typed(sys: &mut AutocompleteSystem, keys: &str) -> Vec<Vec<String>> {
+    keys.chars().map(|c| sys.input(c)).collect()
+}
+"""
+
+AUTOCOMPLETE_LC = 'let mut sys = AutocompleteSystem::new(&["i love you", "island", "iroman", "i love leetcode"], &[5, 3, 2, 2]);'
+
+P.append(dict(
+    slug="autocomplete-system", title="Autocomplete system with hot counts", level="hard", stage="hard-tries-strings", tags=["trie", "design", "arena", "autocomplete"],
+    companies=["Amazon", "Google", "Microsoft", "Uber"],
+    teaches=["A cursor that lives between calls can't be a `&Node` inside the struct; keep the nodes in a `Vec` and the cursor as an index.",
+             "Cache the three hottest sentences in every node and update them along one path when a count rises."],
+    statement="""
+        A search box suggests past sentences while the user types. `new(sentences, times)` loads each sentence with how
+        many times it was typed before. Then `input(c)` is called once per keystroke:
+
+        - for a letter or a space, return the three **hottest** past sentences that start with everything typed since the
+          last `'#'`: highest count first, ties in ASCII order (a space sorts before letters). Fewer if fewer match;
+        - for `'#'`, the sentence typed so far is finished: add 1 to its count (it may be new), start a fresh sentence,
+          and return an empty list.
+
+        Sentences are lowercase letters and spaces.
+    """,
+    examples=[("sentences = [\"i love you\", \"island\", \"iroman\", \"i love leetcode\"], times = [5, 3, 2, 2]; input 'i', ' ', 'a', '#'",
+               "[\"i love you\", \"island\", \"i love leetcode\"], [\"i love you\", \"i love leetcode\"], [], []")],
+    constraints=["0 ≤ sentences.len() ≤ 2·10⁴, 1 ≤ sentence length ≤ 100", "times[i] ≤ u32::MAX; counts can grow past it", "up to 10⁴ calls to input"],
+    starter="""
+        pub struct AutocompleteSystem {
+            // your fields here
+        }
+
+        impl AutocompleteSystem {
+            pub fn new(sentences: &[&str], times: &[u32]) -> Self {
+                todo!()
+            }
+
+            pub fn input(&mut self, c: char) -> Vec<String> {
+                todo!()
+            }
+        }
+    """,
+    solution="""
+        use std::collections::HashMap;
+
+        /// Child slot: a..z, then the space.
+        fn slot(c: u8) -> usize {
+            if c == b' ' { 26 } else { (c - b'a') as usize }
+        }
+
+        #[derive(Default)]
+        struct Node {
+            /// Indexes into `nodes`; the root (0) is never a child, so 0 means "none".
+            children: [u32; 27],
+            /// Up to three sentence ids, hottest first.
+            top: Vec<u32>,
+        }
+
+        pub struct AutocompleteSystem {
+            nodes: Vec<Node>,
+            sentences: Vec<String>,
+            counts: Vec<u64>,
+            ids: HashMap<String, u32>,
+            typed: String,
+            /// The node for `typed`, or `None` once it has left the trie.
+            cursor: Option<usize>,
+        }
+
+        impl AutocompleteSystem {
+            pub fn new(sentences: &[&str], times: &[u32]) -> Self {
+                let mut sys = AutocompleteSystem {
+                    nodes: vec![Node::default()],
+                    sentences: Vec::new(),
+                    counts: Vec::new(),
+                    ids: HashMap::new(),
+                    typed: String::new(),
+                    cursor: Some(0),
+                };
+                for (s, &t) in sentences.iter().zip(times) {
+                    sys.add(s, u64::from(t));
+                }
+                sys
+            }
+
+            /// Adds `times` to `sentence`'s count and refreshes the top three of every node on its path.
+            /// Only this sentence's count changed, so it's the only one that can move in those lists.
+            fn add(&mut self, sentence: &str, times: u64) {
+                let id = match self.ids.get(sentence) {
+                    Some(&id) => id,
+                    None => {
+                        let id = self.sentences.len() as u32;
+                        self.ids.insert(sentence.to_string(), id);
+                        self.sentences.push(sentence.to_string());
+                        self.counts.push(0);
+                        id
+                    }
+                };
+                self.counts[id as usize] += times;
+                // Borrow the fields separately: `nodes` mutably, the others for the ordering.
+                let Self { nodes, sentences, counts, .. } = self;
+                let hotter = |a: &u32, b: &u32| {
+                    let (a, b) = (*a as usize, *b as usize);
+                    counts[b].cmp(&counts[a]).then_with(|| sentences[a].cmp(&sentences[b]))
+                };
+                let mut at = 0;
+                for b in sentence.bytes() {
+                    let next = nodes[at].children[slot(b)] as usize;
+                    at = if next != 0 {
+                        next
+                    } else {
+                        nodes.push(Node::default());
+                        let n = nodes.len() - 1;
+                        nodes[at].children[slot(b)] = n as u32;
+                        n
+                    };
+                    let top = &mut nodes[at].top;
+                    if !top.contains(&id) {
+                        top.push(id);
+                    }
+                    top.sort_by(hotter);
+                    top.truncate(3);
+                }
+            }
+
+            pub fn input(&mut self, c: char) -> Vec<String> {
+                if c == '#' {
+                    let typed = std::mem::take(&mut self.typed);
+                    self.add(&typed, 1);
+                    self.cursor = Some(0);
+                    return Vec::new();
+                }
+                self.typed.push(c);
+                self.cursor = self.cursor.map(|at| self.nodes[at].children[slot(c as u8)] as usize).filter(|&n| n != 0);
+                match self.cursor {
+                    Some(at) => self.nodes[at].top.iter().map(|&id| self.sentences[id as usize].clone()).collect(),
+                    None => Vec::new(),
+                }
+            }
+        }
+    """,
+    visible=[
+        AUTOCOMPLETE_HELPER,
+        T("leetcode_type_i", "sentences = [\"i love you\", \"island\", \"iroman\", \"i love leetcode\"], times = [5, 3, 2, 2]; type \"i\"",
+          'typed(&mut sys, "i")', 'vec![vec!["i love you", "island", "i love leetcode"]]', setup=AUTOCOMPLETE_LC),
+        T("leetcode_type_i_space", "LeetCode's system; type \"i\", \" \"",
+          'typed(&mut sys, "i ")', 'vec![vec!["i love you", "island", "i love leetcode"], vec!["i love you", "i love leetcode"]]', setup=AUTOCOMPLETE_LC),
+        T("leetcode_type_i_space_a", "LeetCode's system; type \"i\", \" \", \"a\" (nothing starts with \"i a\")",
+          'typed(&mut sys, "i a")', 'vec![vec!["i love you", "island", "i love leetcode"], vec!["i love you", "i love leetcode"], vec![]]', setup=AUTOCOMPLETE_LC),
+        T("leetcode_type_i_space_a_hash", "LeetCode's system; type \"i\", \" \", \"a\", \"#\" ('#' returns nothing)",
+          'typed(&mut sys, "i a#")', 'vec![vec!["i love you", "island", "i love leetcode"], vec!["i love you", "i love leetcode"], vec![], vec![]]', setup=AUTOCOMPLETE_LC),
+        T("hash_saves_the_sentence", "LeetCode's system; type \"i a#\", then \"i \" (\"i a\" now has count 1)",
+          'typed(&mut sys, "i ")', 'vec![vec!["i love you", "island", "i love leetcode"], vec!["i love you", "i love leetcode", "i a"]]',
+          setup=AUTOCOMPLETE_LC + '\ntyped(&mut sys, "i a#");'),
+        T("ties_in_ascii_order", "sentences = [\"ab\", \"a b\", \"aa\"], times = [1, 1, 1]; type \"a\" (space sorts first)",
+          'typed(&mut sys, "a")', 'vec![vec!["a b", "aa", "ab"]]', setup='let mut sys = AutocompleteSystem::new(&["ab", "a b", "aa"], &[1, 1, 1]);'),
+        T("typing_makes_a_sentence_hotter", "sentences = [\"cat\", \"car\", \"cow\", \"cub\"], times = [1, 1, 1, 1]; type \"cub#\", then \"c\"",
+          'typed(&mut sys, "c")', 'vec![vec!["cub", "car", "cat"]]',
+          setup='let mut sys = AutocompleteSystem::new(&["cat", "car", "cow", "cub"], &[1, 1, 1, 1]);\ntyped(&mut sys, "cub#");'),
+    ],
+    hidden=[
+        AUTOCOMPLETE_HELPER,
+        T("no_sentences", "sentences = []; type \"ab#a\"", 'typed(&mut sys, "ab#a")', 'vec![vec![], vec![], vec![], vec!["ab"]]',
+          setup='let mut sys = AutocompleteSystem::new(&[], &[]);'),
+        T("hash_first", "LeetCode's system; type \"#i\"", 'typed(&mut sys, "#i")', 'vec![vec![], vec!["i love you", "island", "i love leetcode"]]', setup=AUTOCOMPLETE_LC),
+        T("miss_then_hash_stores_everything_typed", "LeetCode's system; type \"iz#\", then \"iz\"", 'typed(&mut sys, "iz")', 'vec![vec!["i love you", "island", "i love leetcode"], vec!["iz"]]',
+          setup=AUTOCOMPLETE_LC + '\ntyped(&mut sys, "iz#");'),
+        T("overtakes_the_leader", "LeetCode's system; type \"island#\" three times, then \"i\"", 'typed(&mut sys, "i")', 'vec![vec!["island", "i love you", "i love leetcode"]]',
+          setup=AUTOCOMPLETE_LC + '\nfor _ in 0..3 {\n    typed(&mut sys, "island#");\n}'),
+        T("counts_past_u32", "sentences = [\"ab\", \"aa\"], times = [u32::MAX, u32::MAX]; type \"ab#\", then \"a\"", 'typed(&mut sys, "a")', 'vec![vec!["ab", "aa"]]',
+          setup='let mut sys = AutocompleteSystem::new(&["ab", "aa"], &[u32::MAX, u32::MAX]);\ntyped(&mut sys, "ab#");'),
+        T("sentence_is_prefix_of_another", "sentences = [\"i\", \"i love you\"], times = [1, 1]; type \"i \"", 'typed(&mut sys, "i ")', 'vec![vec!["i", "i love you"], vec!["i love you"]]',
+          setup='let mut sys = AutocompleteSystem::new(&["i", "i love you"], &[1, 1]);'),
+        T("only_three", "sentences = [\"d\", \"c\", \"b\", \"a\"], each with 1 prefixed \"x\"; type \"x\"", 'typed(&mut sys, "x")', 'vec![vec!["xa", "xb", "xc"]]',
+          setup='let mut sys = AutocompleteSystem::new(&["xd", "xc", "xb", "xa"], &[1, 1, 1, 1]);'),
+        T("stored_sentences_are_suggested", "sentences = [\"b\"], times = [1]; type \"a#\" twice, then \"b#a\"", 'typed(&mut sys, "b#a")', 'vec![vec!["b"], vec![], vec!["a"]]',
+          setup='let mut sys = AutocompleteSystem::new(&["b"], &[1]);\ntyped(&mut sys, "a#a#");'),
+        T("same_sentence_listed_twice", "sentences = [\"ab\", \"ac\", \"ab\"], times = [1, 3, 3]; type \"a\" (\"ab\" totals 4)", 'typed(&mut sys, "a")', 'vec![vec!["ab", "ac"]]',
+          setup='let mut sys = AutocompleteSystem::new(&["ab", "ac", "ab"], &[1, 3, 3]);'),
+        """
+        #[test]
+        fn random_vs_model() {
+            use std::collections::HashMap;
+            let mut rng = anneal_prelude::Rng::new(1019);
+            for _ in 0..200 {
+                let mut initial: Vec<String> = Vec::new();
+                let mut times: Vec<u32> = Vec::new();
+                for _ in 0..rng.below(6) {
+                    let len = 1 + rng.below(3);
+                    let s = rng.string(len, "ab ");
+                    if !initial.contains(&s) {
+                        initial.push(s);
+                        times.push(1 + rng.below(3) as u32);
+                    }
+                }
+                let refs: Vec<&str> = initial.iter().map(|s| s.as_str()).collect();
+                let mut sys = AutocompleteSystem::new(&refs, &times);
+                let mut model: HashMap<String, u64> = initial.iter().cloned().zip(times.iter().map(|&t| u64::from(t))).collect();
+                let mut typed_so_far = String::new();
+                let mut log = format!("sentences = {refs:?}, times = {times:?}; type ");
+                for _ in 0..20 {
+                    let c = *rng.pick(&['a', 'b', ' ', '#', '#']);
+                    log.push(c);
+                    let want: Vec<String> = if c == '#' {
+                        *model.entry(std::mem::take(&mut typed_so_far)).or_insert(0) += 1;
+                        Vec::new()
+                    } else {
+                        typed_so_far.push(c);
+                        let mut m: Vec<(&String, u64)> = model.iter().filter(|(s, _)| s.starts_with(typed_so_far.as_str())).map(|(s, &n)| (s, n)).collect();
+                        m.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+                        m.into_iter().take(3).map(|(s, _)| s.clone()).collect()
+                    };
+                    check!(log.clone(), sys.input(c), want);
+                }
+            }
+        }
+
+        #[test]
+        fn scale_20k_sentences_shared_prefix() {
+            // Every sentence starts with 60 a's, so every keystroke of the prefix matches all 20000 of them.
+            let prefix = "a".repeat(60);
+            let sentences: Vec<String> = (0..20_000).map(|i| format!("{prefix} {}", base10(i, 5))).collect();
+            let times: Vec<u32> = (0..20_000u32).map(|i| i * 7919 % 20_000 + 1).collect();
+            let refs: Vec<&str> = sentences.iter().map(|s| s.as_str()).collect();
+            let mut sys = AutocompleteSystem::new(&refs, &times);
+            let mut by_heat: Vec<usize> = (0..20_000).collect();
+            by_heat.sort_by_key(|&i| std::cmp::Reverse(times[i]));
+            let want: Vec<String> = by_heat[..3].iter().map(|&i| sentences[i].clone()).collect();
+            let mut rows = 0;
+            let mut all_match = true;
+            for _ in 0..160 {
+                for c in prefix.chars() {
+                    rows += 1;
+                    all_match &= sys.input(c) == want;
+                }
+                sys.input('#');
+            }
+            check!("20000 sentences 'a' × 60 + ' ' + five letters, distinct counts; type 'a' × 60 then '#', 160 times", (rows, all_match), (9600, true));
+        }
+        """ + BASE10,
+    ],
+    wrong=dict(
+        scan_every_sentence="""
+            use std::collections::HashMap;
+
+            pub struct AutocompleteSystem {
+                counts: HashMap<String, u64>,
+                typed: String,
+            }
+
+            impl AutocompleteSystem {
+                pub fn new(sentences: &[&str], times: &[u32]) -> Self {
+                    let mut counts: HashMap<String, u64> = HashMap::new();
+                    for (s, &t) in sentences.iter().zip(times) {
+                        *counts.entry(s.to_string()).or_insert(0) += u64::from(t);
+                    }
+                    AutocompleteSystem { counts, typed: String::new() }
+                }
+
+                pub fn input(&mut self, c: char) -> Vec<String> {
+                    if c == '#' {
+                        *self.counts.entry(std::mem::take(&mut self.typed)).or_insert(0) += 1;
+                        return Vec::new();
+                    }
+                    self.typed.push(c);
+                    let mut m: Vec<(&String, u64)> = self.counts.iter().filter(|(s, _)| s.starts_with(self.typed.as_str())).map(|(s, &n)| (s, n)).collect();
+                    m.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+                    m.into_iter().take(3).map(|(s, _)| s.clone()).collect()
+                }
+            }
+        """,
+        hash_only_adds_new="""
+            use std::collections::HashMap;
+
+            fn slot(c: u8) -> usize {
+                if c == b' ' { 26 } else { (c - b'a') as usize }
+            }
+
+            #[derive(Default)]
+            struct Node {
+                children: [u32; 27],
+                top: Vec<u32>,
+            }
+
+            pub struct AutocompleteSystem {
+                nodes: Vec<Node>,
+                sentences: Vec<String>,
+                counts: Vec<u64>,
+                ids: HashMap<String, u32>,
+                typed: String,
+                cursor: Option<usize>,
+            }
+
+            impl AutocompleteSystem {
+                pub fn new(sentences: &[&str], times: &[u32]) -> Self {
+                    let mut sys = AutocompleteSystem {
+                        nodes: vec![Node::default()],
+                        sentences: Vec::new(),
+                        counts: Vec::new(),
+                        ids: HashMap::new(),
+                        typed: String::new(),
+                        cursor: Some(0),
+                    };
+                    for (s, &t) in sentences.iter().zip(times) {
+                        sys.add(s, u64::from(t));
+                    }
+                    sys
+                }
+
+                fn add(&mut self, sentence: &str, times: u64) {
+                    if let Some(&id) = self.ids.get(sentence) {
+                        // Known sentence: bump the count, but the cached lists keep their old order.
+                        self.counts[id as usize] += times;
+                        return;
+                    }
+                    let id = self.sentences.len() as u32;
+                    self.ids.insert(sentence.to_string(), id);
+                    self.sentences.push(sentence.to_string());
+                    self.counts.push(times);
+                    let Self { nodes, sentences, counts, .. } = self;
+                    let hotter = |a: &u32, b: &u32| {
+                        let (a, b) = (*a as usize, *b as usize);
+                        counts[b].cmp(&counts[a]).then_with(|| sentences[a].cmp(&sentences[b]))
+                    };
+                    let mut at = 0;
+                    for b in sentence.bytes() {
+                        let next = nodes[at].children[slot(b)] as usize;
+                        at = if next != 0 {
+                            next
+                        } else {
+                            nodes.push(Node::default());
+                            let n = nodes.len() - 1;
+                            nodes[at].children[slot(b)] = n as u32;
+                            n
+                        };
+                        let top = &mut nodes[at].top;
+                        top.push(id);
+                        top.sort_by(hotter);
+                        top.truncate(3);
+                    }
+                }
+
+                pub fn input(&mut self, c: char) -> Vec<String> {
+                    if c == '#' {
+                        let typed = std::mem::take(&mut self.typed);
+                        self.add(&typed, 1);
+                        self.cursor = Some(0);
+                        return Vec::new();
+                    }
+                    self.typed.push(c);
+                    self.cursor = self.cursor.map(|at| self.nodes[at].children[slot(c as u8)] as usize).filter(|&n| n != 0);
+                    match self.cursor {
+                        Some(at) => self.nodes[at].top.iter().map(|&id| self.sentences[id as usize].clone()).collect(),
+                        None => Vec::new(),
+                    }
+                }
+            }
+        """,
+        collect_subtree_each_keystroke="""
+            use std::collections::BTreeMap;
+
+            #[derive(Default)]
+            struct Node {
+                children: BTreeMap<char, Node>,
+                count: u64,
+            }
+
+            fn collect(node: &Node, path: &mut String, out: &mut Vec<(u64, String)>) {
+                if node.count > 0 {
+                    out.push((node.count, path.clone()));
+                }
+                for (&c, child) in &node.children {
+                    path.push(c);
+                    collect(child, path, out);
+                    path.pop();
+                }
+            }
+
+            pub struct AutocompleteSystem {
+                root: Node,
+                typed: String,
+            }
+
+            impl AutocompleteSystem {
+                pub fn new(sentences: &[&str], times: &[u32]) -> Self {
+                    let mut sys = AutocompleteSystem { root: Node::default(), typed: String::new() };
+                    for (s, &t) in sentences.iter().zip(times) {
+                        sys.add(s, u64::from(t));
+                    }
+                    sys
+                }
+
+                fn add(&mut self, s: &str, times: u64) {
+                    let mut node = &mut self.root;
+                    for c in s.chars() {
+                        node = node.children.entry(c).or_default();
+                    }
+                    node.count += times;
+                }
+
+                pub fn input(&mut self, c: char) -> Vec<String> {
+                    if c == '#' {
+                        let typed = std::mem::take(&mut self.typed);
+                        self.add(&typed, 1);
+                        return Vec::new();
+                    }
+                    self.typed.push(c);
+                    let mut node = &self.root;
+                    for ch in self.typed.chars() {
+                        match node.children.get(&ch) {
+                            Some(n) => node = n,
+                            None => return Vec::new(),
+                        }
+                    }
+                    let mut all = Vec::new();
+                    let mut path = self.typed.clone();
+                    collect(node, &mut path, &mut all);
+                    all.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                    all.into_iter().take(3).map(|(_, s)| s).collect()
+                }
+            }
+        """,
+    ),
+    hints=[("approach", "Store the sentences in a trie. In every node, keep the ids of the three hottest sentences below it. A keystroke moves a cursor one node down and returns that node's list; `'#'` raises one sentence's count and refreshes the lists on its path only."),
+           ("rust", "The cursor must survive between `input` calls, and a struct can't hold a reference into its own trie. Keep nodes in a `Vec<Node>`, children as `u32` indexes, and the cursor as `Option<usize>`. To sort a node's list by counts while `nodes` is borrowed mutably, destructure: `let Self { nodes, counts, sentences, .. } = self;`."),
+           ("edge case", "When a known sentence is typed again, its count rises and it can climb into lists it wasn't in; the cached lists must be updated for old sentences too, not only new ones. Counts start at `u32::MAX` and still grow, so keep them in `u64`.")],
+    notes=("Counts only ever rise, and only for the sentence just finished, so a node's top three can change only by that sentence moving up: insert or reorder it, sort at most four entries, truncate. That makes a keystroke O(1) (plus copying three strings) and `'#'` O(L). Collecting and sorting the whole subtree on every keystroke is the textbook answer and costs O(matches · log matches) per key, which the shared-prefix test makes too slow. The arena (`Vec<Node>` with `u32` links) is also what lets the cursor be plain data.", "input: O(1) per letter, O(L) for '#'; new: O(total length)", "O(total length × 27)"),
+    follow_up="How would you make the suggestions favour recent sentences over old ones (decay the counts over time)?",
+    related=["D14", "S7", "L3"],
+))
+
+P.append(dict(
+    slug="max-xor-bit-trie", title="Maximum XOR of two numbers (bit trie)", level="hard", stage="hard-tries-strings", tags=["trie", "bits", "arena"],
+    companies=["Amazon", "Google", "Microsoft"],
+    teaches=["A binary trie over the bits, highest first, answers \"which stored number differs most from x\" in 32 steps.",
+             "Greedy works bit by bit: one higher bit outweighs all the lower bits together."],
+    statement="""
+        Return the largest value of `nums[i] ^ nums[j]` over all pairs `i < j`, or 0 when there are fewer than two numbers.
+
+        Numbers use the full `u32` range, including the top bit.
+    """,
+    examples=[("nums = [3, 10, 5, 25, 2, 8]", "28 (5 ^ 25)"), ("nums = [14, 70, 53, 83, 49, 91, 36, 80, 92, 51, 66, 70]", "127")],
+    constraints=["0 ≤ nums.len() ≤ 2·10⁵", "0 ≤ nums[i] ≤ u32::MAX"],
+    starter="""
+        pub fn find_maximum_xor(nums: &[u32]) -> u32 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn find_maximum_xor(nums: &[u32]) -> u32 {
+            // A binary trie over bits 31..=0, as an arena: node = [child for bit 0, child for bit 1], 0 = none.
+            let mut trie: Vec<[u32; 2]> = vec![[0, 0]];
+            let mut best = 0;
+            for (i, &x) in nums.iter().enumerate() {
+                if i > 0 {
+                    // Walk the stored numbers, taking the opposite bit whenever one exists.
+                    let (mut at, mut xor) = (0, 0u32);
+                    for bit in (0..32).rev() {
+                        let b = (x >> bit & 1) as usize;
+                        let other = trie[at][b ^ 1];
+                        if other != 0 {
+                            xor |= 1 << bit;
+                            at = other as usize;
+                        } else {
+                            at = trie[at][b] as usize;
+                        }
+                    }
+                    best = best.max(xor);
+                }
+                let mut at = 0;
+                for bit in (0..32).rev() {
+                    let b = (x >> bit & 1) as usize;
+                    if trie[at][b] == 0 {
+                        trie.push([0, 0]);
+                        trie[at][b] = (trie.len() - 1) as u32;
+                    }
+                    at = trie[at][b] as usize;
+                }
+            }
+            best
+        }
+    """,
+    visible=[
+        T("leetcode_28", "nums = [3, 10, 5, 25, 2, 8]", "find_maximum_xor(&[3, 10, 5, 25, 2, 8])", "28"),
+        T("leetcode_127", "nums = [14, 70, 53, 83, 49, 91, 36, 80, 92, 51, 66, 70]", "find_maximum_xor(&[14, 70, 53, 83, 49, 91, 36, 80, 92, 51, 66, 70])", "127"),
+        T("empty", "nums = []", "find_maximum_xor(&[])", "0"),
+        T("single", "nums = [7]", "find_maximum_xor(&[7])", "0"),
+        T("best_pair_skips_the_max", "nums = [6, 5, 3] (5 ^ 3 = 6 beats anything with 6)", "find_maximum_xor(&[6, 5, 3])", "6"),
+        T("top_bit_counts", "nums = [2147483648, 1] (2³¹ and 1)", "find_maximum_xor(&[1 << 31, 1])", "(1 << 31) | 1"),
+    ],
+    hidden=[
+        T("zero_and_max", "nums = [0, u32::MAX]", "find_maximum_xor(&[0, u32::MAX])", "u32::MAX"),
+        T("adjacent_maxes", "nums = [u32::MAX, u32::MAX - 1]", "find_maximum_xor(&[u32::MAX, u32::MAX - 1])", "1"),
+        T("powers_of_two", "nums = [1, 2, 4, 8]", "find_maximum_xor(&[1, 2, 4, 8])", "12"),
+        T("all_zero", "nums = [0, 0, 0]", "find_maximum_xor(&[0, 0, 0])", "0"),
+        T("duplicates", "nums = [5, 5]", "find_maximum_xor(&[5, 5])", "0"),
+        T("both_sides_of_the_top_bit", "nums = [2³¹, 2³¹ - 1]", "find_maximum_xor(&[1 << 31, (1 << 31) - 1])", "u32::MAX"),
+        T("large_values", "nums = [3000000000, 1500000000, 123]", "find_maximum_xor(&[3_000_000_000, 1_500_000_000, 123])", "3954733312"),
+        T("two_numbers", "nums = [10, 5]", "find_maximum_xor(&[10, 5])", "15"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1020);
+            for _ in 0..400 {
+                let n = rng.below(10);
+                let nums: Vec<u32> = if rng.bool() { rng.vec(n, 0, 15) } else { rng.vec(n, 0, u32::MAX as i64) };
+                let mut want = 0;
+                for i in 0..nums.len() {
+                    for j in i + 1..nums.len() {
+                        want = want.max(nums[i] ^ nums[j]);
+                    }
+                }
+                check!(format!("nums = {nums:?}"), find_maximum_xor(&nums), want);
+            }
+        }
+
+        #[test]
+        fn scale_131k() {
+            // 0..2¹⁷ in shuffled order, then 2³¹: the best pair is 2³¹ with 2¹⁷ − 1, found only at the very end.
+            let mut nums: Vec<u32> = (0..1u32 << 17).map(|i| i.wrapping_mul(40_503) % (1 << 17)).collect();
+            nums.push(1 << 31);
+            check!("nums = 0..131072 shuffled, then 2147483648", find_maximum_xor(&nums), (1 << 31) | ((1 << 17) - 1));
+        }
+        """,
+    ],
+    wrong=dict(
+        every_pair="""
+            pub fn find_maximum_xor(nums: &[u32]) -> u32 {
+                let mut best = 0;
+                for i in 0..nums.len() {
+                    for j in i + 1..nums.len() {
+                        best = best.max(nums[i] ^ nums[j]);
+                    }
+                }
+                best
+            }
+        """,
+        thirty_one_bits="""
+            pub fn find_maximum_xor(nums: &[u32]) -> u32 {
+                let mut trie: Vec<[u32; 2]> = vec![[0, 0]];
+                let mut best = 0;
+                for (i, &x) in nums.iter().enumerate() {
+                    if i > 0 {
+                        let (mut at, mut xor) = (0, 0u32);
+                        for bit in (0..31).rev() {
+                            let b = (x >> bit & 1) as usize;
+                            let other = trie[at][b ^ 1];
+                            if other != 0 {
+                                xor |= 1 << bit;
+                                at = other as usize;
+                            } else {
+                                at = trie[at][b] as usize;
+                            }
+                        }
+                        best = best.max(xor);
+                    }
+                    let mut at = 0;
+                    for bit in (0..31).rev() {
+                        let b = (x >> bit & 1) as usize;
+                        if trie[at][b] == 0 {
+                            trie.push([0, 0]);
+                            trie[at][b] = (trie.len() - 1) as u32;
+                        }
+                        at = trie[at][b] as usize;
+                    }
+                }
+                best
+            }
+        """,
+        xor_with_the_max="""
+            pub fn find_maximum_xor(nums: &[u32]) -> u32 {
+                let Some(&max) = nums.iter().max() else {
+                    return 0;
+                };
+                nums.iter().map(|&x| x ^ max).max().unwrap_or(0)
+            }
+        """,
+    ),
+    hints=[("approach", "Insert the numbers into a trie keyed by their bits, highest bit first. For each number, walk the trie choosing the opposite bit whenever that child exists: each choice sets that bit of the XOR, and a higher bit is worth more than all lower bits combined."),
+           ("rust", "A `Vec<[u32; 2]>` arena is a compact trie: node `i` has children `trie[i][0]` and `trie[i][1]`, with 0 meaning none (the root is never anyone's child). `x >> bit & 1` reads a bit."),
+           ("edge case", "LeetCode's inputs stop below 2³¹, so solutions often walk 31 bits. With `u32` input the top bit matters: walk bits 31 down to 0.")],
+    notes=("Each number costs 32 steps to insert and 32 to query, so the whole thing is O(32 · n). Querying before inserting means each pair is considered once. The other O(32 · n) answer builds the result bit by bit, checking with a `HashSet` of prefixes whether some pair can reach the candidate. Trying every pair is O(n²).", "O(32 · n)", "O(32 · n) trie nodes"),
+    follow_up="Answer queries (x, limit): the maximum x ^ nums[j] over nums[j] ≤ limit. How does sorting the queries help?",
+    related=["D13"],
+))
+
+STREAM_HELPER = """
+fn feed(sc: &mut StreamChecker, letters: &str) -> Vec<bool> {
+    letters.chars().map(|c| sc.query(c)).collect()
+}
+"""
+
+P.append(dict(
+    slug="stream-of-characters", title="Stream of characters", level="hard", stage="hard-tries-strings", tags=["trie", "streaming", "VecDeque"],
+    companies=["Amazon", "Google"],
+    teaches=["Insert the words reversed; each new letter then walks the trie backwards through the most recent letters.",
+             "Only the last `longest word` letters can matter, so the stream buffer is bounded."],
+    statement="""
+        `StreamChecker::new(words)` stores a list of lowercase words. Letters then arrive one at a time through `query(letter)`,
+        which returns `true` if some word is a suffix of the stream so far, that is, the stream ends with that word.
+    """,
+    examples=[("words = [\"cd\", \"f\", \"kl\"]; letters a, b, c, …, l", "false ×3, true (\"cd\"), false, true (\"f\"), false ×5, true (\"kl\")")],
+    constraints=["0 ≤ words.len() ≤ 2·10⁴, 1 ≤ words[i].len() ≤ 200, lowercase ASCII", "up to 10⁵ queries"],
+    starter="""
+        pub struct StreamChecker {
+            // your fields here
+        }
+
+        impl StreamChecker {
+            pub fn new(words: &[&str]) -> Self {
+                todo!()
+            }
+
+            pub fn query(&mut self, letter: char) -> bool {
+                todo!()
+            }
+        }
+    """,
+    solution="""
+        use std::collections::VecDeque;
+
+        pub struct StreamChecker {
+            /// Trie of the reversed words, as an arena: (children, a word ends here). Child 0 means none.
+            nodes: Vec<([u32; 26], bool)>,
+            /// The last `longest` letters of the stream, oldest first.
+            recent: VecDeque<u8>,
+            longest: usize,
+        }
+
+        impl StreamChecker {
+            pub fn new(words: &[&str]) -> Self {
+                let mut nodes = vec![([0u32; 26], false)];
+                for w in words {
+                    let mut at = 0;
+                    for b in w.bytes().rev() {
+                        let i = (b - b'a') as usize;
+                        if nodes[at].0[i] == 0 {
+                            nodes.push(([0; 26], false));
+                            nodes[at].0[i] = (nodes.len() - 1) as u32;
+                        }
+                        at = nodes[at].0[i] as usize;
+                    }
+                    nodes[at].1 = true;
+                }
+                let longest = words.iter().map(|w| w.len()).max().unwrap_or(0);
+                StreamChecker { nodes, recent: VecDeque::with_capacity(longest + 1), longest }
+            }
+
+            pub fn query(&mut self, letter: char) -> bool {
+                self.recent.push_back(letter as u8);
+                if self.recent.len() > self.longest {
+                    self.recent.pop_front();
+                }
+                // Newest letter first: this walks the reversed words.
+                let mut at = 0;
+                for &b in self.recent.iter().rev() {
+                    at = self.nodes[at].0[(b - b'a') as usize] as usize;
+                    if at == 0 {
+                        return false;
+                    }
+                    if self.nodes[at].1 {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
+    """,
+    visible=[
+        STREAM_HELPER,
+        T("leetcode_stream", "words = [\"cd\", \"f\", \"kl\"]; letters \"abcdefghijkl\"", 'feed(&mut sc, "abcdefghijkl")',
+          "vec![false, false, false, true, false, true, false, false, false, false, false, true]", setup='let mut sc = StreamChecker::new(&["cd", "f", "kl"]);'),
+        T("first_letter", "words = [\"a\"]; letters \"a\"", 'feed(&mut sc, "a")', "vec![true]", setup='let mut sc = StreamChecker::new(&["a"]);'),
+        T("suffix_not_prefix", "words = [\"ab\"]; letters \"ba\" (the stream must end with the word)", 'feed(&mut sc, "ba")', "vec![false, false]",
+          setup='let mut sc = StreamChecker::new(&["ab"]);'),
+        T("overlapping_matches", "words = [\"aaa\"]; letters \"aaaa\"", 'feed(&mut sc, "aaaa")', "vec![false, false, true, true]", setup='let mut sc = StreamChecker::new(&["aaa"]);'),
+        T("word_inside_a_longer_word", "words = [\"abc\", \"bc\"]; letters \"abc\"", 'feed(&mut sc, "abc")', "vec![false, false, true]",
+          setup='let mut sc = StreamChecker::new(&["abc", "bc"]);'),
+        T("match_again_later", "words = [\"ab\"]; letters \"abxab\"", 'feed(&mut sc, "abxab")', "vec![false, true, false, false, true]", setup='let mut sc = StreamChecker::new(&["ab"]);'),
+    ],
+    hidden=[
+        STREAM_HELPER,
+        T("no_words", "words = []; letters \"abc\"", 'feed(&mut sc, "abc")', "vec![false; 3]", setup="let mut sc = StreamChecker::new(&[]);"),
+        T("duplicate_words", "words = [\"z\", \"z\"]; letters \"zz\"", 'feed(&mut sc, "zz")', "vec![true, true]", setup='let mut sc = StreamChecker::new(&["z", "z"]);'),
+        T("longest_word_needs_the_whole_window", "words = ['a' × 199 + \"b\", \"c\"]; letters 'a' × 200 + \"b\"", "got[200]", "true",
+          setup='let w = format!("{}b", "a".repeat(199));\nlet mut sc = StreamChecker::new(&[&w, "c"]);\nlet got = feed(&mut sc, &format!("{}b", "a".repeat(200)));'),
+        T("long_then_short", "words = [\"abcd\", \"d\"]; letters \"xd\"", 'feed(&mut sc, "xd")', "vec![false, true]", setup='let mut sc = StreamChecker::new(&["abcd", "d"]);'),
+        T("broken_by_one_letter", "words = [\"abc\"]; letters \"abxbc\"", 'feed(&mut sc, "abxbc")', "vec![false; 5]", setup='let mut sc = StreamChecker::new(&["abc"]);'),
+        T("every_letter_a_word", "words = a..z as one-letter words; letters \"qz\"", 'feed(&mut sc, "qz")', "vec![true, true]",
+          setup='let letters: Vec<String> = (b\'a\'..=b\'z\').map(|b| (b as char).to_string()).collect();\nlet refs: Vec<&str> = letters.iter().map(|s| s.as_str()).collect();\nlet mut sc = StreamChecker::new(&refs);'),
+        T("shorter_word_matches_first", "words = [\"ba\", \"a\"]; letters \"ba\"", 'feed(&mut sc, "ba")', "vec![false, true]", setup='let mut sc = StreamChecker::new(&["ba", "a"]);'),
+        T("same_letter_word_long", "words = ['q' × 5]; letters 'q' × 7", 'feed(&mut sc, &"q".repeat(7))', "vec![false, false, false, false, true, true, true]",
+          setup='let mut sc = StreamChecker::new(&[&"q".repeat(5)]);'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1021);
+            for _ in 0..300 {
+                let mut words: Vec<String> = Vec::new();
+                for _ in 0..1 + rng.below(4) {
+                    let len = 1 + rng.below(4);
+                    words.push(rng.string(len, "ab"));
+                }
+                let refs: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+                let mut sc = StreamChecker::new(&refs);
+                let len = rng.below(16);
+                let letters = rng.string(len, "abc");
+                let mut stream = String::new();
+                for c in letters.chars() {
+                    stream.push(c);
+                    let want = refs.iter().any(|w| stream.ends_with(w));
+                    check!(format!("words = {refs:?}; letters {stream:?}"), sc.query(c), want);
+                }
+            }
+        }
+
+        #[test]
+        fn scale_20k_words_100k_letters() {
+            use std::collections::HashSet;
+            let words: Vec<String> = (0..20_000).map(|i| base10(i * 37, 6)).collect();
+            let refs: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+            let set: HashSet<&str> = refs.iter().copied().collect();
+            let mut sc = StreamChecker::new(&refs);
+            let mut x: u64 = 7;
+            let letters: String = (0..100_000)
+                .map(|_| {
+                    x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                    (b'a' + ((x >> 33) % 10) as u8) as char
+                })
+                .collect();
+            let mut got = 0;
+            let mut want = 0;
+            for (i, c) in letters.char_indices() {
+                got += sc.query(c) as usize;
+                want += (i >= 5 && set.contains(&letters[i - 5..=i])) as usize;
+            }
+            check!("20000 six-letter words over a..j; 100000 pseudo-random letters (count of true answers)", got, want);
+        }
+        """ + BASE10,
+    ],
+    wrong=dict(
+        check_every_word="""
+            pub struct StreamChecker {
+                words: Vec<String>,
+                stream: String,
+            }
+
+            impl StreamChecker {
+                pub fn new(words: &[&str]) -> Self {
+                    StreamChecker { words: words.iter().map(|w| w.to_string()).collect(), stream: String::new() }
+                }
+
+                pub fn query(&mut self, letter: char) -> bool {
+                    self.stream.push(letter);
+                    self.words.iter().any(|w| self.stream.ends_with(w.as_str()))
+                }
+            }
+        """,
+        forget_after_a_match="""
+            use std::collections::VecDeque;
+
+            pub struct StreamChecker {
+                nodes: Vec<([u32; 26], bool)>,
+                recent: VecDeque<u8>,
+                longest: usize,
+            }
+
+            impl StreamChecker {
+                pub fn new(words: &[&str]) -> Self {
+                    let mut nodes = vec![([0u32; 26], false)];
+                    for w in words {
+                        let mut at = 0;
+                        for b in w.bytes().rev() {
+                            let i = (b - b'a') as usize;
+                            if nodes[at].0[i] == 0 {
+                                nodes.push(([0; 26], false));
+                                nodes[at].0[i] = (nodes.len() - 1) as u32;
+                            }
+                            at = nodes[at].0[i] as usize;
+                        }
+                        nodes[at].1 = true;
+                    }
+                    let longest = words.iter().map(|w| w.len()).max().unwrap_or(0);
+                    StreamChecker { nodes, recent: VecDeque::new(), longest }
+                }
+
+                pub fn query(&mut self, letter: char) -> bool {
+                    self.recent.push_back(letter as u8);
+                    if self.recent.len() > self.longest {
+                        self.recent.pop_front();
+                    }
+                    let mut at = 0;
+                    for &b in self.recent.iter().rev() {
+                        at = self.nodes[at].0[(b - b'a') as usize] as usize;
+                        if at == 0 {
+                            return false;
+                        }
+                        if self.nodes[at].1 {
+                            // A match "uses up" the letters.
+                            self.recent.clear();
+                            return true;
+                        }
+                    }
+                    false
+                }
+            }
+        """,
+        window_one_short="""
+            use std::collections::VecDeque;
+
+            pub struct StreamChecker {
+                nodes: Vec<([u32; 26], bool)>,
+                recent: VecDeque<u8>,
+                longest: usize,
+            }
+
+            impl StreamChecker {
+                pub fn new(words: &[&str]) -> Self {
+                    let mut nodes = vec![([0u32; 26], false)];
+                    for w in words {
+                        let mut at = 0;
+                        for b in w.bytes().rev() {
+                            let i = (b - b'a') as usize;
+                            if nodes[at].0[i] == 0 {
+                                nodes.push(([0; 26], false));
+                                nodes[at].0[i] = (nodes.len() - 1) as u32;
+                            }
+                            at = nodes[at].0[i] as usize;
+                        }
+                        nodes[at].1 = true;
+                    }
+                    let longest = words.iter().map(|w| w.len()).max().unwrap_or(0);
+                    StreamChecker { nodes, recent: VecDeque::new(), longest }
+                }
+
+                pub fn query(&mut self, letter: char) -> bool {
+                    self.recent.push_back(letter as u8);
+                    if self.recent.len() >= self.longest {
+                        self.recent.pop_front();
+                    }
+                    let mut at = 0;
+                    for &b in self.recent.iter().rev() {
+                        at = self.nodes[at].0[(b - b'a') as usize] as usize;
+                        if at == 0 {
+                            return false;
+                        }
+                        if self.nodes[at].1 {
+                            return true;
+                        }
+                    }
+                    false
+                }
+            }
+        """,
+    ),
+    hints=[("approach", "Build a trie of the words written backwards. After each letter, walk it from the newest letter back through older ones; reaching a word's end means the stream ends with that word."),
+           ("rust", "Keep only the last `longest` letters in a `VecDeque<u8>` (`push_back`, then `pop_front` when it's too long) and walk `recent.iter().rev()`."),
+           ("edge case", "Matches overlap: with the word `aaa`, the stream `aaaa` matches at the third and the fourth letter. Don't clear anything after a match.")],
+    notes=("A query walks at most `longest` letters and usually stops after a few, when the reversed trie has no child for the next letter. Checking every word per query is O(words · L) each. The Aho–Corasick automaton makes each query O(1) amortized by precomputing failure links; the reversed trie is the simpler answer interviews expect.", "O(L) per query, L = longest word", "O(total letters in words × 26)"),
+    follow_up="Aho–Corasick answers each query in O(1) amortized. What do its failure links store?",
+    related=["S5"],
+))
+
+P.append(dict(
+    slug="concatenated-words", title="Concatenated words", level="hard", stage="hard-tries-strings", tags=["trie", "DP", "word break"],
+    companies=["Amazon", "Google", "Uber"],
+    teaches=["Word break on every word: `ok[i]` says the first i letters split into dictionary words; a trie walk from each reachable i finds the next pieces.",
+             "The word itself is in the dictionary, so forbid the one piece that spans the whole word."],
+    statement="""
+        A word is **concatenated** if it can be split into at least two pieces that are all words from `words`
+        (the same word may be used more than once). Return every concatenated word in `words`, in input order,
+        as slices of the input.
+
+        Words are distinct lowercase ASCII. The list may contain `""`, which is never a piece and never an answer.
+    """,
+    examples=[("words = [\"cat\", \"cats\", \"catsdogcats\", \"dog\", \"dogcatsdog\", \"hippopotamuses\", \"rat\", \"ratcatdogcat\"]",
+               "[\"catsdogcats\", \"dogcatsdog\", \"ratcatdogcat\"]"),
+              ("words = [\"cat\", \"dog\", \"catdog\"]", "[\"catdog\"]")],
+    constraints=["0 ≤ words.len() ≤ 10⁴", "0 ≤ words[i].len() ≤ 30", "total length ≤ 10⁵"],
+    starter="""
+        pub fn find_all_concatenated_words<'a>(words: &[&'a str]) -> Vec<&'a str> {
+            todo!()
+        }
+    """,
+    solution="""
+        #[derive(Default)]
+        struct Node {
+            children: [Option<Box<Node>>; 26],
+            end: bool,
+        }
+
+        /// Word break with at least two pieces: `ok[i]` is true when w[..i] splits into dictionary words.
+        fn is_concatenated(root: &Node, w: &[u8]) -> bool {
+            let n = w.len();
+            let mut ok = vec![false; n + 1];
+            ok[0] = true;
+            for i in 0..n {
+                if !ok[i] {
+                    continue;
+                }
+                let mut node = root;
+                for j in i..n {
+                    match node.children[(w[j] - b'a') as usize].as_deref() {
+                        Some(child) => node = child,
+                        None => break,
+                    }
+                    // A piece w[i..=j]; the one piece that is the whole word doesn't count.
+                    if node.end && !(i == 0 && j + 1 == n) {
+                        ok[j + 1] = true;
+                    }
+                }
+            }
+            ok[n]
+        }
+
+        pub fn find_all_concatenated_words<'a>(words: &[&'a str]) -> Vec<&'a str> {
+            let mut root = Node::default();
+            for w in words.iter().filter(|w| !w.is_empty()) {
+                let mut node = &mut root;
+                for b in w.bytes() {
+                    node = node.children[(b - b'a') as usize].get_or_insert_with(Default::default);
+                }
+                node.end = true;
+            }
+            words.iter().copied().filter(|w| !w.is_empty() && is_concatenated(&root, w.as_bytes())).collect()
+        }
+    """,
+    visible=[
+        T("leetcode_cats_and_dogs", "words = [\"cat\", \"cats\", \"catsdogcats\", \"dog\", \"dogcatsdog\", \"hippopotamuses\", \"rat\", \"ratcatdogcat\"]",
+          'find_all_concatenated_words(&["cat", "cats", "catsdogcats", "dog", "dogcatsdog", "hippopotamuses", "rat", "ratcatdogcat"])',
+          'vec!["catsdogcats", "dogcatsdog", "ratcatdogcat"]'),
+        T("leetcode_catdog", "words = [\"cat\", \"dog\", \"catdog\"]", 'find_all_concatenated_words(&["cat", "dog", "catdog"])', 'vec!["catdog"]'),
+        T("empty", "words = []", "find_all_concatenated_words(&[])", "Vec::<&str>::new()"),
+        T("one_word_is_not_enough", "words = [\"a\"] (a word alone is one piece)", 'find_all_concatenated_words(&["a"])', "Vec::<&str>::new()"),
+        T("same_piece_twice", "words = [\"a\", \"aaa\"]", 'find_all_concatenated_words(&["a", "aaa"])', 'vec!["aaa"]'),
+        T("empty_string_is_no_piece", "words = [\"\", \"a\", \"aa\"]", 'find_all_concatenated_words(&["", "a", "aa"])', 'vec!["aa"]'),
+    ],
+    hidden=[
+        T("only_empty", "words = [\"\"]", 'find_all_concatenated_words(&[""])', "Vec::<&str>::new()"),
+        T("input_order", "words = [\"abab\", \"ab\", \"ababab\", \"b\", \"ba\"]", 'find_all_concatenated_words(&["abab", "ab", "ababab", "b", "ba"])', 'vec!["abab", "ababab"]'),
+        T("three_pieces_needed", "words = [\"x\", \"y\", \"xyx\", \"yxy\", \"xyz\"]", 'find_all_concatenated_words(&["x", "y", "xyx", "yxy", "xyz"])', 'vec!["xyx", "yxy"]'),
+        T("greedy_longest_piece_fails", "words = [\"ab\", \"abc\", \"cd\", \"abcd\"] (\"abc\" leaves \"d\"; \"ab\" + \"cd\" works)",
+          'find_all_concatenated_words(&["ab", "abc", "cd", "abcd"])', 'vec!["abcd"]'),
+        T("pieces_are_whole_words", "words = [\"ab\", \"cd\", \"abc\"]", 'find_all_concatenated_words(&["ab", "cd", "abc"])', "Vec::<&str>::new()"),
+        T("longer_word_as_a_piece", "words = [\"abc\", \"d\", \"abcd\", \"abcdabc\"]", 'find_all_concatenated_words(&["abc", "d", "abcd", "abcdabc"])', 'vec!["abcd", "abcdabc"]'),
+        T("thirty_letters", "words = [\"a\", 'a' × 30]", 'find_all_concatenated_words(&["a", &long])', 'vec!["a".repeat(30)]', setup='let long = "a".repeat(30);'),
+        T("answers_are_the_input_slices", "the answer points into words", "std::ptr::eq(got[0].as_ptr(), w.as_ptr())", "true",
+          setup='let w = String::from("xx");\nlet got = find_all_concatenated_words(&["x", &w]);'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1022);
+            for _ in 0..300 {
+                let mut words: Vec<String> = Vec::new();
+                for _ in 0..rng.below(7) {
+                    let len = rng.below(5);
+                    let w = rng.string(len, "ab");
+                    if !words.contains(&w) {
+                        words.push(w);
+                    }
+                }
+                let refs: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+                // Brute force: ways[i] has bit 1 if w[..i] is one listed word, bit 2 if it splits into two or more.
+                let want: Vec<&str> = refs
+                    .iter()
+                    .copied()
+                    .filter(|w| {
+                        let n = w.len();
+                        let mut ways = vec![0u8; n + 1];
+                        for i in 1..=n {
+                            for j in 0..i {
+                                if refs.contains(&&w[j..i]) {
+                                    ways[i] |= if j == 0 { 1 } else if ways[j] != 0 { 2 } else { 0 };
+                                }
+                            }
+                        }
+                        n > 0 && ways[n] & 2 != 0
+                    })
+                    .collect();
+                check!(format!("words = {refs:?}"), find_all_concatenated_words(&refs), want);
+            }
+        }
+
+        #[test]
+        fn scale_many_ways_to_fail() {
+            // Runs of a's end in a letter no other word ends with, so no split works,
+            // but a run of 29 a's splits into pieces of 1–10 a's in ~2²⁸ ways.
+            let mut words: Vec<String> = (1..=10).map(|n| "a".repeat(n)).collect();
+            for n in 20..=29 {
+                words.push(format!("{}{}", "a".repeat(n), (b'b' + (29 - n) as u8) as char));
+            }
+            words.push("a".repeat(30));
+            let refs: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+            let mut want: Vec<String> = (2..=10).map(|n| "a".repeat(n)).collect();
+            want.push("a".repeat(30));
+            check!("words = 'a' × 1..=10, then 'a' × 29 + \\"b\\", 'a' × 28 + \\"c\\", …, 'a' × 20 + \\"k\\", then 'a' × 30", find_all_concatenated_words(&refs), want);
+        }
+
+        #[test]
+        fn scale_10k_words() {
+            // 8000 five-letter words and 2000 ten-letter words, each two of them joined.
+            let mut words: Vec<String> = (0..8_000).map(|i| base10(i, 5)).collect();
+            for i in 0..2_000 {
+                words.push(format!("{}{}", base10(i * 3, 5), base10(i * 7 % 8_000, 5)));
+            }
+            let refs: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+            let got = find_all_concatenated_words(&refs);
+            check!("8000 five-letter words and 2000 pairs of them joined", (got.len(), got == refs[8_000..]), (2_000, true));
+        }
+        """ + BASE10,
+    ],
+    wrong=dict(
+        whole_word_counts="""
+            use std::collections::HashSet;
+
+            pub fn find_all_concatenated_words<'a>(words: &[&'a str]) -> Vec<&'a str> {
+                let set: HashSet<&str> = words.iter().copied().filter(|w| !w.is_empty()).collect();
+                words
+                    .iter()
+                    .copied()
+                    .filter(|w| {
+                        let n = w.len();
+                        let mut ok = vec![false; n + 1];
+                        ok[0] = true;
+                        for i in 1..=n {
+                            ok[i] = (0..i).any(|j| ok[j] && set.contains(&w[j..i]));
+                        }
+                        n > 0 && ok[n]
+                    })
+                    .collect()
+            }
+        """,
+        no_memo="""
+            use std::collections::HashSet;
+
+            fn splits(set: &HashSet<&str>, w: &str, start: usize, pieces: usize) -> bool {
+                if start == w.len() {
+                    return pieces >= 2;
+                }
+                (start + 1..=w.len()).any(|end| set.contains(&w[start..end]) && splits(set, w, end, pieces + 1))
+            }
+
+            pub fn find_all_concatenated_words<'a>(words: &[&'a str]) -> Vec<&'a str> {
+                let set: HashSet<&str> = words.iter().copied().filter(|w| !w.is_empty()).collect();
+                words.iter().copied().filter(|w| !w.is_empty() && splits(&set, w, 0, 0)).collect()
+            }
+        """,
+        two_pieces_only="""
+            use std::collections::HashSet;
+
+            pub fn find_all_concatenated_words<'a>(words: &[&'a str]) -> Vec<&'a str> {
+                let set: HashSet<&str> = words.iter().copied().filter(|w| !w.is_empty()).collect();
+                words.iter().copied().filter(|w| (1..w.len()).any(|k| set.contains(&w[..k]) && set.contains(&w[k..]))).collect()
+            }
+        """,
+    ),
+    hints=[("approach", "For each word, run word break: `ok[i]` is true when the first i letters split into words. From every reachable i, walk a trie of all words along the letters after i and mark each word end you pass."),
+           ("rust", "Build one trie of the non-empty words, then `words.iter().copied().filter(..).collect()` returns the answers as the input's own `&'a str` slices, in order."),
+           ("edge case", "Every word is in the dictionary, so a plain word break says yes to all of them. Skip the piece that starts at 0 and ends at the word's end. Without the `ok` table, a word like `aaaa…ab` is tried in exponentially many ways.")],
+    notes=("Each word costs O(L²) trie steps at worst (a walk of up to L from each of L positions), so the total is O(Σ L²) with L ≤ 30. The `ok` table is the memo: a recursive search without it re-solves the same suffix for every way of reaching it. Sorting by length and testing each word against a trie of shorter words only is the other classic way to rule out the one-piece split.", "O(Σ L²)", "O(total letters × 26)"),
+    follow_up="Return, for each concatenated word, one way to split it into pieces.",
+    related=["D12", "D11"],
+))
+
+P.append(dict(
+    slug="palindrome-pairs", title="Palindrome pairs", level="hard", stage="hard-tries-strings", tags=["palindrome", "HashMap", "split_at"],
+    companies=["Meta", "Amazon", "Google", "Airbnb"],
+    teaches=["Split each word at every position: if one side is a palindrome, the partner must be the other side reversed.",
+             "Skip one of the two whole-word splits, or every equal-length pair is reported twice."],
+    statement="""
+        Return every pair of indexes `(i, j)`, `i != j`, such that `words[i] + words[j]` is a palindrome, sorted.
+
+        Words are distinct lowercase ASCII; one of them may be `""`.
+    """,
+    examples=[("words = [\"abcd\", \"dcba\", \"lls\", \"s\", \"sssll\"]", "[(0, 1), (1, 0), (2, 4), (3, 2)]"),
+              ("words = [\"bat\", \"tab\", \"cat\"]", "[(0, 1), (1, 0)]"), ("words = [\"a\", \"\"]", "[(0, 1), (1, 0)]")],
+    constraints=["0 ≤ words.len() ≤ 2·10⁴", "0 ≤ words[i].len() ≤ 300, total length ≤ 3·10⁵"],
+    starter="""
+        pub fn palindrome_pairs(words: &[&str]) -> Vec<(usize, usize)> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::HashMap;
+
+        fn is_palindrome(b: &[u8]) -> bool {
+            b.iter().eq(b.iter().rev())
+        }
+
+        pub fn palindrome_pairs(words: &[&str]) -> Vec<(usize, usize)> {
+            // Each word reversed -> its index.
+            let reversed: HashMap<Vec<u8>, usize> = words.iter().enumerate().map(|(i, w)| (w.bytes().rev().collect(), i)).collect();
+            let mut out = Vec::new();
+            for (i, w) in words.iter().enumerate() {
+                let b = w.as_bytes();
+                for cut in 0..=b.len() {
+                    let (left, right) = b.split_at(cut);
+                    // w + partner: the partner is `left` reversed, and `right` is the palindrome in the middle.
+                    if is_palindrome(right) {
+                        if let Some(&j) = reversed.get(left) {
+                            if j != i {
+                                out.push((i, j));
+                            }
+                        }
+                    }
+                    // partner + w: the partner is `right` reversed. cut = 0 would repeat the cut = len case of the partner.
+                    if cut > 0 && is_palindrome(left) {
+                        if let Some(&j) = reversed.get(right) {
+                            if j != i {
+                                out.push((j, i));
+                            }
+                        }
+                    }
+                }
+            }
+            out.sort_unstable();
+            out
+        }
+    """,
+    visible=[
+        T("leetcode_lls", "words = [\"abcd\", \"dcba\", \"lls\", \"s\", \"sssll\"]", 'palindrome_pairs(&["abcd", "dcba", "lls", "s", "sssll"])', "vec![(0, 1), (1, 0), (2, 4), (3, 2)]"),
+        T("leetcode_bat_tab", "words = [\"bat\", \"tab\", \"cat\"]", 'palindrome_pairs(&["bat", "tab", "cat"])', "vec![(0, 1), (1, 0)]"),
+        T("leetcode_empty_word", "words = [\"a\", \"\"] (\"\" pairs with every palindrome, both ways)", 'palindrome_pairs(&["a", ""])', "vec![(0, 1), (1, 0)]"),
+        T("no_words", "words = []", "palindrome_pairs(&[])", "Vec::<(usize, usize)>::new()"),
+        T("no_pairs", "words = [\"a\", \"b\", \"c\"]", 'palindrome_pairs(&["a", "b", "c"])', "Vec::<(usize, usize)>::new()"),
+        T("different_lengths", "words = [\"race\", \"car\", \"ecar\"]", 'palindrome_pairs(&["race", "car", "ecar"])', "vec![(0, 1), (0, 2), (2, 0)]"),
+    ],
+    hidden=[
+        T("single_word", "words = [\"abc\"]", 'palindrome_pairs(&["abc"])', "Vec::<(usize, usize)>::new()"),
+        T("palindrome_and_empty", "words = [\"aba\", \"\"]", 'palindrome_pairs(&["aba", ""])', "vec![(0, 1), (1, 0)]"),
+        T("empty_with_non_palindrome", "words = [\"ab\", \"\"]", 'palindrome_pairs(&["ab", ""])', "Vec::<(usize, usize)>::new()"),
+        T("same_letter_words", "words = [\"a\", \"aa\", \"aaa\"]", 'palindrome_pairs(&["a", "aa", "aaa"])', "vec![(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]"),
+        T("mixed_with_empty", "words = [\"x\", \"xx\", \"\"]", 'palindrome_pairs(&["x", "xx", ""])', "vec![(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]"),
+        T("reverse_pair_once", "words = [\"ab\", \"ba\", \"abab\"]", 'palindrome_pairs(&["ab", "ba", "abab"])', "vec![(0, 1), (1, 0)]"),
+        T("only_one_order", "words = [\"abc\", \"ba\"] (\"abcba\" works, \"baabc\" doesn't)", 'palindrome_pairs(&["abc", "ba"])', "vec![(0, 1)]"),
+        T("palindrome_suffix", "words = [\"cbaa\", \"abc\"] (\"cbaa\" + \"abc\" is \"cbaaabc\")", 'palindrome_pairs(&["cbaa", "abc"])', "vec![(0, 1)]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1023);
+            for _ in 0..300 {
+                let mut words: Vec<String> = Vec::new();
+                for _ in 0..rng.below(7) {
+                    let len = rng.below(4);
+                    let w = rng.string(len, "ab");
+                    if !words.contains(&w) {
+                        words.push(w);
+                    }
+                }
+                let refs: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+                let mut want = Vec::new();
+                for i in 0..refs.len() {
+                    for j in 0..refs.len() {
+                        let s = format!("{}{}", refs[i], refs[j]);
+                        if i != j && s.bytes().eq(s.bytes().rev()) {
+                            want.push((i, j));
+                        }
+                    }
+                }
+                check!(format!("words = {refs:?}"), palindrome_pairs(&refs), want);
+            }
+        }
+
+        #[test]
+        fn scale_20k_words() {
+            use std::collections::HashMap;
+            let mut words: Vec<String> = (0..20_000).map(|i| base10(i * 499_979, 10)).collect();
+            let fifth_reversed: String = words[5].chars().rev().collect();
+            words.push(fifth_reversed);
+            words.extend(["qrstuvwxyz", "zyxwvutsrq", "klmnoonmlk", ""].map(String::from));
+            let refs: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+            // Every word has 10 letters except "": pairs are a word with its reverse, or "" with a palindrome.
+            let index: HashMap<&str, usize> = refs.iter().enumerate().map(|(i, &w)| (w, i)).collect();
+            let empty = index[""];
+            let mut want = Vec::new();
+            for (i, w) in refs.iter().enumerate() {
+                let r: String = w.chars().rev().collect();
+                if let Some(&j) = index.get(r.as_str()) {
+                    if j != i {
+                        want.push((i, j));
+                    } else if i != empty {
+                        want.push((i, empty));
+                        want.push((empty, i));
+                    }
+                }
+            }
+            want.sort_unstable();
+            check!("20000 ten-letter words over a..j, one's reverse, qrstuvwxyz and its reverse, klmnoonmlk, \\"\\"", palindrome_pairs(&refs), want);
+        }
+        """ + BASE10,
+    ],
+    wrong=dict(
+        every_pair="""
+            pub fn palindrome_pairs(words: &[&str]) -> Vec<(usize, usize)> {
+                let mut out = Vec::new();
+                for i in 0..words.len() {
+                    for j in 0..words.len() {
+                        let s = format!("{}{}", words[i], words[j]);
+                        if i != j && s.bytes().eq(s.bytes().rev()) {
+                            out.push((i, j));
+                        }
+                    }
+                }
+                out
+            }
+        """,
+        both_whole_word_splits="""
+            use std::collections::HashMap;
+
+            fn is_palindrome(b: &[u8]) -> bool {
+                b.iter().eq(b.iter().rev())
+            }
+
+            pub fn palindrome_pairs(words: &[&str]) -> Vec<(usize, usize)> {
+                let reversed: HashMap<Vec<u8>, usize> = words.iter().enumerate().map(|(i, w)| (w.bytes().rev().collect(), i)).collect();
+                let mut out = Vec::new();
+                for (i, w) in words.iter().enumerate() {
+                    let b = w.as_bytes();
+                    for cut in 0..=b.len() {
+                        let (left, right) = b.split_at(cut);
+                        if is_palindrome(right) {
+                            if let Some(&j) = reversed.get(left) {
+                                if j != i {
+                                    out.push((i, j));
+                                }
+                            }
+                        }
+                        if is_palindrome(left) {
+                            if let Some(&j) = reversed.get(right) {
+                                if j != i {
+                                    out.push((j, i));
+                                }
+                            }
+                        }
+                    }
+                }
+                out.sort_unstable();
+                out
+            }
+        """,
+        skips_the_empty_word="""
+            use std::collections::HashMap;
+
+            fn is_palindrome(b: &[u8]) -> bool {
+                b.iter().eq(b.iter().rev())
+            }
+
+            pub fn palindrome_pairs(words: &[&str]) -> Vec<(usize, usize)> {
+                let reversed: HashMap<Vec<u8>, usize> = words.iter().enumerate().map(|(i, w)| (w.bytes().rev().collect(), i)).collect();
+                let mut out = Vec::new();
+                for (i, w) in words.iter().enumerate() {
+                    let b = w.as_bytes();
+                    // Proper splits only: both sides non-empty, plus the plain reverse.
+                    for cut in 1..b.len() {
+                        let (left, right) = b.split_at(cut);
+                        if is_palindrome(right) {
+                            if let Some(&j) = reversed.get(left) {
+                                out.push((i, j));
+                            }
+                        }
+                        if is_palindrome(left) {
+                            if let Some(&j) = reversed.get(right) {
+                                out.push((j, i));
+                            }
+                        }
+                    }
+                    if let Some(&j) = reversed.get(b) {
+                        if j != i {
+                            out.push((i, j));
+                        }
+                    }
+                }
+                out.sort_unstable();
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "For `w + x` to be a palindrome with `w` the longer word, `x` reversed is a prefix of `w` and the rest of `w` is a palindrome. So split `w` at every position: if the right part is a palindrome, look up the left part reversed; if the left part is a palindrome, look up the right part reversed (that partner goes in front)."),
+           ("rust", "Key a `HashMap<Vec<u8>, usize>` by each word reversed; `get(left)` works with a `&[u8]` because `Vec<u8>: Borrow<[u8]>`. `b.split_at(cut)` gives both sides without allocating."),
+           ("edge case", "The split at 0 of one word and the split at the end of its reverse describe the same pair; handle the whole-word case on one side only. `\"\"` pairs with every palindrome, in both orders.")],
+    notes=("Each word tries L + 1 splits, each with an O(L) palindrome check and an O(L) hash lookup: O(n · L²) overall, versus O(n² · L) for checking every pair. A trie of the reversed words (storing, at each node, the words whose remaining part is a palindrome) gives the same bound and is the other textbook answer.", "O(n · L²)", "O(n · L)"),
+    follow_up="How would a trie of the reversed words replace the hash map, and what would each node store?",
+    related=["S4", "D1"],
+))
+
+P.append(dict(
+    slug="shortest-palindrome", title="Shortest palindrome (KMP)", level="hard", stage="hard-tries-strings", tags=["KMP", "palindrome", "chars"],
+    companies=["Amazon", "Google", "Microsoft"],
+    teaches=["The longest palindromic prefix of `s` is the longest border of `s + separator + reverse(s)`.",
+             "`Option<char>` gives a separator that equals no character, so input containing `#` can't break it."],
+    statement="""
+        Add as few characters as possible to the **front** of `s` to make it a palindrome, and return the result.
+
+        `s` can hold any Unicode text; characters are whole `char`s.
+    """,
+    examples=[("s = \"aacecaaa\"", "\"aaacecaaa\""), ("s = \"abcd\"", "\"dcbabcd\"")],
+    constraints=["0 ≤ number of characters ≤ 10⁶"],
+    starter="""
+        pub fn shortest_palindrome(s: &str) -> String {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn shortest_palindrome(s: &str) -> String {
+            let chars: Vec<char> = s.chars().collect();
+            // s, a separator equal to no character (None), then s reversed.
+            let t: Vec<Option<char>> = chars.iter().copied().map(Some).chain([None]).chain(chars.iter().rev().copied().map(Some)).collect();
+            // KMP border table of t.
+            let mut border = vec![0; t.len()];
+            let mut k = 0;
+            for i in 1..t.len() {
+                while k > 0 && t[i] != t[k] {
+                    k = border[k - 1];
+                }
+                if t[i] == t[k] {
+                    k += 1;
+                }
+                border[i] = k;
+            }
+            // The longest prefix of s that is also a suffix of reverse(s): the longest palindromic prefix.
+            let keep = border[t.len() - 1];
+            chars[keep..].iter().rev().chain(&chars).collect()
+        }
+    """,
+    visible=[
+        T("leetcode_aacecaaa", "s = \"aacecaaa\"", 'shortest_palindrome("aacecaaa")', '"aaacecaaa"'),
+        T("leetcode_abcd", "s = \"abcd\"", 'shortest_palindrome("abcd")', '"dcbabcd"'),
+        T("empty", "s = \"\"", 'shortest_palindrome("")', '""'),
+        T("single", "s = \"a\"", 'shortest_palindrome("a")', '"a"'),
+        T("already_a_palindrome", "s = \"aba\"", 'shortest_palindrome("aba")', '"aba"'),
+        T("unicode", "s = \"éa\"", 'shortest_palindrome("éa")', '"aéa"'),
+    ],
+    hidden=[
+        T("two_same", "s = \"aa\"", 'shortest_palindrome("aa")', '"aa"'),
+        T("two_different", "s = \"ab\"", 'shortest_palindrome("ab")', '"bab"'),
+        T("aab", "s = \"aab\"", 'shortest_palindrome("aab")', '"baab"'),
+        T("abb", "s = \"abb\"", 'shortest_palindrome("abb")', '"bbabb"'),
+        T("aabba", "s = \"aabba\"", 'shortest_palindrome("aabba")', '"abbaabba"'),
+        T("emoji", "s = \"🦀\"", 'shortest_palindrome("🦀")', '"🦀"'),
+        T("abac", "s = \"abac\"", 'shortest_palindrome("abac")', '"cabac"'),
+        T("hash_in_the_input", "s = \"#a\" (a '#' separator would collide)", 'shortest_palindrome("#a")', '"a#a"'),
+        T("hash_run", "s = \"a#a#\"", 'shortest_palindrome("a#a#")', '"#a#a#"'),
+        T("abab", "s = \"abab\"", 'shortest_palindrome("abab")', '"babab"'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1024);
+            for _ in 0..400 {
+                let len = rng.below(10);
+                let s = rng.string(len, "ab#é");
+                let cs: Vec<char> = s.chars().collect();
+                let keep = (0..=cs.len()).rev().find(|&k| cs[..k].iter().eq(cs[..k].iter().rev())).unwrap();
+                let want: String = cs[keep..].iter().rev().chain(&cs).collect();
+                check!(format!("s = {s:?}"), shortest_palindrome(&s), want);
+            }
+        }
+
+        #[test]
+        fn scale_million() {
+            // The longest palindromic prefix is the first 500000 a's; every longer prefix almost matches.
+            let m = 500_000;
+            let s = format!("{}b{}", "a".repeat(m), "a".repeat(m - 1));
+            let got = shortest_palindrome(&s);
+            let want = format!("{}b{s}", "a".repeat(m - 1));
+            check!("s = 'a' × 500000 + \\"b\\" + 'a' × 499999", (got.len(), got == want), (want.len(), true));
+        }
+        """,
+    ],
+    wrong=dict(
+        no_separator="""
+            pub fn shortest_palindrome(s: &str) -> String {
+                let chars: Vec<char> = s.chars().collect();
+                let t: Vec<char> = chars.iter().copied().chain(chars.iter().rev().copied()).collect();
+                let mut border = vec![0; t.len()];
+                let mut k = 0;
+                for i in 1..t.len() {
+                    while k > 0 && t[i] != t[k] {
+                        k = border[k - 1];
+                    }
+                    if t[i] == t[k] {
+                        k += 1;
+                    }
+                    border[i] = k;
+                }
+                let keep = border.last().copied().unwrap_or(0);
+                chars[keep..].iter().rev().chain(&chars).collect()
+            }
+        """,
+        hash_separator="""
+            pub fn shortest_palindrome(s: &str) -> String {
+                let chars: Vec<char> = s.chars().collect();
+                let t: Vec<char> = chars.iter().copied().chain(['#']).chain(chars.iter().rev().copied()).collect();
+                let mut border = vec![0; t.len()];
+                let mut k = 0;
+                for i in 1..t.len() {
+                    while k > 0 && t[i] != t[k] {
+                        k = border[k - 1];
+                    }
+                    if t[i] == t[k] {
+                        k += 1;
+                    }
+                    border[i] = k;
+                }
+                let keep = border[t.len() - 1].min(chars.len());
+                chars[keep..].iter().rev().chain(&chars).collect()
+            }
+        """,
+        try_every_prefix="""
+            pub fn shortest_palindrome(s: &str) -> String {
+                let chars: Vec<char> = s.chars().collect();
+                let keep = (0..=chars.len()).rev().find(|&k| chars[..k].iter().eq(chars[..k].iter().rev())).unwrap_or(0);
+                chars[keep..].iter().rev().chain(&chars).collect()
+            }
+        """,
+    ),
+    hints=[("approach", "Only the longest palindromic prefix of `s` can stay unmirrored; the rest, reversed, goes in front. That prefix is the longest prefix of `s` that is also a suffix of `reverse(s)`: the last KMP border value of `s + separator + reverse(s)`."),
+           ("rust", "Build the combined sequence as `Vec<Option<char>>` with `None` as the separator: it can't equal any character. Then `chars[keep..].iter().rev().chain(&chars).collect::<String>()`."),
+           ("edge case", "Without a separator the border can run past the middle (`\"aa\"` gives 3 for `\"aaaa\"`). A `'#'` separator fails on input that contains `'#'`.")],
+    notes=("The border table is linear, so the whole thing is O(n). The separator stops a border from spanning both halves, which would claim a palindromic prefix longer than `s`. Checking each prefix from the longest down is O(n²) in the worst case, as in the test where every long prefix is a near-palindrome.", "O(n)", "O(n)"),
+    follow_up="How would you find the fewest characters to add at the end instead? And to make it a palindrome by adding anywhere?",
+    related=["D12", "S2"],
+))
+
+LEXER_TYPES = r"""
+use std::borrow::Cow;
+use std::ops::Range;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Token<'a> {
+    Ident(&'a str),
+    Int(&'a str),
+    /// The contents without the quotes, escapes resolved.
+    Str(Cow<'a, str>),
+    Op(&'a str),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LexError {
+    /// The input ended inside a string; `at` is the opening quote.
+    UnterminatedString { at: usize },
+    /// A backslash followed by anything but `\`, `"`, `n` or `t`; `at` is the backslash.
+    BadEscape { at: usize },
+    /// A character that starts no token.
+    Unexpected { at: usize, ch: char },
+}
+"""
+
+LEXER_SOLUTION = LEXER_TYPES + r"""
+/// Two-character operators come first, so the longest match wins.
+const OPS: &[&str] = &[
+    "==", "!=", "<=", ">=", "->", "=>", "&&", "||", "::", "+", "-", "*", "/", "%", "=", "<", ">", "!", "&", "|", ":", ";", ",", ".", "(", ")", "{", "}", "[", "]",
+];
+
+pub struct Lexer<'a> {
+    src: &'a str,
+    pos: usize,
+    /// Set after the end or an error; the lexer is fused from then on.
+    done: bool,
+}
+
+impl<'a> Lexer<'a> {
+    pub fn new(src: &'a str) -> Self {
+        Lexer { src, pos: 0, done: false }
+    }
+
+    /// Moves `pos` past whitespace and `//` comments.
+    fn skip_trivia(&mut self) {
+        loop {
+            let rest = &self.src[self.pos..];
+            let trimmed = rest.trim_start();
+            self.pos += rest.len() - trimmed.len();
+            if !trimmed.starts_with("//") {
+                return;
+            }
+            self.pos += trimmed.find('\n').unwrap_or(trimmed.len());
+        }
+    }
+
+    fn lex(&mut self) -> Option<Result<(Token<'a>, Range<usize>), LexError>> {
+        self.skip_trivia();
+        let src: &'a str = self.src;
+        let start = self.pos;
+        let rest = &src[start..];
+        let c = rest.chars().next()?;
+        let (token, len) = if c.is_ascii_alphabetic() || c == '_' {
+            let len = rest.find(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).unwrap_or(rest.len());
+            (Token::Ident(&rest[..len]), len)
+        } else if c.is_ascii_digit() {
+            let len = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
+            (Token::Int(&rest[..len]), len)
+        } else if c == '"' {
+            match string_literal(rest, start) {
+                Ok(found) => found,
+                Err(e) => return Some(Err(e)),
+            }
+        } else if let Some(op) = OPS.iter().find(|op| rest.starts_with(**op)) {
+            (Token::Op(&rest[..op.len()]), op.len())
+        } else {
+            return Some(Err(LexError::Unexpected { at: start, ch: c }));
+        };
+        self.pos = start + len;
+        Some(Ok((token, start..start + len)))
+    }
+}
+
+/// Reads the string literal that `rest` starts with; `start` is its offset in the source.
+/// Returns the token and its length in bytes, quotes included.
+fn string_literal(rest: &str, start: usize) -> Result<(Token<'_>, usize), LexError> {
+    let body = &rest[1..];
+    // `None` until the first escape: up to then the contents are a plain slice of the source.
+    let mut owned: Option<String> = None;
+    let mut copied = 0; // bytes of `body` already copied into `owned`
+    let mut chars = body.char_indices();
+    while let Some((i, c)) = chars.next() {
+        match c {
+            '"' => {
+                let text = match owned {
+                    None => Cow::Borrowed(&body[..i]),
+                    Some(mut s) => {
+                        s.push_str(&body[copied..i]);
+                        Cow::Owned(s)
+                    }
+                };
+                return Ok((Token::Str(text), i + 2));
+            }
+            '\\' => {
+                let Some((_, e)) = chars.next() else {
+                    break; // the input ends right after the backslash
+                };
+                let resolved = match e {
+                    '\\' => '\\',
+                    '"' => '"',
+                    'n' => '\n',
+                    't' => '\t',
+                    _ => return Err(LexError::BadEscape { at: start + 1 + i }),
+                };
+                let s = owned.get_or_insert_with(String::new);
+                s.push_str(&body[copied..i]);
+                s.push(resolved);
+                copied = i + 1 + e.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    Err(LexError::UnterminatedString { at: start })
+}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Result<(Token<'a>, Range<usize>), LexError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            return None;
+        }
+        let item = self.lex();
+        self.done = !matches!(item, Some(Ok(_)));
+        item
+    }
+}
+
+impl std::iter::FusedIterator for Lexer<'_> {}
+"""
+
+LEXER_HELPER = r"""
+use std::borrow::Cow;
+
+fn kinds(src: &str) -> Result<Vec<Token<'_>>, LexError> {
+    Lexer::new(src).map(|r| r.map(|(t, _)| t)).collect()
+}
+"""
+
+P.append(dict(
+    slug="zero-copy-tokenizer", title="Zero-copy tokenizer", level="hard", stage="hard-tries-strings", tags=["lifetimes", "Cow", "Iterator", "parsing"],
+    teaches=["`Iterator<Item = Result<(Token<'a>, Range<usize>), LexError>>`: items borrow the source, not the lexer, so they outlive it.",
+             "`Cow<'a, str>` keeps string literals zero-copy until an escape forces an owned `String`.",
+             "An error ends the stream: a fused iterator stops instead of lexing garbage after it."],
+    statement=r"""
+        Write a lexer for a small language. `Lexer::new(src)` is an iterator of `Result<(Token, span), LexError>`,
+        where `span` is the token's byte range in `src`.
+
+        - Whitespace (any Unicode whitespace) and `//` comments, up to the end of the line, are skipped.
+        - `Ident`: an ASCII letter or `_`, then ASCII letters, digits and `_`.
+        - `Int`: a run of ASCII digits. `12ab` is `Int("12")` then `Ident("ab")`.
+        - `Str`: `"…"`, holding any Unicode, newlines included. Escapes are `\\`, `\"`, `\n` and `\t`. The token holds the
+          contents without the quotes: **borrowed** from `src` when there is no escape, owned only when one had to be
+          resolved. Its span includes the quotes.
+        - `Op`: the **longest** operator that matches: `== != <= >= -> => && || ::`, else one of `+ - * / % = < > ! & | : ; , . ( ) { } [ ]`.
+
+        Errors: `Unexpected { at, ch }` for a character that starts no token, `BadEscape { at }` (the backslash) for an
+        unknown escape, `UnterminatedString { at }` (the opening quote) when the input ends inside a string. After an
+        error, or the end, `next` returns `None` forever.
+
+        Tokens borrow from `src`, not from the lexer, and may outlive it.
+    """,
+    examples=[("src = \"let x1 = 42;\"", "Ident(\"let\") 0..3, Ident(\"x1\") 4..6, Op(\"=\") 7..8, Int(\"42\") 9..11, Op(\";\") 11..12"),
+              ("src = \"a @ b\"", "Ok(Ident(\"a\")), Err(Unexpected { at: 2, ch: '@' }), then None")],
+    constraints=["0 ≤ src.len() ≤ 2·10⁶ bytes"],
+    starter=LEXER_TYPES + r"""
+pub struct Lexer<'a> {
+    src: &'a str,
+    pos: usize,
+    // add fields if you need them
+}
+
+impl<'a> Lexer<'a> {
+    pub fn new(src: &'a str) -> Self {
+        Lexer { src, pos: 0 }
+    }
+}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Result<(Token<'a>, Range<usize>), LexError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+""",
+    solution=LEXER_SOLUTION,
+    visible=[
+        LEXER_HELPER,
+        T("let_statement", "src = \"let x1 = 42;\"", 'kinds("let x1 = 42;")', 'Ok(vec![Token::Ident("let"), Token::Ident("x1"), Token::Op("="), Token::Int("42"), Token::Op(";")])'),
+        T("spans_are_byte_ranges", r'src = "a == \"hé\"" (é is two bytes)', r'Lexer::new("a == \"hé\"").map(|r| r.unwrap()).collect::<Vec<_>>()',
+          r'vec![(Token::Ident("a"), 0..1), (Token::Op("=="), 2..4), (Token::Str(Cow::Borrowed("hé")), 5..10)]'),
+        T("longest_operator_wins", "src = \"a->b<=c\"", 'kinds("a->b<=c")', 'Ok(vec![Token::Ident("a"), Token::Op("->"), Token::Ident("b"), Token::Op("<="), Token::Ident("c")])'),
+        T("plain_string_is_borrowed", r'src = "\"hi\"" (no escape: the token borrows src)', r'matches!(&kinds("\"hi\"").unwrap()[0], Token::Str(Cow::Borrowed("hi")))', "true"),
+        T("escapes_make_an_owned_string", r'src = r#""a\"b\n""# (two escapes)', "match kinds(src).unwrap().remove(0) {\n        Token::Str(Cow::Owned(s)) => Some(s),\n        _ => None,\n    }",
+          r'Some("a\"b\n".to_string())', setup=r'''let src = r#""a\"b\n""#;'''),
+        T("comments_and_whitespace", r'src = "x // note\n\t y"', r'kinds("x // note\n\t y")', 'Ok(vec![Token::Ident("x"), Token::Ident("y")])'),
+        T("error_ends_the_stream", "src = \"a @ b\"; next() three times", "(lx.next(), lx.next(), lx.next())",
+          "(Some(Ok((Token::Ident(\"a\"), 0..1))), Some(Err(LexError::Unexpected { at: 2, ch: '@' })), None)", setup='let mut lx = Lexer::new("a @ b");'),
+        T("unterminated_string", r'src = "x = \"abc"', r'kinds("x = \"abc")', "Err(LexError::UnterminatedString { at: 4 })"),
+        T("empty", "src = \"\"", 'kinds("")', "Ok(vec![])"),
+    ],
+    hidden=[
+        LEXER_HELPER,
+        T("bad_escape", r'src = r#""a\q""#', "kinds(src)", "Err(LexError::BadEscape { at: 2 })", setup=r'''let src = r#""a\q""#;'''),
+        T("backslash_at_the_end", r'src = r#""ab\"#', "kinds(src)", "Err(LexError::UnterminatedString { at: 0 })", setup=r'''let src = r#""ab\"#;'''),
+        T("escaped_quote_then_end", r'src = r#""ab\""# (the quote is escaped, so the string never closes)', "kinds(src)", "Err(LexError::UnterminatedString { at: 0 })", setup=r'''let src = r#""ab\""#;'''),
+        T("unicode_outside_a_string", "src = \"a é\"", 'kinds("a é")', "Err(LexError::Unexpected { at: 2, ch: 'é' })"),
+        T("unicode_inside_a_string", r'src = "\"🦀\""', r'Lexer::new("\"🦀\"").map(|r| r.unwrap()).collect::<Vec<_>>()', r'vec![(Token::Str(Cow::Borrowed("🦀")), 0..6)]'),
+        T("maximal_munch", "src = \"a-->b === ::< &&& !==\"", 'kinds("a-->b === ::< &&& !==")',
+          'Ok(["a", "-", "->", "b", "==", "=", "::", "<", "&&", "&", "!=", "="].map(|s| if s == "a" || s == "b" { Token::Ident(s) } else { Token::Op(s) }).to_vec())'),
+        T("comment_at_the_end", "src = \"x //end\"", 'kinds("x //end")', 'Ok(vec![Token::Ident("x")])'),
+        T("only_a_comment", "src = \"// just a comment\"", 'kinds("// just a comment")', "Ok(vec![])"),
+        T("slash_is_an_operator", "src = \"a / b/ /c\"", 'kinds("a / b/ /c")',
+          'Ok(vec![Token::Ident("a"), Token::Op("/"), Token::Ident("b"), Token::Op("/"), Token::Op("/"), Token::Ident("c")])'),
+        T("comment_marker_inside_a_string", r'src = "\"// not\" y"', r'kinds("\"// not\" y")', 'Ok(vec![Token::Str(Cow::Borrowed("// not")), Token::Ident("y")])'),
+        T("numbers_then_idents", "src = \"12ab 007\"", 'kinds("12ab 007")', 'Ok(vec![Token::Int("12"), Token::Ident("ab"), Token::Int("007")])'),
+        T("newline_inside_a_string", r'src = "\"a\nb\""', r'kinds("\"a\nb\"")', r'Ok(vec![Token::Str(Cow::Borrowed("a\nb"))])'),
+        T("unicode_whitespace", r'src = "a\u{3000}b\u{a0}c"', r'kinds("a\u{3000}b\u{a0}c")', 'Ok(vec![Token::Ident("a"), Token::Ident("b"), Token::Ident("c")])'),
+        T("fused_after_an_error", r'src = "\"x"; next() three times', "(lx.next(), lx.next(), lx.next())", "(Some(Err(LexError::UnterminatedString { at: 0 })), None, None)",
+          setup=r'let mut lx = Lexer::new("\"x");'),
+        T("escape_after_unicode", r'src = r#""é\té""#', "Lexer::new(src).map(|r| r.unwrap()).collect::<Vec<_>>()", r'vec![(Token::Str(Cow::Owned("é\té".to_string())), 0..8)]',
+          setup=r'''let src = r#""é\té""#;'''),
+        T("bad_escape_after_unicode", r'src = r#""é\é""# (é is two bytes)', "kinds(src)", "Err(LexError::BadEscape { at: 3 })", setup=r'''let src = r#""é\é""#;'''),
+        T("punctuation", "src = \"(a,b)[0]{c};x.y%z*w\"", 'kinds("(a,b)[0]{c};x.y%z*w").unwrap().len()', "19"),
+        T("zero_copy", "idents and plain strings point into src", "ok", "true",
+          setup='let src = String::from("name \\"text\\"");\nlet toks: Vec<Token> = Lexer::new(&src).map(|r| r.unwrap().0).collect();\nlet ok = match (&toks[0], &toks[1]) {\n    (Token::Ident(a), Token::Str(Cow::Borrowed(b))) => std::ptr::eq(a.as_ptr(), src.as_ptr()) && std::ptr::eq(b.as_ptr(), src[6..].as_ptr()),\n    _ => false,\n};'),
+        T("tokens_outlive_the_lexer", "src = \"fn main\"; keep the first item after the lexer is dropped", "first", 'Some(Ok((Token::Ident("fn"), 0..2)))',
+          setup='let src = String::from("fn main");\nlet first;\n{\n    let mut lx = Lexer::new(&src);\n    first = lx.next();\n}'),
+        r"""
+        #[test]
+        fn random_programs() {
+            // Pieces with a known token, joined by trivia so they can't merge; sometimes an error at the end.
+            let pieces: [(&str, Token); 12] = [
+                ("abc", Token::Ident("abc")),
+                ("_x1", Token::Ident("_x1")),
+                ("42", Token::Int("42")),
+                ("==", Token::Op("==")),
+                ("=", Token::Op("=")),
+                ("->", Token::Op("->")),
+                ("-", Token::Op("-")),
+                ("::", Token::Op("::")),
+                ("\"hi\"", Token::Str(Cow::Borrowed("hi"))),
+                ("\"a\\nb\"", Token::Str(Cow::Owned("a\nb".to_string()))),
+                ("\"é\"", Token::Str(Cow::Borrowed("é"))),
+                ("\"\"", Token::Str(Cow::Borrowed(""))),
+            ];
+            let gaps = [" ", "\n", "\t ", " // c\n"];
+            let mut rng = anneal_prelude::Rng::new(1025);
+            for _ in 0..300 {
+                let mut src = String::new();
+                let mut want: Vec<Result<(Token, std::ops::Range<usize>), LexError>> = Vec::new();
+                let mut owned = Vec::new();
+                for _ in 0..rng.below(8) {
+                    let (text, tok) = rng.pick(&pieces).clone();
+                    let start = src.len();
+                    src.push_str(text);
+                    owned.push(matches!(tok, Token::Str(Cow::Owned(_))));
+                    want.push(Ok((tok, start..src.len())));
+                    let gap: &str = *rng.pick(&gaps);
+            src.push_str(gap);
+                }
+                match rng.below(4) {
+                    0 => {
+                        want.push(Err(LexError::Unexpected { at: src.len(), ch: '@' }));
+                        src.push_str("@ x");
+                    }
+                    1 => {
+                        want.push(Err(LexError::UnterminatedString { at: src.len() }));
+                        src.push_str("\"open");
+                    }
+                    2 => {
+                        want.push(Err(LexError::BadEscape { at: src.len() + 2 }));
+                        src.push_str("\"b\\q\" x");
+                    }
+                    _ => {}
+                }
+                let got: Vec<_> = Lexer::new(&src).collect();
+                let got_owned: Vec<bool> = got.iter().filter_map(|r| r.as_ref().ok()).map(|(t, _)| matches!(t, Token::Str(Cow::Owned(_)))).collect();
+                check!(format!("src = {src:?}"), got, want.clone());
+                check!(format!("src = {src:?}: which strings are owned"), got_owned, owned);
+            }
+        }
+
+        #[test]
+        fn scale_million_bytes() {
+            let line = "let x_1 = \"str\\n\" + 42; // c\n";
+            let src = line.repeat(40_000);
+            let (mut count, mut owned, mut last) = (0, 0, 0..0);
+            for item in Lexer::new(&src) {
+                let (tok, span) = item.unwrap();
+                count += 1;
+                owned += matches!(tok, Token::Str(Cow::Owned(_))) as usize;
+                last = span;
+            }
+            let semi = src.len() - line.len() + line.find(';').unwrap();
+            check!("src = 40000 lines of `let x_1 = \"str\\n\" + 42; // c`", (count, owned, last), (280_000, 40_000, semi..semi + 1));
+        }
+        """,
+    ],
+    wrong=dict(
+        always_owned=LEXER_SOLUTION.replace("""                let text = match owned {
+                    None => Cow::Borrowed(&body[..i]),
+                    Some(mut s) => {
+                        s.push_str(&body[copied..i]);
+                        Cow::Owned(s)
+                    }
+                };""", """                let mut s = owned.unwrap_or_default();
+                s.push_str(&body[copied..i]);
+                let text = Cow::Owned(s);"""),
+        keeps_going_after_an_error=LEXER_SOLUTION.replace("        self.done = !matches!(item, Some(Ok(_)));\n", "        self.done = item.is_none();\n"),
+        rescans_from_the_start=LEXER_SOLUTION.replace("""    fn lex(&mut self) -> Option<Result<(Token<'a>, Range<usize>), LexError>> {
+        self.skip_trivia();""", """    fn lex(&mut self) -> Option<Result<(Token<'a>, Range<usize>), LexError>> {
+        // Keep the position in characters and find its byte offset from the start every time.
+        let chars_done = self.src[..self.pos].chars().count();
+        self.pos = self.src.char_indices().nth(chars_done).map_or(self.src.len(), |(i, _)| i);
+        self.skip_trivia();"""),
+    ),
+    hints=[("approach", "Skip trivia, look at the first character, and pick the rule: identifier, number, string or operator. Try the two-character operators before the one-character ones. For strings, scan for the closing quote, handling a backslash and the character after it together."),
+           ("rust", "`type Item = Result<(Token<'a>, Range<usize>), LexError>` ties tokens to the source's `'a`, not to `&mut self`. Keep `Option<String>` while scanning a string: `None` means no escape yet, so the result is `Cow::Borrowed(&body[..i])`; the first escape copies what came before into a `String`."),
+           ("edge case", "After an error, set a flag and return `None` from then on (and you may `impl FusedIterator`). A backslash just before the end is an unterminated string, not a bad escape; `\"ab\\\"` never closes.")],
+    notes=("One pass: every byte is looked at once, so lexing is O(n), and only strings with escapes allocate. The lifetime parameter is what makes it zero-copy: `Token<'a>` borrows the source, so tokens outlive the lexer and cost nothing to produce. `Cow` lets one type carry both the borrowed common case and the owned escaped case. Maximal munch (`->` before `-`) is why the operator list is ordered by length. Finding the byte offset from the start again for every token (or counting characters to get there) makes it O(n²).", "O(n)", "O(1) besides owned strings"),
+    follow_up="How would you add line and column numbers to errors without making every token pay for them?",
+    related=["L3", "S2", "S6"],
+))
+
 STAGES = [
     ("first-tries", "First tries", "easy"),
     ("tries-at-work", "Tries at work", "medium"),

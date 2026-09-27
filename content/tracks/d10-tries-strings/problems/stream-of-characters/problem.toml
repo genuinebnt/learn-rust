@@ -1,0 +1,37 @@
+slug = "stream-of-characters"
+title = "Stream of characters"
+mode = "write"
+level = "hard"
+stage = "hard-tries-strings"
+order = 21
+status = "ready"
+tags = ["trie", "streaming", "VecDeque"]
+companies = ["Amazon", "Google"]
+teaches = [
+  "Insert the words reversed; each new letter then walks the trie backwards through the most recent letters.",
+  "Only the last `longest word` letters can matter, so the stream buffer is bounded.",
+]
+constraints = ["0 ≤ words.len() ≤ 2·10⁴, 1 ≤ words[i].len() ≤ 200, lowercase ASCII", "up to 10⁵ queries"]
+follow_up = "Aho–Corasick answers each query in O(1) amortized. What do its failure links store?"
+related = ["S5"]
+
+[[examples]]
+input = "words = [\"cd\", \"f\", \"kl\"]; letters a, b, c, …, l"
+output = "false ×3, true (\"cd\"), false, true (\"f\"), false ×5, true (\"kl\")"
+
+[[hints]]
+kind = "approach"
+text = "Build a trie of the words written backwards. After each letter, walk it from the newest letter back through older ones; reaching a word's end means the stream ends with that word."
+
+[[hints]]
+kind = "rust"
+text = "Keep only the last `longest` letters in a `VecDeque<u8>` (`push_back`, then `pop_front` when it's too long) and walk `recent.iter().rev()`."
+
+[[hints]]
+kind = "edge case"
+text = "Matches overlap: with the word `aaa`, the stream `aaaa` matches at the third and the fourth letter. Don't clear anything after a match."
+
+[solution]
+explanation = "A query walks at most `longest` letters and usually stops after a few, when the reversed trie has no child for the next letter. Checking every word per query is O(words · L) each. The Aho–Corasick automaton makes each query O(1) amortized by precomputing failure links; the reversed trie is the simpler answer interviews expect."
+time = "O(L) per query, L = longest word"
+space = "O(total letters in words × 26)"

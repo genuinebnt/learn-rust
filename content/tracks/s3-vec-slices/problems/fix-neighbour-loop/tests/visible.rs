@@ -1,26 +1,26 @@
 use solution::*;
 
 #[test]
-fn three() {
-    check!(r#"v = [1, 2, 3]"#, pair_sums(&[1, 2, 3]), vec![3, 5]);
+fn deltas_basic() {
+    check!(r#"v = [1, 4, 9]"#, deltas(&[1, 4, 9]), vec![3, 5]);
 }
 
 #[test]
-fn one() {
-    check!(r#"v = [9]"#, pair_sums(&[9]), Vec::<i32>::new());
+fn deltas_empty() {
+    check!(r#"v = []"#, deltas(&[]), Vec::<i64>::new());
 }
 
 #[test]
-fn four() {
-    check!(r#"v = [1, 2, 3, 4]"#, pair_sums(&[1, 2, 3, 4]), vec![3, 5, 7]);
+fn peaks_basic() {
+    check!(r#"v = [1, 3, 2, 5, 4]"#, peaks(&[1, 3, 2, 5, 4]), vec![1, 3]);
 }
 
 #[test]
-fn two() {
-    check!(r#"v = [5, 6]"#, pair_sums(&[5, 6]), vec![11]);
+fn sum16_odd_length() {
+    check!(r#"bytes = [0x12, 0x34, 0x56]"#, sum16(&[0x12, 0x34, 0x56]), 0x6834);
 }
 
 #[test]
-fn empty_visible() {
-    check!(r#"v = []"#, pair_sums(&[]), Vec::<i32>::new());
+fn commas_seven_digits() {
+    check!(r#""1234567""#, with_commas("1234567"), "1,234,567".to_string());
 }

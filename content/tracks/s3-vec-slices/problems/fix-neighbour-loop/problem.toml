@@ -1,30 +1,47 @@
 slug = "fix-neighbour-loop"
-title = "Fix: off-by-one in a neighbour loop"
+title = "Fix: off-by-one in neighbour loops"
 mode = "fix"
 level = "easy"
 stage = "use-it"
 order = 5
 status = "ready"
-tags = ["windows", "index out of bounds"]
+tags = ["windows", "chunks_exact", "remainder", "rchunks", "usize underflow"]
 teaches = [
-  "`windows(2)` yields each pair of neighbours without index arithmetic.",
+  "`0..v.len() - 1` underflows on an empty slice; `windows(n)` yields nothing when there aren't `n` elements.",
+  "`chunks_exact(2)` plus `remainder()` separates the full words from an odd tail; `step_by(2)` with `v[i + 1]` panics on it.",
+  "`rchunks(3)` groups from the right, which is what digit grouping needs; `.rev()` puts the groups back in reading order.",
 ]
-follow_up = "How is `windows` different from `chunks`?"
+follow_up = "`with_commas` builds a `Vec<&str>` just to join it. How would you write it straight into a `String` with the right capacity?"
 related = ["S6"]
 
 [[examples]]
-input = "v = [1, 2, 3]"
-output = "[3, 5]"
+input = "deltas(&[])"
+output = "[] (not a panic)"
 
-[[hints]]
-kind = "approach"
-text = "The last index has no right neighbour."
+[[examples]]
+input = "sum16(&[0x12, 0x34, 0x56])"
+output = "0x6834"
+
+[[examples]]
+input = "with_commas(\"1234567\")"
+output = "\"1,234,567\""
 
 [[hints]]
 kind = "rust"
-text = "Slices can hand you overlapping pairs directly."
+text = "`v.windows(2)` yields `&[a, b]` for each neighbouring pair and nothing for fewer than 2 elements; `windows(3).enumerate()` gives the index of each window's first element."
+
+[[hints]]
+kind = "rust"
+text = "`let words = bytes.chunks_exact(2);` then `words.remainder()` is the odd byte (if any), available before you consume `words`."
+
+[[hints]]
+kind = "rust"
+text = "`rchunks(3)` starts at the end: `\"1234567\"` gives `567`, `234`, `1`. Reverse that before joining."
 
 [solution]
-explanation = "`windows(2)` yields nothing for fewer than two elements, so the empty and single cases need no special handling."
+explanation = "Every bug is index arithmetic at the edges. `v.len() - 1` is a `usize` subtraction that panics (debug) or wraps (release) on an empty slice; `v[i + 1]` in a loop to `len` reads one past the end; `step_by(2)` assumes an even length. The slice iterators encode the edge cases: `windows(n)` yields nothing for short input, `chunks_exact` hands the leftover to `remainder()` instead of a short last chunk, and `rchunks` aligns groups at the end. `sum16` is the core of the Internet checksum (RFC 1071), which pads an odd byte on the right, making it the *high* byte of the last word. Syntax to remember: `s.windows(n)`, `s.chunks(n)`, `s.chunks_exact(n)` + `.remainder()`, `s.rchunks(n)`, `s.chunks_exact_mut(n)`, `iter.rev()`, `u16::from_be_bytes([hi, lo])`, `a.wrapping_add(b)`."
 time = "O(n)"
 space = "O(n)"
+
+[rules]
+max_changed_lines = 22

@@ -1,27 +1,47 @@
 slug = "slices-as-views"
-title = "Slices as views"
+title = "Slices as views: a TLV parser"
 mode = "write"
 level = "easy"
 stage = "use-it"
 order = 4
 status = "ready"
-tags = ["&[T]", "ranges", "position"]
+tags = ["split_first", "split_at_checked", "strip_prefix", "extend_from_slice", "join"]
 teaches = [
-  "Returning a sub-slice borrows from the input; nothing is copied.",
-  "`get(range)` instead of indexing when the range might be invalid.",
+  "Parse by peeling: `split_first` and `split_at_checked` return `Option`s, so a truncated input is `None` instead of a panic.",
+  "Returning `&[u8]` pieces of the input costs nothing; the lifetime ties them to `data`.",
+  "`[&[T]]::join(&sep)` and `concat()` flatten slices of slices; `u8::try_from(len)` refuses what `as u8` would silently truncate.",
 ]
-follow_up = "Why can these functions omit lifetime annotations?"
-related = ["L3"]
+follow_up = "How would you make `parse_tlv` a lazy iterator of `Result<(u8, &[u8]), Truncated>` instead of building a Vec?"
+related = ["L3", "S2"]
+
+[[examples]]
+input = "parse_tlv(b\"TLV\\x01\\x02hi\\x07\\x00\")"
+output = "Some([(1, b\"hi\"), (7, b\"\")])"
+
+[[examples]]
+input = "parse_tlv(b\"\\x01\\x05abc\")"
+output = "None"
+
+[[examples]]
+input = "join_values([(1, b\"ab\"), (2, b\"c\")], b'/')"
+output = "b\"ab/c\""
 
 [[hints]]
 kind = "rust"
-text = "`v.get(a..b)` returns `None` when the range is invalid, including a > b."
+text = "`let Some((&tag, after)) = rest.split_first()` peels one byte; `after.split_at_checked(n)?` peels `n` more or returns `None`. `data.strip_prefix(b\"TLV\")` is `Option<&[u8]>`."
 
 [[hints]]
 kind = "rust"
-text = "`position` and `rposition` find the first and last non-zero."
+text = "Sum `2 + value.len()` for `Vec::with_capacity`, then `push` and `extend_from_slice`. `u8::try_from(len).ok()?` rejects 256 and up."
+
+[[hints]]
+kind = "rust"
+text = "A `Vec<&[u8]>` has `.join(&sep)` (with a separator) and `.concat()` (without)."
 
 [solution]
-explanation = "The returned slices borrow `v`, so their lifetime is tied to the input by elision."
+explanation = "Nothing here copies value bytes while parsing: each value is a `&[u8]` into `data`, so the whole parse is one `Vec` of pairs. The `Option`-returning splitters (`split_first`, `split_last`, `split_at_checked`, `get(a..b)`, `strip_prefix`) turn every bounds check into a `?`, which is how you write parsers for untrusted input that can't panic. `as u8` on a length silently wraps 256 to 0, producing a corrupt but well-formed-looking frame; `try_from` makes it an error. Syntax to remember: `s.split_first()` / `split_last()` → `Option<(&T, &[T])>`, `s.split_at_checked(n)` (1.80+), `s.strip_prefix(b\"…\")`, `s.get(a..b)`, `v.extend_from_slice(s)`, `slices.concat()`, `slices.join(&sep)`, `u8::try_from(n)`."
 time = "O(n)"
-space = "O(1)"
+space = "O(records)"
+
+[perf]
+count_allocs = true

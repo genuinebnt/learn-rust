@@ -1,27 +1,43 @@
 slug = "sort-by-key"
-title = "sort_by with a tie-breaker"
+title = "Sorting: keys, stability and floats"
 mode = "write"
 level = "easy"
 stage = "use-it"
 order = 3
 status = "ready"
-tags = ["sort_by", "Ordering::then_with"]
+tags = ["sort_by_cached_key", "sort_unstable_by", "Reverse", "then_with", "f64::total_cmp"]
 teaches = [
-  "`Ordering::then_with` for multi-key sorts.",
-  "Why `sort_by_key` with a `String` key clones every comparison.",
+  "`sort_by_key` calls the key function on every comparison; when the key allocates, `sort_by_cached_key` computes it once per element.",
+  "Stable sorts (`sort`, `sort_by*`, `sort_by_cached_key`) keep ties in input order; `sort_unstable*` is faster and doesn't, so use it only when the key is total.",
+  "`f64` isn't `Ord`: `partial_cmp().unwrap()` panics on NaN, `total_cmp` orders every value, including `-0.0 < 0.0`.",
 ]
-follow_up = "When is `sort_by_cached_key` the right choice?"
-related = ["S8"]
+follow_up = "Why can a comparator that isn't a total order make `sort_by` panic in Rust 1.81+, and what did it do before?"
+related = ["S8", "S2"]
 
 [[examples]]
-input = "[\"pear\", \"fig\", \"apple\", \"kiwi\"]"
-output = "[\"fig\", \"kiwi\", \"pear\", \"apple\"]"
+input = "sort_files on [(\"b.TXT\", 1), (\"a.rs\", 5), (\"c.txt\", 9), (\"Makefile\", 2)]"
+output = "[\"Makefile\", \"a.rs\", \"c.txt\", \"b.TXT\"]"
+
+[[examples]]
+input = "sort_readings on [1.0, NaN, -0.0, 0.0, -inf]"
+output = "[-inf, -0.0, 0.0, 1.0, NaN]"
 
 [[hints]]
 kind = "rust"
-text = "Compare lengths, and only if they're equal, compare the strings: `then_with`."
+text = "`files.sort_by_cached_key(|f| (ext_lowercase(f), Reverse(f.size)))`: the key is a tuple, `Option<String>` puts `None` first, and `Reverse` flips one field."
+
+[[hints]]
+kind = "rust"
+text = "`a.cmp(&b).then(…)` for a cheap second key, `.then_with(|| …)` when it's worth computing only on a tie. `v.sort_unstable_by(f64::total_cmp)` sorts floats."
+
+[[hints]]
+kind = "edge case"
+text = "Ties must keep input order: that rules out every `sort_unstable*` for `sort_files`."
 
 [solution]
-explanation = "`then_with` only evaluates the second comparison on a tie. `sort_by_key(|w| (w.len(), w.clone()))` also works but allocates per comparison; `sort_by_cached_key` would allocate once per element."
+explanation = "Pick the sort by two questions: is the key total (then unstable is fine and faster, and needs no extra memory), and is the key expensive (then `sort_by_cached_key`, which builds a `Vec<(key, index)>` once and is stable). `sort_by_key(|f| f.name.to_lowercase())` allocates O(n log n) Strings; the cached version allocates n. For floats, `total_cmp` is the IEEE `totalOrder` predicate: it never panics and distinguishes `-0.0` from `0.0` and positive from negative NaN, which also makes it usable for `dedup` and binary search. Syntax to remember: `v.sort()`, `v.sort_unstable()`, `v.sort_by(|a, b| …)`, `v.sort_by_key(|x| k)`, `v.sort_by_cached_key(|x| k)`, `v.sort_unstable_by_key(|x| Reverse(k))`, `ord.then(o2)`, `ord.then_with(|| …)`, `ord.reverse()`, `f64::total_cmp`, `v.is_sorted()`."
 time = "O(n log n)"
-space = "O(n)"
+space = "O(n) for the cached keys"
+
+[perf]
+count_allocs = true

@@ -1,27 +1,40 @@
 slug = "remove-duplicates-sorted"
-title = "Remove duplicates from a sorted slice"
+title = "Remove duplicates in place, keeping at most k"
 mode = "write"
 level = "easy"
 stage = "use-it"
 order = 7
 status = "ready"
-tags = ["two pointers", "in place"]
+tags = ["two pointers", "in place", "truncate"]
 teaches = [
-  "A write index for in-place compaction.",
-  "Returning a length instead of shrinking the slice.",
+  "A write index compacts in place: copy a value down only when it should stay.",
+  "\"At most k copies\" compares with what was *written* k places back, `v[write - k]`, not with the input's neighbours, which may already be overwritten.",
+  "A slice can't shrink, so the slice version returns a length; the `Vec` version then `truncate`s.",
 ]
-follow_up = "How would you allow each value at most twice?"
+follow_up = "How would you do the same on an unsorted slice, keeping first-seen order, and what would it cost?"
 related = ["D2"]
 
 [[examples]]
-input = "v = [0, 0, 1, 1, 1, 2]"
-output = "3, with v starting [0, 1, 2]"
+input = "v = [0, 0, 1, 1, 1, 2], k = 1"
+output = "3, v starts [0, 1, 2]"
+
+[[examples]]
+input = "v = [1, 1, 1, 2, 2, 3], k = 2"
+output = "5, v starts [1, 1, 2, 2, 3]"
 
 [[hints]]
 kind = "approach"
-text = "Keep a write position; copy a value there only if it differs from the last value written."
+text = "Keep a write position. Copy `v[read]` down if fewer than `k` values have been written, or if it differs from the value written `k` places back."
+
+[[hints]]
+kind = "edge case"
+text = "Comparing `v[read]` with `v[read - k]` reads input that the write index may already have overwritten."
+
+[[hints]]
+kind = "rust"
+text = "`v.truncate(n)` drops the tail in place and keeps the capacity."
 
 [solution]
-explanation = "A slice can't shrink, so the length is the result. `Vec::dedup` does this and then truncates."
+explanation = "Because `v` is sorted, \"this value already has k copies\" is exactly \"the value written k places back equals it\". The write index never passes the read index, so reading `v[read]` is always the original value, but `v[read - k]` may not be. `Vec::dedup` is the k = 1 case followed by `truncate`, and `dedup_by(|a, b| …)` generalises the test. Syntax to remember: `v.truncate(n)`, `v.dedup()`, `v.dedup_by_key(|x| …)`, `v[..n].to_vec()`, `v.copy_within(src_range, dest)`."
 time = "O(n)"
 space = "O(1)"

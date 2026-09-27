@@ -1,26 +1,26 @@
 use solution::*;
 
 #[test]
-fn middle_of_four() {
-    check!(r#"v = [1, 2, 3, 4]"#, middle(&[1, 2, 3, 4]), &[2, 3][..]);
+fn parse_with_magic() {
+    check!(r#"b"TLV\x01\x02hi\x07\x00""#, parse_tlv(b"TLV\x01\x02hi\x07\x00"), Some(vec![(1, &b"hi"[..]), (7, &b""[..])]));
 }
 
 #[test]
-fn middle_of_one() {
-    check!(r#"v = [1]"#, middle(&[1]), &[][..]);
+fn parse_truncated_value() {
+    check!(r#"b"\x01\x05abc""#, parse_tlv(b"\x01\x05abc"), None);
 }
 
 #[test]
-fn trim() {
-    check!(r#"v = [0, 0, 5, 0, 7, 0]"#, trim_zeros(&[0, 0, 5, 0, 7, 0]), &[5, 0, 7][..]);
+fn parse_empty() {
+    check!(r#"b"" and b"TLV""#, (parse_tlv(b""), parse_tlv(b"TLV")), (Some(vec![]), Some(vec![])));
 }
 
 #[test]
-fn middle_of_three() {
-    check!(r#"v = [1, 2, 3]"#, middle(&[1, 2, 3]), &[2][..]);
+fn encode_round_trip() {
+    check!(r#"[(1, b"hi"), (2, b"")]"#, encode_tlv(&[(1, b"hi"), (2, b"")]), Some(b"\x01\x02hi\x02\x00".to_vec()));
 }
 
 #[test]
-fn trim_nothing_to_trim() {
-    check!(r#"v = [1, 2]"#, trim_zeros(&[1, 2]), &[1, 2][..]);
+fn join_with_separator() {
+    check!(r#"[(1, b"ab"), (2, b""), (3, b"c")], sep = b'/'"#, join_values(&[(1, b"ab"), (2, b""), (3, b"c")], b'/'), b"ab//c".to_vec());
 }

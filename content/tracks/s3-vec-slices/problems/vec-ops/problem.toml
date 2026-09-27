@@ -1,23 +1,40 @@
 slug = "vec-ops"
-title = "Push, pop, insert, remove"
+title = "Remove many indices at once"
 mode = "write"
 level = "easy"
 stage = "use-it"
 order = 1
 status = "ready"
-tags = ["Vec", "match"]
+tags = ["retain", "swap_remove", "sort_unstable", "dedup", "Peekable"]
 teaches = [
-  "The core `Vec` operations and which ones panic.",
-  "Guard clauses in a `match` for out-of-range indices.",
+  "Removing by index in a loop shifts everything after it: ascending order hits the wrong elements, and even the right order is O(n) per removal.",
+  "`retain` visits elements once, in order, with an `FnMut` closure, so it can track the index and drop a sorted set of positions in one O(n) pass.",
+  "`swap_remove` is O(1) because it moves the last element into the hole; processing indices from the highest down keeps the rest valid.",
 ]
-follow_up = "Which of these operations are O(1), and which shift elements?"
-related = ["S3"]
+follow_up = "`retain` must leave the Vec valid even if the closure panics halfway. How does std manage that without moving every element twice?"
+related = ["D1"]
+
+[[examples]]
+input = "remove_indices on [10, 11, 12, 13, 14], indices [3, 0, 3, 9]"
+output = "[11, 12, 14]"
+
+[[examples]]
+input = "remove_indices_unordered on [10, 11, 12, 13, 14], indices [0, 3]"
+output = "returns [13, 10], leaves [14, 11, 12]"
+
+[[hints]]
+kind = "approach"
+text = "Sort and dedup a copy of the indices. Then one `retain` pass: keep a counter of the current position and drop it when it's the next index in the sorted list."
 
 [[hints]]
 kind = "rust"
-text = "`insert(i, x)` allows `i == len`; `remove(i)` needs `i < len`. Both panic otherwise."
+text = "`retain`'s closure is `FnMut` and is called once per element, in order. `iter.peekable()` + `next_if_eq(&&i)` consumes the next index only when it matches."
+
+[[hints]]
+kind = "edge case"
+text = "`swap_remove(i)` moves the last element into `i`. Go from the highest index down, so that element is never one you still have to remove."
 
 [solution]
-explanation = "Match guards keep each operation's bounds check next to the operation."
-time = "O(n) per insert or remove"
-space = "O(n)"
+explanation = "`Vec::remove(i)` shifts every later element left, so k removals cost O(n·k), and doing them in ascending order also removes the wrong elements after the first. `retain` compacts in one pass instead (the same thing `dedup` and `drain_filter`-style code does internally), and it's documented to visit elements exactly once in order, which is what makes a position counter in the closure legitimate. When order doesn't matter, `swap_remove` is O(1) per removal. Syntax to remember: `v.retain(|x| keep)`, `v.retain_mut(|x| …)`, `v.swap_remove(i)`, `v.remove(i)`, `v.insert(i, x)`, `v.truncate(n)`, `idx.sort_unstable_by(|a, b| b.cmp(a))`, `it.peekable().next_if_eq(&x)`."
+time = "O(n + k log k) and O(k log k)"
+space = "O(k)"

@@ -251,9 +251,12 @@ impl<T> std::ops::DerefMut for MiniVec<T> {
 """
 
 def sub(code, *edits):
-    """`code`, dedented, with each (old, new) replacement made; every `old` must be there."""
+    """`code`, dedented, with each (old, new) replacement made; every `old` must be there.
+    An `old` copied from the indented spec source (8 spaces deeper than the dedented code) is re-indented to match."""
     code = textwrap.dedent(code)
     for old, new in edits:
+        if old not in code:
+            old, new = old.replace("\n        ", "\n"), new.replace("\n        ", "\n")
         assert old in code, old
         code = code.replace(old, new)
     return code
@@ -261,577 +264,1118 @@ def sub(code, *edits):
 
 P = []
 
+RM_SOL = """
+        /// Removes the elements at `indices` (any order, repeats allowed, out-of-range ones ignored), keeping the
+        /// rest in order. O(n + k log k).
+        pub fn remove_indices<T>(v: &mut Vec<T>, indices: &[usize]) {
+            let mut idx = indices.to_vec();
+            idx.sort_unstable();
+            idx.dedup();
+            let mut next = idx.iter().peekable();
+            let mut i = 0;
+            v.retain(|_| {
+                let drop = next.next_if_eq(&&i).is_some();
+                i += 1;
+                !drop
+            });
+        }
+
+        /// Removes the elements at `indices` with `swap_remove`, highest index first, and returns them in that
+        /// order. The order of what's left is whatever that produces. O(k log k): nothing is shifted.
+        pub fn remove_indices_unordered<T>(v: &mut Vec<T>, indices: &[usize]) -> Vec<T> {
+            let mut idx: Vec<usize> = indices.iter().copied().filter(|&i| i < v.len()).collect();
+            idx.sort_unstable_by(|a, b| b.cmp(a));
+            idx.dedup();
+            idx.into_iter().map(|i| v.swap_remove(i)).collect()
+        }
+"""
+
+RM_STARTER = """
+        /// Removes the elements at `indices` (any order, repeats allowed, out-of-range ones ignored), keeping the
+        /// rest in order. O(n + k log k).
+        pub fn remove_indices<T>(v: &mut Vec<T>, indices: &[usize]) {
+            todo!()
+        }
+
+        /// Removes the elements at `indices` with `swap_remove`, highest index first, and returns them in that
+        /// order. The order of what's left is whatever that produces. O(k log k): nothing is shifted.
+        pub fn remove_indices_unordered<T>(v: &mut Vec<T>, indices: &[usize]) -> Vec<T> {
+            todo!()
+        }
+"""
+
+
+def ri(name, v, idx, want):
+    return T(name, f"v = {v}, indices = {idx}", "v", f"vec!{want}" if want else "Vec::<i32>::new()",
+             setup=f"let mut v = vec!{v};\nremove_indices(&mut v, &{idx});" if v else f"let mut v: Vec<i32> = vec![];\nremove_indices(&mut v, &{idx});")
+
+
+def py_unordered(v, idx):
+    v = list(v)
+    ids = sorted({i for i in idx if i < len(v)}, reverse=True)
+    out = []
+    for i in ids:
+        out.append(v[i])
+        v[i] = v[-1]
+        v.pop()
+    return v, out
+
+
+def ru(name, v, idx):
+    left, removed = py_unordered(v, idx)
+    lit = lambda xs: f"vec!{xs}" if xs else "Vec::<i32>::new()"
+    return T(name, f"v = {v}, indices = {idx}", "(removed, v)", f"({lit(removed)}, {lit(left)})",
+             setup=f"let mut v: Vec<i32> = vec!{v};\nlet removed = remove_indices_unordered(&mut v, &{idx});")
+
+
+RM_SOL = """
+        /// Removes the elements at `indices` (any order, repeats allowed, out-of-range ones ignored), keeping the
+        /// rest in order. O(n + k log k).
+        pub fn remove_indices<T>(v: &mut Vec<T>, indices: &[usize]) {
+            let mut idx = indices.to_vec();
+            idx.sort_unstable();
+            idx.dedup();
+            let mut next = idx.iter().peekable();
+            let mut i = 0;
+            v.retain(|_| {
+                let drop = next.next_if_eq(&&i).is_some();
+                i += 1;
+                !drop
+            });
+        }
+
+        /// Removes the elements at `indices` with `swap_remove`, highest index first, and returns them in that
+        /// order. The order of what's left is whatever that produces. O(k log k): nothing is shifted.
+        pub fn remove_indices_unordered<T>(v: &mut Vec<T>, indices: &[usize]) -> Vec<T> {
+            let mut idx: Vec<usize> = indices.iter().copied().filter(|&i| i < v.len()).collect();
+            idx.sort_unstable_by(|a, b| b.cmp(a));
+            idx.dedup();
+            idx.into_iter().map(|i| v.swap_remove(i)).collect()
+        }
+"""
+
+RM_STARTER = """
+        /// Removes the elements at `indices` (any order, repeats allowed, out-of-range ones ignored), keeping the
+        /// rest in order. O(n + k log k).
+        pub fn remove_indices<T>(v: &mut Vec<T>, indices: &[usize]) {
+            todo!()
+        }
+
+        /// Removes the elements at `indices` with `swap_remove`, highest index first, and returns them in that
+        /// order. The order of what's left is whatever that produces. O(k log k): nothing is shifted.
+        pub fn remove_indices_unordered<T>(v: &mut Vec<T>, indices: &[usize]) -> Vec<T> {
+            todo!()
+        }
+"""
+
+
+def ri(name, v, idx, want):
+    return T(name, f"v = {v}, indices = {idx}", "v", f"vec!{want}" if want else "Vec::<i32>::new()",
+             setup=f"let mut v = vec!{v};\nremove_indices(&mut v, &{idx});" if v else f"let mut v: Vec<i32> = vec![];\nremove_indices(&mut v, &{idx});")
+
+
+def py_unordered(v, idx):
+    v = list(v)
+    ids = sorted({i for i in idx if i < len(v)}, reverse=True)
+    out = []
+    for i in ids:
+        out.append(v[i])
+        v[i] = v[-1]
+        v.pop()
+    return v, out
+
+
+def ru(name, v, idx):
+    left, removed = py_unordered(v, idx)
+    lit = lambda xs: f"vec!{xs}" if xs else "Vec::<i32>::new()"
+    return T(name, f"v = {v}, indices = {idx}", "(removed, v)", f"({lit(removed)}, {lit(left)})",
+             setup=f"let mut v: Vec<i32> = vec!{v};\nlet removed = remove_indices_unordered(&mut v, &{idx});")
+
+
+RM_SOL = """
+        /// Removes the elements at `indices` (any order, repeats allowed, out-of-range ones ignored), keeping the
+        /// rest in order. O(n + k log k).
+        pub fn remove_indices<T>(v: &mut Vec<T>, indices: &[usize]) {
+            let mut idx = indices.to_vec();
+            idx.sort_unstable();
+            idx.dedup();
+            let mut next = idx.iter().peekable();
+            let mut i = 0;
+            v.retain(|_| {
+                let drop = next.next_if_eq(&&i).is_some();
+                i += 1;
+                !drop
+            });
+        }
+
+        /// Removes the elements at `indices` with `swap_remove`, highest index first, and returns them in that
+        /// order. The order of what's left is whatever that produces. O(k log k): nothing is shifted.
+        pub fn remove_indices_unordered<T>(v: &mut Vec<T>, indices: &[usize]) -> Vec<T> {
+            let mut idx: Vec<usize> = indices.iter().copied().filter(|&i| i < v.len()).collect();
+            idx.sort_unstable_by(|a, b| b.cmp(a));
+            idx.dedup();
+            idx.into_iter().map(|i| v.swap_remove(i)).collect()
+        }
+"""
+
+RM_STARTER = """
+        /// Removes the elements at `indices` (any order, repeats allowed, out-of-range ones ignored), keeping the
+        /// rest in order. O(n + k log k).
+        pub fn remove_indices<T>(v: &mut Vec<T>, indices: &[usize]) {
+            todo!()
+        }
+
+        /// Removes the elements at `indices` with `swap_remove`, highest index first, and returns them in that
+        /// order. The order of what's left is whatever that produces. O(k log k): nothing is shifted.
+        pub fn remove_indices_unordered<T>(v: &mut Vec<T>, indices: &[usize]) -> Vec<T> {
+            todo!()
+        }
+"""
+
+
+def ri(name, v, idx, want):
+    return T(name, f"v = {v}, indices = {idx}", "v", f"vec!{want}" if want else "Vec::<i32>::new()",
+             setup=f"let mut v = vec!{v};\nremove_indices(&mut v, &{idx});" if v else f"let mut v: Vec<i32> = vec![];\nremove_indices(&mut v, &{idx});")
+
+
+def py_unordered(v, idx):
+    v = list(v)
+    ids = sorted({i for i in idx if i < len(v)}, reverse=True)
+    out = []
+    for i in ids:
+        out.append(v[i])
+        v[i] = v[-1]
+        v.pop()
+    return v, out
+
+
+def ru(name, v, idx):
+    left, removed = py_unordered(v, idx)
+    lit = lambda xs: f"vec!{xs}" if xs else "Vec::<i32>::new()"
+    return T(name, f"v = {v}, indices = {idx}", "(removed, v)", f"({lit(removed)}, {lit(left)})",
+             setup=f"let mut v: Vec<i32> = vec!{v};\nlet removed = remove_indices_unordered(&mut v, &{idx});")
+
+
+RM_SOL = """
+        /// Removes the elements at `indices` (any order, repeats allowed, out-of-range ones ignored), keeping the
+        /// rest in order. O(n + k log k).
+        pub fn remove_indices<T>(v: &mut Vec<T>, indices: &[usize]) {
+            let mut idx = indices.to_vec();
+            idx.sort_unstable();
+            idx.dedup();
+            let mut next = idx.iter().peekable();
+            let mut i = 0;
+            v.retain(|_| {
+                let drop = next.next_if_eq(&&i).is_some();
+                i += 1;
+                !drop
+            });
+        }
+
+        /// Removes the elements at `indices` with `swap_remove`, highest index first, and returns them in that
+        /// order. The order of what's left is whatever that produces. O(k log k): nothing is shifted.
+        pub fn remove_indices_unordered<T>(v: &mut Vec<T>, indices: &[usize]) -> Vec<T> {
+            let mut idx: Vec<usize> = indices.iter().copied().filter(|&i| i < v.len()).collect();
+            idx.sort_unstable_by(|a, b| b.cmp(a));
+            idx.dedup();
+            idx.into_iter().map(|i| v.swap_remove(i)).collect()
+        }
+"""
+
+RM_STARTER = """
+        /// Removes the elements at `indices` (any order, repeats allowed, out-of-range ones ignored), keeping the
+        /// rest in order. O(n + k log k).
+        pub fn remove_indices<T>(v: &mut Vec<T>, indices: &[usize]) {
+            todo!()
+        }
+
+        /// Removes the elements at `indices` with `swap_remove`, highest index first, and returns them in that
+        /// order. The order of what's left is whatever that produces. O(k log k): nothing is shifted.
+        pub fn remove_indices_unordered<T>(v: &mut Vec<T>, indices: &[usize]) -> Vec<T> {
+            todo!()
+        }
+"""
+
+
+def ri(name, v, idx, want):
+    return T(name, f"v = {v}, indices = {idx}", "v", f"vec!{want}" if want else "Vec::<i32>::new()",
+             setup=f"let mut v = vec!{v};\nremove_indices(&mut v, &{idx});" if v else f"let mut v: Vec<i32> = vec![];\nremove_indices(&mut v, &{idx});")
+
+
+def py_unordered(v, idx):
+    v = list(v)
+    ids = sorted({i for i in idx if i < len(v)}, reverse=True)
+    out = []
+    for i in ids:
+        out.append(v[i])
+        v[i] = v[-1]
+        v.pop()
+    return v, out
+
+
+def ru(name, v, idx):
+    left, removed = py_unordered(v, idx)
+    lit = lambda xs: f"vec!{xs}" if xs else "Vec::<i32>::new()"
+    return T(name, f"v = {v}, indices = {idx}", "(removed, v)", f"({lit(removed)}, {lit(left)})",
+             setup=f"let mut v: Vec<i32> = vec!{v};\nlet removed = remove_indices_unordered(&mut v, &{idx});")
+
+
 P.append(dict(
-    slug="vec-ops", title="Push, pop, insert, remove", level="easy", stage="use-it", tags=["Vec", "match"],
-    teaches=["The core `Vec` operations and which ones panic.", "Guard clauses in a `match` for out-of-range indices."],
+    slug="vec-ops", title="Remove many indices at once", level="easy", stage="use-it", tags=["retain", "swap_remove", "sort_unstable", "dedup", "Peekable"],
+    teaches=[
+        "Removing by index in a loop shifts everything after it: ascending order hits the wrong elements, and even the right order is O(n) per removal.",
+        "`retain` visits elements once, in order, with an `FnMut` closure, so it can track the index and drop a sorted set of positions in one O(n) pass.",
+        "`swap_remove` is O(1) because it moves the last element into the hole; processing indices from the highest down keeps the rest valid.",
+    ],
     statement="""
-        Apply `ops` to an empty `Vec<i32>` and return it. `Pop` on an empty vec does nothing.
-        `Insert(i, x)` with `i > len` and `Remove(i)` with `i >= len` do nothing instead of panicking.
-    """,
-    starter="""
-        #[derive(Debug, Clone, Copy)]
-        pub enum Op {
-            Push(i32),
-            Pop,
-            Insert(usize, i32),
-            Remove(usize),
-        }
+        Two ways to delete a batch of positions from a `Vec`. In both, `indices` may be in any order, may repeat,
+        and may contain positions past the end, which are ignored.
 
-        pub fn apply(ops: &[Op]) -> Vec<i32> {
-            todo!()
-        }
+        - `remove_indices(v, indices)`: keep the remaining elements in their original order. It must be
+          O(n + k log k) for `n` elements and `k` indices; a loop of `v.remove(i)` is O(n·k).
+        - `remove_indices_unordered(v, indices)`: when order doesn't matter, remove each position with
+          `swap_remove`, highest index first, and return the removed elements in that order. Whatever order is
+          left after that is the expected answer.
     """,
-    solution="""
-        #[derive(Debug, Clone, Copy)]
-        pub enum Op {
-            Push(i32),
-            Pop,
-            Insert(usize, i32),
-            Remove(usize),
-        }
-
-        pub fn apply(ops: &[Op]) -> Vec<i32> {
-            let mut v = Vec::new();
-            for &op in ops {
-                match op {
-                    Op::Push(x) => v.push(x),
-                    Op::Pop => {
-                        v.pop();
-                    }
-                    Op::Insert(i, x) if i <= v.len() => v.insert(i, x),
-                    Op::Remove(i) if i < v.len() => {
-                        v.remove(i);
-                    }
-                    Op::Insert(..) | Op::Remove(_) => {}
-                }
-            }
-            v
-        }
-    """,
+    examples=[("remove_indices on [10, 11, 12, 13, 14], indices [3, 0, 3, 9]", "[11, 12, 14]"),
+              ("remove_indices_unordered on [10, 11, 12, 13, 14], indices [0, 3]", "returns [13, 10], leaves [14, 11, 12]")],
+    starter=RM_STARTER,
+    solution=RM_SOL,
     visible=[
-        T("push_pop", "Push 1, Push 2, Pop, Push 3", "apply(&[Op::Push(1), Op::Push(2), Op::Pop, Op::Push(3)])", "vec![1, 3]"),
-        T("insert_front", "Push 2, Insert(0, 1)", "apply(&[Op::Push(2), Op::Insert(0, 1)])", "vec![1, 2]"),
-        T("pop_empty", "Pop", "apply(&[Op::Pop])", "Vec::<i32>::new()"),
-        T("remove_middle", "Push 1, Push 2, Push 3, Remove(1)", "apply(&[Op::Push(1), Op::Push(2), Op::Push(3), Op::Remove(1)])", "vec![1, 3]"),
-        T("insert_past_end_ignored", "Insert(1, 5) on an empty vec", "apply(&[Op::Insert(1, 5)])", "Vec::<i32>::new()"),
-        T("insert_at_len_appends", "Push 1, Insert(1, 2)", "apply(&[Op::Push(1), Op::Insert(1, 2)])", "vec![1, 2]"),
+        ri("keeps_order", [10, 11, 12, 13, 14], [3, 0, 3, 9], [11, 12, 14]),
+        ri("adjacent_indices", [1, 2, 3, 4], [1, 2], [1, 4]),
+        ri("nothing_to_remove", [1, 2], [], [1, 2]),
+        ru("unordered_two", [10, 11, 12, 13, 14], [0, 3]),
+        ru("unordered_includes_last", [1, 2, 3], [2, 0]),
     ],
     hidden=[
-        T("out_of_range", "Push 5, Insert(3, 9), Remove(1)", "apply(&[Op::Push(5), Op::Insert(3, 9), Op::Remove(1)])", "vec![5]"),
-        T("insert_at_end", "Push 1, Insert(1, 2), Remove(0)", "apply(&[Op::Push(1), Op::Insert(1, 2), Op::Remove(0)])", "vec![2]"),
-        T("no_ops", "[]", "apply(&[])", "Vec::<i32>::new()"),
-        T("remove_on_empty", "Remove(0)", "apply(&[Op::Remove(0)])", "Vec::<i32>::new()"),
-        T("remove_last_index", "Push 1, Push 2, Remove(1)", "apply(&[Op::Push(1), Op::Push(2), Op::Remove(1)])", "vec![1]"),
-        T("insert_middle", "Push 1, Push 3, Insert(1, 2)", "apply(&[Op::Push(1), Op::Push(3), Op::Insert(1, 2)])", "vec![1, 2, 3]"),
-        T("extremes", "Push i32::MIN, Push i32::MAX, Insert(0, 0)", "apply(&[Op::Push(i32::MIN), Op::Push(i32::MAX), Op::Insert(0, 0)])", "vec![0, i32::MIN, i32::MAX]"),
-        T("pop_until_empty_then_more", "Push 1, Pop, Pop, Push 2", "apply(&[Op::Push(1), Op::Pop, Op::Pop, Op::Push(2)])", "vec![2]"),
+        ri("remove_everything", [5, 6, 7], [2, 1, 0], []),
+        ri("all_out_of_range", [5, 6], [2, 7, 100], [5, 6]),
+        ri("empty_vec", [], [0, 1], []),
+        ri("first_and_last", [1, 2, 3, 4, 5], [4, 0], [2, 3, 4]),
+        ri("many_repeats", [1, 2, 3], [1, 1, 1, 1], [1, 3]),
+        ri("huge_index", [1, 2], [18446744073709551615], [1, 2]),
+        ru("unordered_everything", [1, 2, 3, 4], [0, 1, 2, 3]),
+        ru("unordered_repeats_and_out_of_range", [1, 2, 3, 4, 5], [1, 1, 9, 4]),
+        ru("unordered_last_two", [1, 2, 3, 4], [3, 2]),
+        ru("unordered_nothing", [1, 2], [5]),
+        T("strings", 'v = ["a", "b", "c", "d"], remove [0, 2] (both ways)', "(a, b, removed)", '(["b", "d"].map(String::from).to_vec(), ["d", "b"].map(String::from).to_vec(), ["c", "a"].map(String::from).to_vec())',
+          setup='let words = vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string()];\nlet (mut a, mut b) = (words.clone(), words);\nremove_indices(&mut a, &[0, 2]);\nlet removed = remove_indices_unordered(&mut b, &[0, 2]);'),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2301);
-            for _ in 0..300 {
-                let n = rng.below(12);
-                let mut ops = Vec::new();
-                let mut want: Vec<i32> = Vec::new();
-                for _ in 0..n {
-                    let x = rng.int(-9, 9) as i32;
-                    let i = rng.below(5);
-                    let op = match rng.below(4) {
-                        0 => Op::Push(x),
-                        1 => Op::Pop,
-                        2 => Op::Insert(i, x),
-                        _ => Op::Remove(i),
-                    };
-                    ops.push(op);
-                    want = match op {
-                        Op::Push(x) => [&want[..], &[x]].concat(),
-                        Op::Pop => want[..want.len().saturating_sub(1)].to_vec(),
-                        Op::Insert(i, x) if i <= want.len() => [&want[..i], &[x], &want[i..]].concat(),
-                        Op::Remove(i) if i < want.len() => [&want[..i], &want[i + 1..]].concat(),
-                        _ => want,
-                    };
+            let mut rng = anneal_prelude::Rng::new(7301);
+            for _ in 0..400 {
+                let n = rng.below(10);
+                let v: Vec<i32> = (0..n as i32).collect();
+                let k = rng.below(6);
+                let idx: Vec<usize> = (0..k).map(|_| rng.below(n + 2)).collect();
+                let want: Vec<i32> = v.iter().copied().filter(|&x| !idx.contains(&(x as usize))).collect();
+                let mut sorted: Vec<usize> = idx.iter().copied().filter(|&i| i < n).collect();
+                sorted.sort();
+                sorted.dedup();
+                let mut left = v.clone();
+                let mut removed = Vec::new();
+                for &i in sorted.iter().rev() {
+                    let last = left.len() - 1;
+                    left.swap(i, last);
+                    removed.push(left.pop().unwrap());
                 }
-                check!(format!("ops = {ops:?}"), apply(&ops), want);
+                let (mut a, mut b) = (v.clone(), v.clone());
+                remove_indices(&mut a, &idx);
+                let got_removed = remove_indices_unordered(&mut b, &idx);
+                check!(format!("v = {v:?}, indices = {idx:?}"), (a, got_removed, b), (want, removed, left));
             }
         }
 
         #[test]
-        fn scale_200k() {
-            let mut ops: Vec<Op> = (0..200_000).map(Op::Push).collect();
-            ops.extend((0..100_000).map(|_| Op::Pop));
-            let v = apply(&ops);
-            check!("200000 pushes, then 100000 pops", (v.len(), v[99_999]), (100_000, 99_999));
+        fn scale_remove_100k_of_300k() {
+            let mut v: Vec<u64> = (0..300_000).collect();
+            let idx: Vec<usize> = (1..200_000).step_by(2).rev().collect();
+            remove_indices(&mut v, &idx);
+            check!("v = 0..300000, remove the odd indices below 200000 (listed high to low)", (v.len(), v[0], v[99_999], v[100_000]), (200_000, 0, 199_998, 200_000));
+            let mut w: Vec<u64> = (0..300_000).collect();
+            let removed = remove_indices_unordered(&mut w, &idx);
+            check!("the same, unordered", (w.len(), removed.len(), removed[0]), (200_000, 100_000, 199_999));
         }
         """,
     ],
     wrong=dict(
-        insert_bound_strict="""
-            #[derive(Debug, Clone, Copy)]
-            pub enum Op {
-                Push(i32),
-                Pop,
-                Insert(usize, i32),
-                Remove(usize),
-            }
-
-            pub fn apply(ops: &[Op]) -> Vec<i32> {
-                let mut v = Vec::new();
-                for &op in ops {
-                    match op {
-                        Op::Push(x) => v.push(x),
-                        Op::Pop => {
-                            v.pop();
-                        }
-                        Op::Insert(i, x) if i < v.len() => v.insert(i, x),
-                        Op::Remove(i) if i < v.len() => {
-                            v.remove(i);
-                        }
-                        Op::Insert(..) | Op::Remove(_) => {}
-                    }
+        removes_in_ascending_order=sub(RM_SOL, ("""let mut next = idx.iter().peekable();
+            let mut i = 0;
+            v.retain(|_| {
+                let drop = next.next_if_eq(&&i).is_some();
+                i += 1;
+                !drop
+            });""", """for i in idx {
+                if i < v.len() {
+                    v.remove(i);
                 }
-                v
-            }
-        """,
-        remove_bound_loose="""
-            #[derive(Debug, Clone, Copy)]
-            pub enum Op {
-                Push(i32),
-                Pop,
-                Insert(usize, i32),
-                Remove(usize),
-            }
-
-            pub fn apply(ops: &[Op]) -> Vec<i32> {
-                let mut v = Vec::new();
-                for &op in ops {
-                    match op {
-                        Op::Push(x) => v.push(x),
-                        Op::Pop => {
-                            v.pop();
-                        }
-                        Op::Insert(i, x) if i <= v.len() => v.insert(i, x),
-                        Op::Remove(i) if i <= v.len() => {
-                            v.remove(i);
-                        }
-                        Op::Insert(..) | Op::Remove(_) => {}
-                    }
+            }""")),
+        removes_highest_first_one_by_one=sub(RM_SOL, ("""let mut next = idx.iter().peekable();
+            let mut i = 0;
+            v.retain(|_| {
+                let drop = next.next_if_eq(&&i).is_some();
+                i += 1;
+                !drop
+            });""", """for &i in idx.iter().rev() {
+                if i < v.len() {
+                    v.remove(i);
                 }
-                v
-            }
-        """,
-        pop_takes_front="""
-            #[derive(Debug, Clone, Copy)]
-            pub enum Op {
-                Push(i32),
-                Pop,
-                Insert(usize, i32),
-                Remove(usize),
-            }
-
-            pub fn apply(ops: &[Op]) -> Vec<i32> {
-                let mut v = Vec::new();
-                for &op in ops {
-                    match op {
-                        Op::Push(x) => v.push(x),
-                        Op::Pop => {
-                            if !v.is_empty() {
-                                v.remove(0);
-                            }
-                        }
-                        Op::Insert(i, x) if i <= v.len() => v.insert(i, x),
-                        Op::Remove(i) if i < v.len() => {
-                            v.remove(i);
-                        }
-                        Op::Insert(..) | Op::Remove(_) => {}
-                    }
-                }
-                v
-            }
-        """,
+            }""")),
+        swap_remove_lowest_first=sub(RM_SOL, ("idx.sort_unstable_by(|a, b| b.cmp(a));", "idx.sort_unstable();\n    let _ = |a: usize, b: usize| b.cmp(&a);")),
+        repeats_removed_twice=sub(RM_SOL, ("""idx.sort_unstable_by(|a, b| b.cmp(a));
+    idx.dedup();
+    idx.into_iter().map(|i| v.swap_remove(i)).collect()""", """idx.sort_unstable_by(|a, b| b.cmp(a));
+    idx.into_iter().filter_map(|i| (i < v.len()).then(|| v.swap_remove(i))).collect()""")),
     ),
-    hints=[("rust", "`insert(i, x)` allows `i == len`; `remove(i)` needs `i < len`. Both panic otherwise.")],
-    notes=("Match guards keep each operation's bounds check next to the operation.", "O(n) per insert or remove", "O(n)"),
-    follow_up="Which of these operations are O(1), and which shift elements?",
-    related=["S3"],
-))
-
-P.append(dict(
-    slug="retain-and-dedup", title="retain and dedup", level="easy", stage="use-it", tags=["retain", "dedup"],
-    teaches=["`retain` filters in place without a second Vec.", "`dedup` removes only consecutive repeats."],
-    statement="Remove the negative numbers from `v`, then collapse runs of equal neighbours into one.",
-    examples=[("v = [1, 1, -2, 1, 3, 3, -3, 3]", "[1, 3]")],
-    starter="""
-        pub fn clean(v: &mut Vec<i32>) {
-            todo!()
-        }
-    """,
-    solution="""
-        pub fn clean(v: &mut Vec<i32>) {
-            v.retain(|&x| x >= 0);
-            v.dedup();
-        }
-    """,
-    visible=[
-        T("mixed", "v = [1, 1, -2, 1, 3, 3, -3, 3]", "{ let mut v = vec![1, 1, -2, 1, 3, 3, -3, 3]; clean(&mut v); v }", "vec![1, 3]"),
-        T("no_change", "v = [1, 2]", "{ let mut v = vec![1, 2]; clean(&mut v); v }", "vec![1, 2]"),
-        T("empty", "v = []", "{ let mut v: Vec<i32> = vec![]; clean(&mut v); v }", "Vec::<i32>::new()"),
-        T("all_same", "v = [2, 2, 2]", "{ let mut v = vec![2, 2, 2]; clean(&mut v); v }", "vec![2]"),
-        T("zero_is_kept", "v = [0, -1, 0]", "{ let mut v = vec![0, -1, 0]; clean(&mut v); v }", "vec![0]"),
-    ],
-    hidden=[
-        T("non_adjacent", "v = [2, 1, 2]", "{ let mut v = vec![2, 1, 2]; clean(&mut v); v }", "vec![2, 1, 2]"),
-        T("all_negative", "v = [-1, -1]", "{ let mut v = vec![-1, -1]; clean(&mut v); v }", "Vec::<i32>::new()"),
-        T("single", "v = [5]", "{ let mut v = vec![5]; clean(&mut v); v }", "vec![5]"),
-        T("single_negative", "v = [-5]", "{ let mut v = vec![-5]; clean(&mut v); v }", "Vec::<i32>::new()"),
-        T("negative_between_equals", "v = [5, -1, 5]", "{ let mut v = vec![5, -1, 5]; clean(&mut v); v }", "vec![5]"),
-        T("extremes", "v = [i32::MIN, i32::MAX, i32::MAX, i32::MIN]", "{ let mut v = vec![i32::MIN, i32::MAX, i32::MAX, i32::MIN]; clean(&mut v); v }", "vec![i32::MAX]"),
-        T("order_kept", "v = [3, 1, 2, 2, 1]", "{ let mut v = vec![3, 1, 2, 2, 1]; clean(&mut v); v }", "vec![3, 1, 2, 1]"),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2302);
-            for _ in 0..300 {
-                let n = rng.below(12);
-                let v: Vec<i32> = rng.vec(n, -2, 2);
-                let mut want: Vec<i32> = Vec::new();
-                for &x in &v {
-                    if x >= 0 && want.last() != Some(&x) {
-                        want.push(x);
-                    }
-                }
-                let mut got = v.clone();
-                clean(&mut got);
-                check!(format!("v = {v:?}"), got, want);
-            }
-        }
-
-        #[test]
-        fn scale_200k() {
-            let mut v: Vec<i32> = (0..200_000).map(|i| if i % 2 == 0 { -1 } else { i / 1000 }).collect();
-            clean(&mut v);
-            check!("v = [-1, 0, -1, 0, …, -1, 199] (200000 values)", (v.len(), v[0], v[199]), (200, 0, 199));
-        }
-        """,
-    ],
-    wrong=dict(
-        dedup_first="""
-            pub fn clean(v: &mut Vec<i32>) {
-                v.dedup();
-                v.retain(|&x| x >= 0);
-            }
-        """,
-        drops_every_repeat="""
-            pub fn clean(v: &mut Vec<i32>) {
-                let mut seen = std::collections::HashSet::new();
-                v.retain(|&x| x >= 0 && seen.insert(x));
-            }
-        """,
-        drops_zero="""
-            pub fn clean(v: &mut Vec<i32>) {
-                v.retain(|&x| x > 0);
-                v.dedup();
-            }
-        """,
-    ),
-    hints=[("rust", "Order matters: removing negatives can make equal values adjacent.")],
-    notes=("Filtering first lets `dedup` see the neighbours that removal created.", "O(n)", "O(1)"),
-    follow_up="How would you remove every duplicate, not just adjacent ones, and keep first-seen order?",
+    hints=[("approach", "Sort and dedup a copy of the indices. Then one `retain` pass: keep a counter of the current position and drop it when it's the next index in the sorted list."),
+           ("rust", "`retain`'s closure is `FnMut` and is called once per element, in order. `iter.peekable()` + `next_if_eq(&&i)` consumes the next index only when it matches."),
+           ("edge case", "`swap_remove(i)` moves the last element into `i`. Go from the highest index down, so that element is never one you still have to remove.")],
+    notes=("""`Vec::remove(i)` shifts every later element left, so k removals cost O(n·k), and doing them in ascending order also removes the wrong elements after the first. `retain` compacts in one pass instead (the same thing `dedup` and `drain_filter`-style code does internally), and it's documented to visit elements exactly once in order, which is what makes a position counter in the closure legitimate. When order doesn't matter, `swap_remove` is O(1) per removal. Syntax to remember: `v.retain(|x| keep)`, `v.retain_mut(|x| …)`, `v.swap_remove(i)`, `v.remove(i)`, `v.insert(i, x)`, `v.truncate(n)`, `idx.sort_unstable_by(|a, b| b.cmp(a))`, `it.peekable().next_if_eq(&x)`.""", "O(n + k log k) and O(k log k)", "O(k)"),
+    follow_up="`retain` must leave the Vec valid even if the closure panics halfway. How does std manage that without moving every element twice?",
     related=["D1"],
 ))
 
-P.append(dict(
-    slug="sort-by-key", title="sort_by with a tie-breaker", level="easy", stage="use-it", tags=["sort_by", "Ordering::then_with"],
-    teaches=["`Ordering::then_with` for multi-key sorts.", "Why `sort_by_key` with a `String` key clones every comparison."],
-    statement="Sort `words` by length, shortest first, and alphabetically among words of equal length.",
-    examples=[("[\"pear\", \"fig\", \"apple\", \"kiwi\"]", "[\"fig\", \"kiwi\", \"pear\", \"apple\"]")],
-    starter="""
-        pub fn by_len_then_alpha(words: &mut [String]) {
+RD_SOL = """
+        #[derive(Debug, Clone, PartialEq)]
+        pub struct Job {
+            pub id: u32,
+            pub retries_left: u32,
+        }
+
+        /// One scheduler tick: every job uses up one retry, and jobs left with none are removed. One pass.
+        pub fn tick(jobs: &mut Vec<Job>) {
+            jobs.retain_mut(|job| {
+                job.retries_left = job.retries_left.saturating_sub(1);
+                job.retries_left > 0
+            });
+        }
+
+        #[derive(Debug, Clone, PartialEq)]
+        pub struct Run {
+            pub key: char,
+            pub count: u32,
+        }
+
+        /// Merges each stretch of neighbouring runs with the same key into its first run, adding up the counts.
+        pub fn merge_runs(runs: &mut Vec<Run>) {
+            runs.dedup_by(|next, kept| {
+                if next.key == kept.key {
+                    kept.count += next.count;
+                    true
+                } else {
+                    false
+                }
+            });
+        }
+
+        /// Keeps only the first event of each stretch of consecutive events in the same minute (seconds / 60).
+        pub fn first_per_minute(events: &mut Vec<(u64, String)>) {
+            events.dedup_by_key(|e| e.0 / 60);
+        }
+"""
+
+RD_STARTER = """
+        #[derive(Debug, Clone, PartialEq)]
+        pub struct Job {
+            pub id: u32,
+            pub retries_left: u32,
+        }
+
+        /// One scheduler tick: every job uses up one retry, and jobs left with none are removed. One pass.
+        pub fn tick(jobs: &mut Vec<Job>) {
             todo!()
         }
-    """,
-    solution="""
-        pub fn by_len_then_alpha(words: &mut [String]) {
-            words.sort_by(|a, b| a.len().cmp(&b.len()).then_with(|| a.cmp(b)));
+
+        #[derive(Debug, Clone, PartialEq)]
+        pub struct Run {
+            pub key: char,
+            pub count: u32,
         }
+
+        /// Merges each stretch of neighbouring runs with the same key into its first run, adding up the counts.
+        pub fn merge_runs(runs: &mut Vec<Run>) {
+            todo!()
+        }
+
+        /// Keeps only the first event of each stretch of consecutive events in the same minute (seconds / 60).
+        pub fn first_per_minute(events: &mut Vec<(u64, String)>) {
+            todo!()
+        }
+"""
+
+
+def jobs(pairs):
+    return "vec![" + ", ".join(f"Job {{ id: {a}, retries_left: {b} }}" for a, b in pairs) + "]" if pairs else "Vec::<Job>::new()"
+
+
+def runs(pairs):
+    return "vec![" + ", ".join(f"Run {{ key: '{a}', count: {b} }}" for a, b in pairs) + "]" if pairs else "Vec::<Run>::new()"
+
+
+def py_merge(pairs):
+    out = []
+    for k, c in pairs:
+        if out and out[-1][0] == k:
+            out[-1] = (k, out[-1][1] + c)
+        else:
+            out.append((k, c))
+    return out
+
+
+def tk(name, pairs):
+    want = [(a, b - 1) for a, b in pairs if b > 1]
+    return T(name, f"jobs (id, retries_left) = {pairs}", "j", jobs(want), setup=f"let mut j = {jobs(pairs)};\ntick(&mut j);")
+
+
+def mr(name, pairs):
+    return T(name, f"runs = {pairs}".replace("'", ""), "r", runs(py_merge(pairs)), setup=f"let mut r = {runs(pairs)};\nmerge_runs(&mut r);")
+
+
+def ev(xs):
+    return "vec![" + ", ".join(f'({t}, "{s}".to_string())' for t, s in xs) + "]" if xs else "Vec::<(u64, String)>::new()"
+
+
+def fm(name, xs):
+    out = []
+    for t, s in xs:
+        if not out or out[-1][0] // 60 != t // 60:
+            out.append((t, s))
+    return T(name, f"events = {xs}".replace("'", '"'), "e", ev(out), setup=f"let mut e = {ev(xs)};\nfirst_per_minute(&mut e);")
+
+
+P.append(dict(
+    slug="retain-and-dedup", title="retain_mut, dedup_by and dedup_by_key", level="easy", stage="use-it", tags=["retain_mut", "dedup_by", "dedup_by_key"],
+    teaches=[
+        "`retain_mut` updates and filters in one pass; `retain`'s closure only gets `&T`.",
+        "`dedup_by(|a, b| …)` gets the element that may be removed as `a` and the one that stays as `b`: merge into `b`.",
+        "`dedup_by_key` and every `dedup` only look at neighbours; equal values further apart are kept.",
+    ],
+    statement="""
+        - `tick(jobs)`: one scheduler tick. Every job uses up one retry (`retries_left` goes down by one, not below
+          zero), and every job left with no retries is removed. Do it in one pass over the `Vec`.
+        - `merge_runs(runs)`: merge each stretch of neighbouring runs with the same `key` into the first run of the
+          stretch, whose `count` becomes the stretch's total.
+        - `first_per_minute(events)`: events are `(seconds, name)`. In each stretch of consecutive events that fall
+          in the same minute (`seconds / 60`), keep only the first.
     """,
+    examples=[("tick on [Job { id: 1, retries_left: 2 }, Job { id: 2, retries_left: 1 }]", "[Job { id: 1, retries_left: 1 }]"),
+              ("merge_runs on a×2, a×3, b×1, a×1", "a×5, b×1, a×1"), ('first_per_minute on [(0, "a"), (59, "b"), (60, "c")]', '[(0, "a"), (60, "c")]')],
+    starter=RD_STARTER,
+    solution=RD_SOL,
     visible=[
-        T("fruit", "[\"pear\", \"fig\", \"apple\", \"kiwi\"]", '{ let mut w: Vec<String> = ["pear", "fig", "apple", "kiwi"].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["fig", "kiwi", "pear", "apple"]'),
-        T("empty", "[]", "{ let mut w: Vec<String> = vec![]; by_len_then_alpha(&mut w); w }", "Vec::<String>::new()"),
-        T("ties_alphabetical", "[\"dd\", \"cc\", \"a\"]", '{ let mut w: Vec<String> = ["dd", "cc", "a"].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["a", "cc", "dd"]'),
-        T("duplicates", "[\"b\", \"a\", \"b\"]", '{ let mut w: Vec<String> = ["b", "a", "b"].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["a", "b", "b"]'),
-        T("shorter_first", "[\"abc\", \"z\"]", '{ let mut w: Vec<String> = ["abc", "z"].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["z", "abc"]'),
+        tk("tick_decrements_and_drops", [(1, 2), (2, 1), (3, 5)]),
+        mr("merge_neighbours", [("a", 2), ("a", 3), ("b", 1), ("a", 1)]),
+        fm("first_of_each_minute", [(0, "a"), (59, "b"), (60, "c"), (61, "d")]),
+        tk("tick_empty", []),
+        mr("merge_nothing_to_merge", [("a", 1), ("b", 2)]),
     ],
     hidden=[
-        T("same_length", "[\"b\", \"a\", \"c\"]", '{ let mut w: Vec<String> = ["b", "a", "c"].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["a", "b", "c"]'),
-        T("single", "[\"x\"]", '{ let mut w = vec!["x".to_string()]; by_len_then_alpha(&mut w); w }', 'vec!["x"]'),
-        T("empty_string_first", "[\"a\", \"\"]", '{ let mut w: Vec<String> = ["a", ""].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["", "a"]'),
-        T("uppercase_before_lowercase", "[\"b\", \"B\", \"a\"]", '{ let mut w: Vec<String> = ["b", "B", "a"].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["B", "a", "b"]'),
-        T("already_sorted", "[\"a\", \"bb\", \"ccc\"]", '{ let mut w: Vec<String> = ["a", "bb", "ccc"].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["a", "bb", "ccc"]'),
-        T("reverse_sorted", "[\"ccc\", \"bb\", \"a\"]", '{ let mut w: Vec<String> = ["ccc", "bb", "a"].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["a", "bb", "ccc"]'),
-        T("prefix_ties", "[\"abd\", \"abc\", \"ab\"]", '{ let mut w: Vec<String> = ["abd", "abc", "ab"].map(String::from).to_vec(); by_len_then_alpha(&mut w); w }', 'vec!["ab", "abc", "abd"]'),
+        tk("tick_zero_is_removed", [(1, 0), (2, 3)]),
+        tk("tick_all_expire", [(1, 1), (2, 1)]),
+        tk("tick_keeps_order", [(5, 9), (3, 1), (4, 2), (1, 7)]),
+        T("tick_twice", "jobs (id, retries_left) = [(1, 2), (2, 3)], two ticks", "j", jobs([(2, 1)]),
+          setup=f"let mut j = {jobs([(1, 2), (2, 3)])};\ntick(&mut j);\ntick(&mut j);"),
+        mr("merge_one_long_run", [("x", 1)] * 5),
+        mr("merge_separated_runs_stay_apart", [("a", 1), ("b", 1), ("a", 1), ("b", 1)]),
+        mr("merge_empty", []),
+        mr("merge_zero_counts", [("a", 0), ("a", 0), ("b", 4), ("b", 0)]),
+        fm("same_minute_not_adjacent", [(0, "a"), (70, "b"), (10, "c")]),
+        fm("minute_boundary", [(119, "a"), (120, "b"), (179, "c"), (180, "d")]),
+        fm("all_one_minute", [(3, "a"), (3, "b"), (30, "c")]),
+        fm("no_events", []),
+        fm("large_timestamps", [(18446744073709551615, "a"), (18446744073709551600, "b")]),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2303);
-            for _ in 0..300 {
+            let mut rng = anneal_prelude::Rng::new(7302);
+            for _ in 0..400 {
                 let n = rng.below(8);
-                let mut words = Vec::new();
-                for _ in 0..n {
-                    let len = rng.below(4);
-                    words.push(rng.string(len, "abc"));
-                }
-                let mut want = words.clone();
-                want.sort_by_key(|w| (w.len(), w.clone()));
-                let mut got = words.clone();
-                by_len_then_alpha(&mut got);
-                check!(format!("words = {words:?}"), got, want);
-            }
-        }
-
-        #[test]
-        fn scale_200k() {
-            let mut w: Vec<String> = (0..200_000u32).rev().map(|i| format!("{:x}", i.wrapping_mul(2_654_435_761))).collect();
-            by_len_then_alpha(&mut w);
-            let ok = w.windows(2).all(|p| (p[0].len(), &p[0]) <= (p[1].len(), &p[1]));
-            check!("200000 hex strings", (w.len(), ok), (200_000, true));
-        }
-        """,
-    ],
-    wrong=dict(
-        length_only="""
-            pub fn by_len_then_alpha(words: &mut [String]) {
-                words.sort_by_key(|w| w.len());
-            }
-        """,
-        alphabetical_only="""
-            pub fn by_len_then_alpha(words: &mut [String]) {
-                words.sort();
-            }
-        """,
-        insertion_sort="""
-            pub fn by_len_then_alpha(words: &mut [String]) {
-                for i in 1..words.len() {
-                    let mut j = i;
-                    while j > 0 && (words[j].len(), &words[j]) < (words[j - 1].len(), &words[j - 1]) {
-                        words.swap(j, j - 1);
-                        j -= 1;
+                let js: Vec<Job> = (0..n).map(|i| Job { id: i as u32, retries_left: rng.below(4) as u32 }).collect();
+                let want_jobs: Vec<Job> = js.iter().filter(|j| j.retries_left > 1).map(|j| Job { id: j.id, retries_left: j.retries_left - 1 }).collect();
+                let rs: Vec<Run> = (0..n).map(|_| Run { key: *rng.pick(&['a', 'b']), count: rng.below(5) as u32 }).collect();
+                let mut want_runs: Vec<Run> = Vec::new();
+                for r in &rs {
+                    match want_runs.last_mut() {
+                        Some(last) if last.key == r.key => last.count += r.count,
+                        _ => want_runs.push(r.clone()),
                     }
                 }
-            }
-        """,
-    ),
-    hints=[("rust", "Compare lengths, and only if they're equal, compare the strings: `then_with`.")],
-    notes=("`then_with` only evaluates the second comparison on a tie. `sort_by_key(|w| (w.len(), w.clone()))` also works but allocates per comparison; `sort_by_cached_key` would allocate once per element.", "O(n log n)", "O(n)"),
-    follow_up="When is `sort_by_cached_key` the right choice?",
-    related=["S8"],
-))
-
-P.append(dict(
-    slug="slices-as-views", title="Slices as views", level="easy", stage="use-it", tags=["&[T]", "ranges", "position"],
-    teaches=["Returning a sub-slice borrows from the input; nothing is copied.", "`get(range)` instead of indexing when the range might be invalid."],
-    statement="""
-        Write `middle`, which drops the first and last elements (empty if there are fewer than two),
-        and `trim_zeros`, which drops leading and trailing zeros. Both return views into the input.
-    """,
-    starter="""
-        pub fn middle(v: &[i32]) -> &[i32] {
-            todo!()
-        }
-
-        pub fn trim_zeros(v: &[i32]) -> &[i32] {
-            todo!()
-        }
-    """,
-    solution="""
-        pub fn middle(v: &[i32]) -> &[i32] {
-            v.get(1..v.len().saturating_sub(1)).unwrap_or(&[])
-        }
-
-        pub fn trim_zeros(v: &[i32]) -> &[i32] {
-            let start = v.iter().position(|&x| x != 0).unwrap_or(v.len());
-            let end = v.iter().rposition(|&x| x != 0).map_or(start, |i| i + 1);
-            &v[start..end]
-        }
-    """,
-    visible=[
-        T("middle_of_four", "v = [1, 2, 3, 4]", "middle(&[1, 2, 3, 4])", "&[2, 3][..]"),
-        T("middle_of_one", "v = [1]", "middle(&[1])", "&[][..]"),
-        T("trim", "v = [0, 0, 5, 0, 7, 0]", "trim_zeros(&[0, 0, 5, 0, 7, 0])", "&[5, 0, 7][..]"),
-        T("middle_of_three", "v = [1, 2, 3]", "middle(&[1, 2, 3])", "&[2][..]"),
-        T("trim_nothing_to_trim", "v = [1, 2]", "trim_zeros(&[1, 2])", "&[1, 2][..]"),
-    ],
-    hidden=[
-        T("middle_of_empty", "v = []", "middle(&[])", "&[][..]"),
-        T("trim_all_zero", "v = [0, 0]", "trim_zeros(&[0, 0])", "&[][..]"),
-        T("middle_of_two", "v = [1, 2]", "middle(&[1, 2])", "&[][..]"),
-        T("trim_empty", "v = []", "trim_zeros(&[])", "&[][..]"),
-        T("trim_single_zero", "v = [0]", "trim_zeros(&[0])", "&[][..]"),
-        T("trim_single_value", "v = [7]", "trim_zeros(&[7])", "&[7][..]"),
-        T("trim_negatives", "v = [0, -1, 0, -2, 0]", "trim_zeros(&[0, -1, 0, -2, 0])", "&[-1, 0, -2][..]"),
-        T("trim_trailing_only", "v = [4, 0, 0]", "trim_zeros(&[4, 0, 0])", "&[4][..]"),
-        T("views_not_copies", "results point into v", "(middle(&v).as_ptr() == v[1..].as_ptr(), trim_zeros(&v).as_ptr() == v[1..].as_ptr())", "(true, true)", setup="let v = vec![0, 3, 4, 0];"),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2304);
-            for _ in 0..300 {
-                let n = rng.below(8);
-                let v: Vec<i32> = rng.vec(n, -1, 1);
-                let want_middle: Vec<i32> = if n < 2 { vec![] } else { v[1..n - 1].to_vec() };
-                let mut t = v.clone();
-                while t.first() == Some(&0) {
-                    t.remove(0);
+                let es: Vec<(u64, String)> = (0..n).map(|i| (rng.below(200) as u64, i.to_string())).collect();
+                let mut want_events: Vec<(u64, String)> = Vec::new();
+                for e in &es {
+                    if want_events.last().map_or(true, |l| l.0 / 60 != e.0 / 60) {
+                        want_events.push(e.clone());
+                    }
                 }
-                while t.last() == Some(&0) {
-                    t.pop();
-                }
-                check!(format!("v = {v:?}"), (middle(&v).to_vec(), trim_zeros(&v).to_vec()), (want_middle, t));
+                let (mut a, mut b, mut c) = (js.clone(), rs.clone(), es.clone());
+                tick(&mut a);
+                merge_runs(&mut b);
+                first_per_minute(&mut c);
+                check!(format!("jobs = {js:?}, runs = {rs:?}, events = {es:?}"), (a, b, c), (want_jobs, want_runs, want_events));
             }
         }
 
         #[test]
         fn scale_200k() {
-            let mut v = vec![0; 200_000];
-            v[100_000] = 5;
-            check!("v = 200000 zeros with a 5 at index 100000", (trim_zeros(&v), middle(&v).len()), (&[5][..], 199_998));
+            let mut j: Vec<Job> = (0..200_000).map(|i| Job { id: i, retries_left: i % 3 }).collect();
+            tick(&mut j);
+            let mut r: Vec<Run> = (0..200_000).map(|i| Run { key: if i < 100_000 { 'a' } else { 'b' }, count: 1 }).collect();
+            merge_runs(&mut r);
+            check!("200000 jobs and 200000 runs", (j.len(), j[0].id, r), (66_666, 2, vec![Run { key: 'a', count: 100_000 }, Run { key: 'b', count: 100_000 }]));
         }
         """,
     ],
     wrong=dict(
-        trims_leading_only="""
-            pub fn middle(v: &[i32]) -> &[i32] {
-                v.get(1..v.len().saturating_sub(1)).unwrap_or(&[])
-            }
-
-            pub fn trim_zeros(v: &[i32]) -> &[i32] {
-                let start = v.iter().position(|&x| x != 0).unwrap_or(v.len());
-                &v[start..]
-            }
-        """,
-        end_off_by_one="""
-            pub fn middle(v: &[i32]) -> &[i32] {
-                v.get(1..v.len().saturating_sub(1)).unwrap_or(&[])
-            }
-
-            pub fn trim_zeros(v: &[i32]) -> &[i32] {
-                let start = v.iter().position(|&x| x != 0).unwrap_or(v.len());
-                let end = v.iter().rposition(|&x| x != 0).unwrap_or(start);
-                &v[start..end.max(start)]
-            }
-        """,
-        middle_keeps_last="""
-            pub fn middle(v: &[i32]) -> &[i32] {
-                v.get(1..).unwrap_or(&[])
-            }
-
-            pub fn trim_zeros(v: &[i32]) -> &[i32] {
-                let start = v.iter().position(|&x| x != 0).unwrap_or(v.len());
-                let end = v.iter().rposition(|&x| x != 0).map_or(start, |i| i + 1);
-                &v[start..end]
-            }
-        """,
+        filters_before_decrementing=sub(RD_SOL, ("""job.retries_left = job.retries_left.saturating_sub(1);
+                job.retries_left > 0""", """let keep = job.retries_left > 0;
+                job.retries_left = job.retries_left.saturating_sub(1);
+                keep""")),
+        merges_into_the_removed_one=sub(RD_SOL, ("kept.count += next.count;", "next.count += kept.count;")),
+        keyed_by_second=sub(RD_SOL, ("events.dedup_by_key(|e| e.0 / 60);", "events.dedup_by_key(|e| e.0);")),
+        dedups_the_whole_vec=sub(RD_SOL, ("events.dedup_by_key(|e| e.0 / 60);", "let mut seen = std::collections::HashSet::new();\n    events.retain(|e| seen.insert(e.0 / 60));")),
     ),
-    hints=[("rust", "`v.get(a..b)` returns `None` when the range is invalid, including a > b."),
-           ("rust", "`position` and `rposition` find the first and last non-zero.")],
-    notes=("The returned slices borrow `v`, so their lifetime is tied to the input by elision.", "O(n)", "O(1)"),
-    follow_up="Why can these functions omit lifetime annotations?",
-    related=["L3"],
+    hints=[("rust", "`jobs.retain_mut(|job| { job.retries_left = …; job.retries_left > 0 })` changes each job and decides whether to keep it in the same call."),
+           ("rust", "In `v.dedup_by(|a, b| …)`, `b` is the earlier element that stays and `a` the later one that's removed if you return `true`. Add `a`'s count into `b`."),
+           ("edge case", "Events in the same minute that aren't next to each other are all kept: `dedup` only compares neighbours.")],
+    notes=("""All three are single in-place passes that shift the survivors down, with no second `Vec`. `retain` gives the closure `&T` (historically so it could be used on shared data); `retain_mut` gives `&mut T`, so updating and filtering is one pass instead of `iter_mut` plus `retain`. The `dedup_by` argument order is the classic trap: the closure sees `(current, previous_kept)`, so merging into the first argument silently loses the counts when it's dropped. Syntax to remember: `v.retain(|x| …)`, `v.retain_mut(|x| …)`, `v.dedup()`, `v.dedup_by_key(|x| key(x))`, `v.dedup_by(|a, b| same(a, b))` (a = later, b = kept), `n.saturating_sub(1)`.""", "O(n)", "O(1)"),
+    follow_up="`dedup_by_key(|e| e.name.to_lowercase())` allocates twice per comparison. How would you write it with `dedup_by` and no allocation?",
+    related=["D1"],
 ))
 
+SORT_SOL = """
+        use std::cmp::Reverse;
+
+        #[derive(Debug, Clone, PartialEq)]
+        pub struct File {
+            pub name: String,
+            pub size: u64,
+        }
+
+        /// The text after the last '.', if any.
+        fn extension(name: &str) -> Option<&str> {
+            name.rsplit_once('.').map(|(_, ext)| ext)
+        }
+
+        /// By extension, ignoring ASCII case (files without one first), then largest first. Ties keep their order.
+        pub fn sort_files(files: &mut [File]) {
+            files.sort_by_cached_key(|f| (extension(&f.name).map(str::to_ascii_lowercase), Reverse(f.size)));
+        }
+
+        /// Most wins first, then fewest losses, then by name. Names are unique.
+        pub fn leaderboard(players: &mut [(String, u32, u32)]) {
+            players.sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.2.cmp(&b.2)).then_with(|| a.0.cmp(&b.0)));
+        }
+
+        /// Ascending in IEEE 754 total order: -NaN < -inf < … < -0.0 < 0.0 < … < inf < NaN.
+        pub fn sort_readings(v: &mut [f64]) {
+            v.sort_unstable_by(f64::total_cmp);
+        }
+"""
+
+SORT_STARTER = """
+        use std::cmp::Reverse;
+
+        #[derive(Debug, Clone, PartialEq)]
+        pub struct File {
+            pub name: String,
+            pub size: u64,
+        }
+
+        /// By extension, ignoring ASCII case (files without one first), then largest first. Ties keep their order.
+        pub fn sort_files(files: &mut [File]) {
+            todo!()
+        }
+
+        /// Most wins first, then fewest losses, then by name. Names are unique.
+        pub fn leaderboard(players: &mut [(String, u32, u32)]) {
+            todo!()
+        }
+
+        /// Ascending in IEEE 754 total order: -NaN < -inf < … < -0.0 < 0.0 < … < inf < NaN.
+        pub fn sort_readings(v: &mut [f64]) {
+            todo!()
+        }
+"""
+
+SORT_TESTS = """
+        fn files(spec: &[(&str, u64)]) -> Vec<File> {
+            spec.iter().map(|&(name, size)| File { name: name.to_string(), size }).collect()
+        }
+
+        fn names(fs: &[File]) -> Vec<&str> {
+            fs.iter().map(|f| f.name.as_str()).collect()
+        }
+
+        fn players(spec: &[(&str, u32, u32)]) -> Vec<(String, u32, u32)> {
+            spec.iter().map(|&(n, w, l)| (n.to_string(), w, l)).collect()
+        }
+"""
+
+
+def sf(name, spec, want):
+    return T(name, "files = " + str(spec).replace("'", '"'), "names(&f)", "vec![" + ", ".join(f'"{w}"' for w in want) + "]",
+             setup=f"let mut f = files(&{str(spec).replace(chr(39), chr(34))});\nsort_files(&mut f);")
+
+
+def py_sort_files(spec):
+    def key(f):
+        n, s = f
+        ext = n.rsplit(".", 1)[1].lower() if "." in n else None
+        return (ext is not None, ext or "", -s)
+    return [n for n, _ in sorted(spec, key=key)]
+
+
+def sfc(name, spec):
+    return sf(name, spec, py_sort_files(spec))
+
+
+def lb(name, spec):
+    want = sorted(spec, key=lambda p: (-p[1], p[2], p[0]))
+    return T(name, "players (name, wins, losses) = " + str(spec).replace("'", '"'), "p.iter().map(|p| p.0.as_str()).collect::<Vec<_>>()",
+             "vec![" + ", ".join(f'"{w[0]}"' for w in want) + "]", setup=f"let mut p = players(&{str(spec).replace(chr(39), chr(34))});\nleaderboard(&mut p);")
+
+
 P.append(dict(
-    slug="fix-neighbour-loop", title="Fix: off-by-one in a neighbour loop", mode="fix", level="easy", stage="use-it", tags=["windows", "index out of bounds"],
-    teaches=["`windows(2)` yields each pair of neighbours without index arithmetic."],
-    statement="`pair_sums` should return the sum of each pair of neighbours. It panics.",
-    examples=[("v = [1, 2, 3]", "[3, 5]")],
-    starter="""
-        /// Sums of neighbouring pairs: [a, b, c] → [a + b, b + c].
-        pub fn pair_sums(v: &[i32]) -> Vec<i32> {
+    slug="sort-by-key", title="Sorting: keys, stability and floats", level="easy", stage="use-it",
+    tags=["sort_by_cached_key", "sort_unstable_by", "Reverse", "then_with", "f64::total_cmp"], use="use solution::*;",
+    teaches=[
+        "`sort_by_key` calls the key function on every comparison; when the key allocates, `sort_by_cached_key` computes it once per element.",
+        "Stable sorts (`sort`, `sort_by*`, `sort_by_cached_key`) keep ties in input order; `sort_unstable*` is faster and doesn't, so use it only when the key is total.",
+        "`f64` isn't `Ord`: `partial_cmp().unwrap()` panics on NaN, `total_cmp` orders every value, including `-0.0 < 0.0`.",
+    ],
+    statement="""
+        - `sort_files(files)`: order by extension (the text after the last `.`), ignoring ASCII case, with files
+          that have no extension first; within an extension, largest first. Files that tie on both keep their input
+          order. This runs on directories of thousands of files: don't allocate on every comparison.
+        - `leaderboard(players)`: `(name, wins, losses)`. Most wins first, then fewest losses, then by name. Names
+          are unique, so there are no ties.
+        - `sort_readings(v)`: ascending in IEEE 754 total order, which places `-0.0` before `0.0`, infinities at the
+          ends and NaN after `+inf`. Readings may contain NaN.
+    """,
+    examples=[('sort_files on [("b.TXT", 1), ("a.rs", 5), ("c.txt", 9), ("Makefile", 2)]', '["Makefile", "a.rs", "c.txt", "b.TXT"]'),
+              ("sort_readings on [1.0, NaN, -0.0, 0.0, -inf]", "[-inf, -0.0, 0.0, 1.0, NaN]")],
+    starter=SORT_STARTER,
+    solution=SORT_SOL,
+    visible=[
+        SORT_TESTS,
+        sfc("files_by_extension_then_size", [("b.TXT", 1), ("a.rs", 5), ("c.txt", 9), ("Makefile", 2)]),
+        sf("ties_keep_input_order", [("z.md", 3), ("a.md", 3), ("m.MD", 3)], ["z.md", "a.md", "m.MD"]),
+        lb("wins_then_losses_then_name", [("cy", 3, 2), ("al", 5, 0), ("bo", 3, 1), ("di", 3, 1)]),
+        T("readings_with_nan_and_zeros", "[1.0, NaN, -0.0, 0.0, -inf]", "v.iter().map(|x| x.to_bits()).collect::<Vec<_>>() == [f64::NEG_INFINITY, -0.0, 0.0, 1.0, f64::NAN].iter().map(|x| x.to_bits()).collect::<Vec<_>>()", "true",
+          setup="let mut v = [1.0, f64::NAN, -0.0, 0.0, f64::NEG_INFINITY];\nsort_readings(&mut v);"),
+        T("readings_plain", "[3.5, -1.0, 2.0]", "v", "[-1.0, 2.0, 3.5]", setup="let mut v = [3.5, -1.0, 2.0];\nsort_readings(&mut v);"),
+    ],
+    hidden=[
+        SORT_TESTS,
+        sfc("no_extension_first", [("x.a", 1), ("README", 1), ("LICENSE", 9)]),
+        sfc("last_dot_counts", [("a.tar.gz", 1), ("b.gz", 2), ("c.tar", 3)]),
+        sfc("case_insensitive_extension", [("a.Rs", 1), ("b.rS", 2), ("c.RS", 3)]),
+        sfc("trailing_dot_is_empty_extension", [("a.", 1), ("b", 1), ("c.a", 1)]),
+        T("empty_files", "[]", "{ let mut f: Vec<File> = vec![]; sort_files(&mut f); f.len() }", "0"),
+        lb("leaderboard_single", [("solo", 0, 0)]),
+        lb("leaderboard_all_tied_but_name", [("c", 1, 1), ("a", 1, 1), ("b", 1, 1)]),
+        lb("leaderboard_max_values", [("x", 4294967295, 4294967295), ("y", 4294967295, 0), ("z", 0, 0)]),
+        T("readings_negative_nan_first", "[0.0, -NaN, NaN, -1.0]", "(v[0].is_nan() && v[0].is_sign_negative(), v[1], v[2], v[3].is_nan() && v[3].is_sign_positive())", "(true, -1.0, 0.0, true)",
+          setup="let mut v = [0.0, -f64::NAN, f64::NAN, -1.0];\nsort_readings(&mut v);"),
+        T("readings_infinities", "[inf, -inf, 0.0]", "v", "[f64::NEG_INFINITY, 0.0, f64::INFINITY]", setup="let mut v = [f64::INFINITY, f64::NEG_INFINITY, 0.0];\nsort_readings(&mut v);"),
+        T("readings_empty", "[]", "{ let mut v: [f64; 0] = []; sort_readings(&mut v); v.len() }", "0"),
+        T("readings_many_nans_do_not_panic", "1000 values, every third NaN", "(v[..667].iter().all(|x| !x.is_nan()), v[667..].iter().all(|x| x.is_nan()), v[..667].windows(2).all(|w| w[0] <= w[1]))", "(true, true, true)",
+          setup="let mut v: Vec<f64> = (0..1000).map(|i| if i % 3 == 2 { f64::NAN } else { (i * 7919 % 1000) as f64 - 500.0 }).collect();\nsort_readings(&mut v);"),
+        """
+        #[test]
+        fn random_stability_vs_stable_sort() {
+            let mut rng = anneal_prelude::Rng::new(7303);
+            let exts = ["", ".a", ".A", ".b", ".B"];
+            for round in 0..200 {
+                let n = rng.below(60);
+                let fs: Vec<File> = (0..n).map(|i| File { name: format!("f{i}{}", rng.pick(&exts)), size: rng.below(3) as u64 }).collect();
+                let mut want = fs.clone();
+                want.sort_by(|a, b| {
+                    let ka = a.name.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase());
+                    let kb = b.name.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase());
+                    ka.cmp(&kb).then(b.size.cmp(&a.size))
+                });
+                let mut got = fs.clone();
+                sort_files(&mut got);
+                check!(format!("round {round}: files = {:?}", names(&fs)), names(&got), names(&want));
+            }
+        }
+
+        #[test]
+        fn cached_key_allocations() {
+            let mut fs: Vec<File> = (0..2000u64).map(|i| File { name: format!("f{i}.EXT{}", i % 7), size: i * 7919 % 1000 }).collect();
+            let ((), n) = anneal_prelude::allocs(|| sort_files(&mut fs));
+            check!("2000 files: allocations while sorting (at most 3 per file)", n.count <= 6000, true);
+        }
+        """,
+    ],
+    wrong=dict(
+        unstable_sort=sub(SORT_SOL, ("files.sort_by_cached_key(", "files.sort_unstable_by_key(")),
+        key_on_every_comparison=sub(SORT_SOL, ("files.sort_by_cached_key(", "files.sort_by_key(")),
+        smallest_first=sub(SORT_SOL, ("Reverse(f.size)", "f.size")),
+        wins_ascending=sub(SORT_SOL, ("b.1.cmp(&a.1)", "a.1.cmp(&b.1)")),
+        partial_cmp_unwrap=sub(SORT_SOL, ("v.sort_unstable_by(f64::total_cmp);", "v.sort_by(|a, b| a.partial_cmp(b).unwrap());")),
+    ),
+    hints=[("rust", "`files.sort_by_cached_key(|f| (ext_lowercase(f), Reverse(f.size)))`: the key is a tuple, `Option<String>` puts `None` first, and `Reverse` flips one field."),
+           ("rust", "`a.cmp(&b).then(…)` for a cheap second key, `.then_with(|| …)` when it's worth computing only on a tie. `v.sort_unstable_by(f64::total_cmp)` sorts floats."),
+           ("edge case", "Ties must keep input order: that rules out every `sort_unstable*` for `sort_files`.")],
+    notes=("""Pick the sort by two questions: is the key total (then unstable is fine and faster, and needs no extra memory), and is the key expensive (then `sort_by_cached_key`, which builds a `Vec<(key, index)>` once and is stable). `sort_by_key(|f| f.name.to_lowercase())` allocates O(n log n) Strings; the cached version allocates n. For floats, `total_cmp` is the IEEE `totalOrder` predicate: it never panics and distinguishes `-0.0` from `0.0` and positive from negative NaN, which also makes it usable for `dedup` and binary search. Syntax to remember: `v.sort()`, `v.sort_unstable()`, `v.sort_by(|a, b| …)`, `v.sort_by_key(|x| k)`, `v.sort_by_cached_key(|x| k)`, `v.sort_unstable_by_key(|x| Reverse(k))`, `ord.then(o2)`, `ord.then_with(|| …)`, `ord.reverse()`, `f64::total_cmp`, `v.is_sorted()`.""", "O(n log n)", "O(n) for the cached keys"),
+    follow_up="Why can a comparator that isn't a total order make `sort_by` panic in Rust 1.81+, and what did it do before?",
+    related=["S8", "S2"],
+    perf=dict(allocs=True),
+))
+
+TLV_SOL = """
+        /// Parses `tag, len, value` records (`len` is one byte; the value is `len` bytes). A leading "TLV" magic is
+        /// skipped. `None` if a record is cut short. Values borrow from `data`.
+        pub fn parse_tlv(data: &[u8]) -> Option<Vec<(u8, &[u8])>> {
+            let mut rest = data.strip_prefix(b"TLV").unwrap_or(data);
             let mut out = Vec::new();
-            for i in 0..v.len() {
-                out.push(v[i] + v[i + 1]);
+            while let Some((&tag, after)) = rest.split_first() {
+                let (&len, after) = after.split_first()?;
+                let (value, after) = after.split_at_checked(usize::from(len))?;
+                out.push((tag, value));
+                rest = after;
+            }
+            Some(out)
+        }
+
+        /// The records encoded as `tag, len, value`, in one allocation of exactly the right size. `None` if a
+        /// value is longer than 255 bytes.
+        pub fn encode_tlv(records: &[(u8, &[u8])]) -> Option<Vec<u8>> {
+            let mut out = Vec::with_capacity(records.iter().map(|(_, value)| 2 + value.len()).sum());
+            for &(tag, value) in records {
+                let len = u8::try_from(value.len()).ok()?;
+                out.push(tag);
+                out.push(len);
+                out.extend_from_slice(value);
+            }
+            Some(out)
+        }
+
+        /// The records' values, joined with `sep` between them.
+        pub fn join_values(records: &[(u8, &[u8])], sep: u8) -> Vec<u8> {
+            records.iter().map(|&(_, value)| value).collect::<Vec<_>>().join(&sep)
+        }
+"""
+
+TLV_STARTER = """
+        /// Parses `tag, len, value` records (`len` is one byte; the value is `len` bytes). A leading "TLV" magic is
+        /// skipped. `None` if a record is cut short. Values borrow from `data`.
+        pub fn parse_tlv(data: &[u8]) -> Option<Vec<(u8, &[u8])>> {
+            todo!()
+        }
+
+        /// The records encoded as `tag, len, value`, in one allocation of exactly the right size. `None` if a
+        /// value is longer than 255 bytes.
+        pub fn encode_tlv(records: &[(u8, &[u8])]) -> Option<Vec<u8>> {
+            todo!()
+        }
+
+        /// The records' values, joined with `sep` between them.
+        pub fn join_values(records: &[(u8, &[u8])], sep: u8) -> Vec<u8> {
+            todo!()
+        }
+"""
+
+P.append(dict(
+    slug="slices-as-views", title="Slices as views: a TLV parser", level="easy", stage="use-it",
+    tags=["split_first", "split_at_checked", "strip_prefix", "extend_from_slice", "join"],
+    teaches=[
+        "Parse by peeling: `split_first` and `split_at_checked` return `Option`s, so a truncated input is `None` instead of a panic.",
+        "Returning `&[u8]` pieces of the input costs nothing; the lifetime ties them to `data`.",
+        "`[&[T]]::join(&sep)` and `concat()` flatten slices of slices; `u8::try_from(len)` refuses what `as u8` would silently truncate.",
+    ],
+    statement="""
+        A tag-length-value format: each record is a tag byte, a length byte `len`, then `len` bytes of value.
+
+        - `parse_tlv(data)`: the records in order, as `(tag, value)` with each value borrowed from `data`. If the
+          data starts with the magic bytes `b"TLV"`, skip them first. Return `None` if the last record is cut
+          short (a tag with no length, or fewer than `len` value bytes).
+        - `encode_tlv(records)`: the bytes for these records, in one allocation of exactly the final size (no
+          allocation at all for no records). `None` if any value is longer than 255 bytes.
+        - `join_values(records, sep)`: all the values, with the byte `sep` between each pair.
+    """,
+    examples=[('parse_tlv(b"TLV\\x01\\x02hi\\x07\\x00")', 'Some([(1, b"hi"), (7, b"")])'), ('parse_tlv(b"\\x01\\x05abc")', "None"),
+              ('join_values([(1, b"ab"), (2, b"c")], b\'/\')', 'b"ab/c"')],
+    starter=TLV_STARTER,
+    solution=TLV_SOL,
+    visible=[
+        T("parse_with_magic", 'b"TLV\\x01\\x02hi\\x07\\x00"', 'parse_tlv(b"TLV\\x01\\x02hi\\x07\\x00")', 'Some(vec![(1, &b"hi"[..]), (7, &b""[..])])'),
+        T("parse_truncated_value", 'b"\\x01\\x05abc"', 'parse_tlv(b"\\x01\\x05abc")', "None"),
+        T("parse_empty", 'b"" and b"TLV"', '(parse_tlv(b""), parse_tlv(b"TLV"))', "(Some(vec![]), Some(vec![]))"),
+        T("encode_round_trip", '[(1, b"hi"), (2, b"")]', 'encode_tlv(&[(1, b"hi"), (2, b"")])', 'Some(b"\\x01\\x02hi\\x02\\x00".to_vec())'),
+        T("join_with_separator", '[(1, b"ab"), (2, b""), (3, b"c")], sep = b\'/\'', "join_values(&[(1, b\"ab\"), (2, b\"\"), (3, b\"c\")], b'/')", 'b"ab//c".to_vec()'),
+    ],
+    hidden=[
+        T("parse_tag_without_length", 'b"\\x01\\x01a\\x09"', 'parse_tlv(b"\\x01\\x01a\\x09")', "None"),
+        T("parse_magic_only_at_start", 'b"\\x01\\x03TLV"', 'parse_tlv(b"\\x01\\x03TLV")', 'Some(vec![(1, &b"TLV"[..])])'),
+        T("parse_partial_magic_is_data", 'b"T\\x00"', 'parse_tlv(b"T\\x00")', 'Some(vec![(b\'T\', &b""[..])])'),
+        T("parse_max_length", "a record with len 255", "parse_tlv(&data).map(|r| (r.len(), r[0].0, r[0].1.len()))", "Some((1, 9, 255))",
+          setup="let mut data = vec![9u8, 255];\ndata.extend(std::iter::repeat(7u8).take(255));"),
+        T("parse_len_one_short", "a record with len 255 and 254 bytes", "parse_tlv(&data)", "None",
+          setup="let mut data = vec![9u8, 255];\ndata.extend(std::iter::repeat(7u8).take(254));"),
+        T("values_borrow_input", "values point into data", "r[0].1.as_ptr() == data[2..].as_ptr() && r[1].1.as_ptr() == data[6..].as_ptr()", "true",
+          setup='let data = b"\\x01\\x02ab\\x02\\x01c".to_vec();\nlet r = parse_tlv(&data).unwrap();'),
+        T("encode_too_long", "a 256-byte value", "encode_tlv(&[(1, &big)])", "None", setup="let big = vec![0u8; 256];"),
+        T("encode_255_is_fine", "a 255-byte value", "encode_tlv(&[(1, &big)]).map(|e| (e.len(), e[1]))", "Some((257, 255))", setup="let big = vec![0u8; 255];"),
+        T("encode_one_exact_allocation", "three records", "(out.as_ref().map(|v| v.len() == v.capacity()), n.count)", "(Some(true), 1)",
+          setup='let (out, n) = anneal_prelude::allocs(|| encode_tlv(&[(1, b"abc"), (2, b""), (3, b"z")]));'),
+        T("encode_nothing_allocates_nothing", "no records", "(out, n.count)", "(Some(vec![]), 0)", setup="let (out, n) = anneal_prelude::allocs(|| encode_tlv(&[]));"),
+        T("join_edges", "no records, one record", "(join_values(&[], b','), join_values(&[(1, b\"x\")], b','))", "(vec![], b\"x\".to_vec())"),
+        T("join_all_empty", "three empty values", "join_values(&[(1, b\"\"), (2, b\"\"), (3, b\"\")], b',')", 'b",,".to_vec()'),
+        """
+        #[test]
+        fn random_round_trip() {
+            let mut rng = anneal_prelude::Rng::new(7304);
+            for _ in 0..300 {
+                let n = rng.below(5);
+                let values: Vec<Vec<u8>> = (0..n).map(|_| {
+                    let len = rng.below(5);
+                    rng.vec(len, 0, 255)
+                }).collect();
+                let recs: Vec<(u8, &[u8])> = values.iter().enumerate().map(|(i, v)| (i as u8, v.as_slice())).collect();
+                let mut want_bytes = Vec::new();
+                for (t, v) in &recs {
+                    want_bytes.push(*t);
+                    want_bytes.push(v.len() as u8);
+                    want_bytes.extend(v.iter());
+                }
+                let enc = encode_tlv(&recs);
+                let cut = rng.below(want_bytes.len() + 1);
+                let prefix = &want_bytes[..cut];
+                let mut boundaries = vec![0];
+                for (_, v) in &recs {
+                    boundaries.push(boundaries.last().unwrap() + 2 + v.len());
+                }
+                let want_prefix = boundaries.iter().position(|&b| b == cut).map(|k| recs[..k].to_vec());
+                let mut sep_join = Vec::new();
+                for (i, v) in values.iter().enumerate() {
+                    if i > 0 {
+                        sep_join.push(b'|');
+                    }
+                    sep_join.extend(v.iter());
+                }
+                check!(format!("records = {recs:?}, cut at {cut}"),
+                       (enc.clone(), parse_tlv(&want_bytes), parse_tlv(prefix), join_values(&recs, b'|')),
+                       (Some(want_bytes.clone()), Some(recs.clone()), want_prefix, sep_join));
+            }
+        }
+
+        #[test]
+        fn scale_100k_records() {
+            let data: Vec<u8> = (0..100_000u32).flat_map(|i| [(i % 256) as u8, 3, 1, 2, 3]).collect();
+            let recs = parse_tlv(&data).unwrap();
+            let enc = encode_tlv(&recs).unwrap();
+            check!("100000 records of 3 bytes", (recs.len(), enc == data, join_values(&recs, 0).len()), (100_000, true, 399_999));
+        }
+        """,
+    ],
+    wrong=dict(
+        slices_with_brackets=sub(TLV_SOL, ("let (value, after) = after.split_at_checked(usize::from(len))?;", "let (value, after) = after.split_at(usize::from(len).min(after.len()));")),
+        length_truncated=sub(TLV_SOL, ("let len = u8::try_from(value.len()).ok()?;", "let len = value.len() as u8;")),
+        grows_while_encoding=sub(TLV_SOL, ("let mut out = Vec::with_capacity(records.iter().map(|(_, value)| 2 + value.len()).sum());", "let mut out = Vec::new();")),
+        magic_not_skipped=sub(TLV_SOL, ('let mut rest = data.strip_prefix(b"TLV").unwrap_or(data);', "let mut rest = data;")),
+        concat_drops_separators=sub(TLV_SOL, ("records.iter().map(|&(_, value)| value).collect::<Vec<_>>().join(&sep)", "let _ = sep;\n    records.iter().map(|&(_, value)| value).collect::<Vec<_>>().concat()")),
+    ),
+    hints=[("rust", "`let Some((&tag, after)) = rest.split_first()` peels one byte; `after.split_at_checked(n)?` peels `n` more or returns `None`. `data.strip_prefix(b\"TLV\")` is `Option<&[u8]>`."),
+           ("rust", "Sum `2 + value.len()` for `Vec::with_capacity`, then `push` and `extend_from_slice`. `u8::try_from(len).ok()?` rejects 256 and up."),
+           ("rust", "A `Vec<&[u8]>` has `.join(&sep)` (with a separator) and `.concat()` (without).")],
+    notes=("""Nothing here copies value bytes while parsing: each value is a `&[u8]` into `data`, so the whole parse is one `Vec` of pairs. The `Option`-returning splitters (`split_first`, `split_last`, `split_at_checked`, `get(a..b)`, `strip_prefix`) turn every bounds check into a `?`, which is how you write parsers for untrusted input that can't panic. `as u8` on a length silently wraps 256 to 0, producing a corrupt but well-formed-looking frame; `try_from` makes it an error. Syntax to remember: `s.split_first()` / `split_last()` → `Option<(&T, &[T])>`, `s.split_at_checked(n)` (1.80+), `s.strip_prefix(b"…")`, `s.get(a..b)`, `v.extend_from_slice(s)`, `slices.concat()`, `slices.join(&sep)`, `u8::try_from(n)`.""", "O(n)", "O(records)"),
+    follow_up="How would you make `parse_tlv` a lazy iterator of `Result<(u8, &[u8]), Truncated>` instead of building a Vec?",
+    related=["L3", "S2"],
+    perf=dict(allocs=True),
+))
+
+NB_STARTER = """
+        /// Differences between neighbours: [a, b, c] → [b - a, c - b].
+        pub fn deltas(v: &[i64]) -> Vec<i64> {
+            let mut out = Vec::new();
+            for i in 0..v.len() - 1 {
+                out.push(v[i + 1] - v[i]);
             }
             out
         }
-    """,
-    solution="""
-        /// Sums of neighbouring pairs: [a, b, c] → [a + b, b + c].
-        pub fn pair_sums(v: &[i32]) -> Vec<i32> {
-            v.windows(2).map(|w| w[0] + w[1]).collect()
+
+        /// Indices of strict local peaks: v[i - 1] < v[i] > v[i + 1]. The two ends are never peaks.
+        pub fn peaks(v: &[i32]) -> Vec<usize> {
+            let mut out = Vec::new();
+            for i in 1..v.len() {
+                if v[i - 1] < v[i] && v[i] > v[i + 1] {
+                    out.push(i);
+                }
+            }
+            out
         }
+
+        /// The wrapping sum of the big-endian 16-bit words in `bytes`; an odd last byte is padded with a zero byte.
+        pub fn sum16(bytes: &[u8]) -> u16 {
+            let mut sum = 0u16;
+            for i in (0..bytes.len()).step_by(2) {
+                sum = sum.wrapping_add(u16::from_be_bytes([bytes[i], bytes[i + 1]]));
+            }
+            sum
+        }
+
+        /// Groups of three digits from the right, joined by commas: "1234567" → "1,234,567". `digits` is ASCII.
+        pub fn with_commas(digits: &str) -> String {
+            digits.as_bytes().chunks(3).map(|c| std::str::from_utf8(c).unwrap()).collect::<Vec<_>>().join(",")
+        }
+"""
+
+NB_SOL = """
+        /// Differences between neighbours: [a, b, c] → [b - a, c - b].
+        pub fn deltas(v: &[i64]) -> Vec<i64> {
+            v.windows(2).map(|w| w[1] - w[0]).collect()
+        }
+
+        /// Indices of strict local peaks: v[i - 1] < v[i] > v[i + 1]. The two ends are never peaks.
+        pub fn peaks(v: &[i32]) -> Vec<usize> {
+            v.windows(3).enumerate().filter(|(_, w)| w[0] < w[1] && w[1] > w[2]).map(|(i, _)| i + 1).collect()
+        }
+
+        /// The wrapping sum of the big-endian 16-bit words in `bytes`; an odd last byte is padded with a zero byte.
+        pub fn sum16(bytes: &[u8]) -> u16 {
+            let words = bytes.chunks_exact(2);
+            let tail = match words.remainder() {
+                [last] => u16::from_be_bytes([*last, 0]),
+                _ => 0,
+            };
+            words.fold(tail, |sum, w| sum.wrapping_add(u16::from_be_bytes([w[0], w[1]])))
+        }
+
+        /// Groups of three digits from the right, joined by commas: "1234567" → "1,234,567". `digits` is ASCII.
+        pub fn with_commas(digits: &str) -> String {
+            digits.as_bytes().rchunks(3).rev().map(|c| std::str::from_utf8(c).unwrap()).collect::<Vec<_>>().join(",")
+        }
+"""
+
+
+def py_sum16(bs):
+    s = 0
+    for i in range(0, len(bs), 2):
+        hi = bs[i]
+        lo = bs[i + 1] if i + 1 < len(bs) else 0
+        s = (s + (hi << 8 | lo)) & 0xFFFF
+    return s
+
+
+def commas(d):
+    out = []
+    while d:
+        out.append(d[-3:])
+        d = d[:-3]
+    return ",".join(reversed(out))
+
+
+def s16(name, bs):
+    lit = "&[" + ", ".join(f"0x{b:02X}" for b in bs) + "]"
+    return T(name, f"bytes = {lit[1:]}", f"sum16({lit})", f"0x{py_sum16(bs):04X}")
+
+
+def wc(name, d):
+    return T(name, f'"{d}"', f'with_commas("{d}")', f'"{commas(d)}".to_string()')
+
+
+P.append(dict(
+    slug="fix-neighbour-loop", title="Fix: off-by-one in neighbour loops", mode="fix", level="easy", stage="use-it",
+    tags=["windows", "chunks_exact", "remainder", "rchunks", "usize underflow"],
+    teaches=[
+        "`0..v.len() - 1` underflows on an empty slice; `windows(n)` yields nothing when there aren't `n` elements.",
+        "`chunks_exact(2)` plus `remainder()` separates the full words from an odd tail; `step_by(2)` with `v[i + 1]` panics on it.",
+        "`rchunks(3)` groups from the right, which is what digit grouping needs; `.rev()` puts the groups back in reading order.",
+    ],
+    statement="""
+        Four helpers that loop over neighbours or fixed-size groups. They were written with index arithmetic and
+        tested on "nice" lengths only: each one panics or gives the wrong answer on some input. Fix them to match
+        their doc comments.
     """,
+    examples=[("deltas(&[])", "[] (not a panic)"), ("sum16(&[0x12, 0x34, 0x56])", "0x6834"), ('with_commas("1234567")', '"1,234,567"')],
+    starter=NB_STARTER,
+    solution=NB_SOL,
     visible=[
-        T("three", "v = [1, 2, 3]", "pair_sums(&[1, 2, 3])", "vec![3, 5]"),
-        T("one", "v = [9]", "pair_sums(&[9])", "Vec::<i32>::new()"),
-        T("four", "v = [1, 2, 3, 4]", "pair_sums(&[1, 2, 3, 4])", "vec![3, 5, 7]"),
-        T("two", "v = [5, 6]", "pair_sums(&[5, 6])", "vec![11]"),
-        T("empty_visible", "v = []", "pair_sums(&[])", "Vec::<i32>::new()"),
+        T("deltas_basic", "v = [1, 4, 9]", "deltas(&[1, 4, 9])", "vec![3, 5]"),
+        T("deltas_empty", "v = []", "deltas(&[])", "Vec::<i64>::new()"),
+        T("peaks_basic", "v = [1, 3, 2, 5, 4]", "peaks(&[1, 3, 2, 5, 4])", "vec![1, 3]"),
+        s16("sum16_odd_length", [0x12, 0x34, 0x56]),
+        wc("commas_seven_digits", "1234567"),
     ],
     hidden=[
-        T("empty", "v = []", "pair_sums(&[])", "Vec::<i32>::new()"),
-        T("negatives", "v = [-1, 1, -1]", "pair_sums(&[-1, 1, -1])", "vec![0, 0]"),
-        T("zeros", "v = [0, 0, 0]", "pair_sums(&[0, 0, 0])", "vec![0, 0]"),
-        T("big_values", "v = [1000000000, 1000000000, -1000000000]", "pair_sums(&[1_000_000_000, 1_000_000_000, -1_000_000_000])", "vec![2_000_000_000, 0]"),
-        T("extremes", "v = [i32::MAX, 0, i32::MIN]", "pair_sums(&[i32::MAX, 0, i32::MIN])", "vec![i32::MAX, i32::MIN]"),
-        T("overlapping_pairs", "v = [1, 10, 100, 1000]", "pair_sums(&[1, 10, 100, 1000])", "vec![11, 110, 1100]"),
-        T("length", "v = [1; 1000]", "pair_sums(&[1; 1000]).len()", "999"),
+        T("deltas_single", "v = [5]", "deltas(&[5])", "Vec::<i64>::new()"),
+        T("deltas_negative", "v = [3, -2, -2]", "deltas(&[3, -2, -2])", "vec![-5, 0]"),
+        T("peaks_short", "v = [], [1], [1, 2]", "(peaks(&[]), peaks(&[1]), peaks(&[1, 2]))", "(vec![], vec![], vec![])"),
+        T("peaks_ends_never_count", "v = [9, 1, 9]", "peaks(&[9, 1, 9])", "Vec::<usize>::new()"),
+        T("peaks_plateau_is_not_strict", "v = [1, 3, 3, 1]", "peaks(&[1, 3, 3, 1])", "Vec::<usize>::new()"),
+        T("peaks_last_interior", "v = [0, 1, 0]", "peaks(&[0, 1, 0])", "vec![1]"),
+        s16("sum16_empty", []),
+        s16("sum16_one_byte", [0xAB]),
+        s16("sum16_even", [0x12, 0x34, 0x56, 0x78]),
+        s16("sum16_wraps", [0xFF, 0xFF, 0x00, 0x02]),
+        wc("commas_short", "12"),
+        wc("commas_exact_three", "123"),
+        wc("commas_four", "1000"),
+        wc("commas_six", "123456"),
+        T("commas_empty", '""', 'with_commas("")', "String::new()"),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2305);
-            for _ in 0..300 {
-                let n = rng.below(10);
-                let v: Vec<i32> = rng.vec(n, -1000, 1000);
-                let mut want = Vec::new();
-                for i in 1..n {
-                    want.push(v[i - 1] + v[i]);
+            let mut rng = anneal_prelude::Rng::new(7305);
+            for _ in 0..400 {
+                let n = rng.below(9);
+                let v: Vec<i64> = rng.vec(n, -5, 5);
+                let w: Vec<i32> = v.iter().map(|&x| x as i32).collect();
+                let want_d: Vec<i64> = (1..n).map(|i| v[i] - v[i - 1]).collect();
+                let want_p: Vec<usize> = (1..n.saturating_sub(1)).filter(|&i| w[i - 1] < w[i] && w[i] > w[i + 1]).collect();
+                let bytes: Vec<u8> = rng.vec(n, 0, 255);
+                let mut want_s = 0u16;
+                let mut i = 0;
+                while i < n {
+                    let lo = if i + 1 < n { bytes[i + 1] } else { 0 };
+                    want_s = want_s.wrapping_add((bytes[i] as u16) << 8 | lo as u16);
+                    i += 2;
                 }
-                check!(format!("v = {v:?}"), pair_sums(&v), want);
+                let digits: String = (0..n).map(|k| char::from(b'0' + (k % 10) as u8)).collect();
+                let mut want_c = String::new();
+                for (k, c) in digits.chars().enumerate() {
+                    if k > 0 && (n - k) % 3 == 0 {
+                        want_c.push(',');
+                    }
+                    want_c.push(c);
+                }
+                check!(format!("v = {v:?}, bytes = {bytes:?}, digits = {digits:?}"),
+                       (deltas(&v), peaks(&w), sum16(&bytes), with_commas(&digits)), (want_d, want_p, want_s, want_c));
             }
         }
 
         #[test]
         fn scale_200k() {
-            let v: Vec<i32> = (0..200_000).collect();
-            let out = pair_sums(&v);
-            check!("v = 0..200000", (out.len(), out[0], out[199_998]), (199_999, 1, 399_997));
+            let v: Vec<i64> = (0..200_000).map(|i| i * i % 1000).collect();
+            let w: Vec<i32> = (0..200_001).map(|i| if i % 2 == 1 { 1 } else { 0 }).collect();
+            let bytes = vec![0xFFu8; 200_001];
+            check!("200000 values", (deltas(&v).len(), peaks(&w).len(), sum16(&bytes), with_commas(&"9".repeat(200_000)).len()), (199_999, 100_000, 0x7860, 266_666));
         }
         """,
     ],
     wrong=dict(
-        len_minus_one="""
-            /// Sums of neighbouring pairs: [a, b, c] → [a + b, b + c].
-            pub fn pair_sums(v: &[i32]) -> Vec<i32> {
-                let mut out = Vec::new();
-                for i in 0..v.len() - 1 {
-                    out.push(v[i] + v[i + 1]);
-                }
-                out
-            }
-        """,
-        chunks_not_windows="""
-            /// Sums of neighbouring pairs: [a, b, c] → [a + b, b + c].
-            pub fn pair_sums(v: &[i32]) -> Vec<i32> {
-                v.chunks(2).map(|c| c.iter().sum()).collect()
-            }
-        """,
+        saturating_loop_bound=sub(NB_SOL, ("v.windows(2).map(|w| w[1] - w[0]).collect()", "let mut out = Vec::new();\n    for i in 0..v.len().saturating_sub(1) {\n        out.push(v[i] - v[i + 1]);\n    }\n    out")),
+        peak_index_of_window=sub(NB_SOL, (".map(|(i, _)| i + 1)", ".map(|(i, _)| i)")),
+        odd_byte_dropped=sub(NB_SOL, ("[last] => u16::from_be_bytes([*last, 0]),", "[_] => 0,")),
+        odd_byte_as_low_byte=sub(NB_SOL, ("[last] => u16::from_be_bytes([*last, 0]),", "[last] => u16::from(*last),")),
+        groups_from_the_left=sub(NB_SOL, ("digits.as_bytes().rchunks(3).rev()", "digits.as_bytes().chunks(3)")),
     ),
-    hints=[("approach", "The last index has no right neighbour."), ("rust", "Slices can hand you overlapping pairs directly.")],
-    notes=("`windows(2)` yields nothing for fewer than two elements, so the empty and single cases need no special handling.", "O(n)", "O(n)"),
-    follow_up="How is `windows` different from `chunks`?",
+    hints=[("rust", "`v.windows(2)` yields `&[a, b]` for each neighbouring pair and nothing for fewer than 2 elements; `windows(3).enumerate()` gives the index of each window's first element."),
+           ("rust", "`let words = bytes.chunks_exact(2);` then `words.remainder()` is the odd byte (if any), available before you consume `words`."),
+           ("rust", "`rchunks(3)` starts at the end: `\"1234567\"` gives `567`, `234`, `1`. Reverse that before joining.")],
+    notes=("""Every bug is index arithmetic at the edges. `v.len() - 1` is a `usize` subtraction that panics (debug) or wraps (release) on an empty slice; `v[i + 1]` in a loop to `len` reads one past the end; `step_by(2)` assumes an even length. The slice iterators encode the edge cases: `windows(n)` yields nothing for short input, `chunks_exact` hands the leftover to `remainder()` instead of a short last chunk, and `rchunks` aligns groups at the end. `sum16` is the core of the Internet checksum (RFC 1071), which pads an odd byte on the right, making it the *high* byte of the last word. Syntax to remember: `s.windows(n)`, `s.chunks(n)`, `s.chunks_exact(n)` + `.remainder()`, `s.rchunks(n)`, `s.chunks_exact_mut(n)`, `iter.rev()`, `u16::from_be_bytes([hi, lo])`, `a.wrapping_add(b)`.""", "O(n)", "O(n)"),
+    follow_up="`with_commas` builds a `Vec<&str>` just to join it. How would you write it straight into a `String` with the right capacity?",
+    rules=dict(lines=22),
     related=["S6"],
 ))
 
-P.append(dict(
-    slug="rotate-in-place", title="Rotate a slice in place", level="easy", stage="use-it", tags=["reverse", "rotate"],
-    teaches=["Three reversals rotate a slice in O(1) space.", "Reduce `k` modulo the length first."],
-    statement="Rotate `v` right by `k` positions in place.",
-    examples=[("v = [1, 2, 3, 4, 5], k = 2", "[4, 5, 1, 2, 3]")],
-    starter="""
-        pub fn rotate_right(v: &mut [i32], k: usize) {
-            todo!()
-        }
-    """,
-    solution="""
+ROT_SOL = """
+        /// Rotates `v` right by `k` with three reversals (no `rotate_*`).
         pub fn rotate_right(v: &mut [i32], k: usize) {
             if v.is_empty() {
                 return;
@@ -841,35 +1385,117 @@ P.append(dict(
             v[..k].reverse();
             v[k..].reverse();
         }
+
+        /// Moves the element at `from` to index `to`, shifting everything in between by one place (drag and drop).
+        /// Does nothing if either index is out of range. Touches only the elements between the two indices.
+        pub fn move_item<T>(v: &mut [T], from: usize, to: usize) {
+            if from >= v.len() || to >= v.len() {
+                return;
+            }
+            if from < to {
+                v[from..=to].rotate_left(1);
+            } else {
+                v[to..=from].rotate_right(1);
+            }
+        }
+
+        /// Swaps each pair of neighbours: [1, 2, 3, 4, 5] → [2, 1, 4, 3, 5]. An odd last element stays put.
+        pub fn swap_pairs<T>(v: &mut [T]) {
+            for pair in v.chunks_exact_mut(2) {
+                pair.swap(0, 1);
+            }
+        }
+"""
+
+ROT_STARTER = """
+        /// Rotates `v` right by `k` with three reversals (no `rotate_*`).
+        pub fn rotate_right(v: &mut [i32], k: usize) {
+            todo!()
+        }
+
+        /// Moves the element at `from` to index `to`, shifting everything in between by one place (drag and drop).
+        /// Does nothing if either index is out of range. Touches only the elements between the two indices.
+        pub fn move_item<T>(v: &mut [T], from: usize, to: usize) {
+            todo!()
+        }
+
+        /// Swaps each pair of neighbours: [1, 2, 3, 4, 5] → [2, 1, 4, 3, 5]. An odd last element stays put.
+        pub fn swap_pairs<T>(v: &mut [T]) {
+            todo!()
+        }
+"""
+
+
+def mv(name, v, a, b):
+    w = list(v)
+    if a < len(w) and b < len(w):
+        x = w.pop(a)
+        w.insert(b, x)
+    arr = lambda xs: "[" + ", ".join(f'"{x}"' for x in xs) + "]"
+    return T(name, f"v = {arr(v)}, from = {a}, to = {b}", "v", arr(w), setup=f"let mut v = {arr(v)};\nmove_item(&mut v, {a}, {b});")
+
+
+P.append(dict(
+    slug="rotate-in-place", title="Rotate, move and swap in place", level="easy", stage="use-it", tags=["reverse", "rotate_left", "rotate_right", "swap", "chunks_exact_mut"],
+    teaches=[
+        "Three reversals rotate a slice in O(1) space; reduce `k` modulo the length first.",
+        "Moving one item is a rotation of the sub-slice between the two positions: `rotate_left(1)` when moving right, `rotate_right(1)` when moving left.",
+        "`chunks_exact_mut(2)` + `swap(0, 1)` handles pairs and leaves an odd tail alone.",
+    ],
+    statement="""
+        - `rotate_right(v, k)`: rotate right by `k` using three reversals (the interview version; don't call
+          `rotate_left`/`rotate_right` here). `k` may exceed the length, and the slice may be empty.
+        - `move_item(v, from, to)`: drag-and-drop reordering. Take the element at `from` and put it at index `to`,
+          shifting the elements in between by one place. If either index is out of range, do nothing. Only the
+          elements between the two positions may move.
+        - `swap_pairs(v)`: swap each pair of neighbours; an odd last element stays where it is.
     """,
+    examples=[("rotate_right([1, 2, 3, 4, 5], 2)", "[4, 5, 1, 2, 3]"), ("move_item([a, b, c, d, e], 1, 3)", "[a, c, d, b, e]"), ("swap_pairs([1, 2, 3, 4, 5])", "[2, 1, 4, 3, 5]")],
+    starter=ROT_STARTER,
+    solution=ROT_SOL,
     visible=[
-        T("two", "v = [1, 2, 3, 4, 5], k = 2", "{ let mut v = [1, 2, 3, 4, 5]; rotate_right(&mut v, 2); v }", "[4, 5, 1, 2, 3]"),
-        T("full_turn", "v = [1, 2], k = 2", "{ let mut v = [1, 2]; rotate_right(&mut v, 2); v }", "[1, 2]"),
-        T("leetcode_189_first", "v = [1, 2, 3, 4, 5, 6, 7], k = 3", "{ let mut v = [1, 2, 3, 4, 5, 6, 7]; rotate_right(&mut v, 3); v }", "[5, 6, 7, 1, 2, 3, 4]"),
-        T("leetcode_189_second", "v = [-1, -100, 3, 99], k = 2", "{ let mut v = [-1, -100, 3, 99]; rotate_right(&mut v, 2); v }", "[3, 99, -1, -100]"),
-        T("k_zero", "v = [1, 2, 3], k = 0", "{ let mut v = [1, 2, 3]; rotate_right(&mut v, 0); v }", "[1, 2, 3]"),
+        T("rotate_two", "v = [1, 2, 3, 4, 5], k = 2", "{ let mut v = [1, 2, 3, 4, 5]; rotate_right(&mut v, 2); v }", "[4, 5, 1, 2, 3]"),
+        T("rotate_leetcode_189", "v = [1, 2, 3, 4, 5, 6, 7], k = 3", "{ let mut v = [1, 2, 3, 4, 5, 6, 7]; rotate_right(&mut v, 3); v }", "[5, 6, 7, 1, 2, 3, 4]"),
+        mv("move_right", ["a", "b", "c", "d", "e"], 1, 3),
+        mv("move_left", ["a", "b", "c", "d", "e"], 4, 0),
+        T("swap_odd_length", "v = [1, 2, 3, 4, 5]", "{ let mut v = [1, 2, 3, 4, 5]; swap_pairs(&mut v); v }", "[2, 1, 4, 3, 5]"),
     ],
     hidden=[
-        T("empty", "v = [], k = 3", "{ let mut v: [i32; 0] = []; rotate_right(&mut v, 3); v }", "[]"),
-        T("large_k", "v = [1, 2, 3], k = 7", "{ let mut v = [1, 2, 3]; rotate_right(&mut v, 7); v }", "[3, 1, 2]"),
-        T("single", "v = [5], k = 4", "{ let mut v = [5]; rotate_right(&mut v, 4); v }", "[5]"),
-        T("by_one", "v = [1, 2, 3, 4], k = 1", "{ let mut v = [1, 2, 3, 4]; rotate_right(&mut v, 1); v }", "[4, 1, 2, 3]"),
-        T("len_minus_one", "v = [1, 2, 3, 4], k = 3", "{ let mut v = [1, 2, 3, 4]; rotate_right(&mut v, 3); v }", "[2, 3, 4, 1]"),
-        T("k_max", "v = [1, 2, 3, 4, 5, 6, 7], k = usize::MAX (≡ 1 mod 7)", "{ let mut v = [1, 2, 3, 4, 5, 6, 7]; rotate_right(&mut v, usize::MAX); v }", "[7, 1, 2, 3, 4, 5, 6]"),
-        T("duplicates", "v = [1, 1, 2, 2], k = 1", "{ let mut v = [1, 1, 2, 2]; rotate_right(&mut v, 1); v }", "[2, 1, 1, 2]"),
-        T("extremes", "v = [i32::MIN, 0, i32::MAX], k = 2", "{ let mut v = [i32::MIN, 0, i32::MAX]; rotate_right(&mut v, 2); v }", "[0, i32::MAX, i32::MIN]"),
+        T("rotate_empty", "v = [], k = 3", "{ let mut v: [i32; 0] = []; rotate_right(&mut v, 3); v }", "[]"),
+        T("rotate_large_k", "v = [1, 2, 3], k = 7", "{ let mut v = [1, 2, 3]; rotate_right(&mut v, 7); v }", "[3, 1, 2]"),
+        T("rotate_k_max", "v = [1, 2, 3, 4, 5, 6, 7], k = usize::MAX (≡ 1 mod 7)", "{ let mut v = [1, 2, 3, 4, 5, 6, 7]; rotate_right(&mut v, usize::MAX); v }", "[7, 1, 2, 3, 4, 5, 6]"),
+        T("rotate_full_turn", "v = [1, 2], k = 2", "{ let mut v = [1, 2]; rotate_right(&mut v, 2); v }", "[1, 2]"),
+        mv("move_same_index", ["a", "b", "c"], 1, 1),
+        mv("move_to_end", ["a", "b", "c"], 0, 2),
+        mv("move_adjacent_left", ["a", "b", "c"], 2, 1),
+        mv("move_from_out_of_range", ["a", "b"], 2, 0),
+        mv("move_to_out_of_range", ["a", "b"], 0, 2),
+        T("move_only_touches_between", "30 Strings, move 5 → 7: the rest keep their buffers", "(v[..5].iter().zip(&ptrs[..5]).all(|(s, p)| s.as_ptr() == *p), v[8..].iter().zip(&ptrs[8..]).all(|(s, p)| s.as_ptr() == *p), v[7].as_str())",
+          '(true, true, "5")', setup="let mut v: Vec<String> = (0..30).map(|i| i.to_string()).collect();\nlet ptrs: Vec<*const u8> = v.iter().map(|s| s.as_ptr()).collect();\nmove_item(&mut v, 5, 7);"),
+        T("swap_even_length", "v = [1, 2, 3, 4]", "{ let mut v = [1, 2, 3, 4]; swap_pairs(&mut v); v }", "[2, 1, 4, 3]"),
+        T("swap_short", "v = [] and [7]", "{ let mut a: [i32; 0] = []; let mut b = [7]; swap_pairs(&mut a); swap_pairs(&mut b); (a, b) }", "([], [7])"),
+        T("swap_strings", 'v = ["a", "b", "c"]', '{ let mut v = vec!["a".to_string(), "b".to_string(), "c".to_string()]; swap_pairs(&mut v); v }', 'vec!["b", "a", "c"]'),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2306);
-            for _ in 0..300 {
+            let mut rng = anneal_prelude::Rng::new(7306);
+            for _ in 0..400 {
                 let n = rng.below(9);
-                let v: Vec<i32> = rng.vec(n, -9, 9);
+                let v: Vec<i32> = (0..n as i32).collect();
                 let k = rng.below(20);
-                let want: Vec<i32> = (0..n).map(|i| v[(i + n - k % n) % n]).collect();
-                let mut got = v.clone();
-                rotate_right(&mut got, k);
-                check!(format!("v = {v:?}, k = {k}"), got, want);
+                let want_rot: Vec<i32> = (0..n).map(|i| v[(i + n - k % n.max(1)) % n.max(1)]).collect();
+                let (from, to) = (rng.below(n + 2), rng.below(n + 2));
+                let mut want_move = v.clone();
+                if from < n && to < n {
+                    let x = want_move.remove(from);
+                    want_move.insert(to, x);
+                }
+                let want_swap: Vec<i32> = (0..n).map(|i| if i % 2 == 0 && i + 1 < n { v[i + 1] } else if i % 2 == 1 { v[i - 1] } else { v[i] }).collect();
+                let (mut a, mut b, mut c) = (v.clone(), v.clone(), v.clone());
+                rotate_right(&mut a, k);
+                move_item(&mut b, from, to);
+                swap_pairs(&mut c);
+                check!(format!("v = {v:?}, k = {k}, from = {from}, to = {to}"), (a, b, c), (want_rot, want_move, want_swap));
             }
         }
 
@@ -877,151 +1503,190 @@ P.append(dict(
         fn scale_200k() {
             let mut v: Vec<i32> = (0..200_000).collect();
             rotate_right(&mut v, 100_000);
-            check!("v = 0..200000, k = 100000", (v[0], v[99_999], v[100_000], v[199_999]), (100_000, 199_999, 0, 99_999));
+            for i in 0..100_000 {
+                move_item(&mut v, i, i + 1);
+            }
+            swap_pairs(&mut v);
+            check!("v = 0..200000: rotate 100000, 100000 adjacent moves, swap pairs", (v[0], v[1], v[99_999], v[100_000], v[199_999]), (100_002, 100_001, 199_999, 1, 99_998));
         }
         """,
     ],
     wrong=dict(
-        rotates_left="""
-            pub fn rotate_right(v: &mut [i32], k: usize) {
-                if v.is_empty() {
-                    return;
-                }
-                let k = k % v.len();
-                v[..k].reverse();
-                v[k..].reverse();
-                v.reverse();
-            }
-        """,
-        k_not_reduced="""
-            pub fn rotate_right(v: &mut [i32], k: usize) {
-                if v.is_empty() || k > v.len() {
-                    return;
-                }
-                let k = k % v.len();
-                v.reverse();
-                v[..k].reverse();
-                v[k..].reverse();
-            }
-        """,
-        one_step_at_a_time="""
-            pub fn rotate_right(v: &mut [i32], k: usize) {
-                if v.is_empty() {
-                    return;
-                }
-                for _ in 0..k % v.len() {
-                    let last = v[v.len() - 1];
-                    for i in (1..v.len()).rev() {
-                        v[i] = v[i - 1];
-                    }
-                    v[0] = last;
+        rotates_left=sub(ROT_SOL, ("""v.reverse();
+            v[..k].reverse();
+            v[k..].reverse();""", """v[..k].reverse();
+            v[k..].reverse();
+            v.reverse();""")),
+        k_not_reduced=sub(ROT_SOL, ("let k = k % v.len();", "if k > v.len() {\n        return;\n    }")),
+        rotation_direction_swapped=sub(ROT_SOL, ("v[from..=to].rotate_left(1);", "v[from..=to].rotate_right(1);")),
+        swaps_the_endpoints=sub(ROT_SOL, ("""if from < to {
+                v[from..=to].rotate_left(1);
+            } else {
+                v[to..=from].rotate_right(1);
+            }""", "v.swap(from, to);")),
+        swaps_across_pairs=sub(ROT_SOL, ("""for pair in v.chunks_exact_mut(2) {
+                pair.swap(0, 1);
+            }""", """for i in 1..v.len() {
+                if i % 2 == 1 {
+                    v.swap(i - 1, i);
                 }
             }
-        """,
+            if v.len() % 2 == 1 && v.len() > 1 {
+                let n = v.len();
+                v.swap(n - 2, n - 1);
+            }""")),
     ),
-    hints=[("approach", "Reverse the whole slice, then reverse the first k and the rest separately."), ("edge case", "k can be larger than the length, and the length can be 0.")],
-    notes=("std has `slice::rotate_right`, which does the same in O(n) time and O(1) space; the three-reversal trick is what interviews ask for.", "O(n)", "O(1)"),
-    follow_up="Prove that the three reversals produce the rotation.",
+    hints=[("approach", "Rotating right by k: reverse everything, then reverse the first k and the rest separately."),
+           ("rust", "Moving from 1 to 3 in `[a, b, c, d]` is `v[1..=3].rotate_left(1)`: `b` goes to the end of that window. Moving left is `rotate_right(1)` on `v[to..=from]`."),
+           ("rust", "`v.chunks_exact_mut(2)` yields `&mut [T]` pairs and skips an odd tail; `pair.swap(0, 1)` swaps inside one.")],
+    notes=("""All three are in place, O(1) extra space. `move_item` as a rotation of `v[from..=to]` costs O(|to − from|); `v.remove(from)` + `v.insert(to, x)` does the same job on a `Vec` in O(n) with two shifts, and doesn't work on a slice at all. `slice::rotate_left`/`rotate_right` are O(n) and O(1) space (std picks between a buffer-based and a cycle-based algorithm). Syntax to remember: `v.reverse()`, `v[a..b].reverse()`, `v[a..=b].rotate_left(1)` / `rotate_right(1)`, `v.swap(i, j)`, `v.chunks_exact_mut(2)`, `a.swap_with_slice(b)`, `std::mem::swap(&mut x, &mut y)`.""", "O(n), O(|to − from|), O(n)", "O(1)"),
+    follow_up="Prove that the three reversals produce the rotation. Why is `rotate_left(1)` on a window cheaper than remove + insert?",
     related=["D2"],
 ))
 
-P.append(dict(
-    slug="remove-duplicates-sorted", title="Remove duplicates from a sorted slice", level="easy", stage="use-it", tags=["two pointers", "in place"],
-    teaches=["A write index for in-place compaction.", "Returning a length instead of shrinking the slice."],
-    statement="`v` is sorted. Move its distinct values to the front, in order, and return how many there are.",
-    examples=[("v = [0, 0, 1, 1, 1, 2]", "3, with v starting [0, 1, 2]")],
-    starter="""
-        pub fn dedup_sorted(v: &mut [i32]) -> usize {
-            todo!()
-        }
-    """,
-    solution="""
-        pub fn dedup_sorted(v: &mut [i32]) -> usize {
-            if v.is_empty() {
-                return 0;
-            }
-            let mut write = 1;
-            for read in 1..v.len() {
-                if v[read] != v[write - 1] {
+DD_SOL = """
+        /// `v` is sorted. Moves the values to the front so each appears at most `k` times (k ≥ 1), in order, and
+        /// returns how many there are. O(n) time, O(1) extra space.
+        pub fn dedup_keep(v: &mut [i32], k: usize) -> usize {
+            let mut write = 0;
+            for read in 0..v.len() {
+                if write < k || v[read] != v[write - k] {
                     v[write] = v[read];
                     write += 1;
                 }
             }
             write
         }
+
+        /// The same on a `Vec`: drop the extra copies in place.
+        pub fn dedup_keep_vec(v: &mut Vec<i32>, k: usize) {
+            let n = dedup_keep(v, k);
+            v.truncate(n);
+        }
+"""
+
+DD_STARTER = """
+        /// `v` is sorted. Moves the values to the front so each appears at most `k` times (k ≥ 1), in order, and
+        /// returns how many there are. O(n) time, O(1) extra space.
+        pub fn dedup_keep(v: &mut [i32], k: usize) -> usize {
+            todo!()
+        }
+
+        /// The same on a `Vec`: drop the extra copies in place.
+        pub fn dedup_keep_vec(v: &mut Vec<i32>, k: usize) {
+            todo!()
+        }
+"""
+
+
+def dk(name, v, k):
+    out = []
+    for x in v:
+        if out.count(x) < k:
+            out.append(x)
+    return T(name, f"v = {v}, k = {k}", f"{{ let mut v = {v}; let n = dedup_keep(&mut v, {k}); (n, v[..n].to_vec()) }}" if v else f"{{ let mut v: [i32; 0] = []; let n = dedup_keep(&mut v, {k}); (n, v[..n].to_vec()) }}",
+             f"({len(out)}, vec!{out})" if out else "(0, vec![])")
+
+
+P.append(dict(
+    slug="remove-duplicates-sorted", title="Remove duplicates in place, keeping at most k", level="easy", stage="use-it", tags=["two pointers", "in place", "truncate"],
+    teaches=[
+        "A write index compacts in place: copy a value down only when it should stay.",
+        "\"At most k copies\" compares with what was *written* k places back, `v[write - k]`, not with the input's neighbours, which may already be overwritten.",
+        "A slice can't shrink, so the slice version returns a length; the `Vec` version then `truncate`s.",
+    ],
+    statement="""
+        `v` is sorted in ascending order.
+
+        - `dedup_keep(v, k)`: move the values to the front so that each distinct value appears at most `k` times
+          (`k ≥ 1`), keeping them in order, and return how many values that is. What's left after them doesn't
+          matter. O(n) time, O(1) extra space.
+        - `dedup_keep_vec(v, k)`: the same on a `Vec`, which ends up holding exactly those values.
     """,
+    examples=[("v = [0, 0, 1, 1, 1, 2], k = 1", "3, v starts [0, 1, 2]"), ("v = [1, 1, 1, 2, 2, 3], k = 2", "5, v starts [1, 1, 2, 2, 3]")],
+    starter=DD_STARTER,
+    solution=DD_SOL,
     visible=[
-        T("classic", "v = [0, 0, 1, 1, 1, 2]", "{ let mut v = [0, 0, 1, 1, 1, 2]; let k = dedup_sorted(&mut v); v[..k].to_vec() }", "vec![0, 1, 2]"),
-        T("count", "v = [1, 1, 2]", "dedup_sorted(&mut [1, 1, 2])", "2"),
-        T("leetcode_26_first", "v = [1, 1, 2]", "{ let mut v = [1, 1, 2]; let k = dedup_sorted(&mut v); (k, v[..k].to_vec()) }", "(2, vec![1, 2])"),
-        T("leetcode_26_second", "v = [0, 0, 1, 1, 1, 2, 2, 3, 3, 4]", "{ let mut v = [0, 0, 1, 1, 1, 2, 2, 3, 3, 4]; let k = dedup_sorted(&mut v); (k, v[..k].to_vec()) }", "(5, vec![0, 1, 2, 3, 4])"),
-        T("single", "v = [7]", "{ let mut v = [7]; let k = dedup_sorted(&mut v); (k, v[..k].to_vec()) }", "(1, vec![7])"),
+        dk("leetcode_26", [0, 0, 1, 1, 1, 2, 2, 3, 3, 4], 1),
+        dk("leetcode_80_first", [1, 1, 1, 2, 2, 3], 2),
+        dk("leetcode_80_second", [0, 0, 1, 1, 1, 1, 2, 3, 3], 2),
+        dk("empty", [], 2),
+        T("vec_truncated", "v = [1, 1, 1, 1], k = 3", "{ let mut v = vec![1, 1, 1, 1]; dedup_keep_vec(&mut v, 3); v }", "vec![1, 1, 1]"),
     ],
     hidden=[
-        T("empty", "v = []", "dedup_sorted(&mut [])", "0"),
-        T("all_distinct", "v = [-3, 0, 7]", "{ let mut v = [-3, 0, 7]; let k = dedup_sorted(&mut v); v[..k].to_vec() }", "vec![-3, 0, 7]"),
-        T("all_same", "v = [3, 3, 3, 3, 3]", "{ let mut v = [3; 5]; let k = dedup_sorted(&mut v); (k, v[..k].to_vec()) }", "(1, vec![3])"),
-        T("negatives", "v = [-2, -2, -1]", "{ let mut v = [-2, -2, -1]; let k = dedup_sorted(&mut v); (k, v[..k].to_vec()) }", "(2, vec![-2, -1])"),
-        T("extremes", "v = [i32::MIN, i32::MIN, i32::MAX]", "{ let mut v = [i32::MIN, i32::MIN, i32::MAX]; let k = dedup_sorted(&mut v); (k, v[..k].to_vec()) }", "(2, vec![i32::MIN, i32::MAX])"),
-        T("run_at_end", "v = [1, 2, 2, 2]", "{ let mut v = [1, 2, 2, 2]; let k = dedup_sorted(&mut v); (k, v[..k].to_vec()) }", "(2, vec![1, 2])"),
-        T("two_equal", "v = [4, 4]", "{ let mut v = [4, 4]; let k = dedup_sorted(&mut v); (k, v[..k].to_vec()) }", "(1, vec![4])"),
+        dk("single", [7], 1),
+        dk("k_larger_than_runs", [1, 1, 2], 5),
+        dk("all_same_k_three", [4] * 7, 3),
+        dk("all_distinct", [-3, 0, 7], 1),
+        dk("negatives_and_extremes", [-2147483648, -2147483648, -2147483648, 0, 2147483647, 2147483647], 2),
+        dk("alternating_run_lengths", [1, 2, 2, 2, 3, 4, 4, 4, 4, 5], 2),
+        dk("runs_at_the_end", [1, 2, 3, 3, 3, 3], 2),
+        T("vec_empty_and_k_one", "v = [], then [2, 2, 3] with k = 1", "{ let mut a: Vec<i32> = vec![]; dedup_keep_vec(&mut a, 1); let mut b = vec![2, 2, 3]; dedup_keep_vec(&mut b, 1); (a, b) }", "(vec![], vec![2, 3])"),
+        T("vec_keeps_capacity", "v = [5; 100], k = 2: truncated in place", "(v, v_cap_same)", "(vec![5, 5], true)",
+          setup="let mut v = vec![5; 100];\nlet cap = v.capacity();\ndedup_keep_vec(&mut v, 2);\nlet v_cap_same = v.capacity() == cap;"),
         """
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2307);
-            for _ in 0..300 {
-                let n = rng.below(12);
+            let mut rng = anneal_prelude::Rng::new(7307);
+            for _ in 0..400 {
+                let n = rng.below(14);
                 let mut v: Vec<i32> = rng.vec(n, -3, 3);
                 v.sort();
-                let mut want = v.clone();
-                want.dedup();
+                let k = rng.below(4) + 1;
+                let mut want: Vec<i32> = Vec::new();
+                for &x in &v {
+                    if want.iter().filter(|&&y| y == x).count() < k {
+                        want.push(x);
+                    }
+                }
                 let mut got = v.clone();
-                let k = dedup_sorted(&mut got);
-                check!(format!("v = {v:?}"), (k, got[..k].to_vec()), (want.len(), want));
+                let len = dedup_keep(&mut got, k);
+                let mut got_vec = v.clone();
+                dedup_keep_vec(&mut got_vec, k);
+                check!(format!("v = {v:?}, k = {k}"), (len, got[..len].to_vec(), got_vec), (want.len(), want.clone(), want));
             }
         }
 
         #[test]
         fn scale_200k() {
-            let mut v: Vec<i32> = (0..200_000).map(|i| i / 2).collect();
-            v.extend(vec![100_000; 100_000]);
-            let k = dedup_sorted(&mut v);
-            check!("v = [0, 0, 1, 1, …, 99999, 99999] then 100000 × 100000", (k, v[k - 1]), (100_001, 100_000));
+            let mut v: Vec<i32> = (0..200_000).map(|i| i / 4).collect();
+            v.extend(vec![50_000; 100_000]);
+            let k = dedup_keep(&mut v, 3);
+            check!("v = [0, 0, 0, 0, 1, …, 49999 ×4] then 100000 × 50000, k = 3", (k, v[k - 1], v[k - 4]), (150_003, 50_000, 49_999));
         }
         """,
     ],
     wrong=dict(
-        counts_without_moving="""
-            pub fn dedup_sorted(v: &mut [i32]) -> usize {
-                if v.is_empty() {
-                    return 0;
+        compares_with_input_neighbours=sub(DD_SOL, ("if write < k || v[read] != v[write - k] {", "if read < k || v[read] != v[read - k] {")),
+        compares_with_previous_written=sub(DD_SOL, ("if write < k || v[read] != v[write - k] {", "if write == 0 || v[read] != v[write - 1] || (write >= k && v[read] != v[write - k]) {")),
+        forgets_to_truncate=sub(DD_SOL, ("let n = dedup_keep(v, k);\n    v.truncate(n);", "dedup_keep(v, k);")),
+        shift_left_each_time=sub(DD_SOL, ("""let mut write = 0;
+            for read in 0..v.len() {
+                if write < k || v[read] != v[write - k] {
+                    v[write] = v[read];
+                    write += 1;
                 }
-                1 + v.windows(2).filter(|w| w[0] != w[1]).count()
             }
-        """,
-        shift_left_each_time="""
-            pub fn dedup_sorted(v: &mut [i32]) -> usize {
-                let mut len = v.len();
-                let mut i = 1;
-                while i < len {
-                    if v[i] == v[i - 1] {
-                        for j in i..len - 1 {
-                            v[j] = v[j + 1];
-                        }
-                        len -= 1;
-                    } else {
-                        i += 1;
-                    }
+            write""", """let mut len = v.len();
+            let mut i = k;
+            while i < len {
+                if v[i] == v[i - k] {
+                    v[i..len].rotate_left(1);
+                    len -= 1;
+                } else {
+                    i += 1;
                 }
-                len
             }
-        """,
+            len.min(v.len())""")),
     ),
-    hints=[("approach", "Keep a write position; copy a value there only if it differs from the last value written.")],
-    notes=("A slice can't shrink, so the length is the result. `Vec::dedup` does this and then truncates.", "O(n)", "O(1)"),
-    follow_up="How would you allow each value at most twice?",
+    hints=[("approach", "Keep a write position. Copy `v[read]` down if fewer than `k` values have been written, or if it differs from the value written `k` places back."),
+           ("edge case", "Comparing `v[read]` with `v[read - k]` reads input that the write index may already have overwritten."),
+           ("rust", "`v.truncate(n)` drops the tail in place and keeps the capacity.")],
+    notes=("""Because `v` is sorted, "this value already has k copies" is exactly "the value written k places back equals it". The write index never passes the read index, so reading `v[read]` is always the original value, but `v[read - k]` may not be. `Vec::dedup` is the k = 1 case followed by `truncate`, and `dedup_by(|a, b| …)` generalises the test. Syntax to remember: `v.truncate(n)`, `v.dedup()`, `v.dedup_by_key(|x| …)`, `v[..n].to_vec()`, `v.copy_within(src_range, dest)`.""", "O(n)", "O(1)"),
+    follow_up="How would you do the same on an unsorted slice, keeping first-seen order, and what would it cost?",
     related=["D2"],
 ))
+
 
 P.append(dict(
     slug="exact-capacity", title="Capacity and reallocation", level="medium", stage="understand-it", tags=["with_capacity", "String"],

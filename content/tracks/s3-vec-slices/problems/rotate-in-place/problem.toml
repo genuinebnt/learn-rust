@@ -1,31 +1,44 @@
 slug = "rotate-in-place"
-title = "Rotate a slice in place"
+title = "Rotate, move and swap in place"
 mode = "write"
 level = "easy"
 stage = "use-it"
 order = 6
 status = "ready"
-tags = ["reverse", "rotate"]
+tags = ["reverse", "rotate_left", "rotate_right", "swap", "chunks_exact_mut"]
 teaches = [
-  "Three reversals rotate a slice in O(1) space.",
-  "Reduce `k` modulo the length first.",
+  "Three reversals rotate a slice in O(1) space; reduce `k` modulo the length first.",
+  "Moving one item is a rotation of the sub-slice between the two positions: `rotate_left(1)` when moving right, `rotate_right(1)` when moving left.",
+  "`chunks_exact_mut(2)` + `swap(0, 1)` handles pairs and leaves an odd tail alone.",
 ]
-follow_up = "Prove that the three reversals produce the rotation."
+follow_up = "Prove that the three reversals produce the rotation. Why is `rotate_left(1)` on a window cheaper than remove + insert?"
 related = ["D2"]
 
 [[examples]]
-input = "v = [1, 2, 3, 4, 5], k = 2"
+input = "rotate_right([1, 2, 3, 4, 5], 2)"
 output = "[4, 5, 1, 2, 3]"
+
+[[examples]]
+input = "move_item([a, b, c, d, e], 1, 3)"
+output = "[a, c, d, b, e]"
+
+[[examples]]
+input = "swap_pairs([1, 2, 3, 4, 5])"
+output = "[2, 1, 4, 3, 5]"
 
 [[hints]]
 kind = "approach"
-text = "Reverse the whole slice, then reverse the first k and the rest separately."
+text = "Rotating right by k: reverse everything, then reverse the first k and the rest separately."
 
 [[hints]]
-kind = "edge case"
-text = "k can be larger than the length, and the length can be 0."
+kind = "rust"
+text = "Moving from 1 to 3 in `[a, b, c, d]` is `v[1..=3].rotate_left(1)`: `b` goes to the end of that window. Moving left is `rotate_right(1)` on `v[to..=from]`."
+
+[[hints]]
+kind = "rust"
+text = "`v.chunks_exact_mut(2)` yields `&mut [T]` pairs and skips an odd tail; `pair.swap(0, 1)` swaps inside one."
 
 [solution]
-explanation = "std has `slice::rotate_right`, which does the same in O(n) time and O(1) space; the three-reversal trick is what interviews ask for."
-time = "O(n)"
+explanation = "All three are in place, O(1) extra space. `move_item` as a rotation of `v[from..=to]` costs O(|to − from|); `v.remove(from)` + `v.insert(to, x)` does the same job on a `Vec` in O(n) with two shifts, and doesn't work on a slice at all. `slice::rotate_left`/`rotate_right` are O(n) and O(1) space (std picks between a buffer-based and a cycle-based algorithm). Syntax to remember: `v.reverse()`, `v[a..b].reverse()`, `v[a..=b].rotate_left(1)` / `rotate_right(1)`, `v.swap(i, j)`, `v.chunks_exact_mut(2)`, `a.swap_with_slice(b)`, `std::mem::swap(&mut x, &mut y)`."
+time = "O(n), O(|to − from|), O(n)"
 space = "O(1)"

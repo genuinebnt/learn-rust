@@ -1,31 +1,36 @@
 use solution::*;
 
 #[test]
-fn push_pop() {
-    check!(r#"Push 1, Push 2, Pop, Push 3"#, apply(&[Op::Push(1), Op::Push(2), Op::Pop, Op::Push(3)]), vec![1, 3]);
+fn keeps_order() {
+    let mut v = vec![10, 11, 12, 13, 14];
+    remove_indices(&mut v, &[3, 0, 3, 9]);
+    check!(r#"v = [10, 11, 12, 13, 14], indices = [3, 0, 3, 9]"#, v, vec![11, 12, 14]);
 }
 
 #[test]
-fn insert_front() {
-    check!(r#"Push 2, Insert(0, 1)"#, apply(&[Op::Push(2), Op::Insert(0, 1)]), vec![1, 2]);
+fn adjacent_indices() {
+    let mut v = vec![1, 2, 3, 4];
+    remove_indices(&mut v, &[1, 2]);
+    check!(r#"v = [1, 2, 3, 4], indices = [1, 2]"#, v, vec![1, 4]);
 }
 
 #[test]
-fn pop_empty() {
-    check!(r#"Pop"#, apply(&[Op::Pop]), Vec::<i32>::new());
+fn nothing_to_remove() {
+    let mut v = vec![1, 2];
+    remove_indices(&mut v, &[]);
+    check!(r#"v = [1, 2], indices = []"#, v, vec![1, 2]);
 }
 
 #[test]
-fn remove_middle() {
-    check!(r#"Push 1, Push 2, Push 3, Remove(1)"#, apply(&[Op::Push(1), Op::Push(2), Op::Push(3), Op::Remove(1)]), vec![1, 3]);
+fn unordered_two() {
+    let mut v: Vec<i32> = vec![10, 11, 12, 13, 14];
+    let removed = remove_indices_unordered(&mut v, &[0, 3]);
+    check!(r#"v = [10, 11, 12, 13, 14], indices = [0, 3]"#, (removed, v), (vec![13, 10], vec![14, 11, 12]));
 }
 
 #[test]
-fn insert_past_end_ignored() {
-    check!(r#"Insert(1, 5) on an empty vec"#, apply(&[Op::Insert(1, 5)]), Vec::<i32>::new());
-}
-
-#[test]
-fn insert_at_len_appends() {
-    check!(r#"Push 1, Insert(1, 2)"#, apply(&[Op::Push(1), Op::Insert(1, 2)]), vec![1, 2]);
+fn unordered_includes_last() {
+    let mut v: Vec<i32> = vec![1, 2, 3];
+    let removed = remove_indices_unordered(&mut v, &[2, 0]);
+    check!(r#"v = [1, 2, 3], indices = [2, 0]"#, (removed, v), (vec![3, 1], vec![2]));
 }

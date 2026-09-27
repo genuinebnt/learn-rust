@@ -1,25 +1,23 @@
-#[derive(Debug, Clone, Copy)]
-pub enum Op {
-    Push(i32),
-    Pop,
-    Insert(usize, i32),
-    Remove(usize),
+/// Removes the elements at `indices` (any order, repeats allowed, out-of-range ones ignored), keeping the
+/// rest in order. O(n + k log k).
+pub fn remove_indices<T>(v: &mut Vec<T>, indices: &[usize]) {
+    let mut idx = indices.to_vec();
+    idx.sort_unstable();
+    idx.dedup();
+    let mut next = idx.iter().peekable();
+    let mut i = 0;
+    v.retain(|_| {
+        let drop = next.next_if_eq(&&i).is_some();
+        i += 1;
+        !drop
+    });
 }
 
-pub fn apply(ops: &[Op]) -> Vec<i32> {
-    let mut v = Vec::new();
-    for &op in ops {
-        match op {
-            Op::Push(x) => v.push(x),
-            Op::Pop => {
-                v.pop();
-            }
-            Op::Insert(i, x) if i <= v.len() => v.insert(i, x),
-            Op::Remove(i) if i < v.len() => {
-                v.remove(i);
-            }
-            Op::Insert(..) | Op::Remove(_) => {}
-        }
-    }
-    v
+/// Removes the elements at `indices` with `swap_remove`, highest index first, and returns them in that
+/// order. The order of what's left is whatever that produces. O(k log k): nothing is shifted.
+pub fn remove_indices_unordered<T>(v: &mut Vec<T>, indices: &[usize]) -> Vec<T> {
+    let mut idx: Vec<usize> = indices.iter().copied().filter(|&i| i < v.len()).collect();
+    idx.sort_unstable_by(|a, b| b.cmp(a));
+    idx.dedup();
+    idx.into_iter().map(|i| v.swap_remove(i)).collect()
 }

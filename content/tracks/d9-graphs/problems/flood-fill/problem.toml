@@ -1,0 +1,36 @@
+slug = "flood-fill"
+title = "Flood fill"
+mode = "write"
+level = "easy"
+stage = "traversal"
+order = 7
+status = "ready"
+tags = ["grid", "DFS", "stack"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
+teaches = [
+  "The first grid search: four neighbours, one bounds check.",
+  "Take the image by value and hand it back.",
+]
+constraints = ["1 ≤ rows, cols ≤ 500"]
+follow_up = "How would you fill a region in an image too large to hold in memory, scanning it row by row?"
+
+[[examples]]
+input = "image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2"
+output = "[[2,2,2],[2,2,0],[2,0,1]]"
+
+[[hints]]
+kind = "approach"
+text = "Remember the starting colour, then search outward from the start, repainting as you go."
+
+[[hints]]
+kind = "edge case"
+text = "If the new colour equals the old one, repainting never marks anything as done. Return early."
+
+[[hints]]
+kind = "rust"
+text = "Taking `mut image: Vec<Vec<u32>>` by value lets you edit it in place and return it, with no copy."
+
+[solution]
+explanation = "Repainting a pixel is what marks it visited, so no `seen` grid is needed, as long as the new colour differs from the old. An explicit stack keeps a 125,000-pixel corridor off the call stack."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

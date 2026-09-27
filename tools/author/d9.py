@@ -912,6 +912,709 @@ P.append(dict(
 # ---------------------------------------------------------------- traversal
 
 P.append(dict(
+    slug="flood-fill", title="Flood fill", level="easy", stage="traversal",
+    tags=["grid", "DFS", "stack"],
+    teaches=["The first grid search: four neighbours, one bounds check.", "Take the image by value and hand it back."],
+    statement="""
+        Starting at pixel `(sr, sc)`, repaint it and every pixel connected to it (up, down, left, right)
+        through pixels of the same starting colour with `color`. Return the image.
+    """,
+    examples=[("image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2", "[[2,2,2],[2,2,0],[2,0,1]]")],
+    constraints=["1 ≤ rows, cols ≤ 500"],
+    starter="""
+        pub fn flood_fill(image: Vec<Vec<u32>>, sr: usize, sc: usize, color: u32) -> Vec<Vec<u32>> {
+            todo!()
+        }
+    """,
+    solution=f"""
+        pub fn flood_fill(mut image: Vec<Vec<u32>>, sr: usize, sc: usize, color: u32) -> Vec<Vec<u32>> {{
+            let old = image[sr][sc];
+            if old == color {{
+                return image;
+            }}
+            let (h, w) = (image.len(), image[0].len());
+            image[sr][sc] = color;
+            let mut stack = vec![(sr, sc)];
+            while let Some((r, c)) = stack.pop() {{
+                for (nr, nc) in {NEAR} {{
+                    if nr < h && nc < w && image[nr][nc] == old {{
+                        image[nr][nc] = color;
+                        stack.push((nr, nc));
+                    }}
+                }}
+            }}
+            image
+        }}
+    """,
+    visible=[
+        T("fills_the_region", "image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2",
+          "flood_fill(vec![vec![1, 1, 1], vec![1, 1, 0], vec![1, 0, 1]], 1, 1, 2)", "vec![vec![2, 2, 2], vec![2, 2, 0], vec![2, 0, 1]]"),
+        T("already_that_colour", "image = [[0,0,0],[0,0,0]], sr = 0, sc = 0, color = 0",
+          "flood_fill(vec![vec![0, 0, 0], vec![0, 0, 0]], 0, 0, 0)", "vec![vec![0, 0, 0], vec![0, 0, 0]]"),
+        T("single_pixel", "image = [[5]], sr = 0, sc = 0, color = 9", "flood_fill(vec![vec![5]], 0, 0, 9)", "vec![vec![9]]"),
+        T("diagonals_are_not_neighbours", "image = [[1,0],[0,1]], sr = 0, sc = 0, color = 3", "flood_fill(vec![vec![1, 0], vec![0, 1]], 0, 0, 3)", "vec![vec![3, 0], vec![0, 1]]"),
+        T("only_the_starting_colour_spreads", "image = [[1,2,1],[1,2,1]], sr = 0, sc = 0, color = 2",
+          "flood_fill(vec![vec![1, 2, 1], vec![1, 2, 1]], 0, 0, 2)", "vec![vec![2, 2, 1], vec![2, 2, 1]]"),
+    ],
+    hidden=[
+        T("same_colour_nonzero", "image = [[4,4],[4,4]], sr = 1, sc = 1, color = 4", "flood_fill(vec![vec![4, 4], vec![4, 4]], 1, 1, 4)", "vec![vec![4, 4], vec![4, 4]]"),
+        T("start_in_a_corner", "image = [[0,0,1],[1,0,1],[1,1,0]], sr = 2, sc = 2, color = 7",
+          "flood_fill(vec![vec![0, 0, 1], vec![1, 0, 1], vec![1, 1, 0]], 2, 2, 7)", "vec![vec![0, 0, 1], vec![1, 0, 1], vec![1, 1, 7]]"),
+        T("whole_image", "image = 3×4 of 6, sr = 1, sc = 2, color = 1", "flood_fill(vec![vec![6; 4]; 3], 1, 2, 1)", "vec![vec![1; 4]; 3]"),
+        T("largest_colour", "image = [[0,0],[1,0]], sr = 0, sc = 1, color = u32::MAX", "flood_fill(vec![vec![0, 0], vec![1, 0]], 0, 1, u32::MAX)", "vec![vec![u32::MAX, u32::MAX], vec![1, u32::MAX]]"),
+        T("single_row", "image = [[1,1,0,1,1]], sr = 0, sc = 4, color = 2", "flood_fill(vec![vec![1, 1, 0, 1, 1]], 0, 4, 2)", "vec![vec![1, 1, 0, 2, 2]]"),
+        T("around_a_wall", "image = [[1,1,1],[0,0,1],[1,1,1]], sr = 2, sc = 0, color = 5",
+          "flood_fill(vec![vec![1, 1, 1], vec![0, 0, 1], vec![1, 1, 1]], 2, 0, 5)", "vec![vec![5, 5, 5], vec![0, 0, 5], vec![5, 5, 5]]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(936);
+            for _ in 0..300 {
+                let (h, w) = (1 + rng.below(5), 1 + rng.below(5));
+                let image: Vec<Vec<u32>> = (0..h).map(|_| rng.vec(w, 0, 2)).collect();
+                let (sr, sc, color) = (rng.below(h), rng.below(w), rng.int(0, 3) as u32);
+                // Brute force: grow the region until it stops changing, then paint it.
+                let old = image[sr][sc];
+                let mut region = vec![vec![false; w]; h];
+                region[sr][sc] = true;
+                let mut changed = true;
+                while changed {
+                    changed = false;
+                    for r in 0..h {
+                        for c in 0..w {
+                            let near = [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)];
+                            if !region[r][c] && image[r][c] == old && near.iter().any(|&(a, b)| a < h && b < w && region[a][b]) {
+                                region[r][c] = true;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+                let want: Vec<Vec<u32>> = (0..h).map(|r| (0..w).map(|c| if region[r][c] { color } else { image[r][c] }).collect()).collect();
+                check!(format!("image = {image:?}, sr = {sr}, sc = {sc}, color = {color}"), flood_fill(image.clone(), sr, sc, color), want);
+            }
+        }
+
+        #[test]
+        fn scale_snake_499x500() {
+            // One corridor 125249 pixels long, winding through the whole image.
+            let image: Vec<Vec<u32>> = (0..499).map(|r| if r % 2 == 0 { vec![1; 500] } else { let mut row = vec![0; 500]; row[if r % 4 == 1 { 499 } else { 0 }] = 1; row }).collect();
+            let out = flood_fill(image, 0, 0, 7);
+            let painted = out.iter().flatten().filter(|&&p| p == 7).count();
+            check!("499×500 snake corridor, fill from (0, 0)", (painted, out[498][0], out[498][499], out[1][0]), (125_249, 7, 7, 0));
+        }
+        """,
+    ],
+    wrong=dict(
+        no_same_colour_check="""
+            pub fn flood_fill(mut image: Vec<Vec<u32>>, sr: usize, sc: usize, color: u32) -> Vec<Vec<u32>> {
+                let old = image[sr][sc];
+                let (h, w) = (image.len(), image[0].len());
+                let mut stack = vec![(sr, sc)];
+                while let Some((r, c)) = stack.pop() {
+                    image[r][c] = color;
+                    for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                        if nr < h && nc < w && image[nr][nc] == old {
+                            stack.push((nr, nc));
+                        }
+                    }
+                }
+                image
+            }
+        """,
+        recursive="""
+            pub fn flood_fill(mut image: Vec<Vec<u32>>, sr: usize, sc: usize, color: u32) -> Vec<Vec<u32>> {
+                fn paint(image: &mut Vec<Vec<u32>>, r: usize, c: usize, old: u32, color: u32) {
+                    if r >= image.len() || c >= image[0].len() || image[r][c] != old {
+                        return;
+                    }
+                    image[r][c] = color;
+                    paint(image, r.wrapping_sub(1), c, old, color);
+                    paint(image, r + 1, c, old, color);
+                    paint(image, r, c.wrapping_sub(1), old, color);
+                    paint(image, r, c + 1, old, color);
+                }
+                let old = image[sr][sc];
+                if old != color {
+                    paint(&mut image, sr, sc, old, color);
+                }
+                image
+            }
+        """,
+        eight_neighbours="""
+            pub fn flood_fill(mut image: Vec<Vec<u32>>, sr: usize, sc: usize, color: u32) -> Vec<Vec<u32>> {
+                let old = image[sr][sc];
+                if old == color {
+                    return image;
+                }
+                let (h, w) = (image.len(), image[0].len());
+                image[sr][sc] = color;
+                let mut stack = vec![(sr, sc)];
+                while let Some((r, c)) = stack.pop() {
+                    for dr in [usize::MAX, 0, 1] {
+                        for dc in [usize::MAX, 0, 1] {
+                            let (nr, nc) = (r.wrapping_add(dr), c.wrapping_add(dc));
+                            if nr < h && nc < w && image[nr][nc] == old {
+                                image[nr][nc] = color;
+                                stack.push((nr, nc));
+                            }
+                        }
+                    }
+                }
+                image
+            }
+        """,
+    ),
+    hints=[("approach", "Remember the starting colour, then search outward from the start, repainting as you go."),
+           ("edge case", "If the new colour equals the old one, repainting never marks anything as done. Return early."),
+           ("rust", "Taking `mut image: Vec<Vec<u32>>` by value lets you edit it in place and return it, with no copy.")],
+    notes=("Repainting a pixel is what marks it visited, so no `seen` grid is needed, as long as the new colour differs from the old. An explicit stack keeps a 125,000-pixel corridor off the call stack.", "O(rows · cols)", "O(rows · cols)"),
+    follow_up="How would you fill a region in an image too large to hold in memory, scanning it row by row?",
+))
+
+P.append(dict(
+    slug="island-perimeter", title="Island perimeter", level="easy", stage="traversal",
+    tags=["grid", "counting"],
+    teaches=["Count what you need instead of searching.", "Each shared edge removes two sides."],
+    statement="""
+        In `grid`, `1` is land and `0` is water. Return the total perimeter of the land: the number of land-cell
+        sides that face water or the edge of the map.
+    """,
+    examples=[("grid = [[0,1,0,0],[1,1,1,0],[0,1,0,0],[1,1,0,0]]", "16")],
+    constraints=["1 ≤ rows, cols ≤ 500"],
+    starter="""
+        pub fn island_perimeter(grid: &[Vec<u8>]) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn island_perimeter(grid: &[Vec<u8>]) -> usize {
+            let mut sides = 0;
+            for (r, row) in grid.iter().enumerate() {
+                for (c, &cell) in row.iter().enumerate() {
+                    if cell == 1 {
+                        sides += 4;
+                        // A land neighbour above or to the left hides one side of each cell.
+                        if r > 0 && grid[r - 1][c] == 1 {
+                            sides -= 2;
+                        }
+                        if c > 0 && row[c - 1] == 1 {
+                            sides -= 2;
+                        }
+                    }
+                }
+            }
+            sides
+        }
+    """,
+    visible=[
+        T("one_island", "grid = [[0,1,0,0],[1,1,1,0],[0,1,0,0],[1,1,0,0]]", "island_perimeter(&[vec![0, 1, 0, 0], vec![1, 1, 1, 0], vec![0, 1, 0, 0], vec![1, 1, 0, 0]])", "16"),
+        T("one_cell", "grid = [[1]]", "island_perimeter(&[vec![1]])", "4"),
+        T("cell_beside_water", "grid = [[1,0]]", "island_perimeter(&[vec![1, 0]])", "4"),
+        T("no_land", "grid = [[0,0],[0,0]]", "island_perimeter(&[vec![0, 0], vec![0, 0]])", "0"),
+        T("square_block", "grid = [[1,1],[1,1]]", "island_perimeter(&[vec![1, 1], vec![1, 1]])", "8"),
+    ],
+    hidden=[
+        T("ring_around_a_lake", "grid = [[1,1,1],[1,0,1],[1,1,1]]", "island_perimeter(&[vec![1, 1, 1], vec![1, 0, 1], vec![1, 1, 1]])", "16"),
+        T("row", "grid = [[1,1,1,1,1]]", "island_perimeter(&[vec![1, 1, 1, 1, 1]])", "12"),
+        T("column", "grid = [[1],[1],[1]]", "island_perimeter(&[vec![1], vec![1], vec![1]])", "8"),
+        T("diagonal_cells", "grid = [[1,0,1],[0,1,0],[1,0,1]]", "island_perimeter(&[vec![1, 0, 1], vec![0, 1, 0], vec![1, 0, 1]])", "20"),
+        T("all_land_500", "500×500 all land", "island_perimeter(&vec![vec![1; 500]; 500])", "2000"),
+        T("l_shape", "grid = [[1,0],[1,1]]", "island_perimeter(&[vec![1, 0], vec![1, 1]])", "8"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(937);
+            for _ in 0..300 {
+                let (h, w) = (1 + rng.below(6), 1 + rng.below(6));
+                let grid: Vec<Vec<u8>> = (0..h).map(|_| rng.vec(w, 0, 1)).collect();
+                // Brute force: look at all four sides of every land cell.
+                let mut want = 0;
+                for r in 0..h {
+                    for c in 0..w {
+                        if grid[r][c] == 1 {
+                            for (a, b) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                                if a >= h || b >= w || grid[a][b] == 0 {
+                                    want += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                check!(format!("grid = {grid:?}"), island_perimeter(&grid), want);
+            }
+        }
+
+        #[test]
+        fn scale_snake_499x500() {
+            let g: Vec<Vec<u8>> = (0..499).map(|r| if r % 2 == 0 { vec![1; 500] } else { let mut row = vec![0; 500]; row[if r % 4 == 1 { 499 } else { 0 }] = 1; row }).collect();
+            check!("499×500 snake corridor", island_perimeter(&g), 250_500);
+        }
+        """,
+    ],
+    wrong=dict(
+        shared_side_counted_once="""
+            pub fn island_perimeter(grid: &[Vec<u8>]) -> usize {
+                let mut sides = 0;
+                for (r, row) in grid.iter().enumerate() {
+                    for (c, &cell) in row.iter().enumerate() {
+                        if cell == 1 {
+                            sides += 4;
+                            if r > 0 && grid[r - 1][c] == 1 {
+                                sides -= 1;
+                            }
+                            if c > 0 && row[c - 1] == 1 {
+                                sides -= 1;
+                            }
+                        }
+                    }
+                }
+                sides
+            }
+        """,
+        map_edge_is_not_water="""
+            pub fn island_perimeter(grid: &[Vec<u8>]) -> usize {
+                let (h, w) = (grid.len(), grid[0].len());
+                let mut sides = 0;
+                for r in 0..h {
+                    for c in 0..w {
+                        if grid[r][c] == 1 {
+                            for (a, b) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                                if a < h && b < w && grid[a][b] == 0 {
+                                    sides += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                sides
+            }
+        """,
+    ),
+    hints=[("approach", "Every land cell has 4 sides. Which of them are not part of the perimeter?"),
+           ("approach", "Two land cells side by side hide one side each. Count each shared side once, from the cell below or to the right, and subtract 2."),
+           ("edge case", "The edge of the map counts as water.")],
+    notes=("No search needed: 4 per land cell, minus 2 per pair of adjacent land cells. Lakes inside the island count too, since their shores face water.", "O(rows · cols)", "O(1)"),
+    follow_up="How would you return the perimeter of each island separately?",
+))
+
+P.append(dict(
+    slug="max-area-of-island", title="Max area of island", level="easy", stage="traversal",
+    tags=["grid", "flood fill"],
+    teaches=["Flood fill that counts as it goes.", "Keeping a running maximum across searches."],
+    statement="""
+        In `grid`, `1` is land and `0` is water. An island is land connected up, down, left or right. Return
+        the number of cells in the largest island, or 0 if there's no land.
+    """,
+    examples=[("grid = [[1,1,0],[0,1,0],[0,0,1]]", "3")],
+    constraints=["1 ≤ rows, cols ≤ 500"],
+    starter="""
+        pub fn max_area_of_island(grid: &[Vec<u8>]) -> usize {
+            todo!()
+        }
+    """,
+    solution=f"""
+        pub fn max_area_of_island(grid: &[Vec<u8>]) -> usize {{
+            let (h, w) = (grid.len(), grid.first().map_or(0, Vec::len));
+            let mut seen = vec![vec![false; w]; h];
+            let mut best = 0;
+            for r0 in 0..h {{
+                for c0 in 0..w {{
+                    if grid[r0][c0] != 1 || seen[r0][c0] {{
+                        continue;
+                    }}
+                    seen[r0][c0] = true;
+                    let mut stack = vec![(r0, c0)];
+                    let mut area = 0;
+                    while let Some((r, c)) = stack.pop() {{
+                        area += 1;
+                        for (nr, nc) in {NEAR} {{
+                            if nr < h && nc < w && grid[nr][nc] == 1 && !seen[nr][nc] {{
+                                seen[nr][nc] = true;
+                                stack.push((nr, nc));
+                            }}
+                        }}
+                    }}
+                    best = best.max(area);
+                }}
+            }}
+            best
+        }}
+    """,
+    visible=[
+        T("largest_of_several", "the 8×13 grid from the classic example",
+          "max_area_of_island(&[vec![0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], vec![0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0], vec![0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0], vec![0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0], vec![0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0], vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], vec![0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0], vec![0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]])",
+          "6"),
+        T("no_land", "grid = [[0,0,0,0,0,0,0,0]]", "max_area_of_island(&[vec![0, 0, 0, 0, 0, 0, 0, 0]])", "0"),
+        T("single_cell", "grid = [[1]]", "max_area_of_island(&[vec![1]])", "1"),
+        T("diagonals_dont_join", "grid = [[1,0],[0,1]]", "max_area_of_island(&[vec![1, 0], vec![0, 1]])", "1"),
+        T("bigger_island_later", "grid = [[1,0,1],[0,0,1],[0,1,1]]", "max_area_of_island(&[vec![1, 0, 1], vec![0, 0, 1], vec![0, 1, 1]])", "4"),
+    ],
+    hidden=[
+        T("ring", "grid = [[1,1,1],[1,0,1],[1,1,1]]", "max_area_of_island(&[vec![1, 1, 1], vec![1, 0, 1], vec![1, 1, 1]])", "8"),
+        T("checkerboard", "grid = [[1,0,1],[0,1,0],[1,0,1]]", "max_area_of_island(&[vec![1, 0, 1], vec![0, 1, 0], vec![1, 0, 1]])", "1"),
+        T("equal_islands", "grid = [[1,1,0,1,1]]", "max_area_of_island(&[vec![1, 1, 0, 1, 1]])", "2"),
+        T("u_shape", "grid = [[1,0,1],[1,0,1],[1,1,1]]", "max_area_of_island(&[vec![1, 0, 1], vec![1, 0, 1], vec![1, 1, 1]])", "7"),
+        T("touching_only_at_a_corner", "grid = [[1,1,0],[0,0,1],[0,1,1]]", "max_area_of_island(&[vec![1, 1, 0], vec![0, 0, 1], vec![0, 1, 1]])", "3"),
+        T("all_land_500", "500×500 all land", "max_area_of_island(&vec![vec![1; 500]; 500])", "250_000"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(938);
+            for _ in 0..300 {
+                let (h, w) = (1 + rng.below(6), 1 + rng.below(6));
+                let grid: Vec<Vec<u8>> = (0..h).map(|_| rng.vec(w, 0, 1)).collect();
+                // Brute force: label propagation, then the most common label among land cells.
+                let mut label: Vec<Vec<usize>> = (0..h).map(|r| (0..w).map(|c| r * w + c).collect()).collect();
+                let mut changed = true;
+                while changed {
+                    changed = false;
+                    for r in 0..h {
+                        for c in 0..w {
+                            for (a, b) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                                if grid[r][c] == 1 && a < h && b < w && grid[a][b] == 1 && label[a][b] < label[r][c] {
+                                    label[r][c] = label[a][b];
+                                    changed = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                let want = (0..h * w).map(|l| (0..h).flat_map(|r| (0..w).map(move |c| (r, c))).filter(|&(r, c)| grid[r][c] == 1 && label[r][c] == l).count()).max().unwrap_or(0);
+                check!(format!("grid = {grid:?}"), max_area_of_island(&grid), want);
+            }
+        }
+
+        #[test]
+        fn scale_snake_499x500() {
+            let g: Vec<Vec<u8>> = (0..499).map(|r| if r % 2 == 0 { vec![1; 500] } else { let mut row = vec![0; 500]; row[if r % 4 == 1 { 499 } else { 0 }] = 1; row }).collect();
+            check!("499×500 snake corridor", max_area_of_island(&g), 125_249);
+        }
+        """,
+    ],
+    wrong=dict(
+        recursive="""
+            pub fn max_area_of_island(grid: &[Vec<u8>]) -> usize {
+                fn area(grid: &[Vec<u8>], seen: &mut Vec<Vec<bool>>, r: usize, c: usize) -> usize {
+                    if r >= grid.len() || c >= grid[0].len() || grid[r][c] != 1 || seen[r][c] {
+                        return 0;
+                    }
+                    seen[r][c] = true;
+                    1 + area(grid, seen, r.wrapping_sub(1), c) + area(grid, seen, r + 1, c) + area(grid, seen, r, c.wrapping_sub(1)) + area(grid, seen, r, c + 1)
+                }
+                let mut seen = vec![vec![false; grid[0].len()]; grid.len()];
+                let mut best = 0;
+                for r in 0..grid.len() {
+                    for c in 0..grid[0].len() {
+                        best = best.max(area(grid, &mut seen, r, c));
+                    }
+                }
+                best
+            }
+        """,
+        first_island_only="""
+            pub fn max_area_of_island(grid: &[Vec<u8>]) -> usize {
+                let (h, w) = (grid.len(), grid[0].len());
+                let Some(start) = (0..h).flat_map(|r| (0..w).map(move |c| (r, c))).find(|&(r, c)| grid[r][c] == 1) else {
+                    return 0;
+                };
+                let mut seen = vec![vec![false; w]; h];
+                seen[start.0][start.1] = true;
+                let mut stack = vec![start];
+                let mut area = 0;
+                while let Some((r, c)) = stack.pop() {
+                    area += 1;
+                    for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                        if nr < h && nc < w && grid[nr][nc] == 1 && !seen[nr][nc] {
+                            seen[nr][nc] = true;
+                            stack.push((nr, nc));
+                        }
+                    }
+                }
+                area
+            }
+        """,
+    ),
+    hints=[("approach", "Same scan as Number of islands, but have each flood fill count the cells it visits."),
+           ("rust", "Keep `best` outside the loops and update it with `best.max(area)` after each island."),
+           ("edge case", "A 250,000-cell island overflows a recursive fill. Use an explicit stack.")],
+    notes=("Every cell is visited once overall, even though there are several searches. The answer is 0 when no search starts.", "O(rows · cols)", "O(rows · cols)"),
+    follow_up="How would you find the largest island if you could turn one water cell into land? (Making a large island, later in this track.)",
+))
+
+P.append(dict(
+    slug="number-of-provinces", title="Number of provinces", level="medium", stage="traversal",
+    tags=["adjacency matrix", "DFS"],
+    teaches=["Searching a graph given as an adjacency matrix.", "Components: count the searches you have to start."],
+    statement="""
+        There are `n` cities. `connected[i][j] == 1` means cities `i` and `j` are directly linked (the matrix is
+        symmetric and `connected[i][i] == 1`). A province is a group of cities linked directly or through other
+        cities. Return the number of provinces.
+    """,
+    examples=[("connected = [[1,1,0],[1,1,0],[0,0,1]]", "2")],
+    constraints=["1 ≤ n ≤ 2000"],
+    starter="""
+        pub fn count_provinces(connected: &[Vec<u8>]) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn count_provinces(connected: &[Vec<u8>]) -> usize {
+            let n = connected.len();
+            let mut seen = vec![false; n];
+            let mut provinces = 0;
+            for start in 0..n {
+                if seen[start] {
+                    continue;
+                }
+                provinces += 1;
+                seen[start] = true;
+                let mut stack = vec![start];
+                while let Some(u) = stack.pop() {
+                    for v in 0..n {
+                        if connected[u][v] == 1 && !seen[v] {
+                            seen[v] = true;
+                            stack.push(v);
+                        }
+                    }
+                }
+            }
+            provinces
+        }
+    """,
+    visible=[
+        T("two_provinces", "connected = [[1,1,0],[1,1,0],[0,0,1]]", "count_provinces(&[vec![1, 1, 0], vec![1, 1, 0], vec![0, 0, 1]])", "2"),
+        T("all_separate", "connected = [[1,0,0],[0,1,0],[0,0,1]]", "count_provinces(&[vec![1, 0, 0], vec![0, 1, 0], vec![0, 0, 1]])", "3"),
+        T("one_city", "connected = [[1]]", "count_provinces(&[vec![1]])", "1"),
+        T("linked_through_a_middle_city", "connected = [[1,0,1],[0,1,1],[1,1,1]]", "count_provinces(&[vec![1, 0, 1], vec![0, 1, 1], vec![1, 1, 1]])", "1"),
+        T("all_linked", "connected = [[1,1],[1,1]]", "count_provinces(&[vec![1, 1], vec![1, 1]])", "1"),
+    ],
+    hidden=[
+        T("chain", "0-1, 1-2, 2-3", "count_provinces(&[vec![1, 1, 0, 0], vec![1, 1, 1, 0], vec![0, 1, 1, 1], vec![0, 0, 1, 1]])", "1"),
+        T("pairs", "0-3 and 1-2", "count_provinces(&[vec![1, 0, 0, 1], vec![0, 1, 1, 0], vec![0, 1, 1, 0], vec![1, 0, 0, 1]])", "2"),
+        T("last_city_alone", "0-1-2 linked, 3 alone", "count_provinces(&[vec![1, 1, 1, 0], vec![1, 1, 1, 0], vec![1, 1, 1, 0], vec![0, 0, 0, 1]])", "2"),
+        T("hub_city", "city 0 linked to all others, which aren't linked to each other", "count_provinces(&[vec![1, 1, 1, 1], vec![1, 1, 0, 0], vec![1, 0, 1, 0], vec![1, 0, 0, 1]])", "1"),
+        T("identity_2000", "2000 cities, no links", "count_provinces(&m)", "2000",
+          setup="let m: Vec<Vec<u8>> = (0..2000).map(|i| (0..2000).map(|j| u8::from(i == j)).collect()).collect();"),
+        T("long_chain_2000", "2000 cities, i linked to i + 1", "count_provinces(&m)", "1",
+          setup="let m: Vec<Vec<u8>> = (0..2000usize).map(|i| (0..2000usize).map(|j| u8::from(i.abs_diff(j) <= 1)).collect()).collect();"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(939);
+            for _ in 0..300 {
+                let n = 1 + rng.below(8);
+                let mut m = vec![vec![0u8; n]; n];
+                for i in 0..n {
+                    m[i][i] = 1;
+                    for j in i + 1..n {
+                        if rng.below(4) == 0 {
+                            m[i][j] = 1;
+                            m[j][i] = 1;
+                        }
+                    }
+                }
+                // Brute force: label propagation over the matrix.
+                let mut label: Vec<usize> = (0..n).collect();
+                let mut changed = true;
+                while changed {
+                    changed = false;
+                    for i in 0..n {
+                        for j in 0..n {
+                            if m[i][j] == 1 && label[j] < label[i] {
+                                label[i] = label[j];
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+                let want = (0..n).filter(|&i| label[i] == i).count();
+                check!(format!("connected = {m:?}"), count_provinces(&m), want);
+            }
+        }
+
+        #[test]
+        fn scale_two_interleaved_provinces() {
+            // Even cities form one chain and odd cities another: i links to i + 2.
+            let n = 2000;
+            let m: Vec<Vec<u8>> = (0..n).map(|i: usize| (0..n).map(|j: usize| u8::from(i == j || i.abs_diff(j) == 2)).collect()).collect();
+            check!("2000 cities, i linked to i + 2", count_provinces(&m), 2);
+        }
+        """,
+    ],
+    wrong=dict(
+        transitive_closure="""
+            pub fn count_provinces(connected: &[Vec<u8>]) -> usize {
+                let n = connected.len();
+                let mut reach: Vec<Vec<bool>> = connected.iter().map(|row| row.iter().map(|&x| x == 1).collect()).collect();
+                for k in 0..n {
+                    for i in 0..n {
+                        if reach[i][k] {
+                            for j in 0..n {
+                                if reach[k][j] {
+                                    reach[i][j] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                (0..n).filter(|&i| (0..i).all(|j| !reach[i][j])).count()
+            }
+        """,
+        direct_links_only="""
+            pub fn count_provinces(connected: &[Vec<u8>]) -> usize {
+                // A city starts a new province unless it links directly to an earlier city.
+                let n = connected.len();
+                (0..n).filter(|&i| (0..i).all(|j| connected[i][j] == 0)).count()
+            }
+        """,
+    ),
+    hints=[("approach", "It's counting connected components. Each time you meet an unvisited city, that's a new province: search from it and mark everything you reach."),
+           ("rust", "With a matrix, a city's neighbours are the `v` in `0..n` where `connected[u][v] == 1`."),
+           ("edge case", "Cities can be linked only through others, so looking at direct links alone undercounts merges.")],
+    notes=("Each city is pushed once, and each push scans its row of the matrix, so the matrix is read once overall. Union-find over the upper triangle works equally well.", "O(n²)", "O(n)"),
+    follow_up="If the links arrived one by one and you had to report the province count after each, what would you use?",
+))
+
+P.append(dict(
+    slug="keys-and-rooms", title="Keys and rooms", level="medium", stage="traversal",
+    tags=["DFS", "reachability"],
+    teaches=["Reachability from one start node.", "Counting visited nodes instead of scanning a `seen` Vec at the end."],
+    statement="""
+        Room `0` is open; every other room is locked. `rooms[i]` lists the keys found in room `i` (key `k`
+        opens room `k`). Return whether you can enter every room.
+    """,
+    examples=[("rooms = [[1],[2],[3],[]]", "true"), ("rooms = [[1,3],[3,0,1],[2],[0]]", "false")],
+    constraints=["1 ≤ rooms.len() ≤ 2·10⁵", "total keys ≤ 2·10⁵"],
+    starter="""
+        pub fn can_visit_all_rooms(rooms: &[Vec<usize>]) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn can_visit_all_rooms(rooms: &[Vec<usize>]) -> bool {
+            let mut seen = vec![false; rooms.len()];
+            seen[0] = true;
+            let mut entered = 1;
+            let mut stack = vec![0];
+            while let Some(room) = stack.pop() {
+                for &key in &rooms[room] {
+                    if !seen[key] {
+                        seen[key] = true;
+                        entered += 1;
+                        stack.push(key);
+                    }
+                }
+            }
+            entered == rooms.len()
+        }
+    """,
+    visible=[
+        T("chain_of_keys", "rooms = [[1],[2],[3],[]]", "can_visit_all_rooms(&[vec![1], vec![2], vec![3], vec![]])", "true"),
+        T("one_room_stays_locked", "rooms = [[1,3],[3,0,1],[2],[0]]", "can_visit_all_rooms(&[vec![1, 3], vec![3, 0, 1], vec![2], vec![0]])", "false"),
+        T("only_room_zero", "rooms = [[]]", "can_visit_all_rooms(&[vec![]])", "true"),
+        T("key_locked_inside_its_own_room", "rooms = [[], [1]]", "can_visit_all_rooms(&[vec![], vec![1]])", "false"),
+        T("keys_found_later_still_count", "rooms = [[2],[],[1]]", "can_visit_all_rooms(&[vec![2], vec![], vec![1]])", "true"),
+    ],
+    hidden=[
+        T("duplicate_keys", "rooms = [[1,1,1],[0,0]]", "can_visit_all_rooms(&[vec![1, 1, 1], vec![0, 0]])", "true"),
+        T("keys_to_room_zero_only", "rooms = [[0],[0],[0]]", "can_visit_all_rooms(&[vec![0], vec![0], vec![0]])", "false"),
+        T("keys_in_reverse", "rooms = [[3],[],[1],[2]]", "can_visit_all_rooms(&[vec![3], vec![], vec![1], vec![2]])", "true"),
+        T("star", "room 0 holds every key", "can_visit_all_rooms(&[vec![4, 3, 2, 1], vec![], vec![], vec![], vec![]])", "true"),
+        T("cycle_skips_a_room", "rooms = [[1],[2],[0],[]]", "can_visit_all_rooms(&[vec![1], vec![2], vec![0], vec![]])", "false"),
+        T("last_room_unreachable_in_a_big_house", "200000 rooms, i holds key i + 1 except the second-to-last", "can_visit_all_rooms(&rooms)", "false",
+          setup="let n = 200_000;\nlet rooms: Vec<Vec<usize>> = (0..n).map(|i| if i + 2 < n { vec![i + 1] } else { vec![] }).collect();"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(940);
+            for _ in 0..300 {
+                let n = 1 + rng.below(7);
+                let rooms: Vec<Vec<usize>> = (0..n).map(|_| { let k = rng.below(3); (0..k).map(|_| rng.below(n)).collect() }).collect();
+                // Brute force: keep opening rooms whose key is in an open room until nothing changes.
+                let mut open = vec![false; n];
+                open[0] = true;
+                let mut changed = true;
+                while changed {
+                    changed = false;
+                    for i in 0..n {
+                        if open[i] {
+                            for &k in &rooms[i] {
+                                if !open[k] {
+                                    open[k] = true;
+                                    changed = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                check!(format!("rooms = {rooms:?}"), can_visit_all_rooms(&rooms), open.iter().all(|&o| o));
+            }
+        }
+
+        #[test]
+        fn scale_chain_200k() {
+            // Room i holds the key to room i + 1, listed so room 0 is visited first.
+            let n = 200_000;
+            let rooms: Vec<Vec<usize>> = (0..n).map(|i| if i + 1 < n { vec![i + 1] } else { vec![] }).collect();
+            check!("200000 rooms, room i holds key i + 1", can_visit_all_rooms(&rooms), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        recursive="""
+            pub fn can_visit_all_rooms(rooms: &[Vec<usize>]) -> bool {
+                fn enter(room: usize, rooms: &[Vec<usize>], seen: &mut [bool]) {
+                    seen[room] = true;
+                    for &key in &rooms[room] {
+                        if !seen[key] {
+                            enter(key, rooms, seen);
+                        }
+                    }
+                }
+                let mut seen = vec![false; rooms.len()];
+                enter(0, rooms, &mut seen);
+                seen.iter().all(|&s| s)
+            }
+        """,
+        visited_list="""
+            pub fn can_visit_all_rooms(rooms: &[Vec<usize>]) -> bool {
+                let mut visited = vec![0];
+                let mut i = 0;
+                while i < visited.len() {
+                    let room = visited[i];
+                    i += 1;
+                    for &key in &rooms[room] {
+                        if !visited.contains(&key) {
+                            visited.push(key);
+                        }
+                    }
+                }
+                visited.len() == rooms.len()
+            }
+        """,
+        every_key_is_reachable="""
+            pub fn can_visit_all_rooms(rooms: &[Vec<usize>]) -> bool {
+                // Wrong: checks that a key to every room exists somewhere, not that you can reach it.
+                let mut has_key = vec![false; rooms.len()];
+                has_key[0] = true;
+                for keys in rooms {
+                    for &k in keys {
+                        has_key[k] = true;
+                    }
+                }
+                has_key.iter().all(|&h| h)
+            }
+        """,
+    ),
+    hints=[("approach", "It's reachability from room 0: search from it, following keys as edges."),
+           ("rust", "Count rooms as you first mark them; at the end compare the count with `rooms.len()`."),
+           ("edge case", "A key sitting in a room you can't open doesn't help, even if it opens that very room.")],
+    notes=("Each room is entered once and each key looked at once. The explicit stack handles a 200,000-room chain that would overflow recursion.", "O(rooms + keys)", "O(rooms)"),
+    follow_up="Some rooms need two different keys to open. How does the search change?",
+))
+
+P.append(dict(
     slug="number-of-islands", title="Number of islands", level="easy", stage="traversal",
     tags=["flood fill", "grid", "Blind 75"],
     teaches=["Grid neighbours with `wrapping_sub` and one bounds check.", "An explicit stack instead of recursion."],
@@ -7011,6 +7714,11 @@ P.append(dict(
 ))
 
 COMPANIES = {
+    "flood-fill": ["Meta", "Amazon", "Google", "Microsoft"],
+    "island-perimeter": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"],
+    "max-area-of-island": ["Meta", "Amazon", "Google", "Microsoft", "LinkedIn"],
+    "number-of-provinces": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs"],
+    "keys-and-rooms": ["Amazon", "Google", "Microsoft"],
     "find-center-of-star-graph": ["Amazon", "Microsoft"],
     "find-if-path-exists": ["Amazon", "Google", "Microsoft"],
     "number-of-islands": ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "LinkedIn", "Uber"],

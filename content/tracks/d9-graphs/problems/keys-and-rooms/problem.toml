@@ -1,0 +1,40 @@
+slug = "keys-and-rooms"
+title = "Keys and rooms"
+mode = "write"
+level = "medium"
+stage = "traversal"
+order = 12
+status = "ready"
+tags = ["DFS", "reachability"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "Reachability from one start node.",
+  "Counting visited nodes instead of scanning a `seen` Vec at the end.",
+]
+constraints = ["1 ≤ rooms.len() ≤ 2·10⁵", "total keys ≤ 2·10⁵"]
+follow_up = "Some rooms need two different keys to open. How does the search change?"
+
+[[examples]]
+input = "rooms = [[1],[2],[3],[]]"
+output = "true"
+
+[[examples]]
+input = "rooms = [[1,3],[3,0,1],[2],[0]]"
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "It's reachability from room 0: search from it, following keys as edges."
+
+[[hints]]
+kind = "rust"
+text = "Count rooms as you first mark them; at the end compare the count with `rooms.len()`."
+
+[[hints]]
+kind = "edge case"
+text = "A key sitting in a room you can't open doesn't help, even if it opens that very room."
+
+[solution]
+explanation = "Each room is entered once and each key looked at once. The explicit stack handles a 200,000-room chain that would overflow recursion."
+time = "O(rooms + keys)"
+space = "O(rooms)"

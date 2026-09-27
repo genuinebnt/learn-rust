@@ -1,0 +1,36 @@
+slug = "max-area-of-island"
+title = "Max area of island"
+mode = "write"
+level = "easy"
+stage = "traversal"
+order = 10
+status = "ready"
+tags = ["grid", "flood fill"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "LinkedIn"]
+teaches = [
+  "Flood fill that counts as it goes.",
+  "Keeping a running maximum across searches.",
+]
+constraints = ["1 ≤ rows, cols ≤ 500"]
+follow_up = "How would you find the largest island if you could turn one water cell into land? (Making a large island, later in this track.)"
+
+[[examples]]
+input = "grid = [[1,1,0],[0,1,0],[0,0,1]]"
+output = "3"
+
+[[hints]]
+kind = "approach"
+text = "Same scan as Number of islands, but have each flood fill count the cells it visits."
+
+[[hints]]
+kind = "rust"
+text = "Keep `best` outside the loops and update it with `best.max(area)` after each island."
+
+[[hints]]
+kind = "edge case"
+text = "A 250,000-cell island overflows a recursive fill. Use an explicit stack."
+
+[solution]
+explanation = "Every cell is visited once overall, even though there are several searches. The answer is 0 when no search starts."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

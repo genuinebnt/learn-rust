@@ -1,0 +1,36 @@
+slug = "number-of-provinces"
+title = "Number of provinces"
+mode = "write"
+level = "medium"
+stage = "traversal"
+order = 11
+status = "ready"
+tags = ["adjacency matrix", "DFS"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs"]
+teaches = [
+  "Searching a graph given as an adjacency matrix.",
+  "Components: count the searches you have to start.",
+]
+constraints = ["1 ≤ n ≤ 2000"]
+follow_up = "If the links arrived one by one and you had to report the province count after each, what would you use?"
+
+[[examples]]
+input = "connected = [[1,1,0],[1,1,0],[0,0,1]]"
+output = "2"
+
+[[hints]]
+kind = "approach"
+text = "It's counting connected components. Each time you meet an unvisited city, that's a new province: search from it and mark everything you reach."
+
+[[hints]]
+kind = "rust"
+text = "With a matrix, a city's neighbours are the `v` in `0..n` where `connected[u][v] == 1`."
+
+[[hints]]
+kind = "edge case"
+text = "Cities can be linked only through others, so looking at direct links alone undercounts merges."
+
+[solution]
+explanation = "Each city is pushed once, and each push scans its row of the matrix, so the matrix is read once overall. Union-find over the upper triangle works equally well."
+time = "O(n²)"
+space = "O(n)"

@@ -14,6 +14,7 @@ The requests it covers:
 6. Everyday Rust coverage: async/futures/pinning, threads, channels, the std functions you use daily, I/O,
    strings/bytes/slices, bits, matrices and math, common traits and generics, popular crates, CLI parsing,
    event loops and sockets (§9).
+7. An AI assistant (Gemini API): complexity analysis, suggestions, related content and similarity search (§11).
 
 ---
 
@@ -273,7 +274,9 @@ This is the "microservices" portfolio piece, and every stage is testable.
 |---|---|---|
 | 1 | **Finish the SDE-2 core content**: D6, D7, D8, D12 (DP), D10, D11, D13, D14; L4–L8; S5–S9 | The interview canon comes first; the dashboards need data to be useful |
 | 2 | ✅ Spaced repetition + Progress (overview, Rust stats, reviews), built 2026-09-27 · Today and Readiness pages still to build | With ~300 problems written, keeping them matters more than adding more. Reviews make the platform "anneal" |
+| 2a | **Test hardening** of all written problems: ≥3 visible and ≥8 hidden tests, edge checklists, seeded randomized brute-force comparisons, scale tests, `wrong/*.rs` solutions the verifier requires to fail | Every later step leans on "passes" meaning correct |
 | 2b | **Q concept cards** (card mode: mockup → build) + the §10.2 additions to L4, L5, S4, S6, S7 | The spoken half of interviews; reuses the review queue (§10) |
+| 2c | **AI assistant** (§11), in the order of §11.3 | Needs the hardened tests (2a) so the AI reviews correct code, and the review queue (2) for the assisted flag |
 | 3 | ~~6.1 vendored crates~~ done | Unblocked the concurrency/backend half of the curriculum |
 | 4 | C1–C4, B1–B6, M1–M2 content; shortline project | The backend SDE-2/SDE-3 core |
 | 4b | S12 bytes & encodings, S13 std drills (std-only, can start any time) · K1–K3 crates, grepr and chatd projects (after step 3) | Everyday fluency; §9 |
@@ -459,3 +462,48 @@ the other screens.
   order anyway.
 - Y6, B8 and B9 join steps 4 and 9. The extra crates go into `docker/deps` as those tracks are written.
 - Total from this audit: about +55 problems, +180 concept cards, and 3 new tracks.
+
+---
+
+## 11. AI assistant (Gemini)
+
+Requested 2026-09-27: AI help in the workspace (complexity analysis, suggestions) plus related content and
+similarity search, using the user's Gemini AI Studio API key.
+
+### 11.1 Ground rules
+
+- **The key stays on the server.** `GEMINI_API_KEY` in the API's environment; the browser only talks to
+  `/api/ai/*`. Without a key, every AI control is hidden and the rest of the app works unchanged.
+- **Models are configurable** (`ANNEAL_AI_MODEL_FAST`, `ANNEAL_AI_MODEL_DEEP`): a fast tier for explanations and
+  chat, a stronger tier for reviews.
+- **Grounded prompts.** Each request carries the problem statement, constraints, the user's code, the failing
+  test or diagnostic, and (after a solve only) the reference solution. Replies stream over SSE.
+- **Honest progress.** Any AI help before a solve marks the attempt *assisted*, exactly like a hint, so spaced
+  repetition (§1.2) isn't fooled. Help after a solve is free.
+- **No spoilers by default.** Before a solve the tutor gives nudges, not code; asking for more is an explicit
+  escalation that the attempt records.
+- **Cached and logged.** Answers are cached by (problem, feature, hash of the code), so repeats cost nothing and
+  the free tier's rate limits aren't a problem. Code leaves the machine for Google, which is fine for a
+  personal tool; the Settings page says so.
+
+### 11.2 Features
+
+| # | Feature | Where | Notes |
+|---|---|---|---|
+| AI1 | **Explain this error** | a button on each compiler/clippy card in the console | Plain-words explanation of the diagnostic *in this code*, borrow-checker errors first. Highest value per token |
+| AI2 | **Complexity check** | Tests panel, after a passing Submit | Gemini states time/space Big-O with the reasoning; the runner **measures** it too by timing the solution at n, 2n, 4n (per-problem `scale` generator) and fitting the growth. Disagreement is flagged, so the claim is checked, not trusted. Compared against the reference solution's complexity (new `complexity` field in problem.toml) |
+| AI3 | **Review** | Tests panel, after a solve | Idiomatic-Rust suggestions beyond clippy: iterator use, needless clones/allocations, ownership in signatures, error handling. Rendered as line-anchored comments in the editor (reuses the lens widget) |
+| AI4 | **Tutor chat** | a new left-panel tab | Socratic: asks what you tried, points at the failing case. Sees the same grounded context. Escalation levels: nudge, approach, pseudo-code |
+| AI5 | **Similar problems and search** | problem page (Related tab), catalog search box | Gemini embeddings of statement + tags + teaches for every problem, stored in Postgres with **pgvector**. A tags/teaches overlap ranking ships first (no AI needed) and stays as the fallback |
+| AI6 | **Targeted practice** | Progress page | Uses the embeddings plus the stats (§1): "most compile errors are E0502 in D9, try these three". Links to concept cards (§10.3) |
+| AI7 | **Interview follow-ups** | after a solve; the Mock page later | "What if the input streams?", "make it thread-safe": asks, then grades the spoken-style answer against a rubric |
+
+### 11.3 Order
+
+1. The shared plumbing: config, `/api/ai` proxy with SSE streaming, cache table, the assisted flag. Plus AI1.
+2. AI5 without AI (tag overlap), then with embeddings + pgvector (Postgres image needs the extension).
+3. AI2 (needs a `scale` generator per problem, which the test-hardening pass (§7 step 2a) adds anyway) and AI3.
+4. AI4 tutor chat, then AI6 and AI7.
+
+New UI (the AI panel, review comments, search box) is mocked up before it's built, like every screen.
+

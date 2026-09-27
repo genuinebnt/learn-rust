@@ -1,0 +1,269 @@
+<title>Workspace Layout Controls</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--grn:oklch(0.77 0.13 165);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--on-acc:oklch(0.17 0.02 255);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--num:oklch(0.79 0.11 45);--com:oklch(0.58 0.012 255);--shadow:oklch(0 0 0 / 0.35);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--sans:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;color-scheme:dark}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--grn:oklch(0.54 0.12 165);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--num:oklch(0.54 0.13 45);--com:oklch(0.56 0.012 255);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}}
+:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--grn:oklch(0.54 0.12 165);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--num:oklch(0.54 0.13 45);--com:oklch(0.56 0.012 255);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;padding-inline:16px;padding-block:28px 48px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+.page{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1{font-size:22px;font-weight:700;letter-spacing:-.015em;margin:0;text-wrap:balance}
+.lede{color:var(--mut);max-width:68ch;margin:6px 0 0;line-height:1.55}
+.controls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font:500 11px var(--mono);color:var(--dim);letter-spacing:.08em}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.seg button{padding:6px 12px;font:500 11px var(--mono);color:var(--dim);letter-spacing:.02em}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--acc-bg);color:var(--acc)}
+.frame{overflow-x:auto;border:1px solid var(--line);border-radius:8px;box-shadow:0 18px 50px var(--shadow);scrollbar-width:none}
+.frame::-webkit-scrollbar{display:none}
+
+/* ---------- the app ---------- */
+.app{min-width:1180px;height:640px;display:flex;flex-direction:column;background:var(--bg)}
+.hdr{height:44px;flex:none;display:flex;align-items:center;gap:22px;padding:0 20px;border-bottom:1px solid var(--line2);background:var(--panel);font-size:13px}
+.logo{font-weight:700;letter-spacing:-.02em}
+.logo i{color:var(--acc);font-style:normal}
+.hdr nav{display:flex;gap:18px;color:var(--dim);font-weight:500}
+.hdr nav b{color:var(--fg);font-weight:500}
+.subbar{height:44px;flex:none;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid var(--line2);background:var(--panel)}
+.crumb{display:flex;gap:8px;font:500 11px var(--mono);letter-spacing:.14em;color:var(--dim);white-space:nowrap}
+.vr{width:1px;height:18px;background:var(--line);flex:none}
+.wtitle{font-weight:600;font-size:15px;letter-spacing:-.01em;white-space:nowrap}
+.pill{font:600 10px var(--mono);letter-spacing:.08em;padding:3px 7px;border-radius:3px;border:1px solid var(--line);color:var(--dim)}
+.pill.solid{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+.sbr{margin-left:auto;display:flex;align-items:center;gap:14px;font:500 11px var(--mono);color:var(--dim)}
+.ws{flex:1;min-height:0;display:flex}
+.pane{display:flex;flex-direction:column;min-height:0;background:var(--panel);transition:width .18s ease}
+.pane.l{width:320px;border-right:1px solid var(--line2)}
+.pane.r{width:300px;border-left:1px solid var(--line2)}
+.pane.c{flex:1;min-width:0;background:var(--bg)}
+.app.no-l .pane.l,.app.no-r .pane.r{display:none}
+.tabs{height:40px;flex:none;display:flex;gap:18px;padding:0 18px;border-bottom:1px solid var(--line2);font-size:12.5px;font-weight:500;color:var(--dim);align-items:stretch}
+.tabs span{display:flex;align-items:center}
+.tabs .on{color:var(--fg);box-shadow:inset 0 -2px 0 var(--acc)}
+.pbody{padding:16px 18px;display:flex;flex-direction:column;gap:12px;font-size:13px;line-height:1.6;color:var(--mut);overflow:hidden}
+.pbody h3{margin:0;font-size:14px;color:var(--fg)}
+.pbody code{font:12px var(--mono);color:var(--fg);background:var(--raise);padding:1px 5px;border-radius:3px}
+.ftabs{height:40px;flex:none;display:flex;align-items:center;border-bottom:1px solid var(--line2);padding-right:14px}
+.ftab{height:100%;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid var(--line2);font:500 12px var(--mono);color:var(--dim);white-space:nowrap}
+.ftab.on{color:var(--fg);box-shadow:inset 0 2px 0 var(--acc)}
+.ftab small{font-size:10px;letter-spacing:.06em}
+.tools{margin-left:auto;display:flex;align-items:center;gap:14px;font:500 11px var(--mono);color:var(--dim)}
+.gbar{height:30px;flex:none;display:flex;align-items:center;gap:14px;padding-left:64px;border-bottom:1px solid var(--line2);font:500 11px var(--mono);color:var(--dim);white-space:nowrap}
+.gbar b{color:var(--fg);font-weight:500}
+.code{flex:1;min-height:0;padding:12px 0;font:13px/1.7 var(--mono);overflow:hidden}
+.ln{display:flex}
+.ln i{width:48px;padding-right:16px;text-align:right;color:var(--com);font-style:normal;flex:none}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fn)}.n{color:var(--num)}.c{color:var(--com)}
+.console{height:150px;flex:none;border-top:1px solid var(--line2);background:var(--panel);display:flex;flex-direction:column}
+.app.no-b .console{display:none}
+.ctabs{height:32px;flex:none;display:flex;align-items:stretch;gap:16px;padding:0 14px;border-bottom:1px solid var(--line2);font:500 11.5px var(--sans);color:var(--dim)}
+.ctabs span{display:flex;align-items:center}
+.ctabs .on{color:var(--fg);box-shadow:inset 0 -2px 0 var(--acc)}
+.ctabs .x{margin-left:auto;color:var(--dim)}
+.cbody{padding:10px 16px;font:12px/1.6 var(--mono);color:var(--mut)}
+.sev{font:600 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:3px;background:var(--bad-bg);color:var(--bad);margin-right:8px}
+.statusb{height:26px;flex:none;display:flex;align-items:center;gap:2px;padding:0 8px 0 10px;border-top:1px solid var(--line2);background:var(--panel);font:400 11px var(--mono);color:var(--dim);white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block}
+.si{height:20px;display:inline-flex;align-items:center;gap:6px;padding:0 5px;border-radius:4px;font:400 11px var(--mono);color:var(--dim)}
+button.si:hover{background:var(--raise);color:var(--fg)}
+button.si.off{color:color-mix(in oklab,var(--dim) 60%,transparent)}
+button.si.off .dot{background:transparent !important;box-shadow:inset 0 0 0 1px var(--line)}
+.spacer{flex:1}
+.lay{display:inline-flex;gap:2px;margin-left:6px;padding-left:8px;border-left:1px solid var(--line2)}
+.lay button{width:24px;height:20px;display:grid;place-items:center;border-radius:4px;color:var(--dim)}
+.lay button:hover{background:var(--raise);color:var(--fg)}
+.lay button.on{color:var(--fg)}
+.lay svg{width:15px;height:13px;display:block}
+.lay button:not(.on) .fill{fill:transparent}
+.fill{fill:currentColor}
+.acts{flex:none;display:flex;gap:8px;padding:14px 18px;border-top:1px solid var(--line2);margin-top:auto}
+.acts span{flex:1;height:34px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:4px;font-size:12.5px;font-weight:500}
+.acts span.go{background:var(--grn);border-color:var(--grn);color:var(--on-acc);font-weight:600}
+.acts small{font:10px var(--mono);opacity:.7}
+.tsum{display:flex;justify-content:space-between;align-items:baseline}
+.tsum b{color:var(--grn)}
+.tsum span{font:11px var(--mono);color:var(--dim)}
+.passbar{display:flex;gap:2px;height:6px}
+.passbar i{flex:1;border-radius:2px;background:var(--grn)}
+.passbar i.x{background:var(--bad)}
+.tc{display:flex;align-items:center;gap:8px;font:12px var(--mono);color:var(--mut);padding:7px 0;border-bottom:1px solid var(--line2)}
+.tc .sq{width:8px;height:8px;border-radius:2px;background:var(--grn)}
+.tc em{margin-left:auto;font-style:normal;color:var(--dim);font-size:11px}
+/* variant B: icons in the problem bar */
+.lay.sub{border-left:0;margin-left:0;padding-left:0;border:1px solid var(--line2);border-radius:5px;padding:2px}
+.tip{position:relative}
+.tip:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);right:0;background:var(--raise);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:4px 8px;font:500 11px var(--mono);white-space:nowrap;box-shadow:0 6px 18px var(--shadow);z-index:5}
+.subbar .tip:hover::after{bottom:auto;top:calc(100% + 8px)}
+
+/* notes */
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.note{border-top:2px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.note .lab{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--acc)}
+.note p{margin:0;color:var(--mut);font-size:13.5px;line-height:1.6;max-width:62ch}
+.note kbd{font:500 11px var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 5px;color:var(--fg)}
+.was{font:12px var(--mono);color:var(--dim)}
+</style>
+
+<div class="page">
+  <header>
+    <h1>Workspace layout controls</h1>
+    <p class="lede">The side rails and the toggle row go. Three layout icons turn the problem panel, the console and the tests panel on and off, and the editor toggles become status-bar items. Everything below is clickable: try the icons and the status items.</p>
+  </header>
+
+  <div class="controls">
+    <span>LAYOUT ICONS IN</span>
+    <div class="seg" role="group" aria-label="Where the layout icons live">
+      <button class="on" data-place="status">status bar (recommended)</button>
+      <button data-place="sub">problem bar</button>
+    </div>
+    <span>PRESET</span>
+    <div class="seg" role="group" aria-label="Preset">
+      <button data-preset="all" class="on">all panels</button>
+      <button data-preset="nol">problem hidden</button>
+      <button data-preset="focus">focus: editor + console</button>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="app" id="app">
+      <div class="hdr"><span class="logo">anneal<i>.</i></span><nav><b>DSA</b><span>Rust</span><span>Build</span><span>Progress</span></nav></div>
+      <div class="subbar">
+        <div class="crumb"><span style="color:var(--acc)">DSA</span><span>/</span><span>D9 GRAPHS</span><span>/</span><span><span style="color:var(--warn)">MEDIUM</span> · SHORTEST PATHS</span></div>
+        <div class="vr"></div>
+        <span class="wtitle">Network delay time</span>
+        <span class="pill solid">WRITE IT</span>
+        <span class="pill" style="border-color:var(--warn);color:var(--warn)">MEDIUM</span>
+        <div class="sbr"><span>‹ prev</span><span>7 / 35</span><span>next ›</span><span id="subSlot"></span></div>
+      </div>
+      <div class="ws">
+        <section class="pane l">
+          <div class="tabs"><span class="on">Problem</span><span>Hints 0/3</span><span>Solution</span><span>Related</span></div>
+          <div class="pbody">
+            <h3>Network delay time</h3>
+            <p style="margin:0">You're given <code>times[i] = (u, v, w)</code>, directed edges with travel time <code>w</code>. A signal starts at node <code>k</code>. Return how long until all <code>n</code> nodes have received it, or <code>None</code> if some never do.</p>
+            <p style="margin:0">Constraints: <code>1 ≤ n ≤ 100</code>, <code>1 ≤ times.len() ≤ 6000</code>, <code>0 ≤ w ≤ 100</code>.</p>
+          </div>
+        </section>
+        <section class="pane c">
+          <div class="ftabs">
+            <span class="ftab on">src/lib.rs</span><span class="ftab">main.rs<small>SCRATCH</small></span><span class="ftab">tests.rs<small>READ-ONLY</small></span>
+            <div class="tools"><span>Aa</span><span>Reset</span></div>
+          </div>
+          <div class="gbar"><b>src/lib.rs</b><span>edition 2021</span><span>std only</span><span>4 visible tests · hidden on Submit</span></div>
+          <div class="code">
+            <div class="ln"><i>1</i><span><span class="k">use</span> std::collections::{<span class="t">BinaryHeap</span>, <span class="t">HashMap</span>};</span></div>
+            <div class="ln"><i>2</i><span><span class="k">use</span> std::cmp::<span class="t">Reverse</span>;</span></div>
+            <div class="ln"><i>3</i><span>&nbsp;</span></div>
+            <div class="ln"><i>4</i><span><span class="k">pub fn</span> <span class="f">network_delay</span>(times: &amp;[(<span class="t">usize</span>, <span class="t">usize</span>, <span class="t">u32</span>)], n: <span class="t">usize</span>, k: <span class="t">usize</span>) -&gt; <span class="t">Option</span>&lt;<span class="t">u32</span>&gt; {</span></div>
+            <div class="ln"><i>5</i><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">let mut</span> adj: <span class="t">HashMap</span>&lt;<span class="t">usize</span>, <span class="t">Vec</span>&lt;(<span class="t">usize</span>, <span class="t">u32</span>)&gt;&gt; = <span class="t">HashMap</span>::<span class="f">new</span>();</span></div>
+            <div class="ln"><i>6</i><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">for</span> &amp;(u, v, w) <span class="k">in</span> times { adj.<span class="f">entry</span>(u).<span class="f">or_default</span>().<span class="f">push</span>((v, w)); }</span></div>
+            <div class="ln"><i>7</i><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">let mut</span> dist = <span class="t">vec!</span>[<span class="t">u32</span>::MAX; n + <span class="n">1</span>];</span></div>
+            <div class="ln"><i>8</i><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">let mut</span> heap = <span class="t">BinaryHeap</span>::<span class="f">from</span>([<span class="t">Reverse</span>((<span class="n">0</span>, k))]);</span></div>
+            <div class="ln"><i>9</i><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// pop the closest node, relax its edges</span></span></div>
+            <div class="ln"><i>10</i><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">while let</span> <span class="t">Some</span>(<span class="t">Reverse</span>((d, u))) = heap.<span class="f">pop</span>() {</span></div>
+          </div>
+          <div class="console">
+            <div class="ctabs"><span class="on">Compiler</span><span>Output</span><span>Timeline</span><button class="x" data-toggle="b" title="Hide the console (⌘J)">×</button></div>
+            <div class="cbody"><span class="sev">error</span>E0502 cannot borrow <b style="color:var(--fg)">dist</b> as mutable because it is also borrowed as immutable · <span style="color:var(--acc)">src/lib.rs:14:13</span></div>
+          </div>
+          <div class="statusb" id="statusb">
+            <button class="si tip" data-si="ra" data-tip="rust-analyzer · click to turn off"><span class="dot" style="background:var(--bad)"></span><span class="lbl">rust-analyzer · 1 error</span></button>
+            <button class="si tip" data-si="auto" data-tip="Autocomplete · click to turn off"><span class="dot" style="background:var(--grn)"></span>autocomplete</button>
+            <button class="si tip off" data-si="lanes" data-tip="Borrow lanes · click to turn on"><span class="dot" style="background:var(--vio)"></span>lanes</button>
+            <span class="spacer"></span>
+            <span class="si tip" data-tip="rustc 1.98.1 stable · sandboxed">Ln 14, Col 13</span>
+            <span id="statusSlot"></span>
+          </div>
+        </section>
+        <section class="pane r">
+          <div class="tabs"><span class="on">Tests</span><span>Borrows</span></div>
+          <div class="pbody">
+            <div class="tsum"><b style="color:var(--bad)">Doesn't compile</b><span>run #3 · 2.1s</span></div>
+            <div class="passbar"><i class="x"></i><i class="x"></i><i class="x"></i><i class="x"></i></div>
+            <div class="tc"><span class="sq" style="background:var(--line)"></span>example_one<em>not compiled</em></div>
+            <div class="tc"><span class="sq" style="background:var(--line)"></span>unreachable_node<em>not compiled</em></div>
+            <div class="tc"><span class="sq" style="background:var(--line)"></span>single_node<em>not compiled</em></div>
+          </div>
+          <div class="acts"><span>▷ Run <small>⌘'</small></span><span>Run tests <small>⌘↵</small></span><span class="go">Submit</span></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="note"><span class="lab">01 · LAYOUT ICONS</span>
+      <p>Three icons, like VS Code: problem panel, console, tests panel. A hidden panel is gone completely, with no rail and no strip. <kbd>⌘B</kbd> toggles the problem panel, <kbd>⌘J</kbd> the console, <kbd>⌥⌘B</kbd> the tests panel. Widths are remembered; drag edges still resize.</p>
+      <span class="was">replaces: the ‹ › collapse buttons, the 28px side rails, and "▴ console"</span></div>
+    <div class="note"><span class="lab">02 · TOGGLES IN THE STATUS BAR</span>
+      <p>rust-analyzer, autocomplete and borrow lanes become status items: a filled dot when on, a hollow one when off, click to flip. The rust-analyzer item keeps showing its error count, so it's status and switch in one. Lanes only appears on problems that have lanes. The rustc version moves into the cursor position's tooltip so the bar fits the editor column at 1280px.</p>
+      <span class="was">replaces: the switch row on the file-path bar, which goes back to one quiet line</span></div>
+    <div class="note"><span class="lab">03 · WHERE THE ICONS SIT</span>
+      <p>Status bar (recommended): next to the other editor state, always in the same corner, and it doesn't add to the crowded problem bar at 1280px. Problem bar: more visible, top-right like VS Code's title bar, but it competes with prev/next and the timer. Switch above to compare.</p>
+      <span class="was">the console's own × stays as a second way to close it</span></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const app = document.getElementById('app');
+  const icon = (which) => {
+    const fill = which === 'l' ? '<rect class="fill" x="1.5" y="1.5" width="4.5" height="10" rx="0.8"/>'
+      : which === 'r' ? '<rect class="fill" x="9" y="1.5" width="4.5" height="10" rx="0.8"/>'
+      : '<rect class="fill" x="1.5" y="7.5" width="12" height="4" rx="0.8"/>';
+    return `<svg viewBox="0 0 15 13" aria-hidden="true"><rect x="0.75" y="0.75" width="13.5" height="11.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/>${fill}</svg>`;
+  };
+  const labels = { l: ['Problem panel', '⌘B'], b: ['Console', '⌘J'], r: ['Tests panel', '⌥⌘B'] };
+  const group = document.createElement('span');
+  group.className = 'lay';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', 'Layout');
+  ['l', 'b', 'r'].forEach((k) => {
+    const b = document.createElement('button');
+    b.className = 'tip on';
+    b.dataset.toggle = k;
+    b.innerHTML = icon(k);
+    group.appendChild(b);
+  });
+  const slots = { status: document.getElementById('statusSlot'), sub: document.getElementById('subSlot') };
+  const place = (where) => {
+    slots[where].appendChild(group);
+    group.classList.toggle('sub', where === 'sub');
+    document.querySelectorAll('[data-place]').forEach((b) => b.classList.toggle('on', b.dataset.place === where));
+  };
+  const sync = () => {
+    group.querySelectorAll('button').forEach((b) => {
+      const k = b.dataset.toggle, shown = !app.classList.contains('no-' + k);
+      b.classList.toggle('on', shown);
+      b.setAttribute('aria-pressed', shown);
+      b.dataset.tip = `${shown ? 'Hide' : 'Show'} ${labels[k][0].toLowerCase()} · ${labels[k][1]}`;
+      b.setAttribute('aria-label', b.dataset.tip);
+    });
+    const preset = app.classList.contains('no-l') && app.classList.contains('no-r') && !app.classList.contains('no-b') ? 'focus'
+      : app.classList.contains('no-l') && !app.classList.contains('no-r') && !app.classList.contains('no-b') ? 'nol'
+      : !app.className.includes('no-') ? 'all' : '';
+    document.querySelectorAll('[data-preset]').forEach((b) => b.classList.toggle('on', b.dataset.preset === preset));
+  };
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle],[data-place],[data-preset],[data-si]');
+    if (!t) return;
+    if (t.dataset.toggle) app.classList.toggle('no-' + t.dataset.toggle);
+    if (t.dataset.place) place(t.dataset.place);
+    if (t.dataset.preset) {
+      app.classList.remove('no-l', 'no-r', 'no-b');
+      if (t.dataset.preset === 'nol') app.classList.add('no-l');
+      if (t.dataset.preset === 'focus') app.classList.add('no-l', 'no-r');
+    }
+    if (t.dataset.si) {
+      const off = t.classList.toggle('off');
+      const name = { auto: 'Autocomplete', ra: 'rust-analyzer', lanes: 'Borrow lanes' }[t.dataset.si];
+      t.dataset.tip = `${name} · click to turn ${off ? 'on' : 'off'}`;
+    }
+    sync();
+  });
+  place('status');
+  sync();
+})();
+</script>

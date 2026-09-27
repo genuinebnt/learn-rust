@@ -10,6 +10,7 @@ teaches = [
   "Labelled loops.",
   "Resolving a new item against the top of a stack repeatedly.",
 ]
+constraints = ["asteroids[i] ≠ 0", "asteroids[i] > i32::MIN"]
 follow_up = "What changes if asteroids can have different speeds?"
 
 [[hints]]

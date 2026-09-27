@@ -10,6 +10,7 @@ teaches = [
   "Prefix sums + a monotonic deque.",
   "`VecDeque` as a double-ended work list.",
 ]
+constraints = ["0 ≤ nums.len() ≤ 2·10⁵", "k ≥ 1"]
 follow_up = "Why does the two-pointer sliding window fail with negative numbers?"
 related = ["D2", "S5"]
 

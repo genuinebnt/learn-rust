@@ -14,3 +14,13 @@ fn underflow() {
 fn bad_token() {
     check!(r#"["1","x","+"]"#, eval(&["1", "x", "+"]), Err(RpnError::BadToken("x".to_string())));
 }
+
+#[test]
+fn div_zero() {
+    check!(r#"["1","0","/"]"#, eval(&["1", "0", "/"]), Err(RpnError::DivideByZero));
+}
+
+#[test]
+fn leftover() {
+    check!(r#"["1","2"]"#, eval(&["1", "2"]), Err(RpnError::LeftoverOperands));
+}

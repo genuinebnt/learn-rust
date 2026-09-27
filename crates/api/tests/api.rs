@@ -522,6 +522,24 @@ async fn editor_settings_round_trip_and_validate(db: PgPool) {
 }
 
 #[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn appearance_accent_round_trips_and_validates(db: PgPool) {
+    let app = test_app(db);
+    let s = call(&app, Method::GET, "/api/settings", None).await.1;
+    assert_eq!(s["appearance"], json!({ "accent": "copper" }));
+    assert!(s["accents"].as_array().unwrap().contains(&json!("sky")));
+
+    let a = json!({ "accent": "sky" });
+    assert_eq!(call(&app, Method::PUT, "/api/settings/appearance", Some(a.clone())).await.0, StatusCode::OK);
+    let s = call(&app, Method::GET, "/api/settings", None).await.1;
+    assert_eq!(s["appearance"], a);
+    // Saving one group leaves the other alone.
+    assert_eq!(s["editor"]["font_size"], 13);
+
+    let unknown = json!({ "accent": "chartreuse" });
+    assert_eq!(call(&app, Method::PUT, "/api/settings/appearance", Some(unknown)).await.0, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
 async fn solving_schedules_reviews_and_feeds_the_dashboards(db: PgPool) {
     let app = test_app(db);
     let submit = |app: &Router| {

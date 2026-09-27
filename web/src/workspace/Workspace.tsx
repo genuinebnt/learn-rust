@@ -10,7 +10,7 @@ import { Editor, GOTO_EVENT } from "./Editor";
 import { EditorSettingsButton } from "./EditorSettings";
 import { useEditorSettings } from "../settings";
 import { changedLines } from "./diff";
-import { type LaneModel, deriveLanes } from "./lanes";
+import { deriveLanes } from "./lanes";
 import { Ansi } from "./ansi";
 import { type TestCase, testCases } from "./testcases";
 import { type RaSession, type RaStatus, connectRa } from "./lsp";
@@ -80,7 +80,6 @@ function Loaded({ p }: { p: ProblemDetail }) {
   const [autocomplete, setAutocomplete] = useState(true);
   const borrowish = p.mode === "fix" || p.tags.some((t) => /^E0[45]\d\d$/.test(t) || /borrow/.test(t));
   const [lanesOn, setLanesOn] = useState(borrowish);
-  const [rightTab, setRightTab] = useState<"tests" | "borrows">("tests");
   const [selected, setSelected] = useState<number | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [cursor, setCursor] = useState([1, 1]);
@@ -711,11 +710,8 @@ function Loaded({ p }: { p: ProblemDetail }) {
             <section className="pane r">
               <div className="rgrip" onPointerDown={(e) => dragWidth(e, rightW, setRightW, -1)} title="Drag to resize" aria-hidden="true" />
               <div className="tabs" style={{ padding: "0 18px" }} role="tablist">
-                <button role="tab" className={rightTab === "tests" ? "on" : ""} aria-selected={rightTab === "tests"} onClick={() => setRightTab("tests")}>
+                <button role="tab" className="on" aria-selected="true">
                   {shown && shown.tests.length ? `Tests ${shown.passed}/${shown.total}` : "Tests"}
-                </button>
-                <button role="tab" className={rightTab === "borrows" ? "on" : ""} aria-selected={rightTab === "borrows"} onClick={() => setRightTab("borrows")} style={lanes ? { color: rightTab === "borrows" ? undefined : "var(--bad)" } : undefined}>
-                  {lanes ? `Borrows · ${lanes.conflicts}` : "Borrows"}
                 </button>
               </div>
               <div className="pbody" style={{ padding: 18 }}>
@@ -735,11 +731,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                     )}
                   </div>
                 )}
-                {rightTab === "tests" ? (
-                  <TestsPanel run={shown} cases={cases} hiddenCases={hiddenCases} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
-                ) : (
-                  <BorrowsPanel model={lanes} onGoto={(line) => goto("src/lib.rs", line, 1)} />
-                )}
+                <TestsPanel run={shown} cases={cases} hiddenCases={hiddenCases} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
               </div>
               <div className="acts">
                 <button onClick={doScratch} disabled={busy || p.status !== "ready"} title="Build main.rs with your lib.rs and run it (⌘')">
@@ -828,48 +820,6 @@ function LayoutButtons({ left, bottom, right, toggle }: { left: boolean; bottom:
         );
       })}
     </span>
-  );
-}
-
-const LANE_KIND = {
-  scope: ["SCOPE", "var(--dim)"],
-  borrow: ["BORROW", "var(--acc)"],
-  conflict: ["CONFLICT", "var(--bad)"],
-} as const;
-
-/** The borrows behind the latest run's borrow errors, as a list; click one to jump to it. */
-function BorrowsPanel({ model, onGoto }: { model: LaneModel | null; onGoto: (line: number) => void }) {
-  if (!model)
-    return (
-      <p className="note">
-        No borrow errors in the latest run. When rustc reports one (E0499, E0502, E0505, …), the borrows involved and where they conflict are listed here. Turn on Borrow lanes to also see them drawn beside the code.
-      </p>
-    );
-  return (
-    <div className="stack" style={{ gap: 12 }}>
-      <div className="tsum">
-        <b style={{ color: "var(--bad)" }}>
-          {model.conflicts} conflict{model.conflicts === 1 ? "" : "s"}
-        </b>
-        <span>from the latest run</span>
-      </div>
-      <div className="borrows">
-        {model.lanes.map((l, i) => {
-          const [kind, colour] = LANE_KIND[l.kind];
-          return (
-            <button key={i} className="borrow" onClick={() => onGoto(l.from)} title="Jump to this line">
-              <span className="bar" style={{ background: colour }} />
-              <span className="bk" style={{ color: colour }}>
-                {kind}
-              </span>
-              <code>{l.label}</code>
-              <span className="bl">{l.from === l.to ? `line ${l.from}` : `lines ${l.from}–${l.to}`}</span>
-            </button>
-          );
-        })}
-      </div>
-      {model.note && <p className="note">{model.note}</p>}
-    </div>
   );
 }
 

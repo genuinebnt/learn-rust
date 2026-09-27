@@ -211,8 +211,16 @@ export interface EditorSettings {
   vim: boolean;
 }
 
+export type Accent = "copper" | "rose" | "sky" | "teal";
+
+export interface AppearanceSettings {
+  accent: Accent;
+}
+
 export interface Settings {
   editor: EditorSettings;
+  appearance: AppearanceSettings;
+  accents: Accent[];
   font_families: string[];
   font_sizes: [number, number];
 }
@@ -330,6 +338,7 @@ export const api = {
   logout: () => request<void>("POST", "/auth/logout"),
   settings: () => request<Settings>("GET", "/settings"),
   saveEditor: (editor: EditorSettings) => request<EditorSettings>("PUT", "/settings/editor", editor),
+  saveAppearance: (appearance: AppearanceSettings) => request<AppearanceSettings>("PUT", "/settings/appearance", appearance),
   progress: () => request<ProgressOverview>("GET", "/progress"),
   stats: () => request<ProgressStats>("GET", "/stats"),
   reviews: () => request<ReviewsView>("GET", "/reviews"),

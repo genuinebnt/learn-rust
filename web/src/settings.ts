@@ -1,7 +1,8 @@
-// Editor font settings: stored on the server, applied as CSS variables the editor theme reads.
+// Settings stored on the server: editor fonts (applied as CSS variables the editor theme reads) and the
+// app's accent colour (applied as data-accent on <html>; the palettes live in app.css).
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type EditorSettings, type Settings } from "./api";
+import { api, type Accent, type EditorSettings, type Settings } from "./api";
 
 export const DEFAULT_EDITOR: EditorSettings = { font_size: 13, font_family: "JetBrains Mono", vim: false };
 
@@ -65,4 +66,47 @@ export function useEditorSettings() {
     sizes: settings.data?.font_sizes ?? [10, 24],
     set: (next: EditorSettings) => save.mutate(next),
   };
+}
+
+export const ACCENTS: { id: Accent; label: string }[] = [
+  { id: "copper", label: "Copper" },
+  { id: "rose", label: "Rose" },
+  { id: "sky", label: "Sky" },
+  { id: "teal", label: "Teal" },
+];
+
+const ACCENT_KEY = "anneal-accent";
+
+/** Sets the accent on the page and caches it, so index.html can apply it before first paint. */
+export function applyAccent(accent: Accent) {
+  const root = document.documentElement;
+  if (accent === "copper") delete root.dataset.accent;
+  else root.dataset.accent = accent;
+  try {
+    localStorage.setItem(ACCENT_KEY, accent);
+  } catch {
+    // Private windows can refuse storage; the server copy still applies after load.
+  }
+}
+
+/** The saved accent, applied to the page, and a setter that saves it. */
+export function useAppearance() {
+  const qc = useQueryClient();
+  const settings = useQuery({ queryKey: ["settings"], queryFn: api.settings, staleTime: Infinity });
+  const accent = settings.data?.appearance.accent;
+  const save = useMutation({
+    mutationFn: api.saveAppearance,
+    onMutate: (next) => {
+      const prev = qc.getQueryData<Settings>(["settings"]);
+      if (prev) qc.setQueryData<Settings>(["settings"], { ...prev, appearance: next });
+      return prev;
+    },
+    onError: (_e, _next, prev) => {
+      if (prev) qc.setQueryData(["settings"], prev);
+    },
+  });
+  useEffect(() => {
+    if (accent) applyAccent(accent);
+  }, [accent]);
+  return { accent: accent ?? "copper", set: (next: Accent) => save.mutate({ accent: next }) };
 }

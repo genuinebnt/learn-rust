@@ -62,6 +62,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/problems/{id}/solution", post(routes::reveal_solution))
         .route("/settings", get(settings::get))
         .route("/settings/editor", put(settings::put_editor))
+        .route("/settings/appearance", put(settings::put_appearance))
         .route("/lsp/{id}", get(routes::lsp))
         .route_layer(middleware::from_fn_with_state(state.clone(), auth::require));
     let api = Router::new()

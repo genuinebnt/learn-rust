@@ -10,6 +10,7 @@
     <script>
       // Apply the saved theme before first paint, so there's no flash.
       try { const t = localStorage.getItem("anneal-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+      try { const a = localStorage.getItem("anneal-accent"); if (a && a !== "copper") document.documentElement.dataset.accent = a; } catch {}
     </script>
   </head>
   <body>

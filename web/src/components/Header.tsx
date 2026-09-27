@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
+import { ACCENTS, useAppearance } from "../settings";
 
 const AREAS = [
   { to: "/dsa", label: "DSA", color: "var(--acc)", match: ["/dsa"] },
@@ -76,34 +77,51 @@ export function Header({ area }: { area?: "dsa" | "rust" | "build" }) {
   );
 }
 
-/** The avatar; with login on, it opens a menu with Sign out. */
+/** The avatar menu: accent colour, and Sign out when login is on. */
 function Account() {
   const session = useQuery({ queryKey: ["session"], queryFn: api.session, staleTime: Infinity });
+  const { accent, set } = useAppearance();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", esc);
+    };
   }, [open]);
-  if (!session.data?.required) return <span className="av">gb</span>;
   return (
     <div className="acct" ref={box}>
-      <button className="av" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button className="av" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} title="Settings">
         gb
       </button>
       {open && (
         <div className="acct-menu" role="menu">
-          <button
-            role="menuitem"
-            onClick={async () => {
-              await api.logout().catch(() => undefined);
-              location.assign("/login");
-            }}
-          >
-            Sign out
-          </button>
+          <span className="acct-lab">ACCENT</span>
+          <div className="swatches" role="radiogroup" aria-label="Accent colour">
+            {ACCENTS.map((a) => (
+              <button key={a.id} role="radio" aria-checked={accent === a.id} className={`swatch${accent === a.id ? " on" : ""}`} data-swatch={a.id} onClick={() => set(a.id)} title={a.label}>
+                <span />
+                {a.label}
+              </button>
+            ))}
+          </div>
+          {session.data?.required && (
+            <button
+              role="menuitem"
+              className="acct-out"
+              onClick={async () => {
+                await api.logout().catch(() => undefined);
+                location.assign("/login");
+              }}
+            >
+              Sign out
+            </button>
+          )}
         </div>
       )}
     </div>

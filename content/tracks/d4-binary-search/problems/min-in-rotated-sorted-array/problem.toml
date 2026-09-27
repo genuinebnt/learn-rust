@@ -6,6 +6,7 @@ stage = "on-structure-and-answer"
 order = 6
 status = "ready"
 tags = ["partition_point", "Blind 75"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"]
 teaches = [
   "Finding a monotone predicate in a non-sorted array.",
 ]

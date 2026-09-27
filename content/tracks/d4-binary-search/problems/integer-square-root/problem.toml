@@ -6,6 +6,7 @@ stage = "on-an-index"
 order = 4
 status = "ready"
 tags = ["checked_mul", "search on the answer"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg"]
 teaches = [
   "Binary search on the answer.",
   "`checked_mul` for overflow-aware comparisons.",

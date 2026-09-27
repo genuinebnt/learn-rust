@@ -6,6 +6,7 @@ stage = "hard-searches"
 order = 12
 status = "ready"
 tags = ["search on the answer", "greedy check"]
+companies = ["Meta", "Amazon", "Google"]
 teaches = [
   "Binary search on the answer with a greedy feasibility check.",
 ]

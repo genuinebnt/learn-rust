@@ -6,10 +6,12 @@ stage = "hard-searches"
 order = 13
 status = "ready"
 tags = ["search on the answer", "two pointers"]
+companies = ["Amazon", "Google"]
 teaches = [
   "Counting instead of listing.",
   "`abs_diff` on signed integers.",
 ]
+constraints = ["2 ≤ nums.len() ≤ 10⁵", "1 ≤ k ≤ n·(n − 1)/2"]
 follow_up = "How would a heap-based approach compare for small k?"
 
 [[hints]]

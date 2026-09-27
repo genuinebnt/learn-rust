@@ -6,6 +6,7 @@ stage = "on-an-index"
 order = 1
 status = "ready"
 tags = ["half-open range"]
+companies = ["Apple", "Amazon", "Google", "Microsoft", "Adobe"]
 teaches = [
   "Half-open ranges with `usize`.",
   "`Ordering` from `cmp` in a `match`.",

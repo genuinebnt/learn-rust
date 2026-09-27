@@ -6,6 +6,7 @@ stage = "on-structure-and-answer"
 order = 5
 status = "ready"
 tags = ["partition_point"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "LinkedIn", "Uber"]
 teaches = [
   "Lower and upper bounds with `partition_point`.",
 ]

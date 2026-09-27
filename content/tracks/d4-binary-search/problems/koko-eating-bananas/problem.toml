@@ -6,6 +6,7 @@ stage = "on-structure-and-answer"
 order = 9
 status = "ready"
 tags = ["search on the answer", "div_ceil"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "DoorDash", "Uber"]
 teaches = [
   "Binary search on the answer with a monotone feasibility check.",
   "`div_ceil` instead of `(p + k - 1) / k`.",

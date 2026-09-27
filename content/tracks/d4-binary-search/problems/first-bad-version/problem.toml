@@ -6,6 +6,7 @@ stage = "on-an-index"
 order = 3
 status = "ready"
 tags = ["u32", "overflow-safe mid"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
 teaches = [
   "Overflow-safe midpoints.",
   "Binary search on a predicate you can only call.",

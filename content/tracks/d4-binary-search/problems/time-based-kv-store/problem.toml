@@ -6,6 +6,7 @@ stage = "on-structure-and-answer"
 order = 10
 status = "ready"
 tags = ["BTreeMap::range", "HashMap"]
+companies = ["Apple", "Amazon", "Google", "Microsoft", "Uber"]
 teaches = [
   "`BTreeMap::range` for floor lookups.",
   "`entry(..).or_default()`.",

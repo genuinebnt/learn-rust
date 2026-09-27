@@ -6,6 +6,7 @@ stage = "on-structure-and-answer"
 order = 7
 status = "ready"
 tags = ["split_at", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "LinkedIn", "Uber"]
 teaches = [
   "Reusing `partition_point` + `split_at` + `binary_search`.",
 ]

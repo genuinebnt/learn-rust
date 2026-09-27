@@ -6,6 +6,7 @@ stage = "on-structure-and-answer"
 order = 8
 status = "ready"
 tags = ["partition_point", "2-D"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg"]
 teaches = [
   "`partition_point` over a slice of `Vec`s.",
 ]

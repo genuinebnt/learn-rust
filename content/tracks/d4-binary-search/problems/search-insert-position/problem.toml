@@ -6,6 +6,7 @@ stage = "on-an-index"
 order = 2
 status = "ready"
 tags = ["partition_point"]
+companies = ["Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg"]
 teaches = [
   "`partition_point` with a monotone predicate.",
 ]

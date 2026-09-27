@@ -6,6 +6,7 @@ stage = "hard-searches"
 order = 11
 status = "ready"
 tags = ["partition search"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg", "Goldman Sachs"]
 teaches = [
   "Binary search over a partition, not a value.",
   "Sentinels that can't collide: widen the type.",

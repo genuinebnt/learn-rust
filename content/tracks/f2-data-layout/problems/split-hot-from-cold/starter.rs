@@ -4,7 +4,7 @@ fn truncate(s: &str, max: usize) -> &str {
     &s[..end]
 }
 
-/// One backend's slot in shared memory: a much-reduced PGPROC. 256 bytes.
+/// One backend's slot in shared memory: a much-reduced PGPROC. 248 bytes.
 #[derive(Clone)]
 struct Proc {
     connected: bool,

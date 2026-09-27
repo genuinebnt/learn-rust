@@ -7,7 +7,7 @@ order = 13
 status = "ready"
 tags = ["hot/cold splitting", "cache lines", "PGPROC", "MVCC snapshots", "databases"]
 teaches = [
-  "A scan that reads 8 bytes of a 256-byte record costs a cache miss per record; moving those 8 bytes into their own dense array makes it 8 records per line.",
+  "A scan that reads 8 bytes of a 248-byte record costs a cache miss per record; moving those 8 bytes into their own dense array makes it 8 records per line.",
   "Split by access pattern, not by meaning: what every snapshot reads goes in the hot array, what `pg_stat_activity` reads stays cold.",
   "Make the hot path self-sufficient: if the scan still checks a flag in the cold record, the split buys nothing.",
 ]
@@ -37,9 +37,9 @@ kind = "edge case"
 text = "`disconnect`, `connect` and `end` must reset the hot entry too, or a dead backend's xmin holds vacuum back forever."
 
 [solution]
-explanation = "The scans read `xid` and `xmin`, 8 bytes, but each backend's record is 256 bytes, so every slot is a separate cache miss and the scan moves 32 times more memory than it uses. Moving the two hot fields into their own dense array puts 8 backends in each cache line; the cold record (identity, timing, names, query) is only read when someone asks about that backend. The hot array has to stand alone: if `oldest_xmin` still checked the cold `connected` flag, it would touch every cold record again and the split would buy nothing, so disconnected and idle slots simply hold 0. Measured in the test on the x86_64 runner, `oldest_xmin` is 8–13× faster than the wide scan (the test asks for 4×) and `snapshot` 6–9× (the test asks for 2×).\n\nThis is PostgreSQL's history: in 9.2 the hot fields of `PGPROC` moved into a separate dense `PGXACT` array because `GetSnapshotData` was cache-miss bound with many connections, and in 14 they moved again into plain dense arrays (`ProcGlobal->xids`, `subxidStates`, `statusFlags`) compacted over connected backends only. The Linux kernel does the same inside single structs, grouping `sk_buff` and `task_struct` fields by which paths touch them."
+explanation = "The scans read `xid` and `xmin`, 8 bytes, but each backend's record is 248 bytes, so every slot is a separate cache miss and the scan moves 31 times more memory than it uses. Moving the two hot fields into their own dense array puts 8 backends in each cache line; the cold record (identity, timing, names, query) is only read when someone asks about that backend. The hot array has to stand alone: if `oldest_xmin` still checked the cold `connected` flag, it would touch every cold record again and the split would buy nothing, so disconnected and idle slots simply hold 0. Measured in the test on the x86_64 runner, `oldest_xmin` is 8–13× faster than the wide scan (the test asks for 4×) and `snapshot` 6–9× (the test asks for 2×).\n\nThis is PostgreSQL's history: in 9.2 the hot fields of `PGPROC` moved into a separate dense `PGXACT` array because `GetSnapshotData` was cache-miss bound with many connections, and in 14 they moved again into plain dense arrays (`ProcGlobal->xids`, `subxidStates`, `statusFlags`) compacted over connected backends only. The Linux kernel does the same inside single structs, grouping `sk_buff` and `task_struct` fields by which paths touch them."
 time = "O(n) per scan, 8 bytes a backend"
-space = "the same 256 bytes a backend, split 8 + 248"
+space = "the same bytes a backend, split into 8 hot and the rest cold"
 
 [perf]
 release = true

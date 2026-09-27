@@ -1,7 +1,7 @@
 A database keeps one slot per backend (a much-reduced PostgreSQL `PGPROC`): identity, timing,
 application name, client address, current query, and the two fields every transaction reads,
 `xid` and `xmin`. Every snapshot (`snapshot`) and every vacuum decision (`oldest_xmin`) scans all
-slots for those two `u32`s, and with thousands of connections that scan dominates: each 256-byte
+slots for those two `u32`s, and with thousands of connections that scan dominates: each 248-byte
 record costs a cache miss to read 8 bytes of it.
 
 Split the representation so the scans read only what they need, with the API and behaviour

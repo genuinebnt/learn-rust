@@ -14,3 +14,8 @@ band = "easy"
 slug = "pick-the-representation"
 name = "Pick the representation"
 band = "medium"
+
+[[stages]]
+slug = "locality"
+name = "Locality"
+band = "hard"

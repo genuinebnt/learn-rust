@@ -3532,9 +3532,1711 @@ Behaviour improves with the layout: cancel unlinks in O(1) instead of scanning, 
     ),
 ))
 
+# ---------------------------------------------------------------- locality (hard)
+
+COLUMN_NAIVE = """
+/// A nullable `f64` column: one row per value, `None` for NULL.
+pub struct Float64Column {
+    rows: Vec<Option<f64>>,
+}
+
+impl Float64Column {
+    /// Room for `rows` rows, reserved up front.
+    pub fn with_capacity(rows: usize) -> Float64Column {
+        Float64Column { rows: Vec::with_capacity(rows) }
+    }
+
+    pub fn from_options(rows: &[Option<f64>]) -> Float64Column {
+        let mut c = Float64Column::with_capacity(rows.len());
+        for &r in rows {
+            c.push(r);
+        }
+        c
+    }
+
+    pub fn push(&mut self, value: Option<f64>) {
+        self.rows.push(value);
+    }
+
+    pub fn len(&self) -> usize {
+        self.rows.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.rows.is_empty()
+    }
+
+    /// Row `i`; panics if `i >= len()`.
+    pub fn get(&self, i: usize) -> Option<f64> {
+        self.rows[i]
+    }
+
+    pub fn null_count(&self) -> usize {
+        self.rows.iter().filter(|r| r.is_none()).count()
+    }
+
+    /// The sum of the non-null values, in row order (0.0 when there are none).
+    pub fn sum(&self) -> f64 {
+        self.rows.iter().flatten().fold(0.0, |acc, v| acc + v)
+    }
+
+    /// The mean of the non-null values; `None` when there are none.
+    pub fn mean(&self) -> Option<f64> {
+        let n = self.len() - self.null_count();
+        (n > 0).then(|| self.sum() / n as f64)
+    }
+
+    /// How many non-null values are greater than `t`.
+    pub fn count_gt(&self, t: f64) -> usize {
+        self.rows.iter().flatten().filter(|&&v| v > t).count()
+    }
+}
+"""
+
+
+def column_arrow(word="u64", bits=64, set_bit="1 << (i % 64)", count_gt_mask="(hits & valid).count_ones() as usize", null_value="0.0"):
+    return """
+/// A nullable `f64` column in Arrow's layout: a values buffer and a validity bitmap with one bit per row
+/// (set = present). A null row's value slot holds 0.0, so a kernel like `sum` runs over `values` without
+/// branching; anything that could see the placeholder (`count_gt`) masks with the bitmap.
+pub struct Float64Column {
+    values: Vec<f64>,
+    validity: Vec<WORD>,
+    nulls: usize,
+}
+
+impl Float64Column {
+    /// Room for `rows` rows, reserved up front: two allocations, 8 bytes and 1 bit per row.
+    pub fn with_capacity(rows: usize) -> Float64Column {
+        Float64Column { values: Vec::with_capacity(rows), validity: Vec::with_capacity(rows.div_ceil(BITS)), nulls: 0 }
+    }
+
+    pub fn from_options(rows: &[Option<f64>]) -> Float64Column {
+        let mut c = Float64Column::with_capacity(rows.len());
+        for &r in rows {
+            c.push(r);
+        }
+        c
+    }
+
+    pub fn push(&mut self, value: Option<f64>) {
+        let i = self.values.len();
+        if i % BITS == 0 {
+            self.validity.push(0);
+        }
+        match value {
+            Some(v) => {
+                self.values.push(v);
+                self.validity[i / BITS] |= SET_BIT;
+            }
+            None => {
+                self.values.push(NULL_VALUE);
+                self.nulls += 1;
+            }
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
+    /// Row `i`; panics if `i >= len()`.
+    pub fn get(&self, i: usize) -> Option<f64> {
+        let v = self.values[i];
+        (self.validity[i / BITS] >> (i % BITS) & 1 == 1).then_some(v)
+    }
+
+    pub fn null_count(&self) -> usize {
+        self.nulls
+    }
+
+    /// The sum of the non-null values, in row order (0.0 when there are none). Null slots hold 0.0 and
+    /// `x + 0.0 == x`, so this is one pass over `values` with no bitmap and no branches.
+    pub fn sum(&self) -> f64 {
+        self.values.iter().fold(0.0, |acc, v| acc + v)
+    }
+
+    /// The mean of the non-null values; `None` when there are none.
+    pub fn mean(&self) -> Option<f64> {
+        let n = self.len() - self.nulls;
+        (n > 0).then(|| self.sum() / n as f64)
+    }
+
+    /// How many non-null values are greater than `t`: compare a word's worth of rows into a bitmask, AND
+    /// it with the validity word, count the bits. A null's 0.0 would otherwise count whenever `t < 0`.
+    pub fn count_gt(&self, t: f64) -> usize {
+        self.values
+            .chunks(BITS)
+            .zip(&self.validity)
+            .map(|(chunk, &valid)| {
+                let mut hits: WORD = 0;
+                for (j, &v) in chunk.iter().enumerate() {
+                    hits |= ((v > t) as WORD) << j;
+                }
+                COUNT_GT_MASK
+            })
+            .sum()
+    }
+}
+""".replace("WORD", word).replace("BITS", str(bits)).replace("SET_BIT", set_bit).replace("COUNT_GT_MASK", count_gt_mask).replace("NULL_VALUE", null_value)
+
+
+COLUMN_NAN = """
+/// Nulls as NaN, no bitmap: 8 bytes a row.
+pub struct Float64Column {
+    values: Vec<f64>,
+}
+
+impl Float64Column {
+    pub fn with_capacity(rows: usize) -> Float64Column {
+        Float64Column { values: Vec::with_capacity(rows) }
+    }
+
+    pub fn from_options(rows: &[Option<f64>]) -> Float64Column {
+        let mut c = Float64Column::with_capacity(rows.len());
+        for &r in rows {
+            c.push(r);
+        }
+        c
+    }
+
+    pub fn push(&mut self, value: Option<f64>) {
+        self.values.push(value.unwrap_or(f64::NAN));
+    }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
+    pub fn get(&self, i: usize) -> Option<f64> {
+        let v = self.values[i];
+        (!v.is_nan()).then_some(v)
+    }
+
+    pub fn null_count(&self) -> usize {
+        self.values.iter().filter(|v| v.is_nan()).count()
+    }
+
+    pub fn sum(&self) -> f64 {
+        self.values.iter().filter(|v| !v.is_nan()).fold(0.0, |acc, v| acc + v)
+    }
+
+    pub fn mean(&self) -> Option<f64> {
+        let n = self.len() - self.null_count();
+        (n > 0).then(|| self.sum() / n as f64)
+    }
+
+    pub fn count_gt(&self, t: f64) -> usize {
+        self.values.iter().filter(|&&v| v > t).count()
+    }
+}
+"""
+
+COLUMN_RANDOM = """
+#[test]
+fn random_vs_options() {
+    let mut rng = anneal_prelude::Rng::new(8213);
+    let specials = [0.0, -0.0, 1.5, -2.25, 1e300, -1e-300, f64::INFINITY];
+    for _ in 0..200 {
+        let n = rng.below(200);
+        let mut rows = Vec::new();
+        for _ in 0..n {
+            rows.push(match rng.below(4) {
+                0 => None,
+                1 => Some(*rng.pick(&specials)),
+                _ => Some(rng.int(-1000, 1000) as f64 / 8.0),
+            });
+        }
+        let c = Float64Column::from_options(&rows);
+        let present: Vec<f64> = rows.iter().flatten().copied().collect();
+        let t = rng.int(-20, 20) as f64 / 2.0;
+        let ctx = format!("{n} rows, {} null", n - present.len());
+        // Compared as bits, so -0.0 must come back as -0.0.
+        let got: Vec<Option<u64>> = (0..n).map(|i| c.get(i).map(f64::to_bits)).collect();
+        check!(format!("{ctx}: get(i) for every row, as bits"), got, rows.iter().map(|r| r.map(f64::to_bits)).collect::<Vec<_>>());
+        check!(format!("{ctx}: len, null_count"), (c.len(), c.null_count()), (n, n - present.len()));
+        check!(format!("{ctx}: sum"), c.sum(), present.iter().fold(0.0, |acc, v| acc + v));
+        check!(format!("{ctx}: count_gt({t})"), c.count_gt(t), present.iter().filter(|&&v| v > t).count());
+    }
+}
+"""
+
+P.append(dict(
+    slug="validity-bitmap-column", title="A validity bitmap for a nullable column", mode="fix", level="hard", stage="locality",
+    tags=["columnar", "validity bitmap", "Option layout", "popcount", "Arrow"],
+    teaches=["`Option<f64>` has no niche, so a nullable column of them is 16 bytes a row; Arrow stores 8 bytes of value plus 1 bit of validity.",
+             "NaN is a value, not a null: a sentinel inside the value's own range always collides with real data.",
+             "Kernels run over the dense values buffer and combine bitmaps word by word (`&`, `count_ones`), 64 rows at a time."],
+    statement="""
+        An analytics engine keeps a nullable float column as `Vec<Option<f64>>`. `f64` has no spare bit
+        pattern, so every row costs 16 bytes, half of it tag and padding, and scans read twice the memory.
+
+        Change the representation to Arrow's: a buffer of values plus a **validity bitmap** with one bit per
+        row. Keep the API and behaviour, and:
+
+        - `with_capacity(n)` followed by `n` pushes makes at most **2** allocations and requests at most
+          **8n + n/8 + 64** bytes;
+        - `null_count` is O(1);
+        - a NaN is a value, not a null: `push(Some(f64::NAN))` then `get` gives `Some(NaN)`;
+        - `count_gt(t)` never counts a null, whatever `t` is.
+    """,
+    examples=[("with_capacity(100_000) and 100_000 pushes: bytes requested", "at most 812_564 (was 1_600_000)"),
+              ("rows [Some(-1.0), None, Some(2.0)]: count_gt(-5.0)", "2")],
+    constraints=["up to 2⁶³ rows", "values are any f64, including NaN, ±∞ and −0.0"],
+    starter=COLUMN_NAIVE,
+    solution=column_arrow(),
+    visible=[
+        T("bytes_per_row", "with_capacity(100_000), push 100_000 rows (every 3rd null): allocations and bytes",
+          "(n.count <= 2, n.bytes <= 8 * 100_000 + 100_000 / 8 + 64, c.null_count())", "(true, true, 33_334)",
+          setup="let (c, n) = anneal_prelude::allocs(|| {\n    let mut c = Float64Column::with_capacity(100_000);\n    for i in 0..100_000 {\n        c.push(if i % 3 == 0 { None } else { Some(i as f64) });\n    }\n    c\n});"),
+        T("get_rows", "[Some(1.5), None, Some(-2.0)]: get 0, 1, 2", "(c.get(0), c.get(1), c.get(2), c.len())", "(Some(1.5), None, Some(-2.0), 3)",
+          setup="let c = Float64Column::from_options(&[Some(1.5), None, Some(-2.0)]);"),
+        T("nan_is_a_value", "push Some(NaN), then None", "(c.get(0).map(f64::is_nan), c.get(1), c.null_count())", "(Some(true), None, 1)",
+          setup="let mut c = Float64Column::with_capacity(2);\nc.push(Some(f64::NAN));\nc.push(None);"),
+        T("aggregates_skip_nulls", "[Some(4.0), None, Some(2.0), None]: sum, mean", "(c.sum(), c.mean())", "(6.0, Some(3.0))",
+          setup="let c = Float64Column::from_options(&[Some(4.0), None, Some(2.0), None]);"),
+        T("count_gt_skips_nulls", "[Some(-1.0), None, Some(2.0)]: count_gt(-5.0), count_gt(0.0)", "(c.count_gt(-5.0), c.count_gt(0.0))", "(2, 1)",
+          setup="let c = Float64Column::from_options(&[Some(-1.0), None, Some(2.0)]);"),
+    ],
+    hidden=[
+        T("empty", "an empty column", "(c.len(), c.is_empty(), c.sum(), c.mean(), c.null_count(), c.count_gt(-1.0))", "(0, true, 0.0, None, 0, 0)",
+          setup="let c = Float64Column::with_capacity(0);"),
+        T("all_null", "70 nulls (more than one bitmap word)", "(c.null_count(), c.mean(), c.count_gt(f64::NEG_INFINITY), c.get(69))", "(70, None, 0, None)",
+          setup="let c = Float64Column::from_options(&[None; 70]);"),
+        T("word_boundaries", "rows 0..200 present only at 63, 64, 127, 128, 199", "(0..200).filter(|&i| c.get(i).is_some()).collect::<Vec<_>>()", "vec![63, 64, 127, 128, 199]",
+          setup="let rows: Vec<Option<f64>> = (0..200).map(|i| [63, 64, 127, 128, 199].contains(&i).then_some(i as f64)).collect();\nlet c = Float64Column::from_options(&rows);"),
+        T("zero_is_not_null", "[Some(0.0), Some(-0.0), None]", "(c.get(0), c.get(1).map(|v| v == 0.0), c.get(2), c.null_count())", "(Some(0.0), Some(true), None, 1)",
+          setup="let c = Float64Column::from_options(&[Some(0.0), Some(-0.0), None]);"),
+        T("infinities", "[Some(inf), None, Some(-inf)]: count_gt(1e308), sum", "(c.count_gt(1e308), c.sum().is_nan())", "(1, true)",
+          setup="let c = Float64Column::from_options(&[Some(f64::INFINITY), None, Some(f64::NEG_INFINITY)]);"),
+        T("nan_never_greater", "[Some(NaN), Some(1.0)]: count_gt(0.0)", "c.count_gt(0.0)", "1",
+          setup="let c = Float64Column::from_options(&[Some(f64::NAN), Some(1.0)]);"),
+        T("million_rows_memory", "with_capacity(1_000_000) + pushes: bytes requested", "n.bytes <= 8_000_000 + 125_000 + 64", "true",
+          setup="let (_c, n) = anneal_prelude::allocs(|| {\n    let mut c = Float64Column::with_capacity(1_000_000);\n    for i in 0..1_000_000 {\n        c.push(if i % 10 == 0 { None } else { Some(1.0) });\n    }\n    c\n});"),
+        """
+        #[test]
+        #[should_panic]
+        fn get_out_of_range_panics() {
+            Float64Column::from_options(&[Some(1.0)]).get(1);
+        }
+        """,
+        T("count_gt_large", "10 000 rows i/2 for even i, null for odd; count_gt(-1.0), count_gt(2499.0)", "(c.count_gt(-1.0), c.count_gt(2499.0))", "(5000, 2500)",
+          setup="let rows: Vec<Option<f64>> = (0..10_000).map(|i| (i % 2 == 0).then_some((i / 2) as f64)).collect();\nlet c = Float64Column::from_options(&rows);"),
+        COLUMN_RANDOM,
+    ],
+    hints=[("approach", "Two buffers: `values: Vec<f64>` with a placeholder in null slots, and a bitmap `Vec<u64>` where bit `i % 64` of word `i / 64` says whether row `i` is present. Keep a null counter as you push."),
+           ("rust", "`validity[i / 64] |= 1 << (i % 64)` to set, `validity[i / 64] >> (i % 64) & 1` to read, `Vec::with_capacity(rows.div_ceil(64))` to reserve. `u64::count_ones` counts a word's set bits."),
+           ("edge case", "Don't use NaN as the null marker: NaN is a legal value. And the placeholder must not leak: with 0.0 in null slots, `count_gt(-5.0)` counts nulls unless you AND with the validity bits.")],
+    notes=("""`Option<T>` is free only when `T` has a niche, and `f64` uses every bit pattern, so `Option<f64>` is 16 bytes: 8 of value, 1 of tag, 7 of padding. Arrow's layout separates the two: a dense values buffer and a validity bitmap, 8 bytes and 1 bit per row, half the memory and half the bytes each scan reads. Null slots hold a placeholder (0.0 here), so `sum` is a straight pass over `values` (`x + 0.0 == x`), and kernels that could see the placeholder combine a comparison bitmask with the validity word and count bits: 64 rows per `&` and `count_ones`. NaN as a null marker (the R/pandas trick) looks free but breaks as soon as data contains a NaN.
+
+This is Arrow's in-memory format (arrow-rs `NullBuffer` over a `BooleanBuffer`), also used by DataFusion, Polars and DuckDB's vectors, and the reason their filter kernels produce bitmaps rather than lists of row ids.""", "O(1) push / get / null_count; O(n) sum, count_gt", "8 bytes + 1 bit per row"),
+    follow_up="Arrow can skip the bitmap entirely when a column has no nulls. How would `get`, `count_gt` and `null_count` change, and what does a slice starting at row 3 do to the bitmap?",
+    source="Apache Arrow columnar format (validity bitmaps); arrow-rs NullBuffer",
+    related=["F4", "F5", "F7"],
+    perf=dict(allocs=True),
+    wrong=dict(
+        nan_for_null=COLUMN_NAN,
+        unmasked_count=column_arrow(count_gt_mask="hits.count_ones() as usize + 0 * valid as usize"),
+        bool_validity=column_arrow(word="u8", bits=1, set_bit="1", count_gt_mask="(hits & valid).count_ones() as usize"),
+    ),
+))
+
+PARTICLE = """
+/// Gravity, in m/s², along -z.
+pub const G: f32 = 9.81;
+
+/// A particle as checkpoints and the rest of the code see it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Particle {
+    pub id: u64,
+    pub pos: [f32; 3],
+    pub vel: [f32; 3],
+    pub mass: f32,
+    pub charge: f32,
+    pub radius: f32,
+    pub temperature: f32,
+    pub species: u32,
+    pub flags: u32,
+    pub tag: [u8; 32],
+}
+"""
+
+PARTICLES_AOS = PARTICLE + """
+/// The simulation's particles, one `Particle` after another (88 bytes each).
+pub struct Particles {
+    items: Vec<Particle>,
+}
+
+impl Particles {
+    pub fn with_capacity(n: usize) -> Particles {
+        Particles { items: Vec::with_capacity(n) }
+    }
+
+    pub fn push(&mut self, p: Particle) {
+        self.items.push(p);
+    }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
+    /// Particle `i`; panics if `i >= len()`.
+    pub fn get(&self, i: usize) -> Particle {
+        self.items[i]
+    }
+
+    /// One explicit Euler step: `vel.z -= G * dt`, then `pos += vel * dt` (with the new velocity).
+    pub fn step(&mut self, dt: f32) {
+        for p in &mut self.items {
+            p.vel[2] -= G * dt;
+            p.pos[0] += p.vel[0] * dt;
+            p.pos[1] += p.vel[1] * dt;
+            p.pos[2] += p.vel[2] * dt;
+        }
+    }
+
+    /// How many particles are below the ground plane: `pos.z < ground`.
+    pub fn count_below(&self, ground: f32) -> usize {
+        self.items.iter().filter(|p| p.pos[2] < ground).count()
+    }
+
+    /// The total kinetic energy, Σ ½·m·|v|², summed in `f64`.
+    pub fn kinetic_energy(&self) -> f64 {
+        self.items.iter().map(|p| 0.5 * p.mass as f64 * p.vel.iter().map(|&v| v as f64 * v as f64).sum::<f64>()).sum()
+    }
+}
+"""
+
+
+def particles_soa(step_body="""        let g = G * dt;
+        // Re-slicing every array to the same length lets LLVM drop the bounds checks and vectorize.
+        let n = self.x.len();
+        let (x, y, z) = (&mut self.x[..n], &mut self.y[..n], &mut self.z[..n]);
+        let (vx, vy, vz) = (&self.vx[..n], &self.vy[..n], &mut self.vz[..n]);
+        for i in 0..n {
+            vz[i] -= g;
+            x[i] += vx[i] * dt;
+            y[i] += vy[i] * dt;
+            z[i] += vz[i] * dt;
+        }"""):
+    return PARTICLE + """
+/// What only I/O and diagnostics read.
+#[derive(Clone, Copy)]
+struct Cold {
+    id: u64,
+    charge: f32,
+    radius: f32,
+    temperature: f32,
+    species: u32,
+    flags: u32,
+    tag: [u8; 32],
+}
+
+/// Structure of arrays: one dense `f32` array per hot field, so each kernel streams only the bytes it
+/// uses and the compiler can process 4 or 8 particles per SIMD instruction.
+pub struct Particles {
+    x: Vec<f32>,
+    y: Vec<f32>,
+    z: Vec<f32>,
+    vx: Vec<f32>,
+    vy: Vec<f32>,
+    vz: Vec<f32>,
+    mass: Vec<f32>,
+    cold: Vec<Cold>,
+}
+
+impl Particles {
+    pub fn with_capacity(n: usize) -> Particles {
+        let v = || Vec::with_capacity(n);
+        Particles { x: v(), y: v(), z: v(), vx: v(), vy: v(), vz: v(), mass: v(), cold: Vec::with_capacity(n) }
+    }
+
+    pub fn push(&mut self, p: Particle) {
+        self.x.push(p.pos[0]);
+        self.y.push(p.pos[1]);
+        self.z.push(p.pos[2]);
+        self.vx.push(p.vel[0]);
+        self.vy.push(p.vel[1]);
+        self.vz.push(p.vel[2]);
+        self.mass.push(p.mass);
+        self.cold.push(Cold { id: p.id, charge: p.charge, radius: p.radius, temperature: p.temperature, species: p.species, flags: p.flags, tag: p.tag });
+    }
+
+    pub fn len(&self) -> usize {
+        self.x.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.x.is_empty()
+    }
+
+    /// Particle `i`, gathered from the arrays; panics if `i >= len()`.
+    pub fn get(&self, i: usize) -> Particle {
+        let c = self.cold[i];
+        Particle {
+            id: c.id,
+            pos: [self.x[i], self.y[i], self.z[i]],
+            vel: [self.vx[i], self.vy[i], self.vz[i]],
+            mass: self.mass[i],
+            charge: c.charge,
+            radius: c.radius,
+            temperature: c.temperature,
+            species: c.species,
+            flags: c.flags,
+            tag: c.tag,
+        }
+    }
+
+    /// One explicit Euler step: `vel.z -= G * dt`, then `pos += vel * dt` (with the new velocity), in one
+    /// pass over six dense arrays, which the compiler vectorizes.
+    pub fn step(&mut self, dt: f32) {
+STEP
+    }
+
+    /// How many particles are below the ground plane: `pos.z < ground`. Reads 4 bytes a particle.
+    pub fn count_below(&self, ground: f32) -> usize {
+        self.z.iter().filter(|&&z| z < ground).count()
+    }
+
+    /// The total kinetic energy, Σ ½·m·|v|², summed in `f64`.
+    pub fn kinetic_energy(&self) -> f64 {
+        (0..self.len())
+            .map(|i| 0.5 * self.mass[i] as f64 * [self.vx[i], self.vy[i], self.vz[i]].iter().map(|&v| v as f64 * v as f64).sum::<f64>())
+            .sum()
+    }
+}
+""".replace("STEP", step_body)
+
+
+PARTICLES_HOTCOLD = PARTICLE + """
+#[derive(Clone, Copy)]
+struct Hot {
+    pos: [f32; 3],
+    vel: [f32; 3],
+    mass: f32,
+}
+
+#[derive(Clone, Copy)]
+struct Cold {
+    id: u64,
+    charge: f32,
+    radius: f32,
+    temperature: f32,
+    species: u32,
+    flags: u32,
+    tag: [u8; 32],
+}
+
+/// Hot fields split from cold ones, but still an array of structs.
+pub struct Particles {
+    hot: Vec<Hot>,
+    cold: Vec<Cold>,
+}
+
+impl Particles {
+    pub fn with_capacity(n: usize) -> Particles {
+        Particles { hot: Vec::with_capacity(n), cold: Vec::with_capacity(n) }
+    }
+
+    pub fn push(&mut self, p: Particle) {
+        self.hot.push(Hot { pos: p.pos, vel: p.vel, mass: p.mass });
+        self.cold.push(Cold { id: p.id, charge: p.charge, radius: p.radius, temperature: p.temperature, species: p.species, flags: p.flags, tag: p.tag });
+    }
+
+    pub fn len(&self) -> usize {
+        self.hot.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.hot.is_empty()
+    }
+
+    pub fn get(&self, i: usize) -> Particle {
+        let (h, c) = (self.hot[i], self.cold[i]);
+        Particle { id: c.id, pos: h.pos, vel: h.vel, mass: h.mass, charge: c.charge, radius: c.radius, temperature: c.temperature, species: c.species, flags: c.flags, tag: c.tag }
+    }
+
+    pub fn step(&mut self, dt: f32) {
+        for p in &mut self.hot {
+            p.vel[2] -= G * dt;
+            p.pos[0] += p.vel[0] * dt;
+            p.pos[1] += p.vel[1] * dt;
+            p.pos[2] += p.vel[2] * dt;
+        }
+    }
+
+    pub fn count_below(&self, ground: f32) -> usize {
+        self.hot.iter().filter(|p| p.pos[2] < ground).count()
+    }
+
+    pub fn kinetic_energy(&self) -> f64 {
+        self.hot.iter().map(|p| 0.5 * p.mass as f64 * p.vel.iter().map(|&v| v as f64 * v as f64).sum::<f64>()).sum()
+    }
+}
+"""
+
+PARTICLE_HELPERS = """
+fn particle(i: u64, pos: [f32; 3], vel: [f32; 3]) -> Particle {
+    let mut tag = [0u8; 32];
+    tag[..8].copy_from_slice(&i.to_le_bytes());
+    Particle { id: i, pos, vel, mass: 1.0 + (i % 5) as f32, charge: -1.0, radius: 0.5, temperature: 300.0, species: (i % 3) as u32, flags: i as u32, tag }
+}
+
+/// The same step, as an array of structs: the baseline.
+fn step_aos(ps: &mut [Particle], dt: f32) {
+    for p in ps {
+        p.vel[2] -= G * dt;
+        p.pos[0] += p.vel[0] * dt;
+        p.pos[1] += p.vel[1] * dt;
+        p.pos[2] += p.vel[2] * dt;
+    }
+}
+
+fn cloud(n: usize) -> Vec<Particle> {
+    (0..n as u64).map(|i| particle(i, [(i % 100) as f32, (i % 37) as f32, (i % 11) as f32], [1.0, -0.5, (i % 7) as f32 - 3.0])).collect()
+}
+"""
+
+PARTICLE_RANDOM = """
+#[test]
+fn random_steps_vs_aos() {
+    let mut rng = anneal_prelude::Rng::new(8214);
+    for _ in 0..100 {
+        let n = rng.below(40);
+        let mut model = Vec::new();
+        for i in 0..n as u64 {
+            let pos = [rng.int(-100, 100) as f32 / 4.0, rng.int(-100, 100) as f32 / 4.0, rng.int(-100, 100) as f32 / 4.0];
+            let vel = [rng.int(-40, 40) as f32 / 8.0, rng.int(-40, 40) as f32 / 8.0, rng.int(-40, 40) as f32 / 8.0];
+            model.push(particle(i, pos, vel));
+        }
+        let mut ps = Particles::with_capacity(n);
+        for p in &model {
+            ps.push(*p);
+        }
+        let steps = rng.below(5);
+        let dt = rng.int(1, 100) as f32 / 1000.0;
+        for _ in 0..steps {
+            ps.step(dt);
+            step_aos(&mut model, dt);
+        }
+        let ground = rng.int(-20, 20) as f32;
+        let ctx = format!("{n} particles, {steps} steps of dt = {dt}");
+        check!(format!("{ctx}: every get(i)"), (0..n).map(|i| ps.get(i)).collect::<Vec<_>>(), model.clone());
+        check!(format!("{ctx}: count_below({ground})"), ps.count_below(ground), model.iter().filter(|p| p.pos[2] < ground).count());
+        let want: f64 = model.iter().map(|p| 0.5 * p.mass as f64 * p.vel.iter().map(|&v| v as f64 * v as f64).sum::<f64>()).sum();
+        check!(format!("{ctx}: kinetic_energy within 1e-9 relative"), (ps.kinetic_energy() - want).abs() <= 1e-9 * want.abs().max(1.0), true);
+    }
+}
+"""
+
+P.append(dict(
+    slug="particles-as-arrays", title="Particles: array of structs to struct of arrays", mode="fix", level="hard", stage="locality",
+    tags=["SoA", "AoS", "cache lines", "auto-vectorization", "HPC"],
+    teaches=["A kernel that reads 12 bytes of an 88-byte struct still pulls whole cache lines: most of the memory traffic is fields it never uses.",
+             "Structure of arrays: one dense array per hot field, so each loop streams exactly what it reads and vectorizes (4 or 8 lanes per instruction).",
+             "Keep the AoS type at the API boundary (`push`, `get`), and gather/scatter there."],
+    statement="""
+        A particle simulation steps a million particles per frame. `Particles` stores them as a
+        `Vec<Particle>`, 88 bytes each, but the integrator reads and writes only `pos` and `vel` (24 bytes),
+        and the ground-contact check reads only `pos.z` (4 bytes). Every frame drags the rest of each
+        struct (ids, tags, thermodynamics) through the cache.
+
+        Store the particles as a **structure of arrays**, keeping the API: `push` and `get` still take and
+        return `Particle`, and `step`, `count_below` and `kinetic_energy` give the same results (`step` is
+        bit-for-bit the same arithmetic). The tests time your code against the array-of-structs loop, in a
+        release build:
+
+        - `step` on 262 144 particles must be at least **2.5×** faster;
+        - `count_below` on 1 048 576 particles must be at least **6×** faster.
+    """,
+    examples=[("one step of dt = 0.1 for pos [0, 0, 10], vel [1, 0, 0]", "vel [1, 0, -0.981], pos [0.1, 0, 9.9019]"),
+              ("step, 262 144 particles", "≥ 2.5× the AoS loop")],
+    constraints=["up to 2²⁰ particles in a test", "step does vel.z -= G * dt, then pos += vel * dt, in f32"],
+    starter=PARTICLES_AOS,
+    solution=particles_soa(),
+    visible=[
+        PARTICLE_HELPERS,
+        T("one_step", "one step of dt = 0.1 for pos [0, 0, 10], vel [1, 0, 0]", "(q.vel, q.pos)", "([1.0, 0.0, -G * 0.1], [0.1, 0.0, 10.0 + (-G * 0.1) * 0.1])",
+          setup="let mut ps = Particles::with_capacity(1);\nps.push(particle(7, [0.0, 0.0, 10.0], [1.0, 0.0, 0.0]));\nps.step(0.1);\nlet q = ps.get(0);"),
+        T("get_keeps_cold_fields", "push particle 42, get it back", "ps.get(0) == p", "true",
+          setup="let p = particle(42, [1.0, 2.0, 3.0], [4.0, 5.0, 6.0]);\nlet mut ps = Particles::with_capacity(1);\nps.push(p);"),
+        T("count_below_ground", "z = 5, -1, 0, -3: count_below(0.0)", "ps.count_below(0.0)", "2",
+          setup="let mut ps = Particles::with_capacity(4);\nfor (i, z) in [5.0, -1.0, 0.0, -3.0].into_iter().enumerate() {\n    ps.push(particle(i as u64, [0.0, 0.0, z], [0.0; 3]));\n}"),
+        T("kinetic_energy", "mass 1 at |v| = 2, mass 2 at |v| = 1", "ps.kinetic_energy()", "3.0",
+          setup="let mut ps = Particles::with_capacity(2);\nps.push(Particle { mass: 1.0, ..particle(0, [0.0; 3], [2.0, 0.0, 0.0]) });\nps.push(Particle { mass: 2.0, ..particle(1, [0.0; 3], [0.0, -1.0, 0.0]) });"),
+        """
+        #[test]
+        fn step_is_faster() {
+            let n = 1 << 18;
+            let mut baseline = cloud(n);
+            let mut ps = Particles::with_capacity(n);
+            for p in &baseline {
+                ps.push(*p);
+            }
+            anneal_prelude::assert_faster("step, 262144 particles", 2.5, 15, || step_aos(&mut baseline, 0.001), || ps.step(0.001));
+            check!("after the timed steps, particle 12345 matches the AoS copy", ps.get(12_345), baseline[12_345]);
+        }
+        """,
+    ],
+    hidden=[
+        PARTICLE_HELPERS,
+        """
+        #[test]
+        fn count_below_is_6x_faster() {
+            let n = 1 << 20;
+            let baseline = cloud(n);
+            let mut ps = Particles::with_capacity(n);
+            for p in &baseline {
+                ps.push(*p);
+            }
+            let aos = |ps: &[Particle]| ps.iter().filter(|p| p.pos[2] < 5.0).count();
+            anneal_prelude::assert_faster("count_below, 1048576 particles", 6.0, 15, || aos(&baseline), || ps.count_below(5.0));
+            check!("count_below(5.0)", ps.count_below(5.0), aos(&baseline));
+        }
+        """,
+        T("empty", "no particles: len, count_below, kinetic_energy, step", "(ps.len(), ps.is_empty(), ps.count_below(0.0), ps.kinetic_energy())", "(0, true, 0, 0.0)",
+          setup="let mut ps = Particles::with_capacity(0);\nps.step(1.0);"),
+        T("zero_dt", "step(0.0) leaves everything as it was", "ps.get(0) == p", "true",
+          setup="let p = particle(3, [1.0, 2.0, 3.0], [4.0, 5.0, 6.0]);\nlet mut ps = Particles::with_capacity(1);\nps.push(p);\nps.step(0.0);"),
+        T("backwards_step", "step(0.5) then step(-0.5) from rest at z = 0", "(ps.get(0).vel[2], ps.get(0).pos[2])", "(0.0, -G * 0.5 * 0.5)",
+          setup="let mut ps = Particles::with_capacity(1);\nps.push(particle(0, [0.0; 3], [0.0; 3]));\nps.step(0.5);\nps.step(-0.5);"),
+        T("boundary_not_below", "z exactly at the ground", "ps.count_below(2.5)", "0",
+          setup="let mut ps = Particles::with_capacity(1);\nps.push(particle(0, [0.0, 0.0, 2.5], [0.0; 3]));"),
+        T("push_after_step", "push a, step, push b: b is untouched", "(ps.get(1) == b, ps.len())", "(true, 2)",
+          setup="let b = particle(9, [1.0; 3], [1.0; 3]);\nlet mut ps = Particles::with_capacity(1);\nps.push(particle(8, [0.0; 3], [0.0; 3]));\nps.step(0.25);\nps.push(b);"),
+        """
+        #[test]
+        #[should_panic]
+        fn get_out_of_range_panics() {
+            Particles::with_capacity(0).get(0);
+        }
+        """,
+        T("many_steps_match", "1000 particles, 20 steps of 0.01", "(0..1000).all(|i| ps.get(i) == model[i])", "true",
+          setup="let mut model = cloud(1000);\nlet mut ps = Particles::with_capacity(1000);\nfor p in &model {\n    ps.push(*p);\n}\nfor _ in 0..20 {\n    ps.step(0.01);\n    step_aos(&mut model, 0.01);\n}"),
+        PARTICLE_RANDOM,
+    ],
+    hints=[("approach", "Replace `Vec<Particle>` with one `Vec<f32>` per hot field (x, y, z, vx, vy, vz, mass) and one `Vec` of everything else. `push` scatters a `Particle` into them; `get` gathers it back."),
+           ("rust", "Write each kernel over slices LLVM can prove are the same length: zipped iterators (`self.z.iter_mut().zip(&self.vz)`) or re-sliced arrays (`let vz = &mut self.vz[..n];`). No bounds checks means the loop vectorizes. Update `vz` before `z`, so positions use the new velocity."),
+           ("edge case", "Splitting only hot from cold (`Vec<{ pos, vel, mass }>`) helps the step, but `count_below` still reads 28 bytes to use 4. Keep the arithmetic exactly `v -= G * dt` and `p += v * dt` in `f32`, or results drift from the AoS version.")],
+    notes=("""The integrator touches 24 of each particle's 88 bytes, but memory moves in 64-byte cache lines, so an array of structs reads (and writes back) most of each struct anyway; `count_below` uses 4 bytes and still pulls ~64. A structure of arrays keeps each hot field in its own dense array: `step` streams six `f32` arrays and nothing else, `count_below` streams one, and the loops are plain zipped slices that LLVM vectorizes, 4 or 8 particles per instruction. Measured in the tests on the x86_64 runner (baseline and yours interleaved, so neither keeps the cache warm), `step` is 4.7–6× faster at 262 144 particles in one fused pass (3.6–3.9× as four separate loops) and `count_below` 10.6–12.9× at a million; the tests ask for 2.5× and 6×. A hot/cold split of whole structs gets only 2.2–2.6× on `count_below`, which the test rejects: it still reads `pos.x`, `pos.y`, the velocity and the mass to use one float.
+
+The API keeps the AoS type: `push` scatters and `get` gathers, which costs a little per call and nothing per frame. This is how HPC codes (LAMMPS, GROMACS) and ECS engines (Bevy's table storage) lay out components, and what "SoA" means in GPU and SIMD code. AoSoA (blocks of 8 or 16 particles, SoA inside a block) is the next step when kernels touch many fields at once.""", "O(n) per step, streaming 24 bytes a particle", "the same 88 bytes a particle, split into dense arrays"),
+    follow_up="A collision kernel reads pos, vel, radius and mass of pairs of nearby particles. Does SoA still win, and where would AoSoA (blocks of 8) help?",
+    source="HPC particle codes (LAMMPS, GROMACS) and ECS component storage (Bevy)",
+    related=["F5", "C6"],
+    perf=dict(release=True),
+    wrong=dict(
+        hot_cold_structs=PARTICLES_HOTCOLD,
+        positions_first=particles_soa(step_body="""        for (x, v) in self.x.iter_mut().zip(&self.vx) {
+            *x += v * dt;
+        }
+        for (y, v) in self.y.iter_mut().zip(&self.vy) {
+            *y += v * dt;
+        }
+        for (z, v) in self.z.iter_mut().zip(&self.vz) {
+            *z += v * dt;
+        }
+        for v in &mut self.vz {
+            *v -= G * dt;
+        }"""),
+    ),
+))
+
+PROC_TRUNCATE = """
+/// The longest prefix of `s` that fits in `max` bytes without splitting a character.
+fn truncate(s: &str, max: usize) -> &str {
+    let end = s.char_indices().map(|(i, c)| i + c.len_utf8()).take_while(|&e| e <= max).last().unwrap_or(0);
+    &s[..end]
+}
+"""
+
+PROC_NAIVE = PROC_TRUNCATE + """
+/// One backend's slot in shared memory: a much-reduced PGPROC. 256 bytes.
+#[derive(Clone)]
+struct Proc {
+    connected: bool,
+    pid: u32,
+    database: u32,
+    xid: u32,
+    xmin: u32,
+    wait_event: u32,
+    backend_start: u64,
+    xact_start: u64,
+    app_len: u8,
+    application_name: [u8; 64],
+    client_addr: [u8; 16],
+    query_len: u8,
+    query: [u8; 128],
+}
+
+const EMPTY: Proc = Proc {
+    connected: false,
+    pid: 0,
+    database: 0,
+    xid: 0,
+    xmin: 0,
+    wait_event: 0,
+    backend_start: 0,
+    xact_start: 0,
+    app_len: 0,
+    application_name: [0; 64],
+    client_addr: [0; 16],
+    query_len: 0,
+    query: [0; 128],
+};
+
+/// Every backend slot. Transaction ids are `u32`s from 1 up (0 means none), and never wrap here.
+pub struct ProcArray {
+    procs: Vec<Proc>,
+}
+
+impl ProcArray {
+    pub fn new(max_backends: usize) -> ProcArray {
+        ProcArray { procs: vec![EMPTY; max_backends] }
+    }
+
+    /// A backend attaches to a free `slot`. `application` is cut to 64 bytes.
+    pub fn connect(&mut self, slot: usize, pid: u32, database: u32, application: &str, now: u64) {
+        let app = truncate(application, 64);
+        let mut p = Proc { connected: true, pid, database, backend_start: now, app_len: app.len() as u8, ..EMPTY };
+        p.application_name[..app.len()].copy_from_slice(app.as_bytes());
+        self.procs[slot] = p;
+    }
+
+    /// The backend leaves; its transaction, if any, ends with it.
+    pub fn disconnect(&mut self, slot: usize) {
+        self.procs[slot] = EMPTY;
+    }
+
+    /// The backend starts a transaction with id `xid` (at least 1).
+    pub fn begin(&mut self, slot: usize, xid: u32, now: u64) {
+        let p = &mut self.procs[slot];
+        p.xid = xid;
+        p.xact_start = now;
+    }
+
+    /// The backend takes a snapshot that needs every xid from `xmin` on.
+    pub fn set_xmin(&mut self, slot: usize, xmin: u32) {
+        self.procs[slot].xmin = xmin;
+    }
+
+    /// Commit or abort: the backend has no transaction and needs no snapshot.
+    pub fn end(&mut self, slot: usize) {
+        let p = &mut self.procs[slot];
+        p.xid = 0;
+        p.xmin = 0;
+        p.xact_start = 0;
+    }
+
+    /// Records the statement the backend is running, cut to 128 bytes.
+    pub fn set_query(&mut self, slot: usize, query: &str) {
+        let q = truncate(query, 128);
+        let p = &mut self.procs[slot];
+        p.query[..q.len()].copy_from_slice(q.as_bytes());
+        p.query_len = q.len() as u8;
+    }
+
+    pub fn pid(&self, slot: usize) -> Option<u32> {
+        let p = &self.procs[slot];
+        p.connected.then_some(p.pid)
+    }
+
+    pub fn application(&self, slot: usize) -> Option<&str> {
+        let p = &self.procs[slot];
+        p.connected.then(|| std::str::from_utf8(&p.application_name[..p.app_len as usize]).unwrap())
+    }
+
+    pub fn query(&self, slot: usize) -> Option<&str> {
+        let p = &self.procs[slot];
+        p.connected.then(|| std::str::from_utf8(&p.query[..p.query_len as usize]).unwrap())
+    }
+
+    /// When the backend's running transaction started, if it has one.
+    pub fn xact_start(&self, slot: usize) -> Option<u64> {
+        let p = &self.procs[slot];
+        (p.xid != 0).then_some(p.xact_start)
+    }
+
+    /// How many backends are connected.
+    pub fn connected(&self) -> usize {
+        self.procs.iter().filter(|p| p.connected).count()
+    }
+
+    /// The oldest xid a connected backend still needs (vacuum keeps every row version newer than this):
+    /// the smallest running xid or xmin, or `next_xid` if that's smaller.
+    pub fn oldest_xmin(&self, next_xid: u32) -> u32 {
+        let mut oldest = next_xid;
+        for p in &self.procs {
+            if !p.connected {
+                continue;
+            }
+            if p.xid != 0 && p.xid < oldest {
+                oldest = p.xid;
+            }
+            if p.xmin != 0 && p.xmin < oldest {
+                oldest = p.xmin;
+            }
+        }
+        oldest
+    }
+
+    /// GetSnapshotData: clears `xip` and fills it with the running xids in ascending order; returns the
+    /// snapshot's xmin, the smallest of them, or `next_xid` when none is running.
+    pub fn snapshot(&self, next_xid: u32, xip: &mut Vec<u32>) -> u32 {
+        xip.clear();
+        for p in &self.procs {
+            if p.connected && p.xid != 0 {
+                xip.push(p.xid);
+            }
+        }
+        xip.sort_unstable();
+        xip.first().copied().unwrap_or(next_xid).min(next_xid)
+    }
+}
+"""
+
+
+def proc_split(oldest_body="""        // Disconnected and idle slots hold 0, which maps to u32::MAX: no branch on the cold `connected` flag.
+        let none = |x: u32| if x == 0 { u32::MAX } else { x };
+        self.hot.iter().fold(next_xid, |oldest, h| oldest.min(none(h.xid)).min(none(h.xmin)))""",
+               end_body="""        self.hot[slot] = Hot { xid: 0, xmin: 0 };
+        self.cold[slot].xact_start = 0;""",
+               snapshot_sort="xip.sort_unstable();"):
+    return PROC_TRUNCATE + """
+/// What every snapshot and vacuum scans: 8 bytes a backend, 8 backends a cache line. A slot with no
+/// backend or no transaction holds zeros, so the scans never need to look at the cold part.
+#[derive(Clone, Copy, Default)]
+struct Hot {
+    xid: u32,
+    xmin: u32,
+}
+
+/// Everything else about a backend, read only when someone asks about that backend.
+#[derive(Clone)]
+struct Cold {
+    connected: bool,
+    pid: u32,
+    database: u32,
+    wait_event: u32,
+    backend_start: u64,
+    xact_start: u64,
+    app_len: u8,
+    application_name: [u8; 64],
+    client_addr: [u8; 16],
+    query_len: u8,
+    query: [u8; 128],
+}
+
+const EMPTY: Cold = Cold {
+    connected: false,
+    pid: 0,
+    database: 0,
+    wait_event: 0,
+    backend_start: 0,
+    xact_start: 0,
+    app_len: 0,
+    application_name: [0; 64],
+    client_addr: [0; 16],
+    query_len: 0,
+    query: [0; 128],
+};
+
+/// Every backend slot, split by access pattern: `hot[slot]` and `cold[slot]` describe the same backend.
+/// Transaction ids are `u32`s from 1 up (0 means none), and never wrap here.
+pub struct ProcArray {
+    hot: Vec<Hot>,
+    cold: Vec<Cold>,
+}
+
+impl ProcArray {
+    pub fn new(max_backends: usize) -> ProcArray {
+        ProcArray { hot: vec![Hot::default(); max_backends], cold: vec![EMPTY; max_backends] }
+    }
+
+    /// A backend attaches to a free `slot`. `application` is cut to 64 bytes.
+    pub fn connect(&mut self, slot: usize, pid: u32, database: u32, application: &str, now: u64) {
+        let app = truncate(application, 64);
+        let mut c = Cold { connected: true, pid, database, backend_start: now, app_len: app.len() as u8, ..EMPTY };
+        c.application_name[..app.len()].copy_from_slice(app.as_bytes());
+        self.cold[slot] = c;
+        self.hot[slot] = Hot::default();
+    }
+
+    /// The backend leaves; its transaction, if any, ends with it.
+    pub fn disconnect(&mut self, slot: usize) {
+        self.cold[slot] = EMPTY;
+        self.hot[slot] = Hot::default();
+    }
+
+    /// The backend starts a transaction with id `xid` (at least 1).
+    pub fn begin(&mut self, slot: usize, xid: u32, now: u64) {
+        self.hot[slot].xid = xid;
+        self.cold[slot].xact_start = now;
+    }
+
+    /// The backend takes a snapshot that needs every xid from `xmin` on.
+    pub fn set_xmin(&mut self, slot: usize, xmin: u32) {
+        self.hot[slot].xmin = xmin;
+    }
+
+    /// Commit or abort: the backend has no transaction and needs no snapshot.
+    pub fn end(&mut self, slot: usize) {
+END
+    }
+
+    /// Records the statement the backend is running, cut to 128 bytes.
+    pub fn set_query(&mut self, slot: usize, query: &str) {
+        let q = truncate(query, 128);
+        let c = &mut self.cold[slot];
+        c.query[..q.len()].copy_from_slice(q.as_bytes());
+        c.query_len = q.len() as u8;
+    }
+
+    pub fn pid(&self, slot: usize) -> Option<u32> {
+        let c = &self.cold[slot];
+        c.connected.then_some(c.pid)
+    }
+
+    pub fn application(&self, slot: usize) -> Option<&str> {
+        let c = &self.cold[slot];
+        c.connected.then(|| std::str::from_utf8(&c.application_name[..c.app_len as usize]).unwrap())
+    }
+
+    pub fn query(&self, slot: usize) -> Option<&str> {
+        let c = &self.cold[slot];
+        c.connected.then(|| std::str::from_utf8(&c.query[..c.query_len as usize]).unwrap())
+    }
+
+    /// When the backend's running transaction started, if it has one.
+    pub fn xact_start(&self, slot: usize) -> Option<u64> {
+        (self.hot[slot].xid != 0).then_some(self.cold[slot].xact_start)
+    }
+
+    /// How many backends are connected.
+    pub fn connected(&self) -> usize {
+        self.cold.iter().filter(|c| c.connected).count()
+    }
+
+    /// The oldest xid a connected backend still needs (vacuum keeps every row version newer than this):
+    /// the smallest running xid or xmin, or `next_xid` if that's smaller.
+    pub fn oldest_xmin(&self, next_xid: u32) -> u32 {
+OLDEST
+    }
+
+    /// GetSnapshotData: clears `xip` and fills it with the running xids in ascending order; returns the
+    /// snapshot's xmin, the smallest of them, or `next_xid` when none is running.
+    pub fn snapshot(&self, next_xid: u32, xip: &mut Vec<u32>) -> u32 {
+        xip.clear();
+        xip.extend(self.hot.iter().map(|h| h.xid).filter(|&x| x != 0));
+        SORT
+        xip.first().copied().unwrap_or(next_xid).min(next_xid)
+    }
+}
+""".replace("OLDEST", oldest_body).replace("END", end_body).replace("SORT", snapshot_sort)
+
+
+PROC_BASELINE = """
+/// The array-of-PGPROCs baseline, as the starter lays it out.
+#[derive(Clone)]
+struct Wide {
+    connected: bool,
+    pid: u32,
+    database: u32,
+    xid: u32,
+    xmin: u32,
+    wait_event: u32,
+    backend_start: u64,
+    xact_start: u64,
+    app_len: u8,
+    application_name: [u8; 64],
+    client_addr: [u8; 16],
+    query_len: u8,
+    query: [u8; 128],
+}
+
+fn wide_oldest_xmin(procs: &[Wide], next_xid: u32) -> u32 {
+    let mut oldest = next_xid;
+    for p in procs {
+        if !p.connected {
+            continue;
+        }
+        if p.xid != 0 && p.xid < oldest {
+            oldest = p.xid;
+        }
+        if p.xmin != 0 && p.xmin < oldest {
+            oldest = p.xmin;
+        }
+    }
+    oldest
+}
+
+/// `n` connected backends; every 50th is in a transaction and every 20th holds a snapshot.
+fn busy(n: usize) -> (ProcArray, Vec<Wide>) {
+    let mut pa = ProcArray::new(n);
+    let blank = Wide { connected: true, pid: 0, database: 5, xid: 0, xmin: 0, wait_event: 0, backend_start: 0, xact_start: 0, app_len: 0, application_name: [0; 64], client_addr: [0; 16], query_len: 0, query: [0; 128] };
+    let mut wide = vec![blank; n];
+    for slot in 0..n {
+        pa.connect(slot, 1000 + slot as u32, 5, "pgbench", 1);
+        wide[slot].pid = 1000 + slot as u32;
+        if slot % 50 == 0 {
+            let xid = 1_000_000 + ((slot * 7919) % 100_000) as u32;
+            pa.begin(slot, xid, 2);
+            wide[slot].xid = xid;
+        }
+        if slot % 20 == 0 {
+            let xmin = 900_000 + ((slot * 104_729) % 100_000) as u32;
+            pa.set_xmin(slot, xmin);
+            wide[slot].xmin = xmin;
+        }
+    }
+    (pa, wide)
+}
+"""
+
+PROC_MODEL = """
+/// The proc array as plain per-slot records.
+#[derive(Clone, Default, Debug)]
+struct Slot {
+    connected: bool,
+    pid: u32,
+    app: String,
+    query: String,
+    xid: u32,
+    xmin: u32,
+    xact_start: u64,
+}
+"""
+
+PROC_RANDOM = """
+#[test]
+fn random_vs_model() {
+    let mut rng = anneal_prelude::Rng::new(8215);
+    for _ in 0..150 {
+        let n = 1 + rng.below(8);
+        let mut pa = ProcArray::new(n);
+        let mut model = vec![Slot::default(); n];
+        let mut next_xid = 100u32;
+        let mut log = Vec::new();
+        let mut xip = vec![7, 7, 7];
+        for now in 1..=30u64 {
+            let slot = rng.below(n);
+            let m = &mut model[slot];
+            match rng.below(6) {
+                0 if !m.connected => {
+                    let app_len = rng.below(3) * 30;
+                    let app = rng.string(app_len, "abc-_é");
+                    log.push(format!("connect({slot}, app of {} bytes)", app.len()));
+                    pa.connect(slot, 500 + slot as u32, 1, &app, now);
+                    let mut cut = app.clone();
+                    while cut.len() > 64 {
+                        cut.pop();
+                    }
+                    *m = Slot { connected: true, pid: 500 + slot as u32, app: cut, ..Slot::default() };
+                }
+                1 if m.connected => {
+                    log.push(format!("disconnect({slot})"));
+                    pa.disconnect(slot);
+                    *m = Slot::default();
+                }
+                2 if m.connected && m.xid == 0 => {
+                    next_xid += 1 + rng.below(3) as u32;
+                    log.push(format!("begin({slot}, {next_xid})"));
+                    pa.begin(slot, next_xid, now);
+                    m.xid = next_xid;
+                    m.xact_start = now;
+                }
+                3 if m.connected => {
+                    let xmin = next_xid - rng.below(20) as u32;
+                    log.push(format!("set_xmin({slot}, {xmin})"));
+                    pa.set_xmin(slot, xmin);
+                    m.xmin = xmin;
+                }
+                4 if m.connected => {
+                    log.push(format!("end({slot})"));
+                    pa.end(slot);
+                    m.xid = 0;
+                    m.xmin = 0;
+                    m.xact_start = 0;
+                }
+                _ if m.connected => {
+                    let q = format!("SELECT {now}");
+                    log.push(format!("set_query({slot}, {q:?})"));
+                    pa.set_query(slot, &q);
+                    m.query = q;
+                }
+                _ => {}
+            }
+            let ctx = log.join(", ");
+            let next = next_xid + 1;
+            let live = model.iter().filter(|s| s.connected);
+            let want_oldest = live.flat_map(|s| [s.xid, s.xmin]).filter(|&x| x != 0).fold(next, u32::min);
+            check!(format!("{ctx}: oldest_xmin({next})"), pa.oldest_xmin(next), want_oldest);
+            let mut want_xip: Vec<u32> = model.iter().filter(|s| s.connected && s.xid != 0).map(|s| s.xid).collect();
+            want_xip.sort();
+            let xmin = pa.snapshot(next, &mut xip);
+            check!(format!("{ctx}: snapshot({next})"), (xmin, xip.clone()), (want_xip.first().copied().unwrap_or(next), want_xip));
+            for (i, s) in model.iter().enumerate() {
+                let want = (s.connected.then_some(s.pid), s.connected.then(|| s.app.clone()), s.connected.then(|| s.query.clone()), (s.xid != 0).then_some(s.xact_start));
+                check!(format!("{ctx}: slot {i}"), (pa.pid(i), pa.application(i).map(String::from), pa.query(i).map(String::from), pa.xact_start(i)), want);
+            }
+            check!(format!("{ctx}: connected()"), pa.connected(), model.iter().filter(|s| s.connected).count());
+        }
+    }
+}
+"""
+
+P.append(dict(
+    slug="split-hot-from-cold", title="Split hot fields from cold", mode="fix", level="hard", stage="locality",
+    tags=["hot/cold splitting", "cache lines", "PGPROC", "MVCC snapshots", "databases"],
+    teaches=["A scan that reads 8 bytes of a 256-byte record costs a cache miss per record; moving those 8 bytes into their own dense array makes it 8 records per line.",
+             "Split by access pattern, not by meaning: what every snapshot reads goes in the hot array, what `pg_stat_activity` reads stays cold.",
+             "Make the hot path self-sufficient: if the scan still checks a flag in the cold record, the split buys nothing."],
+    statement="""
+        A database keeps one slot per backend (a much-reduced PostgreSQL `PGPROC`): identity, timing,
+        application name, client address, current query, and the two fields every transaction reads,
+        `xid` and `xmin`. Every snapshot (`snapshot`) and every vacuum decision (`oldest_xmin`) scans all
+        slots for those two `u32`s, and with thousands of connections that scan dominates: each 256-byte
+        record costs a cache miss to read 8 bytes of it.
+
+        Split the representation so the scans read only what they need, with the API and behaviour
+        unchanged. In a release build, `oldest_xmin` over 131 072 connected backends must be at least
+        **4×** faster than the scan over the original records.
+
+        Transaction ids are `u32`s from 1 up (0 means none); they don't wrap here.
+    """,
+    examples=[("backends running xids 120 and 110, one holding xmin 90; oldest_xmin(200)", "90"),
+              ("the same; snapshot(200, &mut xip)", "110, xip = [110, 120]")],
+    constraints=["up to 2¹⁷ backends", "connect only targets a free slot; begin only a backend without a transaction",
+                 "names and queries are cut to 64 and 128 bytes without splitting a character"],
+    starter=PROC_NAIVE,
+    solution=proc_split(),
+    visible=[
+        PROC_BASELINE,
+        T("oldest_and_snapshot", "xids 120 (slot 0) and 110 (slot 2), xmin 90 (slot 1); oldest_xmin(200), snapshot(200)", "(pa.oldest_xmin(200), pa.snapshot(200, &mut xip), xip.clone())", "(90, 110, vec![110, 120])",
+          setup="let mut pa = ProcArray::new(4);\nfor s in 0..3 {\n    pa.connect(s, 100 + s as u32, 1, \"app\", 0);\n}\npa.begin(0, 120, 5);\npa.set_xmin(1, 90);\npa.begin(2, 110, 6);\nlet mut xip = Vec::new();"),
+        T("end_clears_both", "slot 0 runs xid 50 with xmin 40, then ends", "(pa.oldest_xmin(99), pa.snapshot(99, &mut xip), xip.len(), pa.xact_start(0))", "(99, 99, 0, None)",
+          setup="let mut pa = ProcArray::new(1);\npa.connect(0, 7, 1, \"psql\", 0);\npa.begin(0, 50, 3);\npa.set_xmin(0, 40);\npa.end(0);\nlet mut xip = vec![1, 2, 3];"),
+        T("cold_fields", "connect slot 1 as \"reporting\" at t=10, begin at t=12, set_query", "(pa.pid(1), pa.application(1), pa.query(1), pa.xact_start(1), pa.pid(0), pa.connected())",
+          '(Some(4242), Some("reporting"), Some("SELECT count(*) FROM orders"), Some(12), None, 1)',
+          setup="let mut pa = ProcArray::new(2);\npa.connect(1, 4242, 3, \"reporting\", 10);\npa.begin(1, 77, 12);\npa.set_query(1, \"SELECT count(*) FROM orders\");"),
+        T("disconnect_forgets", "slot 0 in xid 5 with xmin 3 disconnects", "(pa.oldest_xmin(10), pa.pid(0), pa.connected())", "(10, None, 0)",
+          setup="let mut pa = ProcArray::new(1);\npa.connect(0, 1, 1, \"x\", 0);\npa.begin(0, 5, 0);\npa.set_xmin(0, 3);\npa.disconnect(0);"),
+        """
+        #[test]
+        fn oldest_xmin_is_4x_faster() {
+            let (pa, wide) = busy(1 << 17);
+            let next = 2_000_000;
+            anneal_prelude::assert_faster("oldest_xmin, 131072 backends", 4.0, 15, || wide_oldest_xmin(&wide, next), || pa.oldest_xmin(next));
+            check!("oldest_xmin(2000000) over 131072 backends", pa.oldest_xmin(next), wide_oldest_xmin(&wide, next));
+        }
+        """,
+    ],
+    hidden=[
+        PROC_BASELINE,
+        PROC_MODEL,
+        """
+        #[test]
+        fn snapshot_is_faster_too() {
+            let (pa, wide) = busy(1 << 17);
+            let mut xip = Vec::with_capacity(4096);
+            let mut wide_xip: Vec<u32> = Vec::with_capacity(4096);
+            let mut wide_snapshot = |next: u32| {
+                wide_xip.clear();
+                wide_xip.extend(wide.iter().filter(|p| p.connected && p.xid != 0).map(|p| p.xid));
+                wide_xip.sort_unstable();
+                wide_xip.first().copied().unwrap_or(next)
+            };
+            let want = wide_snapshot(2_000_000);
+            anneal_prelude::assert_faster("snapshot, 131072 backends", 2.0, 15, || wide_snapshot(2_000_000), || pa.snapshot(2_000_000, &mut xip));
+            check!("snapshot(2000000): xmin and the number of running xids", (pa.snapshot(2_000_000, &mut xip), xip.len()), (want, 2622));
+        }
+        """,
+        T("next_xid_caps", "xid 500 running; oldest_xmin(300), snapshot(300)", "(pa.oldest_xmin(300), pa.snapshot(300, &mut xip))", "(300, 300)",
+          setup="let mut pa = ProcArray::new(1);\npa.connect(0, 1, 1, \"x\", 0);\npa.begin(0, 500, 0);\nlet mut xip = Vec::new();"),
+        T("no_backends", "ProcArray::new(0) and new(3) with nobody connected", "(ProcArray::new(0).oldest_xmin(9), pa.oldest_xmin(9), pa.snapshot(9, &mut xip), pa.connected())", "(9, 9, 9, 0)",
+          setup="let pa = ProcArray::new(3);\nlet mut xip = Vec::new();"),
+        T("reconnect_is_clean", "slot 0: connect, begin 8, set_query, disconnect, connect again as \"b\"", "(pa.application(0), pa.query(0), pa.xact_start(0), pa.oldest_xmin(20))", '(Some("b"), Some(""), None, 20)',
+          setup="let mut pa = ProcArray::new(1);\npa.connect(0, 1, 1, \"a\", 0);\npa.begin(0, 8, 1);\npa.set_query(0, \"VACUUM\");\npa.disconnect(0);\npa.connect(0, 2, 1, \"b\", 2);"),
+        T("names_are_cut", "a 70-byte application name and a 200-byte query of 'é' (2 bytes each)", "(pa.application(0).map(str::len), pa.query(0).map(|q| (q.len(), q.chars().count())))", "(Some(64), Some((128, 64)))",
+          setup="let mut pa = ProcArray::new(1);\npa.connect(0, 1, 1, &\"x\".repeat(70), 0);\npa.set_query(0, &\"é\".repeat(100));"),
+        T("xmin_only_holder", "a backend with a snapshot but no xid", "(pa.oldest_xmin(100), pa.snapshot(100, &mut xip), pa.xact_start(0))", "(42, 100, None)",
+          setup="let mut pa = ProcArray::new(1);\npa.connect(0, 1, 1, \"x\", 0);\npa.set_xmin(0, 42);\nlet mut xip = Vec::new();"),
+        T("big_array_correct", "busy(10000): oldest_xmin vs the wide scan", "pa.oldest_xmin(2_000_000)", "wide_oldest_xmin(&wide, 2_000_000)",
+          setup="let (pa, wide) = busy(10_000);"),
+        PROC_RANDOM,
+    ],
+    hints=[("approach", "Two arrays indexed by slot: a dense `Vec` of just `xid` and `xmin` (8 bytes a backend), and a `Vec` of everything else. The scans read only the first."),
+           ("rust", "Keep the hot array self-sufficient: store 0 for a slot with no backend or no transaction, so `oldest_xmin` never has to read `connected` from the cold record. A fold with `min` over the hot array vectorizes when there's no branch: map 0 to `u32::MAX` first."),
+           ("edge case", "`disconnect`, `connect` and `end` must reset the hot entry too, or a dead backend's xmin holds vacuum back forever.")],
+    notes=("""The scans read `xid` and `xmin`, 8 bytes, but each backend's record is 256 bytes, so every slot is a separate cache miss and the scan moves 32 times more memory than it uses. Moving the two hot fields into their own dense array puts 8 backends in each cache line; the cold record (identity, timing, names, query) is only read when someone asks about that backend. The hot array has to stand alone: if `oldest_xmin` still checked the cold `connected` flag, it would touch every cold record again and the split would buy nothing, so disconnected and idle slots simply hold 0. Measured in the test on the x86_64 runner, `oldest_xmin` is 8–13× faster than the wide scan (the test asks for 4×) and `snapshot` 6–9× (the test asks for 2×).
+
+This is PostgreSQL's history: in 9.2 the hot fields of `PGPROC` moved into a separate dense `PGXACT` array because `GetSnapshotData` was cache-miss bound with many connections, and in 14 they moved again into plain dense arrays (`ProcGlobal->xids`, `subxidStates`, `statusFlags`) compacted over connected backends only. The Linux kernel does the same inside single structs, grouping `sk_buff` and `task_struct` fields by which paths touch them.""", "O(n) per scan, 8 bytes a backend", "the same 256 bytes a backend, split 8 + 248"),
+    follow_up="PostgreSQL 14 also keeps the dense arrays compacted over connected backends only. What does that save when 90% of the slots are empty, and what does `disconnect` have to do to keep it dense?",
+    source="PostgreSQL PGPROC / PGXACT split (9.2) and the dense ProcGlobal arrays in 14 (procarray.c, GetSnapshotData)",
+    related=["F6", "D14"],
+    perf=dict(release=True),
+    wrong=dict(
+        checks_cold_flag=proc_split(oldest_body="""        let mut oldest = next_xid;
+        for (h, c) in self.hot.iter().zip(&self.cold) {
+            if !c.connected {
+                continue;
+            }
+            if h.xid != 0 && h.xid < oldest {
+                oldest = h.xid;
+            }
+            if h.xmin != 0 && h.xmin < oldest {
+                oldest = h.xmin;
+            }
+        }
+        oldest"""),
+        end_keeps_xmin=proc_split(end_body="""        self.hot[slot].xid = 0;
+        self.cold[slot].xact_start = 0;"""),
+        unsorted_snapshot=proc_split(snapshot_sort=""),
+    ),
+))
+
+PAGE_STARTER = """
+pub const PAGE_SIZE: usize = 4096;
+
+/// `insert` found no room, even after compaction. The page is unchanged.
+#[derive(Debug, PartialEq, Eq)]
+pub struct PageFull;
+
+/// A B-tree leaf page in its on-disk form (see the statement for the byte layout).
+pub struct Page {
+    buf: [u8; PAGE_SIZE],
+}
+
+impl Page {
+    pub fn new() -> Page {
+        todo!()
+    }
+
+    /// Takes a page image as read from disk.
+    pub fn from_bytes(bytes: &[u8; PAGE_SIZE]) -> Page {
+        Page { buf: *bytes }
+    }
+
+    /// The page image, ready to write to disk.
+    pub fn as_bytes(&self) -> &[u8; PAGE_SIZE] {
+        &self.buf
+    }
+
+    /// Number of cells.
+    pub fn len(&self) -> usize {
+        todo!()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Bytes still available for slots and cells, counting fragmented ones.
+    pub fn free_space(&self) -> usize {
+        todo!()
+    }
+
+    pub fn get(&self, key: &[u8]) -> Option<&[u8]> {
+        todo!()
+    }
+
+    /// Adds `key`, or replaces its value.
+    pub fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<(), PageFull> {
+        todo!()
+    }
+
+    pub fn delete(&mut self, key: &[u8]) -> bool {
+        todo!()
+    }
+
+    /// Packs the cells against the end of the page in slot order and zeroes the free gap.
+    pub fn compact(&mut self) {
+        todo!()
+    }
+
+    /// The cells in key order.
+    pub fn iter(&self) -> impl Iterator<Item = (&[u8], &[u8])> + '_ {
+        std::iter::from_fn(|| todo!())
+    }
+}
+"""
+
+
+def page_solution(struct="""pub struct Page {
+    buf: [u8; PAGE_SIZE],
+}""", new_body="Page { buf: [0; PAGE_SIZE] }", from_bytes="Page { buf: *bytes }", compact_order="0..n",
+                  make_room="""        if self.gap() < SLOT + cell {
+            self.compact();
+        }""", fits="SLOT + cell > self.free_space() + reclaimed"):
+    return """
+pub const PAGE_SIZE: usize = 4096;
+const HEADER: usize = 8;
+const SLOT: usize = 4;
+
+/// `insert` found no room, even after compaction. The page is unchanged.
+#[derive(Debug, PartialEq, Eq)]
+pub struct PageFull;
+
+/// A B-tree leaf page in its on-disk form. Everything lives in the one array, so the page is written to
+/// and read from disk as is, and nothing here allocates:
+///
+///   0..8        header: cell count, start of the cell area, fragmented bytes, 0 (u16 LE each)
+///   8..8+4n     slot array, sorted by key: (cell offset, cell length) per cell
+///   ..          free gap
+///   cell_start  cells, growing down from the end: key length (u16 LE), key, value
+STRUCT
+
+impl Page {
+    pub fn new() -> Page {
+        let mut p = NEW_BODY;
+        p.set_u16(2, PAGE_SIZE);
+        p
+    }
+
+    /// Takes a page image as read from disk.
+    pub fn from_bytes(bytes: &[u8; PAGE_SIZE]) -> Page {
+        FROM_BYTES
+    }
+
+    /// The page image, ready to write to disk.
+    pub fn as_bytes(&self) -> &[u8; PAGE_SIZE] {
+        &self.buf
+    }
+
+    fn u16_at(&self, at: usize) -> usize {
+        u16::from_le_bytes([self.buf[at], self.buf[at + 1]]) as usize
+    }
+
+    fn set_u16(&mut self, at: usize, v: usize) {
+        self.buf[at..at + 2].copy_from_slice(&(v as u16).to_le_bytes());
+    }
+
+    /// Number of cells.
+    pub fn len(&self) -> usize {
+        self.u16_at(0)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn cell_start(&self) -> usize {
+        self.u16_at(2)
+    }
+
+    fn fragmented(&self) -> usize {
+        self.u16_at(4)
+    }
+
+    /// The contiguous free bytes between the slot array and the cells.
+    fn gap(&self) -> usize {
+        self.cell_start() - (HEADER + SLOT * self.len())
+    }
+
+    /// Bytes still available for slots and cells, counting fragmented ones.
+    pub fn free_space(&self) -> usize {
+        self.gap() + self.fragmented()
+    }
+
+    fn slot(&self, i: usize) -> (usize, usize) {
+        (self.u16_at(HEADER + SLOT * i), self.u16_at(HEADER + SLOT * i + 2))
+    }
+
+    fn set_slot(&mut self, i: usize, offset: usize, len: usize) {
+        self.set_u16(HEADER + SLOT * i, offset);
+        self.set_u16(HEADER + SLOT * i + 2, len);
+    }
+
+    /// Cell `i` as (key, value), borrowed from the page.
+    fn cell(&self, i: usize) -> (&[u8], &[u8]) {
+        let (offset, len) = self.slot(i);
+        let cell = &self.buf[offset..offset + len];
+        let k = u16::from_le_bytes([cell[0], cell[1]]) as usize;
+        (&cell[2..2 + k], &cell[2 + k..])
+    }
+
+    /// Binary search over the slots: `Ok(i)` if slot `i` holds `key`, `Err(i)` where it would go.
+    fn search(&self, key: &[u8]) -> Result<usize, usize> {
+        let (mut lo, mut hi) = (0, self.len());
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2;
+            match self.cell(mid).0.cmp(key) {
+                std::cmp::Ordering::Less => lo = mid + 1,
+                std::cmp::Ordering::Greater => hi = mid,
+                std::cmp::Ordering::Equal => return Ok(mid),
+            }
+        }
+        Err(lo)
+    }
+
+    pub fn get(&self, key: &[u8]) -> Option<&[u8]> {
+        self.search(key).ok().map(|i| self.cell(i).1)
+    }
+
+    /// Drops slot `i`; its cell's bytes become fragmented until the next compaction.
+    fn remove_slot(&mut self, i: usize) {
+        let n = self.len();
+        let (_, len) = self.slot(i);
+        self.buf.copy_within(HEADER + SLOT * (i + 1)..HEADER + SLOT * n, HEADER + SLOT * i);
+        self.set_u16(0, n - 1);
+        self.set_u16(4, self.fragmented() + len);
+    }
+
+    /// Adds `key`, or replaces its value. Checks the space first, so a failed insert changes nothing.
+    pub fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<(), PageFull> {
+        let cell = 2 + key.len() + value.len();
+        let found = self.search(key);
+        // Replacing frees the old slot and cell.
+        let reclaimed = match found {
+            Ok(i) => SLOT + self.slot(i).1,
+            Err(_) => 0,
+        };
+        if FITS {
+            return Err(PageFull);
+        }
+        let at = match found {
+            Ok(i) => {
+                self.remove_slot(i);
+                i
+            }
+            Err(i) => i,
+        };
+MAKE_ROOM
+        let n = self.len();
+        self.buf.copy_within(HEADER + SLOT * at..HEADER + SLOT * n, HEADER + SLOT * (at + 1));
+        let offset = self.cell_start() - cell;
+        self.buf[offset..offset + 2].copy_from_slice(&(key.len() as u16).to_le_bytes());
+        self.buf[offset + 2..offset + 2 + key.len()].copy_from_slice(key);
+        self.buf[offset + 2 + key.len()..offset + cell].copy_from_slice(value);
+        self.set_slot(at, offset, cell);
+        self.set_u16(0, n + 1);
+        self.set_u16(2, offset);
+        Ok(())
+    }
+
+    pub fn delete(&mut self, key: &[u8]) -> bool {
+        match self.search(key) {
+            Ok(i) => {
+                self.remove_slot(i);
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// Packs the cells against the end of the page in slot order and zeroes the free gap. The scratch
+    /// page is on the stack: 4 KiB, no allocation.
+    pub fn compact(&mut self) {
+        let n = self.len();
+        let mut out = [0u8; PAGE_SIZE];
+        let mut end = PAGE_SIZE;
+        for i in COMPACT_ORDER {
+            let (offset, len) = self.slot(i);
+            out[end - len..end].copy_from_slice(&self.buf[offset..offset + len]);
+            out[HEADER + SLOT * i..HEADER + SLOT * i + 2].copy_from_slice(&((end - len) as u16).to_le_bytes());
+            out[HEADER + SLOT * i + 2..HEADER + SLOT * i + 4].copy_from_slice(&(len as u16).to_le_bytes());
+            end -= len;
+        }
+        out[0..2].copy_from_slice(&(n as u16).to_le_bytes());
+        out[2..4].copy_from_slice(&(end as u16).to_le_bytes());
+        self.buf = out;
+    }
+
+    /// The cells in key order.
+    pub fn iter(&self) -> impl Iterator<Item = (&[u8], &[u8])> + '_ {
+        (0..self.len()).map(move |i| self.cell(i))
+    }
+}
+""".replace("STRUCT", struct).replace("NEW_BODY", new_body).replace("FROM_BYTES", from_bytes).replace("COMPACT_ORDER", compact_order) \
+       .replace("MAKE_ROOM", make_room).replace("FITS", fits)
+
+
+PAGE_BOXED = page_solution(struct="""pub struct Page {
+    buf: Box<[u8; PAGE_SIZE]>,
+}""", new_body="Page { buf: Box::new([0; PAGE_SIZE]) }", from_bytes="Page { buf: Box::new(*bytes) }").replace("        self.buf = out;", "        *self.buf = out;")
+
+PAGE_MODEL = """
+/// The page image that `compact` must produce for these cells: header, sorted slots, cells packed from the
+/// end in slot order, zeros between.
+fn packed_image(cells: &std::collections::BTreeMap<Vec<u8>, Vec<u8>>) -> Vec<u8> {
+    let mut img = vec![0u8; 4096];
+    let mut end = 4096;
+    for (i, (k, v)) in cells.iter().enumerate() {
+        let len = 2 + k.len() + v.len();
+        let at = end - len;
+        img[at..at + 2].copy_from_slice(&(k.len() as u16).to_le_bytes());
+        img[at + 2..at + 2 + k.len()].copy_from_slice(k);
+        img[at + 2 + k.len()..end].copy_from_slice(v);
+        img[8 + 4 * i..8 + 4 * i + 2].copy_from_slice(&(at as u16).to_le_bytes());
+        img[8 + 4 * i + 2..8 + 4 * i + 4].copy_from_slice(&(len as u16).to_le_bytes());
+        end = at;
+    }
+    img[0..2].copy_from_slice(&(cells.len() as u16).to_le_bytes());
+    img[2..4].copy_from_slice(&(end as u16).to_le_bytes());
+    img
+}
+
+fn used(cells: &std::collections::BTreeMap<Vec<u8>, Vec<u8>>) -> usize {
+    8 + cells.iter().map(|(k, v)| 4 + 2 + k.len() + v.len()).sum::<usize>()
+}
+"""
+
+PAGE_RANDOM = """
+#[test]
+fn random_vs_btreemap() {
+    let mut rng = anneal_prelude::Rng::new(8216);
+    for _ in 0..120 {
+        let mut page = Page::new();
+        let mut model = std::collections::BTreeMap::new();
+        let mut log = Vec::new();
+        for _ in 0..rng.below(150) {
+            let key_len = rng.below(6);
+            let key = rng.string(key_len, "abcd").into_bytes();
+            if rng.below(3) < 2 {
+                let value_len = if rng.below(10) == 0 { rng.below(1500) } else { rng.below(60) };
+                let value: Vec<u8> = rng.vec(value_len, 0, 255);
+                let mut next = model.clone();
+                next.insert(key.clone(), value.clone());
+                let fits = used(&next) <= 4096;
+                log.push(format!("insert({:?}, {} bytes)", String::from_utf8_lossy(&key), value.len()));
+                let before = *page.as_bytes();
+                let got = page.insert(&key, &value);
+                check!(format!("{}", log.join(", ")), got, if fits { Ok(()) } else { Err(PageFull) });
+                if fits {
+                    model = next;
+                } else {
+                    check!(format!("{}: page unchanged after PageFull", log.join(", ")), page.as_bytes() == &before, true);
+                }
+            } else {
+                log.push(format!("delete({:?})", String::from_utf8_lossy(&key)));
+                check!(log.join(", "), page.delete(&key), model.remove(&key).is_some());
+            }
+            if rng.below(8) == 0 {
+                log.push("compact()".to_string());
+                page.compact();
+                check!(format!("{}: the compacted image", log.join(", ")), page.as_bytes().to_vec() == packed_image(&model), true);
+            }
+        }
+        let ctx = log.join(", ");
+        let want: Vec<(&[u8], &[u8])> = model.iter().map(|(k, v)| (&k[..], &v[..])).collect();
+        check!(format!("{ctx}: iter()"), page.iter().collect::<Vec<_>>(), want);
+        check!(format!("{ctx}: len, free_space"), (page.len(), page.free_space()), (model.len(), 4096 - used(&model)));
+        let probe = rng.string(3, "abcd").into_bytes();
+        check!(format!("{ctx}: get({:?})", String::from_utf8_lossy(&probe)), page.get(&probe), model.get(&probe).map(|v| &v[..]));
+        let copy = Page::from_bytes(page.as_bytes());
+        check!(format!("{ctx}: from_bytes(as_bytes()) iterates the same"), copy.iter().collect::<Vec<_>>(), page.iter().collect::<Vec<_>>());
+    }
+}
+"""
+
+PAGE_FILL = """let mut page = Page::new();
+let mut stored = 0;
+while page.insert(format!("k{stored:03}").as_bytes(), &[7; 100]).is_ok() {
+    stored += 1;
+}"""
+
+P.append(dict(
+    slug="slotted-page", title="A slotted page for a B-tree leaf", level="hard", stage="locality",
+    tags=["slotted page", "B-tree", "on-disk format", "fragmentation", "zero allocation"],
+    teaches=["A slotted page keeps a sorted array of fixed-size slots growing from the front and variable-size cells growing from the back, so cells never move when keys are inserted in the middle.",
+             "The whole node is one `[u8; 4096]`: the in-memory form is the on-disk form, and lookups return slices into the page.",
+             "Deletes leave holes; count them as fragmented bytes and compact only when an insert needs contiguous room."],
+    statement="""
+        Write the leaf page of a B-tree, as SQLite and PostgreSQL lay it out: **everything in one
+        `[u8; 4096]`**, so `size_of::<Page>()` is 4096 and nothing allocates, not even `compact`.
+
+        The format (all integers `u16` little-endian):
+
+        - **Header**, bytes 0..8: cell count `n`; `cell_start`, where the cell area begins (4096 when empty);
+          `fragmented`, bytes of dead cells inside the cell area; then 0.
+        - **Slot array** from byte 8: slot `i` is (cell offset, cell length) at `8 + 4i`, sorted by key
+          (bytewise).
+        - **Cells**, growing down from the end: key length, key bytes, value bytes. A new cell goes right
+          below `cell_start`.
+
+        `insert` adds a key or replaces its value (the old cell becomes fragmented). If the slot array and
+        the cells wouldn't fit even counting fragmented bytes, it returns `Err(PageFull)` and changes nothing;
+        if they fit but the contiguous gap is too small, it compacts first. `delete` removes the slot (later
+        slots shift down) and fragments the cell. `compact` rewrites the cell area with the cells packed
+        against the end in **slot order** (slot 0's cell ends at 4096), `fragmented` = 0, and the free gap
+        zeroed. `free_space` counts the gap plus fragmented bytes; `get` and `iter` borrow from the page.
+    """,
+    examples=[("Page::new().as_bytes()[0..8]", "[0, 0, 0, 16, 0, 0, 0, 0]"),
+              ("insert b → 2, then a → 1, then compact(): bytes 8..16", "[252, 15, 4, 0, 248, 15, 4, 0]"),
+              ("inserting 4-byte keys with 100-byte values into an empty page", "37 fit")],
+    constraints=["keys and values are any bytes, including empty", "a cell is 2 + key + value bytes and needs a 4-byte slot", "no heap allocation anywhere"],
+    starter=PAGE_STARTER,
+    solution=page_solution(),
+    visible=[
+        T("one_array", "size_of::<Page>()", "std::mem::size_of::<Page>()", "4096"),
+        T("empty_header", "Page::new(): header bytes, len, free_space", "(page.as_bytes()[0..8].to_vec(), page.len(), page.free_space())", "(vec![0, 0, 0, 16, 0, 0, 0, 0], 0, 4088)",
+          setup="let page = Page::new();"),
+        T("sorted_lookup", "insert cherry, apple, banana; iter and get", "(page.iter().map(|(k, _)| k).collect::<Vec<_>>(), page.get(b\"banana\"), page.get(b\"durian\"))",
+          '(vec![&b"apple"[..], &b"banana"[..], &b"cherry"[..]], Some(&b"yellow"[..]), None)',
+          setup='let mut page = Page::new();\nfor (k, v) in [("cherry", "red"), ("apple", "green"), ("banana", "yellow")] {\n    page.insert(k.as_bytes(), v.as_bytes()).unwrap();\n}'),
+        T("compacted_image", "insert b → 2, a → 1, then compact(): header, slots, and the last 8 bytes",
+          "(img[0..16].to_vec(), img[4088..].to_vec(), img[16..4088].iter().all(|&b| b == 0))",
+          '(vec![2, 0, 248, 15, 0, 0, 0, 0, 252, 15, 4, 0, 248, 15, 4, 0], vec![1, 0, b\'b\', b\'2\', 1, 0, b\'a\', b\'1\'], true)',
+          setup='let mut page = Page::new();\npage.insert(b"b", b"2").unwrap();\npage.insert(b"a", b"1").unwrap();\npage.compact();\nlet img = page.as_bytes();'),
+        T("fills_up", "insert k000, k001, ... with 100-byte values until PageFull", "(stored, page.len(), page.free_space(), page.insert(b\"x\", &[0; 13]))", "(37, 37, 18, Err(PageFull))",
+          setup=PAGE_FILL),
+        T("no_allocation", "new, 50 inserts, gets, 25 deletes, compact, 10 inserts: allocations", "(n.count, len)", "(0, 35)",
+          setup='let (len, n) = anneal_prelude::allocs(|| {\n    let mut page = Page::new();\n    for i in 0..50u32 {\n        page.insert(&i.to_be_bytes(), &[i as u8; 20]).unwrap();\n    }\n    for i in 0..50u32 {\n        assert_eq!(page.get(&i.to_be_bytes()), Some(&[i as u8; 20][..]));\n    }\n    for i in (0..50u32).step_by(2) {\n        page.delete(&i.to_be_bytes());\n    }\n    page.compact();\n    for i in 100..110u32 {\n        page.insert(&i.to_be_bytes(), b"v").unwrap();\n    }\n    page.len()\n});'),
+    ],
+    hidden=[
+        PAGE_MODEL,
+        T("fragments_are_reused", "fill with 37 cells, delete every other one, insert a 700-byte value", "(page.insert(b\"big\", &[1; 700]), page.get(b\"big\").map(|v| v.len()), page.len())", "(Ok(()), Some(700), 19)",
+          setup=PAGE_FILL + "\nfor i in (0..37).step_by(2) {\n    page.delete(format!(\"k{i:03}\").as_bytes());\n}"),
+        T("replace_too_big_changes_nothing", "full page; replace k005's 100 bytes with 200", "(page.insert(b\"k005\", &[9; 200]), page.as_bytes() == &before, page.get(b\"k005\").map(|v| v[0]))", "(Err(PageFull), true, Some(7))",
+          setup=PAGE_FILL + "\nlet before = *page.as_bytes();"),
+        T("replace_grows_into_its_own_space", "full page; replace k005 with 118 bytes (its old 106-byte cell plus the 18 free)", "(page.insert(b\"k005\", &[9; 118]), page.free_space(), page.len())", "(Ok(()), 0, 37)",
+          setup=PAGE_FILL),
+        T("replace_smaller", "a → 10 bytes, then a → 2 bytes", "(page.get(b\"a\"), page.len(), page.free_space())", '(Some(&b"hi"[..]), 1, 4096 - 8 - 4 - 2 - 1 - 2)',
+          setup='let mut page = Page::new();\npage.insert(b"a", &[0; 10]).unwrap();\npage.insert(b"a", b"hi").unwrap();'),
+        T("empty_key_and_value", "insert (\"\", \"\") and (\"x\", \"\")", "(page.get(b\"\"), page.get(b\"x\"), page.iter().count())", '(Some(&b""[..]), Some(&b""[..]), 2)',
+          setup='let mut page = Page::new();\npage.insert(b"", b"").unwrap();\npage.insert(b"x", b"").unwrap();'),
+        T("largest_cell", "one key byte and 4081 value bytes fits exactly; 4082 doesn't", "(Page::new().insert(b\"k\", &[1; 4081]), Page::new().insert(b\"k\", &[1; 4082]))", "(Ok(()), Err(PageFull))"),
+        T("delete_all", "insert 10, delete them all, delete one again", "(page.len(), page.free_space(), again, page.iter().count())", "(0, 4088, false, 0)",
+          setup="let mut page = Page::new();\nfor i in 0..10u8 {\n    page.insert(&[i], &[i; 30]).unwrap();\n}\nfor i in 0..10u8 {\n    page.delete(&[i]);\n}\nlet again = page.delete(&[3]);"),
+        T("from_disk", "a page image written by another process: from_bytes, get", "(page.get(b\"a\"), page.get(b\"b\"), page.len())", '(Some(&b"1"[..]), Some(&b"2"[..]), 2)',
+          setup='let mut cells = std::collections::BTreeMap::new();\ncells.insert(b"a".to_vec(), b"1".to_vec());\ncells.insert(b"b".to_vec(), b"2".to_vec());\nlet img: [u8; 4096] = packed_image(&cells).try_into().unwrap();\nlet page = Page::from_bytes(&img);'),
+        T("fragmented_header", "insert a (10 bytes), b (20 bytes), delete a: header bytes 0..6", "page.as_bytes()[0..6].to_vec()", "vec![1, 0, 0xDC, 0x0F, 13, 0]",
+          setup='let mut page = Page::new();\npage.insert(b"a", &[0; 10]).unwrap();\npage.insert(b"b", &[0; 20]).unwrap();\npage.delete(b"a");'),
+        PAGE_RANDOM,
+    ],
+    hints=[("approach", "Keep no Rust-side structures at all: read and write the header fields and slots as little-endian `u16`s at fixed offsets in the array. Binary search the slot array by reading each slot's key out of its cell."),
+           ("rust", "`buf.copy_within(a..b, dest)` shifts the slot array to open or close a slot. `get` can return `&self.buf[start..end]` directly. For `compact`, build the new image in a local `[u8; 4096]` (stack, not heap) and assign it back."),
+           ("edge case", "Check the space before changing anything: needed = 4 + cell, available = free_space + (for a replace) the old slot and cell. Compact only when the contiguous gap is short but the total isn't.")],
+    notes=("""A slotted page puts two structures in one buffer, growing toward each other: a sorted array of fixed-size slots from the front and variable-size cells from the back. Inserting a key in the middle shifts 4-byte slots, never the cells, and a lookup is a binary search over slots that returns a slice of the page itself. Deleting leaves a hole in the cell area; the header counts those fragmented bytes so `free_space` stays exact, and the cells are compacted only when an insert needs contiguous room it can't otherwise get. Because the page is exactly one `[u8; 4096]`, the in-memory form is the on-disk form: no serialization, no pointers, no allocation, and a 4 KiB page maps onto a 4 KiB OS page and SSD sector.
+
+This is SQLite's b-tree page (a cell pointer array after the header, cells from the end, "fragmented free bytes" in the header, `defragmentPage`) and PostgreSQL's heap/index page (`pd_lower`/`pd_upper`, line pointers `ItemIdData`, `PageRepairFragmentation`). Real pages add a free-block list so a small insert can reuse a hole without compacting, overflow pages for large values, and a checksum.""", "O(log n) get; O(n) insert and delete (slot shift); O(page) compact", "4096 bytes, no heap"),
+    follow_up="SQLite keeps a linked list of free blocks inside the cell area so small inserts reuse holes without compacting. Where would you store that list, and how does it change `insert` and `free_space`?",
+    source="SQLite b-tree page format (btreeInt.h, defragmentPage); PostgreSQL bufpage.h (pd_lower / pd_upper, ItemIdData)",
+    related=["F4", "F7", "D14"],
+    perf=dict(allocs=True),
+    wrong=dict(
+        boxed_buffer=PAGE_BOXED,
+        never_compacts=page_solution(fits="SLOT + cell > self.gap() + reclaimed.min(SLOT)", make_room=""),
+        reversed_compaction=page_solution(compact_order="(0..n).rev()"),
+    ),
+))
+
 STAGES = [
     ("size-it", "Size it", "easy"),
     ("pick-the-representation", "Pick the representation", "medium"),
+    ("locality", "Locality", "hard"),
 ]
 
 for p in P:

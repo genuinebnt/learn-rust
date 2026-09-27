@@ -1,0 +1,45 @@
+slug = "particles-as-arrays"
+title = "Particles: array of structs to struct of arrays"
+mode = "fix"
+level = "hard"
+stage = "locality"
+order = 12
+status = "ready"
+tags = ["SoA", "AoS", "cache lines", "auto-vectorization", "HPC"]
+teaches = [
+  "A kernel that reads 12 bytes of an 88-byte struct still pulls whole cache lines: most of the memory traffic is fields it never uses.",
+  "Structure of arrays: one dense array per hot field, so each loop streams exactly what it reads and vectorizes (4 or 8 lanes per instruction).",
+  "Keep the AoS type at the API boundary (`push`, `get`), and gather/scatter there.",
+]
+constraints = ["up to 2²⁰ particles in a test", "step does vel.z -= G * dt, then pos += vel * dt, in f32"]
+follow_up = "A collision kernel reads pos, vel, radius and mass of pairs of nearby particles. Does SoA still win, and where would AoSoA (blocks of 8) help?"
+related = ["F5", "C6"]
+source = "HPC particle codes (LAMMPS, GROMACS) and ECS component storage (Bevy)"
+
+[[examples]]
+input = "one step of dt = 0.1 for pos [0, 0, 10], vel [1, 0, 0]"
+output = "vel [1, 0, -0.981], pos [0.1, 0, 9.9019]"
+
+[[examples]]
+input = "step, 262 144 particles"
+output = "≥ 2.5× the AoS loop"
+
+[[hints]]
+kind = "approach"
+text = "Replace `Vec<Particle>` with one `Vec<f32>` per hot field (x, y, z, vx, vy, vz, mass) and one `Vec` of everything else. `push` scatters a `Particle` into them; `get` gathers it back."
+
+[[hints]]
+kind = "rust"
+text = "Write each kernel over slices LLVM can prove are the same length: zipped iterators (`self.z.iter_mut().zip(&self.vz)`) or re-sliced arrays (`let vz = &mut self.vz[..n];`). No bounds checks means the loop vectorizes. Update `vz` before `z`, so positions use the new velocity."
+
+[[hints]]
+kind = "edge case"
+text = "Splitting only hot from cold (`Vec<{ pos, vel, mass }>`) helps the step, but `count_below` still reads 28 bytes to use 4. Keep the arithmetic exactly `v -= G * dt` and `p += v * dt` in `f32`, or results drift from the AoS version."
+
+[solution]
+explanation = "The integrator touches 24 of each particle's 88 bytes, but memory moves in 64-byte cache lines, so an array of structs reads (and writes back) most of each struct anyway; `count_below` uses 4 bytes and still pulls ~64. A structure of arrays keeps each hot field in its own dense array: `step` streams six `f32` arrays and nothing else, `count_below` streams one, and the loops are plain zipped slices that LLVM vectorizes, 4 or 8 particles per instruction. Measured in the tests on the x86_64 runner (baseline and yours interleaved, so neither keeps the cache warm), `step` is 4.7–6× faster at 262 144 particles in one fused pass (3.6–3.9× as four separate loops) and `count_below` 10.6–12.9× at a million; the tests ask for 2.5× and 6×. A hot/cold split of whole structs gets only 2.2–2.6× on `count_below`, which the test rejects: it still reads `pos.x`, `pos.y`, the velocity and the mass to use one float.\n\nThe API keeps the AoS type: `push` scatters and `get` gathers, which costs a little per call and nothing per frame. This is how HPC codes (LAMMPS, GROMACS) and ECS engines (Bevy's table storage) lay out components, and what \"SoA\" means in GPU and SIMD code. AoSoA (blocks of 8 or 16 particles, SoA inside a block) is the next step when kernels touch many fields at once."
+time = "O(n) per step, streaming 24 bytes a particle"
+space = "the same 88 bytes a particle, split into dense arrays"
+
+[perf]
+release = true

@@ -1,0 +1,45 @@
+slug = "validity-bitmap-column"
+title = "A validity bitmap for a nullable column"
+mode = "fix"
+level = "hard"
+stage = "locality"
+order = 11
+status = "ready"
+tags = ["columnar", "validity bitmap", "Option layout", "popcount", "Arrow"]
+teaches = [
+  "`Option<f64>` has no niche, so a nullable column of them is 16 bytes a row; Arrow stores 8 bytes of value plus 1 bit of validity.",
+  "NaN is a value, not a null: a sentinel inside the value's own range always collides with real data.",
+  "Kernels run over the dense values buffer and combine bitmaps word by word (`&`, `count_ones`), 64 rows at a time.",
+]
+constraints = ["up to 2⁶³ rows", "values are any f64, including NaN, ±∞ and −0.0"]
+follow_up = "Arrow can skip the bitmap entirely when a column has no nulls. How would `get`, `count_gt` and `null_count` change, and what does a slice starting at row 3 do to the bitmap?"
+related = ["F4", "F5", "F7"]
+source = "Apache Arrow columnar format (validity bitmaps); arrow-rs NullBuffer"
+
+[[examples]]
+input = "with_capacity(100_000) and 100_000 pushes: bytes requested"
+output = "at most 812_564 (was 1_600_000)"
+
+[[examples]]
+input = "rows [Some(-1.0), None, Some(2.0)]: count_gt(-5.0)"
+output = "2"
+
+[[hints]]
+kind = "approach"
+text = "Two buffers: `values: Vec<f64>` with a placeholder in null slots, and a bitmap `Vec<u64>` where bit `i % 64` of word `i / 64` says whether row `i` is present. Keep a null counter as you push."
+
+[[hints]]
+kind = "rust"
+text = "`validity[i / 64] |= 1 << (i % 64)` to set, `validity[i / 64] >> (i % 64) & 1` to read, `Vec::with_capacity(rows.div_ceil(64))` to reserve. `u64::count_ones` counts a word's set bits."
+
+[[hints]]
+kind = "edge case"
+text = "Don't use NaN as the null marker: NaN is a legal value. And the placeholder must not leak: with 0.0 in null slots, `count_gt(-5.0)` counts nulls unless you AND with the validity bits."
+
+[solution]
+explanation = "`Option<T>` is free only when `T` has a niche, and `f64` uses every bit pattern, so `Option<f64>` is 16 bytes: 8 of value, 1 of tag, 7 of padding. Arrow's layout separates the two: a dense values buffer and a validity bitmap, 8 bytes and 1 bit per row, half the memory and half the bytes each scan reads. Null slots hold a placeholder (0.0 here), so `sum` is a straight pass over `values` (`x + 0.0 == x`), and kernels that could see the placeholder combine a comparison bitmask with the validity word and count bits: 64 rows per `&` and `count_ones`. NaN as a null marker (the R/pandas trick) looks free but breaks as soon as data contains a NaN.\n\nThis is Arrow's in-memory format (arrow-rs `NullBuffer` over a `BooleanBuffer`), also used by DataFusion, Polars and DuckDB's vectors, and the reason their filter kernels produce bitmaps rather than lists of row ids."
+time = "O(1) push / get / null_count; O(n) sum, count_gt"
+space = "8 bytes + 1 bit per row"
+
+[perf]
+count_allocs = true

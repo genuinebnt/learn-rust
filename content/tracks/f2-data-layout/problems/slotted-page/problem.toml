@@ -1,0 +1,49 @@
+slug = "slotted-page"
+title = "A slotted page for a B-tree leaf"
+mode = "write"
+level = "hard"
+stage = "locality"
+order = 14
+status = "ready"
+tags = ["slotted page", "B-tree", "on-disk format", "fragmentation", "zero allocation"]
+teaches = [
+  "A slotted page keeps a sorted array of fixed-size slots growing from the front and variable-size cells growing from the back, so cells never move when keys are inserted in the middle.",
+  "The whole node is one `[u8; 4096]`: the in-memory form is the on-disk form, and lookups return slices into the page.",
+  "Deletes leave holes; count them as fragmented bytes and compact only when an insert needs contiguous room.",
+]
+constraints = ["keys and values are any bytes, including empty", "a cell is 2 + key + value bytes and needs a 4-byte slot", "no heap allocation anywhere"]
+follow_up = "SQLite keeps a linked list of free blocks inside the cell area so small inserts reuse holes without compacting. Where would you store that list, and how does it change `insert` and `free_space`?"
+related = ["F4", "F7", "D14"]
+source = "SQLite b-tree page format (btreeInt.h, defragmentPage); PostgreSQL bufpage.h (pd_lower / pd_upper, ItemIdData)"
+
+[[examples]]
+input = "Page::new().as_bytes()[0..8]"
+output = "[0, 0, 0, 16, 0, 0, 0, 0]"
+
+[[examples]]
+input = "insert b → 2, then a → 1, then compact(): bytes 8..16"
+output = "[252, 15, 4, 0, 248, 15, 4, 0]"
+
+[[examples]]
+input = "inserting 4-byte keys with 100-byte values into an empty page"
+output = "37 fit"
+
+[[hints]]
+kind = "approach"
+text = "Keep no Rust-side structures at all: read and write the header fields and slots as little-endian `u16`s at fixed offsets in the array. Binary search the slot array by reading each slot's key out of its cell."
+
+[[hints]]
+kind = "rust"
+text = "`buf.copy_within(a..b, dest)` shifts the slot array to open or close a slot. `get` can return `&self.buf[start..end]` directly. For `compact`, build the new image in a local `[u8; 4096]` (stack, not heap) and assign it back."
+
+[[hints]]
+kind = "edge case"
+text = "Check the space before changing anything: needed = 4 + cell, available = free_space + (for a replace) the old slot and cell. Compact only when the contiguous gap is short but the total isn't."
+
+[solution]
+explanation = "A slotted page puts two structures in one buffer, growing toward each other: a sorted array of fixed-size slots from the front and variable-size cells from the back. Inserting a key in the middle shifts 4-byte slots, never the cells, and a lookup is a binary search over slots that returns a slice of the page itself. Deleting leaves a hole in the cell area; the header counts those fragmented bytes so `free_space` stays exact, and the cells are compacted only when an insert needs contiguous room it can't otherwise get. Because the page is exactly one `[u8; 4096]`, the in-memory form is the on-disk form: no serialization, no pointers, no allocation, and a 4 KiB page maps onto a 4 KiB OS page and SSD sector.\n\nThis is SQLite's b-tree page (a cell pointer array after the header, cells from the end, \"fragmented free bytes\" in the header, `defragmentPage`) and PostgreSQL's heap/index page (`pd_lower`/`pd_upper`, line pointers `ItemIdData`, `PageRepairFragmentation`). Real pages add a free-block list so a small insert can reuse a hole without compacting, overflow pages for large values, and a checksum."
+time = "O(log n) get; O(n) insert and delete (slot shift); O(page) compact"
+space = "4096 bytes, no heap"
+
+[perf]
+count_allocs = true

@@ -5,6 +5,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anneal_api::auth::AuthConfig;
 use anneal_api::lsp::LspConfig;
 use anneal_api::{AppState, app};
 use anneal_content::Catalog;
@@ -26,6 +27,7 @@ async fn rust_analyzer_hovers_and_reports_check_errors(db: PgPool) {
         runner: Arc::new(Runner::new(RunnerConfig::new(Sandbox::Host, &work))),
         db,
         lsp: LspConfig::new("rust-analyzer", &work),
+        auth: AuthConfig::disabled(),
     };
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

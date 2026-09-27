@@ -1,0 +1,21 @@
+slug = "min-stack"
+title = "Min stack"
+mode = "write"
+level = "easy"
+stage = "stack-basics"
+order = 4
+status = "ready"
+tags = ["stack of tuples"]
+teaches = [
+  "Stacks of tuples carrying derived state.",
+]
+follow_up = "Can you do it with O(1) extra space beyond the stack itself?"
+
+[[hints]]
+kind = "approach"
+text = "When something is popped, the minimum must go back to what it was. Store the minimum-so-far next to each value."
+
+[solution]
+explanation = "A stack of `(value, min_below)` pairs costs one extra `i32` per element and makes every operation O(1)."
+time = "O(1)"
+space = "O(n)"

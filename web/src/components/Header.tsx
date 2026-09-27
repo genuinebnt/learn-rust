@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 
 const AREAS = [
@@ -9,7 +10,7 @@ const AREAS = [
 ] as const;
 
 /** Nav items whose screens are designed but not built yet. */
-const LATER = ["Library", "Mock interview", "Readiness"];
+const LATER = ["Library", "Mock interview"];
 
 function toggleTheme() {
   const root = document.documentElement;
@@ -55,6 +56,12 @@ export function Header({ area }: { area?: "dsa" | "rust" | "build" }) {
             {l}
           </span>
         ))}
+        <Link to="/progress" className={path.startsWith("/progress") ? "on" : ""} style={{ color: path.startsWith("/progress") ? "var(--fg)" : "var(--dim)" }}>
+          Progress
+        </Link>
+        <span className="nav-later" title="Designed; not built yet">
+          Readiness
+        </span>
       </nav>
       <div className="hdr-r">
         <span className="rd">
@@ -63,8 +70,42 @@ export function Header({ area }: { area?: "dsa" | "rust" | "build" }) {
         <button className="thm" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle theme">
           <span />
         </button>
-        <span className="av">gb</span>
+        <Account />
       </div>
     </header>
+  );
+}
+
+/** The avatar; with login on, it opens a menu with Sign out. */
+function Account() {
+  const session = useQuery({ queryKey: ["session"], queryFn: api.session, staleTime: Infinity });
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  if (!session.data?.required) return <span className="av">gb</span>;
+  return (
+    <div className="acct" ref={box}>
+      <button className="av" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        gb
+      </button>
+      {open && (
+        <div className="acct-menu" role="menu">
+          <button
+            role="menuitem"
+            onClick={async () => {
+              await api.logout().catch(() => undefined);
+              location.assign("/login");
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

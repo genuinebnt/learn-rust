@@ -1,0 +1,26 @@
+slug = "merge-two-sorted-lists"
+title = "Merge two sorted lists"
+mode = "write"
+level = "easy"
+stage = "owned-lists"
+order = 2
+status = "ready"
+tags = ["tail cursor", "Option::insert", "Blind 75"]
+teaches = [
+  "`&mut Option<Box<Node>>` tail cursors.",
+  "`Option::insert` returning `&mut T`.",
+]
+follow_up = "How would you merge in place if you could only have `&mut` to the lists, not ownership?"
+
+[[hints]]
+kind = "rust"
+text = "Keep `tail: &mut Option<Box<ListNode>>`, the empty slot where the next node goes. `tail.insert(node)` fills it and returns the node."
+
+[[hints]]
+kind = "rust"
+text = "`tail = &mut tail.insert(node).next;` moves the cursor forward. When one list runs out, `*tail = a.or(b)` attaches the rest."
+
+[solution]
+explanation = "A `&mut Option<Box<_>>` cursor replaces the dummy-head trick from other languages. The loop only borrows `a` and `b` long enough to compare."
+time = "O(m + n)"
+space = "O(1)"

@@ -1,0 +1,25 @@
+slug = "daily-temperatures"
+title = "Daily temperatures"
+mode = "write"
+level = "medium"
+stage = "monotonic-parsing"
+order = 6
+status = "ready"
+tags = ["monotonic stack"]
+teaches = [
+  "Monotonic stacks of indices.",
+]
+follow_up = "How would you answer 'days until at least 5 degrees warmer'?"
+
+[[hints]]
+kind = "approach"
+text = "Keep the days that haven't found a warmer day yet. A new day resolves every colder day on top."
+
+[[hints]]
+kind = "rust"
+text = "Store indices in the stack, not temperatures: you need the index for the distance and can look the temperature up."
+
+[solution]
+explanation = "Each index is pushed and popped once, so the nested loop is O(n) overall. The stack's temperatures always decrease from bottom to top."
+time = "O(n)"
+space = "O(n)"

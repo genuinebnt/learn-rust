@@ -1,0 +1,21 @@
+code = "D3"
+name = "Stacks & queues"
+section = "D"
+tier = "core"
+order = 3
+summary = "Vec as a stack, VecDeque as a queue, and monotonic stacks for nearest-greater problems. Parsers that return errors instead of panicking."
+
+[[stages]]
+slug = "stack-basics"
+name = "Stack basics"
+band = "easy"
+
+[[stages]]
+slug = "monotonic-parsing"
+name = "Monotonic & parsing"
+band = "medium"
+
+[[stages]]
+slug = "hard-stacks"
+name = "Hard stacks"
+band = "hard"

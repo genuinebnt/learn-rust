@@ -1,0 +1,25 @@
+slug = "search-insert-position"
+title = "Search insert position"
+mode = "write"
+level = "easy"
+stage = "on-an-index"
+order = 2
+status = "ready"
+tags = ["partition_point"]
+teaches = [
+  "`partition_point` with a monotone predicate.",
+]
+follow_up = "How does `binary_search`'s `Err(i)` relate to this answer?"
+
+[[examples]]
+input = "nums = [1,3,5,6], target = 2"
+output = "1"
+
+[[hints]]
+kind = "rust"
+text = "`partition_point(pred)` returns the first index where `pred` is false, given `pred` is true for a prefix and false after."
+
+[solution]
+explanation = "Phrasing the search as 'how many elements are smaller than target' makes the predicate obviously monotone, and std does the loop."
+time = "O(log n)"
+space = "O(1)"

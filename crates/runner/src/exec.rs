@@ -15,6 +15,8 @@ pub(crate) struct Captured {
     pub stdout: String,
     pub stderr: String,
     pub timed_out: bool,
+    /// The process's exit code; `None` when it timed out or was killed by a signal.
+    pub exit_code: Option<i32>,
 }
 
 static CONTAINER_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -111,9 +113,10 @@ pub(crate) async fn cargo(
         buf
     });
 
+    let mut exit_code = None;
     let timed_out = match tokio::time::timeout(limit, child.wait()).await {
         Ok(status) => {
-            status.map_err(|e| RunnerError::io("wait for cargo", e))?;
+            exit_code = status.map_err(|e| RunnerError::io("wait for cargo", e))?.code();
             false
         }
         Err(_) => {
@@ -140,6 +143,7 @@ pub(crate) async fn cargo(
         stdout: String::from_utf8_lossy(&stdout).into_owned(),
         stderr: String::from_utf8_lossy(&stderr).into_owned(),
         timed_out,
+        exit_code,
     })
 }
 

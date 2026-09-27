@@ -1,0 +1,30 @@
+slug = "reorder-list"
+title = "Reorder list"
+mode = "write"
+level = "medium"
+stage = "cursors"
+order = 7
+status = "ready"
+tags = ["split", "reverse", "interleave", "Blind 75"]
+teaches = [
+  "Splitting a list at a `&mut` cursor with `take()`.",
+  "Interleaving an owned list into a borrowed one.",
+]
+follow_up = "Undo the reordering (restore the original order) in O(1) space."
+
+[[hints]]
+kind = "approach"
+text = "Three steps: cut the list in half, reverse the back half, then interleave."
+
+[[hints]]
+kind = "rust"
+text = "The interleave loop owns `back` and walks `front` as `Option<&mut Box<ListNode>>`; both are reassigned every iteration."
+
+[[hints]]
+kind = "edge case"
+text = "Cut after ceil(n/2) nodes so the front half is never shorter than the back half."
+
+[solution]
+explanation = "Each step is a small, borrow-friendly loop. The alternative, collecting nodes into a Vec, costs O(n) space."
+time = "O(n)"
+space = "O(1)"

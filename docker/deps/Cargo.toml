@@ -1,0 +1,53 @@
+# The crates problems may use. The runner image vendors exactly these (see ../runner.Dockerfile);
+# a problem opts in with `crates = ["tokio", "serde"]` in problem.toml, and the runner copies the
+# matching lines below into the problem's Cargo.toml, with Cargo.lock pinning the versions.
+#
+# To change the set: edit this file, run `cargo generate-lockfile` here, rebuild the image.
+[package]
+name = "anneal-deps"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Stand-alone, not part of the anneal workspace.
+[workspace]
+
+[dependencies]
+# errors
+anyhow = "1"
+thiserror = "2"
+# data formats
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1"
+# async
+tokio = { version = "1", features = ["full", "test-util"] }
+tokio-util = { version = "0.7", features = ["codec", "rt"] }
+futures = "0.3"
+bytes = "1"
+pin-project-lite = "0.2"
+# services
+tower = { version = "0.5", features = ["full"] }
+axum = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+turmoil = "0.7"
+# concurrency
+crossbeam = "0.8"
+parking_lot = "0.12"
+dashmap = "6"
+rayon = "1"
+# utilities
+clap = { version = "4", features = ["derive"] }
+rand = "0.10"
+rand_chacha = "0.10"
+regex = "1"
+chrono = "0.4"
+itertools = "0.15"
+uuid = { version = "1", features = ["v4"] }
+hex = "0.4"
+base64 = "0.23"
+sha2 = "0.11"
+walkdir = "2"
+# testing
+proptest = "1"

@@ -12,6 +12,9 @@ anneal-content = { path = "crates/content" }
 anneal-runner = { path = "crates/runner" }
 anneal-rules = { path = "crates/rules" }
 anyhow = "1"
+argon2 = "0.5"
+# OsRng for argon2 salts and session tokens.
+rand_core = { version = "0.6", features = ["getrandom"] }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Band, type StageView } from "../api";
 import { Header } from "../components/Header";
-import { BAND_LABEL, ModeTag, Phase, Sech, Segs, StatusBox, pad2, progressLabel } from "../components/bits";
+import { Level, ModeTag, Phase, Sech, Segs, StatusBox, pad2, progressLabel } from "../components/bits";
 import { NAV_SECTIONS, SECTION_NAMES, type NavArea } from "../curriculum";
 
 const BANDS: Band[] = ["easy", "medium", "hard"];
@@ -94,7 +94,15 @@ export function TrackPage({ slug }: { slug: string }) {
               <span className="v" style={{ fontSize: 18 }}>
                 {nextUp?.title ?? "—"}
               </span>
-              <span className="s">{nextUp ? `${nextUp.level} · ${nextUp.mode === "fix" ? "fix this" : "write it"}` : "nothing ready yet"}</span>
+              <span className="s">
+                {nextUp ? (
+                  <>
+                    <Level level={nextUp.level} /> · {nextUp.mode === "fix" ? "fix this" : "write it"}
+                  </>
+                ) : (
+                  "nothing ready yet"
+                )}
+              </span>
             </div>
           </section>
 
@@ -106,7 +114,7 @@ export function TrackPage({ slug }: { slug: string }) {
                 return (
                   <div className="bandcol" key={b}>
                     <div className="bandh">
-                      <span>{BAND_LABEL[b]}</span>
+                      <Level level={b} upper />
                       <span>{list.length} stages</span>
                     </div>
                     {list.map(([s, i]) => {
@@ -176,7 +184,9 @@ export function TrackPage({ slug }: { slug: string }) {
                       <span>
                         <ModeTag mode={p.mode} />
                       </span>
-                      <span className="lvl">{p.level}</span>
+                      <span className="lvl">
+                        <Level level={p.level} />
+                      </span>
                       <span className="tags">{p.tags.join(" · ")}</span>
                       <span className="best" style={{ color: p.status === "draft" ? "var(--dim)" : p.progress === "not_started" ? "var(--mut)" : "var(--grn)" }}>
                         {p.status === "draft" ? "not written" : progressLabel(p.progress)}

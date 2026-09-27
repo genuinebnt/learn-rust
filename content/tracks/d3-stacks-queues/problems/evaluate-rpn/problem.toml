@@ -1,0 +1,26 @@
+slug = "evaluate-rpn"
+title = "Evaluate reverse Polish notation"
+mode = "write"
+level = "medium"
+stage = "monotonic-parsing"
+order = 5
+status = "ready"
+tags = ["RPN", "parse"]
+teaches = [
+  "Operand order when popping.",
+  "Parse first, then treat the token as an operator.",
+]
+follow_up = "The input isn't always valid in practice. How would the signature change? (Next problem: the fix.)"
+
+[[hints]]
+kind = "approach"
+text = "Numbers go on a stack; an operator pops two and pushes the result."
+
+[[hints]]
+kind = "edge case"
+text = "Pop `b` first, then `a`: `a - b`, not `b - a`. And `\"-11\"` is a number, not an operator."
+
+[solution]
+explanation = "Trying `parse` first means negative numbers are never mistaken for the `-` operator. Rust's `/` truncates toward zero, as required."
+time = "O(n)"
+space = "O(n)"

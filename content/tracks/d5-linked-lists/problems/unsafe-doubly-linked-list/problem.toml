@@ -1,0 +1,32 @@
+slug = "unsafe-doubly-linked-list"
+title = "Unsafe doubly linked list with NonNull"
+mode = "write"
+level = "hard"
+stage = "beyond-box"
+order = 15
+status = "ready"
+tags = ["unsafe", "NonNull", "Box::into_raw"]
+teaches = [
+  "`NonNull` + `Box::leak`/`from_raw` ownership.",
+  "`PhantomData` for ownership and lifetimes.",
+  "`// SAFETY:` comments stating invariants.",
+]
+follow_up = "Run the tests under Miri. What would it report if `pop_front` forgot to clear the new head's `prev`?"
+related = ["Y2", "S7"]
+
+[[hints]]
+kind = "rust"
+text = "Allocate with `NonNull::from(Box::leak(Box::new(node)))`; free with `unsafe { Box::from_raw(ptr.as_ptr()) }` exactly once, when the node is unlinked."
+
+[[hints]]
+kind = "rust"
+text = "`PhantomData<Box<Node>>` says the list owns nodes; `PhantomData<&'a Node>` ties `Iter` to a borrow of the list."
+
+[[hints]]
+kind = "approach"
+text = "Every `unsafe` block should be justified by an invariant: each node is owned by exactly one list and freed only in `pop_*`."
+
+[solution]
+explanation = "This is how `std::collections::LinkedList` works. The safe API holds because `&mut self` gives exclusive access for mutation and `Iter<'a>` keeps the list borrowed while references exist."
+time = "O(1) per op"
+space = "O(n)"

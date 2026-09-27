@@ -1,0 +1,30 @@
+slug = "reverse-nodes-in-k-group"
+title = "Reverse nodes in k-group"
+mode = "write"
+level = "hard"
+stage = "beyond-box"
+order = 13
+status = "ready"
+tags = ["&mut cursor", "take"]
+teaches = [
+  "Lookahead with shared borrows, then mutation.",
+  "A single `&mut` slot cursor.",
+]
+follow_up = "Could you avoid the second walk to the group's tail? What would you need to hold onto?"
+
+[[hints]]
+kind = "approach"
+text = "For each group: check k nodes remain, detach them while reversing, reattach, then move the slot cursor to the group's new last node."
+
+[[hints]]
+kind = "rust"
+text = "Look ahead with a shared `as_deref()` probe first; the `&mut` slot is only used after that borrow ends."
+
+[[hints]]
+kind = "rust"
+text = "Walking the slot k steps after reattaching costs O(k) per group, O(n) overall, and avoids holding a pointer to the group's tail."
+
+[solution]
+explanation = "Keeping one mutable cursor (`slot`) and one owned remainder (`rest`) at a time is what makes this pass the borrow checker without `unsafe` or `Rc`."
+time = "O(n)"
+space = "O(1)"

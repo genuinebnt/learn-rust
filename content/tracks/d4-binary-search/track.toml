@@ -1,0 +1,21 @@
+code = "D4"
+name = "Binary search"
+section = "D"
+tier = "core"
+order = 4
+summary = "Half-open ranges, overflow-safe midpoints, and `partition_point` for any monotone predicate: on indices, on structure, and on the answer itself."
+
+[[stages]]
+slug = "on-an-index"
+name = "On an index"
+band = "easy"
+
+[[stages]]
+slug = "on-structure-and-answer"
+name = "On structure & answer"
+band = "medium"
+
+[[stages]]
+slug = "hard-searches"
+name = "Hard searches"
+band = "hard"

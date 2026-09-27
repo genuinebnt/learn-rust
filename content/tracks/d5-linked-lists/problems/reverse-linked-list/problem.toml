@@ -1,0 +1,29 @@
+slug = "reverse-linked-list"
+title = "Reverse a linked list"
+mode = "write"
+level = "easy"
+stage = "owned-lists"
+order = 1
+status = "ready"
+tags = ["Option<Box<_>>", "take", "Blind 75"]
+teaches = [
+  "Moving boxes between `Option`s with `take()`.",
+]
+follow_up = "Write the recursive version. What limits how long a list it can handle?"
+
+[[examples]]
+input = "[1,2,3,4,5]"
+output = "[5,4,3,2,1]"
+
+[[hints]]
+kind = "rust"
+text = "`while let Some(mut node) = cur` takes ownership of one box at a time."
+
+[[hints]]
+kind = "rust"
+text = "`node.next.take()` moves the rest of the list out and leaves `None` behind, so the node can be relinked."
+
+[solution]
+explanation = "Each iteration owns exactly one node, so the borrow checker has nothing to object to. `take()` is how you move out of a field you still need to write to."
+time = "O(n)"
+space = "O(1)"

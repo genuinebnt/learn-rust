@@ -3,6 +3,19 @@ import type { Band, Mode, Progress } from "../api";
 
 export const BAND_LABEL: Record<Band, string> = { easy: "EASY", medium: "MEDIUM", hard: "HARD" };
 
+/** Difficulty colour: easy green, medium amber, hard red (tokens in app.css). */
+export const LEVEL_COLOR: Record<Band, string> = { easy: "var(--lv-easy)", medium: "var(--lv-medium)", hard: "var(--lv-hard)" };
+
+/** A difficulty label with its colour dot. */
+export function Level({ level, upper }: { level: Band; upper?: boolean }) {
+  return (
+    <span style={{ color: LEVEL_COLOR[level], whiteSpace: "nowrap" }}>
+      <i className="lvl-dot" style={{ background: LEVEL_COLOR[level] }} />
+      {upper ? BAND_LABEL[level] : level}
+    </span>
+  );
+}
+
 /** Section header: mono label, rule, right-aligned caption. */
 export function Sech({ title, caption }: { title: ReactNode; caption?: ReactNode }) {
   return (

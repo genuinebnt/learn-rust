@@ -1,0 +1,29 @@
+slug = "min-in-rotated-sorted-array"
+title = "Minimum in rotated sorted array"
+mode = "write"
+level = "medium"
+stage = "on-structure-and-answer"
+order = 6
+status = "ready"
+tags = ["partition_point", "Blind 75"]
+teaches = [
+  "Finding a monotone predicate in a non-sorted array.",
+]
+follow_up = "What breaks if values can repeat, and what's the worst-case complexity then?"
+
+[[examples]]
+input = "nums = [3,4,5,1,2]"
+output = "Some(1)"
+
+[[hints]]
+kind = "approach"
+text = "Compare each element with the last one. The rotated-away prefix is all greater; the rest is not. That's a monotone predicate."
+
+[[hints]]
+kind = "rust"
+text = "`nums.partition_point(|&x| x > last)` is the index of the minimum."
+
+[solution]
+explanation = "Comparing against the last element gives a predicate that's true then false, so the whole problem is one `partition_point`."
+time = "O(log n)"
+space = "O(1)"

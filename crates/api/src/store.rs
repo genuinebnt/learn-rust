@@ -16,6 +16,8 @@ pub struct Attempt {
     pub hints_revealed: i32,
     pub solution_revealed: bool,
     pub assisted: bool,
+    /// `practice` (first time through) or `resolve` (a scheduled review).
+    pub kind: String,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -28,7 +30,7 @@ pub struct RunRow {
     pub created_at: DateTime<Utc>,
 }
 
-const ATTEMPT_COLS: &str = "id, started_at, solved_at, hints_revealed, solution_revealed, assisted";
+const ATTEMPT_COLS: &str = "id, started_at, solved_at, hints_revealed, solution_revealed, assisted, kind";
 
 pub async fn latest_attempt(db: &PgPool, problem_id: &str) -> sqlx::Result<Option<Attempt>> {
     sqlx::query_as(&format!("SELECT {ATTEMPT_COLS} FROM attempts WHERE problem_id = $1 ORDER BY started_at DESC, id DESC LIMIT 1"))
@@ -152,18 +154,159 @@ pub async fn delete_draft(db: &PgPool, problem_id: &str) -> sqlx::Result<()> {
 pub struct ProgressRow {
     pub solved: bool,
     pub assisted: bool,
+    /// Readiness multiplier from an overdue review (1.0 when not overdue); see [`crate::reviews::decay`].
+    pub decay: f64,
 }
 
-/// Latest attempt per problem.
+/// Per problem: the latest solved attempt if there is one (a re-solve in progress keeps the earlier
+/// credit), otherwise the latest attempt.
 pub async fn progress(db: &PgPool) -> sqlx::Result<HashMap<String, ProgressRow>> {
-    let rows: Vec<(String, bool, bool)> = sqlx::query_as(
-        "SELECT DISTINCT ON (problem_id) problem_id, solved_at IS NOT NULL, assisted
-         FROM attempts ORDER BY problem_id, started_at DESC, id DESC",
+    let rows: Vec<(String, bool, bool, Option<DateTime<Utc>>)> = sqlx::query_as(
+        "SELECT DISTINCT ON (a.problem_id) a.problem_id, a.solved_at IS NOT NULL, a.assisted, r.due_at
+         FROM attempts a LEFT JOIN reviews r ON r.problem_id = a.problem_id
+         ORDER BY a.problem_id, (a.solved_at IS NOT NULL) DESC, a.started_at DESC, a.id DESC",
     )
     .fetch_all(db)
     .await?;
+    let now = Utc::now();
     Ok(rows
         .into_iter()
-        .map(|(id, solved, assisted)| (id, ProgressRow { solved, assisted }))
+        .map(|(id, solved, assisted, due)| {
+            let decay = due.map_or(1.0, |d| crate::reviews::decay(d, now));
+            (id, ProgressRow { solved, assisted, decay })
+        })
         .collect())
+}
+
+/// Starts a scheduled re-solve: a new attempt (hints locked again) and the editor back to the starter.
+pub async fn start_resolve(db: &PgPool, problem_id: &str) -> sqlx::Result<()> {
+    let mut tx = db.begin().await?;
+    sqlx::query("INSERT INTO attempts (problem_id, kind) VALUES ($1, 'resolve')")
+        .bind(problem_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM drafts WHERE problem_id = $1").bind(problem_id).execute(&mut *tx).await?;
+    tx.commit().await
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ReviewRow {
+    pub problem_id: String,
+    pub step: i32,
+    pub due_at: DateTime<Utc>,
+    pub last_result: String,
+    pub history: Json<Vec<serde_json::Value>>,
+}
+
+pub async fn reviews(db: &PgPool) -> sqlx::Result<Vec<ReviewRow>> {
+    sqlx::query_as("SELECT problem_id, step, due_at, last_result, history FROM reviews ORDER BY due_at")
+        .fetch_all(db)
+        .await
+}
+
+/// Schedules the next review after a solve.
+pub async fn record_solve(db: &PgPool, problem_id: &str, outcome: crate::reviews::Outcome, resolve: bool) -> sqlx::Result<()> {
+    let prev: Option<i32> = sqlx::query_scalar("SELECT step FROM reviews WHERE problem_id = $1")
+        .bind(problem_id)
+        .fetch_optional(db)
+        .await?;
+    let (step, days) = crate::reviews::next(prev, outcome);
+    let entry = serde_json::json!({ "at": Utc::now(), "result": outcome.as_str(), "resolve": resolve, "step": step });
+    sqlx::query(
+        "INSERT INTO reviews (problem_id, step, due_at, last_result, history)
+         VALUES ($1, $2, now() + make_interval(days => $3), $4, jsonb_build_array($5::jsonb))
+         ON CONFLICT (problem_id) DO UPDATE SET step = EXCLUDED.step, due_at = EXCLUDED.due_at,
+             last_result = EXCLUDED.last_result, history = reviews.history || $5::jsonb, updated_at = now()",
+    )
+    .bind(problem_id)
+    .bind(step)
+    .bind(days as i32)
+    .bind(outcome.as_str())
+    .bind(Json(entry))
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+/// Adds active-editing seconds for a problem on a (local) day.
+pub async fn add_focus(db: &PgPool, day: chrono::NaiveDate, problem_id: &str, seconds: i32) -> sqlx::Result<()> {
+    sqlx::query(
+        "INSERT INTO focus_time (day, problem_id, seconds) VALUES ($1, $2, $3)
+         ON CONFLICT (day, problem_id) DO UPDATE SET seconds = focus_time.seconds + EXCLUDED.seconds",
+    )
+    .bind(day)
+    .bind(problem_id)
+    .bind(seconds)
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+pub async fn focus(db: &PgPool) -> sqlx::Result<Vec<(chrono::NaiveDate, String, i32)>> {
+    sqlx::query_as("SELECT day, problem_id, seconds FROM focus_time").fetch_all(db).await
+}
+
+/// Every run, oldest first, with just what the stats need.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct RunStat {
+    pub attempt_id: i64,
+    pub problem_id: String,
+    pub status: String,
+    pub diagnostics: Json<Vec<anneal_runner::Diagnostic>>,
+    pub violations: Json<Vec<Violation>>,
+    pub created_at: DateTime<Utc>,
+}
+
+pub async fn run_stats(db: &PgPool) -> sqlx::Result<Vec<RunStat>> {
+    sqlx::query_as(
+        "SELECT attempt_id, problem_id, status, result -> 'diagnostics' AS diagnostics, violations, created_at
+         FROM runs ORDER BY id",
+    )
+    .fetch_all(db)
+    .await
+}
+
+/// One attempt with its run count and latest activity, for the activity rail.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ActivityRow {
+    pub attempt_id: i64,
+    pub kind: String,
+    pub problem_id: String,
+    pub started_at: DateTime<Utc>,
+    pub solved_at: Option<DateTime<Utc>>,
+    pub assisted: bool,
+    pub hints_revealed: i32,
+    pub solution_revealed: bool,
+    pub runs: i64,
+    pub last_at: DateTime<Utc>,
+}
+
+/// Every attempt, most recently active first.
+pub async fn activity(db: &PgPool) -> sqlx::Result<Vec<ActivityRow>> {
+    sqlx::query_as(
+        "SELECT a.id AS attempt_id, a.kind, a.problem_id, a.started_at, a.solved_at, a.assisted, a.hints_revealed, a.solution_revealed,
+                count(r.id) AS runs,
+                GREATEST(a.started_at, COALESCE(a.solved_at, a.started_at), COALESCE(max(r.created_at), a.started_at)) AS last_at
+         FROM attempts a LEFT JOIN runs r ON r.attempt_id = a.id
+         GROUP BY a.id
+         ORDER BY last_at DESC, a.id DESC",
+    )
+    .fetch_all(db)
+    .await
+}
+
+pub async fn scratch(db: &PgPool, problem_id: &str) -> sqlx::Result<Option<String>> {
+    sqlx::query_scalar("SELECT code FROM scratch WHERE problem_id = $1").bind(problem_id).fetch_optional(db).await
+}
+
+pub async fn save_scratch(db: &PgPool, problem_id: &str, code: &str) -> sqlx::Result<()> {
+    sqlx::query(
+        "INSERT INTO scratch (problem_id, code) VALUES ($1, $2)
+         ON CONFLICT (problem_id) DO UPDATE SET code = EXCLUDED.code, updated_at = now()",
+    )
+    .bind(problem_id)
+    .bind(code)
+    .execute(db)
+    .await?;
+    Ok(())
 }

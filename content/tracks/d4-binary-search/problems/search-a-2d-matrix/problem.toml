@@ -1,0 +1,25 @@
+slug = "search-a-2d-matrix"
+title = "Search a 2-D matrix"
+mode = "write"
+level = "medium"
+stage = "on-structure-and-answer"
+order = 8
+status = "ready"
+tags = ["partition_point", "2-D"]
+teaches = [
+  "`partition_point` over a slice of `Vec`s.",
+]
+follow_up = "What if only rows and columns were sorted separately (each row and each column ascending)?"
+
+[[hints]]
+kind = "approach"
+text = "First pick the row: the last one whose first element is ≤ target. Then search inside it."
+
+[[hints]]
+kind = "rust"
+text = "`partition_point` works on a slice of rows too; the predicate just looks at `row[0]`."
+
+[solution]
+explanation = "Two binary searches, one over rows and one within a row, cost O(log r + log c) = O(log rc) without any index arithmetic."
+time = "O(log(r·c))"
+space = "O(1)"

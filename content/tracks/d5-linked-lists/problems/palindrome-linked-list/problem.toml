@@ -1,0 +1,25 @@
+slug = "palindrome-linked-list"
+title = "Palindrome linked list"
+mode = "write"
+level = "medium"
+stage = "cursors"
+order = 9
+status = "ready"
+tags = ["split", "reverse", "as_deref"]
+teaches = [
+  "How a function's signature decides which algorithms are possible.",
+]
+follow_up = "Change the signature to take `&mut Option<Box<ListNode>>` and restore the list before returning."
+
+[[hints]]
+kind = "approach"
+text = "Split off the second half, reverse it, and walk both halves together."
+
+[[hints]]
+kind = "rust"
+text = "Taking the list by value is what allows the O(1)-space version: you're free to cut and relink it."
+
+[solution]
+explanation = "Ownership in the signature matters: with `&Option<Box<_>>` you'd have to copy values out (O(n) space) or restore the list afterwards."
+time = "O(n)"
+space = "O(1)"

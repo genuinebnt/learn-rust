@@ -138,6 +138,9 @@ pub struct ProblemFile {
     /// Where the problem came from in the old study packet, e.g. `"W42"`.
     #[serde(default)]
     pub source: Option<String>,
+    /// Crates from the sandbox's crate set (`docker/deps/Cargo.toml`), e.g. `["tokio", "serde"]`.
+    #[serde(default)]
+    pub crates: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

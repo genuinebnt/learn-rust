@@ -1,0 +1,31 @@
+slug = "copy-list-with-random-pointer"
+title = "Copy list with random pointer (into an arena)"
+mode = "write"
+level = "medium"
+stage = "cursors"
+order = 11
+status = "ready"
+tags = ["Rc::as_ptr", "Weak", "arena"]
+teaches = [
+  "`Rc::as_ptr` for node identity.",
+  "`Weak` for non-owning back pointers.",
+]
+follow_up = "Convert the arena back into `RNode`s. Why is that direction easier?"
+related = ["S7", "D9"]
+
+[[hints]]
+kind = "approach"
+text = "Two passes: number the nodes in order, then look up where each `random` points."
+
+[[hints]]
+kind = "rust"
+text = "Values can repeat, so identify nodes by address: `Rc::as_ptr(&rc)` as a `HashMap` key."
+
+[[hints]]
+kind = "rust"
+text = "`random` is a `Weak`: `upgrade()` gives an `Rc` while the node is alive."
+
+[solution]
+explanation = "The arena form is how Rust code usually stores pointer-y structures: indices instead of references, so copying is just copying a `Vec`."
+time = "O(n)"
+space = "O(n)"

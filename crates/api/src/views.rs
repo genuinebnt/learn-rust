@@ -22,7 +22,7 @@ pub enum Progress {
 }
 
 impl Progress {
-    fn of(row: Option<&ProgressRow>) -> Self {
+    pub fn of(row: Option<&ProgressRow>) -> Self {
         match row {
             None => Progress::NotStarted,
             Some(r) if !r.solved => Progress::Started,
@@ -31,7 +31,7 @@ impl Progress {
         }
     }
 
-    fn solved(self) -> bool {
+    pub fn solved(self) -> bool {
         matches!(self, Progress::Solved | Progress::Assisted)
     }
 }
@@ -49,6 +49,8 @@ pub struct TrackSummary {
     pub total: usize,
     pub ready: usize,
     pub solved: usize,
+    /// 0–100, see [`readiness`].
+    pub readiness: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -119,7 +121,41 @@ pub fn track_summary(t: &Track, progress: &HashMap<String, ProgressRow>) -> Trac
             .filter(|p| p.meta.status == Status::Ready)
             .count(),
         solved: t.problems.iter().filter(|p| state(p).solved()).count(),
+        readiness: readiness(t, progress),
     }
+}
+
+/// How much a problem counts toward readiness.
+pub fn weight(level: Band) -> f64 {
+    match level {
+        Band::Easy => 1.0,
+        Band::Medium => 2.0,
+        Band::Hard => 3.0,
+    }
+}
+
+/// Readiness for a track, 0–100: Σ weight × credit / Σ weight over every problem in the
+/// track, drafts included. Credit is 1 for an unassisted solve and 0.5 for an assisted one, times the
+/// overdue-review decay. (PLAN.md's tested-out credit isn't implemented.)
+pub fn readiness(t: &Track, progress: &HashMap<String, ProgressRow>) -> f64 {
+    let total: f64 = t.problems.iter().map(|p| weight(p.meta.level)).sum();
+    if total == 0.0 {
+        return 0.0;
+    }
+    let earned: f64 = t
+        .problems
+        .iter()
+        .map(|p| {
+            let row = progress.get(&p.id);
+            let credit = match Progress::of(row) {
+                Progress::Solved => 1.0,
+                Progress::Assisted => 0.5,
+                Progress::NotStarted | Progress::Started => 0.0,
+            };
+            weight(p.meta.level) * credit * row.map_or(1.0, |r| r.decay)
+        })
+        .sum();
+    (1000.0 * earned / total).round() / 10.0
 }
 
 pub fn track_detail(t: &Track, progress: &HashMap<String, ProgressRow>) -> TrackDetail {
@@ -166,10 +202,14 @@ pub struct ProblemDetail {
     pub examples: Vec<Example>,
     pub follow_up: Option<String>,
     pub related: Vec<String>,
+    /// Crates the problem may use, from the sandbox's crate set.
+    pub crates: Vec<String>,
     pub rules: Option<Rules>,
     pub starter: String,
     /// The autosaved buffer, if it differs from the starter.
     pub draft: Option<String>,
+    /// The scratch `main.rs` for Run: saved, or a template.
+    pub scratch: String,
     pub visible_tests: String,
     pub hints: HintsView,
     pub solution: SolutionView,
@@ -222,6 +262,8 @@ pub struct AttemptView {
     pub assisted: bool,
     pub hints_revealed: usize,
     pub solution_revealed: bool,
+    /// A scheduled re-solve rather than the first time through.
+    pub resolve: bool,
 }
 
 impl From<Option<&Attempt>> for AttemptView {
@@ -235,6 +277,7 @@ impl From<Option<&Attempt>> for AttemptView {
                 assisted: a.assisted,
                 hints_revealed: a.hints_revealed.max(0) as usize,
                 solution_revealed: a.solution_revealed,
+                resolve: a.kind == "resolve",
             },
         }
     }
@@ -305,6 +348,7 @@ pub fn problem_detail(
     p: &Problem,
     attempt: Option<&Attempt>,
     draft: Option<String>,
+    scratch: Option<String>,
     runs: Vec<RunRow>,
 ) -> ProblemDetail {
     let idx = track
@@ -361,8 +405,10 @@ pub fn problem_detail(
         examples: p.meta.examples.clone(),
         follow_up: p.meta.follow_up.clone(),
         related: p.meta.related.clone(),
+        crates: p.meta.crates.clone(),
         rules: p.meta.rules.clone(),
         draft: draft.filter(|d| *d != starter),
+        scratch: scratch.unwrap_or_else(|| SCRATCH_TEMPLATE.to_owned()),
         starter,
         visible_tests: p.files.visible_tests.clone().unwrap_or_default(),
         hints: HintsView {
@@ -404,4 +450,23 @@ pub struct RunOutcome {
     pub run: RunView,
     pub attempt: AttemptView,
     pub solution: SolutionView,
+}
+
+/// What `main.rs` starts as. `solution` is the crate your `lib.rs` compiles to.
+pub const SCRATCH_TEMPLATE: &str = r#"// Scratch: Run (⌘') builds this with your lib.rs and runs it. Tests don't run.
+use solution::*;
+
+fn main() {
+    // Call your code with any input and print what you want to see, e.g.
+    // println!("{:?}", my_function(&[1, 2, 3]));
+    // dbg!(&value);
+}
+"#;
+
+#[derive(Debug, Deserialize)]
+pub struct ScratchBody {
+    /// The current lib.rs buffer.
+    pub lib: String,
+    /// The scratch main.rs.
+    pub main: String,
 }

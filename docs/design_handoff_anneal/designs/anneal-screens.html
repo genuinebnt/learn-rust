@@ -351,6 +351,156 @@ a.tr:hover{background:var(--sel)}
 .revlist a:hover,.revlist a.on{background:var(--raise);color:var(--fg)}
 .revlist a small{font:400 10.5px var(--mono);color:var(--dim)}
 .revlist p{margin:6px 10px 8px;font-size:11.5px;line-height:1.5;color:var(--dim)}
+
+/* ---------- section catalog (v3) ---------- */
+.cat-top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:28px 48px;padding-block:56px 32px;border-bottom:1px solid var(--line2)}
+.cat-top .lead{margin-top:18px;font-size:16.5px}
+.cat-top .h1.md{margin-top:18px;font-size:clamp(34px,4vw,54px)}
+.cat-stats{display:flex;border:1px solid var(--line2);border-radius:8px;background:var(--panel)}
+.cat-stats>div{padding:16px 26px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cat-stats>div+div{border-left:1px solid var(--line2)}
+.cat-stats b{font:700 30px var(--sans);letter-spacing:-.02em;line-height:1}
+.cat-stats span{font:500 10.5px var(--mono);letter-spacing:.2em;color:var(--dim);white-space:nowrap}
+.cat-body{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:32px;padding-top:32px;align-items:start}
+@media (max-width:1180px){.cat-body{grid-template-columns:minmax(0,1fr)}}
+.cat-main{display:flex;flex-direction:column;gap:28px;min-width:0}
+.nextup{position:relative;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:24px 26px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 22px;overflow:hidden}
+.nextup::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:var(--ca)}
+.nu-ring{grid-row:span 2;width:78px;height:78px;position:relative}
+.nu-ring svg{width:78px;height:78px;transform:rotate(-90deg)}
+.nu-ring div{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.nu-ring b{font:700 24px var(--sans);line-height:1}
+.nu-ring span{font:500 9px var(--mono);letter-spacing:.18em;color:var(--dim);margin-top:3px}
+.nu-k{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font:600 11px var(--mono);letter-spacing:.18em}
+.nu-k i{width:7px;height:7px;border-radius:50%;background:var(--ca)}
+.nu-sub{font-size:14px;color:var(--mut);align-self:start}
+.nu-sub b{color:var(--fg)}
+.nu-main{grid-column:1/-1;display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.nu-main h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.nu-main p{margin:0;font-size:14.5px;line-height:1.6;color:var(--mut);max-width:70ch}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{height:24px;padding:0 10px;display:inline-flex;align-items:center;border-radius:4px;background:var(--raise);font:500 11px var(--mono);color:var(--mut);white-space:nowrap}
+.nu-gain{grid-column:1/-1;display:flex;justify-content:space-between;gap:12px;margin-top:12px;font:500 11px var(--mono);letter-spacing:.12em;color:var(--dim)}
+.nu-bar{grid-column:1/-1;height:4px;border-radius:2px;background:var(--line2);overflow:hidden;display:flex}
+.nu-go{grid-column:1/-1;margin-top:14px;height:50px;border-radius:6px;background:var(--ca);color:var(--on-acc);display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700;font-size:15px}
+.cat-tools{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.cat-search{flex:1 1 240px;max-width:360px;height:38px;display:flex;align-items:center;gap:10px;padding:0 12px;border:1px solid var(--line2);border-radius:6px;background:var(--panel)}
+.cat-search input{flex:1;min-width:0;background:none;border:0;outline:0;font:400 13px var(--mono)}
+.cat-search kbd{font:500 10.5px var(--mono);color:var(--dim);border:1px solid var(--line2);border-radius:4px;padding:1px 5px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.seg button{height:36px;padding:0 12px;font:500 12px var(--mono);color:var(--dim)}
+.seg button.on{background:var(--raise);color:var(--fg)}
+.fchips{display:flex;flex-wrap:wrap;gap:8px}
+.fchip{height:32px;padding:0 12px;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);border-radius:5px;font:500 12px var(--mono);color:var(--mut)}
+.fchip small{font-size:10.5px;color:var(--dim)}
+.fchip.on{border-color:var(--ca);color:var(--ca);background:var(--cab)}
+.flabel{display:flex;align-items:center;gap:14px;font:500 11px var(--mono);letter-spacing:.24em;color:var(--dim)}
+.flabel::after{content:"";flex:1;height:1px;background:var(--line2)}
+.tgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:760px){.tgrid{grid-template-columns:minmax(0,1fr)}}
+.tcard{position:relative;display:flex;flex-direction:column;gap:12px;padding:22px 22px 18px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);min-width:0;transition:border-color .15s}
+.tcard:hover{border-color:var(--line)}
+.tcard.cur{border-color:var(--ca)}
+.tcard.cur::before{content:"";position:absolute;inset:-1px -1px auto -1px;height:2px;border-radius:10px 10px 0 0;background:var(--ca)}
+.tcard.planned{border-style:dashed;background:transparent}
+.tc-top{display:flex;align-items:center;gap:12px}
+.tc-num{width:38px;height:34px;display:grid;place-items:center;border:1px solid var(--line);border-radius:6px;font:600 14px var(--mono);color:var(--ca)}
+.tcard.planned .tc-num{color:var(--dim)}
+.tc-kind{font:500 11px var(--mono);letter-spacing:.2em;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-badge{margin-left:auto;height:22px;padding:0 8px;display:inline-flex;align-items:center;border-radius:4px;font:600 10px var(--mono);letter-spacing:.16em;white-space:nowrap}
+.tcard h3{margin:4px 0 0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.tcard p{margin:0;font-size:14px;line-height:1.55;color:var(--mut);text-wrap:pretty;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:3.1em}
+.tc-meta{font:500 12px var(--mono);color:var(--dim)}
+.tc-meta b{color:var(--fg);font-weight:600}
+.tc-tags{display:flex;gap:6px;overflow:hidden;mask-image:linear-gradient(90deg,#000 85%,transparent)}
+.tc-tags .pill{flex:none}
+.tc-prog{display:flex;justify-content:space-between;gap:12px;margin-top:auto;padding-top:4px;font:500 11.5px var(--mono);color:var(--dim)}
+.tc-prog b{color:var(--fg);font-weight:500}
+.tc-bar{display:flex;gap:3px;height:5px}
+.tc-bar span{display:block;height:100%;border-radius:2px;background:var(--line2);overflow:hidden}
+.tc-bar i{display:block;height:100%}
+.tc-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;margin-top:4px;border-top:1px solid var(--line2);font:500 12px var(--mono);color:var(--dim);min-width:0}
+.tc-foot span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-go{flex:none;height:30px;padding:0 12px;display:inline-flex;align-items:center;border:1px solid var(--ca);border-radius:5px;color:var(--ca);font:600 12px var(--mono)}
+.tlist{border:1px solid var(--line2);border-radius:10px;background:var(--panel);overflow:hidden}
+.trow{display:grid;grid-template-columns:44px minmax(0,1.4fr) minmax(0,1fr) 150px 64px;align-items:center;gap:16px;padding:14px 18px;min-height:60px}
+.trow+.trow{border-top:1px solid var(--line2)}
+.trow .n{font:600 13px var(--mono);color:var(--ca)}
+.trow .t{font-weight:600;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .t small{display:block;font:500 11px var(--mono);color:var(--dim);margin-top:3px}
+.trow .x{font:500 12px var(--mono);color:var(--dim);text-align:right}
+@media (max-width:760px){.trow{grid-template-columns:36px minmax(0,1fr) 64px}.trow .hide{display:none}}
+.cat-rail{display:flex;flex-direction:column;gap:16px;position:sticky;top:76px}
+@media (max-width:1180px){.cat-rail{position:static;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}}
+.rbox{border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:18px}
+.rbox h4{margin:0 0 14px;font:500 11px var(--mono);letter-spacing:.22em;color:var(--dim);display:flex;justify-content:space-between}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.week div{display:flex;flex-direction:column;align-items:center;gap:5px;font:500 9.5px var(--mono);color:var(--dim)}
+.week i{width:100%;aspect-ratio:1;border-radius:3px;background:var(--line2)}
+.rstat{display:flex;justify-content:space-between;margin-top:14px;font:500 12px var(--mono);color:var(--dim)}
+.rstat b{color:var(--fg);font-weight:600}
+.ritem{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;font-size:13px}
+.ritem+.ritem{border-top:1px solid var(--line2)}
+.ritem i{width:8px;height:8px;border-radius:50%}
+.ritem span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ritem small{font:500 11px var(--mono);color:var(--dim)}
+.rmeter{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px 10px;align-items:center;font-size:13px}
+.rmeter i{grid-column:1/-1;height:4px;border-radius:2px;background:var(--line2);overflow:hidden;display:block;margin-bottom:8px}
+.rmeter i b{display:block;height:100%}
+.rmeter em{font:600 12px var(--mono);font-style:normal;text-align:right}
+.cat-empty{padding:40px;text-align:center;border:1px dashed var(--line);border-radius:10px;color:var(--dim);font:500 13px var(--mono)}
+
+/* ---------- progress (dashboards) ---------- */
+:root{--lv-easy:var(--grn);--lv-medium:var(--warn);--lv-hard:var(--bad)}
+.ptabs{display:flex;gap:4px;border-bottom:1px solid var(--line2);margin-top:28px}
+.ptabs button{height:40px;padding:0 16px;font:500 13px var(--mono);color:var(--dim);border-bottom:2px solid transparent;margin-bottom:-1px}
+.ptabs button.on{color:var(--fg);border-bottom-color:var(--acc)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line2);border-radius:10px;background:var(--panel);margin-top:28px}
+.kpis>div{padding:18px 22px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.kpis>div+div{border-left:1px solid var(--line2)}
+.kpis b{font:700 30px var(--sans);letter-spacing:-.02em;line-height:1.05}
+.kpis span{font:500 10.5px var(--mono);letter-spacing:.2em;color:var(--dim)}
+.kpis small{font-size:13px;color:var(--mut)}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis>div:nth-child(3){border-left:0}.kpis>div:nth-child(-n+2){border-bottom:1px solid var(--line2)}}
+.pgrid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;margin-top:20px}
+.pgrid.even{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1100px){.pgrid,.pgrid.even{grid-template-columns:minmax(0,1fr)}}
+.pbox{border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:20px 22px;min-width:0}
+.pbox h3{margin:0 0 4px;font-size:15px;font-weight:700}
+.pbox .sub{margin:0 0 16px;font-size:13px;color:var(--mut)}
+.heat{overflow-x:auto}
+.heat svg{display:block;width:100%;height:auto;min-width:640px}
+.heat text{font:500 10px var(--mono);fill:var(--dim)}
+.heat rect.d{rx:2px}
+.heat rect.d:hover{stroke:var(--fg);stroke-width:1}
+.hlegend{display:flex;align-items:center;gap:4px;justify-content:flex-end;margin-top:10px;font:500 11px var(--mono);color:var(--dim)}
+.hlegend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+.chart svg{display:block;width:100%;height:auto}
+.chart text{font:500 10.5px var(--mono);fill:var(--dim)}
+.chart .gl{stroke:var(--line2);stroke-width:1}
+.chart .lbl{font:600 11px var(--mono)}
+.legend2{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font:500 11.5px var(--mono);color:var(--mut)}
+.legend2 i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.hbars{display:flex;flex-direction:column;gap:10px}
+.hbar{display:grid;grid-template-columns:74px minmax(0,1fr) 36px;gap:12px;align-items:center}
+.hbar code{font:600 12px var(--mono)}
+.hbar.nokey{grid-template-columns:minmax(0,1fr) 36px}
+.hbar .t{display:flex;flex-direction:column;gap:5px;min-width:0}
+.hbar .t small{font-size:12.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbar .t i{display:block;height:6px;border-radius:3px;background:var(--line2);overflow:hidden}
+.hbar .t i b{display:block;height:100%;border-radius:3px}
+.hbar em{font:600 12.5px var(--mono);font-style:normal;text-align:right}
+.ptable{width:100%;border-collapse:collapse;font-size:13.5px}
+.ptable th{font:500 10.5px var(--mono);letter-spacing:.18em;color:var(--dim);text-align:left;padding:0 10px 10px 0;border-bottom:1px solid var(--line2)}
+.ptable td{padding:11px 10px 11px 0;border-bottom:1px solid var(--line2);vertical-align:middle}
+.ptable tr:last-child td{border-bottom:0}
+.ptable .num{font-family:var(--mono);text-align:right}
+.ladder{display:inline-flex;gap:4px;vertical-align:middle}
+.ladder i{width:18px;height:6px;border-radius:3px;background:var(--line2)}
+.ladder i.on{background:var(--vio)}
+.pill2{display:inline-block;padding:2px 8px;border-radius:4px;font:600 10.5px var(--mono);letter-spacing:.08em}
+.insight{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:8px;background:var(--vio-bg);font-size:13.5px;color:var(--fg);margin-top:16px}
+.insight b{color:var(--vio)}
 </style>
 </head>
 <body>
@@ -650,16 +800,16 @@ const S = {
   mock: {step: 'setup', round: 0, talk: [true, true, true, false, false]},
   rd: {track: 'C4'}
 };
-const ROUTES = ['home', 'dsa', 'rust', 'build', 'workspace', 'projects', 'stage', 'library', 'mock', 'readiness'];
+const ROUTES = ['progress', 'home', 'dsa', 'rust', 'build', 'workspace', 'projects', 'stage', 'library', 'mock', 'readiness'];
 
 /* ---------- header ---------- */
 function header() {
   const r = S.route;
-  const on = {dsa: ['dsa'], rust: ['rust', 'workspace'], build: ['build', 'projects', 'stage'], library: ['library'], mock: ['mock'], readiness: ['readiness']};
+  const on = {dsa: ['dsa'], rust: ['rust', 'workspace'], build: ['build', 'projects', 'stage'], library: ['library'], mock: ['mock'], progress: ['progress'], readiness: ['readiness']};
   const a = (k, label, color) => { const act = on[k].includes(r); return `<a href="#${k}" class="${act ? 'on' : ''}" style="color:${color || (act ? 'var(--fg)' : 'var(--dim)')}"${act ? ' aria-current="page"' : ''}>${label}</a>`; };
   return `<header class="hdr">
     <a class="logo" href="#home" aria-label="anneal, today"><span class="mk"><span style="background:var(--acc)"></span><span style="background:var(--vio)"></span><span style="background:var(--grn)"></span><span style="box-shadow:inset 0 0 0 1px var(--line)"></span></span><b>anneal<i>.genuinebasil.dev</i></b></a>
-    <nav class="nav" aria-label="Sections">${a('dsa', 'DSA', 'var(--acc)')}${a('rust', 'Rust', 'var(--vio)')}${a('build', 'Build', 'var(--grn)')}<span style="color:var(--line)">|</span>${a('library', 'Library')}${a('mock', 'Mock interview')}${a('readiness', 'Readiness')}</nav>
+    <nav class="nav" aria-label="Sections">${a('dsa', 'DSA', 'var(--acc)')}${a('rust', 'Rust', 'var(--vio)')}${a('build', 'Build', 'var(--grn)')}<span style="color:var(--line)">|</span>${a('library', 'Library')}${a('mock', 'Mock interview')}${a('progress', 'Progress')}${a('readiness', 'Readiness')}</nav>
     <div class="hdr-r"><a class="rd" href="#readiness">READINESS <b>${OVERALL}%</b></a><button class="thm" data-act="theme" title="Toggle theme" aria-label="Toggle theme"><span></span></button><span class="av">gb</span></div>
   </header>`;
 }
@@ -771,94 +921,305 @@ const RUST_LABELS = {E: 'use it', M: 'understand it', H: 'build it'};
 /* =============================== DSA SECTION =============================== */
 const DSA_ORDER = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D9', 'D7', 'D8', 'D12', 'D10', 'D11', 'D13', 'D14'];
 const DSA_SHORT = {D1: 'arrays', D2: 'pointers', D3: 'stacks', D4: 'search', D5: 'lists', D6: 'trees', D7: 'heaps', D8: 'greedy', D9: 'graphs', D10: 'tries', D11: 'backtrack', D12: 'dp', D13: 'bits', D14: 'design'};
-function scrDSA() {
-  const ts = DSA_ORDER.map(c => byCode[c]);
-  const xs = [20, 200, 380];
-  const pos = ts.map((_, i) => [xs[i % 3], 72 + Math.floor(i / 3) * 62]);
-  const nodes = ts.map((t, i) => {
-    const st = tState(t), bd = st === 'ahead' ? 'var(--line)' : st === 'cur' ? 'var(--acc)' : 'var(--grn)';
-    const style = `left:${pos[i][0]}px;top:${pos[i][1]}px;height:44px;border-color:${bd};${st === 'cur' ? 'background:var(--acc);color:var(--on-acc)' : st === 'ahead' ? 'color:var(--dim)' : ''}${st === 'open' ? ';border-style:dashed' : ''}`;
-    return `<a class="tnode" style="${style}" href="${t.code === 'D9' ? 'TrackGraphs.dc.html' : '#dsa'}"><div class="top"><span>${t.code} ${DSA_SHORT[t.code]}</span><span class="dot" style="background:${st === 'cur' ? 'var(--on-acc)' : bd}"></span></div><div class="s">${t.solved} / ${t.total}</div></a>`;
-  }).join('');
-  const lines = ts.map((t, i) => i % 3 < 2 && i + 1 < ts.length ? `<div class="hl" style="left:${pos[i][0] + 150}px;top:${pos[i][1] + 22}px;width:30px;border-color:${tState(t) === 'done' ? 'var(--grn)' : 'var(--line)'}"></div>` : '').join('');
-  const done = ts.filter(t => tState(t) === 'done').length, solved = secSum('D', 'solved');
-  const cards = ts.map(t => {
-    const st = tState(t);
-    return `<a class="card tall${st === 'cur' ? ' sel' : ''}" href="${t.code === 'D9' ? 'TrackGraphs.dc.html' : '#dsa'}"><div class="top"><span class="ttl">${esc(t.name)}</span><span class="tag" style="color:${stColorTrack(st)}">${t.code}</span></div>
-      <div class="dia">${DIA[t.code]()}</div>
-      <div>${trackPhase(t)}${bandStrip(t)}<div class="foot">${esc(PROBE[t.code])}</div></div></a>`;
-  }).join('') + `<a class="card tall" href="#mock" style="border-style:dashed;border-color:var(--vio);background:var(--vio-bg);justify-content:space-between"><div class="top"><span class="ttl">DSA mock round</span><span class="tag" style="color:var(--vio)">45 MIN</span></div><div style="font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-.03em;text-wrap:balance">Two unseen problems from tracks you've finished.</div><p class="body">Timer on, hints off, rust-analyzer off. Rubric after.</p></a>`;
-  const M = [['HashMap::entry', 'acc'], ['two pointers'], ['Option<Box<Node>>', 'vio'], ['Dijkstra'], ['E0499', 'bad'], ['partition_point'], ['Kahn'], ['sliding window', 'grn'], ['trie'], ['E0502', 'bad'], ['memoization'], ['split_at_mut', 'vio'], ['LRU cache'], ['Reverse<T>', 'acc'], ['backtracking'], ['count_ones'], ['E0505', 'bad'], ['knapsack', 'grn']];
-  const mq = M.map(([x, c]) => `<span style="color:${c ? `var(--${c})` : 'var(--dim)'}">${esc(x)}</span><i>/</i>`).join('');
-  return `<main class="page"><div class="wrap">
-  <section class="hero">
-    <div>
-      <div class="eyebrow"><span style="color:var(--acc)">DSA</span><span>/</span><span>14 TRACKS</span><span>/</span><span>${secSum('D', 'total')} PROBLEMS</span></div>
-      <h1 class="h1">Fourteen tracks, <span style="color:var(--acc)">easy to hard.</span></h1>
-      <p class="lead">Every track climbs from easy to medium to hard, and every problem is solved the way Rust wants it: index-based graphs, <code>Option&lt;Box&lt;Node&gt;&gt;</code> lists, heaps with <code>Reverse&lt;T&gt;</code>. Each track ends in a capstone mock round.</p>
-      <div class="btns"><a class="btn go" href="TrackGraphs.dc.html">Continue · D9 Graphs →</a><a class="btn" href="#mock">Take a capstone</a></div>
-    </div>
-    <div class="panel topo" style="height:440px"><div class="in">
-      <span class="plabel" style="position:absolute;left:20px;top:24px">TRACK MAP · RECOMMENDED ORDER</span>
-      <span class="plabel" style="position:absolute;right:20px;top:24px;color:var(--acc)">${done} DONE</span>
-      ${lines}${nodes}
-      <div class="legend" style="left:20px"><span><i style="border:1.5px solid var(--grn)"></i>done</span><span><i style="border:1.5px dashed var(--grn)"></i>started</span><span><i style="background:var(--acc)"></i>current</span><span><i style="border:1.5px solid var(--line)"></i>ahead</span></div>
-    </div></div>
-  </section>
-  <section class="strip">
-    ${stat('NOW ON', 'Graphs', 'D9 · stage 4 of 7 · shortest paths', 'var(--acc)')}
-    ${stat('SOLVED', `${solved} of ${secSum('D', 'total')}`, `${secPct('D')}% DSA readiness`, 'var(--grn)')}
-    ${stat('CAPSTONES', `${done} of 14 passed`, 'arrays · pointers · stacks')}
-    ${stat('RE-SOLVE DUE', '5 problems', 'oldest: top K frequent, 2 days late', 'var(--vio)')}
-  </section>
-  <section class="sec">${sech('THE TRACKS', 'in recommended order · each runs easy → medium → hard')}<div class="g3">${cards}</div></section>
-  </div>
-  <div class="marq" aria-hidden="true"><div>${mq}${mq}</div></div>
-  <div class="wrap"><section class="closing">
-    <div><h2>Graphs is where you are. <span style="color:var(--vio)">Heaps come next.</span></h2><p>Next problem: <a href="WorkspaceSplit.dc.html" style="color:var(--grn)">D9 · Fix: heap ordering with a custom Ord →</a></p></div>
-    <div class="side">${done} of 14 tracks done<br>${solved} of ${secSum('D', 'total')} solved</div>
-  </section></div></main>`;
-}
+/* =============================== PROGRESS =============================== */
+S.prog = {tab: 'overview'};
+// Deterministic sample data, so the mockup looks the same on every load.
+const prng = (seed => () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; })(20260927);
+const HEAT = (() => {
+  // 53 weeks ending today (Sun 27 Sep 2026); more practice in recent months, a 12-day streak at the end.
+  const days = [];
+  for (let i = 0; i < 53 * 7; i++) {
+    const recency = i / (53 * 7);
+    const active = prng() < 0.25 + recency * 0.55;
+    let n = active ? Math.ceil(prng() * (2 + recency * 6)) : 0;
+    if (i >= 53 * 7 - 12) n = Math.max(1, n);
+    if (i === 53 * 7 - 13) n = 0;
+    days.push(n);
+  }
+  return days;
+})();
+const WEEKS = [[3, 4, 1], [5, 3, 0], [4, 6, 1], [2, 5, 2], [6, 4, 1], [3, 7, 2], [5, 6, 2], [4, 8, 3], [6, 7, 2], [3, 9, 4], [5, 8, 3], [4, 9, 4]];
+const READY_TREND = {DSA: [8, 11, 14, 17, 21, 24, 27, 31, 34, 37, 40, 43], Rust: [5, 7, 10, 12, 15, 19, 22, 24, 28, 31, 33, 36], Build: [0, 0, 1, 2, 2, 4, 5, 7, 8, 10, 12, 14]};
+const ERRS = [['E0502', 'cannot borrow as mutable because it is also borrowed as immutable', 31, 'L2 split borrows'], ['E0499', 'cannot borrow as mutable more than once', 19, 'L2 reborrows'], ['E0382', 'use of moved value', 17, 'L1 moves'], ['E0308', 'mismatched types', 14, 'D9 graphs'], ['E0106', 'missing lifetime specifier', 9, 'L3 elision'], ['E0597', 'borrowed value does not live long enough', 7, 'L3 structs']];
+const LINTS = [['needless_range_loop', 12], ['clone_on_copy', 8], ['redundant_clone', 7], ['manual_memcpy', 3], ['len_zero', 3]];
+const RULES_HIT = [['clone', 12, 'forbidden in 9 fix-this problems'], ['max 2 changed lines', 6, 'borrowing fixes'], ['unwrap', 5, 'D3 parsing'], ['RefCell', 3, 'L2 split borrows']];
+const REVIEWS = [
+  ['Two mutable borrows of self', 'L2', 1, 'overdue 2 days', 'assisted', 'bad'],
+  ['Top K frequent elements', 'D1', 2, 'overdue 1 day', 'unassisted', 'bad'],
+  ['Fix: RefCell guard across a call', 'L2', 0, 'today', 'assisted', 'acc'],
+  ['Network delay time', 'D9', 1, 'today', 'unassisted', 'acc'],
+  ['Minimum window substring', 'D2', 2, 'today', 'unassisted', 'acc'],
+  ['Cow<str>', 'S2', 3, 'today', 'unassisted', 'acc'],
+  ['Largest rectangle in histogram', 'D3', 1, 'tomorrow', 'assisted', 'dim'],
+  ['Entry API instead of get-then-insert', 'S4', 2, 'in 3 days', 'unassisted', 'dim']
+];
+const FORECAST = [6, 3, 4, 2, 5, 7, 3, 1, 4, 6, 2, 3, 5, 4];
 
-/* =============================== RUST SECTION =============================== */
-function scrRust() {
-  const sel = byCode[S.rust.track];
-  const drillCode = `    pub fn restock_low(&mut self) {
-        for item in self.items.iter_mut().filter(|i| i.qty < 5) {
-            item.qty += 10;
-            self.record(format!("restocked {}", item.name));
-        }`;
-  const groups = ['L', 'S', 'C', 'Y'].map(l => {
-    const n = TRACKS.filter(t => t.sec === l).length;
-    return `<section class="sec" id="sec-${l}">${sech(`${SEC[l].name.toUpperCase()} · ${n} TRACKS`, `${secSum(l, 'solved')} of ${secSum(l, 'total')} solved · ${secPct(l)}% ready`)}
-      ${trackTiles(l, sel.code, 'rtrack')}
-      ${sel.sec === l ? trackDetail(sel, S.rust.stage, S.rust.tag, 'r', RUST_LABELS) : ''}</section>`;
+function heatSvg() {
+  const cell = 12, gap = 3, weeks = 53, top = 18, left = 28;
+  const w = left + weeks * (cell + gap), h = top + 7 * (cell + gap);
+  const ramp = [0, 30, 50, 72, 100];
+  const shade = n => n === 0 ? 'var(--line2)' : `color-mix(in oklab, var(--acc) ${ramp[Math.min(4, n <= 1 ? 1 : n <= 3 ? 2 : n <= 6 ? 3 : 4)]}%, var(--panel))`;
+  const end = new Date(2026, 8, 27);
+  const dayOf = i => { const d = new Date(end); d.setDate(end.getDate() - (weeks * 7 - 1 - i)); return d; };
+  let cells = '', months = '';
+  let lastMonth = -1;
+  for (let i = 0; i < weeks * 7; i++) {
+    const wk = Math.floor(i / 7), dw = i % 7, d = dayOf(i), n = HEAT[i];
+    const x = left + wk * (cell + gap), y = top + dw * (cell + gap);
+    cells += `<rect class="d" x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${shade(n)}"><title>${d.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short'})}: ${n} solved</title></rect>`;
+    if (dw === 0 && d.getMonth() !== lastMonth) { lastMonth = d.getMonth(); if (wk < weeks - 2) months += `<text x="${x}" y="11">${d.toLocaleDateString('en-GB', {month: 'short'})}</text>`; }
+  }
+  const labels = ['Mon', 'Wed', 'Fri'].map((t, k) => `<text x="0" y="${top + (k * 2 + 1) * (cell + gap) + 10}">${t}</text>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Solves per day over the last year">${months}${labels}${cells}</svg>`;
+}
+function weeklyBars() {
+  const W = 560, H = 190, l = 30, b = 24, t = 10, bw = 26;
+  const max = 16, step = (W - l) / WEEKS.length, y = v => t + (H - t - b) * (1 - v / max);
+  const cols = ['var(--lv-easy)', 'var(--lv-medium)', 'var(--lv-hard)'];
+  const grid = [0, 4, 8, 12, 16].map(v => `<line class="gl" x1="${l}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="0" y="${y(v) + 4}">${v}</text>`).join('');
+  const bars = WEEKS.map((wk, i) => {
+    let acc = 0;
+    const x = l + i * step + (step - bw) / 2;
+    const segs = wk.map((v, k) => { if (!v) return ''; const y0 = y(acc + v), hgt = y(acc) - y(acc + v) - 2; acc += v; return `<rect x="${x}" y="${y0}" width="${bw}" height="${Math.max(0, hgt)}" rx="2" fill="${cols[k]}"><title>Week ${i + 1}: ${['easy', 'medium', 'hard'][k]} ${v}</title></rect>`; }).join('');
+    return segs + `<text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${i === WEEKS.length - 1 ? 'now' : i % 3 === 0 ? `w${i + 1}` : ''}</text>`;
   }).join('');
-  return `<main class="page"><div class="wrap">
-  <section class="hero">
-    <div>
-      <div class="eyebrow"><span style="color:var(--vio)">RUST</span><span>/</span><span>4 SECTIONS · 32 TRACKS</span><span>/</span><span>${secSum('LSCY', 'total')} PROBLEMS</span></div>
-      <h1 class="h1">The Rust interviewers <span style="color:var(--vio)">actually probe.</span></h1>
-      <p class="lead">Language, standard library, concurrency and systems. Each track climbs from using the API, to understanding why it behaves that way, to building a simplified version yourself: MiniVec, MiniRc, a channel, an executor.</p>
-      <div class="btns"><a class="btn go" href="#workspace">Resume · Two mutable borrows →</a><button class="btn" data-act="rtrack" data-arg="C4!">Weakest core track: C4 Async</button></div>
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Problems solved per week, by difficulty">${grid}${bars}</svg>`;
+}
+function readinessLines() {
+  const W = 440, H = 190, l = 30, r = 86, b = 24, t = 10;
+  const n = 12, x = i => l + (W - l - r) * i / (n - 1), y = v => t + (H - t - b) * (1 - v / 60);
+  const col = {DSA: 'var(--acc)', Rust: 'var(--vio)', Build: 'var(--grn)'};
+  const grid = [0, 20, 40, 60].map(v => `<line class="gl" x1="${l}" x2="${W - r}" y1="${y(v)}" y2="${y(v)}"/><text x="0" y="${y(v) + 4}">${v}%</text>`).join('');
+  const lines = Object.entries(READY_TREND).map(([k, vs]) => `<polyline fill="none" stroke="${col[k]}" stroke-width="2" stroke-linejoin="round" points="${vs.map((v, i) => `${x(i)},${y(v)}`).join(' ')}"/><circle cx="${x(n - 1)}" cy="${y(vs[n - 1])}" r="4" fill="${col[k]}" stroke="var(--panel)" stroke-width="2"/><text class="lbl" x="${x(n - 1) + 9}" y="${y(vs[n - 1]) + 4}" style="fill:${col[k]}">${k} ${vs[n - 1]}%</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Readiness by area over 12 weeks">${grid}${lines}<text x="${l}" y="${H - 6}">12 weeks ago</text><text x="${W - r}" y="${H - 6}" text-anchor="end">now</text></svg>`;
+}
+function forecastBars() {
+  const W = 420, H = 150, l = 24, b = 22, t = 8, max = 8, step = (W - l) / FORECAST.length, bw = 16, y = v => t + (H - t - b) * (1 - v / max);
+  const grid = [0, 4, 8].map(v => `<line class="gl" x1="${l}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="0" y="${y(v) + 4}">${v}</text>`).join('');
+  const bars = FORECAST.map((v, i) => { const x = l + i * step + (step - bw) / 2; return `<rect x="${x}" y="${y(v)}" width="${bw}" height="${y(0) - y(v)}" rx="2" fill="${i === 0 ? 'var(--vio)' : 'color-mix(in oklab, var(--vio) 45%, var(--panel))'}"><title>${i === 0 ? 'Today' : `In ${i} day${i > 1 ? 's' : ''}`}: ${v} due</title></rect><text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${i === 0 ? 'today' : i % 7 === 0 ? `+${i}d` : ''}</text>`; }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Re-solves due over the next 14 days">${grid}${bars}</svg>`;
+}
+function hbars(rows, color, max, nokey) {
+  return `<div class="hbars">${rows.map(([k, label, n, extra]) => `<div class="hbar${nokey ? ' nokey' : ''}">${nokey ? '' : `<code style="color:${color}">${esc(k)}</code>`}<span class="t"><small>${esc(label)}${extra ? ` · <span style="color:var(--dim)">${esc(extra)}</span>` : ''}</small><i><b style="width:${Math.round(100 * n / max)}%;background:${color}"></b></i></span><em>${n}</em></div>`).join('')}</div>`;
+}
+function progOverview() {
+  const total = HEAT.reduce((a, b) => a + b, 0);
+  return `<section class="kpis">
+      <div><span>CURRENT STREAK</span><b style="color:var(--acc)">12 days</b><small>longest: 19 days (June)</small></div>
+      <div><span>SOLVED THIS YEAR</span><b>${total}</b><small>on ${HEAT.filter(Boolean).length} of 371 days</small></div>
+      <div><span>UNASSISTED</span><b style="color:var(--grn)">81%</b><small>+6 points vs last month</small></div>
+      <div><span>FOCUS TIME</span><b>5h 40m</b><small>this week · 38h this quarter</small></div>
+    </section>
+    <div class="pbox" style="margin-top:20px"><h3>Every day you solved something</h3><p class="sub">Darker means more problems solved that day. Hover a day for the count.</p>
+      <div class="heat">${heatSvg()}</div>
+      <div class="hlegend">less ${[0, 1, 3, 6, 9].map(n => `<i style="background:${n === 0 ? 'var(--line2)' : `color-mix(in oklab, var(--acc) ${[0, 30, 50, 72, 100][n <= 1 ? 1 : n <= 3 ? 2 : n <= 6 ? 3 : 4]}%, var(--panel))`}"></i>`).join('')} more</div>
     </div>
-    <div class="panel">
-      <div class="phead"><span class="plabel">L2 · BORROWING · SPLIT BORROWS</span><span class="plabel" style="color:var(--bad)">E0499</span></div>
-      <div class="code" style="padding:18px 0 8px;overflow-x:auto">${codeLines(drillCode, {ra: false, start: 12, mark: {15: {bg: 'var(--bad-bg)', num: 'var(--bad)', html: `            <span class="squig">${hl('self.record')}</span>${hl('(format!("restocked {}", item.name));')}`}}})}</div>
-      <div class="lens" style="margin:0 24px 18px"><div><span style="color:var(--bad);font-weight:600">error[E0499]</span> cannot borrow <b style="color:var(--fg)">\`*self\`</b> as mutable more than once at a time</div>
-        <div class="gr"><span style="color:var(--dim)">13 │</span><span style="color:var(--acc)">self.items.iter_mut()</span><span>first &amp;mut, lives until the loop ends</span><span style="color:var(--dim)">15 │</span><span style="color:var(--bad)">self.record(..)</span><span>second &amp;mut: all of self</span></div></div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;padding:0 24px 22px;font:500 11.5px var(--mono);color:var(--mut)"><span>max 2 lines · no .clone() · no RefCell</span><a class="btn sm" href="#workspace" style="color:var(--vio);border-color:var(--vio)">Open problem →</a></div>
+    <div class="pgrid">
+      <div class="pbox chart"><h3>Solved per week</h3><p class="sub">Last 12 weeks, by difficulty. Hard problems are climbing: 4 last week.</p>${weeklyBars()}
+        <div class="legend2"><span><i style="background:var(--lv-easy)"></i>easy</span><span><i style="background:var(--lv-medium)"></i>medium</span><span><i style="background:var(--lv-hard)"></i>hard</span></div></div>
+      <div class="pbox chart"><h3>Readiness over time</h3><p class="sub">Weighted by difficulty; assisted solves count half.</p>${readinessLines()}</div>
     </div>
-  </section>
-  <section class="strip">
-    ${stat('LANGUAGE', secPct('L') + '%', `${secSum('L', 'solved')} of ${secSum('L', 'total')} solved`, col(secPct('L')))}
-    ${stat('STANDARD LIBRARY', secPct('S') + '%', `${secSum('S', 'solved')} of ${secSum('S', 'total')} solved`, col(secPct('S')))}
-    ${stat('CONCURRENCY & ASYNC', secPct('C') + '%', `${secSum('C', 'solved')} of ${secSum('C', 'total')} solved`, col(secPct('C')))}
-    ${stat('SYSTEMS', secPct('Y') + '%', 'SDE-3 path · starts week 16', col(secPct('Y')))}
-  </section>
-  ${groups}
+    <div class="pgrid even">
+      <div class="pbox"><h3>This week</h3><p class="sub">Mon 21 – Sun 27 Sep</p>
+        <table class="ptable"><tr><th>DAY</th><th class="num">SOLVED</th><th class="num">UNASSISTED</th><th class="num">FOCUS</th></tr>
+        ${[['Mon', 3, 3, '52m'], ['Tue', 1, 1, '20m'], ['Wed', 0, 0, '—'], ['Thu', 4, 3, '1h 10m'], ['Fri', 2, 2, '41m'], ['Sat', 5, 3, '1h 48m'], ['Sun', 2, 2, '49m']].map(([d, s, u, f]) => `<tr><td>${d}</td><td class="num">${s}</td><td class="num">${u}</td><td class="num">${f}</td></tr>`).join('')}</table></div>
+      <div class="pbox"><h3>By section</h3><p class="sub">Solved of written problems, and readiness.</p>
+        <table class="ptable"><tr><th>SECTION</th><th class="num">SOLVED</th><th class="num">READY</th></tr>
+        ${[['Data Structures & Algorithms', '96 / 124', 43, 'acc'], ['Rust Language', '41 / 73', 52, 'vio'], ['Rust Standard Library', '38 / 59', 47, 'vio'], ['Concurrency & Async', '6 / 22', 14, 'vio'], ['Backend Rust', '4 / 16', 14, 'grn']].map(([s, n, r, c]) => `<tr><td><span style="color:var(--${c})">■</span> ${s}</td><td class="num">${n}</td><td class="num" style="color:${col(r)}">${r}%</td></tr>`).join('')}</table></div>
+    </div>`;
+}
+function progRust() {
+  return `<section class="kpis">
+      <div><span>FIRST-RUN PASS</span><b>38%</b><small>of problems passed on the first run</small></div>
+      <div><span>RUNS PER SOLVE</span><b>2.7</b><small>median · 4.1 on hard</small></div>
+      <div><span>COMPILE ERRORS</span><b style="color:var(--bad)">24%</b><small>of runs didn't compile</small></div>
+      <div><span>WITHIN BUDGET</span><b style="color:var(--grn)">71%</b><small>solved inside the interview clock</small></div>
+    </section>
+    <div class="pgrid even">
+      <div class="pbox"><h3>Compiler errors you hit most</h3><p class="sub">Last 30 days, from every run. The track where each one clusters is on the right.</p>
+        ${hbars(ERRS.map(([c, m, n, where]) => [c, m, n, where]), 'var(--bad)', 31)}
+        <div class="insight"><span>→</span><span><b>E0502 is your top error</b>, mostly in L2 split borrows. Three re-solves from that stage are queued this week.</span></div></div>
+      <div class="pbox"><h3>Clippy and rule violations</h3><p class="sub">Lints on passing code, and fix-this rules that blocked a solve.</p>
+        ${hbars(LINTS.map(([l, n]) => ['', `clippy::${l}`, n]), 'var(--warn)', 12, true)}
+        <div style="height:18px"></div>
+        ${hbars(RULES_HIT.map(([r, n, where]) => ['', `rule: ${r}`, n, where]), 'var(--vio)', 12, true)}</div>
+    </div>
+    <div class="pbox" style="margin-top:20px"><h3>Time against the interview clock</h3><p class="sub">Median time to an unassisted solve, by difficulty and mode.</p>
+      <table class="ptable"><tr><th>LEVEL</th><th>MODE</th><th class="num">BUDGET</th><th class="num">MEDIAN</th><th class="num">WITHIN</th><th class="num">SOLVED</th></tr>
+      ${[['easy', 'write it', '10m', '7m', 88, 61], ['easy', 'fix this', '5m', '4m', 84, 38], ['medium', 'write it', '25m', '22m', 67, 52], ['medium', 'fix this', '10m', '9m', 71, 29], ['hard', 'write it', '45m', '51m', 41, 17], ['hard', 'fix this', '20m', '18m', 58, 8]].map(([l, m, b, med, w, n]) => `<tr><td><span class="pill2" style="color:var(--lv-${l});border:1px solid var(--lv-${l})">${l.toUpperCase()}</span></td><td>${m}</td><td class="num">${b}</td><td class="num">${med}</td><td class="num" style="color:${col(w)}">${w}%</td><td class="num">${n}</td></tr>`).join('')}</table></div>`;
+}
+function progReviews() {
+  return `<section class="kpis">
+      <div><span>DUE TODAY</span><b style="color:var(--vio)">6</b><small>~50 minutes at your pace</small></div>
+      <div><span>OVERDUE</span><b style="color:var(--bad)">2</b><small>costing readiness 10% a week</small></div>
+      <div><span>RETENTION</span><b style="color:var(--grn)">86%</b><small>re-solves passed unassisted, 30 days</small></div>
+      <div><span>IN ROTATION</span><b>142</b><small>31 graduated (60-day step passed)</small></div>
+    </section>
+    <div class="pgrid">
+      <div class="pbox"><h3>Review queue</h3><p class="sub">Overdue first, then today's. A re-solve starts from the starter with hints locked again.</p>
+        <table class="ptable"><tr><th>PROBLEM</th><th>STEP</th><th>DUE</th><th>LAST TIME</th></tr>
+        ${REVIEWS.map(([t, tr, step, due, last, c]) => `<tr><td>${esc(t)}<br><span style="font:500 11px var(--mono);color:var(--dim)">${tr}</span></td><td><span class="ladder">${[0, 1, 2, 3].map(k => `<i class="${k <= step ? 'on' : ''}"></i>`).join('')}</span><br><span style="font:500 11px var(--mono);color:var(--dim)">${[3, 7, 21, 60][step]}-day step</span></td><td style="color:var(--${c})">${due}</td><td style="color:${last === 'assisted' ? 'var(--acc)' : 'var(--mut)'}">${last}</td></tr>`).join('')}</table>
+        <div class="btns" style="margin-top:18px"><a class="btn go sm" href="#workspace">Start re-solves · 6 →</a></div></div>
+      <div class="pbox chart"><h3>Next 14 days</h3><p class="sub">Re-solves falling due each day.</p>${forecastBars()}
+        <div class="insight" style="background:var(--raise);color:var(--mut)"><span>ⓘ</span><span>The ladder: an assisted solve comes back in 3 days. Each unassisted re-solve moves it on, 3 → 7 → 21 → 60 days; an assisted one sends it back to 3.</span></div></div>
+    </div>`;
+}
+function scrProgress() {
+  const tabs = [['overview', 'Overview'], ['rust', 'Rust stats'], ['reviews', 'Reviews']];
+  const body = {overview: progOverview, rust: progRust, reviews: progReviews}[S.prog.tab]();
+  return `<main class="page"><div class="wrap" style="padding-block:48px 16px">
+    <div class="eyebrow"><span style="color:var(--acc)">PROGRESS</span><span>/</span><span>DAY 38</span><span>/</span><span>12-DAY STREAK</span></div>
+    <h1 class="h1 md" style="margin-top:16px">Steady practice, <span style="color:var(--acc)">measured.</span></h1>
+    <div class="ptabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" class="${S.prog.tab === k ? 'on' : ''}" aria-selected="${S.prog.tab === k}" data-act="ptab" data-arg="${k}">${l}</button>`).join('')}</div>
+    ${body}
   </div></main>`;
 }
+
+/* =============================== SECTION CATALOG (v3) =============================== */
+// Shared by the DSA, Rust and Build sections: stats, next-up card, filters, numbered track cards, activity rail.
+const PLANNED_ONLY = new Set(['D10', 'D11', 'C5', 'C6', 'Y3']);
+const MIN_PER = {E: 12, M: 25, H: 45};
+const trackMinutes = t => bandStats(t).reduce((n, x) => n + x.total * MIN_PER[x.b], 0);
+const hrs = m => m >= 600 ? `~${Math.round(m / 60)}h` : `~${(m / 60).toFixed(1).replace(/\.0$/, '')}h`;
+const cState = t => PLANNED_ONLY.has(t.code) ? 'planned' : tState(t);
+const AREAS = {
+  dsa: {
+    eyebrow: 'DSA', c: 'acc', letters: 'D', order: DSA_ORDER, groups: null,
+    title: ['Fourteen tracks, ', 'easy to hard.'],
+    lead: 'Every track climbs easy → medium → hard, and every problem is solved the way Rust wants it: index-based graphs, <code>Option&lt;Box&lt;Node&gt;&gt;</code> lists, heaps with <code>Reverse&lt;T&gt;</code>.',
+    next: {code: 'D9', stage: 'SHORTEST PATHS', why: 'next unsolved in your current track', title: 'Fix: heap ordering with a custom Ord', body: '<code>run_order</code> compiles but returns jobs in the wrong order. Fix the trait impls so <code>PartialOrd</code> agrees with <code>Ord</code>, without reaching for <code>Reverse</code>.', mode: 'F', level: 'medium', mins: 25, gain: 1.7}
+  },
+  rust: {
+    eyebrow: 'RUST', c: 'vio', letters: 'LSCY', groups: ['L', 'S', 'C', 'Y'],
+    title: ['The Rust interviewers ', 'actually probe.'],
+    lead: 'Language, standard library, concurrency and systems. Each track climbs from using the API, to understanding why it behaves that way, to building a small version yourself.',
+    next: {code: 'L2', stage: 'SPLIT BORROWS', why: 're-solve due · you needed a hint last time', title: 'Two mutable borrows of self', body: '<code>restock_low</code> borrows <code>self.items</code> mutably, then calls a <code>&amp;mut self</code> method inside the loop. Split the borrow in at most two lines, with no <code>.clone()</code> and no <code>RefCell</code>.', mode: 'F', level: 'medium', mins: 25, gain: 1.2}
+  },
+  build: {
+    eyebrow: 'BUILD', c: 'grn', letters: 'BM', groups: ['B', 'M'],
+    title: ['Services and systems, ', 'built from tests.'],
+    lead: 'Backend tracks drill axum, tower, sqlx and resilience patterns. Machine coding gives you 60 to 90 minutes and a test suite. Projects give you only tests, one stage at a time.',
+    next: {code: 'B1', stage: 'UNDERSTAND IT', why: 'weakest core track in this section', title: 'Map sqlx errors to status codes', body: 'A <code>POST /links</code> handler returns 500 for a duplicate slug. Implement <code>IntoResponse</code> for your error type so a unique violation becomes 409 and everything else stays 500.', mode: 'W', level: 'medium', mins: 30, gain: 2.1}
+  }
+};
+S.cat = {q: '', view: 'grid', f: 'all'};
+const CAT_FILTERS = [['all', 'all', () => true], ['cur', 'in progress', t => ['cur', 'open'].includes(cState(t))], ['new', 'not started', t => cState(t) === 'ahead'], ['done', 'done', t => cState(t) === 'done'], ['core', 'core', t => t.tier === 'core'], ['sde3', 'SDE-3', t => t.tier === 'sde3'], ['planned', 'planned', t => cState(t) === 'planned']];
+function tcBadge(t) {
+  const st = cState(t);
+  if (st === 'cur') return `<span class="tc-badge" style="background:var(--cab);color:var(--ca)">NOW ON</span>`;
+  if (st === 'done') return `<span class="tc-badge" style="background:var(--grn-bg);color:var(--grn)">DONE</span>`;
+  if (st === 'planned') return `<span class="tc-badge" style="border:1px dashed var(--line);color:var(--dim)">PLANNED</span>`;
+  if (t.tier === 'sde3') return `<span class="tc-badge" style="background:var(--vio-bg);color:var(--vio)">SDE-3</span>`;
+  return '';
+}
+function tcBar(t) {
+  const st = cState(t);
+  return `<div class="tc-bar">${bandStats(t).filter(x => x.total).map(x => `<span style="flex:${x.total}"><i style="width:${st === 'planned' ? 0 : Math.round(100 * x.solved / x.total)}%;background:${x.b === 'E' ? 'var(--grn)' : x.b === 'M' ? 'var(--acc)' : 'var(--vio)'}"></i></span>`).join('')}</div>`;
+}
+function tcFoot(t) {
+  const st = cState(t), stage = t.stages[firstOpen(t)];
+  if (st === 'planned') return `<span>not written yet · ${t.total} planned</span>`;
+  if (st === 'done') return `<span>all ${t.total} solved · re-solves keep it fresh</span><span class="tc-go">review ›</span>`;
+  if (st === 'ahead') return `<span>start fresh · ${esc(t.stages[0]?.name || 'stage 1')}</span><span class="tc-go">start ›</span>`;
+  return `<span>resume · ${esc(stage?.name || '')}</span><span class="tc-go">resume ›</span>`;
+}
+const tcHref = t => t.code === 'D9' ? 'TrackGraphs.dc.html' : cState(t) === 'planned' ? '#' + S.route : '#workspace';
+function tcard(t, n) {
+  const st = cState(t), pct = t.total ? Math.round(100 * t.solved / t.total) : 0;
+  const tags = t.stages.slice(0, 3).map(s => `<span class="pill">${esc(s.name)}</span>`).join('') + (t.stages.length > 3 ? `<span class="pill">+${t.stages.length - 3}</span>` : '');
+  return `<a class="tcard ${st}" href="${tcHref(t)}"${st === 'planned' ? ' aria-disabled="true"' : ''}>
+    <div class="tc-top"><span class="tc-num">${pad2(n)}</span><span class="tc-kind">TRACK / ${TIER[t.tier]} · ${t.code}</span>${tcBadge(t)}</div>
+    <h3>${esc(t.name)}</h3>
+    <p>${esc(PROBE[t.code] || '')}</p>
+    <div class="tc-meta"><b>${t.total}</b> problems · ${hrs(trackMinutes(t))} · easy → hard</div>
+    <div class="tc-tags">${tags}</div>
+    <div class="tc-prog"><span>progress</span><span>${st === 'planned' ? '—' : `<b>${t.solved} / ${t.total}</b> · ${pct}%`}</span></div>
+    ${tcBar(t)}
+    <div class="tc-foot">${tcFoot(t)}</div>
+  </a>`;
+}
+function trow(t, n) {
+  const st = cState(t), pct = t.total ? Math.round(100 * t.solved / t.total) : 0;
+  return `<a class="trow" href="${tcHref(t)}"><span class="n">${pad2(n)}</span><span class="t">${esc(t.name)}<small>${t.code} · ${TIER[t.tier]}${st === 'cur' ? ' · now on' : ''}</small></span><span class="x hide" style="text-align:left">${t.total} problems · ${hrs(trackMinutes(t))}</span><span class="hide">${tcBar(t)}</span><span class="x">${st === 'planned' ? 'planned' : pct + '%'}</span></a>`;
+}
+function catRing(days, color) {
+  const r = 34, c = 2 * Math.PI * r, f = Math.min(1, days / 7);
+  return `<div class="nu-ring"><svg viewBox="0 0 78 78" aria-hidden="true"><circle cx="39" cy="39" r="${r}" fill="none" stroke="var(--line2)" stroke-width="5"/><circle cx="39" cy="39" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}"/></svg><div><b>${days}</b><span>DAYS</span></div></div>`;
+}
+function catRail(a) {
+  const week = [3, 1, 0, 4, 2, 5, 2], days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const shade = n => n === 0 ? 'var(--line2)' : `color-mix(in oklch, var(${'--' + a.c}) ${25 + n * 15}%, transparent)`;
+  const RECENT = {
+    dsa: [['grn', 'Network delay time', 'D9 · 18m'], ['grn', 'Course schedule', 'D9 · 22m'], ['acc', 'Alien dictionary', 'D9 · hint 1'], ['bad', 'Word ladder', 'D9 · 3 runs']],
+    rust: [['grn', 'Fix: remove while iterating', 'L2 · 4m'], ['acc', 'Two mutable borrows of self', 'L2 · hint 2'], ['grn', 'Cow<str>', 'S2 · 11m'], ['grn', 'longest(a, b)', 'L3 · 2m']],
+    build: [['grn', 'Health route', 'shortline · 6m'], ['grn', 'Json extractor', 'B1 · 14m'], ['bad', 'Graceful shutdown', 'B6 · 2 runs'], ['acc', 'Retry with jitter', 'B5 · hint 1']]
+  }[S.route];
+  const DUE = {dsa: [['Top K frequent', 'D1 · 2 days late'], ['Min window substring', 'D2 · due today'], ['Largest rectangle', 'D3 · tomorrow']], rust: [['Two mutable borrows of self', 'L2 · due today'], ['Fix: RefCell guard across a call', 'L2 · tomorrow'], ['Entry API', 'S4 · in 3 days']], build: [['Map sqlx errors', 'B3 · due today'], ['Tower timeout layer', 'B2 · in 2 days']]}[S.route];
+  const secs = (a.groups || [a.letters]).map(l => `<div class="rmeter"><span>${esc(SEC[l]?.name || 'DSA')}</span><em style="color:${col(secPct(l))}">${secPct(l)}%</em><i><b style="width:${secPct(l)}%;background:${col(secPct(l))}"></b></i></div>`).join('');
+  return `<aside class="cat-rail" aria-label="Activity">
+    <div class="rbox"><h4><span>THIS WEEK</span><span style="color:var(--${a.c})">17 SOLVED</span></h4>
+      <div class="week">${week.map((n, i) => `<div><i style="background:${shade(n)}" title="${n} solved"></i>${days[i]}</div>`).join('')}</div>
+      <div class="rstat"><span>unassisted</span><b>14 of 17</b></div><div class="rstat" style="margin-top:6px"><span>time</span><b>5h 40m</b></div></div>
+    <div class="rbox"><h4><span>RECENT</span><a href="#library" style="color:var(--dim)">all →</a></h4>${RECENT.map(([c, t, m]) => `<div class="ritem"><i style="background:var(--${c})"></i><span>${esc(t)}</span><small>${esc(m)}</small></div>`).join('')}</div>
+    <div class="rbox"><h4><span>RE-SOLVE DUE</span><span style="color:var(--vio)">${DUE.length}</span></h4>${DUE.map(([t, m]) => `<div class="ritem"><i style="background:var(--vio)"></i><span>${esc(t)}</span><small>${esc(m)}</small></div>`).join('')}</div>
+    <div class="rbox"><h4><span>READINESS</span><a href="#readiness" style="color:var(--dim)">detail →</a></h4>${secs}</div>
+  </aside>`;
+}
+function catalog(area, extra = '') {
+  const a = AREAS[area], all = (a.order || TRACKS.filter(t => a.letters.includes(t.sec)).map(t => t.code)).map(c => byCode[c]);
+  const q = S.cat.q.trim().toLowerCase(), f = CAT_FILTERS.find(x => x[0] === S.cat.f) || CAT_FILTERS[0];
+  const shown = t => f[2](t) && (!q || `${t.code} ${t.name} ${PROBE[t.code] || ''} ${t.stages.map(s => s.name).join(' ')}`.toLowerCase().includes(q));
+  const num = new Map(all.map((t, i) => [t.code, i + 1]));
+  const probs = all.reduce((n, t) => n + t.total, 0), mins = all.filter(t => cState(t) !== 'done').reduce((n, t) => n + trackMinutes(t) * (1 - t.solved / t.total), 0);
+  const groups = (a.groups || [null]).map(l => {
+    const list = all.filter(t => (!l || t.sec === l) && shown(t));
+    if (!list.length) return '';
+    const head = l ? `<div class="flabel">${esc(SEC[l].name.toUpperCase())} · ${list.length}</div>` : `<div class="flabel">ALL TRACKS · IN RECOMMENDED ORDER</div>`;
+    const body = S.cat.view === 'grid' ? `<div class="tgrid">${list.map(t => tcard(t, num.get(t.code))).join('')}</div>` : `<div class="tlist">${list.map(t => trow(t, num.get(t.code))).join('')}</div>`;
+    return head + body;
+  }).join('');
+  const n = a.next, nt = byCode[n.code], nb = MODES[n.mode];
+  const before = nt.pct, after = Math.min(100, before + n.gain);
+  return `<main class="page" style="--ca:var(--${a.c});--cab:var(--${a.c}-bg)"><div class="wrap">
+    <section class="cat-top">
+      <div style="min-width:0;flex:1 1 520px">
+        <div class="eyebrow"><span style="color:var(--${a.c})">${a.eyebrow}</span><span>/</span><span>TRACKS</span></div>
+        <h1 class="h1 md">${a.title[0]}<span style="color:var(--${a.c})">${a.title[1]}</span></h1>
+        <p class="lead">${a.lead}</p>
+      </div>
+      <div class="cat-stats"><div><b>${all.length}</b><span>TRACKS</span></div><div><b>${probs}</b><span>PROBLEMS</span></div><div><b>${hrs(mins)}</b><span>TO FINISH</span></div></div>
+    </section>
+    <div class="cat-body">
+      <div class="cat-main">
+        <section class="nextup" aria-label="Next up">
+          ${catRing(6, `var(--${a.c})`)}
+          <div class="nu-k"><i></i><span style="color:var(--${a.c})">NEXT UP</span><span style="color:var(--dim)">${n.code} · ${n.stage}</span></div>
+          <div class="nu-sub"><b>6-day streak</b>, keep it going. Picked because it's the ${esc(n.why)}.</div>
+          <div class="nu-main">
+            <h2>${esc(n.title)}</h2>
+            <p>${n.body}</p>
+            <div class="pills"><span class="pill" style="color:${n.level === 'hard' ? 'var(--vio)' : n.level === 'medium' ? 'var(--acc)' : 'var(--grn)'}">${n.level}</span><span class="pill" style="color:${nb[1]}">${nb[0].toLowerCase()}</span><span class="pill">${esc(nt.name)}</span><span class="pill">~${n.mins}m</span></div>
+          </div>
+          <div class="nu-gain"><span>${n.code} READINESS · ${before}%</span><span style="color:var(--${a.c})">+${n.gain}% IF UNASSISTED</span></div>
+          <div class="nu-bar"><span style="width:${before}%;background:var(--${a.c})"></span><span style="width:${(after - before).toFixed(1)}%;background:var(--${a.c});opacity:.4"></span></div>
+          <a class="nu-go" href="${n.code === 'D9' ? 'WorkspaceSplit.dc.html' : '#workspace'}">Solve in the workspace →</a>
+        </section>
+        <div class="cat-tools">
+          <label class="cat-search"><span aria-hidden="true" style="color:var(--dim)">⌕</span><input id="catq" data-inp="catq" type="search" placeholder="search tracks, stages, topics…" value="${esc(S.cat.q)}" aria-label="Search tracks"><kbd>/</kbd></label>
+          <div class="seg" role="group" aria-label="View"><button class="${S.cat.view === 'grid' ? 'on' : ''}" data-act="catview" data-arg="grid" aria-pressed="${S.cat.view === 'grid'}">▦ grid</button><button class="${S.cat.view === 'list' ? 'on' : ''}" data-act="catview" data-arg="list" aria-pressed="${S.cat.view === 'list'}">☰ list</button></div>
+        </div>
+        <div class="flabel">FILTER BY</div>
+        <div class="fchips">${CAT_FILTERS.map(([k, label, fn]) => { const c = all.filter(fn).length; return c || k === 'all' ? `<button class="fchip${S.cat.f === k ? ' on' : ''}" data-act="catf" data-arg="${k}" aria-pressed="${S.cat.f === k}">${label}<small>${c}</small></button>` : ''; }).join('')}</div>
+        ${groups || `<div class="cat-empty">No tracks match. <button data-act="catreset" style="color:var(--${a.c})">Clear filters</button></div>`}
+        ${extra}
+      </div>
+      ${catRail(a)}
+    </div>
+  </div></main>`;
+}
+function scrDSA() { return catalog('dsa'); }
+function scrRust() { return catalog('rust'); }
 
 /* =============================== BUILD SECTION =============================== */
 const PROJ = [
@@ -870,34 +1231,13 @@ const PROJ = [
 ];
 const M2_ROWS = [['M', 'Rate limiter library', 'LLD3', 'd', '52:10'], ['M', 'In-process pub/sub bus', 'LLD6', 't', '—'], ['M', 'Append-only logger', 'LLD4', 't', '—'], ['M', 'Parking lot', 'LLD1', 't', '—'], ['M', 'Splitwise-lite ledger', 'LLD8', 't', '—'], ['M', 'Circuit breaker', 'LLD7', 't', '—'], ['H', 'Movie ticket booking', 'LLD5', 't', '—'], ['H', 'Elevator system', 'LLD2', 't', '—'], ['H', 'Price-time order book', 'TR1', 't', '—'], ['H', 'Matching engine', 'TR2', 't', '—'], ['H', 'Pre-trade risk checks', 'TR4', 't', '—'], ['H', 'Cached document store', 'W49', 't', '—']];
 function scrBuild() {
-  const sel = byCode[S.build.track];
-  const projRows = PROJ.map(p => `<a class="qrow" href="${p.slug === 'shortline' ? '#projects' : '#build'}" style="grid-template-columns:minmax(0,1fr) 150px 16px"><span class="qt">${p.name}<small>${p.path} · ${p.stages} stages</small></span><span>${segs(p.stages, p.done, 'var(--grn)', p.slug === 'shortline' ? 55 : null)}</span><span class="qa">→</span></a>`).join('');
   const cols = '70px minmax(0,1.6fr) 80px 40px 80px';
   const m2 = M2_ROWS.map(([b, n, src, st, best]) => `<div class="tr" style="grid-template-columns:${cols};min-height:46px"><span class="m" style="font-size:10.5px;letter-spacing:.12em;color:var(--dim)">${BAND[b]}</span><span class="pt" style="font-size:14px">${esc(n)}</span><span class="tags">${src}</span>${stBox(st)}<span class="best" style="color:${stColor(st)}">${best}</span></div>`).join('');
-  const projCards = PROJ.map((p, i) => `<a class="card" href="${p.slug === 'shortline' ? '#projects' : '#build'}" style="${i === 0 ? 'grid-column:span 2;border-color:var(--grn)' : ''}"><div class="top"><span class="ttl">${p.name}</span><span class="tag" style="color:${p.done ? 'var(--grn)' : 'var(--dim)'}">${p.path} · ${p.stages} STAGES</span></div><p class="body">${esc(p.body)}</p><div>${p.done ? phase('done', `STAGE ${p.done + 1} OF ${p.stages} · 26 OF 30 TESTS`, '70%') : phase('ahead', 'NOT STARTED')}${segs(p.stages, p.done, 'var(--grn)', p.done ? 55 : null)}<div class="foot">${esc(p.stack)}</div></div></a>`).join('');
-  return `<main class="page"><div class="wrap">
-  <section class="hero">
-    <div>
-      <div class="eyebrow"><span style="color:var(--grn)">BUILD</span><span>/</span><span>BACKEND · DESIGN · PROJECTS</span></div>
-      <h1 class="h1">Services and systems, <span style="color:var(--grn)">built from tests.</span></h1>
-      <p class="lead">Backend tracks drill axum, tower, sqlx and resilience patterns. Machine coding gives you 60 to 90 minutes and a test suite. Projects give you only tests, one stage at a time, and your repo carries forward.</p>
-      <div class="btns"><a class="btn go" href="#stage">Resume · shortline stage 4 →</a><a class="btn" href="#mock">Machine coding round</a></div>
-    </div>
-    <div class="panel"><div class="phead" style="padding-bottom:16px"><span class="plabel">PROJECTS</span><span class="plabel" style="color:var(--grn)">1 IN PROGRESS · 4 AHEAD</span></div>${projRows}</div>
-  </section>
-  <section class="sec" style="padding-top:8px">${sech(`BACKEND RUST · 6 TRACKS`, `${secSum('B', 'solved')} of ${secSum('B', 'total')} solved · ${secPct('B')}% ready`)}
-    ${trackTiles('B', sel.code, 'btrack')}
-    ${trackDetail(sel, S.build.stage, S.build.tag, 'b', RUST_LABELS)}
-  </section>
-  <section class="sec">${sech('DESIGN IN RUST · 2 TRACKS', 'patterns first, then machine coding under the clock')}
-    <div class="g2">
-      <div class="card"><div class="top"><span class="ttl">M1 · Idioms & patterns</span><span class="tag" style="color:var(--acc)">12 PROBLEMS</span></div><p class="body">Newtype, builder, RAII guard, strategy, iterator, factory, adapter, observer via channels, command with undo, state machine enum, visitor, typestate. Each one the Rust way.</p><div>${trackPhase(byCode.M1, '42%')}${bandStrip(byCode.M1)}</div></div>
-      <div class="card"><div class="top"><span class="ttl">M2 · Machine coding</span><span class="tag" style="color:var(--acc)">60–90 MIN</span></div><p class="body">Multi-file, tests given, a core stage plus one or two harden stages. Follow-up requirements arrive on a timer in the mock round.</p><div>${trackPhase(byCode.M2, '12%')}${bandStrip(byCode.M2)}</div></div>
-    </div>
-    <div class="tblw" style="margin-top:20px"><div class="tbl" style="min-width:640px"><div class="tr th" style="grid-template-columns:${cols}"><span>BAND</span><span>M2 PROBLEM</span><span>SOURCE</span><span></span><span style="text-align:right">BEST</span></div>${m2}</div></div>
-  </section>
-  <section class="sec">${sech('PROJECTS · 5', 'shortline for SDE-2 · then jobq or kvlite, and minirt')}<div class="g3">${projCards}</div></section>
-  </div></main>`;
+  const projCards = PROJ.map((p, i) => `<a class="card" href="${p.slug === 'shortline' ? '#projects' : '#build'}" style="${i === 0 ? 'border-color:var(--grn)' : ''}"><div class="top"><span class="ttl">${p.name}</span><span class="tag" style="color:${p.done ? 'var(--grn)' : 'var(--dim)'}">${p.path} · ${p.stages} STAGES</span></div><p class="body">${esc(p.body)}</p><div>${p.done ? phase('done', `STAGE ${p.done + 1} OF ${p.stages} · 26 OF 30 TESTS`, '70%') : phase('ahead', 'NOT STARTED')}${segs(p.stages, p.done, 'var(--grn)', p.done ? 55 : null)}<div class="foot">${esc(p.stack)}</div></div></a>`).join('');
+  const extra = `<div class="flabel">MACHINE CODING · M2 PROBLEMS</div>
+    <div class="tblw"><div class="tbl" style="min-width:600px"><div class="tr th" style="grid-template-columns:${cols}"><span>BAND</span><span>M2 PROBLEM</span><span>SOURCE</span><span></span><span style="text-align:right">BEST</span></div>${m2}</div></div>
+    <div class="flabel">PROJECTS · 5</div><div class="tgrid">${projCards}</div>`;
+  return catalog('build', extra);
 }
 
 /* =============================== WORKSPACE (hybrid 1a + 1c) =============================== */
@@ -1454,7 +1794,7 @@ function scrReadiness() {
 }
 
 /* ---------- review switcher ---------- */
-const SCREENS = [['home', 'Today', 'new'], ['dsa', 'DSA section · 14 tracks', 'new'], ['rust', 'Rust section · 32 tracks', 'new'], ['build', 'Build section', 'new'], ['workspace', 'Workspace · hybrid 1a + 1c', 'new'], ['projects', 'Project · shortline', 'new'], ['stage', 'Project stage workspace', 'new'], ['library', 'Library', 'new'], ['mock', 'Mock interview', 'new'], ['readiness', 'Readiness', 'new']];
+const SCREENS = [['home', 'Today', 'new'], ['progress', 'Progress · overview, Rust stats, reviews', 'new'], ['dsa', 'DSA section · catalog v3', 'new'], ['rust', 'Rust section · catalog v3', 'new'], ['build', 'Build section · catalog v3', 'new'], ['workspace', 'Workspace · hybrid 1a + 1c', 'new'], ['projects', 'Project · shortline', 'new'], ['stage', 'Project stage workspace', 'new'], ['library', 'Library', 'new'], ['mock', 'Mock interview', 'new'], ['readiness', 'Readiness', 'new']];
 const OLD = [['WorkspaceSplit.dc.html', '1a · Workspace split'], ['WorkspaceBench.dc.html', '1b · Workspace bench'], ['WorkspaceTrace.dc.html', '1c · Workspace trace'], ['TrackGraphs.dc.html', '1d · Track · Graphs']];
 let revOpen = false;
 function renderRev() {
@@ -1462,7 +1802,7 @@ function renderRev() {
 }
 
 /* ---------- render + events ---------- */
-const VIEWS = {home: scrHome, dsa: scrDSA, rust: scrRust, build: scrBuild, workspace: scrWorkspace, projects: scrProjects, stage: scrStage, library: scrLibrary, mock: scrMock, readiness: scrReadiness};
+const VIEWS = {progress: scrProgress, home: scrHome, dsa: scrDSA, rust: scrRust, build: scrBuild, workspace: scrWorkspace, projects: scrProjects, stage: scrStage, library: scrLibrary, mock: scrMock, readiness: scrReadiness};
 function render(resetScroll) {
   const y = window.scrollY, ae = document.activeElement, fid = ae && ae.id, sel = fid && ae.selectionStart;
   document.getElementById('app').innerHTML = header() + VIEWS[S.route]();
@@ -1507,7 +1847,11 @@ const ACT = {
   mstep(v) { S.mock.step = v; render(true); },
   mround(i) { if (!ROUNDS[+i].locked) { S.mock.round = +i; render(); } },
   mtalk(i) { S.mock.talk[+i] = !S.mock.talk[+i]; render(); },
-  rdtrack(v) { S.rd.track = v; render(); }
+  rdtrack(v) { S.rd.track = v; render(); },
+  ptab(v) { S.prog.tab = v; render(); },
+  catview(v) { S.cat.view = v; render(); },
+  catf(v) { S.cat.f = v; render(); },
+  catreset() { S.cat.q = ''; S.cat.f = 'all'; render(); }
 };
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
@@ -1515,9 +1859,10 @@ document.addEventListener('click', e => {
   e.preventDefault();
   ACT[el.dataset.act]?.(el.dataset.arg);
 });
-document.addEventListener('input', e => { if (e.target.dataset.inp === 'libq') { S.lib.q = e.target.value; render(); } });
+document.addEventListener('input', e => { if (e.target.dataset.inp === 'libq') { S.lib.q = e.target.value; render(); } if (e.target.dataset.inp === 'catq') { S.cat.q = e.target.value; render(); } });
+document.addEventListener('keydown', e => { if (e.key === '/' && ['dsa', 'rust', 'build'].includes(S.route) && document.activeElement?.tagName !== 'INPUT') { e.preventDefault(); document.getElementById('catq')?.focus(); } });
 document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { if (S.route === 'workspace') ACT.wrun(); if (S.route === 'stage') ACT.srun(); } });
-function route() { const raw = location.hash.slice(1), h = ({tracks: 'dsa', concepts: 'rust'})[raw] || raw; S.route = ROUTES.includes(h) ? h : 'home'; revOpen = false; render(true); }
+function route() { const raw = location.hash.slice(1), h = ({tracks: 'dsa', concepts: 'rust'})[raw] || raw; S.route = ROUTES.includes(h) ? h : 'home'; revOpen = false; if (S.cat) S.cat = {q: '', view: S.cat.view, f: 'all'}; render(true); }
 window.addEventListener('hashchange', route);
 const saved = store.get('anneal-theme'); if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
 route();

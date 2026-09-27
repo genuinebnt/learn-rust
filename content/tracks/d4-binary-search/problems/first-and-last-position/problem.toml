@@ -1,0 +1,29 @@
+slug = "first-and-last-position"
+title = "First and last position"
+mode = "write"
+level = "medium"
+stage = "on-structure-and-answer"
+order = 5
+status = "ready"
+tags = ["partition_point"]
+teaches = [
+  "Lower and upper bounds with `partition_point`.",
+]
+follow_up = "Count occurrences of every value in a sorted slice with this. What's the total cost?"
+
+[[examples]]
+input = "nums = [5,7,7,8,8,10], target = 8"
+output = "Some((3, 4))"
+
+[[hints]]
+kind = "approach"
+text = "The first index is 'how many are smaller'; one past the last is 'how many are smaller or equal'."
+
+[[hints]]
+kind = "rust"
+text = "Two `partition_point` calls with `<` and `<=`, then `(start < end).then(...)`."
+
+[solution]
+explanation = "Both bounds come from the same monotone-predicate idea, so there are no hand-written loops to get off by one."
+time = "O(log n)"
+space = "O(1)"

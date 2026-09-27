@@ -85,6 +85,7 @@ async fn submit(r: &Runner, id: &str, lib_rs: &str, visible: &str, hidden: &str)
             lib_rs,
             visible_tests: visible,
             hidden_tests: Some(hidden),
+        crates: &[],
         },
     )
     .await
@@ -158,6 +159,7 @@ async fn run_without_hidden_tests_reports_visible_only() {
         lib_rs: NETWORK_DELAY_SENTINEL_BUG,
         visible_tests: &visible,
         hidden_tests: None,
+        crates: &[],
     };
     let r = runner(Sandbox::Host)
         .run("d9-network-delay-time", &sub)
@@ -210,6 +212,23 @@ async fn fix_this_solution_passes_visible_and_hidden() {
 }
 
 #[tokio::test]
+async fn prints_from_passing_tests_are_kept() {
+    let catalog = catalog();
+    let (_, solution, visible, _) = problem(&catalog, "d9-network-delay-time");
+    let noisy = solution.replacen(
+        "    let max = ",
+        "    println!(\"dist = {:?}\", &dist[1..]);\n    dbg!(k);\n    let max = ",
+        1,
+    );
+    let r = runner(Sandbox::Host);
+    let sub = Submission { lib_rs: &noisy, visible_tests: &visible, hidden_tests: None, crates: &[] };
+    let result = r.run("prints", &sub).await.unwrap();
+    assert_eq!(result.status, RunStatus::Passed, "{result:#?}");
+    let out: Vec<&str> = result.tests.iter().map(|t| t.stdout.as_str()).collect();
+    assert!(out.iter().any(|s| s.contains("dist = [") && s.contains("k = ")), "{out:?}");
+}
+
+#[tokio::test]
 async fn infinite_loop_times_out_and_is_killed() {
     let c = catalog();
     let (_, _, visible, _) = problem(&c, "d9-network-delay-time");
@@ -226,6 +245,7 @@ async fn infinite_loop_times_out_and_is_killed() {
                 lib_rs: spin,
                 visible_tests: &visible,
                 hidden_tests: None,
+        crates: &[],
             },
         )
         .await
@@ -269,4 +289,82 @@ async fn docker_sandbox_matches_host() {
         (RunStatus::Passed, 6, 6),
         "{ok:#?}"
     );
+}
+
+const CRATES_LIB: &str = r#"
+/// Reads `n` from a JSON object.
+pub fn parse(s: &str) -> anyhow::Result<u64> {
+    let v: serde_json::Value = serde_json::from_str(s)?;
+    v["n"].as_u64().ok_or_else(|| anyhow::anyhow!("no n"))
+}
+
+/// Doubles `x` after an hour (of paused test time).
+pub async fn double_later(x: u64) -> u64 {
+    tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+    x * 2
+}
+"#;
+
+const CRATES_TESTS: &str = r#"use solution::*;
+
+#[test]
+fn parses_json() {
+    check!("{\"n\": 4}", parse("{\"n\": 4}").unwrap(), 4);
+}
+
+#[tokio::test(start_paused = true)]
+async fn paused_time() {
+    check!("3", double_later(3).await, 6);
+}
+"#;
+
+fn crate_set() -> Vec<String> {
+    ["serde_json", "anyhow", "tokio"].map(String::from).to_vec()
+}
+
+async fn run_with_crates(sandbox: Sandbox) -> RunResult {
+    let crates = crate_set();
+    let sub = Submission { lib_rs: CRATES_LIB, visible_tests: CRATES_TESTS, hidden_tests: None, crates: &crates };
+    runner(sandbox).run("crates-demo", &sub).await.unwrap()
+}
+
+#[tokio::test]
+async fn problems_can_use_crates_from_the_set() {
+    let r = run_with_crates(Sandbox::Host).await;
+    assert_eq!((r.status, r.passed, r.total), (RunStatus::Passed, 2, 2), "{r:#?}");
+}
+
+#[tokio::test]
+async fn crates_outside_the_set_are_refused() {
+    let crates = vec!["left-pad".to_string()];
+    let sub = Submission { lib_rs: "", visible_tests: "", hidden_tests: None, crates: &crates };
+    let err = runner(Sandbox::Host).run("crates-unknown", &sub).await.unwrap_err();
+    assert!(matches!(err, anneal_runner::RunnerError::UnknownCrate(ref c) if c == "left-pad"), "{err}");
+}
+
+#[tokio::test]
+#[ignore = "needs the runner image: docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker"]
+async fn docker_sandbox_uses_vendored_crates_offline() {
+    let r = run_with_crates(Sandbox::docker("anneal-runner:1.98")).await;
+    assert_eq!((r.status, r.passed, r.total), (RunStatus::Passed, 2, 2), "{r:#?}");
+}
+
+#[tokio::test]
+async fn scratch_main_runs_against_the_library() {
+    use anneal_runner::{Scratch, ScratchStatus};
+    let r = runner(Sandbox::Host);
+    let lib = "pub fn double(x: i32) -> i32 { x * 2 }\n";
+    let ok = Scratch { lib_rs: lib, main_rs: "use solution::*;\nfn main() { println!(\"{}\", double(21)); eprintln!(\"to stderr\"); }\n", crates: &[] };
+    let out = r.run_scratch("scratch-demo", &ok).await.unwrap();
+    assert_eq!((out.status, out.stdout.as_str(), out.stderr.trim(), out.exit_code), (ScratchStatus::Ok, "42\n", "to stderr", Some(0)), "{out:#?}");
+
+    let panics = Scratch { main_rs: "fn main() { let v: Vec<i32> = vec![]; println!(\"before\"); v[3]; }\n", ..ok };
+    let out = r.run_scratch("scratch-demo", &panics).await.unwrap();
+    assert_eq!((out.status, out.stdout.as_str()), (ScratchStatus::Exited, "before\n"));
+    assert!(out.stderr.contains("index out of bounds"), "{}", out.stderr);
+
+    let broken = Scratch { main_rs: "use solution::*;\nfn main() { let s: String = double(1); }\n", ..ok };
+    let out = r.run_scratch("scratch-demo", &broken).await.unwrap();
+    assert_eq!(out.status, ScratchStatus::CompileError);
+    assert!(out.diagnostics.iter().any(|d| d.code.as_deref() == Some("E0308")), "{:?}", out.diagnostics);
 }

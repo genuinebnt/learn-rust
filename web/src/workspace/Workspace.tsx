@@ -2,17 +2,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { marked } from "marked";
-import { ApiError, api, type ProblemDetail, type RunOutcome, type RunView } from "../api";
+import { ApiError, api, type Diagnostic, type ProblemDetail, type RunOutcome, type RunView, type ScratchResult } from "../api";
 import { Header } from "../components/Header";
-import { BAND_LABEL, Segs, modeColor, pad2 } from "../components/bits";
+import { BAND_LABEL, LEVEL_COLOR, Segs, modeColor, pad2 } from "../components/bits";
 import { NAV_SECTIONS, SECTION_NAMES, type NavArea } from "../curriculum";
 import { Editor } from "./Editor";
+import { EditorSettingsButton } from "./EditorSettings";
+import { useEditorSettings } from "../settings";
 import { changedLines } from "./diff";
 import { deriveLanes } from "./lanes";
 import { type RaSession, type RaStatus, connectRa } from "./lsp";
 
-type LeftTab = "problem" | "hints" | "solution" | "related";
-type RightTab = "tests" | "compiler" | "output";
+type LeftTab = "problem" | "tests" | "hints" | "solution" | "related";
+type ConsoleTab = "compiler" | "output" | "timeline";
+
+const CONSOLE_MIN = 120;
+const CONSOLE_BAR = 38;
 
 /** Interview-realistic budgets from CURRICULUM.md, in minutes. */
 const BUDGET = { write: { easy: 10, medium: 25, hard: 40 }, fix: { easy: 5, medium: 10, hard: 15 }, stage: { easy: 60, medium: 60, hard: 90 } } as const;
@@ -54,12 +59,19 @@ export function Workspace({ id }: { id: string }) {
 }
 
 function Loaded({ p }: { p: ProblemDetail }) {
+  const { editor: editorSettings } = useEditorSettings();
+  useFocusHeartbeat(p.id);
   const qc = useQueryClient();
   const [code, setCode] = useState(p.draft ?? p.starter);
   const [docKey, setDocKey] = useState(`${p.id}:0`);
   const [left, setLeft] = useState<LeftTab>("problem");
-  const [right, setRight] = useState<RightTab>("tests");
-  const [file, setFile] = useState<"lib" | "tests">("lib");
+  const [consoleTab, setConsoleTab] = useState<ConsoleTab>("compiler");
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [consoleH, setConsoleH] = useStoredNumber("anneal-console-height", 260);
+  const [file, setFile] = useState<"lib" | "main" | "tests">("lib");
+  const [main, setMain] = useState(p.scratch);
+  const [scratchOut, setScratchOut] = useState<ScratchResult | null>(null);
+  const [lastAction, setLastAction] = useState<"tests" | "scratch">("tests");
   const [autocomplete, setAutocomplete] = useState(true);
   const borrowish = p.mode === "fix" || p.tags.some((t) => /^E0[45]\d\d$/.test(t) || /borrow/.test(t));
   const [lanesOn, setLanesOn] = useState(borrowish);
@@ -121,6 +133,21 @@ function Loaded({ p }: { p: ProblemDetail }) {
     return () => clearTimeout(t);
   }, [code, p.id]);
 
+  // The scratch main.rs autosaves the same way.
+  const savedMain = useRef(main);
+  useEffect(() => {
+    if (main === savedMain.current) return;
+    const t = setTimeout(() => {
+      savedMain.current = main;
+      api.saveScratch(p.id, main).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [main, p.id]);
+
+  const showConsole = (tab: ConsoleTab) => {
+    setConsoleTab(tab);
+    setConsoleOpen(true);
+  };
   const update = (next: ProblemDetail) => qc.setQueryData(["problem", p.id], next);
   const afterRun = (out: RunOutcome) => {
     qc.setQueryData<ProblemDetail>(["problem", p.id], (old) => old && { ...old, runs: [...old.runs, out.run], attempt: out.attempt, solution: out.solution });
@@ -128,7 +155,9 @@ function Loaded({ p }: { p: ProblemDetail }) {
     qc.invalidateQueries({ queryKey: ["track"] });
     setSelected(null);
     setOpen(out.run.tests.find((t) => t.outcome !== "passed")?.name ?? null);
-    setRight(out.run.status === "compile_error" ? "compiler" : "tests");
+    setLastAction("tests");
+    setLeft("tests");
+    if (out.run.status === "compile_error") showConsole("compiler");
   };
   const run = useMutation({ mutationFn: () => api.run(p.id, code), onSuccess: afterRun });
   const submit = useMutation({ mutationFn: () => api.submit(p.id, code), onSuccess: afterRun });
@@ -144,10 +173,23 @@ function Loaded({ p }: { p: ProblemDetail }) {
       setConfirm(null);
     },
   });
-  const busy = run.isPending || submit.isPending;
+  const scratch = useMutation({
+    mutationFn: () => api.runScratch(p.id, code, main),
+    onSuccess: (out) => {
+      setScratchOut(out);
+      setLastAction("scratch");
+      showConsole(out.status === "compile_error" ? "compiler" : "output");
+    },
+  });
+  const busy = run.isPending || submit.isPending || scratch.isPending;
+  const doScratch = () => {
+    if (busy || p.status !== "ready") return;
+    showConsole("output");
+    scratch.mutate();
+  };
   const doRun = () => !busy && p.status === "ready" && run.mutate();
   const doSubmit = () => !busy && p.status === "ready" && submit.mutate();
-  const failure = run.error ?? submit.error;
+  const failure = run.error ?? submit.error ?? scratch.error;
 
   const runs = p.runs;
   const latest = runs.at(-1);
@@ -164,6 +206,18 @@ function Loaded({ p }: { p: ProblemDetail }) {
     <>
       <Header area={area} />
       <main>
+        {p.attempt.resolve && (
+          <div className="resolve-bar">
+            <b>{p.attempt.solved ? "RE-SOLVED" : "RE-SOLVE"}</b>
+            <span>
+              {p.attempt.solved
+                ? p.attempt.assisted
+                  ? "Assisted this time: it comes back in 3 days."
+                  : "Unassisted: it moves up the review ladder."
+                : "From the starter, hints locked again. Solve it unassisted to move it up the review ladder."}
+            </span>
+          </div>
+        )}
         <div className="subbar">
           <div className="crumb">
             <Link to={`/${area}`} style={{ color: modeColor(p.mode) }}>
@@ -175,7 +229,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
             </Link>
             <span>/</span>
             <span>
-              {BAND_LABEL[p.stage.band]} · {p.stage.name.toUpperCase()}
+              <span style={{ color: LEVEL_COLOR[p.stage.band] }}>{BAND_LABEL[p.stage.band]}</span> · {p.stage.name.toUpperCase()}
             </span>
           </div>
           <div className="vr" />
@@ -184,7 +238,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
             <span className="pill solid" style={{ background: modeColor(p.mode) }}>
               {p.mode === "fix" ? "FIX THIS" : p.mode === "stage" ? "STAGE" : "WRITE IT"}
             </span>
-            <span className="pill" style={{ borderColor: "var(--line)", color: "var(--mut)" }}>
+            <span className="pill" style={{ borderColor: LEVEL_COLOR[p.level], color: LEVEL_COLOR[p.level] }}>
               {p.level.toUpperCase()}
             </span>
             {p.tags.slice(0, 3).map((t) => (
@@ -229,6 +283,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
               {(
                 [
                   ["problem", "Problem"],
+                  ["tests", shown && shown.tests.length ? `Tests ${shown.passed}/${shown.total}` : "Tests"],
                   ["hints", `Hints ${p.hints.revealed.length}/${p.hints.total}`],
                   ["solution", "Solution"],
                   ["related", "Related"],
@@ -310,6 +365,28 @@ function Loaded({ p }: { p: ProblemDetail }) {
                       {p.follow_up}
                     </div>
                   )}
+                </div>
+              )}
+
+              {left === "tests" && (
+                <div className="stack" style={{ gap: 14 }}>
+                  {p.attempt.solved && (
+                    <div className="solved">
+                      <span className="lab" style={{ color: "var(--grn)" }}>
+                        SOLVED{p.attempt.assisted ? " · ASSISTED" : ""}
+                      </span>
+                      {p.next ? (
+                        <Link to="/p/$id" params={{ id: p.next }}>
+                          Next problem →
+                        </Link>
+                      ) : (
+                        <Link to="/t/$track" params={{ track: p.track.slug }}>
+                          Back to {p.track.name} →
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                  <TestsPanel run={shown} names={names} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
                 </div>
               )}
 
@@ -396,21 +473,25 @@ function Loaded({ p }: { p: ProblemDetail }) {
             </div>
           </section>
 
-          {/* ---------- centre: editor, lanes, timeline ---------- */}
+          {/* ---------- centre: editor, actions, console ---------- */}
           <section className="pane c">
             <div className="ftabs">
               <button className={`ftab${file === "lib" ? " on" : ""}`} onClick={() => setFile("lib")}>
                 src/lib.rs
-                {code !== (latest?.code ?? p.starter) && <span className="dot" style={{ background: "var(--mut)" }} title="Changed since the last run" />}
+                {code !== (latest?.code ?? p.starter) && <span className="dot" style={{ background: "var(--mut)" }} title="Changed since the last test run" />}
+              </button>
+              <button className={`ftab${file === "main" ? " on" : ""}`} onClick={() => setFile("main")} title="Scratch main: Run builds and runs it">
+                main.rs<small>SCRATCH</small>
               </button>
               <button className={`ftab${file === "tests" ? " on" : ""}`} onClick={() => setFile("tests")}>
                 tests.rs<small>READ-ONLY</small>
               </button>
               <div className="tools">
-                <Switch on={autocomplete} onClick={() => setAutocomplete(!autocomplete)} label="Autocomplete" />
-                <Switch on={ra} onClick={() => setRa(!ra)} label="rust-analyzer" />
-                {(borrowish || lanes) && <Switch on={lanesOn} onClick={() => setLanesOn(!lanesOn)} label="Borrow lanes" />}
-                <span className="vr" style={{ height: 16 }} />
+                <EditorSettingsButton>
+                  <Switch on={autocomplete} onClick={() => setAutocomplete(!autocomplete)} label="Autocomplete" />
+                  <Switch on={ra} onClick={() => setRa(!ra)} label="rust-analyzer" />
+                  {(borrowish || lanes) && <Switch on={lanesOn} onClick={() => setLanesOn(!lanesOn)} label="Borrow lanes" />}
+                </EditorSettingsButton>
                 {confirm === "reset" ? (
                   <span className="m" style={{ fontSize: 11, display: "flex", gap: 10 }}>
                     <button style={{ color: "var(--bad)" }} onClick={() => reset.mutate()}>
@@ -425,13 +506,26 @@ function Loaded({ p }: { p: ProblemDetail }) {
                     Reset
                   </button>
                 )}
+                <span className="vr" style={{ height: 16 }} />
+                <div className="wacts">
+                  <button onClick={doScratch} disabled={busy || p.status !== "ready"} title="Build main.rs with your lib.rs and run it (⌘')">
+                    {scratch.isPending ? "Running…" : "▷ Run"}
+                  </button>
+                  <button onClick={doRun} disabled={busy || p.status !== "ready"} title="Run the visible tests (⌘↵)">
+                    {run.isPending ? "Testing…" : "Run tests"}
+                  </button>
+                  <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"} title="Visible and hidden tests; passing solves it (⇧⌘↵)">
+                    {submit.isPending ? "Submitting…" : "Submit"}
+                  </button>
+                </div>
               </div>
             </div>
             <div className="gbar">
               <div className="fp">
-                <span style={{ color: "var(--fg)" }}>{file === "lib" ? "src/lib.rs" : "tests/visible.rs"}</span>
+                <span style={{ color: "var(--fg)" }}>{file === "lib" ? "src/lib.rs" : file === "main" ? "src/bin/scratch.rs" : "tests/visible.rs"}</span>
                 <span>edition 2021</span>
-                <span>{names.length} visible tests · hidden on Submit</span>
+                <span>{p.crates.length ? `crates: ${p.crates.join(" · ")}` : "std only"}</span>
+                <span>{file === "main" ? "⌘' runs it · tests don't run" : `${names.length} visible tests · hidden on Submit`}</span>
               </div>
               {lanesOn && file === "lib" && (
                 <div className="lh">
@@ -442,6 +536,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
             </div>
             <div className="edit-host" hidden={file !== "lib"}>
               <Editor
+                vim={editorSettings.vim}
                 value={code}
                 docKey={docKey}
                 autocomplete={autocomplete}
@@ -454,6 +549,21 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 onCursor={(l, c) => setCursor([l, c])}
                 onRun={doRun}
                 onSubmit={doSubmit}
+                onScratch={doScratch}
+              />
+            </div>
+            <div className="edit-host" hidden={file !== "main"}>
+              <Editor
+                vim={editorSettings.vim}
+                value={main}
+                docKey={`${p.id}:main`}
+                autocomplete={autocomplete}
+                diagnostics={scratchOut && lastAction === "scratch" ? scratchOut.diagnostics.map(forScratch) : []}
+                onChange={setMain}
+                onCursor={(l, c) => setCursor([l, c])}
+                onRun={doRun}
+                onSubmit={doSubmit}
+                onScratch={doScratch}
               />
             </div>
             {file === "tests" && (
@@ -467,110 +577,81 @@ function Loaded({ p }: { p: ProblemDetail }) {
               <span>
                 Ln {cursor[0]}, Col {cursor[1]}
               </span>
-              <span style={{ marginLeft: "auto" }}>rustc 1.98.1 stable · clippy on run · sandboxed</span>
+              <span style={{ marginLeft: "auto" }}>rustc 1.98.1 stable · clippy on test runs · sandboxed</span>
             </div>
-            <div className="tl">
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div className="lab" style={{ letterSpacing: ".24em" }}>
-                  RUN TIMELINE
-                </div>
-                <div className="runs">
-                  {runs.length === 0 && <span className="note">No runs yet. ⌘↵ runs the visible tests.</span>}
-                  {runs.slice(-8).map((r) => {
-                    const [label, color] = runLabel(r);
-                    const on = shown?.id === r.id;
-                    const squares = r.tests.length ? r.tests : names.map(() => null);
-                    return (
-                      <button key={r.id} className="run" style={{ borderColor: on ? color : "var(--line2)" }} onClick={() => setSelected(r.id)} title={`${r.kind} · ${new Date(r.created_at).toLocaleTimeString()}`}>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                          <span>#{runs.indexOf(r) + 1}</span>
-                          <span style={{ color: "var(--dim)" }}>{r.kind === "submit" ? "sub" : new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                        </div>
-                        <div className="sq">
-                          {squares.slice(0, 12).map((t, i) => (
-                            <span key={i} style={{ background: t === null ? "var(--line2)" : t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }} />
-                          ))}
-                        </div>
-                        <span style={{ color }}>{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 10 }}>
-                <div className="lab" style={{ letterSpacing: ".24em" }}>
-                  {shown && prevRun ? `DIFF · #${shownIdx} → #${shownIdx + 1}` : "DIFF"}
-                </div>
-                <div className="diff">
-                  {shown && prevRun ? (
-                    (() => {
-                      const lines = changedLines(prevRun.code, shown.code);
-                      return lines.length === 0 ? (
-                        <span style={{ color: "var(--dim)" }}>No code changes between these runs.</span>
+            <Console
+              tab={consoleTab}
+              setTab={(t) => showConsole(t)}
+              open={consoleOpen}
+              toggle={() => setConsoleOpen(!consoleOpen)}
+              height={consoleH}
+              setHeight={setConsoleH}
+              summary={<ConsoleSummary busy={busy} scratchBusy={scratch.isPending} lastAction={lastAction} run={shown} scratch={scratchOut} />}
+              errorCount={(lastAction === "scratch" ? scratchOut?.diagnostics : shown?.diagnostics)?.filter((d) => d.level === "error").length ?? 0}
+            >
+              {failure && <p className="notice bad" style={{ margin: "0 0 12px" }}>{failure instanceof ApiError ? failure.message : "The run failed to start. Is the API running?"}</p>}
+              {consoleTab === "compiler" &&
+                (lastAction === "scratch" && scratchOut ? (
+                  <DiagnosticsList diagnostics={scratchOut.diagnostics} busy={scratch.isPending} empty="main.rs and lib.rs compiled cleanly." />
+                ) : (
+                  <CompilerPanel run={shown} busy={run.isPending || submit.isPending} />
+                ))}
+              {consoleTab === "output" && <OutputPanel run={shown} scratch={scratchOut} scratchBusy={scratch.isPending} />}
+              {consoleTab === "timeline" && (
+                <div className="tl" style={{ border: 0, padding: 0 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="lab" style={{ letterSpacing: ".24em" }}>
+                      RUN TIMELINE
+                    </div>
+                    <div className="runs">
+                      {runs.length === 0 && <span className="note">No test runs yet. ⌘↵ runs the visible tests.</span>}
+                      {runs.slice(-8).map((r) => {
+                        const [label, color] = runLabel(r);
+                        const on = shown?.id === r.id;
+                        const squares = r.tests.length ? r.tests : names.map(() => null);
+                        return (
+                          <button key={r.id} className="run" style={{ borderColor: on ? color : "var(--line2)" }} onClick={() => setSelected(r.id)} title={`${r.kind} · ${new Date(r.created_at).toLocaleTimeString()}`}>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span>#{runs.indexOf(r) + 1}</span>
+                              <span style={{ color: "var(--dim)" }}>{r.kind === "submit" ? "sub" : new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                            </div>
+                            <div className="sq">
+                              {squares.slice(0, 12).map((t, i) => (
+                                <span key={i} style={{ background: t === null ? "var(--line2)" : t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }} />
+                              ))}
+                            </div>
+                            <span style={{ color }}>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="lab" style={{ letterSpacing: ".24em" }}>
+                      {shown && prevRun ? `DIFF · #${shownIdx} → #${shownIdx + 1}` : "DIFF"}
+                    </div>
+                    <div className="diff">
+                      {shown && prevRun ? (
+                        (() => {
+                          const lines = changedLines(prevRun.code, shown.code);
+                          return lines.length === 0 ? (
+                            <span style={{ color: "var(--dim)" }}>No code changes between these runs.</span>
+                          ) : (
+                            lines.slice(0, 14).map((l, i) => (
+                              <div key={i} style={{ color: l.op === "+" ? "var(--grn)" : "var(--bad)" }}>
+                                {l.op} {l.text}
+                              </div>
+                            ))
+                          );
+                        })()
                       ) : (
-                        lines.slice(0, 10).map((l, i) => (
-                          <div key={i} style={{ color: l.op === "+" ? "var(--grn)" : "var(--bad)" }}>
-                            {l.op} {l.text}
-                          </div>
-                        ))
-                      );
-                    })()
-                  ) : (
-                    <span style={{ color: "var(--dim)" }}>Two runs are needed for a diff.</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ---------- right: tests, compiler, output ---------- */}
-          <section className="pane r">
-            <div className="tabs" style={{ padding: "0 18px" }} role="tablist">
-              {(
-                [
-                  ["tests", "Tests"],
-                  ["compiler", "Compiler"],
-                  ["output", "Output"],
-                ] as const
-              ).map(([k, label]) => (
-                <button key={k} role="tab" className={right === k ? "on" : ""} aria-selected={right === k} onClick={() => setRight(k)}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="pbody" style={{ padding: 18 }}>
-              {p.attempt.solved && (
-                <div className="solved">
-                  <span className="lab" style={{ color: "var(--grn)" }}>
-                    SOLVED{p.attempt.assisted ? " · ASSISTED" : ""}
-                  </span>
-                  {p.next ? (
-                    <Link to="/p/$id" params={{ id: p.next }}>
-                      Next problem →
-                    </Link>
-                  ) : (
-                    <Link to="/t/$track" params={{ track: p.track.slug }}>
-                      Back to {p.track.name} →
-                    </Link>
-                  )}
+                        <span style={{ color: "var(--dim)" }}>Two test runs are needed for a diff.</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
-              {failure && <p className="notice bad">{failure instanceof ApiError ? failure.message : "The run failed to start. Is the API running?"}</p>}
-              {right === "tests" && <TestsPanel run={shown} names={names} busy={busy} open={open} setOpen={setOpen} runNo={shownIdx + 1} />}
-              {right === "compiler" && <CompilerPanel run={shown} busy={busy} />}
-              {right === "output" && <OutputPanel run={shown} />}
-            </div>
-            <div className="acts">
-              <button onClick={doRun} disabled={busy || p.status !== "ready"}>
-                {run.isPending ? "Running…" : "Run tests"}
-                <span className="m" style={{ fontSize: 10.5, color: "var(--dim)" }}>
-                  ⌘↵
-                </span>
-              </button>
-              <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"}>
-                {submit.isPending ? "Submitting…" : "Submit"}
-              </button>
-            </div>
+            </Console>
           </section>
         </div>
       </main>
@@ -738,9 +819,14 @@ function TestsPanel({ run, names, busy, open, setOpen, runNo }: { run: RunView |
 function CompilerPanel({ run, busy }: { run: RunView | null; busy: boolean }) {
   if (busy) return <p className="note">Compiling…</p>;
   if (!run) return <p className="note">Compiler and clippy output appears here after a run.</p>;
-  const errors = run.diagnostics.filter((d) => d.level === "error");
-  const warnings = run.diagnostics.filter((d) => d.level !== "error");
-  if (run.diagnostics.length === 0) return <p className="note">Compiled cleanly. clippy found nothing.</p>;
+  return <DiagnosticsList diagnostics={run.diagnostics} busy={false} empty="Compiled cleanly. clippy found nothing." />;
+}
+
+function DiagnosticsList({ diagnostics, busy, empty }: { diagnostics: Diagnostic[]; busy: boolean; empty: string }) {
+  if (busy) return <p className="note">Compiling…</p>;
+  const errors = diagnostics.filter((d) => d.level === "error");
+  const warnings = diagnostics.filter((d) => d.level !== "error");
+  if (diagnostics.length === 0) return <p className="note">{empty}</p>;
   return (
     <div className="compiler">
       {[...errors, ...warnings].map((d, i) => (
@@ -752,24 +838,169 @@ function CompilerPanel({ run, busy }: { run: RunView | null; busy: boolean }) {
   );
 }
 
-function OutputPanel({ run }: { run: RunView | null }) {
+function OutputPanel({ run, scratch, scratchBusy }: { run: RunView | null; scratch: ScratchResult | null; scratchBusy: boolean }) {
   const printed = run?.tests.filter((t) => t.stdout) ?? [];
-  if (printed.length === 0)
-    return (
-      <p className="note">
-        No stdout captured. <span style={{ color: "var(--mut)" }}>println!</span> and <span style={{ color: "var(--mut)" }}>dbg!</span> output from failing tests appears here, grouped by test.
-      </p>
-    );
   return (
     <div className="compiler">
-      {printed.map((t) => (
-        <div key={t.suite + t.name}>
-          <div className="lab" style={{ margin: "10px 0 4px" }}>
-            {t.name}
+      <div className="lab" style={{ margin: "0 0 6px" }}>
+        MAIN.RS{scratch && !scratchBusy ? ` · ${scratchStatus(scratch)} · ${(scratch.duration_ms / 1000).toFixed(1)}s` : ""}
+      </div>
+      {scratchBusy ? (
+        <p className="note">Building and running main.rs…</p>
+      ) : !scratch ? (
+        <p className="note">Write a main in main.rs and press Run (⌘') to see its output here.</p>
+      ) : scratch.status === "compile_error" ? (
+        <p className="note">Didn't compile: see Compiler.</p>
+      ) : (
+        <>
+          {scratch.stdout ? <pre className="out">{scratch.stdout}</pre> : <p className="note">No stdout.</p>}
+          {scratch.stderr && <pre className="out err">{scratch.stderr}</pre>}
+        </>
+      )}
+      <div className="lab" style={{ margin: "16px 0 6px" }}>
+        TESTS
+      </div>
+      {printed.length === 0 ? (
+        <p className="note">println!, eprintln! and dbg! output from the visible tests appears here after a test run, grouped by test. Hidden tests' output stays hidden.</p>
+      ) : (
+        printed.map((t) => (
+          <div key={t.suite + t.name}>
+            <div className="lab" style={{ margin: "10px 0 4px", color: t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }}>
+              {t.name}
+            </div>
+            <pre className="out">{t.stdout}</pre>
           </div>
-          <pre>{t.stdout}</pre>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
+}
+
+const scratchStatus = (s: ScratchResult) =>
+  s.status === "ok" ? "exit 0" : s.status === "exited" ? `exit ${s.exit_code ?? "?"}` : s.status === "timeout" ? "timed out" : "compile error";
+
+/** Diagnostics from a scratch build point at src/bin/scratch.rs; the main.rs editor shows those only. */
+function forScratch(d: Diagnostic): Diagnostic {
+  return { ...d, spans: d.spans.filter((s) => s.file === "src/bin/scratch.rs").map((s) => ({ ...s, file: "src/lib.rs" })) };
+}
+
+function ConsoleSummary({ busy, scratchBusy, lastAction, run, scratch }: { busy: boolean; scratchBusy: boolean; lastAction: "tests" | "scratch"; run: RunView | null; scratch: ScratchResult | null }) {
+  if (busy) return <span style={{ color: "var(--acc)" }}>{scratchBusy ? "running main.rs…" : "running tests…"}</span>;
+  if (lastAction === "scratch" && scratch) {
+    const ok = scratch.status === "ok";
+    return <span style={{ color: ok ? "var(--grn)" : "var(--bad)" }}>main.rs · {scratchStatus(scratch)}</span>;
+  }
+  if (!run) return <span>no runs yet</span>;
+  const [label, color] = runLabel(run);
+  return <span style={{ color }}>{run.kind} · {label}</span>;
+}
+
+function Console({
+  tab,
+  setTab,
+  open,
+  toggle,
+  height,
+  setHeight,
+  summary,
+  errorCount,
+  children,
+}: {
+  tab: ConsoleTab;
+  setTab: (t: ConsoleTab) => void;
+  open: boolean;
+  toggle: () => void;
+  height: number;
+  setHeight: (h: number) => void;
+  summary: React.ReactNode;
+  errorCount: number;
+  children: React.ReactNode;
+}) {
+  const drag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!open) return;
+    const startY = e.clientY;
+    const startH = height;
+    const pane = e.currentTarget.closest(".pane") as HTMLElement | null;
+    const max = Math.max(CONSOLE_MIN, (pane?.clientHeight ?? 800) - 180);
+    const move = (ev: PointerEvent) => setHeight(Math.min(max, Math.max(CONSOLE_MIN, startH + startY - ev.clientY)));
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.cursor = "";
+    };
+    document.body.style.cursor = "row-resize";
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  return (
+    <div className="console" style={{ height: open ? height : CONSOLE_BAR }}>
+      <div className={`console-grip${open ? "" : " off"}`} onPointerDown={drag} aria-hidden="true" />
+      <div className="console-bar">
+        <div className="console-tabs" role="tablist">
+          {(
+            [
+              ["compiler", errorCount ? `Compiler · ${errorCount}` : "Compiler"],
+              ["output", "Output"],
+              ["timeline", "Timeline"],
+            ] as const
+          ).map(([k, label]) => (
+            <button key={k} role="tab" className={open && tab === k ? "on" : ""} aria-selected={open && tab === k} onClick={() => (open && tab === k ? toggle() : setTab(k))} style={k === "compiler" && errorCount ? { color: "var(--bad)" } : undefined}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="console-sum">{summary}</div>
+        <button className="console-toggle" onClick={toggle} aria-expanded={open} title={open ? "Hide the console" : "Show the console"}>
+          {open ? "▾" : "▴"}
+        </button>
+      </div>
+      {open && <div className="console-body">{children}</div>}
+    </div>
+  );
+}
+
+function useStoredNumber(key: string, initial: number): [number, (n: number) => void] {
+  const [v, set] = useState(() => {
+    try {
+      const n = Number(localStorage.getItem(key));
+      return Number.isFinite(n) && n > 0 ? n : initial;
+    } catch {
+      return initial;
+    }
+  });
+  return [
+    v,
+    (n) => {
+      set(n);
+      try {
+        localStorage.setItem(key, String(Math.round(n)));
+      } catch {
+        // Storage can be unavailable; the size still applies for this visit.
+      }
+    },
+  ];
+}
+
+/** Reports active editing time: every 30 s while the tab is visible and you've typed or clicked in the last minute. */
+function useFocusHeartbeat(id: string) {
+  useEffect(() => {
+    let last = Date.now();
+    let active = Date.now();
+    const mark = () => {
+      active = Date.now();
+    };
+    window.addEventListener("keydown", mark);
+    window.addEventListener("mousedown", mark);
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const seconds = Math.round((now - last) / 1000);
+      last = now;
+      if (document.visibilityState === "visible" && now - active < 60_000) api.focus(id, Math.min(seconds, 120)).catch(() => undefined);
+    }, 30_000);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("keydown", mark);
+      window.removeEventListener("mousedown", mark);
+    };
+  }, [id]);
 }

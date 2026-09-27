@@ -1,0 +1,30 @@
+slug = "split-array-largest-sum"
+title = "Split array largest sum"
+mode = "write"
+level = "hard"
+stage = "hard-searches"
+order = 12
+status = "ready"
+tags = ["search on the answer", "greedy check"]
+teaches = [
+  "Binary search on the answer with a greedy feasibility check.",
+]
+follow_up = "Solve it with DP. When would you prefer the DP?"
+related = ["D12"]
+
+[[hints]]
+kind = "approach"
+text = "Guess the answer `cap`. Greedily cut whenever the running sum would exceed it; if that needs ≤ k parts, `cap` is feasible."
+
+[[hints]]
+kind = "approach"
+text = "Feasibility is monotone in `cap`, so binary search it between the largest element and the total."
+
+[[hints]]
+kind = "rust"
+text = "Sums of `u32`s overflow `u32`; do the arithmetic in `u64`."
+
+[solution]
+explanation = "The greedy check is optimal for a fixed cap (cutting later never helps), so binary search plus an O(n) check solves it without DP."
+time = "O(n log Σ)"
+space = "O(1)"

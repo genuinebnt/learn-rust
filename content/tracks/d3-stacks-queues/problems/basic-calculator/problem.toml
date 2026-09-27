@@ -1,0 +1,30 @@
+slug = "basic-calculator"
+title = "Basic calculator"
+mode = "write"
+level = "hard"
+stage = "hard-stacks"
+order = 12
+status = "ready"
+tags = ["parsing", "stack of (sum, sign)"]
+teaches = [
+  "Iterative parsing with an explicit stack.",
+  "Unary minus as '0 minus'.",
+]
+follow_up = "Add `*` and `/` with the usual precedence. What extra state do you need?"
+
+[[hints]]
+kind = "approach"
+text = "Without parentheses, keep a running sum and the sign of the next number. A parenthesis is a sub-expression with its own sum."
+
+[[hints]]
+kind = "approach"
+text = "At `(`, push the outer sum and the sign in front of the parenthesis; at `)`, fold the inner sum back in with that sign."
+
+[[hints]]
+kind = "edge case"
+text = "A leading `-` is just `0 - …`: the running sum starts at 0, so no special case is needed."
+
+[solution]
+explanation = "An explicit stack means deep nesting can't overflow the call stack, unlike a recursive-descent parser."
+time = "O(n)"
+space = "O(depth)"

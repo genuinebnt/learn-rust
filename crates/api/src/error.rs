@@ -14,6 +14,10 @@ pub enum ApiError {
     BadRequest(String),
     #[error("{0}")]
     Busy(String),
+    #[error("sign in first")]
+    Unauthorized,
+    #[error("wrong passphrase")]
+    WrongPassphrase,
     #[error(transparent)]
     Db(#[from] sqlx::Error),
     #[error(transparent)]
@@ -27,6 +31,8 @@ impl IntoResponse for ApiError {
             ApiError::NotReady(_) => (StatusCode::CONFLICT, "not_ready"),
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request"),
             ApiError::Busy(_) => (StatusCode::TOO_MANY_REQUESTS, "busy"),
+            ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized"),
+            ApiError::WrongPassphrase => (StatusCode::UNAUTHORIZED, "wrong_passphrase"),
             ApiError::Db(_) | ApiError::Runner(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal")
             }

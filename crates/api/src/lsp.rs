@@ -65,6 +65,8 @@ fn settings() -> Value {
 pub struct SessionFiles {
     pub lib_rs: String,
     pub visible_tests: String,
+    /// The problem's crates; rust-analyzer resolves them from crates.io on the host.
+    pub crates: Vec<String>,
 }
 
 /// Runs one editor session until either side goes away.
@@ -86,7 +88,9 @@ pub async fn session(
             lib_rs: &files.lib_rs,
             visible_tests: &files.visible_tests,
             hidden_tests: None,
+            crates: &files.crates,
         },
+        false,
     )?;
     let real_root = format!("file://{}", root.display());
 

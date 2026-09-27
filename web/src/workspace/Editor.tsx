@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Vim, vim } from "@replit/codemirror-vim";
 import { Compartment, EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from "@codemirror/state";
 import {
   Decoration,
@@ -14,7 +15,7 @@ import {
   lineNumbers,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { HighlightStyle, bracketMatching, indentOnInput, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, bracketMatching, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { autocompletion, closeBrackets, closeBracketsKeymap, completeAnyWord, completionKeymap } from "@codemirror/autocomplete";
 import { rust } from "@codemirror/lang-rust";
 import { serverCompletionSource } from "@codemirror/lsp-client";
@@ -36,8 +37,9 @@ const highlight = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  "&": { height: "100%", backgroundColor: "var(--bg)", color: "var(--fg)", fontSize: "12.5px" },
-  ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "20px", position: "relative" },
+  // Font settings come from the user's editor settings (settings.ts), as CSS variables.
+  "&": { height: "100%", backgroundColor: "var(--bg)", color: "var(--fg)", fontSize: "var(--editor-size, 13px)" },
+  ".cm-scroller": { fontFamily: "var(--editor-font, var(--mono))", lineHeight: "var(--editor-line, 20px)", position: "relative" },
   ".cm-content": { padding: "12px 0", caretColor: "var(--acc)" },
   ".cm-gutters": { backgroundColor: "var(--bg)", border: "none", color: "var(--dim)" },
   ".cm-lineNumbers .cm-gutterElement": { padding: "0 16px 0 12px", minWidth: "48px" },
@@ -54,6 +56,11 @@ const theme = EditorView.theme({
   ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: "var(--acc-bg)", color: "var(--fg)" },
   ".cm-squig": { textDecoration: "underline wavy var(--bad)", textUnderlineOffset: "4px" },
   ".cm-errline": { backgroundColor: "var(--bad-bg)" },
+  ".cm-panels": { backgroundColor: "var(--panel)", color: "var(--mut)", borderTop: "1px solid var(--line2)" },
+  ".cm-vim-panel": { padding: "3px 12px", font: "500 11px var(--mono)", minHeight: "22px" },
+  ".cm-vim-panel input": { background: "transparent", border: "none", outline: "none", color: "var(--fg)", font: "inherit" },
+  ".cm-fat-cursor": { background: "color-mix(in oklch, var(--acc) 70%, transparent) !important", color: "var(--on-acc) !important" },
+  "&:not(.cm-focused) .cm-fat-cursor": { background: "none !important", outline: "1px solid var(--acc)" },
 });
 
 /* ---------- inline rustc lens ---------- */
@@ -227,6 +234,8 @@ export interface EditorProps {
   value: string;
   docKey: string;
   readOnly?: boolean;
+  /** Vim keybindings (ignored when read-only). */
+  vim?: boolean;
   autocomplete?: boolean;
   /** Errors to show inline, for src/lib.rs. */
   diagnostics?: Diagnostic[];
@@ -239,8 +248,16 @@ export interface EditorProps {
   onChange?: (code: string) => void;
   onCursor?: (line: number, col: number) => void;
   onRun?: () => void;
+  /** Run the scratch main (⌘'). */
+  onScratch?: () => void;
   onSubmit?: () => void;
 }
+
+// Vim: leave insert mode with `jk` or `kj`, typed within insertModeEscKeysTimeout (200 ms).
+Vim.map("jk", "<Esc>", "insert");
+Vim.map("kj", "<Esc>", "insert");
+
+export const EDITOR_FONT_EVENT = "anneal:editor-font";
 
 export function Editor(props: EditorProps) {
   const host = useRef<HTMLDivElement>(null);
@@ -250,6 +267,14 @@ export function Editor(props: EditorProps) {
   const completion = useRef(new Compartment());
   const lanesCompartment = useRef(new Compartment());
   const lspCompartment = useRef(new Compartment());
+  const vimCompartment = useRef(new Compartment());
+
+  // Line heights change with the font settings; have CodeMirror re-measure.
+  useEffect(() => {
+    const remeasure = () => view.current?.requestMeasure();
+    window.addEventListener(EDITOR_FONT_EVENT, remeasure);
+    return () => window.removeEventListener(EDITOR_FONT_EVENT, remeasure);
+  }, []);
 
   useEffect(() => {
     const run = () => {
@@ -260,7 +285,16 @@ export function Editor(props: EditorProps) {
       handlers.current.onSubmit?.();
       return true;
     };
+    const scratch = () => {
+      handlers.current.onScratch?.();
+      return true;
+    };
     const extensions: Extension[] = [
+      // First, so its keymap wins over the others.
+      vimCompartment.current.of([]),
+      // rustfmt style: Tab and auto-indent insert 4 spaces; tab characters display 4 wide.
+      indentUnit.of("    "),
+      EditorState.tabSize.of(4),
       lineNumbers(),
       highlightActiveLineGutter(),
       highlightActiveLine(),
@@ -274,7 +308,7 @@ export function Editor(props: EditorProps) {
       theme,
       lensField,
       lanesField,
-      keymap.of([{ key: "Mod-Enter", run }, { key: "Shift-Mod-Enter", run: submit }, ...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
+      keymap.of([{ key: "Mod-Enter", run }, { key: "Shift-Mod-Enter", run: submit }, { key: "Mod-'", run: scratch }, ...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
       completion.current.of([]),
       lspCompartment.current.of([]),
       lanesCompartment.current.of([]),
@@ -312,6 +346,11 @@ export function Editor(props: EditorProps) {
       effects: completion.current.reconfigure(props.autocomplete ? autocompletion({ override: [source], activateOnTyping: true }) : []),
     });
   }, [props.autocomplete, props.lsp]);
+
+  useEffect(() => {
+    const on = !!props.vim && !props.readOnly;
+    view.current?.dispatch({ effects: vimCompartment.current.reconfigure(on ? vim({ status: true }) : []) });
+  }, [props.vim, props.readOnly]);
 
   useEffect(() => {
     const lsp = props.lsp;

@@ -1,0 +1,30 @@
+slug = "binary-search"
+title = "Binary search"
+mode = "write"
+level = "easy"
+stage = "on-an-index"
+order = 1
+status = "ready"
+tags = ["half-open range"]
+teaches = [
+  "Half-open ranges with `usize`.",
+  "`Ordering` from `cmp` in a `match`.",
+]
+follow_up = "What does `slice::binary_search` return when the value is missing, and why is that useful?"
+
+[[examples]]
+input = "nums = [-1,0,3,5,9,12], target = 9"
+output = "Some(4)"
+
+[[hints]]
+kind = "rust"
+text = "Use a half-open range `[lo, hi)` of `usize`s. With a closed range, `hi = mid - 1` underflows when `mid` is 0."
+
+[[hints]]
+kind = "rust"
+text = "`match nums[mid].cmp(&target)` covers the three cases with no chance of mixing up `<` and `<=`."
+
+[solution]
+explanation = "Half-open bounds make the loop condition `lo < hi` and the updates `lo = mid + 1` / `hi = mid`, with no `- 1` on an unsigned index."
+time = "O(log n)"
+space = "O(1)"

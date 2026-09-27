@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anneal_api::lsp::LspConfig;
+use anneal_api::auth::AuthConfig;
 use anneal_api::{AppState, MIGRATOR, app};
 use anneal_content::Catalog;
 use anneal_runner::{Runner, RunnerConfig, Sandbox};
@@ -22,6 +23,8 @@ use tracing_subscriber::EnvFilter;
 /// | `ANNEAL_DOCKER_CONTEXT` | `orbstack` (empty = the current Docker context) |
 /// | `ANNEAL_RUST_ANALYZER` | `rust-analyzer` |
 /// | `ANNEAL_ADDR` | `127.0.0.1:8787` |
+/// | `ANNEAL_PASSPHRASE_HASH` | unset: no login, allowed only on a loopback address. Make one with `anneal passphrase` |
+/// | `ANNEAL_COOKIE_SECURE` | `false`; set `true` when served over HTTPS |
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -37,6 +40,12 @@ async fn main() -> anyhow::Result<()> {
         Catalog::load(&content).with_context(|| format!("loading {}", content.display()))?;
     for issue in &loaded.issues {
         tracing::warn!(%issue, "content issue");
+    }
+    let known = anneal_runner::known_crates();
+    for p in loaded.catalog.tracks.iter().flat_map(|t| &t.problems) {
+        if let Some(c) = p.meta.crates.iter().find(|c| !known.contains(&c.as_str())) {
+            bail!("{}: crate {c:?} isn't in the sandbox's crate set", p.id);
+        }
     }
     if !loaded.issues.is_empty() {
         bail!(
@@ -67,20 +76,31 @@ async fn main() -> anyhow::Result<()> {
         .context("connecting to Postgres")?;
     MIGRATOR.run(&db).await.context("running migrations")?;
 
+    let addr: SocketAddr = env("ANNEAL_ADDR", "127.0.0.1:8787")
+        .parse()
+        .context("ANNEAL_ADDR")?;
+    let auth = match std::env::var("ANNEAL_PASSPHRASE_HASH").ok().filter(|h| !h.is_empty()) {
+        Some(hash) => AuthConfig::new(&hash, env("ANNEAL_COOKIE_SECURE", "false") == "true")
+            .map_err(|e| anyhow::anyhow!("ANNEAL_PASSPHRASE_HASH is not an argon2 hash: {e}"))?,
+        None if addr.ip().is_loopback() => {
+            tracing::warn!("ANNEAL_PASSPHRASE_HASH is not set: no login required (loopback only)");
+            AuthConfig::disabled()
+        }
+        None => bail!("set ANNEAL_PASSPHRASE_HASH (from `anneal passphrase`) before listening on {addr}"),
+    };
+
     let web_dist = PathBuf::from(env("ANNEAL_WEB_DIST", "web/dist"));
     let state = AppState {
         catalog: Arc::new(loaded.catalog),
         runner: Arc::new(runner),
         db,
         lsp,
+        auth,
     };
-    let addr: SocketAddr = env("ANNEAL_ADDR", "127.0.0.1:8787")
-        .parse()
-        .context("ANNEAL_ADDR")?;
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .with_context(|| format!("binding {addr}"))?;
-    tracing::info!(%addr, sandbox = ?state.runner.config().sandbox, "anneal is listening");
+    tracing::info!(%addr, sandbox = ?state.runner.config().sandbox, login = state.auth.required(), "anneal is listening");
     axum::serve(listener, app(state, Some(&web_dist))).await?;
     Ok(())
 }

@@ -67,8 +67,9 @@ fn diagnostic(m: &Value) -> Option<Diagnostic> {
 
 fn span(s: &Value) -> Option<Span> {
     let file = s["file_name"].as_str()?;
-    let user_file =
-        file == "src/lib.rs" || (file.starts_with("tests/") && !file.starts_with("tests/anneal/"));
+    let user_file = file == "src/lib.rs"
+        || file == "src/bin/scratch.rs"
+        || (file.starts_with("tests/") && !file.starts_with("tests/anneal/"));
     if !user_file {
         return None;
     }

@@ -12,6 +12,7 @@
 //! network, a read-only root filesystem, capped memory, CPU and processes, and
 //! runs as the invoking user.
 
+mod deps;
 mod exec;
 mod parse;
 mod project;
@@ -21,6 +22,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+pub use deps::{VENDOR_DIR, known_crates};
 pub use project::write as write_project;
 pub use result::{
     Check, Diagnostic, Level, Outcome, RunResult, RunStatus, Span, Suite, TestOutcome,
@@ -33,6 +35,53 @@ pub struct Submission<'a> {
     pub visible_tests: &'a str,
     /// Present on Submit, absent on Run.
     pub hidden_tests: Option<&'a str>,
+    /// Crates from the allowed set (`docker/deps/Cargo.toml`) the problem depends on.
+    pub crates: &'a [String],
+}
+
+/// What to run for "Run": the user's library plus a scratch `main` that calls into it.
+#[derive(Debug, Clone, Copy)]
+pub struct Scratch<'a> {
+    pub lib_rs: &'a str,
+    /// A binary crate that can `use solution::*;`.
+    pub main_rs: &'a str,
+    pub crates: &'a [String],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScratchStatus {
+    /// Ran and exited with 0.
+    Ok,
+    /// Ran and exited with an error, usually a panic.
+    Exited,
+    CompileError,
+    Timeout,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ScratchResult {
+    pub status: ScratchStatus,
+    pub diagnostics: Vec<Diagnostic>,
+    pub stdout: String,
+    pub stderr: String,
+    pub exit_code: Option<i32>,
+    pub duration_ms: u64,
+}
+
+/// Program output kept per stream; the rest is cut.
+const OUTPUT_LIMIT: usize = 64 * 1024;
+
+fn clip(mut s: String) -> String {
+    if s.len() > OUTPUT_LIMIT {
+        let mut end = OUTPUT_LIMIT;
+        while !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        s.truncate(end);
+        s.push_str("\n… output cut at 64 KiB");
+    }
+    s
 }
 
 #[derive(Debug, Clone)]
@@ -110,6 +159,8 @@ pub enum RunnerError {
     },
     #[error("cache key {0:?} may only contain letters, digits, '-' and '_'")]
     BadCacheKey(String),
+    #[error("crate {0:?} isn't in the sandbox's crate set (docker/deps/Cargo.toml)")]
+    UnknownCrate(String),
 }
 
 impl RunnerError {
@@ -137,31 +188,19 @@ impl Runner {
         cache_key: &str,
         sub: &Submission<'_>,
     ) -> Result<RunResult, RunnerError> {
-        if cache_key.is_empty()
-            || !cache_key
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        {
-            return Err(RunnerError::BadCacheKey(cache_key.to_owned()));
-        }
         let cfg = &self.config;
-        let runs = cfg.work_root.join("runs");
-        let target = cfg
-            .work_root
-            .join("target")
-            .join(cfg.sandbox.dir_name())
-            .join(cache_key);
-        std::fs::create_dir_all(&runs).map_err(|e| RunnerError::io("create work root", e))?;
-        std::fs::create_dir_all(&target).map_err(|e| RunnerError::io("create target dir", e))?;
         // Runs sharing a target directory must not overlap: building and running are
         // separate cargo calls, so another build could replace the test binary in
         // between. A file lock covers other Runners and other processes too.
-        let _lock = lock_target(&target).await?;
-        let work = tempfile::Builder::new()
-            .prefix("run-")
-            .tempdir_in(&runs)
-            .map_err(|e| RunnerError::io("create run dir", e))?;
-        project::write(work.path(), sub).map_err(|e| RunnerError::io("write project", e))?;
+        let (target, _lock, work) = self.prepare(cache_key).await?;
+        let vendored = matches!(cfg.sandbox, Sandbox::Docker { .. });
+        project::write(work.path(), sub, vendored)?;
+        // Docker builds use the image's vendored crates. Host builds (development) may fetch
+        // from crates.io, but only need to when the problem has dependencies.
+        let offline = vendored || sub.crates.is_empty();
+        let with_offline = |args: &[&'static str]| -> Vec<&'static str> {
+            args.iter().copied().filter(|a| offline || *a != "--offline").collect()
+        };
 
         let start = Instant::now();
         let mut diagnostics = Vec::new();
@@ -170,12 +209,12 @@ impl Runner {
                 &cfg.sandbox,
                 work.path(),
                 &target,
-                &[
+                &with_offline(&[
                     "clippy",
                     "--offline",
                     "--all-targets",
                     "--message-format=json",
-                ],
+                ]),
                 cfg.compile_timeout,
             )
             .await?;
@@ -198,7 +237,7 @@ impl Runner {
             targets.extend(["--test", "hidden"]);
         }
         // Build first, under the compile limit, so the test limit only counts test time.
-        let mut build = vec!["test", "--offline", "--no-run", "--message-format=json"];
+        let mut build = with_offline(&["test", "--offline", "--no-run", "--message-format=json"]);
         build.extend(&targets);
         let out = exec::cargo(
             &cfg.sandbox,
@@ -227,7 +266,7 @@ impl Runner {
             ));
         }
 
-        let mut run = vec!["test", "--offline", "--no-fail-fast"];
+        let mut run = with_offline(&["test", "--offline", "--no-fail-fast"]);
         run.extend(&targets);
         run.extend([
             "--",
@@ -236,6 +275,8 @@ impl Runner {
             "--format",
             "json",
             "--report-time",
+            // Keep println!/dbg! output from passing tests too, for the Output panel.
+            "--show-output",
         ]);
         let out = exec::cargo(&cfg.sandbox, work.path(), &target, &run, cfg.test_timeout).await?;
         let tests = parse::tests(&out.stdout, &out.stderr);
@@ -251,6 +292,56 @@ impl Runner {
 }
 
 /// Holds an exclusive lock on `<target>/.anneal-lock` until dropped.
+impl Runner {
+    /// Builds the scratch binary and runs it once. Shares `cache_key`'s build cache with [`Runner::run`].
+    pub async fn run_scratch(&self, cache_key: &str, s: &Scratch<'_>) -> Result<ScratchResult, RunnerError> {
+        let cfg = &self.config;
+        let (target, _lock, work) = self.prepare(cache_key).await?;
+        let vendored = matches!(cfg.sandbox, Sandbox::Docker { .. });
+        project::write_scratch(work.path(), s, vendored)?;
+        let offline = vendored || s.crates.is_empty();
+        let args = |a: &[&'static str]| -> Vec<&'static str> { a.iter().copied().filter(|x| offline || *x != "--offline").collect() };
+        let start = Instant::now();
+        let done = |status, diagnostics, out: Option<exec::Captured>| {
+            let (stdout, stderr, exit_code) = out.map_or((String::new(), String::new(), None), |o| (clip(o.stdout), clip(o.stderr), o.exit_code));
+            ScratchResult { status, diagnostics, stdout, stderr, exit_code, duration_ms: start.elapsed().as_millis() as u64 }
+        };
+
+        let build = exec::cargo(&cfg.sandbox, work.path(), &target, &args(&["build", "--offline", "--bin", "scratch", "--message-format=json"]), cfg.compile_timeout).await?;
+        if build.timed_out {
+            return Ok(done(ScratchStatus::Timeout, Vec::new(), None));
+        }
+        let diagnostics = parse::diagnostics(&build.stdout);
+        if parse::build_failed(&build.stdout) {
+            return Ok(done(ScratchStatus::CompileError, diagnostics, None));
+        }
+        let out = exec::cargo(&cfg.sandbox, work.path(), &target, &args(&["run", "--offline", "-q", "--bin", "scratch"]), cfg.test_timeout).await?;
+        let status = if out.timed_out {
+            ScratchStatus::Timeout
+        } else if out.exit_code == Some(0) {
+            ScratchStatus::Ok
+        } else {
+            ScratchStatus::Exited
+        };
+        Ok(done(status, diagnostics, Some(out)))
+    }
+
+    /// The shared target directory (locked) and a fresh work directory for one run.
+    async fn prepare(&self, cache_key: &str) -> Result<(PathBuf, File, tempfile::TempDir), RunnerError> {
+        if cache_key.is_empty() || !cache_key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return Err(RunnerError::BadCacheKey(cache_key.to_owned()));
+        }
+        let cfg = &self.config;
+        let runs = cfg.work_root.join("runs");
+        let target = cfg.work_root.join("target").join(cfg.sandbox.dir_name()).join(cache_key);
+        std::fs::create_dir_all(&runs).map_err(|e| RunnerError::io("create work root", e))?;
+        std::fs::create_dir_all(&target).map_err(|e| RunnerError::io("create target dir", e))?;
+        let lock = lock_target(&target).await?;
+        let work = tempfile::Builder::new().prefix("run-").tempdir_in(&runs).map_err(|e| RunnerError::io("create run dir", e))?;
+        Ok((target, lock, work))
+    }
+}
+
 async fn lock_target(target: &Path) -> Result<File, RunnerError> {
     let path = target.join(".anneal-lock");
     tokio::task::spawn_blocking(move || {

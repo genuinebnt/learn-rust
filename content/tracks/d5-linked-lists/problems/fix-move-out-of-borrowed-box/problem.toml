@@ -1,0 +1,29 @@
+slug = "fix-move-out-of-borrowed-box"
+title = "Fix: move out of a borrowed Box"
+mode = "fix"
+level = "easy"
+stage = "owned-lists"
+order = 5
+status = "ready"
+tags = ["E0507", "take"]
+teaches = [
+  "Can't move out of a borrow; take ownership first.",
+  "`?` on `Option` for the empty case.",
+]
+follow_up = "Why does `Option::take` exist, when it's just `std::mem::replace(slot, None)`?"
+
+[[hints]]
+kind = "rust"
+text = "`node` is a `&mut Box<ListNode>` borrowed from `head`. You can't move `node.next` out of something you only borrowed."
+
+[[hints]]
+kind = "rust"
+text = "Take ownership of the whole first node with `head.take()?`; then its fields are yours to move."
+
+[solution]
+explanation = "`take()` swaps `None` into the slot and hands you the owned box, which ends the borrow problem: moving out of an owned `Box` is allowed."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone", "unwrap"]

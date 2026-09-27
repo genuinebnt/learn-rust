@@ -4,6 +4,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use anneal_api::auth::AuthConfig;
 use anneal_api::lsp::LspConfig;
 use anneal_api::{AppState, app};
 use anneal_content::Catalog;
@@ -46,7 +47,15 @@ pub fn network_delay(times: &[(usize, usize, u32)], n: usize, k: usize) -> Optio
 
 fn test_app(db: PgPool) -> Router {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let loaded = Catalog::load(&root.join("content")).expect("content");
+    test_app_with(db, &root.join("content"))
+}
+
+fn test_app_with(db: PgPool, content: &Path) -> Router {
+    test_app_auth(db, content, AuthConfig::disabled())
+}
+
+fn test_app_auth(db: PgPool, content: &Path, auth: AuthConfig) -> Router {
+    let loaded = Catalog::load(content).expect("content");
     assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
     let runner = Runner::new(RunnerConfig::new(
         Sandbox::Host,
@@ -61,6 +70,7 @@ fn test_app(db: PgPool) -> Router {
                 "rust-analyzer",
                 Path::new(env!("CARGO_TARGET_TMPDIR")).join("anneal-api"),
             ),
+            auth,
         },
         None,
     )
@@ -115,8 +125,9 @@ async fn lists_tracks_with_stage_counts(db: PgPool) {
             d9["ready"].as_u64(),
             d9["solved"].as_u64()
         ),
-        (Some(35), Some(1), Some(0))
+        (Some(35), Some(35), Some(0))
     );
+    assert_eq!(d9["readiness"], 0.0);
     assert_eq!(d9["stages"][0]["band"], "easy");
     assert_eq!(
         d9["stages"].as_array().unwrap().last().unwrap()["band"],
@@ -321,11 +332,25 @@ async fn drafts_save_and_reset(db: PgPool) {
 
 #[sqlx::test(migrator = "anneal_api::MIGRATOR")]
 async fn draft_problems_and_unknown_ids_are_refused(db: PgPool) {
-    let app = test_app(db);
+    // All shipped problems are ready, so use a one-problem catalog with a draft.
+    let dir = tempfile::tempdir().unwrap();
+    let track = dir.path().join("tracks/d99-fixture");
+    std::fs::create_dir_all(track.join("problems/only-draft")).unwrap();
+    std::fs::write(
+        track.join("track.toml"),
+        "code = \"D99\"\nname = \"Fixture\"\nsection = \"D\"\ntier = \"core\"\norder = 99\nsummary = \"x\"\n\n[[stages]]\nslug = \"s\"\nname = \"S\"\nband = \"easy\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        track.join("problems/only-draft/problem.toml"),
+        "slug = \"only-draft\"\ntitle = \"Draft\"\nmode = \"write\"\nlevel = \"easy\"\nstage = \"s\"\norder = 1\nstatus = \"draft\"\ntags = []\n",
+    )
+    .unwrap();
+    let app = test_app_with(db, dir.path());
     let (status, body) = call(
         &app,
         Method::POST,
-        "/api/problems/d9-word-ladder/run",
+        "/api/problems/d99-only-draft/run",
         Some(json!({ "code": "" })),
     )
     .await;
@@ -382,4 +407,162 @@ async fn fix_this_rules_block_a_passing_clone_workaround(db: PgPool) {
     .await;
     assert_eq!(out["run"]["violations"], json!([]));
     assert_eq!(out["attempt"]["solved"], true);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn activity_picks_the_next_problem_and_counts_the_streak(db: PgPool) {
+    let app = test_app(db);
+    let (status, a) = call(&app, Method::GET, "/api/activity?sections=D", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!((a["streak"].as_u64(), a["week"].as_array().map(Vec::len)), (Some(0), Some(7)));
+    assert_eq!((a["next"]["reason"].as_str(), a["next"]["track_code"].as_str()), (Some("start"), Some("D1")));
+    assert!(!a["next"]["excerpt"].as_str().unwrap().is_empty());
+
+    let (_, out) = call(
+        &app,
+        Method::POST,
+        &format!("/api/problems/{NDT}/submit"),
+        Some(json!({ "code": solution() })),
+    )
+    .await;
+    assert_eq!(out["run"]["status"], "passed");
+
+    let (_, a) = call(&app, Method::GET, "/api/activity?sections=D", None).await;
+    assert_eq!((a["streak"].as_u64(), a["week_solved"].as_u64(), a["week_unassisted"].as_u64()), (Some(1), Some(1), Some(1)));
+    assert_eq!((a["recent"][0]["problem_id"].as_str(), a["recent"][0]["outcome"].as_str()), (Some(NDT), Some("solved")));
+    // The solved problem's track becomes the current one; its first open problem is next.
+    assert_eq!(
+        (a["next"]["reason"].as_str(), a["next"]["problem_id"].as_str()),
+        (Some("current"), Some("d9-build-an-adjacency-list"))
+    );
+
+    // Other sections share the streak but not the recent list.
+    let (_, r) = call(&app, Method::GET, "/api/activity?sections=L,S", None).await;
+    assert_eq!((r["streak"].as_u64(), r["recent"].as_array().map(Vec::len)), (Some(1), Some(0)));
+
+    let (_, tracks) = call(&app, Method::GET, "/api/tracks", None).await;
+    let d9 = tracks.as_array().unwrap().iter().find(|t| t["code"] == "D9").unwrap();
+    assert!(d9["readiness"].as_f64().unwrap() > 0.0);
+}
+
+/// A request with an optional cookie; returns status, the Set-Cookie value and the JSON body.
+async fn raw(app: &Router, method: Method, path: &str, cookie: Option<&str>, body: Option<Value>) -> (StatusCode, Option<String>, Value) {
+    let mut req = Request::builder().method(method).uri(path).header("content-type", "application/json");
+    if let Some(c) = cookie {
+        req = req.header("cookie", c);
+    }
+    let req = req.body(body.map_or_else(Body::empty, |b| Body::from(b.to_string()))).unwrap();
+    let res = app.clone().oneshot(req).await.unwrap();
+    let status = res.status();
+    let set_cookie = res.headers().get("set-cookie").map(|v| v.to_str().unwrap().to_owned());
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let json = if bytes.is_empty() { Value::Null } else { serde_json::from_slice(&bytes).unwrap() };
+    (status, set_cookie, json)
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn passphrase_login_gates_the_api(db: PgPool) {
+    use argon2::password_hash::{PasswordHasher, SaltString, rand_core::OsRng};
+    let salt = SaltString::generate(&mut OsRng);
+    let hash = argon2::Argon2::default().hash_password(b"open sesame", &salt).unwrap().to_string();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+    let app = test_app_auth(db, &root, AuthConfig::new(&hash, false).unwrap());
+
+    assert_eq!(raw(&app, Method::GET, "/api/health", None, None).await.0, StatusCode::OK);
+    let (status, _, body) = raw(&app, Method::GET, "/api/tracks", None, None).await;
+    assert_eq!((status, body["error"].as_str()), (StatusCode::UNAUTHORIZED, Some("unauthorized")));
+    let (_, _, s) = raw(&app, Method::GET, "/api/auth/session", None, None).await;
+    assert_eq!(s, json!({ "required": true, "authenticated": false }));
+
+    let (status, cookie, body) = raw(&app, Method::POST, "/api/auth/login", None, Some(json!({ "passphrase": "nope" }))).await;
+    assert_eq!((status, cookie, body["error"].as_str()), (StatusCode::UNAUTHORIZED, None, Some("wrong_passphrase")));
+
+    let (status, cookie, _) = raw(&app, Method::POST, "/api/auth/login", None, Some(json!({ "passphrase": "open sesame" }))).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let cookie = cookie.unwrap();
+    assert!(cookie.contains("HttpOnly") && cookie.contains("SameSite=Strict"), "{cookie}");
+    let pair = cookie.split(';').next().unwrap().to_owned();
+
+    assert_eq!(raw(&app, Method::GET, "/api/tracks", Some(&pair), None).await.0, StatusCode::OK);
+    let (_, _, s) = raw(&app, Method::GET, "/api/auth/session", Some(&pair), None).await;
+    assert_eq!(s["authenticated"], true);
+    assert_eq!(raw(&app, Method::GET, "/api/tracks", Some("anneal_session=forged"), None).await.0, StatusCode::UNAUTHORIZED);
+
+    let (status, cleared, _) = raw(&app, Method::POST, "/api/auth/logout", Some(&pair), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert!(cleared.unwrap().contains("Max-Age=0"));
+    assert_eq!(raw(&app, Method::GET, "/api/tracks", Some(&pair), None).await.0, StatusCode::UNAUTHORIZED);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn editor_settings_round_trip_and_validate(db: PgPool) {
+    let app = test_app(db);
+    let (status, s) = call(&app, Method::GET, "/api/settings", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(s["editor"], json!({ "font_size": 13, "font_family": "JetBrains Mono", "vim": false }));
+    assert!(s["font_families"].as_array().unwrap().contains(&json!("Fira Code")));
+
+    let e = json!({ "font_size": 16, "font_family": "Fira Code", "vim": true });
+    assert_eq!(call(&app, Method::PUT, "/api/settings/editor", Some(e.clone())).await.0, StatusCode::OK);
+    assert_eq!(call(&app, Method::GET, "/api/settings", None).await.1["editor"], e);
+
+    let too_big = json!({ "font_size": 40, "font_family": "Fira Code" });
+    assert_eq!(call(&app, Method::PUT, "/api/settings/editor", Some(too_big)).await.0, StatusCode::BAD_REQUEST);
+    let unknown = json!({ "font_size": 14, "font_family": "Comic Mono" });
+    assert_eq!(call(&app, Method::PUT, "/api/settings/editor", Some(unknown)).await.0, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn solving_schedules_reviews_and_feeds_the_dashboards(db: PgPool) {
+    let app = test_app(db);
+    let submit = |app: &Router| {
+        let app = app.clone();
+        async move { call(&app, Method::POST, &format!("/api/problems/{NDT}/submit"), Some(json!({ "code": solution() }))).await }
+    };
+
+    // First, unassisted solve: one retention check in 21 days.
+    call(&app, Method::POST, &format!("/api/problems/{NDT}/focus"), Some(json!({ "seconds": 90 }))).await;
+    let (_, out) = submit(&app).await;
+    assert_eq!(out["run"]["status"], "passed");
+    let (status, r) = call(&app, Method::GET, "/api/reviews", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!((r["due_today"].as_u64(), r["in_rotation"].as_u64()), (Some(0), Some(1)));
+    let (_, stats) = call(&app, Method::GET, "/api/stats", None).await;
+    assert_eq!((stats["first_run_pass"].as_f64(), stats["runs_per_solve"].as_f64()), (Some(100.0), Some(1.0)));
+
+    // A re-solve starts a fresh attempt: hints locked, editor back to the starter.
+    let (status, p) = call(&app, Method::POST, &format!("/api/problems/{NDT}/resolve"), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!((p["attempt"]["resolve"].as_bool(), p["attempt"]["solved"].as_bool(), p["draft"].is_null()), (Some(true), Some(false), true));
+    // The earlier solve still counts while the re-solve is open.
+    let (_, tracks) = call(&app, Method::GET, "/api/tracks", None).await;
+    let d9 = tracks.as_array().unwrap().iter().find(|t| t["code"] == "D9").unwrap();
+    assert_eq!(d9["solved"], 1);
+
+    // An assisted re-solve resets the ladder to 3 days.
+    call(&app, Method::POST, &format!("/api/problems/{NDT}/hints"), None).await;
+    submit(&app).await;
+    let (_, r) = call(&app, Method::GET, "/api/reviews", None).await;
+    assert_eq!(r["retention_30d"].as_f64(), Some(0.0));
+    let (_, o) = call(&app, Method::GET, "/api/progress", None).await;
+    assert_eq!((o["streak"].as_u64(), o["solved_year"].as_u64()), (Some(1), Some(2)));
+    assert_eq!(o["heat"].as_array().unwrap().last().unwrap(), 2);
+    assert_eq!(o["this_week"].as_array().unwrap().iter().map(|d| d["focus_seconds"].as_i64().unwrap()).sum::<i64>(), 90);
+    assert_eq!(o["weekly"].as_array().unwrap().last().unwrap()["medium"], 2);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn run_builds_and_runs_the_scratch_main(db: PgPool) {
+    let app = test_app(db);
+    let (_, p) = call(&app, Method::GET, &format!("/api/problems/{NDT}"), None).await;
+    assert!(p["scratch"].as_str().unwrap().contains("use solution::*;"));
+
+    let main = "use solution::*;\nfn main() { println!(\"{:?}\", network_delay(&[(1, 2, 5)], 2, 1)); }\n";
+    let (status, out) = call(&app, Method::POST, &format!("/api/problems/{NDT}/scratch/run"), Some(json!({ "lib": solution(), "main": main }))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!((out["status"].as_str(), out["stdout"].as_str()), (Some("ok"), Some("Some(5)\n")), "{out}");
+
+    // Both buffers were saved; Run isn't recorded as a test run.
+    let (_, p) = call(&app, Method::GET, &format!("/api/problems/{NDT}"), None).await;
+    assert_eq!((p["scratch"].as_str(), p["runs"].as_array().map(Vec::len)), (Some(main), Some(0)));
 }

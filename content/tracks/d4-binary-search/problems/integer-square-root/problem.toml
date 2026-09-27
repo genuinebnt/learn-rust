@@ -1,0 +1,26 @@
+slug = "integer-square-root"
+title = "Integer square root"
+mode = "write"
+level = "easy"
+stage = "on-an-index"
+order = 4
+status = "ready"
+tags = ["checked_mul", "search on the answer"]
+teaches = [
+  "Binary search on the answer.",
+  "`checked_mul` for overflow-aware comparisons.",
+]
+follow_up = "Why does `(x as f64).sqrt() as u64` give wrong answers near `u64::MAX`?"
+
+[[hints]]
+kind = "approach"
+text = "Binary search for the answer: the predicate `r * r <= x` is true up to the root and false after."
+
+[[hints]]
+kind = "rust"
+text = "`mid * mid` overflows for large `mid`. `mid.checked_mul(mid)` returns `None` instead, which means 'too big'."
+
+[solution]
+explanation = "Searching on the answer turns a math problem into a monotone predicate. `checked_mul` makes overflow part of the comparison instead of a panic."
+time = "O(log x)"
+space = "O(1)"

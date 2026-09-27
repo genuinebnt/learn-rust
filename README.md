@@ -15,7 +15,7 @@ pnpm, and OrbStack (the sandbox is pinned to the `orbstack` Docker context).
 
 ```sh
 docker compose up -d                                                    # Postgres on :5434
-docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker   # sandbox image, once
+docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker   # sandbox image (rebuild after changing docker/deps)
 (cd web && pnpm install && pnpm build)
 cargo run -p anneal-api                                                 # http://localhost:8787
 ```
@@ -25,6 +25,30 @@ http://localhost:5180 (Vite proxies `/api` to the server).
 
 The server reads its settings from the environment; `cargo run` fills in local defaults from
 `.cargo/config.toml`. See the table at the top of [crates/api/src/main.rs](crates/api/src/main.rs).
+
+### Login
+
+Without `ANNEAL_PASSPHRASE_HASH` there's no login, and the server only starts on a loopback address.
+To require a passphrase (and before listening anywhere else):
+
+```sh
+cargo run -p anneal-cli -- passphrase        # prompts twice, prints ANNEAL_PASSPHRASE_HASH='$argon2id$…'
+export ANNEAL_PASSPHRASE_HASH='$argon2id$…'  # single quotes: the hash contains $
+export ANNEAL_COOKIE_SECURE=true             # when served over HTTPS
+cargo run -p anneal-api
+```
+
+Sessions last 30 days in an HttpOnly, SameSite=Strict cookie; only a SHA-256 of each token is stored. Five wrong
+passphrases in a row pause logins for a minute. Editor settings (the **Aa** button above the editor: font size, font family, Vim mode with `jk`/`kj` to leave insert mode) are saved
+on the server.
+
+### Crates in problems
+
+A problem may use crates from the fixed set in [docker/deps/Cargo.toml](docker/deps/Cargo.toml) by listing them in
+`problem.toml`: `crates = ["tokio", "serde"]`. The runner adds those dependency lines (versions pinned by
+`docker/deps/Cargo.lock`). In the Docker sandbox they come from the copy vendored into the image, so runs stay
+offline; host runs fetch from crates.io. To change the set, edit the manifest, run `cargo generate-lockfile` in
+`docker/deps`, and rebuild the image.
 
 ## Content
 

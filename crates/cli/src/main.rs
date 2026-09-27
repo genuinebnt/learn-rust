@@ -24,6 +24,8 @@ struct Cli {
 enum Command {
     /// Check every track and problem and list the issues found.
     Validate,
+    /// Prompt for a login passphrase and print the ANNEAL_PASSPHRASE_HASH value for it.
+    Passphrase,
     /// List tracks, or the problems in one track.
     List { track: Option<String> },
     /// Check every ready problem end to end: the reference solution passes every test
@@ -68,11 +70,17 @@ enum Command {
 #[tokio::main]
 async fn main() -> anyhow::Result<ExitCode> {
     let cli = Cli::parse();
+    if let Command::Passphrase = cli.command {
+        return passphrase();
+    }
     let Loaded { catalog, issues } = Catalog::load(&cli.content)
         .with_context(|| format!("loading {}", cli.content.display()))?;
     match cli.command {
+        Command::Passphrase => unreachable!("handled before loading content"),
         Command::Validate => {
             let problems: usize = catalog.tracks.iter().map(|t| t.problems.len()).sum();
+            let mut issues: Vec<String> = issues.iter().map(ToString::to_string).collect();
+            issues.extend(unknown_crates(&catalog));
             for issue in &issues {
                 println!("{issue}");
             }
@@ -181,6 +189,7 @@ async fn main() -> anyhow::Result<ExitCode> {
                         lib_rs: &lib_rs,
                         visible_tests: visible,
                         hidden_tests: hidden,
+                        crates: &p.meta.crates,
                     },
                 )
                 .await?;
@@ -206,6 +215,7 @@ struct Case {
     visible: String,
     hidden: String,
     rules: Option<anneal_content::Rules>,
+    crates: Vec<String>,
 }
 
 async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::Result<ExitCode> {
@@ -228,6 +238,7 @@ async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::
                 visible: f.visible_tests.clone().unwrap_or_default(),
                 hidden: f.hidden_tests.clone().unwrap_or_default(),
                 rules: p.meta.rules.clone(),
+                crates: p.meta.crates.clone(),
             };
             let (runner, slots) = (runner.clone(), slots.clone());
             tasks.spawn(async move {
@@ -294,7 +305,7 @@ async fn verify_one(runner: &Runner, c: &Case) -> Vec<String> {
 }
 
 async fn submit(runner: &Runner, c: &Case, code: &str) -> Result<RunResult, anneal_runner::RunnerError> {
-    runner.run(&c.id, &Submission { lib_rs: code, visible_tests: &c.visible, hidden_tests: Some(&c.hidden) }).await
+    runner.run(&c.id, &Submission { lib_rs: code, visible_tests: &c.visible, hidden_tests: Some(&c.hidden), crates: &c.crates }).await
 }
 
 /// The first compiler error or failing test, for a one-line report.
@@ -342,4 +353,48 @@ fn print_result(r: &RunResult) {
         "{:?} · {} / {} passing · {} ms",
         r.status, r.passed, r.total, r.duration_ms
     );
+}
+
+/// Hashes a passphrase with argon2id for `ANNEAL_PASSPHRASE_HASH`.
+fn passphrase() -> anyhow::Result<ExitCode> {
+    use argon2::password_hash::{PasswordHasher, SaltString, rand_core::OsRng};
+    use std::io::IsTerminal;
+    // Prompt without echo on a terminal; read one line when piped (e.g. from a secrets manager).
+    let first = if std::io::stdin().is_terminal() {
+        let first = rpassword::prompt_password("New passphrase: ")?;
+        if rpassword::prompt_password("Again: ")? != first {
+            anyhow::bail!("the passphrases don't match");
+        }
+        first
+    } else {
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line)?;
+        line.trim_end_matches(['\r', '\n']).to_owned()
+    };
+    if first.chars().count() < 12 {
+        anyhow::bail!("use at least 12 characters");
+    }
+    let salt = SaltString::generate(&mut OsRng);
+    let hash = argon2::Argon2::default()
+        .hash_password(first.as_bytes(), &salt)
+        .map_err(|e| anyhow::anyhow!("hashing failed: {e}"))?;
+    println!("ANNEAL_PASSPHRASE_HASH='{hash}'");
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Problems that ask for crates outside the sandbox's crate set.
+fn unknown_crates(catalog: &Catalog) -> Vec<String> {
+    let known = anneal_runner::known_crates();
+    catalog
+        .tracks
+        .iter()
+        .flat_map(|t| &t.problems)
+        .flat_map(|p| {
+            p.meta
+                .crates
+                .iter()
+                .filter(|c| !known.contains(&c.as_str()))
+                .map(move |c| format!("{}: crate {c:?} isn't in docker/deps/Cargo.toml", p.dir.join("problem.toml").display()))
+        })
+        .collect()
 }

@@ -1,0 +1,26 @@
+slug = "asteroid-collision"
+title = "Asteroid collision"
+mode = "write"
+level = "medium"
+stage = "monotonic-parsing"
+order = 8
+status = "ready"
+tags = ["stack", "labelled continue"]
+teaches = [
+  "Labelled loops.",
+  "Resolving a new item against the top of a stack repeatedly.",
+]
+follow_up = "What changes if asteroids can have different speeds?"
+
+[[hints]]
+kind = "approach"
+text = "Only a left-mover can hit a right-mover already on the stack. Keep colliding with the top until one side wins."
+
+[[hints]]
+kind = "rust"
+text = "A labelled `continue 'next` skips the push when the new asteroid is destroyed."
+
+[solution]
+explanation = "Each asteroid is pushed and popped at most once. The labelled continue reads more clearly than a `destroyed` flag."
+time = "O(n)"
+space = "O(n)"

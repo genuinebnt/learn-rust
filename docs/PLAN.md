@@ -10,11 +10,13 @@ Source material: `docs/design_handoff_anneal/` (objectives, tokens, 4 designed s
 | # | Decision | Why |
 |---|---|---|
 | D1 | **Workspace = hybrid 1a + 1c.** 1a's three-pane Split layout; 1c's borrow lanes, inline rustc lens and run timeline + diff are added inside the centre pane. Lanes toggle appears only on problems tagged `borrowck`. | Densest layout for grinding; keeps the teaching visuals where they matter. |
-| D2 | **Local-first, on OrbStack.** `docker compose up` on the Mac for Postgres; `anneal-api` (axum) runs on the host. User code runs in throwaway containers, pinned to the `orbstack` Docker context (`ANNEAL_DOCKER_CONTEXT` overrides). Single user, no auth. | One user. A public deploy needs gVisor/Firecracker + auth; deferred (see Later). |
+| D2 | **Local-first, on OrbStack.** `docker compose up` on the Mac for Postgres; `anneal-api` (axum) runs on the host. User code runs in throwaway containers, pinned to the `orbstack` Docker context (`ANNEAL_DOCKER_CONTEXT` overrides). Single user; login added in D7. | One user. A public deploy still needs gVisor/Firecracker; deferred (see Later). |
 | D3 | **Frontend = Vite + React 19 SPA**, TypeScript strict, TanStack Router + Query, CodeMirror 6. Plain CSS with the handoff tokens as custom properties (no Tailwind — the tokens *are* the design system). | Matches marginal ADR-004. axum owns all data; the SPA is a static bundle served by the API. |
 | D4 | **Content lives in files, progress lives in Postgres.** Problem folders are loaded and validated at API start (hot-reloaded in dev). The DB stores only user state keyed by stable problem ids. | Agents author content in bulk via git; no sync layer between files and tables. |
 | D5 | **rust-analyzer runs on the host**, one process per open workspace, bridged to the browser over a WebSocket (`/lsp/:session`). Toggle = connect / disconnect the LSP client. | Local-first makes this safe and fast. RA-in-WASM can't resolve std well. |
 | D6 | **Missing screens are mocked in HTML first** (`designs/anneal-screens.html`), reviewed, then implemented. | User choice. |
+| D7 | **Single-user passphrase login** (2026-09-27). One argon2 hash in `ANNEAL_PASSPHRASE_HASH`, 30-day cookie sessions (`sessions` table stores token hashes). Off when unset, allowed only on loopback. Editor settings (font size, family) live in a `settings` table. | Protects a deployed anneal.genuinebasil.dev without per-user tables. The login page and editor popover were built directly, without a mockup, at the user's request. |
+| D8 | **Workspace re-laid out LeetCode-style** (2026-09-27, replaces D1's three columns). Left: Problem · Tests · Hints · Solution · Related. Centre: the editor at full height, with `lib.rs` · `main.rs` (scratch) · `tests.rs` tabs and **Run** (scratch `main`, ⌘') · **Run tests** (⌘↵) · **Submit** (⇧⌘↵) in the toolbar. Below it: a collapsible, resizable console (Compiler · Output · Timeline). The editor toggles moved into the Aa menu. | More room for the editor and full-width errors and output, at the user's request. It was built directly, without a mockup. |
 
 ## Architecture
 
@@ -118,9 +120,14 @@ Each phase ends with a check you can run.
 
 **Progress (2026-09-27):** phases 0 and 2–6 are done, and phase 1's shell exists: runner (host + OrbStack sandbox),
 content loader, API, workspace with rust-analyzer, rule checker, error lens, borrow lanes and run timeline.
-Phase 7 is partly done: the section pages and track page exist, without the design's topology panel and readiness
-tiles. Today, Library, Mock interview and Readiness (8, 10) are not started, projects (9) are not started, and content
-(11) is 2 of 70 seeded problems.
+Status (2026-09-27):
+- Phase 7 is done: the section pages use the approved catalog design, and the track page exists.
+- Phase 8 is mostly done:
+  - spaced-repetition reviews, re-solves, focus time and readiness decay;
+  - the Progress page (overview, Rust stats, reviews).
+  - Today and Readiness pages are still to build.
+- Library and Mock interview (10) are not started, and neither are projects (9).
+- Content (11): 13 tracks, 252 verified problems. What comes next is in [ROADMAP.md](ROADMAP.md).
 
 | Phase | Deliverable | Done when |
 |---|---|---|
@@ -138,6 +145,10 @@ tiles. Today, Library, Mock interview and Readiness (8, 10) are not started, pro
 | 11 | Content waves per `CURRICULUM.md` §11 + old-template import | wave 1 (L1, L2, S1, S3, S4, D1, D2) out of draft |
 
 ## Later
+
+What comes after the current phases (dashboards and spaced repetition, combined-Rust and advanced-algorithm sections,
+patterns, microservices, crates) is analysed in [ROADMAP.md](ROADMAP.md).
+
 
 Public deploy (gVisor runner, auth, rate limits) · MIR-based borrow lanes · "Depth" section from the long curriculum ·
 voice-recorded explanations for mock rounds.

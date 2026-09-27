@@ -28,6 +28,8 @@ export interface TrackSummary {
   total: number;
   ready: number;
   solved: number;
+  /** 0–100: weighted by level, assisted solves count half. */
+  readiness: number;
 }
 
 export interface ProblemSummary {
@@ -72,6 +74,8 @@ export interface AttemptView {
   assisted: boolean;
   hints_revealed: number;
   solution_revealed: boolean;
+  /** A scheduled re-solve rather than the first time through. */
+  resolve: boolean;
 }
 
 export type RunStatus = "passed" | "failed" | "compile_error" | "timeout";
@@ -147,9 +151,13 @@ export interface ProblemDetail {
   examples: { input: string; output: string }[];
   follow_up: string | null;
   related: string[];
+  /** Crates the problem may use, e.g. ["tokio", "serde"]. */
+  crates: string[];
   rules: Rules | null;
   starter: string;
   draft: string | null;
+  /** The scratch main.rs for Run. */
+  scratch: string;
   visible_tests: string;
   hints: { total: number; revealed: Hint[]; locked: string[] };
   solution: SolutionView;
@@ -161,6 +169,118 @@ export interface RunOutcome {
   run: RunView;
   attempt: AttemptView;
   solution: SolutionView;
+}
+
+export interface Activity {
+  streak: number;
+  week: { date: string; solved: number }[];
+  week_solved: number;
+  week_unassisted: number;
+  recent: {
+    problem_id: string;
+    title: string;
+    track: string;
+    outcome: "solved" | "assisted" | "failing" | "started";
+    detail: string;
+    at: string;
+  }[];
+  next: NextUp | null;
+}
+
+export interface NextUp {
+  problem_id: string;
+  title: string;
+  mode: Mode;
+  level: Band;
+  track_code: string;
+  track_slug: string;
+  track_name: string;
+  stage_name: string;
+  reason: "resume" | "current" | "start";
+  /** First paragraph of the statement, markdown. */
+  excerpt: string;
+  readiness: number;
+  gain: number;
+}
+
+export interface EditorSettings {
+  font_size: number;
+  font_family: string;
+  vim: boolean;
+}
+
+export interface Settings {
+  editor: EditorSettings;
+  font_families: string[];
+  font_sizes: [number, number];
+}
+
+export interface ProgressOverview {
+  streak: number;
+  longest_streak: number;
+  heat_start: string;
+  heat: number[];
+  solved_year: number;
+  active_days_year: number;
+  unassisted_30d: number | null;
+  unassisted_prev_30d: number | null;
+  focus_week_seconds: number;
+  focus_quarter_seconds: number;
+  weekly: { week_start: string; easy: number; medium: number; hard: number }[];
+  readiness_trend: { area: "dsa" | "rust" | "build"; points: (number | null)[] }[];
+  this_week: { date: string; solved: number; unassisted: number; focus_seconds: number }[];
+  by_section: { section: Section; solved: number; written: number; readiness: number | null }[];
+}
+
+export interface Counted {
+  key: string;
+  message: string;
+  count: number;
+  where_most: string | null;
+}
+
+export interface ProgressStats {
+  first_run_pass: number | null;
+  runs_per_solve: number | null;
+  runs_per_solve_hard: number | null;
+  compile_error_rate: number | null;
+  within_budget: number | null;
+  errors: Counted[];
+  lints: Counted[];
+  rules: Counted[];
+  timing: { level: Band; mode: Mode; budget_minutes: number; median_minutes: number | null; within_budget: number | null; solved: number }[];
+}
+
+export interface ReviewItem {
+  problem_id: string;
+  title: string;
+  track: string;
+  level: Band;
+  step: number;
+  interval_days: number;
+  due_at: string;
+  days_overdue: number;
+  last_result: "unassisted" | "assisted";
+}
+
+export interface ReviewsView {
+  due_today: number;
+  overdue: number;
+  minutes_today: number;
+  retention_30d: number | null;
+  in_rotation: number;
+  graduated: number;
+  queue: ReviewItem[];
+  forecast: number[];
+}
+
+export interface ScratchResult {
+  status: "ok" | "exited" | "compile_error" | "timeout";
+  diagnostics: Diagnostic[];
+  stdout: string;
+  stderr: string;
+  exit_code: number | null;
+  duration_ms: number;
 }
 
 export class ApiError extends Error {
@@ -181,6 +301,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "unknown", message: res.statusText }));
+    // Signed out (or the session expired): go to the login page and come back afterwards.
+    if (res.status === 401 && err.error === "unauthorized" && location.pathname !== "/login") {
+      location.assign(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
+    }
     throw new ApiError(res.status, err.error ?? "unknown", err.message ?? res.statusText);
   }
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
@@ -188,12 +312,25 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   tracks: () => request<TrackSummary[]>("GET", "/tracks"),
+  activity: (sections: readonly Section[]) => request<Activity>("GET", `/activity?sections=${sections.join(",")}`),
   track: (slug: string) => request<TrackDetail>("GET", `/tracks/${slug}`),
   problem: (id: string) => request<ProblemDetail>("GET", `/problems/${id}`),
   saveDraft: (id: string, code: string) => request<void>("PUT", `/problems/${id}/draft`, { code }),
   reset: (id: string) => request<ProblemDetail>("DELETE", `/problems/${id}/draft`),
   run: (id: string, code: string) => request<RunOutcome>("POST", `/problems/${id}/run`, { code }),
+  saveScratch: (id: string, code: string) => request<void>("PUT", `/problems/${id}/scratch`, { code }),
+  runScratch: (id: string, lib: string, main: string) => request<ScratchResult>("POST", `/problems/${id}/scratch/run`, { lib, main }),
   submit: (id: string, code: string) => request<RunOutcome>("POST", `/problems/${id}/submit`, { code }),
   revealHint: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/hints`),
   revealSolution: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/solution`),
+  session: () => request<{ required: boolean; authenticated: boolean }>("GET", "/auth/session"),
+  login: (passphrase: string) => request<void>("POST", "/auth/login", { passphrase }),
+  logout: () => request<void>("POST", "/auth/logout"),
+  settings: () => request<Settings>("GET", "/settings"),
+  saveEditor: (editor: EditorSettings) => request<EditorSettings>("PUT", "/settings/editor", editor),
+  progress: () => request<ProgressOverview>("GET", "/progress"),
+  stats: () => request<ProgressStats>("GET", "/stats"),
+  reviews: () => request<ReviewsView>("GET", "/reviews"),
+  resolve: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/resolve`),
+  focus: (id: string, seconds: number) => request<void>("POST", `/problems/${id}/focus`, { seconds }),
 };

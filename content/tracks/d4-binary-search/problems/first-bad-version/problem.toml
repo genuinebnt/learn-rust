@@ -1,0 +1,26 @@
+slug = "first-bad-version"
+title = "First bad version"
+mode = "write"
+level = "easy"
+stage = "on-an-index"
+order = 3
+status = "ready"
+tags = ["u32", "overflow-safe mid"]
+teaches = [
+  "Overflow-safe midpoints.",
+  "Binary search on a predicate you can only call.",
+]
+follow_up = "Why is `impl Fn(u32) -> bool` a better parameter here than `&dyn Fn` or a generic `F`?"
+
+[[hints]]
+kind = "rust"
+text = "`(lo + hi) / 2` overflows `u32` near `u32::MAX`. `lo + (hi - lo) / 2` can't."
+
+[[hints]]
+kind = "approach"
+text = "Keep `hi` pointing at a known-bad version and shrink `[lo, hi]` until it's one element."
+
+[solution]
+explanation = "Checking `n` first handles 'nothing bad' and guarantees the loop's invariant. 32 halvings of a `u32` range plus that check is 33 calls."
+time = "O(log n)"
+space = "O(1)"

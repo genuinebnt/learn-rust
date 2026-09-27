@@ -191,13 +191,13 @@ stage in its CURRICULUM table.
 | Work | State | Resume by |
 |---|---|---|
 | Verifier `wrong/` + prelude `Rng` + host kill fix | ✅ done | |
-| Test hardening, bar ≥5 visible (LeetCode examples) / ≥8 hidden / random / scale / `wrong/` | ✅ D1 D2 D3 D4 D5 D9 L1 L2 L3 S2 S3 S4 · ⏳ S1 | `harden-track.md` for any track whose problems fail the bar (count `#[test]`s, `wrong/`) |
+| Test hardening, bar ≥5 visible (LeetCode examples) / ≥8 hidden / random / scale / `wrong/` | ✅ all 13 original tracks (S1 last, 2a25637) | `harden-track.md` for any track whose problems fail the bar (count `#[test]`s, `wrong/`) |
 | New tracks from CURRICULUM (LeetCode 250 coverage): D6 Trees 44, D8 Greedy 29, D10 Tries 25, D11 Recursion & backtracking 28, D12 DP 57 | ⏳ being written stage by stage (check `list`) | `write-track.md`; the spec keeps what's written, continue with the next stage in the CURRICULUM table |
 | D9 Graphs extension 35 → 58 (new stages Grid & graph traversal, BFS patterns, Hard traversals) | ⏳ queued after D9/D4/S1 hardening | `write-track.md` on d9.py: add the italic problems, restage existing ones, keep slugs; `network-delay-time` stays hand-written (`keep`) |
 | Paused tracks (resume points) | D6: Basics done (8/44, 6c829c3); next Traversals, seeds from 609; reuse `TREE`/`HELP` helpers in d6.py, deep trees run in `big_stack` · D8: First greedy + Intervals done (13/29, 4398c13); next Greedy choices then Hard greedy, seeds 814–829 · D11: Recursion + First backtracking done, Choices & grids 6/12 (15/28); next generate-parentheses, different-ways-to-add-parentheses, word-search, palindrome-partitioning, restore-ip-addresses, Fix: recursive closure can't borrow the grid (flood fill → inner `fn`), then Constraints & pruning; seeds from 1127 · D10: First tries + Tries at work done (11/25, aae5435); next String algorithms, then Hard tries & strings (Autocomplete with hot counts: visible tests type LeetCode's example keystroke by keystroke, incl. `#`; the D10 zero-copy tokenizer is a harder one than L3's); seeds from 1012 | resume the agent, or hand `write-track.md` to a new one with the spec as it stands |
 | Company tags (`companies` in problem.toml, validated against `COMPANIES` in `crates/content/src/model.rs`, served by the API) | ✅ data layer, D1 D2 D3 D5 tagged · ⏳ other DSA tracks (agents tag as they go; `tag_companies()` in author.py) | add a `COMPANIES = {slug: [...]}` map + `tag_companies(P, COMPANIES)` to the spec. Priority FAANG + Microsoft, then big tech; databases / Rust shops only with a real reason |
 | Company column + filter in the track table | ✅ built from the approved mockup (35b532e) · browser check at 1280/1440 still to do | `tools/ui-check.mjs` on `/t/<track>` with the API running |
-| Raise verifier minimums to 5 visible / 8 hidden | ⏳ after every track meets the bar | `verify_one` in `crates/cli/src/main.rs` (`count(&c.visible) < 2`, hidden `< 1`) |
+| Raise verifier minimums to 5 visible / 8 hidden / ≥1 `wrong/` | ✅ `verify_one` in `crates/cli/src/main.rs` enforces them | |
 | Final pass | ⏳ | `anneal verify` on every track, `cargo test -p anneal-content -p anneal-runner -p anneal-rules`, update §2 counts and ROADMAP §0 |
 
 
@@ -245,7 +245,7 @@ Plan (approved):
    - one scale test sized so a wrong-complexity solution times out.
 
    Start with D1 and work down the table in §2. Rerun `anneal verify <track>` after each track.
-4. When every track meets the bar, raise the verifier minimums (today they're 2 visible and 1 hidden, in `verify`).
+4. ✅ The verifier now requires ≥5 visible, ≥8 hidden and at least one `wrong/` solution per ready problem.
 
 ### 6.2 Then, per ROADMAP §7
 

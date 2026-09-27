@@ -29,8 +29,8 @@ enum Command {
     /// List tracks, or the problems in one track.
     List { track: Option<String> },
     /// Check every ready problem end to end: the reference solution passes every test
-    /// without breaking a rule, the starter doesn't pass, a write-it starter compiles,
-    /// and every `wrong/<name>.rs` compiles but fails Submit.
+    /// without breaking a rule, the starter doesn't pass, a write-it starter compiles, there are
+    /// at least 5 visible and 8 hidden tests, and every `wrong/<name>.rs` (at least one) compiles but fails Submit.
     Verify {
         /// Only this track (code or folder name), e.g. d1.
         track: Option<String>,
@@ -274,11 +274,16 @@ async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::
 async fn verify_one(runner: &Runner, c: &Case) -> Vec<String> {
     let mut issues = Vec::new();
     let count = |src: &str| src.matches("#[test]").count();
-    if count(&c.visible) < 2 {
-        issues.push(format!("only {} visible tests; want at least 2", count(&c.visible)));
+    // The bar from the test-hardening pass (HANDOFF §6.1): enough visible tests to explain the problem, enough
+    // hidden ones to check it, and at least one wrong solution the tests are shown to reject.
+    if count(&c.visible) < 5 {
+        issues.push(format!("only {} visible tests; want at least 5", count(&c.visible)));
     }
-    if count(&c.hidden) < 1 {
-        issues.push("no hidden tests".into());
+    if count(&c.hidden) < 8 {
+        issues.push(format!("only {} hidden tests; want at least 8", count(&c.hidden)));
+    }
+    if c.wrong.is_empty() {
+        issues.push("no wrong/<name>.rs; add a plausible wrong solution the tests reject".into());
     }
     let broken = |code: &str| c.rules.as_ref().map(|r| anneal_rules::check(code, &c.starter, r)).unwrap_or_default();
 

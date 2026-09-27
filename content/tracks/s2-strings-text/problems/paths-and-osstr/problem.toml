@@ -1,0 +1,44 @@
+slug = "paths-and-osstr"
+title = "Paths are not strings"
+mode = "write"
+level = "medium"
+stage = "understand"
+order = 17
+status = "ready"
+tags = ["Path", "OsStr", "to_string_lossy", "strip_prefix", "with_file_name"]
+teaches = [
+  "A Unix path is bytes, not UTF-8: `OsStr::to_str` is an `Option`, `to_string_lossy` a `Cow`.",
+  "`Path::strip_prefix` matches whole components, so `/data2/x` is not inside `/data`; `str::strip_prefix` says it is.",
+  "`with_extension` replaces the extension (`notes.txt` → `notes.bak`); appending needs an `OsString` push and `with_file_name`.",
+]
+follow_up = "Why does `Path` implement `AsRef<Path>` for `&str`, `String` and `OsStr`, and what does `fn open(p: impl AsRef<Path>)` buy the caller?"
+related = ["L4"]
+
+[[examples]]
+input = "ext_lower(\"IMG_01.JPG\")"
+output = "Some(\"jpg\")"
+
+[[examples]]
+input = "backup_path(\"conf/notes.txt\")"
+output = "Some(\"conf/notes.txt.bak\")"
+
+[[examples]]
+input = "relative_to([\"/data/a.txt\", \"/data2/b\"], \"/data\")"
+output = "[\"a.txt\"]"
+
+[[hints]]
+kind = "rust"
+text = "`path.extension()` and `path.file_name()` return `Option<&OsStr>`; `.to_str()` is `Option<&str>` and `.to_string_lossy()` is `Cow<str>`."
+
+[[hints]]
+kind = "rust"
+text = "`let mut name = path.file_name()?.to_os_string(); name.push(\".bak\");` then `path.with_file_name(name)`."
+
+[[hints]]
+kind = "edge case"
+text = "`\"/data2/b\".strip_prefix(\"/data\")` is `Some(\"2/b\")`; `Path::new(\"/data2/b\").strip_prefix(\"/data\")` is an error."
+
+[solution]
+explanation = "On Unix a path is a byte string with no encoding (on Windows it's potentially ill-formed UTF-16), which is why std has `OsStr`/`OsString` and `Path`/`PathBuf` instead of using `str`. Each conversion to text is a decision: `to_str()` when the program can't go on without UTF-8, `to_string_lossy()` for display, `as_encoded_bytes()`/`OsStrExt::as_bytes()` when you need the bytes. `Path` methods work on components, so they get `/data2` vs `/data`, trailing slashes and `..` right where string code doesn't. Syntax to remember: `Path::new(s)`, `p.file_name()` / `file_stem()` / `extension()` → `Option<&OsStr>`, `p.parent()`, `p.join(x)`, `p.with_file_name(n)`, `p.with_extension(e)`, `p.strip_prefix(root)` → `Result<&Path, _>`, `p.components()`, `os.to_str()`, `os.to_string_lossy()`, `os.to_os_string()` + `push`, `p.to_path_buf()`, `p.display()` for `{}`."
+time = "O(path length)"
+space = "O(path length)"

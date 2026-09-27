@@ -3,7 +3,7 @@ title = "Parse a URL into borrowed parts"
 mode = "write"
 level = "hard"
 stage = "build"
-order = 16
+order = 19
 status = "ready"
 tags = ["split_once", "lifetimes", "zero-copy"]
 teaches = [
@@ -30,6 +30,6 @@ kind = "rust"
 text = "`split_at(i)` keeps the `/` in the path, which is what you want."
 
 [solution]
-explanation = "Every field is a slice of the input, so parsing allocates only the query Vec. The `'_` in `Url<'_>` ties the result to `s`."
+explanation = "Every field is a slice of the input, so parsing allocates only the query Vec. The `'_` in `Url<'_>` ties the result to `s`. Syntax to remember: `s.split_once(\"://\")?`, `rest.split_once('?').unwrap_or((rest, \"\"))`, `s.split_at(i)` (keeps the delimiter on the right), `p.parse().ok()?`, `pair.split_once('=').unwrap_or((pair, \"\"))`."
 time = "O(n)"
 space = "O(q)"

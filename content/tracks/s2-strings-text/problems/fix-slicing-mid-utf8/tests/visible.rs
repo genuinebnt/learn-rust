@@ -1,26 +1,26 @@
 use solution::*;
 
 #[test]
-fn ascii() {
-    check!(r#""hello", 3"#, prefix("hello", 3), "hel");
+fn preview_ascii() {
+    check!(r#""hello world", 5"#, preview("hello world", 5), "hello…".to_string());
 }
 
 #[test]
-fn accented() {
-    check!(r#""héllo", 2"#, prefix("héllo", 2), "hé");
+fn preview_accented() {
+    check!(r#""héllo wörld", 2"#, preview("héllo wörld", 2), "hé…".to_string());
 }
 
 #[test]
-fn shorter() {
-    check!(r#""hi", 5"#, prefix("hi", 5), "hi");
+fn preview_fits() {
+    check!(r#""short", 10"#, preview("short", 10), "short".to_string());
 }
 
 #[test]
-fn exact_length() {
-    check!(r#""abc", 3"#, prefix("abc", 3), "abc");
+fn capitalize_accented() {
+    check!(r#""école""#, capitalize("école"), "École".to_string());
 }
 
 #[test]
-fn empty() {
-    check!(r#""", 2"#, prefix("", 2), "");
+fn mask_card() {
+    check!(r#""4111111111111111""#, mask("4111111111111111"), "************1111".to_string());
 }

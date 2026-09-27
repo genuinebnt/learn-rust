@@ -22,6 +22,6 @@ kind = "rust"
 text = "`map_err` replaces the `ParseIntError` with your own variant, keeping the text that failed."
 
 [solution]
-explanation = "`FromStr` plugs into `str::parse`, so callers get `\"...\".parse::<Setting>()` for free. Each check exits early with a specific error."
+explanation = "`FromStr` plugs into `str::parse`, so callers get `\"...\".parse::<Setting>()` for free. Each check exits early with a specific error, and the order of the checks is part of the contract. `split_once` splits at the *first* `=`, so values may contain `=`; `rsplit_once` would split keys instead. Syntax to remember: `impl FromStr for T { type Err = E; fn from_str(s: &str) -> Result<Self, Self::Err> }`, `s.split_once('=')` → `Option<(&str, &str)>`, `.ok_or(E::Missing)?`, `.map_err(|_| E::Bad(v.to_string()))?`, `s.parse::<T>()`."
 time = "O(n)"
 space = "O(n)"

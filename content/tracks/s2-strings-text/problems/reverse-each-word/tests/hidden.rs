@@ -6,28 +6,28 @@ fn emoji() {
 }
 
 #[test]
-fn extra_spaces() {
-    check!(r#""  a   bc ""#, reverse_each_word("  a   bc "), "a cb".to_string());
+fn only_whitespace() {
+    check!(r#"" \t\n ""#, reverse_each_word(" \t\n "), " \t\n ".to_string());
 }
 
 #[test]
-fn empty() {
-    check!(r#""""#, reverse_each_word(""), String::new());
+fn two_marks() {
+    check!(r#""a\u{301}\u{302}b""#, reverse_each_word("a\u{301}\u{302}b"), "ba\u{301}\u{302}".to_string());
 }
 
 #[test]
-fn only_spaces() {
-    check!(r#""   ""#, reverse_each_word("   "), String::new());
+fn leading_mark() {
+    check!(r#""\u{301}ab""#, reverse_each_word("\u{301}ab"), "ba\u{301}".to_string());
 }
 
 #[test]
-fn tabs_and_newlines() {
-    check!(r#""ab\tcd\nef""#, reverse_each_word("ab\tcd\nef"), "ba dc fe".to_string());
+fn leading_marks_stay_together() {
+    check!(r#""\u{301}\u{302}a""#, reverse_each_word("\u{301}\u{302}a"), "a\u{301}\u{302}".to_string());
 }
 
 #[test]
-fn palindrome() {
-    check!(r#""abba x""#, reverse_each_word("abba x"), "abba x".to_string());
+fn marks_in_several_words() {
+    check!(r#""ne\u{301}e n\u{303}o""#, reverse_each_word("ne\u{301}e n\u{303}o"), "ee\u{301}n on\u{303}".to_string());
 }
 
 #[test]
@@ -36,41 +36,56 @@ fn cjk() {
 }
 
 #[test]
-fn single_char() {
-    check!(r#""a""#, reverse_each_word("a"), "a".to_string());
+fn crlf_between() {
+    check!(r#""ab\r\ncd""#, reverse_each_word("ab\r\ncd"), "ba\r\ndc".to_string());
 }
 
 #[test]
-fn punctuation_moves() {
-    check!(r#""a1! b2?""#, reverse_each_word("a1! b2?"), "!1a ?2b".to_string());
+fn no_break_space_separates() {
+    check!(r#""ab\u{a0}cd""#, reverse_each_word("ab\u{a0}cd"), "ba\u{a0}dc".to_string());
+}
+
+#[test]
+fn precomposed_is_one_char() {
+    check!(r#""\u{e9}t\u{e9}""#, reverse_each_word("\u{e9}t\u{e9}"), "\u{e9}t\u{e9}".to_string());
+}
+
+#[test]
+fn single_char_words() {
+    check!(r#""a b  c""#, reverse_each_word("a b  c"), "a b  c".to_string());
 }
 
 #[test]
 fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(2211);
-    for _ in 0..300 {
+    let mut rng = anneal_prelude::Rng::new(7210);
+    for _ in 0..400 {
         let len = rng.below(14);
-        let s = rng.string(len, "abé🦀  \t");
-        let mut words: Vec<String> = Vec::new();
-        let mut cur: Vec<char> = Vec::new();
-        for c in s.chars().chain(std::iter::once(' ')) {
+        let s = rng.string(len, "ab é\u{301}\u{302}\t🦀");
+        let mut want = String::new();
+        let mut word: Vec<String> = Vec::new();
+        let flush = |word: &mut Vec<String>, want: &mut String| {
+            for cluster in word.drain(..).rev() {
+                want.push_str(&cluster);
+            }
+        };
+        for c in s.chars() {
             if c.is_whitespace() {
-                if !cur.is_empty() {
-                    cur.reverse();
-                    words.push(cur.iter().collect());
-                    cur.clear();
-                }
+                flush(&mut word, &mut want);
+                want.push(c);
+            } else if ('\u{300}'..='\u{36f}').contains(&c) && !word.is_empty() {
+                word.last_mut().unwrap().push(c);
             } else {
-                cur.push(c);
+                word.push(c.to_string());
             }
         }
-        check!(format!("s = {s:?}"), reverse_each_word(&s), words.join(" "));
+        flush(&mut word, &mut want);
+        check!(format!("s = {s:?}"), reverse_each_word(&s), want);
     }
 }
 
 #[test]
 fn scale_200k_words() {
-    let s = "abc ".repeat(200_000);
+    let s = "abe\u{301} ".repeat(200_000);
     let out = reverse_each_word(&s);
-    check!("s = \"abc abc …\" (200000 words)", (out.len(), &out[..7]), (799_999, "cba cba"));
+    check!("s = \"abe\\u{301} \" × 200000", (out.len(), &out[..5]), (s.len(), "e\u{301}ba"));
 }

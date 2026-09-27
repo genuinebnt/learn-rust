@@ -1,1 +1,3 @@
-`prefix` should return the first `n` characters of `s`. It panics on accented text. Fix it.
+Three helpers for showing user text. They were tested on ASCII only: each one either panics or gives the
+wrong answer on accented text, emoji or `ß`. Fix them to match their doc comments, counting characters
+(Unicode scalar values), not bytes.

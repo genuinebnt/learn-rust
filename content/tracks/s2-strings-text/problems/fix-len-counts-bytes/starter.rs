@@ -1,5 +1,5 @@
 /// Centers `s` in a field `width` characters wide, padding with `fill`.
-/// Odd padding puts the extra character on the right.
+/// Odd padding puts the extra character on the right. Text of `width` characters or more is returned as is.
 pub fn center(s: &str, width: usize, fill: char) -> String {
     let len = s.len();
     if len >= width {
@@ -12,4 +12,29 @@ pub fn center(s: &str, width: usize, fill: char) -> String {
     out.push_str(s);
     out.extend(std::iter::repeat(fill).take(right));
     out
+}
+
+/// The number of whitespace characters at the start of `line`.
+pub fn indent(line: &str) -> usize {
+    line.len() - line.trim_start().len()
+}
+
+/// Greedy word wrap. Words are the whitespace-separated pieces of `text`. Each line holds as many words
+/// as fit in `width` characters, separated by single spaces; a word longer than `width` gets a line to itself.
+pub fn wrap(text: &str, width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for word in text.split_whitespace() {
+        if !line.is_empty() && line.len() + 1 + word.len() > width {
+            lines.push(std::mem::take(&mut line));
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    if !line.is_empty() {
+        lines.push(line);
+    }
+    lines
 }

@@ -3,7 +3,7 @@ title = "A tiny {name} template formatter"
 mode = "write"
 level = "hard"
 stage = "build"
-order = 18
+order = 21
 status = "ready"
 tags = ["char_indices", "Peekable", "error positions"]
 teaches = [
@@ -34,6 +34,6 @@ kind = "edge case"
 text = "Report byte offsets, not character counts: `\"é}\"` has its `}` at offset 2."
 
 [solution]
-explanation = "A small scanner with one character of lookahead handles escapes, placeholders and errors in a single pass. `HashMap<&str, &str>::get` takes a `&str` directly."
+explanation = "A small scanner with one character of lookahead handles escapes, placeholders and errors in a single pass. `HashMap<&str, &str>::get` takes a `&str` directly. Syntax to remember: `let mut it = s.char_indices().peekable();`, `while let Some((i, c)) = it.next()`, `it.next_if(|&(_, c)| c == '{')`, `it.peek()`, `s[i..].find('}')`, `map.get(name).ok_or_else(|| E::Unknown(name.to_string()))?`."
 time = "O(n)"
 space = "O(n)"

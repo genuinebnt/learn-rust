@@ -3,7 +3,7 @@ title = "Zero-copy split iterator"
 mode = "write"
 level = "hard"
 stage = "build"
-order = 17
+order = 20
 status = "ready"
 tags = ["Iterator", "DoubleEndedIterator", "lifetimes"]
 teaches = [
@@ -34,6 +34,6 @@ kind = "edge case"
 text = "Step past the delimiter by `delim.len_utf8()`, not 1."
 
 [solution]
-explanation = "Copying `self.rest` out (it's a `&'a str`, which is `Copy`) is what lets the items outlive the `&mut self` borrow. Using `Option` for 'finished' distinguishes an empty last piece from no piece."
+explanation = "Copying `self.rest` out (it's a `&'a str`, which is `Copy`) is what lets the items outlive the `&mut self` borrow. Using `Option` for 'finished' distinguishes an empty last piece from no piece. Syntax to remember: `impl<'a> Iterator for SplitOn<'a> { type Item = &'a str; fn next(&mut self) -> Option<&'a str> }`, `impl DoubleEndedIterator` with `next_back`, `let rest = self.rest?;` (a `&str` is `Copy`), `s.find(c)` / `s.rfind(c)`, `c.len_utf8()`."
 time = "O(n) total"
 space = "O(1)"

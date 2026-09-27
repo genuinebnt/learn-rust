@@ -5,22 +5,42 @@ level = "medium"
 stage = "understand"
 order = 9
 status = "ready"
-tags = ["panic", "char boundaries"]
+tags = ["panic", "char boundaries", "char_indices", "to_uppercase"]
 teaches = [
-  "`&s[..n]` takes bytes and panics if `n` splits a character.",
-  "Finding a byte offset with `char_indices().nth(n)`.",
+  "`&s[..n]` takes `n` bytes and panics if that splits a character; `s.len()` is bytes too.",
+  "The byte offset of character `n` is `s.char_indices().nth(n)`; `None` means the string is shorter.",
+  "`&s[..1]` is not \"the first character\", and upper-casing it can produce several: `ß` → `SS`.",
 ]
-follow_up = "When would you use `s.get(..n)` instead, and what does it return?"
+follow_up = "`preview` scans the whole prefix every call. In a UI that re-renders a long log line on every keystroke, what would you cache?"
+
+[[examples]]
+input = "preview(\"héllo wörld\", 2)"
+output = "\"hé…\""
+
+[[examples]]
+input = "capitalize(\"ßtraße\")"
+output = "\"SStraße\""
+
+[[examples]]
+input = "mask(\"ñññññ\")"
+output = "\"*ññññ\""
 
 [[hints]]
 kind = "rust"
-text = "`s.len()` and `&s[..n]` both count bytes, not characters."
+text = "`s.char_indices().nth(n)` is `Some((byte_offset, _))` of character `n`, or `None` if `s` has `n` characters or fewer, in which case nothing is cut."
 
 [[hints]]
 kind = "rust"
-text = "The byte offset where character `n` starts is `s.char_indices().nth(n)`; if there isn't one, the whole string fits."
+text = "Take the first char with `chars.next()`; `c.to_uppercase()` is an iterator, so `c.to_uppercase().chain(chars).collect()` builds the result."
+
+[[hints]]
+kind = "edge case"
+text = "`capitalize(\"\")` must not panic, and `mask` hides by character count: `\"€1234\"` is 5 characters and 7 bytes."
 
 [solution]
-explanation = "Slicing is by byte offset and panics off a character boundary. `char_indices` only yields boundaries, so slicing at one is always safe."
+explanation = "All three bugs are the same assumption: one character is one byte. `s.len()` and `&s[..n]` count bytes, so the ASCII-tested code panics on the first `é` that straddles the cut (or silently miscounts when it doesn't). `char_indices().nth(n)` finds the byte offset of character `n` in one pass and only ever yields boundaries. `floor_char_boundary(n)` (stable since 1.91) is the tool for a *byte* budget, which is a different spec (see `unicode-safe-truncate`). Characters here are Unicode scalar values; what a user sees as one character can be several (`e` + combining acute), which needs grapheme segmentation (`unicode-segmentation`). Syntax to remember: `s.char_indices().nth(n)`, `s.chars().count()`, `c.to_uppercase()` (iterator), `iter.chain(rest).collect::<String>()`, `s.get(..n)` (non-panicking), `s.floor_char_boundary(i)` / `ceil_char_boundary(i)`."
 time = "O(n)"
-space = "O(1)"
+space = "O(n)"
+
+[rules]
+max_changed_lines = 16

@@ -5,20 +5,42 @@ level = "medium"
 stage = "understand"
 order = 10
 status = "ready"
-tags = ["UTF-8", "chars().count()"]
+tags = ["UTF-8", "chars().count()", "word wrap", "O(n²)"]
 teaches = [
-  "Width calculations need a character count, not `len()`.",
+  "Layout math (padding, indentation, wrapping) wants a character count, not `len()`.",
+  "`trim_start` is Unicode-aware, but `len() - trim_start().len()` measures what it trimmed in bytes.",
+  "Replacing `line.len()` with `line.chars().count()` inside a loop turns an O(1) lookup into an O(line) scan: keep a running count.",
 ]
-follow_up = "How would you center text by terminal display width?"
+follow_up = "How would you wrap by terminal display width, and what should happen to a word wider than the terminal?"
+
+[[examples]]
+input = "center(\"né\", 4, '.')"
+output = "\".né.\""
+
+[[examples]]
+input = "indent(\"\\u{a0}\\u{a0}x\")"
+output = "2"
+
+[[examples]]
+input = "wrap(\"héllo wörld\", 11)"
+output = "[\"héllo wörld\"]"
 
 [[hints]]
 kind = "rust"
-text = "`\"né\".len()` is 3: `é` takes two bytes. The padding math wants 2."
+text = "`\"né\".len()` is 3. Every width in this file is a number of `char`s: `s.chars().count()`."
+
+[[hints]]
+kind = "rust"
+text = "`line.chars().take_while(|c| c.is_whitespace()).count()` counts the indent in characters, including U+00A0 and U+3000."
+
+[[hints]]
+kind = "approach"
+text = "In `wrap`, keep the current line's width in a variable and update it as you push, instead of measuring `line` again for every word."
 
 [solution]
-explanation = "Counting chars fixes accented and CJK text. It still isn't display width: CJK characters usually take two terminal columns, and combining marks take none."
+explanation = "Three flavours of the same bug. `center` and `wrap` compare byte lengths with a width in characters; `indent` gets the trimming right (`trim_start` knows U+00A0 and U+3000 are whitespace) and then measures the difference in bytes. The subtle one is the performance regression hiding in the obvious fix: `line.len()` is O(1), but `line.chars().count()` rescans the whole line for every word, which is O(n²) for a paragraph on one long line. A running count is the fix. Characters still aren't columns: CJK characters take two terminal cells and combining marks none, which is what `unicode-width` measures. Syntax to remember: `s.chars().count()`, `iter.take_while(|c| …).count()`, `c.is_whitespace()` (Unicode) vs `u8::is_ascii_whitespace`, `std::mem::take(&mut line)`, `out.extend(std::iter::repeat(c).take(n))`."
 time = "O(n)"
 space = "O(n)"
 
 [rules]
-max_changed_lines = 1
+max_changed_lines = 12

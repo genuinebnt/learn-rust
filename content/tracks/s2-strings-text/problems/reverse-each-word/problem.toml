@@ -1,30 +1,39 @@
 slug = "reverse-each-word"
-title = "Reverse each word, Unicode-safe"
+title = "Reverse each word, keeping accents attached"
 mode = "write"
 level = "medium"
 stage = "understand"
 order = 11
 status = "ready"
-tags = ["chars().rev()", "collect::<String>"]
+tags = ["char_indices().rev()", "combining marks", "split_at", "trim_start"]
 teaches = [
-  "Reversing `chars()`, not bytes.",
-  "Collecting chars straight into a `String`.",
+  "`chars().rev()` reverses scalar values, which detaches a combining accent from its letter: `e\\u{301}` must move as one unit.",
+  "Walking `char_indices().rev()` and cutting slices at cluster starts copies whole clusters without collecting chars.",
+  "Keeping the input's whitespace exactly means working with slices (`trim_start`, `find`, `split_at`), not `split_whitespace` + `join`.",
 ]
-follow_up = "Which crate would you reach for to reverse by grapheme cluster?"
+follow_up = "Which clusters does this still break? Think of 🇫🇷, 👩‍💻 and Korean jamo, and what `unicode-segmentation::graphemes(true)` would do instead."
 
 [[examples]]
-input = "\"héllo wörld\""
-output = "\"olléh dlröw\""
+input = "\"  héllo\\twörld \""
+output = "\"  olléh\\tdlröw \""
+
+[[examples]]
+input = "\"e\\u{301}x\""
+output = "\"xe\\u{301}\""
+
+[[hints]]
+kind = "approach"
+text = "Copy each whitespace run as is, then reverse the word after it cluster by cluster, until the input runs out."
 
 [[hints]]
 kind = "rust"
-text = "Reversing bytes would split multi-byte characters into invalid UTF-8. `chars().rev()` reverses whole characters."
+text = "`let body = rest.trim_start();` — the whitespace is `&rest[..rest.len() - body.len()]`. `body.find(char::is_whitespace)` ends the word, and `split_at` splits there."
 
 [[hints]]
 kind = "rust"
-text = "`collect::<String>()` builds a String from an iterator of `char`."
+text = "Walk `word.char_indices().rev()`; each char that isn't a mark (or is at index 0) starts a cluster that runs to the previous cut. Push `&word[i..cut]`."
 
 [solution]
-explanation = "`chars().rev()` works because `Chars` is a `DoubleEndedIterator`: UTF-8 can be decoded backwards. Combining characters (e + ◌́) would still come out in the wrong order."
+explanation = "What a reader sees as one character can be several `char`s. Reversing `char`s moves a combining accent onto the wrong letter (or onto whitespace). This problem handles the common case, combining diacritics, by treating a base character plus the marks after it as one unit; the general rule is Unicode's extended grapheme clusters (UAX #29), which also covers emoji ZWJ sequences, flags and Hangul, and is what the `unicode-segmentation` crate implements. The slicing approach copies clusters straight from the input with no intermediate `Vec<char>`. Syntax to remember: `s.trim_start()`, `s.find(char::is_whitespace)`, `s.split_at(i)`, `word.char_indices().rev()`, `matches!(c, '\\u{300}'..='\\u{36f}')`."
 time = "O(n)"
 space = "O(n)"

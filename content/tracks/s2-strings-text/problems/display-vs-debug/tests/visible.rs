@@ -11,16 +11,16 @@ fn negative_cents() {
 }
 
 #[test]
-fn whole_amount() {
-    check!(r#"500 cents"#, format!("{}", Money { cents: 500, currency: "USD" }), "5.00 USD".to_string());
-}
-
-#[test]
-fn zero() {
-    check!(r#"0 cents"#, format!("{}", Money { cents: 0, currency: "X" }), "0.00 X".to_string());
-}
-
-#[test]
 fn right_aligned() {
     check!(r#"{:>10} then |"#, format!("{:>10}|", Money { cents: 99, currency: "EUR" }), "  0.99 EUR|".to_string());
+}
+
+#[test]
+fn plus_flag() {
+    check!(r#"{:+} with 1234 cents"#, format!("{:+}", Money { cents: 1234, currency: "USD" }), "+12.34 USD".to_string());
+}
+
+#[test]
+fn debug() {
+    check!(r#"{:?}"#, format!("{:?}", Money { cents: 1234, currency: "USD" }), "Money(12.34 USD)".to_string());
 }

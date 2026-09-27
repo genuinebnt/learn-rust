@@ -5,31 +5,40 @@ level = "medium"
 stage = "understand"
 order = 13
 status = "ready"
-tags = ["Display", "f.pad", "Formatter"]
+tags = ["Display", "Debug", "f.pad", "debug_tuple", "format_args!"]
 teaches = [
-  "`Display` is for users, `Debug` for programmers.",
-  "`f.pad` makes your `Display` respect width and alignment.",
+  "`Display` is for users, `Debug` for programmers; `{:?}` and `{:#?}` both go through `Debug`.",
+  "`f.pad` makes your `Display` respect width, fill and alignment; `write!(f, …)` ignores them.",
+  "`debug_tuple`/`debug_struct` give `{:#?}` pretty-printing for free; `format_args!` shows a field through its `Display` without quotes or allocation.",
 ]
-follow_up = "How would you honour `{:.1}` precision for Money without allocating?"
+follow_up = "How would you honour `{:.1}` precision for Money, and why can't you simply forward it to `f.pad`?"
 related = ["L4"]
 
 [[examples]]
 input = "Money { cents: 1234, currency: \"USD\" }"
-output = "\"12.34 USD\""
+output = "\"12.34 USD\", {:?} \"Money(12.34 USD)\""
 
 [[examples]]
-input = "cents: -5"
-output = "\"-0.05 USD\""
+input = "cents: -5, {:>10}"
+output = "\"  -0.05 USD\""
+
+[[examples]]
+input = "cents: 7, {:+}"
+output = "\"+0.07 USD\""
 
 [[hints]]
 kind = "rust"
-text = "`write!(f, ...)` ignores the caller's width. `f.pad(s)` applies width, fill and alignment to `s`."
+text = "Build the whole text first, then `f.pad(&text)`: `pad` applies the caller's width, fill and alignment. `f.sign_plus()` says whether `{:+}` was used."
+
+[[hints]]
+kind = "rust"
+text = "`f.debug_tuple(\"Money\").field(&x).finish()` handles `{:?}` and `{:#?}`. For `x`, `format_args!(\"{self}\")` is a value whose `Debug` prints your `Display` output, with no quotes and no `String`."
 
 [[hints]]
 kind = "edge case"
-text = "`-5 / 100` is `0`, so the sign must be handled separately. `unsigned_abs` also survives `i64::MIN`."
+text = "`-5 / 100` is `0`, so the sign must be handled separately; `unsigned_abs` also survives `i64::MIN`."
 
 [solution]
-explanation = "Formatting the whole amount first, then padding once, keeps alignment correct. `unsigned_abs` avoids the overflow `abs()` hits on `i64::MIN`."
+explanation = "Formatting the whole amount first, then padding once, keeps alignment right; `write!(f, …)` would ignore `{:>12}` entirely. The `Formatter` carries the caller's spec: `width()`, `precision()`, `fill()`, `align()`, `sign_plus()`, `alternate()`. The `debug_*` builders implement `{:#?}` (indentation, trailing commas) for you, including when your type is nested inside another pretty-printed value, which a hand-written `write!` can't do. `format_args!` builds an `Arguments` without allocating; its `Debug` is the formatted text itself. Syntax to remember: `f.pad(s)`, `f.sign_plus()`, `f.alternate()`, `f.debug_tuple(\"T\").field(&x).finish()`, `f.debug_struct(\"T\").field(\"name\", &x).finish()`, `f.debug_list().entries(iter).finish()`, `format_args!(\"{x}\")`, `x.unsigned_abs()`."
 time = "O(1)"
 space = "O(1)"

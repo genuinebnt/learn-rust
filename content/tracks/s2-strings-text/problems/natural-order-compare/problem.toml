@@ -1,0 +1,44 @@
+slug = "natural-order-compare"
+title = "Digits in text: natural order and Luhn"
+mode = "write"
+level = "medium"
+stage = "understand"
+order = 16
+status = "ready"
+tags = ["is_ascii_digit", "to_digit", "Ordering::then_with", "natural sort"]
+teaches = [
+  "Compare digit runs as numbers without parsing them: strip leading zeros, then shorter is smaller, then compare the digits. No overflow, however long.",
+  "`char::is_numeric` accepts `½`, `٣` and `Ⅻ`; `is_ascii_digit` and `to_digit(10)` accept `0`–`9` only.",
+  "A comparator must be a total order: add a tie-break so `\"01\"` and `\"1\"` aren't `Equal` unless they're the same string.",
+]
+follow_up = "How would you make `natural_cmp` case-insensitive without allocating, and still a total order? What should `\"a\"` vs `\"A\"` return?"
+related = ["S3"]
+
+[[examples]]
+input = "natural_cmp(\"file9\", \"file10\")"
+output = "Less"
+
+[[examples]]
+input = "natural_cmp(\"x01\", \"x1\")"
+output = "Less (tie-break)"
+
+[[examples]]
+input = "luhn_valid(\"4539 3195 0343 6467\")"
+output = "true"
+
+[[hints]]
+kind = "approach"
+text = "Keep two `&str` cursors. When both start with a digit, split off each digit run, strip leading zeros, and compare by length then lexically. Otherwise compare one char and advance by `len_utf8`."
+
+[[hints]]
+kind = "rust"
+text = "`s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len())` ends a run; `ord.then_with(|| …)` chains comparisons. For Luhn, `c.to_digit(10)` is `None` for anything but `0`–`9`."
+
+[[hints]]
+kind = "edge case"
+text = "`\"a1b\"` vs `\"a01a\"`: the numbers tie, so keep going (`b` > `a`); the plain-string tie-break is only for strings that compare equal all the way."
+
+[solution]
+explanation = "Parsing a digit run into `u64` is the classic bug: file names like `IMG_20240501123456789` overflow, and `unwrap` then panics inside `sort_by`. Comparing the zero-stripped digit strings, by length then lexically, is the same comparison with no limit. The tie-break matters because `sort_by`, `BTreeMap` and binary search assume a total order: without it `\"01\"` and `\"1\"` are `Equal` but not identical, and a comparator that isn't consistent can make `sort_by` panic (\"user-provided comparison function does not correctly implement a total order\"). For Luhn, the trap is `is_numeric`/`is_digit`-style checks that accept other scripts' digits; `to_digit(10)` returns the value and rejects them in one step. Syntax to remember: `c.is_ascii_digit()`, `c.to_digit(10)` → `Option<u32>`, `char::from_digit(d, 10)`, `s.trim_start_matches('0')`, `a.cmp(&b).then_with(|| …)`, `ord.reverse()`, `v.sort_by(|a, b| natural_cmp(a, b))`, `v.sort_by_key(|s| key(s))`."
+time = "O(n) per comparison"
+space = "O(1)"

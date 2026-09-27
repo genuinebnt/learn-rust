@@ -1,34 +1,44 @@
 slug = "bytes-chars-char-indices"
-title = "Bytes vs chars vs char_indices"
+title = "Bytes vs chars: positions in source text"
 mode = "write"
 level = "medium"
 stage = "understand"
 order = 8
 status = "ready"
-tags = ["UTF-8", "chars", "char_indices"]
+tags = ["char_indices", "match_indices", "str::get", "bytes", "UTF-8"]
 teaches = [
-  "`len()` counts bytes; `chars().count()` counts Unicode scalar values.",
-  "`char_indices` gives byte offsets you can slice at.",
+  "A compiler error carries a byte offset; an editor wants a line and a column in characters. Converting takes a scan, because UTF-8 has no random access by char.",
+  "`s.get(..at)` returns `None` off a char boundary where `&s[..at]` panics.",
+  "Scanning bytes for an ASCII byte like `\\n` is safe in UTF-8: no byte of a multi-byte character is below 0x80.",
+  "`match_indices` finds non-overlapping matches; converting each to a char offset incrementally keeps it linear.",
 ]
-follow_up = "What does a user think of as one character that is several `char`s (grapheme clusters)?"
+follow_up = "The Language Server Protocol counts columns in UTF-16 code units by default. What changes, and which characters make UTF-16 and char counts differ?"
 
 [[examples]]
-input = "sizes(\"naïve\")"
-output = "(6, 5)"
+input = "line_col(\"ab\\ncdé\\nf\", 8)"
+output = "Some((3, 1))"
 
 [[examples]]
-input = "positions(\"añoño\", 'ñ')"
-output = "[1, 4]"
+input = "line_col(\"héllo\", 2)"
+output = "None (inside 'é')"
+
+[[examples]]
+input = "find_all(\"é-é-é\", \"é\")"
+output = "[(0, 0), (3, 2), (6, 4)]"
 
 [[hints]]
 kind = "rust"
-text = "`str::len` is bytes. A character outside ASCII takes 2–4 bytes in UTF-8."
+text = "`src.get(..at)?` is `None` both past the end and inside a character. From there, lines are the `\\n` count plus one, and the column is the chars after the last `\\n`."
 
 [[hints]]
 kind = "rust"
-text = "`char_indices()` yields `(byte_offset, char)`; offsets are always valid slice points."
+text = "`s.match_indices(needle)` yields `(byte_offset, &str)` for non-overlapping matches. Keep a running char count and add only `s[prev..i].chars().count()` each time."
+
+[[hints]]
+kind = "edge case"
+text = "`char_to_byte(s, count)` is `Some(s.len())`: chain `std::iter::once(s.len())` after the `char_indices` offsets."
 
 [solution]
-explanation = "`chars().nth(n)` is O(n): UTF-8 has no random access by character. That's why `str` can't be indexed by position."
+explanation = "`str` indexes by byte because that's O(1); anything \"per character\" is a scan. The conversions are cheap if you make one pass: `line_col` counts newlines on bytes (safe, because every byte of a multi-byte UTF-8 character is ≥ 0x80) and chars only on the last line, and `find_all` converts each match incrementally, so the whole thing is O(n) instead of O(n) per match. `get` is the non-panicking twin of indexing for exactly this \"maybe not a boundary\" case. Real editors (LSP) want UTF-16 columns, which is `c.len_utf16()` summed instead of a char count. Syntax to remember: `s.get(a..b)` → `Option<&str>`, `s.char_indices()`, `s.match_indices(p)` / `rmatch_indices`, `s.matches(p).count()`, `s.bytes().filter(|&b| b == b'\\n').count()`, `s.rfind('\\n')`, `c.len_utf8()` / `len_utf16()`."
 time = "O(n)"
-space = "O(k)"
+space = "O(matches)"

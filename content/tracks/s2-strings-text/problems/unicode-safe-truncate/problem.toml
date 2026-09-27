@@ -5,10 +5,10 @@ level = "medium"
 stage = "understand"
 order = 15
 status = "ready"
-tags = ["is_char_boundary", "byte budgets"]
+tags = ["floor_char_boundary", "is_char_boundary", "byte budgets"]
 teaches = [
-  "Cutting to a byte budget at a character boundary.",
-  "`let ... else` for an early return.",
+  "Cutting to a byte budget at a character boundary: `floor_char_boundary`, or a short walk back with `is_char_boundary`.",
+  "`checked_sub` + `let ... else` for a budget smaller than the ellipsis.",
 ]
 follow_up = "Databases often limit by bytes and UIs by characters. How would you truncate to N characters instead?"
 
@@ -22,13 +22,13 @@ output = "\"h…\""
 
 [[hints]]
 kind = "approach"
-text = "Reserve 3 bytes for `…`, then walk the cut point back until it lands on a character boundary."
+text = "Reserve 3 bytes for `…`, then move the cut point back until it lands on a character boundary."
 
 [[hints]]
 kind = "rust"
-text = "`s.is_char_boundary(i)` is true at 0, at `len()`, and between characters."
+text = "`s.floor_char_boundary(i)` (stable since Rust 1.91) is the largest boundary ≤ `i`. On older toolchains, loop `while !s.is_char_boundary(end) { end -= 1 }`."
 
 [solution]
-explanation = "At most three steps back, because a UTF-8 character is at most four bytes. `checked_sub` covers budgets smaller than the ellipsis."
-time = "O(n)"
+explanation = "Byte budgets (database columns, protocol fields, log line limits) are a different spec from character counts: cut at the last boundary that fits. `floor_char_boundary` moves back at most three bytes, because a UTF-8 character is at most four; before 1.91 it was nightly-only, so older code has the `is_char_boundary` loop. `checked_sub` covers budgets smaller than the ellipsis. Syntax to remember: `s.floor_char_boundary(i)` / `ceil_char_boundary(i)`, `s.is_char_boundary(i)`, `'…'.len_utf8()`, `let Some(b) = n.checked_sub(3) else { return … };`."
+time = "O(n) for the copy"
 space = "O(n)"

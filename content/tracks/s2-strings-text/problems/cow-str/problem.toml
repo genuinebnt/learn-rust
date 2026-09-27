@@ -5,35 +5,43 @@ level = "medium"
 stage = "understand"
 order = 12
 status = "ready"
-tags = ["Cow", "zero-copy"]
+tags = ["Cow", "from_utf8_lossy", "zero-copy", "count_allocs"]
 teaches = [
-  "`Cow::Borrowed` when the input is already right, `Cow::Owned` when it had to change.",
-  "Finding the first byte that needs work before allocating.",
+  "`Cow::Borrowed` when the input is already right, `Cow::Owned` when it had to change; find the first byte that needs work before allocating.",
+  "`String::from_utf8_lossy` returns `Cow<str>` for the same reason: valid input is borrowed.",
+  "Chaining two `Cow` steps: a result borrowed from a local `String` can't be returned, but the local itself can be moved into `Cow::Owned`.",
 ]
-follow_up = "Where does std use `Cow<str>` (hint: `String::from_utf8_lossy`)?"
+follow_up = "Where else does std hand back a `Cow`? (Look at `OsStr::to_string_lossy` and `Path::to_string_lossy`.) When is `Cow::to_mut` the right tool?"
 related = ["S1"]
 
 [[examples]]
-input = "\"a<b\""
+input = "escape_html(\"a<b\")"
 output = "\"a&lt;b\" (Owned)"
 
 [[examples]]
-input = "\"plain\""
+input = "escape_html(\"plain\")"
 output = "\"plain\" (Borrowed)"
+
+[[examples]]
+input = "escape_bytes(b\"a\\xffb\")"
+output = "\"a\\u{FFFD}b\" (Owned, the decoded String itself)"
 
 [[hints]]
 kind = "approach"
-text = "Most inputs need no escaping. Scan for the first special character before allocating anything."
+text = "Most inputs need no escaping. Scan for the first special character before allocating anything, then copy `&s[..first]` in one go."
 
 [[hints]]
 kind = "rust"
-text = "`let Some(i) = s.find(pred) else { return Cow::Borrowed(s) };` handles the common case in one line."
+text = "`String::from_utf8_lossy(bytes)` is already a `Cow<str>`: match on it. In the `Owned(text)` arm you can't return `escape_html(&text)` (it borrows a local), but when that's `Borrowed` you can return `text` itself."
 
 [[hints]]
-kind = "rust"
-text = "Copy `&s[..first]` in one go, then handle characters from `first` on."
+kind = "edge case"
+text = "`into_owned()` on a `Cow::Borrowed` allocates a copy. That's the second allocation the spec forbids."
 
 [solution]
-explanation = "The common case costs one scan and no allocation. Callers can treat both variants as `&str` via `Deref`, or call `into_owned` when they need a `String`."
+explanation = "The common case costs one scan and no allocation. `Cow` pushes the decision to the caller: both variants deref to `&str`, and `into_owned` turns either into a `String`, copying only if it was borrowed. `escape_bytes` is the interesting part: when decoding had to allocate, `escape_html(&text)` borrows `text`, a local, so it can't be returned; but a `Borrowed` result means \"unchanged\", and then the local `String` itself can be moved out as `Cow::Owned(text)` without copying it. Syntax to remember: `Cow<'a, str>`, `Cow::Borrowed(s)` / `Cow::Owned(string)`, `cow.into_owned()`, `cow.to_mut()` (clones on first write), `String::from_utf8_lossy(&bytes)` → `Cow<str>`, `let Some(i) = s.find(pred) else { return Cow::Borrowed(s) };`."
 time = "O(n)"
-space = "O(n) only when escaping"
+space = "O(n) only when something changes"
+
+[perf]
+count_allocs = true

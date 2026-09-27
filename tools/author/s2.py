@@ -1312,238 +1312,314 @@ P.append(dict(
 
 # ---------------------------------------------------------------- understand (medium)
 
+LC_SOL = r"""
+        /// 1-based (line, column) of byte offset `at` in `src`, with the column counted in chars.
+        /// `at == src.len()` is the end of the text. `None` when `at` is past the end or inside a character.
+        pub fn line_col(src: &str, at: usize) -> Option<(usize, usize)> {
+            let before = src.get(..at)?;
+            let line_start = before.rfind('\n').map_or(0, |i| i + 1);
+            let line = before.bytes().filter(|&b| b == b'\n').count() + 1;
+            Some((line, before[line_start..].chars().count() + 1))
+        }
+
+        /// The byte offset where char `n` starts, `s.len()` when `n` is the number of chars, `None` beyond that.
+        pub fn char_to_byte(s: &str, n: usize) -> Option<usize> {
+            s.char_indices().map(|(i, _)| i).chain(std::iter::once(s.len())).nth(n)
+        }
+
+        /// Every non-overlapping occurrence of `needle` (never empty), left to right, as (byte offset, char offset).
+        pub fn find_all(s: &str, needle: &str) -> Vec<(usize, usize)> {
+            let mut out = Vec::new();
+            let (mut byte, mut chars) = (0, 0);
+            for (i, _) in s.match_indices(needle) {
+                chars += s[byte..i].chars().count();
+                byte = i;
+                out.push((i, chars));
+            }
+            out
+        }
+"""
+
+LC_STARTER = r"""
+        /// 1-based (line, column) of byte offset `at` in `src`, with the column counted in chars.
+        /// `at == src.len()` is the end of the text. `None` when `at` is past the end or inside a character.
+        pub fn line_col(src: &str, at: usize) -> Option<(usize, usize)> {
+            todo!()
+        }
+
+        /// The byte offset where char `n` starts, `s.len()` when `n` is the number of chars, `None` beyond that.
+        pub fn char_to_byte(s: &str, n: usize) -> Option<usize> {
+            todo!()
+        }
+
+        /// Every non-overlapping occurrence of `needle` (never empty), left to right, as (byte offset, char offset).
+        pub fn find_all(s: &str, needle: &str) -> Vec<(usize, usize)> {
+            todo!()
+        }
+"""
+
 P.append(dict(
-    slug="bytes-chars-char-indices", title="Bytes vs chars vs char_indices", level="medium", stage="understand",
-    tags=["UTF-8", "chars", "char_indices"],
-    teaches=["`len()` counts bytes; `chars().count()` counts Unicode scalar values.", "`char_indices` gives byte offsets you can slice at."],
+    slug="bytes-chars-char-indices", title="Bytes vs chars: positions in source text", level="medium", stage="understand",
+    tags=["char_indices", "match_indices", "str::get", "bytes", "UTF-8"],
+    teaches=[
+        "A compiler error carries a byte offset; an editor wants a line and a column in characters. Converting takes a scan, because UTF-8 has no random access by char.",
+        "`s.get(..at)` returns `None` off a char boundary where `&s[..at]` panics.",
+        "Scanning bytes for an ASCII byte like `\\n` is safe in UTF-8: no byte of a multi-byte character is below 0x80.",
+        "`match_indices` finds non-overlapping matches; converting each to a char offset incrementally keeps it linear.",
+    ],
     statement="""
-        - `sizes` returns `(bytes, chars)` for `s`.
-        - `positions` returns the byte offset of every occurrence of `target`.
-        - `nth_char` returns the `n`th character, if there is one.
+        Byte offsets are what `str` methods return; people count characters. Write the conversions an error
+        reporter needs:
+
+        - `line_col(src, at)`: the 1-based line and column of byte offset `at`, with the column counted in
+          characters. `at == src.len()` is valid (the end of the text). Return `None` when `at` is past the end or
+          falls inside a character. Lines end at `\\n`; a `\\r` is an ordinary character.
+        - `char_to_byte(s, n)`: the byte offset where character `n` (0-based) starts, `s.len()` when `n` equals
+          the number of characters, and `None` beyond that.
+        - `find_all(s, needle)`: every non-overlapping occurrence of the non-empty `needle`, left to right, as
+          `(byte offset, char offset)`. It must stay linear in `s.len()`.
     """,
-    examples=[('sizes("naïve")', "(6, 5)"), ("positions(\"añoño\", 'ñ')", "[1, 4]")],
-    starter="""
-        pub fn sizes(s: &str) -> (usize, usize) {
-            todo!()
-        }
-
-        pub fn positions(s: &str, target: char) -> Vec<usize> {
-            todo!()
-        }
-
-        pub fn nth_char(s: &str, n: usize) -> Option<char> {
-            todo!()
-        }
-    """,
-    solution="""
-        pub fn sizes(s: &str) -> (usize, usize) {
-            (s.len(), s.chars().count())
-        }
-
-        pub fn positions(s: &str, target: char) -> Vec<usize> {
-            s.char_indices().filter(|&(_, c)| c == target).map(|(i, _)| i).collect()
-        }
-
-        pub fn nth_char(s: &str, n: usize) -> Option<char> {
-            s.chars().nth(n)
-        }
-    """,
+    examples=[('line_col("ab\\ncdé\\nf", 8)', "Some((3, 1))"), ('line_col("héllo", 2)', "None (inside 'é')"),
+              ('find_all("é-é-é", "é")', "[(0, 0), (3, 2), (6, 4)]")],
+    starter=LC_STARTER,
+    solution=LC_SOL,
     visible=[
-        T("naive", '"naïve"', 'sizes("naïve")', "(6, 5)"),
-        T("byte_offsets", "\"añoño\", 'ñ'", "positions(\"añoño\", 'ñ')", "vec![1, 4]"),
-        T("ascii_sizes", '"abc"', 'sizes("abc")', "(3, 3)"),
-        T("nth_is_by_char", '"héllo", 2', 'nth_char("héllo", 2)', "Some('l')"),
-        T("no_occurrence", "\"abc\", 'z'", "positions(\"abc\", 'z')", "Vec::<usize>::new()"),
+        T("line_and_column", '"ab\\ncdé\\nf", at 7 and 8', '(line_col("ab\\ncdé\\nf", 7), line_col("ab\\ncdé\\nf", 8))', "(Some((2, 4)), Some((3, 1)))"),
+        T("inside_a_char", '"héllo", 2', 'line_col("héllo", 2)', "None"),
+        T("char_to_byte_and_end", '"héllo", n = 2, 5, 6', '(char_to_byte("héllo", 2), char_to_byte("héllo", 5), char_to_byte("héllo", 6))', "(Some(3), Some(6), None)"),
+        T("matches_do_not_overlap", '"aaaa", "aa"', 'find_all("aaaa", "aa")', "vec![(0, 0), (2, 2)]"),
+        T("byte_and_char_offsets", '"é-é-é", "é"', 'find_all("é-é-é", "é")', "vec![(0, 0), (3, 2), (6, 4)]"),
     ],
     hidden=[
-        T("emoji", '"🦀!"', 'sizes("🦀!")', "(5, 2)"),
-        T("nth", '"héllo", 1 and 9', '(nth_char("héllo", 1), nth_char("héllo", 9))', "(Some('é'), None)"),
-        T("offsets_slice_cleanly", "every offset from positions(\"x→y→z\", '→') is a char boundary", "ok", "true",
-          setup="let s = \"x→y→z\";\nlet ok = positions(s, '→').iter().all(|&i| s.is_char_boundary(i) && s[i..].starts_with('→'));"),
-        T("empty_everything", '""', "(sizes(\"\"), positions(\"\", 'a'), nth_char(\"\", 0))", "((0, 0), vec![], None)"),
-        T("emoji_target", "\"🦀a🦀\", '🦀'", "positions(\"🦀a🦀\", '🦀')", "vec![0, 5]"),
-        T("ascii_after_unicode", "\"éaéa\", 'a'", "positions(\"éaéa\", 'a')", "vec![2, 5]"),
-        T("adjacent", "\"ññ\", 'ñ'", "positions(\"ññ\", 'ñ')", "vec![0, 2]"),
-        T("nth_last_and_past", '"héllo", 4 and 5', '(nth_char("héllo", 4), nth_char("héllo", 5))', "(Some('o'), None)"),
-        T("combining_mark", '"e\\u{301}" (e + combining acute)', 'sizes("e\\u{301}")', "(3, 2)"),
-        """
+        T("empty_text", '"", 0 and 1', '(line_col("", 0), line_col("", 1))', "(Some((1, 1)), None)"),
+        T("end_of_text", '"abc", 3 and 4', '(line_col("abc", 3), line_col("abc", 4))', "(Some((1, 4)), None)"),
+        T("just_after_newline", '"a\\n", 2', 'line_col("a\\n", 2)', "Some((2, 1))"),
+        T("carriage_return_is_a_column", '"a\\r\\nb", 2 and 3', '(line_col("a\\r\\nb", 2), line_col("a\\r\\nb", 3))', "(Some((1, 3)), Some((2, 1)))"),
+        T("cjk_lines", '"日本\\n語x", 7, 10, 4', '(line_col("日本\\n語x", 7), line_col("日本\\n語x", 10), line_col("日本\\n語x", 4))', "(Some((2, 1)), Some((2, 2)), None)"),
+        T("emoji_column", '"🦀x", 4 and 2', '(line_col("🦀x", 4), line_col("🦀x", 2))', "(Some((1, 2)), None)"),
+        T("huge_offset", '"abc", usize::MAX', 'line_col("abc", usize::MAX)', "None"),
+        T("char_to_byte_empty", '"", n = 0 and 1', '(char_to_byte("", 0), char_to_byte("", 1))', "(Some(0), None)"),
+        T("char_to_byte_emoji", '"🦀a", n = 1 and 2', '(char_to_byte("🦀a", 1), char_to_byte("🦀a", 2))', "(Some(4), Some(5))"),
+        T("char_to_byte_huge_n", '"ab", usize::MAX', 'char_to_byte("ab", usize::MAX)', "None"),
+        T("no_match", '"abc", "d" and "", "a" and "ab", "abc"', '(find_all("abc", "d"), find_all("", "a"), find_all("ab", "abc"))', "(vec![], vec![], vec![])"),
+        T("every_char_matches", '"aaa", "a"', 'find_all("aaa", "a")', "vec![(0, 0), (1, 1), (2, 2)]"),
+        T("multi_char_needle", '"xéyéz", "yé"', 'find_all("xéyéz", "yé")', "vec![(3, 2)]"),
+        T("emoji_needle_no_overlap", '"🦀🦀🦀", "🦀🦀"', 'find_all("🦀🦀🦀", "🦀🦀")', "vec![(0, 0)]"),
+        r"""
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2208);
-            for _ in 0..300 {
+            let mut rng = anneal_prelude::Rng::new(7207);
+            let needles = ["a", "é", "aa", "é🦀", "🦀", "\na"];
+            for _ in 0..400 {
                 let len = rng.below(10);
-                let s = rng.string(len, "aé🦀");
-                let target = *rng.pick(&['a', 'é', '🦀']);
-                let chars = s.bytes().filter(|b| b & 0xC0 != 0x80).count();
-                let want_pos: Vec<usize> = (0..s.len()).filter(|&i| s.is_char_boundary(i) && s[i..].starts_with(target)).collect();
+                let s = rng.string(len, "aé🦀\n");
+                let at = rng.below(s.len() + 2);
+                let want_lc = if at > s.len() || !s.is_char_boundary(at) {
+                    None
+                } else {
+                    let (mut line, mut col) = (1, 1);
+                    for c in s[..at].chars() {
+                        if c == '\n' {
+                            line += 1;
+                            col = 1;
+                        } else {
+                            col += 1;
+                        }
+                    }
+                    Some((line, col))
+                };
                 let n = rng.below(12);
-                let want_nth = s.chars().collect::<Vec<_>>().get(n).copied();
-                check!(format!("s = {s:?}, target = {target:?}, n = {n}"), (sizes(&s), positions(&s, target), nth_char(&s, n)), ((s.len(), chars), want_pos, want_nth));
+                let mut starts: Vec<usize> = (0..s.len()).filter(|&i| s.is_char_boundary(i)).collect();
+                starts.push(s.len());
+                let want_cb = starts.get(n).copied();
+                let needle = *rng.pick(&needles);
+                let chars: Vec<char> = s.chars().collect();
+                let pat: Vec<char> = needle.chars().collect();
+                let mut want_find = Vec::new();
+                let mut k = 0;
+                while k + pat.len() <= chars.len() {
+                    if chars[k..k + pat.len()] == pat[..] {
+                        want_find.push((starts[k], k));
+                        k += pat.len();
+                    } else {
+                        k += 1;
+                    }
+                }
+                check!(format!("s = {s:?}, at = {at}, n = {n}, needle = {needle:?}"),
+                       (line_col(&s, at), char_to_byte(&s, n), find_all(&s, needle)), (want_lc, want_cb, want_find));
             }
         }
 
         #[test]
-        fn scale_200k_chars() {
-            let s = "aé".repeat(100_000);
-            let p = positions(&s, 'é');
-            check!("s = \\"aéaé…\\" (200000 chars), target = 'é'", (p.len(), p[0], p[99_999], sizes(&s)), (100_000, 1, 299_998, (300_000, 200_000)));
+        fn scale_1m_matches() {
+            let s = "é".repeat(1_000_000);
+            let got = find_all(&s, "é");
+            check!("s = 1000000 × 'é', needle = \"é\"", (got.len(), got[999_999]), (1_000_000, (1_999_998, 999_999)));
+            let text = "ab\n".repeat(200_000);
+            check!("text = \"ab\\n\" × 200000, at the end", line_col(&text, text.len()), Some((200_001, 1)));
         }
         """,
     ],
     wrong=dict(
-        char_index_positions="""
-            pub fn sizes(s: &str) -> (usize, usize) {
-                (s.len(), s.chars().count())
-            }
-
-            pub fn positions(s: &str, target: char) -> Vec<usize> {
-                s.chars().enumerate().filter(|&(_, c)| c == target).map(|(i, _)| i).collect()
-            }
-
-            pub fn nth_char(s: &str, n: usize) -> Option<char> {
-                s.chars().nth(n)
-            }
-        """,
-        byte_nth="""
-            pub fn sizes(s: &str) -> (usize, usize) {
-                (s.len(), s.chars().count())
-            }
-
-            pub fn positions(s: &str, target: char) -> Vec<usize> {
-                s.char_indices().filter(|&(_, c)| c == target).map(|(i, _)| i).collect()
-            }
-
-            pub fn nth_char(s: &str, n: usize) -> Option<char> {
-                s.as_bytes().get(n).map(|&b| b as char)
-            }
-        """,
-        offsets_by_recounting="""
-            pub fn sizes(s: &str) -> (usize, usize) {
-                (s.len(), s.chars().count())
-            }
-
-            pub fn positions(s: &str, target: char) -> Vec<usize> {
-                let mut out = Vec::new();
-                for (k, c) in s.chars().enumerate() {
-                    if c == target {
-                        out.push(s.chars().take(k).map(char::len_utf8).sum());
-                    }
-                }
-                out
-            }
-
-            pub fn nth_char(s: &str, n: usize) -> Option<char> {
-                s.chars().nth(n)
-            }
-        """,
+        slices_with_brackets=sub(LC_SOL, "let before = src.get(..at)?;", "let before = &src[..at.min(src.len())];"),
+        column_in_bytes=sub(LC_SOL, "Some((line, before[line_start..].chars().count() + 1))", "Some((line, before.len() - line_start + 1))"),
+        no_end_position=sub(LC_SOL, "s.char_indices().map(|(i, _)| i).chain(std::iter::once(s.len())).nth(n)", "s.char_indices().nth(n).map(|(i, _)| i)"),
+        recounts_from_the_start=sub(LC_SOL, """chars += s[byte..i].chars().count();
+                byte = i;
+                out.push((i, chars));""", """let _ = (&mut byte, &mut chars);
+                out.push((i, s[..i].chars().count()));"""),
+        overlapping_matches=sub(LC_SOL, """for (i, _) in s.match_indices(needle) {
+                chars += s[byte..i].chars().count();""", """for i in (0..s.len()).filter(|&i| s.is_char_boundary(i) && s[i..].starts_with(needle)) {
+                chars += s[byte..i].chars().count();"""),
     ),
-    hints=[("rust", "`str::len` is bytes. A character outside ASCII takes 2–4 bytes in UTF-8."),
-           ("rust", "`char_indices()` yields `(byte_offset, char)`; offsets are always valid slice points.")],
-    notes=("`chars().nth(n)` is O(n): UTF-8 has no random access by character. That's why `str` can't be indexed by position.", "O(n)", "O(k)"),
-    follow_up="What does a user think of as one character that is several `char`s (grapheme clusters)?",
+    hints=[("rust", "`src.get(..at)?` is `None` both past the end and inside a character. From there, lines are the `\\n` count plus one, and the column is the chars after the last `\\n`."),
+           ("rust", "`s.match_indices(needle)` yields `(byte_offset, &str)` for non-overlapping matches. Keep a running char count and add only `s[prev..i].chars().count()` each time."),
+           ("edge case", "`char_to_byte(s, count)` is `Some(s.len())`: chain `std::iter::once(s.len())` after the `char_indices` offsets.")],
+    notes=("""`str` indexes by byte because that's O(1); anything "per character" is a scan. The conversions are cheap if you make one pass: `line_col` counts newlines on bytes (safe, because every byte of a multi-byte UTF-8 character is ≥ 0x80) and chars only on the last line, and `find_all` converts each match incrementally, so the whole thing is O(n) instead of O(n) per match. `get` is the non-panicking twin of indexing for exactly this "maybe not a boundary" case. Real editors (LSP) want UTF-16 columns, which is `c.len_utf16()` summed instead of a char count. Syntax to remember: `s.get(a..b)` → `Option<&str>`, `s.char_indices()`, `s.match_indices(p)` / `rmatch_indices`, `s.matches(p).count()`, `s.bytes().filter(|&b| b == b'\\n').count()`, `s.rfind('\\n')`, `c.len_utf8()` / `len_utf16()`.""", "O(n)", "O(matches)"),
+    follow_up="The Language Server Protocol counts columns in UTF-16 code units by default. What changes, and which characters make UTF-16 and char counts differ?",
 ))
+
+PREV_STARTER = r"""
+        /// The first `n` characters of `s`, followed by "…" if anything was cut.
+        pub fn preview(s: &str, n: usize) -> String {
+            if s.len() <= n {
+                s.to_string()
+            } else {
+                format!("{}…", &s[..n])
+            }
+        }
+
+        /// `s` with its first character in upper case (full Unicode rules); the rest unchanged.
+        pub fn capitalize(s: &str) -> String {
+            s[..1].to_uppercase() + &s[1..]
+        }
+
+        /// All but the last 4 characters of `s` replaced by '*'.
+        pub fn mask(s: &str) -> String {
+            let keep = s.len().saturating_sub(4);
+            "*".repeat(keep) + &s[keep..]
+        }
+"""
+
+PREV_SOL = r"""
+        /// The first `n` characters of `s`, followed by "…" if anything was cut.
+        pub fn preview(s: &str, n: usize) -> String {
+            match s.char_indices().nth(n) {
+                None => s.to_string(),
+                Some((cut, _)) => format!("{}…", &s[..cut]),
+            }
+        }
+
+        /// `s` with its first character in upper case (full Unicode rules); the rest unchanged.
+        pub fn capitalize(s: &str) -> String {
+            let mut chars = s.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().chain(chars).collect(),
+            }
+        }
+
+        /// All but the last 4 characters of `s` replaced by '*'.
+        pub fn mask(s: &str) -> String {
+            let hidden = s.chars().count().saturating_sub(4);
+            let keep = s.char_indices().nth(hidden).map_or(s.len(), |(i, _)| i);
+            "*".repeat(hidden) + &s[keep..]
+        }
+"""
 
 P.append(dict(
     slug="fix-slicing-mid-utf8", title="Fix: slicing mid-UTF-8 panics", mode="fix", level="medium", stage="understand",
-    tags=["panic", "char boundaries"],
-    teaches=["`&s[..n]` takes bytes and panics if `n` splits a character.", "Finding a byte offset with `char_indices().nth(n)`."],
-    statement="`prefix` should return the first `n` characters of `s`. It panics on accented text. Fix it.",
-    starter="""
-        /// The first `n` characters of `s` (all of `s` if it's shorter).
-        pub fn prefix(s: &str, n: usize) -> &str {
-            if s.len() <= n {
-                s
-            } else {
-                &s[..n]
-            }
-        }
+    tags=["panic", "char boundaries", "char_indices", "to_uppercase"],
+    teaches=[
+        "`&s[..n]` takes `n` bytes and panics if that splits a character; `s.len()` is bytes too.",
+        "The byte offset of character `n` is `s.char_indices().nth(n)`; `None` means the string is shorter.",
+        "`&s[..1]` is not \"the first character\", and upper-casing it can produce several: `ß` → `SS`.",
+    ],
+    statement="""
+        Three helpers for showing user text. They were tested on ASCII only: each one either panics or gives the
+        wrong answer on accented text, emoji or `ß`. Fix them to match their doc comments, counting characters
+        (Unicode scalar values), not bytes.
     """,
-    solution="""
-        /// The first `n` characters of `s` (all of `s` if it's shorter).
-        pub fn prefix(s: &str, n: usize) -> &str {
-            match s.char_indices().nth(n) {
-                Some((i, _)) => &s[..i],
-                None => s,
-            }
-        }
-    """,
+    examples=[('preview("héllo wörld", 2)', '"hé…"'), ('capitalize("ßtraße")', '"SStraße"'), ('mask("ñññññ")', '"*ññññ"')],
+    starter=PREV_STARTER,
+    solution=PREV_SOL,
     visible=[
-        T("ascii", '"hello", 3', 'prefix("hello", 3)', '"hel"'),
-        T("accented", '"héllo", 2', 'prefix("héllo", 2)', '"hé"'),
-        T("shorter", '"hi", 5', 'prefix("hi", 5)', '"hi"'),
-        T("exact_length", '"abc", 3', 'prefix("abc", 3)', '"abc"'),
-        T("empty", '"", 2', 'prefix("", 2)', '""'),
+        T("preview_ascii", '"hello world", 5', 'preview("hello world", 5)', '"hello…".to_string()'),
+        T("preview_accented", '"héllo wörld", 2', 'preview("héllo wörld", 2)', '"hé…".to_string()'),
+        T("preview_fits", '"short", 10', 'preview("short", 10)', '"short".to_string()'),
+        T("capitalize_accented", '"école"', 'capitalize("école")', '"École".to_string()'),
+        T("mask_card", '"4111111111111111"', 'mask("4111111111111111")', '"************1111".to_string()'),
     ],
     hidden=[
-        T("emoji", '"🦀🦀🦀", 2', 'prefix("🦀🦀🦀", 2)', '"🦀🦀"'),
-        T("zero", '"abc", 0', 'prefix("abc", 0)', '""'),
-        T("shorter_in_chars_than_bytes", '"日本", 3', 'prefix("日本", 3)', '"日本"'),
-        T("zero_unicode", '"é", 0', 'prefix("é", 0)', '""'),
-        T("cjk", '"日本語", 2', 'prefix("日本語", 2)', '"日本"'),
-        T("exact_char_count", '"日本", 2', 'prefix("日本", 2)', '"日本"'),
-        T("mixed", '"a🦀b", 2', 'prefix("a🦀b", 2)', '"a🦀"'),
-        T("combining_mark_is_a_char", '"e\\u{301}x", 1', 'prefix("e\\u{301}x", 1)', '"e"'),
-        T("huge_n", '"abc", usize::MAX', 'prefix("abc", usize::MAX)', '"abc"'),
-        T("borrows_input", "prefix points into its input", "prefix(&s, 2).as_ptr() == s.as_ptr()", "true", setup='let s = String::from("héllo");'),
-        """
+        T("preview_exactly_n_chars", '"日本", 2', 'preview("日本", 2)', '"日本".to_string()'),
+        T("preview_cjk", '"日本語", 2', 'preview("日本語", 2)', '"日本…".to_string()'),
+        T("preview_zero", '"a", 0 and "", 0', '(preview("a", 0), preview("", 0))', '("…".to_string(), String::new())'),
+        T("preview_emoji", '"🦀🦀🦀", 2', 'preview("🦀🦀🦀", 2)', '"🦀🦀…".to_string()'),
+        T("preview_combining_mark_counts", '"e\\u{301}x", 1', 'preview("e\\u{301}x", 1)', '"e…".to_string()'),
+        T("capitalize_empty", '""', 'capitalize("")', "String::new()"),
+        T("capitalize_sharp_s", '"ßtraße"', 'capitalize("ßtraße")', '"SStraße".to_string()'),
+        T("capitalize_rest_unchanged", '"éA bC"', 'capitalize("éA bC")', '"ÉA bC".to_string()'),
+        T("capitalize_ascii_and_cjk", '"hello" and "日本"', '(capitalize("hello"), capitalize("日本"))', '("Hello".to_string(), "日本".to_string())'),
+        T("capitalize_ligature", '"ﬂow"', 'capitalize("ﬂow")', '"FLow".to_string()'),
+        T("mask_short", '"1234", "12", ""', '(mask("1234"), mask("12"), mask(""))', '("1234".to_string(), "12".to_string(), String::new())'),
+        T("mask_multibyte", '"ñññññ"', 'mask("ñññññ")', '"*ññññ".to_string()'),
+        T("mask_cjk", '"日本語テキスト"', 'mask("日本語テキスト")', '"***テキスト".to_string()'),
+        T("mask_euro", '"€1234"', 'mask("€1234")', '"*1234".to_string()'),
+        r"""
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2209);
-            for _ in 0..300 {
+            let mut rng = anneal_prelude::Rng::new(7208);
+            for _ in 0..400 {
                 let len = rng.below(10);
-                let s = rng.string(len, "aé日🦀");
+                let s = rng.string(len, "aéß日🦀");
                 let n = rng.below(12);
-                let want: String = s.chars().take(n).collect();
-                check!(format!("s = {s:?}, n = {n}"), prefix(&s, n), want.as_str());
+                let chars: Vec<char> = s.chars().collect();
+                let want_preview = if chars.len() <= n { s.clone() } else { chars[..n].iter().collect::<String>() + "…" };
+                let want_cap = match chars.first() {
+                    None => String::new(),
+                    Some(&c) => c.to_uppercase().collect::<String>() + &chars[1..].iter().collect::<String>(),
+                };
+                let hidden = chars.len().saturating_sub(4);
+                let want_mask: String = chars.iter().enumerate().map(|(i, &c)| if i < hidden { '*' } else { c }).collect();
+                check!(format!("s = {s:?}, n = {n}"), (preview(&s, n), capitalize(&s), mask(&s)), (want_preview, want_cap, want_mask));
             }
         }
 
         #[test]
-        fn scale_200k_chars() {
-            let s = "é".repeat(200_000);
-            check!("s = 200000 × 'é', n = 150000", prefix(&s, 150_000).len(), 300_000);
+        fn scale_1m_chars() {
+            let s = "é".repeat(1_000_000);
+            let p = preview(&s, 600_000);
+            let m = mask(&s);
+            check!("s = 1000000 × 'é', n = 600000", (p.len(), m.len(), &m[m.len() - 9..]), (1_200_003, 999_996 + 8, "*éééé"));
         }
         """,
     ],
     wrong=dict(
-        byte_budget="""
-            /// The first `n` characters of `s` (all of `s` if it's shorter).
-            pub fn prefix(s: &str, n: usize) -> &str {
-                if s.len() <= n {
-                    s
-                } else {
-                    let mut end = n;
-                    while !s.is_char_boundary(end) {
-                        end -= 1;
-                    }
-                    &s[..end]
-                }
-            }
-        """,
-        one_char_too_many="""
-            /// The first `n` characters of `s` (all of `s` if it's shorter).
-            pub fn prefix(s: &str, n: usize) -> &str {
-                match s.char_indices().nth(n) {
-                    Some((i, c)) => &s[..i + c.len_utf8()],
-                    None => s,
-                }
-            }
-        """,
+        preview_by_byte_budget=sub(PREV_SOL, """match s.char_indices().nth(n) {
+                None => s.to_string(),
+                Some((cut, _)) => format!("{}…", &s[..cut]),
+            }""", """if s.len() <= n {
+                s.to_string()
+            } else {
+                format!("{}…", &s[..s.floor_char_boundary(n)])
+            }"""),
+        ascii_uppercase_first=sub(PREV_SOL, "Some(first) => first.to_uppercase().chain(chars).collect(),", "Some(first) => std::iter::once(first.to_ascii_uppercase()).chain(chars).collect(),"),
+        one_uppercase_char=sub(PREV_SOL, "Some(first) => first.to_uppercase().chain(chars).collect(),", "Some(first) => first.to_uppercase().take(1).chain(chars).collect(),"),
+        mask_by_bytes=sub(PREV_SOL, """let hidden = s.chars().count().saturating_sub(4);
+            let keep = s.char_indices().nth(hidden).map_or(s.len(), |(i, _)| i);""", """let keep = s.ceil_char_boundary(s.len().saturating_sub(4));
+            let hidden = s[..keep].chars().count();"""),
     ),
-    hints=[("rust", "`s.len()` and `&s[..n]` both count bytes, not characters."),
-           ("rust", "The byte offset where character `n` starts is `s.char_indices().nth(n)`; if there isn't one, the whole string fits.")],
-    notes=("Slicing is by byte offset and panics off a character boundary. `char_indices` only yields boundaries, so slicing at one is always safe.", "O(n)", "O(1)"),
-    follow_up="When would you use `s.get(..n)` instead, and what does it return?",
+    hints=[("rust", "`s.char_indices().nth(n)` is `Some((byte_offset, _))` of character `n`, or `None` if `s` has `n` characters or fewer, in which case nothing is cut."),
+           ("rust", "Take the first char with `chars.next()`; `c.to_uppercase()` is an iterator, so `c.to_uppercase().chain(chars).collect()` builds the result."),
+           ("edge case", "`capitalize(\"\")` must not panic, and `mask` hides by character count: `\"€1234\"` is 5 characters and 7 bytes.")],
+    notes=("""All three bugs are the same assumption: one character is one byte. `s.len()` and `&s[..n]` count bytes, so the ASCII-tested code panics on the first `é` that straddles the cut (or silently miscounts when it doesn't). `char_indices().nth(n)` finds the byte offset of character `n` in one pass and only ever yields boundaries. `floor_char_boundary(n)` (stable since 1.91) is the tool for a *byte* budget, which is a different spec (see `unicode-safe-truncate`). Characters here are Unicode scalar values; what a user sees as one character can be several (`e` + combining acute), which needs grapheme segmentation (`unicode-segmentation`). Syntax to remember: `s.char_indices().nth(n)`, `s.chars().count()`, `c.to_uppercase()` (iterator), `iter.chain(rest).collect::<String>()`, `s.get(..n)` (non-panicking), `s.floor_char_boundary(i)` / `ceil_char_boundary(i)`.""", "O(n)", "O(n)"),
+    follow_up="`preview` scans the whole prefix every call. In a UI that re-renders a long log line on every keystroke, what would you cache?",
+    rules=dict(lines=16),
 ))
 
-P.append(dict(
-    slug="fix-len-counts-bytes", title="Fix: len() counts bytes", mode="fix", level="medium", stage="understand",
-    tags=["UTF-8", "chars().count()"],
-    teaches=["Width calculations need a character count, not `len()`."],
-    statement="`center` pads text to a width in characters. It gets accented text wrong. Fix it.",
-    starter="""
+WRAP_STARTER = r"""
         /// Centers `s` in a field `width` characters wide, padding with `fill`.
-        /// Odd padding puts the extra character on the right.
+        /// Odd padding puts the extra character on the right. Text of `width` characters or more is returned as is.
         pub fn center(s: &str, width: usize, fill: char) -> String {
             let len = s.len();
             if len >= width {
@@ -1557,10 +1633,36 @@ P.append(dict(
             out.extend(std::iter::repeat(fill).take(right));
             out
         }
-    """,
-    solution="""
+
+        /// The number of whitespace characters at the start of `line`.
+        pub fn indent(line: &str) -> usize {
+            line.len() - line.trim_start().len()
+        }
+
+        /// Greedy word wrap. Words are the whitespace-separated pieces of `text`. Each line holds as many words
+        /// as fit in `width` characters, separated by single spaces; a word longer than `width` gets a line to itself.
+        pub fn wrap(text: &str, width: usize) -> Vec<String> {
+            let mut lines = Vec::new();
+            let mut line = String::new();
+            for word in text.split_whitespace() {
+                if !line.is_empty() && line.len() + 1 + word.len() > width {
+                    lines.push(std::mem::take(&mut line));
+                }
+                if !line.is_empty() {
+                    line.push(' ');
+                }
+                line.push_str(word);
+            }
+            if !line.is_empty() {
+                lines.push(line);
+            }
+            lines
+        }
+"""
+
+WRAP_SOL = r"""
         /// Centers `s` in a field `width` characters wide, padding with `fill`.
-        /// Odd padding puts the extra character on the right.
+        /// Odd padding puts the extra character on the right. Text of `width` characters or more is returned as is.
         pub fn center(s: &str, width: usize, fill: char) -> String {
             let len = s.chars().count();
             if len >= width {
@@ -1574,216 +1676,469 @@ P.append(dict(
             out.extend(std::iter::repeat(fill).take(right));
             out
         }
+
+        /// The number of whitespace characters at the start of `line`.
+        pub fn indent(line: &str) -> usize {
+            line.chars().take_while(|c| c.is_whitespace()).count()
+        }
+
+        /// Greedy word wrap. Words are the whitespace-separated pieces of `text`. Each line holds as many words
+        /// as fit in `width` characters, separated by single spaces; a word longer than `width` gets a line to itself.
+        pub fn wrap(text: &str, width: usize) -> Vec<String> {
+            let mut lines = Vec::new();
+            let mut line = String::new();
+            let mut used = 0;
+            for word in text.split_whitespace() {
+                let w = word.chars().count();
+                if used > 0 && used + 1 + w > width {
+                    lines.push(std::mem::take(&mut line));
+                    used = 0;
+                }
+                if used > 0 {
+                    line.push(' ');
+                    used += 1;
+                }
+                line.push_str(word);
+                used += w;
+            }
+            if !line.is_empty() {
+                lines.push(line);
+            }
+            lines
+        }
+"""
+
+
+def wr(name, text, width, want):
+    import json
+    lit = "vec![" + ", ".join(json.dumps(x, ensure_ascii=False) for x in want) + "]"
+    return T(name, f"{json.dumps(text, ensure_ascii=False)}, {width}", f"wrap({json.dumps(text, ensure_ascii=False)}, {width})",
+             lit if want else "Vec::<String>::new()")
+
+
+def py_wrap(text, width):
+    lines, line = [], []
+    used = 0
+    for w in text.split():
+        if used and used + 1 + len(w) > width:
+            lines.append(" ".join(line))
+            line, used = [], 0
+        if used:
+            used += 1
+        line.append(w)
+        used += len(w)
+    if line:
+        lines.append(" ".join(line))
+    return lines
+
+
+def wrc(name, text, width):
+    return wr(name, text, width, py_wrap(text, width))
+
+
+P.append(dict(
+    slug="fix-len-counts-bytes", title="Fix: len() counts bytes", mode="fix", level="medium", stage="understand",
+    tags=["UTF-8", "chars().count()", "word wrap", "O(n²)"],
+    teaches=[
+        "Layout math (padding, indentation, wrapping) wants a character count, not `len()`.",
+        "`trim_start` is Unicode-aware, but `len() - trim_start().len()` measures what it trimmed in bytes.",
+        "Replacing `line.len()` with `line.chars().count()` inside a loop turns an O(1) lookup into an O(line) scan: keep a running count.",
+    ],
+    statement="""
+        A text-layout module that works on English and misbehaves on everything else. Fix the three functions to
+        match their doc comments, measuring in characters. `wrap` must stay linear: it's called on long
+        paragraphs with large widths.
     """,
+    examples=[("center(\"né\", 4, '.')", '".né."'), ('indent("\\u{a0}\\u{a0}x")', "2"), ('wrap("héllo wörld", 11)', '["héllo wörld"]')],
+    starter=WRAP_STARTER,
+    solution=WRAP_SOL,
     visible=[
-        T("ascii", "\"ab\", 6, '*'", "center(\"ab\", 6, '*')", rs("**ab**")),
-        T("accented", "\"né\", 4, '.'", "center(\"né\", 4, '.')", '".né.".to_string()'),
-        T("even_padding", "\"abcd\", 8, '-'", "center(\"abcd\", 8, '-')", rs("--abcd--")),
-        T("no_padding_needed", "\"abc\", 3, '*'", "center(\"abc\", 3, '*')", rs("abc")),
-        T("odd_extra_right", "\"a\", 4, '*'", "center(\"a\", 4, '*')", rs("*a**")),
+        T("center_accented", "\"né\", 4, '.'", "center(\"né\", 4, '.')", '".né.".to_string()'),
+        T("center_odd_extra_right", "\"a\", 4, '*'", "center(\"a\", 4, '*')", '"*a**".to_string()'),
+        T("indent_spaces_and_tabs", '"  \\tx"', 'indent("  \\tx")', "3"),
+        T("indent_no_break_spaces", '"\\u{a0}\\u{a0}x"', 'indent("\\u{a0}\\u{a0}x")', "2"),
+        wrc("wrap_accented_fits", "héllo wörld", 11),
     ],
     hidden=[
-        T("odd", "\"abc\", 6, '-'", "center(\"abc\", 6, '-')", rs("-abc--")),
-        T("too_wide", "\"日本語\", 3, ' '", "center(\"日本語\", 3, ' ')", '"日本語".to_string()'),
-        T("multibyte_fill", "\"x\", 3, '·'", "center(\"x\", 3, '·')", '"·x·".to_string()'),
-        T("empty", "\"\", 3, 'x'", "center(\"\", 3, 'x')", rs("xxx")),
-        T("width_zero", "\"ab\", 0, '*'", "center(\"ab\", 0, '*')", rs("ab")),
-        T("emoji", "\"🦀\", 3, '.'", "center(\"🦀\", 3, '.')", '".🦀.".to_string()'),
-        T("cjk", "\"日本\", 6, ' '", "center(\"日本\", 6, ' ')", '"  日本  ".to_string()'),
-        T("fits_in_chars_not_bytes", "\"éé\", 3, '.'", "center(\"éé\", 3, '.')", '"éé.".to_string()'),
-        T("inner_spaces", "\"a b\", 5, '*'", "center(\"a b\", 5, '*')", rs("*a b*")),
-        """
+        T("center_too_wide_in_chars", "\"日本語\", 3, ' '", "center(\"日本語\", 3, ' ')", '"日本語".to_string()'),
+        T("center_multibyte_fill", "\"x\", 3, '·'", "center(\"x\", 3, '·')", '"·x·".to_string()'),
+        T("center_emoji", "\"🦀\", 3, '.'", "center(\"🦀\", 3, '.')", '".🦀.".to_string()'),
+        T("center_fits_in_chars_not_bytes", "\"éé\", 3, '.'", "center(\"éé\", 3, '.')", '"éé.".to_string()'),
+        T("center_empty", "\"\", 3, 'x'", "center(\"\", 3, 'x')", '"xxx".to_string()'),
+        T("indent_ideographic_space", '"\\u{3000}x"', 'indent("\\u{3000}x")', "1"),
+        T("indent_edges", '"", "   ", "x  "', '(indent(""), indent("   "), indent("x  "))', "(0, 3, 0)"),
+        T("indent_mixed", '"\\u{2003} \\u{a0}é "', 'indent("\\u{2003} \\u{a0}é ")', "3"),
+        wrc("wrap_ascii", "the quick brown fox", 10),
+        wrc("wrap_long_word_alone", "a verylongword b", 4),
+        wrc("wrap_cjk", "日本語 テキスト", 7),
+        wrc("wrap_cjk_fits", "日本語 テキスト", 8),
+        wrc("wrap_exact_fit", "ab cd", 5),
+        wrc("wrap_width_zero", "a b", 0),
+        wrc("wrap_extra_whitespace", "  a \t b\n\nc  ", 3),
+        wr("wrap_empty", "", 5, []),
+        wrc("wrap_accented_breaks_right", "é é é é", 3),
+        r"""
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2210);
-            for _ in 0..300 {
-                let len = rng.below(6);
-                let s = rng.string(len, "a é日");
-                let width = rng.below(10);
+            let mut rng = anneal_prelude::Rng::new(7209);
+            for _ in 0..400 {
+                let len = rng.below(14);
+                let text = rng.string(len, "aé日 \t\u{a0}");
+                let width = rng.below(8);
                 let fill = *rng.pick(&['*', '·']);
-                let n = s.chars().count();
-                let mut want = String::new();
-                if n >= width {
-                    want.push_str(&s);
+                let chars: Vec<char> = text.chars().collect();
+                let n = chars.len();
+                let want_center = if n >= width {
+                    text.clone()
                 } else {
                     let left = (width - n) / 2;
-                    for _ in 0..left {
-                        want.push(fill);
-                    }
-                    want.push_str(&s);
-                    for _ in 0..width - n - left {
-                        want.push(fill);
+                    let mut s: String = std::iter::repeat(fill).take(left).collect();
+                    s.push_str(&text);
+                    s.extend(std::iter::repeat(fill).take(width - n - left));
+                    s
+                };
+                let want_indent = chars.iter().position(|c| !c.is_whitespace()).unwrap_or(n);
+                let mut want_wrap: Vec<Vec<&str>> = Vec::new();
+                let mut used = 0;
+                for w in text.split_whitespace() {
+                    let wl = w.chars().count();
+                    if !want_wrap.is_empty() && used + 1 + wl <= width {
+                        want_wrap.last_mut().unwrap().push(w);
+                        used += 1 + wl;
+                    } else {
+                        want_wrap.push(vec![w]);
+                        used = wl;
                     }
                 }
-                check!(format!("s = {s:?}, width = {width}, fill = {fill:?}"), center(&s, width, fill), want);
+                let want_wrap: Vec<String> = want_wrap.iter().map(|l| l.join(" ")).collect();
+                check!(format!("text = {text:?}, width = {width}, fill = {fill:?}"),
+                       (center(&text, width, fill), indent(&text), wrap(&text, width)), (want_center, want_indent, want_wrap));
             }
+        }
+
+        #[test]
+        fn scale_400k_words_one_line() {
+            let text = "éb ".repeat(400_000);
+            let lines = wrap(&text, 10_000_000);
+            check!("text = \"éb \" × 400000, width = 10000000", (lines.len(), lines[0].len()), (1, 400_000 * 4 - 1));
         }
         """,
     ],
     wrong=dict(
-        ascii_only_count="""
-            /// Centers `s` in a field `width` characters wide, padding with `fill`.
-            /// Odd padding puts the extra character on the right.
-            pub fn center(s: &str, width: usize, fill: char) -> String {
-                let len = s.bytes().filter(u8::is_ascii).count();
-                if len >= width {
-                    return s.to_string();
+        recounts_the_line=sub(WRAP_SOL, """            let mut used = 0;
+            for word in text.split_whitespace() {
+                let w = word.chars().count();
+                if used > 0 && used + 1 + w > width {
+                    lines.push(std::mem::take(&mut line));
+                    used = 0;
                 }
-                let left = (width - len) / 2;
-                let right = width - len - left;
-                let mut out = String::new();
-                out.extend(std::iter::repeat(fill).take(left));
-                out.push_str(s);
-                out.extend(std::iter::repeat(fill).take(right));
-                out
-            }
-        """,
-        letters_only="""
-            /// Centers `s` in a field `width` characters wide, padding with `fill`.
-            /// Odd padding puts the extra character on the right.
-            pub fn center(s: &str, width: usize, fill: char) -> String {
-                let len = s.chars().filter(|c| c.is_alphanumeric()).count();
-                if len >= width {
-                    return s.to_string();
+                if used > 0 {
+                    line.push(' ');
+                    used += 1;
                 }
-                let left = (width - len) / 2;
-                let right = width - len - left;
-                let mut out = String::new();
-                out.extend(std::iter::repeat(fill).take(left));
-                out.push_str(s);
-                out.extend(std::iter::repeat(fill).take(right));
-                out
-            }
-        """,
+                line.push_str(word);
+                used += w;
+            }""", """            for word in text.split_whitespace() {
+                if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > width {
+                    lines.push(std::mem::take(&mut line));
+                }
+                if !line.is_empty() {
+                    line.push(' ');
+                }
+                line.push_str(word);
+            }"""),
+        ascii_whitespace_indent=sub(WRAP_SOL, "line.chars().take_while(|c| c.is_whitespace()).count()", "line.bytes().take_while(u8::is_ascii_whitespace).count()"),
+        center_counts_ascii_bytes=sub(WRAP_SOL, "let len = s.chars().count();", "let len = s.bytes().filter(u8::is_ascii).count();"),
     ),
-    hints=[("rust", "`\"né\".len()` is 3: `é` takes two bytes. The padding math wants 2.")],
-    notes=("Counting chars fixes accented and CJK text. It still isn't display width: CJK characters usually take two terminal columns, and combining marks take none.", "O(n)", "O(n)"),
-    follow_up="How would you center text by terminal display width?",
-    rules=dict(lines=1),
+    hints=[("rust", "`\"né\".len()` is 3. Every width in this file is a number of `char`s: `s.chars().count()`."),
+           ("rust", "`line.chars().take_while(|c| c.is_whitespace()).count()` counts the indent in characters, including U+00A0 and U+3000."),
+           ("approach", "In `wrap`, keep the current line's width in a variable and update it as you push, instead of measuring `line` again for every word.")],
+    notes=("""Three flavours of the same bug. `center` and `wrap` compare byte lengths with a width in characters; `indent` gets the trimming right (`trim_start` knows U+00A0 and U+3000 are whitespace) and then measures the difference in bytes. The subtle one is the performance regression hiding in the obvious fix: `line.len()` is O(1), but `line.chars().count()` rescans the whole line for every word, which is O(n²) for a paragraph on one long line. A running count is the fix. Characters still aren't columns: CJK characters take two terminal cells and combining marks none, which is what `unicode-width` measures. Syntax to remember: `s.chars().count()`, `iter.take_while(|c| …).count()`, `c.is_whitespace()` (Unicode) vs `u8::is_ascii_whitespace`, `std::mem::take(&mut line)`, `out.extend(std::iter::repeat(c).take(n))`.""", "O(n)", "O(n)"),
+    follow_up="How would you wrap by terminal display width, and what should happen to a word wider than the terminal?",
+    rules=dict(lines=12),
 ))
 
-P.append(dict(
-    slug="reverse-each-word", title="Reverse each word, Unicode-safe", level="medium", stage="understand",
-    tags=["chars().rev()", "collect::<String>"],
-    teaches=["Reversing `chars()`, not bytes.", "Collecting chars straight into a `String`."],
-    statement="Reverse the characters of each whitespace-separated word, keeping word order. Separate words with single spaces.",
-    examples=[('"héllo wörld"', '"olléh dlröw"')],
-    starter="""
+REV_SOL = r"""
+        /// A combining diacritical mark (U+0300..=U+036F).
+        fn is_mark(c: char) -> bool {
+            matches!(c, '\u{300}'..='\u{36f}')
+        }
+
+        pub fn reverse_each_word(s: &str) -> String {
+            let mut out = String::with_capacity(s.len());
+            let mut rest = s;
+            while !rest.is_empty() {
+                let body = rest.trim_start();
+                out.push_str(&rest[..rest.len() - body.len()]);
+                let end = body.find(char::is_whitespace).unwrap_or(body.len());
+                let (word, tail) = body.split_at(end);
+                let mut cut = word.len();
+                for (i, c) in word.char_indices().rev() {
+                    if !is_mark(c) || i == 0 {
+                        out.push_str(&word[i..cut]);
+                        cut = i;
+                    }
+                }
+                rest = tail;
+            }
+            out
+        }
+"""
+
+REV_STARTER = r"""
         pub fn reverse_each_word(s: &str) -> String {
             todo!()
         }
+"""
+
+P.append(dict(
+    slug="reverse-each-word", title="Reverse each word, keeping accents attached", level="medium", stage="understand",
+    tags=["char_indices().rev()", "combining marks", "split_at", "trim_start"],
+    teaches=[
+        "`chars().rev()` reverses scalar values, which detaches a combining accent from its letter: `e\\u{301}` must move as one unit.",
+        "Walking `char_indices().rev()` and cutting slices at cluster starts copies whole clusters without collecting chars.",
+        "Keeping the input's whitespace exactly means working with slices (`trim_start`, `find`, `split_at`), not `split_whitespace` + `join`.",
+    ],
+    statement="""
+        Reverse the characters of each word, where words are the runs of non-whitespace. Keep every whitespace
+        character exactly where it was.
+
+        A combining mark (U+0300 to U+036F) belongs to the character before it and moves with it:
+        `"e\\u{301}x"` (`éx`, written with a combining accent) becomes `"xe\\u{301}"`. A mark at the very start of
+        a word has nothing to attach to, so it counts as a character on its own (with any marks that follow it).
     """,
-    solution="""
-        pub fn reverse_each_word(s: &str) -> String {
-            s.split_whitespace()
-                .map(|w| w.chars().rev().collect::<String>())
-                .collect::<Vec<_>>()
-                .join(" ")
-        }
-    """,
+    examples=[('"  héllo\\twörld "', '"  olléh\\tdlröw "'), ('"e\\u{301}x"', '"xe\\u{301}"')],
+    starter=REV_STARTER,
+    solution=REV_SOL,
     visible=[
-        T("accents", '"héllo wörld"', 'reverse_each_word("héllo wörld")', '"olléh dlröw".to_string()'),
-        T("ascii", '"ab cd"', 'reverse_each_word("ab cd")', rs("ba dc")),
-        T("leetcode_557_first", '"Let\'s take LeetCode contest"', 'reverse_each_word("Let\'s take LeetCode contest")', rs("s'teL ekat edoCteeL tsetnoc")),
-        T("leetcode_557_second", '"Mr Ding"', 'reverse_each_word("Mr Ding")', rs("rM gniD")),
-        T("one_word", '"hello"', 'reverse_each_word("hello")', rs("olleh")),
+        T("accented_words", '"héllo wörld"', 'reverse_each_word("héllo wörld")', '"olléh dlröw".to_string()'),
+        T("whitespace_kept", '"  ab\\tcd "', 'reverse_each_word("  ab\\tcd ")', '"  ba\\tdc ".to_string()'),
+        T("combining_mark_moves_with_letter", '"e\\u{301}x"', 'reverse_each_word("e\\u{301}x")', '"xe\\u{301}".to_string()'),
+        T("leetcode_557", '"Let\'s take LeetCode contest"', 'reverse_each_word("Let\'s take LeetCode contest")', '"s\'teL ekat edoCteeL tsetnoc".to_string()'),
+        T("empty", '""', 'reverse_each_word("")', "String::new()"),
     ],
     hidden=[
         T("emoji", '"🦀x"', 'reverse_each_word("🦀x")', '"x🦀".to_string()'),
-        T("extra_spaces", '"  a   bc "', 'reverse_each_word("  a   bc ")', rs("a cb")),
-        T("empty", '""', 'reverse_each_word("")', "String::new()"),
-        T("only_spaces", '"   "', 'reverse_each_word("   ")', "String::new()"),
-        T("tabs_and_newlines", '"ab\\tcd\\nef"', 'reverse_each_word("ab\\tcd\\nef")', rs("ba dc fe")),
-        T("palindrome", '"abba x"', 'reverse_each_word("abba x")', rs("abba x")),
+        T("only_whitespace", '" \\t\\n "', 'reverse_each_word(" \\t\\n ")', '" \\t\\n ".to_string()'),
+        T("two_marks", '"a\\u{301}\\u{302}b"', 'reverse_each_word("a\\u{301}\\u{302}b")', '"ba\\u{301}\\u{302}".to_string()'),
+        T("leading_mark", '"\\u{301}ab"', 'reverse_each_word("\\u{301}ab")', '"ba\\u{301}".to_string()'),
+        T("leading_marks_stay_together", '"\\u{301}\\u{302}a"', 'reverse_each_word("\\u{301}\\u{302}a")', '"a\\u{301}\\u{302}".to_string()'),
+        T("marks_in_several_words", '"ne\\u{301}e n\\u{303}o"', 'reverse_each_word("ne\\u{301}e n\\u{303}o")', '"ee\\u{301}n on\\u{303}".to_string()'),
         T("cjk", '"日本語 テスト"', 'reverse_each_word("日本語 テスト")', '"語本日 トステ".to_string()'),
-        T("single_char", '"a"', 'reverse_each_word("a")', rs("a")),
-        T("punctuation_moves", '"a1! b2?"', 'reverse_each_word("a1! b2?")', rs("!1a ?2b")),
-        """
+        T("crlf_between", '"ab\\r\\ncd"', 'reverse_each_word("ab\\r\\ncd")', '"ba\\r\\ndc".to_string()'),
+        T("no_break_space_separates", '"ab\\u{a0}cd"', 'reverse_each_word("ab\\u{a0}cd")', '"ba\\u{a0}dc".to_string()'),
+        T("precomposed_is_one_char", '"\\u{e9}t\\u{e9}"', 'reverse_each_word("\\u{e9}t\\u{e9}")', '"\\u{e9}t\\u{e9}".to_string()'),
+        T("single_char_words", '"a b  c"', 'reverse_each_word("a b  c")', '"a b  c".to_string()'),
+        r"""
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2211);
-            for _ in 0..300 {
+            let mut rng = anneal_prelude::Rng::new(7210);
+            for _ in 0..400 {
                 let len = rng.below(14);
-                let s = rng.string(len, "abé🦀  \\t");
-                let mut words: Vec<String> = Vec::new();
-                let mut cur: Vec<char> = Vec::new();
-                for c in s.chars().chain(std::iter::once(' ')) {
+                let s = rng.string(len, "ab é\u{301}\u{302}\t🦀");
+                let mut want = String::new();
+                let mut word: Vec<String> = Vec::new();
+                let flush = |word: &mut Vec<String>, want: &mut String| {
+                    for cluster in word.drain(..).rev() {
+                        want.push_str(&cluster);
+                    }
+                };
+                for c in s.chars() {
                     if c.is_whitespace() {
-                        if !cur.is_empty() {
-                            cur.reverse();
-                            words.push(cur.iter().collect());
-                            cur.clear();
-                        }
+                        flush(&mut word, &mut want);
+                        want.push(c);
+                    } else if ('\u{300}'..='\u{36f}').contains(&c) && !word.is_empty() {
+                        word.last_mut().unwrap().push(c);
                     } else {
-                        cur.push(c);
+                        word.push(c.to_string());
                     }
                 }
-                check!(format!("s = {s:?}"), reverse_each_word(&s), words.join(" "));
+                flush(&mut word, &mut want);
+                check!(format!("s = {s:?}"), reverse_each_word(&s), want);
             }
         }
 
         #[test]
         fn scale_200k_words() {
-            let s = "abc ".repeat(200_000);
+            let s = "abe\u{301} ".repeat(200_000);
             let out = reverse_each_word(&s);
-            check!("s = \\"abc abc …\\" (200000 words)", (out.len(), &out[..7]), (799_999, "cba cba"));
+            check!("s = \"abe\\u{301} \" × 200000", (out.len(), &out[..5]), (s.len(), "e\u{301}ba"));
         }
         """,
     ],
     wrong=dict(
-        reverses_bytes="""
+        reverses_scalar_values=sub(REV_SOL, """let mut cut = word.len();
+                for (i, c) in word.char_indices().rev() {
+                    if !is_mark(c) || i == 0 {
+                        out.push_str(&word[i..cut]);
+                        cut = i;
+                    }
+                }""", """out.extend(word.chars().rev());"""),
+        normalizes_whitespace="""
             pub fn reverse_each_word(s: &str) -> String {
                 s.split_whitespace()
-                    .map(|w| String::from_utf8_lossy(&w.bytes().rev().collect::<Vec<u8>>()).into_owned())
+                    .map(|w| {
+                        let mut clusters: Vec<String> = Vec::new();
+                        for c in w.chars() {
+                            match clusters.last_mut() {
+                                Some(last) if matches!(c, '\\u{300}'..='\\u{36f}') => last.push(c),
+                                _ => clusters.push(c.to_string()),
+                            }
+                        }
+                        clusters.into_iter().rev().collect::<String>()
+                    })
                     .collect::<Vec<_>>()
                     .join(" ")
             }
         """,
-        reverses_word_order_too="""
-            pub fn reverse_each_word(s: &str) -> String {
-                s.split_whitespace()
-                    .rev()
-                    .map(|w| w.chars().rev().collect::<String>())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
-        """,
-        keeps_spacing="""
-            pub fn reverse_each_word(s: &str) -> String {
-                s.split(' ')
-                    .map(|w| w.chars().rev().collect::<String>())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
-        """,
+        marks_attach_forward=sub(REV_SOL, "if !is_mark(c) || i == 0 {", "if !word[..i].ends_with(is_mark) || i == 0 {"),
     ),
-    hints=[("rust", "Reversing bytes would split multi-byte characters into invalid UTF-8. `chars().rev()` reverses whole characters."),
-           ("rust", "`collect::<String>()` builds a String from an iterator of `char`.")],
-    notes=("`chars().rev()` works because `Chars` is a `DoubleEndedIterator`: UTF-8 can be decoded backwards. Combining characters (e + ◌́) would still come out in the wrong order.", "O(n)", "O(n)"),
-    follow_up="Which crate would you reach for to reverse by grapheme cluster?",
+    hints=[("approach", "Copy each whitespace run as is, then reverse the word after it cluster by cluster, until the input runs out."),
+           ("rust", "`let body = rest.trim_start();` — the whitespace is `&rest[..rest.len() - body.len()]`. `body.find(char::is_whitespace)` ends the word, and `split_at` splits there."),
+           ("rust", "Walk `word.char_indices().rev()`; each char that isn't a mark (or is at index 0) starts a cluster that runs to the previous cut. Push `&word[i..cut]`.")],
+    notes=("""What a reader sees as one character can be several `char`s. Reversing `char`s moves a combining accent onto the wrong letter (or onto whitespace). This problem handles the common case, combining diacritics, by treating a base character plus the marks after it as one unit; the general rule is Unicode's extended grapheme clusters (UAX #29), which also covers emoji ZWJ sequences, flags and Hangul, and is what the `unicode-segmentation` crate implements. The slicing approach copies clusters straight from the input with no intermediate `Vec<char>`. Syntax to remember: `s.trim_start()`, `s.find(char::is_whitespace)`, `s.split_at(i)`, `word.char_indices().rev()`, `matches!(c, '\\u{300}'..='\\u{36f}')`.""", "O(n)", "O(n)"),
+    follow_up="Which clusters does this still break? Think of 🇫🇷, 👩‍💻 and Korean jamo, and what `unicode-segmentation::graphemes(true)` would do instead.",
 ))
 
-P.append(dict(
-    slug="cow-str", title="Cow<str>: allocate only when needed", level="medium", stage="understand",
-    tags=["Cow", "zero-copy"],
-    teaches=["`Cow::Borrowed` when the input is already right, `Cow::Owned` when it had to change.", "Finding the first byte that needs work before allocating."],
-    statement="""
-        Escape `&`, `<`, `>`, `"` and `'` as `&amp;`, `&lt;`, `&gt;`, `&quot;` and `&#39;`. When the input
-        contains none of them, return it borrowed, without allocating.
-    """,
-    examples=[('"a<b"', '"a&lt;b" (Owned)'), ('"plain"', '"plain" (Borrowed)')],
-    starter="""
+COW_STARTER = r"""
         use std::borrow::Cow;
 
+        /// `s` with `&`, `<`, `>`, `"` and `'` escaped. Borrows `s` when there's nothing to escape.
         pub fn escape_html(s: &str) -> Cow<'_, str> {
             todo!()
         }
-    """,
-    solution="""
+
+        /// `bytes` decoded as UTF-8 (each invalid sequence becomes U+FFFD), then escaped like `escape_html`.
+        /// Borrows when nothing was replaced or escaped, and never copies the text more than it must.
+        pub fn escape_bytes(bytes: &[u8]) -> Cow<'_, str> {
+            todo!()
+        }
+"""
+
+COW_SOL = r"""
         use std::borrow::Cow;
 
+        /// `s` with `&`, `<`, `>`, `"` and `'` escaped. Borrows `s` when there's nothing to escape.
         pub fn escape_html(s: &str) -> Cow<'_, str> {
-            let special = |c: char| matches!(c, '&' | '<' | '>' | '"' | '\\'');
+            let special = |c: char| matches!(c, '&' | '<' | '>' | '"' | '\'');
+            let Some(first) = s.find(special) else {
+                return Cow::Borrowed(s);
+            };
+            let mut out = String::with_capacity(s.len() + 8);
+            out.push_str(&s[..first]);
+            for c in s[first..].chars() {
+                match c {
+                    '&' => out.push_str("&amp;"),
+                    '<' => out.push_str("&lt;"),
+                    '>' => out.push_str("&gt;"),
+                    '"' => out.push_str("&quot;"),
+                    '\'' => out.push_str("&#39;"),
+                    _ => out.push(c),
+                }
+            }
+            Cow::Owned(out)
+        }
+
+        /// `bytes` decoded as UTF-8 (each invalid sequence becomes U+FFFD), then escaped like `escape_html`.
+        /// Borrows when nothing was replaced or escaped, and never copies the text more than it must.
+        pub fn escape_bytes(bytes: &[u8]) -> Cow<'_, str> {
+            match String::from_utf8_lossy(bytes) {
+                Cow::Borrowed(text) => escape_html(text),
+                Cow::Owned(text) => match escape_html(&text) {
+                    Cow::Borrowed(_) => Cow::Owned(text),
+                    Cow::Owned(escaped) => Cow::Owned(escaped),
+                },
+            }
+        }
+"""
+
+P.append(dict(
+    slug="cow-str", title="Cow<str>: allocate only when needed", level="medium", stage="understand",
+    tags=["Cow", "from_utf8_lossy", "zero-copy", "count_allocs"],
+    teaches=[
+        "`Cow::Borrowed` when the input is already right, `Cow::Owned` when it had to change; find the first byte that needs work before allocating.",
+        "`String::from_utf8_lossy` returns `Cow<str>` for the same reason: valid input is borrowed.",
+        "Chaining two `Cow` steps: a result borrowed from a local `String` can't be returned, but the local itself can be moved into `Cow::Owned`.",
+    ],
+    statement="""
+        - `escape_html(s)`: escape `&`, `<`, `>`, `"` and `'` as `&amp;`, `&lt;`, `&gt;`, `&quot;` and `&#39;`.
+          When there's nothing to escape, return `s` borrowed, without allocating.
+        - `escape_bytes(bytes)`: decode `bytes` as UTF-8, replacing each invalid sequence with U+FFFD the way
+          `String::from_utf8_lossy` does, then escape the text. Borrow when the bytes are valid UTF-8 with nothing
+          to escape. When decoding had to allocate but there's nothing to escape, return the decoded `String`
+          itself: don't copy it again.
+    """,
+    examples=[('escape_html("a<b")', '"a&lt;b" (Owned)'), ('escape_html("plain")', '"plain" (Borrowed)'), ('escape_bytes(b"a\\xffb")', '"a\\u{FFFD}b" (Owned, the decoded String itself)')],
+    starter=COW_STARTER,
+    solution=COW_SOL,
+    visible=[
+        T("escapes", '"a<b"', 'escape_html("a<b").into_owned()', '"a&lt;b".to_string()'),
+        T("borrows", '"plain"', 'matches!(escape_html("plain"), std::borrow::Cow::Borrowed("plain"))', "true"),
+        T("already_escaped", '"&lt;"', 'escape_html("&lt;").into_owned()', '"&amp;lt;".to_string()'),
+        T("bytes_valid_and_plain_borrow", 'b"plain"', 'matches!(escape_bytes(b"plain"), std::borrow::Cow::Borrowed("plain"))', "true"),
+        T("bytes_invalid_replaced", 'b"a\\xffb"', 'escape_bytes(b"a\\xffb").into_owned()', '"a\\u{FFFD}b".to_string()'),
+    ],
+    hidden=[
+        T("all_five", "\"&<>\\\"'\"", "escape_html(\"&<>\\\"'\").into_owned()", '"&amp;&lt;&gt;&quot;&#39;".to_string()'),
+        T("owned_when_changed", '"x&y"', 'matches!(escape_html("x&y"), std::borrow::Cow::Owned(_))', "true"),
+        T("unicode", '"é<é"', 'escape_html("é<é").into_owned()', '"é&lt;é".to_string()'),
+        T("empty", '""', 'matches!(escape_html(""), std::borrow::Cow::Borrowed(""))', "true"),
+        T("special_at_ends", '"<abc>"', 'escape_html("<abc>").into_owned()', '"&lt;abc&gt;".to_string()'),
+        T("borrowed_same_pointer", '"no specials here"', "escape_html(&s).as_ptr() == s.as_ptr()", "true", setup='let s = String::from("no specials here");'),
+        T("borrow_allocates_nothing", '"日本語 ✓"', "(matches!(out, std::borrow::Cow::Borrowed(_)), n.count)", "(true, 0)",
+          setup='let (out, n) = anneal_prelude::allocs(|| escape_html("日本語 ✓"));'),
+        T("escape_allocates_once", '"a<b"', "(out.into_owned(), n.count)", '("a&lt;b".to_string(), 1)', setup='let (out, n) = anneal_prelude::allocs(|| escape_html("a<b"));'),
+        T("bytes_borrow_allocates_nothing", 'b"ok"', "(out, n.count)", '(std::borrow::Cow::Borrowed("ok"), 0)', setup='let (out, n) = anneal_prelude::allocs(|| escape_bytes(b"ok"));'),
+        T("bytes_valid_but_escaped", 'b"a&b"', "(out.into_owned(), n.count)", '("a&amp;b".to_string(), 1)', setup='let (out, n) = anneal_prelude::allocs(|| escape_bytes(b"a&b"));'),
+        T("bytes_invalid_no_extra_copy", 'b"a\\xffb": no allocation beyond from_utf8_lossy\'s', "(out.into_owned(), n.count)", '("a\\u{FFFD}b".to_string(), lossy.count)',
+          setup='let (_, lossy) = anneal_prelude::allocs(|| String::from_utf8_lossy(b"a\\xffb"));\nlet (out, n) = anneal_prelude::allocs(|| escape_bytes(b"a\\xffb"));'),
+        T("bytes_invalid_and_escaped", 'b"<\\xff": from_utf8_lossy\'s allocations plus one', "(out.into_owned(), n.count)", '("&lt;\\u{FFFD}".to_string(), lossy.count + 1)',
+          setup='let (_, lossy) = anneal_prelude::allocs(|| String::from_utf8_lossy(b"<\\xff"));\nlet (out, n) = anneal_prelude::allocs(|| escape_bytes(b"<\\xff"));'),
+        T("bytes_truncated_sequence", 'b"x\\xe2\\x82"', 'escape_bytes(b"x\\xe2\\x82").into_owned()', '"x\\u{FFFD}".to_string()'),
+        T("bytes_empty", 'b""', 'matches!(escape_bytes(b""), std::borrow::Cow::Borrowed(""))', "true"),
+        r"""
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(7211);
+            let pieces: [&[u8]; 8] = [b"a", "é".as_bytes(), b"&", b"<", b"'", b"\xff", b"\xc3", b"\""];
+            for _ in 0..400 {
+                let mut bytes = Vec::new();
+                for _ in 0..rng.below(8) {
+                    bytes.extend_from_slice(*rng.pick(&pieces));
+                }
+                let text = String::from_utf8_lossy(&bytes).into_owned();
+                let mut want = String::new();
+                for c in text.chars() {
+                    match c {
+                        '&' => want += "&amp;",
+                        '<' => want += "&lt;",
+                        '>' => want += "&gt;",
+                        '"' => want += "&quot;",
+                        '\'' => want += "&#39;",
+                        _ => want.push(c),
+                    }
+                }
+                let borrowed = std::str::from_utf8(&bytes).map_or(false, |s| s == want);
+                let out = escape_bytes(&bytes);
+                let got_borrowed = matches!(out, std::borrow::Cow::Borrowed(_));
+                let html = std::str::from_utf8(&bytes).ok().map(|s| escape_html(s).into_owned());
+                check!(format!("bytes = {bytes:?}"), (out.into_owned(), got_borrowed, html.clone()), (want.clone(), borrowed, html.map(|_| want)));
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let s = "a<b&".repeat(50_000);
+            let out = escape_html(&s);
+            check!("s = \"a<b&…\" (200000 chars)", (out.len(), &out[..12]), (550_000, "a&lt;b&amp;a"));
+        }
+        """,
+    ],
+    wrong=dict(
+        always_owned=sub(COW_SOL, """let Some(first) = s.find(special) else {
+                return Cow::Borrowed(s);
+            };""", """let first = s.find(special).unwrap_or(s.len());"""),
+        amp_replaced_last=sub(COW_SOL, """let special = |c: char| matches!(c, '&' | '<' | '>' | '"' | '\\'');
             let Some(first) = s.find(special) else {
                 return Cow::Borrowed(s);
             };
@@ -1799,239 +2154,153 @@ P.append(dict(
                     _ => out.push(c),
                 }
             }
-            Cow::Owned(out)
-        }
-    """,
-    visible=[
-        T("escapes", '"a<b"', 'escape_html("a<b").into_owned()', rs("a&lt;b")),
-        T("borrows", '"plain"', 'matches!(escape_html("plain"), std::borrow::Cow::Borrowed("plain"))', "true"),
-        T("ampersand", '"a&b"', 'escape_html("a&b").into_owned()', rs("a&amp;b")),
-        T("already_escaped", '"&lt;"', 'escape_html("&lt;").into_owned()', rs("&amp;lt;")),
-        T("quotes_and_gt", '"\\"x\\" > y"', 'escape_html("\\"x\\" > y").into_owned()', rs("&quot;x&quot; &gt; y")),
-    ],
-    hidden=[
-        T("all_five", "\"&<>\\\"'\"", "escape_html(\"&<>\\\"'\").into_owned()", rs("&amp;&lt;&gt;&quot;&#39;")),
-        T("owned_when_changed", '"x&y"', 'matches!(escape_html("x&y"), std::borrow::Cow::Owned(_))', "true"),
-        T("unicode", '"é<é"', 'escape_html("é<é").into_owned()', '"é&lt;é".to_string()'),
-        T("empty", '""', 'matches!(escape_html(""), std::borrow::Cow::Borrowed(""))', "true"),
-        T("special_at_end", '"abc>"', 'escape_html("abc>").into_owned()', rs("abc&gt;")),
-        T("special_at_start", '"<abc"', 'escape_html("<abc").into_owned()', rs("&lt;abc")),
-        T("consecutive", '"<<>>"', 'escape_html("<<>>").into_owned()', rs("&lt;&lt;&gt;&gt;")),
-        T("single_quote", "\"'\"", "escape_html(\"'\").into_owned()", rs("&#39;")),
-        T("unicode_borrowed", '"日本語 ✓"', 'matches!(escape_html("日本語 ✓"), std::borrow::Cow::Borrowed(_))', "true"),
-        T("borrowed_same_pointer", '"no specials here"', "escape_html(&s).as_ptr() == s.as_ptr()", "true", setup='let s = String::from("no specials here");'),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2212);
-            for _ in 0..300 {
-                let len = rng.below(10);
-                let s = rng.string(len, "a é&<>\\"'");
-                let mut want = String::new();
-                for c in s.chars() {
-                    match c {
-                        '&' => want += "&amp;",
-                        '<' => want += "&lt;",
-                        '>' => want += "&gt;",
-                        '"' => want += "&quot;",
-                        '\\'' => want += "&#39;",
-                        _ => want.push(c),
-                    }
-                }
-                let out = escape_html(&s);
-                let borrowed = matches!(out, std::borrow::Cow::Borrowed(_));
-                check!(format!("s = {s:?}"), (out.into_owned(), borrowed), (want.clone(), want == s));
+            Cow::Owned(out)""", """if !s.contains(['&', '<', '>', '"', '\\'']) {
+                return Cow::Borrowed(s);
             }
-        }
-
-        #[test]
-        fn scale_200k() {
-            let s = "a<b&".repeat(50_000);
-            let out = escape_html(&s);
-            check!("s = \\"a<b&…\\" (200000 chars)", (out.len(), &out[..12]), (550_000, "a&lt;b&amp;a"));
-        }
-        """,
-    ],
-    wrong=dict(
-        amp_replaced_last="""
-            use std::borrow::Cow;
-
-            pub fn escape_html(s: &str) -> Cow<'_, str> {
-                if !s.contains(['&', '<', '>', '"', '\\'']) {
-                    return Cow::Borrowed(s);
-                }
-                Cow::Owned(s.replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\\'', "&#39;").replace('&', "&amp;"))
-            }
-        """,
-        always_owned="""
-            use std::borrow::Cow;
-
-            pub fn escape_html(s: &str) -> Cow<'_, str> {
-                Cow::Owned(s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\\'', "&#39;"))
-            }
-        """,
-        forgets_single_quote="""
-            use std::borrow::Cow;
-
-            pub fn escape_html(s: &str) -> Cow<'_, str> {
-                if !s.contains(['&', '<', '>', '"']) {
-                    return Cow::Borrowed(s);
-                }
-                Cow::Owned(s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;"))
-            }
-        """,
+            Cow::Owned(s.replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\\'', "&#39;").replace('&', "&amp;"))"""),
+        copies_the_decoded_text=sub(COW_SOL, """Cow::Owned(text) => match escape_html(&text) {
+                    Cow::Borrowed(_) => Cow::Owned(text),
+                    Cow::Owned(escaped) => Cow::Owned(escaped),
+                },""", """Cow::Owned(text) => Cow::Owned(escape_html(&text).into_owned()),"""),
+        bytes_always_owned=sub(COW_SOL, "Cow::Borrowed(text) => escape_html(text),", "Cow::Borrowed(text) => Cow::Owned(escape_html(text).into_owned()),"),
     ),
-    hints=[("approach", "Most inputs need no escaping. Scan for the first special character before allocating anything."),
-           ("rust", "`let Some(i) = s.find(pred) else { return Cow::Borrowed(s) };` handles the common case in one line."),
-           ("rust", "Copy `&s[..first]` in one go, then handle characters from `first` on.")],
-    notes=("The common case costs one scan and no allocation. Callers can treat both variants as `&str` via `Deref`, or call `into_owned` when they need a `String`.", "O(n)", "O(n) only when escaping"),
-    follow_up="Where does std use `Cow<str>` (hint: `String::from_utf8_lossy`)?",
+    hints=[("approach", "Most inputs need no escaping. Scan for the first special character before allocating anything, then copy `&s[..first]` in one go."),
+           ("rust", "`String::from_utf8_lossy(bytes)` is already a `Cow<str>`: match on it. In the `Owned(text)` arm you can't return `escape_html(&text)` (it borrows a local), but when that's `Borrowed` you can return `text` itself."),
+           ("edge case", "`into_owned()` on a `Cow::Borrowed` allocates a copy. That's the second allocation the spec forbids.")],
+    notes=("""The common case costs one scan and no allocation. `Cow` pushes the decision to the caller: both variants deref to `&str`, and `into_owned` turns either into a `String`, copying only if it was borrowed. `escape_bytes` is the interesting part: when decoding had to allocate, `escape_html(&text)` borrows `text`, a local, so it can't be returned; but a `Borrowed` result means "unchanged", and then the local `String` itself can be moved out as `Cow::Owned(text)` without copying it. Syntax to remember: `Cow<'a, str>`, `Cow::Borrowed(s)` / `Cow::Owned(string)`, `cow.into_owned()`, `cow.to_mut()` (clones on first write), `String::from_utf8_lossy(&bytes)` → `Cow<str>`, `let Some(i) = s.find(pred) else { return Cow::Borrowed(s) };`.""", "O(n)", "O(n) only when something changes"),
+    follow_up="Where else does std hand back a `Cow`? (Look at `OsStr::to_string_lossy` and `Path::to_string_lossy`.) When is `Cow::to_mut` the right tool?",
     related=["S1"],
+    perf=dict(allocs=True),
 ))
 
-P.append(dict(
-    slug="display-vs-debug", title="Display vs Debug", level="medium", stage="understand",
-    tags=["Display", "f.pad", "Formatter"],
-    teaches=["`Display` is for users, `Debug` for programmers.", "`f.pad` makes your `Display` respect width and alignment."],
-    statement="""
-        Implement `Display` for `Money` as `<amount> <currency>` with two decimals, and a leading `-` for
-        negative amounts. It must respect width and alignment, so `format!("{:>12}", m)` right-aligns it.
-        `Debug` stays derived.
-    """,
-    examples=[("Money { cents: 1234, currency: \"USD\" }", '"12.34 USD"'), ("cents: -5", '"-0.05 USD"')],
-    starter="""
+MONEY_HEAD = r"""
         use std::fmt;
 
-        #[derive(Debug)]
         pub struct Money {
             pub cents: i64,
             pub currency: &'static str,
         }
+"""
 
+MONEY_SOL = MONEY_HEAD + r"""
+        impl fmt::Display for Money {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let sign = if self.cents < 0 {
+                    "-"
+                } else if f.sign_plus() {
+                    "+"
+                } else {
+                    ""
+                };
+                let abs = self.cents.unsigned_abs();
+                f.pad(&format!("{sign}{}.{:02} {}", abs / 100, abs % 100, self.currency))
+            }
+        }
+
+        impl fmt::Debug for Money {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.debug_tuple("Money").field(&format_args!("{self}")).finish()
+            }
+        }
+"""
+
+MONEY_STARTER = MONEY_HEAD + r"""
         impl fmt::Display for Money {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 todo!()
             }
         }
-    """,
-    solution="""
-        use std::fmt;
 
-        #[derive(Debug)]
-        pub struct Money {
-            pub cents: i64,
-            pub currency: &'static str,
-        }
-
-        impl fmt::Display for Money {
+        impl fmt::Debug for Money {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let sign = if self.cents < 0 { "-" } else { "" };
-                let abs = self.cents.unsigned_abs();
-                f.pad(&format!("{sign}{}.{:02} {}", abs / 100, abs % 100, self.currency))
+                todo!()
             }
         }
+"""
+
+
+def m(c, cur="USD"):
+    return f'Money {{ cents: {c}, currency: "{cur}" }}'
+
+
+P.append(dict(
+    slug="display-vs-debug", title="Display vs Debug", level="medium", stage="understand",
+    tags=["Display", "Debug", "f.pad", "debug_tuple", "format_args!"],
+    teaches=[
+        "`Display` is for users, `Debug` for programmers; `{:?}` and `{:#?}` both go through `Debug`.",
+        "`f.pad` makes your `Display` respect width, fill and alignment; `write!(f, …)` ignores them.",
+        "`debug_tuple`/`debug_struct` give `{:#?}` pretty-printing for free; `format_args!` shows a field through its `Display` without quotes or allocation.",
+    ],
+    statement="""
+        Implement both formatting traits for `Money` by hand.
+
+        - `Display`: `<amount> <currency>` with two decimals and a leading `-` for negative amounts
+          (`12.34 USD`, `-0.05 EUR`). With `{:+}`, zero and positive amounts get a leading `+`. It must respect
+          width, fill and alignment, so `format!("{:>12}", m)` right-aligns the whole thing.
+        - `Debug`: `Money(12.34 USD)`, that is, a tuple struct whose one field is shown as its `Display`
+          (no quotes). `{:#?}` gives the standard pretty form, `"Money(\\n    12.34 USD,\\n)"`.
     """,
+    examples=[(m(1234), '"12.34 USD", {:?} "Money(12.34 USD)"'), ("cents: -5, {:>10}", '"  -0.05 USD"'), ("cents: 7, {:+}", '"+0.07 USD"')],
+    starter=MONEY_STARTER,
+    solution=MONEY_SOL,
     visible=[
-        T("display", "12.34 USD", 'format!("{}", Money { cents: 1234, currency: "USD" })', rs("12.34 USD")),
-        T("negative_cents", "-5 cents", 'format!("{}", Money { cents: -5, currency: "EUR" })', rs("-0.05 EUR")),
-        T("whole_amount", "500 cents", 'format!("{}", Money { cents: 500, currency: "USD" })', rs("5.00 USD")),
-        T("zero", "0 cents", 'format!("{}", Money { cents: 0, currency: "X" })', rs("0.00 X")),
-        T("right_aligned", "{:>10} then |", 'format!("{:>10}|", Money { cents: 99, currency: "EUR" })', rs("  0.99 EUR|")),
+        T("display", "12.34 USD", f'format!("{{}}", {m(1234)})', '"12.34 USD".to_string()'),
+        T("negative_cents", "-5 cents", f'format!("{{}}", {m(-5, "EUR")})', '"-0.05 EUR".to_string()'),
+        T("right_aligned", "{:>10} then |", f'format!("{{:>10}}|", {m(99, "EUR")})', '"  0.99 EUR|".to_string()'),
+        T("plus_flag", "{:+} with 1234 cents", f'format!("{{:+}}", {m(1234)})', '"+12.34 USD".to_string()'),
+        T("debug", "{:?}", f'format!("{{:?}}", {m(1234)})', '"Money(12.34 USD)".to_string()'),
     ],
     hidden=[
-        T("width", "{:>12} then |", 'format!("{:>12}|", Money { cents: 1234, currency: "USD" })', rs("   12.34 USD|")),
-        T("left", "{:<10} then |", 'format!("{:<10}|", Money { cents: 7, currency: "GBP" })', rs("0.07 GBP  |")),
-        T("debug_unchanged", "{:?}", 'format!("{:?}", Money { cents: 1, currency: "USD" })', r'"Money { cents: 1, currency: \"USD\" }".to_string()'),
-        T("min_value", "i64::MIN cents", 'format!("{}", Money { cents: i64::MIN, currency: "X" })', rs("-92233720368547758.08 X")),
-        T("max_value", "i64::MAX cents", 'format!("{}", Money { cents: i64::MAX, currency: "X" })', rs("92233720368547758.07 X")),
-        T("centered", "{:^12} then |", 'format!("{:^12}|", Money { cents: 1234, currency: "USD" })', rs(" 12.34 USD  |")),
-        T("fill_char", "{:*<12}", 'format!("{:*<12}", Money { cents: 7, currency: "GBP" })', rs("0.07 GBP****")),
-        T("width_too_small", "{:>3}", 'format!("{:>3}", Money { cents: 1234, currency: "USD" })', rs("12.34 USD")),
-        T("negative_whole", "-100 cents", 'format!("{}", Money { cents: -100, currency: "USD" })', rs("-1.00 USD")),
-        T("negative_padded", "{:>11} with -12345 cents", 'format!("{:>11}", Money { cents: -12345, currency: "USD" })', rs("-123.45 USD")),
-        T("negative_width", "{:>12} with -5 cents", 'format!("{:>12}", Money { cents: -5, currency: "EUR" })', rs("   -0.05 EUR")),
-        """
+        T("zero", "0 cents", f'format!("{{}}", {m(0, "X")})', '"0.00 X".to_string()'),
+        T("whole_amount", "500 cents", f'format!("{{}}", {m(500)})', '"5.00 USD".to_string()'),
+        T("left", "{:<10} then |", f'format!("{{:<10}}|", {m(7, "GBP")})', '"0.07 GBP  |".to_string()'),
+        T("centered", "{:^12} then |", f'format!("{{:^12}}|", {m(1234)})', '" 12.34 USD  |".to_string()'),
+        T("fill_char", "{:*<12}", f'format!("{{:*<12}}", {m(7, "GBP")})', '"0.07 GBP****".to_string()'),
+        T("width_too_small", "{:>3}", f'format!("{{:>3}}", {m(1234)})', '"12.34 USD".to_string()'),
+        T("min_value", "i64::MIN cents", f'format!("{{}}", {m("i64::MIN", "X")})', '"-92233720368547758.08 X".to_string()'),
+        T("max_value_plus", "{:+} with i64::MAX cents", f'format!("{{:+}}", {m("i64::MAX", "X")})', '"+92233720368547758.07 X".to_string()'),
+        T("negative_width", "{:>12} with -5 cents", f'format!("{{:>12}}", {m(-5, "EUR")})', '"   -0.05 EUR".to_string()'),
+        T("plus_zero", "{:+} with 0 cents", f'format!("{{:+}}", {m(0, "X")})', '"+0.00 X".to_string()'),
+        T("plus_negative", "{:+} with -5 cents", f'format!("{{:+}}", {m(-5, "EUR")})', '"-0.05 EUR".to_string()'),
+        T("plus_and_width", "{:>+12}", f'format!("{{:>+12}}", {m(1234)})', '"  +12.34 USD".to_string()'),
+        T("debug_pretty", "{:#?}", f'format!("{{:#?}}", {m(-100)})', '"Money(\\n    -1.00 USD,\\n)".to_string()'),
+        T("debug_in_a_vec", "{:?} of a Vec", f'format!("{{:?}}", vec![{m(100, "A")}, {m(-50, "B")}])', '"[Money(1.00 A), Money(-0.50 B)]".to_string()'),
+        T("debug_pretty_nested", "{:#?} of Some(..)", f'format!("{{:#?}}", Some({m(1)}))', '"Some(\\n    Money(\\n        0.01 USD,\\n    ),\\n)".to_string()'),
+        r"""
         #[test]
         fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2213);
+            let mut rng = anneal_prelude::Rng::new(7212);
             for _ in 0..300 {
                 let cents = rng.int(-1_000_000_000_000, 1_000_000_000_000);
                 let width = rng.below(24);
                 let abs = cents.unsigned_abs();
-                let mut plain = String::new();
-                if cents < 0 {
-                    plain.push('-');
-                }
-                plain += &(abs / 100).to_string();
-                plain.push('.');
-                if abs % 100 < 10 {
-                    plain.push('0');
-                }
-                plain += &(abs % 100).to_string();
-                plain += " JPY";
-                let mut padded = " ".repeat(width.saturating_sub(plain.len()));
-                padded += &plain;
+                let digits = format!("{}.{}{} JPY", abs / 100, abs % 100 / 10, abs % 10);
+                let plain = if cents < 0 { format!("-{digits}") } else { digits.clone() };
+                let plus = if cents < 0 { plain.clone() } else { format!("+{digits}") };
+                let padded = " ".repeat(width.saturating_sub(plain.len())) + &plain;
                 let m = Money { cents, currency: "JPY" };
-                check!(format!("cents = {cents}, {{:>{width}}}"), (format!("{m}"), format!("{m:>width$}")), (plain, padded));
+                check!(format!("cents = {cents}, {{:>{width}}}"),
+                       (format!("{m}"), format!("{m:>width$}"), format!("{m:+}"), format!("{m:?}")),
+                       (plain.clone(), padded, plus, format!("Money({plain})")));
             }
         }
         """,
     ],
     wrong=dict(
-        write_ignores_width="""
-            use std::fmt;
-
-            #[derive(Debug)]
-            pub struct Money {
-                pub cents: i64,
-                pub currency: &'static str,
-            }
-
-            impl fmt::Display for Money {
-                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    let sign = if self.cents < 0 { "-" } else { "" };
-                    let abs = self.cents.unsigned_abs();
-                    write!(f, "{sign}{}.{:02} {}", abs / 100, abs % 100, self.currency)
-                }
-            }
-        """,
-        sign_lost="""
-            use std::fmt;
-
-            #[derive(Debug)]
-            pub struct Money {
-                pub cents: i64,
-                pub currency: &'static str,
-            }
-
-            impl fmt::Display for Money {
-                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    f.pad(&format!("{}.{:02} {}", self.cents / 100, (self.cents % 100).abs(), self.currency))
-                }
-            }
-        """,
-        abs_overflows="""
-            use std::fmt;
-
-            #[derive(Debug)]
-            pub struct Money {
-                pub cents: i64,
-                pub currency: &'static str,
-            }
-
-            impl fmt::Display for Money {
-                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    let sign = if self.cents < 0 { "-" } else { "" };
-                    let abs = self.cents.abs();
-                    f.pad(&format!("{sign}{}.{:02} {}", abs / 100, abs % 100, self.currency))
-                }
-            }
-        """,
+        write_ignores_width=sub(MONEY_SOL, 'f.pad(&format!("{sign}{}.{:02} {}", abs / 100, abs % 100, self.currency))', 'write!(f, "{sign}{}.{:02} {}", abs / 100, abs % 100, self.currency)'),
+        sign_lost=sub(MONEY_SOL, 'f.pad(&format!("{sign}{}.{:02} {}", abs / 100, abs % 100, self.currency))', 'let _ = (sign, abs);\n                f.pad(&format!("{}.{:02} {}", self.cents / 100, (self.cents % 100).abs(), self.currency))'),
+        abs_overflows=sub(MONEY_SOL, "let abs = self.cents.unsigned_abs();", "let abs = self.cents.abs();"),
+        plus_flag_ignored=sub(MONEY_SOL, """} else if f.sign_plus() {
+                    "+"
+                } else {""", """} else {"""),
+        debug_field_quoted=sub(MONEY_SOL, '.field(&format_args!("{self}"))', ".field(&self.to_string())"),
+        debug_written_flat=sub(MONEY_SOL, 'f.debug_tuple("Money").field(&format_args!("{self}")).finish()', 'write!(f, "Money({self})")'),
     ),
-    hints=[("rust", "`write!(f, ...)` ignores the caller's width. `f.pad(s)` applies width, fill and alignment to `s`."),
-           ("edge case", "`-5 / 100` is `0`, so the sign must be handled separately. `unsigned_abs` also survives `i64::MIN`.")],
-    notes=("Formatting the whole amount first, then padding once, keeps alignment correct. `unsigned_abs` avoids the overflow `abs()` hits on `i64::MIN`.", "O(1)", "O(1)"),
-    follow_up="How would you honour `{:.1}` precision for Money without allocating?",
+    hints=[("rust", "Build the whole text first, then `f.pad(&text)`: `pad` applies the caller's width, fill and alignment. `f.sign_plus()` says whether `{:+}` was used."),
+           ("rust", "`f.debug_tuple(\"Money\").field(&x).finish()` handles `{:?}` and `{:#?}`. For `x`, `format_args!(\"{self}\")` is a value whose `Debug` prints your `Display` output, with no quotes and no `String`."),
+           ("edge case", "`-5 / 100` is `0`, so the sign must be handled separately; `unsigned_abs` also survives `i64::MIN`.")],
+    notes=("""Formatting the whole amount first, then padding once, keeps alignment right; `write!(f, …)` would ignore `{:>12}` entirely. The `Formatter` carries the caller's spec: `width()`, `precision()`, `fill()`, `align()`, `sign_plus()`, `alternate()`. The `debug_*` builders implement `{:#?}` (indentation, trailing commas) for you, including when your type is nested inside another pretty-printed value, which a hand-written `write!` can't do. `format_args!` builds an `Arguments` without allocating; its `Debug` is the formatted text itself. Syntax to remember: `f.pad(s)`, `f.sign_plus()`, `f.alternate()`, `f.debug_tuple("T").field(&x).finish()`, `f.debug_struct("T").field("name", &x).finish()`, `f.debug_list().entries(iter).finish()`, `format_args!("{x}")`, `x.unsigned_abs()`.""", "O(1)", "O(1)"),
+    follow_up="How would you honour `{:.1}` precision for Money, and why can't you simply forward it to `f.pad`?",
     related=["L4"],
 ))
 
@@ -2245,15 +2514,15 @@ P.append(dict(
     ),
     hints=[("rust", "`s.split_once('=')` returns `Option<(&str, &str)>`; `.ok_or(SettingError::MissingEquals)?` turns `None` into the error."),
            ("rust", "`map_err` replaces the `ParseIntError` with your own variant, keeping the text that failed.")],
-    notes=("`FromStr` plugs into `str::parse`, so callers get `\"...\".parse::<Setting>()` for free. Each check exits early with a specific error.", "O(n)", "O(n)"),
+    notes=("`FromStr` plugs into `str::parse`, so callers get `\"...\".parse::<Setting>()` for free. Each check exits early with a specific error, and the order of the checks is part of the contract. `split_once` splits at the *first* `=`, so values may contain `=`; `rsplit_once` would split keys instead. Syntax to remember: `impl FromStr for T { type Err = E; fn from_str(s: &str) -> Result<Self, Self::Err> }`, `s.split_once('=')` → `Option<(&str, &str)>`, `.ok_or(E::Missing)?`, `.map_err(|_| E::Bad(v.to_string()))?`, `s.parse::<T>()`.", "O(n)", "O(n)"),
     follow_up="How would you add the line number to the errors when parsing a whole file?",
     related=["S1", "L4"],
 ))
 
 P.append(dict(
     slug="unicode-safe-truncate", title="Unicode-safe truncate", level="medium", stage="understand",
-    tags=["is_char_boundary", "byte budgets"],
-    teaches=["Cutting to a byte budget at a character boundary.", "`let ... else` for an early return."],
+    tags=["floor_char_boundary", "is_char_boundary", "byte budgets"],
+    teaches=["Cutting to a byte budget at a character boundary: `floor_char_boundary`, or a short walk back with `is_char_boundary`.", "`checked_sub` + `let ... else` for a budget smaller than the ellipsis."],
     statement="""
         Fit `s` into `max_bytes` bytes. If it already fits, return it unchanged. Otherwise cut it at a
         character boundary and append `…` (3 bytes), so the whole result is at most `max_bytes` bytes. If
@@ -2270,13 +2539,10 @@ P.append(dict(
             if s.len() <= max_bytes {
                 return s.to_string();
             }
-            let Some(mut end) = max_bytes.checked_sub('…'.len_utf8()) else {
+            let Some(budget) = max_bytes.checked_sub('…'.len_utf8()) else {
                 return String::new();
             };
-            while !s.is_char_boundary(end) {
-                end -= 1;
-            }
-            format!("{}…", &s[..end])
+            format!("{}…", &s[..s.floor_char_boundary(budget)])
         }
     """,
     visible=[
@@ -2366,11 +2632,627 @@ P.append(dict(
             }
         """,
     ),
-    hints=[("approach", "Reserve 3 bytes for `…`, then walk the cut point back until it lands on a character boundary."),
-           ("rust", "`s.is_char_boundary(i)` is true at 0, at `len()`, and between characters.")],
-    notes=("At most three steps back, because a UTF-8 character is at most four bytes. `checked_sub` covers budgets smaller than the ellipsis.", "O(n)", "O(n)"),
+    hints=[("approach", "Reserve 3 bytes for `…`, then move the cut point back until it lands on a character boundary."),
+           ("rust", "`s.floor_char_boundary(i)` (stable since Rust 1.91) is the largest boundary ≤ `i`. On older toolchains, loop `while !s.is_char_boundary(end) { end -= 1 }`.")],
+    notes=("Byte budgets (database columns, protocol fields, log line limits) are a different spec from character counts: cut at the last boundary that fits. `floor_char_boundary` moves back at most three bytes, because a UTF-8 character is at most four; before 1.91 it was nightly-only, so older code has the `is_char_boundary` loop. `checked_sub` covers budgets smaller than the ellipsis. Syntax to remember: `s.floor_char_boundary(i)` / `ceil_char_boundary(i)`, `s.is_char_boundary(i)`, `'…'.len_utf8()`, `let Some(b) = n.checked_sub(3) else { return … };`.", "O(n) for the copy", "O(n)"),
     follow_up="Databases often limit by bytes and UIs by characters. How would you truncate to N characters instead?",
 ))
+
+NAT_SOL = r"""
+        use std::cmp::Ordering;
+
+        /// Splits `s` after its leading run of ASCII digits.
+        fn digits(s: &str) -> (&str, &str) {
+            s.split_at(s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len()))
+        }
+
+        /// Natural order: runs of ASCII digits compare by numeric value, everything else char by char.
+        /// Strings that tie compare as plain strings, so the order is total.
+        pub fn natural_cmp(a: &str, b: &str) -> Ordering {
+            let (mut x, mut y) = (a, b);
+            loop {
+                match (x.chars().next(), y.chars().next()) {
+                    (None, None) => return a.cmp(b),
+                    (None, Some(_)) => return Ordering::Less,
+                    (Some(_), None) => return Ordering::Greater,
+                    (Some(c), Some(d)) if c.is_ascii_digit() && d.is_ascii_digit() => {
+                        let ((nx, rx), (ny, ry)) = (digits(x), digits(y));
+                        let (nx, ny) = (nx.trim_start_matches('0'), ny.trim_start_matches('0'));
+                        let ord = nx.len().cmp(&ny.len()).then_with(|| nx.cmp(ny));
+                        if ord != Ordering::Equal {
+                            return ord;
+                        }
+                        (x, y) = (rx, ry);
+                    }
+                    (Some(c), Some(d)) => {
+                        if c != d {
+                            return c.cmp(&d);
+                        }
+                        (x, y) = (&x[c.len_utf8()..], &y[d.len_utf8()..]);
+                    }
+                }
+            }
+        }
+
+        /// The Luhn check: spaces are ignored, anything else must be an ASCII digit, and there must be at
+        /// least two digits.
+        pub fn luhn_valid(s: &str) -> bool {
+            let (mut sum, mut count) = (0, 0);
+            for c in s.chars().rev().filter(|&c| c != ' ') {
+                let Some(d) = c.to_digit(10) else {
+                    return false;
+                };
+                sum += if count % 2 == 1 {
+                    if d * 2 > 9 { d * 2 - 9 } else { d * 2 }
+                } else {
+                    d
+                };
+                count += 1;
+            }
+            count >= 2 && sum % 10 == 0
+        }
+"""
+
+NAT_STARTER = r"""
+        use std::cmp::Ordering;
+
+        /// Natural order: runs of ASCII digits compare by numeric value, everything else char by char.
+        /// Strings that tie compare as plain strings, so the order is total.
+        pub fn natural_cmp(a: &str, b: &str) -> Ordering {
+            todo!()
+        }
+
+        /// The Luhn check: spaces are ignored, anything else must be an ASCII digit, and there must be at
+        /// least two digits.
+        pub fn luhn_valid(s: &str) -> bool {
+            todo!()
+        }
+"""
+
+
+def nc(name, a, b, want):
+    return T(name, f'"{a}" vs "{b}"', f'(natural_cmp("{a}", "{b}"), natural_cmp("{b}", "{a}"))', f"(Ordering::{want}, Ordering::{ {'Less': 'Greater', 'Greater': 'Less', 'Equal': 'Equal'}[want]})")
+
+
+P.append(dict(
+    slug="natural-order-compare", title="Digits in text: natural order and Luhn", level="medium", stage="understand",
+    tags=["is_ascii_digit", "to_digit", "Ordering::then_with", "natural sort"],
+    teaches=[
+        "Compare digit runs as numbers without parsing them: strip leading zeros, then shorter is smaller, then compare the digits. No overflow, however long.",
+        "`char::is_numeric` accepts `½`, `٣` and `Ⅻ`; `is_ascii_digit` and `to_digit(10)` accept `0`–`9` only.",
+        "A comparator must be a total order: add a tie-break so `\"01\"` and `\"1\"` aren't `Equal` unless they're the same string.",
+    ],
+    statement="""
+        - `natural_cmp(a, b)`: the order a file browser uses, so `"file9"` sorts before `"file10"`. Walk both
+          strings together. Where both have a run of ASCII digits, compare the runs by numeric value (they can be
+          any length). Otherwise compare one character at a time by code point; a string that runs out first is
+          smaller. If everything compares equal, fall back to comparing `a` and `b` as plain strings, so
+          `"x01"` < `"x1"` and only identical strings are `Equal`.
+        - `luhn_valid(s)`: the Luhn checksum used by card numbers. Spaces are ignored; any other character that
+          isn't an ASCII digit makes it invalid, and so do fewer than two digits. From the rightmost digit, double
+          every second digit, subtracting 9 from any result above 9; the number is valid if the sum is a multiple
+          of 10.
+    """,
+    examples=[('natural_cmp("file9", "file10")', "Less"), ('natural_cmp("x01", "x1")', "Less (tie-break)"), ('luhn_valid("4539 3195 0343 6467")', "true")],
+    starter=NAT_STARTER,
+    solution=NAT_SOL,
+    use="use solution::*;\nuse std::cmp::Ordering;",
+    visible=[
+        nc("numbers_by_value", "file9", "file10", "Less"),
+        nc("text_then_number", "a2b", "a10a", "Less"),
+        nc("leading_zeros_tie_break", "x01", "x1", "Less"),
+        T("sorts_a_listing", '["img12.png", "img10.png", "img2.png", "img1.png"]', "v", 'vec!["img1.png", "img2.png", "img10.png", "img12.png"]',
+          setup='let mut v = vec!["img12.png", "img10.png", "img2.png", "img1.png"];\nv.sort_by(|a, b| natural_cmp(a, b));'),
+        T("luhn_valid_card", '"4539 3195 0343 6467"', 'luhn_valid("4539 3195 0343 6467")', "true"),
+    ],
+    hidden=[
+        nc("identical", "abc10", "abc10", "Equal"),
+        nc("both_empty", "", "", "Equal"),
+        nc("prefix_is_smaller", "a", "a1", "Less"),
+        nc("plain_text", "abc", "abd", "Less"),
+        nc("huge_numbers", "v99999999999999999999999", "v100000000000000000000000", "Less"),
+        nc("zeros_do_not_count_as_digits", "007", "10", "Less"),
+        nc("equal_value_then_rest_decides", "a1b", "a01a", "Greater"),
+        nc("digit_vs_letter_by_code_point", "a1", "a-", "Greater"),
+        nc("zeros_tie_break_comes_last", "x01b", "x1a", "Greater"),
+        nc("case_sensitive", "IMG2", "img1", "Less"),
+        nc("unicode_text", "é2", "é10", "Less"),
+        nc("arabic_indic_digit_is_not_ascii", "a٣", "a2", "Greater"),
+        nc("all_zeros", "0", "000", "Less"),
+        nc("versions", "v1.10.0", "v1.9.2", "Greater"),
+        T("luhn_small_valid", '"059", "59", "091", "0 0"', '[luhn_valid("059"), luhn_valid("59"), luhn_valid("091"), luhn_valid("0 0")]', "[true; 4]"),
+        T("luhn_too_short", '"0", " 0", "", "   "', '[luhn_valid("0"), luhn_valid(" 0"), luhn_valid(""), luhn_valid("   ")]', "[false; 4]"),
+        T("luhn_bad_checksum", '"8273 1232 7352 0569", "1234", "055 444 286"', '[luhn_valid("8273 1232 7352 0569"), luhn_valid("1234"), luhn_valid("055 444 286")]', "[false; 3]"),
+        T("luhn_good_grouped", '"055 444 285", "4111 1111 1111 1111"', '[luhn_valid("055 444 285"), luhn_valid("4111 1111 1111 1111")]', "[true; 2]"),
+        T("luhn_other_characters", '"055-444-285", "055a 444 285", "059\\t"', '[luhn_valid("055-444-285"), luhn_valid("055a 444 285"), luhn_valid("059\\t")]', "[false; 3]"),
+        T("luhn_non_ascii_digits", '"٣٣", "①8", "0½", "6٣"', '[luhn_valid("٣٣"), luhn_valid("①8"), luhn_valid("0½"), luhn_valid("6٣")]', "[false; 4]"),
+        T("luhn_long_zeros", '"0" × 100', 'luhn_valid(&"0".repeat(100))', "true"),
+        r"""
+        #[test]
+        fn random_vs_brute_force() {
+            #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+            enum Tok {
+                // Numbers sort between the characters below '0' and those above '9'.
+                Low(char),
+                Num(u128),
+                High(char),
+            }
+            fn toks(s: &str) -> Vec<Tok> {
+                let cs: Vec<char> = s.chars().collect();
+                let mut out = Vec::new();
+                let mut i = 0;
+                while i < cs.len() {
+                    if cs[i].is_ascii_digit() {
+                        let mut v = 0u128;
+                        while i < cs.len() && cs[i].is_ascii_digit() {
+                            v = v * 10 + cs[i] as u128 - '0' as u128;
+                            i += 1;
+                        }
+                        out.push(Tok::Num(v));
+                    } else {
+                        out.push(if cs[i] < '0' { Tok::Low(cs[i]) } else { Tok::High(cs[i]) });
+                        i += 1;
+                    }
+                }
+                out
+            }
+            let mut rng = anneal_prelude::Rng::new(7213);
+            let pieces = ["a", "b", "0", "1", "9", "10", "007", "é", "-"];
+            let sample = |rng: &mut anneal_prelude::Rng| {
+                let mut s = String::new();
+                for _ in 0..rng.below(6) {
+                    s += *rng.pick(&pieces);
+                }
+                s
+            };
+            for _ in 0..400 {
+                let (a, b) = (sample(&mut rng), sample(&mut rng));
+                let want = toks(&a).cmp(&toks(&b)).then_with(|| a.cmp(&b));
+                let digits: String = (0..rng.below(20)).map(|_| char::from(b'0' + rng.below(10) as u8)).collect();
+                let spaced: String = digits.chars().flat_map(|c| [c, ' ']).collect();
+                let mut sum = 0;
+                for (i, c) in digits.chars().rev().enumerate() {
+                    let d = c as u32 - '0' as u32;
+                    sum += if i % 2 == 1 { (d * 2) / 10 + (d * 2) % 10 } else { d };
+                }
+                let want_luhn = digits.len() >= 2 && sum % 10 == 0;
+                check!(format!("a = {a:?}, b = {b:?}, card = {spaced:?}"), (natural_cmp(&a, &b), luhn_valid(&spaced)), (want, want_luhn));
+            }
+        }
+
+        #[test]
+        fn scale_sort_100k_names() {
+            let mut names: Vec<String> = (0..100_000).map(|i| format!("log{i}.txt")).collect();
+            let mut rng = anneal_prelude::Rng::new(7214);
+            rng.shuffle(&mut names);
+            names.sort_by(|a, b| natural_cmp(a, b));
+            let ok = names.iter().enumerate().all(|(i, n)| *n == format!("log{i}.txt"));
+            check!("100000 shuffled names log0.txt … log99999.txt", ok, true);
+            let (a, b) = ("1".repeat(1_000_000) + "a", "1".repeat(1_000_000) + "b");
+            check!("two 1000001-char strings that differ at the end", natural_cmp(&a, &b), Ordering::Less);
+        }
+        """,
+    ],
+    wrong=dict(
+        parses_into_u64=sub(NAT_SOL, """let (nx, ny) = (nx.trim_start_matches('0'), ny.trim_start_matches('0'));
+                        let ord = nx.len().cmp(&ny.len()).then_with(|| nx.cmp(ny));""", """let ord = nx.parse::<u64>().unwrap().cmp(&ny.parse::<u64>().unwrap());"""),
+        compares_run_lengths_with_zeros=sub(NAT_SOL, "let (nx, ny) = (nx.trim_start_matches('0'), ny.trim_start_matches('0'));\n", ""),
+        no_tie_break=sub(NAT_SOL, "(None, None) => return a.cmp(b),", "(None, None) => return Ordering::Equal,"),
+        tie_break_too_early=sub(NAT_SOL, """let (nx, ny) = (nx.trim_start_matches('0'), ny.trim_start_matches('0'));
+                        let ord = nx.len().cmp(&ny.len()).then_with(|| nx.cmp(ny));""", """let (tx, ty) = (nx.trim_start_matches('0'), ny.trim_start_matches('0'));
+                        let ord = tx.len().cmp(&ty.len()).then_with(|| tx.cmp(ty)).then_with(|| nx.cmp(ny));"""),
+        is_numeric_digits=sub(NAT_SOL, """let Some(d) = c.to_digit(10) else {
+                    return false;
+                };""", """if !c.is_numeric() {
+                    return false;
+                }
+                let d = c as u32 - '0' as u32;"""),
+        counts_spaces_as_digits=sub(NAT_SOL, "count >= 2 && sum % 10 == 0", "s.len() >= 2 && sum % 10 == 0"),
+    ),
+    hints=[("approach", "Keep two `&str` cursors. When both start with a digit, split off each digit run, strip leading zeros, and compare by length then lexically. Otherwise compare one char and advance by `len_utf8`."),
+           ("rust", "`s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len())` ends a run; `ord.then_with(|| …)` chains comparisons. For Luhn, `c.to_digit(10)` is `None` for anything but `0`–`9`."),
+           ("edge case", "`\"a1b\"` vs `\"a01a\"`: the numbers tie, so keep going (`b` > `a`); the plain-string tie-break is only for strings that compare equal all the way.")],
+    notes=("""Parsing a digit run into `u64` is the classic bug: file names like `IMG_20240501123456789` overflow, and `unwrap` then panics inside `sort_by`. Comparing the zero-stripped digit strings, by length then lexically, is the same comparison with no limit. The tie-break matters because `sort_by`, `BTreeMap` and binary search assume a total order: without it `"01"` and `"1"` are `Equal` but not identical, and a comparator that isn't consistent can make `sort_by` panic ("user-provided comparison function does not correctly implement a total order"). For Luhn, the trap is `is_numeric`/`is_digit`-style checks that accept other scripts' digits; `to_digit(10)` returns the value and rejects them in one step. Syntax to remember: `c.is_ascii_digit()`, `c.to_digit(10)` → `Option<u32>`, `char::from_digit(d, 10)`, `s.trim_start_matches('0')`, `a.cmp(&b).then_with(|| …)`, `ord.reverse()`, `v.sort_by(|a, b| natural_cmp(a, b))`, `v.sort_by_key(|s| key(s))`.""", "O(n) per comparison", "O(1)"),
+    follow_up="How would you make `natural_cmp` case-insensitive without allocating, and still a total order? What should `\"a\"` vs `\"A\"` return?",
+    related=["S3"],
+))
+
+PATH_SOL = r"""
+        use std::borrow::Cow;
+        use std::ffi::OsStr;
+        use std::path::{Path, PathBuf};
+
+        /// The extension, ASCII-lowercased, if the file name has one that is valid UTF-8.
+        pub fn ext_lower(path: &Path) -> Option<String> {
+            Some(path.extension()?.to_str()?.to_ascii_lowercase())
+        }
+
+        /// The file name for display, with U+FFFD for bytes that aren't UTF-8; "" when there is no file name.
+        pub fn display_name(path: &Path) -> Cow<'_, str> {
+            path.file_name().map_or(Cow::Borrowed(""), OsStr::to_string_lossy)
+        }
+
+        /// The same path with ".bak" appended to the file name; `None` when there is no file name.
+        pub fn backup_path(path: &Path) -> Option<PathBuf> {
+            let mut name = path.file_name()?.to_os_string();
+            name.push(".bak");
+            Some(path.with_file_name(name))
+        }
+
+        /// The paths that are inside `root` (by whole components), relative to it and as UTF-8, in order.
+        pub fn relative_to<'a>(paths: &'a [PathBuf], root: &Path) -> Vec<&'a str> {
+            paths.iter().filter_map(|p| p.strip_prefix(root).ok()?.to_str()).collect()
+        }
+"""
+
+PATH_STARTER = r"""
+        use std::borrow::Cow;
+        use std::ffi::OsStr;
+        use std::path::{Path, PathBuf};
+
+        /// The extension, ASCII-lowercased, if the file name has one that is valid UTF-8.
+        pub fn ext_lower(path: &Path) -> Option<String> {
+            todo!()
+        }
+
+        /// The file name for display, with U+FFFD for bytes that aren't UTF-8; "" when there is no file name.
+        pub fn display_name(path: &Path) -> Cow<'_, str> {
+            todo!()
+        }
+
+        /// The same path with ".bak" appended to the file name; `None` when there is no file name.
+        pub fn backup_path(path: &Path) -> Option<PathBuf> {
+            todo!()
+        }
+
+        /// The paths that are inside `root` (by whole components), relative to it and as UTF-8, in order.
+        pub fn relative_to<'a>(paths: &'a [PathBuf], root: &Path) -> Vec<&'a str> {
+            todo!()
+        }
+"""
+
+PATH_TESTS = r"""
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+        use std::path::{Path, PathBuf};
+
+        /// A path from raw bytes, which need not be UTF-8 (Unix paths are bytes).
+        fn raw(bytes: &[u8]) -> &Path {
+            Path::new(OsStr::from_bytes(bytes))
+        }
+
+        fn bufs(paths: &[&str]) -> Vec<PathBuf> {
+            paths.iter().map(PathBuf::from).collect()
+        }
+"""
+
+P.append(dict(
+    slug="paths-and-osstr", title="Paths are not strings", level="medium", stage="understand",
+    tags=["Path", "OsStr", "to_string_lossy", "strip_prefix", "with_file_name"],
+    teaches=[
+        "A Unix path is bytes, not UTF-8: `OsStr::to_str` is an `Option`, `to_string_lossy` a `Cow`.",
+        "`Path::strip_prefix` matches whole components, so `/data2/x` is not inside `/data`; `str::strip_prefix` says it is.",
+        "`with_extension` replaces the extension (`notes.txt` → `notes.bak`); appending needs an `OsString` push and `with_file_name`.",
+    ],
+    statement="""
+        File-handling helpers that must work on any Unix path, including names that aren't valid UTF-8. Work
+        with `Path`, `OsStr` and `PathBuf`; converting a whole path to `&str` first gets several of these wrong.
+
+        - `ext_lower(path)`: the file name's extension, ASCII-lowercased, if it has one and it's valid UTF-8.
+          Use std's definition: `".bashrc"` has none, `"a.tar.gz"` has `"gz"`, `"file."` has `""`.
+        - `display_name(path)`: the file name for display, with U+FFFD for bytes that aren't UTF-8; `""` when the
+          path has no file name (`"/"`, `".."`). Borrow when it's valid UTF-8.
+        - `backup_path(path)`: the same path with `.bak` appended to the file name (`"notes.txt"` →
+          `"notes.txt.bak"`), even when the name isn't UTF-8. `None` when there's no file name.
+        - `relative_to(paths, root)`: for each path inside `root`, compared by whole components, the rest of the
+          path as `&str`, in order. Skip paths outside `root` and paths whose rest isn't UTF-8. `root` itself gives
+          `""`.
+    """,
+    examples=[('ext_lower("IMG_01.JPG")', 'Some("jpg")'), ('backup_path("conf/notes.txt")', 'Some("conf/notes.txt.bak")'),
+              ('relative_to(["/data/a.txt", "/data2/b"], "/data")', '["a.txt"]')],
+    starter=PATH_STARTER,
+    solution=PATH_SOL,
+    visible=[
+        PATH_TESTS,
+        T("ext_lowercased", '"photos/IMG_01.JPG"', 'ext_lower(Path::new("photos/IMG_01.JPG"))', 'Some("jpg".to_string())'),
+        T("dotfile_has_no_extension", '".bashrc"', 'ext_lower(Path::new(".bashrc"))', "None"),
+        T("display_non_utf8_name", 'b"dir/caf\\xe9.txt" (Latin-1 é)', 'display_name(raw(b"dir/caf\\xe9.txt"))', '"caf\\u{FFFD}.txt"'),
+        T("backup_appends", '"conf/notes.txt"', 'backup_path(Path::new("conf/notes.txt"))', 'Some(PathBuf::from("conf/notes.txt.bak"))'),
+        T("relative_by_components", 'root "/data", paths ["/data/a.txt", "/data2/b", "/data/x/y"]', 'relative_to(&paths, Path::new("/data"))', 'vec!["a.txt", "x/y"]',
+          setup='let paths = bufs(&["/data/a.txt", "/data2/b", "/data/x/y"]);'),
+    ],
+    hidden=[
+        PATH_TESTS,
+        T("ext_last_one_only", '"a.tar.GZ"', 'ext_lower(Path::new("a.tar.GZ"))', 'Some("gz".to_string())'),
+        T("ext_trailing_dot_is_empty", '"file."', 'ext_lower(Path::new("file."))', 'Some(String::new())'),
+        T("ext_dot_in_directory", '"dir.d/file"', 'ext_lower(Path::new("dir.d/file"))', "None"),
+        T("ext_hidden_file_with_extension", '"x/.env.LOCAL"', 'ext_lower(Path::new("x/.env.LOCAL"))', 'Some("local".to_string())'),
+        T("ext_not_utf8", 'b"a.t\\xffxt"', 'ext_lower(raw(b"a.t\\xffxt"))', "None"),
+        T("ext_only_ascii_lowered", '"a.ÉTÉ"', 'ext_lower(Path::new("a.ÉTÉ"))', 'Some("ÉtÉ".to_string())'),
+        T("ext_no_file_name", '"/" and ".."', '(ext_lower(Path::new("/")), ext_lower(Path::new("..")))', "(None, None)"),
+        T("display_borrows_utf8", '"a/b/日本.txt"', 'matches!(display_name(Path::new("a/b/日本.txt")), std::borrow::Cow::Borrowed("日本.txt"))', "true"),
+        T("display_no_file_name", '"/", "..", "a/..", ""', '[display_name(Path::new("/")), display_name(Path::new("..")), display_name(Path::new("a/..")), display_name(Path::new(""))]',
+          '["", "", "", ""]'),
+        T("display_trailing_slash", '"a/b/"', 'display_name(Path::new("a/b/"))', '"b"'),
+        T("backup_not_with_extension", '"a/b.tar.gz"', 'backup_path(Path::new("a/b.tar.gz"))', 'Some(PathBuf::from("a/b.tar.gz.bak"))'),
+        T("backup_no_extension", '"Makefile"', 'backup_path(Path::new("Makefile"))', 'Some(PathBuf::from("Makefile.bak"))'),
+        T("backup_dotfile", '"~/.bashrc"', 'backup_path(Path::new("~/.bashrc"))', 'Some(PathBuf::from("~/.bashrc.bak"))'),
+        T("backup_non_utf8", 'b"d/\\xff.log"', 'backup_path(raw(b"d/\\xff.log"))', 'Some(raw(b"d/\\xff.log.bak").to_path_buf())'),
+        T("backup_no_file_name", '"/" and "x/.."', '(backup_path(Path::new("/")), backup_path(Path::new("x/..")))', "(None, None)"),
+        T("backup_trailing_slash", '"logs/"', 'backup_path(Path::new("logs/"))', 'Some(PathBuf::from("logs.bak"))'),
+        T("relative_root_itself_and_trailing_slash", 'root "/data/", paths ["/data", "/data/", "/database"]', 'relative_to(&paths, Path::new("/data/"))', 'vec!["", ""]',
+          setup='let paths = bufs(&["/data", "/data/", "/database"]);'),
+        T("relative_skips_non_utf8", 'root "/r", paths ["/r/ok", b"/r/\\xff", "/r/fine"]', 'relative_to(&paths, Path::new("/r"))', 'vec!["ok", "fine"]',
+          setup='let paths = vec![PathBuf::from("/r/ok"), raw(b"/r/\\xff").to_path_buf(), PathBuf::from("/r/fine")];'),
+        T("relative_relative_paths", 'root "src", paths ["src/lib.rs", "srcs/x", "./src/a", "src"]', 'relative_to(&paths, Path::new("src"))', 'vec!["lib.rs", ""]',
+          setup='let paths = bufs(&["src/lib.rs", "srcs/x", "./src/a", "src"]);'),
+        T("relative_borrows", "the result points into the input paths", "got[0].as_ptr() == paths[0].to_str().unwrap()[3..].as_ptr()", "true",
+          setup='let paths = bufs(&["/r/abc"]);\nlet got = relative_to(&paths, Path::new("/r"));'),
+        r"""
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(7215);
+            let parts = ["a", "ab", "a.b", ".c", "d.", "X.Y"];
+            for _ in 0..300 {
+                let n = rng.below(4) + 1;
+                let comps: Vec<&str> = (0..n).map(|_| *rng.pick(&parts)).collect();
+                let path = comps.join("/");
+                let name = *comps.last().unwrap();
+                let want_ext = match name.rfind('.') {
+                    Some(0) | None => None,
+                    Some(i) => Some(name[i + 1..].to_ascii_lowercase()),
+                };
+                let want_bak = PathBuf::from(format!("{path}.bak"));
+                let root_len = rng.below(n + 1);
+                let root = comps[..root_len].join("/");
+                let want_rel: Vec<String> = if root_len == 0 { vec![path.clone()] } else { vec![comps[root_len..].join("/")] };
+                let paths = vec![PathBuf::from(&path)];
+                let got_rel: Vec<String> = relative_to(&paths, Path::new(&root)).into_iter().map(String::from).collect();
+                check!(format!("path = {path:?}, root = {root:?}"),
+                       (ext_lower(Path::new(&path)), display_name(Path::new(&path)).into_owned(), backup_path(Path::new(&path)), got_rel),
+                       (want_ext, name.to_string(), Some(want_bak), want_rel));
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        with_extension_replaces=sub(PATH_SOL, """let mut name = path.file_name()?.to_os_string();
+            name.push(".bak");
+            Some(path.with_file_name(name))""", """path.file_name()?;
+            Some(path.with_extension("bak"))"""),
+        string_prefix=sub(PATH_SOL, "paths.iter().filter_map(|p| p.strip_prefix(root).ok()?.to_str()).collect()",
+                          "let root = root.to_str().unwrap_or(\"\").trim_end_matches('/');\n            paths.iter().filter_map(|p| Some(p.to_str()?.strip_prefix(root)?.trim_start_matches('/'))).collect()"),
+        lossy_extension=sub(PATH_SOL, "Some(path.extension()?.to_str()?.to_ascii_lowercase())", "Some(path.extension()?.to_string_lossy().to_ascii_lowercase())"),
+        unicode_lowercase=sub(PATH_SOL, "Some(path.extension()?.to_str()?.to_ascii_lowercase())", "Some(path.extension()?.to_str()?.to_lowercase())"),
+        display_drops_non_utf8=sub(PATH_SOL, "path.file_name().map_or(Cow::Borrowed(\"\"), OsStr::to_string_lossy)", "Cow::Borrowed(path.file_name().and_then(OsStr::to_str).unwrap_or(\"\"))"),
+    ),
+    hints=[("rust", "`path.extension()` and `path.file_name()` return `Option<&OsStr>`; `.to_str()` is `Option<&str>` and `.to_string_lossy()` is `Cow<str>`."),
+           ("rust", "`let mut name = path.file_name()?.to_os_string(); name.push(\".bak\");` then `path.with_file_name(name)`."),
+           ("edge case", "`\"/data2/b\".strip_prefix(\"/data\")` is `Some(\"2/b\")`; `Path::new(\"/data2/b\").strip_prefix(\"/data\")` is an error.")],
+    notes=("""On Unix a path is a byte string with no encoding (on Windows it's potentially ill-formed UTF-16), which is why std has `OsStr`/`OsString` and `Path`/`PathBuf` instead of using `str`. Each conversion to text is a decision: `to_str()` when the program can't go on without UTF-8, `to_string_lossy()` for display, `as_encoded_bytes()`/`OsStrExt::as_bytes()` when you need the bytes. `Path` methods work on components, so they get `/data2` vs `/data`, trailing slashes and `..` right where string code doesn't. Syntax to remember: `Path::new(s)`, `p.file_name()` / `file_stem()` / `extension()` → `Option<&OsStr>`, `p.parent()`, `p.join(x)`, `p.with_file_name(n)`, `p.with_extension(e)`, `p.strip_prefix(root)` → `Result<&Path, _>`, `p.components()`, `os.to_str()`, `os.to_string_lossy()`, `os.to_os_string()` + `push`, `p.to_path_buf()`, `p.display()` for `{}`.""", "O(path length)", "O(path length)"),
+    follow_up="Why does `Path` implement `AsRef<Path>` for `&str`, `String` and `OsStr`, and what does `fn open(p: impl AsRef<Path>)` buy the caller?",
+    related=["L4"],
+))
+
+UTF8_SOL = r"""
+        /// Decodes UTF-8 that arrives in chunks, such as reads from a socket.
+        #[derive(Default)]
+        pub struct Utf8Decoder {
+            /// The start of a character the last chunk ended in the middle of (at most 3 bytes).
+            pending: Vec<u8>,
+        }
+
+        impl Utf8Decoder {
+            pub fn new() -> Self {
+                Self::default()
+            }
+
+            /// Decodes `chunk` onto `out`. Each invalid sequence becomes U+FFFD, as `String::from_utf8_lossy`
+            /// would do it; a character cut off at the end of the chunk waits for the next one.
+            pub fn push(&mut self, chunk: &[u8], out: &mut String) {
+                let joined;
+                let mut input = chunk;
+                if !self.pending.is_empty() {
+                    self.pending.extend_from_slice(chunk);
+                    joined = std::mem::take(&mut self.pending);
+                    input = &joined;
+                }
+                loop {
+                    match std::str::from_utf8(input) {
+                        Ok(text) => {
+                            out.push_str(text);
+                            return;
+                        }
+                        Err(e) => {
+                            let (good, bad) = input.split_at(e.valid_up_to());
+                            out.push_str(std::str::from_utf8(good).unwrap());
+                            match e.error_len() {
+                                Some(len) => {
+                                    out.push(char::REPLACEMENT_CHARACTER);
+                                    input = &bad[len..];
+                                }
+                                None => {
+                                    self.pending.extend_from_slice(bad);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            /// The end of the input: a character that was never finished becomes U+FFFD.
+            pub fn finish(self, out: &mut String) {
+                if !self.pending.is_empty() {
+                    out.push(char::REPLACEMENT_CHARACTER);
+                }
+            }
+        }
+"""
+
+UTF8_STARTER = r"""
+        /// Decodes UTF-8 that arrives in chunks, such as reads from a socket.
+        #[derive(Default)]
+        pub struct Utf8Decoder {
+            // Your state here.
+        }
+
+        impl Utf8Decoder {
+            pub fn new() -> Self {
+                Self::default()
+            }
+
+            /// Decodes `chunk` onto `out`. Each invalid sequence becomes U+FFFD, as `String::from_utf8_lossy`
+            /// would do it; a character cut off at the end of the chunk waits for the next one.
+            pub fn push(&mut self, chunk: &[u8], out: &mut String) {
+                todo!()
+            }
+
+            /// The end of the input: a character that was never finished becomes U+FFFD.
+            pub fn finish(self, out: &mut String) {
+                todo!()
+            }
+        }
+"""
+
+UTF8_TESTS = r"""
+        /// Feeds `chunks` through one decoder, then finishes it.
+        fn decode(chunks: &[&[u8]]) -> String {
+            let mut d = Utf8Decoder::new();
+            let mut out = String::new();
+            for c in chunks {
+                d.push(c, &mut out);
+            }
+            d.finish(&mut out);
+            out
+        }
+"""
+
+
+def dc(name, desc, chunks, want):
+    return T(name, desc, "decode(&[" + ", ".join(chunks) + "])", want)
+
+
+P.append(dict(
+    slug="utf8-chunk-decoder", title="Decode UTF-8 that arrives in chunks", level="medium", stage="understand",
+    tags=["from_utf8", "Utf8Error", "valid_up_to", "error_len", "from_utf8_lossy"],
+    teaches=[
+        "`str::from_utf8` fails with a `Utf8Error` that says how much was valid (`valid_up_to`) and whether the rest is bad (`error_len() == Some(n)`) or just cut short (`None`).",
+        "A character split across two reads is not an error: keep its first bytes until the next chunk arrives.",
+        "Decoding each chunk with `from_utf8_lossy` on its own corrupts every character that straddles a boundary.",
+    ],
+    statement="""
+        Bytes from a socket arrive in arbitrary chunks, so a multi-byte character can be split between two reads.
+        Write a streaming decoder:
+
+        - `push(chunk, out)` appends the decoded text of `chunk` to `out`. Invalid bytes become U+FFFD exactly as
+          `String::from_utf8_lossy` replaces them. If the chunk ends partway through a character, hold those bytes
+          and finish the character with the next chunk.
+        - `finish(out)` ends the input: if a character was left unfinished, append one U+FFFD.
+
+        Whatever the chunking, the output must equal `String::from_utf8_lossy` of all the bytes joined together.
+    """,
+    examples=[('push([0xC3]), push([0xA9]), finish', '"é"'), ('push(b"a\\xffb"), finish', '"a\\u{FFFD}b"'), ('push([0x61, 0xE2, 0x82]), finish', '"a\\u{FFFD}"')],
+    starter=UTF8_STARTER,
+    solution=UTF8_SOL,
+    visible=[
+        UTF8_TESTS,
+        dc("whole_chunk", 'b"hello"', ['b"hello"'], '"hello".to_string()'),
+        dc("char_split_in_two", "[0xC3] then [0xA9]", ['&[0xC3]', '&[0xA9]'], '"é".to_string()'),
+        dc("invalid_byte_replaced", 'b"a\\xffb"', ['b"a\\xffb"'], '"a\\u{FFFD}b".to_string()'),
+        dc("unfinished_at_the_end", 'b"ab\\xe2\\x82", then finish', ['b"ab\\xe2\\x82"'], '"ab\\u{FFFD}".to_string()'),
+        dc("emoji_one_byte_at_a_time", "🦀 as four 1-byte chunks", ['&[0xF0]', '&[0x9F]', '&[0xA6]', '&[0x80]'], '"🦀".to_string()'),
+    ],
+    hidden=[
+        UTF8_TESTS,
+        dc("nothing", "no chunks", [], "String::new()"),
+        dc("empty_chunks", "[], b\"a\", []", ['&[]', 'b"a"', '&[]'], '"a".to_string()'),
+        dc("split_then_bad_continuation", "[0xE2] then b\"A\"", ['&[0xE2]', 'b"A"'], '"\\u{FFFD}A".to_string()'),
+        dc("two_bytes_of_three_then_bad", "[0xE2, 0x82] then b\"A\"", ['&[0xE2, 0x82]', 'b"A"'], '"\\u{FFFD}A".to_string()'),
+        dc("completes_and_leaves_a_new_tail", "[0xC3], [0xA9, 0xE6], [0x97, 0xA5]", ['&[0xC3]', '&[0xA9, 0xE6]', '&[0x97, 0xA5]'], '"é日".to_string()'),
+        dc("tail_then_text", "[0xF0, 0x9F] then [0xA6, 0x80, b'x']", ['&[0xF0, 0x9F]', "&[0xA6, 0x80, b'x']"], '"🦀x".to_string()'),
+        dc("surrogate_bytes", "[0xED, 0xA0, 0x80]", ['&[0xED, 0xA0, 0x80]'], '"\\u{FFFD}\\u{FFFD}\\u{FFFD}".to_string()'),
+        dc("overlong_encoding", "[0xC0, 0x80]", ['&[0xC0, 0x80]'], '"\\u{FFFD}\\u{FFFD}".to_string()'),
+        dc("stray_continuation_bytes", "[0x80, 0x80] then b\"ok\"", ['&[0x80, 0x80]', 'b"ok"'], '"\\u{FFFD}\\u{FFFD}ok".to_string()'),
+        dc("lead_byte_then_lead_byte", "[0xC3] then [0xC3, 0xA9]", ['&[0xC3]', '&[0xC3, 0xA9]'], '"\\u{FFFD}é".to_string()'),
+        dc("invalid_then_split", 'b"\\xff\\xc3" then [0xA9]', ['b"\\xff\\xc3"', '&[0xA9]'], '"\\u{FFFD}é".to_string()'),
+        T("output_is_appended", "out already holds \"> \"", "out", '"> é".to_string()',
+          setup="let mut d = Utf8Decoder::new();\nlet mut out = String::from(\"> \");\nd.push(&[0xC3], &mut out);\nd.push(&[0xA9], &mut out);\nd.finish(&mut out);"),
+        T("nothing_emitted_until_complete", "after pushing only [0xE6, 0x97]", "out", "String::new()",
+          setup="let mut d = Utf8Decoder::new();\nlet mut out = String::new();\nd.push(&[0xE6, 0x97], &mut out);"),
+        r"""
+        #[test]
+        fn random_vs_from_utf8_lossy() {
+            let mut rng = anneal_prelude::Rng::new(7216);
+            let alphabet = [0x41u8, 0xC3, 0xA9, 0xE6, 0x97, 0xA5, 0xF0, 0x9F, 0xA6, 0x80, 0xFF, 0xED, 0xA0, 0xC0];
+            for _ in 0..500 {
+                let len = rng.below(16);
+                let bytes: Vec<u8> = (0..len).map(|_| *rng.pick(&alphabet)).collect();
+                let mut cuts: Vec<usize> = (0..rng.below(5)).map(|_| rng.below(len + 1)).collect();
+                cuts.sort();
+                let mut chunks: Vec<&[u8]> = Vec::new();
+                let mut at = 0;
+                for &c in &cuts {
+                    chunks.push(&bytes[at..c]);
+                    at = c;
+                }
+                chunks.push(&bytes[at..]);
+                check!(format!("chunks = {chunks:x?}"), decode(&chunks), String::from_utf8_lossy(&bytes).into_owned());
+            }
+        }
+
+        #[test]
+        fn scale_1mb_in_small_chunks() {
+            let text = "aé日🦀".repeat(100_000);
+            let bytes = text.as_bytes();
+            for size in [1, 3, 7] {
+                let chunks: Vec<&[u8]> = bytes.chunks(size).collect();
+                check!(format!("\"aé日🦀\" × 100000 in {size}-byte chunks"), decode(&chunks) == text, true);
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        each_chunk_on_its_own="""
+            #[derive(Default)]
+            pub struct Utf8Decoder {}
+
+            impl Utf8Decoder {
+                pub fn new() -> Self {
+                    Self::default()
+                }
+
+                pub fn push(&mut self, chunk: &[u8], out: &mut String) {
+                    out.push_str(&String::from_utf8_lossy(chunk));
+                }
+
+                pub fn finish(self, _out: &mut String) {}
+            }
+        """,
+        finish_drops_the_tail=sub(UTF8_SOL, """if !self.pending.is_empty() {
+                    out.push(char::REPLACEMENT_CHARACTER);
+                }""", "let _ = out;"),
+        every_error_waits=sub(UTF8_SOL, """match e.error_len() {
+                                Some(len) => {
+                                    out.push(char::REPLACEMENT_CHARACTER);
+                                    input = &bad[len..];
+                                }
+                                None => {
+                                    self.pending.extend_from_slice(bad);
+                                    return;
+                                }
+                            }""", """self.pending.extend_from_slice(bad);
+                            return;"""),
+        one_replacement_per_byte=sub(UTF8_SOL, "input = &bad[len..];", "input = &bad[1..];\n                                    let _ = len;"),
+    ),
+    hints=[("rust", "`std::str::from_utf8(bytes)` → `Err(e)`: `&bytes[..e.valid_up_to()]` is valid UTF-8. `e.error_len()` is `Some(n)` for `n` bad bytes to replace and skip, `None` when the input just ended mid-character."),
+           ("approach", "Keep the unfinished bytes in a small `Vec<u8>`. On the next push, put them in front of the new chunk and decode from there."),
+           ("edge case", "The held bytes may turn out invalid once the next byte arrives (`[0xE2]` then `b\"A\"` is `\"\\u{FFFD}A\"`): decode them, don't assume they'll complete.")],
+    notes=("""`from_utf8` doesn't just say "invalid": `valid_up_to()` is how many bytes are fine, and `error_len()` distinguishes a real error (`Some(n)`: replace and skip `n` bytes, which is how `from_utf8_lossy` produces one U+FFFD per maximal invalid subpart) from a truncated character (`None`: wait for more). That second case is the whole job of a streaming decoder, and the difference between this and calling `from_utf8_lossy` on each read. This version copies the chunk behind the held bytes when there are any; a tighter one completes just the held character from the first 1–3 bytes of the chunk and decodes the rest in place. `BufRead::read_line` has the same problem and solves it by buffering. Syntax to remember: `std::str::from_utf8(&b)` → `Result<&str, Utf8Error>`, `String::from_utf8(vec)` (takes ownership, `into_bytes()` on the error gives it back), `e.valid_up_to()`, `e.error_len()`, `String::from_utf8_lossy(&b)` → `Cow<str>`, `char::REPLACEMENT_CHARACTER`, `std::str::from_utf8_unchecked` (unsafe).""", "O(n) over all chunks", "O(1) held between chunks"),
+    follow_up="`std::str::from_utf8(good).unwrap()` re-validates bytes that were just validated. When is `from_utf8_unchecked` justified here, and what would you write in its `// SAFETY:` comment?",
+    related=["S1"],
+))
+
 
 # ---------------------------------------------------------------- build (hard)
 
@@ -2593,7 +3475,7 @@ P.append(dict(
     hints=[("rust", "Peel pieces off with `split_once`: `\"://\"`, then `'?'`, then the first `/`, then `':'`."),
            ("rust", "`p.parse().ok()?` inside a match arm returns `None` from the whole function on a bad port."),
            ("rust", "`split_at(i)` keeps the `/` in the path, which is what you want.")],
-    notes=("Every field is a slice of the input, so parsing allocates only the query Vec. The `'_` in `Url<'_>` ties the result to `s`.", "O(n)", "O(q)"),
+    notes=("Every field is a slice of the input, so parsing allocates only the query Vec. The `'_` in `Url<'_>` ties the result to `s`. Syntax to remember: `s.split_once(\"://\")?`, `rest.split_once('?').unwrap_or((rest, \"\"))`, `s.split_at(i)` (keeps the delimiter on the right), `p.parse().ok()?`, `pair.split_once('=').unwrap_or((pair, \"\"))`.", "O(n)", "O(q)"),
     follow_up="Real URLs percent-encode. Where would decoding force a `Cow<'a, str>`?",
     related=["L3"],
 ))
@@ -2823,7 +3705,7 @@ P.append(dict(
     hints=[("rust", "`next` returns `Option<&'a str>`, not a borrow of `self`: slice `rest` (a `&'a str` you copied out), never `self`."),
            ("approach", "`find` for the front, `rfind` for the back. When no delimiter is left, yield all of `rest` and set it to `None`."),
            ("edge case", "Step past the delimiter by `delim.len_utf8()`, not 1.")],
-    notes=("Copying `self.rest` out (it's a `&'a str`, which is `Copy`) is what lets the items outlive the `&mut self` borrow. Using `Option` for 'finished' distinguishes an empty last piece from no piece.", "O(n) total", "O(1)"),
+    notes=("Copying `self.rest` out (it's a `&'a str`, which is `Copy`) is what lets the items outlive the `&mut self` borrow. Using `Option` for 'finished' distinguishes an empty last piece from no piece. Syntax to remember: `impl<'a> Iterator for SplitOn<'a> { type Item = &'a str; fn next(&mut self) -> Option<&'a str> }`, `impl DoubleEndedIterator` with `next_back`, `let rest = self.rest?;` (a `&str` is `Copy`), `s.find(c)` / `s.rfind(c)`, `c.len_utf8()`.", "O(n) total", "O(1)"),
     follow_up="Generalise the delimiter to any `Pattern`-like trait: what would its methods be?",
     rules=dict(methods=["split", "rsplit", "splitn", "rsplitn", "split_terminator", "rsplit_terminator", "split_once", "rsplit_once", "split_inclusive", "split_whitespace", "split_ascii_whitespace", "lines"]),
     related=["L3", "L5"],
@@ -3035,7 +3917,7 @@ P.append(dict(
     hints=[("rust", "`char_indices().peekable()` gives byte offsets for errors, and `next_if(|&(_, c)| c == '{')` consumes an escape only if it's there."),
            ("approach", "At a `{`, find the matching `}` with `template[i..].find('}')`, look the name up, then skip the iterator past the `}`."),
            ("edge case", "Report byte offsets, not character counts: `\"é}\"` has its `}` at offset 2.")],
-    notes=("A small scanner with one character of lookahead handles escapes, placeholders and errors in a single pass. `HashMap<&str, &str>::get` takes a `&str` directly.", "O(n)", "O(n)"),
+    notes=("A small scanner with one character of lookahead handles escapes, placeholders and errors in a single pass. `HashMap<&str, &str>::get` takes a `&str` directly. Syntax to remember: `let mut it = s.char_indices().peekable();`, `while let Some((i, c)) = it.next()`, `it.next_if(|&(_, c)| c == '{')`, `it.peek()`, `s[i..].find('}')`, `map.get(name).ok_or_else(|| E::Unknown(name.to_string()))?`.", "O(n)", "O(n)"),
     follow_up="Add `{name:>8}` style alignment. Where would you parse the spec, and how would you apply it?",
     related=["S1", "S4"],
 ))

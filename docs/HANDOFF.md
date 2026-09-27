@@ -184,6 +184,10 @@ test bar) and `write-track.md` (write a new track from its CURRICULUM table). Fi
 `{CODE}`, `{ORDER}`, `{SEEDS}` placeholders and hand one to an agent per track; agents share the checkout, so each
 commits only its own `tools/author/<track>.py` and `content/tracks/<folder>`, verifies with `--jobs 1`, and pushes.
 
+**Owner's order (2026-09-27): finish tracks one at a time, Graphs (D9 extension) → DP (D12) → Trees (D6) → Tries (D10) →
+the rest (D8, D11, D4/S1 hardening).** Paused agents committed their last finished stage; resume a track from the next
+stage in its CURRICULUM table.
+
 | Work | State | Resume by |
 |---|---|---|
 | Verifier `wrong/` + prelude `Rng` + host kill fix | ✅ done | |
@@ -191,7 +195,7 @@ commits only its own `tools/author/<track>.py` and `content/tracks/<folder>`, ve
 | New tracks from CURRICULUM (LeetCode 250 coverage): D6 Trees 44, D8 Greedy 29, D10 Tries 25, D11 Recursion & backtracking 28, D12 DP 57 | ⏳ being written stage by stage (check `list`) | `write-track.md`; the spec keeps what's written, continue with the next stage in the CURRICULUM table |
 | D9 Graphs extension 35 → 58 (new stages Grid & graph traversal, BFS patterns, Hard traversals) | ⏳ queued after D9/D4/S1 hardening | `write-track.md` on d9.py: add the italic problems, restage existing ones, keep slugs; `network-delay-time` stays hand-written (`keep`) |
 | Company tags (`companies` in problem.toml, validated against `COMPANIES` in `crates/content/src/model.rs`, served by the API) | ✅ data layer, D1 D2 D3 D5 tagged · ⏳ other DSA tracks (agents tag as they go; `tag_companies()` in author.py) | add a `COMPANIES = {slug: [...]}` map + `tag_companies(P, COMPANIES)` to the spec. Priority FAANG + Microsoft, then big tech; databases / Rust shops only with a real reason |
-| Company column + filter in the track table | ⏳ needs an HTML mockup approved first (owner's rule) | mock the COMPANIES column (chips, FAANG first, `+n`) and a company/group filter, then build in `web/src/pages/TrackPage.tsx` and `web/src/api.ts` |
+| Company column + filter in the track table | ✅ built from the approved mockup (35b532e) · browser check at 1280/1440 still to do | `tools/ui-check.mjs` on `/t/<track>` with the API running |
 | Raise verifier minimums to 5 visible / 8 hidden | ⏳ after every track meets the bar | `verify_one` in `crates/cli/src/main.rs` (`count(&c.visible) < 2`, hidden `< 1`) |
 | Final pass | ⏳ | `anneal verify` on every track, `cargo test -p anneal-content -p anneal-runner -p anneal-rules`, update §2 counts and ROADMAP §0 |
 

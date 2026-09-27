@@ -1,3 +1,5 @@
+import textwrap
+
 from author import T, write_track
 
 P = []
@@ -5751,6 +5753,895 @@ P.append(dict(
     notes=("Fixing the last balloon in an interval freezes its neighbours at the interval's ends, which makes the left and right parts independent. There are O(n²) intervals and each tries O(n) last balloons.", "O(n³)", "O(n²)"),
     follow_up="Why does \"first to burst\" fail to give independent subproblems, while \"last to burst\" works?",
     related=["D11"],
+))
+
+# ---------------------------------------------------------------- Bitmasks & digits (hard)
+
+
+P.append(dict(
+    slug="count-numbers-with-unique-digits", title="Count numbers with unique digits", level="medium", stage="bitmasks-digits",
+    tags=["counting", "digits"],
+    companies=["Google", "Amazon", "Microsoft"],
+    teaches=["Counting by position: how many choices the first digit has, then the second, and so on.",
+             "Noticing when a count stops growing (no number has 11 distinct digits)."],
+    statement="""
+        Return how many integers `x` with `0 ≤ x < 10ⁿ` have no repeated digit. For example 102
+        counts but 110 doesn't.
+    """,
+    examples=[("n = 2", "91 (every number below 100 except 11, 22, …, 99)"), ("n = 0", "1 (just 0)")],
+    constraints=["0 ≤ n ≤ 20"],
+    starter="""
+        pub fn count_numbers_with_unique_digits(n: u32) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn count_numbers_with_unique_digits(n: u32) -> u64 {
+            // 0 on its own, then the numbers of each length k = 1..=n. A k-digit number has 9 choices
+            // for its first digit (1-9) and 9, 8, 7, ... for the rest, since each must be new.
+            let mut total = 1;
+            let mut of_length = 9u64;
+            // Past 10 digits some digit must repeat, so longer lengths add nothing.
+            for k in 1..=n.min(10) as u64 {
+                if k > 1 {
+                    of_length *= 11 - k;
+                }
+                total += of_length;
+            }
+            total
+        }
+    """,
+    visible=[
+        T("leetcode_two", "n = 2", "count_numbers_with_unique_digits(2)", "91"),
+        T("leetcode_zero", "n = 0", "count_numbers_with_unique_digits(0)", "1"),
+        T("one_digit", "n = 1", "count_numbers_with_unique_digits(1)", "10"),
+        T("three_digits", "n = 3", "count_numbers_with_unique_digits(3)", "739"),
+        T("stops_growing_after_ten", "n = 11", "count_numbers_with_unique_digits(11)", "8_877_691"),
+    ],
+    hidden=[
+        T("zero", "n = 0", "count_numbers_with_unique_digits(0)", "1"),
+        T("four", "n = 4", "count_numbers_with_unique_digits(4)", "5275"),
+        T("eight", "n = 8", "count_numbers_with_unique_digits(8)", "2_345_851"),
+        T("nine", "n = 9", "count_numbers_with_unique_digits(9)", "5_611_771"),
+        T("ten", "n = 10", "count_numbers_with_unique_digits(10)", "8_877_691"),
+        T("twelve", "n = 12", "count_numbers_with_unique_digits(12)", "8_877_691"),
+        T("largest", "n = 20", "count_numbers_with_unique_digits(20)", "8_877_691"),
+        """
+        #[test]
+        fn every_n_up_to_6_vs_brute_force() {
+            let unique = |mut x: u32| {
+                let mut seen = [false; 10];
+                loop {
+                    let d = (x % 10) as usize;
+                    if seen[d] {
+                        return false;
+                    }
+                    seen[d] = true;
+                    x /= 10;
+                    if x == 0 {
+                        return true;
+                    }
+                }
+            };
+            // want[k] = how many x < 10^k have unique digits, counted one number at a time.
+            let mut want: Vec<u64> = Vec::new();
+            let mut count = 0u64;
+            let mut next_power = 1u32;
+            for x in 0..=1_000_000u32 {
+                if x == next_power {
+                    want.push(count);
+                    next_power *= 10;
+                }
+                count += unique(x) as u64;
+            }
+            for (n, &w) in want.iter().enumerate() {
+                check!(format!("n = {n}"), count_numbers_with_unique_digits(n as u32), w);
+            }
+        }
+
+        #[test]
+        fn every_n_up_to_20() {
+            let mut want = 1u64;
+            let mut of_length = 9u64;
+            for n in 0..=20u32 {
+                if n >= 1 {
+                    want += of_length;
+                    of_length *= 10u64.saturating_sub(n as u64);
+                }
+                check!(format!("n = {n}"), count_numbers_with_unique_digits(n), want);
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        count_one_by_one="""
+            pub fn count_numbers_with_unique_digits(n: u32) -> u64 {
+                let unique = |mut x: u64| {
+                    let mut seen = [false; 10];
+                    loop {
+                        let d = (x % 10) as usize;
+                        if seen[d] {
+                            return false;
+                        }
+                        seen[d] = true;
+                        x /= 10;
+                        if x == 0 {
+                            return true;
+                        }
+                    }
+                };
+                (0..10u64.pow(n.min(10))).filter(|&x| unique(x)).count() as u64
+            }
+        """,
+        leading_zero_allowed="""
+            pub fn count_numbers_with_unique_digits(n: u32) -> u64 {
+                let mut total = 1;
+                let mut of_length = 1u64;
+                for k in 1..=n.min(10) as u64 {
+                    of_length *= 11 - k;
+                    total += of_length;
+                }
+                total
+            }
+        """,
+        zero_not_counted="""
+            pub fn count_numbers_with_unique_digits(n: u32) -> u64 {
+                let mut total = 0;
+                let mut of_length = 9u64;
+                for k in 1..=n.min(10) as u64 {
+                    if k > 1 {
+                        of_length *= 11 - k;
+                    }
+                    total += of_length;
+                }
+                total.max(1)
+            }
+        """,
+    ),
+    hints=[("approach", "Count by length. One-digit numbers: 10 (including 0). A k-digit number: 9 choices for the first digit (not 0), then 9, then 8, … for the others."),
+           ("rust", "Keep a running product in a `u64` and add it for each length from 1 to n."),
+           ("edge case", "An 11-digit number must repeat a digit (there are only 10), so the answer stops growing at n = 10. n = 0 means just the number 0.")],
+    notes=("This is the counting rule of digit DP without the upper bound: each position multiplies the choices left. The next problem adds the bound, which is where digit DP proper starts.", "O(min(n, 10))", "O(1)"),
+    follow_up="How would you count the numbers with unique digits in [1, N] for an arbitrary N (Count special integers)?",
+    related=["D13"],
+))
+
+P.append(dict(
+    slug="numbers-at-most-n-given-digit-set", title="Numbers at most N given digit set", level="hard", stage="bitmasks-digits",
+    tags=["digit DP", "counting"],
+    companies=["Amazon", "Google"],
+    teaches=["Digit DP: count everything shorter than N, then walk N's digits and count what first drops below it at each position.",
+             "`to_string().bytes()` to get an integer's digits, `u64::pow` for the free positions."],
+    statement="""
+        `digits` holds distinct digits from 1 to 9, sorted. You can write positive integers using
+        only those digits, each as often as you like. Return how many such integers are at most `n`.
+    """,
+    examples=[("digits = [1, 3, 5, 7], n = 100", "20 (1, 3, 5, 7, 11, 13, …, 77)"), ("digits = [7], n = 8", "1")],
+    constraints=["0 ≤ digits.len() ≤ 9", "digits are distinct, sorted, and each in 1..=9", "1 ≤ n ≤ u64::MAX"],
+    starter="""
+        pub fn at_most_n_given_digit_set(digits: &[u8], n: u64) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn at_most_n_given_digit_set(digits: &[u8], n: u64) -> u64 {
+            let s: Vec<u8> = n.to_string().bytes().map(|b| b - b'0').collect();
+            let d = digits.len() as u64;
+            let len = s.len();
+            // Every number shorter than n: d choices in each of its k positions.
+            let mut total: u64 = (1..len as u32).map(|k| d.pow(k)).sum();
+            // Same length as n: match n's prefix, then put a smaller digit at position i;
+            // the positions after it are free.
+            for (i, &c) in s.iter().enumerate() {
+                let smaller = digits.iter().filter(|&&x| x < c).count() as u64;
+                total += smaller * d.pow((len - i - 1) as u32);
+                if !digits.contains(&c) {
+                    // The prefix can't continue matching n.
+                    return total;
+                }
+            }
+            // Every digit of n is available, so n itself counts too.
+            total + 1
+        }
+    """,
+    visible=[
+        T("leetcode_hundred", "digits = [1, 3, 5, 7], n = 100", "at_most_n_given_digit_set(&[1, 3, 5, 7], 100)", "20"),
+        T("leetcode_billion", "digits = [1, 4, 9], n = 1000000000", "at_most_n_given_digit_set(&[1, 4, 9], 1_000_000_000)", "29523"),
+        T("leetcode_seven", "digits = [7], n = 8", "at_most_n_given_digit_set(&[7], 8)", "1"),
+        T("n_itself_counts", "digits = [1], n = 11", "at_most_n_given_digit_set(&[1], 11)", "2"),
+        T("no_digits", "digits = [], n = 100", "at_most_n_given_digit_set(&[], 100)", "0"),
+    ],
+    hidden=[
+        T("no_digits_big_n", "digits = [], n = 10^18", "at_most_n_given_digit_set(&[], 1_000_000_000_000_000_000)", "0"),
+        T("n_equals_the_digit", "digits = [5], n = 5", "at_most_n_given_digit_set(&[5], 5)", "1"),
+        T("n_below_every_digit", "digits = [5], n = 4", "at_most_n_given_digit_set(&[5], 4)", "0"),
+        T("one_digit_n", "digits = [3, 4, 8], n = 4", "at_most_n_given_digit_set(&[3, 4, 8], 4)", "2"),
+        T("ones_up_to_10_18", "digits = [1], n = 10^18", "at_most_n_given_digit_set(&[1], 1_000_000_000_000_000_000)", "18"),
+        T("prefix_matches_then_misses", "digits = [1, 7, 9], n = 555555555555555555",
+          "at_most_n_given_digit_set(&[1, 7, 9], 555_555_555_555_555_555)", "322_850_406"),
+        T("all_nines", "digits = [2, 9], n = 999999999999999999", "at_most_n_given_digit_set(&[2, 9], 999_999_999_999_999_999)", "524_286"),
+        T("n_made_of_digits", "digits = [6], n = 6666666666", "at_most_n_given_digit_set(&[6], 6_666_666_666)", "10"),
+        T("alternating", "digits = [1, 2], n = 12121212121212121", "at_most_n_given_digit_set(&[1, 2], 12_121_212_121_212_121)", "174_761"),
+        T("every_digit_10_18", "digits = [1..=9], n = 10^18", "at_most_n_given_digit_set(&[1, 2, 3, 4, 5, 6, 7, 8, 9], 1_000_000_000_000_000_000)",
+          "168_856_464_709_124_010"),
+        T("every_digit_u64_max", "digits = [1..=9], n = u64::MAX", "at_most_n_given_digit_set(&[1, 2, 3, 4, 5, 6, 7, 8, 9], u64::MAX)", "2_627_136_424_427_962_617"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1247);
+            for _ in 0..300 {
+                let digits: Vec<u8> = (1..=9u8).filter(|_| rng.below(3) == 0).collect();
+                let n = rng.int(1, 3000) as u64;
+                let want = (1..=n).filter(|&x| x.to_string().bytes().all(|b| digits.contains(&(b - b'0')))).count() as u64;
+                check!(format!("digits = {digits:?}, n = {n}"), at_most_n_given_digit_set(&digits, n), want);
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        build_every_number="""
+            pub fn at_most_n_given_digit_set(digits: &[u8], n: u64) -> u64 {
+                // Grow numbers one digit at a time, keeping the ones still at most n.
+                let mut count = 0;
+                let mut layer: Vec<u64> = vec![0];
+                while !layer.is_empty() {
+                    let mut next = Vec::new();
+                    for &x in &layer {
+                        for &d in digits {
+                            if let Some(y) = x.checked_mul(10).and_then(|y| y.checked_add(d as u64)) {
+                                if y <= n {
+                                    count += 1;
+                                    next.push(y);
+                                }
+                            }
+                        }
+                    }
+                    layer = next;
+                }
+                count
+            }
+        """,
+        forgets_n_itself="""
+            pub fn at_most_n_given_digit_set(digits: &[u8], n: u64) -> u64 {
+                let s: Vec<u8> = n.to_string().bytes().map(|b| b - b'0').collect();
+                let d = digits.len() as u64;
+                let len = s.len();
+                let mut total: u64 = (1..len as u32).map(|k| d.pow(k)).sum();
+                for (i, &c) in s.iter().enumerate() {
+                    let smaller = digits.iter().filter(|&&x| x < c).count() as u64;
+                    total += smaller * d.pow((len - i - 1) as u32);
+                    if !digits.contains(&c) {
+                        return total;
+                    }
+                }
+                total
+            }
+        """,
+        keeps_going_after_a_miss="""
+            pub fn at_most_n_given_digit_set(digits: &[u8], n: u64) -> u64 {
+                let s: Vec<u8> = n.to_string().bytes().map(|b| b - b'0').collect();
+                let d = digits.len() as u64;
+                let len = s.len();
+                let mut total: u64 = (1..len as u32).map(|k| d.pow(k)).sum();
+                for (i, &c) in s.iter().enumerate() {
+                    let smaller = digits.iter().filter(|&&x| x < c).count() as u64;
+                    total += smaller * d.pow((len - i - 1) as u32);
+                }
+                if s.iter().all(|c| digits.contains(c)) { total + 1 } else { total }
+            }
+        """,
+    ),
+    hints=[("approach", "Numbers with fewer digits than n are all fine: d¹ + d² + … + d^(len - 1). For numbers as long as n, go through n's digits left to right: at position i, any smaller digit from the set makes the rest free (d^(remaining) ways)."),
+           ("rust", "`n.to_string().bytes().map(|b| b - b'0')` gives the digits; `d.pow(k)` counts the free positions."),
+           ("edge case", "Stop as soon as n's digit isn't in the set, since no number can keep matching n past it. If you get through every digit, n itself counts: add 1.")],
+    notes=("Every number below n of the same length agrees with n up to some position, then has a smaller digit there. Grouping by that position gives one term per digit of n, so the work is proportional to the number of digits.", "O(log n · |digits|)", "O(log n)"),
+    follow_up="How would the count change if 0 were allowed in `digits` (numbers can't start with 0)?",
+    related=["D13"],
+))
+
+P.append(dict(
+    slug="can-i-win", title="Can I win", level="hard", stage="bitmasks-digits", tags=["bitmask memo", "minimax"],
+    companies=["Google", "LinkedIn", "Amazon"],
+    teaches=["A set of used numbers as a `u32`-style bitmask indexing a `Vec` memo.",
+             "Game DP: a position is winning if some move leads to a losing position for the opponent."],
+    statement="""
+        Two players take turns picking a number from 1 to `max_choosable`; a number can't be picked
+        twice. Each pick is added to a running total, and whoever makes the total reach at least
+        `desired_total` wins. Both play perfectly. Return whether the first player can force a win.
+        If the numbers add up to less than `desired_total`, nobody can win: return `false`. A
+        `desired_total` of 0 is already reached: return `true`.
+    """,
+    examples=[("max_choosable = 10, desired_total = 11", "false (whatever player 1 picks, player 2 reaches 11)"),
+              ("max_choosable = 10, desired_total = 1", "true")],
+    constraints=["1 ≤ max_choosable ≤ 20", "0 ≤ desired_total ≤ 300"],
+    starter="""
+        pub fn can_i_win(max_choosable: u32, desired_total: u32) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn can_i_win(max_choosable: u32, desired_total: u32) -> bool {
+            let m = max_choosable as usize;
+            if desired_total == 0 {
+                return true;
+            }
+            if m * (m + 1) / 2 < desired_total as usize {
+                return false;
+            }
+            // The set of used numbers fixes the running total too, so it is the whole state.
+            // memo[used]: 0 = not solved yet, 1 = the player to move wins, 2 = they lose.
+            fn wins(used: usize, left: u32, m: usize, memo: &mut [u8]) -> bool {
+                if memo[used] != 0 {
+                    return memo[used] == 1;
+                }
+                let win = (0..m).any(|i| {
+                    let pick = i as u32 + 1;
+                    used & (1 << i) == 0 && (pick >= left || !wins(used | 1 << i, left - pick, m, memo))
+                });
+                memo[used] = if win { 1 } else { 2 };
+                win
+            }
+            let mut memo = vec![0u8; 1 << m];
+            wins(0, desired_total, m, &mut memo)
+        }
+    """,
+    visible=[
+        T("leetcode_eleven", "max_choosable = 10, desired_total = 11", "can_i_win(10, 11)", "false"),
+        T("leetcode_zero", "max_choosable = 10, desired_total = 0", "can_i_win(10, 0)", "true"),
+        T("leetcode_one", "max_choosable = 10, desired_total = 1", "can_i_win(10, 1)", "true"),
+        T("nobody_reaches_it", "max_choosable = 5, desired_total = 50", "can_i_win(5, 50)", "false"),
+        T("must_think_ahead", "max_choosable = 4, desired_total = 6", "can_i_win(4, 6)", "true"),
+    ],
+    hidden=[
+        T("zero", "max_choosable = 1, desired_total = 0", "can_i_win(1, 0)", "true"),
+        T("one_number_enough", "max_choosable = 1, desired_total = 1", "can_i_win(1, 1)", "true"),
+        T("one_number_short", "max_choosable = 1, desired_total = 2", "can_i_win(1, 2)", "false"),
+        T("three_to_five", "max_choosable = 3, desired_total = 5", "can_i_win(3, 5)", "true"),
+        T("exact_sum_even_count", "max_choosable = 20, desired_total = 210", "can_i_win(20, 210)", "false"),
+        T("exact_sum_odd_count", "max_choosable = 19, desired_total = 190", "can_i_win(19, 190)", "true"),
+        T("too_big", "max_choosable = 20, desired_total = 300", "can_i_win(20, 300)", "false"),
+        T("ten_forty", "max_choosable = 10, desired_total = 40", "can_i_win(10, 40)", "false"),
+        T("twelve_forty_nine", "max_choosable = 12, desired_total = 49", "can_i_win(12, 49)", "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn wins(used: &mut Vec<bool>, left: i32) -> bool {
+                for i in 0..used.len() {
+                    if !used[i] {
+                        if i as i32 + 1 >= left {
+                            return true;
+                        }
+                        used[i] = true;
+                        let other = wins(used, left - i as i32 - 1);
+                        used[i] = false;
+                        if !other {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+            let mut rng = anneal_prelude::Rng::new(1248);
+            for _ in 0..300 {
+                let m = rng.int(1, 8) as u32;
+                let d = rng.int(0, 40) as u32;
+                let want = d == 0 || (m * (m + 1) / 2 >= d && wins(&mut vec![false; m as usize], d as i32));
+                check!(format!("max_choosable = {m}, desired_total = {d}"), can_i_win(m, d), want);
+            }
+        }
+
+        #[test]
+        fn scale_twenty() {
+            check!("max_choosable = 20, desired_total = 152", can_i_win(20, 152), false);
+            check!("max_choosable = 20, desired_total = 200", can_i_win(20, 200), false);
+            check!("max_choosable = 20, desired_total = 160", can_i_win(20, 160), true);
+            check!("max_choosable = 18, desired_total = 79", can_i_win(18, 79), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        no_memo="""
+            fn wins(used: &mut Vec<bool>, left: u32) -> bool {
+                for i in 0..used.len() {
+                    if !used[i] {
+                        let pick = i as u32 + 1;
+                        if pick >= left {
+                            return true;
+                        }
+                        used[i] = true;
+                        let other = wins(used, left - pick);
+                        used[i] = false;
+                        if !other {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+
+            pub fn can_i_win(max_choosable: u32, desired_total: u32) -> bool {
+                if desired_total == 0 {
+                    return true;
+                }
+                if max_choosable * (max_choosable + 1) / 2 < desired_total {
+                    return false;
+                }
+                wins(&mut vec![false; max_choosable as usize], desired_total)
+            }
+        """,
+        no_sum_check="""
+            pub fn can_i_win(max_choosable: u32, desired_total: u32) -> bool {
+                let m = max_choosable as usize;
+                if desired_total == 0 {
+                    return true;
+                }
+                fn wins(used: usize, left: u32, m: usize, memo: &mut [u8]) -> bool {
+                    if memo[used] != 0 {
+                        return memo[used] == 1;
+                    }
+                    let win = (0..m).any(|i| {
+                        let pick = i as u32 + 1;
+                        used & (1 << i) == 0 && (pick >= left || !wins(used | 1 << i, left - pick, m, memo))
+                    });
+                    memo[used] = if win { 1 } else { 2 };
+                    win
+                }
+                let mut memo = vec![0u8; 1 << m];
+                wins(0, desired_total, m, &mut memo)
+            }
+        """,
+        memo_by_total="""
+            pub fn can_i_win(max_choosable: u32, desired_total: u32) -> bool {
+                let m = max_choosable as usize;
+                if desired_total == 0 {
+                    return true;
+                }
+                if m * (m + 1) / 2 < desired_total as usize {
+                    return false;
+                }
+                // Remembers the answer per remaining total, forgetting which numbers are used.
+                fn wins(used: usize, left: u32, m: usize, memo: &mut [u8]) -> bool {
+                    if memo[left as usize] != 0 {
+                        return memo[left as usize] == 1;
+                    }
+                    let win = (0..m).any(|i| {
+                        let pick = i as u32 + 1;
+                        used & (1 << i) == 0 && (pick >= left || !wins(used | 1 << i, left - pick, m, memo))
+                    });
+                    memo[left as usize] = if win { 1 } else { 2 };
+                    win
+                }
+                let mut memo = vec![0u8; desired_total as usize + 1];
+                wins(0, desired_total, m, &mut memo)
+            }
+        """,
+    ),
+    hints=[("approach", "Try every unused number: if it reaches the total, or leaves a position where the opponent can't win, the mover wins. The used numbers determine the running total, so memoise on them alone."),
+           ("rust", "Numbers 1..=20 fit in the bits of a `usize`: `used & (1 << i)` tests, `used | 1 << i` adds. A `Vec<u8>` of length `1 << m` is the memo (0 unknown, 1 win, 2 loss)."),
+           ("edge case", "Check the two early answers first: a total of 0 is already won, and if 1 + 2 + … + m < desired_total nobody wins, so player 1 can't.")],
+    notes=("Without a memo the game tree has up to 20! lines of play. The used-set bitmask has 2²⁰ values and each tries up to 20 moves.", "O(2^m · m)", "O(2^m)"),
+    follow_up="Why is the remaining total alone not enough as a memo key?",
+    related=["D11", "D13"],
+))
+
+P.append(dict(
+    slug="shortest-path-visiting-all-nodes", title="Shortest path visiting all nodes", level="hard", stage="bitmasks-digits",
+    tags=["BFS on states", "bitmask"],
+    companies=["Google", "Amazon", "Meta"],
+    teaches=["BFS over (node, visited set) states, with the set as a bitmask.",
+             "Multi-source BFS: start from every node at distance 0."],
+    statement="""
+        `graph` is a connected undirected graph: `graph[u]` lists the neighbours of node `u`.
+        Return the length (number of edges) of the shortest walk that visits every node. The walk
+        may start and end anywhere, revisit nodes and reuse edges.
+    """,
+    examples=[("graph = [[1, 2, 3], [0], [0], [0]]", "4 (1 → 0 → 2 → 0 → 3)"),
+              ("graph = [[1], [0, 2, 4], [1, 3, 4], [2], [1, 2]]", "4 (0 → 1 → 4 → 2 → 3)")],
+    constraints=["0 ≤ graph.len() ≤ 12", "the graph is connected, with no self-loops or repeated edges", "v is in graph[u] exactly when u is in graph[v]"],
+    starter="""
+        pub fn shortest_path_length(graph: &[Vec<usize>]) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::VecDeque;
+
+        pub fn shortest_path_length(graph: &[Vec<usize>]) -> usize {
+            let n = graph.len();
+            if n <= 1 {
+                return 0;
+            }
+            let all = (1usize << n) - 1;
+            // A state is (where we are, which nodes we've visited). BFS from every start at once.
+            let mut seen = vec![vec![false; 1 << n]; n];
+            let mut queue = VecDeque::new();
+            for u in 0..n {
+                seen[u][1 << u] = true;
+                queue.push_back((u, 1usize << u, 0));
+            }
+            while let Some((u, visited, dist)) = queue.pop_front() {
+                for &v in &graph[u] {
+                    let next = visited | 1 << v;
+                    if next == all {
+                        return dist + 1;
+                    }
+                    if !seen[v][next] {
+                        seen[v][next] = true;
+                        queue.push_back((v, next, dist + 1));
+                    }
+                }
+            }
+            unreachable!("the graph is connected")
+        }
+    """,
+    visible=[
+        T("leetcode_star", "graph = [[1, 2, 3], [0], [0], [0]]", "shortest_path_length(&[vec![1, 2, 3], vec![0], vec![0], vec![0]])", "4"),
+        T("leetcode_five", "graph = [[1], [0, 2, 4], [1, 3, 4], [2], [1, 2]]",
+          "shortest_path_length(&[vec![1], vec![0, 2, 4], vec![1, 3, 4], vec![2], vec![1, 2]])", "4"),
+        T("single_node", "graph = [[]]", "shortest_path_length(&[vec![]])", "0"),
+        T("two_nodes", "graph = [[1], [0]]", "shortest_path_length(&[vec![1], vec![0]])", "1"),
+        T("triangle", "graph = [[1, 2], [0, 2], [0, 1]]", "shortest_path_length(&[vec![1, 2], vec![0, 2], vec![0, 1]])", "2"),
+    ],
+    hidden=[
+        T("empty", "graph = []", "shortest_path_length(&[])", "0"),
+        T("single_node", "graph = [[]]", "shortest_path_length(&[vec![]])", "0"),
+        T("lollipop", "a triangle 0-1-2 with a tail 2-3-4-5", "shortest_path_length(&g)", "5",
+          setup="let g = vec![vec![1, 2], vec![0, 2], vec![1, 0, 3], vec![2, 4], vec![3, 5], vec![4]];"),
+        T("spider", "node 0 with three legs of three nodes each", "shortest_path_length(&g)", "12",
+          setup="let g = vec![vec![1, 4, 7], vec![0, 2], vec![1, 3], vec![2], vec![0, 5], vec![4, 6], vec![5], vec![0, 8], vec![7, 9], vec![8]];"),
+        T("path_12", "a path 0-1-…-11", "shortest_path_length(&g)", "11",
+          setup="let g: Vec<Vec<usize>> = (0..12usize).map(|i| [i.checked_sub(1), (i + 1 < 12).then_some(i + 1)].into_iter().flatten().collect()).collect();"),
+        T("star_12", "node 0 joined to nodes 1..=11", "shortest_path_length(&g)", "20",
+          setup="let g: Vec<Vec<usize>> = (0..12).map(|i| if i == 0 { (1..12).collect() } else { vec![0] }).collect();"),
+        T("complete_12", "every pair of 12 nodes joined", "shortest_path_length(&g)", "11",
+          setup="let g: Vec<Vec<usize>> = (0..12).map(|i| (0..12).filter(|&j| j != i).collect()).collect();"),
+        T("binary_tree_12", "node i > 0 joined to (i - 1) / 2, 12 nodes", "shortest_path_length(&g)", "16",
+          setup="let mut g = vec![vec![]; 12];\nfor i in 1..12usize {\n    g[i].push((i - 1) / 2);\n    g[(i - 1) / 2].push(i);\n}"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // Shortest distances between all pairs, then the best order to visit the nodes in.
+            fn best(dist: &[Vec<usize>], order: &mut Vec<usize>, used: &mut Vec<bool>) -> usize {
+                let n = dist.len();
+                if order.len() == n {
+                    return order.windows(2).map(|w| dist[w[0]][w[1]]).sum();
+                }
+                let mut top = usize::MAX;
+                for v in 0..n {
+                    if !used[v] {
+                        used[v] = true;
+                        order.push(v);
+                        top = top.min(best(dist, order, used));
+                        order.pop();
+                        used[v] = false;
+                    }
+                }
+                top
+            }
+            let mut rng = anneal_prelude::Rng::new(1249);
+            for _ in 0..300 {
+                let n = rng.int(1, 7) as usize;
+                let mut g = vec![vec![]; n];
+                // A random tree keeps it connected, then a few extra edges.
+                for v in 1..n {
+                    let u = rng.below(v);
+                    g[u].push(v);
+                    g[v].push(u);
+                }
+                let extra = rng.below(n + 1);
+                for _ in 0..extra {
+                    let (a, b) = (rng.below(n), rng.below(n));
+                    if a != b && !g[a].contains(&b) {
+                        g[a].push(b);
+                        g[b].push(a);
+                    }
+                }
+                let mut dist = vec![vec![usize::MAX / 4; n]; n];
+                for u in 0..n {
+                    dist[u][u] = 0;
+                    for &v in &g[u] {
+                        dist[u][v] = 1;
+                    }
+                }
+                for k in 0..n {
+                    for i in 0..n {
+                        for j in 0..n {
+                            dist[i][j] = dist[i][j].min(dist[i][k] + dist[k][j]);
+                        }
+                    }
+                }
+                let want = best(&dist, &mut vec![], &mut vec![false; n]);
+                check!(format!("graph = {g:?}"), shortest_path_length(&g), want);
+            }
+        }
+
+        #[test]
+        fn scale_twelve_nodes() {
+            // A cycle of 12 with a few chords; brute force over visiting orders is 12! ≈ 4.8·10⁸.
+            let mut g: Vec<Vec<usize>> = (0..12).map(|i| vec![(i + 11) % 12, (i + 1) % 12]).collect();
+            for (a, b) in [(0, 6), (3, 9), (1, 7)] {
+                g[a].push(b);
+                g[b].push(a);
+            }
+            check!("cycle of 12 plus chords 0-6, 3-9, 1-7", shortest_path_length(&g), 11);
+            let star: Vec<Vec<usize>> = (0..12).map(|i| if i == 0 { (1..12).collect() } else { vec![0] }).collect();
+            check!("star of 12", shortest_path_length(&star), 20);
+        }
+        """,
+    ],
+    wrong=dict(
+        try_every_order="""
+            fn best(dist: &[Vec<usize>], last: usize, used: &mut Vec<bool>, left: usize) -> usize {
+                if left == 0 {
+                    return 0;
+                }
+                let mut top = usize::MAX;
+                for v in 0..dist.len() {
+                    if !used[v] {
+                        used[v] = true;
+                        top = top.min(dist[last][v] + best(dist, v, used, left - 1));
+                        used[v] = false;
+                    }
+                }
+                top
+            }
+
+            pub fn shortest_path_length(graph: &[Vec<usize>]) -> usize {
+                let n = graph.len();
+                let mut dist = vec![vec![usize::MAX / 4; n]; n];
+                for u in 0..n {
+                    dist[u][u] = 0;
+                    for &v in &graph[u] {
+                        dist[u][v] = 1;
+                    }
+                }
+                for k in 0..n {
+                    for i in 0..n {
+                        for j in 0..n {
+                            dist[i][j] = dist[i][j].min(dist[i][k] + dist[k][j]);
+                        }
+                    }
+                }
+                let mut top = 0;
+                for s in 0..n {
+                    let mut used = vec![false; n];
+                    used[s] = true;
+                    let b = best(&dist, s, &mut used, n - 1);
+                    top = if s == 0 { b } else { top.min(b) };
+                }
+                top
+            }
+        """,
+        start_at_zero="""
+            use std::collections::VecDeque;
+
+            pub fn shortest_path_length(graph: &[Vec<usize>]) -> usize {
+                let n = graph.len();
+                if n <= 1 {
+                    return 0;
+                }
+                let all = (1usize << n) - 1;
+                let mut seen = vec![vec![false; 1 << n]; n];
+                let mut queue = VecDeque::new();
+                seen[0][1] = true;
+                queue.push_back((0, 1usize, 0));
+                while let Some((u, visited, dist)) = queue.pop_front() {
+                    for &v in &graph[u] {
+                        let next = visited | 1 << v;
+                        if next == all {
+                            return dist + 1;
+                        }
+                        if !seen[v][next] {
+                            seen[v][next] = true;
+                            queue.push_back((v, next, dist + 1));
+                        }
+                    }
+                }
+                unreachable!()
+            }
+        """,
+        seen_by_node_only="""
+            use std::collections::VecDeque;
+
+            pub fn shortest_path_length(graph: &[Vec<usize>]) -> usize {
+                let n = graph.len();
+                if n <= 1 {
+                    return 0;
+                }
+                let all = (1usize << n) - 1;
+                let mut seen = vec![false; n];
+                let mut queue = VecDeque::new();
+                for u in 0..n {
+                    queue.push_back((u, 1usize << u, 0));
+                }
+                while let Some((u, visited, dist)) = queue.pop_front() {
+                    for &v in &graph[u] {
+                        let next = visited | 1 << v;
+                        if next == all {
+                            return dist + 1;
+                        }
+                        if !seen[v] {
+                            seen[v] = true;
+                            queue.push_back((v, next, dist + 1));
+                        }
+                    }
+                }
+                usize::MAX
+            }
+        """,
+    ),
+    hints=[("approach", "Where you are isn't enough to describe progress; where you are plus which nodes you've visited is. BFS over those (node, mask) states from every node at once; the first state with every bit set gives the answer."),
+           ("rust", "`1usize << n` masks; `seen: Vec<Vec<bool>>` indexed `[node][mask]`; a `VecDeque<(usize, usize, usize)>` of (node, mask, distance)."),
+           ("edge case", "The walk may revisit nodes (a star needs to), and it may start anywhere, so seed the queue with every node. One node (or none) needs 0 edges.")],
+    notes=("There are n · 2ⁿ states and each has at most n - 1 neighbours, so BFS over them is exact and fast for n ≤ 12, while trying visiting orders is n!.", "O(2ⁿ · n²)", "O(2ⁿ · n)"),
+    follow_up="How would you solve it with weighted edges? (Held–Karp: all-pairs distances, then a DP over (mask, last).)",
+    related=["D9"],
+))
+
+P.append(dict(
+    slug="number-of-ways-to-wear-different-hats", title="Number of ways to wear different hats", level="hard", stage="bitmasks-digits",
+    tags=["bitmask DP", "modulo"],
+    companies=["Google", "Amazon"],
+    teaches=["Putting the bitmask on the small side: 10 people fit a mask, 40 hats don't.",
+             "Walking masks downwards so each hat is used at most once, as in 0/1 knapsack."],
+    statement="""
+        `hats[i]` lists the hats (numbered 1 to 40) that person `i` is willing to wear. Every
+        person must wear exactly one hat they like, and no two people may wear the same hat. Return
+        the number of ways to do that, modulo 1 000 000 007. With nobody to dress there is one way.
+    """,
+    examples=[("hats = [[3, 4], [4, 5], [5]]", "1 (hat 3, then 4, then 5)"), ("hats = [[3, 5, 1], [3, 5]]", "4")],
+    constraints=["0 ≤ hats.len() ≤ 10", "1 ≤ hats[i][j] ≤ 40", "each hats[i] has distinct values"],
+    starter="""
+        pub fn number_ways(hats: &[Vec<u8>]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn number_ways(hats: &[Vec<u8>]) -> u64 {
+            const MOD: u64 = 1_000_000_007;
+            let n = hats.len();
+            // likes[h] = the people who would wear hat h, as a bitmask.
+            let mut likes = [0usize; 41];
+            for (person, list) in hats.iter().enumerate() {
+                for &h in list {
+                    likes[h as usize] |= 1 << person;
+                }
+            }
+            // ways[mask] = ways to dress exactly the people in mask using the hats handled so far.
+            let mut ways = vec![0u64; 1 << n];
+            ways[0] = 1;
+            for h in 1..=40 {
+                // Downwards, so ways[mask ^ p] still excludes hat h: it goes to one person at most.
+                for mask in (1..1usize << n).rev() {
+                    let mut wearers = likes[h] & mask;
+                    while wearers != 0 {
+                        let p = wearers & wearers.wrapping_neg();
+                        ways[mask] = (ways[mask] + ways[mask ^ p]) % MOD;
+                        wearers ^= p;
+                    }
+                }
+            }
+            ways[(1 << n) - 1]
+        }
+    """,
+    visible=[
+        T("leetcode_one_way", "hats = [[3, 4], [4, 5], [5]]", "number_ways(&[vec![3, 4], vec![4, 5], vec![5]])", "1"),
+        T("leetcode_four_ways", "hats = [[3, 5, 1], [3, 5]]", "number_ways(&[vec![3, 5, 1], vec![3, 5]])", "4"),
+        T("leetcode_all_alike", "hats = [[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]]",
+          "number_ways(&[vec![1, 2, 3, 4], vec![1, 2, 3, 4], vec![1, 2, 3, 4], vec![1, 2, 3, 4]])", "24"),
+        T("nobody", "hats = []", "number_ways(&[])", "1"),
+        T("same_single_hat", "hats = [[5], [5]]", "number_ways(&[vec![5], vec![5]])", "0"),
+    ],
+    hidden=[
+        T("nobody", "hats = []", "number_ways(&[])", "1"),
+        T("one_person_one_hat", "hats = [[7]]", "number_ways(&[vec![7]])", "1"),
+        T("someone_likes_nothing", "hats = [[1, 2], []]", "number_ways(&[vec![1, 2], vec![]])", "0"),
+        T("one_person_every_hat", "hats = [[1..=40]]", "number_ways(&[(1..=40).collect()])", "40"),
+        T("ends_of_the_range", "hats = [[1, 40], [1, 40]]", "number_ways(&[vec![1, 40], vec![1, 40]])", "2"),
+        T("chain", "hats = [[1, 2], [2, 3], [3, 4], [4, 5]]", "number_ways(&[vec![1, 2], vec![2, 3], vec![3, 4], vec![4, 5]])", "5"),
+        T("ten_people_every_hat", "10 people, each likes hats 1..=40", "number_ways(&h)", "502_474_470",
+          setup="let h: Vec<Vec<u8>> = vec![(1..=40).collect(); 10];"),
+        T("ten_people_mixed", "person p likes hat x when x·(p + 3) % 7 < 4", "number_ways(&h)", "664_239_731",
+          setup="let h: Vec<Vec<u8>> = (0..10u32).map(|p| (1..=40u8).filter(|&x| x as u32 * (p + 3) % 7 < 4).collect()).collect();"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn count(hats: &[Vec<u8>], used: &mut [bool; 41]) -> u64 {
+                let Some((first, rest)) = hats.split_first() else { return 1 };
+                let mut total = 0;
+                for &h in first {
+                    if !used[h as usize] {
+                        used[h as usize] = true;
+                        total += count(rest, used);
+                        used[h as usize] = false;
+                    }
+                }
+                total
+            }
+            let mut rng = anneal_prelude::Rng::new(1250);
+            for _ in 0..300 {
+                let n = rng.below(6);
+                let hats: Vec<Vec<u8>> = (0..n).map(|_| (1..=8u8).filter(|_| rng.bool()).collect()).collect();
+                check!(format!("hats = {hats:?}"), number_ways(&hats), count(&hats, &mut [false; 41]));
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        person_by_person="""
+            fn count(hats: &[Vec<u8>], used: &mut [bool; 41]) -> u64 {
+                let Some((first, rest)) = hats.split_first() else { return 1 };
+                let mut total = 0;
+                for &h in first {
+                    if !used[h as usize] {
+                        used[h as usize] = true;
+                        total = (total + count(rest, used)) % 1_000_000_007;
+                        used[h as usize] = false;
+                    }
+                }
+                total
+            }
+
+            pub fn number_ways(hats: &[Vec<u8>]) -> u64 {
+                count(hats, &mut [false; 41])
+            }
+        """,
+        masks_upwards="""
+            pub fn number_ways(hats: &[Vec<u8>]) -> u64 {
+                const MOD: u64 = 1_000_000_007;
+                let n = hats.len();
+                let mut likes = [0usize; 41];
+                for (person, list) in hats.iter().enumerate() {
+                    for &h in list {
+                        likes[h as usize] |= 1 << person;
+                    }
+                }
+                let mut ways = vec![0u64; 1 << n];
+                ways[0] = 1;
+                for h in 1..=40 {
+                    for mask in 1..1usize << n {
+                        let mut wearers = likes[h] & mask;
+                        while wearers != 0 {
+                            let p = wearers & wearers.wrapping_neg();
+                            ways[mask] = (ways[mask] + ways[mask ^ p]) % MOD;
+                            wearers ^= p;
+                        }
+                    }
+                }
+                ways[(1 << n) - 1]
+            }
+        """,
+        no_modulo="""
+            pub fn number_ways(hats: &[Vec<u8>]) -> u64 {
+                let n = hats.len();
+                let mut likes = [0usize; 41];
+                for (person, list) in hats.iter().enumerate() {
+                    for &h in list {
+                        likes[h as usize] |= 1 << person;
+                    }
+                }
+                let mut ways = vec![0u64; 1 << n];
+                ways[0] = 1;
+                for h in 1..=40 {
+                    for mask in (1..1usize << n).rev() {
+                        let mut wearers = likes[h] & mask;
+                        while wearers != 0 {
+                            let p = wearers & wearers.wrapping_neg();
+                            ways[mask] += ways[mask ^ p];
+                            wearers ^= p;
+                        }
+                    }
+                }
+                ways[(1 << n) - 1]
+            }
+        """,
+    ),
+    hints=[("approach", "There are at most 10 people but 40 hats, so keep a mask of which people are dressed and hand the hats out one at a time: each hat goes to nobody or to one person who likes it and isn't dressed yet."),
+           ("rust", "`likes[h]` as a people-mask; `ways: Vec<u64>` of length `1 << n`; `mask & mask.wrapping_neg()` isolates the lowest set bit."),
+           ("edge case", "Go through the masks from high to low for each hat, or the same hat gets handed to two people. Reduce modulo 1 000 000 007 as you add.")],
+    notes=("A mask over hats would have 2⁴⁰ states; a mask over people has 2¹⁰. Each of the 40 hats updates every mask once per person who likes it.", "O(40 · 2ⁿ · n)", "O(2ⁿ)"),
+    follow_up="If there were 40 people and 10 hats, which side would the mask go on, and what would the answer be?",
+    related=["D11", "D13"],
 ))
 
 STAGES = [

@@ -1,0 +1,41 @@
+slug = "can-i-win"
+title = "Can I win"
+mode = "write"
+level = "hard"
+stage = "bitmasks-digits"
+order = 48
+status = "ready"
+tags = ["bitmask memo", "minimax"]
+companies = ["Google", "LinkedIn", "Amazon"]
+teaches = [
+  "A set of used numbers as a `u32`-style bitmask indexing a `Vec` memo.",
+  "Game DP: a position is winning if some move leads to a losing position for the opponent.",
+]
+constraints = ["1 ≤ max_choosable ≤ 20", "0 ≤ desired_total ≤ 300"]
+follow_up = "Why is the remaining total alone not enough as a memo key?"
+related = ["D11", "D13"]
+
+[[examples]]
+input = "max_choosable = 10, desired_total = 11"
+output = "false (whatever player 1 picks, player 2 reaches 11)"
+
+[[examples]]
+input = "max_choosable = 10, desired_total = 1"
+output = "true"
+
+[[hints]]
+kind = "approach"
+text = "Try every unused number: if it reaches the total, or leaves a position where the opponent can't win, the mover wins. The used numbers determine the running total, so memoise on them alone."
+
+[[hints]]
+kind = "rust"
+text = "Numbers 1..=20 fit in the bits of a `usize`: `used & (1 << i)` tests, `used | 1 << i` adds. A `Vec<u8>` of length `1 << m` is the memo (0 unknown, 1 win, 2 loss)."
+
+[[hints]]
+kind = "edge case"
+text = "Check the two early answers first: a total of 0 is already won, and if 1 + 2 + … + m < desired_total nobody wins, so player 1 can't."
+
+[solution]
+explanation = "Without a memo the game tree has up to 20! lines of play. The used-set bitmask has 2²⁰ values and each tries up to 20 moves."
+time = "O(2^m · m)"
+space = "O(2^m)"

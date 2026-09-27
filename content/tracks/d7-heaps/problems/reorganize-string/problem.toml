@@ -1,0 +1,42 @@
+slug = "reorganize-string"
+title = "Reorganize string"
+mode = "write"
+level = "medium"
+stage = "heaps-at-work"
+order = 6
+status = "ready"
+tags = ["BinaryHeap", "greedy", "chars"]
+companies = ["Amazon", "Google", "Meta", "Microsoft", "Uber"]
+teaches = [
+  "Greedy with a heap of `(count, char)`: place the most frequent character that isn't the one just placed.",
+  "Hold the last character out of the heap for one step instead of popping twice.",
+  "Work in `char`s: a byte-level shuffle can split a UTF-8 sequence.",
+]
+constraints = ["0 ≤ s.chars().count() ≤ 2·10⁵"]
+follow_up = "Rearrange so equal characters are at least `d` apart. What changes in the heap loop?"
+related = ["S2", "D8"]
+
+[[examples]]
+input = "s = \"aab\""
+output = "Some(\"aba\")"
+
+[[examples]]
+input = "s = \"aaab\""
+output = "None"
+
+[[hints]]
+kind = "approach"
+text = "Always place the most frequent remaining character, unless it's the one you just placed; then place the runner-up."
+
+[[hints]]
+kind = "rust"
+text = "A `BinaryHeap<(usize, char)>` orders by count first. Pop one, push back the previously held one, and hold the popped one (count − 1) for a step."
+
+[[hints]]
+kind = "edge case"
+text = "It's impossible exactly when some character appears more than `(len + 1) / 2` times, where `len` counts chars, not bytes."
+
+[solution]
+explanation = "Placing the most frequent available character keeps the worst offender from piling up at the end. Holding the last placed character out of the heap for one step enforces the neighbour rule without a second pop. If a character is still held when the heap runs dry, no arrangement exists, which happens exactly when its count exceeds `(len + 1) / 2`. An O(len) alternative fills even positions with the most frequent character first, then the odd ones."
+time = "O(len log k) for k different characters"
+space = "O(k)"

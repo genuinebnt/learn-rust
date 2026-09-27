@@ -670,6 +670,1041 @@ P.append(dict(
     related=["S8", "L4", "D1"],
 ))
 
+# ---------------------------------------------------------------- heaps at work (medium)
+
+P.append(dict(
+    slug="k-closest-points", title="K closest points to origin", level="medium", stage="heaps-at-work",
+    tags=["BinaryHeap", "tuple ordering", "overflow"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "LinkedIn", "Uber"],
+    teaches=["A max-heap capped at k keeps the k smallest: the worst of them sits on top, ready to be evicted.",
+             "Tuples compare field by field, so `(dist, x, y)` is the tie rule written as a heap key.",
+             "`i32::unsigned_abs` into `u64`: a squared distance from the i32 corner doesn't fit in i64."],
+    statement="""
+        Return the `k` points of `points` closest to the origin `(0, 0)` by Euclidean distance, nearest first.
+        Points at the same distance come in `(x, y)` order (smaller `x` first, then smaller `y`).
+        A point listed twice counts twice. If `k` is at least `points.len()`, return every point.
+
+        Coordinates can be any `i32`.
+    """,
+    examples=[("points = [(1, 3), (-2, 2)], k = 1", "[(-2, 2)]"), ("points = [(3, 3), (5, -1), (-2, 4)], k = 2", "[(3, 3), (-2, 4)]")],
+    constraints=["0 ≤ points.len() ≤ 2·10⁵", "0 ≤ k", "coordinates are any i32"],
+    starter="""
+        pub fn k_closest(points: &[(i32, i32)], k: usize) -> Vec<(i32, i32)> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::BinaryHeap;
+
+        /// Squared distance. |i32::MIN|² · 2 = 2⁶³, one past i64::MAX, so this is u64.
+        fn dist2(x: i32, y: i32) -> u64 {
+            let (x, y) = (x.unsigned_abs() as u64, y.unsigned_abs() as u64);
+            x * x + y * y
+        }
+
+        pub fn k_closest(points: &[(i32, i32)], k: usize) -> Vec<(i32, i32)> {
+            if k == 0 {
+                return Vec::new();
+            }
+            // The k best so far; the worst of them (farthest, then largest (x, y)) is on top.
+            let mut heap: BinaryHeap<(u64, i32, i32)> = BinaryHeap::with_capacity(k + 1);
+            for &(x, y) in points {
+                let key = (dist2(x, y), x, y);
+                if heap.len() < k {
+                    heap.push(key);
+                } else if heap.peek().is_some_and(|&top| key < top) {
+                    heap.pop();
+                    heap.push(key);
+                }
+            }
+            heap.into_sorted_vec().into_iter().map(|(_, x, y)| (x, y)).collect()
+        }
+    """,
+    visible=[
+        T("leetcode_one", "points = [(1, 3), (-2, 2)], k = 1", "k_closest(&[(1, 3), (-2, 2)], 1)", "vec![(-2, 2)]"),
+        T("leetcode_two", "points = [(3, 3), (5, -1), (-2, 4)], k = 2", "k_closest(&[(3, 3), (5, -1), (-2, 4)], 2)", "vec![(3, 3), (-2, 4)]"),
+        T("ties_in_x_then_y_order", "points = [(1, 0), (0, 1), (-1, 0), (0, -1)], k = 3", "k_closest(&[(1, 0), (0, 1), (-1, 0), (0, -1)], 3)", "vec![(-1, 0), (0, -1), (0, 1)]"),
+        T("k_zero", "points = [(1, 1)], k = 0", "k_closest(&[(1, 1)], 0)", "Vec::<(i32, i32)>::new()"),
+        T("k_past_the_end", "points = [(2, 2), (1, 1)], k = 5", "k_closest(&[(2, 2), (1, 1)], 5)", "vec![(1, 1), (2, 2)]"),
+        T("repeated_point_counts_twice", "points = [(2, 0), (1, 1), (1, 1)], k = 2", "k_closest(&[(2, 0), (1, 1), (1, 1)], 2)", "vec![(1, 1), (1, 1)]"),
+    ],
+    hidden=[
+        T("empty", "points = [], k = 3", "k_closest(&[], 3)", "Vec::<(i32, i32)>::new()"),
+        T("origin", "points = [(0, 0), (0, 1)], k = 1", "k_closest(&[(0, 0), (0, 1)], 1)", "vec![(0, 0)]"),
+        T("past_i32_squares", "points = [(50000, 0), (0, 46341)], k = 1", "k_closest(&[(50_000, 0), (0, 46_341)], 1)", "vec![(0, 46_341)]"),
+        T("the_i32_corners", "points = [(i32::MIN, i32::MIN), (i32::MAX, i32::MAX), (0, 0)], k = 3",
+          "k_closest(&[(i32::MIN, i32::MIN), (i32::MAX, i32::MAX), (0, 0)], 3)", "vec![(0, 0), (i32::MAX, i32::MAX), (i32::MIN, i32::MIN)]"),
+        T("min_corner_alone", "points = [(i32::MIN, i32::MIN)], k = 1", "k_closest(&[(i32::MIN, i32::MIN)], 1)", "vec![(i32::MIN, i32::MIN)]"),
+        T("circle_of_25", "points = [(3, -4), (5, 0), (-3, 4), (0, 5), (4, 3), (-5, 0)], k = 4",
+          "k_closest(&[(3, -4), (5, 0), (-3, 4), (0, 5), (4, 3), (-5, 0)], 4)", "vec![(-5, 0), (-3, 4), (0, 5), (3, -4)]"),
+        T("negative_x_is_not_nearer", "points = [(-3, 0), (2, 2)], k = 1 (9 > 8)", "k_closest(&[(-3, 0), (2, 2)], 1)", "vec![(2, 2)]"),
+        T("k_equals_len", "points = [(5, 5), (-1, -1), (2, -2)], k = 3", "k_closest(&[(5, 5), (-1, -1), (2, -2)], 3)", "vec![(-1, -1), (2, -2), (5, 5)]"),
+        T("all_same_point", "points = [(7, 7); 4], k = 2", "k_closest(&[(7, 7); 4], 2)", "vec![(7, 7), (7, 7)]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(707);
+            for _ in 0..300 {
+                let n = rng.below(10);
+                let points: Vec<(i32, i32)> = (0..n).map(|_| (rng.int(-3, 3) as i32, rng.int(-3, 3) as i32)).collect();
+                let k = rng.below(12);
+                let mut want = points.clone();
+                want.sort_by_key(|&(x, y)| (x * x + y * y, x, y));
+                want.truncate(k);
+                check!(format!("points = {points:?}, k = {k}"), k_closest(&points, k), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k_points() {
+            let mut rng = anneal_prelude::Rng::new(708);
+            let points: Vec<(i32, i32)> = (0..200_000).map(|_| (rng.int(-1000, 1000) as i32, rng.int(-1000, 1000) as i32)).collect();
+            let mut want = points.clone();
+            want.sort_unstable_by_key(|&(x, y)| (x as i64 * x as i64 + y as i64 * y as i64, x, y));
+            want.truncate(100_000);
+            let got = k_closest(&points, 100_000);
+            check!("200000 random points in [-1000, 1000]², k = 100000; first wrong index", got.iter().zip(&want).position(|(a, b)| a != b).or((got.len() != want.len()).then_some(got.len())), None);
+        }
+        """,
+    ],
+    wrong=dict(
+        pick_min_k_times="""
+            pub fn k_closest(points: &[(i32, i32)], k: usize) -> Vec<(i32, i32)> {
+                let key = |&(x, y): &(i32, i32)| {
+                    let (a, b) = (x.unsigned_abs() as u64, y.unsigned_abs() as u64);
+                    (a * a + b * b, x, y)
+                };
+                let mut left = points.to_vec();
+                let mut out = Vec::new();
+                while out.len() < k && !left.is_empty() {
+                    let best = (0..left.len()).min_by_key(|&i| key(&left[i])).unwrap();
+                    out.push(left.swap_remove(best));
+                }
+                out
+            }
+        """,
+        ties_in_input_order="""
+            use std::cmp::Reverse;
+            use std::collections::BinaryHeap;
+
+            pub fn k_closest(points: &[(i32, i32)], k: usize) -> Vec<(i32, i32)> {
+                let mut heap: BinaryHeap<Reverse<(u64, usize)>> = points
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &(x, y))| {
+                        let (a, b) = (x.unsigned_abs() as u64, y.unsigned_abs() as u64);
+                        Reverse((a * a + b * b, i))
+                    })
+                    .collect();
+                let mut out = Vec::new();
+                while out.len() < k {
+                    let Some(Reverse((_, i))) = heap.pop() else { break };
+                    out.push(points[i]);
+                }
+                out
+            }
+        """,
+        i64_distance="""
+            use std::collections::BinaryHeap;
+
+            pub fn k_closest(points: &[(i32, i32)], k: usize) -> Vec<(i32, i32)> {
+                if k == 0 {
+                    return Vec::new();
+                }
+                let mut heap: BinaryHeap<(i64, i32, i32)> = BinaryHeap::new();
+                for &(x, y) in points {
+                    let (a, b) = (x as i64, y as i64);
+                    heap.push((a * a + b * b, x, y));
+                    if heap.len() > k {
+                        heap.pop();
+                    }
+                }
+                heap.into_sorted_vec().into_iter().map(|(_, x, y)| (x, y)).collect()
+            }
+        """,
+    ),
+    hints=[("approach", "Keep the k nearest points seen so far in a max-heap. A new point only matters if it beats the farthest of them, which is on top."),
+           ("rust", "Push `(dist, x, y)` tuples: tuples compare field by field, so the tie rule is the key. `into_sorted_vec()` returns them ascending, nearest first."),
+           ("edge case", "`(i32::MIN)² + (i32::MIN)² = 2⁶³` overflows `i64`. Square `x.unsigned_abs() as u64`.")],
+    notes=("A max-heap of size k holds the k best candidates; each point costs one comparison with the top and at most one pop and push. "
+           "Because the key is the whole `(distance², x, y)` tuple, the answer is unique and the heap's order is the output order. "
+           "Squared distances avoid floats entirely; `u64` holds 2⁶³. Quickselect (`select_nth_unstable_by_key`) gets O(n) on average if the order of the k points didn't matter.",
+           "O(n log k)", "O(k)"),
+    follow_up="If the points arrived as an endless stream and you had to answer \"k closest so far\" at any moment, what would you keep?",
+    related=["D1", "S5"],
+))
+
+# Checks a task schedule for the tests: the right tasks, the cooldown kept, no idle slot at the end.
+SCHED_CHECK = """
+use std::collections::HashMap;
+
+/// Every way `sched` breaks the rules for `tasks` with cooldown `n` (empty when it is valid).
+fn problems(tasks: &[char], n: usize, sched: &[Option<char>]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut want: HashMap<char, usize> = HashMap::new();
+    for &c in tasks {
+        *want.entry(c).or_default() += 1;
+    }
+    let mut got: HashMap<char, usize> = HashMap::new();
+    for &c in sched.iter().flatten() {
+        *got.entry(c).or_default() += 1;
+    }
+    if want != got {
+        out.push("doesn't run each task exactly as often as it appears".to_string());
+    }
+    if sched.last() == Some(&None) {
+        out.push("ends with an idle slot".to_string());
+    }
+    let mut last: HashMap<char, usize> = HashMap::new();
+    for (t, slot) in sched.iter().enumerate() {
+        if let Some(c) = *slot {
+            if let Some(&p) = last.get(&c) {
+                if t - p <= n {
+                    out.push(format!("{c:?} runs at {p} and again at {t}"));
+                }
+            }
+            last.insert(c, t);
+        }
+    }
+    out
+}
+"""
+
+SCHED_BRUTE = """
+/// Breadth-first search over (tasks left, cooldown left) states: the true minimum for tiny inputs.
+fn brute_least(tasks: &[char], n: usize) -> usize {
+    let mut ids = tasks.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
+    let left: Vec<usize> = ids.iter().map(|c| tasks.iter().filter(|&t| t == c).count()).collect();
+    let start = (left, vec![0usize; ids.len()]);
+    let mut seen = std::collections::HashSet::new();
+    seen.insert(start.clone());
+    let mut queue = std::collections::VecDeque::from([(start, 0)]);
+    while let Some(((left, wait), steps)) = queue.pop_front() {
+        if left.iter().all(|&x| x == 0) {
+            return steps;
+        }
+        // Run task `pick`, or stay idle when pick == ids.len().
+        for pick in 0..=ids.len() {
+            if pick < ids.len() && (left[pick] == 0 || wait[pick] > 0) {
+                continue;
+            }
+            let mut l = left.clone();
+            let mut w: Vec<usize> = wait.iter().map(|&x| x.saturating_sub(1)).collect();
+            if pick < ids.len() {
+                l[pick] -= 1;
+                w[pick] = n;
+            }
+            if seen.insert((l.clone(), w.clone())) {
+                queue.push_back(((l, w), steps + 1));
+            }
+        }
+    }
+    unreachable!()
+}
+"""
+
+
+def chars(s):
+    return f'"{s}".chars().collect::<Vec<char>>()'
+
+
+def sched_case(name, s, n, want_len, desc=None):
+    return T(name, desc or f'tasks = "{s}", n = {n}; schedule(tasks, n): (length, rule breaks)', f"(s.len(), problems(&tasks, {n}, &s))",
+             f"({want_len}, Vec::<String>::new())", setup=f"let tasks = {chars(s)};\nlet s = schedule(&tasks, {n});")
+
+
+P.append(dict(
+    slug="task-scheduler", title="Task scheduler", level="medium", stage="heaps-at-work", source="W46",
+    tags=["BinaryHeap", "VecDeque", "greedy", "HashMap"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "Uber"],
+    teaches=["Counting shows the answer: `max(len, (most − 1)(n + 1) + tied)`.",
+             "Building the schedule: a max-heap of ready tasks by remaining count plus a `VecDeque` of tasks cooling down.",
+             "Task ids are any `char`, so count with a `HashMap`, not a `[usize; 26]`."],
+    statement="""
+        Each task takes one time slot. Two runs of the same task need at least `n` other slots between them
+        (other tasks or idle slots). Slots run one after another, starting at 0.
+
+        - `least_interval(tasks, n)` returns the fewest slots that run every task, idle slots included.
+        - `schedule(tasks, n)` returns one such shortest schedule: `Some(task)` for a slot that runs a task, `None`
+          for an idle slot. Any shortest valid schedule is accepted; it never ends with an idle slot.
+
+        Task ids can be any `char`, not only `A`–`Z`, and there can be thousands of different ones.
+    """,
+    examples=[("tasks = \"AAABBB\", n = 2", "8, e.g. A B _ A B _ A B"), ("tasks = \"AAABBB\", n = 0", "6"),
+              ("tasks = \"AAAAAABCDEFG\", n = 2", "16")],
+    constraints=["0 ≤ tasks.len() ≤ 10⁵", "0 ≤ n ≤ 100"],
+    starter="""
+        pub fn least_interval(tasks: &[char], n: usize) -> usize {
+            todo!()
+        }
+
+        pub fn schedule(tasks: &[char], n: usize) -> Vec<Option<char>> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::{BinaryHeap, HashMap, VecDeque};
+
+        fn counts(tasks: &[char]) -> HashMap<char, usize> {
+            let mut counts = HashMap::new();
+            for &c in tasks {
+                *counts.entry(c).or_insert(0) += 1;
+            }
+            counts
+        }
+
+        pub fn least_interval(tasks: &[char], n: usize) -> usize {
+            let counts = counts(tasks);
+            let Some(&most) = counts.values().max() else {
+                return 0;
+            };
+            let tied = counts.values().filter(|&&c| c == most).count();
+            // `most - 1` full frames of n + 1 slots, then one slot per task tied for most.
+            tasks.len().max((most - 1) * (n + 1) + tied)
+        }
+
+        pub fn schedule(tasks: &[char], n: usize) -> Vec<Option<char>> {
+            // Ready tasks, most runs left first.
+            let mut ready: BinaryHeap<(usize, char)> = counts(tasks).into_iter().map(|(c, left)| (left, c)).collect();
+            // Tasks cooling down: (first slot they may run in, runs left, id). One task starts per slot,
+            // so the queue is already in time order.
+            let mut cooling: VecDeque<(usize, usize, char)> = VecDeque::new();
+            let mut out = Vec::with_capacity(tasks.len());
+            while !ready.is_empty() || !cooling.is_empty() {
+                let t = out.len();
+                while let Some(&(at, left, c)) = cooling.front() {
+                    if at > t {
+                        break;
+                    }
+                    cooling.pop_front();
+                    ready.push((left, c));
+                }
+                match ready.pop() {
+                    Some((left, c)) => {
+                        out.push(Some(c));
+                        if left > 1 {
+                            cooling.push_back((t + n + 1, left - 1, c));
+                        }
+                    }
+                    None => out.push(None),
+                }
+            }
+            out
+        }
+    """,
+    use="use solution::*;\n" + SCHED_CHECK.rstrip("\n"),
+    visible=[
+        T("leetcode_two_tied", 'tasks = "AAABBB", n = 2', f'least_interval(&{chars("AAABBB")}, 2)', "8"),
+        T("leetcode_no_cooldown", 'tasks = "AAABBB", n = 0', f'least_interval(&{chars("AAABBB")}, 0)', "6"),
+        T("leetcode_one_dominant", 'tasks = "AAAAAABCDEFG", n = 2', f'least_interval(&{chars("AAAAAABCDEFG")}, 2)', "16"),
+        T("leetcode_no_idle_needed", 'tasks = "ACABDB", n = 1', f'least_interval(&{chars("ACABDB")}, 1)', "6"),
+        T("only_one_kind", 'tasks = "AAAA", n = 2 (A _ _ A _ _ A _ _ A)', f'least_interval(&{chars("AAAA")}, 2)', "10"),
+        sched_case("schedule_aaabbb", "AAABBB", 2, 8),
+        T("empty", "tasks = [], n = 3", "(least_interval(&[], 3), schedule(&[], 3))", "(0, Vec::<Option<char>>::new())"),
+    ],
+    hidden=[
+        T("enough_kinds_to_fill_gaps", 'tasks = "AAABBBCCCDDE", n = 2', f'least_interval(&{chars("AAABBBCCCDDE")}, 2)', "12"),
+        T("unicode_ids", 'tasks = "ééé🦀🦀", n = 1', f'least_interval(&{chars("ééé🦀🦀")}, 1)', "5"),
+        T("lowercase_and_uppercase_differ", 'tasks = "aaZ", n = 3', f'least_interval(&{chars("aaZ")}, 3)', "5"),
+        T("single_task_long_cooldown", 'tasks = "A", n = 100', f'least_interval(&{chars("A")}, 100)', "1"),
+        T("twice_long_cooldown", 'tasks = "AA", n = 100', f'least_interval(&{chars("AA")}, 100)', "102"),
+        sched_case("schedule_unicode", "ééé🦀🦀", 1, 5),
+        sched_case("schedule_one_dominant", "AAAAAABCDEFG", 2, 16),
+        sched_case("schedule_no_cooldown", "ABBA", 0, 4),
+        sched_case("schedule_single_kind", "ZZZ", 3, 9),
+        sched_case("schedule_many_tied", "AAABBBCCCDDE", 2, 12),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(709);
+            for _ in 0..300 {
+                let len = rng.below(8);
+                let tasks: Vec<char> = rng.string(len, "abc").chars().collect();
+                let n = rng.below(4);
+                let want = brute_least(&tasks, n);
+                let s = schedule(&tasks, n);
+                check!(format!("tasks = {tasks:?}, n = {n}"), (least_interval(&tasks, n), s.len(), problems(&tasks, n, &s)), (want, want, Vec::<String>::new()));
+            }
+        }
+
+        #[test]
+        fn scale_50k_kinds() {
+            // 50000 different ids (from U+10000 up), each twice.
+            let ids: Vec<char> = (0..50_000).map(|i| char::from_u32(0x1_0000 + i).unwrap()).collect();
+            let tasks: Vec<char> = ids.iter().chain(ids.iter()).copied().collect();
+            let s = schedule(&tasks, 3);
+            check!("tasks = 50000 different ids, each twice, n = 3", (least_interval(&tasks, 3), s.len(), problems(&tasks, 3, &s)), (100_000, 100_000, Vec::<String>::new()));
+        }
+
+        #[test]
+        fn scale_one_kind_many_times() {
+            let tasks = vec!['x'; 1000];
+            let s = schedule(&tasks, 100);
+            check!("tasks = 'x' × 1000, n = 100", (least_interval(&tasks, 100), s.len(), problems(&tasks, 100, &s)), (100_900, 100_900, Vec::<String>::new()));
+        }
+        """ + SCHED_BRUTE,
+    ],
+    wrong=dict(
+        fixed_alphabet="""
+            fn counts(tasks: &[char]) -> [usize; 26] {
+                let mut counts = [0; 26];
+                for &c in tasks {
+                    counts[(c as u8 - b'A') as usize] += 1;
+                }
+                counts
+            }
+
+            pub fn least_interval(tasks: &[char], n: usize) -> usize {
+                let counts = counts(tasks);
+                let most = *counts.iter().max().unwrap();
+                if most == 0 {
+                    return 0;
+                }
+                let tied = counts.iter().filter(|&&c| c == most).count();
+                tasks.len().max((most - 1) * (n + 1) + tied)
+            }
+
+            pub fn schedule(tasks: &[char], n: usize) -> Vec<Option<char>> {
+                let mut left = counts(tasks);
+                let mut next_ok = [0usize; 26];
+                let mut out = Vec::new();
+                let mut remaining = tasks.len();
+                while remaining > 0 {
+                    let t = out.len();
+                    let pick = (0..26).filter(|&i| left[i] > 0 && next_ok[i] <= t).max_by_key(|&i| left[i]);
+                    match pick {
+                        Some(i) => {
+                            left[i] -= 1;
+                            remaining -= 1;
+                            next_ok[i] = t + n + 1;
+                            out.push(Some((b'A' + i as u8) as char));
+                        }
+                        None => out.push(None),
+                    }
+                }
+                out
+            }
+        """,
+        formula_without_len="""
+            use std::collections::{BinaryHeap, HashMap, VecDeque};
+
+            fn counts(tasks: &[char]) -> HashMap<char, usize> {
+                let mut counts = HashMap::new();
+                for &c in tasks {
+                    *counts.entry(c).or_insert(0) += 1;
+                }
+                counts
+            }
+
+            pub fn least_interval(tasks: &[char], n: usize) -> usize {
+                let counts = counts(tasks);
+                let Some(&most) = counts.values().max() else {
+                    return 0;
+                };
+                let tied = counts.values().filter(|&&c| c == most).count();
+                (most - 1) * (n + 1) + tied
+            }
+
+            pub fn schedule(tasks: &[char], n: usize) -> Vec<Option<char>> {
+                let mut ready: BinaryHeap<(usize, char)> = counts(tasks).into_iter().map(|(c, left)| (left, c)).collect();
+                let mut cooling: VecDeque<(usize, usize, char)> = VecDeque::new();
+                let mut out = Vec::new();
+                while !ready.is_empty() || !cooling.is_empty() {
+                    let t = out.len();
+                    while let Some(&(at, left, c)) = cooling.front() {
+                        if at > t {
+                            break;
+                        }
+                        cooling.pop_front();
+                        ready.push((left, c));
+                    }
+                    match ready.pop() {
+                        Some((left, c)) => {
+                            out.push(Some(c));
+                            if left > 1 {
+                                cooling.push_back((t + n + 1, left - 1, c));
+                            }
+                        }
+                        None => out.push(None),
+                    }
+                }
+                out
+            }
+        """,
+        scan_every_slot="""
+            use std::collections::HashMap;
+
+            pub fn least_interval(tasks: &[char], n: usize) -> usize {
+                schedule(tasks, n).len()
+            }
+
+            pub fn schedule(tasks: &[char], n: usize) -> Vec<Option<char>> {
+                let mut counts: HashMap<char, usize> = HashMap::new();
+                for &c in tasks {
+                    *counts.entry(c).or_insert(0) += 1;
+                }
+                // (runs left, first slot it may run in, id)
+                let mut state: Vec<(usize, usize, char)> = counts.into_iter().map(|(c, k)| (k, 0, c)).collect();
+                let mut remaining = tasks.len();
+                let mut out = Vec::new();
+                while remaining > 0 {
+                    let t = out.len();
+                    let pick = (0..state.len()).filter(|&i| state[i].0 > 0 && state[i].1 <= t).max_by_key(|&i| state[i].0);
+                    match pick {
+                        Some(i) => {
+                            state[i].0 -= 1;
+                            state[i].1 = t + n + 1;
+                            remaining -= 1;
+                            out.push(Some(state[i].2));
+                        }
+                        None => out.push(None),
+                    }
+                }
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "The most frequent task sets the frame: `most − 1` gaps of `n + 1` slots, plus one slot per task tied for most. With enough different tasks there are no idles at all."),
+           ("rust", "For the schedule: a `BinaryHeap<(usize, char)>` of ready tasks by runs left, and a `VecDeque` of `(ready_at, left, id)` for tasks cooling down. Each slot, move ready ones back, then pop."),
+           ("edge case", "Ids aren't limited to `A`–`Z`; `c as u8 - b'A'` panics on `'é'`. And never finish on an idle slot.")],
+    notes=("Counting: the most frequent task needs `most − 1` gaps of `n + 1` slots, and the tasks tied with it fill the last frame; other tasks fit in "
+           "the gaps, and if they overflow them no idle is needed at all, so the answer is `max(len, (most − 1)(n + 1) + tied)`. The schedule comes "
+           "from the greedy \"run the ready task with the most runs left\": the heap holds ready tasks, the queue holds cooling ones in the order they "
+           "wake up. Each slot costs O(log k) for k different tasks.", "O(len) to count, O(T log k) to schedule T slots", "O(k)"),
+    follow_up="If tasks had to run in their given order (only idles may be inserted), how would the answer change?",
+    related=["D8", "S5", "S4"],
+))
+
+REORG_CHECK = """
+/// "ok" if `got` is a rearrangement of `s` with no two equal neighbours, otherwise what's wrong.
+fn verdict(s: &str, got: Option<String>) -> String {
+    let Some(t) = got else {
+        return "None".to_string();
+    };
+    let (mut a, mut b): (Vec<char>, Vec<char>) = (s.chars().collect(), t.chars().collect());
+    if let Some(i) = b.windows(2).position(|w| w[0] == w[1]) {
+        return format!("{t:?} has {:?} twice in a row at char {i}", b[i]);
+    }
+    a.sort_unstable();
+    b.sort_unstable();
+    if a != b {
+        return format!("{t:?} is not a rearrangement of the input");
+    }
+    "ok".to_string()
+}
+"""
+
+
+def reorg_case(name, s, desc=None):
+    return T(name, desc or f's = "{s}" (any valid answer)', f'verdict("{s}", reorganize("{s}"))', '"ok"')
+
+
+P.append(dict(
+    slug="reorganize-string", title="Reorganize string", level="medium", stage="heaps-at-work", tags=["BinaryHeap", "greedy", "chars"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "Uber"],
+    teaches=["Greedy with a heap of `(count, char)`: place the most frequent character that isn't the one just placed.",
+             "Hold the last character out of the heap for one step instead of popping twice.",
+             "Work in `char`s: a byte-level shuffle can split a UTF-8 sequence."],
+    statement="""
+        Rearrange the characters of `s` so that no two neighbours are equal, and return the result.
+        Return `None` if no such arrangement exists. When several exist, any of them is accepted.
+
+        `s` can hold any Unicode characters; rearrange whole characters, not bytes.
+    """,
+    examples=[("s = \"aab\"", "Some(\"aba\")"), ("s = \"aaab\"", "None")],
+    constraints=["0 ≤ s.chars().count() ≤ 2·10⁵"],
+    starter="""
+        pub fn reorganize(s: &str) -> Option<String> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::{BinaryHeap, HashMap};
+
+        pub fn reorganize(s: &str) -> Option<String> {
+            let mut counts: HashMap<char, usize> = HashMap::new();
+            for c in s.chars() {
+                *counts.entry(c).or_insert(0) += 1;
+            }
+            let mut heap: BinaryHeap<(usize, char)> = counts.into_iter().map(|(c, k)| (k, c)).collect();
+            let mut out = String::with_capacity(s.len());
+            // The character just placed sits out one step so it can't come next.
+            let mut held: Option<(usize, char)> = None;
+            while let Some((k, c)) = heap.pop() {
+                out.push(c);
+                if let Some(h) = held.take() {
+                    heap.push(h);
+                }
+                if k > 1 {
+                    held = Some((k - 1, c));
+                }
+            }
+            // Copies still held at the end had nothing to separate them.
+            held.is_none().then_some(out)
+        }
+    """,
+    use="use solution::*;\n" + REORG_CHECK.rstrip("\n"),
+    visible=[
+        T("leetcode_aab", 's = "aab"', 'reorganize("aab")', 'Some("aba".to_string())'),
+        T("leetcode_impossible", 's = "aaab"', 'reorganize("aaab")', "None"),
+        T("empty", 's = ""', 'reorganize("")', 'Some(String::new())'),
+        T("single", 's = "a"', 'reorganize("a")', 'Some("a".to_string())'),
+        reorg_case("any_valid_answer", "aabb"),
+        T("just_possible", 's = "aaabb" (3 a in 5 chars still fits)', 'reorganize("aaabb")', 'Some("ababa".to_string())'),
+        T("unicode_chars", 's = "ééa"', 'reorganize("ééa")', 'Some("éaé".to_string())'),
+    ],
+    hidden=[
+        T("pair_of_same", 's = "aa"', 'reorganize("aa")', "None"),
+        reorg_case("pair_of_different", "ab"),
+        reorg_case("three_kinds", "aaabbbccc"),
+        reorg_case("crabs_and_spaces", "🦀🦀 🦀 x"),
+        reorg_case("case_matters", "aAaA"),
+        T("half_plus_one", 's = "aaaabbb" (4 of 7)', 'reorganize("aaaabbb")', 'Some("abababa".to_string())'),
+        T("too_many_by_one", 's = "aaaabb" (4 of 6)', 'reorganize("aaaabb")', "None"),
+        T("unicode_impossible", 's = "日日日本"', 'reorganize("日日日本")', "None"),
+        reorg_case("mostly_one", "vvvvvabcd"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // Is there any arrangement? Backtracking over counts is the brute force.
+            fn possible(counts: &mut [usize], last: Option<usize>, left: usize) -> bool {
+                if left == 0 {
+                    return true;
+                }
+                for i in 0..counts.len() {
+                    if counts[i] > 0 && Some(i) != last {
+                        counts[i] -= 1;
+                        let ok = possible(counts, Some(i), left - 1);
+                        counts[i] += 1;
+                        if ok {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+            let mut rng = anneal_prelude::Rng::new(710);
+            for _ in 0..300 {
+                let len = rng.below(9);
+                let s = rng.string(len, "abé");
+                let mut counts: Vec<usize> = ['a', 'b', 'é'].iter().map(|&c| s.chars().filter(|&x| x == c).count()).collect();
+                let got = reorganize(&s);
+                let want = if possible(&mut counts, None, len) { "ok" } else { "None" };
+                check!(format!("s = {s:?}"), verdict(&s, got), want);
+            }
+        }
+
+        #[test]
+        fn scale_50k_kinds() {
+            // 20000 kinds five times each, 30000 more kinds once or twice, and 30000 copies of 'x'.
+            let mut s: String = (0..100_000).map(|i| char::from_u32(0x4E00 + i % 20_000).unwrap()).collect();
+            s.extend((0..50_000).map(|i| char::from_u32(0x1_0000 + i % 30_000).unwrap()));
+            s.push_str(&"x".repeat(30_000));
+            check!("s = 180000 chars of 50001 kinds, 30000 of them 'x'", verdict(&s, reorganize(&s)), "ok");
+        }
+
+        #[test]
+        fn scale_two_kinds_exactly_half() {
+            let s = "ab".repeat(50_000) + "a";
+            let want = "ab".repeat(50_000) + "a";
+            check!("s = \\"ab\\" × 50000 + \\"a\\" (only one answer)", reorganize(&s) == Some(want), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        bytes_not_chars="""
+            pub fn reorganize(s: &str) -> Option<String> {
+                let mut counts = [0usize; 256];
+                for b in s.bytes() {
+                    counts[b as usize] += 1;
+                }
+                let mut out: Vec<u8> = Vec::with_capacity(s.len());
+                let mut last: Option<u8> = None;
+                for _ in 0..s.len() {
+                    let pick = (0..256).filter(|&b| counts[b] > 0 && Some(b as u8) != last).max_by_key(|&b| counts[b])?;
+                    counts[pick] -= 1;
+                    out.push(pick as u8);
+                    last = Some(pick as u8);
+                }
+                Some(String::from_utf8_lossy(&out).into_owned())
+            }
+        """,
+        half_bound_off_by_one="""
+            use std::collections::{BinaryHeap, HashMap};
+
+            pub fn reorganize(s: &str) -> Option<String> {
+                let mut counts: HashMap<char, usize> = HashMap::new();
+                for c in s.chars() {
+                    *counts.entry(c).or_insert(0) += 1;
+                }
+                let len = s.chars().count();
+                if counts.values().any(|&k| k > len / 2) && len > 1 {
+                    return None;
+                }
+                let mut heap: BinaryHeap<(usize, char)> = counts.into_iter().map(|(c, k)| (k, c)).collect();
+                let mut out = String::new();
+                let mut held: Option<(usize, char)> = None;
+                while let Some((k, c)) = heap.pop() {
+                    out.push(c);
+                    if let Some(h) = held.take() {
+                        heap.push(h);
+                    }
+                    if k > 1 {
+                        held = Some((k - 1, c));
+                    }
+                }
+                Some(out)
+            }
+        """,
+        scan_for_most="""
+            use std::collections::HashMap;
+
+            pub fn reorganize(s: &str) -> Option<String> {
+                let mut counts: HashMap<char, usize> = HashMap::new();
+                for c in s.chars() {
+                    *counts.entry(c).or_insert(0) += 1;
+                }
+                let mut left: Vec<(char, usize)> = counts.into_iter().collect();
+                let mut out = String::new();
+                let mut last = None;
+                for _ in 0..s.chars().count() {
+                    let i = (0..left.len()).filter(|&i| left[i].1 > 0 && Some(left[i].0) != last).max_by_key(|&i| left[i].1)?;
+                    left[i].1 -= 1;
+                    out.push(left[i].0);
+                    last = Some(left[i].0);
+                }
+                Some(out)
+            }
+        """,
+    ),
+    hints=[("approach", "Always place the most frequent remaining character, unless it's the one you just placed; then place the runner-up."),
+           ("rust", "A `BinaryHeap<(usize, char)>` orders by count first. Pop one, push back the previously held one, and hold the popped one (count − 1) for a step."),
+           ("edge case", "It's impossible exactly when some character appears more than `(len + 1) / 2` times, where `len` counts chars, not bytes.")],
+    notes=("Placing the most frequent available character keeps the worst offender from piling up at the end. Holding the last placed character "
+           "out of the heap for one step enforces the neighbour rule without a second pop. If a character is still held when the heap runs dry, "
+           "no arrangement exists, which happens exactly when its count exceeds `(len + 1) / 2`. An O(len) alternative fills even positions with the "
+           "most frequent character first, then the odd ones.", "O(len log k) for k different characters", "O(k)"),
+    follow_up="Rearrange so equal characters are at least `d` apart. What changes in the heap loop?",
+    related=["S2", "D8"],
+))
+
+P.append(dict(
+    slug="merge-k-sorted-arrays", title="Merge k sorted arrays", level="medium", stage="heaps-at-work", tags=["BinaryHeap", "Reverse", "k-way merge"],
+    companies=["Amazon", "Google", "Microsoft", "Meta"],
+    teaches=["A k-way merge keeps one candidate per array in a min-heap of `Reverse((value, array, index))`.",
+             "Tuple fields after the value say where the next candidate comes from.",
+             "Merging arrays one by one into an accumulator is O(N·k); the heap is O(N log k)."],
+    statement="""
+        Every array in `arrays` is sorted ascending. Return all their values in one ascending `Vec`, duplicates included.
+        Arrays may be empty, and there may be no arrays at all.
+    """,
+    examples=[("arrays = [[1, 4, 5], [1, 3, 4], [2, 6]]", "[1, 1, 2, 3, 4, 4, 5, 6]"), ("arrays = []", "[]")],
+    constraints=["0 ≤ arrays.len() ≤ 2·10⁴", "total length N ≤ 2·10⁵", "values are any i32"],
+    starter="""
+        pub fn merge_k_sorted(arrays: &[Vec<i32>]) -> Vec<i32> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
+
+        pub fn merge_k_sorted(arrays: &[Vec<i32>]) -> Vec<i32> {
+            let total = arrays.iter().map(Vec::len).sum();
+            let mut out = Vec::with_capacity(total);
+            // One candidate per array: (value, which array, index in it).
+            let mut heap: BinaryHeap<Reverse<(i32, usize, usize)>> =
+                arrays.iter().enumerate().filter_map(|(a, v)| v.first().map(|&x| Reverse((x, a, 0)))).collect();
+            while let Some(Reverse((x, a, i))) = heap.pop() {
+                out.push(x);
+                if let Some(&next) = arrays[a].get(i + 1) {
+                    heap.push(Reverse((next, a, i + 1)));
+                }
+            }
+            out
+        }
+    """,
+    visible=[
+        T("leetcode_example", "arrays = [[1, 4, 5], [1, 3, 4], [2, 6]]", "merge_k_sorted(&[vec![1, 4, 5], vec![1, 3, 4], vec![2, 6]])", "vec![1, 1, 2, 3, 4, 4, 5, 6]"),
+        T("no_arrays", "arrays = []", "merge_k_sorted(&[])", "Vec::<i32>::new()"),
+        T("one_empty_array", "arrays = [[]]", "merge_k_sorted(&[vec![]])", "Vec::<i32>::new()"),
+        T("empty_arrays_skipped", "arrays = [[], [3], [], [1, 2]]", "merge_k_sorted(&[vec![], vec![3], vec![], vec![1, 2]])", "vec![1, 2, 3]"),
+        T("duplicates_kept", "arrays = [[2, 2], [2]]", "merge_k_sorted(&[vec![2, 2], vec![2]])", "vec![2, 2, 2]"),
+        T("negatives", "arrays = [[-5, 0], [-7, -1, 8]]", "merge_k_sorted(&[vec![-5, 0], vec![-7, -1, 8]])", "vec![-7, -5, -1, 0, 8]"),
+    ],
+    hidden=[
+        T("single_array", "arrays = [[1, 2, 3]]", "merge_k_sorted(&[vec![1, 2, 3]])", "vec![1, 2, 3]"),
+        T("extremes", "arrays = [[i32::MIN, i32::MAX], [0], [i32::MIN]]", "merge_k_sorted(&[vec![i32::MIN, i32::MAX], vec![0], vec![i32::MIN]])", "vec![i32::MIN, i32::MIN, 0, i32::MAX]"),
+        T("disjoint_ranges", "arrays = [[7, 8, 9], [1, 2, 3], [4, 5, 6]]", "merge_k_sorted(&[vec![7, 8, 9], vec![1, 2, 3], vec![4, 5, 6]])", "vec![1, 2, 3, 4, 5, 6, 7, 8, 9]"),
+        T("interleaved", "arrays = [[1, 4, 7], [2, 5, 8], [3, 6, 9]]", "merge_k_sorted(&[vec![1, 4, 7], vec![2, 5, 8], vec![3, 6, 9]])", "vec![1, 2, 3, 4, 5, 6, 7, 8, 9]"),
+        T("very_different_lengths", "arrays = [[5], 0..10, [-1]]", "merge_k_sorted(&[vec![5], (0..10).collect(), vec![-1]])", "vec![-1, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9]"),
+        T("all_equal", "arrays = [[0, 0], [0], [0, 0, 0]]", "merge_k_sorted(&[vec![0, 0], vec![0], vec![0, 0, 0]])", "vec![0; 6]"),
+        T("many_empty", "arrays = 1000 empty arrays", "merge_k_sorted(&vec![Vec::new(); 1000])", "Vec::<i32>::new()"),
+        T("last_array_holds_the_minimum", "arrays = [[2], [3], [1]]", "merge_k_sorted(&[vec![2], vec![3], vec![1]])", "vec![1, 2, 3]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(711);
+            for _ in 0..300 {
+                let k = rng.below(6);
+                let mut arrays: Vec<Vec<i32>> = Vec::new();
+                for _ in 0..k {
+                    let len = rng.below(6);
+                    let mut v: Vec<i32> = rng.vec(len, -10, 10);
+                    v.sort_unstable();
+                    arrays.push(v);
+                }
+                let mut want: Vec<i32> = arrays.concat();
+                want.sort_unstable();
+                check!(format!("arrays = {arrays:?}"), merge_k_sorted(&arrays), want);
+            }
+        }
+
+        #[test]
+        fn scale_20k_arrays() {
+            let mut rng = anneal_prelude::Rng::new(712);
+            let arrays: Vec<Vec<i32>> = (0..20_000)
+                .map(|_| {
+                    let mut v: Vec<i32> = rng.vec(10, -1_000_000, 1_000_000);
+                    v.sort_unstable();
+                    v
+                })
+                .collect();
+            let mut want = arrays.concat();
+            want.sort_unstable();
+            check!("20000 sorted arrays of 10 random values", merge_k_sorted(&arrays) == want, true);
+        }
+        """,
+    ],
+    wrong=dict(
+        merge_one_at_a_time="""
+            pub fn merge_k_sorted(arrays: &[Vec<i32>]) -> Vec<i32> {
+                let mut acc: Vec<i32> = Vec::new();
+                for v in arrays {
+                    let mut merged = Vec::with_capacity(acc.len() + v.len());
+                    let (mut i, mut j) = (0, 0);
+                    while i < acc.len() || j < v.len() {
+                        if j == v.len() || (i < acc.len() && acc[i] <= v[j]) {
+                            merged.push(acc[i]);
+                            i += 1;
+                        } else {
+                            merged.push(v[j]);
+                            j += 1;
+                        }
+                    }
+                    acc = merged;
+                }
+                acc
+            }
+        """,
+        scan_all_heads="""
+            pub fn merge_k_sorted(arrays: &[Vec<i32>]) -> Vec<i32> {
+                let mut pos = vec![0; arrays.len()];
+                let mut out = Vec::new();
+                loop {
+                    let best = (0..arrays.len()).filter(|&a| pos[a] < arrays[a].len()).min_by_key(|&a| arrays[a][pos[a]]);
+                    let Some(a) = best else { break };
+                    out.push(arrays[a][pos[a]]);
+                    pos[a] += 1;
+                }
+                out
+            }
+        """,
+        forgot_reverse="""
+            use std::collections::BinaryHeap;
+
+            pub fn merge_k_sorted(arrays: &[Vec<i32>]) -> Vec<i32> {
+                let mut out = Vec::new();
+                let mut heap: BinaryHeap<(i32, usize, usize)> =
+                    arrays.iter().enumerate().filter_map(|(a, v)| v.first().map(|&x| (x, a, 0))).collect();
+                while let Some((x, a, i)) = heap.pop() {
+                    out.push(x);
+                    if let Some(&next) = arrays[a].get(i + 1) {
+                        heap.push((next, a, i + 1));
+                    }
+                }
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "The next output is the smallest of the k array heads. Keep the heads in a min-heap; after popping one, push its array's next value."),
+           ("rust", "`BinaryHeap<Reverse<(i32, usize, usize)>>`: value first so it decides the order, then the array and the index to continue from."),
+           ("edge case", "Seed the heap only from non-empty arrays: `v.first().map(...)` inside `filter_map`.")],
+    notes=("The heap never holds more than one value per array, so each of the N outputs costs O(log k). Merging arrays into an accumulator one "
+           "after another re-copies the accumulator k times: O(N·k). Concatenating and sorting is O(N log N) and fine in memory; the heap "
+           "version is the one that also works when the arrays are streams (see External merge sort).", "O(N log k)", "O(k) besides the output"),
+    follow_up="How would you merge pairwise, like merge sort's merge tree, and what does that cost?",
+    related=["D5", "S5"],
+))
+
+P.append(dict(
+    slug="top-k-frequent-words", title="Top K frequent words", level="medium", stage="heaps-at-work",
+    tags=["BinaryHeap", "Reverse", "custom order", "&str"],
+    companies=["Amazon", "Meta", "Google", "Microsoft", "Bloomberg", "Uber"],
+    teaches=["`(Reverse(count), word)` puts \"worse\" on top of a max-heap: lower count, then later word.",
+             "A size-k heap is O(n log k) instead of sorting every distinct word.",
+             "Return `&'a str` slices of the input instead of new `String`s."],
+    statement="""
+        Return the `k` most frequent words, most frequent first. Words with the same count come in lexicographic
+        order (`str`'s own `Ord`, which compares bytes: `"B" < "a" < "é"`). If there are fewer than `k` different
+        words, return them all.
+    """,
+    examples=[("words = [\"i\", \"love\", \"leetcode\", \"i\", \"love\", \"coding\"], k = 2", "[\"i\", \"love\"]"),
+              ("words = [\"the\", \"day\", \"is\", \"sunny\", \"the\", \"the\", \"the\", \"sunny\", \"is\", \"is\"], k = 4", "[\"the\", \"is\", \"sunny\", \"day\"]")],
+    constraints=["0 ≤ words.len() ≤ 5·10⁵", "0 ≤ k"],
+    starter="""
+        pub fn top_k_frequent<'a>(words: &[&'a str], k: usize) -> Vec<&'a str> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::cmp::Reverse;
+        use std::collections::{BinaryHeap, HashMap};
+
+        pub fn top_k_frequent<'a>(words: &[&'a str], k: usize) -> Vec<&'a str> {
+            let mut counts: HashMap<&'a str, usize> = HashMap::new();
+            for &w in words {
+                *counts.entry(w).or_insert(0) += 1;
+            }
+            // Max-heap on (Reverse(count), word): the top is the worst kept word,
+            // i.e. the lowest count, and among equal counts the latest word.
+            let mut heap: BinaryHeap<(Reverse<usize>, &'a str)> = BinaryHeap::with_capacity(k + 1);
+            for (w, c) in counts {
+                heap.push((Reverse(c), w));
+                if heap.len() > k {
+                    heap.pop();
+                }
+            }
+            // Ascending order of (Reverse(count), word) is the answer's order.
+            heap.into_sorted_vec().into_iter().map(|(_, w)| w).collect()
+        }
+    """,
+    visible=[
+        T("leetcode_two", 'words = ["i", "love", "leetcode", "i", "love", "coding"], k = 2',
+          'top_k_frequent(&["i", "love", "leetcode", "i", "love", "coding"], 2)', 'vec!["i", "love"]'),
+        T("leetcode_four", 'words = ["the", "day", "is", "sunny", "the", "the", "the", "sunny", "is", "is"], k = 4',
+          'top_k_frequent(&["the", "day", "is", "sunny", "the", "the", "the", "sunny", "is", "is"], 4)', 'vec!["the", "is", "sunny", "day"]'),
+        T("ties_alphabetical", 'words = ["b", "c", "a"], k = 2', 'top_k_frequent(&["b", "c", "a"], 2)', 'vec!["a", "b"]'),
+        T("empty", "words = [], k = 3", "top_k_frequent(&[], 3)", "Vec::<&str>::new()"),
+        T("k_zero", 'words = ["a"], k = 0', 'top_k_frequent(&["a"], 0)', "Vec::<&str>::new()"),
+        T("fewer_words_than_k", 'words = ["x", "y", "x"], k = 5', 'top_k_frequent(&["x", "y", "x"], 5)', 'vec!["x", "y"]'),
+    ],
+    hidden=[
+        T("uppercase_sorts_first", 'words = ["b", "B", "a"], k = 3', 'top_k_frequent(&["b", "B", "a"], 3)', 'vec!["B", "a", "b"]'),
+        T("accent_after_z", 'words = ["é", "z"], k = 2', 'top_k_frequent(&["é", "z"], 2)', 'vec!["z", "é"]'),
+        T("prefixes_first", 'words = ["abc", "a", "ab"], k = 3', 'top_k_frequent(&["abc", "a", "ab"], 3)', 'vec!["a", "ab", "abc"]'),
+        T("count_beats_alphabet", 'words = ["z", "a", "z"], k = 1', 'top_k_frequent(&["z", "a", "z"], 1)', 'vec!["z"]'),
+        T("tie_at_the_cut", 'words = ["d", "c", "b", "a", "e", "e"], k = 3', 'top_k_frequent(&["d", "c", "b", "a", "e", "e"], 3)', 'vec!["e", "a", "b"]'),
+        T("empty_word", 'words = ["", "a", ""], k = 2', 'top_k_frequent(&["", "a", ""], 2)', 'vec!["", "a"]'),
+        T("one_word_many_times", 'words = ["same"; 1000], k = 1', 'top_k_frequent(&vec!["same"; 1000], 1)', 'vec!["same"]'),
+        T("returns_slices_of_the_input", 'words = [s, s] where s is a String, k = 1', "top_k_frequent(&[s.as_str(), s.as_str()], 1)[0].as_ptr() == s.as_ptr()", "true",
+          setup='let s = String::from("borrowed");'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(713);
+            let pool = ["a", "b", "ab", "B", "é", "ba", ""];
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let words: Vec<&str> = (0..n).map(|_| *rng.pick(&pool)).collect();
+                let k = rng.below(8);
+                let mut distinct = words.clone();
+                distinct.sort_unstable();
+                distinct.dedup();
+                let count = |w: &str| words.iter().filter(|&&x| x == w).count();
+                distinct.sort_by(|a, b| count(b).cmp(&count(a)).then(a.cmp(b)));
+                distinct.truncate(k);
+                check!(format!("words = {words:?}, k = {k}"), top_k_frequent(&words, k), distinct);
+            }
+        }
+
+        #[test]
+        fn scale_100k_distinct_words() {
+            let names: Vec<String> = (0..100_000).map(|i| format!("w{:05}", (i * 7919) % 100_000)).collect();
+            let mut words: Vec<&str> = Vec::new();
+            for (i, w) in names.iter().enumerate() {
+                for _ in 0..(i % 4) + 1 {
+                    words.push(w);
+                }
+            }
+            let mut want: Vec<(usize, &str)> = names.iter().enumerate().map(|(i, w)| ((i % 4) + 1, w.as_str())).collect();
+            want.sort_unstable_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(b.1)));
+            let want: Vec<&str> = want.into_iter().take(50_000).map(|(_, w)| w).collect();
+            check!("100000 different words appearing 1–4 times (250000 words), k = 50000", top_k_frequent(&words, 50_000) == want, true);
+        }
+        """,
+    ],
+    wrong=dict(
+        ties_evict_the_wrong_word="""
+            use std::cmp::Reverse;
+            use std::collections::{BinaryHeap, HashMap};
+
+            pub fn top_k_frequent<'a>(words: &[&'a str], k: usize) -> Vec<&'a str> {
+                let mut counts: HashMap<&'a str, usize> = HashMap::new();
+                for &w in words {
+                    *counts.entry(w).or_insert(0) += 1;
+                }
+                // Min-heap on (count, word): pops the lowest count, but on ties the *earliest* word.
+                let mut heap: BinaryHeap<Reverse<(usize, &'a str)>> = BinaryHeap::new();
+                for (w, c) in counts {
+                    heap.push(Reverse((c, w)));
+                    if heap.len() > k {
+                        heap.pop();
+                    }
+                }
+                let mut out: Vec<(usize, &str)> = heap.into_iter().map(|Reverse(x)| x).collect();
+                out.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(b.1)));
+                out.into_iter().map(|(_, w)| w).collect()
+            }
+        """,
+        sort_by_count_only="""
+            use std::collections::HashMap;
+
+            pub fn top_k_frequent<'a>(words: &[&'a str], k: usize) -> Vec<&'a str> {
+                let mut counts: HashMap<&'a str, usize> = HashMap::new();
+                for &w in words {
+                    *counts.entry(w).or_insert(0) += 1;
+                }
+                let mut all: Vec<(&'a str, usize)> = counts.into_iter().collect();
+                all.sort_by(|a, b| b.1.cmp(&a.1));
+                all.into_iter().take(k).map(|(w, _)| w).collect()
+            }
+        """,
+        pick_best_k_times="""
+            use std::collections::HashMap;
+
+            pub fn top_k_frequent<'a>(words: &[&'a str], k: usize) -> Vec<&'a str> {
+                let mut counts: HashMap<&'a str, usize> = HashMap::new();
+                for &w in words {
+                    *counts.entry(w).or_insert(0) += 1;
+                }
+                let mut left: Vec<(&'a str, usize)> = counts.into_iter().collect();
+                let mut out = Vec::new();
+                while out.len() < k && !left.is_empty() {
+                    let mut best = 0;
+                    for i in 1..left.len() {
+                        if left[i].1 > left[best].1 || (left[i].1 == left[best].1 && left[i].0 < left[best].0) {
+                            best = i;
+                        }
+                    }
+                    out.push(left.swap_remove(best).0);
+                }
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Count with a `HashMap`, then keep only the k best words in a heap whose top is the worst of them."),
+           ("rust", "\"Worse\" means lower count, or the same count and a later word. `(Reverse(count), word)` in a max-heap orders exactly that way, and `into_sorted_vec()` then lists best first."),
+           ("edge case", "Equal counts at the cut-off: the word that stays is the lexicographically smaller one.")],
+    notes=("The heap holds at most k entries and its top is the one to evict. Wrapping only the count in `Reverse` makes the tuple compare "
+           "counts descending but words ascending, so one derived tuple order encodes the whole rule; no custom `Ord` impl needed. The map's keys "
+           "are the input's `&'a str`, so nothing is copied.", "O(n + d log k) for d different words", "O(d)"),
+    follow_up="How would you answer this for a stream of words that never ends, with k fixed?",
+    related=["D1", "S4", "L3"],
+))
+
 STAGES = [
     ("heap-basics", "Heap basics", "easy"),
     ("heaps-at-work", "Heaps at work", "medium"),

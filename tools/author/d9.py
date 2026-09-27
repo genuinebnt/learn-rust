@@ -4395,6 +4395,428 @@ P.append(dict(
 ))
 
 P.append(dict(
+    slug="course-schedule-ii", title="Course schedule II", level="medium", stage="topological-sort",
+    tags=["Kahn's", "Option<Vec>"],
+    teaches=["Returning the order Kahn's algorithm produces, not just whether it finishes.", "Tests that check a property when many answers are right."],
+    statement="""
+        There are `n` courses, `0..n`. `(a, b)` means course `a` must be taken before course `b`. Return an order
+        that takes every course, or `None` if there's none. Any valid order is accepted.
+    """,
+    examples=[("n = 4, prereqs = [(0, 1), (0, 2), (1, 3), (2, 3)]", "Some([0, 1, 2, 3]) or Some([0, 2, 1, 3])")],
+    constraints=["1 ≤ n ≤ 2·10⁵", "prereqs.len() ≤ 2·10⁵"],
+    starter="""
+        pub fn find_order(n: usize, prereqs: &[(usize, usize)]) -> Option<Vec<usize>> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::VecDeque;
+
+        pub fn find_order(n: usize, prereqs: &[(usize, usize)]) -> Option<Vec<usize>> {
+            let mut adj = vec![Vec::new(); n];
+            let mut indeg = vec![0u32; n];
+            for &(a, b) in prereqs {
+                adj[a].push(b);
+                indeg[b] += 1;
+            }
+            let mut ready: VecDeque<usize> = (0..n).filter(|&u| indeg[u] == 0).collect();
+            let mut order = Vec::with_capacity(n);
+            while let Some(u) = ready.pop_front() {
+                order.push(u);
+                for &v in &adj[u] {
+                    indeg[v] -= 1;
+                    if indeg[v] == 0 {
+                        ready.push_back(v);
+                    }
+                }
+            }
+            (order.len() == n).then_some(order)
+        }
+    """,
+    visible=[
+        """
+        /// "valid order", "no order", or what's wrong with the answer.
+        fn verdict(n: usize, prereqs: &[(usize, usize)], got: Option<Vec<usize>>) -> String {
+            let Some(order) = got else {
+                return "no order".to_string();
+            };
+            let mut pos = vec![usize::MAX; n];
+            for (i, &c) in order.iter().enumerate() {
+                if c >= n || pos[c] != usize::MAX {
+                    return format!("not a permutation of 0..{n}: {order:?}");
+                }
+                pos[c] = i;
+            }
+            if order.len() != n {
+                return format!("only {} of {n} courses: {order:?}", order.len());
+            }
+            match prereqs.iter().find(|&&(a, b)| pos[a] > pos[b]) {
+                Some(&(a, b)) => format!("{b} comes before its prerequisite {a}: {order:?}"),
+                None => "valid order".to_string(),
+            }
+        }
+        """,
+        T("two_courses", "n = 2, prereqs = [(0, 1)]", "verdict(2, &[(0, 1)], find_order(2, &[(0, 1)]))", '"valid order"'),
+        T("diamond", "n = 4, prereqs = [(0, 1), (0, 2), (1, 3), (2, 3)]", "verdict(4, &p, find_order(4, &p))", '"valid order"',
+          setup="let p = [(0, 1), (0, 2), (1, 3), (2, 3)];"),
+        T("one_course", "n = 1, prereqs = []", "find_order(1, &[])", "Some(vec![0])"),
+        T("cycle", "n = 2, prereqs = [(0, 1), (1, 0)]", "find_order(2, &[(0, 1), (1, 0)])", "None"),
+        T("every_course_listed", "n = 3, prereqs = [(2, 0)]", "verdict(3, &[(2, 0)], find_order(3, &[(2, 0)]))", '"valid order"'),
+    ],
+    hidden=[
+        """
+        /// "valid order", "no order", or what's wrong with the answer.
+        fn verdict(n: usize, prereqs: &[(usize, usize)], got: Option<Vec<usize>>) -> String {
+            let Some(order) = got else {
+                return "no order".to_string();
+            };
+            let mut pos = vec![usize::MAX; n];
+            for (i, &c) in order.iter().enumerate() {
+                if c >= n || pos[c] != usize::MAX {
+                    return format!("not a permutation of 0..{n}: {order:?}");
+                }
+                pos[c] = i;
+            }
+            if order.len() != n {
+                return format!("only {} of {n} courses: {order:?}", order.len());
+            }
+            match prereqs.iter().find(|&&(a, b)| pos[a] > pos[b]) {
+                Some(&(a, b)) => format!("{b} comes before its prerequisite {a}: {order:?}"),
+                None => "valid order".to_string(),
+            }
+        }
+        """,
+        T("self_loop", "n = 2, prereqs = [(1, 1)]", "find_order(2, &[(1, 1)])", "None"),
+        T("duplicate_prereqs", "n = 3, prereqs = [(0, 2), (0, 2), (1, 2)]", "verdict(3, &p, find_order(3, &p))", '"valid order"', setup="let p = [(0, 2), (0, 2), (1, 2)];"),
+        T("cycle_off_to_the_side", "n = 5, prereqs = [(0, 1), (2, 3), (3, 4), (4, 2)]", "find_order(5, &[(0, 1), (2, 3), (3, 4), (4, 2)])", "None"),
+        T("reversed_chain", "n = 4, prereqs = [(3, 2), (2, 1), (1, 0)]", "find_order(4, &[(3, 2), (2, 1), (1, 0)])", "Some(vec![3, 2, 1, 0])"),
+        T("no_prereqs", "n = 4, prereqs = []", "verdict(4, &[], find_order(4, &[]))", '"valid order"'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(946);
+            for _ in 0..300 {
+                let n = 1 + rng.below(7);
+                let m = rng.below(9);
+                let p: Vec<(usize, usize)> = (0..m).map(|_| (rng.below(n), rng.below(n))).collect();
+                // Brute force: an order exists exactly when repeatedly removing unblocked courses empties the set.
+                let mut left: Vec<usize> = (0..n).collect();
+                while let Some(i) = left.iter().position(|&u| !p.iter().any(|&(a, b)| b == u && left.contains(&a))) {
+                    left.remove(i);
+                }
+                let want = if left.is_empty() { "valid order" } else { "no order" };
+                check!(format!("n = {n}, prereqs = {p:?}"), verdict(n, &p, find_order(n, &p)), want);
+            }
+        }
+
+        #[test]
+        fn scale_chain_200k() {
+            let n = 200_000;
+            let p: Vec<(usize, usize)> = (0..n - 1).map(|i| (i, i + 1)).collect();
+            check!("n = 200000, chain 0 → 1 → … → 199999", verdict(n, &p, find_order(n, &p)), "valid order");
+        }
+
+        #[test]
+        fn scale_star_then_cycle() {
+            // 0 before everything, and a cycle among the last three courses.
+            let n = 200_000;
+            let mut p: Vec<(usize, usize)> = (1..n).map(|i| (0, i)).collect();
+            p.extend([(n - 3, n - 2), (n - 2, n - 1), (n - 1, n - 3)]);
+            check!("n = 200000, 0 before all, cycle among the last three", find_order(n, &p), None);
+        }
+        """,
+    ],
+    wrong=dict(
+        dfs_finish_order="""
+            pub fn find_order(n: usize, prereqs: &[(usize, usize)]) -> Option<Vec<usize>> {
+                // Postorder DFS without the final reverse: every course lands after the courses it unlocks.
+                let mut adj = vec![Vec::new(); n];
+                for &(a, b) in prereqs {
+                    adj[a].push(b);
+                }
+                let mut state = vec![0u8; n];
+                let mut out = Vec::new();
+                for s in 0..n {
+                    if state[s] != 0 {
+                        continue;
+                    }
+                    let mut stack = vec![(s, 0)];
+                    state[s] = 1;
+                    while let Some(&mut (u, ref mut i)) = stack.last_mut() {
+                        if *i < adj[u].len() {
+                            let v = adj[u][*i];
+                            *i += 1;
+                            match state[v] {
+                                0 => {
+                                    state[v] = 1;
+                                    stack.push((v, 0));
+                                }
+                                1 => return None,
+                                _ => {}
+                            }
+                        } else {
+                            state[u] = 2;
+                            out.push(u);
+                            stack.pop();
+                        }
+                    }
+                }
+                Some(out)
+            }
+        """,
+        partial_order_on_a_cycle="""
+            use std::collections::VecDeque;
+
+            pub fn find_order(n: usize, prereqs: &[(usize, usize)]) -> Option<Vec<usize>> {
+                let mut adj = vec![Vec::new(); n];
+                let mut indeg = vec![0u32; n];
+                for &(a, b) in prereqs {
+                    adj[a].push(b);
+                    indeg[b] += 1;
+                }
+                let mut ready: VecDeque<usize> = (0..n).filter(|&u| indeg[u] == 0).collect();
+                let mut order = Vec::with_capacity(n);
+                while let Some(u) = ready.pop_front() {
+                    order.push(u);
+                    for &v in &adj[u] {
+                        indeg[v] -= 1;
+                        if indeg[v] == 0 {
+                            ready.push_back(v);
+                        }
+                    }
+                }
+                Some(order)
+            }
+        """,
+        recursive_dfs="""
+            pub fn find_order(n: usize, prereqs: &[(usize, usize)]) -> Option<Vec<usize>> {
+                fn visit(u: usize, adj: &[Vec<usize>], state: &mut [u8], out: &mut Vec<usize>) -> bool {
+                    state[u] = 1;
+                    for &v in &adj[u] {
+                        if state[v] == 1 || (state[v] == 0 && !visit(v, adj, state, out)) {
+                            return false;
+                        }
+                    }
+                    state[u] = 2;
+                    out.push(u);
+                    true
+                }
+                let mut adj = vec![Vec::new(); n];
+                for &(a, b) in prereqs {
+                    adj[a].push(b);
+                }
+                let mut state = vec![0u8; n];
+                let mut out = Vec::new();
+                for u in 0..n {
+                    if state[u] == 0 && !visit(u, &adj, &mut state, &mut out) {
+                        return None;
+                    }
+                }
+                out.reverse();
+                Some(out)
+            }
+        """,
+    ),
+    hints=[("approach", "Kahn's algorithm already takes courses in a valid order. Record it instead of just counting."),
+           ("edge case", "If some courses never become ready, there's a cycle: return `None`, not the partial order."),
+           ("rust", "`(order.len() == n).then_some(order)` turns the check and the Vec into the `Option`.")],
+    notes=("The order courses leave the queue respects every prerequisite, because a course only enters the queue once all of its prerequisites have left it.", "O(V + E)", "O(V + E)"),
+    follow_up="How would you return the order that finishes in the fewest semesters, taking any number of courses per semester?",
+))
+
+P.append(dict(
+    slug="minimum-height-trees", title="Minimum height trees", level="medium", stage="topological-sort",
+    tags=["leaf trimming", "tree centre"],
+    teaches=["Peeling leaves layer by layer, like Kahn's algorithm on an undirected tree.", "A tree has one or two centres."],
+    statement="""
+        The undirected graph on nodes `0..n` is a tree. Rooting it at a node gives a tree whose height is the
+        longest root-to-leaf path (in edges). Return every node that gives the smallest height, ascending.
+    """,
+    examples=[("n = 6, edges = [(3, 0), (3, 1), (3, 2), (3, 4), (5, 4)]", "[3, 4]")],
+    constraints=["1 ≤ n ≤ 2·10⁵", "edges.len() == n − 1"],
+    starter="""
+        pub fn find_min_height_trees(n: usize, edges: &[(usize, usize)]) -> Vec<usize> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn find_min_height_trees(n: usize, edges: &[(usize, usize)]) -> Vec<usize> {
+            if n <= 2 {
+                return (0..n).collect();
+            }
+            let mut adj = vec![Vec::new(); n];
+            let mut degree = vec![0usize; n];
+            for &(a, b) in edges {
+                adj[a].push(b);
+                adj[b].push(a);
+                degree[a] += 1;
+                degree[b] += 1;
+            }
+            // Remove the leaves layer by layer; the last one or two nodes are the centres.
+            let mut leaves: Vec<usize> = (0..n).filter(|&u| degree[u] == 1).collect();
+            let mut left = n;
+            while left > 2 {
+                left -= leaves.len();
+                let mut next = Vec::new();
+                for &leaf in &leaves {
+                    for &v in &adj[leaf] {
+                        degree[v] -= 1;
+                        if degree[v] == 1 {
+                            next.push(v);
+                        }
+                    }
+                }
+                leaves = next;
+            }
+            leaves.sort_unstable();
+            leaves
+        }
+    """,
+    visible=[
+        T("star_centre", "n = 4, edges = [(1, 0), (1, 2), (1, 3)]", "find_min_height_trees(4, &[(1, 0), (1, 2), (1, 3)])", "vec![1]"),
+        T("two_centres", "n = 6, edges = [(3, 0), (3, 1), (3, 2), (3, 4), (5, 4)]", "find_min_height_trees(6, &[(3, 0), (3, 1), (3, 2), (3, 4), (5, 4)])", "vec![3, 4]"),
+        T("one_node", "n = 1, edges = []", "find_min_height_trees(1, &[])", "vec![0]"),
+        T("two_nodes", "n = 2, edges = [(0, 1)]", "find_min_height_trees(2, &[(0, 1)])", "vec![0, 1]"),
+        T("path_of_five", "n = 5, path 0-1-2-3-4", "find_min_height_trees(5, &[(0, 1), (1, 2), (2, 3), (3, 4)])", "vec![2]"),
+    ],
+    hidden=[
+        T("path_of_four", "n = 4, path 3-1-0-2", "find_min_height_trees(4, &[(3, 1), (1, 0), (0, 2)])", "vec![0, 1]"),
+        T("three_nodes", "n = 3, edges = [(2, 0), (0, 1)]", "find_min_height_trees(3, &[(2, 0), (0, 1)])", "vec![0]"),
+        T("centre_is_not_the_busiest_node", "n = 7, edges = [(0, 1), (0, 2), (0, 3), (0, 4), (4, 5), (5, 6)]",
+          "find_min_height_trees(7, &[(0, 1), (0, 2), (0, 3), (0, 4), (4, 5), (5, 6)])", "vec![4]"),
+        T("broom", "n = 6, edges = [(0, 1), (1, 2), (2, 3), (3, 4), (3, 5)]", "find_min_height_trees(6, &[(0, 1), (1, 2), (2, 3), (3, 4), (3, 5)])", "vec![2]"),
+        T("spider", "n = 7, three legs of two from node 0", "find_min_height_trees(7, &[(0, 1), (1, 2), (0, 3), (3, 4), (0, 5), (5, 6)])", "vec![0]"),
+        T("big_star", "n = 100000, 0 joined to every other node", "find_min_height_trees(100_000, &edges)", "vec![0]",
+          setup="let edges: Vec<(usize, usize)> = (1..100_000).map(|i| (i, 0)).collect();"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(947);
+            for _ in 0..300 {
+                let n = 1 + rng.below(9);
+                let mut label: Vec<usize> = (0..n).collect();
+                rng.shuffle(&mut label);
+                let edges: Vec<(usize, usize)> = (1..n).map(|i| { let j = rng.below(i); (label[i], label[j]) }).collect();
+                // Brute force: BFS from every node for its height.
+                let mut adj = vec![Vec::new(); n];
+                for &(a, b) in &edges {
+                    adj[a].push(b);
+                    adj[b].push(a);
+                }
+                let height = |root: usize| {
+                    let mut d = vec![usize::MAX; n];
+                    d[root] = 0;
+                    let mut q = std::collections::VecDeque::from([root]);
+                    while let Some(u) = q.pop_front() {
+                        for &v in &adj[u] {
+                            if d[v] == usize::MAX {
+                                d[v] = d[u] + 1;
+                                q.push_back(v);
+                            }
+                        }
+                    }
+                    *d.iter().max().unwrap()
+                };
+                let h: Vec<usize> = (0..n).map(height).collect();
+                let best = *h.iter().min().unwrap();
+                let want: Vec<usize> = (0..n).filter(|&u| h[u] == best).collect();
+                check!(format!("n = {n}, edges = {edges:?}"), find_min_height_trees(n, &edges), want);
+            }
+        }
+
+        #[test]
+        fn scale_long_path() {
+            // A path of 200000 nodes, listed out of order: the centres are 99999 and 100000.
+            let n = 200_000;
+            let mut edges: Vec<(usize, usize)> = (1..n).map(|i| (i - 1, i)).collect();
+            anneal_prelude::Rng::new(948).shuffle(&mut edges);
+            check!("path of 200000 nodes", find_min_height_trees(n, &edges), vec![99_999, 100_000]);
+        }
+        """,
+    ],
+    wrong=dict(
+        height_from_every_node="""
+            use std::collections::VecDeque;
+
+            pub fn find_min_height_trees(n: usize, edges: &[(usize, usize)]) -> Vec<usize> {
+                let mut adj = vec![Vec::new(); n];
+                for &(a, b) in edges {
+                    adj[a].push(b);
+                    adj[b].push(a);
+                }
+                let height = |root: usize| {
+                    let mut d = vec![usize::MAX; n];
+                    d[root] = 0;
+                    let mut q = VecDeque::from([root]);
+                    let mut far = 0;
+                    while let Some(u) = q.pop_front() {
+                        far = d[u];
+                        for &v in &adj[u] {
+                            if d[v] == usize::MAX {
+                                d[v] = d[u] + 1;
+                                q.push_back(v);
+                            }
+                        }
+                    }
+                    far
+                };
+                let h: Vec<usize> = (0..n).map(height).collect();
+                let best = h.iter().copied().min().unwrap_or(0);
+                (0..n).filter(|&u| h[u] == best).collect()
+            }
+        """,
+        highest_degree="""
+            pub fn find_min_height_trees(n: usize, edges: &[(usize, usize)]) -> Vec<usize> {
+                let mut degree = vec![0usize; n];
+                for &(a, b) in edges {
+                    degree[a] += 1;
+                    degree[b] += 1;
+                }
+                let best = degree.iter().copied().max().unwrap_or(0);
+                (0..n).filter(|&u| degree[u] == best).collect()
+            }
+        """,
+        stops_one_layer_early="""
+            pub fn find_min_height_trees(n: usize, edges: &[(usize, usize)]) -> Vec<usize> {
+                if n <= 2 {
+                    return (0..n).collect();
+                }
+                let mut adj = vec![Vec::new(); n];
+                let mut degree = vec![0usize; n];
+                for &(a, b) in edges {
+                    adj[a].push(b);
+                    adj[b].push(a);
+                    degree[a] += 1;
+                    degree[b] += 1;
+                }
+                let mut leaves: Vec<usize> = (0..n).filter(|&u| degree[u] == 1).collect();
+                let mut left = n;
+                while left > 3 {
+                    left -= leaves.len();
+                    let mut next = Vec::new();
+                    for &leaf in &leaves {
+                        for &v in &adj[leaf] {
+                            degree[v] -= 1;
+                            if degree[v] == 1 {
+                                next.push(v);
+                            }
+                        }
+                    }
+                    leaves = next;
+                }
+                leaves.sort_unstable();
+                leaves
+            }
+        """,
+    ),
+    hints=[("approach", "A leaf is never a better root than its neighbour. Remove all current leaves, then the new leaves, and so on."),
+           ("approach", "Stop when at most two nodes are left: those are the centres of the longest path, and the answer."),
+           ("edge case", "With one or two nodes, every node is an answer.")],
+    notes=("Trimming leaves in rounds is Kahn's algorithm on an undirected tree. The survivors are the middle of every longest path, so there are at most two.", "O(n)", "O(n)"),
+    follow_up="How would you find the tree's diameter with two BFS runs, and how does that give the centres too?",
+))
+
+P.append(dict(
     slug="alien-dictionary", title="Alien dictionary", level="hard", stage="topological-sort",
     tags=["topological sort", "BTreeSet", "Blind 75"],
     teaches=["Deriving edges from adjacent pairs with `windows(2)`.", "Fixed-size arrays for a 26-letter alphabet."],
@@ -8677,6 +9099,8 @@ P.append(dict(
 ))
 
 COMPANIES = {
+    "course-schedule-ii": ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber"],
+    "minimum-height-trees": ["Meta", "Amazon", "Google", "Microsoft"],
     "zero-one-matrix": ["Meta", "Amazon", "Google", "Microsoft", "Uber"],
     "shortest-path-in-binary-matrix": ["Meta", "Amazon", "Google", "Microsoft"],
     "surrounded-regions": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "Uber"],

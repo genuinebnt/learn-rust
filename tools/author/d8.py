@@ -1675,6 +1675,1196 @@ P.append(dict(
     related=["D1", "S3"],
 ))
 
+# ---------------------------------------------------------------- greedy choices
+
+P.append(dict(
+    slug="jump-game", title="Jump game", level="medium", stage="greedy-choices", tags=["greedy", "arrays", "Blind 75"],
+    companies=["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg"],
+    teaches=["Keep one number, the farthest reachable index, instead of exploring every jump.", "`iter().enumerate()` with an early `return false` once `i` passes the frontier."],
+    statement="""
+        You start on index 0 of `nums`. From index `i` you may jump forward by any distance from 1 up to
+        `nums[i]`, so `nums[i] = 0` means you're stuck there. Return `true` if you can reach the last index.
+    """,
+    examples=[("nums = [2, 3, 1, 1, 4]", "true"), ("nums = [3, 2, 1, 0, 4]", "false")],
+    constraints=["1 ≤ nums.len() ≤ 2·10⁵", "0 ≤ nums[i] ≤ 10⁹"],
+    starter="""
+        pub fn can_jump(nums: &[u32]) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn can_jump(nums: &[u32]) -> bool {
+            // Every index up to `reach` can be landed on.
+            let mut reach = 0usize;
+            for (i, &jump) in nums.iter().enumerate() {
+                if i > reach {
+                    return false;
+                }
+                reach = reach.max(i + jump as usize);
+            }
+            true
+        }
+    """,
+    visible=[
+        T("leetcode_reachable", "nums = [2, 3, 1, 1, 4]", "can_jump(&[2, 3, 1, 1, 4])", "true"),
+        T("leetcode_stuck", "nums = [3, 2, 1, 0, 4]", "can_jump(&[3, 2, 1, 0, 4])", "false"),
+        T("already_there", "nums = [0]", "can_jump(&[0])", "true"),
+        T("stuck_at_start", "nums = [0, 1]", "can_jump(&[0, 1])", "false"),
+        T("jump_over_a_zero", "nums = [2, 0, 1]", "can_jump(&[2, 0, 1])", "true"),
+        T("shorter_jumps_allowed", "nums = [5, 0]", "can_jump(&[5, 0])", "true"),
+    ],
+    hidden=[
+        T("two_ones", "nums = [1, 1]", "can_jump(&[1, 1])", "true"),
+        T("zero_in_the_middle", "nums = [1, 0, 1]", "can_jump(&[1, 0, 1])", "false"),
+        T("zero_at_the_end", "nums = [1, 1, 0]", "can_jump(&[1, 1, 0])", "true"),
+        T("one_short", "nums = [3, 0, 0, 0, 1]", "can_jump(&[3, 0, 0, 0, 1])", "false"),
+        T("just_enough", "nums = [4, 0, 0, 0, 1]", "can_jump(&[4, 0, 0, 0, 1])", "true"),
+        T("later_index_reaches_further", "nums = [1, 2, 0, 0, 1]", "can_jump(&[1, 2, 0, 0, 1])", "false"),
+        T("huge_jump", "nums = [1000000000, 0, 0, 0]", "can_jump(&[1_000_000_000, 0, 0, 0])", "true"),
+        T("all_zeros", "nums = [0; 100]", "can_jump(&vec![0; 100])", "false"),
+        T("relay", "nums = [2, 5, 0, 0, 0, 0, 1]", "can_jump(&[2, 5, 0, 0, 0, 0, 1])", "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(814);
+            for _ in 0..400 {
+                let n = 1 + rng.below(10);
+                let nums: Vec<u32> = rng.vec(n, 0, 3);
+                // Mark every index each reachable index can land on.
+                let mut ok = vec![false; n];
+                ok[0] = true;
+                for i in 0..n {
+                    if ok[i] {
+                        for j in i + 1..=(i + nums[i] as usize).min(n - 1) {
+                            ok[j] = true;
+                        }
+                    }
+                }
+                check!(format!("nums = {nums:?}"), can_jump(&nums), ok[n - 1]);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            // nums[i] = 199998 - i: every jump lands at or before index 199998, which holds 0.
+            let n = 200_000u32;
+            let stuck: Vec<u32> = (0..n).map(|i| (n - 2).saturating_sub(i)).collect();
+            let mut fixed = stuck.clone();
+            fixed[0] = n - 1;
+            check!("nums[i] = 199998 - i (then zeros); then with nums[0] = 199999", (can_jump(&stuck), can_jump(&fixed)), (false, true));
+        }
+        """,
+    ],
+    wrong=dict(
+        mark_every_landing="""
+            pub fn can_jump(nums: &[u32]) -> bool {
+                let n = nums.len();
+                let mut ok = vec![false; n];
+                ok[0] = true;
+                for i in 0..n {
+                    if ok[i] {
+                        for j in i + 1..=(i + nums[i] as usize).min(n - 1) {
+                            ok[j] = true;
+                        }
+                    }
+                }
+                ok[n - 1]
+            }
+        """,
+        no_frontier_check="""
+            pub fn can_jump(nums: &[u32]) -> bool {
+                let far = nums.iter().enumerate().map(|(i, &j)| i + j as usize).max().unwrap_or(0);
+                far >= nums.len() - 1
+            }
+        """,
+        zero_means_stuck="""
+            pub fn can_jump(nums: &[u32]) -> bool {
+                nums[..nums.len() - 1].iter().all(|&j| j > 0)
+            }
+        """,
+    ),
+    hints=[("approach", "Keep `reach`, the farthest index you can get to so far. Walk left to right; if you ever stand past `reach`, you're stuck."),
+           ("rust", "`for (i, &jump) in nums.iter().enumerate()` and `reach = reach.max(i + jump as usize)`."),
+           ("edge case", "A single index is already the last one, and a zero only matters if you can't jump over it.")],
+    notes=("You can stop anywhere along a jump, so every index up to `reach` is reachable. One pass that extends `reach` and fails when `i > reach` decides it.", "O(n)", "O(1)"),
+    follow_up="How would you return the fewest jumps instead? (That's Jump game II.)",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="jump-game-ii", title="Jump game II", level="medium", stage="greedy-choices", tags=["greedy", "BFS", "arrays"],
+    companies=["Amazon", "Google", "Microsoft", "Bloomberg"],
+    teaches=["BFS by levels collapses into two numbers when each level is a contiguous window.", "`Option<usize>` for \"can't be reached\" instead of LeetCode's guarantee."],
+    statement="""
+        The moves are the same as in Jump game: from index `i` you may jump forward by 1 up to `nums[i]`
+        places. Return the fewest jumps from index 0 to the last index, or `None` if it can't be reached.
+    """,
+    examples=[("nums = [2, 3, 1, 1, 4]", "Some(2)"), ("nums = [2, 3, 0, 1, 4]", "Some(2)")],
+    constraints=["1 ≤ nums.len() ≤ 2·10⁵", "0 ≤ nums[i] ≤ 10⁹"],
+    starter="""
+        pub fn jump(nums: &[u32]) -> Option<usize> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn jump(nums: &[u32]) -> Option<usize> {
+            let last = nums.len() - 1;
+            // Indices up to `end` take `jumps` jumps; `far` is how far one more jump gets.
+            let (mut jumps, mut end, mut far) = (0, 0, 0);
+            for (i, &step) in nums[..last].iter().enumerate() {
+                far = far.max(i + step as usize);
+                if i == end {
+                    if far <= i {
+                        return None;
+                    }
+                    jumps += 1;
+                    end = far;
+                    if end >= last {
+                        break;
+                    }
+                }
+            }
+            Some(jumps)
+        }
+    """,
+    visible=[
+        T("leetcode_two", "nums = [2, 3, 1, 1, 4]", "jump(&[2, 3, 1, 1, 4])", "Some(2)"),
+        T("leetcode_zero_inside", "nums = [2, 3, 0, 1, 4]", "jump(&[2, 3, 0, 1, 4])", "Some(2)"),
+        T("already_there", "nums = [0]", "jump(&[0])", "Some(0)"),
+        T("unreachable", "nums = [1, 0, 1]", "jump(&[1, 0, 1])", "None"),
+        T("one_step_at_a_time", "nums = [1, 1, 1, 1]", "jump(&[1, 1, 1, 1])", "Some(3)"),
+        T("longest_jump_is_not_best", "nums = [3, 1, 4, 1, 1, 1, 1]", "jump(&[3, 1, 4, 1, 1, 1, 1])", "Some(2)"),
+    ],
+    hidden=[
+        T("two_cells", "nums = [1, 0]", "jump(&[1, 0])", "Some(1)"),
+        T("stuck_at_start", "nums = [0, 5]", "jump(&[0, 5])", "None"),
+        T("overshoot", "nums = [10, 0]", "jump(&[10, 0])", "Some(1)"),
+        T("stuck_after_a_level", "nums = [1, 1, 0, 1]", "jump(&[1, 1, 0, 1])", "None"),
+        T("huge_jumps", "nums = [1000000000; 5]", "jump(&[1_000_000_000; 5])", "Some(1)"),
+        T("window_edge", "nums = [2, 1, 1, 1]", "jump(&[2, 1, 1, 1])", "Some(2)"),
+        T("three_levels", "nums = [1, 2, 1, 1, 1]", "jump(&[1, 2, 1, 1, 1])", "Some(3)"),
+        T("exact_landing", "nums = [2, 0, 0]", "jump(&[2, 0, 0])", "Some(1)"),
+        T("zero_on_the_last_index", "nums = [1, 1, 0]", "jump(&[1, 1, 0])", "Some(2)"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(815);
+            for _ in 0..400 {
+                let n = 1 + rng.below(10);
+                let nums: Vec<u32> = rng.vec(n, 0, 3);
+                // dist[j]: fewest jumps to j, filled left to right.
+                let mut dist: Vec<Option<usize>> = vec![None; n];
+                dist[0] = Some(0);
+                for i in 0..n {
+                    let Some(d) = dist[i] else { continue };
+                    for j in i + 1..=(i + nums[i] as usize).min(n - 1) {
+                        dist[j] = Some(dist[j].map_or(d + 1, |x| x.min(d + 1)));
+                    }
+                }
+                check!(format!("nums = {nums:?}"), jump(&nums), dist[n - 1]);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let ones = vec![1u32; 200_000];
+            let big = vec![200_000u32; 200_000];
+            let stuck: Vec<u32> = (0..200_000u32).map(|i| 199_998u32.saturating_sub(i)).collect();
+            check!("200000 ones; 200000 × 200000; nums[i] = 199998 - i", (jump(&ones), jump(&big), jump(&stuck)), (Some(199_999), Some(1), None));
+        }
+        """,
+    ],
+    wrong=dict(
+        quadratic_dp="""
+            pub fn jump(nums: &[u32]) -> Option<usize> {
+                let n = nums.len();
+                let mut best: Vec<Option<usize>> = vec![None; n];
+                best[0] = Some(0);
+                for i in 0..n {
+                    let Some(b) = best[i] else { continue };
+                    for j in i + 1..=(i + nums[i] as usize).min(n - 1) {
+                        if best[j].map_or(true, |x| b + 1 < x) {
+                            best[j] = Some(b + 1);
+                        }
+                    }
+                }
+                best[n - 1]
+            }
+        """,
+        longest_jump_each_time="""
+            pub fn jump(nums: &[u32]) -> Option<usize> {
+                let last = nums.len() - 1;
+                let (mut i, mut jumps) = (0usize, 0usize);
+                while i < last {
+                    if nums[i] == 0 {
+                        return None;
+                    }
+                    i += nums[i] as usize;
+                    jumps += 1;
+                }
+                Some(jumps)
+            }
+        """,
+        counts_the_last_index="""
+            pub fn jump(nums: &[u32]) -> Option<usize> {
+                let (mut jumps, mut end, mut far) = (0, 0, 0);
+                for (i, &step) in nums.iter().enumerate() {
+                    far = far.max(i + step as usize);
+                    if i == end {
+                        if far <= i {
+                            return None;
+                        }
+                        jumps += 1;
+                        end = far;
+                    }
+                }
+                Some(jumps)
+            }
+        """,
+    ),
+    hints=[("approach", "Think in rounds, like BFS: the indices reachable in exactly j jumps form a window. Scanning the current window tells you how far the next window reaches."),
+           ("rust", "Keep `end` (the edge of the current window) and `far`. When `i == end` you must jump: count it and set `end = far`."),
+           ("edge case", "Don't jump from the last index: loop over `nums[..last]`. If `far` hasn't passed `i` when you must jump, return `None`.")],
+    notes=("The indices reachable in j jumps form a contiguous window, so BFS needs only the window's end and the farthest index seen inside it. Each index is scanned once.", "O(n)", "O(1)"),
+    follow_up="How would you return the actual indices you land on, not just the count?",
+    related=["D9", "D12"],
+))
+
+P.append(dict(
+    slug="gas-station", title="Gas station", level="medium", stage="greedy-choices", tags=["greedy", "prefix sums"],
+    companies=["Amazon", "Google", "Microsoft", "Bloomberg"],
+    teaches=["One failure rules out a whole range of starts, so one pass finds the only candidate.", "`(total >= 0).then_some(start)` turns a condition into an `Option`."],
+    statement="""
+        Gas stations stand in a circle. Station `i` sells `gas[i]` fuel, and driving from it to the next station
+        (the last one leads back to station 0) burns `cost[i]`. The tank is unlimited and starts empty. Return a
+        station you can start from and drive once around the circle, or `None`. If several work, return the
+        smallest index.
+    """,
+    examples=[("gas = [1, 2, 3, 4, 5], cost = [3, 4, 5, 1, 2]", "Some(3)"), ("gas = [2, 3, 4], cost = [3, 4, 3]", "None")],
+    constraints=["1 ≤ gas.len() = cost.len() ≤ 2·10⁵", "0 ≤ gas[i], cost[i] ≤ 10⁹"],
+    starter="""
+        pub fn can_complete_circuit(gas: &[u32], cost: &[u32]) -> Option<usize> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn can_complete_circuit(gas: &[u32], cost: &[u32]) -> Option<usize> {
+            let (mut total, mut tank, mut start) = (0i64, 0i64, 0usize);
+            for (i, (&g, &c)) in gas.iter().zip(cost).enumerate() {
+                let diff = g as i64 - c as i64;
+                total += diff;
+                tank += diff;
+                if tank < 0 {
+                    // No start from `start` to `i` gets past `i`.
+                    start = i + 1;
+                    tank = 0;
+                }
+            }
+            (total >= 0).then_some(start)
+        }
+    """,
+    visible=[
+        T("leetcode_start_three", "gas = [1, 2, 3, 4, 5], cost = [3, 4, 5, 1, 2]", "can_complete_circuit(&[1, 2, 3, 4, 5], &[3, 4, 5, 1, 2])", "Some(3)"),
+        T("leetcode_none", "gas = [2, 3, 4], cost = [3, 4, 3]", "can_complete_circuit(&[2, 3, 4], &[3, 4, 3])", "None"),
+        T("single_enough", "gas = [5], cost = [4]", "can_complete_circuit(&[5], &[4])", "Some(0)"),
+        T("single_short", "gas = [1], cost = [2]", "can_complete_circuit(&[1], &[2])", "None"),
+        T("exactly_enough", "gas = [1, 1], cost = [1, 1]", "can_complete_circuit(&[1, 1], &[1, 1])", "Some(0)"),
+        T("several_work_take_smallest", "gas = [1, 0, 2, 0], cost = [0, 1, 0, 2]", "can_complete_circuit(&[1, 0, 2, 0], &[0, 1, 0, 2])", "Some(0)"),
+    ],
+    hidden=[
+        T("all_zero", "gas = [0], cost = [0]", "can_complete_circuit(&[0], &[0])", "Some(0)"),
+        T("start_at_the_last", "gas = [0, 0, 5], cost = [1, 1, 1]", "can_complete_circuit(&[0, 0, 5], &[1, 1, 1])", "Some(2)"),
+        T("start_at_the_first", "gas = [3, 1, 1], cost = [1, 2, 2]", "can_complete_circuit(&[3, 1, 1], &[1, 2, 2])", "Some(0)"),
+        T("short_by_one", "gas = [1, 2, 3, 4, 5], cost = [3, 4, 5, 1, 3]", "can_complete_circuit(&[1, 2, 3, 4, 5], &[3, 4, 5, 1, 3])", "None"),
+        T("tank_past_i32", "gas = [1000000000, 1000000000, 1000000000, 0, 0, 0], cost = [0, 0, 0, 1000000000, 1000000000, 1000000000]", "can_complete_circuit(&[1_000_000_000, 1_000_000_000, 1_000_000_000, 0, 0, 0], &[0, 0, 0, 1_000_000_000, 1_000_000_000, 1_000_000_000])", "Some(0)"),
+        T("two_resets", "gas = [5, 1, 2, 3, 4], cost = [4, 4, 1, 5, 1]", "can_complete_circuit(&[5, 1, 2, 3, 4], &[4, 4, 1, 5, 1])", "Some(4)"),
+        T("three_resets", "gas = [1, 1, 1, 10], cost = [2, 2, 2, 1]", "can_complete_circuit(&[1, 1, 1, 10], &[2, 2, 2, 1])", "Some(3)"),
+        T("dips_to_zero", "gas = [2, 0, 1], cost = [1, 1, 1]", "can_complete_circuit(&[2, 0, 1], &[1, 1, 1])", "Some(0)"),
+        T("total_short_by_one_at_scale", "gas = [999999999, 0], cost = [0, 1000000000]", "can_complete_circuit(&[999_999_999, 0], &[0, 1_000_000_000])", "None"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(816);
+            for _ in 0..400 {
+                let n = 1 + rng.below(7);
+                let gas: Vec<u32> = rng.vec(n, 0, 4);
+                let cost: Vec<u32> = rng.vec(n, 0, 4);
+                // Drive around from every start.
+                let want = (0..n).find(|&s| {
+                    let mut tank = 0i64;
+                    (0..n).all(|k| {
+                        let i = (s + k) % n;
+                        tank += gas[i] as i64 - cost[i] as i64;
+                        tank >= 0
+                    })
+                });
+                check!(format!("gas = {gas:?}, cost = {cost:?}"), can_complete_circuit(&gas, &cost), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            // Every start before 199998 drives a long way, then runs dry at station 199998.
+            let n = 200_000usize;
+            let mut gas = vec![1u32; n];
+            let mut cost = vec![0u32; n];
+            gas[n - 2] = 0;
+            cost[n - 2] = (n - 1) as u32;
+            gas[n - 1] = (n - 1) as u32;
+            let mut short = gas.clone();
+            short[n - 1] = 0;
+            check!(
+                "gas = [1, …, 1, 0, 199999], cost = [0, …, 0, 199999, 0]; then gas[199999] = 0",
+                (can_complete_circuit(&gas, &cost), can_complete_circuit(&short, &cost)),
+                (Some(199_999), None)
+            );
+        }
+        """,
+    ],
+    wrong=dict(
+        try_every_start="""
+            pub fn can_complete_circuit(gas: &[u32], cost: &[u32]) -> Option<usize> {
+                let n = gas.len();
+                (0..n).find(|&s| {
+                    let mut tank = 0i64;
+                    (0..n).all(|k| {
+                        let i = (s + k) % n;
+                        tank += gas[i] as i64 - cost[i] as i64;
+                        tank >= 0
+                    })
+                })
+            }
+        """,
+        no_total_check="""
+            pub fn can_complete_circuit(gas: &[u32], cost: &[u32]) -> Option<usize> {
+                let (mut tank, mut start) = (0i64, 0usize);
+                for i in 0..gas.len() {
+                    tank += gas[i] as i64 - cost[i] as i64;
+                    if tank < 0 {
+                        start = i + 1;
+                        tank = 0;
+                    }
+                }
+                (start < gas.len()).then_some(start)
+            }
+        """,
+        i32_tank="""
+            pub fn can_complete_circuit(gas: &[u32], cost: &[u32]) -> Option<usize> {
+                let (mut total, mut tank, mut start) = (0i32, 0i32, 0usize);
+                for i in 0..gas.len() {
+                    let diff = gas[i] as i32 - cost[i] as i32;
+                    total += diff;
+                    tank += diff;
+                    if tank < 0 {
+                        start = i + 1;
+                        tank = 0;
+                    }
+                }
+                (total >= 0).then_some(start)
+            }
+        """,
+    ),
+    hints=[("approach", "If total gas is less than total cost, nothing works. Otherwise drive once with a running tank; when it goes negative at station i, no start from the current one up to i can work, so try i + 1."),
+           ("rust", "Work in `i64`: `g as i64 - c as i64` can be negative and the sums can pass `i32::MAX`. `(total >= 0).then_some(start)` builds the answer."),
+           ("edge case", "When several stations work, the restart rule already lands on the smallest one.")],
+    notes=("If the tank first goes negative at i when starting from s, every start between s and i fails too: each reaches i with no more fuel than the run from s had. So one pass leaves a single candidate, and the total decides if it works. The candidate is where the running sum first hits its minimum, which is the smallest working start.", "O(n)", "O(1)"),
+    follow_up="If the tank held at most C units, does the same single pass still work?",
+    related=["D1", "D2"],
+))
+
+P.append(dict(
+    slug="partition-labels", title="Partition labels", level="medium", stage="greedy-choices", tags=["greedy", "strings", "two pointers"],
+    companies=["Meta", "Amazon", "Google", "Microsoft"],
+    teaches=["A `[usize; 26]` table of last positions beats a `HashMap` for lowercase ASCII.", "Grow the current piece's end to the furthest last-position seen; cut when you reach it."],
+    statement="""
+        Cut `s` into as many pieces as possible so that each letter appears in at most one piece. Return the
+        lengths of the pieces, in order. `s` holds only lowercase ASCII letters.
+    """,
+    examples=[("s = \"ababcbacadefegdehijhklij\"", "[9, 7, 8]"), ("s = \"eccbbbbdec\"", "[10]")],
+    constraints=["0 ≤ s.len() ≤ 2·10⁵", "s holds only b'a'..=b'z'"],
+    starter="""
+        pub fn partition_labels(s: &str) -> Vec<usize> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn partition_labels(s: &str) -> Vec<usize> {
+            let bytes = s.as_bytes();
+            let mut last = [0usize; 26];
+            for (i, &b) in bytes.iter().enumerate() {
+                last[(b - b'a') as usize] = i;
+            }
+            let mut sizes = Vec::new();
+            let (mut start, mut end) = (0, 0);
+            for (i, &b) in bytes.iter().enumerate() {
+                end = end.max(last[(b - b'a') as usize]);
+                if i == end {
+                    sizes.push(end - start + 1);
+                    start = i + 1;
+                }
+            }
+            sizes
+        }
+    """,
+    visible=[
+        T("leetcode_three_pieces", 's = "ababcbacadefegdehijhklij"', 'partition_labels("ababcbacadefegdehijhklij")', "vec![9, 7, 8]"),
+        T("leetcode_one_piece", 's = "eccbbbbdec"', 'partition_labels("eccbbbbdec")', "vec![10]"),
+        T("empty", 's = ""', 'partition_labels("")', "Vec::<usize>::new()"),
+        T("single", 's = "a"', 'partition_labels("a")', "vec![1]"),
+        T("all_distinct", 's = "abc"', 'partition_labels("abc")', "vec![1, 1, 1]"),
+        T("repeat_joins_everything", 's = "abca"', 'partition_labels("abca")', "vec![4]"),
+    ],
+    hidden=[
+        T("one_letter_repeated", 's = "aaaa"', 'partition_labels("aaaa")', "vec![4]"),
+        T("two_blocks", 's = "aabb"', 'partition_labels("aabb")', "vec![2, 2]"),
+        T("nested", 's = "abba"', 'partition_labels("abba")', "vec![4]"),
+        T("crossing", 's = "abab"', 'partition_labels("abab")', "vec![4]"),
+        T("tail_piece", 's = "abac"', 'partition_labels("abac")', "vec![3, 1]"),
+        T("head_piece", 's = "caedbdedda"', 'partition_labels("caedbdedda")', "vec![1, 9]"),
+        T("alphabet", 's = "abcdefghijklmnopqrstuvwxyz"', 'partition_labels("abcdefghijklmnopqrstuvwxyz")', "vec![1; 26]"),
+        T("mixed", 's = "qiejxqfnqceocmy"', 'partition_labels("qiejxqfnqceocmy")', "vec![13, 1, 1]"),
+        T("first_and_last", 's = "zaz"', 'partition_labels("zaz")', "vec![3]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(817);
+            for _ in 0..400 {
+                let len = rng.below(13);
+                let s = rng.string(len, "abcd");
+                // A cut after p is allowed when no letter appears on both sides.
+                let b = s.as_bytes();
+                let mut want = Vec::new();
+                let mut start = 0;
+                for p in 1..=b.len() {
+                    if p == b.len() || b[..p].iter().all(|c| !b[p..].contains(c)) {
+                        want.push(p - start);
+                        start = p;
+                    }
+                }
+                check!(format!("s = {s:?}"), partition_labels(&s), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let mut s = "abcdefghijklmnopqrstuvwxy".repeat(4_000);
+            s.push_str(&"z".repeat(100_000));
+            let sizes = partition_labels(&s);
+            check!("'abc…y' × 4000, then 100000 'z's", sizes, vec![100_000, 100_000]);
+        }
+        """,
+    ],
+    wrong=dict(
+        rescan_for_last="""
+            pub fn partition_labels(s: &str) -> Vec<usize> {
+                let b = s.as_bytes();
+                let mut sizes = Vec::new();
+                let (mut start, mut end) = (0, 0);
+                for i in 0..b.len() {
+                    let mut last = i;
+                    for j in (i..b.len()).rev() {
+                        if b[j] == b[i] {
+                            last = j;
+                            break;
+                        }
+                    }
+                    end = end.max(last);
+                    if i == end {
+                        sizes.push(end - start + 1);
+                        start = i + 1;
+                    }
+                }
+                sizes
+            }
+        """,
+        end_not_max="""
+            pub fn partition_labels(s: &str) -> Vec<usize> {
+                let bytes = s.as_bytes();
+                let mut last = [0usize; 26];
+                for (i, &b) in bytes.iter().enumerate() {
+                    last[(b - b'a') as usize] = i;
+                }
+                let mut sizes = Vec::new();
+                let mut start = 0;
+                for (i, &b) in bytes.iter().enumerate() {
+                    if last[(b - b'a') as usize] == i {
+                        sizes.push(i - start + 1);
+                        start = i + 1;
+                    }
+                }
+                sizes
+            }
+        """,
+    ),
+    hints=[("approach", "A piece can't end before the last occurrence of any letter inside it. Record each letter's last index, then grow the current piece's end as you scan."),
+           ("rust", "`let mut last = [0usize; 26];` indexed by `(b - b'a') as usize`, filled from `s.as_bytes()`."),
+           ("edge case", "Cut exactly when `i` equals the furthest last-index seen so far, and push `end - start + 1`.")],
+    notes=("A cut after position i is allowed exactly when every letter seen so far has its last occurrence at or before i. The running max of last occurrences finds every allowed cut, and taking all of them gives the most pieces.", "O(n)", "O(1) besides the output"),
+    follow_up="If `s` could hold any Unicode text, what would replace the `[usize; 26]` table, and would you report sizes in bytes or in chars?",
+    related=["D1", "S2"],
+))
+
+P.append(dict(
+    slug="boats-to-save-people", title="Boats to save people", level="medium", stage="greedy-choices", tags=["greedy", "sorting", "two pointers"],
+    companies=["Amazon", "Google"],
+    teaches=["Two pointers from both ends of a sorted copy pair the heaviest with the lightest.", "Add two `u32`s as `u64` before comparing: the sum can overflow."],
+    statement="""
+        `people[i]` is a person's weight. A boat carries at most two people, and their weights must add up to
+        at most `limit`. Nobody weighs more than `limit`. Return the fewest boats that carry everyone.
+    """,
+    examples=[("people = [1, 2], limit = 3", "1"), ("people = [3, 2, 2, 1], limit = 3", "3"), ("people = [3, 5, 3, 4], limit = 5", "4")],
+    constraints=["0 ≤ people.len() ≤ 2·10⁵", "1 ≤ people[i] ≤ limit ≤ 2³² − 1"],
+    starter="""
+        pub fn num_rescue_boats(people: &[u32], limit: u32) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn num_rescue_boats(people: &[u32], limit: u32) -> usize {
+            let mut w = people.to_vec();
+            w.sort_unstable();
+            let (mut lo, mut hi) = (0usize, w.len());
+            let mut boats = 0;
+            while lo < hi {
+                // The heaviest left takes a boat, with the lightest if they fit together.
+                hi -= 1;
+                if lo < hi && w[lo] as u64 + w[hi] as u64 <= limit as u64 {
+                    lo += 1;
+                }
+                boats += 1;
+            }
+            boats
+        }
+    """,
+    visible=[
+        T("leetcode_one_boat", "people = [1, 2], limit = 3", "num_rescue_boats(&[1, 2], 3)", "1"),
+        T("leetcode_three", "people = [3, 2, 2, 1], limit = 3", "num_rescue_boats(&[3, 2, 2, 1], 3)", "3"),
+        T("leetcode_four", "people = [3, 5, 3, 4], limit = 5", "num_rescue_boats(&[3, 5, 3, 4], 5)", "4"),
+        T("nobody", "people = [], limit = 5", "num_rescue_boats(&[], 5)", "0"),
+        T("one_person", "people = [5], limit = 5", "num_rescue_boats(&[5], 5)", "1"),
+        T("at_most_two_per_boat", "people = [1, 1, 1], limit = 3", "num_rescue_boats(&[1, 1, 1], 3)", "2"),
+    ],
+    hidden=[
+        T("exact_pairs", "people = [2, 2, 2, 2], limit = 4", "num_rescue_boats(&[2, 2, 2, 2], 4)", "2"),
+        T("heaviest_alone", "people = [5, 1, 4, 2], limit = 5", "num_rescue_boats(&[5, 1, 4, 2], 5)", "3"),
+        T("lightest_pair_trap", "people = [1, 1, 2, 2], limit = 3", "num_rescue_boats(&[1, 1, 2, 2], 3)", "2"),
+        T("sum_past_u32", "people = [4294967295, 4294967295], limit = 4294967295", "num_rescue_boats(&[u32::MAX, u32::MAX], u32::MAX)", "2"),
+        T("max_limit_pair", "people = [4294967294, 1], limit = 4294967295", "num_rescue_boats(&[u32::MAX - 1, 1], u32::MAX)", "1"),
+        T("many_light", "people = [1; 1000], limit = 2", "num_rescue_boats(&vec![1; 1000], 2)", "500"),
+        T("all_heavy", "people = [3, 3, 3], limit = 5", "num_rescue_boats(&[3, 3, 3], 5)", "3"),
+        T("mixed", "people = [2, 49, 50, 51, 98], limit = 100", "num_rescue_boats(&[2, 49, 50, 51, 98], 100)", "3"),
+        T("odd_one_out", "people = [1, 2, 3, 4, 5], limit = 6", "num_rescue_boats(&[1, 2, 3, 4, 5], 6)", "3"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // The last person rides alone or with any partner that fits.
+            fn fewest(left: &mut Vec<u32>, limit: u32) -> usize {
+                let Some(first) = left.pop() else { return 0 };
+                let mut out = 1 + fewest(left, limit);
+                for j in 0..left.len() {
+                    if first + left[j] <= limit {
+                        let other = left.remove(j);
+                        out = out.min(1 + fewest(left, limit));
+                        left.insert(j, other);
+                    }
+                }
+                left.push(first);
+                out
+            }
+            let mut rng = anneal_prelude::Rng::new(818);
+            for _ in 0..300 {
+                let n = rng.below(8);
+                let limit = rng.int(1, 8) as u32;
+                let people: Vec<u32> = rng.vec(n, 1, limit as i64);
+                let want = fewest(&mut people.clone(), limit);
+                check!(format!("people = {people:?}, limit = {limit}"), num_rescue_boats(&people, limit), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let people: Vec<u32> = (1..=200_000).rev().collect();
+            check!("people = 200000 down to 1, limit = 200001", num_rescue_boats(&people, 200_001), 100_000);
+        }
+        """,
+    ],
+    wrong=dict(
+        search_best_partner="""
+            pub fn num_rescue_boats(people: &[u32], limit: u32) -> usize {
+                let mut w = people.to_vec();
+                w.sort_unstable();
+                let mut used = vec![false; w.len()];
+                let mut boats = 0;
+                for i in (0..w.len()).rev() {
+                    if used[i] {
+                        continue;
+                    }
+                    used[i] = true;
+                    boats += 1;
+                    if let Some(j) = (0..i).rev().find(|&j| !used[j] && w[i] as u64 + w[j] as u64 <= limit as u64) {
+                        used[j] = true;
+                    }
+                }
+                boats
+            }
+        """,
+        pair_lightest_two="""
+            pub fn num_rescue_boats(people: &[u32], limit: u32) -> usize {
+                let mut w = people.to_vec();
+                w.sort_unstable();
+                let (mut i, mut boats) = (0, 0);
+                while i < w.len() {
+                    if i + 1 < w.len() && w[i] as u64 + w[i + 1] as u64 <= limit as u64 {
+                        i += 2;
+                    } else {
+                        i += 1;
+                    }
+                    boats += 1;
+                }
+                boats
+            }
+        """,
+        u32_sum="""
+            pub fn num_rescue_boats(people: &[u32], limit: u32) -> usize {
+                let mut w = people.to_vec();
+                w.sort_unstable();
+                let (mut lo, mut hi) = (0usize, w.len());
+                let mut boats = 0;
+                while lo < hi {
+                    hi -= 1;
+                    if lo < hi && w[lo] + w[hi] <= limit {
+                        lo += 1;
+                    }
+                    boats += 1;
+                }
+                boats
+            }
+        """,
+    ),
+    hints=[("approach", "The heaviest person must ride with someone or alone. If the lightest person fits with them, pair them; if not, nobody fits with them."),
+           ("rust", "Sort a copy, then move `lo` and `hi` inward. Add as `u64`: two `u32` weights can overflow."),
+           ("edge case", "Check `lo < hi` before pairing: when one person is left, they need their own boat.")],
+    notes=("If the heaviest can't share with the lightest, they can't share with anyone, so they go alone. If they can, swapping any other partner for the lightest never hurts (exchange argument).", "O(n log n)", "O(n) for the sorted copy"),
+    follow_up="What if a boat could carry any number of people up to the limit? (That's bin packing, which is NP-hard.)",
+    related=["D2", "S3"],
+))
+
+P.append(dict(
+    slug="two-city-scheduling", title="Two city scheduling", level="medium", stage="greedy-choices", tags=["greedy", "sorting"],
+    companies=["Amazon", "Bloomberg"],
+    teaches=["Sort by the cost difference `a - b`: only the difference decides who goes where.", "Compute `a as i64 - b as i64` in the sort key; `u32` subtraction underflows."],
+    statement="""
+        `costs[i] = (a, b)`: flying person `i` to city A costs `a`, to city B costs `b`. There is an even number
+        of people, and exactly half must go to each city. Return the lowest total cost.
+    """,
+    examples=[("costs = [(10, 20), (30, 200), (400, 50), (30, 20)]", "110")],
+    constraints=["0 ≤ costs.len() ≤ 2·10⁵, even", "a and b are any u32"],
+    starter="""
+        pub fn two_city_sched_cost(costs: &[(u32, u32)]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn two_city_sched_cost(costs: &[(u32, u32)]) -> u64 {
+            let mut by_gain = costs.to_vec();
+            // Most money saved by choosing A first.
+            by_gain.sort_unstable_by_key(|&(a, b)| a as i64 - b as i64);
+            let (to_a, to_b) = by_gain.split_at(costs.len() / 2);
+            to_a.iter().map(|&(a, _)| a as u64).sum::<u64>() + to_b.iter().map(|&(_, b)| b as u64).sum::<u64>()
+        }
+    """,
+    visible=[
+        T("leetcode_four", "costs = [(10, 20), (30, 200), (400, 50), (30, 20)]", "two_city_sched_cost(&[(10, 20), (30, 200), (400, 50), (30, 20)])", "110"),
+        T("leetcode_six", "costs = [(259, 770), (448, 54), (926, 667), (184, 139), (840, 118), (577, 469)]", "two_city_sched_cost(&[(259, 770), (448, 54), (926, 667), (184, 139), (840, 118), (577, 469)])", "1859"),
+        T("leetcode_eight", "costs = [(515, 563), (451, 713), (537, 709), (343, 819), (855, 779), (457, 60), (650, 359), (631, 42)]", "two_city_sched_cost(&[(515, 563), (451, 713), (537, 709), (343, 819), (855, 779), (457, 60), (650, 359), (631, 42)])", "3086"),
+        T("nobody", "costs = []", "two_city_sched_cost(&[])", "0"),
+        T("half_must_go_to_each", "costs = [(1, 100), (1, 100)]", "two_city_sched_cost(&[(1, 100), (1, 100)])", "101"),
+    ],
+    hidden=[
+        T("swap_pair", "costs = [(5, 1), (1, 5)]", "two_city_sched_cost(&[(5, 1), (1, 5)])", "2"),
+        T("all_equal", "costs = [(3, 3); 4]", "two_city_sched_cost(&[(3, 3); 4])", "12"),
+        T("a_cheaper_for_all", "costs = [(1, 10), (2, 20), (3, 30), (4, 40)]", "two_city_sched_cost(&[(1, 10), (2, 20), (3, 30), (4, 40)])", "37"),
+        T("u32_extremes", "costs = [(4294967295, 0), (0, 4294967295)]", "two_city_sched_cost(&[(u32::MAX, 0), (0, u32::MAX)])", "0"),
+        T("total_past_u32", "costs = [(4294967295, 4294967295); 4]", "two_city_sched_cost(&[(u32::MAX, u32::MAX); 4])", "17_179_869_180"),
+        T("sort_by_a_trap", "costs = [(1, 2), (2, 100)]", "two_city_sched_cost(&[(1, 2), (2, 100)])", "4"),
+        T("zeros", "costs = [(0, 0), (0, 0)]", "two_city_sched_cost(&[(0, 0), (0, 0)])", "0"),
+        T("six_with_ties", "costs = [(10, 20), (30, 200), (400, 50), (30, 20), (1, 1), (1, 1)]", "two_city_sched_cost(&[(10, 20), (30, 200), (400, 50), (30, 20), (1, 1), (1, 1)])", "112"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(819);
+            for _ in 0..300 {
+                let n = 2 * rng.below(6);
+                let costs: Vec<(u32, u32)> = (0..n).map(|_| (rng.int(0, 20) as u32, rng.int(0, 20) as u32)).collect();
+                // Every way to send exactly half to A.
+                let mut want = u64::MAX;
+                for mask in 0u32..1 << n {
+                    if mask.count_ones() as usize == n / 2 {
+                        let total: u64 = (0..n).map(|i| (if mask >> i & 1 == 1 { costs[i].0 } else { costs[i].1 }) as u64).sum();
+                        want = want.min(total);
+                    }
+                }
+                check!(format!("costs = {costs:?}"), two_city_sched_cost(&costs), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let costs: Vec<(u32, u32)> = (0..200_000u32).rev().map(|i| (i, 200_000 - i)).collect();
+            check!("costs[i] = (i, 200000 - i) for i in 0..200000, reversed", two_city_sched_cost(&costs), 10_000_000_000);
+        }
+        """,
+    ],
+    wrong=dict(
+        quadratic_dp="""
+            pub fn two_city_sched_cost(costs: &[(u32, u32)]) -> u64 {
+                let half = costs.len() / 2;
+                // best[j]: lowest cost so far with j people sent to A.
+                let mut best = vec![u64::MAX; half + 1];
+                best[0] = 0;
+                for (i, &(a, b)) in costs.iter().enumerate() {
+                    for j in (0..=half.min(i + 1)).rev() {
+                        let via_b = if best[j] == u64::MAX { u64::MAX } else { best[j] + b as u64 };
+                        let via_a = if j > 0 && best[j - 1] != u64::MAX { best[j - 1] + a as u64 } else { u64::MAX };
+                        best[j] = via_a.min(via_b);
+                    }
+                }
+                best[half]
+            }
+        """,
+        cheaper_city_each="""
+            pub fn two_city_sched_cost(costs: &[(u32, u32)]) -> u64 {
+                costs.iter().map(|&(a, b)| a.min(b) as u64).sum()
+            }
+        """,
+        sort_by_a="""
+            pub fn two_city_sched_cost(costs: &[(u32, u32)]) -> u64 {
+                let mut sorted = costs.to_vec();
+                sorted.sort_unstable();
+                let (to_a, to_b) = sorted.split_at(costs.len() / 2);
+                to_a.iter().map(|&(a, _)| a as u64).sum::<u64>() + to_b.iter().map(|&(_, b)| b as u64).sum::<u64>()
+            }
+        """,
+    ),
+    hints=[("approach", "Imagine everyone flies to B, then choose half of them to switch to A. Switching person i changes the total by `a - b`, so switch the half with the smallest `a - b`."),
+           ("rust", "`sort_unstable_by_key(|&(a, b)| a as i64 - b as i64)`, then `split_at(n / 2)` and sum each side as `u64`."),
+           ("edge case", "Sending each person to their cheaper city ignores the half-and-half rule.")],
+    notes=("Only the difference a - b matters once half must go each way: sort by it, send the first half to A and the rest to B. Any other split swaps some pair and can only cost more.", "O(n log n)", "O(n) for the sorted copy"),
+    follow_up="With three cities and a third of the people each, does sorting still work? (No: it needs DP or min-cost flow.)",
+    related=["D12", "S3"],
+))
+
+P.append(dict(
+    slug="minimum-add-to-make-parentheses-valid", title="Minimum add to make parentheses valid", level="medium", stage="greedy-choices", tags=["greedy", "strings", "stack"],
+    companies=["Meta", "Amazon", "Google"],
+    teaches=["With one bracket type, a counter replaces the stack.", "Count two different failures: closes with nothing to match, and opens left at the end."],
+    statement="""
+        `s` holds only `(` and `)`. One move inserts a single parenthesis anywhere in `s`. Return the fewest moves
+        that make `s` balanced, meaning every `)` closes an earlier `(` and none stays open.
+    """,
+    examples=[("s = \"())\"", "1"), ("s = \"(((\"", "3")],
+    constraints=["0 ≤ s.len() ≤ 2·10⁵", "s holds only '(' and ')'"],
+    starter="""
+        pub fn min_add_to_make_valid(s: &str) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn min_add_to_make_valid(s: &str) -> usize {
+            let (mut open, mut added) = (0usize, 0usize);
+            for b in s.bytes() {
+                if b == b'(' {
+                    open += 1;
+                } else if open > 0 {
+                    open -= 1;
+                } else {
+                    // A ')' with nothing to close needs a new '(' before it.
+                    added += 1;
+                }
+            }
+            open + added
+        }
+    """,
+    visible=[
+        T("leetcode_one_close", 's = "())"', 'min_add_to_make_valid("())")', "1"),
+        T("leetcode_three_open", 's = "((("', 'min_add_to_make_valid("(((")', "3"),
+        T("empty", 's = ""', 'min_add_to_make_valid("")', "0"),
+        T("balanced", 's = "()()"', 'min_add_to_make_valid("()()")', "0"),
+        T("counts_match_order_wrong", 's = ")("', 'min_add_to_make_valid(")(")', "2"),
+        T("both_kinds", 's = "()))(("', 'min_add_to_make_valid("()))((")', "4"),
+    ],
+    hidden=[
+        T("single_open", 's = "("', 'min_add_to_make_valid("(")', "1"),
+        T("single_close", 's = ")"', 'min_add_to_make_valid(")")', "1"),
+        T("nested", 's = "((()))"', 'min_add_to_make_valid("((()))")', "0"),
+        T("only_closes", 's = ")))"', 'min_add_to_make_valid(")))")', "3"),
+        T("close_then_open", 's = "())("', 'min_add_to_make_valid("())(")', "2"),
+        T("extra_in_the_middle", 's = "(()))("', 'min_add_to_make_valid("(()))(")', "2"),
+        T("alternating", 's = "(()())"', 'min_add_to_make_valid("(()())")', "0"),
+        T("wrapped_backwards", 's = ")()("', 'min_add_to_make_valid(")()(")', "2"),
+        T("closes_then_opens", 's = ")))((("', 'min_add_to_make_valid(")))(((")', "6"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(820);
+            for _ in 0..400 {
+                let len = rng.below(15);
+                let s = rng.string(len, "()");
+                // Strip matched pairs until none are left; what's left needs a partner each.
+                let mut rest = s.clone();
+                while rest.contains("()") {
+                    rest = rest.replace("()", "");
+                }
+                check!(format!("s = {s:?}"), min_add_to_make_valid(&s), rest.len());
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let nested = format!("{}{}", "(".repeat(100_000), ")".repeat(100_000));
+            let backwards = format!("{}{}", ")".repeat(100_000), "(".repeat(100_000));
+            check!("'(' × 100000 then ')' × 100000; then the reverse", (min_add_to_make_valid(&nested), min_add_to_make_valid(&backwards)), (0, 200_000));
+        }
+        """,
+    ],
+    wrong=dict(
+        strip_pairs="""
+            pub fn min_add_to_make_valid(s: &str) -> usize {
+                let mut rest: Vec<u8> = s.bytes().collect();
+                while let Some(i) = rest.windows(2).position(|w| w[0] == b'(' && w[1] == b')') {
+                    rest.drain(i..i + 2);
+                }
+                rest.len()
+            }
+        """,
+        count_difference="""
+            pub fn min_add_to_make_valid(s: &str) -> usize {
+                let open = s.bytes().filter(|&b| b == b'(').count();
+                let close = s.len() - open;
+                open.abs_diff(close)
+            }
+        """,
+        forgets_open_left="""
+            pub fn min_add_to_make_valid(s: &str) -> usize {
+                let (mut open, mut added) = (0usize, 0usize);
+                for b in s.bytes() {
+                    if b == b'(' {
+                        open += 1;
+                    } else if open > 0 {
+                        open -= 1;
+                    } else {
+                        added += 1;
+                    }
+                }
+                added
+            }
+        """,
+    ),
+    hints=[("approach", "Scan left to right counting unmatched `(`. A `)` with nothing to match needs an inserted `(`; each `(` still open at the end needs a `)`."),
+           ("rust", "`s.bytes()` and two `usize` counters; with one bracket type you don't need a stack."),
+           ("edge case", "`)(` needs 2 moves even though the counts match.")],
+    notes=("Every `)` that arrives with no open `(` forces an insertion before it, and every `(` still open at the end forces one after it. Those two counts are also enough, so their sum is the answer.", "O(n)", "O(1)"),
+    follow_up="How would you return one shortest balanced string, not just the count?",
+    related=["D3"],
+))
+
+P.append(dict(
+    slug="valid-parenthesis-string", title="Valid parenthesis string", level="medium", stage="greedy-choices", tags=["greedy", "strings"],
+    companies=["Meta", "Amazon", "Google", "Microsoft"],
+    teaches=["Track a range of possible states (`lo..=hi` open counts) instead of branching on each `*`.", "`saturating_sub` keeps the low end of a `usize` range at 0."],
+    statement="""
+        `s` holds `(`, `)` and `*`. Each `*` can stand for `(`, for `)`, or for nothing. Return `true` if some
+        choice makes `s` balanced: every `)` closes an earlier `(` and none stays open.
+    """,
+    examples=[("s = \"()\"", "true"), ("s = \"(*)\"", "true"), ("s = \"(*))\"", "true")],
+    constraints=["0 ≤ s.len() ≤ 2·10⁵", "s holds only '(', ')' and '*'"],
+    starter="""
+        pub fn check_valid_string(s: &str) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn check_valid_string(s: &str) -> bool {
+            // lo..=hi: the open counts some choice of stars can reach.
+            let (mut lo, mut hi) = (0usize, 0usize);
+            for b in s.bytes() {
+                match b {
+                    b'(' => {
+                        lo += 1;
+                        hi += 1;
+                    }
+                    b')' => {
+                        if hi == 0 {
+                            return false;
+                        }
+                        lo = lo.saturating_sub(1);
+                        hi -= 1;
+                    }
+                    _ => {
+                        lo = lo.saturating_sub(1);
+                        hi += 1;
+                    }
+                }
+            }
+            lo == 0
+        }
+    """,
+    visible=[
+        T("leetcode_pair", 's = "()"', 'check_valid_string("()")', "true"),
+        T("leetcode_star_as_nothing", 's = "(*)"', 'check_valid_string("(*)")', "true"),
+        T("leetcode_star_as_open", 's = "(*))"', 'check_valid_string("(*))")', "true"),
+        T("empty", 's = ""', 'check_valid_string("")', "true"),
+        T("star_cannot_close_a_later_open", 's = "*("', 'check_valid_string("*(")', "false"),
+        T("not_enough_stars", 's = "((*"', 'check_valid_string("((*")', "false"),
+    ],
+    hidden=[
+        T("lone_star", 's = "*"', 'check_valid_string("*")', "true"),
+        T("lone_open", 's = "("', 'check_valid_string("(")', "false"),
+        T("lone_close", 's = ")"', 'check_valid_string(")")', "false"),
+        T("stars_only", 's = "**"', 'check_valid_string("**")', "true"),
+        T("three_stars_close", 's = "(((***"', 'check_valid_string("(((***")', "true"),
+        T("two_stars_short", 's = "(((**"', 'check_valid_string("(((**")', "false"),
+        T("open_left_at_end", 's = "(*)("', 'check_valid_string("(*)(")', "false"),
+        T("star_as_open_first", 's = "*)"', 'check_valid_string("*)")', "true"),
+        T("leetcode_long_false", 's = "((*)(*))((*"', 'check_valid_string("((*)(*))((*")', "false"),
+        T("leetcode_long_mixed", 's = "*()(())*()(()()((()(()()*)(*(())((((((((()*)(()(*)"', 'check_valid_string("*()(())*()(()()((()(()()*)(*(())((((((((()*)(()(*)")', "false"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // Try every reading of every star.
+            fn ok(s: &[u8], open: usize) -> bool {
+                let Some((&b, rest)) = s.split_first() else { return open == 0 };
+                match b {
+                    b'(' => ok(rest, open + 1),
+                    b')' => open > 0 && ok(rest, open - 1),
+                    _ => ok(rest, open + 1) || ok(rest, open) || (open > 0 && ok(rest, open - 1)),
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(821);
+            for _ in 0..400 {
+                let len = rng.below(9);
+                let s = rng.string(len, "(*)");
+                check!(format!("s = {s:?}"), check_valid_string(&s), ok(s.as_bytes(), 0));
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let fine = format!("{}{}", "(".repeat(100_000), "*".repeat(100_000));
+            let extra_open = format!("({fine}");
+            let extra_close = format!("{}{}", "*".repeat(100_000), ")".repeat(100_001));
+            check!(
+                "'(' × 100000 then '*' × 100000; with one more '(' in front; '*' × 100000 then ')' × 100001",
+                (check_valid_string(&fine), check_valid_string(&extra_open), check_valid_string(&extra_close)),
+                (true, false, false)
+            );
+        }
+        """,
+    ],
+    wrong=dict(
+        set_of_counts="""
+            pub fn check_valid_string(s: &str) -> bool {
+                // possible[k]: some choice leaves k open after this prefix.
+                let mut possible = vec![true];
+                for b in s.bytes() {
+                    let mut next = vec![false; possible.len() + 1];
+                    for (k, &ok) in possible.iter().enumerate() {
+                        if !ok {
+                            continue;
+                        }
+                        if b != b')' {
+                            next[k + 1] = true;
+                        }
+                        if b != b'(' && k > 0 {
+                            next[k - 1] = true;
+                        }
+                        if b == b'*' {
+                            next[k] = true;
+                        }
+                    }
+                    possible = next;
+                }
+                possible[0]
+            }
+        """,
+        low_not_clamped="""
+            pub fn check_valid_string(s: &str) -> bool {
+                let (mut lo, mut hi) = (0i64, 0i64);
+                for b in s.bytes() {
+                    match b {
+                        b'(' => {
+                            lo += 1;
+                            hi += 1;
+                        }
+                        b')' => {
+                            lo -= 1;
+                            hi -= 1;
+                        }
+                        _ => {
+                            lo -= 1;
+                            hi += 1;
+                        }
+                    }
+                    if hi < 0 {
+                        return false;
+                    }
+                }
+                lo <= 0
+            }
+        """,
+        stars_only_open="""
+            pub fn check_valid_string(s: &str) -> bool {
+                let mut open = 0i64;
+                for b in s.bytes() {
+                    if b == b')' {
+                        open -= 1;
+                    } else {
+                        open += 1;
+                    }
+                    if open < 0 {
+                        return false;
+                    }
+                }
+                true
+            }
+        """,
+    ),
+    hints=[("approach", "Don't branch on each `*`. Track the lowest and highest number of open `(` any choice could give: `(` raises both, `)` lowers both, `*` lowers the low end and raises the high end."),
+           ("rust", "Two `usize` counters; `lo.saturating_sub(1)` keeps the low end at 0, since no valid choice goes negative."),
+           ("edge case", "Fail as soon as `hi` would drop below 0; at the end the answer is `lo == 0`. Order matters: `*(` is not balanced.")],
+    notes=("Every open count between lo and hi is reachable by some choice of stars, and clamping lo at 0 drops choices that would close too much. If even the most-open choice goes negative, nothing works; at the end, some choice lands on 0 exactly when lo is 0.", "O(n)", "O(1)"),
+    follow_up="How would you produce one concrete replacement for the stars that balances `s`?",
+    related=["D3", "D12"],
+))
+
+P.append(dict(
+    slug="queue-reconstruction-by-height", title="Queue reconstruction by height", level="medium", stage="greedy-choices", tags=["greedy", "sorting"],
+    companies=["Amazon", "Google"],
+    teaches=["`sort_unstable_by_key(|&(h, k)| (Reverse(h), k))` sorts one field descending and another ascending.", "`Vec::insert(k, x)` shifts the tail: O(n) per insert, fine here and worth saying out loud."],
+    statement="""
+        Each person is `(h, k)`: height `h`, and exactly `k` people in front of them who are at least as tall.
+        `people` lists everyone in scrambled order. Rebuild the queue and return it front to back. The input
+        always describes a real queue.
+    """,
+    examples=[("people = [(7, 0), (4, 4), (7, 1), (5, 0), (6, 1), (5, 2)]", "[(5, 0), (7, 0), (5, 2), (6, 1), (4, 4), (7, 1)]")],
+    constraints=["0 ≤ people.len() ≤ 10⁴", "h is any u32", "the input describes a real queue"],
+    starter="""
+        pub fn reconstruct_queue(people: &[(u32, usize)]) -> Vec<(u32, usize)> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::cmp::Reverse;
+
+        pub fn reconstruct_queue(people: &[(u32, usize)]) -> Vec<(u32, usize)> {
+            let mut sorted = people.to_vec();
+            // Tallest first; among equal heights, the one with fewer people in front first.
+            sorted.sort_unstable_by_key(|&(h, k)| (Reverse(h), k));
+            let mut queue = Vec::with_capacity(sorted.len());
+            for person in sorted {
+                // Everyone placed so far is at least as tall, so index k is exactly right.
+                queue.insert(person.1, person);
+            }
+            queue
+        }
+    """,
+    visible=[
+        T("leetcode_six", "people = [(7, 0), (4, 4), (7, 1), (5, 0), (6, 1), (5, 2)]", "reconstruct_queue(&[(7, 0), (4, 4), (7, 1), (5, 0), (6, 1), (5, 2)])", "vec![(5, 0), (7, 0), (5, 2), (6, 1), (4, 4), (7, 1)]"),
+        T("leetcode_six_more", "people = [(6, 0), (5, 0), (4, 0), (3, 2), (2, 2), (1, 4)]", "reconstruct_queue(&[(6, 0), (5, 0), (4, 0), (3, 2), (2, 2), (1, 4)])", "vec![(4, 0), (5, 0), (2, 2), (3, 2), (1, 4), (6, 0)]"),
+        T("nobody", "people = []", "reconstruct_queue(&[])", "Vec::<(u32, usize)>::new()"),
+        T("one_person", "people = [(5, 0)]", "reconstruct_queue(&[(5, 0)])", "vec![(5, 0)]"),
+        T("equal_height_counts", "people = [(5, 1), (5, 0)]", "reconstruct_queue(&[(5, 1), (5, 0)])", "vec![(5, 0), (5, 1)]"),
+        T("all_zero_means_rising", "people = [(3, 0), (1, 0), (2, 0)]", "reconstruct_queue(&[(3, 0), (1, 0), (2, 0)])", "vec![(1, 0), (2, 0), (3, 0)]"),
+    ],
+    hidden=[
+        T("falling", "people = [(1, 2), (2, 1), (3, 0)]", "reconstruct_queue(&[(1, 2), (2, 1), (3, 0)])", "vec![(3, 0), (2, 1), (1, 2)]"),
+        T("all_same_height", "people = [(4, 2), (4, 1), (4, 0)]", "reconstruct_queue(&[(4, 2), (4, 1), (4, 0)])", "vec![(4, 0), (4, 1), (4, 2)]"),
+        T("short_one_first", "people = [(9, 0), (1, 0)]", "reconstruct_queue(&[(9, 0), (1, 0)])", "vec![(1, 0), (9, 0)]"),
+        T("u32_heights", "people = [(0, 2), (4294967295, 1), (4294967295, 0)]", "reconstruct_queue(&[(0, 2), (u32::MAX, 1), (u32::MAX, 0)])", "vec![(u32::MAX, 0), (u32::MAX, 1), (0, 2)]"),
+        T("zero_height", "people = [(0, 0), (0, 1)]", "reconstruct_queue(&[(0, 0), (0, 1)])", "vec![(0, 0), (0, 1)]"),
+        T("six_mixed", "people = [(4, 2), (1, 4), (5, 1), (3, 1), (5, 0), (2, 0)]", "reconstruct_queue(&[(4, 2), (1, 4), (5, 1), (3, 1), (5, 0), (2, 0)])", "vec![(2, 0), (5, 0), (3, 1), (5, 1), (1, 4), (4, 2)]"),
+        T("seven_mixed", "people = [(1, 6), (7, 0), (2, 4), (3, 2), (6, 1), (2, 1), (6, 0)]", "reconstruct_queue(&[(1, 6), (7, 0), (2, 4), (3, 2), (6, 1), (2, 1), (6, 0)])", "vec![(6, 0), (2, 1), (6, 1), (3, 2), (2, 4), (7, 0), (1, 6)]"),
+        T("equal_heights_then_short", "people = [(2, 1), (2, 0), (1, 2)]", "reconstruct_queue(&[(2, 1), (2, 0), (1, 2)])", "vec![(2, 0), (2, 1), (1, 2)]"),
+        """
+        /// The (h, k) pairs of a queue given front to back.
+        fn describe(heights: &[u32]) -> Vec<(u32, usize)> {
+            (0..heights.len()).map(|i| (heights[i], heights[..i].iter().filter(|&&h| h >= heights[i]).count())).collect()
+        }
+
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(822);
+            for _ in 0..400 {
+                let n = rng.below(9);
+                let heights: Vec<u32> = rng.vec(n, 1, 5);
+                let queue = describe(&heights);
+                let mut people = queue.clone();
+                rng.shuffle(&mut people);
+                check!(format!("people = {people:?}"), reconstruct_queue(&people), queue);
+            }
+        }
+
+        #[test]
+        fn scale_10k() {
+            let heights: Vec<u32> = (0..10_000u32).map(|i| i * 7919 % 10_007 % 500).collect();
+            let queue = describe(&heights);
+            let people: Vec<(u32, usize)> = queue.iter().rev().copied().collect();
+            check!("10000 people, heights (7919 i mod 10007) mod 500, given back to front", reconstruct_queue(&people) == queue, true);
+        }
+        """,
+    ],
+    wrong=dict(
+        pick_front_each_time="""
+            pub fn reconstruct_queue(people: &[(u32, usize)]) -> Vec<(u32, usize)> {
+                // Front to back: the next person is the shortest whose k matches who's already placed.
+                let mut left = people.to_vec();
+                let mut queue: Vec<(u32, usize)> = Vec::new();
+                while !left.is_empty() {
+                    let mut pick: Option<usize> = None;
+                    for (i, &(h, k)) in left.iter().enumerate() {
+                        let taller = queue.iter().filter(|q| q.0 >= h).count();
+                        if taller == k && pick.map_or(true, |j| h < left[j].0) {
+                            pick = Some(i);
+                        }
+                    }
+                    queue.push(left.remove(pick.unwrap()));
+                }
+                queue
+            }
+        """,
+        ties_larger_k_first="""
+            use std::cmp::Reverse;
+
+            pub fn reconstruct_queue(people: &[(u32, usize)]) -> Vec<(u32, usize)> {
+                let mut sorted = people.to_vec();
+                sorted.sort_unstable_by_key(|&(h, k)| (Reverse(h), Reverse(k)));
+                let mut queue = Vec::new();
+                for person in sorted {
+                    queue.insert(person.1.min(queue.len()), person);
+                }
+                queue
+            }
+        """,
+        shortest_first="""
+            pub fn reconstruct_queue(people: &[(u32, usize)]) -> Vec<(u32, usize)> {
+                let mut sorted = people.to_vec();
+                sorted.sort_unstable();
+                let mut queue = Vec::new();
+                for person in sorted {
+                    queue.insert(person.1.min(queue.len()), person);
+                }
+                queue
+            }
+        """,
+    ),
+    hints=[("approach", "Place the tallest people first. Shorter people are invisible to them, so a tall person's position depends only on people at least as tall."),
+           ("rust", "`sort_unstable_by_key(|&(h, k)| (Reverse(h), k))`, then `queue.insert(k, person)` for each person in that order."),
+           ("edge case", "Equal heights count as 'at least as tall', so among equal heights insert the smaller `k` first.")],
+    notes=("After sorting tallest first, everyone already placed is at least as tall as the current person, so inserting at index k puts exactly k of them in front. Later insertions are shorter and don't change anyone's count.", "O(n²) for the inserts (O(n log n) for the sort)", "O(n)"),
+    follow_up="How would a Fenwick tree over empty slots, filled shortest first, make this O(n log n)?",
+    related=["S3", "D13"],
+))
+
 STAGES = [
     ("first-greedy", "First greedy", "easy"),
     ("intervals", "Intervals", "medium"),

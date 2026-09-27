@@ -1,0 +1,37 @@
+slug = "two-city-scheduling"
+title = "Two city scheduling"
+mode = "write"
+level = "medium"
+stage = "greedy-choices"
+order = 19
+status = "ready"
+tags = ["greedy", "sorting"]
+companies = ["Amazon", "Bloomberg"]
+teaches = [
+  "Sort by the cost difference `a - b`: only the difference decides who goes where.",
+  "Compute `a as i64 - b as i64` in the sort key; `u32` subtraction underflows.",
+]
+constraints = ["0 ≤ costs.len() ≤ 2·10⁵, even", "a and b are any u32"]
+follow_up = "With three cities and a third of the people each, does sorting still work? (No: it needs DP or min-cost flow.)"
+related = ["D12", "S3"]
+
+[[examples]]
+input = "costs = [(10, 20), (30, 200), (400, 50), (30, 20)]"
+output = "110"
+
+[[hints]]
+kind = "approach"
+text = "Imagine everyone flies to B, then choose half of them to switch to A. Switching person i changes the total by `a - b`, so switch the half with the smallest `a - b`."
+
+[[hints]]
+kind = "rust"
+text = "`sort_unstable_by_key(|&(a, b)| a as i64 - b as i64)`, then `split_at(n / 2)` and sum each side as `u64`."
+
+[[hints]]
+kind = "edge case"
+text = "Sending each person to their cheaper city ignores the half-and-half rule."
+
+[solution]
+explanation = "Only the difference a - b matters once half must go each way: sort by it, send the first half to A and the rest to B. Any other split swaps some pair and can only cost more."
+time = "O(n log n)"
+space = "O(n) for the sorted copy"

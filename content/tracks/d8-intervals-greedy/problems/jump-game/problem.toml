@@ -1,0 +1,41 @@
+slug = "jump-game"
+title = "Jump game"
+mode = "write"
+level = "medium"
+stage = "greedy-choices"
+order = 14
+status = "ready"
+tags = ["greedy", "arrays", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg"]
+teaches = [
+  "Keep one number, the farthest reachable index, instead of exploring every jump.",
+  "`iter().enumerate()` with an early `return false` once `i` passes the frontier.",
+]
+constraints = ["1 ≤ nums.len() ≤ 2·10⁵", "0 ≤ nums[i] ≤ 10⁹"]
+follow_up = "How would you return the fewest jumps instead? (That's Jump game II.)"
+related = ["D12"]
+
+[[examples]]
+input = "nums = [2, 3, 1, 1, 4]"
+output = "true"
+
+[[examples]]
+input = "nums = [3, 2, 1, 0, 4]"
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "Keep `reach`, the farthest index you can get to so far. Walk left to right; if you ever stand past `reach`, you're stuck."
+
+[[hints]]
+kind = "rust"
+text = "`for (i, &jump) in nums.iter().enumerate()` and `reach = reach.max(i + jump as usize)`."
+
+[[hints]]
+kind = "edge case"
+text = "A single index is already the last one, and a zero only matters if you can't jump over it."
+
+[solution]
+explanation = "You can stop anywhere along a jump, so every index up to `reach` is reachable. One pass that extends `reach` and fails when `i > reach` decides it."
+time = "O(n)"
+space = "O(1)"

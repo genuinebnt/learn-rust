@@ -1,0 +1,41 @@
+slug = "gas-station"
+title = "Gas station"
+mode = "write"
+level = "medium"
+stage = "greedy-choices"
+order = 16
+status = "ready"
+tags = ["greedy", "prefix sums"]
+companies = ["Amazon", "Google", "Microsoft", "Bloomberg"]
+teaches = [
+  "One failure rules out a whole range of starts, so one pass finds the only candidate.",
+  "`(total >= 0).then_some(start)` turns a condition into an `Option`.",
+]
+constraints = ["1 ≤ gas.len() = cost.len() ≤ 2·10⁵", "0 ≤ gas[i], cost[i] ≤ 10⁹"]
+follow_up = "If the tank held at most C units, does the same single pass still work?"
+related = ["D1", "D2"]
+
+[[examples]]
+input = "gas = [1, 2, 3, 4, 5], cost = [3, 4, 5, 1, 2]"
+output = "Some(3)"
+
+[[examples]]
+input = "gas = [2, 3, 4], cost = [3, 4, 3]"
+output = "None"
+
+[[hints]]
+kind = "approach"
+text = "If total gas is less than total cost, nothing works. Otherwise drive once with a running tank; when it goes negative at station i, no start from the current one up to i can work, so try i + 1."
+
+[[hints]]
+kind = "rust"
+text = "Work in `i64`: `g as i64 - c as i64` can be negative and the sums can pass `i32::MAX`. `(total >= 0).then_some(start)` builds the answer."
+
+[[hints]]
+kind = "edge case"
+text = "When several stations work, the restart rule already lands on the smallest one."
+
+[solution]
+explanation = "If the tank first goes negative at i when starting from s, every start between s and i fails too: each reaches i with no more fuel than the run from s had. So one pass leaves a single candidate, and the total decides if it works. The candidate is where the running sum first hits its minimum, which is the smallest working start."
+time = "O(n)"
+space = "O(1)"

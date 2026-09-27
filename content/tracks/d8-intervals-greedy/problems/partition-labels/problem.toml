@@ -1,0 +1,41 @@
+slug = "partition-labels"
+title = "Partition labels"
+mode = "write"
+level = "medium"
+stage = "greedy-choices"
+order = 17
+status = "ready"
+tags = ["greedy", "strings", "two pointers"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
+teaches = [
+  "A `[usize; 26]` table of last positions beats a `HashMap` for lowercase ASCII.",
+  "Grow the current piece's end to the furthest last-position seen; cut when you reach it.",
+]
+constraints = ["0 ≤ s.len() ≤ 2·10⁵", "s holds only b'a'..=b'z'"]
+follow_up = "If `s` could hold any Unicode text, what would replace the `[usize; 26]` table, and would you report sizes in bytes or in chars?"
+related = ["D1", "S2"]
+
+[[examples]]
+input = "s = \"ababcbacadefegdehijhklij\""
+output = "[9, 7, 8]"
+
+[[examples]]
+input = "s = \"eccbbbbdec\""
+output = "[10]"
+
+[[hints]]
+kind = "approach"
+text = "A piece can't end before the last occurrence of any letter inside it. Record each letter's last index, then grow the current piece's end as you scan."
+
+[[hints]]
+kind = "rust"
+text = "`let mut last = [0usize; 26];` indexed by `(b - b'a') as usize`, filled from `s.as_bytes()`."
+
+[[hints]]
+kind = "edge case"
+text = "Cut exactly when `i` equals the furthest last-index seen so far, and push `end - start + 1`."
+
+[solution]
+explanation = "A cut after position i is allowed exactly when every letter seen so far has its last occurrence at or before i. The running max of last occurrences finds every allowed cut, and taking all of them gives the most pieces."
+time = "O(n)"
+space = "O(1) besides the output"

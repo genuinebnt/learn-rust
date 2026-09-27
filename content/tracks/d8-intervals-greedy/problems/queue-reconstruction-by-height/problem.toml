@@ -1,0 +1,37 @@
+slug = "queue-reconstruction-by-height"
+title = "Queue reconstruction by height"
+mode = "write"
+level = "medium"
+stage = "greedy-choices"
+order = 22
+status = "ready"
+tags = ["greedy", "sorting"]
+companies = ["Amazon", "Google"]
+teaches = [
+  "`sort_unstable_by_key(|&(h, k)| (Reverse(h), k))` sorts one field descending and another ascending.",
+  "`Vec::insert(k, x)` shifts the tail: O(n) per insert, fine here and worth saying out loud.",
+]
+constraints = ["0 ≤ people.len() ≤ 10⁴", "h is any u32", "the input describes a real queue"]
+follow_up = "How would a Fenwick tree over empty slots, filled shortest first, make this O(n log n)?"
+related = ["S3", "D13"]
+
+[[examples]]
+input = "people = [(7, 0), (4, 4), (7, 1), (5, 0), (6, 1), (5, 2)]"
+output = "[(5, 0), (7, 0), (5, 2), (6, 1), (4, 4), (7, 1)]"
+
+[[hints]]
+kind = "approach"
+text = "Place the tallest people first. Shorter people are invisible to them, so a tall person's position depends only on people at least as tall."
+
+[[hints]]
+kind = "rust"
+text = "`sort_unstable_by_key(|&(h, k)| (Reverse(h), k))`, then `queue.insert(k, person)` for each person in that order."
+
+[[hints]]
+kind = "edge case"
+text = "Equal heights count as 'at least as tall', so among equal heights insert the smaller `k` first."
+
+[solution]
+explanation = "After sorting tallest first, everyone already placed is at least as tall as the current person, so inserting at index k puts exactly k of them in front. Later insertions are shorter and don't change anyone's count."
+time = "O(n²) for the inserts (O(n log n) for the sort)"
+space = "O(n)"

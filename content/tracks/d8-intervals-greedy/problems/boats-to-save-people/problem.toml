@@ -1,0 +1,45 @@
+slug = "boats-to-save-people"
+title = "Boats to save people"
+mode = "write"
+level = "medium"
+stage = "greedy-choices"
+order = 18
+status = "ready"
+tags = ["greedy", "sorting", "two pointers"]
+companies = ["Amazon", "Google"]
+teaches = [
+  "Two pointers from both ends of a sorted copy pair the heaviest with the lightest.",
+  "Add two `u32`s as `u64` before comparing: the sum can overflow.",
+]
+constraints = ["0 ≤ people.len() ≤ 2·10⁵", "1 ≤ people[i] ≤ limit ≤ 2³² − 1"]
+follow_up = "What if a boat could carry any number of people up to the limit? (That's bin packing, which is NP-hard.)"
+related = ["D2", "S3"]
+
+[[examples]]
+input = "people = [1, 2], limit = 3"
+output = "1"
+
+[[examples]]
+input = "people = [3, 2, 2, 1], limit = 3"
+output = "3"
+
+[[examples]]
+input = "people = [3, 5, 3, 4], limit = 5"
+output = "4"
+
+[[hints]]
+kind = "approach"
+text = "The heaviest person must ride with someone or alone. If the lightest person fits with them, pair them; if not, nobody fits with them."
+
+[[hints]]
+kind = "rust"
+text = "Sort a copy, then move `lo` and `hi` inward. Add as `u64`: two `u32` weights can overflow."
+
+[[hints]]
+kind = "edge case"
+text = "Check `lo < hi` before pairing: when one person is left, they need their own boat."
+
+[solution]
+explanation = "If the heaviest can't share with the lightest, they can't share with anyone, so they go alone. If they can, swapping any other partner for the lightest never hurts (exchange argument)."
+time = "O(n log n)"
+space = "O(n) for the sorted copy"

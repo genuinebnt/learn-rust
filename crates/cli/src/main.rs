@@ -29,7 +29,8 @@ enum Command {
     /// List tracks, or the problems in one track.
     List { track: Option<String> },
     /// Check every ready problem end to end: the reference solution passes every test
-    /// without breaking a rule, the starter doesn't pass, and a write-it starter compiles.
+    /// without breaking a rule, the starter doesn't pass, a write-it starter compiles,
+    /// and every `wrong/<name>.rs` compiles but fails Submit.
     Verify {
         /// Only this track (code or folder name), e.g. d1.
         track: Option<String>,
@@ -214,6 +215,7 @@ struct Case {
     solution: String,
     visible: String,
     hidden: String,
+    wrong: Vec<(String, String)>,
     rules: Option<anneal_content::Rules>,
     crates: Vec<String>,
 }
@@ -237,6 +239,7 @@ async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::
                 solution: f.solution.clone().unwrap_or_default(),
                 visible: f.visible_tests.clone().unwrap_or_default(),
                 hidden: f.hidden_tests.clone().unwrap_or_default(),
+                wrong: f.wrong.clone(),
                 rules: p.meta.rules.clone(),
                 crates: p.meta.crates.clone(),
             };
@@ -300,6 +303,19 @@ async fn verify_one(runner: &Runner, c: &Case) -> Vec<String> {
             }
         }
         Err(e) => issues.push(format!("starter: runner error {e}")),
+    }
+    // A wrong solution must be caught by a failing or timed-out test (or a broken rule), not by the compiler.
+    for (name, code) in &c.wrong {
+        match submit(runner, c, code).await {
+            Ok(r) if r.status == anneal_runner::RunStatus::CompileError => {
+                issues.push(format!("wrong/{name}.rs doesn't compile{}", first_problem(&r)));
+            }
+            Ok(r) if r.status == anneal_runner::RunStatus::Passed && broken(code).is_empty() => {
+                issues.push(format!("wrong/{name}.rs passes every test; add a test that catches it"));
+            }
+            Ok(_) => {}
+            Err(e) => issues.push(format!("wrong/{name}.rs: runner error {e}")),
+        }
     }
     issues
 }

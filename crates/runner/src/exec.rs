@@ -153,8 +153,9 @@ pub(crate) async fn run(
                     .await;
             }
             if let (Sandbox::Host, Some(pid)) = (sandbox, child.id()) {
+                // `--` so the negative pid means the process group; procps-ng 4 ignores `kill -KILL -<pgid>`.
                 let _ = Command::new("kill")
-                    .args(["-KILL", &format!("-{pid}")])
+                    .args(["-s", "KILL", "--", &format!("-{pid}")])
                     .output()
                     .await;
             }

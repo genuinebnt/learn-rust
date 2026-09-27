@@ -13,6 +13,9 @@ pub(crate) const TEST_PREFIX: &str =
 
 /// `check!(input, got, expected)`: like `assert_eq!`, but on failure it prints one
 /// `ANNEAL {json}` line so the UI can show input / expected / got.
+///
+/// `anneal_prelude::Rng`: a seeded splitmix64 generator with no crate dependency, for
+/// randomized tests that compare against a brute-force reference written in the test.
 const PRELUDE: &str = r#"#[allow(unused_macros)]
 macro_rules! check {
     ($input:expr, $got:expr, $expected:expr $(,)?) => {{
@@ -47,6 +50,66 @@ pub fn json(s: &str) -> String {
     }
     out.push('"');
     out
+}
+
+/// Seeded splitmix64. The same seed gives the same sequence on every machine.
+#[allow(dead_code)]
+pub struct Rng(u64);
+
+#[allow(dead_code)]
+impl Rng {
+    pub fn new(seed: u64) -> Self {
+        Rng(seed)
+    }
+
+    pub fn next_u64(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    /// A value in `0..n`; `n` must be positive.
+    pub fn below(&mut self, n: usize) -> usize {
+        assert!(n > 0, "Rng::below(0)");
+        (self.next_u64() % n as u64) as usize
+    }
+
+    /// A value in `lo..=hi`.
+    pub fn int(&mut self, lo: i64, hi: i64) -> i64 {
+        assert!(lo <= hi, "Rng::int({lo}, {hi})");
+        let span = (hi as i128 - lo as i128 + 1) as u128;
+        (lo as i128 + (self.next_u64() as u128 % span) as i128) as i64
+    }
+
+    /// `len` values in `lo..=hi`, converted to `T` (e.g. `i32`, `u8`).
+    pub fn vec<T: TryFrom<i64>>(&mut self, len: usize, lo: i64, hi: i64) -> Vec<T> {
+        (0..len).map(|_| T::try_from(self.int(lo, hi)).ok().expect("Rng::vec: value out of range for T")).collect()
+    }
+
+    pub fn bool(&mut self) -> bool {
+        self.next_u64() & 1 == 1
+    }
+
+    /// A random element of a non-empty slice.
+    pub fn pick<'a, T>(&mut self, xs: &'a [T]) -> &'a T {
+        &xs[self.below(xs.len())]
+    }
+
+    /// Fisher–Yates.
+    pub fn shuffle<T>(&mut self, xs: &mut [T]) {
+        for i in (1..xs.len()).rev() {
+            let j = self.below(i + 1);
+            xs.swap(i, j);
+        }
+    }
+
+    /// `len` chars drawn from `alphabet`.
+    pub fn string(&mut self, len: usize, alphabet: &str) -> String {
+        let cs: Vec<char> = alphabet.chars().collect();
+        (0..len).map(|_| *self.pick(&cs)).collect()
+    }
 }
 "#;
 

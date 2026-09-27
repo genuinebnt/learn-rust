@@ -135,6 +135,12 @@ def write_problem(tdir, p, order):
         f.write(render_tests(p["visible"], use))
     with open(os.path.join(d, "tests", "hidden.rs"), "w") as f:
         f.write(render_tests(p["hidden"], use))
+    # Plausible but incorrect solutions that `anneal verify` checks the tests reject: {name: code}.
+    if p.get("wrong"):
+        os.makedirs(os.path.join(d, "wrong"))
+        for name, code in p["wrong"].items():
+            with open(os.path.join(d, "wrong", f"{name}.rs"), "w") as f:
+                f.write(dedent(code))
 
 
 def draft(slug, title, mode, level, stage, tags):

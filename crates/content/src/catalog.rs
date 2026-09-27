@@ -43,6 +43,9 @@ pub struct ProblemFiles {
     pub solution: Option<String>,
     pub visible_tests: Option<String>,
     pub hidden_tests: Option<String>,
+    /// `wrong/<name>.rs`: plausible but incorrect solutions the tests must reject, as `(name, code)`
+    /// sorted by name. Only `anneal verify` reads them.
+    pub wrong: Vec<(String, String)>,
 }
 
 /// A problem with the content, reported with the file it was found in.
@@ -163,6 +166,19 @@ fn read_optional(path: &Path) -> Option<String> {
     fs::read_to_string(path).ok()
 }
 
+/// Every `<name>.rs` in `dir`, sorted by name; empty when the folder is absent.
+fn read_wrong(dir: &Path) -> Vec<(String, String)> {
+    let Ok(entries) = fs::read_dir(dir) else { return Vec::new() };
+    let mut out: Vec<(String, String)> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|x| x == "rs"))
+        .filter_map(|p| Some((p.file_stem()?.to_string_lossy().into_owned(), fs::read_to_string(&p).ok()?)))
+        .collect();
+    out.sort();
+    out
+}
+
 fn issue(path: &Path, message: impl Into<String>) -> Issue {
     Issue {
         path: path.to_path_buf(),
@@ -263,6 +279,7 @@ fn load_problem(dir: &Path, track: &TrackFile, issues: &mut Vec<Issue>) -> Optio
         solution: read_optional(&dir.join("solution.rs")),
         visible_tests: read_optional(&dir.join("tests/visible.rs")),
         hidden_tests: read_optional(&dir.join("tests/hidden.rs")),
+        wrong: read_wrong(&dir.join("wrong")),
     };
     check_problem(dir, &meta, &files, track, &file, issues);
     Some(Problem {

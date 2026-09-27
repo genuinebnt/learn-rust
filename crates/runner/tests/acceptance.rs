@@ -229,6 +229,44 @@ async fn prints_from_passing_tests_are_kept() {
 }
 
 #[tokio::test]
+async fn prelude_rng_is_seeded_and_in_range() {
+    let tests = r#"use solution::*;
+
+#[test]
+fn seeded() {
+    let (mut a, mut b) = (anneal_prelude::Rng::new(42), anneal_prelude::Rng::new(42));
+    let xs: Vec<u64> = (0..100).map(|_| a.next_u64()).collect();
+    let ys: Vec<u64> = (0..100).map(|_| b.next_u64()).collect();
+    assert_eq!(xs, ys);
+    // splitmix64's first output for seed 0.
+    assert_eq!(anneal_prelude::Rng::new(0).next_u64(), 0xE220_A839_7B1D_CDAF);
+}
+
+#[test]
+fn ranges() {
+    let mut r = anneal_prelude::Rng::new(7);
+    for _ in 0..10_000 {
+        assert!((-3..=3).contains(&r.int(-3, 3)));
+        assert!(r.below(5) < 5);
+    }
+    let v: Vec<u8> = r.vec(50, 0, 255);
+    assert_eq!(v.len(), 50);
+    let mut p: Vec<u32> = (0..20).collect();
+    r.shuffle(&mut p);
+    p.sort();
+    assert_eq!(p, (0..20).collect::<Vec<_>>());
+    assert!(r.string(30, "ab").chars().all(|c| c == 'a' || c == 'b'));
+    check!("add(2, 3)", add(2, 3), 5);
+}
+"#;
+    let r = runner(Sandbox::Host);
+    let sub = Submission { lib_rs: "pub fn add(a: i32, b: i32) -> i32 { a + b }", visible_tests: tests, hidden_tests: None, crates: &[] };
+    let result = r.run("rng", &sub).await.unwrap();
+    assert_eq!(result.status, RunStatus::Passed, "{result:#?}");
+    assert_eq!(result.passed, 2);
+}
+
+#[tokio::test]
 async fn infinite_loop_times_out_and_is_killed() {
     let c = catalog();
     let (_, _, visible, _) = problem(&c, "d9-network-delay-time");

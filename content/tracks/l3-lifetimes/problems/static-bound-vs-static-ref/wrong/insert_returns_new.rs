@@ -14,8 +14,8 @@ impl Extensions {
     }
 
     pub fn insert<T: Any>(&mut self, value: T) -> Option<T> {
-        let old = self.map.insert(TypeId::of::<T>(), Box::new(value))?;
-        Some(*old.downcast::<T>().expect("stored under its own TypeId"))
+        self.map.insert(TypeId::of::<T>(), Box::new(value));
+        None
     }
 
     pub fn get<T: Any>(&self) -> Option<&T> {

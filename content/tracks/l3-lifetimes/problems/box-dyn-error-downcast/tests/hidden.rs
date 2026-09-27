@@ -1,101 +1,110 @@
 use solution::*;
 
 #[test]
-fn parse_error_kept() {
-    check!(r#""a=x""#, sum_config("a=x").unwrap_err().is::<std::num::ParseIntError>(), true);
+fn empty() {
+    check!(r#""""#, sum_config("").ok(), Some(0));
 }
 
 #[test]
-fn negatives() {
+fn negative() {
     check!(r#""a=-5\nb=2""#, sum_config("a=-5\nb=2").ok(), Some(-3));
 }
 
 #[test]
-fn only_blank_lines() {
-    check!(r#""\n  \n\t""#, sum_config("\n  \n\t").ok(), Some(0));
-}
-
-#[test]
-fn first_equals_splits() {
-    check!(r#""a=b=1""#, sum_config("a=b=1").unwrap_err().is::<std::num::ParseIntError>(), true);
-}
-
-#[test]
-fn empty_key() {
-    check!(r#""=5""#, sum_config("=5").ok(), Some(5));
-}
-
-#[test]
-fn empty_value() {
-    check!(r#""a=""#, sum_config("a=").unwrap_err().is::<std::num::ParseIntError>(), true);
-}
-
-#[test]
-fn crlf() {
-    check!(r#""a=1\r\nb=2\r\n""#, sum_config("a=1\r\nb=2\r\n").ok(), Some(3));
-}
-
-#[test]
-fn value_past_i64() {
-    check!(r#""a=9223372036854775808""#, sum_config("a=9223372036854775808").unwrap_err().is::<std::num::ParseIntError>(), true);
-}
-
-#[test]
 fn first_error_wins() {
-    check!(r#""x\na=q""#, bad_line(&*sum_config("x\na=q").unwrap_err()), Some(1));
+    check!(r#""a=x\nnope""#, sum_config("a=x\nnope").map_err(|e| bad_line(&*e)), Err(Some(1)));
 }
 
 #[test]
-fn plain_error_is_not_config() {
-    check!(r#"a boxed io::Error"#, bad_line(&std::io::Error::other("boom")), None);
+fn blank_lines_count() {
+    check!(r#""\n \nq""#, sum_config("\n \nq").map_err(|e| bad_line(&*e)), Err(Some(3)));
 }
 
 #[test]
-fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(314);
-    for _ in 0..300 {
-        let n = rng.below(6);
-        let mut lines = Vec::new();
-        let mut want: Result<i64, Option<usize>> = Ok(0);
-        for i in 0..n {
-            let line = match rng.below(4) {
-                0 => String::new(),
-                1 => format!("k{i}"),
-                2 => format!("k = {}", rng.int(-99, 99)),
-                _ => format!("k={}", rng.string(1, "x7")),
-            };
-            if let Ok(total) = want {
-                if !line.trim().is_empty() {
-                    want = match line.split_once('=') {
-                        None => Err(Some(i + 1)),
-                        Some((_, v)) => v.trim().parse::<i64>().map(|v| total + v).map_err(|_| None),
-                    };
-                }
-            }
-            lines.push(line);
-        }
-        let text = lines.join("\n");
-        let got = sum_config(&text).map_err(|e| bad_line(&*e));
-        check!(format!("text = {text:?}"), got, want);
+fn overflow_is_a_source() {
+    check!(r#""a=99999999999999999999""#, sum_config("a=99999999999999999999").map_err(|e| chain(&*e).len()), Err(2));
+}
+
+#[test]
+fn root_of_a_leaf() {
+    check!(r#"root_cause of a ConfigError without a source"#, root_cause(&ConfigError { line: 4, source: None }).to_string(), "line 4: expected key=value".to_string());
+}
+
+#[test]
+fn chain_without_source() {
+    check!(r#"chain of a missing '='"#, chain(&*sum_config("k").unwrap_err()), vec!["line 1: expected key=value".to_string()]);
+}
+
+#[test]
+fn error_is_send_sync() {
+    let e = sum_config("a=b").unwrap_err();
+    check!(r#"the boxed error can cross threads"#, std::thread::spawn(move || e.to_string()).join().unwrap(), "line 1: bad number".to_string());
+}
+
+#[derive(Debug)]
+struct Loading(ConfigError);
+
+impl std::fmt::Display for Loading {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "loading failed")
+    }
+}
+
+impl std::error::Error for Loading {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
     }
 }
 
 #[test]
-fn parse_error_has_no_line() {
-    check!(r#""a=x""#, bad_line(&*sum_config("a=x").unwrap_err()), None);
+fn three_level_chain() {
+    let inner = "q".parse::<i64>().unwrap_err();
+    let e = Loading(ConfigError { line: 7, source: Some(inner) });
+    check!("Loading(line 7: bad number(invalid digit)): chain", chain(&e), vec!["loading failed".to_string(), "line 7: bad number".to_string(), "invalid digit found in string".to_string()]);
+    check!("root cause is the ParseIntError", root_cause(&e).downcast_ref::<std::num::ParseIntError>().is_some(), true);
+    check!("bad_line of the outer error", bad_line(&e), None);
 }
 
 #[test]
-fn blank_lines() {
-    check!(r#""a=1\n\n b=2 ""#, sum_config("a=1\n\n b=2 ").ok(), Some(3));
+fn second_equals_is_value() {
+    check!(r#""a=b=1" (value "b=1")"#, sum_config("a=b=1").map_err(|e| bad_line(&*e)), Err(Some(1)));
 }
 
 #[test]
-fn line_numbers_count_blanks() {
-    check!(r#""\n\nx""#, bad_line(&*sum_config("\n\nx").unwrap_err()), Some(3));
-}
-
-#[test]
-fn message() {
-    check!(r#""x""#, sum_config("x").unwrap_err().to_string(), "line 1: expected key=value".to_string());
+fn random_vs_model() {
+    let mut rng = anneal_prelude::Rng::new(6311);
+    for _ in 0..300 {
+        let n = rng.below(5);
+        let mut lines = Vec::new();
+        for _ in 0..n {
+            lines.push(match rng.below(5) {
+                0 => String::new(),
+                1 => "junk".to_string(),
+                2 => "k=zz".to_string(),
+                _ => format!("k={}", rng.int(-50, 50)),
+            });
+        }
+        let text = lines.join("\n");
+        let mut want: Result<i64, (usize, bool)> = Ok(0);
+        for (i, l) in lines.iter().enumerate() {
+            if l.trim().is_empty() {
+                continue;
+            }
+            match l.split_once('=') {
+                None => {
+                    want = Err((i + 1, false));
+                    break;
+                }
+                Some((_, v)) => match v.trim().parse::<i64>() {
+                    Ok(x) => want = want.map(|t| t + x),
+                    Err(_) => {
+                        want = Err((i + 1, true));
+                        break;
+                    }
+                },
+            }
+        }
+        let got = sum_config(&text).map_err(|e| (bad_line(&*e).unwrap(), e.source().is_some()));
+        check!(format!("config {text:?}"), got, want);
+    }
 }

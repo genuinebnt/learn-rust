@@ -1,60 +1,58 @@
 use solution::*;
 
 #[test]
-fn zero_chunks() {
-    check!(r#"[1, 2, 3], 0 threads"#, parallel_sum(&[1, 2, 3], 0), 6);
-}
-
-#[test]
-fn single() {
-    check!(r#"[42], 4 threads"#, parallel_sum(&[42], 4), 42);
-}
-
-#[test]
-fn one_thread() {
-    let data: Vec<u64> = (1..=10).collect();
-    check!(r#"1..=10, 1 thread"#, parallel_sum(&data, 1), 55);
-}
-
-#[test]
-fn remainder_chunk() {
-    let data: Vec<u64> = (1..=10).collect();
-    check!(r#"10 values, 3 threads"#, parallel_sum(&data, 3), 55);
-}
-
-#[test]
-fn large_values() {
-    check!(r#"[u64::MAX / 4; 3], 3 threads"#, parallel_sum(&[u64::MAX / 4; 3], 3), 3 * (u64::MAX / 4));
-}
-
-#[test]
-fn zeros() {
-    check!(r#"[0; 100], 7 threads"#, parallel_sum(&[0; 100], 7), 0);
-}
-
-#[test]
-fn empty_zero_threads() {
-    check!(r#"[], 0 threads"#, parallel_sum(&[], 0), 0);
-}
-
-#[test]
-fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(315);
-    for _ in 0..200 {
-        let n = rng.below(20);
-        let data: Vec<u64> = rng.vec(n, 0, 1_000_000);
-        let chunks = rng.below(8);
-        check!(format!("data = {data:?}, chunks = {chunks}"), parallel_sum(&data, chunks), data.iter().sum::<u64>());
-    }
+fn chunks_zero() {
+    check!(r#"[1, 2] on 0 threads"#, parallel_sum(&[1, 2], 0), 3);
 }
 
 #[test]
 fn more_threads_than_items() {
-    check!(r#"[1, 2, 3], 10 threads"#, parallel_sum(&[1, 2, 3], 10), 6);
+    check!(r#"[5, 6] on 10 threads"#, parallel_sum(&[5, 6], 10), 11);
 }
 
 #[test]
-fn big() {
-    let data = vec![1u64; 1_000_000];
-    check!(r#"10⁶ ones, 8 threads"#, parallel_sum(&data, 8), 1_000_000);
+fn uneven_chunks() {
+    check!(r#"1..=10 on 3 threads"#, parallel_sum(&(1..=10).collect::<Vec<u64>>(), 3), 55);
+}
+
+#[test]
+fn big_values() {
+    check!(r#"[u32::MAX as u64; 4]"#, parallel_sum(&[u32::MAX as u64; 4], 2), 4 * u32::MAX as u64);
+}
+
+#[test]
+fn count_empty() {
+    check!(r#"count_later([])"#, count_later(&[]).join().unwrap(), 0);
+}
+
+#[test]
+fn count_whitespace_kinds() {
+    check!(r#"count_later(["a\tb\nc  "])"#, count_later(&["a\tb\nc  ".to_string()]).join().unwrap(), 3);
+}
+
+#[test]
+fn spawn_named_returns_value() {
+    check!(r#"spawn_named returning a String"#, spawn_named("s", || "done".to_string()).join().unwrap(), "done".to_string());
+}
+
+#[test]
+fn spawn_named_panics_are_caught() {
+    check!(r#"a job that panics"#, spawn_named("p", || -> u8 { panic!("boom") }).join().is_err(), true);
+}
+
+#[test]
+fn random_vs_brute_force() {
+    let mut rng = anneal_prelude::Rng::new(6312);
+    for _ in 0..100 {
+        let n = rng.below(40);
+        let data: Vec<u64> = rng.vec(n, 0, 1000);
+        let chunks = rng.below(6);
+        check!(format!("parallel_sum({data:?}, {chunks})"), parallel_sum(&data, chunks), data.iter().sum::<u64>());
+    }
+}
+
+#[test]
+fn big_input() {
+    let data: Vec<u64> = (0..1_000_000).collect();
+    check!("0..1000000 on 8 threads", parallel_sum(&data, 8), 499_999_500_000);
 }

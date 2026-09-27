@@ -1,31 +1,36 @@
 slug = "fix-thread-spawn-static"
-title = "Fix: thread::spawn needs 'static"
+title = "Fix: thread::spawn needs 'static, scope doesn't"
 mode = "fix"
 level = "medium"
 stage = "static-bounds"
 order = 15
 status = "ready"
-tags = ["E0521", "thread::scope"]
+tags = ["E0521", "E0310", "thread::scope", "Send + 'static", "thread::Builder"]
 teaches = [
-  "Why `thread::spawn` needs `'static`.",
-  "`thread::scope` for borrowing across threads.",
+  "`spawn` needs `'static` because the thread may outlive the caller.",
+  "`thread::scope` lets threads borrow, because it joins them first.",
+  "Wrappers around `spawn` repeat its `Send + 'static` bounds.",
 ]
-follow_up = "When would you still choose `thread::spawn` with `Arc` over scoped threads?"
-related = ["L3", "C1"]
+follow_up = "`count_later` could take `Arc<[String]>` instead of copying. When is that better, and what does it cost the caller?"
+related = ["L3", "L1", "C1"]
 
 [[hints]]
 kind = "rust"
-text = "`thread::spawn` requires `F: 'static`: the thread might outlive this function, and `data` with it."
+text = "`thread::spawn` requires `F: 'static` because the thread may outlive the caller. `thread::scope` joins every thread it spawned before returning, so its threads may borrow anything that outlives the scope."
 
 [[hints]]
 kind = "rust"
-text = "`thread::scope` guarantees every thread spawned in it is joined before it returns, so the closures may borrow `data`."
+text = "`count_later` returns the handle, so its thread really can outlive `docs`. Scoped threads can't help; the thread must own its data. That's the one place a copy is necessary."
+
+[[hints]]
+kind = "rust"
+text = "`Builder::spawn` has the same bounds as `thread::spawn`: `F: FnOnce() -> T + Send + 'static, T: Send + 'static`. Generic wrappers must repeat them (E0310)."
 
 [solution]
-explanation = "Scoped threads prove to the compiler that the borrow outlives the threads. The usual alternatives, `Arc<Vec<_>>` or `to_vec`, copy or reshape the data."
-time = "O(n / threads) wall time"
-space = "O(threads)"
+explanation = "`thread::spawn`'s `'static` bound isn't about how long the closure runs; it's that nothing can stop the thread from outliving the caller's stack frame, so the closure may not borrow from it (E0521 for borrowed data, E0310 for a generic `F`). There are two honest fixes, and the design decides. If the caller waits for the threads anyway, `thread::scope` proves they finish before the borrow ends, and plain borrows work, with no copies and no `Arc`. If the thread is meant to outlive the call, as with a returned `JoinHandle`, it must own its data: copy it (or share it through `Arc`). A generic wrapper around `spawn` inherits its bounds: `F: FnOnce() -> T + Send + 'static` and `T: Send + 'static`, since the result is handed back through `join`.\n\nSyntax to remember: `thread::scope(|s| { let h = s.spawn(move || ..); h.join().unwrap() })` · `F: FnOnce() -> T + Send + 'static, T: Send + 'static` · `thread::Builder::new().name(n.to_string()).spawn(job)`."
+time = "O(n / threads) per thread"
+space = "O(threads); O(docs) for the copy"
 
 [rules]
-forbid_methods = ["to_vec", "to_owned", "clone", "leak", "into_boxed_slice"]
-forbid_types = ["Arc", "Rc"]
+forbid_methods = ["leak"]
+forbid_unsafe = true

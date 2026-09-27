@@ -2027,483 +2027,546 @@ Syntax to remember: `pub fn take(&mut self, n: usize) -> Option<&'a [u8]>` · `p
 
 # ---------------------------------------------------------------- 'static and T: 'a (medium)
 
-P.append(write(
-    "static-bound-vs-static-ref", "'static bound vs &'static", "medium", "static-bounds", ["T: 'static", "Any"],
+EXT_HEAD = r"""
+use std::any::{Any, TypeId};
+use std::collections::HashMap;
+use std::fmt::Debug;
+
+/// Holds at most one value of each type, like `http::Extensions`. Values of any type that owns its data (or
+/// borrows only `'static` data) can go in.
+pub struct Extensions {
+    map: HashMap<TypeId, Box<dyn Any>>,
+}
+"""
+
+EXT_IMPL = r"""
+impl Extensions {
+    pub fn new() -> Self {
+        Extensions { map: HashMap::new() }
+    }
+
+    pub fn insert<T: Any>(&mut self, value: T) -> Option<T> {
+        let old = self.map.insert(TypeId::of::<T>(), Box::new(value))?;
+        Some(*old.downcast::<T>().expect("stored under its own TypeId"))
+    }
+
+    pub fn get<T: Any>(&self) -> Option<&T> {
+        self.map.get(&TypeId::of::<T>())?.downcast_ref()
+    }
+
+    pub fn get_mut<T: Any>(&mut self) -> Option<&mut T> {
+        self.map.get_mut(&TypeId::of::<T>())?.downcast_mut()
+    }
+
+    pub fn remove<T: Any>(&mut self) -> Option<T> {
+        let b = self.map.remove(&TypeId::of::<T>())?;
+        Some(*b.downcast::<T>().expect("stored under its own TypeId"))
+    }
+
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+}
+"""
+
+EXT_TAIL_STARTER = r"""
+/// Keeps `value` in `log` for debug output later.
+pub fn remember<T: Debug>(log: &mut Vec<Box<dyn Debug>>, value: T) {
+    log.push(Box::new(value));
+}
+
+/// A name made at run time that lives for the rest of the program. Each call leaks its String on purpose.
+pub fn intern_forever(name: String) -> &'static str {
+    Box::leak(name.into_boxed_str())
+}
+"""
+
+EXT_TAIL_SOLUTION = sub(EXT_TAIL_STARTER, "pub fn remember<T: Debug>(", "pub fn remember<T: Debug + 'static>(")
+EXT_SOLUTION = EXT_HEAD + EXT_IMPL + EXT_TAIL_SOLUTION
+EX = "let mut ext = Extensions::new();"
+
+P.append(fix(
+    "static-bound-vs-static-ref", "'static bound vs &'static: a type map", "medium", "static-bounds", ["T: 'static", "Any", "TypeId", "downcast", "E0310"],
     """
-        `Stash` stores values of any type and gets them back by type. `Box<dyn Any>` needs `T: 'static`,
-        which means the value owns its data (or borrows only `'static` data). It does not mean it lives
-        forever: a `String` built at runtime qualifies.
+        Write `impl Extensions`: a map holding at most one value per type, keyed by `TypeId`.
+
+        - `new()`, and `len()`: how many values it holds.
+        - `insert(value)`: stores it, replacing and returning the previous value of the same type, by value.
+        - `get::<T>()` and `get_mut::<T>()`: the value of type `T`, borrowed.
+        - `remove::<T>()`: takes the value of type `T` out, by value.
+
+        Then fix `remember`, which doesn't compile. `intern_forever` is correct: read it as the other half
+        of the lesson.
     """,
-    """
-    use std::any::Any;
-
-    #[derive(Default)]
-    pub struct Stash {
-        items: Vec<Box<dyn Any>>,
-    }
-
-    impl Stash {
-        pub fn new() -> Self {
-            Self::default()
-        }
-
-        pub fn put<T: Any>(&mut self, value: T) {
-            todo!()
-        }
-
-        /// Every stored value of type `T`, in insertion order.
-        pub fn all<T: Any>(&self) -> Vec<&T> {
-            todo!()
-        }
-    }
-    """,
-    """
-    use std::any::Any;
-
-    #[derive(Default)]
-    pub struct Stash {
-        items: Vec<Box<dyn Any>>,
-    }
-
-    impl Stash {
-        pub fn new() -> Self {
-            Self::default()
-        }
-
-        pub fn put<T: Any>(&mut self, value: T) {
-            self.items.push(Box::new(value));
-        }
-
-        /// Every stored value of type `T`, in insertion order.
-        pub fn all<T: Any>(&self) -> Vec<&T> {
-            self.items.iter().filter_map(|b| b.downcast_ref::<T>()).collect()
-        }
-    }
-    """,
-    [T("by_type", "put String, 5u32, \"lit\", 7u32; all::<u32>()", "s.all::<u32>()", "vec![&5, &7]",
-       setup='let mut s = Stash::new();\ns.put(format!("user-{}", 42));\ns.put(5u32);\ns.put("lit");\ns.put(7u32);'),
-     T("runtime_string_is_static", "the String built with format!", "(s.all::<String>()[0].as_str(), s.all::<&str>())", '("user-42", vec![&"lit"])',
-       setup='let mut s = Stash::new();\ns.put(format!("user-{}", 42));\ns.put("lit");'),
-     T("empty", "nothing stored", "Stash::new().all::<i64>().len()", "0"),
-     T("types_are_exact", "put 1u64; all::<u32>()", "s.all::<u32>().len()", "0", setup="let mut s = Stash::new();\ns.put(1u64);"),
-     T("insertion_order", "put 3i32, 1i32, 2i32", "s.all::<i32>()", "vec![&3, &1, &2]", setup="let mut s = Stash::new();\ns.put(3i32);\ns.put(1i32);\ns.put(2i32);")],
-    [T("empty", "nothing stored", "Stash::new().all::<i64>().len()", "0"),
-     T("types_are_exact", "put 1u64; all::<u32>()", "s.all::<u32>().len()", "0", setup="let mut s = Stash::new();\ns.put(1u64);"),
-     T("string_vs_str", "put String \"a\", &str \"b\"", "(s.all::<String>().iter().map(|x| x.as_str()).collect::<Vec<_>>(), s.all::<&str>())", '(vec!["a"], vec![&"b"])',
-       setup='let mut s = Stash::new();\ns.put(String::from("a"));\ns.put("b");'),
-     T("box_is_its_own_type", "put Box<i32>(1), 2i32", "(s.all::<Box<i32>>().len(), s.all::<i32>())", "(1, vec![&2])",
-       setup="let mut s = Stash::new();\ns.put(Box::new(1i32));\ns.put(2i32);"),
-     T("unit_values", "put (), (), 1u8", "s.all::<()>().len()", "2", setup="let mut s = Stash::new();\ns.put(());\ns.put(());\ns.put(1u8);"),
-     T("nested_owned", "put vec![String \"x\"]", "(v.len(), v[0].clone())", '(1, vec![String::from("x")])',
-       setup='let mut s = Stash::new();\ns.put(vec![String::from("x")]);\nlet v = s.all::<Vec<String>>();'),
-     T("options", "put Some(1u8), None::<u8>, Some(2u16)", "s.all::<Option<u8>>()", "vec![&Some(1u8), &None]",
-       setup="let mut s = Stash::new();\ns.put(Some(1u8));\ns.put(None::<u8>);\ns.put(Some(2u16));"),
-     T("many", "10000 u32 values and 10000 u64 values interleaved", "(v.len(), *v[0], *v[9_999])", "(10_000, 0, 9_999)",
-       setup="let mut s = Stash::new();\nfor i in 0..10_000u32 {\n    s.put(i);\n    s.put(u64::from(i));\n}\nlet v = s.all::<u32>();"),
-     """
+    EXT_HEAD + "\n// TODO: impl Extensions.\n" + EXT_TAIL_STARTER,
+    EXT_SOLUTION,
+    [T("insert_and_get", "insert 5u32 and a String", '(ext.get::<u32>(), ext.get::<String>().map(|s| s.as_str()), ext.get::<i64>(), ext.len())', '(Some(&5), Some("runtime"), None, 2)', setup=EX + '\next.insert(5u32);\next.insert(format!("run{}", "time"));'),
+     T("insert_returns_previous", "insert 1u8, then 2u8", "(ext.insert(1u8), ext.insert(2u8), ext.get::<u8>())", "(None, Some(1), Some(&2))", setup=EX),
+     T("get_mut_edits", "insert vec![1]; get_mut push 2", "{ ext.get_mut::<Vec<i32>>().unwrap().push(2); ext.get::<Vec<i32>>().cloned() }", "Some(vec![1, 2])", setup=EX + "\next.insert(vec![1]);"),
+     T("remove_by_value", "insert a String; remove it", '(ext.remove::<String>(), ext.remove::<String>(), ext.len())', '(Some("x".to_string()), None, 0)', setup=EX + '\next.insert("x".to_string());'),
+     T("remember_owned_and_static", "remember a runtime String and a &'static str", 'format!("{log:?}")', '"[\\"made\\", \\"literal\\"]"', setup='let mut log: Vec<Box<dyn std::fmt::Debug>> = Vec::new();\nremember(&mut log, String::from("made"));\nremember(&mut log, "literal");'),
+     T("intern_forever_is_static", "intern_forever of a runtime String, stored in an Extensions", "ext.get::<&'static str>().copied()", 'Some("dyn")', setup=EX + '\next.insert(intern_forever(String::from("dyn")));')],
+    [T("empty", "new map", "(ext.len(), ext.get::<u32>().is_none(), ext.remove::<u32>())", "(0, true, None)", setup=EX),
+     T("distinct_integer_types", "insert 1u32, 1u64, 1i32", "ext.len()", "3", setup=EX + "\next.insert(1u32);\next.insert(1u64);\next.insert(1i32);"),
+     T("str_vs_string", "insert \"a\" (&'static str) and \"b\" (String)", '(ext.get::<&str>().copied(), ext.get::<String>().cloned())', '(Some("a"), Some("b".to_string()))', setup=EX + '\next.insert("a");\next.insert("b".to_string());'),
+     T("replace_keeps_len", "insert 1u32 three times", "{ ext.insert(1u32); ext.insert(2u32); (ext.insert(3u32), ext.len()) }", "(Some(2), 1)", setup=EX),
+     T("unit_type", "insert ()", "(ext.insert(()), ext.get::<()>().is_some())", "(None, true)", setup=EX),
+     T("struct_value", "insert a local struct type", "ext.get::<P>().map(|p| p.0)", "Some(7)", setup="#[derive(Debug)]\nstruct P(u8);\n" + EX + "\next.insert(P(7));"),
+     T("get_mut_missing", "get_mut::<u8> on an empty map", "ext.get_mut::<u8>().is_none()", "true", setup=EX),
+     T("remember_order", "remember 1, 2.5, 'c'", 'format!("{log:?}")', '"[1, 2.5, \'c\']"', setup="let mut log: Vec<Box<dyn std::fmt::Debug>> = Vec::new();\nremember(&mut log, 1);\nremember(&mut log, 2.5);\nremember(&mut log, 'c');"),
+     r"""
      #[test]
-     fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(313);
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6310);
          for _ in 0..300 {
-             let n = rng.below(10);
-             let mut s = Stash::new();
-             let mut small: Vec<u8> = Vec::new();
-             let mut wide: Vec<u16> = Vec::new();
-             for _ in 0..n {
-                 let v = rng.int(0, 255);
-                 if rng.bool() {
-                     s.put(v as u8);
-                     small.push(v as u8);
-                 } else {
-                     s.put(v as u16);
-                     wide.push(v as u16);
+             let mut ext = Extensions::new();
+             let (mut a, mut b): (Option<u32>, Option<String>) = (None, None);
+             let mut ops = Vec::new();
+             for _ in 0..8 {
+                 let x = rng.below(100) as u32;
+                 match rng.below(4) {
+                     0 => {
+                         ops.push(format!("insert {x}u32"));
+                         check!(ops.join(", "), ext.insert(x), a.replace(x));
+                     }
+                     1 => {
+                         ops.push(format!("insert \"{x}\""));
+                         check!(ops.join(", "), ext.insert(x.to_string()), b.replace(x.to_string()));
+                     }
+                     2 => {
+                         ops.push("remove::<u32>".to_string());
+                         check!(ops.join(", "), ext.remove::<u32>(), a.take());
+                     }
+                     _ => {
+                         if let Some(v) = ext.get_mut::<String>() {
+                             v.push('!');
+                         }
+                         if let Some(v) = b.as_mut() {
+                             v.push('!');
+                         }
+                         ops.push("get_mut::<String> += !".to_string());
+                     }
                  }
              }
-             check!(format!("u8 values {small:?} and u16 values {wide:?}"), (s.all::<u8>(), s.all::<u16>()), (small.iter().collect::<Vec<_>>(), wide.iter().collect::<Vec<_>>()));
+             check!(format!("{}; state", ops.join(", ")), (ext.get::<u32>().copied(), ext.get::<String>().cloned(), ext.len()), (a, b.clone(), a.is_some() as usize + b.is_some() as usize));
          }
      }
      """],
-    [("rust", "`Any` is implemented for every `T: 'static`, so `T: Any` already implies the bound."),
-     ("rust", "`Box<dyn Any>::downcast_ref::<T>()` returns `Some(&T)` only if the value is exactly a `T`.")],
-    ("`T: 'static` rules out types holding short-lived borrows, because `Any` can't track lifetimes. Owned data like `String` and `Vec` always qualifies.", "O(n) for all", "O(n)"),
-    "Why can't `Any` support types with non-'static lifetimes?",
-    ["`T: 'static` means 'no short borrows inside', not 'lives forever'.", "`Any` and `downcast_ref`."],
+    [("rust", "`Box<dyn Any>` requires `T: 'static`, and `Any` already implies it: `T: Any` means \"a type with no borrows shorter than `'static`\". A `String` built at run time qualifies; a `&'a str` into a local doesn't."),
+     ("rust", "`TypeId::of::<T>()` is the key. `Box<dyn Any>::downcast::<T>()` gives `Result<Box<T>, Box<dyn Any>>` (deref with `*` to move out); `downcast_ref` / `downcast_mut` borrow."),
+     ("rust", "`Box<dyn Debug>` means `Box<dyn Debug + 'static>`, so `remember` can only store a `T` with no short borrows (E0310): say `T: 'static`.")],
+    ("""`T: 'static` is a bound on a type: the type contains no references shorter than `'static`, so a value of it can be kept as long as you like. It says nothing about how long any particular value lives: a `String` created a moment ago is `'static` in this sense and can be dropped the next line. `&'static T` is different: a reference to something that lives until the program ends (a literal, a `static`, or leaked memory, as in `intern_forever`). Type erasure needs the bound because a `Box<dyn Any>` or `Box<dyn Debug>` (default object lifetime `'static`) may be kept anywhere, so nothing inside may expire. `Any` also implies it, which is why `insert<T: Any>` compiles and `remember<T: Debug>` doesn't.
+
+Syntax to remember: `self.map.insert(TypeId::of::<T>(), Box::new(value))` · `self.map.get(&TypeId::of::<T>())?.downcast_ref::<T>()` · `*b.downcast::<T>().ok()?` · `fn remember<T: Debug + 'static>(..)` · `Box::leak(s.into_boxed_str())`.""", "O(1) expected", "O(n) values"),
+    "`intern_forever` returns a `&'static str` from a runtime `String`. What does that cost, and when is it acceptable?",
+    ["`T: 'static`: no borrows shorter than `'static`; not \"lives forever\".", "`dyn Trait` in a `Box` defaults to `+ 'static`.", "`Any`, `TypeId` and `downcast` for type maps."],
     related=("L3", "L4"),
     wrong=dict(
-        newest_first="""
-            use std::any::Any;
-
-            #[derive(Default)]
-            pub struct Stash {
-                items: Vec<Box<dyn Any>>,
-            }
-
-            impl Stash {
-                pub fn new() -> Self {
-                    Self::default()
-                }
-
-                pub fn put<T: Any>(&mut self, value: T) {
-                    self.items.insert(0, Box::new(value));
-                }
-
-                /// Every stored value of type `T`, in insertion order.
-                pub fn all<T: Any>(&self) -> Vec<&T> {
-                    self.items.iter().filter_map(|b| b.downcast_ref::<T>()).collect()
-                }
-            }
-        """,
-        stops_at_first_other_type="""
-            use std::any::Any;
-
-            #[derive(Default)]
-            pub struct Stash {
-                items: Vec<Box<dyn Any>>,
-            }
-
-            impl Stash {
-                pub fn new() -> Self {
-                    Self::default()
-                }
-
-                pub fn put<T: Any>(&mut self, value: T) {
-                    self.items.push(Box::new(value));
-                }
-
-                /// Every stored value of type `T`, in insertion order.
-                pub fn all<T: Any>(&self) -> Vec<&T> {
-                    self.items.iter().skip_while(|b| !b.is::<T>()).map_while(|b| b.downcast_ref::<T>()).collect()
-                }
-            }
-        """,
+        insert_returns_new=EXT_HEAD + sub(EXT_IMPL, "        let old = self.map.insert(TypeId::of::<T>(), Box::new(value))?;\n        Some(*old.downcast::<T>().expect(\"stored under its own TypeId\"))", "        self.map.insert(TypeId::of::<T>(), Box::new(value));\n        None") + EXT_TAIL_SOLUTION,
+        remove_leaves_it=EXT_HEAD + sub(EXT_IMPL, "        let b = self.map.remove(&TypeId::of::<T>())?;\n        Some(*b.downcast::<T>().expect(\"stored under its own TypeId\"))", "        let old = self.map.insert(TypeId::of::<T>(), Box::new(()))?;\n        old.downcast::<T>().ok().map(|b| *b)") + EXT_TAIL_SOLUTION,
     ),
 ))
+
+CFG_HEAD = r"""
+use std::error::Error;
+use std::fmt;
+use std::num::ParseIntError;
+
+/// A problem on one line of a config: no '=' (no source), or a value that isn't a number (the parse error
+/// is the source).
+#[derive(Debug)]
+pub struct ConfigError {
+    pub line: usize,
+    pub source: Option<ParseIntError>,
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.source {
+            None => write!(f, "line {}: expected key=value", self.line),
+            Some(_) => write!(f, "line {}: bad number", self.line),
+        }
+    }
+}
+"""
+
+CFG_DOCS = dict(
+    err="impl Error for ConfigError {",
+    sum="\n/// Sums the values of `key=value` lines (1-based line numbers; blank lines skipped). Any problem is a\n/// `ConfigError`.\npub fn sum_config(text: &str) -> Result<i64, Box<dyn Error + Send + Sync>> {\n",
+    bad="\n/// The line number, when `err` is a `ConfigError`.\npub fn bad_line(err: &(dyn Error + 'static)) -> Option<usize> {\n",
+    root="\n/// The last error in `err`'s source chain (`err` itself if it has no source).\npub fn root_cause<'e>(err: &'e (dyn Error + 'static)) -> &'e (dyn Error + 'static) {\n",
+    chain="\n/// The messages of `err` and each of its sources, outermost first.\npub fn chain(err: &(dyn Error + 'static)) -> Vec<String> {\n",
+)
+
+CFG_BODIES = dict(
+    err="""
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.source.as_ref().map(|e| e as &(dyn Error + 'static))
+    }
+""",
+    sum="""    let mut total = 0;
+    for (i, line) in text.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let (_, value) = line.split_once('=').ok_or(ConfigError { line: i + 1, source: None })?;
+        total += value.trim().parse::<i64>().map_err(|e| ConfigError { line: i + 1, source: Some(e) })?;
+    }
+    Ok(total)
+""",
+    bad="    err.downcast_ref::<ConfigError>().map(|e| e.line)\n",
+    root="""    let mut cur = err;
+    while let Some(next) = cur.source() {
+        cur = next;
+    }
+    cur
+""",
+    chain="""    let mut out = Vec::new();
+    let mut cur = Some(err);
+    while let Some(e) = cur {
+        out.push(e.to_string());
+        cur = e.source();
+    }
+    out
+""",
+)
+
+
+def cfg_src(b, starter=False):
+    out = CFG_HEAD + "\n" + CFG_DOCS["err"] + ("}\n" if starter else b["err"] + "}\n")
+    for k in ("sum", "bad", "root", "chain"):
+        out += CFG_DOCS[k] + ("    todo!()\n" if starter else b[k]) + "}\n"
+    return out
+
+
+CFG_SOLUTION = cfg_src(CFG_BODIES)
+CFG_STARTER = cfg_src(CFG_BODIES, starter=True)
 
 P.append(write(
-    "box-dyn-error-downcast", "Box<dyn Error + 'static> and downcasting", "medium", "static-bounds", ["Box<dyn Error>", "downcast_ref", "?"],
+    "box-dyn-error-downcast", "Box<dyn Error> chains and downcasting", "medium", "static-bounds", ["Box<dyn Error + Send + Sync>", "source()", "downcast_ref", "dyn Error + 'static", "?"],
     """
-        `sum_config` sums the values of `key=value` lines, skipping blank lines. A line without `=` is a
-        `ConfigError` with its 1-based line number; a bad number is the `ParseIntError`. Both come back as
-        `Box<dyn Error>`.
-
-        `bad_line` recovers the line number when the error is a `ConfigError`.
+        `sum_config` sums the values of `key=value` lines and reports problems as a `ConfigError` with its
+        line number: no `=`, or a value that doesn't parse, in which case the `ParseIntError` is the error's
+        *source*. Make `ConfigError` report that source (it doesn't yet), then write the functions that walk
+        an error chain: `bad_line`, `root_cause` and `chain`.
     """,
-    """
-    use std::error::Error;
-    use std::fmt;
+    CFG_STARTER,
+    CFG_SOLUTION,
+    [T("sums", "\"a=1\\n\\nb = 2\\n\"", 'sum_config("a=1\\n\\nb = 2\\n").ok()', "Some(3)"),
+     T("missing_equals", "\"a=1\\nnope\" → line 2", 'sum_config("a=1\\nnope").map_err(|e| (bad_line(&*e), e.to_string(), e.source().is_none()))', 'Err((Some(2), "line 2: expected key=value".to_string(), true))'),
+     T("chain_of_a_bad_number", "\"x=oops\": the error chain", 'chain(&*sum_config("x=oops").unwrap_err())', 'vec!["line 1: bad number".to_string(), "invalid digit found in string".to_string()]'),
+     T("root_cause_is_the_parse_error", "\"x=\": root cause", 'root_cause(&*sum_config("x=").unwrap_err()).downcast_ref::<std::num::ParseIntError>().is_some()', "true"),
+     T("bad_line_on_other_errors", "bad_line of a plain ParseIntError", 'bad_line(&"z".parse::<i32>().unwrap_err())', "None")],
+    [T("empty", "\"\"", 'sum_config("").ok()', "Some(0)"),
+     T("negative", "\"a=-5\\nb=2\"", 'sum_config("a=-5\\nb=2").ok()', "Some(-3)"),
+     T("first_error_wins", "\"a=x\\nnope\"", 'sum_config("a=x\\nnope").map_err(|e| bad_line(&*e))', "Err(Some(1))"),
+     T("blank_lines_count", "\"\\n \\nq\"", 'sum_config("\\n \\nq").map_err(|e| bad_line(&*e))', "Err(Some(3))"),
+     T("overflow_is_a_source", "\"a=99999999999999999999\"", 'sum_config("a=99999999999999999999").map_err(|e| chain(&*e).len())', "Err(2)"),
+     T("root_of_a_leaf", "root_cause of a ConfigError without a source", 'root_cause(&ConfigError { line: 4, source: None }).to_string()', '"line 4: expected key=value".to_string()'),
+     T("chain_without_source", "chain of a missing '='", 'chain(&*sum_config("k").unwrap_err())', 'vec!["line 1: expected key=value".to_string()]'),
+     T("error_is_send_sync", "the boxed error can cross threads", 'std::thread::spawn(move || e.to_string()).join().unwrap()', '"line 1: bad number".to_string()', setup='let e = sum_config("a=b").unwrap_err();'),
+     r"""
+     #[derive(Debug)]
+     struct Loading(ConfigError);
 
-    #[derive(Debug)]
-    pub struct ConfigError {
-        pub line: usize,
-    }
-
-    impl fmt::Display for ConfigError {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "line {}: expected key=value", self.line)
-        }
-    }
-
-    impl Error for ConfigError {}
-
-    pub fn sum_config(text: &str) -> Result<i64, Box<dyn Error>> {
-        todo!()
-    }
-
-    pub fn bad_line(err: &(dyn Error + 'static)) -> Option<usize> {
-        todo!()
-    }
-    """,
-    """
-    use std::error::Error;
-    use std::fmt;
-
-    #[derive(Debug)]
-    pub struct ConfigError {
-        pub line: usize,
-    }
-
-    impl fmt::Display for ConfigError {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "line {}: expected key=value", self.line)
-        }
-    }
-
-    impl Error for ConfigError {}
-
-    pub fn sum_config(text: &str) -> Result<i64, Box<dyn Error>> {
-        let mut total = 0;
-        for (i, line) in text.lines().enumerate() {
-            if line.trim().is_empty() {
-                continue;
-            }
-            let (_, value) = line.split_once('=').ok_or(ConfigError { line: i + 1 })?;
-            total += value.trim().parse::<i64>()?;
-        }
-        Ok(total)
-    }
-
-    pub fn bad_line(err: &(dyn Error + 'static)) -> Option<usize> {
-        err.downcast_ref::<ConfigError>().map(|e| e.line)
-    }
-    """,
-    [T("sums", '"a=1\\nb = 2"', 'sum_config("a=1\\nb = 2").ok()', "Some(3)"),
-     T("config_error_line", '"a=1\\nb"', 'bad_line(&*sum_config("a=1\\nb").unwrap_err())', "Some(2)"),
-     T("empty_text", '""', 'sum_config("").ok()', "Some(0)"),
-     T("parse_error_kept", '"a=x"', 'sum_config("a=x").unwrap_err().is::<std::num::ParseIntError>()', "true"),
-     T("blank_lines", '"a=1\\n\\n b=2 "', 'sum_config("a=1\\n\\n b=2 ").ok()', "Some(3)")],
-    [T("parse_error_kept", '"a=x"', 'sum_config("a=x").unwrap_err().is::<std::num::ParseIntError>()', "true"),
-     T("negatives", '"a=-5\\nb=2"', 'sum_config("a=-5\\nb=2").ok()', "Some(-3)"),
-     T("only_blank_lines", '"\\n  \\n\\t"', 'sum_config("\\n  \\n\\t").ok()', "Some(0)"),
-     T("first_equals_splits", '"a=b=1"', 'sum_config("a=b=1").unwrap_err().is::<std::num::ParseIntError>()', "true"),
-     T("empty_key", '"=5"', 'sum_config("=5").ok()', "Some(5)"),
-     T("empty_value", '"a="', 'sum_config("a=").unwrap_err().is::<std::num::ParseIntError>()', "true"),
-     T("crlf", '"a=1\\r\\nb=2\\r\\n"', 'sum_config("a=1\\r\\nb=2\\r\\n").ok()', "Some(3)"),
-     T("value_past_i64", '"a=9223372036854775808"', 'sum_config("a=9223372036854775808").unwrap_err().is::<std::num::ParseIntError>()', "true"),
-     T("first_error_wins", '"x\\na=q"', 'bad_line(&*sum_config("x\\na=q").unwrap_err())', "Some(1)"),
-     T("plain_error_is_not_config", "a boxed io::Error", 'bad_line(&std::io::Error::other("boom"))', "None"),
-     """
-     #[test]
-     fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(314);
-         for _ in 0..300 {
-             let n = rng.below(6);
-             let mut lines = Vec::new();
-             let mut want: Result<i64, Option<usize>> = Ok(0);
-             for i in 0..n {
-                 let line = match rng.below(4) {
-                     0 => String::new(),
-                     1 => format!("k{i}"),
-                     2 => format!("k = {}", rng.int(-99, 99)),
-                     _ => format!("k={}", rng.string(1, "x7")),
-                 };
-                 if let Ok(total) = want {
-                     if !line.trim().is_empty() {
-                         want = match line.split_once('=') {
-                             None => Err(Some(i + 1)),
-                             Some((_, v)) => v.trim().parse::<i64>().map(|v| total + v).map_err(|_| None),
-                         };
-                     }
-                 }
-                 lines.push(line);
-             }
-             let text = lines.join("\\n");
-             let got = sum_config(&text).map_err(|e| bad_line(&*e));
-             check!(format!("text = {text:?}"), got, want);
+     impl std::fmt::Display for Loading {
+         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+             write!(f, "loading failed")
          }
      }
+
+     impl std::error::Error for Loading {
+         fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+             Some(&self.0)
+         }
+     }
+
+     #[test]
+     fn three_level_chain() {
+         let inner = "q".parse::<i64>().unwrap_err();
+         let e = Loading(ConfigError { line: 7, source: Some(inner) });
+         check!("Loading(line 7: bad number(invalid digit)): chain", chain(&e), vec!["loading failed".to_string(), "line 7: bad number".to_string(), "invalid digit found in string".to_string()]);
+         check!("root cause is the ParseIntError", root_cause(&e).downcast_ref::<std::num::ParseIntError>().is_some(), true);
+         check!("bad_line of the outer error", bad_line(&e), None);
+     }
      """,
-     T("parse_error_has_no_line", '"a=x"', 'bad_line(&*sum_config("a=x").unwrap_err())', "None"),
-     T("blank_lines", '"a=1\\n\\n b=2 "', 'sum_config("a=1\\n\\n b=2 ").ok()', "Some(3)"),
-     T("line_numbers_count_blanks", '"\\n\\nx"', 'bad_line(&*sum_config("\\n\\nx").unwrap_err())', "Some(3)"),
-     T("message", '"x"', 'sum_config("x").unwrap_err().to_string()', '"line 1: expected key=value".to_string()')],
-    [("rust", "`?` converts any `E: Error + 'static` into `Box<dyn Error>` through `From`, so both error types can use it."),
-     ("rust", "`Box<dyn Error>` means `Box<dyn Error + 'static>`. That `'static` is what makes `downcast_ref` possible."),
-     ("rust", "`&*boxed_err` turns a `Box<dyn Error>` into `&(dyn Error + 'static)`.")],
-    ("Trait objects carry a lifetime bound, defaulting to `'static` in a `Box`. Downcasting relies on `TypeId`, which only exists for `'static` types; that's why `bad_line` takes `dyn Error + 'static`.", "O(n)", "O(1)"),
-    "When would you define an error enum instead of returning `Box<dyn Error>`?",
-    ["The default `'static` bound on `Box<dyn Trait>`.", "Downcasting errors with `downcast_ref` and `is`."],
-    related=("L3", "S1", "C4"),
+     T("second_equals_is_value", "\"a=b=1\" (value \"b=1\")", 'sum_config("a=b=1").map_err(|e| bad_line(&*e))', "Err(Some(1))"),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6311);
+         for _ in 0..300 {
+             let n = rng.below(5);
+             let mut lines = Vec::new();
+             for _ in 0..n {
+                 lines.push(match rng.below(5) {
+                     0 => String::new(),
+                     1 => "junk".to_string(),
+                     2 => "k=zz".to_string(),
+                     _ => format!("k={}", rng.int(-50, 50)),
+                 });
+             }
+             let text = lines.join("\n");
+             let mut want: Result<i64, (usize, bool)> = Ok(0);
+             for (i, l) in lines.iter().enumerate() {
+                 if l.trim().is_empty() {
+                     continue;
+                 }
+                 match l.split_once('=') {
+                     None => {
+                         want = Err((i + 1, false));
+                         break;
+                     }
+                     Some((_, v)) => match v.trim().parse::<i64>() {
+                         Ok(x) => want = want.map(|t| t + x),
+                         Err(_) => {
+                             want = Err((i + 1, true));
+                             break;
+                         }
+                     },
+                 }
+             }
+             let got = sum_config(&text).map_err(|e| (bad_line(&*e).unwrap(), e.source().is_some()));
+             check!(format!("config {text:?}"), got, want);
+         }
+     }
+     """],
+    [("rust", "`Error::source` has a default returning `None`. Override it: `fn source(&self) -> Option<&(dyn Error + 'static)>`, and turn the `Option<ParseIntError>` into that with `as_ref()` and a cast."),
+     ("rust", "`?` converts any `E: Error + Send + Sync + 'static` into `Box<dyn Error + Send + Sync>`. Build the `ConfigError` with `ok_or` / `map_err` first so the line number isn't lost."),
+     ("rust", "`downcast_ref::<T>()` exists on `dyn Error + 'static`, which is why the helpers take `&(dyn Error + 'static)`. `&*boxed` gets one from the `Box`.")],
+    ("""`Box<dyn Error + Send + Sync>` is the usual type-erased error: any error type can go in through `?`, and it can cross threads. Erasing the type is why `'static` matters: `downcast_ref` needs `T: 'static` (it compares `TypeId`s), so it's defined on `dyn Error + 'static`, and `source()` returns `&(dyn Error + 'static)` so callers can keep downcasting along the chain. Wrapping a lower-level error as the `source` keeps both the context (the line) and the cause; walking `source()` gives the chain and its root. The `'static` in `source`'s return type is the object-lifetime bound of the *error type* (it has no short borrows), not the lifetime of the reference, which is tied to `&self`. It even counts for elision: `fn root_cause(err: &(dyn Error + 'static)) -> &(dyn Error + 'static)` is E0106, because the input has two lifetimes (the reference's and the explicit `'static`), so `root_cause` names `'e`.
+
+Syntax to remember: `fn source(&self) -> Option<&(dyn Error + 'static)> { self.source.as_ref().map(|e| e as _) }` · `err.downcast_ref::<ConfigError>()` · `while let Some(next) = cur.source() { cur = next; }`.""", "O(n)", "O(depth) for chain"),
+    "`anyhow::Error` and `Box<dyn Error>` both erase the type. What does `anyhow` add on top, and what does it give up?",
+    ["`Box<dyn Error + Send + Sync>` erases error types; `?` converts into it.", "`source()` returns `&(dyn Error + 'static)` so the chain stays downcastable.", "`downcast_ref` needs the `'static` object bound."],
+    related=("L3", "L8"),
     wrong=dict(
-        counts_only_nonblank_lines="""
-            use std::error::Error;
-            use std::fmt;
-
-            #[derive(Debug)]
-            pub struct ConfigError {
-                pub line: usize,
-            }
-
-            impl fmt::Display for ConfigError {
-                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    write!(f, "line {}: expected key=value", self.line)
-                }
-            }
-
-            impl Error for ConfigError {}
-
-            pub fn sum_config(text: &str) -> Result<i64, Box<dyn Error>> {
-                let mut total = 0;
-                for (i, line) in text.lines().filter(|l| !l.trim().is_empty()).enumerate() {
-                    let (_, value) = line.split_once('=').ok_or(ConfigError { line: i + 1 })?;
-                    total += value.trim().parse::<i64>()?;
-                }
-                Ok(total)
-            }
-
-            pub fn bad_line(err: &(dyn Error + 'static)) -> Option<usize> {
-                err.downcast_ref::<ConfigError>().map(|e| e.line)
-            }
-        """,
-        every_error_is_a_config_error="""
-            use std::error::Error;
-            use std::fmt;
-
-            #[derive(Debug)]
-            pub struct ConfigError {
-                pub line: usize,
-            }
-
-            impl fmt::Display for ConfigError {
-                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    write!(f, "line {}: expected key=value", self.line)
-                }
-            }
-
-            impl Error for ConfigError {}
-
-            pub fn sum_config(text: &str) -> Result<i64, Box<dyn Error>> {
-                let mut total = 0;
-                for (i, line) in text.lines().enumerate() {
-                    if line.trim().is_empty() {
-                        continue;
-                    }
-                    let bad = ConfigError { line: i + 1 };
-                    let (_, value) = line.split_once('=').ok_or(ConfigError { line: i + 1 })?;
-                    total += value.trim().parse::<i64>().map_err(|_| bad)?;
-                }
-                Ok(total)
-            }
-
-            pub fn bad_line(err: &(dyn Error + 'static)) -> Option<usize> {
-                err.downcast_ref::<ConfigError>().map(|e| e.line)
-            }
-        """,
-        splits_at_last_equals="""
-            use std::error::Error;
-            use std::fmt;
-
-            #[derive(Debug)]
-            pub struct ConfigError {
-                pub line: usize,
-            }
-
-            impl fmt::Display for ConfigError {
-                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    write!(f, "line {}: expected key=value", self.line)
-                }
-            }
-
-            impl Error for ConfigError {}
-
-            pub fn sum_config(text: &str) -> Result<i64, Box<dyn Error>> {
-                let mut total = 0;
-                for (i, line) in text.lines().enumerate() {
-                    if line.trim().is_empty() {
-                        continue;
-                    }
-                    let (_, value) = line.rsplit_once('=').ok_or(ConfigError { line: i + 1 })?;
-                    total += value.trim().parse::<i64>()?;
-                }
-                Ok(total)
-            }
-
-            pub fn bad_line(err: &(dyn Error + 'static)) -> Option<usize> {
-                err.downcast_ref::<ConfigError>().map(|e| e.line)
-            }
-        """,
+        loses_the_source=sub(CFG_SOLUTION, "        self.source.as_ref().map(|e| e as &(dyn Error + 'static))\n", "        None\n"),
+        zero_based_lines=sub(CFG_SOLUTION, "ok_or(ConfigError { line: i + 1, source: None })", "ok_or(ConfigError { line: i, source: None })"),
+        root_is_first_source=sub(CFG_SOLUTION, "    let mut cur = err;\n    while let Some(next) = cur.source() {\n        cur = next;\n    }\n    cur\n", "    err.source().unwrap_or(err)\n"),
     ),
 ))
 
+THREAD_STARTER = r"""
+use std::thread::{self, JoinHandle};
+
+/// Sums `data` using up to `chunks` threads, and returns once they're done.
+pub fn parallel_sum(data: &[u64], chunks: usize) -> u64 {
+    let size = data.len().div_ceil(chunks.max(1)).max(1);
+    let handles: Vec<_> = data.chunks(size).map(|chunk| thread::spawn(move || chunk.iter().sum::<u64>())).collect();
+    handles.into_iter().map(|h| h.join().expect("worker panicked")).sum()
+}
+
+/// Starts counting the whitespace-separated words of `docs` in the background. The caller joins later,
+/// possibly after dropping `docs`.
+pub fn count_later(docs: &[String]) -> JoinHandle<usize> {
+    thread::spawn(move || docs.iter().map(|d| d.split_whitespace().count()).sum())
+}
+
+/// Runs `job` on a new thread called `name`.
+pub fn spawn_named<F, T>(name: &str, job: F) -> JoinHandle<T>
+where
+    F: FnOnce() -> T + Send,
+    T: Send,
+{
+    thread::Builder::new().name(name.to_string()).spawn(job).expect("spawning a thread")
+}
+"""
+
+THREAD_SOLUTION = THREAD_STARTER
+for _old, _new in [
+    ("    let handles: Vec<_> = data.chunks(size).map(|chunk| thread::spawn(move || chunk.iter().sum::<u64>())).collect();\n    handles.into_iter().map(|h| h.join().expect(\"worker panicked\")).sum()\n",
+     "    thread::scope(|s| {\n        let handles: Vec<_> = data.chunks(size).map(|chunk| s.spawn(move || chunk.iter().sum::<u64>())).collect();\n        handles.into_iter().map(|h| h.join().expect(\"worker panicked\")).sum()\n    })\n"),
+    ("    thread::spawn(move || docs.iter().map(|d| d.split_whitespace().count()).sum())\n",
+     "    let docs = docs.to_vec();\n    thread::spawn(move || docs.iter().map(|d| d.split_whitespace().count()).sum())\n"),
+    ("    F: FnOnce() -> T + Send,\n    T: Send,\n", "    F: FnOnce() -> T + Send + 'static,\n    T: Send + 'static,\n"),
+]:
+    THREAD_SOLUTION = sub(THREAD_SOLUTION, _old, _new)
+
 P.append(fix(
-    "fix-thread-spawn-static", "Fix: thread::spawn needs 'static", "medium", "static-bounds", ["E0521", "thread::scope"],
+    "fix-thread-spawn-static", "Fix: thread::spawn needs 'static, scope doesn't", "medium", "static-bounds", ["E0521", "E0310", "thread::scope", "Send + 'static", "thread::Builder"],
     """
-        `parallel_sum` sums chunks of a borrowed slice on separate threads. It doesn't compile. Fix it without
-        copying the data.
+        None of these compiles, and each needs a different fix. `parallel_sum` returns only after its threads
+        finish, so it shouldn't copy anything. `count_later`'s thread may outlive the call (the caller joins
+        after dropping `docs`), so it can't borrow. `spawn_named`'s bounds don't promise what
+        `thread::Builder::spawn` needs.
     """,
-    """
-    use std::thread;
-
-    /// Sums `data` using up to `chunks` threads.
-    pub fn parallel_sum(data: &[u64], chunks: usize) -> u64 {
-        let size = data.len().div_ceil(chunks.max(1)).max(1);
-        let handles: Vec<_> = data
-            .chunks(size)
-            .map(|chunk| thread::spawn(move || chunk.iter().sum::<u64>()))
-            .collect();
-        handles.into_iter().map(|h| h.join().expect("worker panicked")).sum()
-    }
-    """,
-    """
-    use std::thread;
-
-    /// Sums `data` using up to `chunks` threads.
-    pub fn parallel_sum(data: &[u64], chunks: usize) -> u64 {
-        let size = data.len().div_ceil(chunks.max(1)).max(1);
-        thread::scope(|s| {
-            let handles: Vec<_> = data
-                .chunks(size)
-                .map(|chunk| s.spawn(move || chunk.iter().sum::<u64>()))
-                .collect();
-            handles.into_iter().map(|h| h.join().expect("worker panicked")).sum()
-        })
-    }
-    """,
-    [T("hundred", "1..=100, 4 threads", "parallel_sum(&data, 4)", "5050", setup="let data: Vec<u64> = (1..=100).collect();"),
-     T("empty", "[], 3 threads", "parallel_sum(&[], 3)", "0"),
-     T("zero_chunks", "[1, 2, 3], 0 threads", "parallel_sum(&[1, 2, 3], 0)", "6"),
-     T("uneven_split", "[1, 2, 3, 4, 5, 6, 7], 3 threads", "parallel_sum(&[1, 2, 3, 4, 5, 6, 7], 3)", "28"),
-     T("data_still_usable", "sum twice, then read data", "(parallel_sum(&data, 2), parallel_sum(&data, 3), data.len())", "(10, 10, 4)",
-       setup="let data = vec![1u64, 2, 3, 4];")],
-    [T("zero_chunks", "[1, 2, 3], 0 threads", "parallel_sum(&[1, 2, 3], 0)", "6"),
-     T("single", "[42], 4 threads", "parallel_sum(&[42], 4)", "42"),
-     T("one_thread", "1..=10, 1 thread", "parallel_sum(&data, 1)", "55", setup="let data: Vec<u64> = (1..=10).collect();"),
-     T("remainder_chunk", "10 values, 3 threads", "parallel_sum(&data, 3)", "55", setup="let data: Vec<u64> = (1..=10).collect();"),
-     T("large_values", "[u64::MAX / 4; 3], 3 threads", "parallel_sum(&[u64::MAX / 4; 3], 3)", "3 * (u64::MAX / 4)"),
-     T("zeros", "[0; 100], 7 threads", "parallel_sum(&[0; 100], 7)", "0"),
-     T("empty_zero_threads", "[], 0 threads", "parallel_sum(&[], 0)", "0"),
-     """
+    THREAD_STARTER,
+    THREAD_SOLUTION,
+    [T("parallel_sum_example", "1..=100 on 4 threads", "parallel_sum(&(1..=100).collect::<Vec<u64>>(), 4)", "5050"),
+     T("count_after_dropping_docs", "count_later([\"a b\", \"c\"]), docs dropped, then join", "{ let h = { let docs = vec![\"a b\".to_string(), \"c\".to_string()]; count_later(&docs) }; h.join().unwrap() }", "3"),
+     T("spawn_named_sets_the_name", "spawn_named(\"worker-1\", read own name)", 'spawn_named("worker-1", || std::thread::current().name().map(String::from)).join().unwrap()', 'Some("worker-1".to_string())'),
+     T("parallel_sum_empty", "[] on 3 threads", "parallel_sum(&[], 3)", "0"),
+     T("spawn_named_moves_data", "spawn_named with an owned Vec", 'spawn_named("sum", move || v.iter().sum::<i32>()).join().unwrap()', "6", setup="let v = vec![1, 2, 3];")],
+    [T("chunks_zero", "[1, 2] on 0 threads", "parallel_sum(&[1, 2], 0)", "3"),
+     T("more_threads_than_items", "[5, 6] on 10 threads", "parallel_sum(&[5, 6], 10)", "11"),
+     T("uneven_chunks", "1..=10 on 3 threads", "parallel_sum(&(1..=10).collect::<Vec<u64>>(), 3)", "55"),
+     T("big_values", "[u32::MAX as u64; 4]", "parallel_sum(&[u32::MAX as u64; 4], 2)", "4 * u32::MAX as u64"),
+     T("count_empty", "count_later([])", "count_later(&[]).join().unwrap()", "0"),
+     T("count_whitespace_kinds", "count_later([\"a\\tb\\nc  \"])", 'count_later(&["a\\tb\\nc  ".to_string()]).join().unwrap()', "3"),
+     T("spawn_named_returns_value", "spawn_named returning a String", 'spawn_named("s", || "done".to_string()).join().unwrap()', '"done".to_string()'),
+     T("spawn_named_panics_are_caught", "a job that panics", 'spawn_named("p", || -> u8 { panic!("boom") }).join().is_err()', "true"),
+     r"""
      #[test]
      fn random_vs_brute_force() {
-         let mut rng = anneal_prelude::Rng::new(315);
-         for _ in 0..200 {
-             let n = rng.below(20);
-             let data: Vec<u64> = rng.vec(n, 0, 1_000_000);
-             let chunks = rng.below(8);
-             check!(format!("data = {data:?}, chunks = {chunks}"), parallel_sum(&data, chunks), data.iter().sum::<u64>());
+         let mut rng = anneal_prelude::Rng::new(6312);
+         for _ in 0..100 {
+             let n = rng.below(40);
+             let data: Vec<u64> = rng.vec(n, 0, 1000);
+             let chunks = rng.below(6);
+             check!(format!("parallel_sum({data:?}, {chunks})"), parallel_sum(&data, chunks), data.iter().sum::<u64>());
          }
      }
-     """,
-     T("more_threads_than_items", "[1, 2, 3], 10 threads", "parallel_sum(&[1, 2, 3], 10)", "6"),
-     T("big", "10⁶ ones, 8 threads", "parallel_sum(&data, 8)", "1_000_000", setup="let data = vec![1u64; 1_000_000];")],
-    [("rust", "`thread::spawn` requires `F: 'static`: the thread might outlive this function, and `data` with it."),
-     ("rust", "`thread::scope` guarantees every thread spawned in it is joined before it returns, so the closures may borrow `data`.")],
-    ("Scoped threads prove to the compiler that the borrow outlives the threads. The usual alternatives, `Arc<Vec<_>>` or `to_vec`, copy or reshape the data.", "O(n / threads) wall time", "O(threads)"),
-    "When would you still choose `thread::spawn` with `Arc` over scoped threads?",
-    ["Why `thread::spawn` needs `'static`.", "`thread::scope` for borrowing across threads."],
-    rules=dict(methods=["to_vec", "to_owned", "clone", "leak", "into_boxed_slice"], types=["Arc", "Rc"]),
-    related=("L3", "C1"),
+
+     #[test]
+     fn big_input() {
+         let data: Vec<u64> = (0..1_000_000).collect();
+         check!("0..1000000 on 8 threads", parallel_sum(&data, 8), 499_999_500_000);
+     }
+     """],
+    [("rust", "`thread::spawn` requires `F: 'static` because the thread may outlive the caller. `thread::scope` joins every thread it spawned before returning, so its threads may borrow anything that outlives the scope."),
+     ("rust", "`count_later` returns the handle, so its thread really can outlive `docs`. Scoped threads can't help; the thread must own its data. That's the one place a copy is necessary."),
+     ("rust", "`Builder::spawn` has the same bounds as `thread::spawn`: `F: FnOnce() -> T + Send + 'static, T: Send + 'static`. Generic wrappers must repeat them (E0310).")],
+    ("""`thread::spawn`'s `'static` bound isn't about how long the closure runs; it's that nothing can stop the thread from outliving the caller's stack frame, so the closure may not borrow from it (E0521 for borrowed data, E0310 for a generic `F`). There are two honest fixes, and the design decides. If the caller waits for the threads anyway, `thread::scope` proves they finish before the borrow ends, and plain borrows work, with no copies and no `Arc`. If the thread is meant to outlive the call, as with a returned `JoinHandle`, it must own its data: copy it (or share it through `Arc`). A generic wrapper around `spawn` inherits its bounds: `F: FnOnce() -> T + Send + 'static` and `T: Send + 'static`, since the result is handed back through `join`.
+
+Syntax to remember: `thread::scope(|s| { let h = s.spawn(move || ..); h.join().unwrap() })` · `F: FnOnce() -> T + Send + 'static, T: Send + 'static` · `thread::Builder::new().name(n.to_string()).spawn(job)`.""", "O(n / threads) per thread", "O(threads); O(docs) for the copy"),
+    "`count_later` could take `Arc<[String]>` instead of copying. When is that better, and what does it cost the caller?",
+    ["`spawn` needs `'static` because the thread may outlive the caller.", "`thread::scope` lets threads borrow, because it joins them first.", "Wrappers around `spawn` repeat its `Send + 'static` bounds."],
+    rules=dict(methods=["leak"], unsafe=True),
+    related=("L3", "L1", "C1"),
     wrong=dict(
-        chunks_exact_drops_the_tail="""
-            use std::thread;
+        drops_the_tail=sub(THREAD_SOLUTION, "data.chunks(size).map(|chunk| s.spawn(", "data.chunks_exact(size).map(|chunk| s.spawn("),
+        counts_lines=sub(THREAD_SOLUTION, "docs.iter().map(|d| d.split_whitespace().count()).sum())\n}", "docs.iter().map(|d| d.lines().count()).sum())\n}"),
+        ignores_the_name=sub(THREAD_SOLUTION, "thread::Builder::new().name(name.to_string()).spawn(job)", "thread::Builder::new().spawn(job)"),
+    ),
+))
 
-            /// Sums `data` using up to `chunks` threads.
-            pub fn parallel_sum(data: &[u64], chunks: usize) -> u64 {
-                let size = data.len().div_ceil(chunks.max(1)).max(1);
-                thread::scope(|s| {
-                    let handles: Vec<_> = data
-                        .chunks_exact(size)
-                        .map(|chunk| s.spawn(move || chunk.iter().sum::<u64>()))
-                        .collect();
-                    handles.into_iter().map(|h| h.join().expect("worker panicked")).sum()
-                })
-            }
-        """,
-        at_most_chunks_threads="""
-            use std::thread;
+BOARD_HEAD = r"""
+use std::fmt::Display;
 
-            /// Sums `data` using up to `chunks` threads.
-            pub fn parallel_sum(data: &[u64], chunks: usize) -> u64 {
-                let size = (data.len() / chunks.max(1)).max(1);
-                thread::scope(|s| {
-                    let handles: Vec<_> = data
-                        .chunks(size)
-                        .take(chunks.max(1))
-                        .map(|chunk| s.spawn(move || chunk.iter().sum::<u64>()))
-                        .collect();
-                    handles.into_iter().map(|h| h.join().expect("worker panicked")).sum()
-                })
-            }
-        """,
+pub trait Describe {
+    fn describe(&self) -> String;
+}
+
+impl<T: Display + ?Sized> Describe for T {
+    fn describe(&self) -> String {
+        format!("<{self}>")
+    }
+}
+"""
+
+BOARD_STARTER = BOARD_HEAD + r"""
+/// Things to describe later. They may borrow data that lives for `'a`.
+pub struct Board<'a> {
+    items: Vec<Box<dyn Describe + 'a>>,
+}
+
+impl<'a> Board<'a> {
+    pub fn new() -> Self {
+        Board { items: Vec::new() }
+    }
+
+    pub fn pin<T: Describe>(&mut self, item: T) {
+        self.items.push(Box::new(item));
+    }
+
+    /// Every item's description, joined with " ".
+    pub fn render(&self) -> String {
+        self.items.iter().map(|i| i.describe()).collect::<Vec<_>>().join(" ")
+    }
+}
+
+/// Pins a borrow of each item.
+pub fn pin_all<'a, T: Display>(board: &mut Board<'a>, items: &'a [T]) {
+    for it in items {
+        board.pin(it);
+    }
+}
+
+/// `x`, boxed to be described later, for as long as `'a`.
+pub fn boxed<'a, T: Display>(x: T) -> Box<dyn Describe + 'a> {
+    Box::new(x)
+}
+
+/// `x`, boxed to be kept anywhere.
+pub fn boxed_forever<T: Display>(x: T) -> Box<dyn Describe> {
+    Box::new(x)
+}
+
+/// Each item's description, lazily.
+pub fn describe_each<'a, T: Describe>(items: &'a [T]) -> impl Iterator<Item = String> + 'a {
+    items.iter().map(|t| t.describe())
+}
+"""
+
+BOARD_SOLUTION = BOARD_STARTER
+for _old, _new in [
+    ("    pub fn pin<T: Describe>(&mut self, item: T) {", "    pub fn pin<T: Describe + 'a>(&mut self, item: T) {"),
+    ("pub fn boxed<'a, T: Display>(x: T) -> Box<dyn Describe + 'a> {", "pub fn boxed<'a, T: Display + 'a>(x: T) -> Box<dyn Describe + 'a> {"),
+    ("pub fn boxed_forever<T: Display>(x: T) -> Box<dyn Describe> {", "pub fn boxed_forever<T: Display + 'static>(x: T) -> Box<dyn Describe> {"),
+]:
+    BOARD_SOLUTION = sub(BOARD_SOLUTION, _old, _new)
+
+P.append(fix(
+    "fix-t-outlives-a", "Fix: the parameter type may not live long enough (T: 'a)", "medium", "static-bounds", ["T: 'a", "E0309", "E0310", "implied bounds", "dyn Trait + 'a"],
+    """
+        Three functions box a generic `T` into a trait object and don't compile: nothing says `T` lives as
+        long as the object may be kept. Add the bounds they need, and no more: the tests pin borrowed data,
+        so don't require `'static` where `'a` will do. `pin_all` and `describe_each` compile already; work out
+        why before you touch them.
+    """,
+    BOARD_STARTER,
+    BOARD_SOLUTION,
+    [T("pin_owned_and_borrowed", "pin 1, a String and a &str into a local String", "b.render()", '"<1> <owned> <local>"', setup='let local = String::from("local");\nlet mut b = Board::new();\nb.pin(1);\nb.pin(String::from("owned"));\nb.pin(local.as_str());'),
+     T("pin_all_borrows", "pin_all([2, 3])", "b.render()", '"<2> <3>"', setup="let items = vec![2, 3];\nlet mut b = Board::new();\npin_all(&mut b, &items);"),
+     T("boxed_borrowed", "boxed(&local)", "boxed(&local).describe()", '"<x>"', setup='let local = String::from("x");'),
+     T("boxed_forever_owned", "boxed_forever(String), kept in a 'static Vec", "v[0].describe()", '"<kept>"', setup='let v: Vec<Box<dyn Describe + \'static>> = vec![boxed_forever(String::from("kept"))];'),
+     T("describe_each_example", "describe_each([\"a\", \"b\"])", 'describe_each(&["a", "b"]).collect::<Vec<_>>()', 'vec!["<a>".to_string(), "<b>".to_string()]'),
+     T("empty_board", "new board", "Board::new().render()", '""')],
+    [T("pin_float", "pin 1.5", "{ let mut b = Board::new(); b.pin(1.5); b.render() }", '"<1.5>"'),
+     T("pin_char_and_bool", "pin 'c', true", "{ let mut b = Board::new(); b.pin('c'); b.pin(true); b.render() }", '"<c> <true>"'),
+     T("pin_all_empty", "pin_all([])", "{ let items: Vec<u8> = vec![]; let mut b = Board::new(); pin_all(&mut b, &items); b.render() }", '""'),
+     T("mixed_board", "pin 0, then pin_all of Strings", "b.render()", '"<0> <p> <q>"', setup='let items = vec![String::from("p"), String::from("q")];\nlet mut b = Board::new();\nb.pin(0);\npin_all(&mut b, &items);'),
+     T("boxed_owned", "boxed(42)", "boxed(42).describe()", '"<42>"'),
+     T("describe_each_empty", "describe_each of an empty slice", "describe_each::<u8>(&[]).count()", "0"),
+     T("boxed_forever_literal", "boxed_forever(\"lit\")", 'boxed_forever("lit").describe()', '"<lit>"'),
+     T("unicode", "pin \"日本\"", '{ let mut b = Board::new(); b.pin("日本"); b.render() }', '"<日本>"'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6313);
+         for _ in 0..200 {
+             let n = rng.below(6);
+             let owned: Vec<String> = (0..n).map(|i| format!("w{i}")).collect();
+             let nums: Vec<i64> = rng.vec(n, -9, 9);
+             let mut b = Board::new();
+             let mut want = Vec::new();
+             for i in 0..n {
+                 if rng.bool() {
+                     b.pin(owned[i].as_str());
+                     want.push(format!("<{}>", owned[i]));
+                 } else {
+                     b.pin(nums[i]);
+                     want.push(format!("<{}>", nums[i]));
+                 }
+             }
+             check!(format!("pins over {owned:?} / {nums:?}"), b.render(), want.join(" "));
+         }
+     }
+     """],
+    [("rust", "`Box<dyn Describe + 'a>` may be kept for all of `'a`, so whatever goes in must not contain borrows shorter than `'a`. For a generic `T` that's the bound `T: 'a` (E0309); for `Box<dyn Describe>`, which means `+ 'static`, it's `T: 'static` (E0310)."),
+     ("rust", "`pin_all` takes `items: &'a [T]`. A reference type is only well-formed if `T: 'a`, so the compiler infers that bound from the signature: an *implied bound*. `describe_each` gets it the same way."),
+     ("rust", "Requiring `'static` on `pin` would compile too, but then the board couldn't hold `&str`s into a local `String`, which the tests do.")],
+    ("""`T: 'a` says \"every reference inside `T` lives at least `'a`\", so a value of `T` can be kept that long. Putting a `T` into a `Box<dyn Trait + 'a>` needs exactly that, and the compiler asks for it explicitly when nothing in the signature implies it (E0309, or E0310 when the object is `'static` by default, as in plain `Box<dyn Trait>`). Implied bounds cover many cases silently: a parameter of type `&'a T` or `&'a [T]` only exists if `T: 'a`, so `pin_all` and `describe_each` get the bound for free, and structs like `struct Ref<'a, T>(&'a T)` don't need `T: 'a` written since Rust 2018. The right bound is the weakest one that works: `'a` for the board, `'static` only for the box that's kept anywhere.
+
+Syntax to remember: `fn pin<T: Describe + 'a>(&mut self, item: T)` · `fn boxed<'a, T: Display + 'a>(x: T) -> Box<dyn Describe + 'a>` · `Box<dyn Trait>` = `Box<dyn Trait + 'static>`.""", "O(n)", "O(n)"),
+    "Why does `struct Ref<'a, T>(&'a T);` not need `where T: 'a` any more, when it did before Rust 2018?",
+    ["`T: 'a`: `T` holds no borrows shorter than `'a`.", "Boxing `T` as `dyn Trait + 'a` needs `T: 'a`; `Box<dyn Trait>` needs `T: 'static`.", "Implied bounds from `&'a T` parameters."],
+    rules=dict(methods=["to_string", "leak", "clone"], lines=3),
+    related=("L3", "L4"),
+    wrong=dict(
+        render_without_separator=sub(BOARD_SOLUTION, '.collect::<Vec<_>>().join(" ")', '.collect::<Vec<_>>().concat()'),
+        pin_all_reversed=sub(BOARD_SOLUTION, "    for it in items {\n        board.pin(it);", "    for it in items.iter().rev() {\n        board.pin(it);"),
     ),
 ))
 

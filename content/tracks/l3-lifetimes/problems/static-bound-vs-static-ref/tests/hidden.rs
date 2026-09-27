@@ -2,87 +2,96 @@ use solution::*;
 
 #[test]
 fn empty() {
-    check!(r#"nothing stored"#, Stash::new().all::<i64>().len(), 0);
+    let mut ext = Extensions::new();
+    check!(r#"new map"#, (ext.len(), ext.get::<u32>().is_none(), ext.remove::<u32>()), (0, true, None));
 }
 
 #[test]
-fn types_are_exact() {
-    let mut s = Stash::new();
-    s.put(1u64);
-    check!(r#"put 1u64; all::<u32>()"#, s.all::<u32>().len(), 0);
+fn distinct_integer_types() {
+    let mut ext = Extensions::new();
+    ext.insert(1u32);
+    ext.insert(1u64);
+    ext.insert(1i32);
+    check!(r#"insert 1u32, 1u64, 1i32"#, ext.len(), 3);
 }
 
 #[test]
-fn string_vs_str() {
-    let mut s = Stash::new();
-    s.put(String::from("a"));
-    s.put("b");
-    check!(r#"put String "a", &str "b""#, (s.all::<String>().iter().map(|x| x.as_str()).collect::<Vec<_>>(), s.all::<&str>()), (vec!["a"], vec![&"b"]));
+fn str_vs_string() {
+    let mut ext = Extensions::new();
+    ext.insert("a");
+    ext.insert("b".to_string());
+    check!(r#"insert "a" (&'static str) and "b" (String)"#, (ext.get::<&str>().copied(), ext.get::<String>().cloned()), (Some("a"), Some("b".to_string())));
 }
 
 #[test]
-fn box_is_its_own_type() {
-    let mut s = Stash::new();
-    s.put(Box::new(1i32));
-    s.put(2i32);
-    check!(r#"put Box<i32>(1), 2i32"#, (s.all::<Box<i32>>().len(), s.all::<i32>()), (1, vec![&2]));
+fn replace_keeps_len() {
+    let mut ext = Extensions::new();
+    check!(r#"insert 1u32 three times"#, { ext.insert(1u32); ext.insert(2u32); (ext.insert(3u32), ext.len()) }, (Some(2), 1));
 }
 
 #[test]
-fn unit_values() {
-    let mut s = Stash::new();
-    s.put(());
-    s.put(());
-    s.put(1u8);
-    check!(r#"put (), (), 1u8"#, s.all::<()>().len(), 2);
+fn unit_type() {
+    let mut ext = Extensions::new();
+    check!(r#"insert ()"#, (ext.insert(()), ext.get::<()>().is_some()), (None, true));
 }
 
 #[test]
-fn nested_owned() {
-    let mut s = Stash::new();
-    s.put(vec![String::from("x")]);
-    let v = s.all::<Vec<String>>();
-    check!(r#"put vec![String "x"]"#, (v.len(), v[0].clone()), (1, vec![String::from("x")]));
+fn struct_value() {
+    #[derive(Debug)]
+    struct P(u8);
+    let mut ext = Extensions::new();
+    ext.insert(P(7));
+    check!(r#"insert a local struct type"#, ext.get::<P>().map(|p| p.0), Some(7));
 }
 
 #[test]
-fn options() {
-    let mut s = Stash::new();
-    s.put(Some(1u8));
-    s.put(None::<u8>);
-    s.put(Some(2u16));
-    check!(r#"put Some(1u8), None::<u8>, Some(2u16)"#, s.all::<Option<u8>>(), vec![&Some(1u8), &None]);
+fn get_mut_missing() {
+    let mut ext = Extensions::new();
+    check!(r#"get_mut::<u8> on an empty map"#, ext.get_mut::<u8>().is_none(), true);
 }
 
 #[test]
-fn many() {
-    let mut s = Stash::new();
-    for i in 0..10_000u32 {
-        s.put(i);
-        s.put(u64::from(i));
-    }
-    let v = s.all::<u32>();
-    check!(r#"10000 u32 values and 10000 u64 values interleaved"#, (v.len(), *v[0], *v[9_999]), (10_000, 0, 9_999));
+fn remember_order() {
+    let mut log: Vec<Box<dyn std::fmt::Debug>> = Vec::new();
+    remember(&mut log, 1);
+    remember(&mut log, 2.5);
+    remember(&mut log, 'c');
+    check!(r#"remember 1, 2.5, 'c'"#, format!("{log:?}"), "[1, 2.5, 'c']");
 }
 
 #[test]
-fn random_vs_brute_force() {
-    let mut rng = anneal_prelude::Rng::new(313);
+fn random_vs_model() {
+    let mut rng = anneal_prelude::Rng::new(6310);
     for _ in 0..300 {
-        let n = rng.below(10);
-        let mut s = Stash::new();
-        let mut small: Vec<u8> = Vec::new();
-        let mut wide: Vec<u16> = Vec::new();
-        for _ in 0..n {
-            let v = rng.int(0, 255);
-            if rng.bool() {
-                s.put(v as u8);
-                small.push(v as u8);
-            } else {
-                s.put(v as u16);
-                wide.push(v as u16);
+        let mut ext = Extensions::new();
+        let (mut a, mut b): (Option<u32>, Option<String>) = (None, None);
+        let mut ops = Vec::new();
+        for _ in 0..8 {
+            let x = rng.below(100) as u32;
+            match rng.below(4) {
+                0 => {
+                    ops.push(format!("insert {x}u32"));
+                    check!(ops.join(", "), ext.insert(x), a.replace(x));
+                }
+                1 => {
+                    ops.push(format!("insert \"{x}\""));
+                    check!(ops.join(", "), ext.insert(x.to_string()), b.replace(x.to_string()));
+                }
+                2 => {
+                    ops.push("remove::<u32>".to_string());
+                    check!(ops.join(", "), ext.remove::<u32>(), a.take());
+                }
+                _ => {
+                    if let Some(v) = ext.get_mut::<String>() {
+                        v.push('!');
+                    }
+                    if let Some(v) = b.as_mut() {
+                        v.push('!');
+                    }
+                    ops.push("get_mut::<String> += !".to_string());
+                }
             }
         }
-        check!(format!("u8 values {small:?} and u16 values {wide:?}"), (s.all::<u8>(), s.all::<u16>()), (small.iter().collect::<Vec<_>>(), wide.iter().collect::<Vec<_>>()));
+        check!(format!("{}; state", ops.join(", ")), (ext.get::<u32>().copied(), ext.get::<String>().cloned(), ext.len()), (a, b.clone(), a.is_some() as usize + b.is_some() as usize));
     }
 }

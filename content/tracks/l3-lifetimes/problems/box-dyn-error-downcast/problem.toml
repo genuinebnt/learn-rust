@@ -1,31 +1,32 @@
 slug = "box-dyn-error-downcast"
-title = "Box<dyn Error + 'static> and downcasting"
+title = "Box<dyn Error> chains and downcasting"
 mode = "write"
 level = "medium"
 stage = "static-bounds"
 order = 14
 status = "ready"
-tags = ["Box<dyn Error>", "downcast_ref", "?"]
+tags = ["Box<dyn Error + Send + Sync>", "source()", "downcast_ref", "dyn Error + 'static", "?"]
 teaches = [
-  "The default `'static` bound on `Box<dyn Trait>`.",
-  "Downcasting errors with `downcast_ref` and `is`.",
+  "`Box<dyn Error + Send + Sync>` erases error types; `?` converts into it.",
+  "`source()` returns `&(dyn Error + 'static)` so the chain stays downcastable.",
+  "`downcast_ref` needs the `'static` object bound.",
 ]
-follow_up = "When would you define an error enum instead of returning `Box<dyn Error>`?"
-related = ["L3", "S1", "C4"]
+follow_up = "`anyhow::Error` and `Box<dyn Error>` both erase the type. What does `anyhow` add on top, and what does it give up?"
+related = ["L3", "L8"]
 
 [[hints]]
 kind = "rust"
-text = "`?` converts any `E: Error + 'static` into `Box<dyn Error>` through `From`, so both error types can use it."
+text = "`Error::source` has a default returning `None`. Override it: `fn source(&self) -> Option<&(dyn Error + 'static)>`, and turn the `Option<ParseIntError>` into that with `as_ref()` and a cast."
 
 [[hints]]
 kind = "rust"
-text = "`Box<dyn Error>` means `Box<dyn Error + 'static>`. That `'static` is what makes `downcast_ref` possible."
+text = "`?` converts any `E: Error + Send + Sync + 'static` into `Box<dyn Error + Send + Sync>`. Build the `ConfigError` with `ok_or` / `map_err` first so the line number isn't lost."
 
 [[hints]]
 kind = "rust"
-text = "`&*boxed_err` turns a `Box<dyn Error>` into `&(dyn Error + 'static)`."
+text = "`downcast_ref::<T>()` exists on `dyn Error + 'static`, which is why the helpers take `&(dyn Error + 'static)`. `&*boxed` gets one from the `Box`."
 
 [solution]
-explanation = "Trait objects carry a lifetime bound, defaulting to `'static` in a `Box`. Downcasting relies on `TypeId`, which only exists for `'static` types; that's why `bad_line` takes `dyn Error + 'static`."
+explanation = "`Box<dyn Error + Send + Sync>` is the usual type-erased error: any error type can go in through `?`, and it can cross threads. Erasing the type is why `'static` matters: `downcast_ref` needs `T: 'static` (it compares `TypeId`s), so it's defined on `dyn Error + 'static`, and `source()` returns `&(dyn Error + 'static)` so callers can keep downcasting along the chain. Wrapping a lower-level error as the `source` keeps both the context (the line) and the cause; walking `source()` gives the chain and its root. The `'static` in `source`'s return type is the object-lifetime bound of the *error type* (it has no short borrows), not the lifetime of the reference, which is tied to `&self`. It even counts for elision: `fn root_cause(err: &(dyn Error + 'static)) -> &(dyn Error + 'static)` is E0106, because the input has two lifetimes (the reference's and the explicit `'static`), so `root_cause` names `'e`.\n\nSyntax to remember: `fn source(&self) -> Option<&(dyn Error + 'static)> { self.source.as_ref().map(|e| e as _) }` · `err.downcast_ref::<ConfigError>()` · `while let Some(next) = cur.source() { cur = next; }`."
 time = "O(n)"
-space = "O(1)"
+space = "O(depth) for chain"

@@ -1,27 +1,32 @@
 slug = "static-bound-vs-static-ref"
-title = "'static bound vs &'static"
-mode = "write"
+title = "'static bound vs &'static: a type map"
+mode = "fix"
 level = "medium"
 stage = "static-bounds"
 order = 13
 status = "ready"
-tags = ["T: 'static", "Any"]
+tags = ["T: 'static", "Any", "TypeId", "downcast", "E0310"]
 teaches = [
-  "`T: 'static` means 'no short borrows inside', not 'lives forever'.",
-  "`Any` and `downcast_ref`.",
+  "`T: 'static`: no borrows shorter than `'static`; not \"lives forever\".",
+  "`dyn Trait` in a `Box` defaults to `+ 'static`.",
+  "`Any`, `TypeId` and `downcast` for type maps.",
 ]
-follow_up = "Why can't `Any` support types with non-'static lifetimes?"
+follow_up = "`intern_forever` returns a `&'static str` from a runtime `String`. What does that cost, and when is it acceptable?"
 related = ["L3", "L4"]
 
 [[hints]]
 kind = "rust"
-text = "`Any` is implemented for every `T: 'static`, so `T: Any` already implies the bound."
+text = "`Box<dyn Any>` requires `T: 'static`, and `Any` already implies it: `T: Any` means \"a type with no borrows shorter than `'static`\". A `String` built at run time qualifies; a `&'a str` into a local doesn't."
 
 [[hints]]
 kind = "rust"
-text = "`Box<dyn Any>::downcast_ref::<T>()` returns `Some(&T)` only if the value is exactly a `T`."
+text = "`TypeId::of::<T>()` is the key. `Box<dyn Any>::downcast::<T>()` gives `Result<Box<T>, Box<dyn Any>>` (deref with `*` to move out); `downcast_ref` / `downcast_mut` borrow."
+
+[[hints]]
+kind = "rust"
+text = "`Box<dyn Debug>` means `Box<dyn Debug + 'static>`, so `remember` can only store a `T` with no short borrows (E0310): say `T: 'static`."
 
 [solution]
-explanation = "`T: 'static` rules out types holding short-lived borrows, because `Any` can't track lifetimes. Owned data like `String` and `Vec` always qualifies."
-time = "O(n) for all"
-space = "O(n)"
+explanation = "`T: 'static` is a bound on a type: the type contains no references shorter than `'static`, so a value of it can be kept as long as you like. It says nothing about how long any particular value lives: a `String` created a moment ago is `'static` in this sense and can be dropped the next line. `&'static T` is different: a reference to something that lives until the program ends (a literal, a `static`, or leaked memory, as in `intern_forever`). Type erasure needs the bound because a `Box<dyn Any>` or `Box<dyn Debug>` (default object lifetime `'static`) may be kept anywhere, so nothing inside may expire. `Any` also implies it, which is why `insert<T: Any>` compiles and `remember<T: Debug>` doesn't.\n\nSyntax to remember: `self.map.insert(TypeId::of::<T>(), Box::new(value))` · `self.map.get(&TypeId::of::<T>())?.downcast_ref::<T>()` · `*b.downcast::<T>().ok()?` · `fn remember<T: Debug + 'static>(..)` · `Box::leak(s.into_boxed_str())`."
+time = "O(1) expected"
+space = "O(n) values"

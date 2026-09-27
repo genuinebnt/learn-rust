@@ -1,0 +1,36 @@
+slug = "fix-t-outlives-a"
+title = "Fix: the parameter type may not live long enough (T: 'a)"
+mode = "fix"
+level = "medium"
+stage = "static-bounds"
+order = 16
+status = "ready"
+tags = ["T: 'a", "E0309", "E0310", "implied bounds", "dyn Trait + 'a"]
+teaches = [
+  "`T: 'a`: `T` holds no borrows shorter than `'a`.",
+  "Boxing `T` as `dyn Trait + 'a` needs `T: 'a`; `Box<dyn Trait>` needs `T: 'static`.",
+  "Implied bounds from `&'a T` parameters.",
+]
+follow_up = "Why does `struct Ref<'a, T>(&'a T);` not need `where T: 'a` any more, when it did before Rust 2018?"
+related = ["L3", "L4"]
+
+[[hints]]
+kind = "rust"
+text = "`Box<dyn Describe + 'a>` may be kept for all of `'a`, so whatever goes in must not contain borrows shorter than `'a`. For a generic `T` that's the bound `T: 'a` (E0309); for `Box<dyn Describe>`, which means `+ 'static`, it's `T: 'static` (E0310)."
+
+[[hints]]
+kind = "rust"
+text = "`pin_all` takes `items: &'a [T]`. A reference type is only well-formed if `T: 'a`, so the compiler infers that bound from the signature: an *implied bound*. `describe_each` gets it the same way."
+
+[[hints]]
+kind = "rust"
+text = "Requiring `'static` on `pin` would compile too, but then the board couldn't hold `&str`s into a local `String`, which the tests do."
+
+[solution]
+explanation = "`T: 'a` says \"every reference inside `T` lives at least `'a`\", so a value of `T` can be kept that long. Putting a `T` into a `Box<dyn Trait + 'a>` needs exactly that, and the compiler asks for it explicitly when nothing in the signature implies it (E0309, or E0310 when the object is `'static` by default, as in plain `Box<dyn Trait>`). Implied bounds cover many cases silently: a parameter of type `&'a T` or `&'a [T]` only exists if `T: 'a`, so `pin_all` and `describe_each` get the bound for free, and structs like `struct Ref<'a, T>(&'a T)` don't need `T: 'a` written since Rust 2018. The right bound is the weakest one that works: `'a` for the board, `'static` only for the box that's kept anywhere.\n\nSyntax to remember: `fn pin<T: Describe + 'a>(&mut self, item: T)` · `fn boxed<'a, T: Display + 'a>(x: T) -> Box<dyn Describe + 'a>` · `Box<dyn Trait>` = `Box<dyn Trait + 'static>`."
+time = "O(n)"
+space = "O(n)"
+
+[rules]
+forbid_methods = ["to_string", "leak", "clone"]
+max_changed_lines = 3

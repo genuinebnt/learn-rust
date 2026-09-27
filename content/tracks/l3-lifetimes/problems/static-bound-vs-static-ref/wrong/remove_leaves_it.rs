@@ -27,8 +27,8 @@ impl Extensions {
     }
 
     pub fn remove<T: Any>(&mut self) -> Option<T> {
-        let b = self.map.remove(&TypeId::of::<T>())?;
-        Some(*b.downcast::<T>().expect("stored under its own TypeId"))
+        let old = self.map.insert(TypeId::of::<T>(), Box::new(()))?;
+        old.downcast::<T>().ok().map(|b| *b)
     }
 
     pub fn len(&self) -> usize {

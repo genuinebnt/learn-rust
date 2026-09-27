@@ -3030,6 +3030,1021 @@ Syntax: `impl<T> Index<(usize, usize)> for Matrix<T> { type Output = T; fn index
     ),
 ))
 
+# ---------------------------------------------------------------- coherence & extension (hard)
+
+PATH_HEAD = r"""
+use std::fmt;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Point {
+    pub x: i32,
+    pub y: i32,
+}
+
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+"""
+
+PATH_DISPLAY_BODY = r"""    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_empty() {
+            return f.write_str("(empty)");
+        }
+        for (i, p) in self.iter().enumerate() {
+            if i > 0 {
+                f.write_str(" -> ")?;
+            }
+            write!(f, "{p}")?;
+        }
+        Ok(())
+    }
+"""
+
+PATH_TAIL = r"""
+/// Total Manhattan length of a path.
+pub fn length(path: &[Point]) -> u32 {
+    path.windows(2).map(|w| w[0].x.abs_diff(w[1].x) + w[0].y.abs_diff(w[1].y)).sum()
+}
+"""
+
+PATH_NEWTYPE = r"""
+use std::ops::{Deref, DerefMut};
+
+/// A path of points. A newtype, because `Display` and `Vec` are both foreign.
+pub struct Path(pub Vec<Point>);
+
+/// A path prints as its points joined by " -> ", or "(empty)".
+impl fmt::Display for Path {
+""" + PATH_DISPLAY_BODY + r"""}
+
+/// Lets a Path be used like the Vec it wraps: len, indexing, iter, push, &Path as &[Point].
+impl Deref for Path {
+    type Target = Vec<Point>;
+
+    fn deref(&self) -> &Vec<Point> {
+        &self.0
+    }
+}
+
+impl DerefMut for Path {
+    fn deref_mut(&mut self) -> &mut Vec<Point> {
+        &mut self.0
+    }
+}
+
+impl From<Vec<Point>> for Path {
+    fn from(points: Vec<Point>) -> Self {
+        Path(points)
+    }
+}
+
+impl FromIterator<Point> for Path {
+    fn from_iter<I: IntoIterator<Item = Point>>(iter: I) -> Self {
+        Path(iter.into_iter().collect())
+    }
+}
+"""
+
+PATH_SOLUTION = PATH_HEAD + PATH_NEWTYPE + PATH_TAIL
+
+P.append(fix(
+    "fix-orphan-rule", "Fix: the orphan rule (E0117) and newtypes", "hard", "coherence-extension", ["E0117", "orphan rule", "newtype", "Deref", "FromIterator"],
+    """
+        `impl Display for Vec<Point>` breaks the orphan rule (E0117). Replace it with a newtype
+        `pub struct Path(pub Vec<Point>)` that prints the same way.
+
+        Callers must still use a path like the `Vec`: `path.len()`, `path[0]`, `path.iter()`, `path.push(p)`, and
+        `length(&path)`. They build one with `Path::from(vec)` or by `collect()`ing points.
+    """,
+    PATH_HEAD + "\n/// A path prints as its points joined by \" -> \", or \"(empty)\".\nimpl fmt::Display for Vec<Point> {\n" + PATH_DISPLAY_BODY + "}\n" + PATH_TAIL,
+    PATH_SOLUTION,
+    ["""
+     fn p(x: i32, y: i32) -> Point {
+         Point { x, y }
+     }
+     """,
+     T("prints", "Path [(1, 2), (3, 4)]", "Path(vec![p(1, 2), p(3, 4)]).to_string()", '"(1, 2) -> (3, 4)"'),
+     T("empty", "Path []", "Path(vec![]).to_string()", '"(empty)"'),
+     T("slice_like", "len, [1], length(&path) of [(0, 0), (3, 4), (3, 0)]", "(path.len(), path[1], length(&path))", "(3, p(3, 4), 11)",
+       setup="let path = Path::from(vec![p(0, 0), p(3, 4), p(3, 0)]);"),
+     T("collect_and_push", "(0..3) mapped to (i, i) and collected, then push (9, 9)", "path.to_string()", '"(0, 0) -> (1, 1) -> (2, 2) -> (9, 9)"',
+       setup="let mut path: Path = (0..3).map(|i| p(i, i)).collect();\npath.push(p(9, 9));"),
+     T("iter", "sum of x over the path", "path.iter().map(|q| q.x).sum::<i32>()", "6", setup="let path = Path::from(vec![p(1, 0), p(2, 0), p(3, 0)]);")],
+    ["""
+     fn p(x: i32, y: i32) -> Point {
+         Point { x, y }
+     }
+     """,
+     T("single", "Path [(-1, 5)]", "Path(vec![p(-1, 5)]).to_string()", '"(-1, 5)"'),
+     T("length_short_paths", "length of [] and [(1, 1)]", "(length(&Path(vec![])), length(&Path(vec![p(1, 1)])))", "(0, 0)"),
+     T("length_extremes", "length of [(i32::MIN, 0), (i32::MAX, 0)]", "length(&Path(vec![p(i32::MIN, 0), p(i32::MAX, 0)]))", "u32::MAX"),
+     T("format_in_sentence", "format!(\"route: {}\", path)", 'format!("route: {}", path)', '"route: (0, 0) -> (0, -1)"', setup="let path = Path(vec![p(0, 0), p(0, -1)]);"),
+     T("collect_empty", "an empty iterator collected", "std::iter::empty::<Point>().collect::<Path>().to_string()", '"(empty)"'),
+     T("mutate_through_index", "path[0].x = 7", "path.to_string()", '"(7, 0)"', setup="let mut path = Path(vec![p(0, 0)]);\npath[0].x = 7;"),
+     T("vec_still_usable", "the inner Vec after building", "path.0.len()", "2", setup="let path = Path::from(vec![p(1, 1), p(2, 2)]);"),
+     T("sort_through_deref_mut", "sort_by_key x on [(3, 0), (1, 0)]", "path.to_string()", '"(1, 0) -> (3, 0)"',
+       setup="let mut path = Path(vec![p(3, 0), p(1, 0)]);\npath.sort_by_key(|q| q.x);"),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4417);
+         for _ in 0..300 {
+             let n = rng.below(5);
+             let pts: Vec<Point> = (0..n).map(|_| p(rng.int(-9, 9) as i32, rng.int(-9, 9) as i32)).collect();
+             let want = if n == 0 { "(empty)".to_string() } else { pts.iter().map(|q| format!("({}, {})", q.x, q.y)).collect::<Vec<_>>().join(" -> ") };
+             let path: Path = pts.iter().copied().collect();
+             check!(format!("{pts:?}"), path.to_string(), want);
+             let len: u32 = pts.windows(2).map(|w| ((w[0].x - w[1].x).abs() + (w[0].y - w[1].y).abs()) as u32).sum();
+             check!(format!("length {pts:?}"), length(&path), len);
+         }
+     }
+     """],
+    [("rust", "You may implement a trait only if the trait or the type is local. `Vec<Point>` isn't local even though `Point` is, so wrap it: `pub struct Path(pub Vec<Point>);` and `impl Display for Path`."),
+     ("rust", "A newtype loses its inner type's methods. `impl Deref for Path { type Target = Vec<Point>; .. }` plus `DerefMut` gives them back, and `&Path` then coerces to `&[Point]`. `From<Vec<Point>>` and `FromIterator<Point>` cover the two ways of building one.")],
+    ("""Coherence needs one crate to own every impl, so the orphan rule says `impl Trait for Type` needs a local trait or a local type (with `Vec<Local>` not counting as local; only `&T`, `&mut T`, `Box<T>` and `Pin<T>` are "fundamental" and see through to `T`). The newtype pattern adds a local type at no runtime cost. `Deref` to the wrapped type is the convenient way to forward its API; some teams prefer explicit methods or `AsRef` so the newtype doesn't leak everything.
+
+Syntax: `pub struct Path(pub Vec<Point>);` · `impl Deref for Path { type Target = Vec<Point>; fn deref(&self) -> &Vec<Point> { &self.0 } }` · `impl FromIterator<Point> for Path { fn from_iter<I: IntoIterator<Item = Point>>(iter: I) -> Self { .. } }`.""", "O(n) to print", "O(1) extra"),
+    "When is `Deref` on a newtype a bad idea? What would you expose instead for a `NonEmptyVec<T>`?",
+    ["Orphan rule: a local trait or a local type in every impl.", "Newtype + `Deref`/`DerefMut` + `From`/`FromIterator` to keep the ergonomics."],
+    related=("L9", "S8"),
+    wrong=dict(
+        comma_separated=sub(PATH_SOLUTION, 'f.write_str(" -> ")?;', 'f.write_str(", ")?;'),
+        empty_prints_nothing=sub(PATH_SOLUTION, '            return f.write_str("(empty)");', "            return Ok(());"),
+    ),
+))
+
+LABEL_TRAIT = r"""
+use std::fmt::Display;
+
+/// How a value is shown in a report.
+pub trait Label {
+    fn label(&self) -> String;
+}
+"""
+
+LABEL_CONTAINERS = r"""
+/// A list shows its items' labels in brackets: [1, 2, 3].
+impl<T: Label> Label for Vec<T> {
+    fn label(&self) -> String {
+        format!("[{}]", self.iter().map(Label::label).collect::<Vec<_>>().join(", "))
+    }
+}
+
+/// A missing value shows as "-".
+impl<T: Label> Label for Option<T> {
+    fn label(&self) -> String {
+        match self {
+            Some(v) => v.label(),
+            None => "-".to_string(),
+        }
+    }
+}
+"""
+
+LABEL_BLANKET = r"""
+/// Anything printable shows itself with Display.
+impl<T: Display> Label for T {
+    fn label(&self) -> String {
+        self.to_string()
+    }
+}
+"""
+
+LABEL_FIXED = r"""
+/// One impl per printable type, instead of a blanket impl over `Display` that would overlap the
+/// `Vec` and `Option` impls below (std may add `impl Display for Vec<T>` one day).
+macro_rules! label_via_display {
+    ($($t:ty),*) => {
+        $(
+            impl Label for $t {
+                fn label(&self) -> String {
+                    self.to_string()
+                }
+            }
+        )*
+    };
+}
+
+label_via_display!(i32, i64, u64, f64, bool, char, str, String);
+
+/// `&str`, `&Vec<..>` and other references show what they point at.
+impl<T: Label + ?Sized> Label for &T {
+    fn label(&self) -> String {
+        (**self).label()
+    }
+}
+"""
+
+LABEL_SOLUTION = LABEL_TRAIT + LABEL_FIXED + LABEL_CONTAINERS
+
+P.append(fix(
+    "fix-conflicting-impls", "Fix: a blanket impl that conflicts (E0119)", "hard", "coherence-extension", ["E0119", "coherence", "blanket impls", "?Sized"],
+    """
+        The impls for `Vec<T>` and `Option<T>` don't compile next to the blanket impl (E0119: std may add
+        `impl Display for Vec<T>` in a future version). Keep every behaviour: the tests label `i32`, `i64`, `u64`,
+        `f64`, `bool`, `char`, `&str` and `String`, and `Vec`s and `Option`s of any of those, nested any way.
+
+        Types from outside the crate implement `Label` themselves.
+    """,
+    LABEL_TRAIT + LABEL_BLANKET + LABEL_CONTAINERS,
+    LABEL_SOLUTION,
+    [T("numbers_and_text", "5, 2.5, \"hi\", String \"s\", 'c', true", '(5i32.label(), 2.5f64.label(), "hi".label(), String::from("s").label(), \'c\'.label(), true.label())',
+       '("5".to_string(), "2.5".to_string(), "hi".to_string(), "s".to_string(), "c".to_string(), "true".to_string())'),
+     T("vec_of_str", "vec![\"a\", \"b\"]", 'vec!["a", "b"].label()', '"[a, b]"'),
+     T("nested", "vec![vec![1], vec![]]", "vec![vec![1i32], vec![]].label()", '"[[1], []]"'),
+     T("options", "vec![Some(1), None]", "vec![Some(1i64), None].label()", '"[1, -]"'),
+     """
+     #[test]
+     fn outside_type() {
+         struct Money(i64);
+         impl Label for Money {
+             fn label(&self) -> String {
+                 format!("${}", self.0)
+             }
+         }
+         check!("vec![Some(Money(5)), None]", vec![Some(Money(5)), None].label(), "[$5, -]");
+     }
+     """],
+    [T("empty_vec", "Vec::<i32>::new()", "Vec::<i32>::new().label()", '"[]"'),
+     T("none_alone", "None::<String>", "None::<String>.label()", '"-"'),
+     T("option_of_vec", "Some(vec![1u64, 2])", "Some(vec![1u64, 2]).label()", '"[1, 2]"'),
+     T("float_whole", "1.0", "1.0f64.label()", '"1"'),
+     T("i64_min", "i64::MIN", "i64::MIN.label()", '"-9223372036854775808"'),
+     T("vec_of_strings", "vec![String \"x y\", String \"\"]", 'vec![String::from("x y"), String::new()].label()', '"[x y, ]"'),
+     T("deep_nesting", "vec![vec![Some(vec!['a'])], vec![None]]", "vec![vec![Some(vec!['a'])], vec![None]].label()", '"[[[a]], [-]]"'),
+     T("unicode_char_and_str", "vec!['é'], \"日本\"", '(vec![\'é\'].label(), "日本".label())', '("[é]".to_string(), "日本".to_string())'),
+     T("borrowed_vec", "&vec![true, false]", "(&vec![true, false]).label()", '"[true, false]"'),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4418);
+         for _ in 0..300 {
+             let n = rng.below(4);
+             let v: Vec<Option<i32>> = (0..n).map(|_| if rng.bool() { Some(rng.int(-20, 20) as i32) } else { None }).collect();
+             let want = format!("[{}]", v.iter().map(|x| x.map_or("-".to_string(), |x| x.to_string())).collect::<Vec<_>>().join(", "));
+             check!(format!("{v:?}"), v.label(), want);
+         }
+     }
+     """],
+    [("approach", "Two overlapping impls can't both exist, so one side has to go. The containers are the point of the trait; drop the blanket and implement `Label` for each printable type instead (a small `macro_rules!` keeps it short)."),
+     ("rust", "`\"hi\".label()` and `vec![\"a\"]` need `str` and `&str` covered: `impl Label for str` plus a forwarding `impl<T: Label + ?Sized> Label for &T`. Neither overlaps `Vec<T>` or `Option<T>`.")],
+    ("""Coherence forbids two impls that could apply to the same type. For `impl<T: Display> Label for T` and `impl<T: Label> Label for Vec<T>`, the compiler has to assume `Vec<T>` might implement `Display` one day (std is allowed to add that), so they may overlap. Specialization, which would pick the more specific impl, is unstable. The stable options are concrete impls (often generated by a macro, as std does for numbers), a newtype around one side, or a separate trait.
+
+Syntax: `macro_rules! m { ($($t:ty),*) => { $(impl Label for $t { .. })* }; }` · `impl<T: Label + ?Sized> Label for &T { fn label(&self) -> String { (**self).label() } }`.""", "O(output)", "O(output)"),
+    "Why does `impl<T: Display> ToString for T` in std not conflict with anything, while yours does?",
+    ["Blanket impls overlap any other impl whose type could meet their bound, even in a future std.", "Concrete impls via a macro, or a newtype, resolve E0119 on stable."],
+    related=("L10", "S8"),
+    wrong=dict(
+        none_as_word=sub(LABEL_SOLUTION, 'None => "-".to_string(),', 'None => "None".to_string(),'),
+        comma_without_space=sub(LABEL_SOLUTION, '.join(", ")', '.join(",")'),
+    ),
+))
+
+ROUTER_HEAD = r"""
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+pub trait Handler {
+    fn call(&self, req: &str) -> String;
+
+    /// A short description for route listings.
+    fn name(&self) -> &'static str {
+        "handler"
+    }
+}
+
+/// Always replies with the same body.
+pub struct Static(pub String);
+
+impl Handler for Static {
+    fn call(&self, _req: &str) -> String {
+        self.0.clone()
+    }
+
+    fn name(&self) -> &'static str {
+        "static"
+    }
+}
+"""
+
+ROUTER_TAIL = r"""
+#[derive(Default)]
+pub struct Router {
+    routes: BTreeMap<String, Box<dyn Handler + Send + Sync>>,
+}
+
+impl Router {
+    pub fn route(mut self, path: &str, h: impl Handler + Send + Sync + 'static) -> Self {
+        self.routes.insert(path.to_string(), Box::new(h));
+        self
+    }
+
+    /// The reply of the handler for `path`, or "404 <path>".
+    pub fn dispatch(&self, path: &str, req: &str) -> String {
+        match self.routes.get(path) {
+            Some(h) => h.call(req),
+            None => format!("404 {path}"),
+        }
+    }
+
+    /// "<path>: <handler name>" for every route, sorted by path.
+    pub fn describe(&self) -> Vec<String> {
+        self.routes.iter().map(|(p, h)| format!("{p}: {}", h.name())).collect()
+    }
+}
+"""
+
+ROUTER_BLANKETS = r"""
+/// Any function or closure from a request to a reply is a handler.
+impl<F> Handler for F
+where
+    F: Fn(&str) -> String,
+{
+    fn call(&self, req: &str) -> String {
+        self(req)
+    }
+}
+
+/// A shared handler is a handler. (A `Box<H>` impl would conflict with the one above:
+/// `Box<F>` is itself `Fn` when `F` is.)
+impl<H: Handler + ?Sized> Handler for Arc<H> {
+    fn call(&self, req: &str) -> String {
+        (**self).call(req)
+    }
+
+    fn name(&self) -> &'static str {
+        (**self).name()
+    }
+}
+"""
+
+ROUTER_SOLUTION = ROUTER_HEAD + ROUTER_BLANKETS + ROUTER_TAIL
+
+P.append(fix(
+    "blanket-impls", "Blanket impls: closures and Arcs as handlers", "hard", "coherence-extension", ["blanket impls", "Fn traits", "?Sized", "HRTB"],
+    """
+        The tests register plain closures (`|req: &str| req.to_uppercase()`), functions, boxed closures, `Arc`s of
+        handlers and `Arc<dyn Handler + Send + Sync>` shared by several routes. None of those is a `Handler` yet.
+        Add blanket impls so they all are, without changing `Router`. `describe` must show the real handler's
+        name through an `Arc`.
+    """,
+    ROUTER_HEAD + ROUTER_TAIL,
+    ROUTER_SOLUTION,
+    [T("closure_route", "route /up to |req| req.to_uppercase(); dispatch /up \"hi\"", 'r.dispatch("/up", "hi")', '"HI"',
+       setup='let r = Router::default().route("/up", |req: &str| req.to_uppercase());'),
+     T("function_route", "route /len to fn len_of", 'r.dispatch("/len", "four")', '"4"',
+       setup='fn len_of(req: &str) -> String {\n    req.len().to_string()\n}\nlet r = Router::default().route("/len", len_of);'),
+     T("shared_dyn_handler", "one Arc<dyn Handler> on /a and /b", '(r.dispatch("/a", ""), r.dispatch("/b", ""))', '("ok".to_string(), "ok".to_string())',
+       setup='let h: Arc<dyn Handler + Send + Sync> = Arc::new(Static("ok".into()));\nlet r = Router::default().route("/a", h.clone()).route("/b", h);'),
+     T("describe_through_arc", "routes /s (Arc<Static>), /f (closure)", "r.describe()", 'vec!["/f: handler", "/s: static"]',
+       setup='let r = Router::default().route("/s", Arc::new(Static("x".into()))).route("/f", |_: &str| String::new());'),
+     T("not_found", "dispatch /nope on an empty router", 'Router::default().dispatch("/nope", "")', '"404 /nope"'),
+     "use std::sync::Arc;\n"],
+    [T("boxed_closure", "route a Box<closure>", 'r.dispatch("/b", "x")', '"x!"',
+       setup='let r = Router::default().route("/b", Box::new(|req: &str| format!("{req}!")));'),
+     T("closure_captures_arc_counter", "closure counting calls; 3 dispatches", "hits.load(std::sync::atomic::Ordering::SeqCst)", "3",
+       setup='let hits = Arc::new(std::sync::atomic::AtomicUsize::new(0));\nlet h2 = hits.clone();\nlet r = Router::default().route("/c", move |_: &str| {\n    h2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);\n    String::new()\n});\nfor _ in 0..3 {\n    r.dispatch("/c", "");\n}'),
+     T("arc_of_closure", "Arc::new(closure)", 'r.dispatch("/a", "q")', '"<q>"',
+       setup='let r = Router::default().route("/a", Arc::new(|req: &str| format!("<{req}>")));'),
+     T("describe_dyn_arc", "Arc<dyn Handler> of a Static", "r.describe()", 'vec!["/x: static"]',
+       setup='let h: Arc<dyn Handler + Send + Sync> = Arc::new(Static(String::new()));\nlet r = Router::default().route("/x", h);'),
+     T("nested_arc", "Arc<Arc<Static>>", '(r.dispatch("/n", ""), r.describe())', '("deep".to_string(), vec!["/n: static".to_string()])',
+       setup='let r = Router::default().route("/n", Arc::new(Arc::new(Static("deep".into()))));'),
+     T("replaced_route", "route /r twice", 'r.dispatch("/r", "")', '"second"',
+       setup='let r = Router::default().route("/r", Static("first".into())).route("/r", Static("second".into()));'),
+     T("unicode_request", "closure echoing the request reversed", 'r.dispatch("/rev", "héllo")', '"olléh"',
+       setup='let r = Router::default().route("/rev", |req: &str| req.chars().rev().collect::<String>());'),
+     T("dispatch_from_threads", "4 threads dispatch /up", "out", 'vec!["A", "B", "C", "D"]',
+       setup='let r = Router::default().route("/up", |req: &str| req.to_uppercase());\nlet mut out: Vec<String> = std::thread::scope(|s| {\n    let hs: Vec<_> = ["a", "b", "c", "d"].iter().map(|q| {\n        let r = &r;\n        s.spawn(move || r.dispatch("/up", q))\n    }).collect();\n    hs.into_iter().map(|h| h.join().unwrap()).collect()\n});\nout.sort();'),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4419);
+         for _ in 0..200 {
+             let reps = rng.below(3);
+             let tag = rng.string(2, "xy");
+             let t2 = tag.clone();
+             let shared: Arc<dyn Handler + Send + Sync> = Arc::new(Static(tag.clone()));
+             let r = Router::default()
+                 .route("/rep", move |req: &str| req.repeat(reps))
+                 .route("/tag", move |req: &str| format!("{t2}{req}"))
+                 .route("/s1", shared.clone())
+                 .route("/s2", shared);
+             let len = rng.below(4);
+             let req = rng.string(len, "ab");
+             check!(format!("/rep x{reps} {req:?}"), r.dispatch("/rep", &req), req.repeat(reps));
+             check!(format!("/tag {tag:?} {req:?}"), r.dispatch("/tag", &req), format!("{tag}{req}"));
+             check!(format!("/s1 and /s2 = {tag:?}"), (r.dispatch("/s1", &req), r.dispatch("/s2", &req)), (tag.clone(), tag.clone()));
+         }
+     }
+     """,
+     "use std::sync::Arc;\n"],
+    [("rust", "One blanket impl covers every function and closure: `impl<F> Handler for F where F: Fn(&str) -> String`. It also covers `Box<closure>`, because `Box<F>` is `Fn` when `F` is. Don't add a `Box<H>` impl: it would overlap (E0119)."),
+     ("rust", "`impl<H: Handler + ?Sized> Handler for Arc<H>` needs `?Sized` for `Arc<dyn Handler + ..>`, and must override `name` too, or the default hides the inner handler's name."),
+     ("edge case", "Inside the `Arc` impl, call `(**self).call(req)`. `self.call(req)` picks the Arc impl again and recurses forever.")],
+    ("""A blanket impl implements a trait for every type meeting a bound. This is how axum turns async functions into handlers and tower turns closures into services. `Fn(&str) -> String` is sugar for the higher-ranked `for<'a> Fn(&'a str) -> String`: the closure must accept a request of any lifetime. Coherence limits what you can add next to it: `Arc<H>` is fine (std doesn't make `Arc` callable), `Box<H>` isn't (std does). Forwarding impls must forward every default method too.
+
+Syntax: `impl<F> Handler for F where F: Fn(&str) -> String { fn call(&self, req: &str) -> String { self(req) } }` · `impl<H: Handler + ?Sized> Handler for Arc<H> { .. }`.""", "O(log routes) per dispatch", "O(routes)"),
+    "axum handlers are async and take extractors. What does the blanket impl look like for `Fn(Request) -> Fut where Fut: Future<Output = Response>`?",
+    ["Blanket impls over `Fn` turn closures into trait implementors.", "A `Box<H>` forwarding impl overlaps a blanket impl over `Fn`.", "Forwarding impls must forward default methods too."],
+    related=("L6", "B2"),
+    wrong=dict(
+        arc_hides_name=sub(ROUTER_SOLUTION, "\n    fn name(&self) -> &'static str {\n        (**self).name()\n    }\n", "\n"),
+        arc_recurses=sub(ROUTER_SOLUTION, "(**self).call(req)", "self.call(req)"),
+    ),
+))
+
+DECODE_HEAD = r"""
+/// Parses a value from text that lives for `'de`. Types that borrow from the text (`&'de str`) and types
+/// that own their data (`u32`, `String`, `Vec<u32>`) can both implement it.
+pub trait Decode<'de>: Sized {
+    fn decode(input: &'de str) -> Option<Self>;
+}
+
+impl<'de> Decode<'de> for &'de str {
+    fn decode(input: &'de str) -> Option<Self> {
+        (!input.is_empty()).then_some(input)
+    }
+}
+
+impl<'de> Decode<'de> for u32 {
+    fn decode(input: &'de str) -> Option<Self> {
+        input.parse().ok()
+    }
+}
+
+impl<'de> Decode<'de> for String {
+    fn decode(input: &'de str) -> Option<Self> {
+        Some(input.to_string())
+    }
+}
+
+/// Comma-separated items; an empty input is an empty list, and any bad item fails the whole list.
+impl<'de, T: Decode<'de>> Decode<'de> for Vec<T> {
+    fn decode(input: &'de str) -> Option<Self> {
+        if input.is_empty() {
+            return Some(Vec::new());
+        }
+        input.split(',').map(T::decode).collect()
+    }
+}
+
+/// Decodes each line exactly as written, borrowing from `text` where the type allows.
+pub fn decode_lines<'de, T: Decode<'de>>(text: &'de str) -> Vec<Option<T>> {
+    text.lines().map(T::decode).collect()
+}
+"""
+
+DECODE_OWNED = r"""
+/// Types that decode from text of any lifetime, so they never borrow from it. Like serde's DeserializeOwned.
+pub trait DecodeOwned: for<'de> Decode<'de> {}
+
+impl<T> DecodeOwned for T where T: for<'de> Decode<'de> {}
+"""
+
+DECODE_NORMALIZED = r"""
+/// Decodes each line after trimming and lowercasing it. The cleaned lines are temporary, so only types that
+/// own their data can come out.
+pub fn decode_normalized<BOUND>(text: &str) -> Vec<Option<T>> {
+    text.lines()
+        .map(|line| {
+            let clean = line.trim().to_lowercase();
+            T::decode(&clean)
+        })
+        .collect()
+}
+"""
+
+DECODE_SOLUTION = DECODE_HEAD + DECODE_OWNED + DECODE_NORMALIZED.replace("<BOUND>", "<T: DecodeOwned>")
+
+P.append(fix(
+    "fix-hrtb-decode-owned", "Fix: a lifetime chosen by the caller (HRTB)", "hard", "coherence-extension", ["HRTB", "for<'a>", "E0597", "DeserializeOwned"],
+    """
+        `decode_normalized` doesn't compile: `clean` does not live long enough (E0597). Fix its bound.
+
+        Also add `DecodeOwned`, a trait for "decodes from text of any lifetime" (like serde's
+        `DeserializeOwned`), implemented automatically for every such type, so callers can write `T: DecodeOwned`.
+    """,
+    DECODE_HEAD + DECODE_NORMALIZED.replace("<BOUND>", "<'de, T: Decode<'de>>"),
+    DECODE_SOLUTION,
+    [T("normalized_numbers", "decode_normalized::<u32>(\" 42 \\nx\\n7\")", 'decode_normalized::<u32>(" 42 \\nx\\n7")', "vec![Some(42), None, Some(7)]"),
+     T("normalized_strings", "decode_normalized::<String>(\"  HeLLo \")", 'decode_normalized::<String>("  HeLLo ")', 'vec![Some("hello".to_string())]'),
+     T("normalized_lists", "decode_normalized::<Vec<u32>>(\"1,2\\n3,x\")", 'decode_normalized::<Vec<u32>>("1,2\\n3,x")', "vec![Some(vec![1, 2]), None]"),
+     T("borrowed_lines_point_into_text", "decode_lines::<&str>(\"ab\\ncd\")", "std::ptr::eq(got[1].unwrap().as_ptr(), text[3..].as_ptr())", "true",
+       setup='let text = String::from("ab\\ncd");\nlet got = decode_lines::<&str>(&text);'),
+     """
+     #[test]
+     fn decode_owned_bound() {
+         // With only `T: DecodeOwned`, T must decode from a local String.
+         fn from_temp<T: DecodeOwned>(s: &str) -> Option<T> {
+             let tmp = format!("{s}0");
+             T::decode(&tmp)
+         }
+         check!("from_temp::<u32>(\\"1\\")", from_temp::<u32>("1"), Some(10));
+         check!("from_temp::<Vec<u32>>(\\"5,\\")", from_temp::<Vec<u32>>("5,"), Some(vec![5, 0]));
+     }
+     """],
+    [T("empty_text", "decode_normalized::<u32>(\"\")", 'decode_normalized::<u32>("")', "Vec::<Option<u32>>::new()"),
+     T("empty_line_is_empty_list", "decode_normalized::<Vec<u32>>(\"\\n1\")", 'decode_normalized::<Vec<u32>>("\\n1")', "vec![Some(vec![]), Some(vec![1])]"),
+     T("uppercase_unicode", "decode_normalized::<String>(\"ÉTÉ\")", 'decode_normalized::<String>("ÉTÉ")', 'vec![Some("été".to_string())]'),
+     T("u32_overflow", "decode_normalized::<u32>(\"4294967296\")", 'decode_normalized::<u32>("4294967296")', "vec![None]"),
+     T("u32_max", "decode_normalized::<u32>(\"4294967295\")", 'decode_normalized::<u32>("4294967295")', "vec![Some(u32::MAX)]"),
+     T("lines_unchanged", "decode_lines::<String>(\" A \")", 'decode_lines::<String>(" A ")', 'vec![Some(" A ".to_string())]'),
+     T("borrowed_empty_line", "decode_lines::<&str>(\"a\\n\\nb\")", 'decode_lines::<&str>("a\\n\\nb")', 'vec![Some("a"), None, Some("b")]'),
+     T("borrowed_list", "decode_lines::<Vec<&str>>(\"x,y\")", 'decode_lines::<Vec<&str>>("x,y")', 'vec![Some(vec!["x", "y"])]'),
+     T("list_with_empty_item", "decode_normalized::<Vec<u32>>(\"1,,2\")", 'decode_normalized::<Vec<u32>>("1,,2")', "vec![None]"),
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4420);
+         for _ in 0..300 {
+             let n = rng.below(4);
+             let lines: Vec<String> = (0..n).map(|_| {
+                 let pad = rng.below(2);
+                 let body = if rng.below(5) == 0 { "X".to_string() } else { rng.int(0, 999).to_string() };
+                 format!("{}{}{}", " ".repeat(pad), body, " ".repeat(pad))
+             }).collect();
+             let text = lines.join("\n");
+             let want: Vec<Option<u32>> = lines.iter().map(|l| l.trim().to_lowercase().parse().ok()).collect();
+             check!(format!("{text:?}"), decode_normalized::<u32>(&text), want);
+         }
+     }
+     """],
+    [("approach", "With `<'de, T: Decode<'de>>`, the caller picks `'de`, so it must outlive the call, and a local `String` can't be borrowed for it. You need \"T decodes from text of *every* lifetime\"."),
+     ("rust", "That's a higher-ranked bound: `T: for<'de> Decode<'de>`. Make it a trait with a blanket impl so it has a name: `trait DecodeOwned: for<'de> Decode<'de> {}` and `impl<T> DecodeOwned for T where T: for<'de> Decode<'de> {}`.")],
+    ("""A lifetime parameter on a function is chosen by the caller, and every borrow passed where `'de` is expected must last that long, so a value created inside the function can't be used. `for<'de>` flips it: the bound must hold for all lifetimes, including the short one of a local. `&'de str` implements `Decode<'de>` only for its own `'de`, so it isn't `DecodeOwned`, which is exactly why borrowed types are rejected. serde's `DeserializeOwned` is this same trait-plus-blanket-impl.
+
+Syntax: `where T: for<'de> Decode<'de>` · `pub trait DecodeOwned: for<'de> Decode<'de> {}` · `impl<T> DecodeOwned for T where T: for<'de> Decode<'de> {}`.""", "O(text)", "O(line)"),
+    "Why can't `decode_normalized::<&str>` compile after the fix? What would you return to allow borrowed output there?",
+    ["A lifetime parameter is picked by the caller; locals can't satisfy it.", "`for<'a>` bounds hold for every lifetime.", "Name an HRTB with a trait + blanket impl (`DeserializeOwned`)."],
+    related=("L3", "L5"),
+    wrong=dict(
+        no_trim=sub(DECODE_SOLUTION, "let clean = line.trim().to_lowercase();", "let clean = line.to_lowercase();"),
+        list_skips_bad_items=sub(DECODE_SOLUTION, "input.split(',').map(T::decode).collect()", "Some(input.split(',').filter_map(T::decode).collect())"),
+    ),
+))
+
+ITEREXT_SOLUTION = r"""
+use std::collections::HashMap;
+use std::hash::Hash;
+
+/// Extra adapters for every iterator.
+pub trait IterExt: Iterator + Sized {
+    /// Items 0, n, 2n, ... Panics if `n` is 0.
+    fn every_nth(self, n: usize) -> EveryNth<Self> {
+        assert!(n > 0, "every_nth(0)");
+        EveryNth { iter: self, n, first: true }
+    }
+
+    /// Drops each item equal to the item just before it.
+    fn dedup_adjacent(self) -> DedupAdjacent<Self>
+    where
+        Self::Item: PartialEq + Clone,
+    {
+        DedupAdjacent { iter: self, last: None }
+    }
+
+    /// How many times each item occurs.
+    fn counts(self) -> HashMap<Self::Item, usize>
+    where
+        Self::Item: Eq + Hash,
+    {
+        let mut m = HashMap::new();
+        for x in self {
+            *m.entry(x).or_insert(0) += 1;
+        }
+        m
+    }
+}
+
+impl<I: Iterator> IterExt for I {}
+
+pub struct EveryNth<I> {
+    iter: I,
+    n: usize,
+    first: bool,
+}
+
+impl<I: Iterator> Iterator for EveryNth<I> {
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<I::Item> {
+        if self.first {
+            self.first = false;
+            self.iter.next()
+        } else {
+            // nth lets the inner iterator skip in O(1) when it can (ranges, slices).
+            self.iter.nth(self.n - 1)
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (lo, hi) = self.iter.size_hint();
+        let f = |x: usize| if self.first { x.div_ceil(self.n) } else { x / self.n };
+        (f(lo), hi.map(f))
+    }
+}
+
+pub struct DedupAdjacent<I: Iterator> {
+    iter: I,
+    last: Option<I::Item>,
+}
+
+impl<I> Iterator for DedupAdjacent<I>
+where
+    I: Iterator,
+    I::Item: PartialEq + Clone,
+{
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<I::Item> {
+        loop {
+            let x = self.iter.next()?;
+            if self.last.as_ref() != Some(&x) {
+                self.last = Some(x.clone());
+                return Some(x);
+            }
+        }
+    }
+}
+"""
+
+ITEREXT_STARTER = r"""
+use std::collections::HashMap;
+use std::hash::Hash;
+
+/// Extra adapters for every iterator.
+pub trait IterExt: Iterator + Sized {
+    /// Items 0, n, 2n, ... Panics if `n` is 0.
+    fn every_nth(self, n: usize) -> EveryNth<Self> {
+        todo!()
+    }
+
+    /// Drops each item equal to the item just before it.
+    fn dedup_adjacent(self) -> DedupAdjacent<Self>
+    where
+        Self::Item: PartialEq + Clone,
+    {
+        todo!()
+    }
+
+    /// How many times each item occurs.
+    fn counts(self) -> HashMap<Self::Item, usize>
+    where
+        Self::Item: Eq + Hash,
+    {
+        todo!()
+    }
+}
+
+impl<I: Iterator> IterExt for I {}
+
+pub struct EveryNth<I> {
+    iter: I,
+    // TODO: more fields
+}
+
+impl<I: Iterator> Iterator for EveryNth<I> {
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<I::Item> {
+        todo!()
+    }
+}
+
+pub struct DedupAdjacent<I: Iterator> {
+    iter: I,
+    // TODO: more fields
+}
+
+impl<I> Iterator for DedupAdjacent<I>
+where
+    I: Iterator,
+    I::Item: PartialEq + Clone,
+{
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<I::Item> {
+        todo!()
+    }
+}
+"""
+
+P.append(write(
+    "iterator-extension", "An extension trait on Iterator", "hard", "coherence-extension", ["extension traits", "blanket impls", "iterator adapters", "size_hint"],
+    """
+        `IterExt` adds three methods to every iterator through a blanket impl. Implement them:
+
+        - `every_nth(n)`: items 0, n, 2n, …; panics if `n` is 0. It must skip as fast as the inner iterator can:
+          `(0u64..).every_nth(1_000_000_000_000)` has to be instant. Its `size_hint` must be exact whenever the
+          inner one is.
+        - `dedup_adjacent()`: drops each item equal to the one just before it.
+        - `counts()`: how many times each item occurs.
+
+        The adapters are lazy: they pull only the items they need.
+    """,
+    ITEREXT_STARTER,
+    ITEREXT_SOLUTION,
+    [T("every_third", "(1..=10).every_nth(3)", "(1..=10).every_nth(3).collect::<Vec<_>>()", "vec![1, 4, 7, 10]"),
+     T("dedup_chars", "\"aabbbca\".chars().dedup_adjacent()", '"aabbbca".chars().dedup_adjacent().collect::<String>()', '"abca"'),
+     T("counts_words", "\"a b a c a\".split(' ').counts(), sorted", 'sorted', 'vec![("a", 3), ("b", 1), ("c", 1)]',
+       setup='let mut sorted: Vec<_> = "a b a c a".split(\' \').counts().into_iter().collect();\nsorted.sort();'),
+     T("huge_skips", "(0u64..).every_nth(1_000_000_000_000).take(3)", "(0u64..).every_nth(1_000_000_000_000).take(3).collect::<Vec<_>>()", "vec![0, 1_000_000_000_000, 2_000_000_000_000]"),
+     T("exact_size_hint", "(0..10).every_nth(3).size_hint()", "(0..10).every_nth(3).size_hint()", "(4, Some(4))"),
+     T("on_references", "v.iter().every_nth(2) over [\"x\", \"y\", \"z\"]", "v.iter().every_nth(2).collect::<Vec<_>>()", 'vec![&"x", &"z"]', setup='let v = ["x", "y", "z"];')],
+    [T("every_first", "(0..5).every_nth(1)", "(0..5).every_nth(1).collect::<Vec<_>>()", "vec![0, 1, 2, 3, 4]"),
+     T("n_past_the_end", "(0..3).every_nth(10)", "(0..3).every_nth(10).collect::<Vec<_>>()", "vec![0]"),
+     T("empty", "(0..0).every_nth(2)", "(0..0).every_nth(2).count()", "0"),
+     T("zero_panics", "(0..5).every_nth(0)", "std::panic::catch_unwind(|| (0..5).every_nth(0).count()).is_err()", "true"),
+     T("size_hint_after_next", "(0..10).every_nth(3) after one next", "(it.size_hint(), it.count())", "((3, Some(3)), 3)", setup="let mut it = (0..10).every_nth(3);\nit.next();"),
+     T("size_hint_exact_multiple", "(0..9).every_nth(3)", "(0..9).every_nth(3).size_hint()", "(3, Some(3))"),
+     T("size_hint_unbounded", "(0u64..).every_nth(2), upper bound", "(0u64..).every_nth(2).size_hint().1", "None"),
+     T("dedup_all_same", "[7, 7, 7]", "[7, 7, 7].into_iter().dedup_adjacent().collect::<Vec<_>>()", "vec![7]"),
+     T("dedup_alternating", "[1, 2, 1, 2]", "[1, 2, 1, 2].into_iter().dedup_adjacent().collect::<Vec<_>>()", "vec![1, 2, 1, 2]"),
+     T("dedup_lazy_on_infinite", "(0u64..).map(|x| x / 3).dedup_adjacent().take(4)", "(0u64..).map(|x| x / 3).dedup_adjacent().take(4).collect::<Vec<_>>()", "vec![0, 1, 2, 3]"),
+     T("every_nth_pulls_only_what_it_needs", "(0..100) with a pull counter, every_nth(3).take(2)", "(got, pulled.get())", "(vec![0, 3], 4)",
+       setup="let pulled = std::cell::Cell::new(0);\nlet got: Vec<i32> = (0..100).inspect(|_| pulled.set(pulled.get() + 1)).every_nth(3).take(2).collect();"),
+     T("counts_empty", "std::iter::empty::<u8>().counts()", "std::iter::empty::<u8>().counts().len()", "0"),
+     """
+     #[test]
+     fn works_on_a_custom_iterator() {
+         struct Fib(u64, u64);
+         impl Iterator for Fib {
+             type Item = u64;
+             fn next(&mut self) -> Option<u64> {
+                 let x = self.0;
+                 *self = Fib(self.1, self.0 + self.1);
+                 Some(x)
+             }
+         }
+         check!("Fib.every_nth(2).take(5)", Fib(0, 1).every_nth(2).take(5).collect::<Vec<_>>(), vec![0, 1, 3, 8, 21]);
+         check!("Fib.dedup_adjacent().take(4)", Fib(0, 1).dedup_adjacent().take(4).collect::<Vec<_>>(), vec![0, 1, 2, 3]);
+     }
+     """,
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4421);
+         for _ in 0..300 {
+             let len = rng.below(12);
+             let v: Vec<u8> = rng.vec(len, 0, 2);
+             let n = rng.below(4) + 1;
+             check!(format!("{v:?}.every_nth({n})"), v.iter().copied().every_nth(n).collect::<Vec<_>>(), v.iter().copied().step_by(n).collect::<Vec<_>>());
+             let skip = rng.below(len + 1);
+             let mut it = v.iter().every_nth(n);
+             for _ in 0..skip.min(2) {
+                 it.next();
+             }
+             let hint = it.size_hint();
+             let rest = it.count();
+             check!(format!("{v:?}.every_nth({n}) size_hint after {} next", skip.min(2)), hint, (rest, Some(rest)));
+             let mut d = v.clone();
+             d.dedup();
+             check!(format!("{v:?}.dedup_adjacent()"), v.iter().copied().dedup_adjacent().collect::<Vec<_>>(), d);
+             let mut c: Vec<(u8, usize)> = v.iter().copied().counts().into_iter().collect();
+             c.sort();
+             let want: Vec<(u8, usize)> = (0..=2).map(|k| (k, v.iter().filter(|&&x| x == k).count())).filter(|&(_, n)| n > 0).collect();
+             check!(format!("{v:?}.counts()"), c, want);
+         }
+     }
+     """],
+    [("rust", "`impl<I: Iterator> IterExt for I {}` gives every iterator the defaults; each method just builds its adapter struct. The adapters store the inner iterator and the state they need (`n` and whether the first item is out; the last item yielded)."),
+     ("approach", "After the first item, `self.iter.nth(n - 1)` skips `n - 1` items and returns the next. Ranges implement `nth` in O(1); a loop of `next()` calls takes a trillion steps."),
+     ("edge case", "`size_hint`: before the first item, `len.div_ceil(n)` items remain; after it, `len / n`. Apply the same map to both bounds.")],
+    ("""An extension trait adds methods to a foreign trait's implementors: declare `trait IterExt: Iterator`, give it default methods, and blanket-implement it for every `I: Iterator`. Callers opt in with `use` (as with `itertools::Itertools`). Good adapters are lazy, forward `size_hint`, and use the inner iterator's specialised methods (`nth`) rather than re-implementing them with `next`.
+
+Syntax: `pub trait IterExt: Iterator + Sized { fn every_nth(self, n: usize) -> EveryNth<Self> { .. } }` · `impl<I: Iterator> IterExt for I {}` · a method-level bound: `fn counts(self) -> HashMap<Self::Item, usize> where Self::Item: Eq + Hash`.""", "O(1) amortised per item (O(1) skips on ranges)", "O(1) per adapter; O(distinct) for counts"),
+    "`itertools` names its trait `Itertools`, not `IteratorExt`. What happens if std later adds a method with the same name as one of yours?",
+    ["Extension trait = trait with defaults + blanket impl over the base trait.", "Delegate to `nth` so skipping is as fast as the inner iterator allows.", "Forward `size_hint`."],
+    related=("S6", "L5"),
+    wrong=dict(
+        skips_with_next_loop=sub(ITEREXT_SOLUTION, "            self.iter.nth(self.n - 1)",
+                                 "            for _ in 1..self.n {\n                self.iter.next()?;\n            }\n            self.iter.next()"),
+        starts_at_n=sub(ITEREXT_SOLUTION, "        if self.first {\n            self.first = false;\n            self.iter.next()\n        } else {", "        if self.first {\n            self.first = false;\n            self.iter.nth(self.n - 1)\n        } else {"),
+        global_dedup=sub(sub(sub(ITEREXT_SOLUTION, "    last: Option<I::Item>,\n}", "    seen: Vec<I::Item>,\n}"),
+                             "DedupAdjacent { iter: self, last: None }", "DedupAdjacent { iter: self, seen: Vec::new() }"),
+                         "            if self.last.as_ref() != Some(&x) {\n                self.last = Some(x.clone());", "            if !self.seen.contains(&x) {\n                self.seen.push(x.clone());"),
+    ),
+))
+
+LENDING_TRAIT = r"""
+/// An iterator whose items may borrow from the iterator itself. Each item must be dropped before the
+/// next call to `next`, which `std::iter::Iterator` can't express.
+pub trait LendingIterator {
+    type Item<'a>
+    where
+        Self: 'a;
+
+    fn next(&mut self) -> Option<Self::Item<'_>>;
+}
+"""
+
+LENDING_BODY = r"""
+/// Overlapping mutable windows of `size`, moving one element at a time.
+pub struct WindowsMut<'s, T> {
+    slice: &'s mut [T],
+    size: usize,
+    start: usize,
+}
+
+/// Panics if `size` is 0.
+pub fn windows_mut<T>(slice: &mut [T], size: usize) -> WindowsMut<'_, T> {
+    assert!(size > 0, "window size 0");
+    WindowsMut { slice, size, start: 0 }
+}
+
+impl<'s, T> LendingIterator for WindowsMut<'s, T> {
+    type Item<'a>
+        = &'a mut [T]
+    where
+        Self: 'a;
+
+    fn next(&mut self) -> Option<&mut [T]> {
+        let end = self.start + self.size;
+        if end > self.slice.len() {
+            return None;
+        }
+        let window = &mut self.slice[self.start..end];
+        self.start += 1;
+        Some(window)
+    }
+}
+
+/// Each line of `text`, trimmed and uppercased, written into one reused buffer.
+pub struct UpperLines<'s> {
+    lines: std::str::Lines<'s>,
+    buf: String,
+}
+
+pub fn upper_lines(text: &str) -> UpperLines<'_> {
+    UpperLines { lines: text.lines(), buf: String::new() }
+}
+
+impl<'s> LendingIterator for UpperLines<'s> {
+    type Item<'a>
+        = &'a str
+    where
+        Self: 'a;
+
+    fn next(&mut self) -> Option<&str> {
+        let line = self.lines.next()?;
+        self.buf.clear();
+        for c in line.trim().chars() {
+            self.buf.extend(c.to_uppercase());
+        }
+        Some(&self.buf)
+    }
+}
+
+/// Counts the items of any lending iterator.
+pub fn count<L: LendingIterator>(mut it: L) -> usize {
+    let mut n = 0;
+    while it.next().is_some() {
+        n += 1;
+    }
+    n
+}
+"""
+
+LENDING_STARTER = r"""
+use std::marker::PhantomData;
+
+// TODO: the LendingIterator trait. Its `next` returns an item that may borrow from the iterator itself.
+
+/// Overlapping mutable windows of `size`, moving one element at a time.
+pub struct WindowsMut<'s, T> {
+    // TODO (remove the placeholder)
+    _todo: PhantomData<&'s mut T>,
+}
+
+/// Panics if `size` is 0.
+pub fn windows_mut<T>(slice: &mut [T], size: usize) -> WindowsMut<'_, T> {
+    todo!()
+}
+
+impl<'s, T> LendingIterator for WindowsMut<'s, T> {
+    // TODO: items are `&mut [T]` windows.
+}
+
+/// Each line of `text`, trimmed and uppercased, written into one reused buffer.
+pub struct UpperLines<'s> {
+    // TODO (remove the placeholder)
+    _todo: PhantomData<&'s str>,
+}
+
+pub fn upper_lines(text: &str) -> UpperLines<'_> {
+    todo!()
+}
+
+impl<'s> LendingIterator for UpperLines<'s> {
+    // TODO: items are `&str` borrowed from the buffer.
+}
+
+/// Counts the items of any lending iterator.
+pub fn count<L: LendingIterator>(it: L) -> usize {
+    todo!()
+}
+"""
+
+LENDING_SOLUTION = LENDING_TRAIT + LENDING_BODY
+
+LENDING_HELP = r"""
+fn collect_upper(text: &str) -> Vec<String> {
+    let mut it = upper_lines(text);
+    let mut out = Vec::new();
+    while let Some(s) = it.next() {
+        out.push(s.to_string());
+    }
+    out
+}
+"""
+
+P.append(fix(
+    "lending-iterator", "A GAT-based LendingIterator", "hard", "coherence-extension", ["GATs", "lending iterator", "reborrowing"],
+    """
+        Write the `LendingIterator` trait: like `Iterator`, but `next(&mut self)` returns an item that may borrow
+        from the iterator itself, through a generic associated type `Item<'a>`. Then implement it:
+
+        - `windows_mut(slice, size)`: overlapping `&mut [T]` windows, moving one element at a time (what
+          `slice.windows` does, but mutable). Panics if `size` is 0.
+        - `upper_lines(text)`: each line trimmed and uppercased, written into one `String` buffer that is reused
+          for every line.
+        - `count` works for any lending iterator.
+    """,
+    LENDING_STARTER,
+    LENDING_SOLUTION,
+    [LENDING_HELP,
+     T("prefix_sums", "windows of 2 over [1, 2, 3, 4], w[1] += w[0]", "v", "vec![1, 3, 6, 10]",
+       setup="let mut v = vec![1, 2, 3, 4];\nlet mut it = windows_mut(&mut v, 2);\nwhile let Some(w) = it.next() {\n    w[1] += w[0];\n}"),
+     T("window_count", "count(windows_mut(&mut [0; 5], 3))", "count(windows_mut(&mut [0; 5], 3))", "3"),
+     T("too_big", "count(windows_mut(&mut [1, 2], 3))", "count(windows_mut(&mut [1, 2], 3))", "0"),
+     T("upper", "upper_lines(\" ab\\ncd \")", 'collect_upper(" ab\\ncd ")', 'vec!["AB", "CD"]'),
+     T("upper_count", "count(upper_lines(\"a\\nb\\nc\"))", 'count(upper_lines("a\\nb\\nc"))', "3")],
+    [LENDING_HELP,
+     T("reuses_one_buffer", "addresses of the first and second item of \"hello\\nhi\"", "p1 == p2", "true",
+       setup='let mut it = upper_lines("hello\\nhi");\nlet p1 = it.next().unwrap().as_ptr() as usize;\nlet p2 = it.next().unwrap().as_ptr() as usize;'),
+     T("whole_slice_window", "windows of 3 over [1, 2, 3]", "count(windows_mut(&mut [1, 2, 3], 3))", "1"),
+     T("empty_slice", "windows of 1 over []", "count(windows_mut(&mut Vec::<i32>::new(), 1))", "0"),
+     T("zero_size_panics", "windows_mut(&mut [1], 0)", "std::panic::catch_unwind(|| count(windows_mut(&mut [1], 0))).is_err()", "true"),
+     T("windows_see_earlier_writes", "windows of 3 over [1, 0, 0, 0, 0]: w[2] = w[0] + w[1] + 1", "v", "vec![1, 0, 2, 3, 6]",
+       setup="let mut v = vec![1, 0, 0, 0, 0];\nlet mut it = windows_mut(&mut v, 3);\nwhile let Some(w) = it.next() {\n    w[2] = w[0] + w[1] + 1;\n}"),
+     T("upper_unicode", "upper_lines(\"straße\\n  é \")", 'collect_upper("straße\\n  é ")', 'vec!["STRASSE", "É"]'),
+     T("upper_empty_lines", "upper_lines(\"a\\n\\n b\")", 'collect_upper("a\\n\\n b")', 'vec!["A", "", "B"]'),
+     T("upper_no_text", "upper_lines(\"\")", 'count(upper_lines(""))', "0"),
+     """
+     #[test]
+     fn a_new_lending_iterator() {
+         // count accepts any implementation, including items that don't borrow at all.
+         struct Countdown(u32);
+         impl LendingIterator for Countdown {
+             type Item<'a> = u32 where Self: 'a;
+             fn next(&mut self) -> Option<u32> {
+                 self.0 = self.0.checked_sub(1)?;
+                 Some(self.0)
+             }
+         }
+         check!("count(Countdown(4))", count(Countdown(4)), 4);
+     }
+     """,
+     r"""
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4422);
+         for _ in 0..300 {
+             let len = rng.below(8);
+             let orig: Vec<i64> = rng.vec(len, -5, 5);
+             let size = rng.below(4) + 1;
+             let mut v = orig.clone();
+             let mut it = windows_mut(&mut v, size);
+             while let Some(w) = it.next() {
+                 w[size - 1] += w[0] * 2;
+             }
+             let mut want = orig.clone();
+             for s in 0..(len + 1).saturating_sub(size) {
+                 want[s + size - 1] += want[s] * 2;
+             }
+             check!(format!("{orig:?}, size {size}"), v, want);
+         }
+     }
+     """],
+    [("rust", "The item type needs its own lifetime, tied to the `&mut self` of each call: `type Item<'a> where Self: 'a;` and `fn next(&mut self) -> Option<Self::Item<'_>>`. The `where Self: 'a` is required: an item can't outlive the iterator it borrows."),
+     ("rust", "In `WindowsMut::next`, return `&mut self.slice[start..end]`: a reborrow through `&mut self`, which is exactly what `Item<'_>` allows and `Iterator` would reject. For `UpperLines`, `clear()` the buffer and push into it, so its allocation is kept."),
+     ("edge case", "The last window ends exactly at `len`; a window bigger than the slice yields nothing.")],
+    ("""`Iterator::Item` can't mention the lifetime of `&mut self` in `next`, so an iterator can't lend out something it owns or hand out overlapping `&mut` windows. A generic associated type adds that lifetime: `Item<'a>` is a different type for each borrow, and callers must drop one item before asking for the next. GATs are also the reason `for` loops and std adapters don't work here, and a generic `for_each<F: for<'a> FnMut(L::Item<'a>)>` currently forces `L: 'static` (a known limitation).
+
+Syntax: `trait LendingIterator { type Item<'a> where Self: 'a; fn next(&mut self) -> Option<Self::Item<'_>>; }` · `impl<'s, T> LendingIterator for WindowsMut<'s, T> { type Item<'a> = &'a mut [T] where Self: 'a; .. }`.""", "O(1) per window; O(line) per line", "O(1) extra; one buffer"),
+    "Write `for_each` for a `LendingIterator`. Why does the obvious `F: for<'a> FnMut(L::Item<'a>)` bound demand `'static` here, and how do crates like `lending-iterator` work around it?",
+    ["A GAT gives an associated type its own lifetime parameter.", "`where Self: 'a` on the GAT: items can't outlive the iterator.", "Lending iterators allow overlapping `&mut` windows and buffer reuse."],
+    related=("S6", "L3"),
+    wrong=dict(
+        misses_last_window=sub(LENDING_SOLUTION, "if end > self.slice.len() {", "if end >= self.slice.len() {"),
+        chunks_not_windows=sub(LENDING_SOLUTION, "self.start += 1;", "self.start += self.size;"),
+        fresh_string_per_line=sub(LENDING_SOLUTION, "        self.buf.clear();\n        for c in line.trim().chars() {\n            self.buf.extend(c.to_uppercase());\n        }", "        self.buf = line.trim().to_uppercase();"),
+    ),
+))
+
 STAGES = [
     ("define-implement", "Define & implement", "easy"),
     ("static-vs-dynamic", "Static vs dynamic", "medium"),

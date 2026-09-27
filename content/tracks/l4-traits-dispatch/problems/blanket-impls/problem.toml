@@ -1,0 +1,32 @@
+slug = "blanket-impls"
+title = "Blanket impls: closures and Arcs as handlers"
+mode = "fix"
+level = "hard"
+stage = "coherence-extension"
+order = 19
+status = "ready"
+tags = ["blanket impls", "Fn traits", "?Sized", "HRTB"]
+teaches = [
+  "Blanket impls over `Fn` turn closures into trait implementors.",
+  "A `Box<H>` forwarding impl overlaps a blanket impl over `Fn`.",
+  "Forwarding impls must forward default methods too.",
+]
+follow_up = "axum handlers are async and take extractors. What does the blanket impl look like for `Fn(Request) -> Fut where Fut: Future<Output = Response>`?"
+related = ["L6", "B2"]
+
+[[hints]]
+kind = "rust"
+text = "One blanket impl covers every function and closure: `impl<F> Handler for F where F: Fn(&str) -> String`. It also covers `Box<closure>`, because `Box<F>` is `Fn` when `F` is. Don't add a `Box<H>` impl: it would overlap (E0119)."
+
+[[hints]]
+kind = "rust"
+text = "`impl<H: Handler + ?Sized> Handler for Arc<H>` needs `?Sized` for `Arc<dyn Handler + ..>`, and must override `name` too, or the default hides the inner handler's name."
+
+[[hints]]
+kind = "edge case"
+text = "Inside the `Arc` impl, call `(**self).call(req)`. `self.call(req)` picks the Arc impl again and recurses forever."
+
+[solution]
+explanation = "A blanket impl implements a trait for every type meeting a bound. This is how axum turns async functions into handlers and tower turns closures into services. `Fn(&str) -> String` is sugar for the higher-ranked `for<'a> Fn(&'a str) -> String`: the closure must accept a request of any lifetime. Coherence limits what you can add next to it: `Arc<H>` is fine (std doesn't make `Arc` callable), `Box<H>` isn't (std does). Forwarding impls must forward every default method too.\n\nSyntax: `impl<F> Handler for F where F: Fn(&str) -> String { fn call(&self, req: &str) -> String { self(req) } }` · `impl<H: Handler + ?Sized> Handler for Arc<H> { .. }`."
+time = "O(log routes) per dispatch"
+space = "O(routes)"

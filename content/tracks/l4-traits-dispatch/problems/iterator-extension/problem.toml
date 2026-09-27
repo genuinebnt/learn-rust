@@ -1,0 +1,32 @@
+slug = "iterator-extension"
+title = "An extension trait on Iterator"
+mode = "write"
+level = "hard"
+stage = "coherence-extension"
+order = 21
+status = "ready"
+tags = ["extension traits", "blanket impls", "iterator adapters", "size_hint"]
+teaches = [
+  "Extension trait = trait with defaults + blanket impl over the base trait.",
+  "Delegate to `nth` so skipping is as fast as the inner iterator allows.",
+  "Forward `size_hint`.",
+]
+follow_up = "`itertools` names its trait `Itertools`, not `IteratorExt`. What happens if std later adds a method with the same name as one of yours?"
+related = ["S6", "L5"]
+
+[[hints]]
+kind = "rust"
+text = "`impl<I: Iterator> IterExt for I {}` gives every iterator the defaults; each method just builds its adapter struct. The adapters store the inner iterator and the state they need (`n` and whether the first item is out; the last item yielded)."
+
+[[hints]]
+kind = "approach"
+text = "After the first item, `self.iter.nth(n - 1)` skips `n - 1` items and returns the next. Ranges implement `nth` in O(1); a loop of `next()` calls takes a trillion steps."
+
+[[hints]]
+kind = "edge case"
+text = "`size_hint`: before the first item, `len.div_ceil(n)` items remain; after it, `len / n`. Apply the same map to both bounds."
+
+[solution]
+explanation = "An extension trait adds methods to a foreign trait's implementors: declare `trait IterExt: Iterator`, give it default methods, and blanket-implement it for every `I: Iterator`. Callers opt in with `use` (as with `itertools::Itertools`). Good adapters are lazy, forward `size_hint`, and use the inner iterator's specialised methods (`nth`) rather than re-implementing them with `next`.\n\nSyntax: `pub trait IterExt: Iterator + Sized { fn every_nth(self, n: usize) -> EveryNth<Self> { .. } }` · `impl<I: Iterator> IterExt for I {}` · a method-level bound: `fn counts(self) -> HashMap<Self::Item, usize> where Self::Item: Eq + Hash`."
+time = "O(1) amortised per item (O(1) skips on ranges)"
+space = "O(1) per adapter; O(distinct) for counts"

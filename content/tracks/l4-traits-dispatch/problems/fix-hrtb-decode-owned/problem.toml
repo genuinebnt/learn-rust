@@ -1,0 +1,28 @@
+slug = "fix-hrtb-decode-owned"
+title = "Fix: a lifetime chosen by the caller (HRTB)"
+mode = "fix"
+level = "hard"
+stage = "coherence-extension"
+order = 20
+status = "ready"
+tags = ["HRTB", "for<'a>", "E0597", "DeserializeOwned"]
+teaches = [
+  "A lifetime parameter is picked by the caller; locals can't satisfy it.",
+  "`for<'a>` bounds hold for every lifetime.",
+  "Name an HRTB with a trait + blanket impl (`DeserializeOwned`).",
+]
+follow_up = "Why can't `decode_normalized::<&str>` compile after the fix? What would you return to allow borrowed output there?"
+related = ["L3", "L5"]
+
+[[hints]]
+kind = "approach"
+text = "With `<'de, T: Decode<'de>>`, the caller picks `'de`, so it must outlive the call, and a local `String` can't be borrowed for it. You need \"T decodes from text of *every* lifetime\"."
+
+[[hints]]
+kind = "rust"
+text = "That's a higher-ranked bound: `T: for<'de> Decode<'de>`. Make it a trait with a blanket impl so it has a name: `trait DecodeOwned: for<'de> Decode<'de> {}` and `impl<T> DecodeOwned for T where T: for<'de> Decode<'de> {}`."
+
+[solution]
+explanation = "A lifetime parameter on a function is chosen by the caller, and every borrow passed where `'de` is expected must last that long, so a value created inside the function can't be used. `for<'de>` flips it: the bound must hold for all lifetimes, including the short one of a local. `&'de str` implements `Decode<'de>` only for its own `'de`, so it isn't `DecodeOwned`, which is exactly why borrowed types are rejected. serde's `DeserializeOwned` is this same trait-plus-blanket-impl.\n\nSyntax: `where T: for<'de> Decode<'de>` · `pub trait DecodeOwned: for<'de> Decode<'de> {}` · `impl<T> DecodeOwned for T where T: for<'de> Decode<'de> {}`."
+time = "O(text)"
+space = "O(line)"

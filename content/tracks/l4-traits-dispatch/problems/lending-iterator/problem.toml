@@ -1,0 +1,32 @@
+slug = "lending-iterator"
+title = "A GAT-based LendingIterator"
+mode = "fix"
+level = "hard"
+stage = "coherence-extension"
+order = 22
+status = "ready"
+tags = ["GATs", "lending iterator", "reborrowing"]
+teaches = [
+  "A GAT gives an associated type its own lifetime parameter.",
+  "`where Self: 'a` on the GAT: items can't outlive the iterator.",
+  "Lending iterators allow overlapping `&mut` windows and buffer reuse.",
+]
+follow_up = "Write `for_each` for a `LendingIterator`. Why does the obvious `F: for<'a> FnMut(L::Item<'a>)` bound demand `'static` here, and how do crates like `lending-iterator` work around it?"
+related = ["S6", "L3"]
+
+[[hints]]
+kind = "rust"
+text = "The item type needs its own lifetime, tied to the `&mut self` of each call: `type Item<'a> where Self: 'a;` and `fn next(&mut self) -> Option<Self::Item<'_>>`. The `where Self: 'a` is required: an item can't outlive the iterator it borrows."
+
+[[hints]]
+kind = "rust"
+text = "In `WindowsMut::next`, return `&mut self.slice[start..end]`: a reborrow through `&mut self`, which is exactly what `Item<'_>` allows and `Iterator` would reject. For `UpperLines`, `clear()` the buffer and push into it, so its allocation is kept."
+
+[[hints]]
+kind = "edge case"
+text = "The last window ends exactly at `len`; a window bigger than the slice yields nothing."
+
+[solution]
+explanation = "`Iterator::Item` can't mention the lifetime of `&mut self` in `next`, so an iterator can't lend out something it owns or hand out overlapping `&mut` windows. A generic associated type adds that lifetime: `Item<'a>` is a different type for each borrow, and callers must drop one item before asking for the next. GATs are also the reason `for` loops and std adapters don't work here, and a generic `for_each<F: for<'a> FnMut(L::Item<'a>)>` currently forces `L: 'static` (a known limitation).\n\nSyntax: `trait LendingIterator { type Item<'a> where Self: 'a; fn next(&mut self) -> Option<Self::Item<'_>>; }` · `impl<'s, T> LendingIterator for WindowsMut<'s, T> { type Item<'a> = &'a mut [T] where Self: 'a; .. }`."
+time = "O(1) per window; O(line) per line"
+space = "O(1) extra; one buffer"

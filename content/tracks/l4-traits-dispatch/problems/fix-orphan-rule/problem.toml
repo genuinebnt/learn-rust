@@ -1,0 +1,27 @@
+slug = "fix-orphan-rule"
+title = "Fix: the orphan rule (E0117) and newtypes"
+mode = "fix"
+level = "hard"
+stage = "coherence-extension"
+order = 17
+status = "ready"
+tags = ["E0117", "orphan rule", "newtype", "Deref", "FromIterator"]
+teaches = [
+  "Orphan rule: a local trait or a local type in every impl.",
+  "Newtype + `Deref`/`DerefMut` + `From`/`FromIterator` to keep the ergonomics.",
+]
+follow_up = "When is `Deref` on a newtype a bad idea? What would you expose instead for a `NonEmptyVec<T>`?"
+related = ["L9", "S8"]
+
+[[hints]]
+kind = "rust"
+text = "You may implement a trait only if the trait or the type is local. `Vec<Point>` isn't local even though `Point` is, so wrap it: `pub struct Path(pub Vec<Point>);` and `impl Display for Path`."
+
+[[hints]]
+kind = "rust"
+text = "A newtype loses its inner type's methods. `impl Deref for Path { type Target = Vec<Point>; .. }` plus `DerefMut` gives them back, and `&Path` then coerces to `&[Point]`. `From<Vec<Point>>` and `FromIterator<Point>` cover the two ways of building one."
+
+[solution]
+explanation = "Coherence needs one crate to own every impl, so the orphan rule says `impl Trait for Type` needs a local trait or a local type (with `Vec<Local>` not counting as local; only `&T`, `&mut T`, `Box<T>` and `Pin<T>` are \"fundamental\" and see through to `T`). The newtype pattern adds a local type at no runtime cost. `Deref` to the wrapped type is the convenient way to forward its API; some teams prefer explicit methods or `AsRef` so the newtype doesn't leak everything.\n\nSyntax: `pub struct Path(pub Vec<Point>);` · `impl Deref for Path { type Target = Vec<Point>; fn deref(&self) -> &Vec<Point> { &self.0 } }` · `impl FromIterator<Point> for Path { fn from_iter<I: IntoIterator<Item = Point>>(iter: I) -> Self { .. } }`."
+time = "O(n) to print"
+space = "O(1) extra"

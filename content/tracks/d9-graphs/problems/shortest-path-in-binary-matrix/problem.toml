@@ -1,0 +1,36 @@
+slug = "shortest-path-in-binary-matrix"
+title = "Shortest path in binary matrix"
+mode = "write"
+level = "medium"
+stage = "bfs-patterns"
+order = 18
+status = "ready"
+tags = ["BFS", "8 directions", "Option"]
+companies = ["Meta", "Amazon", "Google", "Microsoft"]
+teaches = [
+  "BFS for the fewest steps.",
+  "Eight neighbours from a `-1..=1` offset loop.",
+]
+constraints = ["1 ≤ n ≤ 500"]
+follow_up = "How would A* with the Chebyshev distance as its heuristic change the search on an open grid?"
+
+[[examples]]
+input = "grid = [[0,0,0],[1,1,0],[1,1,0]]"
+output = "Some(4)"
+
+[[hints]]
+kind = "approach"
+text = "Every step costs the same, so BFS from the top-left finds the shortest path."
+
+[[hints]]
+kind = "rust"
+text = "Loop `dr` and `dc` over `[usize::MAX, 0, 1]` with `wrapping_add` to get all eight neighbours (and the cell itself, which is already visited)."
+
+[[hints]]
+kind = "edge case"
+text = "If the start or the end is blocked, there's no path at all."
+
+[solution]
+explanation = "Recording the distance when a cell is queued doubles as the visited mark, so each cell enters the queue once."
+time = "O(n²)"
+space = "O(n²)"

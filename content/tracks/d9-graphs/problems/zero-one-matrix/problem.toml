@@ -1,0 +1,36 @@
+slug = "zero-one-matrix"
+title = "01 matrix"
+mode = "write"
+level = "medium"
+stage = "bfs-patterns"
+order = 17
+status = "ready"
+tags = ["multi-source BFS", "VecDeque", "grid"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Uber"]
+teaches = [
+  "Multi-source BFS: start from every target at once.",
+  "BFS order gives each cell its final distance the first time it's reached.",
+]
+constraints = ["1 ≤ rows, cols ≤ 500", "at least one cell is 0"]
+follow_up = "Solve it with two DP passes, top-left then bottom-right. Why do two passes suffice?"
+
+[[examples]]
+input = "mat = [[0,0,0],[0,1,0],[1,1,1]]"
+output = "[[0,0,0],[0,1,0],[1,2,1]]"
+
+[[hints]]
+kind = "approach"
+text = "Searching from every 1 repeats work. Search once, from all the 0s together."
+
+[[hints]]
+kind = "approach"
+text = "Put every 0 in the queue at distance 0. BFS then reaches each cell first from its nearest 0."
+
+[[hints]]
+kind = "rust"
+text = "`u32::MAX` as 'not reached yet' doubles as the visited check."
+
+[solution]
+explanation = "Multi-source BFS is one BFS from a virtual node joined to every 0. Each cell is queued once."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

@@ -2423,6 +2423,969 @@ P.append(dict(
 ))
 
 P.append(dict(
+    slug="zero-one-matrix", title="01 matrix", level="medium", stage="bfs-patterns",
+    tags=["multi-source BFS", "VecDeque", "grid"],
+    teaches=["Multi-source BFS: start from every target at once.", "BFS order gives each cell its final distance the first time it's reached."],
+    statement="""
+        For every cell of `mat`, return the distance to the nearest `0`, counting steps up, down, left or right.
+        `mat` has at least one `0`.
+    """,
+    examples=[("mat = [[0,0,0],[0,1,0],[1,1,1]]", "[[0,0,0],[0,1,0],[1,2,1]]")],
+    constraints=["1 ≤ rows, cols ≤ 500", "at least one cell is 0"],
+    starter="""
+        pub fn update_matrix(mat: &[Vec<u8>]) -> Vec<Vec<u32>> {
+            todo!()
+        }
+    """,
+    solution=f"""
+        use std::collections::VecDeque;
+
+        pub fn update_matrix(mat: &[Vec<u8>]) -> Vec<Vec<u32>> {{
+            let (h, w) = (mat.len(), mat[0].len());
+            let mut dist = vec![vec![u32::MAX; w]; h];
+            let mut queue = VecDeque::new();
+            for r in 0..h {{
+                for c in 0..w {{
+                    if mat[r][c] == 0 {{
+                        dist[r][c] = 0;
+                        queue.push_back((r, c));
+                    }}
+                }}
+            }}
+            while let Some((r, c)) = queue.pop_front() {{
+                for (nr, nc) in {NEAR} {{
+                    if nr < h && nc < w && dist[nr][nc] == u32::MAX {{
+                        dist[nr][nc] = dist[r][c] + 1;
+                        queue.push_back((nr, nc));
+                    }}
+                }}
+            }}
+            dist
+        }}
+    """,
+    visible=[
+        T("one_one", "mat = [[0,0,0],[0,1,0],[0,0,0]]", "update_matrix(&[vec![0, 0, 0], vec![0, 1, 0], vec![0, 0, 0]])", "vec![vec![0, 0, 0], vec![0, 1, 0], vec![0, 0, 0]]"),
+        T("two_steps_away", "mat = [[0,0,0],[0,1,0],[1,1,1]]", "update_matrix(&[vec![0, 0, 0], vec![0, 1, 0], vec![1, 1, 1]])", "vec![vec![0, 0, 0], vec![0, 1, 0], vec![1, 2, 1]]"),
+        T("single_zero", "mat = [[0]]", "update_matrix(&[vec![0]])", "vec![vec![0]]"),
+        T("one_row", "mat = [[1,1,0]]", "update_matrix(&[vec![1, 1, 0]])", "vec![vec![2, 1, 0]]"),
+        T("no_diagonal_steps", "mat = [[0,1],[1,1]]", "update_matrix(&[vec![0, 1], vec![1, 1]])", "vec![vec![0, 1], vec![1, 2]]"),
+    ],
+    hidden=[
+        T("all_zero", "mat = [[0,0],[0,0]]", "update_matrix(&[vec![0, 0], vec![0, 0]])", "vec![vec![0, 0], vec![0, 0]]"),
+        T("zero_in_the_middle", "mat = [[1,1,1],[1,0,1],[1,1,1]]", "update_matrix(&[vec![1, 1, 1], vec![1, 0, 1], vec![1, 1, 1]])", "vec![vec![2, 1, 2], vec![1, 0, 1], vec![2, 1, 2]]"),
+        T("nearest_of_two", "mat = [[0,1,1,1,1,0]]", "update_matrix(&[vec![0, 1, 1, 1, 1, 0]])", "vec![vec![0, 1, 2, 2, 1, 0]]"),
+        T("column", "mat = [[1],[1],[0],[1]]", "update_matrix(&[vec![1], vec![1], vec![0], vec![1]])", "vec![vec![2], vec![1], vec![0], vec![1]]"),
+        T("far_corner_500", "500×500, only (0, 0) is 0", "(d[499][499], d[0][499], d[250][250])", "(998, 499, 500)",
+          setup="let mut m = vec![vec![1u8; 500]; 500];\nm[0][0] = 0;\nlet d = update_matrix(&m);"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(941);
+            for _ in 0..300 {
+                let (h, w) = (1 + rng.below(6), 1 + rng.below(6));
+                let mut mat: Vec<Vec<u8>> = (0..h).map(|_| (0..w).map(|_| u8::from(rng.below(3) > 0)).collect()).collect();
+                let (zr, zc) = (rng.below(h), rng.below(w));
+                mat[zr][zc] = 0;
+                // Brute force: with no walls, the distance is the smallest Manhattan distance to a zero.
+                let zeros: Vec<(usize, usize)> = (0..h).flat_map(|r| (0..w).map(move |c| (r, c))).filter(|&(r, c)| mat[r][c] == 0).collect();
+                let want: Vec<Vec<u32>> = (0..h).map(|r| (0..w).map(|c| zeros.iter().map(|&(a, b)| (r.abs_diff(a) + c.abs_diff(b)) as u32).min().unwrap()).collect()).collect();
+                check!(format!("mat = {mat:?}"), update_matrix(&mat), want);
+            }
+        }
+
+        #[test]
+        fn scale_zeros_on_top() {
+            // Only the first row is 0, so a search from each cell has to walk far.
+            let mut m = vec![vec![1u8; 500]; 500];
+            m[0] = vec![0; 500];
+            let d = update_matrix(&m);
+            let total: u64 = d.iter().flatten().map(|&x| u64::from(x)).sum();
+            check!("500×500, first row 0, the rest 1: sum of distances", total, 62_375_000);
+        }
+
+        #[test]
+        fn scale_checkerboard() {
+            // Half the cells are 0, so comparing every cell with every zero is slow.
+            let m: Vec<Vec<u8>> = (0..500).map(|r| (0..500).map(|c| u8::from((r + c) % 2 == 1)).collect()).collect();
+            let d = update_matrix(&m);
+            let total: u64 = d.iter().flatten().map(|&x| u64::from(x)).sum();
+            check!("500×500 checkerboard: sum of distances", total, 125_000);
+        }
+        """,
+    ],
+    wrong=dict(
+        search_from_every_cell="""
+            use std::collections::VecDeque;
+
+            pub fn update_matrix(mat: &[Vec<u8>]) -> Vec<Vec<u32>> {
+                let (h, w) = (mat.len(), mat[0].len());
+                let mut out = vec![vec![0; w]; h];
+                for r0 in 0..h {
+                    for c0 in 0..w {
+                        let mut seen = vec![vec![false; w]; h];
+                        seen[r0][c0] = true;
+                        let mut queue = VecDeque::from([(r0, c0, 0u32)]);
+                        while let Some((r, c, d)) = queue.pop_front() {
+                            if mat[r][c] == 0 {
+                                out[r0][c0] = d;
+                                break;
+                            }
+                            for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                                if nr < h && nc < w && !seen[nr][nc] {
+                                    seen[nr][nc] = true;
+                                    queue.push_back((nr, nc, d + 1));
+                                }
+                            }
+                        }
+                    }
+                }
+                out
+            }
+        """,
+        compare_with_every_zero="""
+            pub fn update_matrix(mat: &[Vec<u8>]) -> Vec<Vec<u32>> {
+                let (h, w) = (mat.len(), mat[0].len());
+                let zeros: Vec<(usize, usize)> = (0..h).flat_map(|r| (0..w).map(move |c| (r, c))).filter(|&(r, c)| mat[r][c] == 0).collect();
+                (0..h).map(|r| (0..w).map(|c| zeros.iter().map(|&(a, b)| (r.abs_diff(a) + c.abs_diff(b)) as u32).min().unwrap()).collect()).collect()
+            }
+        """,
+        one_pass_from_the_top_left="""
+            pub fn update_matrix(mat: &[Vec<u8>]) -> Vec<Vec<u32>> {
+                let (h, w) = (mat.len(), mat[0].len());
+                let mut d = vec![vec![u32::MAX / 2; w]; h];
+                for r in 0..h {
+                    for c in 0..w {
+                        if mat[r][c] == 0 {
+                            d[r][c] = 0;
+                        } else {
+                            if r > 0 {
+                                d[r][c] = d[r][c].min(d[r - 1][c] + 1);
+                            }
+                            if c > 0 {
+                                d[r][c] = d[r][c].min(d[r][c - 1] + 1);
+                            }
+                        }
+                    }
+                }
+                d
+            }
+        """,
+    ),
+    hints=[("approach", "Searching from every 1 repeats work. Search once, from all the 0s together."),
+           ("approach", "Put every 0 in the queue at distance 0. BFS then reaches each cell first from its nearest 0."),
+           ("rust", "`u32::MAX` as 'not reached yet' doubles as the visited check.")],
+    notes=("Multi-source BFS is one BFS from a virtual node joined to every 0. Each cell is queued once.", "O(rows · cols)", "O(rows · cols)"),
+    follow_up="Solve it with two DP passes, top-left then bottom-right. Why do two passes suffice?",
+))
+
+P.append(dict(
+    slug="shortest-path-in-binary-matrix", title="Shortest path in binary matrix", level="medium", stage="bfs-patterns",
+    tags=["BFS", "8 directions", "Option"],
+    teaches=["BFS for the fewest steps.", "Eight neighbours from a `-1..=1` offset loop."],
+    statement="""
+        `grid` is square; `0` is open and `1` blocked. Moving to any of the eight neighbouring cells (diagonals
+        too), return the number of cells on the shortest open path from the top-left to the bottom-right cell,
+        counting both ends, or `None` if there's none.
+    """,
+    examples=[("grid = [[0,0,0],[1,1,0],[1,1,0]]", "Some(4)")],
+    constraints=["1 ≤ n ≤ 500"],
+    starter="""
+        pub fn shortest_path_binary_matrix(grid: &[Vec<u8>]) -> Option<usize> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::VecDeque;
+
+        pub fn shortest_path_binary_matrix(grid: &[Vec<u8>]) -> Option<usize> {
+            let n = grid.len();
+            if grid[0][0] == 1 || grid[n - 1][n - 1] == 1 {
+                return None;
+            }
+            let mut dist = vec![vec![0usize; n]; n];
+            dist[0][0] = 1;
+            let mut queue = VecDeque::from([(0usize, 0usize)]);
+            while let Some((r, c)) = queue.pop_front() {
+                if (r, c) == (n - 1, n - 1) {
+                    return Some(dist[r][c]);
+                }
+                for dr in [usize::MAX, 0, 1] {
+                    for dc in [usize::MAX, 0, 1] {
+                        let (nr, nc) = (r.wrapping_add(dr), c.wrapping_add(dc));
+                        if nr < n && nc < n && grid[nr][nc] == 0 && dist[nr][nc] == 0 {
+                            dist[nr][nc] = dist[r][c] + 1;
+                            queue.push_back((nr, nc));
+                        }
+                    }
+                }
+            }
+            None
+        }
+    """,
+    visible=[
+        T("diagonal_step", "grid = [[0,1],[1,0]]", "shortest_path_binary_matrix(&[vec![0, 1], vec![1, 0]])", "Some(2)"),
+        T("around_the_wall", "grid = [[0,0,0],[1,1,0],[1,1,0]]", "shortest_path_binary_matrix(&[vec![0, 0, 0], vec![1, 1, 0], vec![1, 1, 0]])", "Some(4)"),
+        T("start_blocked", "grid = [[1,0,0],[1,1,0],[1,1,0]]", "shortest_path_binary_matrix(&[vec![1, 0, 0], vec![1, 1, 0], vec![1, 1, 0]])", "None"),
+        T("one_cell", "grid = [[0]]", "shortest_path_binary_matrix(&[vec![0]])", "Some(1)"),
+        T("end_blocked", "grid = [[0,0],[0,1]]", "shortest_path_binary_matrix(&[vec![0, 0], vec![0, 1]])", "None"),
+    ],
+    hidden=[
+        T("one_blocked_cell", "grid = [[1]]", "shortest_path_binary_matrix(&[vec![1]])", "None"),
+        T("walled_in", "grid = [[0,1,0],[1,1,0],[0,0,0]]", "shortest_path_binary_matrix(&[vec![0, 1, 0], vec![1, 1, 0], vec![0, 0, 0]])", "None"),
+        T("straight_diagonal", "grid = [[0,1,1],[1,0,1],[1,1,0]]", "shortest_path_binary_matrix(&[vec![0, 1, 1], vec![1, 0, 1], vec![1, 1, 0]])", "Some(3)"),
+        T("around_a_centre_block", "grid = [[0,0,0],[0,1,0],[0,0,0]]", "shortest_path_binary_matrix(&[vec![0, 0, 0], vec![0, 1, 0], vec![0, 0, 0]])", "Some(4)"),
+        T("winding", "grid = [[0,1,0,0],[0,1,0,1],[0,0,0,1],[1,1,0,0]]", "shortest_path_binary_matrix(&[vec![0, 1, 0, 0], vec![0, 1, 0, 1], vec![0, 0, 0, 1], vec![1, 1, 0, 0]])", "Some(5)"),
+        T("open_500", "500×500, all open", "shortest_path_binary_matrix(&vec![vec![0; 500]; 500])", "Some(500)"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(942);
+            for _ in 0..300 {
+                let n = 1 + rng.below(5);
+                let grid: Vec<Vec<u8>> = (0..n).map(|_| (0..n).map(|_| u8::from(rng.below(3) == 0)).collect()).collect();
+                // Brute force: relax every open cell until nothing changes.
+                let mut d = vec![vec![usize::MAX; n]; n];
+                if grid[0][0] == 0 {
+                    d[0][0] = 1;
+                }
+                let mut changed = true;
+                while changed {
+                    changed = false;
+                    for r in 0..n {
+                        for c in 0..n {
+                            for a in r.saturating_sub(1)..=(r + 1).min(n - 1) {
+                                for b in c.saturating_sub(1)..=(c + 1).min(n - 1) {
+                                    if grid[r][c] == 0 && d[a][b] != usize::MAX && d[a][b] + 1 < d[r][c] {
+                                        d[r][c] = d[a][b] + 1;
+                                        changed = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                let want = (d[n - 1][n - 1] != usize::MAX).then_some(d[n - 1][n - 1]);
+                check!(format!("grid = {grid:?}"), shortest_path_binary_matrix(&grid), want);
+            }
+        }
+
+        #[test]
+        fn scale_snake_499() {
+            // Open rows joined through a gap at alternating ends of each blocked row.
+            let grid: Vec<Vec<u8>> = (0..499).map(|r| if r % 2 == 0 { vec![0; 499] } else { let mut row = vec![1; 499]; row[if r % 4 == 1 { 498 } else { 0 }] = 0; row }).collect();
+            check!("499×499 snake", shortest_path_binary_matrix(&grid), Some(124_004));
+        }
+        """,
+    ],
+    wrong=dict(
+        four_directions="""
+            use std::collections::VecDeque;
+
+            pub fn shortest_path_binary_matrix(grid: &[Vec<u8>]) -> Option<usize> {
+                let n = grid.len();
+                if grid[0][0] == 1 || grid[n - 1][n - 1] == 1 {
+                    return None;
+                }
+                let mut dist = vec![vec![0usize; n]; n];
+                dist[0][0] = 1;
+                let mut queue = VecDeque::from([(0usize, 0usize)]);
+                while let Some((r, c)) = queue.pop_front() {
+                    if (r, c) == (n - 1, n - 1) {
+                        return Some(dist[r][c]);
+                    }
+                    for (nr, nc) in [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)] {
+                        if nr < n && nc < n && grid[nr][nc] == 0 && dist[nr][nc] == 0 {
+                            dist[nr][nc] = dist[r][c] + 1;
+                            queue.push_back((nr, nc));
+                        }
+                    }
+                }
+                None
+            }
+        """,
+        start_not_checked="""
+            use std::collections::VecDeque;
+
+            pub fn shortest_path_binary_matrix(grid: &[Vec<u8>]) -> Option<usize> {
+                let n = grid.len();
+                let mut dist = vec![vec![0usize; n]; n];
+                dist[0][0] = 1;
+                let mut queue = VecDeque::from([(0usize, 0usize)]);
+                while let Some((r, c)) = queue.pop_front() {
+                    if (r, c) == (n - 1, n - 1) {
+                        return Some(dist[r][c]);
+                    }
+                    for dr in [usize::MAX, 0, 1] {
+                        for dc in [usize::MAX, 0, 1] {
+                            let (nr, nc) = (r.wrapping_add(dr), c.wrapping_add(dc));
+                            if nr < n && nc < n && grid[nr][nc] == 0 && dist[nr][nc] == 0 {
+                                dist[nr][nc] = dist[r][c] + 1;
+                                queue.push_back((nr, nc));
+                            }
+                        }
+                    }
+                }
+                None
+            }
+        """,
+        relax_until_stable="""
+            pub fn shortest_path_binary_matrix(grid: &[Vec<u8>]) -> Option<usize> {
+                let n = grid.len();
+                let mut d = vec![vec![usize::MAX; n]; n];
+                if grid[0][0] == 0 {
+                    d[0][0] = 1;
+                }
+                let mut changed = true;
+                while changed {
+                    changed = false;
+                    for r in 0..n {
+                        for c in 0..n {
+                            if grid[r][c] != 0 {
+                                continue;
+                            }
+                            for a in r.saturating_sub(1)..=(r + 1).min(n - 1) {
+                                for b in c.saturating_sub(1)..=(c + 1).min(n - 1) {
+                                    if d[a][b] != usize::MAX && d[a][b] + 1 < d[r][c] {
+                                        d[r][c] = d[a][b] + 1;
+                                        changed = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                (d[n - 1][n - 1] != usize::MAX).then_some(d[n - 1][n - 1])
+            }
+        """,
+    ),
+    hints=[("approach", "Every step costs the same, so BFS from the top-left finds the shortest path."),
+           ("rust", "Loop `dr` and `dc` over `[usize::MAX, 0, 1]` with `wrapping_add` to get all eight neighbours (and the cell itself, which is already visited)."),
+           ("edge case", "If the start or the end is blocked, there's no path at all.")],
+    notes=("Recording the distance when a cell is queued doubles as the visited mark, so each cell enters the queue once.", "O(n²)", "O(n²)"),
+    follow_up="How would A* with the Chebyshev distance as its heuristic change the search on an open grid?",
+))
+
+P.append(dict(
+    slug="surrounded-regions", title="Surrounded regions", level="medium", stage="bfs-patterns",
+    tags=["grid", "reverse search", "&mut"],
+    teaches=["Search from the border inward instead of asking every region whether it escapes.", "Editing a grid in place through `&mut [Vec<char>]`."],
+    statement="""
+        `board` holds `'X'` and `'O'`. Turn every `'O'` into `'X'` unless it can reach the border through
+        `'O'` cells (up, down, left or right). Change `board` in place.
+    """,
+    examples=[('board = ["XXXX", "XOOX", "XXOX", "XOXX"]', '["XXXX", "XXXX", "XXXX", "XOXX"]')],
+    constraints=["1 ≤ rows, cols ≤ 500"],
+    starter="""
+        pub fn capture_regions(board: &mut [Vec<char>]) {
+            todo!()
+        }
+    """,
+    solution=f"""
+        pub fn capture_regions(board: &mut [Vec<char>]) {{
+            let (h, w) = (board.len(), board[0].len());
+            // Mark every 'O' reachable from the border as safe, then flip the rest.
+            let mut safe = vec![vec![false; w]; h];
+            let mut stack: Vec<(usize, usize)> = (0..h)
+                .flat_map(|r| [(r, 0), (r, w - 1)])
+                .chain((0..w).flat_map(|c| [(0, c), (h - 1, c)]))
+                .filter(|&(r, c)| board[r][c] == 'O')
+                .collect();
+            for &(r, c) in &stack {{
+                safe[r][c] = true;
+            }}
+            while let Some((r, c)) = stack.pop() {{
+                for (nr, nc) in {NEAR} {{
+                    if nr < h && nc < w && board[nr][nc] == 'O' && !safe[nr][nc] {{
+                        safe[nr][nc] = true;
+                        stack.push((nr, nc));
+                    }}
+                }}
+            }}
+            for r in 0..h {{
+                for c in 0..w {{
+                    if board[r][c] == 'O' && !safe[r][c] {{
+                        board[r][c] = 'X';
+                    }}
+                }}
+            }}
+        }}
+    """,
+    visible=[
+        """
+        fn run(rows: &[&str]) -> Vec<String> {
+            let mut board: Vec<Vec<char>> = rows.iter().map(|r| r.chars().collect()).collect();
+            capture_regions(&mut board);
+            board.iter().map(|r| r.iter().collect()).collect()
+        }
+        """,
+        T("classic", 'board = ["XXXX", "XOOX", "XXOX", "XOXX"]', 'run(&["XXXX", "XOOX", "XXOX", "XOXX"])', 'vec!["XXXX", "XXXX", "XXXX", "XOXX"]'),
+        T("single_x", 'board = ["X"]', 'run(&["X"])', 'vec!["X"]'),
+        T("border_o_stays", 'board = ["O"]', 'run(&["O"])', 'vec!["O"]'),
+        T("escapes_through_a_chain", 'board = ["XXXX", "XOOO", "XOXX", "XXXX"]', 'run(&["XXXX", "XOOO", "XOXX", "XXXX"])', 'vec!["XXXX", "XOOO", "XOXX", "XXXX"]'),
+        T("diagonal_is_not_an_escape", 'board = ["XXX", "XOX", "XXO"]', 'run(&["XXX", "XOX", "XXO"])', 'vec!["XXX", "XXX", "XXO"]'),
+    ],
+    hidden=[
+        """
+        fn run(rows: &[&str]) -> Vec<String> {
+            let mut board: Vec<Vec<char>> = rows.iter().map(|r| r.chars().collect()).collect();
+            capture_regions(&mut board);
+            board.iter().map(|r| r.iter().collect()).collect()
+        }
+        """,
+        T("all_o", 'board = ["OOO", "OOO", "OOO"]', 'run(&["OOO", "OOO", "OOO"])', 'vec!["OOO", "OOO", "OOO"]'),
+        T("one_row", 'board = ["OXO"]', 'run(&["OXO"])', 'vec!["OXO"]'),
+        T("two_inner_regions", 'board = ["XXXXX", "XOXOX", "XXXXX"]', 'run(&["XXXXX", "XOXOX", "XXXXX"])', 'vec!["XXXXX", "XXXXX", "XXXXX"]'),
+        T("ring_of_o_around_x", 'board = ["XXXXX", "XOOOX", "XOXOX", "XOOOX", "XXXXX"]', 'run(&["XXXXX", "XOOOX", "XOXOX", "XOOOX", "XXXXX"])',
+          'vec!["XXXXX", "XXXXX", "XXXXX", "XXXXX", "XXXXX"]'),
+        T("region_touching_the_bottom", 'board = ["XXX", "XOX", "XOX"]', 'run(&["XXX", "XOX", "XOX"])', 'vec!["XXX", "XOX", "XOX"]'),
+        T("inner_region_captured_big", "500×500: X border, O inside", "(b[1][1], b[250][250], b[0][0], b.iter().flatten().filter(|&&ch| ch == 'O').count())", "('X', 'X', 'X', 0)",
+          setup="let mut b: Vec<Vec<char>> = (0..500).map(|r| (0..500).map(|c| if r == 0 || c == 0 || r == 499 || c == 499 { 'X' } else { 'O' }).collect()).collect();\ncapture_regions(&mut b);"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(943);
+            for _ in 0..300 {
+                let (h, w) = (1 + rng.below(6), 1 + rng.below(6));
+                let rows: Vec<String> = (0..h).map(|_| rng.string(w, "XOO")).collect();
+                let cells: Vec<Vec<char>> = rows.iter().map(|r| r.chars().collect()).collect();
+                // Brute force: grow the safe set from the border until it stops changing.
+                let mut safe: Vec<Vec<bool>> = (0..h).map(|r| (0..w).map(|c| cells[r][c] == 'O' && (r == 0 || c == 0 || r == h - 1 || c == w - 1)).collect()).collect();
+                let mut changed = true;
+                while changed {
+                    changed = false;
+                    for r in 0..h {
+                        for c in 0..w {
+                            let near = [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)];
+                            if cells[r][c] == 'O' && !safe[r][c] && near.iter().any(|&(a, b)| a < h && b < w && safe[a][b]) {
+                                safe[r][c] = true;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+                let want: Vec<String> = (0..h).map(|r| (0..w).map(|c| if safe[r][c] { 'O' } else { 'X' }).collect()).collect();
+                let refs: Vec<&str> = rows.iter().map(|s| s.as_str()).collect();
+                check!(format!("board = {rows:?}"), run(&refs), want);
+            }
+        }
+
+        #[test]
+        fn scale_snake_reaches_the_border() {
+            // A 125249-cell corridor of 'O' winding through the board from the top row.
+            let mut b: Vec<Vec<char>> = (0..499).map(|r| (0..500).map(|c| if r % 2 == 0 || (r % 4 == 1 && c == 499) || (r % 4 == 3 && c == 0) { 'O' } else { 'X' }).collect()).collect();
+            capture_regions(&mut b);
+            let kept = b.iter().flatten().filter(|&&ch| ch == 'O').count();
+            check!("499×500 snake of 'O' joined to the border", kept, 125_249);
+        }
+        """,
+    ],
+    wrong=dict(
+        recursive="""
+            pub fn capture_regions(board: &mut [Vec<char>]) {
+                fn mark(board: &mut [Vec<char>], r: usize, c: usize) {
+                    if r >= board.len() || c >= board[0].len() || board[r][c] != 'O' {
+                        return;
+                    }
+                    board[r][c] = 'S';
+                    mark(board, r.wrapping_sub(1), c);
+                    mark(board, r + 1, c);
+                    mark(board, r, c.wrapping_sub(1));
+                    mark(board, r, c + 1);
+                }
+                let (h, w) = (board.len(), board[0].len());
+                for r in 0..h {
+                    mark(board, r, 0);
+                    mark(board, r, w - 1);
+                }
+                for c in 0..w {
+                    mark(board, 0, c);
+                    mark(board, h - 1, c);
+                }
+                for row in board.iter_mut() {
+                    for ch in row.iter_mut() {
+                        *ch = if *ch == 'S' { 'O' } else { 'X' };
+                    }
+                }
+            }
+        """,
+        only_the_border_row_is_safe="""
+            pub fn capture_regions(board: &mut [Vec<char>]) {
+                let (h, w) = (board.len(), board[0].len());
+                for r in 1..h.saturating_sub(1) {
+                    for c in 1..w.saturating_sub(1) {
+                        board[r][c] = 'X';
+                    }
+                }
+            }
+        """,
+    ),
+    hints=[("approach", "An 'O' survives exactly when it's connected to an 'O' on the border. Start from the border and mark what you reach."),
+           ("approach", "Then one pass flips every unmarked 'O' to 'X'."),
+           ("rust", "Collect the border cells into the initial stack with `flat_map` and `chain`; a separate `safe` grid keeps `board` untouched until the final pass.")],
+    notes=("Asking each region whether it escapes means one search per region; searching once from the border answers it for all of them. Every cell is visited at most once.", "O(rows · cols)", "O(rows · cols)"),
+    follow_up="How would you solve it with union-find and a virtual 'border' node?",
+))
+
+P.append(dict(
+    slug="open-the-lock", title="Open the lock", level="medium", stage="bfs-patterns",
+    tags=["BFS on states", "HashSet", "wrap-around"],
+    teaches=["BFS over states you generate, not a graph you're given.", "Encoding a state as a number instead of a `String`."],
+    statement="""
+        A lock has four wheels of digits `0`–`9` and starts at `"0000"`. One move turns one wheel one step up or
+        down; `9` wraps to `0` and back. The lock jams at any combination in `deadends`. Return the fewest moves
+        to reach `target`, or `None` if it can't be reached.
+    """,
+    examples=[('deadends = ["0201","0101","0102","1212","2002"], target = "0202"', "Some(6)")],
+    constraints=["deadends.len() ≤ 500", "every combination has four digits"],
+    starter="""
+        pub fn open_lock(deadends: &[&str], target: &str) -> Option<u32> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::VecDeque;
+
+        pub fn open_lock(deadends: &[&str], target: &str) -> Option<u32> {
+            let code = |s: &str| s.bytes().fold(0usize, |n, b| n * 10 + usize::from(b - b'0'));
+            let mut dist: Vec<Option<u32>> = vec![None; 10_000];
+            let mut dead = vec![false; 10_000];
+            for d in deadends {
+                dead[code(d)] = true;
+            }
+            if dead[0] {
+                return None;
+            }
+            let goal = code(target);
+            dist[0] = Some(0);
+            let mut queue = VecDeque::from([0usize]);
+            while let Some(s) = queue.pop_front() {
+                let d = dist[s]?;
+                if s == goal {
+                    return Some(d);
+                }
+                for place in [1, 10, 100, 1000] {
+                    let digit = s / place % 10;
+                    for next_digit in [(digit + 1) % 10, (digit + 9) % 10] {
+                        let next = s - digit * place + next_digit * place;
+                        if !dead[next] && dist[next].is_none() {
+                            dist[next] = Some(d + 1);
+                            queue.push_back(next);
+                        }
+                    }
+                }
+            }
+            None
+        }
+    """,
+    visible=[
+        T("around_the_deadends", 'deadends = ["0201","0101","0102","1212","2002"], target = "0202"', 'open_lock(&["0201", "0101", "0102", "1212", "2002"], "0202")', "Some(6)"),
+        T("one_turn_down_wraps", 'deadends = ["8888"], target = "0009"', 'open_lock(&["8888"], "0009")', "Some(1)"),
+        T("target_boxed_in", 'deadends = ["8887","8889","8878","8898","8788","8988","7888","9888"], target = "8888"',
+          'open_lock(&["8887", "8889", "8878", "8898", "8788", "8988", "7888", "9888"], "8888")', "None"),
+        T("already_open", 'deadends = [], target = "0000"', 'open_lock(&[], "0000")', "Some(0)"),
+        T("start_is_a_deadend", 'deadends = ["0000"], target = "8888"', 'open_lock(&["0000"], "8888")', "None"),
+    ],
+    hidden=[
+        T("target_is_a_deadend", 'deadends = ["0001"], target = "0001"', 'open_lock(&["0001"], "0001")', "None"),
+        T("farthest_combination", 'deadends = [], target = "5555"', 'open_lock(&[], "5555")', "Some(20)"),
+        T("wrap_on_every_wheel", 'deadends = [], target = "9999"', 'open_lock(&[], "9999")', "Some(4)"),
+        T("detour_around_one_wheel", 'deadends = ["0001", "0009"], target = "0002"', 'open_lock(&["0001", "0009"], "0002")', "Some(4)"),
+        T("duplicate_deadends", 'deadends = ["1000", "1000"], target = "1000"', 'open_lock(&["1000", "1000"], "1000")', "None"),
+        T("deadend_on_the_direct_path", 'deadends = ["0100"], target = "0200"', 'open_lock(&["0100"], "0200")', "Some(4)"),
+        T("mixed_directions", 'deadends = [], target = "1928"', 'open_lock(&[], "1928")', "Some(6)"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(944);
+            for _ in 0..40 {
+                let k = rng.below(60);
+                let dead: Vec<String> = (0..k).map(|_| rng.string(4, "0123")).collect();
+                let target = rng.string(4, "01239");
+                let refs: Vec<&str> = dead.iter().map(|s| s.as_str()).collect();
+                // Brute force: relax distances over all 10000 combinations until they settle.
+                let digits = |s: &str| -> [u8; 4] { let b = s.as_bytes(); [b[0] - b'0', b[1] - b'0', b[2] - b'0', b[3] - b'0'] };
+                let blocked: Vec<[u8; 4]> = dead.iter().map(|s| digits(s)).collect();
+                let mut dist = std::collections::HashMap::from([([0u8; 4], 0u32)]);
+                if blocked.contains(&[0; 4]) {
+                    dist.clear();
+                }
+                let mut frontier: Vec<[u8; 4]> = dist.keys().copied().collect();
+                while !frontier.is_empty() {
+                    let mut next = Vec::new();
+                    for s in frontier {
+                        for i in 0..4 {
+                            for step in [1, 9] {
+                                let mut t = s;
+                                t[i] = (t[i] + step) % 10;
+                                if !blocked.contains(&t) && !dist.contains_key(&t) {
+                                    dist.insert(t, dist[&s] + 1);
+                                    next.push(t);
+                                }
+                            }
+                        }
+                    }
+                    frontier = next;
+                }
+                let want = dist.get(&digits(&target)).copied();
+                check!(format!("deadends = {dead:?}, target = {target:?}"), open_lock(&refs, &target), want);
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        no_wrap_around="""
+            use std::collections::VecDeque;
+
+            pub fn open_lock(deadends: &[&str], target: &str) -> Option<u32> {
+                let code = |s: &str| s.bytes().fold(0usize, |n, b| n * 10 + usize::from(b - b'0'));
+                let mut dist: Vec<Option<u32>> = vec![None; 10_000];
+                let mut dead = vec![false; 10_000];
+                for d in deadends {
+                    dead[code(d)] = true;
+                }
+                if dead[0] {
+                    return None;
+                }
+                let goal = code(target);
+                dist[0] = Some(0);
+                let mut queue = VecDeque::from([0usize]);
+                while let Some(s) = queue.pop_front() {
+                    let d = dist[s]?;
+                    if s == goal {
+                        return Some(d);
+                    }
+                    for place in [1, 10, 100, 1000] {
+                        let digit = s / place % 10;
+                        let mut options = Vec::new();
+                        if digit < 9 {
+                            options.push(digit + 1);
+                        }
+                        if digit > 0 {
+                            options.push(digit - 1);
+                        }
+                        for next_digit in options {
+                            let next = s - digit * place + next_digit * place;
+                            if !dead[next] && dist[next].is_none() {
+                                dist[next] = Some(d + 1);
+                                queue.push_back(next);
+                            }
+                        }
+                    }
+                }
+                None
+            }
+        """,
+        start_deadend_ignored="""
+            use std::collections::VecDeque;
+
+            pub fn open_lock(deadends: &[&str], target: &str) -> Option<u32> {
+                let code = |s: &str| s.bytes().fold(0usize, |n, b| n * 10 + usize::from(b - b'0'));
+                let mut dist: Vec<Option<u32>> = vec![None; 10_000];
+                let mut dead = vec![false; 10_000];
+                for d in deadends {
+                    dead[code(d)] = true;
+                }
+                let goal = code(target);
+                dist[0] = Some(0);
+                let mut queue = VecDeque::from([0usize]);
+                while let Some(s) = queue.pop_front() {
+                    let d = dist[s]?;
+                    if s == goal {
+                        return Some(d);
+                    }
+                    for place in [1, 10, 100, 1000] {
+                        let digit = s / place % 10;
+                        for next_digit in [(digit + 1) % 10, (digit + 9) % 10] {
+                            let next = s - digit * place + next_digit * place;
+                            if !dead[next] && dist[next].is_none() {
+                                dist[next] = Some(d + 1);
+                                queue.push_back(next);
+                            }
+                        }
+                    }
+                }
+                None
+            }
+        """,
+        manhattan_guess="""
+            pub fn open_lock(deadends: &[&str], target: &str) -> Option<u32> {
+                // Wrong: ignores deadends except at the start and the target.
+                if deadends.contains(&"0000") || deadends.contains(&target) {
+                    return None;
+                }
+                Some(target.bytes().map(|b| { let d = u32::from(b - b'0'); d.min(10 - d) }).sum())
+            }
+        """,
+    ),
+    hints=[("approach", "Each combination is a node with 8 neighbours (4 wheels × up/down). BFS from \"0000\" finds the fewest moves."),
+           ("rust", "Encode a combination as a number `0..10_000` so `seen` and `dead` can be plain `Vec<bool>`s."),
+           ("edge case", "If \"0000\" itself is a deadend, you can't even start.")],
+    notes=("There are only 10⁴ states and 8 moves each, so BFS touches at most 80,000 edges. Numbers instead of Strings avoid an allocation per neighbour.", "O(10⁴ · 8)", "O(10⁴)"),
+    follow_up="How would bidirectional BFS help here, and when does it stop?",
+))
+
+P.append(dict(
+    slug="evaluate-division", title="Evaluate division", level="medium", stage="bfs-patterns",
+    tags=["weighted union-find", "HashMap<&str, usize>"],
+    teaches=["Interning names into indices once, then working with `usize`s.", "Union-find that carries a ratio to the parent."],
+    statement="""
+        `equations[i] = (a, b)` with `values[i]` means `a / b = values[i]`. For each query `(c, d)` return
+        `Some(c / d)` if the equations determine it, or `None` if they don't (including when `c` or `d` never
+        appears in an equation).
+    """,
+    examples=[('equations = [("a","b"), ("b","c")], values = [2.0, 3.0], queries = [("a","c"), ("b","a"), ("a","e"), ("a","a"), ("x","x")]',
+               "[Some(6.0), Some(0.5), None, Some(1.0), None]")],
+    constraints=["equations.len() ≤ 2·10⁴", "queries.len() ≤ 2·10⁴", "values > 0"],
+    starter="""
+        pub fn calc_equation(equations: &[(&str, &str)], values: &[f64], queries: &[(&str, &str)]) -> Vec<Option<f64>> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::HashMap;
+
+        /// Root of `x` and the ratio `x / root`; every node on the way ends up pointing at the root.
+        fn find(parent: &mut [usize], ratio: &mut [f64], x: usize) -> (usize, f64) {
+            let mut path = Vec::new();
+            let mut root = x;
+            while parent[root] != root {
+                path.push(root);
+                root = parent[root];
+            }
+            // From the node nearest the root outwards, so each parent's ratio is already `parent / root`.
+            for &v in path.iter().rev() {
+                let p = parent[v];
+                if p != root {
+                    ratio[v] *= ratio[p];
+                }
+                parent[v] = root;
+            }
+            (root, if x == root { 1.0 } else { ratio[x] })
+        }
+
+        pub fn calc_equation(equations: &[(&str, &str)], values: &[f64], queries: &[(&str, &str)]) -> Vec<Option<f64>> {
+            let mut id: HashMap<&str, usize> = HashMap::new();
+            let (mut parent, mut ratio): (Vec<usize>, Vec<f64>) = (Vec::new(), Vec::new());
+            for (&(a, b), &v) in equations.iter().zip(values) {
+                let mut intern = |name| {
+                    *id.entry(name).or_insert_with(|| {
+                        parent.push(parent.len());
+                        ratio.push(1.0);
+                        parent.len() - 1
+                    })
+                };
+                let (ia, ib) = (intern(a), intern(b));
+                let (ra, wa) = find(&mut parent, &mut ratio, ia);
+                let (rb, wb) = find(&mut parent, &mut ratio, ib);
+                if ra != rb {
+                    // ra / rb = (a / wa) / (b / wb) = v * wb / wa.
+                    parent[ra] = rb;
+                    ratio[ra] = v * wb / wa;
+                }
+            }
+            queries
+                .iter()
+                .map(|&(c, d)| {
+                    let (&ic, &id_) = (id.get(c)?, id.get(d)?);
+                    let (rc, wc) = find(&mut parent, &mut ratio, ic);
+                    let (rd, wd) = find(&mut parent, &mut ratio, id_);
+                    (rc == rd).then(|| wc / wd)
+                })
+                .collect()
+        }
+    """,
+    visible=[
+        T("chain_and_unknowns", 'equations = [("a","b"), ("b","c")], values = [2.0, 3.0], queries = [("a","c"), ("b","a"), ("a","e"), ("a","a"), ("x","x")]',
+          'calc_equation(&[("a", "b"), ("b", "c")], &[2.0, 3.0], &[("a", "c"), ("b", "a"), ("a", "e"), ("a", "a"), ("x", "x")])', "vec![Some(6.0), Some(0.5), None, Some(1.0), None]"),
+        T("longer_names", 'equations = [("a","b"), ("b","c"), ("bc","cd")], values = [1.5, 2.5, 5.0], queries = [("a","c"), ("c","b"), ("bc","cd"), ("cd","bc")]',
+          'calc_equation(&[("a", "b"), ("b", "c"), ("bc", "cd")], &[1.5, 2.5, 5.0], &[("a", "c"), ("c", "b"), ("bc", "cd"), ("cd", "bc")])', "vec![Some(3.75), Some(0.4), Some(5.0), Some(0.2)]"),
+        T("one_equation", 'equations = [("a","b")], values = [0.5], queries = [("a","b"), ("b","a"), ("a","c"), ("x","y")]',
+          'calc_equation(&[("a", "b")], &[0.5], &[("a", "b"), ("b", "a"), ("a", "c"), ("x", "y")])', "vec![Some(0.5), Some(2.0), None, None]"),
+        T("separate_groups", 'equations = [("a","b"), ("c","d")], values = [2.0, 4.0], queries = [("a","d")]',
+          'calc_equation(&[("a", "b"), ("c", "d")], &[2.0, 4.0], &[("a", "d")])', "vec![None]"),
+        T("no_queries", 'equations = [("a","b")], values = [2.0], queries = []', 'calc_equation(&[("a", "b")], &[2.0], &[])', "Vec::<Option<f64>>::new()"),
+    ],
+    hidden=[
+        T("unknown_variable_over_itself", 'equations = [("a","b")], values = [2.0], queries = [("z","z")]', 'calc_equation(&[("a", "b")], &[2.0], &[("z", "z")])', "vec![None]"),
+        T("known_variable_over_itself", 'equations = [("a","b")], values = [2.0], queries = [("b","b")]', 'calc_equation(&[("a", "b")], &[2.0], &[("b", "b")])', "vec![Some(1.0)]"),
+        T("joined_later", 'equations = [("a","b"), ("c","d"), ("b","c")], values = [2.0, 4.0, 0.5], queries = [("a","d"), ("d","a")]',
+          'calc_equation(&[("a", "b"), ("c", "d"), ("b", "c")], &[2.0, 4.0, 0.5], &[("a", "d"), ("d", "a")])', "vec![Some(4.0), Some(0.25)]"),
+        T("redundant_equation", 'equations = [("a","b"), ("b","c"), ("a","c")], values = [2.0, 2.0, 4.0], queries = [("c","a")]',
+          'calc_equation(&[("a", "b"), ("b", "c"), ("a", "c")], &[2.0, 2.0, 4.0], &[("c", "a")])', "vec![Some(0.25)]"),
+        T("star_through_the_middle", 'equations = [("x","m"), ("y","m"), ("z","m")], values = [2.0, 4.0, 8.0], queries = [("x","z"), ("z","y")]',
+          'calc_equation(&[("x", "m"), ("y", "m"), ("z", "m")], &[2.0, 4.0, 8.0], &[("x", "z"), ("z", "y")])', "vec![Some(0.25), Some(2.0)]"),
+        T("unicode_names", 'equations = [("α","β")], values = [4.0], queries = [("β","α")]', 'calc_equation(&[("α", "β")], &[4.0], &[("β", "α")])', "vec![Some(0.25)]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let names = ["a", "b", "c", "d", "e", "f"];
+            let vals = [0.25, 0.5, 1.0, 2.0, 4.0];
+            let mut rng = anneal_prelude::Rng::new(945);
+            for _ in 0..300 {
+                // A random forest of equations, so they never contradict each other.
+                let n = 1 + rng.below(6);
+                let mut eqs: Vec<(&str, &str)> = Vec::new();
+                let mut values = Vec::new();
+                for i in 1..n {
+                    if rng.below(4) > 0 {
+                        let j = rng.below(i);
+                        eqs.push(if rng.bool() { (names[i], names[j]) } else { (names[j], names[i]) });
+                        values.push(*rng.pick(&vals));
+                    }
+                }
+                let queries: Vec<(&str, &str)> = (0..5).map(|_| (*rng.pick(&names), *rng.pick(&names))).collect();
+                // Brute force: fill a ratio table by repeated composition.
+                let idx = |s: &str| names.iter().position(|&x| x == s).unwrap();
+                let mut r: Vec<Vec<Option<f64>>> = vec![vec![None; 6]; 6];
+                for (&(a, b), &v) in eqs.iter().zip(&values) {
+                    let (i, j) = (idx(a), idx(b));
+                    r[i][j] = Some(v);
+                    r[j][i] = Some(1.0 / v);
+                    r[i][i] = Some(1.0);
+                    r[j][j] = Some(1.0);
+                }
+                for k in 0..6 {
+                    for i in 0..6 {
+                        for j in 0..6 {
+                            if let (Some(x), Some(y), None) = (r[i][k], r[k][j], r[i][j]) {
+                                r[i][j] = Some(x * y);
+                            }
+                        }
+                    }
+                }
+                let want: Vec<Option<f64>> = queries.iter().map(|&(c, d)| r[idx(c)][idx(d)]).collect();
+                check!(format!("equations = {eqs:?}, values = {values:?}, queries = {queries:?}"), calc_equation(&eqs, &values, &queries), want);
+            }
+        }
+
+        #[test]
+        fn scale_long_chain() {
+            // v0 / v1 = 2, v1 / v2 = 0.5, v2 / v3 = 2, …: v0 / vk is 2 when k is odd and 1 when k is even.
+            let n = 20_000;
+            let names: Vec<String> = (0..n).map(|i| format!("v{i}")).collect();
+            let eqs: Vec<(&str, &str)> = (0..n - 1).map(|i| (names[i].as_str(), names[i + 1].as_str())).collect();
+            let values: Vec<f64> = (0..n - 1).map(|i| if i % 2 == 0 { 2.0 } else { 0.5 }).collect();
+            let queries: Vec<(&str, &str)> = (0..n).map(|k| (names[0].as_str(), names[(k * 7919) % n].as_str())).collect();
+            let got = calc_equation(&eqs, &values, &queries);
+            let bad = (0..n).filter(|&k| got[k] != Some(if (k * 7919) % n % 2 == 1 { 2.0 } else { 1.0 })).count();
+            check!("a chain of 20000 variables, 20000 queries from the first: how many answers are wrong", bad, 0);
+        }
+        """,
+    ],
+    wrong=dict(
+        search_per_query="""
+            use std::collections::HashMap;
+
+            pub fn calc_equation(equations: &[(&str, &str)], values: &[f64], queries: &[(&str, &str)]) -> Vec<Option<f64>> {
+                let mut adj: HashMap<&str, Vec<(&str, f64)>> = HashMap::new();
+                for (&(a, b), &v) in equations.iter().zip(values) {
+                    adj.entry(a).or_default().push((b, v));
+                    adj.entry(b).or_default().push((a, 1.0 / v));
+                }
+                queries
+                    .iter()
+                    .map(|&(c, d)| {
+                        if !adj.contains_key(c) || !adj.contains_key(d) {
+                            return None;
+                        }
+                        let mut seen: HashMap<&str, f64> = HashMap::from([(c, 1.0)]);
+                        let mut stack = vec![c];
+                        while let Some(u) = stack.pop() {
+                            if u == d {
+                                return Some(seen[u]);
+                            }
+                            let here = seen[u];
+                            for &(v, w) in &adj[u] {
+                                if !seen.contains_key(v) {
+                                    seen.insert(v, here * w);
+                                    stack.push(v);
+                                }
+                            }
+                        }
+                        None
+                    })
+                    .collect()
+            }
+        """,
+        same_name_is_always_one="""
+            use std::collections::HashMap;
+
+            pub fn calc_equation(equations: &[(&str, &str)], values: &[f64], queries: &[(&str, &str)]) -> Vec<Option<f64>> {
+                let mut adj: HashMap<&str, Vec<(&str, f64)>> = HashMap::new();
+                for (&(a, b), &v) in equations.iter().zip(values) {
+                    adj.entry(a).or_default().push((b, v));
+                    adj.entry(b).or_default().push((a, 1.0 / v));
+                }
+                queries
+                    .iter()
+                    .map(|&(c, d)| {
+                        if c == d {
+                            return Some(1.0);
+                        }
+                        let mut seen: HashMap<&str, f64> = HashMap::from([(c, 1.0)]);
+                        let mut stack = vec![c];
+                        while let Some(u) = stack.pop() {
+                            if u == d {
+                                return Some(seen[u]);
+                            }
+                            let here = seen[u];
+                            for &(v, w) in adj.get(u).map(Vec::as_slice).unwrap_or(&[]) {
+                                if !seen.contains_key(v) {
+                                    seen.insert(v, here * w);
+                                    stack.push(v);
+                                }
+                            }
+                        }
+                        None
+                    })
+                    .collect()
+            }
+        """,
+        one_direction_only="""
+            use std::collections::HashMap;
+
+            pub fn calc_equation(equations: &[(&str, &str)], values: &[f64], queries: &[(&str, &str)]) -> Vec<Option<f64>> {
+                let mut adj: HashMap<&str, Vec<(&str, f64)>> = HashMap::new();
+                let mut known: HashMap<&str, ()> = HashMap::new();
+                for (&(a, b), &v) in equations.iter().zip(values) {
+                    adj.entry(a).or_default().push((b, v));
+                    known.insert(a, ());
+                    known.insert(b, ());
+                }
+                queries
+                    .iter()
+                    .map(|&(c, d)| {
+                        if !known.contains_key(c) || !known.contains_key(d) {
+                            return None;
+                        }
+                        let mut seen: HashMap<&str, f64> = HashMap::from([(c, 1.0)]);
+                        let mut stack = vec![c];
+                        while let Some(u) = stack.pop() {
+                            if u == d {
+                                return Some(seen[u]);
+                            }
+                            let here = seen[u];
+                            for &(v, w) in adj.get(u).map(Vec::as_slice).unwrap_or(&[]) {
+                                if !seen.contains_key(v) {
+                                    seen.insert(v, here * w);
+                                    stack.push(v);
+                                }
+                            }
+                        }
+                        None
+                    })
+                    .collect()
+            }
+        """,
+    ),
+    hints=[("approach", "Variables are nodes; `a / b = v` is an edge a → b of weight v and b → a of weight 1/v. A query multiplies weights along a path."),
+           ("approach", "Searching per query repeats work. Union-find can store, for each node, its ratio to its parent, so a query is two finds."),
+           ("edge case", "A name that never appears in an equation has no value, even divided by itself.")],
+    notes=("With path compression each node ends up storing its ratio to the root, so `c / d` is `(c / root) / (d / root)`. Interning names once keeps the hot loop on `usize`s.", "O((E + Q) α(V)) plus hashing", "O(V)"),
+    follow_up="What should happen if two equations contradict each other, and how would you detect it?",
+))
+
+P.append(dict(
     slug="pacific-atlantic-water-flow", title="Pacific Atlantic water flow", level="medium", stage="bfs-patterns",
     tags=["reverse BFS", "grid", "Blind 75"],
     teaches=["Search backwards from the targets instead of forwards from every cell.", "A closure returning an owned `Vec<Vec<bool>>`."],
@@ -7714,6 +8677,11 @@ P.append(dict(
 ))
 
 COMPANIES = {
+    "zero-one-matrix": ["Meta", "Amazon", "Google", "Microsoft", "Uber"],
+    "shortest-path-in-binary-matrix": ["Meta", "Amazon", "Google", "Microsoft"],
+    "surrounded-regions": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "Uber"],
+    "open-the-lock": ["Amazon", "Google", "Microsoft"],
+    "evaluate-division": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "Uber"],
     "flood-fill": ["Meta", "Amazon", "Google", "Microsoft"],
     "island-perimeter": ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"],
     "max-area-of-island": ["Meta", "Amazon", "Google", "Microsoft", "LinkedIn"],

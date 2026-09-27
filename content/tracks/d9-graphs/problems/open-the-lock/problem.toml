@@ -1,0 +1,36 @@
+slug = "open-the-lock"
+title = "Open the lock"
+mode = "write"
+level = "medium"
+stage = "bfs-patterns"
+order = 21
+status = "ready"
+tags = ["BFS on states", "HashSet", "wrap-around"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "BFS over states you generate, not a graph you're given.",
+  "Encoding a state as a number instead of a `String`.",
+]
+constraints = ["deadends.len() ≤ 500", "every combination has four digits"]
+follow_up = "How would bidirectional BFS help here, and when does it stop?"
+
+[[examples]]
+input = "deadends = [\"0201\",\"0101\",\"0102\",\"1212\",\"2002\"], target = \"0202\""
+output = "Some(6)"
+
+[[hints]]
+kind = "approach"
+text = "Each combination is a node with 8 neighbours (4 wheels × up/down). BFS from \"0000\" finds the fewest moves."
+
+[[hints]]
+kind = "rust"
+text = "Encode a combination as a number `0..10_000` so `seen` and `dead` can be plain `Vec<bool>`s."
+
+[[hints]]
+kind = "edge case"
+text = "If \"0000\" itself is a deadend, you can't even start."
+
+[solution]
+explanation = "There are only 10⁴ states and 8 moves each, so BFS touches at most 80,000 edges. Numbers instead of Strings avoid an allocation per neighbour."
+time = "O(10⁴ · 8)"
+space = "O(10⁴)"

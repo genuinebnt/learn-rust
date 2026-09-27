@@ -45,6 +45,14 @@ pub fn network_delay(times: &[(usize, usize, u32)], n: usize, k: usize) -> Optio
 }
 "#;
 
+/// D9's problem ids in track order, from the content the app serves: counts and positions follow the content
+/// instead of being pinned, since the track keeps growing.
+fn d9_ids() -> Vec<String> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let loaded = Catalog::load(&root.join("content")).expect("content");
+    loaded.catalog.track("D9").expect("D9").problems.iter().map(|p| p.id.clone()).collect()
+}
+
 fn test_app(db: PgPool) -> Router {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     test_app_with(db, &root.join("content"))
@@ -125,7 +133,7 @@ async fn lists_tracks_with_stage_counts(db: PgPool) {
             d9["ready"].as_u64(),
             d9["solved"].as_u64()
         ),
-        (Some(35), Some(35), Some(0))
+        (Some(d9_ids().len() as u64), Some(d9_ids().len() as u64), Some(0))
     );
     assert_eq!(d9["readiness"], 0.0);
     assert_eq!(d9["stages"][0]["band"], "easy");
@@ -143,7 +151,7 @@ async fn new_problem_has_everything_locked_and_no_hidden_tests(db: PgPool) {
     assert_eq!(p["stage"]["name"], "Shortest paths");
     assert_eq!(
         (p["position"].as_u64(), p["count"].as_u64()),
-        (Some(16), Some(35))
+        (Some(d9_ids().iter().position(|id| id == NDT).unwrap() as u64 + 1), Some(d9_ids().len() as u64))
     );
     assert_eq!(p["hints"]["total"], 3);
     assert_eq!(p["hints"]["revealed"], json!([]));
@@ -185,13 +193,13 @@ async fn run_then_submit_redacts_hidden_tests(db: PgPool) {
     .await;
     assert_eq!(
         (out["run"]["passed"].as_u64(), out["run"]["total"].as_u64()),
-        (Some(4), Some(6))
+        (Some(9), Some(14))
     );
     let hidden = out["run"]["tests"]
         .as_array()
         .unwrap()
         .iter()
-        .find(|t| t["suite"] == "hidden")
+        .find(|t| t["suite"] == "hidden" && t["outcome"] != "passed")
         .unwrap();
     assert_eq!(
         hidden["check"],
@@ -442,7 +450,7 @@ async fn activity_picks_the_next_problem_and_counts_the_streak(db: PgPool) {
     // The solved problem's track becomes the current one; its first open problem is next.
     assert_eq!(
         (a["next"]["reason"].as_str(), a["next"]["problem_id"].as_str()),
-        (Some("current"), Some("d9-build-an-adjacency-list"))
+        (Some("current"), Some(d9_ids()[0].as_str()))
     );
 
     // Other sections share the streak but not the recent list.
@@ -508,12 +516,21 @@ async fn editor_settings_round_trip_and_validate(db: PgPool) {
     let app = test_app(db);
     let (status, s) = call(&app, Method::GET, "/api/settings", None).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(s["editor"], json!({ "font_size": 13, "font_family": "JetBrains Mono", "vim": false }));
+    assert_eq!(
+        s["editor"],
+        json!({ "font_size": 13, "font_family": "JetBrains Mono", "vim": false, "autocomplete": true, "rust_analyzer": true, "borrow_lanes": false })
+    );
     assert!(s["font_families"].as_array().unwrap().contains(&json!("Fira Code")));
 
-    let e = json!({ "font_size": 16, "font_family": "Fira Code", "vim": true });
+    let e = json!({ "font_size": 16, "font_family": "Fira Code", "vim": true, "autocomplete": false, "rust_analyzer": false, "borrow_lanes": true });
     assert_eq!(call(&app, Method::PUT, "/api/settings/editor", Some(e.clone())).await.0, StatusCode::OK);
     assert_eq!(call(&app, Method::GET, "/api/settings", None).await.1["editor"], e);
+
+    // Settings saved before the workspace toggles existed read back with their defaults.
+    let old = json!({ "font_size": 14, "font_family": "Fira Code", "vim": false });
+    assert_eq!(call(&app, Method::PUT, "/api/settings/editor", Some(old)).await.0, StatusCode::OK);
+    let editor = call(&app, Method::GET, "/api/settings", None).await.1["editor"].clone();
+    assert_eq!((&editor["autocomplete"], &editor["rust_analyzer"], &editor["borrow_lanes"]), (&json!(true), &json!(true), &json!(false)));
 
     let too_big = json!({ "font_size": 40, "font_family": "Fira Code" });
     assert_eq!(call(&app, Method::PUT, "/api/settings/editor", Some(too_big)).await.0, StatusCode::BAD_REQUEST);

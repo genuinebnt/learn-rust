@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Accent, type EditorSettings, type Settings } from "./api";
 
-export const DEFAULT_EDITOR: EditorSettings = { font_size: 13, font_family: "JetBrains Mono", vim: false };
+export const DEFAULT_EDITOR: EditorSettings = { font_size: 13, font_family: "JetBrains Mono", vim: false, autocomplete: true, rust_analyzer: true, borrow_lanes: false };
 
 const STACK: Record<string, string> = {
   system: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",

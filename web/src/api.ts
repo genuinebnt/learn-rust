@@ -219,6 +219,10 @@ export interface EditorSettings {
   font_size: number;
   font_family: string;
   vim: boolean;
+  /** Workspace status-bar toggles. */
+  autocomplete: boolean;
+  rust_analyzer: boolean;
+  borrow_lanes: boolean;
 }
 
 export type Accent = "copper" | "rose" | "sky" | "teal";

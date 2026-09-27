@@ -60,7 +60,7 @@ export function Workspace({ id }: { id: string }) {
 }
 
 function Loaded({ p }: { p: ProblemDetail }) {
-  const { editor: editorSettings } = useEditorSettings();
+  const { editor: editorSettings, set: saveEditor } = useEditorSettings();
   useFocusHeartbeat(p.id);
   const qc = useQueryClient();
   const [code, setCode] = useState(p.draft ?? p.starter);
@@ -77,15 +77,19 @@ function Loaded({ p }: { p: ProblemDetail }) {
   const [main, setMain] = useState(p.scratch);
   const [scratchOut, setScratchOut] = useState<ScratchResult | null>(null);
   const [lastAction, setLastAction] = useState<"tests" | "scratch">("tests");
-  const [autocomplete, setAutocomplete] = useState(true);
+  // The status-bar toggles are saved editor settings, so they carry across problems and reloads.
+  const autocomplete = editorSettings.autocomplete;
+  const setAutocomplete = (on: boolean) => saveEditor({ ...editorSettings, autocomplete: on });
   const borrowish = p.mode === "fix" || p.tags.some((t) => /^E0[45]\d\d$/.test(t) || /borrow/.test(t));
-  const [lanesOn, setLanesOn] = useState(borrowish);
+  const lanesOn = editorSettings.borrow_lanes;
+  const setLanesOn = (on: boolean) => saveEditor({ ...editorSettings, borrow_lanes: on });
   const [selected, setSelected] = useState<number | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [cursor, setCursor] = useState([1, 1]);
   const [confirm, setConfirm] = useState<"reset" | "solution" | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const [ra, setRa] = useState(true);
+  const ra = editorSettings.rust_analyzer;
+  const setRa = (on: boolean) => saveEditor({ ...editorSettings, rust_analyzer: on });
   const [raStatus, setRaStatus] = useState<RaStatus>("off");
   const [raDetail, setRaDetail] = useState<string | undefined>();
   const [raSession, setRaSession] = useState<RaSession | null>(null);

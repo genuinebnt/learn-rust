@@ -21,11 +21,23 @@ pub struct EditorSettings {
     /// Vim keybindings; `jk` / `kj` leave insert mode.
     #[serde(default)]
     pub vim: bool,
+    /// The workspace status-bar toggles, remembered across problems and reloads.
+    #[serde(default = "on")]
+    pub autocomplete: bool,
+    #[serde(default = "on")]
+    pub rust_analyzer: bool,
+    /// Borrow lanes in the editor; off until turned on.
+    #[serde(default)]
+    pub borrow_lanes: bool,
+}
+
+fn on() -> bool {
+    true
 }
 
 impl Default for EditorSettings {
     fn default() -> Self {
-        EditorSettings { font_size: 13, font_family: "JetBrains Mono".into(), vim: false }
+        EditorSettings { font_size: 13, font_family: "JetBrains Mono".into(), vim: false, autocomplete: true, rust_analyzer: true, borrow_lanes: false }
     }
 }
 

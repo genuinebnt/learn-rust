@@ -68,7 +68,7 @@ export function EditorSettingsButton({ children }: { children?: ReactNode }) {
             ))}
           </div>
           {(editor.font_size !== DEFAULT_EDITOR.font_size || editor.font_family !== DEFAULT_EDITOR.font_family || editor.vim !== DEFAULT_EDITOR.vim) && (
-            <button className="eset-reset" onClick={() => set(DEFAULT_EDITOR)}>
+            <button className="eset-reset" onClick={() => set({ ...editor, font_size: DEFAULT_EDITOR.font_size, font_family: DEFAULT_EDITOR.font_family, vim: DEFAULT_EDITOR.vim })}>
               Reset to defaults
             </button>
           )}

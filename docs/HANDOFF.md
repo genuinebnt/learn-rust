@@ -171,6 +171,31 @@ The test conventions:
 
 ## 6. What's next, in order (ROADMAP §7)
 
+### 6.0 In flight (2026-09-27): read this first if a session stopped mid-work
+
+Heavy content work was running on parallel agents when this was written. Everything that has passed `anneal verify` is
+committed and pushed to `master`, one commit per track or stage; anything uncommitted in the working tree was
+unverified and can be thrown away (`git status`, then `git checkout -- <path>` / delete new folders).
+To see where each track stands: `git log --oneline`, `cargo run -q -p anneal-cli -- list`, and compare with the
+CURRICULUM.md tables.
+
+The instructions the agents follow are in [authoring/](authoring/): `harden-track.md` (bring an existing track to the
+test bar) and `write-track.md` (write a new track from its CURRICULUM table). Fill the `{TRACK}`, `{SPEC}`, `{FOLDER}`,
+`{CODE}`, `{ORDER}`, `{SEEDS}` placeholders and hand one to an agent per track; agents share the checkout, so each
+commits only its own `tools/author/<track>.py` and `content/tracks/<folder>`, verifies with `--jobs 1`, and pushes.
+
+| Work | State | Resume by |
+|---|---|---|
+| Verifier `wrong/` + prelude `Rng` + host kill fix | ✅ done | |
+| Test hardening, bar ≥5 visible (LeetCode examples) / ≥8 hidden / random / scale / `wrong/` | ✅ D1 D2 D3 D5 D9 L1 L2 L3 S2 S3 S4 · ⏳ D4, S1 | `harden-track.md` for any track whose problems fail the bar (count `#[test]`s, `wrong/`) |
+| New tracks from CURRICULUM (LeetCode 250 coverage): D6 Trees 44, D8 Greedy 29, D10 Tries 25, D11 Recursion & backtracking 28, D12 DP 57 | ⏳ being written stage by stage (check `list`) | `write-track.md`; the spec keeps what's written, continue with the next stage in the CURRICULUM table |
+| D9 Graphs extension 35 → 58 (new stages Grid & graph traversal, BFS patterns, Hard traversals) | ⏳ queued after D9/D4/S1 hardening | `write-track.md` on d9.py: add the italic problems, restage existing ones, keep slugs; `network-delay-time` stays hand-written (`keep`) |
+| Company tags (`companies` in problem.toml, validated against `COMPANIES` in `crates/content/src/model.rs`, served by the API) | ✅ data layer, D1 D2 D3 D5 tagged · ⏳ other DSA tracks (agents tag as they go; `tag_companies()` in author.py) | add a `COMPANIES = {slug: [...]}` map + `tag_companies(P, COMPANIES)` to the spec. Priority FAANG + Microsoft, then big tech; databases / Rust shops only with a real reason |
+| Company column + filter in the track table | ⏳ needs an HTML mockup approved first (owner's rule) | mock the COMPANIES column (chips, FAANG first, `+n`) and a company/group filter, then build in `web/src/pages/TrackPage.tsx` and `web/src/api.ts` |
+| Raise verifier minimums to 5 visible / 8 hidden | ⏳ after every track meets the bar | `verify_one` in `crates/cli/src/main.rs` (`count(&c.visible) < 2`, hidden `< 1`) |
+| Final pass | ⏳ | `anneal verify` on every track, `cargo test -p anneal-content -p anneal-runner -p anneal-rules`, update §2 counts and ROADMAP §0 |
+
+
 ### 6.1 Test hardening (step 2a): in progress, start here
 
 **Status (2026-09-27):** plan steps 1 and 2 are built, and step 3 is done for **D1** (every problem has ≥5 visible, ≥8 hidden, a

@@ -1,0 +1,32 @@
+slug = "newtype-typestate"
+title = "Newtype + typestate login"
+mode = "write"
+level = "medium"
+stage = "type-level-design"
+order = 13
+status = "ready"
+tags = ["newtype", "typestate", "PhantomData"]
+teaches = [
+  "Newtypes with private fields for validated values.",
+  "Typestate transitions that consume `self`, including fallible ones that hand the value back.",
+]
+follow_up = "When is typestate the wrong tool? Compare it with an enum state machine for an account whose state comes from a database row."
+related = ["L5", "L7", "M1"]
+source = "DP17"
+
+[[hints]]
+kind = "rust"
+text = "Keep the `Username` field private so `parse` is the only constructor. Don't derive `Default` or add `From<&str>`."
+
+[[hints]]
+kind = "rust"
+text = "A state change is a new value: `User<LoggedOut>` and `User<LoggedIn>` are different types. Write one private `fn into_state<T>(self) -> User<T>` on `impl<S> User<S>` that moves the fields across."
+
+[[hints]]
+kind = "edge"
+text = "Count the failure *before* deciding: the third wrong password returns `Locked` with `failures() == 3`, and a success resets the count."
+
+[solution]
+explanation = "Two techniques that stack: a newtype with a private field makes 'validated' part of the type (parse, don't validate), and typestate makes 'which operations are legal now' part of the type. Because transitions take `self` by value, the old state can't be used after a transition, and a failed login still hands the user back instead of losing it. Syntax to remember: `impl<S> User<S> { fn into_state<T>(self) -> User<T> { User { name: self.name, ..., state: PhantomData } } }`; `..self` can't change the type parameter."
+time = "O(1) per transition; O(n) parse"
+space = "O(1) beyond the strings"

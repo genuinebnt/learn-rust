@@ -2392,10 +2392,1120 @@ P.append(write(
     ),
 ))
 
+
+# ---------------------------------------------------------------- type-level design (hard)
+
+USER_HEAD = """
+use std::marker::PhantomData;
+
+/// 3 to 16 characters: a lowercase ASCII letter, then lowercase letters, digits or `_`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Username(String);
+
+pub struct LoggedOut;
+pub struct LoggedIn;
+pub struct Locked;
+
+pub struct User<S> {
+    name: Username,
+    password: String,
+    failures: u32,
+    state: PhantomData<S>,
+}
+
+/// A failed login hands the user back, in whichever state it ended up.
+pub enum LoginError {
+    WrongPassword(User<LoggedOut>),
+    Locked(User<Locked>),
+}
+"""
+
+
+def user_solution(valid_tail="c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'", lock_at="3", reset_on_success="0", extra=""):
+    return USER_HEAD + f"""
+impl Username {{
+    pub fn parse(s: &str) -> Option<Username> {{
+        let mut chars = s.chars();
+        let first_ok = chars.next().is_some_and(|c| c.is_ascii_lowercase());
+        let ok = first_ok && (3..=16).contains(&s.len()) && chars.all(|c| {valid_tail});
+        ok.then(|| Username(s.to_string()))
+    }}
+
+    pub fn as_str(&self) -> &str {{
+        &self.0
+    }}
+}}
+{extra}
+impl<S> User<S> {{
+    pub fn name(&self) -> &Username {{
+        &self.name
+    }}
+
+    pub fn failures(&self) -> u32 {{
+        self.failures
+    }}
+
+    // Changing the state parameter builds a new value; moving the fields keeps it free.
+    fn into_state<T>(self) -> User<T> {{
+        User {{ name: self.name, password: self.password, failures: self.failures, state: PhantomData }}
+    }}
+}}
+
+impl User<LoggedOut> {{
+    pub fn new(name: Username, password: &str) -> Self {{
+        User {{ name, password: password.to_string(), failures: 0, state: PhantomData }}
+    }}
+
+    /// Right password: logged in, failures reset. Wrong: one more failure; the third in a row locks the account.
+    pub fn login(mut self, password: &str) -> Result<User<LoggedIn>, LoginError> {{
+        if password == self.password {{
+            self.failures = {reset_on_success};
+            return Ok(self.into_state());
+        }}
+        self.failures += 1;
+        if self.failures >= {lock_at} {{
+            Err(LoginError::Locked(self.into_state()))
+        }} else {{
+            Err(LoginError::WrongPassword(self))
+        }}
+    }}
+}}
+
+impl User<LoggedIn> {{
+    pub fn dashboard(&self) -> String {{
+        format!("dashboard:{{}}", self.name.as_str())
+    }}
+
+    pub fn change_password(&mut self, new: &str) {{
+        self.password = new.to_string();
+    }}
+
+    pub fn logout(self) -> User<LoggedOut> {{
+        self.into_state()
+    }}
+}}
+
+impl User<Locked> {{
+    /// An admin unlock: back to logged out with no failures.
+    pub fn unlock(mut self) -> User<LoggedOut> {{
+        self.failures = 0;
+        self.into_state()
+    }}
+}}
+"""
+
+
+USER_STARTER = USER_HEAD + """
+impl Username {
+    pub fn parse(s: &str) -> Option<Username> {
+        todo!()
+    }
+
+    pub fn as_str(&self) -> &str {
+        todo!()
+    }
+}
+
+impl<S> User<S> {
+    pub fn name(&self) -> &Username {
+        todo!()
+    }
+
+    pub fn failures(&self) -> u32 {
+        todo!()
+    }
+}
+
+impl User<LoggedOut> {
+    pub fn new(name: Username, password: &str) -> Self {
+        todo!()
+    }
+
+    /// Right password: logged in, failures reset. Wrong: one more failure; the third in a row locks the account.
+    pub fn login(self, password: &str) -> Result<User<LoggedIn>, LoginError> {
+        todo!()
+    }
+}
+
+impl User<LoggedIn> {
+    pub fn dashboard(&self) -> String {
+        todo!()
+    }
+
+    pub fn change_password(&mut self, new: &str) {
+        todo!()
+    }
+
+    pub fn logout(self) -> User<LoggedOut> {
+        todo!()
+    }
+}
+
+impl User<Locked> {
+    /// An admin unlock: back to logged out with no failures.
+    pub fn unlock(self) -> User<LoggedOut> {
+        todo!()
+    }
+}
+"""
+
+PROBES = """
+/// `Probe::<T>::DEFAULT` is true only if T: Default (inherent consts win over trait consts when their bounds hold).
+#[allow(dead_code)]
+struct Probe<T: ?Sized>(std::marker::PhantomData<T>);
+
+#[allow(dead_code)]
+trait Fallback {
+    const DEFAULT: bool = false;
+    const FROM_STR_REF: bool = false;
+}
+
+#[allow(dead_code)]
+impl<T: ?Sized> Fallback for Probe<T> {}
+
+#[allow(dead_code)]
+impl<T: Default> Probe<T> {
+    const DEFAULT: bool = true;
+}
+
+#[allow(dead_code)]
+impl<T: for<'a> From<&'a str>> Probe<T> {
+    const FROM_STR_REF: bool = true;
+}
+"""
+
+USER_HELPERS = PROBES + """
+fn user(name: &str, pw: &str) -> User<LoggedOut> {
+    User::new(Username::parse(name).unwrap(), pw)
+}
+
+/// Which variant, and the failure count it carries.
+fn outcome(r: Result<User<LoggedIn>, LoginError>) -> (&'static str, u32) {
+    match r {
+        Ok(u) => ("in", u.failures()),
+        Err(LoginError::WrongPassword(u)) => ("wrong", u.failures()),
+        Err(LoginError::Locked(u)) => ("locked", u.failures()),
+    }
+}
+
+fn wrong(r: Result<User<LoggedIn>, LoginError>) -> User<LoggedOut> {
+    match r {
+        Err(LoginError::WrongPassword(u)) => u,
+        _ => panic!("expected WrongPassword"),
+    }
+}
+"""
+
+P.append(write(
+    "newtype-typestate", "Newtype + typestate login", "medium", "type-level-design", ["newtype", "typestate", "PhantomData"],
+    """
+        Model an account so misuse doesn't compile. A `Username` can only come from `Username::parse` (3 to 16
+        characters: a lowercase ASCII letter, then lowercase letters, digits or `_`). A `User<S>` is in one of
+        three states, and each state has only the methods that make sense in it:
+
+        - `User<LoggedOut>`: `new`, and `login(pw)`. The right password returns a `User<LoggedIn>` and resets the
+          failure count. A wrong one adds a failure and hands the user back in `LoginError::WrongPassword`; the
+          **third failure in a row** hands it back as a `User<Locked>` in `LoginError::Locked`.
+        - `User<LoggedIn>`: `dashboard()` (`"dashboard:<name>"`), `change_password`, `logout`.
+        - `User<Locked>`: `unlock()`, back to logged out with no failures.
+        - Every state: `name()` and `failures()`.
+
+        There must be no other way to make a `Username`: no `Default`, no `From<&str>`.
+    """,
+    USER_STARTER,
+    user_solution(),
+    [USER_HELPERS,
+     T("login_and_dashboard", 'user "ada" / "pw", login with "pw"', 'user("ada", "pw").login("pw").ok().map(|u| u.dashboard())', 'Some("dashboard:ada".to_string())'),
+     T("third_failure_locks", "three wrong passwords", 'outcome(wrong(wrong(user("ada", "pw").login("x")).login("y")).login("z"))', '("locked", 3)'),
+     T("success_resets_failures", "wrong, then right, then logout", 'wrong(user("ada", "pw").login("x")).login("pw").ok().map(|u| u.logout().failures())', "Some(0)"),
+     T("username_rules", '"ada_1", "Ada", "adA", "ab", "1ab", "a-b"', '["ada_1", "Ada", "adA", "ab", "1ab", "a-b"].map(|s| Username::parse(s).is_some())', "[true, false, false, false, false, false]"),
+     T("no_shortcuts_to_a_username", "is Username Default? From<&str>?", "(Probe::<Username>::DEFAULT, Probe::<Username>::FROM_STR_REF)", "(false, false)")],
+    [USER_HELPERS,
+     T("locked_then_unlocked", "three failures, then unlock", "(locked.failures(), locked.unlock().failures())", "(3, 0)",
+       setup='let locked = match wrong(wrong(user("bob", "pw").login("1")).login("2")).login("3") {\n    Err(LoginError::Locked(u)) => u,\n    _ => panic!("expected Locked"),\n};'),
+     T("unlocked_user_can_log_in", "lock, unlock, log in with the right password", "u.login(\"pw\").ok().map(|u| (u.dashboard(), u.failures()))", 'Some(("dashboard:bob".to_string(), 0))',
+       setup='let locked = match wrong(wrong(user("bob", "pw").login("1")).login("2")).login("3") {\n    Err(LoginError::Locked(u)) => u,\n    _ => panic!("expected Locked"),\n};\nlet u = locked.unlock();'),
+     T("change_password", "log in, change to \"new\", log out, log in with old then new", 'outcome(wrong(u.login("pw")).login("new"))', '("in", 0)',
+       setup='let mut u = user("cyd", "pw").login("pw").ok().unwrap();\nu.change_password("new");\nlet u = u.logout();'),
+     T("failures_count_up", "two wrong passwords", 'wrong(wrong(user("ada", "pw").login("a")).login("b")).failures()', "2"),
+     T("password_is_case_sensitive", 'password "PW", login "pw"', 'outcome(user("ada", "PW").login("pw"))', '("wrong", 1)'),
+     T("name_in_every_state", "name() while logged out and in", '(u.name().as_str().to_string(), u.login("p").ok().map(|u| u.name().clone()))', '("dora".to_string(), Username::parse("dora"))',
+       setup='let u = user("dora", "p");'),
+     T("length_limits", '3, 16 and 17 characters', '["abc", "a234567890123456", "a2345678901234567"].map(|s| Username::parse(s).is_some())', "[true, true, false]"),
+     T("non_ascii_rejected", '"josé", "ünï", "abc "', '["josé", "ünï", "abc "].map(|s| Username::parse(s).is_some())', "[false, false, false]"),
+     T("empty_and_underscore_start", '"", "_ab", "a__"', '["", "_ab", "a__"].map(|s| Username::parse(s).is_some())', "[false, false, true]"),
+     T("zero_cost_states", "size_of User<LoggedOut>, User<LoggedIn>, User<Locked>", "(std::mem::size_of::<User<LoggedIn>>(), std::mem::size_of::<User<Locked>>(), std::mem::size_of::<LoggedIn>())",
+       "(std::mem::size_of::<User<LoggedOut>>(), std::mem::size_of::<User<LoggedOut>>(), 0)"),
+     """
+     enum Any {
+         Out(User<LoggedOut>),
+         In(User<LoggedIn>),
+         Lock(User<Locked>),
+     }
+
+     #[test]
+     fn random_vs_state_model() {
+         let mut rng = anneal_prelude::Rng::new(4515);
+         for _ in 0..300 {
+             let mut acct = Any::Out(user("eve", "a"));
+             // model: 0 = out, 1 = in, 2 = locked
+             let (mut state, mut failures, mut pw) = (0, 0u32, "a".to_string());
+             let mut log = Vec::new();
+             for _ in 0..rng.below(12) {
+                 let guess = rng.string(1, "ab");
+                 let fresh = rng.string(1, "ab");
+                 acct = match acct {
+                     Any::Out(u) => {
+                         log.push(format!("login({guess})"));
+                         if guess == pw {
+                             state = 1;
+                             failures = 0;
+                         } else {
+                             failures += 1;
+                             state = if failures >= 3 { 2 } else { 0 };
+                         }
+                         match u.login(&guess) {
+                             Ok(u) => Any::In(u),
+                             Err(LoginError::WrongPassword(u)) => Any::Out(u),
+                             Err(LoginError::Locked(u)) => Any::Lock(u),
+                         }
+                     }
+                     Any::In(mut u) => {
+                         if rng.bool() {
+                             log.push(format!("change_password({fresh})"));
+                             u.change_password(&fresh);
+                             pw = fresh;
+                             Any::In(u)
+                         } else {
+                             log.push("logout".to_string());
+                             state = 0;
+                             Any::Out(u.logout())
+                         }
+                     }
+                     Any::Lock(u) => {
+                         log.push("unlock".to_string());
+                         state = 0;
+                         failures = 0;
+                         Any::Out(u.unlock())
+                     }
+                 };
+                 let got = match &acct {
+                     Any::Out(u) => (0, u.failures()),
+                     Any::In(u) => (1, u.failures()),
+                     Any::Lock(u) => (2, u.failures()),
+                 };
+                 check!(log.join(", "), got, (state, failures));
+             }
+         }
+     }
+
+     #[test]
+     fn random_usernames_vs_rules() {
+         let mut rng = anneal_prelude::Rng::new(4516);
+         for _ in 0..400 {
+             let n = rng.below(19);
+             let s = rng.string(n, "az_09Aé-");
+             let b = s.as_bytes();
+             let want = (3..=16).contains(&b.len())
+                 && b[0].is_ascii_lowercase()
+                 && b.iter().all(|&c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_');
+             check!(format!("{s:?}"), Username::parse(&s).map(|u| u.as_str().to_string()), want.then(|| s.clone()));
+         }
+     }
+     """],
+    [("rust", "Keep the `Username` field private so `parse` is the only constructor. Don't derive `Default` or add `From<&str>`."),
+     ("rust", "A state change is a new value: `User<LoggedOut>` and `User<LoggedIn>` are different types. Write one private `fn into_state<T>(self) -> User<T>` on `impl<S> User<S>` that moves the fields across."),
+     ("edge", "Count the failure *before* deciding: the third wrong password returns `Locked` with `failures() == 3`, and a success resets the count.")],
+    ("""Two techniques that stack: a newtype with a private field makes 'validated' part of the type (parse, don't validate), and typestate makes 'which operations are legal now' part of the type. Because transitions take `self` by value, the old state can't be used after a transition, and a failed login still hands the user back instead of losing it. Syntax to remember: `impl<S> User<S> { fn into_state<T>(self) -> User<T> { User { name: self.name, ..., state: PhantomData } } }`; `..self` can't change the type parameter.""", "O(1) per transition; O(n) parse", "O(1) beyond the strings"),
+    "When is typestate the wrong tool? Compare it with an enum state machine for an account whose state comes from a database row.",
+    ["Newtypes with private fields for validated values.", "Typestate transitions that consume `self`, including fallible ones that hand the value back."],
+    source="DP17", related=("L5", "L7", "M1"),
+    wrong=dict(
+        locks_on_second_failure=user_solution(lock_at="2"),
+        keeps_failures_after_success=user_solution(reset_on_success="self.failures"),
+        accepts_uppercase=user_solution(valid_tail="c.is_ascii_alphanumeric() || c == '_'"),
+        default_username=user_solution(extra="\nimpl Default for Username {\n    fn default() -> Self {\n        Username(\"user\".to_string())\n    }\n}\n"),
+    ),
+))
+
+
+def units(derives=False, marker="PhantomData<fn() -> U>", add_impl=None, to_body="Length::new(self.value * U::METERS / V::METERS)"):
+    add_impl = add_impl or """/// Only lengths in the same unit add up; convert first with `to`.
+impl<U> Add for Length<U> {
+    type Output = Length<U>;
+    fn add(self, rhs: Length<U>) -> Length<U> {
+        Length { value: self.value + rhs.value, unit: PhantomData }
+    }
+}"""
+    if derives:
+        struct = f"""#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct Length<U> {{
+    value: f64,
+    unit: {marker},
+}}
+"""
+    else:
+        struct = f"""// `U` is only a label. `PhantomData<fn() -> U>` records it without owning a `U`: `Length<U>` stays
+// Send + Sync and covariant whatever `U` is. Derives would add `U: Clone`, `U: Debug`, ... bounds, so the
+// traits are implemented by hand, with no bounds on `U`.
+pub struct Length<U> {{
+    value: f64,
+    unit: {marker},
+}}
+
+impl<U> Clone for Length<U> {{
+    fn clone(&self) -> Self {{
+        *self
+    }}
+}}
+
+impl<U> Copy for Length<U> {{}}
+
+impl<U> PartialEq for Length<U> {{
+    fn eq(&self, other: &Self) -> bool {{
+        self.value == other.value
+    }}
+}}
+
+impl<U> PartialOrd for Length<U> {{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {{
+        self.value.partial_cmp(&other.value)
+    }}
+}}
+
+impl<U: Unit> fmt::Debug for Length<U> {{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {{
+        write!(f, "{{}} {{}}", self.value, U::SYMBOL)
+    }}
+}}
+"""
+    return f"""
+use std::fmt;
+use std::marker::PhantomData;
+use std::ops::{{Add, Div, Mul}};
+
+pub trait Unit {{
+    /// How many metres one of this unit is.
+    const METERS: f64;
+    const SYMBOL: &'static str;
+}}
+
+pub struct Meters;
+pub struct Feet;
+pub struct Kilometers;
+
+impl Unit for Meters {{
+    const METERS: f64 = 1.0;
+    const SYMBOL: &'static str = "m";
+}}
+
+impl Unit for Feet {{
+    const METERS: f64 = 0.3048;
+    const SYMBOL: &'static str = "ft";
+}}
+
+impl Unit for Kilometers {{
+    const METERS: f64 = 1000.0;
+    const SYMBOL: &'static str = "km";
+}}
+
+{struct}
+impl<U: Unit> Length<U> {{
+    pub fn new(value: f64) -> Self {{
+        Length {{ value, unit: PhantomData }}
+    }}
+
+    pub fn value(self) -> f64 {{
+        self.value
+    }}
+
+    /// The same length in another unit.
+    pub fn to<V: Unit>(self) -> Length<V> {{
+        {to_body}
+    }}
+}}
+
+{add_impl}
+
+impl<U> Mul<f64> for Length<U> {{
+    type Output = Length<U>;
+    fn mul(self, k: f64) -> Length<U> {{
+        Length {{ value: self.value * k, unit: PhantomData }}
+    }}
+}}
+
+/// How many times `rhs` fits into `self`.
+impl<U> Div for Length<U> {{
+    type Output = f64;
+    fn div(self, rhs: Length<U>) -> f64 {{
+        self.value / rhs.value
+    }}
+}}
+
+impl<U: Unit> fmt::Display for Length<U> {{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {{
+        write!(f, "{{}} {{}}", self.value, U::SYMBOL)
+    }}
+}}
+"""
+
+
+UNIT_PROBES = """
+/// Test-defined units: `Inches` derives nothing; `Handle` holds a raw pointer, so it's neither Send nor Sync.
+#[allow(dead_code)]
+struct Inches;
+
+#[allow(dead_code)]
+impl Unit for Inches {
+    const METERS: f64 = 0.0254;
+    const SYMBOL: &'static str = "in";
+}
+
+#[allow(dead_code)]
+struct Handle(*const u8);
+
+#[allow(dead_code)]
+impl Unit for Handle {
+    const METERS: f64 = 2.0;
+    const SYMBOL: &'static str = "h";
+}
+
+/// Compile-time facts as runtime booleans: an inherent const wins over the trait's when its bounds hold.
+#[allow(dead_code)]
+struct Probe<A, B = ()>(std::marker::PhantomData<(A, B)>);
+
+#[allow(dead_code)]
+trait Fallback {
+    const ADDS: bool = false;
+    const SEND_SYNC: bool = false;
+}
+
+#[allow(dead_code)]
+impl<A, B> Fallback for Probe<A, B> {}
+
+#[allow(dead_code)]
+impl<A: std::ops::Add<B>, B> Probe<A, B> {
+    const ADDS: bool = true;
+}
+
+#[allow(dead_code)]
+impl<A: Send + Sync> Probe<A> {
+    const SEND_SYNC: bool = true;
+}
+
+#[allow(dead_code)]
+fn close(a: f64, b: f64) -> bool {
+    (a - b).abs() < 1e-9 * b.abs().max(1.0)
+}
+"""
+
+P.append(fix(
+    "phantom-units-of-measure", "PhantomData units of measure", "hard", "type-level-design", ["PhantomData", "variance", "derive bounds", "associated consts"],
+    """
+        `Length<U>` is an `f64` tagged with a unit. The unit exists only in the type: `Length<Meters>` and
+        `Length<Feet>` are different types, and `to::<V>()` converts. It has three problems:
+
+        - Adding a `Length<Feet>` to a `Length<Meters>` compiles and adds the raw numbers. Make it a type error.
+        - It doesn't compile for the tests' own units. `Length<U>` must be `Copy`, `Clone`, `PartialEq`,
+          `PartialOrd` and `Debug` (printed like `Display`: `"2.5 in"`) for **every** `U: Unit`, including units
+          that derive nothing.
+        - `Length<Handle>` isn't `Send` or `Sync`, because `Handle` holds a raw pointer. A length never contains a
+          unit value, so it must be `Send + Sync` whatever `U` is.
+    """,
+    units(derives=True, marker="PhantomData<U>", add_impl="""/// Adds two lengths.
+impl<U, V> Add<Length<V>> for Length<U> {
+    type Output = Length<U>;
+    fn add(self, rhs: Length<V>) -> Length<U> {
+        Length { value: self.value + rhs.value, unit: PhantomData }
+    }
+}"""),
+    units(),
+    [UNIT_PROBES,
+     T("same_unit_adds", "2.5 m + 1 m", "(Length::<Meters>::new(2.5) + Length::<Meters>::new(1.0)).value()", "3.5"),
+     T("mixed_units_dont_add", "does Length<Meters> + Length<Feet> compile? and Meters + Meters?", "(Probe::<Length<Meters>, Length<Feet>>::ADDS, Probe::<Length<Meters>, Length<Meters>>::ADDS)", "(false, true)"),
+     T("convert_then_add", "1 km + 500 m, in metres", "close((Length::<Kilometers>::new(1.0).to::<Meters>() + Length::<Meters>::new(500.0)).value(), 1500.0)", "true"),
+     T("copy_for_any_unit", "Inches (no derives): a + a, compare, Debug", "(a + a == Length::new(5.0), a < a * 2.0, format!(\"{a:?}\"))", '(true, true, "2.5 in".to_string())',
+       setup="let a = Length::<Inches>::new(2.5);"),
+     T("send_sync_for_any_unit", "is Length<Handle> Send + Sync?", "(Probe::<Length<Handle>>::SEND_SYNC, Probe::<Length<Meters>>::SEND_SYNC)", "(true, true)")],
+    [UNIT_PROBES,
+     T("feet_to_meters", "10 ft in m", "close(Length::<Feet>::new(10.0).to::<Meters>().value(), 3.048)", "true"),
+     T("inches_to_feet", "12 in in ft", "close(Length::<Inches>::new(12.0).to::<Feet>().value(), 1.0)", "true"),
+     T("round_trip", "3.7 km -> ft -> km", "close(Length::<Kilometers>::new(3.7).to::<Feet>().to::<Kilometers>().value(), 3.7)", "true"),
+     T("display", "Display of 2 ft and 0.5 km", '(Length::<Feet>::new(2.0).to_string(), Length::<Kilometers>::new(0.5).to_string())', '("2 ft".to_string(), "0.5 km".to_string())'),
+     T("ratio", "3 m / 1.5 m", "Length::<Meters>::new(3.0) / Length::<Meters>::new(1.5)", "2.0"),
+     T("feet_and_km_dont_add", "Length<Feet> + Length<Kilometers>? Length<Inches> + Length<Inches>?", "(Probe::<Length<Feet>, Length<Kilometers>>::ADDS, Probe::<Length<Inches>, Length<Inches>>::ADDS)", "(false, true)"),
+     T("handle_lengths_work", "Length<Handle>: 1 h to m, and copy", "(close(h.to::<Meters>().value(), 2.0), (h + h).value())", "(true, 2.0)", setup="let h = Length::<Handle>::new(1.0);"),
+     T("debug_of_feet", "{:?} of -1.5 ft", 'format!("{:?}", Length::<Feet>::new(-1.5))', '"-1.5 ft"'),
+     T("zero_sized_label", "size_of Length<Handle> and Length<Inches>", "(std::mem::size_of::<Length<Handle>>(), std::mem::size_of::<Length<Inches>>())", "(8, 8)"),
+     T("scale_and_compare", "Inches: 3 * 2 vs 5", "(Length::<Inches>::new(3.0) * 2.0 > Length::new(5.0), Length::<Inches>::new(3.0) == Length::new(3.0))", "(true, true)"),
+     """
+     #[test]
+     fn random_conversions() {
+         let mut rng = anneal_prelude::Rng::new(4517);
+         for _ in 0..300 {
+             let x = rng.int(-100_000, 100_000) as f64 / 100.0;
+             let y = rng.int(-100_000, 100_000) as f64 / 100.0;
+             let f = Length::<Feet>::new(x);
+             let sum = (f.to::<Meters>() + Length::<Meters>::new(y)).value();
+             check!(format!("{x} ft + {y} m"), (close(sum, x * 0.3048 + y), close(f.to::<Inches>().value(), x * 12.0), close(f.to::<Kilometers>().to::<Feet>().value(), x)), (true, true, true));
+         }
+     }
+     """],
+    [("rust", "Mixed units: replace `impl<U, V> Add<Length<V>> for Length<U>` with `impl<U> Add for Length<U>` (`Rhs` defaults to `Self`)."),
+     ("rust", "`#[derive(Clone)]` on `Length<U>` generates `impl<U: Clone> Clone for Length<U>`, even though no `U` is stored. Write `Clone`, `Copy`, `PartialEq`, `PartialOrd` and `Debug` by hand with no bound on `U` (`Debug` can use `U: Unit`)."),
+     ("rust", "`PhantomData<U>` acts as if a `U` were stored: it inherits `U`'s `Send`/`Sync` and drop-check behaviour. `PhantomData<fn() -> U>` says 'produces a U', which is always `Send + Sync` and still covariant.")],
+    ("""`PhantomData<X>` tells the compiler to treat the struct as if it contained an `X`, for auto traits (`Send`, `Sync`), variance and drop check. Pick `X` to say what you mean: `PhantomData<U>` owns a `U`; `PhantomData<fn() -> U>` produces one (covariant, always Send + Sync, no drop-check obligation); `PhantomData<fn(U)>` consumes one (contravariant); `PhantomData<*const U>` is `!Send`. Derives bound every type parameter, so marker-typed structs usually implement their traits by hand. Syntax to remember: `impl<U> Add for Length<U>`, `pub trait Unit { const METERS: f64; }`, `U::METERS`, `x.to::<Feet>()`.""", "O(1) per operation", "one f64"),
+    "What is the variance of `Length<U>` in `U` with `PhantomData<U>`, `PhantomData<fn() -> U>` and `PhantomData<fn(U)>`? When does it matter?",
+    ["`PhantomData` choices: ownership, auto traits and variance.", "Derives add bounds on phantom parameters; hand-written impls don't.", "Associated consts as per-type data."],
+    rules=dict(unsafe=True),
+    related=("L5", "S8", "C1"),
+    wrong=dict(
+        converting_add=units(add_impl="""/// Adds two lengths, converting the right-hand side.
+impl<U: Unit, V: Unit> Add<Length<V>> for Length<U> {
+    type Output = Length<U>;
+    fn add(self, rhs: Length<V>) -> Length<U> {
+        Length { value: self.value + rhs.to::<U>().value, unit: PhantomData }
+    }
+}"""),
+        owns_a_u=units(marker="PhantomData<U>"),
+        converts_backwards=units(to_body="Length::new(self.value * V::METERS / U::METERS)"),
+    ),
+))
+
+
+def counts(read_body=None, order="b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0))", split="text.split_whitespace()"):
+    read_body = read_body or """    // read_to_end retries on ErrorKind::Interrupted and joins every chunk before decoding,
+    // so a character split across two reads is decoded whole.
+    let mut bytes = Vec::new();
+    reader.read_to_end(&mut bytes)?;
+    let text = String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;"""
+    return f"""
+use std::collections::HashMap;
+use std::io::{{self, Read}};
+
+/// Word counts, most frequent first; ties in byte order of the word.
+/// Generic, so it's compiled once per reader type: keep it to one line.
+pub fn word_counts<R: Read>(mut reader: R) -> io::Result<Vec<(String, usize)>> {{
+    word_counts_dyn(&mut reader)
+}}
+
+/// The worker. It isn't generic, so it's compiled once, whatever readers callers use.
+pub fn word_counts_dyn(reader: &mut dyn Read) -> io::Result<Vec<(String, usize)>> {{
+{read_body}
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for w in {split} {{
+        *counts.entry(w.to_string()).or_insert(0) += 1;
+    }}
+    let mut out: Vec<(String, usize)> = counts.into_iter().collect();
+    out.sort_by(|a, b| {order});
+    Ok(out)
+}}
+"""
+
+
+COUNTS_STARTER = """
+use std::collections::HashMap;
+use std::io::{self, Read};
+
+/// Word counts, most frequent first; ties in byte order of the word.
+pub fn word_counts<R: Read>(mut reader: R) -> io::Result<Vec<(String, usize)>> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    let mut buf = [0u8; 4096];
+    let mut partial = String::new();
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        let chunk = std::str::from_utf8(&buf[..n]).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        partial.push_str(chunk);
+        // Count every complete word; keep a word that may continue in the next chunk.
+        let keep_from = partial.rfind(char::is_whitespace).map_or(0, |i| i + partial[i..].chars().next().unwrap().len_utf8());
+        for w in partial[..keep_from].split_whitespace() {
+            *counts.entry(w.to_string()).or_insert(0) += 1;
+        }
+        partial = partial[keep_from..].to_string();
+    }
+    for w in partial.split_whitespace() {
+        *counts.entry(w.to_string()).or_insert(0) += 1;
+    }
+    let mut out: Vec<(String, usize)> = counts.into_iter().collect();
+    out.sort_by_key(|(w, n)| (std::cmp::Reverse(*n), w.clone()));
+    Ok(out)
+}
+"""
+
+READERS = """
+use std::io::{self, Read};
+
+/// Hands out at most `step` bytes per read.
+#[allow(dead_code)]
+struct Trickle<'a> {
+    data: &'a [u8],
+    step: usize,
+}
+
+#[allow(dead_code)]
+impl Read for Trickle<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let n = self.step.min(buf.len()).min(self.data.len());
+        buf[..n].copy_from_slice(&self.data[..n]);
+        self.data = &self.data[n..];
+        Ok(n)
+    }
+}
+
+/// Fails every other read with ErrorKind::Interrupted, which callers are expected to retry.
+#[allow(dead_code)]
+struct Flaky<'a> {
+    data: &'a [u8],
+    fail_next: bool,
+}
+
+#[allow(dead_code)]
+impl Read for Flaky<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.fail_next = !self.fail_next;
+        if !self.fail_next {
+            return Err(io::Error::new(io::ErrorKind::Interrupted, "try again"));
+        }
+        let n = 3.min(buf.len()).min(self.data.len());
+        buf[..n].copy_from_slice(&self.data[..n]);
+        self.data = &self.data[n..];
+        Ok(n)
+    }
+}
+
+/// Gives `data`, then fails for real.
+#[allow(dead_code)]
+struct Broken<'a> {
+    data: &'a [u8],
+}
+
+#[allow(dead_code)]
+impl Read for Broken<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.data.is_empty() {
+            return Err(io::Error::new(io::ErrorKind::ConnectionReset, "gone"));
+        }
+        let n = buf.len().min(self.data.len());
+        buf[..n].copy_from_slice(&self.data[..n]);
+        self.data = &self.data[n..];
+        Ok(n)
+    }
+}
+
+#[allow(dead_code)]
+fn pairs(v: &[(&str, usize)]) -> Vec<(String, usize)> {
+    v.iter().map(|&(w, n)| (w.to_string(), n)).collect()
+}
+"""
+
+P.append(fix(
+    "inner-fn-monomorphization", "Monomorphization cost and the inner-fn trick", "hard", "type-level-design", ["monomorphization", "dyn vs generics", "io::Read"],
+    """
+        `word_counts` counts words (split on Unicode whitespace, case-sensitive) and returns them most frequent
+        first, ties in byte order. It's generic over `R: Read`, so its whole body is compiled again for every reader
+        type a program uses.
+
+        - Move the work into a **non-generic** `pub fn word_counts_dyn(reader: &mut dyn Read)` with the same
+          result type, and make `word_counts` a one-line forwarder. The tests use `word_counts_dyn` as a plain `fn`
+          pointer.
+        - It also breaks on readers that hand out a few bytes at a time or return `ErrorKind::Interrupted` (which
+          means "retry"). Fix those. Input that isn't UTF-8 fails with `ErrorKind::InvalidData`; other read errors
+          are passed on.
+    """,
+    COUNTS_STARTER,
+    counts(),
+    [READERS,
+     T("counts_sorted", '"b a b c a b"', 'word_counts("b a b c a b".as_bytes()).unwrap()', 'pairs(&[("b", 3), ("a", 2), ("c", 1)])'),
+     T("non_generic_worker", "word_counts_dyn as a fn pointer, on a Cursor", 'f(&mut io::Cursor::new("x y x")).unwrap()', 'pairs(&[("x", 2), ("y", 1)])',
+       setup="let f: fn(&mut dyn Read) -> io::Result<Vec<(String, usize)>> = word_counts_dyn;"),
+     T("one_byte_at_a_time", '"héllo wörld héllo", one byte per read', 'word_counts(Trickle { data: "héllo wörld héllo".as_bytes(), step: 1 }).unwrap()', 'pairs(&[("héllo", 2), ("wörld", 1)])'),
+     T("interrupted_is_retried", '"to be or not to be", Interrupted every other read', 'word_counts(Flaky { data: b"to be or not to be", fail_next: false }).unwrap()',
+       'pairs(&[("be", 2), ("to", 2), ("not", 1), ("or", 1)])'),
+     T("invalid_utf8", "bytes [0x66, 0xFF]", "word_counts(&[0x66u8, 0xFF][..]).map_err(|e| e.kind())", "Err(io::ErrorKind::InvalidData)")],
+    [READERS,
+     T("empty", '""', 'word_counts("".as_bytes()).unwrap()', "Vec::<(String, usize)>::new()"),
+     T("only_whitespace", '" \\n\\t "', 'word_counts(" \\n\\t ".as_bytes()).unwrap()', "Vec::<(String, usize)>::new()"),
+     T("read_error_is_passed_on", "a reader that fails after some data", 'word_counts(Broken { data: b"a b" }).map_err(|e| e.kind())', "Err(io::ErrorKind::ConnectionReset)"),
+     T("case_sensitive", '"Go go GO go"', 'word_counts("Go go GO go".as_bytes()).unwrap()', 'pairs(&[("go", 2), ("GO", 1), ("Go", 1)])'),
+     T("unicode_whitespace", '"a\\u{3000}b\\u{a0}a"', 'word_counts("a\\u{3000}b\\u{a0}a".as_bytes()).unwrap()', 'pairs(&[("a", 2), ("b", 1)])'),
+     T("split_char_across_reads", '"日本 日本", 2 bytes per read', 'word_counts(Trickle { data: "日本 日本".as_bytes(), step: 2 }).unwrap()', 'pairs(&[("日本", 2)])'),
+     T("by_mut_reference", "&mut Cursor, then the cursor is at the end", "(word_counts(&mut c).unwrap(), c.position())", '(pairs(&[("q", 1)]), 1)',
+       setup='let mut c = io::Cursor::new("q");'),
+     T("dyn_worker_on_a_trickle", "word_counts_dyn over a 1-byte Trickle", 'word_counts_dyn(&mut Trickle { data: b"z z y", step: 1 }).unwrap()', 'pairs(&[("z", 2), ("y", 1)])'),
+     T("chain_of_readers", '"ab c".chain(" ab")', 'word_counts("ab c".as_bytes().chain(" ab".as_bytes())).unwrap()', 'pairs(&[("ab", 2), ("c", 1)])'),
+     T("invalid_utf8_mid_stream", "valid words then a lone continuation byte", "word_counts(Trickle { data: &bytes, step: 2 }).map_err(|e| e.kind())", "Err(io::ErrorKind::InvalidData)",
+       setup='let mut bytes = b"ok ok ".to_vec();\nbytes.push(0x80);'),
+     """
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(4518);
+         for _ in 0..300 {
+             let n = rng.below(20);
+             let text = rng.string(n, "ab é\\n");
+             let step = 1 + rng.below(4);
+             let mut want: Vec<(String, usize)> = Vec::new();
+             for w in text.split_whitespace() {
+                 match want.iter_mut().find(|(x, _)| x == w) {
+                     Some((_, c)) => *c += 1,
+                     None => want.push((w.to_string(), 1)),
+                 }
+             }
+             want.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+             check!(format!("text = {text:?}, {step} bytes per read"), word_counts(Trickle { data: text.as_bytes(), step }).unwrap(), want);
+         }
+     }
+
+     #[test]
+     fn scale_many_words() {
+         let text: String = (0..200_000).map(|i| format!("w{} ", i % 50_000)).collect();
+         let got = word_counts(text.as_bytes()).unwrap();
+         check!("200000 words, 50000 distinct", (got.len(), got[0].clone(), got.iter().all(|(_, n)| *n == 4)), (50_000, ("w0".to_string(), 4), true));
+     }
+     """],
+    [("rust", "Signature to write: `pub fn word_counts_dyn(reader: &mut dyn Read) -> io::Result<Vec<(String, usize)>>`. The forwarder is `word_counts_dyn(&mut reader)`: `&mut R` coerces to `&mut dyn Read`."),
+     ("rust", "Decoding each chunk separately fails when a multi-byte character is split between two reads. Collect the bytes first (`read_to_end`), then decode once with `String::from_utf8`."),
+     ("rust", "`read_to_end` already retries `ErrorKind::Interrupted`; a hand-written `read` loop with `?` doesn't.")],
+    ("""Every generic function is copied per type argument (monomorphization): fast calls, but code size and compile time grow with each reader type. std's pattern is a thin generic shell over a non-generic inner function, as in `fs::read<P: AsRef<Path>>(path: P) { fn inner(path: &Path) -> ... ; inner(path.as_ref()) }`. Here the inner function takes `&mut dyn Read`, trading one indirect call per `read` for a single compiled copy. Syntax to remember: `fn word_counts<R: Read>(mut reader: R)` (a generic parameter; `impl Read` in argument position is the same thing without a nameable `R`) vs `fn word_counts_dyn(reader: &mut dyn Read)` (one function, dynamic dispatch).""", "O(n + k log k) for n bytes and k distinct words", "O(n)"),
+    "When is the generic version the better choice, despite the code size? What does `impl Read` in argument position change for callers (hint: turbofish)?",
+    ["Monomorphization cost and the non-generic inner function trick.", "`&mut dyn Read` vs `R: Read`.", "Readers can return short reads and `Interrupted`."],
+    rules=dict(unsafe=True),
+    related=("L5", "S9", "Y4"),
+    wrong=dict(
+        ties_reversed=counts(order="b.1.cmp(&a.1).then_with(|| b.0.cmp(&a.0))"),
+        manual_loop_no_retry=counts(read_body="""    let mut bytes = Vec::new();
+    let mut buf = [0u8; 4096];
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        bytes.extend_from_slice(&buf[..n]);
+    }
+    let text = String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;"""),
+        lossy_decoding=counts(read_body="""    let mut bytes = Vec::new();
+    reader.read_to_end(&mut bytes)?;
+    let text = String::from_utf8_lossy(&bytes).into_owned();"""),
+        ascii_whitespace_only=counts(split="text.split_ascii_whitespace()"),
+    ),
+))
+
+
+def nonempty(pop_guard="self.tail.pop()", max_body="self.iter().fold(&self.head, |best, x| if x > best { x } else { best })", sort_body=None, try_from_body=None):
+    sort_body = sort_body or """        // Put everything in one Vec, sort, and split the smallest back out as the head.
+        let mut all = std::mem::take(&mut self.tail);
+        all.sort();
+        let mut rest = all.into_iter();
+        if let Some(first) = rest.next() {
+            if first < self.head {
+                let old_head = std::mem::replace(&mut self.head, first);
+                let mut tail: Vec<T> = rest.collect();
+                let at = tail.partition_point(|x| *x <= old_head);
+                tail.insert(at, old_head);
+                self.tail = tail;
+            } else {
+                self.tail = std::iter::once(first).chain(rest).collect();
+            }
+        }"""
+    try_from_body = try_from_body or """        let mut items = v.into_iter();
+        match items.next() {
+            Some(head) => Ok(NonEmpty { head, tail: items.collect() }),
+            None => Err(Empty),
+        }"""
+    return f"""
+/// A list that can't be empty: the first item is a separate field, so there's no empty value to represent.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NonEmpty<T> {{
+    head: T,
+    tail: Vec<T>,
+}}
+
+/// The error from converting an empty Vec.
+#[derive(Debug, PartialEq)]
+pub struct Empty;
+
+impl<T> NonEmpty<T> {{
+    pub fn new(head: T) -> Self {{
+        NonEmpty {{ head, tail: Vec::new() }}
+    }}
+
+    pub fn push(&mut self, x: T) {{
+        self.tail.push(x);
+    }}
+
+    /// Removes and returns the last item, unless it's the only one.
+    pub fn pop(&mut self) -> Option<T> {{
+        {pop_guard}
+    }}
+
+    pub fn first(&self) -> &T {{
+        &self.head
+    }}
+
+    pub fn last(&self) -> &T {{
+        self.tail.last().unwrap_or(&self.head)
+    }}
+
+    pub fn len(&self) -> usize {{
+        1 + self.tail.len()
+    }}
+
+    pub fn get(&self, i: usize) -> Option<&T> {{
+        if i == 0 {{ Some(&self.head) }} else {{ self.tail.get(i - 1) }}
+    }}
+
+    pub fn split_first(&self) -> (&T, &[T]) {{
+        (&self.head, &self.tail)
+    }}
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {{
+        std::iter::once(&self.head).chain(&self.tail)
+    }}
+
+    pub fn map<U>(self, mut f: impl FnMut(T) -> U) -> NonEmpty<U> {{
+        let head = f(self.head);
+        NonEmpty {{ head, tail: self.tail.into_iter().map(f).collect() }}
+    }}
+
+    /// The largest item; the first of equal largest ones. No Option: there's always one.
+    pub fn max(&self) -> &T
+    where
+        T: Ord,
+    {{
+        {max_body}
+    }}
+
+    pub fn sort(&mut self)
+    where
+        T: Ord,
+    {{
+{sort_body}
+    }}
+
+    pub fn into_vec(self) -> Vec<T> {{
+        let mut v = Vec::with_capacity(self.len());
+        v.push(self.head);
+        v.extend(self.tail);
+        v
+    }}
+}}
+
+impl<T> TryFrom<Vec<T>> for NonEmpty<T> {{
+    type Error = Empty;
+
+    fn try_from(v: Vec<T>) -> Result<Self, Empty> {{
+{try_from_body}
+    }}
+}}
+
+impl<T> IntoIterator for NonEmpty<T> {{
+    type Item = T;
+    type IntoIter = std::iter::Chain<std::iter::Once<T>, std::vec::IntoIter<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {{
+        std::iter::once(self.head).chain(self.tail)
+    }}
+}}
+"""
+
+
+NONEMPTY_STARTER = """
+use std::marker::PhantomData;
+
+/// A list that can't be empty.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NonEmpty<T> {
+    // Replace this with a representation in which "empty" can't be expressed.
+    _todo: PhantomData<T>,
+}
+
+/// The error from converting an empty Vec.
+#[derive(Debug, PartialEq)]
+pub struct Empty;
+
+impl<T> NonEmpty<T> {
+    pub fn new(head: T) -> Self {
+        todo!()
+    }
+
+    pub fn push(&mut self, x: T) {
+        todo!()
+    }
+
+    /// Removes and returns the last item, unless it's the only one.
+    pub fn pop(&mut self) -> Option<T> {
+        todo!()
+    }
+
+    pub fn first(&self) -> &T {
+        todo!()
+    }
+
+    pub fn last(&self) -> &T {
+        todo!()
+    }
+
+    pub fn len(&self) -> usize {
+        todo!()
+    }
+
+    pub fn get(&self, i: usize) -> Option<&T> {
+        todo!()
+    }
+
+    pub fn split_first(&self) -> (&T, &[T]) {
+        todo!()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
+        // Placeholder so the crate compiles.
+        std::iter::empty()
+    }
+
+    pub fn map<U>(self, f: impl FnMut(T) -> U) -> NonEmpty<U> {
+        todo!()
+    }
+
+    /// The largest item; the first of equal largest ones. No Option: there's always one.
+    pub fn max(&self) -> &T
+    where
+        T: Ord,
+    {
+        todo!()
+    }
+
+    pub fn sort(&mut self)
+    where
+        T: Ord,
+    {
+        todo!()
+    }
+
+    pub fn into_vec(self) -> Vec<T> {
+        todo!()
+    }
+}
+
+impl<T> TryFrom<Vec<T>> for NonEmpty<T> {
+    type Error = Empty;
+
+    fn try_from(v: Vec<T>) -> Result<Self, Empty> {
+        todo!()
+    }
+}
+
+impl<T> IntoIterator for NonEmpty<T> {
+    type Item = T;
+    // Change this to whatever iterator your representation gives.
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        todo!()
+    }
+}
+"""
+
+NE_HELPERS = PROBES + """
+fn ne(v: Vec<i32>) -> NonEmpty<i32> {
+    NonEmpty::try_from(v).unwrap()
+}
+"""
+
+P.append(write(
+    "invalid-states-unrepresentable", "An API that makes invalid states unrepresentable", "hard", "type-level-design", ["make invalid states unrepresentable", "NonEmpty", "API design"],
+    """
+        Build `NonEmpty<T>`, a list with at least one item, so that "empty" can't be expressed at all, and let the
+        API say so: `first`, `last` and `max` return `&T`, not `Option<&T>`.
+
+        - `pop` removes the last item but never the only one (it returns `None` instead).
+        - `max` returns the first of equal largest items; `sort` sorts ascending (equal items may be reordered).
+        - `NonEmpty::try_from(vec)` fails with `Empty` for an empty `Vec`; `into_vec` and `into_iter` give the
+          items back in order; `map` keeps the length.
+        - There's no `Default`: a default `NonEmpty` would be empty.
+    """,
+    NONEMPTY_STARTER,
+    nonempty(),
+    [NE_HELPERS,
+     T("first_last_max_are_not_options", "[3, 9, 2]: first, last, max", "{ let v = ne(vec![3, 9, 2]); let (a, b, c): (&i32, &i32, &i32) = (v.first(), v.last(), v.max()); (*a, *b, *c) }", "(3, 2, 9)"),
+     T("pop_never_empties", "[1, 2]: pop three times", "{ let mut v = ne(vec![1, 2]); (v.pop(), v.pop(), v.pop(), v.len(), *v.first()) }", "(Some(2), None, None, 1, 1)"),
+     T("try_from_empty", "an empty Vec", "NonEmpty::<i32>::try_from(Vec::new())", "Err(Empty)"),
+     T("round_trip", "vec [4, 5, 6] -> NonEmpty -> map(x * 10) -> into_vec", "ne(vec![4, 5, 6]).map(|x| x * 10).into_vec()", "vec![40, 50, 60]"),
+     T("no_default", "is NonEmpty<i32> Default?", "Probe::<NonEmpty<i32>>::DEFAULT", "false")],
+    [NE_HELPERS,
+     T("single", "NonEmpty::new(7)", "{ let v = NonEmpty::new(7); (*v.first(), *v.last(), *v.max(), v.len()) }", "(7, 7, 7, 1)"),
+     T("get", "[1, 2, 3]: get 0, 2, 3", "{ let v = ne(vec![1, 2, 3]); (v.get(0).copied(), v.get(2).copied(), v.get(3).copied()) }", "(Some(1), Some(3), None)"),
+     T("max_first_of_ties", "[5, 5, 4]: which 5 is the max?", "{ let v = ne(vec![5, 5, 4]); std::ptr::eq(v.max(), v.first()) }", "true"),
+     T("sort_moves_a_smaller_item_to_the_front", "[5, 3, 9, 1] sorted", "{ let mut v = ne(vec![5, 3, 9, 1]); v.sort(); v.into_vec() }", "vec![1, 3, 5, 9]"),
+     T("sort_keeps_the_front_when_smallest", "[1, 3, 2] sorted", "{ let mut v = ne(vec![1, 3, 2]); v.sort(); v.into_vec() }", "vec![1, 2, 3]"),
+     T("sort_single", "[7] sorted", "{ let mut v = NonEmpty::new(7); v.sort(); v.into_vec() }", "vec![7]"),
+     T("into_iter_order", "strings [a, b, c] by value", 'NonEmpty::try_from(vec!["a".to_string(), "b".to_string(), "c".to_string()]).unwrap().into_iter().collect::<Vec<_>>().join("")', '"abc"'),
+     T("iter_and_split_first", "[1, 2, 3]: iter, split_first", "{ let v = ne(vec![1, 2, 3]); (v.iter().copied().collect::<Vec<_>>(), v.split_first().0.clone(), v.split_first().1.to_vec()) }", "(vec![1, 2, 3], 1, vec![2, 3])"),
+     T("map_changes_type", "[1, 22] map to_string", "ne(vec![1, 22]).map(|x| x.to_string()).into_vec()", 'vec!["1".to_string(), "22".to_string()]'),
+     T("push_after_pops", "[1]: pop, push 2, last", "{ let mut v = NonEmpty::new(1); let p = v.pop(); v.push(2); (p, *v.last(), v.len()) }", "(None, 2, 2)"),
+     T("try_from_non_empty_is_ok", "vec [0]", "NonEmpty::try_from(vec![0]).map(|v| v.len())", "Ok(1)"),
+     """
+     #[test]
+     fn random_vs_vec_model() {
+         let mut rng = anneal_prelude::Rng::new(4519);
+         for _ in 0..300 {
+             let first = rng.int(-9, 9);
+             let mut v = NonEmpty::new(first);
+             let mut model = vec![first];
+             let mut log = vec![format!("new({first})")];
+             for _ in 0..rng.below(15) {
+                 match rng.below(4) {
+                     0 | 1 => {
+                         let x = rng.int(-9, 9);
+                         log.push(format!("push({x})"));
+                         v.push(x);
+                         model.push(x);
+                     }
+                     2 => {
+                         log.push("pop".to_string());
+                         let want = if model.len() > 1 { model.pop() } else { None };
+                         check!(log.join(", "), v.pop(), want);
+                     }
+                     _ => {
+                         log.push("sort".to_string());
+                         v.sort();
+                         model.sort();
+                     }
+                 }
+                 let mut max_at = 0;
+                 for i in 1..model.len() {
+                     if model[i] > model[max_at] {
+                         max_at = i;
+                     }
+                 }
+                 let i = rng.below(model.len() + 1);
+                 check!(log.join(", "), (v.len(), *v.first(), *v.last(), *v.max(), v.get(i).copied(), v.iter().copied().collect::<Vec<_>>()),
+                        (model.len(), model[0], model[model.len() - 1], model[max_at], model.get(i).copied(), model.clone()));
+             }
+             check!(log.join(", "), v.into_vec(), model);
+         }
+     }
+     """],
+    [("approach", "Represent it as `head: T` plus `tail: Vec<T>`. There is no value of that struct with zero items, so `first` is just `&self.head`, and `pop` only pops from `tail`."),
+     ("rust", "`IntoIterator` by value: `type IntoIter = Chain<Once<T>, vec::IntoIter<T>>`, built with `std::iter::once(self.head).chain(self.tail)`."),
+     ("edge", "`sort` with a separate head: sort the tail, and if its smallest item is smaller than the head, swap it in and put the old head where it belongs.")],
+    ("""Make the representation carry the invariant, and the checks disappear from the API: with `head + tail`, `first()` can't fail, so it returns `&T`, and every caller loses an `unwrap`. Checks happen once, at the boundary (`TryFrom<Vec<T>>`). `Vec<T>` plus a runtime check would pass the same tests, but then every method re-proves the invariant and a future `pub fn clear` could break it. Syntax to remember: `impl<T> TryFrom<Vec<T>> for NonEmpty<T> { type Error = Empty; fn try_from(v: Vec<T>) -> Result<Self, Empty> }`, and `pub fn map<U>(self, f: impl FnMut(T) -> U) -> NonEmpty<U>` (a generic method on a generic type).""", "O(1) push/pop/first/last; O(n) max; O(n log n) sort", "O(n)"),
+    "Where else would you use this pattern in a backend? Give two types whose invalid states you'd remove from the representation, and what you'd do at the boundary.",
+    ["Encode invariants in the representation, not in runtime checks.", "Boundary conversions with `TryFrom` and a precise error type.", "`IntoIterator` with a named `IntoIter` type."],
+    related=("L5", "L7", "M1"),
+    wrong=dict(
+        max_returns_last_tie=nonempty(max_body="self.iter().max().unwrap()"),
+        sort_ignores_head=nonempty(sort_body="        self.tail.sort();"),
+        derives_default=nonempty().replace("#[derive(Debug, Clone, PartialEq)]\npub struct NonEmpty<T> {", "#[derive(Debug, Clone, PartialEq, Default)]\npub struct NonEmpty<T> {", 1),
+    ),
+))
+
 STAGES = [
     ("generic-code", "Generic code", "easy"),
     ("bounds-associated-types", "Bounds & associated types", "medium"),
     ("compile-time-rust", "Compile-time Rust", "medium"),
+    ("type-level-design", "Type-level design", "hard"),
 ]
 
 # `source` and `examples` are optional; drop empty ones so problem.toml stays tidy.

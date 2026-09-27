@@ -1,0 +1,32 @@
+slug = "invalid-states-unrepresentable"
+title = "An API that makes invalid states unrepresentable"
+mode = "write"
+level = "hard"
+stage = "type-level-design"
+order = 16
+status = "ready"
+tags = ["make invalid states unrepresentable", "NonEmpty", "API design"]
+teaches = [
+  "Encode invariants in the representation, not in runtime checks.",
+  "Boundary conversions with `TryFrom` and a precise error type.",
+  "`IntoIterator` with a named `IntoIter` type.",
+]
+follow_up = "Where else would you use this pattern in a backend? Give two types whose invalid states you'd remove from the representation, and what you'd do at the boundary."
+related = ["L5", "L7", "M1"]
+
+[[hints]]
+kind = "approach"
+text = "Represent it as `head: T` plus `tail: Vec<T>`. There is no value of that struct with zero items, so `first` is just `&self.head`, and `pop` only pops from `tail`."
+
+[[hints]]
+kind = "rust"
+text = "`IntoIterator` by value: `type IntoIter = Chain<Once<T>, vec::IntoIter<T>>`, built with `std::iter::once(self.head).chain(self.tail)`."
+
+[[hints]]
+kind = "edge"
+text = "`sort` with a separate head: sort the tail, and if its smallest item is smaller than the head, swap it in and put the old head where it belongs."
+
+[solution]
+explanation = "Make the representation carry the invariant, and the checks disappear from the API: with `head + tail`, `first()` can't fail, so it returns `&T`, and every caller loses an `unwrap`. Checks happen once, at the boundary (`TryFrom<Vec<T>>`). `Vec<T>` plus a runtime check would pass the same tests, but then every method re-proves the invariant and a future `pub fn clear` could break it. Syntax to remember: `impl<T> TryFrom<Vec<T>> for NonEmpty<T> { type Error = Empty; fn try_from(v: Vec<T>) -> Result<Self, Empty> }`, and `pub fn map<U>(self, f: impl FnMut(T) -> U) -> NonEmpty<U>` (a generic method on a generic type)."
+time = "O(1) push/pop/first/last; O(n) max; O(n log n) sort"
+space = "O(n)"

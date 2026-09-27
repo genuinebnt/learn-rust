@@ -1,0 +1,35 @@
+slug = "inner-fn-monomorphization"
+title = "Monomorphization cost and the inner-fn trick"
+mode = "fix"
+level = "hard"
+stage = "type-level-design"
+order = 15
+status = "ready"
+tags = ["monomorphization", "dyn vs generics", "io::Read"]
+teaches = [
+  "Monomorphization cost and the non-generic inner function trick.",
+  "`&mut dyn Read` vs `R: Read`.",
+  "Readers can return short reads and `Interrupted`.",
+]
+follow_up = "When is the generic version the better choice, despite the code size? What does `impl Read` in argument position change for callers (hint: turbofish)?"
+related = ["L5", "S9", "Y4"]
+
+[[hints]]
+kind = "rust"
+text = "Signature to write: `pub fn word_counts_dyn(reader: &mut dyn Read) -> io::Result<Vec<(String, usize)>>`. The forwarder is `word_counts_dyn(&mut reader)`: `&mut R` coerces to `&mut dyn Read`."
+
+[[hints]]
+kind = "rust"
+text = "Decoding each chunk separately fails when a multi-byte character is split between two reads. Collect the bytes first (`read_to_end`), then decode once with `String::from_utf8`."
+
+[[hints]]
+kind = "rust"
+text = "`read_to_end` already retries `ErrorKind::Interrupted`; a hand-written `read` loop with `?` doesn't."
+
+[solution]
+explanation = "Every generic function is copied per type argument (monomorphization): fast calls, but code size and compile time grow with each reader type. std's pattern is a thin generic shell over a non-generic inner function, as in `fs::read<P: AsRef<Path>>(path: P) { fn inner(path: &Path) -> ... ; inner(path.as_ref()) }`. Here the inner function takes `&mut dyn Read`, trading one indirect call per `read` for a single compiled copy. Syntax to remember: `fn word_counts<R: Read>(mut reader: R)` (a generic parameter; `impl Read` in argument position is the same thing without a nameable `R`) vs `fn word_counts_dyn(reader: &mut dyn Read)` (one function, dynamic dispatch)."
+time = "O(n + k log k) for n bytes and k distinct words"
+space = "O(n)"
+
+[rules]
+forbid_unsafe = true

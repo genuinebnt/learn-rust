@@ -1,0 +1,35 @@
+slug = "phantom-units-of-measure"
+title = "PhantomData units of measure"
+mode = "fix"
+level = "hard"
+stage = "type-level-design"
+order = 14
+status = "ready"
+tags = ["PhantomData", "variance", "derive bounds", "associated consts"]
+teaches = [
+  "`PhantomData` choices: ownership, auto traits and variance.",
+  "Derives add bounds on phantom parameters; hand-written impls don't.",
+  "Associated consts as per-type data.",
+]
+follow_up = "What is the variance of `Length<U>` in `U` with `PhantomData<U>`, `PhantomData<fn() -> U>` and `PhantomData<fn(U)>`? When does it matter?"
+related = ["L5", "S8", "C1"]
+
+[[hints]]
+kind = "rust"
+text = "Mixed units: replace `impl<U, V> Add<Length<V>> for Length<U>` with `impl<U> Add for Length<U>` (`Rhs` defaults to `Self`)."
+
+[[hints]]
+kind = "rust"
+text = "`#[derive(Clone)]` on `Length<U>` generates `impl<U: Clone> Clone for Length<U>`, even though no `U` is stored. Write `Clone`, `Copy`, `PartialEq`, `PartialOrd` and `Debug` by hand with no bound on `U` (`Debug` can use `U: Unit`)."
+
+[[hints]]
+kind = "rust"
+text = "`PhantomData<U>` acts as if a `U` were stored: it inherits `U`'s `Send`/`Sync` and drop-check behaviour. `PhantomData<fn() -> U>` says 'produces a U', which is always `Send + Sync` and still covariant."
+
+[solution]
+explanation = "`PhantomData<X>` tells the compiler to treat the struct as if it contained an `X`, for auto traits (`Send`, `Sync`), variance and drop check. Pick `X` to say what you mean: `PhantomData<U>` owns a `U`; `PhantomData<fn() -> U>` produces one (covariant, always Send + Sync, no drop-check obligation); `PhantomData<fn(U)>` consumes one (contravariant); `PhantomData<*const U>` is `!Send`. Derives bound every type parameter, so marker-typed structs usually implement their traits by hand. Syntax to remember: `impl<U> Add for Length<U>`, `pub trait Unit { const METERS: f64; }`, `U::METERS`, `x.to::<Feet>()`."
+time = "O(1) per operation"
+space = "one f64"
+
+[rules]
+forbid_unsafe = true

@@ -19,3 +19,8 @@ band = "medium"
 slug = "compile-time-rust"
 name = "Compile-time Rust"
 band = "medium"
+
+[[stages]]
+slug = "type-level-design"
+name = "Type-level design"
+band = "hard"

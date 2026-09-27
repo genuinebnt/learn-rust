@@ -186,7 +186,6 @@ a.tile:hover { border-color: var(--line); }
 /* editor toggles live at the right end of the info row under the file tabs */
 .gbar .fp { overflow: hidden; white-space: nowrap; }
 .gbar .fp > span { overflow: hidden; text-overflow: ellipsis; }
-.gtoggles { flex: none; display: flex; align-items: center; gap: 14px; padding: 0 14px; height: 100%; border-left: 1px solid var(--line2); }
 .gbar .lh { flex-shrink: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
 .gbar .lh > span { overflow: hidden; text-overflow: ellipsis; }
 
@@ -246,21 +245,12 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .errbox .box-x:hover { background: var(--raise); color: var(--fg); }
 
 /* collapsible side panels */
-.pane.rail { align-items: center; padding-top: 6px; gap: 12px; }
-.rail-btn { width: 26px; height: 26px; border-radius: 5px; color: var(--dim); font-size: 15px; }
-.rail-btn:hover { background: var(--raise); color: var(--fg); }
-.rail-label { writing-mode: vertical-rl; font: 500 10.5px var(--mono); letter-spacing: .24em; color: var(--dim); white-space: nowrap; }
-.pane-x { width: 24px; margin-left: -12px; color: var(--dim) !important; font-size: 15px; border-bottom: 0 !important; }
-.pane-x:hover { color: var(--fg) !important; }
-.pane-x.right { order: 99; margin-left: auto; margin-right: -8px; }
 
 /* the mockup's pass bar: one segment per test */
 .passbar { display: flex; gap: 3px; height: 5px; }
 .passbar span { flex: 1; border-radius: 2px; }
 
 /* reopen the console from the status bar */
-.sb-console { height: 20px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 4px; font: 500 10.5px var(--mono); color: var(--dim); }
-.sb-console:hover { color: var(--fg); border-color: var(--line); }
 
 /* right panel: Borrows tab */
 .borrows { display: flex; flex-direction: column; border-top: 1px solid var(--line2); }
@@ -270,3 +260,18 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .borrow .bk { font: 600 9.5px var(--mono); letter-spacing: .14em; }
 .borrow code { font: 500 12px var(--mono); color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .borrow .bl { font: 400 11px var(--mono); color: var(--dim); white-space: nowrap; padding-right: 4px; }
+
+/* Status bar: editor toggles as clickable items, then the layout icons. */
+.statusb { gap: 2px; padding: 0 8px 0 10px; }
+.statusb .si { height: 20px; display: inline-flex; align-items: center; gap: 6px; padding: 0 5px; border-radius: 4px; font: 400 11px var(--mono); color: var(--dim); white-space: nowrap; }
+.statusb button.si:hover { background: var(--raise); color: var(--fg); }
+.statusb button.si.off { color: color-mix(in oklab, var(--dim) 60%, transparent); }
+.statusb button.si.off .dot { background: transparent !important; box-shadow: inset 0 0 0 1px var(--line); }
+.statusb .sb-pos { margin-left: auto; }
+.lay { display: inline-flex; gap: 2px; margin-left: 6px; padding-left: 8px; border-left: 1px solid var(--line2); }
+.lay button { width: 24px; height: 20px; display: grid; place-items: center; border-radius: 4px; color: var(--dim); }
+.lay button:hover { background: var(--raise); color: var(--fg); }
+.lay button.on { color: var(--fg); }
+.lay svg { width: 15px; height: 13px; display: block; }
+.lay .fill { fill: currentColor; }
+.lay button:not(.on) .fill { fill: transparent; }

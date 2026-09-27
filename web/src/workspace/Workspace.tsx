@@ -159,6 +159,26 @@ function Loaded({ p }: { p: ProblemDetail }) {
     setFile(key);
     setTimeout(() => window.dispatchEvent(new CustomEvent(GOTO_EVENT, { detail: { key, line, col } })), 60);
   };
+  const toggleLayout = (which: Region) => {
+    if (which === "left") setLeftOpen(leftOpen ? 0 : 1);
+    else if (which === "right") setRightOpen(rightOpen ? 0 : 1);
+    else setConsoleOpen(!consoleOpen);
+  };
+  const toggleRef = useRef(toggleLayout);
+  toggleRef.current = toggleLayout;
+  useEffect(() => {
+    // ⌘B problem panel, ⌘J console, ⌥⌘B tests panel (Ctrl on other platforms), like VS Code.
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey) return;
+      const which: Region | null = e.code === "KeyB" ? (e.altKey ? "right" : "left") : e.code === "KeyJ" && !e.altKey ? "bottom" : null;
+      if (!which) return;
+      e.preventDefault();
+      e.stopPropagation();
+      toggleRef.current(which);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
   const showConsole = (tab: ConsoleTab) => {
     setConsoleTab(tab);
     setConsoleOpen(true);
@@ -305,22 +325,12 @@ function Loaded({ p }: { p: ProblemDetail }) {
           </div>
         </div>
 
-        <div className="ws" style={{ gridTemplateColumns: `${leftOpen ? `${leftW}px` : "34px"} minmax(0, 1fr) ${rightOpen ? `${rightW}px` : "34px"}` }}>
+        <div className="ws" style={{ gridTemplateColumns: [leftOpen ? `${leftW}px` : "", "minmax(0, 1fr)", rightOpen ? `${rightW}px` : ""].join(" ").trim() }}>
           {/* ---------- left: problem, hints, solution ---------- */}
-          {!leftOpen ? (
-            <section className="pane l rail">
-              <button className="rail-btn" onClick={() => setLeftOpen(1)} title="Show the problem panel" aria-label="Show the problem panel">
-                ›
-              </button>
-              <span className="rail-label">PROBLEM</span>
-            </section>
-          ) : (
+          {leftOpen ? (
             <section className="pane l">
               <div className="lgrip" onPointerDown={(e) => dragWidth(e, leftW, setLeftW, 1)} title="Drag to resize" aria-hidden="true" />
               <div className="tabs" role="tablist">
-                <button className="pane-x" onClick={() => setLeftOpen(0)} title="Hide the problem panel" aria-label="Hide the problem panel">
-                  ‹
-                </button>
                 {(
                   [
                     ["problem", "Problem"],
@@ -491,7 +501,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 )}
               </div>
             </section>
-          )}
+          ) : null}
 
           {/* ---------- centre: editor, actions, console ---------- */}
           <section className="pane c">
@@ -540,11 +550,6 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 <span>edition 2021</span>
                 <span>{p.crates.length ? `crates: ${p.crates.join(" · ")}` : "std only"}</span>
                 <span>{file === "main" ? "⌘' runs it · tests don't run" : `${names.length} visible tests · ${hiddenCases ? `${hiddenCases.length} hidden, unlocked` : "hidden on Submit"}`}</span>
-              </div>
-              <div className="gtoggles">
-                <Switch on={autocomplete} onClick={() => setAutocomplete(!autocomplete)} label="Autocomplete" />
-                <Switch on={ra} onClick={() => setRa(!ra)} label="rust-analyzer" />
-                {(borrowish || lanes) && <Switch on={lanesOn} onClick={() => setLanesOn(!lanesOn)} label="Borrow lanes" />}
               </div>
               {lanesOn && file === "lib" && (
                 <div className="lh">
@@ -603,17 +608,28 @@ function Loaded({ p }: { p: ProblemDetail }) {
               </div>
             )}
             <div className="statusb">
-              <RaStatusLine status={raStatus} detail={raDetail} errors={raDiag.errors} warnings={raDiag.warnings} />
-              <span>autocomplete {autocomplete ? (raSession ? "on" : "on · buffer words") : "off"}</span>
-              <span>
-                Ln {cursor[0]}, Col {cursor[1]}
-              </span>
-              <span style={{ marginLeft: "auto" }}>rustc 1.98.1 stable · clippy on test runs · sandboxed</span>
-              {!consoleOpen && (
-                <button className="sb-console" onClick={() => setConsoleOpen(true)} title="Show the console">
-                  ▴ console
+              <button className={`si${ra ? "" : " off"}`} onClick={() => setRa(!ra)} title={`${raDetail ? `${raDetail} · ` : ""}Click to turn rust-analyzer ${ra ? "off" : "on"}`} aria-pressed={ra}>
+                <RaStatusLine status={raStatus} errors={raDiag.errors} warnings={raDiag.warnings} />
+              </button>
+              <button
+                className={`si${autocomplete ? "" : " off"}`}
+                onClick={() => setAutocomplete(!autocomplete)}
+                title={`Autocomplete${autocomplete && !raSession ? " (buffer words until rust-analyzer is ready)" : ""} · click to turn ${autocomplete ? "off" : "on"}`}
+                aria-pressed={autocomplete}
+              >
+                <span className="dot" style={{ background: "var(--grn)" }} />
+                autocomplete
+              </button>
+              {(borrowish || lanes) && (
+                <button className={`si${lanesOn ? "" : " off"}`} onClick={() => setLanesOn(!lanesOn)} title={`Borrow lanes · click to turn ${lanesOn ? "off" : "on"}`} aria-pressed={lanesOn}>
+                  <span className="dot" style={{ background: "var(--vio)" }} />
+                  lanes
                 </button>
               )}
+              <span className="si sb-pos" title="rustc 1.98.1 stable · clippy on test runs · sandboxed">
+                Ln {cursor[0]}, Col {cursor[1]}
+              </span>
+              <LayoutButtons left={!!leftOpen} bottom={consoleOpen} right={!!rightOpen} toggle={toggleLayout} />
             </div>
             <Console
               tab={consoleTab}
@@ -691,22 +707,10 @@ function Loaded({ p }: { p: ProblemDetail }) {
             </Console>
           </section>
 
-          {!rightOpen ? (
-            <section className="pane r rail">
-              <button className="rail-btn" onClick={() => setRightOpen(1)} title="Show the tests panel" aria-label="Show the tests panel">
-                ‹
-              </button>
-              <span className="rail-label" style={{ color: shown && shown.tests.length ? (shown.status === "passed" ? "var(--grn)" : "var(--bad)") : undefined }}>
-                TESTS{shown && shown.tests.length ? ` ${shown.passed}/${shown.total}` : ""}
-              </span>
-            </section>
-          ) : (
+          {rightOpen ? (
             <section className="pane r">
               <div className="rgrip" onPointerDown={(e) => dragWidth(e, rightW, setRightW, -1)} title="Drag to resize" aria-hidden="true" />
               <div className="tabs" style={{ padding: "0 18px" }} role="tablist">
-                <button className="pane-x right" onClick={() => setRightOpen(0)} title="Hide the tests panel" aria-label="Hide the tests panel">
-                  ›
-                </button>
                 <button role="tab" className={rightTab === "tests" ? "on" : ""} aria-selected={rightTab === "tests"} onClick={() => setRightTab("tests")}>
                   {shown && shown.tests.length ? `Tests ${shown.passed}/${shown.total}` : "Tests"}
                 </button>
@@ -755,7 +759,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 </button>
               </div>
             </section>
-          )}
+          ) : null}
         </div>
       </main>
     </>
@@ -793,19 +797,37 @@ function Rule({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   );
 }
 
-function Switch({ on, onClick, label, disabled, title }: { on: boolean; onClick?: () => void; label: string; disabled?: boolean; title?: string }) {
+type Region = "left" | "bottom" | "right";
+
+const REGIONS: [Region, string, string][] = [
+  ["left", "problem panel", "⌘B"],
+  ["bottom", "console", "⌘J"],
+  ["right", "tests panel", "⌥⌘B"],
+];
+
+/** VS Code-style toggles: each icon hides or shows one region of the workspace. */
+function LayoutButtons({ left, bottom, right, toggle }: { left: boolean; bottom: boolean; right: boolean; toggle: (r: Region) => void }) {
+  const shown = { left, bottom, right };
   return (
-    <button
-      className={`sw${on ? " on" : ""}`}
-      onClick={onClick}
-      aria-pressed={on}
-      disabled={disabled}
-      title={title}
-      style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-    >
-      <span className="tx">{label}</span>
-      <span className="tr0" />
-    </button>
+    <span className="lay" role="group" aria-label="Layout">
+      {REGIONS.map(([r, name, keys]) => {
+        const label = `${shown[r] ? "Hide" : "Show"} the ${name} · ${keys}`;
+        return (
+          <button key={r} className={shown[r] ? "on" : ""} onClick={() => toggle(r)} title={label} aria-label={label} aria-pressed={shown[r]}>
+            <svg viewBox="0 0 15 13" aria-hidden="true">
+              <rect x="0.75" y="0.75" width="13.5" height="11.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+              {r === "left" ? (
+                <rect className="fill" x="1.5" y="1.5" width="4.5" height="10" rx="0.8" />
+              ) : r === "right" ? (
+                <rect className="fill" x="9" y="1.5" width="4.5" height="10" rx="0.8" />
+              ) : (
+                <rect className="fill" x="1.5" y="7.5" width="12" height="4" rx="0.8" />
+              )}
+            </svg>
+          </button>
+        );
+      })}
+    </span>
   );
 }
 

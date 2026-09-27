@@ -29,7 +29,10 @@ The requests it covers:
   - editor settings (font, size, Vim with `jk`/`kj`, 4-space indent);
   - the Output panel;
   - difficulty colours.
+  - Progress dashboards and spaced repetition; accent colour setting;
+  - the workspace console, contextual Run / Run tests, layout icons (see [HANDOFF.md](HANDOFF.md) §2).
 - Designed but not built: Today, Library, Mock interview, Readiness, and the project pages.
+- **Handoff and pending work:** [HANDOFF.md](HANDOFF.md).
 
 **Content:** 13 tracks, 252 verified problems (`anneal verify`, 0 failures).
 

@@ -251,18 +251,18 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .passbar span { flex: 1; border-radius: 2px; }
 
 
-/* Status bar: editor toggles as clickable items, then the layout icons. */
+/* Status bar: editor toggles as clickable items. Layout icons (.lay) sit at the right of the problem bar. */
 .statusb { gap: 2px; padding: 0 8px 0 10px; }
 .statusb .si { height: 20px; display: inline-flex; align-items: center; gap: 6px; padding: 0 5px; border-radius: 4px; font: 400 11px var(--mono); color: var(--dim); white-space: nowrap; }
 .statusb button.si:hover { background: var(--raise); color: var(--fg); }
 .statusb button.si.off { color: color-mix(in oklab, var(--dim) 60%, transparent); }
 .statusb button.si.off .dot { background: transparent !important; box-shadow: inset 0 0 0 1px var(--line); }
 .statusb .sb-pos { margin-left: auto; }
-.lay { display: inline-flex; gap: 2px; margin-left: 6px; padding-left: 8px; border-left: 1px solid var(--line2); }
-.lay button { width: 24px; height: 20px; display: grid; place-items: center; border-radius: 4px; color: var(--dim); }
+.lay { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line2); border-radius: 6px; }
+.lay button { width: 26px; height: 22px; display: grid; place-items: center; border-radius: 4px; color: var(--dim); }
 .lay button:hover { background: var(--raise); color: var(--fg); }
 .lay button.on { color: var(--fg); }
-.lay svg { width: 15px; height: 13px; display: block; }
+.lay svg { width: 16px; height: 14px; display: block; }
 .lay .fill { fill: currentColor; }
 .lay button:not(.on) .fill { fill: transparent; }
 
@@ -298,7 +298,21 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ftab-list { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; overflow-x: auto; scrollbar-width: none; }
 .ftab-list::-webkit-scrollbar { display: none; }
 .ftabs .tools { padding-left: 12px; }
-.ebtn { height: 26px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; font: 500 12px var(--sans); color: var(--fg); white-space: nowrap; }
-.ebtn:hover:not(:disabled) { border-color: var(--acc); }
-.ebtn:disabled { opacity: .45; cursor: not-allowed; }
-.ebtn kbd { font: 400 10.5px var(--mono); color: var(--dim); }
+.ebtn { height: 26px; display: inline-flex; align-items: center; gap: 7px; padding: 0 5px 0 10px; border: 1px solid color-mix(in oklab, var(--acc) 38%, transparent); border-radius: 6px; background: var(--acc-bg); color: var(--acc); font: 600 12px var(--sans); letter-spacing: .01em; white-space: nowrap; transition: background .12s, border-color .12s; }
+.ebtn:hover:not(:disabled) { background: color-mix(in oklab, var(--acc) 22%, transparent); border-color: var(--acc); }
+.ebtn:active:not(:disabled) { transform: translateY(0.5px); }
+.ebtn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.ebtn:disabled { opacity: .5; cursor: not-allowed; }
+.ebtn svg { width: 11px; height: 11px; flex: none; }
+.ebtn .spin { width: 11px; height: 11px; border-width: 1.5px; }
+.ebtn kbd { height: 18px; display: inline-flex; align-items: center; padding: 0 5px; border-radius: 4px; background: color-mix(in oklab, var(--acc) 14%, transparent); font: 500 10px var(--mono); color: color-mix(in oklab, var(--acc) 80%, var(--fg)); }
+.acts .go .spin { border-color: color-mix(in oklab, var(--on-acc) 30%, transparent); border-top-color: var(--on-acc); }
+
+/* Problem bar: when space runs out, extra tag pills drop out first, then the breadcrumb truncates.
+   The title, prev/next, clock and layout icons keep their size. */
+.subbar { overflow: hidden; }
+.subbar .crumb { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.subbar .crumb > * + * { margin-left: 8px; }
+.subbar .wtitle { flex: 0 0 auto; }
+.subpills { display: flex; flex-wrap: wrap; gap: 6px; flex: 0 3 auto; min-width: 0; height: 22px; overflow: hidden; align-items: center; }
+.subbar .sbr { flex: none; }

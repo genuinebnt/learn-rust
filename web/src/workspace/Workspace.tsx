@@ -291,7 +291,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
           </div>
           <div className="vr" />
           <span className="wtitle">{p.title}</span>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div className="subpills">
             <span className="pill solid" style={{ background: modeColor(p.mode) }}>
               {p.mode === "fix" ? "FIX THIS" : p.mode === "stage" ? "STAGE" : "WRITE IT"}
             </span>
@@ -330,6 +330,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
               <span style={{ color: "var(--fg)" }}>{mmss(elapsed)}</span>
               <small>/ {budget}:00</small>
             </div>
+            <LayoutButtons left={!!leftOpen} bottom={consoleOpen} right={!!rightOpen} toggle={toggleLayout} />
           </div>
         </div>
 
@@ -540,11 +541,13 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 {/* The scratch tab runs main.rs; every other tab runs the tests against lib.rs. */}
                 {file === "main" ? (
                   <button className="ebtn" onClick={doScratch} disabled={busy || p.status !== "ready"} title="Build main.rs with your lib.rs and run it (⌘')">
-                    {scratch.isPending ? "Running…" : "▷ Run"}
+                    {scratch.isPending ? <span className="spin" aria-hidden="true" /> : <RunIcon kind="run" />}
+                    {scratch.isPending ? "Running…" : "Run"}
                     <kbd>⌘'</kbd>
                   </button>
                 ) : (
                   <button className="ebtn" onClick={doRun} disabled={busy || p.status !== "ready"} title="Run the visible tests (⌘↵)">
+                    {run.isPending ? <span className="spin" aria-hidden="true" /> : <RunIcon kind="tests" />}
                     {run.isPending ? "Testing…" : "Run tests"}
                     <kbd>⌘↵</kbd>
                   </button>
@@ -651,7 +654,6 @@ function Loaded({ p }: { p: ProblemDetail }) {
               <span className="si sb-pos" title="rustc 1.98.1 stable · clippy on test runs · sandboxed">
                 Ln {cursor[0]}, Col {cursor[1]}
               </span>
-              <LayoutButtons left={!!leftOpen} bottom={consoleOpen} right={!!rightOpen} toggle={toggleLayout} />
             </div>
             <Console
               tab={consoleTab}
@@ -758,6 +760,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
               </div>
               <div className="acts">
                 <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"} title="Run the visible and hidden tests (⇧⌘↵)">
+                  {submit.isPending && <span className="spin" aria-hidden="true" />}
                   {submit.isPending ? "Submitting…" : "Submit"}
                 </button>
               </div>
@@ -797,6 +800,19 @@ function Rule({ ok, children }: { ok: boolean; children: React.ReactNode }) {
       <span style={{ color: ok ? "var(--grn)" : "var(--bad)" }}>{ok ? "+" : "×"}</span>
       <span>{children}</span>
     </>
+  );
+}
+
+function RunIcon({ kind }: { kind: "run" | "tests" }) {
+  return kind === "run" ? (
+    <svg viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M3.2 1.9v8.2a.7.7 0 0 0 1.05.6l6.6-4.1a.7.7 0 0 0 0-1.2L4.25 1.3a.7.7 0 0 0-1.05.6z" fill="currentColor" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 12 12" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.3 1.2h3.4M4.9 1.2v3.3L1.9 9.7a.9.9 0 0 0 .8 1.3h6.6a.9.9 0 0 0 .8-1.3L7.1 4.5V1.2" />
+      <path d="M3.1 7.6h5.8" />
+    </svg>
   );
 }
 

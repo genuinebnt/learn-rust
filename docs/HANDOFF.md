@@ -173,7 +173,7 @@ The test conventions:
 
 ### 6.1 Test hardening (step 2a): in progress, start here
 
-**Status (2026-09-27):** plan steps 1 and 2 are built, and step 3 is done for **D1** (every problem has ≥3 visible, ≥8 hidden, a
+**Status (2026-09-27):** plan steps 1 and 2 are built, and step 3 is done for **D1** (every problem has ≥5 visible, ≥8 hidden, a
 seeded random comparison, a scale test where one makes sense, and 1–3 `wrong/*.rs`). **Next: D2**, then down the table in §2.
 
 How the D1 pass was written, to repeat per track (see `tools/author/d1.py`):
@@ -205,7 +205,10 @@ Plan (approved):
    no crate dependency. Hidden tests use it for randomized comparisons against a brute-force reference written
    inside the test.
 3. **Raise the bar, track by track.** The targets:
-   - ≥ 3 visible and ≥ 8 hidden tests;
+   - ≥ 5 visible and ≥ 8 hidden tests, for **every problem, existing and new**. The visible ones must explain the
+     problem before a Submit: the main case, the empty or minimal input, and each rule that's easy to misread (order,
+     duplicates, direction, ties, the no-answer value). For a LeetCode question, include LeetCode's own examples,
+     adapted to the signature;
    - an edge-case checklist per problem type (empty, single, duplicates, negatives, bounds/overflow, max size,
      Unicode for strings);
    - one randomized brute-force comparison where there's a simple reference;

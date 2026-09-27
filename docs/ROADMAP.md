@@ -278,7 +278,7 @@ This is the "microservices" portfolio piece, and every stage is testable.
 |---|---|---|
 | 1 | **Finish the SDE-2 core content**: D6, D7, D8, D12 (DP), D10, D11, D13, D14; L4–L8; S5–S9 | The interview canon comes first; the dashboards need data to be useful |
 | 2 | ✅ Spaced repetition + Progress (overview, Rust stats, reviews), built 2026-09-27 · Today and Readiness pages still to build | With ~300 problems written, keeping them matters more than adding more. Reviews make the platform "anneal" |
-| 2a | **Test hardening** of all written problems: ≥3 visible and ≥8 hidden tests, edge checklists, seeded randomized brute-force comparisons, scale tests, `wrong/*.rs` solutions the verifier requires to fail · **in progress:** verifier + `Rng` prelude built, D1 done 2026-09-27; D2 onward next | Every later step leans on "passes" meaning correct |
+| 2a | **Test hardening** of all written problems: ≥5 visible (LeetCode's examples included) and ≥8 hidden tests, edge checklists, seeded randomized brute-force comparisons, scale tests, `wrong/*.rs` solutions the verifier requires to fail · **in progress:** verifier + `Rng` prelude built, D1 done 2026-09-27; D2 onward next | Every later step leans on "passes" meaning correct |
 | 2b | **Q concept cards** (card mode: mockup → build) + the §10.2 additions to L4, L5, S4, S6, S7 | The spoken half of interviews; reuses the review queue (§10) |
 | 2c | **AI assistant** (§11), in the order of §11.3 | Needs the hardened tests (2a) so the AI reviews correct code, and the review queue (2) for the assisted flag |
 | 3 | ~~6.1 vendored crates~~ done | Unblocked the concurrency/backend half of the curriculum |

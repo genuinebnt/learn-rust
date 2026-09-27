@@ -9,3 +9,8 @@ fn repeats() {
 fn empty() {
     check!(r#"text = """#, word_counts(""), std::collections::HashMap::new());
 }
+
+#[test]
+fn one_word_twice() {
+    check!(r#"text = "hi hi""#, word_counts("hi hi"), std::collections::HashMap::from([("hi", 2)]));
+}

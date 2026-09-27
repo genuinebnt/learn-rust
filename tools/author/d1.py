@@ -114,6 +114,7 @@ P.append(dict(
     visible=[
         T("three", "nums = [1, 2, 1]", "concat_twice(&[1, 2, 1])", "vec![1, 2, 1, 1, 2, 1]"),
         T("empty", "nums = []", "concat_twice(&[])", "Vec::<i32>::new()"),
+        T("single", "nums = [5]", "concat_twice(&[5])", "vec![5, 5]"),
     ],
     hidden=[
         T("one", "nums = [7]", "concat_twice(&[7])", "vec![7, 7]"),
@@ -468,6 +469,7 @@ P.append(dict(
     visible=[
         T("in_range", "v = [4, 5, 6], i = 1", "nth_or_zero(&[4, 5, 6], 1)", "5"),
         T("past_the_end", "v = [4, 5, 6], i = 3", "nth_or_zero(&[4, 5, 6], 3)", "0"),
+        T("empty", "v = [], i = 0", "nth_or_zero(&[], 0)", "0"),
     ],
     hidden=[
         T("empty", "v = [], i = 0", "nth_or_zero(&[], 0)", "0"),
@@ -530,6 +532,7 @@ P.append(dict(
     visible=[
         T("small", "nums = [3, 2, 3]", "majority(&[3, 2, 3])", "3"),
         T("longer", "nums = [2, 2, 1, 1, 1, 2, 2]", "majority(&[2, 2, 1, 1, 1, 2, 2])", "2"),
+        T("single", "nums = [1]", "majority(&[1])", "1"),
     ],
     hidden=[
         T("single", "nums = [9]", "majority(&[9])", "9"),
@@ -613,6 +616,7 @@ P.append(dict(
     visible=[
         T("enough", "note = \"aa\", magazine = \"aab\"", 'can_construct("aa", "aab")', "true"),
         T("not_enough", "note = \"aa\", magazine = \"ab\"", 'can_construct("aa", "ab")', "false"),
+        T("different_letter", "note = \"a\", magazine = \"b\"", 'can_construct("a", "b")', "false"),
     ],
     hidden=[
         T("empty_note", "note = \"\", magazine = \"\"", 'can_construct("", "")', "true"),
@@ -824,6 +828,7 @@ P.append(dict(
     visible=[
         T("repeats", "text = \"a b a c a\"", 'word_counts("a b a c a")', 'std::collections::HashMap::from([("a", 3), ("b", 1), ("c", 1)])'),
         T("empty", "text = \"\"", 'word_counts("")', "std::collections::HashMap::new()"),
+        T("one_word_twice", "text = \"hi hi\"", 'word_counts("hi hi")', 'std::collections::HashMap::from([("hi", 2)])'),
     ],
     hidden=[
         T("whitespace", "text = \"  x\\n x\\tx  \"", 'word_counts("  x\\n x\\tx  ")', 'std::collections::HashMap::from([("x", 3)])'),
@@ -909,6 +914,7 @@ P.append(dict(
     visible=[
         T("classic", "[\"eat\", \"tea\", \"tan\", \"ate\", \"nat\", \"bat\"]", 'group_anagrams(&["eat", "tea", "tan", "ate", "nat", "bat"])', 'vec![vec!["ate", "eat", "tea"], vec!["bat"], vec!["nat", "tan"]]'),
         T("empty_string", "[\"\"]", 'group_anagrams(&[""])', 'vec![vec![""]]'),
+        T("single_letters", "[\"a\", \"b\", \"a\"]", 'group_anagrams(&["a", "b", "a"])', 'vec![vec!["a", "a"], vec!["b"]]'),
     ],
     hidden=[
         T("no_words", "[]", "group_anagrams(&[])", "Vec::<Vec<String>>::new()"),
@@ -1144,6 +1150,7 @@ P.append(dict(
     visible=[
         T("four", "nums = [1, 2, 3, 4]", "product_except_self(&[1, 2, 3, 4])", "vec![24, 12, 8, 6]"),
         T("with_zero", "nums = [-1, 1, 0, -3, 3]", "product_except_self(&[-1, 1, 0, -3, 3])", "vec![0, 0, 9, 0, 0]"),
+        T("pair", "nums = [2, 3]", "product_except_self(&[2, 3])", "vec![3, 2]"),
     ],
     hidden=[
         T("two_zeros", "nums = [0, 4, 0]", "product_except_self(&[0, 4, 0])", "vec![0, 0, 0]"),
@@ -1576,6 +1583,7 @@ P.append(dict(
     visible=[
         T("mixed", "nums = [2, 0, 2, 1, 1, 0]", "{ let mut v = vec![2, 0, 2, 1, 1, 0]; sort_colors(&mut v); v }", "vec![0, 0, 1, 1, 2, 2]"),
         T("three", "nums = [2, 0, 1]", "{ let mut v = vec![2, 0, 1]; sort_colors(&mut v); v }", "vec![0, 1, 2]"),
+        T("single", "nums = [0]", "{ let mut v = vec![0]; sort_colors(&mut v); v }", "vec![0]"),
     ],
     hidden=[
         T("empty", "nums = []", "{ let mut v: Vec<u8> = vec![]; sort_colors(&mut v); v }", "Vec::<u8>::new()"),
@@ -1676,6 +1684,7 @@ P.append(dict(
     visible=[
         T("two", "nums = [10, 2]", "largest_number(&[10, 2])", '"210"'),
         T("five", "nums = [3, 30, 34, 5, 9]", "largest_number(&[3, 30, 34, 5, 9])", '"9534330"'),
+        T("single_digit", "nums = [1]", "largest_number(&[1])", '"1"'),
     ],
     hidden=[
         T("zeros", "nums = [0, 0]", "largest_number(&[0, 0])", '"0"'),
@@ -1787,11 +1796,66 @@ P.append(dict(
     visible=[
         T("second", "nums = [3, 2, 1, 5, 6, 4], k = 2", "kth_largest(&mut [3, 2, 1, 5, 6, 4], 2)", "5"),
         T("with_duplicates", "nums = [3, 2, 3, 1, 2, 4, 5, 5, 6], k = 4", "kth_largest(&mut [3, 2, 3, 1, 2, 4, 5, 5, 6], 4)", "4"),
+        T("single", "nums = [1], k = 1", "kth_largest(&mut [1], 1)", "1"),
     ],
     hidden=[
         T("largest", "nums = [7, -1], k = 1", "kth_largest(&mut [7, -1], 1)", "7"),
         T("smallest", "nums = 0..1000, k = 1000", "kth_largest(&mut (0..1000).collect::<Vec<_>>(), 1000)", "0"),
+        T("single", "nums = [5], k = 1", "kth_largest(&mut [5], 1)", "5"),
+        T("all_equal", "nums = [2, 2, 2], k = 3", "kth_largest(&mut [2, 2, 2], 3)", "2"),
+        T("repeated_max", "nums = [5, 5, 4], k = 2", "kth_largest(&mut [5, 5, 4], 2)", "5"),
+        T("negatives", "nums = [-1, -5, -3], k = 2", "kth_largest(&mut [-1, -5, -3], 2)", "-3"),
+        T("extremes", "nums = [i32::MIN, i32::MAX, 0], k = 3", "kth_largest(&mut [i32::MIN, i32::MAX, 0], 3)", "i32::MIN"),
+        T("sorted_descending", "nums = [9, 7, 5, 3, 1], k = 4", "kth_largest(&mut [9, 7, 5, 3, 1], 4)", "3"),
+        """
+        #[test]
+        fn random_vs_sort() {
+            let mut rng = anneal_prelude::Rng::new(20);
+            for _ in 0..300 {
+                let n = 1 + rng.below(12);
+                let nums: Vec<i32> = rng.vec(n, -5, 5);
+                let k = 1 + rng.below(n);
+                let mut sorted = nums.clone();
+                sorted.sort_unstable_by(|a, b| b.cmp(a));
+                check!(format!("nums = {nums:?}, k = {k}"), kth_largest(&mut nums.clone(), k), sorted[k - 1]);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let mut rng = anneal_prelude::Rng::new(21);
+            let mut nums: Vec<i32> = (0..200_000).collect();
+            rng.shuffle(&mut nums);
+            check!("nums = 0..200000 shuffled, k = 100000", kth_largest(&mut nums, 100_000), 100_000);
+        }
+        """,
     ],
+    wrong=dict(
+        kth_smallest="""
+            pub fn kth_largest(nums: &mut [i32], k: usize) -> i32 {
+                *nums.select_nth_unstable(k - 1).1
+            }
+        """,
+        distinct_values="""
+            pub fn kth_largest(nums: &mut [i32], k: usize) -> i32 {
+                let mut v = nums.to_vec();
+                v.sort_unstable_by(|a, b| b.cmp(a));
+                v.dedup();
+                v[(k - 1).min(v.len() - 1)]
+            }
+        """,
+        k_passes="""
+            pub fn kth_largest(nums: &mut [i32], k: usize) -> i32 {
+                let mut end = nums.len();
+                for _ in 0..k - 1 {
+                    let (i, _) = nums[..end].iter().enumerate().max_by_key(|&(_, x)| *x).unwrap();
+                    nums.swap(i, end - 1);
+                    end -= 1;
+                }
+                *nums[..end].iter().max().unwrap()
+            }
+        """,
+    ),
     hints=[("approach", "The kth largest is at ascending index n − k."),
            ("rust", "Slices have a partial sort that puts one element in its final position.")],
     notes=("`select_nth_unstable` partitions around the target index in O(n) average time. A size-k min-heap also works in O(n log k).", "O(n) average", "O(1)"),
@@ -1838,7 +1902,93 @@ P.append(dict(
     hidden=[
         T("extremes", "nums = [i32::MAX, i32::MIN, i32::MAX - 1]", "longest_consecutive(&[i32::MAX, i32::MIN, i32::MAX - 1])", "2"),
         T("large_run", "nums = (0..100000).rev()", "longest_consecutive(&(0..100_000).rev().collect::<Vec<_>>())", "100000"),
+        T("single", "nums = [7]", "longest_consecutive(&[7])", "1"),
+        T("all_same", "nums = [7, 7, 7]", "longest_consecutive(&[7, 7, 7])", "1"),
+        T("duplicates_inside_run", "nums = [1, 2, 2, 3]", "longest_consecutive(&[1, 2, 2, 3])", "3"),
+        T("negatives", "nums = [-3, -2, -1, 5]", "longest_consecutive(&[-3, -2, -1, 5])", "3"),
+        T("crosses_zero", "nums = [1, -1, 0]", "longest_consecutive(&[1, -1, 0])", "3"),
+        T("two_runs", "nums = [10, 11, 1, 2, 3, 12, 13]", "longest_consecutive(&[10, 11, 1, 2, 3, 12, 13])", "4"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(22);
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let nums: Vec<i32> = rng.vec(n, -8, 8);
+                let mut s = nums.clone();
+                s.sort();
+                s.dedup();
+                let (mut best, mut run) = (0, 0);
+                for i in 0..s.len() {
+                    run = if i > 0 && s[i] == s[i - 1] + 1 { run + 1 } else { 1 };
+                    best = best.max(run);
+                }
+                check!(format!("nums = {nums:?}"), longest_consecutive(&nums), best);
+            }
+        }
+
+        #[test]
+        fn scale_200k_two_runs() {
+            let mut rng = anneal_prelude::Rng::new(23);
+            let mut nums: Vec<i32> = (0..120_000).chain(500_000..580_000).collect();
+            rng.shuffle(&mut nums);
+            check!("nums = 0..120000 and 500000..580000, shuffled", longest_consecutive(&nums), 120_000);
+        }
+        """,
     ],
+    wrong=dict(
+        count_from_every_number="""
+            use std::collections::HashSet;
+
+            pub fn longest_consecutive(nums: &[i32]) -> usize {
+                let set: HashSet<i32> = nums.iter().copied().collect();
+                let mut best = 0;
+                for &x in &set {
+                    let mut len = 1;
+                    let mut y = x;
+                    while y != i32::MAX && set.contains(&(y + 1)) {
+                        y += 1;
+                        len += 1;
+                    }
+                    best = best.max(len);
+                }
+                best
+            }
+        """,
+        sort_without_dedup="""
+            pub fn longest_consecutive(nums: &[i32]) -> usize {
+                let mut s = nums.to_vec();
+                s.sort_unstable();
+                let (mut best, mut run) = (0, 0);
+                for i in 0..s.len() {
+                    run = if i > 0 && s[i] as i64 == s[i - 1] as i64 + 1 { run + 1 } else { 1 };
+                    best = best.max(run);
+                }
+                best
+            }
+        """,
+        unguarded_overflow="""
+            use std::collections::HashSet;
+
+            pub fn longest_consecutive(nums: &[i32]) -> usize {
+                let set: HashSet<i32> = nums.iter().copied().collect();
+                let mut best = 0;
+                for &x in &set {
+                    if set.contains(&(x - 1)) {
+                        continue;
+                    }
+                    let mut len = 1;
+                    let mut y = x;
+                    while set.contains(&(y + 1)) {
+                        y += 1;
+                        len += 1;
+                    }
+                    best = best.max(len);
+                }
+                best
+            }
+        """,
+    ),
     hints=[("approach", "Put everything in a set. A run starts at x only if x − 1 isn't in the set."),
            ("edge case", "`x - 1` overflows at `i32::MIN` in a debug build.")],
     notes=("Each number is visited by at most one run, so the inner loop is O(n) in total. Guarding `i32::MIN`/`MAX` avoids overflow panics.", "O(n)", "O(n)"),
@@ -1866,10 +2016,50 @@ P.append(dict(
     visible=[
         T("plain", "[2.5, -1.0, 1.0]", '{ let mut v = vec![2.5, -1.0, 1.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-1", "1", "2.5"]'),
         T("nan_goes_last", "[3.0, NaN, 1.0]", '{ let mut v = vec![3.0, f64::NAN, 1.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["1", "3", "NaN"]'),
+        T("negatives", "[-0.5, -2.0, 4.0]", '{ let mut v = vec![-0.5, -2.0, 4.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-2", "-0.5", "4"]'),
     ],
     hidden=[
         T("infinities", "[inf, -inf, 0.0]", '{ let mut v = vec![f64::INFINITY, f64::NEG_INFINITY, 0.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-inf", "0", "inf"]'),
+        T("empty", "[]", '{ let mut v: Vec<f64> = vec![]; sort_readings(&mut v); v.len() }', "0"),
+        T("single_nan", "[NaN]", '{ let mut v = vec![f64::NAN]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["NaN"]'),
+        T("nans_at_front", "[NaN, NaN, 2.0, -3.5]", '{ let mut v = vec![f64::NAN, f64::NAN, 2.0, -3.5]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-3.5", "2", "NaN", "NaN"]'),
+        T("negative_zero_first", "[0.0, -0.0]", '{ let mut v = vec![0.0, -0.0]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-0", "0"]'),
+        T("duplicates", "[1.5, 1.5, -1.5]", '{ let mut v = vec![1.5, 1.5, -1.5]; sort_readings(&mut v); v.iter().map(|x| x.to_string()).collect::<Vec<_>>() }', 'vec!["-1.5", "1.5", "1.5"]'),
+        T("tiny_and_huge", "[f64::MAX, f64::MIN_POSITIVE, f64::MIN]", '{ let mut v = vec![f64::MAX, f64::MIN_POSITIVE, f64::MIN]; sort_readings(&mut v); v == vec![f64::MIN, f64::MIN_POSITIVE, f64::MAX] }', "true"),
+        """
+        #[test]
+        fn random_vs_reference() {
+            let mut rng = anneal_prelude::Rng::new(24);
+            let pool = [f64::NAN, -2.5, -0.0, 0.0, 1.0, 3.25, f64::INFINITY, f64::NEG_INFINITY];
+            for _ in 0..300 {
+                let n = rng.below(10);
+                let v: Vec<f64> = (0..n).map(|_| *rng.pick(&pool)).collect();
+                // Numbers ascending (-0 before 0), then every NaN.
+                let mut want: Vec<f64> = v.iter().copied().filter(|x| !x.is_nan()).collect();
+                want.sort_by(|a, b| (a, a.is_sign_positive()).partial_cmp(&(b, b.is_sign_positive())).unwrap());
+                want.extend(v.iter().filter(|x| x.is_nan()));
+                let mut got = v.clone();
+                sort_readings(&mut got);
+                let show = |xs: &[f64]| xs.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+                check!(format!("{:?}", show(&v)), show(&got), show(&want));
+            }
+        }
+        """,
     ],
+    wrong=dict(
+        descending="""
+            /// Sorts readings ascending. NaN readings go last.
+            pub fn sort_readings(readings: &mut Vec<f64>) {
+                readings.sort_by(|a, b| b.total_cmp(a));
+            }
+        """,
+        nan_first="""
+            /// Sorts readings ascending. NaN readings go last.
+            pub fn sort_readings(readings: &mut Vec<f64>) {
+                readings.sort_by(|a, b| b.is_nan().cmp(&a.is_nan()).then(a.total_cmp(b)));
+            }
+        """,
+    ),
     hints=[("rust", "`sort` needs `Ord`. Why doesn't `f64` implement it?"),
            ("rust", "`partial_cmp(..).unwrap()` panics on NaN. `f64` has a method that orders every value.")],
     notes=("`total_cmp` follows IEEE 754 totalOrder: −NaN < −∞ < … < +∞ < +NaN, so NaN (positive by default) sorts last.", "O(n log n)", "O(n)"),
@@ -1909,7 +2099,54 @@ P.append(dict(
         T("duplicates", "nums = [1, 1]", "first_missing_positive(&mut [1, 1])", "2"),
         T("empty", "nums = []", "first_missing_positive(&mut [])", "1"),
         T("permutation", "nums = (1..=1000).rev()", "first_missing_positive(&mut (1..=1000).rev().collect::<Vec<_>>())", "1001"),
+        T("single_one", "nums = [1]", "first_missing_positive(&mut [1])", "2"),
+        T("single_two", "nums = [2]", "first_missing_positive(&mut [2])", "1"),
+        T("only_non_positive", "nums = [0, -1, -5]", "first_missing_positive(&mut [0, -1, -5])", "1"),
+        T("extremes", "nums = [i32::MAX, i32::MIN, 1]", "first_missing_positive(&mut [i32::MAX, i32::MIN, 1])", "2"),
+        T("repeated_out_of_place", "nums = [2, 2, 2]", "first_missing_positive(&mut [2, 2, 2])", "1"),
+        T("pairs", "nums = [1, 1, 2, 2]", "first_missing_positive(&mut [1, 1, 2, 2])", "3"),
+        T("value_equals_len", "nums = [3, 1, 2]", "first_missing_positive(&mut [3, 1, 2])", "4"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(25);
+            for _ in 0..300 {
+                let n = rng.below(10);
+                let nums: Vec<i32> = rng.vec(n, -3, 11);
+                let want = (1..).find(|x| !nums.contains(x)).unwrap();
+                check!(format!("nums = {nums:?}"), first_missing_positive(&mut nums.clone()), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let mut rng = anneal_prelude::Rng::new(26);
+            let mut nums: Vec<i32> = (1..=200_000).filter(|&x| x != 123_457).collect();
+            nums.push(-4);
+            rng.shuffle(&mut nums);
+            check!("nums = 1..=200000 without 123457, plus -4, shuffled", first_missing_positive(&mut nums), 123_457);
+        }
+        """,
     ],
+    wrong=dict(
+        no_duplicate_guard="""
+            pub fn first_missing_positive(nums: &mut [i32]) -> i32 {
+                let n = nums.len();
+                for i in 0..n {
+                    while nums[i] > 0 && (nums[i] as usize) <= n && nums[i] as usize != i + 1 {
+                        let home = nums[i] as usize - 1;
+                        nums.swap(i, home);
+                    }
+                }
+                (0..n).find(|&i| nums[i] != i as i32 + 1).map_or(n as i32 + 1, |i| i as i32 + 1)
+            }
+        """,
+        check_each_candidate="""
+            pub fn first_missing_positive(nums: &mut [i32]) -> i32 {
+                (1..).find(|x| !nums.contains(x)).unwrap()
+            }
+        """,
+    ),
     hints=[("approach", "The answer is in 1..=n+1. Can each value v in that range live at index v − 1?"),
            ("edge case", "Duplicates would swap forever; stop when the target slot already holds the value.")],
     notes=("Each swap puts one value in its final slot, so there are at most n swaps in total.", "O(n)", "O(1)"),
@@ -2011,8 +2248,90 @@ P.append(dict(
             quicksort(&mut v);
             check!("5000 values in -500..500", v == want, true);
         }
+
+        #[test]
+        fn single() {
+            let mut v = vec![42];
+            quicksort(&mut v);
+            check!("[42]", v, vec![42]);
+        }
+
+        #[test]
+        fn two_equal() {
+            let mut v = vec![3, 3];
+            quicksort(&mut v);
+            check!("[3, 3]", v, vec![3, 3]);
+        }
+
+        #[test]
+        fn extremes() {
+            let mut v = vec![i32::MAX, 0, i32::MIN, -1, i32::MAX];
+            quicksort(&mut v);
+            check!("[i32::MAX, 0, i32::MIN, -1, i32::MAX]", v, vec![i32::MIN, -1, 0, i32::MAX, i32::MAX]);
+        }
+
+        #[test]
+        fn organ_pipe_20k() {
+            let mut v: Vec<i32> = (0..10_000).chain((0..10_000).rev()).collect();
+            let want = sorted_copy(&v);
+            quicksort(&mut v);
+            check!("0..10000 then back down", v == want, true);
+        }
+
+        #[test]
+        fn random_vs_sort() {
+            let mut rng = anneal_prelude::Rng::new(27);
+            for _ in 0..300 {
+                let n = rng.below(16);
+                let v: Vec<i32> = rng.vec(n, -4, 4);
+                let mut got = v.clone();
+                quicksort(&mut got);
+                check!(format!("{v:?}"), got, sorted_copy(&v));
+            }
+        }
+
+        #[test]
+        fn scale_200k_random() {
+            let mut rng = anneal_prelude::Rng::new(28);
+            let mut v: Vec<i32> = rng.vec(200_000, i32::MIN as i64, i32::MAX as i64);
+            let want = sorted_copy(&v);
+            quicksort(&mut v);
+            check!("200000 random i32 values", v == want, true);
+        }
         """,
     ],
+    wrong=dict(
+        lomuto_last_pivot="""
+            pub fn quicksort(v: &mut [i32]) {
+                if v.len() <= 1 {
+                    return;
+                }
+                let last = v.len() - 1;
+                let mut store = 0;
+                for i in 0..last {
+                    if v[i] < v[last] {
+                        v.swap(i, store);
+                        store += 1;
+                    }
+                }
+                v.swap(store, last);
+                let (left, right) = v.split_at_mut(store);
+                quicksort(left);
+                quicksort(&mut right[1..]);
+            }
+        """,
+        insertion_sort="""
+            pub fn quicksort(v: &mut [i32]) {
+                for i in 1..v.len() {
+                    let mut j = i;
+                    while j > 0 && v[j - 1] > v[j] {
+                        v.swap(j - 1, j);
+                        j -= 1;
+                    }
+                }
+            }
+        """,
+    ),
     hints=[("approach", "Partition, then sort each side. Pick the middle element as the pivot to survive sorted input."),
            ("approach", "Lomuto partitioning degrades to O(n²) when every key is equal. Hoare's doesn't."),
            ("rust", "`split_at_mut` gives two disjoint `&mut` halves. To keep looping on one of them, `std::mem::take(&mut v)` first.")],
@@ -2074,7 +2393,126 @@ P.append(dict(
         T("duplicates", "points = [(1,1), (1,1), (2,3)]", "max_points(&[(1, 1), (1, 1), (2, 3)])", "3"),
         T("vertical", "points = [(2,1), (2,5), (2,-3), (0,0)]", "max_points(&[(2, 1), (2, 5), (2, -3), (0, 0)])", "3"),
         T("empty", "points = []", "max_points(&[])", "0"),
+        T("two", "points = [(0,0), (5,-3)]", "max_points(&[(0, 0), (5, -3)])", "2"),
+        T("all_same", "points = [(4,4), (4,4), (4,4)]", "max_points(&[(4, 4), (4, 4), (4, 4)])", "3"),
+        T("horizontal", "points = [(1,7), (-3,7), (9,7), (0,0)]", "max_points(&[(1, 7), (-3, 7), (9, 7), (0, 0)])", "3"),
+        T("opposite_directions", "points = [(0,0), (1,-1), (-1,1), (2,2)]", "max_points(&[(0, 0), (1, -1), (-1, 1), (2, 2)])", "3"),
+        T("float_trap", "points = [(0,0), (94911151,94911150), (94911152,94911151)]", "max_points(&[(0, 0), (94_911_151, 94_911_150), (94_911_152, 94_911_151)])", "2"),
+        T("i32_extremes", "points = [(MIN,MIN), (0,0), (MAX,MAX)]", "max_points(&[(i32::MIN, i32::MIN), (0, 0), (i32::MAX, i32::MAX)])", "3"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn brute(p: &[(i32, i32)]) -> usize {
+                let n = p.len();
+                let mut best = n.min(2);
+                for i in 0..n {
+                    for j in 0..n {
+                        if p[i] == p[j] {
+                            continue;
+                        }
+                        let on = (0..n).filter(|&k| {
+                            let (ax, ay) = ((p[j].0 - p[i].0) as i64, (p[j].1 - p[i].1) as i64);
+                            let (bx, by) = ((p[k].0 - p[i].0) as i64, (p[k].1 - p[i].1) as i64);
+                            ax * by == ay * bx
+                        }).count();
+                        best = best.max(on);
+                    }
+                }
+                // Every point identical: all of them are on any line through it.
+                if n > 0 && p.iter().all(|&q| q == p[0]) {
+                    best = n;
+                }
+                best
+            }
+            let mut rng = anneal_prelude::Rng::new(29);
+            for _ in 0..300 {
+                let n = rng.below(8);
+                let pts: Vec<(i32, i32)> = (0..n).map(|_| (rng.int(-3, 3) as i32, rng.int(-3, 3) as i32)).collect();
+                check!(format!("points = {pts:?}"), max_points(&pts), brute(&pts));
+            }
+        }
+
+        #[test]
+        fn scale_2000_points() {
+            // 1500 points on y = 2x + 1, and 500 on a parabola far above it.
+            let mut pts: Vec<(i32, i32)> = (0..1500).map(|x| (x, 2 * x + 1)).collect();
+            pts.extend((0..500).map(|x| (x, x * x + 1_000_000)));
+            check!("1500 points on y = 2x + 1, 500 on y = x² + 10⁶", max_points(&pts), 1500);
+        }
+        """,
     ],
+    wrong=dict(
+        float_slope="""
+            use std::collections::HashMap;
+
+            pub fn max_points(points: &[(i32, i32)]) -> usize {
+                let mut best = points.len().min(2);
+                for (i, &(x1, y1)) in points.iter().enumerate() {
+                    let mut slopes: HashMap<u64, usize> = HashMap::new();
+                    let mut same = 0;
+                    for &(x2, y2) in &points[i + 1..] {
+                        let (dx, dy) = (x2 as f64 - x1 as f64, y2 as f64 - y1 as f64);
+                        if dx == 0.0 && dy == 0.0 {
+                            same += 1;
+                            continue;
+                        }
+                        let slope = if dx == 0.0 { f64::INFINITY } else { dy / dx + 0.0 };
+                        *slopes.entry(slope.to_bits()).or_insert(0) += 1;
+                    }
+                    best = best.max(1 + same + slopes.values().copied().max().unwrap_or(0));
+                }
+                best
+            }
+        """,
+        duplicates_ignored="""
+            use std::collections::HashMap;
+
+            fn gcd(a: i64, b: i64) -> i64 {
+                if b == 0 { a.abs() } else { gcd(b, a % b) }
+            }
+
+            pub fn max_points(points: &[(i32, i32)]) -> usize {
+                let mut best = points.len().min(1);
+                for (i, &(x1, y1)) in points.iter().enumerate() {
+                    let mut slopes: HashMap<(i64, i64), usize> = HashMap::new();
+                    for &(x2, y2) in &points[i + 1..] {
+                        let (mut dx, mut dy) = (x2 as i64 - x1 as i64, y2 as i64 - y1 as i64);
+                        if dx == 0 && dy == 0 {
+                            continue;
+                        }
+                        let g = gcd(dx, dy);
+                        dx /= g;
+                        dy /= g;
+                        if dx < 0 || (dx == 0 && dy < 0) {
+                            dx = -dx;
+                            dy = -dy;
+                        }
+                        *slopes.entry((dx, dy)).or_insert(0) += 1;
+                    }
+                    best = best.max(1 + slopes.values().copied().max().unwrap_or(0));
+                }
+                best
+            }
+        """,
+        cubic="""
+            pub fn max_points(points: &[(i32, i32)]) -> usize {
+                let n = points.len();
+                let mut best = n.min(2);
+                for i in 0..n {
+                    for j in i + 1..n {
+                        let (ax, ay) = (points[j].0 as i64 - points[i].0 as i64, points[j].1 as i64 - points[i].1 as i64);
+                        if ax == 0 && ay == 0 {
+                            best = best.max(points.iter().filter(|&&p| p == points[i]).count());
+                            continue;
+                        }
+                        let on = points.iter().filter(|&&(x, y)| ax * (y as i64 - points[i].1 as i64) == ay * (x as i64 - points[i].0 as i64)).count();
+                        best = best.max(on);
+                    }
+                }
+                best
+            }
+        """,
+    ),
     hints=[("approach", "Fix one point and group the others by the direction to it."),
            ("rust", "Floats lose precision; reduce (dx, dy) by their gcd and fix the sign instead."),
            ("edge case", "Duplicate points are on every line through that point.")],

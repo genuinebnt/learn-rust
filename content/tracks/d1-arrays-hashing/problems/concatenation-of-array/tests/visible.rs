@@ -9,3 +9,8 @@ fn three() {
 fn empty() {
     check!(r#"nums = []"#, concat_twice(&[]), Vec::<i32>::new());
 }
+
+#[test]
+fn single() {
+    check!(r#"nums = [5]"#, concat_twice(&[5]), vec![5, 5]);
+}

@@ -173,6 +173,22 @@ The test conventions:
 
 ### 6.1 Test hardening (step 2a): in progress, start here
 
+**Status (2026-09-27):** plan steps 1 and 2 are built, and step 3 is done for **D1** (every problem has ≥3 visible, ≥8 hidden, a
+seeded random comparison, a scale test where one makes sense, and 1–3 `wrong/*.rs`). **Next: D2**, then down the table in §2.
+
+How the D1 pass was written, to repeat per track (see `tools/author/d1.py`):
+- Add hidden `T(...)` cases for the edge checklist, then one free-form string holding `random_vs_brute_force` (an
+  `anneal_prelude::Rng::new(<seed>)` loop over small inputs, the brute force written inline) and `scale_*`.
+- Size scale tests so O(n²) runs past the 15 s test limit in a debug build (n ≈ 10⁵–2·10⁵), and put the work where a
+  naive loop can't exit early (e.g. the answer at the end). Raise the problem's `constraints` if the test needs it.
+- Build big inputs on the heap (`vec![x; n]`, not `[x; n]`): a large array on a test thread's 2 MB stack aborts the
+  binary, which shows up as every later test "timed out".
+- `Rng` calls can't nest (`rng.vec(rng.below(n), ..)` is E0499); bind the length first. `rng.pick` in a `&str`
+  position needs a `*`.
+- Put wrong solutions in the spec's `wrong=dict(name=code)`: the quadratic version, the classic bug, the misread
+  statement. `verify` reports any that compile and pass; that means a test is missing, so add one rather than drop it.
+- `verify d1` takes about 1.5 minutes, because every quadratic wrong solution runs to the timeout.
+
 The owner asked for real unit tests, not a handful of trivial cases. Today's audit:
 - the median problem has 4 tests, and the median hidden count is 2;
 - 62 problems have only 3 tests;

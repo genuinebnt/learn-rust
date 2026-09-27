@@ -9,3 +9,8 @@ fn small() {
 fn longer() {
     check!(r#"nums = [2, 2, 1, 1, 1, 2, 2]"#, majority(&[2, 2, 1, 1, 1, 2, 2]), 2);
 }
+
+#[test]
+fn single() {
+    check!(r#"nums = [1]"#, majority(&[1]), 1);
+}

@@ -1,0 +1,32 @@
+slug = "generic-memoization-engine"
+title = "Generic memoization engine"
+mode = "write"
+level = "medium"
+stage = "dp-the-rust-way"
+order = 54
+status = "ready"
+tags = ["generics", "Rc<dyn Fn>", "HashMap", "W44"]
+teaches = [
+  "A memo generic over any `Eq + Hash + Clone` key: numbers, tuples, owned `String`s.",
+  "Why the function lives in an `Rc`: `get` clones the handle so it can lend `self` to the function mutably.",
+]
+constraints = ["recursion depth up to about 1000"]
+follow_up = "How would you make `get` take `&self` (a `RefCell` around the cache), and what goes wrong if the function calls `get` while the cache is borrowed?"
+related = ["L5", "L6"]
+
+[[hints]]
+kind = "approach"
+text = "`get` checks the cache; on a miss it calls the function with `&mut self` (so the function can call `get` again), stores the result and returns a clone."
+
+[[hints]]
+kind = "rust"
+text = "`(self.f)(self, key)` borrows `self.f` and all of `self` at once and won't compile. `let f = Rc::clone(&self.f);` first: now `f` is a separate handle and `f(self, key.clone())` is fine."
+
+[[hints]]
+kind = "edge case"
+text = "Clone the key before the call, since the function takes it by value and the cache needs it afterwards. Values come out as clones because the cache keeps the originals."
+
+[solution]
+explanation = "Every distinct key runs the function once; later gets are a hash lookup. A plain `F: Fn(&mut Self, K) -> V` type parameter would make the struct's type mention itself, which is why the function is a trait object behind an `Rc`."
+time = "O(1) expected per cached get"
+space = "O(number of keys)"

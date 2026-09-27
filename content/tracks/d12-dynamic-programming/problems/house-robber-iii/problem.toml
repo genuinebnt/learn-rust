@@ -1,0 +1,41 @@
+slug = "house-robber-iii"
+title = "House robber III"
+mode = "write"
+level = "medium"
+stage = "dp-the-rust-way"
+order = 57
+status = "ready"
+tags = ["tree DP", "Rc<RefCell>", "tuples"]
+companies = ["Amazon", "Google", "Meta", "Microsoft", "Uber"]
+teaches = [
+  "Tree DP: each subtree returns a pair (best if its root is robbed, best if it isn't).",
+  "Returning tuples up the recursion instead of memoising on node pointers.",
+]
+constraints = ["0 ≤ nodes ≤ 3·10⁵", "0 ≤ val ≤ 10⁴", "depth up to 10⁵"]
+follow_up = "How would you write it without recursion, for a tree deep enough to overflow the stack?"
+related = ["D6"]
+
+[[examples]]
+input = "root = [3, 2, 3, null, 3, null, 1]"
+output = "7 (3 + 3 + 1)"
+
+[[examples]]
+input = "root = [3, 4, 5, 1, 3, null, 1]"
+output = "9 (4 + 5)"
+
+[[hints]]
+kind = "approach"
+text = "For each subtree compute two numbers: the best total if its root is robbed (then neither child is) and if it isn't (then each child is free to be robbed or not)."
+
+[[hints]]
+kind = "rust"
+text = "A recursive `fn best(node: &Option<Rc<RefCell<TreeNode>>>) -> (i64, i64)`: `let Some(node) = node else { return (0, 0) };`, borrow it, recurse into `&node.left` and `&node.right`."
+
+[[hints]]
+kind = "edge case"
+text = "Taking every other level isn't optimal: [4, 1, null, 2, null, 3] robs 4 and 3, two levels apart. Sums can pass i32 on big trees, so add in i64."
+
+[solution]
+explanation = "Returning both choices from each subtree makes one post-order pass enough. Recursing into grandchildren without the pair (or a memo) revisits subtrees exponentially often."
+time = "O(n)"
+space = "O(h) for the recursion"

@@ -7166,6 +7166,767 @@ P.append(dict(
     related=["D11"],
 ))
 
+# LeetCode's tree shape and a level-order builder, for House robber III (given in starter and solution).
+TREE = """
+use std::cell::RefCell;
+use std::collections::VecDeque;
+use std::rc::Rc;
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct TreeNode {
+    pub val: i32,
+    pub left: Option<Rc<RefCell<TreeNode>>>,
+    pub right: Option<Rc<RefCell<TreeNode>>>,
+}
+
+impl TreeNode {
+    pub fn new(val: i32) -> Self {
+        TreeNode { val, left: None, right: None }
+    }
+}
+
+/// Builds a tree from LeetCode's level-order form: `None` is a missing child.
+pub fn tree(values: &[Option<i32>]) -> Option<Rc<RefCell<TreeNode>>> {
+    let mut it = values.iter();
+    let root = Rc::new(RefCell::new(TreeNode::new((*it.next()?)?)));
+    let mut queue = VecDeque::from([root.clone()]);
+    while let Some(node) = queue.pop_front() {
+        let n = &mut *node.borrow_mut();
+        for child in [&mut n.left, &mut n.right] {
+            match it.next() {
+                None => return Some(root),
+                Some(&Some(val)) => {
+                    let c = Rc::new(RefCell::new(TreeNode::new(val)));
+                    queue.push_back(c.clone());
+                    *child = Some(c);
+                }
+                Some(None) => {}
+            }
+        }
+    }
+    Some(root)
+}
+"""
+
+
+def with_tree(body: str) -> str:
+    return TREE.strip("\n") + "\n\n" + textwrap.dedent(body).strip("\n") + "\n"
+
+
+# ---------------------------------------------------------------- DP the Rust way (hard)
+
+
+P.append(dict(
+    slug="generic-memoization-engine", title="Generic memoization engine", level="medium", stage="dp-the-rust-way",
+    tags=["generics", "Rc<dyn Fn>", "HashMap", "W44"],
+    teaches=["A memo generic over any `Eq + Hash + Clone` key: numbers, tuples, owned `String`s.",
+             "Why the function lives in an `Rc`: `get` clones the handle so it can lend `self` to the function mutably."],
+    statement="""
+        Build `Memo<'a, K, V>`, a cache that turns a recursive function into a memoised one. The
+        function receives the memo itself, so it can ask for smaller keys:
+
+        ```rust
+        let mut fib = Memo::<u64, u128>::new(|m, n| if n < 2 { n as u128 } else { m.get(n - 1) + m.get(n - 2) });
+        fib.get(90) // 2880067194370816120, computing each n once
+        ```
+
+        - `new(f)` makes an empty memo for `f`. `f` may borrow local data (lifetime `'a`).
+        - `get(key)` returns `f(key)`, calling `f` for a key at most once, ever.
+        - `len()` is the number of keys cached so far; `is_empty()` whether that is zero.
+    """,
+    constraints=["recursion depth up to about 1000"],
+    starter="""
+        use std::collections::HashMap;
+        use std::hash::Hash;
+        use std::rc::Rc;
+
+        pub struct Memo<'a, K, V> {
+            cache: HashMap<K, V>,
+            // Why an Rc? See the hints.
+            f: Rc<dyn Fn(&mut Memo<'a, K, V>, K) -> V + 'a>,
+        }
+
+        impl<'a, K: Eq + Hash + Clone, V: Clone> Memo<'a, K, V> {
+            pub fn new(f: impl Fn(&mut Memo<'a, K, V>, K) -> V + 'a) -> Self {
+                todo!()
+            }
+
+            /// f(key), computed at most once per key.
+            pub fn get(&mut self, key: K) -> V {
+                todo!()
+            }
+
+            /// How many keys are cached.
+            pub fn len(&self) -> usize {
+                todo!()
+            }
+
+            pub fn is_empty(&self) -> bool {
+                todo!()
+            }
+        }
+    """,
+    solution="""
+        use std::collections::HashMap;
+        use std::hash::Hash;
+        use std::rc::Rc;
+
+        pub struct Memo<'a, K, V> {
+            cache: HashMap<K, V>,
+            // Why an Rc? See the hints.
+            f: Rc<dyn Fn(&mut Memo<'a, K, V>, K) -> V + 'a>,
+        }
+
+        impl<'a, K: Eq + Hash + Clone, V: Clone> Memo<'a, K, V> {
+            pub fn new(f: impl Fn(&mut Memo<'a, K, V>, K) -> V + 'a) -> Self {
+                Memo { cache: HashMap::new(), f: Rc::new(f) }
+            }
+
+            /// f(key), computed at most once per key.
+            pub fn get(&mut self, key: K) -> V {
+                if let Some(v) = self.cache.get(&key) {
+                    return v.clone();
+                }
+                // `(self.f)(self, ..)` would borrow self.f while lending all of self mutably.
+                // Cloning the Rc gives the function its own handle, so self is free to lend.
+                let f = Rc::clone(&self.f);
+                let v = f(self, key.clone());
+                self.cache.insert(key, v.clone());
+                v
+            }
+
+            /// How many keys are cached.
+            pub fn len(&self) -> usize {
+                self.cache.len()
+            }
+
+            pub fn is_empty(&self) -> bool {
+                self.cache.is_empty()
+            }
+        }
+    """,
+    use="use solution::*;\nuse std::cell::Cell;",
+    visible=[
+        T("fibonacci_90", "fib via Memo<u64, u128>, n = 90", "fib.get(90)", "2_880_067_194_370_816_120",
+          setup="let mut fib = Memo::<u64, u128>::new(|m, n| if n < 2 { n as u128 } else { m.get(n - 1) + m.get(n - 2) });"),
+        T("computes_each_key_once", "square(7) asked twice; (first, second, calls to f)", "(square.get(7), square.get(7), calls.get())", "(49, 49, 1)",
+          setup="let calls = Cell::new(0);\nlet mut square = Memo::<u32, u32>::new(|_, n| {\n    calls.set(calls.get() + 1);\n    n * n\n});"),
+        T("len_counts_cached_keys", "fib.get(10), then fib.len()", "fib.len()", "11",
+          setup="let mut fib = Memo::<u64, u64>::new(|m, n| if n < 2 { n } else { m.get(n - 1) + m.get(n - 2) });\nfib.get(10);"),
+        T("starts_empty", "a new memo: (len, is_empty)", "(m.len(), m.is_empty())", "(0, true)",
+          setup="let m = Memo::<u8, u8>::new(|_, x| x);"),
+        T("tuple_keys", "grid paths to (16, 16), key (row, col)", "paths.get((16, 16))", "601_080_390",
+          setup="let mut paths = Memo::<(u32, u32), u64>::new(|m, (r, c)| if r == 0 || c == 0 { 1 } else { m.get((r - 1, c)) + m.get((r, c - 1)) });"),
+    ],
+    hidden=[
+        T("starts_empty", "a new memo: (len, is_empty)", "(m.len(), m.is_empty())", "(0, true)",
+          setup="let m = Memo::<u8, u8>::new(|_, x| x);"),
+        T("not_empty_after_get", "one get, then (len, is_empty)", "(m.len(), m.is_empty())", "(1, false)",
+          setup="let mut m = Memo::<u8, u8>::new(|_, x| x);\nm.get(3);"),
+        T("fibonacci_150_u128", "fib via Memo<u64, u128>, n = 150", "fib.get(150)", "9_969_216_677_189_303_386_214_405_760_200",
+          setup="let mut fib = Memo::<u64, u128>::new(|m, n| if n < 2 { n as u128 } else { m.get(n - 1) + m.get(n - 2) });"),
+        T("string_keys", "ways to split \"catsanddog\" into [cat, cats, and, sand, dog], key = the rest of the string",
+          'ways.get("catsanddog".to_string())', "2",
+          setup='let words = ["cat", "cats", "and", "sand", "dog"];\nlet mut ways = Memo::<String, u64>::new(|m, s| {\n    if s.is_empty() {\n        return 1;\n    }\n    words.iter().filter(|w| s.starts_with(*w)).map(|w| m.get(s[w.len()..].to_string())).sum()\n});'),
+        T("string_keys_sixty", "ways to split 60 × 'a' into [a, aa]", "ways.get(\"a\".repeat(60))", "2_504_730_781_961",
+          setup='let words = ["a", "aa"];\nlet mut ways = Memo::<String, u64>::new(|m, s| {\n    if s.is_empty() {\n        return 1;\n    }\n    words.iter().filter(|w| s.starts_with(*w)).map(|w| m.get(s[w.len()..].to_string())).sum()\n});'),
+        T("option_values", "fewest coins from [1, 5, 6, 8] for 11, and from [5, 7] for 3", "(fewest.get(11), none.get(3))", "(Some(2), None)",
+          setup="let coins = [1u32, 5, 6, 8];\nlet mut fewest = Memo::<u32, Option<u32>>::new(|m, amount| {\n    if amount == 0 {\n        return Some(0);\n    }\n    coins.iter().filter(|&&c| c <= amount).filter_map(|&c| m.get(amount - c)).min().map(|k| k + 1)\n});\nlet other = [5u32, 7];\nlet mut none = Memo::<u32, Option<u32>>::new(|m, amount| {\n    if amount == 0 {\n        return Some(0);\n    }\n    other.iter().filter(|&&c| c <= amount).filter_map(|&c| m.get(amount - c)).min().map(|k| k + 1)\n});"),
+        T("each_key_once_in_recursion", "fib(30) through a counting wrapper: (answer, calls, len)", "(fib.get(30), calls.get(), fib.len())", "(832_040, 31, 31)",
+          setup="let calls = Cell::new(0);\nlet mut fib = Memo::<u64, u64>::new(|m, n| {\n    calls.set(calls.get() + 1);\n    if n < 2 { n } else { m.get(n - 1) + m.get(n - 2) }\n});"),
+        T("cache_survives_between_gets", "fib.get(20), then fib.get(25): calls to f in total", "calls.get()", "26",
+          setup="let calls = Cell::new(0);\nlet mut fib = Memo::<u64, u64>::new(|m, n| {\n    calls.set(calls.get() + 1);\n    if n < 2 { n } else { m.get(n - 1) + m.get(n - 2) }\n});\nfib.get(20);\nfib.get(25);"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            // Ways to make `amount` from coins[i..], memoised on (i, amount), against a bottom-up table.
+            let mut rng = anneal_prelude::Rng::new(1254);
+            for _ in 0..200 {
+                let k = rng.int(1, 4) as usize;
+                let coins: Vec<u32> = rng.vec(k, 1, 9);
+                let amount = rng.int(0, 40) as u32;
+                let mut ways = Memo::<(usize, u32), u64>::new(|m, (i, a)| {
+                    if a == 0 {
+                        1
+                    } else if i == coins.len() {
+                        0
+                    } else {
+                        m.get((i + 1, a)) + if coins[i] <= a { m.get((i, a - coins[i])) } else { 0 }
+                    }
+                });
+                let mut table = vec![0u64; amount as usize + 1];
+                table[0] = 1;
+                for &c in &coins {
+                    for x in c as usize..=amount as usize {
+                        table[x] += table[x - c as usize];
+                    }
+                }
+                check!(format!("coins = {coins:?}, amount = {amount}"), ways.get((0, amount)), table[amount as usize]);
+            }
+        }
+
+        #[test]
+        fn scale_grid_300() {
+            let mut paths = Memo::<(u32, u32), u64>::new(|m, (r, c)| {
+                if r == 0 || c == 0 { 1 } else { (m.get((r - 1, c)) + m.get((r, c - 1))) % 1_000_000_007 }
+            });
+            check!("grid paths to (300, 300) mod 1e9+7: (answer, keys cached)", (paths.get((300, 300)), paths.len()), (272_165_270, 90_000 + 600));
+        }
+        """,
+    ],
+    wrong=dict(
+        never_caches="""
+            use std::collections::HashMap;
+            use std::hash::Hash;
+            use std::rc::Rc;
+
+            pub struct Memo<'a, K, V> {
+                cache: HashMap<K, V>,
+                f: Rc<dyn Fn(&mut Memo<'a, K, V>, K) -> V + 'a>,
+            }
+
+            impl<'a, K: Eq + Hash + Clone, V: Clone> Memo<'a, K, V> {
+                pub fn new(f: impl Fn(&mut Memo<'a, K, V>, K) -> V + 'a) -> Self {
+                    Memo { cache: HashMap::new(), f: Rc::new(f) }
+                }
+
+                pub fn get(&mut self, key: K) -> V {
+                    if let Some(v) = self.cache.get(&key) {
+                        return v.clone();
+                    }
+                    let f = Rc::clone(&self.f);
+                    f(self, key)
+                }
+
+                pub fn len(&self) -> usize {
+                    self.cache.len()
+                }
+
+                pub fn is_empty(&self) -> bool {
+                    self.cache.is_empty()
+                }
+            }
+        """,
+        len_counts_calls="""
+            use std::collections::HashMap;
+            use std::hash::Hash;
+            use std::rc::Rc;
+
+            pub struct Memo<'a, K, V> {
+                cache: HashMap<K, V>,
+                gets: usize,
+                f: Rc<dyn Fn(&mut Memo<'a, K, V>, K) -> V + 'a>,
+            }
+
+            impl<'a, K: Eq + Hash + Clone, V: Clone> Memo<'a, K, V> {
+                pub fn new(f: impl Fn(&mut Memo<'a, K, V>, K) -> V + 'a) -> Self {
+                    Memo { cache: HashMap::new(), gets: 0, f: Rc::new(f) }
+                }
+
+                pub fn get(&mut self, key: K) -> V {
+                    self.gets += 1;
+                    if let Some(v) = self.cache.get(&key) {
+                        return v.clone();
+                    }
+                    let f = Rc::clone(&self.f);
+                    let v = f(self, key.clone());
+                    self.cache.insert(key, v.clone());
+                    v
+                }
+
+                pub fn len(&self) -> usize {
+                    self.gets
+                }
+
+                pub fn is_empty(&self) -> bool {
+                    self.gets == 0
+                }
+            }
+        """,
+    ),
+    hints=[("approach", "`get` checks the cache; on a miss it calls the function with `&mut self` (so the function can call `get` again), stores the result and returns a clone."),
+           ("rust", "`(self.f)(self, key)` borrows `self.f` and all of `self` at once and won't compile. `let f = Rc::clone(&self.f);` first: now `f` is a separate handle and `f(self, key.clone())` is fine."),
+           ("edge case", "Clone the key before the call, since the function takes it by value and the cache needs it afterwards. Values come out as clones because the cache keeps the originals.")],
+    notes=("Every distinct key runs the function once; later gets are a hash lookup. A plain `F: Fn(&mut Self, K) -> V` type parameter would make the struct's type mention itself, which is why the function is a trait object behind an `Rc`.", "O(1) expected per cached get", "O(number of keys)"),
+    follow_up="How would you make `get` take `&self` (a `RefCell` around the cache), and what goes wrong if the function calls `get` while the cache is borrowed?",
+    related=["L5", "L6"],
+))
+
+P.append(dict(
+    slug="fix-recursive-memo-closure", title="Fix: recursive memo closure", mode="fix", level="medium", stage="dp-the-rust-way",
+    tags=["E0500", "HashMap", "borrowck"],
+    teaches=["Why `entry(..).or_insert_with(|| recurse(memo))` can't compile: the entry holds `memo` while the closure needs it too.",
+             "Look up, compute, then insert: three short borrows instead of one long one."],
+    statement="""
+        `climb_ways(n)` should count the ways to climb `n` stairs taking 1, 2 or 3 steps at a time,
+        memoising in a `HashMap`. It doesn't compile: the closure passed to `or_insert_with` needs
+        `memo` while `entry` is still holding it (E0500). Fix it and keep the memo.
+    """,
+    starter="""
+        use std::collections::HashMap;
+
+        fn count(n: u64, memo: &mut HashMap<u64, u64>) -> u64 {
+            if n < 3 {
+                return [1, 1, 2][n as usize];
+            }
+            *memo.entry(n).or_insert_with(|| count(n - 1, memo) + count(n - 2, memo) + count(n - 3, memo))
+        }
+
+        /// Ways to climb `n` stairs taking 1, 2 or 3 steps at a time.
+        pub fn climb_ways(n: u64) -> u64 {
+            count(n, &mut HashMap::new())
+        }
+    """,
+    solution="""
+        use std::collections::HashMap;
+
+        fn count(n: u64, memo: &mut HashMap<u64, u64>) -> u64 {
+            if n < 3 {
+                return [1, 1, 2][n as usize];
+            }
+            if let Some(&known) = memo.get(&n) {
+                return known;
+            }
+            let ways = count(n - 1, memo) + count(n - 2, memo) + count(n - 3, memo);
+            memo.insert(n, ways);
+            ways
+        }
+
+        /// Ways to climb `n` stairs taking 1, 2 or 3 steps at a time.
+        pub fn climb_ways(n: u64) -> u64 {
+            count(n, &mut HashMap::new())
+        }
+    """,
+    rules=dict(methods=["clone"], lines=6),
+    constraints=["0 ≤ n ≤ 73 (the answer for 73 is the largest that fits in u64)"],
+    visible=[
+        T("four_stairs", "n = 4", "climb_ways(4)", "7"),
+        T("no_stairs", "n = 0 (one way: stay put)", "climb_ways(0)", "1"),
+        T("one_stair", "n = 1", "climb_ways(1)", "1"),
+        T("three_stairs", "n = 3", "climb_ways(3)", "4"),
+        T("fifty", "n = 50", "climb_ways(50)", "10_562_230_626_642"),
+    ],
+    hidden=[
+        T("two_stairs", "n = 2", "climb_ways(2)", "2"),
+        T("five", "n = 5", "climb_ways(5)", "13"),
+        T("seven", "n = 7", "climb_ways(7)", "44"),
+        T("seventy", "n = 70", "climb_ways(70)", "2_073_693_258_389_777_176"),
+        T("largest", "n = 73", "climb_ways(73)", "12_903_063_846_126_135_669"),
+        T("zero", "n = 0", "climb_ways(0)", "1"),
+        T("twice", "n = 60, asked twice", "(climb_ways(60), climb_ways(60))", "(4_680_045_560_037_375, 4_680_045_560_037_375)"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1255);
+            for _ in 0..200 {
+                let n = rng.int(0, 73) as u64;
+                let mut w = [1u64, 1, 2];
+                for _ in 2..n {
+                    w = [w[1], w[2], w[0] + w[1] + w[2]];
+                }
+                let want = if n < 3 { w[n as usize] } else { w[2] };
+                check!(format!("n = {n}"), climb_ways(n), want);
+            }
+        }
+
+        #[test]
+        fn every_n_up_to_73() {
+            let mut w = vec![1u64, 1, 2];
+            for k in 3..=73 {
+                w.push(w[k - 1] + w[k - 2] + w[k - 3]);
+            }
+            for n in 0..=73 {
+                check!(format!("n = {n}"), climb_ways(n as u64), w[n]);
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        drops_the_memo="""
+            use std::collections::HashMap;
+
+            fn count(n: u64, memo: &mut HashMap<u64, u64>) -> u64 {
+                if n < 3 {
+                    return [1, 1, 2][n as usize];
+                }
+                count(n - 1, memo) + count(n - 2, memo) + count(n - 3, memo)
+            }
+
+            /// Ways to climb `n` stairs taking 1, 2 or 3 steps at a time.
+            pub fn climb_ways(n: u64) -> u64 {
+                count(n, &mut HashMap::new())
+            }
+        """,
+        never_stores="""
+            use std::collections::HashMap;
+
+            fn count(n: u64, memo: &mut HashMap<u64, u64>) -> u64 {
+                if n < 3 {
+                    return [1, 1, 2][n as usize];
+                }
+                if let Some(&known) = memo.get(&n) {
+                    return known;
+                }
+                count(n - 1, memo) + count(n - 2, memo) + count(n - 3, memo)
+            }
+
+            /// Ways to climb `n` stairs taking 1, 2 or 3 steps at a time.
+            pub fn climb_ways(n: u64) -> u64 {
+                count(n, &mut HashMap::new())
+            }
+        """,
+        stores_zero_first="""
+            use std::collections::HashMap;
+
+            fn count(n: u64, memo: &mut HashMap<u64, u64>) -> u64 {
+                if n < 3 {
+                    return [1, 1, 2][n as usize];
+                }
+                if let Some(&known) = memo.get(&n) {
+                    return known;
+                }
+                memo.insert(n, 0);
+                let ways = count(n - 1, memo) + count(n - 2, memo) + count(n - 3, memo);
+                ways
+            }
+
+            /// Ways to climb `n` stairs taking 1, 2 or 3 steps at a time.
+            pub fn climb_ways(n: u64) -> u64 {
+                count(n, &mut HashMap::new())
+            }
+        """,
+    ),
+    hints=[("rust", "`memo.entry(n)` borrows `memo` mutably until the statement ends, and the closure inside needs `memo` mutably too for the recursive calls. Two live `&mut` to one map can't coexist."),
+           ("rust", "Split it: `if let Some(&known) = memo.get(&n) { return known; }`, then compute with the recursive calls, then `memo.insert(n, ways)`. Each borrow ends before the next begins.")],
+    notes=("The entry API is ideal when computing the value doesn't touch the map. When it does (any recursive memo), look up and insert separately; the extra hash is the price of letting the recursion use the map in between.", "O(n)", "O(n)"),
+    follow_up="Could `or_insert_with` work if the memo were a `RefCell<HashMap>` behind `&`? What would happen at run time?",
+    related=["L2", "L6"],
+))
+
+P.append(dict(
+    slug="top-down-to-bottom-up", title="Top-down → bottom-up rewrite", mode="fix", level="medium", stage="dp-the-rust-way",
+    tags=["tabulation", "stack overflow"],
+    teaches=["Turning a memoised recursion into a loop: fill the table in the order the recursion needs its answers.",
+             "Deep recursion overflows a thread's stack long before it runs out of time."],
+    statement="""
+        A frog starts on stone 0 and wants to reach the last stone. From stone `i` it can jump to
+        any of the next `k` stones; jumping from `i` to `j` costs `|heights[i] - heights[j]|`.
+        `min_cost` returns the cheapest total and gives the right answers, but it recurses once
+        per stone and overflows the stack on 200 000 stones. Rewrite it bottom-up, without recursion.
+    """,
+    examples=[("heights = [10, 30, 40, 50, 20], k = 3", "30 (0 → 1 → 4: 20 + 10)")],
+    constraints=["0 ≤ heights.len() ≤ 2·10⁵", "1 ≤ k ≤ 100", "|heights[i]| ≤ 10⁹"],
+    starter="""
+        /// The cheapest way from stone 0 to the last stone, jumping 1 to k stones forward each time.
+        pub fn min_cost(heights: &[i32], k: usize) -> u64 {
+            fn cost(i: usize, heights: &[i32], k: usize, memo: &mut Vec<Option<u64>>) -> u64 {
+                if i + 1 == heights.len() {
+                    return 0;
+                }
+                if let Some(c) = memo[i] {
+                    return c;
+                }
+                let best = (i + 1..heights.len().min(i + k + 1))
+                    .map(|j| heights[i].abs_diff(heights[j]) as u64 + cost(j, heights, k, memo))
+                    .min()
+                    .unwrap();
+                memo[i] = Some(best);
+                best
+            }
+
+            if heights.is_empty() {
+                return 0;
+            }
+            cost(0, heights, k, &mut vec![None; heights.len()])
+        }
+    """,
+    solution="""
+        /// The cheapest way from stone 0 to the last stone, jumping 1 to k stones forward each time.
+        pub fn min_cost(heights: &[i32], k: usize) -> u64 {
+            let n = heights.len();
+            if n == 0 {
+                return 0;
+            }
+            // cost[i] = the cheapest way from stone i to the end. cost(i) needed cost(j) for j > i,
+            // so fill from the back: every cost[j] is ready when cost[i] is computed.
+            let mut cost = vec![0u64; n];
+            for i in (0..n - 1).rev() {
+                cost[i] = (i + 1..n.min(i + k + 1))
+                    .map(|j| heights[i].abs_diff(heights[j]) as u64 + cost[j])
+                    .min()
+                    .unwrap();
+            }
+            cost[0]
+        }
+    """,
+    rules=dict(methods=["stack_size"]),
+    visible=[
+        T("three_at_a_time", "heights = [10, 30, 40, 50, 20], k = 3", "min_cost(&[10, 30, 40, 50, 20], 3)", "30"),
+        T("two_at_a_time", "heights = [10, 30, 40, 20], k = 2", "min_cost(&[10, 30, 40, 20], 2)", "30"),
+        T("one_at_a_time", "heights = [10, 20, 10], k = 1", "min_cost(&[10, 20, 10], 1)", "20"),
+        T("already_there", "heights = [5], k = 1", "min_cost(&[5], 1)", "0"),
+        T("no_stones", "heights = [], k = 3", "min_cost(&[], 3)", "0"),
+    ],
+    hidden=[
+        T("no_stones", "heights = [], k = 1", "min_cost(&[], 1)", "0"),
+        T("k_past_the_end", "heights = [10, 10], k = 100", "min_cost(&[10, 10], 100)", "0"),
+        T("zigzag", "heights = [30, 10, 60, 10, 60, 50], k = 2", "min_cost(&[30, 10, 60, 10, 60, 50], 2)", "40"),
+        T("k_one_walks", "heights = [10, 30, 40, 20], k = 1", "min_cost(&[10, 30, 40, 20], 1)", "50"),
+        T("negative_extremes", "heights = [-10⁹, 10⁹, -10⁹], k = 1", "min_cost(&[-1_000_000_000, 1_000_000_000, -1_000_000_000], 1)", "4_000_000_000"),
+        T("past_u32", "heights = [-10⁹, 10⁹] × 3, k = 1", "min_cost(&[-1_000_000_000, 1_000_000_000, -1_000_000_000, 1_000_000_000, -1_000_000_000, 1_000_000_000], 1)", "10_000_000_000"),
+        T("skip_the_spike", "heights = [0, 100, 0], k = 2", "min_cost(&[0, 100, 0], 2)", "0"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn best(i: usize, h: &[i32], k: usize) -> u64 {
+                if i + 1 == h.len() {
+                    return 0;
+                }
+                (i + 1..h.len().min(i + k + 1)).map(|j| h[i].abs_diff(h[j]) as u64 + best(j, h, k)).min().unwrap()
+            }
+            let mut rng = anneal_prelude::Rng::new(1256);
+            for _ in 0..300 {
+                let n = rng.int(1, 10) as usize;
+                let heights: Vec<i32> = rng.vec(n, -20, 20);
+                let k = rng.int(1, 4) as usize;
+                check!(format!("heights = {heights:?}, k = {k}"), min_cost(&heights, k), best(0, &heights, k));
+            }
+        }
+
+        #[test]
+        fn scale_deep_200000() {
+            let heights: Vec<i32> = (0..200_000i64).map(|i| (i * 7919 % 10007 - 5000) as i32).collect();
+            check!("heights[i] = (7919·i) % 10007 - 5000, 200000 stones, k = 2", min_cost(&heights, 2), 486_662_717);
+        }
+
+        #[test]
+        fn scale_wide_100000() {
+            let heights: Vec<i32> = (0..100_000i64).map(|i| (i * 104_729 % 1_000_003) as i32).collect();
+            check!("heights[i] = (104729·i) % 1000003, 100000 stones, k = 100", min_cost(&heights, 100), 12_970_165);
+        }
+        """,
+    ],
+    wrong=dict(
+        fills_forwards="""
+            /// The cheapest way from stone 0 to the last stone, jumping 1 to k stones forward each time.
+            pub fn min_cost(heights: &[i32], k: usize) -> u64 {
+                let n = heights.len();
+                if n == 0 {
+                    return 0;
+                }
+                let mut cost = vec![0u64; n];
+                for i in 0..n - 1 {
+                    cost[i] = (i + 1..n.min(i + k + 1))
+                        .map(|j| heights[i].abs_diff(heights[j]) as u64 + cost[j])
+                        .min()
+                        .unwrap();
+                }
+                cost[0]
+            }
+        """,
+        closest_height_next="""
+            /// The cheapest way from stone 0 to the last stone, jumping 1 to k stones forward each time.
+            pub fn min_cost(heights: &[i32], k: usize) -> u64 {
+                let n = heights.len();
+                let mut total = 0;
+                let mut i = 0;
+                while i + 1 < n {
+                    let j = (i + 1..n.min(i + k + 1)).min_by_key(|&j| (heights[i].abs_diff(heights[j]), n - j)).unwrap();
+                    total += heights[i].abs_diff(heights[j]) as u64;
+                    i = j;
+                }
+                total
+            }
+        """,
+    ),
+    hints=[("approach", "The recursion asks cost(i) for cost(j) with j > i. A loop that goes i = n - 2 down to 0 has every cost[j] ready, so it computes the same table with no calls."),
+           ("rust", "`let mut cost = vec![0u64; n];` then `for i in (0..n - 1).rev()`; the body is the recursion's body with `cost(j, ..)` replaced by `cost[j]`."),
+           ("edge case", "Guard n == 0 before writing `n - 1`. `abs_diff` gives a `u32` without overflow even for -10⁹ and 10⁹; sum in `u64`.")],
+    notes=("A memoised recursion and a table compute the same values; the table just picks the order explicitly, so it needs no call stack. Each stone looks at up to k later stones.", "O(n · k)", "O(n)"),
+    follow_up="Could you keep only the last k values instead of the whole table? When is that worth it?",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="house-robber-iii", title="House robber III", level="medium", stage="dp-the-rust-way",
+    tags=["tree DP", "Rc<RefCell>", "tuples"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "Uber"],
+    teaches=["Tree DP: each subtree returns a pair (best if its root is robbed, best if it isn't).",
+             "Returning tuples up the recursion instead of memoising on node pointers."],
+    statement="""
+        The houses form a binary tree, and each node's `val` is the money in that house. You may
+        not rob two houses joined directly by an edge (a parent and its child). Return the most
+        money you can rob. The tree uses LeetCode's `Option<Rc<RefCell<TreeNode>>>` shape and
+        `tree(&[..])` builds one from LeetCode's level-order form.
+    """,
+    examples=[("root = [3, 2, 3, null, 3, null, 1]", "7 (3 + 3 + 1)"), ("root = [3, 4, 5, 1, 3, null, 1]", "9 (4 + 5)")],
+    constraints=["0 ≤ nodes ≤ 3·10⁵", "0 ≤ val ≤ 10⁴", "depth up to 10⁵"],
+    starter=with_tree("""
+        pub fn rob(root: Option<Rc<RefCell<TreeNode>>>) -> i64 {
+            todo!()
+        }
+    """),
+    solution=with_tree("""
+        pub fn rob(root: Option<Rc<RefCell<TreeNode>>>) -> i64 {
+            // (best with this node robbed, best with it left alone) for the subtree under `node`.
+            fn best(node: &Option<Rc<RefCell<TreeNode>>>) -> (i64, i64) {
+                let Some(node) = node else { return (0, 0) };
+                let node = node.borrow();
+                let (left_take, left_skip) = best(&node.left);
+                let (right_take, right_skip) = best(&node.right);
+                // Robbing this house rules out both children; skipping it leaves each child free.
+                let take = node.val as i64 + left_skip + right_skip;
+                let skip = left_take.max(left_skip) + right_take.max(right_skip);
+                (take, skip)
+            }
+            let (take, skip) = best(&root);
+            take.max(skip)
+        }
+    """),
+    visible=[
+        T("leetcode_seven", "root = [3, 2, 3, null, 3, null, 1]", "rob(tree(&[Some(3), Some(2), Some(3), None, Some(3), None, Some(1)]))", "7"),
+        T("leetcode_nine", "root = [3, 4, 5, 1, 3, null, 1]", "rob(tree(&[Some(3), Some(4), Some(5), Some(1), Some(3), None, Some(1)]))", "9"),
+        T("empty", "root = []", "rob(tree(&[]))", "0"),
+        T("one_house", "root = [5]", "rob(tree(&[Some(5)]))", "5"),
+        T("skip_two_levels", "root = [4, 1, null, 2, null, 3]", "rob(tree(&[Some(4), Some(1), None, Some(2), None, Some(3)]))", "7"),
+        T("built_by_hand", "root = [2, null, 9], built with TreeNode::new", "rob(Some(root))", "9",
+          setup="let mut root = TreeNode::new(2);\nroot.right = Some(Rc::new(RefCell::new(TreeNode::new(9))));\nlet root = Rc::new(RefCell::new(root));"),
+    ],
+    hidden=[
+        T("empty", "root = []", "rob(None)", "0"),
+        T("zero", "root = [0]", "rob(tree(&[Some(0)]))", "0"),
+        T("all_zero", "root = [0, 0, 0]", "rob(tree(&[Some(0), Some(0), Some(0)]))", "0"),
+        T("children_beat_root", "root = [1, 2, 3]", "rob(tree(&[Some(1), Some(2), Some(3)]))", "5"),
+        T("root_beats_children", "root = [10, 1, 1]", "rob(tree(&[Some(10), Some(1), Some(1)]))", "10"),
+        T("mix_levels", "root = [5, 1, 1, 10, 1, 1, 10]", "rob(tree(&[Some(5), Some(1), Some(1), Some(10), Some(1), Some(1), Some(10)]))", "27"),
+        T("right_heavy", "root = [2, 1, 3, null, 4]", "rob(tree(&[Some(2), Some(1), Some(3), None, Some(4)]))", "7"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1257);
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let mut vals: Vec<Option<i32>> = Vec::new();
+                for i in 0..n {
+                    let present = i == 0 || rng.below(4) > 0;
+                    let v = rng.int(0, 20) as i32;
+                    vals.push(present.then_some(v));
+                }
+                let root = tree(&vals);
+                // Flatten to (value, parent) and try every set of houses with no parent-child pair.
+                let mut nodes: Vec<(i64, Option<usize>)> = Vec::new();
+                let mut todo = vec![(root.clone(), None)];
+                while let Some((slot, parent)) = todo.pop() {
+                    if let Some(node) = slot {
+                        let node = node.borrow();
+                        nodes.push((node.val as i64, parent));
+                        let me = nodes.len() - 1;
+                        todo.push((node.left.clone(), Some(me)));
+                        todo.push((node.right.clone(), Some(me)));
+                    }
+                }
+                let mut want = 0;
+                for mask in 0..1u32 << nodes.len() {
+                    let ok = (0..nodes.len()).all(|i| mask >> i & 1 == 0 || nodes[i].1.map_or(true, |p| mask >> p & 1 == 0));
+                    if ok {
+                        want = want.max((0..nodes.len()).filter(|&i| mask >> i & 1 == 1).map(|i| nodes[i].0).sum::<i64>());
+                    }
+                }
+                check!(format!("root = {vals:?}"), rob(root), want);
+            }
+        }
+
+        #[test]
+        fn scale_complete_262143() {
+            let vals: Vec<Option<i32>> = (0..262_143i64).map(|i| Some((i * 7919 % 10001) as i32)).collect();
+            check!("complete tree, val[i] = (7919·i) % 10001 in level order, 2^18 - 1 nodes", rob(tree(&vals)), 884_341_031);
+        }
+
+        #[test]
+        fn scale_complete_past_i32() {
+            let vals: Vec<Option<i32>> = vec![Some(10_000); 262_143];
+            check!("complete tree of 2^18 - 1 houses worth 10000", rob(tree(&vals)), 1_747_620_000);
+        }
+
+        #[test]
+        fn deep_path_100000() {
+            // A left-leaning path is 100000 levels deep: run on a thread with a big stack.
+            let got = std::thread::Builder::new()
+                .stack_size(512 << 20)
+                .spawn(|| {
+                    let mut below = None;
+                    for v in (1..=100_000).rev() {
+                        let mut node = TreeNode::new(v);
+                        node.left = below;
+                        below = Some(Rc::new(RefCell::new(node)));
+                    }
+                    rob(below)
+                })
+                .unwrap()
+                .join()
+                .unwrap();
+            check!("path 1 → 2 → … → 100000 (each the left child)", got, 2_500_050_000);
+        }
+        """,
+    ],
+    use="use solution::*;\nuse std::cell::RefCell;\nuse std::rc::Rc;",
+    wrong=dict(
+        grandchildren_recursion=with_tree("""
+            pub fn rob(root: Option<Rc<RefCell<TreeNode>>>) -> i64 {
+                fn best(node: &Option<Rc<RefCell<TreeNode>>>) -> i64 {
+                    let Some(node) = node else { return 0 };
+                    let node = node.borrow();
+                    let mut take = node.val as i64;
+                    for child in [&node.left, &node.right].into_iter().flatten() {
+                        let c = child.borrow();
+                        take += best(&c.left) + best(&c.right);
+                    }
+                    take.max(best(&node.left) + best(&node.right))
+                }
+                best(&root)
+            }
+        """),
+        alternate_levels=with_tree("""
+            pub fn rob(root: Option<Rc<RefCell<TreeNode>>>) -> i64 {
+                let mut sums = [0i64; 2];
+                let mut level = vec![root];
+                let mut depth = 0;
+                while !level.is_empty() {
+                    let mut next = Vec::new();
+                    for node in level.into_iter().flatten() {
+                        let node = node.borrow();
+                        sums[depth % 2] += node.val as i64;
+                        next.push(node.left.clone());
+                        next.push(node.right.clone());
+                    }
+                    level = next;
+                    depth += 1;
+                }
+                sums[0].max(sums[1])
+            }
+        """),
+        rob_if_richer_than_children=with_tree("""
+            pub fn rob(root: Option<Rc<RefCell<TreeNode>>>) -> i64 {
+                fn best(node: &Option<Rc<RefCell<TreeNode>>>, parent_robbed: bool) -> i64 {
+                    let Some(node) = node else { return 0 };
+                    let node = node.borrow();
+                    let val = |c: &Option<Rc<RefCell<TreeNode>>>| c.as_ref().map_or(0, |c| c.borrow().val as i64);
+                    let take = !parent_robbed && node.val as i64 >= val(&node.left) + val(&node.right);
+                    (if take { node.val as i64 } else { 0 }) + best(&node.left, take) + best(&node.right, take)
+                }
+                best(&root, false)
+            }
+        """),
+    ),
+    hints=[("approach", "For each subtree compute two numbers: the best total if its root is robbed (then neither child is) and if it isn't (then each child is free to be robbed or not)."),
+           ("rust", "A recursive `fn best(node: &Option<Rc<RefCell<TreeNode>>>) -> (i64, i64)`: `let Some(node) = node else { return (0, 0) };`, borrow it, recurse into `&node.left` and `&node.right`."),
+           ("edge case", "Taking every other level isn't optimal: [4, 1, null, 2, null, 3] robs 4 and 3, two levels apart. Sums can pass i32 on big trees, so add in i64.")],
+    notes=("Returning both choices from each subtree makes one post-order pass enough. Recursing into grandchildren without the pair (or a memo) revisits subtrees exponentially often.", "O(n)", "O(h) for the recursion"),
+    follow_up="How would you write it without recursion, for a tree deep enough to overflow the stack?",
+    related=["D6"],
+))
+
+
 STAGES = [
     ("1d-basics", "1-D basics", "easy"),
     ("1d-choices", "1-D choices", "medium"),

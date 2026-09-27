@@ -1,0 +1,39 @@
+slug = "top-down-to-bottom-up"
+title = "Top-down → bottom-up rewrite"
+mode = "fix"
+level = "medium"
+stage = "dp-the-rust-way"
+order = 56
+status = "ready"
+tags = ["tabulation", "stack overflow"]
+teaches = [
+  "Turning a memoised recursion into a loop: fill the table in the order the recursion needs its answers.",
+  "Deep recursion overflows a thread's stack long before it runs out of time.",
+]
+constraints = ["0 ≤ heights.len() ≤ 2·10⁵", "1 ≤ k ≤ 100", "|heights[i]| ≤ 10⁹"]
+follow_up = "Could you keep only the last k values instead of the whole table? When is that worth it?"
+related = ["D12"]
+
+[[examples]]
+input = "heights = [10, 30, 40, 50, 20], k = 3"
+output = "30 (0 → 1 → 4: 20 + 10)"
+
+[[hints]]
+kind = "approach"
+text = "The recursion asks cost(i) for cost(j) with j > i. A loop that goes i = n - 2 down to 0 has every cost[j] ready, so it computes the same table with no calls."
+
+[[hints]]
+kind = "rust"
+text = "`let mut cost = vec![0u64; n];` then `for i in (0..n - 1).rev()`; the body is the recursion's body with `cost(j, ..)` replaced by `cost[j]`."
+
+[[hints]]
+kind = "edge case"
+text = "Guard n == 0 before writing `n - 1`. `abs_diff` gives a `u32` without overflow even for -10⁹ and 10⁹; sum in `u64`."
+
+[solution]
+explanation = "A memoised recursion and a table compute the same values; the table just picks the order explicitly, so it needs no call stack. Each stone looks at up to k later stones."
+time = "O(n · k)"
+space = "O(n)"
+
+[rules]
+forbid_methods = ["stack_size"]

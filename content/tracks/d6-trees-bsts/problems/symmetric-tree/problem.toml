@@ -1,0 +1,37 @@
+slug = "symmetric-tree"
+title = "Symmetric tree"
+mode = "write"
+level = "easy"
+stage = "basics"
+order = 5
+status = "ready"
+tags = ["recursion", "mirror"]
+companies = ["Amazon", "Microsoft", "LinkedIn", "Bloomberg"]
+teaches = [
+  "Recursing on two trees at once.",
+  "Why a traversal without null markers loses the shape.",
+]
+constraints = ["0 ≤ nodes ≤ 2·10⁵", "height ≤ 10⁵"]
+follow_up = "Write it iteratively: what do you push onto the queue, and in which order?"
+related = ["S7"]
+
+[[examples]]
+input = "root = [1,2,2,3,4,4,3]"
+output = "true"
+
+[[hints]]
+kind = "approach"
+text = "Compare the left subtree with the right subtree as mirrors: outer children with outer, inner with inner."
+
+[[hints]]
+kind = "rust"
+text = "A helper `fn mirror(a: &Option<…>, b: &Option<…>) -> bool` that matches on `(a, b)` reads like the definition."
+
+[[hints]]
+kind = "edge"
+text = "An in-order palindrome is not enough: `[1,2,2,2,null,2]` reads `2 2 1 2 2` but isn't symmetric."
+
+[solution]
+explanation = "Symmetry is a same-tree check between the left subtree and the mirror of the right one, so `mirror(a.left, b.right) && mirror(a.right, b.left)`."
+time = "O(n)"
+space = "O(h)"

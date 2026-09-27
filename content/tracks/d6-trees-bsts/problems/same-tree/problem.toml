@@ -1,0 +1,33 @@
+slug = "same-tree"
+title = "Same tree"
+mode = "write"
+level = "easy"
+stage = "basics"
+order = 3
+status = "ready"
+tags = ["recursion", "Blind 75"]
+companies = ["Amazon", "Microsoft", "Bloomberg"]
+teaches = [
+  "Matching a pair of `Option`s.",
+  "Shape matters, not only the values.",
+]
+constraints = ["0 ≤ nodes ≤ 2·10⁵ per tree", "height ≤ 10⁵"]
+follow_up = "`#[derive(PartialEq)]` on `TreeNode` already compares whole trees. What does it do under the hood, and when would it be a bad idea on huge trees?"
+related = ["S7"]
+
+[[examples]]
+input = "p = [1,2,3], q = [1,2,3]"
+output = "true"
+
+[[hints]]
+kind = "approach"
+text = "Two trees are the same if both are empty, or both roots match and both pairs of subtrees are the same."
+
+[[hints]]
+kind = "rust"
+text = "`match (p, q)` on the pair covers the four empty/non-empty cases at once."
+
+[solution]
+explanation = "Comparing shape and value together in one recursion stops at the first difference. Comparing traversals needs null markers, or `[1,2]` and `[1,null,2]` look equal."
+time = "O(n)"
+space = "O(h)"

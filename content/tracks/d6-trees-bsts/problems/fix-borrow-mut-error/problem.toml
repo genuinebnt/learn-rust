@@ -1,0 +1,36 @@
+slug = "fix-borrow-mut-error"
+title = "Fix: `BorrowMutError` in a tree walk"
+mode = "fix"
+level = "easy"
+stage = "basics"
+order = 8
+status = "ready"
+tags = ["RefCell", "borrow_mut", "panic"]
+teaches = [
+  "`RefCell` borrow rules are checked per cell, at run time.",
+  "One `borrow_mut()` scope instead of a `borrow()` and a `borrow_mut()` that overlap.",
+]
+constraints = ["0 ≤ nodes ≤ 10⁵", "path sums fit in i32"]
+follow_up = "Would the same code work if you called `walk` on the children *after* dropping the `RefMut`? What would you have to clone?"
+related = ["L2", "S7"]
+
+[[examples]]
+input = "root = [1,2,3]"
+output = "[1,3,4]"
+
+[[hints]]
+kind = "rust"
+text = "`n` holds a shared `borrow()` of the node while `borrow_mut()` asks for an exclusive one on the same `RefCell`. That's the panic."
+
+[[hints]]
+kind = "rust"
+text = "Take one `borrow_mut()` and use it for both the update and the reads that follow. Borrowing the children's cells while you hold the parent's is fine: they're different `RefCell`s."
+
+[solution]
+explanation = "A `RefCell` checks the borrow rules at run time: any number of `borrow()`s or exactly one `borrow_mut()`, per cell. Holding one `RefMut` for the whole visit satisfies that, and each child has its own cell."
+time = "O(n)"
+space = "O(h)"
+
+[rules]
+forbid_methods = ["try_borrow_mut", "try_borrow", "as_ptr"]
+max_changed_lines = 3

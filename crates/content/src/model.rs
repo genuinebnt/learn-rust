@@ -104,6 +104,51 @@ pub struct StageDef {
     pub band: Band,
 }
 
+/// The company names a problem's `companies` may use, with the group each belongs to, so a filter never splits
+/// "Meta" from "Facebook" and can offer a whole group at once. FAANG first, then big tech, databases, Rust shops.
+pub const COMPANIES: &[(&str, &str)] = &[
+    ("Meta", "FAANG"),
+    ("Apple", "FAANG"),
+    ("Amazon", "FAANG"),
+    ("Netflix", "FAANG"),
+    ("Google", "FAANG"),
+    ("Microsoft", "Big tech"),
+    ("Adobe", "Big tech"),
+    ("Airbnb", "Big tech"),
+    ("Atlassian", "Big tech"),
+    ("Bloomberg", "Big tech"),
+    ("ByteDance", "Big tech"),
+    ("DoorDash", "Big tech"),
+    ("Goldman Sachs", "Big tech"),
+    ("LinkedIn", "Big tech"),
+    ("Nvidia", "Big tech"),
+    ("Salesforce", "Big tech"),
+    ("Stripe", "Big tech"),
+    ("Uber", "Big tech"),
+    ("Walmart", "Big tech"),
+    ("Oracle", "Databases"),
+    ("Databricks", "Databases"),
+    ("Snowflake", "Databases"),
+    ("MongoDB", "Databases"),
+    ("Cockroach Labs", "Databases"),
+    ("ClickHouse", "Databases"),
+    ("Confluent", "Databases"),
+    ("Elastic", "Databases"),
+    ("Redis", "Databases"),
+    ("SingleStore", "Databases"),
+    ("PingCAP", "Databases"),
+    ("Cloudflare", "Rust shops"),
+    ("Discord", "Rust shops"),
+    ("Dropbox", "Rust shops"),
+    ("Figma", "Rust shops"),
+    ("1Password", "Rust shops"),
+    ("Datadog", "Rust shops"),
+    ("Fastly", "Rust shops"),
+    ("Coinbase", "Rust shops"),
+    ("Vercel", "Rust shops"),
+    ("Mozilla", "Rust shops"),
+];
+
 /// `problem.toml`
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -118,6 +163,9 @@ pub struct ProblemFile {
     pub status: Status,
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Companies known to ask this problem, from [`COMPANIES`], e.g. `["Amazon", "Google"]`.
+    #[serde(default)]
+    pub companies: Vec<String>,
     #[serde(default)]
     pub teaches: Vec<String>,
     #[serde(default)]

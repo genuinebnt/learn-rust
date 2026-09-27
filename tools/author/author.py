@@ -90,6 +90,8 @@ def write_problem(tdir, p, order):
         f"status = {q('ready' if ready else 'draft')}",
         f"tags = {arr(p.get('tags', []))}",
     ]
+    if p.get("companies"):
+        t.append(f"companies = {arr(p['companies'])}")
     if p.get("teaches"):
         t.append("teaches = [\n" + "".join(f"  {q(x)},\n" for x in p["teaches"]) + "]")
     if p.get("constraints"):

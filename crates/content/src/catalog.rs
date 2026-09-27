@@ -314,6 +314,13 @@ fn check_problem(
             format!("stage {:?} is not defined in track.toml", meta.stage),
         ));
     }
+    for (i, c) in meta.companies.iter().enumerate() {
+        if !crate::model::COMPANIES.iter().any(|&(name, _)| name == c) {
+            issues.push(issue(file, format!("unknown company {c:?}; add it to COMPANIES in model.rs or use an existing name")));
+        } else if meta.companies[..i].contains(c) {
+            issues.push(issue(file, format!("company {c:?} is listed twice")));
+        }
+    }
     if meta.rules.is_some() && meta.mode != Mode::Fix {
         issues.push(issue(file, "rules only apply to fix-this problems"));
     }

@@ -81,6 +81,7 @@ pub struct ProblemSummary {
     pub order: u32,
     pub status: Status,
     pub tags: Vec<String>,
+    pub companies: Vec<String>,
     pub progress: Progress,
 }
 
@@ -174,6 +175,7 @@ pub fn track_detail(t: &Track, progress: &HashMap<String, ProgressRow>) -> Track
                 order: p.meta.order,
                 status: p.meta.status,
                 tags: p.meta.tags.clone(),
+                companies: p.meta.companies.clone(),
                 progress: Progress::of(progress.get(&p.id)),
             })
             .collect(),
@@ -197,6 +199,7 @@ pub struct ProblemDetail {
     pub next: Option<String>,
     pub statement: String,
     pub tags: Vec<String>,
+    pub companies: Vec<String>,
     pub teaches: Vec<String>,
     pub constraints: Vec<String>,
     pub examples: Vec<Example>,
@@ -404,6 +407,7 @@ pub fn problem_detail(
         next: track.problems.get(idx + 1).map(|q| q.id.clone()),
         statement: p.files.statement.clone().unwrap_or_default(),
         tags: p.meta.tags.clone(),
+        companies: p.meta.companies.clone(),
         teaches: p.meta.teaches.clone(),
         constraints: p.meta.constraints.clone(),
         examples: p.meta.examples.clone(),

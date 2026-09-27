@@ -1,26 +1,42 @@
 use solution::*;
 
-#[test]
-fn larger_exists() {
-    check!(r#"v = [3, 9], x = 4"#, { let mut v = vec![3, 9]; (add_and_max(&mut v, 4), v) }, (9, vec![3, 9, 4]));
+/// Records every (x, label) in order and returns the last result, owned.
+fn run(points: &[(i64, &str)]) -> (String, Option<i64>) {
+    let mut s = Series::new();
+    let mut last = (String::new(), None);
+    for &(x, l) in points {
+        let (h, g) = s.record(x, l.to_string());
+        last = (h.to_string(), g);
+    }
+    last
 }
 
 #[test]
-fn x_is_max() {
-    check!(r#"v = [1], x = 5"#, { let mut v = vec![1]; add_and_max(&mut v, 5) }, 5);
+fn first_point() {
+    check!(r#"record (5, "a")"#, run(&[(5, "a")]), ("a".to_string(), None));
+}
+
+#[test]
+fn new_record() {
+    check!(r#"record (5, "a"), (9, "b")"#, run(&[(5, "a"), (9, "b")]), ("b".to_string(), Some(4)));
+}
+
+#[test]
+fn below_the_record() {
+    check!(r#"record (5, "a"), (3, "b")"#, run(&[(5, "a"), (3, "b")]), ("a".to_string(), None));
+}
+
+#[test]
+fn tie_keeps_the_holder() {
+    check!(r#"record (5, "a"), (5, "b")"#, run(&[(5, "a"), (5, "b")]), ("a".to_string(), None));
+}
+
+#[test]
+fn first_to_reach_the_max() {
+    check!(r#"record (5, "a"), (9, "b"), (9, "c"), (2, "d")"#, run(&[(5, "a"), (9, "b"), (9, "c"), (2, "d")]), ("b".to_string(), None));
 }
 
 #[test]
 fn negatives() {
-    check!(r#"v = [-5, -9], x = -7"#, { let mut v = vec![-5, -9]; (add_and_max(&mut v, -7), v) }, (-5, vec![-5, -9, -7]));
-}
-
-#[test]
-fn max_in_middle() {
-    check!(r#"v = [1, 8, 2], x = 3"#, { let mut v = vec![1, 8, 2]; add_and_max(&mut v, 3) }, 8);
-}
-
-#[test]
-fn x_equals_max() {
-    check!(r#"v = [4, 2], x = 4"#, { let mut v = vec![4, 2]; (add_and_max(&mut v, 4), v) }, (4, vec![4, 2, 4]));
+    check!(r#"record (-5, "a"), (-2, "b")"#, run(&[(-5, "a"), (-2, "b")]), ("b".to_string(), Some(3)));
 }

@@ -39,7 +39,7 @@ impl Inbox {
 
     pub fn mark_read(&mut self, id: u32) -> bool {
         match self.get_mut(id) {
-            Some(m) if !m.read => {
+            Some(m) => {
                 m.read = true;
                 true
             }

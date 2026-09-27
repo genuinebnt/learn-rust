@@ -52,7 +52,7 @@ impl Inbox {
     }
 
     pub fn newest_unread_mut(&mut self) -> Option<&mut Msg> {
-        self.msgs.iter_mut().rev().find(|m| !m.read)
+        self.msgs.iter_mut().find(|m| !m.read)
     }
 }
 

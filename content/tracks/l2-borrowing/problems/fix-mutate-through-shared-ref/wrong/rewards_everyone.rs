@@ -5,8 +5,8 @@ pub struct Account {
 }
 
 /// Pays `pct` percent interest (rounded toward zero) into every selected account.
-pub fn pay_interest(selected: &[&mut Account], pct: i64) {
-    for a in selected {
+pub fn pay_interest(selected: &mut [&mut Account], pct: i64) {
+    for a in selected.iter_mut() {
         a.balance += a.balance * pct / 100;
     }
 }
@@ -19,15 +19,15 @@ pub fn keep_richest<'a>(richest: &mut &'a Account, candidate: &'a Account) {
 }
 
 /// Moves `amount` from `from` into `to`.
-pub fn top_up(to: &mut &Account, from: &mut Account, amount: i64) {
+pub fn top_up(to: &mut Account, from: &mut Account, amount: i64) {
     from.balance -= amount;
     to.balance += amount;
 }
 
 /// Pays interest to every account with a balance of at least `min`, and returns their ids in order.
 pub fn reward(accounts: &mut [Account], min: i64, pct: i64) -> Vec<u32> {
-    let selected: Vec<&mut Account> = accounts.iter_mut().filter(|a| a.balance >= min).collect();
-    pay_interest(&selected, pct);
+    let mut selected: Vec<&mut Account> = accounts.iter_mut().collect();
+    pay_interest(&mut selected, pct);
     selected.iter().map(|a| a.id).collect()
 }
 

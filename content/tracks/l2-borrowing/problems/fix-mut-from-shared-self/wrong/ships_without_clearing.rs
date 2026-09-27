@@ -63,7 +63,6 @@ impl Warehouse {
             if s.reserved > 0 {
                 lines.push(format!("{name}: {}", s.reserved));
                 s.qty -= s.reserved;
-                s.reserved = 0;
             }
         }
         lines.sort();

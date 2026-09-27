@@ -16,252 +16,1116 @@ def write(slug, title, level, stage, tags, statement, starter, solution, visible
                 teaches=teaches, related=list(related))
 
 
+def fixp(slug, title, level, stage, tags, statement, starter, solution, visible, hidden, hints, notes, follow_up, teaches, rules=None, related=("L2",), wrong=None):
+    return dict(slug=slug, title=title, mode="fix", level=level, stage=stage, tags=tags, statement=statement, starter=starter,
+                solution=solution, visible=visible, hidden=hidden, hints=hints, notes=notes, follow_up=follow_up,
+                teaches=teaches, rules=rules, related=list(related), wrong=wrong)
+
+
+def writep(slug, title, level, stage, tags, statement, starter, solution, visible, hidden, hints, notes, follow_up, teaches, related=("L2",), wrong=None):
+    return dict(slug=slug, title=title, level=level, stage=stage, tags=tags, statement=statement, starter=starter,
+                solution=solution, visible=visible, hidden=hidden, hints=hints, notes=notes, follow_up=follow_up,
+                teaches=teaches, related=list(related), wrong=wrong)
+
+
+def sub(s, old, new):
+    """str.replace that fails loudly when `old` isn't there (a wrong solution that silently equals the reference)."""
+    assert old in s, f"not found: {old[:60]!r}"
+    return s.replace(old, new)
+
+
+# Counts heap allocations made on the current test thread, for tests that check nothing is copied per item.
+ALLOC_COUNTER = r"""
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
+
+struct CountingAlloc;
+
+thread_local! {
+    static ALLOCS: Cell<usize> = const { Cell::new(0) };
+}
+
+unsafe impl GlobalAlloc for CountingAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let _ = ALLOCS.try_with(|n| n.set(n.get() + 1));
+        unsafe { System.alloc(layout) }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let _ = ALLOCS.try_with(|n| n.set(n.get() + 1));
+        unsafe { System.realloc(ptr, layout, new_size) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+#[global_allocator]
+static GLOBAL: CountingAlloc = CountingAlloc;
+
+/// Runs `f` and returns its result with the number of allocations (and reallocations) it made.
+fn allocs<R>(f: impl FnOnce() -> R) -> (R, usize) {
+    let before = ALLOCS.with(|n| n.get());
+    let r = f();
+    (r, ALLOCS.with(|n| n.get()) - before)
+}
+"""
+
+
 # ---------------------------------------------------------------- shared vs unique (easy)
 
-P.append(fix(
-    "fix-push-while-holding-a-reference", "Fix: push while holding a reference", "easy", "shared-vs-unique", ["E0502"],
-    "`add_and_max` should push `x` and return the largest value including `x`. It doesn't compile.",
-    """
-    /// Pushes `x` and returns the largest value, which may be `x`.
-    pub fn add_and_max(v: &mut Vec<i32>, x: i32) -> i32 {
-        let max = v.iter().max().unwrap_or(&x);
-        v.push(x);
-        *max.max(&x)
+SERIES_HEAD = r"""
+/// A time series: `points[i]` was reported by `labels[i]`.
+pub struct Series {
+    pub points: Vec<i64>,
+    pub labels: Vec<String>,
+}
+
+impl Series {
+    pub fn new() -> Self {
+        Series { points: Vec::new(), labels: Vec::new() }
     }
-    """,
-    """
-    /// Pushes `x` and returns the largest value, which may be `x`.
-    pub fn add_and_max(v: &mut Vec<i32>, x: i32) -> i32 {
-        let max = v.iter().copied().max().unwrap_or(x);
-        v.push(x);
-        max.max(x)
+
+    /// Records `x`, reported by `label`. Returns the label of the record holder after this point (the `String`
+    /// stored in `labels`, not a copy) and how far `x` beat the old record: `None` when it didn't beat it or when
+    /// it's the first point. The record holder is the first label that reported the maximum, so a tie doesn't
+    /// take the record.
+"""
+
+SERIES_STARTER = SERIES_HEAD + r"""    pub fn record(&mut self, x: i64, label: String) -> (&str, Option<i64>) {
+        let best = self.points.iter().max();
+        let holder = best.map(|b| &self.labels[self.points.iter().position(|p| p == b).unwrap()]);
+        self.points.push(x);
+        self.labels.push(label);
+        match best {
+            Some(&b) if x <= b => (holder.unwrap(), None),
+            Some(&b) => (&label, Some(x - b)),
+            None => (&label, None),
+        }
     }
+}
+"""
+
+SERIES_SOLUTION = SERIES_HEAD + r"""    pub fn record(&mut self, x: i64, label: String) -> (&str, Option<i64>) {
+        let best = self.points.iter().copied().max();
+        let holder = best.map(|b| self.points.iter().position(|&p| p == b).unwrap());
+        self.points.push(x);
+        self.labels.push(label);
+        let newest = self.labels.len() - 1;
+        match (best, holder) {
+            (Some(b), Some(i)) if x <= b => (&self.labels[i], None),
+            (Some(b), _) => (&self.labels[newest], Some(x - b)),
+            _ => (&self.labels[newest], None),
+        }
+    }
+}
+"""
+
+SERIES_RUN = r"""
+/// Records every (x, label) in order and returns the last result, owned.
+fn run(points: &[(i64, &str)]) -> (String, Option<i64>) {
+    let mut s = Series::new();
+    let mut last = (String::new(), None);
+    for &(x, l) in points {
+        let (h, g) = s.record(x, l.to_string());
+        last = (h.to_string(), g);
+    }
+    last
+}
+"""
+
+
+def series_case(name, pts, holder, gain):
+    desc = ", ".join(f'({x}, "{l}")' for x, l in pts)
+    call = "run(&[" + ", ".join(f'({x}, "{l}")' for x, l in pts) + "])"
+    return T(name, f"record {desc}", call, f'("{holder}".to_string(), {gain})')
+
+
+P.append(fixp(
+    "fix-push-while-holding-a-reference", "Fix: push while holding a reference", "easy", "shared-vs-unique", ["E0502", "E0382", "indices over references"],
+    """
+        `Series::record` doesn't compile. It reads the current record before pushing the new point, and answers
+        with a reference to the record holder's label. Fix it without copying any label: the `&str` it returns
+        must be the `String` stored in `labels`.
     """,
-    [T("larger_exists", "v = [3, 9], x = 4", "{ let mut v = vec![3, 9]; (add_and_max(&mut v, 4), v) }", "(9, vec![3, 9, 4])"),
-     T("x_is_max", "v = [1], x = 5", "{ let mut v = vec![1]; add_and_max(&mut v, 5) }", "5")],
-    [T("empty", "v = [], x = -2", "{ let mut v = vec![]; (add_and_max(&mut v, -2), v) }", "(-2, vec![-2])")],
-    [("rust", "`max` is a reference into `v`, still in use after `push`. A push can reallocate the Vec and leave it dangling."),
-     ("rust", "Copy the number out (`copied()`) so nothing borrows `v` across the push.")],
-    ("An `i32` is `Copy`, so holding the value instead of `&i32` ends the borrow before the push.", "O(n)", "O(1)"),
-    "Why is holding a reference into a Vec across a push unsound, even if the Vec doesn't reallocate?",
-    ["A shared borrow into a Vec forbids mutating the Vec until the borrow's last use.", "Copy small values out instead of holding references."],
-    rules=dict(methods=["clone"], lines=2),
+    SERIES_STARTER,
+    SERIES_SOLUTION,
+    [SERIES_RUN,
+     series_case("first_point", [(5, "a")], "a", "None"),
+     series_case("new_record", [(5, "a"), (9, "b")], "b", "Some(4)"),
+     series_case("below_the_record", [(5, "a"), (3, "b")], "a", "None"),
+     series_case("tie_keeps_the_holder", [(5, "a"), (5, "b")], "a", "None"),
+     series_case("first_to_reach_the_max", [(5, "a"), (9, "b"), (9, "c"), (2, "d")], "b", "None"),
+     series_case("negatives", [(-5, "a"), (-2, "b")], "b", "Some(3)")],
+    [SERIES_RUN,
+     series_case("record_after_a_tie", [(4, "a"), (4, "b"), (6, "c")], "c", "Some(2)"),
+     series_case("same_label_twice", [(1, "x"), (3, "x"), (2, "y")], "x", "None"),
+     series_case("empty_label", [(1, ""), (0, "z")], "", "None"),
+     series_case("chain_of_records", [(1, "a"), (2, "b"), (4, "c"), (8, "d")], "d", "Some(4)"),
+     series_case("far_apart", [(-1_000_000_000_000, "lo"), (1_000_000_000_000, "hi")], "hi", "Some(2000000000000)"),
+     series_case("all_equal", [(0, "p"), (0, "q"), (0, "r")], "p", "None"),
+     series_case("unicode_labels", [(2, "é"), (7, "日本")], "日本", "Some(5)"),
+     r"""
+     #[test]
+     fn holder_is_the_stored_label() {
+         let mut s = Series::new();
+         let seven = "seven".to_string();
+         let moved = seven.as_ptr();
+         s.record(7, seven);
+         check!("record (7, \"seven\"): the label String is moved in, not copied", s.labels[0].as_ptr() == moved, true);
+         let p = s.record(3, "three".to_string()).0.as_ptr();
+         check!("then (3, \"three\"): the returned &str is labels[0] itself", p == s.labels[0].as_ptr(), true);
+         let p = s.record(8, "eight".to_string()).0.as_ptr();
+         check!("then (8, \"eight\"): the returned &str is labels[2] itself", p == s.labels[2].as_ptr(), true);
+         check!("points afterwards", s.points.clone(), vec![7, 3, 8]);
+     }
+
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6201);
+         for _ in 0..300 {
+             let n = 1 + rng.below(8);
+             let mut s = Series::new();
+             let (mut pts, mut labs): (Vec<i64>, Vec<String>) = (Vec::new(), Vec::new());
+             let mut log = Vec::new();
+             for i in 0..n {
+                 let x = rng.int(-4, 4);
+                 let l = format!("{}{i}", rng.string(1, "ab"));
+                 log.push(format!("({x}, {l:?})"));
+                 let want = match pts.iter().copied().max() {
+                     Some(b) if x <= b => (labs[pts.iter().position(|&p| p == b).unwrap()].clone(), None),
+                     Some(b) => (l.clone(), Some(x - b)),
+                     None => (l.clone(), None),
+                 };
+                 pts.push(x);
+                 labs.push(l.clone());
+                 let (h, g) = s.record(x, l);
+                 check!(format!("record {}", log.join(", ")), (h.to_string(), g), want);
+             }
+         }
+     }
+     """],
+    [("rust", "`best` is an `Option<&i64>` into `points` and `holder` an `Option<&String>` into `labels`, and both are read after the pushes. A push can reallocate the `Vec` and leave them dangling. What do you actually need from each one?"),
+     ("rust", "An `i64` is `Copy`: keep the number, not a reference to it. For the label, keep its index. An index stays valid across a push, and you can borrow `labels[i]` again once the pushes are done."),
+     ("rust", "`label` is moved into `labels`, so `&label` afterwards is a use after move, and would point at a parameter anyway. The newest label is `labels[len - 1]`.")],
+    ("""A shared borrow into a `Vec` forbids mutating that `Vec` until the borrow's last use, because `push` may reallocate. The fix keeps what survives the push: `copied()` turns `Option<&i64>` into `Option<i64>`, and the holder becomes an index. Borrow the stored label again after both pushes; the returned `&str` then borrows `self`, which is what the elided lifetime says.
+
+Note what does compile: `holder` borrowing `labels` doesn't conflict with `self.points.push`, because the two fields are disjoint. Only the push to the same field conflicts.
+
+Aside: with `Vec<String>` the label's bytes live in their own heap buffer and don't move when `labels` reallocates, yet the borrow checker still rejects the `&String`: it tracks the borrow of `labels`, not where the bytes are.""", "O(n) per record (the scan)", "O(1) extra"),
+    "`Vec<String>` reallocating moves the `String` headers but not their bytes. Could a `&str` into a label survive a push in principle, and what would it take to express that safely?",
+    ["A shared borrow into a Vec blocks every mutation of that Vec until its last use.", "Keep `Copy` values and indices across a mutation, not references.", "Disjoint fields borrow independently."],
+    rules=dict(methods=["clone", "cloned", "to_owned", "to_string"]),
+    wrong=dict(
+        tie_takes_the_record=sub(SERIES_SOLUTION, "if x <= b", "if x < b"),
+        last_holder_of_the_max=sub(SERIES_SOLUTION, "position(|&p| p == b)", "rposition(|&p| p == b)"),
+        leaked_copy=sub(SERIES_SOLUTION, "(Some(b), Some(i)) if x <= b => (&self.labels[i], None),", "(Some(b), Some(i)) if x <= b => (Box::leak(self.labels[i].as_str().into()), None),"),
+    ),
 ))
 
-P.append(write(
-    "many-readers-one-writer", "Many readers, one writer", "easy", "shared-vs-unique", ["&T", "&mut T"],
-    "Implement `Counter`: `total` and `busiest` only read and take `&self`; `hit` changes a slot and takes `&mut self`.",
+INBOX_HEAD = r"""
+#[derive(Debug, PartialEq)]
+pub struct Msg {
+    pub id: u32,
+    pub from: String,
+    pub body: String,
+    pub read: bool,
+    pub reply: Option<String>,
+}
+
+/// Messages in arrival order, oldest first. Ids are unique.
+pub struct Inbox {
+    msgs: Vec<Msg>,
+}
+"""
+
+INBOX_IMPL = r"""
+impl Inbox {
+    pub fn new() -> Self {
+        Inbox { msgs: Vec::new() }
+    }
+
+    pub fn push(&mut self, id: u32, from: &str, body: &str) {
+        self.msgs.push(Msg { id, from: from.to_string(), body: body.to_string(), read: false, reply: None });
+    }
+
+    pub fn get(&self, id: u32) -> Option<&Msg> {
+        self.msgs.iter().find(|m| m.id == id)
+    }
+
+    pub fn get_mut(&mut self, id: u32) -> Option<&mut Msg> {
+        self.msgs.iter_mut().find(|m| m.id == id)
+    }
+
+    pub fn unread(&self) -> Vec<&Msg> {
+        self.msgs.iter().filter(|m| !m.read).collect()
+    }
+
+    pub fn reply_to(&self, id: u32) -> Option<&str> {
+        self.get(id)?.reply.as_deref()
+    }
+
+    pub fn mark_read(&mut self, id: u32) -> bool {
+        match self.get_mut(id) {
+            Some(m) if !m.read => {
+                m.read = true;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    pub fn reply_mut(&mut self, id: u32) -> Option<&mut String> {
+        Some(self.get_mut(id)?.reply.get_or_insert_with(String::new))
+    }
+
+    pub fn newest_unread_mut(&mut self) -> Option<&mut Msg> {
+        self.msgs.iter_mut().rev().find(|m| !m.read)
+    }
+}
+"""
+
+INBOX_TAIL = r"""
+/// Marks every unread message from `boss` read, appends "on it" to the reply of the newest message still
+/// unread (if there is one), and returns the ids still unread, oldest first.
+pub fn triage(inbox: &mut Inbox, boss: &str) -> Vec<u32> {
+    let from_boss: Vec<u32> = inbox.unread().iter().filter(|m| m.from == boss).map(|m| m.id).collect();
+    for id in from_boss {
+        inbox.mark_read(id);
+    }
+    if let Some(m) = inbox.newest_unread_mut() {
+        m.reply.get_or_insert_with(String::new).push_str("on it");
+    }
+    inbox.unread().iter().map(|m| m.id).collect()
+}
+"""
+
+INBOX_SOLUTION = INBOX_HEAD + INBOX_IMPL + INBOX_TAIL
+INBOX_SETUP = 'let mut inbox = Inbox::new();\ninbox.push(1, "ann", "hello");\ninbox.push(2, "boss", "report?");\ninbox.push(3, "bob", "lunch");'
+INBOX_DESC = 'inbox 1 ann "hello", 2 boss "report?", 3 bob "lunch"'
+
+P.append(fixp(
+    "many-readers-one-writer", "Many readers, one writer", "easy", "shared-vs-unique", ["&self vs &mut self", "Option<&T>", "as_deref", "get_or_insert_with", "iter_mut"],
     """
-    pub struct Counter {
-        hits: Vec<u32>,
-    }
+        `triage` uses an `Inbox` API that doesn't exist yet. Write `impl Inbox` with these methods. Pick each
+        receiver and return type yourself: a method that only reads must be callable while other readers are
+        alive (the tests hold two at once), and nothing may copy a message or its text.
 
-    impl Counter {
-        pub fn new(slots: usize) -> Self {
-            todo!()
-        }
-
-        pub fn hit(&mut self, slot: usize) {
-            todo!()
-        }
-
-        pub fn total(&self) -> u32 {
-            todo!()
-        }
-
-        /// The slot with the most hits; the lowest index on a tie; None if there are no slots.
-        pub fn busiest(&self) -> Option<usize> {
-            todo!()
-        }
-    }
+        - `new()` and `push(id, from, body)`: a new message is unread and has no reply.
+        - `get(id)`: the message, borrowed. `get_mut(id)`: the message, for editing.
+        - `unread()`: the unread messages, borrowed, oldest first, in a `Vec`.
+        - `reply_to(id)`: the reply's text as a string slice, `None` if there's no such message or no reply.
+        - `mark_read(id)`: marks it read and returns whether it was unread (`false` for an unknown id).
+        - `reply_mut(id)`: the reply for editing in place, created empty when the message has none yet; `None`
+          for an unknown id.
+        - `newest_unread_mut()`: the most recent unread message, for editing.
     """,
-    """
-    pub struct Counter {
-        hits: Vec<u32>,
-    }
+    INBOX_HEAD + "\n// TODO: impl Inbox.\n" + INBOX_TAIL,
+    INBOX_SOLUTION,
+    [T("readers_together", f"{INBOX_DESC}; reply to 2 is \"on it\"; get(1).body and reply_to(2) held at once",
+       "(first.map(|m| m.body.as_str()), second)", '(Some("hello"), Some("on it"))',
+       setup=INBOX_SETUP + '\ninbox.reply_mut(2).unwrap().push_str("on it");\nlet first = inbox.get(1);\nlet second = inbox.reply_to(2);'),
+     T("mark_read_says_if_it_changed", f"{INBOX_DESC}; mark_read(1) twice, then mark_read(9)", "(inbox.mark_read(1), inbox.mark_read(1), inbox.mark_read(9))", "(true, false, false)", setup=INBOX_SETUP),
+     T("reply_mut_creates_then_edits", f"{INBOX_DESC}; reply_mut(3) += \"no\", then += \"pe\"",
+       "(inbox.reply_to(3), inbox.reply_to(1))", '(Some("nope"), None)',
+       setup=INBOX_SETUP + '\ninbox.reply_mut(3).unwrap().push_str("no");\ninbox.reply_mut(3).unwrap().push_str("pe");'),
+     T("newest_unread_skips_read", f"{INBOX_DESC}; mark_read(3); newest_unread_mut", "inbox.newest_unread_mut().map(|m| m.id)", "Some(2)",
+       setup=INBOX_SETUP + "\ninbox.mark_read(3);"),
+     T("triage_example", f"{INBOX_DESC}; triage(boss = \"boss\")", '(triage(&mut inbox, "boss"), inbox.reply_to(3), inbox.reply_to(2))', '(vec![1, 3], Some("on it"), None)', setup=INBOX_SETUP),
+     T("unknown_ids", f"{INBOX_DESC}; id 9", "(inbox.reply_mut(9).is_none(), inbox.get_mut(9).is_none(), inbox.get(9).is_none(), inbox.reply_to(9))", "(true, true, true, None)", setup=INBOX_SETUP)],
+    [T("empty_inbox", "new inbox", "(inbox.unread().len(), inbox.newest_unread_mut().is_none(), triage(&mut inbox, \"x\"))", "(0, true, vec![])", setup="let mut inbox = Inbox::new();"),
+     T("unread_oldest_first", f"{INBOX_DESC}; mark_read(2)", "inbox.unread().iter().map(|m| m.id).collect::<Vec<_>>()", "vec![1, 3]", setup=INBOX_SETUP + "\ninbox.mark_read(2);"),
+     T("reply_mut_keeps_existing", f"{INBOX_DESC}; reply_mut(1) = \"a\", then reply_mut(1) += \"b\"", "inbox.reply_to(1)", 'Some("ab")',
+       setup=INBOX_SETUP + '\n*inbox.reply_mut(1).unwrap() = "a".to_string();\ninbox.reply_mut(1).unwrap().push_str("b");'),
+     T("empty_reply_is_some", f"{INBOX_DESC}; reply_mut(1) without writing", "inbox.reply_to(1)", 'Some("")', setup=INBOX_SETUP + "\ninbox.reply_mut(1);"),
+     T("get_mut_edits_in_place", f"{INBOX_DESC}; get_mut(2).body = \"done\"", "inbox.get(2).map(|m| m.body.as_str())", 'Some("done")',
+       setup=INBOX_SETUP + '\ninbox.get_mut(2).unwrap().body = "done".to_string();'),
+     T("all_read", f"{INBOX_DESC}; mark_read 1, 2, 3", "(inbox.newest_unread_mut().is_none(), inbox.unread().len())", "(true, 0)",
+       setup=INBOX_SETUP + "\nfor id in 1..=3 {\n    inbox.mark_read(id);\n}"),
+     T("triage_everything_from_boss", "inbox 1 boss, 2 boss; triage(\"boss\")", '(triage(&mut inbox, "boss"), inbox.reply_to(1), inbox.reply_to(2))', "(vec![], None, None)",
+       setup='let mut inbox = Inbox::new();\ninbox.push(1, "boss", "a");\ninbox.push(2, "boss", "b");'),
+     T("triage_appends_to_existing_reply", f"{INBOX_DESC}; reply to 3 is \"ok, \"; triage(\"nobody\")", '(triage(&mut inbox, "nobody"), inbox.reply_to(3))', '(vec![1, 2, 3], Some("ok, on it"))',
+       setup=INBOX_SETUP + '\ninbox.reply_mut(3).unwrap().push_str("ok, ");'),
+     T("triage_skips_already_read_boss_mail", f"{INBOX_DESC}; mark_read(2); triage(\"boss\"); mark_read(2)", '{ triage(&mut inbox, "boss"); inbox.mark_read(2) }', "false", setup=INBOX_SETUP + "\ninbox.mark_read(2);"),
+     r"""
+     #[test]
+     fn many_readers_at_once() {
+         let mut inbox = Inbox::new();
+         inbox.push(7, "a", "x");
+         inbox.push(8, "b", "y");
+         let all = inbox.unread();
+         let one = inbox.get(8);
+         let reply = inbox.reply_to(7);
+         check!("unread(), get(8) and reply_to(7) held together", (all.len(), one.map(|m| m.from.as_str()), reply), (2, Some("b"), None));
+     }
 
-    impl Counter {
-        pub fn new(slots: usize) -> Self {
-            Counter { hits: vec![0; slots] }
-        }
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6202);
+         for _ in 0..300 {
+             let mut inbox = Inbox::new();
+             // (id, read, reply)
+             let mut model: Vec<(u32, bool, Option<String>)> = Vec::new();
+             let mut ops = Vec::new();
+             for step in 0..12u32 {
+                 match rng.below(4) {
+                     0 => {
+                         inbox.push(step, "f", "b");
+                         model.push((step, false, None));
+                         ops.push(format!("push {step}"));
+                     }
+                     1 => {
+                         let id = rng.below(step as usize + 1) as u32;
+                         let want = match model.iter_mut().find(|m| m.0 == id) {
+                             Some(m) if !m.1 => {
+                                 m.1 = true;
+                                 true
+                             }
+                             _ => false,
+                         };
+                         ops.push(format!("mark_read {id}"));
+                         check!(ops.join(", "), inbox.mark_read(id), want);
+                     }
+                     2 => {
+                         let id = rng.below(step as usize + 1) as u32;
+                         let s = rng.string(1, "xy");
+                         if let Some(r) = inbox.reply_mut(id) {
+                             r.push_str(&s);
+                         }
+                         if let Some(m) = model.iter_mut().find(|m| m.0 == id) {
+                             m.2.get_or_insert_with(String::new).push_str(&s);
+                         }
+                         ops.push(format!("reply_mut {id} += {s}"));
+                     }
+                     _ => {
+                         let got = inbox.newest_unread_mut().map(|m| m.id);
+                         let want = model.iter().rev().find(|m| !m.1).map(|m| m.0);
+                         ops.push("newest_unread_mut".to_string());
+                         check!(ops.join(", "), got, want);
+                     }
+                 }
+             }
+             let unread: Vec<u32> = inbox.unread().iter().map(|m| m.id).collect();
+             let want_unread: Vec<u32> = model.iter().filter(|m| !m.1).map(|m| m.0).collect();
+             check!(format!("{}; unread ids", ops.join(", ")), unread, want_unread);
+             for m in &model {
+                 check!(format!("{}; reply_to({})", ops.join(", "), m.0), inbox.reply_to(m.0), m.2.as_deref());
+             }
+         }
+     }
+     """],
+    [("rust", "Readers take `&self` and hand out borrows tied to it: `Option<&Msg>`, `Vec<&Msg>`, `Option<&str>`. Writers take `&mut self` and hand out `Option<&mut Msg>` or `Option<&mut String>`."),
+     ("rust", "`Option<String>` to `Option<&str>` is `as_deref()`. `get_or_insert_with(String::new)` fills a `None` in place and returns `&mut String`. `iter_mut().rev().find(..)` searches from the newest.")],
+    ("""A method that only reads takes `&self`, so any number of callers can hold its results at once; a method that hands out `&mut` must take `&mut self`, and then nothing else can use the inbox until that borrow ends. `triage` shows the practical consequence: it collects the boss's ids (plain `u32`s) before marking, because `mark_read` needs `&mut self` while `unread()`'s `Vec<&Msg>` would still borrow the inbox.
 
-        pub fn hit(&mut self, slot: usize) {
-            self.hits[slot] += 1;
-        }
-
-        pub fn total(&self) -> u32 {
-            self.hits.iter().sum()
-        }
-
-        /// The slot with the most hits; the lowest index on a tie; None if there are no slots.
-        pub fn busiest(&self) -> Option<usize> {
-            let max = *self.hits.iter().max()?;
-            self.hits.iter().position(|&h| h == max)
-        }
-    }
-    """,
-    [T("counts", "3 slots, hits on 1, 1, 2", "{ let mut c = Counter::new(3); c.hit(1); c.hit(1); c.hit(2); let (a, b) = (&c, &c); (a.total(), b.busiest()) }", "(3, Some(1))"),
-     T("no_hits", "2 slots, no hits", "Counter::new(2).busiest()", "Some(0)")],
-    [T("no_slots", "0 slots", "(Counter::new(0).total(), Counter::new(0).busiest())", "(0, None)")],
-    [("rust", "Methods that only read take `&self`, so any number of callers can hold one at once.")],
-    ("`busiest` returns an index, not a reference, so callers can keep it while hitting more slots.", "O(n)", "O(1)"),
-    "Why does `Vec::iter().max()` return the last maximum but `position` the first?",
-    ["`&self` methods can run while other shared borrows are alive.", "`&mut self` requires that no other borrow exists."],
+Syntax to remember: `self.msgs.iter().find(|m| m.id == id)` · `self.msgs.iter_mut().rev().find(|m| !m.read)` · `self.get(id)?.reply.as_deref()` · `Some(self.get_mut(id)?.reply.get_or_insert_with(String::new))`.""", "O(n) per lookup", "O(1) extra; `unread` O(k)"),
+    "`unread()` returns `Vec<&Msg>`. What would returning `impl Iterator<Item = &Msg> + '_` change for `triage`?",
+    ["`&self` methods can run while other shared borrows are alive; `&mut self` methods can't.", "`Option<String>` → `Option<&str>` with `as_deref`.", "`get_or_insert_with` fills an `Option` in place and returns `&mut T`."],
+    related=("L2", "S1"),
+    wrong=dict(
+        mark_read_always_true=sub(INBOX_SOLUTION, "Some(m) if !m.read => {", "Some(m) => {"),
+        oldest_unread=sub(INBOX_SOLUTION, "self.msgs.iter_mut().rev().find(|m| !m.read)", "self.msgs.iter_mut().find(|m| !m.read)"),
+        reply_mut_resets=sub(INBOX_SOLUTION, "Some(self.get_mut(id)?.reply.get_or_insert_with(String::new))", "let m = self.get_mut(id)?;\n        m.reply = Some(String::new());\n        m.reply.as_mut()"),
+    ),
 ))
 
-P.append(fix(
-    "fix-mut-from-shared-self", "Fix: returning &mut from &self", "easy", "shared-vs-unique", ["E0596"],
-    "`top_mut` should let the caller edit the top of the stack in place. It doesn't compile.",
-    """
-    pub struct Stack {
-        items: Vec<i32>,
+WAREHOUSE_HEAD = r"""
+use std::collections::HashMap;
+
+#[derive(Debug, Default, PartialEq)]
+pub struct Stock {
+    pub qty: u32,
+    pub reserved: u32,
+}
+
+pub struct Warehouse {
+    items: HashMap<String, Stock>,
+    last: Option<String>,
+    log: Vec<String>,
+}
+"""
+
+WAREHOUSE_STARTER = WAREHOUSE_HEAD + r"""
+impl Warehouse {
+    pub fn new() -> Self {
+        Warehouse { items: HashMap::new(), last: None, log: Vec::new() }
     }
 
-    impl Stack {
-        pub fn new() -> Self {
-            Stack { items: Vec::new() }
-        }
-
-        pub fn push(&mut self, x: i32) {
-            self.items.push(x);
-        }
-
-        /// The top item, for editing in place.
-        pub fn top_mut(&self) -> Option<&mut i32> {
-            self.items.last_mut()
-        }
-    }
-    """,
-    """
-    pub struct Stack {
-        items: Vec<i32>,
+    /// Remembers `name` as the last item touched.
+    fn touch(&self, name: &str) {
+        self.last = Some(name.to_string());
     }
 
-    impl Stack {
-        pub fn new() -> Self {
-            Stack { items: Vec::new() }
-        }
-
-        pub fn push(&mut self, x: i32) {
-            self.items.push(x);
-        }
-
-        /// The top item, for editing in place.
-        pub fn top_mut(&mut self) -> Option<&mut i32> {
-            self.items.last_mut()
-        }
+    /// Adds `qty` units of `name`, creating the item if needed.
+    pub fn receive(&mut self, name: &str, qty: u32) {
+        self.items.entry(name.to_string()).or_default().qty += qty;
+        self.touch(name);
     }
-    """,
-    [T("edit_top", "push 1, 2; add 10 to the top", "{ let mut s = Stack::new(); s.push(1); s.push(2); *s.top_mut().unwrap() += 10; s.top_mut().copied() }", "Some(12)"),
-     T("empty", "new stack", "Stack::new().top_mut().is_none()", "true")],
-    [T("only_top_changes", "push 5, 6; set top to 0", "{ let mut s = Stack::new(); s.push(5); s.push(6); if let Some(t) = s.top_mut() { *t = 0; } s.items_for_test() }", "vec![5, 0]")],
-    [("rust", "You can't get a `&mut` to something through a `&`. What does the method need to take?")],
-    ("A `&mut` out needs a `&mut` in: `&self` promises the method changes nothing.", "O(1)", "O(1)"),
-    "What's the difference between `&mut self` and `mut self` in a method signature?",
-    ["You can only hand out `&mut` to data you have `&mut` access to.", "The receiver type is part of the API contract."],
-    rules=dict(lines=1),
-))
-# The hidden test above reads the items through a helper; add it to both versions.
-for key in ("starter", "solution"):
-    P[-1][key] = P[-1][key].rstrip() + """
 
-    impl Stack {
-        /// For tests.
-        pub fn items_for_test(&self) -> Vec<i32> {
-            self.items.to_vec()
+    /// Reserves up to `qty` free units of `name` and returns how many it reserved. An unknown item reserves
+    /// nothing and isn't touched.
+    pub fn reserve(&mut self, name: &str, qty: u32) -> u32 {
+        let Some(s) = self.items.get(name) else { return 0 };
+        self.touch(name);
+        let n = qty.min(s.qty - s.reserved);
+        s.reserved += n;
+        n
+    }
+
+    /// Units of `name` that aren't reserved.
+    pub fn available(&self, name: &str) -> u32 {
+        self.items.get(name).map_or(0, |s| s.qty - s.reserved)
+    }
+
+    /// The last item touched.
+    pub fn last(&self) -> Option<&str> {
+        self.last.as_deref()
+    }
+
+    /// Appends `tag` to the remembered last-touched name. The item itself keeps its name.
+    pub fn tag_last(&mut self, tag: &str) {
+        if let Some(name) = &self.last {
+            name.push_str(tag);
         }
     }
-    """
 
-P.append(write(
-    "most-repeated-word", "Count words without cloning", "easy", "shared-vs-unique", ["&str", "HashMap"],
-    "Return the most repeated word in `text` (ties: alphabetically first), as a slice of `text`. Don't allocate a `String` per word.",
-    """
-    pub fn most_repeated(text: &str) -> Option<&str> {
-        todo!()
-    }
-    """,
-    """
-    use std::collections::HashMap;
-
-    pub fn most_repeated(text: &str) -> Option<&str> {
-        let mut counts: HashMap<&str, usize> = HashMap::new();
-        for w in text.split_whitespace() {
-            *counts.entry(w).or_insert(0) += 1;
-        }
-        counts.into_iter().max_by(|a, b| a.1.cmp(&b.1).then_with(|| b.0.cmp(a.0))).map(|(w, _)| w)
-    }
-    """,
-    [T("repeated", "\"b a b c a b\"", "most_repeated(&text)", 'Some("b")', setup='let text = String::from("b a b c a b");'),
-     T("empty", "\"\"", 'most_repeated("")', "None")],
-    [T("tie", "\"x y y x\"", 'most_repeated("x y y x")', 'Some("x")')],
-    [("rust", "Keys can be `&str` slices of `text`; the map then borrows `text` instead of owning copies.")],
-    ("The result borrows from `text`, so the signature's elided lifetime ties it to the input.", "O(n)", "O(k)"),
-    "What stops you from returning a key of the map after the map is dropped?",
-    ["Borrowed keys in a `HashMap<&str, usize>`.", "Returning a slice of the input."],
-    related=("L2", "S4"),
-))
-
-P.append(fix(
-    "fix-mutate-through-shared-ref", "Fix: mutate through a shared reference", "easy", "shared-vs-unique", ["E0594"],
-    "`deposit_all` should add `amount` to every account. It doesn't compile.",
-    """
-    pub struct Account {
-        pub balance: i64,
-    }
-
-    /// Adds `amount` to every account.
-    pub fn deposit_all(accounts: &[Account], amount: i64) {
-        for a in accounts {
-            a.balance += amount;
-        }
-    }
-    """,
-    """
-    pub struct Account {
-        pub balance: i64,
-    }
-
-    /// Adds `amount` to every account.
-    pub fn deposit_all(accounts: &mut [Account], amount: i64) {
-        for a in accounts {
-            a.balance += amount;
-        }
-    }
-    """,
-    [T("deposits", "balances [1, 2], amount 5", "{ let mut a = [Account { balance: 1 }, Account { balance: 2 }]; deposit_all(&mut a, 5); (a[0].balance, a[1].balance) }", "(6, 7)")],
-    [T("empty", "no accounts", "{ let mut a: [Account; 0] = []; deposit_all(&mut a, 5); a.len() }", "0")],
-    [("rust", "Iterating a `&[T]` gives `&T`. What do you iterate to get `&mut T`?")],
-    ("Iterating `&mut [T]` yields `&mut T`, so the loop body needs no change.", "O(n)", "O(1)"),
-    "Why can't `&T` be used to mutate, even when nobody else holds a reference?",
-    ["Writing through a reference needs `&mut`.", "`for x in slice` yields `&T` or `&mut T` depending on the slice."],
-    rules=dict(lines=1),
-))
-
-P.append(write(
-    "split-first-mut", "Unique, not mutable: split_first_mut", "easy", "shared-vs-unique", ["split_first_mut", "&mut"],
-    "Add the first element to every other element of `v`, in place.",
-    """
-    pub fn add_head_to_rest(v: &mut [i32]) {
-        todo!()
-    }
-    """,
-    """
-    pub fn add_head_to_rest(v: &mut [i32]) {
-        if let Some((head, rest)) = v.split_first_mut() {
-            for x in rest {
-                *x += *head;
+    /// Ships every reservation: reserved units leave stock. Logs "<name>: <units>" for each item shipped,
+    /// sorted by name, and returns how many items shipped.
+    pub fn ship_all(&mut self) -> usize {
+        let mut lines = Vec::new();
+        for (name, s) in self.items.iter() {
+            if s.reserved > 0 {
+                lines.push(format!("{name}: {}", s.reserved));
+                s.qty -= s.reserved;
+                s.reserved = 0;
             }
         }
+        lines.sort();
+        let shipped = lines.len();
+        self.log.extend(lines);
+        shipped
     }
+
+    /// How many items have fewer than `limit` units available.
+    pub fn count_low(&self, limit: u32) -> usize {
+        let mut n = 0;
+        let bump = || n += 1;
+        for s in self.items.values() {
+            if s.qty - s.reserved < limit {
+                bump();
+            }
+        }
+        n
+    }
+
+    pub fn log(&self) -> &[String] {
+        &self.log
+    }
+}
+"""
+
+WAREHOUSE_SOLUTION = WAREHOUSE_STARTER
+for _old, _new in [
+    ("fn touch(&self, name: &str)", "fn touch(&mut self, name: &str)"),
+    ("        let Some(s) = self.items.get(name) else { return 0 };\n        self.touch(name);\n        let n = qty.min(s.qty - s.reserved);\n        s.reserved += n;\n        n",
+     "        let Some(s) = self.items.get_mut(name) else { return 0 };\n        let n = qty.min(s.qty - s.reserved);\n        s.reserved += n;\n        self.touch(name);\n        n"),
+    ("if let Some(name) = &self.last {", "if let Some(name) = &mut self.last {"),
+    ("for (name, s) in self.items.iter() {", "for (name, s) in self.items.iter_mut() {"),
+    ("let bump = || n += 1;", "let mut bump = || n += 1;"),
+]:
+    WAREHOUSE_SOLUTION = sub(WAREHOUSE_SOLUTION, _old, _new)
+WH_SETUP = 'let mut w = Warehouse::new();\nw.receive("bolt", 10);\nw.receive("nut", 4);'
+WH_DESC = "receive bolt 10, nut 4"
+
+P.append(fixp(
+    "fix-mut-from-shared-self", "Fix: &mut in every position", "easy", "shared-vs-unique", ["E0596", "E0594", "E0499", "iter_mut", "get_mut", "FnMut"],
+    """
+        `Warehouse` doesn't compile: in several places it has shared access where it needs unique access. Each
+        one is written differently: a receiver, a map lookup, an iterator, a pattern on an `Option` field, a
+        closure. Fix them. `available` and `last` only read, and callers hold their results side by side, so
+        they must stay as they are.
     """,
-    [T("adds", "v = [10, 1, 2]", "{ let mut v = [10, 1, 2]; add_head_to_rest(&mut v); v }", "[10, 11, 12]"),
-     T("single", "v = [5]", "{ let mut v = [5]; add_head_to_rest(&mut v); v }", "[5]")],
-    [T("empty", "v = []", "{ let mut v: [i32; 0] = []; add_head_to_rest(&mut v); v }", "[]")],
-    [("rust", "`&v[0]` and `&mut v[1..]` at once won't compile. `split_first_mut` splits one borrow into two that can't overlap.")],
-    ("`&mut` means exclusive access, not merely writable: two parts of a slice need two borrows that provably don't overlap.", "O(n)", "O(1)"),
-    "How would you do the same with `split_at_mut(1)`?",
-    ["`&mut` is about uniqueness: no other reference may overlap it.", "`split_first_mut` returns the head and the rest as separate borrows."],
+    WAREHOUSE_STARTER,
+    WAREHOUSE_SOLUTION,
+    [T("receive_and_reserve", f"{WH_DESC}; reserve bolt 3", '(w.reserve("bolt", 3), w.available("bolt"), w.last())', '(3, 7, Some("bolt"))', setup=WH_SETUP),
+     T("reserve_caps_at_available", f"{WH_DESC}; reserve nut 3, then nut 3", '(w.reserve("nut", 3), w.reserve("nut", 3), w.available("nut"))', "(3, 1, 0)", setup=WH_SETUP),
+     T("unknown_item_not_touched", f"{WH_DESC}; reserve ghost 1", '(w.reserve("ghost", 1), w.last())', '(0, Some("nut"))', setup=WH_SETUP),
+     T("readers_side_by_side", f"{WH_DESC}; available(bolt) and last() held together", "(a, l)", '(10, Some("nut"))', setup=WH_SETUP + '\nlet l = w.last();\nlet a = w.available("bolt");'),
+     T("tag_last", f"{WH_DESC}; tag_last \"*\" twice", '(w.last(), w.available("nut"), w.available("nut*"))', '(Some("nut**"), 4, 0)', setup=WH_SETUP + '\nw.tag_last("*");\nw.tag_last("*");'),
+     T("ship_all_logs_sorted", f"{WH_DESC}; reserve nut 1, bolt 2; ship_all", "(w.ship_all(), w.log().to_vec(), w.available(\"bolt\"), w.available(\"nut\"))",
+       '(2, vec!["bolt: 2".to_string(), "nut: 1".to_string()], 8, 3)', setup=WH_SETUP + '\nw.reserve("nut", 1);\nw.reserve("bolt", 2);'),
+     T("count_low", f"{WH_DESC}; reserve bolt 7; count_low(4)", 'w.count_low(4)', "1", setup=WH_SETUP + '\nw.reserve("bolt", 7);')],
+    [T("empty_warehouse", "new warehouse", "(w.count_low(1), w.ship_all(), w.log().len(), w.last())", "(0, 0, 0, None)", setup="let mut w = Warehouse::new();"),
+     T("tag_without_last", "new warehouse; tag_last \"x\"", "w.last()", "None", setup='let mut w = Warehouse::new();\nw.tag_last("x");'),
+     T("receive_adds_up", "receive a 2, a 3", '(w.available("a"), w.last())', '(5, Some("a"))', setup='let mut w = Warehouse::new();\nw.receive("a", 2);\nw.receive("a", 3);'),
+     T("reserve_zero_touches", f"{WH_DESC}; reserve bolt 0", '(w.reserve("bolt", 0), w.last())', '(0, Some("bolt"))', setup=WH_SETUP),
+     T("reserve_when_all_reserved", f"{WH_DESC}; reserve nut 4, then nut 1", '(w.reserve("nut", 1), w.last(), w.available("nut"))', '(0, Some("nut"), 0)', setup=WH_SETUP + '\nw.reserve("nut", 4);'),
+     T("ship_twice", f"{WH_DESC}; reserve bolt 10; ship_all twice", '(w.ship_all(), w.ship_all(), w.available("bolt"), w.log().len())', "(1, 0, 0, 1)", setup=WH_SETUP + '\nw.reserve("bolt", 10);'),
+     T("log_accumulates", f"{WH_DESC}; reserve nut 1; ship; reserve bolt 1, nut 1; ship", "w.log().to_vec()", 'vec!["nut: 1", "bolt: 1", "nut: 1"]',
+       setup=WH_SETUP + '\nw.reserve("nut", 1);\nw.ship_all();\nw.reserve("bolt", 1);\nw.reserve("nut", 1);\nw.ship_all();'),
+     T("count_low_counts_reserved", f"{WH_DESC}; reserve bolt 9; count_low(2), count_low(5), count_low(0)", "(w.count_low(2), w.count_low(5), w.count_low(0))", "(1, 2, 0)", setup=WH_SETUP + '\nw.reserve("bolt", 9);'),
+     T("tag_then_receive", f"{WH_DESC}; tag_last \"!\"; receive bolt 1", '(w.last(), w.available("bolt"))', '(Some("bolt"), 11)', setup=WH_SETUP + '\nw.tag_last("!");\nw.receive("bolt", 1);'),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         use std::collections::BTreeMap;
+         let mut rng = anneal_prelude::Rng::new(6203);
+         let names = ["a", "b", "c"];
+         for _ in 0..300 {
+             let mut w = Warehouse::new();
+             let mut model: BTreeMap<&str, (u32, u32)> = BTreeMap::new();
+             let mut last: Option<String> = None;
+             let mut log: Vec<String> = Vec::new();
+             let mut ops = Vec::new();
+             for _ in 0..10 {
+                 let name = *rng.pick(&names);
+                 let q = rng.below(5) as u32;
+                 match rng.below(4) {
+                     0 => {
+                         w.receive(name, q);
+                         model.entry(name).or_default().0 += q;
+                         last = Some(name.to_string());
+                         ops.push(format!("receive {name} {q}"));
+                     }
+                     1 => {
+                         let want = match model.get_mut(name) {
+                             Some(s) => {
+                                 let n = q.min(s.0 - s.1);
+                                 s.1 += n;
+                                 last = Some(name.to_string());
+                                 n
+                             }
+                             None => 0,
+                         };
+                         ops.push(format!("reserve {name} {q}"));
+                         check!(ops.join(", "), w.reserve(name, q), want);
+                     }
+                     2 => {
+                         let mut n = 0;
+                         for (k, s) in model.iter_mut() {
+                             if s.1 > 0 {
+                                 log.push(format!("{k}: {}", s.1));
+                                 s.0 -= s.1;
+                                 s.1 = 0;
+                                 n += 1;
+                             }
+                         }
+                         ops.push("ship_all".to_string());
+                         check!(ops.join(", "), w.ship_all(), n);
+                     }
+                     _ => {
+                         let want = model.values().filter(|s| s.0 - s.1 < q).count();
+                         ops.push(format!("count_low {q}"));
+                         check!(ops.join(", "), w.count_low(q), want);
+                     }
+                 }
+             }
+             check!(format!("{}; last, log", ops.join(", ")), (w.last(), w.log().to_vec()), (last.as_deref(), log.clone()));
+             for n in names {
+                 let want = model.get(n).map_or(0, |s| s.0 - s.1);
+                 check!(format!("{}; available({n})", ops.join(", ")), w.available(n), want);
+             }
+         }
+     }
+     """],
+    [("rust", "Read each error for where the shared access comes from: a `&self` receiver, `get` instead of `get_mut`, `iter` instead of `iter_mut`, `&self.last` in a pattern, and a closure binding that isn't `mut` (calling an `FnMut` needs `&mut` to the closure)."),
+     ("rust", "Once `reserve` holds `s` from `get_mut`, `self.touch(name)` borrows all of `self` while `s` is still used. Where can the call go so the borrows don't overlap?")],
+    ("""`&` is shared access and `&mut` unique access, and each position has its own spelling: the receiver (`&mut self`), the lookup (`get_mut`), the iterator (`iter_mut`, which also makes the pattern `(name, s)` bind `s: &mut Stock`), a pattern on a field (`&mut self.last`, or `self.last.as_mut()`), and a closure that mutates what it captured (it's `FnMut`, so calling it borrows it mutably: `let mut bump`).
+
+In `reserve`, `s` borrows one entry of `self.items`, but `self.touch(name)` borrows all of `self`, so the call moves after the last use of `s`. It must stay after the `let else`, too: an unknown item isn't touched. `ship_all` pushes to `lines` while iterating `self.items` mutably, which is fine, and `available` and `last` keep `&self`.""", "O(1) per call; O(n log n) ship_all", "O(n) ship_all"),
+    "Why does calling an `FnMut` closure need a `mut` binding, when calling an `Fn` closure doesn't?",
+    ["Every position that grants access has a shared and a unique spelling.", "A method call borrows all of `self`; a field borrow only the field.", "Calling an `FnMut` borrows the closure mutably."],
+    rules=dict(methods=["clone", "take", "replace"], lines=8),
+    wrong=dict(
+        touch_before_lookup=sub(WAREHOUSE_SOLUTION, "        let Some(s) = self.items.get_mut(name) else { return 0 };\n        let n = qty.min(s.qty - s.reserved);\n        s.reserved += n;\n        self.touch(name);\n",
+                                "        self.touch(name);\n        let Some(s) = self.items.get_mut(name) else { return 0 };\n        let n = qty.min(s.qty - s.reserved);\n        s.reserved += n;\n"),
+        count_low_at_limit=sub(WAREHOUSE_SOLUTION, "if s.qty - s.reserved < limit {", "if s.qty - s.reserved <= limit {"),
+        ships_without_clearing=sub(WAREHOUSE_SOLUTION, "                s.qty -= s.reserved;\n                s.reserved = 0;\n", "                s.qty -= s.reserved;\n"),
+    ),
+))
+
+WORDS_SOLUTION = r"""
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+
+/// A word that compares and hashes ignoring ASCII case.
+struct Word<'a>(&'a str);
+
+impl PartialEq for Word<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq_ignore_ascii_case(other.0)
+    }
+}
+
+impl Eq for Word<'_> {}
+
+impl Hash for Word<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for b in self.0.bytes() {
+            state.write_u8(b.to_ascii_lowercase());
+        }
+        state.write_u8(0xff);
+    }
+}
+
+pub fn top_words(text: &str, k: usize) -> Vec<(&str, usize)> {
+    // word -> (count, index of its first appearance)
+    let mut counts: HashMap<Word, (usize, usize)> = HashMap::new();
+    for (i, w) in text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).enumerate() {
+        counts.entry(Word(w)).or_insert((0, i)).0 += 1;
+    }
+    let mut top: Vec<(&str, usize, usize)> = counts.into_iter().map(|(w, (n, first))| (w.0, n, first)).collect();
+    top.sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.2.cmp(&b.2)));
+    top.into_iter().take(k).map(|(w, n, _)| (w, n)).collect()
+}
+"""
+
+WORDS_DOC = r"""
+/// The `k` most frequent words of `text` with their counts, most frequent first; a tie goes to the word that
+/// appeared first. A word is a maximal run of alphanumeric chars (`char::is_alphanumeric`). Words that differ
+/// only in ASCII case are the same word, reported with the spelling it first appeared with, as a slice of `text`.
+"""
+
+
+def words_case(name, text, k, want):
+    rust_text = text.replace('"', '\\"')
+    exp = "vec![" + ", ".join(f'("{w}", {n})' for w, n in want) + "]"
+    if not want:
+        exp = "Vec::<(&str, usize)>::new()"
+    return T(name, f'text = "{rust_text}", k = {k}', f'top_words("{rust_text}", {k})', exp)
+
+
+P.append(writep(
+    "most-repeated-word", "Count words without cloning", "easy", "shared-vs-unique", ["&str", "HashMap", "Hash", "borrowed keys"],
+    """
+        Return the `k` most frequent words of `text` with their counts: most frequent first, a tie going to the
+        word that appeared first. A word is a maximal run of alphanumeric chars. Words that differ only in ASCII
+        case are the same word (`Rust`, `rust`, `RUST`), reported with the spelling it first appeared with.
+
+        Every word you return is a slice of `text`, and you may not allocate per word: a hidden test counts
+        allocations on a long text.
+    """,
+    "use std::collections::HashMap;\n" + WORDS_DOC + "pub fn top_words(text: &str, k: usize) -> Vec<(&str, usize)> {\n    todo!()\n}\n",
+    WORDS_SOLUTION.replace("pub fn top_words", WORDS_DOC.strip("\n") + "\npub fn top_words"),
+    [words_case("example", "the cat and the hat and the bat", 2, [("the", 3), ("and", 2)]),
+     words_case("case_folds_to_first_spelling", "Rust rust RUST go Go", 5, [("Rust", 3), ("go", 2)]),
+     words_case("tie_goes_to_first_seen", "b a a b c", 3, [("b", 2), ("a", 2), ("c", 1)]),
+     words_case("punctuation_splits", "well-known, well: known!", 2, [("well", 2), ("known", 2)]),
+     words_case("k_beyond_distinct", "x y", 10, [("x", 1), ("y", 1)]),
+     words_case("empty_text", "", 3, []),
+     words_case("k_zero", "a a", 0, [])],
+    [ALLOC_COUNTER,
+     words_case("only_separators", "  ,,; - ", 2, []),
+     words_case("digits_are_word_chars", "v2 V2 route66", 2, [("v2", 2), ("route66", 1)]),
+     words_case("apostrophe_splits", "don't DON'T", 3, [("don", 2), ("t", 2)]),
+     words_case("unicode_letters", "café Café CAFÉ", 3, [("café", 2), ("CAFÉ", 1)]),
+     words_case("non_ascii_separator", "a—b—a", 2, [("a", 2), ("b", 1)]),
+     words_case("newlines_and_tabs", "one\\ttwo\\nTWO\\n\\none", 1, [("one", 2)]),
+     words_case("later_word_overtakes", "a b b", 1, [("b", 2)]),
+     words_case("single_word", "Solo", 1, [("Solo", 1)]),
+     r"""
+     #[test]
+     fn words_borrow_the_text() {
+         let text = String::from("Beta alpha BETA");
+         let got = top_words(&text, 2);
+         let range = text.as_bytes().as_ptr_range();
+         check!("\"Beta alpha BETA\": every word points into the text", got.iter().all(|(w, _)| range.contains(&w.as_ptr())), true);
+         check!("\"Beta alpha BETA\": and is the first spelling", got[0].0.as_ptr() == text.as_ptr(), true);
+     }
+
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6204);
+         for _ in 0..300 {
+             let len = rng.below(24);
+             let text = rng.string(len, "aAbB c.");
+             let k = rng.below(5);
+             let words: Vec<&str> = text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
+             // (lowercase, first spelling, count, first index)
+             let mut seen: Vec<(String, &str, usize, usize)> = Vec::new();
+             for (i, w) in words.iter().enumerate() {
+                 let low = w.to_ascii_lowercase();
+                 match seen.iter_mut().find(|s| s.0 == low) {
+                     Some(s) => s.2 += 1,
+                     None => seen.push((low, w, 1, i)),
+                 }
+             }
+             seen.sort_by(|a, b| b.2.cmp(&a.2).then(a.3.cmp(&b.3)));
+             let want: Vec<(&str, usize)> = seen.iter().take(k).map(|s| (s.1, s.2)).collect();
+             check!(format!("text = {text:?}, k = {k}"), top_words(&text, k), want);
+         }
+     }
+
+     #[test]
+     fn long_text_allocates_per_distinct_word() {
+         let spellings = ["Rust", "rust", "RUST", "go", "Go", "zig"];
+         let mut text = String::new();
+         for i in 0..200_000 {
+             text.push_str(spellings[i % 6]);
+             text.push(' ');
+         }
+         let (got, n) = allocs(|| top_words(&text, 3));
+         check!("200000 words, 6 spellings of 3 words", got, vec![("Rust", 100_001), ("go", 66_666), ("zig", 33_333)]);
+         check!("200000 words: at most 64 allocations (a String per word would be 200000)", n <= 64, true);
+     }
+     """],
+    [("rust", "Key the map by `&str` slices of `text` so nothing is copied. Returning keys of a map that owns `String`s wouldn't compile: they'd borrow the map, which dies at the end of the function."),
+     ("rust", "Case-insensitive keys without allocating: wrap the slice in your own type and implement `PartialEq`, `Eq` and `Hash` by hand so they ignore ASCII case. `entry` keeps the key it was first inserted with.")],
+    ("""The words borrow `text`, so the result's elided lifetime ties it to `text`, not to the map: that's why the map can be dropped while the slices are returned. Folding case with `to_lowercase()` per word would work but allocate a `String` per word; a newtype key whose `Hash` and `Eq` ignore ASCII case keeps every key a borrowed slice, and `entry` keeps the first spelling because an existing key is never replaced. `Hash` must agree with `Eq`: equal words must hash the same, so hash the lowercased bytes.
+
+Syntax to remember: `struct Word<'a>(&'a str);` · `impl Hash for Word<'_> { fn hash<H: Hasher>(&self, state: &mut H) { .. } }` · `impl Eq for Word<'_> {}` · `self.0.eq_ignore_ascii_case(other.0)` · `sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.2.cmp(&b.2)))`.""", "O(n + d log d) for d distinct words", "O(d)"),
+    "Unicode case folding (`É` and `é`) can change a word's length. Why can't a borrowed key fold it the way this one folds ASCII?",
+    ["Borrowed keys: `HashMap<&str, _>` or a newtype over `&str`.", "A hand-written `Hash` must agree with `Eq`.", "Returning slices of the input, not of a local map."],
+    related=("L2", "S4"),
+    wrong=dict(
+        lowercase_string_keys=r"""
+            use std::collections::HashMap;
+
+            pub fn top_words(text: &str, k: usize) -> Vec<(&str, usize)> {
+                let mut counts: HashMap<String, (usize, usize, &str)> = HashMap::new();
+                for (i, w) in text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).enumerate() {
+                    counts.entry(w.to_ascii_lowercase()).or_insert((0, i, w)).0 += 1;
+                }
+                let mut top: Vec<(usize, usize, &str)> = counts.into_values().collect();
+                top.sort_unstable_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+                top.into_iter().take(k).map(|(n, _, w)| (w, n)).collect()
+            }
+        """,
+        ties_alphabetical=sub(WORDS_SOLUTION, "then(a.2.cmp(&b.2))", "then(a.0.cmp(b.0))"),
+        case_sensitive=sub(WORDS_SOLUTION, "self.0.eq_ignore_ascii_case(other.0)", "self.0 == other.0").replace("state.write_u8(b.to_ascii_lowercase());", "state.write_u8(b);"),
+        whitespace_words=sub(WORDS_SOLUTION, "text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty())", "text.split_whitespace()"),
+    ),
+))
+
+ACCOUNTS_HEAD = r"""
+#[derive(Debug, PartialEq)]
+pub struct Account {
+    pub id: u32,
+    pub balance: i64,
+}
+"""
+
+ACCOUNTS_STARTER = ACCOUNTS_HEAD + r"""
+/// Pays `pct` percent interest (rounded toward zero) into every selected account.
+pub fn pay_interest(selected: &[&mut Account], pct: i64) {
+    for a in selected {
+        a.balance += a.balance * pct / 100;
+    }
+}
+
+/// Points `richest` at whichever of `richest` and `candidate` has the larger balance; a tie keeps `richest`.
+pub fn keep_richest<'a>(richest: &mut &'a Account, candidate: &'a Account) {
+    if candidate.balance > richest.balance {
+        *richest = candidate;
+    }
+}
+
+/// Moves `amount` from `from` into `to`.
+pub fn top_up(to: &mut &Account, from: &mut Account, amount: i64) {
+    from.balance -= amount;
+    to.balance += amount;
+}
+
+/// Pays interest to every account with a balance of at least `min`, and returns their ids in order.
+pub fn reward(accounts: &mut [Account], min: i64, pct: i64) -> Vec<u32> {
+    let selected: Vec<&mut Account> = accounts.iter_mut().filter(|a| a.balance >= min).collect();
+    pay_interest(&selected, pct);
+    selected.iter().map(|a| a.id).collect()
+}
+
+/// The id of the richest account (the first one on a tie), or None if there are none.
+pub fn richest_id(accounts: &[Account]) -> Option<u32> {
+    let (first, rest) = accounts.split_first()?;
+    let mut best = first;
+    for a in rest {
+        keep_richest(&mut best, a);
+    }
+    Some(best.id)
+}
+"""
+
+ACCOUNTS_SOLUTION = ACCOUNTS_STARTER
+for _old, _new in [
+    ("pub fn pay_interest(selected: &[&mut Account], pct: i64) {\n    for a in selected {", "pub fn pay_interest(selected: &mut [&mut Account], pct: i64) {\n    for a in selected.iter_mut() {"),
+    ("pub fn top_up(to: &mut &Account,", "pub fn top_up(to: &mut Account,"),
+    ("    let selected: Vec<&mut Account>", "    let mut selected: Vec<&mut Account>"),
+    ("pay_interest(&selected, pct);", "pay_interest(&mut selected, pct);"),
+]:
+    ACCOUNTS_SOLUTION = sub(ACCOUNTS_SOLUTION, _old, _new)
+
+
+def acc(xs):
+    return "vec![" + ", ".join(f"Account {{ id: {i}, balance: {b} }}" for i, b in xs) + "]"
+
+
+P.append(fixp(
+    "fix-mutate-through-shared-ref", "Fix: a &mut behind a & is read-only", "easy", "shared-vs-unique", ["E0594", "E0596", "&&mut T", "&mut &T"],
+    """
+        This doesn't compile. Two functions try to write through a reference that only grants reading, even
+        though a `&mut` appears in their types. Fix the signatures and their callers. `keep_richest` and
+        `richest_id` are correct: leave them alone.
+    """,
+    ACCOUNTS_STARTER,
+    ACCOUNTS_SOLUTION,
+    [T("reward_pays_selected", "balances [100, 50, 300], min 100, 10%", "{ let mut v = " + acc([(1, 100), (2, 50), (3, 300)]) + "; let ids = reward(&mut v, 100, 10); (ids, v.iter().map(|a| a.balance).collect::<Vec<_>>()) }", "(vec![1, 3], vec![110, 50, 330])"),
+     T("interest_rounds_toward_zero", "balances [15, -15], min -100, 10%", "{ let mut v = " + acc([(1, 15), (2, -15)]) + "; reward(&mut v, -100, 10); (v[0].balance, v[1].balance) }", "(16, -16)"),
+     T("top_up_moves_funds", "to 5, from 20, amount 7", "{ let (mut to, mut from) = (Account { id: 1, balance: 5 }, Account { id: 2, balance: 20 }); top_up(&mut to, &mut from, 7); (to.balance, from.balance) }", "(12, 13)"),
+     T("richest_first_on_tie", "balances [3, 9, 9]", "richest_id(&" + acc([(1, 3), (2, 9), (3, 9)]) + ")", "Some(2)"),
+     T("keep_richest_repoints", "richest 4, candidate 8", "{ let (a, b) = (Account { id: 1, balance: 4 }, Account { id: 2, balance: 8 }); let mut r = &a; keep_richest(&mut r, &b); r.id }", "2"),
+     T("pay_interest_direct", "two selected accounts 200, 1000; 5%", "{ let (mut a, mut b) = (Account { id: 1, balance: 200 }, Account { id: 2, balance: 1000 }); pay_interest(&mut [&mut a, &mut b], 5); (a.balance, b.balance) }", "(210, 1050)")],
+    [T("reward_none_selected", "balances [1, 2], min 10", "{ let mut v = " + acc([(1, 1), (2, 2)]) + "; (reward(&mut v, 10, 50), v[0].balance, v[1].balance) }", "(vec![], 1, 2)"),
+     T("reward_empty", "no accounts", "reward(&mut [], 0, 10)", "vec![]"),
+     T("reward_at_min", "balance 100, min 100, 1%", "{ let mut v = " + acc([(7, 100)]) + "; (reward(&mut v, 100, 1), v[0].balance) }", "(vec![7], 101)"),
+     T("zero_percent", "balance 99, 0%", "{ let mut v = " + acc([(1, 99)]) + "; reward(&mut v, 0, 0); v[0].balance }", "99"),
+     T("small_balance_no_interest", "balance 9, 10%", "{ let mut v = " + acc([(1, 9)]) + "; reward(&mut v, 0, 10); v[0].balance }", "9"),
+     T("top_up_negative", "to 5, from 5, amount -3", "{ let (mut to, mut from) = (Account { id: 1, balance: 5 }, Account { id: 2, balance: 5 }); top_up(&mut to, &mut from, -3); (to.balance, from.balance) }", "(2, 8)"),
+     T("richest_empty", "no accounts", "richest_id(&[])", "None"),
+     T("richest_negative", "balances [-5, -2, -9]", "richest_id(&" + acc([(1, -5), (2, -2), (3, -9)]) + ")", "Some(2)"),
+     T("keep_richest_tie", "richest 4, candidate 4", "{ let (a, b) = (Account { id: 1, balance: 4 }, Account { id: 2, balance: 4 }); let mut r = &a; keep_richest(&mut r, &b); r.id }", "1"),
+     T("large_balances", "balance 10^15, 3%", "{ let mut v = " + acc([(1, 10**15)]) + "; reward(&mut v, 0, 3); v[0].balance }", str(10**15 + 3 * 10**13)),
+     r"""
+     #[test]
+     fn random_vs_model() {
+         let mut rng = anneal_prelude::Rng::new(6205);
+         for _ in 0..300 {
+             let n = rng.below(7);
+             let balances: Vec<i64> = rng.vec(n, -500, 500);
+             let min = rng.int(-500, 500);
+             let pct = rng.int(0, 30);
+             let mut v: Vec<Account> = balances.iter().enumerate().map(|(i, &b)| Account { id: i as u32, balance: b }).collect();
+             let want_ids: Vec<u32> = v.iter().filter(|a| a.balance >= min).map(|a| a.id).collect();
+             let want: Vec<i64> = balances.iter().map(|&b| if b >= min { b + b * pct / 100 } else { b }).collect();
+             let ids = reward(&mut v, min, pct);
+             let got: Vec<i64> = v.iter().map(|a| a.balance).collect();
+             check!(format!("balances {balances:?}, min {min}, {pct}%"), (ids, got), (want_ids, want));
+         }
+     }
+     """],
+    [("rust", "`selected` is `&[&mut Account]`: a shared borrow of the slice. Everything reached through a `&` is read-only, including the `&mut` inside it; otherwise two copies of the `&` would hand out the same `&mut`."),
+     ("rust", "`&mut &Account` lets you change which account the inner reference points at (that's what `keep_richest` does), but the account itself is still behind a `&`.")],
+    ("""Mutability doesn't pass through a shared reference: `&&mut T` only reads the `T`, because `&` is `Copy` and two copies must not both write. So `pay_interest` needs `&mut [&mut Account]`, iterated with `iter_mut()` (which yields `&mut &mut Account`; field access derefs through both), and the caller passes `&mut selected` from a `mut` binding. The other direction, `&mut &T`, grants unique access to the *reference*: you may repoint it, as `keep_richest` does, but not write the `T`. `top_up` needs a plain `&mut Account`.
+
+Syntax to remember: `fn f(xs: &mut [&mut T])` · `for x in xs.iter_mut() { x.field += 1 }` · `fn repoint<'a>(r: &mut &'a T, other: &'a T) { *r = other }`.""", "O(n)", "O(k) for the selection"),
+    "`&mut &mut T` lets you write the `T`, but `&&mut T` doesn't. Why is the second rule needed for soundness?",
+    ["`&` makes everything behind it read-only, including a `&mut`.", "`&mut &T` repoints a reference; it doesn't unlock the `T`."],
+    rules=dict(methods=["clone"], lines=6),
+    wrong=dict(
+        interest_on_cents_after_division=sub(ACCOUNTS_SOLUTION, "a.balance += a.balance * pct / 100;", "a.balance += a.balance / 100 * pct;"),
+        rewards_everyone=sub(ACCOUNTS_SOLUTION, "accounts.iter_mut().filter(|a| a.balance >= min).collect();", "accounts.iter_mut().collect();"),
+        top_up_backwards=sub(ACCOUNTS_SOLUTION, "    from.balance -= amount;\n    to.balance += amount;", "    from.balance += amount;\n    to.balance -= amount;"),
+    ),
+))
+
+SPLIT_STARTER = r"""
+/// `names[0]` is a namespace. Prefixes every other name with "<namespace>::" in place, unless it already starts
+/// with exactly that. An empty slice is left alone.
+pub fn qualify(names: &mut [String]) {
+    for i in 1..names.len() {
+        let ns = &names[0];
+        let done = names[i].strip_prefix(ns.as_str()).is_some_and(|rest| rest.starts_with("::"));
+        if !done {
+            names[i].insert_str(0, "::");
+            names[i].insert_str(0, ns);
+        }
+    }
+}
+
+/// Seals every whole frame of `size` bytes (`size >= 2`) in `buf` and returns how many it sealed; bytes after
+/// the last whole frame are left alone. In a frame, byte 0 is the key and the last byte the checksum: XOR every
+/// byte in between with the key, then set the checksum to the wrapping sum of those new bytes.
+pub fn seal_frames(buf: &mut [u8], size: usize) -> usize {
+    let mut sealed = 0;
+    for frame in buf.chunks_mut(size) {
+        let key = &frame[0];
+        let sum = &mut frame[size - 1];
+        *sum = 0;
+        for b in &mut frame[1..size - 1] {
+            *b ^= *key;
+            *sum = sum.wrapping_add(*b);
+        }
+        sealed += 1;
+    }
+    sealed
+}
+
+/// Swaps the first half of `v` with the last half in place. With an odd length the middle element stays:
+/// [1, 2, 3, 4, 5] becomes [4, 5, 3, 1, 2].
+pub fn swap_halves<T>(v: &mut [T]) {
+    let half = v.len() / 2;
+    let (front, back) = (&mut v[..half], &mut v[v.len() - half..]);
+    front.swap_with_slice(back);
+}
+"""
+
+SPLIT_SOLUTION = r"""
+/// `names[0]` is a namespace. Prefixes every other name with "<namespace>::" in place, unless it already starts
+/// with exactly that. An empty slice is left alone.
+pub fn qualify(names: &mut [String]) {
+    let Some((ns, rest)) = names.split_first_mut() else { return };
+    for name in rest {
+        let done = name.strip_prefix(ns.as_str()).is_some_and(|rest| rest.starts_with("::"));
+        if !done {
+            name.insert_str(0, "::");
+            name.insert_str(0, ns);
+        }
+    }
+}
+
+/// Seals every whole frame of `size` bytes (`size >= 2`) in `buf` and returns how many it sealed; bytes after
+/// the last whole frame are left alone. In a frame, byte 0 is the key and the last byte the checksum: XOR every
+/// byte in between with the key, then set the checksum to the wrapping sum of those new bytes.
+pub fn seal_frames(buf: &mut [u8], size: usize) -> usize {
+    let mut sealed = 0;
+    for frame in buf.chunks_exact_mut(size) {
+        let (key, rest) = frame.split_first_mut().unwrap();
+        let (sum, body) = rest.split_last_mut().unwrap();
+        *sum = 0;
+        for b in body {
+            *b ^= *key;
+            *sum = sum.wrapping_add(*b);
+        }
+        sealed += 1;
+    }
+    sealed
+}
+
+/// Swaps the first half of `v` with the last half in place. With an odd length the middle element stays:
+/// [1, 2, 3, 4, 5] becomes [4, 5, 3, 1, 2].
+pub fn swap_halves<T>(v: &mut [T]) {
+    let half = v.len() / 2;
+    let (front, rest) = v.split_at_mut(half);
+    let back_start = rest.len() - half;
+    front.swap_with_slice(&mut rest[back_start..]);
+}
+"""
+
+
+def names_case(name, before, after):
+    b = "[" + ", ".join(f'"{x}"' for x in before) + "]"
+    a = "vec![" + ", ".join(f'"{x}"' for x in after) + "]" if after else "Vec::<String>::new()"
+    return T(name, f"qualify({b})", f"{{ let src: [&str; {len(before)}] = {b}; let mut v: Vec<String> = src.iter().map(|s| s.to_string()).collect(); qualify(&mut v); v }}", a)
+
+
+def frames_case(name, buf, size, sealed, after):
+    return T(name, f"seal_frames({buf}, size {size})", f"{{ let mut b: Vec<u8> = vec!{buf}; let n = seal_frames(&mut b, {size}); (n, b) }}", f"({sealed}, vec!{after})")
+
+
+def seal_py(buf, size):
+    buf = list(buf)
+    n = 0
+    for s in range(0, len(buf) - size + 1, size):
+        k = buf[s]
+        tot = 0
+        for j in range(s + 1, s + size - 1):
+            buf[j] ^= k
+            tot = (tot + buf[j]) % 256
+        buf[s + size - 1] = tot
+        n += 1
+    return n, buf
+
+
+def frames_auto(name, buf, size):
+    n, after = seal_py(buf, size)
+    return frames_case(name, buf, size, n, after)
+
+
+P.append(fixp(
+    "split-first-mut", "Fix: one &mut slice, several parts", "easy", "shared-vs-unique", ["E0502", "E0499", "split_first_mut", "split_last_mut", "split_at_mut", "chunks_exact_mut"],
+    """
+        None of these three functions compiles: each one needs a mutable borrow of one part of a slice while
+        another part is borrowed too. Fix them without copying any `String`, building a new buffer, or moving values
+        out with `mem::take` or `mem::replace`.
+        `seal_frames` also has one bug the compiler can't see; the doc comments are the spec.
+    """,
+    SPLIT_STARTER,
+    SPLIT_SOLUTION,
+    [names_case("qualify_example", ["net", "tcp", "net::udp", "network"], ["net", "net::tcp", "net::udp", "net::network"]),
+     names_case("qualify_empty_slice", [], []),
+     frames_auto("seal_two_frames", [3, 1, 2, 0, 5, 5, 5, 0], 4),
+     frames_auto("partial_frame_untouched", [1, 1, 1, 9, 9], 3),
+     T("swap_halves_odd", "swap_halves([1, 2, 3, 4, 5])", "{ let mut v = [1, 2, 3, 4, 5]; swap_halves(&mut v); v }", "[4, 5, 3, 1, 2]"),
+     T("swap_halves_strings", "swap_halves([\"a\", \"b\", \"c\", \"d\"])", '{ let mut v = ["a", "b", "c", "d"].map(String::from); swap_halves(&mut v); v }', '["c", "d", "a", "b"].map(String::from)')],
+    [names_case("qualify_only_namespace", ["ns"], ["ns"]),
+     names_case("qualify_prefix_without_colons", ["a", "ab", "a:b", "a::"], ["a", "a::ab", "a::a:b", "a::"]),
+     names_case("qualify_empty_namespace", ["", "x", "::y"], ["", "::x", "::y"]),
+     names_case("qualify_empty_name", ["n", ""], ["n", "n::"]),
+     names_case("qualify_unicode", ["日本", "東京", "日本::大阪"], ["日本", "日本::東京", "日本::大阪"]),
+     frames_auto("seal_size_two", [7, 7, 1, 2], 2),
+     frames_auto("seal_wraps", [0, 200, 100, 0], 4),
+     frames_auto("seal_buffer_shorter_than_frame", [1, 2], 3),
+     frames_auto("seal_empty", [], 3),
+     T("swap_halves_short", "swap_halves on [], [1], [1, 2]", "{ let (mut a, mut b, mut c): ([i32; 0], [i32; 1], [i32; 2]) = ([], [1], [1, 2]); swap_halves(&mut a); swap_halves(&mut b); swap_halves(&mut c); (b, c) }", "([1], [2, 1])"),
+     r"""
+     #[test]
+     fn qualify_extends_in_place() {
+         let mut v = vec!["ns".to_string(), String::with_capacity(64)];
+         v[1].push_str("x");
+         let before = v[1].as_ptr();
+         qualify(&mut v);
+         check!("qualify([\"ns\", \"x\" with spare capacity]): the String grows in place", (v[1].as_str(), v[1].as_ptr() == before), ("ns::x", true));
+     }
+
+     #[test]
+     fn random_vs_brute_force() {
+         let mut rng = anneal_prelude::Rng::new(6206);
+         for _ in 0..300 {
+             let size = 2 + rng.below(4);
+             let len = rng.below(14);
+             let buf: Vec<u8> = rng.vec(len, 0, 255);
+             let mut want = buf.clone();
+             let mut n = 0;
+             let total = want.len();
+             for s in (0..).step_by(size).take_while(|s| s + size <= total) {
+                 let k = want[s];
+                 let mut tot = 0u8;
+                 for j in s + 1..s + size - 1 {
+                     want[j] ^= k;
+                     tot = tot.wrapping_add(want[j]);
+                 }
+                 want[s + size - 1] = tot;
+                 n += 1;
+             }
+             let mut got = buf.clone();
+             let sealed = seal_frames(&mut got, size);
+             check!(format!("seal_frames({buf:?}, size {size})"), (sealed, got), (n, want));
+
+             let v: Vec<u32> = rng.vec(len, 0, 9);
+             let h = len / 2;
+             let mut want = v[len - h..].to_vec();
+             want.extend_from_slice(&v[h..len - h]);
+             want.extend_from_slice(&v[..h]);
+             let mut got = v.clone();
+             swap_halves(&mut got);
+             check!(format!("swap_halves({v:?})"), got, want);
+         }
+     }
+
+     #[test]
+     fn big_buffer() {
+         let mut buf = vec![1u8; 300_001];
+         let n = seal_frames(&mut buf, 3);
+         check!("300001 bytes of 1, size 3", (n, buf[0], buf[1], buf[2], buf[300_000]), (100_000, 1, 0, 0, 1));
+         let mut v: Vec<u32> = (0..200_001).collect();
+         swap_halves(&mut v);
+         check!("swap_halves(0..200001)", (v[0], v[99_999], v[100_000], v[100_001], v[200_000]), (100_001, 200_000, 100_000, 0, 99_999));
+     }
+     """],
+    [("rust", "`let ns = &names[0]` borrows the whole slice, so `names[i].insert_str(..)` can't borrow it mutably at the same time, even though `i != 0`. The compiler doesn't reason about index values."),
+     ("rust", "`split_first_mut` gives `(&mut T, &mut [T])`, `split_last_mut` the last element and the rest, and `split_at_mut(mid)` two halves: borrows that can't overlap, so they can live together."),
+     ("rust", "`chunks_mut` also yields a short last chunk; `chunks_exact_mut` yields only whole ones.")],
+    ("""Indexing borrows the whole slice, so two index expressions can't hold a shared and a mutable borrow at once even when the indices differ: the borrow checker never compares index values. The `split_*_mut` methods prove the parts are disjoint (they check the lengths, then hand out non-overlapping borrows), so the parts can be used together. Copying the key byte out (`let key = frame[0];`) would also work for `u8`; for the `String` namespace, splitting is how you read one element while growing another without a copy.
+
+Syntax to remember: `let Some((head, rest)) = v.split_first_mut() else { return };` · `let (last, init) = v.split_last_mut().unwrap();` · `let (a, b) = v.split_at_mut(mid);` · `for chunk in v.chunks_exact_mut(n)` · `a.swap_with_slice(b)` (equal lengths).""", "O(n)", "O(1)"),
+    "Why is there `chunks_mut` but no `windows_mut`?",
+    ["Indexing borrows the whole slice; the compiler doesn't compare indices.", "`split_first_mut`, `split_last_mut`, `split_at_mut` give disjoint `&mut` parts.", "`chunks_exact_mut` skips the partial tail."],
+    rules=dict(methods=["clone", "to_string", "to_owned", "to_vec", "swap", "take", "replace"]),
+    related=("L2", "S3"),
+    wrong=dict(
+        seals_partial_frame=sub(SPLIT_SOLUTION, "buf.chunks_exact_mut(size)", "buf.chunks_mut(size).filter(|f| f.len() >= 2)"),
+        rotate_instead_of_swap=sub(SPLIT_SOLUTION, "    let (front, rest) = v.split_at_mut(half);\n    let back_start = rest.len() - half;\n    front.swap_with_slice(&mut rest[back_start..]);", "    v.rotate_left(half);"),
+        qualify_skips_prefix_only=sub(SPLIT_SOLUTION, "let done = name.strip_prefix(ns.as_str()).is_some_and(|rest| rest.starts_with(\"::\"));", "let done = name.starts_with(ns.as_str());"),
+    ),
 ))
 
 # ---------------------------------------------------------------- where borrows end (easy)
@@ -1446,7 +2310,6 @@ P.append(fix(
 
 
 EXTRA = {
-    "fix-mutate-through-shared-ref": T("negative", "balance 10, amount -3", "{ let mut a = [Account { balance: 10 }]; deposit_all(&mut a, -3); a[0].balance }", "7"),
     "fix-borrow-kept-alive": T("mixed_case", "names = [\"Rust\", \"go\", \"C\"]", '{ let mut v = vec!["Rust".to_string(), "go".to_string(), "C".to_string()]; shout_first(&mut v); v }', 'vec!["RUST!".to_string(), "go!".to_string(), "C!".to_string()]'),
     "end-borrow-before-mutating": T("first_longest_wins", "[\"ab\", \"cd\"]", '{ let mut v = vec!["ab".to_string(), "cd".to_string()]; append_longest(&mut v); v.last().cloned() }', 'Some("cd!".to_string())'),
     "fix-read-after-clear": T("single", "[\"hello\"]", '{ let mut v = vec!["hello".to_string()]; longest_then_clear(&mut v) }', "5"),
@@ -1479,370 +2342,6 @@ for p in P:
 # comparison against a brute-force model, a scale test where complexity matters, and `wrong` solutions that
 # `anneal verify` checks the tests reject. Fix-mode wrong solutions obey the problem's rules.
 MORE = {}
-
-MORE["fix-push-while-holding-a-reference"] = dict(
-    visible=[
-        T("negatives", "v = [-5, -9], x = -7", "{ let mut v = vec![-5, -9]; (add_and_max(&mut v, -7), v) }", "(-5, vec![-5, -9, -7])"),
-        T("max_in_middle", "v = [1, 8, 2], x = 3", "{ let mut v = vec![1, 8, 2]; add_and_max(&mut v, 3) }", "8"),
-        T("x_equals_max", "v = [4, 2], x = 4", "{ let mut v = vec![4, 2]; (add_and_max(&mut v, 4), v) }", "(4, vec![4, 2, 4])"),
-    ],
-    hidden=[
-        T("max_first", "v = [8, 1, 2], x = 3", "{ let mut v = vec![8, 1, 2]; add_and_max(&mut v, 3) }", "8"),
-        T("all_negative_x_larger", "v = [-9, -8], x = -1", "{ let mut v = vec![-9, -8]; add_and_max(&mut v, -1) }", "-1"),
-        T("i32_extremes", "v = [i32::MIN], x = i32::MAX", "{ let mut v = vec![i32::MIN]; (add_and_max(&mut v, i32::MAX), v) }", "(i32::MAX, vec![i32::MIN, i32::MAX])"),
-        T("only_min", "v = [i32::MIN], x = i32::MIN", "{ let mut v = vec![i32::MIN]; add_and_max(&mut v, i32::MIN) }", "i32::MIN"),
-        T("duplicates", "v = [7, 7, 7], x = 7", "{ let mut v = vec![7, 7, 7]; (add_and_max(&mut v, 7), v) }", "(7, vec![7, 7, 7, 7])"),
-        T("empty_min", "v = [], x = i32::MIN", "{ let mut v = vec![]; (add_and_max(&mut v, i32::MIN), v) }", "(i32::MIN, vec![i32::MIN])"),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2001);
-            for _ in 0..300 {
-                let n = rng.below(10);
-                let v: Vec<i32> = rng.vec(n, -50, 50);
-                let x = rng.int(-50, 50) as i32;
-                let want = v.iter().copied().chain([x]).max().unwrap();
-                let mut after = v.clone();
-                after.push(x);
-                let mut got_v = v.clone();
-                let got = add_and_max(&mut got_v, x);
-                check!(format!("v = {v:?}, x = {x}"), (got, got_v), (want, after));
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        zero_default="""
-            /// Pushes `x` and returns the largest value, which may be `x`.
-            pub fn add_and_max(v: &mut Vec<i32>, x: i32) -> i32 {
-                let max = v.iter().copied().max().unwrap_or(0);
-                v.push(x);
-                max.max(x)
-            }
-        """,
-        last_is_largest="""
-            /// Pushes `x` and returns the largest value, which may be `x`.
-            pub fn add_and_max(v: &mut Vec<i32>, x: i32) -> i32 {
-                let max = v.last().copied().unwrap_or(x);
-                v.push(x);
-                max.max(x)
-            }
-        """,
-    ),
-)
-
-COUNTER_WRONG = """
-    pub struct Counter {
-        hits: Vec<u32>,
-    }
-
-    impl Counter {
-        pub fn new(slots: usize) -> Self {
-            Counter { hits: vec![0; slots] }
-        }
-
-        pub fn hit(&mut self, slot: usize) {
-            self.hits[slot] += 1;
-        }
-
-        pub fn total(&self) -> u32 {
-            self.hits.iter().sum()
-        }
-
-        pub fn busiest(&self) -> Option<usize> {
-            BODY
-        }
-    }
-"""
-MORE["many-readers-one-writer"] = dict(
-    visible=[
-        T("tie_lowest", "3 slots, hits on 2, 0", "{ let mut c = Counter::new(3); c.hit(2); c.hit(0); c.busiest() }", "Some(0)"),
-        T("last_slot_wins", "4 slots, hits on 3, 3, 1", "{ let mut c = Counter::new(4); c.hit(3); c.hit(3); c.hit(1); (c.total(), c.busiest()) }", "(3, Some(3))"),
-        T("no_slots", "0 slots", "(Counter::new(0).total(), Counter::new(0).busiest())", "(0, None)"),
-    ],
-    hidden=[
-        T("single_slot", "1 slot, 3 hits", "{ let mut c = Counter::new(1); for _ in 0..3 { c.hit(0); } (c.total(), c.busiest()) }", "(3, Some(0))"),
-        T("tie_later_first", "4 slots, hits on 3, 1", "{ let mut c = Counter::new(4); c.hit(3); c.hit(1); c.busiest() }", "Some(1)"),
-        T("zero_hits_total", "5 slots, no hits", "{ let c = Counter::new(5); (c.total(), c.busiest()) }", "(0, Some(0))"),
-        T("readers_alongside", "two &Counter at once", "{ let mut c = Counter::new(2); c.hit(1); let (r1, r2) = (&c, &c); (r1.total(), r2.total(), r1.busiest(), r2.busiest()) }", "(1, 1, Some(1), Some(1))"),
-        T("many_hits", "1 slot, 100000 hits", "{ let mut c = Counter::new(1); for _ in 0..100_000 { c.hit(0); } c.total() }", "100_000"),
-        T("many_slots", "1000 slots, slot 999 hit twice", "{ let mut c = Counter::new(1000); c.hit(999); c.hit(999); c.hit(0); c.busiest() }", "Some(999)"),
-        T("overtakes", "hits on 0, 1, 1", "{ let mut c = Counter::new(2); c.hit(0); c.hit(1); c.hit(1); c.busiest() }", "Some(1)"),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2002);
-            for _ in 0..300 {
-                let slots = 1 + rng.below(8);
-                let k = rng.below(30);
-                let hits: Vec<usize> = (0..k).map(|_| rng.below(slots)).collect();
-                let mut c = Counter::new(slots);
-                let mut model = vec![0u32; slots];
-                for &h in &hits {
-                    c.hit(h);
-                    model[h] += 1;
-                }
-                let max = *model.iter().max().unwrap();
-                let want = (model.iter().sum::<u32>(), model.iter().position(|&m| m == max));
-                check!(format!("{slots} slots, hits on {hits:?}"), (c.total(), c.busiest()), want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        last_maximum=COUNTER_WRONG.replace("BODY", "self.hits.iter().enumerate().max_by_key(|&(_, h)| *h).map(|(i, _)| i)"),
-        none_without_hits=COUNTER_WRONG.replace("BODY", """let max = *self.hits.iter().max()?;
-            if max == 0 {
-                return None;
-            }
-            self.hits.iter().position(|&h| h == max)"""),
-    ),
-)
-
-MORE["fix-mut-from-shared-self"] = dict(
-    visible=[
-        T("push_after_edit", "push 1; set top to 7; push 2", "{ let mut s = Stack::new(); s.push(1); *s.top_mut().unwrap() = 7; s.push(2); s.items_for_test() }", "vec![7, 2]"),
-        T("only_top_changes", "push 5, 6; set top to 0", "{ let mut s = Stack::new(); s.push(5); s.push(6); if let Some(t) = s.top_mut() { *t = 0; } s.items_for_test() }", "vec![5, 0]"),
-        T("single", "push 3; double the top", "{ let mut s = Stack::new(); s.push(3); *s.top_mut().unwrap() *= 2; s.items_for_test() }", "vec![6]"),
-    ],
-    hidden=[
-        T("repeated_edits", "push 1; add 1 to the top 5 times", "{ let mut s = Stack::new(); s.push(1); for _ in 0..5 { *s.top_mut().unwrap() += 1; } s.items_for_test() }", "vec![6]"),
-        T("to_min", "push 0; set top to i32::MIN", "{ let mut s = Stack::new(); s.push(0); *s.top_mut().unwrap() = i32::MIN; s.items_for_test() }", "vec![i32::MIN]"),
-        T("none_then_some", "new: None; push 4: Some(4)", "{ let mut s = Stack::new(); let a = s.top_mut().is_none(); s.push(4); (a, s.top_mut().copied()) }", "(true, Some(4))"),
-        T("many_items", "push 0..1000; set top to -1", "{ let mut s = Stack::new(); for i in 0..1000 { s.push(i); } *s.top_mut().unwrap() = -1; let v = s.items_for_test(); (v.len(), v[998], v[999]) }", "(1000, 998, -1)"),
-        T("duplicates", "push 5, 5; set top to 0", "{ let mut s = Stack::new(); s.push(5); s.push(5); *s.top_mut().unwrap() = 0; s.items_for_test() }", "vec![5, 0]"),
-        T("edit_is_seen_by_next_call", "push 2; set top to 9; read top", "{ let mut s = Stack::new(); s.push(2); *s.top_mut().unwrap() = 9; s.top_mut().copied() }", "Some(9)"),
-        T("max_value", "push i32::MAX - 1; add 1", "{ let mut s = Stack::new(); s.push(i32::MAX - 1); *s.top_mut().unwrap() += 1; s.items_for_test() }", "vec![i32::MAX]"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2003);
-            for _ in 0..300 {
-                let mut s = Stack::new();
-                let mut model: Vec<i32> = Vec::new();
-                let mut ops = Vec::new();
-                let n = rng.below(12);
-                for _ in 0..n {
-                    if rng.bool() {
-                        let x = rng.int(-100, 100) as i32;
-                        s.push(x);
-                        model.push(x);
-                        ops.push(format!("push {x}"));
-                    } else {
-                        let d = rng.int(-9, 9) as i32;
-                        if let Some(t) = s.top_mut() {
-                            *t += d;
-                        }
-                        if let Some(t) = model.last_mut() {
-                            *t += d;
-                        }
-                        ops.push(format!("top += {d}"));
-                    }
-                }
-                check!(ops.join(", "), s.items_for_test(), model);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        leaks_a_copy="""
-            pub struct Stack {
-                items: Vec<i32>,
-            }
-
-            impl Stack {
-                pub fn new() -> Self {
-                    Stack { items: Vec::new() }
-                }
-
-                pub fn push(&mut self, x: i32) {
-                    self.items.push(x);
-                }
-
-                /// The top item, for editing in place.
-                pub fn top_mut(&self) -> Option<&mut i32> {
-                    Some(Box::leak(Box::new(*self.items.last()?)))
-                }
-            }
-
-            impl Stack {
-                /// For tests.
-                pub fn items_for_test(&self) -> Vec<i32> {
-                    self.items.to_vec()
-                }
-            }
-        """,
-    ),
-)
-
-MORE["most-repeated-word"] = dict(
-    visible=[
-        T("single_word", "\"hello\"", 'most_repeated("hello")', 'Some("hello")'),
-        T("tie_alphabetical", "\"x y y x\"", 'most_repeated("x y y x")', 'Some("x")'),
-        T("case_sensitive", "\"A a a A A\"", 'most_repeated("A a a A A")', 'Some("A")'),
-    ],
-    hidden=[
-        T("only_spaces", "\"   \"", 'most_repeated("   ")', "None"),
-        T("tabs_and_newlines", "\"a\\tb\\nb  a\\n\\nb\"", 'most_repeated("a\\tb\\nb  a\\n\\nb")', 'Some("b")'),
-        T("unicode", "\"café naïve café\"", 'most_repeated("café naïve café")', 'Some("café")'),
-        T("punctuation_kept", "\"hi, hi hi,\"", 'most_repeated("hi, hi hi,")', 'Some("hi,")'),
-        T("three_way_tie", "\"c b a\"", 'most_repeated("c b a")', 'Some("a")'),
-        T("borrows_the_input", "\"x y x\"", '{ let t = String::from("x y x"); let w = most_repeated(&t).unwrap(); t.as_bytes().as_ptr_range().contains(&w.as_ptr()) }', "true"),
-        T("leading_trailing_space", "\"  z z y  \"", 'most_repeated("  z z y  ")', 'Some("z")'),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2004);
-            for _ in 0..300 {
-                let len = rng.below(16);
-                let text = rng.string(len, "ab c");
-                let words: Vec<&str> = text.split_whitespace().collect();
-                let mut want: Option<(usize, &str)> = None;
-                for &w in &words {
-                    let c = words.iter().filter(|&&x| x == w).count();
-                    if want.map_or(true, |(bc, bw)| c > bc || (c == bc && w < bw)) {
-                        want = Some((c, w));
-                    }
-                }
-                check!(format!("text = {text:?}"), most_repeated(&text), want.map(|(_, w)| w));
-            }
-        }
-
-        #[test]
-        fn scale_200k_words() {
-            let mut text = String::new();
-            for i in 0..200_000 {
-                text.push_str(&format!("w{} ", i % 100_000));
-            }
-            text.push_str("w77777");
-            check!("200000 words, 100000 distinct, then w77777 once more", most_repeated(&text), Some("w77777"));
-        }
-        """,
-    ],
-    wrong=dict(
-        linear_search="""
-            pub fn most_repeated(text: &str) -> Option<&str> {
-                let mut counts: Vec<(&str, usize)> = Vec::new();
-                for w in text.split_whitespace() {
-                    match counts.iter_mut().find(|(k, _)| *k == w) {
-                        Some((_, c)) => *c += 1,
-                        None => counts.push((w, 1)),
-                    }
-                }
-                counts.into_iter().max_by(|a, b| a.1.cmp(&b.1).then_with(|| b.0.cmp(a.0))).map(|(w, _)| w)
-            }
-        """,
-        tie_alphabetically_last="""
-            use std::collections::HashMap;
-
-            pub fn most_repeated(text: &str) -> Option<&str> {
-                let mut counts: HashMap<&str, usize> = HashMap::new();
-                for w in text.split_whitespace() {
-                    *counts.entry(w).or_insert(0) += 1;
-                }
-                counts.into_iter().max_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(b.0))).map(|(w, _)| w)
-            }
-        """,
-    ),
-)
-
-MORE["fix-mutate-through-shared-ref"] = dict(
-    visible=[
-        T("three_accounts", "balances [0, -5, 100], amount 1", "{ let mut a = [Account { balance: 0 }, Account { balance: -5 }, Account { balance: 100 }]; deposit_all(&mut a, 1); (a[0].balance, a[1].balance, a[2].balance) }", "(1, -4, 101)"),
-        T("zero_amount", "balance 3, amount 0", "{ let mut a = [Account { balance: 3 }]; deposit_all(&mut a, 0); a[0].balance }", "3"),
-        T("empty", "no accounts", "{ let mut a: [Account; 0] = []; deposit_all(&mut a, 5); a.len() }", "0"),
-    ],
-    hidden=[
-        T("single", "balance 7, amount 3", "{ let mut a = [Account { balance: 7 }]; deposit_all(&mut a, 3); a[0].balance }", "10"),
-        T("to_max", "balance i64::MAX - 1, amount 1", "{ let mut a = [Account { balance: i64::MAX - 1 }]; deposit_all(&mut a, 1); a[0].balance }", "i64::MAX"),
-        T("to_min", "balance 0, amount i64::MIN", "{ let mut a = [Account { balance: 0 }]; deposit_all(&mut a, i64::MIN); a[0].balance }", "i64::MIN"),
-        T("same_balances", "balances [2, 2, 2], amount 2", "{ let mut a = [Account { balance: 2 }, Account { balance: 2 }, Account { balance: 2 }]; deposit_all(&mut a, 2); (a[0].balance, a[1].balance, a[2].balance) }", "(4, 4, 4)"),
-        T("in_a_vec", "1000 accounts at 0, amount 3", "{ let mut a: Vec<Account> = (0..1000).map(|_| Account { balance: 0 }).collect(); deposit_all(&mut a, 3); a.iter().map(|x| x.balance).sum::<i64>() }", "3000"),
-        T("called_twice", "balance 0; +1 then +2", "{ let mut a = [Account { balance: 0 }]; deposit_all(&mut a, 1); deposit_all(&mut a, 2); a[0].balance }", "3"),
-        T("sub_slice", "balances [0, 0, 0]; deposit into [1..]", "{ let mut a = [Account { balance: 0 }, Account { balance: 0 }, Account { balance: 0 }]; deposit_all(&mut a[1..], 4); (a[0].balance, a[1].balance, a[2].balance) }", "(0, 4, 4)"),
-        """
-        #[test]
-        fn random_vs_model() {
-            let mut rng = anneal_prelude::Rng::new(2005);
-            for _ in 0..300 {
-                let n = rng.below(10);
-                let start: Vec<i64> = rng.vec(n, -1000, 1000);
-                let amount = rng.int(-1000, 1000);
-                let mut a: Vec<Account> = start.iter().map(|&b| Account { balance: b }).collect();
-                deposit_all(&mut a, amount);
-                let got: Vec<i64> = a.iter().map(|x| x.balance).collect();
-                let want: Vec<i64> = start.iter().map(|b| b + amount).collect();
-                check!(format!("balances {start:?}, amount {amount}"), got, want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        mutates_copies="""
-            pub struct Account {
-                pub balance: i64,
-            }
-
-            /// Adds `amount` to every account.
-            pub fn deposit_all(accounts: &[Account], amount: i64) {
-                for mut a in accounts.iter().map(|a| Account { balance: a.balance }) {
-                    a.balance += amount;
-                }
-            }
-        """,
-    ),
-)
-
-MORE["split-first-mut"] = dict(
-    visible=[
-        T("negative_head", "v = [-1, 0, 1]", "{ let mut v = [-1, 0, 1]; add_head_to_rest(&mut v); v }", "[-1, -1, 0]"),
-        T("head_not_doubled", "v = [2, 2, 2]", "{ let mut v = [2, 2, 2]; add_head_to_rest(&mut v); v }", "[2, 4, 4]"),
-        T("empty", "v = []", "{ let mut v: [i32; 0] = []; add_head_to_rest(&mut v); v }", "[]"),
-    ],
-    hidden=[
-        T("two", "v = [3, 4]", "{ let mut v = [3, 4]; add_head_to_rest(&mut v); v }", "[3, 7]"),
-        T("zero_head", "v = [0, 5, 6]", "{ let mut v = [0, 5, 6]; add_head_to_rest(&mut v); v }", "[0, 5, 6]"),
-        T("i32_bounds", "v = [i32::MIN, i32::MAX]", "{ let mut v = [i32::MIN, i32::MAX]; add_head_to_rest(&mut v); v }", "[i32::MIN, -1]"),
-        T("large_values", "v = [1000000000, 1000000000]", "{ let mut v = [1_000_000_000, 1_000_000_000]; add_head_to_rest(&mut v); v }", "[1_000_000_000, 2_000_000_000]"),
-        T("same_rest", "v = [5, 1, 1]", "{ let mut v = [5, 1, 1]; add_head_to_rest(&mut v); v }", "[5, 6, 6]"),
-        T("not_a_prefix_sum", "v = [1, 1, 1, 1]", "{ let mut v = vec![1, 1, 1, 1]; add_head_to_rest(&mut v); v }", "vec![1, 2, 2, 2]"),
-        T("big_vec", "v = [3, 0, 0, …] (100000 values)", "{ let mut v = vec![0; 100_000]; v[0] = 3; add_head_to_rest(&mut v); (v[0], v[1], v[99_999]) }", "(3, 3, 3)"),
-        """
-        #[test]
-        fn random_vs_brute_force() {
-            let mut rng = anneal_prelude::Rng::new(2006);
-            for _ in 0..300 {
-                let n = rng.below(10);
-                let v: Vec<i32> = rng.vec(n, -1000, 1000);
-                let want: Vec<i32> = v.iter().enumerate().map(|(i, &x)| if i == 0 { x } else { x + v[0] }).collect();
-                let mut got = v.clone();
-                add_head_to_rest(&mut got);
-                check!(format!("v = {v:?}"), got, want);
-            }
-        }
-        """,
-    ],
-    wrong=dict(
-        includes_head="""
-            pub fn add_head_to_rest(v: &mut [i32]) {
-                if v.is_empty() {
-                    return;
-                }
-                let head = v[0];
-                for x in v.iter_mut() {
-                    *x += head;
-                }
-            }
-        """,
-        prefix_sum="""
-            pub fn add_head_to_rest(v: &mut [i32]) {
-                for i in 1..v.len() {
-                    v[i] += v[i - 1];
-                }
-            }
-        """,
-    ),
-)
 
 MORE["fix-borrow-kept-alive"] = dict(
     visible=[

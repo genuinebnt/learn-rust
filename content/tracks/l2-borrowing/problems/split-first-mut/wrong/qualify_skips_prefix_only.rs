@@ -1,12 +1,12 @@
 /// `names[0]` is a namespace. Prefixes every other name with "<namespace>::" in place, unless it already starts
 /// with exactly that. An empty slice is left alone.
 pub fn qualify(names: &mut [String]) {
-    for i in 1..names.len() {
-        let ns = &names[0];
-        let done = names[i].strip_prefix(ns.as_str()).is_some_and(|rest| rest.starts_with("::"));
+    let Some((ns, rest)) = names.split_first_mut() else { return };
+    for name in rest {
+        let done = name.starts_with(ns.as_str());
         if !done {
-            names[i].insert_str(0, "::");
-            names[i].insert_str(0, ns);
+            name.insert_str(0, "::");
+            name.insert_str(0, ns);
         }
     }
 }
@@ -16,11 +16,11 @@ pub fn qualify(names: &mut [String]) {
 /// byte in between with the key, then set the checksum to the wrapping sum of those new bytes.
 pub fn seal_frames(buf: &mut [u8], size: usize) -> usize {
     let mut sealed = 0;
-    for frame in buf.chunks_mut(size) {
-        let key = &frame[0];
-        let sum = &mut frame[size - 1];
+    for frame in buf.chunks_exact_mut(size) {
+        let (key, rest) = frame.split_first_mut().unwrap();
+        let (sum, body) = rest.split_last_mut().unwrap();
         *sum = 0;
-        for b in &mut frame[1..size - 1] {
+        for b in body {
             *b ^= *key;
             *sum = sum.wrapping_add(*b);
         }
@@ -33,6 +33,7 @@ pub fn seal_frames(buf: &mut [u8], size: usize) -> usize {
 /// [1, 2, 3, 4, 5] becomes [4, 5, 3, 1, 2].
 pub fn swap_halves<T>(v: &mut [T]) {
     let half = v.len() / 2;
-    let (front, back) = (&mut v[..half], &mut v[v.len() - half..]);
-    front.swap_with_slice(back);
+    let (front, rest) = v.split_at_mut(half);
+    let back_start = rest.len() - half;
+    front.swap_with_slice(&mut rest[back_start..]);
 }

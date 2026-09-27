@@ -5,19 +5,24 @@ level = "easy"
 stage = "shared-vs-unique"
 order = 4
 status = "ready"
-tags = ["&str", "HashMap"]
+tags = ["&str", "HashMap", "Hash", "borrowed keys"]
 teaches = [
-  "Borrowed keys in a `HashMap<&str, usize>`.",
-  "Returning a slice of the input.",
+  "Borrowed keys: `HashMap<&str, _>` or a newtype over `&str`.",
+  "A hand-written `Hash` must agree with `Eq`.",
+  "Returning slices of the input, not of a local map.",
 ]
-follow_up = "What stops you from returning a key of the map after the map is dropped?"
+follow_up = "Unicode case folding (`É` and `é`) can change a word's length. Why can't a borrowed key fold it the way this one folds ASCII?"
 related = ["L2", "S4"]
 
 [[hints]]
 kind = "rust"
-text = "Keys can be `&str` slices of `text`; the map then borrows `text` instead of owning copies."
+text = "Key the map by `&str` slices of `text` so nothing is copied. Returning keys of a map that owns `String`s wouldn't compile: they'd borrow the map, which dies at the end of the function."
+
+[[hints]]
+kind = "rust"
+text = "Case-insensitive keys without allocating: wrap the slice in your own type and implement `PartialEq`, `Eq` and `Hash` by hand so they ignore ASCII case. `entry` keeps the key it was first inserted with."
 
 [solution]
-explanation = "The result borrows from `text`, so the signature's elided lifetime ties it to the input."
-time = "O(n)"
-space = "O(k)"
+explanation = "The words borrow `text`, so the result's elided lifetime ties it to `text`, not to the map: that's why the map can be dropped while the slices are returned. Folding case with `to_lowercase()` per word would work but allocate a `String` per word; a newtype key whose `Hash` and `Eq` ignore ASCII case keeps every key a borrowed slice, and `entry` keeps the first spelling because an existing key is never replaced. `Hash` must agree with `Eq`: equal words must hash the same, so hash the lowercased bytes.\n\nSyntax to remember: `struct Word<'a>(&'a str);` · `impl Hash for Word<'_> { fn hash<H: Hasher>(&self, state: &mut H) { .. } }` · `impl Eq for Word<'_> {}` · `self.0.eq_ignore_ascii_case(other.0)` · `sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.2.cmp(&b.2)))`."
+time = "O(n + d log d) for d distinct words"
+space = "O(d)"

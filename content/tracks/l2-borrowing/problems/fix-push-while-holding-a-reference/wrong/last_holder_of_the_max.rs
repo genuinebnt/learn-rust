@@ -15,7 +15,7 @@ impl Series {
     /// take the record.
     pub fn record(&mut self, x: i64, label: String) -> (&str, Option<i64>) {
         let best = self.points.iter().copied().max();
-        let holder = best.map(|b| self.points.iter().position(|&p| p == b).unwrap());
+        let holder = best.map(|b| self.points.iter().rposition(|&p| p == b).unwrap());
         self.points.push(x);
         self.labels.push(label);
         let newest = self.labels.len() - 1;

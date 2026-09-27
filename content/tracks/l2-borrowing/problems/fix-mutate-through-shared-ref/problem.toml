@@ -1,26 +1,31 @@
 slug = "fix-mutate-through-shared-ref"
-title = "Fix: mutate through a shared reference"
+title = "Fix: a &mut behind a & is read-only"
 mode = "fix"
 level = "easy"
 stage = "shared-vs-unique"
 order = 5
 status = "ready"
-tags = ["E0594"]
+tags = ["E0594", "E0596", "&&mut T", "&mut &T"]
 teaches = [
-  "Writing through a reference needs `&mut`.",
-  "`for x in slice` yields `&T` or `&mut T` depending on the slice.",
+  "`&` makes everything behind it read-only, including a `&mut`.",
+  "`&mut &T` repoints a reference; it doesn't unlock the `T`.",
 ]
-follow_up = "Why can't `&T` be used to mutate, even when nobody else holds a reference?"
+follow_up = "`&mut &mut T` lets you write the `T`, but `&&mut T` doesn't. Why is the second rule needed for soundness?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "Iterating a `&[T]` gives `&T`. What do you iterate to get `&mut T`?"
+text = "`selected` is `&[&mut Account]`: a shared borrow of the slice. Everything reached through a `&` is read-only, including the `&mut` inside it; otherwise two copies of the `&` would hand out the same `&mut`."
+
+[[hints]]
+kind = "rust"
+text = "`&mut &Account` lets you change which account the inner reference points at (that's what `keep_richest` does), but the account itself is still behind a `&`."
 
 [solution]
-explanation = "Iterating `&mut [T]` yields `&mut T`, so the loop body needs no change."
+explanation = "Mutability doesn't pass through a shared reference: `&&mut T` only reads the `T`, because `&` is `Copy` and two copies must not both write. So `pay_interest` needs `&mut [&mut Account]`, iterated with `iter_mut()` (which yields `&mut &mut Account`; field access derefs through both), and the caller passes `&mut selected` from a `mut` binding. The other direction, `&mut &T`, grants unique access to the *reference*: you may repoint it, as `keep_richest` does, but not write the `T`. `top_up` needs a plain `&mut Account`.\n\nSyntax to remember: `fn f(xs: &mut [&mut T])` · `for x in xs.iter_mut() { x.field += 1 }` · `fn repoint<'a>(r: &mut &'a T, other: &'a T) { *r = other }`."
 time = "O(n)"
-space = "O(1)"
+space = "O(k) for the selection"
 
 [rules]
-max_changed_lines = 1
+forbid_methods = ["clone"]
+max_changed_lines = 6

@@ -1,26 +1,32 @@
 slug = "fix-mut-from-shared-self"
-title = "Fix: returning &mut from &self"
+title = "Fix: &mut in every position"
 mode = "fix"
 level = "easy"
 stage = "shared-vs-unique"
 order = 3
 status = "ready"
-tags = ["E0596"]
+tags = ["E0596", "E0594", "E0499", "iter_mut", "get_mut", "FnMut"]
 teaches = [
-  "You can only hand out `&mut` to data you have `&mut` access to.",
-  "The receiver type is part of the API contract.",
+  "Every position that grants access has a shared and a unique spelling.",
+  "A method call borrows all of `self`; a field borrow only the field.",
+  "Calling an `FnMut` borrows the closure mutably.",
 ]
-follow_up = "What's the difference between `&mut self` and `mut self` in a method signature?"
+follow_up = "Why does calling an `FnMut` closure need a `mut` binding, when calling an `Fn` closure doesn't?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "You can't get a `&mut` to something through a `&`. What does the method need to take?"
+text = "Read each error for where the shared access comes from: a `&self` receiver, `get` instead of `get_mut`, `iter` instead of `iter_mut`, `&self.last` in a pattern, and a closure binding that isn't `mut` (calling an `FnMut` needs `&mut` to the closure)."
+
+[[hints]]
+kind = "rust"
+text = "Once `reserve` holds `s` from `get_mut`, `self.touch(name)` borrows all of `self` while `s` is still used. Where can the call go so the borrows don't overlap?"
 
 [solution]
-explanation = "A `&mut` out needs a `&mut` in: `&self` promises the method changes nothing."
-time = "O(1)"
-space = "O(1)"
+explanation = "`&` is shared access and `&mut` unique access, and each position has its own spelling: the receiver (`&mut self`), the lookup (`get_mut`), the iterator (`iter_mut`, which also makes the pattern `(name, s)` bind `s: &mut Stock`), a pattern on a field (`&mut self.last`, or `self.last.as_mut()`), and a closure that mutates what it captured (it's `FnMut`, so calling it borrows it mutably: `let mut bump`).\n\nIn `reserve`, `s` borrows one entry of `self.items`, but `self.touch(name)` borrows all of `self`, so the call moves after the last use of `s`. It must stay after the `let else`, too: an unknown item isn't touched. `ship_all` pushes to `lines` while iterating `self.items` mutably, which is fine, and `available` and `last` keep `&self`."
+time = "O(1) per call; O(n log n) ship_all"
+space = "O(n) ship_all"
 
 [rules]
-max_changed_lines = 1
+forbid_methods = ["clone", "take", "replace"]
+max_changed_lines = 8

@@ -77,7 +77,7 @@ impl Warehouse {
         let mut n = 0;
         let mut bump = || n += 1;
         for s in self.items.values() {
-            if s.qty - s.reserved < limit {
+            if s.qty - s.reserved <= limit {
                 bump();
             }
         }

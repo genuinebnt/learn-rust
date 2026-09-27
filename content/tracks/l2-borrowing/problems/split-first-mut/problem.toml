@@ -1,23 +1,35 @@
 slug = "split-first-mut"
-title = "Unique, not mutable: split_first_mut"
-mode = "write"
+title = "Fix: one &mut slice, several parts"
+mode = "fix"
 level = "easy"
 stage = "shared-vs-unique"
 order = 6
 status = "ready"
-tags = ["split_first_mut", "&mut"]
+tags = ["E0502", "E0499", "split_first_mut", "split_last_mut", "split_at_mut", "chunks_exact_mut"]
 teaches = [
-  "`&mut` is about uniqueness: no other reference may overlap it.",
-  "`split_first_mut` returns the head and the rest as separate borrows.",
+  "Indexing borrows the whole slice; the compiler doesn't compare indices.",
+  "`split_first_mut`, `split_last_mut`, `split_at_mut` give disjoint `&mut` parts.",
+  "`chunks_exact_mut` skips the partial tail.",
 ]
-follow_up = "How would you do the same with `split_at_mut(1)`?"
-related = ["L2"]
+follow_up = "Why is there `chunks_mut` but no `windows_mut`?"
+related = ["L2", "S3"]
 
 [[hints]]
 kind = "rust"
-text = "`&v[0]` and `&mut v[1..]` at once won't compile. `split_first_mut` splits one borrow into two that can't overlap."
+text = "`let ns = &names[0]` borrows the whole slice, so `names[i].insert_str(..)` can't borrow it mutably at the same time, even though `i != 0`. The compiler doesn't reason about index values."
+
+[[hints]]
+kind = "rust"
+text = "`split_first_mut` gives `(&mut T, &mut [T])`, `split_last_mut` the last element and the rest, and `split_at_mut(mid)` two halves: borrows that can't overlap, so they can live together."
+
+[[hints]]
+kind = "rust"
+text = "`chunks_mut` also yields a short last chunk; `chunks_exact_mut` yields only whole ones."
 
 [solution]
-explanation = "`&mut` means exclusive access, not merely writable: two parts of a slice need two borrows that provably don't overlap."
+explanation = "Indexing borrows the whole slice, so two index expressions can't hold a shared and a mutable borrow at once even when the indices differ: the borrow checker never compares index values. The `split_*_mut` methods prove the parts are disjoint (they check the lengths, then hand out non-overlapping borrows), so the parts can be used together. Copying the key byte out (`let key = frame[0];`) would also work for `u8`; for the `String` namespace, splitting is how you read one element while growing another without a copy.\n\nSyntax to remember: `let Some((head, rest)) = v.split_first_mut() else { return };` · `let (last, init) = v.split_last_mut().unwrap();` · `let (a, b) = v.split_at_mut(mid);` · `for chunk in v.chunks_exact_mut(n)` · `a.swap_with_slice(b)` (equal lengths)."
 time = "O(n)"
 space = "O(1)"
+
+[rules]
+forbid_methods = ["clone", "to_string", "to_owned", "to_vec", "swap", "take", "replace"]

@@ -48,7 +48,9 @@ impl Inbox {
     }
 
     pub fn reply_mut(&mut self, id: u32) -> Option<&mut String> {
-        Some(self.get_mut(id)?.reply.get_or_insert_with(String::new))
+        let m = self.get_mut(id)?;
+        m.reply = Some(String::new());
+        m.reply.as_mut()
     }
 
     pub fn newest_unread_mut(&mut self) -> Option<&mut Msg> {

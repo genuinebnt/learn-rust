@@ -31,10 +31,10 @@ impl Warehouse {
     /// Reserves up to `qty` free units of `name` and returns how many it reserved. An unknown item reserves
     /// nothing and isn't touched.
     pub fn reserve(&mut self, name: &str, qty: u32) -> u32 {
+        self.touch(name);
         let Some(s) = self.items.get_mut(name) else { return 0 };
         let n = qty.min(s.qty - s.reserved);
         s.reserved += n;
-        self.touch(name);
         n
     }
 

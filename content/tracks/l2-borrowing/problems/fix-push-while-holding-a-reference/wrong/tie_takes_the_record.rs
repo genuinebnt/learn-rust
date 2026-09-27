@@ -20,7 +20,7 @@ impl Series {
         self.labels.push(label);
         let newest = self.labels.len() - 1;
         match (best, holder) {
-            (Some(b), Some(i)) if x <= b => (&self.labels[i], None),
+            (Some(b), Some(i)) if x < b => (&self.labels[i], None),
             (Some(b), _) => (&self.labels[newest], Some(x - b)),
             _ => (&self.labels[newest], None),
         }

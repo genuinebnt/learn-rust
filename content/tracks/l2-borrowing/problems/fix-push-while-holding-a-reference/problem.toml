@@ -5,27 +5,31 @@ level = "easy"
 stage = "shared-vs-unique"
 order = 1
 status = "ready"
-tags = ["E0502"]
+tags = ["E0502", "E0382", "indices over references"]
 teaches = [
-  "A shared borrow into a Vec forbids mutating the Vec until the borrow's last use.",
-  "Copy small values out instead of holding references.",
+  "A shared borrow into a Vec blocks every mutation of that Vec until its last use.",
+  "Keep `Copy` values and indices across a mutation, not references.",
+  "Disjoint fields borrow independently.",
 ]
-follow_up = "Why is holding a reference into a Vec across a push unsound, even if the Vec doesn't reallocate?"
+follow_up = "`Vec<String>` reallocating moves the `String` headers but not their bytes. Could a `&str` into a label survive a push in principle, and what would it take to express that safely?"
 related = ["L2"]
 
 [[hints]]
 kind = "rust"
-text = "`max` is a reference into `v`, still in use after `push`. A push can reallocate the Vec and leave it dangling."
+text = "`best` is an `Option<&i64>` into `points` and `holder` an `Option<&String>` into `labels`, and both are read after the pushes. A push can reallocate the `Vec` and leave them dangling. What do you actually need from each one?"
 
 [[hints]]
 kind = "rust"
-text = "Copy the number out (`copied()`) so nothing borrows `v` across the push."
+text = "An `i64` is `Copy`: keep the number, not a reference to it. For the label, keep its index. An index stays valid across a push, and you can borrow `labels[i]` again once the pushes are done."
+
+[[hints]]
+kind = "rust"
+text = "`label` is moved into `labels`, so `&label` afterwards is a use after move, and would point at a parameter anyway. The newest label is `labels[len - 1]`."
 
 [solution]
-explanation = "An `i32` is `Copy`, so holding the value instead of `&i32` ends the borrow before the push."
-time = "O(n)"
-space = "O(1)"
+explanation = "A shared borrow into a `Vec` forbids mutating that `Vec` until the borrow's last use, because `push` may reallocate. The fix keeps what survives the push: `copied()` turns `Option<&i64>` into `Option<i64>`, and the holder becomes an index. Borrow the stored label again after both pushes; the returned `&str` then borrows `self`, which is what the elided lifetime says.\n\nNote what does compile: `holder` borrowing `labels` doesn't conflict with `self.points.push`, because the two fields are disjoint. Only the push to the same field conflicts.\n\nAside: with `Vec<String>` the label's bytes live in their own heap buffer and don't move when `labels` reallocates, yet the borrow checker still rejects the `&String`: it tracks the borrow of `labels`, not where the bytes are."
+time = "O(n) per record (the scan)"
+space = "O(1) extra"
 
 [rules]
-forbid_methods = ["clone"]
-max_changed_lines = 2
+forbid_methods = ["clone", "cloned", "to_owned", "to_string"]

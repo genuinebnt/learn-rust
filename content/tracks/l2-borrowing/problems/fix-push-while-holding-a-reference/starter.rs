@@ -1,6 +1,27 @@
-/// Pushes `x` and returns the largest value, which may be `x`.
-pub fn add_and_max(v: &mut Vec<i32>, x: i32) -> i32 {
-    let max = v.iter().max().unwrap_or(&x);
-    v.push(x);
-    *max.max(&x)
+/// A time series: `points[i]` was reported by `labels[i]`.
+pub struct Series {
+    pub points: Vec<i64>,
+    pub labels: Vec<String>,
+}
+
+impl Series {
+    pub fn new() -> Self {
+        Series { points: Vec::new(), labels: Vec::new() }
+    }
+
+    /// Records `x`, reported by `label`. Returns the label of the record holder after this point (the `String`
+    /// stored in `labels`, not a copy) and how far `x` beat the old record: `None` when it didn't beat it or when
+    /// it's the first point. The record holder is the first label that reported the maximum, so a tie doesn't
+    /// take the record.
+    pub fn record(&mut self, x: i64, label: String) -> (&str, Option<i64>) {
+        let best = self.points.iter().max();
+        let holder = best.map(|b| &self.labels[self.points.iter().position(|p| p == b).unwrap()]);
+        self.points.push(x);
+        self.labels.push(label);
+        match best {
+            Some(&b) if x <= b => (holder.unwrap(), None),
+            Some(&b) => (&label, Some(x - b)),
+            None => (&label, None),
+        }
+    }
 }

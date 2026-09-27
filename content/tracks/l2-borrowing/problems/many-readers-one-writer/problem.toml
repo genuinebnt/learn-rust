@@ -1,23 +1,28 @@
 slug = "many-readers-one-writer"
 title = "Many readers, one writer"
-mode = "write"
+mode = "fix"
 level = "easy"
 stage = "shared-vs-unique"
 order = 2
 status = "ready"
-tags = ["&T", "&mut T"]
+tags = ["&self vs &mut self", "Option<&T>", "as_deref", "get_or_insert_with", "iter_mut"]
 teaches = [
-  "`&self` methods can run while other shared borrows are alive.",
-  "`&mut self` requires that no other borrow exists.",
+  "`&self` methods can run while other shared borrows are alive; `&mut self` methods can't.",
+  "`Option<String>` → `Option<&str>` with `as_deref`.",
+  "`get_or_insert_with` fills an `Option` in place and returns `&mut T`.",
 ]
-follow_up = "Why does `Vec::iter().max()` return the last maximum but `position` the first?"
-related = ["L2"]
+follow_up = "`unread()` returns `Vec<&Msg>`. What would returning `impl Iterator<Item = &Msg> + '_` change for `triage`?"
+related = ["L2", "S1"]
 
 [[hints]]
 kind = "rust"
-text = "Methods that only read take `&self`, so any number of callers can hold one at once."
+text = "Readers take `&self` and hand out borrows tied to it: `Option<&Msg>`, `Vec<&Msg>`, `Option<&str>`. Writers take `&mut self` and hand out `Option<&mut Msg>` or `Option<&mut String>`."
+
+[[hints]]
+kind = "rust"
+text = "`Option<String>` to `Option<&str>` is `as_deref()`. `get_or_insert_with(String::new)` fills a `None` in place and returns `&mut String`. `iter_mut().rev().find(..)` searches from the newest."
 
 [solution]
-explanation = "`busiest` returns an index, not a reference, so callers can keep it while hitting more slots."
-time = "O(n)"
-space = "O(1)"
+explanation = "A method that only reads takes `&self`, so any number of callers can hold its results at once; a method that hands out `&mut` must take `&mut self`, and then nothing else can use the inbox until that borrow ends. `triage` shows the practical consequence: it collects the boss's ids (plain `u32`s) before marking, because `mark_read` needs `&mut self` while `unread()`'s `Vec<&Msg>` would still borrow the inbox.\n\nSyntax to remember: `self.msgs.iter().find(|m| m.id == id)` · `self.msgs.iter_mut().rev().find(|m| !m.read)` · `self.get(id)?.reply.as_deref()` · `Some(self.get_mut(id)?.reply.get_or_insert_with(String::new))`."
+time = "O(n) per lookup"
+space = "O(1) extra; `unread` O(k)"

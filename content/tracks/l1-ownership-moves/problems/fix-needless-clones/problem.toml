@@ -1,0 +1,30 @@
+slug = "fix-needless-clones"
+title = "Fix: remove every clone"
+mode = "fix"
+level = "medium"
+stage = "clones-and-drops"
+order = 8
+status = "ready"
+tags = ["borrowing", "clone", "lifetimes"]
+teaches = [
+  "Return borrowed data (`&str`, `Vec<&str>`) instead of cloning.",
+  "Iterate by reference instead of cloning a collection to iterate it.",
+]
+follow_up = "When is returning owned data the right call even though it costs a clone?"
+related = ["L3", "S1"]
+
+[[hints]]
+kind = "approach"
+text = "Each method only reads the books. Can it return references into `self.books`?"
+
+[[hints]]
+kind = "rust"
+text = "`iter().max_by_key(|b| b.len())` returns the last maximum, like sort-then-last."
+
+[solution]
+explanation = "The returned `&str`s borrow `self`, so elision ties them to `&self`. No method allocates now except `search`'s result Vec."
+time = "O(n)"
+space = "O(k)"
+
+[rules]
+forbid_methods = ["clone", "cloned", "to_string", "to_owned"]

@@ -1,0 +1,26 @@
+slug = "fix-slicing-mid-utf8"
+title = "Fix: slicing mid-UTF-8 panics"
+mode = "fix"
+level = "medium"
+stage = "understand"
+order = 9
+status = "ready"
+tags = ["panic", "char boundaries"]
+teaches = [
+  "`&s[..n]` takes bytes and panics if `n` splits a character.",
+  "Finding a byte offset with `char_indices().nth(n)`.",
+]
+follow_up = "When would you use `s.get(..n)` instead, and what does it return?"
+
+[[hints]]
+kind = "rust"
+text = "`s.len()` and `&s[..n]` both count bytes, not characters."
+
+[[hints]]
+kind = "rust"
+text = "The byte offset where character `n` starts is `s.char_indices().nth(n)`; if there isn't one, the whole string fits."
+
+[solution]
+explanation = "Slicing is by byte offset and panics off a character boundary. `char_indices` only yields boundaries, so slicing at one is always safe."
+time = "O(n)"
+space = "O(1)"

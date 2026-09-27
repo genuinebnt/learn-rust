@@ -1,0 +1,27 @@
+slug = "str-parameters"
+title = "&str parameters take both"
+mode = "write"
+level = "easy"
+stage = "passing-values"
+order = 7
+status = "ready"
+tags = ["&str", "deref coercion"]
+teaches = [
+  "`&str` accepts literals and `&String` through deref coercion.",
+  "Iterating words and taking the first char of each.",
+]
+follow_up = "When is `impl AsRef<str>` a better parameter than `&str`?"
+related = ["S2"]
+
+[[hints]]
+kind = "rust"
+text = "`split_whitespace`, then the first `char` of each word, then uppercase."
+
+[[hints]]
+kind = "rust"
+text = "`char::to_uppercase` returns an iterator, since some characters uppercase to more than one."
+
+[solution]
+explanation = "Taking `&str` means callers never allocate to call you. `flat_map(char::to_uppercase)` handles characters whose uppercase form is longer."
+time = "O(n)"
+space = "O(k)"

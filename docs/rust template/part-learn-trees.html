@@ -1,0 +1,1555 @@
+<!-- ═══════════════════════════════════════════
+     PART: TREES — SELF-CONTAINED RUST LEARNING TRACK
+     50 exercises · 24 runnable core programs · Foundation → Mastery
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="learn-trees">
+  <div class="ph-eyebrow">Algorithm Learning Track · Hierarchies and Range Structures</div>
+  <div class="ph-title">Trees in Rust</div>
+  <div class="ph-sub">
+    Start with recursion frames and ownership, then progress through traversals, binary-search-tree
+    invariants, path algorithms, tree DP, query preprocessing, and advanced range trees. Every
+    prerequisite is taught here; every core solution is a complete Rust 2021 program with assertions.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-rust">Rust 2021</span>
+    <span class="badge badge-time">50 exercises · 24 fully worked</span>
+    <span class="badge badge-time">Foundation → Mastery</span>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:32px;">
+  <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Track map</div>
+  <div style="display:flex;flex-wrap:wrap;gap:7px;">
+    <a href="#learn-tree-stage-foundation" class="chip" style="text-decoration:none;">Foundation · 01–08</a>
+    <a href="#learn-tree-stage-easy" class="chip" style="text-decoration:none;">Easy · 09–18</a>
+    <a href="#learn-tree-stage-medium" class="chip" style="text-decoration:none;">Medium · 19–30</a>
+    <a href="#learn-tree-stage-hard" class="chip" style="text-decoration:none;">Hard · 31–44</a>
+    <a href="#learn-tree-stage-mastery" class="chip" style="text-decoration:none;">Mastery · 45–50</a>
+  </div>
+  <div class="note" style="margin-top:14px;">
+    <strong>Representation rule:</strong> Prefer <code>Option&lt;Box&lt;Node&gt;&gt;</code> for an exclusively
+    owned tree. Reach for <code>Rc&lt;RefCell&lt;Node&gt;&gt;</code> only when callers need shared node identity
+    and mutation. Later graph-shaped query algorithms use index-based adjacency lists to make parent,
+    ancestor, and decomposition state explicit.
+  </div>
+</div>
+
+<!-- ════════════ FOUNDATION ════════════ -->
+<div class="section" id="learn-tree-stage-foundation">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-rust)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-rust)">// Trees · Foundation</div>
+      <div class="sh-title">Foundation — Shape, Ownership, and Recursion</div>
+    </div>
+  </div>
+  <div class="note"><strong>Read before:</strong> Skiena, <em>The Algorithm Design Manual</em>, 3rd ed., <a href="https://link.springer.com/book/10.1007/978-3-030-54256-6">Chapter 3, “Data Structures,”</a> and Chapter 5, “Divide and Conquer”; the Rust Book on <a href="https://doc.rust-lang.org/book/ch15-01-box.html"><code>Box&lt;T&gt;</code></a>.</div>
+  <div class="note"><strong>Review after:</strong> Revisit Skiena 3e Chapters 3 and 5 at chapter level, then compare the Rust Book chapters on <a href="https://doc.rust-lang.org/book/ch15-04-rc.html"><code>Rc&lt;T&gt;</code></a> and <a href="https://doc.rust-lang.org/book/ch15-05-interior-mutability.html"><code>RefCell&lt;T&gt;</code></a>.</div>
+  <div class="note"><strong>Further reading:</strong> Official Rust documentation for <a href="https://doc.rust-lang.org/std/collections/struct.VecDeque.html"><code>VecDeque</code></a> and VisuAlgo’s open <a href="https://visualgo.net/en/bst">tree visualizations</a>.</div>
+
+  <div class="card" id="learn-tree-01" data-tier="core">
+    <div class="ex-meta"><span class="chip">Box</span><span class="chip">recursive type</span><span class="chip chip-easy">Foundation</span><span class="chip">Learning 01</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Model an Owned Binary Tree<span class="sb-check" data-id="learn-tree-01" onclick="toggleDone(event,'learn-tree-01')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Rust structs, enums, and basic ownership; no earlier card.</div>
+    <div class="note"><strong>New idea:</strong> Each child is either absent or an exclusively owned heap node: <code>Option&lt;Box&lt;Node&gt;&gt;</code>.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Put the value directly in the node. 2) Make each child optional. 3) Insert <code>Box</code> between <code>Option</code> and the recursive node so the field has a known size.</div>
+    <div class="note"><strong>Complexity:</strong> Allocating n nodes is O(n) time and O(n) heap space; each child edge occupies one pointer-sized option.</div>
+    <div class="note"><strong>Rust angle:</strong> <code>Box</code> expresses exclusive parent-to-child ownership and needs neither reference counts nor runtime borrow checks.</div>
+    <div class="note"><strong>Unlocks next:</strong> Learning 02’s recursion frame and every owned-tree exercise.</div>
+    <details><summary>Solution — reveal after attempting (owned node representation)</summary><div style="padding:16px 0 4px;">
+<pre>#[derive(Debug, PartialEq, Eq)]
+struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+impl Node {
+    fn leaf(value: i32) -&gt; Box&lt;Self&gt; {
+        Box::new(Self { value, left: None, right: None })
+    }
+}
+
+fn main() {
+    let root = Node {
+        value: 8,
+        left: Some(Node::leaf(3)),
+        right: Some(Node::leaf(10)),
+    };
+    assert_eq!(root.value, 8);
+    assert_eq!(root.left.as_deref().map(|n| n.value), Some(3));
+    assert_eq!(root.right.as_deref().map(|n| n.value), Some(10));
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-02" data-tier="core">
+    <div class="ex-meta"><span class="chip">recursion frame</span><span class="chip">base case</span><span class="chip chip-easy">Foundation</span><span class="chip">Learning 02</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Recursion Frame: Base Case and Combine Step<span class="sb-check" data-id="learn-tree-02" onclick="toggleDone(event,'learn-tree-02')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 01 and function-call stack vocabulary.</div>
+    <div class="note"><strong>New idea:</strong> One frame handles one optional node: return an identity for <code>None</code>, recursively solve children, then combine their answers with the current value.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Write the <code>None</code> branch first. 2) Assume both recursive calls are correct. 3) Combine only after both calls return; trace a leaf, then its parent, frame by frame.</div>
+    <div class="note"><strong>Complexity:</strong> A full traversal takes O(n) time and O(h) call-stack space for height h.</div>
+    <div class="note"><strong>Rust angle:</strong> Recurse over <code>Option&lt;&amp;Node&gt;</code> obtained with <code>as_deref()</code> so the tree remains borrowed, not cloned or consumed.</div>
+    <div class="note"><strong>Unlocks next:</strong> Null-safe traversal, size, height, comparison, and tree DP recurrences.</div>
+    <details><summary>Solution — reveal after attempting (one-frame aggregation)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn sum(node: Option&lt;&amp;Node&gt;) -&gt; i32 {
+    match node {
+        None =&gt; 0,
+        Some(node) =&gt; {
+            node.value + sum(node.left.as_deref()) + sum(node.right.as_deref())
+        }
+    }
+}
+
+fn main() {
+    let tree = Node {
+        value: 5,
+        left: Some(Box::new(Node { value: 2, left: None, right: None })),
+        right: Some(Box::new(Node { value: 9, left: None, right: None })),
+    };
+    assert_eq!(sum(Some(&amp;tree)), 16);
+    assert_eq!(sum(None), 0);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-03" data-tier="core">
+    <div class="ex-meta"><span class="chip">Option</span><span class="chip">null-safe DFS</span><span class="chip chip-easy">Foundation</span><span class="chip">Learning 03</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Write the Null-Safe Traversal Template<span class="sb-check" data-id="learn-tree-03" onclick="toggleDone(event,'learn-tree-03')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 01–02.</div>
+    <div class="note"><strong>New idea:</strong> A traversal should accept the empty tree naturally; pattern matching on <code>Option</code> replaces null checks and unwraps.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Take <code>Option&lt;&amp;Node&gt;</code>. 2) Do nothing on <code>None</code>. 3) In <code>Some</code>, process exactly once and recurse through both borrowed child links.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> No <code>unwrap()</code> is needed; exhaustive matching proves both empty and nonempty cases are handled.</div>
+    <div class="note"><strong>Unlocks next:</strong> All recursive traversals and structural algorithms.</div>
+    <details><summary>Solution — reveal after attempting (panic-free visitor)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn visit(node: Option&lt;&amp;Node&gt;, out: &amp;mut Vec&lt;i32&gt;) {
+    if let Some(node) = node {
+        out.push(node.value);
+        visit(node.left.as_deref(), out);
+        visit(node.right.as_deref(), out);
+    }
+}
+
+fn main() {
+    let tree = Node {
+        value: 1,
+        left: Some(Box::new(Node { value: 2, left: None, right: None })),
+        right: Some(Box::new(Node { value: 3, left: None, right: None })),
+    };
+    let mut values = Vec::new();
+    visit(Some(&amp;tree), &amp;mut values);
+    assert_eq!(values, vec![1, 2, 3]);
+    let mut empty = Vec::new();
+    visit(None, &amp;mut empty);
+    assert!(empty.is_empty());
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-04" data-tier="core">
+    <div class="ex-meta"><span class="chip">height</span><span class="chip">size</span><span class="chip chip-easy">Foundation</span><span class="chip">Learning 04</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Aggregate Tree Size and Height<span class="sb-check" data-id="learn-tree-04" onclick="toggleDone(event,'learn-tree-04')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 02–03.</div>
+    <div class="note"><strong>New idea:</strong> Return multiple postorder facts from one frame: size adds child sizes; height adds one to the larger child height.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Define empty height as 0. 2) Ask left and right for both facts. 3) Return <code>(1 + ls + rs, 1 + max(lh, rh))</code>.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space in one traversal.</div>
+    <div class="note"><strong>Rust angle:</strong> A tuple keeps related aggregates in one borrowed walk and avoids repeated traversal.</div>
+    <div class="note"><strong>Unlocks next:</strong> Balance, diameter, complete-tree counting, and tree DP.</div>
+    <details><summary>Solution — reveal after attempting (postorder tuple)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn stats(node: Option&lt;&amp;Node&gt;) -&gt; (usize, usize) {
+    match node {
+        None =&gt; (0, 0),
+        Some(node) =&gt; {
+            let (ls, lh) = stats(node.left.as_deref());
+            let (rs, rh) = stats(node.right.as_deref());
+            (1 + ls + rs, 1 + lh.max(rh))
+        }
+    }
+}
+
+fn leaf() -&gt; Box&lt;Node&gt; {
+    Box::new(Node { left: None, right: None })
+}
+
+fn main() {
+    let tree = Node {
+        left: Some(leaf()),
+        right: Some(Box::new(Node { left: Some(leaf()), right: None })),
+    };
+    assert_eq!(stats(Some(&amp;tree)), (4, 3));
+    assert_eq!(stats(None), (0, 0));
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-05" data-tier="core">
+    <div class="ex-meta"><span class="chip">Box</span><span class="chip">Rc</span><span class="chip">RefCell</span><span class="chip chip-easy">Foundation</span><span class="chip">Learning 05</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Choose Box or Rc&lt;RefCell&lt;_&gt;&gt;<span class="sb-check" data-id="learn-tree-05" onclick="toggleDone(event,'learn-tree-05')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 01–04; shared versus exclusive ownership.</div>
+    <div class="note"><strong>New idea:</strong> Representation follows topology: <code>Box</code> for one owning parent; <code>Rc</code> for multiple handles; add <code>RefCell</code> only for shared mutation.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Ask whether a node has one owner. 2) Ask whether aliases must mutate it. 3) Prefer the least powerful type that satisfies both answers.</div>
+    <div class="note"><strong>Complexity:</strong> Both traverse in O(n); <code>Rc</code> adds reference-count operations and <code>RefCell</code> adds runtime borrow checks.</div>
+    <div class="note"><strong>Rust angle:</strong> <code>RefCell</code> moves borrow enforcement to runtime and can panic on overlapping mutable/shared borrows; it is not a default tree pointer.</div>
+    <div class="note"><strong>Unlocks next:</strong> Shared node handles, parent links, identity-based algorithms, and persistent alternatives.</div>
+    <details><summary>Solution — reveal after attempting (representation contrast)</summary><div style="padding:16px 0 4px;">
+<pre>use std::cell::RefCell;
+use std::rc::Rc;
+
+struct Owned {
+    value: i32,
+    child: Option&lt;Box&lt;Owned&gt;&gt;,
+}
+
+struct Shared {
+    value: i32,
+    child: Option&lt;Rc&lt;RefCell&lt;Shared&gt;&gt;&gt;,
+}
+
+fn main() {
+    let owned = Owned {
+        value: 1,
+        child: Some(Box::new(Owned { value: 2, child: None })),
+    };
+    assert_eq!(owned.child.as_deref().map(|n| n.value), Some(2));
+    assert!(owned.child.as_deref().unwrap().child.is_none());
+
+    let child = Rc::new(RefCell::new(Shared { value: 4, child: None }));
+    let root = Shared { value: 3, child: Some(Rc::clone(&amp;child)) };
+    child.borrow_mut().value = 9;
+    assert_eq!(root.value, 3);
+    assert_eq!(root.child.as_ref().unwrap().borrow().value, 9);
+    assert_eq!(Rc::strong_count(&amp;child), 2);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-06" data-tier="core">
+    <div class="ex-meta"><span class="chip">shared identity</span><span class="chip">borrow scopes</span><span class="chip chip-easy">Foundation</span><span class="chip">Learning 06</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Build and Mutate a Shared Tree Safely<span class="sb-check" data-id="learn-tree-06" onclick="toggleDone(event,'learn-tree-06')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 05 and the Rust Book’s <code>Rc</code>/<code>RefCell</code> chapters.</div>
+    <div class="note"><strong>New idea:</strong> Clone handles, not nodes; keep each <code>borrow()</code> or <code>borrow_mut()</code> scope short before recursion or a second borrow.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Alias a child with <code>Rc::clone</code>. 2) Mutate through <code>borrow_mut()</code>. 3) Drop that guard before reading through another handle; use <code>Rc::ptr_eq</code> for identity.</div>
+    <div class="note"><strong>Complexity:</strong> Handle cloning and direct mutation are O(1); the nodes remain O(n) space.</div>
+    <div class="note"><strong>Rust angle:</strong> Strong parent and child links can create cycles and leaks; use <code>Weak</code> for non-owning back edges.</div>
+    <div class="note"><strong>Unlocks next:</strong> Identity-sensitive trees and a clear reason to prefer indexed arenas for advanced query algorithms.</div>
+    <details><summary>Solution — reveal after attempting (shared handles)</summary><div style="padding:16px 0 4px;">
+<pre>use std::cell::RefCell;
+use std::rc::Rc;
+
+type Link = Option&lt;Rc&lt;RefCell&lt;Node&gt;&gt;&gt;;
+
+struct Node {
+    value: i32,
+    left: Link,
+    right: Link,
+}
+
+fn node(value: i32) -&gt; Rc&lt;RefCell&lt;Node&gt;&gt; {
+    Rc::new(RefCell::new(Node { value, left: None, right: None }))
+}
+
+fn main() {
+    let root = node(1);
+    let child = node(2);
+    root.borrow_mut().left = Some(Rc::clone(&amp;child));
+    child.borrow_mut().value = 7;
+
+    let from_root = root.borrow().left.as_ref().unwrap().clone();
+    assert!(Rc::ptr_eq(&amp;from_root, &amp;child));
+    assert_eq!(from_root.borrow().value, 7);
+    assert!(root.borrow().right.is_none());
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-07" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">iterative DFS</span><span class="chip">stack</span><span class="chip chip-easy">Foundation</span><span class="chip">Learning 07</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Replace Recursion with an Explicit DFS Stack<span class="sb-check" data-id="learn-tree-07" onclick="toggleDone(event,'learn-tree-07')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 03 and preorder’s root-left-right target order.</div>
+    <div class="note"><strong>New idea:</strong> An explicit LIFO stack stores the work that recursive frames would have remembered.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Push the root if present. 2) Pop, visit, then schedule children. 3) Push right before left so left is popped first; test a skewed tree and empty input.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space on a depth-first walk, up to O(n) in the worst shape.</div>
+    <div class="note"><strong>Rust angle:</strong> Store borrowed <code>&amp;Node</code> handles when only reading; store owned boxes only if consuming the tree.</div>
+    <div class="note"><strong>Unlocks next:</strong> Iterative preorder, stateful inorder/postorder, and stack-safe traversal of deep trees.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Initialize <code>Vec&lt;&amp;Node&gt;</code> with <code>root.as_deref()</code> when present. While the stack is nonempty, pop and record the node, then push <code>right.as_deref()</code> followed by <code>left.as_deref()</code>. Assert root-left-right order, an empty tree, and a one-sided chain.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-08" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">BFS</span><span class="chip">VecDeque</span><span class="chip chip-easy">Foundation</span><span class="chip">Learning 08</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Traverse Breadth-First with a Queue<span class="sb-check" data-id="learn-tree-08" onclick="toggleDone(event,'learn-tree-08')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 03 and FIFO queue behavior.</div>
+    <div class="note"><strong>New idea:</strong> BFS visits by nondecreasing depth; the queue holds discovered nodes whose children are not yet scheduled.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Use <code>VecDeque</code>, not <code>Vec::remove(0)</code>. 2) Pop front and push children back. 3) For levels, snapshot <code>queue.len()</code> before processing that layer.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(w) queue space for maximum width w.</div>
+    <div class="note"><strong>Rust angle:</strong> Queue entries can be immutable references tied to the tree borrow; no <code>Rc</code> is required for read-only BFS.</div>
+    <div class="note"><strong>Unlocks next:</strong> Learning 12 level grouping, vertical traversal, and complete-tree/heap reasoning.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Create <code>VecDeque&lt;&amp;Node&gt;</code>. Push the root reference, repeatedly <code>pop_front</code>, record its value, and <code>push_back</code> each existing child. Preserve left-before-right enqueue order and test empty, singleton, balanced, and skewed trees.</div></details>
+  </div>
+</div>
+
+<!-- ════════════ EASY ════════════ -->
+<div class="section" id="learn-tree-stage-easy">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-std)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-std)">// Trees · Easy</div>
+      <div class="sh-title">Easy — Traverse and Recognize Structure</div>
+    </div>
+  </div>
+  <div class="note"><strong>Read before:</strong> Skiena 3e Chapter 3, “Data Structures,” and Chapter 7, “Graph Traversal”; review the Foundation DFS/BFS templates before choosing traversal order.</div>
+  <div class="note"><strong>Review after:</strong> Skiena 3e Chapters 3 and 7 at chapter level; use VisuAlgo’s <a href="https://visualgo.net/en/bst">BST/tree traversal animation</a> to trace preorder, inorder, postorder, and level order on the same shape.</div>
+  <div class="note"><strong>Further reading:</strong> Official Rust <a href="https://doc.rust-lang.org/std/option/enum.Option.html"><code>Option</code></a> and <a href="https://doc.rust-lang.org/std/mem/fn.swap.html"><code>mem::swap</code></a> documentation.</div>
+
+  <div class="card" id="learn-tree-09" data-tier="core">
+    <div class="ex-meta"><span class="chip">preorder</span><span class="chip">DFS</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 09</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Recursive Preorder Traversal<span class="sb-check" data-id="learn-tree-09" onclick="toggleDone(event,'learn-tree-09')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 02–03 and 07.</div>
+    <div class="note"><strong>New idea:</strong> Preorder performs work before child calls: root, left subtree, right subtree.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Return on <code>None</code>. 2) Push the value immediately. 3) Recurse left then right; compare with Learning 07’s stack push order.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) call-stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Pass one mutable output buffer through borrowed recursion to avoid repeated vector allocation.</div>
+    <div class="note"><strong>Unlocks next:</strong> Path accumulation, serialization, Euler entry times, and reconstruction roots.</div>
+    <details><summary>Solution — reveal after attempting (root-left-right)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn preorder(node: Option&lt;&amp;Node&gt;, out: &amp;mut Vec&lt;i32&gt;) {
+    if let Some(node) = node {
+        out.push(node.value);
+        preorder(node.left.as_deref(), out);
+        preorder(node.right.as_deref(), out);
+    }
+}
+
+fn main() {
+    let tree = Node {
+        value: 4,
+        left: Some(Box::new(Node { value: 2, left: None, right: None })),
+        right: Some(Box::new(Node { value: 7, left: None, right: None })),
+    };
+    let mut out = Vec::new();
+    preorder(Some(&amp;tree), &amp;mut out);
+    assert_eq!(out, vec![4, 2, 7]);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-10" data-tier="core">
+    <div class="ex-meta"><span class="chip">inorder</span><span class="chip">sorted BST order</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 10</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Recursive Inorder Traversal<span class="sb-check" data-id="learn-tree-10" onclick="toggleDone(event,'learn-tree-10')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 02–03 and 09.</div>
+    <div class="note"><strong>New idea:</strong> Inorder visits left subtree, root, then right subtree; a valid strict BST therefore emits increasing keys.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Move the output step between child calls. 2) Trace a three-node tree. 3) Do not assume sorted output for an arbitrary binary tree.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Immutable recursive borrows make traversal side-effect free except for the explicitly borrowed output.</div>
+    <div class="note"><strong>Unlocks next:</strong> BST validation, kth order statistics, merging BSTs, and Morris traversal.</div>
+    <details><summary>Solution — reveal after attempting (left-root-right)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn inorder(node: Option&lt;&amp;Node&gt;, out: &amp;mut Vec&lt;i32&gt;) {
+    if let Some(node) = node {
+        inorder(node.left.as_deref(), out);
+        out.push(node.value);
+        inorder(node.right.as_deref(), out);
+    }
+}
+
+fn main() {
+    let tree = Node {
+        value: 4,
+        left: Some(Box::new(Node { value: 1, left: None, right: None })),
+        right: Some(Box::new(Node { value: 9, left: None, right: None })),
+    };
+    let mut out = Vec::new();
+    inorder(Some(&amp;tree), &amp;mut out);
+    assert_eq!(out, vec![1, 4, 9]);
+    assert!(out.windows(2).all(|w| w[0] &lt; w[1]));
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-11" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">postorder</span><span class="chip">children first</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 11</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Recursive Postorder Traversal<span class="sb-check" data-id="learn-tree-11" onclick="toggleDone(event,'learn-tree-11')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 09–10.</div>
+    <div class="note"><strong>New idea:</strong> Postorder delays parent work until both children are solved: left, right, root.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Reuse the traversal frame. 2) Place the visit after both child calls. 3) Trace the exact unwind order and explain why deletion/aggregation naturally uses postorder.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Consuming postorder can safely dismantle children before their parent; borrowed postorder is enough for aggregates.</div>
+    <div class="note"><strong>Unlocks next:</strong> Height/balance/diameter, LCA bubbling, maximum path sum, and named tree DP.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Match the null-safe template, recurse into left and right first, then append the current value. Assert <code>[left, right, root]</code> for a three-node tree and explain which recursive frame appends each element during unwinding.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-12" data-tier="core">
+    <div class="ex-meta"><span class="chip">level order</span><span class="chip">queue size</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 12</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Return BFS Values Grouped by Level<span class="sb-check" data-id="learn-tree-12" onclick="toggleDone(event,'learn-tree-12')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 08 and <code>VecDeque</code>.</div>
+    <div class="note"><strong>New idea:</strong> At loop start, queue length equals the number of nodes in the current level; process exactly that many before emitting the level.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Snapshot length before popping. 2) Use a fresh vector per level. 3) Enqueued children belong to the next level, so do not extend the current loop bound.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(w) queue space, plus O(n) returned output.</div>
+    <div class="note"><strong>Rust angle:</strong> <code>VecDeque&lt;&amp;Node&gt;</code> borrows the immutable tree and gives O(1) amortized operations at both ends.</div>
+    <div class="note"><strong>Unlocks next:</strong> Vertical traversal, width reasoning, and implicit complete-tree storage.</div>
+    <details><summary>Solution — reveal after attempting (level-sized BFS)</summary><div style="padding:16px 0 4px;">
+<pre>use std::collections::VecDeque;
+
+struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn levels(root: Option&lt;&amp;Node&gt;) -&gt; Vec&lt;Vec&lt;i32&gt;&gt; {
+    let mut out = Vec::new();
+    let mut queue = VecDeque::new();
+    if let Some(root) = root { queue.push_back(root); }
+    while !queue.is_empty() {
+        let mut level = Vec::new();
+        for _ in 0..queue.len() {
+            let node = queue.pop_front().unwrap();
+            level.push(node.value);
+            if let Some(left) = node.left.as_deref() { queue.push_back(left); }
+            if let Some(right) = node.right.as_deref() { queue.push_back(right); }
+        }
+        out.push(level);
+    }
+    out
+}
+
+fn main() {
+    let tree = Node {
+        value: 1,
+        left: Some(Box::new(Node { value: 2, left: None, right: None })),
+        right: Some(Box::new(Node { value: 3, left: None, right: None })),
+    };
+    assert_eq!(levels(Some(&amp;tree)), vec![vec![1], vec![2, 3]]);
+    assert!(levels(None).is_empty());
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-13" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">depth</span><span class="chip">recurrence</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 13</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Compute Maximum Depth<span class="sb-check" data-id="learn-tree-13" onclick="toggleDone(event,'learn-tree-13')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 04.</div>
+    <div class="note"><strong>New idea:</strong> Depth in nodes satisfies <code>depth(None)=0</code> and <code>depth(node)=1+max(left,right)</code>.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Fix whether depth counts nodes or edges. 2) Choose the matching empty base value. 3) Test empty, singleton, and a skewed chain to catch off-by-one errors.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Borrow children with <code>as_deref()</code>; returning a scalar lets borrows end within each frame.</div>
+    <div class="note"><strong>Unlocks next:</strong> Balance, diameter, complete-tree optimization, and binary-lifting table height.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Return 0 for <code>None</code>. For a node, recursively compute both child depths and return one plus their maximum. If counting edges instead, use -1 for empty or subtract one from a nonempty node-count result; state the convention in tests.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-14" data-tier="core">
+    <div class="ex-meta"><span class="chip">symmetry</span><span class="chip">mirror recursion</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 14</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Check Mirror Symmetry<span class="sb-check" data-id="learn-tree-14" onclick="toggleDone(event,'learn-tree-14')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 03 and parallel recursion.</div>
+    <div class="note"><strong>New idea:</strong> Two subtrees mirror when roots match and outer children mirror each other while inner children mirror each other.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Handle all four presence combinations. 2) Compare values. 3) Pair left.left with right.right and left.right with right.left.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Match pairs of borrowed options; exhaustive matching avoids dereferencing absent children.</div>
+    <div class="note"><strong>Unlocks next:</strong> Same-tree comparison and paired structural recursion.</div>
+    <details><summary>Solution — reveal after attempting (cross-child comparison)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn mirror(a: Option&lt;&amp;Node&gt;, b: Option&lt;&amp;Node&gt;) -&gt; bool {
+    match (a, b) {
+        (None, None) =&gt; true,
+        (Some(a), Some(b)) =&gt; {
+            a.value == b.value
+                &amp;&amp; mirror(a.left.as_deref(), b.right.as_deref())
+                &amp;&amp; mirror(a.right.as_deref(), b.left.as_deref())
+        }
+        _ =&gt; false,
+    }
+}
+
+fn leaf(value: i32) -&gt; Box&lt;Node&gt; {
+    Box::new(Node { value, left: None, right: None })
+}
+
+fn main() {
+    let tree = Node { value: 1, left: Some(leaf(2)), right: Some(leaf(2)) };
+    assert!(mirror(tree.left.as_deref(), tree.right.as_deref()));
+    let other = Node { value: 1, left: Some(leaf(2)), right: Some(leaf(3)) };
+    assert!(!mirror(other.left.as_deref(), other.right.as_deref()));
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-15" data-tier="core">
+    <div class="ex-meta"><span class="chip">structural equality</span><span class="chip">parallel recursion</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 15</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Compare Two Trees Structurally<span class="sb-check" data-id="learn-tree-15" onclick="toggleDone(event,'learn-tree-15')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 03 and 14.</div>
+    <div class="note"><strong>New idea:</strong> Equality requires both shape and values; equal traversal sequences alone may not uniquely encode shape without null markers.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Empty equals empty. 2) One empty and one nonempty is false. 3) For two nodes, compare values and matching left/left, right/right pairs.</div>
+    <div class="note"><strong>Complexity:</strong> O(min(n,m)) until mismatch, O(n) when equal; O(h) stack.</div>
+    <div class="note"><strong>Rust angle:</strong> Borrow both trees simultaneously; value and child reads require no cloning.</div>
+    <div class="note"><strong>Unlocks next:</strong> Serialization round trips, subtree checks, and reconstruction tests.</div>
+    <details><summary>Solution — reveal after attempting (shape plus values)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn same(a: Option&lt;&amp;Node&gt;, b: Option&lt;&amp;Node&gt;) -&gt; bool {
+    match (a, b) {
+        (None, None) =&gt; true,
+        (Some(a), Some(b)) =&gt; {
+            a.value == b.value
+                &amp;&amp; same(a.left.as_deref(), b.left.as_deref())
+                &amp;&amp; same(a.right.as_deref(), b.right.as_deref())
+        }
+        _ =&gt; false,
+    }
+}
+
+fn leaf(value: i32) -&gt; Box&lt;Node&gt; {
+    Box::new(Node { value, left: None, right: None })
+}
+
+fn main() {
+    let a = Node { value: 1, left: Some(leaf(2)), right: None };
+    let b = Node { value: 1, left: Some(leaf(2)), right: None };
+    let c = Node { value: 1, left: None, right: Some(leaf(2)) };
+    assert!(same(Some(&amp;a), Some(&amp;b)));
+    assert!(!same(Some(&amp;a), Some(&amp;c)));
+    assert!(same(None, None));
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-16" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">inversion</span><span class="chip">child swap</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 16</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Invert a Binary Tree<span class="sb-check" data-id="learn-tree-16" onclick="toggleDone(event,'learn-tree-16')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 09 and mutable recursive access.</div>
+    <div class="note"><strong>New idea:</strong> Mirroring is local at every node: swap left/right, then recursively mirror both resulting subtrees.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Match <code>Option&lt;&amp;mut Node&gt;</code>. 2) Use <code>std::mem::swap</code> on child links. 3) Reborrow each child separately and verify inverting twice restores the tree.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Swapping whole <code>Option&lt;Box&lt;Node&gt;&gt;</code> links moves pointers, not subtrees; short reborrows avoid overlapping mutable access.</div>
+    <div class="note"><strong>Unlocks next:</strong> Ownership-preserving structural transformations.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">On each mutable node, call <code>std::mem::swap(&amp;mut node.left, &amp;mut node.right)</code>, then recurse into <code>node.left.as_deref_mut()</code> and <code>node.right.as_deref_mut()</code>. Assert expected preorder after one inversion and exact structural equality after two.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-17" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">path sum</span><span class="chip">leaf condition</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 17</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Find a Root-to-Leaf Target Sum<span class="sb-check" data-id="learn-tree-17" onclick="toggleDone(event,'learn-tree-17')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 09 and 13.</div>
+    <div class="note"><strong>New idea:</strong> Carry a remaining target downward; success is valid only at a leaf, not an arbitrary prefix.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Subtract the current value. 2) Detect a leaf as both children absent. 3) At a leaf compare the remainder to zero; otherwise recurse with logical OR.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) worst-case time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Scalar state is copied into frames, while the tree remains immutably borrowed.</div>
+    <div class="note"><strong>Unlocks next:</strong> Path enumeration, maximum path sum, and root-to-node state DP.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Return false for an empty tree. Set <code>remaining = target - node.value</code>. If both children are absent, return whether remaining is zero; otherwise recurse into present children and OR the answers. Test a matching internal prefix that is not a leaf to reject premature success.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-18" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">complete tree</span><span class="chip">perfect subtree</span><span class="chip chip-easy">Easy</span><span class="chip">Learning 18</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Count Nodes in a Complete Tree<span class="sb-check" data-id="learn-tree-18" onclick="toggleDone(event,'learn-tree-18')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 04, 10, and the complete-tree shape invariant.</div>
+    <div class="note"><strong>New idea:</strong> In a complete tree, equal left-edge and right-edge heights prove a perfect subtree containing <code>2^h-1</code> nodes.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Walk only left edges for one height and only right edges for another. 2) If equal, use the closed form. 3) Otherwise recurse into both children; guard shifts against oversized h.</div>
+    <div class="note"><strong>Complexity:</strong> O(log² n) for complete trees and O(log n) stack; do not apply the shortcut to arbitrary trees.</div>
+    <div class="note"><strong>Rust angle:</strong> Repeated borrowed edge walks avoid allocations; choose a wide unsigned count before shifting.</div>
+    <div class="note"><strong>Unlocks next:</strong> Complete-tree array layouts and binary heaps.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Write <code>left_height</code> and <code>right_height</code> borrowed walks. Equal heights return <code>(1usize &lt;&lt; h) - 1</code>; unequal heights return one plus recursive child counts. State that correctness depends on complete-tree input and compare against ordinary O(n) counting in tests.</div></details>
+  </div>
+</div>
+
+<!-- ════════════ MEDIUM ════════════ -->
+<div class="section" id="learn-tree-stage-medium">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-own)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-own)">// Trees · Medium</div>
+      <div class="sh-title">Medium — BST Invariants, Paths, and Encodings</div>
+    </div>
+  </div>
+  <div class="note"><strong>Read before:</strong> Skiena 3e Chapter 3, “Data Structures,” Chapter 5, “Divide and Conquer,” and Chapter 7, “Graph Traversal”; review inorder ordering before BST operations.</div>
+  <div class="note"><strong>Review after:</strong> Skiena 3e Chapters 3, 5, and 7 at chapter level; trace operations with VisuAlgo’s open <a href="https://visualgo.net/en/bst">BST visualization</a>.</div>
+  <div class="note"><strong>Further reading:</strong> CP-Algorithms’ open <a href="https://cp-algorithms.com/graph/lca.html">lowest common ancestor overview</a> and official Rust <a href="https://doc.rust-lang.org/std/str/struct.SplitWhitespace.html">token parsing</a> documentation.</div>
+
+  <div class="card" id="learn-tree-19" data-tier="core">
+    <div class="ex-meta"><span class="chip">BST search</span><span class="chip">branch pruning</span><span class="chip chip-med">Medium</span><span class="chip">Learning 19</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Search a Binary Search Tree<span class="sb-check" data-id="learn-tree-19" onclick="toggleDone(event,'learn-tree-19')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 10 and the invariant “left keys &lt; node &lt; right keys.”</div>
+    <div class="note"><strong>New idea:</strong> Compare once per level and discard one entire subtree; this is binary search over a tree-defined predicate path.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Empty means absent. 2) Equality returns success. 3) Smaller targets recurse left and larger targets recurse right; never search both.</div>
+    <div class="note"><strong>Complexity:</strong> O(h) time and O(h) recursive stack, O(1) space iteratively; h is O(log n) only when balanced.</div>
+    <div class="note"><strong>Rust angle:</strong> Return <code>Option&lt;&amp;Node&gt;</code> to expose a borrowed match whose lifetime is tied to the tree.</div>
+    <div class="note"><strong>Unlocks next:</strong> Insertion, deletion, range pruning, BST LCA, and treaps.</div>
+    <details><summary>Solution — reveal after attempting (ordered descent)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    key: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn search(mut node: Option&lt;&amp;Node&gt;, target: i32) -&gt; Option&lt;&amp;Node&gt; {
+    while let Some(current) = node {
+        if target == current.key { return Some(current); }
+        node = if target &lt; current.key {
+            current.left.as_deref()
+        } else {
+            current.right.as_deref()
+        };
+    }
+    None
+}
+
+fn main() {
+    let tree = Node {
+        key: 8,
+        left: Some(Box::new(Node { key: 3, left: None, right: None })),
+        right: Some(Box::new(Node { key: 10, left: None, right: None })),
+    };
+    assert_eq!(search(Some(&amp;tree), 3).map(|n| n.key), Some(3));
+    assert!(search(Some(&amp;tree), 7).is_none());
+    assert!(search(None, 1).is_none());
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-20" data-tier="core">
+    <div class="ex-meta"><span class="chip">BST insert</span><span class="chip">owned relink</span><span class="chip chip-med">Medium</span><span class="chip">Learning 20</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Insert While Preserving BST Order<span class="sb-check" data-id="learn-tree-20" onclick="toggleDone(event,'learn-tree-20')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 19 and a declared duplicate-key policy.</div>
+    <div class="note"><strong>New idea:</strong> Search until an absent child link is found, then replace that <code>None</code> with a leaf.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Accept <code>&amp;mut Option&lt;Box&lt;Node&gt;&gt;</code>. 2) Insert at <code>None</code>. 3) Descend to exactly one mutable child; reject duplicates for a strict BST.</div>
+    <div class="note"><strong>Complexity:</strong> O(h) time and O(h) recursive stack.</div>
+    <div class="note"><strong>Rust angle:</strong> A mutable link cursor edits the parent edge directly, including the root link, without parent pointers.</div>
+    <div class="note"><strong>Unlocks next:</strong> Validation, deletion, and balancing concepts.</div>
+    <details><summary>Solution — reveal after attempting (mutable link descent)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    key: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn insert(link: &amp;mut Option&lt;Box&lt;Node&gt;&gt;, key: i32) -&gt; bool {
+    match link {
+        None =&gt; {
+            *link = Some(Box::new(Node { key, left: None, right: None }));
+            true
+        }
+        Some(node) if key &lt; node.key =&gt; insert(&amp;mut node.left, key),
+        Some(node) if key &gt; node.key =&gt; insert(&amp;mut node.right, key),
+        Some(_) =&gt; false,
+    }
+}
+
+fn inorder(node: Option&lt;&amp;Node&gt;, out: &amp;mut Vec&lt;i32&gt;) {
+    if let Some(node) = node {
+        inorder(node.left.as_deref(), out);
+        out.push(node.key);
+        inorder(node.right.as_deref(), out);
+    }
+}
+
+fn main() {
+    let mut root = None;
+    for key in [5, 2, 8, 1, 3] { assert!(insert(&amp;mut root, key)); }
+    assert!(!insert(&amp;mut root, 3));
+    let mut keys = Vec::new();
+    inorder(root.as_deref(), &amp;mut keys);
+    assert_eq!(keys, vec![1, 2, 3, 5, 8]);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-21" data-tier="core">
+    <div class="ex-meta"><span class="chip">BST invariant</span><span class="chip">exclusive bounds</span><span class="chip chip-med">Medium</span><span class="chip">Learning 21</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Validate the Global BST Invariant<span class="sb-check" data-id="learn-tree-21" onclick="toggleDone(event,'learn-tree-21')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 10 and 19–20.</div>
+    <div class="note"><strong>New idea:</strong> A node must satisfy all ancestor constraints, not only compare correctly with its parent; carry an exclusive allowed interval downward.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Start with unbounded limits. 2) Reject a key at or outside either bound. 3) Tighten the upper bound on the left and lower bound on the right.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> <code>Option&lt;i64&gt;</code> bounds avoid sentinel collisions with valid <code>i32</code> extremes.</div>
+    <div class="note"><strong>Unlocks next:</strong> Correct deletion, range queries, order statistics, and balanced BST reasoning.</div>
+    <details><summary>Solution — reveal after attempting (ancestor bounds)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    key: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn valid(node: Option&lt;&amp;Node&gt;, low: Option&lt;i64&gt;, high: Option&lt;i64&gt;) -&gt; bool {
+    let Some(node) = node else { return true };
+    let key = i64::from(node.key);
+    if low.is_some_and(|x| key &lt;= x) || high.is_some_and(|x| key &gt;= x) {
+        return false;
+    }
+    valid(node.left.as_deref(), low, Some(key))
+        &amp;&amp; valid(node.right.as_deref(), Some(key), high)
+}
+
+fn leaf(key: i32) -&gt; Box&lt;Node&gt; {
+    Box::new(Node { key, left: None, right: None })
+}
+
+fn main() {
+    let good = Node { key: 5, left: Some(leaf(2)), right: Some(leaf(8)) };
+    assert!(valid(Some(&amp;good), None, None));
+    let bad = Node {
+        key: 5,
+        left: Some(Box::new(Node { key: 2, left: None, right: Some(leaf(7)) })),
+        right: Some(leaf(8)),
+    };
+    assert!(!valid(Some(&amp;bad), None, None));
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-22" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">BST deletion</span><span class="chip">successor</span><span class="chip chip-med">Medium</span><span class="chip">Learning 22</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Delete a BST Key<span class="sb-check" data-id="learn-tree-22" onclick="toggleDone(event,'learn-tree-22')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 20–21 and ownership moves with <code>Option::take</code>.</div>
+    <div class="note"><strong>New idea:</strong> Deletion has three structural cases: promote the only child, remove a leaf, or replace a two-child key with its inorder successor and delete that successor.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Search recursively by key. 2) On a match, take the owned node to inspect children. 3) For two children, find the minimum in the right subtree, copy its key, then recursively delete that duplicate from the right.</div>
+    <div class="note"><strong>Complexity:</strong> O(h) time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Taking the matching box ends the mutable borrow before child promotion/replacement; return the rebuilt owned link.</div>
+    <div class="note"><strong>Unlocks next:</strong> Full BST CRUD and persistent path-copy updates.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Implement <code>delete(link, key) -&gt; Link</code> by taking ownership of the current link. Recurse into one child when keys differ. On equality, return the nonempty child for zero/one-child cases. With two children, read the right subtree’s leftmost key, assign it to the current node, delete that key from the right child, and return the node. Validate inorder ordering after deleting leaf, one-child, two-child, root, and missing keys.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-23" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">kth smallest</span><span class="chip">inorder rank</span><span class="chip chip-med">Medium</span><span class="chip">Learning 23</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Find the Kth Smallest BST Key<span class="sb-check" data-id="learn-tree-23" onclick="toggleDone(event,'learn-tree-23')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 10, 19, and a 1-based k convention.</div>
+    <div class="note"><strong>New idea:</strong> Inorder emits BST keys in sorted order; stop when the visit counter reaches k.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Use an explicit stack for early stop. 2) Push the entire left spine. 3) Pop one rank at a time, then move to its right subtree; return <code>None</code> for k=0 or k&gt;n.</div>
+    <div class="note"><strong>Complexity:</strong> O(h + k) time and O(h) space; augmented subtree sizes can answer in O(h).</div>
+    <div class="note"><strong>Rust angle:</strong> A stack of borrowed nodes avoids collecting all values and makes invalid k explicit with <code>Option&lt;i32&gt;</code>.</div>
+    <div class="note"><strong>Unlocks next:</strong> Order-statistic trees and rank/select augmentations.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Reject k=0. Repeatedly push borrowed nodes down the left spine, pop the next inorder node, decrement k, and return its key when k reaches zero; then continue from its right child. If both cursor and stack empty first, return <code>None</code>. Test smallest, largest, middle, zero, and too-large k.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-24" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">range sum</span><span class="chip">BST pruning</span><span class="chip chip-med">Medium</span><span class="chip">Learning 24</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Sum a BST Key Range<span class="sb-check" data-id="learn-tree-24" onclick="toggleDone(event,'learn-tree-24')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 19 and 21.</div>
+    <div class="note"><strong>New idea:</strong> If a key is below low, its entire left subtree is too small; if above high, its entire right subtree is too large.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Return zero for empty. 2) Branch before summing. 3) Only when the key lies in range, add it and recurse into both sides; define behavior when low&gt;high.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) worst case, often O(h + k) for k visited in-range keys; O(h) stack.</div>
+    <div class="note"><strong>Rust angle:</strong> Use a wider accumulator when key count or magnitude can overflow <code>i32</code>.</div>
+    <div class="note"><strong>Unlocks next:</strong> Predicate-guided pruning and augmented range trees.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">At each node: if <code>key &lt; low</code>, recurse only right; if <code>key &gt; high</code>, recurse only left; otherwise return key plus both recursive sums. Reject or normalize an inverted interval explicitly, and test all-below/all-above ranges to prove pruning direction.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-25" data-tier="core">
+    <div class="ex-meta"><span class="chip">LCA</span><span class="chip">postorder bubbling</span><span class="chip chip-med">Medium</span><span class="chip">Learning 25</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Lowest Common Ancestor in a Binary Tree<span class="sb-check" data-id="learn-tree-25" onclick="toggleDone(event,'learn-tree-25')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 11 and unique target values (or stable node identities).</div>
+    <div class="note"><strong>New idea:</strong> A postorder frame reports how many targets its subtree contains; the first node whose total reaches two is the LCA.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Count current-target matches. 2) Add child counts. 3) Record the current node only if no deeper frame already recorded an answer and the subtotal is at least two.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Return a copied key for a simple owned result; real identity-sensitive APIs can return a borrowed node or use arena indices.</div>
+    <div class="note"><strong>Unlocks next:</strong> BST LCA, binary lifting, and path decomposition.</div>
+    <details><summary>Solution — reveal after attempting (subtree target counts)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn lca(root: Option&lt;&amp;Node&gt;, a: i32, b: i32) -&gt; Option&lt;i32&gt; {
+    fn walk(node: Option&lt;&amp;Node&gt;, a: i32, b: i32, answer: &amp;mut Option&lt;i32&gt;) -&gt; u8 {
+        let Some(node) = node else { return 0 };
+        let left = walk(node.left.as_deref(), a, b, answer);
+        let right = walk(node.right.as_deref(), a, b, answer);
+        let here = u8::from(node.value == a) + u8::from(node.value == b);
+        let total = left + right + here;
+        if total &gt;= 2 &amp;&amp; answer.is_none() { *answer = Some(node.value); }
+        total.min(2)
+    }
+    let mut answer = None;
+    if walk(root, a, b, &amp;mut answer) == 2 { answer } else { None }
+}
+
+fn leaf(value: i32) -&gt; Box&lt;Node&gt; {
+    Box::new(Node { value, left: None, right: None })
+}
+
+fn main() {
+    let tree = Node {
+        value: 3,
+        left: Some(Box::new(Node { value: 5, left: Some(leaf(6)), right: Some(leaf(2)) })),
+        right: Some(leaf(1)),
+    };
+    assert_eq!(lca(Some(&amp;tree), 6, 2), Some(5));
+    assert_eq!(lca(Some(&amp;tree), 6, 1), Some(3));
+    assert_eq!(lca(Some(&amp;tree), 6, 9), None);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-26" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">BST LCA</span><span class="chip">path divergence</span><span class="chip chip-med">Medium</span><span class="chip">Learning 26</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Exploit BST Order for LCA<span class="sb-check" data-id="learn-tree-26" onclick="toggleDone(event,'learn-tree-26')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 19, 21, and 25.</div>
+    <div class="note"><strong>New idea:</strong> When both targets are smaller, move left; when both are larger, move right; the first split (or equality) is the LCA.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Normalize targets to low/high. 2) Compare both with the current key. 3) Stop when <code>low &lt;= key &lt;= high</code>; optionally verify both targets exist.</div>
+    <div class="note"><strong>Complexity:</strong> O(h) time and O(1) iterative space.</div>
+    <div class="note"><strong>Rust angle:</strong> An immutable cursor <code>Option&lt;&amp;Node&gt;</code> is enough; no recursion or parent links are required.</div>
+    <div class="note"><strong>Unlocks next:</strong> Ordered path divergence and fast search-tree queries.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Set <code>(low, high)</code> from the two targets. Walk from root: if <code>key &lt; low</code>, go right; if <code>key &gt; high</code>, go left; otherwise return that node. Decide whether missing targets yield a candidate split or <code>None</code>, and test according to that contract.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-27" data-tier="core">
+    <div class="ex-meta"><span class="chip">serialization</span><span class="chip">null markers</span><span class="chip chip-med">Medium</span><span class="chip">Learning 27</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Serialize and Deserialize a Binary Tree<span class="sb-check" data-id="learn-tree-27" onclick="toggleDone(event,'learn-tree-27')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 09, 11, and 15.</div>
+    <div class="note"><strong>New idea:</strong> Preorder plus explicit null markers uniquely records both values and shape; deserialization consumes the same token grammar recursively.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Emit <code>#</code> for every absent child. 2) Split tokens and keep one advancing iterator. 3) A value token creates a node, then recursively reads its left and right encodings.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) encode/decode time, O(n) output/tree space, and O(h) stack.</div>
+    <div class="note"><strong>Rust angle:</strong> Return <code>Result</code> in production for malformed integers, missing tokens, or trailing input; the worked program uses trusted round-trip data.</div>
+    <div class="note"><strong>Unlocks next:</strong> Reconstruction, persistence formats, and shape-aware equality.</div>
+    <details><summary>Solution — reveal after attempting (preorder token grammar)</summary><div style="padding:16px 0 4px;">
+<pre>#[derive(Debug, PartialEq, Eq)]
+struct Node {
+    value: i32,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn encode(node: Option&lt;&amp;Node&gt;, out: &amp;mut Vec&lt;String&gt;) {
+    match node {
+        None =&gt; out.push("#".into()),
+        Some(node) =&gt; {
+            out.push(node.value.to_string());
+            encode(node.left.as_deref(), out);
+            encode(node.right.as_deref(), out);
+        }
+    }
+}
+
+fn decode&lt;'a, I: Iterator&lt;Item = &amp;'a str&gt;&gt;(tokens: &amp;mut I) -&gt; Option&lt;Box&lt;Node&gt;&gt; {
+    let token = tokens.next().expect("complete encoding");
+    if token == "#" { return None; }
+    Some(Box::new(Node {
+        value: token.parse().expect("integer"),
+        left: decode(tokens),
+        right: decode(tokens),
+    }))
+}
+
+fn main() {
+    let tree = Node {
+        value: -1,
+        left: Some(Box::new(Node { value: 2, left: None, right: None })),
+        right: None,
+    };
+    let mut tokens = Vec::new();
+    encode(Some(&amp;tree), &amp;mut tokens);
+    assert_eq!(tokens, vec!["-1", "2", "#", "#", "#"]);
+    let text = tokens.join(" ");
+    let rebuilt = decode(&amp;mut text.split_whitespace());
+    assert_eq!(rebuilt.as_deref(), Some(&amp;tree));
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-28" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">reconstruction</span><span class="chip">preorder + inorder</span><span class="chip chip-med">Medium</span><span class="chip">Learning 28</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Reconstruct from Preorder and Inorder<span class="sb-check" data-id="learn-tree-28" onclick="toggleDone(event,'learn-tree-28')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 09–10 and 27; keys are unique.</div>
+    <div class="note"><strong>New idea:</strong> Preorder chooses the root; its inorder position splits left/right key sets and therefore determines subtree sizes.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Build a key-to-inorder-index map. 2) Keep one preorder cursor. 3) Recurse on inorder half-open intervals, checking that each root index lies inside its expected interval.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(n) map/output space with O(h) stack.</div>
+    <div class="note"><strong>Rust angle:</strong> Index ranges avoid overlapping mutable slice complexity; return an error for duplicates, length mismatch, or inconsistent traversals.</div>
+    <div class="note"><strong>Unlocks next:</strong> Traversal-based reconstruction and divide-and-conquer tree building.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Map every inorder key to its index. A helper receives <code>[lo, hi)</code> and a mutable preorder index. Empty range returns <code>None</code>; otherwise consume the next preorder key, validate its mapped split in range, recursively build <code>[lo, split)</code> and <code>[split+1, hi)</code>, and return the node. Verify regenerated traversals and malformed inputs.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-29" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">diameter</span><span class="chip">height DP</span><span class="chip chip-med">Medium</span><span class="chip">Learning 29</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Compute Binary Tree Diameter<span class="sb-check" data-id="learn-tree-29" onclick="toggleDone(event,'learn-tree-29')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 04 and 11.</div>
+    <div class="note"><strong>New idea:</strong> Each frame returns height upward while updating the best path through itself as <code>left_height + right_height</code> edges.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Choose edge count or node count. 2) Compute both child heights once. 3) Update a shared maximum before returning one plus the larger height.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack; recomputing heights per node would degrade to O(n²).</div>
+    <div class="note"><strong>Rust angle:</strong> Pass <code>&amp;mut usize</code> for the global best or return a tuple <code>(height, diameter)</code> to keep state local.</div>
+    <div class="note"><strong>Unlocks next:</strong> Balanced checks and maximum path sum.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Write a postorder helper returning height in nodes. For each node, update <code>best_edges = max(best_edges, left_height + right_height)</code>, then return <code>1 + max(left_height, right_height)</code>. Test empty, singleton (diameter 0), chain, and a longest path that does not pass through the root.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-30" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">balanced tree</span><span class="chip">sentinel height</span><span class="chip chip-med">Medium</span><span class="chip">Learning 30</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Check Height Balance in One Pass<span class="sb-check" data-id="learn-tree-30" onclick="toggleDone(event,'learn-tree-30')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 04, 13, and 29.</div>
+    <div class="note"><strong>New idea:</strong> Fuse height and validity: return <code>None</code> as soon as a subtree is unbalanced, otherwise return its height.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Empty returns <code>Some(0)</code>. 2) Use <code>?</code> to propagate child failure. 3) Reject when absolute height difference exceeds one; otherwise return the new height.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack.</div>
+    <div class="note"><strong>Rust angle:</strong> <code>Option&lt;usize&gt;</code> encodes both aggregate and failure without magic negative sentinels.</div>
+    <div class="note"><strong>Unlocks next:</strong> AVL motivation and multi-state tree DP.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">A helper returns <code>Some(height)</code> for balanced subtrees and <code>None</code> otherwise. Recursively obtain both heights using <code>?</code>; if <code>abs_diff &gt; 1</code>, return <code>None</code>, else <code>Some(1 + max)</code>. The public answer is <code>helper(root).is_some()</code>. Test a deep imbalance below an apparently balanced root.</div></details>
+  </div>
+</div>
+
+<!-- ════════════ HARD ════════════ -->
+<div class="section" id="learn-tree-stage-hard">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Trees · Hard</div>
+      <div class="sh-title">Hard — Tree DP and Query Structures</div>
+    </div>
+  </div>
+  <div class="note"><strong>Read before:</strong> Skiena 3e Chapter 7, “Graph Traversal,” Chapter 10, “Dynamic Programming,” and Chapter 15, “Data Structures” catalog; review postorder state combination first.</div>
+  <div class="note"><strong>Review after:</strong> Revisit Skiena 3e Chapters 7, 10, and 15 at chapter level; connect traversal order to every DP state and preprocessing table.</div>
+  <div class="note"><strong>Further reading:</strong> CP-Algorithms on <a href="https://cp-algorithms.com/graph/lca_binary_lifting.html">binary lifting</a>, <a href="https://cp-algorithms.com/graph/euler_path.html">Euler-tour concepts</a>, <a href="https://cp-algorithms.com/data_structures/fenwick.html">Fenwick trees</a>, and <a href="https://cp-algorithms.com/data_structures/segment_tree.html">segment trees</a>.</div>
+
+  <div class="card" id="learn-tree-31" data-tier="core">
+    <div class="ex-meta"><span class="chip">maximum path sum</span><span class="chip">postorder gain</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 31</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Maximum Path Sum with Arbitrary Endpoints<span class="sb-check" data-id="learn-tree-31" onclick="toggleDone(event,'learn-tree-31')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 17 and 29.</div>
+    <div class="note"><strong>New idea:</strong> A parent can continue through at most one child, but a path completed at the current node may use positive gains from both children.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Clamp each child gain at zero. 2) Update the global answer with node + left + right. 3) Return node + max(left,right), never both, to the parent.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack.</div>
+    <div class="note"><strong>Rust angle:</strong> Use <code>i64</code> for path arithmetic; initialize the best to the smallest value so all-negative trees work.</div>
+    <div class="note"><strong>Unlocks next:</strong> Named include/exclude and coverage-state tree DP.</div>
+    <details><summary>Solution — reveal after attempting (one-arm return, two-arm answer)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i64,
+    left: Option&lt;Box&lt;Node&gt;&gt;,
+    right: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn max_path(root: Option&lt;&amp;Node&gt;) -&gt; Option&lt;i64&gt; {
+    fn gain(node: Option&lt;&amp;Node&gt;, best: &amp;mut i64) -&gt; i64 {
+        let Some(node) = node else { return 0 };
+        let left = gain(node.left.as_deref(), best).max(0);
+        let right = gain(node.right.as_deref(), best).max(0);
+        *best = (*best).max(node.value + left + right);
+        node.value + left.max(right)
+    }
+    root?;
+    let mut best = i64::MIN;
+    gain(root, &amp;mut best);
+    Some(best)
+}
+
+fn leaf(value: i64) -&gt; Box&lt;Node&gt; {
+    Box::new(Node { value, left: None, right: None })
+}
+
+fn main() {
+    let tree = Node { value: -10, left: Some(leaf(9)), right: Some(Box::new(
+        Node { value: 20, left: Some(leaf(15)), right: Some(leaf(7)) }
+    )) };
+    assert_eq!(max_path(Some(&amp;tree)), Some(42));
+    let negative = Node { value: -3, left: Some(leaf(-5)), right: None };
+    assert_eq!(max_path(Some(&amp;negative)), Some(-3));
+    assert_eq!(max_path(None), None);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-32" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">vertical order</span><span class="chip">boundary</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 32</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Vertical Order and Boundary Traversal<span class="sb-check" data-id="learn-tree-32" onclick="toggleDone(event,'learn-tree-32')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 08, 12, and 17.</div>
+    <div class="note"><strong>New idea:</strong> Vertical order annotates each node with a horizontal column; boundary traversal composes root, nonleaf left boundary, leaves, and reversed nonleaf right boundary.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) For vertical order, BFS queue entries are <code>(node,column)</code>. 2) Store columns in an ordered map to emit left-to-right. 3) For boundary, exclude leaves from side walks to prevent duplicates.</div>
+    <div class="note"><strong>Complexity:</strong> Vertical order is O(n log c) with an ordered map; boundary is O(n); supporting space O(n).</div>
+    <div class="note"><strong>Rust angle:</strong> <code>BTreeMap&lt;i32, Vec&lt;i32&gt;&gt;</code> gives deterministic column order; keep the two problem variants as separate functions.</div>
+    <div class="note"><strong>Unlocks next:</strong> Coordinate-annotated traversals and view problems.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note"><strong>Vertical:</strong> BFS from column 0, enqueue left at c-1 and right at c+1, append values to a <code>BTreeMap</code>. <strong>Boundary:</strong> append root once, walk left choosing left else right while skipping leaves, DFS all leaves, then collect right boundary choosing right else left and reverse it. Test singletons and one-sided trees for duplicate handling.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-33" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">Morris traversal</span><span class="chip">threading</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 33</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Morris Inorder Traversal<span class="sb-check" data-id="learn-tree-33" onclick="toggleDone(event,'learn-tree-33')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 10 and 05–06; understand predecessor links.</div>
+    <div class="note"><strong>New idea:</strong> Temporarily thread each node’s inorder predecessor back to the node, using tree links as the return stack, then restore every thread.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) If no left child, visit and go right. 2) Otherwise find the rightmost node of the left subtree. 3) Create a thread on first encounter; remove it, visit, and go right on second encounter.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(1) auxiliary algorithmic space.</div>
+    <div class="note"><strong>Rust angle:</strong> Safe <code>Box</code> ownership makes temporary ancestor threads awkward because they violate exclusive tree topology; use an index arena for a safe implementation, or encapsulate carefully audited raw pointers.</div>
+    <div class="note"><strong>Unlocks next:</strong> Threaded trees and representation-aware constant-space algorithms.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Use an arena <code>Vec&lt;Node { left: Option&lt;usize&gt;, right: Option&lt;usize&gt; }&gt;</code> so temporary threads are copyable indices. Follow the classic first/second encounter logic and restore each modified right index to <code>None</code>. Assert inorder output and exact arena equality before/after traversal; do not force the algorithm through aliased safe <code>Box</code> references.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-34" data-tier="core">
+    <div class="ex-meta"><span class="chip">N-ary tree</span><span class="chip">Vec children</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 34</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Represent and Traverse an N-ary Tree<span class="sb-check" data-id="learn-tree-34" onclick="toggleDone(event,'learn-tree-34')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 03, 08, and 09.</div>
+    <div class="note"><strong>New idea:</strong> Replace fixed left/right fields with <code>Vec&lt;Box&lt;Node&gt;&gt;</code>; DFS loops over children and BFS enqueues them in order.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Visit the current node. 2) Iterate borrowed child boxes as nodes. 3) Test zero, one, and many children; preserve child order deliberately.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) traversal time; O(h) DFS stack or O(w) BFS queue.</div>
+    <div class="note"><strong>Rust angle:</strong> <code>Vec&lt;Box&lt;Node&gt;&gt;</code> keeps exclusive ownership and supports variable fan-out without <code>Rc</code>.</div>
+    <div class="note"><strong>Unlocks next:</strong> N-ary depth, Euler tours, adjacency-list trees, and general tree DP.</div>
+    <details><summary>Solution — reveal after attempting (variable fan-out DFS)</summary><div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    children: Vec&lt;Box&lt;Node&gt;&gt;,
+}
+
+fn preorder(node: &amp;Node, out: &amp;mut Vec&lt;i32&gt;) {
+    out.push(node.value);
+    for child in &amp;node.children {
+        preorder(child, out);
+    }
+}
+
+fn size(node: &amp;Node) -&gt; usize {
+    1 + node.children.iter().map(|child| size(child)).sum::&lt;usize&gt;()
+}
+
+fn leaf(value: i32) -&gt; Box&lt;Node&gt; {
+    Box::new(Node { value, children: vec![] })
+}
+
+fn main() {
+    let tree = Node {
+        value: 1,
+        children: vec![
+            leaf(2),
+            Box::new(Node { value: 3, children: vec![leaf(4), leaf(5)] }),
+        ],
+    };
+    let mut out = Vec::new();
+    preorder(&amp;tree, &amp;mut out);
+    assert_eq!(out, vec![1, 2, 3, 4, 5]);
+    assert_eq!(size(&amp;tree), 5);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-35" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">N-ary depth</span><span class="chip">fold</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 35</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Compute N-ary Maximum Depth<span class="sb-check" data-id="learn-tree-35" onclick="toggleDone(event,'learn-tree-35')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 13 and 34.</div>
+    <div class="note"><strong>New idea:</strong> Generalize the binary maximum to the maximum over all child depths, with an empty child list contributing zero.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) A leaf has depth one. 2) Map each child to its depth. 3) Take <code>max().unwrap_or(0)</code> and add one.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack.</div>
+    <div class="note"><strong>Rust angle:</strong> Iterator folds express aggregation cleanly, but a loop can make early exits or multiple returned states easier.</div>
+    <div class="note"><strong>Unlocks next:</strong> General fan-out DP and adjacency-list trees.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">For a present node, return <code>1 + children.iter().map(depth).max().unwrap_or(0)</code>. If the public API accepts an optional root, return zero for <code>None</code>. Assert a leaf, a wide shallow tree, and a narrow deep tree to distinguish depth from child count.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-36" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">tree DP</span><span class="chip">include / exclude</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 36</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Tree DP: Maximum Non-Adjacent Node Sum<span class="sb-check" data-id="learn-tree-36" onclick="toggleDone(event,'learn-tree-36')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 04, 11, and 31.</div>
+    <div class="note"><strong>New idea:</strong> Each subtree returns named states <code>(take, skip)</code>: taking a node forces child skips; skipping permits the better child state independently.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Empty returns (0,0). 2) <code>take = value + left.skip + right.skip</code>. 3) <code>skip = max(left) + max(right)</code>; answer is the root-state maximum.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack.</div>
+    <div class="note"><strong>Rust angle:</strong> Use a named struct rather than an unexplained tuple in production so state meaning cannot be accidentally swapped.</div>
+    <div class="note"><strong>Unlocks next:</strong> Multi-state coverage DP and independent-set variants on trees.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Define <code>struct State { take: i64, skip: i64 }</code>. Postorder both children, compute take from child skips and skip from each child’s maximum, then return the state. Test a case where taking the root is best and another where taking grandchildren beats both direct children.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-37" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">tree DP</span><span class="chip">camera states</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 37</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Tree DP: Minimum Camera Cover<span class="sb-check" data-id="learn-tree-37" onclick="toggleDone(event,'learn-tree-37')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 11 and 36.</div>
+    <div class="note"><strong>New idea:</strong> Postorder returns one of three semantic states: node needs coverage, node has a camera, or node is covered without a camera.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Treat <code>None</code> as already covered. 2) If any child needs coverage, place a camera. 3) Else if any child has a camera, current is covered; otherwise current needs coverage. Add a camera if the root still needs one.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(h) stack.</div>
+    <div class="note"><strong>Rust angle:</strong> Encode states as an enum, not integers, so exhaustive matching documents and checks transitions.</div>
+    <div class="note"><strong>Unlocks next:</strong> Dominating-set style DP and explicit state-machine proofs.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Create <code>enum Cover { Needs, Camera, Covered }</code> and pass a mutable camera count. Postorder both children and apply the three transition rules in order. After processing root, increment if its state is <code>Needs</code>. Assert singleton, chain lengths 2–5, and a branching tree.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-38" data-tier="core">
+    <div class="ex-meta"><span class="chip">binary lifting</span><span class="chip">LCA queries</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 38</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Preprocess Binary Lifting for LCA<span class="sb-check" data-id="learn-tree-38" onclick="toggleDone(event,'learn-tree-38')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 25, 34–35, and indexed adjacency lists.</div>
+    <div class="note"><strong>New idea:</strong> Store <code>up[j][v]</code>, the 2^j-th ancestor. Lift the deeper node, then lift both from largest jumps down until their parents agree.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) DFS once for depth and immediate parent. 2) Fill each table row from the preceding row. 3) Lift by depth difference bits, then diverge both nodes using descending powers.</div>
+    <div class="note"><strong>Complexity:</strong> O(n log n) preprocessing, O(log n) per query, O(n log n) space.</div>
+    <div class="note"><strong>Rust angle:</strong> Index-based nodes make ancestor tables compact and avoid lifetime-heavy parent references; validate root and connectivity.</div>
+    <div class="note"><strong>Unlocks next:</strong> Kth ancestors, distance queries, Euler ancestry checks, and HLD.</div>
+    <details><summary>Solution — reveal after attempting (ancestor doubling)</summary><div style="padding:16px 0 4px;">
+<pre>struct Lca {
+    up: Vec&lt;Vec&lt;usize&gt;&gt;,
+    depth: Vec&lt;usize&gt;,
+}
+
+impl Lca {
+    fn new(graph: &amp;[Vec&lt;usize&gt;], root: usize) -&gt; Self {
+        let n = graph.len();
+        let log = (usize::BITS - n.max(1).leading_zeros()) as usize;
+        let mut up = vec![vec![root; n]; log.max(1)];
+        let mut depth = vec![0; n];
+        let mut stack = vec![(root, root)];
+        while let Some((v, parent)) = stack.pop() {
+            up[0][v] = parent;
+            for &amp;to in &amp;graph[v] {
+                if to != parent {
+                    depth[to] = depth[v] + 1;
+                    stack.push((to, v));
+                }
+            }
+        }
+        for j in 1..up.len() {
+            for v in 0..n { up[j][v] = up[j - 1][up[j - 1][v]]; }
+        }
+        Self { up, depth }
+    }
+
+    fn lca(&amp;self, mut a: usize, mut b: usize) -&gt; usize {
+        if self.depth[a] &lt; self.depth[b] { std::mem::swap(&amp;mut a, &amp;mut b); }
+        let diff = self.depth[a] - self.depth[b];
+        for j in 0..self.up.len() {
+            if diff &amp; (1 &lt;&lt; j) != 0 { a = self.up[j][a]; }
+        }
+        if a == b { return a; }
+        for j in (0..self.up.len()).rev() {
+            if self.up[j][a] != self.up[j][b] {
+                a = self.up[j][a];
+                b = self.up[j][b];
+            }
+        }
+        self.up[0][a]
+    }
+}
+
+fn main() {
+    let graph = vec![vec![1, 2], vec![0, 3, 4], vec![0], vec![1], vec![1]];
+    let lca = Lca::new(&amp;graph, 0);
+    assert_eq!(lca.lca(3, 4), 1);
+    assert_eq!(lca.lca(2, 4), 0);
+    assert_eq!(lca.lca(1, 4), 1);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-39" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">Euler tour</span><span class="chip">tin / tout</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 39</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Flatten Subtrees with an Euler Tour<span class="sb-check" data-id="learn-tree-39" onclick="toggleDone(event,'learn-tree-39')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 09, 34, and indexed adjacency trees.</div>
+    <div class="note"><strong>New idea:</strong> Assign entry time before visiting children and exit time after; every rooted subtree becomes one contiguous half-open interval <code>[tin[v], tout[v])</code>.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Maintain one timer. 2) Set <code>tin[v]</code>, append v, increment, then recurse into children except parent. 3) Set <code>tout[v]</code> after all children; ancestry is interval containment.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) preprocessing and O(1) subtree/ancestry interval lookup, before a range data structure is applied.</div>
+    <div class="note"><strong>Rust angle:</strong> Preallocate <code>tin</code>, <code>tout</code>, and order vectors; pass parent index to avoid a visited set on a tree.</div>
+    <div class="note"><strong>Unlocks next:</strong> Subtree sums via Fenwick/segment trees and HLD ordering.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">DFS <code>(v,parent)</code>. Set <code>tin[v]=order.len()</code>, push v, visit every neighbor except parent, then set <code>tout[v]=order.len()</code>. Values of v’s subtree occupy <code>values_by_euler[tin[v]..tout[v]]</code>. Assert interval length equals recursively counted subtree size and that unrelated branches do not overlap.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-40" data-tier="core">
+    <div class="ex-meta"><span class="chip">Fenwick tree</span><span class="chip">prefix sum</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 40</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Fenwick Tree: Point Update and Prefix Sum<span class="sb-check" data-id="learn-tree-40" onclick="toggleDone(event,'learn-tree-40')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 39’s flattening motivation, binary representation, and prefix sums.</div>
+    <div class="note"><strong>New idea:</strong> One-indexed entry i stores a block ending at i whose length is its least significant set bit.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Convert zero-based index to i+1. 2) Update climbs with <code>i += i &amp; -i</code>. 3) Prefix query descends with <code>i -= i &amp; -i</code>; compute range sums by prefix difference.</div>
+    <div class="note"><strong>Complexity:</strong> O(log n) update/query and O(n) storage.</div>
+    <div class="note"><strong>Rust angle:</strong> For unsigned indices use <code>i &amp; i.wrapping_neg()</code>; hide one-based arithmetic behind a safe zero-based API.</div>
+    <div class="note"><strong>Unlocks next:</strong> Euler-tour subtree sums and range-update Fenwick tricks.</div>
+    <details><summary>Solution — reveal after attempting (least-significant-bit blocks)</summary><div style="padding:16px 0 4px;">
+<pre>struct Fenwick {
+    bit: Vec&lt;i64&gt;,
+}
+
+impl Fenwick {
+    fn new(n: usize) -&gt; Self { Self { bit: vec![0; n + 1] } }
+
+    fn add(&amp;mut self, index: usize, delta: i64) {
+        let mut i = index + 1;
+        while i &lt; self.bit.len() {
+            self.bit[i] += delta;
+            i += i &amp; i.wrapping_neg();
+        }
+    }
+
+    fn prefix(&amp;self, end: usize) -&gt; i64 {
+        let mut i = end;
+        let mut sum = 0;
+        while i &gt; 0 {
+            sum += self.bit[i];
+            i -= i &amp; i.wrapping_neg();
+        }
+        sum
+    }
+
+    fn range(&amp;self, left: usize, right: usize) -&gt; i64 {
+        self.prefix(right) - self.prefix(left)
+    }
+}
+
+fn main() {
+    let mut bit = Fenwick::new(5);
+    for (i, value) in [2, 1, 4, 3, 5].into_iter().enumerate() { bit.add(i, value); }
+    assert_eq!(bit.prefix(3), 7);
+    assert_eq!(bit.range(1, 4), 8);
+    bit.add(2, 6);
+    assert_eq!(bit.range(2, 5), 18);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-41" data-tier="core">
+    <div class="ex-meta"><span class="chip">segment tree</span><span class="chip">range query</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 41</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Build a Segment Tree with Point Updates<span class="sb-check" data-id="learn-tree-41" onclick="toggleDone(event,'learn-tree-41')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 04 and 40; half-open range notation.</div>
+    <div class="note"><strong>New idea:</strong> Leaves store elements and internal nodes combine adjacent segments; iterative storage puts leaves at offset n and parents above them.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Place input at indices n..2n. 2) Build parents downward. 3) For <code>[l,r)</code>, consume odd left and odd right boundaries while moving both upward.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) build, O(log n) point update/range query, O(n) space.</div>
+    <div class="note"><strong>Rust angle:</strong> A half-open API matches Rust ranges and avoids inclusive-boundary overflow.</div>
+    <div class="note"><strong>Unlocks next:</strong> Lazy propagation, Euler-tour ranges, and HLD path aggregates.</div>
+    <details><summary>Solution — reveal after attempting (iterative range-sum tree)</summary><div style="padding:16px 0 4px;">
+<pre>struct SegTree {
+    n: usize,
+    tree: Vec&lt;i64&gt;,
+}
+
+impl SegTree {
+    fn from(values: &amp;[i64]) -&gt; Self {
+        let n = values.len();
+        let mut tree = vec![0; 2 * n.max(1)];
+        if n &gt; 0 {
+            tree[n..2 * n].copy_from_slice(values);
+            for i in (1..n).rev() { tree[i] = tree[2 * i] + tree[2 * i + 1]; }
+        }
+        Self { n, tree }
+    }
+
+    fn set(&amp;mut self, index: usize, value: i64) {
+        let mut i = index + self.n;
+        self.tree[i] = value;
+        while i &gt; 1 {
+            i /= 2;
+            self.tree[i] = self.tree[2 * i] + self.tree[2 * i + 1];
+        }
+    }
+
+    fn query(&amp;self, mut left: usize, mut right: usize) -&gt; i64 {
+        left += self.n;
+        right += self.n;
+        let mut sum = 0;
+        while left &lt; right {
+            if left % 2 == 1 { sum += self.tree[left]; left += 1; }
+            if right % 2 == 1 { right -= 1; sum += self.tree[right]; }
+            left /= 2;
+            right /= 2;
+        }
+        sum
+    }
+}
+
+fn main() {
+    let mut seg = SegTree::from(&amp;[2, 1, 4, 3, 5]);
+    assert_eq!(seg.query(1, 4), 8);
+    assert_eq!(seg.query(0, 5), 15);
+    seg.set(2, 10);
+    assert_eq!(seg.query(1, 4), 14);
+    assert_eq!(SegTree::from(&amp;[]).query(0, 0), 0);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-42" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">range update</span><span class="chip">lazy tag</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 42</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Derive Lazy Range Updates<span class="sb-check" data-id="learn-tree-42" onclick="toggleDone(event,'learn-tree-42')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 41 and interval overlap cases.</div>
+    <div class="note"><strong>New idea:</strong> A fully covered segment can record an update tag without descending; its aggregate changes by delta times segment length.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Split overlap into none/full/partial. 2) On full coverage, update sum and accumulate a lazy tag. 3) Before partial descent, push the parent tag into both children, then recompute the parent.</div>
+    <div class="note"><strong>Complexity:</strong> O(log n) amortized range update and range sum query, O(n) space.</div>
+    <div class="note"><strong>Rust angle:</strong> Store tree and lazy arrays in one struct; helper methods with node indices avoid simultaneous mutable borrows of parent and children.</div>
+    <div class="note"><strong>Unlocks next:</strong> Learning 47’s complete implementation and richer assignment/affine tags.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Write recursive <code>add(node, seg_l, seg_r, q_l, q_r, delta)</code>. No overlap returns. Full overlap adds <code>delta * segment_len</code> to the sum and delta to the tag. Partial overlap first pushes the tag, recurses into children, then sums child aggregates. Query uses the same overlap split and push step. Test nested and overlapping updates before writing the full card.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-43" data-tier="core">
+    <div class="ex-meta"><span class="chip">binary heap</span><span class="chip">implicit tree</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 43</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Implement a Binary Min-Heap<span class="sb-check" data-id="learn-tree-43" onclick="toggleDone(event,'learn-tree-43')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 12 and 18; complete-tree array indexing.</div>
+    <div class="note"><strong>New idea:</strong> A complete binary tree needs no pointers: parent is <code>(i-1)/2</code>, children are <code>2i+1</code> and <code>2i+2</code>; restore heap order by sifting.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Push at the end and sift up. 2) Pop by swapping root with last. 3) Sift the replacement down toward the smaller child until the invariant holds.</div>
+    <div class="note"><strong>Complexity:</strong> O(log n) push/pop, O(1) peek, O(n) storage.</div>
+    <div class="note"><strong>Rust angle:</strong> A <code>Vec&lt;T&gt;</code> owns contiguous elements; production Rust provides <code>BinaryHeap</code> as a max-heap and <code>Reverse</code> for minimum behavior.</div>
+    <div class="note"><strong>Unlocks next:</strong> Priority queues, heapify, top-k processing, and randomized treap priorities.</div>
+    <details><summary>Solution — reveal after attempting (sift up and down)</summary><div style="padding:16px 0 4px;">
+<pre>#[derive(Default)]
+struct MinHeap {
+    data: Vec&lt;i32&gt;,
+}
+
+impl MinHeap {
+    fn push(&amp;mut self, value: i32) {
+        self.data.push(value);
+        let mut i = self.data.len() - 1;
+        while i &gt; 0 {
+            let parent = (i - 1) / 2;
+            if self.data[parent] &lt;= self.data[i] { break; }
+            self.data.swap(parent, i);
+            i = parent;
+        }
+    }
+
+    fn pop(&amp;mut self) -&gt; Option&lt;i32&gt; {
+        let last = self.data.pop()?;
+        if self.data.is_empty() { return Some(last); }
+        let result = std::mem::replace(&amp;mut self.data[0], last);
+        let mut i = 0;
+        loop {
+            let left = 2 * i + 1;
+            if left &gt;= self.data.len() { break; }
+            let right = left + 1;
+            let child = if right &lt; self.data.len() &amp;&amp; self.data[right] &lt; self.data[left] {
+                right
+            } else { left };
+            if self.data[i] &lt;= self.data[child] { break; }
+            self.data.swap(i, child);
+            i = child;
+        }
+        Some(result)
+    }
+}
+
+fn main() {
+    let mut heap = MinHeap::default();
+    for value in [5, 1, 4, 1, 3] { heap.push(value); }
+    let mut out = Vec::new();
+    while let Some(value) = heap.pop() { out.push(value); }
+    assert_eq!(out, vec![1, 1, 3, 4, 5]);
+    assert_eq!(heap.pop(), None);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-44" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">merge BSTs</span><span class="chip">dual inorder</span><span class="chip chip-hard">Hard</span><span class="chip">Learning 44</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Merge Two BSTs into Sorted Output<span class="sb-check" data-id="learn-tree-44" onclick="toggleDone(event,'learn-tree-44')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 10, 19, and ordinary sorted merge.</div>
+    <div class="note"><strong>New idea:</strong> Each BST is a lazy sorted stream produced by an inorder stack; compare the two next candidates as in merge sort.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Maintain one stack and cursor per tree. 2) Push each cursor’s left spine. 3) Pop the smaller stack top, emit it, and continue from that node’s right child; drain the remaining stream.</div>
+    <div class="note"><strong>Complexity:</strong> O(n+m) time, O(h1+h2) stack space, plus output.</div>
+    <div class="note"><strong>Rust angle:</strong> Stacks of borrowed nodes provide streaming traversal without flattening both trees first; rebuilding a balanced BST is a separate O(n+m) step.</div>
+    <div class="note"><strong>Unlocks next:</strong> Iterator-based tree APIs and balanced rebuilds.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Create a small inorder iterator state containing <code>cursor: Option&lt;&amp;Node&gt;</code> and <code>stack: Vec&lt;&amp;Node&gt;</code>, with <code>peek</code>/<code>next</code> that push left spines lazily. Compare both peeks, advance the smaller (choose a stable duplicate policy), and emit until both are exhausted. Assert against sorting the concatenated inorder vectors.</div></details>
+  </div>
+</div>
+
+<!-- ════════════ MASTERY ════════════ -->
+<div class="section" id="learn-tree-stage-mastery">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Trees · Mastery</div>
+      <div class="sh-title">Mastery — Balanced, Persistent, and Path-Aware Trees</div>
+    </div>
+  </div>
+  <div class="note"><strong>Read before:</strong> Skiena 3e Chapter 3, “Data Structures,” Chapter 10, “Dynamic Programming,” and Chapter 15, “Data Structures” catalog; review BST invariants, lazy propagation, binary lifting, and Euler flattening.</div>
+  <div class="note"><strong>Review after:</strong> Revisit Skiena 3e Chapters 3, 10, and 15 at chapter level and explain which invariant—ordering, balance, versioning, segment aggregation, or path decomposition—each structure adds.</div>
+  <div class="note"><strong>Further reading:</strong> CP-Algorithms on <a href="https://cp-algorithms.com/data_structures/segment_tree.html">lazy/persistent segment trees</a>, <a href="https://cp-algorithms.com/graph/hld.html">heavy-light decomposition</a>, and <a href="https://cp-algorithms.com/data_structures/treap.html">treaps</a>; official Rust <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a> docs for structural sharing.</div>
+
+  <div class="card" id="learn-tree-45" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">AVL</span><span class="chip">red-black</span><span class="chip">rotations</span><span class="chip chip-hard">Mastery</span><span class="chip">Learning 45</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Self-Balancing BST Invariants<span class="sb-check" data-id="learn-tree-45" onclick="toggleDone(event,'learn-tree-45')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 20–22 and 30.</div>
+    <div class="note"><strong>New idea:</strong> AVL trees constrain height differences; red-black trees constrain colored paths. Local rotations preserve inorder key order while changing height.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Draw a right rotation and verify inorder order before/after. 2) Identify LL, RR, LR, and RL AVL cases. 3) Recompute metadata bottom-up after rotation; separate BST order from balance restoration.</div>
+    <div class="note"><strong>Complexity:</strong> Search/insert/delete are O(log n) when balance invariants hold; rotations are O(1).</div>
+    <div class="note"><strong>Rust angle:</strong> Rotation helpers should consume and return owned subtree roots, using <code>take()</code> to make ownership transitions explicit.</div>
+    <div class="note"><strong>Unlocks next:</strong> Production ordered maps, treap rotations/splits, and persistent balanced updates.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Implement one owned <code>rotate_right(mut y: Box&lt;Node&gt;) -&gt; Box&lt;Node&gt;</code>: take y.left as x, move x.right into y.left, attach y as x.right, recompute y then x metadata, and return x. Mirror for left rotation. Assert identical inorder keys and corrected heights; then sketch how AVL chooses single versus double rotation from balance factors.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-46" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">persistent tree</span><span class="chip">path copying</span><span class="chip chip-hard">Mastery</span><span class="chip">Learning 46</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Persistent BST Updates by Structural Sharing<span class="sb-check" data-id="learn-tree-46" onclick="toggleDone(event,'learn-tree-46')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 05, 20, and 45.</div>
+    <div class="note"><strong>New idea:</strong> An immutable update allocates only nodes on the search path and reuses untouched subtrees through <code>Rc</code>, preserving every prior root as a version.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Make node fields immutable <code>Option&lt;Rc&lt;Node&gt;&gt;</code>. 2) At each comparison, recursively replace one child and clone the untouched handle. 3) Return a new root and assert old/new versions differ only along the path.</div>
+    <div class="note"><strong>Complexity:</strong> O(h) update time and O(h) new nodes per version; queries remain O(h).</div>
+    <div class="note"><strong>Rust angle:</strong> <code>Rc</code> is sufficient because shared nodes are immutable; <code>RefCell</code> would weaken the versioning guarantee.</div>
+    <div class="note"><strong>Unlocks next:</strong> Persistent segment trees, undo/history, and functional data structures.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">Define immutable <code>Node { key, left: Link, right: Link }</code> where <code>Link = Option&lt;Rc&lt;Node&gt;&gt;</code>. Insert returns a fresh <code>Rc&lt;Node&gt;</code> on the searched path, recursively replacing one child and cloning the other; duplicate insertion returns the existing root by clone. Assert old version lacks the key, new version has it, and an untouched subtree passes <code>Rc::ptr_eq</code>.</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-47" data-tier="core">
+    <div class="ex-meta"><span class="chip">lazy propagation</span><span class="chip">range add / sum</span><span class="chip chip-hard">Mastery</span><span class="chip">Learning 47</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Segment Tree with Lazy Propagation<span class="sb-check" data-id="learn-tree-47" onclick="toggleDone(event,'learn-tree-47')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 41–42 and half-open interval overlap.</div>
+    <div class="note"><strong>New idea:</strong> Delay uniform range additions at covered internal nodes and push them only when a later partial operation needs child detail.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Centralize <code>apply</code> to update sum and tag. 2) Centralize <code>push</code> before partial recursion. 3) Handle none/full/partial overlap identically in update and query.</div>
+    <div class="note"><strong>Complexity:</strong> O(log n) range add/query and O(n) storage.</div>
+    <div class="note"><strong>Rust angle:</strong> Parallel index arrays avoid recursive node borrows; i64 segment-length multiplication prevents common overflow.</div>
+    <div class="note"><strong>Unlocks next:</strong> Assignment/affine lazy tags and dynamic/persistent segment trees.</div>
+    <details><summary>Solution — reveal after attempting (range add and range sum)</summary><div style="padding:16px 0 4px;">
+<pre>struct LazySeg {
+    n: usize,
+    sum: Vec&lt;i64&gt;,
+    lazy: Vec&lt;i64&gt;,
+}
+
+impl LazySeg {
+    fn new(values: &amp;[i64]) -&gt; Self {
+        let n = values.len();
+        let mut seg = Self { n, sum: vec![0; 4 * n.max(1)], lazy: vec![0; 4 * n.max(1)] };
+        if n &gt; 0 { seg.build(1, 0, n, values); }
+        seg
+    }
+    fn build(&amp;mut self, p: usize, l: usize, r: usize, a: &amp;[i64]) {
+        if r - l == 1 { self.sum[p] = a[l]; return; }
+        let m = (l + r) / 2;
+        self.build(2 * p, l, m, a);
+        self.build(2 * p + 1, m, r, a);
+        self.sum[p] = self.sum[2 * p] + self.sum[2 * p + 1];
+    }
+    fn apply(&amp;mut self, p: usize, l: usize, r: usize, delta: i64) {
+        self.sum[p] += delta * (r - l) as i64;
+        self.lazy[p] += delta;
+    }
+    fn push(&amp;mut self, p: usize, l: usize, r: usize) {
+        if self.lazy[p] == 0 || r - l == 1 { return; }
+        let m = (l + r) / 2;
+        let delta = std::mem::take(&amp;mut self.lazy[p]);
+        self.apply(2 * p, l, m, delta);
+        self.apply(2 * p + 1, m, r, delta);
+    }
+    fn add_rec(&amp;mut self, p: usize, l: usize, r: usize, ql: usize, qr: usize, d: i64) {
+        if qr &lt;= l || r &lt;= ql { return; }
+        if ql &lt;= l &amp;&amp; r &lt;= qr { self.apply(p, l, r, d); return; }
+        self.push(p, l, r);
+        let m = (l + r) / 2;
+        self.add_rec(2 * p, l, m, ql, qr, d);
+        self.add_rec(2 * p + 1, m, r, ql, qr, d);
+        self.sum[p] = self.sum[2 * p] + self.sum[2 * p + 1];
+    }
+    fn query_rec(&amp;mut self, p: usize, l: usize, r: usize, ql: usize, qr: usize) -&gt; i64 {
+        if qr &lt;= l || r &lt;= ql { return 0; }
+        if ql &lt;= l &amp;&amp; r &lt;= qr { return self.sum[p]; }
+        self.push(p, l, r);
+        let m = (l + r) / 2;
+        self.query_rec(2 * p, l, m, ql, qr)
+            + self.query_rec(2 * p + 1, m, r, ql, qr)
+    }
+    fn add(&amp;mut self, l: usize, r: usize, d: i64) {
+        if self.n &gt; 0 { self.add_rec(1, 0, self.n, l, r, d); }
+    }
+    fn query(&amp;mut self, l: usize, r: usize) -&gt; i64 {
+        if self.n == 0 { 0 } else { self.query_rec(1, 0, self.n, l, r) }
+    }
+}
+
+fn main() {
+    let mut seg = LazySeg::new(&amp;[1, 2, 3, 4, 5]);
+    seg.add(1, 4, 10);
+    assert_eq!(seg.query(0, 5), 45);
+    assert_eq!(seg.query(1, 3), 25);
+    seg.add(2, 5, -2);
+    assert_eq!(seg.query(2, 5), 26);
+    assert_eq!(LazySeg::new(&amp;[]).query(0, 0), 0);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-48" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">Fenwick range update</span><span class="chip">difference array</span><span class="chip chip-hard">Mastery</span><span class="chip">Learning 48</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Fenwick Range-Update Transformations<span class="sb-check" data-id="learn-tree-48" onclick="toggleDone(event,'learn-tree-48')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 40 and difference arrays.</div>
+    <div class="note"><strong>New idea:</strong> Range add becomes two point updates on a difference array; one BIT supports point query, while two BITs reconstruct prefix sums after range additions.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) For add d on <code>[l,r)</code>, add d at l and -d at r in the difference BIT. 2) A point value is the difference prefix. 3) For range-sum queries derive <code>prefix(x)=x*sum(B1,x)-sum(B2,x)</code> with consistent one-based boundaries.</div>
+    <div class="note"><strong>Complexity:</strong> O(log n) update/query and O(n) storage.</div>
+    <div class="note"><strong>Rust angle:</strong> Wrap both BITs and document whether methods use zero-based half-open ranges; boundary inconsistency is more dangerous than the algebra.</div>
+    <div class="note"><strong>Unlocks next:</strong> Subtree range updates on Euler order and choosing Fenwick versus lazy segment trees.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">First implement range-add/point-query using one Fenwick over differences: update l by d and r by -d when r&lt;n; query index i as prefix through i. Then derive the two-BIT formula separately, test every prefix against a naively updated array after overlapping positive/negative updates, and obtain <code>[l,r)</code> sum by prefix(r)-prefix(l).</div></details>
+  </div>
+
+  <div class="card" id="learn-tree-49" data-tier="core">
+    <div class="ex-meta"><span class="chip">heavy-light decomposition</span><span class="chip">path query</span><span class="chip chip-hard">Mastery</span><span class="chip">Learning 49</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Heavy-Light Decomposition for Path Sums<span class="sb-check" data-id="learn-tree-49" onclick="toggleDone(event,'learn-tree-49')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 38–41 and indexed rooted trees.</div>
+    <div class="note"><strong>New idea:</strong> Mark each node’s largest-child edge heavy, lay heavy chains contiguously, then split any path into O(log n) chain intervals queried by a Fenwick or segment tree.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) DFS for parent, depth, subtree size, and heavy child. 2) Decompose heavy child first, assigning head and position. 3) While path heads differ, query the deeper head segment and jump to its parent; finish inside one chain.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) decomposition, O(log² n) path sum with a Fenwick/segment tree, O(log n) point update.</div>
+    <div class="note"><strong>Rust angle:</strong> Parallel vectors and node indices make the two DFS passes and range backend straightforward; iterative conversion may be needed for unbounded depth.</div>
+    <div class="note"><strong>Unlocks next:</strong> Dynamic path aggregates, edge queries, and competitive-programming tree query toolkits.</div>
+    <details><summary>Solution — reveal after attempting (chain decomposition plus Fenwick)</summary><div style="padding:16px 0 4px;">
+<pre>struct Hld {
+    parent: Vec&lt;usize&gt;, depth: Vec&lt;usize&gt;, head: Vec&lt;usize&gt;, pos: Vec&lt;usize&gt;,
+    bit: Vec&lt;i64&gt;,
+}
+
+impl Hld {
+    fn new(graph: &amp;[Vec&lt;usize&gt;], values: &amp;[i64], root: usize) -&gt; Self {
+        fn sizes(v: usize, p: usize, g: &amp;[Vec&lt;usize&gt;], parent: &amp;mut [usize],
+                 depth: &amp;mut [usize], size: &amp;mut [usize], heavy: &amp;mut [usize]) {
+            parent[v] = p; size[v] = 1;
+            let mut best = 0;
+            for &amp;to in &amp;g[v] {
+                if to == p { continue; }
+                depth[to] = depth[v] + 1;
+                sizes(to, v, g, parent, depth, size, heavy);
+                size[v] += size[to];
+                if size[to] &gt; best { best = size[to]; heavy[v] = to; }
+            }
+        }
+        fn decompose(v: usize, p: usize, chain: usize, g: &amp;[Vec&lt;usize&gt;], heavy: &amp;[usize],
+                     head: &amp;mut [usize], pos: &amp;mut [usize], timer: &amp;mut usize) {
+            head[v] = chain; pos[v] = *timer; *timer += 1;
+            if heavy[v] != usize::MAX {
+                decompose(heavy[v], v, chain, g, heavy, head, pos, timer);
+            }
+            for &amp;to in &amp;g[v] {
+                if to != p &amp;&amp; to != heavy[v] {
+                    decompose(to, v, to, g, heavy, head, pos, timer);
+                }
+            }
+        }
+        let n = graph.len();
+        let mut parent = vec![root; n]; let mut depth = vec![0; n];
+        let mut size = vec![0; n]; let mut heavy = vec![usize::MAX; n];
+        sizes(root, root, graph, &amp;mut parent, &amp;mut depth, &amp;mut size, &amp;mut heavy);
+        let mut head = vec![0; n]; let mut pos = vec![0; n]; let mut timer = 0;
+        decompose(root, root, root, graph, &amp;heavy, &amp;mut head, &amp;mut pos, &amp;mut timer);
+        let mut hld = Self { parent, depth, head, pos, bit: vec![0; n + 1] };
+        for v in 0..n { hld.add(v, values[v]); }
+        hld
+    }
+    fn add(&amp;mut self, node: usize, delta: i64) {
+        let mut i = self.pos[node] + 1;
+        while i &lt; self.bit.len() { self.bit[i] += delta; i += i &amp; i.wrapping_neg(); }
+    }
+    fn prefix(&amp;self, mut i: usize) -&gt; i64 {
+        let mut sum = 0;
+        while i &gt; 0 { sum += self.bit[i]; i -= i &amp; i.wrapping_neg(); }
+        sum
+    }
+    fn segment(&amp;self, l: usize, r: usize) -&gt; i64 { self.prefix(r) - self.prefix(l) }
+    fn path_sum(&amp;self, mut a: usize, mut b: usize) -&gt; i64 {
+        let mut sum = 0;
+        while self.head[a] != self.head[b] {
+            if self.depth[self.head[a]] &lt; self.depth[self.head[b]] {
+                std::mem::swap(&amp;mut a, &amp;mut b);
+            }
+            sum += self.segment(self.pos[self.head[a]], self.pos[a] + 1);
+            a = self.parent[self.head[a]];
+        }
+        let (l, r) = if self.pos[a] &lt;= self.pos[b] { (a, b) } else { (b, a) };
+        sum + self.segment(self.pos[l], self.pos[r] + 1)
+    }
+}
+
+fn main() {
+    let graph = vec![vec![1, 2], vec![0, 3, 4], vec![0], vec![1], vec![1]];
+    let mut hld = Hld::new(&amp;graph, &amp;[1, 2, 3, 4, 5], 0);
+    assert_eq!(hld.path_sum(3, 2), 10);
+    assert_eq!(hld.path_sum(3, 4), 11);
+    hld.add(1, 10);
+    assert_eq!(hld.path_sum(3, 4), 21);
+}</pre></div></details>
+  </div>
+
+  <div class="card" id="learn-tree-50" data-tier="reinforcement">
+    <div class="ex-meta"><span class="chip">treap</span><span class="chip">Cartesian tree</span><span class="chip">split / merge</span><span class="chip chip-hard">Mastery</span><span class="chip">Learning 50</span></div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Treaps and Cartesian Trees<span class="sb-check" data-id="learn-tree-50" onclick="toggleDone(event,'learn-tree-50')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 19–22, 43, and 45–46.</div>
+    <div class="note"><strong>New idea:</strong> A treap is a BST by key and a heap by priority; randomized independent priorities give expected logarithmic height. Split and merge are the fundamental recursive primitives.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Define both invariants explicitly. 2) <code>split(root,key)</code> partitions by BST key while preserving priority. 3) <code>merge(a,b)</code> assumes every key in a is smaller than every key in b and chooses the higher-priority root; derive insert/delete from them.</div>
+    <div class="note"><strong>Complexity:</strong> Expected O(log n) split/merge/search/update, O(n) space; worst case O(n) for adversarial priorities.</div>
+    <div class="note"><strong>Rust angle:</strong> Consume and return <code>Option&lt;Box&lt;Node&gt;&gt;</code> in split/merge so disjoint ownership is encoded; inject a deterministic priority source for reproducible tests.</div>
+    <div class="note"><strong>Unlocks next:</strong> Implicit treaps, sequence editors, randomized balanced maps, and Cartesian-tree range algorithms.</div>
+    <details><summary>Solution sketch — reveal after attempting</summary><div class="note">For <code>split(root,key)</code>, if root.key&lt;key, split the owned right subtree and attach the left partition back as root.right; return (root,right_part). Otherwise symmetrically split left. For <code>merge(a,b)</code>, choose the root with better priority, recursively merge the compatible inner child, and return it. Implement insert as split around key then two merges, delete by merging the removed node’s children. Assert inorder sorting, heap-priority order, duplicate policy, and split-then-merge round trips.</div></details>
+  </div>
+</div>

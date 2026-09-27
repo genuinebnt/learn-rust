@@ -1,0 +1,36 @@
+slug = "tarjans-scc"
+title = "Tarjan's SCC"
+mode = "write"
+level = "hard"
+stage = "scc-bridges-arenas"
+order = 28
+status = "ready"
+tags = ["SCC", "lowlink", "state struct"]
+teaches = [
+  "Recursive algorithms with lots of state: a struct and a `&mut self` method.",
+  "Copying a `&'a` field out of `self` before looping over it.",
+]
+constraints = ["n ≤ 5000"]
+follow_up = "Rewrite this without recursion so a 10⁶-node path doesn't overflow the stack."
+related = ["L2"]
+
+[[examples]]
+input = "adj = [[1], [2], [0, 3], [4], [5], [3]]"
+output = "[[0, 1, 2], [3, 4, 5]]"
+
+[[hints]]
+kind = "approach"
+text = "Tarjan: number nodes in DFS order and track the lowest number reachable (`low`). A node whose `low` equals its own number roots a component; pop the stack down to it."
+
+[[hints]]
+kind = "rust"
+text = "Put the state in a struct and write `fn visit(&mut self, u)`. Six parameters threaded through a free function is the alternative."
+
+[[hints]]
+kind = "rust"
+text = "`for &v in &self.adj[u]` borrows `self` across `self.visit(v)`. `let adj = self.adj;` copies the `&[_]` out first."
+
+[solution]
+explanation = "Each node is pushed and popped once, and each edge is examined once. Only nodes still on the stack can lower `low`; the rest belong to components already emitted."
+time = "O(V + E)"
+space = "O(V)"

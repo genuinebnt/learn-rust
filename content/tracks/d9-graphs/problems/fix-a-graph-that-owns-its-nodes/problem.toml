@@ -1,0 +1,31 @@
+slug = "fix-a-graph-that-owns-its-nodes"
+title = "Fix: a graph that owns its nodes"
+mode = "fix"
+level = "medium"
+stage = "representation"
+order = 4
+status = "ready"
+tags = ["E0507", "indices"]
+teaches = [
+  "A node can't own its neighbours when neighbours point back.",
+  "Store indices; look nodes up through the graph.",
+]
+follow_up = "What goes wrong with plain indices once you allow removing nodes, and how do generational indices fix it?"
+related = ["L1", "L7"]
+
+[[hints]]
+kind = "rust"
+text = "`self.nodes[to]` tries to move a node out of the Vec. Even with `clone`, you'd get a copy that goes stale."
+
+[[hints]]
+kind = "approach"
+text = "What small, `Copy` value identifies a node and stays valid while the Vec only grows?"
+
+[solution]
+explanation = "Indices make edges cheap `Copy` handles into one owner, the `Vec<Node>`. Cycles and self-edges are just numbers, and renaming a node is visible from every edge."
+time = "O(1) per edge"
+space = "O(V + E)"
+
+[rules]
+forbid_methods = ["clone"]
+forbid_types = ["Rc", "RefCell", "Box"]

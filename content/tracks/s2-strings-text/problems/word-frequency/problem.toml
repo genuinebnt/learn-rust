@@ -1,0 +1,36 @@
+slug = "word-frequency"
+title = "Word frequency"
+mode = "write"
+level = "easy"
+stage = "use"
+order = 7
+status = "ready"
+tags = ["BufRead", "io::Result", "HashMap"]
+teaches = [
+  "Reading lines from any `BufRead`, propagating `io::Error` with `?`.",
+  "`trim_matches` with a closure to strip punctuation.",
+]
+follow_up = "How would you find the top 10 words without sorting all k of them?"
+related = ["S4", "S1"]
+source = "W22"
+
+[[examples]]
+input = "\"The cat. the DOG!\\ncat\""
+output = "[(\"cat\", 2), (\"the\", 2), (\"dog\", 1)]"
+
+[[hints]]
+kind = "rust"
+text = "`BufRead::lines()` yields `io::Result<String>`; `let line = line?;` propagates a read or UTF-8 error."
+
+[[hints]]
+kind = "rust"
+text = "`raw.trim_matches(|c: char| !c.is_alphanumeric())` strips punctuation from both ends only."
+
+[[hints]]
+kind = "rust"
+text = "Sort with `b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0))` for count-descending, then alphabetical."
+
+[solution]
+explanation = "Taking `R: BufRead` means the same code reads a file, stdin or a byte slice in tests. Memory grows with the number of distinct words, not the input size."
+time = "O(n + k log k)"
+space = "O(k)"

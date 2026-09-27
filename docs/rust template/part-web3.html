@@ -1,0 +1,805 @@
+<!-- ═══════════════════════════════════════════
+     PART: WEB3 &amp; BLOCKCHAIN BACKEND
+     Accounts · Tx Lifecycle · Indexing · DEX · Auth · Solana/EVM · Testing
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="web3-header">
+  <div class="ph-eyebrow">Web3 · Blockchain Backend Primer</div>
+  <div class="ph-title">Web3 &amp; Blockchain Backend — Rust Interview Primer</div>
+  <div class="ph-sub">
+    Interview-ready vocabulary for Rust engineers building chain-adjacent backends: keys and signatures,
+    transactions and fees, JSON-RPC/node clients, mempools, indexing pipelines, DEX mechanics, finality,
+    wallet auth (SIWE), MEV awareness, EVM vs Solana mental models, and localnet testing.
+    Primer depth — concepts plus Rust crate angles (<code>alloy</code>, <code>revm</code>, <code>solana_sdk</code>,
+    serde JSON-RPC), not full chain or protocol research implementations.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-time">12 topics</span>
+    <span class="badge badge-time">~48 Q&amp;A</span>
+    <span class="badge badge-time">Senior / Staff calibration</span>
+  </div>
+</div>
+
+<!-- ════════════ W3-1 · ACCOUNTS, KEYS, SIGNATURES ════════════ -->
+<div class="section" id="w3-1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 01</div>
+      <div class="sh-title">Accounts, Keys &amp; Signatures</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is an account on EVM vs Solana at a backend level, and what identifiers do APIs actually expose?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        On <strong>EVM</strong>, an externally owned account (EOA) is identified by a 20-byte address derived from a secp256k1 public key
+        (Keccak-256 of the uncompressed pubkey, last 20 bytes). Contract accounts share the same address space but hold code and storage.
+        On <strong>Solana</strong>, an account is a keyed data blob owned by a program; the &quot;wallet&quot; address is typically an ed25519
+        pubkey (32 bytes, base58-encoded). Backends expose checksummed hex (<code>0x…</code> / EIP-55) for EVM and base58 pubkeys for Solana —
+        never raw private keys. Strong interview answers separate <em>identity</em> (who can sign) from <em>state location</em>
+        (where balances/NFTs live): EVM balances live on the account; Solana balances often live in associated token accounts (ATAs)
+        that your indexer must resolve. Rust: <code>alloy_primitives::Address</code>, <code>solana_sdk::pubkey::Pubkey</code>,
+        and typed newtypes at API boundaries so you never mix chains.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Contrast ECDSA (secp256k1) and ed25519 for signing. What must a Rust backend verify, and what must it never store?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>ECDSA/secp256k1</strong> (Ethereum, Bitcoin-flavoured): signatures are <code>(r, s, v)</code> or compact 65-byte forms;
+        recovery lets you derive the signer address from message hash + signature (used heavily for off-chain auth and mempool gossip).
+        <strong>ed25519</strong> (Solana, many Cosmos chains): deterministic, faster verify, no public-key recovery from signature alone —
+        you need the claimed pubkey and check <code>verify(pubkey, msg, sig)</code>. Interview must-say: backends verify signatures over a
+        <em>canonical message</em> (EIP-191 / EIP-712 typed data, or Solana message bytes), check domain separators / chain id / expiry,
+        and reject malleable or replayable payloads. <strong>Never store raw private keys</strong> in app DBs, logs, or env dumps —
+        use HSM/KMS, MPC, or keep signing in the wallet/client; server-side hot keys (relayers, custodial flows) go in KMS with audit
+        and least privilege. Rust crates: <code>k256</code>/<code>alloy-signer</code> for secp256k1, <code>ed25519-dalek</code> /
+        <code>solana_sdk::signature</code> for ed25519; prefer <code>zeroize</code> on any ephemeral secret material.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain EIP-191 vs EIP-712. When would you require typed data for an API auth or permit flow?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>EIP-191</strong> personal_sign prefixes <code>&quot;\x19Ethereum Signed Message:\n&quot; + len + message</code> so signatures
+        cannot be reused as raw transaction hashes — fine for simple &quot;prove you control this address&quot; challenges.
+        <strong>EIP-712</strong> structured typed data hashes a domain separator (name, version, chainId, verifyingContract) plus
+        a typed struct — wallets show human-readable fields, and signatures are bound to a specific app/chain/contract.
+        Use EIP-712 (or equivalent) for gasless permits, off-chain order books, and any authorization that could move value or grant
+        allowances; use EIP-191 only for low-risk session challenges if you still bind nonce + expiry + audience yourself.
+        Rust: build digests with <code>alloy</code> sol types / <code>eip712</code> helpers; never hand-roll hashing without tests against
+        known vectors — one wrong ABI encode and every signature verifies against the wrong thing.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How do HD wallets (BIP-32/39/44) and account abstraction change what your backend assumes about &quot;the user&quot;?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        HD wallets derive many addresses from one seed via paths (<code>m/44'/60'/0'/0/n</code> for ETH). Users may rotate addresses;
+        your product identity should not assume one address forever — link addresses via verified signatures or a custody provider mapping.
+        <strong>Account abstraction</strong> (ERC-4337, EIP-7702, native AA on some L2s) means the &quot;signer&quot; may be a smart contract
+        validating custom logic (multisig, passkeys, session keys). Backends must: (1) resolve whether an address is EOA or contract,
+        (2) accept UserOperations / sponsored txs where gas payer ≠ user, (3) not equate <code>tx.from</code> with economic actor without
+        reading the AA flow. Rust services usually treat addresses as opaque verified identities after signature/SIWE, store
+        <code>user_id ↔ address[]</code> with verification timestamps, and keep derivation/seed material entirely out of the service.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-2 · TRANSACTIONS, NONCES, GAS ════════════ -->
+<div class="section" id="w3-2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 02</div>
+      <div class="sh-title">Transactions, Nonces &amp; Gas / Fees</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What fields define an EVM transaction a backend must reason about? Contrast legacy, EIP-1559, and EIP-4844 fees at a mental-model level.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Core fields: <code>nonce</code>, <code>to</code>/<code>data</code>/<code>value</code>, gas limit, chain id, and signature.
+        Fee market evolution: <strong>legacy</strong> single <code>gasPrice</code>; <strong>EIP-1559</strong> splits
+        <code>maxFeePerGas</code> and <code>maxPriorityFeePerGas</code> against a protocol <code>baseFee</code> that burns —
+        users bid tip for inclusion, base fee is algorithmic. <strong>EIP-4844 blobs</strong> add a separate data-availability
+        fee market for L2 batch posting (blob gas) — app backends rarely set blob fields unless they operate a rollup poster.
+        Interview framing: gas <em>limit</em> is computational budget; gas <em>price/fee</em> is market bid; effective cost ≈
+        <code>gasUsed × effectiveGasPrice</code>. Rust: model with <code>alloy::consensus</code> tx types / <code>TransactionRequest</code>;
+        never assume <code>gasPrice</code> exists on all txs when decoding receipts.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain the EVM nonce. How do stuck transactions and replacement work, and what bugs do APIs cause around nonces?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The account nonce is a strictly increasing counter of transactions from an EOA; the next executable tx must use
+        <code>pendingNonce</code> (or create a gap that parks later txs). A <strong>stuck</strong> tx has too-low fees;
+        later nonces wait. <strong>Replacement</strong>: resubmit same nonce with higher fees (nodes typically require a
+        minimum bump, e.g. +10%). Common API bugs: (1) reading only <code>latest</code> nonce while another process has
+        pending txs; (2) parallel workers both claiming the same nonce; (3) treating &quot;submitted&quot; as &quot;confirmed&quot;;
+        (4) not tracking local nonce state when you operate a hot wallet. Relayers need a nonce manager (DB lease +
+        pending set + replacement policy). Solana uses recent blockhashes / durable nonces instead of per-account
+        sequential nonces — different concurrency model. Rust: serialize signing per key with a lease in Postgres/Redis;
+        use <code>alloy</code> provider <code>get_transaction_count</code> with <code>BlockNumberOrTag::Pending</code> carefully.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How should a Rust backend estimate gas and fees for user-facing &quot;submit tx&quot; or meta-tx flows?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Estimate <strong>gas limit</strong> via <code>eth_estimateGas</code> (or simulate with <code>revm</code> / <code>alloy</code>
+        call) then add a safety buffer (10–30%) for state drift; never hardcode gas for complex contracts.
+        Estimate <strong>fees</strong> from <code>eth_feeHistory</code> / oracle percentiles for tip and max fee, capped by policy.
+        Surface both &quot;likely cost&quot; and &quot;max authorization&quot; to users. For sponsored txs, the backend pays and must
+        budget, rate-limit, and simulate for reverts before broadcasting. Fail closed on estimation reverts — they usually
+        mean the tx would fail on-chain. Cache fee suggestions briefly; do not cache gas estimates across materially
+        different calldata or block state. Strong candidates mention simulation at the pending state and handling
+        &quot;out of gas&quot; vs application revert distinctly in UX and metrics.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Solana fees and compute units — what is the analogue of gas, and how do backends set priorities?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Solana charges a base fee per signature and optional <strong>priority fees</strong> (price × compute units requested).
+        Programs consume <strong>compute units (CU)</strong>; exceeding the budget fails the tx. Backends estimate CU
+        (simulation via <code>simulateTransaction</code>), set <code>ComputeBudgetInstruction</code> limits and price,
+        and refresh a recent blockhash before send. Unlike EVM nonces, many Solana txs can be prepared concurrently as long
+        as accounts and blockhash rules allow — but account locks and write conflicts still serialize execution.
+        Rust: <code>solana_sdk::compute_budget</code>, <code>RpcClient::simulate_transaction</code>; treat blockhash expiry
+        (~60–90s) as a first-class retry reason in your submitter.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-3 · JSON-RPC / NODE APIS ════════════ -->
+<div class="section" id="w3-3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 03</div>
+      <div class="sh-title">JSON-RPC, HTTP + WebSocket Node APIs</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is Ethereum JSON-RPC? Which methods does a typical Rust backend actually use day-to-day?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        JSON-RPC 2.0 over HTTP (request/response) and WebSocket (plus subscriptions). Common methods:
+        <code>eth_chainId</code>, <code>eth_blockNumber</code>, <code>eth_getBlockByNumber</code>,
+        <code>eth_getTransactionReceipt</code>, <code>eth_call</code>, <code>eth_estimateGas</code>,
+        <code>eth_sendRawTransaction</code>, <code>eth_getLogs</code>, <code>eth_getBalance</code>/<code>eth_getCode</code>,
+        and fee helpers (<code>eth_feeHistory</code>, <code>eth_gasPrice</code>). Subscriptions:
+        <code>eth_subscribe</code> for <code>newHeads</code>, <code>logs</code>, sometimes <code>newPendingTransactions</code>.
+        Rust: prefer <code>alloy</code> providers (<code>RootProvider</code>, <code>WsConnect</code>) over hand-rolled
+        serde envelopes — but know the wire shape (<code>method</code>, <code>params</code>, <code>id</code>,
+        <code>error.code</code>) for debugging provider quirks. Batch requests exist but many hosts limit or disable them.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How do you design a node client layer for rate limits, retries, and multi-provider failover?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Treat RPC as an unreliable dependency: timeouts, 429s, inconsistent results across providers.
+        Patterns: (1) per-provider rate limiters (token bucket) and concurrency caps; (2) retry with jitter on idempotent
+        reads; (3) <strong>do not blindly retry</strong> <code>eth_sendRawTransaction</code> without checking if the tx
+        is already known; (4) hedged requests for latency-critical reads; (5) sticky vs fanout — writes to one primary,
+        reads from a pool with quorum checks for critical paths; (6) circuit breakers when error rate spikes.
+        Tag metrics by provider + method. Rust: <code>tower</code> layers for retry/timeout/limit around an
+        <code>alloy</code> transport, or a small internal <code>RpcPool</code> that picks healthy endpoints.
+        Always pin <code>chainId</code> at boot and refuse mismatched providers.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is a reorg, and how should HTTP APIs and indexers react differently than a wallet UI?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <strong>reorg</strong> replaces a previously accepted chain tip with another fork; transactions can flip from
+        included → excluded or move to a different block/index. Depth is usually small on healthy L1s but can be larger
+        under stress; L2s have their own safe/finalized notions. Wallet UIs can show &quot;pending / 1 conf / finalized&quot;.
+        Backend indexers must: process blocks with a confirmation lag or reorg-rewind (delete/mark invalidated rows for
+        orphaned blocks), prefer <code>safe</code>/<code>finalized</code> tags when business logic allows, and emit
+        compensating events to downstream systems. Never treat a single <code>eth_getTransactionReceipt</code> success
+        as irreversible settlement for high-value actions. Subscribe to <code>newHeads</code> and detect parent-hash
+        discontinuities as reorg signals.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">HTTP vs WebSocket for chain ingestion — trade-offs, and how do you keep a WS subscription correct?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>HTTP polling</strong> is simpler, cacheable at the edge for some reads, and easier to load-balance —
+        but laggy and costly at high frequency. <strong>WebSocket subscriptions</strong> push heads/logs with lower latency
+        but drop on disconnects, need heartbeat/pong handling, and can silently stall. Production pattern: WS for
+        low-latency tips + periodic HTTP backfill/gap-fill by block number; on reconnect, resume from last durable
+        checkpoint, not from &quot;now&quot;. Deduplicate by block hash / log unique key. Rust: <code>tokio</code> task with
+        supervised reconnect, <code>alloy</code> pubsub, and a cursor in Postgres. Watch provider-specific limits on
+        filter lifetime and max log range for <code>eth_getLogs</code> (often 2k–10k blocks).
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-4 · MEMPOOLS &amp; TX LIFECYCLE ════════════ -->
+<div class="section" id="w3-4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 04</div>
+      <div class="sh-title">Mempools &amp; Transaction Lifecycle</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Walk through the lifecycle of a transaction from signed bytes to finalized inclusion.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) Client/backend builds and signs → raw bytes / tx hash. (2) <code>eth_sendRawTransaction</code> (or Solana
+        <code>sendTransaction</code>) propagates to a node. (3) Node validates signature, nonce, balance/fees, intrinsic
+        gas → admits to <strong>mempool</strong> (txpool). (4) Gossip to peers (public mempool) or private relay.
+        (5) Block builder/validator selects txs → included in a block. (6) Receipt available: status, gas used, logs.
+        (7) Confirmations accumulate; eventually <strong>safe/finalized</strong> per chain rules. Failure modes at each
+        step: RPC reject, eviction from mempool, replace-by-fee, dropped on low tip, on-chain revert (still included),
+        reorg. Your API should model states explicitly: <code>signed → submitted → pending → mined → confirmed → finalized / failed / replaced</code>.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is a mempool, and why do many modern Ethereum flows bypass the public one?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The mempool is the node&apos;s pool of valid but not-yet-included transactions, ordered by local policy
+        (fees, account nonces, size limits). It is <em>not</em> a global consistent queue — each node sees a different set.
+        Post-PBS / MEV-aware Ethereum, searchers and sophisticated users often send via <strong>private orderflow</strong>
+        (builder relays, MEV-Share, protected RPCs) to reduce frontrunning. Backends that broadcast sensitive swaps
+        through a default public RPC expose users to sandwich risk. Interview signal: distinguish &quot;tx is known to our
+        node&quot; from &quot;tx is safely private&quot; and from &quot;tx is finalized on-chain.&quot;
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do you track submission status reliably in a Rust service without busy-polling forever?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Persist tx hash + metadata at submit time. Watcher loop: poll receipt with exponential backoff, and/or subscribe
+        to heads and check inclusion; timeout into <code>dropped_or_unknown</code> and trigger resubmit/replace policy.
+        Use <code>eth_getTransactionByHash</code> to distinguish &quot;unknown&quot; vs &quot;pending&quot; vs &quot;mined&quot;.
+        Idempotency keys on your API map to at most one in-flight signed tx per user action. Metrics: time-to-mine,
+        replace count, revert rate. Rust: a dedicated <code>tokio</code> worker reading from a queue (SQS/NATS/Postgres
+        <code>SKIP LOCKED</code>), calling <code>alloy</code> provider methods, writing state transitions transactionally
+        with the business effect (credit user only on sufficient confirmations).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Local vs public mempools on Solana — what does &quot;processed / confirmed / finalized&quot; mean for API design?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Solana RPCs expose commitment levels: <strong>processed</strong> (leader saw it), <strong>confirmed</strong>
+        (supermajority voted), <strong>finalized</strong> (rooted / irreversible under normal assumptions).
+        TPU / QUIC ingest and leader scheduling differ from Ethereum&apos;s gossip mempool model; landing depends on
+        leader schedule, CU price, and sometimes staked connections. APIs should let callers choose commitment for
+        reads, default writes&apos; success criteria to <code>confirmed</code> or <code>finalized</code> based on value,
+        and never promise finality at <code>processed</code>. Rust: <code>CommitmentConfig</code> on
+        <code>RpcClient</code> / <code>solana_client</code>; surface commitment in your own JSON so clients do not
+        assume Ethereum-style &quot;12 confirmations.&quot;
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-5 · CONTRACTS VS INDEXING ════════════ -->
+<div class="section" id="w3-5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 05</div>
+      <div class="sh-title">Smart Contracts vs Indexing — What Backends Build</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What do Web3 backend engineers usually build, if not the chain or the Solidity itself?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Most Rust roles are <strong>chain-adjacent</strong>: indexers, APIs over indexed data, wallets/relayers,
+        trading bots, risk engines, oracle publishers, bridge watchers, and infra (RPC proxies, simulators).
+        Smart contracts define on-chain truth; backends make it queryable, enforce product rules off-chain, assemble
+        transactions, and integrate fiat/KYC/notifications. Saying &quot;I&apos;d put that in a contract&quot; for every
+        feature is a smell — storage cost, upgradeability, and latency matter. Conversely, never invent off-chain
+        balances that disagree with chain state without a clear custody model. Interview framing: contracts for
+        settlement and adversarial integrity; backends for UX, aggregation, search, and policy.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">When do you <code>eth_call</code> / simulate vs read from your indexer DB?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Indexer DB</strong>: historical queries, joins, full-text, portfolio views, analytics — fast and rich,
+        but eventually consistent and only as complete as your pipeline. <strong>Live RPC / eth_call</strong>:
+        current allowance, precise preview of a swap, &quot;what would this tx do now,&quot; admin checks against tip state.
+        Hybrid is normal: list NFTs from DB, verify ownership with a fresh <code>ownerOf</code> before a sensitive action.
+        Rust: <code>alloy</code> <code>sol!</code> bindings for typed calls; sqlx/sea-orm for indexed tables.
+        Document freshness SLAs (&quot;indexed within N blocks&quot;) in your API.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is ABI / IDL and how do Rust services bind to contracts without shipping a full node?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        An <strong>ABI</strong> (EVM) describes functions/events and how to encode calldata and decode logs/returns.
+        Solana <strong>IDL</strong> (Anchor) describes accounts and instructions similarly. Backends depend on RPC + ABI
+        bindings, not on executing the VM for ordinary reads (unless simulating). Rust: <code>alloy</code> <code>sol!</code>
+        macro or <code>sol!{ ... }</code> from artifacts; legacy <code>ethers-rs</code> abigen; Solana
+        <code>anchor-client</code> / hand-built instruction data with <code>borsh</code>. Pin contract addresses per chain
+        id; version your bindings when contracts upgrade. Strong candidates mention immutable event layouts vs upgradeable
+        proxies and why event indexing must key by proxy address + implementation awareness.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Where does <code>revm</code> fit for a backend team? When is local EVM simulation worth it?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>revm</code> is a Rust EVM implementation used for simulation, fuzzing, custom tracers, and building
+        tooling (Foundry uses it). Backend uses: pre-flight simulate user txs against a forked state, MEV/strategy
+        research, decode complex revert data, or run deterministic tests without a full geth. It is overkill for
+        CRUD APIs over indexed transfers. If you simulate in production, you need state provider integration
+        (alloy db / fork at block), gas metering parity awareness, and strict resource limits — simulation can be CPU heavy.
+        Interview gold: &quot;we simulate to reduce failed on-chain spends; we index for query path.&quot;
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-6 · EVENT LOGS / INDEXING PIPELINES ════════════ -->
+<div class="section" id="w3-6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 06</div>
+      <div class="sh-title">Event Logs, Receipts &amp; Indexing Pipelines</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is an event log vs a receipt? How do you uniquely identify a log line?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <strong>receipt</strong> is per-transaction inclusion metadata: status, gas used, cumulative gas, logs bloom, logs[].
+        Each <strong>log</strong> has address (emitter), topics[0]=event signature hash, indexed topics, and data payload.
+        Unique key in practice: <code>(block_hash, tx_hash, log_index)</code> or <code>(block_number, block_hash, log_index)</code>
+        with reorg handling — <code>tx_hash + log_index</code> alone can be ambiguous across chains/reorgs if you multi-chain.
+        Decode with ABI: non-indexed fields live in <code>data</code>; indexed dynamic types are hashed (you cannot recover
+        the original string from the topic). Rust: <code>alloy</code> event types + <code>decode_log</code>; store raw
+        topics/data too for re-decoding after ABI upgrades.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Sketch a production indexing pipeline from blocks to API-ready tables.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Classic stages: <strong>ingest</strong> (WS heads + HTTP backfill) → <strong>decode</strong> (ABI apply) →
+        <strong>transform</strong> (domain entities: Transfer, Swap, Position) → <strong>write</strong> (Postgres/ClickHouse)
+        → <strong>publish</strong> (webhooks/Kafka). Maintain a cursor <code>(block_number, hash)</code>; on parent mismatch,
+        rewind N blocks and delete orphaned rows or use versioned validity intervals. Partition <code>eth_getLogs</code>
+        requests by address/topic and block range to respect provider limits. Idempotent upserts on natural keys.
+        Separate &quot;fast unconfirmed&quot; lane from &quot;finalized&quot; lane if product needs speed. Rust: tokio workers,
+        <code>alloy</code> for RPC, sqlx for writes, exactly-once-ish via DB transactions + deterministic ids.
+        Tools like Subsquish/The Graph exist; interviewers still want you to know the rewind/cursor mechanics.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do you handle reorgs and finality in the database schema?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Options: (1) <strong>confirm lag</strong> — only index blocks older than K; simple, latency trade-off.
+        (2) <strong>rewind</strong> — store <code>block_hash</code>, on reorg delete where <code>block_number &gt;= reorg_point</code>
+        and replay. (3) <strong>bitemporal / invalidate flags</strong> — mark rows <code>is_orphaned</code> for audit.
+        Always store block hash with every derived row. Downstream consumers need tombstones or version vectors.
+        For payments, gate business side-effects on <code>finalized</code> (or chain-specific safe head).
+        Test reorgs explicitly on a local anvil chain by mining competing blocks — not only happy-path backfills.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Solana indexing differences: accounts vs logs, and why &quot;getProgramAccounts&quot; is a trap at scale.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Solana programs emit logs, but much state lives in accounts that mutate in place — you often index
+        <strong>account updates</strong> (Yellowstone gRPC / Geyser plugins) plus transaction metadata, not only EVM-style
+        receipt logs. <code>getProgramAccounts</code> scans and is expensive/rate-limited — fine for rare admin tools,
+        bad as a hot path. Prefer streaming account updates, store by pubkey, and reconstruct dashboards from your DB.
+        Decode with borsh/Anchor layouts; handle discard of inner instructions carefully when parsing token balances.
+        Rust ecosystem: <code>solana_client</code>, geyser proto clients, <code>carbon</code>/<code>yellowstone-grpc</code>
+        style pipelines — same cursor/rewind discipline as EVM.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-7 · DEX MECHANICS ════════════ -->
+<div class="section" id="w3-7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 07</div>
+      <div class="sh-title">DEX Mechanics for Backend Engineers</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Contrast AMM and order-book DEXes. What data does each force your backend to track?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>AMM</strong> (Uniswap-style): pool reserves / liquidity positions determine price via a curve
+        (<code>x*y=k</code> or concentrated liquidity ticks. Backend indexes Swap/Mint/Burn events, pool state,
+        and optionally tick bitmaps for quoting. Quotes can be computed from reserves + fee tier (or off-chain quoter).
+        <strong>Order book</strong> (on-chain like Serum/OpenBook, or hybrid): resting orders at price levels;
+        backend tracks order placement/cancel/fill events, maintains an off-chain book mirror for speed, reconciles to chain.
+        AMM indexing is event + slot/block state; books need sequence numbers and gap repair. Neither requires you to
+        reimplement matching in the API — but market-data APIs must state whether prices are indexed, simulated, or live RPC.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is slippage, price impact, and mid price — and how should a quote API present them?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Price impact</strong>: move along the AMM curve caused by trade size. <strong>Slippage</strong>: difference
+        between expected and executed price due to impact + competing trades before inclusion. Quote APIs should return
+        amount-in/out, fee, route legs, estimated execution price, and a <strong>minOut / maxIn</strong> bound the user
+        signs (deadline + slippage bps). Never silently default to unlimited slippage. For multi-hop routes, show per-hop
+        pools and aggregate. Rust quoting services often run pure functions over cached pool state with periodic refresh,
+        then verify with <code>eth_call</code> before suggesting a signature. Document quote TTL — stale quotes are a
+        leading cause of revert spam.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do aggregators (0x, Uniswap router, Jupiter) change backend design?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Aggregators split routes across venues and return calldata + allowance targets. Your backend may: call their
+        HTTP APIs, cache routes briefly, simulate calldata, and present unified UX. Trust boundaries matter — verify
+        chain id, spender addresses against allowlists, and simulate for unexpected token movements. For Solana,
+        Jupiter-style routes return serialized transactions you may partially sign or sponsor. Treat aggregator outages
+        as dependency failures with fallback routes. Rust: typed HTTP clients (<code>reqwest</code> + serde), strict
+        allowlists for <code>to</code>/<code>spender</code>, and revm/RPC simulation before broadcast.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Concentrated liquidity (Uniswap v3) — what indexer complexity appears that v2 did not have?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        v3 positions are NFTs with tick ranges; swaps cross ticks and update liquidity in-range. Indexers must handle
+        tick-crossing events, position fees growth, and sparse tick state — pool &quot;reserves&quot; alone are insufficient
+        for accurate quoting. Historical PnL needs fee snapshots per position. Many teams index Swap events for volume
+        charts but call a Quoter contract or maintain a tick cache for executable quotes. Mentioning ticks, positions as
+        NFTs, and fee growth globals is a strong senior DEX signal without writing a full v3 clone.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-8 · CONSENSUS &amp; FINALITY ════════════ -->
+<div class="section" id="w3-8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 08</div>
+      <div class="sh-title">Consensus &amp; Finality for App Backends</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does &quot;finality&quot; mean for an application backend, in practical terms?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Finality is the point after which your product will <strong>not unwind</strong> a state transition under normal
+        operation — credits, shipments, completed withdrawals. Probabilistic PoW-style finality (&quot;after k confirmations&quot;)
+        differs from economic/protocol finality (Casper FFG justified/finalized checkpoints on Ethereum).
+        Backends should map chain concepts onto product policies: low-value UX can follow <code>safe</code>; high-value
+        settlement waits for <code>finalized</code> or a risk-scored confirmation depth. Do not recite HotStuff internals —
+        show you gate side effects on the right head.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain Ethereum <code>latest</code> vs <code>safe</code> vs <code>finalized</code> for RPC reads.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>latest</strong>: current tip — can reorg. <strong>safe</strong>: under honest-majority assumptions,
+        unlikely to reorg (still not finalized). <strong>finalized</strong>: justified by consensus finality gadgets —
+        treated as irreversible for app purposes. Also <strong>pending</strong> for txpool-inclusive views (nonces, calls).
+        Indexers often ingest <code>latest</code> for speed but only mark business-final at <code>finalized</code>.
+        Always specify the block tag in <code>eth_call</code> when correctness matters; default provider tags differ.
+        Rust alloy: <code>BlockNumberOrTag::Finalized</code> etc. on provider calls.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do L2s change the finality story (optimistic vs ZK, sequencer risk)?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Many L2s have fast soft confirmations from a <strong>sequencer</strong> (centralized soft finality) and slower
+        L1-settled finality. Optimistic rollups add challenge windows for withdrawals; ZK rollups wait for validity
+        proofs posted to L1. App backends must distinguish: (1) tx confirmed on L2 RPC, (2) batched to L1,
+        (3) L1 finalized, (4) bridge withdrawal completed. Cross-chain credit should key off the bridge&apos;s security
+        model, not merely an L2 receipt. Mention sequencer downtime / reorg policies of the specific L2 when designing SLOs.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What finality/commitment knobs matter on Solana for a payments API?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Return and persist the commitment level used when you declared success. For merchant payments,
+        prefer <code>confirmed</code> minimum and <code>finalized</code> for settlement/ledger close.
+        Handle the rare rollback cases with explicit reconciliation jobs. Expose these in webhooks:
+        <code>payment.confirmed</code> vs <code>payment.finalized</code> so accountants and risk systems can subscribe
+        appropriately. This is the Solana analogue of Ethereum confirmation policies — same product idea, different RPC vocabulary.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-9 · WALLETS, SESSIONS, SIWE ════════════ -->
+<div class="section" id="w3-9">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 09</div>
+      <div class="sh-title">Wallets, Sessions &amp; SIWE-Style API Auth</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">How does Sign-In with Ethereum (SIWE / EIP-4361) work end-to-end for a Rust API?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Flow: (1) backend issues a challenge nonce bound to address + expiry; (2) client signs a SIWE message
+        (domain, uri, chain id, nonce, issued-at, statement); (3) backend verifies EIP-191 signature recovers the
+        claimed address, checks domain/nonce/expiry/chain binding, consumes nonce; (4) issues an application session
+        (JWT/session cookie) for subsequent HTTP calls — not re-signing every request. SIWE authenticates
+        <em>wallet control</em>, not KYC identity. Rust: parse/verify with a SIWE crate or careful hand parser +
+        <code>alloy</code> signature recovery; store nonces in Redis with TTL; use <code>axum</code> middleware for Bearer/session.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What security checks are non-negotiable in SIWE-style auth?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Bind <strong>domain</strong> and <strong>URI</strong> to your frontend origin (prevent phishing signatures reused elsewhere).
+        Single-use <strong>nonce</strong>, short expiry, matching <strong>chainId</strong> if chain-specific.
+        Reject malleable signatures / wrong version; constant-time compare where relevant; rate-limit verification.
+        After login, authorize by session user id mapped to verified addresses — do not trust a client-supplied
+        <code>address</code> header alone. For Solana, analogous &quot;sign message&quot; login with ed25519 verify and
+        the same nonce/domain discipline. Rotate session tokens; provide logout/revocation. Never log full signed
+        messages with secrets if you embed them; nonces are not passwords but still treat the store as sensitive.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Session keys, permits, and delegated signing — how do they differ from SIWE login?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>SIWE</strong> proves control for authentication. <strong>ERC-2612 permits / DAI permits</strong> authorize
+        token allowances via signature (state-changing intent). <strong>Session keys</strong> (AA, gaming wallets) grant
+        limited on-chain powers for a period. Backends must not conflate &quot;logged in&quot; with &quot;can move funds.&quot;
+        Store capability scopes separately. If your API sponsors txs, enforce allowlisted selectors, spending caps,
+        and simulation. Interview clarity on authn vs authz vs on-chain authorization is a senior signal.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How would you design multi-address users and wallet linking without creating account-takeover bugs?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Linking requires a fresh SIWE (or chain equivalent) from the new address while an authenticated session
+        already exists for the primary user — or a dual-signature ceremony. Never link solely because a tx was seen
+        from an address. Support unlink with re-auth. Beware signature reuse across your staging/prod domains.
+        For custodial/embedded wallets, the auth primary may be email/OAuth with wallets as secondary deposit addresses —
+        document which key is authoritative. Rust services: transactional DB constraints on <code>address</code> uniqueness
+        globally, and audit log every link/unlink.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-10 · MEV / FRONTRUNNING ════════════ -->
+<div class="section" id="w3-10">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 10</div>
+      <div class="sh-title">MEV &amp; Frontrunning Awareness for API Designers</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is MEV in one paragraph a backend interviewer expects?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>MEV</strong> (maximal extractable value) is profit from controlling inclusion and ordering of transactions
+        in a block — arbitrage, liquidations, sandwiches. Searchers bid via priority fees or builder auctions (PBS).
+        App backends care because user trades can be frontrun/backrun if broadcast publicly, and because your own
+        liquidations/oracles may be raced. You do not need to write a searcher; you need to design APIs and submit paths
+        that do not unnecessarily leak valuable, time-sensitive intent.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How does a sandwich attack work, and what API/UX mitigations exist?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Attacker sees a victim swap in the mempool, inserts a buy before and a sell after, extracting value via price impact;
+        victim&apos;s minOut still holds but they get worse price within slippage. Mitigations: tight slippage + short deadline,
+        private RPCs / MEV protection relays, RFQ/quotes with firm off-chain market makers, batch auctions, and
+        avoiding broadcasting intent before binding constraints. API design: default safe slippage, warn on high impact,
+        do not return unsigned &quot;exact executable route&quot; in public logs, and offer protected submission endpoints.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What must you avoid logging or exposing in trading/relayer APIs because of MEV?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Avoid publishing pending transaction hashes/calldata of high-value strategies to public websockets,
+        predictable liquidation cron schedules with exact targets, or mempool-visible &quot;intent&quot; APIs without
+        commit-reveal / privacy. Rate-limit quote APIs that reveal inventory. Treat internal orderflow as confidential.
+        Even debug logs with full calldata can leak to centralized log vendors — redact or sample. Rust services should
+        classify fields at the tracing layer (<code>tracing</code> sensitive fields) and gate admin endpoints.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How do PBS / builders and private orderflow change what &quot;sendTransaction&quot; means in product copy?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Users think &quot;broadcast to the network&quot;; often the tx goes to a builder via a relay with privacy until inclusion.
+        Your API should label submission routes: public RPC vs protected. Failures differ (relay reject vs mempool eviction).
+        Inclusion guarantees are probabilistic; always watch receipts. For Solana, priority fees and leader-aware landing
+        services are the rough analogue — same product need, different plumbing. Strong answer: MEV-aware design is
+        about <em>information leakage and submission path</em>, not implementing Flashbots.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-11 · SOLANA VS EVM ════════════ -->
+<div class="section" id="w3-11">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 11</div>
+      <div class="sh-title">Solana vs EVM — Mental Models for Rust Engineers</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">List the top mental-model differences that bite EVM engineers moving to Solana (and vice versa).</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) <strong>Accounts</strong>: Solana data lives in explicit accounts you pass to instructions; EVM storage is keyed
+        inside the contract. (2) <strong>Programs are stateless</strong>; state is in accounts they own.
+        (3) <strong>Parallelism</strong>: Solana schedules non-overlapping account locks in parallel; EVM is largely
+        sequential per block execution mental model. (4) <strong>Fees</strong>: CU + prioritization vs gas metering.
+        (5) <strong>Signatures</strong>: ed25519 vs secp256k1; many signers per tx common on Solana.
+        (6) <strong>Tokens</strong>: SPL token accounts / ATAs vs ERC-20 balances in contract storage.
+        (7) <strong>RPCs / commitment</strong> vocabulary differs. Rust engineers often feel at home on Solana&apos;s
+        native Rust programs, but backend indexing and ATA resolution are the usual footguns.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is an Associated Token Account (ATA), and why do backends care?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        An ATA is a deterministic PDA for <code>(wallet, mint)</code> holding SPL token balances. Transfers fail if the
+        destination ATA is missing — wallets/relayers often <code>createAssociatedTokenAccount</code> first.
+        Indexers must map mint+owner → ATA pubkey; portfolio APIs sum token accounts, not the system account balance alone
+        (SOL rent/balance is separate from SPL). Rust: <code>spl_associated_token_account</code> derivations;
+        never assume one token account per wallet without checking.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do PDAs and instruction account metas affect API/tx builders in Rust?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>PDAs</strong> (program-derived addresses) are deterministic keys programs can sign for via
+        <code>invoke_signed</code>; backends derive the same seeds to fetch accounts and build instructions.
+        Each instruction lists accounts with <code>is_signer</code>/<code>is_writable</code> metas — wrong flags cause
+        runtime failures. Tx builders assemble instructions + recent blockhash + signers. Rust:
+        <code>solana_sdk::instruction::Instruction</code>, <code>Pubkey::find_program_address</code>.
+        Contrast EVM: one <code>to</code> + calldata; Solana txs are more like explicit capability lists.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">EVM tooling map for Rust engineers: alloy vs ethers-rs vs revm vs Foundry — when to cite each?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>alloy</strong>: modern RPC/types/providers/signers (ethers-rs successor direction).
+        <strong>ethers-rs</strong>: legacy but still seen in codebases — know migration points.
+        <strong>revm</strong>: embeddable EVM for sim/fuzz. <strong>Foundry</strong> (forge/anvil/cast): Solidity-centric
+        test/deploy tooling that Rust backends call as processes or mirror via anvil endpoints.
+        Solana side: <code>solana_sdk</code>, <code>solana_client</code>, Anchor for programs, <code>litesvm</code>/banks
+        client for tests. Citing the right tool for RPC vs simulation vs contract test shows practical experience.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ W3-12 · TESTING ════════════ -->
+<div class="section" id="w3-12">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// W3 12</div>
+      <div class="sh-title">Testing: Anvil, Localnets, Forks &amp; Parsers</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">How do you test a Rust indexer or relayer against a local EVM?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Run <strong>anvil</strong> (Foundry) or geth dev mode; deploy contracts with known ABIs; emit events;
+        point the indexer at <code>http://127.0.0.1:8545</code>; assert DB rows. Use fixed mnemonic/keys from anvil
+        for signers. Reset between tests or use unique chain ids / snapshots (<code>evm_snapshot</code>/<code>evm_revert</code>).
+        Prefer deterministic block times. Rust integration tests: spawn anvil as <code>std::process::Command</code>
+        or testcontainers, drive with <code>alloy</code>, then assert via sqlx. Keep unit tests pure for decode logic
+        without RPC.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What are fork tests, and when are they worth the cost?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Fork tests run anvil/Hardhat against a pinned mainnet/L2 block via RPC, so you interact with real contract
+        bytecode and state (Uniswap pools, tokens). Great for route simulation, allowance quirks, and proxy layouts.
+        Costs: flaky providers, slow CI, mainnet state drift if unpinning. Pin <code>fork_block_number</code>, cache
+        RPCs where possible, and reserve forks for a thin suite — not every unit test. Rust: alloy provider against
+        forked anvil; or <code>revm</code> with a forked database backend for tighter in-process tests.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do you property-test ABI/Borsh parsers and why does it matter?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Encoding bugs are silent fund-loss risks. Use <code>proptest</code> to generate field values, encode → decode →
+        assert equality; also test known vectors from Foundry/cast and hostile inputs (truncated data, oversized lengths).
+        For logs, fuzz topic counts and ensure unknown events are safely skipped. For JSON-RPC, fuzz serde of hex
+        quantities (<code>U256</code>, leading zeros) — Ethereum hex quirks are classic production incidents.
+        Rust: <code>proptest</code> + <code>alloy_primitives</code> strategies; corpus tests for raw mainnet log samples.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Solana localnets and banks/litesvm — what does a solid test pyramid look like for a Rust backend?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Pyramid: (1) pure unit tests for borsh layouts, PDA seeds, ATA derivation; (2) <code>litesvm</code> /
+        <code>solana-program-test</code> / banks client for instruction-level program interaction without full validators;
+        (3) <code>solana-test-validator</code> integration for RPC commitment and ws flows; (4) slim mainnet-beta
+        read-only tests behind a feature flag. Assert commitment behavior and blockhash expiry retries explicitly.
+        CI should not depend on public mainnet write access. Same idea as EVM: mock RPC for unit speed, localnet for
+        protocol fidelity, fork/mainnet samples for realism.
+      </div></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,30 @@
+slug = "join-without-join"
+title = "Build a String in one allocation"
+mode = "write"
+level = "easy"
+stage = "use"
+order = 6
+status = "ready"
+tags = ["with_capacity", "push_str"]
+teaches = [
+  "`String::with_capacity` when you know the final size.",
+  "`push_str` into one buffer instead of repeated `+`.",
+]
+follow_up = "How does `[&str]::join` compute its capacity internally?"
+
+[[examples]]
+input = "words = [\"a\", \"bc\", \"d\"], sep = \", \""
+output = "\"a, bc, d\""
+
+[[hints]]
+kind = "approach"
+text = "Total length is the sum of the word lengths plus one separator between each pair."
+
+[[hints]]
+kind = "rust"
+text = "`saturating_sub(1)` keeps the separator count at 0 for an empty slice."
+
+[solution]
+explanation = "Lengths are in bytes, which is what `String` capacity counts, so Unicode separators need no special case. One allocation, then only copies."
+time = "O(total length)"
+space = "O(total length)"

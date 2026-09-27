@@ -1,0 +1,62 @@
+/* App-only styles on top of design.css. */
+
+html, body, #root { min-height: 100%; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+a.tile { color: var(--fg); }
+a.tile:hover { border-color: var(--line); }
+.tile-planned { opacity: 0.55; }
+.tile-planned .n { color: var(--mut); }
+.nav-later { color: var(--line); cursor: default; white-space: nowrap; }
+.tr-draft { opacity: 0.55; }
+.notice { margin: 24px 0; padding: 12px 16px; border: 1px solid var(--line2); border-radius: 6px; background: var(--panel); color: var(--mut); font-size: 14px; }
+.notice.bad { border-color: var(--bad); background: var(--bad-bg); color: var(--fg); }
+.note { margin: 0; font-size: 12.5px; color: var(--dim); }
+.ptitle { margin: -6px 0 0; font-size: 22px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--fg); }
+.kv { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 12px; font: 400 12px/1.6 var(--mono); }
+.kv > span { color: var(--dim); }
+.kv code { white-space: pre-wrap; word-break: break-word; }
+
+/* statement markdown */
+.md { color: var(--mut); }
+.md p { margin: 0 0 12px; text-wrap: pretty; }
+.md p:last-child { margin-bottom: 0; }
+.md code { font-size: 12.5px; }
+.md pre { margin: 0 0 12px; padding: 12px 14px; background: var(--raise); border-radius: 4px; font: 400 12px/1.6 var(--mono); color: var(--fg); overflow-x: auto; }
+.md pre code { font-size: inherit; }
+.md ul { margin: 0 0 12px; padding-left: 18px; }
+.md strong { color: var(--fg); }
+.md-inline code { font-size: 12.5px; }
+
+/* workspace */
+.ftab { background: none; border-top: 0; border-bottom: 0; border-left: 0; cursor: pointer; }
+.edit-host { flex: 1; min-height: 0; position: relative; display: flex; }
+.edit-host[hidden] { display: none; }
+.cmhost { flex: 1; min-width: 0; height: 100%; }
+.cm-lanes { position: absolute; top: 0; right: 0; width: 250px; border-left: 1px dashed var(--line2); background: var(--bg); font: 500 10.5px/1.3 var(--mono); pointer-events: none; }
+.cm-lens { margin: 4px 16px 8px 0; max-width: 560px; white-space: normal; }
+.cm-lens .gr { grid-template-columns: 34px minmax(0, 190px) minmax(0, 1fr); }
+.cm-lens .gr > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.solcode { border: 1px solid var(--line2); border-radius: 4px; overflow: hidden; height: 360px; }
+.solcode .cmhost { height: 360px; }
+.run { background: none; text-align: left; cursor: pointer; }
+.solved { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--grn); border-radius: 6px; background: var(--grn-bg); font-size: 13px; }
+.solved a { color: var(--grn); }
+.rulebox { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 4px; background: var(--warn-bg); font-size: 12.5px; line-height: 1.55; color: var(--fg); }
+.errbox { padding: 12px 14px; border-radius: 4px; background: var(--bad-bg); font-size: 12.5px; line-height: 1.55; color: var(--fg); }
+.tpanic { display: block; white-space: pre-wrap; color: var(--bad); }
+.compiler pre { margin: 0 0 14px; font: 400 11.5px/1.6 var(--mono); white-space: pre; overflow-x: auto; color: var(--mut); }
+.compiler pre.err { color: var(--fg); }
+.diff { min-height: 40px; }
+
+/* rust-analyzer docs in completion info and hover tooltips */
+.cm-tooltip .cm-completionInfo,
+.cm-tooltip-hover .cm-tooltip-section,
+.cm-completionInfo { max-width: 460px; max-height: 360px; overflow: auto; padding: 10px 12px; font: 400 12.5px/1.55 var(--sans); color: var(--mut); }
+.cm-tooltip-hover { max-width: 560px; max-height: 420px; overflow: auto; }
+.cm-completionInfo h1, .cm-completionInfo h2, .cm-completionInfo h3,
+.cm-tooltip-hover h1, .cm-tooltip-hover h2, .cm-tooltip-hover h3 { margin: 12px 0 4px; font: 600 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.cm-completionInfo p, .cm-tooltip-hover p { margin: 0 0 8px; }
+.cm-completionInfo pre, .cm-tooltip-hover pre { margin: 0 0 8px; padding: 8px 10px; border-radius: 4px; background: var(--raise); font: 400 11.5px/1.55 var(--mono); overflow-x: auto; }
+.cm-completionInfo code, .cm-tooltip-hover code { font-size: 11.5px; }
+.cm-tooltip-hover { font: 400 12.5px/1.55 var(--sans); color: var(--mut); }
+.cm-completionDetail { font-style: normal; color: var(--dim); margin-left: 12px; }

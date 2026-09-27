@@ -1,0 +1,23 @@
+slug = "entry-returns-a-borrow"
+title = "The entry API returns a borrow"
+mode = "write"
+level = "easy"
+stage = "where-borrows-end"
+order = 10
+status = "ready"
+tags = ["HashMap::entry", "lifetimes"]
+teaches = [
+  "The entry API hands back a borrow into the map.",
+  "Lifetimes connect the output to the map, not to the key.",
+]
+follow_up = "Why does `entry` take the key by value?"
+related = ["L2", "S4"]
+
+[[hints]]
+kind = "rust"
+text = "`or_default()` returns `&mut V` borrowed from the map for `'m`."
+
+[solution]
+explanation = "One lookup, and the returned `&mut` keeps the map borrowed for as long as the caller uses it."
+time = "O(1)"
+space = "O(1)"

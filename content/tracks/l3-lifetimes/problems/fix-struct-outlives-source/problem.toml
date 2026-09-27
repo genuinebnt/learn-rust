@@ -1,0 +1,31 @@
+slug = "fix-struct-outlives-source"
+title = "Fix: struct outlives its source (E0597)"
+mode = "fix"
+level = "easy"
+stage = "structs-holding-refs"
+order = 7
+status = "ready"
+tags = ["E0597"]
+teaches = [
+  "A struct's borrow must not outlive what it points at.",
+  "Borrow from the caller's data, not a temporary copy.",
+]
+follow_up = "If you really did need to transform each document, how would you keep the excerpts valid?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "Each `Excerpt` borrows from `trimmed`, which is dropped at the end of each loop iteration, but the excerpts are read after the loop."
+
+[[hints]]
+kind = "rust"
+text = "`d.trim()` is already a `&str` borrowed from `docs`, which lives long enough. No need for a copy."
+
+[solution]
+explanation = "Borrowing from the long-lived input instead of a per-iteration copy fixes the error and removes an allocation."
+time = "O(total length)"
+space = "O(n)"
+
+[rules]
+forbid_methods = ["clone", "to_owned"]
+max_changed_lines = 1

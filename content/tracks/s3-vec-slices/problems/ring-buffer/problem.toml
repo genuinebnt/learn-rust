@@ -1,0 +1,27 @@
+slug = "ring-buffer"
+title = "Ring buffer on a boxed slice"
+mode = "write"
+level = "hard"
+stage = "build-it"
+order = 19
+status = "ready"
+tags = ["Box<[T]>", "modular index"]
+teaches = [
+  "`Box<[T]>` for a fixed-size buffer: no capacity field, no growth.",
+  "Head plus length with wrap-around indexing.",
+]
+follow_up = "How would you make this lock-free for one producer and one consumer?"
+related = ["S5", "C3"]
+
+[[hints]]
+kind = "approach"
+text = "The newest slot is `(head + len) % capacity`. When full, overwrite `head` and advance it."
+
+[[hints]]
+kind = "rust"
+text = "`Option::replace` puts the new value in and hands back the old one."
+
+[solution]
+explanation = "`Box<[T]>` is a pointer and a length: the right type for a buffer that never grows. `iter` borrows `self`, hence the `+ '_`."
+time = "O(1) push"
+space = "O(capacity)"

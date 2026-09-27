@@ -1,0 +1,35 @@
+slug = "split-trim-parse"
+title = "split, trim, parse"
+mode = "write"
+level = "easy"
+stage = "use"
+order = 2
+status = "ready"
+tags = ["split", "parse", "Result"]
+teaches = [
+  "`split(',').map(str::trim)` pipelines.",
+  "Summing an iterator of `Result`s into a `Result`.",
+]
+follow_up = "How would you report which field failed, and at what position?"
+related = ["S1"]
+
+[[examples]]
+input = "\"1, 2 ,3\""
+output = "Ok(6)"
+
+[[examples]]
+input = "\"1,x\""
+output = "Err(..)"
+
+[[hints]]
+kind = "rust"
+text = "`str::trim` and `str::parse::<i64>` can be passed to `map` directly."
+
+[[hints]]
+kind = "rust"
+text = "`Sum` is implemented for `Result<T, E>`: summing `Result`s stops at the first `Err`."
+
+[solution]
+explanation = "The whole function is one pipeline. Summing into `Result` short-circuits on the first bad field, so no manual loop or early return is needed."
+time = "O(n)"
+space = "O(1)"

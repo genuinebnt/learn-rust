@@ -1,0 +1,35 @@
+slug = "minimum-window-substring"
+title = "Minimum window substring"
+mode = "write"
+level = "hard"
+stage = "hard-windows"
+order = 15
+status = "ready"
+tags = ["sliding window", "lifetimes", "Blind 75"]
+teaches = [
+  "Grow the window until it covers `t`, then shrink it while it still does.",
+  "Return a `&'a str` borrowed from the input instead of allocating.",
+]
+follow_up = "Why does the signature need `'a` on `s` but not on `t`?"
+related = ["L3", "S2"]
+
+[[examples]]
+input = "s = \"ADOBECODEBANC\", t = \"ABC\""
+output = "\"BANC\""
+
+[[hints]]
+kind = "approach"
+text = "Expand the right edge until everything in t is covered, then shrink the left edge while it stays covered."
+
+[[hints]]
+kind = "approach"
+text = "Track how many required characters are still missing instead of comparing whole count arrays."
+
+[[hints]]
+kind = "rust"
+text = "Return `&s[l..r]`: the lifetime `'a` ties the result to `s`, not to `t`."
+
+[solution]
+explanation = "`need` goes negative for surplus characters, so `missing` only changes when a required character enters or leaves. Returning a slice of `s` costs no allocation."
+time = "O(|s| + |t|)"
+space = "O(1)"

@@ -1,0 +1,27 @@
+slug = "static-bound-vs-static-ref"
+title = "'static bound vs &'static"
+mode = "write"
+level = "medium"
+stage = "static-bounds"
+order = 13
+status = "ready"
+tags = ["T: 'static", "Any"]
+teaches = [
+  "`T: 'static` means 'no short borrows inside', not 'lives forever'.",
+  "`Any` and `downcast_ref`.",
+]
+follow_up = "Why can't `Any` support types with non-'static lifetimes?"
+related = ["L3", "L4"]
+
+[[hints]]
+kind = "rust"
+text = "`Any` is implemented for every `T: 'static`, so `T: Any` already implies the bound."
+
+[[hints]]
+kind = "rust"
+text = "`Box<dyn Any>::downcast_ref::<T>()` returns `Some(&T)` only if the value is exactly a `T`."
+
+[solution]
+explanation = "`T: 'static` rules out types holding short-lived borrows, because `Any` can't track lifetimes. Owned data like `String` and `Vec` always qualifies."
+time = "O(n) for all"
+space = "O(n)"

@@ -1,0 +1,1173 @@
+<!-- ═══════════════════════════════════════════
+     PART: TOPICS 02 · TYPE SYSTEM
+     Traits · Generics · Iterators · Collections/StdLib · Smart Pointers
+═══════════════════════════════════════════ -->
+
+<div class="level-filter" id="level-filter">
+  <span class="lf-label">Level</span>
+  <button type="button" class="lf-btn active" data-filter="all">All</button>
+  <button type="button" class="lf-btn" data-filter="beg">Beginner</button>
+  <button type="button" class="lf-btn" data-filter="int">Intermediate</button>
+  <button type="button" class="lf-btn" data-filter="adv">Advanced</button>
+  <button type="button" class="lf-btn" data-filter="sr">Senior</button>
+  <span class="lf-hint">25 questions on this page · click a level to filter</span>
+</div>
+
+<!-- ════════════ TOPIC 06 · TRAITS & TRAIT OBJECTS ════════════ -->
+<div class="section" id="t-trait">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-trait)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-trait)">// Topic 06</div>
+      <div class="sh-title">Traits &amp; Trait Objects</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-trait)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is a trait? How is it similar to and different from a C++ abstract base class or a Java/Go interface?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A trait defines a set of methods (and associated types/constants) that a type can implement — similar to
+        an interface. Key differences: (1) <strong>traits can be implemented for types you don't own</strong>
+        (subject to the orphan rule: you can implement a foreign trait for a foreign type only if either the trait
+        or the type is local to your crate) — you can add a trait implementation to <code>i32</code> or a crate's
+        struct as long as the trait itself is yours; you cannot retrofit inheritance onto a class you don't own
+        in most OOP languages. (2) <strong>traits support default method bodies</strong>, and implementers can
+        override just the methods they need, similar to Go's implicit-satisfaction interfaces but with default
+        implementations, closer to Java 8+ default methods. (3) <strong>no runtime cost unless you opt into dynamic
+        dispatch</strong> — a generic function with a trait bound is monomorphised like C++ templates, whereas
+        Java interfaces and Go interfaces are dynamically dispatched by default. (4) There's no inheritance
+        hierarchy or virtual method table baked into the type itself — dispatch mechanism (static vs dynamic) is
+        chosen at the call site (generic vs <code>dyn</code>), not baked into how the trait is declared.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What makes a trait "object safe" (dyn-compatible)? Give two concrete reasons a trait might fail to be object-safe.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A trait is <strong>object-safe</strong> if the compiler can build a vtable for it — meaning every method
+        must be callable through a fat pointer without knowing the concrete type at compile time.
+        <strong>Reason 1 — generic methods:</strong> a method like <code>fn process&lt;T&gt;(&amp;self, item:
+        T)</code> would need a separate vtable slot per instantiation of <code>T</code>, which is impossible since
+        the set of <code>T</code>s isn't known when the vtable is built — generic methods make a trait
+        non-object-safe (though non-generic methods on the same trait can still be called through <code>dyn</code>
+        if you split them out, or you provide a non-generic wrapper). <strong>Reason 2 — methods returning
+        <code>Self</code> by value</strong> (e.g. <code>fn clone_boxed(&amp;self) -&gt; Self</code>): the vtable
+        call site doesn't know the concrete size of <code>Self</code>, so it can't allocate stack space for the
+        return value — this is exactly why <code>Clone</code> is not object-safe and you need the
+        <code>dyn-clone</code> pattern (a separate method returning <code>Box&lt;dyn Trait&gt;</code> instead of
+        <code>Self</code>) to get clone-like behaviour on trait objects. Associated constants and most uses of
+        <code>where Self: Sized</code> bounds on individual methods are other common object-safety blockers
+        (the latter is actually the escape hatch — marking one method <code>Sized</code>-bound excludes it from
+        the vtable while leaving the rest of the trait object-safe).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What are associated types, and how do they differ from generic type parameters on a trait? Use <code>Iterator</code> as the example.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">trait</span> <span class="ty">Iterator</span> {
+    <span class="kw">type</span> <span class="ty">Item</span>;
+    <span class="kw">fn</span> <span class="fn">next</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;<span class="kw">Self</span>::<span class="ty">Item</span>&gt;;
+}</pre>
+        <strong>Associated types</strong> (<code>type Item</code>) let each <em>implementation</em> pick exactly
+        one concrete type for that placeholder — a given type can only implement <code>Iterator</code> <em>once</em>,
+        yielding one specific <code>Item</code> type. This models a functional relationship: "given a concrete
+        iterator type, its item type is uniquely determined." If <code>Iterator</code> instead used a generic
+        parameter — <code>trait Iterator&lt;Item&gt;</code> — a single type could implement
+        <code>Iterator&lt;i32&gt;</code> <em>and</em> <code>Iterator&lt;String&gt;</code> simultaneously, which
+        would make writing generic code over "any iterator" ambiguous (which <code>Item</code> did you mean?) and
+        would require specifying the type parameter at every call site (<code>fn sum&lt;I: Iterator&lt;i32&gt;&gt;</code>
+        instead of the cleaner <code>fn sum&lt;I: Iterator&lt;Item = i32&gt;&gt;</code>). The rule of thumb: use an
+        associated type when a trait implementation determines exactly one output type; use a generic parameter
+        when a type might reasonably implement the trait multiple times for different type arguments (e.g.
+        <code>From&lt;T&gt;</code> — a type can convert <code>From</code> many different source types).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What is the "supertrait" relationship, and how does it differ from a generic bound? Explain using <code>Copy: Clone</code>.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>trait Copy: Clone</code> declares <code>Clone</code> as a <strong>supertrait</strong> of
+        <code>Copy</code> — meaning anything implementing <code>Copy</code> must <em>also</em> implement
+        <code>Clone</code>. This is checked at the <code>impl</code> site: you can't write <code>impl Copy for
+        MyType</code> unless <code>MyType: Clone</code> too (usually derived alongside it:
+        <code>#[derive(Clone, Copy)]</code>). Functionally, within a generic function bound by
+        <code>T: Copy</code>, you can call <code>.clone()</code> on a value of type <code>T</code> even though the
+        bound only mentions <code>Copy</code> — the compiler knows the supertrait relationship guarantees
+        <code>Clone</code> is available too. This differs from a plain generic bound like
+        <code>fn f&lt;T: Clone&gt;(x: T)</code>, which only asserts a relationship <em>at the point of use</em> —
+        it doesn't establish any permanent relationship between two traits themselves, and a different generic
+        function could bound the same type parameter differently. Supertraits are a statement about the trait
+        <em>definition</em> itself ("every Copy type is necessarily a Clone type"), which is a stronger, permanent
+        guarantee than any one function's bound list.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">You're designing a plugin system where third-party crates implement a trait and the host application stores heterogeneous plugin instances. Walk through the API design decisions — dyn vs generic, ownership model, and how you'd version the trait without breaking existing plugins.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Dispatch:</strong> plugins are unknown at compile time and stored heterogeneously — this is the
+        textbook case for <code>dyn Trait</code>: <code>Vec&lt;Box&lt;dyn Plugin&gt;&gt;</code>. Generics can't
+        work here since you'd need one monomorphised collection per concrete plugin type.
+        <strong>Object safety:</strong> design the trait's methods to avoid generics and <code>Self</code>-returning
+        methods from the start — e.g. <code>fn name(&amp;self) -&gt; &amp;str</code>,
+        <code>fn handle(&amp;mut self, event: &amp;Event) -&gt; Result&lt;(), PluginError&gt;</code>, never
+        <code>fn clone_self(&amp;self) -&gt; Self</code>.
+        <strong>Ownership:</strong> the host typically owns the plugin (<code>Box&lt;dyn Plugin&gt;</code>) since
+        plugin lifetime is tied to registration; if plugins need to be shared across threads/subsystems, wrap in
+        <code>Arc&lt;dyn Plugin + Send + Sync&gt;</code> instead — decide this up front since it changes the
+        trait's supertrait requirements.
+        <strong>Versioning without breaking existing plugins:</strong> (1) <strong>never add a required method</strong>
+        to an already-shipped trait — add new methods with default implementations instead, so existing
+        implementors keep compiling. (2) mark the trait <code>#[non_exhaustive]</code>-equivalent by not sealing
+        it, or explicitly use the <strong>"sealed trait"</strong> pattern if you want to prevent external
+        implementations entirely while reserving the right to add required methods later (a private supertrait
+        that only your crate can implement). (3) Consider a <strong>capability/extension-trait</strong> design —
+        ship a minimal core <code>Plugin</code> trait plus optional extension traits
+        (<code>trait PluginV2: Plugin { ... }</code>) that plugins opt into via additional
+        <code>impl</code> blocks, using <code>downcast_ref</code> (via the <code>Any</code> trait) at runtime to
+        detect whether a given <code>dyn Plugin</code> also implements the newer trait. This mirrors how COM/plugin
+        systems in other ecosystems handle interface versioning, adapted to Rust's trait system.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">Native <code>async fn</code> in traits has been stable since Rust 1.75 — but why did the ecosystem need the <code>async-trait</code> crate for years before that, and why is a trait with an <code>async fn</code> method still <strong>not object-safe</strong> by default?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:4px 0;"><span class="kw">trait</span> <span class="ty">DataSource</span> {
+<span class="ok-line">    <span class="kw">async</span> <span class="kw">fn</span> <span class="fn">fetch</span>(&amp;<span class="kw">self</span>, id: <span class="ty">u64</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">String</span>, <span class="ty">Error</span>&gt;;  <span class="cm">// native syntax, stable since 1.75</span></span>
+}
+
+<span class="kw">impl</span> <span class="ty">DataSource</span> <span class="kw">for</span> <span class="ty">Postgres</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="fn">fetch</span>(&amp;<span class="kw">self</span>, id: <span class="ty">u64</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">String</span>, <span class="ty">Error</span>&gt; { <span class="cm">/* ... */</span> }
+}</pre>
+        <strong>Why the trick was hard in the first place:</strong> desugared, <code>async fn fetch(&amp;self) -&gt;
+        T</code> is really <code>fn fetch(&amp;self) -&gt; impl Future&lt;Output = T&gt;</code> — a
+        return-position <code>impl Trait</code>. For years, Rust simply didn't allow <code>impl Trait</code> in
+        trait method signatures at all (only in free functions), because the compiler needs to generate a distinct,
+        anonymous, differently-sized future type <em>per implementation</em>, and trait definitions historically
+        had no way to express "each impl picks its own concrete associated type here" for a return position —
+        this required <strong>generic associated types (GATs)</strong> to land first as the underlying language
+        feature, which the native <code>async fn</code>-in-traits syntax is sugar over.
+        <strong>The <code>async-trait</code> crate's workaround:</strong> a macro that rewrites your
+        <code>async fn</code> method into <code>fn fetch(&amp;self) -&gt; Pin&lt;Box&lt;dyn Future&lt;Output = T&gt;
+        + Send + '_&gt;&gt;</code> — boxing and erasing the future's concrete type at the cost of one heap
+        allocation per call, in exchange for a uniform, always-the-same-size return type that vtables and object
+        safety can handle today.
+        <strong>Why native async-fn-in-traits still isn't object-safe:</strong> the compiler-generated future type
+        differs per implementation (different fields captured, different size) — exactly the same "vtable slot
+        needs one fixed layout, but every impl produces a different one" problem that makes generic methods
+        non-object-safe (Q2). So <code>Box&lt;dyn DataSource&gt;</code> still fails to compile with a native
+        <code>async fn</code> method — you either keep using <code>async-trait</code>'s boxing approach
+        specifically when you need trait objects, or manually write the method to return
+        <code>Pin&lt;Box&lt;dyn Future&lt;Output = T&gt; + Send + '_&gt;&gt;</code> yourself without the macro.
+        Knowing to reach for <code>async-trait</code> (or manual boxing) <em>specifically and only</em> when
+        dynamic dispatch over the trait is required — and using plain native <code>async fn</code> everywhere
+        else — is the senior-level judgement call here.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains object safety via vtable construction, not just "some traits can't be dyn"</li>
+      <li>Distinguishes associated types (one impl) from generic trait params (many impls)</li>
+      <li>Designs a versionable plugin trait with default methods / extension traits</li>
+      <li>Knows the sealed-trait pattern by name</li>
+      <li>Knows native async-fn-in-traits still isn't object-safe and when async-trait's boxing is actually needed</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Knows dyn exists but not why some traits (e.g. Clone) can't be used with it</li>
+      <li>Confuses associated types with generic parameters</li>
+      <li>Reaches for async-trait everywhere out of habit even when no trait object is needed</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Thinks traits are literally the same as Java interfaces with no distinction</li>
+      <li>Always uses Box&lt;dyn Trait&gt; even for hot-path generic code</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    "How would you evolve this trait's API without breaking downstream implementors?" is a question almost
+    unique to trait-based (vs class-based) design, and most mid-level candidates have never had to think about
+    it because they've only ever consumed traits, not shipped a trait as a stable public API.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 07 · GENERICS ════════════ -->
+<div class="section" id="t-gen">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-gen)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-gen)">// Topic 07</div>
+      <div class="sh-title">Generics</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-gen)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is monomorphisation? What are its costs, and how does it differ from what Java or C# generics do at runtime?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The compiler generates a fully separate, specialised copy of a generic function or type for every distinct
+        set of concrete type arguments used in the program — <code>Vec&lt;i32&gt;</code> and
+        <code>Vec&lt;String&gt;</code> compile to entirely independent code, each fully optimised as if hand-written
+        for that specific type, with zero runtime type-checking or boxing overhead. <strong>Cost:</strong> binary
+        size grows with the number of distinct instantiations ("code bloat"), and compile times grow since every
+        instantiation must be compiled and optimised separately (this is one of the primary reasons Rust compile
+        times can be slow in generics-heavy codebases). <strong>Contrast with Java/C#:</strong> Java generics are
+        purely compile-time (type erasure) — at runtime there's exactly one bytecode implementation, and generic
+        type parameters become <code>Object</code> under the hood requiring boxing for primitives and runtime
+        casts. C# generics are reified and can specialise similarly to Rust for value types, but reference types
+        typically share one compiled implementation via indirection. Rust's approach trades compile time and
+        binary size for runtime performance identical to hand-specialised code — the same fundamental trade-off
+        C++ templates make.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is the difference between a trait bound like <code>T: Ord</code> and a <code>where</code> clause? When would you prefer one over the other?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        They're semantically identical — <code>where</code> clauses are just an alternative, more flexible syntax
+        for expressing the same bounds:
+<pre style="margin:6px 0;"><span class="kw">fn</span> <span class="fn">largest</span>&lt;<span class="ty">T</span>: <span class="ty">Ord</span> + <span class="ty">Copy</span>&gt;(list: &amp;[<span class="ty">T</span>]) -&gt; <span class="ty">T</span> { <span class="cm">/* ... */</span> }
+
+<span class="kw">fn</span> <span class="fn">largest</span>&lt;<span class="ty">T</span>&gt;(list: &amp;[<span class="ty">T</span>]) -&gt; <span class="ty">T</span>
+<span class="kw">where</span>
+    <span class="ty">T</span>: <span class="ty">Ord</span> + <span class="ty">Copy</span>,
+{ <span class="cm">/* ... */</span> }</pre>
+        <code>where</code> clauses are preferable — sometimes mandatory — when: (1) bounds get long enough to hurt
+        readability inline (multiple type parameters, multiple traits each), (2) you need to bound a type that
+        isn't a direct generic parameter of the function — e.g. <code>where T::Item: Clone</code> constraining an
+        associated type, which has no equivalent inline syntax, or (3) you need to bound the function's return
+        type or a type appearing only in the body. Style-wise, most teams default to inline bounds for one or two
+        simple constraints and switch to <code>where</code> once it improves readability — this is a taste/style
+        call, not a correctness one, in the simple cases.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is const generics? Give an example of a problem it solves that was previously impossible or required a macro.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Const generics</strong> let a type or function be generic over a <em>value</em> (typically an
+        integer, bool, or char), not just a type — stabilised for arrays and basic use cases in Rust 1.51+.
+<pre style="margin:6px 0;"><span class="kw">struct</span> <span class="ty">Matrix</span>&lt;<span class="kw">const</span> <span class="ty">R</span>: <span class="ty">usize</span>, <span class="kw">const</span> <span class="ty">C</span>: <span class="ty">usize</span>&gt; {
+    data: [[<span class="ty">f64</span>; <span class="ty">C</span>]; <span class="ty">R</span>],
+}
+<span class="kw">impl</span>&lt;<span class="kw">const</span> <span class="ty">R</span>: <span class="ty">usize</span>, <span class="kw">const</span> <span class="ty">C</span>: <span class="ty">usize</span>&gt; <span class="ty">Matrix</span>&lt;<span class="ty">R</span>, <span class="ty">C</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">zero</span>() -&gt; <span class="kw">Self</span> { <span class="ty">Self</span> { data: [[<span class="nm">0.0</span>; <span class="ty">C</span>]; <span class="ty">R</span>] } }
+}</pre>
+        Before const generics, <code>[T; N]</code> for varying <code>N</code> had <strong>no shared trait impls</strong> —
+        the standard library had to implement traits like <code>Debug</code> separately, by macro, for every array
+        length up to 32; arrays of length 33+ simply had no trait implementations at all. Const generics let a
+        single generic impl cover <em>any</em> array length uniformly (<code>impl&lt;T, const N: usize&gt;
+        Trait for [T; N]</code>), and let library authors write size-checked APIs entirely at compile time —
+        e.g. a fixed-size ring buffer, a cryptographic hash type with a compile-time-known digest length, or a
+        SIMD-friendly vector type where the width must match at compile time to avoid runtime bounds checks. It
+        eliminates a whole category of "generate the same impl N times via a macro" boilerplate that was previously
+        the only workaround.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Explain "specialisation" as an unstable Rust feature and why coherence rules make generic trait implementations trickier than they first appear. What's the stable workaround pattern?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Coherence</strong> requires that for any given trait and type, there is at most <em>one</em>
+        implementation in the entire dependency graph — this is what makes trait resolution unambiguous and is
+        enforced partly by the orphan rule. The problem this creates: you often want a generic impl (<code>impl&lt;T:
+        SomeTrait&gt; OtherTrait for T</code>) plus a more specific impl for particular types that could do better
+        — but coherence forbids two overlapping impls even if one is obviously "more specific." <strong>Specialisation</strong>
+        (an unstable, long-unfinished feature — <code>#![feature(specialization)]</code>) would let you write a
+        general blanket impl plus a narrower override that takes priority when both apply, similar to method
+        overriding, but soundness issues around trait bounds interacting with lifetimes have kept it unstable for
+        years. <strong>Stable workaround:</strong> the most common pattern is to define your own narrower "helper"
+        trait with a blanket impl providing default behaviour, then let types override behaviour by implementing
+        an entirely separate, more specific trait that your code checks for using a dispatch trick — or more
+        pragmatically, just accept the coherence constraint and design one canonical impl, using newtypes to work
+        around the orphan rule when you need "different behaviour for the same underlying type" in different
+        contexts. Knowing that specialisation is desired-but-unstable, and why coherence makes the naive approach
+        illegal, is a solidly senior-level piece of trivia that comes up in library design discussions.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Your team is debating whether a hot-path numeric function should be generic over a trait like <code>num_traits::Float</code>, or simply duplicated for <code>f32</code> and <code>f64</code>. Walk through how you'd decide, including compile-time and codegen considerations.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Both approaches produce <strong>identical runtime performance</strong> in the end — a generic function
+        bounded by a numeric trait monomorphises to the same specialised machine code as manually duplicating the
+        function per type, since the compiler generates one copy per concrete type either way. So this decision is
+        purely about maintainability, compile time, and API ergonomics, not runtime speed.
+        <strong>Favour the generic version</strong> when: the function is part of a public API and you want callers
+        to use it with types you haven't anticipated (custom numeric types, fixed-point types implementing the
+        same trait); the logic is complex enough that duplicating it manually risks the two copies silently
+        diverging over time as one gets bugfixed and the other doesn't; or it's called with more than two concrete
+        types.
+        <strong>Favour manual duplication</strong> when: this is exactly two call sites (<code>f32</code>/<code>f64</code>)
+        in an internal, non-public function, compile time is measurably suffering from a generics-heavy codebase
+        (profile with <code>cargo build --timings</code> before assuming this), or the numeric trait bound would
+        need to be unreasonably broad/leaky to accommodate both cases cleanly.
+        <strong>Senior nuance to raise unprompted:</strong> also consider whether the function should be marked
+        <code>#[inline]</code> either way — for small numeric hot-path functions, cross-crate inlining often
+        matters more than the generic-vs-duplicated decision itself, since without inlining you pay a real call
+        overhead regardless of dispatch mechanism. Bring up <code>cargo asm</code> or checking the disassembly if
+        someone claims a performance difference between the two approaches — this is a case where intuition is
+        often wrong and verification is cheap.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">Write a generic function that is parameterised over <strong>both</strong> a data type and a closure — e.g. a <code>retry_until</code> helper generic over the value type <code>T</code> and a predicate closure. What has to go in the <code>where</code> clause, and in what order does the compiler resolve the two kinds of generic parameters?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:4px 0;"><span class="kw">fn</span> <span class="fn">retry_until</span>&lt;<span class="ty">T</span>, <span class="ty">F</span>&gt;(<span class="kw">mut</span> attempt: <span class="ty">F</span>, max_tries: <span class="ty">u32</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">T</span>&gt;
+<span class="kw">where</span>
+    <span class="ty">F</span>: <span class="ty">FnMut</span>() -&gt; <span class="ty">Option</span>&lt;<span class="ty">T</span>&gt;,  <span class="cm">// F is generic over the closure TYPE; T only appears inside F's signature</span>
+{
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="nm">0</span>..max_tries {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(v) = attempt() {
+            <span class="kw">return</span> <span class="ty">Some</span>(v);
+        }
+    }
+    <span class="ty">None</span>
+}
+
+<span class="cm">// call site — T = i32 is inferred entirely from the closure's return type, never named explicitly</span>
+<span class="kw">let</span> result = <span class="fn">retry_until</span>(|| <span class="fn">flaky_parse</span>(<span class="st">"42"</span>), <span class="nm">3</span>);</pre>
+        There are <strong>two independent generic parameters</strong> here doing different jobs: <code>T</code> is
+        an ordinary data-type parameter (what value the operation eventually produces), while <code>F</code> is a
+        parameter standing in for <em>the closure's own anonymous, compiler-generated type</em> — every distinct
+        closure expression has a unique type even if two closures have identical signatures, which is exactly why
+        a generic parameter (rather than writing <code>Fn</code> inline as a concrete type) is required to accept
+        "some closure matching this shape" at all. The <code>where F: FnMut() -&gt; Option&lt;T&gt;</code> bound is
+        what <em>connects</em> the two parameters — <code>T</code> doesn't appear anywhere in <code>retry_until</code>'s
+        own parameter list directly, only inside <code>F</code>'s signature, so the compiler infers <code>T</code>
+        purely from unifying the closure's actual return type against that bound at the call site. Resolution
+        order in practice: the compiler first figures out the concrete closure type for <code>F</code> from the
+        argument expression, then reads <code>F</code>'s <code>Output</code>/return type off of that to pin down
+        <code>T</code> — inference flows <em>outward</em> from the closure into the rest of the signature, which
+        is why you can call this function without ever writing <code>::&lt;i32, _&gt;</code> yourself.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q7</span><span class="qa-qtext">Operator overloading is just trait implementation in Rust. Implement <code>Add</code> for a generic <code>Point&lt;T&gt;</code>, then explain the difference between overloading <code>Index</code> vs <code>IndexMut</code>, and why you can't overload <code>&amp;&amp;</code>/<code>||</code> or make comparisons return anything other than <code>bool</code>/<code>Ordering</code>.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">use</span> std::ops::{<span class="ty">Add</span>, <span class="ty">Index</span>, <span class="ty">IndexMut</span>};
+
+<span class="mc">#[derive(Clone, Copy, Debug, PartialEq)]</span>
+<span class="kw">struct</span> <span class="ty">Point</span>&lt;<span class="ty">T</span>&gt; { x: <span class="ty">T</span>, y: <span class="ty">T</span> }
+
+<span class="cm">// Generic impl — works for Point<i32>, Point<f64>, Point<AnyType: Add<Output = T> + Copy></span>
+<span class="kw">impl</span>&lt;<span class="ty">T</span>: <span class="ty">Add</span>&lt;<span class="ty">Output</span> = <span class="ty">T</span>&gt;&gt; <span class="ty">Add</span> <span class="kw">for</span> <span class="ty">Point</span>&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">type</span> <span class="ty">Output</span> = <span class="ty">Point</span>&lt;<span class="ty">T</span>&gt;;
+<span class="ok-line">    <span class="kw">fn</span> <span class="fn">add</span>(<span class="kw">self</span>, other: <span class="kw">Self</span>) -&gt; <span class="ty">Point</span>&lt;<span class="ty">T</span>&gt; {  <span class="cm">// `a + b` desugars to Add::add(a, b) — no compiler magic beyond that</span></span>
+        <span class="ty">Point</span> { x: <span class="kw">self</span>.x + other.x, y: <span class="kw">self</span>.y + other.y }
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">Grid</span> { cells: Vec&lt;<span class="ty">i32</span>&gt;, width: <span class="ty">usize</span> }
+
+<span class="kw">impl</span> <span class="ty">Index</span>&lt;(<span class="ty">usize</span>, <span class="ty">usize</span>)&gt; <span class="kw">for</span> <span class="ty">Grid</span> {
+    <span class="kw">type</span> <span class="ty">Output</span> = <span class="ty">i32</span>;
+<span class="ok-line">    <span class="kw">fn</span> <span class="fn">index</span>(&amp;<span class="kw">self</span>, (r, c): (<span class="ty">usize</span>, <span class="ty">usize</span>)) -&gt; &amp;<span class="ty">i32</span> { &amp;<span class="kw">self</span>.cells[r * <span class="kw">self</span>.width + c] }</span>
+}
+<span class="kw">impl</span> <span class="ty">IndexMut</span>&lt;(<span class="ty">usize</span>, <span class="ty">usize</span>)&gt; <span class="kw">for</span> <span class="ty">Grid</span> {
+<span class="ok-line">    <span class="kw">fn</span> <span class="fn">index_mut</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, (r, c): (<span class="ty">usize</span>, <span class="ty">usize</span>)) -&gt; &amp;<span class="kw">mut</span> <span class="ty">i32</span> { &amp;<span class="kw">mut</span> <span class="kw">self</span>.cells[r * <span class="kw">self</span>.width + c] }</span>
+}
+<span class="cm">// grid[(r, c)] reads via Index; grid[(r, c)] = 5 needs IndexMut — the compiler picks based on l-value vs r-value position</span></pre>
+        <strong>Operators are not special-cased by the compiler</strong> beyond the desugaring itself — every
+        infix operator maps to exactly one trait method (<code>+</code> → <code>Add::add</code>, <code>*</code> →
+        <code>Mul::mul</code>, <code>[]</code> → <code>Index::index</code>/<code>IndexMut::index_mut</code>,
+        <code>==</code> → <code>PartialEq::eq</code>). This is why a generic function can be bounded by
+        <code>T: Add&lt;Output = T&gt;</code> and use <code>+</code> on values of type <code>T</code> directly —
+        it's an ordinary trait bound like any other, not compiler magic tied to a builtin numeric type.
+        <strong><code>Index</code> vs <code>IndexMut</code>:</strong> <code>Index::index</code> returns
+        <code>&amp;Output</code> and is used for reads; <code>IndexMut::index_mut</code> returns
+        <code>&amp;mut Output</code> and is used whenever the indexing expression appears in a position needing
+        mutable access (an assignment target, or passed to something expecting <code>&amp;mut</code>) — the
+        compiler chooses which trait to invoke based on that context, the same way method resolution chooses
+        between <code>&amp;self</code>/<code>&amp;mut self</code> methods. Neither can fail gracefully —
+        <code>Index::index</code> has no <code>Result</code>/<code>Option</code> in its signature, so an
+        out-of-bounds access inside your impl must <code>panic!</code>, exactly like slice indexing does; if you
+        want a fallible lookup you write a separate <code>.get()</code>-style method instead of implementing
+        <code>Index</code>. <strong>Why <code>&amp;&amp;</code>/<code>||</code> can't be overloaded:</strong> they
+        short-circuit — the right-hand side must not even be evaluated unless the left side's boolean value
+        demands it — but a trait method call always evaluates its arguments eagerly first, so there is no way to
+        preserve short-circuiting semantics through an overloadable trait; Rust deliberately leaves them
+        non-overloadable rather than offering a trait that would silently break that guarantee. <strong>Why
+        comparisons can't return arbitrary types:</strong> <code>PartialEq::eq</code> is fixed to return
+        <code>bool</code> and <code>PartialOrd::partial_cmp</code> to return <code>Option&lt;Ordering&gt;</code> —
+        this isn't a limitation so much as the entire point: it guarantees every type's comparison operators are
+        usable uniformly by generic code (<code>sort_by</code>, <code>Ord</code>-bounded containers) without each
+        type inventing its own comparison-result type that callers would need to special-case.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Compares Rust monomorphisation to Java type erasure with the boxing/perf implications</li>
+      <li>Knows const generics solved the pre-1.51 array-trait-impl problem</li>
+      <li>Aware that specialisation is unstable and can explain coherence rules informally</li>
+      <li>Recognises generic-vs-duplicated is a maintainability question, not a perf one</li>
+      <li>Can write a function generic over both a data type and a closure type and explain how inference flows between them</li>
+      <li>Knows operators are plain trait methods (Add/Mul/Index) with no compiler magic beyond desugaring</li>
+      <li>Explains why Index/IndexMut must panic rather than return Option, and why &amp;&amp;/|| can't be overloaded</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Thinks generics always have some runtime cost like Java</li>
+      <li>Hasn't used const generics or doesn't know why they were added</li>
+      <li>Tries to write the closure parameter's type as literally "Fn()" without a generic parameter name</li>
+      <li>Has never implemented a std::ops trait, only consumed built-in operators</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Believes generic code is inherently slower than non-generic code</li>
+      <li>Cannot explain what monomorphisation means</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Watch for candidates who treat "should this be generic" as a purely stylistic question rather than one with
+    real compile-time and binary-size consequences at scale. Bonus points if they mention that excessive generics
+    in a large codebase is one of the top real-world causes of slow <code>cargo build</code> times in production
+    Rust teams, and that boxing/dyn-dispatch is a legitimate mitigation, not just a performance downgrade.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 08 · ITERATORS ════════════ -->
+<div class="section" id="t-iter">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-iter)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-iter)">// Topic 08</div>
+      <div class="sh-title">Iterators</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-iter)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does it mean that iterators are "lazy"? Why does <code>vec.iter().map(|x| x * 2)</code> alone do nothing?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Iterator adapters like <code>map</code>, <code>filter</code>, and <code>take</code> don't eagerly produce a
+        new collection — they build up a <strong>chain of wrapped iterators</strong>, each of which only does work
+        when <code>.next()</code> is actually called on the outermost one. <code>vec.iter().map(|x| x * 2)</code>
+        just constructs a <code>Map&lt;Iter, Closure&gt;</code> value; the closure inside never runs until
+        something <strong>consumes</strong> the iterator — via a <code>for</code> loop, <code>.collect()</code>,
+        <code>.sum()</code>, <code>.for_each()</code>, or manually calling <code>.next()</code>. This laziness lets
+        adapter chains fuse into a single tight loop at compile time (no intermediate allocations between each
+        <code>.map()</code>/<code>.filter()</code> stage — very different from, say, chaining array methods in
+        JavaScript, which allocates a fresh array after every step). The common beginner bug: writing
+        <code>vec.iter().map(|x| println!("{x}"));</code> and being confused when nothing prints — the
+        <code>Map</code> is constructed and then immediately dropped, unused, so the closure never executes; the
+        compiler even emits an <code>unused_must_use</code>-style warning for this in many cases.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain the difference between <code>iter()</code>, <code>iter_mut()</code>, and <code>into_iter()</code> on a <code>Vec&lt;T&gt;</code>.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>iter()</code></strong> borrows the collection and yields <code>&amp;T</code> — read-only
+        access, the collection remains usable afterward. <strong><code>iter_mut()</code></strong> mutably borrows
+        and yields <code>&amp;mut T</code> — lets you modify elements in place through the iterator, but only one
+        such iterator can be live at a time (standard exclusive-borrow rules). <strong><code>into_iter()</code></strong>
+        <em>consumes</em> the collection by value and yields owned <code>T</code> — after this, the original
+        <code>Vec</code> is moved and unusable. The subtlety that trips people up: <code>for x in vec { ... }</code>
+        implicitly calls <code>into_iter()</code> (via the <code>IntoIterator</code> trait) and moves
+        <code>vec</code>, while <code>for x in &amp;vec { ... }</code> calls <code>iter()</code> and
+        <code>for x in &amp;mut vec { ... }</code> calls <code>iter_mut()</code> — the exact same
+        <code>for</code> syntax dispatches to a different method depending on whether you iterate the value, a
+        reference, or a mutable reference, because <code>IntoIterator</code> is implemented differently for
+        <code>Vec&lt;T&gt;</code>, <code>&amp;Vec&lt;T&gt;</code>, and <code>&amp;mut Vec&lt;T&gt;</code>.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is the difference between <code>Iterator::fold</code> and <code>Iterator::reduce</code>? When would you reach for <code>scan</code> instead of either?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">let</span> sum = [<span class="nm">1</span>,<span class="nm">2</span>,<span class="nm">3</span>].<span class="fn">iter</span>().<span class="fn">fold</span>(<span class="nm">0</span>, |acc, x| acc + x);          <span class="cm">// explicit seed: 6</span>
+<span class="kw">let</span> max = [<span class="nm">1</span>,<span class="nm">5</span>,<span class="nm">3</span>].<span class="fn">iter</span>().<span class="fn">copied</span>().<span class="fn">reduce</span>(<span class="ty">i32</span>::max);   <span class="cm">// Option&lt;i32&gt;: Some(5)</span></pre>
+        <strong><code>fold</code></strong> takes an explicit initial accumulator value and always returns that
+        accumulator's type directly — works even on an empty iterator (returns the seed unchanged).
+        <strong><code>reduce</code></strong> uses the <em>first element</em> as the implicit seed and returns
+        <code>Option&lt;T&gt;</code> — <code>None</code> if the iterator was empty, since there'd be no first
+        element to seed with. Use <code>reduce</code> when there's no sensible seed value independent of the data
+        (e.g. "max element" has no natural identity value without knowing the type's bounds); use <code>fold</code>
+        when you have a natural identity (0 for sum, 1 for product, empty Vec for collecting) or need a different
+        accumulator type than the item type (e.g. folding a <code>&amp;str</code> iterator into a
+        <code>HashMap</code>). <strong><code>scan</code></strong> is for when you need <em>both</em> a running
+        accumulator <em>and</em> to yield a transformed value per step (fold/reduce only give you the final
+        value) — e.g. computing a running total for a chart while yielding each intermediate total:
+<pre style="margin:4px 0;"><span class="kw">let</span> running: Vec&lt;<span class="ty">i32</span>&gt; = [<span class="nm">1</span>,<span class="nm">2</span>,<span class="nm">3</span>].<span class="fn">iter</span>().<span class="fn">scan</span>(<span class="nm">0</span>, |acc, &amp;x| { *acc += x; <span class="ty">Some</span>(*acc) }).<span class="fn">collect</span>();
+<span class="cm">// [1, 3, 6] — each intermediate sum, not just the final one</span></pre>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What does it mean for an iterator to be "fused," and what does <code>DoubleEndedIterator</code> or <code>ExactSizeIterator</code> buy you? Why does the compiler often produce zero-overhead machine code for long adapter chains?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>FusedIterator</code></strong> is a marker trait promising that once <code>.next()</code>
+        returns <code>None</code>, it will <em>always</em> return <code>None</code> on every subsequent call —
+        some adapters can skip a defensive re-check for this guarantee once they know the underlying iterator is
+        fused, shaving a branch per call in tight loops. <strong><code>ExactSizeIterator</code></strong> adds a
+        <code>.len()</code> that returns the <em>exact</em> remaining count (not just a lower-bound hint like the
+        base <code>size_hint()</code>) — this lets <code>.collect()</code> pre-allocate a <code>Vec</code> of
+        exactly the right capacity up front instead of growing it incrementally, and lets you implement
+        <code>.count()</code> in O(1) instead of walking the whole iterator. <strong><code>DoubleEndedIterator</code></strong>
+        adds <code>.next_back()</code>, enabling <code>.rev()</code> and meet-in-the-middle algorithms that consume
+        from both ends. <strong>Zero-overhead chains:</strong> because every adapter is a generic struct
+        implementing the <code>Iterator</code> trait (not a trait object), an entire chain like
+        <code>v.iter().filter(...).map(...).take(5)</code> monomorphises into one nested generic type; when this
+        gets consumed in a <code>for</code> loop or <code>.collect()</code>, LLVM inlines every layer's
+        <code>.next()</code> call into a single flat loop with no virtual dispatch at all — the compiled code is
+        typically indistinguishable from a hand-written imperative loop, sometimes even faster due to easier bounds
+        -check elimination when the compiler can prove indices stay in range across the whole fused chain.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Write your own custom iterator by implementing the <code>Iterator</code> trait for a type — a Fibonacci sequence generator — and explain how getting one method right gives you dozens of adapter methods for free.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:4px 0;"><span class="kw">struct</span> <span class="ty">Fibonacci</span> { curr: <span class="ty">u64</span>, next: <span class="ty">u64</span> }
+
+<span class="kw">impl</span> <span class="ty">Iterator</span> <span class="kw">for</span> <span class="ty">Fibonacci</span> {
+    <span class="kw">type</span> <span class="ty">Item</span> = <span class="ty">u64</span>;
+
+    <span class="kw">fn</span> <span class="fn">next</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">u64</span>&gt; {
+        <span class="kw">let</span> new_next = <span class="kw">self</span>.curr + <span class="kw">self</span>.next;
+        <span class="kw">self</span>.curr = <span class="kw">self</span>.next;
+        <span class="kw">self</span>.next = new_next;
+        <span class="ty">Some</span>(<span class="kw">self</span>.curr) <span class="cm">// Fibonacci never ends, so this always returns Some</span>
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">fibonacci</span>() -&gt; <span class="ty">Fibonacci</span> { <span class="ty">Fibonacci</span> { curr: <span class="nm">0</span>, next: <span class="nm">1</span> } }
+
+<span class="cm">// Usage — every adapter below comes free from the trait's default methods:</span>
+<span class="kw">let</span> v: Vec&lt;<span class="ty">u64</span>&gt; = <span class="fn">fibonacci</span>().<span class="fn">take_while</span>(|&amp;x| x &lt; <span class="nm">100</span>).<span class="fn">filter</span>(|x| x % <span class="nm">2</span> == <span class="nm">0</span>).<span class="fn">collect</span>();</pre>
+        You only need to implement <strong>one required method, <code>next()</code></strong>. Every other
+        method on <code>Iterator</code> — <code>map</code>, <code>filter</code>, <code>take</code>,
+        <code>take_while</code>, <code>zip</code>, <code>fold</code>, <code>sum</code>, <code>collect</code>, and
+        dozens more — is a <strong>default method</strong> implemented purely in terms of repeated calls to
+        <code>.next()</code>. This is a textbook example of the "provide one primitive, get a rich API surface for
+        free" design that traits with default methods enable, and it's exactly why implementing a custom
+        <code>Iterator</code> for a domain type (a parser's token stream, a paginated API client, a tree traversal)
+        is so much more powerful than writing a bespoke <code>while let Some(x) = my_thing.next_item() { ... }</code>
+        loop — you immediately unlock the entire combinator ecosystem, and any function generic over
+        <code>I: Iterator&lt;Item = T&gt;</code> in the ecosystem works with your type unmodified.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">Explain <code>flat_map</code>, <code>chain</code>, and <code>zip</code>. Write a realistic pipeline that parses <code>Vec&lt;&amp;str&gt;</code> of comma-separated numbers into one flat <code>Vec&lt;i32&gt;</code>, silently skipping anything that fails to parse.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">let</span> rows = <span class="fn">vec!</span>[<span class="st">"1,2,3"</span>, <span class="st">"4,x,6"</span>, <span class="st">""</span>, <span class="st">"7,8"</span>];
+
+<span class="kw">let</span> flat: Vec&lt;<span class="ty">i32</span>&gt; = rows
+    .<span class="fn">iter</span>()
+<span class="ok-line">    .<span class="fn">flat_map</span>(|row| row.<span class="fn">split</span>(<span class="st">','</span>))          <span class="cm">// Iterator<Item = &str> flattened out of Iterator<Item = Iterator<Item=&str>></span></span>
+<span class="ok-line">    .<span class="fn">filter_map</span>(|s| s.<span class="fn">trim</span>().<span class="fn">parse</span>().<span class="fn">ok</span>())  <span class="cm">// parse::<i32>() fails silently discarded — no unwrap, no panic on "x" or ""</span></span>
+    .<span class="fn">collect</span>();
+
+<span class="fn">assert_eq!</span>(flat, <span class="fn">vec!</span>[<span class="nm">1</span>,<span class="nm">2</span>,<span class="nm">3</span>,<span class="nm">4</span>,<span class="nm">6</span>,<span class="nm">7</span>,<span class="nm">8</span>]);  <span class="cm">// "x" and the empty row's pieces are gone, nothing panics</span>
+
+<span class="cm">// chain — concatenate two iterators of the SAME Item type into one</span>
+<span class="kw">let</span> combined: Vec&lt;<span class="ty">i32</span>&gt; = [<span class="nm">1</span>,<span class="nm">2</span>].<span class="fn">iter</span>().<span class="fn">chain</span>([<span class="nm">3</span>,<span class="nm">4</span>].<span class="fn">iter</span>()).<span class="fn">copied</span>().<span class="fn">collect</span>(); <span class="cm">// [1,2,3,4]</span>
+
+<span class="cm">// zip — pair up two iterators element-wise, stopping at the SHORTER one</span>
+<span class="kw">let</span> names = <span class="fn">vec!</span>[<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>];
+<span class="kw">let</span> scores = <span class="fn">vec!</span>[<span class="nm">90</span>, <span class="nm">85</span>];
+<span class="kw">let</span> paired: Vec&lt;_&gt; = names.<span class="fn">iter</span>().<span class="fn">zip</span>(scores.<span class="fn">iter</span>()).<span class="fn">collect</span>(); <span class="cm">// [("a",90), ("b",85)] — "c" silently dropped</span></pre>
+        <strong><code>flat_map(f)</code></strong> is <code>map(f).flatten()</code> fused into one adapter — each
+        input element produces its own sub-iterator (a <code>Vec</code>, an <code>Option</code>, a <code>&amp;str</code>
+        split), and the results are concatenated into one flat stream; it's the standard tool for "one row of input
+        becomes zero-or-more output items," which is exactly the shape of parsing CSV-like rows, or expanding each
+        API response into its list of sub-items. <strong><code>filter_map(f)</code></strong> layered right after
+        it is the idiomatic way to parse-with-graceful-skip: <code>str::parse()</code> returns
+        <code>Result&lt;T, E&gt;</code>, <code>.ok()</code> converts that to <code>Option&lt;T&gt;</code>, and
+        <code>filter_map</code> keeps only the <code>Some</code>s — no explicit error type is ever named, and bad
+        data is dropped rather than aborting the whole pipeline; call this out explicitly as a design choice (you
+        lose visibility into <em>which</em> entries failed and why), not a free lunch. <strong><code>chain</code></strong>
+        requires both iterators to yield the identical <code>Item</code> type and simply exhausts the first before
+        starting the second — useful for prepending/appending without an intermediate allocation. <strong><code>zip</code></strong>
+        pairs elements positionally and <strong>stops as soon as either side runs out</strong> — a very common
+        silent bug is expecting it to pad the shorter iterator or panic on a length mismatch; it does neither, it
+        just quietly truncates to the shorter length, which is worth flagging as a real correctness risk when the
+        two iterators' lengths aren't provably equal ahead of time.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains laziness at the "constructs a chain of structs" level, not just "nothing happens until consumed"</li>
+      <li>Distinguishes fold/reduce/scan by seed and output shape</li>
+      <li>Can implement a custom Iterator and explain the "one method, many free adapters" design</li>
+      <li>Knows ExactSizeIterator affects collect() pre-allocation</li>
+      <li>Combines flat_map + filter_map for a "flatten and skip-on-parse-failure" pipeline without reaching for a manual loop</li>
+      <li>Flags unprompted that zip silently truncates to the shorter iterator instead of padding or panicking</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Uses iterators fluently but can't explain why chains compile to tight loops</li>
+      <li>Hasn't written a custom Iterator impl</li>
+      <li>Confuses flat_map with map, or map with map().flatten() and doesn't know they're equivalent</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Doesn't know iter()/iter_mut()/into_iter() differ</li>
+      <li>Thinks .map() without .collect() executes the closure anyway</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Ask them to reason about whether a long iterator chain will be as fast as a hand-written loop — many
+    candidates assume "combinators are slower, more idiomatic but less performant." A senior candidate knows this
+    is usually false due to inlining and can explain <em>why</em>, while also knowing the real exceptions
+    (e.g. chains involving <code>dyn Iterator</code> trait objects, or heavy allocation inside a closure).
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 09 · COLLECTIONS & STD LIBRARY ════════════ -->
+<div class="section" id="t-std">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-std)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-std)">// Topic 09</div>
+      <div class="sh-title">Collections &amp; Standard Library</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Compare <code>Vec&lt;T&gt;</code>, <code>VecDeque&lt;T&gt;</code>, and <code>LinkedList&lt;T&gt;</code>. Why does the standard library docs actively discourage using <code>LinkedList</code>?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>Vec&lt;T&gt;</code></strong>: contiguous heap buffer, O(1) amortised push/pop at the end,
+        O(n) insert/remove elsewhere, best cache locality — the default choice for almost everything.
+        <strong><code>VecDeque&lt;T&gt;</code></strong>: a growable ring buffer — O(1) push/pop at <em>both</em>
+        ends, still contiguous-ish (may wrap around the buffer, so it's not always representable as one
+        contiguous slice, though <code>make_contiguous()</code> exists) — the right structure for a queue, sliding
+        window, or BFS frontier. <strong><code>LinkedList&lt;T&gt;</code></strong>: a doubly-linked list — O(1)
+        insert/remove at any point <em>given an existing cursor there</em>, but every node is a separate heap
+        allocation with pointer-chasing traversal, so even "O(1) insert" is usually a net loss versus a
+        <code>Vec</code>'s O(n) insert once you account for cache misses on real hardware. The standard library
+        docs explicitly say most workloads are better served by <code>Vec</code> or <code>VecDeque</code> — a
+        linked list is rarely the right choice in Rust (unlike languages/curricula that teach it as the default
+        dynamic structure) precisely because modern CPU cache behaviour dominates asymptotic complexity for
+        realistic list sizes.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What's the difference between <code>HashMap</code> and <code>BTreeMap</code>? What hashing algorithm does <code>HashMap</code> use by default and why?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>HashMap&lt;K, V&gt;</code></strong>: average O(1) get/insert/remove, no ordering guarantee at
+        all — iteration order is unspecified and can even change between runs. <strong><code>BTreeMap&lt;K,
+        V&gt;</code></strong>: O(log n) operations, but keeps keys in <strong>sorted order</strong> — iteration
+        yields entries in key order, and it supports efficient range queries (<code>.range(a..b)</code>) that
+        <code>HashMap</code> cannot do at all. Choose <code>BTreeMap</code> when you need sorted iteration, range
+        queries, or a deterministic iteration order (useful for reproducible output/tests); choose
+        <code>HashMap</code> otherwise for the better average-case performance. <strong>Default hasher:</strong>
+        <code>HashMap</code> uses <strong>SipHash-1-3</strong> by default, seeded randomly per-process — this is a
+        deliberate <strong>DoS-resistance</strong> choice: a predictable/fast hash function (like FNV or a naive
+        multiplicative hash) would let an attacker who controls untrusted input keys (e.g. HTTP header names,
+        JSON keys) craft many keys that collide into the same bucket, degrading a hash map to O(n) per operation —
+        a real "hash-flooding" denial-of-service vector seen in other languages historically. The trade-off:
+        SipHash is measurably slower than faster non-cryptographic hashers, which is exactly why performance
+        -sensitive code that controls its own keys (not attacker-influenced) commonly swaps in
+        <strong><code>FxHashMap</code></strong> (rustc-hash) or <strong>ahash</strong> for a large speedup when DoS
+        resistance isn't a concern.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain the difference between <code>String</code> and <code>&amp;str</code>. What is a <code>Cow&lt;str&gt;</code> and when is it useful?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>String</code></strong>: an owned, growable, heap-allocated UTF-8 buffer — conceptually
+        <code>Vec&lt;u8&gt;</code> with the invariant that the bytes are always valid UTF-8, enforced by the API
+        (no safe way to insert invalid UTF-8). <strong><code>&amp;str</code></strong>: a borrowed view into
+        UTF-8 bytes owned by <em>something else</em> — a slice with a guaranteed-valid-UTF-8 invariant, could
+        point into a <code>String</code>'s buffer, a <code>&amp;'static str</code> literal in the binary, or
+        anywhere else with UTF-8 data. <strong><code>Cow&lt;'a, str&gt;</code></strong> ("clone on write") is an
+        enum — <code>Borrowed(&amp;'a str)</code> or <code>Owned(String)</code> — that lets a function return
+        <em>either</em> a borrowed slice of its input (when no modification was needed) <em>or</em> a freshly
+        allocated owned string (when it had to change something), without the caller needing to know which case
+        occurred until they actually need to mutate it (<code>.to_mut()</code> triggers the clone only then, lazily).
+        Classic use case: a string-sanitising function that, for the common case of "already clean input," returns
+        the original slice with zero allocation, but for the rare case of "needs escaping" allocates a new
+        <code>String</code> — giving you the performance of borrowing for the common path without giving up
+        the flexibility of owning for the rare path, behind one uniform return type.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What is the "entry API" on <code>HashMap</code>, and why is it more idiomatic and often faster than a naive check-then-insert pattern?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="cm">// Naive — two hash lookups on the insert path</span>
+<span class="kw">if</span> !counts.<span class="fn">contains_key</span>(&amp;word) {
+    counts.<span class="fn">insert</span>(word.<span class="fn">clone</span>(), <span class="nm">0</span>);
+}
+*counts.<span class="fn">get_mut</span>(&amp;word).<span class="fn">unwrap</span>() += <span class="nm">1</span>;
+
+<span class="cm">// Idiomatic — exactly one hash lookup total</span>
+*counts.<span class="fn">entry</span>(word).<span class="fn">or_insert</span>(<span class="nm">0</span>) += <span class="nm">1</span>;</pre>
+        The naive version hashes the key <strong>up to three times</strong> — once for <code>contains_key</code>,
+        once for <code>insert</code> if missing, once for <code>get_mut</code> — and requires an unnecessary
+        <code>.clone()</code> to satisfy the borrow checker across the two separate calls (since you'd otherwise
+        need to hold a borrow from <code>contains_key</code> while later needing to mutate). The
+        <strong><code>entry()</code></strong> API returns an <code>Entry</code> enum (<code>Occupied</code> or
+        <code>Vacant</code>) representing the single lookup's result, then lets you act on it — <code>or_insert</code>,
+        <code>or_insert_with</code> (lazy default, avoids constructing an unused default value on the occupied
+        path), <code>and_modify</code>, or <code>or_default</code> — all resolved with exactly <strong>one</strong>
+        hash computation and one bucket lookup, avoiding both the double-lookup and the extra clone. This is one of
+        the clearest examples in the standard library of an API shape that's simultaneously more concise
+        <em>and</em> more efficient than the "obvious" naive approach — worth calling out unprompted as a sign of
+        idiomatic fluency.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">You need a cache keyed by a struct with several fields, only some of which should participate in equality/hashing. Walk through the design — trait implementations, potential invariant-violation bugs, and how you'd guard against them.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        You cannot use <code>#[derive(Hash, PartialEq, Eq)]</code> naively since it includes every field — instead,
+        implement <code>Hash</code> and <code>PartialEq</code> (and the marker <code>Eq</code>) manually, hashing
+        and comparing only the fields that define identity for cache purposes:
+<pre style="margin:4px 0;"><span class="kw">struct</span> <span class="ty">CacheKey</span> { id: <span class="ty">u64</span>, region: <span class="ty">String</span>, <span class="cm">/* debug_label: String — excluded */</span> }
+
+<span class="kw">impl</span> PartialEq <span class="kw">for</span> <span class="ty">CacheKey</span> {
+    <span class="kw">fn</span> <span class="fn">eq</span>(&amp;<span class="kw">self</span>, other: &amp;<span class="kw">Self</span>) -&gt; <span class="ty">bool</span> { <span class="kw">self</span>.id == other.id &amp;&amp; <span class="kw">self</span>.region == other.region }
+}
+<span class="kw">impl</span> Eq <span class="kw">for</span> <span class="ty">CacheKey</span> {}
+<span class="kw">impl</span> std::hash::Hash <span class="kw">for</span> <span class="ty">CacheKey</span> {
+    <span class="kw">fn</span> <span class="fn">hash</span>&lt;<span class="ty">H</span>: std::hash::Hasher&gt;(&amp;<span class="kw">self</span>, state: &amp;<span class="kw">mut</span> <span class="ty">H</span>) {
+        <span class="kw">self</span>.id.<span class="fn">hash</span>(state);
+        <span class="kw">self</span>.region.<span class="fn">hash</span>(state);
+    }
+}</pre>
+        <strong>The critical, easy-to-violate invariant:</strong> <code>a == b</code> must imply
+        <code>hash(a) == hash(b)</code> — the standard library's contract for <code>Hash</code>/<code>Eq</code>.
+        If <code>Hash</code> and <code>PartialEq</code> ever disagree on which fields matter (e.g. someone later
+        adds a field to <code>eq()</code> but forgets to add it to <code>hash()</code>, or vice versa), you get
+        <strong>silent correctness bugs</strong>: two "equal" keys hashing differently means a
+        <code>HashMap</code> lookup for an existing entry can spuriously miss and insert a duplicate; two
+        "hash-equal but not actually equal" keys colliding is fine (that's just a hash collision, handled
+        correctly), but the reverse is a genuine bug that won't panic, just quietly corrupt cache behaviour.
+        <strong>Guard against drift:</strong> keep the two impls textually adjacent with a comment cross-referencing
+        each other, or better — refactor so both derive from a single private helper method
+        (<code>fn identity_fields(&amp;self) -&gt; (u64, &amp;str)</code>) that both <code>eq()</code> and
+        <code>hash()</code> call, so there is only one place that defines "what counts as identity" and it's
+        structurally impossible for them to diverge. Writing a unit test that constructs two keys differing only
+        in the excluded field and asserts equality/same-hash is cheap insurance senior engineers add reflexively.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">Walk through reading and writing files in Rust: <code>std::fs::File</code>, the <code>Read</code>/<code>Write</code> traits, <code>BufReader</code>/<code>BufWriter</code>, and the one-shot <code>fs::read_to_string</code>/<code>fs::write</code> convenience functions. When would you reach for each?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:4px 0;"><span class="kw">use</span> std::fs::File;
+<span class="kw">use</span> std::io::{<span class="ty">self</span>, <span class="ty">BufRead</span>, <span class="ty">BufReader</span>, <span class="ty">BufWriter</span>, <span class="ty">Write</span>};
+
+<span class="cm">// One-shot convenience — reads the whole file into memory in one call, no manual File handling</span>
+<span class="kw">let</span> contents = std::fs::<span class="fn">read_to_string</span>(<span class="st">"config.toml"</span>)?;   <span class="cm">// -> io::Result&lt;String&gt;</span>
+std::fs::<span class="fn">write</span>(<span class="st">"out.txt"</span>, <span class="st">"hello\n"</span>)?;               <span class="cm">// -> io::Result&lt;()&gt;, creates or truncates</span>
+
+<span class="cm">// Streaming, line by line — the idiomatic shape for anything bigger than "small config file"</span>
+<span class="kw">fn</span> <span class="fn">count_lines</span>(path: &amp;<span class="ty">str</span>) -&gt; io::Result&lt;<span class="ty">usize</span>&gt; {
+    <span class="kw">let</span> file = File::<span class="fn">open</span>(path)?;
+<span class="ok-line">    <span class="kw">let</span> reader = BufReader::<span class="fn">new</span>(file);  <span class="cm">// wraps File in a buffer — avoids one syscall per byte</span></span>
+    <span class="ty">Ok</span>(reader.<span class="fn">lines</span>().<span class="fn">count</span>())         <span class="cm">// .lines() yields io::Result&lt;String&gt; per line, splitting on \n</span>
+}
+
+<span class="kw">fn</span> <span class="fn">write_report</span>(path: &amp;<span class="ty">str</span>, rows: &amp;[<span class="ty">String</span>]) -&gt; io::Result&lt;()&gt; {
+    <span class="kw">let</span> file = File::<span class="fn">create</span>(path)?;         <span class="cm">// truncates if it exists, creates if not</span>
+    <span class="kw">let</span> <span class="kw">mut</span> writer = BufWriter::<span class="fn">new</span>(file);
+    <span class="kw">for</span> row <span class="kw">in</span> rows { <span class="fn">writeln!</span>(writer, <span class="st">"{row}"</span>)?; }
+<span class="ok-line">    writer.<span class="fn">flush</span>()?;  <span class="cm">// BufWriter buffers writes — without an explicit/implicit flush, data can be lost on error</span></span>
+    <span class="ty">Ok</span>(())
+}</pre>
+        <strong><code>File</code></strong> is a thin RAII wrapper around an OS file descriptor/handle — every
+        <code>.read()</code> or <code>.write()</code> call is a <strong>raw syscall</strong> by default, which is
+        why calling <code>File</code>'s <code>Read</code>/<code>Write</code> methods directly, one small chunk at
+        a time, is a real performance bug (a syscall per byte or per small read is orders of magnitude slower than
+        it needs to be). <strong><code>BufReader</code>/<code>BufWriter</code></strong> wrap any
+        <code>Read</code>/<code>Write</code> implementor and add an in-memory buffer (8&nbsp;KB by default) —
+        reads/writes go through the buffer, and the underlying syscall only fires when the buffer fills or is
+        explicitly flushed, amortising syscall overhead across many small operations. <code>BufReader</code> also
+        unlocks <strong><code>.lines()</code></strong> (via the <code>BufRead</code> trait), the idiomatic way to
+        stream a text file line-by-line without loading the whole thing into memory at once.
+        <strong>Convenience functions</strong> (<code>fs::read_to_string</code>, <code>fs::read</code>,
+        <code>fs::write</code>) are correct and simplest for small files you're going to hold entirely in memory
+        anyway (config files, small JSON payloads) — reaching for manual <code>File</code> + buffered
+        reader/writer only pays off once the file is large enough that loading it wholesale would be wasteful, or
+        you need streaming/line-by-line processing. <strong>Easy-to-miss gotcha:</strong> <code>BufWriter</code>
+        does flush on <code>Drop</code>, but that drop-time flush <strong>silently ignores I/O errors</strong>
+        (there's nowhere to propagate them to) — always call <code>.flush()</code> explicitly before a writer goes
+        out of scope if you need to actually observe a write failure.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q7</span><span class="qa-qtext">What is the actual contract of <code>Read::read(&amp;mut self, buf: &amp;mut [u8]) -&gt; io::Result&lt;usize&gt;</code>? Specifically: what does it mean if the returned count is less than <code>buf.len()</code>, and what does <code>Ok(0)</code> mean?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>read()</code> is allowed to write <strong>anywhere from 0 up to <code>buf.len()</code></strong>
+        bytes into the buffer on a single call and report exactly how many via the returned
+        <code>Ok(n)</code> — a "short read" (<code>0 &lt; n &lt; buf.len()</code>) is completely normal and
+        <strong>not</strong> an error or an end-of-stream signal by itself; it just means that's all the data that
+        happened to be available <em>right now</em> (a network socket that's only received part of a packet so
+        far is the classic example). <strong><code>Ok(0)</code> is the one and only signal for genuine
+        end-of-stream</strong> — there is no more data, ever, from this reader. This is precisely why every
+        correct manual read loop looks like:
+<pre style="margin:6px 0;"><span class="kw">loop</span> {
+    <span class="kw">let</span> n = reader.<span class="fn">read</span>(&amp;<span class="kw">mut</span> buf)?;
+    <span class="kw">if</span> n == <span class="nm">0</span> { <span class="kw">break</span>; }         <span class="cm">// the ONLY correct EOF check</span>
+    <span class="cm">// process exactly buf[..n], never assume n == buf.len()</span>
+}</pre>
+        A caller that assumes one <code>read()</code> call always fills the whole buffer, or treats any
+        <code>n &lt; buf.len()</code> as EOF, has a latent bug that will surface the moment the reader is
+        backed by anything slower or chunkier than a local file (a socket, a pipe, a compressed stream). On the
+        <strong>implementor</strong> side — writing <code>impl Read for MyType</code> yourself, e.g. for a
+        custom data source that generates bytes on demand — the same rule applies in reverse: clamp what you write
+        to <code>buf.len()</code>, return the true count via <code>Ok(n)</code>, and only ever return
+        <code>Ok(0)</code> once there is truly nothing left to produce. <code>write()</code> on the
+        <code>Write</code> trait has the mirror-image contract (a "short write" is legal too), which is exactly
+        why <code>write_all()</code> — which loops internally until every byte is accepted or an error occurs —
+        exists and should be preferred over a bare <code>write()</code> call whenever you just want "get this
+        whole buffer out," full stop.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q8</span><span class="qa-qtext"><code>BinaryHeap</code>, <code>sort</code> vs. <code>sort_unstable</code>, and sorting <code>f64</code> values — walk through the three gotchas that trip people up who haven't reached for these recently.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>1. <code>BinaryHeap</code> is a max-heap by default.</strong> <code>.pop()</code> always returns
+        the <em>greatest</em> element first — there's no separate min-heap type in std. To get min-heap
+        behaviour (e.g. a bounded top-k-smallest, or Dijkstra's algorithm, which needs to pop the
+        <em>closest</em> unvisited node), wrap the ordering key in <code>std::cmp::Reverse</code>:
+<pre style="margin:6px 0;"><span class="kw">use</span> std::cmp::Reverse;
+<span class="kw">use</span> std::collections::BinaryHeap;
+
+<span class="kw">let</span> <span class="kw">mut</span> min_heap = BinaryHeap::new();
+min_heap.<span class="fn">push</span>(Reverse(<span class="nm">5</span>));
+min_heap.<span class="fn">push</span>(Reverse(<span class="nm">1</span>));
+<span class="fn">assert_eq!</span>(min_heap.<span class="fn">pop</span>(), <span class="ty">Some</span>(Reverse(<span class="nm">1</span>)));  <span class="cm">// smallest comes out first, via Reverse's flipped Ord</span></pre>
+        <strong>2. <code>sort()</code> vs. <code>sort_unstable()</code>.</strong> <code>sort()</code> is a
+        stable sort — elements that compare equal keep their original relative order — at the cost of a
+        temporary allocation and typically somewhat more work. <code>sort_unstable()</code> makes no such
+        promise but is generally faster and allocates nothing extra. Default to
+        <code>sort_unstable()</code> unless you specifically need stability (most commonly: you've already
+        sorted/grouped by one key and are now sorting by a second key, and need ties on the second key to
+        preserve the first key's order). <strong>3. <code>f64</code>/<code>f32</code> don't implement
+        <code>Ord</code>,</strong> only <code>PartialOrd</code> — because <code>NaN</code> compares unequal (not
+        less-than, not greater-than, not equal) to every value including itself, which violates the total-order
+        requirement <code>Ord</code> demands. So <code>vec_of_f64.sort()</code> is a compile error, and the
+        idiomatic fix is <code>vec_of_f64.sort_by(|a, b| a.partial_cmp(b).unwrap())</code> — the
+        <code>.unwrap()</code> is a real (if usually academic) panic risk if a <code>NaN</code> ever sneaks into
+        the data, which is worth flagging explicitly rather than treating as a formality.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q9</span><span class="qa-qtext">Why write I/O-processing functions generic over <code>R: Read</code> / <code>W: Write</code> (e.g. <code>fn process&lt;R: Read, W: Write&gt;(input: R, output: W)</code>) instead of taking a concrete <code>File</code> or <code>TcpStream</code> directly? And how does <code>io::stdin().lock().lines()</code> work as a line-based event loop?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:4px 0;"><span class="kw">fn</span> <span class="fn">count_matching_lines</span>&lt;<span class="ty">R</span>: Read&gt;(input: <span class="ty">R</span>, needle: &amp;<span class="ty">str</span>) -&gt; io::Result&lt;<span class="ty">usize</span>&gt; {
+    <span class="kw">let</span> reader = BufReader::<span class="fn">new</span>(input);
+    <span class="kw">let</span> <span class="kw">mut</span> count = <span class="nm">0</span>;
+    <span class="kw">for</span> line <span class="kw">in</span> reader.<span class="fn">lines</span>() {
+        <span class="kw">if</span> line?.<span class="fn">contains</span>(needle) { count += <span class="nm">1</span>; }
+    }
+    <span class="ty">Ok</span>(count)
+}</pre>
+        Writing the signature generic over the <code>Read</code> trait rather than a concrete <code>File</code>
+        means production code calls it with a real <code>File</code> or <code>TcpStream</code>, while <strong>tests
+        call the exact same function with a <code>&amp;[u8]</code> or <code>Cursor&lt;Vec&lt;u8&gt;&gt;</code></strong>
+        (both implement <code>Read</code>) — no temp files, no sockets, no I/O in the test suite at all, just an
+        in-memory byte buffer standing in for "some source of bytes." This is the single highest-leverage pattern
+        for making I/O-adjacent logic actually unit-testable, and it costs nothing at the call site since the
+        compiler monomorphises each concrete type used. <strong>Event-loop-via-<code>.lines()</code></strong> is
+        the mirror-image idiom for interactive input:
+<pre style="margin:6px 0;"><span class="kw">let</span> stdin = io::<span class="fn">stdin</span>();  <span class="cm">// bound to a variable — .lock() borrows from it, can't be called on a temporary</span>
+<span class="kw">for</span> line <span class="kw">in</span> stdin.<span class="fn">lock</span>().<span class="fn">lines</span>() {
+    <span class="kw">let</span> line = line?;
+    <span class="kw">if</span> line == <span class="st">"quit"</span> { <span class="kw">break</span>; }
+    <span class="cm">// ... handle one line of input, then loop back and block on the next ...</span>
+}</pre>
+        <code>.lines()</code> internally blocks on read() until it has accumulated a full line (or hit EOF), so
+        this loop is effectively "wait for the next line, process it, repeat" — the same shape as a REPL or a
+        line-oriented protocol handler, and the reason a real interactive program's main loop is almost always
+        exactly this small.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q10</span><span class="qa-qtext">Why do idiomatic library functions accept <code>fn greet(name: impl AsRef&lt;str&gt;)</code> instead of <code>&amp;str</code> directly? Compare <code>AsRef</code>, <code>Borrow</code>, and <code>Into</code> — then show <code>Vec::retain</code>, <code>dedup</code>, and <code>drain</code>, and when each is the right tool.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">fn</span> <span class="fn">greet</span>(name: <span class="kw">impl</span> AsRef&lt;<span class="ty">str</span>&gt;) {
+    <span class="fn">println!</span>(<span class="st">"hello, {}"</span>, name.<span class="fn">as_ref</span>());
+}
+<span class="fn">greet</span>(<span class="st">"static str"</span>);              <span class="cm">// &'static str: AsRef<str></span>
+<span class="fn">greet</span>(<span class="ty">String</span>::from(<span class="st">"owned"</span>));   <span class="cm">// String: AsRef<str></span>
+<span class="fn">greet</span>(&amp;<span class="ty">String</span>::from(<span class="st">"ref"</span>));  <span class="cm">// &String: AsRef<str> too — one function, every string-ish caller</span></pre>
+        <strong><code>AsRef&lt;T&gt;</code></strong> is a cheap, infallible reference-to-reference conversion
+        (<code>&amp;self -&gt; &amp;T</code>, no allocation, can't fail) — accepting <code>impl AsRef&lt;str&gt;</code>
+        instead of <code>&amp;str</code> lets every caller pass whatever string-like type they already have
+        (<code>&amp;str</code>, <code>String</code>, <code>&amp;String</code>, <code>Cow&lt;str&gt;</code>) without
+        forcing them to write <code>&amp;my_string</code> or <code>.as_str()</code> at every call site — a small
+        ergonomics win used pervasively across std (<code>File::open</code> takes <code>impl AsRef&lt;Path&gt;</code>
+        for exactly this reason). <strong><code>Borrow&lt;T&gt;</code></strong> looks similar but carries an extra
+        <em>semantic</em> contract: if <code>X: Borrow&lt;T&gt;</code>, then <code>Hash</code>, <code>Eq</code>,
+        and <code>Ord</code> must agree between <code>X</code> and <code>T</code> — this is precisely what lets
+        <code>HashMap&lt;String, V&gt;::get</code> accept a <code>&amp;str</code> key without allocating a
+        <code>String</code> just to look something up, because <code>String: Borrow&lt;str&gt;</code> guarantees
+        their hashes match. <code>AsRef</code> makes no such promise, so it's not usable for map lookups even
+        though the conversion itself looks identical. <strong><code>Into&lt;T&gt;</code></strong> is the odd one
+        out — it <em>consumes</em> the value and can genuinely allocate/transform (<code>&amp;str -&gt; String</code>
+        via <code>Into&lt;String&gt;</code> allocates a new buffer) — use it for owned-value parameters where the
+        function needs to keep the data, not just borrow it briefly.
+<pre style="margin:6px 0;"><span class="kw">let</span> <span class="kw">mut</span> v = <span class="fn">vec!</span>[<span class="nm">1</span>,<span class="nm">1</span>,<span class="nm">2</span>,<span class="nm">3</span>,<span class="nm">3</span>,<span class="nm">3</span>,<span class="nm">4</span>];
+<span class="ok-line">v.<span class="fn">dedup</span>();                     <span class="cm">// [1,2,3,4] — removes CONSECUTIVE duplicates only; unsorted input keeps its non-adjacent dupes</span></span>
+<span class="ok-line">v.<span class="fn">retain</span>(|&amp;x| x % <span class="nm">2</span> == <span class="nm">0</span>);  <span class="cm">// keeps only elements matching the predicate, in place, O(n), preserves relative order</span></span>
+<span class="kw">let</span> <span class="kw">mut</span> w = <span class="fn">vec!</span>[<span class="nm">10</span>,<span class="nm">20</span>,<span class="nm">30</span>,<span class="nm">40</span>];
+<span class="ok-line"><span class="kw">let</span> removed: Vec&lt;<span class="ty">i32</span>&gt; = w.<span class="fn">drain</span>(<span class="nm">1</span>..<span class="nm">3</span>).<span class="fn">collect</span>();  <span class="cm">// removes AND yields ownership of indices [1,3), w now = [10, 40]</span></span></pre>
+        <strong><code>dedup</code></strong> only removes <em>adjacent</em> duplicates in O(n) — to remove all
+        duplicates regardless of position you must <code>sort()</code> first, a very common interview gotcha
+        (dedup-without-sort on unsorted input silently leaves non-adjacent dupes behind). <strong><code>retain</code></strong>
+        rewrites the <code>Vec</code> in place, keeping only elements the predicate returns <code>true</code> for —
+        the idiomatic replacement for a manual "collect indices to remove, then remove them backwards to avoid
+        index shifting" loop. <strong><code>drain</code></strong> is the one to reach for when you need to actually
+        <em>take ownership</em> of the removed elements (not just discard them) while keeping the original
+        <code>Vec</code>'s remaining elements and allocation intact — e.g. moving a batch of items out into another
+        structure without cloning them.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Knows HashMap uses SipHash for DoS resistance and names ahash/FxHashMap as the perf alternative</li>
+      <li>Explains AsRef vs Borrow vs Into precisely, including the Hash/Eq consistency requirement Borrow adds</li>
+      <li>Reaches for retain/dedup/drain instead of manual index bookkeeping to remove elements from a Vec</li>
+      <li>Explains Cow's lazy clone-on-write semantics with a concrete use case</li>
+      <li>Uses the entry API and can explain why it saves lookups</li>
+      <li>Spots the Hash/Eq consistency invariant unprompted when designing custom impls</li>
+      <li>Knows BufReader/BufWriter exist specifically to amortise syscalls, and that Drop-time flush swallows errors</li>
+      <li>States unprompted that Ok(0) is the only real EOF signal from read(), and a short read is not an error</li>
+      <li>Reaches for Reverse(...) unprompted the moment a min-heap is needed from BinaryHeap</li>
+      <li>Defaults to sort_unstable() over sort() unless stability is specifically required, and can say why</li>
+      <li>Writes I/O functions generic over Read/Write specifically so tests can pass in-memory buffers instead of real files/sockets</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Knows HashMap vs BTreeMap but not why default hashing is randomised/SipHash</li>
+      <li>Uses LinkedList out of habit from another language</li>
+      <li>Reads a file byte-by-byte or line-by-line directly off File without a BufReader</li>
+      <li>Has only ever consumed Read/Write, never implemented either for a custom type</li>
+      <li>Doesn't know BinaryHeap is a max-heap by default and is confused why .pop() returns the largest item</li>
+      <li>Always writes I/O logic against concrete File/TcpStream and reaches for real temp files or sockets in tests</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Defaults to LinkedList for "insert in the middle" without considering Vec</li>
+      <li>Writes custom Hash/Eq impls that could disagree on which fields matter</li>
+      <li>Treats any short read (n &lt; buf.len()) from read() as an error or as EOF</li>
+      <li>Doesn't know why vec_of_f64.sort() fails to compile, or reaches for .unwrap() without knowing why it's needed</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    The Hash/Eq consistency invariant question is a great "have they actually been burned by this in production"
+    filter — most people who've never hand-written these impls don't even know the invariant exists, while anyone
+    who's debugged a "why is my cache returning stale/duplicate entries" incident brings it up unprompted. On file
+    I/O: ask what happens if the process is killed between a buffered write and the next flush — a candidate who
+    immediately says "unflushed data in the BufWriter's internal buffer is lost, it never reached the OS" understands
+    the buffering model rather than treating BufWriter as a black box.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 10 · SMART POINTERS ════════════ -->
+<div class="section" id="t-smart">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-smart)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-smart)">// Topic 10</div>
+      <div class="sh-title">Smart Pointers</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-smart)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does <code>Box&lt;T&gt;</code> do, and why would you need it given that Rust already has ownership? Name two concrete use cases.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>Box&lt;T&gt;</code> is the simplest smart pointer — it heap-allocates a <code>T</code> and owns it
+        exclusively, with zero overhead beyond the allocation itself (no ref-counting, no extra metadata).
+        <strong>Use case 1 — recursive types:</strong> <code>enum List { Cons(i32, Box&lt;List&gt;), Nil }</code>.
+        Without the <code>Box</code>, the compiler needs a fixed, finite size for <code>List</code> at compile
+        time, but a directly-recursive definition (<code>Cons(i32, List)</code>) would be infinitely sized — the
+        <code>Box</code> makes the recursive field a fixed-size pointer instead, breaking the infinite-size
+        recursion. <strong>Use case 2 — trait objects / heterogeneous storage:</strong> <code>Box&lt;dyn
+        Trait&gt;</code> gives you an owned, dynamically-sized trait object on the heap, letting you store
+        different concrete types behind one common interface in something like a <code>Vec&lt;Box&lt;dyn
+        Trait&gt;&gt;</code>. A third common case: moving a large value (e.g. a big array) onto the heap
+        deliberately to avoid an expensive stack-to-stack copy when passed around, or to keep a large variant out
+        of an enum's inline size (boxing the largest variant so the enum's stack footprint stays small).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Compare <code>Rc&lt;T&gt;</code> and <code>Arc&lt;T&gt;</code>. Why does the compiler let you accidentally send an <code>Rc</code> to another thread in some cases, and how does it actually prevent the unsafe case?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>Rc&lt;T&gt;</code></strong>: single-threaded reference counting — increment/decrement the
+        count with plain non-atomic integer operations, cheaper than <code>Arc</code> but only safe if all clones
+        stay on one thread. <strong><code>Arc&lt;T&gt;</code></strong>: uses atomic increment/decrement for the
+        count, safe to clone and drop from multiple threads concurrently, at the cost of atomic-operation overhead
+        even in the (common) single-threaded case. <strong>The compiler doesn't "accidentally" let you send an
+        <code>Rc</code> across threads</strong> — it's actually prevented entirely and statically:
+        <code>Rc&lt;T&gt;</code> deliberately does <em>not</em> implement the <code>Send</code> marker trait
+        (nor <code>Sync</code>), so <code>tokio::spawn(async move { rc_value... })</code> or
+        <code>thread::spawn(move || { ...rc_value... })</code> fails to compile with an error naming the missing
+        <code>Send</code> bound — the moment an <code>Rc</code> would cross a thread boundary, compilation fails.
+        This is the core example of Rust's <strong>fearless concurrency</strong> promise: the exact same class of
+        bug that in C++ compiles cleanly and produces a subtle non-atomic-refcount data race at runtime (using a
+        non-atomic-refcounted smart pointer across threads) is instead a compile error in Rust, caught before the
+        program ever runs.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What problem does <code>Weak&lt;T&gt;</code> solve? Walk through a parent/child tree example showing the reference-cycle leak and the fix.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        If a parent node holds <code>Rc&lt;Child&gt;</code> and the child holds <code>Rc&lt;Parent&gt;</code> back
+        to its parent, neither's strong count ever reaches zero — even after every external reference is dropped,
+        parent and child keep each other alive forever, a <strong>memory leak via reference cycle</strong> that
+        Rust's ownership model doesn't prevent (this is one of the few classes of bug that <em>isn't</em>
+        eliminated by the borrow checker, since <code>Rc</code>/<code>Arc</code> deliberately opt into shared,
+        runtime-managed ownership). <strong><code>Weak&lt;T&gt;</code></strong> is a non-owning observer handle —
+        it doesn't increment the strong count, so it doesn't keep the value alive, but it can be
+        <strong>upgraded</strong> via <code>.upgrade()</code> to a temporary <code>Option&lt;Rc&lt;T&gt;&gt;</code>
+        (<code>Some</code> if the value is still alive, <code>None</code> if it's already been dropped). Fix: make
+        the back-edge (child → parent) a <code>Weak&lt;Parent&gt;</code> instead of <code>Rc&lt;Parent&gt;</code>.
+        Now when external references to the parent are dropped, the parent's strong count can reach zero
+        (children's weak references don't block it), the parent drops, which drops its <code>Rc&lt;Child&gt;</code>
+        fields, and children can then also be collected if nothing else holds them. The general rule: model the
+        "ownership direction" of your data as a DAG using strong references, and use <code>Weak</code> for any edge
+        that would otherwise create a cycle.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Explain <code>Rc&lt;RefCell&lt;T&gt;&gt;</code> as a combined pattern. What does each layer provide, and what's the senior-level critique of overusing this pattern?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>Rc&lt;RefCell&lt;T&gt;&gt;</code> is the idiomatic single-threaded "shared mutable state" pattern:
+        <strong><code>Rc</code></strong> provides multiple owners of the same allocation (shared, non-exclusive
+        ownership); <strong><code>RefCell</code></strong> provides interior mutability so that even though every
+        owner only has a <em>shared</em> reference to the <code>Rc</code>'s contents, they can still mutate the
+        inner <code>T</code> via runtime-checked borrow guards. Together, they let multiple parts of a
+        single-threaded program hold "handles" to the same mutable object — common in GUI widget trees, graph
+        structures, and simple simulation code. <strong>Senior-level critique:</strong> this pattern is a
+        well-known code smell when it appears <em>pervasively</em> throughout a codebase, because it effectively
+        re-introduces the aliasing/mutation hazards Rust's ownership system exists to prevent, just deferred to
+        runtime panics (a <code>RefCell</code> double-mutable-borrow panics instead of failing to compile) — you've
+        traded compile-time safety for runtime safety with a worse failure mode (a panic in production instead of
+        a build failure). Overuse is often a sign the underlying data model/ownership structure hasn't actually
+        been thought through — it's frequently possible to restructure with clearer single ownership (an arena +
+        indices, a proper tree with explicit parent/child ownership direction, or just passing data explicitly
+        instead of sharing handles) and eliminate the runtime-checked interior mutability entirely. It's a
+        legitimate, idiomatic tool used surgically; it's a red flag as the default architecture for a whole
+        application's state.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">You have a hot-path read-heavy, write-rare shared data structure accessed from many threads. Compare <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, <code>Arc&lt;RwLock&lt;T&gt;&gt;</code>, and <code>arc-swap</code>/<code>ArcSwap</code>-style approaches. Which do you pick and why?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>Arc&lt;Mutex&lt;T&gt;&gt;</code></strong>: simplest, but serialises <em>all</em> access —
+        even concurrent reads block each other, which is wasteful when reads vastly outnumber writes.
+        <strong><code>Arc&lt;RwLock&lt;T&gt;&gt;</code></strong>: allows concurrent readers, exclusive writer —
+        better for read-heavy workloads in principle, but real-world <code>RwLock</code> implementations
+        (including std's, which is platform-dependent and historically hasn't always prioritised writers fairly)
+        can suffer from <strong>writer starvation</strong> under sustained read load, and the reader-count
+        bookkeeping itself has non-trivial overhead — for very short critical sections, a plain mutex sometimes
+        outperforms a naive RwLock because the RwLock's extra bookkeeping isn't amortised.
+        <strong><code>ArcSwap</code></strong> (or hand-rolled double-buffering / <code>arc-swap</code> crate):
+        readers do a single atomic load of an <code>Arc</code> pointer with essentially zero contention — no
+        locking at all on the read path — while writers atomically swap in a whole new immutable value (build the
+        new version, then <code>ArcSwap::store()</code> the new <code>Arc</code>, letting the old one's memory be
+        reclaimed once the last reader holding it drops its clone). <strong>Decision:</strong> for a config/state
+        blob that's read extremely frequently and updated occasionally wholesale (feature flags, routing tables,
+        a compiled config snapshot), <code>ArcSwap</code> is usually the best choice — it eliminates reader
+        contention entirely at the cost of "readers might briefly see a slightly-stale but always internally-consistent
+        snapshot," which is normally an acceptable trade for this class of data. If the structure needs
+        fine-grained partial mutation (not wholesale replacement) and truly is read-mostly, try
+        <code>RwLock</code> first and benchmark; if writes are frequent or critical sections are large, a plain
+        mutex (or sharding the lock across N stripes keyed by hash, reducing contention without the complexity of
+        lock-free structures) is often the pragmatic senior choice over reaching for something exotic.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">Walk through exactly what happens, mechanically, when you call a <code>&amp;str</code> method on an <code>Rc&lt;String&gt;</code>. How many "hops" will the compiler insert automatically, and where does <strong>deref coercion</strong> stop applying?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">let</span> shared: Rc&lt;<span class="ty">String</span>&gt; = Rc::<span class="fn">new</span>(<span class="ty">String</span>::from(<span class="st">"  hello world  "</span>));
+<span class="fn">println!</span>(<span class="st">"{}"</span>, shared.<span class="fn">trim</span>());  <span class="cm">// str::trim() — only str has trim(), Rc<String> and String both lack it</span></pre>
+        <strong>Method resolution</strong> looks for <code>trim</code> on <code>Rc&lt;String&gt;</code> first — not
+        found — then the compiler inserts one <code>*</code> (a call to <code>Deref::deref</code>, via
+        <code>Rc</code>'s <code>Deref&lt;Target = String&gt;</code> impl) and looks again on <code>String</code> —
+        still not found, since <code>trim</code> is defined on <code>str</code>, not <code>String</code> itself —
+        so it derefs <em>again</em> via <code>String</code>'s own <code>Deref&lt;Target = str&gt;</code> impl,
+        arriving at <code>str</code>, where <code>trim</code> is found. Two hops fired for one method call, entirely
+        invisibly. This repeats for as many <code>Deref</code> implementations as are chained — <strong>there is
+        no fixed limit on
+        the number of hops</strong>; the compiler keeps dereferencing (and also tries adding <code>&amp;</code> or
+        <code>&amp;mut</code> at each step) until it finds a type with a matching method or runs out of
+        <code>Deref</code> impls to follow. This is exactly why <code>Rc&lt;RefCell&lt;Vec&lt;T&gt;&gt;&gt;</code>-style
+        nested wrapper types still let you call <code>Vec</code> methods directly on the outermost value with no
+        manual unwrapping in application code — each layer's <code>Deref</code> impl (or, for <code>RefCell</code>,
+        the borrow-guard's <code>Deref</code>) is silently threaded through.
+        <strong>Where it stops applying:</strong> deref coercion is a property of <strong>method-call syntax and a
+        small set of explicit "coercion sites"</strong> (function arguments, <code>let</code> bindings with an
+        explicit type) — it does <em>not</em> help satisfy a generic trait bound. Passing an <code>Rc&lt;String&gt;</code>
+        to <code>fn wants_display&lt;T: Display&gt;(x: T)</code> will <strong>not</strong> compile even though
+        <code>String: Display</code>, because generic type inference picks the concrete type argument
+        <code>T = Rc&lt;String&gt;</code> up front and then checks <em>that exact type</em> against the bound — it
+        never tries dereferencing to search for a type that satisfies it. You'd need to deref explicitly
+        (<code>wants_display(&amp;*shared)</code> or <code>shared.as_str()</code>) to make that call site work.
+        Confusing "deref coercion happens automatically for method calls" with "deref coercion will bail me out of
+        any trait-bound mismatch" is one of the most common intermediate-level misunderstandings here.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains !Send on Rc as a compile-time-enforced guarantee, connects it to fearless concurrency</li>
+      <li>Correctly describes deref coercion as repeated, unbounded &amp;/*-insertion during method resolution</li>
+      <li>Knows deref coercion applies at method calls and coercion sites, not to satisfy generic trait bounds</li>
+      <li>Walks through a full Weak&lt;T&gt; cycle-break example with strong/weak counts</li>
+      <li>Critiques Rc&lt;RefCell&lt;T&gt;&gt; overuse as a design smell, not just "it works"</li>
+      <li>Knows ArcSwap / RCU-style patterns for read-heavy hot paths, not just Mutex/RwLock</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Uses Rc/Arc correctly but can't explain the Send/Sync mechanism preventing misuse</li>
+      <li>Hasn't hit or discussed reference cycle leaks in practice</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Reaches for Arc&lt;Mutex&lt;T&gt;&gt; everywhere without considering read/write ratio</li>
+      <li>Thinks Rc and Arc are interchangeable and picks whichever compiles</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    "Why not just always use Arc&lt;RwLock&lt;T&gt;&gt; for everything shared?" is a great trap question — the
+    strong answer names writer starvation, the overhead of reader bookkeeping for short critical sections, and
+    situations where ArcSwap or sharding beats both. Reflexive "RwLock is always better than Mutex for reads" is
+    the mid-level answer; knowing the real-world caveats is the senior one.
+  </div>
+</div>

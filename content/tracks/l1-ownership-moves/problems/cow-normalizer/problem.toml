@@ -1,0 +1,24 @@
+slug = "cow-normalizer"
+title = "Allocate only when you must: Cow"
+mode = "write"
+level = "medium"
+stage = "clones-and-drops"
+order = 9
+status = "ready"
+tags = ["Cow", "borrow or own"]
+teaches = [
+  "`Cow<'_, str>` returns the input borrowed when nothing changed, owned when it did.",
+  "Checking before allocating.",
+]
+follow_up = "Where does std itself return `Cow`?"
+related = ["S2", "S7"]
+source = "W39"
+
+[[hints]]
+kind = "rust"
+text = "`Cow::Borrowed(s)` costs nothing; `Cow::Owned(String)` when you had to change it."
+
+[solution]
+explanation = "Most inputs have no tabs, so most calls allocate nothing. `Cow<str>` derefs to `&str`, so callers barely notice the difference."
+time = "O(n)"
+space = "O(n) only when changed"

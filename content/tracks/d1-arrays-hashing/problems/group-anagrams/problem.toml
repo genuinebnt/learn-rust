@@ -1,0 +1,31 @@
+slug = "group-anagrams"
+title = "Group anagrams"
+mode = "write"
+level = "medium"
+stage = "grouping-prefix-sums"
+order = 11
+status = "ready"
+tags = ["HashMap", "sort", "Blind 75"]
+teaches = [
+  "A sorted `Vec<u8>` of letters is a hashable key for an anagram class.",
+  "`entry(key).or_default().push(..)`.",
+]
+follow_up = "How would you key the map without sorting each word?"
+related = ["S4", "S3"]
+
+[[examples]]
+input = "[\"eat\", \"tea\", \"tan\", \"ate\", \"nat\", \"bat\"]"
+output = "[[\"ate\", \"eat\", \"tea\"], [\"bat\"], [\"nat\", \"tan\"]]"
+
+[[hints]]
+kind = "approach"
+text = "Anagrams have the same letters in sorted order. Use that as a map key."
+
+[[hints]]
+kind = "rust"
+text = "`Vec<u8>` is `Hash + Eq`, so it can key a `HashMap` directly."
+
+[solution]
+explanation = "Sorting each word costs O(k log k); a `[u8; 26]` count array is another valid key and avoids the sort."
+time = "O(n · k log k)"
+space = "O(n · k)"

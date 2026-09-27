@@ -1,0 +1,31 @@
+slug = "longest-repeating-character-replacement"
+title = "Longest repeating character replacement"
+mode = "write"
+level = "medium"
+stage = "windows"
+order = 12
+status = "ready"
+tags = ["sliding window", "Blind 75"]
+teaches = [
+  "A window is valid when `len − most_common ≤ k`.",
+  "The max count never needs to decrease.",
+]
+follow_up = "Why is it safe not to recompute `most` when the window shrinks?"
+related = ["S2"]
+
+[[examples]]
+input = "s = \"AABABBA\", k = 1"
+output = "4"
+
+[[hints]]
+kind = "approach"
+text = "A window can be made uniform if its length minus its most frequent letter's count is at most k."
+
+[[hints]]
+kind = "approach"
+text = "You don't need to shrink `most` when the window shrinks; a stale max never gives a wrong larger answer."
+
+[solution]
+explanation = "The answer only grows when `most` grows, so keeping the historical max is enough."
+time = "O(n)"
+space = "O(1)"

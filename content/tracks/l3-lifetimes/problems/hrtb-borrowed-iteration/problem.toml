@@ -1,0 +1,31 @@
+slug = "hrtb-borrowed-iteration"
+title = "for<'a>: iterate a collection you own"
+mode = "write"
+level = "hard"
+stage = "variance-hrtbs"
+order = 17
+status = "ready"
+tags = ["HRTB", "for<'a>", "IntoIterator"]
+teaches = [
+  "Higher-ranked trait bounds: `for<'a>`.",
+  "Bounds on `&C` rather than on `C`.",
+]
+follow_up = "Rewrite the bound as a per-method `where &'s C: ...` with the method's own lifetime. Which do you prefer, and why?"
+related = ["L3", "L4"]
+
+[[hints]]
+kind = "rust"
+text = "Inside `mean(&self)` you borrow `self.data` for a lifetime that only exists inside the call. The bound must hold for every such lifetime."
+
+[[hints]]
+kind = "rust"
+text = "`where for<'a> &'a C: IntoIterator<Item = &'a u32>` says: any borrow of `C` can be iterated, yielding borrows of the same length."
+
+[[hints]]
+kind = "rust"
+text = "`&C` is `Copy`, so `self.data.into_iter()` can be called as many times as you like."
+
+[solution]
+explanation = "A higher-ranked bound quantifies over lifetimes the caller can't name. `Fn(&str) -> &str` uses the same mechanism behind its sugar; here it has to be written out because the trait is applied to a reference type."
+time = "O(n) per call"
+space = "O(1)"

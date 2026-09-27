@@ -1,0 +1,26 @@
+slug = "fix-panicking-index"
+title = "Fix: a panicking index"
+mode = "fix"
+level = "easy"
+stage = "vec-and-slices"
+order = 6
+status = "ready"
+tags = ["get()", "panic"]
+teaches = [
+  "`v[i]` panics out of bounds; `v.get(i)` returns an `Option`.",
+  "`copied()` turns `Option<&i32>` into `Option<i32>`.",
+]
+follow_up = "When is a panic on a bad index the right behaviour, and when isn't it?"
+related = ["S1", "S3"]
+
+[[hints]]
+kind = "rust"
+text = "Slices have a non-panicking lookup that returns `Option<&T>`."
+
+[solution]
+explanation = "`get` returns `None` past the end; `copied` and `unwrap_or` turn that into the default without a branch."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 1

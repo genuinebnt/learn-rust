@@ -1,0 +1,23 @@
+slug = "group-by-length"
+title = "Group borrowed words by length"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 2
+status = "ready"
+tags = ["entry API", "lifetimes"]
+teaches = [
+  "`entry(k).or_default().push(..)` for grouping.",
+  "Keeping borrowed `&'a str` in the output instead of allocating Strings.",
+]
+follow_up = "Why is the lifetime on `&'a str` and not on the outer slice?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "`entry(len).or_default()` gives you the group's `Vec`, creating it if needed."
+
+[solution]
+explanation = "The output borrows from the caller's strings, so the signature ties it to `'a`, the words' lifetime, not the slice's."
+time = "O(n)"
+space = "O(n)"

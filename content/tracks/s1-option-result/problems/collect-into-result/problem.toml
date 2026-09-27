@@ -1,0 +1,23 @@
+slug = "collect-into-result"
+title = "Collect into Result<Vec<_>, _>"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 7
+status = "ready"
+tags = ["collect", "FromIterator"]
+teaches = [
+  "`collect::<Result<Vec<_>, _>>()` stops at the first error.",
+  "`map_err` to add context per item.",
+]
+follow_up = "How would you collect every error instead of just the first?"
+related = ["S6", "L8"]
+
+[[hints]]
+kind = "rust"
+text = "`Result<Vec<T>, E>` implements `FromIterator<Result<T, E>>`."
+
+[solution]
+explanation = "`collect` short-circuits on the first `Err`, so later items aren't parsed."
+time = "O(n)"
+space = "O(n)"

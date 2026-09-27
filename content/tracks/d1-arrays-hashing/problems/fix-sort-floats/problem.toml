@@ -1,0 +1,31 @@
+slug = "fix-sort-floats"
+title = "Fix: sort a Vec<f64>"
+mode = "fix"
+level = "medium"
+stage = "sorting-order"
+order = 21
+status = "ready"
+tags = ["total_cmp", "Ord", "E0277"]
+teaches = [
+  "`f64` is `PartialOrd`, not `Ord`, because of NaN.",
+  "`f64::total_cmp` gives a total order, NaN included.",
+]
+follow_up = "How would you use f64 as a key in a BinaryHeap or BTreeMap?"
+related = ["S8", "S5"]
+
+[[hints]]
+kind = "rust"
+text = "`sort` needs `Ord`. Why doesn't `f64` implement it?"
+
+[[hints]]
+kind = "rust"
+text = "`partial_cmp(..).unwrap()` panics on NaN. `f64` has a method that orders every value."
+
+[solution]
+explanation = "`total_cmp` follows IEEE 754 totalOrder: −NaN < −∞ < … < +∞ < +NaN, so NaN (positive by default) sorts last."
+time = "O(n log n)"
+space = "O(n)"
+
+[rules]
+forbid_methods = ["unwrap", "partial_cmp", "expect"]
+max_changed_lines = 1

@@ -1,0 +1,21 @@
+code = "S1"
+name = "Option & Result"
+section = "S"
+tier = "core"
+order = 1
+summary = "The two types every Rust API returns: combinators, `?`, conversions, and building them yourself."
+
+[[stages]]
+slug = "use-it"
+name = "Use it"
+band = "easy"
+
+[[stages]]
+slug = "understand-it"
+name = "Understand it"
+band = "medium"
+
+[[stages]]
+slug = "build-it"
+name = "Build it"
+band = "hard"

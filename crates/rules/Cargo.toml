@@ -1,0 +1,12 @@
+[package]
+name = "anneal-rules"
+description = "Checks a fix-this attempt against its rules: forbidden calls and types, unsafe, lines changed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anneal-content.workspace = true
+proc-macro2 = { version = "1", features = ["span-locations"] }
+serde.workspace = true
+syn = { version = "2", features = ["full", "visit"] }

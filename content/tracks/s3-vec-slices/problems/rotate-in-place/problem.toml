@@ -1,0 +1,31 @@
+slug = "rotate-in-place"
+title = "Rotate a slice in place"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 6
+status = "ready"
+tags = ["reverse", "rotate"]
+teaches = [
+  "Three reversals rotate a slice in O(1) space.",
+  "Reduce `k` modulo the length first.",
+]
+follow_up = "Prove that the three reversals produce the rotation."
+related = ["D2"]
+
+[[examples]]
+input = "v = [1, 2, 3, 4, 5], k = 2"
+output = "[4, 5, 1, 2, 3]"
+
+[[hints]]
+kind = "approach"
+text = "Reverse the whole slice, then reverse the first k and the rest separately."
+
+[[hints]]
+kind = "edge case"
+text = "k can be larger than the length, and the length can be 0."
+
+[solution]
+explanation = "std has `slice::rotate_right`, which does the same in O(n) time and O(1) space; the three-reversal trick is what interviews ask for."
+time = "O(n)"
+space = "O(1)"

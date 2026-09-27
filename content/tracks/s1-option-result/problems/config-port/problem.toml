@@ -1,0 +1,27 @@
+slug = "config-port"
+title = "Read a port from config"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 1
+status = "ready"
+tags = ["ok_or", "map_err", "and_then"]
+teaches = [
+  "`ok_or` turns a missing value into an error.",
+  "`and_then` chains a second fallible step; `map_err` shapes the error.",
+]
+follow_up = "When would you return a custom error enum instead of `String`?"
+related = ["L8", "S4"]
+
+[[hints]]
+kind = "rust"
+text = "`HashMap<String, _>::get` accepts a `&str` key."
+
+[[hints]]
+kind = "rust"
+text = "`ok_or_else`, then `and_then`, then `map_err` inside."
+
+[solution]
+explanation = "The chain reads top to bottom as the three outcomes. `ok_or_else` avoids building the error string on the happy path."
+time = "O(1)"
+space = "O(1)"

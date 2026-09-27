@@ -1,0 +1,22 @@
+# Local development: Postgres for anneal's progress data.
+# The API runs on the host (`cargo run -p anneal-api`) so it can start sandbox
+# containers through the local Docker daemon.
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: anneal
+      POSTGRES_PASSWORD: anneal
+      POSTGRES_DB: anneal
+    ports:
+      - "5434:5432"
+    volumes:
+      - anneal-pg:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anneal"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  anneal-pg:

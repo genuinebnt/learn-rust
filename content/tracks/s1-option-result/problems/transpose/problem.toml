@@ -1,0 +1,23 @@
+slug = "transpose"
+title = "Option<Result> and transpose"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 6
+status = "ready"
+tags = ["transpose", "ParseIntError"]
+teaches = [
+  "`transpose` swaps `Option<Result<T, E>>` and `Result<Option<T>, E>`.",
+  "`map(str::parse)` on an `Option`.",
+]
+follow_up = "Where do you hit `Option<Result<..>>` in real code?"
+related = ["L8"]
+
+[[hints]]
+kind = "rust"
+text = "`s.map(str::parse)` has type `Option<Result<i32, _>>`. Which way round do you need it?"
+
+[solution]
+explanation = "`transpose` exists for exactly this: the caller can then use `?` on the result."
+time = "O(n)"
+space = "O(1)"

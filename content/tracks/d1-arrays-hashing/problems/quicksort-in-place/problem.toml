@@ -1,0 +1,33 @@
+slug = "quicksort-in-place"
+title = "Quicksort in place"
+mode = "write"
+level = "hard"
+stage = "in-place"
+order = 23
+status = "ready"
+tags = ["split_at_mut", "recursion", "mem::take"]
+teaches = [
+  "Hoare partitioning handles many equal keys.",
+  "Recurse on the smaller half to bound stack depth.",
+  "`mem::take` on a `&mut [T]` to reborrow in a loop.",
+]
+follow_up = "How does std's `sort_unstable` avoid quicksort's worst case?"
+related = ["L2", "S3"]
+source = "W33"
+
+[[hints]]
+kind = "approach"
+text = "Partition, then sort each side. Pick the middle element as the pivot to survive sorted input."
+
+[[hints]]
+kind = "approach"
+text = "Lomuto partitioning degrades to O(n²) when every key is equal. Hoare's doesn't."
+
+[[hints]]
+kind = "rust"
+text = "`split_at_mut` gives two disjoint `&mut` halves. To keep looping on one of them, `std::mem::take(&mut v)` first."
+
+[solution]
+explanation = "Recursing into the smaller half bounds the stack at O(log n). `mem::take` swaps an empty slice into `v`, so the halves can be assigned back without fighting the borrow checker."
+time = "O(n log n) average"
+space = "O(log n)"

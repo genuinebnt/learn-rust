@@ -1,0 +1,296 @@
+//! Runs a user's solution against a problem's tests.
+//!
+//! Each run writes a throwaway cargo package (`solution`) with the user's
+//! `src/lib.rs` and the problem's test files, then:
+//!
+//! 1. `cargo clippy --all-targets` for compiler errors and lints (skipped if disabled),
+//! 2. `cargo test --no-run` under the compile time limit,
+//! 3. `cargo test` with libtest's JSON output under the test time limit, one suite per test file.
+//!
+//! Builds share a target directory per cache key, so repeated runs of the same
+//! problem compile incrementally. In [`Sandbox::Docker`] the container has no
+//! network, a read-only root filesystem, capped memory, CPU and processes, and
+//! runs as the invoking user.
+
+mod exec;
+mod parse;
+mod project;
+mod result;
+
+use std::fs::File;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+
+pub use project::write as write_project;
+pub use result::{
+    Check, Diagnostic, Level, Outcome, RunResult, RunStatus, Span, Suite, TestOutcome,
+};
+
+/// What to run: the user's code plus the problem's tests.
+#[derive(Debug, Clone, Copy)]
+pub struct Submission<'a> {
+    pub lib_rs: &'a str,
+    pub visible_tests: &'a str,
+    /// Present on Submit, absent on Run.
+    pub hidden_tests: Option<&'a str>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Sandbox {
+    /// Plain `cargo` on this machine. For development and tests only.
+    Host,
+    Docker {
+        image: String,
+        memory: String,
+        cpus: String,
+        /// Docker context to run in. `None` uses whatever context is current.
+        context: Option<String>,
+    },
+}
+
+/// anneal runs its sandbox on OrbStack unless told otherwise.
+pub const DEFAULT_DOCKER_CONTEXT: &str = "orbstack";
+
+impl Sandbox {
+    /// A Docker sandbox on the OrbStack context.
+    pub fn docker(image: impl Into<String>) -> Self {
+        Sandbox::Docker {
+            image: image.into(),
+            memory: "1g".into(),
+            cpus: "2".into(),
+            context: Some(DEFAULT_DOCKER_CONTEXT.into()),
+        }
+    }
+
+    /// Runs in `context` instead; an empty string means the current context.
+    pub fn in_context(mut self, context: &str) -> Self {
+        if let Sandbox::Docker { context: c, .. } = &mut self {
+            *c = (!context.is_empty()).then(|| context.to_owned());
+        }
+        self
+    }
+
+    fn dir_name(&self) -> &'static str {
+        match self {
+            Sandbox::Host => "host",
+            Sandbox::Docker { .. } => "docker",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RunnerConfig {
+    pub sandbox: Sandbox,
+    /// Holds per-run work directories and the shared target directories.
+    pub work_root: PathBuf,
+    pub clippy: bool,
+    pub compile_timeout: Duration,
+    pub test_timeout: Duration,
+}
+
+impl RunnerConfig {
+    pub fn new(sandbox: Sandbox, work_root: impl Into<PathBuf>) -> Self {
+        RunnerConfig {
+            sandbox,
+            work_root: work_root.into(),
+            clippy: true,
+            compile_timeout: Duration::from_secs(90),
+            test_timeout: Duration::from_secs(15),
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RunnerError {
+    #[error("{what}: {source}")]
+    Io {
+        what: &'static str,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("cache key {0:?} may only contain letters, digits, '-' and '_'")]
+    BadCacheKey(String),
+}
+
+impl RunnerError {
+    pub(crate) fn io(what: &'static str, source: std::io::Error) -> Self {
+        RunnerError::Io { what, source }
+    }
+}
+
+pub struct Runner {
+    config: RunnerConfig,
+}
+
+impl Runner {
+    pub fn new(config: RunnerConfig) -> Self {
+        Runner { config }
+    }
+
+    pub fn config(&self) -> &RunnerConfig {
+        &self.config
+    }
+
+    /// Runs `sub`. `cache_key` names the shared build cache, normally the problem id.
+    pub async fn run(
+        &self,
+        cache_key: &str,
+        sub: &Submission<'_>,
+    ) -> Result<RunResult, RunnerError> {
+        if cache_key.is_empty()
+            || !cache_key
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(RunnerError::BadCacheKey(cache_key.to_owned()));
+        }
+        let cfg = &self.config;
+        let runs = cfg.work_root.join("runs");
+        let target = cfg
+            .work_root
+            .join("target")
+            .join(cfg.sandbox.dir_name())
+            .join(cache_key);
+        std::fs::create_dir_all(&runs).map_err(|e| RunnerError::io("create work root", e))?;
+        std::fs::create_dir_all(&target).map_err(|e| RunnerError::io("create target dir", e))?;
+        // Runs sharing a target directory must not overlap: building and running are
+        // separate cargo calls, so another build could replace the test binary in
+        // between. A file lock covers other Runners and other processes too.
+        let _lock = lock_target(&target).await?;
+        let work = tempfile::Builder::new()
+            .prefix("run-")
+            .tempdir_in(&runs)
+            .map_err(|e| RunnerError::io("create run dir", e))?;
+        project::write(work.path(), sub).map_err(|e| RunnerError::io("write project", e))?;
+
+        let start = Instant::now();
+        let mut diagnostics = Vec::new();
+        if cfg.clippy {
+            let out = exec::cargo(
+                &cfg.sandbox,
+                work.path(),
+                &target,
+                &[
+                    "clippy",
+                    "--offline",
+                    "--all-targets",
+                    "--message-format=json",
+                ],
+                cfg.compile_timeout,
+            )
+            .await?;
+            if out.timed_out {
+                return Ok(finish(RunStatus::Timeout, diagnostics, Vec::new(), start));
+            }
+            diagnostics = parse::diagnostics(&out.stdout);
+            if parse::build_failed(&out.stdout) || diagnostics.iter().any(Diagnostic::is_error) {
+                return Ok(finish(
+                    RunStatus::CompileError,
+                    diagnostics,
+                    Vec::new(),
+                    start,
+                ));
+            }
+        }
+
+        let mut targets = vec!["--test", "visible"];
+        if sub.hidden_tests.is_some() {
+            targets.extend(["--test", "hidden"]);
+        }
+        // Build first, under the compile limit, so the test limit only counts test time.
+        let mut build = vec!["test", "--offline", "--no-run", "--message-format=json"];
+        build.extend(&targets);
+        let out = exec::cargo(
+            &cfg.sandbox,
+            work.path(),
+            &target,
+            &build,
+            cfg.compile_timeout,
+        )
+        .await?;
+        if out.timed_out {
+            return Ok(finish(RunStatus::Timeout, diagnostics, Vec::new(), start));
+        }
+        // With clippy off, this build is the first place compile errors show up.
+        let build_diags = parse::diagnostics(&out.stdout);
+        if !cfg.clippy {
+            diagnostics = build_diags;
+        } else {
+            diagnostics.extend(build_diags.into_iter().filter(Diagnostic::is_error));
+        }
+        if parse::build_failed(&out.stdout) {
+            return Ok(finish(
+                RunStatus::CompileError,
+                diagnostics,
+                Vec::new(),
+                start,
+            ));
+        }
+
+        let mut run = vec!["test", "--offline", "--no-fail-fast"];
+        run.extend(&targets);
+        run.extend([
+            "--",
+            "-Z",
+            "unstable-options",
+            "--format",
+            "json",
+            "--report-time",
+        ]);
+        let out = exec::cargo(&cfg.sandbox, work.path(), &target, &run, cfg.test_timeout).await?;
+        let tests = parse::tests(&out.stdout, &out.stderr);
+        let status = if out.timed_out {
+            RunStatus::Timeout
+        } else if !tests.is_empty() && tests.iter().all(|t| t.outcome == Outcome::Passed) {
+            RunStatus::Passed
+        } else {
+            RunStatus::Failed
+        };
+        Ok(finish(status, diagnostics, tests, start))
+    }
+}
+
+/// Holds an exclusive lock on `<target>/.anneal-lock` until dropped.
+async fn lock_target(target: &Path) -> Result<File, RunnerError> {
+    let path = target.join(".anneal-lock");
+    tokio::task::spawn_blocking(move || {
+        let file = File::options()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(&path)?;
+        file.lock()?;
+        Ok(file)
+    })
+    .await
+    .map_err(|e| RunnerError::io("lock target dir", std::io::Error::other(e)))?
+    .map_err(|e| RunnerError::io("lock target dir", e))
+}
+
+fn finish(
+    status: RunStatus,
+    diagnostics: Vec<Diagnostic>,
+    tests: Vec<TestOutcome>,
+    start: Instant,
+) -> RunResult {
+    let passed = tests
+        .iter()
+        .filter(|t| t.outcome == Outcome::Passed)
+        .count();
+    let total = tests.len();
+    RunResult {
+        status,
+        diagnostics,
+        tests,
+        passed,
+        total,
+        duration_ms: start.elapsed().as_millis() as u64,
+    }
+}
+
+/// Default location for run directories and build caches.
+pub fn default_work_root() -> PathBuf {
+    std::env::var_os("ANNEAL_WORK_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::temp_dir().join("anneal"))
+}

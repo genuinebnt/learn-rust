@@ -1,0 +1,26 @@
+slug = "fix-borrowmuterror"
+title = "Fix: BorrowMutError at runtime"
+mode = "fix"
+level = "hard"
+stage = "borrow-checker-limits"
+order = 33
+status = "ready"
+tags = ["RefCell", "panic"]
+teaches = [
+  "`RefCell` enforces the borrow rules at runtime, through guards.",
+  "Guard lifetimes are scopes; end them early.",
+]
+follow_up = "Why does RefCell panic instead of returning an error by default, and when would you use `try_borrow_mut`?"
+related = ["L2", "S7"]
+
+[[hints]]
+kind = "rust"
+text = "`borrow()` returns a guard that holds the shared borrow until it's dropped. When is `names` dropped?"
+
+[solution]
+explanation = "The guard lived to the end of the function, so `borrow_mut` found it still active and panicked. Ending the shared borrow in the same statement fixes it."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]

@@ -1,0 +1,27 @@
+slug = "ransom-note"
+title = "Ransom note"
+mode = "write"
+level = "easy"
+stage = "counting"
+order = 8
+status = "ready"
+tags = ["counting", "[u8; 26]"]
+teaches = [
+  "Count what you have, then spend it.",
+  "Early return from a loop once a count goes negative.",
+]
+follow_up = "If this ran for many notes against one magazine, what would you precompute?"
+related = ["S4"]
+
+[[examples]]
+input = "note = \"aa\", magazine = \"aab\""
+output = "true"
+
+[[hints]]
+kind = "approach"
+text = "Count the magazine's letters, then take one away for each letter of the note."
+
+[solution]
+explanation = "Checking for zero before decrementing avoids unsigned underflow and exits early."
+time = "O(n + m)"
+space = "O(1)"

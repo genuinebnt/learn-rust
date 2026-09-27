@@ -1,0 +1,25 @@
+slug = "fix-conditional-return-of-borrow"
+title = "Fix: conditional return of a borrow"
+mode = "fix"
+level = "hard"
+stage = "borrow-checker-limits"
+order = 30
+status = "ready"
+tags = ["NLL case 3", "Polonius"]
+teaches = [
+  "Return indices from searches when a later branch needs to mutate.",
+]
+follow_up = "Could you write a test that proves this is safe even though rustc rejects the original?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "Find an index first. An index doesn't borrow the Vec, so the push path is free to mutate it."
+
+[solution]
+explanation = "Searching for a `usize` ends the borrow before the decision, so neither path conflicts."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]

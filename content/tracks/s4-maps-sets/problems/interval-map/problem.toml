@@ -1,0 +1,27 @@
+slug = "interval-map"
+title = "An interval map on BTreeMap"
+mode = "write"
+level = "hard"
+stage = "build-it"
+order = 11
+status = "ready"
+tags = ["BTreeMap::range", "intervals"]
+teaches = [
+  "Keying intervals by their start makes point lookup a floor query.",
+  "Returning the value back in `Err` when an insert is refused.",
+]
+follow_up = "How would you support overlapping intervals and 'all intervals containing x'?"
+related = ["D8", "D14"]
+
+[[hints]]
+kind = "approach"
+text = "An interval containing `point` must be the one with the largest start ≤ point."
+
+[[hints]]
+kind = "approach"
+text = "A new interval overlaps only if its predecessor ends after `start` or its successor starts before `end`."
+
+[solution]
+explanation = "Two neighbour checks are enough because the stored intervals never overlap each other. `Err(value)` gives ownership back so the caller can retry without cloning."
+time = "O(log n)"
+space = "O(n)"

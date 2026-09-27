@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Senior Rust Engineer — Interview &amp; Study Packet</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ── Token System ── */
+:root {
+  --bg:         #0b0d12;
+  --bg-panel:   #10131a;
+  --bg-card:    #161922;
+  --bg-code:    #090b0f;
+  --border:     #21263a;
+  --border-dim: #181c28;
+  --text:       #dde2ef;
+  --text-muted: #7a839e;
+  --text-dim:   #404868;
+
+  --c-rust:    #fb923c;
+  --c-pass:    #34d399;
+  --c-warn:    #fbbf24;
+  --c-fail:    #f87171;
+
+  /* Topic accents — Foundations */
+  --c-own:     #4fc3f7;
+  --c-struct:  #a78bfa;
+  --c-err:     #fbbf24;
+  --c-fn:      #34d399;
+  --c-life:    #f472b6;
+
+  /* Topic accents — Type system */
+  --c-trait:   #c084fc;
+  --c-gen:     #22d3ee;
+  --c-iter:    #2dd4bf;
+  --c-std:     #60a5fa;
+  --c-smart:   #10b981;
+
+  /* Topic accents — Concurrency / Async / Web */
+  --c-thr:     #f87171;
+  --c-atomic:  #fb7185;
+  --c-async:   #818cf8;
+  --c-web:     #38bdf8;
+  --c-crate:   #eab308;
+
+  /* Topic accents — Senior / Advanced */
+  --c-unsafe:  #ef4444;
+  --c-perf:    #fdba74;
+  --c-test:    #4ade80;
+  --c-ffi:     #e879f9;
+  --c-arch:    #a5b4fc;
+  --c-mod:     #84cc16;
+  --c-sysd:    #fb923c;
+
+  /* Level tags */
+  --lvl-beg:   #34d399;
+  --lvl-int:   #4fc3f7;
+  --lvl-adv:   #fbbf24;
+  --lvl-sr:    #f87171;
+
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Inter', sans-serif;
+  --sw: 264px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sw);
+  height: 100vh;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0; left: 0;
+  overflow-y: auto;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+.sb-logo {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sb-logo-top {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+.sb-logo-top span { color: var(--c-rust); }
+.sb-logo-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  letter-spacing: .05em;
+}
+.sb-section { padding: 10px 0 2px; }
+.sb-section-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 18px 5px;
+}
+.sb-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 18px;
+  text-decoration: none;
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: color .12s, background .12s;
+  border-left: 2px solid transparent;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.sb-link:hover { color: var(--text); background: rgba(255,255,255,.03); }
+.sb-link.active { color: var(--text); border-left-color: var(--c-rust); background: rgba(251,146,60,.05); }
+.sb-link.done-link { color: var(--text-dim); }
+.sb-link.done-link:hover { color: var(--text-muted); }
+.sb-pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.sb-check {
+  margin-left: auto;
+  width: 15px; height: 15px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+  color: transparent;
+  flex-shrink: 0;
+  transition: background .12s, border-color .12s, color .12s;
+  cursor: pointer;
+}
+.sb-check:hover { border-color: var(--text-dim); }
+.sb-check.done { background: var(--c-pass); border-color: var(--c-pass); color: #06231a; }
+.sb-progress {
+  margin-top: 10px;
+  color: var(--c-pass);
+  font-size: 10px;
+}
+.sb-progress-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border-dim);
+  margin-top: 6px;
+  overflow: hidden;
+}
+.sb-progress-fill { height: 100%; background: var(--c-pass); transition: width .2s; }
+.sb-reset {
+  margin-top: 8px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: var(--text-dim);
+  transition: color .12s;
+}
+.sb-reset:hover { color: var(--c-fail); }
+.sb-footer {
+  margin-top: auto;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+
+/* ── Main ── */
+.main {
+  margin-left: var(--sw);
+  flex: 1;
+  padding: 40px 44px 100px;
+  max-width: calc(var(--sw) + 880px);
+  min-width: 0;
+}
+
+/* ── Loading state ── */
+#loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.loading-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--c-rust);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.loading-dot:nth-child(2) { animation-delay: .2s; }
+.loading-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes pulse { 0%,100%{opacity:.2} 50%{opacity:1} }
+
+/* ── Page Header ── */
+.page-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 28px;
+  margin-bottom: 40px;
+}
+.ph-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.ph-title {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.15;
+}
+.ph-title em { color: var(--c-rust); font-style: normal; }
+.ph-sub {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 8px;
+  max-width: 620px;
+  line-height: 1.7;
+}
+.ph-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  align-items: center;
+}
+.badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  border: 1px solid;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.badge-rust  { background: rgba(251,146,60,.1);  color: var(--c-rust); border-color: rgba(251,146,60,.25); }
+.badge-time  { background: rgba(255,255,255,.04);color: var(--text-dim);border-color: var(--border); }
+.print-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 12px;
+  border-radius: 3px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+  margin-left: auto;
+}
+.print-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+/* ── Section ── */
+.section { margin-bottom: 52px; }
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.sh-bar { width: 3px; height: 36px; border-radius: 2px; flex-shrink: 0; }
+.sh-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.sh-title { font-size: 20px; font-weight: 700; color: var(--text); }
+
+/* ── Card ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px 22px;
+  margin-bottom: 14px;
+}
+.card-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cl-pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Q&A Block ── */
+.qa-block {
+  border: 1px solid var(--border-dim);
+  border-radius: 5px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.qa-q {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-panel);
+  cursor: pointer;
+  user-select: none;
+  align-items: flex-start;
+}
+.qa-q:hover { background: rgba(255,255,255,.025); }
+.qa-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  min-width: 26px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+.qa-qtext {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+  line-height: 1.5;
+}
+.qa-qtext code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: rgba(255,255,255,.06);
+  color: var(--c-rust);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.qa-toggle {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  padding-top: 2px;
+  transition: color .12s;
+  white-space: nowrap;
+}
+.qa-q:hover .qa-toggle { color: var(--c-rust); }
+
+/* ── Level tags ── */
+.qa-vers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex-shrink: 0;
+  align-self: center;
+}
+.lvl, .chip-lvl {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.lvl.beg, .chip-lvl.beg { color: #34d399; background: rgba(52,211,153,.08); border-color: rgba(52,211,153,.25); }
+.lvl.int, .chip-lvl.int { color: #4fc3f7; background: rgba(79,195,247,.08); border-color: rgba(79,195,247,.25); }
+.lvl.adv, .chip-lvl.adv { color: #fbbf24; background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.25); }
+.lvl.sr,  .chip-lvl.sr  { color: #f87171; background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.25); }
+
+.level-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 28px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+}
+.lf-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+.lf-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.lf-btn:hover { color: var(--text); border-color: var(--text-dim); }
+.lf-btn.active {
+  color: var(--text);
+  border-color: var(--c-rust);
+  background: rgba(251,146,60,.08);
+}
+.lf-hint {
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.qa-block.lvl-hidden { display: none; }
+.section.lvl-empty { display: none; }
+.qa-a {
+  padding: 14px 16px 14px 54px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-dim);
+  display: none;
+}
+.qa-a.open { display: block; }
+.qa-a-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--c-rust);
+  margin-bottom: 8px;
+}
+.qa-a-text {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+.qa-a-text strong { color: var(--text); }
+.qa-a-text code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: rgba(251,146,60,.1);
+  color: var(--c-rust);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ── Code ── */
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.75;
+  color: #abb2bf;
+  margin: 10px 0;
+  white-space: pre;
+}
+.kw  { color: #c678dd; }
+.ty  { color: #e5c07b; }
+.fn  { color: #61afef; }
+.cm  { color: #4d5566; font-style: italic; }
+.st  { color: #98c379; }
+.nm  { color: #d19a66; }
+.lt  { color: #f472b6; }
+.mc  { color: #eab308; }
+.bug-line {
+  background: rgba(239,68,68,.12);
+  border-left: 3px solid var(--c-fail);
+  padding: 1px 8px 1px 13px;
+  margin-left: -16px;
+  display: block;
+}
+.ok-line { background: rgba(52,211,153,.07); display: block; }
+
+/* ── Signals ── */
+.signals {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.sig-box { border-radius: 4px; padding: 12px 14px; font-size: 12px; }
+.sig-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.sig-pass { background: rgba(52,211,153,.06);  border: 1px solid rgba(52,211,153,.18); }
+.sig-pass .sig-label { color: var(--c-pass); }
+.sig-warn { background: rgba(251,191,36,.06);  border: 1px solid rgba(251,191,36,.18); }
+.sig-warn .sig-label { color: var(--c-warn); }
+.sig-fail { background: rgba(248,113,113,.06); border: 1px solid rgba(248,113,113,.18); }
+.sig-fail .sig-label { color: var(--c-fail); }
+.sig-box ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.sig-box li { color: var(--text-muted); padding-left: 12px; position: relative; line-height: 1.5; }
+.sig-box li::before { content: '·'; position: absolute; left: 0; color: var(--text-dim); }
+
+/* ── Insight box (senior angle / interview tell) ── */
+.insight {
+  border-left: 3px solid var(--c-rust);
+  background: rgba(251,146,60,.04);
+  border-radius: 0 4px 4px 0;
+  padding: 14px 18px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.insight-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--c-rust);
+  margin-bottom: 8px;
+}
+.insight strong { color: var(--text); }
+.insight code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: rgba(251,146,60,.1);
+  color: var(--c-rust);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ── Details / Solution toggle ── */
+details { margin-top: 10px; }
+summary {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 8px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  user-select: none;
+  transition: color .12s, border-color .12s;
+}
+summary::-webkit-details-marker { display: none; }
+summary::before { content: '▶'; font-size: 8px; transition: transform .18s; }
+details[open] summary::before { transform: rotate(90deg); }
+summary:hover { color: var(--text); border-color: var(--border); }
+
+/* ── Exercise chips ── */
+.ex-meta { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+.chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.chip-easy { background: rgba(52,211,153,.08);  color: var(--c-pass); border-color: rgba(52,211,153,.2); }
+.chip-med  { background: rgba(251,191,36,.08);  color: var(--c-warn); border-color: rgba(251,191,36,.2); }
+.chip-hard { background: rgba(248,113,113,.08); color: var(--c-fail); border-color: rgba(248,113,113,.2); }
+
+/* ── Matrix Table ── */
+.matrix { width: 100%; border-collapse: collapse; font-size: 12px; }
+.matrix th {
+  text-align: left;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+.matrix td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-dim);
+  vertical-align: top;
+  color: var(--text-muted);
+}
+.matrix td:first-child { color: var(--text); font-weight: 500; }
+.matrix td code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--c-rust);
+  background: rgba(251,146,60,.1);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ── Note box ── */
+.note {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px 16px;
+  background: var(--bg-panel);
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 10px 0;
+  line-height: 1.7;
+}
+.note strong { color: var(--text); }
+
+/* ── Score card ── */
+.scorecard {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.score-cell {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 12px 10px;
+  text-align: center;
+}
+.score-cell .sc-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.sc-dots { display: flex; justify-content: center; gap: 4px; }
+.s-dot {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+
+/* ── Two-col grid ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── Checklists ── */
+.checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.checklist li { display: flex; align-items: flex-start; }
+.checklist label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+  width: 100%;
+  padding: 9px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  font-size: 13px;
+  transition: border-color .12s;
+}
+.checklist label:hover { border-color: var(--border); }
+.checklist input[type=checkbox] { accent-color: var(--c-pass); margin-top: 2px; flex-shrink: 0; }
+.checklist span { color: var(--text-muted); line-height: 1.5; }
+.checklist-fail input[type=checkbox] { accent-color: var(--c-fail); }
+
+/* ── Divider ── */
+hr { border: none; border-top: 1px solid var(--border-dim); margin: 40px 0; }
+
+/* ── Probes list ── */
+.probe-list { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.probe-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  font-size: 13px;
+}
+.probe-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--c-rust);
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.probe-text { color: var(--text-muted); line-height: 1.55; }
+.probe-text strong { color: var(--text); }
+.probe-text em { color: var(--text); font-style: italic; }
+
+/* ── Textarea ── */
+textarea {
+  width: 100%;
+  min-height: 110px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 12px;
+  resize: vertical;
+  outline: none;
+  transition: border-color .15s;
+  line-height: 1.6;
+}
+textarea:focus { border-color: var(--c-rust); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 20px; }
+  .two-col { grid-template-columns: 1fr; }
+  .signals { grid-template-columns: 1fr; }
+}
+@media print {
+  body { background: #fff; color: #111; }
+  .sidebar, .print-btn { display: none !important; }
+  .main { margin-left: 0; padding: 20px; max-width: 100%; }
+  pre { border: 1px solid #ccc; background: #f5f5f5; color: #111; }
+  .qa-a { display: block !important; }
+  details[open] + * { display: block; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<nav class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-top">Senior <span>🦀</span> Rust Engineer<br>Interview &amp; Study Packet</div>
+    <div class="sb-logo-sub">Job-Hunt Reference · Comprehensive</div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Overview</div>
+    <div class="sb-link" onclick="load('part-overview.html','overview')">
+      <span class="sb-pip" style="background:var(--c-rust)"></span>Concept map
+    </div>
+    <div class="sb-link" onclick="load('part-overview.html','how-to-use')">
+      <span class="sb-pip" style="background:var(--text-dim)"></span>How to use
+    </div>
+    <div class="sb-link" onclick="load('part-overview.html','toolchain')">
+      <span class="sb-pip" style="background:var(--c-std)"></span>Toolchain &amp; ecosystem
+    </div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Common Code Patterns</div>
+    <div class="sb-link" onclick="load('part-patterns.html','patterns')"><span class="sb-pip" style="background:var(--c-rust)"></span>Cheat sheet — start here</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-primitives')"><span class="sb-pip" style="background:var(--c-std)"></span>Primitives &amp; conversions</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-strings')"><span class="sb-pip" style="background:var(--c-std)"></span>String &amp; &amp;str</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-arrays')"><span class="sb-pip" style="background:var(--c-iter)"></span>Arrays &amp; slices</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-bits')"><span class="sb-pip" style="background:var(--c-atomic)"></span>Bit manipulation</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-vec')"><span class="sb-pip" style="background:var(--c-std)"></span>Vec&lt;T&gt; — the workhorse</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-maps')"><span class="sb-pip" style="background:var(--c-gen)"></span>HashMap / HashSet / BTree</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-deque')"><span class="sb-pip" style="background:var(--c-thr)"></span>VecDeque — queues &amp; deques</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-heap')"><span class="sb-pip" style="background:var(--c-perf)"></span>BinaryHeap — priority queues</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-sort')"><span class="sb-pip" style="background:var(--c-mod)"></span>Sorting &amp; searching</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-match')"><span class="sb-pip" style="background:var(--c-trait)"></span>Pattern matching</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-iter')"><span class="sb-pip" style="background:var(--c-iter)"></span>Iterators &amp; functional tools</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-closures')"><span class="sb-pip" style="background:var(--c-fn)"></span>Closures &amp; functions</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-ownership')"><span class="sb-pip" style="background:var(--c-own)"></span>Ownership quick reference</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-errors')"><span class="sb-pip" style="background:var(--c-err)"></span>Error handling patterns</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-traits')"><span class="sb-pip" style="background:var(--c-trait)"></span>Common traits reference</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-smart')"><span class="sb-pip" style="background:var(--c-smart)"></span>Smart pointers</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-graphs')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Graphs</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-linkedlist')"><span class="sb-pip" style="background:var(--c-struct)"></span>Linked lists</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-trees')"><span class="sb-pip" style="background:var(--c-struct)"></span>Trees</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-algopatterns')"><span class="sb-pip" style="background:var(--c-perf)"></span>Algorithmic patterns</div>
+    <div class="sb-link" onclick="load('part-patterns.html','cp-concurrency')"><span class="sb-pip" style="background:var(--c-thr)"></span>Concurrency quick patterns</div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">01 · Foundations</div>
+    <div class="sb-link" onclick="load('part-topics-1.html','t-own')"><span class="sb-pip" style="background:var(--c-own)"></span>Ownership &amp; borrowing</div>
+    <div class="sb-link" onclick="load('part-topics-1.html','t-struct')"><span class="sb-pip" style="background:var(--c-struct)"></span>Structs, enums &amp; matching</div>
+    <div class="sb-link" onclick="load('part-topics-1.html','t-err')"><span class="sb-pip" style="background:var(--c-err)"></span>Error handling</div>
+    <div class="sb-link" onclick="load('part-topics-1.html','t-fn')"><span class="sb-pip" style="background:var(--c-fn)"></span>Functions &amp; closures</div>
+    <div class="sb-link" onclick="load('part-topics-1.html','t-life')"><span class="sb-pip" style="background:var(--c-life)"></span>Lifetimes deep-dive</div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">02 · Type System</div>
+    <div class="sb-link" onclick="load('part-topics-2.html','t-trait')"><span class="sb-pip" style="background:var(--c-trait)"></span>Traits &amp; trait objects</div>
+    <div class="sb-link" onclick="load('part-topics-2.html','t-gen')"><span class="sb-pip" style="background:var(--c-gen)"></span>Generics</div>
+    <div class="sb-link" onclick="load('part-topics-2.html','t-iter')"><span class="sb-pip" style="background:var(--c-iter)"></span>Iterators</div>
+    <div class="sb-link" onclick="load('part-topics-2.html','t-std')"><span class="sb-pip" style="background:var(--c-std)"></span>Collections &amp; std lib</div>
+    <div class="sb-link" onclick="load('part-topics-2.html','t-smart')"><span class="sb-pip" style="background:var(--c-smart)"></span>Smart pointers</div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">03 · Concurrency &amp; Web</div>
+    <div class="sb-link" onclick="load('part-topics-3.html','t-thr')"><span class="sb-pip" style="background:var(--c-thr)"></span>Threading &amp; sync</div>
+    <div class="sb-link" onclick="load('part-topics-3.html','t-atomic')"><span class="sb-pip" style="background:var(--c-atomic)"></span>Atomics &amp; ordering</div>
+    <div class="sb-link" onclick="load('part-topics-3.html','t-async')"><span class="sb-pip" style="background:var(--c-async)"></span>Async/await &amp; Tokio</div>
+    <div class="sb-link" onclick="load('part-topics-3.html','t-web')"><span class="sb-pip" style="background:var(--c-web)"></span>Web development</div>
+    <div class="sb-link" onclick="load('part-topics-3.html','t-crate')"><span class="sb-pip" style="background:var(--c-crate)"></span>Common crates</div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">04 · Senior / Advanced</div>
+    <div class="sb-link" onclick="load('part-topics-4.html','t-unsafe')"><span class="sb-pip" style="background:var(--c-unsafe)"></span>Macros &amp; unsafe Rust</div>
+    <div class="sb-link" onclick="load('part-topics-4.html','t-perf')"><span class="sb-pip" style="background:var(--c-perf)"></span>Memory layout &amp; perf</div>
+    <div class="sb-link" onclick="load('part-topics-4.html','t-test')"><span class="sb-pip" style="background:var(--c-test)"></span>Testing &amp; tooling</div>
+    <div class="sb-link" onclick="load('part-topics-4.html','t-ffi')"><span class="sb-pip" style="background:var(--c-ffi)"></span>FFI &amp; interop</div>
+    <div class="sb-link" onclick="load('part-topics-4.html','t-arch')"><span class="sb-pip" style="background:var(--c-arch)"></span>Architecture &amp; patterns</div>
+    <div class="sb-link" onclick="load('part-topics-4.html','t-mod')"><span class="sb-pip" style="background:var(--c-mod)"></span>Modules, crates &amp; Cargo</div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Syntax &amp; Algorithm Drills</div>
+    <div class="sb-link" onclick="load('part-drills.html','d-strings')"><span class="sb-pip" style="background:var(--c-std)"></span>Strings &amp; slices<span class="sb-check" data-id="d-strings" onclick="toggleDone(event,'d-strings')"></span></div>
+    <div class="sb-link" onclick="load('part-drills.html','d-arrays')"><span class="sb-pip" style="background:var(--c-iter)"></span>Arrays &amp; two-pointer<span class="sb-check" data-id="d-arrays" onclick="toggleDone(event,'d-arrays')"></span></div>
+    <div class="sb-link" onclick="load('part-drills.html','d-trees')"><span class="sb-pip" style="background:var(--c-struct)"></span>Linked lists &amp; trees<span class="sb-check" data-id="d-trees" onclick="toggleDone(event,'d-trees')"></span></div>
+    <div class="sb-link" onclick="load('part-drills.html','d-syntax')"><span class="sb-pip" style="background:var(--c-gen)"></span>Core syntax fluency<span class="sb-check" data-id="d-syntax" onclick="toggleDone(event,'d-syntax')"></span></div>
+    <div class="sb-link" onclick="load('part-drills.html','d-syntax2')"><span class="sb-pip" style="background:var(--c-fn)"></span>Closures, files &amp; async traits<span class="sb-check" data-id="d-syntax2" onclick="toggleDone(event,'d-syntax2')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">HLD Fundamentals</div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld-header')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld1')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD1 · CAP / PACELC & consistency<span class="sb-check" data-id="hld1" onclick="toggleDone(event,'hld1')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld2')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD2 · Scaling & capacity estimates<span class="sb-check" data-id="hld2" onclick="toggleDone(event,'hld2')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld3')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD3 · Load balancing<span class="sb-check" data-id="hld3" onclick="toggleDone(event,'hld3')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld4')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD4 · Caching strategies<span class="sb-check" data-id="hld4" onclick="toggleDone(event,'hld4')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld5')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD5 · Sharding & consistent hashing<span class="sb-check" data-id="hld5" onclick="toggleDone(event,'hld5')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld6')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD6 · Replication & failover<span class="sb-check" data-id="hld6" onclick="toggleDone(event,'hld6')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld7')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD7 · Queues / pub-sub / logs<span class="sb-check" data-id="hld7" onclick="toggleDone(event,'hld7')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld8')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD8 · Distributed transactions<span class="sb-check" data-id="hld8" onclick="toggleDone(event,'hld8')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld9')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD9 · Resilience patterns<span class="sb-check" data-id="hld9" onclick="toggleDone(event,'hld9')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld10')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD10 · CDN & edge<span class="sb-check" data-id="hld10" onclick="toggleDone(event,'hld10')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld11')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD11 · Service discovery & gateway<span class="sb-check" data-id="hld11" onclick="toggleDone(event,'hld11')"></span></div>
+    <div class="sb-link" onclick="load('part-hld-fundamentals.html','hld12')"><span class="sb-pip" style="background:var(--c-sysd)"></span>HLD12 · SLIs / SLOs<span class="sb-check" data-id="hld12" onclick="toggleDone(event,'hld12')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">API Design</div>
+    <div class="sb-link" onclick="load('part-api-design.html','api-header')"><span class="sb-pip" style="background:var(--c-web)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-api-design.html','api1')"><span class="sb-pip" style="background:var(--c-web)"></span>API1 · REST resource modeling<span class="sb-check" data-id="api1" onclick="toggleDone(event,'api1')"></span></div>
+    <div class="sb-link" onclick="load('part-api-design.html','api2')"><span class="sb-pip" style="background:var(--c-web)"></span>API2 · Pagination (offset vs cursor)<span class="sb-check" data-id="api2" onclick="toggleDone(event,'api2')"></span></div>
+    <div class="sb-link" onclick="load('part-api-design.html','api3')"><span class="sb-pip" style="background:var(--c-web)"></span>API3 · Idempotency keys<span class="sb-check" data-id="api3" onclick="toggleDone(event,'api3')"></span></div>
+    <div class="sb-link" onclick="load('part-api-design.html','api4')"><span class="sb-pip" style="background:var(--c-web)"></span>API4 · Error model / HTTP mapping<span class="sb-check" data-id="api4" onclick="toggleDone(event,'api4')"></span></div>
+    <div class="sb-link" onclick="load('part-api-design.html','api5')"><span class="sb-pip" style="background:var(--c-web)"></span>API5 · API versioning<span class="sb-check" data-id="api5" onclick="toggleDone(event,'api5')"></span></div>
+    <div class="sb-link" onclick="load('part-api-design.html','api6')"><span class="sb-pip" style="background:var(--c-web)"></span>API6 · Authn/z & scopes<span class="sb-check" data-id="api6" onclick="toggleDone(event,'api6')"></span></div>
+    <div class="sb-link" onclick="load('part-api-design.html','api7')"><span class="sb-pip" style="background:var(--c-web)"></span>API7 · gRPC vs REST vs WebSocket<span class="sb-check" data-id="api7" onclick="toggleDone(event,'api7')"></span></div>
+    <div class="sb-link" onclick="load('part-api-design.html','api8')"><span class="sb-pip" style="background:var(--c-web)"></span>API8 · Webhook delivery<span class="sb-check" data-id="api8" onclick="toggleDone(event,'api8')"></span></div>
+    <div class="sb-link" onclick="load('part-api-design.html','api9')"><span class="sb-pip" style="background:var(--c-web)"></span>API9 · Rate limits & quotas<span class="sb-check" data-id="api9" onclick="toggleDone(event,'api9')"></span></div>
+    <div class="sb-link" onclick="load('part-api-design.html','api10')"><span class="sb-pip" style="background:var(--c-web)"></span>API10 · Compatibility & schema evolution<span class="sb-check" data-id="api10" onclick="toggleDone(event,'api10')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Low-Level Design</div>
+    <div class="sb-link" onclick="load('part-lld.html','lld-header')"><span class="sb-pip" style="background:var(--c-struct)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-lld.html','lld1')"><span class="sb-pip" style="background:var(--c-struct)"></span>LLD1 · Parking lot<span class="sb-check" data-id="lld1" onclick="toggleDone(event,'lld1')"></span></div>
+    <div class="sb-link" onclick="load('part-lld.html','lld2')"><span class="sb-pip" style="background:var(--c-struct)"></span>LLD2 · Elevator system<span class="sb-check" data-id="lld2" onclick="toggleDone(event,'lld2')"></span></div>
+    <div class="sb-link" onclick="load('part-lld.html','lld3')"><span class="sb-pip" style="background:var(--c-struct)"></span>LLD3 · Rate limiter (library)<span class="sb-check" data-id="lld3" onclick="toggleDone(event,'lld3')"></span></div>
+    <div class="sb-link" onclick="load('part-lld.html','lld4')"><span class="sb-pip" style="background:var(--c-struct)"></span>LLD4 · Logger / append log<span class="sb-check" data-id="lld4" onclick="toggleDone(event,'lld4')"></span></div>
+    <div class="sb-link" onclick="load('part-lld.html','lld5')"><span class="sb-pip" style="background:var(--c-struct)"></span>LLD5 · Movie ticket booking<span class="sb-check" data-id="lld5" onclick="toggleDone(event,'lld5')"></span></div>
+    <div class="sb-link" onclick="load('part-lld.html','lld6')"><span class="sb-pip" style="background:var(--c-struct)"></span>LLD6 · Pub/Sub in-process bus<span class="sb-check" data-id="lld6" onclick="toggleDone(event,'lld6')"></span></div>
+    <div class="sb-link" onclick="load('part-lld.html','lld7')"><span class="sb-pip" style="background:var(--c-struct)"></span>LLD7 · Circuit breaker<span class="sb-check" data-id="lld7" onclick="toggleDone(event,'lld7')"></span></div>
+    <div class="sb-link" onclick="load('part-lld.html','lld8')"><span class="sb-pip" style="background:var(--c-struct)"></span>LLD8 · Splitwise-lite ledger<span class="sb-check" data-id="lld8" onclick="toggleDone(event,'lld8')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Trading Systems LLD</div>
+    <div class="sb-link" onclick="load('part-trading.html','tr-header')"><span class="sb-pip" style="background:var(--c-perf)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-trading.html','tr1')"><span class="sb-pip" style="background:var(--c-perf)"></span>TR1 · Price-time order book<span class="sb-check" data-id="tr1" onclick="toggleDone(event,'tr1')"></span></div>
+    <div class="sb-link" onclick="load('part-trading.html','tr2')"><span class="sb-pip" style="background:var(--c-perf)"></span>TR2 · Matching engine<span class="sb-check" data-id="tr2" onclick="toggleDone(event,'tr2')"></span></div>
+    <div class="sb-link" onclick="load('part-trading.html','tr3')"><span class="sb-pip" style="background:var(--c-perf)"></span>TR3 · Market data fanout<span class="sb-check" data-id="tr3" onclick="toggleDone(event,'tr3')"></span></div>
+    <div class="sb-link" onclick="load('part-trading.html','tr4')"><span class="sb-pip" style="background:var(--c-perf)"></span>TR4 · Pre-trade risk<span class="sb-check" data-id="tr4" onclick="toggleDone(event,'tr4')"></span></div>
+    <div class="sb-link" onclick="load('part-trading.html','tr5')"><span class="sb-pip" style="background:var(--c-perf)"></span>TR5 · FIX-lite framing<span class="sb-check" data-id="tr5" onclick="toggleDone(event,'tr5')"></span></div>
+    <div class="sb-link" onclick="load('part-trading.html','tr6')"><span class="sb-pip" style="background:var(--c-perf)"></span>TR6 · TWAP scheduler<span class="sb-check" data-id="tr6" onclick="toggleDone(event,'tr6')"></span></div>
+    <div class="sb-link" onclick="load('part-trading.html','tr7')"><span class="sb-pip" style="background:var(--c-perf)"></span>TR7 · Position &amp; PnL<span class="sb-check" data-id="tr7" onclick="toggleDone(event,'tr7')"></span></div>
+    <div class="sb-link" onclick="load('part-trading.html','tr8')"><span class="sb-pip" style="background:var(--c-atomic)"></span>TR8 · SPSC ring path<span class="sb-check" data-id="tr8" onclick="toggleDone(event,'tr8')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Design Patterns</div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp-header')"><span class="sb-pip" style="background:var(--c-arch)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp1')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP1 · Builder<span class="sb-check" data-id="dp1" onclick="toggleDone(event,'dp1')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp2')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP2 · Factory Method<span class="sb-check" data-id="dp2" onclick="toggleDone(event,'dp2')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp3')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP3 · Abstract Factory<span class="sb-check" data-id="dp3" onclick="toggleDone(event,'dp3')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp4')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP4 · Prototype<span class="sb-check" data-id="dp4" onclick="toggleDone(event,'dp4')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp5')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP5 · Singleton (and why not)<span class="sb-check" data-id="dp5" onclick="toggleDone(event,'dp5')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp6')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP6 · Adapter<span class="sb-check" data-id="dp6" onclick="toggleDone(event,'dp6')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp7')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP7 · Decorator<span class="sb-check" data-id="dp7" onclick="toggleDone(event,'dp7')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp8')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP8 · Facade<span class="sb-check" data-id="dp8" onclick="toggleDone(event,'dp8')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp9')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP9 · Proxy<span class="sb-check" data-id="dp9" onclick="toggleDone(event,'dp9')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp10')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP10 · Composite<span class="sb-check" data-id="dp10" onclick="toggleDone(event,'dp10')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp11')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP11 · Strategy<span class="sb-check" data-id="dp11" onclick="toggleDone(event,'dp11')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp12')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP12 · Observer<span class="sb-check" data-id="dp12" onclick="toggleDone(event,'dp12')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp13')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP13 · Command<span class="sb-check" data-id="dp13" onclick="toggleDone(event,'dp13')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp14')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP14 · State machine<span class="sb-check" data-id="dp14" onclick="toggleDone(event,'dp14')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp15')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP15 · Template Method<span class="sb-check" data-id="dp15" onclick="toggleDone(event,'dp15')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp16')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP16 · Custom Iterator<span class="sb-check" data-id="dp16" onclick="toggleDone(event,'dp16')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp17')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP17 · Newtype + Typestate<span class="sb-check" data-id="dp17" onclick="toggleDone(event,'dp17')"></span></div>
+    <div class="sb-link" onclick="load('part-designpatterns.html','dp18')"><span class="sb-pip" style="background:var(--c-arch)"></span>DP18 · RAII Guard<span class="sb-check" data-id="dp18" onclick="toggleDone(event,'dp18')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">System Design</div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd1')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD1 · Rate limiter<span class="sb-check" data-id="sd1" onclick="toggleDone(event,'sd1')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd2')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD2 · Connection pool<span class="sb-check" data-id="sd2" onclick="toggleDone(event,'sd2')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd3')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD3 · Thread pool sizing<span class="sb-check" data-id="sd3" onclick="toggleDone(event,'sd3')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd4')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD4 · Backpressure pipeline<span class="sb-check" data-id="sd4" onclick="toggleDone(event,'sd4')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd5')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD5 · Distributed lock/lease<span class="sb-check" data-id="sd5" onclick="toggleDone(event,'sd5')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd6')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD6 · Observability<span class="sb-check" data-id="sd6" onclick="toggleDone(event,'sd6')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd7')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD7 · URL shortener<span class="sb-check" data-id="sd7" onclick="toggleDone(event,'sd7')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd8')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD8 · Realtime chat / fan-out<span class="sb-check" data-id="sd8" onclick="toggleDone(event,'sd8')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd9')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD9 · Distributed job queue<span class="sb-check" data-id="sd9" onclick="toggleDone(event,'sd9')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd10')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD10 · Key-value store<span class="sb-check" data-id="sd10" onclick="toggleDone(event,'sd10')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd11')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD11 · Notification fanout<span class="sb-check" data-id="sd11" onclick="toggleDone(event,'sd11')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd12')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD12 · Search autocomplete<span class="sb-check" data-id="sd12" onclick="toggleDone(event,'sd12')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd13')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD13 · Resumable file upload<span class="sb-check" data-id="sd13" onclick="toggleDone(event,'sd13')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd14')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD14 · Multi-tenant auth / API keys<span class="sb-check" data-id="sd14" onclick="toggleDone(event,'sd14')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd15')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD15 · Metrics / telemetry pipeline<span class="sb-check" data-id="sd15" onclick="toggleDone(event,'sd15')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd16')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD16 · Distributed cron / scheduler<span class="sb-check" data-id="sd16" onclick="toggleDone(event,'sd16')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd17')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD17 · Feature-flag service<span class="sb-check" data-id="sd17" onclick="toggleDone(event,'sd17')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd18')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD18 · API gateway<span class="sb-check" data-id="sd18" onclick="toggleDone(event,'sd18')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd19')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD19 · News feed / timeline<span class="sb-check" data-id="sd19" onclick="toggleDone(event,'sd19')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd20')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD20 · Payment / ledger<span class="sb-check" data-id="sd20" onclick="toggleDone(event,'sd20')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd21')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD21 · Snowflake unique IDs<span class="sb-check" data-id="sd21" onclick="toggleDone(event,'sd21')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd22')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD22 · Distributed cache / CDN<span class="sb-check" data-id="sd22" onclick="toggleDone(event,'sd22')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd23')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD23 · Webhook delivery<span class="sb-check" data-id="sd23" onclick="toggleDone(event,'sd23')"></span></div>
+    <div class="sb-link" onclick="load('part-systemdesign.html','sd24')"><span class="sb-pip" style="background:var(--c-sysd)"></span>SD24 · Collaborative docs (CRDT)<span class="sb-check" data-id="sd24" onclick="toggleDone(event,'sd24')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Networking Deep-Dive</div>
+    <div class="sb-link" onclick="load('part-networking.html','net-header')"><span class="sb-pip" style="background:var(--c-web)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-networking.html','net1')"><span class="sb-pip" style="background:var(--c-web)"></span>NET1 · TCP mental model<span class="sb-check" data-id="net1" onclick="toggleDone(event,'net1')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net2')"><span class="sb-pip" style="background:var(--c-web)"></span>NET2 · Nagle / delayed ACK / keepalive<span class="sb-check" data-id="net2" onclick="toggleDone(event,'net2')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net3')"><span class="sb-pip" style="background:var(--c-web)"></span>NET3 · Framing &amp; Tokio codecs<span class="sb-check" data-id="net3" onclick="toggleDone(event,'net3')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net4')"><span class="sb-pip" style="background:var(--c-web)"></span>NET4 · UDP / datagrams<span class="sb-check" data-id="net4" onclick="toggleDone(event,'net4')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net5')"><span class="sb-pip" style="background:var(--c-web)"></span>NET5 · TLS with rustls<span class="sb-check" data-id="net5" onclick="toggleDone(event,'net5')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net6')"><span class="sb-pip" style="background:var(--c-web)"></span>NET6 · HTTP/1–2–3 &amp; QUIC<span class="sb-check" data-id="net6" onclick="toggleDone(event,'net6')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net7')"><span class="sb-pip" style="background:var(--c-web)"></span>NET7 · Backpressure (Tokio)<span class="sb-check" data-id="net7" onclick="toggleDone(event,'net7')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net8')"><span class="sb-pip" style="background:var(--c-web)"></span>NET8 · LB &amp; connection pooling<span class="sb-check" data-id="net8" onclick="toggleDone(event,'net8')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net9')"><span class="sb-pip" style="background:var(--c-web)"></span>NET9 · DNS / timeouts / retries<span class="sb-check" data-id="net9" onclick="toggleDone(event,'net9')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net10')"><span class="sb-pip" style="background:var(--c-web)"></span>NET10 · Proxies, NAT, WebSocket<span class="sb-check" data-id="net10" onclick="toggleDone(event,'net10')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net11')"><span class="sb-pip" style="background:var(--c-web)"></span>NET11 · Path observability<span class="sb-check" data-id="net11" onclick="toggleDone(event,'net11')"></span></div>
+    <div class="sb-link" onclick="load('part-networking.html','net12')"><span class="sb-pip" style="background:var(--c-web)"></span>NET12 · DoS-safe parsers<span class="sb-check" data-id="net12" onclick="toggleDone(event,'net12')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Operating Systems</div>
+    <div class="sb-link" onclick="load('part-os.html','os-header')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-os.html','os1')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS1 · Processes, threads vs tasks<span class="sb-check" data-id="os1" onclick="toggleDone(event,'os1')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os2')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS2 · Syscalls, interrupts, traps<span class="sb-check" data-id="os2" onclick="toggleDone(event,'os2')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os3')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS3 · CPU scheduling<span class="sb-check" data-id="os3" onclick="toggleDone(event,'os3')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os4')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS4 · Sync primitives<span class="sb-check" data-id="os4" onclick="toggleDone(event,'os4')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os5')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS5 · Deadlock<span class="sb-check" data-id="os5" onclick="toggleDone(event,'os5')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os6')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS6 · Virtual memory &amp; TLB<span class="sb-check" data-id="os6" onclick="toggleDone(event,'os6')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os7')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS7 · Paging, thrashing, mmap<span class="sb-check" data-id="os7" onclick="toggleDone(event,'os7')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os8')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS8 · Allocators &amp; fragmentation<span class="sb-check" data-id="os8" onclick="toggleDone(event,'os8')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os9')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS9 · File systems &amp; fsync<span class="sb-check" data-id="os9" onclick="toggleDone(event,'os9')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os10')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS10 · I/O models → Tokio<span class="sb-check" data-id="os10" onclick="toggleDone(event,'os10')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os11')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS11 · IPC &amp; signals<span class="sb-check" data-id="os11" onclick="toggleDone(event,'os11')"></span></div>
+    <div class="sb-link" onclick="load('part-os.html','os12')"><span class="sb-pip" style="background:var(--c-sysd)"></span>OS12 · Perf debug checklist<span class="sb-check" data-id="os12" onclick="toggleDone(event,'os12')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Web3 &amp; Blockchain Backend</div>
+    <div class="sb-link" onclick="load('part-web3.html','web3-header')"><span class="sb-pip" style="background:var(--c-crate)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-1')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-1 · Accounts, keys, signatures<span class="sb-check" data-id="w3-1" onclick="toggleDone(event,'w3-1')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-2')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-2 · Tx, nonces &amp; gas<span class="sb-check" data-id="w3-2" onclick="toggleDone(event,'w3-2')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-3')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-3 · JSON-RPC / HTTP+WS<span class="sb-check" data-id="w3-3" onclick="toggleDone(event,'w3-3')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-4')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-4 · Mempools &amp; lifecycle<span class="sb-check" data-id="w3-4" onclick="toggleDone(event,'w3-4')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-5')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-5 · Contracts vs indexing<span class="sb-check" data-id="w3-5" onclick="toggleDone(event,'w3-5')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-6')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-6 · Logs &amp; indexing pipelines<span class="sb-check" data-id="w3-6" onclick="toggleDone(event,'w3-6')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-7')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-7 · DEX mechanics<span class="sb-check" data-id="w3-7" onclick="toggleDone(event,'w3-7')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-8')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-8 · Consensus &amp; finality<span class="sb-check" data-id="w3-8" onclick="toggleDone(event,'w3-8')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-9')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-9 · Wallets &amp; SIWE auth<span class="sb-check" data-id="w3-9" onclick="toggleDone(event,'w3-9')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-10')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-10 · MEV awareness<span class="sb-check" data-id="w3-10" onclick="toggleDone(event,'w3-10')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-11')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-11 · Solana vs EVM<span class="sb-check" data-id="w3-11" onclick="toggleDone(event,'w3-11')"></span></div>
+    <div class="sb-link" onclick="load('part-web3.html','w3-12')"><span class="sb-pip" style="background:var(--c-crate)"></span>W3-12 · Testing / localnets<span class="sb-check" data-id="w3-12" onclick="toggleDone(event,'w3-12')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Take-Home Assignments</div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th-header')"><span class="sb-pip" style="background:var(--c-test)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th1')"><span class="sb-pip" style="background:var(--c-test)"></span>TH1 · Billing &amp; invoices API<span class="sb-check" data-id="th1" onclick="toggleDone(event,'th1')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th2')"><span class="sb-pip" style="background:var(--c-test)"></span>TH2 · Event-sourced workflows<span class="sb-check" data-id="th2" onclick="toggleDone(event,'th2')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th3')"><span class="sb-pip" style="background:var(--c-test)"></span>TH3 · Feature-flag service<span class="sb-check" data-id="th3" onclick="toggleDone(event,'th3')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th4')"><span class="sb-pip" style="background:var(--c-test)"></span>TH4 · KV store + WAL<span class="sb-check" data-id="th4" onclick="toggleDone(event,'th4')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th5')"><span class="sb-pip" style="background:var(--c-test)"></span>TH5 · Mini SQL / columnar<span class="sb-check" data-id="th5" onclick="toggleDone(event,'th5')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th6')"><span class="sb-pip" style="background:var(--c-test)"></span>TH6 · LSM-tree store<span class="sb-check" data-id="th6" onclick="toggleDone(event,'th6')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th7')"><span class="sb-pip" style="background:var(--c-test)"></span>TH7 · Distributed job queue<span class="sb-check" data-id="th7" onclick="toggleDone(event,'th7')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th8')"><span class="sb-pip" style="background:var(--c-test)"></span>TH8 · CRDT notes sync<span class="sb-check" data-id="th8" onclick="toggleDone(event,'th8')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th9')"><span class="sb-pip" style="background:var(--c-test)"></span>TH9 · Raft-lite log<span class="sb-check" data-id="th9" onclick="toggleDone(event,'th9')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th10')"><span class="sb-pip" style="background:var(--c-test)"></span>TH10 · Gossip membership<span class="sb-check" data-id="th10" onclick="toggleDone(event,'th10')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th11')"><span class="sb-pip" style="background:var(--c-test)"></span>TH11 · L4 TCP proxy<span class="sb-check" data-id="th11" onclick="toggleDone(event,'th11')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th12')"><span class="sb-pip" style="background:var(--c-test)"></span>TH12 · TLS terminator<span class="sb-check" data-id="th12" onclick="toggleDone(event,'th12')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th13')"><span class="sb-pip" style="background:var(--c-test)"></span>TH13 · Binary protocol server<span class="sb-check" data-id="th13" onclick="toggleDone(event,'th13')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th14')"><span class="sb-pip" style="background:var(--c-test)"></span>TH14 · EVM chain indexer<span class="sb-check" data-id="th14" onclick="toggleDone(event,'th14')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th15')"><span class="sb-pip" style="background:var(--c-test)"></span>TH15 · Mempool simulator<span class="sb-check" data-id="th15" onclick="toggleDone(event,'th15')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th16')"><span class="sb-pip" style="background:var(--c-test)"></span>TH16 · AMM simulator<span class="sb-check" data-id="th16" onclick="toggleDone(event,'th16')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th17')"><span class="sb-pip" style="background:var(--c-test)"></span>TH17 · Matching engine<span class="sb-check" data-id="th17" onclick="toggleDone(event,'th17')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th18')"><span class="sb-pip" style="background:var(--c-test)"></span>TH18 · Market data gateway<span class="sb-check" data-id="th18" onclick="toggleDone(event,'th18')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th19')"><span class="sb-pip" style="background:var(--c-test)"></span>TH19 · Build orchestrator CLI<span class="sb-check" data-id="th19" onclick="toggleDone(event,'th19')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th20')"><span class="sb-pip" style="background:var(--c-test)"></span>TH20 · Mini-language linter<span class="sb-check" data-id="th20" onclick="toggleDone(event,'th20')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th21')"><span class="sb-pip" style="background:var(--c-test)"></span>TH21 · Build cache daemon<span class="sb-check" data-id="th21" onclick="toggleDone(event,'th21')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th22')"><span class="sb-pip" style="background:var(--c-test)"></span>TH22 · Metrics pipeline<span class="sb-check" data-id="th22" onclick="toggleDone(event,'th22')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th23')"><span class="sb-pip" style="background:var(--c-test)"></span>TH23 · Log aggregator<span class="sb-check" data-id="th23" onclick="toggleDone(event,'th23')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th24')"><span class="sb-pip" style="background:var(--c-test)"></span>TH24 · Rate-limiter gateway<span class="sb-check" data-id="th24" onclick="toggleDone(event,'th24')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th25')"><span class="sb-pip" style="background:var(--c-test)"></span>TH25 · Signed webhooks<span class="sb-check" data-id="th25" onclick="toggleDone(event,'th25')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th26')"><span class="sb-pip" style="background:var(--c-test)"></span>TH26 · Arena allocator<span class="sb-check" data-id="th26" onclick="toggleDone(event,'th26')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th27')"><span class="sb-pip" style="background:var(--c-test)"></span>TH27 · Concurrent cache<span class="sb-check" data-id="th27" onclick="toggleDone(event,'th27')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th28')"><span class="sb-pip" style="background:var(--c-test)"></span>TH28 · mmap append log<span class="sb-check" data-id="th28" onclick="toggleDone(event,'th28')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th29')"><span class="sb-pip" style="background:var(--c-test)"></span>TH29 · S3-compatible gateway<span class="sb-check" data-id="th29" onclick="toggleDone(event,'th29')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th30')"><span class="sb-pip" style="background:var(--c-test)"></span>TH30 · gRPC ledger<span class="sb-check" data-id="th30" onclick="toggleDone(event,'th30')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th31')"><span class="sb-pip" style="background:var(--c-test)"></span>TH31 · Full-text search index<span class="sb-check" data-id="th31" onclick="toggleDone(event,'th31')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th32')"><span class="sb-pip" style="background:var(--c-test)"></span>TH32 · P2P chat + DHT<span class="sb-check" data-id="th32" onclick="toggleDone(event,'th32')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th33')"><span class="sb-pip" style="background:var(--c-web)"></span>TH33 · Auth &amp; sessions<span class="sb-check" data-id="th33" onclick="toggleDone(event,'th33')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th34')"><span class="sb-pip" style="background:var(--c-async)"></span>TH34 · Realtime notification hub<span class="sb-check" data-id="th34" onclick="toggleDone(event,'th34')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th35')"><span class="sb-pip" style="background:var(--c-web)"></span>TH35 · Multipart upload platform<span class="sb-check" data-id="th35" onclick="toggleDone(event,'th35')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th36')"><span class="sb-pip" style="background:var(--c-async)"></span>TH36 · Outbox relayer<span class="sb-check" data-id="th36" onclick="toggleDone(event,'th36')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th37')"><span class="sb-pip" style="background:var(--c-sysd)"></span>TH37 · CQRS commerce orders<span class="sb-check" data-id="th37" onclick="toggleDone(event,'th37')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th38')"><span class="sb-pip" style="background:var(--c-crate)"></span>TH38 · LLM inference gateway<span class="sb-check" data-id="th38" onclick="toggleDone(event,'th38')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th39')"><span class="sb-pip" style="background:var(--c-web)"></span>TH39 · Shortener + analytics<span class="sb-check" data-id="th39" onclick="toggleDone(event,'th39')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th40')"><span class="sb-pip" style="background:var(--c-perf)"></span>TH40 · Autocomplete ranker<span class="sb-check" data-id="th40" onclick="toggleDone(event,'th40')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th41')"><span class="sb-pip" style="background:var(--c-err)"></span>TH41 · Secrets manager<span class="sb-check" data-id="th41" onclick="toggleDone(event,'th41')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th42')"><span class="sb-pip" style="background:var(--c-web)"></span>TH42 · Omnichannel notifications<span class="sb-check" data-id="th42" onclick="toggleDone(event,'th42')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th43')"><span class="sb-pip" style="background:var(--c-sysd)"></span>TH43 · Time-series metrics platform<span class="sb-check" data-id="th43" onclick="toggleDone(event,'th43')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th44')"><span class="sb-pip" style="background:var(--c-err)"></span>TH44 · ABAC policy engine<span class="sb-check" data-id="th44" onclick="toggleDone(event,'th44')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th45')"><span class="sb-pip" style="background:var(--c-web)"></span>TH45 · Payments reconciler<span class="sb-check" data-id="th45" onclick="toggleDone(event,'th45')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th46')"><span class="sb-pip" style="background:var(--c-async)"></span>TH46 · Local-first sync server<span class="sb-check" data-id="th46" onclick="toggleDone(event,'th46')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th47')"><span class="sb-pip" style="background:var(--c-test)"></span>TH47 · Sandboxed CI runner<span class="sb-check" data-id="th47" onclick="toggleDone(event,'th47')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th48')"><span class="sb-pip" style="background:var(--c-web)"></span>TH48 · GraphQL commerce BFF<span class="sb-check" data-id="th48" onclick="toggleDone(event,'th48')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th49')"><span class="sb-pip" style="background:var(--c-test)"></span>TH49 · Cloud inventory CLI<span class="sb-check" data-id="th49" onclick="toggleDone(event,'th49')"></span></div>
+    <div class="sb-link" onclick="load('part-takehomes.html','th50')"><span class="sb-pip" style="background:var(--c-test)"></span>TH50 · OTLP telemetry backend<span class="sb-check" data-id="th50" onclick="toggleDone(event,'th50')"></span></div>
+
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Bug-find exercises</div>
+    <div class="sb-link" onclick="load('part-bugs.html','b1')"><span class="sb-pip" style="background:var(--c-fail)"></span>B1 · Borrow checker fight<span class="sb-check" data-id="b1" onclick="toggleDone(event,'b1')"></span></div>
+    <div class="sb-link" onclick="load('part-bugs.html','b2')"><span class="sb-pip" style="background:var(--c-fail)"></span>B2 · Rc cycle leak<span class="sb-check" data-id="b2" onclick="toggleDone(event,'b2')"></span></div>
+    <div class="sb-link" onclick="load('part-bugs.html','b3')"><span class="sb-pip" style="background:var(--c-fail)"></span>B3 · Mutex deadlock<span class="sb-check" data-id="b3" onclick="toggleDone(event,'b3')"></span></div>
+    <div class="sb-link" onclick="load('part-bugs.html','b4')"><span class="sb-pip" style="background:var(--c-fail)"></span>B4 · Panic in production<span class="sb-check" data-id="b4" onclick="toggleDone(event,'b4')"></span></div>
+    <div class="sb-link" onclick="load('part-bugs.html','b5')"><span class="sb-pip" style="background:var(--c-fail)"></span>B5 · Integer overflow<span class="sb-check" data-id="b5" onclick="toggleDone(event,'b5')"></span></div>
+    <div class="sb-link" onclick="load('part-bugs.html','b6')"><span class="sb-pip" style="background:var(--c-fail)"></span>B6 · Blocking async runtime<span class="sb-check" data-id="b6" onclick="toggleDone(event,'b6')"></span></div>
+    <div class="sb-link" onclick="load('part-bugs.html','b7')"><span class="sb-pip" style="background:var(--c-fail)"></span>B7 · Lazy iterator bug<span class="sb-check" data-id="b7" onclick="toggleDone(event,'b7')"></span></div>
+    <div class="sb-link" onclick="load('part-bugs.html','b8')"><span class="sb-pip" style="background:var(--c-fail)"></span>B8 · Unsafe UB via aliasing<span class="sb-check" data-id="b8" onclick="toggleDone(event,'b8')"></span></div>
+    <div class="sb-link" onclick="load('part-bugs.html','b9')"><span class="sb-pip" style="background:var(--c-fail)"></span>B9 · Send/Sync misuse<span class="sb-check" data-id="b9" onclick="toggleDone(event,'b9')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Blind 75 · Rust</div>
+    <div class="sb-link" onclick="load('part-blind75.html','blind75')"><span class="sb-pip" style="background:var(--c-rust)"></span>Overview — start here</div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-arrays')"><span class="sb-pip" style="background:var(--c-std)"></span><em style="opacity:.7">Arrays &amp; Hashing</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-two-sum')"><span class="sb-pip" style="background:var(--c-std)"></span>Two Sum<span class="sb-check" data-id="b75-two-sum" onclick="toggleDone(event,'b75-two-sum')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-contains-duplicate')"><span class="sb-pip" style="background:var(--c-std)"></span>Contains Duplicate<span class="sb-check" data-id="b75-contains-duplicate" onclick="toggleDone(event,'b75-contains-duplicate')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-valid-anagram')"><span class="sb-pip" style="background:var(--c-std)"></span>Valid Anagram<span class="sb-check" data-id="b75-valid-anagram" onclick="toggleDone(event,'b75-valid-anagram')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-group-anagrams')"><span class="sb-pip" style="background:var(--c-std)"></span>Group Anagrams<span class="sb-check" data-id="b75-group-anagrams" onclick="toggleDone(event,'b75-group-anagrams')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-top-k-frequent')"><span class="sb-pip" style="background:var(--c-std)"></span>Top K Frequent<span class="sb-check" data-id="b75-top-k-frequent" onclick="toggleDone(event,'b75-top-k-frequent')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-product-except-self')"><span class="sb-pip" style="background:var(--c-std)"></span>Product Except Self<span class="sb-check" data-id="b75-product-except-self" onclick="toggleDone(event,'b75-product-except-self')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-longest-consecutive')"><span class="sb-pip" style="background:var(--c-std)"></span>Longest Consecutive<span class="sb-check" data-id="b75-longest-consecutive" onclick="toggleDone(event,'b75-longest-consecutive')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-encode-decode')"><span class="sb-pip" style="background:var(--c-std)"></span>Encode &amp; Decode Strings<span class="sb-check" data-id="b75-encode-decode" onclick="toggleDone(event,'b75-encode-decode')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-twopointers')"><span class="sb-pip" style="background:var(--c-iter)"></span><em style="opacity:.7">Two Pointers</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-valid-palindrome')"><span class="sb-pip" style="background:var(--c-iter)"></span>Valid Palindrome<span class="sb-check" data-id="b75-valid-palindrome" onclick="toggleDone(event,'b75-valid-palindrome')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-3sum')"><span class="sb-pip" style="background:var(--c-iter)"></span>3Sum<span class="sb-check" data-id="b75-3sum" onclick="toggleDone(event,'b75-3sum')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-container-water')"><span class="sb-pip" style="background:var(--c-iter)"></span>Container With Most Water<span class="sb-check" data-id="b75-container-water" onclick="toggleDone(event,'b75-container-water')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-slidingwindow')"><span class="sb-pip" style="background:var(--c-iter)"></span><em style="opacity:.7">Sliding Window</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-best-time-stock')"><span class="sb-pip" style="background:var(--c-iter)"></span>Best Time to Buy/Sell<span class="sb-check" data-id="b75-best-time-stock" onclick="toggleDone(event,'b75-best-time-stock')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-longest-substring')"><span class="sb-pip" style="background:var(--c-iter)"></span>Longest Substring<span class="sb-check" data-id="b75-longest-substring" onclick="toggleDone(event,'b75-longest-substring')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-char-replacement')"><span class="sb-pip" style="background:var(--c-iter)"></span>Char Replacement<span class="sb-check" data-id="b75-char-replacement" onclick="toggleDone(event,'b75-char-replacement')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-min-window')"><span class="sb-pip" style="background:var(--c-iter)"></span>Min Window Substring<span class="sb-check" data-id="b75-min-window" onclick="toggleDone(event,'b75-min-window')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-stack')"><span class="sb-pip" style="background:var(--c-struct)"></span><em style="opacity:.7">Stack</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-valid-parentheses')"><span class="sb-pip" style="background:var(--c-struct)"></span>Valid Parentheses<span class="sb-check" data-id="b75-valid-parentheses" onclick="toggleDone(event,'b75-valid-parentheses')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-binarysearch')"><span class="sb-pip" style="background:var(--c-perf)"></span><em style="opacity:.7">Binary Search</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-find-minimum-in-rotated-sorted-array')"><span class="sb-pip" style="background:var(--c-perf)"></span>Find Min Rotated<span class="sb-check" data-id="b75-find-minimum-in-rotated-sorted-array" onclick="toggleDone(event,'b75-find-minimum-in-rotated-sorted-array')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-search-in-rotated-sorted-array')"><span class="sb-pip" style="background:var(--c-perf)"></span>Search Rotated<span class="sb-check" data-id="b75-search-in-rotated-sorted-array" onclick="toggleDone(event,'b75-search-in-rotated-sorted-array')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-linkedlist')"><span class="sb-pip" style="background:var(--c-struct)"></span><em style="opacity:.7">Linked List</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-reverse-linked-list')"><span class="sb-pip" style="background:var(--c-struct)"></span>Reverse Linked List<span class="sb-check" data-id="b75-reverse-linked-list" onclick="toggleDone(event,'b75-reverse-linked-list')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-linked-list-cycle')"><span class="sb-pip" style="background:var(--c-struct)"></span>Linked List Cycle<span class="sb-check" data-id="b75-linked-list-cycle" onclick="toggleDone(event,'b75-linked-list-cycle')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-merge-two-sorted-lists')"><span class="sb-pip" style="background:var(--c-struct)"></span>Merge Two Sorted Lists<span class="sb-check" data-id="b75-merge-two-sorted-lists" onclick="toggleDone(event,'b75-merge-two-sorted-lists')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-merge-k-sorted-lists')"><span class="sb-pip" style="background:var(--c-struct)"></span>Merge K Sorted Lists<span class="sb-check" data-id="b75-merge-k-sorted-lists" onclick="toggleDone(event,'b75-merge-k-sorted-lists')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-remove-nth-node-from-end-of-list')"><span class="sb-pip" style="background:var(--c-struct)"></span>Remove Nth From End<span class="sb-check" data-id="b75-remove-nth-node-from-end-of-list" onclick="toggleDone(event,'b75-remove-nth-node-from-end-of-list')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-reorder-list')"><span class="sb-pip" style="background:var(--c-struct)"></span>Reorder List<span class="sb-check" data-id="b75-reorder-list" onclick="toggleDone(event,'b75-reorder-list')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-heap')"><span class="sb-pip" style="background:var(--c-perf)"></span><em style="opacity:.7">Heap / Priority Queue</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-find-median-from-data-stream')"><span class="sb-pip" style="background:var(--c-perf)"></span>Find Median Stream<span class="sb-check" data-id="b75-find-median-from-data-stream" onclick="toggleDone(event,'b75-find-median-from-data-stream')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-trees')"><span class="sb-pip" style="background:var(--c-struct)"></span><em style="opacity:.7">Trees</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-max-depth')"><span class="sb-pip" style="background:var(--c-struct)"></span>Max Depth<span class="sb-check" data-id="b75-max-depth" onclick="toggleDone(event,'b75-max-depth')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-same-tree')"><span class="sb-pip" style="background:var(--c-struct)"></span>Same Tree<span class="sb-check" data-id="b75-same-tree" onclick="toggleDone(event,'b75-same-tree')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-invert-tree')"><span class="sb-pip" style="background:var(--c-struct)"></span>Invert Tree<span class="sb-check" data-id="b75-invert-tree" onclick="toggleDone(event,'b75-invert-tree')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-max-path-sum')"><span class="sb-pip" style="background:var(--c-struct)"></span>Max Path Sum<span class="sb-check" data-id="b75-max-path-sum" onclick="toggleDone(event,'b75-max-path-sum')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-level-order')"><span class="sb-pip" style="background:var(--c-struct)"></span>Level Order<span class="sb-check" data-id="b75-level-order" onclick="toggleDone(event,'b75-level-order')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-serialize-tree')"><span class="sb-pip" style="background:var(--c-struct)"></span>Serialize / Deserialize<span class="sb-check" data-id="b75-serialize-tree" onclick="toggleDone(event,'b75-serialize-tree')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-subtree')"><span class="sb-pip" style="background:var(--c-struct)"></span>Subtree of Another<span class="sb-check" data-id="b75-subtree" onclick="toggleDone(event,'b75-subtree')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-build-tree')"><span class="sb-pip" style="background:var(--c-struct)"></span>Build from Pre/Inorder<span class="sb-check" data-id="b75-build-tree" onclick="toggleDone(event,'b75-build-tree')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-validate-bst')"><span class="sb-pip" style="background:var(--c-struct)"></span>Validate BST<span class="sb-check" data-id="b75-validate-bst" onclick="toggleDone(event,'b75-validate-bst')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-kth-smallest')"><span class="sb-pip" style="background:var(--c-struct)"></span>Kth Smallest BST<span class="sb-check" data-id="b75-kth-smallest" onclick="toggleDone(event,'b75-kth-smallest')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-lca-bst')"><span class="sb-pip" style="background:var(--c-struct)"></span>LCA of BST<span class="sb-check" data-id="b75-lca-bst" onclick="toggleDone(event,'b75-lca-bst')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-tries')"><span class="sb-pip" style="background:var(--c-struct)"></span><em style="opacity:.7">Tries</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-implement-trie')"><span class="sb-pip" style="background:var(--c-struct)"></span>Implement Trie<span class="sb-check" data-id="b75-implement-trie" onclick="toggleDone(event,'b75-implement-trie')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-add-and-search-words')"><span class="sb-pip" style="background:var(--c-struct)"></span>Add &amp; Search Words<span class="sb-check" data-id="b75-add-and-search-words" onclick="toggleDone(event,'b75-add-and-search-words')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-word-search-ii')"><span class="sb-pip" style="background:var(--c-struct)"></span>Word Search II<span class="sb-check" data-id="b75-word-search-ii" onclick="toggleDone(event,'b75-word-search-ii')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-backtracking')"><span class="sb-pip" style="background:var(--c-gen)"></span><em style="opacity:.7">Backtracking</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-combination-sum')"><span class="sb-pip" style="background:var(--c-gen)"></span>Combination Sum<span class="sb-check" data-id="b75-combination-sum" onclick="toggleDone(event,'b75-combination-sum')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-word-search')"><span class="sb-pip" style="background:var(--c-gen)"></span>Word Search<span class="sb-check" data-id="b75-word-search" onclick="toggleDone(event,'b75-word-search')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-graphs')"><span class="sb-pip" style="background:var(--c-sysd)"></span><em style="opacity:.7">Graphs</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-number-of-islands')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Number of Islands<span class="sb-check" data-id="b75-number-of-islands" onclick="toggleDone(event,'b75-number-of-islands')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-clone-graph')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Clone Graph<span class="sb-check" data-id="b75-clone-graph" onclick="toggleDone(event,'b75-clone-graph')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-pacific-atlantic')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Pacific Atlantic<span class="sb-check" data-id="b75-pacific-atlantic" onclick="toggleDone(event,'b75-pacific-atlantic')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-course-schedule')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Course Schedule<span class="sb-check" data-id="b75-course-schedule" onclick="toggleDone(event,'b75-course-schedule')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-graph-valid-tree')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Graph Valid Tree<span class="sb-check" data-id="b75-graph-valid-tree" onclick="toggleDone(event,'b75-graph-valid-tree')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-connected-components')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Connected Components<span class="sb-check" data-id="b75-connected-components" onclick="toggleDone(event,'b75-connected-components')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-alien-dictionary')"><span class="sb-pip" style="background:var(--c-sysd)"></span>Alien Dictionary<span class="sb-check" data-id="b75-alien-dictionary" onclick="toggleDone(event,'b75-alien-dictionary')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-dp1d')"><span class="sb-pip" style="background:var(--c-fn)"></span><em style="opacity:.7">1-D Dynamic Programming</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-climbing-stairs')"><span class="sb-pip" style="background:var(--c-fn)"></span>Climbing Stairs<span class="sb-check" data-id="b75-climbing-stairs" onclick="toggleDone(event,'b75-climbing-stairs')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-house-robber')"><span class="sb-pip" style="background:var(--c-fn)"></span>House Robber<span class="sb-check" data-id="b75-house-robber" onclick="toggleDone(event,'b75-house-robber')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-house-robber-ii')"><span class="sb-pip" style="background:var(--c-fn)"></span>House Robber II<span class="sb-check" data-id="b75-house-robber-ii" onclick="toggleDone(event,'b75-house-robber-ii')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-lis')"><span class="sb-pip" style="background:var(--c-fn)"></span>Longest Increasing Subseq<span class="sb-check" data-id="b75-lis" onclick="toggleDone(event,'b75-lis')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-coin-change')"><span class="sb-pip" style="background:var(--c-fn)"></span>Coin Change<span class="sb-check" data-id="b75-coin-change" onclick="toggleDone(event,'b75-coin-change')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-word-break')"><span class="sb-pip" style="background:var(--c-fn)"></span>Word Break<span class="sb-check" data-id="b75-word-break" onclick="toggleDone(event,'b75-word-break')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-decode-ways')"><span class="sb-pip" style="background:var(--c-fn)"></span>Decode Ways<span class="sb-check" data-id="b75-decode-ways" onclick="toggleDone(event,'b75-decode-ways')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-max-product')"><span class="sb-pip" style="background:var(--c-fn)"></span>Maximum Product Subarray<span class="sb-check" data-id="b75-max-product" onclick="toggleDone(event,'b75-max-product')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-longest-palindrome')"><span class="sb-pip" style="background:var(--c-fn)"></span>Longest Palindromic Substr<span class="sb-check" data-id="b75-longest-palindrome" onclick="toggleDone(event,'b75-longest-palindrome')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-palindromic-substrings')"><span class="sb-pip" style="background:var(--c-fn)"></span>Palindromic Substrings<span class="sb-check" data-id="b75-palindromic-substrings" onclick="toggleDone(event,'b75-palindromic-substrings')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-dp2d')"><span class="sb-pip" style="background:var(--c-fn)"></span><em style="opacity:.7">2-D Dynamic Programming</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-unique-paths')"><span class="sb-pip" style="background:var(--c-fn)"></span>Unique Paths<span class="sb-check" data-id="b75-unique-paths" onclick="toggleDone(event,'b75-unique-paths')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-lcs')"><span class="sb-pip" style="background:var(--c-fn)"></span>Longest Common Subseq<span class="sb-check" data-id="b75-lcs" onclick="toggleDone(event,'b75-lcs')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-greedy')"><span class="sb-pip" style="background:var(--c-mod)"></span><em style="opacity:.7">Greedy</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-maximum-subarray')"><span class="sb-pip" style="background:var(--c-mod)"></span>Maximum Subarray<span class="sb-check" data-id="b75-maximum-subarray" onclick="toggleDone(event,'b75-maximum-subarray')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-jump-game')"><span class="sb-pip" style="background:var(--c-mod)"></span>Jump Game<span class="sb-check" data-id="b75-jump-game" onclick="toggleDone(event,'b75-jump-game')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-intervals')"><span class="sb-pip" style="background:var(--c-std)"></span><em style="opacity:.7">Intervals</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-insert-interval')"><span class="sb-pip" style="background:var(--c-std)"></span>Insert Interval<span class="sb-check" data-id="b75-insert-interval" onclick="toggleDone(event,'b75-insert-interval')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-merge-intervals')"><span class="sb-pip" style="background:var(--c-std)"></span>Merge Intervals<span class="sb-check" data-id="b75-merge-intervals" onclick="toggleDone(event,'b75-merge-intervals')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-non-overlapping-intervals')"><span class="sb-pip" style="background:var(--c-std)"></span>Non-overlapping Intervals<span class="sb-check" data-id="b75-non-overlapping-intervals" onclick="toggleDone(event,'b75-non-overlapping-intervals')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-meeting-rooms')"><span class="sb-pip" style="background:var(--c-std)"></span>Meeting Rooms<span class="sb-check" data-id="b75-meeting-rooms" onclick="toggleDone(event,'b75-meeting-rooms')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-meeting-rooms-ii')"><span class="sb-pip" style="background:var(--c-std)"></span>Meeting Rooms II<span class="sb-check" data-id="b75-meeting-rooms-ii" onclick="toggleDone(event,'b75-meeting-rooms-ii')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-matrix')"><span class="sb-pip" style="background:var(--c-perf)"></span><em style="opacity:.7">Matrix &amp; Geometry</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-rotate-image')"><span class="sb-pip" style="background:var(--c-perf)"></span>Rotate Image<span class="sb-check" data-id="b75-rotate-image" onclick="toggleDone(event,'b75-rotate-image')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-spiral-matrix')"><span class="sb-pip" style="background:var(--c-perf)"></span>Spiral Matrix<span class="sb-check" data-id="b75-spiral-matrix" onclick="toggleDone(event,'b75-spiral-matrix')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-set-matrix-zeroes')"><span class="sb-pip" style="background:var(--c-perf)"></span>Set Matrix Zeroes<span class="sb-check" data-id="b75-set-matrix-zeroes" onclick="toggleDone(event,'b75-set-matrix-zeroes')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-bits')"><span class="sb-pip" style="background:var(--c-atomic)"></span><em style="opacity:.7">Bit Manipulation</em></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-sum-of-two-integers')"><span class="sb-pip" style="background:var(--c-atomic)"></span>Sum of Two Integers<span class="sb-check" data-id="b75-sum-of-two-integers" onclick="toggleDone(event,'b75-sum-of-two-integers')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-number-of-1-bits')"><span class="sb-pip" style="background:var(--c-atomic)"></span>Number of 1 Bits<span class="sb-check" data-id="b75-number-of-1-bits" onclick="toggleDone(event,'b75-number-of-1-bits')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-counting-bits')"><span class="sb-pip" style="background:var(--c-atomic)"></span>Counting Bits<span class="sb-check" data-id="b75-counting-bits" onclick="toggleDone(event,'b75-counting-bits')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-missing-number')"><span class="sb-pip" style="background:var(--c-atomic)"></span>Missing Number<span class="sb-check" data-id="b75-missing-number" onclick="toggleDone(event,'b75-missing-number')"></span></div>
+    <div class="sb-link" onclick="load('part-blind75.html','b75-reverse-bits')"><span class="sb-pip" style="background:var(--c-atomic)"></span>Reverse Bits<span class="sb-check" data-id="b75-reverse-bits" onclick="toggleDone(event,'b75-reverse-bits')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Write from scratch</div>
+    <div class="sb-link" onclick="load('part-write.html','w1')"><span class="sb-pip" style="background:var(--c-gen)"></span>W1 · Generic Stack&lt;T&gt;<span class="sb-check" data-id="w1" onclick="toggleDone(event,'w1')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w2')"><span class="sb-pip" style="background:var(--c-thr)"></span>W2 · Thread-safe counter<span class="sb-check" data-id="w2" onclick="toggleDone(event,'w2')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w3')"><span class="sb-pip" style="background:var(--c-smart)"></span>W3 · Mini Rc&lt;T&gt;<span class="sb-check" data-id="w3" onclick="toggleDone(event,'w3')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w4')"><span class="sb-pip" style="background:var(--c-thr)"></span>W4 · Bounded blocking queue<span class="sb-check" data-id="w4" onclick="toggleDone(event,'w4')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w5')"><span class="sb-pip" style="background:var(--c-async)"></span>W5 · Thread pool<span class="sb-check" data-id="w5" onclick="toggleDone(event,'w5')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w6')"><span class="sb-pip" style="background:var(--c-trait)"></span>W6 · Plugin logger (trait objects)<span class="sb-check" data-id="w6" onclick="toggleDone(event,'w6')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w7')"><span class="sb-pip" style="background:var(--c-atomic)"></span>W7 · Lock-free stack (Treiber)<span class="sb-check" data-id="w7" onclick="toggleDone(event,'w7')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w8')"><span class="sb-pip" style="background:var(--c-std)"></span>W8 · LRU cache<span class="sb-check" data-id="w8" onclick="toggleDone(event,'w8')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w9')"><span class="sb-pip" style="background:var(--c-iter)"></span>W9 · Custom iterator<span class="sb-check" data-id="w9" onclick="toggleDone(event,'w9')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w10')"><span class="sb-pip" style="background:var(--c-err)"></span>W10 · Custom error type<span class="sb-check" data-id="w10" onclick="toggleDone(event,'w10')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w11')"><span class="sb-pip" style="background:var(--c-arch)"></span>W11 · Builder pattern<span class="sb-check" data-id="w11" onclick="toggleDone(event,'w11')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w12')"><span class="sb-pip" style="background:var(--c-async)"></span>W12 · Hand-rolled Future<span class="sb-check" data-id="w12" onclick="toggleDone(event,'w12')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w13')"><span class="sb-pip" style="background:var(--c-async)"></span>W13 · Retry w/ backoff<span class="sb-check" data-id="w13" onclick="toggleDone(event,'w13')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w14')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W14 · Token bucket limiter<span class="sb-check" data-id="w14" onclick="toggleDone(event,'w14')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w15')"><span class="sb-pip" style="background:var(--c-std)"></span>W15 · JSON parser<span class="sb-check" data-id="w15" onclick="toggleDone(event,'w15')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w16')"><span class="sb-pip" style="background:var(--c-gen)"></span>W16 · Graph BFS<span class="sb-check" data-id="w16" onclick="toggleDone(event,'w16')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w17')"><span class="sb-pip" style="background:var(--c-unsafe)"></span>W17 · Bump allocator (unsafe)<span class="sb-check" data-id="w17" onclick="toggleDone(event,'w17')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w18')"><span class="sb-pip" style="background:var(--c-thr)"></span>W18 · Actor pattern<span class="sb-check" data-id="w18" onclick="toggleDone(event,'w18')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w19')"><span class="sb-pip" style="background:var(--c-atomic)"></span>W19 · Custom semaphore<span class="sb-check" data-id="w19" onclick="toggleDone(event,'w19')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w20')"><span class="sb-pip" style="background:var(--c-perf)"></span>W20 · Union-find<span class="sb-check" data-id="w20" onclick="toggleDone(event,'w20')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w21')"><span class="sb-pip" style="background:var(--c-fn)"></span>W21 · Closures generic vs dyn<span class="sb-check" data-id="w21" onclick="toggleDone(event,'w21')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w22')"><span class="sb-pip" style="background:var(--c-std)"></span>W22 · File I/O word counter<span class="sb-check" data-id="w22" onclick="toggleDone(event,'w22')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w23')"><span class="sb-pip" style="background:var(--c-perf)"></span>W23 · Memory-mapped file scan<span class="sb-check" data-id="w23" onclick="toggleDone(event,'w23')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w24')"><span class="sb-pip" style="background:var(--c-trait)"></span>W24 · async fn in traits<span class="sb-check" data-id="w24" onclick="toggleDone(event,'w24')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w25')"><span class="sb-pip" style="background:var(--c-gen)"></span>W25 · Static vs dynamic dispatch<span class="sb-check" data-id="w25" onclick="toggleDone(event,'w25')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w26')"><span class="sb-pip" style="background:var(--c-thr)"></span>W26 · Threads + Arc parallel sum<span class="sb-check" data-id="w26" onclick="toggleDone(event,'w26')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w27')"><span class="sb-pip" style="background:var(--c-gen)"></span>W27 · Generic over Read/Write<span class="sb-check" data-id="w27" onclick="toggleDone(event,'w27')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w28')"><span class="sb-pip" style="background:var(--c-web)"></span>W28 · Raw TCP echo server<span class="sb-check" data-id="w28" onclick="toggleDone(event,'w28')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w29')"><span class="sb-pip" style="background:var(--c-trait)"></span>W29 · Implement Read yourself<span class="sb-check" data-id="w29" onclick="toggleDone(event,'w29')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w30')"><span class="sb-pip" style="background:var(--c-std)"></span>W30 · Stdin/stdout REPL event loop<span class="sb-check" data-id="w30" onclick="toggleDone(event,'w30')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w31')"><span class="sb-pip" style="background:var(--c-struct)"></span>W31 · Trie autocomplete system<span class="sb-check" data-id="w31" onclick="toggleDone(event,'w31')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w32')"><span class="sb-pip" style="background:var(--c-std)"></span>W32 · BinaryHeap top-K frequent<span class="sb-check" data-id="w32" onclick="toggleDone(event,'w32')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w33')"><span class="sb-pip" style="background:var(--c-perf)"></span>W33 · Quicksort from scratch<span class="sb-check" data-id="w33" onclick="toggleDone(event,'w33')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w34')"><span class="sb-pip" style="background:var(--c-thr)"></span>W34 · N-worker pool w/ results<span class="sb-check" data-id="w34" onclick="toggleDone(event,'w34')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w35')"><span class="sb-pip" style="background:var(--c-async)"></span>W35 · Pub/sub message queue<span class="sb-check" data-id="w35" onclick="toggleDone(event,'w35')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w36')"><span class="sb-pip" style="background:var(--c-life)"></span>W36 · Zero-copy tokenizer<span class="sb-check" data-id="w36" onclick="toggleDone(event,'w36')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w37')"><span class="sb-pip" style="background:var(--c-life)"></span>W37 · Two independent lifetimes<span class="sb-check" data-id="w37" onclick="toggleDone(event,'w37')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w38')"><span class="sb-pip" style="background:var(--c-life)"></span>W38 · Self-referential struct trap<span class="sb-check" data-id="w38" onclick="toggleDone(event,'w38')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w39')"><span class="sb-pip" style="background:var(--c-perf)"></span>W39 · Cow&lt;str&gt; zero-alloc<span class="sb-check" data-id="w39" onclick="toggleDone(event,'w39')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w40')"><span class="sb-pip" style="background:var(--c-perf)"></span>W40 · Zero-copy binary parser<span class="sb-check" data-id="w40" onclick="toggleDone(event,'w40')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w41')"><span class="sb-pip" style="background:var(--c-perf)"></span>W41 · Vec&lt;u8&gt; capacity planning<span class="sb-check" data-id="w41" onclick="toggleDone(event,'w41')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w42')"><span class="sb-pip" style="background:var(--c-gen)"></span>W42 · Dijkstra's shortest path<span class="sb-check" data-id="w42" onclick="toggleDone(event,'w42')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w43')"><span class="sb-pip" style="background:var(--c-iter)"></span>W43 · Generic BST + custom iterator<span class="sb-check" data-id="w43" onclick="toggleDone(event,'w43')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w44')"><span class="sb-pip" style="background:var(--c-fn)"></span>W44 · Memoization engine + DP toolkit<span class="sb-check" data-id="w44" onclick="toggleDone(event,'w44')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w45')"><span class="sb-pip" style="background:var(--c-std)"></span>W45 · Intervals, meeting rooms, greedy<span class="sb-check" data-id="w45" onclick="toggleDone(event,'w45')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w46')"><span class="sb-pip" style="background:var(--c-perf)"></span>W46 · Task scheduler with cooldown<span class="sb-check" data-id="w46" onclick="toggleDone(event,'w46')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w47')"><span class="sb-pip" style="background:var(--c-trait)"></span>W47 · Generic Matrix + operator overloading<span class="sb-check" data-id="w47" onclick="toggleDone(event,'w47')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w48')"><span class="sb-pip" style="background:var(--c-gen)"></span>W48 · Number theory toolkit<span class="sb-check" data-id="w48" onclick="toggleDone(event,'w48')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w49')"><span class="sb-pip" style="background:var(--c-arch)"></span>W49 · Capstone — document store<span class="sb-check" data-id="w49" onclick="toggleDone(event,'w49')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w50')"><span class="sb-pip" style="background:var(--c-atomic)"></span>W50 · Lock-free SPSC ring buffer<span class="sb-check" data-id="w50" onclick="toggleDone(event,'w50')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w51')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W51 · Write-ahead log + recovery<span class="sb-check" data-id="w51" onclick="toggleDone(event,'w51')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w52')"><span class="sb-pip" style="background:var(--c-struct)"></span>W52 · Generic B-tree<span class="sb-check" data-id="w52" onclick="toggleDone(event,'w52')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w53')"><span class="sb-pip" style="background:var(--c-mod)"></span>W53 · Lexer + recursive-descent parser<span class="sb-check" data-id="w53" onclick="toggleDone(event,'w53')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w54')"><span class="sb-pip" style="background:var(--c-mod)"></span>W54 · Stack-based bytecode VM<span class="sb-check" data-id="w54" onclick="toggleDone(event,'w54')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w55')"><span class="sb-pip" style="background:var(--c-perf)"></span>W55 · Generational arena<span class="sb-check" data-id="w55" onclick="toggleDone(event,'w55')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w56')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W56 · LSM-tree<span class="sb-check" data-id="w56" onclick="toggleDone(event,'w56')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w57')"><span class="sb-pip" style="background:var(--c-thr)"></span>W57 · Generic connection pool<span class="sb-check" data-id="w57" onclick="toggleDone(event,'w57')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w58')"><span class="sb-pip" style="background:var(--c-async)"></span>W58 · Single-threaded event loop<span class="sb-check" data-id="w58" onclick="toggleDone(event,'w58')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w59')"><span class="sb-pip" style="background:var(--c-std)"></span>W59 · LRU-K cache<span class="sb-check" data-id="w59" onclick="toggleDone(event,'w59')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w60')"><span class="sb-pip" style="background:var(--c-perf)"></span>W60 · ARC cache + arena allocation<span class="sb-check" data-id="w60" onclick="toggleDone(event,'w60')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w61')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W61 · Buffer pool manager<span class="sb-check" data-id="w61" onclick="toggleDone(event,'w61')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w62')"><span class="sb-pip" style="background:var(--c-gen)"></span>W62 · Cost-based join optimizer<span class="sb-check" data-id="w62" onclick="toggleDone(event,'w62')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w63')"><span class="sb-pip" style="background:var(--c-mod)"></span>W63 · SQL parser (SELECT/WHERE/JOIN)<span class="sb-check" data-id="w63" onclick="toggleDone(event,'w63')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w64')"><span class="sb-pip" style="background:var(--c-iter)"></span>W64 · K-way external merge sort<span class="sb-check" data-id="w64" onclick="toggleDone(event,'w64')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w65')"><span class="sb-pip" style="background:var(--c-mod)"></span>W65 · Pratt parser (precedence climbing)<span class="sb-check" data-id="w65" onclick="toggleDone(event,'w65')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w66')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W66 · ACID transactions (MVCC)<span class="sb-check" data-id="w66" onclick="toggleDone(event,'w66')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w67')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W67 · ARIES crash recovery<span class="sb-check" data-id="w67" onclick="toggleDone(event,'w67')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w68')"><span class="sb-pip" style="background:var(--c-struct)"></span>W68 · Copy-on-write B-tree<span class="sb-check" data-id="w68" onclick="toggleDone(event,'w68')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w69')"><span class="sb-pip" style="background:var(--c-thr)"></span>W69 · Custom RwLock from scratch<span class="sb-check" data-id="w69" onclick="toggleDone(event,'w69')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w70')"><span class="sb-pip" style="background:var(--c-thr)"></span>W70 · Fork-join parallel merge sort<span class="sb-check" data-id="w70" onclick="toggleDone(event,'w70')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w71')"><span class="sb-pip" style="background:var(--c-async)"></span>W71 · Hand-rolled Future + Waker<span class="sb-check" data-id="w71" onclick="toggleDone(event,'w71')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w72')"><span class="sb-pip" style="background:var(--c-async)"></span>W72 · Pin deep-dive (self-referential)<span class="sb-check" data-id="w72" onclick="toggleDone(event,'w72')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w73')"><span class="sb-pip" style="background:var(--c-trait)"></span>W73 · Async-trait desugaring<span class="sb-check" data-id="w73" onclick="toggleDone(event,'w73')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w74')"><span class="sb-pip" style="background:var(--c-async)"></span>W74 · Tokio select! + cancellation<span class="sb-check" data-id="w74" onclick="toggleDone(event,'w74')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w75')"><span class="sb-pip" style="background:var(--c-async)"></span>W75 · Tokio mpsc backpressure<span class="sb-check" data-id="w75" onclick="toggleDone(event,'w75')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w76')"><span class="sb-pip" style="background:var(--c-async)"></span>W76 · Async mutex vs std mutex<span class="sb-check" data-id="w76" onclick="toggleDone(event,'w76')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w77')"><span class="sb-pip" style="background:var(--c-atomic)"></span>W77 · Memory ordering deep-dive<span class="sb-check" data-id="w77" onclick="toggleDone(event,'w77')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w78')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W78 · G/PN-Counter CRDT<span class="sb-check" data-id="w78" onclick="toggleDone(event,'w78')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w79')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W79 · OR-Set CRDT<span class="sb-check" data-id="w79" onclick="toggleDone(event,'w79')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w80')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W80 · Vector clocks<span class="sb-check" data-id="w80" onclick="toggleDone(event,'w80')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w81')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W81 · Gossip / anti-entropy<span class="sb-check" data-id="w81" onclick="toggleDone(event,'w81')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w82')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W82 · Simplified Raft election<span class="sb-check" data-id="w82" onclick="toggleDone(event,'w82')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w83')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W83 · Dynamo quorum read/write<span class="sb-check" data-id="w83" onclick="toggleDone(event,'w83')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w84')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W84 · Snowflake IDs<span class="sb-check" data-id="w84" onclick="toggleDone(event,'w84')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w85')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W85 · Consistent hashing ring<span class="sb-check" data-id="w85" onclick="toggleDone(event,'w85')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w86')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W86 · Fencing-token lease<span class="sb-check" data-id="w86" onclick="toggleDone(event,'w86')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w87')"><span class="sb-pip" style="background:var(--c-web)"></span>W87 · Idempotency-key store<span class="sb-check" data-id="w87" onclick="toggleDone(event,'w87')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w88')"><span class="sb-pip" style="background:var(--c-async)"></span>W88 · Transactional outbox<span class="sb-check" data-id="w88" onclick="toggleDone(event,'w88')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w89')"><span class="sb-pip" style="background:var(--c-web)"></span>W89 · Length-prefix codec<span class="sb-check" data-id="w89" onclick="toggleDone(event,'w89')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w90')"><span class="sb-pip" style="background:var(--c-sysd)"></span>W90 · Sliding-window limiter<span class="sb-check" data-id="w90" onclick="toggleDone(event,'w90')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w91')"><span class="sb-pip" style="background:var(--c-web)"></span>W91 · Sticky feature-flag hash<span class="sb-check" data-id="w91" onclick="toggleDone(event,'w91')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w92')"><span class="sb-pip" style="background:var(--c-err)"></span>W92 · HMAC webhook + retries<span class="sb-check" data-id="w92" onclick="toggleDone(event,'w92')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w93')"><span class="sb-pip" style="background:var(--c-web)"></span>W93 · Cursor pagination<span class="sb-check" data-id="w93" onclick="toggleDone(event,'w93')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w94')"><span class="sb-pip" style="background:var(--c-perf)"></span>W94 · Running VWAP<span class="sb-check" data-id="w94" onclick="toggleDone(event,'w94')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w95')"><span class="sb-pip" style="background:var(--c-perf)"></span>W95 · Multi-venue BBO<span class="sb-check" data-id="w95" onclick="toggleDone(event,'w95')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w96')"><span class="sb-pip" style="background:var(--c-web)"></span>W96 · HTTP/1.1 request parser<span class="sb-check" data-id="w96" onclick="toggleDone(event,'w96')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w97')"><span class="sb-pip" style="background:var(--c-web)"></span>W97 · L4 load balancer<span class="sb-check" data-id="w97" onclick="toggleDone(event,'w97')"></span></div>
+    <div class="sb-link" onclick="load('part-write.html','w98')"><span class="sb-pip" style="background:var(--c-async)"></span>W98 · Retry policy + timeouts<span class="sb-check" data-id="w98" onclick="toggleDone(event,'w98')"></span></div>
+
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Write for practice</div>
+    <div class="sb-link" onclick="load('part-practice.html','practice-header')"><span class="sb-pip" style="background:var(--c-async)"></span>Overview</div>
+
+    <div class="sb-link" onclick="load('part-practice.html','practice-w3')"><span class="sb-pip" style="background:var(--c-smart)"></span>W3 · Refcount pattern</div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w3-1')"><span class="sb-pip" style="background:var(--c-smart)"></span>P1 · String intern table (W3)<span class="sb-check" data-id="prac-w3-1" onclick="toggleDone(event,'prac-w3-1')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w3-2')"><span class="sb-pip" style="background:var(--c-smart)"></span>P2 · Shared config handles (W3)<span class="sb-check" data-id="prac-w3-2" onclick="toggleDone(event,'prac-w3-2')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w3-3')"><span class="sb-pip" style="background:var(--c-smart)"></span>P3 · DAG shared nodes (W3)<span class="sb-check" data-id="prac-w3-3" onclick="toggleDone(event,'prac-w3-3')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w3-4')"><span class="sb-pip" style="background:var(--c-smart)"></span>P4 · Multi-view buffer (W3)<span class="sb-check" data-id="prac-w3-4" onclick="toggleDone(event,'prac-w3-4')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w3-5')"><span class="sb-pip" style="background:var(--c-smart)"></span>P5 · Error shared context (W3)<span class="sb-check" data-id="prac-w3-5" onclick="toggleDone(event,'prac-w3-5')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w3-6')"><span class="sb-pip" style="background:var(--c-smart)"></span>P6 · Flyweight glyphs (W3)<span class="sb-check" data-id="prac-w3-6" onclick="toggleDone(event,'prac-w3-6')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w3-7')"><span class="sb-pip" style="background:var(--c-smart)"></span>P7 · Tracked strong_count (W3)<span class="sb-check" data-id="prac-w3-7" onclick="toggleDone(event,'prac-w3-7')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w3-8')"><span class="sb-pip" style="background:var(--c-smart)"></span>P8 · Mini Rc cold (W3)<span class="sb-check" data-id="prac-w3-8" onclick="toggleDone(event,'prac-w3-8')"></span></div>
+
+    <div class="sb-link" onclick="load('part-practice.html','practice-w4')"><span class="sb-pip" style="background:var(--c-thr)"></span>W4 · Mutex/Condvar pattern</div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w4-1')"><span class="sb-pip" style="background:var(--c-thr)"></span>P1 · Bounded buffer (W4)<span class="sb-check" data-id="prac-w4-1" onclick="toggleDone(event,'prac-w4-1')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w4-2')"><span class="sb-pip" style="background:var(--c-thr)"></span>P2 · Countdown latch (W4)<span class="sb-check" data-id="prac-w4-2" onclick="toggleDone(event,'prac-w4-2')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w4-3')"><span class="sb-pip" style="background:var(--c-thr)"></span>P3 · Manual-reset event (W4)<span class="sb-check" data-id="prac-w4-3" onclick="toggleDone(event,'prac-w4-3')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w4-4')"><span class="sb-pip" style="background:var(--c-thr)"></span>P4 · Unbounded blocking queue (W4)<span class="sb-check" data-id="prac-w4-4" onclick="toggleDone(event,'prac-w4-4')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w4-5')"><span class="sb-pip" style="background:var(--c-thr)"></span>P5 · Permit pool (W4)<span class="sb-check" data-id="prac-w4-5" onclick="toggleDone(event,'prac-w4-5')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w4-6')"><span class="sb-pip" style="background:var(--c-thr)"></span>P6 · Pipeline handoff (W4)<span class="sb-check" data-id="prac-w4-6" onclick="toggleDone(event,'prac-w4-6')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w4-7')"><span class="sb-pip" style="background:var(--c-thr)"></span>P7 · Capacity-1 slot (W4)<span class="sb-check" data-id="prac-w4-7" onclick="toggleDone(event,'prac-w4-7')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w4-8')"><span class="sb-pip" style="background:var(--c-thr)"></span>P8 · Bounded queue cold (W4)<span class="sb-check" data-id="prac-w4-8" onclick="toggleDone(event,'prac-w4-8')"></span></div>
+
+    <div class="sb-link" onclick="load('part-practice.html','practice-w5')"><span class="sb-pip" style="background:var(--c-async)"></span>W5 · Threads/channels pattern</div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w5-1')"><span class="sb-pip" style="background:var(--c-async)"></span>P1 · Fan-in sum (W5)<span class="sb-check" data-id="prac-w5-1" onclick="toggleDone(event,'prac-w5-1')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w5-2')"><span class="sb-pip" style="background:var(--c-thr)"></span>P2 · 3-stage pipeline (W5)<span class="sb-check" data-id="prac-w5-2" onclick="toggleDone(event,'prac-w5-2')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w5-3')"><span class="sb-pip" style="background:var(--c-async)"></span>P3 · Multi-producer logger (W5)<span class="sb-check" data-id="prac-w5-3" onclick="toggleDone(event,'prac-w5-3')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w5-4')"><span class="sb-pip" style="background:var(--c-thr)"></span>P4 · Shared-receiver workers (W5)<span class="sb-check" data-id="prac-w5-4" onclick="toggleDone(event,'prac-w5-4')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w5-5')"><span class="sb-pip" style="background:var(--c-async)"></span>P5 · Request/response channel (W5)<span class="sb-check" data-id="prac-w5-5" onclick="toggleDone(event,'prac-w5-5')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w5-6')"><span class="sb-pip" style="background:var(--c-thr)"></span>P6 · Parallel map gather (W5)<span class="sb-check" data-id="prac-w5-6" onclick="toggleDone(event,'prac-w5-6')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w5-7')"><span class="sb-pip" style="background:var(--c-async)"></span>P7 · Shutdown on sender drop (W5)<span class="sb-check" data-id="prac-w5-7" onclick="toggleDone(event,'prac-w5-7')"></span></div>
+    <div class="sb-link" onclick="load('part-practice.html','prac-w5-8')"><span class="sb-pip" style="background:var(--c-thr)"></span>P8 · Compose thread pool (W5)<span class="sb-check" data-id="prac-w5-8" onclick="toggleDone(event,'prac-w5-8')"></span></div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Debrief</div>
+    <div class="sb-link" onclick="load('part-scorecard.html','scorecard')">
+      <span class="sb-pip" style="background:var(--c-rust)"></span>Self-assessment scorecard
+    </div>
+  </div>
+
+  <div class="sb-footer">
+    22 topics · 31 drills<br>
+    18 DP · 8 LLD · 24 SD · 10 API · 12 HLD · 9 bugs<br>
+    98 write · 24 practice · 75 blind75 · ~377 trackable items<br>
+    <div class="sb-progress" id="progress-summary">0 / 377 done</div>
+    <div class="sb-progress-bar"><div class="sb-progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="sb-reset" onclick="resetProgress()">Reset progress</div>
+    <br>
+    All files must be in the same folder.
+  </div>
+</nav>
+
+<!-- ═══════════════════════ MAIN ═══════════════════════ -->
+<main class="main" id="main-content">
+  <div id="loading" style="display:none;">
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+    <span>Loading section…</span>
+  </div>
+  <div id="content-area"></div>
+</main>
+
+<script>
+// ── State ──
+let currentFile = null;
+let currentAnchor = null;
+
+// ── Progress tracking (localStorage, no backend needed) ──
+const PROGRESS_KEY = 'rust-packet-progress-v1';
+
+function getProgress() {
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveProgress(set) {
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify([...set]));
+  } catch {
+    // localStorage unavailable (private mode, quota, etc.) — fail silently, marks just won't persist
+  }
+}
+
+function toggleDone(event, id) {
+  event.stopPropagation();
+  const done = getProgress();
+  if (done.has(id)) done.delete(id);
+  else done.add(id);
+  saveProgress(done);
+  renderProgress();
+}
+
+function renderProgress() {
+  const done = getProgress();
+  const checks = document.querySelectorAll('.sb-check[data-id]');
+
+  checks.forEach(chk => {
+    const isDone = done.has(chk.dataset.id);
+    chk.classList.toggle('done', isDone);
+    chk.textContent = isDone ? '✓' : '';
+    const link = chk.closest('.sb-link');
+    if (link) link.classList.toggle('done-link', isDone);
+  });
+
+  // Unique by data-id so in-content checkboxes (Blind 75 cards) don't double-count sidebar ones
+  const ids = [...new Set([...checks].map(c => c.dataset.id))];
+  const total = ids.length;
+  const count = ids.filter(id => done.has(id)).length;
+  const summary = document.getElementById('progress-summary');
+  const fill = document.getElementById('progress-fill');
+  if (summary) summary.textContent = `${count} / ${total} done`;
+  if (fill) fill.style.width = total ? `${(count / total) * 100}%` : '0%';
+}
+
+function resetProgress() {
+  if (!confirm('Clear all progress marks? This cannot be undone.')) return;
+  localStorage.removeItem(PROGRESS_KEY);
+  renderProgress();
+}
+
+// ── Content loader ──
+async function load(file, anchor) {
+  document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  const contentArea = document.getElementById('content-area');
+  const loading = document.getElementById('loading');
+
+  if (currentFile === file) {
+    scrollToAnchor(anchor);
+    currentAnchor = anchor;
+    return;
+  }
+
+  loading.style.display = 'flex';
+  contentArea.style.opacity = '0.3';
+  contentArea.style.transition = 'opacity .15s';
+
+  try {
+    const res = await fetch(file, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Failed to load ${file}`);
+    const html = await res.text();
+    contentArea.innerHTML = html;
+    currentFile = file;
+    currentAnchor = anchor;
+
+    contentArea.style.opacity = '1';
+    loading.style.display = 'none';
+
+    setTimeout(() => scrollToAnchor(anchor), 80);
+
+    initQAToggles();
+    initScoreDots();
+    initLevelTags();
+    renderProgress();
+
+  } catch (err) {
+    loading.style.display = 'none';
+    contentArea.style.opacity = '1';
+    contentArea.innerHTML = `
+      <div style="padding:40px 0; font-family:var(--mono); font-size:12px; color:var(--c-fail);">
+        ⚠ Could not load <strong>${file}</strong>.<br><br>
+        Make sure all HTML files are in the same folder and you're opening this via a local server
+        or browser that allows local file access.<br><br>
+        <span style="color:var(--text-dim);">Quick fix: run <code style="background:var(--bg-code);padding:2px 6px;border-radius:3px;">python3 -m http.server 8080</code> in the folder, then open <code style="background:var(--bg-code);padding:2px 6px;border-radius:3px;">http://localhost:8080</code></span>
+      </div>`;
+  }
+}
+
+function scrollToAnchor(anchor) {
+  if (!anchor) return;
+  const el = document.getElementById(anchor);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// ── Q&A toggle ──
+function initQAToggles() {
+  document.querySelectorAll('.qa-q').forEach(q => {
+    const fresh = q.cloneNode(true);
+    q.parentNode.replaceChild(fresh, q);
+    fresh.addEventListener('click', function() {
+      const ans = this.nextElementSibling;
+      const tog = this.querySelector('.qa-toggle');
+      const isOpen = ans.classList.contains('open');
+      ans.classList.toggle('open', !isOpen);
+      tog.textContent = isOpen ? '▼ answer' : '▲ hide';
+    });
+  });
+}
+
+// ── Level tags & filter ──
+const LEVEL_LABELS = { beg: 'Beginner', int: 'Intermediate', adv: 'Advanced', sr: 'Senior' };
+
+function parseLevels(el) {
+  return (el.dataset.level || '').trim().split(/\s+/).filter(Boolean);
+}
+
+function injectLevelBadges() {
+  document.querySelectorAll('[data-level]').forEach(el => {
+    const levels = parseLevels(el);
+    if (!levels.length) return;
+
+    const q = el.querySelector('.qa-q');
+    if (q && !q.querySelector('.qa-vers')) {
+      const wrap = document.createElement('span');
+      wrap.className = 'qa-vers';
+      levels.forEach(v => {
+        const s = document.createElement('span');
+        s.className = `lvl ${v}`;
+        s.textContent = LEVEL_LABELS[v] || v;
+        s.title = `${LEVEL_LABELS[v] || v} level`;
+        wrap.appendChild(s);
+      });
+      const toggle = q.querySelector('.qa-toggle');
+      if (toggle) q.insertBefore(wrap, toggle);
+      else q.appendChild(wrap);
+    }
+  });
+}
+
+function applyLevelFilter(filter) {
+  const blocks = document.querySelectorAll('.qa-block[data-level]');
+  let visible = 0;
+
+  blocks.forEach(block => {
+    const levels = parseLevels(block);
+    let show = false;
+    if (filter === 'all') show = true;
+    else show = levels.includes(filter);
+
+    block.classList.toggle('lvl-hidden', !show);
+    if (show) visible++;
+  });
+
+  document.querySelectorAll('.section[id^="t-"]').forEach(sec => {
+    const qs = sec.querySelectorAll('.qa-block[data-level]');
+    const any = [...qs].some(b => !b.classList.contains('lvl-hidden'));
+    sec.classList.toggle('lvl-empty', qs.length > 0 && !any);
+  });
+
+  const hint = document.querySelector('.lf-hint');
+  if (hint) {
+    if (filter === 'all') hint.textContent = `${blocks.length} questions on this page · click a level to filter`;
+    else hint.textContent = `${visible} questions tagged ${LEVEL_LABELS[filter]}`;
+  }
+
+  document.querySelectorAll('.lf-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+}
+
+function initLevelFilter() {
+  const bar = document.getElementById('level-filter');
+  if (!bar || bar.dataset.bound) return;
+  bar.dataset.bound = '1';
+
+  bar.querySelectorAll('.lf-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyLevelFilter(btn.dataset.filter));
+  });
+
+  applyLevelFilter('all');
+}
+
+function initLevelTags() {
+  injectLevelBadges();
+  initLevelFilter();
+}
+
+// ── Score dots ──
+const SCORE_AREAS = [
+  { id:'own',    label:'Ownership',       color:'#4fc3f7' },
+  { id:'struct', label:'Structs/Enums',   color:'#a78bfa' },
+  { id:'err',    label:'Error Handling',  color:'#fbbf24' },
+  { id:'fn',     label:'Closures',        color:'#34d399' },
+  { id:'life',   label:'Lifetimes',       color:'#f472b6' },
+  { id:'trait',  label:'Traits',          color:'#c084fc' },
+  { id:'gen',    label:'Generics',        color:'#22d3ee' },
+  { id:'iter',   label:'Iterators',       color:'#2dd4bf' },
+  { id:'std',    label:'Std Library',     color:'#60a5fa' },
+  { id:'smart',  label:'Smart Pointers',  color:'#10b981' },
+  { id:'thr',    label:'Threading',       color:'#f87171' },
+  { id:'atomic', label:'Atomics',         color:'#fb7185' },
+  { id:'async',  label:'Async/Tokio',     color:'#818cf8' },
+  { id:'web',    label:'Web Dev',         color:'#38bdf8' },
+  { id:'crate',  label:'Crate Ecosystem', color:'#eab308' },
+  { id:'unsafe', label:'Unsafe/Macros',   color:'#ef4444' },
+  { id:'perf',   label:'Perf/Memory',     color:'#fdba74' },
+  { id:'test',   label:'Testing/Tooling', color:'#4ade80' },
+  { id:'ffi',    label:'FFI',             color:'#e879f9' },
+  { id:'arch',   label:'Architecture',    color:'#a5b4fc' },
+  { id:'sysd',   label:'System Design',   color:'#fb923c' },
+];
+
+function initScoreDots() {
+  const grid = document.getElementById('score-grid');
+  if (!grid) return;
+
+  grid.innerHTML = '';
+
+  SCORE_AREAS.forEach(({ label, color }) => {
+    const cell = document.createElement('div');
+    cell.className = 'score-cell';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'sc-label';
+    lbl.textContent = label;
+
+    const dots = document.createElement('div');
+    dots.className = 'sc-dots';
+
+    let score = 0;
+    for (let i = 1; i <= 5; i++) {
+      const d = document.createElement('div');
+      d.className = 's-dot';
+      d.dataset.v = i;
+      d.title = `${i}/5`;
+
+      d.addEventListener('click', () => {
+        score = +d.dataset.v;
+        updateDots(dots, score, color);
+      });
+      d.addEventListener('mouseover', () => hoverDots(dots, +d.dataset.v, color));
+      d.addEventListener('mouseout',  () => updateDots(dots, score, color));
+
+      dots.appendChild(d);
+    }
+
+    cell.appendChild(lbl);
+    cell.appendChild(dots);
+    grid.appendChild(cell);
+  });
+}
+
+function updateDots(container, score, color) {
+  container.querySelectorAll('.s-dot').forEach(d => {
+    const on = +d.dataset.v <= score;
+    d.style.background   = on ? color : 'transparent';
+    d.style.borderColor  = on ? color : 'var(--border)';
+  });
+}
+function hoverDots(container, upTo, color) {
+  container.querySelectorAll('.s-dot').forEach(d => {
+    d.style.borderColor = +d.dataset.v <= upTo ? color : 'var(--border)';
+  });
+}
+
+// ── Boot: load overview on start ──
+window.addEventListener('DOMContentLoaded', () => {
+  renderProgress();
+  const firstLink = document.querySelector('.sb-link');
+  if (firstLink) {
+    loadDirect('part-overview.html', 'overview', firstLink);
+  }
+});
+
+async function loadDirect(file, anchor, linkEl) {
+  document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
+  if (linkEl) linkEl.classList.add('active');
+
+  const contentArea = document.getElementById('content-area');
+  const loading = document.getElementById('loading');
+  loading.style.display = 'flex';
+
+  try {
+    const res = await fetch(file, { cache: 'no-store' });
+    if (!res.ok) throw new Error();
+    const html = await res.text();
+    contentArea.innerHTML = html;
+    currentFile = file;
+    loading.style.display = 'none';
+    setTimeout(() => scrollToAnchor(anchor), 80);
+    initQAToggles();
+    initScoreDots();
+    initLevelTags();
+    renderProgress();
+  } catch {
+    loading.style.display = 'none';
+    contentArea.innerHTML = `
+      <div class="page-header">
+        <div class="ph-eyebrow">Job-Hunt Reference · Personal Study Packet</div>
+        <div class="ph-title">Senior <em>🦀</em> Rust Engineer Prep</div>
+        <div class="ph-sub">Welcome. Use the sidebar to navigate between sections. If content doesn't load, serve this folder with a local HTTP server.</div>
+        <div class="ph-badges">
+          <span class="badge badge-rust">Rust 2021/2024</span>
+          <span class="badge badge-time">22 topics · 377+ trackable</span>
+          <button class="print-btn" onclick="window.print()">⎙ Print</button>
+        </div>
+      </div>
+      <div class="note">
+        <strong>Getting started:</strong> Click any link in the sidebar to load a section.
+        All part-*.html files must be in the same folder as index.html.<br><br>
+        If you see a loading error, run: <code>python3 -m http.server 8080</code> in this folder and open <code>http://localhost:8080</code>
+      </div>`;
+  }
+}
+</script>
+</body>
+</html>

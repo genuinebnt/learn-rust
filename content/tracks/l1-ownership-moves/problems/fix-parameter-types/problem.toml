@@ -1,0 +1,26 @@
+slug = "fix-parameter-types"
+title = "Fix: by value, & or &mut"
+mode = "fix"
+level = "easy"
+stage = "passing-values"
+order = 5
+status = "ready"
+tags = ["&T", "&mut T", "API design"]
+teaches = [
+  "Take `&[T]` to read, `&mut [T]` to change in place, and `Vec<T>` to consume.",
+  "The signature tells the caller what happens to their value.",
+]
+follow_up = "Why `&mut [String]` instead of `&mut Vec<String>` for `shout_all`?"
+related = ["L2", "S3"]
+
+[[hints]]
+kind = "approach"
+text = "Which of these only reads, which changes in place, and which consumes the words?"
+
+[solution]
+explanation = "`shout_all` taking the Vec by value uppercased a copy that was then dropped, a silent bug the new signature makes impossible."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone", "to_vec", "to_owned"]

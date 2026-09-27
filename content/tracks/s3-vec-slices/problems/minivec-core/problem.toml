@@ -1,0 +1,32 @@
+slug = "minivec-core"
+title = "MiniVec: push, pop and Drop"
+mode = "write"
+level = "hard"
+stage = "build-it"
+order = 16
+status = "ready"
+tags = ["std::alloc", "unsafe", "NonNull"]
+teaches = [
+  "What `Vec` is: a pointer, a capacity and a length.",
+  "Growing with `alloc`/`realloc` and freeing in `Drop`.",
+  "Writing a `// SAFETY:` comment for every `unsafe` block.",
+]
+follow_up = "What would you need to change to support zero-sized types?"
+related = ["Y2", "S7", "Y1"]
+
+[[hints]]
+kind = "approach"
+text = "`new` uses `NonNull::dangling()` and capacity 0; allocate on the first push."
+
+[[hints]]
+kind = "rust"
+text = "`Layout::array::<T>(cap)` describes the buffer; `alloc`, `realloc` and `dealloc` must all get the same layout for the same block."
+
+[[hints]]
+kind = "rust"
+text = "`ptr::write` into uninitialised memory and `ptr::read` out of it; plain assignment would drop garbage."
+
+[solution]
+explanation = "`PhantomData<T>` tells the compiler the MiniVec owns `T`s, which matters for drop checking. `Drop` pops everything first so each element's destructor runs exactly once, then frees the buffer."
+time = "O(1) amortised push"
+space = "O(n)"

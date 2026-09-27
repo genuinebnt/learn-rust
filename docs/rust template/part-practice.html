@@ -1,0 +1,1054 @@
+<!-- ═══════════════════════════════════════════
+     PART: WRITE FOR PRACTICE
+     Pattern practice — different problems, same tools (leetcode-style)
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="practice-header">
+  <div class="ph-eyebrow">Write for Practice · Pattern Drills</div>
+  <div class="ph-title">Write for Practice</div>
+  <div class="ph-sub">
+    Like learning <strong>two pointers</strong> on one LeetCode problem, then solving other problems
+    that need the same pattern: these drills reuse tools from Write-from-scratch
+    (<code>mpsc</code>, workers, <code>Condvar</code>, refcount handles, …) on <em>different</em> prompts —
+    not the same exercise under eight names. No solution keys. Stuck? Revisit the matching W*, then retry cold.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-time">24 drills · W3 · W4 · W5 patterns</span>
+    <span class="badge badge-time">Different problems · same concepts</span>
+    <span class="badge badge-time">Prompt + starter only</span>
+  </div>
+</div>
+
+
+<div class="note" id="practice-w3" style="margin-bottom:32px;">
+  <strong>Pattern from W3 · Mini Rc:</strong> shared heap ownership via refcount —
+  <code>Clone</code> bumps, <code>Drop</code> frees at zero, <code>Deref</code> to the value, <code>NonNull</code> +
+  <code>Box::from_raw</code>. Below: interning, graphs, buffers, error context — different problems, same pattern.
+</div>
+
+
+<div class="section" id="prac-w3-1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-smart)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-smart)">// Pattern practice · from W3 · ~25 min</div>
+      <div class="sh-title">P1 · String Intern Table</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W3 pattern</span>
+      <span class="chip">HashMap</span>
+      <span class="chip">refcount</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-smart)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W3 Mini Rc</strong> concepts (shared heap value, clone bumps count, last drop frees) —
+      different problem, like another two-pointers question.
+      Build an <strong>InternTable</strong>: <code>intern(&amp;str) -&gt; InternedStr</code> returns a handle to a
+      shared heap string. Equal strings must share one allocation. Handles are cheap to clone;
+      freeing happens when the last handle (and table entry strategy you choose) allows it.
+      Implement the handle with MiniRc mechanics — do not use <code>std::rc::Rc</code>.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::collections::<span class="ty">HashMap</span>;
+<span class="kw">use</span> std::ops::<span class="ty">Deref</span>;
+<span class="kw">use</span> std::ptr::<span class="ty">NonNull</span>;
+
+<span class="kw">struct</span> <span class="ty">Inner</span> { value: <span class="ty">String</span>, count: <span class="ty">usize</span> }
+<span class="kw">struct</span> <span class="ty">InternedStr</span> { ptr: <span class="ty">NonNull</span>&lt;<span class="ty">Inner</span>&gt; }
+
+<span class="kw">struct</span> <span class="ty">InternTable</span> {
+    <span class="cm">// TODO: map from string -&gt; handle / pointer into shared allocation</span>
+}
+
+<span class="kw">impl</span> <span class="ty">InternTable</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">intern</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, s: &amp;<span class="ty">str</span>) -&gt; <span class="ty">InternedStr</span> { todo!() }
+}
+<span class="cm">// TODO: Clone/Deref/Drop for InternedStr (W3 refcount mechanics)</span>
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w3-2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-smart)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-smart)">// Pattern practice · from W3 · ~25 min</div>
+      <div class="sh-title">P2 · Shared Config Across Handlers</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W3 pattern</span>
+      <span class="chip">Deref</span>
+      <span class="chip">Clone</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-smart)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W3</strong> shared-ownership concepts in a different problem: a single-threaded
+      server calls several handler functions that all need the same config object without deep-cloning it.
+      Implement <strong>ConfigHandle&lt;T&gt;</strong> (MiniRc-style) and show handlers taking
+      <code>ConfigHandle&lt;T&gt;</code> by value/clone.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::ops::<span class="ty">Deref</span>;
+<span class="kw">use</span> std::ptr::<span class="ty">NonNull</span>;
+
+<span class="kw">struct</span> <span class="ty">Inner</span>&lt;<span class="ty">T</span>&gt; { value: <span class="ty">T</span>, count: <span class="ty">usize</span> }
+<span class="kw">struct</span> <span class="ty">ConfigHandle</span>&lt;<span class="ty">T</span>&gt; { ptr: <span class="ty">NonNull</span>&lt;<span class="ty">Inner</span>&lt;<span class="ty">T</span>&gt;&gt; }
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; <span class="ty">ConfigHandle</span>&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>(value: <span class="ty">T</span>) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">strong_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span> { todo!() }
+}
+<span class="cm">// TODO: Clone, Deref, Drop</span>
+<span class="kw">fn</span> <span class="fn">handler_a</span>(cfg: <span class="ty">ConfigHandle</span>&lt;<span class="ty">String</span>&gt;) { <span class="kw">let</span> _ = &amp;*cfg; }
+<span class="kw">fn</span> <span class="fn">handler_b</span>(cfg: <span class="ty">ConfigHandle</span>&lt;<span class="ty">String</span>&gt;) { <span class="kw">let</span> _ = cfg.strong_count(); }
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w3-3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-smart)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-smart)">// Pattern practice · from W3 · ~25 min</div>
+      <div class="sh-title">P3 · DAG Node with Shared Children Lists</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W3 pattern</span>
+      <span class="chip">graphs</span>
+      <span class="chip">Drop</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-smart)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W3</strong> concepts: build a tiny DAG where multiple parents can share the same child
+      <strong>Node</strong> via refcounted handles (not <code>Box</code> exclusive ownership, not <code>Rc</code>).
+      Creating two parents that both point at one child must bump the count; dropping both frees once.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::ops::<span class="ty">Deref</span>;
+<span class="kw">use</span> std::ptr::<span class="ty">NonNull</span>;
+
+<span class="kw">struct</span> <span class="ty">NodeData</span> {
+    name: <span class="ty">String</span>,
+    <span class="cm">// optional: children: Vec&lt;NodeHandle&gt;  — only if you want nested sharing</span>
+    count: <span class="ty">usize</span>,
+}
+<span class="kw">struct</span> NodeHandle { ptr: <span class="ty">NonNull</span>&lt;<span class="ty">NodeData</span>&gt; }
+
+<span class="kw">impl</span> NodeHandle {
+    <span class="kw">fn</span> <span class="fn">new</span>(name: <span class="kw">impl</span> Into&lt;<span class="ty">String</span>&gt;) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">strong_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span> { todo!() }
+}
+<span class="cm">// TODO: Clone, Deref (to NodeData or name), Drop</span>
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w3-4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-smart)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-smart)">// Pattern practice · from W3 · ~25 min</div>
+      <div class="sh-title">P4 · Multi-View Read-Only Buffer</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W3 pattern</span>
+      <span class="chip">buffers</span>
+      <span class="chip">unsafe</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-smart)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W3</strong> concepts in a buffer problem: several "views" share one heap
+      <code>Vec&lt;u8&gt;</code>. Cloning a view is O(1); the bytes free when the last view drops.
+      Different API than MiniRc, same ownership pattern.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::ops::<span class="ty">Deref</span>;
+<span class="kw">use</span> std::ptr::<span class="ty">NonNull</span>;
+
+<span class="kw">struct</span> BufInner { bytes: <span class="ty">Vec</span>&lt;u8&gt;, count: <span class="ty">usize</span> }
+<span class="kw">struct</span> BufView { ptr: <span class="ty">NonNull</span>&lt;BufInner&gt; }
+
+<span class="kw">impl</span> BufView {
+    <span class="kw">fn</span> <span class="fn">from_vec</span>(bytes: <span class="ty">Vec</span>&lt;u8&gt;) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">strong_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span> { todo!() }
+}
+<span class="cm">// TODO: Clone, Deref&lt;Target = [u8]&gt;, Drop</span>
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w3-5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-smart)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-smart)">// Pattern practice · from W3 · ~25 min</div>
+      <div class="sh-title">P5 · Cloneable Error Context</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W3 pattern</span>
+      <span class="chip">errors</span>
+      <span class="chip">Clone</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-smart)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W3</strong> concepts: an error type wants a cheap-to-clone shared context string
+      (file/request id) attached to many error values. Implement a MiniRc-style
+      <strong>SharedCtx</strong> used inside your error, without <code>Rc</code>.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::ops::<span class="ty">Deref</span>;
+<span class="kw">use</span> std::ptr::<span class="ty">NonNull</span>;
+
+<span class="kw">struct</span> <span class="ty">Inner</span> { msg: <span class="ty">String</span>, count: <span class="ty">usize</span> }
+<span class="kw">struct</span> SharedCtx { ptr: <span class="ty">NonNull</span>&lt;<span class="ty">Inner</span>&gt; }
+
+#[derive(Debug)]
+<span class="kw">struct</span> AppError {
+    code: <span class="ty">u32</span>,
+    ctx: SharedCtx,
+}
+
+<span class="kw">impl</span> SharedCtx {
+    <span class="kw">fn</span> <span class="fn">new</span>(msg: <span class="kw">impl</span> Into&lt;<span class="ty">String</span>&gt;) -&gt; <span class="kw">Self</span> { todo!() }
+}
+<span class="cm">// TODO: Clone/Deref/Drop for SharedCtx; Clone for AppError via ctx.clone()</span>
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w3-6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-smart)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-smart)">// Pattern practice · from W3 · ~25 min</div>
+      <div class="sh-title">P6 · Flyweight Glyph / Icon IDs</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W3 pattern</span>
+      <span class="chip">flyweight</span>
+      <span class="chip">refcount</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-smart)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W3</strong> concepts (flyweight pattern): many UI widgets share one immutable
+      glyph/icon payload on the heap. Implement handles that share the payload via refcount;
+      last drop frees. Different problem domain than W3's prompt, same mechanics.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::ops::<span class="ty">Deref</span>;
+<span class="kw">use</span> std::ptr::<span class="ty">NonNull</span>;
+
+<span class="kw">struct</span> GlyphInner { png: <span class="ty">Vec</span>&lt;u8&gt;, count: <span class="ty">usize</span> }
+<span class="kw">struct</span> GlyphRef { ptr: <span class="ty">NonNull</span>&lt;GlyphInner&gt; }
+
+<span class="kw">impl</span> GlyphRef {
+    <span class="kw">fn</span> <span class="fn">new</span>(png: <span class="ty">Vec</span>&lt;u8&gt;) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">strong_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span> { todo!() }
+}
+<span class="cm">// TODO: Clone, Deref, Drop</span>
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w3-7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-smart)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-smart)">// Pattern practice · from W3 · ~25 min</div>
+      <div class="sh-title">P7 · Count Live Handles (Debugging API)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W3 pattern</span>
+      <span class="chip">strong_count</span>
+      <span class="chip">Drop</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-smart)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W3</strong> concepts with a debugging twist: implement MiniRc-style
+      <strong>Tracked&lt;T&gt;</strong> where <code>strong_count</code> is part of the public API so tests
+      can assert sharing. Write a tiny scenario: clone twice, drop one, assert counts 3→2→1→free.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::ops::<span class="ty">Deref</span>;
+<span class="kw">use</span> std::ptr::<span class="ty">NonNull</span>;
+
+<span class="kw">struct</span> <span class="ty">Inner</span>&lt;<span class="ty">T</span>&gt; { value: <span class="ty">T</span>, count: <span class="ty">usize</span> }
+<span class="kw">struct</span> Tracked&lt;<span class="ty">T</span>&gt; { ptr: <span class="ty">NonNull</span>&lt;<span class="ty">Inner</span>&lt;<span class="ty">T</span>&gt;&gt; }
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; Tracked&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>(value: <span class="ty">T</span>) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">strong_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span> { todo!() }
+}
+<span class="cm">// TODO: Clone, Deref, Drop</span>
+<span class="kw">fn</span> <span class="fn">scenario</span>() {
+    <span class="cm">// TODO: assert strong_count through clones/drops</span>
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w3-8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-smart)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-smart)">// Pattern practice · from W3 · ~25 min</div>
+      <div class="sh-title">P8 · Pattern Drill: Mini Rc Cold</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W3 pattern</span>
+      <span class="chip">cold</span>
+      <span class="chip">interview</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-smart)"></span>Prompt</div>
+    <div class="note">
+      Same pattern family as W3 — the canonical form of the problem (like redoing two-sum after
+      other two-pointer drills): implement a simplified single-threaded <code>Rc&lt;T&gt;</code>
+      (<code>new</code>/<code>Clone</code>/<code>Deref</code>/<code>Drop</code>/<code>strong_count</code>)
+      without using <code>std::rc::Rc</code>.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::ops::<span class="ty">Deref</span>;
+<span class="kw">use</span> std::ptr::<span class="ty">NonNull</span>;
+
+<span class="kw">struct</span> <span class="ty">MiniRc</span>&lt;<span class="ty">T</span>&gt; {
+    ptr: <span class="ty">NonNull</span>&lt;()&gt;, <span class="cm">// replace with real Inner&lt;T&gt;</span>
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; <span class="ty">MiniRc</span>&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>(value: <span class="ty">T</span>) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">strong_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span> { todo!() }
+}
+<span class="cm">// TODO: Clone, Deref, Drop</span>
+</pre>
+  </div>
+</div>
+
+
+<div class="note" id="practice-w4" style="margin-bottom:32px;">
+  <strong>Pattern from W4 · Bounded Blocking Queue:</strong> <code>Mutex</code> + <code>Condvar</code>,
+  wait until a condition holds (<code>while</code> loops, re-assign guard). Below: buffers, latches, events,
+  permits, slots — different problems, same synchronization tools. No <code>mpsc</code> here.
+</div>
+
+
+<div class="section" id="prac-w4-1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W4 · ~25 min</div>
+      <div class="sh-title">P1 · Bounded Producer-Consumer Buffer</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W4 pattern</span>
+      <span class="chip">backpressure</span>
+      <span class="chip">Condvar</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W4</strong> tools (<code>Mutex</code>, <code>Condvar</code>, capacity, wait loops) on the
+      classic form of the problem: thread-safe bounded buffer, <code>push</code> blocks when full,
+      <code>pop</code> when empty. No channels.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::collections::<span class="ty">VecDeque</span>;
+<span class="kw">use</span> std::sync::{<span class="ty">Condvar</span>, <span class="ty">Mutex</span>};
+
+<span class="kw">struct</span> <span class="ty">BlockingBuffer</span>&lt;<span class="ty">T</span>&gt; {
+    capacity: <span class="ty">usize</span>,
+    <span class="cm">// TODO</span>
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; <span class="ty">BlockingBuffer</span>&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>(capacity: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">push</span>(&amp;<span class="kw">self</span>, item: <span class="ty">T</span>) { todo!() }
+    <span class="kw">fn</span> <span class="fn">pop</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">T</span> { todo!() }
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w4-2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W4 · ~25 min</div>
+      <div class="sh-title">P2 · Wait Until Counter Hits N (Latch)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W4 pattern</span>
+      <span class="chip">Condvar</span>
+      <span class="chip">Mutex</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W4</strong> wait/notify concepts in a <em>different</em> problem (not a queue):
+      implement a one-shot <strong>Latch</strong>. Threads call <code>count_down()</code>; waiters in
+      <code>wait()</code> block until the internal counter reaches 0. Mutex + Condvar, <code>while</code>
+      for spurious wakeups. (Same tools as W4, different shape — like 3Sum after two-sum.)
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::{<span class="ty">Condvar</span>, <span class="ty">Mutex</span>};
+
+<span class="kw">struct</span> <span class="ty">Latch</span> {
+    <span class="cm">// TODO: remaining: Mutex&lt;usize&gt; + Condvar</span>
+}
+
+<span class="kw">impl</span> <span class="ty">Latch</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(count: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">count_down</span>(&amp;<span class="kw">self</span>) { todo!() }
+    <span class="kw">fn</span> <span class="fn">wait</span>(&amp;<span class="kw">self</span>) { todo!() } <span class="cm">// block until remaining == 0</span>
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w4-3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W4 · ~25 min</div>
+      <div class="sh-title">P3 · Manual Reset Event</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W4 pattern</span>
+      <span class="chip">signaling</span>
+      <span class="chip">Condvar</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W4</strong> Condvar signaling in another problem: implement an
+      <strong>Event</strong> where <code>wait</code> blocks until <code>set</code> is called.
+      <code>set</code> wakes all waiters; optional <code>clear</code> resets. Not a queue —
+      a condition flag + Condvar.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::{<span class="ty">Condvar</span>, <span class="ty">Mutex</span>};
+
+<span class="kw">struct</span> <span class="ty">Event</span> {
+    <span class="cm">// TODO: ready: Mutex&lt;bool&gt; + Condvar</span>
+}
+
+<span class="kw">impl</span> <span class="ty">Event</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">set</span>(&amp;<span class="kw">self</span>) { todo!() }
+    <span class="kw">fn</span> <span class="fn">clear</span>(&amp;<span class="kw">self</span>) { todo!() }
+    <span class="kw">fn</span> <span class="fn">wait</span>(&amp;<span class="kw">self</span>) { todo!() } <span class="cm">// block while !ready</span>
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w4-4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W4 · ~25 min</div>
+      <div class="sh-title">P4 · Unbounded Blocking Queue</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W4 pattern</span>
+      <span class="chip">producer-consumer</span>
+      <span class="chip">Condvar</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W4</strong> concepts with a twist: queue is <em>unbounded</em> (push never waits on
+      capacity), but <code>pop</code> still blocks while empty. Still Mutex + Condvar — exercises the
+      empty-wait half of W4 without the full/empty pair complexity… or use one condvar carefully.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::collections::<span class="ty">VecDeque</span>;
+<span class="kw">use</span> std::sync::{<span class="ty">Condvar</span>, <span class="ty">Mutex</span>};
+
+<span class="kw">struct</span> UnboundedBlockingQueue&lt;<span class="ty">T</span>&gt; {
+    <span class="cm">// TODO</span>
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; UnboundedBlockingQueue&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">push</span>(&amp;<span class="kw">self</span>, item: <span class="ty">T</span>) { todo!() } <span class="cm">// never blocks on capacity</span>
+    <span class="kw">fn</span> <span class="fn">pop</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">T</span> { todo!() }      <span class="cm">// blocks while empty</span>
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w4-5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W4 · ~25 min</div>
+      <div class="sh-title">P5 · Pool of Permits (Semaphore-shaped)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W4 pattern</span>
+      <span class="chip">permits</span>
+      <span class="chip">Condvar</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W4</strong> Mutex+Condvar waiting on a numeric condition (different problem than a
+      data queue): implement a simple <strong>PermitPool</strong> with <code>acquire</code> /
+      <code>release</code>. <code>acquire</code> blocks while permits == 0. (Same wait-loop skill as W4;
+      you're waiting on a count, not on <code>VecDeque</code> length. Stay with Mutex+Condvar — no atomics.)
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::{<span class="ty">Condvar</span>, <span class="ty">Mutex</span>};
+
+<span class="kw">struct</span> PermitPool {
+    <span class="cm">// TODO: permits: Mutex&lt;usize&gt; + Condvar</span>
+}
+
+<span class="kw">impl</span> PermitPool {
+    <span class="kw">fn</span> <span class="fn">new</span>(permits: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">acquire</span>(&amp;<span class="kw">self</span>) { todo!() }
+    <span class="kw">fn</span> <span class="fn">release</span>(&amp;<span class="kw">self</span>) { todo!() }
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w4-6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W4 · ~25 min</div>
+      <div class="sh-title">P6 · Two-Stage Handoff Queue</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W4 pattern</span>
+      <span class="chip">pipeline</span>
+      <span class="chip">Condvar</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W4</strong> bounded-buffer pattern in a pipeline problem: stage A pushes into a
+      capacity-N buffer; stage B pops. Multiple A threads and B threads allowed. Same mechanics as W4,
+      framed as a pipeline handoff (backpressure when B is slow).
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::collections::<span class="ty">VecDeque</span>;
+<span class="kw">use</span> std::sync::{<span class="ty">Condvar</span>, <span class="ty">Mutex</span>};
+
+<span class="kw">struct</span> Handoff&lt;<span class="ty">T</span>&gt; {
+    capacity: <span class="ty">usize</span>,
+    <span class="cm">// TODO</span>
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; Handoff&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>(capacity: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">send</span>(&amp;<span class="kw">self</span>, item: <span class="ty">T</span>) { todo!() }
+    <span class="kw">fn</span> <span class="fn">recv</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">T</span> { todo!() }
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w4-7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W4 · ~25 min</div>
+      <div class="sh-title">P7 · Blocking Channel Take/Give (No mpsc)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W4 pattern</span>
+      <span class="chip">rendezvous-ish</span>
+      <span class="chip">Condvar</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W4</strong> tools for a capacity-<strong>1</strong> handoff (mini blocking channel
+      without <code>mpsc</code>): at most one item in flight. Sender blocks if a value is already present;
+      receiver blocks if empty. Forces the same while/wait/notify discipline on a tiny state machine.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::{<span class="ty">Condvar</span>, <span class="ty">Mutex</span>};
+
+<span class="kw">struct</span> Slot&lt;<span class="ty">T</span>&gt; {
+    <span class="cm">// TODO: Mutex&lt;Option&lt;T&gt;&gt; + condvars (or one condvar + careful notifies)</span>
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; Slot&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">give</span>(&amp;<span class="kw">self</span>, item: <span class="ty">T</span>) { todo!() } <span class="cm">// block while occupied</span>
+    <span class="kw">fn</span> <span class="fn">take</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">T</span> { todo!() }     <span class="cm">// block while empty</span>
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w4-8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W4 · ~25 min</div>
+      <div class="sh-title">P8 · Pattern Drill: Bounded Buffer Cold</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W4 pattern</span>
+      <span class="chip">cold</span>
+      <span class="chip">interview</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Canonical W4-shaped interview ask (the "two-sum" of this pattern): implement a thread-safe
+      bounded blocking buffer with <code>Mutex</code> + <code>Condvar</code>, no channels.
+      <code>while</code> not <code>if</code> around waits.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::collections::<span class="ty">VecDeque</span>;
+<span class="kw">use</span> std::sync::{<span class="ty">Condvar</span>, <span class="ty">Mutex</span>};
+
+<span class="kw">struct</span> BoundedQueue&lt;<span class="ty">T</span>&gt; {
+    capacity: <span class="ty">usize</span>,
+    <span class="cm">// TODO</span>
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; BoundedQueue&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>(capacity: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">push</span>(&amp;<span class="kw">self</span>, item: <span class="ty">T</span>) { todo!() }
+    <span class="kw">fn</span> <span class="fn">pop</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">T</span> { todo!() }
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="note" id="practice-w5" style="margin-bottom:32px;">
+  <strong>Pattern from W5 · Thread Pool:</strong> threads, <code>mpsc</code>, cloning <code>Sender</code>,
+  sharing <code>Receiver</code> via <code>Arc&lt;Mutex&lt;_&gt;&gt;</code>, closing channels to shut down, joining.
+  Below: fan-in, pipelines, loggers, RPC, parallel map — different problems that use those tools.
+  Only P8 asks you to compose a full pool again.
+</div>
+
+
+<div class="section" id="prac-w5-1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-async)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-async)">// Pattern practice · from W5 · ~25 min</div>
+      <div class="sh-title">P1 · Fan-In: N Workers → One Collector</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W5 pattern</span>
+      <span class="chip">mpsc</span>
+      <span class="chip">threads</span>
+      <span class="chip chip-hard">Med</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-async)"></span>Prompt</div>
+    <div class="note">
+      Uses concepts from <strong>W5</strong> (threads, <code>mpsc</code>, join) on a <em>different</em>
+      problem than a thread pool: spawn N workers; each computes a partial result and
+      <code>send</code>s it on a channel; main thread receives exactly N messages and sums them.
+      No shared mutable counter — the channel is the rendezvous.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::mpsc;
+<span class="kw">use</span> std::thread;
+
+<span class="kw">fn</span> <span class="fn">fan_in_sum</span>(n_workers: <span class="ty">usize</span>, chunk: <span class="ty">u64</span>) -&gt; <span class="ty">u64</span> {
+    <span class="cm">// TODO: channel; spawn n_workers; each sends chunk; main recv n times; join</span>
+    todo!()
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w5-2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W5 · ~25 min</div>
+      <div class="sh-title">P2 · Pipeline: Three Stages on Channels</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W5 pattern</span>
+      <span class="chip">mpsc</span>
+      <span class="chip">pipeline</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W5</strong> channel+thread skills as a pipeline problem (not a pool):
+      Thread A generates numbers → channel → Thread B transforms → channel → Thread C prints/aggregates.
+      Close/drop senders so downstream <code>recv</code> loops can end. Different shape, same tools.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::mpsc;
+<span class="kw">use</span> std::thread;
+
+<span class="kw">fn</span> <span class="fn">run_pipeline</span>(xs: <span class="ty">Vec</span>&lt;<span class="ty">i32</span>&gt;) -&gt; <span class="ty">i32</span> {
+    <span class="cm">// TODO: two channels, three threads (or main as stage C)</span>
+    <span class="cm">// stage B: map x -&gt; x * 2; stage C: sum</span>
+    todo!()
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w5-3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-async)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-async)">// Pattern practice · from W5 · ~25 min</div>
+      <div class="sh-title">P3 · Multi-Producer Logger</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W5 pattern</span>
+      <span class="chip">mpsc</span>
+      <span class="chip">Clone Sender</span>
+      <span class="chip chip-hard">Med</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-async)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W5</strong> knowledge that <code>Sender</code> is cloneable (multi-producer):
+      several threads each <code>send</code> log lines; one logger thread prints until all senders are
+      dropped (recv errors → exit). Different problem from a job queue — message stream + shutdown.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::mpsc;
+<span class="kw">use</span> std::thread;
+
+<span class="kw">fn</span> <span class="fn">run_logger</span>() {
+    <span class="kw">let</span> (tx, rx) = mpsc::channel::&lt;<span class="ty">String</span>&gt;();
+    <span class="cm">// TODO: spawn logger thread reading rx until Err</span>
+    <span class="cm">// TODO: spawn 3 producers with tx.clone(); drop originals; join all</span>
+    todo!()
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w5-4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W5 · ~25 min</div>
+      <div class="sh-title">P4 · Distributing Work With a Shared Receiver</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W5 pattern</span>
+      <span class="chip">Arc Mutex Receiver</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses the hard W5 insight (<code>Receiver</code> isn't Sync — share with
+      <code>Arc&lt;Mutex&lt;Receiver&gt;&gt;</code>) on a work-distribution problem:
+      main sends jobs on an mpsc channel; K worker threads compete to <code>recv</code> and run them.
+      This is pool-adjacent but the prompt is "compete for jobs from one queue," not "design ThreadPool."
+      Drop the mutex before running the job.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::mpsc;
+<span class="kw">use</span> std::sync::{<span class="ty">Arc</span>, <span class="ty">Mutex</span>};
+<span class="kw">use</span> std::thread;
+
+<span class="kw">fn</span> <span class="fn">run_jobs</span>(k: <span class="ty">usize</span>, jobs: <span class="ty">Vec</span>&lt;<span class="ty">Box</span>&lt;<span class="kw">dyn</span> FnOnce() + Send + &#x27;<span class="kw">static</span>&gt;&gt;) {
+    <span class="cm">// TODO: share receiver across k workers; send all jobs; drop sender; join workers</span>
+    todo!()
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w5-5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-async)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-async)">// Pattern practice · from W5 · ~25 min</div>
+      <div class="sh-title">P5 · Request/Response Over a Channel</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W5 pattern</span>
+      <span class="chip">oneshot</span>
+      <span class="chip">mpsc</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-async)"></span>Prompt</div>
+    <div class="note">
+      Uses <strong>W5</strong> channels for a call/return pattern: main sends work messages that include
+      a oneshot <code>Sender</code> for the reply; a worker thread processes and responds.
+      (Create a fresh mpsc channel per request with one message — the usual std stand-in for oneshot.)
+      Different problem: RPC-over-threads, not a fire-and-forget pool.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::mpsc;
+<span class="kw">use</span> std::thread;
+
+<span class="kw">enum</span> Msg {
+    <span class="cm">// TODO: Job { input: u64, reply: mpsc::Sender&lt;u64&gt; }</span>
+    <span class="cm">// TODO: ShutDown</span>
+}
+
+<span class="kw">fn</span> <span class="fn">rpc_square</span>(input: <span class="ty">u64</span>) -&gt; <span class="ty">u64</span> {
+    <span class="cm">// TODO: worker thread + send Msg with reply channel; recv response</span>
+    todo!()
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w5-6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W5 · ~25 min</div>
+      <div class="sh-title">P6 · Parallel Map Gather</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W5 pattern</span>
+      <span class="chip">threads</span>
+      <span class="chip">channels</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      Uses threads + channels to implement <strong>parallel_map</strong>: split input across N threads,
+      each sends <code>(index, mapped_value)</code> back; main rebuilds a result <code>Vec</code> in order.
+      Different from W5's fire-and-forget pool — here the channel carries results.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::mpsc;
+<span class="kw">use</span> std::thread;
+
+<span class="kw">fn</span> <span class="fn">parallel_map</span>&lt;<span class="ty">T</span>, R, <span class="ty">F</span>&gt;(n_threads: <span class="ty">usize</span>, data: <span class="ty">Vec</span>&lt;<span class="ty">T</span>&gt;, f: <span class="ty">F</span>) -&gt; <span class="ty">Vec</span>&lt;R&gt;
+<span class="kw">where</span>
+    <span class="ty">T</span>: Send + &#x27;<span class="kw">static</span>,
+    R: Send + &#x27;<span class="kw">static</span>,
+    <span class="ty">F</span>: Fn(<span class="ty">T</span>) -&gt; R + Send + Sync + &#x27;<span class="kw">static</span>,
+{
+    <span class="cm">// TODO: share f via Arc; workers send (idx, R); main assembles</span>
+    todo!()
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w5-7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-async)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-async)">// Pattern practice · from W5 · ~25 min</div>
+      <div class="sh-title">P7 · Shutdown When Sender Drops</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W5 pattern</span>
+      <span class="chip">channel close</span>
+      <span class="chip">join</span>
+      <span class="chip chip-hard">Med</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-async)"></span>Prompt</div>
+    <div class="note">
+      Uses the W5 shutdown idea as its own small problem: a worker loops on <code>recv</code>;
+      main sends some messages, then drops the <code>Sender</code>; worker must exit on
+      <code>Err</code> and be <code>join</code>ed. No thread pool API — just prove you own the
+      "close ⇒ worker stops" concept.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::mpsc;
+<span class="kw">use</span> std::thread;
+
+<span class="kw">fn</span> <span class="fn">send_then_shutdown</span>(messages: <span class="ty">Vec</span>&lt;<span class="ty">i32</span>&gt;) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">i32</span>&gt; {
+    <span class="cm">// TODO: worker collects into Vec until channel closes; return collected</span>
+    todo!()
+}
+</pre>
+  </div>
+</div>
+
+
+<div class="section" id="prac-w5-8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Pattern practice · from W5 · ~25 min</div>
+      <div class="sh-title">P8 · Pattern Drill: Fixed Worker Pool</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">W5 pattern</span>
+      <span class="chip">cold</span>
+      <span class="chip">thread pool</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Prompt</div>
+    <div class="note">
+      One problem in the family (like a hard two-pointers set piece): implement a fixed-size
+      thread pool — shared job queue, <code>execute(&amp;self, FnOnce…)</code>, clean Drop/join.
+      You've practiced the pieces above; now compose them.
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code</div>
+<pre><span class="kw">use</span> std::sync::mpsc;
+<span class="kw">use</span> std::sync::{<span class="ty">Arc</span>, <span class="ty">Mutex</span>};
+<span class="kw">use</span> std::thread;
+
+<span class="kw">struct</span> <span class="ty">WorkerPool</span> {
+    <span class="cm">// TODO</span>
+}
+
+<span class="kw">impl</span> <span class="ty">WorkerPool</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(size: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> { todo!() }
+    <span class="kw">fn</span> <span class="fn">execute</span>&lt;<span class="ty">F</span>: FnOnce() + Send + &#x27;<span class="kw">static</span>&gt;(&amp;<span class="kw">self</span>, job: <span class="ty">F</span>) { todo!() }
+}
+<span class="cm">// TODO: Drop</span>
+</pre>
+  </div>
+</div>

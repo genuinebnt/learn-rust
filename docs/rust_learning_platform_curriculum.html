@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rust Learning Platform — Beginner to Expert</title>
+<style>
+  :root {
+    --bg: #f5f5f2;
+    --card: #ffffff;
+    --ink: #202124;
+    --muted: #6b7280;
+    --border: #dedfdc;
+    --accent: #b7410e;
+    --accent-soft: #fff1eb;
+    --dark: #252525;
+    --code: #f3f4f6;
+    --green: #276749;
+    --blue: #315f8c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.6;
+  }
+
+  .container {
+    width: min(1180px, calc(100% - 40px));
+    margin: auto;
+  }
+
+  header {
+    padding: 72px 0 55px;
+    background: var(--dark);
+    color: white;
+  }
+
+  .eyebrow {
+    color: #ffb18f;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 700;
+    font-size: .78rem;
+  }
+
+  h1 {
+    font-size: clamp(2.4rem, 6vw, 4.7rem);
+    line-height: 1;
+    margin: 12px 0 22px;
+    max-width: 900px;
+  }
+
+  .hero-text {
+    max-width: 800px;
+    font-size: 1.15rem;
+    color: #d4d4d4;
+  }
+
+  .pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 28px;
+  }
+
+  .pill {
+    border: 1px solid #555;
+    padding: 6px 11px;
+    border-radius: 999px;
+    color: #ddd;
+    font-size: .85rem;
+  }
+
+  section {
+    padding: 48px 0;
+  }
+
+  h2 {
+    font-size: 2rem;
+    margin: 0 0 10px;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    margin: 0 0 8px;
+  }
+
+  .section-intro {
+    color: var(--muted);
+    max-width: 780px;
+    margin-bottom: 28px;
+  }
+
+  .principle {
+    background: var(--accent-soft);
+    border: 1px solid #f2c7b6;
+    border-radius: 18px;
+    padding: 28px;
+    margin: 28px 0 10px;
+  }
+
+  .principle h2 {
+    color: var(--accent);
+  }
+
+  .principle-flow {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .step {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+
+  .step-number {
+    color: var(--accent);
+    font-weight: 800;
+    font-size: .78rem;
+    text-transform: uppercase;
+  }
+
+  .step strong {
+    display: block;
+    margin: 4px 0;
+  }
+
+  .track-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .track {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+
+  .track:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.06);
+  }
+
+  .track.featured {
+    border-color: #e2a58e;
+    background: linear-gradient(180deg, #fff9f6, #fff);
+  }
+
+  .track-number {
+    color: var(--accent);
+    font-weight: 800;
+    font-size: .8rem;
+    letter-spacing: .05em;
+  }
+
+  .track p {
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .topic-columns {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-top: 16px;
+  }
+
+  ul {
+    margin: 8px 0 0;
+    padding-left: 20px;
+  }
+
+  li { margin: 4px 0; }
+
+  .code-flow {
+    background: var(--code);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap;
+    margin-top: 14px;
+    color: #333;
+  }
+
+  .level-map {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 22px;
+  }
+
+  .level {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    background: white;
+  }
+
+  .level beginner { color: var(--green); }
+
+  .level .label {
+    font-weight: 800;
+    margin-bottom: 5px;
+  }
+
+  .projects {
+    background: #222;
+    color: white;
+    border-radius: 20px;
+    padding: 30px;
+  }
+
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .project {
+    background: #303030;
+    border: 1px solid #454545;
+    border-radius: 12px;
+    padding: 18px;
+  }
+
+  .project strong { display: block; margin-bottom: 5px; }
+  .project span { color: #bbb; font-size: .9rem; }
+
+  .roadmap {
+    border-left: 3px solid #e4b29e;
+    margin: 25px 0 0 10px;
+    padding-left: 28px;
+  }
+
+  .roadmap-item {
+    position: relative;
+    margin-bottom: 28px;
+  }
+
+  .roadmap-item::before {
+    content: "";
+    position: absolute;
+    left: -38px;
+    top: 6px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--bg);
+  }
+
+  .roadmap-item h3 { margin-bottom: 3px; }
+
+  .footer {
+    padding: 50px 0 70px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media (max-width: 800px) {
+    .track-grid,
+    .topic-columns { grid-template-columns: 1fr; }
+
+    .principle-flow,
+    .level-map { grid-template-columns: repeat(2, 1fr); }
+
+    .project-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 520px) {
+    .container { width: min(100% - 24px, 1180px); }
+    header { padding-top: 50px; }
+    .principle-flow,
+    .level-map { grid-template-columns: 1fr; }
+    section { padding: 35px 0; }
+  }
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="container">
+    <div class="eyebrow">Rust Learning Platform</div>
+    <h1>Rust, from first line to Rust compiler contributor.</h1>
+    <p class="hero-text">
+      A complete curriculum spanning beginner fundamentals, the standard library,
+      ownership and type-system internals, unsafe Rust, async, systems programming,
+      compilers, databases, distributed systems, backend engineering, performance,
+      and production Rust.
+    </p>
+
+    <div class="pill-row">
+      <span class="pill">Beginner → Expert</span>
+      <span class="pill">Language + Internals</span>
+      <span class="pill">Systems Programming</span>
+      <span class="pill">Real Implementations</span>
+      <span class="pill">Project Driven</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+<section>
+  <div class="principle">
+    <h2>The core learning model</h2>
+    <p>
+      Every important Rust concept should be taught through progressively deeper
+      layers rather than stopping after explaining the API.
+    </p>
+
+    <div class="principle-flow">
+      <div class="step">
+        <div class="step-number">01</div>
+        <strong>Use it</strong>
+        Learn the normal API and solve practical problems.
+      </div>
+      <div class="step">
+        <div class="step-number">02</div>
+        <strong>Understand it</strong>
+        Learn memory, ownership, invariants, trade-offs and internals.
+      </div>
+      <div class="step">
+        <div class="step-number">03</div>
+        <strong>Implement it</strong>
+        Build a simplified version from scratch.
+      </div>
+      <div class="step">
+        <div class="step-number">04</div>
+        <strong>Read the real implementation</strong>
+        Explore std, Tokio, rustc and production crates.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Learning levels</h2>
+  <p class="section-intro">
+    The platform should behave more like a skill graph than a linear video course.
+    Learners can go deep into individual areas while prerequisites remain visible.
+  </p>
+
+  <div class="level-map">
+    <div class="level">
+      <div class="label">Foundation</div>
+      Syntax, ownership, borrowing, collections, errors and Cargo.
+    </div>
+    <div class="level">
+      <div class="label">Intermediate</div>
+      Traits, generics, lifetimes, iterators, modules, testing and concurrency.
+    </div>
+    <div class="level">
+      <div class="label">Advanced</div>
+      Unsafe, async internals, macros, memory layout, FFI and performance.
+    </div>
+    <div class="level">
+      <div class="label">Expert</div>
+      rustc, std internals, OS, databases, distributed systems and language design.
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Core Rust tracks</h2>
+  <p class="section-intro">
+    The foundational tracks establish the language and then progressively expose the
+    abstractions underneath it.
+  </p>
+
+  <div class="track-grid">
+
+    <article class="track">
+      <div class="track-number">TRACK 01</div>
+      <h3>Rust Foundations</h3>
+      <p>The complete beginner entry point.</p>
+      <ul>
+        <li>Syntax, variables and mutability</li>
+        <li>Types, functions and expressions</li>
+        <li>Control flow and pattern matching</li>
+        <li>Structs, enums and methods</li>
+        <li>Ownership, moves and borrowing</li>
+        <li>References and lifetimes introduction</li>
+        <li>Option, Result and error handling</li>
+        <li>Strings, slices and collections</li>
+      </ul>
+    </article>
+
+    <article class="track featured">
+      <div class="track-number">TRACK 02 · SIGNATURE TRACK</div>
+      <h3>Rust Standard Library</h3>
+      <p>Learn the APIs, then understand and reimplement the abstractions behind them.</p>
+      <ul>
+        <li><code>Option</code>, <code>Result</code></li>
+        <li><code>Vec</code>, <code>String</code>, collections</li>
+        <li>Iterators and iterator adapters</li>
+        <li><code>Rc</code>, <code>Arc</code>, <code>Weak</code></li>
+        <li><code>Cell</code>, <code>RefCell</code>, <code>OnceCell</code></li>
+        <li><code>std::mem</code>, <code>std::ptr</code>, <code>std::alloc</code></li>
+        <li>Threads, synchronization and atomics</li>
+        <li>Filesystem, IO, networking, time and processes</li>
+      </ul>
+      <div class="code-flow">Use Vec → understand allocation → build MiniVec → read the real implementation</div>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 03</div>
+      <h3>Traits & Generics</h3>
+      <ul>
+        <li>Trait definitions and implementations</li>
+        <li>Generic functions and structs</li>
+        <li>Trait bounds and <code>where</code></li>
+        <li>Associated types and constants</li>
+        <li>Blanket implementations</li>
+        <li>Trait objects and dynamic dispatch</li>
+        <li><code>dyn Trait</code>, <code>impl Trait</code></li>
+        <li>HRTBs, GATs and advanced type-system features</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 04</div>
+      <h3>Lifetimes</h3>
+      <ul>
+        <li>Lifetime annotations and elision</li>
+        <li>Struct and generic lifetimes</li>
+        <li>Lifetime bounds</li>
+        <li><code>'static</code></li>
+        <li>Higher-ranked lifetimes</li>
+        <li>Subtyping and variance</li>
+        <li>Self-referential structures</li>
+        <li>Pinning and async lifetime problems</li>
+      </ul>
+    </article>
+
+    <article class="track featured">
+      <div class="track-number">TRACK 05 · SYSTEMS</div>
+      <h3>Memory & Data Representation</h3>
+      <ul>
+        <li>Stack, heap and allocation</li>
+        <li>Size, alignment and padding</li>
+        <li>ABI and pointer representations</li>
+        <li>Fat and thin pointers</li>
+        <li>Enums, discriminants and niche optimization</li>
+        <li>ZSTs and DSTs</li>
+        <li>Drop glue and destructor ordering</li>
+        <li>Smart pointers and memory ownership</li>
+      </ul>
+    </article>
+
+    <article class="track featured">
+      <div class="track-number">TRACK 06 · ADVANCED</div>
+      <h3>Unsafe Rust</h3>
+      <ul>
+        <li>Raw pointers and unsafe functions</li>
+        <li>Unsafe traits and unsafe blocks</li>
+        <li>Initialization and validity</li>
+        <li>Aliasing and ownership invariants</li>
+        <li>Alignment and pointer provenance</li>
+        <li><code>NonNull</code>, <code>MaybeUninit</code></li>
+        <li><code>ManuallyDrop</code> and <code>UnsafeCell</code></li>
+        <li>Unsafe code auditing and soundness</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 07</div>
+      <h3>Concurrency</h3>
+      <ul>
+        <li>Threads and scoped threads</li>
+        <li><code>Send</code> and <code>Sync</code></li>
+        <li>Mutexes and RwLocks</li>
+        <li>Channels and work queues</li>
+        <li>Atomics and memory ordering</li>
+        <li>Compare-and-swap</li>
+        <li>Lock-free data structures</li>
+        <li>ABA problem and reclamation strategies</li>
+      </ul>
+    </article>
+
+    <article class="track featured">
+      <div class="track-number">TRACK 08 · ADVANCED</div>
+      <h3>Async Rust</h3>
+      <ul>
+        <li><code>Future</code>, <code>async</code> and <code>await</code></li>
+        <li>Executors and task scheduling</li>
+        <li>Tokio runtime</li>
+        <li>Polling and <code>Waker</code></li>
+        <li>Pinning</li>
+        <li>Future state machines</li>
+        <li>Cancellation and backpressure</li>
+        <li>Build a mini async executor</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 09</div>
+      <h3>Macros</h3>
+      <ul>
+        <li><code>macro_rules!</code></li>
+        <li>Token trees and repetition</li>
+        <li>Hygiene</li>
+        <li>Derive macros</li>
+        <li>Attribute macros</li>
+        <li>Function-like procedural macros</li>
+        <li><code>syn</code> and <code>quote</code></li>
+        <li>Build a small Rust DSL</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 10</div>
+      <h3>Cargo, Crates & Tooling</h3>
+      <ul>
+        <li>Modules and visibility</li>
+        <li>Packages, crates and workspaces</li>
+        <li>Dependency resolution</li>
+        <li>Features and conditional compilation</li>
+        <li>Build scripts</li>
+        <li>Cross compilation and target triples</li>
+        <li>SemVer and publishing crates</li>
+        <li>rustfmt, Clippy and rust-analyzer</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 11</div>
+      <h3>Testing & Debugging</h3>
+      <ul>
+        <li>Unit and integration tests</li>
+        <li>Documentation tests</li>
+        <li>Property-based testing</li>
+        <li>Fuzzing</li>
+        <li>Benchmarks</li>
+        <li>Miri</li>
+        <li>Sanitizers</li>
+        <li>LLDB/GDB debugging</li>
+      </ul>
+    </article>
+
+  </div>
+</section>
+
+<section>
+  <h2>Systems & specialization tracks</h2>
+
+  <div class="track-grid">
+
+    <article class="track featured">
+      <div class="track-number">TRACK 12 · EXPERT</div>
+      <h3>Rust Compiler</h3>
+      <ul>
+        <li>Lexing and parsing</li>
+        <li>AST and name resolution</li>
+        <li>Type checking and inference</li>
+        <li>HIR, THIR and MIR</li>
+        <li>Borrow checking</li>
+        <li>Trait solving</li>
+        <li>Monomorphization</li>
+        <li>Code generation</li>
+      </ul>
+      <div class="code-flow">Calculator → expression language → Rust-like language → borrow checker → MIR-like IR</div>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 13</div>
+      <h3>FFI & Interoperability</h3>
+      <ul>
+        <li>C ABI and <code>extern "C"</code></li>
+        <li>bindgen and linking</li>
+        <li>Callbacks</li>
+        <li>Ownership across language boundaries</li>
+        <li>Panics and unwind boundaries</li>
+        <li>C++ interop</li>
+        <li>Python and Swift interop</li>
+        <li>ABI and symbol visibility</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 14</div>
+      <h3>WebAssembly</h3>
+      <ul>
+        <li>Rust → WASM</li>
+        <li><code>wasm-bindgen</code></li>
+        <li>JavaScript interop</li>
+        <li>WASM memory model</li>
+        <li>WASI</li>
+        <li>Component model</li>
+        <li>Host functions</li>
+        <li>WASM plugin architectures</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 15</div>
+      <h3>Backend Rust</h3>
+      <ul>
+        <li>HTTP fundamentals</li>
+        <li>Axum</li>
+        <li>Middleware and extractors</li>
+        <li>PostgreSQL and SQLx</li>
+        <li>Transactions and connection pools</li>
+        <li>REST, gRPC and WebSockets</li>
+        <li>SSE and authentication</li>
+        <li>Rate limiting, tracing and metrics</li>
+      </ul>
+    </article>
+
+    <article class="track featured">
+      <div class="track-number">TRACK 16 · EXPERT</div>
+      <h3>Distributed Systems</h3>
+      <ul>
+        <li>RPC and service discovery</li>
+        <li>Retries, timeouts and idempotency</li>
+        <li>Queues and pub/sub</li>
+        <li>Load balancing</li>
+        <li>Replication and partitioning</li>
+        <li>Consensus and Raft</li>
+        <li>CRDTs</li>
+        <li>Saga, CQRS and event sourcing</li>
+      </ul>
+    </article>
+
+    <article class="track featured">
+      <div class="track-number">TRACK 17 · EXPERT</div>
+      <h3>Databases in Rust</h3>
+      <ul>
+        <li>Pages and storage engines</li>
+        <li>Buffer pools</li>
+        <li>B-trees and B+ trees</li>
+        <li>LSM trees</li>
+        <li>Bloom filters</li>
+        <li>WAL</li>
+        <li>Transactions and MVCC</li>
+        <li>Query execution and optimization</li>
+      </ul>
+      <div class="code-flow">KV store → LSM tree → page manager → buffer pool → B+ tree → SQL parser → query executor</div>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 18</div>
+      <h3>Networking</h3>
+      <ul>
+        <li>TCP, UDP and sockets</li>
+        <li>HTTP and DNS</li>
+        <li>TLS fundamentals</li>
+        <li>Tokio networking</li>
+        <li>Hyper and Tower</li>
+        <li>Protocol implementation</li>
+        <li>Zero-copy networking</li>
+        <li>Backpressure and high-performance servers</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 19</div>
+      <h3>Performance Engineering</h3>
+      <ul>
+        <li>Benchmarking and profiling</li>
+        <li>Allocation behavior</li>
+        <li>Cache locality</li>
+        <li>Branch prediction</li>
+        <li>CPU pipelines</li>
+        <li>SIMD</li>
+        <li>False sharing</li>
+        <li>Inlining, monomorphization and LTO</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 20</div>
+      <h3>Embedded & Low-Level Rust</h3>
+      <ul>
+        <li><code>no_std</code> and <code>no_main</code></li>
+        <li>Embedded HAL</li>
+        <li>Interrupts and peripherals</li>
+        <li>MMIO</li>
+        <li>Custom allocators</li>
+        <li>Bare-metal programming</li>
+        <li>RTOS</li>
+        <li>Embedded async</li>
+      </ul>
+    </article>
+
+    <article class="track featured">
+      <div class="track-number">TRACK 21 · EXPERT</div>
+      <h3>OS & Systems Programming</h3>
+      <ul>
+        <li>Processes and threads</li>
+        <li>Virtual memory</li>
+        <li>Syscalls</li>
+        <li>Filesystems</li>
+        <li>mmap</li>
+        <li>Signals and IPC</li>
+        <li>Shared memory</li>
+        <li>epoll, kqueue and io_uring</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 22</div>
+      <h3>Security</h3>
+      <ul>
+        <li>Secure memory handling</li>
+        <li>Randomness and hashing</li>
+        <li>Authentication</li>
+        <li>Password hashing</li>
+        <li>TLS concepts</li>
+        <li>Unsafe-code security</li>
+        <li>Dependency auditing</li>
+        <li>Supply-chain security</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 23</div>
+      <h3>Production Rust</h3>
+      <ul>
+        <li>Large workspace architecture</li>
+        <li>API and crate design</li>
+        <li>Error architecture</li>
+        <li>Configuration</li>
+        <li>Logging and tracing</li>
+        <li>Observability</li>
+        <li>Backwards compatibility</li>
+        <li>Docker, Kubernetes and cloud deployment</li>
+      </ul>
+    </article>
+
+    <article class="track featured">
+      <div class="track-number">TRACK 24 · EXPERT</div>
+      <h3>Rust Codebase Archaeology</h3>
+      <p>Learn by reading real Rust rather than only learning from tutorials.</p>
+      <ul>
+        <li>Start with small crates</li>
+        <li>Read Tokio and Axum</li>
+        <li>Explore Serde and other foundational crates</li>
+        <li>Read Rust standard library internals</li>
+        <li>Explore rustc and rust-analyzer</li>
+        <li>Trace an API from public surface to implementation</li>
+        <li>Identify and explain unsafe invariants</li>
+        <li>Modify production-quality code</li>
+      </ul>
+    </article>
+
+    <article class="track">
+      <div class="track-number">TRACK 25 · LANGUAGE DESIGN</div>
+      <h3>Rust RFC & Language Evolution</h3>
+      <ul>
+        <li>How Rust features are designed</li>
+        <li>Reading RFCs</li>
+        <li>Edition changes</li>
+        <li>Nightly Rust</li>
+        <li>Feature gates</li>
+        <li>Stabilization</li>
+        <li>Compiler implementation of language features</li>
+        <li>Contributing to Rust</li>
+      </ul>
+    </article>
+
+  </div>
+</section>
+
+<section>
+  <div class="projects">
+    <h2>Project ladder</h2>
+    <p>
+      Projects should reinforce the tracks instead of being unrelated portfolio exercises.
+      A learner should repeatedly rebuild increasingly sophisticated versions of the same ideas.
+    </p>
+
+    <div class="project-grid">
+      <div class="project">
+        <strong>MiniVec</strong>
+        <span>Ownership, allocation, pointers, unsafe Rust</span>
+      </div>
+      <div class="project">
+        <strong>MiniString</strong>
+        <span>UTF-8, slices, allocation and memory layout</span>
+      </div>
+      <div class="project">
+        <strong>Custom Iterator</strong>
+        <span>Traits, associated types and lazy computation</span>
+      </div>
+      <div class="project">
+        <strong>Thread Pool</strong>
+        <span>Threads, channels, synchronization and ownership</span>
+      </div>
+      <div class="project">
+        <strong>Lock-Free Queue</strong>
+        <span>Atomics, CAS and memory ordering</span>
+      </div>
+      <div class="project">
+        <strong>Mini Executor</strong>
+        <span>Future, poll, Waker and task scheduling</span>
+      </div>
+      <div class="project">
+        <strong>Parser</strong>
+        <span>Lexer, AST, recursive descent and error recovery</span>
+      </div>
+      <div class="project">
+        <strong>Mini Compiler</strong>
+        <span>AST, type checking, IR, borrow checking and codegen</span>
+      </div>
+      <div class="project">
+        <strong>KV Store</strong>
+        <span>Storage, WAL, indexing and persistence</span>
+      </div>
+      <div class="project">
+        <strong>Database</strong>
+        <span>Pages, buffer pool, B-tree, transactions and SQL</span>
+      </div>
+      <div class="project">
+        <strong>Distributed Queue</strong>
+        <span>RPC, replication, retries and failure handling</span>
+      </div>
+      <div class="project">
+        <strong>Raft</strong>
+        <span>Consensus, leader election and replicated state</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Example dependency graph</h2>
+  <p class="section-intro">
+    A learner does not need to complete every track sequentially. Prerequisites should
+    determine the recommended next step.
+  </p>
+
+  <div class="code-flow">Rust Basics
+  ↓
+Ownership ────────────────┐
+  ↓                       │
+Collections               │
+  ↓                       │
+Traits & Generics ────────┤
+  ↓                       │
+Lifetimes                 │
+  ↓                       │
+Memory Representation     │
+  ↓                       │
+Unsafe Rust ──────────────┤
+  ↓                       │
+Concurrency ──────────────┤
+  ↓                       │
+Async Rust ───────────────┤
+  ↓                       │
+Networking ───────────────┤
+  ↓                       │
+Backend / Distributed ────┘
+
+Separate deep branches:
+Rust Basics → Parser → Compiler → rustc
+Memory → Unsafe → OS → Embedded
+Memory → Collections → Database
+Concurrency → Atomics → Lock-free → Distributed Systems</div>
+</section>
+
+<section>
+  <h2>What makes the platform different</h2>
+
+  <div class="roadmap">
+    <div class="roadmap-item">
+      <h3>1. API-first learning</h3>
+      <div>Every important Rust API is something learners can use, inspect and eventually recreate.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <h3>2. Source-code learning</h3>
+      <div>Advanced lessons point learners directly at real implementations in std, Tokio, rustc and major crates.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <h3>3. Invariant-driven unsafe Rust</h3>
+      <div>Unsafe exercises are not just pointer puzzles. Learners must state the safety invariants before writing unsafe code.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <h3>4. Progressive implementation</h3>
+      <div>Build simplified versions first, then compare them against production implementations and understand why the real design differs.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <h3>5. Skill graph</h3>
+      <div>Prerequisites, projects and assessments determine what the learner should study next instead of forcing one rigid course sequence.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <h3>6. From Rust user to Rust engineer</h3>
+      <div>The final destination is not merely writing idiomatic Rust. It is being able to reason about memory, concurrency, compilers, runtimes, databases and large Rust codebases.</div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="container">
+    Rust Learning Platform · Beginner → Systems Engineer → Rust Internals
+  </div>
+</footer>
+
+</body>
+</html>

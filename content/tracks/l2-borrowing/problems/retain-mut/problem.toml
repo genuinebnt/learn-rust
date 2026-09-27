@@ -1,0 +1,22 @@
+slug = "retain-mut"
+title = "retain_mut instead of an index loop"
+mode = "write"
+level = "medium"
+stage = "iterator-invalidation"
+order = 17
+status = "ready"
+tags = ["retain_mut"]
+teaches = [
+  "`retain_mut` filters and edits in one pass.",
+]
+follow_up = "Why did std add `retain_mut` instead of changing `retain`?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "`retain_mut` gives the predicate `&mut T`, so it can change the element it keeps."
+
+[solution]
+explanation = "One pass, no index arithmetic. Note that 1 halves to 0 but stays, because the check happens before the change."
+time = "O(n)"
+space = "O(1)"

@@ -1,0 +1,21 @@
+slug = "compare-ignoring-case"
+title = "Compare ignoring case without allocating"
+mode = "write"
+level = "easy"
+stage = "use"
+order = 4
+status = "ready"
+tags = ["eq_ignore_ascii_case", "zero allocation"]
+teaches = [
+  "`eq_ignore_ascii_case` compares without building lowercase copies.",
+]
+follow_up = "What would you use for case-insensitive comparison of arbitrary Unicode text?"
+
+[[hints]]
+kind = "rust"
+text = "`str::eq_ignore_ascii_case` compares byte by byte, folding ASCII letters, with no allocation."
+
+[solution]
+explanation = "Lowercasing both sides allocates two Strings per comparison; `eq_ignore_ascii_case` allocates nothing. It only folds ASCII, which is right for commands and keywords."
+time = "O(n)"
+space = "O(1)"

@@ -1,0 +1,24 @@
+slug = "fix-len-counts-bytes"
+title = "Fix: len() counts bytes"
+mode = "fix"
+level = "medium"
+stage = "understand"
+order = 10
+status = "ready"
+tags = ["UTF-8", "chars().count()"]
+teaches = [
+  "Width calculations need a character count, not `len()`.",
+]
+follow_up = "How would you center text by terminal display width?"
+
+[[hints]]
+kind = "rust"
+text = "`\"né\".len()` is 3: `é` takes two bytes. The padding math wants 2."
+
+[solution]
+explanation = "Counting chars fixes accented and CJK text. It still isn't display width: CJK characters usually take two terminal columns, and combining marks take none."
+time = "O(n)"
+space = "O(n)"
+
+[rules]
+max_changed_lines = 1

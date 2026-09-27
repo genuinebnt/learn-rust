@@ -1,0 +1,27 @@
+slug = "fix-borrowed-lookup"
+title = "Fix: allocating on every lookup"
+mode = "fix"
+level = "medium"
+stage = "understand-it"
+order = 7
+status = "ready"
+tags = ["Borrow<str>", "HashMap::get"]
+teaches = [
+  "`HashMap<String, V>::get` accepts `&str` because `String: Borrow<str>`.",
+  "Building a `String` just to look one up is an allocation per call.",
+]
+follow_up = "Why does `Borrow` require `Hash`, `Eq` and `Ord` to agree between the owned and borrowed forms?"
+related = ["S8", "S2"]
+
+[[hints]]
+kind = "rust"
+text = "Look at the signature of `HashMap::get`: `fn get<Q>(&self, k: &Q) where K: Borrow<Q>`."
+
+[solution]
+explanation = "`String: Borrow<str>` and the two hash identically, so the map can be queried with a `&str` directly. That's what the `Borrow` bound on `get` is for."
+time = "O(len)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["to_string", "to_owned", "into", "clone"]
+max_changed_lines = 1

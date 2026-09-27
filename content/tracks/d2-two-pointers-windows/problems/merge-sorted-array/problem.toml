@@ -1,0 +1,26 @@
+slug = "merge-sorted-array"
+title = "Merge sorted array"
+mode = "write"
+level = "easy"
+stage = "two-ends"
+order = 3
+status = "ready"
+tags = ["two pointers", "from the back"]
+teaches = [
+  "Fill from the back so nothing is overwritten before it's read.",
+]
+follow_up = "How would you merge k sorted arrays?"
+related = ["D7"]
+
+[[examples]]
+input = "nums1 = [1, 2, 3, 0, 0, 0], m = 3, nums2 = [2, 5, 6]"
+output = "[1, 2, 2, 3, 5, 6]"
+
+[[hints]]
+kind = "approach"
+text = "The empty space is at the end of nums1. Which end should you write from?"
+
+[solution]
+explanation = "Writing from the back means every slot written is either free or already consumed. Once nums2 is empty, the rest of nums1 is already in place."
+time = "O(m + n)"
+space = "O(1)"

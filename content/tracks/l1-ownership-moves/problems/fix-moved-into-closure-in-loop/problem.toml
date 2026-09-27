@@ -1,0 +1,30 @@
+slug = "fix-moved-into-closure-in-loop"
+title = "Fix: moved into a closure in a loop"
+mode = "fix"
+level = "medium"
+stage = "closures-take-ownership"
+order = 14
+status = "ready"
+tags = ["E0382", "Arc", "move"]
+teaches = [
+  "A `move` closure in a loop moves the value on the first iteration.",
+  "Share read-only data across threads with `Arc` and `Arc::clone`.",
+]
+follow_up = "When would you use `thread::scope` instead of `Arc` here?"
+related = ["S7", "C1"]
+
+[[hints]]
+kind = "rust"
+text = "The first iteration's `move` takes `data`. What can each thread own that still points at one shared Vec?"
+
+[[hints]]
+kind = "rust"
+text = "`Arc::clone(&data)` copies a pointer and bumps a count; the Vec itself isn't copied."
+
+[solution]
+explanation = "`Arc::clone` is written as a path call on purpose: it reads as \"another handle\", not \"another copy of the data\"."
+time = "O(n · threads)"
+space = "O(n) once"
+
+[rules]
+forbid_methods = ["clone", "to_vec", "to_owned"]

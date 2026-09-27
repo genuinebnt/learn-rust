@@ -1,0 +1,34 @@
+slug = "format-width-precision"
+title = "format! width & precision"
+mode = "write"
+level = "easy"
+stage = "use"
+order = 5
+status = "ready"
+tags = ["format!", "alignment", "{:#x}"]
+teaches = [
+  "`{:<10}` / `{:>8.2}`: alignment, width, precision.",
+  "Precision on a string truncates it; `#` adds `0x`, and the width includes it.",
+]
+follow_up = "How would you make the column widths configurable at runtime (`{:>width$}`)?"
+
+[[examples]]
+input = "receipt_line(\"Coffee\", 2, 3.5)"
+output = "\"Coffee      2     3.50\""
+
+[[examples]]
+input = "hex_id(255)"
+output = "\"0x000000ff\""
+
+[[hints]]
+kind = "rust"
+text = "`{:<10}` pads to 10 on the right; `{:.10}` on a string keeps at most 10 characters. Combine as `{item:<10.10}`."
+
+[[hints]]
+kind = "rust"
+text = "`{:#010x}`: `#` adds `0x`, `0` pads with zeros, and the width 10 includes the `0x`."
+
+[solution]
+explanation = "One `format!` call does all the layout. The same specifiers work in `write!`, `println!` and `Display` impls that call `f.pad`."
+time = "O(1)"
+space = "O(1)"

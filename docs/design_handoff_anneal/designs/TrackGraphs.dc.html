@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme]{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--grid:oklch(0.205 0.012 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--ok:oklch(0.77 0.13 165);--ok-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--on-acc:oklch(0.17 0.02 255);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--str:oklch(0.79 0.11 160);--num:oklch(0.79 0.11 45);--mac:oklch(0.79 0.09 200);--lt:oklch(0.77 0.12 340);--com:oklch(0.58 0.012 255);--inlay:oklch(0.64 0.012 255);--inlay-bg:oklch(0.235 0.013 255);--sel:oklch(0.76 0.11 55 / 0.07);color-scheme:dark}
+[data-theme=light]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--grid:oklch(0.94 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--ok:oklch(0.52 0.12 165);--ok-bg:oklch(0.52 0.12 165 / 0.10);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--lt:oklch(0.50 0.15 340);--com:oklch(0.56 0.012 255);--inlay:oklch(0.50 0.012 255);--inlay-bg:oklch(0.935 0.005 255);--sel:oklch(0.58 0.13 50 / 0.06);color-scheme:light}
+body{margin:0;background:var(--bg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+@keyframes an-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="width:1440px;background-color:var(--bg);color:var(--fg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:56px 56px;background-position:-1px -1px">
+<header style="height:52px;flex:none;display:flex;align-items:center;gap:36px;padding:0 24px;border-bottom:1px solid var(--line2);background:var(--bg)">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="display:grid;grid-template-columns:repeat(2,5px);gap:2px"><span style="width:5px;height:5px;background:var(--acc)"></span><span style="width:5px;height:5px;background:var(--vio)"></span><span style="width:5px;height:5px;background:var(--grn)"></span><span style="width:5px;height:5px;box-shadow:inset 0 0 0 1px var(--line)"></span></div>
+    <span style="font:500 13px 'JetBrains Mono',monospace;color:var(--fg)">anneal<span style="color:var(--dim)">.genuinebasil.dev</span></span>
+  </div>
+  <nav style="display:flex;align-items:center;gap:22px;font:500 12px 'JetBrains Mono',monospace">
+    <a href="#" style="color:var(--acc);padding:4px 0;box-shadow:inset 0 -1px 0 var(--acc)">Tracks</a>
+    <a href="#" style="color:var(--vio)">Concepts</a>
+    <a href="#" style="color:var(--grn)">Projects</a>
+    <span style="color:var(--line)">|</span>
+    <a href="#" style="color:var(--dim)">Library</a>
+    <a href="#" style="color:var(--dim)">Mock interview</a>
+    <a href="#" style="color:var(--dim)">Readiness</a>
+  </nav>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+    <span style="font:500 11px 'JetBrains Mono',monospace;color:var(--dim);letter-spacing:.12em">READINESS <span style="color:var(--fg)">62%</span></span>
+    <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line2);border-radius:5px"><span style="width:11px;height:11px;border-radius:50%;border:1.5px solid var(--mut);background:linear-gradient(90deg,var(--mut) 50%,transparent 50%)"></span></button>
+    <div style="width:30px;height:30px;border-radius:50%;border:1px solid var(--acc);display:grid;place-items:center;font:600 11px 'JetBrains Mono',monospace;color:var(--acc)">gb</div>
+  </div>
+</header>
+
+<section style="padding:72px 64px 48px;display:grid;grid-template-columns:minmax(0,1fr) 600px;gap:56px;align-items:center">
+  <div>
+    <div style="display:flex;gap:14px;font:500 12px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)"><span style="color:var(--acc)">DSA PREP</span><span>/</span><span>GRAPHS</span><span>/</span><span>TRACK 4 OF 9</span></div>
+    <h1 style="margin:22px 0 0;font-size:84px;line-height:0.98;font-weight:800;letter-spacing:-0.04em">Graphs, from adjacency lists <span style="color:var(--acc)">to max-flow.</span></h1>
+    <p style="margin:28px 0 0;max-width:620px;font-size:18px;line-height:1.65;color:var(--mut);text-wrap:pretty">32 problems in 7 stages. Every graph here is index-based, <code style="font:500 16px 'JetBrains Mono',monospace;color:var(--fg)">Vec&lt;Vec&lt;usize&gt;&gt;</code>, because nodes that point at each other can't all own each other. Stage 06 covers when that stops being enough.</p>
+    <div style="display:flex;gap:14px;margin-top:36px">
+      <a href="#" style="height:54px;padding:0 28px;display:flex;align-items:center;gap:12px;border-radius:4px;background:var(--grn);color:var(--on-acc);font-size:16px;font-weight:700;text-decoration:none">Resume · Network delay time →</a>
+      <a href="#" style="height:54px;padding:0 26px;display:flex;align-items:center;border-radius:4px;border:1px solid var(--line);color:var(--fg);font-size:16px;font-weight:500;text-decoration:none">Mock round: graphs</a>
+    </div>
+  </div>
+
+  <div style="position:relative;height:420px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);font-family:'JetBrains Mono',monospace">
+    <div style="position:absolute;left:28px;top:24px;font-size:11px;font-weight:500;letter-spacing:.2em;color:var(--dim)">TRACK TOPOLOGY</div>
+    <div style="position:absolute;right:28px;top:24px;font-size:11px;font-weight:500;letter-spacing:.2em;color:var(--acc)">7 STAGES · 32 PROBLEMS</div>
+    <div style="position:absolute;left:190px;top:114px;width:30px;border-top:1px dashed var(--grn)"></div>
+    <div style="position:absolute;left:370px;top:114px;width:30px;border-top:1px dashed var(--grn)"></div>
+    <div style="position:absolute;left:295px;top:138px;height:42px;border-left:1px dashed var(--acc)"></div>
+    <div style="position:absolute;left:370px;top:204px;width:30px;border-top:1px dashed var(--line)"></div>
+    <div style="position:absolute;left:295px;top:228px;height:42px;border-left:1px dashed var(--line)"></div>
+    <div style="position:absolute;left:370px;top:294px;width:30px;border-top:1px dashed var(--line)"></div>
+    <sc-for list="{{ topo }}" as="n" hint-placeholder-count="7">
+      <button onClick="{{ n.go }}" style="position:absolute;left:{{ n.x }};top:{{ n.y }};width:150px;height:48px;box-sizing:border-box;padding:6px 12px;text-align:left;border-radius:4px;border:1.5px solid {{ n.bd }};background:{{ n.bg }};color:{{ n.fg }};font-family:'JetBrains Mono',monospace;box-shadow:{{ n.ring }}">
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:500"><span>{{ n.short }}</span><span style="width:6px;height:6px;margin-top:4px;border-radius:50%;background:{{ n.dot }}"></span></div>
+        <div style="font-size:10px;opacity:.75">{{ n.sub }}</div>
+      </button>
+    </sc-for>
+    <div style="position:absolute;left:28px;bottom:24px;display:flex;gap:18px;font-size:10.5px;color:var(--dim)">
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border:1.5px solid var(--grn)"></span>solved</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:var(--acc)"></span>in progress</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border:1.5px solid var(--line)"></span>ahead</span>
+    </div>
+  </div>
+</section>
+
+<section style="margin:0 64px;display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line2);border-radius:8px;background:var(--panel)">
+  <div style="padding:24px 30px;border-right:1px solid var(--line2);display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)">NOW ON</span><span style="font-size:24px;font-weight:700;color:var(--acc)">Shortest paths</span><span style="font-size:14px;color:var(--mut)">stage 4 of 7, problem 15</span></div>
+  <div style="padding:24px 30px;border-right:1px solid var(--line2);display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)">SOLVED</span><span style="font-size:24px;font-weight:700;color:var(--grn)">14 of 32</span><span style="font-size:14px;color:var(--mut)">10 write-it · 4 fix-this</span></div>
+  <div style="padding:24px 30px;border-right:1px solid var(--line2);display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)">RE-SOLVE DUE</span><span style="font-size:24px;font-weight:700;color:var(--vio)">Course schedule</span><span style="font-size:14px;color:var(--mut)">today · you used 2 hints</span></div>
+  <div style="padding:24px 30px;display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)">GRAPHS ROUND</span><span style="font-size:24px;font-weight:700">58% ready</span><span style="font-size:14px;color:var(--mut)">weakest: trait bounds on weights</span></div>
+</section>
+
+<section style="padding:80px 64px 0">
+  <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px"><span style="font:500 12px 'JetBrains Mono',monospace;letter-spacing:.26em;color:var(--dim)">THE STAGES</span><span style="flex:1;height:1px;background:var(--line2)"></span><span style="font:400 12px 'JetBrains Mono',monospace;color:var(--dim)">representation → traversal → paths → advanced</span></div>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px">
+
+    <button onClick="{{ s0.go }}" style="text-align:left;height:330px;box-sizing:border-box;padding:28px;border:1px solid {{ s0.bd }};border-radius:8px;background:var(--panel);display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;width:100%"><span style="font:600 15px 'JetBrains Mono',monospace">Representation</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--grn)">STAGE 01</span></div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;font:500 10.5px 'JetBrains Mono',monospace;color:var(--mut)">
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:24px;height:20px;display:grid;place-items:center;border:1.5px solid var(--acc);border-radius:3px;color:var(--acc)">0</span><span style="color:var(--dim)">→</span><span style="width:24px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px">1</span><span style="width:24px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px">2</span><span style="width:24px;height:20px"></span></div>
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:24px;height:20px;display:grid;place-items:center;border:1.5px solid var(--acc);border-radius:3px;color:var(--acc)">1</span><span style="color:var(--dim)">→</span><span style="width:24px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px">2</span><span style="width:24px;height:20px"></span><span style="width:24px;height:20px"></span></div>
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:24px;height:20px;display:grid;place-items:center;border:1.5px solid var(--acc);border-radius:3px;color:var(--acc)">2</span><span style="color:var(--dim)">→</span><span style="width:24px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px">0</span><span style="width:24px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px">3</span><span style="width:24px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px">4</span></div>
+      </div>
+      <div style="width:100%"><div style="height:30px;width:100%;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;border-radius:3px;background:var(--grn);color:var(--on-acc);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.16em">SOLVED · 4 OF 4</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px"><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span></div>
+        <div style="margin-top:10px;font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">Vec&lt;Vec&lt;usize&gt;&gt; · CSR · indices</div></div>
+    </button>
+
+    <button onClick="{{ s1.go }}" style="text-align:left;height:330px;box-sizing:border-box;padding:28px;border:1px solid {{ s1.bd }};border-radius:8px;background:var(--panel);display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;width:100%"><span style="font:600 15px 'JetBrains Mono',monospace">Traversal</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--grn)">STAGE 02</span></div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px">
+        <div style="display:flex;gap:6px"><span style="width:18px;height:18px;border-radius:3px;background:var(--acc)"></span></div>
+        <div style="display:flex;gap:6px"><span style="width:18px;height:18px;border-radius:3px;border:1.5px solid var(--grn);background:var(--grn-bg)"></span><span style="width:18px;height:18px;border-radius:3px;border:1.5px solid var(--grn);background:var(--grn-bg)"></span><span style="width:18px;height:18px;border-radius:3px;border:1.5px solid var(--grn);background:var(--grn-bg)"></span></div>
+        <div style="display:flex;gap:6px"><span style="width:18px;height:18px;border-radius:3px;border:1.5px solid var(--line)"></span><span style="width:18px;height:18px;border-radius:3px;border:1.5px solid var(--line)"></span><span style="width:18px;height:18px;border-radius:3px;border:1.5px solid var(--line)"></span><span style="width:18px;height:18px;border-radius:3px;border:1.5px solid var(--line)"></span><span style="width:18px;height:18px;border-radius:3px;border:1.5px solid var(--line)"></span></div>
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:var(--dim)">VecDeque · layer by layer</span>
+      </div>
+      <div style="width:100%"><div style="height:30px;width:100%;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;border-radius:3px;background:var(--grn);color:var(--on-acc);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.16em">SOLVED · 6 OF 6</div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:8px"><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span></div>
+        <div style="margin-top:10px;font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">bfs · dfs · closures · E0373</div></div>
+    </button>
+
+    <button onClick="{{ s2.go }}" style="text-align:left;height:330px;box-sizing:border-box;padding:28px;border:1px solid {{ s2.bd }};border-radius:8px;background:var(--panel);display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;width:100%"><span style="font:600 15px 'JetBrains Mono',monospace">Topological sort</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--grn)">STAGE 03</span></div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;font:500 11px 'JetBrains Mono',monospace">
+        <div style="display:flex;align-items:center;gap:6px"><span style="width:28px;height:24px;display:grid;place-items:center;border:1.5px solid var(--vio);background:var(--vio-bg);border-radius:3px;color:var(--vio)">3</span><span style="color:var(--dim)">→</span><span style="width:28px;height:24px;display:grid;place-items:center;border:1.5px solid var(--vio);border-radius:3px;color:var(--mut)">1</span><span style="color:var(--dim)">→</span><span style="width:28px;height:24px;display:grid;place-items:center;border:1.5px solid var(--vio);border-radius:3px;color:var(--mut)">4</span><span style="color:var(--dim)">→</span><span style="width:28px;height:24px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;color:var(--mut)">0</span><span style="color:var(--dim)">→</span><span style="width:28px;height:24px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;color:var(--mut)">2</span></div>
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:var(--dim)">in-degree 0 first</span>
+      </div>
+      <div style="width:100%"><div style="height:30px;width:100%;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;border-radius:3px;background:var(--grn);color:var(--on-acc);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.16em">SOLVED · 4 OF 4</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px"><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span><span style="height:4px;background:var(--grn)"></span></div>
+        <div style="margin-top:10px;font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">kahn · cycles · Result&lt;_, Cycle&gt;</div></div>
+    </button>
+
+    <button onClick="{{ s3.go }}" style="text-align:left;height:330px;box-sizing:border-box;padding:28px;border:1px solid {{ s3.bd }};border-radius:8px;background:var(--panel);display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;width:100%"><span style="font:600 15px 'JetBrains Mono',monospace">Shortest paths</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--acc)">STAGE 04</span></div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;font:500 11px 'JetBrains Mono',monospace">
+        <div style="display:flex;gap:5px"><span style="width:30px;height:26px;display:grid;place-items:center;border-radius:3px;background:var(--acc);color:var(--on-acc)">0</span><span style="width:30px;height:26px;display:grid;place-items:center;border:1.5px solid var(--acc);border-radius:3px;color:var(--acc)">1</span><span style="width:30px;height:26px;display:grid;place-items:center;border:1.5px solid var(--acc);border-radius:3px;color:var(--acc)">1</span><span style="width:30px;height:26px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;color:var(--mut)">2</span><span style="width:30px;height:26px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;color:var(--dim)">∞</span></div>
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:var(--dim)">dist[] · Reverse((d, v))</span>
+      </div>
+      <div style="width:100%"><div style="height:30px;width:58%;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;border-radius:3px;background:var(--acc);color:var(--on-acc);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.16em;white-space:nowrap">IN PROGRESS · 0 OF 6</div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:8px"><span style="height:4px;background:linear-gradient(90deg,var(--acc) 66%,var(--line) 66%)"></span><span style="height:4px;background:var(--line)"></span><span style="height:4px;background:var(--line)"></span><span style="height:4px;background:var(--line)"></span><span style="height:4px;background:var(--line)"></span><span style="height:4px;background:var(--line)"></span></div>
+        <div style="margin-top:10px;font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">dijkstra · bellman-ford · 0-1 bfs · Ord</div></div>
+    </button>
+
+    <button onClick="{{ s4.go }}" style="text-align:left;height:330px;box-sizing:border-box;padding:28px;border:1px solid {{ s4.bd }};border-radius:8px;background:var(--panel);display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;width:100%"><span style="font:600 15px 'JetBrains Mono',monospace">Union-find &amp; MST</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--dim)">STAGE 05</span></div>
+      <div style="flex:1;display:flex;justify-content:center;align-items:center;gap:14px">
+        <div style="display:flex;gap:6px;padding:10px;border:1px dashed var(--line);border-radius:6px"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--vio);background:var(--vio-bg)"></span><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line)"></span><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line)"></span></div>
+        <span style="font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">∪</span>
+        <div style="display:flex;gap:6px;padding:10px;border:1px dashed var(--line);border-radius:6px"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--vio);background:var(--vio-bg)"></span><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line)"></span></div>
+      </div>
+      <div style="width:100%"><div style="height:30px;width:100%;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;border-radius:3px;border:1px solid var(--line);color:var(--dim);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.16em">AHEAD · 0 OF 4</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px"><span style="height:4px;background:var(--line2)"></span><span style="height:4px;background:var(--line2)"></span><span style="height:4px;background:var(--line2)"></span><span style="height:4px;background:var(--line2)"></span></div>
+        <div style="margin-top:10px;font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">kruskal · path compression · split_at_mut</div></div>
+    </button>
+
+    <button onClick="{{ s5.go }}" style="text-align:left;height:330px;box-sizing:border-box;padding:28px;border:1px solid {{ s5.bd }};border-radius:8px;background:var(--panel);display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;width:100%"><span style="font:600 15px 'JetBrains Mono',monospace">SCC, bridges &amp; arenas</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--dim)">STAGE 06</span></div>
+      <div style="flex:1;display:flex;justify-content:center;align-items:center;gap:12px">
+        <div style="display:grid;grid-template-columns:repeat(2,16px);gap:6px;padding:10px;border:1.5px solid var(--line);border-radius:16px"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--acc)"></span><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--acc)"></span><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--acc)"></span></div>
+        <span style="width:22px;border-top:1px dashed var(--line)"></span>
+        <div style="display:grid;grid-template-columns:repeat(2,16px);gap:6px;padding:10px;border:1.5px solid var(--line);border-radius:16px"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--grn)"></span><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--grn)"></span></div>
+        <span style="width:22px;border-top:1px dashed var(--line)"></span>
+        <div style="padding:10px;border:1.5px solid var(--line);border-radius:16px"><span style="display:block;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--vio)"></span></div>
+      </div>
+      <div style="width:100%"><div style="height:30px;width:100%;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;border-radius:3px;border:1px solid var(--line);color:var(--dim);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.16em">AHEAD · 0 OF 4</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px"><span style="height:4px;background:var(--line2)"></span><span style="height:4px;background:var(--line2)"></span><span style="height:4px;background:var(--line2)"></span><span style="height:4px;background:var(--line2)"></span></div>
+        <div style="margin-top:10px;font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">tarjan · arenas · Rc&lt;RefCell&lt;T&gt;&gt;</div></div>
+    </button>
+
+    <button onClick="{{ s6.go }}" style="text-align:left;height:330px;box-sizing:border-box;padding:28px;border:1px solid {{ s6.bd }};border-radius:8px;background:var(--panel);display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;width:100%"><span style="font:600 15px 'JetBrains Mono',monospace">Flows &amp; matching</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--dim)">STAGE 07</span></div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:8px;font:400 10px 'JetBrains Mono',monospace;color:var(--dim)"><span style="width:44px">s → a</span><span style="flex:1;height:12px;border:1.5px solid var(--line);border-radius:2px;background:linear-gradient(90deg,var(--grn-bg) 80%,transparent 80%)"></span><span>8/10</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font:400 10px 'JetBrains Mono',monospace;color:var(--dim)"><span style="width:44px">a → t</span><span style="flex:.6;height:12px;border:1.5px solid var(--acc);border-radius:2px;background:var(--acc-bg)"></span><span style="flex:.4"></span><span>6/6</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font:400 10px 'JetBrains Mono',monospace;color:var(--dim)"><span style="width:44px">s → b</span><span style="flex:.8;height:12px;border:1.5px solid var(--line);border-radius:2px;background:linear-gradient(90deg,var(--grn-bg) 25%,transparent 25%)"></span><span style="flex:.2"></span><span>2/8</span></div>
+      </div>
+      <div style="width:100%"><div style="height:30px;width:100%;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;border-radius:3px;border:1px solid var(--line);color:var(--dim);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.16em">AHEAD · 0 OF 4</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px"><span style="height:4px;background:var(--line2)"></span><span style="height:4px;background:var(--line2)"></span><span style="height:4px;background:var(--line2)"></span><span style="height:4px;background:var(--line2)"></span></div>
+        <div style="margin-top:10px;font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">edmonds-karp · bipartite · hopcroft-karp</div></div>
+    </button>
+
+    <div style="grid-column:span 2;height:330px;box-sizing:border-box;padding:36px 40px;border:1px dashed var(--vio);border-radius:8px;background:var(--vio-bg);display:flex;flex-direction:column;justify-content:space-between">
+      <div style="display:flex;justify-content:space-between"><span style="font:600 15px 'JetBrains Mono',monospace">Capstone · graphs mock round</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--vio)">UNLOCKS AT 24 / 32</span></div>
+      <div>
+        <div style="font-size:40px;line-height:1.08;font-weight:800;letter-spacing:-0.03em;max-width:640px">45 minutes, two problems, <span style="color:var(--vio)">one broken program.</span></div>
+        <p style="margin:16px 0 0;font-size:16px;line-height:1.6;color:var(--mut);max-width:620px">Graded on what interviewers listen for: choosing a representation, stating complexity before coding, and handling unreachable nodes without a sentinel leaking out.</p>
+      </div>
+      <div style="display:flex;gap:28px;font:500 12px 'JetBrains Mono',monospace;color:var(--mut)"><span>timer on</span><span>hints off</span><span>rust-analyzer off</span><span>rubric after</span></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding:80px 64px 0">
+  <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px"><span style="font:500 12px 'JetBrains Mono',monospace;letter-spacing:.26em;color:var(--dim)">{{ stageLabel }}</span><span style="flex:1;height:1px;background:var(--line2)"></span><span style="font:400 12px 'JetBrains Mono',monospace;color:var(--dim)">{{ stageMeta }}</span></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+    <sc-for list="{{ chips }}" as="c" hint-placeholder-count="5">
+      <button onClick="{{ c.go }}" style="height:30px;padding:0 12px;border-radius:15px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font:500 11.5px 'JetBrains Mono',monospace">{{ c.label }}</button>
+    </sc-for>
+  </div>
+  <div style="border:1px solid var(--line2);border-radius:8px;background:var(--panel);overflow:hidden">
+    <div style="display:grid;grid-template-columns:52px 56px minmax(0,1.4fr) 100px 130px minmax(0,1.2fr) 90px;gap:0 16px;align-items:center;height:42px;padding:0 24px;border-bottom:1px solid var(--line2);font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--dim)"><span></span><span>#</span><span>PROBLEM</span><span>MODE</span><span>LEVEL</span><span>TAGS</span><span style="text-align:right">BEST</span></div>
+    <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+      <a href="#" style="display:grid;grid-template-columns:52px 56px minmax(0,1.4fr) 100px 130px minmax(0,1.2fr) 90px;gap:0 16px;align-items:center;min-height:60px;padding:0 24px;border-bottom:1px solid var(--line2);color:var(--fg);text-decoration:none;background:{{ r.bg }}">
+        <span style="width:14px;height:14px;box-sizing:border-box;border-radius:3px;border:1.5px solid {{ r.sbd }};background:{{ r.sfill }}"></span>
+        <span style="font:500 12px 'JetBrains Mono',monospace;color:var(--dim)">{{ r.num }}</span>
+        <span style="font-size:15px;font-weight:600">{{ r.title }}</span>
+        <span><span style="padding:3px 8px;border-radius:3px;border:1px solid {{ r.mc }};color:{{ r.mc }};font:600 10px 'JetBrains Mono',monospace;letter-spacing:.1em">{{ r.mode }}</span></span>
+        <span style="font:500 12px 'JetBrains Mono',monospace;color:var(--mut)">{{ r.level }}</span>
+        <span style="font:400 11.5px 'JetBrains Mono',monospace;color:var(--dim)">{{ r.tagText }}</span>
+        <span style="text-align:right;font:500 12px 'JetBrains Mono',monospace;color:{{ r.tc }}">{{ r.time }}</span>
+      </a>
+    </sc-for>
+  </div>
+</section>
+
+<section style="padding:80px 64px 0">
+  <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px"><span style="font:500 12px 'JetBrains Mono',monospace;letter-spacing:.26em;color:var(--dim)">RUST READINESS</span><span style="flex:1;height:1px;background:var(--line2)"></span><span style="font:400 12px 'JetBrains Mono',monospace;color:var(--dim)">what sde-2/3 interviews probe · this track trains 6 of 14</span></div>
+  <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px">
+    <sc-for list="{{ areas }}" as="a" hint-placeholder-count="14">
+      <a href="#" style="height:156px;box-sizing:border-box;padding:18px;border:1px solid {{ a.bd }};border-radius:8px;background:var(--panel);display:flex;flex-direction:column;justify-content:space-between;color:var(--fg);text-decoration:none">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px"><span style="font:600 12px/1.35 'JetBrains Mono',monospace">{{ a.name }}</span><span style="width:6px;height:6px;flex:none;margin-top:4px;border-radius:50%;background:{{ a.dot }}"></span></div>
+        <span style="font-size:30px;font-weight:800;letter-spacing:-0.03em;color:{{ a.c }}">{{ a.pct }}</span>
+        <div><div style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"><sc-for list="{{ a.segs }}" as="g" hint-placeholder-count="10"><span style="height:4px;background:{{ g.c }}"></span></sc-for></div>
+        <div style="margin-top:8px;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">{{ a.meta }}</div></div>
+      </a>
+    </sc-for>
+  </div>
+</section>
+
+<div style="margin-top:80px;height:64px;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);overflow:hidden;display:flex;align-items:center;background:var(--bg)">{{ marquee }}</div>
+
+<section style="padding:96px 64px 56px;display:flex;align-items:flex-end;justify-content:space-between;gap:40px">
+  <div>
+    <h2 style="margin:0;font-size:60px;line-height:1.02;font-weight:800;letter-spacing:-0.035em;max-width:900px">Ten problems from <span style="color:var(--vio)">the graphs round.</span></h2>
+    <p style="margin:22px 0 0;font-size:18px;color:var(--mut)">Next: <a href="#" style="color:var(--grn)">16 · Fix: heap ordering with a custom Ord →</a></p>
+  </div>
+  <div style="font:400 12px/1.8 'JetBrains Mono',monospace;color:var(--dim);text-align:right">trace · 14 of 32<br>graphs · track 4 of 9</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;}}">
+class Component extends DCLogic {
+  state = { theme: null, sel: 3, tag: null };
+  renderVals() {
+    const s = this.state, p = this.props;
+    const theme = s.theme ?? p.theme ?? 'dark';
+    const W = 'WRITE', F = 'FIX';
+    const P = [
+      ['Representation', [[1, 'Build an adjacency list', W, 'beginner', ['Vec<Vec<usize>>'], 'd', '06:12'], [2, 'Edge list to CSR', W, 'intermediate', ['slices', 'prefix-sum'], 'd', '14:40'], [3, 'Fix: a graph that owns its nodes', F, 'intermediate', ['E0499', 'indices'], 'd', '09:05'], [4, 'Degree counts with iterators', W, 'beginner', ['iterators', 'fold'], 'd', '04:31']]],
+      ['Traversal', [[5, 'Number of islands', W, 'beginner', ['bfs', 'VecDeque'], 'd', '08:20'], [6, 'Clone graph', W, 'intermediate', ['dfs', 'HashMap'], 'd', '16:02'], [7, 'Fix: recursive closure DFS', F, 'intermediate', ['closures', 'E0373'], 'd', '11:47'], [8, 'Rotting oranges', W, 'intermediate', ['multi-source bfs'], 'd', '13:10'], [9, 'Word ladder', W, 'advanced', ['bfs', '&str'], 'd', '24:55'], [10, 'Iterative DFS, explicit stack', W, 'intermediate', ['Vec as stack'], 'd', '09:38']]],
+      ['Topological sort', [[11, 'Course schedule', W, 'intermediate', ['kahn', 'VecDeque'], 'r', '12:14'], [12, 'Alien dictionary', W, 'advanced', ['topo', 'chars'], 'd', '27:03'], [13, 'Build order with cycle report', W, 'intermediate', ['Result', 'custom error'], 'd', '18:21'], [14, "Fix: invalidation in Kahn's", F, 'intermediate', ['E0502', 'borrowing'], 'd', '07:59']]],
+      ['Shortest paths', [[15, 'Network delay time', W, 'intermediate', ['dijkstra', 'BinaryHeap', 'Reverse<T>'], 'p', '4 / 6'], [16, 'Fix: heap ordering with a custom Ord', F, 'intermediate', ['Ord', 'PartialOrd', 'traits'], 't', '—'], [17, 'Cheapest flights within K stops', W, 'intermediate', ['bellman-ford'], 't', '—'], [18, 'Path with minimum effort', W, 'intermediate', ['dijkstra', 'grid'], 't', '—'], [19, '0-1 BFS on a grid', W, 'advanced', ['0-1 bfs', 'VecDeque'], 't', '—'], [20, 'Dijkstra over generic weights', W, 'advanced', ['generics', 'trait bounds', 'Add<Output = W>'], 't', '—']]],
+      ['Union-find & MST', [[21, 'Redundant connection', W, 'intermediate', ['union-find'], 't', '—'], [22, "Kruskal's MST", W, 'intermediate', ['sort_by_key', 'union-find'], 't', '—'], [23, 'Union-find as a reusable struct', W, 'intermediate', ['impl', 'path compression'], 't', '—'], [24, 'Fix: two &mut into one parent Vec', F, 'advanced', ['E0499', 'split_at_mut'], 't', '—']]],
+      ['SCC, bridges & arenas', [[25, "Tarjan's SCC", W, 'advanced', ['dfs', 'lowlink'], 't', '—'], [26, 'Critical connections', W, 'advanced', ['bridges'], 't', '—'], [27, 'Arena-allocated graph', W, 'advanced', ['arenas', 'lifetimes'], 't', '—'], [28, 'Fix: Rc<RefCell<Node>> cycle leak', F, 'advanced', ['Rc', 'Weak', 'RefCell'], 't', '—']]],
+      ['Flows & matching', [[29, 'Bipartite check', W, 'intermediate', ['bfs', 'coloring'], 't', '—'], [30, 'Max flow, Edmonds–Karp', W, 'advanced', ['bfs', 'residual graph'], 't', '—'], [31, 'Hopcroft–Karp matching', W, 'advanced', ['matching'], 't', '—'], [32, 'Min-cost flow', W, 'advanced', ['bellman-ford', 'spfa'], 't', '—']]]
+    ];
+    const status = ['d', 'd', 'd', 'p', 't', 't', 't'];
+    const stageCard = (i) => ({ bd: s.sel === i ? 'var(--acc)' : 'var(--line2)', go: () => this.setState({ sel: i, tag: null }) });
+    const pos = [[40, 90], [220, 90], [400, 90], [220, 180], [400, 180], [220, 270], [400, 270]];
+    const topo = P.map(([name, list], i) => {
+      const st = status[i], solved = list.filter(r => r[5] === 'd' || r[5] === 'r').length;
+      return {
+        x: pos[i][0] + 'px', y: pos[i][1] + 'px', short: String(i + 1).padStart(2, '0') + ' ' + name.split(/[ ,&]/)[0].toLowerCase(),
+        sub: `${solved} / ${list.length}`,
+        bd: st === 'd' ? 'var(--grn)' : st === 'p' ? 'var(--acc)' : 'var(--line)',
+        bg: st === 'p' ? 'var(--acc)' : 'var(--panel)',
+        fg: st === 'p' ? 'var(--on-acc)' : st === 'd' ? 'var(--fg)' : 'var(--dim)',
+        dot: st === 'd' ? 'var(--grn)' : st === 'p' ? 'var(--on-acc)' : 'var(--line)',
+        ring: s.sel === i ? '0 0 0 4px var(--acc-bg)' : 'none',
+        go: () => this.setState({ sel: i, tag: null })
+      };
+    });
+    const [sname, slist] = P[s.sel];
+    const tags = [...new Set(slist.flatMap(r => r[4]))];
+    const chips = [null, ...tags].map(t => {
+      const on = s.tag === t;
+      return { label: t ?? 'all', bd: on ? 'var(--acc)' : 'var(--line2)', bg: on ? 'var(--acc-bg)' : 'transparent', fg: on ? 'var(--acc)' : 'var(--mut)', go: () => this.setState({ tag: t }) };
+    });
+    const rows = slist.filter(r => !s.tag || r[4].includes(s.tag)).map(([num, title, mode, level, tg, st, time]) => ({
+      num: String(num).padStart(2, '0'), title, mode: mode === W ? 'WRITE IT' : 'FIX THIS', mc: mode === W ? 'var(--acc)' : 'var(--vio)',
+      level, tagText: tg.join(' · '), time: st === 'r' ? 're-solve' : time,
+      tc: st === 'p' ? 'var(--acc)' : st === 'r' ? 'var(--vio)' : st === 'd' ? 'var(--grn)' : 'var(--dim)',
+      sbd: st === 'd' ? 'var(--grn)' : st === 'p' ? 'var(--acc)' : st === 'r' ? 'var(--vio)' : 'var(--line)',
+      sfill: st === 'd' ? 'var(--grn)' : st === 'p' ? 'linear-gradient(90deg,var(--acc) 50%,transparent 50%)' : 'transparent',
+      bg: st === 'p' ? 'var(--sel)' : 'transparent'
+    }));
+    const fixN = slist.filter(r => r[2] === F).length;
+    const A = [['Ownership & moves', 82, 1, '31 / 38'], ['Borrowing', 74, 1, '26 / 35'], ['Lifetimes', 41, 0, '12 / 29'], ['Traits & dispatch', 63, 0, '20 / 32'], ['Generics & bounds', 55, 1, '15 / 27'], ['Iterators & closures', 78, 1, '25 / 32'], ['Error handling', 70, 0, '19 / 27'],
+      ['Smart pointers', 48, 1, '11 / 23'], ['Collections', 81, 1, '22 / 27'], ['Pattern matching', 88, 0, '21 / 24'], ['Concurrency', 36, 0, '9 / 25'], ['Async & Pin', 22, 0, '6 / 28'], ['Macros', 30, 0, '5 / 17'], ['Unsafe & FFI', 18, 0, '3 / 16']];
+    const col = v => v >= 70 ? 'var(--grn)' : v >= 40 ? 'var(--acc)' : 'var(--bad)';
+    const areas = A.map(([name, v, used, meta]) => ({
+      name, pct: v + '%', c: col(v), meta: meta + ' drills', dot: used ? 'var(--acc)' : 'transparent',
+      bd: used ? 'var(--line)' : 'var(--line2)',
+      segs: Array.from({ length: 10 }, (_, i) => ({ c: i < Math.round(v / 10) ? col(v) : 'var(--line2)' }))
+    }));
+    const M = [['Dijkstra', 'acc'], ['E0499', 'bad'], ['Tarjan SCC'], ['Reverse<T>', 'vio'], ['Kahn'], ['E0502', 'bad'], ['Union-find'], ['VecDeque', 'grn'], ['Bellman–Ford'], ['split_at_mut', 'vio'], ['Edmonds–Karp'], ['E0505', 'bad'], ['Kruskal'], ['Rc<RefCell<T>>', 'acc'], ['Hopcroft–Karp'], ['0-1 BFS', 'grn']];
+    const e = React.createElement;
+    const run = (k) => M.flatMap(([t, c], i) => [
+      e('span', { key: k + 'i' + i, style: { padding: '0 28px', color: c ? `var(--${c})` : 'var(--dim)', whiteSpace: 'nowrap' } }, t),
+      e('span', { key: k + 's' + i, style: { color: 'var(--line)' } }, '/')
+    ]);
+    const marquee = e('div', { style: { display: 'flex', alignItems: 'center', width: 'max-content', animation: 'an-marquee 60s linear infinite', font: "500 14px 'JetBrains Mono',monospace", letterSpacing: '.08em' } }, [...run('a'), ...run('b')]);
+    return {
+      theme, toggleTheme: () => this.setState({ theme: theme === 'dark' ? 'light' : 'dark' }),
+      topo, s0: stageCard(0), s1: stageCard(1), s2: stageCard(2), s3: stageCard(3), s4: stageCard(4), s5: stageCard(5), s6: stageCard(6),
+      stageLabel: `STAGE ${String(s.sel + 1).padStart(2, '0')} · ${sname.toUpperCase()}`,
+      stageMeta: `${slist.length} problems · ${fixN} fix-this`,
+      chips, rows, areas, marquee
+    };
+  }
+}
+</script>
+</body>
+</html>

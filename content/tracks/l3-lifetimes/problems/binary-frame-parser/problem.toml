@@ -1,0 +1,32 @@
+slug = "binary-frame-parser"
+title = "Zero-copy binary frame parser"
+mode = "write"
+level = "medium"
+stage = "two-lifetimes"
+order = 11
+status = "ready"
+tags = ["&[u8]", "split_first_chunk", "big-endian"]
+teaches = [
+  "Zero-copy parsing: return slices of the input.",
+  "Bounds checks as `Option` combinators instead of indexing.",
+]
+follow_up = "How would you parse frames from a socket, where a frame can arrive split across reads?"
+related = ["L3", "S3"]
+source = "W40"
+
+[[hints]]
+kind = "rust"
+text = "`strip_prefix`, `split_first` and `split_first_chunk::<2>()` each return `Option`, so every bounds check is a `?`."
+
+[[hints]]
+kind = "rust"
+text = "`u16::from_be_bytes(*len)` reads the network-order length from a `&[u8; 2]`."
+
+[[hints]]
+kind = "edge case"
+text = "Never trust the length field: check that the buffer really has that many bytes."
+
+[solution]
+explanation = "Every step slices the input, so nothing is copied and nothing can index out of bounds. Returning the rest makes `parse_all` a simple loop."
+time = "O(1) per frame"
+space = "O(frames)"

@@ -1,0 +1,22 @@
+slug = "extract-if"
+title = "Partition with extract_if"
+mode = "write"
+level = "medium"
+stage = "iterator-invalidation"
+order = 20
+status = "ready"
+tags = ["extract_if"]
+teaches = [
+  "`extract_if` moves matching elements out while iterating.",
+]
+follow_up = "What happens to the Vec if you drop the `ExtractIf` iterator halfway?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "`Vec::extract_if(range, pred)` removes matching elements and yields them, by value, in order."
+
+[solution]
+explanation = "One pass, both halves keep their order, and removed jobs are moved out, not cloned."
+time = "O(n)"
+space = "O(k)"

@@ -1,0 +1,31 @@
+slug = "three-sum-closest"
+title = "3Sum closest"
+mode = "write"
+level = "medium"
+stage = "pointers"
+order = 9
+status = "ready"
+tags = ["two pointers"]
+teaches = [
+  "Same shape as 3Sum, tracking the best distance instead of exact matches.",
+  "`abs_diff` for distances without overflow.",
+]
+follow_up = "How would you return the triplet itself, not just its sum?"
+related = ["D1"]
+
+[[examples]]
+input = "nums = [-1, 2, 1, -4], target = 1"
+output = "2"
+
+[[hints]]
+kind = "approach"
+text = "Sort, fix one value, move two pointers toward the target."
+
+[[hints]]
+kind = "rust"
+text = "`i32::abs_diff` returns a `u32` distance."
+
+[solution]
+explanation = "An exact hit can return early. `abs_diff` avoids the overflow `(a - b).abs()` can hit."
+time = "O(n²)"
+space = "O(n)"

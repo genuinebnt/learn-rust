@@ -1,0 +1,912 @@
+<!-- ═══════════════════════════════════════════
+     PART: TOPICS 03 · CONCURRENCY, ASYNC & WEB
+     Threading · Atomics · Async/Tokio · Web Dev · Common Crates
+═══════════════════════════════════════════ -->
+
+<div class="level-filter" id="level-filter">
+  <span class="lf-label">Level</span>
+  <button type="button" class="lf-btn active" data-filter="all">All</button>
+  <button type="button" class="lf-btn" data-filter="beg">Beginner</button>
+  <button type="button" class="lf-btn" data-filter="int">Intermediate</button>
+  <button type="button" class="lf-btn" data-filter="adv">Advanced</button>
+  <button type="button" class="lf-btn" data-filter="sr">Senior</button>
+  <span class="lf-hint">25 questions on this page · click a level to filter</span>
+</div>
+
+<!-- ════════════ TOPIC 11 · THREADING & SYNC ════════════ -->
+<div class="section" id="t-thr">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-thr)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-thr)">// Topic 11</div>
+      <div class="sh-title">Threading &amp; Sync Primitives</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-thr)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What are <code>Send</code> and <code>Sync</code>? Give an example of a type that is <code>Sync</code> but not <code>Send</code>, or explain why that combination is rare.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>Send</code></strong>: a type is safe to <strong>move</strong> to a different thread — ownership
+        transfer across a thread boundary is sound. <strong><code>Sync</code></strong>: a type is safe to access
+        via <code>&amp;T</code> from <strong>multiple threads concurrently</strong> — equivalently,
+        <code>T</code> is <code>Sync</code> if and only if <code>&amp;T</code> is <code>Send</code>. Both are
+        auto-traits: the compiler derives them automatically for any type whose fields are all
+        <code>Send</code>/<code>Sync</code>, and you almost never implement them manually (doing so requires
+        <code>unsafe impl</code>, since you're asserting a property the compiler can't verify).
+        <code>Rc&lt;T&gt;</code> is neither <code>Send</code> nor <code>Sync</code> (non-atomic refcount).
+        <code>Mutex&lt;T&gt;</code> is <code>Sync</code> even if <code>T</code> is only <code>Send</code> — locking
+        serialises access, making concurrent <code>&amp;Mutex&lt;T&gt;</code> access safe regardless of whether
+        <code>T</code> itself could handle concurrent access unsynchronised.
+        <strong>Sync-but-not-Send example:</strong> genuinely rare in practice because most types that are safe to
+        share by reference across threads are also safe to move — one textbook example is a MutexGuard-like type
+        tied to OS-level thread-locking semantics (some lock APIs require the same OS thread that acquired the
+        lock to be the one that releases it) — such a guard could be <code>Sync</code> in some designs while
+        being unsound to hand off entirely to a different thread for the unlock. In practice this combination is
+        the least common of the four (Send+Sync, Send-only, Sync-only, neither) and mostly shows up in
+        low-level synchronisation primitive implementations, not everyday application code.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What's the difference between <code>thread::spawn</code>'s <code>'static</code> requirement and how <code>std::thread::scope</code> (Rust 1.63+) relaxes it? Why couldn't earlier Rust do this safely?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>thread::spawn(f)</code> requires <code>f: FnOnce() + Send + 'static</code> — the closure cannot
+        borrow anything from the spawning function's stack frame, because <code>spawn</code> returns a
+        <code>JoinHandle</code> immediately and the spawned thread may still be running long after the parent
+        function (and its local stack frame) has returned; the compiler has no way to guarantee the spawned
+        thread finishes before the borrowed data goes away, so it forbids borrowing entirely.
+        <strong><code>std::thread::scope(|s| { s.spawn(...) })</code></strong> introduces a scope whose API
+        <em>statically guarantees</em> that every thread spawned within it is joined before the <code>scope</code>
+        call returns — the closure passed to <code>scope</code> cannot return until all its spawned threads have
+        finished. Because that guarantee is enforced by the API's own structure (not merely a runtime convention),
+        the borrow checker can soundly allow scoped threads to borrow local variables from the enclosing function —
+        the data is provably still valid for the entire time any spawned thread could be using it.
+        <strong>Why not always allowed:</strong> before scoped threads existed in std (crates like
+        <code>crossbeam::scope</code> provided this earlier), there was no way for the type system to <em>see</em>
+        the "guaranteed to join before returning" property — <code>thread::spawn</code>'s API shape alone can't
+        express that constraint, so the conservative, always-sound rule (<code>'static</code> only) was necessary
+        in the absence of a scoping API.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain the difference between <code>std::sync::mpsc::channel</code> and <code>crossbeam_channel</code>. What's missing from the standard library's channel that makes crossbeam the common production choice?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>std::sync::mpsc</code> provides a <strong>multi-producer, single-consumer</strong> channel —
+        multiple <code>Sender</code>s, exactly one <code>Receiver</code>. It's functionally adequate but has known
+        gaps: (1) <strong>no true <code>select!</code></strong> over multiple channels simultaneously (waiting on
+        "whichever of these N channels has data first") — std's channel API has no equivalent; (2) historically
+        weaker/less predictable performance under contention compared to crossbeam's implementation (crossbeam
+        uses more sophisticated lock-free/low-contention techniques); (3) no <strong>MPMC</strong> (multi-producer
+        multi-consumer) support at all in std — if you need multiple worker threads all pulling from one queue,
+        std's channel can't do it directly (you'd wrap the single receiver in a <code>Mutex</code>, which
+        partially defeats the purpose of a lock-free channel). <strong><code>crossbeam_channel</code></strong>
+        provides both MPSC and true MPMC channels, a <code>select!</code> macro for multiplexing several channels
+        and/or timeouts, and generally better throughput under contention. In practice, most production Rust
+        concurrent code reaches for <code>crossbeam_channel</code> (for sync/thread-based code) or
+        <code>tokio::sync::mpsc</code>/<code>broadcast</code>/<code>watch</code> (for async code) rather than
+        std's channel, which mostly persists in codebases for simple, low-throughput one-shot signalling or in
+        examples/teaching material.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Name the four Coffman conditions for deadlock and describe two concrete strategies a Rust codebase can use to avoid lock-ordering deadlocks in a large service with many mutexes.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) <strong>Mutual exclusion</strong> — a resource can only be held by one holder at a time.
+        (2) <strong>Hold and wait</strong> — a thread holds one resource while waiting for another.
+        (3) <strong>No preemption</strong> — a held resource can't be forcibly taken away.
+        (4) <strong>Circular wait</strong> — a cycle of threads each waiting on a resource the next one holds.
+        Rust's type system doesn't prevent deadlock (unlike data races, this is a logic-level problem, not a
+        memory-safety one) — you need discipline. <strong>Strategy 1 — global lock ordering</strong>: establish a
+        canonical order (e.g. by a stable ID, or by documenting "always lock A before B" in a comment next to
+        both mutex definitions) and enforce it via code review or a lint; some teams encode the order into the
+        type system by wrapping mutexes in newtypes that can only be acquired via an API that takes them in a
+        fixed sequence. <strong>Strategy 2 — reduce the surface area for holding multiple locks at once</strong>:
+        design APIs so a thread rarely, if ever, needs two locks held simultaneously — e.g. copy out the data you
+        need under lock A, release it, then acquire lock B, instead of holding both. <strong>Strategy 3 (tooling)</strong>:
+        use <code>parking_lot</code>'s optional deadlock-detection feature in debug/CI builds, or write
+        <strong><code>loom</code></strong>-based tests that exhaustively explore thread interleavings for
+        lock-acquisition code paths, catching potential deadlocks and ordering bugs before they ever reach
+        production traffic. In a system-design interview, explicitly naming "we'd want a documented lock hierarchy
+        plus loom tests for the tricky bits" reads as considerably more senior than describing a single fix for
+        one specific deadlock.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Your team has a hot function with a coarse-grained <code>Mutex&lt;HashMap&lt;K, V&gt;&gt;</code> that's become a contention bottleneck under load. Walk through your options in order of increasing complexity.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>1. Measure first</strong> — confirm via profiling (e.g. <code>perf</code>, or simply instrumenting
+        lock wait time) that the mutex itself is the bottleneck and not, say, the work done inside the critical
+        section, or an unrelated allocation. Don't optimise a hunch.
+        <strong>2. Shrink the critical section</strong> — often the map operation itself is fast but unrelated
+        work (serialisation, logging, an I/O call) is incorrectly happening while the lock is held; moving that
+        work outside the lock is usually the single highest-leverage, lowest-risk fix.
+        <strong>3. Swap to <code>parking_lot::Mutex</code></strong> — smaller and often meaningfully faster than
+        std's mutex in the contended case, essentially a drop-in replacement with no design change.
+        <strong>4. Switch to <code>RwLock</code> if read-heavy</strong> — verify actual read/write ratio first;
+        this only helps if reads dominate and critical sections aren't tiny (see the RwLock caveats discussed
+        elsewhere in this packet).
+        <strong>5. Shard the map</strong> — replace one <code>Mutex&lt;HashMap&gt;</code> with N
+        <code>Mutex&lt;HashMap&gt;</code> shards, routing each key to a shard via <code>hash(key) % N</code>
+        (this is exactly what <code>dashmap</code> does internally, and reaching for the <code>dashmap</code> crate
+        directly is often the pragmatic move rather than hand-rolling sharding).
+        <strong>6. Lock-free structures</strong> — for extreme cases, a concurrent hash map with fine-grained
+        or lock-free bucket-level synchronisation (again, <code>dashmap</code>, or for specialised needs a
+        hand-rolled structure validated with <code>loom</code>) — reserve this for when sharding has been tried
+        and measured insufficient, since lock-free code has a much higher bug surface and maintenance cost.
+        The senior signal here is the <em>ordering</em>: measure, then cheap/low-risk fixes, then structural
+        changes, then exotic solutions — not jumping straight to "let's write a lock-free hash map."
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">A single N-worker thread pool needs to run arbitrarily many different jobs over its lifetime — some returning <code>i32</code>, some returning <code>String</code>, some returning nothing — and hand each caller back exactly that job's result. Why can't the pool itself be generic over the job/result type, and what design actually works?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Making <code>ThreadPool&lt;T&gt;</code> generic over the result type would only ever let one pool instance
+        run jobs that all return that same, fixed <code>T</code> — the opposite of what a general-purpose pool
+        needs, which is to serve many different job/result-type combinations over its lifetime from one shared
+        set of worker threads. The standard fix is <strong>type erasure at the queue boundary, generics at the
+        call boundary</strong>:
+<pre style="margin:6px 0;"><span class="kw">type</span> <span class="ty">Job</span> = Box&lt;<span class="kw">dyn</span> <span class="ty">FnOnce</span>() + Send + <span class="lt">'static</span>&gt;;  <span class="cm">// the ONE shape every job gets erased down to</span>
+
+<span class="kw">fn</span> <span class="fn">execute</span>&lt;<span class="ty">T</span>: Send + <span class="lt">'static</span>, <span class="ty">F</span>: <span class="ty">FnOnce</span>() -&gt; <span class="ty">T</span> + Send + <span class="lt">'static</span>&gt;(&amp;<span class="kw">self</span>, job: <span class="ty">F</span>) -&gt; mpsc::Receiver&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">let</span> (result_tx, result_rx) = mpsc::<span class="fn">channel</span>();  <span class="cm">// a FRESH channel per call — one job, one dedicated result path</span>
+    <span class="kw">let</span> wrapped: <span class="ty">Job</span> = Box::<span class="fn">new</span>(<span class="kw">move</span> || { <span class="kw">let</span> _ = result_tx.<span class="fn">send</span>(job()); });
+    <span class="kw">self</span>.sender.<span class="fn">send</span>(wrapped).<span class="fn">unwrap</span>();
+    result_rx
+}</pre>
+        <code>execute</code> is generic <em>per call</em> (each call can have a totally different <code>T</code>),
+        but the shared queue every worker thread pulls from only ever sees the single erased shape
+        <code>Box&lt;dyn FnOnce() + Send + 'static&gt;</code> — the specific <code>T</code> is confined entirely
+        to a private, per-call <code>mpsc</code> channel that the caller holds onto. This is precisely why one
+        pool instance can run an <code>i32</code>-returning job and then, on the very next call, a
+        <code>String</code>-returning job, with no changes to the pool itself. The result channel's
+        <code>send</code> uses <code>let _ = ...</code> rather than <code>.unwrap()</code> deliberately — the
+        caller may have already dropped the receiver (they stopped caring about the result), and that's not an
+        error condition worth panicking a worker thread over.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q7</span><span class="qa-qtext">Design a simple in-process pub/sub message queue: <code>publish(msg)</code> should fan a message out to every currently-subscribed listener. What data structure backs the subscriber list, and what has to happen when a subscriber stops listening?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">struct</span> <span class="ty">MessageQueue</span>&lt;<span class="ty">T</span>: <span class="ty">Clone</span>&gt; { subscribers: Mutex&lt;Vec&lt;mpsc::Sender&lt;<span class="ty">T</span>&gt;&gt;&gt; }
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>: <span class="ty">Clone</span>&gt; <span class="ty">MessageQueue</span>&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">subscribe</span>(&amp;<span class="kw">self</span>) -&gt; mpsc::Receiver&lt;<span class="ty">T</span>&gt; {
+        <span class="kw">let</span> (tx, rx) = mpsc::<span class="fn">channel</span>();
+        <span class="kw">self</span>.subscribers.<span class="fn">lock</span>().<span class="fn">unwrap</span>().<span class="fn">push</span>(tx);
+        rx
+    }
+    <span class="kw">fn</span> <span class="fn">publish</span>(&amp;<span class="kw">self</span>, msg: <span class="ty">T</span>) {
+        <span class="kw">let</span> <span class="kw">mut</span> subs = <span class="kw">self</span>.subscribers.<span class="fn">lock</span>().<span class="fn">unwrap</span>();
+<span class="ok-line">        subs.<span class="fn">retain</span>(|tx| tx.<span class="fn">send</span>(msg.<span class="fn">clone</span>()).<span class="fn">is_ok</span>());  <span class="cm">// send() fails exactly when the paired Receiver was dropped</span></span>
+    }
+}</pre>
+        A <code>Vec&lt;Sender&lt;T&gt;&gt;</code> behind a <code>Mutex</code> is the simplest correct backing store —
+        one <code>mpsc::Sender</code> per subscriber, cloning the message into each subscriber's own channel
+        (hence the <code>T: Clone</code> bound). The critical detail is <strong>what happens when a subscriber
+        drops their <code>Receiver</code></strong> (they've stopped listening, gone out of scope, or their task
+        panicked): the matching <code>Sender::send</code> call starts returning <code>Err</code> — not panicking,
+        just failing gracefully — which is exactly the signal <code>publish</code> uses via
+        <code>Vec::retain</code> to prune that subscriber from the list on the very next publish. Without this,
+        the subscriber list would grow forever with dead senders that <code>publish</code> keeps uselessly trying
+        (and failing) to send to — a slow, easy-to-miss memory leak in any long-running service with churny
+        subscribers (e.g. WebSocket connections coming and going). At real scale (many subscribers, high publish
+        rate, or needing delivery across process boundaries), this pattern is what you'd reach for a dedicated
+        broker (Kafka, NATS, Redis pub/sub) to replace, rather than continuing to scale a single in-process,
+        mutex-protected <code>Vec</code>.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains Send/Sync as distinct properties with the &amp;T-Send-implies-T-Sync relationship</li>
+      <li>Knows why thread::scope can safely borrow but thread::spawn can't</li>
+      <li>Names crossbeam_channel's select! and MPMC as std gaps</li>
+      <li>Proposes a measured, staged escalation for lock contention rather than jumping to lock-free</li>
+      <li>Explains type erasure to Box&lt;dyn FnOnce() + Send + 'static&gt; as what lets one pool serve many result types</li>
+      <li>Uses Vec::retain keyed on a failed send() to prune disconnected pub/sub subscribers, not a separate liveness check</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Knows Send/Sync exist but can't explain the &amp;T/Sync relationship</li>
+      <li>Jumps straight to "use a lock-free structure" without measuring first</li>
+      <li>Tries to make the thread pool struct itself generic over the job's result type</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Cannot state the four Coffman conditions</li>
+      <li>Thinks Rust prevents deadlocks the same way it prevents data races</li>
+      <li>Panics or unwraps on a failed send() to a disconnected subscriber instead of treating it as routine</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    "Does Rust prevent deadlocks?" is a great trick question — the correct, precise answer is "no, Rust prevents
+    <em>data races</em> at compile time via ownership/Send/Sync, but deadlock is a logic bug about lock ordering
+    that the type system has no visibility into." Candidates who conflate the two haven't internalised what
+    Rust's safety guarantees actually cover.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 12 · ATOMICS & MEMORY ORDERING ════════════ -->
+<div class="section" id="t-atomic">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-atomic)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-atomic)">// Topic 12</div>
+      <div class="sh-title">Atomics &amp; Memory Ordering</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-atomic)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Why can't you just use a plain <code>static mut counter: i32</code> incremented from multiple threads? What does <code>AtomicI32</code> give you that a mutex would also give you, but more cheaply?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A plain <code>i32</code> increment (<code>x += 1</code>) compiles to separate load, add, and store
+        instructions — if two threads interleave these steps on the same memory location with no synchronisation,
+        you get a <strong>data race</strong>, which is undefined behaviour, and updates can be silently lost.
+        Accessing <code>static mut</code> at all requires an <code>unsafe</code> block specifically because the
+        compiler cannot verify you're not doing exactly this. <strong><code>AtomicI32</code></strong> (and friends)
+        wrap the value so that operations like <code>.fetch_add(1, Ordering::SeqCst)</code> compile to a single
+        indivisible hardware instruction (e.g. <code>LOCK XADD</code> on x86, or a load-link/store-conditional
+        loop on ARM) — no other thread can observe or interleave a partial update. Compared to a
+        <code>Mutex&lt;i32&gt;</code>: both are correct, but the mutex requires acquiring a lock (which, even in
+        the best case with no contention, is more expensive than one atomic instruction — it involves at minimum a
+        compare-and-swap on the lock state, and under contention can involve OS-level blocking/futex syscalls),
+        whereas an atomic operation is a single CPU instruction with no possibility of blocking. Atomics are the
+        right tool specifically for simple, single-value operations (counters, flags, sequence numbers); a mutex
+        is still necessary once you need to update multiple related values together as one logical unit.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">List the five memory orderings available on Rust atomics and give a one-line use case for each of Relaxed, Acquire/Release, and SeqCst.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Weakest to strongest: <strong>Relaxed</strong> (atomicity only — no ordering constraint relative to other
+        memory operations), <strong>Acquire</strong> (a load: prevents subsequent reads/writes from being
+        reordered <em>before</em> it), <strong>Release</strong> (a store: prevents preceding reads/writes from
+        being reordered <em>after</em> it), <strong>AcqRel</strong> (both — for read-modify-write ops that need
+        both properties), <strong>SeqCst</strong> (sequentially consistent — a single global total order all
+        threads agree on, the strongest and most expensive guarantee, and Rust's atomics default recommendation
+        when unsure).
+        <strong>Relaxed use case:</strong> a metrics counter that's only read at shutdown/reporting time, where you
+        need atomicity (no lost increments) but don't care about ordering relative to any other memory access.
+        <strong>Acquire/Release use case:</strong> a "data ready" flag — the producer writes some non-atomic data,
+        then does a <code>Release</code> store to a flag; the consumer does an <code>Acquire</code> load of the
+        flag and, if true, is guaranteed to see all the producer's writes that happened before the release —
+        this is the fundamental building block of lock-free publish/subscribe and the pattern underlying how
+        <code>Mutex</code> itself is implemented at a lower level. <strong>SeqCst use case:</strong> when multiple
+        atomics are involved and you need a globally consistent view of the order of operations across all of
+        them (e.g. some lock-free algorithms genuinely require this to remain correct) — or simply as the safe
+        default when you haven't yet proven a weaker ordering is sufficient and correct.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain the ABA problem in lock-free programming with compare-and-swap. Give one concrete mitigation.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A CAS-based algorithm reads a value <code>A</code> from a shared location, does some work, then tries to
+        CAS it from <code>A</code> to a new value — succeeding only if the location still holds <code>A</code>.
+        The <strong>ABA problem</strong>: between the read and the CAS, another thread could change the value
+        <code>A → B → A</code> — the location holds <code>A</code> again by the time the CAS runs, so the CAS
+        <em>succeeds</em>, even though the underlying state genuinely changed in between (e.g. in a lock-free
+        stack, the exact node object with address <code>A</code> could have been popped, freed, reused for a new
+        allocation that happens to land at the same address, and pushed back — the CAS can't distinguish "nothing
+        changed" from "changed and changed back to something that looks identical"). This can corrupt data
+        structures in ways that are extremely hard to reproduce and debug.
+        <strong>Mitigation — tagged/versioned pointers:</strong> pair the pointer with a monotonically-incrementing
+        generation counter, packed into a wider CAS (e.g. 128-bit double-word CAS on x86-64, or splitting bits
+        within a 64-bit word) — <code>A</code> at generation 5 is distinguishable from <code>A</code> at
+        generation 7 even though the pointer bits are identical, so the CAS correctly fails in the ABA scenario.
+        Other real mitigations include <strong>hazard pointers</strong> (threads publish which nodes they're
+        currently dereferencing so memory reclamation waits until no one holds a hazard pointer to it) and
+        <strong>epoch-based reclamation</strong> (what the <code>crossbeam-epoch</code> crate implements) — both
+        sidestep ABA by deferring memory reuse until it's provably safe, rather than only guarding the CAS itself.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Explain why the Rust standard library's atomic types are conceptually similar to C++'s <code>std::atomic</code>, and what guarantees you as a Rust engineer get "for free" that a C++ engineer writing the equivalent lock-free code does not.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Rust's atomic types and memory-ordering enum map almost 1:1 onto C++11's <code>std::atomic&lt;T&gt;</code>
+        and its memory_order enum — same relaxed/acquire/release/acq_rel/seq_cst vocabulary, same underlying
+        hardware model (both ultimately target the C/C++11 memory model that most modern CPU architectures and
+        compilers agree on). The genuine Rust-specific advantage is <strong>everything surrounding</strong> the
+        atomic operations themselves: in C++, nothing stops you from also touching the same memory location with
+        a plain, non-atomic read/write from another thread — mixing atomic and non-atomic access to the same
+        location is a silent data race and undefined behaviour that the type system has no way to catch. In Rust,
+        if a piece of memory needs to be accessed atomically from multiple threads, it has to actually <em>be</em>
+        an <code>AtomicUsize</code>/etc — you cannot accidentally take a plain <code>&amp;mut usize</code> to it
+        from another thread while it's shared, because the ownership/borrowing rules (and <code>Sync</code>) would
+        already have forced you to reach for the atomic type or a lock in the first place. In other words: C++
+        gives you the same atomic primitives, but nothing stops the rest of your codebase from bypassing them by
+        accident; Rust's broader ownership discipline is what actually keeps the atomic operations meaningful and
+        not undermined elsewhere. The atomics themselves aren't more powerful in Rust — the surrounding safety net
+        is what changes.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Explain what <code>loom</code> does and why you'd reach for it when writing a custom lock-free data structure, instead of relying on manual testing under load.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The fundamental problem with testing concurrent code by "run it under heavy load and see if it breaks" is
+        that <strong>thread interleavings are effectively infinite and non-deterministic</strong> — a genuine race
+        condition might only manifest one time in a billion runs on your specific CPU's specific scheduler
+        behaviour, meaning your test suite can pass thousands of times in CI while a real bug lurks, only to
+        surface unpredictably in production under different hardware or load patterns. <strong><code>loom</code></strong>
+        is a permutation-testing library: it replaces std's threading/atomic primitives with instrumented versions
+        and, for a given test, <strong>exhaustively (or systematically, with pruning) explores every possible
+        thread interleaving</strong> the C11 memory model permits, checking your code's invariants hold under
+        <em>every</em> one — effectively turning "probably fine after N runs" into "provably correct for all
+        interleavings the model allows, within the bounded model checked." The trade-off: loom tests run your
+        code many times over (combinatorially, for every interleaving), so they must be written for small,
+        focused test cases (not full integration tests) and can take much longer to run than a standard unit test.
+        The senior signal: someone who's written a custom queue, spinlock, or other lock-free primitive and
+        reaches for loom specifically for that code path — rather than shipping something "tested under load and
+        seemed fine" — demonstrates a properly calibrated level of paranoia for exactly the class of code where
+        that paranoia is warranted.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Names all five orderings with correct concrete use cases, not just definitions</li>
+      <li>Explains ABA with a versioned-pointer or hazard-pointer mitigation</li>
+      <li>Articulates that Rust's advantage over C++ atomics is the surrounding ownership discipline, not the atomics themselves</li>
+      <li>Knows loom and why exhaustive interleaving testing beats "ran fine under load"</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Always uses SeqCst without discussing whether a weaker ordering would suffice</li>
+      <li>Heard of ABA but can't describe a mitigation</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Cannot explain the difference between any two memory orderings</li>
+      <li>Thinks atomics eliminate the need to think about ordering at all</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Very few candidates can correctly derive an Acquire/Release example unprompted — most only remember SeqCst.
+    You don't need to have this memorised perfectly; walking through the reasoning ("the reader needs to see the
+    writer's earlier writes, so I need Acquire on the load and Release on the store") in real time is itself a
+    strong signal, even if you'd reach for SeqCst by default in real code until proven otherwise.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 13 · ASYNC/AWAIT & TOKIO ════════════ -->
+<div class="section" id="t-async">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-async)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-async)">// Topic 13</div>
+      <div class="sh-title">Async/Await &amp; Tokio</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-async)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does an <code>async fn</code> actually compile down to? Why does calling one do nothing until it's awaited or polled?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>async fn foo() -&gt; T</code> desugars into a regular function returning <code>impl Future&lt;Output
+        = T&gt;</code>. The compiler generates an anonymous <strong>state machine</strong> struct that captures
+        all the local variables that need to stay alive across <code>.await</code> points, plus a discriminant
+        tracking which <code>.await</code> point execution is currently paused at. This struct implements the
+        <strong><code>Future</code></strong> trait's single required method, <code>poll(self: Pin&lt;&amp;mut
+        Self&gt;, cx: &amp;mut Context) -&gt; Poll&lt;T&gt;</code>, which either returns
+        <code>Poll::Ready(value)</code> (done) or <code>Poll::Pending</code> (not done yet — and registers a
+        "wake me up later" callback via the provided <code>Context</code>'s waker). <strong>Calling an async
+        function just constructs this state-machine value</strong> — no code inside the function body actually
+        runs yet, exactly analogous to how calling <code>.map()</code> on an iterator just builds an adapter.
+        Nothing executes until something drives the future forward by repeatedly calling <code>.poll()</code> —
+        either the executor (Tokio's runtime) after you <code>.await</code> it inside another async context, or a
+        top-level <code>block_on()</code> call. This is why an unawaited async call, similar to an unconsumed
+        iterator, produces a compiler warning about an unused future that does nothing.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Why is blocking (e.g. calling <code>std::thread::sleep</code> or synchronous file I/O) inside an <code>async fn</code> running on Tokio's default runtime a serious problem, and not just "a bit slower"?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Tokio's default multi-threaded runtime runs many independent async tasks <strong>cooperatively
+        multiplexed</strong> onto a small, fixed pool of OS worker threads (typically one per CPU core) — each
+        task is expected to run only briefly between <code>.await</code> points, voluntarily yielding control back
+        to the executor so it can run other tasks on that same OS thread. A blocking call (synchronous sleep,
+        blocking disk I/O, a long CPU-bound loop with no <code>.await</code>) doesn't yield — it monopolises the
+        underlying OS thread for its entire duration. Since that thread is one of only N worker threads shared by
+        potentially thousands of concurrent tasks, blocking it means <strong>every other task scheduled onto that
+        same worker thread is stalled</strong>, not just the offending task — this can cause cascading latency
+        spikes or even apparent "hangs" across unrelated requests in a web server, and under enough concurrent
+        blocking calls can starve the runtime entirely (all worker threads blocked, nothing else can run at all).
+        This is categorically different from "a bit slower" — it's a correctness-adjacent problem that can take
+        down a whole service's responsiveness from what looks like one innocuous blocking call deep in a rarely
+        -hit code path. The fix: use <code>tokio::task::spawn_blocking</code> to move blocking work onto a
+        separate, dedicated blocking-thread pool that Tokio manages specifically for this, or use the async
+        equivalent (<code>tokio::time::sleep</code>, <code>tokio::fs</code>) wherever one exists.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Compare <code>tokio::sync::Mutex</code> with <code>std::sync::Mutex</code>. When should you actually use the async version, and why is "just use the async mutex everywhere in async code" a common but wrong instinct?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>std::sync::Mutex</code></strong>'s <code>.lock()</code> <strong>blocks the OS thread</strong>
+        while waiting — exactly the problem described above if used carelessly inside async code with a contended
+        lock. <strong><code>tokio::sync::Mutex</code></strong>'s <code>.lock().await</code> instead yields
+        control back to the executor while waiting, letting other tasks run on that thread in the meantime — safe
+        to hold across an <code>.await</code> point, and its guard is <code>Send</code> so it can technically be
+        held across await points (unlike the sync mutex's guard, which is deliberately not <code>Send</code> in
+        many cases specifically to discourage this misuse). <strong>The common wrong instinct:</strong> using the
+        async mutex reflexively everywhere in async code, on the assumption that "async code needs async
+        primitives." In practice, if your critical section is <strong>short and never itself awaits anything
+        inside the lock</strong> — e.g. just updating an in-memory counter or map — a plain
+        <code>std::sync::Mutex</code> (ideally <code>parking_lot::Mutex</code>) held very briefly is <em>faster</em>
+        and simpler, because the async mutex has real overhead (it interacts with the task scheduler, involves
+        constructing/registering wakers) that a lock held for a handful of nanoseconds doesn't need. The actual
+        rule: reach for <code>tokio::sync::Mutex</code> specifically when you need to <code>.await</code>
+        something <em>while still holding the lock</em> (e.g. locking a connection object and then awaiting a
+        network call on it) — otherwise, a short, synchronous lock is the better and more idiomatic choice, and
+        the Tokio docs themselves say this explicitly.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Explain cancellation in Tokio — what happens when you drop a future/task mid-execution, and why is "cancellation safety" a real design concern for async code that isn't a problem for synchronous code?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A Tokio future can be cancelled at <strong>any <code>.await</code> point</strong> — for example, via
+        <code>tokio::select!</code> choosing a different branch, a <code>tokio::time::timeout</code> firing, or
+        simply dropping the <code>JoinHandle</code>/future. Cancellation is implemented as a plain <strong>drop</strong> —
+        the future's state-machine struct (and all its captured local variables) is dropped exactly where it was
+        paused, running normal <code>Drop</code> impls for anything it owns, but with <strong>no chance to run any
+        further code inside the async function body itself</strong> — there's no "finally" block that executes;
+        execution simply stops mid-function at the last await point and everything local gets dropped.
+        <strong>Why this matters:</strong> if an async function does something like "increment a counter, await a
+        network call, then decrement the counter back" — and it's cancelled while awaiting the network call — the
+        decrement <em>never runs</em>, leaving the counter permanently incremented. This kind of bug has no
+        synchronous equivalent, because synchronous code only "stops" via a panic (which at least runs destructors
+        during unwinding) or process termination — there's no routine, expected mechanism for a synchronous
+        function to simply vanish mid-body the way async cancellation works.
+        <strong>Cancellation-safe design</strong> means structuring async code so a mid-await cancellation never
+        leaves shared state inconsistent — e.g. using RAII guards whose <code>Drop</code> impl performs the
+        cleanup (so it runs even on cancellation, unlike code written directly in the function body after the
+        await), or designing operations to be atomic from an external observer's perspective (nothing observable
+        changes until the whole operation completes). This is one of the most frequently-cited "gotchas" senior
+        Tokio users bring up unprompted, and specifically distinguishes people who've shipped real async services
+        from people who've only completed async tutorials.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Design the shutdown sequence for a Tokio-based service that's processing in-flight requests, has background tasks (e.g. a metrics flusher), and needs to drain gracefully on SIGTERM. What primitives do you reach for?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>1. Signal handling:</strong> use <code>tokio::signal::unix::signal(SignalKind::terminate())</code>
+        (or the cross-platform <code>ctrl_c()</code> for simpler cases) to get an async stream that resolves when
+        SIGTERM arrives — this becomes one branch of a top-level <code>tokio::select!</code>.
+        <strong>2. Broadcast the shutdown signal:</strong> use <strong><code>tokio::sync::watch</code></strong>
+        (a single-value, "latest wins" channel good for broadcasting a boolean "shutting down" flag to many
+        listeners) or a <strong><code>CancellationToken</code></strong> (from <code>tokio_util</code>) — every
+        long-running task holds a clone and checks/selects on it, e.g. inside a request-handling loop:
+        <code>tokio::select! { _ = token.cancelled() =&gt; break, req = accept_next() =&gt; handle(req) }</code>.
+        <strong>3. Stop accepting new work</strong> immediately on shutdown signal — close the listening socket /
+        stop pulling new items off the intake queue — while letting in-flight requests finish.
+        <strong>4. Track in-flight work</strong> — a common pattern is an <code>Arc</code>'d counter (or a
+        <code>tokio::sync::Semaphore</code>'s permit count, or a <code>JoinSet</code> tracking all spawned request
+        -handler tasks) that lets the shutdown routine <code>await</code> until all in-flight work has genuinely
+        completed, not just been signalled to stop.
+        <strong>5. Grace period + forceful cutoff:</strong> wrap the drain-wait in
+        <code>tokio::time::timeout(Duration::from_secs(N), drain_future)</code> — if in-flight work hasn't finished
+        within a reasonable grace period, log it and exit anyway rather than hanging indefinitely on shutdown
+        (important for orchestrators like Kubernetes that will SIGKILL after their own grace period regardless).
+        <strong>6. Background tasks last</strong> — only after request-serving tasks have drained, signal
+        background tasks (metrics flush, etc.) to do their final flush and exit; a
+        <strong><code>JoinSet</code></strong> or explicit <code>.await</code> on their handles ensures the process
+        doesn't exit while a final flush is still in flight, losing that data. Mentioning
+        <code>CancellationToken</code>, <code>JoinSet</code>, and a bounded grace period unprompted signals
+        real production experience with this exact problem, which comes up in nearly every non-trivial Tokio
+        service.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">What does <code>#[tokio::main]</code> actually expand to? What's the difference between the multi-thread and current-thread runtime flavors, what does <code>tokio::spawn</code> return, and what does <code>tokio::select!</code> do?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:4px 0;"><span class="cm">// This attribute macro...</span>
+<span class="cm">#[tokio::main]</span>
+<span class="kw">async fn</span> <span class="fn">main</span>() { <span class="fn">run</span>().<span class="fn">await</span>; }
+
+<span class="cm">// ...desugars to roughly this — build a Runtime, then block_on() the async body</span>
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    tokio::runtime::Builder::<span class="fn">new_multi_thread</span>()
+        .<span class="fn">enable_all</span>()
+        .<span class="fn">build</span>()
+        .<span class="fn">unwrap</span>()
+        .<span class="fn">block_on</span>(<span class="kw">async</span> { <span class="fn">run</span>().<span class="fn">await</span>; });
+}</pre>
+        <code>#[tokio::main]</code> is sugar for constructing a <code>tokio::runtime::Runtime</code> and calling
+        its synchronous <strong><code>block_on()</code></strong> — the one place a sync context bridges into the
+        async world by driving a single top-level future to completion, blocking the calling OS thread until it's
+        done. <strong>Runtime flavors:</strong> the default is <strong>multi-thread</strong> — a work-stealing
+        scheduler across a pool of OS worker threads (defaults to the number of CPU cores), which is what lets
+        independent tasks actually run in <em>parallel</em>, not just concurrently. <code>#[tokio::main(flavor =
+        "current_thread")]</code> runs everything on the single thread that called <code>block_on</code> — no
+        parallelism, lower overhead, and the right choice for CLI tools, tests, or anywhere you deliberately don't
+        want a thread pool spun up. <strong><code>tokio::spawn(fut)</code></strong> hands a future to the runtime
+        to run independently and immediately returns a <strong><code>JoinHandle&lt;T&gt;</code></strong> — itself
+        a future that resolves to <code>Result&lt;T, JoinError&gt;</code> when the spawned task finishes (the
+        <code>Result</code> wraps the possibility that the task panicked, which is caught and reported through the
+        handle rather than crashing the whole runtime — one task panicking doesn't take down unrelated tasks).
+        Critically, a spawned task starts running independently even if you never <code>.await</code> its
+        <code>JoinHandle</code> — dropping the handle just means you stop being able to observe its result, it
+        doesn't cancel the task (use <code>handle.abort()</code> for that). <strong><code>tokio::select!</code></strong>
+        polls multiple futures concurrently and proceeds with whichever branch becomes ready <em>first</em>,
+        dropping (cancelling) all the other branches' futures — the standard building block for "whichever
+        happens first: a response, or a timeout" or "handle the next request, or shut down if a cancellation
+        signal fires," and the reason cancellation-safety (Q4) matters so much in practice, since every unselected
+        branch is cancelled mid-flight on every single call.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Describes async fn as compiling to a generated Future state machine, names Pin/poll/Waker</li>
+      <li>Explains exactly why blocking one worker thread starves unrelated tasks, not just "it's slow"</li>
+      <li>Knows when NOT to use tokio::sync::Mutex — short critical sections should stay sync</li>
+      <li>Brings up cancellation safety and drop-based cleanup unprompted</li>
+      <li>Knows spawn() returns a JoinHandle whose Result catches task panics, and that select! cancels the losing branches</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Uses async/await fluently but can't explain what .await desugars to</li>
+      <li>Always reaches for tokio::sync::Mutex without considering a plain std mutex</li>
+      <li>Thinks dropping a JoinHandle cancels the spawned task</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Doesn't know blocking calls inside async fns are a real problem</li>
+      <li>Has never heard of cancellation safety as a concept</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Cancellation safety is the single highest-signal async topic for separating "has shipped Tokio services in
+    production" from "has completed the Tokio tutorial." Almost nobody discovers it from documentation alone —
+    it's learned from a production incident. If a candidate brings it up unprompted, that's a strong positive tell.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 14 · WEB DEVELOPMENT ════════════ -->
+<div class="section" id="t-web">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// Topic 14</div>
+      <div class="sh-title">Web Development</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Name the main Rust web frameworks in common use today and roughly how they differ in philosophy (axum vs actix-web).</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>axum</strong>: built by the Tokio team, on top of <code>tower</code>/<code>hyper</code> — leans
+        heavily on the type system for its "extractor" pattern (handler function parameters are extracted from the
+        request by type — <code>Json&lt;T&gt;</code>, <code>Path&lt;T&gt;</code>, <code>State&lt;T&gt;</code> —
+        rather than an imperative "get param" call), and composes middleware via the generic
+        <code>tower::Layer</code>/<code>Service</code> abstractions shared with the rest of the Tokio ecosystem
+        (meaning gRPC via <code>tonic</code>, load balancers, retries, etc. all interoperate through the same
+        middleware model). No macros required for routing. <strong>actix-web</strong>: older, historically the
+        higher-raw-throughput option in early benchmarks (much less true today), has its own actor-model runtime
+        heritage though modern actix-web is mostly just a fast async framework at this point, uses attribute
+        macros for handlers (<code>#[get("/users/{id}")]</code>) and its own middleware trait rather than
+        <code>tower</code>. <strong>Other notable options:</strong> <code>rocket</code> (very ergonomic,
+        macro-heavy, historically nightly-only though now stable-compatible), <code>warp</code> (filter-based
+        composition, an early influence on axum's design), and <code>poem</code>/<code>salvo</code> as newer
+        entrants. For a new project today, <strong>axum</strong> is the most common default recommendation
+        specifically because of its <code>tower</code> ecosystem interoperability and close alignment with Tokio.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">In axum, what is an "extractor," and why does parameter <strong>order</strong> matter for extractors that consume the request body?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        An <strong>extractor</strong> is any type implementing axum's <code>FromRequest</code> (or
+        <code>FromRequestParts</code>) trait — used as a handler function parameter type, axum automatically
+        constructs it from the incoming request before calling your handler:
+<pre style="margin:6px 0;"><span class="kw">async fn</span> <span class="fn">create_user</span>(
+    <span class="ty">State</span>(pool): <span class="ty">State</span>&lt;<span class="ty">PgPool</span>&gt;,      <span class="cm">// pulls shared state</span>
+    <span class="ty">Path</span>(org_id): <span class="ty">Path</span>&lt;<span class="ty">u64</span>&gt;,        <span class="cm">// pulls a path param</span>
+    <span class="ty">Json</span>(payload): <span class="ty">Json</span>&lt;<span class="ty">CreateUserReq</span>&gt;, <span class="cm">// deserialises the body</span>
+) -&gt; <span class="ty">impl</span> <span class="ty">IntoResponse</span> { <span class="cm">/* ... */</span> }</pre>
+        <strong>Why order matters:</strong> the HTTP request body is a <strong>single-consumption stream</strong> —
+        once something reads it, it's gone. Extractors that need the body (like <code>Json&lt;T&gt;</code>,
+        <code>Bytes</code>, <code>String</code>, or a raw <code>Request</code>) implement
+        <code>FromRequest</code>, which consumes the whole request; extractors that only need metadata (headers,
+        path params, extensions, state) implement the more restrictive <code>FromRequestParts</code>, which only
+        borrows the request's parts, not the body. axum's design constraint (enforced by the trait signatures
+        themselves) is that <strong>at most one body-consuming extractor can appear, and it must be the last
+        parameter</strong> — trying to put <code>Json&lt;T&gt;</code> before a <code>Path&lt;T&gt;</code>
+        parameter is actually fine order-wise since Path doesn't need the body, but you cannot have two separate
+        body-consuming extractors in the same handler, and the compiler enforces the "body extractor must be last"
+        constraint via the trait bounds on the handler-registration machinery — getting this wrong is a compile
+        error, not a runtime surprise, which is a nice example of axum pushing an HTTP-semantics constraint into
+        the type system.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do you implement custom error handling in axum so that your application's error enum automatically converts into an appropriate HTTP response?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Implement axum's <strong><code>IntoResponse</code></strong> trait for your application error type — this
+        is the trait axum uses to turn any handler return value into an actual HTTP response, and handlers are
+        commonly written to return <code>Result&lt;T, AppError&gt;</code> where <code>T: IntoResponse</code>:
+<pre style="margin:4px 0;"><span class="mc">#[derive(thiserror::Error, Debug)]</span>
+<span class="kw">enum</span> <span class="ty">AppError</span> {
+    <span class="mc">#[error("not found")]</span> <span class="ty">NotFound</span>,
+    <span class="mc">#[error("unauthorized")]</span> <span class="ty">Unauthorized</span>,
+    <span class="mc">#[error(transparent)]</span> <span class="ty">Internal</span>(#[from] anyhow::Error),
+}
+
+<span class="kw">impl</span> <span class="ty">IntoResponse</span> <span class="kw">for</span> <span class="ty">AppError</span> {
+    <span class="kw">fn</span> <span class="fn">into_response</span>(<span class="kw">self</span>) -&gt; <span class="ty">Response</span> {
+        <span class="kw">let</span> (status, msg) = <span class="kw">match</span> &amp;<span class="kw">self</span> {
+            <span class="ty">AppError</span>::<span class="ty">NotFound</span>     =&gt; (<span class="ty">StatusCode</span>::<span class="ty">NOT_FOUND</span>, <span class="kw">self</span>.<span class="fn">to_string</span>()),
+            <span class="ty">AppError</span>::<span class="ty">Unauthorized</span> =&gt; (<span class="ty">StatusCode</span>::<span class="ty">UNAUTHORIZED</span>, <span class="kw">self</span>.<span class="fn">to_string</span>()),
+            <span class="ty">AppError</span>::<span class="ty">Internal</span>(e)   =&gt; { tracing::<span class="fn">error!</span>(<span class="mc">%e</span>, <span class="st">"internal error"</span>); (<span class="ty">StatusCode</span>::<span class="ty">INTERNAL_SERVER_ERROR</span>, <span class="st">"internal error"</span>.<span class="fn">into</span>()) }
+        };
+        (status, <span class="ty">Json</span>(<span class="fn">json!</span>({ <span class="st">"error"</span>: msg }))).<span class="fn">into_response</span>()
+    }
+}</pre>
+        The key design points worth calling out: (1) <strong>never leak internal error details to the client</strong>
+        for the internal/500 case — log the real error server-side with full detail (via <code>tracing</code>),
+        return a generic message externally; (2) the <code>?</code> operator now works seamlessly in handlers
+        thanks to the <code>#[from]</code> conversion, so a handler calling a fallible database function just
+        writes <code>let user = get_user(id).await?;</code> and the whole error-to-response pipeline is handled
+        once, centrally, rather than repeated per-handler.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Design middleware for a production axum service that needs: request-id propagation, structured logging, and rate limiting. How do these compose, and in what order should they be layered?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        In axum/tower, middleware is applied via <code>.layer()</code>, and layers wrap <em>outside-in</em> —
+        the <strong>last <code>.layer()</code> call is the outermost</strong>, seeing the request first and the
+        response last.
+        <strong>Order (outermost to innermost):</strong> (1) <strong>Request-ID generation</strong> — must be
+        outermost so every subsequent layer (including logging) can access the ID; typically implemented via
+        <code>tower_http::request_id::SetRequestIdLayer</code> plus a matching
+        <code>PropagateRequestIdLayer</code> to echo it back in the response headers. (2) <strong>Tracing/structured
+        logging span</strong> — <code>tower_http::trace::TraceLayer</code>, configured to pull the request ID into
+        every log line's structured fields (via <code>tracing</code> spans) for the rest of the request's
+        lifetime — this needs to wrap everything downstream so it can measure total latency and capture the final
+        response status. (3) <strong>Rate limiting</strong> — placed <em>after</em> logging so rate-limited (429)
+        responses are still logged with full context, but before the actual handler/business logic so limited
+        requests never reach expensive application code; typically keyed by a header/IP/API key via a custom
+        <code>tower::Layer</code> or the <code>tower_governor</code> crate. <strong>Handler</strong> is innermost.
+        <strong>Cross-cutting concern to raise:</strong> where does rate-limit <em>state</em> live? For a
+        single-instance service, an in-memory sharded counter (e.g. token-bucket per key, similar to the rate
+        -limiter system-design exercise elsewhere in this packet) suffices; for a multi-instance deployment behind
+        a load balancer, the limiter needs to be backed by a shared store (Redis) or you accept per-instance limits
+        that are effectively N× more permissive than intended — a detail worth surfacing proactively rather than
+        waiting to be asked, since it's the kind of thing that quietly breaks in production once the service scales
+        past one instance.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">How would you structure a moderately large axum service's codebase — module boundaries, shared state, and where business logic lives relative to HTTP handlers?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Keep HTTP concerns and business logic in separate layers.</strong> A common, effective structure:
+        <code>handlers/</code> (thin — extract inputs, call into the service layer, map the result/error to an
+        HTTP response; no actual business logic here), <code>services/</code> or <code>domain/</code> (the real
+        logic — validation rules, orchestration across repositories, pure business decisions — deliberately has
+        <strong>no dependency on axum types at all</strong, so it's independently unit-testable and could be
+        reused behind a gRPC or CLI interface without modification), <code>repositories/</code> or
+        <code>storage/</code> (database/external-service access, returning domain-level errors, not raw SQL
+        errors), and a shared <code>AppState</code> struct (holding the DB pool, config, and any shared clients)
+        injected via axum's <code>State</code> extractor. <strong>Why this separation matters concretely:</strong>
+        (1) you can unit test business logic without spinning up an HTTP server or mocking request/response types
+        at all; (2) if the framework changes (axum major version bump, or migrating to a different framework
+        entirely) only the thin handler layer needs rewriting; (3) it keeps the "what does this error mean to an
+        HTTP client" decision (status codes, response shape) cleanly separated from "what does this error mean to
+        the business logic" (retry? escalate? is this even an error or an expected outcome?) — the same layered
+        error-handling design discussed in the error-handling topic. For workspace organisation at real scale,
+        many teams go further and split the domain logic into its own crate within a Cargo workspace, with the
+        axum-based HTTP binary crate depending on it — enforcing the separation at the compiler/dependency-graph
+        level rather than just by convention.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains axum extractors via FromRequest/FromRequestParts and the single-body-consumer constraint</li>
+      <li>Implements IntoResponse correctly, distinguishing client-facing messages from internally-logged detail</li>
+      <li>Reasons about middleware layering order and its outside-in semantics correctly</li>
+      <li>Separates HTTP handlers from business logic as distinct, independently testable layers</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Has used a web framework but can't explain how middleware layering order affects behaviour</li>
+      <li>Puts business logic directly inside handler functions</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Has never used a Rust web framework</li>
+      <li>Returns raw internal error details (e.g. SQL errors) directly to HTTP clients</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    "How would you rate-limit this service if it scales to multiple instances behind a load balancer?" is a
+    great follow-up — many candidates design a correct single-instance rate limiter but don't proactively flag
+    that it silently breaks (becomes N× more permissive) the moment you add a second instance.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 15 · COMMON CRATES & ECOSYSTEM ════════════ -->
+<div class="section" id="t-crate">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// Topic 15</div>
+      <div class="sh-title">Common Crates &amp; Ecosystem</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does <code>serde</code> actually do, and why is <code>#[derive(Serialize, Deserialize)]</code> so much faster at runtime than a typical reflection-based JSON library in other languages?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>serde</strong> ("serialize/deserialize") is a generic serialization <em>framework</em>, deliberately
+        decoupled from any specific data format — the core crate defines the <code>Serialize</code>/
+        <code>Deserialize</code> traits and a generic "data model" both sides agree on; separate crates
+        (<code>serde_json</code>, <code>bincode</code>, <code>serde_yaml</code>, <code>toml</code>, <code>rmp-serde</code>
+        for MessagePack, etc.) implement the actual format encoding/decoding against that shared model — meaning a
+        single <code>#[derive(Serialize, Deserialize)]</code> on your struct works with <em>any</em> supported
+        format with zero extra code. <strong>Why it's fast:</strong> the derive macro generates
+        <strong>ordinary, monomorphised Rust code</strong> at compile time that directly calls
+        <code>serializer.serialize_field(name, &amp;self.field)</code> for each field in sequence — there is
+        <em>no runtime reflection</em> at all (Rust has essentially no runtime type reflection to begin with,
+        unlike Java/Python/Go, which typically use runtime reflection to enumerate a struct's fields when
+        (de)serializing generically). The generated code is exactly what you'd write by hand, and the compiler can
+        inline and optimise it like any other function — this is a major reason Rust JSON (de)serialization
+        consistently benchmarks far ahead of reflection-based libraries in other languages.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What problem does <code>rayon</code> solve, and how does <code>par_iter()</code> relate to the regular <code>Iterator</code> trait? Why is it described as "data parallelism" rather than "task parallelism"?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>rayon</strong> provides effortless <strong>CPU-bound parallel iteration</strong> — converting
+        <code>collection.iter().map(f).sum()</code> into <code>collection.par_iter().map(f).sum()</code>
+        automatically splits the work across a work-stealing thread pool (sized to the number of CPU cores by
+        default), with rayon handling all the chunking, load-balancing, and result-merging internally.
+        <code>ParallelIterator</code> mirrors much of the standard <code>Iterator</code> API surface (map, filter,
+        fold, etc.) but processes items across multiple threads instead of sequentially on one — the mental model
+        shift is small precisely because the API is deliberately familiar. It's <strong>"data parallelism"</strong>
+        because the same operation is applied independently to many pieces of <em>data</em> in parallel (think
+        SIMD-at-the-thread-level) — contrasted with <strong>"task parallelism"</strong> (what Tokio provides),
+        where many <em>different, independent units of work</em> (HTTP requests, background jobs) run concurrently,
+        often I/O-bound and not CPU-bound. The rule of thumb interviewers look for: <strong>rayon for CPU-bound,
+        parallelisable batch computation</strong> (image processing, parsing a large dataset, numerical
+        simulation); <strong>Tokio for I/O-bound concurrency</strong> (many concurrent network connections, most of
+        each task's wall-clock time spent waiting, not computing) — mixing them up, or trying to use rayon for
+        thousands of concurrent network connections, is a common early-career mistake.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is <code>tracing</code> and how does it differ conceptually from the older <code>log</code> crate? What is a "span" and why does it matter for async code specifically?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>log</code></strong> provides simple, flat, leveled log lines (<code>info!()</code>,
+        <code>error!()</code>) with no built-in notion of structure or causality beyond the text of the message
+        itself. <strong><code>tracing</code></strong> generalises this with two key additions: (1)
+        <strong>structured fields</strong> — <code>tracing::info!(user_id = %id, latency_ms = elapsed, "request completed")</code>
+        attaches typed key-value data to each event rather than baking everything into a formatted string,
+        letting downstream log aggregators (e.g. shipping to a JSON-log pipeline) filter/query on those fields
+        directly. (2) <strong><code>Span</code>s</strong> — a span represents a <em>period of time</em> with a
+        beginning and end (e.g. "handling this HTTP request," "processing this batch job"), and events emitted
+        while a span is active are automatically nested/associated with it, forming a call-tree-like structure of
+        context. <strong>Why spans matter specifically for async code:</strong> a single OS thread in an async
+        runtime interleaves work from many concurrently-running tasks — a plain thread-local "current context"
+        approach (which works fine in traditional synchronous, one-task-per-thread systems) breaks down completely,
+        because ten different tasks' log lines could all be interleaved on the same thread. <code>tracing</code>'s
+        spans are explicitly entered/exited around <code>.await</code> points (the <code>#[tracing::instrument]</code>
+        attribute macro automates this for whole functions), so even though the underlying thread is shared across
+        many tasks, each log event is still correctly attributed to the specific request/task span it logically
+        belongs to — this is the foundational piece that makes distributed tracing and per-request log correlation
+        possible in an async service, and it's a problem the older <code>log</code> crate's model has no answer for.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Compare <code>sqlx</code> and <code>diesel</code> as database access approaches for a Rust service. What is compile-time query checking, and what does it actually verify?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>diesel</code></strong>: a full-featured, non-async-native ORM/query-builder — you construct
+        queries using a Rust DSL that mirrors SQL structurally (<code>users.filter(id.eq(5)).select(name)</code>),
+        and diesel's macro system generates a Rust-level schema representation from your database schema, giving
+        strong compile-time type checking of queries built through the DSL. Historically async support was
+        secondary/bolted-on (via <code>diesel-async</code>), which mattered a lot for Tokio-based services.
+        <strong><code>sqlx</code></strong>: async-native from the ground up, and takes a different approach to
+        safety — you write <em>actual SQL strings</em> (not a Rust DSL), but its macros
+        (<code>sqlx::query!</code>, <code>query_as!</code>) connect to a real database <strong>at compile
+        time</strong> (or use an offline-cached schema snapshot in CI, via <code>sqlx-cli prepare</code>, to avoid
+        needing a live DB during every build) and verify the query actually parses, the referenced tables/columns
+        exist, and infers/checks the Rust types of each selected column against your target struct — a typo'd
+        column name or a type mismatch between a SQL column and your Rust struct field becomes a
+        <strong>compile error</strong>, not a runtime panic or silent bug discovered in production. <strong>What
+        it does NOT verify:</strong> query <em>logic</em> correctness (a syntactically valid query that returns
+        the wrong rows compiles fine) and it can't catch issues that only manifest with production data
+        distributions (e.g. a query that's correct but catastrophically slow without an index — that's still a
+        runtime/observability concern, not something the macro checks). <strong>Choice:</strong> sqlx is generally
+        preferred for greenfield async services specifically for that async-native design and because many
+        engineers prefer writing real SQL over learning a DSL; diesel appeals to teams who want the DSL's
+        composability for building complex, programmatically-constructed queries and stronger enforcement of
+        schema consistency across a codebase without needing a live DB connection during compilation.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">A candidate says "I always add <code>anyhow</code>, <code>tokio</code>, <code>serde</code>, and <code>tracing</code> to every new project by default." Evaluate this instinct — when is it right, and when should a senior engineer push back on default crate choices?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The instinct is reasonable as a <em>starting default for a typical async service</em> — these four are
+        genuinely close to universal for that category of project, and reaching for known-good, widely-audited
+        crates instead of reinventing basic infrastructure is generally the right call.
+        <strong>Where a senior engineer should push back on blind defaults:</strong> (1) <strong>anyhow in a
+        library crate</strong> — as covered elsewhere, a published library should generally expose typed errors
+        (thiserror) since downstream consumers need to match on failure modes; pulling in anyhow by default for
+        a crate meant to be a dependency of other crates is often wrong. (2) <strong>tokio in a CLI tool or
+        CPU-bound batch job with no actual concurrent I/O</strong> — pulling in a whole async runtime adds compile
+        time, binary size, and cognitive overhead for a program that's fundamentally synchronous; this is a
+        surprisingly common case of cargo-culting a "modern Rust" stack onto a project that doesn't need it at all.
+        (3) <strong>Compile-time and dependency-tree cost</strong> — every crate added multiplies transitive
+        dependencies and compile time; for a small, latency-sensitive CLI tool, minimal dependencies is a real
+        design goal, and even serde's compile-time cost (proc-macro heavy) is worth questioning if you're only
+        parsing one simple config file (<code>toml_edit</code>'s manual parsing, or a hand-rolled parser, might be
+        genuinely lighter-weight). <strong>The senior framing to state explicitly:</strong> defaults are a
+        reasonable prior, but the actual decision should always be justified by the project's real requirements —
+        "does this project have genuine concurrent I/O" and "will this be depended on by other crates" are the
+        two questions that most often flip the default answer, and being able to articulate that instead of
+        reciting a fixed crate list is the differentiator.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains serde's zero-reflection, compile-time-generated code advantage over other languages</li>
+      <li>Correctly frames rayon as data parallelism vs Tokio's task/IO parallelism</li>
+      <li>Explains tracing spans and why they matter specifically because of async task interleaving</li>
+      <li>Can justify or push back on default crate choices based on project shape, not habit</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Knows the crate names but not the underlying design rationale</li>
+      <li>Uses rayon and Tokio interchangeably without distinguishing CPU-bound vs I/O-bound</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Cannot explain what problem serde/tracing/rayon actually solve beyond "everyone uses them"</li>
+      <li>Adds tokio to every project regardless of whether it does any async I/O</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Being able to name popular crates is table stakes; being able to say "and here's specifically when I would
+    <em>not</em> reach for this one" is what separates memorised ecosystem trivia from genuine engineering
+    judgement — this is a cheap, high-signal question to ask about literally any popular crate.
+  </div>
+</div>

@@ -1,0 +1,29 @@
+slug = "fix-swap-without-swap"
+title = "Fix: swap two Vec elements"
+mode = "fix"
+level = "medium"
+stage = "split-borrows"
+order = 26
+status = "ready"
+tags = ["E0499", "mem::take"]
+teaches = [
+  "`split_at_mut` for two disjoint `&mut`.",
+]
+follow_up = "How does `slice::swap` implement this internally?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "Two live `&mut v[..]` won't compile. Split the slice so each index is in its own half."
+
+[[hints]]
+kind = "edge case"
+text = "`i == j` must be handled before splitting."
+
+[solution]
+explanation = "`slice::swap` does exactly this with raw pointers inside std. Splitting the slice is the safe equivalent."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["swap", "clone"]

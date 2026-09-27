@@ -1,0 +1,27 @@
+slug = "drain-splice-split-off"
+title = "drain, splice and split_off"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 10
+status = "ready"
+tags = ["split_off", "splice"]
+teaches = [
+  "`split_off` moves the tail into a new Vec.",
+  "`splice` replaces a range and returns what it removed.",
+]
+follow_up = "What happens to the Vec if you drop the `Splice` iterator without consuming it?"
+related = ["S6"]
+
+[[hints]]
+kind = "rust"
+text = "`split_off` panics when `at > len`; clamp it."
+
+[[hints]]
+kind = "rust"
+text = "`splice` returns an iterator of the removed items."
+
+[solution]
+explanation = "`splice` shifts the tail once, however long the replacement is. The removed items are yielded as the iterator is consumed, which is why it's collected immediately."
+time = "O(n)"
+space = "O(n)"

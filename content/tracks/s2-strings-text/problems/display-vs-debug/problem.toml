@@ -1,0 +1,35 @@
+slug = "display-vs-debug"
+title = "Display vs Debug"
+mode = "write"
+level = "medium"
+stage = "understand"
+order = 13
+status = "ready"
+tags = ["Display", "f.pad", "Formatter"]
+teaches = [
+  "`Display` is for users, `Debug` for programmers.",
+  "`f.pad` makes your `Display` respect width and alignment.",
+]
+follow_up = "How would you honour `{:.1}` precision for Money without allocating?"
+related = ["L4"]
+
+[[examples]]
+input = "Money { cents: 1234, currency: \"USD\" }"
+output = "\"12.34 USD\""
+
+[[examples]]
+input = "cents: -5"
+output = "\"-0.05 USD\""
+
+[[hints]]
+kind = "rust"
+text = "`write!(f, ...)` ignores the caller's width. `f.pad(s)` applies width, fill and alignment to `s`."
+
+[[hints]]
+kind = "edge case"
+text = "`-5 / 100` is `0`, so the sign must be handled separately. `unsigned_abs` also survives `i64::MIN`."
+
+[solution]
+explanation = "Formatting the whole amount first, then padding once, keeps alignment correct. `unsigned_abs` avoids the overflow `abs()` hits on `i64::MIN`."
+time = "O(1)"
+space = "O(1)"

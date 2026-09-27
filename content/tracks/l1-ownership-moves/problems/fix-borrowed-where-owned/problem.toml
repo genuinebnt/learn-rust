@@ -1,0 +1,26 @@
+slug = "fix-borrowed-where-owned"
+title = "Fix: borrowed where owned was needed"
+mode = "fix"
+level = "easy"
+stage = "passing-values"
+order = 6
+status = "ready"
+tags = ["E0308", "&str to String"]
+teaches = [
+  "A struct that owns its data needs a `String`, not a `&str`.",
+  "`to_string`, `to_owned`, `String::from` and `into` all make the copy.",
+]
+follow_up = "When would you make the constructor take `impl Into<String>`?"
+related = ["S2", "L3"]
+
+[[hints]]
+kind = "rust"
+text = "The field is a `String`, the parameter a `&str`. Something has to make the owned copy."
+
+[solution]
+explanation = "If the struct stored `&str` instead, it would need a lifetime and couldn't outlive its input, which the hidden test relies on."
+time = "O(n)"
+space = "O(n)"
+
+[rules]
+max_changed_lines = 1

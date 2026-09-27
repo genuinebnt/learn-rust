@@ -1,0 +1,27 @@
+slug = "my-result-and-try"
+title = "Build MyResult and a ? macro"
+mode = "write"
+level = "hard"
+stage = "build-it"
+order = 10
+status = "ready"
+tags = ["macro_rules!", "From", "early return"]
+teaches = [
+  "`?` is a match plus an early return plus `From::from` on the error.",
+  "`#[macro_export]` and `$crate` paths.",
+]
+follow_up = "What trait does real `?` use, and why isn't it stable to implement yourself?"
+related = ["L8", "L10"]
+
+[[hints]]
+kind = "approach"
+text = "`?` on `Err(e)` returns `Err(From::from(e))` from the whole function."
+
+[[hints]]
+kind = "rust"
+text = "Inside `macro_rules!`, `return` returns from the function the macro is used in. Name the enum as `$crate::MyResult` so it resolves anywhere."
+
+[solution]
+explanation = "The `From::from` call is what lets `?` convert a library error into your application's error type."
+time = "O(1)"
+space = "O(1)"

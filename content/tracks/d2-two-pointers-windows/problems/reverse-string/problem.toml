@@ -1,0 +1,27 @@
+slug = "reverse-string"
+title = "Reverse a string in place"
+mode = "write"
+level = "easy"
+stage = "two-ends"
+order = 2
+status = "ready"
+tags = ["swap", "two pointers"]
+teaches = [
+  "`slice::swap` with two indices.",
+  "Why a `String` can't be reversed byte by byte, but a `&mut [u8]` can.",
+]
+follow_up = "How would you reverse the characters of a UTF-8 string, and what about grapheme clusters?"
+related = ["S2", "S3"]
+
+[[examples]]
+input = "s = b\"hello\""
+output = "b\"olleh\""
+
+[[hints]]
+kind = "rust"
+text = "`s.swap(i, j)` exchanges two elements of a mutable slice."
+
+[solution]
+explanation = "Bytes are safe to reverse. Reversing a UTF-8 `String` byte by byte would break multi-byte characters, which is why `str` has no in-place reverse."
+time = "O(n)"
+space = "O(1)"

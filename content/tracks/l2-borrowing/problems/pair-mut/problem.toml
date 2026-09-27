@@ -1,0 +1,22 @@
+slug = "pair-mut"
+title = "Two &mut into one slice"
+mode = "write"
+level = "medium"
+stage = "split-borrows"
+order = 24
+status = "ready"
+tags = ["split_at_mut"]
+teaches = [
+  "Two `&mut` into one slice via `split_at_mut`.",
+]
+follow_up = "std has `get_disjoint_mut`. What does it check that this doesn't?"
+related = ["L2", "S3"]
+
+[[hints]]
+kind = "rust"
+text = "Split at the larger index: the smaller one is in the left half, the larger is the first element of the right half."
+
+[solution]
+explanation = "`split_at_mut` gives two borrows that can't overlap; returning them in the caller's order is the last detail."
+time = "O(1)"
+space = "O(1)"

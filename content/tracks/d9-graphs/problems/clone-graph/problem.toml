@@ -1,0 +1,31 @@
+slug = "clone-graph"
+title = "Clone graph"
+mode = "write"
+level = "medium"
+stage = "traversal"
+order = 6
+status = "ready"
+tags = ["Rc<RefCell>", "HashMap", "Blind 75"]
+teaches = [
+  "`Rc::as_ptr` as an identity key.",
+  "Deep-copying shared, cyclic structure.",
+]
+follow_up = "Why does this graph leak when the last outside `Rc` is dropped, and what would you change?"
+related = ["S7", "L7"]
+
+[[hints]]
+kind = "approach"
+text = "Keep a map from each original node to its copy. Create a copy the first time you see a node; after that, reuse it."
+
+[[hints]]
+kind = "rust"
+text = "`Rc::as_ptr(&rc)` is a stable address for the node, usable as a `HashMap` key."
+
+[[hints]]
+kind = "rust"
+text = "Don't hold `borrow_mut()` on a copy while calling `borrow()` on the same copy."
+
+[solution]
+explanation = "The map is what keeps cycles finite and shared nodes shared. Cycles of `Rc` leak when dropped; the arena-allocated graph later in this track avoids that."
+time = "O(V + E)"
+space = "O(V)"

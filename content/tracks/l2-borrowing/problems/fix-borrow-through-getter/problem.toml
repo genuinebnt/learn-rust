@@ -1,0 +1,25 @@
+slug = "fix-borrow-through-getter"
+title = "Fix: borrow through a getter"
+mode = "fix"
+level = "medium"
+stage = "split-borrows"
+order = 28
+status = "ready"
+tags = ["E0502", "getters"]
+teaches = [
+  "Borrow checking is per function: a getter borrows all of `self`.",
+]
+follow_up = "Why can't the borrow checker see through the getter's body?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "`self.items()` borrows all of `self` for as long as the loop runs. What borrows only the `items` field?"
+
+[solution]
+explanation = "Getters hide which field they touch, so the compiler assumes all of `self`. Inside the impl, use the field directly."
+time = "O(n)"
+space = "O(k)"
+
+[rules]
+forbid_methods = ["clone", "to_vec"]

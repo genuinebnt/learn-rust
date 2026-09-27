@@ -1,0 +1,1169 @@
+<!-- ═══════════════════════════════════════════
+     PART: API DESIGN SCENARIOS  (API1 – API10)
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="api-header">
+  <div class="ph-eyebrow">API Design Scenarios · Interviewer Reference</div>
+  <div class="ph-title">API Design for Rust Backends</div>
+  <div class="ph-sub">
+    Discussion-first exercises for Rust backend interviews — axum/tonic handlers, serde contracts, idempotency,
+    auth middleware, and public-API evolution. Give the candidate the prompt, let them ask clarifying questions,
+    then drive with the D-questions. Prefer design reasoning and type sketches over a working service.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-time">10 scenarios · discussion style</span>
+  </div>
+</div>
+
+<!-- ════════════ API1 · REST RESOURCE MODELING ════════════ -->
+<div class="section" id="api1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 01 · 25 min</div>
+      <div class="sh-title">API1 · REST Resource Modeling &amp; URI Design</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-med">Medium</span>
+      <span class="chip">REST</span>
+      <span class="chip">URI design</span>
+      <span class="chip">axum routing</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "You're designing the public HTTP API for a multi-tenant project management product (orgs, projects, tasks,
+      comments, memberships). Walk me through how you'd model resources and URIs, which relationships are
+      nested vs top-level, how you'd name collections and actions that aren't CRUD, and how that maps cleanly
+      onto axum routers and typed path extractors in Rust."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">How do you choose between nested URIs (<code>/orgs/{org_id}/projects/{project_id}/tasks</code>) and flat ones (<code>/tasks/{task_id}</code>)?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Nest when the child is <strong>scoped by and only meaningful under</strong> the parent for list/create —
+        e.g. listing tasks in a project: <code>GET /orgs/{org_id}/projects/{project_id}/tasks</code>. Prefer a
+        <strong>canonical top-level URI for the resource itself</strong> once it has a stable global id:
+        <code>GET /tasks/{task_id}</code> (and optionally keep the nested form as an alias if clients already use
+        it). Deep nesting beyond two levels (<code>.../tasks/{id}/comments/{id}/reactions</code>) becomes painful
+        for clients, caches, and auth checks — flatten leaf resources. Collections are plural nouns
+        (<code>/tasks</code>); path segments are lowercase kebab-case or snake_case and stay consistent across
+        the API. Avoid verbs in paths for CRUD (<code>/createTask</code>); reserve verbs or RPC-style
+        sub-resources for non-CRUD actions (<code>POST /tasks/{id}/assignees</code> or
+        <code>POST /tasks/{id}:archive</code> — pick one convention and stick to it).
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">Model memberships and &quot;add user to project&quot; — is that a resource or an action?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Prefer a <strong>first-class membership (or role-binding) resource</strong>:
+        <code>POST /projects/{project_id}/members</code> with body <code>{ "user_id": "...", "role": "editor" }</code>,
+        <code>GET /projects/{project_id}/members</code>, <code>DELETE /projects/{project_id}/members/{user_id}</code>
+        (or <code>/members/{membership_id}</code> if memberships have their own id). That gives you listability,
+        pagination, auditability, and clear authz ("can manage members"). An RPC-style
+        <code>POST /projects/{id}/addMember</code> works but hides the collection and makes idempotent retries and
+        "list who has access" awkward. Many-to-many relationships almost always want an explicit join resource
+        rather than stuffing arrays into parent PATCH bodies.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">How does this map to axum routers and typed extractors? Sketch a nested router layout.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">use</span> axum::{Router, routing::{get, post}, extract::Path};
+
+<span class="kw">async fn</span> <span class="fn">list_tasks</span>(
+    Path((org_id, project_id)): Path&lt;(Uuid, Uuid)&gt;,
+) -&gt; <span class="ty">Result</span>&lt;Json&lt;Vec&lt;Task&gt;&gt;, ApiError&gt; { <span class="cm">/* ... */</span> }
+
+<span class="kw">fn</span> <span class="fn">app</span>() -&gt; Router {
+    Router::new()
+        .nest(<span class="st">"/orgs/{org_id}/projects/{project_id}"</span>,
+            Router::new()
+                .route(<span class="st">"/tasks"</span>, get(list_tasks).post(create_task)))
+        .route(<span class="st">"/tasks/{task_id}"</span>, get(get_task).patch(update_task))
+}</pre>
+        Use <code>Path&lt;T&gt;</code> with a tuple or a serde-deserializable struct for multi-segment ids; keep
+        <code>org_id</code> in the path (or a tenant middleware) so authorization can verify the project belongs to
+        that org before touching the DB. Nest routers with <code>.nest</code> / <code>.merge</code> so each
+        bounded context owns its routes. Prefer typed newtypes (<code>struct ProjectId(Uuid)</code>) at the domain
+        boundary even if the path extractor starts as <code>Uuid</code>.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">What about filtering, sorting, and partial updates — query params vs body?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Safe, cacheable reads</strong> use query parameters:
+        <code>GET /tasks?status=open&amp;assignee=u_123&amp;sort=-updated_at</code>, extracted with
+        <code>Query&lt;ListTasksParams&gt;</code> and serde field defaults. Keep filter vocabularies documented and
+        reject unknown filter keys in public APIs if you want strict contracts. <strong>Partial updates</strong>
+        use <code>PATCH</code> with a JSON Merge Patch or explicit optional fields
+        (<code>Option&lt;Option&lt;T&gt;&gt;</code> or a custom patch type to distinguish "omit" vs "set null") —
+        not a kitchen-sink <code>PUT</code> that forces full replacement unless the resource is small and
+        replacement is intentional. Avoid encoding complex filters as POST bodies for ordinary lists; reserve
+        <code>POST /tasks/search</code> for truly large or sensitive query payloads.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">Rust callouts — what mistakes show up in axum REST APIs?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Common pitfalls: (1) leaking internal DB ids or composite keys inconsistently; (2) using verbs as path
+        segments for every mutation; (3) nesting so deep that path extractors become 5-tuples; (4) returning
+        different shapes for the same resource from nested vs flat routes; (5) forgetting that
+        <code>Path&lt;(Uuid, Uuid)&gt;</code> order must match the template. Strong candidates mention
+        <strong>stable resource identifiers</strong>, consistent collection naming, and a single canonical GET
+        URI per entity for caching and webhooks.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Separates nested list/create scope from canonical flat resource URIs</li>
+      <li>Models memberships as resources, not verb endpoints</li>
+      <li>Maps cleanly to axum nest/Path/Query with typed ids</li>
+      <li>Has a coherent PATCH vs PUT and query-filter story</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Nests three or more levels without discussing client/auth pain</li>
+      <li>Uses RPC verbs everywhere without justifying why REST resources fail</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Cannot explain plural nouns, id placement, or collection vs instance</li>
+      <li>No plan for authorization scoping via org/project in the path or middleware</li>
+    </ul></div>
+  </div>
+</div>
+
+<!-- ════════════ API2 · PAGINATION ════════════ -->
+<div class="section" id="api2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 02 · 25 min</div>
+      <div class="sh-title">API2 · Pagination — Offset vs Cursor for Large Lists/Feeds</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-med">Medium</span>
+      <span class="chip">pagination</span>
+      <span class="chip">feeds</span>
+      <span class="chip">sqlx</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "Your API must list millions of events / feed items. Design pagination for both an admin table UI (jump to
+      page N, show total counts) and a mobile infinite-scroll feed (stable under inserts). Compare offset and
+      cursor pagination, show response shapes, and sketch how you'd implement cursor pages in Rust with sqlx."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">When is offset pagination acceptable, and what are its failure modes at scale?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Offset (<code>?page=50&amp;per_page=50</code> or <code>?offset=2500&amp;limit=50</code>) is fine for
+        <strong>small/stable result sets</strong>, admin tools, and when clients need "page 7 of 12" with a
+        total count. Failure modes: (1) <code>OFFSET</code> deep pages scan/skip prior rows — cost grows with
+        offset; (2) inserts/deletes while paging cause <strong>duplicates or skipped rows</strong>; (3)
+        <code>COUNT(*)</code> on huge filtered tables is expensive. Cap <code>limit</code> (e.g. max 100),
+        default sensibly, and avoid offering huge offsets on hot public feeds.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">Design a cursor scheme for a feed ordered by <code>(created_at DESC, id DESC)</code>.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Opaque cursor encoding the sort key of the last item, e.g. base64url(JSON
+        <code>{"t":"2024-01-15T12:00:00Z","id":"..."}</code>) or a signed token. Next page query:
+        <code>WHERE (created_at, id) &lt; ($t, $id) ORDER BY created_at DESC, id DESC LIMIT n+1</code>
+        (use the extra row to compute <code>has_more</code>). Always include a unique tie-breaker (<code>id</code>)
+        so equal timestamps don't stall. Return
+        <code>{ "data": [...], "next_cursor": "...", "has_more": true }</code> — not bare arrays. Prefer opaque
+        cursors so you can change encoding without breaking clients; never encourage clients to invent cursors
+        from raw fields unless it's an internal API.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">Sketch Rust request/response types and a sqlx query shape.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">#[derive(Deserialize)]</span>
+<span class="kw">struct</span> <span class="ty">ListParams</span> {
+    #[serde(default = <span class="st">"default_limit"</span>)]
+    limit: <span class="ty">u32</span>,
+    cursor: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt;,
+}
+
+<span class="kw">#[derive(Serialize)]</span>
+<span class="kw">struct</span> <span class="ty">Page</span>&lt;T&gt; {
+    data: <span class="ty">Vec</span>&lt;T&gt;,
+    next_cursor: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt;,
+    has_more: <span class="ty">bool</span>,
+}
+
+<span class="cm">// decode cursor -&gt; (created_at, id); fetch limit+1; encode next from last returned</span>
+<span class="kw">let</span> rows = sqlx::query_as!(Event,
+    <span class="st">r#"SELECT * FROM events
+       WHERE project_id = $1
+         AND (created_at, id) &lt; ($2, $3)
+       ORDER BY created_at DESC, id DESC
+       LIMIT $4"</span>,
+    project_id, t, id, (limit + <span class="nm">1</span>) <span class="kw">as</span> <span class="ty">i64</span>
+).fetch_all(&amp;pool).await?;</pre>
+        Clamp <code>limit</code> in one place. Invalid cursors → <code>400</code> with a clear error code, not a
+        empty 200 that looks like end-of-stream.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">How do totals, bidirectional paging, and real-time inserts change the design?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Feeds usually drop exact totals (or show approximate/"99+" counts). Bidirectional paging needs
+        <code>prev_cursor</code>/<code>next_cursor</code> and carefully defined inequalities for ASC vs DESC.
+        For live feeds, cursor stability under inserts at the head is a strength of keyset pagination — new
+        items appear on a refresh of the first page, not by mutating the current cursor window. If the admin UI
+        truly needs jump-to-page, offer offset only on bounded queries (indexed filters, recent time windows)
+        and document that deep pages are unsupported or slow.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">What do you put in HTTP headers vs JSON body for pagination?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Either is fine if consistent: GitHub-style <code>Link</code> headers, or JSON
+        <code>next_cursor</code> (more common for mobile/SPA clients and easier in axum without custom header
+        plumbing). If using headers, still return a structured body. Expose <code>RateLimit-*</code> separately —
+        don't overload pagination headers. Document whether cursors expire (e.g. signed with TTL) for security
+        on sensitive listings.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Contrasts offset drift/cost vs keyset/cursor stability with a unique sort key</li>
+      <li>Uses opaque cursors, limit clamps, and limit+1 for has_more</li>
+      <li>Picks offset for admin UX and cursors for feeds without being prompted</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Cursor is just an offset integer renamed — misses keyset semantics</li>
+      <li>No tie-breaker when sorting by timestamp alone</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Unbounded limit / no invalid-cursor behavior</li>
+      <li>Assumes COUNT(*) on every feed page at millions of rows</li>
+    </ul></div>
+  </div>
+</div>
+
+<!-- ════════════ API3 · IDEMPOTENCY ════════════ -->
+<div class="section" id="api3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 03 · 30 min</div>
+      <div class="sh-title">API3 · Idempotency Keys for POSTs / Payments</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-hard">Hard</span>
+      <span class="chip">idempotency</span>
+      <span class="chip">payments</span>
+      <span class="chip">exactly-once UX</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "Clients will retry <code>POST /v1/payments</code> on timeouts. Design an idempotency-key mechanism so
+      retries don't double-charge. Cover header contract, storage, in-flight races, response replay, key TTL,
+      and how you'd implement the critical section in a Rust service with Postgres."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">What is the client-facing contract for idempotency keys?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Client sends <code>Idempotency-Key: &lt;client-generated-string&gt;</code> (UUID/ULID) on unsafe methods
+        that create side effects — especially payments and order creation. Same key + same request body → same
+        result (replay stored status/body). Same key + <strong>different body</strong> →
+        <code>409 Conflict</code> (or Stripe-style mismatch error). Keys are scoped per API key / account, not
+        globally across tenants. Document TTL (e.g. 24h), required header on payment routes, and that GET/PUT
+        (already idempotent by HTTP semantics) usually don't need keys. Safe retries: client must reuse the
+        same key for a logical operation.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">How do you store keys and win the in-flight race when two retries hit at once?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Table roughly: <code>(tenant_id, idempotency_key) PK</code>, request hash, status
+        (<code>in_progress | completed | failed</code>, response code/body (or pointer), created_at. Flow:
+        (1) BEGIN; (2) try insert row as <code>in_progress</code>; (3) on unique violation, SELECT and either
+        replay completed response, wait/retry if in_progress, or 409 on hash mismatch; (4) perform payment;
+        (5) store response and mark completed; COMMIT. Use <code>INSERT ... ON CONFLICT</code> or
+        <code>SELECT ... FOR UPDATE</code> so only one request executes the side effect. In-progress timeout:
+        if a worker dies, expire stale <code>in_progress</code> after N seconds and allow retry, or use a lease.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">Sketch the Rust/Postgres critical path.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="cm">// Pseudocode — single transaction owns the side effect</span>
+<span class="kw">let mut</span> tx = pool.begin().await?;
+<span class="kw">let</span> inserted = sqlx::query!(
+    <span class="st">r#"INSERT INTO idempotency_keys (tenant_id, key, request_hash, status)
+       VALUES ($1,$2,$3,'in_progress')
+       ON CONFLICT (tenant_id, key) DO NOTHING"</span>,
+    tenant, key, hash
+).execute(&amp;<span class="kw">mut</span> *tx).await?.rows_affected();
+
+<span class="kw">if</span> inserted == <span class="nm">0</span> {
+    <span class="kw">let</span> row = fetch_for_update(&amp;<span class="kw">mut</span> tx, tenant, key).await?;
+    <span class="kw">if</span> row.request_hash != hash { <span class="kw">return</span> Err(ApiError::IdempotencyMismatch); }
+    <span class="kw">if</span> row.status == <span class="st">"completed"</span> { <span class="kw">return</span> Ok(replay(row)); }
+    <span class="cm">// else: wait, 409 Conflict, or 425/503 with Retry-After</span>
+}
+<span class="kw">let</span> outcome = charge(&amp;<span class="kw">mut</span> tx, body).await?;
+store_completion(&amp;<span class="kw">mut</span> tx, tenant, key, &amp;outcome).await?;
+tx.commit().await?;
+Ok(outcome)</pre>
+        Hash the canonical request (method, path, body). Persist enough of the response to replay bytes/status
+        faithfully — including error responses if the first attempt failed in a non-retryable way (policy choice:
+        some APIs only replay successes and allow retry on failure).
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">What must be idempotent at the payment provider boundary too?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Your DB unique key alone isn't enough if you call Stripe/Adyen after commit or outside the transaction.
+        Pass the provider's idempotency key (often derived from yours) on the outbound charge call, and store the
+        provider payment id locally before confirming success to the client. Pattern: local record in
+        <code>pending</code> → provider call with idempotency → update to <code>succeeded/failed</code>.
+        Timeouts after provider accept need reconciliation jobs, not blind re-POSTs without keys.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">TTL, storage size, and security considerations?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Retain keys long enough for legitimate retries (24–72h for payments; shorter for cheaper POSTs). Cap
+        stored response body size; store large payloads in object storage with a pointer. Keys are secret-ish in
+        that guessing another client's key shouldn't leak responses — always scope by tenant/auth. Rate-limit
+        distinct keys per account to stop table flooding. Don't use monotonically sensitive data as keys.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Covers mismatch-on-body, in-flight race, and response replay</li>
+      <li>Uses DB uniqueness / row locks; mentions provider-side idempotency</li>
+      <li>Defines TTL and tenant scoping without prompting</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Only caches success in a HashMap — no durability across restarts</li>
+      <li>Ignores concurrent duplicate in-flight requests</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Says &quot;just retry POST&quot; with no key — accepts double charge risk</li>
+      <li>Cannot explain why timeouts are the hard case vs clear 500s</li>
+    </ul></div>
+  </div>
+</div>
+
+<!-- ════════════ API4 · ERROR MODEL ════════════ -->
+<div class="section" id="api4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 04 · 25 min</div>
+      <div class="sh-title">API4 · Error Model — problem+json &amp; Typed Enums in axum</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-med">Medium</span>
+      <span class="chip">errors</span>
+      <span class="chip">RFC 7807</span>
+      <span class="chip">axum</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "Design a consistent error model for a public axum API. Cover HTTP status mapping, machine-readable codes,
+      human messages, validation details, and whether you'd use RFC 7807 problem+json. Show a Rust error enum
+      and how it becomes a response via <code>IntoResponse</code>."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">What belongs in a public error response, and what must never leak?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Public body: stable <code>type</code> / <code>code</code>, short <code>title</code>, optional
+        <code>detail</code>, <code>status</code>, optional <code>instance</code> / request id, and structured
+        <code>errors[]</code> for field validation. Never leak: raw SQL, panic messages, filesystem paths,
+        internal service names, or stack traces. Log the full error with <code>request_id</code> server-side;
+        return the same <code>request_id</code> to the client for support. Distinguish <strong>client mistakes</strong>
+        (4xx, actionable codes) from <strong>server faults</strong> (5xx, generic message).
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">RFC 7807 problem+json vs a custom JSON envelope — trade-offs?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        problem+json (<code>application/problem+json</code>) standardizes <code>type</code>, <code>title</code>,
+        <code>status</code>, <code>detail</code>, <code>instance</code> and allows extension members — good for
+        public/partner APIs and HTTP-native tooling. A custom envelope
+        (<code>{ "error": { "code": "...", "message": "...", "details": [] } }</code>) is fine and common for
+        SPAs you control; consistency matters more than the RFC badge. Either way: stable machine codes
+        (<code>task_not_found</code>, <code>idempotency_mismatch</code> that clients can switch on — don't force
+        clients to parse English <code>detail</code> strings.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">Sketch a typed error enum and axum <code>IntoResponse</code> mapping.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">#[derive(Debug, thiserror::Error)]</span>
+<span class="kw">enum</span> <span class="ty">ApiError</span> {
+    #[error(<span class="st">"not found"</span>)]
+    NotFound { resource: &amp;<span class="kw">'static</span> <span class="ty">str</span> },
+    #[error(<span class="st">"validation failed"</span>)]
+    Validation(Vec&lt;FieldError&gt;),
+    #[error(<span class="st">"unauthorized"</span>)]
+    Unauthorized,
+    #[error(<span class="st">"conflict: {0}"</span>)]
+    Conflict(<span class="ty">String</span>),
+    #[error(transparent)]
+    Internal(#[from] anyhow::Error),
+}
+
+<span class="kw">impl</span> IntoResponse <span class="kw">for</span> <span class="ty">ApiError</span> {
+    <span class="kw">fn</span> <span class="fn">into_response</span>(<span class="kw">self</span>) -&gt; <span class="ty">Response</span> {
+        <span class="kw">let</span> (status, code, title, detail, fields) = <span class="kw">match</span> &amp;<span class="kw">self</span> {
+            ApiError::NotFound { .. } =&gt;
+                (StatusCode::NOT_FOUND, <span class="st">"not_found"</span>, <span class="st">"Not Found"</span>, <span class="kw">self</span>.to_string(), <span class="nm">None</span>),
+            ApiError::Validation(f) =&gt;
+                (StatusCode::UNPROCESSABLE_ENTITY, <span class="st">"validation_error"</span>, <span class="st">"Validation Failed"</span>, <span class="st">"..."</span>.into(), <span class="ty">Some</span>(f)),
+            ApiError::Unauthorized =&gt;
+                (StatusCode::UNAUTHORIZED, <span class="st">"unauthorized"</span>, <span class="st">"Unauthorized"</span>, <span class="st">"..."</span>.into(), <span class="nm">None</span>),
+            ApiError::Conflict(d) =&gt;
+                (StatusCode::CONFLICT, <span class="st">"conflict"</span>, <span class="st">"Conflict"</span>, d.clone(), <span class="nm">None</span>),
+            ApiError::Internal(_) =&gt;
+                (StatusCode::INTERNAL_SERVER_ERROR, <span class="st">"internal"</span>, <span class="st">"Internal Error"</span>,
+                 <span class="st">"unexpected error"</span>.into(), <span class="nm">None</span>),
+        };
+        <span class="cm">// log internals for Internal; serialize ProblemBody { type, title, status, detail, code, errors }</span>
+        (status, Json(body)).into_response()
+    }
+}</pre>
+        Handlers return <code>Result&lt;T, ApiError&gt;</code>. Use <code>thiserror</code> for domain errors;
+        map sqlx <code>RowNotFound</code> → <code>NotFound</code> at the edge, not by leaking sqlx types in
+        signatures.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">How do you map validation (serde/validator) and auth failures specifically?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        JSON syntax errors → <code>400</code> with code <code>invalid_json</code>. Schema/field validation →
+        <code>422</code> (or <code>400</code> — pick one, document it) with per-field pointers
+        (<code>/amount</code>, messages, and reason codes. Missing/invalid credentials → <code>401</code>;
+        authenticated but not allowed → <code>403</code> (don't conflate). Rate limits → <code>429</code> +
+        <code>Retry-After</code>. For axum, a custom <code>Rejection</code> handler for
+        <code>Json&lt;T&gt;</code> / <code>Query&lt;T&gt;</code> keeps extractor failures in the same problem+json
+        shape as handler errors.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">Layered errors: domain vs transport — how do you avoid a mega-enum?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Keep domain crates returning rich errors (<code>PaymentError::InsufficientFunds</code>) without HTTP
+        knowledge; at the API layer map with <code>From&lt;PaymentError&gt; for ApiError</code> or explicit
+        <code>map_err</code>. That preserves reusable domain logic for gRPC/workers. Avoid
+        <code>ApiError::Sqlx(sqlx::Error)</code> in the public enum — downcast/map at boundaries. Strong
+        candidates mention stable codes as part of the API version surface (renaming codes is a breaking change).
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Stable machine codes + correct 401/403/404/409/422/429 mapping</li>
+      <li>IntoResponse enum that hides internal error details on 5xx</li>
+      <li>Maps domain errors at the edge; unified rejection handling</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Returns anyhow/string errors directly to clients</li>
+      <li>Uses 500 for not-found or validation failures</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Leaks SQL/panic text in JSON bodies</li>
+      <li>No request id / no distinction between authn and authz failures</li>
+    </ul></div>
+  </div>
+</div>
+
+<!-- ════════════ API5 · VERSIONING ════════════ -->
+<div class="section" id="api5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 05 · 25 min</div>
+      <div class="sh-title">API5 · API Versioning Strategies</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-med">Medium</span>
+      <span class="chip">versioning</span>
+      <span class="chip">compatibility</span>
+      <span class="chip">axum</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "You're about to ship breaking changes to a public REST API consumed by external partners. Walk through
+      versioning strategies (URL path, header, media type), how you'd evolve without a big-bang v2, how axum
+      routing would host two versions, and when you'd refuse to version at all."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">Compare path (<code>/v1/...</code>), header, and Accept media-type versioning.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Path prefix <code>/v1</code></strong> — most common, highly visible, easy to route and document,
+        works in browsers and dumb clients; downside: looks like resources moved. <strong>Header</strong>
+        (<code>X-API-Version: 2024-06-01</code> (Stripe-style dated versions) — keeps URIs stable, supports
+        fine-grained evolution; harder to try in a browser and cache keys must include the header.
+        <strong>Accept</strong> <code>application/vnd.myapp.v2+json</code> — pure REST aesthetics, awkward DX and
+        tooling. Recommendation for partner HTTP APIs: path <code>/v1</code> for major breaks + additive changes
+        in-place; or dated header versions if you need long parallel compatibility like Stripe.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">What changes are additive vs breaking — and how do you avoid v2?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Additive (usually safe): new optional fields, new endpoints, new optional query params, new error codes
+        (if clients ignore unknown). Breaking: remove/rename fields, change types/meaning, make optional fields
+        required, change auth, alter status codes for the same condition, default behavior changes. Prefer
+        <strong>expand/contract</strong>: add <code>display_name</code>, dual-write, deprecate <code>name</code>,
+        remove later with a sunset header (<code>Deprecation</code> / <code>Sunset</code>). Don't bump major
+        versions for every field tweak — versioning is expensive (test matrix, docs, SDKs).
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">How would you host v1 and v2 in axum without duplicating the world?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">fn</span> <span class="fn">app</span>(state: AppState) -&gt; Router {
+    Router::new()
+        .nest(<span class="st">"/v1"</span>, v1::router())
+        .nest(<span class="st">"/v2"</span>, v2::router())
+        .with_state(state)
+}
+
+<span class="cm">// shared domain services; version modules only adapt DTOs + HTTP mapping</span>
+<span class="kw">mod</span> v1 { <span class="cm">/* TaskV1 serde shapes, handlers */</span> }
+<span class="kw">mod</span> v2 { <span class="cm">/* TaskV2 shapes; call same TaskService */</span> }</pre>
+        Keep business logic version-agnostic. Duplicate only request/response DTOs and mapping layers. For small
+        deltas, a single handler with version-aware serializers is possible but gets messy — prefer explicit
+        modules once responses diverge. Integration tests per version; contract tests (schemathesis/pact) on
+        published OpenAPI.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">When should you not version, and how do you sunset v1?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Internal-only APIs behind a BFF you deploy atomically may skip formal versioning and ship breaking
+        changes with the frontend. Mobile/partner APIs need versions because clients aren't updated in lockstep.
+        Sunset: announce, emit <code>Deprecation: true</code> and <code>Sunset: &lt;date&gt;</code>, metrics on
+        v1 traffic, migrate SDKs, then return <code>410 Gone</code> after the date. Overlap period measured in
+        months for external partners.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">Rust-specific callout — serde and versioned DTOs.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Don't reuse one struct for v1 and v2 with a tangle of <code>#[serde(skip)]</code> flags — separate types.
+        Use <code>#[serde(alias = "...")]</code> sparingly for read-compatible renames. For dated versions,
+        middleware can parse the version header into an extension type extracted by handlers. OpenAPI generation
+        (utoipa/aide) should publish distinct specs per major version.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Knows additive vs breaking and expand/contract without always jumping to v2</li>
+      <li>Separates versioned DTOs from shared domain services in axum</li>
+      <li>Has a concrete deprecation/sunset plan</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Only knows URL /v2 and treats every field change as a new version</li>
+      <li>Duplicates entire service crates per version</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>No notion of breaking change — renames fields in place for public clients</li>
+      <li>Cannot explain cache/proxy implications of header versioning</li>
+    </ul></div>
+  </div>
+</div>
+
+<!-- ════════════ API6 · AUTH ════════════ -->
+<div class="section" id="api6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 06 · 30 min</div>
+      <div class="sh-title">API6 · Authn/z — API Keys, JWT/Session, Scopes &amp; Extractors</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-hard">Hard</span>
+      <span class="chip">auth</span>
+      <span class="chip">JWT</span>
+      <span class="chip">middleware</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "Design authentication and authorization for a Rust API that serves first-party web sessions, third-party
+      API keys, and user JWTs with OAuth-like scopes. Explain middleware vs extractors in axum, how you'd
+      represent <code>AuthContext</code>, and how handlers declare required scopes."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">When do you choose API keys vs JWT vs server sessions?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>API keys</strong> — service-to-service / partner automation; long-lived, revocable, stored hashed
+        (like passwords), often paired with coarse scopes and IP allowlists. <strong>JWTs (Bearer)</strong> —
+        stateless access tokens for SPAs/mobile after OAuth/OIDC login; short TTL + refresh tokens; validate
+        signature/issuer/audience/exp. <strong>Server sessions</strong> (cookie + sid in Redis) — first-party
+        browsers where you want instant revoke and no token theft via localStorage; use Secure/HttpOnly/SameSite
+        cookies CSRF-protected for cookie auth. Many products use sessions for the web app and API keys/JWT for
+        programmatic access — don't force one mechanism.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">How should axum middleware and extractors split responsibilities?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Middleware: parse credentials, authenticate identity, attach <code>AuthContext</code> to request
+        extensions (or reject with 401). Extractors: pull <code>AuthContext</code> in handlers and optionally
+        enforce authorization (<code>RequireScope("tasks:write")</code>). Pattern:
+<pre style="margin:6px 0;"><span class="kw">struct</span> <span class="ty">AuthUser</span> { user_id: Uuid, scopes: HashSet&lt;String&gt;, auth_via: AuthVia }
+
+<span class="kw">struct</span> <span class="ty">RequireScope</span>(&amp;<span class="kw">'static</span> <span class="ty">str</span>);
+
+<span class="kw">impl</span>&lt;S&gt; FromRequestParts&lt;S&gt; <span class="kw">for</span> <span class="ty">AuthUser</span> { <span class="cm">/* read extensions; else 401 */</span> }
+
+<span class="kw">async fn</span> <span class="fn">create_task</span>(
+    user: AuthUser,
+    _scope: RequireScope, <span class="cm">// constructed to require "tasks:write"</span>
+    Json(body): Json&lt;CreateTask&gt;,
+) -&gt; <span class="ty">Result</span>&lt;impl IntoResponse, ApiError&gt; { <span class="cm">/* ... */</span> }</pre>
+        Prefer failing closed. Keep JWT validation (jwks cache, clock skew) in one module. Don't do heavy authz
+        (per-resource ACL) only in middleware — middleware lacks path-specific resource ids; do RBAC/scope checks
+        early, ABAC/resource checks in the handler/service after loading the entity.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">How do you store and validate API keys safely?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Show the key once at creation (<code>pk_live_...</code> prefix for environment). Store
+        <strong>only a hash</strong> (HMAC or salted hash); lookup by key id prefix + verify hash. Attach
+        scopes, tenant id, rate-limit tier, and optional expiry. Support rotation (two valid keys during
+        overlap). Never log full keys; redact Authorization headers. Constant-time compare for secrets.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">Scopes vs roles vs resource policies — how do they compose?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Scopes</strong> (OAuth): what the token is allowed to do (<code>tasks:read</code>) — especially
+        for delegated third-party apps. <strong>Roles</strong>: who the user is in a tenant (<code>admin</code>,
+        <code>member</code>). <strong>Resource policy</strong>: whether this user can mutate <em>this</em>
+        project. A request must satisfy all layers: valid authn → scope/role gate → resource membership check.
+        Map scopes to permissions carefully; don't treat JWT <code>role: admin</code> as gospel without
+        server-side checks for sensitive ops if roles can change before token expiry (or keep access tokens short).
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">Common Rust/auth footguns in interviews?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Accepting <code>alg: none</code>, skipping <code>aud</code>/<code>iss</code>, storing JWTs in
+        localStorage without XSS discussion, confusing 401/403, putting shared secrets in the repo, and doing
+        authorization only in the UI. Strong candidates mention tower middleware layering, JWKS caching with
+        tokio, and testing extractors with crafted request parts.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Picks mechanisms by client type; hashed API keys; short-lived JWTs</li>
+      <li>Clear middleware (authn) vs extractor/service (authz) split</li>
+      <li>Scopes + resource checks; 401 vs 403 correct</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>One global &quot;is logged in&quot; middleware with no scope model</li>
+      <li>Stores API keys plaintext in Postgres</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Cannot explain JWT validation claims or session CSRF for cookies</li>
+      <li>Authorizes solely from client-supplied user id in the body</li>
+    </ul></div>
+  </div>
+</div>
+
+<!-- ════════════ API7 · gRPC vs REST vs WS ════════════ -->
+<div class="section" id="api7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 07 · 25 min</div>
+      <div class="sh-title">API7 · gRPC vs REST vs WebSocket — When to Pick Which (tonic)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-med">Medium</span>
+      <span class="chip">gRPC</span>
+      <span class="chip">tonic</span>
+      <span class="chip">WebSocket</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "You're building a platform with a public developer API, internal microservice calls, and a collaborative
+      editor that needs live presence. Choose among REST/JSON (axum), gRPC (tonic), and WebSockets — justify
+      each boundary, and call out Rust/ecosystem trade-offs."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">When is REST/JSON the right default?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Public/partner APIs, browser clients, webhooks to customer endpoints, anything that benefits from HTTP
+        caching, CDNs, easy curl/OpenAPI, and broad client generation. Resource-oriented CRUD maps naturally.
+        Cost: chatty APIs, weaker streaming, looser contracts unless you discipline OpenAPI. For a public
+        developer platform, REST (or REST + optional GraphQL) is usually the exterior façade even if internals
+        are gRPC.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">When do you pick gRPC/tonic for service-to-service?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Internal RPC with <strong>schema-first protobuf contracts</strong>, streaming (server/client/bidi),
+        compact binary payloads, deadlines/cancellations, and polyglot services. tonic gives async Rust
+        stubs/services generated from <code>.proto</code>. Prefer gRPC when many services call each other with
+        strict types and you control both ends. Caveats: browser support needs grpc-web/proxy; human
+        debuggability worse than JSON; load balancers must understand HTTP/2; error model is status codes +
+        rich details, not problem+json.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">When are WebSockets (or SSE) warranted instead?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>WebSockets</strong> — low-latency bidirectional chatter: collaborative editing, games, live
+        agent tooling. <strong>SSE</strong> — server→client streams over plain HTTP (notifications, token
+        streams) when client→server is ordinary REST. Don't use WebSockets for ordinary CRUD; they complicate
+        auth, scaling (sticky sessions or pub/sub fanout), reconnects, and backpressure. In Rust: axum
+        <code>WebSocketUpgrade</code>, or tonic bidi streams for internal realtime between services.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">Sketch a sensible split for this product and a tonic service surface.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Public edge: axum REST (+ API keys, webhooks). Internal: tonic services for billing/search/workflow.
+        Editor clients: WebSocket gateway that talks to a presence service (possibly via gRPC bidi or NATS).
+<pre style="margin:6px 0;"><span class="cm">// proto</span>
+service Tasks {
+  rpc GetTask (GetTaskRequest) returns (Task);
+  rpc ListTasks (ListTasksRequest) returns (stream Task);
+}
+
+<span class="cm">// tonic impl implements Tasks for TaskService</span>
+<span class="kw">#[tonic::async_trait]</span>
+<span class="kw">impl</span> Tasks <span class="kw">for</span> <span class="ty">TaskService</span> {
+    <span class="kw">async fn</span> <span class="fn">get_task</span>(&amp;<span class="kw">self</span>, req: Request&lt;GetTaskRequest&gt;)
+        -&gt; <span class="ty">Result</span>&lt;Response&lt;Task&gt;, Status&gt; { <span class="cm">/* map Auth to Status::unauthenticated */</span> }
+}</pre>
+        Share domain logic; don't let protobuf types permeate your core if you also expose REST — map at edges.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">What operational concerns tip the decision?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Mesh/LB HTTP/2 support, timeout propagation (tonic metadata + contexts), observability (gRPC status vs
+        HTTP), mobile battery/proxies (WS through corp proxies), and team skills (protobuf CI breaking-change
+        detection with buf). Strong candidates mention <strong>BFF</strong>: REST/WS at the edge, gRPC inside.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Clear exterior REST vs interior gRPC vs WS for realtime only</li>
+      <li>Knows tonic/protobuf trade-offs and browser/grpc-web limits</li>
+      <li>Maps domain at edges instead of one transport type everywhere</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Defaults to WebSockets for all APIs</li>
+      <li>Picks gRPC for public partner APIs without a gateway story</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Cannot differentiate request/response streaming needs from CRUD</li>
+      <li>No awareness of HTTP/2 or auth differences across transports</li>
+    </ul></div>
+  </div>
+</div>
+
+<!-- ════════════ API8 · WEBHOOKS ════════════ -->
+<div class="section" id="api8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 08 · 30 min</div>
+      <div class="sh-title">API8 · Webhook Delivery — Signed Payloads, Retries, Ordering</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-hard">Hard</span>
+      <span class="chip">webhooks</span>
+      <span class="chip">retries</span>
+      <span class="chip">signing</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "Design outbound webhooks for domain events (payment.captured, task.updated). Customers register HTTPS
+      endpoints. Cover signing, retry/backoff, ordering guarantees (or lack thereof), deduplication on the
+      receiver side, and how a Rust worker would implement delivery safely."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">What should the webhook HTTP contract look like (headers + body)?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>POST</code> JSON envelope: <code>id</code> (event delivery id), <code>type</code>,
+        <code>created_at</code>, <code>data</code>. Headers: <code>Content-Type: application/json</code>,
+        <code>Webhook-Id</code>, <code>Webhook-Timestamp</code>,
+        <code>Webhook-Signature</code> (e.g. HMAC-SHA256 over <code>timestamp.payload</code>, Svix/Stripe style).
+        Receivers verify signature + timestamp skew (replay protection), then return <code>2xx</code> quickly.
+        Provide a secret per endpoint; support rotation with multiple valid secrets.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">Retry, backoff, and failure isolation — how do you design the delivery system?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Persist outbox events; workers claim deliveries. On non-2xx or timeout: exponential backoff with jitter
+        (e.g. 1m, 5m, 30m, … up to 24h), capped attempts, then mark dead and notify the customer. Isolate per
+        endpoint (one slow customer must not stall the fleet — concurrency limits per destination). Treat
+        <code>410</code>/<code>404</code> as disable-endpoint signals. Idempotency: same <code>Webhook-Id</code>
+        may be redelivered — receivers must dedupe by event id.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">What ordering guarantees do you give, and what do you explicitly not promise?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Usually <strong>at-least-once, mostly ordered per resource, not globally</strong>. Strict total order
+        across all events is expensive and breaks under concurrency/retries. Document: events for the same
+        <code>task_id</code> are best-effort ordered; consumers should use version vectors / <code>updated_at</code>
+        / monotonic <code>resource_version</code> in the payload to apply updates correctly if reordered. Never
+        promise exactly-once delivery over HTTP webhooks — promise idempotent processing instead.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">Sketch Rust delivery + HMAC signing.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">fn</span> <span class="fn">sign</span>(secret: &amp;[u8], timestamp: <span class="ty">i64</span>, body: &amp;[u8]) -&gt; <span class="ty">String</span> {
+    <span class="kw">let mut</span> mac = HmacSha256::new_from_slice(secret).unwrap();
+    mac.update(timestamp.to_string().as_bytes());
+    mac.update(b<span class="st">"."</span>);
+    mac.update(body);
+    <span class="st">format!</span>(<span class="st">"v1={}"</span>, hex::encode(mac.finalize().into_bytes()))
+}
+
+<span class="cm">// worker: claim row -&gt; reqwest POST with timeout -&gt; update attempt / next_run_at</span>
+<span class="cm">// use outbox table written in the same DB transaction as the domain event</span></pre>
+        Transactional outbox avoids "DB committed but webhook never enqueued." SSRF: validate customer URLs
+        (HTTPS only, block link-local/metadata IPs) when they register endpoints.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">How do customers verify and debug deliveries?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Offer a delivery log UI/API (request headers, response status, next retry time), manual "redeliver,"
+        and signed test pings. Document clock skew tolerance and which signatures to accept during rotation.
+        Rust callout: never use <code>String</code> compare for MAC equality — use constant-time
+        <code>subtle::ConstantTimeEq</code> on the receiver side examples you publish.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>HMAC + timestamp skew; at-least-once with receiver dedupe</li>
+      <li>Outbox pattern, per-endpoint isolation, backoff with dead-letter</li>
+      <li>Honest about ordering limits; mentions SSRF on endpoint URLs</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Retries in-process without persistence</li>
+      <li>Promises exactly-once or global ordering over webhooks</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Unsigned callbacks; no replay protection</li>
+      <li>Fire-and-forget HTTP from the request thread with no retry plan</li>
+    </ul></div>
+  </div>
+</div>
+
+<!-- ════════════ API9 · RATE LIMITING ════════════ -->
+<div class="section" id="api9">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 09 · 25 min</div>
+      <div class="sh-title">API9 · Rate Limiting &amp; Quotas at the API Edge</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-med">Medium</span>
+      <span class="chip">rate limiting</span>
+      <span class="chip">token bucket</span>
+      <span class="chip">quotas</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "Design rate limiting and quotas for a multi-tenant public API. Tie your answer to token-bucket semantics,
+      explain response headers and <code>429</code> behavior, distinguish burst vs sustained vs monthly quotas,
+      and describe where enforcement lives in a Rust axum edge (and when Redis is required)."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">How do token buckets express API rate limits, and what headers do clients see?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Each tenant/API key has a bucket: capacity = burst, refill rate = sustained rps (or rpm). Each request
+        costs one token (or a weighted cost for expensive search endpoints). On success/failure of the limit
+        check, return headers such as <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>,
+        <code>RateLimit-Reset</code> (IETF draft style) or legacy <code>X-RateLimit-*</code>. When empty →
+        <code>429 Too Many Requests</code> with <code>Retry-After</code> and a stable error code
+        <code>rate_limit_exceeded</code>. Token bucket allows short bursts (good DX) while enforcing average rate —
+        call out fixed-window boundary burst as the reason you didn't pick naïve per-second counters.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">Rate limits vs quotas — how do they differ in product semantics?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Rate limits</strong> protect the system (per-second/minute abuse and fairness).
+        <strong>Quotas</strong> are billing/product entitlements (10k jobs/month, 5 seats). Quotas are usually
+        counted durably (Postgres/billing meter) and may return <code>402</code>/<code>403</code>/<code>429</code>
+        depending on product language; rate limits are hot-path and often approximate. Design both: a customer
+        can be within monthly quota but still 429 on burst, or pass rate limits but exhaust monthly quota.
+        Weight expensive routes (e.g. export costs 10 tokens).
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">Where do you enforce in axum, and when is Redis mandatory?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Tower middleware / early layer after auth (keyed by API key or user id, not raw IP alone for authenticated
+        APIs — IP still useful for anonymous/login endpoints). Single instance: in-memory sharded map of buckets
+        (DashMap + atomic bucket, as in SD1). Multiple instances: <strong>Redis</strong> (Lua token bucket) or
+        Envoy/API gateway limits, else each replica allows the full rate. Local memory as a cache in front of
+        Redis can cut latency with slight over-admit risk. Rust: keep the limiter async-friendly; don't hold
+        a std mutex across await points.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">How do you rate-limit fairly across tenants and protect expensive endpoints?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Per-key buckets with plan tiers (free/pro). Separate buckets for write vs read if needed. Global
+        shedder for overload (load shedding) distinct from per-tenant fairness. Cost-based limiting for search/
+        report endpoints. Return which limit was hit in the error body. Consider concurrent request limits
+        (semaphore per key) in addition to rate — slow requests can exhaust workers without exceeding rps.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">Testing and observability callouts?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Deterministic clock injection for bucket refill tests; metrics: <code>rate_limit_rejections_total{tier,route}</code>;
+        structured logs with key id hash. Document limits in OpenAPI. Shadow-mode (log would-reject) before
+        enforcing new limits. Strong candidates connect this discussion back to the token-bucket system-design
+        exercise explicitly.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Token bucket for burst+sustained; correct 429 + Retry-After + headers</li>
+      <li>Separates rate limits from monthly quotas; weighted costs</li>
+      <li>Calls out multi-instance Redis/gateway requirement</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Only IP throttling for authenticated APIs</li>
+      <li>In-memory limiter with no horizontal scaling story</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Drops requests without 429 semantics or client guidance</li>
+      <li>Cannot explain why fixed windows allow 2x burst at boundaries</li>
+    </ul></div>
+  </div>
+</div>
+
+<!-- ════════════ API10 · COMPATIBILITY &amp; SCHEMA EVOLUTION ════════════ -->
+<div class="section" id="api10">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// API Design 10 · 25 min</div>
+      <div class="sh-title">API10 · Public API Compatibility &amp; Schema Evolution</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip chip-med">Medium</span>
+      <span class="chip">serde</span>
+      <span class="chip">compatibility</span>
+      <span class="chip">schema evolution</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Prompt</div>
+    <div class="note">
+      "Your public JSON API must evolve for years without breaking SDKs. Discuss compatibility rules, OpenAPI as
+      a contract, and the serde trade-off of <code>deny_unknown_fields</code> on request vs response types —
+      including how that choice affects forward/backward compatibility for clients and servers."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--c-web)"></span>Discussion — sub-questions &amp; model answers</div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">What are the golden rules of JSON API compatibility?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Servers should accept older clients (backward compatible reads of requests) and clients should tolerate
+        newer servers (ignore unknown response fields). Safe server changes: add optional request fields with
+        defaults, add response fields, add new endpoints. Unsafe: remove fields, change types/meaning, make
+        optional required, change defaults that alter behavior, reuse URLs with different semantics. Enum
+        evolution: add enum variants carefully — old clients may break if they exhaustively match; prefer
+        open enums / <code>unknown</code> fallbacks in SDKs. Document compatibility explicitly in the API
+        guidelines and enforce via OpenAPI diff CI (breaking-change detectors).
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">Explain <code>deny_unknown_fields</code> on request DTOs — when is it good or harmful?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">#[derive(Deserialize)]</span>
+#[serde(deny_unknown_fields)]
+<span class="kw">struct</span> <span class="ty">CreateTaskRequest</span> {
+    title: <span class="ty">String</span>,
+    #[serde(default)]
+    priority: Priority,
+}</pre>
+        <strong>On server request types:</strong> rejecting unknown fields catches client typos and prevents
+        silent ignore of fields the client thinks are honored — great for internal/strict APIs. <strong>Harm
+        for public evolving APIs:</strong> if you later add an optional field and an old server build is still
+        running, a new client sending that field gets <code>400</code> — you break forward-compatible rollout
+        (new clients talking to old servers). For public APIs, many teams <em>do not</em>
+        <code>deny_unknown_fields</code> on requests so unknown fields are ignored (Protobuf-style tolerance),
+        and rely on docs/SDK generation for correctness. Alternatively, deny unknowns only in test/staging or
+        on explicitly versioned strict content types.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">What about response deserialization in Rust SDKs / clients?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Client response structs should <strong>not</strong> use <code>deny_unknown_fields</code> — servers must
+        be able to add fields without breaking old SDKs. Default serde ignores unknown fields, which is what
+        you want for responses. Use <code>#[serde(default)]</code> for new optional fields when reading older
+        responses. For truly closed enums from the server, include an <code>#[serde(other)] Unknown</code>
+        variant so new variants don't fail deserialize. Mirror this guidance in generated clients.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">How do you evolve fields in practice (rename, optional→required, type change)?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Rename: publish both fields for a deprecation window (<code>#[serde(alias = "old_name")]</code> on
+        deserialize; serialize both or only the new name with docs). Optional→required: only after metrics show
+        all clients send it, or introduce a new version. Type change: add a new field (<code>amount_cents</code>)
+        rather than changing <code>amount</code> from float to int; dual-read, then sunset. Nullability changes
+        are breaking. Prefer additive DTOs and expand/contract migrations over in-place semantic shifts.
+      </div></div>
+    </div>
+
+    <div class="qa-block">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">Contract testing / OpenAPI — what does &quot;done&quot; look like in a Rust shop?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Generated OpenAPI from utoipa/aide (or hand-maintained with CI drift checks) is the source of truth for
+        public shape. Breaking-change CI fails PRs that remove fields or change types. Pact/schemathesis or
+        golden JSON fixtures catch serde mismatches. Document the unknown-field policy explicitly so SDK authors
+        and server authors don't disagree. Strong signal: articulating that
+        <code>deny_unknown_fields</code> is a <em>compatibility policy knob</em>, not just a validation nicety.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>States ignore-unknown-on-responses; nuanced deny_unknown_fields on requests</li>
+      <li>Expand/contract for renames and type changes; open enums in SDKs</li>
+      <li>Ties OpenAPI/CI breaking-change detection to the policy</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Enables deny_unknown_fields everywhere without rollout implications</li>
+      <li>Renames fields in place and calls it compatible because &quot;it's better&quot;</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Believes adding response fields always requires a major version</li>
+      <li>Uses deny_unknown_fields on client response types — guaranteed breakages</li>
+    </ul></div>
+  </div>
+</div>

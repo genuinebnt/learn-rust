@@ -1,0 +1,30 @@
+slug = "fix-a-mut-self-borrows-forever"
+title = "Fix: &'a mut self borrows forever"
+mode = "fix"
+level = "medium"
+stage = "two-lifetimes"
+order = 12
+status = "ready"
+tags = ["&'a mut self", "E0499"]
+teaches = [
+  "Never write `&'a mut self` with the struct's own `'a`.",
+  "Outputs can use `'a` while `self` is borrowed briefly.",
+]
+follow_up = "Why does `&'a self` (shared) cause much less trouble than `&'a mut self`?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "`&'a mut self` borrows the Reader mutably for all of `'a`, the lifetime of the data, so the first call locks it for good."
+
+[[hints]]
+kind = "rust"
+text = "The chunk comes from `data: &'a [u8]`, not from `self`. The `&mut self` borrow can be short."
+
+[solution]
+explanation = "Tying `&mut self` to the struct's own lifetime parameter is a classic trap: it compiles, and the struct becomes unusable after one call. The output lifetime `'a` alone says where the bytes come from."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 1

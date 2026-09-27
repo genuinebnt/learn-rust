@@ -1,0 +1,29 @@
+[package]
+name = "anneal-api"
+description = "HTTP API for anneal: content, runs, hints and progress"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anneal-content.workspace = true
+anneal-runner.workspace = true
+anneal-rules.workspace = true
+anyhow.workspace = true
+axum = { version = "0.8", features = ["ws"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros", "chrono", "json"] }
+thiserror.workspace = true
+tokio.workspace = true
+tower-http = { version = "0.6", features = ["fs", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+futures-util = "0.3"
+tokio-tungstenite = "0.28"
+http-body-util = "0.1"
+tower = { version = "0.5", features = ["util"] }

@@ -1,0 +1,35 @@
+slug = "isomorphic-strings"
+title = "Isomorphic strings"
+mode = "write"
+level = "easy"
+stage = "counting"
+order = 9
+status = "ready"
+tags = ["HashMap", "bytes"]
+teaches = [
+  "A mapping must be one-to-one both ways, so check both directions.",
+  "`[Option<u8>; 256]` as a byte-to-byte map.",
+]
+follow_up = "How would you group a list of words into isomorphism classes?"
+related = ["S4", "S2"]
+
+[[examples]]
+input = "s = \"egg\", t = \"add\""
+output = "true"
+
+[[examples]]
+input = "s = \"foo\", t = \"bar\""
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "Record s→t and t→s. A clash in either direction means no."
+
+[[hints]]
+kind = "rust"
+text = "Bytes index a `[Option<u8>; 256]` directly; no hashing needed."
+
+[solution]
+explanation = "One map alone misses `ab` → `aa`, where two letters map to the same one. The reverse map catches it."
+time = "O(n)"
+space = "O(1)"

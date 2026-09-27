@@ -1,0 +1,30 @@
+slug = "fix-get-or-insert"
+title = "Fix: get-or-insert without the entry API"
+mode = "fix"
+level = "hard"
+stage = "borrow-checker-limits"
+order = 29
+status = "ready"
+tags = ["NLL case 3", "E0502"]
+teaches = [
+  "NLL problem case 3: a conditionally returned borrow is live on every path.",
+  "Restructure so the check returns a value, not a reference.",
+]
+follow_up = "Why does the entry API avoid this problem entirely?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "Returning `v` from inside the `if let` makes the borrow last for `'m` on every path, including the one that inserts."
+
+[[hints]]
+kind = "approach"
+text = "Check with something that returns a `bool`, not a reference, then look the key up once more."
+
+[solution]
+explanation = "This is NLL \"problem case #3\": conditionally returning a borrow extends it to the whole function. Polonius, the next borrow checker, accepts the original. The fix costs one extra lookup."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["entry", "clone"]

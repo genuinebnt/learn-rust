@@ -1,0 +1,31 @@
+code = "L3"
+name = "Lifetimes"
+section = "L"
+tier = "core"
+order = 3
+summary = "Lifetimes say what a reference borrows from. Most of the work is choosing which input an output is tied to."
+
+[[stages]]
+slug = "elision"
+name = "Elision"
+band = "easy"
+
+[[stages]]
+slug = "structs-holding-refs"
+name = "Structs holding refs"
+band = "easy"
+
+[[stages]]
+slug = "two-lifetimes"
+name = "Two lifetimes"
+band = "medium"
+
+[[stages]]
+slug = "static-bounds"
+name = "'static and T: 'a"
+band = "medium"
+
+[[stages]]
+slug = "variance-hrtbs"
+name = "Variance & HRTBs"
+band = "hard"

@@ -1,0 +1,31 @@
+slug = "valid-palindrome"
+title = "Valid palindrome"
+mode = "write"
+level = "easy"
+stage = "two-ends"
+order = 1
+status = "ready"
+tags = ["two pointers", "bytes", "Blind 75"]
+teaches = [
+  "Two indices walking inward over `as_bytes()`.",
+  "`is_ascii_alphanumeric` and `eq_ignore_ascii_case` instead of allocating a cleaned copy.",
+]
+follow_up = "What changes if the input is arbitrary Unicode and 'letter' means a Unicode letter?"
+related = ["S2"]
+
+[[examples]]
+input = "s = \"A man, a plan, a canal: Panama\""
+output = "true"
+
+[[hints]]
+kind = "approach"
+text = "Walk one index from each end, skipping characters that don't count."
+
+[[hints]]
+kind = "rust"
+text = "Keep `r` exclusive (compare `b[r - 1]`) so an empty string never underflows."
+
+[solution]
+explanation = "No allocation: the comparison happens on the original bytes. An exclusive right index keeps every subtraction safe."
+time = "O(n)"
+space = "O(1)"

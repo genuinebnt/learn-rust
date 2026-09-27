@@ -1,0 +1,23 @@
+slug = "compare-tags"
+title = "Set operations on tags"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 3
+status = "ready"
+tags = ["HashSet", "intersection"]
+teaches = [
+  "`intersection` and `difference` on `HashSet`.",
+  "Sorting results that come out of a hash set.",
+]
+follow_up = "When would you use `BTreeSet` instead and skip the sort?"
+related = ["D1"]
+
+[[hints]]
+kind = "rust"
+text = "Collect each side into a `HashSet<&str>`, then use `intersection` and `difference`."
+
+[solution]
+explanation = "The set operations return lazy iterators of references; sorting afterwards is what makes the output stable."
+time = "O(n + m + k log k)"
+space = "O(n + m)"

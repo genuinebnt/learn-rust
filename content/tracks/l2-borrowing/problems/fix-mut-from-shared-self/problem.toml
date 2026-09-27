@@ -1,0 +1,26 @@
+slug = "fix-mut-from-shared-self"
+title = "Fix: returning &mut from &self"
+mode = "fix"
+level = "easy"
+stage = "shared-vs-unique"
+order = 3
+status = "ready"
+tags = ["E0596"]
+teaches = [
+  "You can only hand out `&mut` to data you have `&mut` access to.",
+  "The receiver type is part of the API contract.",
+]
+follow_up = "What's the difference between `&mut self` and `mut self` in a method signature?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "You can't get a `&mut` to something through a `&`. What does the method need to take?"
+
+[solution]
+explanation = "A `&mut` out needs a `&mut` in: `&self` promises the method changes nothing."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 1

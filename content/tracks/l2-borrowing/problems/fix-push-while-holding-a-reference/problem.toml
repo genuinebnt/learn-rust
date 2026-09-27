@@ -1,0 +1,31 @@
+slug = "fix-push-while-holding-a-reference"
+title = "Fix: push while holding a reference"
+mode = "fix"
+level = "easy"
+stage = "shared-vs-unique"
+order = 1
+status = "ready"
+tags = ["E0502"]
+teaches = [
+  "A shared borrow into a Vec forbids mutating the Vec until the borrow's last use.",
+  "Copy small values out instead of holding references.",
+]
+follow_up = "Why is holding a reference into a Vec across a push unsound, even if the Vec doesn't reallocate?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "`max` is a reference into `v`, still in use after `push`. A push can reallocate the Vec and leave it dangling."
+
+[[hints]]
+kind = "rust"
+text = "Copy the number out (`copied()`) so nothing borrows `v` across the push."
+
+[solution]
+explanation = "An `i32` is `Copy`, so holding the value instead of `&i32` ends the borrow before the push."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]
+max_changed_lines = 2

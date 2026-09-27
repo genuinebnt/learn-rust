@@ -1,0 +1,25 @@
+slug = "fix-output-borrows-wrong-input"
+title = "Fix: the output borrows the wrong input"
+mode = "fix"
+level = "easy"
+stage = "elision"
+order = 4
+status = "ready"
+tags = ["over-constrained lifetimes"]
+teaches = [
+  "Put a lifetime only on the inputs the output borrows from.",
+]
+follow_up = "What does the signature say to callers, and what does it say to the function body?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "The result is a slice of `line` only. Which parameter does it need to be tied to?"
+
+[solution]
+explanation = "Tying `prefix` to `'a` forces the prefix to live as long as the result. Only list a lifetime on an input when the output really borrows from it."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 1

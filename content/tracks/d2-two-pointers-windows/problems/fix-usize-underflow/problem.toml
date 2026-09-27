@@ -1,0 +1,30 @@
+slug = "fix-usize-underflow"
+title = "Fix: usize underflow on an empty slice"
+mode = "fix"
+level = "easy"
+stage = "two-ends"
+order = 5
+status = "ready"
+tags = ["usize", "checked_sub"]
+teaches = [
+  "`len() - 1` underflows on an empty slice: a panic in debug, a huge index in release.",
+  "`checked_sub` or an exclusive bound avoids it.",
+]
+follow_up = "Why does Rust panic on overflow in debug but wrap in release?"
+related = ["S1", "Y1"]
+
+[[hints]]
+kind = "rust"
+text = "What is `0usize - 1`?"
+
+[[hints]]
+kind = "rust"
+text = "`checked_sub(1)` returns `None` instead of underflowing."
+
+[solution]
+explanation = "`let … else` handles the empty case before the loop. An exclusive right bound (`v[r - 1]`) is the other common fix."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 2

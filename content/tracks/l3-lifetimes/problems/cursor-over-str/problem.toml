@@ -1,0 +1,27 @@
+slug = "cursor-over-str"
+title = "A parser over &str"
+mode = "write"
+level = "easy"
+stage = "structs-holding-refs"
+order = 6
+status = "ready"
+tags = ["struct lifetimes", "&'a str"]
+teaches = [
+  "A struct that borrows its input: `Cursor<'a>`.",
+  "Methods returning `&'a str` instead of `&self`-tied slices.",
+]
+follow_up = "How would you add `peek` without duplicating the parsing code?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "Return `&'a str`, not a borrow of `self`: copy `self.src` (a `&'a str`, which is `Copy`) into a local and slice that."
+
+[[hints]]
+kind = "approach"
+text = "Compute the new position first, and only store it once the token is known to be valid."
+
+[solution]
+explanation = "The struct holds a borrow, so it can't outlive `src`, but the tokens are tied to `'a`, not to the cursor. `trim_start` measures whitespace without allocating."
+time = "O(n) total"
+space = "O(1)"

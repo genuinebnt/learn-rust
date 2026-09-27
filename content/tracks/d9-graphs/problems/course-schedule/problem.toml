@@ -1,0 +1,35 @@
+slug = "course-schedule"
+title = "Course schedule"
+mode = "write"
+level = "medium"
+stage = "topological-sort"
+order = 12
+status = "ready"
+tags = ["Kahn's", "cycle detection", "Blind 75"]
+teaches = [
+  "Kahn's algorithm: repeatedly take nodes with in-degree 0.",
+  "Iterative, so deep chains can't overflow.",
+]
+constraints = ["1 ≤ n ≤ 10⁵", "prereqs.len() ≤ 10⁵"]
+follow_up = "How would you report one actual cycle, not just that one exists?"
+
+[[examples]]
+input = "n = 2, prereqs = [(0, 1)]"
+output = "true"
+
+[[examples]]
+input = "n = 2, prereqs = [(0, 1), (1, 0)]"
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "A course with no unmet prerequisites can be taken now. Taking it may free up others."
+
+[[hints]]
+kind = "approach"
+text = "If you run out of takeable courses before taking all n, the rest are stuck in or behind a cycle."
+
+[solution]
+explanation = "Kahn's algorithm takes each node once and touches each edge once. Unlike recursive DFS with colours, it can't overflow on a 10⁵-long chain."
+time = "O(V + E)"
+space = "O(V + E)"

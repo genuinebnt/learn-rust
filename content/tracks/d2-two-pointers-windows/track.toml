@@ -1,0 +1,26 @@
+code = "D2"
+name = "Two pointers & sliding window"
+section = "D"
+tier = "core"
+order = 2
+summary = "Two indices over a slice, and windows that grow and shrink: O(n) answers to problems that look O(n²)."
+
+[[stages]]
+slug = "two-ends"
+name = "Two ends"
+band = "easy"
+
+[[stages]]
+slug = "pointers"
+name = "Pointers"
+band = "medium"
+
+[[stages]]
+slug = "windows"
+name = "Windows"
+band = "medium"
+
+[[stages]]
+slug = "hard-windows"
+name = "Hard windows"
+band = "hard"

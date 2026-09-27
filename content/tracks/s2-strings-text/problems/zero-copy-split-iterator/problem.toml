@@ -1,0 +1,39 @@
+slug = "zero-copy-split-iterator"
+title = "Zero-copy split iterator"
+mode = "write"
+level = "hard"
+stage = "build"
+order = 17
+status = "ready"
+tags = ["Iterator", "DoubleEndedIterator", "lifetimes"]
+teaches = [
+  "`type Item = &'a str`: items borrow the text, not the iterator.",
+  "Two ends sharing one remaining slice.",
+]
+follow_up = "Generalise the delimiter to any `Pattern`-like trait: what would its methods be?"
+related = ["L3", "L5"]
+
+[[examples]]
+input = "split_on(\"a,b,,c\", ',')"
+output = "[\"a\", \"b\", \"\", \"c\"]"
+
+[[examples]]
+input = "split_on(\"\", ',')"
+output = "[\"\"]"
+
+[[hints]]
+kind = "rust"
+text = "`next` returns `Option<&'a str>`, not a borrow of `self`: slice `rest` (a `&'a str` you copied out), never `self`."
+
+[[hints]]
+kind = "approach"
+text = "`find` for the front, `rfind` for the back. When no delimiter is left, yield all of `rest` and set it to `None`."
+
+[[hints]]
+kind = "edge case"
+text = "Step past the delimiter by `delim.len_utf8()`, not 1."
+
+[solution]
+explanation = "Copying `self.rest` out (it's a `&'a str`, which is `Copy`) is what lets the items outlive the `&mut self` borrow. Using `Option` for 'finished' distinguishes an empty last piece from no piece."
+time = "O(n) total"
+space = "O(1)"

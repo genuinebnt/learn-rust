@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme]{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--grid:oklch(0.205 0.012 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--ok:oklch(0.77 0.13 165);--ok-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--on-acc:oklch(0.17 0.02 255);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--str:oklch(0.79 0.11 160);--num:oklch(0.79 0.11 45);--mac:oklch(0.79 0.09 200);--lt:oklch(0.77 0.12 340);--com:oklch(0.58 0.012 255);--inlay:oklch(0.64 0.012 255);--inlay-bg:oklch(0.235 0.013 255);--sel:oklch(0.76 0.11 55 / 0.07);color-scheme:dark}
+[data-theme=light]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--grid:oklch(0.94 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--ok:oklch(0.52 0.12 165);--ok-bg:oklch(0.52 0.12 165 / 0.10);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--lt:oklch(0.50 0.15 340);--com:oklch(0.56 0.012 255);--inlay:oklch(0.50 0.012 255);--inlay-bg:oklch(0.935 0.005 255);--sel:oklch(0.58 0.13 50 / 0.06);color-scheme:light}
+body{margin:0;background:var(--bg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="width:1440px;height:900px;overflow:hidden;background:var(--bg);color:var(--fg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;display:flex;flex-direction:column">
+
+<header style="height:52px;flex:none;display:flex;align-items:center;gap:36px;padding:0 24px;border-bottom:1px solid var(--line2);background:var(--bg)">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="display:grid;grid-template-columns:repeat(2,5px);gap:2px"><span style="width:5px;height:5px;background:var(--acc)"></span><span style="width:5px;height:5px;background:var(--vio)"></span><span style="width:5px;height:5px;background:var(--grn)"></span><span style="width:5px;height:5px;box-shadow:inset 0 0 0 1px var(--line)"></span></div>
+    <span style="font:500 13px 'JetBrains Mono',monospace;color:var(--fg)">anneal<span style="color:var(--dim)">.genuinebasil.dev</span></span>
+  </div>
+  <nav style="display:flex;align-items:center;gap:22px;font:500 12px 'JetBrains Mono',monospace">
+    <a href="#" style="color:var(--acc);padding:4px 0;box-shadow:inset 0 -1px 0 var(--acc)">Tracks</a>
+    <a href="#" style="color:var(--vio)">Concepts</a>
+    <a href="#" style="color:var(--grn)">Projects</a>
+    <span style="color:var(--line)">|</span>
+    <a href="#" style="color:var(--dim)">Library</a>
+    <a href="#" style="color:var(--dim)">Mock interview</a>
+    <a href="#" style="color:var(--dim)">Readiness</a>
+  </nav>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+    <span style="font:500 11px 'JetBrains Mono',monospace;color:var(--dim);letter-spacing:.12em">READINESS <span style="color:var(--fg)">62%</span></span>
+    <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line2);border-radius:5px"><span style="width:11px;height:11px;border-radius:50%;border:1.5px solid var(--mut);background:linear-gradient(90deg,var(--mut) 50%,transparent 50%)"></span></button>
+    <div style="width:30px;height:30px;border-radius:50%;border:1px solid var(--acc);display:grid;place-items:center;font:600 11px 'JetBrains Mono',monospace;color:var(--acc)">gb</div>
+  </div>
+</header>
+
+<div style="height:44px;flex:none;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid var(--line2);background:var(--panel)">
+  <div style="display:flex;gap:8px;font:500 11px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--dim)"><a href="#" style="color:var(--acc)">DSA PREP</a><span>/</span><a href="#" style="color:var(--dim)">GRAPHS</a><span>/</span><span>04 SHORTEST PATHS</span></div>
+  <div style="width:1px;height:18px;background:var(--line)"></div>
+  <span style="font-weight:600;font-size:15px;letter-spacing:-0.01em">Network delay time</span>
+  <div style="display:flex;gap:6px;font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.04em">
+    <span style="padding:3px 7px;border-radius:3px;background:var(--acc-bg);color:var(--acc)">WRITE IT</span>
+    <span style="padding:2px 7px;border-radius:3px;border:1px solid var(--line);color:var(--mut)">INTERMEDIATE</span>
+    <span style="padding:2px 7px;border-radius:3px;border:1px solid var(--line2);color:var(--dim)">dijkstra</span>
+    <span style="padding:2px 7px;border-radius:3px;border:1px solid var(--line2);color:var(--dim)">BinaryHeap</span>
+    <span style="padding:2px 7px;border-radius:3px;border:1px solid var(--line2);color:var(--dim)">Reverse&lt;T&gt;</span>
+    <span style="padding:2px 7px;border-radius:3px;border:1px solid var(--line2);color:var(--dim)">Option</span>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:18px;font:500 12px 'JetBrains Mono',monospace;color:var(--mut)">
+    <div style="display:flex;align-items:center;gap:10px"><button style="color:var(--dim)">‹</button><span>15 / 32</span><button style="color:var(--dim)">›</button></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid var(--line);border-radius:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--acc)"></span><span style="color:var(--dim);font-size:10.5px;letter-spacing:.06em">INTERVIEW</span><span style="color:var(--fg)">18:42</span></div>
+  </div>
+</div>
+
+<div style="flex:1;min-height:0;display:grid;grid-template-columns:360px minmax(0,1fr) 330px">
+
+  <section style="display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line2);background:var(--panel)">
+    <div style="height:40px;flex:none;display:flex;gap:18px;padding:0 22px;border-bottom:1px solid var(--line2);font-size:13px">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+        <button onClick="{{ t.go }}" style="color:{{ t.color }};border-bottom:2px solid {{ t.border }};margin-bottom:-1px">{{ t.label }}</button>
+      </sc-for>
+    </div>
+    <div style="flex:1;overflow:auto;padding:22px 22px 28px;font-size:13.5px;line-height:1.6;color:var(--mut)">
+
+      <sc-if value="{{ isProblem }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--dim)">PROBLEM 15 · SHORTEST PATHS · 1 OF 6</div>
+          <h2 style="margin:-6px 0 0;font-size:22px;line-height:1.2;font-weight:600;letter-spacing:-0.02em;color:var(--fg)">Network delay time</h2>
+          <p style="margin:0;text-wrap:pretty">A network has <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">n</code> nodes labelled 1 to n and a list of directed, weighted edges <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">times[i] = (u, v, w)</code>: a signal takes <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">w</code> ms to travel from u to v.</p>
+          <p style="margin:0;text-wrap:pretty">A signal is sent from node <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">k</code>. Return how long it takes every node to receive it, or <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">None</code> if some node can't be reached.</p>
+          <div style="padding:12px 14px;background:var(--raise);border-radius:4px;font:400 12px/1.6 'JetBrains Mono',monospace;color:var(--fg);white-space:pre"><span style="color:var(--kw)">pub fn</span> <span style="color:var(--fn)">network_delay</span>(
+    times: &amp;[(<span style="color:var(--ty)">usize</span>, <span style="color:var(--ty)">usize</span>, <span style="color:var(--ty)">u32</span>)],
+    n: <span style="color:var(--ty)">usize</span>,
+    k: <span style="color:var(--ty)">usize</span>,
+) -&gt; <span style="color:var(--ty)">Option</span>&lt;<span style="color:var(--ty)">u32</span>&gt;</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--dim)">EXAMPLE</div>
+            <div style="display:grid;grid-template-columns:64px 1fr;gap:4px 12px;font:400 12px/1.6 'JetBrains Mono',monospace">
+              <span style="color:var(--dim)">times</span><span style="color:var(--fg)">[(2,1,1), (2,3,1), (3,4,1)]</span>
+              <span style="color:var(--dim)">n, k</span><span style="color:var(--fg)">4, 2</span>
+              <span style="color:var(--dim)">returns</span><span style="color:var(--ok)">Some(2)</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--dim)">CONSTRAINTS</div>
+            <div style="font:400 12px/1.8 'JetBrains Mono',monospace;color:var(--mut)">1 ≤ n ≤ 100<br>1 ≤ times.len() ≤ 6000<br>0 ≤ w ≤ 100 · no self-loops</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;padding-top:14px;border-top:1px solid var(--line2)">
+            <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--dim)">WHAT THIS TEACHES</div>
+            <div style="display:flex;gap:10px"><span style="width:5px;height:5px;margin-top:9px;flex:none;background:var(--acc)"></span><span><code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">BinaryHeap</code> is a max-heap; <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">Reverse</code> flips it.</span></div>
+            <div style="display:flex;gap:10px"><span style="width:5px;height:5px;margin-top:9px;flex:none;background:var(--acc)"></span><span>Lazy deletion instead of decrease-key.</span></div>
+            <div style="display:flex;gap:10px"><span style="width:5px;height:5px;margin-top:9px;flex:none;background:var(--acc)"></span><span>Sentinels vs <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">Option</code> at the boundary.</span></div>
+          </div>
+          <div style="padding:12px 14px;border:1px dashed var(--line);border-radius:4px;font-size:13px">
+            <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.08em;color:var(--acc);margin-bottom:4px">INTERVIEW FOLLOW-UP</div>
+            What breaks if weights can be negative, and what would you use instead?
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isHints }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <p style="margin:0 0 4px;font-size:12.5px;color:var(--dim)">Each hint you open marks the problem as assisted and brings its re-solve date forward.</p>
+          <sc-for list="{{ hints }}" as="h" hint-placeholder-count="3">
+            <div style="padding:14px;border-radius:4px;border:1px {{ h.borderStyle }} var(--line);background:{{ h.bg }}">
+              <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--dim);margin-bottom:6px">HINT {{ h.n }} · {{ h.kind }}</div>
+              <sc-if value="{{ h.open }}" hint-placeholder-val="{{ true }}"><div style="color:var(--fg);text-wrap:pretty">{{ h.text }}</div></sc-if>
+              <sc-if value="{{ h.locked }}" hint-placeholder-val="{{ false }}"><button onClick="{{ h.reveal }}" style="font-size:13px;color:var(--acc)">Reveal hint {{ h.n }} →</button></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isSolution }}" hint-placeholder-val="{{ false }}">
+        <sc-if value="{{ solLocked }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:12px;padding:18px;border:1px dashed var(--line);border-radius:4px">
+            <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--dim)">LOCKED · 4 OF 6 TESTS PASSING</div>
+            <div style="color:var(--fg)">The solution opens when every test passes.</div>
+            <div style="font-size:12.5px">Reveal it now and the problem is marked assisted, with a re-solve scheduled in 3 days.</div>
+            <button onClick="{{ revealSol }}" style="align-self:flex-start;padding:7px 12px;border:1px solid var(--line);border-radius:4px;font-size:13px;color:var(--fg)">Reveal anyway</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ solShown }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.08em;color:var(--warn)">REFERENCE SOLUTION · ASSISTED</div>
+            <div style="padding:12px 14px;background:var(--raise);border-radius:4px;font:400 12px/1.65 'JetBrains Mono',monospace;color:var(--fg);white-space:pre"><span style="color:var(--com)">// after the Dijkstra loop</span>
+<span style="color:var(--kw)">let</span> max = *dist[<span style="color:var(--num)">1</span>..].<span style="color:var(--fn)">iter</span>().<span style="color:var(--fn)">max</span>()?;
+(max != <span style="color:var(--ty)">u32</span>::<span style="color:var(--num)">MAX</span>).<span style="color:var(--fn)">then_some</span>(max)</div>
+            <p style="margin:0;text-wrap:pretty"><code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">?</code> covers the empty slice. <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">then_some</code> turns the <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">u32::MAX</code> sentinel back into <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">None</code>, so the sentinel never leaks out of the function.</p>
+            <div style="display:grid;grid-template-columns:70px 1fr;gap:6px 12px;font:400 12px/1.5 'JetBrains Mono',monospace;padding:12px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2)">
+              <span style="color:var(--dim)">time</span><span style="color:var(--fg)">O(E log E)</span>
+              <span style="color:var(--dim)">space</span><span style="color:var(--fg)">O(V + E)</span>
+            </div>
+            <p style="margin:0;font-size:13px;text-wrap:pretty">Stale heap entries are skipped by <code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--fg)">d &gt; dist[u]</code> rather than removed. With negative weights, use Bellman–Ford (problem 17).</p>
+          </div>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{ isConcepts }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <sc-for list="{{ concepts }}" as="c" hint-placeholder-count="4">
+            <a href="#" style="display:flex;flex-direction:column;gap:4px;padding:14px;border:1px solid var(--line2);border-radius:4px;background:var(--bg);color:var(--fg);text-decoration:none">
+              <span style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--dim)">{{ c.meta }}</span>
+              <span style="font-size:14px;font-weight:500">{{ c.title }}</span>
+            </a>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)">
+    <div style="height:40px;flex:none;display:flex;align-items:center;border-bottom:1px solid var(--line2);padding-right:14px">
+      <div style="height:100%;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid var(--line2);background:var(--bg);font:500 12px 'JetBrains Mono',monospace;color:var(--fg);box-shadow:inset 0 2px 0 var(--acc)">src/lib.rs<span style="width:6px;height:6px;border-radius:50%;background:var(--mut)"></span></div>
+      <div style="height:100%;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid var(--line2);font:500 12px 'JetBrains Mono',monospace;color:var(--dim)">tests.rs<span style="font-size:10px;letter-spacing:.06em">READ-ONLY</span></div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:18px;font-size:12.5px;color:var(--mut)">
+        <button onClick="{{ toggleAc }}" style="display:flex;align-items:center;gap:8px">Autocomplete<span style="width:28px;height:16px;border-radius:8px;background:{{ acTrack }};position:relative;transition:background .15s"><span style="position:absolute;top:2px;left:{{ acKnob }};width:12px;height:12px;border-radius:50%;background:var(--bg);transition:left .15s"></span></span></button>
+        <button onClick="{{ toggleRa }}" style="display:flex;align-items:center;gap:8px">rust-analyzer<span style="width:28px;height:16px;border-radius:8px;background:{{ raTrack }};position:relative;transition:background .15s"><span style="position:absolute;top:2px;left:{{ raKnob }};width:12px;height:12px;border-radius:50%;background:var(--bg);transition:left .15s"></span></span></button>
+        <div style="width:1px;height:16px;background:var(--line)"></div>
+        <span style="font:500 11px 'JetBrains Mono',monospace;color:var(--dim)">edition 2021</span>
+        <button style="font:500 11px 'JetBrains Mono',monospace;color:var(--dim)">Reset</button>
+      </div>
+    </div>
+
+    <div style="flex:1;min-height:0;overflow:hidden;padding:12px 0;font:400 12.5px 'JetBrains Mono',monospace;color:var(--fg)">
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">1</span><span style="white-space:pre"><span style="color:var(--kw)">use</span> std::cmp::<span style="color:var(--ty)">Reverse</span>;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">2</span><span style="white-space:pre"><span style="color:var(--kw)">use</span> std::collections::<span style="color:var(--ty)">BinaryHeap</span>;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">3</span></div>
+      <sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><div style="display:flex;height:18px;line-height:18px"><span style="width:64px;flex:none"></span><span style="white-space:pre;font-size:11px;color:var(--dim)">▸ Run 6 tests  |  Debug  |  1 reference</span></div></sc-if>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">4</span><span style="white-space:pre"><span style="color:var(--kw)">pub fn</span> <span style="color:var(--fn)">network_delay</span>(times: &amp;[(<span style="color:var(--ty)">usize</span>, <span style="color:var(--ty)">usize</span>, <span style="color:var(--ty)">u32</span>)], n: <span style="color:var(--ty)">usize</span>, k: <span style="color:var(--ty)">usize</span>) -&gt; <span style="color:var(--ty)">Option</span>&lt;<span style="color:var(--ty)">u32</span>&gt; {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">5</span><span style="white-space:pre">    <span style="color:var(--kw)">let mut</span> adj<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: Vec&lt;Vec&lt;(usize, u32)&gt;&gt;</span></sc-if> = <span style="color:var(--mac)">vec!</span>[<span style="color:var(--ty)">Vec</span>::<span style="color:var(--fn)">new</span>(); n + <span style="color:var(--num)">1</span>];</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">6</span><span style="white-space:pre">    <span style="color:var(--kw)">for</span> &amp;(u, v, w) <span style="color:var(--kw)">in</span> times {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">7</span><span style="white-space:pre">        adj[u].<span style="color:var(--fn)">push</span>((v, w));</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">8</span><span style="white-space:pre">    }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">9</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">10</span><span style="white-space:pre">    <span style="color:var(--kw)">let mut</span> dist<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: Vec&lt;u32&gt;</span></sc-if> = <span style="color:var(--mac)">vec!</span>[<span style="color:var(--ty)">u32</span>::<span style="color:var(--num)">MAX</span>; n + <span style="color:var(--num)">1</span>];</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">11</span><span style="white-space:pre">    <span style="color:var(--kw)">let mut</span> heap<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: BinaryHeap&lt;Reverse&lt;(u32, usize)&gt;&gt;</span></sc-if> = <span style="color:var(--ty)">BinaryHeap</span>::<span style="color:var(--fn)">new</span>();</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">12</span><span style="white-space:pre">    dist[k] = <span style="color:var(--num)">0</span>;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">13</span><span style="white-space:pre">    heap.<span style="color:var(--fn)">push</span>(<span style="color:var(--ty)">Reverse</span>((<span style="color:var(--num)">0</span>, k)));</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">14</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">15</span><span style="white-space:pre">    <span style="color:var(--kw)">while let</span> <span style="color:var(--ty)">Some</span>(<span style="color:var(--ty)">Reverse</span>((d, u))) = heap.<span style="color:var(--fn)">pop</span>() {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">16</span><span style="white-space:pre">        <span style="color:var(--kw)">if</span> d &gt; dist[u] { <span style="color:var(--kw)">continue</span>; }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">17</span><span style="white-space:pre">        <span style="color:var(--kw)">for</span> &amp;(v, w) <span style="color:var(--kw)">in</span> &amp;adj[u] {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">18</span><span style="white-space:pre">            <span style="color:var(--kw)">let</span> nd<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: u32</span></sc-if> = d + w;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">19</span><span style="white-space:pre">            <span style="color:var(--kw)">if</span> nd &lt; dist[v] {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">20</span><span style="white-space:pre">                dist[v] = nd;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">21</span><span style="white-space:pre">                heap.<span style="color:var(--fn)">push</span>(<span style="color:var(--ty)">Reverse</span>((nd, v)));</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">22</span><span style="white-space:pre">            }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">23</span><span style="white-space:pre">        }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">24</span><span style="white-space:pre">    }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">25</span></div>
+      <div style="display:flex;height:21px;line-height:21px;position:relative;background:var(--sel)">
+        <span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--fg)">26</span><span style="white-space:pre">    dist[<span style="color:var(--num)">1</span>..].<span style="color:var(--fn)">iter</span>().<span style="color:var(--fn)">copied</span>().ma</span><span style="width:2px;height:16px;margin-top:2.5px;background:var(--acc)"></span>
+        <sc-if value="{{ popFull }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;top:23px;left:calc(64px + 30ch);display:flex;z-index:2;border:1px solid var(--line);border-radius:5px;background:var(--panel);box-shadow:0 12px 32px oklch(0 0 0 / 0.28);overflow:hidden">
+            <div style="width:300px;padding:4px 0;border-right:1px solid var(--line2)">
+              <sc-for list="{{ completions }}" as="c" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:8px;height:24px;padding:0 10px;background:{{ c.bg }}">
+                  <span style="width:14px;height:14px;flex:none;display:grid;place-items:center;border-radius:2px;background:var(--acc-bg);color:var(--acc);font-size:9.5px">fn</span>
+                  <span><span style="color:var(--acc);font-weight:600">ma</span>{{ c.rest }}</span>
+                  <span style="margin-left:auto;color:var(--dim);font-size:11px;white-space:nowrap">{{ c.sig }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="width:230px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;line-height:1.5;color:var(--mut)">
+              <span style="font:500 11.5px 'JetBrains Mono',monospace;color:var(--fg)">Iterator::max</span>
+              <span style="text-wrap:pretty">Largest element, or <code style="font-family:'JetBrains Mono',monospace;color:var(--fg)">None</code> if the iterator is empty. Ties return the last one.</span>
+              <span style="margin-top:auto;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">↵ accept · ⇥ next · esc</span>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ popBasic }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:23px;left:calc(64px + 30ch);width:260px;z-index:2;border:1px solid var(--line);border-radius:5px;background:var(--panel);box-shadow:0 12px 32px oklch(0 0 0 / 0.28);padding:4px 0">
+            <div style="display:flex;align-items:center;gap:8px;height:24px;padding:0 10px;background:var(--acc-bg)"><span style="width:14px;height:14px;display:grid;place-items:center;border-radius:2px;border:1px solid var(--line);color:var(--dim);font-size:9.5px">ab</span><span><span style="color:var(--acc);font-weight:600">MA</span>X</span><span style="margin-left:auto;color:var(--dim);font-size:11px">buffer word</span></div>
+            <div style="padding:6px 10px 4px;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">rust-analyzer off · words only</div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">27</span><span style="white-space:pre">}</span></div>
+    </div>
+
+    <div style="height:26px;flex:none;display:flex;align-items:center;gap:18px;padding:0 14px;border-top:1px solid var(--line2);background:var(--panel);font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:{{ raDot }}"></span>{{ raStatus }}</span>
+      <span>Ln 26, Col 32</span>
+      <span style="margin-left:auto">rustc 1.84.0 stable</span>
+      <span>clippy on run</span>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--line2);background:var(--panel)">
+    <div style="height:40px;flex:none;display:flex;gap:18px;padding:0 18px;border-bottom:1px solid var(--line2);font-size:13px">
+      <sc-for list="{{ ttabs }}" as="t" hint-placeholder-count="3">
+        <button onClick="{{ t.go }}" style="color:{{ t.color }};border-bottom:2px solid {{ t.border }};margin-bottom:-1px">{{ t.label }}</button>
+      </sc-for>
+    </div>
+    <div style="flex:1;min-height:0;overflow:auto;padding:18px">
+      <sc-if value="{{ isTests }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font-size:22px;font-weight:600;letter-spacing:-0.02em">{{ summary }}</span>
+            <span style="font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">{{ runMeta }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px">
+            <sc-for list="{{ tests }}" as="t" hint-placeholder-count="6"><span style="height:4px;background:{{ t.dot }}"></span></sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column;border-top:1px solid var(--line2)">
+            <sc-for list="{{ tests }}" as="t" hint-placeholder-count="6">
+              <div style="border-bottom:1px solid var(--line2)">
+                <button onClick="{{ t.select }}" style="width:100%;display:flex;align-items:center;gap:10px;height:36px;text-align:left">
+                  <span style="width:8px;height:8px;flex:none;background:{{ t.dot }}"></span>
+                  <span style="font:400 12px 'JetBrains Mono',monospace;color:{{ t.nameColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.n }}</span>
+                  <span style="margin-left:auto;font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">{{ t.right }}</span>
+                </button>
+                <sc-if value="{{ t.open }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin:0 0 12px 18px;padding:10px 12px;background:var(--bg);border-radius:4px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:4px 10px;font:400 11.5px/1.55 'JetBrains Mono',monospace">
+                    <span style="color:var(--dim)">input</span><span style="color:var(--mut)">{{ t.inp }}</span>
+                    <span style="color:var(--dim)">expected</span><span style="color:var(--ok)">{{ t.exp }}</span>
+                    <span style="color:var(--dim)">got</span><span style="color:{{ t.gotColor }}">{{ t.got }}</span>
+                  </div>
+                  <sc-if value="{{ t.nudge }}" hint-placeholder-val="{{ false }}"><div style="margin:-4px 0 12px 18px;font-size:12px;color:var(--mut)">{{ t.nudge }}</div></sc-if>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isCompiler }}" hint-placeholder-val="{{ false }}">
+        <div style="font:400 11.5px/1.7 'JetBrains Mono',monospace;color:var(--mut);white-space:pre-wrap"><span style="color:var(--ok)">   Compiling</span> p15-network-delay v0.1.0
+<span style="color:var(--ok)">    Finished</span> test profile in 1.21s
+<span style="color:var(--ok)">     Running</span> tests.rs
+
+running 6 tests
+test single_node ... <span style="color:var(--ok)">ok</span>
+test chain_of_four ... <span style="color:var(--ok)">ok</span>
+test unreachable_returns_none ... <span style="color:var(--bad)">FAILED</span>
+test zero_weight_edges ... <span style="color:var(--ok)">ok</span>
+test duplicate_edges_takes_min ... <span style="color:var(--ok)">ok</span>
+test hidden::dense_n100 ... <span style="color:var(--bad)">FAILED</span>
+
+<span style="color:var(--warn)">warning</span>: clippy found 0 issues</div>
+      </sc-if>
+      <sc-if value="{{ isOutput }}" hint-placeholder-val="{{ false }}">
+        <div style="font:400 11.5px/1.7 'JetBrains Mono',monospace;color:var(--dim)">No stdout captured. <span style="color:var(--mut)">println!</span> and <span style="color:var(--mut)">dbg!</span> output appears here, grouped by test.</div>
+      </sc-if>
+    </div>
+    <div style="flex:none;display:flex;gap:8px;padding:14px 18px;border-top:1px solid var(--line2)">
+      <button onClick="{{ run }}" style="flex:1;height:36px;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--line);border-radius:4px;font-size:13px;font-weight:500">{{ runLabel }}<span style="font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">⌘↵</span></button>
+      <button style="flex:1;height:36px;border-radius:4px;background:var(--grn);color:var(--on-acc);font-size:13px;font-weight:600">Submit</button>
+    </div>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;}}">
+class Component extends DCLogic {
+  state = { theme: null, tab: 'problem', ac: true, ra: true, ttab: 'tests', sel: 2, running: false, hints: 1, sol: false };
+  componentWillUnmount() { clearTimeout(this.t); }
+  renderVals() {
+    const s = this.state, p = this.props;
+    const theme = s.theme ?? p.theme ?? 'dark';
+    const mkTabs = (defs, key, field) => defs.map(([k, l]) => ({
+      label: l, color: s[key] === k ? 'var(--fg)' : 'var(--dim)', border: s[key] === k ? 'var(--acc)' : 'transparent',
+      go: () => this.setState({ [key]: k })
+    }));
+    const H = [
+      ['APPROACH', 'Single source, non-negative weights: Dijkstra. The answer is the largest of the shortest distances.'],
+      ['RUST', 'BinaryHeap pops the largest item. Push Reverse((dist, node)) so pop() gives the closest node; tuples compare field by field.'],
+      ['EDGE CASE', 'dist starts at u32::MAX. A node still at MAX was never reached, and max() will return it as if it were a real distance.']
+    ];
+    const hints = H.map(([kind, text], i) => ({
+      n: i + 1, kind, text, open: i < s.hints, locked: i === s.hints,
+      borderStyle: i < s.hints ? 'solid' : 'dashed', bg: i < s.hints ? 'var(--bg)' : 'transparent',
+      reveal: () => this.setState({ hints: i + 1 })
+    })).filter((h, i) => i <= s.hints);
+    const T = [
+      { n: 'single_node', st: 'pass', ms: '0.1 ms', inp: 'times = [], n = 1, k = 1', exp: 'Some(0)', got: 'Some(0)' },
+      { n: 'chain_of_four', st: 'pass', ms: '0.2 ms', inp: '[(2,1,1),(2,3,1),(3,4,1)], n = 4, k = 2', exp: 'Some(2)', got: 'Some(2)' },
+      { n: 'unreachable_returns_none', st: 'fail', ms: '0.1 ms', inp: 'times = [(1,2,1)], n = 3, k = 1', exp: 'None', got: 'Some(4294967295)', nudge: 'What does dist[3] hold if node 3 is never reached?' },
+      { n: 'zero_weight_edges', st: 'pass', ms: '0.1 ms', inp: '[(1,2,0),(2,3,0)], n = 3, k = 1', exp: 'Some(0)', got: 'Some(0)' },
+      { n: 'duplicate_edges_takes_min', st: 'pass', ms: '0.2 ms', inp: '[(1,2,9),(1,2,3)], n = 2, k = 1', exp: 'Some(3)', got: 'Some(3)' },
+      { n: 'hidden · dense_n100', st: 'hidden', ms: 'hidden', inp: 'withheld', exp: 'withheld', got: 'wrong answer', nudge: 'Hidden input. Likely the same root cause as a visible failure.' }
+    ];
+    const tests = T.map((t, i) => ({
+      ...t,
+      dot: s.running ? 'var(--line)' : t.st === 'pass' ? 'var(--ok)' : 'var(--bad)',
+      nameColor: t.st === 'pass' ? 'var(--mut)' : 'var(--fg)',
+      right: s.running ? '…' : t.ms,
+      open: !s.running && s.sel === i,
+      gotColor: t.st === 'pass' ? 'var(--ok)' : 'var(--bad)',
+      nudge: t.nudge || '',
+      select: () => this.setState({ sel: s.sel === i ? -1 : i })
+    }));
+    const C = [['max', '() -> Option<Self::Item>', true], ['x_by', '(F) -> Option<..>'], ['x_by_key', '(F) -> Option<..>'], ['p', '(F) -> Map<Self, F>'], ['p_while', '(P) -> MapWhile<..>']];
+    return {
+      theme,
+      toggleTheme: () => this.setState({ theme: theme === 'dark' ? 'light' : 'dark' }),
+      tabs: mkTabs([['problem', 'Problem'], ['hints', `Hints ${s.hints}/3`], ['solution', 'Solution'], ['concepts', 'Concepts']], 'tab'),
+      isProblem: s.tab === 'problem', isHints: s.tab === 'hints', isSolution: s.tab === 'solution', isConcepts: s.tab === 'concepts',
+      hints, solLocked: !s.sol, solShown: s.sol, revealSol: () => this.setState({ sol: true }),
+      concepts: [
+        { meta: 'CONCEPT · COLLECTIONS · 5 DRILLS', title: 'BinaryHeap is a max-heap' },
+        { meta: 'CONCEPT · TRAITS · 8 DRILLS', title: 'Ord for tuples, and Reverse<T>' },
+        { meta: 'CONCEPT · ERROR HANDLING · 6 DRILLS', title: 'Option combinators: ?, then_some, filter' },
+        { meta: 'CONCEPT · OWNERSHIP · 7 DRILLS', title: 'Index-based graphs vs Rc<RefCell<Node>>' }
+      ],
+      ra: s.ra,
+      toggleAc: () => this.setState({ ac: !s.ac }), toggleRa: () => this.setState({ ra: !s.ra }),
+      acTrack: s.ac ? 'var(--acc)' : 'var(--line)', acKnob: s.ac ? '14px' : '2px',
+      raTrack: s.ra ? 'var(--acc)' : 'var(--line)', raKnob: s.ra ? '14px' : '2px',
+      popFull: s.ac && s.ra, popBasic: s.ac && !s.ra,
+      completions: C.map(([rest, sig], i) => ({ rest: rest === 'max' ? 'x' : rest, sig, bg: i === 0 ? 'var(--acc-bg)' : 'transparent' })),
+      raDot: s.ra ? 'var(--ok)' : 'var(--line)',
+      raStatus: s.ra ? 'rust-analyzer ready' : 'rust-analyzer off · errors on run only',
+      ttabs: mkTabs([['tests', 'Tests'], ['compiler', 'Compiler'], ['output', 'Output']], 'ttab'),
+      isTests: s.ttab === 'tests', isCompiler: s.ttab === 'compiler', isOutput: s.ttab === 'output',
+      tests,
+      summary: s.running ? 'Running…' : '4 / 6 passing',
+      runMeta: s.running ? 'cargo test' : 'last run 38s ago · 1.2s',
+      runLabel: s.running ? 'Running…' : 'Run tests',
+      run: () => { if (s.running) return; this.setState({ running: true, ttab: 'tests' }); this.t = setTimeout(() => this.setState({ running: false, sel: 2 }), 1100); }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+slug = "index-by-first-letter"
+title = "Index words by first letter"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 4
+status = "ready"
+tags = ["BTreeMap", "entry API"]
+teaches = [
+  "`BTreeMap` gives sorted keys for free.",
+  "`chars().next()` for the first character.",
+]
+follow_up = "What would you change to index by the first Unicode grapheme instead of the first char?"
+related = ["S2"]
+
+[[hints]]
+kind = "rust"
+text = "`BTreeMap` iterates in key order, so the index comes out alphabetised."
+
+[solution]
+explanation = "Sorting each list once at the end is cheaper than inserting in order."
+time = "O(n log n)"
+space = "O(n)"

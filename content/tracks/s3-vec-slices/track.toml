@@ -1,0 +1,21 @@
+code = "S3"
+name = "Vec & slices"
+section = "S"
+tier = "core"
+order = 3
+summary = "Rust's workhorse collection: the API, its cost model, and building one yourself on a raw allocation."
+
+[[stages]]
+slug = "use-it"
+name = "Use it"
+band = "easy"
+
+[[stages]]
+slug = "understand-it"
+name = "Understand it"
+band = "medium"
+
+[[stages]]
+slug = "build-it"
+name = "Build it"
+band = "hard"

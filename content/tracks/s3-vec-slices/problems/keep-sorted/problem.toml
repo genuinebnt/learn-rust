@@ -1,0 +1,23 @@
+slug = "keep-sorted"
+title = "Keep a Vec sorted with partition_point"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 15
+status = "ready"
+tags = ["partition_point", "binary search"]
+teaches = [
+  "`partition_point` finds the insertion index in O(log n).",
+  "Counting a range with two partition points.",
+]
+follow_up = "When would you switch from a sorted Vec to a BTreeSet?"
+related = ["D4", "S4"]
+
+[[hints]]
+kind = "rust"
+text = "`partition_point(|&y| y < x)` returns the first index where the predicate is false."
+
+[solution]
+explanation = "The search is O(log n), but `insert` still shifts the tail in O(n). For many insertions, a `BTreeSet` is better."
+time = "O(n) insert, O(log n) count"
+space = "O(1)"

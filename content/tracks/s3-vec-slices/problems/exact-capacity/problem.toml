@@ -1,0 +1,32 @@
+slug = "exact-capacity"
+title = "Capacity and reallocation"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 8
+status = "ready"
+tags = ["with_capacity", "String"]
+teaches = [
+  "Pre-sizing a `String` or `Vec` avoids reallocating as it grows.",
+  "Computing the exact final length up front.",
+]
+follow_up = "How much memory does pushing into an empty `String` waste on average?"
+related = ["Y4", "S2"]
+source = "W41"
+
+[[examples]]
+input = "parts = [\"a\", \"bb\", \"ccc\"], sep = \", \""
+output = "\"a, bb, ccc\""
+
+[[hints]]
+kind = "approach"
+text = "Add up the parts' lengths and the separators before building anything."
+
+[[hints]]
+kind = "rust"
+text = "`String::with_capacity(n)`, then `push_str`."
+
+[solution]
+explanation = "One allocation of the exact size. std's `[&str]::join` computes the same total internally."
+time = "O(total length)"
+space = "O(total length)"

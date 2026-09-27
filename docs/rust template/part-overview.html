@@ -1,0 +1,285 @@
+<!-- ═══════════════════════════════════════════
+     PART: OVERVIEW
+     Concept map + How to use + Toolchain notes
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="overview">
+  <div class="ph-eyebrow">Personal Job-Hunt Reference · Senior Rust Engineer Track</div>
+  <div class="ph-title">Senior <em>🦀</em> Rust Engineer — Interview Packet</div>
+  <div class="ph-sub">
+    A comprehensive, self-contained study and interview-prep reference for senior Rust engineering roles.
+    A 21-section "Common Code Patterns" fast-scan cheat sheet (every commonly-used std method, core language
+    mechanics, common traits, and algorithmic idioms — no clicking required), the full 75-problem Blind 75
+    selection solved in idiomatic Rust with per-problem "Rust angle" notes, 22 deep-dive topics, 31 rapid
+    syntax/algorithm drills for practicing without an IDE, 18 design-pattern write exercises, 24 system-design scenarios, a 10-scenario API design track, a 12-topic HLD fundamentals primer, a 12-topic networking deep-dive, a 12-topic OS fundamentals primer, a 12-topic Web3/blockchain backend primer, 8 LLD write exercises, 8 trading-systems LLD exercises, 50 detailed take-home assignment briefs (incl. multi-week portfolio track), 9 bug-find exercises,
+    98 write-from-scratch exercises (including 42 large, 45–90 minute mega exercises — 8 combining heaps,
+    trees, graphs, DP, greedy, matrices, and number theory with generics and iterators; 9 targeting
+    low-latency, database-internals, and compiler engineering; 10 aimed at database-engineering roles at
+    companies like Neon, CockroachDB, and Snowflake; 8 for concurrency &amp; async mastery; and 7 self-contained
+    distributed-systems exercises in the spirit of Fly.io's Gossip Glomers), and a self-assessment scorecard.
+    Every topic includes model answers, an interview-signal guide, and a "senior angle" callout — the
+    follow-up depth that separates mid from senior candidates.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-rust">Rust 2021 / 2024 edition</span>
+    <span class="badge badge-time">21 patterns · 75 blind75 · 22 topics · ~353 trackable</span>
+    <span class="badge badge-time">31 drills · 18 DP · 8 LLD · 24 SD · 10 API · 12 HLD · 12 NET · 12 OS · 12 W3 · 8 TR · 50 TH · 9 bugs · 98 write</span>
+    <button class="print-btn" onclick="window.print()">⎙ Print / PDF</button>
+  </div>
+</div>
+
+<!-- Concept Matrix -->
+<div class="section">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-rust)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-rust)">// Reference</div>
+      <div class="sh-title">Rust Concept Map — Why Each Topic Comes Up</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label" style="color:var(--text-dim)">
+      <span class="cl-pip" style="background:var(--c-rust)"></span>
+      What each topic actually screens for in a senior interview loop
+    </div>
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th style="width:22%">Topic</th>
+          <th style="width:40%">What it really tests</th>
+          <th style="width:38%">Where it shows up in interviews</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-own)">Ownership &amp; borrowing</span></td>
+          <td>Whether you think in terms of aliasing/mutation rules instead of fighting the compiler</td>
+          <td>Live coding — every exercise touches this implicitly</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-life)">Lifetimes</span></td>
+          <td>Can you explain <em>why</em> the compiler rejects code, not just add <code>'a</code> until it compiles</td>
+          <td>"Why won't this compile?" whiteboard questions</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-trait)">Traits &amp; generics</span></td>
+          <td>API design taste — static vs dynamic dispatch, when to use <code>dyn</code>, trait bound design</td>
+          <td>System design + "design this library's public API"</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-smart)">Smart pointers</span></td>
+          <td>Whether you can pick the cheapest correct tool: <code>&amp;T</code> &lt; <code>Box</code> &lt; <code>Rc</code> &lt; <code>Arc</code> &lt; <code>Arc&lt;Mutex&gt;</code></td>
+          <td>Code review questions, "why did you choose Arc here?"</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-thr)">Threading &amp; atomics</span></td>
+          <td>Real concurrency reasoning — not just "add a Mutex", but which primitive and which ordering</td>
+          <td>Senior-specific: race conditions, lock contention, memory ordering</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-async)">Async/Tokio</span></td>
+          <td>Understanding the executor model — cooperative scheduling, why blocking is catastrophic</td>
+          <td>Almost every backend Rust role touches Tokio</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-web)">Web development</span></td>
+          <td>Framework fluency (axum/actix), middleware, extractors, error handling in HTTP handlers</td>
+          <td>Take-home projects, "build a small API" pairing exercises</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-unsafe)">Unsafe &amp; FFI</span></td>
+          <td>Whether you understand the safety contract you're opting out of, not just the syntax</td>
+          <td>Senior/staff bar-raiser rounds; systems-level roles</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-perf)">Memory layout &amp; perf</span></td>
+          <td>Whether you can reason about cache lines, allocation cost, and repr choices under load</td>
+          <td>Performance debugging scenarios, profiling walk-throughs</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-arch)">Architecture &amp; patterns</span></td>
+          <td>Whether you can structure a non-trivial Rust codebase — error types, module boundaries, newtype/typestate</td>
+          <td>System design rounds, "how would you structure this service?"</td>
+        </tr>
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:11px;color:var(--c-sysd)">System design</span></td>
+          <td>End-to-end engineering judgement — trade-offs, back-of-envelope numbers, failure modes</td>
+          <td>The round that actually decides senior vs mid offers</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Level tags -->
+<div class="section" id="levels">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-std)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-std)">// Reference</div>
+      <div class="sh-title">Difficulty Level Tags</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Every question is tagged with a level so you can skip what you already know</div>
+    <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:14px;">
+      Tags appear on each Q&amp;A row. Use the sticky level filter bar at the top of each topic page to
+      show only the questions relevant to you. If you're prepping for a senior loop, skim <strong>Beginner</strong>
+      fast and spend most of your time in <strong>Advanced</strong> and <strong>Senior</strong>.
+    </div>
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th style="width:20%">Tag</th>
+          <th style="width:50%">Meaning</th>
+          <th style="width:30%">Use this to…</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="lvl beg">Beginner</span></td>
+          <td>Core syntax and concepts — should be automatic, no hesitation</td>
+          <td>Sanity-check fundamentals; skip if confident</td>
+        </tr>
+        <tr>
+          <td><span class="lvl int">Intermediate</span></td>
+          <td>Common patterns used daily in production Rust codebases</td>
+          <td>Bread-and-butter mid-level interview material</td>
+        </tr>
+        <tr>
+          <td><span class="lvl adv">Advanced</span></td>
+          <td>Requires understanding mechanism, not just API — the "why", not just the "what"</td>
+          <td>Where most candidates start to show gaps</td>
+        </tr>
+        <tr>
+          <td><span class="lvl sr">Senior</span></td>
+          <td>Trade-off reasoning, edge cases, performance implications, architectural judgement</td>
+          <td>The questions that actually differentiate senior candidates</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- How to use -->
+<div class="section" id="how-to-use">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--text-dim)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--text-dim)">// Guide</div>
+      <div class="sh-title">How to Use This Packet</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Suggested 2-week study plan</div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:6px;">
+      <div style="background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:5px;padding:14px 16px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--c-rust);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Every day · Warm-up drills</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">Before anything else, do 3–5 items from the <strong>Syntax &amp; Algorithm Drills</strong> page — on paper or a bare editor, no IDE/LSP. This is what builds the muscle memory that makes syntax invisible in a live interview.</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:5px;padding:14px 16px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--c-rust);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Days 1–3 · Foundations</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">Topics 01 (Ownership → Lifetimes). Do W1–W3 write exercises. These are the questions that eliminate candidates in the first 10 minutes if shaky.</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:5px;padding:14px 16px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--c-rust);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Days 4–6 · Type system</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">Topics 02 (Traits → Smart Pointers). Do B1, B2, W6. Focus on articulating <em>why</em> you'd choose static vs dynamic dispatch.</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:5px;padding:14px 16px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--c-rust);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Days 7–10 · Concurrency &amp; web</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">Topics 03 (Threading → Crates). Do B3, B6, W4, W5, W7. This is where most Rust job descriptions concentrate — Tokio + web frameworks.</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:5px;padding:14px 16px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--c-rust);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Days 11–13 · Senior + system design</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">Topics 04 + all 18 design-pattern write exercises, 24 system-design scenarios. Practice narrating trade-offs out loud — this is what a staff/senior debrief actually evaluates.</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:5px;padding:14px 16px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--c-rust);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Day 14 · Mock &amp; scorecard</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">Have a friend (or yourself, out loud) run through the bug and write exercises cold. Fill out the self-assessment scorecard honestly — target areas below 3/5.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>How the Q&amp;A widgets work:</strong> click any question row to expand the model answer inline.
+    Bug and write exercises hide their solution key under a collapsible arrow — try to solve it yourself first,
+    then reveal. Use the level filter bar at the top of each topic page to focus your remaining time.
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-pass)"></span>What "senior" answers sound like — regardless of topic</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text);">States the trade-off before being asked.</strong> "I'd use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code> here, but if this becomes a hot path I'd switch to sharding the lock or using an <code>RwLock</code> for read-heavy access."
+      </div>
+      <div style="padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text);">Reasons about failure modes, not just the happy path.</strong> "What happens if this task panics inside a Tokio task? The JoinHandle returns an error, but nothing else is torn down automatically."
+      </div>
+      <div style="padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text);">Knows the cost model.</strong> Can estimate allocation counts, lock contention, or cache-line behaviour without running a profiler first — then verifies with one.
+      </div>
+      <div style="padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text);">Pushes back on the question when it's underspecified.</strong> "Is this single-writer-multi-reader or could there be concurrent writers? That changes whether I reach for RwLock or a channel-based design."
+      </div>
+      <div style="padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text);">Distinguishes "idiomatic" from "clever."</strong> Prefers the boring, obviously-correct solution and can articulate why cleverness is a liability in shared codebases.
+      </div>
+      <div style="padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text);">Has opinions about tooling.</strong> Mentions <code>cargo clippy</code>, <code>miri</code>, <code>loom</code>, or <code>cargo-flamegraph</code> unprompted when discussing correctness or performance work.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toolchain & ecosystem -->
+<div class="section" id="toolchain">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-crate)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-crate)">// Reference</div>
+      <div class="sh-title">Toolchain &amp; Ecosystem Cheat Sheet</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Commands you should be able to explain, not just run</div>
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th style="width:26%">Command</th>
+          <th style="width:74%">What it does / why it matters in interviews</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>rustup</code></td><td>Toolchain manager — installs/switches Rust versions and components (<code>rustfmt</code>, <code>clippy</code>). Interviewers may ask how you'd pin an MSRV (minimum supported Rust version) via <code>rust-version</code> in Cargo.toml.</td></tr>
+        <tr><td><code>cargo build --release</code></td><td>Compiles with optimisations (<code>opt-level=3</code>, LTO configurable). Debug builds are unoptimised and much slower at runtime — never benchmark debug builds.</td></tr>
+        <tr><td><code>cargo clippy</code></td><td>Linter beyond the compiler — catches non-idiomatic patterns, needless clones, inefficient string ops. Senior candidates run this as part of CI, not as an afterthought.</td></tr>
+        <tr><td><code>cargo fmt</code></td><td>Canonical formatter — removes bikeshedding from code review. Almost every serious Rust team enforces this in CI.</td></tr>
+        <tr><td><code>cargo test</code></td><td>Runs unit + integration tests (files under <code>tests/</code>) + doc-tests (examples in <code>///</code> comments actually get compiled and run).</td></tr>
+        <tr><td><code>cargo bench</code> / criterion</td><td>Micro-benchmarking. Built-in <code>#[bench]</code> requires nightly; <strong>criterion</strong> crate is the stable, statistically rigorous standard.</td></tr>
+        <tr><td><code>cargo expand</code></td><td>Shows macro-expanded code — essential for debugging <code>derive</code> macros, <code>#[tokio::main]</code>, or your own proc-macros.</td></tr>
+        <tr><td><code>cargo miri run</code></td><td>Interpreter that detects undefined behaviour in <code>unsafe</code> code — dangling pointers, invalid alignment, data races on raw pointers. A senior signal is knowing this exists.</td></tr>
+        <tr><td><code>cargo audit</code></td><td>Scans <code>Cargo.lock</code> against the RustSec advisory database for known-vulnerable dependency versions.</td></tr>
+        <tr><td><code>cargo tree</code></td><td>Prints the dependency graph — useful for finding duplicate versions of a crate bloating your binary or causing type mismatches across versions.</td></tr>
+        <tr><td>Loom</td><td>Concurrency permutation-testing crate — exhaustively explores thread interleavings for a piece of lock-free/atomic code in tests. The tool senior candidates reach for when writing custom sync primitives.</td></tr>
+        <tr><td>Workspaces</td><td>A root <code>Cargo.toml</code> with <code>[workspace] members = [...]</code> — multiple crates sharing one <code>Cargo.lock</code> and target directory. Standard for any non-trivial service (separate <code>lib</code>, <code>cli</code>, <code>api</code> crates).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-crate)"></span>Editions &amp; versioning — know the difference</div>
+    <div style="font-size:13px;color:var(--text-muted);line-height:1.75;">
+      <strong style="color:var(--text);">Rust edition</strong> (2015 / 2018 / 2021 / 2024) is a language-syntax opt-in, set per-crate in Cargo.toml, that allows breaking changes to syntax
+      (e.g. 2018 added the module system overhaul; 2021 changed closure capture and added <code>IntoIterator for [T; N]</code>; 2024 tightened <code>unsafe</code> ergonomics and RPIT lifetime capture rules)
+      without breaking the wider ecosystem — different editions link together fine in the same binary.
+      <strong style="color:var(--text);">Rust release channel/version</strong> (stable/beta/nightly, e.g. 1.79) is the compiler version — new language features and standard library APIs land here first on nightly,
+      stabilise onto stable roughly every 6 weeks. <strong style="color:var(--text);">MSRV</strong> is a crate's promise about the oldest compiler version it supports —
+      important for library crates since bumping MSRV is a breaking change for downstream users on older toolchains.
+    </div>
+  </div>
+</div>

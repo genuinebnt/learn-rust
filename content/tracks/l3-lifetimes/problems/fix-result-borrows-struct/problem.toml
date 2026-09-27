@@ -1,0 +1,30 @@
+slug = "fix-result-borrows-struct"
+title = "Fix: the result borrows the struct, not the text"
+mode = "fix"
+level = "easy"
+stage = "structs-holding-refs"
+order = 8
+status = "ready"
+tags = ["'a vs '_"]
+teaches = [
+  "Methods on borrowing structs can return the struct's lifetime.",
+  "Elision picks `self`, which is often too short.",
+]
+follow_up = "Why is the first version not wrong, just less useful?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "An elided output in a `&self` method borrows from `self`, the short-lived `Document`. The lines really come from `text`, which lives for `'a`."
+
+[[hints]]
+kind = "rust"
+text = "Say so: return `&'a str` and `Vec<&'a str>`."
+
+[solution]
+explanation = "`&'a str` means 'as long as the text', `&str` from `&self` means 'as long as this Document'. The body compiles either way; only callers see the difference."
+time = "O(n)"
+space = "O(k)"
+
+[rules]
+max_changed_lines = 2

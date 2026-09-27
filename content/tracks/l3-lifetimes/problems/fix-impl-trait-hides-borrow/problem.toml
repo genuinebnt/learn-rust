@@ -1,0 +1,30 @@
+slug = "fix-impl-trait-hides-borrow"
+title = "Fix: impl Trait hides a borrow (E0700)"
+mode = "fix"
+level = "medium"
+stage = "elision"
+order = 5
+status = "ready"
+tags = ["E0700", "impl Trait", "+ '_"]
+teaches = [
+  "`impl Trait` return types and captured lifetimes.",
+  "`+ '_` as 'borrows from the input'.",
+]
+follow_up = "When would you want an `impl Trait` return type that does not capture an input lifetime?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "The iterator still reads from `text` while you iterate, but `impl Iterator<Item = String>` doesn't say so."
+
+[[hints]]
+kind = "rust"
+text = "Add `+ '_` to the return type to say the iterator borrows from the input."
+
+[solution]
+explanation = "In edition 2021, `impl Trait` only captures lifetimes that appear in its bounds; `+ '_` adds the input's. Edition 2024 captures all in-scope lifetimes by default, and `use<..>` narrows it."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 1

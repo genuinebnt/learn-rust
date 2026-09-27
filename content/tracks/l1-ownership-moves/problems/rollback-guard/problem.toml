@@ -1,0 +1,27 @@
+slug = "rollback-guard"
+title = "Roll back on panic with a guard"
+mode = "write"
+level = "hard"
+stage = "partial-moves-and-mem"
+order = 18
+status = "ready"
+tags = ["Drop", "panic safety", "guards"]
+teaches = [
+  "A guard armed before the risky work and disarmed after it.",
+  "Panic safety: leave data in a valid state however a function exits.",
+]
+follow_up = "Why would `mem::forget` on this guard be harmless, but on some other guards be a soundness bug?"
+related = ["S3", "Y2"]
+
+[[hints]]
+kind = "approach"
+text = "Remember the length. What runs whether `f` returns or panics?"
+
+[[hints]]
+kind = "rust"
+text = "A local struct with a `Drop` impl and an `armed` flag: disarm it only after `f` returns."
+
+[solution]
+explanation = "Unwinding drops `guard`, which truncates. On success the flag is cleared first, so the drop does nothing. std uses the same pattern inside `Vec::retain` and sort."
+time = "O(1) plus the truncate"
+space = "O(1)"

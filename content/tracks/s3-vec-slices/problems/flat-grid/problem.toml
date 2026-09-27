@@ -1,0 +1,27 @@
+slug = "flat-grid"
+title = "A 2-D grid in one Vec"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 14
+status = "ready"
+tags = ["strides", "Vec<u8>"]
+teaches = [
+  "Row-major indexing: `y * width + x`.",
+  "Returning `&[u8]` rows straight from the backing Vec.",
+]
+follow_up = "When is `Vec<Vec<T>>` still the better choice?"
+related = ["Y1", "D9"]
+
+[[hints]]
+kind = "approach"
+text = "Cell (x, y) lives at index y · width + x."
+
+[[hints]]
+kind = "edge case"
+text = "Check x against the width, or (width, 0) silently reads the next row."
+
+[solution]
+explanation = "One allocation and contiguous rows make this cache-friendly compared with `Vec<Vec<u8>>`."
+time = "O(1) per access"
+space = "O(w · h)"

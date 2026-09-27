@@ -1,0 +1,22 @@
+slug = "get-disjoint-mut"
+title = "get_disjoint_mut with index checks"
+mode = "write"
+level = "hard"
+stage = "borrow-checker-limits"
+order = 31
+status = "ready"
+tags = ["get_disjoint_mut", "Result"]
+teaches = [
+  "`get_disjoint_mut` does the index checks for you.",
+]
+follow_up = "How would you generalise this to N accounts in one atomic batch?"
+related = ["L2", "S3"]
+
+[[hints]]
+kind = "rust"
+text = "`slice::get_disjoint_mut([i, j])` returns `[&mut T; 2]`, or an error saying which check failed."
+
+[solution]
+explanation = "std checks bounds and overlap once and hands back an array of `&mut`, with no `unsafe` in your code."
+time = "O(1)"
+space = "O(1)"

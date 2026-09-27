@@ -1,0 +1,876 @@
+<!-- ═══════════════════════════════════════════
+     PART: OPERATING SYSTEMS
+     Processes · Syscalls · Scheduling · Sync · VM · FS · I/O · IPC · Perf debug
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="os-header">
+  <div class="ph-eyebrow">Systems · OS Fundamentals (Uni + Rust)</div>
+  <div class="ph-title">Operating Systems — Interview Primer</div>
+  <div class="ph-sub">
+    Interview-ready OS concepts from undergrad OS courses, always tied to how they show up in Rust
+    backend/systems interviews: threads vs async tasks, page cache &amp; mmap, scheduling &amp; latency,
+    locks &amp; deadlock, filesystems &amp; fsync, I/O models (epoll → mio/Tokio), IPC, and a
+    performance-debugging checklist for production Rust services.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-time">12 topics</span>
+    <span class="badge badge-time">~52 Q&amp;A</span>
+    <span class="badge badge-time">Senior / Staff calibration</span>
+  </div>
+</div>
+
+<!-- ════════════ OS1 · PROCESSES / THREADS / TASKS ════════════ -->
+<div class="section" id="os1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 01</div>
+      <div class="sh-title">Processes, Address Spaces, Threads vs Tasks</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is a process? What lives in its address space, and why do interviewers care?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <strong>process</strong> is an OS abstraction for a running program: a private virtual address space,
+        one or more threads of execution, open file descriptors, credentials, and scheduling/accounting state.
+        The address space typically holds text (code), data/BSS, heap, stack(s), and memory-mapped regions
+        (shared libs, mmap files). Isolation is the point — one process cannot casually read another&apos;s memory
+        without explicit IPC/shared memory. Interviewers listen for: process = isolation + resources;
+        thread = execution within that space; crash/segfault kills the process (shared fate), not just one
+        logical &quot;request.&quot; In Rust services, one binary is usually one process (or a few workers via
+        <code>fork</code>/supervisor); Tokio tasks are <em>not</em> processes.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Contrast OS threads and Tokio tasks. What is shared, what is scheduled, and when do you need a real thread?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        An <strong>OS thread</strong> is a kernel-schedulable entity with its own stack and CPU context; the kernel
+        can preempt it, migrate it across cores, and block it in syscalls. A <strong>Tokio task</strong> is a
+        user-space future polled by a runtime on a pool of OS worker threads — cooperative at <code>.await</code>
+        points, cheap to spawn (thousands–millions), and not visible to the kernel as separate threads.
+        Tasks on the same worker share that thread&apos;s stack only while running; each task has its own
+        future state machine heap allocation. Use a real thread / <code>spawn_blocking</code> when work is
+        CPU-heavy without yield points, or when calling blocking syscalls/FFI that would stall the worker.
+        Saying &quot;async is free parallelism&quot; is a trap — async multiplexes I/O concurrency; CPU parallelism still
+        needs cores + non-blocking or properly offloaded work.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What does <code>fork</code> vs <code>clone</code>/thread creation share? Why is forking risky in a multi-threaded Rust process?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Historically <code>fork</code> duplicates the process; modern Linux threads are <code>clone</code> with shared
+        VM/files. After <code>fork</code> in a multi-threaded process, only the calling thread exists in the child —
+        other threads vanish mid-critical-section, so mutexes can be left locked forever (classic deadlock after
+        fork). Rust/Tokio services almost never <code>fork</code> for concurrency; prefer <code>std::process::Command</code>
+        for subprocesses, or separate processes from a supervisor. If you must fork (e.g. prefork servers), do it
+        before creating threads, or use <code>posix_spawn</code> / carefully designed single-threaded windows.
+        Interview signal: know fork+threads is a footgun, not just &quot;copy the process.&quot;
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Scenario: a Tokio service has 50k concurrent connections but only ~8 OS threads. How can that work, and what breaks it?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Connections are mostly waiting on I/O. Each connection is a task; the reactor (epoll/kqueue) wakes tasks
+        when sockets are ready; workers poll ready tasks. At any instant only a handful of tasks run on the
+        ~8 threads. It breaks when: (1) a task blocks the worker (sync mutex across <code>.await</code>, heavy CPU,
+        blocking <code>std::fs</code>/<code>std::net</code>), (2) you hold a runtime lock while doing slow work,
+        (3) you spawn unbounded CPU work without a blocking pool. Fixes: <code>spawn_blocking</code>,
+        <code>tokio::sync</code> async mutexes when held across await, bound concurrency with a semaphore,
+        separate CPU thread pools. Senior answer names &quot;cooperative scheduling + readiness&quot; and the
+        &quot;don&apos;t block the runtime&quot; rule explicitly.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">When would you choose multi-process over multi-threaded / async in a Rust backend?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Prefer processes when you need <strong>fault isolation</strong> (a segfault/OOM in one worker must not kill
+        all traffic), stronger security boundaries (separate privileges, seccomp profiles), or to work around
+        global allocator / FFI / library state that is not thread-safe. Cost: higher memory (duplicated heaps,
+        code pages shared via CoW), IPC instead of shared memory structures, harder shared caches.
+        Multi-threaded async wins for shared in-memory state and connection density. Hybrid is common:
+        N async worker processes behind a load balancer (Kubernetes replicas), each process internally Tokio.
+        Interviewers want the isolation vs efficiency trade-off, not dogma.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS2 · USER/KERNEL · SYSCALLS · INTERRUPTS ════════════ -->
+<div class="section" id="os2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 02</div>
+      <div class="sh-title">User/Kernel Mode, Syscalls, Interrupts, Traps</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is the difference between user mode and kernel mode? Why can&apos;t user code just touch devices?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        CPUs enforce a privilege level: <strong>user mode</strong> runs applications with restricted instructions and
+        no direct access to physical devices or other processes&apos; memory; <strong>kernel mode</strong> runs the OS
+        with full privileges. Transitions happen via controlled gates (syscalls, exceptions, interrupts).
+        Without this, any program could corrupt disks, steal other apps&apos; secrets, or hang the machine.
+        Interviewers listen for: isolation + mediated resource access, not just &quot;kernel is privileged.&quot;
+        Rust <code>unsafe</code> does not enter kernel mode — it only relaxes the language&apos;s safety rules inside
+        the process.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is a syscall? Walk through what happens on a <code>read</code> from Rust down to the kernel.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <strong>system call</strong> is a controlled entry into the kernel to request a privileged service
+        (I/O, mmap, clone, etc.). Path: Rust <code>std</code>/<code>tokio</code> → libc or direct
+        <code>syscall</code> instruction → trap to kernel → validate args, perform work (or queue I/O) →
+        return to user with result/errno. Context-switch costs matter: mode switch, possible scheduler run,
+        TLB/cache effects. That is why batching (vectored I/O, <code>io_uring</code>, fewer larger reads) and
+        avoiding chatty syscalls show up in perf work. Async does not remove syscalls; it avoids blocking a
+        thread while waiting for completion/readiness.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Contrast interrupts, traps/exceptions, and syscalls. Where do page faults fit?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Interrupts</strong> are asynchronous hardware signals (NIC packet, timer tick) that divert the CPU
+        to a handler — independent of the current instruction stream. <strong>Traps/exceptions</strong> are
+        synchronous, caused by the executing instruction (divide-by-zero, illegal opcode, breakpoint,
+        <strong>page fault</strong>). <strong>Syscalls</strong> are deliberate traps for OS services.
+        A page fault may be &quot;minor&quot; (map a page that was allocated but not yet faulted in, or CoW) or
+        &quot;major&quot; (disk read from swap/file) — backends feel major faults as latency spikes. Good signal:
+        timer interrupts drive preemptive scheduling; your Rust code rarely handles interrupts directly.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Why do high-QPS Rust services care about syscall and context-switch rates? What do you measure?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Each syscall/mode switch costs latency and burns cache; under load, excessive
+        <code>read</code>/<code>write</code>/<code>futex</code>/<code>epoll_wait</code> patterns show up as CPU in
+        <code>sys</code> time with mediocre app throughput. Measure with <code>perf stat</code> (cycles, context
+        switches, cache misses), <code>strace -c</code> / <code>perf trace</code> for hot syscalls, and runtime
+        metrics (Tokio park rate, epoll wakeups). Mitigations: batching, io_uring, fewer threads (less
+        scheduling noise), avoid needless <code>fsync</code> per request, use buffered/vectored I/O.
+        Trap answer: &quot;just add more pods&quot; without looking at sys% vs user%.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS3 · CPU SCHEDULING ════════════ -->
+<div class="section" id="os3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 03</div>
+      <div class="sh-title">CPU Scheduling — Fairness, Latency, CFS Intuition</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does the CPU scheduler decide? Contrast throughput-oriented vs latency-oriented goals.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The scheduler picks which runnable thread runs on which CPU, for how long, and when to preempt.
+        <strong>Throughput</strong> goals maximize useful work per second (batch jobs, compilers) — longer time
+        slices, less switching. <strong>Latency / interactivity</strong> goals keep response times low
+        (APIs, UIs) — shorter slices, prefer waking interactive tasks, avoid convoy behind CPU hogs.
+        Real OS schedulers balance both with priorities/nice, fairness, and heuristics. Rust services care
+        because a CPU-bound neighbor on the same machine (noisy neighbor, or your own <code>spawn_blocking</code>
+        storm) can inflate p99 even if your code is &quot;correct.&quot;
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Give a CFS (Completely Fair Scheduler) intuition. What does &quot;nice&quot; change?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Linux CFS approximates fair sharing of CPU among runnable tasks using a weighted virtual runtime:
+        tasks that ran less recently (lower vruntime) are preferred. Think &quot;each task gets a proportional
+        fair slice of CPU over time,&quot; not strict round-robin of equal ticks. <strong>nice</strong> adjusts
+        the weight — higher nice (lower priority) gets a smaller share; negative nice gets more.
+        For containers, cgroups/CPU quotas add another layer (throttling when quota exhausted — classic
+        latency cliffs in Kubernetes). Interview signal: fair share ≠ equal latency under overload; under
+        saturation everyone slows. Pinning/affinity and isolating latency-critical threads are advanced levers.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">When do Rust services care about OS scheduling vs Tokio&apos;s scheduler?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Tokio</strong> schedules tasks onto worker threads (work-stealing, cooperative). The <strong>OS</strong>
+        schedules those worker threads onto cores. You care about Tokio when tasks starve each other
+        (blocking, missing yield, unfair locks). You care about the OS when: CPU throttling/cgroups,
+        too many threads fighting for cores, priority of sidecar/agents, or realtime-ish needs.
+        Rule of thumb: size Tokio workers ≈ CPU count; put blocking work on a bounded blocking pool;
+        avoid creating thousands of OS threads. Mentioning both layers is the senior distinction.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What is priority inversion? Where might it appear in a Rust service (even without RT priorities)?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Classic: high-priority task H waits on a lock held by low-priority L, while medium M runs and
+        prevents L from releasing — H is stuck behind M. OS fix: priority inheritance. In ordinary
+        Rust backends you may not use RT priorities, but the <em>shape</em> appears: a latency-critical
+        request waits on a mutex held by a background task doing heavy work; or a Tokio task holds a
+        sync mutex while the holder is scheduled off-CPU. Mitigations: short critical sections,
+        don&apos;t do I/O under locks, prefer channels/sharding, use async-aware locks across await,
+        separate latency classes onto different thread pools. Also watch <strong>false sharing</strong>:
+        unrelated atomics on the same cache line cause ping-pong and look like &quot;scheduler weirdness&quot;
+        under <code>perf</code> — pad hot counters (<code>CachePadded</code>).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Scenario: p99 jumps every few minutes; CPU usage shows periodic throttling in the container. What do you check?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Suspect <strong>CFS bandwidth / cgroup CPU quota</strong>: the pod burns its burst, then is throttled
+        (<code>cpu.stat</code> throttled periods). Correlate with GC-like batch work, compaction, or traffic spikes.
+        Fixes: raise CPU limit/request, smooth work (rate-limit background jobs), reduce per-request CPU,
+        avoid synchronized &quot;thundering herd&quot; timers across replicas. Also check noisy neighbors on the node
+        and whether you oversubscribed threads. Strong candidates read cgroup metrics before rewriting
+        business logic.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS4 · SYNCHRONIZATION ════════════ -->
+<div class="section" id="os4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 04</div>
+      <div class="sh-title">Synchronization Primitives &amp; Deadlock Intro</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Define mutex, rwlock, semaphore, and condition variable. When do you pick each?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Mutex:</strong> exclusive ownership of a critical section — default for shared mutable state.
+        <strong>RwLock:</strong> many readers or one writer — good when reads dominate and critical sections are short;
+        write-heavy or long critical sections often lose to sharding. <strong>Semaphore:</strong> counting permit
+        pool — bound concurrency (DB connections, in-flight requests) without &quot;owning&quot; a data structure.
+        <strong>Condition variable:</strong> wait for a predicate under a mutex (producer/consumer); in async Rust
+        you usually use channels / <code>Notify</code> / <code>watch</code> instead of raw condvars.
+        Rust: <code>std::sync::Mutex</code> / <code>parking_lot</code> / <code>tokio::sync::*</code> — never hold a
+        std mutex across <code>.await</code>.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Why is busy-waiting usually wrong? When is a spinlock acceptable?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Busy-waiting burns CPU while waiting for a condition, hurts fairness, and on overloaded systems can
+        delay the thread that would release the resource (self-inflicted priority inversion). Prefer blocking
+        (futex-backed mutex) or async wait. <strong>Spinlocks</strong> can be OK for <em>extremely short</em>
+        critical sections on multiprocessors when you know the holder is running and sleep cost exceeds spin
+        cost — kernel and some lock-free designs. In userspace Rust services, default to mutex/channels;
+        spinning in a loop checking an AtomicBool without backoff is a classic junior smell. If you spin,
+        use <code>parking_lot</code>/std adaptive strategies or explicit <code>core::hint::spin_loop</code> with a
+        clear bound — and measure.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is deadlock (quick definition)? Give a two-lock Rust sketch interviewers expect.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Deadlock: a set of threads/tasks permanently wait for each other&apos;s resources — no one can make progress.
+        Classic: thread A holds lock1 waits lock2; thread B holds lock2 waits lock1.
+<pre style="margin:6px 0;"><span class="cm">// Sketch — do NOT do this</span>
+<span class="cm">// A: lock(a); lock(b);</span>
+<span class="cm">// B: lock(b); lock(a);</span>
+<span class="kw">fn</span> <span class="fn">transfer</span>(a: &amp;Mutex&lt;Acct&gt;, b: &amp;Mutex&lt;Acct&gt;) {
+    <span class="kw">let</span> _ga = a.lock().unwrap(); <span class="cm">// acquire in address order instead</span>
+    <span class="kw">let</span> _gb = b.lock().unwrap();
+}</pre>
+        Fix patterns: global lock order, try-lock with backoff, single mutex covering both, or message passing.
+        Deeper Coffman conditions live in the next section — here they want the cycle intuition.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Compare <code>std::sync::Mutex</code>, <code>parking_lot::Mutex</code>, and <code>tokio::sync::Mutex</code>. When does each belong?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>std::sync::Mutex</code>: poisoning on panic, adequate for sync code; do not hold across
+        <code>.await</code>. <code>parking_lot</code>: often faster, no poisoning by default, still blocking —
+        great inside CPU-bound or short sync sections. <code>tokio::sync::Mutex</code>: async-aware; tasks
+        yield while waiting so workers are not blocked — use when the lock must be held across
+        <code>.await</code> or waiters are async tasks. Prefer redesign (channels, shard, <code>RwLock</code>,
+        atomics) over long-held async mutexes. Interview trap: wrapping everything in
+        <code>tokio::sync::Mutex</code> &quot;to be safe&quot; and creating a global bottleneck.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS5 · DEADLOCK DEEP DIVE ════════════ -->
+<div class="section" id="os5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 05</div>
+      <div class="sh-title">Deadlock — Coffman, Detection, Prevention, Avoidance</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">State the four Coffman conditions. Why does breaking any one prevent deadlock?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) <strong>Mutual exclusion</strong> — resources are not shareable. (2) <strong>Hold and wait</strong> —
+        a task holds resources while waiting for more. (3) <strong>No preemption</strong> — resources cannot be
+        forcibly taken back. (4) <strong>Circular wait</strong> — a cycle in the waits-for graph.
+        Deadlock needs all four; remove one and cycles cannot stick. Practical lever in services is usually
+        (4) lock ordering or (2) acquire-all-at-once / don&apos;t hold locks while awaiting other resources
+        (including other services&apos; RPCs — distributed deadlock).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Contrast deadlock prevention, avoidance, and detection+recovery.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Prevention:</strong> design so a Coffman condition cannot hold (strict global lock order;
+        no hold-and-wait by acquiring in one shot; timeout+release). <strong>Avoidance:</strong> runtime
+        admits requests only if they keep the system in a safe state (Banker&apos;s algorithm — rarely used
+        verbatim in app code). <strong>Detection:</strong> allow possible deadlock, find cycles (waits-for graph),
+        then recover (kill a victim, abort transaction). Databases use detection/abort heavily; low-level
+        Rust services usually prevent via ordering and timeouts. Saying &quot;we&apos;ll just detect&quot; without a recovery
+        story is incomplete.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What do practical deadlocks look like in Rust microservices (beyond two mutexes)?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) Async task holds <code>tokio::sync::Mutex</code> and <code>.await</code>s an RPC that needs the same
+        logical resource on another task. (2) Thread-pool exhaustion: all workers blocked on
+        <code>block_on</code>/sync I/O waiting for tasks that need those workers (classic nested runtime /
+        &quot;async in async&quot; antipattern). (3) Connection pool deadlock: handlers each hold one connection and
+        wait for a second. (4) Distributed: service A waits on B while B waits on A (mitigate with timeouts,
+        deadlines, hierarchical lock/resource ordering, circuit breakers). Interviewers love pool + lock
+        stories as much as textbook two-lock cycles.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How would you debug a suspected deadlock in a stuck Rust process in production?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Capture stacks: <code>gdb</code>/<code>lldb</code> <code>thread apply all bt</code>, or
+        <code>tokio-console</code> / <code>async-backtrace</code> for task dumps; on Linux
+        <code>perf</code> / <code>eu-stack</code>. Look for threads blocked on futex waits in lock patterns,
+        or all Tokio workers parked while tasks wait each other. Reproduce with stress +
+        <code>RUST_BACKTRACE</code>; add lock-order debug assertions in tests
+        (<code>parking_lot</code> deadlock detection feature, or systematic ordering helpers).
+        Temporary mitigation: timeouts on lock acquisition / request deadlines so the process degrades
+        instead of wedging forever. Senior signal: distinguish deadlock from livelock and from simple overload.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS6 · VIRTUAL MEMORY ════════════ -->
+<div class="section" id="os6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 06</div>
+      <div class="sh-title">Virtual Memory, Paging, Page Tables, TLB</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is virtual memory? What problem do pages and page tables solve?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Virtual memory</strong> gives each process a large contiguous-looking address space while the OS
+        maps those virtual pages to physical frames (or to disk). Benefits: isolation, relocation,
+        sparse allocation, memory-mapped files, and overcommit/swap policies. <strong>Page tables</strong>
+        store the translations (and permission bits: R/W/X, user/supervisor). Hardware walks them
+        (or uses hardware page-walk with OS-maintained tables) on misses. Interviewers want:
+        VA → PA translation + protection, not &quot;virtual means fake RAM.&quot;
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is the TLB? Why do large heaps / many mmap regions hurt performance?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The <strong>TLB</strong> (Translation Lookaside Buffer) caches recent VA→PA translations. A TLB miss
+        forces a page-table walk — expensive. Huge working sets with poor locality, many small pages,
+        or frequent context switches (different address spaces) increase miss rates.
+        <strong>Huge pages</strong> (2MB/1GB) reduce TLB pressure for big heaps/caches — used by JVMs,
+        databases, and some Rust services with large arenas. <code>mmap</code> of many tiny regions can
+        also bloat page tables. Measuring: <code>perf stat</code> for dTLB loads/misses.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain demand paging and copy-on-write. Where does Rust/Unix use CoW?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Demand paging:</strong> allocate virtual pages first; physical frames are assigned on first fault —
+        speeds startup and keeps sparse heaps cheap until touched. <strong>Copy-on-write:</strong> after
+        <code>fork</code>, parent and child share physical pages marked read-only; a write faults and copies
+        the page. Also used for shared library text and some allocator patterns. Cost: first write after
+        fork can storm faults. Rust apps that fork accidentally after allocating large heaps pay CoW taxes;
+        containers that overcommit RAM can OOM when pages are finally dirtied.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">RSS vs VSZ vs &quot;memory used&quot; in a Rust service — what should you report in an interview?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>VSZ</strong> (virtual size) is the mapped address space — can be huge with sparse mappings and
+        is a weak OOMish signal. <strong>RSS</strong> is resident physical pages — better for &quot;how much RAM am
+        I using,&quot; but includes shared pages oddly depending on accounting. Also track
+        <strong>file-backed</strong> vs anonymous, allocator heap stats (<code>jemalloc</code>/<code>mimalloc</code>
+        metrics), and cgroup memory limits. A senior mentions that page cache is shared and not &quot;my heap,&quot;
+        and that dropping caches or <code>mmap</code> I/O can change RSS without a leak. For leaks: look at
+        growth of anonymous RSS + allocator fragmentation, not VSZ alone.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS7 · PAGE REPLACEMENT / MMAP / PAGE CACHE ════════════ -->
+<div class="section" id="os7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 07</div>
+      <div class="sh-title">Page Replacement, Thrashing, mmap &amp; Page Cache</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is page replacement? What is thrashing?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        When physical memory is full, the OS must <strong>evict</strong> (replace) pages — write dirty ones to
+        swap/file if needed — to free frames for new faults. Algorithms (approx LRU, CLOCK, etc.) try to
+        evict cold pages. <strong>Thrashing</strong> is when the working set doesn&apos;t fit: the system spends
+        most time paging rather than doing useful work — latency explodes, CPU looks &quot;busy&quot; in iowait/sys.
+        Fix: more RAM, reduce working set, fix memory leaks, isolate noisy jobs. Interviewers want working-set
+        language, not just &quot;swap is bad.&quot;
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is the page cache? How does it relate to <code>read</code>/<code>write</code> and <code>mmap</code>?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The kernel keeps file data in a <strong>page cache</strong> in RAM. Buffered <code>read</code>/<code>write</code>
+        copy between user buffers and cache; disk I/O happens asynchronously (writeback) unless
+        <code>fsync</code>/<code>O_DIRECT</code> changes the rules. <code>mmap</code> maps file pages into the
+        process address space so access is via loads/stores + faults into the same cache — great for
+        random reads / shared read-only data; trickier for writes (visibility, sync, SIGBUS on truncated
+        files). Backends: sequential logs often prefer buffered writes + careful fsync; large read-mostly
+        datasets may use mmap (search indexes) with awareness of cache pollution.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Working set vs RSS — how do you reason about cache pressure for a Rust API host?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The <strong>working set</strong> is the set of pages actively touched in a time window. A service can have
+        high RSS (cold caches, allocator freelists) but a smaller hot set — or the opposite under scan-heavy
+        workloads that churn the page cache. Scanning large files through the page cache can evict useful
+        pages (use <code>O_DIRECT</code>, <code>posix_fadvise</code>, or dedicated cache disks carefully).
+        For Rust: avoid accidentally mmaping or reading multi-GB blobs on the request path; bound cache
+        sizes in-process (<code>moka</code>/<code>quick_cache</code>) so you control eviction policy instead of
+        fighting the kernel under memory pressure.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Scenario: latency spikes correlate with disk activity; heap metrics look flat. Hypotheses?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) Major page faults / swap (memsteal). (2) writeback storms from dirty page cache
+        (<code>fsync</code> or periodic flusher. (3) mmap&apos;d index random access thrashing disk.
+        (4) log rotation / compaction reading cold files through page cache. Check
+        <code>iowait</code>, <code>pgpgin/out</code>, PSI memory, and whether cgroup memory limit is forcing
+        reclaim. Fix direction: fit working set, rate-limit background I/O, tune fsync batching,
+        isolate storage volumes. Flat heap rules out a Rust allocator leak but not kernel-mediated I/O pain.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS8 · HEAP / ALLOCATORS ════════════ -->
+<div class="section" id="os8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 08</div>
+      <div class="sh-title">Heap Allocation, Fragmentation, Allocators</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does a heap allocator do? Contrast bump, freelist, and slab/size-class designs.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The allocator satisfies dynamic <code>malloc</code>/<code>Box</code>/<code>Vec</code> requests from arenas
+        obtained via <code>mmap</code>/<code>sbrk</code>, tracking free/used regions. <strong>Bump:</strong> pointer
+        only moves forward — blazing for arenas/ephemeral requests, no individual free (or free-all at once).
+        <strong>Freelist:</strong> reuse freed blocks; simple but fragments. <strong>Size classes / slabs
+        (jemalloc-style):</strong> round to size classes, per-class free lists/runs — good concurrency and
+        lower fragmentation for many small objects. Interviewers want trade-offs: speed vs fragmentation vs
+        multi-thread scalability, not a single &quot;best&quot; allocator.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Internal vs external fragmentation — how do they show up in services?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Internal:</strong> allocator rounds up (ask 50B, get 64B class) — waste inside allocated blocks.
+        <strong>External:</strong> free memory exists in scattered holes too small for a large request — RSS high
+        while <code>malloc</code> fails or grows via new mmap. Services see this as RSS ratchet after spiky
+        load (allocator keeps caches), or inability to allocate large contiguous buffers. Mitigations:
+        reuse buffers (<code>BytesMut</code> pools), bound cache sizes, choose jemalloc/mimalloc, occasional
+        process recycle for pathological fragmentation, avoid huge short-lived allocations on hot paths.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do Rust allocators fit? What is <code>#[global_allocator]</code>, jemalloc, and allocator_api?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        By default Rust uses the system allocator (often glibc malloc or macOS libmalloc). Many production
+        services set <code>#[global_allocator]</code> to <code>tikv-jemallocator</code> or mimalloc for better
+        multi-threaded behavior and introspection. <code>Allocator</code> trait / allocator APIs (still evolving
+        in stable usage) let collections use custom arenas. Patterns: request-scoped bump arenas for parsing;
+        object pools for connection buffers. Caution: mixing allocators across FFI boundaries; measuring
+        with jemalloc stats (<code>epoch</code>/<code>allocated</code>/<code>resident</code>) beats guessing.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Scenario: after a traffic spike, RSS stays high while request rate returns to baseline. Leak or allocator?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Often <strong>allocator caching / fragmentation</strong>, not a logical leak: freelists retain arenas for reuse.
+        Confirm with jemalloc <code>retained</code> vs application-level metrics (cache entry counts, unbounded
+        <code>Vec</code>/<code>HashMap</code> growth). True leaks grow without bound correlated with a specific
+        allocation site (<code>heaptrack</code>, <code>dhat</code>, jemalloc profiling). Also check for
+        forgotten <code>JoinHandle</code>s, growing unbounded channels, or caches without eviction.
+        Senior answer: hypothesize both, measure allocator vs app structures, don&apos;t restart pods as the
+        only &quot;fix&quot; without understanding.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS9 · FILE SYSTEMS ════════════ -->
+<div class="section" id="os9">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 09</div>
+      <div class="sh-title">File Systems — Inodes, Journaling, fsync, Directories</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Inode vs dentry vs path — what does the kernel store?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        An <strong>inode</strong> holds file metadata and data-block pointers (size, permissions, timestamps) —
+        not the name. A <strong>directory</strong> maps names → inode numbers; a <strong>dentry</strong> is the
+        kernel cache of that mapping. Multiple names (hard links) can point to one inode; symlinks store a path.
+        Paths are looked up component-by-component with permission checks. Rust sees paths as strings/OsStr;
+        the durable identity for an open file is the file descriptor / inode, which is why unlinking an open
+        file still allows I/O until the last fd closes.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What does journaling buy you? How does it relate to crash safety?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <strong>journal</strong> (write-ahead log for FS metadata, sometimes data) lets the filesystem recover
+        quickly after crash by replaying/rolling back incomplete operations — avoids long <code>fsck</code> and
+        reduces metadata corruption risk. It does <em>not</em> by itself make your application durable: data you
+        wrote may still sit in the page cache. Application durability needs explicit
+        <code>fsync</code>/<code>fdatasync</code> (and often fsync of the parent directory after <code>rename</code>
+        for atomic publish). Interview signal: separate FS journal from app WAL.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain <code>fsync</code> durability pitfalls. What is the atomic-rename pattern?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>write</code> returns when data is in kernel cache, not necessarily on stable storage.
+        <code>fsync(fd)</code> pushes file data+metadata; after creating a new file you often must also
+        <code>fsync</code> the directory so the dirent is durable. Pattern for atomic config/replace:
+        write <code>file.tmp</code> → <code>fsync</code> → <code>rename</code> to <code>file</code> →
+        <code>fsync</code> dir. Trap: assuming rename alone is enough on all platforms/settings, or fsyncing
+        every record synchronously and destroying throughput — batch commits instead. Rust:
+        <code>File::sync_all</code> / <code>sync_data</code>; databases and queues obsess over this path.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What is TOCTOU on files, and how do you avoid it in Rust services?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>TOCTOU</strong> (time-of-check to time-of-use): you <code>stat</code>/<code>access</code> a path,
+        then later <code>open</code> it — an attacker may have swapped the path (symlink races in
+        <code>/tmp</code>). Fix: open first with safe flags, then <code>fstat</code> the fd; use
+        <code>O_NOFOLLOW</code>/<code>openat</code> with directory fds; prefer random names in private dirs;
+        never follow untrusted symlinks into sensitive targets. In Rust prefer operating on
+        <code>File</code>/<code>Dir</code> descriptors over repeated path strings; be careful with
+        <code>std::fs</code> helpers that re-open by path. Security interviews expect this vocabulary.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Directories and large directory performance — what bites production systems?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Huge flat directories (millions of entries) make lookup/readdir slow depending on FS; classic anti-pattern
+        is one directory per object store with no sharding. Mitigate with hierarchical prefixes
+        (<code>ab/cd/hash</code>), separate metadata DB, or object storage APIs. Also:
+        <code>readdir</code> + <code>stat</code> per file is a syscall storm — batch carefully.
+        For queues on disk, prefer structured layouts and avoid unbounded directory growth.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS10 · I/O MODELS ════════════ -->
+<div class="section" id="os10">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 10</div>
+      <div class="sh-title">I/O Models — Blocking to epoll to Async (mio/Tokio)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Map blocking, nonblocking, multiplexed, and async I/O. Where do select/epoll fit?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Blocking:</strong> syscall sleeps the thread until data/space is available.
+        <strong>Nonblocking:</strong> syscall returns immediately with <code>EAGAIN</code> if it would block —
+        you must retry later. <strong>Multiplexed readiness:</strong> <code>select</code>/<code>poll</code>/<code>epoll</code>/<code>kqueue</code>
+        tell you which fds are readable/writable so one thread can manage many connections.
+        <strong>Async I/O</strong> (broader term): either readiness-based async (Tokio) or completion-based
+        (<code>io_uring</code>, IOCP) where the kernel notifies when an operation finishes.
+        epoll is readiness multiplexing on Linux; it is the substrate under mio/Tokio, not a competing
+        application API you hand-roll in most services.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How do <code>mio</code> and Tokio relate to epoll? What does a reactor do?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>mio</code> wraps OS readiness APIs portably (epoll/kqueue/IOCP). A <strong>reactor</strong>
+        registers interest in fds, blocks in <code>epoll_wait</code>, then wakes the tasks/futures associated
+        with ready events. Tokio&apos;s driver uses mio (or io_uring features when enabled): when you
+        <code>TcpStream::read().await</code>, the task yields; on readability the runtime polls the future again.
+        You rarely need raw mio unless building a custom runtime. Interview trap: thinking
+        <code>.await</code> means zero syscalls — the readiness loop still uses epoll; you just amortize
+        threads.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Why is <code>select</code> historically limited, and why did epoll win for high connection counts?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>select</code> copies fd sets each call, scans them linearly, and traditionally caps at
+        <code>FD_SETSIZE</code> (~1024) — O(n) per wait with large n. <code>epoll</code> keeps interest in-kernel,
+        returns only ready events — scalable to tens/hundreds of thousands of idle connections.
+        This is why the C10K problem pushed readiness APIs and why async Rust runtimes exist.
+        Still: scalability of idle connections ≠ free CPU for active ones; hot connections still cost.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Completion-based I/O (io_uring) vs readiness — when does it matter for Rust backends?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Readiness: &quot;fd is readable&quot; → you issue <code>read</code> (possible still partial). Completion:
+        you submit a read buffer; kernel completes when filled — fewer syscalls, better batching, strong for
+        disk and some socket workloads. Tokio is adding/using io_uring in places; specialized stacks
+        (<code>glommio</code>, custom) lean in harder. For most CRUD APIs, Tokio readiness is enough; for
+        storage engines / proxy data planes, completion I/O and syscall batching become interview-level
+        differentiators. Mention copying vs registered buffers at the senior end.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Why must you not call blocking <code>std::fs</code> / <code>std::net</code> on a Tokio worker?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Blocking parks the OS worker thread inside a syscall; other tasks scheduled on that worker cannot run
+        until it returns — latency contagion under load. Use <code>tokio::fs</code>, async net types, or
+        <code>spawn_blocking</code> / a dedicated pool for inherently blocking work (and bound that pool).
+        Same class of bug: CPU-heavy loops without <code>yield_now</code>. This is one of the highest-signal
+        Rust systems interview questions — map it explicitly to the OS blocking I/O model.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS11 · IPC ════════════ -->
+<div class="section" id="os11">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 11</div>
+      <div class="sh-title">IPC — Pipes, Unix Sockets, Shared Memory, Signals</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Compare pipes, Unix domain sockets, and TCP localhost for local IPC.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Pipes</strong> (anonymous): unidirectional byte stream between related processes (shell pipelines);
+        easy, no addressing. <strong>Unix domain sockets</strong>: bidirectional, filesystem or abstract-namespace
+        addressed, support multiple clients, credential passing (<code>SCM_CREDENTIALS</code>), and often lower
+        overhead than TCP loopback (no network stack framing). <strong>TCP localhost</strong>: same APIs as remote,
+        easier to migrate off-box, but pays TCP/IP stack costs and port management. Rust:
+        <code>std::os::unix::net::UnixStream</code> / <code>tokio::net::UnixStream</code> for local sidecars.
+        Prefer Unix sockets for same-host service meshes/sidecars when you do not need IP routing.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">When is shared memory the right IPC? What synchronization is still required?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Shared memory (<code>mmap</code> of a shared region / <code>shm_open</code>) is for high-throughput,
+        low-latency exchange of large data without copying through the kernel on each message — market data,
+        telemetry rings, game engines. You still need synchronization: atomics, futex-backed locks,
+        or single-producer single-consumer ring designs; also memory ordering and schema versioning.
+        Danger: one corrupt writer can trash peers (weaker isolation). In Rust, shared memory is inherently
+        <code>unsafe</code> territory — treat layouts like a wire format with care.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What are signals? Why are they painful in Rust (and C) services?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Signals</strong> are async notifications (SIGINT, SIGTERM, SIGCHLD, SIGSEGV…) that interrupt a
+        process. Handler restrictions are severe: only async-signal-safe functions; you can interrupt
+        syscalls (<code>EINTR</code>); global handler state races with threads. Rust cannot safely do much in a
+        classic handler — no heap allocation, no most std APIs. Best practice: use
+        <code>signal-hook</code> / <code>tokio::signal</code> to convert signals into channel events or flags
+        handled in normal async code (graceful shutdown on SIGTERM). Never <code>println!</code> from a
+        raw handler. Interviewers listen for &quot;signals as process control plane, not business logic pipe.&quot;
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Design a graceful shutdown for a Tokio service on SIGTERM — OS + runtime angle.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Register <code>tokio::signal::unix::SignalKind::terminate()</code> (and ctrl_c). On signal: stop
+        accepting new connections, drain in-flight requests with a deadline, flush/fsync critical state,
+        then exit. Coordinate with orchestrators (K8s <code>terminationGracePeriodSeconds</code>). Avoid
+        work that can deadlock during drain (don&apos;t wait forever on stuck downstream). OS angle: SIGKILL
+        cannot be caught — design so SIGTERM path is enough; persistent state must survive kill via WAL/fsync
+        discipline. Strong answer ties signal handling to readiness/liveness probe behavior.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ OS12 · PERF DEBUG CHECKLIST ════════════ -->
+<div class="section" id="os12">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// OS 12</div>
+      <div class="sh-title">Putting It Together — Rust Service Perf Debug Checklist</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Give a first-pass checklist when a Rust service is &quot;slow&quot; — what axes do you split on?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Split: <strong>CPU</strong> (user vs sys, run queue), <strong>memory</strong> (RSS growth, reclaim, swap,
+        cgroup OOM), <strong>I/O</strong> (disk/network latency, iowait, errnos), <strong>concurrency</strong>
+        (lock contention, pool wait, scheduler throttling). Always establish: is it throughput collapse,
+        latency spike (p99), or hard errors? Correlate with deploy, traffic shape, and saturation metrics.
+        Interviewers want a structured triage, not a single favorite tool.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">CPU path: what do you check for a Tokio/Rust backend?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Profiles: <code>perf</code>/<code>flamegraph</code>/<code>samply</code> for on-CPU hot stacks; check
+        whether time is in app code, allocator, serialization, or kernel. Watch for accidental
+        <code>Debug</code> formatting, excessive cloning, hash brownian motion, compression on-request-path.
+        Runtime: worker count, blocking pool saturation, tasks that never yield. OS: cgroup throttle,
+        noisy neighbor, frequency scaling. False sharing on hot atomics shows as high cache-miss CPU
+        without obvious app logic cost — pad contended counters.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Memory path: leak vs cache vs fragmentation vs page cache — how do you tell?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        App cache: bounded structures with hit-rate metrics. Leak: unbounded growth tied to connection/request
+        IDs or forgotten tasks. Fragmentation/allocator retain: RSS high, app metrics flat — check jemalloc
+        stats. Page cache: system-level, free memory low but reclaimable — not necessarily a process leak.
+        Tools: allocator prof, <code>/proc/self/smaps_rollup</code>, cgroup memory.current vs limits,
+        metrics for cache size. OOM kills under limit need the same split before &quot;just increase the limit.&quot;
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">I/O and lock contention paths — top symptoms and tools?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>I/O:</strong> high iowait, slow fsync, DNS/connect timeouts, TCP retransmits, socket buffer
+        stalls — use <code>iostat</code>, <code>bpftrace</code>/<code>perf</code>, app-level timing of
+        connect/read/write, pool wait histograms. <strong>Locks:</strong> CPU in futex waits, threads blocked
+        in <code>pthread_mutex_lock</code>, Tokio tasks waiting on the same <code>Mutex</code>, request
+        latency with low CPU — use <code>tokio-console</code>, contention metrics, reduce critical sections,
+        shard. Busy-waiting shows as high CPU with no progress — opposite of lock wait.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Scenario: p99 is high, average CPU is low, error rate is near zero. Walk a senior investigation order.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Low CPU + high latency ⇒ waiting. Order: (1) latency histograms by stage (queue wait, DB, downstream,
+        handler). (2) saturation: connection pools, semaphores, Tokio blocking threads, file descriptors.
+        (3) lock/async contention and accidental sync I/O on workers. (4) external: DNS, GC on dependency,
+        disk fsync, cgroup throttle (CPU throttle can also look odd — check throttled time even if average
+        CPU looks low). (5) GC-like periodic jobs / cache stampede. (6) network RTT/retransmits.
+        Propose one hypothesis at a time with a metric that would falsify it. That structured calm is the
+        interview — not naming fifteen tools at once.
+      </div></div>
+    </div>
+  </div>
+</div>

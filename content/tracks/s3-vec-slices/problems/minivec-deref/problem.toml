@@ -1,0 +1,27 @@
+slug = "minivec-deref"
+title = "MiniVec: slices and Deref"
+mode = "write"
+level = "hard"
+stage = "build-it"
+order = 17
+status = "ready"
+tags = ["Deref", "slice::from_raw_parts"]
+teaches = [
+  "Implementing `Deref<Target = [T]>` gives a collection every slice method.",
+  "`slice::from_raw_parts` and its safety contract.",
+]
+follow_up = "Why shouldn't you implement Deref for types that aren't smart pointers or containers?"
+related = ["S8", "Y2"]
+
+[[hints]]
+kind = "rust"
+text = "`std::slice::from_raw_parts(ptr, len)` builds a slice from a pointer and a length."
+
+[[hints]]
+kind = "edge case"
+text = "Is a dangling pointer OK when len is 0? Read the function's safety section."
+
+[solution]
+explanation = "Once `Deref` to `[T]` exists, every slice method works through auto-deref, which is how `Vec` gets `sort`, `iter` and indexing."
+time = "O(1)"
+space = "O(1)"

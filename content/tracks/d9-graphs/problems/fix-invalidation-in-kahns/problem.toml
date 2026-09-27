@@ -1,0 +1,30 @@
+slug = "fix-invalidation-in-kahns"
+title = "Fix: invalidation in Kahn's"
+mode = "fix"
+level = "medium"
+stage = "topological-sort"
+order = 14
+status = "ready"
+tags = ["E0502", "index loop"]
+teaches = [
+  "Pushing to the Vec you're iterating.",
+  "A growing work list walked by index.",
+]
+follow_up = "Which is clearer here: an index loop over a Vec, or a `VecDeque`?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "`for &u in &ready` borrows `ready` for the whole loop, so `ready.push` can't happen inside it."
+
+[[hints]]
+kind = "approach"
+text = "Walk `ready` by index with a `while` loop; its length is re-read every time round, so pushed nodes get processed too."
+
+[solution]
+explanation = "The index loop reads one element at a time, so no borrow spans the push. `ready` ends up equal to `order`, so one of them could go."
+time = "O(V + E)"
+space = "O(V + E)"
+
+[rules]
+forbid_methods = ["clone", "to_vec"]

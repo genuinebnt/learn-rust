@@ -1,0 +1,30 @@
+slug = "permutation-in-string"
+title = "Permutation in string"
+mode = "write"
+level = "medium"
+stage = "windows"
+order = 13
+status = "ready"
+tags = ["fixed window", "[u8; 26]"]
+teaches = [
+  "A fixed-size window with two count arrays, compared in O(26).",
+]
+follow_up = "How would you avoid comparing all 26 counts on every step?"
+related = ["D1"]
+
+[[examples]]
+input = "pattern = \"ab\", s = \"eidbaooo\""
+output = "true"
+
+[[hints]]
+kind = "approach"
+text = "Slide a window the size of the pattern and compare letter counts."
+
+[[hints]]
+kind = "rust"
+text = "Arrays implement `==` element-wise."
+
+[solution]
+explanation = "Comparing two `[u16; 26]` arrays is 26 comparisons, so each step is O(1)."
+time = "O(n)"
+space = "O(1)"

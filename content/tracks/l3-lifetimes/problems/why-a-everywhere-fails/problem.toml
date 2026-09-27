@@ -1,0 +1,30 @@
+slug = "why-a-everywhere-fails"
+title = "Why 'a everywhere fails"
+mode = "fix"
+level = "medium"
+stage = "two-lifetimes"
+order = 9
+status = "ready"
+tags = ["two lifetime parameters"]
+teaches = [
+  "A struct with two independent lifetime parameters.",
+  "Outputs tied to one field, not the whole struct.",
+]
+follow_up = "When is one lifetime for several fields the right design?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "One `'a` for both fields means `'a` can only be as long as the shorter borrow: the separator's."
+
+[[hints]]
+kind = "rust"
+text = "Give the struct two lifetime parameters, and tie the outputs to the text's."
+
+[solution]
+explanation = "With separate `'t` and `'s`, outputs borrow only from the text. Most structs need one lifetime; add a second exactly when outputs come from one field but not another."
+time = "O(n)"
+space = "O(k)"
+
+[rules]
+forbid_methods = ["to_string", "to_owned", "clone", "into", "from"]

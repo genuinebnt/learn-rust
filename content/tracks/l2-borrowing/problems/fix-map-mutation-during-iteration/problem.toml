@@ -1,0 +1,25 @@
+slug = "fix-map-mutation-during-iteration"
+title = "Fix: HashMap mutation during iteration"
+mode = "fix"
+level = "medium"
+stage = "iterator-invalidation"
+order = 21
+status = "ready"
+tags = ["E0502", "HashMap::retain"]
+teaches = [
+  "`HashMap::retain` filters in place.",
+]
+follow_up = "How would you remove the entries and also collect their keys?"
+related = ["L2", "S4"]
+
+[[hints]]
+kind = "rust"
+text = "Maps have the same in-place filter as Vec."
+
+[solution]
+explanation = "Removing from a hash table can move other entries, so an iterator over it can't survive a removal."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]

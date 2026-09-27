@@ -1,0 +1,31 @@
+slug = "fix-moved-mut-into-generic"
+title = "Fix: a &mut moved into a generic call"
+mode = "fix"
+level = "medium"
+stage = "reborrows"
+order = 11
+status = "ready"
+tags = ["E0382", "reborrow"]
+teaches = [
+  "Implicit reborrows happen only when the target type is known to be `&mut`.",
+  "`&mut *r` is an explicit reborrow.",
+]
+follow_up = "Why does calling `out.push_str(s)` twice not have this problem?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "When a parameter's type is exactly `&mut T`, Rust reborrows automatically. When it's a generic `W`, the `&mut` itself is moved."
+
+[[hints]]
+kind = "rust"
+text = "`&mut *out` makes a fresh, shorter borrow to pass, leaving `out` usable."
+
+[solution]
+explanation = "A `&mut` isn't `Copy`, so passing it to a generic parameter moves it. `fmt::Write` has `impl Write for &mut W`, so a reborrow fits the generic and keeps the original."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]
+max_changed_lines = 1

@@ -1,0 +1,22 @@
+slug = "collect-then-mutate"
+title = "Two passes: read, then write"
+mode = "write"
+level = "medium"
+stage = "iterator-invalidation"
+order = 19
+status = "ready"
+tags = ["two passes"]
+teaches = [
+  "Separate reading and writing into two passes.",
+]
+follow_up = "Could you do this in one pass?"
+related = ["L2"]
+
+[[hints]]
+kind = "approach"
+text = "The average depends on every value, so compute it in a first pass before changing anything."
+
+[solution]
+explanation = "The first pass's shared borrow ends before `iter_mut` starts. Summing in `u64` avoids overflow."
+time = "O(n)"
+space = "O(1)"

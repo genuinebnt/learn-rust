@@ -1,0 +1,1973 @@
+<!-- ═══════════════════════════════════════════
+     PART: LOW-LEVEL DESIGN WRITE EXERCISES  (LLD1 – LLD8)
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="lld-header">
+  <div class="ph-eyebrow">Low-Level Design · Write-From-Scratch · Rust</div>
+  <div class="ph-title">LLD Exercises — Classic Scenarios in Rust</div>
+  <div class="ph-sub">
+    Classic LLD interview staples (parking lot, elevator, booking, circuit breaker, …) implemented the Rust
+    way: enums over class hierarchies, traits for extension points, typestate where it helps, and explicit
+    concurrency notes even when the demo stays single-threaded. Hand over the starter, watch what they model
+    first, then reveal the key.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-rust">Rust 2021 / 2024 edition</span>
+    <span class="badge badge-time">8 write exercises</span>
+    <span class="badge badge-time">25–40 min each</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PART: LLD WRITE EXERCISES  (LLD1 – LLD4)
+     Parking lot · Elevator · Rate limiter · Logger
+═══════════════════════════════════════════ -->
+
+<!-- ════════════ LLD01 · PARKING LOT ════════════ -->
+<div class="section" id="lld1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// LLD 01 · 25–35 min</div>
+      <div class="sh-title">LLD1 · Parking Lot</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">lld</span>
+      <span class="chip">enums</span>
+      <span class="chip">traits</span>
+      <span class="chip">parking</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Design an in-memory <strong>parking lot</strong> with multiple floors and spot sizes.
+      Vehicles have a type (<code>Motorcycle</code> / <code>Car</code> / <code>Bus</code>) and must only park in
+      compatible spots. Expose <code>park</code>, <code>leave</code>, and <code>find_nearest</code> (lowest floor,
+      then lowest index). Model sizing with a <code>FitsIn</code> trait and enums — not a nest of booleans."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">VehicleType</span> {
+    <span class="ty">Motorcycle</span>,
+    <span class="ty">Car</span>,
+    <span class="ty">Bus</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">SpotSize</span> {
+    <span class="ty">Compact</span>,
+    <span class="ty">Regular</span>,
+    <span class="ty">Large</span>,
+}
+
+<span class="kw">trait</span> <span class="ty">FitsIn</span> {
+    <span class="kw">fn</span> <span class="fn">fits_in</span>(&amp;<span class="kw">self</span>, size: <span class="ty">SpotSize</span>) -&gt; bool;
+}
+
+<span class="kw">struct</span> <span class="ty">Vehicle</span> {
+    plate: <span class="ty">String</span>,
+    kind: <span class="ty">VehicleType</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">FitsIn</span> <span class="kw">for</span> <span class="ty">Vehicle</span> {
+    <span class="kw">fn</span> <span class="fn">fits_in</span>(&amp;<span class="kw">self</span>, size: <span class="ty">SpotSize</span>) -&gt; bool {
+        todo!(<span class="st">"motorcycle→compact/regular/large; car→regular/large; bus→large"</span>)
+    }
+}
+
+<span class="kw">enum</span> <span class="ty">ParkError</span> { Full, AlreadyParked }
+<span class="kw">enum</span> <span class="ty">LeaveError</span> { NotFound }
+
+<span class="kw">struct</span> <span class="ty">SpotId</span> { floor: usize, index: usize }
+
+<span class="kw">struct</span> <span class="ty">ParkingLot</span> {
+    <span class="cm">// TODO: floors of spots (size + optional vehicle)</span>
+}
+
+<span class="kw">impl</span> <span class="ty">ParkingLot</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(floors: <span class="ty">Vec</span>&lt;<span class="ty">Vec</span>&lt;<span class="ty">SpotSize</span>&gt;&gt;) -&gt; <span class="kw">Self</span> { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">find_nearest</span>(&amp;<span class="kw">self</span>, vehicle: &amp;<span class="ty">Vehicle</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">SpotId</span>&gt; { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">park</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, vehicle: <span class="ty">Vehicle</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">SpotId</span>, <span class="ty">ParkError</span>&gt; { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">leave</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, plate: &amp;str) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Vehicle</span>, <span class="ty">LeaveError</span>&gt; { todo!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: park car/bike/bus, assert nearest-spot order, leave, re-park</span>
+    <span class="fn">println!</span>(<span class="st">"parking lot stub"</span>);
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">VehicleType</span> {
+    <span class="ty">Motorcycle</span>,
+    <span class="ty">Car</span>,
+    <span class="ty">Bus</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">SpotSize</span> {
+    <span class="ty">Compact</span>,
+    <span class="ty">Regular</span>,
+    <span class="ty">Large</span>,
+}
+
+<span class="cm">/// Capability check lives on a trait so sizing policy can be swapped/mocked.</span>
+<span class="kw">trait</span> <span class="ty">FitsIn</span> {
+    <span class="kw">fn</span> <span class="fn">fits_in</span>(&amp;<span class="kw">self</span>, size: <span class="ty">SpotSize</span>) -&gt; bool;
+}
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">Vehicle</span> {
+    plate: <span class="ty">String</span>,
+    kind: <span class="ty">VehicleType</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">FitsIn</span> <span class="kw">for</span> <span class="ty">Vehicle</span> {
+    <span class="kw">fn</span> <span class="fn">fits_in</span>(&amp;<span class="kw">self</span>, size: <span class="ty">SpotSize</span>) -&gt; bool {
+        <span class="kw">match</span> (size, <span class="kw">self</span>.kind) {
+            (<span class="ty">SpotSize</span>::<span class="ty">Compact</span>, <span class="ty">VehicleType</span>::<span class="ty">Motorcycle</span>) =&gt; <span class="kw">true</span>,
+            (<span class="ty">SpotSize</span>::<span class="ty">Regular</span>, <span class="ty">VehicleType</span>::<span class="ty">Motorcycle</span> | <span class="ty">VehicleType</span>::<span class="ty">Car</span>) =&gt; <span class="kw">true</span>,
+            (<span class="ty">SpotSize</span>::<span class="ty">Large</span>, _) =&gt; <span class="kw">true</span>,
+            _ =&gt; <span class="kw">false</span>,
+        }
+    }
+}
+
+<span class="mc">#[derive(Debug)]</span>
+<span class="kw">struct</span> <span class="ty">Spot</span> {
+    size: <span class="ty">SpotSize</span>,
+    vehicle: <span class="ty">Option</span>&lt;<span class="ty">Vehicle</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">Spot</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(size: <span class="ty">SpotSize</span>) -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            size,
+            vehicle: <span class="ty">None</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">is_free</span>(&amp;<span class="kw">self</span>) -&gt; bool {
+        <span class="kw">self</span>.vehicle.<span class="fn">is_none</span>()
+    }
+
+    <span class="kw">fn</span> <span class="fn">can_park</span>(&amp;<span class="kw">self</span>, vehicle: &amp;<span class="ty">Vehicle</span>) -&gt; bool {
+        <span class="kw">self</span>.<span class="fn">is_free</span>() &amp;&amp; vehicle.<span class="fn">fits_in</span>(<span class="kw">self</span>.size)
+    }
+}
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">SpotId</span> {
+    floor: usize,
+    index: usize,
+}
+
+<span class="mc">#[derive(Debug)]</span>
+<span class="kw">struct</span> <span class="ty">Floor</span> {
+    spots: <span class="ty">Vec</span>&lt;<span class="ty">Spot</span>&gt;,
+}
+
+<span class="mc">#[derive(Debug)]</span>
+<span class="kw">struct</span> <span class="ty">ParkingLot</span> {
+    floors: <span class="ty">Vec</span>&lt;<span class="ty">Floor</span>&gt;,
+}
+
+<span class="mc">#[derive(Debug, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">ParkError</span> {
+    <span class="ty">Full</span>,
+    <span class="ty">AlreadyParked</span>,
+}
+
+<span class="mc">#[derive(Debug, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">LeaveError</span> {
+    <span class="ty">NotFound</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">ParkingLot</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(floors: <span class="ty">Vec</span>&lt;<span class="ty">Vec</span>&lt;<span class="ty">SpotSize</span>&gt;&gt;) -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            floors: floors
+                .<span class="fn">into_iter</span>()
+                .<span class="fn">map</span>(|sizes| <span class="ty">Floor</span> {
+                    spots: sizes.<span class="fn">into_iter</span>().<span class="fn">map</span>(<span class="ty">Spot</span>::new).<span class="fn">collect</span>(),
+                })
+                .<span class="fn">collect</span>(),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">find_vehicle</span>(&amp;<span class="kw">self</span>, plate: &amp;str) -&gt; <span class="ty">Option</span>&lt;<span class="ty">SpotId</span>&gt; {
+        <span class="kw">for</span> (floor, f) <span class="kw">in</span> <span class="kw">self</span>.floors.<span class="fn">iter</span>().<span class="fn">enumerate</span>() {
+            <span class="kw">for</span> (index, spot) <span class="kw">in</span> f.spots.<span class="fn">iter</span>().<span class="fn">enumerate</span>() {
+                <span class="kw">if</span> spot
+                    .vehicle
+                    .<span class="fn">as_ref</span>()
+                    .<span class="fn">map</span>(|v| v.plate == plate)
+                    .<span class="fn">unwrap_or</span>(<span class="kw">false</span>)
+                {
+                    <span class="kw">return</span> <span class="ty">Some</span>(<span class="ty">SpotId</span> { floor, index });
+                }
+            }
+        }
+        <span class="ty">None</span>
+    }
+
+    <span class="cm">/// Nearest free compatible spot: lowest floor, then lowest index.</span>
+    <span class="kw">fn</span> <span class="fn">find_nearest</span>(&amp;<span class="kw">self</span>, vehicle: &amp;<span class="ty">Vehicle</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">SpotId</span>&gt; {
+        <span class="kw">for</span> (floor, f) <span class="kw">in</span> <span class="kw">self</span>.floors.<span class="fn">iter</span>().<span class="fn">enumerate</span>() {
+            <span class="kw">for</span> (index, spot) <span class="kw">in</span> f.spots.<span class="fn">iter</span>().<span class="fn">enumerate</span>() {
+                <span class="kw">if</span> spot.<span class="fn">can_park</span>(vehicle) {
+                    <span class="kw">return</span> <span class="ty">Some</span>(<span class="ty">SpotId</span> { floor, index });
+                }
+            }
+        }
+        <span class="ty">None</span>
+    }
+
+    <span class="kw">fn</span> <span class="fn">park</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, vehicle: <span class="ty">Vehicle</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">SpotId</span>, <span class="ty">ParkError</span>&gt; {
+        <span class="kw">if</span> <span class="kw">self</span>.<span class="fn">find_vehicle</span>(&amp;vehicle.plate).<span class="fn">is_some</span>() {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="ty">ParkError</span>::<span class="ty">AlreadyParked</span>);
+        }
+        <span class="kw">let</span> id = <span class="kw">self</span>.<span class="fn">find_nearest</span>(&amp;vehicle).<span class="fn">ok_or</span>(<span class="ty">ParkError</span>::<span class="ty">Full</span>)?;
+        <span class="kw">self</span>.floors[id.floor].spots[id.index].vehicle = <span class="ty">Some</span>(vehicle);
+        <span class="ty">Ok</span>(id)
+    }
+
+    <span class="kw">fn</span> <span class="fn">leave</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, plate: &amp;str) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Vehicle</span>, <span class="ty">LeaveError</span>&gt; {
+        <span class="kw">let</span> id = <span class="kw">self</span>.<span class="fn">find_vehicle</span>(plate).<span class="fn">ok_or</span>(<span class="ty">LeaveError</span>::<span class="ty">NotFound</span>)?;
+        <span class="ty">Ok</span>(<span class="kw">self</span>.floors[id.floor].spots[id.index]
+            .vehicle
+            .<span class="fn">take</span>()
+            .<span class="fn">expect</span>(<span class="st">"find_vehicle guarantees occupied"</span>))
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> lot = <span class="ty">ParkingLot</span>::<span class="fn">new</span>(vec![
+        vec![<span class="ty">SpotSize</span>::<span class="ty">Compact</span>, <span class="ty">SpotSize</span>::<span class="ty">Regular</span>],
+        vec![<span class="ty">SpotSize</span>::<span class="ty">Large</span>],
+    ]);
+
+    <span class="kw">let</span> car = <span class="ty">Vehicle</span> {
+        plate: <span class="st">"CAR-1"</span>.<span class="fn">into</span>(),
+        kind: <span class="ty">VehicleType</span>::<span class="ty">Car</span>,
+    };
+    <span class="kw">let</span> id = lot.<span class="fn">park</span>(car).<span class="fn">unwrap</span>();
+    assert_eq!(id, <span class="ty">SpotId</span> { floor: <span class="nm">0</span>, index: <span class="nm">1</span> });
+
+    <span class="kw">let</span> bike = <span class="ty">Vehicle</span> {
+        plate: <span class="st">"BIKE-1"</span>.<span class="fn">into</span>(),
+        kind: <span class="ty">VehicleType</span>::<span class="ty">Motorcycle</span>,
+    };
+    <span class="kw">let</span> id2 = lot.<span class="fn">park</span>(bike).<span class="fn">unwrap</span>();
+    assert_eq!(id2, <span class="ty">SpotId</span> { floor: <span class="nm">0</span>, index: <span class="nm">0</span> });
+
+    <span class="kw">let</span> bus = <span class="ty">Vehicle</span> {
+        plate: <span class="st">"BUS-1"</span>.<span class="fn">into</span>(),
+        kind: <span class="ty">VehicleType</span>::<span class="ty">Bus</span>,
+    };
+    <span class="kw">let</span> id3 = lot.<span class="fn">park</span>(bus).<span class="fn">unwrap</span>();
+    assert_eq!(id3, <span class="ty">SpotId</span> { floor: <span class="nm">1</span>, index: <span class="nm">0</span> });
+
+    assert_eq!(
+        lot.<span class="fn">park</span>(<span class="ty">Vehicle</span> {
+            plate: <span class="st">"X"</span>.<span class="fn">into</span>(),
+            kind: <span class="ty">VehicleType</span>::<span class="ty">Car</span>,
+        }),
+        <span class="ty">Err</span>(<span class="ty">ParkError</span>::<span class="ty">Full</span>)
+    );
+
+    <span class="kw">let</span> left = lot.<span class="fn">leave</span>(<span class="st">"CAR-1"</span>).<span class="fn">unwrap</span>();
+    assert_eq!(left.plate, <span class="st">"CAR-1"</span>);
+    assert_eq!(lot.<span class="fn">leave</span>(<span class="st">"NOPE"</span>), <span class="ty">Err</span>(<span class="ty">LeaveError</span>::<span class="ty">NotFound</span>));
+
+    <span class="kw">let</span> again = lot
+        .<span class="fn">park</span>(<span class="ty">Vehicle</span> {
+            plate: <span class="st">"CAR-2"</span>.<span class="fn">into</span>(),
+            kind: <span class="ty">VehicleType</span>::<span class="ty">Car</span>,
+        })
+        .<span class="fn">unwrap</span>();
+    assert_eq!(again, <span class="ty">SpotId</span> { floor: <span class="nm">0</span>, index: <span class="nm">1</span> });
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Uses enums + a <code>FitsIn</code> trait</strong> so vehicle/spot compatibility is data-driven and swappable, not a tangle of <code>if kind == …</code> in <code>park</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Nearest-spot scan is deterministic</strong> (floor then index) and <code>park</code>/<code>leave</code> return typed errors (<code>Full</code> / <code>AlreadyParked</code> / <code>NotFound</code>) instead of panicking.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Separates spot identity from occupancy</strong> — e.g. <code>SpotId { floor, index }</code> — so leave/find stay clear at the API boundary.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why a trait instead of a method on <code>VehicleType</code>?"</em> — Traits let you mock sizing policy in tests and keep <code>park</code> generic over anything that <code>FitsIn</code>; an enum method is fine too if justified.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How do you prevent the same plate parking twice?"</em> — Scan for an existing plate before allocate (or maintain a plate→spot index). Return <code>AlreadyParked</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"What changes for concurrent park from many threads?"</em> — A lot mutex, per-floor locks, or sharded free-lists; discuss the race between <code>find_nearest</code> and claim.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Parking-lot LLD is really “enumerate the domain, then keep allocation policy separate from storage.”
+    Rust shines when <code>VehicleType</code>/<code>SpotSize</code> are enums and fit rules live behind a trait —
+    the interviewer hears clear invariants, not a spreadsheet of ifs.
+  </div>
+</div>
+
+<!-- ════════════ LLD02 · ELEVATOR SYSTEM ════════════ -->
+<div class="section" id="lld2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// LLD 02 · 35–45 min</div>
+      <div class="sh-title">LLD2 · Elevator System</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">lld</span>
+      <span class="chip">state-machine</span>
+      <span class="chip">scheduling</span>
+      <span class="chip">enums</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Model a single <strong>elevator</strong> as a state machine (<code>Idle</code> / <code>Moving(Direction)</code> /
+      <code>DoorOpen</code>). Accept floor requests with an optional travel <code>intent</code>, and advance with
+      a discrete <code>step</code>. Scheduling should follow a <strong>SCAN</strong> (elevator algorithm) policy:
+      continue in the current direction serving stops, then reverse. Be ready to explain how hall calls
+      vs cab calls differ and why SCAN beats naive FCFS for latency."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Direction</span> {
+    <span class="ty">Up</span>,
+    <span class="ty">Down</span>,
+    <span class="ty">Idle</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">ElevatorState</span> {
+    <span class="ty">Idle</span>,
+    <span class="ty">Moving</span>(<span class="ty">Direction</span>),
+    <span class="ty">DoorOpen</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">Request</span> {
+    floor: u32,
+    intent: <span class="ty">Option</span>&lt;<span class="ty">Direction</span>&gt;,
+}
+
+<span class="kw">struct</span> <span class="ty">Elevator</span> {
+    current: u32,
+    state: <span class="ty">ElevatorState</span>,
+    <span class="cm">// TODO: pending stops + serving direction for SCAN</span>
+}
+
+<span class="kw">impl</span> <span class="ty">Elevator</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(start: u32) -&gt; <span class="kw">Self</span> { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">request</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, req: <span class="ty">Request</span>) { todo!() }
+
+    <span class="cm">/// One discrete step: move one floor, or open/close doors.</span>
+    <span class="kw">fn</span> <span class="fn">step</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) { todo!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: request floors with intents, step until idle, assert SCAN visit order</span>
+    println!(<span class="st">"elevator stub"</span>);
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Direction</span> {
+    <span class="ty">Up</span>,
+    <span class="ty">Down</span>,
+    <span class="ty">Idle</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">ElevatorState</span> {
+    <span class="ty">Idle</span>,
+    <span class="ty">Moving</span>(<span class="ty">Direction</span>),
+    <span class="ty">DoorOpen</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">Request</span> {
+    floor: u32,
+    <span class="cm">/// Desired travel after boarding; `None` means hall call / go-to-floor only.</span>
+    intent: <span class="ty">Option</span>&lt;<span class="ty">Direction</span>&gt;,
+}
+
+<span class="mc">#[derive(Debug)]</span>
+<span class="kw">struct</span> <span class="ty">Elevator</span> {
+    current: u32,
+    state: <span class="ty">ElevatorState</span>,
+    <span class="cm">/// Pending stops, kept sorted ascending for the scan policy.</span>
+    stops: <span class="ty">Vec</span>&lt;u32&gt;,
+    <span class="cm">/// Direction we are currently serving under SCAN (even while doors open).</span>
+    serving: <span class="ty">Direction</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Elevator</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(start: u32) -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            current: start,
+            state: <span class="ty">ElevatorState</span>::<span class="ty">Idle</span>,
+            stops: <span class="ty">Vec</span>::<span class="fn">new</span>(),
+            serving: <span class="ty">Direction</span>::<span class="ty">Idle</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">request</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, req: <span class="ty">Request</span>) {
+        <span class="kw">if</span> !<span class="kw">self</span>.stops.<span class="fn">contains</span>(&amp;req.floor) {
+            <span class="kw">self</span>.stops.<span class="fn">push</span>(req.floor);
+            <span class="kw">self</span>.stops.<span class="fn">sort_unstable</span>();
+        }
+        <span class="kw">if</span> <span class="kw">self</span>.serving == <span class="ty">Direction</span>::<span class="ty">Idle</span> {
+            <span class="kw">self</span>.serving = <span class="kw">if</span> req.floor &gt; <span class="kw">self</span>.current {
+                <span class="ty">Direction</span>::<span class="ty">Up</span>
+            } <span class="kw">else</span> <span class="kw">if</span> req.floor &lt; <span class="kw">self</span>.current {
+                <span class="ty">Direction</span>::<span class="ty">Down</span>
+            } <span class="kw">else</span> {
+                <span class="cm">// Same-floor: intent chooses departure direction after boarding.</span>
+                req.intent.<span class="fn">unwrap_or</span>(<span class="ty">Direction</span>::<span class="ty">Idle</span>)
+            };
+            <span class="kw">if</span> <span class="kw">self</span>.serving != <span class="ty">Direction</span>::<span class="ty">Idle</span> {
+                <span class="kw">self</span>.state = <span class="ty">ElevatorState</span>::<span class="ty">Moving</span>(<span class="kw">self</span>.serving);
+            } <span class="kw">else</span> <span class="kw">if</span> req.floor == <span class="kw">self</span>.current {
+                <span class="kw">self</span>.state = <span class="ty">ElevatorState</span>::<span class="ty">DoorOpen</span>;
+            }
+        } <span class="kw">else</span> <span class="kw">if</span> req.floor == <span class="kw">self</span>.current {
+            <span class="cm">// Same-floor while busy: open doors. Intent seeds serving only if</span>
+            <span class="cm">// we somehow lost direction; otherwise SCAN keeps the sweep.</span>
+            <span class="kw">self</span>.serving = <span class="kw">match</span> req.intent {
+                <span class="ty">Some</span>(dir) <span class="kw">if</span> <span class="kw">self</span>.serving == <span class="ty">Direction</span>::<span class="ty">Idle</span> =&gt; dir,
+                _ =&gt; <span class="kw">self</span>.serving,
+            };
+            <span class="kw">self</span>.state = <span class="ty">ElevatorState</span>::<span class="ty">DoorOpen</span>;
+        }
+    }
+
+    <span class="cm">/// One discrete step: move one floor toward the next stop, or open/close doors.</span>
+    <span class="kw">fn</span> <span class="fn">step</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) {
+        <span class="kw">match</span> <span class="kw">self</span>.state {
+            <span class="ty">ElevatorState</span>::<span class="ty">DoorOpen</span> =&gt; {
+                <span class="kw">self</span>.stops.<span class="fn">retain</span>(|f| *f != <span class="kw">self</span>.current);
+                <span class="kw">self</span>.<span class="fn">pick_next_direction</span>();
+                <span class="kw">if</span> <span class="kw">self</span>.serving == <span class="ty">Direction</span>::<span class="ty">Idle</span> {
+                    <span class="kw">self</span>.state = <span class="ty">ElevatorState</span>::<span class="ty">Idle</span>;
+                } <span class="kw">else</span> {
+                    <span class="kw">self</span>.state = <span class="ty">ElevatorState</span>::<span class="ty">Moving</span>(<span class="kw">self</span>.serving);
+                }
+            }
+            <span class="ty">ElevatorState</span>::<span class="ty">Idle</span> =&gt; {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(&amp;next) = <span class="kw">self</span>.<span class="fn">next_stop</span>() {
+                    <span class="kw">self</span>.serving = <span class="kw">if</span> next &gt; <span class="kw">self</span>.current {
+                        <span class="ty">Direction</span>::<span class="ty">Up</span>
+                    } <span class="kw">else</span> <span class="kw">if</span> next &lt; <span class="kw">self</span>.current {
+                        <span class="ty">Direction</span>::<span class="ty">Down</span>
+                    } <span class="kw">else</span> {
+                        <span class="ty">Direction</span>::<span class="ty">Idle</span>
+                    };
+                    <span class="kw">if</span> next == <span class="kw">self</span>.current {
+                        <span class="kw">self</span>.state = <span class="ty">ElevatorState</span>::<span class="ty">DoorOpen</span>;
+                    } <span class="kw">else</span> {
+                        <span class="kw">self</span>.state = <span class="ty">ElevatorState</span>::<span class="ty">Moving</span>(<span class="kw">self</span>.serving);
+                    }
+                }
+            }
+            <span class="ty">ElevatorState</span>::<span class="ty">Moving</span>(dir) =&gt; {
+                <span class="kw">match</span> dir {
+                    <span class="ty">Direction</span>::<span class="ty">Up</span> =&gt; <span class="kw">self</span>.current += <span class="nm">1</span>,
+                    <span class="ty">Direction</span>::<span class="ty">Down</span> =&gt; <span class="kw">self</span>.current = <span class="kw">self</span>.current.<span class="fn">saturating_sub</span>(<span class="nm">1</span>),
+                    <span class="ty">Direction</span>::<span class="ty">Idle</span> =&gt; {}
+                }
+                <span class="kw">if</span> <span class="kw">self</span>.stops.<span class="fn">contains</span>(&amp;<span class="kw">self</span>.current) {
+                    <span class="kw">self</span>.state = <span class="ty">ElevatorState</span>::<span class="ty">DoorOpen</span>;
+                }
+            }
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">next_stop</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;&amp;u32&gt; {
+        <span class="kw">match</span> <span class="kw">self</span>.serving {
+            <span class="ty">Direction</span>::<span class="ty">Up</span> =&gt; <span class="kw">self</span>.stops.<span class="fn">iter</span>().<span class="fn">find</span>(|&amp;&amp;f| f &gt;= <span class="kw">self</span>.current),
+            <span class="ty">Direction</span>::<span class="ty">Down</span> =&gt; <span class="kw">self</span>.stops.<span class="fn">iter</span>().<span class="fn">rev</span>().<span class="fn">find</span>(|&amp;&amp;f| f &lt;= <span class="kw">self</span>.current),
+            <span class="ty">Direction</span>::<span class="ty">Idle</span> =&gt; <span class="kw">self</span>.stops.<span class="fn">first</span>(),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">pick_next_direction</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) {
+        <span class="kw">if</span> <span class="kw">self</span>.stops.<span class="fn">is_empty</span>() {
+            <span class="kw">self</span>.serving = <span class="ty">Direction</span>::<span class="ty">Idle</span>;
+            <span class="kw">return</span>;
+        }
+        <span class="kw">match</span> <span class="kw">self</span>.serving {
+            <span class="ty">Direction</span>::<span class="ty">Up</span> =&gt; {
+                <span class="kw">if</span> <span class="kw">self</span>.stops.<span class="fn">iter</span>().<span class="fn">any</span>(|&amp;f| f &gt; <span class="kw">self</span>.current) {
+                    <span class="kw">self</span>.serving = <span class="ty">Direction</span>::<span class="ty">Up</span>;
+                } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">self</span>.stops.<span class="fn">iter</span>().<span class="fn">any</span>(|&amp;f| f &lt; <span class="kw">self</span>.current) {
+                    <span class="kw">self</span>.serving = <span class="ty">Direction</span>::<span class="ty">Down</span>;
+                } <span class="kw">else</span> {
+                    <span class="kw">self</span>.serving = <span class="ty">Direction</span>::<span class="ty">Idle</span>;
+                }
+            }
+            <span class="ty">Direction</span>::<span class="ty">Down</span> =&gt; {
+                <span class="kw">if</span> <span class="kw">self</span>.stops.<span class="fn">iter</span>().<span class="fn">any</span>(|&amp;f| f &lt; <span class="kw">self</span>.current) {
+                    <span class="kw">self</span>.serving = <span class="ty">Direction</span>::<span class="ty">Down</span>;
+                } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">self</span>.stops.<span class="fn">iter</span>().<span class="fn">any</span>(|&amp;f| f &gt; <span class="kw">self</span>.current) {
+                    <span class="kw">self</span>.serving = <span class="ty">Direction</span>::<span class="ty">Up</span>;
+                } <span class="kw">else</span> {
+                    <span class="kw">self</span>.serving = <span class="ty">Direction</span>::<span class="ty">Idle</span>;
+                }
+            }
+            <span class="ty">Direction</span>::<span class="ty">Idle</span> =&gt; {
+                <span class="kw">let</span> <span class="ty">Some</span>(&amp;next) = <span class="kw">self</span>.stops.<span class="fn">first</span>() <span class="kw">else</span> {
+                    <span class="kw">return</span>;
+                };
+                <span class="kw">self</span>.serving = <span class="kw">if</span> next &gt; <span class="kw">self</span>.current {
+                    <span class="ty">Direction</span>::<span class="ty">Up</span>
+                } <span class="kw">else</span> <span class="kw">if</span> next &lt; <span class="kw">self</span>.current {
+                    <span class="ty">Direction</span>::<span class="ty">Down</span>
+                } <span class="kw">else</span> {
+                    <span class="ty">Direction</span>::<span class="ty">Idle</span>
+                };
+            }
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">run_until_idle</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, max_steps: usize) {
+        <span class="kw">for</span> _ <span class="kw">in</span> <span class="nm">0</span>..max_steps {
+            <span class="kw">if</span> <span class="kw">self</span>.state == <span class="ty">ElevatorState</span>::<span class="ty">Idle</span> &amp;&amp; <span class="kw">self</span>.stops.<span class="fn">is_empty</span>() {
+                <span class="kw">return</span>;
+            }
+            <span class="kw">self</span>.<span class="fn">step</span>();
+        }
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> e = <span class="ty">Elevator</span>::<span class="fn">new</span>(<span class="nm">0</span>);
+    e.<span class="fn">request</span>(<span class="ty">Request</span> {
+        floor: <span class="nm">3</span>,
+        intent: <span class="ty">Some</span>(<span class="ty">Direction</span>::<span class="ty">Up</span>),
+    });
+    e.<span class="fn">request</span>(<span class="ty">Request</span> {
+        floor: <span class="nm">1</span>,
+        intent: <span class="ty">Some</span>(<span class="ty">Direction</span>::<span class="ty">Up</span>),
+    });
+    e.<span class="fn">request</span>(<span class="ty">Request</span> {
+        floor: <span class="nm">5</span>,
+        intent: <span class="ty">None</span>,
+    });
+
+    <span class="cm">// SCAN upward first: visit 1, then 3, then 5.</span>
+    <span class="kw">let</span> <span class="kw">mut</span> visited = <span class="ty">Vec</span>::<span class="fn">new</span>();
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="nm">0</span>..<span class="nm">40</span> {
+        <span class="kw">if</span> e.state == <span class="ty">ElevatorState</span>::<span class="ty">DoorOpen</span> {
+            visited.<span class="fn">push</span>(e.current);
+        }
+        <span class="kw">if</span> e.state == <span class="ty">ElevatorState</span>::<span class="ty">Idle</span> &amp;&amp; e.stops.<span class="fn">is_empty</span>() {
+            <span class="kw">break</span>;
+        }
+        e.<span class="fn">step</span>();
+    }
+    assert_eq!(visited, vec![<span class="nm">1</span>, <span class="nm">3</span>, <span class="nm">5</span>]);
+    assert_eq!(e.current, <span class="nm">5</span>);
+    assert_eq!(e.state, <span class="ty">ElevatorState</span>::<span class="ty">Idle</span>);
+
+    <span class="cm">// Now reverse: from 5, serve down requests.</span>
+    e.<span class="fn">request</span>(<span class="ty">Request</span> {
+        floor: <span class="nm">2</span>,
+        intent: <span class="ty">Some</span>(<span class="ty">Direction</span>::<span class="ty">Down</span>),
+    });
+    e.<span class="fn">request</span>(<span class="ty">Request</span> {
+        floor: <span class="nm">4</span>,
+        intent: <span class="ty">Some</span>(<span class="ty">Direction</span>::<span class="ty">Down</span>),
+    });
+    visited.<span class="fn">clear</span>();
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="nm">0</span>..<span class="nm">40</span> {
+        <span class="kw">if</span> e.state == <span class="ty">ElevatorState</span>::<span class="ty">DoorOpen</span> {
+            visited.<span class="fn">push</span>(e.current);
+        }
+        <span class="kw">if</span> e.state == <span class="ty">ElevatorState</span>::<span class="ty">Idle</span> &amp;&amp; e.stops.<span class="fn">is_empty</span>() {
+            <span class="kw">break</span>;
+        }
+        e.<span class="fn">step</span>();
+    }
+    assert_eq!(visited, vec![<span class="nm">4</span>, <span class="nm">2</span>]);
+    assert_eq!(e.state, <span class="ty">ElevatorState</span>::<span class="ty">Idle</span>);
+
+    e.<span class="fn">run_until_idle</span>(<span class="nm">5</span>);
+    assert_eq!(e.state, <span class="ty">ElevatorState</span>::<span class="ty">Idle</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Explicit state enum + serving direction</strong> — movement, door open, and idle are transitions, not boolean flags; SCAN keeps a <code>serving</code> direction across door cycles.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Implements SCAN correctly</strong> — collects stops, prefers continuing up/down, reverses only when no further stop in that direction; visit order asserted in <code>main</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Uses request <code>intent</code> for same-floor / idle bootstrapping</strong> without breaking an in-progress sweep — shows hall-call semantics.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"SCAN vs LOOK vs FCFS — when does it matter?"</em> — FCFS starves under load; SCAN/LOOK bound travel like a disk arm. LOOK stops at the last request instead of the shaft end.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would you extend this to N elevators?"</em> — Dispatcher assigns a request to the car minimizing cost (distance, direction alignment, load); each car still runs its own SCAN state machine.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Where do you put time — doors open for N steps?"</em> — Count door ticks in the state machine or inject a clock; keep <code>step</code> as the single advance point for tests.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Elevator interviews reward a crisp state machine more than clever heaps. In Rust, encoding
+    <code>ElevatorState</code> and <code>Direction</code> as enums makes illegal combinations unrepresentable;
+    SCAN is then “pick next stop in <code>serving</code>, else flip” — easy to assert in <code>main</code>.
+  </div>
+</div>
+
+<!-- ════════════ LLD03 · RATE LIMITER (LIBRARY LLD) ════════════ -->
+<div class="section" id="lld3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// LLD 03 · 25–35 min</div>
+      <div class="sh-title">LLD3 · Rate Limiter (library LLD)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">lld</span>
+      <span class="chip">library-api</span>
+      <span class="chip">token-bucket</span>
+      <span class="chip">time</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement a <strong>token-bucket rate limiter</strong> as a clean <em>library</em> API (the code-level
+      complement to an HLD rate-limiting discussion). Support burst capacity, steady refill, and
+      <code>try_acquire</code> / <code>available</code> / <code>time_until</code>. <strong>Inject time</strong> via <code>now_ms</code>
+      (or a clock callback) so tests are deterministic — do not call the system clock inside the bucket."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::time::<span class="ty">Duration</span>;
+
+<span class="cm">/// Token-bucket rate limiter — inject time via now_ms for tests.</span>
+<span class="kw">struct</span> <span class="ty">TokenBucket</span> {
+    <span class="cm">// TODO: capacity, refill_per_sec, tokens, last_ms</span>
+}
+
+<span class="kw">impl</span> <span class="ty">TokenBucket</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(capacity: f64, refill_per_sec: f64, now_ms: u64) -&gt; <span class="kw">Self</span> { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">try_acquire</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, n: f64, now_ms: u64) -&gt; <span class="ty">Result</span>&lt;bool, &amp;<span class="ty">'static</span> str&gt; { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">available</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now_ms: u64) -&gt; f64 { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">time_until</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, n: f64, now_ms: u64) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Duration</span>, &amp;<span class="ty">'static</span> str&gt; { todo!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: burst, deny when empty, refill over time, exceeds-capacity error</span>
+    println!(<span class="st">"token bucket stub"</span>);
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::time::<span class="ty">Duration</span>;
+
+<span class="cm">/// Token-bucket rate limiter as a small library API.</span>
+<span class="cm">/// Time is injected via a clock callback so tests stay deterministic.</span>
+<span class="kw">struct</span> <span class="ty">TokenBucket</span> {
+    capacity: f64,
+    <span class="cm">/// Tokens added per second.</span>
+    refill_per_sec: f64,
+    tokens: f64,
+    <span class="cm">/// Monotonic time in milliseconds since an arbitrary epoch.</span>
+    last_ms: u64,
+}
+
+<span class="mc">#[derive(Debug, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">LimitError</span> {
+    <span class="cm">/// Requested more tokens than the bucket can ever hold.</span>
+    <span class="ty">ExceedsCapacity</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">TokenBucket</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(capacity: f64, refill_per_sec: f64, now_ms: u64) -&gt; <span class="kw">Self</span> {
+        assert!(capacity &gt; <span class="nm">0.0</span> &amp;&amp; refill_per_sec &gt;= <span class="nm">0.0</span>);
+        <span class="kw">Self</span> {
+            capacity,
+            refill_per_sec,
+            tokens: capacity,
+            last_ms: now_ms,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">refill</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now_ms: u64) {
+        <span class="kw">if</span> now_ms &gt; <span class="kw">self</span>.last_ms {
+            <span class="kw">let</span> elapsed_secs = (now_ms - <span class="kw">self</span>.last_ms) <span class="kw">as</span> f64 / <span class="nm">1000.0</span>;
+            <span class="kw">self</span>.tokens = (<span class="kw">self</span>.tokens + elapsed_secs * <span class="kw">self</span>.refill_per_sec).<span class="fn">min</span>(<span class="kw">self</span>.capacity);
+            <span class="kw">self</span>.last_ms = now_ms;
+        }
+    }
+
+    <span class="cm">/// Try to consume `n` tokens at `now_ms`. Returns Ok(true) if allowed,</span>
+    <span class="cm">/// Ok(false) if rate-limited, Err if `n` can never succeed.</span>
+    <span class="kw">fn</span> <span class="fn">try_acquire</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, n: f64, now_ms: u64) -&gt; <span class="ty">Result</span>&lt;bool, <span class="ty">LimitError</span>&gt; {
+        <span class="kw">if</span> n &gt; <span class="kw">self</span>.capacity {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="ty">LimitError</span>::<span class="ty">ExceedsCapacity</span>);
+        }
+        <span class="kw">self</span>.<span class="fn">refill</span>(now_ms);
+        <span class="kw">if</span> <span class="kw">self</span>.tokens &gt;= n {
+            <span class="kw">self</span>.tokens -= n;
+            <span class="ty">Ok</span>(<span class="kw">true</span>)
+        } <span class="kw">else</span> {
+            <span class="ty">Ok</span>(<span class="kw">false</span>)
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">available</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now_ms: u64) -&gt; f64 {
+        <span class="kw">self</span>.<span class="fn">refill</span>(now_ms);
+        <span class="kw">self</span>.tokens
+    }
+
+    <span class="cm">/// Convenience: wait duration until `n` tokens would be available (approx).</span>
+    <span class="kw">fn</span> <span class="fn">time_until</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, n: f64, now_ms: u64) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Duration</span>, <span class="ty">LimitError</span>&gt; {
+        <span class="kw">if</span> n &gt; <span class="kw">self</span>.capacity {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="ty">LimitError</span>::<span class="ty">ExceedsCapacity</span>);
+        }
+        <span class="kw">self</span>.<span class="fn">refill</span>(now_ms);
+        <span class="kw">if</span> <span class="kw">self</span>.tokens &gt;= n {
+            <span class="kw">return</span> <span class="ty">Ok</span>(<span class="ty">Duration</span>::<span class="ty">ZERO</span>);
+        }
+        <span class="kw">if</span> <span class="kw">self</span>.refill_per_sec == <span class="nm">0.0</span> {
+            <span class="kw">return</span> <span class="ty">Ok</span>(<span class="ty">Duration</span>::<span class="fn">from_secs</span>(u64::<span class="ty">MAX</span> / <span class="nm">2</span>));
+        }
+        <span class="kw">let</span> need = n - <span class="kw">self</span>.tokens;
+        <span class="kw">let</span> secs = need / <span class="kw">self</span>.refill_per_sec;
+        <span class="ty">Ok</span>(<span class="ty">Duration</span>::<span class="fn">from_secs_f64</span>(secs))
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> bucket = <span class="ty">TokenBucket</span>::<span class="fn">new</span>(<span class="nm">5.0</span>, <span class="nm">1.0</span>, <span class="nm">0</span>);
+    assert!(bucket.<span class="fn">try_acquire</span>(<span class="nm">5.0</span>, <span class="nm">0</span>).<span class="fn">unwrap</span>());
+    assert!(!bucket.<span class="fn">try_acquire</span>(<span class="nm">1.0</span>, <span class="nm">0</span>).<span class="fn">unwrap</span>());
+    assert_eq!(bucket.<span class="fn">available</span>(<span class="nm">0</span>), <span class="nm">0.0</span>);
+
+    <span class="cm">// After 2 seconds, 2 tokens refilled.</span>
+    assert!(bucket.<span class="fn">try_acquire</span>(<span class="nm">2.0</span>, <span class="nm">2_000</span>).<span class="fn">unwrap</span>());
+    assert!(!bucket.<span class="fn">try_acquire</span>(<span class="nm">1.0</span>, <span class="nm">2_000</span>).<span class="fn">unwrap</span>());
+
+    assert_eq!(
+        bucket.<span class="fn">try_acquire</span>(<span class="nm">10.0</span>, <span class="nm">2_000</span>),
+        <span class="ty">Err</span>(<span class="ty">LimitError</span>::<span class="ty">ExceedsCapacity</span>)
+    );
+
+    <span class="kw">let</span> wait = bucket.<span class="fn">time_until</span>(<span class="nm">1.0</span>, <span class="nm">2_000</span>).<span class="fn">unwrap</span>();
+    assert!(wait &gt;= <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">1</span>));
+
+    <span class="cm">// Burst capacity restored after long idle.</span>
+    assert!((bucket.<span class="fn">available</span>(<span class="nm">10_000</span>) - <span class="nm">5.0</span>).<span class="fn">abs</span>() &lt; <span class="nm">1e-9</span>);
+    assert!(bucket.<span class="fn">try_acquire</span>(<span class="nm">5.0</span>, <span class="nm">10_000</span>).<span class="fn">unwrap</span>());
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Injects <code>now_ms</code> (no hidden <code>Instant::now()</code>)</strong> so refill, deny, and <code>time_until</code> are assertable without sleeps.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Distinguishes rate-limit deny from exceeds-capacity</strong> — <code>Ok(false)</code> vs <code>Err(ExceedsCapacity)</code> — a library-quality API detail.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Refill is lazy on access</strong> and caps at capacity; can explain float tokens for a demo vs integer millis math in production.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why not sleep inside <code>try_acquire</code>?"</em> — Libraries should not block the caller’s scheduler. Return false / <code>time_until</code> and let the app wait or shed load.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How does this map to a distributed limiter?"</em> — Local token bucket ≈ single-node; Redis INCR+TTL or a central counter for multi-node. Discuss drift and burst fairness.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Token bucket vs sliding window?"</em> — Bucket allows controlled bursts up to capacity; sliding window smooths per-window counts. Pick based on UX vs abuse.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Library LLD is API design under a microscope: pure functions of (state, now), typed errors, and
+    no policy hidden in sleeps. Rust interviewers like seeing time as a parameter — the same habit
+    that makes production limiters testable and embeddable in async services.
+  </div>
+</div>
+
+<!-- ════════════ LLD04 · LOGGER / APPEND-ONLY LOG ════════════ -->
+<div class="section" id="lld4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// LLD 04 · 25–35 min</div>
+      <div class="sh-title">LLD4 · Logger / Append-only Log</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">lld</span>
+      <span class="chip">traits</span>
+      <span class="chip">buffering</span>
+      <span class="chip">io</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Design a small <strong>logger</strong> with log levels, a <code>Sink</code> trait, and a buffered front-end
+      that is async-friendly (batch writes; std-only is fine). Filter by <code>min_level</code>, auto-flush when
+      the buffer hits capacity, and <strong>flush on <code>Drop</code></strong>. Provide an in-memory sink for tests
+      and show that debug lines below the threshold never reach the sink."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::io::{<span class="kw">self</span>, <span class="ty">Write</span>};
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]</span>
+<span class="kw">enum</span> <span class="ty">Level</span> {
+    <span class="ty">Error</span> = <span class="nm">1</span>,
+    <span class="ty">Warn</span> = <span class="nm">2</span>,
+    <span class="ty">Info</span> = <span class="nm">3</span>,
+    <span class="ty">Debug</span> = <span class="nm">4</span>,
+    <span class="ty">Trace</span> = <span class="nm">5</span>,
+}
+
+<span class="kw">trait</span> <span class="ty">Sink</span> {
+    <span class="kw">fn</span> <span class="fn">write_line</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, level: <span class="ty">Level</span>, msg: &amp;str) -&gt; io::<span class="ty">Result</span>&lt;()&gt;;
+    <span class="kw">fn</span> <span class="fn">flush</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; io::<span class="ty">Result</span>&lt;()&gt;;
+}
+
+<span class="kw">struct</span> <span class="ty">Logger</span>&lt;<span class="ty">S</span>: <span class="ty">Sink</span>&gt; {
+    <span class="cm">// TODO: min_level, sink, buffer, capacity</span>
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">S</span>: <span class="ty">Sink</span>&gt; <span class="ty">Logger</span>&lt;<span class="ty">S</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>(min_level: <span class="ty">Level</span>, sink: <span class="ty">S</span>, capacity: usize) -&gt; <span class="kw">Self</span> { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">log</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, level: <span class="ty">Level</span>, msg: <span class="kw">impl</span> <span class="ty">Into</span>&lt;<span class="ty">String</span>&gt;) -&gt; io::<span class="ty">Result</span>&lt;()&gt; { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">flush</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; io::<span class="ty">Result</span>&lt;()&gt; { todo!() }
+}
+
+<span class="cm">// TODO: Drop flushes; MemSink for tests; filter by min_level</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: buffer, auto-flush at capacity, filter debug, into_sink asserts</span>
+    println!(<span class="st">"logger stub"</span>);
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::io::{<span class="kw">self</span>, <span class="ty">Write</span>};
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]</span>
+<span class="kw">enum</span> <span class="ty">Level</span> {
+    <span class="ty">Error</span> = <span class="nm">1</span>,
+    <span class="ty">Warn</span> = <span class="nm">2</span>,
+    <span class="ty">Info</span> = <span class="nm">3</span>,
+    <span class="ty">Debug</span> = <span class="nm">4</span>,
+    <span class="ty">Trace</span> = <span class="nm">5</span>,
+}
+
+<span class="kw">trait</span> <span class="ty">Sink</span> {
+    <span class="kw">fn</span> <span class="fn">write_line</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, level: <span class="ty">Level</span>, msg: &amp;str) -&gt; io::<span class="ty">Result</span>&lt;()&gt;;
+    <span class="kw">fn</span> <span class="fn">flush</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; io::<span class="ty">Result</span>&lt;()&gt;;
+}
+
+<span class="kw">struct</span> <span class="ty">StderrSink</span>;
+
+<span class="kw">impl</span> <span class="ty">Sink</span> <span class="kw">for</span> <span class="ty">StderrSink</span> {
+    <span class="kw">fn</span> <span class="fn">write_line</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, level: <span class="ty">Level</span>, msg: &amp;str) -&gt; io::<span class="ty">Result</span>&lt;()&gt; {
+        <span class="kw">let</span> <span class="kw">mut</span> err = io::<span class="fn">stderr</span>().<span class="fn">lock</span>();
+        writeln!(err, <span class="st">"[{level:?}] {msg}"</span>)
+    }
+
+    <span class="kw">fn</span> <span class="fn">flush</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; io::<span class="ty">Result</span>&lt;()&gt; {
+        io::<span class="fn">stderr</span>().<span class="fn">flush</span>()
+    }
+}
+
+<span class="cm">/// In-memory sink for tests / capturing.</span>
+<span class="kw">struct</span> <span class="ty">MemSink</span> {
+    lines: <span class="ty">Vec</span>&lt;(<span class="ty">Level</span>, <span class="ty">String</span>)&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">MemSink</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> { lines: <span class="ty">Vec</span>::<span class="fn">new</span>() }
+    }
+}
+
+<span class="kw">impl</span> <span class="ty">Sink</span> <span class="kw">for</span> <span class="ty">MemSink</span> {
+    <span class="kw">fn</span> <span class="fn">write_line</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, level: <span class="ty">Level</span>, msg: &amp;str) -&gt; io::<span class="ty">Result</span>&lt;()&gt; {
+        <span class="kw">self</span>.lines.<span class="fn">push</span>((level, msg.<span class="fn">to_string</span>()));
+        <span class="ty">Ok</span>(())
+    }
+
+    <span class="kw">fn</span> <span class="fn">flush</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; io::<span class="ty">Result</span>&lt;()&gt; {
+        <span class="ty">Ok</span>(())
+    }
+}
+
+<span class="cm">/// Buffered logger: hot path appends; I/O happens on flush (async-friendly boundary).</span>
+<span class="kw">struct</span> <span class="ty">Logger</span>&lt;<span class="ty">S</span>: <span class="ty">Sink</span>&gt; {
+    min_level: <span class="ty">Level</span>,
+    sink: <span class="ty">Option</span>&lt;<span class="ty">S</span>&gt;,
+    buffer: <span class="ty">Vec</span>&lt;(<span class="ty">Level</span>, <span class="ty">String</span>)&gt;,
+    capacity: usize,
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">S</span>: <span class="ty">Sink</span>&gt; <span class="ty">Logger</span>&lt;<span class="ty">S</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>(min_level: <span class="ty">Level</span>, sink: <span class="ty">S</span>, capacity: usize) -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            min_level,
+            sink: <span class="ty">Some</span>(sink),
+            buffer: <span class="ty">Vec</span>::<span class="fn">with_capacity</span>(capacity),
+            capacity: capacity.<span class="fn">max</span>(<span class="nm">1</span>),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">log</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, level: <span class="ty">Level</span>, msg: <span class="kw">impl</span> <span class="ty">Into</span>&lt;<span class="ty">String</span>&gt;) -&gt; io::<span class="ty">Result</span>&lt;()&gt; {
+        <span class="kw">if</span> level &gt; <span class="kw">self</span>.min_level {
+            <span class="kw">return</span> <span class="ty">Ok</span>(());
+        }
+        <span class="kw">self</span>.buffer.<span class="fn">push</span>((level, msg.<span class="fn">into</span>()));
+        <span class="kw">if</span> <span class="kw">self</span>.buffer.<span class="fn">len</span>() &gt;= <span class="kw">self</span>.capacity {
+            <span class="kw">self</span>.<span class="fn">flush</span>()?;
+        }
+        <span class="ty">Ok</span>(())
+    }
+
+    <span class="kw">fn</span> <span class="fn">info</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: <span class="kw">impl</span> <span class="ty">Into</span>&lt;<span class="ty">String</span>&gt;) -&gt; io::<span class="ty">Result</span>&lt;()&gt; {
+        <span class="kw">self</span>.<span class="fn">log</span>(<span class="ty">Level</span>::<span class="ty">Info</span>, msg)
+    }
+
+    <span class="kw">fn</span> <span class="fn">debug</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: <span class="kw">impl</span> <span class="ty">Into</span>&lt;<span class="ty">String</span>&gt;) -&gt; io::<span class="ty">Result</span>&lt;()&gt; {
+        <span class="kw">self</span>.<span class="fn">log</span>(<span class="ty">Level</span>::<span class="ty">Debug</span>, msg)
+    }
+
+    <span class="kw">fn</span> <span class="fn">error</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: <span class="kw">impl</span> <span class="ty">Into</span>&lt;<span class="ty">String</span>&gt;) -&gt; io::<span class="ty">Result</span>&lt;()&gt; {
+        <span class="kw">self</span>.<span class="fn">log</span>(<span class="ty">Level</span>::<span class="ty">Error</span>, msg)
+    }
+
+    <span class="kw">fn</span> <span class="fn">flush</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; io::<span class="ty">Result</span>&lt;()&gt; {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(sink) = <span class="kw">self</span>.sink.<span class="fn">as_mut</span>() {
+            <span class="kw">for</span> (level, msg) <span class="kw">in</span> <span class="kw">self</span>.buffer.<span class="fn">drain</span>(..) {
+                sink.<span class="fn">write_line</span>(level, &amp;msg)?;
+            }
+            sink.<span class="fn">flush</span>()?;
+        }
+        <span class="ty">Ok</span>(())
+    }
+
+    <span class="kw">fn</span> <span class="fn">into_sink</span>(<span class="kw">mut</span> <span class="kw">self</span>) -&gt; io::<span class="ty">Result</span>&lt;<span class="ty">S</span>&gt; {
+        <span class="kw">self</span>.<span class="fn">flush</span>()?;
+        <span class="ty">Ok</span>(<span class="kw">self</span>.sink.<span class="fn">take</span>().<span class="fn">expect</span>(<span class="st">"sink present until into_sink"</span>))
+    }
+
+    <span class="kw">fn</span> <span class="fn">buffered_len</span>(&amp;<span class="kw">self</span>) -&gt; usize {
+        <span class="kw">self</span>.buffer.<span class="fn">len</span>()
+    }
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">S</span>: <span class="ty">Sink</span>&gt; <span class="ty">Drop</span> <span class="kw">for</span> <span class="ty">Logger</span>&lt;<span class="ty">S</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">drop</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) {
+        <span class="kw">let</span> _ = <span class="kw">self</span>.<span class="fn">flush</span>();
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> log = <span class="ty">Logger</span>::<span class="fn">new</span>(<span class="ty">Level</span>::<span class="ty">Info</span>, <span class="ty">MemSink</span>::<span class="fn">new</span>(), <span class="nm">2</span>);
+    log.<span class="fn">info</span>(<span class="st">"a"</span>).<span class="fn">unwrap</span>();
+    assert_eq!(log.<span class="fn">buffered_len</span>(), <span class="nm">1</span>);
+
+    <span class="cm">// Debug filtered out by min_level = Info.</span>
+    log.<span class="fn">debug</span>(<span class="st">"secret"</span>).<span class="fn">unwrap</span>();
+    assert_eq!(log.<span class="fn">buffered_len</span>(), <span class="nm">1</span>);
+
+    <span class="cm">// Second info hits capacity → auto-flush.</span>
+    log.<span class="fn">info</span>(<span class="st">"b"</span>).<span class="fn">unwrap</span>();
+    assert_eq!(log.<span class="fn">buffered_len</span>(), <span class="nm">0</span>);
+
+    log.<span class="fn">error</span>(<span class="st">"boom"</span>).<span class="fn">unwrap</span>();
+    <span class="kw">let</span> sink = log.<span class="fn">into_sink</span>().<span class="fn">unwrap</span>();
+    assert_eq!(
+        sink.lines,
+        vec![
+            (<span class="ty">Level</span>::<span class="ty">Info</span>, <span class="st">"a"</span>.<span class="fn">into</span>()),
+            (<span class="ty">Level</span>::<span class="ty">Info</span>, <span class="st">"b"</span>.<span class="fn">into</span>()),
+            (<span class="ty">Level</span>::<span class="ty">Error</span>, <span class="st">"boom"</span>.<span class="fn">into</span>()),
+        ]
+    );
+
+    assert!(<span class="ty">Level</span>::<span class="ty">Error</span> &lt; <span class="ty">Level</span>::<span class="ty">Warn</span>);
+    assert!(<span class="ty">Level</span>::<span class="ty">Warn</span> &lt; <span class="ty">Level</span>::<span class="ty">Info</span>);
+    assert!(<span class="ty">Level</span>::<span class="ty">Info</span> &lt; <span class="ty">Level</span>::<span class="ty">Debug</span>);
+    assert!(<span class="ty">Level</span>::<span class="ty">Debug</span> &lt; <span class="ty">Level</span>::<span class="ty">Trace</span>);
+
+    <span class="cm">// Production sink type must compile; avoid writing in asserts.</span>
+    <span class="kw">let</span> <span class="kw">mut</span> stderr_log = <span class="ty">Logger</span>::<span class="fn">new</span>(<span class="ty">Level</span>::<span class="ty">Error</span>, <span class="ty">StderrSink</span>, <span class="nm">8</span>);
+    stderr_log.<span class="fn">debug</span>(<span class="st">"filtered"</span>).<span class="fn">unwrap</span>();
+    assert_eq!(stderr_log.<span class="fn">buffered_len</span>(), <span class="nm">0</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong><code>Sink</code> trait + generic <code>Logger&lt;S&gt;</code></strong> — production stderr and test <code>MemSink</code> share one API; filtering happens before buffer/I/O.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Buffering with capacity auto-flush and <code>Drop</code> flush</strong> — hot path is append-only; I/O is batched at a clear boundary (async-friendly even in std).</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Level ordering via <code>PartialOrd</code></strong> (error &lt; … &lt; trace) so <code>min_level</code> filtering is a single comparison, not a match ladder.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why flush in <code>Drop</code> if flush can fail?"</em> — Best-effort; ignore or log to stderr. Discuss <code>into_sink</code>/<code>flush</code> for fallible shutdown vs destructor.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would you make this non-blocking in tokio?"</em> — Channel to a writer task; <code>try_send</code> / drop-on-full policies; keep formatting off the hot request path.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Where does structured logging fit?"</em> — Fields/JSON at the sink boundary; the logger still owns level filter + batching; sinks become stdout, file, or OTLP.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Logging LLD separates policy (level filter), batching (buffer), and I/O (sink). In Rust, a
+    <code>Sink</code> trait plus <code>Drop</code>-flush shows you care about both testability and resource
+    cleanup — the same shape as a real non-blocking logging pipeline.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PART: LLD WRITE EXERCISES  (LLD5 – LLD8)
+     Movie tickets · Pub/Sub · Circuit breaker · Splitwise-lite
+═══════════════════════════════════════════ -->
+<!-- ════════════ LLD5 · LLD5 · MOVIE TICKET BOOKING ════════════ -->
+<div class="section" id="lld5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// LLD 05 · 30–40 min</div>
+      <div class="sh-title">LLD5 · Movie Ticket Booking</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">lld</span>
+      <span class="chip">state machine</span>
+      <span class="chip">TTL holds</span>
+      <span class="chip">concurrency notes</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Design an in-memory <strong>movie ticket booking</strong> service for a single show.
+      Seats start <code>Available</code>. A user can <code>hold</code> a seat for a TTL, then
+      <code>commit</code> the hold into <code>Booked</code>, or <code>release_hold</code>.
+      Expired holds must return to the pool (lazy expiry is fine). Reject double-holds and
+      wrong-user commits with a typed <code>BookingError</code>.
+      Even if the demo is single-threaded, be ready to discuss how you would make hold/commit
+      race-safe under concurrent clients (mutex granularity, compare-and-swap, or DB constraints)."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::collections::<span class="ty">HashMap</span>;
+<span class="kw">use</span> std::time::{<span class="ty">Duration</span>, <span class="ty">Instant</span>};
+
+<span class="kw">enum</span> <span class="ty">SeatState</span> {
+    <span class="ty">Available</span>,
+    <span class="ty">Held</span> { user: <span class="ty">String</span>, expires_at: <span class="ty">Instant</span> },
+    <span class="ty">Booked</span> { user: <span class="ty">String</span> },
+}
+
+<span class="kw">enum</span> <span class="ty">BookingError</span> {
+    <span class="ty">UnknownSeat</span>,
+    <span class="ty">NotAvailable</span>,
+    <span class="ty">HoldExpired</span>,
+    <span class="ty">WrongUser</span>,
+    <span class="ty">NotHeld</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">TicketSystem</span> {
+<span class="cm">    // TODO: seats map + hold_ttl</span>
+}
+
+<span class="kw">impl</span> <span class="ty">TicketSystem</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(seat_ids: &amp;[&amp;str], hold_ttl: <span class="ty">Duration</span>) -&gt; <span class="kw">Self</span> { todo!() }
+
+<span class="cm">    /// Drop expired holds back to Available (lazy expiry).</span>
+    <span class="kw">fn</span> <span class="fn">purge_expired</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now: <span class="ty">Instant</span>) { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">hold</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, seat: &amp;str, user: &amp;str, now: <span class="ty">Instant</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">BookingError</span>&gt; { todo!() }
+    <span class="kw">fn</span> <span class="fn">commit</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, seat: &amp;str, user: &amp;str, now: <span class="ty">Instant</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">BookingError</span>&gt; { todo!() }
+    <span class="kw">fn</span> <span class="fn">release_hold</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, seat: &amp;str, user: &amp;str, now: <span class="ty">Instant</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">BookingError</span>&gt; { todo!() }
+    <span class="kw">fn</span> <span class="fn">seat</span>(&amp;<span class="kw">self</span>, id: &amp;str) -&gt; <span class="ty">Option</span>&lt;&amp;<span class="ty">SeatState</span>&gt; { todo!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+<span class="cm">    // TODO: hold A1 for alice, reject bob&#x27;s concurrent hold,</span>
+<span class="cm">    // commit as alice, show TTL expiry on A2, release B1.</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::collections::<span class="ty">HashMap</span>;
+<span class="kw">use</span> std::time::{<span class="ty">Duration</span>, <span class="ty">Instant</span>};
+
+<span class="mc">#[derive(Debug, Clone, PartialEq)]</span>
+<span class="kw">enum</span> <span class="ty">SeatState</span> {
+    <span class="ty">Available</span>,
+    <span class="ty">Held</span> { user: <span class="ty">String</span>, expires_at: <span class="ty">Instant</span> },
+    <span class="ty">Booked</span> { user: <span class="ty">String</span> },
+}
+
+<span class="mc">#[derive(Debug, PartialEq)]</span>
+<span class="kw">enum</span> <span class="ty">BookingError</span> {
+    <span class="ty">UnknownSeat</span>,
+    <span class="ty">NotAvailable</span>,
+    <span class="ty">HoldExpired</span>,
+    <span class="ty">WrongUser</span>,
+    <span class="ty">NotHeld</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">TicketSystem</span> {
+    seats: <span class="ty">HashMap</span>&lt;<span class="ty">String</span>, <span class="ty">SeatState</span>&gt;,
+    hold_ttl: <span class="ty">Duration</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">TicketSystem</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(seat_ids: &amp;[&amp;str], hold_ttl: <span class="ty">Duration</span>) -&gt; <span class="kw">Self</span> {
+        <span class="kw">let</span> <span class="kw">mut</span> seats = <span class="ty">HashMap</span>::<span class="fn">new</span>();
+        <span class="kw">for</span> id <span class="kw">in</span> seat_ids {
+            seats.<span class="fn">insert</span>((*id).<span class="fn">to_string</span>(), <span class="ty">SeatState</span>::<span class="ty">Available</span>);
+        }
+        <span class="kw">Self</span> { seats, hold_ttl }
+    }
+
+    <span class="kw">fn</span> <span class="fn">purge_expired</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now: <span class="ty">Instant</span>) {
+        <span class="kw">for</span> state <span class="kw">in</span> <span class="kw">self</span>.seats.<span class="fn">values_mut</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ty">SeatState</span>::<span class="ty">Held</span> { expires_at, .. } = state {
+                <span class="kw">if</span> *expires_at &lt;= now {
+                    *state = <span class="ty">SeatState</span>::<span class="ty">Available</span>;
+                }
+            }
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">hold</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, seat: &amp;str, user: &amp;str, now: <span class="ty">Instant</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">BookingError</span>&gt; {
+        <span class="kw">self</span>.<span class="fn">purge_expired</span>(now);
+        <span class="kw">let</span> state = <span class="kw">self</span>.seats.<span class="fn">get_mut</span>(seat).<span class="fn">ok_or</span>(<span class="ty">BookingError</span>::<span class="ty">UnknownSeat</span>)?;
+        <span class="kw">match</span> state {
+            <span class="ty">SeatState</span>::<span class="ty">Available</span> =&gt; {
+                *state = <span class="ty">SeatState</span>::<span class="ty">Held</span> {
+                    user: user.<span class="fn">to_string</span>(),
+                    expires_at: now + <span class="kw">self</span>.hold_ttl,
+                };
+                <span class="ty">Ok</span>(())
+            }
+            _ =&gt; <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">NotAvailable</span>),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">commit</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, seat: &amp;str, user: &amp;str, now: <span class="ty">Instant</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">BookingError</span>&gt; {
+<span class="cm">        // Do not purge first — expired holds must surface as HoldExpired.</span>
+        <span class="kw">let</span> state = <span class="kw">self</span>.seats.<span class="fn">get_mut</span>(seat).<span class="fn">ok_or</span>(<span class="ty">BookingError</span>::<span class="ty">UnknownSeat</span>)?;
+        <span class="kw">match</span> state {
+            <span class="ty">SeatState</span>::<span class="ty">Held</span> {
+                user: holder,
+                expires_at,
+            } =&gt; {
+                <span class="kw">if</span> *expires_at &lt;= now {
+                    *state = <span class="ty">SeatState</span>::<span class="ty">Available</span>;
+                    <span class="kw">return</span> <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">HoldExpired</span>);
+                }
+                <span class="kw">if</span> holder != user {
+                    <span class="kw">return</span> <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">WrongUser</span>);
+                }
+                *state = <span class="ty">SeatState</span>::<span class="ty">Booked</span> {
+                    user: user.<span class="fn">to_string</span>(),
+                };
+                <span class="ty">Ok</span>(())
+            }
+            <span class="ty">SeatState</span>::<span class="ty">Available</span> =&gt; <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">NotHeld</span>),
+            <span class="ty">SeatState</span>::<span class="ty">Booked</span> { .. } =&gt; <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">NotAvailable</span>),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">release_hold</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, seat: &amp;str, user: &amp;str, now: <span class="ty">Instant</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">BookingError</span>&gt; {
+        <span class="kw">self</span>.<span class="fn">purge_expired</span>(now);
+        <span class="kw">let</span> state = <span class="kw">self</span>.seats.<span class="fn">get_mut</span>(seat).<span class="fn">ok_or</span>(<span class="ty">BookingError</span>::<span class="ty">UnknownSeat</span>)?;
+        <span class="kw">match</span> state {
+            <span class="ty">SeatState</span>::<span class="ty">Held</span> { user: holder, .. } <span class="kw">if</span> holder == user =&gt; {
+                *state = <span class="ty">SeatState</span>::<span class="ty">Available</span>;
+                <span class="ty">Ok</span>(())
+            }
+            <span class="ty">SeatState</span>::<span class="ty">Held</span> { .. } =&gt; <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">WrongUser</span>),
+            <span class="ty">SeatState</span>::<span class="ty">Available</span> =&gt; <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">NotHeld</span>),
+            <span class="ty">SeatState</span>::<span class="ty">Booked</span> { .. } =&gt; <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">NotAvailable</span>),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">seat</span>(&amp;<span class="kw">self</span>, id: &amp;str) -&gt; <span class="ty">Option</span>&lt;&amp;<span class="ty">SeatState</span>&gt; {
+        <span class="kw">self</span>.seats.<span class="fn">get</span>(id)
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> ttl = <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">30</span>);
+    <span class="kw">let</span> t0 = <span class="ty">Instant</span>::<span class="fn">now</span>();
+    <span class="kw">let</span> <span class="kw">mut</span> sys = <span class="ty">TicketSystem</span>::<span class="fn">new</span>(&amp;[<span class="st">&quot;A1&quot;</span>, <span class="st">&quot;A2&quot;</span>, <span class="st">&quot;B1&quot;</span>], ttl);
+
+    assert!(sys.<span class="fn">hold</span>(<span class="st">&quot;A1&quot;</span>, <span class="st">&quot;alice&quot;</span>, t0).<span class="fn">is_ok</span>());
+    assert!(matches!(
+        sys.<span class="fn">seat</span>(<span class="st">&quot;A1&quot;</span>),
+        <span class="ty">Some</span>(<span class="ty">SeatState</span>::<span class="ty">Held</span> { user, .. }) <span class="kw">if</span> user == <span class="st">&quot;alice&quot;</span>
+    ));
+
+<span class="cm">    // Concurrent hold attempt fails while held.</span>
+    assert_eq!(sys.<span class="fn">hold</span>(<span class="st">&quot;A1&quot;</span>, <span class="st">&quot;bob&quot;</span>, t0), <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">NotAvailable</span>));
+
+<span class="cm">    // Wrong user cannot commit.</span>
+    assert_eq!(
+        sys.<span class="fn">commit</span>(<span class="st">&quot;A1&quot;</span>, <span class="st">&quot;bob&quot;</span>, t0 + <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">1</span>)),
+        <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">WrongUser</span>)
+    );
+
+<span class="cm">    // Alice commits successfully.</span>
+    assert!(sys.<span class="fn">commit</span>(<span class="st">&quot;A1&quot;</span>, <span class="st">&quot;alice&quot;</span>, t0 + <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">1</span>)).<span class="fn">is_ok</span>());
+    assert_eq!(
+        sys.<span class="fn">seat</span>(<span class="st">&quot;A1&quot;</span>),
+        <span class="ty">Some</span>(&amp;<span class="ty">SeatState</span>::<span class="ty">Booked</span> {
+            user: <span class="st">&quot;alice&quot;</span>.<span class="fn">into</span>()
+        })
+    );
+
+<span class="cm">    // Hold expires before commit.</span>
+    assert!(sys.<span class="fn">hold</span>(<span class="st">&quot;A2&quot;</span>, <span class="st">&quot;bob&quot;</span>, t0).<span class="fn">is_ok</span>());
+    assert_eq!(
+        sys.<span class="fn">commit</span>(<span class="st">&quot;A2&quot;</span>, <span class="st">&quot;bob&quot;</span>, t0 + <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">31</span>)),
+        <span class="ty">Err</span>(<span class="ty">BookingError</span>::<span class="ty">HoldExpired</span>)
+    );
+    assert_eq!(sys.<span class="fn">seat</span>(<span class="st">&quot;A2&quot;</span>), <span class="ty">Some</span>(&amp;<span class="ty">SeatState</span>::<span class="ty">Available</span>));
+
+<span class="cm">    // After expiry, another user can hold and book.</span>
+    assert!(sys.<span class="fn">hold</span>(<span class="st">&quot;A2&quot;</span>, <span class="st">&quot;carol&quot;</span>, t0 + <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">32</span>)).<span class="fn">is_ok</span>());
+    assert!(sys
+        .<span class="fn">commit</span>(<span class="st">&quot;A2&quot;</span>, <span class="st">&quot;carol&quot;</span>, t0 + <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">33</span>))
+        .<span class="fn">is_ok</span>());
+
+<span class="cm">    // Release hold returns seat to pool.</span>
+    assert!(sys.<span class="fn">hold</span>(<span class="st">&quot;B1&quot;</span>, <span class="st">&quot;dave&quot;</span>, t0).<span class="fn">is_ok</span>());
+    assert!(sys.<span class="fn">release_hold</span>(<span class="st">&quot;B1&quot;</span>, <span class="st">&quot;dave&quot;</span>, t0).<span class="fn">is_ok</span>());
+    assert_eq!(sys.<span class="fn">seat</span>(<span class="st">&quot;B1&quot;</span>), <span class="ty">Some</span>(&amp;<span class="ty">SeatState</span>::<span class="ty">Available</span>));
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Models seat lifecycle as an enum (<code>Available</code> / <code>Held { user, expires_at }</code> / <code>Booked</code>)</strong> and returns <code>Result</code> errors instead of panicking or silently overwriting — illegal transitions are explicit.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Surfaces <code>HoldExpired</code> distinctly from <code>NotHeld</code></strong> (commit checks expiry before treating the seat as free) and purges expired holds on the next <code>hold</code> so inventory recovers.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Mentions concurrency without being asked</strong> — e.g. one mutex per show, optimistic version checks, or unique seat constraints — even while keeping the demo single-threaded with injected <code>Instant</code>.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why inject <code>now: Instant</code> instead of calling <code>Instant::now()</code> inside?"</em> — Testability: TTL/expiry paths become deterministic asserts. Same idea as a clock trait in production.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Two threads call hold on A1 at once — what breaks in this HashMap design?"</em> — Without synchronization both may observe <code>Available</code>. Fix with a <code>Mutex</code>/<code>RwLock</code> around the map (or per-seat), or atomic CAS on seat state / DB unique booking row.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How would you scale holds across multiple booking servers?"</em> — Centralize seat ownership in Redis (SET NX + TTL) or the DB; local HashMap only works as a single-node cache with a lease protocol.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Inventory systems are state machines first, data structures second. In Rust, an enum seat state
+    plus <code>Result</code> transitions keeps the demo honest; production adds a clock abstraction,
+    persistence, and a concurrency story (lock, CAS, or constraint) you can explain without writing.
+  </div>
+</div>
+
+<!-- ════════════ LLD6 · LLD6 · PUB/SUB IN-PROCESS BUS ════════════ -->
+<div class="section" id="lld6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// LLD 06 · 25–30 min</div>
+      <div class="sh-title">LLD6 · Pub/Sub In-Process Bus</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">lld</span>
+      <span class="chip">pubsub</span>
+      <span class="chip">dyn Fn</span>
+      <span class="chip">HashMap</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement an in-process <strong>pub/sub bus</strong>. Support named topics,
+      <code>subscribe</code> returning a <code>SubscriptionId</code>, <code>publish</code> that
+      fans a <code>&amp;str</code> message out to all listeners, and <code>unsubscribe</code>.
+      Listeners may be <code>Box&lt;dyn Fn(&amp;str)&gt;</code> (or channels — say which you pick and why).
+      Show two subscribers, a publish, unsubscribe one, and a second publish that only hits the remaining listener."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::collections::<span class="ty">HashMap</span>;
+
+<span class="kw">type</span> <span class="ty">Listener</span> = <span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Fn</span>(&amp;str)&gt;;
+
+<span class="kw">struct</span> <span class="ty">SubscriptionId</span>(u64);
+
+<span class="kw">struct</span> <span class="ty">PubSub</span> {
+<span class="cm">    // TODO: next_id + topic -&gt; Vec&lt;(id, Listener)&gt;</span>
+}
+
+<span class="kw">impl</span> <span class="ty">PubSub</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">subscribe</span>&lt;<span class="ty">F</span>&gt;(&amp;<span class="kw">mut</span> <span class="kw">self</span>, topic: &amp;str, listener: <span class="ty">F</span>) -&gt; <span class="ty">SubscriptionId</span>
+    <span class="kw">where</span>
+        <span class="ty">F</span>: <span class="ty">Fn</span>(&amp;str) + <span class="lt">&#x27;static</span>,
+    {
+        todo!()
+    }
+
+    <span class="kw">fn</span> <span class="fn">unsubscribe</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, topic: &amp;str, id: <span class="ty">SubscriptionId</span>) -&gt; bool { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">publish</span>(&amp;<span class="kw">self</span>, topic: &amp;str, message: &amp;str) -&gt; usize {
+<span class="cm">        // TODO: invoke listeners; return fan-out count</span>
+        todo!()
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+<span class="cm">    // TODO: two subscribers on &quot;orders&quot;, publish, unsubscribe one, publish again</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::collections::<span class="ty">HashMap</span>;
+
+<span class="kw">type</span> <span class="ty">Listener</span> = <span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Fn</span>(&amp;str)&gt;;
+
+<span class="kw">struct</span> <span class="ty">SubscriptionId</span>(u64);
+
+<span class="kw">struct</span> <span class="ty">PubSub</span> {
+    next_id: u64,
+    topics: <span class="ty">HashMap</span>&lt;<span class="ty">String</span>, <span class="ty">Vec</span>&lt;(u64, <span class="ty">Listener</span>)&gt;&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">PubSub</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            next_id: <span class="nm">1</span>,
+            topics: <span class="ty">HashMap</span>::<span class="fn">new</span>(),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">subscribe</span>&lt;<span class="ty">F</span>&gt;(&amp;<span class="kw">mut</span> <span class="kw">self</span>, topic: &amp;str, listener: <span class="ty">F</span>) -&gt; <span class="ty">SubscriptionId</span>
+    <span class="kw">where</span>
+        <span class="ty">F</span>: <span class="ty">Fn</span>(&amp;str) + <span class="lt">&#x27;static</span>,
+    {
+        <span class="kw">let</span> id = <span class="kw">self</span>.next_id;
+        <span class="kw">self</span>.next_id += <span class="nm">1</span>;
+        <span class="kw">self</span>.topics
+            .<span class="fn">entry</span>(topic.<span class="fn">to_string</span>())
+            .<span class="fn">or_default</span>()
+            .<span class="fn">push</span>((id, <span class="ty">Box</span>::<span class="fn">new</span>(listener)));
+        <span class="ty">SubscriptionId</span>(id)
+    }
+
+    <span class="kw">fn</span> <span class="fn">unsubscribe</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, topic: &amp;str, id: <span class="ty">SubscriptionId</span>) -&gt; bool {
+        <span class="kw">let</span> <span class="ty">Some</span>(list) = <span class="kw">self</span>.topics.<span class="fn">get_mut</span>(topic) <span class="kw">else</span> {
+            <span class="kw">return</span> <span class="kw">false</span>;
+        };
+        <span class="kw">let</span> before = list.<span class="fn">len</span>();
+        list.<span class="fn">retain</span>(|(sid, _)| *sid != id.<span class="nm">0</span>);
+        before != list.<span class="fn">len</span>()
+    }
+
+    <span class="kw">fn</span> <span class="fn">publish</span>(&amp;<span class="kw">self</span>, topic: &amp;str, message: &amp;str) -&gt; usize {
+        <span class="kw">match</span> <span class="kw">self</span>.topics.<span class="fn">get</span>(topic) {
+            <span class="ty">Some</span>(list) =&gt; {
+                <span class="kw">for</span> (_, listener) <span class="kw">in</span> list {
+                    <span class="fn">listener</span>(message);
+                }
+                list.<span class="fn">len</span>()
+            }
+            <span class="ty">None</span> =&gt; <span class="nm">0</span>,
+        }
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">use</span> std::cell::<span class="ty">RefCell</span>;
+    <span class="kw">use</span> std::rc::<span class="ty">Rc</span>;
+
+    <span class="kw">let</span> <span class="kw">mut</span> bus = <span class="ty">PubSub</span>::<span class="fn">new</span>();
+    <span class="kw">let</span> inbox_a = <span class="ty">Rc</span>::<span class="fn">new</span>(<span class="ty">RefCell</span>::<span class="fn">new</span>(<span class="ty">Vec</span>::&lt;<span class="ty">String</span>&gt;::<span class="fn">new</span>()));
+    <span class="kw">let</span> inbox_b = <span class="ty">Rc</span>::<span class="fn">new</span>(<span class="ty">RefCell</span>::<span class="fn">new</span>(<span class="ty">Vec</span>::&lt;<span class="ty">String</span>&gt;::<span class="fn">new</span>()));
+
+    <span class="kw">let</span> a = inbox_a.<span class="fn">clone</span>();
+    <span class="kw">let</span> id_a = bus.<span class="fn">subscribe</span>(<span class="st">&quot;orders&quot;</span>, <span class="kw">move</span> |msg| {
+        a.<span class="fn">borrow_mut</span>().<span class="fn">push</span>(msg.<span class="fn">to_string</span>());
+    });
+
+    <span class="kw">let</span> b = inbox_b.<span class="fn">clone</span>();
+    <span class="kw">let</span> id_b = bus.<span class="fn">subscribe</span>(<span class="st">&quot;orders&quot;</span>, <span class="kw">move</span> |msg| {
+        b.<span class="fn">borrow_mut</span>().<span class="fn">push</span>(format!(<span class="st">&quot;B:{msg}&quot;</span>));
+    });
+
+    assert_eq!(bus.<span class="fn">publish</span>(<span class="st">&quot;orders&quot;</span>, <span class="st">&quot;sku-1&quot;</span>), <span class="nm">2</span>);
+    assert_eq!(*inbox_a.<span class="fn">borrow</span>(), vec![<span class="st">&quot;sku-1&quot;</span>.<span class="fn">to_string</span>()]);
+    assert_eq!(*inbox_b.<span class="fn">borrow</span>(), vec![<span class="st">&quot;B:sku-1&quot;</span>.<span class="fn">to_string</span>()]);
+
+    assert!(bus.<span class="fn">unsubscribe</span>(<span class="st">&quot;orders&quot;</span>, id_b));
+    assert_eq!(bus.<span class="fn">publish</span>(<span class="st">&quot;orders&quot;</span>, <span class="st">&quot;sku-2&quot;</span>), <span class="nm">1</span>);
+    assert_eq!(
+        *inbox_a.<span class="fn">borrow</span>(),
+        vec![<span class="st">&quot;sku-1&quot;</span>.<span class="fn">to_string</span>(), <span class="st">&quot;sku-2&quot;</span>.<span class="fn">to_string</span>()]
+    );
+    assert_eq!(*inbox_b.<span class="fn">borrow</span>(), vec![<span class="st">&quot;B:sku-1&quot;</span>.<span class="fn">to_string</span>()]);
+
+    assert!(bus.<span class="fn">unsubscribe</span>(<span class="st">&quot;orders&quot;</span>, id_a));
+    assert_eq!(bus.<span class="fn">publish</span>(<span class="st">&quot;orders&quot;</span>, <span class="st">&quot;sku-3&quot;</span>), <span class="nm">0</span>);
+    assert_eq!(bus.<span class="fn">publish</span>(<span class="st">&quot;unknown&quot;</span>, <span class="st">&quot;x&quot;</span>), <span class="nm">0</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Stable subscription IDs + retain/remove on unsubscribe</strong> so removing one listener does not disturb others on the same topic.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Uses <code>Fn</code> (not only <code>FnMut</code>) or documents interior mutability</strong> — <code>publish(&amp;self)</code> can call listeners; demo captures use <code>Rc&lt;RefCell&lt;Vec&gt;&gt;</code> to record messages.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Can articulate channels vs callbacks</strong> — callbacks for sync in-process fan-out; <code>mpsc</code>/<code>broadcast</code> when subscribers should decouple onto their own tasks.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why does <code>publish</code> take <code>&amp;self</code> if listeners mutate state?"</em> — The bus does not own subscriber state; listeners close over <code>RefCell</code>/channels. Keeping <code>&amp;self</code> allows shared bus refs during dispatch.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"What happens if a listener calls subscribe/unsubscribe while publishing?"</em> — Re-entrancy / borrow issues. Snapshot the listener list before calling, or queue bus mutations, or use channels so dispatch never holds the map borrow across user code.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"When would you switch to <code>tokio::sync::broadcast</code>?"</em> — Async multi-consumer topics, lag policies, and task-safe delivery; dyn Fn is fine for sync unit tests and simple embedded buses.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    In-process pub/sub is either a callback registry or a set of channels. Rust interviews reward
+    naming the ownership tradeoff: <code>dyn Fn</code> is simple and synchronous; channels compose
+    with threads/async and avoid re-entrant mutation of the subscriber map.
+  </div>
+</div>
+
+<!-- ════════════ LLD7 · LLD7 · CIRCUIT BREAKER ════════════ -->
+<div class="section" id="lld7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// LLD 07 · 25–30 min</div>
+      <div class="sh-title">LLD7 · Circuit Breaker</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">lld</span>
+      <span class="chip">state machine</span>
+      <span class="chip">resilience</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Wrap a fallible call in a <strong>circuit breaker</strong> with states
+      <code>Closed</code>, <code>Open</code>, and <code>HalfOpen</code>. After
+      <code>failure_threshold</code> consecutive failures, trip to <code>Open</code> and fail fast
+      with <code>BreakerError::Open</code>. After <code>open_duration</code>, allow a trial call
+      (<code>HalfOpen</code>): success returns to <code>Closed</code>; failure re-opens.
+      Inject <code>now: Instant</code> for deterministic tests."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::time::{<span class="ty">Duration</span>, <span class="ty">Instant</span>};
+
+<span class="kw">enum</span> <span class="ty">State</span> {
+    <span class="ty">Closed</span>,
+    <span class="ty">Open</span>,
+    <span class="ty">HalfOpen</span>,
+}
+
+<span class="kw">enum</span> <span class="ty">BreakerError</span> {
+    <span class="ty">Open</span>,
+    <span class="ty">CallFailed</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">CircuitBreaker</span> {
+<span class="cm">    // TODO: threshold, open_duration, state, consecutive_failures, opened_at</span>
+}
+
+<span class="kw">impl</span> <span class="ty">CircuitBreaker</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(failure_threshold: u32, open_duration: <span class="ty">Duration</span>) -&gt; <span class="kw">Self</span> { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">state_at</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now: <span class="ty">Instant</span>) -&gt; <span class="ty">State</span> { todo!() }
+
+    <span class="kw">fn</span> <span class="fn">call</span>&lt;<span class="ty">F</span>, <span class="ty">T</span>&gt;(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now: <span class="ty">Instant</span>, f: <span class="ty">F</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">T</span>, <span class="ty">BreakerError</span>&gt;
+    <span class="kw">where</span>
+        <span class="ty">F</span>: <span class="ty">FnOnce</span>() -&gt; <span class="ty">Result</span>&lt;<span class="ty">T</span>, ()&gt;,
+    {
+        todo!()
+    }
+
+    <span class="kw">fn</span> <span class="fn">state</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">State</span> { todo!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+<span class="cm">    // TODO: trip after 2 failures, reject while Open, succeed after cooldown (HalfOpen -&gt; Closed),</span>
+<span class="cm">    // then show HalfOpen failure re-opens.</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::time::{<span class="ty">Duration</span>, <span class="ty">Instant</span>};
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">State</span> {
+    <span class="ty">Closed</span>,
+    <span class="ty">Open</span>,
+    <span class="ty">HalfOpen</span>,
+}
+
+<span class="mc">#[derive(Debug, PartialEq)]</span>
+<span class="kw">enum</span> <span class="ty">BreakerError</span> {
+    <span class="ty">Open</span>,
+    <span class="ty">CallFailed</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">CircuitBreaker</span> {
+    failure_threshold: u32,
+    open_duration: <span class="ty">Duration</span>,
+    state: <span class="ty">State</span>,
+    consecutive_failures: u32,
+    opened_at: <span class="ty">Option</span>&lt;<span class="ty">Instant</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">CircuitBreaker</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(failure_threshold: u32, open_duration: <span class="ty">Duration</span>) -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            failure_threshold,
+            open_duration,
+            state: <span class="ty">State</span>::<span class="ty">Closed</span>,
+            consecutive_failures: <span class="nm">0</span>,
+            opened_at: <span class="ty">None</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">state_at</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now: <span class="ty">Instant</span>) -&gt; <span class="ty">State</span> {
+        <span class="kw">if</span> <span class="kw">self</span>.state == <span class="ty">State</span>::<span class="ty">Open</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(opened_at) = <span class="kw">self</span>.opened_at {
+                <span class="kw">if</span> now.<span class="fn">duration_since</span>(opened_at) &gt;= <span class="kw">self</span>.open_duration {
+                    <span class="kw">self</span>.state = <span class="ty">State</span>::<span class="ty">HalfOpen</span>;
+                }
+            }
+        }
+        <span class="kw">self</span>.state
+    }
+
+    <span class="kw">fn</span> <span class="fn">call</span>&lt;<span class="ty">F</span>, <span class="ty">T</span>&gt;(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now: <span class="ty">Instant</span>, f: <span class="ty">F</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">T</span>, <span class="ty">BreakerError</span>&gt;
+    <span class="kw">where</span>
+        <span class="ty">F</span>: <span class="ty">FnOnce</span>() -&gt; <span class="ty">Result</span>&lt;<span class="ty">T</span>, ()&gt;,
+    {
+        <span class="kw">match</span> <span class="kw">self</span>.<span class="fn">state_at</span>(now) {
+            <span class="ty">State</span>::<span class="ty">Open</span> =&gt; <span class="ty">Err</span>(<span class="ty">BreakerError</span>::<span class="ty">Open</span>),
+            <span class="ty">State</span>::<span class="ty">Closed</span> | <span class="ty">State</span>::<span class="ty">HalfOpen</span> =&gt; <span class="kw">match</span> <span class="fn">f</span>() {
+                <span class="ty">Ok</span>(v) =&gt; {
+                    <span class="kw">self</span>.<span class="fn">on_success</span>();
+                    <span class="ty">Ok</span>(v)
+                }
+                <span class="ty">Err</span>(()) =&gt; {
+                    <span class="kw">self</span>.<span class="fn">on_failure</span>(now);
+                    <span class="ty">Err</span>(<span class="ty">BreakerError</span>::<span class="ty">CallFailed</span>)
+                }
+            },
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">on_success</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) {
+        <span class="kw">self</span>.consecutive_failures = <span class="nm">0</span>;
+        <span class="kw">self</span>.state = <span class="ty">State</span>::<span class="ty">Closed</span>;
+        <span class="kw">self</span>.opened_at = <span class="ty">None</span>;
+    }
+
+    <span class="kw">fn</span> <span class="fn">on_failure</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now: <span class="ty">Instant</span>) {
+        <span class="kw">match</span> <span class="kw">self</span>.state {
+            <span class="ty">State</span>::<span class="ty">HalfOpen</span> =&gt; {
+                <span class="kw">self</span>.state = <span class="ty">State</span>::<span class="ty">Open</span>;
+                <span class="kw">self</span>.opened_at = <span class="ty">Some</span>(now);
+                <span class="kw">self</span>.consecutive_failures = <span class="kw">self</span>.failure_threshold;
+            }
+            <span class="ty">State</span>::<span class="ty">Closed</span> =&gt; {
+                <span class="kw">self</span>.consecutive_failures += <span class="nm">1</span>;
+                <span class="kw">if</span> <span class="kw">self</span>.consecutive_failures &gt;= <span class="kw">self</span>.failure_threshold {
+                    <span class="kw">self</span>.state = <span class="ty">State</span>::<span class="ty">Open</span>;
+                    <span class="kw">self</span>.opened_at = <span class="ty">Some</span>(now);
+                }
+            }
+            <span class="ty">State</span>::<span class="ty">Open</span> =&gt; {}
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">state</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">State</span> {
+        <span class="kw">self</span>.state
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> open_for = <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">10</span>);
+    <span class="kw">let</span> t0 = <span class="ty">Instant</span>::<span class="fn">now</span>();
+    <span class="kw">let</span> <span class="kw">mut</span> cb = <span class="ty">CircuitBreaker</span>::<span class="fn">new</span>(<span class="nm">2</span>, open_for);
+
+    assert_eq!(
+        cb.<span class="fn">call</span>(t0, || <span class="ty">Err</span>::&lt;i32, ()&gt;(())),
+        <span class="ty">Err</span>(<span class="ty">BreakerError</span>::<span class="ty">CallFailed</span>)
+    );
+    assert_eq!(cb.<span class="fn">state</span>(), <span class="ty">State</span>::<span class="ty">Closed</span>);
+
+    assert_eq!(
+        cb.<span class="fn">call</span>(t0 + <span class="ty">Duration</span>::<span class="fn">from_millis</span>(<span class="nm">1</span>), || <span class="ty">Err</span>::&lt;i32, ()&gt;(())),
+        <span class="ty">Err</span>(<span class="ty">BreakerError</span>::<span class="ty">CallFailed</span>)
+    );
+    assert_eq!(cb.<span class="fn">state</span>(), <span class="ty">State</span>::<span class="ty">Open</span>);
+
+    assert_eq!(
+        cb.<span class="fn">call</span>(t0 + <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">1</span>), || <span class="ty">Ok</span>(<span class="nm">42</span>)),
+        <span class="ty">Err</span>(<span class="ty">BreakerError</span>::<span class="ty">Open</span>)
+    );
+
+<span class="cm">    // After cooldown → HalfOpen; success closes.</span>
+<span class="cm">    // Opened at t0+1ms with 10s duration, so HalfOpen at t0+11s.</span>
+    assert_eq!(
+        cb.<span class="fn">call</span>(t0 + <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">11</span>), || <span class="ty">Ok</span>(<span class="nm">7</span>)),
+        <span class="ty">Ok</span>(<span class="nm">7</span>)
+    );
+    assert_eq!(cb.<span class="fn">state</span>(), <span class="ty">State</span>::<span class="ty">Closed</span>);
+
+<span class="cm">    // Trip again, then HalfOpen failure re-opens.</span>
+    <span class="kw">let</span> t1 = t0 + <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">12</span>);
+    <span class="kw">let</span> _ = cb.<span class="fn">call</span>(t1, || <span class="ty">Err</span>::&lt;i32, ()&gt;(()));
+    <span class="kw">let</span> _ = cb.<span class="fn">call</span>(t1, || <span class="ty">Err</span>::&lt;i32, ()&gt;(()));
+    assert_eq!(cb.<span class="fn">state</span>(), <span class="ty">State</span>::<span class="ty">Open</span>);
+    assert_eq!(
+        cb.<span class="fn">call</span>(t1 + <span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="nm">10</span>), || <span class="ty">Err</span>::&lt;i32, ()&gt;(())),
+        <span class="ty">Err</span>(<span class="ty">BreakerError</span>::<span class="ty">CallFailed</span>)
+    );
+    assert_eq!(cb.<span class="fn">state</span>(), <span class="ty">State</span>::<span class="ty">Open</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Implements the three-state machine correctly</strong> — fail-fast while Open, single trial in HalfOpen, success resets failure count and closes.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>HalfOpen failure re-opens immediately</strong> (does not require another full threshold) — matches common breaker semantics and shows they thought about probe failures.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Clock injection for expiry</strong> so open→half-open is assertable without sleeps.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Should HalfOpen allow only one in-flight probe under concurrency?"</em> — Yes in production: use a semaphore/atomic so stampedes do not all hit a sick dependency. The single-threaded demo elides this.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Failure rate vs consecutive failures?"</em> — Consecutive count is interview-simple; sliding-window error rates (e.g. 50% of last N) behave better under sparse traffic.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Where does this live in a Rust service?"</em> — Around client I/O (HTTP/DB), often as a tower middleware or a small wrapper type storing state beside a connection pool.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Circuit breakers are typestate-friendly conceptually, but a runtime enum is the usual API because
+    transitions depend on wall-clock and call outcomes. Focus on clear state transitions and a testable
+    clock — not on mimicking Netflix Hystrix class hierarchies.
+  </div>
+</div>
+
+<!-- ════════════ LLD8 · LLD8 · SPLITWISE-LITE EXPENSE LEDGER ════════════ -->
+<div class="section" id="lld8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// LLD 08 · 25–30 min</div>
+      <div class="sh-title">LLD8 · Splitwise-lite Expense Ledger</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">lld</span>
+      <span class="chip">ledger</span>
+      <span class="chip">greedy settle</span>
+      <span class="chip">HashMap</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Build a mini <strong>Splitwise</strong> ledger. Register users, <code>add_expense</code>
+      where one payer fronts an amount split across participants (integer division; remainder
+      distributed to the first participants), track net balances, and <code>simplify</code> debts
+      with a <strong>greedy settle</strong>: repeatedly pay <code>min(debt, credit)</code> from the
+      largest debtor to the largest creditor until all nets are zero. Assert balances and the
+      resulting transfer list on a small scenario."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::collections::<span class="ty">HashMap</span>;
+
+<span class="kw">struct</span> <span class="ty">Transfer</span> {
+    from: <span class="ty">String</span>,
+    to: <span class="ty">String</span>,
+    amount: i64,
+}
+
+<span class="kw">struct</span> <span class="ty">Ledger</span> {
+<span class="cm">    // TODO: balances: HashMap&lt;String, i64&gt;</span>
+}
+
+<span class="kw">impl</span> <span class="ty">Ledger</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(users: &amp;[&amp;str]) -&gt; <span class="kw">Self</span> { todo!() }
+
+<span class="cm">    /// payer fronted `amount`; split across participants (integer cents, remainder to first seats).</span>
+    <span class="kw">fn</span> <span class="fn">add_expense</span>(
+        &amp;<span class="kw">mut</span> <span class="kw">self</span>,
+        payer: &amp;str,
+        amount: i64,
+        participants: &amp;[&amp;str],
+    ) -&gt; <span class="ty">Result</span>&lt;(), &amp;<span class="lt">&#x27;static</span> str&gt; {
+        todo!()
+    }
+
+    <span class="kw">fn</span> <span class="fn">balance</span>(&amp;<span class="kw">self</span>, user: &amp;str) -&gt; <span class="ty">Option</span>&lt;i64&gt; { todo!() }
+
+<span class="cm">    /// Greedy settle: pair largest debtor with largest creditor until flat.</span>
+    <span class="kw">fn</span> <span class="fn">simplify</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">Transfer</span>&gt; { todo!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+<span class="cm">    // TODO: alice pays 90 for 3, bob pays 30 for bob+carol; assert nets + simplify transfers</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::collections::<span class="ty">HashMap</span>;
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">Transfer</span> {
+    from: <span class="ty">String</span>,
+    to: <span class="ty">String</span>,
+    amount: i64,
+}
+
+<span class="kw">struct</span> <span class="ty">Ledger</span> {
+    balances: <span class="ty">HashMap</span>&lt;<span class="ty">String</span>, i64&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">Ledger</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(users: &amp;[&amp;str]) -&gt; <span class="kw">Self</span> {
+        <span class="kw">let</span> <span class="kw">mut</span> balances = <span class="ty">HashMap</span>::<span class="fn">new</span>();
+        <span class="kw">for</span> u <span class="kw">in</span> users {
+            balances.<span class="fn">insert</span>((*u).<span class="fn">to_string</span>(), <span class="nm">0</span>);
+        }
+        <span class="kw">Self</span> { balances }
+    }
+
+    <span class="kw">fn</span> <span class="fn">add_expense</span>(
+        &amp;<span class="kw">mut</span> <span class="kw">self</span>,
+        payer: &amp;str,
+        amount: i64,
+        participants: &amp;[&amp;str],
+    ) -&gt; <span class="ty">Result</span>&lt;(), &amp;<span class="lt">&#x27;static</span> str&gt; {
+        <span class="kw">if</span> amount &lt;= <span class="nm">0</span> {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="st">&quot;amount must be positive&quot;</span>);
+        }
+        <span class="kw">if</span> participants.<span class="fn">is_empty</span>() {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="st">&quot;no participants&quot;</span>);
+        }
+        <span class="kw">if</span> !<span class="kw">self</span>.balances.<span class="fn">contains_key</span>(payer) {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="st">&quot;unknown payer&quot;</span>);
+        }
+        <span class="kw">for</span> p <span class="kw">in</span> participants {
+            <span class="kw">if</span> !<span class="kw">self</span>.balances.<span class="fn">contains_key</span>(*p) {
+                <span class="kw">return</span> <span class="ty">Err</span>(<span class="st">&quot;unknown participant&quot;</span>);
+            }
+        }
+
+        <span class="kw">let</span> n = participants.<span class="fn">len</span>() <span class="kw">as</span> i64;
+        <span class="kw">let</span> share = amount / n;
+        <span class="kw">let</span> <span class="kw">mut</span> remainder = amount % n;
+
+        *<span class="kw">self</span>.balances.<span class="fn">get_mut</span>(payer).<span class="fn">unwrap</span>() += amount;
+
+        <span class="kw">for</span> p <span class="kw">in</span> participants {
+            <span class="kw">let</span> <span class="kw">mut</span> cost = share;
+            <span class="kw">if</span> remainder &gt; <span class="nm">0</span> {
+                cost += <span class="nm">1</span>;
+                remainder -= <span class="nm">1</span>;
+            }
+            *<span class="kw">self</span>.balances.<span class="fn">get_mut</span>(*p).<span class="fn">unwrap</span>() -= cost;
+        }
+        <span class="ty">Ok</span>(())
+    }
+
+    <span class="kw">fn</span> <span class="fn">balance</span>(&amp;<span class="kw">self</span>, user: &amp;str) -&gt; <span class="ty">Option</span>&lt;i64&gt; {
+        <span class="kw">self</span>.balances.<span class="fn">get</span>(user).<span class="fn">copied</span>()
+    }
+
+<span class="cm">    /// Greedy settle: repeatedly pair largest debtor with largest creditor.</span>
+    <span class="kw">fn</span> <span class="fn">simplify</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">Transfer</span>&gt; {
+        <span class="kw">let</span> <span class="kw">mut</span> debtors: <span class="ty">Vec</span>&lt;(<span class="ty">String</span>, i64)&gt; = <span class="ty">Vec</span>::<span class="fn">new</span>();
+        <span class="kw">let</span> <span class="kw">mut</span> creditors: <span class="ty">Vec</span>&lt;(<span class="ty">String</span>, i64)&gt; = <span class="ty">Vec</span>::<span class="fn">new</span>();
+
+        <span class="kw">for</span> (user, &amp;bal) <span class="kw">in</span> &amp;<span class="kw">self</span>.balances {
+            <span class="kw">if</span> bal &lt; <span class="nm">0</span> {
+                debtors.<span class="fn">push</span>((user.<span class="fn">clone</span>(), -bal));
+            } <span class="kw">else</span> <span class="kw">if</span> bal &gt; <span class="nm">0</span> {
+                creditors.<span class="fn">push</span>((user.<span class="fn">clone</span>(), bal));
+            }
+        }
+
+        debtors.<span class="fn">sort_by</span>(|a, b| b.<span class="nm">1.cmp</span>(&amp;a.<span class="nm">1</span>).<span class="fn">then_with</span>(|| a.<span class="nm">0.cmp</span>(&amp;b.<span class="nm">0</span>)));
+        creditors.<span class="fn">sort_by</span>(|a, b| b.<span class="nm">1.cmp</span>(&amp;a.<span class="nm">1</span>).<span class="fn">then_with</span>(|| a.<span class="nm">0.cmp</span>(&amp;b.<span class="nm">0</span>)));
+
+        <span class="kw">let</span> <span class="kw">mut</span> transfers = <span class="ty">Vec</span>::<span class="fn">new</span>();
+        <span class="kw">let</span> <span class="kw">mut</span> i = <span class="nm">0usize</span>;
+        <span class="kw">let</span> <span class="kw">mut</span> j = <span class="nm">0usize</span>;
+
+        <span class="kw">while</span> i &lt; debtors.<span class="fn">len</span>() &amp;&amp; j &lt; creditors.<span class="fn">len</span>() {
+            <span class="kw">let</span> pay = debtors[i].<span class="nm">1.min</span>(creditors[j].<span class="nm">1</span>);
+            <span class="kw">if</span> pay &gt; <span class="nm">0</span> {
+                transfers.<span class="fn">push</span>(<span class="ty">Transfer</span> {
+                    from: debtors[i].<span class="nm">0.clone</span>(),
+                    to: creditors[j].<span class="nm">0.clone</span>(),
+                    amount: pay,
+                });
+            }
+            debtors[i].<span class="nm">1</span> -= pay;
+            creditors[j].<span class="nm">1</span> -= pay;
+            <span class="kw">if</span> debtors[i].<span class="nm">1</span> == <span class="nm">0</span> {
+                i += <span class="nm">1</span>;
+            }
+            <span class="kw">if</span> creditors[j].<span class="nm">1</span> == <span class="nm">0</span> {
+                j += <span class="nm">1</span>;
+            }
+        }
+        transfers
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> ledger = <span class="ty">Ledger</span>::<span class="fn">new</span>(&amp;[<span class="st">&quot;alice&quot;</span>, <span class="st">&quot;bob&quot;</span>, <span class="st">&quot;carol&quot;</span>]);
+
+<span class="cm">    // Alice pays 90 for alice+bob+carol → each owes 30.</span>
+    assert!(ledger.<span class="fn">add_expense</span>(<span class="st">&quot;alice&quot;</span>, <span class="nm">90</span>, &amp;[<span class="st">&quot;alice&quot;</span>, <span class="st">&quot;bob&quot;</span>, <span class="st">&quot;carol&quot;</span>]).<span class="fn">is_ok</span>());
+    assert_eq!(ledger.<span class="fn">balance</span>(<span class="st">&quot;alice&quot;</span>), <span class="ty">Some</span>(<span class="nm">60</span>));
+    assert_eq!(ledger.<span class="fn">balance</span>(<span class="st">&quot;bob&quot;</span>), <span class="ty">Some</span>(-<span class="nm">30</span>));
+    assert_eq!(ledger.<span class="fn">balance</span>(<span class="st">&quot;carol&quot;</span>), <span class="ty">Some</span>(-<span class="nm">30</span>));
+
+<span class="cm">    // Bob pays 30 for bob+carol → each owes 15.</span>
+    assert!(ledger.<span class="fn">add_expense</span>(<span class="st">&quot;bob&quot;</span>, <span class="nm">30</span>, &amp;[<span class="st">&quot;bob&quot;</span>, <span class="st">&quot;carol&quot;</span>]).<span class="fn">is_ok</span>());
+    assert_eq!(ledger.<span class="fn">balance</span>(<span class="st">&quot;alice&quot;</span>), <span class="ty">Some</span>(<span class="nm">60</span>));
+    assert_eq!(ledger.<span class="fn">balance</span>(<span class="st">&quot;bob&quot;</span>), <span class="ty">Some</span>(-<span class="nm">15</span>));
+    assert_eq!(ledger.<span class="fn">balance</span>(<span class="st">&quot;carol&quot;</span>), <span class="ty">Some</span>(-<span class="nm">45</span>));
+
+    <span class="kw">let</span> <span class="kw">mut</span> transfers = ledger.<span class="fn">simplify</span>();
+    transfers.<span class="fn">sort_by</span>(|a, b| {
+        a.from
+            .<span class="fn">cmp</span>(&amp;b.from)
+            .<span class="fn">then_with</span>(|| a.to.<span class="fn">cmp</span>(&amp;b.to))
+            .<span class="fn">then_with</span>(|| a.amount.<span class="fn">cmp</span>(&amp;b.amount))
+    });
+
+<span class="cm">    // Net: alice +60, bob -15, carol -45 → bob→alice 15, carol→alice 45.</span>
+    assert_eq!(
+        transfers,
+        vec![
+            <span class="ty">Transfer</span> {
+                from: <span class="st">&quot;bob&quot;</span>.<span class="fn">into</span>(),
+                to: <span class="st">&quot;alice&quot;</span>.<span class="fn">into</span>(),
+                amount: <span class="nm">15</span>
+            },
+            <span class="ty">Transfer</span> {
+                from: <span class="st">&quot;carol&quot;</span>.<span class="fn">into</span>(),
+                to: <span class="st">&quot;alice&quot;</span>.<span class="fn">into</span>(),
+                amount: <span class="nm">45</span>
+            },
+        ]
+    );
+
+    <span class="kw">let</span> total_paid: i64 = transfers.<span class="fn">iter</span>().<span class="fn">map</span>(|t| t.amount).<span class="fn">sum</span>();
+    assert_eq!(total_paid, <span class="nm">60</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Maintains a single net balance per user</strong> (payer credited, participants debited) so simplify does not need the full pairwise IOU matrix.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Greedy settle pairs max debtor with max creditor</strong> and updates residuals — produces a minimal-ish transfer list good enough for interviews (optimal min-cash-flow is NP-hard).</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Handles integer split remainders explicitly</strong> rather than using floats for money.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why nets instead of storing every pairwise edge?"</em> — Any expense graph can be reduced to nets without changing who must pay whom in aggregate; simplify then only needs the net vector.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Is greedy settle optimal?"</em> — It clears all balances and often uses few transfers, but the minimum number of transactions is a harder problem. Interview bar is correct clearing + clear algorithm.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How do you avoid float money bugs?"</em> — Store integer minor units (cents); define remainder policy; never use <code>f64</code> for balances.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Expense ledgers reward invariant thinking: sum of balances stays zero after every expense, and
+    simplify is a netting problem. Idiomatic Rust here is <code>HashMap</code> balances, integer cents,
+    and a deterministic sort before greedy pairing so asserts stay stable.
+  </div>
+</div>

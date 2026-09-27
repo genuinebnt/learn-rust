@@ -1,0 +1,853 @@
+<!-- ═══════════════════════════════════════════
+     PART: TOPICS 01 · FOUNDATIONS
+     Ownership · Structs/Enums · Error Handling · Closures · Lifetimes
+═══════════════════════════════════════════ -->
+
+<div class="level-filter" id="level-filter">
+  <span class="lf-label">Level</span>
+  <button type="button" class="lf-btn active" data-filter="all">All</button>
+  <button type="button" class="lf-btn" data-filter="beg">Beginner</button>
+  <button type="button" class="lf-btn" data-filter="int">Intermediate</button>
+  <button type="button" class="lf-btn" data-filter="adv">Advanced</button>
+  <button type="button" class="lf-btn" data-filter="sr">Senior</button>
+  <span class="lf-hint">25 questions on this page · click a level to filter</span>
+</div>
+
+<!-- ════════════ TOPIC 01 · OWNERSHIP & BORROWING ════════════ -->
+<div class="section" id="t-own">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-own)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-own)">// Topic 01</div>
+      <div class="sh-title">Ownership &amp; Borrowing</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Questions &amp; model answers — click any row to expand</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Explain Rust's three ownership rules. What happens when a value goes out of scope?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) <strong>Each value has exactly one owner</strong> at any given time. (2) <strong>When the owner goes
+        out of scope, the value is dropped</strong> — its <code>Drop::drop</code> is called (if implemented) and
+        its memory is reclaimed deterministically, with no garbage collector involved. (3) <strong>Ownership can
+        be transferred (moved)</strong> — assigning a non-<code>Copy</code> value to another binding, or passing
+        it into a function by value, transfers ownership; the original binding becomes invalid and the compiler
+        statically rejects any further use of it. This is checked entirely at compile time — there is zero runtime
+        cost for ownership tracking. When a scope ends, Rust inserts calls to drop every owned value in <strong>reverse
+        order of declaration</strong>, recursively — a struct's <code>Drop</code> runs before its fields' drops.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is the difference between <code>Copy</code> and <code>Clone</code>? Why can't <code>String</code> implement <code>Copy</code>?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Copy:</strong> a marker trait for types where assignment/passing performs an implicit, cheap
+        bitwise duplication instead of a move — the original binding <em>remains valid</em>. Only types where
+        a bit-for-bit copy is fully correct and cheap can implement it: integers, floats, bool, char, and
+        tuples/arrays/structs composed entirely of Copy types. <strong>Clone:</strong> an explicit,
+        possibly-expensive duplication via <code>.clone()</code> — must be called deliberately, can allocate,
+        can run arbitrary logic. <code>String</code> owns a heap-allocated buffer; a bitwise copy would produce
+        two <code>String</code>s pointing at the <em>same</em> heap allocation, so when both go out of scope you'd
+        get a double-free. Rust disallows <code>Copy</code> for any type containing a heap pointer or implementing
+        <code>Drop</code> — the compiler enforces this at the trait-implementation level, it's not just convention.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">State the borrowing rules precisely. Why is "many immutable OR one mutable" the rule, rather than something more permissive?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        At any point in a scope, for a given value you may have <strong>either</strong> any number of immutable
+        references (<code>&amp;T</code>) <strong>or</strong> exactly one mutable reference (<code>&amp;mut T</code>) —
+        never both simultaneously. This is the <strong>"aliasing XOR mutation"</strong> principle. The reason it's
+        this strict: if two references could both read <em>and</em> one could write concurrently (even on a single
+        thread), the reader could observe a partially-mutated, inconsistent value — e.g. a <code>Vec</code> being
+        reallocated mid-iteration. By making mutation exclusive, the compiler guarantees that whenever you hold
+        <code>&amp;mut T</code>, no other code anywhere can be observing or changing that data — this is what
+        allows aggressive compiler optimisations (no aliasing means no defensive reloads) and what eliminates
+        data races when the same rule is extended across threads via <code>Send</code>/<code>Sync</code>.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What is the borrow checker's "two-phase borrow" and how did NLL (non-lexical lifetimes) change what compiles?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Before <strong>NLL</strong> (stabilised in the 2018 edition), a borrow's lifetime extended to the end of
+        the enclosing lexical scope (the innermost <code>{}</code>) regardless of whether it was actually used
+        again — so code like taking a mutable borrow, using it, then trying to use the original variable in the
+        <em>same block</em> would fail even though the borrow had logically ended. <strong>NLL</strong> makes the
+        borrow checker analyse the actual control-flow graph and shrink a borrow's lifetime to its last real use —
+        dramatically more code compiles without restructuring. <strong>Two-phase borrows</strong> solve a narrower
+        problem: <code>vec.push(vec.len())</code> looks like it needs <code>&amp;mut vec</code> and <code>&amp;vec</code>
+        simultaneously. The compiler splits the mutable borrow into a "reserved" phase (can coexist with shared
+        reads) and an "activated" phase (exclusive, begins only when the mutation actually happens) — letting this
+        common pattern compile without unsafe workarounds.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">What is the difference between "moving out of a borrowed context" being disallowed, and how do <code>Cell</code>/<code>RefCell</code> let you bypass the compile-time borrow rules? What's the trade-off?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        You cannot move a value out of a <code>&amp;T</code> or <code>&amp;mut T</code> because the reference's
+        target must remain valid for its lifetime — moving out would leave a hole. (Exceptions: <code>mem::take</code>
+        and <code>mem::replace</code> let you swap in a default/replacement value atomically, giving you ownership
+        of the old value without leaving an invalid state.)
+        <strong><code>Cell&lt;T&gt;</code></strong> and <strong><code>RefCell&lt;T&gt;</code></strong> provide
+        <strong>interior mutability</strong>: they let you mutate a value through a shared <code>&amp;self</code>
+        reference by moving the aliasing-XOR-mutation check from <em>compile time</em> to <em>runtime</em>.
+        <code>Cell&lt;T&gt;</code> only supports <code>get</code>/<code>set</code>/<code>replace</code> (T must be
+        Copy or you move whole values in/out) — no runtime check needed because there's never a live reference into
+        it. <code>RefCell&lt;T&gt;</code> hands out runtime-checked guards (<code>borrow()</code> /
+        <code>borrow_mut()</code>) and <strong>panics</strong> if you violate the aliasing rule at runtime (e.g. two
+        live mutable borrows). Trade-off: you lose compile-time guarantees and pay a small runtime check cost, and a
+        violated invariant becomes a runtime panic instead of a compile error — this is why interior mutability is
+        used surgically (e.g. one field of a struct) rather than everywhere.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">You need two <code>&amp;mut</code> references into <em>different, provably disjoint</em> parts of the same <code>Vec&lt;T&gt;</code>/slice at once — e.g. to recurse into both halves of a slice for a divide-and-conquer algorithm. Why does the naive attempt not compile, and how does <code>split_at_mut</code> solve it soundly?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The naive attempt:
+<pre style="margin:6px 0;"><span class="kw">let</span> mid = slice.<span class="fn">len</span>() / <span class="nm">2</span>;
+<span class="kw">let</span> left = &amp;<span class="kw">mut</span> slice[..mid];
+<span class="kw">let</span> right = &amp;<span class="kw">mut</span> slice[mid..];  <span class="cm">// error: cannot borrow `slice` as mutable more than once at a time</span></pre>
+        fails because the borrow checker's analysis here is <strong>syntactic, not semantic</strong> — it sees two
+        separate <code>&amp;mut</code> borrows taken from the same place (<code>slice</code>) and rejects them as
+        potentially aliasing, even though a human (and the runtime values of <code>mid</code>) can see
+        <code>[..mid]</code> and <code>[mid..]</code> are provably non-overlapping byte ranges. The compiler does
+        not do range-disjointness reasoning for you at the borrow-checker level.
+        <code>slice.split_at_mut(mid) -&gt; (&amp;mut [T], &amp;mut [T])</code> is exactly the "trust me, these
+        two are disjoint" escape hatch, implemented <em>once</em>, correctly, inside the standard library:
+        internally it computes two raw pointers into the same allocation and constructs two independent
+        <code>&amp;mut</code> slices via a small, audited <code>unsafe</code> block — the unsafety is fully
+        contained there, so callers never need <code>unsafe</code> themselves to get this pattern. This is exactly
+        the mechanism in-place quicksort (partition, then recurse into both halves) and parallel divide-and-conquer
+        algorithms (including how <code>rayon</code>'s parallel sort recurses across threads) rely on to work on
+        two halves of one slice simultaneously without cloning. A candidate whose first instinct on hitting this
+        error is to reach for raw pointers/<code>unsafe</code> themselves, or to <code>.clone()</code> the whole
+        slice to dodge the conflict, is missing that the standard library already ships the safe, idiomatic answer
+        (<code>split_at_mut</code>, and its siblings <code>split_first_mut</code>/<code>chunks_mut</code>) for this
+        exact, extremely common shape of problem.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong hire signals</div><ul>
+      <li>Explains aliasing-XOR-mutation as the rule's purpose, not just "one mutable ref"</li>
+      <li>Knows NLL and two-phase borrows by name and what they fixed</li>
+      <li>Distinguishes Cell (no runtime check) from RefCell (runtime-panicking check)</li>
+      <li>Mentions mem::take / mem::replace as move-out-of-&amp;mut escape hatches</li>
+      <li>Reaches for split_at_mut/chunks_mut instead of unsafe or cloning for disjoint mutable slice borrows</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe further</div><ul>
+      <li>Knows the borrow rules but describes them as arbitrary restrictions</li>
+      <li>Has used RefCell but can't explain when it panics</li>
+      <li>Fuzzy on why Copy types don't need borrow-checking gymnastics</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern signals</div><ul>
+      <li>"The borrow checker is just annoying" with no deeper model</li>
+      <li>Thinks RefCell is a way to "turn off" the borrow checker with no cost</li>
+      <li>Cannot explain why String isn't Copy</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Interviewers use "fix this borrow error" as a proxy for whether you'll fight the compiler for hours or
+    restructure quickly. The fastest tell: candidates who reach for <code>.clone()</code> everywhere to make
+    errors disappear vs. candidates who ask "does this actually need to alias, or can I restructure ownership?"
+    Cloning to satisfy the compiler is sometimes the right pragmatic call (cheap types, hot path irrelevant) —
+    say so explicitly rather than treating every clone as shameful or every clone as free.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 02 · STRUCTS, ENUMS & PATTERN MATCHING ════════════ -->
+<div class="section" id="t-struct">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// Topic 02</div>
+      <div class="sh-title">Structs, Enums &amp; Pattern Matching</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What are the three kinds of structs in Rust? What is a "newtype" and why is it idiomatic?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Named-field structs</strong> (<code>struct Point { x: f64, y: f64 }</code>), <strong>tuple structs</strong>
+        (<code>struct Point(f64, f64)</code> — fields accessed by <code>.0</code>/<code>.1</code>), and
+        <strong>unit structs</strong> (<code>struct Marker;</code> — zero size, used as a type-level tag or trait
+        implementation target with no data). A <strong>newtype</strong> is a tuple struct with exactly one field —
+        <code>struct UserId(u64);</code> — that wraps an existing type to give it a distinct identity at the type
+        level. It's idiomatic because: (1) it prevents mixing up semantically different values that share a
+        representation (<code>UserId</code> vs <code>ProductId</code>, both <code>u64</code>, cannot be passed to
+        the wrong parameter — the compiler rejects it), (2) it lets you implement traits you don't own for types
+        you don't own (the "orphan rule" forbids <code>impl ForeignTrait for ForeignType</code>, but
+        <code>impl ForeignTrait for MyNewtype(ForeignType)</code> is fine), and (3) it has zero runtime cost —
+        the wrapper is erased at compile time.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How do Rust enums differ from C-style enums? Explain how <code>Option&lt;T&gt;</code> is just a regular enum, and what its memory layout looks like.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        C-style enums are just named integer constants. Rust enums are <strong>algebraic data types (sum types)</strong> —
+        each variant can carry its own distinct payload:
+<pre style="margin:6px 0;"><span class="kw">enum</span> <span class="ty">Shape</span> {
+    <span class="ty">Circle</span> { radius: <span class="ty">f64</span> },
+    <span class="ty">Rectangle</span> { w: <span class="ty">f64</span>, h: <span class="ty">f64</span> },
+    <span class="ty">Point</span>,
+}</pre>
+        <code>Option&lt;T&gt;</code> is defined in std as <code>enum Option&lt;T&gt; { None, Some(T) }</code> — no
+        special-casing by the compiler beyond a specific layout optimisation. For a type like
+        <code>Option&lt;Box&lt;T&gt;&gt;</code> or <code>Option&lt;&amp;T&gt;</code>, the compiler applies the
+        <strong>null pointer optimisation</strong>: since a valid pointer is never zero, <code>None</code> is
+        represented as the all-zero bit pattern and <code>Some</code> as the pointer value directly — so
+        <code>sizeof(Option&lt;Box&lt;T&gt;&gt;) == sizeof(Box&lt;T&gt;)</code>, no extra discriminant byte needed.
+        For non-pointer types, the enum needs a discriminant tag plus space for the largest variant's payload
+        (with padding for alignment) — this is why <code>Option&lt;bool&gt;</code> is often larger than 1 byte.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What does exhaustiveness checking in <code>match</code> buy you? Explain the role of <code>#[non_exhaustive]</code> in library API design.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <code>match</code> over an enum must cover every variant (or include a <code>_</code> wildcard) or the
+        code <strong>fails to compile</strong>. This means adding a new variant to an enum you own is a
+        <strong>compile-time-detected breaking change</strong> everywhere it's matched — the compiler forces you
+        to update every call site, eliminating a whole class of "forgot to handle the new case" bugs that plague
+        switch-based languages at runtime. <strong><code>#[non_exhaustive]</code></strong> is the library-author
+        escape hatch: applied to a public enum or struct, it forces downstream crates to always include a
+        <code>_</code> wildcard arm (or use <code>..</code> for struct fields) — meaning the library can add new
+        variants/fields in a minor version <em>without</em> that being a breaking change for consumers. The
+        trade-off: consumers lose exhaustiveness checking for that type entirely, so it should only be applied
+        where you genuinely expect to extend the type later.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Explain match guards, bindings with <code>@</code>, and the difference between matching by value vs by reference (<code>match &amp;x</code> vs <code>match x</code>).</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">match</span> n {
+    x <span class="kw">if</span> x &lt; <span class="nm">0</span> =&gt; <span class="fn">println!</span>(<span class="st">"negative"</span>),
+    x @ <span class="nm">0</span>..=<span class="nm">9</span> =&gt; <span class="fn">println!</span>(<span class="st">"small: {x}"</span>), <span class="cm">// bind AND range-match</span>
+    _ =&gt; <span class="fn">println!</span>(<span class="st">"large"</span>),
+}</pre>
+        <strong>Match guards</strong> (<code>if</code> after the pattern) add arbitrary boolean conditions but
+        don't participate in exhaustiveness — the compiler can't prove a guard is unreachable, so you still need
+        a fallback arm. <strong><code>@</code> bindings</strong> let you both destructure/range-match <em>and</em>
+        capture the whole matched value under a name.
+        <strong>Matching by reference vs value</strong>: <code>match some_string { ... }</code> on an owned,
+        non-Copy value <em>moves</em> it into the match (fields bound by patterns take ownership) — the original
+        variable becomes unusable afterward. <code>match &amp;some_string { ... }</code> matches against a
+        reference, so patterns bind <code>&amp;T</code> by default (or you use <code>ref</code> in older code, now
+        largely superseded by "match ergonomics" which auto-adjusts binding modes based on whether you're matching
+        a reference). This distinction matters constantly when matching on a field accessed through <code>&amp;self</code> —
+        forgetting to match by reference causes "cannot move out of borrowed content" errors.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">How would you model a state machine using enums so that illegal states are unrepresentable? Give a concrete example of the "typestate" pattern.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The core idea — <strong>"make illegal states unrepresentable"</strong> — is to encode invariants into the
+        type system so invalid combinations of data simply cannot be constructed, rather than being represented
+        and then validated defensively at runtime. A state-machine enum where each variant only carries the data
+        relevant to that state is one form:
+<pre style="margin:6px 0;"><span class="kw">enum</span> <span class="ty">Connection</span> {
+    <span class="ty">Disconnected</span>,
+    <span class="ty">Connecting</span> { attempt: <span class="ty">u32</span> },
+    <span class="ty">Connected</span> { socket: <span class="ty">TcpStream</span>, session_id: <span class="ty">u64</span> },
+}
+<span class="cm">// impossible to have a session_id without a live socket — the type enforces it</span></pre>
+        The <strong>typestate pattern</strong> goes further, encoding the state <em>in the type itself</em> so
+        transitions are checked at compile time and old states can't be reused:
+<pre style="margin:4px 0;"><span class="kw">struct</span> <span class="ty">Door</span>&lt;<span class="ty">State</span>&gt; { _marker: PhantomData&lt;<span class="ty">State</span>&gt; }
+<span class="kw">struct</span> <span class="ty">Open</span>;
+<span class="kw">struct</span> <span class="ty">Closed</span>;
+
+<span class="kw">impl</span> <span class="ty">Door</span>&lt;<span class="ty">Closed</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">open</span>(<span class="kw">self</span>) -&gt; <span class="ty">Door</span>&lt;<span class="ty">Open</span>&gt; { <span class="ty">Door</span> { _marker: PhantomData } }
+}
+<span class="kw">impl</span> <span class="ty">Door</span>&lt;<span class="ty">Open</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">close</span>(<span class="kw">self</span>) -&gt; <span class="ty">Door</span>&lt;<span class="ty">Closed</span>&gt; { <span class="ty">Door</span> { _marker: PhantomData } }
+}
+<span class="cm">// door.close().close() — compile error: Door&lt;Closed&gt; has no close() method</span></pre>
+        <code>self</code>-by-value consumes the old state so it can't be reused; the returned type is the new
+        state. This is used in real crates for builder APIs (can't call <code>.build()</code> until required
+        fields are set) and protocol implementations (can't send data before a handshake completes). The trade-off
+        is API surface bloat — one method set per state — so it's reserved for state machines with real safety
+        value, not applied reflexively everywhere.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">Explain slice patterns (<code>[first, .., last]</code>, <code>[a, b, rest @ ..]</code>) and or-patterns (<code>1 | 2 | 3</code>). How do they replace what would otherwise be manual indexing and if-chains?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">fn</span> <span class="fn">describe</span>(nums: &amp;[<span class="ty">i32</span>]) -&gt; <span class="ty">String</span> {
+    <span class="kw">match</span> nums {
+        [] =&gt; <span class="st">"empty"</span>.<span class="fn">into</span>(),
+        [x] =&gt; <span class="fn">format!</span>(<span class="st">"single: {x}"</span>),
+        [first, .., last] =&gt; <span class="fn">format!</span>(<span class="st">"first={first}, last={last}"</span>),   <span class="cm">// matches ANY length >= 2</span>
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">split_head</span>(nums: &amp;[<span class="ty">i32</span>]) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">i32</span>, &amp;[<span class="ty">i32</span>])&gt; {
+    <span class="kw">match</span> nums {
+<span class="ok-line">        [head, rest @ ..] =&gt; <span class="ty">Some</span>((*head, rest)),  <span class="cm">// `rest @ ..` binds the REMAINING slice, not just skips it</span></span>
+        [] =&gt; <span class="ty">None</span>,
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">classify</span>(n: <span class="ty">i32</span>) -&gt; &amp;<span class="lt">'static</span> <span class="ty">str</span> {
+    <span class="kw">match</span> n {
+<span class="ok-line">        <span class="nm">1</span> | <span class="nm">2</span> | <span class="nm">3</span> =&gt; <span class="st">"small"</span>,                        <span class="cm">// or-pattern — one arm, three literals</span></span>
+<span class="ok-line">        n <span class="kw">if</span> n &lt; <span class="nm">0</span> || n &gt; <span class="nm">100</span> =&gt; <span class="st">"out of range"</span>,  <span class="cm">// or-patterns compose with guards</span></span>
+        _ =&gt; <span class="st">"other"</span>,
+    }
+}</pre>
+        <strong>Slice patterns</strong> destructure a slice/array by shape directly in the match, rather than
+        indexing with bounds checks and <code>.unwrap()</code> scattered through the body — <code>[first, .., last]</code>
+        matches any slice with length ≥ 2 (the compiler proves exhaustiveness across the <code>[]</code>,
+        <code>[x]</code>, and length-≥2 arms for you) and binds both ends in one line with no possibility of an
+        off-by-one panic. <code>rest @ ..</code> binds the remaining sub-slice as its own <code>&amp;[T]</code> —
+        this is exactly the pattern behind writing a recursive function over "head and tail" without ever calling
+        <code>.split_first()</code> manually, and it composes naturally with recursion (peel one element per
+        call). Or-patterns (<code>1 | 2 | 3</code>) collapse what would otherwise be several separate match arms —
+        or a chain of <code>||</code> comparisons in an <code>if</code> — into a single arm, and they compose with
+        <code>@</code> bindings (<code>n @ (1 | 2 | 3)</code> binds <code>n</code> to whichever literal matched) and
+        with match guards. The same <code>..</code> "ignore/collect the rest" syntax also works for struct fields
+        (<code>Point { x, .. }</code> ignores every field except <code>x</code>) and tuple structs — it's one
+        consistent piece of pattern-matching vocabulary reused across slices, structs, and tuples.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains null-pointer optimisation for Option&lt;Box/&amp;T&gt;</li>
+      <li>Knows #[non_exhaustive] and why library authors use it</li>
+      <li>Can write a typestate example from memory</li>
+      <li>Uses "illegal states unrepresentable" framing unprompted</li>
+      <li>Reaches for slice patterns (`[first, .., last]`, `rest @ ..`) instead of manual indexing + bounds checks</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Knows enums can hold data but not the layout implications</li>
+      <li>Match guards used but exhaustiveness interaction unclear</li>
+      <li>Writes nums[0], nums[nums.len()-1] with manual length checks instead of a slice pattern</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Treats Rust enums like C enums (int constants only)</li>
+      <li>Reaches for booleans/optional fields instead of enum variants for state</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    A classic senior tell: given a struct with three optional fields that are only sometimes valid together
+    (e.g. <code>error: Option&lt;String&gt;</code>, <code>retry_count: Option&lt;u32&gt;</code> that should only
+    exist together), a senior candidate immediately proposes collapsing them into an enum variant instead of
+    "just add a comment explaining the invariant." This single instinct — types over runtime discipline — is
+    one of the highest-signal things you can demonstrate in a design discussion.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 03 · ERROR HANDLING ════════════ -->
+<div class="section" id="t-err">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-err)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-err)">// Topic 03</div>
+      <div class="sh-title">Error Handling</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-err)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is the difference between <code>panic!</code> and returning <code>Result::Err</code>? When is each appropriate?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>panic!</code></strong> signals an <strong>unrecoverable</strong> programming error — an
+        invariant the program logic assumed would always hold has been violated. By default it unwinds the stack
+        (running destructors along the way, similar to a C++ exception) and aborts that thread; it can be
+        configured to <code>abort</code> immediately instead (smaller binaries, no unwind tables, but no cleanup).
+        A panic in the main thread terminates the process; a panic in a spawned thread only poisons that thread —
+        <code>JoinHandle::join()</code> returns an <code>Err</code> to the joining thread, the rest of the program
+        continues (unless it was holding a lock, which becomes poisoned — see mutex poisoning).
+        <strong><code>Result&lt;T, E&gt;</code></strong> represents an <strong>expected, recoverable</strong>
+        failure mode that's part of a function's normal contract — a file might not exist, a network call might
+        time out, user input might be malformed. Use panics for "this should be logically impossible" (a bug if it
+        happens — e.g. an internal invariant check) and Results for "this can plausibly fail and the caller should
+        decide what to do about it." A library that panics on bad user input instead of returning an error is
+        considered a design flaw in idiomatic Rust.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain the <code>?</code> operator. What does it do under the hood, and what trait makes it work across different error types?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>expr?</code> is sugar: if <code>expr</code> evaluates to <code>Ok(v)</code>, it unwraps to <code>v</code>;
+        if it evaluates to <code>Err(e)</code>, it immediately <strong>returns</strong> <code>Err(From::from(e))</code>
+        from the enclosing function. The <strong><code>From</code></strong> trait conversion is the key mechanism:
+        it lets you propagate a low-level error type (e.g. <code>std::io::Error</code>) up through a function whose
+        return type is a higher-level custom error (e.g. <code>MyAppError</code>), as long as
+        <code>impl From&lt;io::Error&gt; for MyAppError</code> exists — no manual <code>.map_err()</code> needed at
+        every call site. <code>?</code> also works on <code>Option&lt;T&gt;</code> inside functions returning
+        <code>Option</code> (propagates <code>None</code>). Since Rust 2021 (via the <code>Try</code> trait,
+        still partially unstable for custom types but fully working for Result/Option), it generalises the pattern.
+        The main constraint: the function using <code>?</code> must have a return type compatible with the
+        propagated error — this is why <code>main()</code> can return <code>Result&lt;(), E&gt;</code> to use
+        <code>?</code> at the top level.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Compare <code>anyhow</code> and <code>thiserror</code>. Why would a library crate use one and an application binary use the other?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>thiserror</code></strong> is a derive macro that generates boilerplate for defining
+        <strong>structured, typed error enums</strong> — you write the variants, it generates <code>Display</code>,
+        <code>Error</code>, and <code>From</code> impls from attributes:
+<pre style="margin:4px 0;"><span class="mc">#[derive(thiserror::Error, Debug)]</span>
+<span class="kw">enum</span> <span class="ty">DbError</span> {
+    <span class="mc">#[error("connection failed: {0}")]</span>
+    <span class="ty">Connection</span>(#[from] io::Error),
+    <span class="mc">#[error("row not found: id={id}")]</span>
+    <span class="ty">NotFound</span> { id: <span class="ty">u64</span> },
+}</pre>
+        <strong><code>anyhow</code></strong> provides <strong><code>anyhow::Error</code></strong> — a single
+        type-erased error box (similar to <code>Box&lt;dyn Error&gt;</code> but nicer ergonomics: automatic
+        <code>?</code> conversion from anything implementing <code>std::error::Error</code>, easy
+        <code>.context("...")</code> annotation for adding human-readable trace context as errors bubble up).
+        <strong>Libraries use thiserror</strong> because their errors are part of the public API — callers need to
+        <code>match</code> on specific variants to react differently (retry on timeout, don't retry on auth
+        failure). <strong>Applications use anyhow</strong> at the top level because the binary usually just wants
+        to log/display the error and exit — callers of a <code>main()</code> don't need to match variants, they
+        need a good error message and maybe a chain of "caused by" context. A common pattern: internal library
+        code returns thiserror enums; the top-level <code>main() -> anyhow::Result&lt;()&gt;</code> wraps and
+        adds context as errors flow up through <code>?</code>.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What does mutex poisoning mean in the standard library, and what's the senior-level critique of that design? How does <code>parking_lot</code> differ?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        If a thread panics while holding a <code>std::sync::Mutex</code> lock, the standard library marks the
+        mutex as <strong>poisoned</strong> — every subsequent <code>.lock()</code> call from any thread returns
+        <code>Err(PoisonError)</code> instead of blocking normally, because the data behind the lock might be in
+        an inconsistent state (the panic could have happened mid-mutation). You can still recover the guard via
+        <code>.into_inner()</code> on the error if you're confident the invariant wasn't actually broken.
+        <strong>Senior-level critique:</strong> poisoning is a blunt instrument — it assumes any panic under a
+        lock corrupts the data, which is often not true (a panic in unrelated code that happens to be called while
+        the lock is held, or a panic that occurs strictly before any mutation) — yet it forces every caller
+        everywhere to handle the <code>PoisonError</code> case, adding friction for a rare and often-irrelevant
+        event. Most real-world code just calls <code>.unwrap()</code> on the lock result, which converts a
+        recoverable design into "poisoning just panics again downstream" — arguably worse than not having
+        poisoning at all. <strong><code>parking_lot::Mutex</code></strong> deliberately drops poisoning
+        entirely — <code>.lock()</code> returns the guard directly, no <code>Result</code> — betting that most
+        users want a faster, simpler mutex and will design their own recovery strategy if they actually need one.
+        It's also measurably faster (smaller, no OS futex syscall in the uncontended fast path on some platforms)
+        and adds features std lacks, like fair unlocking and reentrant mutexes.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Design an error-handling strategy for a mid-sized service with a storage layer, an HTTP layer, and business logic in between. How do errors flow between layers?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Storage layer:</strong> a <code>thiserror</code> enum specific to that layer (<code>StorageError::NotFound</code>,
+        <code>::ConnectionLost</code>, <code>::Serialization</code>) — this is the layer that knows about SQL error
+        codes, connection pools, etc.; those details should never leak upward as-is.
+        <strong>Business/domain layer:</strong> its own error enum (<code>DomainError::InvalidState</code>,
+        <code>::PermissionDenied</code>, <code>::Upstream(StorageError)</code>) that wraps lower-layer errors via
+        <code>#[from]</code> — this layer translates "connection lost" into a domain-meaningful concept and adds
+        <em>semantic</em> variants the storage layer has no concept of (e.g. business-rule violations).
+        <strong>HTTP layer:</strong> implements a trait (e.g. axum's <code>IntoResponse</code>) on the domain error
+        to map each variant to an HTTP status + JSON body — <code>NotFound → 404</code>, <code>PermissionDenied →
+        403</code>, catch-all <code>Upstream(_) → 500</code> with the internal detail <em>logged</em> but not
+        exposed to the client (avoid leaking internals in error messages — a real security consideration).
+        <strong>Cross-cutting:</strong> use <code>tracing::error!</code> with structured fields at the point an
+        error is about to cross a trust boundary (e.g. right before converting to an HTTP response), so you get
+        full context (request id, user id) in logs without needing every intermediate function to log redundantly.
+        The key principle: <strong>each layer's error type should only expose concepts meaningful to its callers</strong> —
+        propagating raw SQL errors to an HTTP client is a design smell showing layers aren't properly separated.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains ? via From conversion, not just "it returns early"</li>
+      <li>Correctly splits anyhow (apps) vs thiserror (libraries)</li>
+      <li>Has an informed opinion on mutex poisoning / parking_lot trade-off</li>
+      <li>Designs layered error types instead of one giant enum or stringly-typed errors</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Uses .unwrap() reflexively without discussing panic vs Result trade-off</li>
+      <li>Knows anyhow/thiserror exist but not the "why one over the other"</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Uses String as the error type everywhere ("stringly-typed" errors)</li>
+      <li>Panics on expected failure conditions like missing config or bad user input</li>
+      <li>Cannot explain what ? does beyond "it's like try/catch"</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Ask them to design the error type for a function that can fail for three unrelated reasons. Junior/mid
+    candidates reach for one flat enum or <code>Box&lt;dyn Error&gt;</code> everywhere. Senior candidates ask
+    "who's the caller, and what do they need to do differently based on which error occurred?" — error design is
+    an API design question, not a syntax question, and treating it that way is the differentiator.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 04 · FUNCTIONS & CLOSURES ════════════ -->
+<div class="section" id="t-fn">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fn)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fn)">// Topic 04</div>
+      <div class="sh-title">Functions &amp; Closures</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fn)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What are the three closure traits — <code>Fn</code>, <code>FnMut</code>, and <code>FnOnce</code>? How does the compiler pick which one a closure implements?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>FnOnce</code></strong>: can be called at most once — it may move/consume captured variables.
+        <strong><code>FnMut</code></strong>: can be called multiple times and may mutate captured variables
+        (captures by <code>&amp;mut</code>). <strong><code>Fn</code></strong>: can be called multiple times and
+        only reads captured variables (captures by <code>&amp;</code>). Every closure implements <code>FnOnce</code>
+        at minimum; <code>FnMut</code> implies <code>FnOnce</code>; <code>Fn</code> implies both — it's a hierarchy,
+        not three exclusive categories. The compiler infers which traits a closure implements by analysing its
+        <strong>body</strong>: if it moves a captured value out (e.g. returns owned data it captured, or passes it
+        to a function taking ownership), it's only <code>FnOnce</code>. If it mutates a capture, it's
+        <code>FnMut</code> (and also <code>FnOnce</code>, since anything callable multiple times is trivially
+        callable once). If it only reads captures, it's <code>Fn</code> (and thus also the other two). The
+        <code>move</code> keyword forces captures to be taken by value instead of by reference — it doesn't by
+        itself determine which trait is implemented, that's still based on what the body does with the moved data.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What's the difference between <code>impl Fn() -> i32</code> and <code>Box&lt;dyn Fn() -> i32&gt;</code> as a function's return type? When must you use the latter?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>impl Fn() -&gt; i32</code></strong> (return-position impl trait, RPIT) returns a single
+        <strong>concrete, compiler-known type</strong> — the actual closure type generated for that specific
+        closure expression — but the caller doesn't get to name it, only knows it implements <code>Fn() -&gt;
+        i32</code>. This is <strong>static dispatch</strong>, zero overhead, and every call site returning from
+        that function must return the <em>same concrete closure type</em> (you can't have an <code>if</code>
+        branch return one closure and another branch return a different closure, even if both satisfy the trait —
+        their concrete types differ). <strong><code>Box&lt;dyn Fn() -&gt; i32&gt;</code></strong> heap-allocates
+        the closure and stores it behind a trait-object fat pointer — <strong>dynamic dispatch</strong>, an
+        allocation, and a vtable call per invocation, but now <em>any</em> closure matching the signature can be
+        returned interchangeably, including from different branches. You must use the boxed trait-object form when
+        the concrete closure type varies at runtime (a factory function selecting between several possible
+        closures) or when you need to store heterogeneous closures in a collection (<code>Vec&lt;Box&lt;dyn Fn()&gt;&gt;</code>).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain function pointers (<code>fn</code> type) vs closures. Can every closure be used where a function pointer is expected?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <strong><code>fn</code> pointer</strong> (e.g. <code>fn(i32) -&gt; i32</code>) is a plain pointer to a
+        function's machine code — it has a fixed, tiny size (one pointer word) and captures <em>nothing</em> from
+        its environment. A <strong>closure</strong> is a compiler-generated anonymous struct holding its captured
+        variables, plus a generated <code>call</code> implementation — its size depends on what it captures
+        (zero-sized if it captures nothing). <strong>Non-capturing closures coerce to <code>fn</code> pointers</strong>
+        automatically because they carry no state — <code>let add_one: fn(i32) -&gt; i32 = |x| x + 1;</code>
+        compiles fine. <strong>Capturing closures cannot</strong> — there's no way to represent captured state in
+        a bare function pointer, so <code>let x = 5; let add_x: fn(i32) -&gt; i32 = |y| y + x;</code> fails to
+        compile. This distinction matters for FFI: C callback APIs expect a bare function pointer (plus often a
+        <code>void* userdata</code> parameter as the idiomatic workaround for "capturing" state across the FFI
+        boundary), so a capturing Rust closure can't be passed directly — you pass a non-capturing trampoline
+        function plus a raw pointer to your state as the userdata.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Write a function that takes a generic closure parameter using each of the three approaches (generic + trait bound, <code>impl Trait</code> param, <code>dyn Trait</code> param) and explain the performance and flexibility trade-offs of each.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:4px 0;"><span class="cm">// 1. Generic + trait bound — monomorphised, zero-cost, most flexible for the caller</span>
+<span class="kw">fn</span> <span class="fn">apply_generic</span>&lt;<span class="ty">F</span>: <span class="ty">Fn</span>(<span class="ty">i32</span>) -&gt; <span class="ty">i32</span>&gt;(f: <span class="ty">F</span>, x: <span class="ty">i32</span>) -&gt; <span class="ty">i32</span> { f(x) }
+
+<span class="cm">// 2. impl Trait param — sugar for the same thing, reads cleaner for a single bound</span>
+<span class="kw">fn</span> <span class="fn">apply_impl</span>(f: <span class="kw">impl</span> <span class="ty">Fn</span>(<span class="ty">i32</span>) -&gt; <span class="ty">i32</span>, x: <span class="ty">i32</span>) -&gt; <span class="ty">i32</span> { f(x) }
+
+<span class="cm">// 3. dyn Trait param — one compiled function body, dynamic dispatch per call</span>
+<span class="kw">fn</span> <span class="fn">apply_dyn</span>(f: &amp;<span class="kw">dyn</span> <span class="ty">Fn</span>(<span class="ty">i32</span>) -&gt; <span class="ty">i32</span>, x: <span class="ty">i32</span>) -&gt; <span class="ty">i32</span> { f(x) }</pre>
+        <strong>(1) and (2) are identical under the hood</strong> — both are <strong>monomorphised</strong>: the
+        compiler generates a separate copy of <code>apply_generic</code>/<code>apply_impl</code> for every distinct
+        closure type passed at any call site. Zero-cost, fully inlinable, but contributes to binary size and
+        compile time if called with many distinct closure types across a large codebase.
+        <strong>(3) compiles to exactly one function body</strong>, callable with any <code>&amp;dyn Fn(i32) -&gt;
+        i32</code> — smaller binary, faster compile, but each call goes through a vtable indirection (can't be
+        inlined by the compiler across the call boundary) and the caller needs to already have the closure behind
+        a reference or box. The senior-level judgement call: use generics/impl-Trait for hot-path, performance
+        -critical code and for public library APIs (lets callers pass zero-cost closures); reach for <code>dyn</code>
+        when you need to store heterogeneous callbacks in one collection, when compile-time/binary-size matters
+        more than the last few nanoseconds, or when the function is not a hot path (e.g. one-time config callbacks).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">What is a higher-ranked trait bound (HRTB), and why does <code>for&lt;'a&gt; Fn(&amp;'a str) -&gt; &amp;'a str</code> sometimes appear in error messages or trait definitions?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A normal generic lifetime parameter on a function is chosen <em>once</em>, by the caller, for that whole
+        call. But a closure parameter that must work with <strong>any</strong> lifetime the caller hands it
+        <em>at the moment it's invoked</em> — not fixed at the point the closure is passed in — needs a
+        <strong>higher-ranked trait bound</strong>: <code>for&lt;'a&gt; Fn(&amp;'a str) -&gt; &amp;'a str</code>
+        means "for every possible lifetime 'a, this closure can be called with a <code>&amp;'a str</code> and
+        returns a <code>&amp;'a str</code> with that same lifetime" — the closure must be generic over the
+        lifetime, chosen fresh on each call, rather than the caller picking one lifetime up front. This comes up
+        constantly with closures taking references as parameters — the compiler infers HRTBs automatically for
+        most common cases (which is why you rarely write <code>for&lt;'a&gt;</code> yourself), but it surfaces in
+        error messages when type inference can't figure out whether a closure needs to be higher-ranked or can use
+        one concrete lifetime, or when writing generic functions/trait definitions that accept closures over
+        references, like a callback that processes a borrowed item from an iterator without owning it. Deep
+        understanding here separates "used closures" from "understands why some closure-taking generic code
+        doesn't compile and how to fix the trait bound."
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">As a <em>parameter</em> type specifically (not return type): what's the difference between <code>f: &amp;dyn Fn(i32) -&gt; i32</code>, <code>f: &amp;mut dyn FnMut(i32) -&gt; i32</code>, and <code>f: Box&lt;dyn FnOnce(i32) -&gt; i32&gt;</code>? Why does each pick that particular reference/ownership form?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Each form's ownership/reference kind is dictated entirely by <strong>which closure trait it wraps</strong>,
+        not by preference:
+<pre style="margin:4px 0;"><span class="cm">// Fn: only reads captures, can be called any number of times through a shared reference</span>
+<span class="kw">fn</span> <span class="fn">call_fn</span>(f: &amp;<span class="kw">dyn</span> <span class="ty">Fn</span>(<span class="ty">i32</span>) -&gt; <span class="ty">i32</span>) -&gt; <span class="ty">i32</span> { f(<span class="nm">1</span>) + f(<span class="nm">2</span>) }
+
+<span class="cm">// FnMut: mutates captures, so calling it needs an EXCLUSIVE borrow each time</span>
+<span class="kw">fn</span> <span class="fn">call_fn_mut</span>(f: &amp;<span class="kw">mut</span> <span class="kw">dyn</span> <span class="ty">FnMut</span>(<span class="ty">i32</span>) -&gt; <span class="ty">i32</span>) -&gt; <span class="ty">i32</span> { f(<span class="nm">1</span>) + f(<span class="nm">2</span>) }
+
+<span class="cm">// FnOnce: may consume its captures, so the trait object itself must be consumed by value —</span>
+<span class="cm">// a &dyn FnOnce can't work, since calling through a reference can't move out of it</span>
+<span class="kw">fn</span> <span class="fn">call_fn_once</span>(f: Box&lt;<span class="kw">dyn</span> <span class="ty">FnOnce</span>(<span class="ty">i32</span>) -&gt; <span class="ty">i32</span>&gt;) -&gt; <span class="ty">i32</span> { f(<span class="nm">1</span>) }</pre>
+        <code>&amp;dyn Fn</code> works because <code>Fn::call</code> only needs <code>&amp;self</code> — you can call
+        it through a shared reference as many times as you like, so no box/allocation is required if the caller
+        already owns the closure elsewhere. <code>&amp;mut dyn FnMut</code> needs <code>&amp;mut self</code>
+        because <code>FnMut::call_mut</code> requires exclusive access — still no heap allocation needed, just a
+        mutable borrow. <code>Box&lt;dyn FnOnce&gt;</code> is the one that <em>must</em> own the closure: since
+        <code>FnOnce::call_once</code> consumes <code>self</code>, you cannot call it through any kind of
+        reference — the trait object has to be owned outright so it can be moved out of and dropped after the
+        single call. This is exactly why APIs like <code>thread::spawn</code> take <code>F: FnOnce() -&gt; T +
+        Send + 'static</code> by value rather than by any reference — the closure is consumed exactly once, on
+        the spawned thread, then the trait bound disappears (it's generic, not <code>dyn</code>, so it's
+        monomorphised too).
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains the Fn/FnMut/FnOnce hierarchy via what the closure body does, not just definitions</li>
+      <li>Knows why capturing closures can't coerce to fn pointers (FFI relevance)</li>
+      <li>Can articulate monomorphisation vs dyn dispatch trade-off for closure parameters unprompted</li>
+      <li>Has at least a working mental model of HRTBs even if syntax is rusty</li>
+      <li>Picks &amp;dyn Fn / &amp;mut dyn FnMut / Box&lt;dyn FnOnce&gt; correctly based on the trait's self receiver</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Uses move keyword but conflates it with FnOnce specifically</li>
+      <li>Always reaches for Box&lt;dyn Fn&gt; without considering impl Trait</li>
+      <li>Tries to write &amp;dyn FnOnce and can't explain why it doesn't compile</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Cannot explain the difference between the three Fn traits</li>
+      <li>Thinks closures and function pointers are always interchangeable</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    A great probing question: "you have a callback-heavy API — should the callback parameter be generic
+    (<code>impl Fn</code>) or a trait object (<code>Box&lt;dyn Fn&gt;</code>)?" There's no universally correct
+    answer — the strong signal is walking through binary size, compile time, call-site ergonomics, and
+    storage requirements out loud rather than picking one reflexively.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 05 · LIFETIMES DEEP-DIVE ════════════ -->
+<div class="section" id="t-life">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-life)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-life)">// Topic 05</div>
+      <div class="sh-title">Lifetimes Deep-Dive</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-life)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does a lifetime annotation like <code>'a</code> actually mean? Does it change how long a value lives?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>A lifetime annotation never changes how long anything lives — it only describes an existing
+        relationship to the compiler so it can verify it.</strong> Values live exactly as long as their scope
+        dictates regardless of what you write; lifetime parameters are purely a way of telling the borrow checker
+        "these references are related — this output reference cannot outlive that input reference." Given:
+<pre style="margin:6px 0;"><span class="kw">fn</span> <span class="fn">longest</span>&lt;<span class="lt">'a</span>&gt;(x: &amp;<span class="lt">'a</span> <span class="ty">str</span>, y: &amp;<span class="lt">'a</span> <span class="ty">str</span>) -&gt; &amp;<span class="lt">'a</span> <span class="ty">str</span> {
+    <span class="kw">if</span> x.<span class="fn">len</span>() &gt; y.<span class="fn">len</span>() { x } <span class="kw">else</span> { y }
+}</pre>
+        this signature says: "the returned reference is valid for at most as long as the <em>shorter-lived</em>
+        of the two input borrows" — because the function body might return either one. The caller's borrow checker
+        then uses that contract to reject any use of the returned reference beyond that shared scope. If the
+        function always returned <code>x</code>, you could annotate <code>y</code> with an unrelated lifetime;
+        the annotation reflects the real data-flow, it isn't decorative.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What are lifetime elision rules? Give an example of a function signature where you don't need to write lifetimes explicitly, and explain why the compiler can infer them.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The compiler applies three elision rules so common patterns don't require explicit annotation:
+        (1) each elided reference parameter gets its own distinct lifetime; (2) if there's exactly one input
+        lifetime, it's assigned to all elided output lifetimes; (3) if one parameter is <code>&amp;self</code> or
+        <code>&amp;mut self</code>, its lifetime is assigned to all elided output lifetimes (methods almost always
+        return something tied to <code>self</code>'s borrow, not to other parameters).
+<pre style="margin:6px 0;"><span class="kw">fn</span> <span class="fn">first_word</span>(s: &amp;<span class="ty">str</span>) -&gt; &amp;<span class="ty">str</span> { s.<span class="fn">split</span>(<span class="st">' '</span>).<span class="fn">next</span>().<span class="fn">unwrap</span>() }
+<span class="cm">// desugars to: fn first_word&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str  — rule 2 applies</span></pre>
+        Elision only fires for these specific, unambiguous shapes — as soon as a function has two or more input
+        references and doesn't take <code>self</code>, the compiler can't guess which input the output borrows
+        from, and you must annotate explicitly (this was exactly the <code>longest()</code> example from Q1).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain variance for lifetimes: why does <code>&amp;'long T</code> coerce to <code>&amp;'short T</code> but not the other way? What about <code>&amp;mut T</code> and variance?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>&amp;'a T</code> is covariant in <code>'a</code></strong>: if <code>'long</code> outlives
+        <code>'short</code>, then a <code>&amp;'long T</code> can be used anywhere a <code>&amp;'short T</code> is
+        expected — this is sound because "valid for longer" is strictly more useful/restrictive than "valid for
+        shorter"; you're never claiming a reference lives longer than it actually does, only using it for less
+        time than it's capable of. This subtyping-like relationship ("<code>'long</code> is a subtype of
+        <code>'short</code>" in variance terms) is what lets you pass a longer-lived reference into a function
+        expecting a shorter-lived one without any explicit cast.
+        <strong><code>&amp;'a mut T</code> is covariant in <code>'a</code> but <em>invariant</em> in <code>T</code></strong> —
+        you can shorten the lifetime of a mutable reference the same way, but you cannot substitute
+        <code>&amp;mut Cat</code> for <code>&amp;mut Animal</code> even if <code>Cat: Animal</code>-like
+        relationships existed, because through a mutable reference you could <em>write</em> a different concrete
+        type back into the original slot, breaking the caller's assumption about what's stored there. This is why
+        <code>&amp;T</code> is covariant in <code>T</code> (read-only, no write-back risk) but <code>&amp;mut T</code>
+        is invariant in <code>T</code> — the asymmetry directly reflects the aliasing-XOR-mutation principle:
+        shared/read access is safe to "widen," exclusive/write access is not.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What is a self-referential struct, and why can't you naively write one in safe Rust? What are the real-world workarounds?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A self-referential struct has a field that borrows from another field of the <em>same</em> struct —
+        e.g. a struct holding a <code>String</code> and a <code>&amp;str</code> slice into that same
+        <code>String</code>. The fundamental problem: Rust structs can be <strong>moved</strong> (memcpy'd to a
+        new stack/heap address) freely by default — but a move relocates the owning field while the internal
+        pointer in the borrowing field would still point at the <em>old</em> address, becoming immediately
+        dangling. The borrow checker prevents you from expressing this at all in safe code because there's no
+        lifetime you could correctly annotate — the borrow's target moves with the struct, but a lifetime
+        parameter describes an external relationship, not an internal one.
+        <strong>Workarounds used in real code, roughly in order of how often they're actually the right call:</strong>
+        (1) <strong>Don't own the data in the same struct at all</strong> — push the owned value (e.g. the source
+        <code>String</code>) out to the caller, and have your type hold only a borrowed <code>&amp;'a str</code>/
+        <code>&amp;'a T</code> into it, with an explicit lifetime parameter on the struct. This is the most common
+        real-world fix by far — it sidesteps the problem entirely rather than working around it, at the cost of
+        pushing responsibility for keeping the source alive onto the caller. (2) <strong>Store an index/offset
+        instead of a reference</strong> — e.g. <code>(String, Range&lt;usize&gt;)</code> instead of
+        <code>(String, &amp;str)</code>, recomputing the slice via <code>&amp;s[range]</code> on demand; the right
+        call specifically when the struct genuinely does need to own both pieces together (e.g. to be moved into a
+        <code>Vec</code>, stored, or serialized as one unit). (3) <strong><code>Pin&lt;Box&lt;T&gt;&gt;</code></strong> —
+        heap-allocates the struct and statically prevents it from being moved afterward (the mechanism async/await
+        desugaring relies on internally, since a generated state-machine future is exactly this kind of
+        self-referential structure holding borrows across <code>.await</code> points). (4) Crates like
+        <strong><code>ouroboros</code></strong> or <strong><code>self_cell</code></strong> generate the unsafe
+        plumbing for you via macros, for the cases where neither (1) nor (2) fit the API you need. Knowing that
+        <code>Pin</code> exists specifically to solve this problem — and that it's the mechanism underpinning how
+        async functions can hold references across await points — is a strong senior signal, but jumping straight
+        to option (3)/(4) without first asking "could I just not own this data in the same place?" is a mild
+        overengineering smell.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Explain the difference between the lifetime <code>'static</code> on a reference (<code>&amp;'static str</code>) and the trait bound <code>T: 'static</code> in a generic function. This trips up almost everyone at first.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>&amp;'static str</code></strong> is a reference that is valid for the <em>entire remaining
+        duration of the program</em> — typically a string literal baked into the binary's read-only data segment,
+        or something explicitly leaked/boxed with a <code>'static</code> lifetime. This is the narrow, literal
+        meaning most people learn first.
+        <strong><code>T: 'static</code></strong> as a trait bound on a generic type parameter means something
+        broader and more subtle: "<code>T</code> contains no non-<code>'static</code> borrowed references" — i.e.
+        <code>T</code> is either fully <strong>owned</strong> data (like <code>String</code>, <code>Vec&lt;u8&gt;</code>,
+        or any type with no lifetime parameters at all) or it only contains <code>'static</code> references
+        itself. Crucially, an <em>owned</em> <code>String</code> satisfies <code>T: 'static</code> even though the
+        <code>String</code> value itself might be dropped in five milliseconds — because "the type doesn't borrow
+        from anything with a shorter lifetime" is a completely different claim from "this value lives forever."
+        This is why <code>tokio::spawn(future)</code> requires <code>future: Send + 'static</code>: the spawned
+        task might run on a different thread and outlive the current stack frame, so it cannot borrow anything
+        from the caller's local variables — but it's perfectly fine for that future to itself be short-lived and
+        own all its data.         Confusing these two meanings of <code>'static</code> is probably the single most common
+        Rust misconception among people who've only used the language for a few months.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">When should a function with two reference parameters give them <strong>independent</strong> lifetimes (<code>'a</code>, <code>'b</code>) versus forcing them to <strong>share</strong> one <code>'a</code>? Most people default to sharing "just in case" — when is that actually wrong?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The deciding question is: <strong>does the return value's lifetime need to depend on both inputs, or only
+        on one of them?</strong> The classic <code>longest&lt;'a&gt;(x: &amp;'a str, y: &amp;'a str) -&gt; &amp;'a
+        str</code> genuinely needs one shared <code>'a</code> because the function body might return either
+        <code>x</code> or <code>y</code> depending on a runtime comparison — the signature can't know in advance
+        which input the output borrows from, so it must be valid for the lifetime both inputs have in common.
+        But consider:
+<pre style="margin:6px 0;"><span class="kw">fn</span> <span class="fn">first_match</span>&lt;<span class="lt">'a</span>, <span class="lt">'b</span>, <span class="ty">T</span>: <span class="ty">PartialEq</span>&gt;(haystack: &amp;<span class="lt">'a</span> [<span class="ty">T</span>], needle: &amp;<span class="lt">'b</span> <span class="ty">T</span>) -&gt; <span class="ty">Option</span>&lt;&amp;<span class="lt">'a</span> <span class="ty">T</span>&gt; {
+    haystack.<span class="fn">iter</span>().<span class="fn">find</span>(|item| *item == needle)
+}</pre>
+        Here the returned reference provably only ever comes from <code>haystack</code> — <code>needle</code> is
+        only ever compared against, never returned — so giving them independent lifetimes is not just allowed,
+        it's <em>more correct</em>: forcing both under one shared <code>'a</code> would incorrectly require
+        <code>needle</code> to live at least as long as <code>haystack</code>, rejecting perfectly safe call
+        patterns where <code>needle</code>'s scope ends well before <code>haystack</code>'s does, purely because
+        the signature over-constrained a relationship that doesn't actually exist in the function body. Defaulting
+        to one shared <code>'a</code> "to be safe" is a real, if usually harmless, code smell — every lifetime
+        parameter in a signature should be there because the <em>return type or a where-clause bound</em> actually
+        needs it, not by default habit. The skill being tested is recognizing which of the two shapes a given
+        function actually is, not memorizing either example in isolation.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>States clearly that lifetimes describe, never extend, a value's actual lifespan</li>
+      <li>Explains covariance of &amp;T vs invariance of &amp;mut T in terms of write-back risk</li>
+      <li>Knows Pin exists and why it's required for self-referential/async state machines</li>
+      <li>Correctly distinguishes &amp;'static str from a T: 'static bound — the classic gotcha</li>
+      <li>Gives independent lifetime parameters their own names rather than defaulting to one shared 'a everywhere</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Adds lifetime annotations by trial-and-error until it compiles, without a mental model</li>
+      <li>Knows elision exists but can't state the three rules</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Believes 'static means "the value lives forever" in all contexts, including generic bounds</li>
+      <li>Cannot explain why a function with two &amp;str params sometimes needs explicit lifetimes and sometimes doesn't</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    The <code>&amp;'static str</code> vs <code>T: 'static</code> distinction is a favourite "gotcha" question
+    precisely because so many intermediate Rust developers have never had it explained clearly. Nailing this
+    cleanly, especially connecting it to why <code>tokio::spawn</code> requires <code>'static</code>, reliably
+    reads as senior-level understanding rather than memorised syntax.
+  </div>
+</div>

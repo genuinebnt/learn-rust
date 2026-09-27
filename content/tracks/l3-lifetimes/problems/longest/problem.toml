@@ -1,0 +1,30 @@
+slug = "longest"
+title = "longest(a, b)"
+mode = "fix"
+level = "easy"
+stage = "elision"
+order = 3
+status = "ready"
+tags = ["E0106", "lifetime parameters"]
+teaches = [
+  "Two reference inputs and a reference output need an explicit lifetime.",
+  "One shared `'a` means 'valid while both are'.",
+]
+follow_up = "Why can't the compiler infer the output lifetime from the body?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "The result could borrow from either input, and elision can't choose between two."
+
+[[hints]]
+kind = "rust"
+text = "Declare one lifetime `'a` and use it for both inputs and the output: the result lives as long as the shorter of the two."
+
+[solution]
+explanation = "`'a` becomes the overlap of the two borrows, which is exactly as long as the result can safely be used."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 1

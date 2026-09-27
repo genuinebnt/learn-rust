@@ -1,0 +1,31 @@
+slug = "kruskals-mst"
+title = "Kruskal's MST"
+mode = "write"
+level = "medium"
+stage = "union-find-mst"
+order = 25
+status = "ready"
+tags = ["MST", "sort_unstable_by_key"]
+teaches = [
+  "Sort edges, keep those that join two components.",
+  "`Option` for 'no spanning tree'.",
+]
+follow_up = "When is Prim's algorithm a better choice than Kruskal's?"
+related = ["D8"]
+
+[[examples]]
+input = "n = 4, edges = [(0,1,1), (1,2,2), (0,2,3), (2,3,4), (1,3,5)]"
+output = "Some(7)"
+
+[[hints]]
+kind = "approach"
+text = "Take edges cheapest first; keep one only if it joins two different components."
+
+[[hints]]
+kind = "rust"
+text = "`edges.to_vec()` then `sort_unstable_by_key(|&(_, _, w)| w)`; the input stays untouched."
+
+[solution]
+explanation = "The cut property makes the greedy choice safe. A spanning tree has exactly n − 1 edges, so counting merges also detects a disconnected graph."
+time = "O(E log E)"
+space = "O(E + n)"

@@ -1,0 +1,31 @@
+slug = "fix-use-after-move"
+title = "Fix: use after move"
+mode = "fix"
+level = "easy"
+stage = "moves-and-copy"
+order = 1
+status = "ready"
+tags = ["E0382", "move"]
+teaches = [
+  "Passing a `Vec` by value moves it; the caller can't use it afterwards.",
+  "Read what you need before handing a value away.",
+]
+follow_up = "When should a function take `Vec<T>` rather than `&[T]`?"
+related = ["L2"]
+
+[[examples]]
+input = "text = \"the quick fox\""
+output = "(3, \"quick\")"
+
+[[hints]]
+kind = "rust"
+text = "After `longest_word(words)`, `words` belongs to `longest_word`. What do you still need from it?"
+
+[solution]
+explanation = "Reading `len()` before the move is the whole fix. Changing `longest_word` to borrow `&[String]` also works, but then it has to clone the result."
+time = "O(n)"
+space = "O(n)"
+
+[rules]
+forbid_methods = ["clone"]
+max_changed_lines = 2

@@ -1,0 +1,23 @@
+slug = "mem-replace-state"
+title = "State transitions with mem::replace"
+mode = "write"
+level = "hard"
+stage = "partial-moves-and-mem"
+order = 16
+status = "ready"
+tags = ["mem::replace", "enum"]
+teaches = [
+  "Moving data out of `&mut self` enum variants with `mem::replace`.",
+  "A placeholder that costs nothing, like `String::new()`.",
+]
+follow_up = "How would you model this as a typestate (`Job<Queued>`, `Job<Running>`) instead?"
+related = ["L7", "L5"]
+
+[[hints]]
+kind = "rust"
+text = "You can't move `name` out of `*job` through a `&mut`. Replace the whole value first, then match on what you got back."
+
+[solution]
+explanation = "The hidden test checks the String's buffer pointer: the name moves between variants without being copied."
+time = "O(1)"
+space = "O(1)"

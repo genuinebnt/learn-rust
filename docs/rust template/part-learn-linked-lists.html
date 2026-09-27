@@ -1,0 +1,1194 @@
+<!-- ═══════════════════════════════════════════
+     PART: LINKED LISTS — SELF-CONTAINED RUST LEARNING TRACK
+     24 exercises · 12 runnable core programs · Foundation → Mastery
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="learn-linked-lists">
+  <div class="ph-eyebrow">Algorithm Learning Track · Ownership-First Data Structures</div>
+  <div class="ph-title">Linked Lists in Rust</div>
+  <div class="ph-sub">
+    Build linked-list fluency from <code>Option&lt;Box&lt;Node&gt;&gt;</code> through pointer patterns,
+    sorting, structural transformations, and multi-link designs. The track is self-contained:
+    each stage introduces the representation and Rust ownership tools it needs, and every core
+    solution is a complete Rust 2021 program with executable assertions.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-rust">Rust 2021</span>
+    <span class="badge badge-time">24 exercises · 12 fully worked</span>
+    <span class="badge badge-time">Foundation → Mastery</span>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:32px;">
+  <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Track map</div>
+  <div style="display:flex;flex-wrap:wrap;gap:7px;">
+    <a href="#learn-list-stage-foundation" class="chip" style="text-decoration:none;">Foundation · 01–04</a>
+    <a href="#learn-list-stage-easy" class="chip" style="text-decoration:none;">Easy · 05–10</a>
+    <a href="#learn-list-stage-medium" class="chip" style="text-decoration:none;">Medium · 11–17</a>
+    <a href="#learn-list-stage-hard" class="chip" style="text-decoration:none;">Hard · 18–22</a>
+    <a href="#learn-list-stage-mastery" class="chip" style="text-decoration:none;">Mastery · 23–24</a>
+  </div>
+  <div class="note" style="margin-top:14px;">
+    <strong>Representation used first:</strong>
+    <code>type Link = Option&lt;Box&lt;Node&gt;&gt;</code>. An owned singly linked list has one owner
+    for each next edge, so <code>Box</code> and <code>Option</code> express the invariant directly.
+    Later exercises introduce <code>Rc&lt;RefCell&lt;_&gt;&gt;</code> only when cycles or multiple links
+    make shared identity unavoidable.
+  </div>
+</div>
+
+<!-- ════════════ FOUNDATION ════════════ -->
+<div class="section" id="learn-list-stage-foundation">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-rust)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-rust)">// Linked Lists · Foundation</div>
+      <div class="sh-title">Foundation — Own the Links</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Read before:</strong>
+    Skiena, <em>The Algorithm Design Manual</em>, 3rd ed.,
+    <a href="https://link.springer.com/book/10.1007/978-3-030-54256-6">Chapter 3, “Data Structures”</a>;
+    the official Rust Book
+    <a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">Chapter 4, “What Is Ownership?”</a>
+    and <a href="https://doc.rust-lang.org/book/ch15-01-box.html">Using <code>Box&lt;T&gt;</code></a>.
+  </div>
+  <div class="note">
+    <strong>Review after:</strong>
+    Revisit Skiena 3e Chapter 3’s contiguous-versus-linked trade-off at chapter level, then compare
+    your code with the official <a href="https://doc.rust-lang.org/std/option/enum.Option.html"><code>Option</code></a>
+    and <a href="https://doc.rust-lang.org/std/boxed/struct.Box.html"><code>Box</code></a> APIs.
+  </div>
+  <div class="note">
+    <strong>Further reading:</strong>
+    Skiena 3e Chapter 15, “Data Structures,” for the problem-catalog perspective, and the open
+    <a href="https://rust-unofficial.github.io/too-many-lists/">Learning Rust With Entirely Too Many Linked Lists</a>
+    introduction for ownership-oriented list design.
+  </div>
+
+  <div class="card" id="learn-list-01" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">Box</span><span class="chip">Option</span>
+      <span class="chip chip-easy">Foundation</span><span class="chip">Learning 01</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Model an Owned Singly Linked List<span class="sb-check" data-id="learn-list-01" onclick="toggleDone(event,'learn-list-01')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Basic structs, enums, and heap allocation vocabulary; no earlier track card.</div>
+    <div class="note"><strong>New idea:</strong> A recursive type needs indirection. Store the next edge as <code>Option&lt;Box&lt;Node&gt;&gt;</code>: <code>None</code> is the end and <code>Some(Box::new(node))</code> owns the successor.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Write the node’s value first. 2) Make the next field optional. 3) Put the recursive node behind <code>Box</code>, then follow links with <code>as_deref()</code>.</div>
+    <div class="note"><strong>Complexity:</strong> Building n nodes is O(n) time and O(n) heap space; a single head link is O(1) space.</div>
+    <div class="note"><strong>Rust angle:</strong> <code>Box</code> gives the recursive field a known pointer size and exclusive ownership, so no reference-counting or interior mutability is needed.</div>
+    <div class="note"><strong>Unlocks next:</strong> Learning 02’s ownership-moving constructor and every later owned-list exercise.</div>
+    <details>
+      <summary>Solution — reveal after attempting (owned node representation)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>#[derive(Debug, PartialEq, Eq)]
+struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn from_slice(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn to_vec(head: &amp;Link) -&gt; Vec&lt;i32&gt; {
+    let mut values = Vec::new();
+    let mut current = head.as_deref();
+    while let Some(node) = current {
+        values.push(node.value);
+        current = node.next.as_deref();
+    }
+    values
+}
+
+fn main() {
+    let empty = from_slice(&amp;[]);
+    assert_eq!(to_vec(&amp;empty), Vec::&lt;i32&gt;::new());
+
+    let list = from_slice(&amp;[10, 20, 30]);
+    assert_eq!(to_vec(&amp;list), vec![10, 20, 30]);
+    assert_eq!(list.as_ref().map(|node| node.value), Some(10));
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-02" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">moves</span><span class="chip">construction</span>
+      <span class="chip chip-easy">Foundation</span><span class="chip">Learning 02</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Build a List by Moving Ownership<span class="sb-check" data-id="learn-list-02" onclick="toggleDone(event,'learn-list-02')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 01; understand that assignment normally moves a <code>Box</code>.</div>
+    <div class="note"><strong>New idea:</strong> Build from right to left. Each new node takes ownership of the entire previous head as its <code>next</code>.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Start with <code>head = None</code>. 2) Iterate input in reverse. 3) Move <code>head</code> into the new node, then assign the new box back to <code>head</code>.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time, O(n) node space, and O(1) auxiliary space.</div>
+    <div class="note"><strong>Rust angle:</strong> Moving the old head is zero-copy pointer transfer. The compiler prevents two list heads from owning the same chain.</div>
+    <div class="note"><strong>Unlocks next:</strong> Learning 03’s distinction between borrowing a chain and consuming it.</div>
+    <details>
+      <summary>Solution — reveal after attempting (right-fold construction)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>#[derive(Debug)]
+struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn build(values: Vec&lt;i32&gt;) -&gt; Link {
+    values.into_iter().rev().fold(None, |head, value| {
+        Some(Box::new(Node { value, next: head }))
+    })
+}
+
+fn drain(mut head: Link) -&gt; Vec&lt;i32&gt; {
+    let mut values = Vec::new();
+    while let Some(mut node) = head {
+        values.push(node.value);
+        head = node.next.take();
+    }
+    values
+}
+
+fn main() {
+    assert_eq!(drain(build(vec![1, 2, 3, 4])), vec![1, 2, 3, 4]);
+    assert_eq!(drain(build(vec![7])), vec![7]);
+    assert_eq!(drain(build(vec![])), Vec::&lt;i32&gt;::new());
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-03" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">borrowing</span><span class="chip">moving</span>
+      <span class="chip chip-easy">Foundation</span><span class="chip">Learning 03</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Borrow to Inspect, Move to Restructure<span class="sb-check" data-id="learn-list-03" onclick="toggleDone(event,'learn-list-03')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 01–02; shared versus mutable references.</div>
+    <div class="note"><strong>New idea:</strong> Read-only traversal borrows nodes through <code>as_deref()</code>; removing the head temporarily moves it out with <code>Option::take</code>.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Give sum a <code>&amp;Link</code>. 2) Give pop a <code>&amp;mut Link</code>. 3) Take the option, detach its next edge, and install that edge as the new head.</div>
+    <div class="note"><strong>Complexity:</strong> Summing is O(n) time/O(1) space; popping the front is O(1) time and space.</div>
+    <div class="note"><strong>Rust angle:</strong> Function signatures state whether the chain survives, can change, or is consumed. <code>take()</code> leaves a valid <code>None</code> behind during the move.</div>
+    <div class="note"><strong>Unlocks next:</strong> Safe traversal, insertion, deletion, and reversal without fighting partial moves.</div>
+    <details>
+      <summary>Solution — reveal after attempting (borrow and move APIs)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>#[derive(Debug)]
+struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn list(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn sum(head: &amp;Link) -&gt; i32 {
+    let mut total = 0;
+    let mut current = head.as_deref();
+    while let Some(node) = current {
+        total += node.value;
+        current = node.next.as_deref();
+    }
+    total
+}
+
+fn pop_front(head: &amp;mut Link) -&gt; Option&lt;i32&gt; {
+    head.take().map(|mut node| {
+        *head = node.next.take();
+        node.value
+    })
+}
+
+fn main() {
+    let mut head = list(&amp;[4, 5, 6]);
+    assert_eq!(sum(&amp;head), 15);
+    assert_eq!(pop_front(&amp;mut head), Some(4));
+    assert_eq!(sum(&amp;head), 11);
+    assert_eq!(pop_front(&amp;mut head), Some(5));
+    assert_eq!(pop_front(&amp;mut head), Some(6));
+    assert_eq!(pop_front(&amp;mut head), None);
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-04" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">sequential access</span><span class="chip">midpoint</span>
+      <span class="chip chip-easy">Foundation</span><span class="chip">Learning 04</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Why Ordinary Binary Search Is the Wrong Tool<span class="sb-check" data-id="learn-list-04" onclick="toggleDone(event,'learn-list-04')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 01–03; array binary search’s O(1) index access assumption.</div>
+    <div class="note"><strong>New idea:</strong> Getting the kth linked node costs O(k), so repeated index-based midpoint probes erase binary search’s advantage. Fast/slow pointers find a structural midpoint in one O(n) pass when splitting is useful.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Implement <code>nth</code> by following links. 2) Count the traversed edges. 3) Advance slow once and fast twice to find the second middle without indexing.</div>
+    <div class="note"><strong>Complexity:</strong> A single kth lookup is O(k); simulated binary search can take O(n log n). Midpoint splitting is O(n) time and O(1) space.</div>
+    <div class="note"><strong>Rust angle:</strong> Two immutable cursors can safely borrow the same list because neither mutates it; splitting for ownership later requires moving links with <code>take()</code>.</div>
+    <div class="note"><strong>Unlocks next:</strong> Learning 13’s middle pattern and Learning 19/22’s midpoint-based splitting.</div>
+    <details>
+      <summary>Solution — reveal after attempting (sequential lookup and midpoint)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>#[derive(Debug)]
+struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn list(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn nth(head: &amp;Link, index: usize) -&gt; (Option&lt;i32&gt;, usize) {
+    let mut current = head.as_deref();
+    let mut traversed = 0;
+    for _ in 0..index {
+        current = current.and_then(|node| node.next.as_deref());
+        traversed += 1;
+    }
+    (current.map(|node| node.value), traversed)
+}
+
+fn middle(head: &amp;Link) -&gt; Option&lt;i32&gt; {
+    let mut slow = head.as_deref();
+    let mut fast = head.as_deref();
+    while fast.and_then(|node| node.next.as_deref()).is_some() {
+        slow = slow.and_then(|node| node.next.as_deref());
+        fast = fast
+            .and_then(|node| node.next.as_deref())
+            .and_then(|node| node.next.as_deref());
+    }
+    slow.map(|node| node.value)
+}
+
+fn main() {
+    let odd = list(&amp;[10, 20, 30, 40, 50]);
+    assert_eq!(nth(&amp;odd, 4), (Some(50), 4));
+    assert_eq!(nth(&amp;odd, 5).0, None);
+    assert_eq!(middle(&amp;odd), Some(30));
+
+    let even = list(&amp;[1, 2, 3, 4]);
+    assert_eq!(middle(&amp;even), Some(3));
+}</pre>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- ════════════ EASY ════════════ -->
+<div class="section" id="learn-list-stage-easy">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-std)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-std)">// Linked Lists · Easy</div>
+      <div class="sh-title">Easy — Traverse and Edit</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Read before:</strong>
+    Skiena 3e <a href="https://link.springer.com/book/10.1007/978-3-030-54256-6">Chapter 3, “Data Structures”</a>,
+    and official Rust documentation for
+    <a href="https://doc.rust-lang.org/std/option/enum.Option.html#method.as_deref"><code>Option::as_deref</code></a>
+    and <a href="https://doc.rust-lang.org/std/option/enum.Option.html#method.take"><code>Option::take</code></a>.
+  </div>
+  <div class="note">
+    <strong>Review after:</strong>
+    Re-read Skiena 3e Chapter 3’s list-operation cost model and the Rust Book’s
+    <a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html">References and Borrowing</a>
+    chapter section; explain why tail append is O(n) without a maintained tail handle.
+  </div>
+  <div class="note">
+    <strong>Further reading:</strong>
+    Skiena 3e Chapter 15, “Data Structures,” plus the open Too Many Lists
+    <a href="https://rust-unofficial.github.io/too-many-lists/third.html">persistent-stack walkthrough</a>
+    for an alternative progression through push, pop, and iteration.
+  </div>
+
+  <div class="card" id="learn-list-05" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">iteration</span><span class="chip">invariants</span>
+      <span class="chip chip-easy">Easy</span><span class="chip">Learning 05</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Iterative Traversal, Length, and Sum<span class="sb-check" data-id="learn-list-05" onclick="toggleDone(event,'learn-list-05')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 01–04.</div>
+    <div class="note"><strong>New idea:</strong> Maintain a cursor invariant: before each iteration, <code>current</code> is the next unvisited node.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Borrow the head with <code>as_deref()</code>. 2) Use <code>while let Some(node)</code>. 3) Update the cursor to <code>node.next.as_deref()</code> exactly once.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(1) auxiliary space.</div>
+    <div class="note"><strong>Rust angle:</strong> The cursor is <code>Option&lt;&amp;Node&gt;</code>, so traversal neither clones nor consumes the list.</div>
+    <div class="note"><strong>Unlocks next:</strong> Search, insertion by walk, pointer gaps, and all one-pass list algorithms.</div>
+    <details>
+      <summary>Solution — reveal after attempting (single-pass traversal)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn list(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn stats(head: &amp;Link) -&gt; (usize, i32, Vec&lt;i32&gt;) {
+    let mut length = 0;
+    let mut sum = 0;
+    let mut seen = Vec::new();
+    let mut current = head.as_deref();
+    while let Some(node) = current {
+        length += 1;
+        sum += node.value;
+        seen.push(node.value);
+        current = node.next.as_deref();
+    }
+    (length, sum, seen)
+}
+
+fn main() {
+    assert_eq!(stats(&amp;list(&amp;[])), (0, 0, vec![]));
+    assert_eq!(stats(&amp;list(&amp;[3, -1, 8])), (3, 10, vec![3, -1, 8]));
+    assert_eq!(stats(&amp;list(&amp;[42])), (1, 42, vec![42]));
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-06" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">insertion</span><span class="chip">mutable cursor</span>
+      <span class="chip chip-easy">Easy</span><span class="chip">Learning 06</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Push Front and Append at Tail<span class="sb-check" data-id="learn-list-06" onclick="toggleDone(event,'learn-list-06')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 02–05.</div>
+    <div class="note"><strong>New idea:</strong> A mutable cursor of type <code>&amp;mut Link</code> points at the link to replace, including the head link itself.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Front insertion moves the old head into <code>next</code>. 2) For append, start with <code>&amp;mut head</code>. 3) Advance to each node’s <code>&amp;mut next</code>, then overwrite the final <code>None</code>.</div>
+    <div class="note"><strong>Complexity:</strong> Push front is O(1); append is O(n) without a stored tail, both O(1) auxiliary space.</div>
+    <div class="note"><strong>Rust angle:</strong> Cursor-to-link style avoids raw pointers and handles empty and nonempty lists with the same assignment.</div>
+    <div class="note"><strong>Unlocks next:</strong> Learning 08 deletion and Learning 10 indexed insertion.</div>
+    <details>
+      <summary>Solution — reveal after attempting (mutable link cursor)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>#[derive(Debug)]
+struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn push_front(head: &amp;mut Link, value: i32) {
+    let next = head.take();
+    *head = Some(Box::new(Node { value, next }));
+}
+
+fn push_back(head: &amp;mut Link, value: i32) {
+    let mut cursor = head;
+    while let Some(node) = cursor {
+        cursor = &amp;mut node.next;
+    }
+    *cursor = Some(Box::new(Node { value, next: None }));
+}
+
+fn to_vec(head: &amp;Link) -&gt; Vec&lt;i32&gt; {
+    let mut out = Vec::new();
+    let mut current = head.as_deref();
+    while let Some(node) = current {
+        out.push(node.value);
+        current = node.next.as_deref();
+    }
+    out
+}
+
+fn main() {
+    let mut head = None;
+    push_back(&amp;mut head, 2);
+    push_front(&amp;mut head, 1);
+    push_back(&amp;mut head, 3);
+    assert_eq!(to_vec(&amp;head), vec![1, 2, 3]);
+
+    let mut singleton = None;
+    push_front(&amp;mut singleton, 9);
+    assert_eq!(to_vec(&amp;singleton), vec![9]);
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-07" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">search</span><span class="chip">early exit</span>
+      <span class="chip chip-easy">Easy</span><span class="chip">Learning 07</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Search for a Target Value<span class="sb-check" data-id="learn-list-07" onclick="toggleDone(event,'learn-list-07')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 05.</div>
+    <div class="note"><strong>New idea:</strong> Membership is a linear scan that returns immediately on the first match.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Borrow rather than consume the head. 2) Compare before advancing. 3) Return <code>false</code> only after the cursor reaches <code>None</code>; test empty, head-hit, tail-hit, and miss cases.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) worst-case time and O(1) space.</div>
+    <div class="note"><strong>Rust angle:</strong> Return <code>Option&lt;&amp;Node&gt;</code> if callers need the found node, tying its lifetime to the borrowed list; return <code>bool</code> for simple membership.</div>
+    <div class="note"><strong>Unlocks next:</strong> Learning 08’s search-then-relink deletion.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Use an <code>Option&lt;&amp;Node&gt;</code> cursor. At each node, return <code>true</code> if the value matches; otherwise replace the cursor with <code>next.as_deref()</code>. If the loop ends, return <code>false</code>. Do not convert to a vector or use recursion for this warm-up.</div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-08" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">deletion</span><span class="chip">relinking</span>
+      <span class="chip chip-easy">Easy</span><span class="chip">Learning 08</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Delete the First Occurrence<span class="sb-check" data-id="learn-list-08" onclick="toggleDone(event,'learn-list-08')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 03, 05–07.</div>
+    <div class="note"><strong>New idea:</strong> Consume one link at a time. On a match, return the detached successor; otherwise rebuild the current node around the recursively edited suffix.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Match on the owned <code>Link</code>. 2) If the head matches, return <code>node.next.take()</code>. 3) Otherwise recursively delete from the detached next link and reinstall it.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(n) call-stack space in the worst case.</div>
+    <div class="note"><strong>Rust angle:</strong> Ownership recursion makes relinking explicit and borrow-checker friendly; each box is moved exactly once and no unsafe cursor is required.</div>
+    <div class="note"><strong>Unlocks next:</strong> Recursive structural transforms and dummy-head deletion patterns.</div>
+    <details>
+      <summary>Solution — reveal after attempting (ownership recursion)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>#[derive(Debug)]
+struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn list(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn delete_first(head: Link, target: i32) -&gt; Link {
+    match head {
+        None =&gt; None,
+        Some(mut node) if node.value == target =&gt; node.next.take(),
+        Some(mut node) =&gt; {
+            node.next = delete_first(node.next.take(), target);
+            Some(node)
+        }
+    }
+}
+
+fn to_vec(head: &amp;Link) -&gt; Vec&lt;i32&gt; {
+    let mut out = Vec::new();
+    let mut current = head.as_deref();
+    while let Some(node) = current {
+        out.push(node.value);
+        current = node.next.as_deref();
+    }
+    out
+}
+
+fn main() {
+    assert_eq!(to_vec(&amp;delete_first(list(&amp;[1, 2, 2, 3]), 2)), vec![1, 2, 3]);
+    assert_eq!(to_vec(&amp;delete_first(list(&amp;[1, 2]), 1)), vec![2]);
+    assert_eq!(to_vec(&amp;delete_first(list(&amp;[1, 2]), 9)), vec![1, 2]);
+    assert_eq!(to_vec(&amp;delete_first(None, 9)), vec![]);
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-09" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">recursion</span><span class="chip">base case</span>
+      <span class="chip chip-easy">Easy</span><span class="chip">Learning 09</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Recursive Traversal Frames<span class="sb-check" data-id="learn-list-09" onclick="toggleDone(event,'learn-list-09')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 05 and basic function-call stacks.</div>
+    <div class="note"><strong>New idea:</strong> A list recursion frame handles one node; the base case handles <code>None</code>; the recursive call handles the suffix.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Accept <code>Option&lt;&amp;Node&gt;</code>. 2) Return immediately on <code>None</code>. 3) Process the current value before recursing for preorder, or after for reverse-order output.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(n) call-stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Borrowed recursion preserves ownership, but very long lists can overflow the stack; iterative traversal is the production default for unbounded input.</div>
+    <div class="note"><strong>Unlocks next:</strong> Learning 12 recursive reversal and Learning 22 merge sort.</div>
+    <details>
+      <summary>Solution — reveal after attempting (forward and reverse recursion)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn list(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn collect_forward(node: Option&lt;&amp;Node&gt;, out: &amp;mut Vec&lt;i32&gt;) {
+    if let Some(node) = node {
+        out.push(node.value);
+        collect_forward(node.next.as_deref(), out);
+    }
+}
+
+fn collect_reverse(node: Option&lt;&amp;Node&gt;, out: &amp;mut Vec&lt;i32&gt;) {
+    if let Some(node) = node {
+        collect_reverse(node.next.as_deref(), out);
+        out.push(node.value);
+    }
+}
+
+fn main() {
+    let head = list(&amp;[2, 4, 6]);
+    let mut forward = Vec::new();
+    let mut reverse = Vec::new();
+    collect_forward(head.as_deref(), &amp;mut forward);
+    collect_reverse(head.as_deref(), &amp;mut reverse);
+    assert_eq!(forward, vec![2, 4, 6]);
+    assert_eq!(reverse, vec![6, 4, 2]);
+
+    let mut empty = Vec::new();
+    collect_forward(None, &amp;mut empty);
+    assert!(empty.is_empty());
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-10" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">indexed walk</span><span class="chip">boundaries</span>
+      <span class="chip chip-easy">Easy</span><span class="chip">Learning 10</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Insert at a 0-Based Position<span class="sb-check" data-id="learn-list-10" onclick="toggleDone(event,'learn-list-10')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 05–06.</div>
+    <div class="note"><strong>New idea:</strong> Position i identifies a link, not a node: walk a mutable <code>&amp;mut Link</code> i times, then splice at that link.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Treat index 0 as replacing the head link. 2) On each step, advance from the current link to <code>&amp;mut node.next</code>. 3) If <code>None</code> appears before i steps, return an error; otherwise <code>take</code> the suffix and install a new node before it.</div>
+    <div class="note"><strong>Complexity:</strong> O(min(i, n)) time and O(1) space.</div>
+    <div class="note"><strong>Rust angle:</strong> Return <code>Result&lt;(), InsertError&gt;</code> rather than silently appending on an out-of-range index; the link cursor unifies head and interior insertion.</div>
+    <div class="note"><strong>Unlocks next:</strong> Link-level reasoning used by reversal and partitioning.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Set <code>cursor = &amp;mut head</code>. Repeat i times: match <code>cursor</code>; on <code>Some(node)</code>, set <code>cursor = &amp;mut node.next</code>; on <code>None</code>, return <code>Err</code>. Finally create <code>Node { value, next: cursor.take() }</code> and assign it to <code>*cursor</code>. Test index 0, index equal to length, and index greater than length.</div>
+    </details>
+  </div>
+</div>
+
+<!-- ════════════ MEDIUM ════════════ -->
+<div class="section" id="learn-list-stage-medium">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-own)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-own)">// Linked Lists · Medium</div>
+      <div class="sh-title">Medium — Pointer Patterns</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Read before:</strong>
+    Skiena 3e <a href="https://link.springer.com/book/10.1007/978-3-030-54256-6">Chapter 3, “Data Structures,”</a>
+    and official Rust docs for <a href="https://doc.rust-lang.org/std/option/enum.Option.html#method.take"><code>Option::take</code></a>
+    and <a href="https://doc.rust-lang.org/std/option/enum.Option.html#method.as_mut"><code>Option::as_mut</code></a>.
+  </div>
+  <div class="note">
+    <strong>Review after:</strong>
+    Skiena 3e Chapter 3 for sequential-access costs and Chapter 4, “Sorting,” for ordered merging;
+    review the Rust Book’s <a href="https://doc.rust-lang.org/book/ch04-03-slices.html">slices</a> only as a contrast
+    with non-contiguous list storage.
+  </div>
+  <div class="note">
+    <strong>Further reading:</strong>
+    Skiena 3e Chapter 5, “Divide and Conquer,” and the open Too Many Lists
+    <a href="https://rust-unofficial.github.io/too-many-lists/fifth.html">unsafe queue discussion</a>
+    for why safe shared-identity pointer algorithms need careful representation choices.
+  </div>
+
+  <div class="card" id="learn-list-11" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">reversal</span><span class="chip">three links</span>
+      <span class="chip chip-med">Medium</span><span class="chip">Learning 11</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Iterative In-Place Reversal<span class="sb-check" data-id="learn-list-11" onclick="toggleDone(event,'learn-list-11')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 03, 05, 08–10.</div>
+    <div class="note"><strong>New idea:</strong> Repeatedly detach the current head from the unprocessed suffix and push it onto the reversed prefix.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Name the two chains <code>current</code> and <code>previous</code>. 2) Take <code>current.next</code> before overwriting it. 3) Point the detached node at <code>previous</code>, then advance both chain heads.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(1) auxiliary space; existing nodes are reused.</div>
+    <div class="note"><strong>Rust angle:</strong> Ownership naturally enforces the three-step detach/relink/advance order and makes accidental cycles impossible in this representation.</div>
+    <div class="note"><strong>Unlocks next:</strong> Recursive reversal, palindrome, reorder, and k-group reversal.</div>
+    <details>
+      <summary>Solution — reveal after attempting (owned-link reversal)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>#[derive(Debug)]
+struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn list(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn reverse(mut current: Link) -&gt; Link {
+    let mut previous = None;
+    while let Some(mut node) = current {
+        current = node.next.take();
+        node.next = previous;
+        previous = Some(node);
+    }
+    previous
+}
+
+fn to_vec(head: &amp;Link) -&gt; Vec&lt;i32&gt; {
+    let mut out = Vec::new();
+    let mut current = head.as_deref();
+    while let Some(node) = current {
+        out.push(node.value);
+        current = node.next.as_deref();
+    }
+    out
+}
+
+fn main() {
+    assert_eq!(to_vec(&amp;reverse(list(&amp;[1, 2, 3, 4]))), vec![4, 3, 2, 1]);
+    assert_eq!(to_vec(&amp;reverse(list(&amp;[7]))), vec![7]);
+    assert_eq!(to_vec(&amp;reverse(None)), vec![]);
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-12" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">recursive reversal</span><span class="chip">unwind</span>
+      <span class="chip chip-med">Medium</span><span class="chip">Learning 12</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Recursive List Reversal<span class="sb-check" data-id="learn-list-12" onclick="toggleDone(event,'learn-list-12')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 09 and 11.</div>
+    <div class="note"><strong>New idea:</strong> The recursive call reverses the suffix; the current frame appends its detached node to that result, or use a tail-recursive helper carrying the reversed prefix.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Base case: empty input returns the accumulated prefix. 2) Detach the current node’s next link. 3) Point the node to the accumulator and recurse on the detached suffix; verify that each call strictly shortens the input.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(n) call-stack space.</div>
+    <div class="note"><strong>Rust angle:</strong> Rust does not guarantee tail-call optimization, so the iterative Learning 11 version is safer for unbounded lists even when the recursive helper is conceptually clean.</div>
+    <div class="note"><strong>Unlocks next:</strong> Recursive divide-and-conquer over owned chains.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Write <code>reverse_into(current, previous)</code>. If <code>current</code> is <code>None</code>, return <code>previous</code>. Otherwise take the boxed node, detach <code>node.next</code> as the next <code>current</code>, point <code>node.next</code> at <code>previous</code>, and recurse with <code>Some(node)</code> as the accumulator. Assert empty, singleton, and multi-node cases.</div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-13" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">fast / slow</span><span class="chip">middle</span>
+      <span class="chip chip-med">Medium</span><span class="chip">Learning 13</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Find the Middle with Fast and Slow Cursors<span class="sb-check" data-id="learn-list-13" onclick="toggleDone(event,'learn-list-13')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 04–05.</div>
+    <div class="note"><strong>New idea:</strong> When fast advances two edges for each slow edge, slow reaches the midpoint when fast reaches the end.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Borrow two cursors from the same head. 2) Continue only while fast has a successor. 3) Advance slow once and fast twice; state explicitly whether even-length input returns the first or second middle, then test it.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(1) space.</div>
+    <div class="note"><strong>Rust angle:</strong> Immutable aliases are legal; trying to mutate through slow while fast still borrows the chain is not. Separate discovery from ownership-changing split operations.</div>
+    <div class="note"><strong>Unlocks next:</strong> Cycle detection, remove-from-end gaps, palindrome halves, reorder, and merge sort.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Use <code>Option&lt;&amp;Node&gt;</code> for both cursors. While <code>fast.and_then(|n| n.next.as_deref())</code> exists, move slow one link and fast two links. Returning slow then chooses the second middle for even lengths. Test lengths 0 through 5 so the convention is unmistakable.</div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-14" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">cycle detection</span><span class="chip">identity</span>
+      <span class="chip chip-med">Medium</span><span class="chip">Learning 14</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Detect a Cycle and Locate Its Entry<span class="sb-check" data-id="learn-list-14" onclick="toggleDone(event,'learn-list-14')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 13 and the difference between value equality and node identity.</div>
+    <div class="note"><strong>New idea:</strong> Floyd’s tortoise/hare meeting proves a cycle; resetting one cursor to the head and advancing both one step locates the entry.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) The owned <code>Box</code> list cannot form a safe cycle, so model this exercise with <code>Rc&lt;RefCell&lt;Node&gt;&gt;</code>. 2) Compare identity with <code>Rc::ptr_eq</code>, never node values. 3) After a meeting, reset one cursor to head and move both one edge until identities match.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(1) algorithmic cursor space; nodes use reference counts.</div>
+    <div class="note"><strong>Rust angle:</strong> Cycles require shared ownership and can leak with strong <code>Rc</code> edges. Production parent/back links often use <code>Weak</code>; this algorithm deliberately models graph-like identity.</div>
+    <div class="note"><strong>Unlocks next:</strong> Identity-sensitive intersection and random-pointer copying.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Define <code>type Link = Option&lt;Rc&lt;RefCell&lt;Node&gt;&gt;&gt;</code> and a helper that clones a node’s next <code>Rc</code> after a short borrow. Move slow once and fast twice until <code>Rc::ptr_eq</code> reports a meeting or fast reaches <code>None</code>. For the entry phase, advance a head cursor and the meeting cursor one step together. Include acyclic, self-cycle, and interior-entry tests.</div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-15" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">sorted merge</span><span class="chip">dummy head</span>
+      <span class="chip chip-med">Medium</span><span class="chip">Learning 15</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Merge Two Sorted Lists<span class="sb-check" data-id="learn-list-15" onclick="toggleDone(event,'learn-list-15')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 08 and 11; sorted-order invariant.</div>
+    <div class="note"><strong>New idea:</strong> Repeatedly detach the smaller head node and append it to a result tail; a dummy node removes the special case for the first append.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Compare through <code>as_ref()</code> before moving. 2) Take one list head and detach its next link. 3) Append that existing box to <code>tail.next</code>, advance tail, then attach the nonempty remainder.</div>
+    <div class="note"><strong>Complexity:</strong> O(n + m) time and O(1) auxiliary space.</div>
+    <div class="note"><strong>Rust angle:</strong> The merge reuses boxes rather than cloning values. At every moment, each remaining chain and result chain has exactly one owner.</div>
+    <div class="note"><strong>Unlocks next:</strong> Stable partitioning, merge sort, merge-k, and zipper-style list assembly.</div>
+    <details>
+      <summary>Solution — reveal after attempting (node-reusing merge)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>#[derive(Debug)]
+struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn list(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn merge(mut a: Link, mut b: Link) -&gt; Link {
+    let mut dummy = Box::new(Node { value: 0, next: None });
+    let mut tail = &amp;mut dummy;
+
+    while a.is_some() &amp;&amp; b.is_some() {
+        let take_a = a.as_ref().unwrap().value &lt;= b.as_ref().unwrap().value;
+        let mut node = if take_a {
+            let mut node = a.take().unwrap();
+            a = node.next.take();
+            node
+        } else {
+            let mut node = b.take().unwrap();
+            b = node.next.take();
+            node
+        };
+        node.next = None;
+        tail.next = Some(node);
+        tail = tail.next.as_mut().unwrap();
+    }
+    tail.next = if a.is_some() { a } else { b };
+    dummy.next
+}
+
+fn to_vec(head: &amp;Link) -&gt; Vec&lt;i32&gt; {
+    let mut out = Vec::new();
+    let mut current = head.as_deref();
+    while let Some(node) = current {
+        out.push(node.value);
+        current = node.next.as_deref();
+    }
+    out
+}
+
+fn main() {
+    let merged = merge(list(&amp;[1, 3, 5]), list(&amp;[1, 2, 6]));
+    assert_eq!(to_vec(&amp;merged), vec![1, 1, 2, 3, 5, 6]);
+    assert_eq!(to_vec(&amp;merge(None, list(&amp;[4, 8]))), vec![4, 8]);
+    assert_eq!(to_vec(&amp;merge(None, None)), vec![]);
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-16" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">intersection</span><span class="chip">shared identity</span>
+      <span class="chip chip-med">Medium</span><span class="chip">Learning 16</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Find the First Shared Node of Two Lists<span class="sb-check" data-id="learn-list-16" onclick="toggleDone(event,'learn-list-16')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 05, 13–14.</div>
+    <div class="note"><strong>New idea:</strong> Intersection means pointer identity, not equal values. Align heads by length difference, then advance together until identities match.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Use a shared-tail representation such as <code>Rc&lt;Node&gt;</code>; plain owned <code>Box</code> chains cannot share a tail. 2) Compute both lengths. 3) Advance the longer head by the difference, then step both and compare with <code>Rc::ptr_eq</code>.</div>
+    <div class="note"><strong>Complexity:</strong> O(n + m) time and O(1) cursor space.</div>
+    <div class="note"><strong>Rust angle:</strong> Choose representation from topology: exclusive <code>Box</code> for trees/chains, <code>Rc</code> for immutable shared tails, and <code>Rc&lt;RefCell&lt;_&gt;&gt;</code> only if mutation is required.</div>
+    <div class="note"><strong>Unlocks next:</strong> Random-pointer and multi-link structures in Learning 24.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Model <code>next</code> as <code>Option&lt;Rc&lt;Node&gt;&gt;</code>. Count nodes from each head, advance only the longer cursor by the length difference, then advance both by cloning their next handles. Return the first handle for which <code>Rc::ptr_eq</code> is true. Test equal-valued disjoint nodes to prove that value equality is insufficient.</div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-17" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">two-pointer gap</span><span class="chip">deletion</span>
+      <span class="chip chip-med">Medium</span><span class="chip">Learning 17</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-own)"></span>Remove the Nth Node from the End<span class="sb-check" data-id="learn-list-17" onclick="toggleDone(event,'learn-list-17')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 08, 10, 13.</div>
+    <div class="note"><strong>New idea:</strong> A lead cursor n nodes ahead lets a trailing cursor identify the predecessor when lead reaches the end; an ownership-friendly two-pass length calculation is often clearer in safe Rust.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Define behavior for n = 0 and n greater than length. 2) For the safe two-pass route, compute length, translate to zero-based index <code>length - n</code>. 3) Walk a mutable link cursor to that index and replace it with the removed node’s detached next link.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(1) space; two passes are still linear.</div>
+    <div class="note"><strong>Rust angle:</strong> Simultaneous immutable lead and mutable trailing borrows overlap awkwardly on one owned chain. A two-pass link-cursor solution is safe, explicit, and asymptotically identical.</div>
+    <div class="note"><strong>Unlocks next:</strong> Group-boundary counting in Learning 23.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Return an error unless <code>1 &lt;= n &lt;= length</code>. Compute <code>remove_index = length - n</code>, walk <code>&amp;mut Link</code> that many steps, then <code>take()</code> the target box and assign its <code>next.take()</code> back into the cursor. Test removing head, tail, singleton, and invalid n.</div>
+    </details>
+  </div>
+</div>
+
+<!-- ════════════ HARD ════════════ -->
+<div class="section" id="learn-list-stage-hard">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Linked Lists · Hard</div>
+      <div class="sh-title">Hard — Compose the Primitives</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Read before:</strong>
+    Skiena 3e <a href="https://link.springer.com/book/10.1007/978-3-030-54256-6">Chapter 4, “Sorting,”</a>
+    and Chapter 5, “Divide and Conquer”; review official Rust
+    <a href="https://doc.rust-lang.org/std/mem/fn.replace.html"><code>std::mem::replace</code></a>
+    and <a href="https://doc.rust-lang.org/std/option/enum.Option.html#method.take"><code>Option::take</code></a>.
+  </div>
+  <div class="note">
+    <strong>Review after:</strong>
+    Skiena 3e Chapter 4’s mergesort analysis and Chapter 3’s linked-storage cost model; contrast list
+    splitting with the official slice method
+    <a href="https://doc.rust-lang.org/std/primitive.slice.html#method.split_at_mut"><code>split_at_mut</code></a>,
+    which relies on contiguous indexing unavailable to linked nodes.
+  </div>
+  <div class="note">
+    <strong>Further reading:</strong>
+    Skiena 3e Chapter 6, “Hashing and Randomized Algorithms,” for the map-assisted designs that follow,
+    and the open <a href="https://rust-unofficial.github.io/too-many-lists/">Too Many Lists</a> chapters on
+    production-grade ownership and cursor trade-offs.
+  </div>
+
+  <div class="card" id="learn-list-18" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">stable partition</span><span class="chip">two chains</span>
+      <span class="chip chip-hard">Hard</span><span class="chip">Learning 18</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Stable Partition Around a Pivot<span class="sb-check" data-id="learn-list-18" onclick="toggleDone(event,'learn-list-18')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 08, 11, 15.</div>
+    <div class="note"><strong>New idea:</strong> Detach each node into one of two stable output chains—values below pivot and values at least pivot—then concatenate them.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Create two dummy heads and two tails. 2) Before routing a node, detach its next link so it cannot drag the suffix with it. 3) Append to the chosen tail without front insertion, then attach the high chain after the low tail.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(1) auxiliary space.</div>
+    <div class="note"><strong>Rust angle:</strong> Moving existing boxes preserves node identity and avoids allocation; explicit detachment also prevents accidentally retaining old links.</div>
+    <div class="note"><strong>Unlocks next:</strong> Multi-chain assembly and list sorting.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Maintain dummy/tail pairs for <code>less</code> and <code>greater_or_equal</code>. Consume the input head, save <code>node.next.take()</code>, append <code>node</code> to the appropriate tail, and continue from the saved suffix. Join <code>less_tail.next = greater_dummy.next</code>. Test all-low, all-high, duplicates equal to pivot, and mixed order to verify stability.</div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-19" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">split</span><span class="chip">reverse</span><span class="chip">zip</span>
+      <span class="chip chip-hard">Hard</span><span class="chip">Learning 19</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Reorder a List: Split, Reverse, Zip<span class="sb-check" data-id="learn-list-19" onclick="toggleDone(event,'learn-list-19')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 11, 13, 15.</div>
+    <div class="note"><strong>New idea:</strong> Reorder <code>L0→L1→…→Ln</code> into <code>L0→Ln→L1→Ln-1…</code> by composing midpoint split, reversal, and alternating merge.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Determine the first-half length; do not attempt ordinary binary search. 2) Walk a mutable link cursor to the split and <code>take()</code> the second half. 3) Reverse the second half, then alternately detach one node from each chain into the result.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(1) auxiliary space.</div>
+    <div class="note"><strong>Rust angle:</strong> Implement and test split, reverse, and zip as separate ownership-preserving helpers before composing them; this localizes borrow scopes.</div>
+    <div class="note"><strong>Unlocks next:</strong> Half-list palindrome and grouped reversal.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Compute <code>first_len = (n + 1) / 2</code>, move a <code>&amp;mut Link</code> cursor to that boundary, and detach the second half. Reverse it using Learning 11. Build the output by taking one node from first, then one from reversed second, updating a result tail each time. Verify lengths 0–6, since odd/even boundaries are the main failure mode.</div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-20" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">palindrome</span><span class="chip">half reversal</span>
+      <span class="chip chip-hard">Hard</span><span class="chip">Learning 20</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Palindrome by Reversing Half<span class="sb-check" data-id="learn-list-20" onclick="toggleDone(event,'learn-list-20')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 11, 13, 19.</div>
+    <div class="note"><strong>New idea:</strong> Reverse exactly the first half while consuming the chain, skip the center for odd length, then compare the reversed left half with the right half.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Count length without consuming. 2) Move <code>n / 2</code> nodes from <code>current</code> onto a reversed <code>left</code> chain. 3) Skip one node if n is odd, then compare values pairwise.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time and O(1) auxiliary space.</div>
+    <div class="note"><strong>Rust angle:</strong> Taking the list by value makes destructive half reversal straightforward. If the caller must retain the original list, restore the links afterward or choose an O(n)-space value buffer.</div>
+    <div class="note"><strong>Unlocks next:</strong> Confidence composing midpoint and reversal under ownership.</div>
+    <details>
+      <summary>Solution — reveal after attempting (destructive half comparison)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn list(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn length(head: &amp;Link) -&gt; usize {
+    let mut n = 0;
+    let mut current = head.as_deref();
+    while let Some(node) = current {
+        n += 1;
+        current = node.next.as_deref();
+    }
+    n
+}
+
+fn is_palindrome(head: Link) -&gt; bool {
+    let n = length(&amp;head);
+    let mut current = head;
+    let mut left = None;
+
+    for _ in 0..n / 2 {
+        let mut node = current.take().unwrap();
+        current = node.next.take();
+        node.next = left;
+        left = Some(node);
+    }
+
+    if n % 2 == 1 {
+        current = current.unwrap().next;
+    }
+
+    let mut a = left.as_deref();
+    let mut b = current.as_deref();
+    while let (Some(left_node), Some(right_node)) = (a, b) {
+        if left_node.value != right_node.value {
+            return false;
+        }
+        a = left_node.next.as_deref();
+        b = right_node.next.as_deref();
+    }
+    a.is_none() &amp;&amp; b.is_none()
+}
+
+fn main() {
+    assert!(is_palindrome(list(&amp;[])));
+    assert!(is_palindrome(list(&amp;[7])));
+    assert!(is_palindrome(list(&amp;[1, 2, 2, 1])));
+    assert!(is_palindrome(list(&amp;[1, 2, 3, 2, 1])));
+    assert!(!is_palindrome(list(&amp;[1, 2, 3])));
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-21" data-tier="core">
+    <div class="ex-meta">
+      <span class="chip">digit lists</span><span class="chip">carry</span>
+      <span class="chip chip-hard">Hard</span><span class="chip">Learning 21</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Add Two Numbers Stored as Reversed Digit Lists<span class="sb-check" data-id="learn-list-21" onclick="toggleDone(event,'learn-list-21')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 06 and 15.</div>
+    <div class="note"><strong>New idea:</strong> Process least-significant digits first, carrying <code>sum / 10</code> and emitting <code>sum % 10</code> until both inputs and carry are exhausted.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Missing digits contribute zero. 2) The loop condition includes nonzero carry. 3) Append each result digit at the tail; test unequal lengths and a final carry.</div>
+    <div class="note"><strong>Complexity:</strong> O(max(n, m)) time and O(max(n, m)) output space, with O(1) auxiliary state.</div>
+    <div class="note"><strong>Rust angle:</strong> Consuming input boxes makes cursor advancement cheap; <code>take()</code> detaches successors without cloning either nodes or digit vectors.</div>
+    <div class="note"><strong>Unlocks next:</strong> Streaming two-list state machines and arbitrary-precision representations.</div>
+    <details>
+      <summary>Solution — reveal after attempting (carry-propagating merge)</summary>
+      <div style="padding:16px 0 4px;">
+<pre>#[derive(Debug)]
+struct Node {
+    value: i32,
+    next: Option&lt;Box&lt;Node&gt;&gt;,
+}
+
+type Link = Option&lt;Box&lt;Node&gt;&gt;;
+
+fn list(values: &amp;[i32]) -&gt; Link {
+    let mut head = None;
+    for &amp;value in values.iter().rev() {
+        head = Some(Box::new(Node { value, next: head }));
+    }
+    head
+}
+
+fn add(mut a: Link, mut b: Link) -&gt; Link {
+    let mut carry = 0;
+    let mut dummy = Box::new(Node { value: 0, next: None });
+    let mut tail = &amp;mut dummy;
+
+    while a.is_some() || b.is_some() || carry != 0 {
+        let av = a.as_ref().map_or(0, |node| node.value);
+        let bv = b.as_ref().map_or(0, |node| node.value);
+        let sum = av + bv + carry;
+        carry = sum / 10;
+
+        tail.next = Some(Box::new(Node { value: sum % 10, next: None }));
+        tail = tail.next.as_mut().unwrap();
+
+        if let Some(mut node) = a {
+            a = node.next.take();
+        }
+        if let Some(mut node) = b {
+            b = node.next.take();
+        }
+    }
+    dummy.next
+}
+
+fn to_vec(head: &amp;Link) -&gt; Vec&lt;i32&gt; {
+    let mut out = Vec::new();
+    let mut current = head.as_deref();
+    while let Some(node) = current {
+        out.push(node.value);
+        current = node.next.as_deref();
+    }
+    out
+}
+
+fn main() {
+    assert_eq!(to_vec(&amp;add(list(&amp;[2, 4, 3]), list(&amp;[5, 6, 4]))), vec![7, 0, 8]);
+    assert_eq!(to_vec(&amp;add(list(&amp;[9, 9]), list(&amp;[1]))), vec![0, 0, 1]);
+    assert_eq!(to_vec(&amp;add(None, list(&amp;[3, 2]))), vec![3, 2]);
+    assert_eq!(to_vec(&amp;add(None, None)), vec![]);
+}</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-22" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">merge sort</span><span class="chip">divide &amp; conquer</span>
+      <span class="chip chip-hard">Hard</span><span class="chip">Learning 22</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Merge Sort with Midpoint Splitting<span class="sb-check" data-id="learn-list-22" onclick="toggleDone(event,'learn-list-22')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 04, 09, 13, 15.</div>
+    <div class="note"><strong>New idea:</strong> Linked lists suit mergesort: midpoint splitting is sequential, merging relinks nodes, and no random access is needed.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Base case is length 0 or 1. 2) Find half length with fast/slow or a length pass, then walk a mutable link cursor and <code>take()</code> the right half. 3) Recursively sort both halves and reuse Learning 15’s merge; ordinary binary search is irrelevant.</div>
+    <div class="note"><strong>Complexity:</strong> O(n log n) time; O(log n) recursion stack; O(1) node-storage overhead when boxes are reused.</div>
+    <div class="note"><strong>Rust angle:</strong> Each recursion receives two independently owned chains, so the type system proves the halves do not overlap.</div>
+    <div class="note"><strong>Unlocks next:</strong> Divide-and-conquer merge-k and larger recursive list algorithms.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">Write helpers <code>length(&amp;Link)</code>, <code>split_at(Link, n) -&gt; (Link, Link)</code>, and the node-reusing <code>merge</code> from Learning 15. In <code>merge_sort</code>, return immediately for fewer than two nodes; split at <code>n / 2</code>, recursively sort both owned halves, then merge. Test already sorted, reverse sorted, duplicates, negatives, empty, and singleton inputs.</div>
+    </details>
+  </div>
+</div>
+
+<!-- ════════════ MASTERY ════════════ -->
+<div class="section" id="learn-list-stage-mastery">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Linked Lists · Mastery</div>
+      <div class="sh-title">Mastery — Boundaries and Multi-Link Designs</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Read before:</strong>
+    Skiena 3e <a href="https://link.springer.com/book/10.1007/978-3-030-54256-6">Chapter 3, “Data Structures,”</a>
+    Chapter 6, “Hashing and Randomized Algorithms,” and official Rust docs for
+    <a href="https://doc.rust-lang.org/std/collections/struct.BinaryHeap.html"><code>BinaryHeap</code></a>,
+    <a href="https://doc.rust-lang.org/std/collections/struct.HashMap.html"><code>HashMap</code></a>,
+    and <a href="https://doc.rust-lang.org/std/rc/struct.Rc.html"><code>Rc</code></a>.
+  </div>
+  <div class="note">
+    <strong>Review after:</strong>
+    Skiena 3e Chapter 15, “Data Structures,” then the official Rust Book
+    <a href="https://doc.rust-lang.org/book/ch15-04-rc.html"><code>Rc&lt;T&gt;</code></a> and
+    <a href="https://doc.rust-lang.org/book/ch15-05-interior-mutability.html"><code>RefCell&lt;T&gt;</code></a>
+    chapters; justify each representation by topology and mutation needs.
+  </div>
+  <div class="note">
+    <strong>Further reading:</strong>
+    Skiena 3e Chapter 5, “Divide and Conquer,” for pairwise merge-k, and the complete open
+    <a href="https://rust-unofficial.github.io/too-many-lists/">Learning Rust With Entirely Too Many Linked Lists</a>
+    for raw-pointer, cursor, variance, and production API trade-offs.
+  </div>
+
+  <div class="card" id="learn-list-23" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">k-group</span><span class="chip">segment reversal</span>
+      <span class="chip chip-hard">Mastery</span><span class="chip">Learning 23</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Reverse Nodes in K-Sized Groups<span class="sb-check" data-id="learn-list-23" onclick="toggleDone(event,'learn-list-23')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 11, 17, 19, 22.</div>
+    <div class="note"><strong>New idea:</strong> Reverse only complete groups of k nodes; preserve the final short suffix unchanged and reconnect each reversed segment to the next result.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) Handle k = 0 or 1 explicitly. 2) Look ahead k nodes without mutation; if fewer exist, return the original suffix. 3) Detach and reverse exactly k nodes, recursively/process the remainder, then attach the old group head—now the tail—to the processed suffix.</div>
+    <div class="note"><strong>Complexity:</strong> O(n) time; O(n/k) recursion stack for a recursive solution or O(1) auxiliary space iteratively.</div>
+    <div class="note"><strong>Rust angle:</strong> Prove a full group exists before destructive moves, so an incomplete tail never needs rollback. Keep each borrow short and perform relinking with owned boxes.</div>
+    <div class="note"><strong>Unlocks next:</strong> Arbitrary segment transforms and intrusive-list style boundary reasoning.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting</summary>
+      <div class="note">First borrow-walk k nodes; if the lookahead fails, return the untouched input. Otherwise move exactly k boxes from <code>current</code> to <code>reversed</code> using Learning 11’s loop. Recursively process <code>current</code>, walk to the tail of the reversed group (the original first node), and attach the processed remainder. Test k = 1, k = length, k greater than length, and a non-divisible length.</div>
+    </details>
+  </div>
+
+  <div class="card" id="learn-list-24" data-tier="reinforcement">
+    <div class="ex-meta">
+      <span class="chip">merge-k</span><span class="chip">random pointer</span><span class="chip">multilevel</span><span class="chip">list + map</span>
+      <span class="chip chip-hard">Mastery</span><span class="chip">Learning 24</span>
+    </div>
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Capstone Variants: Multi-List and Multi-Link Structures<span class="sb-check" data-id="learn-list-24" onclick="toggleDone(event,'learn-list-24')"></span></div>
+    <div class="note"><strong>Prerequisites:</strong> Learning 14–16, 18–19, 22–23.</div>
+    <div class="note"><strong>New idea:</strong> The linear-chain tools now generalize in four distinct directions: many sorted inputs, arbitrary cross-links, nested child chains, and O(1)-lookup list-backed designs.</div>
+    <div class="note"><strong>Hint ladder:</strong> 1) <em>Merge-k:</em> choose pairwise divide-and-conquer or a min-priority queue of current heads. 2) <em>Random copy:</em> separate node allocation from edge wiring with an old-identity → new-node map. 3) <em>Flatten:</em> save deferred next chains on a stack before descending into a child. 4) <em>List + map:</em> let a hashmap find nodes while a doubly linked list maintains order.</div>
+    <div class="note"><strong>Complexity:</strong> Merge-k is O(N log k); random-copy and flatten are O(N) time/O(N) supporting space for safe shared-node models; hashmap + list operations are expected O(1).</div>
+    <div class="note"><strong>Rust angle:</strong> These variants require representation changes. Use <code>BinaryHeap&lt;Reverse&lt;...&gt;&gt;</code> or a custom ordering for merge-k, <code>Rc&lt;RefCell&lt;_&gt;&gt;</code> plus identity keys for arbitrary links, and consider index-based arenas when stable addresses and mutation must coexist.</div>
+    <div class="note"><strong>Unlocks next:</strong> Graph representations, intrusive collections, allocators/arenas, caches, and production data-structure API design.</div>
+    <details>
+      <summary>Solution sketch — reveal after attempting (four separate variants)</summary>
+      <div style="padding:4px 0;">
+        <div class="note">
+          <strong>Variant A — Merge k sorted lists:</strong>
+          For divide-and-conquer, repeatedly merge adjacent pairs with Learning 15 until one list remains;
+          this gives O(N log k) comparisons and reuses boxes. For a heap solution, store one entry per
+          nonempty list keyed by value plus a unique sequence number, pop the minimum head, detach its next,
+          append the node, and push the successor.
+        </div>
+        <div class="note">
+          <strong>Variant B — Copy a list with random pointers:</strong>
+          Use stable shared node handles. First pass: allocate one clone per original and record
+          <code>original identity → cloned handle</code> in a <code>HashMap</code>. Second pass: wire each clone’s
+          <code>next</code> and <code>random</code> by map lookup. Assert equal values/shape, distinct identities,
+          null random edges, self-random edges, and repeated random targets.
+        </div>
+        <div class="note">
+          <strong>Variant C — Flatten a multilevel doubly linked list:</strong>
+          Traverse depth-first. When a node has a child, push its current <code>next</code> onto a stack, splice
+          the child as <code>next</code>, clear <code>child</code>, and repair both <code>prev</code> directions.
+          When a chain ends, pop the most recent deferred next chain. Assert depth-first order and that every
+          child pointer is cleared.
+        </div>
+        <div class="note">
+          <strong>Variant D — List + map design (LRU cache):</strong>
+          A hashmap maps keys to stable node handles; a doubly linked list orders least- to most-recent use.
+          <code>get</code> moves its node to the most-recent end. <code>put</code> updates/moves an existing node
+          or inserts a new one, evicting the least-recent node and deleting its map entry at capacity.
+          Prefer an index arena or carefully encapsulated <code>Rc&lt;RefCell&lt;_&gt;&gt;</code>; test update, promotion,
+          eviction, zero capacity, and repeated access.
+        </div>
+      </div>
+    </details>
+  </div>
+</div>

@@ -1,0 +1,32 @@
+slug = "running-sum"
+title = "Running sum"
+mode = "write"
+level = "easy"
+stage = "vec-and-slices"
+order = 1
+status = "ready"
+tags = ["scan", "Vec"]
+teaches = [
+  "`iter().scan` carries state through an iterator chain.",
+  "Borrow a slice in, return an owned `Vec` out.",
+]
+constraints = ["0 ≤ nums.len() ≤ 10⁴", "|nums[i]| ≤ 10⁴"]
+follow_up = "How would you do this in place, and what would the signature need to change to?"
+related = ["S6", "S3"]
+
+[[examples]]
+input = "nums = [1, 2, 3, 4]"
+output = "[1, 3, 6, 10]"
+
+[[hints]]
+kind = "approach"
+text = "Keep a total as you walk the slice and push it after each element."
+
+[[hints]]
+kind = "rust"
+text = "`iter().scan(0, |total, &x| { *total += x; Some(*total) })` is that loop as an adapter."
+
+[solution]
+explanation = "`scan` threads mutable state through the chain; `collect` builds the `Vec` with the right capacity because the length is known."
+time = "O(n)"
+space = "O(n) for the output"

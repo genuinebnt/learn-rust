@@ -1,0 +1,31 @@
+slug = "open-addressing-map"
+title = "A hash map with open addressing"
+mode = "write"
+level = "hard"
+stage = "build-it"
+order = 10
+status = "ready"
+tags = ["linear probing", "tombstones"]
+teaches = [
+  "Linear probing, and why removal needs tombstones.",
+  "Resizing before the table gets too full.",
+]
+follow_up = "How does Robin Hood hashing or backward-shift deletion avoid tombstones?"
+related = ["D14", "S8"]
+
+[[hints]]
+kind = "approach"
+text = "A key lives at its home slot or further along; a lookup stops at the first Empty slot."
+
+[[hints]]
+kind = "approach"
+text = "Removing by writing Empty would cut the chain for keys that probed past it. Write a tombstone instead."
+
+[[hints]]
+kind = "rust"
+text = "`std::mem::replace(self, Self::with_slots(2 * n))` hands you the old table to reinsert from."
+
+[solution]
+explanation = "Lookups skip tombstones; inserts reuse them. Counting tombstones toward the load factor stops a table full of tombstones from making every miss scan everything. Resizing drops the tombstones."
+time = "O(1) expected"
+space = "O(n)"

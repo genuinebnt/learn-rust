@@ -1,0 +1,21 @@
+code = "S4"
+name = "Maps & sets"
+section = "S"
+tier = "core"
+order = 4
+summary = "HashMap, HashSet, BTreeMap and BTreeSet: the entry API, ranges, Hash/Eq contracts, and a hash map from scratch."
+
+[[stages]]
+slug = "use-it"
+name = "Use it"
+band = "easy"
+
+[[stages]]
+slug = "understand-it"
+name = "Understand it"
+band = "medium"
+
+[[stages]]
+slug = "build-it"
+name = "Build it"
+band = "hard"

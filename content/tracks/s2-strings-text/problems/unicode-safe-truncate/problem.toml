@@ -1,0 +1,34 @@
+slug = "unicode-safe-truncate"
+title = "Unicode-safe truncate"
+mode = "write"
+level = "medium"
+stage = "understand"
+order = 15
+status = "ready"
+tags = ["is_char_boundary", "byte budgets"]
+teaches = [
+  "Cutting to a byte budget at a character boundary.",
+  "`let ... else` for an early return.",
+]
+follow_up = "Databases often limit by bytes and UIs by characters. How would you truncate to N characters instead?"
+
+[[examples]]
+input = "\"hello world\", 8"
+output = "\"hello…\""
+
+[[examples]]
+input = "\"héllo\", 5"
+output = "\"h…\""
+
+[[hints]]
+kind = "approach"
+text = "Reserve 3 bytes for `…`, then walk the cut point back until it lands on a character boundary."
+
+[[hints]]
+kind = "rust"
+text = "`s.is_char_boundary(i)` is true at 0, at `len()`, and between characters."
+
+[solution]
+explanation = "At most three steps back, because a UTF-8 character is at most four bytes. `checked_sub` covers budgets smaller than the ellipsis."
+time = "O(n)"
+space = "O(n)"

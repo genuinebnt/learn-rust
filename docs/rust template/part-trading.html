@@ -1,0 +1,1859 @@
+<!-- ═══════════════════════════════════════════
+     PART: TRADING SYSTEMS LLD  (TR1 – TR8)
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="tr-header">
+  <div class="ph-eyebrow">Low-Level Design · Trading / Low-Latency · Rust</div>
+  <div class="ph-title">Trading Systems LLD — Matching, Books &amp; Latency</div>
+  <div class="ph-sub">
+    Write-from-scratch exercises aimed at trading-systems interviews: price-time books, matching,
+    market-data fanout, pre-trade risk, FIX-lite framing, TWAP scheduling, PnL, and an SPSC ring path.
+    Integer prices throughout — no floats for money. Hand over the starter, watch modelling choices,
+    then reveal the key.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-rust">Rust 2021 edition</span>
+    <span class="badge badge-time">8 write exercises</span>
+    <span class="badge badge-time">25–45 min each</span>
+  </div>
+</div>
+
+<!-- ════════════ TR1 · Price-Time Priority Order Book ════════════ -->
+<div class="section" id="tr1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Trading LLD · 30–40 min</div>
+      <div class="sh-title">TR1 · Price-Time Priority Order Book</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">trading</span>
+      <span class="chip">order-book</span>
+      <span class="chip">BTreeMap</span>
+      <span class="chip">FIFO</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Build an in-memory <strong>price-time priority order book</strong>.
+      Prices and quantities are <code>i64</code> ticks — no floats.
+      Support <code>add(side, price, qty) -&gt; OrderId</code>, <code>cancel(id) -&gt; bool</code>,
+      <code>best_bid()</code> / <code>best_ask()</code> returning the front-of-queue order at the best price.
+      Bids sort high→low, asks low→high; within a price level, FIFO by arrival."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::collections::{<span class="ty">BTreeMap</span>, <span class="ty">HashMap</span>, <span class="ty">VecDeque</span>};
+
+<span class="kw">type</span> <span class="ty">Price</span> = <span class="ty">i64</span>; <span class="cm">// ticks — never f64 for money</span>
+<span class="kw">type</span> <span class="ty">Qty</span> = <span class="ty">i64</span>;
+<span class="kw">type</span> <span class="ty">OrderId</span> = <span class="ty">u64</span>;
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> { <span class="ty">Bid</span>, <span class="ty">Ask</span> }
+
+<span class="kw">struct</span> <span class="ty">OrderBook</span> {
+    <span class="cm">// TODO: bids/asks price levels + order storage</span>
+}
+
+<span class="kw">impl</span> <span class="ty">OrderBook</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">add</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, side: <span class="ty">Side</span>, price: <span class="ty">Price</span>, qty: <span class="ty">Qty</span>) -&gt; <span class="ty">OrderId</span> { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">cancel</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, id: <span class="ty">OrderId</span>) -&gt; <span class="ty">bool</span> { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">best_bid</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt; { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">best_ask</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt; { <span class="fn">todo</span>!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: add bids/asks, assert best bid/ask, cancel front, re-check FIFO at level</span>
+}
+</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::collections::{<span class="ty">BTreeMap</span>, <span class="ty">HashMap</span>, <span class="ty">VecDeque</span>};
+
+<span class="kw">type</span> <span class="ty">Price</span> = <span class="ty">i64</span>; <span class="cm">// ticks</span>
+<span class="kw">type</span> <span class="ty">Qty</span> = <span class="ty">i64</span>;
+<span class="kw">type</span> <span class="ty">OrderId</span> = <span class="ty">u64</span>;
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> {
+    <span class="ty">Bid</span>,
+    <span class="ty">Ask</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">Order</span> {
+    id: <span class="ty">OrderId</span>,
+    side: <span class="ty">Side</span>,
+    price: <span class="ty">Price</span>,
+    qty: <span class="ty">Qty</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">OrderBook</span> {
+    bids: <span class="ty">BTreeMap</span>&lt;<span class="ty">Price</span>, <span class="ty">VecDeque</span>&lt;<span class="ty">OrderId</span>&gt;&gt;, <span class="cm">// key = -price for max-first iteration</span>
+    asks: <span class="ty">BTreeMap</span>&lt;<span class="ty">Price</span>, <span class="ty">VecDeque</span>&lt;<span class="ty">OrderId</span>&gt;&gt;,
+    orders: <span class="ty">HashMap</span>&lt;<span class="ty">OrderId</span>, <span class="ty">Order</span>&gt;,
+    next_id: <span class="ty">OrderId</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">OrderBook</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            bids: <span class="ty">BTreeMap</span>::<span class="fn">new</span>(),
+            asks: <span class="ty">BTreeMap</span>::<span class="fn">new</span>(),
+            orders: <span class="ty">HashMap</span>::<span class="fn">new</span>(),
+            next_id: <span class="nm">1</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">add</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, side: <span class="ty">Side</span>, price: <span class="ty">Price</span>, qty: <span class="ty">Qty</span>) -&gt; <span class="ty">OrderId</span> {
+        <span class="fn">assert</span>!(qty &gt; <span class="nm">0</span>);
+        <span class="kw">let</span> id = <span class="kw">self</span>.next_id;
+        <span class="kw">self</span>.next_id += <span class="nm">1</span>;
+        <span class="kw">let</span> order = <span class="ty">Order</span> {
+            id,
+            side,
+            price,
+            qty,
+        };
+        <span class="kw">self</span>.orders.<span class="fn">insert</span>(id, order);
+        <span class="kw">match</span> side {
+            <span class="ty">Side</span>::<span class="ty">Bid</span> =&gt; {
+                <span class="kw">self</span>.bids.<span class="fn">entry</span>(-price).<span class="fn">or_default</span>().<span class="fn">push_back</span>(id);
+            }
+            <span class="ty">Side</span>::<span class="ty">Ask</span> =&gt; {
+                <span class="kw">self</span>.asks.<span class="fn">entry</span>(price).<span class="fn">or_default</span>().<span class="fn">push_back</span>(id);
+            }
+        }
+        id
+    }
+
+    <span class="kw">fn</span> <span class="fn">cancel</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, id: <span class="ty">OrderId</span>) -&gt; <span class="ty">bool</span> {
+        <span class="kw">let</span> <span class="ty">Some</span>(order) = <span class="kw">self</span>.orders.<span class="fn">remove</span>(&amp;id) <span class="kw">else</span> {
+            <span class="kw">return</span> <span class="kw">false</span>;
+        };
+        <span class="kw">let</span> queue = <span class="kw">match</span> order.side {
+            <span class="ty">Side</span>::<span class="ty">Bid</span> =&gt; <span class="kw">self</span>.bids.<span class="fn">get_mut</span>(&amp;(-order.price)),
+            <span class="ty">Side</span>::<span class="ty">Ask</span> =&gt; <span class="kw">self</span>.asks.<span class="fn">get_mut</span>(&amp;order.price),
+        };
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(q) = queue {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(pos) = q.<span class="fn">iter</span>().<span class="fn">position</span>(|&amp;x| x == id) {
+                q.<span class="fn">remove</span>(pos);
+            }
+            <span class="kw">if</span> q.<span class="fn">is_empty</span>() {
+                <span class="kw">match</span> order.side {
+                    <span class="ty">Side</span>::<span class="ty">Bid</span> =&gt; {
+                        <span class="kw">self</span>.bids.<span class="fn">remove</span>(&amp;(-order.price));
+                    }
+                    <span class="ty">Side</span>::<span class="ty">Ask</span> =&gt; {
+                        <span class="kw">self</span>.asks.<span class="fn">remove</span>(&amp;order.price);
+                    }
+                }
+            }
+        }
+        <span class="kw">true</span>
+    }
+
+    <span class="kw">fn</span> <span class="fn">best_bid</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt; {
+        <span class="kw">let</span> (&amp;neg_px, q) = <span class="kw">self</span>.bids.<span class="fn">iter</span>().<span class="fn">next</span>()?;
+        <span class="kw">let</span> id = *q.<span class="fn">front</span>()?;
+        <span class="kw">let</span> o = <span class="kw">self</span>.orders.<span class="fn">get</span>(&amp;id)?;
+        <span class="ty">Some</span>((-neg_px, o.qty))
+    }
+
+    <span class="kw">fn</span> <span class="fn">best_ask</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt; {
+        <span class="kw">let</span> (&amp;px, q) = <span class="kw">self</span>.asks.<span class="fn">iter</span>().<span class="fn">next</span>()?;
+        <span class="kw">let</span> id = *q.<span class="fn">front</span>()?;
+        <span class="kw">let</span> o = <span class="kw">self</span>.orders.<span class="fn">get</span>(&amp;id)?;
+        <span class="ty">Some</span>((px, o.qty))
+    }
+
+    <span class="cm">/// Aggregate qty at top-of-book price (all FIFO orders at that level).</span>
+    <span class="kw">fn</span> <span class="fn">best_bid_level</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt; {
+        <span class="kw">let</span> (&amp;neg_px, q) = <span class="kw">self</span>.bids.<span class="fn">iter</span>().<span class="fn">next</span>()?;
+        <span class="kw">let</span> px = -neg_px;
+        <span class="kw">let</span> <span class="kw">mut</span> total = <span class="nm">0</span>;
+        <span class="kw">for</span> id <span class="kw">in</span> q {
+            total += <span class="kw">self</span>.orders.<span class="fn">get</span>(id).<span class="fn">map</span>(|o| o.qty).<span class="fn">unwrap_or</span>(<span class="nm">0</span>);
+        }
+        <span class="ty">Some</span>((px, total))
+    }
+
+    <span class="kw">fn</span> <span class="fn">best_ask_level</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt; {
+        <span class="kw">let</span> (&amp;px, q) = <span class="kw">self</span>.asks.<span class="fn">iter</span>().<span class="fn">next</span>()?;
+        <span class="kw">let</span> <span class="kw">mut</span> total = <span class="nm">0</span>;
+        <span class="kw">for</span> id <span class="kw">in</span> q {
+            total += <span class="kw">self</span>.orders.<span class="fn">get</span>(id).<span class="fn">map</span>(|o| o.qty).<span class="fn">unwrap_or</span>(<span class="nm">0</span>);
+        }
+        <span class="ty">Some</span>((px, total))
+    }
+
+    <span class="kw">fn</span> <span class="fn">order_front_id</span>(&amp;<span class="kw">self</span>, side: <span class="ty">Side</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">OrderId</span>&gt; {
+        <span class="kw">match</span> side {
+            <span class="ty">Side</span>::<span class="ty">Bid</span> =&gt; <span class="kw">self</span>.bids.<span class="fn">values</span>().<span class="fn">next</span>().<span class="fn">and_then</span>(|q| q.<span class="fn">front</span>().<span class="fn">copied</span>()),
+            <span class="ty">Side</span>::<span class="ty">Ask</span> =&gt; <span class="kw">self</span>.asks.<span class="fn">values</span>().<span class="fn">next</span>().<span class="fn">and_then</span>(|q| q.<span class="fn">front</span>().<span class="fn">copied</span>()),
+        }
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> book = <span class="ty">OrderBook</span>::<span class="fn">new</span>();
+
+    <span class="kw">let</span> b1 = book.<span class="fn">add</span>(<span class="ty">Side</span>::<span class="ty">Bid</span>, <span class="nm">100</span>, <span class="nm">5</span>);
+    <span class="kw">let</span> b2 = book.<span class="fn">add</span>(<span class="ty">Side</span>::<span class="ty">Bid</span>, <span class="nm">100</span>, <span class="nm">3</span>); <span class="cm">// same price — behind b1 (time priority)</span>
+    <span class="kw">let</span> _b3 = book.<span class="fn">add</span>(<span class="ty">Side</span>::<span class="ty">Bid</span>, <span class="nm">99</span>, <span class="nm">10</span>);
+    <span class="kw">let</span> a1 = book.<span class="fn">add</span>(<span class="ty">Side</span>::<span class="ty">Ask</span>, <span class="nm">101</span>, <span class="nm">4</span>);
+    <span class="kw">let</span> a2 = book.<span class="fn">add</span>(<span class="ty">Side</span>::<span class="ty">Ask</span>, <span class="nm">102</span>, <span class="nm">7</span>);
+
+    <span class="fn">assert_eq</span>!(book.<span class="fn">best_bid</span>(), <span class="ty">Some</span>((<span class="nm">100</span>, <span class="nm">5</span>))); <span class="cm">// front of best bid level</span>
+    <span class="fn">assert_eq</span>!(book.<span class="fn">best_bid_level</span>(), <span class="ty">Some</span>((<span class="nm">100</span>, <span class="nm">8</span>))); <span class="cm">// aggregated</span>
+    <span class="fn">assert_eq</span>!(book.<span class="fn">best_ask</span>(), <span class="ty">Some</span>((<span class="nm">101</span>, <span class="nm">4</span>)));
+    <span class="fn">assert_eq</span>!(book.<span class="fn">best_ask_level</span>(), <span class="ty">Some</span>((<span class="nm">101</span>, <span class="nm">4</span>)));
+    <span class="fn">assert_eq</span>!(book.<span class="fn">order_front_id</span>(<span class="ty">Side</span>::<span class="ty">Bid</span>), <span class="ty">Some</span>(b1));
+
+    <span class="fn">assert</span>!(book.<span class="fn">cancel</span>(b1));
+    <span class="fn">assert_eq</span>!(book.<span class="fn">best_bid</span>(), <span class="ty">Some</span>((<span class="nm">100</span>, <span class="nm">3</span>))); <span class="cm">// b2 now front</span>
+    <span class="fn">assert_eq</span>!(book.<span class="fn">order_front_id</span>(<span class="ty">Side</span>::<span class="ty">Bid</span>), <span class="ty">Some</span>(b2));
+
+    <span class="fn">assert</span>!(book.<span class="fn">cancel</span>(a1));
+    <span class="fn">assert_eq</span>!(book.<span class="fn">best_ask</span>(), <span class="ty">Some</span>((<span class="nm">102</span>, <span class="nm">7</span>)));
+    <span class="fn">assert_eq</span>!(book.<span class="fn">order_front_id</span>(<span class="ty">Side</span>::<span class="ty">Ask</span>), <span class="ty">Some</span>(a2));
+
+    <span class="fn">assert</span>!(!book.<span class="fn">cancel</span>(a1)); <span class="cm">// already gone</span>
+    <span class="fn">assert</span>!(book.<span class="fn">cancel</span>(b2));
+    <span class="fn">assert_eq</span>!(book.<span class="fn">best_bid_level</span>(), <span class="ty">Some</span>((<span class="nm">99</span>, <span class="nm">10</span>)));
+
+    <span class="fn">println</span>!(<span class="st">"tr1 ok"</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Integer ticks + explicit side queues</strong> — never <code>f64</code> for price; BTreeMap (or sorted vec of levels) with FIFO <code>VecDeque</code> per level.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Cancel removes from both id index and level queue</strong> and drops empty levels so best bid/ask stay O(log levels) / O(1) front.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Separates per-order best vs aggregated level qty</strong> when asked — shows they understand TOB vs depth.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"BTreeMap vs vec-of-levels?"</em> — BTreeMap is simple and fine for sparse books; dense books often use a contiguous price ladder / indexed levels for cache locality and fewer allocations.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Where do allocations hit the hot path?"</em> — HashMap growth, new VecDeque per level, String ids. Pre-size pools; reuse level nodes; avoid format! on every order.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How do you encode bid ordering in a single BTreeMap?"</em> — Store bids under <code>-price</code> so ascending iteration yields best bid first, or use two maps / a custom key.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Order books are a data-structure interview in disguise: correct priority, stable cancel, and zero surprises at the touch. Senior candidates talk about <strong>fixed-point prices</strong>, allocation policy on the hot path, and when a ladder beats a tree — not just “I used a HashMap.”
+  </div>
+</div>
+
+<!-- ════════════ TR2 · Matching Engine ════════════ -->
+<div class="section" id="tr2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Trading LLD · 35–45 min</div>
+      <div class="sh-title">TR2 · Matching Engine</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">trading</span>
+      <span class="chip">matching</span>
+      <span class="chip">partial-fill</span>
+      <span class="chip">trades</span>
+      <span class="chip chip-med">Medium–Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Extend a resting book into a <strong>matching engine</strong>.
+      <code>submit(side, Limit|Market, limit_px, qty)</code> crosses the opposite side while priceable,
+      emits <strong>trade prints</strong> (maker id, taker id, price, qty), supports <strong>partial fills</strong>,
+      rests unfilled limit qty, and <strong>cancels</strong> unfilled market qty. Assert multi-level walks and leftover behaviour."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> { <span class="ty">Buy</span>, <span class="ty">Sell</span> }
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">OrdType</span> { <span class="ty">Limit</span>, <span class="ty">Market</span> }
+
+<span class="kw">struct</span> <span class="ty">Trade</span> { maker_id: <span class="ty">u64</span>, taker_id: <span class="ty">u64</span>, price: <span class="ty">i64</span>, qty: <span class="ty">i64</span> }
+
+<span class="kw">struct</span> <span class="ty">Engine</span> {
+    <span class="cm">// TODO: book + trade log</span>
+}
+
+<span class="kw">impl</span> <span class="ty">Engine</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { <span class="fn">todo</span>!() }
+    <span class="cm">/// Returns (order_id, unfilled_qty). Limits rest; markets cancel leftover.</span>
+    <span class="kw">fn</span> <span class="fn">submit</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, side: <span class="ty">Side</span>, ty: <span class="ty">OrdType</span>, limit_px: <span class="ty">Option</span>&lt;<span class="ty">i64</span>&gt;, qty: <span class="ty">i64</span>)
+        -&gt; (<span class="ty">u64</span>, <span class="ty">i64</span>) { <span class="fn">todo</span>!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: rest asks, aggressive buy crossing multiple levels, market sell partial, assert trades</span>
+}
+</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::collections::{<span class="ty">BTreeMap</span>, <span class="ty">HashMap</span>, <span class="ty">VecDeque</span>};
+
+<span class="kw">type</span> <span class="ty">Price</span> = <span class="ty">i64</span>;
+<span class="kw">type</span> <span class="ty">Qty</span> = <span class="ty">i64</span>;
+<span class="kw">type</span> <span class="ty">OrderId</span> = <span class="ty">u64</span>;
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> {
+    <span class="ty">Buy</span>,
+    <span class="ty">Sell</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">OrdType</span> {
+    <span class="ty">Limit</span>,
+    <span class="ty">Market</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">Resting</span> {
+    id: <span class="ty">OrderId</span>,
+    side: <span class="ty">Side</span>,
+    price: <span class="ty">Price</span>,
+    qty: <span class="ty">Qty</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">Trade</span> {
+    maker_id: <span class="ty">OrderId</span>,
+    taker_id: <span class="ty">OrderId</span>,
+    price: <span class="ty">Price</span>,
+    qty: <span class="ty">Qty</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">Engine</span> {
+    bids: <span class="ty">BTreeMap</span>&lt;<span class="ty">Price</span>, <span class="ty">VecDeque</span>&lt;<span class="ty">OrderId</span>&gt;&gt;, <span class="cm">// keyed by -price</span>
+    asks: <span class="ty">BTreeMap</span>&lt;<span class="ty">Price</span>, <span class="ty">VecDeque</span>&lt;<span class="ty">OrderId</span>&gt;&gt;,
+    orders: <span class="ty">HashMap</span>&lt;<span class="ty">OrderId</span>, <span class="ty">Resting</span>&gt;,
+    next_id: <span class="ty">OrderId</span>,
+    trades: <span class="ty">Vec</span>&lt;<span class="ty">Trade</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">Engine</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            bids: <span class="ty">BTreeMap</span>::<span class="fn">new</span>(),
+            asks: <span class="ty">BTreeMap</span>::<span class="fn">new</span>(),
+            orders: <span class="ty">HashMap</span>::<span class="fn">new</span>(),
+            next_id: <span class="nm">1</span>,
+            trades: <span class="ty">Vec</span>::<span class="fn">new</span>(),
+        }
+    }
+
+    <span class="cm">/// Returns (order_id, unfilled_qty). Limits rest unfilled; markets cancel leftover.</span>
+    <span class="kw">fn</span> <span class="fn">submit</span>(
+        &amp;<span class="kw">mut</span> <span class="kw">self</span>,
+        side: <span class="ty">Side</span>,
+        ord_type: <span class="ty">OrdType</span>,
+        limit_px: <span class="ty">Option</span>&lt;<span class="ty">Price</span>&gt;,
+        <span class="kw">mut</span> qty: <span class="ty">Qty</span>,
+    ) -&gt; (<span class="ty">OrderId</span>, <span class="ty">Qty</span>) {
+        <span class="fn">assert</span>!(qty &gt; <span class="nm">0</span>);
+        <span class="kw">let</span> taker_id = <span class="kw">self</span>.next_id;
+        <span class="kw">self</span>.next_id += <span class="nm">1</span>;
+
+        <span class="kw">while</span> qty &gt; <span class="nm">0</span> {
+            <span class="kw">let</span> best = <span class="kw">match</span> side {
+                <span class="ty">Side</span>::<span class="ty">Buy</span> =&gt; <span class="kw">self</span>.<span class="fn">best_ask</span>(),
+                <span class="ty">Side</span>::<span class="ty">Sell</span> =&gt; <span class="kw">self</span>.<span class="fn">best_bid</span>(),
+            };
+            <span class="kw">let</span> <span class="ty">Some</span>((maker_id, maker_px, maker_qty)) = best <span class="kw">else</span> {
+                <span class="kw">break</span>;
+            };
+
+            <span class="kw">let</span> crosses = <span class="kw">match</span> (side, ord_type, limit_px) {
+                (_, <span class="ty">OrdType</span>::<span class="ty">Market</span>, _) =&gt; <span class="kw">true</span>,
+                (<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="ty">OrdType</span>::<span class="ty">Limit</span>, <span class="ty">Some</span>(lp)) =&gt; lp &gt;= maker_px,
+                (<span class="ty">Side</span>::<span class="ty">Sell</span>, <span class="ty">OrdType</span>::<span class="ty">Limit</span>, <span class="ty">Some</span>(lp)) =&gt; lp &lt;= maker_px,
+                _ =&gt; <span class="kw">false</span>,
+            };
+            <span class="kw">if</span> !crosses {
+                <span class="kw">break</span>;
+            }
+
+            <span class="kw">let</span> fill = qty.<span class="fn">min</span>(maker_qty);
+            <span class="kw">self</span>.trades.<span class="fn">push</span>(<span class="ty">Trade</span> {
+                maker_id,
+                taker_id,
+                price: maker_px,
+                qty: fill,
+            });
+            qty -= fill;
+            <span class="kw">self</span>.<span class="fn">fill_maker</span>(maker_id, fill);
+        }
+
+        <span class="kw">if</span> qty &gt; <span class="nm">0</span> {
+            <span class="kw">if</span> <span class="kw">let</span> (<span class="ty">OrdType</span>::<span class="ty">Limit</span>, <span class="ty">Some</span>(px)) = (ord_type, limit_px) {
+                <span class="kw">self</span>.<span class="fn">rest</span>(taker_id, side, px, qty);
+            }
+        }
+        (taker_id, qty)
+    }
+
+    <span class="kw">fn</span> <span class="fn">rest</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, id: <span class="ty">OrderId</span>, side: <span class="ty">Side</span>, price: <span class="ty">Price</span>, qty: <span class="ty">Qty</span>) {
+        <span class="kw">self</span>.orders.<span class="fn">insert</span>(
+            id,
+            <span class="ty">Resting</span> {
+                id,
+                side,
+                price,
+                qty,
+            },
+        );
+        <span class="kw">match</span> side {
+            <span class="ty">Side</span>::<span class="ty">Buy</span> =&gt; <span class="kw">self</span>.bids.<span class="fn">entry</span>(-price).<span class="fn">or_default</span>().<span class="fn">push_back</span>(id),
+            <span class="ty">Side</span>::<span class="ty">Sell</span> =&gt; <span class="kw">self</span>.asks.<span class="fn">entry</span>(price).<span class="fn">or_default</span>().<span class="fn">push_back</span>(id),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">fill_maker</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, id: <span class="ty">OrderId</span>, fill: <span class="ty">Qty</span>) {
+        <span class="kw">let</span> order = <span class="kw">self</span>.orders.<span class="fn">get_mut</span>(&amp;id).<span class="fn">expect</span>(<span class="st">"maker"</span>);
+        order.qty -= fill;
+        <span class="kw">let</span> side = order.side;
+        <span class="kw">let</span> price = order.price;
+        <span class="kw">let</span> remaining = order.qty;
+        <span class="kw">if</span> remaining == <span class="nm">0</span> {
+            <span class="kw">self</span>.orders.<span class="fn">remove</span>(&amp;id);
+            <span class="kw">let</span> empty = <span class="kw">match</span> side {
+                <span class="ty">Side</span>::<span class="ty">Buy</span> =&gt; {
+                    <span class="kw">let</span> q = <span class="kw">self</span>.bids.<span class="fn">get_mut</span>(&amp;(-price)).<span class="fn">unwrap</span>();
+                    <span class="kw">if</span> q.<span class="fn">front</span>() == <span class="ty">Some</span>(&amp;id) {
+                        q.<span class="fn">pop_front</span>();
+                    } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(pos) = q.<span class="fn">iter</span>().<span class="fn">position</span>(|&amp;x| x == id) {
+                        q.<span class="fn">remove</span>(pos);
+                    }
+                    q.<span class="fn">is_empty</span>()
+                }
+                <span class="ty">Side</span>::<span class="ty">Sell</span> =&gt; {
+                    <span class="kw">let</span> q = <span class="kw">self</span>.asks.<span class="fn">get_mut</span>(&amp;price).<span class="fn">unwrap</span>();
+                    <span class="kw">if</span> q.<span class="fn">front</span>() == <span class="ty">Some</span>(&amp;id) {
+                        q.<span class="fn">pop_front</span>();
+                    } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(pos) = q.<span class="fn">iter</span>().<span class="fn">position</span>(|&amp;x| x == id) {
+                        q.<span class="fn">remove</span>(pos);
+                    }
+                    q.<span class="fn">is_empty</span>()
+                }
+            };
+            <span class="kw">if</span> empty {
+                <span class="kw">match</span> side {
+                    <span class="ty">Side</span>::<span class="ty">Buy</span> =&gt; {
+                        <span class="kw">self</span>.bids.<span class="fn">remove</span>(&amp;(-price));
+                    }
+                    <span class="ty">Side</span>::<span class="ty">Sell</span> =&gt; {
+                        <span class="kw">self</span>.asks.<span class="fn">remove</span>(&amp;price);
+                    }
+                }
+            }
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">best_ask</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">OrderId</span>, <span class="ty">Price</span>, <span class="ty">Qty</span>)&gt; {
+        <span class="kw">let</span> (&amp;px, q) = <span class="kw">self</span>.asks.<span class="fn">iter</span>().<span class="fn">next</span>()?;
+        <span class="kw">let</span> id = *q.<span class="fn">front</span>()?;
+        <span class="kw">let</span> o = <span class="kw">self</span>.orders.<span class="fn">get</span>(&amp;id)?;
+        <span class="ty">Some</span>((id, px, o.qty))
+    }
+
+    <span class="kw">fn</span> <span class="fn">best_bid</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">OrderId</span>, <span class="ty">Price</span>, <span class="ty">Qty</span>)&gt; {
+        <span class="kw">let</span> (&amp;neg, q) = <span class="kw">self</span>.bids.<span class="fn">iter</span>().<span class="fn">next</span>()?;
+        <span class="kw">let</span> id = *q.<span class="fn">front</span>()?;
+        <span class="kw">let</span> o = <span class="kw">self</span>.orders.<span class="fn">get</span>(&amp;id)?;
+        <span class="ty">Some</span>((id, -neg, o.qty))
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> eng = <span class="ty">Engine</span>::<span class="fn">new</span>();
+
+    <span class="kw">let</span> (sell1, rest1) = eng.<span class="fn">submit</span>(<span class="ty">Side</span>::<span class="ty">Sell</span>, <span class="ty">OrdType</span>::<span class="ty">Limit</span>, <span class="ty">Some</span>(<span class="nm">100</span>), <span class="nm">10</span>);
+    <span class="fn">assert_eq</span>!(rest1, <span class="nm">10</span>);
+    <span class="kw">let</span> (sell2, rest2) = eng.<span class="fn">submit</span>(<span class="ty">Side</span>::<span class="ty">Sell</span>, <span class="ty">OrdType</span>::<span class="ty">Limit</span>, <span class="ty">Some</span>(<span class="nm">101</span>), <span class="nm">5</span>);
+    <span class="fn">assert_eq</span>!(rest2, <span class="nm">5</span>);
+
+    <span class="kw">let</span> (buy1, resting_buy) = eng.<span class="fn">submit</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="ty">OrdType</span>::<span class="ty">Limit</span>, <span class="ty">Some</span>(<span class="nm">101</span>), <span class="nm">12</span>);
+    <span class="fn">assert_eq</span>!(resting_buy, <span class="nm">0</span>);
+    <span class="fn">assert_eq</span>!(eng.trades.<span class="fn">len</span>(), <span class="nm">2</span>);
+    <span class="fn">assert_eq</span>!(
+        eng.trades[<span class="nm">0</span>],
+        <span class="ty">Trade</span> {
+            maker_id: sell1,
+            taker_id: buy1,
+            price: <span class="nm">100</span>,
+            qty: <span class="nm">10</span>
+        }
+    );
+    <span class="fn">assert_eq</span>!(
+        eng.trades[<span class="nm">1</span>],
+        <span class="ty">Trade</span> {
+            maker_id: sell2,
+            taker_id: buy1,
+            price: <span class="nm">101</span>,
+            qty: <span class="nm">2</span>
+        }
+    );
+    <span class="fn">assert_eq</span>!(eng.<span class="fn">best_ask</span>().<span class="fn">map</span>(|(_, p, q)| (p, q)), <span class="ty">Some</span>((<span class="nm">101</span>, <span class="nm">3</span>)));
+
+    <span class="cm">// Non-crossing limit rests</span>
+    <span class="kw">let</span> (bid_id, left) = eng.<span class="fn">submit</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="ty">OrdType</span>::<span class="ty">Limit</span>, <span class="ty">Some</span>(<span class="nm">99</span>), <span class="nm">4</span>);
+    <span class="fn">assert_eq</span>!(left, <span class="nm">4</span>);
+    <span class="fn">assert_eq</span>!(eng.<span class="fn">best_bid</span>().<span class="fn">map</span>(|(id, p, q)| (id, p, q)), <span class="ty">Some</span>((bid_id, <span class="nm">99</span>, <span class="nm">4</span>)));
+
+    <span class="cm">// Market sell takes the bid; leftover cancelled (not rested)</span>
+    <span class="kw">let</span> (mkt, unfilled) = eng.<span class="fn">submit</span>(<span class="ty">Side</span>::<span class="ty">Sell</span>, <span class="ty">OrdType</span>::<span class="ty">Market</span>, <span class="ty">None</span>, <span class="nm">10</span>);
+    <span class="fn">assert_eq</span>!(unfilled, <span class="nm">6</span>);
+    <span class="fn">assert_eq</span>!(
+        eng.trades.<span class="fn">last</span>().<span class="fn">cloned</span>(),
+        <span class="ty">Some</span>(<span class="ty">Trade</span> {
+            maker_id: bid_id,
+            taker_id: mkt,
+            price: <span class="nm">99</span>,
+            qty: <span class="nm">4</span>
+        })
+    );
+    <span class="fn">assert</span>!(eng.<span class="fn">best_bid</span>().<span class="fn">is_none</span>());
+
+    <span class="cm">// Limit that does not cross leaves book unchanged on ask side</span>
+    <span class="kw">let</span> before = eng.trades.<span class="fn">len</span>();
+    <span class="kw">let</span> (_id, rem) = eng.<span class="fn">submit</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="ty">OrdType</span>::<span class="ty">Limit</span>, <span class="ty">Some</span>(<span class="nm">100</span>), <span class="nm">1</span>);
+    <span class="fn">assert_eq</span>!(rem, <span class="nm">1</span>); <span class="cm">// best ask is 101; does not cross</span>
+    <span class="fn">assert_eq</span>!(eng.trades.<span class="fn">len</span>(), before);
+
+    <span class="fn">println</span>!(<span class="st">"tr2 ok"</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Match loop is price-time correct</strong> — always consume best opposite front; trade at maker price; reduce maker qty / dequeue at zero.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Distinguishes limit rest vs market cancel</strong> for leftover size and returns unfilled qty to the caller.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Trade log is assertable</strong> (vec of prints) rather than println-only — testability as API design.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Who is the price setter?"</em> — Passive convention is maker (resting) price. Discuss mid/last alternatives only if the venue says so.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Self-trade prevention?"</em> — Same owner crossing: cancel newest, cancel oldest, or decrement — policy switch, not an afterthought.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How do you avoid allocs while matching?"</em> — Preallocated trade scratch buffer, pooled orders, no String on the match path; integer ids only.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Matching is a tight state machine: one loop, clear stop conditions (no liquidity / no cross), and deterministic prints. Watch for off-by-one on partials and for floating prices — both are instant senior-level red flags in trading shops.
+  </div>
+</div>
+
+<!-- ════════════ TR3 · Market Data Fanout ════════════ -->
+<div class="section" id="tr3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Trading LLD · 25–35 min</div>
+      <div class="sh-title">TR3 · Market Data Fanout</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">channels</span>
+      <span class="chip">fanout</span>
+      <span class="chip">snapshot</span>
+      <span class="chip">delta</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement a <strong>market-data fanout</strong> bus.
+      Maintain a sequenced top-of-book. <code>subscribe()</code> returns an id + <code>mpsc::Receiver</code> and
+      immediately delivers a <strong>Snapshot</strong>. Later <code>publish_top</code> sends <strong>Delta</strong>s with a monotonic <code>seq</code>
+      to all live subscribers. <code>unsubscribe</code> must not disturb others; dead receivers are pruned."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::sync::mpsc::{<span class="kw">self</span>, <span class="ty">Receiver</span>, <span class="ty">Sender</span>};
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">BookTop</span> { bid: <span class="ty">Option</span>&lt;(<span class="ty">i64</span>, <span class="ty">i64</span>)&gt;, ask: <span class="ty">Option</span>&lt;(<span class="ty">i64</span>, <span class="ty">i64</span>)&gt;, seq: <span class="ty">u64</span> }
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">MdEvent</span> {
+    <span class="ty">Snapshot</span>(<span class="ty">BookTop</span>),
+    <span class="ty">Delta</span> { seq: <span class="ty">u64</span>, bid: <span class="ty">Option</span>&lt;(<span class="ty">i64</span>, <span class="ty">i64</span>)&gt;, ask: <span class="ty">Option</span>&lt;(<span class="ty">i64</span>, <span class="ty">i64</span>)&gt; },
+}
+
+<span class="kw">struct</span> <span class="ty">Fanout</span> {
+    <span class="cm">// TODO: seq, last top, subscriber list</span>
+}
+
+<span class="kw">impl</span> <span class="ty">Fanout</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">subscribe</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; (<span class="ty">u64</span>, <span class="ty">Receiver</span>&lt;<span class="ty">MdEvent</span>&gt;) { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">unsubscribe</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, id: <span class="ty">u64</span>) { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">publish_top</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, bid: <span class="ty">Option</span>&lt;(<span class="ty">i64</span>, <span class="ty">i64</span>)&gt;, ask: <span class="ty">Option</span>&lt;(<span class="ty">i64</span>, <span class="ty">i64</span>)&gt;) { <span class="fn">todo</span>!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: two subscribers get snapshot then deltas; unsubscribe drops cleanly</span>
+}
+</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::sync::mpsc::{<span class="kw">self</span>, <span class="ty">Receiver</span>, <span class="ty">Sender</span>};
+
+<span class="kw">type</span> <span class="ty">Price</span> = <span class="ty">i64</span>;
+<span class="kw">type</span> <span class="ty">Qty</span> = <span class="ty">i64</span>;
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">BookTop</span> {
+    bid: <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt;,
+    ask: <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt;,
+    seq: <span class="ty">u64</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">MdEvent</span> {
+    <span class="ty">Snapshot</span>(<span class="ty">BookTop</span>),
+    <span class="ty">Delta</span> {
+        seq: <span class="ty">u64</span>,
+        bid: <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt;,
+        ask: <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt;,
+    },
+}
+
+<span class="kw">struct</span> <span class="ty">Fanout</span> {
+    seq: <span class="ty">u64</span>,
+    top: <span class="ty">BookTop</span>,
+    subs: <span class="ty">Vec</span>&lt;(<span class="ty">u64</span>, <span class="ty">Sender</span>&lt;<span class="ty">MdEvent</span>&gt;)&gt;,
+    next_sub: <span class="ty">u64</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Fanout</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            seq: <span class="nm">0</span>,
+            top: <span class="ty">BookTop</span> {
+                bid: <span class="ty">None</span>,
+                ask: <span class="ty">None</span>,
+                seq: <span class="nm">0</span>,
+            },
+            subs: <span class="ty">Vec</span>::<span class="fn">new</span>(),
+            next_sub: <span class="nm">1</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">subscribe</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; (<span class="ty">u64</span>, <span class="ty">Receiver</span>&lt;<span class="ty">MdEvent</span>&gt;) {
+        <span class="kw">let</span> (tx, rx) = mpsc::<span class="fn">channel</span>();
+        <span class="kw">let</span> id = <span class="kw">self</span>.next_sub;
+        <span class="kw">self</span>.next_sub += <span class="nm">1</span>;
+        <span class="cm">// Snapshot first so late joiners catch up</span>
+        <span class="kw">let</span> _ = tx.<span class="fn">send</span>(<span class="ty">MdEvent</span>::<span class="ty">Snapshot</span>(<span class="kw">self</span>.top.<span class="fn">clone</span>()));
+        <span class="kw">self</span>.subs.<span class="fn">push</span>((id, tx));
+        (id, rx)
+    }
+
+    <span class="kw">fn</span> <span class="fn">unsubscribe</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, id: <span class="ty">u64</span>) {
+        <span class="kw">self</span>.subs.<span class="fn">retain</span>(|(sid, _)| *<span class="fn">sid</span> != id);
+    }
+
+    <span class="kw">fn</span> <span class="fn">publish_top</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, bid: <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt;, ask: <span class="ty">Option</span>&lt;(<span class="ty">Price</span>, <span class="ty">Qty</span>)&gt;) {
+        <span class="kw">self</span>.seq += <span class="nm">1</span>;
+        <span class="kw">self</span>.top = <span class="ty">BookTop</span> {
+            bid,
+            ask,
+            seq: <span class="kw">self</span>.seq,
+        };
+        <span class="kw">let</span> ev = <span class="ty">MdEvent</span>::<span class="ty">Delta</span> {
+            seq: <span class="kw">self</span>.seq,
+            bid,
+            ask,
+        };
+        <span class="kw">self</span>.subs.<span class="fn">retain</span>(|(_, tx)| tx.<span class="fn">send</span>(ev.<span class="fn">clone</span>()).<span class="fn">is_ok</span>());
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> bus = <span class="ty">Fanout</span>::<span class="fn">new</span>();
+    bus.<span class="fn">publish_top</span>(<span class="ty">Some</span>((<span class="nm">100</span>, <span class="nm">5</span>)), <span class="ty">Some</span>((<span class="nm">101</span>, <span class="nm">3</span>)));
+
+    <span class="kw">let</span> (a_id, a_rx) = bus.<span class="fn">subscribe</span>();
+    <span class="kw">let</span> (_b_id, b_rx) = bus.<span class="fn">subscribe</span>();
+
+    <span class="cm">// Both get snapshot of current top</span>
+    <span class="kw">match</span> a_rx.<span class="fn">recv</span>().<span class="fn">unwrap</span>() {
+        <span class="ty">MdEvent</span>::<span class="ty">Snapshot</span>(s) =&gt; {
+            <span class="fn">assert_eq</span>!(s.bid, <span class="ty">Some</span>((<span class="nm">100</span>, <span class="nm">5</span>)));
+            <span class="fn">assert_eq</span>!(s.ask, <span class="ty">Some</span>((<span class="nm">101</span>, <span class="nm">3</span>)));
+            <span class="fn">assert_eq</span>!(s.seq, <span class="nm">1</span>);
+        }
+        other =&gt; <span class="fn">panic</span>!(<span class="st">"expected snapshot, got {:?}"</span>, other),
+    }
+    <span class="kw">match</span> b_rx.<span class="fn">recv</span>().<span class="fn">unwrap</span>() {
+        <span class="ty">MdEvent</span>::<span class="ty">Snapshot</span>(s) =&gt; <span class="fn">assert_eq</span>!(s.seq, <span class="nm">1</span>),
+        other =&gt; <span class="fn">panic</span>!(<span class="st">"expected snapshot, got {:?}"</span>, other),
+    }
+
+    bus.<span class="fn">publish_top</span>(<span class="ty">Some</span>((<span class="nm">100</span>, <span class="nm">8</span>)), <span class="ty">Some</span>((<span class="nm">101</span>, <span class="nm">2</span>)));
+
+    <span class="kw">match</span> a_rx.<span class="fn">recv</span>().<span class="fn">unwrap</span>() {
+        <span class="ty">MdEvent</span>::<span class="ty">Delta</span> { seq, bid, ask } =&gt; {
+            <span class="fn">assert_eq</span>!(seq, <span class="nm">2</span>);
+            <span class="fn">assert_eq</span>!(bid, <span class="ty">Some</span>((<span class="nm">100</span>, <span class="nm">8</span>)));
+            <span class="fn">assert_eq</span>!(ask, <span class="ty">Some</span>((<span class="nm">101</span>, <span class="nm">2</span>)));
+        }
+        other =&gt; <span class="fn">panic</span>!(<span class="st">"expected delta, got {:?}"</span>, other),
+    }
+    <span class="kw">match</span> b_rx.<span class="fn">recv</span>().<span class="fn">unwrap</span>() {
+        <span class="ty">MdEvent</span>::<span class="ty">Delta</span> { seq, .. } =&gt; <span class="fn">assert_eq</span>!(seq, <span class="nm">2</span>),
+        other =&gt; <span class="fn">panic</span>!(<span class="st">"expected delta, got {:?}"</span>, other),
+    }
+
+    bus.<span class="fn">unsubscribe</span>(a_id);
+    bus.<span class="fn">publish_top</span>(<span class="ty">Some</span>((<span class="nm">99</span>, <span class="nm">1</span>)), <span class="ty">Some</span>((<span class="nm">101</span>, <span class="nm">2</span>)));
+    <span class="cm">// a is gone — must not block; b still receives</span>
+    <span class="fn">assert</span>!(a_rx.<span class="fn">try_recv</span>().<span class="fn">is_err</span>());
+    <span class="kw">match</span> b_rx.<span class="fn">recv</span>().<span class="fn">unwrap</span>() {
+        <span class="ty">MdEvent</span>::<span class="ty">Delta</span> { seq, bid, .. } =&gt; {
+            <span class="fn">assert_eq</span>!(seq, <span class="nm">3</span>);
+            <span class="fn">assert_eq</span>!(bid, <span class="ty">Some</span>((<span class="nm">99</span>, <span class="nm">1</span>)));
+        }
+        other =&gt; <span class="fn">panic</span>!(<span class="st">"expected delta, got {:?}"</span>, other),
+    }
+
+    <span class="fn">println</span>!(<span class="st">"tr3 ok"</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Snapshot-on-subscribe + sequenced deltas</strong> — late joiners are consistent without replaying the world.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Prunes failed sends / unsubscribe by id</strong> so one slow or dropped consumer does not poison the bus.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Clone-small events</strong> (Copy tops or Arc payload) and can discuss broadcast vs per-sub mpsc.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"mpsc vs broadcast?"</em> — Per-sub mpsc gives independent backpressure; broadcast shares one stream with lag. Pick based on whether consumers may stall.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"What if a subscriber never drains?"</em> — Bounded channels + drop-oldest / disconnect policy; never let MD publish block the matching thread.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Snapshot vs incremental recovery after gap?"</em> — Detect seq gap → request snapshot; deltas alone are not enough after loss.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Fanout sits on the critical path between matching and the outside world. Seniors isolate the match thread from slow consumers (bounded queues, drop policies) and treat sequence numbers as a correctness protocol, not a nice-to-have.
+  </div>
+</div>
+
+<!-- ════════════ TR4 · Pre-Trade Risk Checks ════════════ -->
+<div class="section" id="tr4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Trading LLD · 25–30 min</div>
+      <div class="sh-title">TR4 · Pre-Trade Risk Checks</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">risk</span>
+      <span class="chip">limits</span>
+      <span class="chip">reject-path</span>
+      <span class="chip">integer-money</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Build a <strong>pre-trade risk gateway</strong>.
+      Track signed position. Before accepting an order, check <strong>absolute position limit</strong> and
+      <strong>absolute notional limit</strong> (<code>|projected_pos| * price</code> in integer ticks).
+      Rejects return a typed <code>RiskReject</code> and must <strong>not</strong> mutate position. Happy path may simulate an immediate fill."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> { <span class="ty">Buy</span>, <span class="ty">Sell</span> }
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">RiskReject</span> {
+    <span class="ty">PositionLimit</span> { projected: <span class="ty">i64</span>, limit: <span class="ty">i64</span> },
+    <span class="ty">NotionalLimit</span> { projected: <span class="ty">i64</span>, limit: <span class="ty">i64</span> },
+    <span class="ty">BadOrder</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">RiskLimits</span> { max_abs_position: <span class="ty">i64</span>, max_abs_notional: <span class="ty">i64</span> }
+
+<span class="kw">struct</span> <span class="ty">RiskGateway</span> {
+    <span class="cm">// TODO: limits + live position</span>
+}
+
+<span class="kw">impl</span> <span class="ty">RiskGateway</span> {
+    <span class="kw">fn</span> <span class="fn">check</span>(&amp;<span class="kw">self</span>, side: <span class="ty">Side</span>, qty: <span class="ty">i64</span>, limit_px: <span class="ty">i64</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">RiskReject</span>&gt; { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">try_order</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, side: <span class="ty">Side</span>, qty: <span class="ty">i64</span>, limit_px: <span class="ty">i64</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">RiskReject</span>&gt; { <span class="fn">todo</span>!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: accept under limits, reject over position / notional, assert position unchanged on reject</span>
+}
+</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">type</span> <span class="ty">Qty</span> = <span class="ty">i64</span>; <span class="cm">// signed: +long / -short</span>
+<span class="kw">type</span> <span class="ty">Price</span> = <span class="ty">i64</span>; <span class="cm">// ticks</span>
+<span class="kw">type</span> <span class="ty">Notional</span> = <span class="ty">i64</span>; <span class="cm">// price * qty in tick*share units</span>
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> {
+    <span class="ty">Buy</span>,
+    <span class="ty">Sell</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">RiskReject</span> {
+    <span class="ty">PositionLimit</span> { projected: <span class="ty">Qty</span>, limit: <span class="ty">Qty</span> },
+    <span class="ty">NotionalLimit</span> { projected: <span class="ty">Notional</span>, limit: <span class="ty">Notional</span> },
+    <span class="ty">BadOrder</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone)]</span>
+<span class="kw">struct</span> <span class="ty">RiskLimits</span> {
+    <span class="cm">/// Absolute max |position|.</span>
+    max_abs_position: <span class="ty">Qty</span>,
+    <span class="cm">/// Max |gross notional| of open exposure after the order (mark * position).</span>
+    max_abs_notional: <span class="ty">Notional</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">RiskGateway</span> {
+    limits: <span class="ty">RiskLimits</span>,
+    position: <span class="ty">Qty</span>,
+    <span class="cm">/// Last mark used for notional (integer ticks).</span>
+    mark: <span class="ty">Price</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">RiskGateway</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(limits: <span class="ty">RiskLimits</span>, mark: <span class="ty">Price</span>) -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            limits,
+            position: <span class="nm">0</span>,
+            mark,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">set_mark</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, mark: <span class="ty">Price</span>) {
+        <span class="kw">self</span>.mark = mark;
+    }
+
+    <span class="kw">fn</span> <span class="fn">check</span>(&amp;<span class="kw">self</span>, side: <span class="ty">Side</span>, qty: <span class="ty">Qty</span>, limit_px: <span class="ty">Price</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">RiskReject</span>&gt; {
+        <span class="kw">if</span> qty &lt;= <span class="nm">0</span> || limit_px &lt;= <span class="nm">0</span> {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="ty">RiskReject</span>::<span class="ty">BadOrder</span>);
+        }
+        <span class="kw">let</span> signed = <span class="kw">match</span> side {
+            <span class="ty">Side</span>::<span class="ty">Buy</span> =&gt; qty,
+            <span class="ty">Side</span>::<span class="ty">Sell</span> =&gt; -qty,
+        };
+        <span class="kw">let</span> projected = <span class="kw">self</span>.position + signed;
+        <span class="kw">if</span> projected.<span class="fn">abs</span>() &gt; <span class="kw">self</span>.limits.max_abs_position {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="ty">RiskReject</span>::<span class="ty">PositionLimit</span> {
+                projected,
+                limit: <span class="kw">self</span>.limits.max_abs_position,
+            });
+        }
+        <span class="cm">// Conservative: use max(mark, limit_px) for buys / min for sells? Demo: use order px.</span>
+        <span class="kw">let</span> projected_notional = projected.<span class="fn">abs</span>().<span class="fn">saturating_mul</span>(limit_px);
+        <span class="kw">if</span> projected_notional &gt; <span class="kw">self</span>.limits.max_abs_notional {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="ty">RiskReject</span>::<span class="ty">NotionalLimit</span> {
+                projected: projected_notional,
+                limit: <span class="kw">self</span>.limits.max_abs_notional,
+            });
+        }
+        <span class="kw">let</span> _ = <span class="kw">self</span>.mark; <span class="cm">// available for mark-based checks in probes</span>
+        <span class="ty">Ok</span>(())
+    }
+
+    <span class="cm">/// Apply fill after matching (only call when check passed / fill confirmed).</span>
+    <span class="kw">fn</span> <span class="fn">on_fill</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, side: <span class="ty">Side</span>, qty: <span class="ty">Qty</span>) {
+        <span class="kw">match</span> side {
+            <span class="ty">Side</span>::<span class="ty">Buy</span> =&gt; <span class="kw">self</span>.position += qty,
+            <span class="ty">Side</span>::<span class="ty">Sell</span> =&gt; <span class="kw">self</span>.position -= qty,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">try_order</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, side: <span class="ty">Side</span>, qty: <span class="ty">Qty</span>, limit_px: <span class="ty">Price</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">RiskReject</span>&gt; {
+        <span class="kw">self</span>.<span class="fn">check</span>(side, qty, limit_px)?;
+        <span class="cm">// In a real gateway, order is forwarded; here we simulate immediate full fill.</span>
+        <span class="kw">self</span>.<span class="fn">on_fill</span>(side, qty);
+        <span class="ty">Ok</span>(())
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> limits = <span class="ty">RiskLimits</span> {
+        max_abs_position: <span class="nm">100</span>,
+        max_abs_notional: <span class="nm">50_000</span>, <span class="cm">// e.g. 100 * 500</span>
+    };
+    <span class="kw">let</span> <span class="kw">mut</span> gw = <span class="ty">RiskGateway</span>::<span class="fn">new</span>(limits, <span class="nm">400</span>);
+    gw.<span class="fn">set_mark</span>(<span class="nm">410</span>);
+    <span class="fn">assert_eq</span>!(gw.mark, <span class="nm">410</span>);
+
+    <span class="fn">assert</span>!(gw.<span class="fn">try_order</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="nm">50</span>, <span class="nm">400</span>).<span class="fn">is_ok</span>());
+    <span class="fn">assert_eq</span>!(gw.position, <span class="nm">50</span>);
+
+    <span class="cm">// Would push position to 120 → reject</span>
+    <span class="kw">let</span> r = gw.<span class="fn">try_order</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="nm">70</span>, <span class="nm">400</span>);
+    <span class="fn">assert_eq</span>!(
+        r,
+        <span class="ty">Err</span>(<span class="ty">RiskReject</span>::<span class="ty">PositionLimit</span> {
+            projected: <span class="nm">120</span>,
+            limit: <span class="nm">100</span>
+        })
+    );
+    <span class="fn">assert_eq</span>!(gw.position, <span class="nm">50</span>); <span class="cm">// unchanged on reject</span>
+
+    <span class="cm">// Notional: |pos| * px = 50 * 1200 = 60_000 &gt; 50_000 if we buy more at high px…</span>
+    <span class="cm">// Sell down first</span>
+    <span class="fn">assert</span>!(gw.<span class="fn">try_order</span>(<span class="ty">Side</span>::<span class="ty">Sell</span>, <span class="nm">50</span>, <span class="nm">400</span>).<span class="fn">is_ok</span>());
+    <span class="fn">assert_eq</span>!(gw.position, <span class="nm">0</span>);
+
+    <span class="cm">// Buy 80 @ 700 → notional 56_000 &gt; 50_000</span>
+    <span class="kw">let</span> r = gw.<span class="fn">try_order</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="nm">80</span>, <span class="nm">700</span>);
+    <span class="fn">assert_eq</span>!(
+        r,
+        <span class="ty">Err</span>(<span class="ty">RiskReject</span>::<span class="ty">NotionalLimit</span> {
+            projected: <span class="nm">56_000</span>,
+            limit: <span class="nm">50_000</span>
+        })
+    );
+
+    <span class="fn">assert</span>!(gw.<span class="fn">try_order</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="nm">70</span>, <span class="nm">700</span>).<span class="fn">is_ok</span>()); <span class="cm">// 49_000 ok</span>
+    <span class="fn">assert_eq</span>!(gw.position, <span class="nm">70</span>);
+
+    <span class="fn">assert_eq</span>!(gw.<span class="fn">try_order</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="nm">0</span>, <span class="nm">100</span>), <span class="ty">Err</span>(<span class="ty">RiskReject</span>::<span class="ty">BadOrder</span>));
+
+    <span class="fn">println</span>!(<span class="st">"tr4 ok"</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Check-then-act with typed rejects</strong> — position unchanged on Err; BadOrder for non-positive qty/px.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Uses integer notional</strong> (<code>qty * px</code>) — no float money math.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Separates check from fill application</strong> so the same predicate can gate async acks.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Mark price vs limit price for notional?"</em> — Conservative risk often uses worse-case (higher buy / lower sell) or a trusted mark; discuss gaming limit px.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"In-flight orders?"</em> — Reserved exposure / working qty must count toward limits or you double-spend the limit.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Where does this run relative to matching?"</em> — Pre-trade on the order entry path; never skip under load without an explicit kill-switch policy.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Risk is a product of clear limits and a boring reject path. Interview signal: integer money, projected (not current-only) checks, and explicit discussion of in-flight reservations — not a pile of ad-hoc ifs.
+  </div>
+</div>
+
+<!-- ════════════ TR5 · FIX-lite Session Framing ════════════ -->
+<div class="section" id="tr5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Trading LLD · 30–40 min</div>
+      <div class="sh-title">TR5 · FIX-lite Session Framing</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">FIX</span>
+      <span class="chip">parsing</span>
+      <span class="chip">serialize</span>
+      <span class="chip">sessions</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement a minimal <strong>FIX-lite</strong> codec (SOH-delimited <code>tag=value</code>).
+      Support <strong>HeartBeat</strong> (<code>35=0</code>) and <strong>NewOrderSingle</strong>-ish (<code>35=D</code> with 11/55/54/38/44).
+      Include <code>8=FIX.4.2</code>, body length <code>9=</code>, seq <code>34=</code>, and trailing checksum <code>10=</code> (sum of bytes mod 256).
+      Round-trip parse ↔ serialize on integer prices."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">const</span> <span class="ty">SOH</span>: <span class="ty">char</span> = <span class="st">'\u{1}'</span>;
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">MsgType</span> { <span class="ty">HeartBeat</span>, <span class="ty">NewOrderSingle</span> }
+
+<span class="kw">struct</span> <span class="ty">FixMessage</span> {
+    msg_type: <span class="ty">MsgType</span>,
+    seq: <span class="ty">u64</span>,
+    cl_ord_id: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt;,
+    symbol: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt;,
+    side: <span class="ty">Option</span>&lt;<span class="ty">char</span>&gt;,
+    qty: <span class="ty">Option</span>&lt;<span class="ty">i64</span>&gt;,
+    price: <span class="ty">Option</span>&lt;<span class="ty">i64</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">FixMessage</span> {
+    <span class="kw">fn</span> <span class="fn">serialize</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> { <span class="fn">todo</span>!(<span class="st">"8=FIX.4.2|9=…|35=…|34=…|10=xxx|"</span>) }
+    <span class="kw">fn</span> <span class="fn">parse</span>(raw: &amp;<span class="ty">str</span>) -&gt; <span class="ty">Result</span>&lt;<span class="kw">Self</span>, <span class="ty">String</span>&gt; { <span class="fn">todo</span>!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: round-trip HeartBeat + NewOrderSingle (tags 35/34/11/55/54/38/44)</span>
+}
+</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">const</span> <span class="ty">SOH</span>: <span class="ty">char</span> = <span class="st">'\u{1}'</span>;
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">MsgType</span> {
+    <span class="ty">HeartBeat</span>,      <span class="cm">// 0</span>
+    <span class="ty">NewOrderSingle</span>, <span class="cm">// D</span>
+}
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">FixMessage</span> {
+    msg_type: <span class="ty">MsgType</span>,
+    seq: <span class="ty">u64</span>,
+    <span class="cm">/// Present for NewOrderSingle</span>
+    cl_ord_id: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt;,
+    symbol: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt;,
+    side: <span class="ty">Option</span>&lt;<span class="ty">char</span>&gt;,  <span class="cm">// '1' buy / '2' sell</span>
+    qty: <span class="ty">Option</span>&lt;<span class="ty">i64</span>&gt;,    <span class="cm">// tag 38</span>
+    price: <span class="ty">Option</span>&lt;<span class="ty">i64</span>&gt;,  <span class="cm">// tag 44, integer ticks</span>
+}
+
+<span class="kw">impl</span> <span class="ty">FixMessage</span> {
+    <span class="kw">fn</span> <span class="fn">heartbeat</span>(seq: <span class="ty">u64</span>) -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            msg_type: <span class="ty">MsgType</span>::<span class="ty">HeartBeat</span>,
+            seq,
+            cl_ord_id: <span class="ty">None</span>,
+            symbol: <span class="ty">None</span>,
+            side: <span class="ty">None</span>,
+            qty: <span class="ty">None</span>,
+            price: <span class="ty">None</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">new_order</span>(
+        seq: <span class="ty">u64</span>,
+        cl_ord_id: &amp;<span class="ty">str</span>,
+        symbol: &amp;<span class="ty">str</span>,
+        side: <span class="ty">char</span>,
+        qty: <span class="ty">i64</span>,
+        price: <span class="ty">i64</span>,
+    ) -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            msg_type: <span class="ty">MsgType</span>::<span class="ty">NewOrderSingle</span>,
+            seq,
+            cl_ord_id: <span class="ty">Some</span>(cl_ord_id.<span class="fn">into</span>()),
+            symbol: <span class="ty">Some</span>(symbol.<span class="fn">into</span>()),
+            side: <span class="ty">Some</span>(side),
+            qty: <span class="ty">Some</span>(qty),
+            price: <span class="ty">Some</span>(price),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">serialize</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> {
+        <span class="kw">let</span> <span class="kw">mut</span> fields: <span class="ty">Vec</span>&lt;(<span class="ty">u32</span>, <span class="ty">String</span>)&gt; = <span class="ty">Vec</span>::<span class="fn">new</span>();
+        <span class="cm">// 35=MsgType, 34=MsgSeqNum, then body</span>
+        <span class="kw">let</span> mt = <span class="kw">match</span> <span class="kw">self</span>.msg_type {
+            <span class="ty">MsgType</span>::<span class="ty">HeartBeat</span> =&gt; <span class="st">"0"</span>,
+            <span class="ty">MsgType</span>::<span class="ty">NewOrderSingle</span> =&gt; <span class="st">"D"</span>,
+        };
+        fields.<span class="fn">push</span>((<span class="nm">35</span>, mt.<span class="fn">into</span>()));
+        fields.<span class="fn">push</span>((<span class="nm">34</span>, <span class="kw">self</span>.seq.<span class="fn">to_string</span>()));
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(<span class="kw">ref</span> c) = <span class="kw">self</span>.cl_ord_id {
+            fields.<span class="fn">push</span>((<span class="nm">11</span>, c.<span class="fn">clone</span>()));
+        }
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(<span class="kw">ref</span> s) = <span class="kw">self</span>.symbol {
+            fields.<span class="fn">push</span>((<span class="nm">55</span>, s.<span class="fn">clone</span>()));
+        }
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(side) = <span class="kw">self</span>.side {
+            fields.<span class="fn">push</span>((<span class="nm">54</span>, side.<span class="fn">to_string</span>()));
+        }
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(q) = <span class="kw">self</span>.qty {
+            fields.<span class="fn">push</span>((<span class="nm">38</span>, q.<span class="fn">to_string</span>()));
+        }
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(p) = <span class="kw">self</span>.price {
+            fields.<span class="fn">push</span>((<span class="nm">44</span>, p.<span class="fn">to_string</span>()));
+        }
+        <span class="cm">// BodyLength (9) over everything after 9=…| — simplified: length of body from 35 onward</span>
+        <span class="kw">let</span> body: <span class="ty">String</span> = fields
+            .<span class="fn">iter</span>()
+            .<span class="fn">map</span>(|(t, v)| <span class="fn">format</span>!(<span class="st">"{}={}{}"</span>, t, v, <span class="ty">SOH</span>))
+            .<span class="fn">collect</span>();
+        <span class="kw">let</span> body_len = body.<span class="fn">len</span>();
+        <span class="kw">let</span> <span class="kw">mut</span> out = <span class="fn">format</span>!(<span class="st">"8=FIX.4.2{}9={}{}"</span>, <span class="ty">SOH</span>, body_len, <span class="ty">SOH</span>);
+        out.<span class="fn">push_str</span>(&amp;body);
+        <span class="cm">// Checksum tag 10 = sum of bytes mod 256 (excluding the checksum field itself)</span>
+        <span class="kw">let</span> sum: <span class="ty">u32</span> = out.<span class="fn">bytes</span>().<span class="fn">map</span>(|b| b <span class="kw">as</span> <span class="ty">u32</span>).<span class="fn">sum</span>();
+        out.<span class="fn">push_str</span>(&amp;<span class="fn">format</span>!(<span class="st">"10={:03}{}"</span>, sum % <span class="nm">256</span>, <span class="ty">SOH</span>));
+        out
+    }
+
+    <span class="kw">fn</span> <span class="fn">parse</span>(raw: &amp;<span class="ty">str</span>) -&gt; <span class="ty">Result</span>&lt;<span class="kw">Self</span>, <span class="ty">String</span>&gt; {
+        <span class="kw">let</span> <span class="kw">mut</span> map = std::collections::<span class="ty">HashMap</span>::<span class="fn">new</span>();
+        <span class="kw">for</span> part <span class="kw">in</span> raw.<span class="fn">split</span>(<span class="ty">SOH</span>) {
+            <span class="kw">if</span> part.<span class="fn">is_empty</span>() {
+                <span class="kw">continue</span>;
+            }
+            <span class="kw">let</span> (tag, val) = part
+                .<span class="fn">split_once</span>(<span class="st">'='</span>)
+                .<span class="fn">ok_or_else</span>(|| <span class="fn">format</span>!(<span class="st">"bad field: {}"</span>, part))?;
+            <span class="kw">let</span> tag: <span class="ty">u32</span> = tag.<span class="fn">parse</span>().<span class="fn">map_err</span>(|_| <span class="fn">format</span>!(<span class="st">"bad tag: {}"</span>, tag))?;
+            map.<span class="fn">insert</span>(tag, val.<span class="fn">to_string</span>());
+        }
+        <span class="kw">let</span> mt = map.<span class="fn">get</span>(&amp;<span class="nm">35</span>).<span class="fn">ok_or</span>(<span class="st">"missing 35"</span>)?;
+        <span class="kw">let</span> msg_type = <span class="kw">match</span> mt.<span class="fn">as_str</span>() {
+            <span class="st">"0"</span> =&gt; <span class="ty">MsgType</span>::<span class="ty">HeartBeat</span>,
+            <span class="st">"D"</span> =&gt; <span class="ty">MsgType</span>::<span class="ty">NewOrderSingle</span>,
+            other =&gt; <span class="kw">return</span> <span class="ty">Err</span>(<span class="fn">format</span>!(<span class="st">"unsupported MsgType {}"</span>, other)),
+        };
+        <span class="kw">let</span> seq: <span class="ty">u64</span> = map
+            .<span class="fn">get</span>(&amp;<span class="nm">34</span>)
+            .<span class="fn">ok_or</span>(<span class="st">"missing 34"</span>)?
+            .<span class="fn">parse</span>()
+            .<span class="fn">map_err</span>(|_| <span class="st">"bad 34"</span>)?;
+        <span class="kw">let</span> parse_i64 = |t: <span class="ty">u32</span>| -&gt; <span class="ty">Option</span>&lt;<span class="ty">i64</span>&gt; { map.<span class="fn">get</span>(&amp;t).<span class="fn">and_then</span>(|s| s.<span class="fn">parse</span>().<span class="fn">ok</span>()) };
+        <span class="ty">Ok</span>(<span class="ty">FixMessage</span> {
+            msg_type,
+            seq,
+            cl_ord_id: map.<span class="fn">get</span>(&amp;<span class="nm">11</span>).<span class="fn">cloned</span>(),
+            symbol: map.<span class="fn">get</span>(&amp;<span class="nm">55</span>).<span class="fn">cloned</span>(),
+            side: map.<span class="fn">get</span>(&amp;<span class="nm">54</span>).<span class="fn">and_then</span>(|s| s.<span class="fn">chars</span>().<span class="fn">next</span>()),
+            qty: <span class="fn">parse_i64</span>(<span class="nm">38</span>),
+            price: <span class="fn">parse_i64</span>(<span class="nm">44</span>),
+        })
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> hb = <span class="ty">FixMessage</span>::<span class="fn">heartbeat</span>(<span class="nm">7</span>);
+    <span class="kw">let</span> wire = hb.<span class="fn">serialize</span>();
+    <span class="fn">assert</span>!(wire.<span class="fn">contains</span>(<span class="st">"35=0"</span>));
+    <span class="fn">assert</span>!(wire.<span class="fn">contains</span>(<span class="st">"34=7"</span>));
+    <span class="fn">assert</span>!(wire.<span class="fn">starts_with</span>(<span class="st">"8=FIX.4.2"</span>));
+    <span class="kw">let</span> parsed = <span class="ty">FixMessage</span>::<span class="fn">parse</span>(&amp;wire).<span class="fn">unwrap</span>();
+    <span class="fn">assert_eq</span>!(parsed.msg_type, <span class="ty">MsgType</span>::<span class="ty">HeartBeat</span>);
+    <span class="fn">assert_eq</span>!(parsed.seq, <span class="nm">7</span>);
+
+    <span class="kw">let</span> nos = <span class="ty">FixMessage</span>::<span class="fn">new_order</span>(<span class="nm">8</span>, <span class="st">"OID-1"</span>, <span class="st">"AAPL"</span>, <span class="st">'1'</span>, <span class="nm">100</span>, <span class="nm">15_050</span>);
+    <span class="kw">let</span> wire2 = nos.<span class="fn">serialize</span>();
+    <span class="kw">let</span> p2 = <span class="ty">FixMessage</span>::<span class="fn">parse</span>(&amp;wire2).<span class="fn">unwrap</span>();
+    <span class="fn">assert_eq</span>!(p2.msg_type, <span class="ty">MsgType</span>::<span class="ty">NewOrderSingle</span>);
+    <span class="fn">assert_eq</span>!(p2.cl_ord_id.<span class="fn">as_deref</span>(), <span class="ty">Some</span>(<span class="st">"OID-1"</span>));
+    <span class="fn">assert_eq</span>!(p2.symbol.<span class="fn">as_deref</span>(), <span class="ty">Some</span>(<span class="st">"AAPL"</span>));
+    <span class="fn">assert_eq</span>!(p2.side, <span class="ty">Some</span>(<span class="st">'1'</span>));
+    <span class="fn">assert_eq</span>!(p2.qty, <span class="ty">Some</span>(<span class="nm">100</span>));
+    <span class="fn">assert_eq</span>!(p2.price, <span class="ty">Some</span>(<span class="nm">15_050</span>));
+
+    <span class="cm">// Round-trip identity on logical fields</span>
+    <span class="fn">assert_eq</span>!(<span class="ty">FixMessage</span>::<span class="fn">parse</span>(&amp;nos.<span class="fn">serialize</span>()).<span class="fn">unwrap</span>(), nos);
+
+    <span class="fn">println</span>!(<span class="st">"tr5 ok"</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Correct framing</strong> — SOH separators, MsgType/seq, checksum over the wire bytes excluding the checksum field.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Typed message model</strong> (enum MsgType + optional body fields) instead of stringly HashMap-only APIs at the edge.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Integer prices on the wire</strong> in this exercise — mentions real FIX decimal scale (tag 44 as string decimal) as a follow-up.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why is checksum easy to get wrong?"</em> — Must cover BeginString/BodyLength/body exactly; exclude <code>10=</code>; three-digit zero pad.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Session layer vs app layer?"</em> — Sequence gaps, Logon/Logout/ResendRequest are session; NOS is application. Heartbeats keep the TCP session honest.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Zero-copy parse?"</em> — Work on <code>&amp;[u8]</code>, avoid String per field on the hot path; arena or interned symbols for production.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    FIX interviews reward people who respect framing invariants (length, checksum, seq) and keep money as scaled integers at the domain boundary. Allocating a String per tag on a 100k msg/s session is a classic latency foot-gun.
+  </div>
+</div>
+
+<!-- ════════════ TR6 · TWAP Child Order Scheduler ════════════ -->
+<div class="section" id="tr6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Trading LLD · 25–30 min</div>
+      <div class="sh-title">TR6 · TWAP Child Order Scheduler</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">TWAP</span>
+      <span class="chip">scheduler</span>
+      <span class="chip">execution</span>
+      <span class="chip">clock-inject</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement a <strong>TWAP child-order scheduler</strong>.
+      Split <code>parent_qty</code> across <code>n_slices</code> over <code>[start_ms, end_ms)</code>.
+      Distribute remainder shares to the earliest slices so totals match exactly.
+      <code>poll(now_ms)</code> returns due children (inject the clock — no <code>Instant::now()</code> inside the lib)."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> { <span class="ty">Buy</span>, <span class="ty">Sell</span> }
+
+<span class="kw">struct</span> <span class="ty">ChildOrder</span> { slice_idx: <span class="ty">usize</span>, release_at_ms: <span class="ty">u64</span>, side: <span class="ty">Side</span>, qty: <span class="ty">i64</span> }
+
+<span class="kw">struct</span> <span class="ty">TwapScheduler</span> {
+    <span class="cm">// TODO: precomputed children + next_idx cursor</span>
+}
+
+<span class="kw">impl</span> <span class="ty">TwapScheduler</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(side: <span class="ty">Side</span>, parent_qty: <span class="ty">i64</span>, start_ms: <span class="ty">u64</span>, end_ms: <span class="ty">u64</span>, n_slices: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">poll</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now_ms: <span class="ty">u64</span>) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">ChildOrder</span>&gt; { <span class="fn">todo</span>!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: assert qty sum, release schedule, poll advances with injected clock</span>
+}
+</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">type</span> <span class="ty">Qty</span> = <span class="ty">i64</span>;
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> {
+    <span class="ty">Buy</span>,
+    <span class="ty">Sell</span>,
+}
+
+<span class="mc">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">ChildOrder</span> {
+    slice_idx: <span class="ty">usize</span>,
+    release_at_ms: <span class="ty">u64</span>,
+    side: <span class="ty">Side</span>,
+    qty: <span class="ty">Qty</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">TwapScheduler</span> {
+    side: <span class="ty">Side</span>,
+    parent_qty: <span class="ty">Qty</span>,
+    start_ms: <span class="ty">u64</span>,
+    end_ms: <span class="ty">u64</span>,
+    n_slices: <span class="ty">usize</span>,
+    children: <span class="ty">Vec</span>&lt;<span class="ty">ChildOrder</span>&gt;,
+    next_idx: <span class="ty">usize</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">TwapScheduler</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(side: <span class="ty">Side</span>, parent_qty: <span class="ty">Qty</span>, start_ms: <span class="ty">u64</span>, end_ms: <span class="ty">u64</span>, n_slices: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> {
+        <span class="fn">assert</span>!(parent_qty &gt; <span class="nm">0</span>);
+        <span class="fn">assert</span>!(n_slices &gt; <span class="nm">0</span>);
+        <span class="fn">assert</span>!(end_ms &gt; start_ms);
+        <span class="kw">let</span> base = parent_qty / n_slices <span class="kw">as</span> <span class="ty">Qty</span>;
+        <span class="kw">let</span> <span class="kw">mut</span> rem = parent_qty % n_slices <span class="kw">as</span> <span class="ty">Qty</span>;
+        <span class="kw">let</span> span = end_ms - start_ms;
+        <span class="kw">let</span> <span class="kw">mut</span> children = <span class="ty">Vec</span>::<span class="fn">with_capacity</span>(n_slices);
+        <span class="kw">for</span> i <span class="kw">in</span> <span class="nm">0..n_slices</span> {
+            <span class="kw">let</span> <span class="kw">mut</span> q = base;
+            <span class="kw">if</span> rem &gt; <span class="nm">0</span> {
+                q += <span class="nm">1</span>;
+                rem -= <span class="nm">1</span>;
+            }
+            <span class="cm">// Release at start of each slice; last slice still before end.</span>
+            <span class="kw">let</span> release_at_ms = start_ms + (span * i <span class="kw">as</span> <span class="ty">u64</span>) / n_slices <span class="kw">as</span> <span class="ty">u64</span>;
+            children.<span class="fn">push</span>(<span class="ty">ChildOrder</span> {
+                slice_idx: i,
+                release_at_ms,
+                side,
+                qty: q,
+            });
+        }
+        <span class="cm">// Remainder distributed to earliest slices → sum == parent</span>
+        <span class="fn">debug_assert_eq</span>!(children.<span class="fn">iter</span>().<span class="fn">map</span>(|c| c.qty).sum::&lt;<span class="ty">Qty</span>&gt;(), parent_qty);
+        <span class="kw">Self</span> {
+            side,
+            parent_qty,
+            start_ms,
+            end_ms,
+            n_slices,
+            children,
+            next_idx: <span class="nm">0</span>,
+        }
+    }
+
+    <span class="cm">/// Poll due children at `now_ms` (inject clock — no Instant::now in lib).</span>
+    <span class="kw">fn</span> <span class="fn">poll</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, now_ms: <span class="ty">u64</span>) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">ChildOrder</span>&gt; {
+        <span class="kw">let</span> <span class="kw">mut</span> due = <span class="ty">Vec</span>::<span class="fn">new</span>();
+        <span class="kw">while</span> <span class="kw">self</span>.next_idx &lt; <span class="kw">self</span>.children.<span class="fn">len</span>() {
+            <span class="kw">if</span> <span class="kw">self</span>.children[<span class="kw">self</span>.next_idx].release_at_ms &lt;= now_ms {
+                due.<span class="fn">push</span>(<span class="kw">self</span>.children[<span class="kw">self</span>.next_idx].<span class="fn">clone</span>());
+                <span class="kw">self</span>.next_idx += <span class="nm">1</span>;
+            } <span class="kw">else</span> {
+                <span class="kw">break</span>;
+            }
+        }
+        due
+    }
+
+    <span class="kw">fn</span> <span class="fn">remaining_parent_qty</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Qty</span> {
+        <span class="kw">self</span>.children[<span class="kw">self</span>.next_idx..]
+            .<span class="fn">iter</span>()
+            .<span class="fn">map</span>(|c| c.qty)
+            .<span class="fn">sum</span>()
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> twap = <span class="ty">TwapScheduler</span>::<span class="fn">new</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="nm">100</span>, <span class="nm">1_000</span>, <span class="nm">5_000</span>, <span class="nm">4</span>);
+    <span class="cm">// slices of 25 each; releases at 1000, 2000, 3000, 4000</span>
+    <span class="fn">assert_eq</span>!(twap.children.<span class="fn">len</span>(), <span class="nm">4</span>);
+    <span class="fn">assert_eq</span>!(twap.children.<span class="fn">iter</span>().<span class="fn">map</span>(|c| c.qty).sum::&lt;<span class="ty">Qty</span>&gt;(), <span class="nm">100</span>);
+    <span class="fn">assert_eq</span>!(twap.children[<span class="nm">0</span>].release_at_ms, <span class="nm">1_000</span>);
+    <span class="fn">assert_eq</span>!(twap.children[<span class="nm">1</span>].release_at_ms, <span class="nm">2_000</span>);
+    <span class="fn">assert_eq</span>!(twap.children[<span class="nm">2</span>].release_at_ms, <span class="nm">3_000</span>);
+    <span class="fn">assert_eq</span>!(twap.children[<span class="nm">3</span>].release_at_ms, <span class="nm">4_000</span>);
+
+    <span class="fn">assert</span>!(twap.<span class="fn">poll</span>(<span class="nm">999</span>).<span class="fn">is_empty</span>());
+    <span class="kw">let</span> d0 = twap.<span class="fn">poll</span>(<span class="nm">1_000</span>);
+    <span class="fn">assert_eq</span>!(d0.<span class="fn">len</span>(), <span class="nm">1</span>);
+    <span class="fn">assert_eq</span>!(d0[<span class="nm">0</span>].qty, <span class="nm">25</span>);
+
+    <span class="kw">let</span> d1 = twap.<span class="fn">poll</span>(<span class="nm">3_500</span>); <span class="cm">// two more due</span>
+    <span class="fn">assert_eq</span>!(d1.<span class="fn">len</span>(), <span class="nm">2</span>);
+    <span class="fn">assert_eq</span>!(d1[<span class="nm">0</span>].slice_idx, <span class="nm">1</span>);
+    <span class="fn">assert_eq</span>!(d1[<span class="nm">1</span>].slice_idx, <span class="nm">2</span>);
+
+    <span class="fn">assert_eq</span>!(twap.<span class="fn">remaining_parent_qty</span>(), <span class="nm">25</span>);
+    <span class="kw">let</span> d2 = twap.<span class="fn">poll</span>(<span class="nm">4_000</span>);
+    <span class="fn">assert_eq</span>!(d2.<span class="fn">len</span>(), <span class="nm">1</span>);
+    <span class="fn">assert_eq</span>!(twap.<span class="fn">remaining_parent_qty</span>(), <span class="nm">0</span>);
+    <span class="fn">assert</span>!(twap.<span class="fn">poll</span>(<span class="nm">9_999</span>).<span class="fn">is_empty</span>());
+
+    <span class="cm">// Uneven remainder: 10 / 3 → 4, 3, 3</span>
+    <span class="kw">let</span> t2 = <span class="ty">TwapScheduler</span>::<span class="fn">new</span>(<span class="ty">Side</span>::<span class="ty">Sell</span>, <span class="nm">10</span>, <span class="nm">0</span>, <span class="nm">30</span>, <span class="nm">3</span>);
+    <span class="fn">assert_eq</span>!(
+        t2.children.<span class="fn">iter</span>().<span class="fn">map</span>(|c| c.qty).collect::&lt;<span class="ty">Vec</span>&lt;_&gt;&gt;(),
+        <span class="fn">vec</span>![<span class="nm">4</span>, <span class="nm">3</span>, <span class="nm">3</span>]
+    );
+    <span class="kw">let</span> _ = (twap.side, twap.parent_qty, twap.start_ms, twap.end_ms, twap.n_slices);
+
+    <span class="fn">println</span>!(<span class="st">"tr6 ok"</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Injected clock + exact qty conservation</strong> — sum(children) == parent; remainder policy is explicit.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Monotonic poll cursor</strong> — each child released once; no rescans allocating every tick.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Release schedule is deterministic</strong> and assertable without sleeps.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"TWAP vs VWAP?"</em> — TWAP splits by time; VWAP weights by historical/expected volume curve. Same scheduler skeleton, different slice sizes.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"What if a child is rejected/partial?"</em> — Carry leftover into later slices or a cleanup burst; define policy so parent qty is eventually worked.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Why not spawn timers per slice?"</em> — One wheel / poll loop keeps ordering testable and avoids timer-thread storms.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Execution algos are mostly careful arithmetic and clock discipline. Seniors precompute slices, keep the hot path allocation-free, and treat time as an injected dependency so the strategy is unit-testable at 2am before a release.
+  </div>
+</div>
+
+<!-- ════════════ TR7 · Position &amp; Realized/Unrealized PnL ════════════ -->
+<div class="section" id="tr7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Trading LLD · 30–35 min</div>
+      <div class="sh-title">TR7 · Position &amp; Realized/Unrealized PnL</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">PnL</span>
+      <span class="chip">position</span>
+      <span class="chip">VWAP-avg</span>
+      <span class="chip">integer-money</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Track <strong>position, average price, realized PnL, and mark-to-market unrealized PnL</strong> with integer ticks only.
+      Handle open, scale-in (quantity-weighted average), partial close (realize vs avg), and <strong>flip</strong> (close then open remainder at fill px).
+      <code>total_pnl(mark) = realized + unrealized(mark)</code>."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> { <span class="ty">Buy</span>, <span class="ty">Sell</span> }
+
+<span class="kw">struct</span> <span class="ty">PositionTracker</span> {
+    qty: <span class="ty">i64</span>,
+    avg_px: <span class="ty">i64</span>,
+    realized: <span class="ty">i64</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">PositionTracker</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">on_fill</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, side: <span class="ty">Side</span>, fill_qty: <span class="ty">i64</span>, fill_px: <span class="ty">i64</span>) { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">unrealized</span>(&amp;<span class="kw">self</span>, mark: <span class="ty">i64</span>) -&gt; <span class="ty">i64</span> { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">total_pnl</span>(&amp;<span class="kw">self</span>, mark: <span class="ty">i64</span>) -&gt; <span class="ty">i64</span> { <span class="fn">todo</span>!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: open, scale-in (VWAP avg), partial close (realize), flip short, cover</span>
+}
+</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">type</span> <span class="ty">Qty</span> = <span class="ty">i64</span>;
+<span class="kw">type</span> <span class="ty">Price</span> = <span class="ty">i64</span>; <span class="cm">// ticks</span>
+<span class="kw">type</span> <span class="ty">Money</span> = <span class="ty">i64</span>; <span class="cm">// tick * qty (PnL in tick-shares)</span>
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">Side</span> {
+    <span class="ty">Buy</span>,
+    <span class="ty">Sell</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">PositionTracker</span> {
+    qty: <span class="ty">Qty</span>,
+    <span class="cm">/// Average entry price in ticks for the open position (valid when qty != 0).</span>
+    avg_px: <span class="ty">Price</span>,
+    realized: <span class="ty">Money</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">PositionTracker</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="kw">Self</span> {
+            qty: <span class="nm">0</span>,
+            avg_px: <span class="nm">0</span>,
+            realized: <span class="nm">0</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">on_fill</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, side: <span class="ty">Side</span>, fill_qty: <span class="ty">Qty</span>, fill_px: <span class="ty">Price</span>) {
+        <span class="fn">assert</span>!(fill_qty &gt; <span class="nm">0</span>);
+        <span class="kw">let</span> signed = <span class="kw">match</span> side {
+            <span class="ty">Side</span>::<span class="ty">Buy</span> =&gt; fill_qty,
+            <span class="ty">Side</span>::<span class="ty">Sell</span> =&gt; -fill_qty,
+        };
+
+        <span class="kw">if</span> <span class="kw">self</span>.qty == <span class="nm">0</span> || <span class="kw">self</span>.qty.<span class="fn">signum</span>() == signed.<span class="fn">signum</span>() {
+            <span class="cm">// Increasing / opening same direction — VWAP average</span>
+            <span class="kw">let</span> new_qty = <span class="kw">self</span>.qty + signed;
+            <span class="kw">let</span> abs_old = <span class="kw">self</span>.qty.<span class="fn">abs</span>();
+            <span class="kw">let</span> abs_new = new_qty.<span class="fn">abs</span>();
+            <span class="kw">let</span> abs_fill = fill_qty;
+            <span class="kw">self</span>.avg_px = <span class="kw">if</span> abs_new == <span class="nm">0</span> {
+                <span class="nm">0</span>
+            } <span class="kw">else</span> {
+                (<span class="kw">self</span>.avg_px * abs_old + fill_px * abs_fill) / abs_new
+            };
+            <span class="kw">self</span>.qty = new_qty;
+            <span class="kw">return</span>;
+        }
+
+        <span class="cm">// Reducing / flipping</span>
+        <span class="kw">let</span> closing = fill_qty.<span class="fn">min</span>(<span class="kw">self</span>.qty.<span class="fn">abs</span>());
+        <span class="kw">let</span> direction = <span class="kw">self</span>.qty.<span class="fn">signum</span>(); <span class="cm">// +1 long, -1 short</span>
+        <span class="cm">// Realized: long closes on sell → (sell_px - avg) * qty; short closes on buy → (avg - buy_px) * qty</span>
+        <span class="kw">let</span> pnl_per = <span class="kw">if</span> direction &gt; <span class="nm">0</span> {
+            fill_px - <span class="kw">self</span>.avg_px
+        } <span class="kw">else</span> {
+            <span class="kw">self</span>.avg_px - fill_px
+        };
+        <span class="kw">self</span>.realized += pnl_per * closing;
+
+        <span class="kw">let</span> new_qty = <span class="kw">self</span>.qty + signed;
+        <span class="kw">if</span> new_qty == <span class="nm">0</span> {
+            <span class="kw">self</span>.qty = <span class="nm">0</span>;
+            <span class="kw">self</span>.avg_px = <span class="nm">0</span>;
+        } <span class="kw">else</span> <span class="kw">if</span> new_qty.<span class="fn">signum</span>() == direction {
+            <span class="cm">// Partial reduce — avg unchanged</span>
+            <span class="kw">self</span>.qty = new_qty;
+        } <span class="kw">else</span> {
+            <span class="cm">// Flip: remainder opens at fill_px</span>
+            <span class="kw">self</span>.qty = new_qty;
+            <span class="kw">self</span>.avg_px = fill_px;
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">unrealized</span>(&amp;<span class="kw">self</span>, mark: <span class="ty">Price</span>) -&gt; <span class="ty">Money</span> {
+        <span class="kw">if</span> <span class="kw">self</span>.qty == <span class="nm">0</span> {
+            <span class="kw">return</span> <span class="nm">0</span>;
+        }
+        <span class="kw">if</span> <span class="kw">self</span>.qty &gt; <span class="nm">0</span> {
+            (mark - <span class="kw">self</span>.avg_px) * <span class="kw">self</span>.qty
+        } <span class="kw">else</span> {
+            (<span class="kw">self</span>.avg_px - mark) * (-<span class="kw">self</span>.qty)
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">total_pnl</span>(&amp;<span class="kw">self</span>, mark: <span class="ty">Price</span>) -&gt; <span class="ty">Money</span> {
+        <span class="kw">self</span>.realized + <span class="kw">self</span>.<span class="fn">unrealized</span>(mark)
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> p = <span class="ty">PositionTracker</span>::<span class="fn">new</span>();
+
+    <span class="cm">// Buy 10 @ 100</span>
+    p.<span class="fn">on_fill</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="nm">10</span>, <span class="nm">100</span>);
+    <span class="fn">assert_eq</span>!(p.qty, <span class="nm">10</span>);
+    <span class="fn">assert_eq</span>!(p.avg_px, <span class="nm">100</span>);
+    <span class="fn">assert_eq</span>!(p.<span class="fn">unrealized</span>(<span class="nm">110</span>), <span class="nm">100</span>); <span class="cm">// 10 * 10</span>
+    <span class="fn">assert_eq</span>!(p.realized, <span class="nm">0</span>);
+
+    <span class="cm">// Buy 10 @ 120 → avg 110</span>
+    p.<span class="fn">on_fill</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="nm">10</span>, <span class="nm">120</span>);
+    <span class="fn">assert_eq</span>!(p.qty, <span class="nm">20</span>);
+    <span class="fn">assert_eq</span>!(p.avg_px, <span class="nm">110</span>);
+
+    <span class="cm">// Sell 5 @ 130 → realize (130-110)*5 = 100</span>
+    p.<span class="fn">on_fill</span>(<span class="ty">Side</span>::<span class="ty">Sell</span>, <span class="nm">5</span>, <span class="nm">130</span>);
+    <span class="fn">assert_eq</span>!(p.qty, <span class="nm">15</span>);
+    <span class="fn">assert_eq</span>!(p.avg_px, <span class="nm">110</span>);
+    <span class="fn">assert_eq</span>!(p.realized, <span class="nm">100</span>);
+    <span class="fn">assert_eq</span>!(p.<span class="fn">unrealized</span>(<span class="nm">110</span>), <span class="nm">0</span>);
+    <span class="fn">assert_eq</span>!(p.<span class="fn">total_pnl</span>(<span class="nm">110</span>), <span class="nm">100</span>);
+
+    <span class="cm">// Sell 20 @ 100 — close 15 realizing (100-110)*15 = -150, flip short 5 @ 100</span>
+    p.<span class="fn">on_fill</span>(<span class="ty">Side</span>::<span class="ty">Sell</span>, <span class="nm">20</span>, <span class="nm">100</span>);
+    <span class="fn">assert_eq</span>!(p.qty, <span class="nm">-5</span>);
+    <span class="fn">assert_eq</span>!(p.avg_px, <span class="nm">100</span>);
+    <span class="fn">assert_eq</span>!(p.realized, <span class="nm">100</span> - <span class="nm">150</span>); <span class="cm">// -50</span>
+    <span class="cm">// Short 5 @ avg 100, mark 90 → unrealized +50</span>
+    <span class="fn">assert_eq</span>!(p.<span class="fn">unrealized</span>(<span class="nm">90</span>), <span class="nm">50</span>);
+    <span class="fn">assert_eq</span>!(p.<span class="fn">total_pnl</span>(<span class="nm">90</span>), <span class="nm">0</span>);
+
+    <span class="cm">// Cover short</span>
+    p.<span class="fn">on_fill</span>(<span class="ty">Side</span>::<span class="ty">Buy</span>, <span class="nm">5</span>, <span class="nm">90</span>);
+    <span class="fn">assert_eq</span>!(p.qty, <span class="nm">0</span>);
+    <span class="fn">assert_eq</span>!(p.realized, <span class="nm">-50</span> + <span class="nm">50</span>); <span class="cm">// 0</span>
+    <span class="fn">assert_eq</span>!(p.<span class="fn">unrealized</span>(<span class="nm">999</span>), <span class="nm">0</span>);
+
+    <span class="fn">println</span>!(<span class="st">"tr7 ok"</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Correct average + realize on reduce + flip path</strong> — the three cases most candidates botch under time pressure.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>No floats</strong> — Money/Price/Qty as i64; can discuss scaling (e.g. 1e8) for subtick.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Unrealized is a pure function of mark</strong> — mark changes do not mutate realized.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Average cost vs FIFO lots?"</em> — Avg is simple and common for risk; FIFO/LIFO lots matter for tax and some P&amp;L explain. Know both.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Integer division on avg?"</em> — Truncation bias; keep cost basis in money units (<code>qty*px</code> sum) and divide carefully, or use wider ints.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Multi-currency / fees?"</em> — Fees hit realized; FX needs a separate conversion mark. Keep the core ledger pure.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    PnL trackers expose whether someone has booked trades before. Fixed-point math, explicit flip handling, and keeping marks out of the ledger are the senior tells — floats and silent position resets are not.
+  </div>
+</div>
+
+<!-- ════════════ TR8 · SPSC Market-Data Ring Path ════════════ -->
+<div class="section" id="tr8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-atomic)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-atomic)">// Trading LLD · 35–45 min</div>
+      <div class="sh-title">TR8 · SPSC Market-Data Ring Path</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">SPSC</span>
+      <span class="chip">atomics</span>
+      <span class="chip">ring-buffer</span>
+      <span class="chip">lock-free</span>
+      <span class="chip chip-med">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-atomic)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement a fixed-capacity <strong>SPSC ring buffer</strong> for market-data ticks.
+      Power-of-two capacity, <code>AtomicUsize</code> head/tail, <code>push</code> returns <code>Err(item)</code> when full,
+      <code>pop</code> returns <code>None</code> when empty. Prove single-thread wraparound, then run a producer/consumer pair that moves N ticks in order with correct seq."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::sync::atomic::{<span class="ty">AtomicUsize</span>, <span class="ty">Ordering</span>};
+
+<span class="kw">struct</span> <span class="ty">Tick</span> { seq: <span class="ty">u64</span>, bid: <span class="ty">i64</span>, ask: <span class="ty">i64</span> }
+
+<span class="kw">struct</span> <span class="ty">SpscRing</span>&lt;<span class="ty">T</span>&gt; {
+    <span class="cm">// TODO: fixed power-of-two buffer + AtomicUsize head/tail</span>
+}
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; <span class="ty">SpscRing</span>&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">with_capacity</span>(capacity: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> { <span class="fn">todo</span>!(<span class="st">"capacity must be power of two"</span>) }
+    <span class="kw">fn</span> <span class="fn">push</span>(&amp;<span class="kw">self</span>, item: <span class="ty">T</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">T</span>&gt; { <span class="fn">todo</span>!() }
+    <span class="kw">fn</span> <span class="fn">pop</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">T</span>&gt; { <span class="fn">todo</span>!() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// TODO: single-thread fill/empty/full; then producer/consumer threads drain N ticks in order</span>
+}
+</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::cell::<span class="ty">UnsafeCell</span>;
+<span class="kw">use</span> std::sync::atomic::{<span class="ty">AtomicUsize</span>, <span class="ty">Ordering</span>};
+<span class="kw">use</span> std::sync::<span class="ty">Arc</span>;
+<span class="kw">use</span> std::thread;
+
+<span class="mc">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">struct</span> <span class="ty">Tick</span> {
+    seq: <span class="ty">u64</span>,
+    bid: <span class="ty">i64</span>,
+    ask: <span class="ty">i64</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">SpscRing</span>&lt;<span class="ty">T</span>&gt; {
+    buf: <span class="ty">Box</span>&lt;[<span class="ty">UnsafeCell</span>&lt;<span class="ty">Option</span>&lt;<span class="ty">T</span>&gt;&gt;]&gt;,
+    capacity: <span class="ty">usize</span>,
+    <span class="cm">/// Next write index (producer).</span>
+    head: <span class="ty">AtomicUsize</span>,
+    <span class="cm">/// Next read index (consumer).</span>
+    tail: <span class="ty">AtomicUsize</span>,
+}
+
+<span class="kw">unsafe</span> <span class="kw">impl</span>&lt;<span class="ty">T</span>: <span class="ty">Send</span>&gt; <span class="ty">Send</span> <span class="kw">for</span> <span class="ty">SpscRing</span>&lt;<span class="ty">T</span>&gt; {}
+<span class="kw">unsafe</span> <span class="kw">impl</span>&lt;<span class="ty">T</span>: <span class="ty">Send</span>&gt; <span class="ty">Sync</span> <span class="kw">for</span> <span class="ty">SpscRing</span>&lt;<span class="ty">T</span>&gt; {}
+
+<span class="kw">impl</span>&lt;<span class="ty">T</span>&gt; <span class="ty">SpscRing</span>&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">with_capacity</span>(capacity: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> {
+        <span class="fn">assert</span>!(capacity.<span class="fn">is_power_of_two</span>());
+        <span class="kw">let</span> <span class="kw">mut</span> v = <span class="ty">Vec</span>::<span class="fn">with_capacity</span>(capacity);
+        <span class="kw">for</span> _ <span class="kw">in</span> <span class="nm">0..capacity</span> {
+            v.<span class="fn">push</span>(<span class="ty">UnsafeCell</span>::<span class="fn">new</span>(<span class="ty">None</span>));
+        }
+        <span class="kw">Self</span> {
+            buf: v.<span class="fn">into_boxed_slice</span>(),
+            capacity,
+            head: <span class="ty">AtomicUsize</span>::<span class="fn">new</span>(<span class="nm">0</span>),
+            tail: <span class="ty">AtomicUsize</span>::<span class="fn">new</span>(<span class="nm">0</span>),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">push</span>(&amp;<span class="kw">self</span>, item: <span class="ty">T</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">T</span>&gt; {
+        <span class="kw">let</span> head = <span class="kw">self</span>.head.<span class="fn">load</span>(<span class="ty">Ordering</span>::<span class="ty">Relaxed</span>);
+        <span class="kw">let</span> tail = <span class="kw">self</span>.tail.<span class="fn">load</span>(<span class="ty">Ordering</span>::<span class="ty">Acquire</span>);
+        <span class="kw">if</span> head.<span class="fn">wrapping_sub</span>(tail) == <span class="kw">self</span>.capacity {
+            <span class="kw">return</span> <span class="ty">Err</span>(item); <span class="cm">// full</span>
+        }
+        <span class="kw">let</span> idx = head &amp; (<span class="kw">self</span>.capacity - <span class="nm">1</span>);
+        <span class="kw">unsafe</span> {
+            *<span class="kw">self</span>.buf[idx].<span class="fn">get</span>() = <span class="ty">Some</span>(item);
+        }
+        <span class="kw">self</span>.head.<span class="fn">store</span>(head.<span class="fn">wrapping_add</span>(<span class="nm">1</span>), <span class="ty">Ordering</span>::<span class="ty">Release</span>);
+        <span class="ty">Ok</span>(())
+    }
+
+    <span class="kw">fn</span> <span class="fn">pop</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">T</span>&gt; {
+        <span class="kw">let</span> tail = <span class="kw">self</span>.tail.<span class="fn">load</span>(<span class="ty">Ordering</span>::<span class="ty">Relaxed</span>);
+        <span class="kw">let</span> head = <span class="kw">self</span>.head.<span class="fn">load</span>(<span class="ty">Ordering</span>::<span class="ty">Acquire</span>);
+        <span class="kw">if</span> tail == head {
+            <span class="kw">return</span> <span class="ty">None</span>; <span class="cm">// empty</span>
+        }
+        <span class="kw">let</span> idx = tail &amp; (<span class="kw">self</span>.capacity - <span class="nm">1</span>);
+        <span class="kw">let</span> item = <span class="kw">unsafe</span> { (*<span class="kw">self</span>.buf[idx].<span class="fn">get</span>()).<span class="fn">take</span>() };
+        <span class="kw">self</span>.tail.<span class="fn">store</span>(tail.<span class="fn">wrapping_add</span>(<span class="nm">1</span>), <span class="ty">Ordering</span>::<span class="ty">Release</span>);
+        item
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// Single-thread correctness</span>
+    <span class="kw">let</span> ring = <span class="ty">SpscRing</span>::<span class="fn">with_capacity</span>(<span class="nm">4</span>);
+    <span class="fn">assert</span>!(ring.<span class="fn">pop</span>().<span class="fn">is_none</span>());
+    <span class="fn">assert</span>!(ring
+        .<span class="fn">push</span>(<span class="ty">Tick</span> {
+            seq: <span class="nm">1</span>,
+            bid: <span class="nm">100</span>,
+            ask: <span class="nm">101</span>
+        })
+        .<span class="fn">is_ok</span>());
+    <span class="fn">assert</span>!(ring
+        .<span class="fn">push</span>(<span class="ty">Tick</span> {
+            seq: <span class="nm">2</span>,
+            bid: <span class="nm">100</span>,
+            ask: <span class="nm">102</span>
+        })
+        .<span class="fn">is_ok</span>());
+    <span class="fn">assert_eq</span>!(
+        ring.<span class="fn">pop</span>(),
+        <span class="ty">Some</span>(<span class="ty">Tick</span> {
+            seq: <span class="nm">1</span>,
+            bid: <span class="nm">100</span>,
+            ask: <span class="nm">101</span>
+        })
+    );
+    <span class="fn">assert_eq</span>!(ring.<span class="fn">pop</span>().<span class="fn">map</span>(|t| t.seq), <span class="ty">Some</span>(<span class="nm">2</span>));
+    <span class="fn">assert</span>!(ring.<span class="fn">pop</span>().<span class="fn">is_none</span>());
+
+    <span class="cm">// Fill to capacity</span>
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nm">0..4</span> {
+        <span class="fn">assert</span>!(ring
+            .<span class="fn">push</span>(<span class="ty">Tick</span> {
+                seq: <span class="nm">10</span> + i,
+                bid: <span class="nm">1</span>,
+                ask: <span class="nm">2</span>
+            })
+            .<span class="fn">is_ok</span>());
+    }
+    <span class="fn">assert</span>!(ring
+        .<span class="fn">push</span>(<span class="ty">Tick</span> {
+            seq: <span class="nm">99</span>,
+            bid: <span class="nm">0</span>,
+            ask: <span class="nm">0</span>
+        })
+        .<span class="fn">is_err</span>());
+    <span class="fn">assert_eq</span>!(ring.<span class="fn">pop</span>().<span class="fn">map</span>(|t| t.seq), <span class="ty">Some</span>(<span class="nm">10</span>));
+    <span class="fn">assert</span>!(ring
+        .<span class="fn">push</span>(<span class="ty">Tick</span> {
+            seq: <span class="nm">14</span>,
+            bid: <span class="nm">1</span>,
+            ask: <span class="nm">2</span>
+        })
+        .<span class="fn">is_ok</span>());
+
+    <span class="cm">// Cross-thread SPSC</span>
+    <span class="kw">let</span> shared = <span class="ty">Arc</span>::<span class="fn">new</span>(<span class="ty">SpscRing</span>::<span class="fn">with_capacity</span>(<span class="nm">1024</span>));
+    <span class="kw">let</span> prod = <span class="ty">Arc</span>::<span class="fn">clone</span>(&amp;shared);
+    <span class="kw">let</span> cons = <span class="ty">Arc</span>::<span class="fn">clone</span>(&amp;shared);
+    <span class="kw">let</span> n = <span class="nm">50_000u64</span>;
+    <span class="kw">let</span> h = thread::<span class="fn">spawn</span>(<span class="kw">move</span> || {
+        <span class="kw">for</span> i <span class="kw">in</span> <span class="nm">0..n</span> {
+            <span class="kw">let</span> tick = <span class="ty">Tick</span> {
+                seq: i,
+                bid: i <span class="kw">as</span> <span class="ty">i64</span>,
+                ask: i <span class="kw">as</span> <span class="ty">i64</span> + <span class="nm">1</span>,
+            };
+            <span class="kw">while</span> prod.<span class="fn">push</span>(tick).<span class="fn">is_err</span>() {
+                std::hint::<span class="fn">spin_loop</span>();
+            }
+        }
+    });
+    <span class="kw">let</span> <span class="kw">mut</span> got = <span class="nm">0u64</span>;
+    <span class="kw">let</span> <span class="kw">mut</span> last = <span class="ty">None</span>;
+    <span class="kw">while</span> got &lt; n {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(t) = cons.<span class="fn">pop</span>() {
+            <span class="fn">assert_eq</span>!(t.seq, got);
+            last = <span class="ty">Some</span>(t);
+            got += <span class="nm">1</span>;
+        } <span class="kw">else</span> {
+            std::hint::<span class="fn">spin_loop</span>();
+        }
+    }
+    h.<span class="fn">join</span>().<span class="fn">unwrap</span>();
+    <span class="fn">assert_eq</span>!(
+        last,
+        <span class="ty">Some</span>(<span class="ty">Tick</span> {
+            seq: n - <span class="nm">1</span>,
+            bid: (n - <span class="nm">1</span>) <span class="kw">as</span> <span class="ty">i64</span>,
+            ask: n <span class="kw">as</span> <span class="ty">i64</span>
+        })
+    );
+
+    <span class="fn">println</span>!(<span class="st">"tr8 ok"</span>);
+}
+</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Correct Acquire/Release pairing</strong> on head/tail so the payload write happens-before the index publish.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Power-of-two mask indexing</strong> and full/empty via <code>head - tail == cap</code> / equality — no locks on the happy path.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>UnsafeCell + Send/Sync rationale</strong> articulated — single producer / single consumer is what makes races impossible by construction.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why SPSC not MPSC here?"</em> — One matching/publisher thread → one consumer ( nic / encoder ) is the common MD path; MPSC needs claim slots or a mutex.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"What Ordering is required?"</em> — Release on publish of index, Acquire on load of the opposite index; Relaxed on the local-owned cursor load.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Cache-line padding?"</em> — False sharing on adjacent head/tail atomics; pad to 64B in production rings (crossbeam, custom hot path).</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    This is the latency interview: ownership discipline (SPSC), memory ordering, and no allocation on push/pop. If they reach for <code>Mutex&lt;VecDeque&gt;</code>, ask them what it costs under a burst — then let them rebuild it with atomics.
+  </div>
+</div>

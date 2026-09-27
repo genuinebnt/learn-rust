@@ -1,0 +1,31 @@
+slug = "sort-colors"
+title = "Sort colors"
+mode = "write"
+level = "medium"
+stage = "sorting-order"
+order = 17
+status = "ready"
+tags = ["Dutch flag", "swap"]
+teaches = [
+  "Three-way partitioning in one pass with `swap`.",
+  "Why `mid` doesn't advance after swapping with `high`.",
+]
+follow_up = "How does this partition relate to quicksort with many equal keys?"
+related = ["S3"]
+
+[[examples]]
+input = "nums = [2, 0, 2, 1, 1, 0]"
+output = "[0, 0, 1, 1, 2, 2]"
+
+[[hints]]
+kind = "approach"
+text = "Keep three regions: 0s at the front, 2s at the back, 1s in the middle."
+
+[[hints]]
+kind = "edge case"
+text = "After swapping with the back, the value you swapped in hasn't been looked at yet."
+
+[solution]
+explanation = "An exclusive `high` bound avoids underflow on empty input. Counting and rewriting is two passes; this is one."
+time = "O(n)"
+space = "O(1)"

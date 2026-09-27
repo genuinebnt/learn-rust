@@ -1,0 +1,27 @@
+slug = "option-take-batcher"
+title = "A batcher with Option::take"
+mode = "write"
+level = "hard"
+stage = "partial-moves-and-mem"
+order = 17
+status = "ready"
+tags = ["Option::take", "get_or_insert_with"]
+teaches = [
+  "`Option::take` moves the value out and leaves `None`.",
+  "`get_or_insert_with` creates the value lazily.",
+]
+follow_up = "How would you add a time-based flush, and what would it need from the caller?"
+related = ["S1", "C2"]
+
+[[hints]]
+kind = "rust"
+text = "`get_or_insert_with` gives you `&mut Vec<u32>`, creating it on first use."
+
+[[hints]]
+kind = "rust"
+text = "When the batch is full, `take()` hands it back and resets `current` to `None`."
+
+[solution]
+explanation = "`self.size` is read inside the closure while `self.current` is borrowed mutably; that works because the closure borrows a different field (disjoint captures in edition 2021)."
+time = "O(1) amortised"
+space = "O(size)"

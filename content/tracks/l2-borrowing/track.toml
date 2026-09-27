@@ -1,0 +1,36 @@
+code = "L2"
+name = "Borrowing"
+section = "L"
+tier = "core"
+order = 2
+summary = "Aliasing XOR mutation: reason about what each borrow covers and how long it lives, instead of fighting the compiler."
+
+[[stages]]
+slug = "shared-vs-unique"
+name = "Shared vs unique"
+band = "easy"
+
+[[stages]]
+slug = "where-borrows-end"
+name = "Where borrows end"
+band = "easy"
+
+[[stages]]
+slug = "reborrows"
+name = "Reborrows"
+band = "medium"
+
+[[stages]]
+slug = "iterator-invalidation"
+name = "Iterator invalidation"
+band = "medium"
+
+[[stages]]
+slug = "split-borrows"
+name = "Split borrows"
+band = "medium"
+
+[[stages]]
+slug = "borrow-checker-limits"
+name = "Borrow-checker limits"
+band = "hard"

@@ -1,0 +1,22 @@
+slug = "end-borrow-before-mutating"
+title = "End the borrow before you mutate"
+mode = "write"
+level = "easy"
+stage = "where-borrows-end"
+order = 8
+status = "ready"
+tags = ["NLL", "format!"]
+teaches = [
+  "Produce an owned value inside the borrow, mutate after it.",
+]
+follow_up = "Why does `words.push(format!(\"{}!\", words[0]))` compile?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "`format!` makes an owned `String` while `longest` is borrowed; after that, nothing borrows `words`."
+
+[solution]
+explanation = "The shared borrow from `max_by_key` ends once `format!` returns, so `push` is allowed on the next line."
+time = "O(n)"
+space = "O(len)"

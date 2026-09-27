@@ -1,0 +1,35 @@
+slug = "graph-valid-tree"
+title = "Graph valid tree"
+mode = "write"
+level = "medium"
+stage = "union-find-mst"
+order = 23
+status = "ready"
+tags = ["union-find", "Blind 75"]
+teaches = [
+  "A tree is connected with exactly n − 1 edges.",
+  "Early return on the first cycle.",
+]
+constraints = ["1 ≤ n ≤ 2000"]
+follow_up = "Solve it with BFS instead. What does each approach need to remember?"
+
+[[examples]]
+input = "n = 5, edges = [(0,1), (0,2), (0,3), (1,4)]"
+output = "true"
+
+[[examples]]
+input = "n = 5, edges = [(0,1), (1,2), (2,3), (1,3), (1,4)]"
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "A tree on n nodes has exactly n − 1 edges. With that many edges, no cycle implies connected."
+
+[[hints]]
+kind = "edge case"
+text = "A repeated edge is a cycle of length 2."
+
+[solution]
+explanation = "Checking the edge count first means only cycles need detecting: n − 1 acyclic edges always connect n nodes."
+time = "O(n α(n))"
+space = "O(n)"

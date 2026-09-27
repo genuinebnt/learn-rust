@@ -1,0 +1,31 @@
+slug = "fix-thread-spawn-static"
+title = "Fix: thread::spawn needs 'static"
+mode = "fix"
+level = "medium"
+stage = "static-bounds"
+order = 15
+status = "ready"
+tags = ["E0521", "thread::scope"]
+teaches = [
+  "Why `thread::spawn` needs `'static`.",
+  "`thread::scope` for borrowing across threads.",
+]
+follow_up = "When would you still choose `thread::spawn` with `Arc` over scoped threads?"
+related = ["L3", "C1"]
+
+[[hints]]
+kind = "rust"
+text = "`thread::spawn` requires `F: 'static`: the thread might outlive this function, and `data` with it."
+
+[[hints]]
+kind = "rust"
+text = "`thread::scope` guarantees every thread spawned in it is joined before it returns, so the closures may borrow `data`."
+
+[solution]
+explanation = "Scoped threads prove to the compiler that the borrow outlives the threads. The usual alternatives, `Arc<Vec<_>>` or `to_vec`, copy or reshape the data."
+time = "O(n / threads) wall time"
+space = "O(threads)"
+
+[rules]
+forbid_methods = ["to_vec", "to_owned", "clone", "leak", "into_boxed_slice"]
+forbid_types = ["Arc", "Rc"]

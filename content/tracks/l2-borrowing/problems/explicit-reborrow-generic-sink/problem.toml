@@ -1,0 +1,23 @@
+slug = "explicit-reborrow-generic-sink"
+title = "Explicit reborrow with &mut *r"
+mode = "write"
+level = "medium"
+stage = "reborrows"
+order = 15
+status = "ready"
+tags = ["reborrow", "generics"]
+teaches = [
+  "`&mut *r` reborrows explicitly.",
+  "Blanket impls for `&mut S` let callers lend a sink instead of giving it away.",
+]
+follow_up = "Why do std's `io::Write` and `Iterator` have the same `impl for &mut T` pattern?"
+related = ["L2", "L4"]
+
+[[hints]]
+kind = "rust"
+text = "`emit_all` takes `S` by value. Passing `sink` moves the `&mut Vec`; `&mut *sink` passes a new, shorter borrow."
+
+[solution]
+explanation = "The blanket `impl Sink for &mut S` is what makes passing a `&mut` possible at all; the explicit reborrow keeps `sink` usable."
+time = "O(n)"
+space = "O(1)"

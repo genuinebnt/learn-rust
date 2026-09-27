@@ -1,0 +1,31 @@
+slug = "kth-largest"
+title = "Kth largest element"
+mode = "write"
+level = "medium"
+stage = "sorting-order"
+order = 19
+status = "ready"
+tags = ["select_nth_unstable", "quickselect"]
+teaches = [
+  "`select_nth_unstable` is quickselect in std: O(n) on average.",
+  "Converting 'kth largest' to an ascending index.",
+]
+follow_up = "When would you prefer a heap over quickselect?"
+related = ["S3", "S5"]
+
+[[examples]]
+input = "nums = [3, 2, 1, 5, 6, 4], k = 2"
+output = "5"
+
+[[hints]]
+kind = "approach"
+text = "The kth largest is at ascending index n − k."
+
+[[hints]]
+kind = "rust"
+text = "Slices have a partial sort that puts one element in its final position."
+
+[solution]
+explanation = "`select_nth_unstable` partitions around the target index in O(n) average time. A size-k min-heap also works in O(n log k)."
+time = "O(n) average"
+space = "O(1)"

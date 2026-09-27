@@ -1,0 +1,32 @@
+slug = "subarray-sum-equals-k"
+title = "Subarray sum equals K"
+mode = "write"
+level = "medium"
+stage = "grouping-prefix-sums"
+order = 14
+status = "ready"
+tags = ["prefix sums", "HashMap"]
+teaches = [
+  "A subarray sum is a difference of two prefix sums.",
+  "Count prefix sums in a `HashMap<i64, usize>`, widening to avoid overflow.",
+]
+constraints = ["1 ≤ nums.len() ≤ 2·10⁴", "|nums[i]| ≤ 1000"]
+follow_up = "Why doesn't a sliding window work here when it does for positive-only inputs?"
+related = ["S4"]
+
+[[examples]]
+input = "nums = [1, 1, 1], k = 2"
+output = "2"
+
+[[hints]]
+kind = "approach"
+text = "sum(i..j) = prefix[j] − prefix[i]. For each prefix, how many earlier prefixes equal prefix − k?"
+
+[[hints]]
+kind = "rust"
+text = "Seed the map with `(0, 1)` so subarrays that start at index 0 count."
+
+[solution]
+explanation = "The map counts how many earlier prefixes had each sum. Negative numbers rule out a sliding window, which is why this needs prefix sums."
+time = "O(n)"
+space = "O(n)"

@@ -1,0 +1,35 @@
+slug = "parse-url-borrowed"
+title = "Parse a URL into borrowed parts"
+mode = "write"
+level = "hard"
+stage = "build"
+order = 16
+status = "ready"
+tags = ["split_once", "lifetimes", "zero-copy"]
+teaches = [
+  "A struct of `&'a str` fields borrowing one input.",
+  "`?` on `Option` for each required piece.",
+]
+follow_up = "Real URLs percent-encode. Where would decoding force a `Cow<'a, str>`?"
+related = ["L3"]
+
+[[examples]]
+input = "\"https://example.com:8080/a/b?x=1&y=2\""
+output = "scheme \"https\", host \"example.com\", port 8080, path \"/a/b\", query [(\"x\",\"1\"), (\"y\",\"2\")]"
+
+[[hints]]
+kind = "rust"
+text = "Peel pieces off with `split_once`: `\"://\"`, then `'?'`, then the first `/`, then `':'`."
+
+[[hints]]
+kind = "rust"
+text = "`p.parse().ok()?` inside a match arm returns `None` from the whole function on a bad port."
+
+[[hints]]
+kind = "rust"
+text = "`split_at(i)` keeps the `/` in the path, which is what you want."
+
+[solution]
+explanation = "Every field is a slice of the input, so parsing allocates only the query Vec. The `'_` in `Url<'_>` ties the result to `s`."
+time = "O(n)"
+space = "O(q)"

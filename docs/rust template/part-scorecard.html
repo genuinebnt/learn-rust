@@ -1,0 +1,639 @@
+<!-- ═══════════════════════════════════════════
+     PART: SCORE CARD & DEBRIEF
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="scorecard">
+  <div class="ph-eyebrow">Debrief · Interviewer Reference</div>
+  <div class="ph-title">Candidate Score Card</div>
+  <div class="ph-sub">
+    Complete this immediately after the interview, while details are fresh. Use the dot scores for
+    stack-ranking across candidates for the same role. The checklists are binary — check what you actually
+    observed, leave blank what you didn't. The notes fields are for your debrief write-up.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-time">Fill out immediately after</span>
+    <span class="badge badge-time">Don't rely on memory</span>
+    <span class="badge badge-time">Senior Rust engineer bar</span>
+  </div>
+</div>
+
+<!-- ── Candidate info ── -->
+<div class="section">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--text-dim)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--text-dim)">// Meta</div>
+      <div class="sh-title">Interview Info</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Candidate name</div>
+        <input type="text" placeholder="Full name"
+          style="width:100%;background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;
+                 color:var(--text);font-family:var(--mono);font-size:12px;padding:9px 12px;outline:none;
+                 transition:border-color .15s;"
+          onfocus="this.style.borderColor='var(--c-rust)'"
+          onblur="this.style.borderColor='var(--border)'" />
+      </div>
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Date</div>
+        <input type="text" placeholder="YYYY-MM-DD"
+          style="width:100%;background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;
+                 color:var(--text);font-family:var(--mono);font-size:12px;padding:9px 12px;outline:none;
+                 transition:border-color .15s;"
+          onfocus="this.style.borderColor='var(--c-rust)'"
+          onblur="this.style.borderColor='var(--border)'" />
+      </div>
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Years of Rust experience (self-reported)</div>
+        <input type="text" placeholder="e.g. 3 years"
+          style="width:100%;background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;
+                 color:var(--text);font-family:var(--mono);font-size:12px;padding:9px 12px;outline:none;
+                 transition:border-color .15s;"
+          onfocus="this.style.borderColor='var(--c-rust)'"
+          onblur="this.style.borderColor='var(--border)'" />
+      </div>
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Exercises used</div>
+        <input type="text" placeholder="e.g. T04, T12, SD1, B3, W5"
+          style="width:100%;background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;
+                 color:var(--text);font-family:var(--mono);font-size:12px;padding:9px 12px;outline:none;
+                 transition:border-color .15s;"
+          onfocus="this.style.borderColor='var(--c-rust)'"
+          onblur="this.style.borderColor='var(--border)'" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Per-area scores ── -->
+<div class="section">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-rust)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-rust)">// Scores</div>
+      <div class="sh-title">Per-Area Rating · Click to score 1–5</div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-bottom:14px;">
+    <strong>Scale:</strong> 1 = major gaps / red flags &nbsp;·&nbsp;
+    2 = below bar &nbsp;·&nbsp;
+    3 = meets bar &nbsp;·&nbsp;
+    4 = above bar &nbsp;·&nbsp;
+    5 = exceptional / teaches you something
+  </div>
+
+  <!-- Score grid injected by JS -->
+  <div id="score-grid"></div>
+
+  <!-- Overall recommendation -->
+  <div class="card" style="margin-top:4px;">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Overall recommendation</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;
+                    background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.2);border-radius:4px;
+                    font-size:13px;color:var(--text-muted);transition:border-color .15s;">
+        <input type="radio" name="rec" value="strong-hire" style="accent-color:var(--c-pass);">
+        <span><strong style="color:var(--c-pass);">Strong hire</strong> — clear yes, push to next round</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;
+                    background:rgba(52,211,153,.04);border:1px solid rgba(52,211,153,.15);border-radius:4px;
+                    font-size:13px;color:var(--text-muted);transition:border-color .15s;">
+        <input type="radio" name="rec" value="hire" style="accent-color:var(--c-pass);">
+        <span><strong style="color:var(--c-pass);">Hire</strong> — yes with minor reservations</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;
+                    background:rgba(251,191,36,.04);border:1px solid rgba(251,191,36,.15);border-radius:4px;
+                    font-size:13px;color:var(--text-muted);transition:border-color .15s;">
+        <input type="radio" name="rec" value="maybe" style="accent-color:var(--c-warn);">
+        <span><strong style="color:var(--c-warn);">Leaning yes</strong> — strong in some areas, gaps in others</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;
+                    background:rgba(248,113,113,.04);border:1px solid rgba(248,113,113,.15);border-radius:4px;
+                    font-size:13px;color:var(--text-muted);transition:border-color .15s;">
+        <input type="radio" name="rec" value="no" style="accent-color:var(--c-fail);">
+        <span><strong style="color:var(--c-fail);">No hire</strong> — does not meet the bar</span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- ── Checklists ── -->
+<div class="section">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-pass)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-pass)">// Signals observed</div>
+      <div class="sh-title">Strong Hire Checklist</div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-bottom:12px;">
+    Check each signal you observed <strong>unprompted</strong> — only count it if the candidate said or did it
+    without you asking. 8+ checks = strong hire. 5–7 = hire. Below 5 = needs another interviewer's opinion.
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-pass)"></span>Technical depth — unprompted signals</div>
+    <ul class="checklist" id="hire-checklist">
+      <li><label><input type="checkbox"><span>Explains a borrow-checker error in terms of aliasing rules, not just "the compiler didn't like it"</span></label></li>
+      <li><label><input type="checkbox"><span>Chooses <code>Arc</code> over <code>Rc</code> correctly for cross-thread sharing without being reminded, and can explain the Send/Sync distinction</span></label></li>
+      <li><label><input type="checkbox"><span>Writes a <code>// SAFETY:</code> comment above <code>unsafe</code> blocks without being asked to</span></label></li>
+      <li><label><input type="checkbox"><span>Chooses <code>Ordering::Relaxed</code> vs <code>Acquire</code>/<code>Release</code> vs <code>SeqCst</code> deliberately, not by defaulting to the strongest option out of uncertainty</span></label></li>
+      <li><label><input type="checkbox"><span>Recognizes <code>while</code> (not <code>if</code>) is required around a <code>Condvar::wait()</code> — knows about spurious wakeups</span></label></li>
+      <li><label><input type="checkbox"><span>Identifies blocking/CPU-heavy work inside an <code>async fn</code> as a runtime-starvation risk without prompting</span></label></li>
+      <li><label><input type="checkbox"><span>Distinguishes <code>anyhow</code> (application-level, opaque) from <code>thiserror</code> (library-level, typed) and picks correctly for the context</span></label></li>
+      <li><label><input type="checkbox"><span>Recognizes an <code>Rc</code>/<code>Arc</code> reference cycle as a leak source, not just a runtime panic risk</span></label></li>
+      <li><label><input type="checkbox"><span>Knows integer overflow panics in debug builds but wraps in release, and can explain why that's dangerous</span></label></li>
+      <li><label><input type="checkbox"><span>Names <code>cargo clippy</code>, <code>miri</code>, or <code>loom</code> unprompted when discussing testing unsafe or concurrent code</span></label></li>
+      <li><label><input type="checkbox"><span>Distinguishes monomorphised generics (static dispatch) from <code>dyn Trait</code> (dynamic dispatch) and picks deliberately based on the situation</span></label></li>
+      <li><label><input type="checkbox"><span>Recognizes that <code>.unwrap()</code> on user-controlled input is a production panic risk, not just a style nit</span></label></li>
+      <li><label><input type="checkbox"><span>Talks about object safety, coherence, or the orphan rule with real understanding, not just terminology recall</span></label></li>
+      <li><label><input type="checkbox"><span>Correctly reasons about <code>#[repr(C)]</code> vs default <code>#[repr(Rust)]</code> layout when it's relevant to the discussion (FFI, memory layout)</span></label></li>
+      <li><label><input type="checkbox"><span>Volunteers a specific crate recommendation (<code>crossbeam</code>, <code>rayon</code>, <code>moka</code>, <code>dashmap</code>) rather than proposing to hand-roll a solved problem</span></label></li>
+      <li><label><input type="checkbox"><span>Talks about mutex poisoning, self-deadlock, or lock-ordering deadlocks with real understanding, not just as a vague warning</span></label></li>
+    </ul>
+
+    <div id="hire-count" style="margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--text-dim);padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;">
+      Checked: <span id="hire-num" style="color:var(--text);">0</span> / 16
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-pass)"></span>Behaviour &amp; communication signals</div>
+    <ul class="checklist">
+      <li><label><input type="checkbox"><span>Explains mechanisms, not just symptoms ("the CAS failed because head changed under us" not just "it's a race condition")</span></label></li>
+      <li><label><input type="checkbox"><span>Talks about trade-offs unprompted — atomic vs mutex, generics vs dyn Trait, Rc vs Arc, thread vs task</span></label></li>
+      <li><label><input type="checkbox"><span>Self-corrects without defensiveness when you ask "are you sure?"</span></label></li>
+      <li><label><input type="checkbox"><span>Admits when a solution doesn't fully meet the stated bar (e.g. "this is O(n), not O(1) — here's what the real fix would need") rather than presenting it as complete</span></label></li>
+      <li><label><input type="checkbox"><span>Asks clarifying questions before coding (thread count? bounded or unbounded? single- or multi-consumer? failure semantics?)</span></label></li>
+      <li><label><input type="checkbox"><span>Writes clean, idiomatic code — consistent naming, comments only where genuinely non-obvious, no narration comments</span></label></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ── Red flags ── -->
+<div class="section">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Concerns observed</div>
+      <div class="sh-title">Red Flag Checklist</div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-bottom:12px;">
+    Check each red flag you observed. <strong>3+ flags = no hire</strong> unless there are exceptional
+    compensating signals. Single flags in isolation may be probe-able rather than disqualifying.
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>Technical red flags</div>
+    <ul class="checklist checklist-fail" id="fail-checklist">
+      <li><label><input type="checkbox"><span>Adds <code>unsafe impl Send</code>/<code>Sync</code> to "fix" a compile error without reasoning about whether it's actually sound</span></label></li>
+      <li><label><input type="checkbox"><span>Cannot explain why <code>Rc&lt;T&gt;</code> can't cross a <code>thread::spawn</code> boundary beyond "the compiler says so"</span></label></li>
+      <li><label><input type="checkbox"><span>Thinks a <code>Mutex</code> makes the data behind it safe from all bugs, including logical deadlocks from re-locking</span></label></li>
+      <li><label><input type="checkbox"><span>Uses <code>.unwrap()</code> or <code>.expect()</code> pervasively on fallible operations without acknowledging the panic risk</span></label></li>
+      <li><label><input type="checkbox"><span>Cannot explain the difference between <code>Copy</code> and <code>Clone</code>, or when a type can/cannot implement <code>Copy</code></span></label></li>
+      <li><label><input type="checkbox"><span>Believes Rust's ownership model prevents all memory bugs, including inside <code>unsafe</code> blocks</span></label></li>
+      <li><label><input type="checkbox"><span>Cannot explain what makes a lazy iterator chain actually execute (needing a consuming call) — assumes construction alone runs it</span></label></li>
+      <li><label><input type="checkbox"><span>Treats <code>async</code> functions as automatically running on a separate thread merely by being async</span></label></li>
+      <li><label><input type="checkbox"><span>Cannot articulate why an <code>Rc</code> cycle leaks memory, or is unaware <code>Weak</code> exists to break cycles</span></label></li>
+      <li><label><input type="checkbox"><span>Uses <code>if</code> instead of <code>while</code> around a condition-variable wait without recognizing the spurious-wakeup risk</span></label></li>
+      <li><label><input type="checkbox"><span>Cannot explain why signed integer overflow behaves differently in debug vs. release builds</span></label></li>
+      <li><label><input type="checkbox"><span>Proposes hand-rolling a lock-free data structure for production use without acknowledging the ABA/memory-reclamation hazard</span></label></li>
+      <li><label><input type="checkbox"><span>Cannot distinguish trait objects (<code>dyn Trait</code>) from generics at even a basic dispatch-mechanism level</span></label></li>
+      <li><label><input type="checkbox"><span>Blocks an async runtime's worker thread with synchronous I/O or heavy CPU work without recognizing the problem</span></label></li>
+      <li><label><input type="checkbox"><span>Cannot name any Rust-specific tooling (clippy, miri, cargo-audit) when directly asked about catching bugs before production</span></label></li>
+      <li><label><input type="checkbox"><span>Becomes defensive when code is questioned rather than reasoning through it out loud</span></label></li>
+    </ul>
+
+    <div id="fail-count" style="margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--text-dim);padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;">
+      Flagged: <span id="fail-num" style="color:var(--text);">0</span> / 16
+    </div>
+  </div>
+</div>
+
+<!-- ── Closing question ── -->
+<div class="section">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-rust)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-rust)">// Closing question</div>
+      <div class="sh-title">Senior Readiness Assessment</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:rgba(251,146,60,.2);">
+    <div class="card-label" style="color:var(--c-rust)"><span class="cl-pip" style="background:var(--c-rust)"></span>Ask this after the write exercise — highest signal moment</div>
+    <div style="background:rgba(251,146,60,.05);border:1px solid rgba(251,146,60,.15);border-radius:4px;
+                padding:16px 18px;margin-bottom:16px;font-size:14px;color:var(--text);font-weight:500;
+                line-height:1.6;">
+      "If you joined our team next week and inherited a mid-sized async Rust service, what are the first three
+      things you'd want to look at — in the codebase, in its dependencies, or in how it's operated — to judge
+      whether it's actually production-solid? And separately: what's a Rust decision you made in a past project
+      that you're genuinely still unsure was the right call?"
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="padding:14px 16px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.15);border-radius:4px;">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+                    color:var(--c-pass);margin-bottom:10px;">Strong answer</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;">
+          <li style="font-size:12px;color:var(--text-muted);padding-left:12px;position:relative;line-height:1.55;">
+            <span style="position:absolute;left:0;color:var(--c-pass);">✓</span>
+            Names concrete, checkable things: <code>unwrap()</code>/<code>panic!</code> density, blocking calls inside async fns, <code>unsafe</code> block audit trail, error-handling consistency, dependency count/audit status
+          </li>
+          <li style="font-size:12px;color:var(--text-muted);padding-left:12px;position:relative;line-height:1.55;">
+            <span style="position:absolute;left:0;color:var(--c-pass);">✓</span>
+            Mentions operational signals too, not just code — metrics/tracing coverage, graceful shutdown behavior, how panics are surfaced in production
+          </li>
+          <li style="font-size:12px;color:var(--text-muted);padding-left:12px;position:relative;line-height:1.55;">
+            <span style="position:absolute;left:0;color:var(--c-pass);">✓</span>
+            Gives a genuinely specific, second-guessed past decision (e.g. "I chose <code>Arc&lt;Mutex&lt;_&gt;&gt;</code> where a channel-based design would have avoided lock contention entirely") — not a generic platitude
+          </li>
+          <li style="font-size:12px;color:var(--text-muted);padding-left:12px;position:relative;line-height:1.55;">
+            <span style="position:absolute;left:0;color:var(--c-pass);">✓</span>
+            Shows genuine intellectual humility about trade-offs rather than defending every past choice as obviously correct
+          </li>
+        </ul>
+      </div>
+      <div style="padding:14px 16px;background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.15);border-radius:4px;">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+                    color:var(--c-fail);margin-bottom:10px;">Weak answer</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;">
+          <li style="font-size:12px;color:var(--text-muted);padding-left:12px;position:relative;line-height:1.55;">
+            <span style="position:absolute;left:0;color:var(--c-fail);">✗</span>
+            Vague — "I'd read through the code and see if it looks good" without any specific, checkable criteria
+          </li>
+          <li style="font-size:12px;color:var(--text-muted);padding-left:12px;position:relative;line-height:1.55;">
+            <span style="position:absolute;left:0;color:var(--c-fail);">✗</span>
+            Claims "if it compiles and passes clippy, it's basically fine" — overstates what Rust's guarantees actually cover (logic bugs, deadlocks, and unsound unsafe code all still compile cleanly)
+          </li>
+          <li style="font-size:12px;color:var(--text-muted);padding-left:12px;position:relative;line-height:1.55;">
+            <span style="position:absolute;left:0;color:var(--c-fail);">✗</span>
+            Can't name a single past decision they're unsure about — implies either limited real experience or lack of reflection
+          </li>
+          <li style="font-size:12px;color:var(--text-muted);padding-left:12px;position:relative;line-height:1.55;">
+            <span style="position:absolute;left:0;color:var(--c-fail);">✗</span>
+            Focuses entirely on syntax-level nitpicks (formatting, naming) rather than architectural or concurrency-level concerns
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--text-dim)"></span>Candidate's actual answer — note it verbatim if you can</div>
+    <textarea placeholder="Write down what they said about production-readiness checks and their own past decision..."></textarea>
+  </div>
+
+  <!-- Decision-matrix quick-ref for closing discussion -->
+  <div class="card" style="margin-top:14px;">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Quick-reference — decision matrix to probe during the closing discussion</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--c-rust);margin-bottom:6px;letter-spacing:.08em;">Concurrency primitive choice</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.8;">
+          Single counter/flag → <code>Atomic*</code><br>
+          Multiple related fields updated together → <code>Mutex</code><br>
+          Many readers, rare writers → <code>RwLock</code><br>
+          Handoff between tasks → channel (<code>mpsc</code>, <code>oneshot</code>)<br>
+          Shared read-mostly state, single-thread → <code>Rc&lt;RefCell&lt;_&gt;&gt;</code><br>
+          Shared read-mostly state, cross-thread → <code>Arc&lt;Mutex&lt;_&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;_&gt;&gt;</code>
+        </div>
+      </div>
+      <div style="padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:4px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--c-warn);margin-bottom:6px;letter-spacing:.08em;">Async vs threads vs unsafe</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.8;">
+          I/O-bound, high concurrency → async/Tokio task<br>
+          CPU-bound, parallel → OS threads / <code>rayon</code><br>
+          CPU-bound work inside async → <code>spawn_blocking</code><br>
+          Need a stable interface for many types → generics or <code>dyn Trait</code> (perf-critical → generics)<br>
+          Reaching for <code>unsafe</code> → only with a documented invariant, never for convenience<br>
+          Cross-language interop → FFI + <code>bindgen</code>, audit thread-safety explicitly
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Notes ── -->
+<div class="section">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--text-dim)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--text-dim)">// Notes</div>
+      <div class="sh-title">Debrief Write-Up</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--text-dim)"></span>Technical observations — what they said, what they missed</div>
+    <textarea placeholder="Technical observations: what they explained well, what surprised you, where they got stuck, how they responded to probes..."></textarea>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="card-label"><span class="cl-pip" style="background:var(--text-dim)"></span>Communication &amp; approach</div>
+    <textarea placeholder="How they communicated under pressure, whether they asked good questions, how they handled being wrong, overall energy and curiosity..."></textarea>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Senior readiness summary — one paragraph</div>
+    <textarea placeholder="Based on today's interview: is this candidate ready to own a production Rust service with minimal oversight? What specific gaps would they need to close? What would you want a second interviewer to specifically probe further?"></textarea>
+  </div>
+</div>
+
+<!-- ── Summary bar ── -->
+<div class="section">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-rust)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-rust)">// Summary</div>
+      <div class="sh-title">Score Summary</div>
+    </div>
+  </div>
+
+  <div class="card" id="summary-card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-rust)"></span>Area scores at a glance</div>
+
+    <!-- Bar chart rendered by JS -->
+    <div id="score-bars" style="display:flex;flex-direction:column;gap:8px;margin-top:4px;"></div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border-dim);
+                display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+                    color:var(--text-dim);margin-bottom:4px;">Average score</div>
+        <div id="avg-score" style="font-family:var(--mono);font-size:28px;font-weight:600;color:var(--text);">—</div>
+      </div>
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+                    color:var(--text-dim);margin-bottom:4px;">Strong hire signals</div>
+        <div id="hire-summary" style="font-family:var(--mono);font-size:28px;font-weight:600;color:var(--c-pass);">0 / 16</div>
+      </div>
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+                    color:var(--text-dim);margin-bottom:4px;">Red flags</div>
+        <div id="fail-summary" style="font-family:var(--mono);font-size:28px;font-weight:600;color:var(--c-fail);">0 / 16</div>
+      </div>
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+                    color:var(--text-dim);margin-bottom:4px;">Recommendation</div>
+        <div id="rec-summary" style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--text-muted);">not selected</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<div style="margin-top:48px;padding-top:20px;border-top:1px solid var(--border-dim);
+            display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+  <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">
+    Senior Rust Engineer Interview Packet · Interviewer Confidential
+  </div>
+  <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">
+    21 pattern sections · 75 blind75 · 22 topics · 31 drills · 18 design patterns · 8 LLD · 24 system design · 10 API · 12 HLD fundamentals · 9 bug exercises · 83 write exercises
+  </div>
+</div>
+
+<script>
+// ── Score dots (re-init safe — called by shell after content load) ──
+// The shell's initScoreDots() handles the #score-grid.
+// We also need the bar chart and live counters.
+
+// ── Checklist counters ──
+function initCounters() {
+  // Hire checklist
+  const hireBoxes = document.querySelectorAll('#hire-checklist input[type=checkbox]');
+  const hireNum   = document.getElementById('hire-num');
+  const hireSummary = document.getElementById('hire-summary');
+  hireBoxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const n = document.querySelectorAll('#hire-checklist input:checked').length;
+      if (hireNum)     hireNum.textContent = n;
+      if (hireSummary) hireSummary.textContent = n + ' / 16';
+      hireNum && (hireNum.style.color = n >= 8 ? 'var(--c-pass)' : n >= 5 ? 'var(--c-warn)' : 'var(--c-fail)');
+    });
+  });
+
+  // Fail checklist
+  const failBoxes = document.querySelectorAll('#fail-checklist input[type=checkbox]');
+  const failNum   = document.getElementById('fail-num');
+  const failSummary = document.getElementById('fail-summary');
+  failBoxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const n = document.querySelectorAll('#fail-checklist input:checked').length;
+      if (failNum)     failNum.textContent = n;
+      if (failSummary) failSummary.textContent = n + ' / 16';
+      failNum && (failNum.style.color = n >= 3 ? 'var(--c-fail)' : n >= 1 ? 'var(--c-warn)' : 'var(--c-pass)');
+    });
+  });
+
+  // Recommendation radio
+  const recSummary = document.getElementById('rec-summary');
+  const recColors  = {
+    'strong-hire': 'var(--c-pass)',
+    'hire':        'var(--c-pass)',
+    'maybe':       'var(--c-warn)',
+    'no':          'var(--c-fail)',
+  };
+  const recLabels  = {
+    'strong-hire': 'Strong Hire',
+    'hire':        'Hire',
+    'maybe':       'Leaning Yes',
+    'no':          'No Hire',
+  };
+  document.querySelectorAll('input[name="rec"]').forEach(r => {
+    r.addEventListener('change', () => {
+      if (recSummary) {
+        recSummary.textContent = recLabels[r.value] || r.value;
+        recSummary.style.color = recColors[r.value] || 'var(--text-muted)';
+      }
+    });
+  });
+}
+
+// ── Score bar chart ──
+// Called after score dots are built by shell JS.
+// We hook into the dot click events by polling scores.
+function buildScoreBars(scores, scoreValues) {
+  const container = document.getElementById('score-bars');
+  const avgEl     = document.getElementById('avg-score');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  scores.forEach(({ label, color }, idx) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:12px;';
+
+    const lbl = document.createElement('div');
+    lbl.style.cssText = `font-family:var(--mono);font-size:10px;color:var(--text-dim);
+                          width:140px;flex-shrink:0;letter-spacing:.05em;`;
+    lbl.textContent = label;
+
+    const track = document.createElement('div');
+    track.style.cssText = 'flex:1;height:6px;background:var(--border-dim);border-radius:3px;overflow:hidden;';
+
+    const fill = document.createElement('div');
+    fill.id = `bar-fill-${idx}`;
+    fill.style.cssText = `height:100%;width:0%;background:${color};border-radius:3px;
+                           transition:width .3s ease;`;
+    track.appendChild(fill);
+
+    const val = document.createElement('div');
+    val.id = `bar-val-${idx}`;
+    val.style.cssText = `font-family:var(--mono);font-size:11px;color:var(--text-dim);
+                          width:20px;text-align:right;flex-shrink:0;`;
+    val.textContent = '—';
+
+    row.appendChild(lbl);
+    row.appendChild(track);
+    row.appendChild(val);
+    container.appendChild(row);
+  });
+
+  // Update bars when dot scores change — poll scoreValues array
+  function refreshBars() {
+    let total = 0, count = 0;
+    scoreValues.forEach((v, i) => {
+      const fill = document.getElementById(`bar-fill-${i}`);
+      const val  = document.getElementById(`bar-val-${i}`);
+      if (fill) fill.style.width = v ? (v / 5 * 100) + '%' : '0%';
+      if (val)  val.textContent  = v ? v : '—';
+      if (v) { total += v; count++; }
+    });
+    if (avgEl) {
+      avgEl.textContent = count ? (total / count).toFixed(1) : '—';
+      const avg = count ? total / count : 0;
+      avgEl.style.color = avg >= 4 ? 'var(--c-pass)' : avg >= 3 ? 'var(--c-warn)' : avg > 0 ? 'var(--c-fail)' : 'var(--text-muted)';
+    }
+  }
+
+  return refreshBars;
+}
+
+// ── Override the shell's initScoreDots to also wire up bars ──
+// We store score values in a shared array and refresh bars on each click.
+(function() {
+  const scoreConfig = [
+    { id:'own',    label:'Ownership/Borrow', color:'#4fc3f7' },
+    { id:'trait',  label:'Traits/Generics',  color:'#c084fc' },
+    { id:'err',    label:'Error Handling',   color:'#fbbf24' },
+    { id:'thr',    label:'Concurrency',      color:'#f87171' },
+    { id:'atomic', label:'Atomics/Memory',   color:'#fb7185' },
+    { id:'async',  label:'Async/Tokio',      color:'#818cf8' },
+    { id:'unsafe', label:'Unsafe/FFI',       color:'#ef4444' },
+    { id:'std',    label:'Std Lib Fluency',  color:'#60a5fa' },
+    { id:'perf',   label:'Performance',      color:'#fdba74' },
+    { id:'bugs',   label:'Bug Detection',    color:'#f87171' },
+    { id:'sysd',   label:'System Design',    color:'#fb923c' },
+    { id:'net',    label:'Networking',       color:'#38bdf8' },
+    { id:'os',     label:'Operating Systems', color:'#fb923c' },
+    { id:'web3',   label:'Web3 Backend',     color:'#a78bfa' },
+    { id:'trading',label:'Trading Systems',  color:'#fdba74' },
+    { id:'th',     label:'Take-Homes',       color:'#4ade80' },
+    { id:'test',   label:'Testing/Tooling',  color:'#34d399' },
+  ];
+
+  const scoreValues = new Array(scoreConfig.length).fill(0);
+
+  function waitForGrid() {
+    const grid = document.getElementById('score-grid');
+    if (!grid) { setTimeout(waitForGrid, 100); return; }
+    buildGrid(grid);
+  }
+
+  function buildGrid(grid) {
+    grid.innerHTML = '';
+    grid.style.cssText = `
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+      gap:8px;
+      margin-bottom:20px;`;
+
+    let refreshBars = null;
+
+    scoreConfig.forEach(({ label, color }, idx) => {
+      const cell = document.createElement('div');
+      cell.style.cssText = `background:var(--bg-card);border:1px solid var(--border);
+                             border-radius:5px;padding:12px 10px;text-align:center;`;
+
+      const lbl = document.createElement('div');
+      lbl.style.cssText = `font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+                            text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;line-height:1.4;`;
+      lbl.textContent = label;
+
+      const dots = document.createElement('div');
+      dots.style.cssText = 'display:flex;justify-content:center;gap:4px;';
+
+      let score = 0;
+
+      function updateDots(upTo, filled) {
+        dots.querySelectorAll('.s-dot').forEach(d => {
+          const v = +d.dataset.v;
+          const on = filled ? v <= upTo : false;
+          d.style.background  = on ? color : 'transparent';
+          d.style.borderColor = (filled && v <= upTo) || (!filled && v <= upTo) ? color : 'var(--border)';
+          d.style.background  = v <= (filled ? upTo : score) ? color : 'transparent';
+          d.style.borderColor = v <= (filled ? upTo : score) ? color : 'var(--border)';
+        });
+      }
+
+      function setScore(s) {
+        score = s;
+        scoreValues[idx] = s;
+        dots.querySelectorAll('.s-dot').forEach(d => {
+          const on = +d.dataset.v <= score;
+          d.style.background  = on ? color : 'transparent';
+          d.style.borderColor = on ? color : 'var(--border)';
+        });
+        if (refreshBars) refreshBars();
+      }
+
+      for (let i = 1; i <= 5; i++) {
+        const d = document.createElement('div');
+        d.className = 's-dot';
+        d.dataset.v = i;
+        d.title = `${i}/5`;
+        d.style.cssText = `width:11px;height:11px;border-radius:50%;border:1.5px solid var(--border);
+                            background:transparent;cursor:pointer;transition:background .12s,border-color .12s;`;
+
+        d.addEventListener('click',      () => setScore(i));
+        d.addEventListener('mouseover',  () => {
+          dots.querySelectorAll('.s-dot').forEach(x => {
+            x.style.borderColor = +x.dataset.v <= i ? color : 'var(--border)';
+          });
+        });
+        d.addEventListener('mouseout',   () => setScore(score)); // restore
+
+        dots.appendChild(d);
+      }
+
+      cell.appendChild(lbl);
+      cell.appendChild(dots);
+      grid.appendChild(cell);
+    });
+
+    // Build bar chart after grid is ready
+    refreshBars = buildScoreBars(scoreConfig, scoreValues);
+  }
+
+  // Run on DOM ready (this script is inline in the loaded content)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', waitForGrid);
+  } else {
+    waitForGrid();
+  }
+
+  // Also init counters
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCounters);
+  } else {
+    initCounters();
+  }
+})();
+</script>

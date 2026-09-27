@@ -1,0 +1,23 @@
+slug = "sentinel-to-option"
+title = "Wrap a sentinel API in Option"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 3
+status = "ready"
+tags = ["TryFrom", "Option"]
+teaches = [
+  "Convert `-1`-style sentinels to `Option` at the boundary.",
+  "`usize::try_from(i32)` rejects negatives for you.",
+]
+follow_up = "Where else do sentinels hide in std or C APIs, and how do their Rust wrappers expose them?"
+related = ["S8", "Y3"]
+
+[[hints]]
+kind = "rust"
+text = "A negative `i32` can't become a `usize`. Which conversion reports that?"
+
+[solution]
+explanation = "`try_from` fails exactly on the sentinel, so there's no magic number in the new code."
+time = "O(n)"
+space = "O(1)"

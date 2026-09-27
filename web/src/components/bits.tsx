@@ -1,0 +1,74 @@
+import type { ReactNode } from "react";
+import type { Band, Mode, Progress } from "../api";
+
+export const BAND_LABEL: Record<Band, string> = { easy: "EASY", medium: "MEDIUM", hard: "HARD" };
+
+/** Section header: mono label, rule, right-aligned caption. */
+export function Sech({ title, caption }: { title: ReactNode; caption?: ReactNode }) {
+  return (
+    <div className="sech">
+      <span className="t">{title}</span>
+      <span className="rule" />
+      {caption !== undefined && <span className="c">{caption}</span>}
+    </div>
+  );
+}
+
+export type PhaseKind = "done" | "cur" | "open" | "ahead" | "vio";
+
+export function Phase({ kind, children, width }: { kind: PhaseKind; children: ReactNode; width?: string }) {
+  return (
+    <div className={`phase ${kind}`} style={width ? { width } : undefined}>
+      {children}
+    </div>
+  );
+}
+
+/** One 4px segment per item; the first `filled` are coloured. */
+export function Segs({ n, filled, color = "var(--grn)" }: { n: number; filled: number; color?: string }) {
+  return (
+    <div className="segs" style={{ gridTemplateColumns: `repeat(${Math.max(n, 1)}, 1fr)` }}>
+      {Array.from({ length: n }, (_, i) => (
+        <span key={i} style={{ background: i < filled ? color : "var(--line2)" }} />
+      ))}
+    </div>
+  );
+}
+
+const MODE: Record<Mode, [string, string]> = {
+  write: ["WRITE IT", "var(--acc)"],
+  fix: ["FIX THIS", "var(--vio)"],
+  stage: ["STAGE", "var(--grn)"],
+};
+
+export function ModeTag({ mode }: { mode: Mode }) {
+  const [label, color] = MODE[mode];
+  return (
+    <span className="mode" style={{ color, borderColor: color }}>
+      {label}
+    </span>
+  );
+}
+
+export function modeColor(mode: Mode) {
+  return MODE[mode][1];
+}
+
+const PROGRESS: Record<Progress, [string, string, string]> = {
+  not_started: ["not started", "var(--line)", "transparent"],
+  started: ["in progress", "var(--acc)", "linear-gradient(90deg,var(--acc) 50%,transparent 50%)"],
+  solved: ["solved", "var(--grn)", "var(--grn)"],
+  assisted: ["solved, assisted", "var(--grn)", "linear-gradient(135deg,var(--grn) 50%,transparent 50%)"],
+};
+
+export function StatusBox({ progress }: { progress: Progress }) {
+  const [label, border, fill] = PROGRESS[progress];
+  return <span className="st" title={label} aria-label={label} style={{ borderColor: border, background: fill }} />;
+}
+
+export const progressLabel = (p: Progress) => PROGRESS[p][0];
+
+/** Colour for a readiness-style percentage: ≥ 70 green, 40–69 copper, < 40 red. */
+export const pctColor = (v: number) => (v >= 70 ? "var(--grn)" : v >= 40 ? "var(--acc)" : "var(--bad)");
+
+export const pad2 = (n: number) => String(n).padStart(2, "0");

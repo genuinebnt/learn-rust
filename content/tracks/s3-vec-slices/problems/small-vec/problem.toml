@@ -1,0 +1,27 @@
+slug = "small-vec"
+title = "An inline small-vector"
+mode = "write"
+level = "hard"
+stage = "build-it"
+order = 18
+status = "ready"
+tags = ["enum", "spill to heap"]
+teaches = [
+  "Store up to N items inline and spill to a `Vec` after that.",
+  "Replacing `*self` with a new variant after moving data out.",
+]
+follow_up = "How does `MaybeUninit<[T; N]>` let you drop the Option tags, and what does it cost in unsafe code?"
+related = ["Y1", "S11"]
+
+[[hints]]
+kind = "approach"
+text = "When the inline array is full, move its items into a new Vec, push the new one, and switch variants."
+
+[[hints]]
+kind = "rust"
+text = "`Option::take` moves each item out of the array and leaves `None`, so nothing is cloned."
+
+[solution]
+explanation = "`[Option<T>; 4]` keeps this safe; real small-vectors use `MaybeUninit` to avoid the `Option` tags. Assigning `*self` after the items are moved out is fine because the borrow of `items` has ended."
+time = "O(1) amortised push"
+space = "O(n)"

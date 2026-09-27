@@ -1,0 +1,38 @@
+slug = "network-delay-time"
+title = "Network delay time"
+mode = "write"
+level = "medium"
+stage = "shortest-paths"
+order = 16
+status = "ready"
+tags = ["dijkstra", "BinaryHeap", "Reverse<T>", "Option"]
+teaches = [
+  "`BinaryHeap` is a max-heap; `Reverse` flips it.",
+  "Lazy deletion instead of decrease-key.",
+  "Sentinels vs `Option` at the boundary.",
+]
+constraints = ["1 ≤ n ≤ 100", "1 ≤ times.len() ≤ 6000", "0 ≤ w ≤ 100 · no self-loops"]
+follow_up = "What breaks if weights can be negative, and what would you use instead?"
+related = ["S5", "S1", "L4"]
+source = "W42"
+
+[[examples]]
+input = "times = [(2,1,1), (2,3,1), (3,4,1)], n = 4, k = 2"
+output = "Some(2)"
+
+[[hints]]
+kind = "approach"
+text = "Single source, non-negative weights: Dijkstra. The answer is the largest of the shortest distances."
+
+[[hints]]
+kind = "rust"
+text = "BinaryHeap pops the largest item. Push Reverse((dist, node)) so pop() gives the closest node; tuples compare field by field."
+
+[[hints]]
+kind = "edge case"
+text = "dist starts at u32::MAX. A node still at MAX was never reached, and max() will return it as if it were a real distance."
+
+[solution]
+explanation = "Stale heap entries are skipped with `d > dist[u]` rather than removed. `?` covers the empty slice, and `then_some` turns the `u32::MAX` sentinel back into `None`, so the sentinel never leaks out of the function. With negative weights, use Bellman–Ford (Cheapest flights within K stops)."
+time = "O(E log E)"
+space = "O(V + E)"

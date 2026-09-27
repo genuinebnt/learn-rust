@@ -1,0 +1,23 @@
+slug = "vec-ops"
+title = "Push, pop, insert, remove"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 1
+status = "ready"
+tags = ["Vec", "match"]
+teaches = [
+  "The core `Vec` operations and which ones panic.",
+  "Guard clauses in a `match` for out-of-range indices.",
+]
+follow_up = "Which of these operations are O(1), and which shift elements?"
+related = ["S3"]
+
+[[hints]]
+kind = "rust"
+text = "`insert(i, x)` allows `i == len`; `remove(i)` needs `i < len`. Both panic otherwise."
+
+[solution]
+explanation = "Match guards keep each operation's bounds check next to the operation."
+time = "O(n) per insert or remove"
+space = "O(n)"

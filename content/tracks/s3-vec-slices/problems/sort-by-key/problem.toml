@@ -1,0 +1,27 @@
+slug = "sort-by-key"
+title = "sort_by with a tie-breaker"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 3
+status = "ready"
+tags = ["sort_by", "Ordering::then_with"]
+teaches = [
+  "`Ordering::then_with` for multi-key sorts.",
+  "Why `sort_by_key` with a `String` key clones every comparison.",
+]
+follow_up = "When is `sort_by_cached_key` the right choice?"
+related = ["S8"]
+
+[[examples]]
+input = "[\"pear\", \"fig\", \"apple\", \"kiwi\"]"
+output = "[\"fig\", \"kiwi\", \"pear\", \"apple\"]"
+
+[[hints]]
+kind = "rust"
+text = "Compare lengths, and only if they're equal, compare the strings: `then_with`."
+
+[solution]
+explanation = "`then_with` only evaluates the second comparison on a tie. `sort_by_key(|w| (w.len(), w.clone()))` also works but allocates per comparison; `sort_by_cached_key` would allocate once per element."
+time = "O(n log n)"
+space = "O(n)"

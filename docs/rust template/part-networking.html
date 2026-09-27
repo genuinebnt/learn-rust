@@ -1,0 +1,813 @@
+<!-- ═══════════════════════════════════════════
+     PART: NETWORKING DEEP-DIVE
+     OSI/TCP · Framing · TLS · HTTP/2/3 · Backpressure · LB · DNS · Proxies · Observability · DoS-safe parsers
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="net-header">
+  <div class="ph-eyebrow">Systems &amp; Backend · Networking Deep-Dive</div>
+  <div class="ph-title">Networking Deep-Dive — Rust Systems &amp; Backend</div>
+  <div class="ph-sub">
+    Interview-ready path from sockets to service mesh: TCP reliability quirks, framing codecs, UDP trade-offs,
+    rustls/ALPN, HTTP/1–2–3 &amp; QUIC design choices, Tokio backpressure, L4/L7 pooling, DNS/timeouts/retries,
+    proxies &amp; WebSocket pitfalls, path observability, and DoS-safe protocol parsers. Rust callouts throughout
+    (<code>tokio::net</code>, <code>tokio_util::codec</code>, <code>rustls</code>, <code>hyper</code>/<code>axum</code>, <code>mio</code>).
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-time">12 topics</span>
+    <span class="badge badge-time">~48 Q&amp;A</span>
+    <span class="badge badge-time">Senior / Staff calibration</span>
+  </div>
+</div>
+
+<!-- ════════════ NET1 · OSI / TCP MENTAL MODEL ════════════ -->
+<div class="section" id="net1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 01</div>
+      <div class="sh-title">OSI/TCP Mental Model for Rust Engineers</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Map the OSI / Internet layers to what a Rust backend engineer actually touches. Where do sockets live?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Practical stack: <strong>L3 IP</strong> (routing, NAT), <strong>L4 TCP/UDP</strong> (ports, connections/datagrams),
+        <strong>L5–7</strong> as application protocols (TLS, HTTP, gRPC, custom framing). You rarely configure L2;
+        you care about MTU/fragmentation when debugging. A <strong>socket</strong> is the kernel API endpoint for
+        L4: bind/listen/accept or connect, then read/write byte streams (TCP) or datagrams (UDP). In Rust,
+        <code>std::net::TcpStream</code> / <code>TcpListener</code> wrap OS sockets; <code>tokio::net::TcpStream</code>
+        is the async equivalent registered with the reactor. TLS and HTTP sit <em>above</em> the socket as byte
+        transformers — <code>rustls</code> + <code>hyper</code>/<code>axum</code> do not replace TCP; they speak over it.
+        Interview signal: separate &quot;connection&quot; (TCP) from &quot;request&quot; (HTTP) and &quot;stream&quot; (HTTP/2).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What does TCP give you as a byte stream, and what does it deliberately <em>not</em> provide?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        TCP provides reliable, ordered, congestion-controlled delivery of a <strong>bidirectional byte stream</strong>
+        between two endpoints. It does <em>not</em> preserve message boundaries — one <code>write</code> can arrive
+        as multiple <code>read</code>s and vice versa (coalescing). It does not encrypt, authenticate peers, or
+        define application framing. Application must: (1) frame messages, (2) handle partial reads, (3) decide
+        idempotency for app-level retries after reconnect. Saying &quot;TCP is message-oriented&quot; is a common junior
+        mistake; seniors talk about stream + framing + connection lifecycle (TIME_WAIT, half-close with
+        <code>shutdown</code>).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Contrast blocking sockets, non-blocking + readiness (mio), and async (Tokio). When would you still touch mio?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Blocking:</strong> <code>read</code>/<code>write</code> park the OS thread until complete — simple,
+        but one thread per connection does not scale. <strong>Non-blocking + readiness:</strong> set <code>O_NONBLOCK</code>,
+        use epoll/kqueue/IOCP; when the kernel says readable/writable, try the syscall; on <code>EAGAIN</code> wait again.
+        <code>mio</code> is Rust's portable readiness layer. <strong>Async (Tokio):</strong> tasks yield at
+        <code>.await</code>; the runtime multiplexes many connections on few worker threads using mio (or io_uring
+        on Linux when enabled) under the hood. Prefer Tokio for almost all services. Touch mio directly for custom
+        reactors, embedding in non-Tokio event loops, or ultra-specialized runtimes — and know that
+        <code>tokio::net</code> types must not be used from blocking contexts without <code>spawn_blocking</code> /
+        proper runtime entry. Never call blocking <code>std::net</code> I/O on a Tokio worker thread.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Walk through accept → read → write on <code>tokio::net::TcpListener</code>. Where do backpressure and cancellation show up?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">use</span> tokio::net::TcpListener;
+<span class="kw">use</span> tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+<span class="kw">let</span> listener = TcpListener::bind(<span class="st">"0.0.0.0:8080"</span>).<span class="kw">await</span>?;
+<span class="kw">loop</span> {
+    <span class="kw">let</span> (mut socket, _addr) = listener.accept().<span class="kw">await</span>?;
+    tokio::spawn(<span class="kw">async move</span> {
+        <span class="kw">let mut</span> buf = [<span class="nm">0u8</span>; <span class="nm">4096</span>];
+        <span class="kw">loop</span> {
+            <span class="kw">let</span> n = socket.read(&amp;<span class="kw">mut</span> buf).<span class="kw">await</span>?; <span class="cm">// 0 = EOF / peer half-close</span>
+            <span class="kw">if</span> n == <span class="nm">0</span> { <span class="kw">break</span>; }
+            socket.write_all(&amp;buf[..n]).<span class="kw">await</span>?;
+        }
+        Ok::&lt;(), std::io::Error&gt;(())
+    });
+}</pre>
+        <code>accept</code> awaits readiness then accepts; unbounded <code>spawn</code> per connection can DoS your
+        process — bound with a <code>Semaphore</code>. <code>read</code>/<code>write_all</code> await socket readiness;
+        if the peer is slow, <code>write_all</code> applies TCP backpressure by not completing. Task cancellation
+        (dropping the future, select timeout) aborts the in-flight syscall wait; ensure protocol state machines
+        treat cancel as connection teardown. Prefer framed codecs over raw echo loops for real protocols.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Scenario: p99 latency spikes only under load, CPU is low. What networking hypotheses do you check first?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Low CPU + high latency often means waiting: (1) accept queue / file-descriptor limits (<code>ulimit -n</code>,
+        somaxconn), (2) worker exhaustion from accidental blocking on the runtime, (3) downstream connection pool
+        saturation, (4) TCP retransmits / buffer bloat, (5) DNS or TLS handshake storms on new connections,
+        (6) unbounded fan-out without concurrency limits. Check accept RPS vs active connections, Tokio busy/idle
+        metrics, pool wait time, and <code>TcpStream</code> connect timeouts separately from app timeouts. Strong
+        candidates separate &quot;slow handler&quot; from &quot;slow network path&quot; before rewriting business logic.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET2 · TCP RELIABILITY QUIRKS ════════════ -->
+<div class="section" id="net2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 02</div>
+      <div class="sh-title">TCP Reliability, Nagle, Delayed ACK, Keepalive</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">How does TCP achieve reliability? What failure modes still leak to the application?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Sequence numbers, ACKs, retransmits, and checksums recover lost/reordered packets within a live connection.
+        Congestion control (slow start, cwnd) throttles senders. What still leaks up: connection reset
+        (<code>ECONNRESET</code>, timeout (no ACK within RTO budget), half-open connections after silent middlebox
+        drops, and &quot;write succeeded locally but peer never processed&quot; after a crash between TCP ACK and app commit.
+        Reliability is <em>transport</em> delivery to the peer kernel buffer, not exactly-once application processing.
+        APIs still need idempotency keys and application ACKs for critical mutations.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is Nagle's algorithm, and when does it bite request/response APIs?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Nagle coalesces small writes to reduce tiny packets: it may delay sending a small segment until an ACK
+        arrives or a full MSS accumulates. Combined with <strong>delayed ACK</strong> (receiver waits ~40ms before
+        ACKing hoping to piggyback), you get classic <strong>40ms latency cliffs</strong> on chatty protocols that
+        write header then body as separate syscalls. Fix: enable <code>TCP_NODELAY</code>
+        (<code>socket.set_nodelay(true)?</code> on <code>tokio::net::TcpStream</code> / hyper clients, and batch
+        logical writes (one buffer / vectored write) so you are not relying on Nagle for efficiency. Use Nagle only
+        when you intentionally send many tiny writes and care more about packet count than latency — rare for RPCs.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">TCP keepalive vs application heartbeats — which should an API use?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>SO_KEEPALIVE</strong> probes idle connections at OS timescales (often hours by default; tunable via
+        idle/interval/count). Good as a last-resort cleanup of dead peers through NATs, but too slow for UX or
+        load-balancer draining. <strong>Application heartbeats</strong> (WebSocket ping, gRPC keepalive, Redis PING,
+        custom idle frames) detect death in seconds and keep NAT mappings fresh. For HTTP APIs: idle timeouts on
+        servers/proxies matter more than TCP keepalive; clients should reconnect with jitter. In Rust, set
+        <code>TcpStream::set_keepalive</code> if available/platform-supported, but design protocol-level pings for
+        long-lived streams (tonic/h2 settings, axum WebSocket ping).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Scenario: a Rust microservice sees occasional stuck clients for ~40ms on tiny POSTs. How do you confirm Nagle/delayed-ACK and fix it?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Capture with <code>tcpdump</code>/<code>Wireshark</code>: look for small PSH segments waiting for ACK before
+        the next send. Check whether the client library writes headers and body separately. Confirm
+        <code>TCP_NODELAY</code> is off (<code>getsockopt</code>). Fix on both ends if needed: nodelay + single-buffer
+        writes; ensure HTTP/1.1 clients use keep-alive properly so you are not also paying handshake costs.
+        Measure before/after at p50/p99 — a true Nagle issue shows a sharp ~40ms mode, not a smooth shift.
+        Mentioning packet captures + nodelay is the senior signal; guessing &quot;add more pods&quot; is not.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET3 · FRAMING PROTOCOLS ════════════ -->
+<div class="section" id="net3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 03</div>
+      <div class="sh-title">Framing Protocols &amp; Tokio Codecs</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Why must every TCP application protocol define framing? Compare length-prefix, delimiter, and HTTP-ish framing.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Because TCP is a byte stream, the receiver must know where message N ends and N+1 begins.
+        <strong>Length-prefix:</strong> <code>u32 BE length + payload</code> — binary-friendly, O(1) boundary,
+        needs max-length caps. <strong>Delimiter:</strong> newline/NULL terminated — easy for text; fails if
+        payload can contain the delimiter unless escaped. <strong>HTTP-ish:</strong> headers until
+        <code>\r\n\r\n</code>, then body sized by <code>Content-Length</code> or chunked encoding — rich but
+        complex (trailers, pipelining, smuggling). Prefer length-prefix for internal binary RPC; use battle-tested
+        HTTP stacks (<code>hyper</code>) rather than hand-rolling HTTP.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How does <code>tokio_util::codec::{Decoder, Encoder, Framed}</code> work? Sketch a length-prefix decoder.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>Decoder::decode</code> inspects a <code>BytesMut</code> buffer, returns <code>Ok(None)</code> if it needs
+        more bytes, <code>Ok(Some(frame))</code> when a full frame is split off, or <code>Err</code> on protocol
+        violation. <code>Framed</code>/<code>FramedRead</code> repeatedly fills the buffer from the socket and calls
+        decode. Example sketch:
+<pre style="margin:6px 0;"><span class="kw">impl</span> Decoder <span class="kw">for</span> <span class="ty">LenPrefix</span> {
+    <span class="kw">type</span> Item = Bytes;
+    <span class="kw">type</span> Error = std::io::Error;
+    <span class="kw">fn</span> <span class="fn">decode</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, src: &amp;<span class="kw">mut</span> BytesMut)
+        -&gt; <span class="ty">Result</span>&lt;<span class="ty">Option</span>&lt;Bytes&gt;, <span class="kw">Self</span>::Error&gt; {
+        <span class="kw">if</span> src.len() &lt; <span class="nm">4</span> { <span class="kw">return</span> Ok(<span class="nm">None</span>); }
+        <span class="kw">let</span> n = u32::from_be_bytes(src[..<span class="nm">4</span>].try_into().unwrap()) <span class="kw">as</span> usize;
+        <span class="kw">if</span> n &gt; <span class="kw">self</span>.max { <span class="kw">return</span> Err(...); }
+        <span class="kw">if</span> src.len() &lt; <span class="nm">4</span> + n { <span class="kw">return</span> Ok(<span class="nm">None</span>); }
+        src.advance(<span class="nm">4</span>);
+        Ok(Some(src.split_to(n).freeze()))
+    }
+}</pre>
+        Always enforce <code>max</code> before waiting for <code>n</code> bytes — otherwise a malicious length
+        allocates you into OOM (see NET12).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What are common framing bugs in interviews and production?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) Assuming one <code>read</code> = one message. (2) Using <code>u32</code> length without endianness agreement.
+        (3) Forgetting that length includes/excludes the header inconsistently across peers. (4) Delimiter protocols
+        without escaping. (5) Reusing a buffer incorrectly so remaining bytes from message N+1 are discarded.
+        (6) Blocking decode on incomplete data instead of returning &quot;need more&quot;. Codecs + property tests with
+        split reads (<code>proptest</code> partial chunks) catch most of these. Prefer
+        <code>tokio_util::codec::LengthDelimitedCodec</code> when it fits before inventing a format.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">When do you choose custom framing vs gRPC/HTTP? Rust ecosystem callouts.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Custom framing for latency-sensitive binary meshes, game/replication protocols, or constrained devices —
+        you own versioning, auth, and observability. Prefer <strong>HTTP/2 + gRPC (tonic)</strong> or
+        <strong>HTTP + axum</strong> when you want intermediaries, tracing headers, load balancers, and boring
+        security defaults. Middle ground: length-prefix + protobuf over TLS. Ecosystem:
+        <code>tokio_util::codec</code>, <code>asynchronous-codec</code>, <code>prost</code>/<code>parity-scale-codec</code>
+        for payloads; never claim custom TCP RPC is &quot;simpler&quot; without counting auth, retries, and ops tooling.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET4 · UDP / DATAGRAMS ════════════ -->
+<div class="section" id="net4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 04</div>
+      <div class="sh-title">UDP / Datagrams — When to Use</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does UDP provide vs TCP? Name real systems that correctly choose UDP.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        UDP is connectionless datagrams: best-effort, unordered (in practice often mostly ordered but not
+        guaranteed), no congestion control or retransmission at L4. Each <code>recv_from</code> is one datagram
+        (up to size limits) — message boundaries are preserved, unlike TCP. Good fit: DNS queries, DHCP, voice/video
+        (with app codecs), game state, telemetry/metrics fan-in, QUIC (reliability built in userspace over UDP),
+        and some discovery protocols. Bad fit: &quot;I want TCP but without the handshake&quot; for banking transfers without
+        redesigning reliability.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How do you use <code>tokio::net::UdpSocket</code> correctly? What about connected UDP?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Bind, then <code>recv_from</code>/<code>send_to</code> with buffers sized to expected MTU (often 1500 minus
+        headers; beware jumbo/path MTU). Truncation: if the buffer is smaller than the datagram, data is cut —
+        detect via APIs that report size. <strong>Connected UDP</strong> (<code>connect</code> on a UDP socket)
+        filters peer address and lets you use <code>send</code>/<code>recv</code>; it is not a TCP-like session —
+        still no reliability. For fan-in servers, one socket + many peers is typical; for clients, connected mode
+        simplifies icmp error delivery on some OSes. Always handle <code>WouldBlock</code> via async awaits; never
+        spin.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">If you need reliability on UDP, what do you reinvent — and when should you just use QUIC?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Homegrown reliability needs: sequence numbers, ACKs/NACKs, retransmit timers, congestion control, RTT
+        estimation, connection IDs for NAT rebinding, and ideally encryption — i.e. most of QUIC/TCP. Prefer
+        <strong>QUIC</strong> (<code>quinn</code> in Rust) when you want multiplexed streams, TLS 1.3-integrated
+        security, and modern loss recovery without head-of-line blocking across streams. Roll your own only for
+        tiny constrained domains (e.g. loss-tolerant state snapshots where latest wins) and document which
+        properties you intentionally skip.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Scenario: metrics agent sending counters over UDP drops under load. What do you change?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        UDP drops are expected when kernel buffers fill — increase <code>SO_RCVBUF</code>/<code>SO_SNDBUF</code>,
+        batch/aggregate metrics client-side, sample, or switch hot paths to a reliable channel (TCP/gRPC) for
+        critical counters. Add sender-side non-blocking send with drop counters (metric about metrics). Do not
+        &quot;fix&quot; silent loss without making loss visible. Interviewers like: &quot;UDP is best-effort; SLOs must either
+        tolerate loss or change transport.&quot;
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET5 · TLS / RUSTLS ════════════ -->
+<div class="section" id="net5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 05</div>
+      <div class="sh-title">TLS with rustls — Handshake, Certs, ALPN</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does a TLS handshake establish, and where does rustls sit relative to TCP?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        TLS runs <em>over</em> a reliable stream (usually TCP) or is integrated into QUIC. Handshake negotiates
+        version/ciphers, authenticates the server (and optionally the client) via certificates, and derives
+        symmetric keys for encryption/integrity of application data. <code>rustls</code> is a pure-Rust TLS
+        implementation: you feed it bytes from the socket and it emits plaintext / wants ciphertext written —
+        typically via <code>tokio-rustls</code> wrapping <code>TcpStream</code>. It does not replace TCP; failed
+        handshakes look like connection errors before any HTTP request is parsed.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain server cert validation, SANs, and common misconfigurations in Rust clients.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Clients verify: chain to a trusted root (webpki roots / custom CA), validity period, and
+        <strong>hostname</strong> against certificate SANs (DNS/IP). Mistakes: disabling verification in prod
+        (&quot;just for staging&quot; that ships), pinning the wrong CA, using IP connect while cert only has DNS SAN,
+        forgetting intermediate certs on the server, and clock skew failing NotBefore/NotAfter. In rustls, build a
+        <code>ClientConfig</code> with proper root store; for mTLS add client cert resolver on the client and
+        <code>server_config.client_verifier</code> on the server. Never leave <code>dangerous()</code> verifier
+        helpers enabled outside tests.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is ALPN and why does HTTP/2 care?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>ALPN</strong> (Application-Layer Protocol Negotiation) lets the TLS handshake advertise protocols
+        like <code>h2</code> and <code>http/1.1</code>. HTTP/2 over TLS requires ALPN <code>h2</code>; without it,
+        clients fall back to HTTP/1.1. gRPC over TLS similarly depends on <code>h2</code>. In rustls, set
+        <code>ClientConfig::alpn_protocols</code> / server ALPN lists; hyper/tonic wire this when configured.
+        Debugging &quot;why am I on HTTP/1.1?&quot; often ends at missing ALPN or a middlebox that does not forward it.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Session resumption, 0-RTT risks, and cert rotation — what should a senior mention?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Tickets/PSK resumption cut handshake RTTs for repeat connections — important for short-lived clients and
+        mobile. <strong>TLS 1.3 0-RTT</strong> data can be replayed; only send idempotent requests in 0-RTT
+        (most HTTP stacks disable or carefully gate it). Cert rotation: overlap old/new certs, automate with ACME,
+        reload server config without dropping long-lived connections if possible (graceful config swap).
+        rustls configs are typically rebuilt and swapped under an <code>Arc</code>; hot-reload strategies matter at
+        the acceptor. Mention OCSP/CRL sparingly; stapling and short-lived certs are the modern direction.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET6 · HTTP/1.1 vs HTTP/2 vs HTTP/3 ════════════ -->
+<div class="section" id="net6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 06</div>
+      <div class="sh-title">HTTP/1.1 vs HTTP/2 vs HTTP/3 (QUIC) for Service Design</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Contrast HTTP/1.1 connection usage with HTTP/2 streams for backend fan-out.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>HTTP/1.1:</strong> one request at a time per connection (pipelining exists but is cursed); browsers
+        open many connections; servers see connection churn and head-of-line blocking at the HTTP layer.
+        Keep-Alive reuses connections but concurrency needs a pool of sockets. <strong>HTTP/2:</strong> many
+        streams multiplexed on one TLS+TCP connection, binary framing, HPACK headers — better for many parallel
+        RPCs to one host, but TCP loss still blocks all streams (transport HOL). Rust: hyper supports both;
+        axum servers typically speak h1/h2 based on ALPN; tonic needs h2.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What problems does HTTP/3 / QUIC solve that HTTP/2-over-TCP does not?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        QUIC runs on UDP with userspace loss recovery and encryption by default (TLS 1.3 integrated). Independent
+        streams avoid TCP-wide head-of-line blocking when packets drop. Connection IDs survive NAT rebinding
+        (mobile networks). Handshake often combines transport+TLS in 1-RTT (0-RTT optional). Costs: UDP blocked
+        on some networks (fallback to h2), more complex middleboxes/load balancers, different tuning knobs.
+        For public edge/mobile, H3 can win; for east-west datacenter gRPC over h2/TCP remains dominant and simpler ops.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do these choices affect timeouts, retries, and load balancing?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        H1 pools: many conns → LB sees fine-grained distribution; idle timeouts kill unused sockets.
+        H2/H3: fewer conns, long-lived → imbalance if LB is conn-based (need L7 or careful power-of-two choices);
+        a single stalled connection hurts many streams. Retries: safe only for idempotent requests; gRPC/HTTP
+        retry policies must avoid thundering herds (jitter). Timeouts: separate connect, TLS, request headers,
+        and body/streaming deadlines — hyper/tower layers make this explicit. Do not use one giant 30s timeout
+        for everything.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Scenario: internal gRPC mesh vs public REST. Which HTTP version story do you tell?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Internal: tonic/gRPC over HTTP/2 + mTLS (or mesh sidecar), connection pooling per destination, deadlines
+        as first-class metadata, protobuf contracts. Public: REST/JSON over HTTPS (h1/h2, maybe h3 at CDN edge),
+        axum/hyper, CDN caching where possible, stricter auth and rate limits. Avoid exposing raw gRPC to browsers
+        without grpc-web/proxy. Strong answer names trade-offs (streaming, codegen, human debuggability) rather
+        than &quot;gRPC is always faster.&quot;
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET7 · BACKPRESSURE ════════════ -->
+<div class="section" id="net7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 07</div>
+      <div class="sh-title">Backpressure: Socket → Application (Tokio)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is backpressure in a network service, and why do unbounded queues hide it?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Backpressure means a slow consumer forces producers to slow down rather than buffering without bound.
+        TCP does this via receive windows; async apps often break it by reading sockets as fast as possible into
+        unbounded channels/vecs — memory grows, latency explodes, OOM kills the process while TCP still looks
+        &quot;healthy.&quot; Correct design: bounded buffers at every stage so fullness propagates to TCP window / HTTP
+        refusal / load shedding.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How do you wire socket → worker backpressure with Tokio primitives?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Pattern: accept loop acquires a <code>Semaphore</code> permit before spawn (limits concurrent connections
+        or in-flight requests). Per connection: <code>Framed</code> reads only when the next stage can accept —
+        use <code>tokio::sync::mpsc</code> with capacity <code>N</code>, and <code>send().await</code> so a full
+        channel pauses the reader (which then pauses socket reads → TCP backpressure). For fan-out, prefer
+        <code>broadcast</code>/<code>watch</code> carefully (they drop/lag differently). Avoid
+        <code>unbounded_channel</code> on request paths. <code>BufferUnordered(n)</code> in futures streams is
+        another concurrency bound.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Where does hyper/axum apply backpressure, and where must you add it yourself?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        hyper won't read an unbounded body into memory unless you ask — use body size limits and stream large
+        uploads. Request concurrency is not magically global-limited; under Accept flood you still need tower
+        <code>ConcurrencyLimit</code>, load shedders, or reverse-proxy limits. Axum extractors that collect full
+        bodies (<code>Bytes</code>, large JSON) are app-level buffers — cap them. Downstream clients: bounded
+        connection pools and tower concurrency limits so one hot route cannot exhaust the runtime.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Scenario: channel between decoder and DB workers is size 10_000 and RSS climbs. Diagnose and fix.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        10k large messages is still unbounded-ish memory. Shrink bound to what SLO latency allows (often tens),
+        scale DB workers, and add explicit load shedding when wait time exceeds budget (fail fast 503).
+        Measure queue depth and wait latency — depth alone without age is misleading. Ensure slow DB does not
+        get &quot;help&quot; from ever-larger buffers. Senior answer: pick bound from latency math
+        (<code>bound ≈ target_concurrency</code>, not from &quot;big enough to never block.&quot;
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET8 · LB &amp; CONNECTION POOLING ════════════ -->
+<div class="section" id="net8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 08</div>
+      <div class="sh-title">Load Balancing &amp; Connection Pooling (L4/L7)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">L4 vs L7 load balancing for Rust services — what changes for the app?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>L4</strong> balances TCP/UDP flows; TLS may pass through; app sees real or NAT'd client IPs depending
+        on topology. <strong>L7</strong> terminates HTTP, can route by path/header, retry GETs, inject headers
+        (<code>X-Forwarded-For</code>, <code>X-Request-Id</code>). Axum apps behind L7 must trust proxy headers only
+        from known hops (<code>SetTrueClientIp</code> patterns / forwarded middleware). Idle timeouts on LB and
+        app must align or you get random 502s on long polls.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How should HTTP and DB connection pools be sized in a Tokio service?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Pool size ≈ concurrent in-flight work that productively uses the resource, not &quot;threads × something.&quot;
+        For Postgres via <code>sqlx</code>/<code>deadpool</code>: start from DB <code>max_connections</code> /
+        number of app replicas, leave headroom for admin/migrations, measure wait time. For hyper clients:
+        pool per upstream host, cap idle connections, set connect timeouts. Too large → DB overload; too small →
+        queueing latency. Prefer explicit tower concurrency limits in front of the pool so waits are visible
+        as 429/503 rather than silent latency.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Why can HTTP/2 to backends create load imbalance? What mitigations exist?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Few long-lived H2 connections → L4 hashing pins a lot of traffic to one pod; others idle. Mitigations:
+        L7 balancing per request, shorter connection lifetimes with jittered reconnect, more connections in the
+        pool (trade memory), ORCA/load reports, or client-side P2C (power of two choices) with EWMA latency.
+        Envoy/service mesh often owns this; tonic/hyper clients need careful pool settings when talking directly.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Health checks, connection draining, and graceful shutdown — Rust callouts.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Readiness fails before shutdown so LB stops new sends; in-flight requests drain with a timeout;
+        then drop listen socket. In axum/hyper: catch signal, <code>with_graceful_shutdown</code>, track
+        in-flight via <code>WaitGroup</code>/counters, close idle pooled clients. Fail readiness if dependency
+        pools are exhausted only if that matches product policy — sometimes better to shed load while still
+        &quot;alive.&quot; Sticky sessions: avoid unless necessary; if needed, terminate affinity at L7 with explicit
+        cookie/hash and document failover behavior.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET9 · DNS, DISCOVERY, TIMEOUTS, RETRIES ════════════ -->
+<div class="section" id="net9">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 09</div>
+      <div class="sh-title">DNS, Service Discovery, Timeouts &amp; Retries (Tower)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">How does DNS interact with long-lived connection pools in Rust clients?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Resolve-at-connect means a pool may pin stale IPs after DNS TTL changes (deploys, failover). Clients need
+        periodic re-resolve, connection max-age, or a discovery layer that pushes endpoints. <code>getaddrinfo</code>
+        blocking calls must not run on Tokio workers — use async resolvers (<code>hickory-dns</code>/<code>trust-dns</code>)
+        or <code>spawn_blocking</code>. Caching resolvers can hide updates; set TTLs consciously. Kubernetes
+        ClusterIP vs headless services change whether you load-balance at DNS or kube-proxy/mesh.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Design a timeout hierarchy for an outbound HTTP call from an axum handler.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Separate: DNS lookup, TCP connect, TLS handshake, full request (headers+body), and optional per-stream
+        idle timeouts. The handler's client timeout should be <em>less than</em> the inbound request deadline so
+        you fail fast and return a controlled error. Propagate deadlines (gRPC) / cancel tokens so work stops.
+        tower: <code>Timeout</code> layer; hyper client builder timeouts; never rely only on OS TCP retransmit
+        timeouts (far too long for UX).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do you implement retries safely with tower? What must never be retried blindly?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Retry only idempotent requests or those with idempotency keys; use exponential backoff + full jitter;
+        cap attempts; classify errors (connect timeout / 503 / RESET vs 400 / 401). tower
+        <code>Retry</code> + <code>Policy</code> / <code>Budget</code> (retry budget) prevents retry storms amplifying
+        outages. Hedge cautiously (tail latency) — it doubles load. Combine with circuit breakers
+        (<code>tower::limit</code> / custom failure gates). Non-idempotent POST without keys: no automatic retry at
+        the HTTP client; application-level compensation instead.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Service discovery options: DNS, env, Consul/etcd, mesh. When is each enough?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Static/env for small deployments; Kubernetes DNS + ClusterIP for many services; headless + client LB for
+        sticky/StatefulSets; Consul/etcd when you need richer health and KV outside k8s; service mesh when you want
+        mTLS, retries, and stats without app changes. Rust apps should treat discovery results as changing sets —
+        watch or poll, rebuild pools, and avoid assuming a single IP forever. Strong candidates discuss failure:
+        empty endpoints, partial AZ loss, and stale caches.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET10 · PROXIES, NAT, WEBSOCKET ════════════ -->
+<div class="section" id="net10">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 10</div>
+      <div class="sh-title">Proxies, NAT &amp; WebSocket Upgrade Pitfalls</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does NAT do to connections, and why do keepalive/heartbeats matter?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        NAT rewrites addresses/ports and maintains a mapping table entry with an idle timeout. Silent TCP
+        connections can be dropped without RSTs reaching both peers → half-open zombies. Heartbeats refresh
+        mappings; on failure, reconnect. Symmetric NAT and CGNAT make inbound peer-to-peer hard — prefer
+        server-relayed designs. QUIC connection IDs help path migration; plain TCP needs rediscovery.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Forward proxy vs reverse proxy vs transparent — what does each mean for TLS and headers?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Forward:</strong> client-chosen proxy to the outside world (corp egress). <strong>Reverse:</strong>
+        sits in front of your services (nginx/Envoy/ALB) — TLS often terminated here. <strong>Transparent:</strong>
+        intercepts without client config — surprising MTU/TLS issues. After TLS termination, apps see HTTP and
+        must reconstruct client IP via forwarded headers carefully. End-to-end TLS (passthrough) preserves
+        client→app encryption but loses L7 routing unless using SNI. Document trust boundaries explicitly.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Walk through the WebSocket handshake and common proxy pitfalls with axum.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Client sends HTTP/1.1 upgrade: <code>Connection: Upgrade</code>, <code>Upgrade: websocket</code>,
+        <code>Sec-WebSocket-Key</code>; server responds <code>101 Switching Protocols</code>, then frames take over.
+        Pitfalls: L7 proxies that buffer or do not allow Upgrade; wrong idle timeouts killing quiet sockets;
+        sticky sessions required when state is in-memory per pod; missing ping/pong → NAT drop; trying to run
+        WebSocket over HTTP/2 incorrectly (browsers use h1 upgrade or H2 extended CONNECT in newer stacks —
+        know your proxy). In axum, use the WebSocket extractor/upgrade APIs; ensure reverse proxy
+        <code>proxy_http_version 1.1</code> and upgrade headers (nginx) are set.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Scenario: WebSockets work locally but die every ~60s behind a cloud LB. What do you check?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Idle timeout on the LB/listener (classic 60s), missing app-level pings, proxy not forwarding upgrades,
+        or draining during deploys without graceful reconnect. Fix: protocol pings every 20–30s, align idle
+        timeouts, implement client reconnect with jitter and resume tokens if needed. Confirm whether the LB
+        supports WebSocket at all (some need explicit annotation). Packet captures at client vs server show who
+        sent FIN/RST.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET11 · OBSERVABILITY ════════════ -->
+<div class="section" id="net11">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 11</div>
+      <div class="sh-title">Observability for Network Paths</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Which network signals belong in RED/USE dashboards for a Rust service?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Request Rate / Errors / Duration (RED) at the HTTP/gRPC layer; Utilization / Saturation / Errors (USE)
+        for sockets, pools, and runtime. Add: connect failures, TLS handshake failures, DNS errors, pool wait
+        time, active connections, bytes in/out. Separate <strong>client-perceived</strong> latency from
+        <strong>handler</strong> time to spot proxy/network inflation. tracing + OpenTelemetry spans across
+        outbound calls beat ad-hoc logs alone.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">RTT, retransmits, and error classes — how do you use them in an interview debugging story?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Rising RTT / retransmit rates (from kernel <code>TCP_INFO</code>, eBPF, or cloud NIC metrics) point to
+        congestion or bad paths — app retries will worsen it. Error classes: timeouts vs connection refused vs
+        reset vs TLS alert vs application 5xx — each maps to a different fix. Never aggregate all failures into
+        one &quot;error rate&quot; without labels. For Tokio, also track task schedule delay to distinguish runtime overload
+        from network RTT.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do you instrument outbound calls with tower/hyper without drowning in cardinality?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Low-cardinality labels: destination <em>service</em>, method, status class (2xx/4xx/5xx), error kind —
+        not raw URLs or user ids. Use histograms for latency with sensible buckets. Sample traces; keep spans for
+        queue wait vs DB vs outbound HTTP. Metrics crates (<code>metrics</code>, <code>prometheus</code>) plus
+        tracing spans is the usual Rust stack. Exemplars linking a slow trace to a histogram bucket are a staff-level flourish.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Scenario: p99 is high but p50 is fine; dependency p99 looks fine too. Where is the time?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Check queueing before the handler (accept/semaphore), Tokio worker saturation, head-of-line on H2
+        connections, GC-less but allocator contention, lock contention, DNS spikes on reconnect storms, or
+        retry amplification on a subset of hosts. Distributed traces with span events for &quot;got pool permit&quot; /
+        &quot;DNS done&quot; / &quot;TLS done&quot; / &quot;first byte&quot; localize the gap. Strong answer invents a latency waterfall,
+        not a single average.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ NET12 · DOS-SAFE PARSERS ════════════ -->
+<div class="section" id="net12">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-web)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-web)">// NET 12</div>
+      <div class="sh-title">Correct Protocol Parsers without DoS (Limits &amp; Slowloris)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-web)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What parser/resource limits belong in every length-prefixed protocol?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Max frame size (reject before allocate), max nested depth (JSON/protobuf recursion), max concurrent
+        connections, max in-flight requests per connection, read/write idle timeouts, and absolute handshake
+        deadlines. Prefer incremental parsing from <code>BytesMut</code> over <code>read_to_end</code>.
+        On violation: close the connection with a metric — do not try to &quot;helpfully&quot; skip giant frames.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain Slowloris-style attacks against HTTP and how Rust servers mitigate them.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Attacker opens many connections and dribbles headers/body bytes slowly, holding server resources
+        (tasks, buffers, sockets). Mitigations: header/body timeouts, minimum data rates, connection/request
+        concurrency caps, reverse-proxy buffering limits, and kernel SYN cookies / backlog tuning at the edge.
+        hyper/axum: configure server timeouts; put nginx/Envoy with aggressive timeouts in front for public
+        exposure; never leave accept loops unbounded.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do you write a Decoder that is safe against <code>length = u32::MAX</code>?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        After reading the length field, <strong>compare to <code>MAX_FRAME</code> immediately</strong> and return
+        a protocol error before reserving buffer space or looping until <code>src.len() &gt;= 4 + n</code>.
+        Cap <code>BytesMut</code> reservations; use <code>reserve</code> carefully. Same idea for HTTP:
+        <code>Content-Length</code> limits, and for chunked encoding a total body cap. Fuzz with
+        <code>cargo fuzz</code> on the decode path — networking parsers are prime fuzz targets.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">HTTP request smuggling / header abuse — what should a Rust interviewer hear?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Ambiguous <code>Content-Length</code> vs <code>Transfer-Encoding</code> across proxy and origin can
+        desync connections — use one well-maintained parser (hyper) on both sides or normalize at a trusted
+        proxy; disable rare TE features if unused. Reject obs-fold headers, absurd header counts/sizes, and
+        duplicate CL. Don't roll a custom HTTP parser for production edges. Mention security advisories and
+        keeping hyper/rustls updated — dependency hygiene is part of network safety.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Scenario: design acceptance tests that prove your codec resists DoS. What do you automate?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) Frame length &gt; max → immediate error, constant memory. (2) Slow drip of bytes under timeout →
+        connection closed, worker freed. (3) Thousands of concurrent idle conns → accept semaphore rejects or
+        sheds. (4) Partial frames left in buffer across reads still decode correctly (correctness under split).
+        (5) Fuzz corpus for panics/OOM. Tie tests to metrics assertions where possible. This is the difference
+        between a demo codec and a production-ready one in staff interviews.
+      </div></div>
+    </div>
+  </div>
+</div>

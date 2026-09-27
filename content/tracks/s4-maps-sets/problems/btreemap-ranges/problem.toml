@@ -1,0 +1,23 @@
+slug = "btreemap-ranges"
+title = "BTreeMap range queries"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 5
+status = "ready"
+tags = ["BTreeMap::range"]
+teaches = [
+  "`range(a..=b)` walks only the keys in the range, in order.",
+  "`range` panics if start > end, so check first.",
+]
+follow_up = "How would you find the latest event at or before a timestamp?"
+related = ["D4"]
+
+[[hints]]
+kind = "rust"
+text = "`BTreeMap::range` takes any range expression and yields entries in key order."
+
+[solution]
+explanation = "A range query costs O(log n + k): find the start, then walk k entries. `range` panics on inverted bounds, hence the check."
+time = "O(log n + k)"
+space = "O(k)"

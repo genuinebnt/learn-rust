@@ -1,0 +1,30 @@
+slug = "fix-closure-returns-its-argument"
+title = "Fix: a closure that returns its argument"
+mode = "fix"
+level = "hard"
+stage = "variance-hrtbs"
+order = 19
+status = "ready"
+tags = ["closure lifetimes", "fn items"]
+teaches = [
+  "Closures don't get lifetime elision for their return type.",
+  "Prefer `fn` items or method paths when a callback returns a borrow.",
+]
+follow_up = "How could a closure be made to work here without turning it into a fn?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "An annotated `|s: &str|` closure takes any lifetime, but its return type gets one fixed lifetime, so the compiler can't connect the output to the input."
+
+[[hints]]
+kind = "rust"
+text = "A `fn` item gets the full elision rules: `fn trim(s: &str) -> &str` means 'returns a borrow of `s`'. `.map(str::trim)` works too."
+
+[solution]
+explanation = "Closure signatures are inferred, and inference doesn't apply the elision rule that links an output to an input. Named functions (or `str::trim` directly) state the relationship."
+time = "O(n)"
+space = "O(k)"
+
+[rules]
+max_changed_lines = 3

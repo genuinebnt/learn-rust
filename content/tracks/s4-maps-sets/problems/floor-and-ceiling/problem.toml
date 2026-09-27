@@ -1,0 +1,22 @@
+slug = "floor-and-ceiling"
+title = "Floor and ceiling with range"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 9
+status = "ready"
+tags = ["BTreeSet", "range", "next_back"]
+teaches = [
+  "`range(..=x).next_back()` is the floor; `range(x..).next()` is the ceiling.",
+]
+follow_up = "How would you find the k nearest prices to x?"
+related = ["D4", "D14"]
+
+[[hints]]
+kind = "rust"
+text = "A range iterator is double-ended: `next_back` gives the last element of `..=x`."
+
+[solution]
+explanation = "Both queries are O(log n) and neither scans the set."
+time = "O(log n)"
+space = "O(1)"

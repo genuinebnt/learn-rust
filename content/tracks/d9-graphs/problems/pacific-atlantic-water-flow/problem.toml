@@ -1,0 +1,31 @@
+slug = "pacific-atlantic-water-flow"
+title = "Pacific Atlantic water flow"
+mode = "write"
+level = "medium"
+stage = "traversal"
+order = 9
+status = "ready"
+tags = ["reverse BFS", "grid", "Blind 75"]
+teaches = [
+  "Search backwards from the targets instead of forwards from every cell.",
+  "A closure returning an owned `Vec<Vec<bool>>`.",
+]
+constraints = ["1 ≤ rows, cols ≤ 200"]
+follow_up = "How would you parallelise the two searches?"
+
+[[examples]]
+input = "heights = [[1,2,2,3,5],[3,2,3,4,4],[2,4,5,3,1],[6,7,1,4,5],[5,1,1,2,4]]"
+output = "[(0,4), (1,3), (1,4), (2,2), (3,0), (3,1), (4,0)]"
+
+[[hints]]
+kind = "approach"
+text = "Searching from every cell is O((rc)²). Instead, start at each ocean's shore and walk uphill."
+
+[[hints]]
+kind = "rust"
+text = "A closure that takes the start cells and returns the `seen` grid lets you run the same search for both oceans."
+
+[solution]
+explanation = "Two reverse searches, one per ocean, then intersect. The closure only reads `heights`, so both calls can borrow it."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

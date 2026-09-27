@@ -1,0 +1,345 @@
+use std::path::PathBuf;
+use std::process::ExitCode;
+use std::sync::Arc;
+
+use anneal_content::{Catalog, Loaded, Mode, Status};
+use anneal_runner::{Outcome, RunResult, Runner, RunnerConfig, Sandbox, Submission, Suite};
+use anyhow::{Context, bail};
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(
+    name = "anneal",
+    about = "Tools for the anneal Rust interview-prep platform"
+)]
+struct Cli {
+    /// The content directory.
+    #[arg(long, global = true, default_value = "content")]
+    content: PathBuf,
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Check every track and problem and list the issues found.
+    Validate,
+    /// List tracks, or the problems in one track.
+    List { track: Option<String> },
+    /// Check every ready problem end to end: the reference solution passes every test
+    /// without breaking a rule, the starter doesn't pass, and a write-it starter compiles.
+    Verify {
+        /// Only this track (code or folder name), e.g. d1.
+        track: Option<String>,
+        /// Problems run at once.
+        #[arg(long, default_value_t = 6)]
+        jobs: usize,
+    },
+    /// Run a problem's tests against the starter, the reference solution, or your own file.
+    Run {
+        /// Problem id, e.g. d9-network-delay-time.
+        problem: String,
+        /// Your src/lib.rs. Defaults to the problem's starter.
+        #[arg(long, conflicts_with = "solution")]
+        code: Option<PathBuf>,
+        /// Run the reference solution.
+        #[arg(long)]
+        solution: bool,
+        /// Include hidden tests, like Submit.
+        #[arg(long)]
+        submit: bool,
+        /// Run inside the Docker sandbox instead of host cargo.
+        #[arg(long)]
+        docker: bool,
+        #[arg(long, default_value = "anneal-runner:1.98")]
+        image: String,
+        /// Docker context for the sandbox; empty means the current context.
+        #[arg(long, default_value = anneal_runner::DEFAULT_DOCKER_CONTEXT)]
+        docker_context: String,
+        /// Skip clippy.
+        #[arg(long)]
+        no_clippy: bool,
+        /// Print the full result as JSON.
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<ExitCode> {
+    let cli = Cli::parse();
+    let Loaded { catalog, issues } = Catalog::load(&cli.content)
+        .with_context(|| format!("loading {}", cli.content.display()))?;
+    match cli.command {
+        Command::Validate => {
+            let problems: usize = catalog.tracks.iter().map(|t| t.problems.len()).sum();
+            for issue in &issues {
+                println!("{issue}");
+            }
+            println!(
+                "{} tracks, {problems} problems, {} issues",
+                catalog.tracks.len(),
+                issues.len()
+            );
+            Ok(if issues.is_empty() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            })
+        }
+        Command::List { track } => {
+            match track {
+                None => {
+                    for t in &catalog.tracks {
+                        let ready = t
+                            .problems
+                            .iter()
+                            .filter(|p| p.meta.status == anneal_content::Status::Ready)
+                            .count();
+                        println!(
+                            "{:<4} {:<32} {:>3} problems ({ready} ready)",
+                            t.code,
+                            t.name,
+                            t.problems.len()
+                        );
+                    }
+                }
+                Some(code) => {
+                    let Some(t) = catalog.track(&code) else {
+                        bail!("no track {code:?}")
+                    };
+                    for p in &t.problems {
+                        println!(
+                            "{:>3}  {:<40} {:?} {:?} {:?}  {}",
+                            p.meta.order,
+                            p.id,
+                            p.meta.mode,
+                            p.meta.level,
+                            p.meta.status,
+                            p.meta.title
+                        );
+                    }
+                }
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::Verify { track, jobs } => verify(&catalog, track.as_deref(), jobs).await,
+        Command::Run {
+            problem,
+            code,
+            solution,
+            submit,
+            docker,
+            image,
+            docker_context,
+            no_clippy,
+            json,
+        } => {
+            let Some((_, p)) = catalog.problem(&problem) else {
+                bail!("no problem {problem:?}; try `anneal list <track>`")
+            };
+            let lib_rs = match (&code, solution) {
+                (Some(path), _) => std::fs::read_to_string(path)
+                    .with_context(|| format!("reading {}", path.display()))?,
+                (None, true) => p
+                    .files
+                    .solution
+                    .clone()
+                    .context("this problem has no solution.rs")?,
+                (None, false) => p
+                    .files
+                    .starter
+                    .clone()
+                    .context("this problem has no starter.rs")?,
+            };
+            let visible = p
+                .files
+                .visible_tests
+                .as_deref()
+                .context("this problem has no tests/visible.rs")?;
+            let hidden = if submit {
+                Some(
+                    p.files
+                        .hidden_tests
+                        .as_deref()
+                        .context("this problem has no tests/hidden.rs")?,
+                )
+            } else {
+                None
+            };
+            let sandbox = if docker {
+                Sandbox::docker(image).in_context(&docker_context)
+            } else {
+                Sandbox::Host
+            };
+            let mut config = RunnerConfig::new(sandbox, anneal_runner::default_work_root());
+            config.clippy = !no_clippy;
+            let result = Runner::new(config)
+                .run(
+                    &p.id,
+                    &Submission {
+                        lib_rs: &lib_rs,
+                        visible_tests: visible,
+                        hidden_tests: hidden,
+                    },
+                )
+                .await?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                print_result(&result);
+            }
+            Ok(if result.status == anneal_runner::RunStatus::Passed {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            })
+        }
+    }
+}
+
+struct Case {
+    id: String,
+    mode: Mode,
+    starter: String,
+    solution: String,
+    visible: String,
+    hidden: String,
+    rules: Option<anneal_content::Rules>,
+}
+
+async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::Result<ExitCode> {
+    let mut config = RunnerConfig::new(Sandbox::Host, anneal_runner::default_work_root());
+    config.clippy = false;
+    let runner = Arc::new(Runner::new(config));
+    let slots = Arc::new(tokio::sync::Semaphore::new(jobs.max(1)));
+    let mut tasks = tokio::task::JoinSet::new();
+    for t in &catalog.tracks {
+        if track.is_some_and(|c| !t.code.eq_ignore_ascii_case(c) && t.slug != c) {
+            continue;
+        }
+        for p in t.problems.iter().filter(|p| p.meta.status == Status::Ready) {
+            let f = &p.files;
+            let case = Case {
+                id: p.id.clone(),
+                mode: p.meta.mode,
+                starter: f.starter.clone().unwrap_or_default(),
+                solution: f.solution.clone().unwrap_or_default(),
+                visible: f.visible_tests.clone().unwrap_or_default(),
+                hidden: f.hidden_tests.clone().unwrap_or_default(),
+                rules: p.meta.rules.clone(),
+            };
+            let (runner, slots) = (runner.clone(), slots.clone());
+            tasks.spawn(async move {
+                let _permit = slots.acquire_owned().await;
+                let issues = verify_one(&runner, &case).await;
+                (case.id, issues)
+            });
+        }
+    }
+    let mut results = Vec::new();
+    while let Some(r) = tasks.join_next().await {
+        results.push(r?);
+    }
+    results.sort();
+    let failed = results.iter().filter(|(_, i)| !i.is_empty()).count();
+    for (id, issues) in &results {
+        if issues.is_empty() {
+            println!("ok    {id}");
+        } else {
+            println!("FAIL  {id}");
+            for i in issues {
+                println!("        {i}");
+            }
+        }
+    }
+    println!("{} problems verified, {failed} failed", results.len());
+    Ok(if failed == 0 { ExitCode::SUCCESS } else { ExitCode::FAILURE })
+}
+
+async fn verify_one(runner: &Runner, c: &Case) -> Vec<String> {
+    let mut issues = Vec::new();
+    let count = |src: &str| src.matches("#[test]").count();
+    if count(&c.visible) < 2 {
+        issues.push(format!("only {} visible tests; want at least 2", count(&c.visible)));
+    }
+    if count(&c.hidden) < 1 {
+        issues.push("no hidden tests".into());
+    }
+    let broken = |code: &str| c.rules.as_ref().map(|r| anneal_rules::check(code, &c.starter, r)).unwrap_or_default();
+
+    match submit(runner, c, &c.solution).await {
+        Ok(r) => {
+            if r.status != anneal_runner::RunStatus::Passed {
+                issues.push(format!("solution: {:?}, {}/{} passing{}", r.status, r.passed, r.total, first_problem(&r)));
+            }
+            for v in broken(&c.solution) {
+                issues.push(format!("solution breaks rule {}: {}", v.rule, v.message));
+            }
+        }
+        Err(e) => issues.push(format!("solution: runner error {e}")),
+    }
+    match submit(runner, c, &c.starter).await {
+        Ok(r) => {
+            if r.status == anneal_runner::RunStatus::Passed && broken(&c.starter).is_empty() {
+                issues.push("starter already passes every test without breaking a rule".into());
+            }
+            if c.mode == Mode::Write && r.status == anneal_runner::RunStatus::CompileError {
+                issues.push(format!("write-it starter doesn't compile{}", first_problem(&r)));
+            }
+        }
+        Err(e) => issues.push(format!("starter: runner error {e}")),
+    }
+    issues
+}
+
+async fn submit(runner: &Runner, c: &Case, code: &str) -> Result<RunResult, anneal_runner::RunnerError> {
+    runner.run(&c.id, &Submission { lib_rs: code, visible_tests: &c.visible, hidden_tests: Some(&c.hidden) }).await
+}
+
+/// The first compiler error or failing test, for a one-line report.
+fn first_problem(r: &RunResult) -> String {
+    if let Some(d) = r.diagnostics.iter().find(|d| d.is_error()) {
+        return format!(" · {}", d.rendered.lines().take(3).collect::<Vec<_>>().join(" | "));
+    }
+    r.tests
+        .iter()
+        .find(|t| t.outcome != Outcome::Passed)
+        .map(|t| match &t.check {
+            Some(c) => format!(" · {} expected {} got {}", t.name, c.expected, c.got),
+            None => format!(" · {} {}", t.name, t.panic.as_deref().unwrap_or("")),
+        })
+        .unwrap_or_default()
+}
+
+fn print_result(r: &RunResult) {
+    for d in &r.diagnostics {
+        println!("{}", d.rendered.trim_end());
+    }
+    for t in &r.tests {
+        let mark = match t.outcome {
+            Outcome::Passed => "ok",
+            Outcome::Failed => "FAILED",
+            Outcome::Ignored => "ignored",
+            Outcome::TimedOut => "TIMED OUT",
+        };
+        let suite = if t.suite == Suite::Hidden {
+            "hidden::"
+        } else {
+            ""
+        };
+        println!("  {mark:<9} {suite}{}", t.name);
+        if let Some(c) = &t.check {
+            println!(
+                "            input    {}\n            expected {}\n            got      {}",
+                c.input, c.expected, c.got
+            );
+        } else if let Some(p) = &t.panic {
+            println!("            {p}");
+        }
+    }
+    println!(
+        "{:?} · {} / {} passing · {} ms",
+        r.status, r.passed, r.total, r.duration_ms
+    );
+}

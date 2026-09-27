@@ -1,0 +1,31 @@
+slug = "four-sum"
+title = "4Sum"
+mode = "write"
+level = "hard"
+stage = "hard-windows"
+order = 18
+status = "ready"
+tags = ["two pointers", "i64"]
+teaches = [
+  "Two fixed loops plus two pointers.",
+  "Widen to i64: four i32s can overflow.",
+]
+follow_up = "Write k-sum recursively. What's the complexity?"
+related = ["D1"]
+
+[[examples]]
+input = "nums = [1, 0, -1, 0, -2, 2], target = 0"
+output = "[[-2, -1, 1, 2], [-2, 0, 0, 2], [-1, 0, 0, 1]]"
+
+[[hints]]
+kind = "approach"
+text = "Fix two values with loops, then two-pointer the remaining pair."
+
+[[hints]]
+kind = "edge case"
+text = "Four values near 10⁹ overflow i32; sum in i64."
+
+[solution]
+explanation = "The dedup rule is the same as 3Sum at each level."
+time = "O(n³)"
+space = "O(n)"

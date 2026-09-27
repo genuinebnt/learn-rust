@@ -1,0 +1,16 @@
+[package]
+name = "anneal-runner"
+description = "Runs a user's Rust solution against a problem's tests, on the host or in a Docker sandbox"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+anneal-content.workspace = true

@@ -1,0 +1,31 @@
+slug = "fix-prefix-sum-overflow"
+title = "Fix: overflow in prefix sums"
+mode = "fix"
+level = "medium"
+stage = "grouping-prefix-sums"
+order = 16
+status = "ready"
+tags = ["i64", "overflow"]
+teaches = [
+  "Integer overflow panics in debug builds and wraps silently in release.",
+  "Widen the accumulator, not each result.",
+]
+follow_up = "When would you reach for `checked_add`, `wrapping_add` or `saturating_add` instead?"
+related = ["S1", "Y1"]
+source = "B5"
+
+[[hints]]
+kind = "rust"
+text = "The accumulator overflows, not the result. What type should `sum` be?"
+
+[[hints]]
+kind = "rust"
+text = "`i64::from(x)` widens losslessly; `as` would also work here."
+
+[solution]
+explanation = "Debug builds check arithmetic and panic; release builds wrap. Widening the accumulator fixes both."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 3

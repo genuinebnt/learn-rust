@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme]{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--grid:oklch(0.205 0.012 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--ok:oklch(0.77 0.13 165);--ok-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--on-acc:oklch(0.17 0.02 255);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--str:oklch(0.79 0.11 160);--num:oklch(0.79 0.11 45);--mac:oklch(0.79 0.09 200);--lt:oklch(0.77 0.12 340);--com:oklch(0.58 0.012 255);--inlay:oklch(0.64 0.012 255);--inlay-bg:oklch(0.235 0.013 255);--sel:oklch(0.76 0.11 55 / 0.07);color-scheme:dark}
+[data-theme=light]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--grid:oklch(0.94 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--ok:oklch(0.52 0.12 165);--ok-bg:oklch(0.52 0.12 165 / 0.10);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--lt:oklch(0.50 0.15 340);--com:oklch(0.56 0.012 255);--inlay:oklch(0.50 0.012 255);--inlay-bg:oklch(0.935 0.005 255);--sel:oklch(0.58 0.13 50 / 0.06);color-scheme:light}
+body{margin:0;background:var(--bg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="width:1440px;height:900px;overflow:hidden;background:var(--bg);color:var(--fg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;display:flex;flex-direction:column">
+<header style="height:52px;flex:none;display:flex;align-items:center;gap:36px;padding:0 24px;border-bottom:1px solid var(--line2);background:var(--bg)">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="display:grid;grid-template-columns:repeat(2,5px);gap:2px"><span style="width:5px;height:5px;background:var(--acc)"></span><span style="width:5px;height:5px;background:var(--vio)"></span><span style="width:5px;height:5px;background:var(--grn)"></span><span style="width:5px;height:5px;box-shadow:inset 0 0 0 1px var(--line)"></span></div>
+    <span style="font:500 13px 'JetBrains Mono',monospace;color:var(--fg)">anneal<span style="color:var(--dim)">.genuinebasil.dev</span></span>
+  </div>
+  <nav style="display:flex;align-items:center;gap:22px;font:500 12px 'JetBrains Mono',monospace">
+    <a href="#" style="color:var(--acc)">Tracks</a>
+    <a href="#" style="color:var(--vio);padding:4px 0;box-shadow:inset 0 -1px 0 var(--vio)">Concepts</a>
+    <a href="#" style="color:var(--grn)">Projects</a>
+    <span style="color:var(--line)">|</span>
+    <a href="#" style="color:var(--dim)">Library</a>
+    <a href="#" style="color:var(--dim)">Mock interview</a>
+    <a href="#" style="color:var(--dim)">Readiness</a>
+  </nav>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+    <span style="font:500 11px 'JetBrains Mono',monospace;color:var(--dim);letter-spacing:.12em">READINESS <span style="color:var(--fg)">62%</span></span>
+    <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line2);border-radius:5px"><span style="width:11px;height:11px;border-radius:50%;border:1.5px solid var(--mut);background:linear-gradient(90deg,var(--mut) 50%,transparent 50%)"></span></button>
+    <div style="width:30px;height:30px;border-radius:50%;border:1px solid var(--acc);display:grid;place-items:center;font:600 11px 'JetBrains Mono',monospace;color:var(--acc)">gb</div>
+  </div>
+</header>
+<div style="flex:1;min-height:0;display:grid;grid-template-columns:56px {{ drawerW }} minmax(0,1fr);transition:grid-template-columns .2s">
+
+  <nav style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 0;border-right:1px solid var(--line2);background:var(--panel)">
+    <sc-for list="{{ rail }}" as="r" hint-placeholder-count="4">
+      <button onClick="{{ r.go }}" title="{{ r.title }}" style="width:40px;height:40px;border-radius:5px;border:1px solid {{ r.border }};background:{{ r.bg }};color:{{ r.color }};font:600 9.5px 'JetBrains Mono',monospace;letter-spacing:.08em">{{ r.label }}</button>
+    </sc-for>
+    <span style="margin-top:auto;font:500 9.5px 'JetBrains Mono',monospace;color:var(--dim)">⌘K</span>
+  </nav>
+
+  <aside style="overflow:hidden;border-right:1px solid var(--line2);background:var(--panel);min-width:0">
+    <div style="width:340px;height:100%;display:flex;flex-direction:column">
+      <div style="height:48px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line2)">
+        <span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.24em;color:var(--dim)">{{ drawerTitle }}</span>
+        <button onClick="{{ closeDrawer }}" style="font:400 16px 'JetBrains Mono',monospace;color:var(--dim)">×</button>
+      </div>
+      <div style="flex:1;overflow:auto;padding:24px 22px;font-size:14px;line-height:1.65;color:var(--mut)">
+        <sc-if value="{{ isBrief }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <p style="margin:0;color:var(--fg);text-wrap:pretty"><code style="font:500 12.5px 'JetBrains Mono',monospace">restock_low</code> should add 10 to every item with fewer than 5 in stock and log one line per restock. It doesn't compile.</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--dim)">RULES</span>
+              <div style="display:grid;grid-template-columns:14px 1fr;gap:6px 8px;font-size:13.5px"><span style="color:var(--bad)">×</span><span>no <code style="font:500 12px 'JetBrains Mono',monospace;color:var(--fg)">.clone()</code> of items</span><span style="color:var(--bad)">×</span><span>no <code style="font:500 12px 'JetBrains Mono',monospace;color:var(--fg)">RefCell</code> / <code style="font:500 12px 'JetBrains Mono',monospace;color:var(--fg)">Cell</code></span><span style="color:var(--grn)">+</span><span>change at most 2 lines</span></div>
+            </div>
+            <sc-if value="{{ fixed }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:16px;border-radius:6px;border:1px solid var(--vio);background:var(--vio-bg);display:flex;flex-direction:column;gap:8px">
+                <span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--vio)">CONCEPT · SPLIT BORROWS</span>
+                <span style="color:var(--fg);font-size:13.5px;text-wrap:pretty">A method call like <code style="font:500 12px 'JetBrains Mono',monospace">self.record(..)</code> needs all of <code style="font:500 12px 'JetBrains Mono',monospace">self</code>. A field path like <code style="font:500 12px 'JetBrains Mono',monospace">self.log</code> borrows only that field. The checker tracks fields separately inside one function body, never across a method boundary.</span>
+              </div>
+            </sc-if>
+            <div style="padding:14px 16px;border:1px dashed var(--line);border-radius:6px;font-size:13.5px"><span style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--acc)">ASKED AS</span><br>"Why does this compile when I inline the method body, but not when I call it?"</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isHints }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ hints }}" as="h" hint-placeholder-count="3">
+              <div style="padding:16px;border-radius:6px;border:1px {{ h.bs }} var(--line);background:var(--bg)">
+                <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--vio);margin-bottom:6px">HINT {{ h.n }}</div>
+                <sc-if value="{{ h.open }}" hint-placeholder-val="{{ true }}"><div style="color:var(--fg);font-size:13.5px;text-wrap:pretty">{{ h.text }}</div></sc-if>
+                <sc-if value="{{ h.canApply }}" hint-placeholder-val="{{ false }}"><button onClick="{{ applyFix }}" style="margin-top:12px;height:34px;padding:0 14px;border-radius:4px;background:var(--grn);color:var(--on-acc);font-size:13px;font-weight:700">Apply to line 15</button></sc-if>
+                <sc-if value="{{ h.locked }}" hint-placeholder-val="{{ false }}"><button onClick="{{ h.reveal }}" style="font-size:13.5px;color:var(--vio)">Reveal →</button></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isTests }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column">
+            <sc-for list="{{ tlist }}" as="t" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:10px;height:40px;border-bottom:1px solid var(--line2)"><span style="width:8px;height:8px;background:{{ t.c }}"></span><span style="font:400 12px 'JetBrains Mono',monospace;color:var(--fg)">{{ t.n }}</span><span style="margin-left:auto;font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">{{ t.s }}</span></div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isSol }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:18px;border:1px dashed var(--line);border-radius:6px;display:flex;flex-direction:column;gap:10px"><span style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--dim)">{{ solTag }}</span><span style="color:var(--fg)">{{ solText }}</span></div>
+        </sc-if>
+      </div>
+    </div>
+  </aside>
+
+  <main style="display:flex;flex-direction:column;min-width:0;min-height:0">
+    <div style="height:64px;flex:none;display:flex;align-items:center;gap:20px;padding:0 24px;border-bottom:1px solid var(--line2)">
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+        <div style="display:flex;gap:10px;font:500 11px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--dim)"><span style="color:var(--vio)">CONCEPTS</span><span>/</span><span>BORROW CHECKER</span><span>/</span><span>07 OF 18</span></div>
+        <div style="display:flex;align-items:center;gap:12px"><span style="font-size:22px;font-weight:700;letter-spacing:-0.02em;white-space:nowrap">Two mutable borrows of self</span>
+          <span style="white-space:nowrap;padding:4px 8px;border-radius:3px;background:var(--vio);color:var(--on-acc);font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.08em">FIX THIS</span>
+          <span style="white-space:nowrap;padding:3px 8px;border-radius:3px;border:1px solid var(--line2);color:var(--dim);font:500 10.5px 'JetBrains Mono',monospace">E0499</span>
+          
+        </div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:4px;padding:4px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);font:500 11.5px 'JetBrains Mono',monospace">
+        <sc-for list="{{ toggles }}" as="g" hint-placeholder-count="3">
+          <button onClick="{{ g.go }}" style="height:32px;padding:0 12px;display:flex;align-items:center;gap:8px;border-radius:5px;color:{{ g.color }};background:{{ g.bg }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ g.dot }}"></span>{{ g.label }}</button>
+        </sc-for>
+        <span style="width:1px;height:20px;background:var(--line2);margin:0 4px"></span>
+        <button onClick="{{ reset }}" style="height:32px;padding:0 12px;color:var(--dim)">reset</button>
+        <button style="height:32px;padding:0 16px;border-radius:5px;background:var(--grn);color:var(--on-acc);font-weight:600">Run ⌘↵</button>
+      </div>
+    </div>
+
+    <div style="height:34px;flex:none;position:relative;display:flex;align-items:center;padding:0 24px 0 64px;border-bottom:1px solid var(--line2);font:500 11px 'JetBrains Mono',monospace;color:var(--dim)">
+      <span style="color:var(--fg)">src/lib.rs</span><span style="margin-left:14px">3 tests · read-only</span>
+      <sc-if value="{{ lanes }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;right:0;top:0;bottom:0;width:280px;border-left:1px dashed var(--line2);font-size:10px;letter-spacing:.14em">
+          <span style="position:absolute;left:12px;top:11px">BORROW LANES</span>
+          <span style="position:absolute;right:16px;top:11px;color:{{ laneStatusColor }}">{{ laneStatus }}</span>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="flex:1;min-height:0;position:relative;overflow:hidden;padding-top:12px;font:400 12.5px 'JetBrains Mono',monospace;color:var(--fg)">
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">1</span><span style="white-space:pre"><span style="color:var(--kw)">struct</span> <span style="color:var(--ty)">Item</span> {</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">2</span><span style="white-space:pre">    name: <span style="color:var(--ty)">String</span>,</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">3</span><span style="white-space:pre">    qty: <span style="color:var(--ty)">u32</span>,</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">4</span><span style="white-space:pre">}</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">5</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">6</span><span style="white-space:pre"><span style="color:var(--kw)">pub struct</span> <span style="color:var(--ty)">Inventory</span> {</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">7</span><span style="white-space:pre">    items: <span style="color:var(--ty)">Vec</span>&lt;<span style="color:var(--ty)">Item</span>&gt;,</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">8</span><span style="white-space:pre">    log: <span style="color:var(--ty)">Vec</span>&lt;<span style="color:var(--ty)">String</span>&gt;,</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">9</span><span style="white-space:pre">}</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">10</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">11</span><span style="white-space:pre"><span style="color:var(--kw)">impl</span> <span style="color:var(--ty)">Inventory</span> {</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">12</span><span style="white-space:pre">    <span style="color:var(--kw)">pub fn</span> <span style="color:var(--fn)">restock_low</span>(&amp;<span style="color:var(--kw)">mut</span> <span style="color:var(--kw)">self</span>) {</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">13</span><span style="white-space:pre">        <span style="color:var(--kw)">for</span> item<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: &amp;mut Item</span></sc-if> <span style="color:var(--kw)">in</span> <span style="color:var(--kw)">self</span>.items.<span style="color:var(--fn)">iter_mut</span>().<span style="color:var(--fn)">filter</span>(|i<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: &amp;&amp;mut Item</span></sc-if>| i.qty &lt; <span style="color:var(--num)">5</span>) {</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">14</span><span style="white-space:pre">            item.qty += <span style="color:var(--num)">10</span>;</span></div>
+      <div style="display:flex;height:20px;line-height:20px;background:{{ l15bg }}"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:{{ l15num }}">15</span>
+        <sc-if value="{{ notFixed }}" hint-placeholder-val="{{ true }}"><span style="white-space:pre">            <span style="text-decoration:underline wavy var(--bad);text-underline-offset:4px"><span style="color:var(--kw)">self</span>.<span style="color:var(--fn)">record</span></span>(<span style="color:var(--mac)">format!</span>(<span style="color:var(--str)">"restocked {}"</span>, item.name));</span></sc-if>
+        <sc-if value="{{ fixed }}" hint-placeholder-val="{{ false }}"><span style="white-space:pre">            <span style="color:var(--kw)">self</span>.log.<span style="color:var(--fn)">push</span>(<span style="color:var(--mac)">format!</span>(<span style="color:var(--str)">"restocked {}"</span>, item.name));</span></sc-if>
+      </div>
+      <sc-if value="{{ showLens }}" hint-placeholder-val="{{ true }}">
+        <div style="height:120px;box-sizing:border-box;margin:0 {{ lensRight }} 0 64px;padding:12px 16px;border:1px solid var(--bad);border-radius:6px;background:var(--bad-bg);display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.4">
+          <div><span style="color:var(--bad);font-weight:600">error[E0499]</span> cannot borrow <span style="color:var(--fg);font-weight:600">`*self`</span> as mutable more than once at a time</div>
+          <div style="display:grid;grid-template-columns:34px 220px minmax(0,1fr);gap:4px 10px;color:var(--mut)">
+            <span style="color:var(--dim)">13 │</span><span style="color:var(--acc)">self.items.iter_mut()</span><span>first &amp;mut, lives until the loop ends</span>
+            <span style="color:var(--dim)">15 │</span><span style="color:var(--bad)">self.record(..)</span><span>second &amp;mut, a method call takes all of self</span>
+          </div>
+          <div style="display:flex;gap:18px;color:var(--dim);font-size:11px"><span>rustc --explain E0499</span><span>hint 3 has a fix</span></div>
+        </div>
+      </sc-if>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">16</span><span style="white-space:pre">        }</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">17</span><span style="white-space:pre">    }</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">18</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">19</span><span style="white-space:pre">    <span style="color:var(--kw)">fn</span> <span style="color:var(--fn)">record</span>(&amp;<span style="color:var(--kw)">mut</span> <span style="color:var(--kw)">self</span>, msg: <span style="color:var(--ty)">String</span>) {</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">20</span><span style="white-space:pre">        <span style="color:var(--kw)">self</span>.log.<span style="color:var(--fn)">push</span>(msg);</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">21</span><span style="white-space:pre">    }</span></div>
+      <div style="display:flex;height:20px;line-height:20px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">22</span><span style="white-space:pre">}</span></div>
+
+      <sc-if value="{{ lanes }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;right:0;top:0;bottom:0;width:280px;border-left:1px dashed var(--line2);background:var(--bg);font:500 10.5px/1.3 'JetBrains Mono',monospace">
+          <div style="position:absolute;left:17px;top:235px;width:6px;height:{{ h0 }};border-radius:3px;background:var(--line)"></div>
+          <div style="position:absolute;left:67px;top:255px;width:6px;height:{{ h1 }};border-radius:3px;background:var(--acc)"></div>
+          <div style="position:absolute;left:117px;top:295px;width:6px;height:14px;border-radius:3px;background:{{ l2c }}"></div>
+          <sc-if value="{{ notFixed }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;left:73px;top:301px;width:44px;border-top:1.5px solid var(--bad)"></div><div style="position:absolute;left:112px;top:296px;width:16px;height:12px;border-radius:50%;box-shadow:0 0 0 4px var(--bad-bg)"></div></sc-if>
+          <span style="position:absolute;left:34px;top:217px;color:var(--dim)">&amp;mut self</span>
+          <span style="position:absolute;left:84px;top:252px;color:var(--acc)">self.items</span>
+          <span style="position:absolute;left:138px;top:288px;width:130px;color:{{ l2c }}">{{ l2label }}</span>
+          <div style="position:absolute;left:16px;right:16px;bottom:16px;padding:12px 14px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);font:400 11.5px/1.55 'JetBrains Mono',monospace;color:var(--mut)">{{ laneNote }}</div>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="height:26px;flex:none;display:flex;align-items:center;gap:18px;padding:0 24px;border-top:1px solid var(--line2);background:var(--panel);font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:{{ raDot }}"></span>{{ raStatus }}</span>
+      <span>autocomplete {{ acWord }}</span><span>Ln 15, Col 13</span><span style="margin-left:auto">rustc 1.84.0 · borrowck from MIR on run</span>
+    </div>
+
+    <div style="height:112px;flex:none;display:flex;gap:28px;padding:12px 24px;border-top:1px solid var(--line2);background:var(--bg)">
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:var(--dim)">RUN TIMELINE</div>
+        <div style="display:flex;gap:10px">
+          <sc-for list="{{ runs }}" as="r" hint-placeholder-count="4">
+            <div style="width:84px;padding:8px 10px;box-sizing:border-box;border-radius:5px;border:1px {{ r.bs }} {{ r.border }};display:flex;flex-direction:column;gap:6px;font:500 10.5px 'JetBrains Mono',monospace">
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--fg)">{{ r.id }}</span><span style="color:var(--dim)">{{ r.t }}</span></div>
+              <div style="display:flex;gap:3px"><sc-for list="{{ r.sq }}" as="q" hint-placeholder-count="3"><span style="width:14px;height:14px;border-radius:2px;background:{{ q.c }}"></span></sc-for></div>
+              <span style="color:{{ r.c }}">{{ r.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px">
+        <div style="font:500 10.5px 'JetBrains Mono',monospace;letter-spacing:.24em;color:var(--dim)">{{ diffTitle }}</div>
+        <div style="padding:10px 14px;border:1px solid var(--line2);border-radius:5px;background:var(--panel);font:400 11.5px/1.7 'JetBrains Mono',monospace;white-space:pre;overflow:hidden"><span style="color:var(--bad)">{{ diffMinus }}</span>
+<span style="color:{{ diffPlusColor }}">{{ diffPlus }}</span></div>
+      </div>
+    </div>
+  </main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;}}">
+class Component extends DCLogic {
+  state = { theme: null, drawer: 'brief', ac: true, ra: true, lanes: true, fixed: false, hints: 1 };
+  renderVals() {
+    const s = this.state, p = this.props;
+    const theme = s.theme ?? p.theme ?? 'dark';
+    const showLens = !s.fixed && s.ra;
+    const B = showLens ? 120 : 0;
+    const railDefs = [['brief', 'BRF', 'Brief'], ['hints', 'HNT', 'Hints'], ['tests', 'TST', 'Tests'], ['sol', 'SOL', 'Solution']];
+    const rail = railDefs.map(([k, label, title]) => {
+      const on = s.drawer === k;
+      return { label, title, border: on ? 'var(--acc)' : 'var(--line2)', bg: on ? 'var(--acc-bg)' : 'transparent', color: on ? 'var(--acc)' : 'var(--dim)', go: () => this.setState({ drawer: on ? null : k }) };
+    });
+    const H = [
+      'The loop holds a &mut borrow of self.items until line 16. What does self.record(..) need to borrow?',
+      'record takes &mut self: the whole struct, including items, which the loop is still using.',
+      'Skip the method and touch the field directly: self.log.push(..). items and log are disjoint, so both &mut borrows can coexist.'
+    ];
+    const hints = H.map((text, i) => ({
+      n: i + 1, text, open: i < s.hints, locked: i === s.hints, bs: i < s.hints ? 'solid' : 'dashed',
+      canApply: i === 2 && s.hints === 3 && !s.fixed,
+      reveal: () => this.setState({ hints: i + 1 })
+    })).filter((h, i) => i <= s.hints);
+    const tg = (label, on, key) => ({ label, color: on ? 'var(--fg)' : 'var(--dim)', bg: on ? 'var(--raise)' : 'transparent', dot: on ? 'var(--grn)' : 'var(--line)', go: () => this.setState({ [key]: !on }) });
+    const G = 'var(--grn)', X = 'var(--line2)', R = 'var(--bad)';
+    const runs = [
+      { id: '#1', t: '10:02', sq: [X, X, X], label: 'E0499', c: R },
+      { id: '#2', t: '10:05', sq: [X, X, X], label: 'E0499', c: R },
+      { id: '#3', t: '10:09', sq: [G, G, G], label: 'rule: clone', c: 'var(--warn)' },
+      s.fixed ? { id: '#4', t: '10:13', sq: [G, G, G], label: '3 / 3 ok', c: G } : { id: '#4', t: 'next', sq: [X, X, X], label: '—', c: 'var(--dim)', dashed: true }
+    ].map(r => ({ ...r, sq: r.sq.map(c => ({ c })), bs: r.dashed ? 'dashed' : 'solid', border: r.id === '#4' && s.fixed ? G : 'var(--line2)' }));
+    return {
+      theme, toggleTheme: () => this.setState({ theme: theme === 'dark' ? 'light' : 'dark' }),
+      drawerW: s.drawer ? '340px' : '0px', rail, closeDrawer: () => this.setState({ drawer: null }),
+      drawerTitle: ({ brief: 'BRIEF', hints: `HINTS · ${s.hints} / 3`, tests: 'TESTS', sol: 'SOLUTION' })[s.drawer] || '',
+      isBrief: s.drawer === 'brief', isHints: s.drawer === 'hints', isTests: s.drawer === 'tests', isSol: s.drawer === 'sol',
+      hints, applyFix: () => this.setState({ fixed: true, drawer: 'brief' }),
+      tlist: ['restock_adds_ten', 'logs_each_restock', 'leaves_stocked_items'].map(n => ({ n, c: s.fixed ? G : 'var(--line)', s: s.fixed ? 'ok' : 'not compiled' })),
+      solTag: s.fixed ? 'UNLOCKED' : 'LOCKED', solText: s.fixed ? 'Two other fixes interviewers accept: make record a free fn taking &mut Vec<String>, or collect names first and log after the loop.' : 'Opens once all 3 tests pass.',
+      toggles: [tg('autocomplete', s.ac, 'ac'), tg('RA', s.ra, 'ra'), tg('lanes', s.lanes, 'lanes')],
+      reset: () => this.setState({ fixed: false, hints: 1 }),
+      ra: s.ra, lanes: s.lanes, fixed: s.fixed, notFixed: !s.fixed, showLens, lensRight: s.lanes ? '296px' : '24px',
+      l15bg: s.fixed ? 'var(--grn-bg)' : 'var(--bad-bg)', l15num: s.fixed ? 'var(--grn)' : 'var(--bad)',
+      h0: (114 + B) + 'px', h1: (74 + B) + 'px',
+      l2c: s.fixed ? G : R, l2label: s.fixed ? 'self.log · disjoint' : '*self · E0499',
+      laneStatus: s.fixed ? 'NO CONFLICTS' : '1 CONFLICT', laneStatusColor: s.fixed ? G : R,
+      laneNote: s.fixed ? 'self.items and self.log are separate places. Two &mut borrows of different fields can overlap.' : 'Line 15 asks for &mut of all of self while self.items is still borrowed by the loop.',
+      raDot: s.ra ? (s.fixed ? G : R) : 'var(--line)',
+      raStatus: s.ra ? (s.fixed ? 'rust-analyzer · 0 errors' : 'rust-analyzer · 1 error') : 'rust-analyzer off',
+      acWord: s.ac ? 'on' : 'off',
+      runs,
+      diffTitle: s.fixed ? 'DIFF · #3 → #4' : 'DIFF · #2 → #3',
+      diffMinus: s.fixed ? '-   let items = self.items.clone();' : '-   self.record(format!("restocked {}", item.name));',
+      diffPlus: s.fixed ? '+   self.log.push(format!("restocked {}", item.name));' : '+   let items = self.items.clone();   // breaks rule',
+      diffPlusColor: s.fixed ? G : 'var(--warn)'
+    };
+  }
+}
+</script>
+</body>
+</html>

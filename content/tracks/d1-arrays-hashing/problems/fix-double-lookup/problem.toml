@@ -1,0 +1,26 @@
+slug = "fix-double-lookup"
+title = "Fix: count with the entry API"
+mode = "fix"
+level = "easy"
+stage = "counting"
+order = 10
+status = "ready"
+tags = ["HashMap::entry", "counting"]
+teaches = [
+  "`entry(k).or_insert(0)` finds or creates the slot in one lookup.",
+  "Why `contains_key` then `get_mut` hashes the key twice.",
+]
+follow_up = "When would you use `or_insert_with` or `and_modify` instead?"
+related = ["S4", "L2"]
+
+[[hints]]
+kind = "rust"
+text = "`counts.entry(word)` gives you the slot whether or not it exists yet."
+
+[solution]
+explanation = "`entry` hashes once and returns either the existing value or a vacant slot to fill; `or_insert(0)` then yields `&mut usize`."
+time = "O(n)"
+space = "O(k) distinct words"
+
+[rules]
+forbid_methods = ["contains_key", "get_mut", "unwrap"]

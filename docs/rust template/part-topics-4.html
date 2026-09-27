@@ -1,0 +1,1254 @@
+<!-- ═══════════════════════════════════════════
+     PART: TOPICS 04 · SENIOR / ADVANCED
+     Macros & Unsafe · Memory & Perf · Testing/Tooling · FFI · Architecture
+═══════════════════════════════════════════ -->
+
+<div class="level-filter" id="level-filter">
+  <span class="lf-label">Level</span>
+  <button type="button" class="lf-btn active" data-filter="all">All</button>
+  <button type="button" class="lf-btn" data-filter="beg">Beginner</button>
+  <button type="button" class="lf-btn" data-filter="int">Intermediate</button>
+  <button type="button" class="lf-btn" data-filter="adv">Advanced</button>
+  <button type="button" class="lf-btn" data-filter="sr">Senior</button>
+  <span class="lf-hint">25 questions on this page · click a level to filter</span>
+</div>
+
+<!-- ════════════ TOPIC 16 · MACROS & UNSAFE RUST ════════════ -->
+<div class="section" id="t-unsafe">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-unsafe)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-unsafe)">// Topic 16</div>
+      <div class="sh-title">Macros &amp; Unsafe Rust</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-unsafe)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does the <code>unsafe</code> keyword actually turn off? What does it emphatically <strong>not</strong> turn off?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>unsafe</code> unlocks exactly five extra capabilities the compiler otherwise forbids: (1) dereferencing
+        a raw pointer, (2) calling an <code>unsafe fn</code>, (3) accessing/mutating a <code>static mut</code>,
+        (4) implementing an <code>unsafe trait</code>, (5) accessing fields of a <code>union</code>. That's the
+        entire list — nothing more. <strong>What it does not turn off:</strong> the borrow checker still runs
+        inside <code>unsafe</code> blocks for ordinary safe operations; the type checker is fully active; integer
+        overflow checks in debug builds still apply to normal arithmetic; move semantics and drop glue are
+        unaffected. <code>unsafe</code> is best understood as "I am now personally responsible for upholding
+        invariants the compiler would otherwise check for me" for those five specific operations — it's a
+        <strong>promise to the compiler</strong>, not a mode that disables Rust's usual rules wholesale. This is
+        why the common phrase "unsafe doesn't mean incorrect, it means unchecked" is accurate: well-written unsafe
+        code is exactly as correct as safe code, it just required the human, not the compiler, to prove it.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is the difference between a declarative macro (<code>macro_rules!</code>) and a procedural macro? Name the three kinds of proc macros.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>macro_rules!</code></strong> (declarative macros) work by <strong>pattern matching on token
+        trees</strong> and substituting into a template — you declare patterns like
+        <code>($($x:expr),*) =&gt; { ... }</code> and the macro expands by textual-ish substitution of matched
+        fragments, hygienic with respect to variable names to avoid accidental capture. They're relatively limited
+        in what shapes of input they can match/transform, but simple to write and don't require a separate crate.
+        <strong>Procedural macros</strong> are functions written in ordinary Rust that receive a token stream and
+        return a token stream — full programmatic control over the transformation, typically using the
+        <code>syn</code> crate to parse the input into an AST and <code>quote</code> to generate output tokens.
+        They <strong>must live in a separate crate</strong> marked <code>proc-macro = true</code> in Cargo.toml,
+        because they run at compile time as a plugin the compiler invokes. Three kinds: (1) <strong>derive
+        macros</strong> — <code>#[derive(MyTrait)]</code>, generates additional code (usually a trait impl)
+        alongside the item, cannot modify the original item itself. (2) <strong>attribute macros</strong> —
+        <code>#[my_attribute]</code>, can arbitrarily transform the item it's attached to (this is how
+        <code>#[tokio::main]</code> rewrites your <code>async fn main()</code> into a synchronous
+        <code>fn main()</code> that spins up the runtime and blocks on your original body). (3) <strong>function
+        -like macros</strong> — <code>my_macro!(...)</code>, similar to <code>macro_rules!</code> call syntax but
+        with the full power of a proc macro (e.g. <code>sqlx::query!</code>, which needs to actually talk to a
+        database at compile time — something declarative macros could never do).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What invariant must you uphold when implementing <code>unsafe fn get_unchecked(&amp;self, index: usize) -&gt; &amp;T</code> on a custom collection? What happens if you violate it, concretely?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The function's safety contract (which must be documented, conventionally via a <code>/// # Safety</code>
+        doc section) is: <strong>the caller must guarantee <code>index &lt; self.len()</code></strong> before
+        calling — the function itself skips the bounds check the safe <code>.get(index)</code> would otherwise
+        perform, trusting the caller instead. <strong>Concretely, if violated:</strong> the function computes a
+        pointer via pointer arithmetic (<code>self.ptr.add(index)</code>) and dereferences it without checking —
+        if <code>index</code> is out of bounds, this reads memory <em>outside the buffer's allocation</em>. This
+        is <strong>immediate undefined behaviour</strong>, not a graceful failure: it might read garbage data that
+        happens to look plausible (silent data corruption propagating through your program with no crash at all,
+        the worst case for debuggability), might read unmapped memory and segfault, or — since the compiler is
+        permitted to assume UB never happens — might cause the optimiser to make transformations elsewhere in the
+        program that assume this code path is unreachable, producing behaviour that appears completely unrelated
+        to the out-of-bounds access itself. This is precisely the class of bug <code>cargo miri run</code> is
+        designed to catch during testing (it detects out-of-bounds raw-pointer access even when it happens not to
+        crash on a given run), and why any custom unsafe API needs to be paired with either exhaustive testing of
+        the boundary conditions or a miri-based test suite before shipping.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What does "sound" mean when describing an unsafe abstraction? Give an example of an API that is <em>memory-safe in every test you can write</em> but is nonetheless unsound, and explain why soundness, not testing, is the actual bar.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A safe function/API built on top of <code>unsafe</code> internals is <strong>sound</strong> if it is
+        <em>impossible</em> to trigger undefined behaviour through its safe public interface, no matter what
+        otherwise-valid arguments a caller supplies — soundness is a universal claim over all possible inputs and
+        usage patterns, not a claim that it happened to work for the inputs you tried. <strong>Concrete example of
+        unsound-but-passes-your-tests:</strong>
+<pre style="margin:6px 0;"><span class="kw">fn</span> <span class="fn">get_two_mut</span>&lt;<span class="ty">T</span>&gt;(v: &amp;<span class="kw">mut</span> Vec&lt;<span class="ty">T</span>&gt;, a: <span class="ty">usize</span>, b: <span class="ty">usize</span>) -&gt; (&amp;<span class="kw">mut</span> <span class="ty">T</span>, &amp;<span class="kw">mut</span> <span class="ty">T</span>) {
+    <span class="kw">unsafe</span> {
+        <span class="kw">let</span> ptr = v.<span class="fn">as_mut_ptr</span>();
+        (&amp;<span class="kw">mut</span> *ptr.<span class="fn">add</span>(a), &amp;<span class="kw">mut</span> *ptr.<span class="fn">add</span>(b)) <span class="cm">// BUG: no check that a != b!</span>
+    }
+}</pre>
+        This compiles, and calling it with <code>a=1, b=3</code> on a length-5 vector "works fine" in every test —
+        but calling it with <code>a=2, b=2</code> produces <strong>two live <code>&amp;mut T</code> aliasing the
+        same memory location</strong> — a direct violation of Rust's core aliasing guarantee, exactly the class of
+        bug the borrow checker exists to prevent, now smuggled past it through an unsafe block. This is unsound:
+        there exists a valid, safe-looking call (no out-of-bounds index, nothing exotic) that produces UB, purely
+        because the function forgot to check <code>a != b</code>. <strong>Why soundness, not testing, is the real
+        bar:</strong> you can run this function against thousands of random valid indices and never happen to hit
+        <code>a == b</code>, so it would appear "well-tested" and correct — but the bug is latent, waiting for
+        exactly the input the tests didn't cover, in code the type system offers zero protection against once
+        you're inside <code>unsafe</code>. Reviewing unsafe code requires proving the safety argument covers
+        <em>every</em> possible input, not sampling a representative few — this is precisely why unsafe code
+        review is treated as a qualitatively different, higher-bar activity than ordinary code review in serious
+        Rust teams.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Your team is reviewing a PR that adds an unsafe block to bypass a bounds check for a 3% throughput improvement in a hot loop. Walk through how you'd evaluate whether to approve it.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>1. Demand the benchmark, not the intuition.</strong> Verify the 3% number with a reproducible
+        <code>criterion</code> benchmark, on realistic data — bounds-check elimination is one of the most commonly
+        <em>overestimated</em> optimisations in Rust, since LLVM already eliminates many redundant bounds checks
+        automatically when it can prove an index is in range from surrounding code (e.g. iterating
+        <code>0..v.len()</code> — the compiler frequently proves this safe already, without needing
+        <code>unsafe</code> at all). Ask: does simply restructuring the loop to iterate via <code>.iter()</code>
+        directly instead of indexing achieve the same speedup safely, since that sidesteps bounds checks entirely
+        without unsafe?
+        <strong>2. Demand an explicit, written safety argument.</strong> Every unsafe block should have a comment
+        stating precisely which invariant makes it sound and why that invariant provably holds at this call site —
+        if the author can't write this down convincingly, that's itself a strong signal the code isn't actually
+        sound yet, even if it currently "works."
+        <strong>3. Ask whether it's covered by miri or a proptest/fuzzing setup</strong> exercising edge cases
+        (empty inputs, boundary indices, unusual data), not just the happy-path benchmark inputs.
+        <strong>4. Weigh the trade-off explicitly, out loud, as a team decision</strong> — 3% in a genuinely
+        hot, profiled bottleneck for a latency-critical service might be worth the added maintenance burden and
+        risk surface; 3% in a code path that runs once per request in a service where the network round-trip
+        dominates by 100x is very likely not worth it. The senior-level point to make explicitly: unsafe code is
+        not free even when correct — it's a permanent tax on every future reviewer and refactor of that code,
+        since any change nearby must be re-checked against the original safety argument. <strong>The right default
+        posture is scepticism</strong>, not "well it compiles and the benchmark shows a gain" — approve only once
+        the safety argument, test coverage, and actual measured benefit under realistic conditions all justify it.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Lists the exact five things unsafe unlocks, no more, no less</li>
+      <li>Distinguishes "memory-safe in tests" from "sound" with a concrete counterexample</li>
+      <li>Knows the three proc-macro kinds and why sqlx::query! needs to be function-like</li>
+      <li>Treats unsafe PR review as demanding a written safety argument, not just a passing benchmark</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Knows unsafe exists but describes it as "turns off the borrow checker" broadly</li>
+      <li>Has never heard of miri or loom for validating unsafe/concurrent code</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Thinks passing tests is sufficient justification for unsafe code</li>
+      <li>Cannot name a specific invariant an unsafe function needs its caller to uphold</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    The single highest-leverage senior signal on this whole page: does the candidate treat "it passed all my
+    tests" and "it's sound" as two different, separate claims? Almost every real-world unsafe-code incident
+    comes from conflating these two. If they say this distinction unprompted, take note.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 17 · MEMORY LAYOUT & PERFORMANCE ════════════ -->
+<div class="section" id="t-perf">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-perf)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-perf)">// Topic 17</div>
+      <div class="sh-title">Memory Layout &amp; Performance</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-perf)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What's the difference between <code>#[repr(Rust)]</code> (the default), <code>#[repr(C)]</code>, and <code>#[repr(packed)]</code>?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>#[repr(Rust)]</code></strong> (the implicit default): the compiler is free to reorder struct
+        fields, choose enum discriminant representations, and apply layout optimisations (like the null-pointer
+        optimisation for <code>Option</code>) however it decides is best — there is <strong>no stable, guaranteed
+        layout</strong> across compiler versions or even between two compilations, and you should never assume a
+        specific byte layout for a default-repr type. <strong><code>#[repr(C)]</code></strong>: forces the same
+        field-ordering and padding rules a C compiler would use — fields laid out in declaration order, with
+        standard alignment-driven padding, no reordering — required whenever a struct crosses an FFI boundary
+        (passed to/from C code) since C code needs a stable, predictable layout to interpret the bytes correctly.
+        <strong><code>#[repr(packed)]</code></strong>: removes inter-field padding entirely, packing fields as
+        tightly as possible — saves memory but at the cost of potentially <strong>unaligned field access</strong>,
+        which is undefined behaviour to do via a normal reference on some architectures (you must read packed
+        fields via <code>ptr::read_unaligned</code> or copy them out by value first) — this is a genuinely
+        dangerous repr that should only be reached for with a specific, well-understood reason (e.g. matching an
+        exact wire/file format), never as a casual memory-saving trick.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Given <code>struct Foo { a: bool, b: u64, c: bool }</code>, what is <code>size_of::&lt;Foo&gt;()</code> likely to be, and how would you reduce it?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        With the default repr, the compiler is free to reorder fields for compactness, so it will likely place
+        both <code>bool</code>s adjacent to each other and the <code>u64</code> separately, giving
+        <strong>16 bytes total</strong> (8 for the u64 + 1 + 1 for the two bools + 6 bytes of trailing padding to
+        keep the overall struct's size a multiple of its largest field's alignment, 8) — rather than the naive
+        24 bytes you'd get from padding each field to 8-byte alignment independently in declaration order (which
+        is what <code>#[repr(C)]</code> would actually produce for this exact declaration order, since C repr
+        preserves order: bool+7 padding, u64, bool+7 padding = 24 bytes). The general technique for reducing size
+        by hand (relevant when you do need <code>#[repr(C)]</code>, or want to help the default repr's reordering
+        along, or are just being deliberate): <strong>order fields from largest alignment to smallest</strong>
+        (largest types first) to minimise padding holes, and consider whether small flags/enums can be packed into
+        a single byte or bitflags instead of several separate bools. In practice with default repr, hand-ordering
+        rarely matters since the compiler already reorders — but knowing <code>std::mem::size_of</code> and
+        <code>std::mem::align_of</code> as the verification tools, and being able to explain <em>why</em> a given
+        size arises, is the actual skill being tested here, not memorising the exact byte count for every case.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is false sharing? How would you use <code>#[repr(align(64))]</code> (or a padding field) to fix it in a per-thread counters array?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>False sharing</strong> occurs when two logically-independent variables happen to reside on the
+        same CPU cache line (typically 64 bytes) — even though two threads are writing to entirely different
+        variables with no actual data dependency between them, every write invalidates the <em>whole cache
+        line</em> in the other core's cache (the cache-coherence protocol operates at cache-line granularity, not
+        per-variable), forcing repeated cross-core cache-line transfers that can degrade throughput to far worse
+        than a single-threaded version — despite the algorithm being logically perfectly parallel with zero real
+        contention. A classic trigger: <code>[AtomicU64; N]</code> where each thread increments its own index —
+        the array's elements are only 8 bytes apart, so up to 8 counters share one 64-byte cache line.
+        <strong>Fix:</strong> pad each element out to a full cache line:
+<pre style="margin:4px 0;"><span class="mc">#[repr(align(64))]</span>
+<span class="kw">struct</span> <span class="ty">PaddedCounter</span>(<span class="ty">AtomicU64</span>);
+<span class="kw">let</span> counters: [<span class="ty">PaddedCounter</span>; <span class="ty">N</span>] = <span class="cm">/* ... */</span>;
+<span class="cm">// each PaddedCounter now occupies its own 64-byte-aligned cache line — no cross-talk</span></pre>
+        <code>#[repr(align(N))]</code> forces the compiler to align (and pad) every instance of the type to an
+        N-byte boundary. The standard library exposes
+        <strong><code>std::hint::likely</code></strong>... no — more precisely, exposes
+        <strong><code>std::mem::size_of::&lt;CacheLine&gt;</code></strong>-style constants via the unstable
+        <code>#[repr(align)]</code> approach shown above, and crates like <code>crossbeam-utils</code> provide a
+        ready-made <strong><code>CachePadded&lt;T&gt;</code></strong> wrapper that does exactly this padding for
+        you, which is what most production code reaches for in practice rather than hand-rolling the repr
+        attribute.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Explain why iterating a <code>Vec&lt;Box&lt;LargeStruct&gt;&gt;</code> can be significantly slower than iterating a <code>Vec&lt;LargeStruct&gt;</code>, even though both are technically "O(n)." What's the general principle called, and when would you actually prefer the boxed version despite the cost?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>Vec&lt;LargeStruct&gt;</code> stores every struct's bytes <strong>directly, contiguously</strong> in
+        the vector's single heap buffer — sequential iteration streams through memory linearly, which the
+        hardware prefetcher predicts and pre-loads extremely well, maximising cache-line utilisation.
+        <code>Vec&lt;Box&lt;LargeStruct&gt;&gt;</code> stores a contiguous array of <em>pointers</em>, each
+        pointing to a <strong>separate, independent heap allocation</strong> potentially scattered anywhere in the
+        address space — iterating means chasing a pointer to a effectively random location for every single
+        element, causing a cache miss (and often a full round-trip to main memory, ~100ns+ vs ~1ns for an L1 cache
+        hit) on nearly every access, with no useful prefetching possible since the addresses aren't predictable.
+        This general principle — arranging data so that fields/elements accessed together are stored physically
+        near each other, to maximise cache-line utilisation and prefetcher effectiveness — is often called
+        <strong>data-oriented design</strong> or, more specifically here, the <strong>"array of structs vs struct
+        of arrays"</strong> and <strong>"pointer chasing vs contiguous access"</strong> considerations.
+        <strong>When boxing is still the right call despite this cost:</strong> when the structs are extremely
+        large and you're frequently <em>moving/reordering</em> them within the collection (sorting, shuffling) —
+        moving a <code>Box</code> pointer is a cheap pointer-swap regardless of the pointee's size, while moving a
+        giant inline struct means memcpy-ing the whole thing on every swap; when elements need <strong>stable
+        addresses</strong> that survive the Vec reallocating/growing (a raw inline struct's address changes on
+        reallocation, a boxed one's heap address doesn't); or when the struct is polymorphic
+        (<code>Box&lt;dyn Trait&gt;</code>) and there's genuinely no fixed size to store inline at all. The senior
+        framing: this is a real trade-off with a right answer that depends on access pattern (sequential scan vs
+        frequent reordering vs need for stable addresses), not a universal "avoid boxing" or "always box large
+        types" rule.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Walk through how you'd profile a Rust service that's using more CPU than expected in production, from first principles — tools, in order, and what each tells you that the previous one didn't.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>1. Confirm you're profiling a release build</strong> with debug symbols
+        (<code>[profile.release] debug = true</code> in Cargo.toml) — profiling an unoptimised debug build tells
+        you almost nothing useful about production behaviour, and forgetting this is the single most common
+        profiling mistake.
+        <strong>2. Sampling CPU profiler first — <code>perf record</code> / <code>cargo flamegraph</code>.</strong>
+        This gives you a flame graph showing which functions consume wall-clock/CPU time in aggregate, cheaply and
+        with low overhead, without needing any code changes — almost always the right first step to find "where
+        is the time actually going" before hypothesising.
+        <strong>3. If the flame graph points at allocation-heavy code — <code>heaptrack</code> or
+        <code>dhat-rs</code>.</strong> Excessive small allocations, unexpected clones, or fragmentation often show
+        up as surprisingly hot <code>malloc</code>/<code>free</code> frames in the flame graph — a heap profiler
+        then tells you exactly which call sites are allocating and how much.
+        <strong>4. If contention/lock waiting is suspected — <code>tokio-console</code> (for async services) or
+        instrumenting lock-wait time directly.</strong> A CPU profiler alone can be misleading for
+        concurrency-bound problems since a thread blocked waiting for a lock isn't "using CPU" in the way a
+        sampling profiler measures — you need visibility into wait time and task scheduling specifically, which
+        <code>tokio-console</code> provides for async task polling/wake patterns.
+        <strong>5. Micro-benchmark the specific hot function in isolation with <code>criterion</code></strong>
+        once you've identified a candidate, to validate a proposed fix actually helps before shipping it, and to
+        catch performance regressions in CI going forward.
+        <strong>6. Only after all of the above, consider <code>perf stat</code> hardware counters</strong>
+        (cache misses, branch mispredictions, instructions-per-cycle) if you need to distinguish "this function is
+        slow because of algorithmic complexity" from "this function is slow because of cache behaviour" — this is
+        the deepest, most specialised level and rarely the first tool reached for. The senior signal here is the
+        <strong>ordering and hypothesis-driven approach</strong> — starting broad and cheap (flame graph) and only
+        going deeper once the broad view has narrowed the search space, rather than guessing and reaching straight
+        for exotic tools.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">What is memory-mapping a file, how do you do it in Rust (the <code>memmap2</code> crate), and when does it actually beat reading the file into a buffer with <code>BufReader</code>? What are the safety caveats?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:4px 0;"><span class="kw">use</span> memmap2::Mmap;
+<span class="kw">use</span> std::fs::File;
+
+<span class="kw">fn</span> <span class="fn">scan_for_pattern</span>(path: &amp;<span class="ty">str</span>, pattern: &amp;[<span class="ty">u8</span>]) -&gt; std::io::Result&lt;<span class="ty">bool</span>&gt; {
+    <span class="kw">let</span> file = File::<span class="fn">open</span>(path)?;
+<span class="ok-line">    <span class="kw">let</span> mmap = <span class="kw">unsafe</span> { Mmap::<span class="fn">map</span>(&amp;file)? };  <span class="cm">// unsafe: file could be mutated externally underneath us</span></span>
+<span class="ok-line">    <span class="ty">Ok</span>(mmap.<span class="fn">windows</span>(pattern.<span class="fn">len</span>()).<span class="fn">any</span>(|w| w == pattern))  <span class="cm">// mmap derefs to &[u8] — slice ops just work</span></span>
+}</pre>
+        <strong>What it is:</strong> instead of copying a file's bytes into a heap buffer you manage
+        (<code>read_to_string</code>, <code>BufReader</code>), <code>mmap</code> asks the OS to map the file's
+        pages <strong>directly into your process's virtual address space</strong> — the returned <code>Mmap</code>
+        derefs to a plain <code>&amp;[u8]</code>, but behind the scenes reads are satisfied by the OS's page cache
+        and page faults, not an explicit <code>read()</code> syscall per access; pages are loaded lazily, only
+        when actually touched. <strong>When it wins over buffered reads:</strong> (1) <strong>huge files</strong>
+        where you only need <strong>random access</strong> to small portions — mmap avoids paying to load the
+        entire file when you might touch 1% of it (a database engine or log-indexing tool accessing arbitrary
+        offsets is the classic case); (2) <strong>avoiding double-buffering</strong> — a normal read copies
+        data from the OS page cache into your own user-space buffer, a second copy that mmap skips entirely,
+        since your "buffer" and the page cache are the same physical memory; (3) <strong>sharing pages between
+        processes</strong> — multiple processes mmap-ing the same file share the same physical pages in the OS
+        page cache, useful for large shared read-only datasets/models loaded by multiple worker processes.
+        <strong>When it's the wrong tool:</strong> small files (the mmap setup/syscall overhead isn't worth it for
+        a config file you read once), or genuinely sequential full-file processing, where a well-buffered
+        streaming read is just as fast and far simpler.
+        <strong>Safety caveats — why <code>Mmap::map</code> is <code>unsafe</code>:</strong> the mapped memory is
+        only "just a slice" as long as nothing else mutates the underlying file while it's mapped — if another
+        process (or your own code via a different file handle) truncates or overwrites the file concurrently, your
+        <code>&amp;[u8]</code> can observe changing data underneath a supposedly-immutable borrow, or in the
+        truncation case, accessing now-invalid pages can raise a <strong>SIGBUS</strong> that Rust's safe
+        abstractions cannot recover from — a real, if narrow, soundness hole inherent to the OS-level mechanism,
+        which is exactly why the API is marked <code>unsafe</code> despite the resulting type looking like an
+        ordinary safe slice. <code>MmapMut</code> (via <code>memmap2::MmapMut</code>) additionally lets you write
+        through the mapping directly back to the file, useful for in-place binary file editing without a
+        read-modify-write-whole-file cycle.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q7</span><span class="qa-qtext">Two performance/correctness questions that come up together whenever you're hand-rolling a binary format: why does endianness matter when you write <code>u32::from_le_bytes</code>/<code>to_be_bytes</code>, and why does <code>Vec::with_capacity</code> matter when building a byte buffer incrementally?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Endianness.</strong> A multi-byte integer's in-memory representation isn't universal — little-endian
+        machines (essentially all mainstream x86/ARM hardware today) store the least-significant byte first,
+        big-endian machines the opposite. <code>u32::to_ne_bytes</code>/<code>from_ne_bytes</code> use whatever the
+        <em>current</em> machine's native order happens to be — fine for scratch data that never leaves the
+        process, but a real bug the moment those bytes are written to a file, sent over a network, or read back
+        on a different architecture. Any wire format or file format needs to pick <strong>one fixed</strong>
+        convention independent of the machine — <code>to_be_bytes</code>/<code>from_be_bytes</code> ("network byte
+        order," the traditional convention for internet protocols) or <code>to_le_bytes</code>/<code>from_le_bytes</code>
+        (common in modern binary formats since most hardware is little-endian anyway) — and apply it
+        <strong>consistently in both directions</strong>. Using the wrong pair on the decode side doesn't error
+        out; it silently produces a wrong-but-plausible-looking number, which is exactly why this class of bug is
+        dangerous — it can hide for a long time before something notices the values are off.
+        <strong>Capacity planning.</strong> <code>Vec::push</code>ing into a <code>Vec::new()</code> (capacity 0)
+        works correctly regardless, but each time the <code>Vec</code> outgrows its current capacity it must
+        allocate a new, larger backing buffer and <strong>copy every existing byte into it</strong> — this happens
+        roughly <code>O(log n)</code> times for <code>n</code> total pushes thanks to geometric (typically
+        doubling) growth, so the total copying work across all reallocations is still amortised
+        <code>O(n)</code>, but with real, avoidable constant-factor cost. If the final size is knowable or
+        computable upfront — as it almost always is when serialising a known collection into bytes —
+        <code>Vec::with_capacity(exact_size)</code> performs exactly one allocation for the whole operation, and
+        pairing it with <code>extend_from_slice</code> (a single bulk copy per chunk) instead of a byte-by-byte
+        push loop is the natural, idiomatic combination for building a buffer you already know the size of.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains repr(Rust) reordering vs repr(C) ordering with a concrete size comparison</li>
+      <li>Names false sharing and fixes it with alignment padding or CachePadded</li>
+      <li>Frames array-of-structs vs boxed-pointer trade-off around access pattern, not a blanket rule</li>
+      <li>Has an ordered, hypothesis-driven profiling methodology, not "just run perf and stare at it"</li>
+      <li>Knows exactly why Mmap::map is unsafe (external mutation/SIGBUS risk) despite exposing a safe-looking &amp;[u8]</li>
+      <li>Picks one explicit endianness convention for a wire/file format and never reaches for to_ne_bytes there</li>
+      <li>Computes exact capacity upfront with Vec::with_capacity when the final buffer size is knowable ahead of time</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Knows cache effects matter in the abstract but can't connect them to a concrete Rust data-layout choice</li>
+      <li>Has used one profiling tool but no methodology for choosing which one to reach for</li>
+      <li>Thinks mmap is strictly "faster file reading" with no situational trade-off or safety caveat</li>
+      <li>Uses to_ne_bytes/from_ne_bytes for data that's ever written to a file or sent over a network</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Assumes Box always adds meaningful overhead with no situational nuance, or the reverse — assumes it's always free</li>
+      <li>Has profiled a debug build and drawn production performance conclusions from it</li>
+      <li>Doesn't see anything wrong with Vec::new() + a push-per-byte loop for a buffer of known final size</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Watch for candidates who reach for micro-optimisation vocabulary (cache lines, false sharing) without ever
+    mentioning measurement. The senior tell isn't knowing the terms — it's insisting on profiling before and
+    after any claimed optimisation, and being willing to say "that intuition turned out to be wrong when I
+    measured it" as a normal, expected part of performance work.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 18 · TESTING, BENCHMARKING & TOOLING ════════════ -->
+<div class="section" id="t-test">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-test)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-test)">// Topic 18</div>
+      <div class="sh-title">Testing, Benchmarking &amp; Tooling</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-test)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What's the difference between unit tests (<code>#[cfg(test)] mod tests</code>), integration tests (<code>tests/</code> directory), and doc-tests? When does each run?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Unit tests</strong> live inside the same file as the code they test, in a
+        <code>#[cfg(test)] mod tests { ... }</code> submodule — the <code>#[cfg(test)]</code> attribute means this
+        module is compiled only when running <code>cargo test</code>, never in a normal release build, adding
+        zero footprint to production binaries. Because they live inside the crate, they can test private
+        functions and internal implementation details directly. <strong>Integration tests</strong> live in a
+        top-level <code>tests/</code> directory — each file there is compiled as its own separate crate that
+        depends on your library <em>as an external consumer would</em>, so it can only exercise your crate's
+        public API, which makes these tests a genuine check that your public interface actually works as an
+        outside user would use it (and they catch "I forgot to make this function pub" issues unit tests inside
+        the crate never would). <strong>Doc-tests</strong> are code blocks inside <code>///</code> documentation
+        comments — <code>cargo test</code> actually <strong>compiles and runs every one of them</strong> by
+        default, which means your documentation examples are continuously verified to still compile and behave as
+        documented; a code example in a doc comment that goes stale/wrong after a refactor is caught automatically
+        rather than silently misleading future readers, which is a distinctly Rust-ecosystem practice not common
+        in most other languages' documentation conventions.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is property-based testing (via the <code>proptest</code> or <code>quickcheck</code> crates), and how does it differ from writing example-based unit tests? Give a concrete property you'd test for a sorting function.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Example-based unit tests assert specific input → specific expected output
+        (<code>assert_eq!(sort(&amp;[3,1,2]), [1,2,3])</code>) — you have to think of every interesting case
+        yourself, and you'll systematically miss edge cases you didn't think to consider.
+        <strong>Property-based testing</strong> instead asserts a <strong>general property that should hold for
+        all valid inputs</strong>, and the testing library <strong>generates hundreds or thousands of random
+        inputs</strong> (with smart strategies biasing toward likely-to-break edge cases: empty collections, very
+        large/small values, duplicates) to try to find a counterexample violating that property. When a failure is
+        found, most implementations automatically <strong>"shrink"</strong> the failing input down to the
+        smallest/simplest case that still reproduces the failure, so instead of debugging a 400-element random
+        vector, you're handed the minimal 2-element case that breaks your invariant.
+        <strong>Concrete properties for a sort function:</strong> (1) the output has the <strong>same length</strong>
+        as the input (catches accidental element loss/duplication); (2) the output is a <strong>permutation</strong>
+        of the input (same multiset of elements — catches subtle corruption bugs, not just reordering bugs); (3)
+        the output is actually <strong>sorted</strong> (every adjacent pair satisfies <code>a[i] &lt;= a[i+1]</code>);
+        (4) <strong>idempotence</strong> — sorting an already-sorted list should return it unchanged. Property tests
+        are especially valuable for exactly this kind of algorithmic code, parsers, and serialization
+        round-tripping (<code>deserialize(serialize(x)) == x</code>), where the space of "interesting" inputs is
+        large and easy to under-sample by hand.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is fuzzing (e.g. via <code>cargo-fuzz</code>), and how does it complement property-based testing? What kind of bug is fuzzing uniquely good at finding in Rust specifically?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Fuzzing</strong> (<code>cargo-fuzz</code>, built on <code>libFuzzer</code>) also generates random
+        inputs, but the key difference from property testing is <strong>coverage-guided mutation</strong>: the
+        fuzzer instruments your code to track which branches/basic blocks execute for a given input, then uses
+        that feedback to intelligently mutate inputs toward exploring <em>new, previously-unreached code paths</em> —
+        it's actively searching the input space guided by your program's own control flow, rather than sampling
+        somewhat-randomly (as most property-testing strategies do) or requiring you to specify what a "valid"
+        property even looks like. This makes fuzzing extremely effective at finding inputs that trigger code paths
+        a human never thought to test, run continuously (sometimes for hours/days in CI) rather than a bounded
+        number of test-run iterations. <strong>What it's uniquely good at finding in Rust:</strong> panics and
+        unsafe-code memory violations reachable from a public API given <em>adversarial or malformed input</em> —
+        a parser that panics on malformed input isn't a memory-safety bug (safe Rust can't corrupt memory), but
+        it's still a real denial-of-service vector if that parser is exposed to untrusted data (e.g. parsing
+        network protocol data or file formats) — fuzzing routinely finds these panic-on-bad-input cases that
+        neither example-based nor typical property tests happen to construct. Combined with
+        <strong><code>cargo fuzz</code> + <code>cargo miri</code></strong>, it's also one of the most effective
+        ways to find latent unsafe-code memory bugs before they ever reach production, since the fuzzer explores
+        far more input combinations than any hand-written test suite realistically could.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How do you set up a meaningful CI pipeline for a production Rust crate — beyond just <code>cargo test</code>? What checks catch problems that tests alone won't?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A senior-level CI pipeline for a serious Rust project layers several distinct checks, each catching a
+        <em>different class</em> of problem: <strong><code>cargo build</code> + <code>cargo test</code></strong> —
+        correctness of the code you wrote, obviously. <strong><code>cargo fmt --check</code></strong> — enforces
+        consistent formatting so code review focuses on substance, not style bikeshedding.
+        <strong><code>cargo clippy -- -D warnings</code></strong> — catches non-idiomatic patterns, likely logic
+        bugs (needless clones, redundant comparisons, integer casts that could lose data), and performance
+        footguns the compiler itself doesn't flag; treating clippy warnings as build failures (<code>-D
+        warnings</code>) keeps the codebase clean by construction rather than accumulating debt.
+        <strong><code>cargo audit</code></strong> — scans dependencies against the RustSec advisory database for
+        known CVEs, catching supply-chain risk that no amount of your own testing would reveal.
+        <strong><code>cargo deny check</code></strong> — enforces license compliance and can ban specific
+        problematic dependencies/duplicate-version bloat across the tree. <strong><code>cargo test --doc</code></strong>
+        (usually implied by plain <code>cargo test</code>) — keeps documentation examples honest.
+        <strong>MSRV check</strong> — building against your published minimum-supported-Rust-version toolchain in
+        CI (not just the latest stable) if you're a library, since it's trivially easy to accidentally use a newer
+        API and silently break MSRV compliance without noticing on your own up-to-date local toolchain.
+        <strong>For unsafe-heavy crates specifically</strong>: a <code>cargo miri test</code> job, and potentially
+        a scheduled (not per-PR, since it's slow) fuzzing job that runs continuously and reports new crashes.
+        The senior framing: each of these is genuinely catching a different failure mode — tests alone would miss
+        every one of the others — and a mature pipeline is deliberately layered rather than "just run the test
+        suite and call it done."
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">You wrote a <code>criterion</code> benchmark showing your new implementation is 40% faster than the old one — but a teammate is skeptical of microbenchmark results in general. What pitfalls would you specifically check for before trusting the number?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>1. Dead-code elimination / constant folding.</strong> If the benchmarked function's result isn't
+        actually used, LLVM may optimise away some or all of the real work being measured — <code>criterion</code>
+        provides <code>black_box()</code> specifically to prevent the optimiser from seeing that a value is
+        unused/constant and eliminating the computation; forgetting to wrap inputs/outputs in <code>black_box</code>
+        is the single most common way to get a meaningless "impossibly fast" benchmark number.
+        <strong>2. Unrepresentative input data.</strong> A benchmark using a tiny, uniformly-distributed, or
+        already-sorted dataset can behave completely differently from production data distributions (e.g. a hash
+        map benchmark with sequential integer keys can look artificially fast/slow compared to real-world string
+        keys with different hash distribution behaviour).
+        <strong>3. Warm cache / warm allocator effects</strong> that won't hold in a cold-start production request
+        path, or conversely, benchmarking steady-state throughput when the real concern is tail latency
+        (<code>criterion</code> reports mean/median by default — check whether p99 or worst-case behaviour is
+        actually what matters for this change).
+        <strong>4. CPU frequency scaling / thermal throttling / other processes on the benchmarking machine</strong>
+        introducing noise — running benchmarks on a shared CI runner or a laptop under load produces unreliable
+        numbers; ideally benchmark on a dedicated, pinned-frequency machine, and always look at criterion's
+        reported confidence intervals, not just the point estimate, before claiming a real difference.
+        <strong>5. Does the microbenchmark reflect the actual bottleneck in the full system?</strong> A function
+        that got 40% faster in isolation might contribute 0.1% of end-to-end request latency in production — always
+        connect a microbenchmark improvement back to a real, measured system-level impact (e.g. an actual
+        before/after production latency measurement or load test) before treating the optimisation as validated.
+        Raising all of this proactively, rather than just presenting the 40% number, is exactly the kind of rigor
+        that distinguishes senior performance work from "I benchmarked it and it's faster."
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Distinguishes unit/integration/doc tests by exactly what they can access and verify</li>
+      <li>Explains property-based testing's shrinking behaviour and gives concrete sort-function properties</li>
+      <li>Knows fuzzing's coverage-guided mutation and that it specifically finds panic-on-adversarial-input bugs</li>
+      <li>Names black_box, unrepresentative data, and noise as concrete microbenchmark pitfalls unprompted</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Writes tests reflexively but hasn't used property testing or fuzzing</li>
+      <li>Trusts a single benchmark run without discussing variance or black_box</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>CI pipeline is "cargo test" and nothing else, with no awareness of clippy/audit/fmt gating</li>
+      <li>Has never heard of criterion, proptest, or cargo-fuzz</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Present a benchmark result and watch whether the candidate immediately asks about black_box, input
+    representativeness, and variance, or just accepts the number. Healthy skepticism toward your own
+    (and others') performance claims is a core senior trait, and this is an easy scenario to probe it directly.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 19 · FFI & INTEROP ════════════ -->
+<div class="section" id="t-ffi">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-ffi)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-ffi)">// Topic 19</div>
+      <div class="sh-title">FFI &amp; Interop</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-ffi)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What does <code>extern "C"</code> mean on a function, and why is it necessary for calling into or being called from C code?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Rust's default calling convention (how arguments are passed — which registers, stack layout, name mangling
+        for linking) is unspecified and can change between compiler versions — it's an internal implementation
+        detail, not a stable ABI. <strong><code>extern "C"</code></strong> on a function declares that it should
+        use the <strong>platform's standard C calling convention</strong> instead — a stable, well-defined ABI
+        every language's FFI tooling agrees on. This is required in both directions: a Rust function meant to be
+        <em>called from</em> C code must be declared <code>extern "C" fn foo(...)</code> (plus
+        <code>#[no_mangle]</code> to prevent Rust's default name-mangling so the linker can find it by its plain
+        name), and declaring the signature of a C function you want to <em>call from</em> Rust
+        (<code>extern "C" { fn some_c_function(x: i32) -&gt; i32; }</code>) tells the Rust compiler to generate a
+        call using that same stable convention rather than assuming a Rust-internal one. Without this, the two
+        sides would disagree about register usage/stack layout and calls would corrupt data or crash
+        unpredictably.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is <code>bindgen</code> and what problem does it solve? Contrast it with writing FFI bindings by hand.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong><code>bindgen</code></strong> parses a C/C++ header file and <strong>automatically generates</strong>
+        the corresponding Rust <code>extern "C"</code> function declarations, matching <code>#[repr(C)]</code>
+        struct definitions, and constant/enum bindings — typically run as a build-time step
+        (<code>build.rs</code>) so bindings stay in sync with the actual header used at build time, rather than
+        being a one-time manual transcription that silently drifts out of sync as the C library evolves.
+        <strong>Hand-writing bindings</strong> is error-prone specifically because getting a struct's field order,
+        types, and padding <em>exactly</em> right is required for FFI safety (a mismatched field type or missing
+        padding byte causes silent memory corruption, not a compile error, since the Rust compiler has no
+        visibility into what the actual C struct layout is) — a manual transcription mistake is exactly the kind
+        of bug that's invisible until it corrupts data in a way that's very hard to trace back to its root cause.
+        <code>bindgen</code> eliminates this entire class of error by generating bindings directly from the
+        authoritative header, and automatically re-generates them whenever the header changes, catching upstream
+        C API changes at Rust compile time instead of at runtime. The trade-off: bindgen-generated bindings are
+        often extremely low-level/unsafe (matching the raw C API 1:1) — real crates almost always wrap the raw
+        bindgen output in a hand-written, safe, idiomatic Rust API layer (the common "sys crate" +
+        "high-level wrapper crate" pattern seen throughout the ecosystem, e.g. <code>libgit2-sys</code> +
+        <code>git2</code>).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">You're wrapping a C library that returns error codes via an out-parameter and expects the caller to eventually free returned pointers. Design the safe Rust wrapper API around it.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Error codes → <code>Result</code>:</strong> the raw FFI signature might look like
+        <code>extern "C" fn c_open(path: *const c_char, out: *mut *mut Handle) -&gt; c_int;</code> — the safe
+        wrapper translates the integer return code into a proper Rust error enum, and returns the out-parameter's
+        value as the <code>Ok</code> payload instead of leaving it as a raw pointer parameter for the caller to
+        manage: <code>fn open(path: &amp;str) -&gt; Result&lt;SafeHandle, CError&gt;</code>.
+        <strong>Owned resources → RAII wrapper with <code>Drop</code>:</strong> wrap the raw pointer in a newtype
+        struct and implement <code>Drop</code> to call the C library's corresponding free/close function —
+        <code>struct SafeHandle(*mut Handle); impl Drop for SafeHandle { fn drop(&amp;mut self) { unsafe {
+        c_close(self.0) } } }</code> — this guarantees the resource is released exactly once, deterministically,
+        even if the caller panics or forgets to explicitly close it, mirroring how <code>std::fs::File</code>
+        wraps a raw OS file descriptor.
+        <strong>CString/CStr for string boundaries:</strong> any <code>&amp;str</code> passed to a C function
+        expecting a null-terminated string must go through <code>CString::new(s)</code> (which also validates there
+        are no interior null bytes, returning an error if so — a real and easy-to-forget failure mode for
+        arbitrary Rust strings passed across the boundary).
+        <strong>Never expose the raw pointer in the public API</strong> — keep it entirely private inside the
+        wrapper struct, so users of your safe crate have no way to misuse it, double-free it, or use it after the
+        wrapper has dropped it; the entire point of the wrapper layer is that its public surface should be
+        impossible to misuse into memory unsafety, with all the <code>unsafe</code> contained and justified inside
+        the small number of FFI call sites rather than leaked to callers.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What does it mean for a callback-based C API to require a Rust closure to cross the FFI boundary? Walk through the userdata/trampoline pattern used to make this work.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        C callback APIs universally expect a plain function pointer plus (by convention, in well-designed C APIs)
+        a <code>void* userdata</code> parameter that the C library promises to pass back unchanged on every
+        invocation — this is C's idiom for smuggling "context" across an interface that has no concept of
+        closures. As established earlier in this packet, a <strong>capturing Rust closure cannot coerce to a bare
+        <code>fn</code> pointer</strong> — there's nowhere in a raw function pointer to store captured state. The
+        <strong>trampoline pattern</strong> bridges this: (1) box the actual Rust closure:
+        <code>let boxed: Box&lt;dyn FnMut(Event)&gt; = Box::new(my_closure);</code>; (2) cast the box into a raw
+        pointer and pass <em>that</em> as the C API's <code>userdata</code>:
+        <code>let raw = Box::into_raw(boxed) as *mut c_void;</code>; (3) define a small, <strong>non-capturing</strong>
+        <code>extern "C"</code> function — the actual trampoline — matching the C callback signature exactly, whose
+        entire body reconstructs a reference to the boxed closure from the userdata pointer and calls it:
+<pre style="margin:4px 0;"><span class="kw">extern "C" fn</span> <span class="fn">trampoline</span>(event: <span class="ty">CEvent</span>, userdata: *<span class="kw">mut</span> c_void) {
+    <span class="kw">let</span> closure = <span class="kw">unsafe</span> { &amp;<span class="kw">mut</span> *(userdata <span class="kw">as</span> *<span class="kw">mut</span> Box&lt;<span class="kw">dyn</span> FnMut(<span class="ty">Event</span>)&gt;) };
+    closure(event.<span class="fn">into</span>());
+}</pre>
+        (4) pass <code>trampoline</code> (a plain, non-capturing function — perfectly valid as a bare
+        <code>fn</code> pointer) as the callback, and the raw pointer from step 2 as userdata; (5) critically,
+        <strong>reconstruct and drop the <code>Box</code></strong> via <code>Box::from_raw(...)</code> once the
+        callback is no longer needed (e.g. when unregistering, or when the wrapping struct itself drops) — 
+        forgetting this leaks the boxed closure and its captured state forever, since the raw pointer conversion
+        opted out of Rust's automatic drop tracking for that allocation. This pattern — box, leak the raw pointer
+        across the boundary, non-capturing trampoline reconstructs and calls it, explicitly reclaim ownership
+        later to free it — is the standard, necessary answer whenever a Rust closure needs to satisfy a C-style
+        callback API, and articulating all five steps correctly is a strong senior FFI signal.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">What additional considerations come into play when the FFI boundary needs to be thread-safe — e.g. a C library that isn't documented as thread-safe, being wrapped for use from a multi-threaded Rust service?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>The Rust compiler has zero visibility into the C library's actual thread-safety</strong> — raw
+        pointers are neither <code>Send</code> nor <code>Sync</code> by default specifically because the compiler
+        can't verify anything about what they point to, but that default is a conservative "don't know" more than
+        an active protection; if you write an <code>unsafe impl Send for MyWrapper {}</code> to make your wrapper
+        usable across threads, <strong>you are personally certifying something the compiler cannot check at
+        all</strong> — this is exactly the kind of soundness claim discussed in the unsafe topic, except now the
+        claim depends on an entirely separate codebase's (the C library's) internal implementation, which you may
+        not be able to fully audit. <strong>Concrete due diligence before doing this:</strong> (1) check the C
+        library's own documentation explicitly for thread-safety guarantees — many C libraries are
+        thread-<em>hostile</em> by design (global mutable state, non-reentrant functions) and this is not always
+        obvious from the header alone; (2) if the library is genuinely not thread-safe, the correct wrapper design
+        is to <strong>serialise all access through a single Rust-side <code>Mutex</code></strong> around the
+        entire handle, converting the C library's requirement into an enforced Rust-level invariant — do not mark
+        the type <code>Send</code>/<code>Sync</code> without this, and definitely don't assume it's fine because
+        "it hasn't crashed yet"; (3) watch specifically for C libraries with global/static state (not just
+        per-handle state) — even if each individual handle looks independent, shared global state inside the C
+        library can silently corrupt across handles used from different threads, something no amount of per
+        -handle Rust-side locking alone will fix, requiring a single global lock for the whole library instead.
+        Being able to reason about a dependency's thread-safety that lives entirely outside Rust's type system,
+        and translating that external contract into an enforced Rust invariant deliberately rather than by
+        assumption, is a distinctly senior/staff-level FFI skill.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Explains extern "C" as a stable ABI necessity, not just required syntax</li>
+      <li>Designs RAII wrappers around raw C handles with Drop-based cleanup</li>
+      <li>Can walk through the full box/trampoline/userdata callback pattern from memory</li>
+      <li>Treats unsafe impl Send/Sync on an FFI wrapper as a serious, externally-dependent soundness claim</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Has used bindgen-generated bindings but never written the safe wrapper layer around them</li>
+      <li>Hasn't considered CString null-byte validation when passing strings to C</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Exposes raw pointers directly in a "safe" public API</li>
+      <li>Marks an FFI wrapper Send/Sync without investigating the underlying C library's thread-safety</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    FFI questions are a great way to test whether "unsafe" understanding is theoretical or practiced — the
+    trampoline pattern and the RAII-wrapper-around-a-C-handle pattern both come up constantly in real systems work
+    and are very hard to fake convincingly without having actually built one.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 20 · ARCHITECTURE & DESIGN PATTERNS ════════════ -->
+<div class="section" id="t-arch">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Topic 20</div>
+      <div class="sh-title">Architecture &amp; Design Patterns</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is the builder pattern in Rust, and why is it especially common given Rust has no function overloading or default parameter values?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">let</span> client = HttpClient::<span class="fn">builder</span>()
+    .<span class="fn">timeout</span>(Duration::<span class="fn">from_secs</span>(<span class="nm">30</span>))
+    .<span class="fn">retries</span>(<span class="nm">3</span>)
+    .<span class="fn">build</span>()?;</pre>
+        The builder pattern uses a chain of methods, each consuming and returning <code>self</code> (or
+        <code>&amp;mut self</code>), to incrementally configure an object before a final <code>.build()</code>
+        call constructs it. It's especially prevalent in Rust specifically <strong>because Rust has neither
+        function overloading nor default parameter values</strong> — languages with those features can express
+        "construct this with mostly-default settings, just override one or two fields" via an overloaded
+        constructor or named/default arguments; Rust cannot express that directly on a plain
+        <code>fn new(a, b, c, d, e)</code> constructor without forcing every caller to specify every argument.
+        The builder sidesteps this entirely: each configuration option becomes an optional, independently-callable
+        method, callers only call the ones they care about, and sensible defaults live in the builder's own
+        <code>Default</code> implementation. This is also why the pattern often pairs with the typestate pattern
+        discussed earlier — a builder can use generic type parameters to track which required fields have been
+        set, making <code>.build()</code> only callable (at compile time) once all mandatory configuration has
+        actually been provided.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is the "newtype" pattern used for beyond just type-safety (covered earlier)? Specifically, how does it help you work around the orphan rule when implementing a foreign trait for a foreign type?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        The <strong>orphan rule</strong> forbids <code>impl ForeignTrait for ForeignType</code> — you can only
+        implement a trait for a type if you own the trait, the type, or both — this exists to guarantee
+        <strong>coherence</strong> (exactly one implementation of a given trait for a given type exists anywhere
+        in the dependency graph, so trait resolution is never ambiguous regardless of which crates are combined).
+        If you want to implement, say, <code>serde::Serialize</code> (foreign trait, from the serde crate) for
+        <code>chrono::DateTime</code> (foreign type, from the chrono crate) directly, the orphan rule blocks it —
+        neither type nor trait is yours. The <strong>newtype workaround</strong>: define
+        <code>struct MyDateTime(chrono::DateTime&lt;Utc&gt;);</code> — now the type <code>MyDateTime</code> is
+        yours, so <code>impl serde::Serialize for MyDateTime</code> is perfectly legal, and you implement
+        <code>Serialize</code> by delegating to the inner value's own formatting logic. The cost: you now have a
+        wrapper type that needs <code>Deref</code>/explicit unwrapping or delegate methods to feel ergonomic to
+        use, and any function expecting the original foreign type needs an explicit conversion at the boundary —
+        a real but usually small ergonomic tax in exchange for coherence, which is a much more valuable, structural
+        property for the entire ecosystem (no crate can ever silently "fight" another crate's trait impl for the
+        same type). This is one of the most commonly-hit "why won't this compile" moments for engineers moving
+        from languages without an orphan-rule-equivalent restriction.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Compare a "visitor pattern"-style approach with matching on an enum directly for processing a tree of heterogeneous node types. When would you reach for one over the other in Rust specifically?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Direct enum + match:</strong> represent the node types as an enum
+        (<code>enum Node { Literal(i64), Add(Box&lt;Node&gt;, Box&lt;Node&gt;), ... }</code>) and process it with
+        <code>match</code> in each function that needs to operate on it. This benefits enormously from Rust's
+        exhaustiveness checking (covered earlier) — <strong>adding a new node variant forces a compile error at
+        every match site that needs updating</strong>, which is a huge correctness win for evolving a small,
+        closed, stable set of node types. The downside: every new <em>operation</em> (pretty-print, evaluate,
+        type-check, optimise) requires a new function that matches on every variant, and if you have many
+        operations, the "match arms scattered across many functions" style can become harder to navigate than a
+        more object-oriented "one method per operation, grouped by type" organisation.
+        <strong>Trait-object-based visitor pattern:</strong> define a <code>Visitor</code> trait with one method
+        per node type, and a <code>Node</code> trait with an <code>accept(&amp;self, visitor: &amp;mut dyn
+        Visitor)</code> method each concrete node type implements to call back the right visitor method — this
+        groups all logic for one <em>operation</em> together (implement one <code>Visitor</code> per operation),
+        at the cost of losing exhaustiveness checking (adding a new node type requires you to remember to add a
+        corresponding method to the <code>Visitor</code> trait and implement it everywhere — nothing forces this
+        the way <code>match</code> does) and adding dynamic dispatch overhead. <strong>Rust-specific guidance:</strong>
+        because Rust's enum exhaustiveness is such a strong compile-time safety net, <strong>the enum+match
+        approach is idiomatically preferred by default</strong> in Rust far more often than in languages like
+        Java/C++ where the visitor pattern is the conventional answer to "avoid a giant if-else chain checking
+        types" — reach for the trait-object visitor specifically when the set of node types is genuinely
+        open-ended/extensible by third parties (plugin-style extensibility), which is exactly the scenario where
+        you'd want new node types addable without needing to modify a closed, exhaustively-matched enum at all.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">You're designing a moderately large service as a Cargo workspace with multiple crates. What principles guide how you split crate boundaries, and what mistakes do teams commonly make when first adopting workspaces?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Guiding principles:</strong> (1) <strong>split along compile-time and reuse boundaries, not just
+        conceptual ones</strong> — a crate boundary is valuable specifically because Cargo caches and parallelises
+        compilation per-crate; splitting a pure-logic <code>domain</code> crate out from an HTTP-serving
+        <code>api</code> crate means changing an HTTP handler doesn't force recompiling the domain logic (and vice
+        versa), which meaningfully improves iteration speed in a large codebase. (2) <strong>dependency direction
+        should point one way</strong> — lower-level crates (domain logic, shared types) should never depend on
+        higher-level crates (the HTTP binary, a specific storage backend) — this is enforced automatically by
+        Cargo's dependency graph (a cyclic crate dependency simply doesn't compile), which is a nice structural
+        guardrail against architectural erosion that's easy to accidentally violate in a single monolithic crate
+        with only module-level (not crate-level) separation. (3) <strong>expose a minimal public surface</strong>
+        per crate — use <code>pub(crate)</code> visibility liberally within a crate, and only mark genuinely
+        cross-crate-needed items fully <code>pub</code>, so refactoring internals of one crate doesn't ripple
+        outward.
+        <strong>Common mistakes:</strong> (1) <strong>splitting too early, before the boundaries are clear</strong> —
+        premature crate-splitting based on a guessed-at architecture often needs re-splitting later once real usage
+        patterns emerge; many experienced teams start with a single crate and split out workspace members only once
+        a genuine reuse or compile-time need materialises. (2) <strong>one shared "utils" or "common" crate that
+        becomes a dependency-graph bottleneck</strong> — everything depends on it, so any change to it forces a
+        full rebuild of the whole workspace, defeating much of the incremental-compilation benefit workspaces are
+        meant to provide; it's usually better to have several small, focused shared crates than one large grab-bag.
+        (3) <strong>forgetting to unify dependency versions</strong> across workspace members — without care, two
+        member crates can end up depending on different semver-incompatible versions of the same external crate,
+        bloating the build and occasionally causing confusing type-mismatch errors when a type from
+        <code>some-crate 1.x</code> doesn't unify with the "same" type from <code>some-crate 2.x</code>; a shared
+        <code>[workspace.dependencies]</code> table (Cargo's newer built-in mechanism for this) helps enforce
+        consistency deliberately rather than by accident.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Argue both sides: should a Rust service's core business logic be written against concrete types (e.g. a specific database pool type) or behind trait abstractions (a repository trait) for testability? What's your actual recommendation and why?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Case for trait abstraction (dependency inversion):</strong> business logic depending on a
+        <code>trait UserRepository { fn find(&amp;self, id: UserId) -&gt; Result&lt;User, Error&gt;; }</code>
+        rather than a concrete <code>PgPool</code> lets you write fast, deterministic unit tests using an in-memory
+        fake implementation, with no database required — this can make the majority of business-logic tests run in
+        milliseconds instead of requiring a real (or containerized) database, and decouples the logic from a
+        specific storage technology if it ever needs to change.
+        <strong>Case against (over-abstraction cost):</strong> introducing a trait for every dependency "just in
+        case" adds real indirection cost — an extra trait definition, an extra impl, and (if using
+        <code>dyn</code>) dynamic dispatch and heap allocation for something that in practice will only ever have
+        one real implementation in production. Rust's culture also somewhat pushes back against Java/C#-style
+        "interface for everything" architecture as unidiomatic ceremony when it isn't earning its cost, and generic
+        trait bounds are only free (statically dispatched) if you're willing to make business logic generic over
+        the repository type, which itself adds complexity (an extra generic parameter propagating through every
+        function that touches it).
+        <strong>Actual recommendation:</strong> abstract at the <strong>boundary genuinely likely to vary or need
+        substitution</strong> — a database/storage layer is a very common, legitimate candidate (multiple storage
+        backends across environments, integration tests wanting an in-memory fake) — but don't reflexively
+        abstract every single dependency. For the cases you do abstract, prefer testing with a <strong>real
+        lightweight instance</strong> where practical (a real SQLite/Postgres in a testcontainer) over a hand
+        -written fake, since fakes drift from real behaviour over time and can pass tests while the real
+        implementation has diverged; reserve pure in-memory fakes for genuinely slow/expensive/hard-to-provision
+        dependencies (an external third-party API, a message queue) where a real instance in every test run isn't
+        practical. Articulating this nuanced trade-off, rather than dogmatically defending "always abstract
+        dependencies" or "never add unnecessary indirection," is what a staff-level architecture discussion
+        actually sounds like.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">The Strategy pattern is "encapsulate an interchangeable algorithm/behavior so it can be swapped at runtime." In classic OOP that's an interface with several implementing classes. What's the idiomatic Rust equivalent, and when do you still reach for a real <code>trait</code> instead of just a closure parameter?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A large fraction of "Strategy pattern" needs in Rust are served directly by passing a closure or
+        <code>impl Fn(...)</code> rather than defining a formal <code>trait Strategy</code> with several struct
+        implementors — <code>Vec::sort_by(|a, b| ...)</code>, a
+        <code>retry_with_backoff(strategy: impl Fn(u32) -&gt; Duration)</code>, or a validation pipeline taking
+        <code>impl Fn(&amp;str) -&gt; bool</code> are all, structurally, the Strategy pattern with dramatically less
+        ceremony than <code>trait BackoffStrategy { fn delay(&amp;self, attempt: u32) -&gt; Duration; }</code> plus
+        multiple structs implementing it — appropriate whenever the "strategy" really is just one function of some
+        inputs to an output, with no state beyond what a closure's own captures already provide.
+        <strong>Reach for an actual <code>trait</code> instead</strong> when: (1) the strategy needs
+        <strong>multiple related methods</strong>, not one callable operation (a
+        <code>trait CompressionStrategy { fn compress(...); fn decompress(...); }</code> pairing that must stay in
+        sync); (2) the strategy carries meaningfully complex configuration/state that reads far more clearly as a
+        named struct than as a closure's opaque captures; or (3) you need a <strong>heterogeneous, runtime-selected
+        collection</strong> of strategies (<code>Vec&lt;Box&lt;dyn Strategy&gt;&gt;</code>, or picking one by name
+        from a config value) — a closure can't be "looked up by name" the way a <code>match</code> over an enum, or
+        a registered trait-object factory, can. Whether the chosen strategy is generic
+        (<code>fn f&lt;F: Fn(...)&gt;(strategy: F)</code>) or boxed (<code>Box&lt;dyn Fn(...)&gt;</code>) follows
+        the same static-vs-dynamic-dispatch trade-off as everywhere else: generic when the concrete strategy is
+        known at each call site and zero-cost monomorphisation is worth it, boxed <code>dyn</code> when the
+        strategy is chosen at runtime and needs to be stored without its concrete type being known ahead of time.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q7</span><span class="qa-qtext">RAII isn't a classic GoF pattern, but it's arguably the single most pervasive design pattern in idiomatic Rust. Name 2-3 places the standard library itself relies on it, then sketch your own scope-guard type for a resource needing custom cleanup — e.g. temporarily flipping a flag and restoring it on scope exit.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Std examples:</strong> <code>MutexGuard</code> (returned by <code>Mutex::lock()</code>) releases
+        the lock in its <code>Drop</code> impl the instant it goes out of scope — impossible to forget to unlock,
+        even across an early <code>return</code> or a panic mid-critical-section. <code>File</code> closes its OS
+        file descriptor on drop. <code>thread::scope</code>'s scope guard blocks on drop until every thread spawned
+        inside it has finished, which is precisely what lets <code>thread::scope</code> soundly allow borrowing
+        local stack data (covered in the threading topic) — the borrow-checker-visible scope and the
+        actual-thread-joining both end at the same <code>Drop</code>.
+        <strong>Custom scope guard:</strong>
+<pre style="margin:6px 0;"><span class="kw">struct</span> <span class="ty">ResetOnDrop</span>&lt;<span class="lt">'a</span>&gt; { flag: &amp;<span class="lt">'a</span> AtomicBool, original: <span class="ty">bool</span> }
+
+<span class="kw">impl</span>&lt;<span class="lt">'a</span>&gt; <span class="ty">Drop</span> <span class="kw">for</span> <span class="ty">ResetOnDrop</span>&lt;<span class="lt">'a</span>&gt; {
+<span class="ok-line">    <span class="kw">fn</span> <span class="fn">drop</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) { <span class="kw">self</span>.flag.<span class="fn">store</span>(<span class="kw">self</span>.original, Ordering::SeqCst); }  <span class="cm">// runs on every exit path, including panics</span></span>
+}
+
+<span class="kw">fn</span> <span class="fn">temporarily_enable</span>(flag: &amp;AtomicBool) -&gt; <span class="ty">ResetOnDrop</span>&lt;<span class="lt">'_</span>&gt; {
+    <span class="kw">let</span> original = flag.<span class="fn">swap</span>(<span class="kw">true</span>, Ordering::SeqCst);
+    <span class="ty">ResetOnDrop</span> { flag, original }
+}
+<span class="cm">// caller: let _guard = temporarily_enable(&some_flag);  ... restored automatically at end of scope</span></pre>
+        This is exactly what the <code>scopeguard</code> crate's <code>defer!</code> macro generalises for one-off
+        cleanup without writing a dedicated struct+<code>Drop</code> impl each time. The interview-worthy insight:
+        <code>Drop::drop</code> runs even during a panic-triggered unwind (barring a second panic inside
+        <code>drop</code> itself, or a <code>panic = "abort"</code> profile) — RAII guards give you the
+        cleanup-on-every-exit-path guarantee that other languages need an explicit
+        <code>try</code>/<code>finally</code> or <code>defer</code> block to express, entirely for free, without
+        the guard needing to know anything about <em>how</em> control left the scope.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q8</span><span class="qa-qtext">Earlier we covered modelling a state machine as an enum with runtime variants. There's a second, compile-time flavor of the typestate pattern using generic phantom markers — e.g. a <code>Connection&lt;Disconnected&gt;</code> that has no <code>.send()</code> method until <code>.connect()</code> turns it into a <code>Connection&lt;Connected&gt;</code>. Sketch it and explain the trade-off against the enum approach.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">struct</span> <span class="ty">Disconnected</span>;
+<span class="kw">struct</span> <span class="ty">Connected</span>;
+
+<span class="kw">struct</span> <span class="ty">Connection</span>&lt;<span class="ty">State</span>&gt; { socket: <span class="ty">Option</span>&lt;TcpStream&gt;, _state: PhantomData&lt;<span class="ty">State</span>&gt; }
+
+<span class="kw">impl</span> <span class="ty">Connection</span>&lt;<span class="ty">Disconnected</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">connect</span>(<span class="kw">self</span>, addr: &amp;<span class="ty">str</span>) -&gt; io::Result&lt;<span class="ty">Connection</span>&lt;<span class="ty">Connected</span>&gt;&gt; {
+        <span class="kw">let</span> socket = TcpStream::<span class="fn">connect</span>(addr)?;
+<span class="ok-line">        <span class="ty">Ok</span>(<span class="ty">Connection</span> { socket: <span class="ty">Some</span>(socket), _state: PhantomData })  <span class="cm">// returns a DIFFERENTLY-TYPED connection</span></span>
+    }
+}
+
+<span class="kw">impl</span> <span class="ty">Connection</span>&lt;<span class="ty">Connected</span>&gt; {
+<span class="ok-line">    <span class="kw">fn</span> <span class="fn">send</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, data: &amp;[<span class="ty">u8</span>]) -&gt; io::Result&lt;()&gt; {  <span class="cm">// this method simply doesn't exist on Connection<Disconnected></span></span>
+        <span class="kw">self</span>.socket.<span class="fn">as_mut</span>().<span class="fn">unwrap</span>().<span class="fn">write_all</span>(data)
+    }
+}</pre>
+        Calling <code>.send()</code> on a <code>Connection&lt;Disconnected&gt;</code> is a <strong>compile
+        error</strong> — there's no such method — rather than a runtime "not connected yet" error or panic you'd
+        get from one struct with a runtime <code>state: ConnState</code> enum field checked at the top of every
+        method. That's the fundamental trade-off against the earlier enum-based state machine: phantom-type
+        typestate pushes "did you call things in the right order" to compile time (a strictly stronger guarantee,
+        zero runtime cost, illegal states don't merely go unused — they have no methods to misuse at all), at the
+        cost of (1) each transition <strong>consumes <code>self</code> and returns a differently-typed value</strong>,
+        so you can't hold a <code>Vec</code> of mixed-state connections without erasing the state behind an enum or
+        trait object anyway, and (2) it doesn't work when the state is only known at <strong>runtime</strong> —
+        e.g. deserialized from a database row — where you need to branch on it as data, which is exactly what
+        enums remain the right tool for. Reach for phantom-type typestate specifically for compile-time misuse
+        prevention on a single value moving through a short, known sequence of states (builders, connection/session
+        handles, transaction handles) — not as a wholesale replacement for enum-based state machines.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q9</span><span class="qa-qtext">The Command pattern encapsulates "an action to perform later" as a value. Thread-pool/task-queue jobs are usually boxed closures (<code>Box&lt;dyn FnOnce() + Send&gt;</code>). What's the alternative "enum of commands" design, and when would you actually prefer it over a boxed closure?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>Box&lt;dyn FnOnce() + Send + 'static&gt;</code> <strong>is</strong> the Command pattern in Rust — a
+        closure capturing whatever state it needs, ready to be invoked later, exactly like a <code>Command</code>
+        interface with one <code>execute()</code> method and infinitely many anonymous "implementing classes" (one
+        per distinct closure). It's the default precisely because it needs zero upfront ceremony — no
+        struct/enum to define ahead of time for every possible action.
+        The alternative — <code>enum Command { Shutdown, Log(String), SetLimit(u32), ... }</code>, dispatched via
+        <code>match</code> — trades that flexibility for two things a closure fundamentally cannot give you:
+        (1) <strong>inspectability</strong> — a <code>Command</code> value can be logged, serialized
+        (<code>#[derive(Serialize)]</code>), replayed from a queue or database, or asserted-on directly in a unit
+        test; a <code>Box&lt;dyn FnOnce()&gt;</code> is an opaque black box you can only call, never print, compare,
+        or persist. (2) <strong>exhaustiveness-checked dispatch</strong> — adding a new <code>Command</code>
+        variant forces the compiler to flag every <code>match</code> site that needs updating, the same safety net
+        discussed for the visitor-pattern question earlier, which a closure-based design has no equivalent for.
+        Reach for the enum specifically when commands need to cross a <strong>serialization or persistence
+        boundary</strong> — a job queue backed by a database or message broker, an undo/redo stack that must
+        survive a restart, an audit log of "what actions were requested" — and stick with boxed closures when
+        commands are purely in-process and ephemeral and never need to be inspected as data, which describes the
+        overwhelming majority of thread-pool/task-queue use cases.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q10</span><span class="qa-qtext">A teammate wants a global, lazily-initialized <code>AppConfig</code> reachable from anywhere via a plain function call — the Singleton pattern. Show the idiomatic Rust mechanism, then make the case for why senior engineers usually push back on this design regardless of the mechanism used to implement it.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:6px 0;"><span class="kw">use</span> std::sync::OnceLock;
+<span class="kw">static</span> <span class="ty">CONFIG</span>: OnceLock&lt;<span class="ty">AppConfig</span>&gt; = OnceLock::new();
+
+<span class="kw">fn</span> <span class="fn">config</span>() -&gt; &amp;<span class="lt">'static</span> <span class="ty">AppConfig</span> {
+<span class="ok-line">    <span class="ty">CONFIG</span>.<span class="fn">get_or_init</span>(|| <span class="ty">AppConfig</span>::<span class="fn">load_from_env</span>())  <span class="cm">// thread-safe, initializes exactly once, no unsafe</span></span>
+}</pre>
+        <code>OnceLock</code> (stable std, having largely replaced <code>lazy_static!</code>/
+        <code>once_cell::sync::Lazy</code> for this exact case) is the correct, idiomatic mechanism — this genuinely
+        is the right tool the instant you've decided you want global, lazily-initialized, shared state.
+        <strong>The pushback is independent of mechanism.</strong> The objection senior engineers raise isn't "can
+        you implement a singleton safely" (<code>OnceLock</code> settles that) — it's that a global singleton makes
+        <em>every</em> function that transitively reads it implicitly depend on global state, which specifically
+        breaks (1) <strong>test isolation</strong> — tests can't easily substitute a different config without a
+        process-wide static leaking into every other concurrently-running test, and (2) <strong>honest function
+        signatures</strong> — a function's parameter list no longer tells you everything it depends on; you have
+        to read the body to discover it silently reaches into <code>config()</code>. The idiomatic alternative
+        most Rust codebases converge on: <strong>pass configuration explicitly</strong> — load it once in
+        <code>main</code>, wrap it in an <code>Arc&lt;AppConfig&gt;</code>, and thread that through function
+        parameters/struct fields to whatever actually needs it. This costs some boilerplate at every layer in
+        exchange for every function's real dependencies being visible in its signature, and tests being able to
+        construct whatever <code>AppConfig</code> they want with zero shared global state. Naming this trade-off
+        unprompted — rather than treating "can I make a working global singleton" as the whole question — is the
+        actual senior signal; a working singleton is rarely what a real design review is contesting.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong</div><ul>
+      <li>Connects the builder pattern's prevalence to Rust's lack of overloading/default params specifically</li>
+      <li>Explains the orphan rule and the newtype workaround with a concrete cross-crate example</li>
+      <li>Chooses enum+match vs visitor pattern based on whether the type set is closed or extensible</li>
+      <li>Gives a nuanced, situational answer to "should we abstract this dependency" rather than a dogmatic rule</li>
+      <li>Reaches for a closure/generic before reaching for a formal Strategy trait, unless multiple methods or runtime-selected heterogeneity actually require one</li>
+      <li>Names concrete std RAII examples (MutexGuard, thread::scope's guard) unprompted, not just "Drop exists"</li>
+      <li>Picks phantom-type typestate vs. enum-based state machine based on whether the state is known at compile time or must be branched on as runtime data</li>
+      <li>Knows OnceLock is the modern correct singleton mechanism but still raises the test-isolation/hidden-dependency critique unprompted</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe</div><ul>
+      <li>Uses builders out of habit without connecting it to Rust's language constraints</li>
+      <li>Defaults to trait-abstracting every dependency without weighing the cost</li>
+      <li>Reaches straight for a formal trait+structs for every "swappable behavior" need, never considering a plain closure parameter</li>
+      <li>Treats a global OnceLock/lazy_static as an unambiguously good solution with no downside worth mentioning</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern</div><ul>
+      <li>Cannot explain the orphan rule or why it exists</li>
+      <li>Treats all design patterns as universally good practice regardless of context</li>
+      <li>Doesn't know Drop still runs during a panicking unwind, or thinks cleanup requires a manual try/finally-equivalent</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Architecture questions are where "knows Rust syntax" and "is a senior engineer" diverge most sharply. The
+    strongest answers here sound like general software-engineering judgement expressed through Rust-specific
+    mechanisms (orphan rule, exhaustiveness, trait dispatch cost) — that fusion is exactly the senior bar.
+  </div>
+</div>
+
+<!-- ════════════ TOPIC 21 · MODULES, CRATES & CARGO MECHANICS ════════════ -->
+<div class="section" id="t-mod">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-mod)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-mod)">// Topic 21</div>
+      <div class="sh-title">Modules, Crates &amp; Cargo Mechanics</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-mod)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">How does Rust's module system actually work — how does <code>mod foo;</code> relate to a file on disk, what does <code>use</code> actually do, and where does a crate's module tree begin?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A crate's module tree starts at its <strong>crate root</strong> — <code>src/main.rs</code> for a binary
+        crate, <code>src/lib.rs</code> for a library crate (a package can have both: one library plus one or more
+        binaries, each with their own root file). Unlike Python or JavaScript, <strong>Rust does not
+        auto-discover files as modules</strong> — a file sitting in <code>src/</code> is invisible to the compiler
+        unless something explicitly declares it as a module:
+<pre style="margin:6px 0;"><span class="cm">// src/lib.rs (crate root)</span>
+<span class="kw">mod</span> parser;        <span class="cm">// declares a module named `parser`; compiler looks for src/parser.rs (or src/parser/mod.rs)</span>
+<span class="kw">mod</span> util {          <span class="cm">// OR define a module inline, right here, with no separate file at all</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="fn">helper</span>() {}
+}
+
+<span class="kw">use</span> parser::Token;  <span class="cm">// brings `Token` into scope so you can write `Token` instead of `parser::Token`</span></pre>
+        <code>mod foo;</code> both declares the module <em>and</em> tells the compiler which file its contents
+        live in (following the standard naming convention above); the module's actual code is nested under
+        <code>parser::</code> in the path system regardless of which file it physically lives in. <strong><code>use</code>
+        does not affect visibility at all</strong> — it's purely a local, per-file shorthand for a path that
+        already resolved successfully; conflating "I used <code>use</code> so now it's accessible" with "this is
+        actually <code>pub</code>" is one of the most common early confusions. A submodule can always see into its
+        ancestors' private items without any <code>use</code>/<code>pub</code> at all — privacy in Rust is scoped
+        to "this item and everything nested inside it," not per-file.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Walk through the full visibility spectrum — default privacy, <code>pub</code>, <code>pub(crate)</code>, <code>pub(super)</code> — and explain what <code>pub use</code> re-exporting is actually for.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Default (no modifier) is private</strong> — visible only within the defining module and any of
+        its descendant modules, invisible to siblings, parents, or other crates. <strong><code>pub</code></strong>
+        makes an item visible from anywhere that can reach its path, including other crates. Between those two
+        extremes: <strong><code>pub(crate)</code></strong> makes an item visible <em>anywhere within the current
+        crate</em> but not to external crates — the standard choice for "shared internal API between your own
+        modules, but not part of the crate's public contract," and a good default when you're not yet sure
+        something needs to be fully public. <strong><code>pub(super)</code></strong> restricts visibility to just
+        the parent module (and its descendants) — useful for a submodule exposing something specifically for its
+        immediate parent to orchestrate, without leaking it crate-wide. <code>pub(in some::path)</code> generalises
+        this to an arbitrary named ancestor module. A frequently-missed nuance: a <code>struct</code> can be
+        <code>pub</code> while its <em>fields</em> stay private — the type is nameable and can appear in public
+        signatures, but callers can't construct it directly or reach into its internals, forcing them through a
+        public constructor/method that can enforce invariants. <strong><code>pub use</code></strong> re-exports
+        an item at a new path — it lets a crate present a clean, curated, flat public API
+        (<code>my_crate::Config</code>) while the actual implementation lives buried in whatever internal module
+        structure makes sense for the maintainers (<code>my_crate::internal::config::builder::Config</code>);
+        <code>serde</code> and <code>tokio</code> both do this heavily — the paths you actually import as a
+        consumer are rarely where the type is truly defined.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">You're building a command-line tool. Why is "thin <code>main.rs</code>, real logic in <code>lib.rs</code>" the recommended structure, how do <code>std::env::args()</code> and <code>clap</code> differ for argument parsing, and what's the actual risk of calling <code>std::process::exit</code> directly?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Thin main.rs, real logic in lib.rs:</strong> a package can expose both a library and a binary
+        target from the same crate; putting all actual logic in <code>src/lib.rs</code> (as ordinary, directly
+        callable functions/types) and reducing <code>src/main.rs</code> to "parse arguments, call into the
+        library, handle the top-level result" means the logic is directly unit-testable via <code>cargo test</code>
+        with plain function calls — no subprocess spawning, no capturing stdout, no CLI-invocation ceremony in
+        tests at all. Logic embedded directly in <code>main.rs</code> can really only be exercised by actually
+        running the compiled binary, which is far slower and clunkier to test thoroughly.
+        <strong>Argument parsing:</strong> <code>std::env::args()</code> returns a plain iterator of raw
+        <code>String</code>s with <strong>zero</strong> validation, type conversion, or help text generated for
+        you — workable for a single positional argument, unmaintainable past 2-3 flags with any real validation
+        needs. <strong><code>clap</code></strong> (specifically its derive API,
+        <code>#[derive(Parser)]</code> on a struct whose fields become flags/positional args) is the modern
+        idiomatic default: it generates <code>--help</code>/<code>--version</code> automatically, parses into
+        real typed fields (a <code>count: u32</code> field fails with a clean, user-facing error message if given
+        <code>--count abc</code>, rather than a manual parse-and-match you'd otherwise write yourself), and
+        supports subcommands (<code>git commit</code>-style CLIs) with minimal boilerplate.
+        <strong><code>process::exit</code> risk:</strong> it terminates the process <strong>immediately</strong>,
+        skipping the normal unwind — anything still on the stack (open file handles, a <code>BufWriter</code>
+        with unflushed buffered data, any type with a meaningful <code>Drop</code> impl) has its destructor
+        <strong>silently skipped</strong>. The safer, now-idiomatic alternative is returning a value from
+        <code>main</code> itself — <code>fn main() -&gt; Result&lt;(), MyError&gt;</code> (errors get printed and
+        exit non-zero automatically) or <code>fn main() -&gt; ExitCode</code> for custom exit codes — which lets
+        every value already on the stack drop normally before the process actually exits. Reach for
+        <code>process::exit</code> directly only when you specifically need to bypass unwinding (e.g. after a
+        caught panic you've deliberately decided not to let propagate further).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What actually differs between Cargo's <code>dev</code> and <code>release</code> profiles by default, and what do <code>lto</code>, <code>codegen-units</code>, <code>panic = "abort"</code>, and <code>strip</code> trade off when you tune a release profile further?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+<pre style="margin:4px 0;"><span class="cm"># Cargo.toml — tuning the release profile beyond its defaults</span>
+[profile.release]
+lto = <span class="kw">true</span>
+codegen-units = <span class="nm">1</span>
+panic = <span class="st">"abort"</span>
+strip = <span class="kw">true</span></pre>
+        <strong>Defaults:</strong> <code>dev</code> builds with <code>opt-level = 0</code> (essentially no
+        optimisation, prioritising fast compile times over runtime speed) and <code>debug-assertions = true</code>;
+        <code>release</code> flips to <code>opt-level = 3</code> and <code>debug-assertions = false</code>.
+        <strong>The debug-assertions flip is a real, easy-to-miss correctness gotcha:</strong> integer overflow
+        on primitive types <strong>panics</strong> in a debug build but <strong>silently wraps</strong> (two's
+        complement) in release by default — code that appears to "work fine" throughout local development can
+        behave differently in production the moment an overflow condition is actually hit, which is exactly why
+        relying on this difference (rather than explicit <code>checked_add</code>/<code>wrapping_add</code>/
+        <code>saturating_add</code> where overflow is a real possibility) is a latent bug, not a feature.
+        <strong>Further tuning knobs:</strong> <code>lto = true</code> (link-time optimisation — lets the
+        optimiser see across crate boundaries, often meaningfully improving runtime performance and shrinking
+        binary size, at the cost of substantially longer link/build times); <code>codegen-units = 1</code>
+        (forces fully sequential, whole-crate codegen instead of parallel chunks, enabling more cross-function
+        optimisation at the direct cost of build parallelism/speed); <code>panic = "abort"</code> (skips the
+        unwinding machinery entirely on panic — smaller, sometimes faster binaries, but you permanently lose
+        <code>catch_unwind</code> and, notably, <strong>Drop impls no longer run during a panic</strong> — a
+        direct trade-off against the RAII/cleanup-on-every-exit-path guarantee discussed under the design-patterns
+        topic); <code>strip = true</code> (removes debug symbols from the final binary, shrinking it, at the cost
+        of much less useful backtraces/symbols if it ever needs to be debugged post-mortem). None of these are
+        "always turn on" — each is a genuine build-time-vs-runtime-characteristic trade-off to make deliberately
+        per project, not a checklist to blindly enable.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">What does <code>cargo publish</code> actually require, what does <code>cargo yank</code> do (and not do), and what's the one surprising rule about publishing crates that live inside a workspace?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Publishing requirements:</strong> a complete-enough <code>Cargo.toml</code> (a license — either an
+        SPDX identifier or a <code>license-file</code> — plus a description are effectively mandatory in
+        practice, since crates.io's UI and many downstream tools expect them), and a version number that follows
+        <strong>SemVer discipline</strong> — this matters far beyond convention, because Cargo's own dependency
+        resolver <em>trusts</em> your version number to decide whether an upgrade is safe to apply automatically
+        (a <code>^1.2.0</code> dependency constraint will happily auto-upgrade to <code>1.3.0</code> or
+        <code>1.9.9</code>, but never to <code>2.0.0</code>) — publishing a breaking change as a patch or minor
+        version bump silently breaks every downstream consumer who trusted that constraint, which is a genuinely
+        damaging mistake for any crate with real dependents. <strong><code>cargo yank</code>:</strong> marks a
+        specific published version as "do not select for any <em>new</em> dependency resolution" — it does
+        <strong>not</strong> delete the version, and does <strong>not</strong> break any existing build that
+        already has that exact version pinned in its <code>Cargo.lock</code>; it's a safety net for "I just
+        published something broken and want to stop new projects from picking it up," not a way to erase a
+        release from history. <strong>Workspace publishing surprise:</strong> there is no "publish the whole
+        workspace as one atomic unit" — each crate in a workspace is published to crates.io
+        <strong>independently</strong>, one <code>cargo publish</code> per crate. A common first-publish trip-up:
+        an in-workspace path dependency (<code>other-crate = { path = "../other-crate", version = "1.0" }</code>)
+        needs <strong>both</strong> the path (for local builds) <strong>and</strong> a version requirement that
+        crates.io can actually resolve once published — crates.io has no concept of local filesystem paths, so a
+        path-only dependency with no version constraint simply cannot be published at all.
+      </div></div>
+    </div>
+  </div>
+
+  <div class="signals">
+    <div class="sig-box sig-pass"><div class="sig-label">✓ Strong hire signals</div><ul>
+      <li>Clearly separates "use brings a path into scope" from "pub controls whether that path resolves at all"</li>
+      <li>Defaults to pub(crate) for internal-but-cross-module APIs rather than making everything fully pub out of habit</li>
+      <li>Structures CLI logic in a testable lib.rs behind a thin main.rs, unprompted</li>
+      <li>Knows debug-assertions (and therefore integer overflow behavior) differs between dev and release builds</li>
+      <li>Understands SemVer as a resolver-trusted contract, not just a versioning convention</li>
+    </ul></div>
+    <div class="sig-box sig-warn"><div class="sig-label">⚠ Probe further</div><ul>
+      <li>Thinks use statements control visibility/access rather than just local path shorthand</li>
+      <li>Has never used pub(crate)/pub(super) and defaults straight to pub everywhere</li>
+      <li>Reaches for process::exit reflexively without considering what it skips</li>
+      <li>Unaware that release builds silently wrap on integer overflow instead of panicking</li>
+    </ul></div>
+    <div class="sig-box sig-fail"><div class="sig-label">✗ Concern signals</div><ul>
+      <li>Believes files are automatically modules without any mod declaration needed</li>
+      <li>Has published a breaking change as a patch version without recognizing the problem</li>
+      <li>Thinks cargo yank deletes a version or breaks existing consumers' builds</li>
+    </ul></div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    This topic is deliberately "boring" mechanics rather than a hard algorithmic or type-system challenge — and
+    that's exactly the point. Whether a candidate has actually shipped and maintained real crates (published one,
+    argued about a workspace's crate boundaries, been bitten by a debug-vs-release behavior difference in
+    production) shows up unmistakably here, in a way that's very hard to fake by having only read documentation.
+  </div>
+</div>

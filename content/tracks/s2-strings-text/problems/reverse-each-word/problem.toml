@@ -1,0 +1,30 @@
+slug = "reverse-each-word"
+title = "Reverse each word, Unicode-safe"
+mode = "write"
+level = "medium"
+stage = "understand"
+order = 11
+status = "ready"
+tags = ["chars().rev()", "collect::<String>"]
+teaches = [
+  "Reversing `chars()`, not bytes.",
+  "Collecting chars straight into a `String`.",
+]
+follow_up = "Which crate would you reach for to reverse by grapheme cluster?"
+
+[[examples]]
+input = "\"héllo wörld\""
+output = "\"olléh dlröw\""
+
+[[hints]]
+kind = "rust"
+text = "Reversing bytes would split multi-byte characters into invalid UTF-8. `chars().rev()` reverses whole characters."
+
+[[hints]]
+kind = "rust"
+text = "`collect::<String>()` builds a String from an iterator of `char`."
+
+[solution]
+explanation = "`chars().rev()` works because `Chars` is a `DoubleEndedIterator`: UTF-8 can be decoded backwards. Combining characters (e + ◌́) would still come out in the wrong order."
+time = "O(n)"
+space = "O(n)"

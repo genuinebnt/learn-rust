@@ -1,0 +1,26 @@
+slug = "fix-mutate-through-shared-ref"
+title = "Fix: mutate through a shared reference"
+mode = "fix"
+level = "easy"
+stage = "shared-vs-unique"
+order = 5
+status = "ready"
+tags = ["E0594"]
+teaches = [
+  "Writing through a reference needs `&mut`.",
+  "`for x in slice` yields `&T` or `&mut T` depending on the slice.",
+]
+follow_up = "Why can't `&T` be used to mutate, even when nobody else holds a reference?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "Iterating a `&[T]` gives `&T`. What do you iterate to get `&mut T`?"
+
+[solution]
+explanation = "Iterating `&mut [T]` yields `&mut T`, so the loop body needs no change."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 1

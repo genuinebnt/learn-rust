@@ -1,0 +1,31 @@
+slug = "predict-drop-order"
+title = "Predict the drop order"
+mode = "write"
+level = "medium"
+stage = "clones-and-drops"
+order = 10
+status = "ready"
+tags = ["Drop", "scopes"]
+teaches = [
+  "Locals drop in reverse order of declaration; struct fields in declaration order.",
+  "`let _ = expr;` drops a temporary immediately, and `let _ = x;` doesn't move `x`.",
+]
+follow_up = "Why does `let _guard = mutex.lock()` hold the lock while `let _ = mutex.lock()` releases it at once?"
+related = ["S8", "C1"]
+
+[[hints]]
+kind = "rust"
+text = "`let _ = value;` binds nothing. What happens to a temporary nobody owns?"
+
+[[hints]]
+kind = "rust"
+text = "`let _ = b;` doesn't move `b`: `_` isn't a binding."
+
+[[hints]]
+kind = "rust"
+text = "Local variables drop in reverse order of declaration; a struct's fields drop in the order they're declared."
+
+[solution]
+explanation = "The two `let _` lines are the usual traps: the first drops a temporary immediately, the second does nothing at all."
+time = "—"
+space = "—"

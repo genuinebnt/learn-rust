@@ -1,0 +1,22 @@
+slug = "view-struct"
+title = "A view struct over two fields"
+mode = "write"
+level = "medium"
+stage = "split-borrows"
+order = 27
+status = "ready"
+tags = ["lifetimes", "view structs"]
+teaches = [
+  "View structs: a named bundle of disjoint field borrows.",
+]
+follow_up = "When does a view struct beat passing several `&mut` parameters?"
+related = ["L2", "L3"]
+
+[[hints]]
+kind = "rust"
+text = "A struct of `&mut` field references carries the split borrow around as one value."
+
+[solution]
+explanation = "`body` stays untouched and unborrowed by the view, which is the point of a view struct."
+time = "O(n)"
+space = "O(1)"

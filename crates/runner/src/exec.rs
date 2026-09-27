@@ -1,0 +1,153 @@
+//! Runs one cargo command, on the host or inside a throwaway container, with a time limit.
+
+use std::os::unix::fs::MetadataExt;
+use std::path::Path;
+use std::process::Stdio;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
+
+use tokio::io::AsyncReadExt;
+use tokio::process::Command;
+
+use crate::{RunnerError, Sandbox};
+
+pub(crate) struct Captured {
+    pub stdout: String,
+    pub stderr: String,
+    pub timed_out: bool,
+}
+
+static CONTAINER_SEQ: AtomicU64 = AtomicU64::new(0);
+
+pub(crate) async fn cargo(
+    sandbox: &Sandbox,
+    work: &Path,
+    target: &Path,
+    args: &[&str],
+    limit: Duration,
+) -> Result<Captured, RunnerError> {
+    let mut container = None;
+    let mut cmd = match sandbox {
+        Sandbox::Host => {
+            let mut c = Command::new("cargo");
+            c.args(args)
+                .current_dir(work)
+                .env("CARGO_TARGET_DIR", target)
+                .env("CARGO_TERM_COLOR", "never")
+                .env("RUSTC_BOOTSTRAP", "1")
+                // Own process group, so a timeout can kill the test binary cargo started too.
+                .process_group(0);
+            c
+        }
+        Sandbox::Docker {
+            image,
+            memory,
+            cpus,
+            context,
+        } => {
+            let meta = std::fs::metadata(work).map_err(|e| RunnerError::io("stat work dir", e))?;
+            let name = format!(
+                "anneal-{}-{}",
+                std::process::id(),
+                CONTAINER_SEQ.fetch_add(1, Ordering::Relaxed)
+            );
+            let mut c = docker(context.as_deref());
+            c.args(["run", "--rm", "--name", &name])
+                .args([
+                    "--network",
+                    "none",
+                    "--read-only",
+                    "--tmpfs",
+                    "/tmp:rw,exec,size=512m",
+                ])
+                .args([
+                    "--memory",
+                    memory,
+                    "--memory-swap",
+                    memory,
+                    "--cpus",
+                    cpus,
+                    "--pids-limit",
+                    "256",
+                ])
+                .args(["--cap-drop", "ALL", "--security-opt", "no-new-privileges"])
+                .args(["--user", &format!("{}:{}", meta.uid(), meta.gid())])
+                .args([
+                    "-v",
+                    &format!("{}:/work", work.display()),
+                    "-v",
+                    &format!("{}:/target", target.display()),
+                ])
+                .args([
+                    "-e",
+                    "CARGO_TARGET_DIR=/target",
+                    "-w",
+                    "/work",
+                    image,
+                    "cargo",
+                ])
+                .args(args);
+            container = Some((name, context.clone()));
+            c
+        }
+    };
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+
+    let mut child = cmd.spawn().map_err(|e| RunnerError::io("start cargo", e))?;
+    let mut out = child.stdout.take().expect("stdout is piped");
+    let mut err = child.stderr.take().expect("stderr is piped");
+    // Read both pipes while waiting, so a chatty build can't fill one and deadlock.
+    let read_out = tokio::spawn(async move {
+        let mut buf = Vec::new();
+        let _ = out.read_to_end(&mut buf).await;
+        buf
+    });
+    let read_err = tokio::spawn(async move {
+        let mut buf = Vec::new();
+        let _ = err.read_to_end(&mut buf).await;
+        buf
+    });
+
+    let timed_out = match tokio::time::timeout(limit, child.wait()).await {
+        Ok(status) => {
+            status.map_err(|e| RunnerError::io("wait for cargo", e))?;
+            false
+        }
+        Err(_) => {
+            // Killing `docker run` doesn't stop the container, so stop it by name.
+            if let Some((name, context)) = &container {
+                let _ = docker(context.as_deref())
+                    .args(["kill", name])
+                    .output()
+                    .await;
+            }
+            if let (Sandbox::Host, Some(pid)) = (sandbox, child.id()) {
+                let _ = Command::new("kill")
+                    .args(["-KILL", &format!("-{pid}")])
+                    .output()
+                    .await;
+            }
+            let _ = child.kill().await;
+            true
+        }
+    };
+    let stdout = read_out.await.unwrap_or_default();
+    let stderr = read_err.await.unwrap_or_default();
+    Ok(Captured {
+        stdout: String::from_utf8_lossy(&stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&stderr).into_owned(),
+        timed_out,
+    })
+}
+
+/// `docker`, pinned to a context when one is given.
+fn docker(context: Option<&str>) -> Command {
+    let mut c = Command::new("docker");
+    if let Some(ctx) = context {
+        c.args(["--context", ctx]);
+    }
+    c
+}

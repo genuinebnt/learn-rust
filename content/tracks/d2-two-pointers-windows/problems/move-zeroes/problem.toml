@@ -1,0 +1,27 @@
+slug = "move-zeroes"
+title = "Move zeroes"
+mode = "write"
+level = "easy"
+stage = "two-ends"
+order = 4
+status = "ready"
+tags = ["two pointers", "stable"]
+teaches = [
+  "A write index that trails a read index.",
+  "Stable in-place compaction.",
+]
+follow_up = "How does this relate to `Vec::retain`?"
+related = ["S3"]
+
+[[examples]]
+input = "nums = [0, 1, 0, 3, 12]"
+output = "[1, 3, 12, 0, 0]"
+
+[[hints]]
+kind = "approach"
+text = "Keep a write position for the next non-zero value."
+
+[solution]
+explanation = "Swapping instead of overwriting leaves the zeros at the end without a second pass."
+time = "O(n)"
+space = "O(1)"

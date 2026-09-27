@@ -1,0 +1,28 @@
+slug = "pairs-iterator"
+title = "A zero-cost iterator over pairs"
+mode = "write"
+level = "hard"
+stage = "build-it"
+order = 20
+status = "ready"
+tags = ["Iterator", "lifetimes", "slice patterns"]
+teaches = [
+  "An iterator that holds a sub-slice and advances it.",
+  "Item references tied to the slice, not the iterator: `(&'a T, &'a T)`.",
+  "`ExactSizeIterator` via an exact `size_hint`.",
+]
+follow_up = "Why can't a `pairs_mut` returning `(&'a mut T, &'a mut T)` be written the same way without care?"
+related = ["S6", "L3"]
+
+[[hints]]
+kind = "rust"
+text = "A slice pattern `[a, b, rest @ ..]` takes two elements and the remainder in one match."
+
+[[hints]]
+kind = "rust"
+text = "Items borrow from `'a`, the slice's lifetime, so they can outlive the `Pairs` value."
+
+[solution]
+explanation = "`Pairs` is one fat pointer; the loop compiles to index arithmetic. std's `chunks_exact(2)` is the library version."
+time = "O(1) per item"
+space = "O(1)"

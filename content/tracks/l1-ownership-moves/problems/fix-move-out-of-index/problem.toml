@@ -1,0 +1,31 @@
+slug = "fix-move-out-of-index"
+title = "Fix: move out of an index"
+mode = "fix"
+level = "hard"
+stage = "partial-moves-and-mem"
+order = 15
+status = "ready"
+tags = ["E0507", "mem::take"]
+teaches = [
+  "You can't move a value out of a `Vec` by indexing: it would leave a hole.",
+  "`mem::take` swaps in `Default` and hands you the value.",
+]
+follow_up = "When would you use `swap_remove` or `remove` instead?"
+related = ["S11", "S3"]
+
+[[hints]]
+kind = "rust"
+text = "Moving out of `names[0]` would leave the Vec with an invalid slot. What could you swap in?"
+
+[[hints]]
+kind = "rust"
+text = "`String` has a cheap `Default`: the empty string, with no allocation."
+
+[solution]
+explanation = "`mem::take(&mut x)` is `mem::replace(&mut x, Default::default())`. The Vec stays valid throughout."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone", "to_string", "to_owned"]
+max_changed_lines = 2

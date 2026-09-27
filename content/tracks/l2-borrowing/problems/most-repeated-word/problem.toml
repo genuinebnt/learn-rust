@@ -1,0 +1,23 @@
+slug = "most-repeated-word"
+title = "Count words without cloning"
+mode = "write"
+level = "easy"
+stage = "shared-vs-unique"
+order = 4
+status = "ready"
+tags = ["&str", "HashMap"]
+teaches = [
+  "Borrowed keys in a `HashMap<&str, usize>`.",
+  "Returning a slice of the input.",
+]
+follow_up = "What stops you from returning a key of the map after the map is dropped?"
+related = ["L2", "S4"]
+
+[[hints]]
+kind = "rust"
+text = "Keys can be `&str` slices of `text`; the map then borrows `text` instead of owning copies."
+
+[solution]
+explanation = "The result borrows from `text`, so the signature's elided lifetime ties it to the input."
+time = "O(n)"
+space = "O(k)"

@@ -1,0 +1,23 @@
+slug = "raii-span-guard"
+title = "An RAII span guard"
+mode = "write"
+level = "medium"
+stage = "clones-and-drops"
+order = 11
+status = "ready"
+tags = ["Drop", "RAII", "unwinding"]
+teaches = [
+  "RAII: acquire in a constructor, release in `Drop`.",
+  "`Drop` runs on early return and during a panic too.",
+]
+follow_up = "What happens to your guard if someone calls `std::mem::forget` on it?"
+related = ["C1", "B6"]
+
+[[hints]]
+kind = "rust"
+text = "Record the enter in `enter` and the exit in `drop`; the compiler inserts the drop on every exit path."
+
+[solution]
+explanation = "Unwinding runs destructors, so the exit is recorded even when the code inside panics. This is how `MutexGuard`, `File` and tracing spans work."
+time = "O(1)"
+space = "O(1)"

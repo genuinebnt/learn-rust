@@ -1,0 +1,30 @@
+slug = "fix-return-ref-to-local"
+title = "Fix: returning a reference to a local"
+mode = "fix"
+level = "easy"
+stage = "elision"
+order = 2
+status = "ready"
+tags = ["E0515"]
+teaches = [
+  "A reference can only point at data that outlives the function.",
+  "New data means an owned return type.",
+]
+follow_up = "When could you return `&str` from a function that sometimes creates new text? (See `Cow`.)"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "`s` is dropped when the function returns. A reference to it would dangle."
+
+[[hints]]
+kind = "rust"
+text = "The text is new, so the function must hand over ownership: return `String`."
+
+[solution]
+explanation = "No lifetime annotation can fix this: the data doesn't exist in any input. When a function creates text, it returns an owned value."
+time = "O(n)"
+space = "O(n)"
+
+[rules]
+max_changed_lines = 2

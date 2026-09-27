@@ -1,0 +1,27 @@
+slug = "question-mark-on-option"
+title = "? on Option"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 2
+status = "ready"
+tags = ["?", "Option"]
+teaches = [
+  "`?` works on `Option` in a function that returns `Option`.",
+  "Chaining lookups without nested `match`.",
+]
+follow_up = "How does `?` decide what to return when used on a `Result` inside a function returning `Option`?"
+related = ["S6"]
+
+[[examples]]
+input = "s = \"the quick brown fox\""
+output = "Some(5)"
+
+[[hints]]
+kind = "rust"
+text = "`nth(2)` returns an `Option<&str>`. What does `?` do with `None`?"
+
+[solution]
+explanation = "`?` returns `None` early, so the happy path is one line."
+time = "O(n)"
+space = "O(1)"

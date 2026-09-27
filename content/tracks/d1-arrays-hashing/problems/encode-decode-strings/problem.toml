@@ -1,0 +1,27 @@
+slug = "encode-decode-strings"
+title = "Encode and decode strings"
+mode = "write"
+level = "medium"
+stage = "grouping-prefix-sums"
+order = 15
+status = "ready"
+tags = ["String", "framing", "Blind 75"]
+teaches = [
+  "Length-prefix framing survives any content, including the delimiter.",
+  "Slicing a `&str` by byte offsets that fall on char boundaries.",
+]
+follow_up = "How would you frame binary data on a TCP stream the same way?"
+related = ["S2", "B4"]
+
+[[hints]]
+kind = "approach"
+text = "A delimiter alone fails when words contain it. Prefix each word with its length."
+
+[[hints]]
+kind = "rust"
+text = "Use byte lengths (`str::len`) and byte slicing; whole words always start and end on char boundaries."
+
+[solution]
+explanation = "The length tells `decode` exactly how many bytes to take, so the content can contain anything."
+time = "O(total length)"
+space = "O(total length)"

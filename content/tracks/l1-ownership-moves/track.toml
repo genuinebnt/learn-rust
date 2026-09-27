@@ -1,0 +1,31 @@
+code = "L1"
+name = "Ownership & moves"
+section = "L"
+tier = "core"
+order = 1
+summary = "Every value has one owner. Moves, copies, clones, drops and the `mem` functions that move data out of places you only borrow."
+
+[[stages]]
+slug = "moves-and-copy"
+name = "Moves & Copy"
+band = "easy"
+
+[[stages]]
+slug = "passing-values"
+name = "Passing values"
+band = "easy"
+
+[[stages]]
+slug = "clones-and-drops"
+name = "Clones & drops"
+band = "medium"
+
+[[stages]]
+slug = "closures-take-ownership"
+name = "Closures take ownership"
+band = "medium"
+
+[[stages]]
+slug = "partial-moves-and-mem"
+name = "Partial moves & mem"
+band = "hard"

@@ -1,0 +1,36 @@
+slug = "top-k-frequent"
+title = "Top K frequent elements"
+mode = "write"
+level = "medium"
+stage = "grouping-prefix-sums"
+order = 12
+status = "ready"
+tags = ["HashMap", "sort_by", "Blind 75"]
+teaches = [
+  "Count, then sort by a composite key with `then`.",
+  "`Ordering::reverse` for descending order.",
+]
+follow_up = "How would you get O(n) with bucket sort, and when is a heap better?"
+related = ["S4", "S5"]
+source = "W32"
+
+[[examples]]
+input = "nums = [1, 1, 1, 2, 2, 3], k = 2"
+output = "[1, 2]"
+
+[[hints]]
+kind = "approach"
+text = "Count first. Then you need the k largest counts."
+
+[[hints]]
+kind = "rust"
+text = "Sort `(value, count)` pairs with `b.1.cmp(&a.1).then(a.0.cmp(&b.0))`."
+
+[[hints]]
+kind = "edge case"
+text = "Ties need a rule, or the answer isn't deterministic; here the smaller value wins."
+
+[solution]
+explanation = "Sorting all distinct values is O(d log d). A size-k `BinaryHeap<Reverse<_>>` or bucket sort by count gets closer to O(n)."
+time = "O(n + d log d)"
+space = "O(d)"

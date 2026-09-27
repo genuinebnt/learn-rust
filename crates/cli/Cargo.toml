@@ -1,0 +1,19 @@
+[package]
+name = "anneal-cli"
+description = "Command-line tools for anneal: validate content, run problems"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "anneal"
+path = "src/main.rs"
+
+[dependencies]
+anneal-content.workspace = true
+anneal-runner.workspace = true
+anneal-rules.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

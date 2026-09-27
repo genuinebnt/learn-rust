@@ -1,0 +1,35 @@
+slug = "bipartite-check"
+title = "Bipartite check"
+mode = "write"
+level = "medium"
+stage = "flows-matching"
+order = 32
+status = "ready"
+tags = ["2-colouring", "BFS", "Option<bool>"]
+teaches = [
+  "`Vec<Option<bool>>` as 'uncoloured / side A / side B'.",
+  "Handling every component, not just node 0's.",
+]
+follow_up = "How would you return the odd cycle as evidence when the answer is false?"
+related = ["S1"]
+
+[[examples]]
+input = "adj = [[1, 3], [0, 2], [1, 3], [0, 2]]"
+output = "true"
+
+[[examples]]
+input = "adj = [[1, 2, 3], [0, 2], [0, 1, 3], [0, 2]]"
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "Colour a node, give its neighbours the other colour, and look for an edge whose ends end up the same colour."
+
+[[hints]]
+kind = "edge case"
+text = "The graph may be disconnected. Start a new search from every uncoloured node."
+
+[solution]
+explanation = "A graph is bipartite exactly when it has no odd cycle, and BFS colouring finds one if it exists. `Option<bool>` says 'not yet coloured' without a magic number."
+time = "O(V + E)"
+space = "O(V)"

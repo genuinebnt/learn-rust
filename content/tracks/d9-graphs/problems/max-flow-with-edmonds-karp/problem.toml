@@ -1,0 +1,35 @@
+slug = "max-flow-with-edmonds-karp"
+title = "Max flow with Edmonds-Karp"
+mode = "write"
+level = "hard"
+stage = "flows-matching"
+order = 33
+status = "ready"
+tags = ["max flow", "residual graph", "edge arrays"]
+teaches = [
+  "Edges in flat Vecs with the reverse edge at `e ^ 1`.",
+  "BFS augmenting paths, walked back through `via`.",
+]
+constraints = ["n ≤ 500", "edges ≤ 5000"]
+follow_up = "After computing the flow, how would you find the minimum cut?"
+
+[[examples]]
+input = "the CLRS network (6 nodes, 9 edges)"
+output = "23"
+
+[[hints]]
+kind = "approach"
+text = "Find any s→t path with spare capacity (BFS for the shortest), push its bottleneck, and repeat until none is left."
+
+[[hints]]
+kind = "approach"
+text = "Pushing flow along u→v adds capacity to v→u, so later paths can undo earlier choices."
+
+[[hints]]
+kind = "rust"
+text = "Keep edges in parallel Vecs and add each edge with its reverse, so the reverse of `e` is `e ^ 1`. No references between edges needed."
+
+[solution]
+explanation = "Flat edge arrays sidestep the borrow checker: edges refer to each other by id. BFS paths bound the number of augmentations by O(VE)."
+time = "O(V · E²)"
+space = "O(V + E)"

@@ -1,0 +1,25 @@
+slug = "fix-refcell-guard-across-call"
+title = "Fix: a RefCell guard held across a call"
+mode = "fix"
+level = "hard"
+stage = "borrow-checker-limits"
+order = 34
+status = "ready"
+tags = ["Ref", "RefMut", "panic"]
+teaches = [
+  "`RefMut` guards held across calls into the same RefCell.",
+]
+follow_up = "How would you find this bug in a large codebase before it panics in production?"
+related = ["L2", "S7"]
+
+[[hints]]
+kind = "rust"
+text = "`total()` calls `borrow()` while `balances`, a `RefMut` guard, is still alive in `deposit`."
+
+[solution]
+explanation = "A guard that outlives its statement is the usual cause of RefCell panics, and the call hides it. Writing through a temporary guard ends it at the semicolon."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]

@@ -1,0 +1,38 @@
+slug = "two-mutable-borrows-of-self"
+title = "Two mutable borrows of self"
+mode = "fix"
+level = "medium"
+stage = "split-borrows"
+order = 22
+status = "ready"
+tags = ["E0499", "split borrows"]
+teaches = [
+  "A method call borrows all of `self`; a field path borrows one field.",
+  "Borrow checking is per function body. It never looks inside `record`.",
+  "Three accepted fixes, and which one to say first.",
+]
+follow_up = "Why does this compile when you inline the method body, but not when you call it?"
+related = ["L2", "S7", "L1"]
+source = "B1"
+
+[[hints]]
+kind = "approach"
+text = "The loop holds a &mut borrow of self.items until line 16. What does self.record(..) need to borrow?"
+
+[[hints]]
+kind = "rust"
+text = "record takes &mut self: the whole struct, including items, which the loop is still using."
+
+[[hints]]
+kind = "fix"
+text = "Skip the method and touch the field directly: self.log.push(..). items and log are disjoint, so both &mut borrows can coexist."
+
+[solution]
+explanation = "Borrow the field, not the struct. `self.items` and `self.log` are disjoint places, so the loop's `&mut` and the push's `&mut` can overlap. Two other fixes interviewers accept: make `record` a free function taking `&mut Vec<String>`, or collect the names first and log after the loop."
+time = "O(n)"
+space = "O(1) beyond the log"
+
+[rules]
+forbid_methods = ["clone"]
+forbid_types = ["RefCell", "Cell"]
+max_changed_lines = 2

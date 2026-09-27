@@ -1,0 +1,35 @@
+slug = "string-vs-str"
+title = "String vs &str"
+mode = "write"
+level = "easy"
+stage = "use"
+order = 1
+status = "ready"
+tags = ["&str", "String", "deref"]
+teaches = [
+  "Take `&str`, return `String` when you build something new.",
+  "A `&String` coerces to `&str`, so `&str` parameters accept both.",
+]
+follow_up = "When would you take `impl Into<String>` instead of `&str`?"
+related = ["L1"]
+
+[[examples]]
+input = "greet(\"Ada\")"
+output = "\"Hello, Ada!\""
+
+[[examples]]
+input = "first_word(\"hello world\")"
+output = "\"hello\""
+
+[[hints]]
+kind = "rust"
+text = "A `&str` parameter accepts string literals and `&String` alike, thanks to deref coercion."
+
+[[hints]]
+kind = "rust"
+text = "`first_word` can return a slice of its input; no allocation needed."
+
+[solution]
+explanation = "`String` owns a growable buffer; `&str` borrows some UTF-8 text from anywhere. Taking `&str` is the most flexible parameter; returning `String` is right when you build new text."
+time = "O(n)"
+space = "O(n) for greet"

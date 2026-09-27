@@ -1,0 +1,41 @@
+code = "D9"
+name = "Graphs"
+section = "D"
+tier = "core"
+order = 7
+summary = "Index-based graphs, from adjacency lists to max-flow. Nodes that point at each other can't all own each other."
+
+[[stages]]
+slug = "representation"
+name = "Representation"
+band = "easy"
+
+[[stages]]
+slug = "traversal"
+name = "Traversal"
+band = "easy"
+
+[[stages]]
+slug = "topological-sort"
+name = "Topological sort"
+band = "medium"
+
+[[stages]]
+slug = "shortest-paths"
+name = "Shortest paths"
+band = "medium"
+
+[[stages]]
+slug = "union-find-mst"
+name = "Union-find & MST"
+band = "medium"
+
+[[stages]]
+slug = "scc-bridges-arenas"
+name = "SCC, bridges & arenas"
+band = "hard"
+
+[[stages]]
+slug = "flows-matching"
+name = "Flows & matching"
+band = "hard"

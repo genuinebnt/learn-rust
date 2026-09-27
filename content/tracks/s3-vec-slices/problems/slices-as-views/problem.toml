@@ -1,0 +1,27 @@
+slug = "slices-as-views"
+title = "Slices as views"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 4
+status = "ready"
+tags = ["&[T]", "ranges", "position"]
+teaches = [
+  "Returning a sub-slice borrows from the input; nothing is copied.",
+  "`get(range)` instead of indexing when the range might be invalid.",
+]
+follow_up = "Why can these functions omit lifetime annotations?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "`v.get(a..b)` returns `None` when the range is invalid, including a > b."
+
+[[hints]]
+kind = "rust"
+text = "`position` and `rposition` find the first and last non-zero."
+
+[solution]
+explanation = "The returned slices borrow `v`, so their lifetime is tied to the input by elision."
+time = "O(n)"
+space = "O(1)"

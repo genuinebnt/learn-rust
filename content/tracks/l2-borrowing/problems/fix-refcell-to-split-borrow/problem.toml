@@ -1,0 +1,25 @@
+slug = "fix-refcell-to-split-borrow"
+title = "Fix: RefCell where a split borrow suffices"
+mode = "fix"
+level = "hard"
+stage = "borrow-checker-limits"
+order = 35
+status = "ready"
+tags = ["RefCell", "split borrows"]
+teaches = [
+  "Reach for split borrows before interior mutability.",
+]
+follow_up = "When is RefCell genuinely the right tool?"
+related = ["L2", "S7"]
+
+[[hints]]
+kind = "rust"
+text = "Inside one method, `self.items.iter_mut()` and `self.total` borrow different fields. Why was the RefCell ever needed?"
+
+[solution]
+explanation = "RefCell turned a compile-time guarantee into a runtime check that could panic. With `&mut self` and field paths, the split borrow needs neither."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_types = ["RefCell", "Cell"]

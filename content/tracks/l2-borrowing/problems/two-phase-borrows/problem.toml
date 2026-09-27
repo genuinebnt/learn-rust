@@ -1,0 +1,22 @@
+slug = "two-phase-borrows"
+title = "vec.push(vec.len()) and two-phase borrows"
+mode = "write"
+level = "medium"
+stage = "reborrows"
+order = 13
+status = "ready"
+tags = ["two-phase borrows"]
+teaches = [
+  "Two-phase borrows: reserve, evaluate arguments, then activate.",
+]
+follow_up = "Why doesn't `let r = &mut v; r.push(v.len());` compile?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "It looks like a shared and a mutable borrow at once. It compiles because the mutable borrow of an autoref'd method receiver isn't active until the arguments are evaluated."
+
+[solution]
+explanation = "Two-phase borrows exist precisely so `v.push(v.len())` compiles. They only apply to autoref'd method calls and compound assignment."
+time = "O(n)"
+space = "O(1) amortised"

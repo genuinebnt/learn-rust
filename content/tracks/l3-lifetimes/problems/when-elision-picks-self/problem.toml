@@ -1,0 +1,27 @@
+slug = "when-elision-picks-self"
+title = "When elision picks &self"
+mode = "write"
+level = "easy"
+stage = "elision"
+order = 1
+status = "ready"
+tags = ["elision", "&self"]
+teaches = [
+  "Elision rule 3: outputs of `&self` methods borrow from `self`.",
+  "Other reference parameters get independent lifetimes.",
+]
+follow_up = "Write out the full signature of `tag_with_prefix` with every lifetime explicit."
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "Elision rule 3: in a method with `&self`, every elided output lifetime is `self`'s. The other inputs get their own lifetimes."
+
+[[hints]]
+kind = "rust"
+text = "`self.tags.iter().map(String::as_str)` gives `&str`s borrowed from `self`."
+
+[solution]
+explanation = "Because the output borrows only from `self`, `prefix` can be a temporary. Writing `<'a>(&'a self, prefix: &'a str)` would tie them together and break the first test."
+time = "O(n)"
+space = "O(1)"

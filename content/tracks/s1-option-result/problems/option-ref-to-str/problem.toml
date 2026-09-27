@@ -1,0 +1,23 @@
+slug = "option-ref-to-str"
+title = "Option<&String> to Option<&str>"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 5
+status = "ready"
+tags = ["Option", "lifetimes"]
+teaches = [
+  "`map(String::as_str)` and `map_or` over borrowed values.",
+  "One lifetime for a map and a default.",
+]
+follow_up = "Why can't `label_or` return `&str` without naming a lifetime?"
+related = ["L3", "S4"]
+
+[[hints]]
+kind = "rust"
+text = "`get` gives `Option<&String>`. `String::as_str` turns `&String` into `&str`."
+
+[solution]
+explanation = "`label_or` needs both inputs to outlive the result, so they share `'a`."
+time = "O(1)"
+space = "O(1)"

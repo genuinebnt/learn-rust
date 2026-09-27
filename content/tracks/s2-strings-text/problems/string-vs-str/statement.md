@@ -1,0 +1,3 @@
+- `greet` returns `"Hello, <name>!"`.
+- `exclaim` appends `!` to a `String` in place.
+- `first_word` returns the text before the first space, borrowed from the input.

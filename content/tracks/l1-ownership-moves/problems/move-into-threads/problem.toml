@@ -1,0 +1,23 @@
+slug = "move-into-threads"
+title = "Move data into threads"
+mode = "write"
+level = "medium"
+stage = "closures-take-ownership"
+order = 13
+status = "ready"
+tags = ["thread::spawn", "move", "'static"]
+teaches = [
+  "`thread::spawn` needs a `'static` closure: move the data in.",
+  "`JoinHandle::join` returns the thread's result.",
+]
+follow_up = "How would `std::thread::scope` let the threads borrow the chunks instead?"
+related = ["C1"]
+
+[[hints]]
+kind = "rust"
+text = "`move ||` moves each chunk into its thread; collect the handles before joining so the threads run concurrently."
+
+[solution]
+explanation = "Collecting the handles first matters: joining inside the same `map` would run the threads one after another."
+time = "O(n) work"
+space = "O(k) threads"

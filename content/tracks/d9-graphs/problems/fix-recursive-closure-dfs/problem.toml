@@ -1,0 +1,30 @@
+slug = "fix-recursive-closure-dfs"
+title = "Fix: recursive closure DFS"
+mode = "fix"
+level = "medium"
+stage = "traversal"
+order = 7
+status = "ready"
+tags = ["E0425", "inner fn"]
+teaches = [
+  "A closure can't call itself.",
+  "An inner `fn` with explicit `&mut` parameters.",
+]
+follow_up = "Could you make a recursive closure work with `&dyn Fn`, and what would it cost?"
+related = ["D11"]
+
+[[hints]]
+kind = "rust"
+text = "Inside its own body, `dfs` doesn't exist yet: a closure has no name it can call."
+
+[[hints]]
+kind = "rust"
+text = "Write `fn dfs(adj: &[Vec<usize>], seen: &mut [bool], u: usize)` inside the function, passing the state explicitly."
+
+[solution]
+explanation = "An inner `fn` can recurse but can't capture, so the state it touches is passed in, which also makes the borrows explicit. For deep graphs, switch to an explicit stack (next problems)."
+time = "O(V + E)"
+space = "O(V)"
+
+[rules]
+forbid_methods = ["clone"]

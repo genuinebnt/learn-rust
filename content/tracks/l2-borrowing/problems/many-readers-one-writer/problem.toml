@@ -1,0 +1,23 @@
+slug = "many-readers-one-writer"
+title = "Many readers, one writer"
+mode = "write"
+level = "easy"
+stage = "shared-vs-unique"
+order = 2
+status = "ready"
+tags = ["&T", "&mut T"]
+teaches = [
+  "`&self` methods can run while other shared borrows are alive.",
+  "`&mut self` requires that no other borrow exists.",
+]
+follow_up = "Why does `Vec::iter().max()` return the last maximum but `position` the first?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "Methods that only read take `&self`, so any number of callers can hold one at once."
+
+[solution]
+explanation = "`busiest` returns an index, not a reference, so callers can keep it while hitting more slots."
+time = "O(n)"
+space = "O(1)"

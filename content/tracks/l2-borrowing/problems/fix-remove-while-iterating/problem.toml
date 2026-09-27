@@ -1,0 +1,26 @@
+slug = "fix-remove-while-iterating"
+title = "Fix: remove while iterating"
+mode = "fix"
+level = "medium"
+stage = "iterator-invalidation"
+order = 16
+status = "ready"
+tags = ["E0502", "retain"]
+teaches = [
+  "Mutating a Vec invalidates iterators over it; the borrow checker stops it at compile time.",
+  "`retain` is the in-place filter.",
+]
+follow_up = "How would you do this in C++ safely (erase-remove)?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "Even if it compiled, removing inside the loop would skip the element after each removal. Which method filters a Vec in place?"
+
+[solution]
+explanation = "`retain` keeps order, visits each element once and shifts the survivors once. The hidden test's adjacent matches are what an index loop gets wrong."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]

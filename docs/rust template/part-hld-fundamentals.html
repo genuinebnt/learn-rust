@@ -1,0 +1,845 @@
+<!-- ═══════════════════════════════════════════
+     PART: HLD FUNDAMENTALS
+     Distributed Systems Primer · CAP · Scaling · Caching · Queues · Resilience
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="hld-header">
+  <div class="ph-eyebrow">High-Level Design · Distributed Systems Primer</div>
+  <div class="ph-title">HLD Fundamentals — Distributed Systems Primer</div>
+  <div class="ph-sub">
+    Interview-ready vocabulary for system-design loops: consistency trade-offs, capacity math, load balancing,
+    caching, sharding, replication, messaging, distributed transactions, resilience patterns, CDN/edge,
+    service discovery / API gateways, and observability SLIs/SLOs. Primer depth — teach the concepts with
+    Rust-relevant asides (tower layers, Tokio backpressure, DashMap, Redis clients), not full product designs.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-time">12 topics</span>
+    <span class="badge badge-time">~48 Q&amp;A</span>
+    <span class="badge badge-time">Senior / Staff calibration</span>
+  </div>
+</div>
+
+<!-- ════════════ HLD1 · CAP / PACELC &amp; CONSISTENCY ════════════ -->
+<div class="section" id="hld1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 01</div>
+      <div class="sh-title">CAP / PACELC &amp; Consistency Models</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">State the CAP theorem precisely. What does a partition actually force you to choose, and what do people commonly get wrong about &quot;CP vs AP&quot;?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        In a distributed data store that provides <strong>Consistency</strong> (every read sees the latest successful write — linearizability-flavoured),
+        <strong>Availability</strong> (every non-failing node eventually returns a response), and
+        <strong>Partition tolerance</strong> (the system continues despite network splits), you cannot simultaneously guarantee all three.
+        Partitions happen in real networks, so the practical choice during a partition is between
+        <strong>C</strong> (refuse or delay conflicting ops so replicas stay consistent) and
+        <strong>A</strong> (keep serving, accept divergence and reconcile later).
+        Common mistakes: treating CAP as a permanent brand (&quot;we are a CP database&quot;) rather than a
+        <em>during-partition</em> behaviour; claiming you can drop P (you cannot on a real network);
+        and equating &quot;strong consistency&quot; with &quot;never loses data&quot; — durability and consistency are separate axes.
+        In interviews, name the partition scenario first, then say which side you choose and why for that use case.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is PACELC, and why is it a better interview framing than CAP alone?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>PACELC</strong> (Abadi): if there is a <strong>P</strong>artition, choose <strong>A</strong> or <strong>C</strong>;
+        <strong>E</strong>lse (normal operation), choose <strong>L</strong>atency or <strong>C</strong>onsistency.
+        CAP only talks about the rare failure mode; most user pain comes from the happy path — whether every write
+        waits for a quorum / cross-AZ sync (higher latency, stronger consistency) or returns after a local ack
+        (low latency, weaker consistency). Classic examples: Dynamo-style systems lean PA/EL (available under
+        partition, latency-favouring otherwise); Spanner-like systems lean PC/EC (strongly consistent even when
+        it costs latency). Saying &quot;we'd pick PA/EL for session caches and PC/EC for ledger balances&quot; is a strong
+        senior signal because it separates failure-mode trade-offs from steady-state ones.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Define strong consistency, eventual consistency, causal consistency, and read-your-writes. When would you pick each?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Strong / linearizable:</strong> there is a single global order of operations; a read after a completed write
+        always sees that write (or a later one). Use for money transfers, inventory decrement, unique username claims.
+        <strong>Eventual:</strong> replicas converge if updates stop; temporary staleness is allowed. Use for social counts,
+        search indexes, analytics rollups. <strong>Causal:</strong> if A happens-before B, everyone sees A before B;
+        concurrent writes may be ordered differently on different replicas — good for collaborative editing / comment threads.
+        <strong>Read-your-writes / session:</strong> the client that wrote always sees its own updates, even if other clients
+        may lag — the usual minimum for profile edits and settings UIs. In a Rust service you often implement
+        session consistency with sticky routing or by reading from the primary after a write (or by returning a
+        version/token the client must send on the next read). Pick the <em>weakest</em> model that still meets the
+        product invariant — over-strengthening consistency is the most common source of avoidable latency.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How do quorum reads/writes (R + W &gt; N) relate to consistency? What does that still not guarantee?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        With <strong>N</strong> replicas, write quorum <strong>W</strong>, read quorum <strong>R</strong>, the rule
+        <code>R + W &gt; N</code> ensures every read quorum overlaps every write quorum, so a read sees at least one
+        node that took part in the latest successful write (assuming you use versioning / vector clocks / Lamport
+        timestamps to pick the newest value). Tunable examples: N=3, W=2, R=2 for quorum consistency; W=3, R=1 for
+        write-heavy strongish reads from any replica after durable majority; W=1, R=1 for availability at the cost
+        of stale/conflicting reads. What it does <em>not</em> give you by itself: multi-key atomicity, isolation
+        across objects, or linearizability under all failure/timing cases without careful protocols (clocks, fencing,
+        consensus). Quorum is a single-key / single-object building block — say that explicitly when the interviewer
+        probes &quot;so is Dynamo strongly consistent?&quot;
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD2 · SCALING &amp; CAPACITY ════════════ -->
+<div class="section" id="hld2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 02</div>
+      <div class="sh-title">Horizontal vs Vertical Scaling; Capacity Back-of-Envelope</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Contrast vertical and horizontal scaling. When is vertical still the right first move?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Vertical</strong> (scale up): bigger CPU/RAM/disk on one machine — simple ops, no distributed
+        coordination, but hits hard ceilings and creates a bigger blast radius. <strong>Horizontal</strong>
+        (scale out): more machines behind a load balancer / shard key — better fault isolation and near-linear
+        capacity if the workload is partitionable, but you pay with consistency, networking, and operational complexity.
+        Vertical is often correct first: a single beefy Postgres + Redis and a few Rust/axum replicas can carry
+        enormous traffic before sharding is justified. Scale out when you need multi-AZ redundancy, when one box
+        cannot hold the working set, or when write throughput saturates a single primary. Interviewers reward
+        &quot;measure the bottleneck, then choose&quot; over jumping straight to Kafka + 50 microservices.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Walk through a back-of-envelope capacity estimate for an API: QPS, storage, and bandwidth.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Start from users and actions: DAU × actions/user/day ÷ 86400 ≈ average QPS; multiply by a peak factor
+        (often 3–10×) for design QPS. Example: 10M DAU, 20 actions/day → ~2.3k avg QPS → design for ~10–20k QPS.
+        Per request: estimate payload size for ingress/egress bandwidth (QPS × KB). Storage: records/day × bytes/record
+        × retention; add indexes (~2×) and replicas. Memory: hot working set (active sessions, cache hit ratio targets).
+        Convert QPS to machines via measured or assumed latency/CPU: if one Rust service instance sustains 5k QPS at
+        p99 &lt; 20ms, you need ceil(peak_QPS / 5k) instances plus headroom (~30–50%) and multi-AZ. Always state
+        assumptions out loud — the point of the exercise is structured reasoning, not a precise spreadsheet.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What numbers should you memorize for interview estimates (orders of magnitude)?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Rough latency hierarchy: L1 cache ~1ns, main memory ~100ns, SSD random read ~100µs, same-datacenter RTT
+        ~0.5ms, cross-AZ ~1–2ms, cross-region ~50–150ms, disk seek (HDD) ~10ms. Throughput ballparks: a modern
+        NIC can move Gbps easily; a well-tuned Rust HTTP service on a few cores can do tens of thousands of simple
+        RPS; a single Postgres primary often tops out in the low–mid thousands of complex TPS before careful tuning
+        or read replicas. Storage: 1 char ≈ 1 byte, UUID 16B, 1M users × 1KB profile ≈ 1GB. Powers of ten matter more
+        than precision — saying &quot;cross-region sync adds ~100ms, so we cannot put it on the request path&quot; is the
+        skill being tested.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How do you reason about whether a Rust service is CPU-bound, I/O-bound, or memory-bound when planning capacity?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Look at saturation signals: sustained high CPU with low wait → CPU-bound (JSON serde, crypto, compression —
+        profile with <code>perf</code>/<code>pprof</code>, consider SIMD, avoid allocations on hot paths).
+        High time in epoll/io_uring / DB / Redis waits with idle CPU → I/O-bound (raise concurrency carefully via
+        Tokio worker/blocking pools, connection pool sizing, pipelining). Growing RSS / cache pressure / GC-less
+        but allocator churn → memory-bound (object sizes, caches, unbounded channels). Capacity plan follows the
+        bottleneck: CPU-bound scales with cores/instances; I/O-bound scales with connections, replicas, and
+        client-side pooling (<code>bb8</code>/<code>deadpool</code>); memory-bound needs eviction, sharding, or
+        smaller per-request state. Never size from &quot;number of threads = number of cores&quot; alone for async Rust —
+        Tokio already multiplexes; the scarce resources are usually DB connections and downstream QPS budgets.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD3 · LOAD BALANCING ════════════ -->
+<div class="section" id="hld3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 03</div>
+      <div class="sh-title">Load Balancing (L4/L7), Health Checks, Sticky Sessions</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is the difference between L4 and L7 load balancing? When do you want each?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>L4</strong> (transport): routes TCP/UDP by IP:port — cheap, high throughput, no HTTP awareness;
+        good for raw TCP, gRPC pass-through, or when TLS is terminated elsewhere. <strong>L7</strong> (application):
+        understands HTTP/gRPC — path-based routing, header/cookie routing, request retries, WAF rules, per-route
+        timeouts. Use L7 at the edge/API gateway for microservices fan-out; use L4 inside a mesh or for
+        ultra-low-latency east-west traffic. Many stacks combine both: cloud NLB (L4) in front of Envoy/nginx/HAProxy
+        (L7). In Rust terms, your axum/tonic app usually sits behind L7; you care about <code>X-Forwarded-For</code>,
+        proto, and idle timeouts more than packet hashing.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How should health checks be designed so the load balancer does not make outages worse?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Separate <strong>liveness</strong> (process is up — restart if false) from <strong>readiness</strong>
+        (safe to receive traffic — dependencies OK, warmed caches, not shedding). Point the LB at readiness.
+        Checks should be cheap, idempotent, and not hammer the database on every probe from every LB node —
+        cache dependency status for a short TTL, or check process-local signals. Use failure/success thresholds
+        (e.g. 3 failures to remove, 2 successes to restore) to avoid flapping. On shutdown, fail readiness first,
+        wait for in-flight requests (graceful drain), then exit — in Rust/axum this is typically a
+        <code>/readyz</code> gated on a <code>tokio::sync::watch</code> or atomic flag flipped by the shutdown signal.
+        Avoid &quot;deep&quot; health checks that require the entire dependency graph unless you intentionally want cascade
+        removal (usually you do not).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain sticky sessions (session affinity). When are they needed, and what are the failure modes?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Sticky sessions route a given client (cookie, IP hash, or header) to the same backend so in-memory session
+        state or websocket connections keep working. They are a crutch for stateful apps; prefer externalising
+        session state to Redis / DB so any instance can serve any request. Failure modes: uneven load (one hot user
+        pins a heavy session to one box), broken affinity on deploy (instance disappears — session lost unless
+        shared store), and reduced effectiveness of LB algorithms. If you must stick (e.g. long-lived WebSocket
+        fan-out with local connection tables), plan for reconnect storm handling and state rebuild. Rust aside:
+        keep connection maps in a sharded structure (<code>DashMap</code> or per-worker maps) and accept that
+        affinity is an LB concern, not something you re-implement ad hoc in app code.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Compare common LB algorithms: round-robin, least-connections, power-of-two-choices, consistent hash.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Round-robin</strong> is simple and fair when backends are homogeneous and requests similar cost.
+        <strong>Least-connections</strong> helps when request durations vary widely (long polls, large uploads).
+        <strong>Power of two choices</strong>: pick two random healthy backends, send to the less loaded — near-optimal
+        balance with little coordination, popular in large fleets. <strong>Consistent hash</strong>: map a key
+        (user id, cache key) onto a ring so the same key hits the same node — critical for cache locality and
+        some sharding designs; combine with virtual nodes to reduce imbalance. Mention EWMA/latency-aware routing
+        (Envoy) as the production upgrade when backends degrade unevenly. In a service mesh or custom Rust proxy,
+        least-conn / P2C usually beats naive RR once you have mixed request costs.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD4 · CACHING ════════════ -->
+<div class="section" id="hld4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 04</div>
+      <div class="sh-title">Caching Strategies, Stampedes &amp; Redis</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Explain cache-aside, read-through, and write-through / write-back. Which is the default for app-tier Redis?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Cache-aside (lazy loading):</strong> app reads cache; on miss, loads DB, populates cache. Writes update
+        DB then invalidate (or update) the cache key. Most common for Redis in application code — explicit control,
+        simple mental model. <strong>Read-through:</strong> cache itself fetches from DB on miss (library/sidecar);
+        app only talks to cache. <strong>Write-through:</strong> writes go to cache, which synchronously writes DB —
+        consistent but higher write latency. <strong>Write-back (write-behind):</strong> cache acknowledges write and
+        flushes to DB asynchronously — fast writes, risk of data loss on crash; used for metrics/buffers carefully.
+        Interview default: cache-aside + TTL + explicit invalidation on write. Rust: <code>redis</code>/<code>fred</code>
+        clients with a thin repository layer; local hot-path cache via <code>moka</code> or <code>quick_cache</code>
+        in front of Redis for ultra-hot keys.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is a cache stampede (thundering herd), and how do you mitigate it?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A stampede happens when a popular key expires (or the cache is flushed) and a burst of concurrent requests
+        all miss and all hit the DB/origin simultaneously, amplifying load exactly when the system is cold.
+        Mitigations: (1) <strong>singleflight / request coalescing</strong> — only one miss loads the key; others wait
+        on the same in-flight future (<code>tokio::sync::Mutex</code> per key, or a dedicated singleflight crate);
+        (2) <strong>probabilistic early expiration / soft TTL</strong> — refresh slightly before hard expiry so not
+        everyone expires at once; (3) <strong>stale-while-revalidate</strong> — serve stale value while one worker
+        refreshes; (4) <strong>locking in Redis</strong> (SET NX PX) so only one instance regenerates across the fleet;
+        (5) never use identical TTLs on bulk warmups — add jitter. Stampede control is one of the highest-signal
+        caching answers in senior interviews.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How do you keep Redis and the database consistent enough? Invalidate vs update-on-write?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Prefer <strong>write DB then delete cache key</strong> (invalidate) over updating the cache in place:
+        invalidation is idempotent and avoids writing a value that a concurrent writer might make stale.
+        Ordering hazards remain (read fills cache with old row between DB write and delete) — mitigate with short
+        TTLs as a safety net, versioned keys, or delaying invalidation slightly / double-delete patterns in extreme
+        cases. For strongly consistent reads after write, read-through primary or use a version token.
+        Do not treat Redis as source of truth unless you designed for that (Redis as primary with AOF/replication
+        is a different architecture). Also discuss eviction: Redis maxmemory + allkeys-lru means keys vanish —
+        your app must treat cache as optional always.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">When would you add a local in-process cache in front of Redis in a Rust service, and what goes wrong?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Local caches (<code>moka</code>, <code>cacache</code>, simple <code>DashMap</code>+TTL) cut Redis RTT for
+        ultra-hot, slowly changing keys (feature flags, JWT public keys, config). Costs: per-instance inconsistency
+        windows, harder invalidation (need pub/sub or version broadcasts to flush peers), and memory amplification
+        across replicas. Use small bounded caches, short TTLs, and a Redis pub/sub or polling version counter for
+        invalidation if correctness matters. Never put strongly consistent financial state only in a local map.
+        Capacity tip: measure hit rate and p99 — if Redis is already &lt;1ms in-AZ, local cache may not be worth the
+        coherence complexity unless QPS is extreme.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD5 · SHARDING &amp; CONSISTENT HASHING ════════════ -->
+<div class="section" id="hld5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 05</div>
+      <div class="sh-title">Database Sharding &amp; Consistent Hashing</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is sharding, and how do you choose a shard key?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Sharding partitions data across multiple database instances so each holds a subset of rows — horizontal
+        scaling for storage and write throughput. The <strong>shard key</strong> determines placement; good keys
+        have high cardinality, even distribution, and align with access patterns (queries mostly hit one shard).
+        Examples: <code>user_id</code> for multi-tenant SaaS; <code>device_id</code> for IoT. Bad keys: boolean status,
+        low-cardinality country, monotonically increasing timestamps (all new writes hit one hot shard). Secondary
+        lookups that are not the shard key require scatter-gather or a global secondary index — call that cost out.
+        Resharding and cross-shard transactions are why you delay sharding until vertical scale and read replicas
+        are insufficient.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain consistent hashing and why it beats <code>hash(key) % N</code> when nodes change.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>hash % N</code> remaps almost every key when N changes — catastrophic for caches and data placement.
+        <strong>Consistent hashing</strong> places nodes and keys on a ring; a key belongs to the next node clockwise.
+        Adding/removing one node only moves the keys in its arc (~1/N on average). <strong>Virtual nodes</strong>
+        (many points per physical node) improve balance. Used in Dynamo-style stores, CDN edge assignment, and
+        client-side sharded Redis clusters. Rust aside: the same idea appears in-process when you shard a
+        <code>DashMap</code> or a mutex array with <code>hash(key) % shards</code> — fixed shard count means you
+        do not need a ring, but if the shard count can change at runtime you want consistent hashing or a
+        directory service.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Range sharding vs hash sharding — trade-offs?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Hash sharding</strong> spreads keys evenly and avoids hot ranges for random IDs; range scans that
+        need global order become scatter-gather. <strong>Range sharding</strong> (user_id A–M on shard 1, …) makes
+        ordered scans and locality easy (all events for a day on nearby shards) but risks hotspots if traffic
+        concentrates in one range (celebrity tenant, latest time bucket). Mitigations for range hotspots: split
+        hot ranges, add a hash suffix, or use time-bucketing with fan-out. Many production systems use hash for
+        OLTP primary key and separate analytics pipelines for range queries.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What operational problems does sharding introduce that interviewers expect you to name?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) <strong>Cross-shard joins/transactions</strong> — usually forbidden or replaced by sagas / denormalisation.
+        (2) <strong>Resharding / rebalancing</strong> — live migration, dual writes, or consistent-hash virtual nodes;
+        plan for it on day one even if N=2. (3) <strong>Hot keys / hot shards</strong> — celebrity users; need local
+        caches, key salting, or dedicated shards. (4) <strong>Global uniqueness</strong> — IDs via Snowflake/ULID,
+        not DB sequences per shard without coordination. (5) <strong>Scatter-gather fan-out</strong> — &quot;list all&quot;
+        APIs become expensive; redesign queries. (6) <strong>Routing layer</strong> — app or proxy must know the
+        shard map (lookup service, Vitess-style gateway). Naming these shows you have operated past the happy path.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD6 · REPLICATION &amp; FAILOVER ════════════ -->
+<div class="section" id="hld6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 06</div>
+      <div class="sh-title">Replication, Quorum &amp; Failover</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Describe leader–follower (primary–replica) replication. Sync vs async?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        One <strong>leader</strong> accepts writes and ships a log/stream of changes to <strong>followers</strong>
+        that serve reads (and are failover candidates). <strong>Synchronous</strong> replication waits for at least
+        one (or a quorum of) follower ack before committing — stronger durability, higher write latency, stalls if
+        followers are slow. <strong>Asynchronous</strong> acknowledges after local commit — low latency, but a crash
+        can lose acknowledged writes that never reached a replica (RPO &gt; 0). Common compromise: sync to a quorum
+        in-region, async to another region. Read replicas introduce replication lag — applications must tolerate
+        stale reads or route read-after-write to the primary.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is quorum replication in a leaderless or multi-primary style system?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Writes succeed when W replicas accept them; reads consult R replicas and reconcile by timestamp/version
+        (see R+W&gt;N under CAP). Leaderless designs (classic Dynamo) avoid single-leader failover delay but push
+        conflict resolution to the app (last-write-wins, vector clocks, CRDTs). Multi-primary / active-active
+        across regions needs careful conflict rules. Contrast with consensus (Raft/Paxos): those elect a leader
+        and provide a single serialised log — stronger invariants, used by etcd/Consul/Cockroach meta layers.
+        Interview tip: say whether your problem needs consensus (coordination, config, locks) or quorum KV
+        (high availability data plane).
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Walk through failover: detection, election, fencing, and client redirection.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) <strong>Detect</strong> leader failure via heartbeats / lease expiry — tune to avoid flapping on GC/network blips.
+        (2) <strong>Elect</strong> a new leader (Raft term, or orchestrator promotion of the most caught-up replica).
+        (3) <strong>Fence</strong> the old leader — epoch numbers, STONITH, or disk leases so a &quot;zombie&quot; primary
+        cannot accept writes after split brain (critical answer). (4) <strong>Redirect</strong> clients via DNS,
+        VIP, proxy, or service discovery; clients need retry-on-new-leader logic. State RTO/RPO targets.
+        Rust clients should treat connections as disposable: timeouts, reconnect, and idempotent retries with
+        fencing tokens on mutating APIs.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What is split brain, and how do you prevent it?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Split brain is when two nodes both believe they are primary and accept writes — divergent datasets that are
+        hard or impossible to merge. Prevention: consensus quorums (majority of voting members — never even-sized
+        clusters without a tie-breaker), fencing tokens / generation numbers on every write path, external
+        coordinators with leases, and STONITH in HA clusters. For app-level distributed locks, always hold a
+        fencing token (monotonic) checked by the resource — a lock alone in Redis with no fencing is not enough
+        (see Martin Kleppmann's analysis). In interviews, mentioning fencing after failover is a strong senior signal.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD7 · MESSAGE QUEUES ════════════ -->
+<div class="section" id="hld7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 07</div>
+      <div class="sh-title">Message Queues, Pub-Sub &amp; Kafka-style Log vs Rabbit</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">When do you introduce a message queue between services? What problems does it solve and create?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Queues decouple producers from consumers: absorb spikes, retry independently, fan out work, and avoid
+        holding HTTP request threads on slow downstreams. They create operational surface (broker HA, poison
+        messages, ordering, exactly-once myths), end-to-end latency (async), and debugging complexity (tracing
+        across async boundaries). Use when work is naturally asynchronous (emails, image processing, webhooks)
+        or when you need buffering; do not use as a substitute for fixing synchronous dependency latency on the
+        user-critical path without product buy-in.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Contrast RabbitMQ-style queues/exchanges with Kafka-style partitioned logs.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>RabbitMQ</strong> (smart broker): messages are routed via exchanges to queues and typically
+        <em>removed</em> on ack — classic competing consumers, flexible routing (topic/direct/fanout), per-message
+        ack/nack, good for task queues and complex topologies. <strong>Kafka</strong> (dumb broker, smart consumer):
+        append-only partitioned log retained by time/size; consumers track offsets; many consumer groups can
+        independently replay the same data — excellent for event streaming, analytics, and audit. Kafka ordering
+        is per-partition (choose partition key carefully). Rabbit shines at low-latency task dispatch with
+        priority/TTL/DLQ patterns; Kafka shines at high-throughput durable streams and replay. Do not say
+        &quot;Kafka is a queue&quot; without mentioning the log/consumer-group model.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain at-most-once, at-least-once, and exactly-once delivery. What do you actually implement in app code?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>At-most-once:</strong> fire and forget — may lose messages, never duplicates.
+        <strong>At-least-once:</strong> retry until ack — may duplicate; the practical default.
+        <strong>Exactly-once:</strong> end-to-end is hard; brokers offer pieces (Kafka idempotent producers +
+        transactional writes) but apps still need idempotent consumers. In practice: design handlers to be
+        <strong>idempotent</strong> (dedupe keys in DB/Redis, upsert by event id), use at-least-once delivery,
+        and store processed event IDs in the same DB transaction as side effects when possible. Rust consumers
+        (<code>rdkafka</code>, <code>lapin</code>) should commit offsets / ack only after successful side effects,
+        or accept redelivery and dedupe.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How do backpressure and consumer lag show up, and how do you respond?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        If producers outpace consumers, Kafka consumer lag grows; Rabbit queues deepen. Responses: scale consumers
+        (up to partition count in Kafka), simplify handlers, batch writes, shed non-critical load, or apply
+        producer rate limits. Poison messages need DLQs and alerting — infinite retry worsens lag.
+        In Rust/Tokio, bounded channels (<code>tokio::sync::mpsc</code> with capacity) and
+        <code>Semaphore</code>-limited in-flight work prevent unbounded buffering inside the process; combine with
+        broker-level lag metrics. Lag is an SLO-adjacent signal: alert on lag age (time), not only message count.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD8 · DISTRIBUTED TRANSACTIONS ════════════ -->
+<div class="section" id="hld8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 08</div>
+      <div class="sh-title">Distributed Transactions: 2PC vs Saga vs Outbox</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is two-phase commit (2PC), and why do microservices usually avoid it?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        2PC: a coordinator asks all participants to <strong>prepare</strong> (vote yes/no, hold locks/resources),
+        then broadcasts <strong>commit</strong> or <strong>abort</strong>. It provides atomic commit across resources
+        but blocking protocols suffer if the coordinator fails after prepare (participants hold locks), and latency
+        is gated on the slowest participant. Across microservices/databases with independent failure domains, 2PC
+        couples availability and operational complexity badly. Prefer single-DB transactions when possible; when
+        you cross services, use sagas / outbox rather than distributed XA unless you are in a tightly controlled
+        monolith/DB world that already supports it.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain the Saga pattern (choreography vs orchestration) and compensation.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <strong>saga</strong> is a sequence of local transactions where each step has a
+        <strong>compensating action</strong> to undo its business effect if a later step fails (refund, release seat).
+        <strong>Choreography:</strong> each service listens to events and emits the next — loose coupling, harder
+        to visualise and debug. <strong>Orchestration:</strong> a central saga coordinator drives steps — clearer
+        control flow and timeouts, coordinator is a dependency. Sagas give <em>eventual</em> consistency, not ACID
+        isolation — intermediate states are visible; design UX and invariants accordingly (reservation holds,
+        idempotent compensations). Rust services typically implement steps as idempotent command handlers with
+        durable saga state in Postgres.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is the transactional outbox pattern, and why does it beat &quot;DB write then publish&quot;?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Dual writes (update DB, then publish to Kafka/Rabbit) can fail between the two steps — lost events or
+        phantom messages. <strong>Outbox:</strong> in the <em>same</em> DB transaction as the business write, insert
+        an outbox row; a publisher process/CDC (Debezium) reads the outbox and publishes to the broker, then marks
+        rows published. This yields at-least-once delivery of events that truly committed with the data.
+        Consumers remain idempotent. This is the standard reliable integration pattern for Rust services using
+        sqlx/SeaORM + a background worker or Kafka Connect. Mention inbox/dedupe table on the consumer side for symmetry.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How would you choose among 2PC, saga, outbox, and &quot;just use one database&quot; in an interview design?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Prefer <strong>one database transaction</strong> for invariants that must be atomic (order + inventory in
+        same service boundary). Use <strong>outbox</strong> whenever you emit events after a commit.
+        Use <strong>sagas</strong> when multiple services own their data and the business can tolerate temporary
+        inconsistency with compensations. Reach for <strong>2PC/XA</strong> only in legacy or tightly scoped
+        scenarios with proven tooling — and say why you are avoiding it by default. Strong answer structure:
+        define the consistency requirement → pick the weakest mechanism that meets it → describe failure modes
+        (compensation bugs, duplicate events, coordinator downtime).
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD9 · RESILIENCE ════════════ -->
+<div class="section" id="hld9">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 09</div>
+      <div class="sh-title">Resilience: Retries, Timeouts, Circuit Breaker, Bulkhead, Backpressure</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Why must every remote call have a timeout? How do retries interact with timeouts?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Without timeouts, a slow dependency ties up threads/tasks/connection pool slots until the whole service
+        collapses (latency amplification). Set budgets at each layer so the sum of downstream timeouts fits the
+        caller's SLO. Retries without backoff/jitter and without a deadline multiply load on an already sick
+        dependency — retry only idempotent / safe operations, use exponential backoff with jitter, cap attempts,
+        and respect a total deadline. Rust: <code>tokio::time::timeout</code>, reqwest/tower timeout layers;
+        never leave hyper/TCP defaults unbounded on critical paths.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain the circuit breaker pattern and how it differs from retries.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <strong>circuit breaker</strong> tracks failure rates to a dependency and trips to <strong>open</strong>
+        (fail fast) after a threshold, periodically probing (<strong>half-open</strong>) before closing again.
+        Retries say &quot;try again&quot;; breakers say &quot;stop trying for a while so the dependency can recover and we can
+        shed load.&quot; Combine: short retries inside a closed breaker; when open, return fallback or error immediately.
+        Rust ecosystem: <code>tower::retry</code>, <code>tower::limit</code>, and crates like
+        <code>tower-circuitbreaker</code> / custom middleware layers around tonic/reqwest clients — compose as
+        <code>Service</code> layers rather than ad-hoc <code>if failed { sleep; retry }</code> scattered in handlers.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is bulkheading, and how do you implement it in a Tokio service?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Bulkheads</strong> isolate resource pools so one dependency or tenant cannot exhaust the whole
+        process — separate connection pools, semaphores, or thread pools per dependency/priority class.
+        Example: limit concurrent calls to the billing API with a <code>tokio::sync::Semaphore</code> of size 32
+        while search can use 256; use a dedicated <code>spawn_blocking</code> pool size for CPU-heavy work so it
+        cannot starve async I/O. At the infra layer, separate thread pools / containers / queues per workload.
+        The name comes from ship compartments: flood one section without sinking the ship.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Define backpressure and give concrete mechanisms at queue, HTTP, and async-runtime layers.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Backpressure</strong> is slowing or rejecting ingress when downstream cannot keep up, instead of
+        buffering unboundedly until OOM. Mechanisms: bounded channels (send awaits or fails), HTTP 429/503 with
+        Retry-After, TCP windowing (natural), Kafka consumer pause, reactive pull. In Tokio, prefer bounded
+        <code>mpsc</code>, <code>Semaphore</code>-gated accept loops, and load-shedding middleware when queues
+        exceed thresholds. Unbounded <code>mpsc</code> / unbounded futures spawn is a common production footgun —
+        call it out. Tie backpressure to SLOs: shed edge traffic before core mutation paths fail.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">How do you structure a resilient outbound client stack in Rust (order of layers)?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A typical tower stack from outside in: concurrency limit (bulkhead) → timeout (total budget) → circuit
+        breaker → retry with budget/backoff (only idempotent) → metrics/tracing → the actual transport.
+        Order matters: retries inside a timeout so retries share one deadline; breaker outside retries so a storm
+        of retried failures still trips the breaker. Add hedged requests only for read-mostly, low-variance RPCs
+        and with care (they amplify load). Expose client metrics: success rate, latency, in-flight, breaker state —
+        these become the dependency SLIs your on-call uses.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD10 · CDN &amp; EDGE ════════════ -->
+<div class="section" id="hld10">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 10</div>
+      <div class="sh-title">CDN &amp; Edge Caching</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What problem does a CDN solve, and what content belongs there?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A <strong>CDN</strong> caches responses at edge PoPs close to users, cutting latency and shielding origin
+        from repeat GETs. Ideal for static assets (JS/CSS/images), downloadable binaries, and cacheable API GETs
+        with correct <code>Cache-Control</code>. Dynamic, personalised, or strongly consistent mutating traffic
+        stays on origin (or uses edge compute carefully). CDNs also help DDoS absorption and TLS termination at
+        the edge. In designs, put CloudFront/Fastly/Cloudflare in front of object storage or the API gateway for
+        public read-heavy paths.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain Cache-Control, ETag/If-None-Match, and purge/invalidation strategies.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <code>Cache-Control: public, max-age=...</code> tells browsers/CDNs how long to reuse a response;
+        <code>s-maxage</code> specifically for shared caches; <code>private</code> for browser-only;
+        <code>no-store</code> for sensitive data. <strong>ETag</strong> / conditional requests let clients/CDNs
+        revalidate cheaply (304 Not Modified). Invalidation: path/wildcard purge APIs, versioned URLs
+        (<code>app.abc123.js</code> — best practice for static assets: never purge, just change the name),
+        or short TTLs for HTML. Versioned asset URLs + long <code>max-age</code> is the gold standard for SPAs.
+        For cacheable API GETs, purge-by-tag (Surrogate-Key) on write events if the CDN supports it.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is the difference between origin shielding, stale-while-revalidate, and edge compute?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Origin shield</strong>: a designated mid-tier PoP collapses thundering herds so only one region hits
+        origin on miss. <strong>Stale-while-revalidate</strong>: serve expired content while refreshing in background —
+        better UX, temporary staleness. <strong>Edge compute</strong> (Workers, Lambda@Edge): run small logic at PoPs
+        (A/B, auth checks, rewrites) — powerful but constrained runtimes and harder ops. Pick SWR + shield for
+        most read-heavy APIs before inventing edge logic. Rust WASM at the edge is emerging (e.g. workers) but
+        mention it only if relevant to the company's stack.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How do you design cache keys and vary rules so you do not fragment the CDN cache?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Every varying header in <code>Vary</code> multiplies cache entries — over-varying on <code>User-Agent</code>
+        or cookies destroys hit ratio. Prefer explicit cache keys: strip unused query params, normalise order,
+        avoid cookie-based variation for public content, and separate personalised responses (<code>private</code>)
+        from public. For logged-in vs logged-out HTML, use distinct paths or edge logic rather than varying on the
+        whole <code>Cookie</code> header. Measure hit ratio and origin QPS — CDN value is hit ratio × traffic;
+        a 10% hit ratio on a huge API may still be worth it, but fragmented keys often explain mysterious origin load.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD11 · SERVICE DISCOVERY &amp; API GATEWAY ════════════ -->
+<div class="section" id="hld11">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 11</div>
+      <div class="sh-title">Service Discovery &amp; API Gateway in Microservices</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is service discovery, and how do modern platforms implement it?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Services need to find healthy instances of their dependencies as IPs change with deploys/autoscaling.
+        Approaches: client-side discovery (query Consul/Etcd/Eureka, pick instance), server-side (DNS or LB
+        that updates membership), and platform-native (Kubernetes Services/Endpoints + kube-proxy/iptables/IPVS
+        or service mesh sidecars). Today, K8s DNS (<code>payments.default.svc</code>) plus readiness probes covers
+        most cases; meshes (Istio/Linkerd) add mTLS, retries, and observability. Rust services usually rely on
+        platform DNS + connection pooling rather than embedding a full discovery client unless on bare metal.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What responsibilities belong on an API gateway vs in each microservice?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Gateway (edge):</strong> TLS termination, authn (JWT validation, API keys), rate limiting, request
+        routing/path rewrite, canonical logging/trace context injection, IP allowlists, basic WAF, response
+        caching for public GETs. <strong>Service:</strong> domain authorisation (authz), business validation,
+        data ownership, idempotency of domain operations. Anti-pattern: putting business rules and fan-out
+        orchestration exclusively in the gateway until it becomes a monolith. Gateways are cross-cutting policy;
+        services own domain invariants. Rust: axum/tonic services behind Envoy/Kong/Cloud API Gateway; edge
+        filters in the gateway, domain logic in the app.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">How does a service mesh change the discovery / resilience picture?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        A mesh sidecar (or ambient proxy) intercepts east-west traffic and provides uniform mTLS, retries,
+        timeouts, outlier detection, and telemetry without each language rewriting the same middleware.
+        Discovery integrates with the platform's endpoint set. Trade-off: extra hop latency, operational
+        complexity, and debugging through proxies. For polyglot orgs meshes pay off; for a few Rust services,
+        tower middleware + K8s Services may be enough. Interview framing: mesh moves resilience policy to infra;
+        you still need app-level idempotency and correct deadlines.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Sketch how you would expose a new Rust microservice safely behind an existing gateway.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        (1) Define external route and auth requirements at the gateway. (2) Deploy with readiness probes and
+        horizontal pod autoscaling targets. (3) Publish internal DNS name; gateway routes <code>/v1/foo</code> →
+        service. (4) Propagate <code>traceparent</code> / request IDs. (5) Dark launch or weighted routing
+        (1% canary). (6) Rate limit at gateway; enforce stricter idempotency keys on POSTs in-app.
+        (7) Dashboards for gateway error rate + service SLIs before 100% cutover. Mention contract tests
+        (OpenAPI/protobuf) so the gateway and service agree on paths and error shapes.
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HLD12 · OBSERVABILITY SLIs/SLOs ════════════ -->
+<div class="section" id="hld12">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-sysd)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-sysd)">// HLD 12</div>
+      <div class="sh-title">Observability: SLIs, SLOs, Metrics &amp; Traces</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-sysd)"></span>Questions &amp; model answers</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Define SLI, SLO, and SLA. Give examples for an API.</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>SLI</strong> (indicator): a quantitative measure of user-visible reliability — e.g. fraction of
+        requests with HTTP 2xx/3xx, or p99 latency. <strong>SLO</strong> (objective): target on that SLI over a
+        window — e.g. 99.9% success over 30 days, p99 &lt; 200ms. <strong>SLA</strong>: contractual promise with
+        remedies; usually looser than internal SLOs. Good SLIs map to user pain (checkout success), not CPU%.
+        Error budget = 100% − SLO; spend it on shipping, freeze when exhausted. This vocabulary is expected in
+        senior/staff design interviews when you discuss reliability.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">How do metrics, logs, and traces work together? What would you emit from a Rust service?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        <strong>Metrics</strong> (RED/USE): counters/histograms for rate, errors, duration — cheap, aggregatable,
+        drive alerts on SLOs. <strong>Logs</strong>: discrete events for debugging; structured JSON with request id;
+        sample or rate-limit high-volume paths. <strong>Traces</strong>: distributed spans across services showing
+        where time went; critical once you have async hops and queues. Rust: <code>tracing</code> +
+        <code>tracing-opentelemetry</code> for spans/events, <code>metrics</code>/<code>prometheus</code> exporter
+        for histograms of request latency and dependency errors. Correlate via trace id in logs. Alert on SLIs
+        from metrics; use traces/logs to diagnose.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Which latency percentile should you SLO on, and why not average?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Averages hide tail pain — a few multi-second requests barely move the mean while ruining UX.
+        Common choices: p95/p99 for user APIs; sometimes p50 as a health check that the mode is fine.
+        Multi-modal distributions (cache hit vs miss) need separate SLIs or histograms, not one average.
+        Export histograms (not just summaries) so you can compute percentiles correctly after aggregation —
+        Prometheus histograms + careful bucket design, or native quantile systems. Tie timeouts to SLO tails:
+        if SLO is p99 &lt; 300ms, an upstream timeout of 30s will not protect the budget.
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How do you make async messaging and sagas observable enough to debug production issues?</span><span class="qa-toggle">▼ answer</span></div>
+      <div class="qa-a"><div class="qa-a-label">Model answer</div><div class="qa-a-text">
+        Propagate <strong>trace context</strong> in message headers (W3C <code>traceparent</code>) so a producer
+        span links to consumer spans — otherwise each hop looks unrelated. Include business keys (order_id) as
+        baggage/attributes for search. Emit saga step metrics (started/succeeded/compensated) and lag gauges.
+        Structured logs at step boundaries with the same ids. Without this, &quot;eventual consistency&quot; becomes
+        un-debuggable. In Rust consumers, extract context when deserialising and set a parent span before handling;
+        do not start a brand-new root trace per message unless the message is truly exogenous (e.g. external webhook).
+      </div></div>
+    </div>
+  </div>
+</div>

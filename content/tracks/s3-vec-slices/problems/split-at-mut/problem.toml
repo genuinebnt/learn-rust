@@ -1,0 +1,27 @@
+slug = "split-at-mut"
+title = "split_at_mut for two halves"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 12
+status = "ready"
+tags = ["split_at_mut", "E0499"]
+teaches = [
+  "`split_at_mut` gives two non-overlapping `&mut` into one slice.",
+  "Why `&mut v[..m]` and `&mut v[m..]` at once doesn't compile.",
+]
+follow_up = "How would you get `&mut` to two arbitrary indices i and j?"
+related = ["L2"]
+
+[[examples]]
+input = "v = [1, 2, 10, 20]"
+output = "[1, 2, 11, 22]"
+
+[[hints]]
+kind = "rust"
+text = "Two `&mut` borrows of `v` at once won't compile, even to different ranges. Which slice method splits one borrow into two?"
+
+[solution]
+explanation = "`split_at_mut` is safe because the halves provably don't overlap; it's implemented with `unsafe` inside std."
+time = "O(n)"
+space = "O(1)"

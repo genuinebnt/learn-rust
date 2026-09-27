@@ -1,0 +1,29 @@
+slug = "fix-two-mut-into-players"
+title = "Fix: two &mut into one Vec"
+mode = "fix"
+level = "medium"
+stage = "reborrows"
+order = 14
+status = "ready"
+tags = ["E0499"]
+teaches = [
+  "The borrow checker reasons about the whole slice, not individual indices.",
+]
+follow_up = "What if you really need both `&mut` at once?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "Two `&mut` into the same slice can't be alive at once, even for different indices: the compiler can't prove `from != to`."
+
+[[hints]]
+kind = "approach"
+text = "Do you need both references at the same time?"
+
+[solution]
+explanation = "Each statement borrows the slice for one line, so the borrows never overlap. It also handles `from == to` correctly, which two live `&mut`s couldn't."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]

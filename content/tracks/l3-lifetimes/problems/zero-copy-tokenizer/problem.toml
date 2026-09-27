@@ -1,0 +1,32 @@
+slug = "zero-copy-tokenizer"
+title = "Zero-copy tokenizer"
+mode = "write"
+level = "medium"
+stage = "two-lifetimes"
+order = 10
+status = "ready"
+tags = ["Iterator", "enum with lifetimes"]
+teaches = [
+  "Iterator items that borrow the input: `type Item = Token<'a>`.",
+  "Generic functions over `IntoIterator<Item = Token<'a>>`.",
+]
+follow_up = "Add byte offsets to each token for error messages. How does the type change?"
+related = ["L3", "S2"]
+source = "W36"
+
+[[hints]]
+kind = "rust"
+text = "`type Item = Token<'a>`: tokens borrow the source, not the tokenizer, so they can outlive it."
+
+[[hints]]
+kind = "rust"
+text = "`s.split_at(len)` gives the token and the rest, both `&'a str`."
+
+[[hints]]
+kind = "rust"
+text = "`longest_ident` only needs `IntoIterator<Item = Token<'a>>`, so it works on a `Tokenizer`, a `Vec`, or anything else."
+
+[solution]
+explanation = "No token allocates. The iterator and the tokens are separate borrows of the source, which is why `longest_ident` can return data after the tokenizer is dropped."
+time = "O(n)"
+space = "O(1)"

@@ -1,0 +1,23 @@
+slug = "ownership-round-trip"
+title = "Take ownership, give it back"
+mode = "write"
+level = "easy"
+stage = "moves-and-copy"
+order = 4
+status = "ready"
+tags = ["ownership", "return values"]
+teaches = [
+  "A function can take a value, change it, and hand it back.",
+  "Moving a `Vec` or `String` never copies the heap data.",
+]
+follow_up = "When would you take `&mut Vec<i64>` instead of taking and returning it?"
+related = ["S3"]
+
+[[hints]]
+kind = "rust"
+text = "Parameters can be declared `mut v: Vec<i64>` when you own them."
+
+[solution]
+explanation = "The hidden test checks the buffer pointer: moving a `Vec` in and out keeps the same heap allocation."
+time = "O(n)"
+space = "O(1) extra"

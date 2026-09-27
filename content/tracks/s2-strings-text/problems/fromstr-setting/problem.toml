@@ -1,0 +1,27 @@
+slug = "fromstr-setting"
+title = "FromStr for a key = value line"
+mode = "write"
+level = "medium"
+stage = "understand"
+order = 14
+status = "ready"
+tags = ["FromStr", "split_once", "error enums"]
+teaches = [
+  "`impl FromStr` so callers can write `line.parse::<Setting>()`.",
+  "An error enum that says what went wrong.",
+]
+follow_up = "How would you add the line number to the errors when parsing a whole file?"
+related = ["S1", "L4"]
+
+[[hints]]
+kind = "rust"
+text = "`s.split_once('=')` returns `Option<(&str, &str)>`; `.ok_or(SettingError::MissingEquals)?` turns `None` into the error."
+
+[[hints]]
+kind = "rust"
+text = "`map_err` replaces the `ParseIntError` with your own variant, keeping the text that failed."
+
+[solution]
+explanation = "`FromStr` plugs into `str::parse`, so callers get `\"...\".parse::<Setting>()` for free. Each check exits early with a specific error."
+time = "O(n)"
+space = "O(n)"

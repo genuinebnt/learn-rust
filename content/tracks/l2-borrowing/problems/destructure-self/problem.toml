@@ -1,0 +1,22 @@
+slug = "destructure-self"
+title = "Destructure self into field borrows"
+mode = "write"
+level = "medium"
+stage = "split-borrows"
+order = 25
+status = "ready"
+tags = ["patterns", "split borrows"]
+teaches = [
+  "Destructuring `&mut self` splits it into field borrows.",
+]
+follow_up = "Why can't you write `update(&mut self.values, &mut self.total, &mut self.max, x)` through a getter?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "`let Stats { values, total, max } = self;` gives three separate `&mut` borrows, one per field."
+
+[solution]
+explanation = "Destructuring a `&mut Stats` binds each field by `&mut` (default binding modes), which is how you hand several fields to one call."
+time = "O(n)"
+space = "O(1)"

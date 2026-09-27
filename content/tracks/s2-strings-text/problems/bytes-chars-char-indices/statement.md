@@ -1,0 +1,3 @@
+- `sizes` returns `(bytes, chars)` for `s`.
+- `positions` returns the byte offset of every occurrence of `target`.
+- `nth_char` returns the `n`th character, if there is one.

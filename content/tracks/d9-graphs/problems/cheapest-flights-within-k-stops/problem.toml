@@ -1,0 +1,35 @@
+slug = "cheapest-flights-within-k-stops"
+title = "Cheapest flights within K stops"
+mode = "write"
+level = "medium"
+stage = "shortest-paths"
+order = 18
+status = "ready"
+tags = ["Bellman–Ford", "snapshot"]
+teaches = [
+  "Bounded Bellman–Ford: one round per edge used.",
+  "Why each round reads from a snapshot.",
+]
+constraints = ["1 ≤ n ≤ 100", "flights.len() ≤ n · (n − 1)", "0 ≤ k < n"]
+follow_up = "How would you adapt Dijkstra to this problem, and when would it beat Bellman–Ford?"
+
+[[examples]]
+input = "n = 3, flights = [(0,1,100), (1,2,100), (0,2,500)], src = 0, dst = 2, k = 1"
+output = "Some(200)"
+
+[[examples]]
+input = "same, k = 0"
+output = "Some(500)"
+
+[[hints]]
+kind = "approach"
+text = "Dijkstra ignores the stop limit. Relax every edge once per allowed flight instead: k + 1 rounds."
+
+[[hints]]
+kind = "edge case"
+text = "If a round reads prices it updated earlier in the same round, one round can chain several flights. Read from a copy of the previous round."
+
+[solution]
+explanation = "After round i, `best` holds the cheapest price using at most i flights, because every relaxation reads the previous round's snapshot."
+time = "O(k · E)"
+space = "O(n)"

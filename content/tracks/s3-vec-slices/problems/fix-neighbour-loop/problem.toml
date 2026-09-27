@@ -1,0 +1,30 @@
+slug = "fix-neighbour-loop"
+title = "Fix: off-by-one in a neighbour loop"
+mode = "fix"
+level = "easy"
+stage = "use-it"
+order = 5
+status = "ready"
+tags = ["windows", "index out of bounds"]
+teaches = [
+  "`windows(2)` yields each pair of neighbours without index arithmetic.",
+]
+follow_up = "How is `windows` different from `chunks`?"
+related = ["S6"]
+
+[[examples]]
+input = "v = [1, 2, 3]"
+output = "[3, 5]"
+
+[[hints]]
+kind = "approach"
+text = "The last index has no right neighbour."
+
+[[hints]]
+kind = "rust"
+text = "Slices can hand you overlapping pairs directly."
+
+[solution]
+explanation = "`windows(2)` yields nothing for fewer than two elements, so the empty and single cases need no special handling."
+time = "O(n)"
+space = "O(n)"

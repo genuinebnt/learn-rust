@@ -1,0 +1,23 @@
+slug = "as-ref-as-mut-as-deref"
+title = "as_ref, as_mut and as_deref"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 4
+status = "ready"
+tags = ["as_deref", "as_mut"]
+teaches = [
+  "`as_deref` turns `&Option<String>` into `Option<&str>`.",
+  "`as_mut` edits the value inside an `Option` in place.",
+]
+follow_up = "What's the difference between `Option<&T>` and `&Option<T>` as a parameter type?"
+related = ["S7", "L2"]
+
+[[hints]]
+kind = "rust"
+text = "`user.nickname.map(..)` would move out of a borrowed struct. Convert `&Option<String>` to `Option<&str>` first."
+
+[solution]
+explanation = "`as_deref` borrows through the `Option` and derefs `String` to `str`; the result's lifetime is tied to `user`."
+time = "O(1)"
+space = "O(1)"

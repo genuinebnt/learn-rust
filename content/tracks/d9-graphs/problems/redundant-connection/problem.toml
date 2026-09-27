@@ -1,0 +1,30 @@
+slug = "redundant-connection"
+title = "Redundant connection"
+mode = "write"
+level = "medium"
+stage = "union-find-mst"
+order = 22
+status = "ready"
+tags = ["union-find"]
+teaches = [
+  "Union-find in a `Vec<usize>`.",
+  "Path halving in a loop, no recursion.",
+]
+follow_up = "How does the problem change if the graph is directed (a rooted tree plus one edge)?"
+
+[[examples]]
+input = "edges = [(1,2), (1,3), (2,3)]"
+output = "Some((2, 3))"
+
+[[hints]]
+kind = "approach"
+text = "Add edges one by one. The first edge whose ends are already connected closes the cycle, and it's the last cycle edge in the list."
+
+[[hints]]
+kind = "rust"
+text = "`parent: Vec<usize>` where `parent[x] == x` marks a root. `(0..=n).collect()` initialises it."
+
+[solution]
+explanation = "Every cycle edge could be removed; the one that closes the cycle comes last among them. Path halving keeps trees shallow without recursion."
+time = "O(n α(n))"
+space = "O(n)"

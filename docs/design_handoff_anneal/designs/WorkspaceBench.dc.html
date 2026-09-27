@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme]{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--grid:oklch(0.205 0.012 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--ok:oklch(0.77 0.13 165);--ok-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--on-acc:oklch(0.17 0.02 255);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--str:oklch(0.79 0.11 160);--num:oklch(0.79 0.11 45);--mac:oklch(0.79 0.09 200);--lt:oklch(0.77 0.12 340);--com:oklch(0.58 0.012 255);--inlay:oklch(0.64 0.012 255);--inlay-bg:oklch(0.235 0.013 255);--sel:oklch(0.76 0.11 55 / 0.07);color-scheme:dark}
+[data-theme=light]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--grid:oklch(0.94 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--ok:oklch(0.52 0.12 165);--ok-bg:oklch(0.52 0.12 165 / 0.10);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--lt:oklch(0.50 0.15 340);--com:oklch(0.56 0.012 255);--inlay:oklch(0.50 0.012 255);--inlay-bg:oklch(0.935 0.005 255);--sel:oklch(0.58 0.13 50 / 0.06);color-scheme:light}
+body{margin:0;background:var(--bg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="width:1440px;background-color:var(--bg);color:var(--fg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:56px 56px;background-position:-1px -1px">
+<header style="height:52px;flex:none;display:flex;align-items:center;gap:36px;padding:0 24px;border-bottom:1px solid var(--line2);background:var(--bg)">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="display:grid;grid-template-columns:repeat(2,5px);gap:2px"><span style="width:5px;height:5px;background:var(--acc)"></span><span style="width:5px;height:5px;background:var(--vio)"></span><span style="width:5px;height:5px;background:var(--grn)"></span><span style="width:5px;height:5px;box-shadow:inset 0 0 0 1px var(--line)"></span></div>
+    <span style="font:500 13px 'JetBrains Mono',monospace;color:var(--fg)">anneal<span style="color:var(--dim)">.genuinebasil.dev</span></span>
+  </div>
+  <nav style="display:flex;align-items:center;gap:22px;font:500 12px 'JetBrains Mono',monospace">
+    <a href="#" style="color:var(--acc);padding:4px 0;box-shadow:inset 0 -1px 0 var(--acc)">Tracks</a>
+    <a href="#" style="color:var(--vio)">Concepts</a>
+    <a href="#" style="color:var(--grn)">Projects</a>
+    <span style="color:var(--line)">|</span>
+    <a href="#" style="color:var(--dim)">Library</a>
+    <a href="#" style="color:var(--dim)">Mock interview</a>
+    <a href="#" style="color:var(--dim)">Readiness</a>
+  </nav>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+    <span style="font:500 11px 'JetBrains Mono',monospace;color:var(--dim);letter-spacing:.12em">READINESS <span style="color:var(--fg)">62%</span></span>
+    <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line2);border-radius:5px"><span style="width:11px;height:11px;border-radius:50%;border:1.5px solid var(--mut);background:linear-gradient(90deg,var(--mut) 50%,transparent 50%)"></span></button>
+    <div style="width:30px;height:30px;border-radius:50%;border:1px solid var(--acc);display:grid;place-items:center;font:600 11px 'JetBrains Mono',monospace;color:var(--acc)">gb</div>
+  </div>
+</header>
+
+<section style="padding:64px 64px 44px;display:grid;grid-template-columns:minmax(0,1fr) 560px;gap:56px;align-items:center">
+  <div>
+    <div style="display:flex;gap:14px;font:500 12px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)"><span style="color:var(--acc)">GRAPHS</span><span>/</span><span>SHORTEST PATHS</span><span>/</span><span>15 OF 32</span></div>
+    <h1 style="margin:22px 0 0;font-size:80px;line-height:0.98;font-weight:800;letter-spacing:-0.04em">Network delay<br><span style="color:var(--acc)">time.</span></h1>
+    <p style="margin:28px 0 0;max-width:600px;font-size:18px;line-height:1.65;color:var(--mut);text-wrap:pretty">Send a signal from node <code style="font:500 16px 'JetBrains Mono',monospace;color:var(--fg)">k</code> across a directed, weighted network and report when the last node hears it, or <code style="font:500 16px 'JetBrains Mono',monospace;color:var(--fg)">None</code> if one never does. The Rust twist: <code style="font:500 16px 'JetBrains Mono',monospace;color:var(--fg)">BinaryHeap</code> only knows how to be a max-heap.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:24px;font:500 11px 'JetBrains Mono',monospace;letter-spacing:.06em">
+      <span style="padding:5px 9px;border-radius:3px;background:var(--acc);color:var(--on-acc)">WRITE IT</span>
+      <span style="padding:4px 9px;border-radius:3px;border:1px solid var(--line);color:var(--mut)">INTERMEDIATE</span>
+      <span style="padding:4px 9px;border-radius:3px;border:1px solid var(--line2);color:var(--dim)">dijkstra</span>
+      <span style="padding:4px 9px;border-radius:3px;border:1px solid var(--line2);color:var(--dim)">BinaryHeap</span>
+      <span style="padding:4px 9px;border-radius:3px;border:1px solid var(--line2);color:var(--dim)">Reverse&lt;T&gt;</span>
+      <span style="padding:4px 9px;border-radius:3px;border:1px solid var(--line2);color:var(--dim)">Option</span>
+    </div>
+    <div style="display:flex;gap:14px;margin-top:36px">
+      <button onClick="{{ run }}" style="height:54px;padding:0 28px;display:flex;align-items:center;gap:12px;border-radius:4px;background:var(--grn);color:var(--on-acc);font-size:16px;font-weight:700">{{ runLabel }}<span style="font:500 12px 'JetBrains Mono',monospace;opacity:.7">⌘↵</span></button>
+      <a href="#hints" style="height:54px;padding:0 26px;display:flex;align-items:center;border-radius:4px;border:1px solid var(--line);color:var(--fg);font-size:16px;font-weight:500;text-decoration:none">Hints · {{ hintsUsed }} / 3</a>
+      <button style="height:54px;padding:0 26px;border-radius:4px;border:1px solid var(--line);font-size:16px;font-weight:500">Reset code</button>
+    </div>
+  </div>
+
+  <div style="position:relative;height:350px;border:1px solid var(--line2);border-radius:8px;background:var(--panel)">
+    <div style="position:absolute;left:28px;top:24px;font:500 11px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--dim)">EXAMPLE · K = 2</div>
+    <div style="position:absolute;right:28px;top:24px;font:500 11px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--acc)">4 NODES · 3 EDGES</div>
+    <div style="position:absolute;left:176px;top:175px;width:72px;border-top:1px dashed var(--mut)"></div>
+    <div style="position:absolute;left:196px;top:156px;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">1 ms</div>
+    <div style="position:absolute;left:312px;top:175px;width:72px;border-top:1px dashed var(--mut)"></div>
+    <div style="position:absolute;left:332px;top:156px;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">1 ms</div>
+    <div style="position:absolute;left:444px;top:198px;height:52px;border-left:1px dashed var(--mut)"></div>
+    <div style="position:absolute;left:452px;top:216px;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">1 ms</div>
+    <div style="position:absolute;left:56px;top:152px;width:120px;height:46px;box-sizing:border-box;padding:6px 12px;border:1.5px solid var(--vio);border-radius:4px;background:var(--vio-bg);font:500 12px 'JetBrains Mono',monospace;color:var(--fg)">node 1<div style="font-size:10.5px;color:var(--mut)">d = 1</div></div>
+    <div style="position:absolute;left:240px;top:167px;width:80px;height:80px;margin:-40px 0 0 -0px;border-radius:50%;box-shadow:0 0 0 10px var(--acc-bg)"></div>
+    <div style="position:absolute;left:248px;top:143px;width:64px;height:64px;box-sizing:border-box;border-radius:50%;border:1.5px solid var(--acc);display:grid;place-items:center;font:600 18px 'JetBrains Mono',monospace;color:var(--acc);background:var(--panel)">2</div>
+    <div style="position:absolute;left:228px;top:218px;width:104px;text-align:center;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">source · d = 0</div>
+    <div style="position:absolute;left:384px;top:152px;width:120px;height:46px;box-sizing:border-box;padding:6px 12px;border:1.5px solid var(--grn);border-radius:4px;background:var(--grn-bg);font:500 12px 'JetBrains Mono',monospace;color:var(--fg)">node 3<div style="font-size:10.5px;color:var(--mut)">d = 1</div></div>
+    <div style="position:absolute;left:384px;top:250px;width:120px;height:46px;box-sizing:border-box;padding:6px 12px;border:1.5px solid var(--acc);border-radius:4px;background:var(--acc);font:600 12px 'JetBrains Mono',monospace;color:var(--on-acc)">node 4<div style="font-size:10.5px;opacity:.75">d = 2 · max</div></div>
+    <div style="position:absolute;left:28px;bottom:24px;display:flex;gap:12px;font:500 12px 'JetBrains Mono',monospace"><span style="color:var(--dim)">returns</span><span style="color:var(--grn)">Some(2)</span></div>
+  </div>
+</section>
+
+<section style="margin:0 64px;display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line2);border-radius:8px;background:var(--panel)">
+  <div style="padding:24px 30px;border-right:1px solid var(--line2);display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)">TESTS PASSING</span><span style="font-size:24px;font-weight:700;color:var(--grn)">4 of 6</span><span style="font-size:14px;color:var(--mut)">one visible, one hidden failing</span></div>
+  <div style="padding:24px 30px;border-right:1px solid var(--line2);display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)">HINTS USED</span><span style="font-size:24px;font-weight:700;color:var(--vio)">{{ hintsUsed }} of 3</span><span style="font-size:14px;color:var(--mut)">counts toward assisted</span></div>
+  <div style="padding:24px 30px;border-right:1px solid var(--line2);display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)">INTERVIEW CLOCK</span><span style="font-size:24px;font-weight:700;color:var(--acc)">18:42</span><span style="font-size:14px;color:var(--mut)">of a 30:00 budget</span></div>
+  <div style="padding:24px 30px;display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.22em;color:var(--dim)">EXERCISES</span><span style="font-size:24px;font-weight:700">Collections</span><span style="font-size:14px;color:var(--mut)">traits · Option · ownership</span></div>
+</section>
+
+<section style="padding:72px 64px 0">
+  <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px"><span style="font:500 12px 'JetBrains Mono',monospace;letter-spacing:.26em;color:var(--dim)">THE BENCH</span><span style="flex:1;height:1px;background:var(--line2)"></span><span style="font:400 12px 'JetBrains Mono',monospace;color:var(--dim)">read → write → run → review</span></div>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:20px;align-items:start">
+
+    <div style="border:1px solid var(--line2);border-radius:8px;background:var(--panel);overflow:hidden">
+      <div style="height:50px;display:flex;align-items:center;gap:18px;padding:0 20px;border-bottom:1px solid var(--line2);font:500 12px 'JetBrains Mono',monospace">
+        <span style="color:var(--fg)">src/lib.rs</span><span style="color:var(--dim)">tests.rs · read-only</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+          <button onClick="{{ toggleAc }}" style="display:flex;align-items:center;gap:8px;height:28px;padding:0 10px;border-radius:14px;border:1px solid {{ acBorder }};color:{{ acColor }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ acColor }}"></span>autocomplete {{ acWord }}</button>
+          <button onClick="{{ toggleRa }}" style="display:flex;align-items:center;gap:8px;height:28px;padding:0 10px;border-radius:14px;border:1px solid {{ raBorder }};color:{{ raColor }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ raColor }}"></span>rust-analyzer {{ raWord }}</button>
+          <span style="color:var(--dim)">2021</span>
+        </div>
+      </div>
+      <div style="padding:16px 0 150px;font:400 12.5px 'JetBrains Mono',monospace;color:var(--fg)">
+<div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">1</span><span style="white-space:pre"><span style="color:var(--kw)">use</span> std::cmp::<span style="color:var(--ty)">Reverse</span>;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">2</span><span style="white-space:pre"><span style="color:var(--kw)">use</span> std::collections::<span style="color:var(--ty)">BinaryHeap</span>;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">3</span></div>
+      <sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><div style="display:flex;height:18px;line-height:18px"><span style="width:64px;flex:none"></span><span style="white-space:pre;font-size:11px;color:var(--dim)">▸ Run 6 tests  |  Debug  |  1 reference</span></div></sc-if>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">4</span><span style="white-space:pre"><span style="color:var(--kw)">pub fn</span> <span style="color:var(--fn)">network_delay</span>(times: &amp;[(<span style="color:var(--ty)">usize</span>, <span style="color:var(--ty)">usize</span>, <span style="color:var(--ty)">u32</span>)], n: <span style="color:var(--ty)">usize</span>, k: <span style="color:var(--ty)">usize</span>) -&gt; <span style="color:var(--ty)">Option</span>&lt;<span style="color:var(--ty)">u32</span>&gt; {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">5</span><span style="white-space:pre">    <span style="color:var(--kw)">let mut</span> adj<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: Vec&lt;Vec&lt;(usize, u32)&gt;&gt;</span></sc-if> = <span style="color:var(--mac)">vec!</span>[<span style="color:var(--ty)">Vec</span>::<span style="color:var(--fn)">new</span>(); n + <span style="color:var(--num)">1</span>];</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">6</span><span style="white-space:pre">    <span style="color:var(--kw)">for</span> &amp;(u, v, w) <span style="color:var(--kw)">in</span> times {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">7</span><span style="white-space:pre">        adj[u].<span style="color:var(--fn)">push</span>((v, w));</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">8</span><span style="white-space:pre">    }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">9</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">10</span><span style="white-space:pre">    <span style="color:var(--kw)">let mut</span> dist<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: Vec&lt;u32&gt;</span></sc-if> = <span style="color:var(--mac)">vec!</span>[<span style="color:var(--ty)">u32</span>::<span style="color:var(--num)">MAX</span>; n + <span style="color:var(--num)">1</span>];</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">11</span><span style="white-space:pre">    <span style="color:var(--kw)">let mut</span> heap<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: BinaryHeap&lt;Reverse&lt;(u32, usize)&gt;&gt;</span></sc-if> = <span style="color:var(--ty)">BinaryHeap</span>::<span style="color:var(--fn)">new</span>();</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">12</span><span style="white-space:pre">    dist[k] = <span style="color:var(--num)">0</span>;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">13</span><span style="white-space:pre">    heap.<span style="color:var(--fn)">push</span>(<span style="color:var(--ty)">Reverse</span>((<span style="color:var(--num)">0</span>, k)));</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">14</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">15</span><span style="white-space:pre">    <span style="color:var(--kw)">while let</span> <span style="color:var(--ty)">Some</span>(<span style="color:var(--ty)">Reverse</span>((d, u))) = heap.<span style="color:var(--fn)">pop</span>() {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">16</span><span style="white-space:pre">        <span style="color:var(--kw)">if</span> d &gt; dist[u] { <span style="color:var(--kw)">continue</span>; }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">17</span><span style="white-space:pre">        <span style="color:var(--kw)">for</span> &amp;(v, w) <span style="color:var(--kw)">in</span> &amp;adj[u] {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">18</span><span style="white-space:pre">            <span style="color:var(--kw)">let</span> nd<sc-if value="{{ ra }}" hint-placeholder-val="{{ true }}"><span style="color:var(--inlay);background:var(--inlay-bg);border-radius:3px;padding:1px 4px;font-size:11.5px">: u32</span></sc-if> = d + w;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">19</span><span style="white-space:pre">            <span style="color:var(--kw)">if</span> nd &lt; dist[v] {</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">20</span><span style="white-space:pre">                dist[v] = nd;</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">21</span><span style="white-space:pre">                heap.<span style="color:var(--fn)">push</span>(<span style="color:var(--ty)">Reverse</span>((nd, v)));</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">22</span><span style="white-space:pre">            }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">23</span><span style="white-space:pre">        }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">24</span><span style="white-space:pre">    }</span></div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">25</span></div>
+      <div style="display:flex;height:21px;line-height:21px;position:relative;background:var(--sel)">
+        <span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--fg)">26</span><span style="white-space:pre">    dist[<span style="color:var(--num)">1</span>..].<span style="color:var(--fn)">iter</span>().<span style="color:var(--fn)">copied</span>().ma</span><span style="width:2px;height:16px;margin-top:2.5px;background:var(--acc)"></span>
+        <sc-if value="{{ popFull }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;top:23px;left:calc(64px + 30ch);display:flex;z-index:2;border:1px solid var(--line);border-radius:5px;background:var(--panel);box-shadow:0 12px 32px oklch(0 0 0 / 0.28);overflow:hidden">
+            <div style="width:300px;padding:4px 0;border-right:1px solid var(--line2)">
+              <sc-for list="{{ completions }}" as="c" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:8px;height:24px;padding:0 10px;background:{{ c.bg }}">
+                  <span style="width:14px;height:14px;flex:none;display:grid;place-items:center;border-radius:2px;background:var(--acc-bg);color:var(--acc);font-size:9.5px">fn</span>
+                  <span><span style="color:var(--acc);font-weight:600">ma</span>{{ c.rest }}</span>
+                  <span style="margin-left:auto;color:var(--dim);font-size:11px;white-space:nowrap">{{ c.sig }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="width:230px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;line-height:1.5;color:var(--mut)">
+              <span style="font:500 11.5px 'JetBrains Mono',monospace;color:var(--fg)">Iterator::max</span>
+              <span style="text-wrap:pretty">Largest element, or <code style="font-family:'JetBrains Mono',monospace;color:var(--fg)">None</code> if the iterator is empty. Ties return the last one.</span>
+              <span style="margin-top:auto;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">↵ accept · ⇥ next · esc</span>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ popBasic }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:23px;left:calc(64px + 30ch);width:260px;z-index:2;border:1px solid var(--line);border-radius:5px;background:var(--panel);box-shadow:0 12px 32px oklch(0 0 0 / 0.28);padding:4px 0">
+            <div style="display:flex;align-items:center;gap:8px;height:24px;padding:0 10px;background:var(--acc-bg)"><span style="width:14px;height:14px;display:grid;place-items:center;border-radius:2px;border:1px solid var(--line);color:var(--dim);font-size:9.5px">ab</span><span><span style="color:var(--acc);font-weight:600">MA</span>X</span><span style="margin-left:auto;color:var(--dim);font-size:11px">buffer word</span></div>
+            <div style="padding:6px 10px 4px;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">rust-analyzer off · words only</div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="display:flex;height:21px;line-height:21px"><span style="width:48px;flex:none;text-align:right;padding-right:16px;color:var(--dim)">27</span><span style="white-space:pre">}</span></div>
+      </div>
+      <div style="height:30px;display:flex;align-items:center;gap:18px;padding:0 20px;border-top:1px solid var(--line2);font:400 11px 'JetBrains Mono',monospace;color:var(--dim)">
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:{{ raDot }}"></span>{{ raStatus }}</span>
+        <span>Ln 26, Col 32</span><span style="margin-left:auto">rustc 1.84.0 stable · clippy on run</span>
+      </div>
+    </div>
+
+    <div style="border:1px solid var(--line2);border-radius:8px;background:var(--panel);padding:24px;display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font:600 14px 'JetBrains Mono',monospace">Test bench</span><span style="font:500 11px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--grn)">CARGO TEST</span></div>
+      <div>
+        <div style="height:36px;width:{{ barWidth }};display:flex;align-items:center;padding:0 14px;box-sizing:border-box;border-radius:3px;background:var(--grn);color:var(--on-acc);font:600 12px 'JetBrains Mono',monospace;letter-spacing:.16em;white-space:nowrap;transition:width .4s">{{ barLabel }}</div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:10px">
+          <sc-for list="{{ tests }}" as="t" hint-placeholder-count="6"><span style="height:5px;border-radius:1px;background:{{ t.seg }}"></span></sc-for>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <sc-for list="{{ tests }}" as="t" hint-placeholder-count="6">
+          <div style="padding:14px;border-radius:6px;border:1px solid {{ t.border }};background:var(--bg);display:flex;flex-direction:column;gap:12px;min-width:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font:500 11px 'JetBrains Mono',monospace;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.n }}</span><span style="flex:none;font:600 9.5px 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ t.tagColor }}">{{ t.tag }}</span></div>
+            <div style="display:flex;align-items:center;height:16px">
+              <sc-for list="{{ t.nodes }}" as="nd" hint-placeholder-count="3"><span style="width:12px;border-top:1px dashed {{ nd.ln }}"></span><span style="width:11px;height:11px;flex:none;box-sizing:border-box;border-radius:50%;border:1.5px solid {{ nd.bd }};background:{{ nd.fill }}"></span></sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:2px 8px;font:400 10.5px/1.5 'JetBrains Mono',monospace"><span style="color:var(--dim)">exp</span><span style="color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.exp }}</span><span style="color:var(--dim)">got</span><span style="color:{{ t.gotColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.got }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:14px 16px;border-radius:6px;background:var(--bad-bg);font-size:13.5px;line-height:1.55;color:var(--fg)"><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.16em;color:var(--bad)">UNREACHABLE_RETURNS_NONE</span><br>Node 3 is never reached, so <code style="font:500 12.5px 'JetBrains Mono',monospace">dist[3]</code> is still <code style="font:500 12.5px 'JetBrains Mono',monospace">u32::MAX</code> when you call <code style="font:500 12.5px 'JetBrains Mono',monospace">max()</code>.</div>
+      <div style="display:flex;gap:10px">
+        <button onClick="{{ run }}" style="flex:1;height:44px;border-radius:4px;background:var(--grn);color:var(--on-acc);font-size:14px;font-weight:700">{{ runLabel }}</button>
+        <button style="flex:1;height:44px;border-radius:4px;border:1px solid var(--line);font-size:14px;font-weight:500">Submit with hidden</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="hints" style="padding:72px 64px 0">
+  <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px"><span style="font:500 12px 'JetBrains Mono',monospace;letter-spacing:.26em;color:var(--dim)">HINTS &amp; SOLUTION</span><span style="flex:1;height:1px;background:var(--line2)"></span><span style="font:400 12px 'JetBrains Mono',monospace;color:var(--dim)">each hint pulls your re-solve date forward</span></div>
+  <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px">
+
+    <div style="height:290px;box-sizing:border-box;padding:28px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between"><span style="font:600 15px 'JetBrains Mono',monospace">Approach</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--vio)">HINT 1</span></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px">
+        <span style="width:34px;height:28px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;font:500 11px 'JetBrains Mono',monospace;color:var(--mut)">0</span>
+        <span style="width:34px;height:28px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;font:500 11px 'JetBrains Mono',monospace;color:var(--mut)">1</span>
+        <span style="width:34px;height:28px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;font:500 11px 'JetBrains Mono',monospace;color:var(--mut)">1</span>
+        <span style="width:34px;height:28px;display:grid;place-items:center;border:1.5px solid var(--acc);background:var(--acc-bg);border-radius:3px;font:600 11px 'JetBrains Mono',monospace;color:var(--acc)">2</span>
+        <span style="margin-left:6px;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">max(dist)</span>
+      </div>
+      <p style="margin:0;font-size:14px;line-height:1.6;color:var(--mut);text-wrap:pretty">Single source, non-negative weights: Dijkstra. The answer is the largest of the shortest distances.</p>
+    </div>
+
+    <div style="position:relative;height:290px;box-sizing:border-box;padding:28px;border:1px {{ h2Border }} var(--line);border-radius:8px;background:var(--panel);display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between"><span style="font:600 15px 'JetBrains Mono',monospace">Rust</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--vio)">HINT 2</span></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:28px;filter:{{ h2Blur }}">
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:center"><span style="width:44px;height:20px;display:grid;place-items:center;border:1.5px solid var(--bad);border-radius:3px;font:500 10.5px 'JetBrains Mono',monospace;color:var(--bad)">9</span><span style="width:44px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;font:500 10.5px 'JetBrains Mono',monospace;color:var(--mut)">5</span><span style="width:44px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;font:500 10.5px 'JetBrains Mono',monospace;color:var(--mut)">2</span><span style="font:400 10px 'JetBrains Mono',monospace;color:var(--dim)">heap</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:center"><span style="width:44px;height:20px;display:grid;place-items:center;border:1.5px solid var(--grn);background:var(--grn-bg);border-radius:3px;font:500 10.5px 'JetBrains Mono',monospace;color:var(--grn)">2</span><span style="width:44px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;font:500 10.5px 'JetBrains Mono',monospace;color:var(--mut)">5</span><span style="width:44px;height:20px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;font:500 10.5px 'JetBrains Mono',monospace;color:var(--mut)">9</span><span style="font:400 10px 'JetBrains Mono',monospace;color:var(--dim)">Reverse</span></div>
+      </div>
+      <p style="margin:0;font-size:14px;line-height:1.6;color:var(--mut);text-wrap:pretty;filter:{{ h2Blur }};user-select:none">BinaryHeap pops the largest item. Push <code style="font:500 12.5px 'JetBrains Mono',monospace">Reverse((dist, node))</code> so pop() gives the closest node.</p>
+      <sc-if value="{{ h2Locked }}" hint-placeholder-val="{{ true }}"><button onClick="{{ reveal2 }}" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:40px;padding:0 18px;border-radius:4px;background:var(--bg);border:1px solid var(--vio);color:var(--vio);font:600 12px 'JetBrains Mono',monospace;letter-spacing:.08em">Reveal hint 2 →</button></sc-if>
+    </div>
+
+    <div style="position:relative;height:290px;box-sizing:border-box;padding:28px;border:1px {{ h3Border }} var(--line);border-radius:8px;background:var(--panel);display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between"><span style="font:600 15px 'JetBrains Mono',monospace">Edge case</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--vio)">HINT 3</span></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;filter:{{ h3Blur }}">
+        <span style="width:34px;height:28px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;font:500 11px 'JetBrains Mono',monospace;color:var(--mut)">0</span>
+        <span style="width:34px;height:28px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:3px;font:500 11px 'JetBrains Mono',monospace;color:var(--mut)">1</span>
+        <span style="width:34px;height:28px;display:grid;place-items:center;border:1.5px solid var(--bad);background:var(--bad-bg);border-radius:3px;font:600 13px 'JetBrains Mono',monospace;color:var(--bad)">∞</span>
+        <span style="margin-left:6px;font:400 10.5px 'JetBrains Mono',monospace;color:var(--dim)">u32::MAX</span>
+      </div>
+      <p style="margin:0;font-size:14px;line-height:1.6;color:var(--mut);text-wrap:pretty;filter:{{ h3Blur }};user-select:none">A node still at <code style="font:500 12.5px 'JetBrains Mono',monospace">u32::MAX</code> was never reached. <code style="font:500 12.5px 'JetBrains Mono',monospace">max()</code> will return it as if it were a distance.</p>
+      <sc-if value="{{ h3Locked }}" hint-placeholder-val="{{ true }}"><button onClick="{{ reveal3 }}" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:40px;padding:0 18px;border-radius:4px;background:var(--bg);border:1px solid var(--vio);color:var(--vio);font:600 12px 'JetBrains Mono',monospace;letter-spacing:.08em">Reveal hint 3 →</button></sc-if>
+    </div>
+
+    <div style="height:290px;box-sizing:border-box;padding:28px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between"><span style="font:600 15px 'JetBrains Mono',monospace">Solution</span><span style="font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--grn)">{{ solTag }}</span></div>
+      <sc-if value="{{ solLocked }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:14px">
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px"><span style="height:5px;background:var(--grn)"></span><span style="height:5px;background:var(--grn)"></span><span style="height:5px;background:var(--line)"></span><span style="height:5px;background:var(--grn)"></span><span style="height:5px;background:var(--grn)"></span><span style="height:5px;background:var(--line)"></span></div>
+          <p style="margin:0;font-size:14px;line-height:1.6;color:var(--mut)">Opens at 6 / 6. Revealing early marks this assisted and schedules a re-solve in 3 days.</p>
+          <button onClick="{{ revealSol }}" style="align-self:flex-start;height:38px;padding:0 16px;border-radius:4px;border:1px solid var(--line);font-size:13.5px;font-weight:500">Reveal anyway</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{ solShown }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:14px;border-radius:4px;background:var(--bg);font:400 11.5px/1.7 'JetBrains Mono',monospace;white-space:pre;color:var(--fg)"><span style="color:var(--kw)">let</span> max = *dist[<span style="color:var(--num)">1</span>..].<span style="color:var(--fn)">iter</span>().<span style="color:var(--fn)">max</span>()?;
+(max != <span style="color:var(--ty)">u32</span>::<span style="color:var(--num)">MAX</span>).<span style="color:var(--fn)">then_some</span>(max)</div>
+        <p style="margin:0;font-size:13.5px;line-height:1.6;color:var(--mut)"><code style="font:500 12px 'JetBrains Mono',monospace;color:var(--fg)">then_some</code> turns the sentinel back into <code style="font:500 12px 'JetBrains Mono',monospace;color:var(--fg)">None</code>. O(E log E) time with lazy deletion.</p>
+      </sc-if>
+    </div>
+  </div>
+</section>
+
+<section style="padding:72px 64px 0">
+  <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px"><span style="font:500 12px 'JetBrains Mono',monospace;letter-spacing:.26em;color:var(--dim)">WHAT THIS TEACHES</span><span style="flex:1;height:1px;background:var(--line2)"></span><span style="font:400 12px 'JetBrains Mono',monospace;color:var(--dim)">linked drills in concepts</span></div>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px">
+    <sc-for list="{{ concepts }}" as="c" hint-placeholder-count="3">
+      <a href="#" style="padding:28px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);display:flex;flex-direction:column;gap:14px;color:var(--fg);text-decoration:none">
+        <div style="display:flex;justify-content:space-between;gap:12px"><span style="font:600 15px 'JetBrains Mono',monospace">{{ c.title }}</span><span style="flex:none;font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.2em;color:var(--vio)">{{ c.area }}</span></div>
+        <p style="margin:0;font-size:14px;line-height:1.6;color:var(--mut);text-wrap:pretty">{{ c.text }}</p>
+        <span style="font:400 11.5px 'JetBrains Mono',monospace;color:var(--dim)">{{ c.meta }}</span>
+      </a>
+    </sc-for>
+  </div>
+</section>
+
+<section style="padding:110px 64px 56px;display:flex;align-items:flex-end;justify-content:space-between;gap:40px">
+  <div>
+    <div style="font:500 12px 'JetBrains Mono',monospace;letter-spacing:.26em;color:var(--dim);margin-bottom:20px">INTERVIEW FOLLOW-UP</div>
+    <h2 style="margin:0;font-size:56px;line-height:1.04;font-weight:800;letter-spacing:-0.035em;max-width:900px">What breaks if the weights can go <span style="color:var(--vio)">negative?</span></h2>
+    <p style="margin:22px 0 0;font-size:18px;color:var(--mut)">Answer out loud first. Then try it: <a href="#" style="color:var(--grn)">17 · Cheapest flights within K stops →</a></p>
+  </div>
+  <div style="font:400 12px/1.8 'JetBrains Mono',monospace;color:var(--dim);text-align:right">run complete · 4 of 6<br>problem 15 of 32</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;}}">
+class Component extends DCLogic {
+  state = { theme: null, ac: true, ra: true, h2: false, h3: false, sol: false, running: false };
+  componentWillUnmount() { clearTimeout(this.t); }
+  renderVals() {
+    const s = this.state, p = this.props;
+    const theme = s.theme ?? p.theme ?? 'dark';
+    const C = [['x', '() -> Option<Self::Item>'], ['x_by', '(F) -> Option<..>'], ['x_by_key', '(F) -> Option<..>'], ['p', '(F) -> Map<Self, F>'], ['p_while', '(P) -> MapWhile<..>']];
+    const mk = (n, gapAt, bad) => Array.from({ length: n }, (_, i) => ({
+      ln: i === 0 || i === gapAt ? 'transparent' : 'var(--mut)',
+      bd: bad && i === gapAt ? 'var(--bad)' : i === 0 ? 'var(--acc)' : 'var(--mut)',
+      fill: i === 0 ? 'var(--acc-bg)' : 'transparent'
+    }));
+    const T = [
+      { n: 'single_node', st: 'pass', exp: 'Some(0)', got: 'Some(0)', nodes: mk(1) },
+      { n: 'chain_of_four', st: 'pass', exp: 'Some(2)', got: 'Some(2)', nodes: mk(4) },
+      { n: 'unreachable_returns_none', st: 'fail', exp: 'None', got: 'Some(4294967295)', nodes: mk(3, 2, true) },
+      { n: 'zero_weight_edges', st: 'pass', exp: 'Some(0)', got: 'Some(0)', nodes: mk(3) },
+      { n: 'duplicate_edges_min', st: 'pass', exp: 'Some(3)', got: 'Some(3)', nodes: mk(2) },
+      { n: 'hidden · dense_n100', st: 'hidden', exp: 'withheld', got: 'wrong answer', nodes: mk(6) }
+    ];
+    const tests = T.map(t => ({
+      ...t,
+      seg: s.running ? 'var(--line)' : t.st === 'pass' ? 'var(--grn)' : 'var(--bad)',
+      border: s.running ? 'var(--line2)' : t.st === 'fail' ? 'var(--bad)' : 'var(--line2)',
+      tag: s.running ? '…' : t.st === 'pass' ? 'PASS' : t.st === 'fail' ? 'FAIL' : 'HIDDEN',
+      tagColor: t.st === 'pass' ? 'var(--grn)' : 'var(--bad)',
+      gotColor: t.st === 'pass' ? 'var(--grn)' : 'var(--bad)'
+    }));
+    const hintsUsed = 1 + (s.h2 ? 1 : 0) + (s.h3 ? 1 : 0);
+    const onOff = (v) => ({ c: v ? 'var(--grn)' : 'var(--dim)', b: v ? 'var(--grn)' : 'var(--line)', w: v ? 'on' : 'off' });
+    const a = onOff(s.ac), r = onOff(s.ra);
+    return {
+      theme, toggleTheme: () => this.setState({ theme: theme === 'dark' ? 'light' : 'dark' }),
+      ra: s.ra, popFull: s.ac && s.ra, popBasic: s.ac && !s.ra,
+      completions: C.map(([rest, sig], i) => ({ rest, sig, bg: i === 0 ? 'var(--acc-bg)' : 'transparent' })),
+      toggleAc: () => this.setState({ ac: !s.ac }), toggleRa: () => this.setState({ ra: !s.ra }),
+      acColor: a.c, acBorder: a.b, acWord: a.w, raColor: r.c, raBorder: r.b, raWord: r.w,
+      raDot: s.ra ? 'var(--grn)' : 'var(--line)',
+      raStatus: s.ra ? 'rust-analyzer ready' : 'rust-analyzer off · errors on run only',
+      tests,
+      barWidth: s.running ? '12%' : '66.6%',
+      barLabel: s.running ? 'RUN' : 'PASSING · 4 OF 6',
+      runLabel: s.running ? 'Running…' : 'Run tests',
+      run: () => { if (s.running) return; this.setState({ running: true }); this.t = setTimeout(() => this.setState({ running: false }), 1200); },
+      hintsUsed,
+      h2Blur: s.h2 ? 'none' : 'blur(6px)', h2Locked: !s.h2, h2Border: s.h2 ? 'solid' : 'dashed', reveal2: () => this.setState({ h2: true }),
+      h3Blur: s.h3 ? 'none' : 'blur(6px)', h3Locked: !s.h3, h3Border: s.h3 ? 'solid' : 'dashed', reveal3: () => this.setState({ h3: true }),
+      solLocked: !s.sol, solShown: s.sol, solTag: s.sol ? 'ASSISTED' : 'LOCKED', revealSol: () => this.setState({ sol: true }),
+      concepts: [
+        { title: 'BinaryHeap & Reverse<T>', area: 'COLLECTIONS', text: 'Why the std heap is max-first, and how a newtype flips any Ord without writing an impl.', meta: '5 drills · 2 fix-this' },
+        { title: 'Ord for tuples', area: 'TRAITS', text: 'Derived Ord compares field by field, so (dist, node) sorts by distance first. When to impl it by hand.', meta: '8 drills · 3 fix-this' },
+        { title: 'Sentinels vs Option', area: 'ERROR HANDLING', text: '?, then_some and filter: keeping u32::MAX inside the function and None at the boundary.', meta: '6 drills · 2 fix-this' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

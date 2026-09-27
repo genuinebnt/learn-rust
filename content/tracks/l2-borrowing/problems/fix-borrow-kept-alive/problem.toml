@@ -1,0 +1,27 @@
+slug = "fix-borrow-kept-alive"
+title = "Fix: a borrow kept alive by a later use"
+mode = "fix"
+level = "easy"
+stage = "where-borrows-end"
+order = 7
+status = "ready"
+tags = ["E0499", "NLL"]
+teaches = [
+  "A borrow ends at its last use, not at the end of the block.",
+  "Reordering is often the whole fix.",
+]
+follow_up = "What did borrows look like before non-lexical lifetimes (Rust 2018)?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "A borrow lasts until its last use. Where is `first` last used?"
+
+[solution]
+explanation = "With non-lexical lifetimes, `first`'s borrow ends after `make_ascii_uppercase`, so moving that line up is the fix."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]
+max_changed_lines = 2

@@ -1,0 +1,35 @@
+slug = "critical-connections"
+title = "Critical connections"
+mode = "write"
+level = "hard"
+stage = "scc-bridges-arenas"
+order = 29
+status = "ready"
+tags = ["bridges", "lowlink", "edge ids"]
+teaches = [
+  "Skipping the parent edge by id, so parallel edges count.",
+  "Reusing the state-struct pattern.",
+]
+constraints = ["n ≤ 5000"]
+follow_up = "How would you find articulation points (critical nodes) instead?"
+
+[[examples]]
+input = "n = 4, edges = [(0,1), (1,2), (2,0), (1,3)]"
+output = "[(1, 3)]"
+
+[[hints]]
+kind = "approach"
+text = "Edge (u, v) to a DFS child v is a bridge when nothing in v's subtree reaches u or above: `low[v] > disc[u]`."
+
+[[hints]]
+kind = "edge case"
+text = "Skip the edge you arrived by, not the parent node. Otherwise a doubled edge looks like a bridge."
+
+[[hints]]
+kind = "rust"
+text = "Store `(neighbour, edge_id)` in the adjacency list so the edge can be identified."
+
+[solution]
+explanation = "Same lowlink idea as Tarjan's SCC, on undirected edges. Skipping by edge id handles parallel edges, which skipping by parent node gets wrong."
+time = "O(V + E)"
+space = "O(V + E)"

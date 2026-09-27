@@ -1,0 +1,39 @@
+slug = "template-formatter"
+title = "A tiny {name} template formatter"
+mode = "write"
+level = "hard"
+stage = "build"
+order = 18
+status = "ready"
+tags = ["char_indices", "Peekable", "error positions"]
+teaches = [
+  "A hand-written scanner over `char_indices().peekable()`.",
+  "`next_if` to consume `{{` and `}}` escapes.",
+]
+follow_up = "Add `{name:>8}` style alignment. Where would you parse the spec, and how would you apply it?"
+related = ["S1", "S4"]
+
+[[examples]]
+input = "\"Hi {name}!\", {name: \"Ada\"}"
+output = "Ok(\"Hi Ada!\")"
+
+[[examples]]
+input = "\"{{x}}\""
+output = "Ok(\"{x}\")"
+
+[[hints]]
+kind = "rust"
+text = "`char_indices().peekable()` gives byte offsets for errors, and `next_if(|&(_, c)| c == '{')` consumes an escape only if it's there."
+
+[[hints]]
+kind = "approach"
+text = "At a `{`, find the matching `}` with `template[i..].find('}')`, look the name up, then skip the iterator past the `}`."
+
+[[hints]]
+kind = "edge case"
+text = "Report byte offsets, not character counts: `\"é}\"` has its `}` at offset 2."
+
+[solution]
+explanation = "A small scanner with one character of lookahead handles escapes, placeholders and errors in a single pass. `HashMap<&str, &str>::get` takes a `&str` directly."
+time = "O(n)"
+space = "O(n)"

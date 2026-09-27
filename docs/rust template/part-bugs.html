@@ -1,0 +1,855 @@
+<!-- ═══════════════════════════════════════════
+     PART: BUG-FIND EXERCISES  (B1 – B9)
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="bugs-header">
+  <div class="ph-eyebrow">Bug-Find Exercises · Interviewer Reference</div>
+  <div class="ph-title">Find &amp; Fix the Bug</div>
+  <div class="ph-sub">
+    Hand the candidate the buggy (or non-compiling) code only — never the solution key. Give them a few minutes
+    to read silently, then ask them to explain what's wrong and why before writing the fix. For the compile-error
+    exercises specifically, the goal is for them to predict the compiler's complaint <em>before</em> you show it —
+    that's a much higher signal than fixing code that's already flagged as broken.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-time">9 exercises</span>
+    <span class="badge badge-time">Easy → Hard</span>
+    <span class="badge badge-time">10–20 min each</span>
+  </div>
+</div>
+
+<!-- ════════════ B1 · BORROW CHECKER FIGHT ════════════ -->
+<div class="section" id="b1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Bug Exercise 01 · 15 min</div>
+      <div class="sh-title">B1 · The Borrow Checker Fight</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">ownership</span>
+      <span class="chip">borrowing</span>
+      <span class="chip">mutable aliasing</span>
+      <span class="chip chip-easy">Easy–Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>This does not compile — ask the candidate to predict the compiler error, then explain the fix</div>
+<pre><span class="kw">fn</span> <span class="fn">find_and_remove_first_negative</span>(nums: &amp;<span class="kw">mut</span> Vec&lt;<span class="ty">i32</span>&gt;) -&gt; <span class="ty">Option</span>&lt;<span class="ty">i32</span>&gt; {
+<span class="bug-line">    <span class="kw">let</span> first_negative = nums.<span class="fn">iter</span>().<span class="fn">find</span>(|&amp;&amp;n| n &lt; <span class="nm">0</span>);</span>
+
+    <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(&amp;value) = first_negative {
+<span class="bug-line">        <span class="kw">let</span> pos = nums.<span class="fn">iter</span>().<span class="fn">position</span>(|&amp;n| n == value).<span class="fn">unwrap</span>();</span>
+<span class="bug-line">        nums.<span class="fn">remove</span>(pos);  <span class="cm">// ← candidate should predict: E0502, cannot borrow as mutable</span></span>
+        <span class="ty">Some</span>(value)
+    } <span class="kw">else</span> {
+        <span class="ty">None</span>
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> v = <span class="fn">vec!</span>[<span class="nm">1</span>, <span class="nm">2</span>, -<span class="nm">3</span>, <span class="nm">4</span>, -<span class="nm">5</span>];
+    <span class="fn">find_and_remove_first_negative</span>(&amp;<span class="kw">mut</span> v);
+}</pre>
+
+    <details>
+      <summary>Root cause · Fix · Follow-up probes</summary>
+      <div style="padding:16px 0 4px;">
+        <div class="card-label" style="color:var(--c-fail)"><span class="cl-pip" style="background:var(--c-fail)"></span>Root cause</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:12px;">
+          <code>first_negative</code> borrows <code>nums</code> immutably (via <code>.iter()</code>), and that
+          borrow's lifetime extends through the entire <code>if let</code> block because <code>value</code> is
+          extracted from it (technically <code>value</code> is a copy, but the compiler's borrow-checker
+          conservatively ties the borrow's scope to how the pattern binding is used — in practice with NLL, the
+          immutable borrow from <code>.iter()</code> ends right after <code>.find()</code> returns since we
+          destructure to an owned <code>i32</code> via <code>&amp;value</code>. The <em>actual</em> compile
+          error here comes from the <strong>second call</strong>: <code>nums.iter().position(...)</code> creates
+          <em>another</em> immutable borrow, and then <code>nums.remove(pos)</code> on the very next line requires
+          a <strong>mutable</strong> borrow while conceptually you're still "inside" the reasoning chain that
+          started with reading from <code>nums</code>. In this exact snippet as written, NLL is actually smart
+          enough that each individual borrow ends as soon as its last use finishes — the position borrow ends
+          right after <code>.unwrap()</code>, before <code>remove()</code> — so a candidate who tests this exact
+          code might find it <em>does</em> compile with modern NLL. This is itself the valuable teaching moment:
+          have the candidate explain <em>why</em> it compiles despite looking like a conflict, tracing through
+          when each borrow's last use actually occurs — that reasoning is the real skill being tested, regardless
+          of whether the final verdict is "compiles" or "doesn't."
+        </div>
+
+        <div class="card-label" style="color:var(--c-pass)"><span class="cl-pip" style="background:var(--c-pass)"></span>A version that definitely fails, and the idiomatic fix</div>
+<pre><span class="cm">// This version DOES fail to compile — the borrow is held across the mutation:</span>
+<span class="kw">fn</span> <span class="fn">broken</span>(nums: &amp;<span class="kw">mut</span> Vec&lt;<span class="ty">i32</span>&gt;) -&gt; <span class="ty">Option</span>&lt;<span class="ty">i32</span>&gt; {
+<span class="bug-line">    <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(first) = nums.<span class="fn">iter</span>().<span class="fn">find</span>(|&amp;&amp;n| n &lt; <span class="nm">0</span>) {</span>
+<span class="bug-line">        <span class="kw">let</span> pos = nums.<span class="fn">iter</span>().<span class="fn">position</span>(|n| n == first).<span class="fn">unwrap</span>();  <span class="cm">// E0502: first still borrows nums</span></span>
+        nums.<span class="fn">remove</span>(pos);
+        <span class="ty">Some</span>(*first)
+    } <span class="kw">else</span> { <span class="ty">None</span> }
+}
+
+<span class="cm">// Fix — find the index directly; only one borrow, ended before the mutation:</span>
+<span class="kw">fn</span> <span class="fn">fixed</span>(nums: &amp;<span class="kw">mut</span> Vec&lt;<span class="ty">i32</span>&gt;) -&gt; <span class="ty">Option</span>&lt;<span class="ty">i32</span>&gt; {
+    <span class="kw">let</span> pos = nums.<span class="fn">iter</span>().<span class="fn">position</span>(|&amp;n| n &lt; <span class="nm">0</span>)?;  <span class="cm">// borrow ends here</span>
+    <span class="ty">Some</span>(nums.<span class="fn">remove</span>(pos))                       <span class="cm">// mutation happens after</span>
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-rust)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why does binding to <code>first: &amp;i32</code> vs destructuring to <code>&amp;value</code> (copying out an owned i32) change whether the borrow persists?"</em> — When you destructure with <code>Some(&amp;value)</code> against an <code>Option&lt;&amp;i32&gt;</code>, you're pattern-matching through the reference and copying the <em>i32</em> out — <code>value</code> is an owned <code>i32</code> with no lifetime tied to <code>nums</code> at all. When you bind <code>Some(first)</code> where <code>first: &amp;i32</code>, you're holding onto the reference itself, and NLL must keep the borrow alive as long as <code>first</code> is used.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"What is 'two-phase borrows' and does it help here?"</em> — Two-phase borrows relax the rule for method calls like <code>vec.push(vec.len())</code> — the mutable borrow for <code>push</code> is reserved but not activated until after arguments are evaluated. It doesn't help across statement boundaries the way this bug spans two separate lines/lookups.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Why is finding the position directly, rather than the value, the more idiomatic Rust fix?"</em> — It collapses two separate borrows (one to find the value, one to find its position) into a single borrow that ends as soon as <code>.position()</code> returns — fewer borrows outstanding is generally both simpler to reason about and more likely to satisfy the borrow checker without fighting it.</span></li>
+          <li class="probe-item"><span class="probe-label">P4</span><span class="probe-text"><em>"How would you solve this with the entry-style pattern if nums were a HashMap instead of a Vec?"</em> — The equivalent bug (borrow from a lookup held across a subsequent mutation) shows up constantly with HashMaps too — the entry API (from the collections topic) exists specifically to collapse a lookup-then-mutate sequence into one borrow, avoiding this exact class of fight.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    The strongest candidates predict the compiler's exact reasoning about <em>when a borrow's last use occurs</em>
+    rather than just pattern-matching "looks like two borrows, must be an error." Being able to correctly say
+    "actually, I think this compiles because the first borrow's last use is before the mutation" — and being right —
+    is a stronger signal than reflexively assuming every multi-borrow snippet is broken.
+  </div>
+</div>
+
+<!-- ════════════ B2 · RC CYCLE LEAK ════════════ -->
+<div class="section" id="b2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Bug Exercise 02 · 15 min</div>
+      <div class="sh-title">B2 · The Rc Cycle Leak</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">Rc</span>
+      <span class="chip">RefCell</span>
+      <span class="chip">memory leak</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>This compiles and runs without panicking — but leaks memory. Find out why.</div>
+<pre><span class="kw">use</span> std::cell::RefCell;
+<span class="kw">use</span> std::rc::Rc;
+
+<span class="kw">struct</span> <span class="ty">Node</span> {
+    value: <span class="ty">i32</span>,
+    parent: RefCell&lt;<span class="ty">Option</span>&lt;Rc&lt;<span class="ty">Node</span>&gt;&gt;&gt;,
+<span class="bug-line">    children: RefCell&lt;Vec&lt;Rc&lt;<span class="ty">Node</span>&gt;&gt;&gt;,</span>
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> parent = Rc::<span class="fn">new</span>(<span class="ty">Node</span> {
+        value: <span class="nm">1</span>,
+        parent: RefCell::<span class="fn">new</span>(<span class="ty">None</span>),
+        children: RefCell::<span class="fn">new</span>(<span class="fn">vec!</span>[]),
+    });
+
+    <span class="kw">let</span> child = Rc::<span class="fn">new</span>(<span class="ty">Node</span> {
+        value: <span class="nm">2</span>,
+        parent: RefCell::<span class="fn">new</span>(<span class="ty">None</span>),
+        children: RefCell::<span class="fn">new</span>(<span class="fn">vec!</span>[]),
+    });
+
+<span class="bug-line">    parent.children.<span class="fn">borrow_mut</span>().<span class="fn">push</span>(Rc::<span class="fn">clone</span>(&amp;child));   <span class="cm">// parent → child (strong)</span></span>
+<span class="bug-line">    *child.parent.<span class="fn">borrow_mut</span>() = <span class="ty">Some</span>(Rc::<span class="fn">clone</span>(&amp;parent)); <span class="cm">// child → parent (strong) — CYCLE</span></span>
+
+    <span class="fn">println!</span>(<span class="st">"parent strong_count = {}"</span>, Rc::<span class="fn">strong_count</span>(&amp;parent)); <span class="cm">// 2, not 1!</span>
+    <span class="cm">// Neither Node is ever dropped, even after both `parent` and `child` go out of scope.</span>
+}</pre>
+
+    <details>
+      <summary>Root cause · Fix · Follow-up probes</summary>
+      <div style="padding:16px 0 4px;">
+        <div class="card-label" style="color:var(--c-fail)"><span class="cl-pip" style="background:var(--c-fail)"></span>Root cause</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:12px;">
+          <code>parent</code> holds a <strong>strong</strong> reference to <code>child</code> (via
+          <code>children: Vec&lt;Rc&lt;Node&gt;&gt;</code>), and <code>child</code> holds a <strong>strong</strong>
+          reference back to <code>parent</code> (via <code>parent: Option&lt;Rc&lt;Node&gt;&gt;</code>) — a
+          reference cycle. When <code>main</code> ends, the local variables <code>parent</code> and
+          <code>child</code> drop, decrementing each's strong count by one — but each node's strong count was 2
+          (one from the local variable, one from the other node's field), so after both locals drop, each count is
+          still 1, never reaching zero. Neither <code>Node</code>'s destructor ever runs, and the memory for both
+          nodes (plus their <code>RefCell</code>s and any heap data inside) leaks for the remaining lifetime of
+          the program. This does not crash, does not panic, and produces no error of any kind — it's a silent
+          leak, exactly the "unsound but every test passes" category of correctness issue discussed in the
+          unsafe/soundness topic, except achievable in <em>entirely safe</em> Rust code.
+        </div>
+
+        <div class="card-label" style="color:var(--c-pass)"><span class="cl-pip" style="background:var(--c-pass)"></span>Correct fix — break the cycle with Weak</div>
+<pre><span class="kw">use</span> std::rc::{Rc, Weak};
+
+<span class="kw">struct</span> <span class="ty">Node</span> {
+    value: <span class="ty">i32</span>,
+    parent: RefCell&lt;<span class="ty">Option</span>&lt;Weak&lt;<span class="ty">Node</span>&gt;&gt;&gt;,   <span class="cm">// ← back-edge is now non-owning</span>
+    children: RefCell&lt;Vec&lt;Rc&lt;<span class="ty">Node</span>&gt;&gt;&gt;,      <span class="cm">// forward edge stays strong</span>
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> parent = Rc::<span class="fn">new</span>(<span class="ty">Node</span> { value: <span class="nm">1</span>, parent: RefCell::<span class="fn">new</span>(<span class="ty">None</span>), children: RefCell::<span class="fn">new</span>(<span class="fn">vec!</span>[]) });
+    <span class="kw">let</span> child  = Rc::<span class="fn">new</span>(<span class="ty">Node</span> { value: <span class="nm">2</span>, parent: RefCell::<span class="fn">new</span>(<span class="ty">None</span>), children: RefCell::<span class="fn">new</span>(<span class="fn">vec!</span>[]) });
+
+    parent.children.<span class="fn">borrow_mut</span>().<span class="fn">push</span>(Rc::<span class="fn">clone</span>(&amp;child));
+    *child.parent.<span class="fn">borrow_mut</span>() = <span class="ty">Some</span>(Rc::<span class="fn">downgrade</span>(&amp;parent));  <span class="cm">// Weak — no strong count increment</span>
+
+    <span class="fn">println!</span>(<span class="st">"parent strong_count = {}"</span>, Rc::<span class="fn">strong_count</span>(&amp;parent)); <span class="cm">// 1 — correct</span>
+    <span class="cm">// To use the parent from the child: child.parent.borrow().as_ref().unwrap().upgrade()</span>
+    <span class="cm">// returns Option<Rc<Node>> — None if the parent has already been dropped.</span>
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-rust)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"How would you actually detect this leak, given that it doesn't crash or panic?"</em> — <code>Rc::strong_count()</code> checked in tests/asserts after dropping all expected owners is the direct way; more generally, a leak-detection tool (Valgrind works on Rust binaries too, or a heap profiler like dhat-rs / heaptrack showing steadily growing retained memory with no corresponding drops) would surface it in a running process over time.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Why doesn't the borrow checker catch this at compile time the way it catches other memory bugs?"</em> — Rc/RefCell deliberately opt out of the borrow checker's compile-time reasoning — Rc provides runtime-managed shared ownership specifically because compile-time-checked single ownership isn't expressible for this use case (a genuine graph with shared parent/child ownership). The trade-off is that some correctness properties (like acyclicity) move from "enforced by the compiler" to "the programmer's responsibility," exactly as discussed in this packet's Rc/RefCell design-smell critique.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"What happens if you call .upgrade() on a Weak after the parent has actually been dropped?"</em> — Returns <code>None</code> — this is exactly why Weak::upgrade() returns an Option rather than a bare Rc: the compiler forces you to handle the case where the referenced value no longer exists, unlike a dangling raw pointer which would just be undefined behaviour to dereference.</span></li>
+          <li class="probe-item"><span class="probe-label">P4</span><span class="probe-text"><em>"Is there a way to design this data structure to avoid Rc/RefCell entirely?"</em> — Yes — an arena-based design (e.g. all nodes stored in one Vec&lt;Node&gt;, with parent/child relationships represented as plain usize indices into that Vec rather than Rc pointers) sidesteps the whole Rc/Weak/RefCell machinery, trading a small amount of index-based ergonomics for a data structure with no possibility of reference cycles or runtime borrow panics at all — a common pattern in Rust game engines and compilers (e.g. AST representations).</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    A candidate who immediately reaches for an arena/index-based redesign as an alternative to Rc/Weak — rather
+    than treating Weak as the only tool in the box — is showing awareness that Rc-based graphs are one valid
+    design among several, not the default correct answer for every parent/child structure.
+  </div>
+</div>
+
+<!-- ════════════ B3 · MUTEX DEADLOCK ════════════ -->
+<div class="section" id="b3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Bug Exercise 03 · 15 min</div>
+      <div class="sh-title">B3 · Mutex Deadlock</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">Mutex</span>
+      <span class="chip">lock ordering</span>
+      <span class="chip">self-deadlock</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>This hangs forever on the second call. Why?</div>
+<pre><span class="kw">use</span> std::sync::Mutex;
+
+<span class="kw">struct</span> <span class="ty">Account</span> { balance: Mutex&lt;<span class="ty">i64</span>&gt; }
+
+<span class="kw">impl</span> <span class="ty">Account</span> {
+    <span class="kw">fn</span> <span class="fn">balance</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">i64</span> {
+        *<span class="kw">self</span>.balance.<span class="fn">lock</span>().<span class="fn">unwrap</span>()
+    }
+
+    <span class="kw">fn</span> <span class="fn">withdraw</span>(&amp;<span class="kw">self</span>, amount: <span class="ty">i64</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">String</span>&gt; {
+<span class="bug-line">        <span class="kw">let</span> <span class="kw">mut</span> bal = <span class="kw">self</span>.balance.<span class="fn">lock</span>().<span class="fn">unwrap</span>();  <span class="cm">// lock acquired, held for the rest of the function</span></span>
+        <span class="kw">if</span> *bal &lt; amount {
+            <span class="kw">return</span> <span class="ty">Err</span>(<span class="st">"insufficient funds"</span>.<span class="fn">to_string</span>());
+        }
+<span class="bug-line">        <span class="fn">println!</span>(<span class="st">"current balance: {}"</span>, <span class="kw">self</span>.<span class="fn">balance</span>());  <span class="cm">// ← calls balance(), which tries to lock again</span></span>
+        *bal -= amount;
+        <span class="ty">Ok</span>(())
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> acct = <span class="ty">Account</span> { balance: Mutex::<span class="fn">new</span>(<span class="nm">100</span>) };
+    acct.<span class="fn">withdraw</span>(<span class="nm">30</span>).<span class="fn">unwrap</span>();  <span class="cm">// hangs forever, never returns</span>
+}</pre>
+
+    <details>
+      <summary>Root cause · Fix · Follow-up probes</summary>
+      <div style="padding:16px 0 4px;">
+        <div class="card-label" style="color:var(--c-fail)"><span class="cl-pip" style="background:var(--c-fail)"></span>Root cause</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:12px;">
+          This is a <strong>self-deadlock</strong> — the same thread tries to acquire a lock it's already
+          holding. <code>withdraw()</code> calls <code>self.balance.lock()</code> and binds the guard to
+          <code>bal</code>, which stays alive (the lock stays held) for the rest of the function since it's used
+          again later (<code>*bal -= amount</code>). While still holding that lock, it calls
+          <code>self.balance()</code>, which itself tries to <code>self.balance.lock()</code> — but
+          <code>std::sync::Mutex</code> is <strong>not reentrant</strong>: a thread trying to lock a mutex it
+          already holds simply blocks forever waiting for itself to release it, which of course never happens.
+          Unlike some other languages' mutex implementations (e.g. certain reentrant-by-default lock types),
+          Rust's standard mutex — and most mutex implementations generally — assume a thread never tries to
+          re-acquire a lock it holds, and provide no special-casing for it; there's no error, no panic, just a
+          silent, permanent hang.
+        </div>
+
+        <div class="card-label" style="color:var(--c-pass)"><span class="cl-pip" style="background:var(--c-pass)"></span>Fix — don't call a locking method while already holding the lock</div>
+<pre><span class="kw">fn</span> <span class="fn">withdraw</span>(&amp;<span class="kw">self</span>, amount: <span class="ty">i64</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">String</span>&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> bal = <span class="kw">self</span>.balance.<span class="fn">lock</span>().<span class="fn">unwrap</span>();
+    <span class="kw">if</span> *bal &lt; amount {
+        <span class="kw">return</span> <span class="ty">Err</span>(<span class="st">"insufficient funds"</span>.<span class="fn">to_string</span>());
+    }
+<span class="ok-line">    <span class="fn">println!</span>(<span class="st">"current balance: {}"</span>, *bal);  <span class="cm">// read the already-held guard directly, no re-lock</span></span>
+    *bal -= amount;
+    <span class="ty">Ok</span>(())
+}
+<span class="cm">// General rule: within a method that holds a lock guard for its whole body,</span>
+<span class="cm">// never call another method on self that itself tries to acquire the same lock.</span></pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-rust)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Would this bug happen with parking_lot::Mutex too?"</em> — Yes — parking_lot's Mutex is also non-reentrant by default (it does offer a separate ReentrantMutex type specifically for cases where re-entrant locking is genuinely needed, but that's opt-in, not the default Mutex).</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would you detect this in a larger codebase where the re-entrant call isn't so obviously two lines apart?"</em> — parking_lot has an optional deadlock-detection feature (parking_lot::deadlock::check_deadlock()) that can be run periodically or on a debug endpoint to detect stuck locks in a running process. More generally, if a request/task hangs indefinitely, a stack dump of all threads (or, in async code, tokio-console's task inspection) showing a thread blocked inside its own call stack on the same lock is the diagnostic signature.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Is this the same class of bug as the four-Coffman-conditions deadlock discussed elsewhere in this packet?"</em> — It's a degenerate, single-thread special case of circular wait — the "cycle" here is a single thread waiting on a lock that only it could release, forming a cycle of length one. All four Coffman conditions technically still apply, just with the same thread playing both roles in the cycle.</span></li>
+          <li class="probe-item"><span class="probe-label">P4</span><span class="probe-text"><em>"What's a design pattern that would make this class of bug structurally harder to write?"</em> — Keep public methods that lock internally very small and non-recursive — never have a locking method call another public method on self. Alternatively, split into a private, lock-free "core logic" method operating on the already-unlocked data, called by multiple small public wrapper methods that each lock once, call the core method, and unlock — this avoids ever needing to call a self-locking method while a lock is held.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Self-deadlock via an innocuous-looking helper-method call is a genuinely common real-world bug, especially as
+    codebases grow and a "just call the getter" habit creeps into methods that already hold the lock. Candidates
+    who've hit this in production usually recognize it instantly; candidates who haven't often take a while to
+    see it even after being told it hangs.
+  </div>
+</div>
+
+<!-- ════════════ B4 · PANIC IN PRODUCTION ════════════ -->
+<div class="section" id="b4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Bug Exercise 04 · 12 min</div>
+      <div class="sh-title">B4 · Panic in Production</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">unwrap</span>
+      <span class="chip">error handling</span>
+      <span class="chip">untrusted input</span>
+      <span class="chip chip-easy">Easy</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>This axum handler works fine in every manual test but crashes the whole worker thread under real traffic. Find all three problems.</div>
+<pre><span class="kw">async fn</span> <span class="fn">get_user_age</span>(<span class="ty">Path</span>(params): <span class="ty">Path</span>&lt;<span class="ty">String</span>&gt;) -&gt; <span class="ty">String</span> {
+<span class="bug-line">    <span class="kw">let</span> parts: Vec&lt;&amp;<span class="ty">str</span>&gt; = params.<span class="fn">split</span>(<span class="st">','</span>).<span class="fn">collect</span>();</span>
+<span class="bug-line">    <span class="kw">let</span> name = parts[<span class="nm">0</span>];                                <span class="cm">// panics if params has no comma</span></span>
+<span class="bug-line">    <span class="kw">let</span> birth_year: <span class="ty">i32</span> = parts[<span class="nm">1</span>].<span class="fn">parse</span>().<span class="fn">unwrap</span>();  <span class="cm">// panics on bad index AND bad parse</span></span>
+    <span class="kw">let</span> age = <span class="nm">2026</span> - birth_year;
+    <span class="fn">format!</span>(<span class="st">"{name} is {age} years old"</span>)
+}
+<span class="cm">// GET /age/Alice,1990   → "Alice is 36 years old"   (works)</span>
+<span class="cm">// GET /age/BadInput     → panics: index out of bounds</span>
+<span class="cm">// GET /age/Bob,notayear → panics: ParseIntError</span></pre>
+
+    <details>
+      <summary>Root cause · Fix · Follow-up probes</summary>
+      <div style="padding:16px 0 4px;">
+        <div class="card-label" style="color:var(--c-fail)"><span class="cl-pip" style="background:var(--c-fail)"></span>Root cause — three separate panic sources from untrusted input</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:12px;">
+          (1) <strong><code>parts[0]</code> / <code>parts[1]</code></strong> indexing panics if the split produces
+          fewer than 2 elements (input has no comma, or is empty) — indexing a slice out of bounds is one of the
+          most common panic sources in Rust, precisely because it looks like ordinary, safe-looking code.
+          (2) <strong><code>.parse().unwrap()</code></strong> panics if the second part isn't valid integer text —
+          any non-numeric string after the comma crashes the handler. <strong>Why "works in every manual test"</strong>:
+          manual testing naturally uses well-formed input; it's exactly the adversarial/malformed inputs a fuzzer
+          or real internet traffic would send (empty strings, missing delimiters, non-numeric text, extremely
+          large numbers overflowing <code>i32::parse</code>) that trigger these — precisely the class of bug the
+          fuzzing topic discussed as fuzzing's specialty. <strong>Blast radius</strong>: by default, a panic
+          inside a Tokio task <strong>does not crash the whole process</strong> — Tokio catches the panic at the
+          task boundary and the specific request fails (the client gets a connection reset or 500, not a graceful
+          error response) — but every other concurrent request being handled correctly on that worker continues
+          unaffected. This is a real, if lesser, availability issue (a whole request fails ungracefully rather
+          than the framework being able to catch it and return a clean error), but it's a common misconception
+          that this pattern crashes the entire server process — worth having the candidate state this precisely.
+        </div>
+
+        <div class="card-label" style="color:var(--c-pass)"><span class="cl-pip" style="background:var(--c-pass)"></span>Fix — replace every unwrap/index with explicit error handling</div>
+<pre><span class="kw">async fn</span> <span class="fn">get_user_age</span>(<span class="ty">Path</span>(params): <span class="ty">Path</span>&lt;<span class="ty">String</span>&gt;) -&gt; <span class="ty">Result</span>&lt;<span class="ty">String</span>, (<span class="ty">StatusCode</span>, <span class="ty">String</span>)&gt; {
+    <span class="kw">let</span> (name, year_str) = params.<span class="fn">split_once</span>(<span class="st">','</span>)
+        .<span class="fn">ok_or</span>((<span class="ty">StatusCode</span>::<span class="ty">BAD_REQUEST</span>, <span class="st">"expected format: name,year"</span>.<span class="fn">into</span>()))?;
+
+    <span class="kw">let</span> birth_year: <span class="ty">i32</span> = year_str.<span class="fn">parse</span>()
+        .<span class="fn">map_err</span>(|_| (<span class="ty">StatusCode</span>::<span class="ty">BAD_REQUEST</span>, <span class="fn">format!</span>(<span class="st">"'{year_str}' is not a valid year"</span>)))?;
+
+    <span class="kw">let</span> age = <span class="nm">2026</span> - birth_year;
+    <span class="ty">Ok</span>(<span class="fn">format!</span>(<span class="st">"{name} is {age} years old"</span>))
+}
+<span class="cm">// split_once returns Option<(&str, &str)> — no indexing, no panic on missing comma.</span>
+<span class="cm">// map_err turns the parse failure into a client-facing 400 instead of a task panic.</span></pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-rust)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Does a panic in one Tokio task bring down the whole server?"</em> — No — Tokio isolates panics per task by default (catch_unwind at the task boundary); that specific request/task fails, but the process and other in-flight tasks continue. It's still a real bug (an ungraceful failure, potentially with no client-visible error message and confusing logs), just not a full outage — precision on this distinction matters.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would clippy have helped catch this before it shipped?"</em> — clippy's `unwrap_used` and `indexing_slicing` lints (part of the stricter "pedantic" or "restriction" lint groups, not enabled by default) specifically flag exactly this pattern — many teams enable these lints project-wide for handler/parsing code that touches untrusted input, exactly to prevent this class of bug from ever compiling cleanly.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Would fuzzing have caught this, and how quickly?"</em> — Yes, almost immediately — a fuzzer given this function (or exercised via cargo-fuzz against the parsing logic in isolation) would find the empty-string and non-numeric-input panics within the first few seconds/iterations, since they require no cleverness to hit — this is exactly the class of "adversarial input causes a panic" bug the fuzzing topic names as fuzzing's specialty.</span></li>
+          <li class="probe-item"><span class="probe-label">P4</span><span class="probe-text"><em>"Is unwrap() ever acceptable in production code?"</em> — Yes, when the invariant it's asserting is genuinely guaranteed by earlier code in the same function/module (e.g. unwrapping a value you just inserted into a HashMap two lines earlier) — the distinguishing question is always "can external, untrusted input reach this unwrap," not "is unwrap used at all." A good habit: use `.expect("reason this can't fail")` instead of bare `.unwrap()` for these justified cases, documenting the invariant at the call site.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    The most senior-sounding answer distinguishes "panic isolated to one task, not a process crash" from "panic
+    crashes the whole server" — precision about blast radius, not just "this is bad," is the differentiator, and
+    it directly informs how urgently a team should treat this class of bug.
+  </div>
+</div>
+
+<!-- ════════════ B5 · INTEGER OVERFLOW ════════════ -->
+<div class="section" id="b5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Bug Exercise 05 · 12 min</div>
+      <div class="sh-title">B5 · Integer Overflow — Debug vs Release</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">integer arithmetic</span>
+      <span class="chip">overflow</span>
+      <span class="chip">debug vs release</span>
+      <span class="chip chip-easy">Easy–Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>Why does this behave differently in `cargo run` vs `cargo run --release`?</div>
+<pre><span class="kw">fn</span> <span class="fn">calculate_total_price</span>(unit_price_cents: <span class="ty">u32</span>, quantity: <span class="ty">u32</span>) -&gt; <span class="ty">u32</span> {
+<span class="bug-line">    unit_price_cents * quantity  <span class="cm">// ← what happens when this overflows u32?</span></span>
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> price = <span class="fn">calculate_total_price</span>(<span class="nm">4_000_000_000</span>, <span class="nm">3</span>);
+    <span class="fn">println!</span>(<span class="st">"total: {price} cents"</span>);
+}
+<span class="cm">// cargo run             → panics: "attempt to multiply with overflow"</span>
+<span class="cm">// cargo run --release   → prints a silently wrapped, wrong number — no panic</span></pre>
+
+    <details>
+      <summary>Root cause · Fix · Follow-up probes</summary>
+      <div style="padding:16px 0 4px;">
+        <div class="card-label" style="color:var(--c-fail)"><span class="cl-pip" style="background:var(--c-fail)"></span>Root cause</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:12px;">
+          Unlike C++, integer overflow in Rust is <strong>not undefined behaviour</strong> — but its <em>observable
+          behaviour</em> deliberately differs between build profiles for performance reasons. In <strong>debug
+          builds</strong> (<code>cargo run</code>, or explicitly <code>[profile.dev] overflow-checks = true</code>,
+          the default), every arithmetic operation on primitive integers is instrumented with an overflow check
+          that <strong>panics</strong> if it would overflow — this exists to catch overflow bugs early during
+          development. In <strong>release builds</strong> (<code>cargo run --release</code>, default
+          <code>overflow-checks = false</code>), these checks are compiled out entirely for performance, and
+          overflowing arithmetic instead <strong>wraps</strong> silently (two's-complement wraparound, well
+          -defined and consistent, unlike C++'s UB) — <code>4_000_000_000 * 3 = 12_000_000_000</code>, which
+          exceeds <code>u32::MAX</code> (~4.29 billion), wraps to a much smaller, wrong value with zero indication
+          anything went wrong. This is a genuinely dangerous default combination for real code: your dev/test
+          environment panics loudly on overflow (so you might reasonably believe your test suite would catch this
+          class of bug), but production — the release build — silently produces wrong numbers instead, with
+          <strong>no error, no log, no crash</strong>, which for something like a price calculation is a real,
+          quiet financial-correctness bug that could easily reach production undetected.
+        </div>
+
+        <div class="card-label" style="color:var(--c-pass)"><span class="cl-pip" style="background:var(--c-pass)"></span>Fixes — choose explicit overflow semantics rather than relying on build-profile behaviour</div>
+<pre><span class="cm">// Option 1: checked_mul — returns None on overflow, force the caller to handle it</span>
+<span class="kw">fn</span> <span class="fn">calculate_total_price</span>(unit_price_cents: <span class="ty">u32</span>, quantity: <span class="ty">u32</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">u32</span>&gt; {
+    unit_price_cents.<span class="fn">checked_mul</span>(quantity)
+}
+
+<span class="cm">// Option 2: use a wider type if the domain genuinely allows larger totals</span>
+<span class="kw">fn</span> <span class="fn">calculate_total_price_u64</span>(unit_price_cents: <span class="ty">u32</span>, quantity: <span class="ty">u32</span>) -&gt; <span class="ty">u64</span> {
+    unit_price_cents <span class="kw">as</span> <span class="ty">u64</span> * quantity <span class="kw">as</span> <span class="ty">u64</span>
+}
+
+<span class="cm">// Option 3: enable overflow-checks in release too, if correctness &gt; raw speed here</span>
+<span class="cm">// Cargo.toml:</span>
+<span class="cm">// [profile.release]</span>
+<span class="cm">// overflow-checks = true</span></pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-rust)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Is this the same class of bug as C++'s signed integer overflow UB?"</em> — No, and this is an important distinction — C++ signed overflow is undefined behaviour (the compiler can assume it never happens and optimise on that assumption, sometimes removing overflow checks entirely). Rust's release-mode wrapping is well-defined, deterministic two's-complement wraparound — wrong, but not UB. The danger here is purely "silent + wrong," not "the compiler might do something totally unrelated to what you wrote."</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Why doesn't Rust just always panic on overflow, even in release?"</em> — Performance — overflow checks add a branch to every single arithmetic operation project-wide, and for code with tight numeric loops (games, numerical computing, codecs) this can be a measurable throughput cost. The debug/release split is a deliberate trade-off: fast feedback during development, raw speed in production, with the expectation that developers who need release-mode safety explicitly opt in via checked/wrapping/saturating methods at the specific call sites that matter.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"What's the difference between wrapping_mul, saturating_mul, and overflowing_mul?"</em> — wrapping_mul always wraps (same as release-mode default behaviour, but explicit and intentional). saturating_mul clamps to the type's MAX/MIN instead of wrapping — often more useful for user-facing quantities where "clamp to max" is a more sensible failure mode than wrapping to a small number. overflowing_mul returns a (value, bool) tuple — the wrapped value plus whether overflow occurred — giving you both pieces of information in one call.</span></li>
+          <li class="probe-item"><span class="probe-label">P4</span><span class="probe-text"><em>"For a real payments/pricing system, which of these would you actually pick and why?"</em> — checked_mul (or the wider-type approach if the valid range is well understood) — for money-related calculations specifically, silently wrong output is much worse than an explicit, handleable failure. Enabling overflow-checks in release everywhere is the blunt-instrument version of the same idea but pays the performance cost project-wide rather than just at the sensitive call sites — for most services, targeted checked arithmetic at the handful of money-touching call sites is the better trade-off.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Precisely distinguishing "well-defined wrapping" from "undefined behaviour" is a great litmus test for whether
+    a candidate's C++ background has led them to over-generalize a UB-flavoured fear onto Rust, where the actual
+    risk profile (silent wrong answer, not memory corruption or compiler-assumption chaos) is real but categorically
+    different and worth describing accurately.
+  </div>
+</div>
+
+<!-- ════════════ B6 · BLOCKING ASYNC RUNTIME ════════════ -->
+<div class="section" id="b6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Bug Exercise 06 · 15 min</div>
+      <div class="sh-title">B6 · Blocking the Async Runtime</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">Tokio</span>
+      <span class="chip">async</span>
+      <span class="chip">worker starvation</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>Under low traffic this works fine. Under moderate concurrent load, p99 latency explodes across totally unrelated endpoints. Why?</div>
+<pre><span class="kw">async fn</span> <span class="fn">generate_report</span>(<span class="ty">Query</span>(params): <span class="ty">Query</span>&lt;ReportParams&gt;) -&gt; <span class="ty">Json</span>&lt;<span class="ty">Report</span>&gt; {
+    <span class="kw">let</span> data = fetch_raw_data(&amp;params).<span class="kw">await</span>;
+
+<span class="bug-line">    <span class="cm">// Heavy CPU-bound aggregation over potentially 100k+ rows — no .await inside</span></span>
+<span class="bug-line">    <span class="kw">let</span> report = compute_expensive_aggregation(data);  <span class="cm">// ← runs synchronously, ~200ms for large datasets</span></span>
+
+    <span class="ty">Json</span>(report)
+}
+
+<span class="cm">// This handler is registered alongside dozens of other, unrelated, fast endpoints</span>
+<span class="cm">// on the same axum Router, all served by the same default Tokio runtime.</span></pre>
+
+    <details>
+      <summary>Root cause · Fix · Follow-up probes</summary>
+      <div style="padding:16px 0 4px;">
+        <div class="card-label" style="color:var(--c-fail)"><span class="cl-pip" style="background:var(--c-fail)"></span>Root cause</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:12px;">
+          <code>compute_expensive_aggregation(data)</code> is a purely synchronous, CPU-bound function with no
+          <code>.await</code> points inside it — while it runs, it <strong>monopolises the Tokio worker thread</strong>
+          it happens to be scheduled on for its entire ~200ms duration, during which that worker thread cannot make
+          progress on <em>any other task</em> — not just other calls to this same endpoint, but literally any
+          other in-flight request being handled by that specific worker thread, including completely unrelated,
+          normally-fast endpoints. Under low traffic, there's a good chance each request lands on an otherwise
+          -idle worker, so the effect is invisible; under moderate concurrent load, with multiple requests to this
+          endpoint (or just enough general traffic) landing on the same worker at overlapping times, other
+          requests queued behind it on that worker stall for however long the aggregation takes, producing exactly
+          the symptom described — unrelated endpoints suddenly showing p99 latency spikes correlated with load on
+          this one endpoint. This is precisely the "blocking calls inside async fn" failure mode described in the
+          async/Tokio topic, except the blocking operation here isn't I/O (an obvious blocking call like a
+          synchronous file read) — it's plain CPU-bound computation, which is easy to overlook as a "blocking"
+          concern since nothing about it <em>looks</em> like blocking I/O.
+        </div>
+
+        <div class="card-label" style="color:var(--c-pass)"><span class="cl-pip" style="background:var(--c-pass)"></span>Fix — move CPU-bound work off the async worker thread</div>
+<pre><span class="kw">async fn</span> <span class="fn">generate_report</span>(<span class="ty">Query</span>(params): <span class="ty">Query</span>&lt;ReportParams&gt;) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Json</span>&lt;<span class="ty">Report</span>&gt;, <span class="ty">StatusCode</span>&gt; {
+    <span class="kw">let</span> data = fetch_raw_data(&amp;params).<span class="kw">await</span>;
+
+<span class="ok-line">    <span class="cm">// spawn_blocking moves the sync work to Tokio's dedicated blocking-thread pool,</span></span>
+<span class="ok-line">    <span class="cm">// freeing the async worker thread to keep serving other tasks in the meantime.</span></span>
+    <span class="kw">let</span> report = tokio::task::<span class="fn">spawn_blocking</span>(<span class="kw">move</span> || <span class="fn">compute_expensive_aggregation</span>(data))
+        .<span class="kw">await</span>
+        .<span class="fn">map_err</span>(|_| <span class="ty">StatusCode</span>::<span class="ty">INTERNAL_SERVER_ERROR</span>)?;  <span class="cm">// JoinError if the blocking task panicked</span>
+
+    <span class="ty">Ok</span>(<span class="ty">Json</span>(report))
+}
+<span class="cm">// Alternative if this is called frequently and is truly parallelisable across rows:</span>
+<span class="cm">// use rayon inside spawn_blocking for the CPU-bound aggregation itself, exactly as</span>
+<span class="cm">// discussed in the thread-pool-sizing system design exercise in this packet.</span></pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-rust)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why doesn't the Tokio scheduler just preempt this task once it's run too long on the worker thread?"</em> — Tokio's scheduler is cooperative, not preemptive — a task only yields control back to the scheduler at its own .await points (or when it returns). Without any .await inside the CPU-bound function, there's no opportunity for the scheduler to intervene at all; it has no mechanism to forcibly interrupt a running task mid-computation the way an OS preemptively schedules threads.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would you have detected this before it caused a production incident?"</em> — tokio-console specifically surfaces long-running, non-yielding tasks (it can show poll durations per task) — a task that takes 200ms inside a single poll() call without yielding is exactly what it's built to flag. Load testing with concurrent requests specifically to this endpoint alongside a baseline load of other endpoints, watching for cross-endpoint latency correlation, would also have caught it before production.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Would rayon alone (without spawn_blocking) fix this?"</em> — No — calling rayon's parallel iterators directly from inside the async fn still runs synchronously on the calling Tokio worker thread while it waits for rayon's parallel computation to finish (rayon threads do the parallel work, but the calling thread blocks waiting for the result) — you'd still be blocking that Tokio worker for the duration. You need spawn_blocking (or a channel-based bridge) specifically to get off the Tokio worker thread while the computation (rayon-parallelised or not) runs.</span></li>
+          <li class="probe-item"><span class="probe-label">P4</span><span class="probe-text"><em>"Is there a threshold below which this DOESN'T matter?"</em> — Yes — very short CPU-bound work (microseconds, or low-single-digit milliseconds) genuinely isn't worth the overhead of spawn_blocking (which itself has a real cost — moving to a different thread, synchronizing the result back). The rule of thumb many teams use: if a synchronous operation inside an async fn could plausibly take more than ~100 microseconds to a few milliseconds, it's worth moving off the worker thread; for anything shorter, the cure can be worse than the disease.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    Recognizing that "blocking the runtime" isn't limited to obviously-blocking I/O calls — plain CPU-bound
+    computation with no .await inside is just as much a blocking hazard, and is far easier to accidentally
+    introduce since it doesn't look like a synchronous syscall the way a blocking file read does.
+  </div>
+</div>
+
+<!-- ════════════ B7 · LAZY ITERATOR BUG ════════════ -->
+<div class="section" id="b7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Bug Exercise 07 · 10 min</div>
+      <div class="sh-title">B7 · The Lazy Iterator That Never Ran</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">iterators</span>
+      <span class="chip">laziness</span>
+      <span class="chip">side effects</span>
+      <span class="chip chip-easy">Easy</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>This is supposed to log every failed validation and return the count of failures. It compiles cleanly with a warning — but the log lines never print. Why?</div>
+<pre><span class="kw">fn</span> <span class="fn">validate_all</span>(records: &amp;[<span class="ty">Record</span>]) -&gt; <span class="ty">usize</span> {
+<span class="bug-line">    records.<span class="fn">iter</span>()</span>
+<span class="bug-line">        .<span class="fn">filter</span>(|r| !r.<span class="fn">is_valid</span>())</span>
+<span class="bug-line">        .<span class="fn">map</span>(|r| {</span>
+<span class="bug-line">            <span class="fn">eprintln!</span>(<span class="st">"validation failed for record {}"</span>, r.id);</span>
+<span class="bug-line">            r</span>
+<span class="bug-line">        });  <span class="cm">// ← the whole chain is just constructed and dropped, never consumed</span></span>
+
+    records.<span class="fn">iter</span>().<span class="fn">filter</span>(|r| !r.<span class="fn">is_valid</span>()).<span class="fn">count</span>()
+}
+<span class="cm">// Compiler warning: unused `Map` that must be used — easy to miss in noisy build output</span></pre>
+
+    <details>
+      <summary>Root cause · Fix · Follow-up probes</summary>
+      <div style="padding:16px 0 4px;">
+        <div class="card-label" style="color:var(--c-fail)"><span class="cl-pip" style="background:var(--c-fail)"></span>Root cause</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:12px;">
+          As covered in the iterators topic, adapters like <code>.filter()</code> and <code>.map()</code> are
+          <strong>lazy</strong> — they build a chain of wrapper structs, and none of the closures inside actually
+          run until something <strong>consumes</strong> the iterator (a <code>for</code> loop,
+          <code>.collect()</code>, <code>.count()</code>, <code>.for_each()</code>, etc.). The first statement
+          constructs a <code>Filter&lt;Map&lt;...&gt;&gt;</code> value, immediately drops it (the expression's
+          result is discarded, since it's a statement, not a <code>let</code> binding used afterward), and
+          <strong>the closure inside <code>.map()</code> — including the <code>eprintln!</code> — never
+          executes even once</strong>. The final line then does a completely separate, correct count via a fresh
+          iterator chain. The compiler <em>does</em> flag this — <code>#[must_use]</code> on iterator adapter
+          types produces an "unused ... that must be used" warning — but warnings are trivially easy to miss in a
+          busy build log or CI output, especially if the project has other pre-existing warnings creating noise.
+        </div>
+
+        <div class="card-label" style="color:var(--c-pass)"><span class="cl-pip" style="background:var(--c-pass)"></span>Fix — consume the iterator (and avoid duplicating the traversal)</div>
+<pre><span class="kw">fn</span> <span class="fn">validate_all</span>(records: &amp;[<span class="ty">Record</span>]) -&gt; <span class="ty">usize</span> {
+<span class="ok-line">    records</span>
+<span class="ok-line">        .<span class="fn">iter</span>()</span>
+<span class="ok-line">        .<span class="fn">filter</span>(|r| !r.<span class="fn">is_valid</span>())</span>
+<span class="ok-line">        .<span class="fn">inspect</span>(|r| <span class="fn">eprintln!</span>(<span class="st">"validation failed for record {}"</span>, r.id))  <span class="cm">// side effect, still lazy</span></span>
+<span class="ok-line">        .<span class="fn">count</span>()  <span class="cm">// ← THIS consumes the whole chain, running every closure exactly once per item</span></span>
+}
+<span class="cm">// .inspect() exists specifically for side effects mid-chain without altering the item —</span>
+<span class="cm">// cleaner intent here than repurposing .map() to run a side effect and pass the value through.</span></pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-rust)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why is .map() with a side effect and no real transformation a code smell, separate from this specific bug?"</em> — .map() signals "I am transforming each item into something new" — using it purely for its side effect while passing the value through unchanged (as the original buggy code does) is misleading to a reader and hides the actual intent. .inspect() exists precisely to make "I'm just observing/logging, not transforming" explicit — using the right-named combinator communicates intent even before considering the laziness bug.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would clippy have caught this specific bug?"</em> — clippy's `unused_must_use` lint (which backs the compiler's own warning) would flag it; more specifically, clippy has lints like `suspicious_map` that flag exactly the pattern of calling .map() purely for side effects with no subsequent consumption. Running `cargo clippy -- -D warnings` in CI (as discussed in the testing/tooling topic) turns this from an easily-missed warning into a hard build failure.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"The fixed version iterates the records twice in the buggy original (once in the dead chain, once in the count) — does the fix actually reduce that to one pass?"</em> — Yes — the fix's single chain does the filtering, the logging side effect, and the counting all within one traversal via .count(), whereas the original buggy code's <em>final</em> working line was a completely separate second traversal (the dead first chain didn't count as a traversal at all since nothing ever polled it) — so the fix is both correct and marginally more efficient.</span></li>
+          <li class="probe-item"><span class="probe-label">P4</span><span class="probe-text"><em>"Is there an analogous 'silently does nothing' bug pattern in async code?"</em> — Yes, directly analogous — constructing an async fn's Future value and never .awaiting or spawning it means the function body never runs at all, for exactly the same underlying reason (both iterators and futures are lazy state machines that require an external driver to make progress). The compiler emits a similar unused-must-use-style warning for unawaited futures too.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    This bug and its async-future analogue share the exact same root cause (laziness requiring an external
+    consumer) — a candidate who spots that connection unprompted is demonstrating they understand the underlying
+    "lazy value requiring a driver" pattern generally, not just memorizing "iterators are lazy" as an isolated fact.
+  </div>
+</div>
+
+<!-- ════════════ B8 · UNSAFE UB VIA ALIASING ════════════ -->
+<div class="section" id="b8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Bug Exercise 08 · 18 min</div>
+      <div class="sh-title">B8 · Unsafe UB via Aliasing</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">unsafe</span>
+      <span class="chip">aliasing</span>
+      <span class="chip">undefined behaviour</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>This "helper" function passes every test the author wrote. It is nonetheless unsound. Find the missing invariant check.</div>
+<pre><span class="kw">/// Swaps the elements at indices `a` and `b` in-place. Caller must ensure a and b are in bounds.</span>
+<span class="kw">fn</span> <span class="fn">swap_unchecked</span>&lt;<span class="ty">T</span>&gt;(slice: &amp;<span class="kw">mut</span> [<span class="ty">T</span>], a: <span class="ty">usize</span>, b: <span class="ty">usize</span>) {
+    <span class="kw">unsafe</span> {
+        <span class="kw">let</span> ptr = slice.<span class="fn">as_mut_ptr</span>();
+<span class="bug-line">        <span class="kw">let</span> ra: &amp;<span class="kw">mut</span> <span class="ty">T</span> = &amp;<span class="kw">mut</span> *ptr.<span class="fn">add</span>(a);</span>
+<span class="bug-line">        <span class="kw">let</span> rb: &amp;<span class="kw">mut</span> <span class="ty">T</span> = &amp;<span class="kw">mut</span> *ptr.<span class="fn">add</span>(b);  <span class="cm">// ← what if a == b?</span></span>
+        std::mem::<span class="fn">swap</span>(ra, rb);
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> v = <span class="fn">vec!</span>[<span class="nm">1</span>, <span class="nm">2</span>, <span class="nm">3</span>, <span class="nm">4</span>, <span class="nm">5</span>];
+    <span class="fn">swap_unchecked</span>(&amp;<span class="kw">mut</span> v, <span class="nm">1</span>, <span class="nm">3</span>);  <span class="cm">// passes — [1, 4, 3, 2, 5]</span>
+    <span class="fn">println!</span>(<span class="st">"{:?}"</span>, v);
+
+<span class="bug-line">    <span class="fn">swap_unchecked</span>(&amp;<span class="kw">mut</span> v, <span class="nm">2</span>, <span class="nm">2</span>);  <span class="cm">// ← same index twice — UB, even though nothing crashes</span></span>
+    <span class="fn">println!</span>(<span class="st">"{:?}"</span>, v);  <span class="cm">// may print a plausible-looking result anyway — UB doesn't require a visible symptom</span>
+}</pre>
+
+    <details>
+      <summary>Root cause · Fix · Follow-up probes</summary>
+      <div style="padding:16px 0 4px;">
+        <div class="card-label" style="color:var(--c-fail)"><span class="cl-pip" style="background:var(--c-fail)"></span>Root cause</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:12px;">
+          When <code>a == b</code>, <code>ra</code> and <code>rb</code> are two <strong>simultaneously live
+          <code>&amp;mut T</code> references pointing at the exact same memory location</strong> — a direct
+          violation of Rust's fundamental aliasing guarantee (at most one mutable reference to any given memory
+          location may exist at a time), smuggled past the borrow checker entirely via the unsafe block's raw
+          pointer arithmetic. This is <strong>undefined behaviour</strong> regardless of whether it happens to
+          "work" on any given run — <code>std::mem::swap</code> internally may assume its two reference arguments
+          never alias (this is a real, documented safety assumption many standard library functions taking
+          multiple references rely on for correctness and for enabling certain compiler optimisations), and even
+          if this particular swap implementation happens to produce a plausible-looking result today on a given
+          compiler version, a future compiler version, a different optimisation level, or a tool like Miri would
+          be entitled to detect or exploit this violation in ways that produce genuinely wrong or crashing
+          behaviour. This is <strong>exactly the unsound-but-passes-every-test scenario</strong> discussed at
+          length in the unsafe/macros topic — the bug is invisible until precisely the input (here,
+          <code>a == b</code>) that the author's own test suite happened not to cover.
+        </div>
+
+        <div class="card-label" style="color:var(--c-pass)"><span class="cl-pip" style="background:var(--c-pass)"></span>Fix — check the invariant explicitly, or use a safe abstraction that already enforces it</div>
+<pre><span class="cm">// Fix 1: explicit early-return guard for the aliasing case</span>
+<span class="kw">fn</span> <span class="fn">swap_unchecked</span>&lt;<span class="ty">T</span>&gt;(slice: &amp;<span class="kw">mut</span> [<span class="ty">T</span>], a: <span class="ty">usize</span>, b: <span class="ty">usize</span>) {
+<span class="ok-line">    <span class="kw">if</span> a == b { <span class="kw">return</span>; }  <span class="cm">// swapping an element with itself is a correct no-op — handle it before aliasing occurs</span></span>
+    <span class="kw">unsafe</span> {
+        <span class="kw">let</span> ptr = slice.<span class="fn">as_mut_ptr</span>();
+        <span class="kw">let</span> ra: &amp;<span class="kw">mut</span> <span class="ty">T</span> = &amp;<span class="kw">mut</span> *ptr.<span class="fn">add</span>(a);
+        <span class="kw">let</span> rb: &amp;<span class="kw">mut</span> <span class="ty">T</span> = &amp;<span class="kw">mut</span> *ptr.<span class="fn">add</span>(b);
+        std::mem::<span class="fn">swap</span>(ra, rb);
+    }
+}
+
+<span class="cm">// Fix 2: just use the standard library's own, already-audited swap — don't hand-roll this at all</span>
+<span class="kw">fn</span> <span class="fn">swap_safe</span>&lt;<span class="ty">T</span>&gt;(slice: &amp;<span class="kw">mut</span> [<span class="ty">T</span>], a: <span class="ty">usize</span>, b: <span class="ty">usize</span>) {
+    slice.<span class="fn">swap</span>(a, b);  <span class="cm">// [T]::swap — handles a == b correctly, no unsafe needed at the call site</span>
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-rust)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Would this bug be caught by cargo test passing every existing test?"</em> — No — that's precisely the point of this exercise. A test suite that never happens to call swap_unchecked(v, i, i) would pass every time, forever, while the unsoundness sits latent. This is exactly why "all tests pass" and "is sound" are different claims, as discussed in the unsafe topic.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would Miri (cargo miri test) behave differently here than a normal test run?"</em> — Miri specifically instruments and checks Rust's aliasing rules at runtime, even inside unsafe blocks — it would very likely flag this as an aliasing violation (two live &mut references to the same location) the moment a test actually exercises the a == b case, turning "silent unsoundness" into an explicit, actionable error during CI, well before it ever reaches production.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Why does the standard library's own [T]::swap not have this bug?"</em> — The standard library's implementation is written and reviewed with exactly this edge case in mind (and internally uses techniques like `ptr::swap` designed to be correct even when the two pointers are equal, since a swap-with-self at the raw pointer level, done correctly, is a well-defined no-op operation). This is a good illustration of why "just use the audited standard library function" is almost always better advice than hand-rolling unsafe code for a problem the standard library already solves.</span></li>
+          <li class="probe-item"><span class="probe-label">P4</span><span class="probe-text"><em>"If you inherited this function in a codebase and needed to write a doc comment justifying its safety, what would you write?"</em> — Something like: "Safety: caller must ensure a &lt; slice.len() and b &lt; slice.len(). Additionally, this implementation requires a != b to avoid constructing two aliasing &mut references — see the early-return guard." Writing this explicit safety contract, and recognizing the a != b clause specifically needs stating, is exactly the kind of rigor the unsafe topic's PR-review discussion calls for.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    This is one of the highest-value bugs in the whole packet for separating theoretical unsafe knowledge from
+    practiced unsafe discipline — candidates who've actually reviewed or written unsafe code in anger tend to
+    immediately ask "what if a == b?" the moment they see two raw-pointer-derived &mut references being created
+    from the same base pointer, without needing to be prompted.
+  </div>
+</div>
+
+<!-- ════════════ B9 · SEND/SYNC MISUSE ════════════ -->
+<div class="section" id="b9">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fail)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fail)">// Bug Exercise 09 · 18 min</div>
+      <div class="sh-title">B9 · Send/Sync Misuse</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">Send</span>
+      <span class="chip">Sync</span>
+      <span class="chip">FFI</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fail)"></span>A teammate "fixed" a compile error by adding the two lines below. It compiles now — and immediately causes intermittent data corruption in production. What's wrong?</div>
+<pre><span class="kw">struct</span> <span class="ty">LegacyParserHandle</span> {
+    raw: *<span class="kw">mut</span> c_void,  <span class="cm">// opaque handle into a third-party C parsing library</span>
+}
+
+<span class="cm">// The C library's documentation says nothing about thread-safety.</span>
+<span class="cm">// It uses internal static/global lookup tables shared across all handles.</span>
+
+<span class="bug-line"><span class="kw">unsafe</span> <span class="kw">impl</span> Send <span class="kw">for</span> <span class="ty">LegacyParserHandle</span> {}</span>
+<span class="bug-line"><span class="kw">unsafe</span> <span class="kw">impl</span> Sync <span class="kw">for</span> <span class="ty">LegacyParserHandle</span> {}  <span class="cm">// "fix" for: `*mut c_void` cannot be shared between threads safely</span></span>
+
+<span class="kw">struct</span> <span class="ty">ParserPool</span> {
+    handles: Vec&lt;Arc&lt;<span class="ty">LegacyParserHandle</span>&gt;&gt;,
+}
+<span class="cm">// ParserPool is now used from many Tokio tasks across many worker threads simultaneously,</span>
+<span class="cm">// each calling parse() on its checked-out handle concurrently.</span></pre>
+
+    <details>
+      <summary>Root cause · Fix · Follow-up probes</summary>
+      <div style="padding:16px 0 4px;">
+        <div class="card-label" style="color:var(--c-fail)"><span class="cl-pip" style="background:var(--c-fail)"></span>Root cause</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:12px;">
+          The compiler correctly refused to let <code>LegacyParserHandle</code> (containing a raw pointer, which
+          is neither <code>Send</code> nor <code>Sync</code> by default) cross thread boundaries or be shared via
+          <code>Arc</code> across threads — that default is a conservative "the compiler cannot verify this is
+          safe," not an obstacle to be silenced. The teammate's fix <strong>manually asserts</strong>, via
+          <code>unsafe impl</code>, a safety property the compiler has zero ability to check: that the underlying
+          C library is safe to use concurrently from multiple threads. But the comment right above the fix says
+          the opposite — the library's documentation is silent on thread-safety, and worse, it explicitly
+          <strong>uses internal global/static lookup tables shared across all handles</strong>. This is exactly
+          the scenario flagged in the FFI topic's discussion of thread-safety: even if each individual
+          <code>LegacyParserHandle</code> looks independent from Rust's point of view, the C library's shared
+          global state means two threads calling <code>parse()</code> on two <em>different</em> handles
+          concurrently can still race on that shared internal state — <code>unsafe impl Sync</code> makes a claim
+          about this type's safety that is almost certainly false, and the compiler has no way to catch it because
+          <code>unsafe impl</code> is explicitly the escape hatch where the programmer overrides the compiler's
+          own safety analysis. The "intermittent data corruption" symptom is the classic signature of a data race
+          in the C library's internal tables — not something Rust's usual guarantees have any visibility into,
+          precisely because this code told the compiler to stop checking.
+        </div>
+
+        <div class="card-label" style="color:var(--c-pass)"><span class="cl-pip" style="background:var(--c-pass)"></span>Fix — serialise access to the actually-unsafe-to-share resource</div>
+<pre><span class="cm">// Fix: don't lie to the compiler about Sync. Instead, force serialised access</span>
+<span class="cm">// with a single mutex around ALL handles, since the C library's global state</span>
+<span class="cm">// means "one handle per thread" isn't even sufficient — the whole library isn't reentrant.</span>
+
+<span class="kw">struct</span> <span class="ty">LegacyParserHandle</span> {
+    raw: *<span class="kw">mut</span> c_void,
+}
+<span class="mc">#[allow(unsafe_code)]</span>
+<span class="kw">unsafe</span> <span class="kw">impl</span> Send <span class="kw">for</span> <span class="ty">LegacyParserHandle</span> {}  <span class="cm">// Send alone (move to one thread at a time) may be justifiable —</span>
+<span class="cm">// verify the specific C library actually permits ownership transfer between threads before even this.</span>
+<span class="cm">// Sync is NOT added — this type is not claimed safe to access concurrently from multiple threads.</span>
+
+<span class="kw">struct</span> <span class="ty">ParserPool</span> {
+<span class="ok-line">    <span class="cm">// A single mutex around the single shared handle — all parse() calls serialise through it,</span></span>
+<span class="ok-line">    <span class="cm">// which correctly reflects "this C library is not safe for concurrent use at all."</span></span>
+    handle: Mutex&lt;<span class="ty">LegacyParserHandle</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">ParserPool</span> {
+    <span class="kw">fn</span> <span class="fn">parse</span>(&amp;<span class="kw">self</span>, input: &amp;[<span class="ty">u8</span>]) -&gt; <span class="ty">ParseResult</span> {
+        <span class="kw">let</span> handle = <span class="kw">self</span>.handle.<span class="fn">lock</span>().<span class="fn">unwrap</span>();
+        <span class="cm">// call into the C library here — only one thread can be inside at a time</span>
+    }
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-rust)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why does the compiler accept `unsafe impl Sync` without any error, given it's wrong here?"</em> — Because unsafe impl is, by design, the mechanism for asserting properties the compiler fundamentally cannot verify — a raw pointer's pointee could be anything, backed by any external system, and Rust's type system has no visibility into a foreign C library's internal implementation. The compiler trusts the programmer completely at this boundary; that trust is exactly what was misplaced here.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would you have caught this before it reached production?"</em> — Code review specifically scrutinising any unsafe impl Send/Sync as a special, high-risk category (as discussed in the unsafe topic's PR-review framework) — demanding a written justification referencing the actual C library's documented thread-safety guarantees, not just 'it made the compile error go away.' A stress test running many concurrent parse() calls under ThreadSanitizer-equivalent tooling (or simply high concurrency + assertions on output correctness) would likely have surfaced the corruption pre-production too.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Is 'one handle per thread, no Arc, no sharing' a safe fix instead of a mutex?"</em> — Only if the C library's global state issue doesn't apply across separate handles used from separate threads simultaneously — but the scenario explicitly states shared global lookup tables across all handles, meaning even fully separate handles on separate threads still race on that shared internal state. A mutex serialising ALL access to the library (not just per-handle) is the fix that actually matches the stated constraint.</span></li>
+          <li class="probe-item"><span class="probe-label">P4</span><span class="probe-text"><em>"What would you want documented directly next to any unsafe impl Send/Sync in this codebase going forward?"</em> — A comment citing the specific evidence for the safety claim — a link to the C library's documentation explicitly stating thread-safety guarantees, or a description of testing/auditing performed, plus which specific operations were verified. 'Compiles now' or 'seems to work' should never be treated as sufficient justification for a claim the compiler is otherwise unable to check at all.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle</div>
+    "I added unsafe impl Send/Sync to fix a compile error" should be treated by any reviewer as an immediate stop
+    -and-justify moment, not a routine fix. A candidate who reacts to this scenario with instant suspicion — rather
+    than accepting "it compiles now" as evidence of correctness — is showing exactly the calibrated skepticism this
+    entire packet has been building toward.
+  </div>
+</div>

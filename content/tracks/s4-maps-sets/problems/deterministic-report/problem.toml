@@ -1,0 +1,23 @@
+slug = "deterministic-report"
+title = "A deterministic report from a HashMap"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 8
+status = "ready"
+tags = ["HashMap order", "sort_by"]
+teaches = [
+  "`HashMap` iteration order is unspecified and changes between runs.",
+  "Collect, then sort with an explicit key.",
+]
+follow_up = "Why does std's HashMap randomise its hash seed?"
+related = ["S3"]
+
+[[hints]]
+kind = "rust"
+text = "Collect `(&String, &u32)` pairs into a Vec and sort it; no need to clone the names first."
+
+[solution]
+explanation = "Sorting references avoids cloning keys until the final `format!`."
+time = "O(n log n)"
+space = "O(n)"

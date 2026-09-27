@@ -1,0 +1,26 @@
+slug = "best-time-to-buy-and-sell-stock"
+title = "Best time to buy and sell stock"
+mode = "write"
+level = "medium"
+stage = "windows"
+order = 10
+status = "ready"
+tags = ["running min", "Blind 75"]
+teaches = [
+  "Track the lowest price so far; each day is a potential sell.",
+]
+follow_up = "What if you may buy and sell many times, or with a cooldown?"
+related = ["D12"]
+
+[[examples]]
+input = "prices = [7, 1, 5, 3, 6, 4]"
+output = "5"
+
+[[hints]]
+kind = "approach"
+text = "For each day, the best sale ends today and buys at the cheapest earlier day."
+
+[solution]
+explanation = "`lowest` is updated before the subtraction, so `p - lowest` is never negative."
+time = "O(n)"
+space = "O(1)"

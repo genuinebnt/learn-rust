@@ -1,0 +1,23 @@
+slug = "split-first-mut"
+title = "Unique, not mutable: split_first_mut"
+mode = "write"
+level = "easy"
+stage = "shared-vs-unique"
+order = 6
+status = "ready"
+tags = ["split_first_mut", "&mut"]
+teaches = [
+  "`&mut` is about uniqueness: no other reference may overlap it.",
+  "`split_first_mut` returns the head and the rest as separate borrows.",
+]
+follow_up = "How would you do the same with `split_at_mut(1)`?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "`&v[0]` and `&mut v[1..]` at once won't compile. `split_first_mut` splits one borrow into two that can't overlap."
+
+[solution]
+explanation = "`&mut` means exclusive access, not merely writable: two parts of a slice need two borrows that provably don't overlap."
+time = "O(n)"
+space = "O(1)"

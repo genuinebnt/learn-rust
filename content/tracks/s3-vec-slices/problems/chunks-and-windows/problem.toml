@@ -1,0 +1,23 @@
+slug = "chunks-and-windows"
+title = "chunks and windows"
+mode = "write"
+level = "medium"
+stage = "understand-it"
+order = 11
+status = "ready"
+tags = ["chunks", "windows"]
+teaches = [
+  "`chunks` for non-overlapping groups, `windows` for overlapping ones.",
+  "`max()` on an iterator returns an `Option`.",
+]
+follow_up = "Rewrite `max_window_sum` in O(n)."
+related = ["D2"]
+
+[[hints]]
+kind = "rust"
+text = "Both are slice methods that return iterators of sub-slices."
+
+[solution]
+explanation = "This `max_window_sum` is O(n·k); a running sum that adds the new element and subtracts the old one is O(n)."
+time = "O(n·k)"
+space = "O(1)"

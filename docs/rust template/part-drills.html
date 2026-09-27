@@ -1,0 +1,894 @@
+<!-- ═══════════════════════════════════════════
+     PART: RAPID SYNTAX & ALGORITHM DRILLS
+     Self-practice — build muscle memory without an IDE/LSP
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="drills">
+  <div class="ph-eyebrow">Self-Practice · No IDE, No Autocomplete</div>
+  <div class="ph-title">Rapid Syntax &amp; Algorithm Drills</div>
+  <div class="ph-sub">
+    These are the classic screening-round questions that keep showing up in real Rust interviews in 2026 —
+    Two Sum, linked-list reversal, sliding windows, tree traversals — plus core-syntax drills (manual trait
+    impls, generics, conversions) that force you to write Rust <em>by hand</em>. The goal isn't just "solve it" —
+    it's solving it <strong>idiomatically, from memory, with no autocomplete</strong>, until the syntax stops
+    being the bottleneck and only the problem-solving is left. That's what makes you read as someone with real
+    years of Rust under their belt rather than someone who learned the syntax last month.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-rust">31 drills</span>
+    <span class="badge badge-time">5–10 min each</span>
+    <span class="badge badge-time">Sourced from real 2026 interview reports</span>
+  </div>
+</div>
+
+<div class="level-filter" id="level-filter">
+  <span class="lf-label">Level</span>
+  <button type="button" class="lf-btn active" data-filter="all">All</button>
+  <button type="button" class="lf-btn" data-filter="beg">Beginner</button>
+  <button type="button" class="lf-btn" data-filter="int">Intermediate</button>
+  <button type="button" class="lf-btn" data-filter="adv">Advanced</button>
+  <button type="button" class="lf-btn" data-filter="sr">Senior</button>
+  <span class="lf-hint">31 drills on this page · click a level to filter</span>
+</div>
+
+<div class="note">
+  <strong>How to actually use this page:</strong> Open a plain text editor or the terminal (no VS Code, no
+  Cursor, no rust-analyzer) — or genuinely just paper and pen. Read the prompt, write the full solution from
+  memory, <em>then</em> click to reveal and compare. Don't just read the answer and nod — the value is 100% in
+  the struggle of recalling exact syntax (trait method signatures, iterator adapter names, borrow patterns)
+  without a tool finishing your sentences for you. Time yourself once you can solve a category cold — under
+  3–5 minutes each is a good bar for "interview ready."
+</div>
+
+<!-- ════════════ SECTION A · STRINGS & SLICES ════════════ -->
+<div class="section" id="d-strings">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-std)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-std)">// Drills A · Strings &amp; Slices</div>
+      <div class="sh-title">Strings &amp; Slices</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-std)"></span>Write these from memory, then click to check — 7 drills</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D1</span><span class="qa-qtext">FizzBuzz: for <code>n</code>, return <code>"Fizz"</code> if divisible by 3, <code>"Buzz"</code> if by 5, <code>"FizzBuzz"</code> if both, else the number as a string.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">fizzbuzz</span>(n: <span class="ty">u32</span>) -&gt; <span class="ty">String</span> {
+    <span class="kw">match</span> (n % <span class="nm">3</span>, n % <span class="nm">5</span>) {
+        (<span class="nm">0</span>, <span class="nm">0</span>) =&gt; <span class="st">"FizzBuzz"</span>.<span class="fn">to_string</span>(),
+        (<span class="nm">0</span>, _) =&gt; <span class="st">"Fizz"</span>.<span class="fn">to_string</span>(),
+        (_, <span class="nm">0</span>) =&gt; <span class="st">"Buzz"</span>.<span class="fn">to_string</span>(),
+        _ =&gt; n.<span class="fn">to_string</span>(),
+    }
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Matching a <strong>tuple</strong> <code>(n % 3, n % 5)</code> in one exhaustive <code>match</code> instead
+        of a chain of nested <code>if</code>/<code>else if</code> is the small detail that signals fluency —
+        it's the same "match on a composite key" instinct you'll reuse constantly in real Rust code.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D2</span><span class="qa-qtext">Reverse a string, correctly handling multi-byte UTF-8 characters.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">reverse_string</span>(s: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span> {
+    s.<span class="fn">chars</span>().<span class="fn">rev</span>().<span class="fn">collect</span>()
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        There's no way to index a <code>String</code> by integer position (<code>s[3]</code> doesn't compile) —
+        Rust strings are UTF-8 byte sequences, and slicing at an arbitrary byte offset can split a multi-byte
+        character, which would panic. <code>.chars()</code> iterates by Unicode scalar value, not byte, so
+        <code>.rev()</code> is always safe here. Caveat worth naming out loud: this still isn't fully
+        <em>grapheme-cluster</em> correct for things like combined emoji — that needs the
+        <code>unicode-segmentation</code> crate.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D3</span><span class="qa-qtext">Check if a string is a palindrome, ignoring case and non-alphanumeric characters.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">is_palindrome</span>(s: &amp;<span class="ty">str</span>) -&gt; <span class="ty">bool</span> {
+    <span class="kw">let</span> chars: Vec&lt;<span class="ty">char</span>&gt; = s.<span class="fn">chars</span>()
+        .<span class="fn">filter</span>(|c| c.<span class="fn">is_alphanumeric</span>())
+        .<span class="fn">map</span>(|c| c.<span class="fn">to_ascii_lowercase</span>())
+        .<span class="fn">collect</span>();
+    <span class="kw">let</span> n = chars.<span class="fn">len</span>();
+    (<span class="nm">0</span>..n / <span class="nm">2</span>).<span class="fn">all</span>(|i| chars[i] == chars[n - <span class="nm">1</span> - i])
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>Iterator::all()</code> short-circuits on the first mismatch and reads as a direct statement of the
+        palindrome property itself ("for every front/back pair, they're equal") — much cleaner than a manual
+        two-pointer <code>while</code> loop with a mutable <code>bool</code> flag, though that's a perfectly
+        valid alternative if asked to avoid the extra allocation from <code>.collect()</code>.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D4</span><span class="qa-qtext">Valid Anagram: determine if two strings are anagrams of each other.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::collections::HashMap;
+
+<span class="kw">fn</span> <span class="fn">is_anagram</span>(a: &amp;<span class="ty">str</span>, b: &amp;<span class="ty">str</span>) -&gt; <span class="ty">bool</span> {
+    <span class="kw">fn</span> <span class="fn">counts</span>(s: &amp;<span class="ty">str</span>) -&gt; HashMap&lt;<span class="ty">char</span>, <span class="ty">i32</span>&gt; {
+        <span class="kw">let</span> <span class="kw">mut</span> m = HashMap::<span class="fn">new</span>();
+        <span class="kw">for</span> c <span class="kw">in</span> s.<span class="fn">chars</span>() { *m.<span class="fn">entry</span>(c).<span class="fn">or_insert</span>(<span class="nm">0</span>) += <span class="nm">1</span>; }
+        m
+    }
+    <span class="fn">counts</span>(a) == <span class="fn">counts</span>(b)
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Two things worth having automatic: the <code>entry().or_insert(0)</code> pattern for "increment a
+        counter that might not exist yet" (versus manually checking <code>contains_key</code> then branching),
+        and the fact that <code>HashMap</code> already implements <code>PartialEq</code> comparing contents
+        regardless of insertion order — so <code>counts(a) == counts(b)</code> Just Works without you writing
+        any comparison logic yourself.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D5</span><span class="qa-qtext">Group Anagrams: given a list of strings, group the ones that are anagrams of each other.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::collections::HashMap;
+
+<span class="kw">fn</span> <span class="fn">group_anagrams</span>(strs: Vec&lt;<span class="ty">String</span>&gt;) -&gt; Vec&lt;Vec&lt;<span class="ty">String</span>&gt;&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> groups: HashMap&lt;Vec&lt;<span class="ty">char</span>&gt;, Vec&lt;<span class="ty">String</span>&gt;&gt; = HashMap::<span class="fn">new</span>();
+    <span class="kw">for</span> s <span class="kw">in</span> strs {
+        <span class="kw">let</span> <span class="kw">mut</span> key: Vec&lt;<span class="ty">char</span>&gt; = s.<span class="fn">chars</span>().<span class="fn">collect</span>();
+<span class="ok-line">        key.<span class="fn">sort_unstable</span>();  <span class="cm">// order doesn't matter for a key — unstable sort is faster, no reason to pay for stability</span></span>
+        groups.<span class="fn">entry</span>(key).<span class="fn">or_default</span>().<span class="fn">push</span>(s);
+    }
+<span class="ok-line">    groups.<span class="fn">into_values</span>().<span class="fn">collect</span>()  <span class="cm">// drops the keys, yields owned Vec<String> groups directly</span></span>
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Using a <strong>sorted <code>Vec&lt;char&gt;</code> as the hash key itself</strong> — rather than, say,
+        re-sorting and comparing strings pairwise — is the classic anagram-bucketing trick, and it works because
+        <code>Vec&lt;char&gt;</code> automatically derives <code>Eq</code> + <code>Hash</code> when its element
+        type does. Reaching for <code>.into_values()</code> instead of <code>.into_iter().map(|(_, v)| v)</code>
+        is a small but real "have they used HashMap enough to know its full API surface" signal.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D6</span><span class="qa-qtext">Longest Substring Without Repeating Characters.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::collections::HashMap;
+
+<span class="kw">fn</span> <span class="fn">length_of_longest_substring</span>(s: &amp;<span class="ty">str</span>) -&gt; <span class="ty">usize</span> {
+<span class="ok-line">    <span class="kw">let</span> chars: Vec&lt;<span class="ty">char</span>&gt; = s.<span class="fn">chars</span>().<span class="fn">collect</span>();  <span class="cm">// materialize once — can't do O(1) char-index into &str</span></span>
+    <span class="kw">let</span> <span class="kw">mut</span> last_seen: HashMap&lt;<span class="ty">char</span>, <span class="ty">usize</span>&gt; = HashMap::<span class="fn">new</span>();
+    <span class="kw">let</span> <span class="kw">mut</span> start = <span class="nm">0</span>;
+    <span class="kw">let</span> <span class="kw">mut</span> max_len = <span class="nm">0</span>;
+
+    <span class="kw">for</span> (i, &amp;c) <span class="kw">in</span> chars.<span class="fn">iter</span>().<span class="fn">enumerate</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(&amp;prev) = last_seen.<span class="fn">get</span>(&amp;c) {
+            <span class="kw">if</span> prev &gt;= start { start = prev + <span class="nm">1</span>; }
+        }
+        last_seen.<span class="fn">insert</span>(c, i);
+        max_len = max_len.<span class="fn">max</span>(i - start + <span class="nm">1</span>);
+    }
+    max_len
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Note the <code>prev &gt;= start</code> guard — without it, a repeated character seen <em>before</em> the
+        current window's start would incorrectly shrink the window based on stale information. This is the exact
+        bug that separates "memorized the sliding-window shape" from "actually understands why each line is
+        there." Also note the <code>Vec&lt;char&gt;</code> pre-collect for O(1) positional access —
+        <code>&amp;str</code> has no cheap "give me the i-th character" operation.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D7</span><span class="qa-qtext">Valid Parentheses: check if a string of brackets <code>()[]{}</code> is properly balanced and nested.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">is_valid</span>(s: &amp;<span class="ty">str</span>) -&gt; <span class="ty">bool</span> {
+    <span class="kw">let</span> <span class="kw">mut</span> stack = Vec::<span class="fn">new</span>();
+    <span class="kw">for</span> c <span class="kw">in</span> s.<span class="fn">chars</span>() {
+        <span class="kw">match</span> c {
+            <span class="st">'('</span> | <span class="st">'['</span> | <span class="st">'{'</span> =&gt; stack.<span class="fn">push</span>(c),
+<span class="ok-line">            <span class="st">')'</span> =&gt; <span class="kw">if</span> stack.<span class="fn">pop</span>() != <span class="ty">Some</span>(<span class="st">'('</span>) { <span class="kw">return</span> <span class="kw">false</span>; },  <span class="cm">// compare Option directly — no unwrap</span></span>
+            <span class="st">']'</span> =&gt; <span class="kw">if</span> stack.<span class="fn">pop</span>() != <span class="ty">Some</span>(<span class="st">'['</span>) { <span class="kw">return</span> <span class="kw">false</span>; },
+            <span class="st">'}'</span> =&gt; <span class="kw">if</span> stack.<span class="fn">pop</span>() != <span class="ty">Some</span>(<span class="st">'{'</span>) { <span class="kw">return</span> <span class="kw">false</span>; },
+            _ =&gt; {}
+        }
+    }
+    stack.<span class="fn">is_empty</span>()
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>stack.pop()</code> returns <code>Option&lt;char&gt;</code> — comparing it <em>directly</em> against
+        <code>Some('(')</code> avoids an <code>unwrap()</code> that would panic on an empty stack (unmatched
+        closing bracket) entirely for free, rather than needing a separate empty-check branch.</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ SECTION B · ARRAYS & TWO-POINTER ════════════ -->
+<div class="section" id="d-arrays">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-iter)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-iter)">// Drills B · Arrays &amp; Two-Pointer</div>
+      <div class="sh-title">Arrays &amp; Two-Pointer</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-iter)"></span>Write these from memory, then click to check — 6 drills</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D8</span><span class="qa-qtext">Two Sum: return the indices of the two numbers in an array that add up to a target.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::collections::HashMap;
+
+<span class="kw">fn</span> <span class="fn">two_sum</span>(nums: &amp;[<span class="ty">i32</span>], target: <span class="ty">i32</span>) -&gt; <span class="ty">Option</span>&lt;(<span class="ty">usize</span>, <span class="ty">usize</span>)&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> seen: HashMap&lt;<span class="ty">i32</span>, <span class="ty">usize</span>&gt; = HashMap::<span class="fn">new</span>();
+    <span class="kw">for</span> (i, &amp;n) <span class="kw">in</span> nums.<span class="fn">iter</span>().<span class="fn">enumerate</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(&amp;j) = seen.<span class="fn">get</span>(&amp;(target - n)) {
+            <span class="kw">return</span> <span class="ty">Some</span>((j, i));
+        }
+        seen.<span class="fn">insert</span>(n, i);
+    }
+    <span class="ty">None</span>
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Returning <code>Option&lt;(usize, usize)&gt;</code> rather than panicking or returning a sentinel
+        <code>(usize::MAX, usize::MAX)</code> is itself a small design signal — it makes "no answer exists" a
+        type-checked case the caller must handle, not a documented-but-unenforced convention. One hash-map pass
+        (O(n)) beats the naive O(n²) nested-loop translation from other languages.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D9</span><span class="qa-qtext">Merge Intervals: given a list of <code>(start, end)</code> pairs, merge all overlapping intervals.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">merge_intervals</span>(<span class="kw">mut</span> intervals: Vec&lt;(<span class="ty">i32</span>, <span class="ty">i32</span>)&gt;) -&gt; Vec&lt;(<span class="ty">i32</span>, <span class="ty">i32</span>)&gt; {
+    intervals.<span class="fn">sort_by_key</span>(|iv| iv.<span class="nm">0</span>);
+    <span class="kw">let</span> <span class="kw">mut</span> merged: Vec&lt;(<span class="ty">i32</span>, <span class="ty">i32</span>)&gt; = Vec::<span class="fn">new</span>();
+
+    <span class="kw">for</span> (start, end) <span class="kw">in</span> intervals {
+<span class="ok-line">        <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(last) = merged.<span class="fn">last_mut</span>() {  <span class="cm">// mutate the last element in place — no pop+push dance</span></span>
+            <span class="kw">if</span> start &lt;= last.<span class="nm">1</span> {
+                last.<span class="nm">1</span> = last.<span class="nm">1</span>.<span class="fn">max</span>(end);
+                <span class="kw">continue</span>;
+            }
+        }
+        merged.<span class="fn">push</span>((start, end));
+    }
+    merged
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>Vec::last_mut()</code> hands back <code>Option&lt;&amp;mut (i32, i32)&gt;</code>, letting you
+        extend the most recent merged interval <em>in place</em> — a candidate reaching for
+        <code>merged.pop()</code> then reconstructing and re-pushing a new tuple is doing extra, unnecessary
+        work that a quick "is there a `_mut` version of this method" instinct avoids.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D10</span><span class="qa-qtext">Move Zeroes: given a mutable array, move all zeroes to the end in place, preserving the relative order of non-zero elements.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">move_zeroes</span>(nums: &amp;<span class="kw">mut</span> Vec&lt;<span class="ty">i32</span>&gt;) {
+    <span class="kw">let</span> <span class="kw">mut</span> insert_pos = <span class="nm">0</span>;
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nm">0</span>..nums.<span class="fn">len</span>() {
+        <span class="kw">if</span> nums[i] != <span class="nm">0</span> {
+            nums.<span class="fn">swap</span>(insert_pos, i);
+            insert_pos += <span class="nm">1</span>;
+        }
+    }
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>slice::swap(a, b)</code> exchanges two elements by index internally without you needing to fight
+        the borrow checker over holding two mutable references at once (<code>let tmp = nums[i]; nums[i] =
+        nums[j]; nums[j] = tmp;</code> works too, but <code>.swap()</code> is the one-line, harder-to-get-wrong
+        version every experienced Rust dev reaches for automatically).</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D11</span><span class="qa-qtext">Product of Array Except Self: return an array where each element is the product of all other elements — <strong>no division allowed</strong>.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">product_except_self</span>(nums: &amp;[<span class="ty">i32</span>]) -&gt; Vec&lt;<span class="ty">i32</span>&gt; {
+    <span class="kw">let</span> n = nums.<span class="fn">len</span>();
+    <span class="kw">let</span> <span class="kw">mut</span> result = <span class="fn">vec!</span>[<span class="nm">1</span>; n];
+
+<span class="ok-line">    <span class="kw">let</span> <span class="kw">mut</span> prefix = <span class="nm">1</span>;                        <span class="cm">// pass 1: prefix products, left to right</span></span>
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nm">0</span>..n {
+        result[i] = prefix;
+        prefix *= nums[i];
+    }
+
+<span class="ok-line">    <span class="kw">let</span> <span class="kw">mut</span> suffix = <span class="nm">1</span>;                        <span class="cm">// pass 2: fold in suffix products, right to left</span></span>
+    <span class="kw">for</span> i <span class="kw">in</span> (<span class="nm">0</span>..n).<span class="fn">rev</span>() {
+        result[i] *= suffix;
+        suffix *= nums[i];
+    }
+    result
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>(0..n).rev()</code> for a backward index walk is the idiomatic replacement for the C-style
+        <code>for (int i = n-1; i &gt;= 0; i--)</code> — and it sidesteps a genuine Rust-specific trap: with
+        <code>usize</code> indices, writing the naive translation as <code>let mut i = n - 1; while i &gt;= 0</code>
+        can underflow-panic (in debug) or infinite-loop (<code>usize</code> can never be negative, so the
+        condition is always true) once <code>i</code> would go below zero.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D12</span><span class="qa-qtext">Binary Search: find the index of a target in a sorted array, or report it's absent.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">binary_search</span>(arr: &amp;[<span class="ty">i32</span>], target: <span class="ty">i32</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">usize</span>&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> lo = <span class="nm">0usize</span>;
+<span class="ok-line">    <span class="kw">let</span> <span class="kw">mut</span> hi = arr.<span class="fn">len</span>();               <span class="cm">// half-open [lo, hi) — hi = len(), never len() - 1</span></span>
+    <span class="kw">while</span> lo &lt; hi {
+        <span class="kw">let</span> mid = lo + (hi - lo) / <span class="nm">2</span>;
+        <span class="kw">if</span> arr[mid] == target { <span class="kw">return</span> <span class="ty">Some</span>(mid); }
+        <span class="kw">else</span> <span class="kw">if</span> arr[mid] &lt; target { lo = mid + <span class="nm">1</span>; }
+        <span class="kw">else</span> { hi = mid; }
+    }
+    <span class="ty">None</span>
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        This is a genuinely Rust-specific gotcha: because <code>usize</code> is unsigned, an empty array
+        (<code>arr.len() == 0</code>) means <code>arr.len() - 1</code> would <strong>underflow</strong> —
+        in debug builds that's an immediate panic, in release it silently wraps to
+        <code>usize::MAX</code>. Using the half-open range <code>[lo, hi)</code> with <code>hi = arr.len()</code>
+        (never <code>len() - 1</code>) avoids ever needing that subtraction at all. This exact trap doesn't exist
+        in a signed-integer version of this algorithm in C/C++/Python.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D13</span><span class="qa-qtext">Maximum Subarray: find the contiguous subarray with the largest sum (Kadane's algorithm).</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">max_subarray</span>(nums: &amp;[<span class="ty">i32</span>]) -&gt; <span class="ty">i32</span> {
+    <span class="kw">let</span> <span class="kw">mut</span> max_ending_here = nums[<span class="nm">0</span>];
+    <span class="kw">let</span> <span class="kw">mut</span> max_so_far = nums[<span class="nm">0</span>];
+
+    <span class="kw">for</span> &amp;n <span class="kw">in</span> &amp;nums[<span class="nm">1</span>..] {
+        max_ending_here = n.<span class="fn">max</span>(max_ending_here + n);
+        max_so_far = max_so_far.<span class="fn">max</span>(max_ending_here);
+    }
+    max_so_far
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Calling <code>n.max(other)</code> as an inherent method on the numeric type reads more naturally in a
+        chain than <code>std::cmp::max(n, other)</code> as a free function — both compile to the same thing, but
+        which one a candidate reaches for by default is a small, honest tell about how much Rust they've
+        actually written versus transliterated from another language.</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ SECTION C · LINKED LISTS & TREES ════════════ -->
+<div class="section" id="d-trees">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-struct)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-struct)">// Drills C · Linked Lists &amp; Trees</div>
+      <div class="sh-title">Linked Lists &amp; Trees</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-struct)"></span>Write these from memory, then click to check — 5 drills</div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D14</span><span class="qa-qtext">Reverse a singly linked list, defined as <code>Option&lt;Box&lt;Node&lt;T&gt;&gt;&gt;</code>, iteratively (no recursion).</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">struct</span> <span class="ty">Node</span>&lt;<span class="ty">T</span>&gt; { val: <span class="ty">T</span>, next: <span class="ty">Option</span>&lt;Box&lt;<span class="ty">Node</span>&lt;<span class="ty">T</span>&gt;&gt;&gt; }
+
+<span class="kw">fn</span> <span class="fn">reverse</span>&lt;<span class="ty">T</span>&gt;(<span class="kw">mut</span> head: <span class="ty">Option</span>&lt;Box&lt;<span class="ty">Node</span>&lt;<span class="ty">T</span>&gt;&gt;&gt;) -&gt; <span class="ty">Option</span>&lt;Box&lt;<span class="ty">Node</span>&lt;<span class="ty">T</span>&gt;&gt;&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> prev = <span class="ty">None</span>;
+    <span class="kw">while</span> <span class="kw">let</span> <span class="ty">Some</span>(<span class="kw">mut</span> node) = head {
+<span class="ok-line">        head = node.next.<span class="fn">take</span>();   <span class="cm">// pull the rest of the list out, leaving node.next = None</span></span>
+        node.next = prev;         <span class="cm">// point this node backward at what we've reversed so far</span>
+        prev = <span class="ty">Some</span>(node);          <span class="cm">// this node is now the new head of the reversed portion</span>
+    }
+    prev
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>Option::take()</code> is the crux of this entire drill — it replaces the field with
+        <code>None</code> and hands you the original value <em>owned</code>, which is exactly what you need to
+        move <code>node.next</code> out while you still hold <code>node</code> itself. Without <code>.take()</code>
+        you'd be fighting the borrow checker trying to partially move out of a field you don't fully own yet —
+        recognizing <code>.take()</code> as the escape hatch here is one of the single most useful Option methods
+        to have memorized cold.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">D15</span><span class="qa-qtext">Detect a cycle in a linked list (Floyd's tortoise and hare) — but first: can this <code>Option&lt;Box&lt;Node&gt;&gt;</code> list even <em>have</em> a cycle in idiomatic Rust?</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:10px;">
+          This is the highest-value trick question in this whole drill set. A list built from
+          <code>Option&lt;Box&lt;Node&lt;T&gt;&gt;&gt;</code> owns its nodes exclusively — ownership in Rust forms
+          a strict tree/DAG, so it is <strong>structurally impossible</strong> for <code>node.next</code> to
+          ever point back to an ancestor of <code>node</code> without either <code>unsafe</code> raw pointers or
+          shared-ownership types. The "detect a cycle" question only makes sense once you pick a representation
+          that <em>can</em> express one:
+        </div>
+<pre><span class="kw">struct</span> <span class="ty">ArenaNode</span> { val: <span class="ty">i32</span>, next: <span class="ty">Option</span>&lt;<span class="ty">usize</span>&gt; }
+
+<span class="kw">fn</span> <span class="fn">has_cycle</span>(nodes: &amp;[<span class="ty">ArenaNode</span>], head: <span class="ty">usize</span>) -&gt; <span class="ty">bool</span> {
+    <span class="kw">let</span> <span class="kw">mut</span> slow = head;
+    <span class="kw">let</span> <span class="kw">mut</span> fast = head;
+    <span class="kw">loop</span> {
+        slow = <span class="kw">match</span> nodes[slow].next { <span class="ty">Some</span>(n) =&gt; n, <span class="ty">None</span> =&gt; <span class="kw">return</span> <span class="kw">false</span> };
+        fast = <span class="kw">match</span> nodes[fast].next.<span class="fn">and_then</span>(|n| nodes[n].next) {
+            <span class="ty">Some</span>(n) =&gt; n,
+            <span class="ty">None</span> =&gt; <span class="kw">return</span> <span class="kw">false</span>,
+        };
+        <span class="kw">if</span> slow == fast { <span class="kw">return</span> <span class="kw">true</span>; }
+    }
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Nodes live in a flat <code>Vec&lt;ArenaNode&gt;</code> "arena" and reference each other by plain
+        <code>usize</code> index instead of pointer — indices are freely <code>Copy</code>-able and comparable,
+        so a cycle is just "two indices become equal," with zero <code>unsafe</code> anywhere. The other two
+        valid answers, worth naming even if not coding live: <code>Rc&lt;RefCell&lt;Node&gt;&gt;</code> with
+        deliberately-created strong-reference cycles (the same shape as the Rc-cycle-leak bug elsewhere in this
+        packet, just intentional this time), or raw pointers under <code>unsafe</code>. Naming this distinction
+        <em>before</em> writing any code is a far stronger senior signal than jumping straight to Floyd's
+        algorithm on an impossible data shape.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D16</span><span class="qa-qtext">Binary tree inorder traversal, recursive.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">struct</span> <span class="ty">TreeNode</span> { val: <span class="ty">i32</span>, left: <span class="ty">Option</span>&lt;Box&lt;<span class="ty">TreeNode</span>&gt;&gt;, right: <span class="ty">Option</span>&lt;Box&lt;<span class="ty">TreeNode</span>&gt;&gt; }
+
+<span class="kw">fn</span> <span class="fn">inorder</span>(node: &amp;<span class="ty">Option</span>&lt;Box&lt;<span class="ty">TreeNode</span>&gt;&gt;, out: &amp;<span class="kw">mut</span> Vec&lt;<span class="ty">i32</span>&gt;) {
+    <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(n) = node {
+        <span class="fn">inorder</span>(&amp;n.left, out);
+        out.<span class="fn">push</span>(n.val);
+        <span class="fn">inorder</span>(&amp;n.right, out);
+    }
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Taking <code>&amp;Option&lt;Box&lt;TreeNode&gt;&gt;</code> (a <em>borrow</em>) rather than the owned
+        value means traversal never destroys the tree — obvious once you think in borrows, but candidates coming
+        from pointer-heavy C/C++ backgrounds sometimes reach for consuming ownership out of habit and then can't
+        figure out why the tree "disappeared" after one traversal call.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="adv">
+      <div class="qa-q"><span class="qa-num">D17</span><span class="qa-qtext">Binary tree inorder traversal, iterative — with an explicit stack, no recursion.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">inorder_iterative</span>(root: &amp;<span class="ty">Option</span>&lt;Box&lt;<span class="ty">TreeNode</span>&gt;&gt;) -&gt; Vec&lt;<span class="ty">i32</span>&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> stack: Vec&lt;&amp;<span class="ty">TreeNode</span>&gt; = Vec::<span class="fn">new</span>();
+<span class="ok-line">    <span class="kw">let</span> <span class="kw">mut</span> current = root.<span class="fn">as_deref</span>();   <span class="cm">// &Option<Box<T>> -> Option<&T>, no cloning, no unwrap</span></span>
+    <span class="kw">let</span> <span class="kw">mut</span> out = Vec::<span class="fn">new</span>();
+
+    <span class="kw">loop</span> {
+        <span class="kw">while</span> <span class="kw">let</span> <span class="ty">Some</span>(node) = current {
+            stack.<span class="fn">push</span>(node);
+            current = node.left.<span class="fn">as_deref</span>();
+        }
+        <span class="kw">match</span> stack.<span class="fn">pop</span>() {
+            <span class="ty">Some</span>(node) =&gt; {
+                out.<span class="fn">push</span>(node.val);
+                current = node.right.<span class="fn">as_deref</span>();
+            }
+            <span class="ty">None</span> =&gt; <span class="kw">break</span>,
+        }
+    }
+    out
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>Option::as_deref()</code> is the tool most candidates forget under pressure: it turns
+        <code>&amp;Option&lt;Box&lt;T&gt;&gt;</code> into <code>Option&lt;&amp;T&gt;</code> in one call, which is
+        exactly the type you need to walk a boxed tree using only plain references — without it you end up
+        writing awkward nested <code>match</code>/<code>.as_ref().map(|b| b.as_ref())</code> chains to get the
+        same result.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D18</span><span class="qa-qtext">Binary tree level-order traversal (BFS), returning each level as its own <code>Vec</code>.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::collections::VecDeque;
+
+<span class="kw">fn</span> <span class="fn">level_order</span>(root: &amp;<span class="ty">Option</span>&lt;Box&lt;<span class="ty">TreeNode</span>&gt;&gt;) -&gt; Vec&lt;Vec&lt;<span class="ty">i32</span>&gt;&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> result = Vec::<span class="fn">new</span>();
+    <span class="kw">let</span> <span class="kw">mut</span> queue: VecDeque&lt;&amp;<span class="ty">TreeNode</span>&gt; = VecDeque::<span class="fn">new</span>();
+    <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(node) = root.<span class="fn">as_deref</span>() { queue.<span class="fn">push_back</span>(node); }
+
+    <span class="kw">while</span> !queue.<span class="fn">is_empty</span>() {
+<span class="ok-line">        <span class="kw">let</span> level_size = queue.<span class="fn">len</span>();   <span class="cm">// snapshot BEFORE the inner loop — this is what separates levels</span></span>
+        <span class="kw">let</span> <span class="kw">mut</span> level = Vec::<span class="fn">with_capacity</span>(level_size);
+        <span class="kw">for</span> _ <span class="kw">in</span> <span class="nm">0</span>..level_size {
+            <span class="kw">let</span> node = queue.<span class="fn">pop_front</span>().<span class="fn">unwrap</span>();
+            level.<span class="fn">push</span>(node.val);
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(l) = node.left.<span class="fn">as_deref</span>() { queue.<span class="fn">push_back</span>(l); }
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Some</span>(r) = node.right.<span class="fn">as_deref</span>() { queue.<span class="fn">push_back</span>(r); }
+        }
+        result.<span class="fn">push</span>(level);
+    }
+    result
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Capturing <code>level_size = queue.len()</code> <em>before</em> the inner <code>for</code> loop starts
+        pushing this level's children into the same queue is the one line that makes level-separation correct —
+        skip it and you'll iterate a moving target and lose the level boundaries entirely. Same
+        <code>VecDeque</code> + <code>as_deref()</code> combo as the earlier drills, now composed together.</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ SECTION D · CORE SYNTAX FLUENCY ════════════ -->
+<div class="section" id="d-syntax">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-gen)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-gen)">// Drills D · Core Syntax Fluency</div>
+      <div class="sh-title">Core Syntax Fluency — Traits, Generics, Conversions</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-gen)"></span>Not algorithmic — pure "can you write this exact syntax from memory" drills · 5 drills</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D19</span><span class="qa-qtext">Write a generic function <code>largest</code> that returns the largest element in a slice, for any orderable type.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">largest</span>&lt;<span class="ty">T</span>: PartialOrd + Copy&gt;(list: &amp;[<span class="ty">T</span>]) -&gt; <span class="ty">T</span> {
+    <span class="kw">let</span> <span class="kw">mut</span> max = list[<span class="nm">0</span>];
+    <span class="kw">for</span> &amp;item <span class="kw">in</span> list.<span class="fn">iter</span>() {
+        <span class="kw">if</span> item &gt; max { max = item; }
+    }
+    max
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>PartialOrd</code>, not <code>Ord</code> — this is what lets the function also work for
+        <code>f64</code>/<code>f32</code>, which can't implement total <code>Ord</code> because <code>NaN</code>
+        isn't comparable to anything, including itself. The <code>Copy</code> bound is what justifies
+        <code>max = item</code> instead of needing <code>Clone</code> and a <code>.clone()</code> call — knowing
+        exactly which trait bound unlocks which operation, without an IDE's inline error to guide you there, is
+        the whole point of this drill.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D20</span><span class="qa-qtext">Manually implement <code>Display</code> and <code>Debug</code> for a <code>Point { x: i32, y: i32 }</code> struct — no <code>#[derive(...)]</code>.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::fmt;
+
+<span class="kw">struct</span> <span class="ty">Point</span> { x: <span class="ty">i32</span>, y: <span class="ty">i32</span> }
+
+<span class="kw">impl</span> fmt::Display <span class="kw">for</span> <span class="ty">Point</span> {
+    <span class="kw">fn</span> <span class="fn">fmt</span>(&amp;<span class="kw">self</span>, f: &amp;<span class="kw">mut</span> fmt::Formatter) -&gt; fmt::Result {
+        <span class="fn">write!</span>(f, <span class="st">"({}, {})"</span>, <span class="kw">self</span>.x, <span class="kw">self</span>.y)
+    }
+}
+
+<span class="kw">impl</span> fmt::Debug <span class="kw">for</span> <span class="ty">Point</span> {
+    <span class="kw">fn</span> <span class="fn">fmt</span>(&amp;<span class="kw">self</span>, f: &amp;<span class="kw">mut</span> fmt::Formatter) -&gt; fmt::Result {
+<span class="ok-line">        f.<span class="fn">debug_struct</span>(<span class="st">"Point"</span>).<span class="fn">field</span>(<span class="st">"x"</span>, &amp;<span class="kw">self</span>.x).<span class="fn">field</span>(<span class="st">"y"</span>, &amp;<span class="kw">self</span>.y).<span class="fn">finish</span>()</span>
+    }
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        The exact signature — <code>fn fmt(&amp;self, f: &amp;mut fmt::Formatter) -&gt; fmt::Result</code> — is
+        one of the most-forgotten-under-pressure signatures in Rust precisely because you almost never write it
+        by hand in real projects (<code>#[derive(Debug)]</code> covers 95% of cases). Using
+        <code>f.debug_struct(...).field(...).finish()</code> for the manual <code>Debug</code> impl mirrors
+        exactly what the derive macro itself generates — a strong "read the derived output before" signal versus
+        hand-writing a raw <code>write!</code> call for <code>Debug</code> too.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D21</span><span class="qa-qtext">Implement a fallible <code>TryFrom&lt;i32&gt;</code> and an infallible <code>From&lt;Direction&gt;</code> conversion for an enum <code>Direction { North, East, South, West }</code>.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">enum</span> <span class="ty">Direction</span> { North, East, South, West }
+
+<span class="kw">impl</span> TryFrom&lt;<span class="ty">i32</span>&gt; <span class="kw">for</span> <span class="ty">Direction</span> {
+    <span class="kw">type</span> <span class="ty">Error</span> = <span class="ty">String</span>;
+    <span class="kw">fn</span> <span class="fn">try_from</span>(v: <span class="ty">i32</span>) -&gt; <span class="ty">Result</span>&lt;<span class="kw">Self</span>, <span class="kw">Self</span>::<span class="ty">Error</span>&gt; {
+        <span class="kw">match</span> v {
+            <span class="nm">0</span> =&gt; <span class="ty">Ok</span>(<span class="ty">Direction</span>::North),
+            <span class="nm">1</span> =&gt; <span class="ty">Ok</span>(<span class="ty">Direction</span>::East),
+            <span class="nm">2</span> =&gt; <span class="ty">Ok</span>(<span class="ty">Direction</span>::South),
+            <span class="nm">3</span> =&gt; <span class="ty">Ok</span>(<span class="ty">Direction</span>::West),
+            other =&gt; <span class="ty">Err</span>(<span class="fn">format!</span>(<span class="st">"invalid direction: {other}"</span>)),
+        }
+    }
+}
+
+<span class="kw">impl</span> From&lt;<span class="ty">Direction</span>&gt; <span class="kw">for</span> &amp;<span class="lt">'static</span> <span class="ty">str</span> {
+    <span class="kw">fn</span> <span class="fn">from</span>(d: <span class="ty">Direction</span>) -&gt; <span class="kw">Self</span> {
+        <span class="kw">match</span> d {
+            <span class="ty">Direction</span>::North =&gt; <span class="st">"N"</span>, <span class="ty">Direction</span>::East =&gt; <span class="st">"E"</span>,
+            <span class="ty">Direction</span>::South =&gt; <span class="st">"S"</span>, <span class="ty">Direction</span>::West =&gt; <span class="st">"W"</span>,
+        }
+    }
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Choosing <code>TryFrom</code> (with an associated <code>Error</code> type) for the integer-to-enum
+        direction specifically because <strong>not every <code>i32</code> is a valid <code>Direction</code></strong>,
+        versus plain <code>From</code> for enum-to-<code>&amp;str</code> because that direction is always
+        infallible, is exactly the judgment call this drill is testing — reaching for the wrong one of the pair
+        (e.g. panicking inside a <code>From</code> impl instead of using <code>TryFrom</code>) is a real, common
+        mid-level mistake.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D22</span><span class="qa-qtext">Model a traffic light as an enum state machine with a <code>next(self) -&gt; Self</code> transition method.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">enum</span> <span class="ty">TrafficLight</span> { Red, Yellow, Green }
+
+<span class="kw">impl</span> <span class="ty">TrafficLight</span> {
+    <span class="kw">fn</span> <span class="fn">next</span>(<span class="kw">self</span>) -&gt; <span class="kw">Self</span> {
+        <span class="kw">match</span> <span class="kw">self</span> {
+            <span class="ty">TrafficLight</span>::Red =&gt; <span class="ty">TrafficLight</span>::Green,
+            <span class="ty">TrafficLight</span>::Green =&gt; <span class="ty">TrafficLight</span>::Yellow,
+            <span class="ty">TrafficLight</span>::Yellow =&gt; <span class="ty">TrafficLight</span>::Red,
+        }
+    }
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>next(self)</code> takes <code>self</code> <strong>by value</strong>, not <code>&amp;self</code> —
+        a state transition <em>replaces</em> the state entirely rather than mutating in place, so consuming the
+        old state and returning the new one is the honest signature (this is the same consuming-<code>self</code>
+        instinct behind the builder pattern). Also deliberately no wildcard <code>_ =&gt; ...</code> arm: an
+        exhaustive match means adding a new light color later forces a compile error here until you decide what
+        it transitions to — the compiler becomes a checklist for you.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D23</span><span class="qa-qtext">Roman numeral to integer conversion (e.g. <code>"MCMXCIV"</code> → <code>1994</code>).</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">roman_to_int</span>(s: &amp;<span class="ty">str</span>) -&gt; <span class="ty">i32</span> {
+    <span class="kw">fn</span> <span class="fn">value</span>(c: <span class="ty">char</span>) -&gt; <span class="ty">i32</span> {
+        <span class="kw">match</span> c {
+            <span class="st">'I'</span> =&gt; <span class="nm">1</span>, <span class="st">'V'</span> =&gt; <span class="nm">5</span>, <span class="st">'X'</span> =&gt; <span class="nm">10</span>, <span class="st">'L'</span> =&gt; <span class="nm">50</span>,
+            <span class="st">'C'</span> =&gt; <span class="nm">100</span>, <span class="st">'D'</span> =&gt; <span class="nm">500</span>, <span class="st">'M'</span> =&gt; <span class="nm">1000</span>,
+            _ =&gt; <span class="nm">0</span>,
+        }
+    }
+
+    <span class="kw">let</span> chars: Vec&lt;<span class="ty">char</span>&gt; = s.<span class="fn">chars</span>().<span class="fn">collect</span>();
+    <span class="kw">let</span> <span class="kw">mut</span> total = <span class="nm">0</span>;
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nm">0</span>..chars.<span class="fn">len</span>() {
+        <span class="kw">let</span> curr = <span class="fn">value</span>(chars[i]);
+<span class="ok-line">        <span class="kw">if</span> i + <span class="nm">1</span> &lt; chars.<span class="fn">len</span>() &amp;&amp; curr &lt; <span class="fn">value</span>(chars[i + <span class="nm">1</span>]) {</span>
+            total -= curr;   <span class="cm">// smaller numeral before a larger one — subtractive notation (IV, IX, XC...)</span>
+        } <span class="kw">else</span> {
+            total += curr;
+        }
+    }
+    total
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        A bounds-checked one-ahead peek (<code>i + 1 &lt; chars.len() &amp;&amp; ...</code>) is perfectly
+        idiomatic here and arguably clearer than reaching for a <code>Peekable</code> iterator — knowing when
+        the "fancier" iterator abstraction is <em>not</em> worth it, versus reflexively reaching for one every
+        time, is itself a mark of practical judgment rather than syntax showing-off.</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ SECTION E · CLOSURES, FILES & ASYNC TRAITS ════════════ -->
+<div class="section" id="d-syntax2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-fn)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-fn)">// Drills E · Closures, Files &amp; Async Traits</div>
+      <div class="sh-title">Closures, Files &amp; Async Traits</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-fn)"></span>The exact signatures that are easiest to fumble without an IDE — 8 drills</div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D24</span><span class="qa-qtext">Write <code>double_n_times</code>, generic over a closure parameter bounded by <code>Fn(i32) -&gt; i32</code>, that applies the closure to a value <code>n</code> times.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">double_n_times</span>&lt;<span class="ty">F</span>&gt;(start: <span class="ty">i32</span>, n: <span class="ty">u32</span>, f: <span class="ty">F</span>) -&gt; <span class="ty">i32</span>
+<span class="kw">where</span>
+    <span class="ty">F</span>: <span class="ty">Fn</span>(<span class="ty">i32</span>) -&gt; <span class="ty">i32</span>,
+{
+    <span class="kw">let</span> <span class="kw">mut</span> value = start;
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="nm">0</span>..n { value = f(value); }
+    value
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>F</code> is declared as its own generic parameter, then constrained in a <code>where</code>
+        clause (or inline as <code>F: Fn(i32) -&gt; i32</code> in the angle brackets — both are equally correct) —
+        the closure parameter itself, <code>f: F</code>, is never mutable here since <code>Fn</code> only ever
+        needs <code>&amp;self</code> to call. Forgetting the generic parameter entirely and trying to write
+        <code>f: Fn(i32) -&gt; i32</code> directly as a "concrete type" is the single most common syntax slip
+        under pressure — <code>Fn(i32) -&gt; i32</code> is a trait, not a type, and can only appear behind
+        <code>&amp;dyn</code>/<code>Box&lt;dyn _&gt;</code> or as a generic bound.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D25</span><span class="qa-qtext">Write <code>count_calls</code>, taking a boxed, owned <code>FnMut(i32) -&gt; i32</code> trait object as its parameter, and call it exactly twice with the running result.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">fn</span> <span class="fn">count_calls</span>(start: <span class="ty">i32</span>, <span class="kw">mut</span> f: Box&lt;<span class="kw">dyn</span> <span class="ty">FnMut</span>(<span class="ty">i32</span>) -&gt; <span class="ty">i32</span>&gt;) -&gt; <span class="ty">i32</span> {
+    <span class="kw">let</span> once = f(start);
+    f(once)
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> calls = <span class="nm">0</span>;
+<span class="ok-line">    <span class="kw">let</span> closure: Box&lt;<span class="kw">dyn</span> <span class="ty">FnMut</span>(<span class="ty">i32</span>) -&gt; <span class="ty">i32</span>&gt; = Box::<span class="fn">new</span>(<span class="kw">move</span> |x| { calls += <span class="nm">1</span>; x + <span class="nm">1</span> });</span>
+    <span class="fn">println!</span>(<span class="st">"{}"</span>, <span class="fn">count_calls</span>(<span class="nm">0</span>, closure));  <span class="cm">// 2</span>
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>Box&lt;dyn FnMut(i32) -&gt; i32&gt;</code> is taken <strong>by value</strong>, not by reference, since
+        the function owns and fully consumes it here — and the parameter needs its own
+        <code>mut f:</code> binding (shadowing/rebinding as mutable) to legally call a <code>FnMut</code> more
+        than once, exactly like the plain generic case. Note also the closure itself needs
+        <code>move</code> to take ownership of <code>calls</code> before it's boxed and handed off — without
+        <code>move</code>, the closure would try to borrow <code>calls</code>, and a boxed trait object with a
+        borrowed capture can't outlive the function it was created in as easily as an owned one.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D26</span><span class="qa-qtext">Read a text file into a <code>Vec&lt;String&gt;</code>, one entry per line, using buffered I/O.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::fs::File;
+<span class="kw">use</span> std::io::{<span class="ty">self</span>, <span class="ty">BufRead</span>, <span class="ty">BufReader</span>};
+
+<span class="kw">fn</span> <span class="fn">read_lines</span>(path: &amp;<span class="ty">str</span>) -&gt; io::Result&lt;Vec&lt;<span class="ty">String</span>&gt;&gt; {
+    <span class="kw">let</span> file = File::<span class="fn">open</span>(path)?;
+    BufReader::<span class="fn">new</span>(file).<span class="fn">lines</span>().<span class="fn">collect</span>()
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>.lines()</code> yields <code>io::Result&lt;String&gt;</code> per line, not a bare
+        <code>String</code> — but <code>Iterator&lt;Item = Result&lt;T, E&gt;&gt;::collect()</code> can target
+        <code>Result&lt;Vec&lt;T&gt;, E&gt;</code> directly (via the <code>FromIterator</code> impl for
+        <code>Result</code>), short-circuiting on the first error — this is why the whole function body can be
+        just <code>BufReader::new(file).lines().collect()</code> with no explicit loop or error handling at all,
+        and it's one of the most useful "collect into a Result" tricks to have memorized cold.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D27</span><span class="qa-qtext">Write a <code>Vec&lt;String&gt;</code> to a file, one entry per line, using buffered I/O — and make sure a write failure is actually observable.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::fs::File;
+<span class="kw">use</span> std::io::{<span class="ty">self</span>, <span class="ty">BufWriter</span>, <span class="ty">Write</span>};
+
+<span class="kw">fn</span> <span class="fn">write_lines</span>(path: &amp;<span class="ty">str</span>, lines: &amp;[<span class="ty">String</span>]) -&gt; io::Result&lt;()&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> writer = BufWriter::<span class="fn">new</span>(File::<span class="fn">create</span>(path)?);
+    <span class="kw">for</span> line <span class="kw">in</span> lines {
+        <span class="fn">writeln!</span>(writer, <span class="st">"{line}"</span>)?;
+    }
+<span class="ok-line">    writer.<span class="fn">flush</span>()  <span class="cm">// returns io::Result<()> directly — the function's final expression, no trailing Ok(()) needed</span></span>
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        <code>File::create</code> (not <code>File::open</code>) is what creates-or-truncates for writing —
+        mixing these two up is a common slip. Ending the function with <code>writer.flush()</code> as the
+        final expression (rather than calling it with <code>?</code> and then a separate <code>Ok(())</code>)
+        works because <code>flush()</code> already returns exactly the <code>io::Result&lt;()&gt;</code> the
+        function needs — a small but genuine "do you reach for the minimal correct code" tell.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="sr">
+      <div class="qa-q"><span class="qa-num">D28</span><span class="qa-qtext">Write the exact object-safe return type for a trait method that used to be a native <code>async fn fetch(&amp;self) -&gt; String</code>, now rewritten so it works behind <code>Box&lt;dyn Trait&gt;</code>.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::future::Future;
+<span class="kw">use</span> std::pin::Pin;
+
+<span class="kw">trait</span> <span class="ty">Fetcher</span> {
+<span class="ok-line">    <span class="kw">fn</span> <span class="fn">fetch</span>&lt;<span class="lt">'a</span>&gt;(&amp;<span class="lt">'a</span> <span class="kw">self</span>) -&gt; Pin&lt;Box&lt;<span class="kw">dyn</span> Future&lt;Output = <span class="ty">String</span>&gt; + Send + <span class="lt">'a</span>&gt;&gt;;</span>
+}
+
+<span class="kw">struct</span> <span class="ty">Impl</span>;
+<span class="kw">impl</span> <span class="ty">Fetcher</span> <span class="kw">for</span> <span class="ty">Impl</span> {
+    <span class="kw">fn</span> <span class="fn">fetch</span>&lt;<span class="lt">'a</span>&gt;(&amp;<span class="lt">'a</span> <span class="kw">self</span>) -&gt; Pin&lt;Box&lt;<span class="kw">dyn</span> Future&lt;Output = <span class="ty">String</span>&gt; + Send + <span class="lt">'a</span>&gt;&gt; {
+<span class="ok-line">        Box::<span class="fn">pin</span>(<span class="kw">async move</span> { <span class="st">"result"</span>.<span class="fn">to_string</span>() })  <span class="cm">// Box::pin an async block directly — no separate async fn needed</span></span>
+    }
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Four things have to be right simultaneously, in order: <code>Pin&lt;Box&lt;...&gt;&gt;</code> (the future
+        must be heap-allocated and pinned since it can't be moved once polling starts), <code>dyn
+        Future&lt;Output = String&gt;</code> (the erased trait object naming the output type), <code>+ Send</code>
+        (so it can be moved across threads/spawned), and an explicit lifetime <code>'a</code> tying the future's
+        borrow of <code>&amp;self</code> to the caller's reference. Getting any one of these wrong (forgetting
+        <code>Pin</code>, forgetting <code>Send</code>, or forgetting the lifetime) is the norm, not the
+        exception, the first several times you write this by hand — which is exactly why most real codebases
+        reach for the <code>async-trait</code> crate to generate it instead of hand-writing it repeatedly.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D29</span><span class="qa-qtext">Write a function generic over <code>R: BufRead</code> that counts how many lines contain a given substring — then call it with both a <code>BufReader&lt;File&gt;</code> and a plain <code>&amp;[u8]</code>, unchanged.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::io::{<span class="ty">self</span>, <span class="ty">BufRead</span>};
+
+<span class="kw">fn</span> <span class="fn">count_matching_lines</span>&lt;<span class="ty">R</span>: <span class="ty">BufRead</span>&gt;(reader: <span class="ty">R</span>, needle: &amp;<span class="ty">str</span>) -&gt; io::Result&lt;<span class="ty">usize</span>&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> count = <span class="nm">0</span>;
+    <span class="kw">for</span> line <span class="kw">in</span> reader.<span class="fn">lines</span>() {
+        <span class="kw">if</span> line?.<span class="fn">contains</span>(needle) {
+            count += <span class="nm">1</span>;
+        }
+    }
+    <span class="ty">Ok</span>(count)
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() -&gt; io::Result&lt;()&gt; {
+    <span class="kw">let</span> file_reader = io::BufReader::<span class="fn">new</span>(std::fs::File::<span class="fn">open</span>(<span class="st">"log.txt"</span>)?);
+    <span class="fn">count_matching_lines</span>(file_reader, <span class="st">"ERROR"</span>)?;
+
+<span class="ok-line">    <span class="kw">let</span> in_memory: &amp;[<span class="ty">u8</span>] = <span class="st">b"ok\nERROR: oops\nok\n"</span>;  <span class="cm">// &[u8] implements BufRead directly — same function, zero changes</span></span>
+    <span class="fn">assert_eq!</span>(<span class="fn">count_matching_lines</span>(in_memory, <span class="st">"ERROR"</span>)?, <span class="nm">1</span>);
+    <span class="ty">Ok</span>(())
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Bounding the parameter by <code>R: BufRead</code> rather than accepting a concrete
+        <code>BufReader&lt;File&gt;</code> is the entire point — <code>&amp;[u8]</code> implements
+        <code>BufRead</code> natively (no wrapping needed), so the exact same function that scans a real log file
+        also drives a unit test with an in-memory byte slice and zero I/O. Reaching for the trait bound instead of
+        the concrete type "just because that's what the file-handling example used" is the mid-to-senior line
+        this drill is drawing.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="int">
+      <div class="qa-q"><span class="qa-num">D30</span><span class="qa-qtext">Connect to a TCP server, send one line, read one line back — using <code>TcpStream</code> plus buffered I/O, no async runtime.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">use</span> std::io::{<span class="ty">self</span>, <span class="ty">BufRead</span>, <span class="ty">BufReader</span>, <span class="ty">Write</span>};
+<span class="kw">use</span> std::net::TcpStream;
+
+<span class="kw">fn</span> <span class="fn">send_and_receive</span>(addr: &amp;<span class="ty">str</span>, message: &amp;<span class="ty">str</span>) -&gt; io::Result&lt;<span class="ty">String</span>&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> stream = TcpStream::<span class="fn">connect</span>(addr)?;
+<span class="ok-line">    <span class="fn">writeln!</span>(stream, <span class="st">"{message}"</span>)?;  <span class="cm">// write the request over the raw stream — no BufWriter needed for one line</span></span>
+
+<span class="ok-line">    <span class="kw">let</span> <span class="kw">mut</span> reader = BufReader::<span class="fn">new</span>(stream);  <span class="cm">// only one direction needed after the write, so no try_clone() required here</span></span>
+    <span class="kw">let</span> <span class="kw">mut</span> reply = <span class="ty">String</span>::<span class="fn">new</span>();
+    reader.<span class="fn">read_line</span>(&amp;<span class="kw">mut</span> reply)?;
+    <span class="ty">Ok</span>(reply)
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Order matters: the write happens on the plain <code>stream</code> <em>before</em> it's moved into
+        <code>BufReader::new(stream)</code> — once wrapped, <code>BufReader</code> owns it. Because this drill
+        only needs to read <em>after</em> it's done writing (a strict request/response, not interleaved
+        read-while-write like the echo server exercise), there's no need for <code>try_clone()</code> at all —
+        recognizing when the split is unnecessary is just as important a signal as knowing how to do it when it
+        is.</div>
+      </div></div>
+    </div>
+
+    <div class="qa-block" data-level="beg">
+      <div class="qa-q"><span class="qa-num">D31</span><span class="qa-qtext">Sort a <code>Vec&lt;Employee&gt;</code> (with <code>department: String</code>, <code>salary: f64</code> fields) by department alphabetically, then by salary <strong>descending</strong> within each department — using <code>sort_by</code>, not a hand-rolled sorting algorithm.</span><span class="qa-toggle">▼ reveal</span></div>
+      <div class="qa-a"><div class="qa-a-label">Idiomatic solution</div><div class="qa-a-text">
+<pre><span class="kw">struct</span> <span class="ty">Employee</span> { name: <span class="ty">String</span>, department: <span class="ty">String</span>, salary: <span class="ty">f64</span> }
+
+<span class="kw">fn</span> <span class="fn">sort_employees</span>(employees: &amp;<span class="kw">mut</span> Vec&lt;<span class="ty">Employee</span>&gt;) {
+<span class="ok-line">    employees.<span class="fn">sort_by</span>(|a, b| {
+        a.department
+            .<span class="fn">cmp</span>(&amp;b.department)  <span class="cm">// primary key: department, ascending, via Ord on String</span>
+            .<span class="fn">then_with</span>(|| b.salary.<span class="fn">partial_cmp</span>(&amp;a.salary).<span class="fn">unwrap</span>())  <span class="cm">// secondary key: salary, DESCENDING (b vs a, reversed)</span>
+    });</span>
+}</pre>
+        <div class="insight" style="margin-top:10px;"><div class="insight-label">Idiomatic tell</div>
+        Two things have to be right: <code>.then_with(...)</code> chains a secondary comparator that only runs
+        when the primary one reports <code>Equal</code> — this is the idiomatic way to express "sort by A, then
+        by B" without manually nesting <code>match</code> arms. Second, salary is <code>f64</code>, which does
+        <strong>not</strong> implement <code>Ord</code> (only <code>PartialOrd</code>, because <code>NaN</code>
+        compares unequal to everything, breaking <code>Ord</code>'s total-ordering requirement) — so
+        <code>.partial_cmp(...).unwrap()</code> is required, and reversing the two operands
+        (<code>b.salary.partial_cmp(&amp;a.salary)</code> instead of <code>a</code> vs <code>b</code>) is the
+        correct, idiomatic way to get descending order without a separate <code>.reverse()</code> call bolted
+        on afterward. <code>sort_by</code> (not <code>sort_unstable_by</code>) is also the right default here
+        specifically because employees with identical department <em>and</em> salary should keep their original
+        relative order — a stability guarantee <code>sort_unstable_by</code> does not make.</div>
+      </div></div>
+    </div>
+  </div>
+</div>

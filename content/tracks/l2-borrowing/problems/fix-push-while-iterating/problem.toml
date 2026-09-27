@@ -1,0 +1,25 @@
+slug = "fix-push-while-iterating"
+title = "Fix: push to the Vec you iterate"
+mode = "fix"
+level = "medium"
+stage = "iterator-invalidation"
+order = 18
+status = "ready"
+tags = ["E0502"]
+teaches = [
+  "Collect, then mutate.",
+]
+follow_up = "What's the equivalent bug in Python, and why doesn't it crash there?"
+related = ["L2"]
+
+[[hints]]
+kind = "approach"
+text = "Work out what to add while reading, then add it after the loop."
+
+[solution]
+explanation = "Collecting first means the new tasks aren't themselves expanded, and the Vec is only mutated once nothing borrows it."
+time = "O(n)"
+space = "O(k)"
+
+[rules]
+forbid_methods = ["clone"]

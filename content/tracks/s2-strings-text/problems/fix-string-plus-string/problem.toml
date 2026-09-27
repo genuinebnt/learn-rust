@@ -1,0 +1,29 @@
+slug = "fix-string-plus-string"
+title = "Fix: + with two Strings"
+mode = "fix"
+level = "easy"
+stage = "use"
+order = 3
+status = "ready"
+tags = ["E0308", "E0369", "Add"]
+teaches = [
+  "`String + &str` consumes the left side and borrows the right.",
+  "`&str + ...` doesn't exist; use `format!`.",
+]
+follow_up = "Why is `a + &b` often faster than `format!(\"{a}{b}\")`?"
+
+[[hints]]
+kind = "rust"
+text = "`impl Add<&str> for String` is the only `+` for strings: left side owned `String`, right side `&str`."
+
+[[hints]]
+kind = "rust"
+text = "A `&str` on the left can't grow, and a number isn't a `&str`. `format!` handles both."
+
+[solution]
+explanation = "`+` reuses the left `String`'s buffer, which is why it takes it by value. `&first` derefs `&String` to `&str`. For anything mixed, `format!` is clearer."
+time = "O(n)"
+space = "O(n)"
+
+[rules]
+max_changed_lines = 2

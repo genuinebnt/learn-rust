@@ -1,0 +1,31 @@
+slug = "most-common-word"
+title = "Most common word"
+mode = "write"
+level = "easy"
+stage = "use-it"
+order = 1
+status = "ready"
+tags = ["HashMap", "HashSet"]
+teaches = [
+  "Count into a `HashMap`, filter with a `HashSet`.",
+  "`max_by` with a tie-breaker.",
+]
+follow_up = "How would you return the top three words efficiently?"
+related = ["D1"]
+
+[[examples]]
+input = "\"Bob hit a ball, the hit BALL flew far after it was hit.\", banned = [\"hit\"]"
+output = "\"ball\""
+
+[[hints]]
+kind = "rust"
+text = "`str::split` with a closure splits on every non-letter; skip the empty pieces."
+
+[[hints]]
+kind = "edge case"
+text = "Without a tie-breaker, iteration order over a HashMap decides the answer."
+
+[solution]
+explanation = "`HashMap` iteration order is unspecified, so an explicit tie-break is what makes the answer deterministic."
+time = "O(n)"
+space = "O(n)"

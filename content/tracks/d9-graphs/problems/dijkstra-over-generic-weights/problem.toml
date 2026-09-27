@@ -1,0 +1,28 @@
+slug = "dijkstra-over-generic-weights"
+title = "Dijkstra over generic weights"
+mode = "write"
+level = "hard"
+stage = "shortest-paths"
+order = 21
+status = "ready"
+tags = ["generics", "traits", "associated consts"]
+teaches = [
+  "A trait bound that says exactly what Dijkstra needs: `Copy + Ord + Add`, plus a zero.",
+  "Associated consts.",
+]
+follow_up = "How would you support weights that can be compared but not totally ordered, like `f64`?"
+related = ["L4", "S1"]
+source = "W42"
+
+[[hints]]
+kind = "rust"
+text = "Store `Option<W>` per node: `None` means unreached, so no `MAX` sentinel is needed. That's why `Weight` doesn't ask for one."
+
+[[hints]]
+kind = "rust"
+text = "`Reverse((W, usize))` works for any `W: Ord`; `Option::is_none_or` reads well for the relaxation check."
+
+[solution]
+explanation = "The bound lists exactly what the algorithm uses: `Copy` to move weights around, `Ord` for the heap, `Add` to extend paths, `ZERO` for the source. With `Option` for 'unreached', any such type works, including a lexicographic (money, hops) cost."
+time = "O(E log E)"
+space = "O(V + E)"

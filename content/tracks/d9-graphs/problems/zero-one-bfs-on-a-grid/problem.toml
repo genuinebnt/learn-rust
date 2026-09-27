@@ -1,0 +1,35 @@
+slug = "zero-one-bfs-on-a-grid"
+title = "0-1 BFS on a grid"
+mode = "write"
+level = "hard"
+stage = "shortest-paths"
+order = 20
+status = "ready"
+tags = ["0-1 BFS", "VecDeque"]
+teaches = [
+  "`push_front` for 0-cost edges, `push_back` for 1-cost edges.",
+  "Shortest paths without a heap when weights are 0 or 1.",
+]
+constraints = ["1 ≤ rows, cols ≤ 500", "grid[0][0] is '.'"]
+follow_up = "How would you also return the path, not just its cost?"
+
+[[examples]]
+input = "grid = [\".#.\", \".#.\", \".#.\"]"
+output = "1"
+
+[[hints]]
+kind = "approach"
+text = "Every move costs 0 or 1. Dijkstra works, but a deque does the same job in linear time."
+
+[[hints]]
+kind = "approach"
+text = "A 0-cost move goes to the front of the deque (same distance), a 1-cost move to the back."
+
+[[hints]]
+kind = "rust"
+text = "`u32::from(bool)` turns the wall check into the cost."
+
+[solution]
+explanation = "The deque always holds at most two distinct distances, front ones smaller, so it behaves like Dijkstra's heap without the log factor."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

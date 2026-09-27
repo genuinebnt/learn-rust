@@ -1,0 +1,31 @@
+slug = "box-dyn-error-downcast"
+title = "Box<dyn Error + 'static> and downcasting"
+mode = "write"
+level = "medium"
+stage = "static-bounds"
+order = 14
+status = "ready"
+tags = ["Box<dyn Error>", "downcast_ref", "?"]
+teaches = [
+  "The default `'static` bound on `Box<dyn Trait>`.",
+  "Downcasting errors with `downcast_ref` and `is`.",
+]
+follow_up = "When would you define an error enum instead of returning `Box<dyn Error>`?"
+related = ["L3", "S1", "C4"]
+
+[[hints]]
+kind = "rust"
+text = "`?` converts any `E: Error + 'static` into `Box<dyn Error>` through `From`, so both error types can use it."
+
+[[hints]]
+kind = "rust"
+text = "`Box<dyn Error>` means `Box<dyn Error + 'static>`. That `'static` is what makes `downcast_ref` possible."
+
+[[hints]]
+kind = "rust"
+text = "`&*boxed_err` turns a `Box<dyn Error>` into `&(dyn Error + 'static)`."
+
+[solution]
+explanation = "Trait objects carry a lifetime bound, defaulting to `'static` in a `Box`. Downcasting relies on `TypeId`, which only exists for `'static` types; that's why `bad_line` takes `dyn Error + 'static`."
+time = "O(n)"
+space = "O(1)"

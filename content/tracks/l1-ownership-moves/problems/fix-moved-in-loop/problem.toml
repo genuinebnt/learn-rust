@@ -1,0 +1,27 @@
+slug = "fix-moved-in-loop"
+title = "Fix: value moved in a loop"
+mode = "fix"
+level = "easy"
+stage = "moves-and-copy"
+order = 3
+status = "ready"
+tags = ["E0382", "&str"]
+teaches = [
+  "A value moved in the first iteration isn't there for the second.",
+  "Borrow in helpers that only read.",
+]
+follow_up = "Why is `&str` a better parameter type than `&String`?"
+related = ["L2", "S2"]
+
+[[hints]]
+kind = "rust"
+text = "`greeting` only reads the name. Does it need to own it?"
+
+[solution]
+explanation = "`greeting` only formats, so borrowing `&str` is the right signature; `&name` derefs from `&String`."
+time = "O(n)"
+space = "O(n)"
+
+[rules]
+forbid_methods = ["clone"]
+max_changed_lines = 2

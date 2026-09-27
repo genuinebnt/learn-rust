@@ -1,0 +1,26 @@
+slug = "find-all-anagrams"
+title = "Find all anagrams in a string"
+mode = "write"
+level = "medium"
+stage = "windows"
+order = 14
+status = "ready"
+tags = ["fixed window"]
+teaches = [
+  "The same window as permutation-in-string, collecting every start index.",
+]
+follow_up = "Could you return an iterator of indices instead of a Vec?"
+related = ["S6"]
+
+[[examples]]
+input = "s = \"cbaebabacd\", p = \"abc\""
+output = "[0, 6]"
+
+[[hints]]
+kind = "approach"
+text = "Keep counts for a window of `p.len()` letters as it slides."
+
+[solution]
+explanation = "Identical to the permutation check, except it records each match instead of returning."
+time = "O(n)"
+space = "O(1) beyond the output"

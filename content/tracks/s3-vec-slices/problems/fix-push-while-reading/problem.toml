@@ -1,0 +1,30 @@
+slug = "fix-push-while-reading"
+title = "Fix: push to a Vec while reading it"
+mode = "fix"
+level = "medium"
+stage = "understand-it"
+order = 13
+status = "ready"
+tags = ["E0502", "extend_from_within"]
+teaches = [
+  "You can't push to a Vec while iterating it: a push may reallocate under the iterator.",
+  "`extend_from_within` copies a range of the Vec onto its end in one call.",
+]
+follow_up = "What would go wrong in C++ with the same loop?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "The loop holds a shared borrow of `v` while `push` needs a mutable one (E0502)."
+
+[[hints]]
+kind = "rust"
+text = "`Vec` has a method that appends a copy of a range of itself, with no temporary Vec."
+
+[solution]
+explanation = "If the loop compiled, `push` could reallocate and leave the iterator pointing at freed memory; that's exactly what the borrow checker prevents."
+time = "O(n)"
+space = "O(n)"
+
+[rules]
+forbid_methods = ["clone", "to_vec", "to_owned", "collect"]

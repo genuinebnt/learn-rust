@@ -1,0 +1,21 @@
+code = "S2"
+name = "Strings & text"
+section = "S"
+tier = "core"
+order = 2
+summary = "Text is UTF-8 bytes: borrow `&str`, own `String`, and never index by position."
+
+[[stages]]
+slug = "use"
+name = "Use"
+band = "easy"
+
+[[stages]]
+slug = "understand"
+name = "Understand"
+band = "medium"
+
+[[stages]]
+slug = "build"
+name = "Build"
+band = "hard"

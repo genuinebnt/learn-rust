@@ -1,0 +1,22 @@
+slug = "helpers-take-mut"
+title = "Pass &mut to a helper, twice"
+mode = "write"
+level = "medium"
+stage = "reborrows"
+order = 12
+status = "ready"
+tags = ["&mut", "implicit reborrow"]
+teaches = [
+  "Implicit reborrowing when passing `&mut` to a `&mut` parameter.",
+]
+follow_up = "Could `normalize` avoid allocating a new String?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "Passing `a` (a `&mut String`) to `normalize(s: &mut String)` reborrows it, so `a` is usable afterwards."
+
+[solution]
+explanation = "Each call reborrows `a` for just the call, which is why `a == b` still works."
+time = "O(n)"
+space = "O(n)"

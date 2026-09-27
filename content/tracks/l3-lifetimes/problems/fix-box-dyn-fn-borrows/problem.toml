@@ -1,0 +1,34 @@
+slug = "fix-box-dyn-fn-borrows"
+title = "Fix: Box<dyn Fn> that borrows"
+mode = "fix"
+level = "hard"
+stage = "variance-hrtbs"
+order = 20
+status = "ready"
+tags = ["trait object lifetimes", "Box<dyn Fn + 'a>"]
+teaches = [
+  "Default `'static` bounds on boxed trait objects.",
+  "`+ 'a` for trait objects that borrow.",
+]
+follow_up = "When would you return `impl Fn(&str) -> bool + 'a` instead of a Box?"
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "`Box<dyn Trait>` with no lifetime means `Box<dyn Trait + 'static>`: the closure may not borrow anything short-lived."
+
+[[hints]]
+kind = "rust"
+text = "Add a lifetime bound to the trait object: `+ 'a`. `+ '_` won't do here, because `&[&str]` has two elided lifetimes."
+
+[[hints]]
+kind = "rust"
+text = "`&'a [&str]` implies the inner strings outlive `'a`, so naming just the outer one is enough."
+
+[solution]
+explanation = "Trait objects carry a lifetime bound, just like references. The default in a `Box` is `'static`; a closure capturing `allowed` lives only as long as `allowed`, so the box has to say so."
+time = "O(k) per call"
+space = "O(1)"
+
+[rules]
+max_changed_lines = 1

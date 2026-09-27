@@ -1,0 +1,27 @@
+slug = "fix-hash-eq-consistency"
+title = "Fix: Hash that disagrees with Eq"
+mode = "fix"
+level = "medium"
+stage = "understand-it"
+order = 6
+status = "ready"
+tags = ["Hash", "Eq", "HashSet"]
+teaches = [
+  "If `a == b`, then `hash(a) == hash(b)` must hold.",
+  "Deriving `Hash` next to a hand-written `PartialEq` breaks that.",
+]
+follow_up = "What goes wrong in a BTreeMap if `Ord` disagrees with `Eq`?"
+related = ["S8"]
+
+[[hints]]
+kind = "approach"
+text = "Two usernames that are equal must hash the same. Does the derived `Hash` know about case?"
+
+[[hints]]
+kind = "rust"
+text = "Implement `Hash` yourself and feed the hasher the same thing `eq` compares."
+
+[solution]
+explanation = "The derived `Hash` hashes the original bytes, so equal values land in different buckets and never get compared. clippy flags this pattern (`derived_hash_with_manual_eq`) as a correctness error. The trailing `0xff` mirrors how `str` hashes, so adjacent fields can't run together."
+time = "O(n · len)"
+space = "O(n)"

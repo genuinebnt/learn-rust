@@ -1,0 +1,27 @@
+slug = "fix-small-struct-copy"
+title = "Fix: a small struct that should be Copy"
+mode = "fix"
+level = "easy"
+stage = "moves-and-copy"
+order = 2
+status = "ready"
+tags = ["Copy", "derive", "E0382"]
+teaches = [
+  "Types are moved by default; `Copy` types are duplicated bit for bit.",
+  "When a type can and should be `Copy`.",
+]
+follow_up = "Why can't a struct containing a `String` be `Copy`, and why is that a good thing?"
+related = ["S8"]
+
+[[hints]]
+kind = "rust"
+text = "Which derive lets a value be used again after it's passed by value? It needs a second derive alongside it."
+
+[solution]
+explanation = "`Copy` needs `Clone` too, and every field must be `Copy`. Small plain-data types like points should be `Copy`; anything owning heap memory can't be."
+time = "O(1)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]
+max_changed_lines = 1

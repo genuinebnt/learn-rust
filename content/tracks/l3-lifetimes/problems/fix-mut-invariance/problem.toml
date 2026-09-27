@@ -1,0 +1,34 @@
+slug = "fix-mut-invariance"
+title = "Fix: &mut T is invariant"
+mode = "fix"
+level = "hard"
+stage = "variance-hrtbs"
+order = 16
+status = "ready"
+tags = ["variance", "&mut T"]
+teaches = [
+  "`&mut T` is invariant in `T`.",
+  "Generalise the callee instead of the caller.",
+]
+follow_up = "Show the unsound program the compiler would accept if `&mut T` were covariant."
+related = ["L3"]
+
+[[hints]]
+kind = "rust"
+text = "`&'static str` coerces to `&'a str`, so why not `Vec<&'a str>` to `Vec<&'static str>` behind a `&mut`?"
+
+[[hints]]
+kind = "rust"
+text = "Through `&mut`, the function could also read the Vec as `&'static str`s, or store longer-lived references into it, so the element type must match exactly: `&mut T` is invariant in `T`."
+
+[[hints]]
+kind = "rust"
+text = "Make `add_defaults` generic over the element lifetime. Pushing a `&'static str` into a `Vec<&'a str>` is fine."
+
+[solution]
+explanation = "Covariance lets `&'static str` shrink to `&'a str`. Behind `&mut`, the type can't change at all, because the callee could write a short-lived value where a long-lived one is expected, or vice versa. The generic version asks for exactly what it needs."
+time = "O(n)"
+space = "O(n)"
+
+[rules]
+max_changed_lines = 1

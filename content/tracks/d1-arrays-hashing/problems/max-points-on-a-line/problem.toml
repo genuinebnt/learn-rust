@@ -1,0 +1,35 @@
+slug = "max-points-on-a-line"
+title = "Max points on a line"
+mode = "write"
+level = "hard"
+stage = "in-place"
+order = 24
+status = "ready"
+tags = ["gcd", "HashMap"]
+teaches = [
+  "Normalise slopes with gcd instead of floats.",
+  "Handle duplicate points separately.",
+]
+follow_up = "Why is using an f64 slope as a HashMap key a bad idea?"
+related = ["S4", "D13"]
+
+[[examples]]
+input = "points = [(1,1), (2,2), (3,3)]"
+output = "3"
+
+[[hints]]
+kind = "approach"
+text = "Fix one point and group the others by the direction to it."
+
+[[hints]]
+kind = "rust"
+text = "Floats lose precision; reduce (dx, dy) by their gcd and fix the sign instead."
+
+[[hints]]
+kind = "edge case"
+text = "Duplicate points are on every line through that point."
+
+[solution]
+explanation = "Each anchor point is compared with the points after it. Normalising by gcd and sign gives one exact key per direction."
+time = "O(n²)"
+space = "O(n)"

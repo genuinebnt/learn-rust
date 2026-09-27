@@ -1,0 +1,32 @@
+slug = "self-referential-parser"
+title = "The self-referential struct trap"
+mode = "write"
+level = "hard"
+stage = "variance-hrtbs"
+order = 18
+status = "ready"
+tags = ["self-referential", "PhantomData", "design"]
+teaches = [
+  "Why self-referential structs can't be written safely.",
+  "`PhantomData` for type parameters that pick behaviour.",
+]
+follow_up = "Rewrite `Parser` to own its `String` by storing byte offsets instead of references. What do you give up?"
+related = ["L3", "L4"]
+source = "W38"
+
+[[hints]]
+kind = "approach"
+text = "Store the unread part of the source (`&'a str`) and the current token (`Option<&'a str>`). No `String` inside the parser."
+
+[[hints]]
+kind = "rust"
+text = "`T` never appears in a field, so the compiler rejects it as unused. `PhantomData<T>` records it at zero size."
+
+[[hints]]
+kind = "rust"
+text = "`next_token(input: &str) -> Option<(&str, &str)>` elides to one lifetime: both halves borrow `input`."
+
+[solution]
+explanation = "Moving the owner out of the struct removes the self-reference: the parser is just two slices of someone else's text. If you truly need owner and view together, reach for a crate (`ouroboros`, `self_cell`) or store offsets instead of references."
+time = "O(n) total"
+space = "O(1)"

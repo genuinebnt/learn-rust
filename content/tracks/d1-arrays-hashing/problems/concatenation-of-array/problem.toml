@@ -1,0 +1,27 @@
+slug = "concatenation-of-array"
+title = "Concatenation of array"
+mode = "write"
+level = "easy"
+stage = "vec-and-slices"
+order = 2
+status = "ready"
+tags = ["slices", "repeat"]
+teaches = [
+  "`slice::repeat` and `concat` build a new `Vec` from slices.",
+  "`Vec::with_capacity` avoids regrowing when you know the size.",
+]
+follow_up = "What would change if the input were a `Vec<String>` instead of `&[i32]`?"
+related = ["S3"]
+
+[[examples]]
+input = "nums = [1, 2, 1]"
+output = "[1, 2, 1, 1, 2, 1]"
+
+[[hints]]
+kind = "rust"
+text = "Slices have `repeat(n)`; `[a, b].concat()` and `extend_from_slice` work too."
+
+[solution]
+explanation = "`nums.repeat(2)` allocates once with the final length."
+time = "O(n)"
+space = "O(n)"

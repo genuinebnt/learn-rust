@@ -1,0 +1,34 @@
+slug = "bytes-chars-char-indices"
+title = "Bytes vs chars vs char_indices"
+mode = "write"
+level = "medium"
+stage = "understand"
+order = 8
+status = "ready"
+tags = ["UTF-8", "chars", "char_indices"]
+teaches = [
+  "`len()` counts bytes; `chars().count()` counts Unicode scalar values.",
+  "`char_indices` gives byte offsets you can slice at.",
+]
+follow_up = "What does a user think of as one character that is several `char`s (grapheme clusters)?"
+
+[[examples]]
+input = "sizes(\"naïve\")"
+output = "(6, 5)"
+
+[[examples]]
+input = "positions(\"añoño\", 'ñ')"
+output = "[1, 4]"
+
+[[hints]]
+kind = "rust"
+text = "`str::len` is bytes. A character outside ASCII takes 2–4 bytes in UTF-8."
+
+[[hints]]
+kind = "rust"
+text = "`char_indices()` yields `(byte_offset, char)`; offsets are always valid slice points."
+
+[solution]
+explanation = "`chars().nth(n)` is O(n): UTF-8 has no random access by character. That's why `str` can't be indexed by position."
+time = "O(n)"
+space = "O(k)"

@@ -1,0 +1,27 @@
+slug = "my-option"
+title = "Build MyOption<T>"
+mode = "write"
+level = "hard"
+stage = "build-it"
+order = 9
+status = "ready"
+tags = ["enum", "generics", "mem::replace"]
+teaches = [
+  "Every combinator is a `match` on two variants.",
+  "`take` needs `mem::replace` to move out of `&mut self`.",
+]
+follow_up = "Why does `Option<&T>` have the same size as `&T`?"
+related = ["L7", "L6", "Y1"]
+
+[[hints]]
+kind = "approach"
+text = "Each method is one `match` on `Some(v)` / `None`."
+
+[[hints]]
+kind = "rust"
+text = "`take` has `&mut self` and must return the old value. `std::mem::replace` swaps in `None`."
+
+[solution]
+explanation = "`filter` uses a match guard to keep ownership of `v`. `unwrap_or_else` only calls `f` on `None`, which is the point of the `_else` variants."
+time = "O(1) each"
+space = "O(1)"

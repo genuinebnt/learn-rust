@@ -1,0 +1,39 @@
+slug = "cow-str"
+title = "Cow<str>: allocate only when needed"
+mode = "write"
+level = "medium"
+stage = "understand"
+order = 12
+status = "ready"
+tags = ["Cow", "zero-copy"]
+teaches = [
+  "`Cow::Borrowed` when the input is already right, `Cow::Owned` when it had to change.",
+  "Finding the first byte that needs work before allocating.",
+]
+follow_up = "Where does std use `Cow<str>` (hint: `String::from_utf8_lossy`)?"
+related = ["S1"]
+
+[[examples]]
+input = "\"a<b\""
+output = "\"a&lt;b\" (Owned)"
+
+[[examples]]
+input = "\"plain\""
+output = "\"plain\" (Borrowed)"
+
+[[hints]]
+kind = "approach"
+text = "Most inputs need no escaping. Scan for the first special character before allocating anything."
+
+[[hints]]
+kind = "rust"
+text = "`let Some(i) = s.find(pred) else { return Cow::Borrowed(s) };` handles the common case in one line."
+
+[[hints]]
+kind = "rust"
+text = "Copy `&s[..first]` in one go, then handle characters from `first` on."
+
+[solution]
+explanation = "The common case costs one scan and no allocation. Callers can treat both variants as `&str` via `Deref`, or call `into_owned` when they need a `String`."
+time = "O(n)"
+space = "O(n) only when escaping"

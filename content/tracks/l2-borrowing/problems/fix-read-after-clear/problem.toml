@@ -1,0 +1,26 @@
+slug = "fix-read-after-clear"
+title = "Fix: keep the length, not the reference"
+mode = "fix"
+level = "easy"
+stage = "where-borrows-end"
+order = 9
+status = "ready"
+tags = ["E0502"]
+teaches = [
+  "Hold the data you need, not a reference to it, across a mutation.",
+]
+follow_up = "What would happen in C++ if you read `longest` after `clear()`?"
+related = ["L2"]
+
+[[hints]]
+kind = "rust"
+text = "`longest` points at a String that `clear` frees. What do you actually need from it?"
+
+[solution]
+explanation = "Keeping a `usize` instead of a `&String` ends the borrow before `clear`."
+time = "O(n)"
+space = "O(1)"
+
+[rules]
+forbid_methods = ["clone"]
+max_changed_lines = 2

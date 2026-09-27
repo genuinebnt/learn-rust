@@ -1,0 +1,2519 @@
+<!-- ═══════════════════════════════════════════
+     PART: DESIGN PATTERN WRITE EXERCISES  (DP1 – DP18)
+     Refactoring Guru classics · idiomatic Rust adaptations
+═══════════════════════════════════════════ -->
+
+<div class="page-header" id="dp-header">
+  <div class="ph-eyebrow">Design Patterns · Write-From-Scratch · Refactoring Guru → Rust</div>
+  <div class="ph-title">Design Patterns in Rust</div>
+  <div class="ph-sub">
+    Classic GoF / Refactoring Guru patterns rewritten the way senior Rust interviews expect them:
+    enums over deep class hierarchies, <code>OnceLock</code> instead of mutable singletons, typestate and
+    RAII where OOP would reach for Visitor or finalizers. Each exercise is a timed write-yourself —
+    hand over the starter, watch what they reach for unprompted, then reveal the key.
+    Patterns intentionally <em>not</em> given full exercises (Visitor, Mediator, Memento, Flyweight, Bridge,
+    Chain of Responsibility) are rare in idiomatic Rust; ask about them verbally if an interviewer goes there.
+  </div>
+  <div class="ph-badges">
+    <span class="badge badge-rust">Rust 2021 / 2024 edition</span>
+    <span class="badge badge-time">18 write exercises</span>
+    <span class="badge badge-time">20–30 min each</span>
+    <span class="badge badge-time">Creational · Structural · Behavioral · Rust-native</span>
+  </div>
+</div>
+<!-- ════════════ DP1 · BUILDER ════════════ -->
+<div class="section" id="dp1">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 01 · 20–30 min</div>
+      <div class="sh-title">DP1 · Builder</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">creational</span>
+      <span class="chip">builder</span>
+      <span class="chip">Result</span>
+      <span class="chip chip-easy">Easy</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement a fluent <strong>Builder</strong> for an <code>HttpRequest</code> with required
+      <code>method</code> and <code>url</code>, plus optional <code>timeout_ms</code> (default 30_000).
+      Setters should return <code>Self</code> for chaining, and <code>build()</code> must return
+      <code>Result&lt;HttpRequest, BuildError&gt;</code> that fails if required fields are missing.
+      No panics in <code>build()</code>."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">struct</span> <span class="ty">HttpRequest</span> {
+    method: <span class="ty">String</span>,
+    url: <span class="ty">String</span>,
+    timeout_ms: <span class="ty">u64</span>,
+}
+
+<span class="kw">enum</span> <span class="ty">BuildError</span> {
+    MissingMethod,
+    MissingUrl,
+}
+
+<span class="kw">struct</span> <span class="ty">HttpRequestBuilder</span> {
+    <span class="cm">// TODO: Option fields + default timeout</span>
+}
+
+<span class="kw">impl</span> <span class="ty">HttpRequestBuilder</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { <span class="cm">/* TODO */</span> <span class="kw">todo!</span>() }
+    <span class="kw">fn</span> <span class="fn">method</span>(<span class="kw">self</span>, method: <span class="kw">impl</span> Into&lt;<span class="ty">String</span>&gt;) -&gt; <span class="kw">Self</span> { <span class="kw">todo!</span>() }
+    <span class="kw">fn</span> <span class="fn">url</span>(<span class="kw">self</span>, url: <span class="kw">impl</span> Into&lt;<span class="ty">String</span>&gt;) -&gt; <span class="kw">Self</span> { <span class="kw">todo!</span>() }
+    <span class="kw">fn</span> <span class="fn">timeout_ms</span>(<span class="kw">self</span>, timeout_ms: <span class="ty">u64</span>) -&gt; <span class="kw">Self</span> { <span class="kw">todo!</span>() }
+    <span class="kw">fn</span> <span class="fn">build</span>(<span class="kw">self</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">HttpRequest</span>, <span class="ty">BuildError</span>&gt; { <span class="kw">todo!</span>() }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> req = <span class="ty">HttpRequestBuilder</span>::<span class="fn">new</span>()
+        .<span class="fn">method</span>(<span class="st">"GET"</span>)
+        .<span class="fn">url</span>(<span class="st">"https://example.com"</span>)
+        .<span class="fn">timeout_ms</span>(<span class="nm">5_000</span>)
+        .<span class="fn">build</span>()
+        .<span class="fn">unwrap</span>();
+    <span class="fn">println!</span>(<span class="st">"{:?}"</span>, req.method);
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="mc">#[derive(Debug, PartialEq)]</span>
+<span class="kw">struct</span> <span class="ty">HttpRequest</span> {
+    method: <span class="ty">String</span>,
+    url: <span class="ty">String</span>,
+    timeout_ms: <span class="ty">u64</span>,
+}
+
+<span class="mc">#[derive(Debug, PartialEq)]</span>
+<span class="kw">enum</span> <span class="ty">BuildError</span> {
+    MissingMethod,
+    MissingUrl,
+}
+
+<span class="kw">struct</span> <span class="ty">HttpRequestBuilder</span> {
+    method: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt;,
+    url: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt;,
+    timeout_ms: <span class="ty">u64</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">HttpRequestBuilder</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> {
+            method: <span class="ty">None</span>,
+            url: <span class="ty">None</span>,
+            timeout_ms: <span class="nm">30_000</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">method</span>(<span class="kw">mut</span> <span class="kw">self</span>, method: <span class="kw">impl</span> Into&lt;<span class="ty">String</span>&gt;) -&gt; <span class="kw">Self</span> {
+        <span class="kw">self</span>.method = <span class="ty">Some</span>(method.<span class="fn">into</span>());
+        <span class="kw">self</span>
+    }
+
+    <span class="kw">fn</span> <span class="fn">url</span>(<span class="kw">mut</span> <span class="kw">self</span>, url: <span class="kw">impl</span> Into&lt;<span class="ty">String</span>&gt;) -&gt; <span class="kw">Self</span> {
+        <span class="kw">self</span>.url = <span class="ty">Some</span>(url.<span class="fn">into</span>());
+        <span class="kw">self</span>
+    }
+
+    <span class="kw">fn</span> <span class="fn">timeout_ms</span>(<span class="kw">mut</span> <span class="kw">self</span>, timeout_ms: <span class="ty">u64</span>) -&gt; <span class="kw">Self</span> {
+        <span class="kw">self</span>.timeout_ms = timeout_ms;
+        <span class="kw">self</span>
+    }
+
+    <span class="kw">fn</span> <span class="fn">build</span>(<span class="kw">self</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">HttpRequest</span>, <span class="ty">BuildError</span>&gt; {
+        <span class="ty">Ok</span>(<span class="ty">HttpRequest</span> {
+            method: <span class="kw">self</span>.method.<span class="fn">ok_or</span>(<span class="ty">BuildError</span>::MissingMethod)?,
+            url: <span class="kw">self</span>.url.<span class="fn">ok_or</span>(<span class="ty">BuildError</span>::MissingUrl)?,
+            timeout_ms: <span class="kw">self</span>.timeout_ms,
+        })
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> req = <span class="ty">HttpRequestBuilder</span>::<span class="fn">new</span>()
+        .<span class="fn">method</span>(<span class="st">"GET"</span>)
+        .<span class="fn">url</span>(<span class="st">"https://example.com"</span>)
+        .<span class="fn">timeout_ms</span>(<span class="nm">5_000</span>)
+        .<span class="fn">build</span>()
+        .<span class="fn">unwrap</span>();
+    <span class="fn">assert_eq!</span>(req.method, <span class="st">"GET"</span>);
+    <span class="fn">assert_eq!</span>(req.url, <span class="st">"https://example.com"</span>);
+    <span class="fn">assert_eq!</span>(req.timeout_ms, <span class="nm">5_000</span>);
+    <span class="fn">assert_eq!</span>(
+        <span class="ty">HttpRequestBuilder</span>::<span class="fn">new</span>().<span class="fn">url</span>(<span class="st">"https://x"</span>).<span class="fn">build</span>(),
+        <span class="ty">Err</span>(<span class="ty">BuildError</span>::MissingMethod)
+    );
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Stores required fields as <code>Option&lt;T&gt;</code> and validates in <code>build()</code> with <code>Result</code></strong> rather than panicking, using dummy defaults, or forcing callers to pass everything in <code>new()</code> — the whole point of Builder is deferred, typed validation.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Takes <code>self</code> by value (consuming builder) and returns <code>Self</code></strong> for fluent setters — the idiomatic owned-builder style in Rust; <code>&amp;mut self</code> builders exist but are a different ergonomics tradeoff.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Accepts <code>impl Into&lt;String&gt;</code></strong> on string setters so both <code>&amp;str</code> and <code>String</code> work without ceremony.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why Result instead of panicking in build()?"</em> — Missing config is an expected, recoverable failure at construction time; <code>Result</code> forces callers to handle it and keeps libraries panic-free. Panic is for programmer bugs, not absent fields.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would typestate encode required fields at compile time?"</em> — Phantom type parameters (or distinct builder types) that transition as fields are set, so <code>build()</code> only exists on the fully-configured state — no runtime <code>Option</code> check. Heavier, but zero-cost when the API surface is stable.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"When would you prefer a plain struct literal or Default over Builder?"</em> — When there are few fields, all optional with good defaults, or when the type is internal and not a public construction API — Builder pays for itself on many optional/required combinations and validation rules.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    In Rust, Builder shines for complex construction with validation — but prefer typestate or simply
+    required arguments in <code>new</code> when the set of required fields is small and stable. The pattern
+    is less about mimicking Java fluent APIs and more about making illegal states unrepresentable
+    (<code>Result</code>, typestate) without forcing every caller through a mutable bag of options.
+  </div>
+</div>
+
+<!-- ════════════ DP2 · FACTORY METHOD ════════════ -->
+<div class="section" id="dp2">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 02 · 20–30 min</div>
+      <div class="sh-title">DP2 · Factory Method</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">creational</span>
+      <span class="chip">factory</span>
+      <span class="chip">trait objects</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Define a <code>Shape</code> trait with <code>area()</code> and <code>name()</code>. Implement
+      <code>Circle</code> and <code>Rectangle</code>. Write a factory that takes a <code>ShapeKind</code>
+      enum and returns <code>Box&lt;dyn Shape&gt;</code>. Show that callers can work only through the trait
+      object. Be ready to discuss when an enum-of-variants would be better than <code>dyn Shape</code>."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">trait</span> <span class="ty">Shape</span> {
+    <span class="kw">fn</span> <span class="fn">area</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">f64</span>;
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="lt">'static</span> <span class="ty">str</span>;
+}
+
+<span class="cm">// TODO: Circle, Rectangle + Shape impls</span>
+
+<span class="kw">enum</span> <span class="ty">ShapeKind</span> {
+    Circle { radius: <span class="ty">f64</span> },
+    Rectangle { width: <span class="ty">f64</span>, height: <span class="ty">f64</span> },
+}
+
+<span class="kw">fn</span> <span class="fn">create_shape</span>(kind: <span class="ty">ShapeKind</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Shape</span>&gt; {
+    <span class="cm">// TODO</span>
+    <span class="kw">todo!</span>()
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> s = <span class="fn">create_shape</span>(<span class="ty">ShapeKind</span>::Circle { radius: <span class="nm">2.0</span> });
+    <span class="fn">println!</span>(<span class="st">"{} {}"</span>, s.<span class="fn">name</span>(), s.<span class="fn">area</span>());
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">trait</span> <span class="ty">Shape</span> {
+    <span class="kw">fn</span> <span class="fn">area</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">f64</span>;
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="lt">'static</span> <span class="ty">str</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">Circle</span> { radius: <span class="ty">f64</span> }
+
+<span class="kw">impl</span> <span class="ty">Shape</span> <span class="kw">for</span> <span class="ty">Circle</span> {
+    <span class="kw">fn</span> <span class="fn">area</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">f64</span> {
+        std::f64::consts::PI * <span class="kw">self</span>.radius * <span class="kw">self</span>.radius
+    }
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="lt">'static</span> <span class="ty">str</span> { <span class="st">"circle"</span> }
+}
+
+<span class="kw">struct</span> <span class="ty">Rectangle</span> { width: <span class="ty">f64</span>, height: <span class="ty">f64</span> }
+
+<span class="kw">impl</span> <span class="ty">Shape</span> <span class="kw">for</span> <span class="ty">Rectangle</span> {
+    <span class="kw">fn</span> <span class="fn">area</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">f64</span> { <span class="kw">self</span>.width * <span class="kw">self</span>.height }
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="lt">'static</span> <span class="ty">str</span> { <span class="st">"rectangle"</span> }
+}
+
+<span class="kw">enum</span> <span class="ty">ShapeKind</span> {
+    Circle { radius: <span class="ty">f64</span> },
+    Rectangle { width: <span class="ty">f64</span>, height: <span class="ty">f64</span> },
+}
+
+<span class="kw">fn</span> <span class="fn">create_shape</span>(kind: <span class="ty">ShapeKind</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Shape</span>&gt; {
+    <span class="kw">match</span> kind {
+        <span class="ty">ShapeKind</span>::Circle { radius } =&gt; Box::<span class="fn">new</span>(<span class="ty">Circle</span> { radius }),
+        <span class="ty">ShapeKind</span>::Rectangle { width, height } =&gt; {
+            Box::<span class="fn">new</span>(<span class="ty">Rectangle</span> { width, height })
+        }
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> c = <span class="fn">create_shape</span>(<span class="ty">ShapeKind</span>::Circle { radius: <span class="nm">2.0</span> });
+    <span class="fn">assert_eq!</span>(c.<span class="fn">name</span>(), <span class="st">"circle"</span>);
+    <span class="fn">assert!</span>((c.<span class="fn">area</span>() - (std::f64::consts::PI * <span class="nm">4.0</span>)).<span class="fn">abs</span>() &lt; <span class="nm">1e-9</span>);
+
+    <span class="kw">let</span> r = <span class="fn">create_shape</span>(<span class="ty">ShapeKind</span>::Rectangle { width: <span class="nm">3.0</span>, height: <span class="nm">4.0</span> });
+    <span class="fn">assert_eq!</span>(r.<span class="fn">name</span>(), <span class="st">"rectangle"</span>);
+    <span class="fn">assert!</span>((r.<span class="fn">area</span>() - <span class="nm">12.0</span>).<span class="fn">abs</span>() &lt; <span class="nm">1e-9</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Centralizes construction in one <code>match</code> on <code>ShapeKind</code></strong> returning <code>Box&lt;dyn Shape&gt;</code> — keeps variant knowledge in one place instead of scattering <code>Box::new</code> across the app.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Volunteers that a single <code>enum Shape { Circle(...), Rectangle(...) }</code> is often better</strong> when the set of shapes is closed — no vtable, exhaustiveness checking, cheaper than trait objects.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Doesn't force <code>Clone</code>/<code>Copy</code> bounds</strong> on the trait just to make factory demos easier — keeps the trait minimal.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"When is dyn Shape the right call vs an enum?"</em> — Prefer <code>dyn</code> when third parties must add new shapes (open set) or you need heterogeneous collections without naming every variant. Prefer enum when the set is closed and you want exhaustiveness + better codegen.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"What object-safety limits hit Shape if you add a generic method?"</em> — Methods with type parameters (or returning <code>Self</code>) are not object-safe; you'd need a separate generic helper, associated type, or switch to enum/generics.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How would you avoid heap allocation here?"</em> — Return an enum, use stack-allocated <code>enum</code> dispatch, or generics (<code>impl Shape</code> / monomorphization) if the concrete type can stay generic at the call site.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Classic OOP Factory Method maps poorly onto Rust's preference for closed enums and static dispatch.
+    A factory returning <code>Box&lt;dyn Trait&gt;</code> is valid for open hierarchies or plugin boundaries, but
+    seniors usually say: "I'd make <code>Shape</code> an enum unless I truly need open extension." That
+    tradeoff discussion is the real interview signal, not the <code>Box::new</code> boilerplate.
+  </div>
+</div>
+
+<!-- ════════════ DP3 · ABSTRACT FACTORY ════════════ -->
+<div class="section" id="dp3">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 03 · 20–30 min</div>
+      <div class="sh-title">DP3 · Abstract Factory</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">creational</span>
+      <span class="chip">abstract factory</span>
+      <span class="chip">traits</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Model two UI families — <strong>Dark</strong> and <strong>Light</strong> — that each produce a matching
+      <code>Button</code> and <code>Checkbox</code>. Define product traits, a <code>UiFactory</code> trait with
+      <code>create_button</code> / <code>create_checkbox</code>, and two concrete factories. A client function
+      should take <code>&amp;dyn UiFactory</code> and render a toolbar without knowing which family it got."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">trait</span> <span class="ty">Button</span> { <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span>; }
+<span class="kw">trait</span> <span class="ty">Checkbox</span> { <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span>; }
+
+<span class="kw">trait</span> <span class="ty">UiFactory</span> {
+    <span class="kw">fn</span> <span class="fn">create_button</span>(&amp;<span class="kw">self</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Button</span>&gt;;
+    <span class="kw">fn</span> <span class="fn">create_checkbox</span>(&amp;<span class="kw">self</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Checkbox</span>&gt;;
+}
+
+<span class="cm">// TODO: Dark*/Light* products + DarkFactory / LightFactory</span>
+<span class="cm">// TODO: fn paint_toolbar(factory: &amp;dyn UiFactory) -&gt; (String, String)</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// assert dark family pairs, then light family pairs</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">trait</span> <span class="ty">Button</span> {
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span>;
+}
+
+<span class="kw">trait</span> <span class="ty">Checkbox</span> {
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span>;
+}
+
+<span class="kw">trait</span> <span class="ty">UiFactory</span> {
+    <span class="kw">fn</span> <span class="fn">create_button</span>(&amp;<span class="kw">self</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Button</span>&gt;;
+    <span class="kw">fn</span> <span class="fn">create_checkbox</span>(&amp;<span class="kw">self</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Checkbox</span>&gt;;
+}
+
+<span class="kw">struct</span> <span class="ty">DarkButton</span>;
+<span class="kw">impl</span> <span class="ty">Button</span> <span class="kw">for</span> <span class="ty">DarkButton</span> {
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> { <span class="st">"dark-button"</span>.<span class="fn">into</span>() }
+}
+<span class="kw">struct</span> <span class="ty">DarkCheckbox</span>;
+<span class="kw">impl</span> <span class="ty">Checkbox</span> <span class="kw">for</span> <span class="ty">DarkCheckbox</span> {
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> { <span class="st">"dark-checkbox"</span>.<span class="fn">into</span>() }
+}
+<span class="kw">struct</span> <span class="ty">LightButton</span>;
+<span class="kw">impl</span> <span class="ty">Button</span> <span class="kw">for</span> <span class="ty">LightButton</span> {
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> { <span class="st">"light-button"</span>.<span class="fn">into</span>() }
+}
+<span class="kw">struct</span> <span class="ty">LightCheckbox</span>;
+<span class="kw">impl</span> <span class="ty">Checkbox</span> <span class="kw">for</span> <span class="ty">LightCheckbox</span> {
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> { <span class="st">"light-checkbox"</span>.<span class="fn">into</span>() }
+}
+
+<span class="kw">struct</span> <span class="ty">DarkFactory</span>;
+<span class="kw">impl</span> <span class="ty">UiFactory</span> <span class="kw">for</span> <span class="ty">DarkFactory</span> {
+    <span class="kw">fn</span> <span class="fn">create_button</span>(&amp;<span class="kw">self</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Button</span>&gt; { Box::<span class="fn">new</span>(<span class="ty">DarkButton</span>) }
+    <span class="kw">fn</span> <span class="fn">create_checkbox</span>(&amp;<span class="kw">self</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Checkbox</span>&gt; { Box::<span class="fn">new</span>(<span class="ty">DarkCheckbox</span>) }
+}
+
+<span class="kw">struct</span> <span class="ty">LightFactory</span>;
+<span class="kw">impl</span> <span class="ty">UiFactory</span> <span class="kw">for</span> <span class="ty">LightFactory</span> {
+    <span class="kw">fn</span> <span class="fn">create_button</span>(&amp;<span class="kw">self</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Button</span>&gt; { Box::<span class="fn">new</span>(<span class="ty">LightButton</span>) }
+    <span class="kw">fn</span> <span class="fn">create_checkbox</span>(&amp;<span class="kw">self</span>) -&gt; Box&lt;<span class="kw">dyn</span> <span class="ty">Checkbox</span>&gt; { Box::<span class="fn">new</span>(<span class="ty">LightCheckbox</span>) }
+}
+
+<span class="kw">fn</span> <span class="fn">paint_toolbar</span>(factory: &amp;<span class="kw">dyn</span> <span class="ty">UiFactory</span>) -&gt; (<span class="ty">String</span>, <span class="ty">String</span>) {
+    (
+        factory.<span class="fn">create_button</span>().<span class="fn">render</span>(),
+        factory.<span class="fn">create_checkbox</span>().<span class="fn">render</span>(),
+    )
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> (b, c) = <span class="fn">paint_toolbar</span>(&amp;<span class="ty">DarkFactory</span>);
+    <span class="fn">assert_eq!</span>(b, <span class="st">"dark-button"</span>);
+    <span class="fn">assert_eq!</span>(c, <span class="st">"dark-checkbox"</span>);
+
+    <span class="kw">let</span> (b, c) = <span class="fn">paint_toolbar</span>(&amp;<span class="ty">LightFactory</span>);
+    <span class="fn">assert_eq!</span>(b, <span class="st">"light-button"</span>);
+    <span class="fn">assert_eq!</span>(c, <span class="st">"light-checkbox"</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Keeps families consistent</strong> — client never mixes <code>DarkButton</code> with <code>LightCheckbox</code> because both products come from one factory instance.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Client depends only on <code>&amp;dyn UiFactory</code> / product traits</strong> — no match on theme in the toolbar function; swapping family is a one-line factory choice at the edge.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Mentions associated types as an alternative</strong> (<code>type B: Button</code>) for static dispatch when the factory type is known generically.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"How does this differ from a single Factory Method?"</em> — Factory Method creates one product hierarchy; Abstract Factory creates a <em>family</em> of related products that must stay coherent (theme, platform, protocol version).</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Could Theme be an enum instead?"</em> — Yes, and often should be: <code>enum Theme { Dark, Light }</code> with methods returning concrete widgets, or a single enum of widget variants. Abstract Factory shines when families are large or come from plugins.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"What's the cost of Box&lt;dyn Button&gt; here?"</em> — Heap allocation + vtable dispatch per widget. Fine for UI construction; overkill for hot numeric code — generics/associated types avoid both.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Abstract Factory is one of the few creational patterns that still shows up at FFI/plugin boundaries
+    in Rust, but day-to-day code often collapses it into an enum theme or a generic parameter with
+    associated types. Use the OOP shape when you need runtime-swappable families; use generics when
+    the family is fixed at compile time and you want monomorphized widgets.
+  </div>
+</div>
+
+<!-- ════════════ DP4 · PROTOTYPE ════════════ -->
+<div class="section" id="dp4">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 04 · 20–30 min</div>
+      <div class="sh-title">DP4 · Prototype</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">creational</span>
+      <span class="chip">prototype</span>
+      <span class="chip">Clone</span>
+      <span class="chip chip-med">Easy–Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Model a nested document tree (<code>Document</code> → <code>Section</code> → <code>Paragraph</code>)
+      that can be deep-cloned via <code>Clone</code>. Mutating the clone must not affect the original.
+      Also show a <em>wrong</em> structure that stores <code>Rc&lt;Paragraph&gt;</code> — cloning that only
+      shares pointers, so it is not a true prototype when you need independent edits."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::rc::Rc;
+
+<span class="mc">#[derive(Clone, Debug, PartialEq)]</span>
+<span class="kw">struct</span> <span class="ty">Paragraph</span> { text: <span class="ty">String</span> }
+
+<span class="cm">// TODO: Section, Document with owned nested Vecs + Clone</span>
+<span class="cm">// TODO: SharedDoc { paragraphs: Vec&lt;Rc&lt;Paragraph&gt;&gt; } — Clone shares</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// 1) deep-clone Document, mutate copy, assert original unchanged</span>
+    <span class="cm">// 2) clone SharedDoc, assert Rc::ptr_eq / strong_count == 2</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::rc::Rc;
+
+<span class="mc">#[derive(Clone, Debug, PartialEq)]</span>
+<span class="kw">struct</span> <span class="ty">Paragraph</span> {
+    text: <span class="ty">String</span>,
+}
+
+<span class="mc">#[derive(Clone, Debug, PartialEq)]</span>
+<span class="kw">struct</span> <span class="ty">Section</span> {
+    title: <span class="ty">String</span>,
+    paragraphs: <span class="ty">Vec</span>&lt;<span class="ty">Paragraph</span>&gt;,
+}
+
+<span class="mc">#[derive(Clone, Debug, PartialEq)]</span>
+<span class="kw">struct</span> <span class="ty">Document</span> {
+    title: <span class="ty">String</span>,
+    sections: <span class="ty">Vec</span>&lt;<span class="ty">Section</span>&gt;,
+}
+
+<span class="cm">/// Wrong shape for "prototype": Clone only bumps Rc counts — edits alias.</span>
+<span class="mc">#[derive(Clone, Debug)]</span>
+<span class="kw">struct</span> <span class="ty">SharedDoc</span> {
+    paragraphs: <span class="ty">Vec</span>&lt;Rc&lt;<span class="ty">Paragraph</span>&gt;&gt;,
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> original = <span class="ty">Document</span> {
+        title: <span class="st">"Spec"</span>.<span class="fn">into</span>(),
+        sections: <span class="fn">vec!</span>[<span class="ty">Section</span> {
+            title: <span class="st">"Intro"</span>.<span class="fn">into</span>(),
+            paragraphs: <span class="fn">vec!</span>[<span class="ty">Paragraph</span> {
+                text: <span class="st">"hello"</span>.<span class="fn">into</span>(),
+            }],
+        }],
+    };
+
+    <span class="kw">let</span> <span class="kw">mut</span> copy = original.<span class="fn">clone</span>();
+    copy.sections[<span class="nm">0</span>].paragraphs[<span class="nm">0</span>].text = <span class="st">"changed"</span>.<span class="fn">into</span>();
+    <span class="fn">assert_eq!</span>(original.sections[<span class="nm">0</span>].paragraphs[<span class="nm">0</span>].text, <span class="st">"hello"</span>);
+    <span class="fn">assert_eq!</span>(copy.sections[<span class="nm">0</span>].paragraphs[<span class="nm">0</span>].text, <span class="st">"changed"</span>);
+
+    <span class="kw">let</span> shared = <span class="ty">SharedDoc</span> {
+        paragraphs: <span class="fn">vec!</span>[Rc::<span class="fn">new</span>(<span class="ty">Paragraph</span> {
+            text: <span class="st">"shared"</span>.<span class="fn">into</span>(),
+        })],
+    };
+    <span class="kw">let</span> twin = shared.<span class="fn">clone</span>();
+    <span class="fn">assert!</span>(Rc::<span class="fn">ptr_eq</span>(&amp;shared.paragraphs[<span class="nm">0</span>], &amp;twin.paragraphs[<span class="nm">0</span>]));
+    <span class="fn">assert_eq!</span>(Rc::<span class="fn">strong_count</span>(&amp;shared.paragraphs[<span class="nm">0</span>]), <span class="nm">2</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Uses owned nested data + derived <code>Clone</code></strong> so deep clone is structural — mutating the copy leaves the original intact without hand-written copy constructors.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Explains that <code>Rc::clone</code> is not a prototype</strong> for editable trees — it shares the allocation; independent mutation needs <code>Rc::make_mut</code> / owned data / explicit deep copy.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Mentions <code>#[derive(Clone)]</code> recursively requiring Clone on every field</strong> — and that custom <code>Clone</code> is needed if some fields should be reset (ids, caches) rather than copied.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"When is Rc sharing the right design?"</em> — Immutable shared subgraphs, interned strings, or DAG structures where identity/sharing is a feature. Wrong when each "copy" must diverge independently under mutation.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How do you deep-clone through Rc&lt;T&gt; when you need to?"</em> — Clone the inner <code>T</code> (<code>(*rc).clone()</code> if <code>T: Clone</code>), or <code>Rc::make_mut</code> for copy-on-write. Don't confuse bumping the strong count with duplicating content.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"What about cycles?"</em> — Owned trees clone fine; graphs with cycles need care (or aren't <code>Clone</code> by derive). <code>Rc</code> cycles also need <code>Weak</code> to avoid leaks — a separate concern from prototype.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Rust's Prototype is basically <code>Clone</code> (or an explicit <code>fn deep_clone</code>) — there is no
+    hidden copy constructor culture. The senior trap is treating <code>Rc</code>/<code>Arc</code> clones as
+    deep copies: they share. Prefer owned trees for editable prototypes; use shared pointers only when
+    immutability or intentional aliasing is part of the model.
+  </div>
+</div>
+
+<!-- ════════════ DP5 · SINGLETON ════════════ -->
+<div class="section" id="dp5">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 05 · 20–30 min</div>
+      <div class="sh-title">DP5 · Singleton (and why not)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">creational</span>
+      <span class="chip">singleton</span>
+      <span class="chip">OnceLock</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement a process-wide, read-only <code>Config</code> accessed via
+      <code>fn global_config() -&gt; &amp;'static Config</code> using <code>std::sync::OnceLock</code>
+      (or <code>LazyLock</code>). Initialize exactly once with <code>get_or_init</code>. In discussion,
+      contrast this with a classic mutable global singleton — and explain why that antipattern fights
+      Rust's ownership and testing model."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::sync::OnceLock;
+
+<span class="mc">#[derive(Debug, Clone, PartialEq)]</span>
+<span class="kw">struct</span> <span class="ty">Config</span> {
+    app_name: <span class="ty">String</span>,
+    max_connections: <span class="ty">usize</span>,
+}
+
+<span class="kw">fn</span> <span class="fn">global_config</span>() -&gt; &amp;<span class="lt">'static</span> <span class="ty">Config</span> {
+    <span class="cm">// TODO: static OnceLock&lt;Config&gt; + get_or_init</span>
+    <span class="kw">todo!</span>()
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> a = <span class="fn">global_config</span>();
+    <span class="kw">let</span> b = <span class="fn">global_config</span>();
+    <span class="fn">println!</span>(<span class="st">"{:?}"</span>, a);
+    <span class="fn">println!</span>(<span class="st">"same address? {}"</span>, std::ptr::<span class="fn">eq</span>(a, b));
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::sync::OnceLock;
+
+<span class="mc">#[derive(Debug, Clone, PartialEq)]</span>
+<span class="kw">struct</span> <span class="ty">Config</span> {
+    app_name: <span class="ty">String</span>,
+    max_connections: <span class="ty">usize</span>,
+}
+
+<span class="kw">fn</span> <span class="fn">global_config</span>() -&gt; &amp;<span class="lt">'static</span> <span class="ty">Config</span> {
+    <span class="kw">static</span> CONFIG: OnceLock&lt;<span class="ty">Config</span>&gt; = OnceLock::<span class="fn">new</span>();
+    CONFIG.<span class="fn">get_or_init</span>(|| <span class="ty">Config</span> {
+        app_name: <span class="st">"interview-app"</span>.<span class="fn">into</span>(),
+        max_connections: <span class="nm">32</span>,
+    })
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> a = <span class="fn">global_config</span>();
+    <span class="kw">let</span> b = <span class="fn">global_config</span>();
+    <span class="fn">assert_eq!</span>(a.app_name, <span class="st">"interview-app"</span>);
+    <span class="fn">assert_eq!</span>(a.max_connections, <span class="nm">32</span>);
+    <span class="fn">assert_eq!</span>(a, b);
+    <span class="fn">assert!</span>(std::ptr::<span class="fn">eq</span>(a, b));
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Uses <code>OnceLock::get_or_init</code> (or <code>LazyLock</code>)</strong> — thread-safe one-time init without <code>unsafe</code>, without <code>lazy_static</code>, and without a mutable <code>static mut</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Returns <code>&amp;'static Config</code> that is immutable</strong> — callers cannot mutate global state through the API; config is read-only after init.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>States they'd prefer dependency injection</strong> (pass <code>&amp;Config</code> / <code>Arc&lt;Config&gt;</code>) for testability, using a global only at the binary edge.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why is a mutable global Singleton an antipattern in Rust?"</em> — Mutable shared state needs <code>Mutex</code>/<code>RwLock</code> (or atomics), creates hidden coupling, races, and poison/lock ordering hazards, and makes unit tests order-dependent because every test shares one process-global. It also fights ownership: who "owns" the singleton? Prefer passing state explicitly; if you must share, share an <code>Arc&lt;T&gt;</code> from <code>main</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"OnceLock vs LazyLock?"</em> — <code>LazyLock</code> is for when the initializer is fixed at the static declaration; <code>OnceLock</code> is better when init might depend on runtime arguments (env, CLI) via <code>get_or_init</code> / <code>set</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How do you test code that calls global_config()?"</em> — Hard — that's why seniors inject config. Mitigations: init once in test harness with known values, feature-gate the global, or refactor to take <code>&amp;Config</code>.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Idiomatic Rust allows a <em>read-only</em> process global via <code>OnceLock</code>/<code>LazyLock</code> for
+    true constants (config, metrics registry handles). Classic mutable Singleton is an antipattern here:
+    it smuggles shared mutable state past the type system, wrecks test isolation, and reintroduces the
+    locking/ordering bugs Rust was meant to push into explicit <code>Arc&lt;Mutex&lt;T&gt;&gt;</code> (or better,
+    no global at all). Prefer constructing config in <code>main</code> and passing it down.
+  </div>
+</div>
+
+<!-- ════════════ DP6 · ADAPTER ════════════ -->
+<div class="section" id="dp6">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 06 · 20–30 min</div>
+      <div class="sh-title">DP6 · Adapter</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">structural</span>
+      <span class="chip">adapter</span>
+      <span class="chip">traits</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "You depend on a third-party-like <code>LegacyLogger</code> with an awkward API
+      (<code>write_line_raw(level: i32, msg: &amp;str)</code> / <code>dump()</code>). Define a clean
+      <code>AppLogger</code> trait (<code>info</code>, <code>warn</code>, <code>contents</code>) and an
+      <strong>adapter</strong> that wraps <code>LegacyLogger</code> so the rest of the app only talks to
+      <code>AppLogger</code>. Do not modify the legacy type."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="cm">/// Third-party-like awkward API (cannot change).</span>
+<span class="kw">struct</span> <span class="ty">LegacyLogger</span> {
+    buffer: <span class="ty">String</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">LegacyLogger</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { <span class="ty">Self</span> { buffer: <span class="ty">String</span>::<span class="fn">new</span>() } }
+    <span class="kw">fn</span> <span class="fn">write_line_raw</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, level: <span class="ty">i32</span>, msg: &amp;<span class="ty">str</span>) {
+        <span class="kw">let</span> tag = <span class="kw">match</span> level {
+            <span class="nm">1</span> =&gt; <span class="st">"INFO"</span>,
+            <span class="nm">2</span> =&gt; <span class="st">"WARN"</span>,
+            _ =&gt; <span class="st">"DEBUG"</span>,
+        };
+        <span class="kw">self</span>.buffer.<span class="fn">push_str</span>(&amp;<span class="fn">format!</span>(<span class="st">"[{tag}] {msg}\n"</span>));
+    }
+    <span class="kw">fn</span> <span class="fn">dump</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span> { &amp;<span class="kw">self</span>.buffer }
+}
+
+<span class="kw">trait</span> <span class="ty">AppLogger</span> {
+    <span class="kw">fn</span> <span class="fn">info</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: &amp;<span class="ty">str</span>);
+    <span class="kw">fn</span> <span class="fn">warn</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: &amp;<span class="ty">str</span>);
+    <span class="kw">fn</span> <span class="fn">contents</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span>;
+}
+
+<span class="cm">// TODO: LegacyLoggerAdapter + AppLogger impl</span>
+<span class="cm">// TODO: fn run_job(log: &amp;mut dyn AppLogger)</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// adapt, run_job, assert INFO/WARN lines present</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">struct</span> <span class="ty">LegacyLogger</span> {
+    buffer: <span class="ty">String</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">LegacyLogger</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { buffer: <span class="ty">String</span>::<span class="fn">new</span>() }
+    }
+
+    <span class="kw">fn</span> <span class="fn">write_line_raw</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, level: <span class="ty">i32</span>, msg: &amp;<span class="ty">str</span>) {
+        <span class="kw">let</span> tag = <span class="kw">match</span> level {
+            <span class="nm">1</span> =&gt; <span class="st">"INFO"</span>,
+            <span class="nm">2</span> =&gt; <span class="st">"WARN"</span>,
+            _ =&gt; <span class="st">"DEBUG"</span>,
+        };
+        <span class="kw">self</span>.buffer.<span class="fn">push_str</span>(&amp;<span class="fn">format!</span>(<span class="st">"[{tag}] {msg}\n"</span>));
+    }
+
+    <span class="kw">fn</span> <span class="fn">dump</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span> {
+        &amp;<span class="kw">self</span>.buffer
+    }
+}
+
+<span class="kw">trait</span> <span class="ty">AppLogger</span> {
+    <span class="kw">fn</span> <span class="fn">info</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: &amp;<span class="ty">str</span>);
+    <span class="kw">fn</span> <span class="fn">warn</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: &amp;<span class="ty">str</span>);
+    <span class="kw">fn</span> <span class="fn">contents</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">LegacyLoggerAdapter</span> {
+    inner: <span class="ty">LegacyLogger</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">LegacyLoggerAdapter</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { inner: <span class="ty">LegacyLogger</span>::<span class="fn">new</span>() }
+    }
+}
+
+<span class="kw">impl</span> <span class="ty">AppLogger</span> <span class="kw">for</span> <span class="ty">LegacyLoggerAdapter</span> {
+    <span class="kw">fn</span> <span class="fn">info</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: &amp;<span class="ty">str</span>) {
+        <span class="kw">self</span>.inner.<span class="fn">write_line_raw</span>(<span class="nm">1</span>, msg);
+    }
+
+    <span class="kw">fn</span> <span class="fn">warn</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: &amp;<span class="ty">str</span>) {
+        <span class="kw">self</span>.inner.<span class="fn">write_line_raw</span>(<span class="nm">2</span>, msg);
+    }
+
+    <span class="kw">fn</span> <span class="fn">contents</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span> {
+        <span class="kw">self</span>.inner.<span class="fn">dump</span>()
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">run_job</span>(log: &amp;<span class="kw">mut</span> <span class="kw">dyn</span> <span class="ty">AppLogger</span>) {
+    log.<span class="fn">info</span>(<span class="st">"started"</span>);
+    log.<span class="fn">warn</span>(<span class="st">"slow path"</span>);
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> adapter = <span class="ty">LegacyLoggerAdapter</span>::<span class="fn">new</span>();
+    <span class="fn">run_job</span>(&amp;<span class="kw">mut</span> adapter);
+    <span class="fn">assert!</span>(adapter.<span class="fn">contents</span>().<span class="fn">contains</span>(<span class="st">"[INFO] started"</span>));
+    <span class="fn">assert!</span>(adapter.<span class="fn">contents</span>().<span class="fn">contains</span>(<span class="st">"[WARN] slow path"</span>));
+    <span class="fn">assert_eq!</span>(adapter.<span class="fn">contents</span>().<span class="fn">lines</span>().<span class="fn">count</span>(), <span class="nm">2</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Wraps legacy type; does not modify it</strong> — maps clean trait methods onto awkward numeric levels, isolating the translation in one adapter type.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>App code takes <code>&amp;mut dyn AppLogger</code> (or generic <code>L: AppLogger</code>)</strong> — dependency on the trait, not the third-party concrete type.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Mentions the orphan-rule angle</strong> — you often can't <code>impl AppLogger for LegacyLogger</code> if both are foreign; a newtype adapter is required.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Adapter vs Facade?"</em> — Adapter makes an existing interface conform to one your code expects (impedance match). Facade simplifies a whole subsystem behind a narrower API — not necessarily wrapping one awkward type.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Could you impl AppLogger directly on LegacyLogger?"</em> — Only if at least one of the trait or type is local (orphan rules). With a true external crate type, you need a newtype wrapper — which is exactly the Adapter.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How would you adapt async or fallible APIs?"</em> — Same shape: trait methods return <code>Result</code> / use async traits (<code>async fn</code> in traits on modern editions, or boxed futures). Keep error translation inside the adapter so callers see your domain errors.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Adapter is one of the structural patterns that remains genuinely common in Rust — especially because
+    the orphan rule pushes you toward newtypes when bridging foreign types to local traits. Prefer a
+    thin wrapper that owns or holds the third-party value and exposes only your trait; keep magic
+    constants and stringly APIs quarantined inside that boundary.
+  </div>
+</div>
+<!-- ════════════ DP7 · DECORATOR ════════════ -->
+<div class="section" id="dp7">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 07 · 20–30 min</div>
+      <div class="sh-title">DP7 · Decorator</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">structural</span>
+      <span class="chip">composition</span>
+      <span class="chip">middleware</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement the <strong>Decorator</strong> pattern for HTTP handling. Define an <code>HttpHandler</code> trait
+      with <code>handle(&amp;self, path: &amp;str) -&gt; String</code>. Provide a <code>BaseHandler</code> that
+      returns <code>"OK {path}"</code>, then two stackable wrappers that also implement <code>HttpHandler</code>:
+      <code>LoggerMiddleware</code> (records request/response lines) and <code>MetricsMiddleware</code> (counts hits).
+      Wrappers must own an inner <code>Box&lt;dyn HttpHandler&gt;</code> — composition, not inheritance — and you must
+      be able to stack them in either order."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">trait</span> <span class="ty">HttpHandler</span> {
+    <span class="kw">fn</span> <span class="fn">handle</span>(&amp;<span class="kw">self</span>, path: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">BaseHandler</span>;
+<span class="cm">// TODO: impl HttpHandler for BaseHandler → "OK {path}"</span>
+
+<span class="kw">struct</span> <span class="ty">LoggerMiddleware</span> {
+    <span class="cm">// TODO: inner: Box&lt;dyn HttpHandler&gt;, plus a way to record REQ/RESP lines</span>
+}
+<span class="cm">// TODO: impl HttpHandler — log then delegate</span>
+
+<span class="kw">struct</span> <span class="ty">MetricsMiddleware</span> {
+    <span class="cm">// TODO: inner + hit counter</span>
+}
+<span class="cm">// TODO: impl HttpHandler — increment then delegate</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// Stack Metrics around Logger around Base; call handle twice; assert hits == 2</span>
+    <span class="cm">// Also assert LoggerMiddleware records REQ/RESP lines</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">trait</span> <span class="ty">HttpHandler</span> {
+    <span class="kw">fn</span> <span class="fn">handle</span>(&amp;<span class="kw">self</span>, path: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">BaseHandler</span>;
+<span class="kw">impl</span> <span class="ty">HttpHandler</span> <span class="kw">for</span> <span class="ty">BaseHandler</span> {
+    <span class="kw">fn</span> <span class="fn">handle</span>(&amp;<span class="kw">self</span>, path: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span> {
+        <span class="fn">format!</span>(<span class="st">"OK {path}"</span>)
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">LoggerMiddleware</span> {
+<span class="ok-line">    inner: Box&lt;<span class="kw">dyn</span> <span class="ty">HttpHandler</span>&gt;,</span>
+    log: std::cell::<span class="ty">RefCell</span>&lt;<span class="ty">Vec</span>&lt;<span class="ty">String</span>&gt;&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">LoggerMiddleware</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(inner: Box&lt;<span class="kw">dyn</span> <span class="ty">HttpHandler</span>&gt;) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { inner, log: std::cell::<span class="ty">RefCell</span>::<span class="fn">new</span>(<span class="ty">Vec</span>::<span class="fn">new</span>()) }
+    }
+    <span class="kw">fn</span> <span class="fn">entries</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">String</span>&gt; { <span class="kw">self</span>.log.<span class="fn">borrow</span>().<span class="fn">clone</span>() }
+}
+
+<span class="kw">impl</span> <span class="ty">HttpHandler</span> <span class="kw">for</span> <span class="ty">LoggerMiddleware</span> {
+    <span class="kw">fn</span> <span class="fn">handle</span>(&amp;<span class="kw">self</span>, path: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span> {
+        <span class="kw">self</span>.log.<span class="fn">borrow_mut</span>().<span class="fn">push</span>(<span class="fn">format!</span>(<span class="st">"REQ {path}"</span>));
+        <span class="kw">let</span> resp = <span class="kw">self</span>.inner.<span class="fn">handle</span>(path);
+        <span class="kw">self</span>.log.<span class="fn">borrow_mut</span>().<span class="fn">push</span>(<span class="fn">format!</span>(<span class="st">"RESP {resp}"</span>));
+        resp
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">MetricsMiddleware</span> {
+    inner: Box&lt;<span class="kw">dyn</span> <span class="ty">HttpHandler</span>&gt;,
+    hits: std::cell::<span class="ty">Cell</span>&lt;<span class="ty">u64</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">MetricsMiddleware</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(inner: Box&lt;<span class="kw">dyn</span> <span class="ty">HttpHandler</span>&gt;) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { inner, hits: std::cell::<span class="ty">Cell</span>::<span class="fn">new</span>(<span class="nm">0</span>) }
+    }
+    <span class="kw">fn</span> <span class="fn">hits</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">u64</span> { <span class="kw">self</span>.hits.<span class="fn">get</span>() }
+}
+
+<span class="kw">impl</span> <span class="ty">HttpHandler</span> <span class="kw">for</span> <span class="ty">MetricsMiddleware</span> {
+    <span class="kw">fn</span> <span class="fn">handle</span>(&amp;<span class="kw">self</span>, path: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span> {
+        <span class="kw">self</span>.hits.<span class="fn">set</span>(<span class="kw">self</span>.hits.<span class="fn">get</span>() + <span class="nm">1</span>);
+        <span class="kw">self</span>.inner.<span class="fn">handle</span>(path)
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> stacked = <span class="ty">MetricsMiddleware</span>::<span class="fn">new</span>(Box::<span class="fn">new</span>(
+        <span class="ty">LoggerMiddleware</span>::<span class="fn">new</span>(Box::<span class="fn">new</span>(<span class="ty">BaseHandler</span>))
+    ));
+    <span class="fn">assert_eq!</span>(stacked.<span class="fn">handle</span>(<span class="st">"/health"</span>), <span class="st">"OK /health"</span>);
+    <span class="fn">assert_eq!</span>(stacked.<span class="fn">handle</span>(<span class="st">"/ready"</span>), <span class="st">"OK /ready"</span>);
+    <span class="fn">assert_eq!</span>(stacked.<span class="fn">hits</span>(), <span class="nm">2</span>);
+
+    <span class="kw">let</span> logged = <span class="ty">LoggerMiddleware</span>::<span class="fn">new</span>(Box::<span class="fn">new</span>(<span class="ty">BaseHandler</span>));
+    <span class="kw">let</span> _ = logged.<span class="fn">handle</span>(<span class="st">"/x"</span>);
+    <span class="fn">assert_eq!</span>(logged.<span class="fn">entries</span>(), <span class="fn">vec!</span>[<span class="st">"REQ /x"</span>.<span class="fn">to_string</span>(), <span class="st">"RESP OK /x"</span>.<span class="fn">to_string</span>()]);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Uses <code>Box&lt;dyn HttpHandler&gt;</code> for the inner field</strong> so wrappers can stack around any concrete handler — and recognizes this is composition (owning a trait object), not subclassing.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Keeps <code>handle(&amp;self, …)</code></strong> and reaches for <code>Cell</code>/<code>RefCell</code> for counters/logs rather than changing the trait to <code>&amp;mut self</code> — mirrors real middleware APIs that share handlers.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Mentions a generic <code>LoggerMiddleware&lt;H: HttpHandler&gt;</code> alternative</strong> for static dispatch when the stack shape is known at compile time.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why not inherit BaseHandler in LoggerMiddleware the way Java would?"</em> — Rust has no implementation inheritance; you compose by storing the inner handler and forwarding. That also lets you wrap <em>any</em> <code>HttpHandler</code>, not just one concrete base class.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"What breaks if handle took &amp;mut self instead?"</em> — Stacking still works, but sharing one handler across threads or holding it behind <code>Arc</code> gets harder; interior mutability (or message-passing) is the usual escape hatch when the trait must stay <code>&amp;self</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How does tower::Layer relate to this?"</em> — Tower's Layer/Service is the production form of this pattern: each layer wraps an inner Service, and layers compose into a stack with static or dynamic dispatch depending on how you build it.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Decorator in Rust is almost always "struct holding <code>Box&lt;dyn Trait&gt;</code> (or a generic <code>H: Trait</code>)
+    that implements the same trait" — there is no class hierarchy to extend. The interesting interview signal is
+    whether they pick dyn (flexible stacks, heterogeneous collections) vs generics (zero-cost monomorphization)
+    deliberately, and whether they keep the trait method on <code>&amp;self</code> with interior mutability when that
+    matches real middleware APIs.
+  </div>
+</div>
+
+<!-- ════════════ DP8 · FACADE ════════════ -->
+<div class="section" id="dp8">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 08 · 20–30 min</div>
+      <div class="sh-title">DP8 · Facade</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">structural</span>
+      <span class="chip">API design</span>
+      <span class="chip">orchestration</span>
+      <span class="chip chip-easy">Easy–Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Build a thin <strong>Facade</strong>: an <code>OrderService</code> that owns three mock subsystems —
+      <code>Inventory</code> (reserve stock), <code>Payments</code> (charge cents → transaction id), and
+      <code>Shipping</code> (schedule a shipment). Expose a single method
+      <code>place_order(&amp;mut self, sku: &amp;str, qty: u32, cents: u64) -&gt; Result&lt;String, String&gt;</code>
+      that reserves, charges, then ships, returning something like <code>\"txn-999/ship-sku-1\"</code> on success
+      and propagating the first subsystem error. Callers must not touch the subsystems directly."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">struct</span> <span class="ty">Inventory</span> { <span class="cm">/* stock map */</span> }
+<span class="kw">struct</span> <span class="ty">Payments</span>;
+<span class="kw">struct</span> <span class="ty">Shipping</span>;
+
+<span class="cm">// TODO: Inventory::reserve, Payments::charge, Shipping::schedule (simple mocks)</span>
+
+<span class="kw">struct</span> <span class="ty">OrderService</span> {
+    inventory: <span class="ty">Inventory</span>,
+    payments: <span class="ty">Payments</span>,
+    shipping: <span class="ty">Shipping</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">OrderService</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { <span class="cm">/* … */</span> }
+    <span class="cm">// TODO: place_order — reserve → charge → schedule; ? on errors</span>
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// happy path + insufficient stock + zero charge</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">struct</span> <span class="ty">Inventory</span> {
+    stock: std::collections::<span class="ty">HashMap</span>&lt;<span class="ty">String</span>, <span class="ty">u32</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">Inventory</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="kw">let</span> <span class="kw">mut</span> stock = std::collections::<span class="ty">HashMap</span>::<span class="fn">new</span>();
+        stock.<span class="fn">insert</span>(<span class="st">"sku-1"</span>.<span class="fn">into</span>(), <span class="nm">5</span>);
+        stock.<span class="fn">insert</span>(<span class="st">"sku-2"</span>.<span class="fn">into</span>(), <span class="nm">0</span>);
+        <span class="ty">Self</span> { stock }
+    }
+    <span class="kw">fn</span> <span class="fn">reserve</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, sku: &amp;<span class="ty">str</span>, qty: <span class="ty">u32</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">String</span>&gt; {
+        <span class="kw">let</span> entry = <span class="kw">self</span>.stock.<span class="fn">get_mut</span>(sku).<span class="fn">ok_or_else</span>(|| <span class="fn">format!</span>(<span class="st">"unknown {sku}"</span>))?;
+        <span class="kw">if</span> *entry &lt; qty { <span class="kw">return</span> <span class="ty">Err</span>(<span class="fn">format!</span>(<span class="st">"insufficient {sku}"</span>)); }
+        *entry -= qty;
+        <span class="ty">Ok</span>(())
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">Payments</span>;
+<span class="kw">impl</span> <span class="ty">Payments</span> {
+    <span class="kw">fn</span> <span class="fn">charge</span>(&amp;<span class="kw">self</span>, cents: <span class="ty">u64</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">String</span>, <span class="ty">String</span>&gt; {
+        <span class="kw">if</span> cents == <span class="nm">0</span> { <span class="kw">return</span> <span class="ty">Err</span>(<span class="st">"zero charge"</span>.<span class="fn">into</span>()); }
+        <span class="ty">Ok</span>(<span class="fn">format!</span>(<span class="st">"txn-{cents}"</span>))
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">Shipping</span>;
+<span class="kw">impl</span> <span class="ty">Shipping</span> {
+    <span class="kw">fn</span> <span class="fn">schedule</span>(&amp;<span class="kw">self</span>, sku: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span> {
+        <span class="fn">format!</span>(<span class="st">"ship-{sku}"</span>)
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">OrderService</span> {
+    inventory: <span class="ty">Inventory</span>,
+    payments: <span class="ty">Payments</span>,
+    shipping: <span class="ty">Shipping</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">OrderService</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { inventory: <span class="ty">Inventory</span>::<span class="fn">new</span>(), payments: <span class="ty">Payments</span>, shipping: <span class="ty">Shipping</span> }
+    }
+<span class="ok-line">    <span class="kw">fn</span> <span class="fn">place_order</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, sku: &amp;<span class="ty">str</span>, qty: <span class="ty">u32</span>, cents: <span class="ty">u64</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">String</span>, <span class="ty">String</span>&gt; {</span>
+        <span class="kw">self</span>.inventory.<span class="fn">reserve</span>(sku, qty)?;
+        <span class="kw">let</span> txn = <span class="kw">self</span>.payments.<span class="fn">charge</span>(cents)?;
+        <span class="kw">let</span> tracking = <span class="kw">self</span>.shipping.<span class="fn">schedule</span>(sku);
+        <span class="ty">Ok</span>(<span class="fn">format!</span>(<span class="st">"{txn}/{tracking}"</span>))
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> svc = <span class="ty">OrderService</span>::<span class="fn">new</span>();
+    <span class="fn">assert_eq!</span>(svc.<span class="fn">place_order</span>(<span class="st">"sku-1"</span>, <span class="nm">2</span>, <span class="nm">999</span>).<span class="fn">unwrap</span>(), <span class="st">"txn-999/ship-sku-1"</span>);
+    <span class="fn">assert!</span>(svc.<span class="fn">place_order</span>(<span class="st">"sku-2"</span>, <span class="nm">1</span>, <span class="nm">100</span>).<span class="fn">is_err</span>());
+    <span class="fn">assert!</span>(svc.<span class="fn">place_order</span>(<span class="st">"sku-1"</span>, <span class="nm">10</span>, <span class="nm">100</span>).<span class="fn">is_err</span>());
+    <span class="fn">assert!</span>(svc.<span class="fn">place_order</span>(<span class="st">"sku-1"</span>, <span class="nm">1</span>, <span class="nm">0</span>).<span class="fn">is_err</span>());
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Keeps subsystems private</strong> inside <code>OrderService</code> and only exposes <code>place_order</code> — the facade is an API boundary, not just a bag of public fields.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Uses <code>?</code> to short-circuit</strong> on the first failure without inventing a custom error enum unless asked — shows they understand orchestration vs domain-error design.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Notes the missing compensation</strong> (charge after a failed ship, or reserve without release) unprompted — saga/rollback awareness.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"If shipping fails after payment succeeds, what should happen?"</em> — Real systems need compensation (refund / release reservation) or an outbox/saga; a facade that only sequences happy-path calls is incomplete for production.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Would you make Inventory/Payments/Shipping traits?"</em> — Yes for test doubles and swappable backends; the facade then depends on <code>dyn</code> or generics over those traits while still presenting one method to callers.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How is this different from just a module with free functions?"</em> — Ownership of subsystem state, a single place to enforce ordering/invariants, and a type you can pass around (<code>&amp;mut OrderService</code>) as the application's write API.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Facade in Rust is usually a plain struct that owns collaborators and exposes a small API — no special language
+    feature. The senior signal is API design: private fields, <code>Result</code>-oriented orchestration, and an
+    honest discussion of partial failure / compensation. Prefer this over deep inheritance "manager" classes from
+    Java/C++ codebases.
+  </div>
+</div>
+
+<!-- ════════════ DP9 · PROXY ════════════ -->
+<div class="section" id="dp9">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 09 · 20–30 min</div>
+      <div class="sh-title">DP9 · Proxy</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">structural</span>
+      <span class="chip">lazy init</span>
+      <span class="chip">caching</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement a <strong>virtual / caching Proxy</strong> for an expensive <code>Image</code>. Define an
+      <code>Image</code> trait with <code>display(&amp;self) -&gt; String</code> and
+      <code>load_count(&amp;self) -&gt; u32</code>. <code>RealImage::new(path)</code> counts as one load (simulate
+      expensive construction). <code>ImageProxy</code> stores only the path until the first
+      <code>display()</code>, then constructs and caches a <code>RealImage</code>. Constructing the proxy must not
+      load; two <code>display()</code> calls must still show <code>load_count() == 1</code>. Usable as
+      <code>Box&lt;dyn Image&gt;</code>."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">trait</span> <span class="ty">Image</span> {
+    <span class="kw">fn</span> <span class="fn">display</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span>;
+    <span class="kw">fn</span> <span class="fn">load_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">u32</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">RealImage</span> { <span class="cm">/* path + load counter */</span> }
+<span class="cm">// TODO: RealImage::new increments loads to 1; display → "pixels:{path}"</span>
+
+<span class="kw">struct</span> <span class="ty">ImageProxy</span> {
+    <span class="cm">// TODO: path + Option&lt;RealImage&gt; behind RefCell (or similar)</span>
+}
+<span class="cm">// TODO: lazy init on first display; cache thereafter</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// proxy.load_count() == 0 before display; == 1 after two displays</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::cell::<span class="ty">RefCell</span>;
+
+<span class="kw">trait</span> <span class="ty">Image</span> {
+    <span class="kw">fn</span> <span class="fn">display</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span>;
+    <span class="kw">fn</span> <span class="fn">load_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">u32</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">RealImage</span> {
+    path: <span class="ty">String</span>,
+    loads: std::cell::<span class="ty">Cell</span>&lt;<span class="ty">u32</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">RealImage</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(path: &amp;<span class="ty">str</span>) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { path: path.<span class="fn">to_string</span>(), loads: std::cell::<span class="ty">Cell</span>::<span class="fn">new</span>(<span class="nm">1</span>) }
+    }
+}
+
+<span class="kw">impl</span> <span class="ty">Image</span> <span class="kw">for</span> <span class="ty">RealImage</span> {
+    <span class="kw">fn</span> <span class="fn">display</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> { <span class="fn">format!</span>(<span class="st">"pixels:{}"</span>, <span class="kw">self</span>.path) }
+    <span class="kw">fn</span> <span class="fn">load_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">u32</span> { <span class="kw">self</span>.loads.<span class="fn">get</span>() }
+}
+
+<span class="kw">struct</span> <span class="ty">ImageProxy</span> {
+    path: <span class="ty">String</span>,
+<span class="ok-line">    cached: <span class="ty">RefCell</span>&lt;<span class="ty">Option</span>&lt;<span class="ty">RealImage</span>&gt;&gt;,</span>
+}
+
+<span class="kw">impl</span> <span class="ty">ImageProxy</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(path: &amp;<span class="ty">str</span>) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { path: path.<span class="fn">to_string</span>(), cached: <span class="ty">RefCell</span>::<span class="fn">new</span>(<span class="ty">None</span>) }
+    }
+}
+
+<span class="kw">impl</span> <span class="ty">Image</span> <span class="kw">for</span> <span class="ty">ImageProxy</span> {
+    <span class="kw">fn</span> <span class="fn">display</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> {
+        <span class="kw">let</span> <span class="kw">mut</span> slot = <span class="kw">self</span>.cached.<span class="fn">borrow_mut</span>();
+        <span class="kw">if</span> slot.<span class="fn">is_none</span>() {
+            *slot = <span class="ty">Some</span>(<span class="ty">RealImage</span>::<span class="fn">new</span>(&amp;<span class="kw">self</span>.path));
+        }
+        slot.<span class="fn">as_ref</span>().<span class="fn">unwrap</span>().<span class="fn">display</span>()
+    }
+    <span class="kw">fn</span> <span class="fn">load_count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">u32</span> {
+        <span class="kw">self</span>.cached.<span class="fn">borrow</span>().<span class="fn">as_ref</span>().<span class="fn">map</span>(|img| img.<span class="fn">load_count</span>()).<span class="fn">unwrap_or</span>(<span class="nm">0</span>)
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> proxy = <span class="ty">ImageProxy</span>::<span class="fn">new</span>(<span class="st">"/big.png"</span>);
+    <span class="fn">assert_eq!</span>(proxy.<span class="fn">load_count</span>(), <span class="nm">0</span>);
+    <span class="fn">assert_eq!</span>(proxy.<span class="fn">display</span>(), <span class="st">"pixels:/big.png"</span>);
+    <span class="fn">assert_eq!</span>(proxy.<span class="fn">load_count</span>(), <span class="nm">1</span>);
+    <span class="fn">assert_eq!</span>(proxy.<span class="fn">display</span>(), <span class="st">"pixels:/big.png"</span>);
+    <span class="fn">assert_eq!</span>(proxy.<span class="fn">load_count</span>(), <span class="nm">1</span>);
+
+    <span class="kw">let</span> as_trait: Box&lt;<span class="kw">dyn</span> <span class="ty">Image</span>&gt; = Box::<span class="fn">new</span>(<span class="ty">ImageProxy</span>::<span class="fn">new</span>(<span class="st">"/x.jpg"</span>));
+    <span class="fn">assert_eq!</span>(as_trait.<span class="fn">display</span>(), <span class="st">"pixels:/x.jpg"</span>);
+    <span class="fn">assert_eq!</span>(as_trait.<span class="fn">load_count</span>(), <span class="nm">1</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Lazy init behind <code>RefCell&lt;Option&lt;RealImage&gt;&gt;</code></strong> (or <code>OnceCell</code>) so <code>display(&amp;self)</code> can populate the cache without <code>&amp;mut self</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>load_count is 0 before first display</strong> — proves they deferred construction rather than loading in <code>ImageProxy::new</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Names <code>OnceLock</code>/<code>once_cell</code></strong> as the thread-safe upgrade path for a multi-threaded proxy.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"How is Proxy different from Decorator?"</em> — Decorator adds behavior around an already-constructed object; a virtual proxy controls <em>access / lifetime</em> of the real object (lazy create, cache, access control). Same structural shape (same trait), different intent.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"What if two threads call display() at once?"</em> — <code>RefCell</code> panics across threads; use <code>Mutex&lt;Option&lt;_&gt;&gt;</code> or <code>OnceLock&lt;RealImage&gt;</code> so initialization happens exactly once under synchronization.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Could you return &amp;RealImage from the proxy?"</em> — Not easily from <code>&amp;self</code> with <code>RefCell</code> without tying the borrow to the Ref guard; returning owned <code>String</code> (as here) or cloning/Arc-sharing the pixels avoids that lifetime trap.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Lazy proxies force the <code>&amp;self</code> + interior-mutability conversation that Java's synchronized fields
+    hide. In production Rust you'd reach for <code>OnceLock</code>, <code>Mutex</code>, or an async-aware cache
+    rather than <code>RefCell</code>. Emphasize intent (defer / protect access) versus Decorator (add behavior).
+  </div>
+</div>
+
+<!-- ════════════ DP10 · COMPOSITE ════════════ -->
+<div class="section" id="dp10">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 10 · 20–30 min</div>
+      <div class="sh-title">DP10 · Composite</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">structural</span>
+      <span class="chip">tree</span>
+      <span class="chip">recursion</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement the <strong>Composite</strong> pattern as a file/folder tree. Define a <code>Component</code> trait
+      with <code>name(&amp;self) -&gt; &amp;str</code>, <code>size(&amp;self) -&gt; u64</code>, and
+      <code>render(&amp;self, indent: usize) -&gt; String</code>. <code>File</code> is a leaf (fixed byte size).
+      <code>Folder</code> holds <code>Vec&lt;Box&lt;dyn Component&gt;&gt;</code>, sums sizes recursively, and renders
+      itself plus indented children. Build a small tree and assert total size and that the render string contains
+      nested names."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">trait</span> <span class="ty">Component</span> {
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span>;
+    <span class="kw">fn</span> <span class="fn">size</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">u64</span>;
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>, indent: <span class="ty">usize</span>) -&gt; <span class="ty">String</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">File</span> { name: <span class="ty">String</span>, bytes: <span class="ty">u64</span> }
+<span class="kw">struct</span> <span class="ty">Folder</span> {
+    name: <span class="ty">String</span>,
+    <span class="cm">// TODO: children: Vec&lt;Box&lt;dyn Component&gt;&gt;</span>
+}
+<span class="cm">// TODO: impl Component for File and Folder (Folder::size sums children)</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// root/a.txt(10) + root/docs/{readme.md(40), notes.md(5)} → size 55</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">trait</span> <span class="ty">Component</span> {
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span>;
+    <span class="kw">fn</span> <span class="fn">size</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">u64</span>;
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>, indent: <span class="ty">usize</span>) -&gt; <span class="ty">String</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">File</span> { name: <span class="ty">String</span>, bytes: <span class="ty">u64</span> }
+
+<span class="kw">impl</span> <span class="ty">Component</span> <span class="kw">for</span> <span class="ty">File</span> {
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span> { &amp;<span class="kw">self</span>.name }
+    <span class="kw">fn</span> <span class="fn">size</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">u64</span> { <span class="kw">self</span>.bytes }
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>, indent: <span class="ty">usize</span>) -&gt; <span class="ty">String</span> {
+        <span class="fn">format!</span>(<span class="st">"{}{} ({})"</span>, <span class="st">"  "</span>.<span class="fn">repeat</span>(indent), <span class="kw">self</span>.name, <span class="kw">self</span>.bytes)
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">Folder</span> {
+    name: <span class="ty">String</span>,
+<span class="ok-line">    children: <span class="ty">Vec</span>&lt;Box&lt;<span class="kw">dyn</span> <span class="ty">Component</span>&gt;&gt;,</span>
+}
+
+<span class="kw">impl</span> <span class="ty">Folder</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(name: &amp;<span class="ty">str</span>) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { name: name.<span class="fn">to_string</span>(), children: <span class="ty">Vec</span>::<span class="fn">new</span>() }
+    }
+    <span class="kw">fn</span> <span class="fn">add</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, child: Box&lt;<span class="kw">dyn</span> <span class="ty">Component</span>&gt;) {
+        <span class="kw">self</span>.children.<span class="fn">push</span>(child);
+    }
+}
+
+<span class="kw">impl</span> <span class="ty">Component</span> <span class="kw">for</span> <span class="ty">Folder</span> {
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span> { &amp;<span class="kw">self</span>.name }
+    <span class="kw">fn</span> <span class="fn">size</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">u64</span> {
+        <span class="kw">self</span>.children.<span class="fn">iter</span>().<span class="fn">map</span>(|c| c.<span class="fn">size</span>()).<span class="fn">sum</span>()
+    }
+    <span class="kw">fn</span> <span class="fn">render</span>(&amp;<span class="kw">self</span>, indent: <span class="ty">usize</span>) -&gt; <span class="ty">String</span> {
+        <span class="kw">let</span> <span class="kw">mut</span> out = <span class="fn">format!</span>(<span class="st">"{}{}/"</span>, <span class="st">"  "</span>.<span class="fn">repeat</span>(indent), <span class="kw">self</span>.name);
+        <span class="kw">for</span> child <span class="kw">in</span> &amp;<span class="kw">self</span>.children {
+            out.<span class="fn">push</span>(<span class="st">'\n'</span>);
+            out.<span class="fn">push_str</span>(&amp;child.<span class="fn">render</span>(indent + <span class="nm">1</span>));
+        }
+        out
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> root = <span class="ty">Folder</span>::<span class="fn">new</span>(<span class="st">"root"</span>);
+    root.<span class="fn">add</span>(Box::<span class="fn">new</span>(<span class="ty">File</span> { name: <span class="st">"a.txt"</span>.<span class="fn">into</span>(), bytes: <span class="nm">10</span> }));
+    <span class="kw">let</span> <span class="kw">mut</span> docs = <span class="ty">Folder</span>::<span class="fn">new</span>(<span class="st">"docs"</span>);
+    docs.<span class="fn">add</span>(Box::<span class="fn">new</span>(<span class="ty">File</span> { name: <span class="st">"readme.md"</span>.<span class="fn">into</span>(), bytes: <span class="nm">40</span> }));
+    docs.<span class="fn">add</span>(Box::<span class="fn">new</span>(<span class="ty">File</span> { name: <span class="st">"notes.md"</span>.<span class="fn">into</span>(), bytes: <span class="nm">5</span> }));
+    root.<span class="fn">add</span>(Box::<span class="fn">new</span>(docs));
+
+    <span class="fn">assert_eq!</span>(root.<span class="fn">size</span>(), <span class="nm">55</span>);
+    <span class="kw">let</span> rendered = root.<span class="fn">render</span>(<span class="nm">0</span>);
+    <span class="fn">assert!</span>(rendered.<span class="fn">starts_with</span>(<span class="st">"root/"</span>));
+    <span class="fn">assert!</span>(rendered.<span class="fn">contains</span>(<span class="st">"a.txt (10)"</span>));
+    <span class="fn">assert!</span>(rendered.<span class="fn">contains</span>(<span class="st">"docs/"</span>));
+    <span class="fn">assert!</span>(rendered.<span class="fn">contains</span>(<span class="st">"readme.md (40)"</span>));
+
+    <span class="kw">let</span> tree: Box&lt;<span class="kw">dyn</span> <span class="ty">Component</span>&gt; = Box::<span class="fn">new</span>(root);
+    <span class="fn">assert_eq!</span>(tree.<span class="fn">size</span>(), <span class="nm">55</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Uniform <code>Box&lt;dyn Component&gt;</code> children</strong> so folders nest folders and files interchangeably — the heart of Composite.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Recursive <code>size</code> / <code>render</code></strong> with no special-casing callers — clients treat leaves and composites the same.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Mentions enum alternative</strong> (<code>enum Node { File{..}, Dir{ children: Vec&lt;Node&gt; } }</code>) as more idiomatic when the set of variants is closed.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"When would you prefer an enum over Box&lt;dyn Component&gt;?"</em> — Closed set of node kinds, exhaustive matches, cheaper monomorphization-free recursion, no vtable; open extension (plugins adding new component types) pushes you back to trait objects.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How do you avoid stack overflow on deep trees?"</em> — Iterative traversal with an explicit stack, or arena-allocated nodes with indices instead of huge recursive call chains.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Can Folder implement IntoIterator?"</em> — Yes over <code>&amp;Box&lt;dyn Component&gt;</code> or a custom depth-first iterator — nice unprompted ergonomics signal.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Composite maps cleanly to <code>Box&lt;dyn Trait&gt;</code> trees, but idiomatic Rust often prefers a recursive
+    <code>enum</code> when variants are known. The interview value is hearing them weigh open vs closed hierarchies,
+    ownership of children, and recursive algorithms — not drawing a UML diagram from a Java textbook.
+  </div>
+</div>
+
+<!-- ════════════ DP11 · STRATEGY ════════════ -->
+<div class="section" id="dp11">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 11 · 20–30 min</div>
+      <div class="sh-title">DP11 · Strategy</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">behavioral</span>
+      <span class="chip">algorithms</span>
+      <span class="chip">dispatch</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement <strong>Strategy</strong> for shipping quotes. Define <code>ShippingStrategy</code> with
+      <code>cost(&amp;self, weight_kg: f64, distance_km: f64) -&gt; f64</code>. Provide <code>FlatRate</code>
+      (weight × rate) and <code>DistanceRate</code> (weight × per_kg + distance × per_km). Primary API:
+      <code>quote_static&lt;S: ShippingStrategy&gt;(…)</code> (generics / static dispatch). Also show
+      <code>quote_dyn(strategy: &amp;dyn ShippingStrategy, …)</code> and put both strategies in a
+      <code>Vec&lt;Box&lt;dyn ShippingStrategy&gt;&gt;</code>. Assert both paths for the same inputs."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">trait</span> <span class="ty">ShippingStrategy</span> {
+    <span class="kw">fn</span> <span class="fn">cost</span>(&amp;<span class="kw">self</span>, weight_kg: <span class="ty">f64</span>, distance_km: <span class="ty">f64</span>) -&gt; <span class="ty">f64</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">FlatRate</span> { cents_per_kg: <span class="ty">f64</span> }
+<span class="kw">struct</span> <span class="ty">DistanceRate</span> { per_km: <span class="ty">f64</span>, per_kg: <span class="ty">f64</span> }
+<span class="cm">// TODO: impl ShippingStrategy for both</span>
+
+<span class="cm">// Primary: static dispatch</span>
+<span class="kw">fn</span> <span class="fn">quote_static</span>&lt;<span class="ty">S</span>: <span class="ty">ShippingStrategy</span>&gt;(strategy: &amp;<span class="ty">S</span>, weight_kg: <span class="ty">f64</span>, distance_km: <span class="ty">f64</span>) -&gt; <span class="ty">f64</span> {
+    <span class="cm">// TODO</span>
+}
+
+<span class="cm">// Also: dynamic dispatch</span>
+<span class="kw">fn</span> <span class="fn">quote_dyn</span>(strategy: &amp;<span class="kw">dyn</span> <span class="ty">ShippingStrategy</span>, weight_kg: <span class="ty">f64</span>, distance_km: <span class="ty">f64</span>) -&gt; <span class="ty">f64</span> {
+    <span class="cm">// TODO</span>
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// FlatRate{2.0}: 3kg → 6.0; DistanceRate{0.5, 1.0}: 3kg/100km → 53.0</span>
+    <span class="cm">// exercise both quote_static and quote_dyn / Vec&lt;Box&lt;dyn …&gt;&gt;</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">trait</span> <span class="ty">ShippingStrategy</span> {
+    <span class="kw">fn</span> <span class="fn">cost</span>(&amp;<span class="kw">self</span>, weight_kg: <span class="ty">f64</span>, distance_km: <span class="ty">f64</span>) -&gt; <span class="ty">f64</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">FlatRate</span> { cents_per_kg: <span class="ty">f64</span> }
+<span class="kw">impl</span> <span class="ty">ShippingStrategy</span> <span class="kw">for</span> <span class="ty">FlatRate</span> {
+    <span class="kw">fn</span> <span class="fn">cost</span>(&amp;<span class="kw">self</span>, weight_kg: <span class="ty">f64</span>, _distance_km: <span class="ty">f64</span>) -&gt; <span class="ty">f64</span> {
+        weight_kg * <span class="kw">self</span>.cents_per_kg
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">DistanceRate</span> { per_km: <span class="ty">f64</span>, per_kg: <span class="ty">f64</span> }
+<span class="kw">impl</span> <span class="ty">ShippingStrategy</span> <span class="kw">for</span> <span class="ty">DistanceRate</span> {
+    <span class="kw">fn</span> <span class="fn">cost</span>(&amp;<span class="kw">self</span>, weight_kg: <span class="ty">f64</span>, distance_km: <span class="ty">f64</span>) -&gt; <span class="ty">f64</span> {
+        weight_kg * <span class="kw">self</span>.per_kg + distance_km * <span class="kw">self</span>.per_km
+    }
+}
+
+<span class="ok-line"><span class="kw">fn</span> <span class="fn">quote_static</span>&lt;<span class="ty">S</span>: <span class="ty">ShippingStrategy</span>&gt;(strategy: &amp;<span class="ty">S</span>, weight_kg: <span class="ty">f64</span>, distance_km: <span class="ty">f64</span>) -&gt; <span class="ty">f64</span> {</span>
+    strategy.<span class="fn">cost</span>(weight_kg, distance_km)
+}
+
+<span class="kw">fn</span> <span class="fn">quote_dyn</span>(strategy: &amp;<span class="kw">dyn</span> <span class="ty">ShippingStrategy</span>, weight_kg: <span class="ty">f64</span>, distance_km: <span class="ty">f64</span>) -&gt; <span class="ty">f64</span> {
+    strategy.<span class="fn">cost</span>(weight_kg, distance_km)
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> flat = <span class="ty">FlatRate</span> { cents_per_kg: <span class="nm">2.0</span> };
+    <span class="kw">let</span> distance = <span class="ty">DistanceRate</span> { per_km: <span class="nm">0.5</span>, per_kg: <span class="nm">1.0</span> };
+
+    <span class="fn">assert!</span>((<span class="fn">quote_static</span>(&amp;flat, <span class="nm">3.0</span>, <span class="nm">100.0</span>) - <span class="nm">6.0</span>).<span class="fn">abs</span>() &lt; <span class="nm">1e-9</span>);
+    <span class="fn">assert!</span>((<span class="fn">quote_static</span>(&amp;distance, <span class="nm">3.0</span>, <span class="nm">100.0</span>) - <span class="nm">53.0</span>).<span class="fn">abs</span>() &lt; <span class="nm">1e-9</span>);
+
+    <span class="kw">let</span> strategies: <span class="ty">Vec</span>&lt;Box&lt;<span class="kw">dyn</span> <span class="ty">ShippingStrategy</span>&gt;&gt; = <span class="fn">vec!</span>[
+        Box::<span class="fn">new</span>(flat),
+        Box::<span class="fn">new</span>(distance),
+    ];
+    <span class="fn">assert!</span>((<span class="fn">quote_dyn</span>(&amp;*strategies[<span class="nm">0</span>], <span class="nm">3.0</span>, <span class="nm">100.0</span>) - <span class="nm">6.0</span>).<span class="fn">abs</span>() &lt; <span class="nm">1e-9</span>);
+    <span class="fn">assert!</span>((<span class="fn">quote_dyn</span>(&amp;*strategies[<span class="nm">1</span>], <span class="nm">3.0</span>, <span class="nm">100.0</span>) - <span class="nm">53.0</span>).<span class="fn">abs</span>() &lt; <span class="nm">1e-9</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Articulates static vs dynamic dispatch</strong> — generics monomorphize (inlineable, no vtable); <code>dyn</code> enables runtime swap / heterogeneous collections at a small call overhead.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Implements both APIs without copying algorithm logic</strong> — strategy objects own the policy; quote_* just forwards.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Mentions closures</strong> (<code>impl Fn(f64, f64) -&gt; f64</code>) as a lightweight strategy when you don't need a named type.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"When do you choose dyn over generics here?"</em> — Config-selected strategy at runtime, plugin lists, or storing many strategies in one collection; generics when the strategy is fixed per call site and you care about inlining.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Could ShippingStrategy be an enum instead?"</em> — Yes for a closed set of algorithms (<code>match</code> in <code>cost</code>); traits win when third parties add strategies without changing your crate.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How would you make strategies async?"</em> — <code>async fn</code> in traits (RPITIT) or return <code>Pin&lt;Box&lt;dyn Future&lt;…&gt;&gt;&gt;</code>; same static/dyn trade-off applies to the future type.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Strategy is where Rust interviews separate "I memorized GoF" from "I understand dispatch." Prefer generics /
+    <code>impl Trait</code> when the algorithm is known at compile time; use <code>dyn Trait</code> when you need
+    runtime pluggability. Closures are often the smallest strategy. Enums beat both when the set is closed and
+    owned by your crate.
+  </div>
+</div>
+
+<!-- ════════════ DP12 · OBSERVER ════════════ -->
+<div class="section" id="dp12">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 12 · 20–30 min</div>
+      <div class="sh-title">DP12 · Observer</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">behavioral</span>
+      <span class="chip">events</span>
+      <span class="chip">callbacks</span>
+      <span class="chip chip-med">Medium–Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Build a simple <strong>Observer / event bus</strong>. Define an <code>Event</code> enum
+      (<code>Login { user }</code>, <code>Logout { user }</code>). <code>EventBus</code> stores
+      <code>Vec&lt;Box&lt;dyn Fn(&amp;Event)&gt;&gt;</code> listeners. Implement
+      <code>subscribe&lt;F: Fn(&amp;Event) + 'static&gt;(&amp;mut self, F)</code> and
+      <code>publish(&amp;self, &amp;Event)</code> that invokes every listener. Prefer <code>Fn</code> callbacks
+      (not a heavy Observer trait hierarchy). In <code>main</code>, subscribe two listeners (one logs Debug,
+      one reacts only to Login) and assert the recorded side effects after publishing Login then Logout."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">enum</span> <span class="ty">Event</span> {
+    Login { user: <span class="ty">String</span> },
+    Logout { user: <span class="ty">String</span> },
+}
+
+<span class="kw">struct</span> <span class="ty">EventBus</span> {
+    <span class="cm">// TODO: listeners: Vec&lt;Box&lt;dyn Fn(&amp;Event)&gt;&gt;</span>
+}
+
+<span class="kw">impl</span> <span class="ty">EventBus</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { <span class="cm">/* … */</span> }
+    <span class="kw">fn</span> <span class="fn">subscribe</span>&lt;<span class="ty">F</span>&gt;(&amp;<span class="kw">mut</span> <span class="kw">self</span>, listener: <span class="ty">F</span>)
+    <span class="kw">where</span>
+        <span class="ty">F</span>: <span class="ty">Fn</span>(&amp;<span class="ty">Event</span>) + <span class="lt">'static</span>,
+    { <span class="cm">/* TODO */</span> }
+    <span class="kw">fn</span> <span class="fn">publish</span>(&amp;<span class="kw">self</span>, event: &amp;<span class="ty">Event</span>) { <span class="cm">/* TODO: call all listeners */</span> }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// Rc&lt;RefCell&lt;Vec&lt;String&gt;&gt;&gt; log; two subscribe closures; publish Login+Logout; assert</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="cm">#[derive(Clone, Debug, PartialEq)]</span>
+<span class="kw">enum</span> <span class="ty">Event</span> {
+    Login { user: <span class="ty">String</span> },
+    Logout { user: <span class="ty">String</span> },
+}
+
+<span class="kw">struct</span> <span class="ty">EventBus</span> {
+<span class="ok-line">    listeners: <span class="ty">Vec</span>&lt;Box&lt;<span class="kw">dyn</span> <span class="ty">Fn</span>(&amp;<span class="ty">Event</span>)&gt;&gt;,</span>
+}
+
+<span class="kw">impl</span> <span class="ty">EventBus</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { listeners: <span class="ty">Vec</span>::<span class="fn">new</span>() }
+    }
+
+    <span class="kw">fn</span> <span class="fn">subscribe</span>&lt;<span class="ty">F</span>&gt;(&amp;<span class="kw">mut</span> <span class="kw">self</span>, listener: <span class="ty">F</span>)
+    <span class="kw">where</span>
+        <span class="ty">F</span>: <span class="ty">Fn</span>(&amp;<span class="ty">Event</span>) + <span class="lt">'static</span>,
+    {
+        <span class="kw">self</span>.listeners.<span class="fn">push</span>(Box::<span class="fn">new</span>(listener));
+    }
+
+    <span class="kw">fn</span> <span class="fn">publish</span>(&amp;<span class="kw">self</span>, event: &amp;<span class="ty">Event</span>) {
+        <span class="kw">for</span> listener <span class="kw">in</span> &amp;<span class="kw">self</span>.listeners {
+            listener(event);
+        }
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">use</span> std::cell::<span class="ty">RefCell</span>;
+    <span class="kw">use</span> std::rc::<span class="ty">Rc</span>;
+
+    <span class="kw">let</span> bus = <span class="ty">Rc</span>::<span class="fn">new</span>(<span class="ty">RefCell</span>::<span class="fn">new</span>(<span class="ty">EventBus</span>::<span class="fn">new</span>()));
+    <span class="kw">let</span> log: <span class="ty">Rc</span>&lt;<span class="ty">RefCell</span>&lt;<span class="ty">Vec</span>&lt;<span class="ty">String</span>&gt;&gt;&gt; = <span class="ty">Rc</span>::<span class="fn">new</span>(<span class="ty">RefCell</span>::<span class="fn">new</span>(<span class="ty">Vec</span>::<span class="fn">new</span>()));
+
+    {
+        <span class="kw">let</span> log = <span class="ty">Rc</span>::<span class="fn">clone</span>(&amp;log);
+        bus.<span class="fn">borrow_mut</span>().<span class="fn">subscribe</span>(<span class="kw">move</span> |ev| {
+            log.<span class="fn">borrow_mut</span>().<span class="fn">push</span>(<span class="fn">format!</span>(<span class="st">"{ev:?}"</span>));
+        });
+    }
+    {
+        <span class="kw">let</span> log = <span class="ty">Rc</span>::<span class="fn">clone</span>(&amp;log);
+        bus.<span class="fn">borrow_mut</span>().<span class="fn">subscribe</span>(<span class="kw">move</span> |ev| {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ty">Event</span>::Login { user } = ev {
+                log.<span class="fn">borrow_mut</span>().<span class="fn">push</span>(<span class="fn">format!</span>(<span class="st">"welcome:{user}"</span>));
+            }
+        });
+    }
+
+    bus.<span class="fn">borrow</span>().<span class="fn">publish</span>(&amp;<span class="ty">Event</span>::Login { user: <span class="st">"ada"</span>.<span class="fn">into</span>() });
+    bus.<span class="fn">borrow</span>().<span class="fn">publish</span>(&amp;<span class="ty">Event</span>::Logout { user: <span class="st">"ada"</span>.<span class="fn">into</span>() });
+
+    <span class="kw">let</span> entries = log.<span class="fn">borrow</span>().<span class="fn">clone</span>();
+    <span class="fn">assert_eq!</span>(entries.<span class="fn">len</span>(), <span class="nm">3</span>);
+    <span class="fn">assert!</span>(entries[<span class="nm">0</span>].<span class="fn">contains</span>(<span class="st">"Login"</span>));
+    <span class="fn">assert_eq!</span>(entries[<span class="nm">1</span>], <span class="st">"welcome:ada"</span>);
+    <span class="fn">assert!</span>(entries[<span class="nm">2</span>].<span class="fn">contains</span>(<span class="st">"Logout"</span>));
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Stores <code>Box&lt;dyn Fn(&amp;Event)&gt;</code></strong> rather than inventing an Observer trait hierarchy — idiomatic Rust callbacks.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Handles closure capture with <code>Rc&lt;RefCell&lt;_&gt;&gt;</code></strong> (or channels) so listeners can record side effects — shows they understand why bare <code>&amp;mut Vec</code> won't compile across multiple <code>move</code> closures.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Mentions unsubscribe / listener ids</strong> or the re-entrancy hazard of publishing while a listener mutates the listener list.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why Fn and not FnMut?"</em> — <code>publish(&amp;self)</code> calls every listener through a shared borrow of the bus; <code>FnMut</code> would need <code>&amp;mut self</code> on each call (or interior mutability inside the closure). <code>Fn</code> keeps fan-out simple; listeners that need mutation use <code>RefCell</code>/<code>Mutex</code> in their captures.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would you make this multi-threaded?"</em> — <code>Box&lt;dyn Fn(&amp;Event) + Send + Sync&gt;</code>, protect the Vec with <code>RwLock</code>/<code>Mutex</code>, or replace the in-process bus with channels.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"What's the production upgrade on Tokio?"</em> — <code>tokio::sync::broadcast</code> (many async receivers, lag handling) or <code>watch</code> for latest-value fan-out; avoids hand-rolled listener Vecs and integrates with async cancellation.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Classic Observer with subject/observer class pairs is rare in idiomatic Rust — prefer callback Vecs,
+    <code>mpsc</code>, or <code>tokio::sync::broadcast</code>. The hard part in an interview is lifetime/'static
+    bounds on boxed closures and shared mutable logs via <code>Rc&lt;RefCell&gt;</code> (or channels), not drawing
+    UML. Call out broadcast as the async production upgrade.
+  </div>
+</div>
+<!-- ════════════ DP13 · COMMAND ════════════ -->
+<div class="section" id="dp13">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 13 · 20–30 min</div>
+      <div class="sh-title">DP13 · Command</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">behavioral</span>
+      <span class="chip">trait objects</span>
+      <span class="chip">undo stack</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement the <strong>Command</strong> pattern for a bank account. Define a
+      <code>Command</code> trait with <code>execute(&amp;mut self, &amp;mut Account)</code> and
+      <code>undo(&amp;mut self, &amp;mut Account)</code>. Provide <code>Deposit</code> and
+      <code>Withdraw</code> commands, plus a <code>CommandHistory</code> that stores
+      <code>Box&lt;dyn Command&gt;</code> on a stack so <code>undo_last</code> reverses the most recent
+      operation. Demonstrate deposit, withdraw, and two undos restoring the original balance."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">trait</span> <span class="ty">Command</span> {
+    <span class="kw">fn</span> <span class="fn">execute</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>);
+    <span class="kw">fn</span> <span class="fn">undo</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>);
+}
+
+<span class="kw">struct</span> <span class="ty">Account</span> {
+    balance: <span class="ty">i64</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Account</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(balance: <span class="ty">i64</span>) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { balance }
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">Deposit</span> { amount: <span class="ty">i64</span> }
+<span class="kw">struct</span> <span class="ty">Withdraw</span> { amount: <span class="ty">i64</span> }
+
+<span class="cm">// TODO: impl Command for Deposit and Withdraw</span>
+
+<span class="kw">struct</span> <span class="ty">CommandHistory</span> {
+    stack: <span class="ty">Vec</span>&lt;<span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Command</span>&gt;&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">CommandHistory</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { stack: <span class="ty">Vec</span>::<span class="fn">new</span>() }
+    }
+
+    <span class="cm">// TODO: run(&amp;mut self, Box&lt;dyn Command&gt;, &amp;mut Account)</span>
+    <span class="cm">// TODO: undo_last(&amp;mut self, &amp;mut Account) -&gt; bool</span>
+    <span class="cm">// TODO: len(&amp;self) -&gt; usize</span>
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> account = <span class="ty">Account</span>::<span class="fn">new</span>(<span class="nm">100</span>);
+    <span class="kw">let</span> <span class="kw">mut</span> history = <span class="ty">CommandHistory</span>::<span class="fn">new</span>();
+    <span class="cm">// TODO: deposit 50, withdraw 30, undo twice — balance back to 100</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">trait</span> <span class="ty">Command</span> {
+    <span class="kw">fn</span> <span class="fn">execute</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>);
+    <span class="kw">fn</span> <span class="fn">undo</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>);
+}
+
+<span class="kw">struct</span> <span class="ty">Account</span> {
+    balance: <span class="ty">i64</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Account</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(balance: <span class="ty">i64</span>) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { balance }
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">Deposit</span> {
+    amount: <span class="ty">i64</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Command</span> <span class="kw">for</span> <span class="ty">Deposit</span> {
+    <span class="kw">fn</span> <span class="fn">execute</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>) {
+        account.balance += <span class="kw">self</span>.amount;
+    }
+
+    <span class="kw">fn</span> <span class="fn">undo</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>) {
+        account.balance -= <span class="kw">self</span>.amount;
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">Withdraw</span> {
+    amount: <span class="ty">i64</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Command</span> <span class="kw">for</span> <span class="ty">Withdraw</span> {
+    <span class="kw">fn</span> <span class="fn">execute</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>) {
+        account.balance -= <span class="kw">self</span>.amount;
+    }
+
+    <span class="kw">fn</span> <span class="fn">undo</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>) {
+        account.balance += <span class="kw">self</span>.amount;
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">CommandHistory</span> {
+    stack: <span class="ty">Vec</span>&lt;<span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Command</span>&gt;&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">CommandHistory</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { stack: <span class="ty">Vec</span>::<span class="fn">new</span>() }
+    }
+
+    <span class="kw">fn</span> <span class="fn">run</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, <span class="kw">mut</span> cmd: <span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Command</span>&gt;, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>) {
+        cmd.<span class="fn">execute</span>(account);
+        <span class="kw">self</span>.stack.<span class="fn">push</span>(cmd);
+    }
+
+    <span class="kw">fn</span> <span class="fn">undo_last</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, account: &amp;<span class="kw">mut</span> <span class="ty">Account</span>) -&gt; <span class="ty">bool</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="nm">Some</span>(<span class="kw">mut</span> cmd) = <span class="kw">self</span>.stack.<span class="fn">pop</span>() {
+            cmd.<span class="fn">undo</span>(account);
+            <span class="nm">true</span>
+        } <span class="kw">else</span> {
+            <span class="nm">false</span>
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">len</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span> {
+        <span class="kw">self</span>.stack.<span class="fn">len</span>()
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> account = <span class="ty">Account</span>::<span class="fn">new</span>(<span class="nm">100</span>);
+    <span class="kw">let</span> <span class="kw">mut</span> history = <span class="ty">CommandHistory</span>::<span class="fn">new</span>();
+
+    history.<span class="fn">run</span>(<span class="ty">Box</span>::<span class="fn">new</span>(<span class="ty">Deposit</span> { amount: <span class="nm">50</span> }), &amp;<span class="kw">mut</span> account);
+    <span class="fn">assert_eq!</span>(account.balance, <span class="nm">150</span>);
+
+    history.<span class="fn">run</span>(<span class="ty">Box</span>::<span class="fn">new</span>(<span class="ty">Withdraw</span> { amount: <span class="nm">30</span> }), &amp;<span class="kw">mut</span> account);
+    <span class="fn">assert_eq!</span>(account.balance, <span class="nm">120</span>);
+    <span class="fn">assert_eq!</span>(history.<span class="fn">len</span>(), <span class="nm">2</span>);
+
+    <span class="fn">assert!</span>(history.<span class="fn">undo_last</span>(&amp;<span class="kw">mut</span> account));
+    <span class="fn">assert_eq!</span>(account.balance, <span class="nm">150</span>);
+
+    <span class="fn">assert!</span>(history.<span class="fn">undo_last</span>(&amp;<span class="kw">mut</span> account));
+    <span class="fn">assert_eq!</span>(account.balance, <span class="nm">100</span>);
+
+    <span class="fn">assert!</span>(!history.<span class="fn">undo_last</span>(&amp;<span class="kw">mut</span> account));
+    <span class="fn">assert_eq!</span>(history.<span class="fn">len</span>(), <span class="nm">0</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Pushes the command <em>after</em> a successful <code>execute</code></strong> (or only on success) — history never contains operations that did not apply, so undo stays consistent.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Uses <code>Box&lt;dyn Command&gt;</code> (or enum of commands) for heterogeneous history</strong> without forcing every command through the same concrete type — shows they understand object-safety / dyn Trait for the invoker stack.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong><code>undo_last</code> returns <code>bool</code> / <code>Option</code> instead of panicking on empty history</strong> — API design instinct that matches <code>Vec::pop</code>.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why pass <code>&amp;mut Account</code> into execute instead of storing <code>Rc&lt;RefCell&lt;Account&gt;&gt;</code> inside each command?"</em> — Passing the receiver keeps commands small and avoids shared ownership; the invoker owns the sequencing. <code>Rc&lt;RefCell&gt;</code> works but introduces runtime borrow checks and couples commands to a specific sharing model.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would you make undo safe if Withdraw can fail on insufficient funds?"</em> — Have <code>execute</code> return <code>Result</code>, and only push to history on <code>Ok</code>. Failed commands must not be undoable because they never mutated state.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"When would you prefer an enum of commands over <code>dyn Command</code>?"</em> — Closed set of operations, better inlining, exhaustive match, no vtable — idiomatic Rust when you control all command variants. Trait objects win when commands are open/extensible across crates.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Classic Command is a natural fit for <code>Box&lt;dyn Trait&gt;</code>, but many Rust codebases replace the trait hierarchy with a closed
+    <code>enum Command { Deposit(i64), Withdraw(i64) }</code> and match in execute/undo — same undo stack, zero dynamic dispatch.
+    Probe whether the candidate reaches for dyn by habit or can articulate when an enum is enough.
+  </div>
+</div>
+
+<!-- ════════════ DP14 · STATE ════════════ -->
+<div class="section" id="dp14">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 14 · 20–30 min</div>
+      <div class="sh-title">DP14 · State</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">behavioral</span>
+      <span class="chip">enum FSM</span>
+      <span class="chip">transitions</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Model an order lifecycle as an <strong>enum-based state machine</strong> —
+      <code>Pending</code>, <code>Paid</code>, <code>Shipped</code>, <code>Cancelled</code>.
+      <code>Order</code> stores the current state and exposes <code>pay</code>, <code>ship</code>, and
+      <code>cancel</code>, each returning <code>Result&lt;(), &amp;'static str&gt;</code> and only allowing legal
+      transitions (Pending→Paid→Shipped; cancel from Pending or Paid only). Prefer an enum over a
+      trait-object State hierarchy — that's the idiomatic Rust version of this pattern."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">OrderState</span> {
+    <span class="ty">Pending</span>,
+    <span class="ty">Paid</span>,
+    <span class="ty">Shipped</span>,
+    <span class="ty">Cancelled</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">Order</span> {
+    id: <span class="ty">u64</span>,
+    state: <span class="ty">OrderState</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Order</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(id: <span class="ty">u64</span>) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { id, state: <span class="ty">OrderState</span>::<span class="ty">Pending</span> }
+    }
+
+    <span class="kw">fn</span> <span class="fn">state</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">OrderState</span> {
+        <span class="kw">self</span>.state
+    }
+
+    <span class="cm">// TODO: pay, ship, cancel — each Result&lt;(), &amp;'static str&gt;</span>
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> order = <span class="ty">Order</span>::<span class="fn">new</span>(<span class="nm">1</span>);
+    <span class="cm">// TODO: assert Pending → pay → Paid → ship → Shipped; cancel from Shipped fails</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="kw">enum</span> <span class="ty">OrderState</span> {
+    <span class="ty">Pending</span>,
+    <span class="ty">Paid</span>,
+    <span class="ty">Shipped</span>,
+    <span class="ty">Cancelled</span>,
+}
+
+<span class="kw">struct</span> <span class="ty">Order</span> {
+    id: <span class="ty">u64</span>,
+    state: <span class="ty">OrderState</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Order</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(id: <span class="ty">u64</span>) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> {
+            id,
+            state: <span class="ty">OrderState</span>::<span class="ty">Pending</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">state</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">OrderState</span> {
+        <span class="kw">self</span>.state
+    }
+
+    <span class="kw">fn</span> <span class="fn">pay</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Result</span>&lt;(), &amp;<span class="kw">'static</span> <span class="ty">str</span>&gt; {
+        <span class="kw">match</span> <span class="kw">self</span>.state {
+            <span class="ty">OrderState</span>::<span class="ty">Pending</span> =&gt; {
+                <span class="kw">self</span>.state = <span class="ty">OrderState</span>::<span class="ty">Paid</span>;
+                <span class="ty">Ok</span>(())
+            }
+            _ =&gt; <span class="ty">Err</span>(<span class="st">"can only pay a pending order"</span>),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">ship</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Result</span>&lt;(), &amp;<span class="kw">'static</span> <span class="ty">str</span>&gt; {
+        <span class="kw">match</span> <span class="kw">self</span>.state {
+            <span class="ty">OrderState</span>::<span class="ty">Paid</span> =&gt; {
+                <span class="kw">self</span>.state = <span class="ty">OrderState</span>::<span class="ty">Shipped</span>;
+                <span class="ty">Ok</span>(())
+            }
+            _ =&gt; <span class="ty">Err</span>(<span class="st">"can only ship a paid order"</span>),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">cancel</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Result</span>&lt;(), &amp;<span class="kw">'static</span> <span class="ty">str</span>&gt; {
+        <span class="kw">match</span> <span class="kw">self</span>.state {
+            <span class="ty">OrderState</span>::<span class="ty">Pending</span> | <span class="ty">OrderState</span>::<span class="ty">Paid</span> =&gt; {
+                <span class="kw">self</span>.state = <span class="ty">OrderState</span>::<span class="ty">Cancelled</span>;
+                <span class="ty">Ok</span>(())
+            }
+            <span class="ty">OrderState</span>::<span class="ty">Shipped</span> =&gt; <span class="ty">Err</span>(<span class="st">"cannot cancel a shipped order"</span>),
+            <span class="ty">OrderState</span>::<span class="ty">Cancelled</span> =&gt; <span class="ty">Err</span>(<span class="st">"order already cancelled"</span>),
+        }
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> <span class="kw">mut</span> order = <span class="ty">Order</span>::<span class="fn">new</span>(<span class="nm">1</span>);
+    <span class="fn">assert_eq!</span>(order.<span class="fn">state</span>(), <span class="ty">OrderState</span>::<span class="ty">Pending</span>);
+    <span class="fn">assert_eq!</span>(order.id, <span class="nm">1</span>);
+
+    <span class="fn">assert!</span>(order.<span class="fn">pay</span>().<span class="fn">is_ok</span>());
+    <span class="fn">assert_eq!</span>(order.<span class="fn">state</span>(), <span class="ty">OrderState</span>::<span class="ty">Paid</span>);
+    <span class="fn">assert!</span>(order.<span class="fn">pay</span>().<span class="fn">is_err</span>());
+
+    <span class="fn">assert!</span>(order.<span class="fn">ship</span>().<span class="fn">is_ok</span>());
+    <span class="fn">assert_eq!</span>(order.<span class="fn">state</span>(), <span class="ty">OrderState</span>::<span class="ty">Shipped</span>);
+    <span class="fn">assert!</span>(order.<span class="fn">cancel</span>().<span class="fn">is_err</span>());
+
+    <span class="kw">let</span> <span class="kw">mut</span> cancelled = <span class="ty">Order</span>::<span class="fn">new</span>(<span class="nm">2</span>);
+    <span class="fn">assert!</span>(cancelled.<span class="fn">cancel</span>().<span class="fn">is_ok</span>());
+    <span class="fn">assert_eq!</span>(cancelled.<span class="fn">state</span>(), <span class="ty">OrderState</span>::<span class="ty">Cancelled</span>);
+    <span class="fn">assert!</span>(cancelled.<span class="fn">pay</span>().<span class="fn">is_err</span>());
+    <span class="fn">assert!</span>(cancelled.<span class="fn">ship</span>().<span class="fn">is_err</span>());
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Chooses enum + <code>match</code> immediately</strong> instead of a Java-style <code>trait State</code> with <code>Box&lt;dyn State&gt;</code> — and can say why (exhaustiveness, no vtable, data can live on the variants later).</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Returns <code>Result</code> for illegal transitions</strong> rather than panicking or silently no-oping — makes invalid moves observable to the caller.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Derives <code>Copy</code>/<code>PartialEq</code> on the state enum</strong> so tests and comparisons stay ergonomic without cloning ceremony.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why is the GoF State pattern with a trait-object per state uncommon in Rust?"</em> — Enums give compile-time exhaustiveness when you add a variant; trait objects push missing transitions to runtime. Per-state types also fight ownership when states need to move data between variants.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would you evolve this so Paid carries a payment_id and Shipped a tracking number?"</em> — Put data on the enum variants themselves (<code>Paid { payment_id }</code>, <code>Shipped { tracking }</code>) and transition by moving the old variant out (often via <code>mem::replace</code> / <code>take</code> pattern).</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"What's the difference between this and typestate (DP17)?"</em> — Here illegal transitions fail at runtime with <code>Result</code>. Typestate encodes allowed operations in the type system so illegal calls do not compile.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    In Java/C++, State is often a class hierarchy swapped at runtime. In Rust, an enum + <code>match</code> is the default:
+    the compiler forces you to handle every variant, transitions stay in one place, and you can later attach
+    per-state data without a zoo of heap-allocated state objects. Trait-object State is a yellow flag unless
+    states are truly open-ended plugins.
+  </div>
+</div>
+
+<!-- ════════════ DP15 · TEMPLATE METHOD ════════════ -->
+<div class="section" id="dp15">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 15 · 20–25 min</div>
+      <div class="sh-title">DP15 · Template Method</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">behavioral</span>
+      <span class="chip">default methods</span>
+      <span class="chip">hooks</span>
+      <span class="chip chip-med">Easy–Med</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement the <strong>Template Method</strong> pattern as a Rust trait
+      <code>DataExporter</code>. Give <code>export</code> a default body that builds
+      <code>header() + format_row()… + footer()</code>. Provide default empty
+      <code>header</code>/<code>footer</code>, and leave <code>format_row</code> required.
+      Implement <code>CsvExporter</code> (header <code>value\n</code>, quoted rows) and
+      <code>JsonExporter</code> (wraps rows in <code>[…]</code>). Callers should only need to call
+      <code>export</code>."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">trait</span> <span class="ty">DataExporter</span> {
+    <span class="cm">// TODO: export with default algorithm skeleton</span>
+    <span class="cm">// TODO: header / footer defaults; format_row required</span>
+    <span class="kw">fn</span> <span class="fn">format_row</span>(&amp;<span class="kw">self</span>, row: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span>;
+}
+
+<span class="kw">struct</span> <span class="ty">CsvExporter</span>;
+<span class="kw">struct</span> <span class="ty">JsonExporter</span>;
+
+<span class="cm">// TODO: impl DataExporter for both</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> rows = [<span class="st">"alpha"</span>, <span class="st">"beta"</span>];
+    <span class="cm">// TODO: assert CSV and JSON export shapes</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">trait</span> <span class="ty">DataExporter</span> {
+    <span class="kw">fn</span> <span class="fn">export</span>(&amp;<span class="kw">self</span>, rows: &amp;[&amp;<span class="ty">str</span>]) -&gt; <span class="ty">String</span> {
+        <span class="kw">let</span> <span class="kw">mut</span> out = <span class="ty">String</span>::<span class="fn">new</span>();
+        out.<span class="fn">push_str</span>(&amp;<span class="kw">self</span>.<span class="fn">header</span>());
+        <span class="kw">for</span> (i, row) <span class="kw">in</span> rows.<span class="fn">iter</span>().<span class="fn">enumerate</span>() {
+            <span class="kw">if</span> i &gt; <span class="nm">0</span> {
+                out.<span class="fn">push</span>(<span class="st">'\n'</span>);
+            }
+            out.<span class="fn">push_str</span>(&amp;<span class="kw">self</span>.<span class="fn">format_row</span>(row));
+        }
+        out.<span class="fn">push_str</span>(&amp;<span class="kw">self</span>.<span class="fn">footer</span>());
+        out
+    }
+
+    <span class="kw">fn</span> <span class="fn">header</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> {
+        <span class="ty">String</span>::<span class="fn">new</span>()
+    }
+
+    <span class="kw">fn</span> <span class="fn">format_row</span>(&amp;<span class="kw">self</span>, row: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span>;
+
+    <span class="kw">fn</span> <span class="fn">footer</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> {
+        <span class="ty">String</span>::<span class="fn">new</span>()
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">CsvExporter</span>;
+
+<span class="kw">impl</span> <span class="ty">DataExporter</span> <span class="kw">for</span> <span class="ty">CsvExporter</span> {
+    <span class="kw">fn</span> <span class="fn">header</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> {
+        <span class="st">"value\n"</span>.<span class="fn">to_string</span>()
+    }
+
+    <span class="kw">fn</span> <span class="fn">format_row</span>(&amp;<span class="kw">self</span>, row: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span> {
+        <span class="fn">format!</span>(<span class="st">"\"{row}\""</span>)
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">JsonExporter</span>;
+
+<span class="kw">impl</span> <span class="ty">DataExporter</span> <span class="kw">for</span> <span class="ty">JsonExporter</span> {
+    <span class="kw">fn</span> <span class="fn">header</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> {
+        <span class="st">"["</span>.<span class="fn">to_string</span>()
+    }
+
+    <span class="kw">fn</span> <span class="fn">format_row</span>(&amp;<span class="kw">self</span>, row: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span> {
+        <span class="fn">format!</span>(<span class="st">"\"{row}\""</span>)
+    }
+
+    <span class="kw">fn</span> <span class="fn">footer</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> {
+        <span class="st">"]"</span>.<span class="fn">to_string</span>()
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> rows = [<span class="st">"alpha"</span>, <span class="st">"beta"</span>];
+
+    <span class="kw">let</span> csv = <span class="ty">CsvExporter</span>.<span class="fn">export</span>(&amp;rows);
+    <span class="fn">assert_eq!</span>(csv, <span class="st">"value\n\"alpha\"\n\"beta\""</span>);
+
+    <span class="kw">let</span> json = <span class="ty">JsonExporter</span>.<span class="fn">export</span>(&amp;rows);
+    <span class="fn">assert_eq!</span>(json, <span class="st">"[\"alpha\"\n\"beta\"]"</span>);
+
+    <span class="kw">let</span> empty_csv = <span class="ty">CsvExporter</span>.<span class="fn">export</span>(&amp;[]);
+    <span class="fn">assert_eq!</span>(empty_csv, <span class="st">"value\n"</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Puts the algorithm in a default trait method</strong> and only overrides hooks — does not copy-paste the loop into each exporter.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Leaves <code>format_row</code> without a default</strong> so implementors must supply the varying step; optional hooks get empty defaults.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Handles the empty-rows edge</strong> (header/footer still applied, no stray separator) without being asked.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"How does this differ from the Strategy pattern?"</em> — Template Method fixes the skeleton and varies steps via overrides/defaults on one type. Strategy swaps an entire algorithm object injected from outside. Here the trait itself owns the skeleton.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"Could you write this with a free function taking closures for the hooks instead of a trait?"</em> — Yes — <code>export(rows, header, format_row, footer)</code>. Traits shine when you want named reusable exporter types; closures shine for one-off customization.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"What breaks if <code>export</code> is not a default method but a blanket helper outside the trait?"</em> — You lose the polymorphic <code>exporter.export()</code> call site unless you also add a trait method that forwards — default methods keep the template and the API on the same trait.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Rust maps Template Method cleanly onto trait default methods — no abstract base class required.
+    Seniors often note the alternative: a single function parameterized by closures/strategy objects, which can be
+    simpler when you do not need a named family of exporter types. Either way, avoid copying the skeleton.
+  </div>
+</div>
+
+<!-- ════════════ DP16 · ITERATOR ════════════ -->
+<div class="section" id="dp16">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 16 · 20–30 min</div>
+      <div class="sh-title">DP16 · Iterator</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">behavioral</span>
+      <span class="chip">Iterator trait</span>
+      <span class="chip">adapters</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Implement a custom <strong>Fibonacci</strong> iterator: a struct that
+      <code>impl Iterator&lt;Item = u64&gt;</code> for real — not a hand-rolled
+      <code>next()</code> method on your own trait. <code>Fibonacci::new(count)</code> yields
+      <code>count</code> terms starting at 0, 1, 1, 2, …. Show it works with
+      <code>collect</code>, <code>sum</code>, and manual <code>next</code> until <code>None</code>."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">struct</span> <span class="ty">Fibonacci</span> {
+    curr: <span class="ty">u64</span>,
+    next: <span class="ty">u64</span>,
+    remaining: <span class="ty">usize</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Fibonacci</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(count: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> { curr: <span class="nm">0</span>, next: <span class="nm">1</span>, remaining: count }
+    }
+}
+
+<span class="cm">// TODO: impl Iterator for Fibonacci { type Item = u64; fn next... }</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> vals: <span class="ty">Vec</span>&lt;<span class="ty">u64</span>&gt; = <span class="ty">Fibonacci</span>::<span class="fn">new</span>(<span class="nm">8</span>).<span class="fn">collect</span>();
+    <span class="cm">// TODO: assert [0,1,1,2,3,5,8,13]; empty / sum / exhaust next()</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">struct</span> <span class="ty">Fibonacci</span> {
+    curr: <span class="ty">u64</span>,
+    next: <span class="ty">u64</span>,
+    remaining: <span class="ty">usize</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Fibonacci</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>(count: <span class="ty">usize</span>) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> {
+            curr: <span class="nm">0</span>,
+            next: <span class="nm">1</span>,
+            remaining: count,
+        }
+    }
+}
+
+<span class="kw">impl</span> <span class="ty">Iterator</span> <span class="kw">for</span> <span class="ty">Fibonacci</span> {
+    <span class="kw">type</span> <span class="ty">Item</span> = <span class="ty">u64</span>;
+
+    <span class="kw">fn</span> <span class="fn">next</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;<span class="kw">Self</span>::<span class="ty">Item</span>&gt; {
+        <span class="kw">if</span> <span class="kw">self</span>.remaining == <span class="nm">0</span> {
+            <span class="kw">return</span> <span class="nm">None</span>;
+        }
+        <span class="kw">self</span>.remaining -= <span class="nm">1</span>;
+        <span class="kw">let</span> value = <span class="kw">self</span>.curr;
+        <span class="kw">let</span> sum = <span class="kw">self</span>.curr + <span class="kw">self</span>.next;
+        <span class="kw">self</span>.curr = <span class="kw">self</span>.next;
+        <span class="kw">self</span>.next = sum;
+        <span class="nm">Some</span>(value)
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> vals: <span class="ty">Vec</span>&lt;<span class="ty">u64</span>&gt; = <span class="ty">Fibonacci</span>::<span class="fn">new</span>(<span class="nm">8</span>).<span class="fn">collect</span>();
+    <span class="fn">assert_eq!</span>(vals, <span class="fn">vec!</span>[<span class="nm">0</span>, <span class="nm">1</span>, <span class="nm">1</span>, <span class="nm">2</span>, <span class="nm">3</span>, <span class="nm">5</span>, <span class="nm">8</span>, <span class="nm">13</span>]);
+
+    <span class="fn">assert_eq!</span>(<span class="ty">Fibonacci</span>::<span class="fn">new</span>(<span class="nm">0</span>).<span class="fn">next</span>(), <span class="nm">None</span>);
+    <span class="fn">assert_eq!</span>(<span class="ty">Fibonacci</span>::<span class="fn">new</span>(<span class="nm">1</span>).<span class="fn">next</span>(), <span class="nm">Some</span>(<span class="nm">0</span>));
+
+    <span class="kw">let</span> sum: <span class="ty">u64</span> = <span class="ty">Fibonacci</span>::<span class="fn">new</span>(<span class="nm">6</span>).<span class="fn">sum</span>();
+    <span class="fn">assert_eq!</span>(sum, <span class="nm">12</span>);
+
+    <span class="kw">let</span> <span class="kw">mut</span> iter = <span class="ty">Fibonacci</span>::<span class="fn">new</span>(<span class="nm">3</span>);
+    <span class="fn">assert_eq!</span>(iter.<span class="fn">next</span>(), <span class="nm">Some</span>(<span class="nm">0</span>));
+    <span class="fn">assert_eq!</span>(iter.<span class="fn">next</span>(), <span class="nm">Some</span>(<span class="nm">1</span>));
+    <span class="fn">assert_eq!</span>(iter.<span class="fn">next</span>(), <span class="nm">Some</span>(<span class="nm">1</span>));
+    <span class="fn">assert_eq!</span>(iter.<span class="fn">next</span>(), <span class="nm">None</span>);
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Implements std <code>Iterator</code></strong> (with associated <code>type Item</code>) rather than inventing a parallel <code>trait MyIter</code> — immediately unlocks <code>collect</code>/<code>sum</code>/<code>take</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Advances state correctly before returning</strong> (or uses a clear curr/next swap) so the sequence does not skip or duplicate terms.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Mentions overflow</strong> (<code>checked_add</code> / <code>saturating_add</code>) for unbounded Fibonacci — even if the counted version here stays small.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why does implementing Iterator give you map/filter for free?"</em> — Those are default methods / adapters on the trait; any type that provides <code>next</code> inherits the whole iterator ecosystem.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How would you make an infinite Fibonacci iterator?"</em> — Drop <code>remaining</code>; <code>next</code> always returns <code>Some</code>. Callers bound it with <code>.take(n)</code>. Discuss overflow strategy for <code>u64</code>.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"What's harder about a tree inorder iterator than Fibonacci?"</em> — Need an explicit stack (or parent pointers) to resume traversal; Fibonacci only needs two integers of state. Good signal on encoding control-flow as data.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Iterator is not a bolted-on GoF port in Rust — it is the language's primary sequence abstraction.
+    The interview signal is whether they reach for <code>impl Iterator</code> and associated types, not a custom
+    <code>has_next</code>/<code>get_next</code> API copied from Java. Adapters and <code>for</code> loops are the payoff.
+  </div>
+</div>
+
+<!-- ════════════ DP17 · NEWTYPE + TYPESTATE ════════════ -->
+<div class="section" id="dp17">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 17 · 25–30 min</div>
+      <div class="sh-title">DP17 · Newtype + Typestate</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">rust-native</span>
+      <span class="chip">typestate</span>
+      <span class="chip">PhantomData</span>
+      <span class="chip chip-hard">Hard</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Encode login in the type system with <strong>typestate</strong>:
+      <code>User&lt;LoggedOut&gt;</code> and <code>User&lt;LoggedIn&gt;</code> using zero-sized marker types and
+      <code>PhantomData</code>. Only <code>User&lt;LoggedOut&gt;</code> has <code>login(self) -&gt; User&lt;LoggedIn&gt;</code>;
+      only <code>User&lt;LoggedIn&gt;</code> has <code>access_dashboard(&amp;self)</code> and
+      <code>logout(self) -&gt; User&lt;LoggedOut&gt;</code>. Calling <code>access_dashboard</code> on a logged-out
+      user must be a compile error — not a runtime check."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::marker::<span class="ty">PhantomData</span>;
+
+<span class="kw">struct</span> <span class="ty">LoggedOut</span>;
+<span class="kw">struct</span> <span class="ty">LoggedIn</span>;
+
+<span class="kw">struct</span> <span class="ty">User</span>&lt;<span class="ty">State</span>&gt; {
+    name: <span class="ty">String</span>,
+    _state: <span class="ty">PhantomData</span>&lt;<span class="ty">State</span>&gt;,
+}
+
+<span class="cm">// TODO: impl User&lt;LoggedOut&gt; — new, login</span>
+<span class="cm">// TODO: impl User&lt;LoggedIn&gt; — access_dashboard, logout, name</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> user = <span class="ty">User</span>::&lt;<span class="ty">LoggedOut</span>&gt;::<span class="fn">new</span>(<span class="st">"ada"</span>);
+    <span class="kw">let</span> logged_in = user.<span class="fn">login</span>();
+    <span class="fn">assert_eq!</span>(logged_in.<span class="fn">access_dashboard</span>(), <span class="st">"dashboard:ada"</span>);
+    <span class="cm">// let bad = User::&lt;LoggedOut&gt;::new("bob"); bad.access_dashboard(); // must not compile</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::marker::<span class="ty">PhantomData</span>;
+
+<span class="kw">struct</span> <span class="ty">LoggedOut</span>;
+<span class="kw">struct</span> <span class="ty">LoggedIn</span>;
+
+<span class="kw">struct</span> <span class="ty">User</span>&lt;<span class="ty">State</span>&gt; {
+    name: <span class="ty">String</span>,
+    _state: <span class="ty">PhantomData</span>&lt;<span class="ty">State</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">User</span>&lt;<span class="ty">LoggedOut</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">new</span>(name: <span class="kw">impl</span> <span class="ty">Into</span>&lt;<span class="ty">String</span>&gt;) -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> {
+            name: name.<span class="fn">into</span>(),
+            _state: <span class="ty">PhantomData</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">login</span>(<span class="kw">self</span>) -&gt; <span class="ty">User</span>&lt;<span class="ty">LoggedIn</span>&gt; {
+        <span class="ty">User</span> {
+            name: <span class="kw">self</span>.name,
+            _state: <span class="ty">PhantomData</span>,
+        }
+    }
+}
+
+<span class="kw">impl</span> <span class="ty">User</span>&lt;<span class="ty">LoggedIn</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">access_dashboard</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">String</span> {
+        <span class="fn">format!</span>(<span class="st">"dashboard:{}"</span>, <span class="kw">self</span>.name)
+    }
+
+    <span class="kw">fn</span> <span class="fn">logout</span>(<span class="kw">self</span>) -&gt; <span class="ty">User</span>&lt;<span class="ty">LoggedOut</span>&gt; {
+        <span class="ty">User</span> {
+            name: <span class="kw">self</span>.name,
+            _state: <span class="ty">PhantomData</span>,
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">str</span> {
+        &amp;<span class="kw">self</span>.name
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> user = <span class="ty">User</span>::&lt;<span class="ty">LoggedOut</span>&gt;::<span class="fn">new</span>(<span class="st">"ada"</span>);
+    <span class="kw">let</span> logged_in = user.<span class="fn">login</span>();
+    <span class="fn">assert_eq!</span>(logged_in.<span class="fn">access_dashboard</span>(), <span class="st">"dashboard:ada"</span>);
+    <span class="fn">assert_eq!</span>(logged_in.<span class="fn">name</span>(), <span class="st">"ada"</span>);
+
+    <span class="kw">let</span> logged_out = logged_in.<span class="fn">logout</span>();
+    <span class="kw">let</span> again = logged_out.<span class="fn">login</span>();
+    <span class="fn">assert_eq!</span>(again.<span class="fn">access_dashboard</span>(), <span class="st">"dashboard:ada"</span>);
+
+    <span class="cm">// Compile-time check (uncomment to see the error):</span>
+    <span class="cm">// let u = User::&lt;LoggedOut&gt;::new("bob");</span>
+    <span class="cm">// u.access_dashboard();</span>
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Transitions consume <code>self</code> by value</strong> (<code>login(self) -&gt; User&lt;LoggedIn&gt;</code>) so the old state cannot be used again — no leftover logged-out handle after login.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Uses <code>PhantomData&lt;State&gt;</code></strong> (or an equivalent ZST field) so <code>State</code> is part of the type without runtime payload.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Splits impl blocks per state</strong> rather than one <code>impl&lt;State&gt;</code> with runtime <code>if logged_in</code> checks — the API surface itself enforces the protocol.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why take <code>self</code> by value on login/logout instead of <code>&amp;mut self</code>?"</em> — Changing the type parameter requires a new value; you cannot mutate <code>User&lt;LoggedOut&gt;</code> into <code>User&lt;LoggedIn&gt;</code> in place. Consuming <code>self</code> also prevents use-after-transition.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"How does this compare to the enum State machine in DP14?"</em> — Enum FSM: one type, illegal transitions are runtime <code>Err</code>. Typestate: many types, illegal operations do not type-check. Typestate is stronger but less flexible for dynamic/server-driven state.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"Where have you seen typestate in the wild?"</em> — Strong answers: <code>std::fs::OpenOptions</code> builders, session/token types, <code>tokio</code>/<code>hyper</code> connection states, embedded HAL pin modes, typed SQL builders.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    Typestate is a Rust-native upgrade to State: move the protocol into the type checker with marker types and
+    <code>PhantomData</code>. It has no direct GoF twin. Successful candidates explain the consume-by-value
+    transition and when they would still prefer a runtime enum (deserialization, long-lived mutable entities).
+  </div>
+</div>
+
+<!-- ════════════ DP18 · RAII GUARD ════════════ -->
+<div class="section" id="dp18">
+  <div class="section-header">
+    <div class="sh-bar" style="background:var(--c-arch)"></div>
+    <div>
+      <div class="sh-eyebrow" style="color:var(--c-arch)">// Design Pattern 18 · 20–30 min</div>
+      <div class="sh-title">DP18 · RAII Guard</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ex-meta">
+      <span class="chip">rust-native</span>
+      <span class="chip">Drop</span>
+      <span class="chip">RAII</span>
+      <span class="chip chip-med">Medium</span>
+    </div>
+
+    <div class="card-label"><span class="cl-pip" style="background:var(--c-arch)"></span>Read this prompt aloud — do not show the solution</div>
+    <div class="note">
+      "Build a small <strong>RAII lock guard</strong>: <code>LockFlag</code> with
+      <code>lock(&amp;self) -&gt; LockGuard&lt;'_&gt;</code> that sets a flag true, and
+      <code>Drop</code> for <code>LockGuard</code> that clears it. Prove the flag unlocks on
+      normal scope exit <em>and</em> when a panic unwinds through the guard (use
+      <code>catch_unwind</code>). This is the Rust form of acquire/release that MutexGuard uses."
+    </div>
+
+    <div class="card-label" style="margin-top:16px;"><span class="cl-pip" style="background:var(--text-dim)"></span>Starter code to hand to candidate</div>
+<pre><span class="kw">use</span> std::cell::<span class="ty">Cell</span>;
+<span class="kw">use</span> std::panic::{<span class="fn">catch_unwind</span>, <span class="ty">AssertUnwindSafe</span>};
+
+<span class="kw">struct</span> <span class="ty">LockFlag</span> {
+    locked: <span class="ty">Cell</span>&lt;<span class="ty">bool</span>&gt;,
+}
+
+<span class="kw">struct</span> <span class="ty">LockGuard</span>&lt;<span class="kw">'a</span>&gt; {
+    flag: &amp;<span class="kw">'a</span> <span class="ty">LockFlag</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">LockFlag</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> { <span class="cm">/* TODO */</span> }
+    <span class="kw">fn</span> <span class="fn">is_locked</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">bool</span> { <span class="cm">/* TODO */</span> }
+    <span class="kw">fn</span> <span class="fn">lock</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">LockGuard</span>&lt;<span class="kw">'_</span>&gt; { <span class="cm">/* TODO: set locked, return guard */</span> }
+}
+
+<span class="cm">// TODO: impl Drop for LockGuard — clear the flag</span>
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> flag = <span class="ty">LockFlag</span>::<span class="fn">new</span>();
+    <span class="cm">// TODO: scope-exit unlock + catch_unwind panic unlock</span>
+}</pre>
+
+    <details>
+      <summary>Full solution key — reveal after candidate finishes</summary>
+      <div style="padding:16px 0 4px;">
+<pre><span class="kw">use</span> std::cell::<span class="ty">Cell</span>;
+<span class="kw">use</span> std::panic::{<span class="fn">catch_unwind</span>, <span class="ty">AssertUnwindSafe</span>};
+
+<span class="kw">struct</span> <span class="ty">LockFlag</span> {
+    locked: <span class="ty">Cell</span>&lt;<span class="ty">bool</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">LockFlag</span> {
+    <span class="kw">fn</span> <span class="fn">new</span>() -&gt; <span class="kw">Self</span> {
+        <span class="ty">Self</span> {
+            locked: <span class="ty">Cell</span>::<span class="fn">new</span>(<span class="nm">false</span>),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">is_locked</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">bool</span> {
+        <span class="kw">self</span>.locked.<span class="fn">get</span>()
+    }
+
+    <span class="kw">fn</span> <span class="fn">lock</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">LockGuard</span>&lt;<span class="kw">'_</span>&gt; {
+        <span class="fn">assert!</span>(!<span class="kw">self</span>.locked.<span class="fn">get</span>(), <span class="st">"lock already held"</span>);
+        <span class="kw">self</span>.locked.<span class="fn">set</span>(<span class="nm">true</span>);
+        <span class="ty">LockGuard</span> { flag: <span class="kw">self</span> }
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">LockGuard</span>&lt;<span class="kw">'a</span>&gt; {
+    flag: &amp;<span class="kw">'a</span> <span class="ty">LockFlag</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Drop</span> <span class="kw">for</span> <span class="ty">LockGuard</span>&lt;<span class="kw">'_</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">drop</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) {
+        <span class="kw">self</span>.flag.locked.<span class="fn">set</span>(<span class="nm">false</span>);
+    }
+}
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> flag = <span class="ty">LockFlag</span>::<span class="fn">new</span>();
+    <span class="fn">assert!</span>(!flag.<span class="fn">is_locked</span>());
+
+    {
+        <span class="kw">let</span> _guard = flag.<span class="fn">lock</span>();
+        <span class="fn">assert!</span>(flag.<span class="fn">is_locked</span>());
+    }
+    <span class="fn">assert!</span>(!flag.<span class="fn">is_locked</span>());
+
+    <span class="kw">let</span> result = <span class="fn">catch_unwind</span>(<span class="ty">AssertUnwindSafe</span>(|| {
+        <span class="kw">let</span> _guard = flag.<span class="fn">lock</span>();
+        <span class="fn">assert!</span>(flag.<span class="fn">is_locked</span>());
+        <span class="fn">panic!</span>(<span class="st">"force unwind"</span>);
+    }));
+    <span class="fn">assert!</span>(result.<span class="fn">is_err</span>());
+    <span class="fn">assert!</span>(!flag.<span class="fn">is_locked</span>());
+
+    <span class="kw">let</span> _g = flag.<span class="fn">lock</span>();
+    <span class="fn">assert!</span>(flag.<span class="fn">is_locked</span>());
+}</pre>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>What to look for — unprompted signals</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">★★★</span><span class="probe-text"><strong>Implements <code>Drop</code> for release</strong> and does not require an explicit <code>unlock()</code> call — understands RAII as the safety mechanism.</span></li>
+          <li class="probe-item"><span class="probe-label">★★</span><span class="probe-text"><strong>Demonstrates unlock on panic unwind</strong> (via <code>catch_unwind</code> or clear verbal explanation that Drop still runs) — connects guards to exception-safety / unwind safety.</span></li>
+          <li class="probe-item"><span class="probe-label">★</span><span class="probe-text"><strong>Uses <code>Cell</code> / interior mutability</strong> so <code>lock(&amp;self)</code> works while the guard holds a shared reference — mirrors why real locks use unsafe/interior mutability under the hood.</span></li>
+        </ul>
+
+        <div class="card-label" style="margin-top:14px;"><span class="cl-pip" style="background:var(--c-warn)"></span>Follow-up probes</div>
+        <ul class="probe-list">
+          <li class="probe-item"><span class="probe-label">P1</span><span class="probe-text"><em>"Why does <code>std::sync::MutexGuard</code> unlock in Drop instead of an unlock method?"</em> — So every exit path (return, <code>?</code>, panic) releases the lock. An explicit unlock is easy to forget and races with panic.</span></li>
+          <li class="probe-item"><span class="probe-label">P2</span><span class="probe-text"><em>"What goes wrong if Drop does fallible work (e.g. flush that can fail)?"</em> — Drop cannot return <code>Result</code>; failures must be logged, ignored, or surfaced earlier via an explicit <code>close(self) -&gt; Result</code> that leaves a no-op Drop. Double-panic during unwind aborts.</span></li>
+          <li class="probe-item"><span class="probe-label">P3</span><span class="probe-text"><em>"How would you adapt this to a TempFile deleted on drop?"</em> — Store <code>PathBuf</code>, create the file in <code>new</code>, <code>remove_file</code> in <code>Drop</code>; optionally expose <code>persist(self)</code> via <code>mem::forget</code> / ManuallyDrop to skip deletion.</span></li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">🎯 Senior angle / Rust angle</div>
+    RAII guards are how Rust encodes cleanup without <code>finally</code> or try-with-resources:
+    ownership ends, <code>Drop</code> runs — including on unwind. This exercise is less "GoF pattern" and more
+    "do you understand why MutexGuard / File / Span guards look the way they do."
+  </div>
+</div>

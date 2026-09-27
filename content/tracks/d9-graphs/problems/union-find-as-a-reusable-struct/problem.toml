@@ -1,0 +1,31 @@
+slug = "union-find-as-a-reusable-struct"
+title = "Union-find as a reusable struct"
+mode = "write"
+level = "medium"
+stage = "union-find-mst"
+order = 26
+status = "ready"
+tags = ["union by size", "API design"]
+teaches = [
+  "Why `find` takes `&mut self` (path compression writes).",
+  "Union by size plus path compression.",
+]
+follow_up = "How would you support undoing the last union (rollback), and what does that cost?"
+source = "W20"
+
+[[hints]]
+kind = "rust"
+text = "`find` compresses paths, which writes to `parent`, so it needs `&mut self`; `connected` inherits that."
+
+[[hints]]
+kind = "approach"
+text = "Hang the smaller tree under the larger root, and keep sizes only at roots."
+
+[[hints]]
+kind = "approach"
+text = "Find the root with one loop, then point every node on the path straight at it with a second loop. No recursion."
+
+[solution]
+explanation = "Union by size keeps trees O(log n) tall even before compression; together they give near-constant amortised time. The two-pass `find` avoids recursion on long chains."
+time = "O(α(n)) amortised"
+space = "O(n)"

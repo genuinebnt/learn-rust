@@ -211,6 +211,8 @@ pub struct ProblemDetail {
     /// The scratch `main.rs` for Run: saved, or a template.
     pub scratch: String,
     pub visible_tests: String,
+    /// The hidden test file, once the problem has been solved.
+    pub hidden_tests: Option<String>,
     pub hints: HintsView,
     pub solution: SolutionView,
     pub attempt: AttemptView,
@@ -299,8 +301,9 @@ pub struct RunView {
     pub violations: Vec<Violation>,
 }
 
-impl From<RunRow> for RunView {
-    fn from(row: RunRow) -> Self {
+impl RunView {
+    /// Hidden tests are redacted unless `reveal_hidden` (the problem has been solved).
+    pub fn new(row: RunRow, reveal_hidden: bool) -> Self {
         let RunResult {
             status,
             diagnostics,
@@ -319,7 +322,7 @@ impl From<RunRow> for RunView {
             total,
             duration_ms,
             diagnostics,
-            tests: tests.into_iter().map(redact).collect(),
+            tests: if reveal_hidden { tests } else { tests.into_iter().map(redact).collect() },
             violations: row.violations.0,
         }
     }
@@ -350,6 +353,7 @@ pub fn problem_detail(
     draft: Option<String>,
     scratch: Option<String>,
     runs: Vec<RunRow>,
+    solved_ever: bool,
 ) -> ProblemDetail {
     let idx = track
         .problems
@@ -411,6 +415,7 @@ pub fn problem_detail(
         scratch: scratch.unwrap_or_else(|| SCRATCH_TEMPLATE.to_owned()),
         starter,
         visible_tests: p.files.visible_tests.clone().unwrap_or_default(),
+        hidden_tests: if solved_ever { p.files.hidden_tests.clone() } else { None },
         hints: HintsView {
             total: p.meta.hints.len(),
             revealed: p.meta.hints[..revealed].to_vec(),
@@ -421,7 +426,7 @@ pub fn problem_detail(
         },
         solution: solution_view(p, attempt),
         attempt: attempt.into(),
-        runs: runs.into_iter().map(RunView::from).collect(),
+        runs: runs.into_iter().map(|r| RunView::new(r, solved_ever)).collect(),
     }
 }
 

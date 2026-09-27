@@ -21,6 +21,14 @@ pub(crate) struct Captured {
 
 static CONTAINER_SEQ: AtomicU64 = AtomicU64::new(0);
 
+/// What to start: cargo itself, or a binary cargo already built into the target directory.
+#[derive(Clone, Copy)]
+pub(crate) enum Program<'a> {
+    Cargo,
+    /// e.g. `debug/scratch`, relative to the target directory.
+    Built(&'a str),
+}
+
 pub(crate) async fn cargo(
     sandbox: &Sandbox,
     work: &Path,
@@ -28,10 +36,24 @@ pub(crate) async fn cargo(
     args: &[&str],
     limit: Duration,
 ) -> Result<Captured, RunnerError> {
+    run(sandbox, work, target, Program::Cargo, args, limit).await
+}
+
+pub(crate) async fn run(
+    sandbox: &Sandbox,
+    work: &Path,
+    target: &Path,
+    program: Program<'_>,
+    args: &[&str],
+    limit: Duration,
+) -> Result<Captured, RunnerError> {
     let mut container = None;
     let mut cmd = match sandbox {
         Sandbox::Host => {
-            let mut c = Command::new("cargo");
+            let mut c = match program {
+                Program::Cargo => Command::new("cargo"),
+                Program::Built(rel) => Command::new(target.join(rel)),
+            };
             c.args(args)
                 .current_dir(work)
                 .env("CARGO_TARGET_DIR", target)
@@ -86,8 +108,11 @@ pub(crate) async fn cargo(
                     "-w",
                     "/work",
                     image,
-                    "cargo",
                 ])
+                .arg(match program {
+                    Program::Cargo => "cargo".to_owned(),
+                    Program::Built(rel) => format!("/target/{rel}"),
+                })
                 .args(args);
             container = Some((name, context.clone()));
             c

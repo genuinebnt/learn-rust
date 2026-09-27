@@ -5,7 +5,8 @@ use serde_json::Value;
 use crate::project::TEST_PREFIX;
 use crate::result::{Check, Diagnostic, Level, Outcome, Span, Suite, TestOutcome};
 
-/// Compiler messages from `--message-format=json` output. Keeps diagnostics
+/// Compiler messages from `--message-format=json-diagnostic-rendered-ansi` output (`rendered`
+/// keeps rustc's terminal colours; `message` is plain). Keeps diagnostics
 /// that point at user files and drops rustc's "aborting due to…" summaries.
 pub(crate) fn diagnostics(stdout: &str) -> Vec<Diagnostic> {
     let mut out: Vec<Diagnostic> = Vec::new();

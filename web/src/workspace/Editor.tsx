@@ -75,9 +75,19 @@ class LensWidget extends WidgetType {
   eq(other: LensWidget) {
     return other.d.rendered === this.d.rendered;
   }
-  toDOM() {
+  toDOM(view: EditorView) {
     const el = document.createElement("div");
     el.className = "lens cm-lens";
+    const close = document.createElement("button");
+    close.className = "lens-x";
+    close.title = "Hide this error until the next run";
+    close.setAttribute("aria-label", "Hide this error");
+    close.textContent = "×";
+    close.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      view.dispatch({ effects: dismissLens.of(this.d.rendered) });
+    });
+    el.append(close);
     const head = document.createElement("div");
     const code = document.createElement("span");
     code.style.cssText = "color:var(--bad);font-weight:600";
@@ -119,6 +129,8 @@ class LensWidget extends WidgetType {
 }
 
 const setLens = StateEffect.define<Diagnostic[]>();
+/** Hides one diagnostic's lens (by its rendered text) until the next set of diagnostics. */
+const dismissLens = StateEffect.define<string>();
 
 function lensDecorations(state: EditorState, diagnostics: Diagnostic[]): DecorationSet {
   const doc = state.doc;
@@ -132,9 +144,11 @@ function lensDecorations(state: EditorState, diagnostics: Diagnostic[]): Decorat
     const end = clampLine(primary.line_end);
     const from = Math.min(start.from + primary.col_start - 1, start.to);
     const to = Math.min(end.from + primary.col_end - 1, end.to);
-    items.push({ from: start.from, to: start.from, deco: Decoration.line({ class: "cm-errline" }) });
-    if (to > from) items.push({ from, to, deco: Decoration.mark({ class: "cm-squig" }) });
-    items.push({ from: end.to, to: end.to, deco: Decoration.widget({ widget: new LensWidget(d, lines), block: true, side: 1 }) });
+    // `diag` tags each decoration with its diagnostic, so dismissing one removes all three.
+    const diag = d.rendered;
+    items.push({ from: start.from, to: start.from, deco: Decoration.line({ class: "cm-errline", diag }) });
+    if (to > from) items.push({ from, to, deco: Decoration.mark({ class: "cm-squig", diag }) });
+    items.push({ from: end.to, to: end.to, deco: Decoration.widget({ widget: new LensWidget(d, lines), block: true, side: 1, diag }) });
   }
   items.sort((a, b) => a.from - b.from || a.to - b.to);
   const b = new RangeSetBuilder<Decoration>();
@@ -145,7 +159,10 @@ function lensDecorations(state: EditorState, diagnostics: Diagnostic[]): Decorat
 const lensField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(deco, tr) {
-    for (const e of tr.effects) if (e.is(setLens)) return lensDecorations(tr.state, e.value);
+    for (const e of tr.effects) {
+      if (e.is(setLens)) return lensDecorations(tr.state, e.value);
+      if (e.is(dismissLens)) deco = deco.update({ filter: (_from, _to, d) => d.spec.diag !== e.value });
+    }
     return deco.map(tr.changes);
   },
   provide: (f) => EditorView.decorations.from(f),
@@ -249,6 +266,8 @@ export interface EditorProps {
   onCursor?: (line: number, col: number) => void;
   onRun?: () => void;
   /** Run the scratch main (⌘'). */
+  /** Name this editor answers to for `anneal:goto` events (jump to a line from the console). */
+  gotoKey?: string;
   onScratch?: () => void;
   onSubmit?: () => void;
 }
@@ -258,6 +277,7 @@ Vim.map("jk", "<Esc>", "insert");
 Vim.map("kj", "<Esc>", "insert");
 
 export const EDITOR_FONT_EVENT = "anneal:editor-font";
+export const GOTO_EVENT = "anneal:goto";
 
 export function Editor(props: EditorProps) {
   const host = useRef<HTMLDivElement>(null);
@@ -268,6 +288,21 @@ export function Editor(props: EditorProps) {
   const lanesCompartment = useRef(new Compartment());
   const lspCompartment = useRef(new Compartment());
   const vimCompartment = useRef(new Compartment());
+
+  // Jump to a line when the console asks (clicking a diagnostic's location).
+  useEffect(() => {
+    const go = (e: Event) => {
+      const { key, line, col } = (e as CustomEvent<{ key: string; line: number; col: number }>).detail;
+      const v = view.current;
+      if (!v || key !== handlers.current.gotoKey) return;
+      const l = v.state.doc.line(Math.min(Math.max(line, 1), v.state.doc.lines));
+      const pos = Math.min(l.from + Math.max(col - 1, 0), l.to);
+      v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+      v.focus();
+    };
+    window.addEventListener(GOTO_EVENT, go);
+    return () => window.removeEventListener(GOTO_EVENT, go);
+  }, []);
 
   // Line heights change with the font settings; have CodeMirror re-measure.
   useEffect(() => {

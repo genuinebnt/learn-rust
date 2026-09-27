@@ -2,22 +2,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { marked } from "marked";
-import { ApiError, api, type Diagnostic, type ProblemDetail, type RunOutcome, type RunView, type ScratchResult } from "../api";
+import { ApiError, api, type Diagnostic, type ProblemDetail, type RunOutcome, type RunView, type ScratchResult, type TestOutcome } from "../api";
 import { Header } from "../components/Header";
-import { BAND_LABEL, LEVEL_COLOR, Segs, modeColor, pad2 } from "../components/bits";
+import { BAND_LABEL, LEVEL_COLOR, modeColor, pad2 } from "../components/bits";
 import { NAV_SECTIONS, SECTION_NAMES, type NavArea } from "../curriculum";
-import { Editor } from "./Editor";
+import { Editor, GOTO_EVENT } from "./Editor";
 import { EditorSettingsButton } from "./EditorSettings";
 import { useEditorSettings } from "../settings";
 import { changedLines } from "./diff";
-import { deriveLanes } from "./lanes";
+import { type LaneModel, deriveLanes } from "./lanes";
+import { Ansi } from "./ansi";
+import { type TestCase, testCases } from "./testcases";
 import { type RaSession, type RaStatus, connectRa } from "./lsp";
 
-type LeftTab = "problem" | "tests" | "hints" | "solution" | "related";
+type LeftTab = "problem" | "hints" | "solution" | "related";
 type ConsoleTab = "compiler" | "output" | "timeline";
 
 const CONSOLE_MIN = 120;
-const CONSOLE_BAR = 38;
 
 /** Interview-realistic budgets from CURRICULUM.md, in minutes. */
 const BUDGET = { write: { easy: 10, medium: 25, hard: 40 }, fix: { easy: 5, medium: 10, hard: 15 }, stage: { easy: 60, medium: 60, hard: 90 } } as const;
@@ -68,13 +69,18 @@ function Loaded({ p }: { p: ProblemDetail }) {
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("compiler");
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [consoleH, setConsoleH] = useStoredNumber("anneal-console-height", 260);
-  const [file, setFile] = useState<"lib" | "main" | "tests">("lib");
+  const [leftW, setLeftW] = useStoredNumber("anneal-left-width", 360);
+  const [rightW, setRightW] = useStoredNumber("anneal-right-width", 340);
+  const [leftOpen, setLeftOpen] = useStoredNumber("anneal-left-open", 1);
+  const [rightOpen, setRightOpen] = useStoredNumber("anneal-right-open", 1);
+  const [file, setFile] = useState<"lib" | "main" | "tests" | "hidden" | "solution">("lib");
   const [main, setMain] = useState(p.scratch);
   const [scratchOut, setScratchOut] = useState<ScratchResult | null>(null);
   const [lastAction, setLastAction] = useState<"tests" | "scratch">("tests");
   const [autocomplete, setAutocomplete] = useState(true);
   const borrowish = p.mode === "fix" || p.tags.some((t) => /^E0[45]\d\d$/.test(t) || /borrow/.test(t));
   const [lanesOn, setLanesOn] = useState(borrowish);
+  const [rightTab, setRightTab] = useState<"tests" | "borrows">("tests");
   const [selected, setSelected] = useState<number | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [cursor, setCursor] = useState([1, 1]);
@@ -101,7 +107,10 @@ function Loaded({ p }: { p: ProblemDetail }) {
       },
       diagnostics: (errors, warnings) => setRaDiag({ errors, warnings }),
     });
-    session.ready.then(() => setRaSession(session), () => {});
+    session.ready.then(
+      () => setRaSession(session),
+      () => {},
+    );
     return () => {
       session.close();
       setRaSession(null);
@@ -144,6 +153,12 @@ function Loaded({ p }: { p: ProblemDetail }) {
     return () => clearTimeout(t);
   }, [main, p.id]);
 
+  /** Jumps from a diagnostic's location to that line in the right editor tab. */
+  const goto = (path: string, line: number, col: number) => {
+    const key = path === "src/bin/scratch.rs" ? "main" : path === "tests/hidden.rs" ? "hidden" : path.startsWith("tests/") ? "tests" : "lib";
+    setFile(key);
+    setTimeout(() => window.dispatchEvent(new CustomEvent(GOTO_EVENT, { detail: { key, line, col } })), 60);
+  };
   const showConsole = (tab: ConsoleTab) => {
     setConsoleTab(tab);
     setConsoleOpen(true);
@@ -153,16 +168,28 @@ function Loaded({ p }: { p: ProblemDetail }) {
     qc.setQueryData<ProblemDetail>(["problem", p.id], (old) => old && { ...old, runs: [...old.runs, out.run], attempt: out.attempt, solution: out.solution });
     qc.invalidateQueries({ queryKey: ["tracks"] });
     qc.invalidateQueries({ queryKey: ["track"] });
+    // Solving unlocks the hidden tests, which only the full problem carries.
+    if (out.run.status === "passed" && !p.hidden_tests) qc.invalidateQueries({ queryKey: ["problem", p.id] });
     setSelected(null);
-    setOpen(out.run.tests.find((t) => t.outcome !== "passed")?.name ?? null);
+    const firstFail = out.run.tests.find((t) => t.outcome !== "passed");
+    setOpen(firstFail ? (firstFail.suite === "hidden" ? "hidden:" : "") + firstFail.name : null);
     setLastAction("tests");
-    setLeft("tests");
-    if (out.run.status === "compile_error") showConsole("compiler");
+    // The console comes back after every run, on whichever tab has something to say.
+    if (out.run.diagnostics.length) showConsole("compiler");
+    else if (out.run.tests.some((t) => t.stdout)) showConsole("output");
+    else showConsole("compiler");
   };
   const run = useMutation({ mutationFn: () => api.run(p.id, code), onSuccess: afterRun });
   const submit = useMutation({ mutationFn: () => api.submit(p.id, code), onSuccess: afterRun });
   const hint = useMutation({ mutationFn: () => api.revealHint(p.id), onSuccess: update });
-  const solution = useMutation({ mutationFn: () => api.revealSolution(p.id), onSuccess: (d) => (update(d), setConfirm(null)) });
+  const solution = useMutation({
+    mutationFn: () => api.revealSolution(p.id),
+    onSuccess: (d) => {
+      update(d);
+      setConfirm(null);
+      setFile("solution");
+    },
+  });
   const reset = useMutation({
     mutationFn: () => api.reset(p.id),
     onSuccess: (d) => {
@@ -197,8 +224,10 @@ function Loaded({ p }: { p: ProblemDetail }) {
   const shownIdx = shown ? runs.indexOf(shown) : -1;
   const prevRun = shownIdx > 0 ? runs[shownIdx - 1] : undefined;
   const lanes = useMemo(() => (latest ? deriveLanes(latest.diagnostics, latest.code) : null), [latest]);
-  const lensDiags = useMemo(() => (latest && latest.code === code ? latest.diagnostics : latest?.diagnostics ?? []), [latest, code]);
+  const lensDiags = useMemo(() => (latest && latest.code === code ? latest.diagnostics : (latest?.diagnostics ?? [])), [latest, code]);
   const names = useMemo(() => testNames(p.visible_tests), [p.visible_tests]);
+  const cases = useMemo(() => testCases(p.visible_tests), [p.visible_tests]);
+  const hiddenCases = useMemo(() => (p.hidden_tests ? testCases(p.hidden_tests) : null), [p.hidden_tests]);
   const budget = BUDGET[p.mode][p.level];
   const area = areaOf(p.track.section);
 
@@ -276,202 +305,193 @@ function Loaded({ p }: { p: ProblemDetail }) {
           </div>
         </div>
 
-        <div className="ws">
+        <div className="ws" style={{ gridTemplateColumns: `${leftOpen ? `${leftW}px` : "34px"} minmax(0, 1fr) ${rightOpen ? `${rightW}px` : "34px"}` }}>
           {/* ---------- left: problem, hints, solution ---------- */}
-          <section className="pane l">
-            <div className="tabs" role="tablist">
-              {(
-                [
-                  ["problem", "Problem"],
-                  ["tests", shown && shown.tests.length ? `Tests ${shown.passed}/${shown.total}` : "Tests"],
-                  ["hints", `Hints ${p.hints.revealed.length}/${p.hints.total}`],
-                  ["solution", "Solution"],
-                  ["related", "Related"],
-                ] as const
-              ).map(([k, label]) => (
-                <button key={k} role="tab" className={left === k ? "on" : ""} aria-selected={left === k} onClick={() => setLeft(k)}>
-                  {label}
+          {!leftOpen ? (
+            <section className="pane l rail">
+              <button className="rail-btn" onClick={() => setLeftOpen(1)} title="Show the problem panel" aria-label="Show the problem panel">
+                ›
+              </button>
+              <span className="rail-label">PROBLEM</span>
+            </section>
+          ) : (
+            <section className="pane l">
+              <div className="lgrip" onPointerDown={(e) => dragWidth(e, leftW, setLeftW, 1)} title="Drag to resize" aria-hidden="true" />
+              <div className="tabs" role="tablist">
+                <button className="pane-x" onClick={() => setLeftOpen(0)} title="Hide the problem panel" aria-label="Hide the problem panel">
+                  ‹
                 </button>
-              ))}
-            </div>
-            <div className="pbody">
-              {left === "problem" && (
-                <div className="stack">
-                  <div className="lab">
-                    {p.track.code} · {p.stage.name.toUpperCase()} · {p.stage.position} OF {p.stage.count}
-                  </div>
-                  <h2 className="ptitle">{p.title}</h2>
-                  <div className="md" dangerouslySetInnerHTML={{ __html: md(p.statement) }} />
-                  {p.rules && (
-                    <div className="stack" style={{ gap: 8 }}>
-                      <div className="lab">RULES</div>
-                      <div className="rules" style={{ fontSize: 13.5, gridTemplateColumns: "14px 1fr", gap: "6px 8px" }}>
-                        {p.rules.forbid_methods.map((m) => (
-                          <Rule key={m} ok={false}>
-                            no <code>.{m}()</code>
-                          </Rule>
-                        ))}
-                        {p.rules.forbid_types.length > 0 && (
-                          <Rule ok={false}>
-                            no {p.rules.forbid_types.map((t, i) => (
-                              <span key={t}>
-                                {i > 0 && " / "}
-                                <code>{t}</code>
-                              </span>
-                            ))}
-                          </Rule>
-                        )}
-                        {p.rules.max_changed_lines !== null && <Rule ok>change at most {p.rules.max_changed_lines} lines</Rule>}
-                      </div>
-                      <p className="note">Checked on every run. A broken rule means a submit doesn't count, even when every test passes.</p>
+                {(
+                  [
+                    ["problem", "Problem"],
+                    ["hints", `Hints ${p.hints.revealed.length}/${p.hints.total}`],
+                    ["solution", "Solution"],
+                    ["related", "Related"],
+                  ] as const
+                ).map(([k, label]) => (
+                  <button key={k} role="tab" className={left === k ? "on" : ""} aria-selected={left === k} onClick={() => setLeft(k)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="pbody">
+                {left === "problem" && (
+                  <div className="stack">
+                    <div className="lab">
+                      {p.track.code} · {p.stage.name.toUpperCase()} · {p.stage.position} OF {p.stage.count}
                     </div>
-                  )}
-                  {p.examples.map((e, i) => (
-                    <div className="stack" style={{ gap: 8 }} key={i}>
-                      <div className="lab">EXAMPLE</div>
-                      <div className="kv">
-                        <span>input</span>
-                        <code>{e.input}</code>
-                        <span>returns</span>
-                        <code style={{ color: "var(--grn)" }}>{e.output}</code>
-                      </div>
-                    </div>
-                  ))}
-                  {p.constraints.length > 0 && (
-                    <div className="stack" style={{ gap: 8 }}>
-                      <div className="lab">CONSTRAINTS</div>
-                      <div className="m" style={{ fontSize: 12, lineHeight: 1.8 }}>
-                        {p.constraints.map((c) => (
-                          <div key={c}>{c}</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {p.teaches.length > 0 && (
-                    <div className="stack" style={{ gap: 10, paddingTop: 14, borderTop: "1px solid var(--line2)" }}>
-                      <div className="lab">WHAT THIS TEACHES</div>
-                      {p.teaches.map((t) => (
-                        <div className="bul" key={t} style={{ ["--bul" as string]: modeColor(p.mode) }}>
-                          <span className="md-inline" dangerouslySetInnerHTML={{ __html: marked.parseInline(t, { async: false }) }} />
+                    <h2 className="ptitle">{p.title}</h2>
+                    <div className="md" dangerouslySetInnerHTML={{ __html: md(p.statement) }} />
+                    {p.rules && (
+                      <div className="stack" style={{ gap: 8 }}>
+                        <div className="lab">RULES</div>
+                        <div className="rules" style={{ fontSize: 13.5, gridTemplateColumns: "14px 1fr", gap: "6px 8px" }}>
+                          {p.rules.forbid_methods.map((m) => (
+                            <Rule key={m} ok={false}>
+                              no <code>.{m}()</code>
+                            </Rule>
+                          ))}
+                          {p.rules.forbid_types.length > 0 && (
+                            <Rule ok={false}>
+                              no{" "}
+                              {p.rules.forbid_types.map((t, i) => (
+                                <span key={t}>
+                                  {i > 0 && " / "}
+                                  <code>{t}</code>
+                                </span>
+                              ))}
+                            </Rule>
+                          )}
+                          {p.rules.max_changed_lines !== null && <Rule ok>change at most {p.rules.max_changed_lines} lines</Rule>}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  {p.follow_up && (
-                    <div className="dash">
-                      <div className="lab" style={{ color: "var(--acc)", marginBottom: 4 }}>
-                        {p.mode === "fix" ? "ASKED AS" : "INTERVIEW FOLLOW-UP"}
+                        <p className="note">Checked on every run. A broken rule means a submit doesn't count, even when every test passes.</p>
                       </div>
-                      {p.follow_up}
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                    {p.examples.map((e, i) => (
+                      <div className="stack" style={{ gap: 8 }} key={i}>
+                        <div className="lab">EXAMPLE</div>
+                        <div className="kv">
+                          <span>input</span>
+                          <code>{e.input}</code>
+                          <span>returns</span>
+                          <code style={{ color: "var(--grn)" }}>{e.output}</code>
+                        </div>
+                      </div>
+                    ))}
+                    {p.constraints.length > 0 && (
+                      <div className="stack" style={{ gap: 8 }}>
+                        <div className="lab">CONSTRAINTS</div>
+                        <div className="m" style={{ fontSize: 12, lineHeight: 1.8 }}>
+                          {p.constraints.map((c) => (
+                            <div key={c}>{c}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {p.teaches.length > 0 && (
+                      <div className="stack" style={{ gap: 10, paddingTop: 14, borderTop: "1px solid var(--line2)" }}>
+                        <div className="lab">WHAT THIS TEACHES</div>
+                        {p.teaches.map((t) => (
+                          <div className="bul" key={t} style={{ ["--bul" as string]: modeColor(p.mode) }}>
+                            <span className="md-inline" dangerouslySetInnerHTML={{ __html: marked.parseInline(t, { async: false }) }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {p.follow_up && (
+                      <div className="dash">
+                        <div className="lab" style={{ color: "var(--acc)", marginBottom: 4 }}>
+                          {p.mode === "fix" ? "ASKED AS" : "INTERVIEW FOLLOW-UP"}
+                        </div>
+                        {p.follow_up}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {left === "tests" && (
-                <div className="stack" style={{ gap: 14 }}>
-                  {p.attempt.solved && (
-                    <div className="solved">
-                      <span className="lab" style={{ color: "var(--grn)" }}>
-                        SOLVED{p.attempt.assisted ? " · ASSISTED" : ""}
-                      </span>
-                      {p.next ? (
-                        <Link to="/p/$id" params={{ id: p.next }}>
-                          Next problem →
-                        </Link>
-                      ) : (
-                        <Link to="/t/$track" params={{ track: p.track.slug }}>
-                          Back to {p.track.name} →
-                        </Link>
+                {left === "hints" && (
+                  <div className="stack" style={{ gap: 12 }}>
+                    <p className="note">Each hint you open before solving marks the attempt as assisted and brings its re-solve date forward.</p>
+                    {p.hints.revealed.map((h, i) => (
+                      <div className="hint" key={i}>
+                        <div className="lab" style={{ color: "var(--vio)", marginBottom: 6 }}>
+                          HINT {i + 1} · {h.kind.toUpperCase()}
+                        </div>
+                        <div style={{ color: "var(--fg)" }}>{h.text}</div>
+                      </div>
+                    ))}
+                    {p.hints.locked.length > 0 && (
+                      <div className="hint lock">
+                        <div className="lab" style={{ marginBottom: 6 }}>
+                          HINT {p.hints.revealed.length + 1} · {p.hints.locked[0]!.toUpperCase()}
+                        </div>
+                        <button style={{ color: "var(--vio)" }} disabled={hint.isPending} onClick={() => hint.mutate()}>
+                          {hint.isPending ? "Revealing…" : `Reveal hint ${p.hints.revealed.length + 1} →`}
+                        </button>
+                      </div>
+                    )}
+                    {p.hints.locked.length > 1 && <p className="note">{p.hints.locked.length - 1} more after this one.</p>}
+                  </div>
+                )}
+
+                {left === "solution" &&
+                  (p.solution.unlocked ? (
+                    <div className="stack" style={{ gap: 14 }}>
+                      <div className="lab" style={{ color: p.attempt.assisted ? "var(--warn)" : "var(--grn)" }}>
+                        REFERENCE SOLUTION · {p.attempt.assisted ? "ASSISTED" : "UNLOCKED"}
+                      </div>
+                      <button className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => setFile("solution")}>
+                        {file === "solution" ? "Open in the editor ✓" : "Open solution.rs in the editor →"}
+                      </button>
+                      {p.solution.notes && (
+                        <>
+                          <p style={{ margin: 0 }} dangerouslySetInnerHTML={{ __html: marked.parseInline(p.solution.notes.explanation, { async: false }) }} />
+                          <div className="kv" style={{ padding: "12px 0", borderTop: "1px solid var(--line2)", borderBottom: "1px solid var(--line2)" }}>
+                            <span>time</span>
+                            <code>{p.solution.notes.time}</code>
+                            <span>space</span>
+                            <code>{p.solution.notes.space}</code>
+                          </div>
+                        </>
                       )}
                     </div>
-                  )}
-                  <TestsPanel run={shown} names={names} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
-                </div>
-              )}
-
-              {left === "hints" && (
-                <div className="stack" style={{ gap: 12 }}>
-                  <p className="note">Each hint you open before solving marks the attempt as assisted and brings its re-solve date forward.</p>
-                  {p.hints.revealed.map((h, i) => (
-                    <div className="hint" key={i}>
-                      <div className="lab" style={{ color: "var(--vio)", marginBottom: 6 }}>
-                        HINT {i + 1} · {h.kind.toUpperCase()}
-                      </div>
-                      <div style={{ color: "var(--fg)" }}>{h.text}</div>
-                    </div>
-                  ))}
-                  {p.hints.locked.length > 0 && (
-                    <div className="hint lock">
-                      <div className="lab" style={{ marginBottom: 6 }}>
-                        HINT {p.hints.revealed.length + 1} · {p.hints.locked[0]!.toUpperCase()}
-                      </div>
-                      <button style={{ color: "var(--vio)" }} disabled={hint.isPending} onClick={() => hint.mutate()}>
-                        {hint.isPending ? "Revealing…" : `Reveal hint ${p.hints.revealed.length + 1} →`}
-                      </button>
-                    </div>
-                  )}
-                  {p.hints.locked.length > 1 && <p className="note">{p.hints.locked.length - 1} more after this one.</p>}
-                </div>
-              )}
-
-              {left === "solution" &&
-                (p.solution.unlocked ? (
-                  <div className="stack" style={{ gap: 14 }}>
-                    <div className="lab" style={{ color: p.attempt.assisted ? "var(--warn)" : "var(--grn)" }}>
-                      REFERENCE SOLUTION · {p.attempt.assisted ? "ASSISTED" : "UNLOCKED"}
-                    </div>
-                    <div className="solcode">
-                      <Editor value={p.solution.code ?? ""} docKey={`${p.id}:solution`} readOnly />
-                    </div>
-                    {p.solution.notes && (
-                      <>
-                        <p style={{ margin: 0 }} dangerouslySetInnerHTML={{ __html: marked.parseInline(p.solution.notes.explanation, { async: false }) }} />
-                        <div className="kv" style={{ padding: "12px 0", borderTop: "1px solid var(--line2)", borderBottom: "1px solid var(--line2)" }}>
-                          <span>time</span>
-                          <code>{p.solution.notes.time}</code>
-                          <span>space</span>
-                          <code>{p.solution.notes.space}</code>
+                  ) : (
+                    <div className="stack" style={{ gap: 12, padding: 18, border: "1px dashed var(--line)", borderRadius: 4 }}>
+                      <div className="lab">LOCKED · {latest ? `${latest.passed} OF ${latest.total} TESTS PASSING` : "NOT RUN YET"}</div>
+                      <div style={{ color: "var(--fg)" }}>The solution opens when every test passes on Submit.</div>
+                      <div style={{ fontSize: 12.5 }}>Reveal it now and the attempt is marked assisted, with a re-solve in 3 days.</div>
+                      {confirm === "solution" ? (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button className="btn sm" style={{ borderColor: "var(--warn)", color: "var(--warn)" }} onClick={() => solution.mutate()} disabled={solution.isPending}>
+                            Reveal and mark assisted
+                          </button>
+                          <button className="btn sm" onClick={() => setConfirm(null)}>
+                            Keep trying
+                          </button>
                         </div>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="stack" style={{ gap: 12, padding: 18, border: "1px dashed var(--line)", borderRadius: 4 }}>
-                    <div className="lab">LOCKED · {latest ? `${latest.passed} OF ${latest.total} TESTS PASSING` : "NOT RUN YET"}</div>
-                    <div style={{ color: "var(--fg)" }}>The solution opens when every test passes on Submit.</div>
-                    <div style={{ fontSize: 12.5 }}>Reveal it now and the attempt is marked assisted, with a re-solve in 3 days.</div>
-                    {confirm === "solution" ? (
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button className="btn sm" style={{ borderColor: "var(--warn)", color: "var(--warn)" }} onClick={() => solution.mutate()} disabled={solution.isPending}>
-                          Reveal and mark assisted
+                      ) : (
+                        <button className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => setConfirm("solution")}>
+                          Reveal anyway
                         </button>
-                        <button className="btn sm" onClick={() => setConfirm(null)}>
-                          Keep trying
-                        </button>
-                      </div>
-                    ) : (
-                      <button className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => setConfirm("solution")}>
-                        Reveal anyway
-                      </button>
-                    )}
-                  </div>
-                ))}
-
-              {left === "related" && (
-                <div className="stack" style={{ gap: 10 }}>
-                  {p.related.length === 0 && <p className="note">No related tracks listed.</p>}
-                  {p.related.map((code) => (
-                    <div key={code} className="hint">
-                      <span className="lab">{code}</span>
-                      <br />
-                      <span style={{ fontSize: 14, color: "var(--fg)" }}>{SECTION_NAMES[code[0] as keyof typeof SECTION_NAMES] ?? code}</span>
+                      )}
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-          </section>
+
+                {left === "related" && (
+                  <div className="stack" style={{ gap: 10 }}>
+                    {p.related.length === 0 && <p className="note">No related tracks listed.</p>}
+                    {p.related.map((code) => (
+                      <div key={code} className="hint">
+                        <span className="lab">{code}</span>
+                        <br />
+                        <span style={{ fontSize: 14, color: "var(--fg)" }}>{SECTION_NAMES[code[0] as keyof typeof SECTION_NAMES] ?? code}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* ---------- centre: editor, actions, console ---------- */}
           <section className="pane c">
@@ -486,12 +506,18 @@ function Loaded({ p }: { p: ProblemDetail }) {
               <button className={`ftab${file === "tests" ? " on" : ""}`} onClick={() => setFile("tests")}>
                 tests.rs<small>READ-ONLY</small>
               </button>
+              {p.hidden_tests && (
+                <button className={`ftab${file === "hidden" ? " on" : ""}`} onClick={() => setFile("hidden")} title="Unlocked by solving">
+                  hidden.rs<small>READ-ONLY</small>
+                </button>
+              )}
+              {p.solution.unlocked && p.solution.code && (
+                <button className={`ftab${file === "solution" ? " on" : ""}`} onClick={() => setFile("solution")} title="The reference solution">
+                  solution.rs<small>READ-ONLY</small>
+                </button>
+              )}
               <div className="tools">
-                <EditorSettingsButton>
-                  <Switch on={autocomplete} onClick={() => setAutocomplete(!autocomplete)} label="Autocomplete" />
-                  <Switch on={ra} onClick={() => setRa(!ra)} label="rust-analyzer" />
-                  {(borrowish || lanes) && <Switch on={lanesOn} onClick={() => setLanesOn(!lanesOn)} label="Borrow lanes" />}
-                </EditorSettingsButton>
+                <EditorSettingsButton></EditorSettingsButton>
                 {confirm === "reset" ? (
                   <span className="m" style={{ fontSize: 11, display: "flex", gap: 10 }}>
                     <button style={{ color: "var(--bad)" }} onClick={() => reset.mutate()}>
@@ -506,26 +532,19 @@ function Loaded({ p }: { p: ProblemDetail }) {
                     Reset
                   </button>
                 )}
-                <span className="vr" style={{ height: 16 }} />
-                <div className="wacts">
-                  <button onClick={doScratch} disabled={busy || p.status !== "ready"} title="Build main.rs with your lib.rs and run it (⌘')">
-                    {scratch.isPending ? "Running…" : "▷ Run"}
-                  </button>
-                  <button onClick={doRun} disabled={busy || p.status !== "ready"} title="Run the visible tests (⌘↵)">
-                    {run.isPending ? "Testing…" : "Run tests"}
-                  </button>
-                  <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"} title="Visible and hidden tests; passing solves it (⇧⌘↵)">
-                    {submit.isPending ? "Submitting…" : "Submit"}
-                  </button>
-                </div>
               </div>
             </div>
             <div className="gbar">
               <div className="fp">
-                <span style={{ color: "var(--fg)" }}>{file === "lib" ? "src/lib.rs" : file === "main" ? "src/bin/scratch.rs" : "tests/visible.rs"}</span>
+                <span style={{ color: "var(--fg)" }}>{file === "lib" ? "src/lib.rs" : file === "main" ? "src/bin/scratch.rs" : file === "solution" ? "reference solution" : file === "hidden" ? "tests/hidden.rs" : "tests/visible.rs"}</span>
                 <span>edition 2021</span>
                 <span>{p.crates.length ? `crates: ${p.crates.join(" · ")}` : "std only"}</span>
-                <span>{file === "main" ? "⌘' runs it · tests don't run" : `${names.length} visible tests · hidden on Submit`}</span>
+                <span>{file === "main" ? "⌘' runs it · tests don't run" : `${names.length} visible tests · ${hiddenCases ? `${hiddenCases.length} hidden, unlocked` : "hidden on Submit"}`}</span>
+              </div>
+              <div className="gtoggles">
+                <Switch on={autocomplete} onClick={() => setAutocomplete(!autocomplete)} label="Autocomplete" />
+                <Switch on={ra} onClick={() => setRa(!ra)} label="rust-analyzer" />
+                {(borrowish || lanes) && <Switch on={lanesOn} onClick={() => setLanesOn(!lanesOn)} label="Borrow lanes" />}
               </div>
               {lanesOn && file === "lib" && (
                 <div className="lh">
@@ -545,6 +564,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 showLanes={lanesOn}
                 lsp={raSession}
                 lspEpoch={raEpoch}
+                gotoKey="lib"
                 onChange={setCode}
                 onCursor={(l, c) => setCursor([l, c])}
                 onRun={doRun}
@@ -559,6 +579,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 docKey={`${p.id}:main`}
                 autocomplete={autocomplete}
                 diagnostics={scratchOut && lastAction === "scratch" ? scratchOut.diagnostics.map(forScratch) : []}
+                gotoKey="main"
                 onChange={setMain}
                 onCursor={(l, c) => setCursor([l, c])}
                 onRun={doRun}
@@ -568,7 +589,17 @@ function Loaded({ p }: { p: ProblemDetail }) {
             </div>
             {file === "tests" && (
               <div className="edit-host">
-                <Editor value={p.visible_tests} docKey={`${p.id}:tests`} readOnly />
+                <Editor value={p.visible_tests} docKey={`${p.id}:tests`} readOnly gotoKey="tests" />
+              </div>
+            )}
+            {file === "hidden" && p.hidden_tests && (
+              <div className="edit-host">
+                <Editor value={p.hidden_tests} docKey={`${p.id}:hidden`} readOnly gotoKey="hidden" />
+              </div>
+            )}
+            {file === "solution" && p.solution.code && (
+              <div className="edit-host">
+                <Editor value={p.solution.code} docKey={`${p.id}:solution`} readOnly />
               </div>
             )}
             <div className="statusb">
@@ -578,6 +609,11 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 Ln {cursor[0]}, Col {cursor[1]}
               </span>
               <span style={{ marginLeft: "auto" }}>rustc 1.98.1 stable · clippy on test runs · sandboxed</span>
+              {!consoleOpen && (
+                <button className="sb-console" onClick={() => setConsoleOpen(true)} title="Show the console">
+                  ▴ console
+                </button>
+              )}
             </div>
             <Console
               tab={consoleTab}
@@ -589,70 +625,137 @@ function Loaded({ p }: { p: ProblemDetail }) {
               summary={<ConsoleSummary busy={busy} scratchBusy={scratch.isPending} lastAction={lastAction} run={shown} scratch={scratchOut} />}
               errorCount={(lastAction === "scratch" ? scratchOut?.diagnostics : shown?.diagnostics)?.filter((d) => d.level === "error").length ?? 0}
             >
-              {failure && <p className="notice bad" style={{ margin: "0 0 12px" }}>{failure instanceof ApiError ? failure.message : "The run failed to start. Is the API running?"}</p>}
+              {failure && (
+                <p className="notice bad" style={{ margin: "0 0 12px" }}>
+                  {failure instanceof ApiError ? failure.message : "The run failed to start. Is the API running?"}
+                </p>
+              )}
               {consoleTab === "compiler" &&
                 (lastAction === "scratch" && scratchOut ? (
-                  <DiagnosticsList diagnostics={scratchOut.diagnostics} busy={scratch.isPending} empty="main.rs and lib.rs compiled cleanly." />
+                  <DiagnosticsList diagnostics={scratchOut.diagnostics} busy={scratch.isPending} empty="main.rs and lib.rs compiled cleanly." onGoto={goto} />
                 ) : (
-                  <CompilerPanel run={shown} busy={run.isPending || submit.isPending} />
+                  <CompilerPanel run={shown} busy={run.isPending || submit.isPending} onGoto={goto} />
                 ))}
               {consoleTab === "output" && <OutputPanel run={shown} scratch={scratchOut} scratchBusy={scratch.isPending} />}
               {consoleTab === "timeline" && (
-                <div className="tl" style={{ border: 0, padding: 0 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <div className="lab" style={{ letterSpacing: ".24em" }}>
-                      RUN TIMELINE
-                    </div>
-                    <div className="runs">
-                      {runs.length === 0 && <span className="note">No test runs yet. ⌘↵ runs the visible tests.</span>}
-                      {runs.slice(-8).map((r) => {
-                        const [label, color] = runLabel(r);
-                        const on = shown?.id === r.id;
-                        const squares = r.tests.length ? r.tests : names.map(() => null);
-                        return (
-                          <button key={r.id} className="run" style={{ borderColor: on ? color : "var(--line2)" }} onClick={() => setSelected(r.id)} title={`${r.kind} · ${new Date(r.created_at).toLocaleTimeString()}`}>
-                            <div style={{ display: "flex", justifyContent: "space-between" }}>
-                              <span>#{runs.indexOf(r) + 1}</span>
-                              <span style={{ color: "var(--dim)" }}>{r.kind === "submit" ? "sub" : new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                            </div>
-                            <div className="sq">
-                              {squares.slice(0, 12).map((t, i) => (
-                                <span key={i} style={{ background: t === null ? "var(--line2)" : t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }} />
-                              ))}
-                            </div>
-                            <span style={{ color }}>{label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                <div className="tline">
+                  <div className="tline-runs">
+                    {runs.length === 0 && <span className="note">No test runs yet. ⌘↵ runs the visible tests.</span>}
+                    {[...runs].reverse().map((r) => {
+                      const [label, color] = runLabel(r);
+                      const on = shown?.id === r.id;
+                      const squares = r.tests.length ? r.tests : names.map(() => null);
+                      return (
+                        <button key={r.id} className={`tline-run${on ? " on" : ""}`} style={{ borderColor: on ? color : undefined }} onClick={() => setSelected(r.id)}>
+                          <span className="n">#{runs.indexOf(r) + 1}</span>
+                          <span className="k">{r.kind === "submit" ? "submit" : "run"}</span>
+                          <span className="sq">
+                            {squares.slice(0, 16).map((t, i) => (
+                              <i key={i} style={{ background: t === null ? "var(--line2)" : t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }} />
+                            ))}
+                          </span>
+                          <span className="l" style={{ color }}>
+                            {label}
+                          </span>
+                          <span className="t">{new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 10 }}>
-                    <div className="lab" style={{ letterSpacing: ".24em" }}>
-                      {shown && prevRun ? `DIFF · #${shownIdx} → #${shownIdx + 1}` : "DIFF"}
+                  <div className="tline-diff">
+                    <div className="lab" style={{ letterSpacing: ".2em", marginBottom: 8 }}>
+                      {shown && prevRun ? `DIFF · RUN #${shownIdx} → #${shownIdx + 1}` : "DIFF"}
                     </div>
-                    <div className="diff">
-                      {shown && prevRun ? (
-                        (() => {
-                          const lines = changedLines(prevRun.code, shown.code);
-                          return lines.length === 0 ? (
-                            <span style={{ color: "var(--dim)" }}>No code changes between these runs.</span>
-                          ) : (
-                            lines.slice(0, 14).map((l, i) => (
-                              <div key={i} style={{ color: l.op === "+" ? "var(--grn)" : "var(--bad)" }}>
-                                {l.op} {l.text}
+                    {shown && prevRun ? (
+                      (() => {
+                        const lines = changedLines(prevRun.code, shown.code);
+                        return lines.length === 0 ? (
+                          <p className="note">No code changes between these runs.</p>
+                        ) : (
+                          <div className="diffx">
+                            {lines.map((l, i) => (
+                              <div key={i} className={l.op === "+" ? "add" : "del"}>
+                                <span>{l.op === "+" ? "+" : "−"}</span>
+                                {l.text}
                               </div>
-                            ))
-                          );
-                        })()
-                      ) : (
-                        <span style={{ color: "var(--dim)" }}>Two test runs are needed for a diff.</span>
-                      )}
-                    </div>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <p className="note">Pick a run on the left; it's compared with the run before it.</p>
+                    )}
                   </div>
                 </div>
               )}
             </Console>
           </section>
+
+          {!rightOpen ? (
+            <section className="pane r rail">
+              <button className="rail-btn" onClick={() => setRightOpen(1)} title="Show the tests panel" aria-label="Show the tests panel">
+                ‹
+              </button>
+              <span className="rail-label" style={{ color: shown && shown.tests.length ? (shown.status === "passed" ? "var(--grn)" : "var(--bad)") : undefined }}>
+                TESTS{shown && shown.tests.length ? ` ${shown.passed}/${shown.total}` : ""}
+              </span>
+            </section>
+          ) : (
+            <section className="pane r">
+              <div className="rgrip" onPointerDown={(e) => dragWidth(e, rightW, setRightW, -1)} title="Drag to resize" aria-hidden="true" />
+              <div className="tabs" style={{ padding: "0 18px" }} role="tablist">
+                <button className="pane-x right" onClick={() => setRightOpen(0)} title="Hide the tests panel" aria-label="Hide the tests panel">
+                  ›
+                </button>
+                <button role="tab" className={rightTab === "tests" ? "on" : ""} aria-selected={rightTab === "tests"} onClick={() => setRightTab("tests")}>
+                  {shown && shown.tests.length ? `Tests ${shown.passed}/${shown.total}` : "Tests"}
+                </button>
+                <button role="tab" className={rightTab === "borrows" ? "on" : ""} aria-selected={rightTab === "borrows"} onClick={() => setRightTab("borrows")} style={lanes ? { color: rightTab === "borrows" ? undefined : "var(--bad)" } : undefined}>
+                  {lanes ? `Borrows · ${lanes.conflicts}` : "Borrows"}
+                </button>
+              </div>
+              <div className="pbody" style={{ padding: 18 }}>
+                {p.attempt.solved && (
+                  <div className="solved">
+                    <span className="lab" style={{ color: "var(--grn)" }}>
+                      SOLVED{p.attempt.assisted ? " · ASSISTED" : ""}
+                    </span>
+                    {p.next ? (
+                      <Link to="/p/$id" params={{ id: p.next }}>
+                        Next problem →
+                      </Link>
+                    ) : (
+                      <Link to="/t/$track" params={{ track: p.track.slug }}>
+                        Back to {p.track.name} →
+                      </Link>
+                    )}
+                  </div>
+                )}
+                {rightTab === "tests" ? (
+                  <TestsPanel run={shown} cases={cases} hiddenCases={hiddenCases} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
+                ) : (
+                  <BorrowsPanel model={lanes} onGoto={(line) => goto("src/lib.rs", line, 1)} />
+                )}
+              </div>
+              <div className="acts">
+                <button onClick={doScratch} disabled={busy || p.status !== "ready"} title="Build main.rs with your lib.rs and run it (⌘')">
+                  {scratch.isPending ? "Running…" : "▷ Run"}
+                  <span className="m" style={{ fontSize: 10.5, color: "var(--dim)" }}>
+                    ⌘'
+                  </span>
+                </button>
+                <button onClick={doRun} disabled={busy || p.status !== "ready"}>
+                  {run.isPending ? "Running…" : "Run tests"}
+                  <span className="m" style={{ fontSize: 10.5, color: "var(--dim)" }}>
+                    ⌘↵
+                  </span>
+                </button>
+                <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"}>
+                  {submit.isPending ? "Submitting…" : "Submit"}
+                </button>
+              </div>
+            </section>
+          )}
         </div>
       </main>
     </>
@@ -669,7 +772,10 @@ function RaStatusLine({ status, detail, errors, warnings }: { status: RaStatus; 
           ? ["rust-analyzer · indexing…", "var(--acc)"]
           : status === "error"
             ? [`rust-analyzer unavailable${detail ? ` · ${detail}` : ""}`, "var(--bad)"]
-            : [`rust-analyzer · ${errors} error${errors === 1 ? "" : "s"}${warnings ? ` · ${warnings} warning${warnings === 1 ? "" : "s"}` : ""}`, errors ? "var(--bad)" : "var(--grn)"];
+            : [
+                `rust-analyzer · ${errors} error${errors === 1 ? "" : "s"}${warnings ? ` · ${warnings} warning${warnings === 1 ? "" : "s"}` : ""}`,
+                errors ? "var(--bad)" : "var(--grn)",
+              ];
   return (
     <span style={{ display: "flex", alignItems: "center", gap: 6 }} title={detail}>
       <span className="dot" style={{ background: color }} />
@@ -689,65 +795,229 @@ function Rule({ ok, children }: { ok: boolean; children: React.ReactNode }) {
 
 function Switch({ on, onClick, label, disabled, title }: { on: boolean; onClick?: () => void; label: string; disabled?: boolean; title?: string }) {
   return (
-    <button className={`sw${on ? " on" : ""}`} onClick={onClick} aria-pressed={on} disabled={disabled} title={title} style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}>
+    <button
+      className={`sw${on ? " on" : ""}`}
+      onClick={onClick}
+      aria-pressed={on}
+      disabled={disabled}
+      title={title}
+      style={disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+    >
       <span className="tx">{label}</span>
       <span className="tr0" />
     </button>
   );
 }
 
-function TestsPanel({ run, names, busy, open, setOpen, runNo }: { run: RunView | null; names: string[]; busy: boolean; open: string | null; setOpen: (n: string | null) => void; runNo: number }) {
-  if (busy)
+const LANE_KIND = {
+  scope: ["SCOPE", "var(--dim)"],
+  borrow: ["BORROW", "var(--acc)"],
+  conflict: ["CONFLICT", "var(--bad)"],
+} as const;
+
+/** The borrows behind the latest run's borrow errors, as a list; click one to jump to it. */
+function BorrowsPanel({ model, onGoto }: { model: LaneModel | null; onGoto: (line: number) => void }) {
+  if (!model)
     return (
-      <div className="stack" style={{ gap: 14 }}>
-        <div className="tsum">
-          <b>Running…</b>
-          <span>clippy → cargo test</span>
-        </div>
-        <Segs n={Math.max(names.length, 1)} filled={0} />
-      </div>
+      <p className="note">
+        No borrow errors in the latest run. When rustc reports one (E0499, E0502, E0505, …), the borrows involved and where they conflict are listed here. Turn on Borrow lanes to also see them drawn beside the code.
+      </p>
     );
-  if (!run)
-    return (
-      <div className="stack" style={{ gap: 14 }}>
-        <div className="tsum">
-          <b style={{ color: "var(--dim)" }}>Not run yet</b>
-        </div>
-        <div style={{ borderTop: "1px solid var(--line2)" }}>
-          {names.map((n) => (
-            <div className="trow" key={n} style={{ borderBottom: "1px solid var(--line2)" }}>
-              <span className="sqr" style={{ background: "var(--line)" }} />
-              <span className="nm" style={{ color: "var(--mut)" }}>
-                {n}
+  return (
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="tsum">
+        <b style={{ color: "var(--bad)" }}>
+          {model.conflicts} conflict{model.conflicts === 1 ? "" : "s"}
+        </b>
+        <span>from the latest run</span>
+      </div>
+      <div className="borrows">
+        {model.lanes.map((l, i) => {
+          const [kind, colour] = LANE_KIND[l.kind];
+          return (
+            <button key={i} className="borrow" onClick={() => onGoto(l.from)} title="Jump to this line">
+              <span className="bar" style={{ background: colour }} />
+              <span className="bk" style={{ color: colour }}>
+                {kind}
               </span>
-            </div>
-          ))}
-        </div>
+              <code>{l.label}</code>
+              <span className="bl">{l.from === l.to ? `line ${l.from}` : `lines ${l.from}–${l.to}`}</span>
+            </button>
+          );
+        })}
       </div>
-    );
-  const summary =
-    run.status === "compile_error"
-      ? ["Doesn't compile", "var(--bad)"]
-      : run.status === "timeout"
-        ? ["Timed out", "var(--bad)"]
-        : [`${run.passed} / ${run.total} passing`, run.status === "passed" ? "var(--grn)" : "var(--fg)"];
-  const firstError = run.diagnostics.find((d) => d.level === "error");
+      {model.note && <p className="note">{model.note}</p>}
+    </div>
+  );
+}
+
+function CaseRows({ c }: { c: TestCase }) {
+  if (c.input === undefined) return null;
+  return (
+    <div className="tcase-kv">
+      <span>input</span>
+      <code>{c.input}</code>
+      <span>expected</span>
+      <code style={{ color: "var(--grn)" }}>{c.expected}</code>
+    </div>
+  );
+}
+
+function CaseCard({
+  c,
+  id,
+  t,
+  run,
+  hidden = false,
+  open,
+  setOpen,
+}: {
+  c: TestCase;
+  id: string;
+  t: TestOutcome | undefined;
+  run: RunView | null;
+  hidden?: boolean;
+  open: string | null;
+  setOpen: (n: string | null) => void;
+}) {
+  const ok = t?.outcome === "passed";
+  const failed = t && !ok;
+  const expanded = open === id || (failed && open === null);
+  const colour = !t ? "var(--line)" : ok ? "var(--grn)" : "var(--bad)";
+  return (
+    <div className={`tcase${failed ? " bad" : ""}`}>
+      <button className="tcase-h" onClick={() => setOpen(expanded ? "" : id)} aria-expanded={expanded}>
+        <span className="sqr" style={{ background: colour }} />
+        <span className="nm">
+          {hidden && <span style={{ color: "var(--mut)" }}>hidden · </span>}
+          {c.name}
+        </span>
+        <span className="tval">
+          {!t
+            ? run
+              ? run.status === "compile_error"
+                ? "not compiled"
+                : run.status === "timeout"
+                  ? "timed out"
+                  : ""
+              : ""
+            : t.outcome === "timed_out"
+              ? "timed out"
+              : t.duration_ms !== null
+                ? `${t.duration_ms.toFixed(1)} ms`
+                : ok
+                  ? "passed"
+                  : "failed"}
+        </span>
+        <span className="chev">{expanded ? "▾" : "▸"}</span>
+      </button>
+      <CaseRows c={c} />
+      {expanded && (
+        <div className="tcase-more">
+          {c.setup && (
+            <>
+              <span>setup</span>
+              <pre>{c.setup}</pre>
+            </>
+          )}
+          {c.call && (
+            <>
+              <span>call</span>
+              <pre>{c.call}</pre>
+            </>
+          )}
+          {t?.check && (
+            <>
+              <span>got</span>
+              <pre style={{ color: "var(--bad)" }}>{t.check.got}</pre>
+            </>
+          )}
+          {t && !t.check && t.panic && (
+            <>
+              <span>panic</span>
+              <pre style={{ color: "var(--bad)" }}>{t.panic}</pre>
+            </>
+          )}
+          {t?.stdout && (
+            <>
+              <span>stdout</span>
+              <pre>{t.stdout}</pre>
+            </>
+          )}
+          {c.input === undefined && !t && (
+            <span className="note" style={{ gridColumn: "1 / -1" }}>
+              This test doesn't use check!; see {hidden ? "hidden.rs" : "tests.rs"}.
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TestsPanel({
+  run,
+  cases,
+  hiddenCases,
+  busy,
+  open,
+  setOpen,
+  runNo,
+}: {
+  run: RunView | null;
+  cases: TestCase[];
+  /** Parsed hidden tests, once the problem has been solved. */
+  hiddenCases: TestCase[] | null;
+  busy: boolean;
+  open: string | null;
+  setOpen: (n: string | null) => void;
+  runNo: number;
+}) {
+  const byName = new Map(run?.tests.map((t) => [t.suite + t.name, t]) ?? []);
+  const visible = run?.tests.filter((t) => t.suite === "visible") ?? [];
+  const hidden = run?.tests.filter((t) => t.suite === "hidden") ?? [];
+  const firstError = run?.diagnostics.find((d) => d.level === "error");
+  const [dismissed, setDismissed] = useState<number | null>(null);
+  const status = busy
+    ? (["Running…", "var(--acc)"] as const)
+    : !run
+      ? (["Not run yet", "var(--dim)"] as const)
+      : run.status === "compile_error"
+        ? (["Doesn't compile", "var(--bad)"] as const)
+        : run.status === "timeout"
+          ? (["Timed out", "var(--bad)"] as const)
+          : ([`${run.passed} / ${run.total} passing`, run.status === "passed" ? "var(--grn)" : "var(--fg)"] as const);
   return (
     <div className="stack" style={{ gap: 14 }}>
       <div className="tsum">
-        <b style={{ color: summary[1] }}>{summary[0]}</b>
-        <span>
-          {run.kind} #{runNo} · {(run.duration_ms / 1000).toFixed(1)}s
-        </span>
+        <b style={{ color: status[1] }}>{status[0]}</b>
+        <span>{run && !busy ? `${run.kind} #${runNo} · ${(run.duration_ms / 1000).toFixed(1)}s` : `${cases.length} visible · ${hiddenCases ? `${hiddenCases.length} hidden` : "hidden on Submit"}`}</span>
       </div>
-      {run.tests.length > 0 && (
-        <div className="segs" style={{ gridTemplateColumns: `repeat(${run.tests.length}, 1fr)`, gap: 3, marginTop: 0 }}>
-          {run.tests.map((t) => (
-            <span key={t.suite + t.name} style={{ background: t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }} />
-          ))}
+      <div className="passbar" aria-hidden="true">
+        {(run && !busy && run.tests.length ? run.tests : [...cases, ...(hiddenCases ?? [])].map(() => null)).map((t, i) => (
+          <span key={i} style={{ background: !t ? "var(--line2)" : t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }} />
+        ))}
+      </div>
+      {run && !busy && run.tests.length > 0 && (
+        <div className="tcounts">
+          <span>
+            visible{" "}
+            <b style={{ color: visible.every((t) => t.outcome === "passed") ? "var(--grn)" : "var(--bad)" }}>
+              {visible.filter((t) => t.outcome === "passed").length}/{visible.length}
+            </b>
+          </span>
+          {hidden.length > 0 && (
+            <span>
+              hidden{" "}
+              <b style={{ color: hidden.every((t) => t.outcome === "passed") ? "var(--grn)" : "var(--bad)" }}>
+                {hidden.filter((t) => t.outcome === "passed").length}/{hidden.length}
+              </b>
+            </span>
+          )}
+          <span>clippy {run.diagnostics.filter((d) => d.level === "warning").length} warnings</span>
         </div>
       )}
-      {run.violations.length > 0 && (
+      {run?.violations.length ? (
         <div className="rulebox">
           <span className="lab" style={{ color: "var(--warn)" }}>
             RULE BROKEN · {run.status === "passed" ? "TESTS PASS, BUT IT DOESN'T COUNT" : "FIX THE RULES TOO"}
@@ -759,117 +1029,272 @@ function TestsPanel({ run, names, busy, open, setOpen, runNo }: { run: RunView |
             </div>
           ))}
         </div>
-      )}
-      {firstError && (
+      ) : null}
+      {firstError && !busy && dismissed !== run?.id && (
         <div className="errbox">
+          <button className="box-x" onClick={() => setDismissed(run?.id ?? null)} title="Hide until the next run" aria-label="Hide this error">
+            ×
+          </button>
           <span className="lab" style={{ color: "var(--bad)" }}>
             {firstError.code ?? "ERROR"} · LINE {firstError.spans.find((s) => s.primary)?.line_start ?? "?"}
           </span>
           <br />
           {firstError.message}
+          <div className="note" style={{ marginTop: 6 }}>
+            Full output in the Compiler tab below.
+          </div>
         </div>
       )}
-      {run.tests.length === 0 && (
-        <div style={{ borderTop: "1px solid var(--line2)" }}>
-          {names.map((n) => (
-            <div className="trow" key={n} style={{ borderBottom: "1px solid var(--line2)" }}>
-              <span className="sqr" style={{ background: "var(--line)" }} />
-              <span className="nm" style={{ color: "var(--mut)" }}>
-                {n}
-              </span>
-              <span className="tval">{run.status === "timeout" ? "timed out" : "not compiled"}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      <div style={{ borderTop: run.tests.length ? "1px solid var(--line2)" : undefined }}>
-        {run.tests.map((t) => {
-          const key = t.suite + t.name;
-          const expanded = open === t.name && t.outcome !== "passed";
-          const ok = t.outcome === "passed";
-          return (
-            <div key={key} style={{ borderBottom: "1px solid var(--line2)" }}>
-              <button className="trow" onClick={() => setOpen(expanded ? null : t.name)}>
-                <span className="sqr" style={{ background: ok ? "var(--grn)" : "var(--bad)" }} />
-                <span className="nm" style={{ color: ok ? "var(--mut)" : "var(--fg)" }}>
-                  {t.suite === "hidden" ? `hidden · ${t.name}` : t.name}
-                </span>
-                <span className="tval">{t.outcome === "timed_out" ? "timed out" : t.duration_ms !== null ? `${t.duration_ms.toFixed(1)} ms` : ""}</span>
-              </button>
-              {expanded && t.check && (
-                <div className="tdet">
-                  <span>input</span>
-                  <span style={{ color: "var(--mut)" }}>{t.check.input}</span>
-                  <span>expected</span>
-                  <span style={{ color: "var(--grn)" }}>{t.check.expected}</span>
-                  <span>got</span>
-                  <span style={{ color: "var(--bad)" }}>{t.check.got}</span>
+      <div className="tcases">
+        {cases.map((c) => (
+          <CaseCard key={c.name} c={c} id={c.name} t={busy ? undefined : byName.get("visible" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
+        ))}
+        {hiddenCases
+          ? hiddenCases.map((c) => (
+              <CaseCard key={"h" + c.name} c={c} id={"hidden:" + c.name} hidden t={busy ? undefined : byName.get("hidden" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
+            ))
+          : !busy &&
+            hidden.map((t) => (
+              <div key={t.name} className={`tcase${t.outcome !== "passed" ? " bad" : ""}`}>
+                <div className="tcase-h">
+                  <span className="sqr" style={{ background: t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }} />
+                  <span className="nm" style={{ color: "var(--mut)" }}>
+                    hidden · {t.name}
+                  </span>
+                  <span className="tval">{t.outcome === "passed" ? "passed" : t.outcome === "timed_out" ? "timed out" : "failed · input withheld"}</span>
                 </div>
-              )}
-              {expanded && !t.check && t.panic && <div className="tdet tpanic">{t.panic}</div>}
-              {expanded && t.suite === "hidden" && <div className="note" style={{ margin: "-4px 0 12px 18px" }}>Hidden input. Often the same root cause as a visible failure.</div>}
-            </div>
-          );
-        })}
+              </div>
+            ))}
       </div>
     </div>
   );
 }
 
-function CompilerPanel({ run, busy }: { run: RunView | null; busy: boolean }) {
-  if (busy) return <p className="note">Compiling…</p>;
-  if (!run) return <p className="note">Compiler and clippy output appears here after a run.</p>;
-  return <DiagnosticsList diagnostics={run.diagnostics} busy={false} empty="Compiled cleanly. clippy found nothing." />;
+type Goto = (path: string, line: number, col: number) => void;
+
+function CompilerPanel({ run, busy, onGoto }: { run: RunView | null; busy: boolean; onGoto: Goto }) {
+  if (busy) return <Pending text="Compiling…" />;
+  if (!run) return <p className="note">Compiler errors and clippy lints show up here after a run.</p>;
+  return <DiagnosticsList diagnostics={run.diagnostics} busy={false} empty="Compiled cleanly. clippy found nothing." onGoto={onGoto} />;
 }
 
-function DiagnosticsList({ diagnostics, busy, empty }: { diagnostics: Diagnostic[]; busy: boolean; empty: string }) {
-  if (busy) return <p className="note">Compiling…</p>;
+function Pending({ text }: { text: string }) {
+  return (
+    <div className="pending">
+      <span className="spin" aria-hidden="true" />
+      {text}
+    </div>
+  );
+}
+
+/** Where the docs for a diagnostic live: rustc's error index or clippy's lint list. */
+function docsFor(code: string | null): string | null {
+  if (!code) return null;
+  if (/^E\d{4}$/.test(code)) return `https://doc.rust-lang.org/error_codes/${code}.html`;
+  if (code.startsWith("clippy::")) return `https://rust-lang.github.io/rust-clippy/master/index.html#${code.slice(8)}`;
+  return null;
+}
+
+function DiagCard({ d, onGoto }: { d: Diagnostic; onGoto: Goto }) {
+  const primary = d.spans.find((s) => s.primary) ?? d.spans[0];
+  const docs = docsFor(d.code);
+  // rustc's first line repeats the header; keep the snippet, labels and help below it.
+  const body = d.rendered.split("\n").slice(1).join("\n").trimEnd();
+  return (
+    <div className={`dcard ${d.level}`}>
+      <div className="dcard-h">
+        <span className={`sev ${d.level}`}>{d.level}</span>
+        {d.code &&
+          (docs ? (
+            <a className="dcode" href={docs} target="_blank" rel="noreferrer" title="Open the explanation">
+              {d.code}
+            </a>
+          ) : (
+            <span className="dcode">{d.code}</span>
+          ))}
+        <span className="dmsg">{d.message}</span>
+        {primary && (
+          <button className="dloc" onClick={() => onGoto(primary.file, primary.line_start, primary.col_start)} title="Jump to this line">
+            {primary.file}:{primary.line_start}:{primary.col_start}
+          </button>
+        )}
+      </div>
+      {body && (
+        <pre className="dcard-b">
+          <Ansi text={body} />
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function DiagnosticsList({ diagnostics, busy, empty, onGoto }: { diagnostics: Diagnostic[]; busy: boolean; empty: string; onGoto: Goto }) {
   const errors = diagnostics.filter((d) => d.level === "error");
   const warnings = diagnostics.filter((d) => d.level !== "error");
-  if (diagnostics.length === 0) return <p className="note">{empty}</p>;
+  const [showWarnings, setShowWarnings] = useState(errors.length === 0);
+  if (busy) return <Pending text="Compiling…" />;
+  if (diagnostics.length === 0)
+    return (
+      <div className="diag-ok">
+        <span className="chip2 ok">✓ clean</span>
+        {empty}
+      </div>
+    );
   return (
-    <div className="compiler">
-      {[...errors, ...warnings].map((d, i) => (
-        <pre key={i} className={d.level === "error" ? "err" : "warn"}>
-          {d.rendered.trimEnd()}
-        </pre>
+    <div className="diag">
+      <div className="diag-sum">
+        <span className={`chip2 ${errors.length ? "bad" : "ok"}`}>
+          {errors.length} error{errors.length === 1 ? "" : "s"}
+        </span>
+        <span className={`chip2 ${warnings.length ? "warn" : "ok"}`}>
+          {warnings.length} warning{warnings.length === 1 ? "" : "s"}
+        </span>
+        {errors.length > 0 && warnings.length > 0 && (
+          <button className="diag-toggle" onClick={() => setShowWarnings(!showWarnings)}>
+            {showWarnings ? "hide warnings" : "show warnings"}
+          </button>
+        )}
+      </div>
+      {errors.map((d, i) => (
+        <DiagCard key={`e${i}`} d={d} onGoto={onGoto} />
       ))}
+      {showWarnings && warnings.map((d, i) => <DiagCard key={`w${i}`} d={d} onGoto={onGoto} />)}
+    </div>
+  );
+}
+
+/** One output line: `dbg!` lines split into location, expression and value; panics highlighted. */
+function OutLine({ line, stderr }: { line: string; stderr?: boolean }) {
+  const dbg = /^\[(.+?:\d+:\d+)\] (.+?) = (.*)$/.exec(line);
+  if (dbg)
+    return (
+      <span className="ln">
+        <span className="dbg-loc">[{dbg[1]}]</span> <span className="dbg-expr">{dbg[2]}</span> <span className="dbg-eq">=</span> <span className="dbg-val">{dbg[3]}</span>
+      </span>
+    );
+  if (/^thread '.*' panicked at /.test(line)) return <span className="ln panic">{line}</span>;
+  if (/^note: run with `RUST_BACKTRACE=1`/.test(line)) return <span className="ln dimln">{line}</span>;
+  return (
+    <span className={`ln${stderr ? " err" : ""}`}>
+      <Ansi text={line} />
+    </span>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className="copy"
+      onClick={() =>
+        navigator.clipboard.writeText(text).then(
+          () => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+          },
+          () => undefined,
+        )
+      }
+    >
+      {copied ? "copied" : "copy"}
+    </button>
+  );
+}
+
+function Terminal({
+  head,
+  badge,
+  badgeKind,
+  meta,
+  stdout,
+  stderr,
+}: {
+  head: React.ReactNode;
+  badge?: string;
+  badgeKind?: "ok" | "bad" | "warn";
+  meta?: string;
+  stdout: string;
+  stderr?: string;
+}) {
+  const lines = (t: string) => t.replace(/\n$/, "").split("\n");
+  const all = [stdout, stderr].filter(Boolean).join("\n");
+  return (
+    <div className="term">
+      <div className="term-h">
+        <span className="cmd">{head}</span>
+        {badge && <span className={`badge ${badgeKind ?? "ok"}`}>{badge}</span>}
+        {meta && <span className="meta">{meta}</span>}
+        {all && <CopyButton text={all} />}
+      </div>
+      <pre className="term-b">
+        {stdout ? lines(stdout).map((l, i) => <OutLine key={`o${i}`} line={l} />) : !stderr && <span className="ln dimln">(no output)</span>}
+        {stderr && (
+          <>
+            {stdout && <span className="ln sep">── stderr ──</span>}
+            {lines(stderr).map((l, i) => (
+              <OutLine key={`e${i}`} line={l} stderr />
+            ))}
+          </>
+        )}
+      </pre>
     </div>
   );
 }
 
 function OutputPanel({ run, scratch, scratchBusy }: { run: RunView | null; scratch: ScratchResult | null; scratchBusy: boolean }) {
   const printed = run?.tests.filter((t) => t.stdout) ?? [];
+  const kind = (s: ScratchResult) => (s.status === "ok" ? "ok" : s.status === "timeout" ? "warn" : "bad");
   return (
-    <div className="compiler">
-      <div className="lab" style={{ margin: "0 0 6px" }}>
-        MAIN.RS{scratch && !scratchBusy ? ` · ${scratchStatus(scratch)} · ${(scratch.duration_ms / 1000).toFixed(1)}s` : ""}
-      </div>
+    <div className="outp">
       {scratchBusy ? (
-        <p className="note">Building and running main.rs…</p>
+        <Pending text="Building and running main.rs…" />
       ) : !scratch ? (
-        <p className="note">Write a main in main.rs and press Run (⌘') to see its output here.</p>
+        <div className="term">
+          <div className="term-h">
+            <span className="cmd">
+              <b>$</b> cargo run --bin scratch
+            </span>
+          </div>
+          <pre className="term-b">
+            <span className="ln dimln">Write a main in main.rs and press ▷ Run (⌘') to see its output here.</span>
+          </pre>
+        </div>
       ) : scratch.status === "compile_error" ? (
-        <p className="note">Didn't compile: see Compiler.</p>
+        <div className="diag-ok">
+          <span className="chip2 bad">didn't compile</span>
+          main.rs or lib.rs has errors: see the Compiler tab.
+        </div>
       ) : (
-        <>
-          {scratch.stdout ? <pre className="out">{scratch.stdout}</pre> : <p className="note">No stdout.</p>}
-          {scratch.stderr && <pre className="out err">{scratch.stderr}</pre>}
-        </>
+        <Terminal
+          head={
+            <>
+              <b>$</b> cargo run --bin scratch
+            </>
+          }
+          badge={scratchStatus(scratch)}
+          badgeKind={kind(scratch)}
+          meta={`${(scratch.duration_ms / 1000).toFixed(1)}s`}
+          stdout={scratch.stdout}
+          stderr={scratch.stderr}
+        />
       )}
-      <div className="lab" style={{ margin: "16px 0 6px" }}>
-        TESTS
+      <div className="lab" style={{ margin: "18px 0 8px" }}>
+        PRINTED BY TESTS
       </div>
       {printed.length === 0 ? (
-        <p className="note">println!, eprintln! and dbg! output from the visible tests appears here after a test run, grouped by test. Hidden tests' output stays hidden.</p>
+        <p className="note">println!, eprintln! and dbg! output from the visible tests shows up here after a test run, grouped by test. Hidden tests' output stays hidden.</p>
       ) : (
         printed.map((t) => (
-          <div key={t.suite + t.name}>
-            <div className="lab" style={{ margin: "10px 0 4px", color: t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }}>
-              {t.name}
-            </div>
-            <pre className="out">{t.stdout}</pre>
-          </div>
+          <Terminal
+            key={t.suite + t.name}
+            head={
+              <span style={{ color: t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }}>
+                {t.outcome === "passed" ? "✓" : "✗"} {t.name}
+              </span>
+            }
+            meta={t.duration_ms !== null ? `${t.duration_ms.toFixed(1)} ms` : undefined}
+            stdout={t.stdout}
+          />
         ))
       )}
     </div>
@@ -884,7 +1309,19 @@ function forScratch(d: Diagnostic): Diagnostic {
   return { ...d, spans: d.spans.filter((s) => s.file === "src/bin/scratch.rs").map((s) => ({ ...s, file: "src/lib.rs" })) };
 }
 
-function ConsoleSummary({ busy, scratchBusy, lastAction, run, scratch }: { busy: boolean; scratchBusy: boolean; lastAction: "tests" | "scratch"; run: RunView | null; scratch: ScratchResult | null }) {
+function ConsoleSummary({
+  busy,
+  scratchBusy,
+  lastAction,
+  run,
+  scratch,
+}: {
+  busy: boolean;
+  scratchBusy: boolean;
+  lastAction: "tests" | "scratch";
+  run: RunView | null;
+  scratch: ScratchResult | null;
+}) {
   if (busy) return <span style={{ color: "var(--acc)" }}>{scratchBusy ? "running main.rs…" : "running tests…"}</span>;
   if (lastAction === "scratch" && scratch) {
     const ok = scratch.status === "ok";
@@ -892,7 +1329,11 @@ function ConsoleSummary({ busy, scratchBusy, lastAction, run, scratch }: { busy:
   }
   if (!run) return <span>no runs yet</span>;
   const [label, color] = runLabel(run);
-  return <span style={{ color }}>{run.kind} · {label}</span>;
+  return (
+    <span style={{ color }}>
+      {run.kind} · {label}
+    </span>
+  );
 }
 
 function Console({
@@ -932,9 +1373,10 @@ function Console({
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   };
+  if (!open) return null;
   return (
-    <div className="console" style={{ height: open ? height : CONSOLE_BAR }}>
-      <div className={`console-grip${open ? "" : " off"}`} onPointerDown={drag} aria-hidden="true" />
+    <div className="console" style={{ height }}>
+      <div className="console-grip" onPointerDown={drag} aria-hidden="true" />
       <div className="console-bar">
         <div className="console-tabs" role="tablist">
           {(
@@ -944,19 +1386,44 @@ function Console({
               ["timeline", "Timeline"],
             ] as const
           ).map(([k, label]) => (
-            <button key={k} role="tab" className={open && tab === k ? "on" : ""} aria-selected={open && tab === k} onClick={() => (open && tab === k ? toggle() : setTab(k))} style={k === "compiler" && errorCount ? { color: "var(--bad)" } : undefined}>
+            <button
+              key={k}
+              role="tab"
+              className={open && tab === k ? "on" : ""}
+              aria-selected={open && tab === k}
+              onClick={() => (open && tab === k ? toggle() : setTab(k))}
+              style={k === "compiler" && errorCount ? { color: "var(--bad)" } : undefined}
+            >
               {label}
             </button>
           ))}
         </div>
         <div className="console-sum">{summary}</div>
-        <button className="console-toggle" onClick={toggle} aria-expanded={open} title={open ? "Hide the console" : "Show the console"}>
-          {open ? "▾" : "▴"}
+        <button className="console-toggle" onClick={toggle} title="Hide the console until the next run">
+          ▾
         </button>
       </div>
-      {open && <div className="console-body">{children}</div>}
+      <div className="console-body">{children}</div>
     </div>
   );
+}
+
+/** Drags a side panel's inner edge (`dir` 1 for the left panel, -1 for the right); kept between 260 px and 45–60 % of the window. */
+function dragWidth(e: React.PointerEvent, start: number, set: (w: number) => void, dir: 1 | -1) {
+  e.preventDefault();
+  const x0 = e.clientX;
+  const max = window.innerWidth * (dir === 1 ? 0.6 : 0.45);
+  const move = (ev: PointerEvent) => set(Math.min(max, Math.max(260, start + dir * (ev.clientX - x0))));
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  };
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
 }
 
 function useStoredNumber(key: string, initial: number): [number, (n: number) => void] {

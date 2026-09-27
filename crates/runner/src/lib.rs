@@ -213,7 +213,7 @@ impl Runner {
                     "clippy",
                     "--offline",
                     "--all-targets",
-                    "--message-format=json",
+                    "--message-format=json-diagnostic-rendered-ansi",
                 ]),
                 cfg.compile_timeout,
             )
@@ -237,7 +237,7 @@ impl Runner {
             targets.extend(["--test", "hidden"]);
         }
         // Build first, under the compile limit, so the test limit only counts test time.
-        let mut build = with_offline(&["test", "--offline", "--no-run", "--message-format=json"]);
+        let mut build = with_offline(&["test", "--offline", "--no-run", "--message-format=json-diagnostic-rendered-ansi"]);
         build.extend(&targets);
         let out = exec::cargo(
             &cfg.sandbox,
@@ -307,7 +307,7 @@ impl Runner {
             ScratchResult { status, diagnostics, stdout, stderr, exit_code, duration_ms: start.elapsed().as_millis() as u64 }
         };
 
-        let build = exec::cargo(&cfg.sandbox, work.path(), &target, &args(&["build", "--offline", "--bin", "scratch", "--message-format=json"]), cfg.compile_timeout).await?;
+        let build = exec::cargo(&cfg.sandbox, work.path(), &target, &args(&["build", "--offline", "--bin", "scratch", "--message-format=json-diagnostic-rendered-ansi"]), cfg.compile_timeout).await?;
         if build.timed_out {
             return Ok(done(ScratchStatus::Timeout, Vec::new(), None));
         }
@@ -315,7 +315,8 @@ impl Runner {
         if parse::build_failed(&build.stdout) {
             return Ok(done(ScratchStatus::CompileError, diagnostics, None));
         }
-        let out = exec::cargo(&cfg.sandbox, work.path(), &target, &args(&["run", "--offline", "-q", "--bin", "scratch"]), cfg.test_timeout).await?;
+        // Run the built binary itself: `cargo run` would replay cached compiler warnings into stderr.
+        let out = exec::run(&cfg.sandbox, work.path(), &target, exec::Program::Built("debug/scratch"), &[], cfg.test_timeout).await?;
         let status = if out.timed_out {
             ScratchStatus::Timeout
         } else if out.exit_code == Some(0) {

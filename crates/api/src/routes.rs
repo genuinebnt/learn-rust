@@ -126,7 +126,8 @@ async fn detail(s: &AppState, id: &str) -> ApiResult<ProblemDetail> {
     };
     let draft = store::draft(&s.db, id).await?;
     let scratch = store::scratch(&s.db, id).await?;
-    Ok(views::problem_detail(t, p, attempt.as_ref(), draft, scratch, runs))
+    let solved_ever = store::ever_solved(&s.db, id).await?;
+    Ok(views::problem_detail(t, p, attempt.as_ref(), draft, scratch, runs, solved_ever))
 }
 
 pub async fn problem(
@@ -247,8 +248,9 @@ async fn execute(s: &AppState, id: &str, code: &str, with_hidden: bool) -> ApiRe
             store::record_solve(&s.db, id, outcome, attempt.kind == "resolve").await?;
         }
     }
+    let solved_ever = store::ever_solved(&s.db, id).await?;
     Ok(RunOutcome {
-        run: row.into(),
+        run: views::RunView::new(row, solved_ever),
         attempt: Some(&attempt).into(),
         solution: views::solution_view(p, Some(&attempt)),
     })

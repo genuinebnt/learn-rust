@@ -216,6 +216,8 @@ async fn run_then_submit_redacts_hidden_tests(db: PgPool) {
 #[sqlx::test(migrator = "anneal_api::MIGRATOR")]
 async fn passing_submit_solves_and_unlocks_the_solution(db: PgPool) {
     let app = test_app(db);
+    let (_, before) = call(&app, Method::GET, &format!("/api/problems/{NDT}"), None).await;
+    assert!(before["hidden_tests"].is_null(), "hidden tests stay hidden until solved");
     let (_, out) = call(
         &app,
         Method::POST,
@@ -248,6 +250,13 @@ async fn passing_submit_solves_and_unlocks_the_solution(db: PgPool) {
         .unwrap();
     assert_eq!(p["progress"], "solved");
     assert_eq!(t["solved"], 1);
+
+    // Solved: the hidden test file is readable, and runs show hidden tests in full.
+    let (_, after) = call(&app, Method::GET, &format!("/api/problems/{NDT}"), None).await;
+    assert!(after["hidden_tests"].as_str().unwrap().contains("fn dense_n100"));
+    let (_, bad) = call(&app, Method::POST, &format!("/api/problems/{NDT}/submit"), Some(json!({ "code": SENTINEL_BUG }))).await;
+    let hidden = bad["run"]["tests"].as_array().unwrap().iter().find(|t| t["suite"] == "hidden").unwrap();
+    assert_ne!(hidden["check"]["input"], "withheld", "{hidden}");
 }
 
 #[sqlx::test(migrator = "anneal_api::MIGRATOR")]

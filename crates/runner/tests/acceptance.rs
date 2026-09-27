@@ -353,7 +353,8 @@ async fn docker_sandbox_uses_vendored_crates_offline() {
 async fn scratch_main_runs_against_the_library() {
     use anneal_runner::{Scratch, ScratchStatus};
     let r = runner(Sandbox::Host);
-    let lib = "pub fn double(x: i32) -> i32 { x * 2 }\n";
+    // An unused parameter gives a compiler warning, which must not end up in the program's stderr.
+    let lib = "pub fn double(x: i32) -> i32 { x * 2 }\npub fn unused(y: i32) {}\n";
     let ok = Scratch { lib_rs: lib, main_rs: "use solution::*;\nfn main() { println!(\"{}\", double(21)); eprintln!(\"to stderr\"); }\n", crates: &[] };
     let out = r.run_scratch("scratch-demo", &ok).await.unwrap();
     assert_eq!((out.status, out.stdout.as_str(), out.stderr.trim(), out.exit_code), (ScratchStatus::Ok, "42\n", "to stderr", Some(0)), "{out:#?}");

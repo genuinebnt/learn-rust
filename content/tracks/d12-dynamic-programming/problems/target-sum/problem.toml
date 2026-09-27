@@ -1,0 +1,37 @@
+slug = "target-sum"
+title = "Target sum"
+mode = "write"
+level = "medium"
+stage = "knapsack"
+order = 32
+status = "ready"
+tags = ["0/1 knapsack", "counting"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"]
+teaches = [
+  "Algebra first: choosing signs is choosing the subset that gets a `+`, with a fixed required sum.",
+  "Guarding the transform (parity, range) before indexing.",
+]
+constraints = ["0 ≤ nums.len() ≤ 60", "0 ≤ nums[i], and sum(nums) ≤ 1000", "|target| ≤ 1000"]
+follow_up = "Without the algebra, how would you write the DP over running sums from -total to total, and how does its size compare?"
+related = ["D11"]
+
+[[examples]]
+input = "nums = [1, 1, 1, 1, 1], target = 3"
+output = "5 (the - can go on any one of the five)"
+
+[[hints]]
+kind = "approach"
+text = "If the + numbers sum to P, the - numbers sum to total - P, so P - (total - P) = target and P = (total + target) / 2. Count subsets that sum to P."
+
+[[hints]]
+kind = "rust"
+text = "Do the algebra in `i64`, return 0 unless 0 ≤ total + target ≤ 2·total and it is even, then run the counting knapsack over a `Vec<u64>` with the sum running downwards."
+
+[[hints]]
+kind = "edge case"
+text = "A 0 can take either sign, doubling the count; with the downward sweep, `ways[s] += ways[s - 0]` does exactly that."
+
+[solution]
+explanation = "The sign choice splits the numbers into a + group and a - group, which is a subset. The transform turns an exponential search into a counting knapsack of size (total + target) / 2."
+time = "O(n × total)"
+space = "O(total)"

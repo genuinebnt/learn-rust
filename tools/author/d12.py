@@ -3679,6 +3679,649 @@ P.append(dict(
     related=["D11"],
 ))
 
+# ---------------------------------------------------------------- Knapsack (medium)
+
+P.append(dict(
+    slug="zero-one-knapsack", title="0/1 knapsack", level="medium", stage="knapsack", tags=["0/1 knapsack", "1-D DP"],
+    companies=["Amazon", "Google", "Microsoft", "Goldman Sachs"],
+    teaches=["The 0/1 knapsack table over capacities, and why each item's pass runs downwards.",
+             "Going from `dp[i][c]` to one `Vec` indexed by capacity."],
+    statement="""
+        Each item is a `(weight, value)` pair and can be taken at most once. Return the largest
+        total value whose total weight is at most `capacity`.
+    """,
+    examples=[("items = [(1, 1), (3, 4), (4, 5), (5, 7)], capacity = 7", "9 (weights 3 + 4)")],
+    constraints=["0 ≤ items.len() ≤ 100", "0 ≤ weight ≤ 10⁵, 0 ≤ value ≤ 10⁹", "0 ≤ capacity ≤ 10⁵"],
+    starter="""
+        pub fn knapsack(items: &[(usize, u64)], capacity: usize) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn knapsack(items: &[(usize, u64)], capacity: usize) -> u64 {
+            // best[c] = the most value with total weight ≤ c, using the items seen so far.
+            let mut best = vec![0u64; capacity + 1];
+            for &(weight, value) in items {
+                // Downwards, so best[c - weight] doesn't include this item yet: each item once.
+                for c in (weight..=capacity).rev() {
+                    best[c] = best[c].max(best[c - weight] + value);
+                }
+            }
+            best[capacity]
+        }
+    """,
+    visible=[
+        T("four_items", "items = [(1, 1), (3, 4), (4, 5), (5, 7)], capacity = 7", "knapsack(&[(1, 1), (3, 4), (4, 5), (5, 7)], 7)", "9"),
+        T("no_items", "items = [], capacity = 10", "knapsack(&[], 10)", "0"),
+        T("no_capacity", "items = [(1, 1)], capacity = 0", "knapsack(&[(1, 1)], 0)", "0"),
+        T("each_item_once", "items = [(1, 10)], capacity = 5", "knapsack(&[(1, 10)], 5)", "10"),
+        T("best_ratio_is_a_trap", "items = [(10, 60), (20, 100), (30, 120)], capacity = 50", "knapsack(&[(10, 60), (20, 100), (30, 120)], 50)", "220"),
+    ],
+    hidden=[
+        T("no_items", "items = [], capacity = 0", "knapsack(&[], 0)", "0"),
+        T("too_heavy", "items = [(5, 10)], capacity = 4", "knapsack(&[(5, 10)], 4)", "0"),
+        T("weightless_item", "items = [(0, 5), (2, 3)], capacity = 1", "knapsack(&[(0, 5), (2, 3)], 1)", "5"),
+        T("exact_fit", "items = [(2, 3), (3, 4), (4, 5), (5, 6)], capacity = 5", "knapsack(&[(2, 3), (3, 4), (4, 5), (5, 6)], 5)", "7"),
+        T("duplicates", "items = [(3, 5); 4], capacity = 9", "knapsack(&[(3, 5); 4], 9)", "15"),
+        T("big_values", "items = [(1, 10⁹); 100], capacity = 100", "knapsack(&[(1, 1_000_000_000); 100], 100)", "100_000_000_000"),
+        T("everything_fits", "items = [(1, 2), (2, 3)], capacity = 100000", "knapsack(&[(1, 2), (2, 3)], 100_000)", "5"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1230);
+            for _ in 0..300 {
+                let n = rng.below(11);
+                let mut items: Vec<(usize, u64)> = Vec::new();
+                for _ in 0..n {
+                    let w = rng.int(0, 8) as usize;
+                    let v = rng.int(0, 20) as u64;
+                    items.push((w, v));
+                }
+                let cap = rng.int(0, 20) as usize;
+                let mut want = 0;
+                for mask in 0u32..(1 << n) {
+                    let (w, v) = (0..n).filter(|&i| mask >> i & 1 == 1).fold((0, 0), |(w, v), i| (w + items[i].0, v + items[i].1));
+                    if w <= cap {
+                        want = want.max(v);
+                    }
+                }
+                check!(format!("items = {items:?}, capacity = {cap}"), knapsack(&items, cap), want);
+            }
+        }
+
+        #[test]
+        fn scale_100_items() {
+            let items: Vec<(usize, u64)> = (0..100u64).map(|i| ((i * 7919 % 3000 + 500) as usize, i * 104_729 % 1000 + 1)).collect();
+            check!("items[i] = ((7919·i) % 3000 + 500, (104729·i) % 1000 + 1), 100 items, capacity = 50000", knapsack(&items, 50_000), 25_744);
+        }
+        """,
+    ],
+    wrong=dict(
+        capacity_upwards="""
+            pub fn knapsack(items: &[(usize, u64)], capacity: usize) -> u64 {
+                let mut best = vec![0u64; capacity + 1];
+                for &(weight, value) in items {
+                    for c in weight.max(1)..=capacity {
+                        best[c] = best[c].max(best[c - weight] + value);
+                    }
+                }
+                best[capacity]
+            }
+        """,
+        best_ratio_first="""
+            pub fn knapsack(items: &[(usize, u64)], capacity: usize) -> u64 {
+                let mut sorted = items.to_vec();
+                sorted.sort_by(|a, b| (b.1 * a.0.max(1) as u64).cmp(&(a.1 * b.0.max(1) as u64)));
+                let (mut left, mut total) = (capacity, 0);
+                for (w, v) in sorted {
+                    if w <= left {
+                        left -= w;
+                        total += v;
+                    }
+                }
+                total
+            }
+        """,
+        plain_recursion="""
+            fn best(items: &[(usize, u64)], cap: usize) -> u64 {
+                match items {
+                    [] => 0,
+                    [(w, v), rest @ ..] => {
+                        let skip = best(rest, cap);
+                        if *w <= cap { skip.max(v + best(rest, cap - w)) } else { skip }
+                    }
+                }
+            }
+
+            pub fn knapsack(items: &[(usize, u64)], capacity: usize) -> u64 {
+                best(items, capacity)
+            }
+        """,
+    ),
+    hints=[("approach", "Take items one at a time: best(c) with this item is max(best(c) without it, value + best(c - weight) without it)."),
+           ("rust", "One `Vec<u64>` of length capacity + 1. For each item, loop `for c in (weight..=capacity).rev()` so `best[c - weight]` is still the value before this item."),
+           ("edge case", "Looping capacities upwards lets an item be added again and again (that is the unbounded knapsack). Sorting by value per weight is not optimal either.")],
+    notes=("The 2-D table best[i][c] only reads row i - 1, and only at capacities ≤ c. Sweeping c downwards in one row reads those old values before they are overwritten.", "O(n × capacity)", "O(capacity)"),
+    follow_up="How would you list which items were taken? And what if capacity were 10⁹ but values small? (DP over value instead of weight.)",
+    related=["D8"],
+))
+
+P.append(dict(
+    slug="partition-equal-subset-sum", title="Partition equal subset sum", level="medium", stage="knapsack", tags=["0/1 knapsack", "subset sum"],
+    companies=["Amazon", "Meta", "Google", "Apple", "Microsoft", "Bloomberg"],
+    teaches=["Subset sum as a boolean knapsack aiming at half the total.", "Rejecting an odd total before building any table."],
+    statement="""
+        Return whether `nums` can be split into two groups (every number in exactly one group)
+        with equal sums. An empty slice splits into two empty groups.
+    """,
+    examples=[("nums = [1, 5, 11, 5]", "true ([1, 5, 5] and [11])"), ("nums = [1, 2, 3, 5]", "false")],
+    constraints=["0 ≤ nums.len() ≤ 200", "1 ≤ nums[i] ≤ 100"],
+    starter="""
+        pub fn can_partition(nums: &[u32]) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn can_partition(nums: &[u32]) -> bool {
+            let total: u32 = nums.iter().sum();
+            if total % 2 == 1 {
+                return false;
+            }
+            let half = (total / 2) as usize;
+            // reach[s] = some subset of the numbers so far sums to s.
+            let mut reach = vec![false; half + 1];
+            reach[0] = true;
+            for &x in nums {
+                let x = x as usize;
+                for s in (x..=half).rev() {
+                    reach[s] = reach[s] || reach[s - x];
+                }
+            }
+            reach[half]
+        }
+    """,
+    visible=[
+        T("leetcode_true", "nums = [1, 5, 11, 5]", "can_partition(&[1, 5, 11, 5])", "true"),
+        T("leetcode_false", "nums = [1, 2, 3, 5]", "can_partition(&[1, 2, 3, 5])", "false"),
+        T("empty", "nums = []", "can_partition(&[])", "true"),
+        T("single", "nums = [1]", "can_partition(&[1])", "false"),
+        T("pair", "nums = [1, 1]", "can_partition(&[1, 1])", "true"),
+        T("even_total_is_not_enough", "nums = [1, 2, 5]", "can_partition(&[1, 2, 5])", "false"),
+    ],
+    hidden=[
+        T("empty", "nums = []", "can_partition(&[])", "true"),
+        T("odd_total", "nums = [1, 2, 4]", "can_partition(&[1, 2, 4])", "false"),
+        T("each_number_once", "nums = [2, 2, 3, 5]", "can_partition(&[2, 2, 3, 5])", "false"),
+        T("max_pair", "nums = [100, 100]", "can_partition(&[100, 100])", "true"),
+        T("five_numbers", "nums = [3, 3, 3, 4, 5]", "can_partition(&[3, 3, 3, 4, 5])", "true"),
+        T("one_to_seven", "nums = [1, 2, 3, 4, 5, 6, 7]", "can_partition(&[1, 2, 3, 4, 5, 6, 7])", "true"),
+        T("one_big", "nums = [1, 1, 1, 100]", "can_partition(&[1, 1, 1, 100])", "false"),
+        T("two_hundred", "nums[i] = (7919·i) % 100 + 1, 200 numbers", "can_partition(&(0..200u32).map(|i| i * 7919 % 100 + 1).collect::<Vec<_>>())", "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1231);
+            for _ in 0..300 {
+                let n = rng.below(13);
+                let nums: Vec<u32> = rng.vec(n, 1, 12);
+                let total: u32 = nums.iter().sum();
+                let want = (0u32..(1 << n)).any(|mask| 2 * (0..n).filter(|&i| mask >> i & 1 == 1).map(|i| nums[i]).sum::<u32>() == total);
+                check!(format!("nums = {nums:?}"), can_partition(&nums), want);
+            }
+        }
+
+        #[test]
+        fn scale_all_twos() {
+            // Half of 202 is 101, which no set of 2s can hit; plain recursion tries every subset.
+            check!("nums = [2; 101]", can_partition(&vec![2; 101]), false);
+        }
+        """,
+    ],
+    wrong=dict(
+        sums_upwards="""
+            pub fn can_partition(nums: &[u32]) -> bool {
+                let total: u32 = nums.iter().sum();
+                if total % 2 == 1 {
+                    return false;
+                }
+                let half = (total / 2) as usize;
+                let mut reach = vec![false; half + 1];
+                reach[0] = true;
+                for &x in nums {
+                    let x = x as usize;
+                    for s in x..=half {
+                        reach[s] = reach[s] || reach[s - x];
+                    }
+                }
+                reach[half]
+            }
+        """,
+        parity_only="""
+            pub fn can_partition(nums: &[u32]) -> bool {
+                nums.iter().sum::<u32>() % 2 == 0
+            }
+        """,
+        plain_recursion="""
+            fn hits(nums: &[u32], left: u32) -> bool {
+                left == 0 || matches!(nums, [x, rest @ ..] if (*x <= left && hits(rest, left - x)) || hits(rest, left))
+            }
+
+            pub fn can_partition(nums: &[u32]) -> bool {
+                let total: u32 = nums.iter().sum();
+                total % 2 == 0 && hits(nums, total / 2)
+            }
+        """,
+    ),
+    hints=[("approach", "Two equal groups each sum to total / 2, so the question is whether some subset sums to exactly half. An odd total is impossible."),
+           ("rust", "A `Vec<bool>` of length half + 1 with `reach[0] = true`; for each number, sweep `s` downwards and set `reach[s] |= reach[s - x]`."),
+           ("edge case", "Sweeping upwards lets one number count twice: [1, 2, 5] would \"reach\" 4 as 2 + 2.")],
+    notes=("It is 0/1 knapsack with booleans. The table has one entry per reachable sum up to half the total (at most 10⁴ here).", "O(n × total)", "O(total)"),
+    follow_up="How would a `u128` or a bitset (`reach |= reach << x`) speed this up?",
+    related=["D11", "D13"],
+))
+
+P.append(dict(
+    slug="target-sum", title="Target sum", level="medium", stage="knapsack", tags=["0/1 knapsack", "counting"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"],
+    teaches=["Algebra first: choosing signs is choosing the subset that gets a `+`, with a fixed required sum.",
+             "Guarding the transform (parity, range) before indexing."],
+    statement="""
+        Put a `+` or a `-` in front of every number in `nums` and add them up. Return how many sign
+        choices give exactly `target`. With no numbers the only expression is 0.
+    """,
+    examples=[("nums = [1, 1, 1, 1, 1], target = 3", "5 (the - can go on any one of the five)")],
+    constraints=["0 ≤ nums.len() ≤ 60", "0 ≤ nums[i], and sum(nums) ≤ 1000", "|target| ≤ 1000"],
+    starter="""
+        pub fn find_target_sum_ways(nums: &[u32], target: i32) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn find_target_sum_ways(nums: &[u32], target: i32) -> u64 {
+            let total: i64 = nums.iter().map(|&x| x as i64).sum();
+            // The + numbers sum to P and the - numbers to total - P, so P = (total + target) / 2.
+            let doubled = total + target as i64;
+            if doubled < 0 || doubled > 2 * total || doubled % 2 == 1 {
+                return 0;
+            }
+            let plus = (doubled / 2) as usize;
+            // ways[s] = subsets of the numbers so far that sum to s.
+            let mut ways = vec![0u64; plus + 1];
+            ways[0] = 1;
+            for &x in nums {
+                let x = x as usize;
+                for s in (x..=plus).rev() {
+                    ways[s] += ways[s - x]; // a 0 doubles every count: +0 and -0
+                }
+            }
+            ways[plus]
+        }
+    """,
+    visible=[
+        T("leetcode_five_ones", "nums = [1, 1, 1, 1, 1], target = 3", "find_target_sum_ways(&[1, 1, 1, 1, 1], 3)", "5"),
+        T("leetcode_single", "nums = [1], target = 1", "find_target_sum_ways(&[1], 1)", "1"),
+        T("empty_makes_zero", "nums = [], target = 0", "find_target_sum_ways(&[], 0)", "1"),
+        T("empty_cannot_make_one", "nums = [], target = 1", "find_target_sum_ways(&[], 1)", "0"),
+        T("zeros_take_both_signs", "nums = [0, 0], target = 0", "find_target_sum_ways(&[0, 0], 0)", "4"),
+        T("negative_target", "nums = [1], target = -1", "find_target_sum_ways(&[1], -1)", "1"),
+    ],
+    hidden=[
+        T("out_of_reach", "nums = [1, 2], target = 4", "find_target_sum_ways(&[1, 2], 4)", "0"),
+        T("out_of_reach_below", "nums = [1], target = -2", "find_target_sum_ways(&[1], -2)", "0"),
+        T("wrong_parity", "nums = [1, 1], target = 1", "find_target_sum_ways(&[1, 1], 1)", "0"),
+        T("one_zero", "nums = [1, 0], target = 1", "find_target_sum_ways(&[1, 0], 1)", "2"),
+        T("balanced", "nums = [2, 3, 5], target = 0", "find_target_sum_ways(&[2, 3, 5], 0)", "2"),
+        T("small_mixed", "nums = [1, 2, 1], target = 0", "find_target_sum_ways(&[1, 2, 1], 0)", "2"),
+        T("forty_ones", "nums = [1; 40], target = 0", "find_target_sum_ways(&[1; 40], 0)", "137_846_528_820"),
+        T("sixty_zeros", "nums = [0; 60], target = 0", "find_target_sum_ways(&[0; 60], 0)", "1 << 60"),
+        T("far_target", "nums = [1000], target = -1000", "find_target_sum_ways(&[1000], -1000)", "1"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1232);
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let nums: Vec<u32> = rng.vec(n, 0, 5);
+                let target = rng.int(-12, 12) as i32;
+                let want = (0u32..(1 << n))
+                    .filter(|mask| (0..n).map(|i| if mask >> i & 1 == 1 { nums[i] as i32 } else { -(nums[i] as i32) }).sum::<i32>() == target)
+                    .count() as u64;
+                check!(format!("nums = {nums:?}, target = {target}"), find_target_sum_ways(&nums, target), want);
+            }
+        }
+
+        #[test]
+        fn scale_sixty() {
+            // 2⁶⁰ sign choices for plain recursion.
+            let nums: Vec<u32> = (0..60u32).map(|i| i * 7919 % 16 + 1).collect();
+            check!("nums[i] = (7919·i) % 16 + 1, 60 numbers, target = 10", find_target_sum_ways(&nums, 10), 11_765_817_607_280_003);
+        }
+        """,
+    ],
+    wrong=dict(
+        plain_recursion="""
+            fn count(nums: &[u32], target: i64) -> u64 {
+                match nums {
+                    [] => (target == 0) as u64,
+                    [x, rest @ ..] => count(rest, target - *x as i64) + count(rest, target + *x as i64),
+                }
+            }
+
+            pub fn find_target_sum_ways(nums: &[u32], target: i32) -> u64 {
+                count(nums, target as i64)
+            }
+        """,
+        no_parity_check="""
+            pub fn find_target_sum_ways(nums: &[u32], target: i32) -> u64 {
+                let total: i64 = nums.iter().map(|&x| x as i64).sum();
+                let doubled = total + target as i64;
+                if doubled < 0 || doubled > 2 * total {
+                    return 0;
+                }
+                let plus = (doubled / 2) as usize;
+                let mut ways = vec![0u64; plus + 1];
+                ways[0] = 1;
+                for &x in nums {
+                    let x = x as usize;
+                    for s in (x..=plus).rev() {
+                        ways[s] += ways[s - x];
+                    }
+                }
+                ways[plus]
+            }
+        """,
+        skips_zeros="""
+            pub fn find_target_sum_ways(nums: &[u32], target: i32) -> u64 {
+                let total: i64 = nums.iter().map(|&x| x as i64).sum();
+                let doubled = total + target as i64;
+                if doubled < 0 || doubled > 2 * total || doubled % 2 == 1 {
+                    return 0;
+                }
+                let plus = (doubled / 2) as usize;
+                let mut ways = vec![0u64; plus + 1];
+                ways[0] = 1;
+                for &x in nums.iter().filter(|&&x| x > 0) {
+                    let x = x as usize;
+                    for s in (x..=plus).rev() {
+                        ways[s] += ways[s - x];
+                    }
+                }
+                ways[plus]
+            }
+        """,
+    ),
+    hints=[("approach", "If the + numbers sum to P, the - numbers sum to total - P, so P - (total - P) = target and P = (total + target) / 2. Count subsets that sum to P."),
+           ("rust", "Do the algebra in `i64`, return 0 unless 0 ≤ total + target ≤ 2·total and it is even, then run the counting knapsack over a `Vec<u64>` with the sum running downwards."),
+           ("edge case", "A 0 can take either sign, doubling the count; with the downward sweep, `ways[s] += ways[s - 0]` does exactly that.")],
+    notes=("The sign choice splits the numbers into a + group and a - group, which is a subset. The transform turns an exponential search into a counting knapsack of size (total + target) / 2.", "O(n × total)", "O(total)"),
+    follow_up="Without the algebra, how would you write the DP over running sums from -total to total, and how does its size compare?",
+    related=["D11"],
+))
+
+P.append(dict(
+    slug="last-stone-weight-ii", title="Last stone weight II", level="medium", stage="knapsack", tags=["0/1 knapsack", "subset sum"],
+    companies=["Google", "Amazon", "Microsoft"],
+    teaches=["Seeing through the story: any sequence of smashes is a split into two piles.",
+             "Finding the reachable subset sum closest to half with a backwards scan."],
+    statement="""
+        Smashing two stones of weights `x ≤ y` destroys the lighter one and leaves a stone of
+        weight `y - x` (nothing if they are equal). Smash stones in any order until at most one is
+        left. Return the smallest weight that can be left (0 if none).
+    """,
+    examples=[("stones = [2, 7, 4, 1, 8, 1]", "1"), ("stones = [31, 26, 33, 21, 40]", "5")],
+    constraints=["0 ≤ stones.len() ≤ 100", "1 ≤ stones[i] ≤ 100"],
+    starter="""
+        pub fn last_stone_weight_ii(stones: &[u32]) -> u32 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn last_stone_weight_ii(stones: &[u32]) -> u32 {
+            // Any smashing order ends as |A - B| for some split of the stones into A and B.
+            let total: u32 = stones.iter().sum();
+            let half = (total / 2) as usize;
+            let mut reach = vec![false; half + 1];
+            reach[0] = true;
+            for &x in stones {
+                let x = x as usize;
+                for s in (x..=half).rev() {
+                    reach[s] = reach[s] || reach[s - x];
+                }
+            }
+            // The lighter pile should be as close to half as possible.
+            let best = (0..=half).rev().find(|&s| reach[s]).unwrap_or(0) as u32;
+            total - 2 * best
+        }
+    """,
+    visible=[
+        T("leetcode_six", "stones = [2, 7, 4, 1, 8, 1]", "last_stone_weight_ii(&[2, 7, 4, 1, 8, 1])", "1"),
+        T("leetcode_heaviest_first_fails", "stones = [31, 26, 33, 21, 40]", "last_stone_weight_ii(&[31, 26, 33, 21, 40])", "5"),
+        T("no_stones", "stones = []", "last_stone_weight_ii(&[])", "0"),
+        T("one_stone", "stones = [1]", "last_stone_weight_ii(&[1])", "1"),
+        T("equal_pair", "stones = [5, 5]", "last_stone_weight_ii(&[5, 5])", "0"),
+    ],
+    hidden=[
+        T("no_stones", "stones = []", "last_stone_weight_ii(&[])", "0"),
+        T("one_heavy", "stones = [100]", "last_stone_weight_ii(&[100])", "100"),
+        T("pair", "stones = [1, 2]", "last_stone_weight_ii(&[1, 2])", "1"),
+        T("three_equal", "stones = [3, 3, 3]", "last_stone_weight_ii(&[3, 3, 3])", "3"),
+        T("splits_evenly", "stones = [1, 1, 4, 2, 2]", "last_stone_weight_ii(&[1, 1, 4, 2, 2])", "0"),
+        T("hundred_max", "stones = [100; 100]", "last_stone_weight_ii(&[100; 100])", "0"),
+        T("odd_count_max", "stones = [100; 99]", "last_stone_weight_ii(&[100; 99])", "100"),
+        T("one_big_rest_small", "stones = [100, 1, 1, 1]", "last_stone_weight_ii(&[100, 1, 1, 1])", "97"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1233);
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let stones: Vec<u32> = rng.vec(n, 1, 30);
+                let total: i64 = stones.iter().map(|&x| x as i64).sum();
+                let want = (0u32..(1 << n))
+                    .map(|mask| {
+                        let a: i64 = (0..n).filter(|&i| mask >> i & 1 == 1).map(|i| stones[i] as i64).sum();
+                        (total - 2 * a).unsigned_abs() as u32
+                    })
+                    .min()
+                    .unwrap();
+                check!(format!("stones = {stones:?}"), last_stone_weight_ii(&stones), want);
+            }
+        }
+
+        #[test]
+        fn scale_hundred() {
+            let mut stones: Vec<u32> = (0..99u32).map(|i| i * 7919 % 50 * 2 + 2).collect();
+            stones.push(1);
+            check!("stones = 99 even weights ((7919·i) % 50 · 2 + 2) and a 1", last_stone_weight_ii(&stones), 1);
+        }
+        """,
+    ],
+    wrong=dict(
+        heaviest_two_first="""
+            use std::collections::BinaryHeap;
+
+            pub fn last_stone_weight_ii(stones: &[u32]) -> u32 {
+                let mut heap: BinaryHeap<u32> = stones.iter().copied().collect();
+                while heap.len() > 1 {
+                    let y = heap.pop().unwrap();
+                    let x = heap.pop().unwrap();
+                    if y > x {
+                        heap.push(y - x);
+                    }
+                }
+                heap.pop().unwrap_or(0)
+            }
+        """,
+        plain_recursion="""
+            fn best(stones: &[u32], diff: i64) -> u32 {
+                match stones {
+                    [] => diff.unsigned_abs() as u32,
+                    [x, rest @ ..] => best(rest, diff + *x as i64).min(best(rest, diff - *x as i64)),
+                }
+            }
+
+            pub fn last_stone_weight_ii(stones: &[u32]) -> u32 {
+                best(stones, 0)
+            }
+        """,
+        parity_only="""
+            pub fn last_stone_weight_ii(stones: &[u32]) -> u32 {
+                stones.iter().sum::<u32>() % 2
+            }
+        """,
+    ),
+    hints=[("approach", "Every smash subtracts one stone from another, so whatever is left is (sum of one group) - (sum of the other). Make the two groups as even as possible."),
+           ("rust", "Build a `Vec<bool>` of reachable sums up to total / 2 (0/1 knapsack, sweeping down), then `(0..=half).rev().find(|&s| reach[s])`."),
+           ("edge case", "Always smashing the two heaviest stones (Last stone weight I) is not optimal here: [31, 26, 33, 21, 40] leaves 9 that way, but 5 is possible.")],
+    notes=("Signs again: each stone ends up added or subtracted, and any split can be realised by some smash order. The best split puts the lighter group as close to total / 2 as possible.", "O(n × total)", "O(total)"),
+    follow_up="Prove that every split into two groups can be realised by some order of smashes.",
+    related=["D7"],
+))
+
+P.append(dict(
+    slug="ones-and-zeroes", title="Ones and zeroes", level="medium", stage="knapsack", tags=["0/1 knapsack", "2-D capacity"],
+    companies=["Google", "Amazon", "Microsoft"],
+    teaches=["A knapsack with two capacities: the table is indexed by zeros used and ones used.",
+             "Counting bytes with `bytes().filter(..).count()`."],
+    statement="""
+        Each string in `strs` is made of `'0'` and `'1'`. Return the largest number of strings you
+        can pick (each at most once) so that together they contain at most `m` zeros and at most
+        `n` ones.
+    """,
+    examples=[("strs = [\"10\", \"0001\", \"111001\", \"1\", \"0\"], m = 5, n = 3", "4 (\"10\", \"0001\", \"1\", \"0\")")],
+    constraints=["0 ≤ strs.len() ≤ 600", "1 ≤ strs[i].len() ≤ 100", "0 ≤ m, n ≤ 100"],
+    starter="""
+        pub fn find_max_form(strs: &[&str], m: usize, n: usize) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn find_max_form(strs: &[&str], m: usize, n: usize) -> usize {
+            // best[z][o] = the most strings using at most z zeros and o ones.
+            let mut best = vec![vec![0usize; n + 1]; m + 1];
+            for s in strs {
+                let zeros = s.bytes().filter(|&b| b == b'0').count();
+                let ones = s.len() - zeros;
+                // Both capacities downwards: each string is picked at most once.
+                for z in (zeros..=m).rev() {
+                    for o in (ones..=n).rev() {
+                        best[z][o] = best[z][o].max(best[z - zeros][o - ones] + 1);
+                    }
+                }
+            }
+            best[m][n]
+        }
+    """,
+    visible=[
+        T("leetcode_five", "strs = [\"10\", \"0001\", \"111001\", \"1\", \"0\"], m = 5, n = 3", "find_max_form(&[\"10\", \"0001\", \"111001\", \"1\", \"0\"], 5, 3)", "4"),
+        T("leetcode_three", "strs = [\"10\", \"0\", \"1\"], m = 1, n = 1", "find_max_form(&[\"10\", \"0\", \"1\"], 1, 1)", "2"),
+        T("no_strings", "strs = [], m = 5, n = 5", "find_max_form(&[], 5, 5)", "0"),
+        T("no_budget", "strs = [\"0\"], m = 0, n = 0", "find_max_form(&[\"0\"], 0, 0)", "0"),
+        T("each_string_once", "strs = [\"0\"], m = 5, n = 5", "find_max_form(&[\"0\"], 5, 5)", "1"),
+    ],
+    hidden=[
+        T("not_enough_zeros", "strs = [\"00\"], m = 1, n = 5", "find_max_form(&[\"00\"], 1, 5)", "0"),
+        T("all_fit", "strs = [\"0\", \"0\", \"1\", \"1\"], m = 2, n = 2", "find_max_form(&[\"0\", \"0\", \"1\", \"1\"], 2, 2)", "4"),
+        T("ones_budget_zero", "strs = [\"11\", \"0\", \"0\"], m = 2, n = 0", "find_max_form(&[\"11\", \"0\", \"0\"], 2, 0)", "2"),
+        T("shortest_first_fails", "strs = [\"111\", \"001\", \"110\", \"0001\"], m = 4, n = 3", "find_max_form(&[\"111\", \"001\", \"110\", \"0001\"], 4, 3)", "2"),
+        T("shortest_first_fails_again", "strs = [\"001\", \"110\", \"0000\", \"0000\"], m = 9, n = 2", "find_max_form(&[\"001\", \"110\", \"0000\", \"0000\"], 9, 2)", "3"),
+        T("duplicates", "strs = [\"01\"; 10], m = 4, n = 100", "find_max_form(&[\"01\"; 10], 4, 100)", "4"),
+        T("big_budget", "strs = [\"01\"; 600], m = 100, n = 100", "find_max_form(&[\"01\"; 600], 100, 100)", "100"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1234);
+            for _ in 0..300 {
+                let k = rng.below(10);
+                let mut strs: Vec<String> = Vec::new();
+                for _ in 0..k {
+                    let len = rng.int(1, 4) as usize;
+                    strs.push(rng.string(len, "01"));
+                }
+                let refs: Vec<&str> = strs.iter().map(|s| s.as_str()).collect();
+                let (m, n) = (rng.int(0, 6) as usize, rng.int(0, 6) as usize);
+                let mut want = 0;
+                for mask in 0u32..(1 << k) {
+                    let picked: Vec<&String> = (0..k).filter(|&i| mask >> i & 1 == 1).map(|i| &strs[i]).collect();
+                    let zeros: usize = picked.iter().map(|s| s.bytes().filter(|&b| b == b'0').count()).sum();
+                    let total: usize = picked.iter().map(|s| s.len()).sum();
+                    if zeros <= m && total - zeros <= n {
+                        want = want.max(picked.len());
+                    }
+                }
+                check!(format!("strs = {strs:?}, m = {m}, n = {n}"), find_max_form(&refs, m, n), want);
+            }
+        }
+
+        #[test]
+        fn scale_600() {
+            let strs: Vec<String> = (0..600usize)
+                .map(|i| (0..(i * 13) % 9 + 1).map(|k| if (i * 7 + k * 3) % 5 < 2 { '0' } else { '1' }).collect())
+                .collect();
+            let refs: Vec<&str> = strs.iter().map(|s| s.as_str()).collect();
+            check!("600 strings of length 1–9, m = 100, n = 100", find_max_form(&refs, 100, 100), 127);
+        }
+        """,
+    ],
+    wrong=dict(
+        capacities_upwards="""
+            pub fn find_max_form(strs: &[&str], m: usize, n: usize) -> usize {
+                let mut best = vec![vec![0usize; n + 1]; m + 1];
+                for s in strs {
+                    let zeros = s.bytes().filter(|&b| b == b'0').count();
+                    let ones = s.len() - zeros;
+                    for z in zeros..=m {
+                        for o in ones..=n {
+                            best[z][o] = best[z][o].max(best[z - zeros][o - ones] + 1);
+                        }
+                    }
+                }
+                best[m][n]
+            }
+        """,
+        shortest_first="""
+            pub fn find_max_form(strs: &[&str], m: usize, n: usize) -> usize {
+                let mut sorted = strs.to_vec();
+                sorted.sort_by_key(|s| s.len());
+                let (mut zeros_left, mut ones_left, mut count) = (m, n, 0);
+                for s in sorted {
+                    let zeros = s.bytes().filter(|&b| b == b'0').count();
+                    let ones = s.len() - zeros;
+                    if zeros <= zeros_left && ones <= ones_left {
+                        zeros_left -= zeros;
+                        ones_left -= ones;
+                        count += 1;
+                    }
+                }
+                count
+            }
+        """,
+        plain_recursion="""
+            fn best(strs: &[&str], m: usize, n: usize) -> usize {
+                match strs {
+                    [] => 0,
+                    [s, rest @ ..] => {
+                        let zeros = s.bytes().filter(|&b| b == b'0').count();
+                        let ones = s.len() - zeros;
+                        let skip = best(rest, m, n);
+                        if zeros <= m && ones <= n { skip.max(1 + best(rest, m - zeros, n - ones)) } else { skip }
+                    }
+                }
+            }
+
+            pub fn find_max_form(strs: &[&str], m: usize, n: usize) -> usize {
+                best(strs, m, n)
+            }
+        """,
+    ),
+    hints=[("approach", "It is 0/1 knapsack where every item has two weights (its zeros and its ones) and value 1. The table is indexed by both budgets."),
+           ("rust", "`vec![vec![0usize; n + 1]; m + 1]`; for each string count zeros with `s.bytes().filter(|&b| b == b'0').count()`, then sweep both indices downwards."),
+           ("edge case", "Picking the shortest strings first is not optimal: it can spend the scarce digit on a string that blocks two others.")],
+    notes=("Adding a second capacity adds a second index; the downward sweep in both keeps each string to one use.", "O(k × m × n) for k strings", "O(m × n)"),
+    follow_up="How would the table change if you could pick each string any number of times?",
+    related=["D2"],
+))
+
 STAGES = [
     ("1d-basics", "1-D basics", "easy"),
     ("1d-choices", "1-D choices", "medium"),

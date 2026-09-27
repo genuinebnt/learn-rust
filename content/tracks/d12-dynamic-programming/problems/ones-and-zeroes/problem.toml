@@ -1,0 +1,37 @@
+slug = "ones-and-zeroes"
+title = "Ones and zeroes"
+mode = "write"
+level = "medium"
+stage = "knapsack"
+order = 34
+status = "ready"
+tags = ["0/1 knapsack", "2-D capacity"]
+companies = ["Google", "Amazon", "Microsoft"]
+teaches = [
+  "A knapsack with two capacities: the table is indexed by zeros used and ones used.",
+  "Counting bytes with `bytes().filter(..).count()`.",
+]
+constraints = ["0 ≤ strs.len() ≤ 600", "1 ≤ strs[i].len() ≤ 100", "0 ≤ m, n ≤ 100"]
+follow_up = "How would the table change if you could pick each string any number of times?"
+related = ["D2"]
+
+[[examples]]
+input = "strs = [\"10\", \"0001\", \"111001\", \"1\", \"0\"], m = 5, n = 3"
+output = "4 (\"10\", \"0001\", \"1\", \"0\")"
+
+[[hints]]
+kind = "approach"
+text = "It is 0/1 knapsack where every item has two weights (its zeros and its ones) and value 1. The table is indexed by both budgets."
+
+[[hints]]
+kind = "rust"
+text = "`vec![vec![0usize; n + 1]; m + 1]`; for each string count zeros with `s.bytes().filter(|&b| b == b'0').count()`, then sweep both indices downwards."
+
+[[hints]]
+kind = "edge case"
+text = "Picking the shortest strings first is not optimal: it can spend the scarce digit on a string that blocks two others."
+
+[solution]
+explanation = "Adding a second capacity adds a second index; the downward sweep in both keeps each string to one use."
+time = "O(k × m × n) for k strings"
+space = "O(m × n)"

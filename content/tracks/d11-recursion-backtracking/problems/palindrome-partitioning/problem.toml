@@ -1,0 +1,41 @@
+slug = "palindrome-partitioning"
+title = "Palindrome partitioning"
+mode = "write"
+level = "medium"
+stage = "choices-grids"
+order = 19
+status = "ready"
+tags = ["backtracking", "lifetimes", "DP table"]
+companies = ["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"]
+teaches = [
+  "Cut the string at every place where the next piece is a palindrome, and recurse on the rest.",
+  "Return `&str` pieces that borrow from `s`: the inner `fn` needs an explicit lifetime `'a`.",
+]
+constraints = ["0 ≤ s.len() ≤ 16", "s holds lowercase ASCII letters"]
+follow_up = "Find the minimum number of cuts instead of listing every split. Which DP does that need (D12)?"
+related = ["D12", "L3"]
+
+[[examples]]
+input = "s = \"aab\""
+output = "[[\"a\", \"a\", \"b\"], [\"aa\", \"b\"]]"
+
+[[examples]]
+input = "s = \"a\""
+output = "[[\"a\"]]"
+
+[[hints]]
+kind = "approach"
+text = "From position `start`, try every end where `s[start..end]` is a palindrome, push that piece, recurse from `end`, pop. Reaching the end of `s` completes a split."
+
+[[hints]]
+kind = "rust"
+text = "`fn go<'a>(s: &'a str, start: usize, path: &mut Vec<&'a str>, out: &mut Vec<Vec<&'a str>>)`: the lifetime says the pieces borrow from `s`, so no piece is copied."
+
+[[hints]]
+kind = "edge case"
+text = "Precompute `pal[i][j]` bottom-up (s[i] == s[j] and the inside is a palindrome) so each check is O(1). The empty string has one split: `[[]]`."
+
+[solution]
+explanation = "A string of n letters has 2ⁿ⁻¹ ways to cut it, and in the worst case (all letters equal) every one is an answer, so the output is exponential. The palindrome table makes each piece's check O(1); returning `&str` slices avoids copying pieces."
+time = "O(n · 2ⁿ)"
+space = "O(n²) for the table, O(n) recursion"

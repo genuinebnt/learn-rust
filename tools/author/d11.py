@@ -2141,6 +2141,1161 @@ P.append(dict(
     related=["D12"],
 ))
 
+P.append(dict(
+    slug="generate-parentheses", title="Generate parentheses", level="medium", stage="choices-grids", tags=["backtracking", "String", "pruning"],
+    companies=["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber", "Bloomberg"],
+    teaches=["Prune by an invariant while building: a `)` is only allowed while it has an open `(` to close.",
+             "One `String` buffer: `push`, recurse, `pop`, and clone only at a leaf."],
+    statement="""
+        Return every string of `n` pairs of parentheses that is well formed: read left to right, no prefix closes more
+        pairs than it opened, and the whole string closes all of them.
+
+        The strings can come in any order. `n = 0` has one answer, the empty string.
+    """,
+    examples=[("n = 3", "[\"((()))\", \"(()())\", \"(())()\", \"()(())\", \"()()()\"]"), ("n = 1", "[\"()\"]")],
+    constraints=["0 ≤ n ≤ 13"],
+    starter="""
+        pub fn generate_parenthesis(n: usize) -> Vec<String> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn generate_parenthesis(n: usize) -> Vec<String> {
+            fn go(n: usize, open: usize, close: usize, path: &mut String, out: &mut Vec<String>) {
+                if path.len() == 2 * n {
+                    out.push(path.clone());
+                    return;
+                }
+                if open < n {
+                    path.push('(');
+                    go(n, open + 1, close, path, out);
+                    path.pop();
+                }
+                // A `)` needs an unmatched `(` before it.
+                if close < open {
+                    path.push(')');
+                    go(n, open, close + 1, path, out);
+                    path.pop();
+                }
+            }
+            let mut out = Vec::new();
+            go(n, 0, 0, &mut String::with_capacity(2 * n), &mut out);
+            out
+        }
+    """,
+    visible=[
+        SORTED,
+        T("leetcode_three", "n = 3", "sorted(generate_parenthesis(3))", 'vec!["((()))", "(()())", "(())()", "()(())", "()()()"]'),
+        T("leetcode_one", "n = 1", "generate_parenthesis(1)", 'vec!["()"]'),
+        T("zero_pairs", "n = 0 (one answer: the empty string)", "generate_parenthesis(0)", "vec![String::new()]"),
+        T("two", "n = 2", "sorted(generate_parenthesis(2))", 'vec!["(())", "()()"]'),
+        T("five_has_42", "n = 5", "generate_parenthesis(5).len()", "42"),
+    ],
+    hidden=[
+        SORTED,
+        """
+        fn balanced(s: &str) -> bool {
+            let mut depth = 0i32;
+            for ch in s.chars() {
+                depth += if ch == '(' { 1 } else if ch == ')' { -1 } else { return false };
+                if depth < 0 {
+                    return false;
+                }
+            }
+            depth == 0
+        }
+        """,
+        T("four", "n = 4", "sorted(generate_parenthesis(4))",
+          'vec!["(((())))", "((()()))", "((())())", "((()))()", "(()(()))", "(()()())", "(()())()", "(())(())", "(())()()", "()((()))", "()(()())", "()(())()", "()()(())", "()()()()"]'),
+        T("six", "n = 6", "generate_parenthesis(6).len()", "132"),
+        T("seven_no_duplicates", "n = 7, duplicates removed", "{ let mut v = sorted(generate_parenthesis(7)); v.dedup(); v.len() }", "429"),
+        T("eight", "n = 8", "generate_parenthesis(8).len()", "1430"),
+        T("nine_all_balanced", "n = 9, every string well formed", "generate_parenthesis(9).iter().all(|s| balanced(s))", "true"),
+        T("ten_all_length_twenty", "n = 10, every string has 20 characters", "generate_parenthesis(10).iter().all(|s| s.len() == 20)", "true"),
+        T("eleven_first_and_last", "n = 11, smallest and largest", "{ let v = sorted(generate_parenthesis(11)); (v.len(), v[0].clone(), v[v.len() - 1].clone()) }",
+          '(58786, "((((((((((()))))))))))".to_string(), "()()()()()()()()()()()".to_string())'),
+        T("zero_again", "n = 0", "generate_parenthesis(0).len()", "1"),
+        """
+        #[test]
+        fn random_strings_vs_balance_check() {
+            let answers: Vec<std::collections::HashSet<String>> = (0..=8).map(|n| generate_parenthesis(n).into_iter().collect()).collect();
+            for n in 0..=8usize {
+                // Every string of n pairs, filtered by a direct balance check.
+                let brute = (0u32..1 << (2 * n)).filter(|m| {
+                    let s: String = (0..2 * n).map(|i| if m >> i & 1 == 1 { '(' } else { ')' }).collect();
+                    balanced(&s)
+                }).count();
+                check!(format!("n = {n}: count vs brute force"), answers[n].len(), brute);
+            }
+            let mut rng = anneal_prelude::Rng::new(1127);
+            for _ in 0..400 {
+                let n = rng.int(0, 8) as usize;
+                let len = 2 * n;
+                let s = rng.string(len, "()");
+                check!(format!("n = {n}: is {s:?} an answer?"), answers[n].contains(&s), balanced(&s));
+            }
+        }
+
+        #[test]
+        fn scale_thirteen_pairs() {
+            let v = sorted(generate_parenthesis(13));
+            let distinct = v.windows(2).all(|w| w[0] < w[1]);
+            let valid = v.iter().all(|s| s.len() == 26 && balanced(s));
+            check!("n = 13", (v.len(), distinct, valid, v[371_450].clone()), (742_900, true, true, "(()((()))((())))(())()()()".to_string()));
+        }
+        """,
+    ],
+    wrong=dict(
+        every_string_then_filter="""
+            pub fn generate_parenthesis(n: usize) -> Vec<String> {
+                let mut out = Vec::new();
+                for mask in 0u64..1 << (2 * n) {
+                    let s: String = (0..2 * n).map(|i| if mask >> i & 1 == 1 { '(' } else { ')' }).collect();
+                    let mut depth = 0i32;
+                    let mut ok = true;
+                    for ch in s.chars() {
+                        depth += if ch == '(' { 1 } else { -1 };
+                        if depth < 0 {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    if ok && depth == 0 {
+                        out.push(s);
+                    }
+                }
+                out
+            }
+        """,
+        close_limited_by_n="""
+            pub fn generate_parenthesis(n: usize) -> Vec<String> {
+                fn go(n: usize, open: usize, close: usize, path: &mut String, out: &mut Vec<String>) {
+                    if path.len() == 2 * n {
+                        out.push(path.clone());
+                        return;
+                    }
+                    if open < n {
+                        path.push('(');
+                        go(n, open + 1, close, path, out);
+                        path.pop();
+                    }
+                    if close < n {
+                        path.push(')');
+                        go(n, open, close + 1, path, out);
+                        path.pop();
+                    }
+                }
+                let mut out = Vec::new();
+                go(n, 0, 0, &mut String::new(), &mut out);
+                out
+            }
+        """,
+        nothing_for_zero="""
+            pub fn generate_parenthesis(n: usize) -> Vec<String> {
+                fn go(n: usize, open: usize, close: usize, path: &mut String, out: &mut Vec<String>) {
+                    if path.len() == 2 * n {
+                        out.push(path.clone());
+                        return;
+                    }
+                    if open < n {
+                        path.push('(');
+                        go(n, open + 1, close, path, out);
+                        path.pop();
+                    }
+                    if close < open {
+                        path.push(')');
+                        go(n, open, close + 1, path, out);
+                        path.pop();
+                    }
+                }
+                if n == 0 {
+                    return Vec::new();
+                }
+                let mut out = Vec::new();
+                go(n, 0, 0, &mut String::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Build the string left to right, counting `open` and `close`. You may add `(` while `open < n`, and `)` while `close < open`; every leaf is then an answer."),
+           ("rust", "Keep one `String` and pass `&mut String` down: `push`, recurse, `pop`. Clone it only when it reaches length `2 * n`."),
+           ("edge case", "Generating all 2²ⁿ strings and filtering is far too slow at n = 13, which has 742 900 answers out of 67 million strings.")],
+    notes=("The two rules keep every prefix valid, so the search never enters a dead end: each leaf is an answer, and the work is "
+           "the answer count (the n-th Catalan number, about 4ⁿ / n^1.5) times the length.", "O(4ⁿ / √n)", "O(n) besides the output"),
+    follow_up="How would you return only the k-th answer in sorted order without generating the others?",
+    related=["D3", "D12"],
+))
+
+P.append(dict(
+    slug="different-ways-to-add-parentheses", title="Different ways to add parentheses", level="medium", stage="choices-grids",
+    tags=["divide and conquer", "recursion", "parsing"],
+    companies=["Amazon", "Google", "Microsoft", "Bloomberg"],
+    teaches=["Divide and conquer: pick the operator applied last, solve both sides, combine every pair.",
+             "Parse once into numbers and operators, then recurse on subslices of both."],
+    statement="""
+        `expression` holds non-negative integers joined by `+`, `-` and `*`, with no spaces or parentheses. Return the
+        value of every way to fully parenthesise it (every order in which the operators can be applied).
+
+        Two groupings that happen to give the same value both count, so the answer can hold duplicates. The values can
+        come in any order.
+    """,
+    examples=[("expression = \"2-1-1\"", "[0, 2]"), ("expression = \"2*3-4*5\"", "[-34, -14, -10, -10, 10]")],
+    constraints=["1 ≤ expression.len() ≤ 40", "numbers are 0 to 99, operators are `+`, `-`, `*`", "at most 11 operators",
+                 "every intermediate value fits in an i64"],
+    starter="""
+        pub fn diff_ways_to_compute(expression: &str) -> Vec<i64> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn diff_ways_to_compute(expression: &str) -> Vec<i64> {
+            // The expression is nums[0] ops[0] nums[1] ... ops[k-1] nums[k].
+            fn ways(nums: &[i64], ops: &[u8]) -> Vec<i64> {
+                if ops.is_empty() {
+                    return vec![nums[0]];
+                }
+                let mut out = Vec::new();
+                for i in 0..ops.len() {
+                    // ops[i] is applied last: everything to its left, then everything to its right.
+                    let left = ways(&nums[..=i], &ops[..i]);
+                    let right = ways(&nums[i + 1..], &ops[i + 1..]);
+                    for &a in &left {
+                        for &b in &right {
+                            out.push(match ops[i] {
+                                b'+' => a + b,
+                                b'-' => a - b,
+                                _ => a * b,
+                            });
+                        }
+                    }
+                }
+                out
+            }
+            let (mut nums, mut ops, mut cur) = (Vec::new(), Vec::new(), 0i64);
+            for b in expression.bytes() {
+                if b.is_ascii_digit() {
+                    cur = cur * 10 + i64::from(b - b'0');
+                } else {
+                    nums.push(cur);
+                    ops.push(b);
+                    cur = 0;
+                }
+            }
+            nums.push(cur);
+            ways(&nums, &ops)
+        }
+    """,
+    visible=[
+        SORTED,
+        T("leetcode_two_minus_one_minus_one", "expression = \"2-1-1\"", 'sorted(diff_ways_to_compute("2-1-1"))', "vec![0, 2]"),
+        T("leetcode_mixed", "expression = \"2*3-4*5\"", 'sorted(diff_ways_to_compute("2*3-4*5"))', "vec![-34, -14, -10, -10, 10]"),
+        T("single_number", "expression = \"7\"", 'diff_ways_to_compute("7")', "vec![7]"),
+        T("duplicates_are_kept", "expression = \"1+1+1\" (two groupings, same value)", 'diff_ways_to_compute("1+1+1")', "vec![3, 3]"),
+        T("two_digit_numbers", "expression = \"10-5*2\"", 'sorted(diff_ways_to_compute("10-5*2"))', "vec![0, 10]"),
+    ],
+    hidden=[
+        SORTED,
+        T("zero", "expression = \"0\"", 'diff_ways_to_compute("0")', "vec![0]"),
+        T("ninety_nine", "expression = \"99\"", 'diff_ways_to_compute("99")', "vec![99]"),
+        T("three_minuses", "expression = \"1-2-3-4\"", 'sorted(diff_ways_to_compute("1-2-3-4"))', "vec![-8, -2, -2, 0, 6]"),
+        T("zero_times", "expression = \"0*5-3\"", 'sorted(diff_ways_to_compute("0*5-3"))', "vec![-3, 0]"),
+        T("negative_results", "expression = \"1-99*99\"", 'sorted(diff_ways_to_compute("1-99*99"))', "vec![-9800, -9702]"),
+        T("past_i32", "expression = \"99*99*99*99*99\" (99⁵ > i32::MAX)", 'diff_ways_to_compute("99*99*99*99*99")', "vec![9_509_900_499; 14]"),
+        T("all_three_operators", "expression = \"2*3*4-5*6+7\"", 'sorted(diff_ways_to_compute("2*3*4-5*6+7"))',
+          "vec![-366, -366, -198, -198, -149, -149, -142, -114, -114, -106, -78, -78, -78, -78, -78, -50, -41, -41, -29, -29, -29, -29, -29, -29, -22, -22, -22, -13, -13, 1, 1, 6, 6, 91, 91, 98, 121, 121, 182, 182, 247, 247]"),
+        T("one_operator", "expression = \"12*34\"", 'diff_ways_to_compute("12*34")', "vec![408]"),
+        """
+        /// Every value of tokens i..=j, built bottom-up over interval lengths.
+        fn brute(nums: &[i64], ops: &[char]) -> Vec<i64> {
+            let n = nums.len();
+            let mut table = vec![vec![Vec::<i64>::new(); n]; n];
+            for i in 0..n {
+                table[i][i] = vec![nums[i]];
+            }
+            for len in 2..=n {
+                for i in 0..=n - len {
+                    let j = i + len - 1;
+                    let mut vals = Vec::new();
+                    for k in i..j {
+                        for &a in &table[i][k] {
+                            for &b in &table[k + 1][j] {
+                                vals.push(match ops[k] { '+' => a + b, '-' => a - b, _ => a * b });
+                            }
+                        }
+                    }
+                    table[i][j] = vals;
+                }
+            }
+            let mut all = table[0][n - 1].clone();
+            all.sort();
+            all
+        }
+
+        #[test]
+        fn random_vs_interval_table() {
+            let mut rng = anneal_prelude::Rng::new(1128);
+            for _ in 0..300 {
+                let k = rng.below(6);
+                let nums: Vec<i64> = rng.vec(k + 1, 0, 99);
+                let ops: Vec<char> = (0..k).map(|_| *rng.pick(&['+', '-', '*'])).collect();
+                let mut expr = nums[0].to_string();
+                for i in 0..k {
+                    expr.push(ops[i]);
+                    expr += &nums[i + 1].to_string();
+                }
+                check!(format!("expression = {expr:?}"), sorted(diff_ways_to_compute(&expr)), brute(&nums, &ops));
+            }
+        }
+
+        #[test]
+        fn scale_eleven_operators() {
+            let got = diff_ways_to_compute("1+2*3-4*5+6*7-8*9+1*2-3");
+            let (min, max) = (*got.iter().min().unwrap(), *got.iter().max().unwrap());
+            check!("expression = \\"1+2*3-4*5+6*7-8*9+1*2-3\\"", (got.len(), min, max, got.iter().sum::<i64>()), (58_786, -18_789, 20_601, -5_911_158));
+        }
+        """,
+    ],
+    wrong=dict(
+        single_digit_numbers="""
+            pub fn diff_ways_to_compute(expression: &str) -> Vec<i64> {
+                let b = expression.as_bytes();
+                if b.len() == 1 {
+                    return vec![i64::from(b[0] - b'0')];
+                }
+                let mut out = Vec::new();
+                for i in 0..b.len() {
+                    if b[i].is_ascii_digit() {
+                        continue;
+                    }
+                    for a in diff_ways_to_compute(&expression[..i]) {
+                        for c in diff_ways_to_compute(&expression[i + 1..]) {
+                            out.push(match b[i] { b'+' => a + c, b'-' => a - c, _ => a * c });
+                        }
+                    }
+                }
+                out
+            }
+        """,
+        values_deduplicated="""
+            pub fn diff_ways_to_compute(expression: &str) -> Vec<i64> {
+                fn ways(nums: &[i64], ops: &[u8]) -> std::collections::BTreeSet<i64> {
+                    if ops.is_empty() {
+                        return [nums[0]].into();
+                    }
+                    let mut out = std::collections::BTreeSet::new();
+                    for i in 0..ops.len() {
+                        for &a in &ways(&nums[..=i], &ops[..i]) {
+                            for &b in &ways(&nums[i + 1..], &ops[i + 1..]) {
+                                out.insert(match ops[i] { b'+' => a + b, b'-' => a - b, _ => a * b });
+                            }
+                        }
+                    }
+                    out
+                }
+                let (mut nums, mut ops, mut cur) = (Vec::new(), Vec::new(), 0i64);
+                for b in expression.bytes() {
+                    if b.is_ascii_digit() {
+                        cur = cur * 10 + i64::from(b - b'0');
+                    } else {
+                        nums.push(cur);
+                        ops.push(b);
+                        cur = 0;
+                    }
+                }
+                nums.push(cur);
+                ways(&nums, &ops).into_iter().collect()
+            }
+        """,
+        i32_values="""
+            pub fn diff_ways_to_compute(expression: &str) -> Vec<i64> {
+                fn ways(nums: &[i32], ops: &[u8]) -> Vec<i32> {
+                    if ops.is_empty() {
+                        return vec![nums[0]];
+                    }
+                    let mut out = Vec::new();
+                    for i in 0..ops.len() {
+                        for &a in &ways(&nums[..=i], &ops[..i]) {
+                            for &b in &ways(&nums[i + 1..], &ops[i + 1..]) {
+                                out.push(match ops[i] { b'+' => a + b, b'-' => a - b, _ => a * b });
+                            }
+                        }
+                    }
+                    out
+                }
+                let (mut nums, mut ops, mut cur) = (Vec::new(), Vec::new(), 0i32);
+                for b in expression.bytes() {
+                    if b.is_ascii_digit() {
+                        cur = cur * 10 + i32::from(b - b'0');
+                    } else {
+                        nums.push(cur);
+                        ops.push(b);
+                        cur = 0;
+                    }
+                }
+                nums.push(cur);
+                ways(&nums, &ops).into_iter().map(i64::from).collect()
+            }
+        """,
+    ),
+    hints=[("approach", "Choose which operator is applied last. Its left side and right side are smaller expressions of the same kind: get all their values recursively and combine every pair."),
+           ("rust", "Parse once into `nums: Vec<i64>` and `ops: Vec<u8>`; operator `i` splits them into `(&nums[..=i], &ops[..i])` and `(&nums[i + 1..], &ops[i + 1..])`."),
+           ("edge case", "Numbers can have two digits, and products like 99⁵ overflow an `i32`. Keep duplicate values: each grouping counts.")],
+    notes=("Every full parenthesisation is a binary tree whose root is the operator applied last, so recursing on each root choice "
+           "enumerates them all exactly once. With k operators there are Catalan(k) groupings. Memoising on the (start, end) of the "
+           "subslice saves recomputing the same sub-expressions, though the answer itself is still Catalan-sized.",
+           "O(Catalan(k) · k) roughly, the size of the answer", "O(Catalan(k))"),
+    follow_up="Memoise on the subslice bounds. How much work does that save when the answer itself is Catalan(k) long?",
+    related=["D12", "D3"],
+))
+
+P.append(dict(
+    slug="word-search", title="Word search", level="medium", stage="choices-grids", tags=["backtracking", "grid", "pruning", "Blind 75"],
+    companies=["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber", "Bloomberg"],
+    teaches=["Grid backtracking: mark the cell as used, try the four neighbours, restore it on the way back.",
+             "Prune before searching: if the board can't supply the word's letters, don't start."],
+    statement="""
+        `board` is a grid of ASCII letters, one `&str` per row. Return `true` if `word` can be traced on the board: start
+        on any cell, and step up, down, left or right from each letter to the next. A cell can be used at most once in a
+        word. Letters are case-sensitive.
+
+        The tests include adversarial boards, such as a board full of `A` and a word of many `A`s ending in a letter the
+        board doesn't have: plain backtracking takes far too long on those.
+    """,
+    examples=[("board = [\"ABCE\", \"SFCS\", \"ADEE\"], word = \"ABCCED\"", "true"), ("board = [\"ABCE\", \"SFCS\", \"ADEE\"], word = \"ABCB\"", "false")],
+    constraints=["1 ≤ rows, cols ≤ 6, every row the same length", "1 ≤ word.len() ≤ 40", "board and word hold ASCII letters"],
+    starter="""
+        pub fn exist(board: &[&str], word: &str) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn exist(board: &[&str], word: &str) -> bool {
+            fn found(grid: &mut [Vec<u8>], word: &[u8], r: usize, c: usize) -> bool {
+                if grid[r][c] != word[0] {
+                    return false;
+                }
+                if word.len() == 1 {
+                    return true;
+                }
+                let letter = grid[r][c];
+                grid[r][c] = 0; // on the current path: matches no letter
+                let (h, w, rest) = (grid.len(), grid[0].len(), &word[1..]);
+                let hit = (r > 0 && found(grid, rest, r - 1, c))
+                    || (r + 1 < h && found(grid, rest, r + 1, c))
+                    || (c > 0 && found(grid, rest, r, c - 1))
+                    || (c + 1 < w && found(grid, rest, r, c + 1));
+                grid[r][c] = letter;
+                hit
+            }
+            let mut grid: Vec<Vec<u8>> = board.iter().map(|row| row.as_bytes().to_vec()).collect();
+            let mut word = word.as_bytes().to_vec();
+            // The board must hold every letter at least as often as the word uses it.
+            let mut have = [0usize; 256];
+            for &b in grid.iter().flatten() {
+                have[b as usize] += 1;
+            }
+            let mut need = [0usize; 256];
+            for &b in &word {
+                need[b as usize] += 1;
+                if need[b as usize] > have[b as usize] {
+                    return false;
+                }
+            }
+            // Start from the rarer end of the word: fewer starting cells, fewer dead branches.
+            if let (Some(&first), Some(&last)) = (word.first(), word.last()) {
+                if have[first as usize] > have[last as usize] {
+                    word.reverse();
+                }
+            }
+            for r in 0..grid.len() {
+                for c in 0..grid[r].len() {
+                    if found(&mut grid, &word, r, c) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+    """,
+    visible=[
+        T("leetcode_abcced", "board = [\"ABCE\", \"SFCS\", \"ADEE\"], word = \"ABCCED\"", 'exist(&["ABCE", "SFCS", "ADEE"], "ABCCED")', "true"),
+        T("leetcode_see", "board = [\"ABCE\", \"SFCS\", \"ADEE\"], word = \"SEE\"", 'exist(&["ABCE", "SFCS", "ADEE"], "SEE")', "true"),
+        T("leetcode_cell_used_twice", "board = [\"ABCE\", \"SFCS\", \"ADEE\"], word = \"ABCB\" (the B would be used twice)", 'exist(&["ABCE", "SFCS", "ADEE"], "ABCB")', "false"),
+        T("single_cell", "board = [\"A\"], word = \"A\"", 'exist(&["A"], "A")', "true"),
+        T("no_diagonal_steps", "board = [\"AB\", \"CD\"], word = \"AD\"", 'exist(&["AB", "CD"], "AD")', "false"),
+    ],
+    hidden=[
+        T("back_and_forth", "board = [\"AB\"], word = \"ABA\"", 'exist(&["AB"], "ABA")', "false"),
+        T("letter_missing", "board = [\"a\"], word = \"b\"", 'exist(&["a"], "b")', "false"),
+        T("case_sensitive", "board = [\"aB\"], word = \"ab\"", 'exist(&["aB"], "ab")', "false"),
+        T("snake_through_everything", "board = [\"ABC\", \"FED\", \"GHI\"], word = \"ABCDEFGHI\"", 'exist(&["ABC", "FED", "GHI"], "ABCDEFGHI")', "true"),
+        T("right_to_left", "board = [\"AB\"], word = \"BA\"", 'exist(&["AB"], "BA")', "true"),
+        T("longer_than_board", "board = [\"AAA\", \"AAA\"], word = \"AAAAAAA\"", 'exist(&["AAA", "AAA"], "AAAAAAA")', "false"),
+        T("leetcode_restore_on_backtrack", "board = [\"ABCE\", \"SFES\", \"ADEE\"], word = \"ABCESEEEFS\"", 'exist(&["ABCE", "SFES", "ADEE"], "ABCESEEEFS")', "true"),
+        T("leetcode_first_path_fails", "board = [\"CAA\", \"AAA\", \"BCD\"], word = \"AAB\"", 'exist(&["CAA", "AAA", "BCD"], "AAB")', "true"),
+        T("whole_board_of_one_letter", "board = [\"AAAA\", \"AAAA\", \"AAAA\"], word = 12 × \"A\"", 'exist(&["AAAA", "AAAA", "AAAA"], "AAAAAAAAAAAA")', "true"),
+        T("single_column", "board = [\"A\", \"B\", \"C\"], word = \"CBA\"", 'exist(&["A", "B", "C"], "CBA")', "true"),
+        """
+        /// Every path of distinct cells, with a bitmask of used cells instead of editing the board.
+        fn brute(board: &[&str], word: &[u8]) -> bool {
+            fn walk(g: &[&[u8]], word: &[u8], r: usize, c: usize, used: u64) -> bool {
+                let w = g[0].len();
+                if g[r][c] != word[0] || used >> (r * w + c) & 1 == 1 {
+                    return false;
+                }
+                if word.len() == 1 {
+                    return true;
+                }
+                let used = used | 1 << (r * w + c);
+                let near = [(r.wrapping_sub(1), c), (r + 1, c), (r, c.wrapping_sub(1)), (r, c + 1)];
+                near.iter().any(|&(a, b)| a < g.len() && b < w && walk(g, &word[1..], a, b, used))
+            }
+            let g: Vec<&[u8]> = board.iter().map(|row| row.as_bytes()).collect();
+            (0..g.len()).any(|r| (0..g[0].len()).any(|c| walk(&g, word, r, c, 0)))
+        }
+
+        #[test]
+        fn random_vs_bitmask_paths() {
+            let mut rng = anneal_prelude::Rng::new(1129);
+            for _ in 0..400 {
+                let (h, w) = (rng.int(1, 3) as usize, rng.int(1, 4) as usize);
+                let rows: Vec<String> = (0..h).map(|_| rng.string(w, "ABC")).collect();
+                let board: Vec<&str> = rows.iter().map(|s| s.as_str()).collect();
+                let len = rng.int(1, 7) as usize;
+                let word = rng.string(len, "ABC");
+                check!(format!("board = {board:?}, word = {word:?}"), exist(&board, &word), brute(&board, word.as_bytes()));
+            }
+        }
+
+        #[test]
+        fn scale_letter_the_board_lacks() {
+            // 6×6 of A, and 24 A's then a B: every path of A's is a dead end.
+            let board = vec!["AAAAAA"; 6];
+            let word = "A".repeat(24) + "B";
+            check!("board = 6×6 of A, word = 24 × \\"A\\" + \\"B\\"", exist(&board, &word), false);
+        }
+
+        #[test]
+        fn scale_one_letter_short() {
+            // 35 A's and one C; the word needs 36 A's.
+            let board = vec!["AAAAAA", "AAAAAA", "AAAAAA", "AAACAA", "AAAAAA", "AAAAAA"];
+            let word = "A".repeat(36);
+            check!("board = 6×6 of A with one C, word = 36 × \\"A\\"", exist(&board, &word), false);
+        }
+
+        #[test]
+        fn scale_rare_last_letter() {
+            let board = vec!["AAAAAA", "AAAAAA", "AAAAAA", "AAAAAA", "AAAAAA", "AAAAAB"];
+            let word = "A".repeat(30) + "B";
+            check!("board = 6×6 of A with a B in the corner, word = 30 × \\"A\\" + \\"B\\"", exist(&board, &word), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        plain_backtracking="""
+            pub fn exist(board: &[&str], word: &str) -> bool {
+                fn found(grid: &mut [Vec<u8>], word: &[u8], r: usize, c: usize) -> bool {
+                    if grid[r][c] != word[0] {
+                        return false;
+                    }
+                    if word.len() == 1 {
+                        return true;
+                    }
+                    let letter = grid[r][c];
+                    grid[r][c] = 0;
+                    let (h, w, rest) = (grid.len(), grid[0].len(), &word[1..]);
+                    let hit = (r > 0 && found(grid, rest, r - 1, c))
+                        || (r + 1 < h && found(grid, rest, r + 1, c))
+                        || (c > 0 && found(grid, rest, r, c - 1))
+                        || (c + 1 < w && found(grid, rest, r, c + 1));
+                    grid[r][c] = letter;
+                    hit
+                }
+                let mut grid: Vec<Vec<u8>> = board.iter().map(|row| row.as_bytes().to_vec()).collect();
+                if word.len() > grid.len() * grid[0].len() {
+                    return false;
+                }
+                for r in 0..grid.len() {
+                    for c in 0..grid[r].len() {
+                        if found(&mut grid, word.as_bytes(), r, c) {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+        """,
+        cells_reused="""
+            pub fn exist(board: &[&str], word: &str) -> bool {
+                fn found(grid: &[&[u8]], word: &[u8], r: usize, c: usize) -> bool {
+                    if grid[r][c] != word[0] {
+                        return false;
+                    }
+                    if word.len() == 1 {
+                        return true;
+                    }
+                    let (h, w, rest) = (grid.len(), grid[0].len(), &word[1..]);
+                    (r > 0 && found(grid, rest, r - 1, c))
+                        || (r + 1 < h && found(grid, rest, r + 1, c))
+                        || (c > 0 && found(grid, rest, r, c - 1))
+                        || (c + 1 < w && found(grid, rest, r, c + 1))
+                }
+                let grid: Vec<&[u8]> = board.iter().map(|row| row.as_bytes()).collect();
+                let mut have = [0usize; 256];
+                for &b in grid.iter().copied().flatten() {
+                    have[b as usize] += 1;
+                }
+                if word.bytes().any(|b| have[b as usize] == 0) {
+                    return false;
+                }
+                (0..grid.len()).any(|r| (0..grid[r].len()).any(|c| found(&grid, word.as_bytes(), r, c)))
+            }
+        """,
+        never_restored="""
+            pub fn exist(board: &[&str], word: &str) -> bool {
+                fn found(grid: &mut [Vec<u8>], word: &[u8], r: usize, c: usize) -> bool {
+                    if grid[r][c] != word[0] {
+                        return false;
+                    }
+                    if word.len() == 1 {
+                        return true;
+                    }
+                    grid[r][c] = 0;
+                    let (h, w, rest) = (grid.len(), grid[0].len(), &word[1..]);
+                    (r > 0 && found(grid, rest, r - 1, c))
+                        || (r + 1 < h && found(grid, rest, r + 1, c))
+                        || (c > 0 && found(grid, rest, r, c - 1))
+                        || (c + 1 < w && found(grid, rest, r, c + 1))
+                }
+                let mut grid: Vec<Vec<u8>> = board.iter().map(|row| row.as_bytes().to_vec()).collect();
+                let mut have = [0usize; 256];
+                for &b in grid.iter().flatten() {
+                    have[b as usize] += 1;
+                }
+                let mut need = [0usize; 256];
+                for b in word.bytes() {
+                    need[b as usize] += 1;
+                    if need[b as usize] > have[b as usize] {
+                        return false;
+                    }
+                }
+                for r in 0..grid.len() {
+                    for c in 0..grid[r].len() {
+                        if found(&mut grid, word.as_bytes(), r, c) {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+        """,
+    ),
+    hints=[("approach", "Try every starting cell. From a cell that matches `word[i]`, mark it used, try the four neighbours for `word[i + 1]`, and unmark it before returning."),
+           ("rust", "Copy the board into `Vec<Vec<u8>>` and pass `&mut [Vec<u8>]` to an inner `fn`. Overwrite the cell with `0` while it's on the path and put the letter back afterwards."),
+           ("edge case", "Before searching, count letters: if the word needs more of some letter than the board has, return `false` at once. Also start from whichever end of the word is rarer on the board.")],
+    notes=("Each step has at most three unvisited neighbours, so a search from one cell costs up to 3^L for a word of length L; the "
+           "letter count rejects the classic worst cases (a missing or too-rare letter) before any search, and starting from the rarer "
+           "end shrinks the number of starting cells.", "O(rows · cols · 3^L) worst case", "O(L) recursion depth"),
+    follow_up="How does the search change when you must find many words on the same board (Word search II, D10)?",
+    related=["D9", "D10"],
+))
+
+P.append(dict(
+    slug="palindrome-partitioning", title="Palindrome partitioning", level="medium", stage="choices-grids", tags=["backtracking", "lifetimes", "DP table"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "Bloomberg"],
+    teaches=["Cut the string at every place where the next piece is a palindrome, and recurse on the rest.",
+             "Return `&str` pieces that borrow from `s`: the inner `fn` needs an explicit lifetime `'a`."],
+    statement="""
+        Split `s` into pieces so that every piece is a palindrome (reads the same both ways). Return every such split,
+        each as its list of pieces from left to right.
+
+        The splits can come in any order; the pieces inside a split keep their order. An empty `s` has exactly one split,
+        with no pieces.
+    """,
+    examples=[("s = \"aab\"", "[[\"a\", \"a\", \"b\"], [\"aa\", \"b\"]]"), ("s = \"a\"", "[[\"a\"]]")],
+    constraints=["0 ≤ s.len() ≤ 16", "s holds lowercase ASCII letters"],
+    starter="""
+        pub fn partition(s: &str) -> Vec<Vec<&str>> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn partition(s: &str) -> Vec<Vec<&str>> {
+            fn go<'a>(s: &'a str, start: usize, pal: &[Vec<bool>], path: &mut Vec<&'a str>, out: &mut Vec<Vec<&'a str>>) {
+                if start == s.len() {
+                    out.push(path.clone());
+                    return;
+                }
+                for end in start + 1..=s.len() {
+                    if pal[start][end - 1] {
+                        path.push(&s[start..end]);
+                        go(s, end, pal, path, out);
+                        path.pop();
+                    }
+                }
+            }
+            let (b, n) = (s.as_bytes(), s.len());
+            // pal[i][j]: s[i..=j] is a palindrome. Row i reads row i + 1, so fill from the bottom.
+            let mut pal = vec![vec![false; n]; n];
+            for i in (0..n).rev() {
+                for j in i..n {
+                    pal[i][j] = b[i] == b[j] && (j - i < 2 || pal[i + 1][j - 1]);
+                }
+            }
+            let mut out = Vec::new();
+            go(s, 0, &pal, &mut Vec::new(), &mut out);
+            out
+        }
+    """,
+    visible=[
+        SORTED,
+        T("leetcode_aab", "s = \"aab\"", 'sorted(partition("aab"))', 'vec![vec!["a", "a", "b"], vec!["aa", "b"]]'),
+        T("leetcode_single", "s = \"a\"", 'partition("a")', 'vec![vec!["a"]]'),
+        T("empty_has_one_split", "s = \"\" (one split with no pieces)", 'partition("")', "vec![Vec::<&str>::new()]"),
+        T("no_long_palindromes", "s = \"abc\"", 'partition("abc")', 'vec![vec!["a", "b", "c"]]'),
+        T("odd_palindrome", "s = \"aba\"", 'sorted(partition("aba"))', 'vec![vec!["a", "b", "a"], vec!["aba"]]'),
+    ],
+    hidden=[
+        SORTED,
+        T("four_equal", "s = \"aaaa\"", 'sorted(partition("aaaa"))',
+          'vec![vec!["a", "a", "a", "a"], vec!["a", "a", "aa"], vec!["a", "aa", "a"], vec!["a", "aaa"], vec!["aa", "a", "a"], vec!["aa", "aa"], vec!["aaa", "a"], vec!["aaaa"]]'),
+        T("even_palindrome", "s = \"abba\"", 'sorted(partition("abba"))', 'vec![vec!["a", "b", "b", "a"], vec!["a", "bb", "a"], vec!["abba"]]'),
+        T("nested_palindromes", "s = \"racecar\"", 'sorted(partition("racecar"))',
+          'vec![vec!["r", "a", "c", "e", "c", "a", "r"], vec!["r", "a", "cec", "a", "r"], vec!["r", "aceca", "r"], vec!["racecar"]]'),
+        T("two_different", "s = \"ab\"", 'partition("ab")', 'vec![vec!["a", "b"]]'),
+        T("ends_match_but_not_a_palindrome", "s = \"abca\"", 'partition("abca")', 'vec![vec!["a", "b", "c", "a"]]'),
+        T("sixteen_distinct", "s = \"abcdefghijklmnop\"", 'partition("abcdefghijklmnop").len()', "1"),
+        T("pieces_rebuild_s", "s = \"aabbaab\", every split joins back to s", 'partition("aabbaab").iter().all(|p| p.concat() == "aabbaab")', "true"),
+        T("abcba", "s = \"abcba\"", 'sorted(partition("abcba"))', 'vec![vec!["a", "b", "c", "b", "a"], vec!["a", "bcb", "a"], vec!["abcba"]]'),
+        """
+        #[test]
+        fn random_vs_every_cut_set() {
+            let mut rng = anneal_prelude::Rng::new(1130);
+            for _ in 0..300 {
+                let n = rng.int(1, 10) as usize;
+                let alphabet = *rng.pick(&["ab", "abc", "a"]);
+                let s = rng.string(n, alphabet);
+                // Each bit of `cuts` says whether s is cut after that position.
+                let mut want: Vec<Vec<&str>> = Vec::new();
+                for cuts in 0u32..1 << (n - 1) {
+                    let (mut pieces, mut start) = (Vec::new(), 0);
+                    for i in 0..n {
+                        if i == n - 1 || cuts >> i & 1 == 1 {
+                            pieces.push(&s[start..=i]);
+                            start = i + 1;
+                        }
+                    }
+                    if pieces.iter().all(|p| p.bytes().eq(p.bytes().rev())) {
+                        want.push(pieces);
+                    }
+                }
+                want.sort();
+                check!(format!("s = {s:?}"), sorted(partition(&s)), want);
+            }
+        }
+
+        #[test]
+        fn scale_sixteen_equal() {
+            let s = "a".repeat(16);
+            let got = partition(&s);
+            check!("s = 16 × \\"a\\"", (got.len(), got.iter().all(|p| p.concat() == s)), (32_768, true));
+        }
+        """,
+    ],
+    wrong=dict(
+        only_the_ends_compared="""
+            pub fn partition(s: &str) -> Vec<Vec<&str>> {
+                fn go<'a>(s: &'a str, start: usize, path: &mut Vec<&'a str>, out: &mut Vec<Vec<&'a str>>) {
+                    if start == s.len() {
+                        out.push(path.clone());
+                        return;
+                    }
+                    let b = s.as_bytes();
+                    for end in start + 1..=s.len() {
+                        if b[start] == b[end - 1] {
+                            path.push(&s[start..end]);
+                            go(s, end, path, out);
+                            path.pop();
+                        }
+                    }
+                }
+                let mut out = Vec::new();
+                go(s, 0, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        nothing_for_empty="""
+            pub fn partition(s: &str) -> Vec<Vec<&str>> {
+                fn go<'a>(s: &'a str, start: usize, path: &mut Vec<&'a str>, out: &mut Vec<Vec<&'a str>>) {
+                    if start == s.len() {
+                        out.push(path.clone());
+                        return;
+                    }
+                    for end in start + 1..=s.len() {
+                        let piece = &s[start..end];
+                        if piece.bytes().eq(piece.bytes().rev()) {
+                            path.push(piece);
+                            go(s, end, path, out);
+                            path.pop();
+                        }
+                    }
+                }
+                if s.is_empty() {
+                    return Vec::new();
+                }
+                let mut out = Vec::new();
+                go(s, 0, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "From position `start`, try every end where `s[start..end]` is a palindrome, push that piece, recurse from `end`, pop. Reaching the end of `s` completes a split."),
+           ("rust", "`fn go<'a>(s: &'a str, start: usize, path: &mut Vec<&'a str>, out: &mut Vec<Vec<&'a str>>)`: the lifetime says the pieces borrow from `s`, so no piece is copied."),
+           ("edge case", "Precompute `pal[i][j]` bottom-up (s[i] == s[j] and the inside is a palindrome) so each check is O(1). The empty string has one split: `[[]]`.")],
+    notes=("A string of n letters has 2ⁿ⁻¹ ways to cut it, and in the worst case (all letters equal) every one is an answer, so the "
+           "output is exponential. The palindrome table makes each piece's check O(1); returning `&str` slices avoids copying pieces.",
+           "O(n · 2ⁿ)", "O(n²) for the table, O(n) recursion"),
+    follow_up="Find the minimum number of cuts instead of listing every split. Which DP does that need (D12)?",
+    related=["D12", "L3"],
+))
+
+P.append(dict(
+    slug="restore-ip-addresses", title="Restore IP addresses", level="medium", stage="choices-grids", tags=["backtracking", "String", "pruning"],
+    companies=["Meta", "Apple", "Amazon", "Google", "Microsoft"],
+    teaches=["A fixed depth (four parts) with a small choice at each level (1 to 3 digits).",
+             "Prune on length: the digits left must fit in the parts left."],
+    statement="""
+        `s` holds only digits. Insert three dots into `s` to make a valid IPv4 address: four parts, each a number from 0 to
+        255 written without leading zeros (`0` is fine, `00` and `01` are not). Every digit must be used, in order.
+
+        Return every valid address you can make. They can come in any order; return `[]` if there are none.
+    """,
+    examples=[("s = \"25525511135\"", "[\"255.255.11.135\", \"255.255.111.35\"]"), ("s = \"0000\"", "[\"0.0.0.0\"]")],
+    constraints=["1 ≤ s.len() ≤ 20", "s holds only ASCII digits"],
+    starter="""
+        pub fn restore_ip_addresses(s: &str) -> Vec<String> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn restore_ip_addresses(s: &str) -> Vec<String> {
+            fn go<'a>(rest: &'a str, parts: &mut Vec<&'a str>, out: &mut Vec<String>) {
+                let left = 4 - parts.len();
+                if left == 0 {
+                    if rest.is_empty() {
+                        out.push(parts.join("."));
+                    }
+                    return;
+                }
+                // Each remaining part takes 1 to 3 digits.
+                if rest.len() < left || rest.len() > 3 * left {
+                    return;
+                }
+                for len in 1..=rest.len().min(3) {
+                    let part = &rest[..len];
+                    // A longer part would keep the leading zero or be larger still.
+                    if (len > 1 && part.starts_with('0')) || part.parse::<u16>().is_ok_and(|v| v > 255) {
+                        break;
+                    }
+                    parts.push(part);
+                    go(&rest[len..], parts, out);
+                    parts.pop();
+                }
+            }
+            let mut out = Vec::new();
+            go(s, &mut Vec::with_capacity(4), &mut out);
+            out
+        }
+    """,
+    visible=[
+        SORTED,
+        T("leetcode_two_answers", "s = \"25525511135\"", 'sorted(restore_ip_addresses("25525511135"))', 'vec!["255.255.11.135", "255.255.111.35"]'),
+        T("leetcode_zeros", "s = \"0000\"", 'restore_ip_addresses("0000")', 'vec!["0.0.0.0"]'),
+        T("leetcode_five_answers", "s = \"101023\"", 'sorted(restore_ip_addresses("101023"))', 'vec!["1.0.10.23", "1.0.102.3", "10.1.0.23", "10.10.2.3", "101.0.2.3"]'),
+        T("too_short", "s = \"123\"", 'restore_ip_addresses("123")', "Vec::<String>::new()"),
+        T("no_leading_zeros", "s = \"010010\"", 'sorted(restore_ip_addresses("010010"))', 'vec!["0.10.0.10", "0.100.1.0"]'),
+    ],
+    hidden=[
+        SORTED,
+        T("ones", "s = \"1111\"", 'restore_ip_addresses("1111")', 'vec!["1.1.1.1"]'),
+        T("all_255", "s = \"255255255255\"", 'restore_ip_addresses("255255255255")', 'vec!["255.255.255.255"]'),
+        T("part_256_is_too_big", "s = \"256256256256\"", 'restore_ip_addresses("256256256256")', "Vec::<String>::new()"),
+        T("thirteen_digits", "s = \"1231231231234\"", 'restore_ip_addresses("1231231231234")', "Vec::<String>::new()"),
+        T("twenty_digits", "s = 20 digits", 'restore_ip_addresses("12345678901234567890")', "Vec::<String>::new()"),
+        T("zero_then_256", "s = \"000256\"", 'restore_ip_addresses("000256")', "Vec::<String>::new()"),
+        T("home_router", "s = \"19216811\"", 'sorted(restore_ip_addresses("19216811"))',
+          'vec!["1.92.168.11", "19.2.168.11", "19.21.68.11", "19.216.8.11", "19.216.81.1", "192.1.68.11", "192.16.8.11", "192.16.81.1", "192.168.1.1"]'),
+        T("five_ones", "s = \"11111\"", 'sorted(restore_ip_addresses("11111"))', 'vec!["1.1.1.11", "1.1.11.1", "1.11.1.1", "11.1.1.1"]'),
+        T("hundreds", "s = \"100100\"", 'sorted(restore_ip_addresses("100100"))', 'vec!["1.0.0.100", "10.0.10.0", "100.1.0.0"]'),
+        T("single_digit", "s = \"5\"", 'restore_ip_addresses("5")', "Vec::<String>::new()"),
+        """
+        #[test]
+        fn random_vs_three_cut_points() {
+            let valid = |p: &str| !p.is_empty() && p.len() <= 3 && (p == "0" || !p.starts_with('0')) && p.parse::<u32>().unwrap() <= 255;
+            let mut rng = anneal_prelude::Rng::new(1131);
+            for _ in 0..400 {
+                let n = rng.int(1, 13) as usize;
+                let digits = *rng.pick(&["0125", "0123456789", "12", "0"]);
+                let s = rng.string(n, digits);
+                let mut want = Vec::new();
+                for i in 1..n {
+                    for j in i + 1..n {
+                        for k in j + 1..n {
+                            let parts = [&s[..i], &s[i..j], &s[j..k], &s[k..]];
+                            if parts.iter().all(|p| valid(p)) {
+                                want.push(parts.join("."));
+                            }
+                        }
+                    }
+                }
+                want.sort();
+                check!(format!("s = {s:?}"), sorted(restore_ip_addresses(&s)), want);
+            }
+        }
+        """,
+    ],
+    wrong=dict(
+        leading_zeros_allowed="""
+            pub fn restore_ip_addresses(s: &str) -> Vec<String> {
+                fn go(rest: &str, parts: &mut Vec<String>, out: &mut Vec<String>) {
+                    if parts.len() == 4 {
+                        if rest.is_empty() {
+                            out.push(parts.join("."));
+                        }
+                        return;
+                    }
+                    for len in 1..=rest.len().min(3) {
+                        let part = &rest[..len];
+                        if part.parse::<u16>().unwrap() > 255 {
+                            break;
+                        }
+                        parts.push(part.to_string());
+                        go(&rest[len..], parts, out);
+                        parts.pop();
+                    }
+                }
+                let mut out = Vec::new();
+                go(s, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+        any_three_digits="""
+            pub fn restore_ip_addresses(s: &str) -> Vec<String> {
+                fn go(rest: &str, parts: &mut Vec<String>, out: &mut Vec<String>) {
+                    if parts.len() == 4 {
+                        if rest.is_empty() {
+                            out.push(parts.join("."));
+                        }
+                        return;
+                    }
+                    for len in 1..=rest.len().min(3) {
+                        let part = &rest[..len];
+                        if len > 1 && part.starts_with('0') {
+                            break;
+                        }
+                        parts.push(part.to_string());
+                        go(&rest[len..], parts, out);
+                        parts.pop();
+                    }
+                }
+                let mut out = Vec::new();
+                go(s, &mut Vec::new(), &mut out);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Choose the parts one at a time: 1, 2 or 3 digits each. After four parts, keep the address only if every digit was used."),
+           ("rust", "Recurse on the remaining `&str` and collect parts as `&str` slices in a `Vec`; `parts.join(\".\")` builds the answer."),
+           ("edge case", "`0` is a valid part but `00` and `012` are not, and a three-digit part must be at most 255. If the digits left can't fill the parts left (1 to 3 each), stop early.")],
+    notes=("There are at most 3⁴ = 81 ways to choose the part lengths, so the search is constant-sized; the length check stops long "
+           "inputs (up to 20 digits) before any work.", "O(1): at most 81 leaves", "O(1) besides the output"),
+    follow_up="How would you do the same for IPv6, with hex groups and the `::` shorthand?",
+    related=["S2", "D2"],
+))
+
+P.append(dict(
+    slug="fix-recursive-closure-grid", title="Fix: recursive closure can't borrow the grid mutably", mode="fix", level="medium", stage="choices-grids",
+    tags=["closures", "inner fn", "E0425", "grid"],
+    teaches=["A closure can't call itself: it has no name inside its own body.",
+             "Even if it could, a closure that mutates `grid` holds `&mut grid` for as long as it lives, so nothing else may read `grid` meanwhile (E0502).",
+             "An inner `fn` with the grid as an explicit `&mut` parameter borrows it only for each call."],
+    statement="""
+        `island_sizes` should return the size of every island (1s joined up, down, left or right) in the order each
+        island's first cell appears reading row by row. The flood fill that sinks an island was written as a closure so it
+        could see `grid` without taking it as a parameter. It doesn't compile.
+
+        Rewrite `sink_island` as an inner `fn` that takes the grid as an explicit `&mut` parameter. Keep the recursion.
+    """,
+    examples=[("grid = [[1, 1, 0], [0, 1, 0], [0, 0, 1]]", "[3, 1]")],
+    constraints=["0 ≤ rows, cols ≤ 50, every row the same length", "cells are 0 or 1"],
+    starter="""
+        /// The size of every island of 1s, in the order their first cells appear row by row.
+        pub fn island_sizes(mut grid: Vec<Vec<u8>>) -> Vec<usize> {
+            let (h, w) = (grid.len(), grid.first().map_or(0, Vec::len));
+            // Sinks the island through (r, c) and returns how many cells it had.
+            let mut sink_island = |r: usize, c: usize| -> usize {
+                if r >= h || c >= w || grid[r][c] == 0 {
+                    return 0;
+                }
+                grid[r][c] = 0;
+                1 + sink_island(r + 1, c) + sink_island(r.wrapping_sub(1), c) + sink_island(r, c + 1) + sink_island(r, c.wrapping_sub(1))
+            };
+            let mut sizes = Vec::new();
+            for r in 0..h {
+                for c in 0..w {
+                    if grid[r][c] == 1 {
+                        sizes.push(sink_island(r, c));
+                    }
+                }
+            }
+            sizes
+        }
+    """,
+    solution="""
+        /// The size of every island of 1s, in the order their first cells appear row by row.
+        pub fn island_sizes(mut grid: Vec<Vec<u8>>) -> Vec<usize> {
+            let (h, w) = (grid.len(), grid.first().map_or(0, Vec::len));
+            // Sinks the island through (r, c) and returns how many cells it had.
+            fn sink_island(grid: &mut [Vec<u8>], r: usize, c: usize) -> usize {
+                if r >= grid.len() || c >= grid[r].len() || grid[r][c] == 0 {
+                    return 0;
+                }
+                grid[r][c] = 0;
+                1 + sink_island(grid, r + 1, c) + sink_island(grid, r.wrapping_sub(1), c) + sink_island(grid, r, c + 1) + sink_island(grid, r, c.wrapping_sub(1))
+            }
+            let mut sizes = Vec::new();
+            for r in 0..h {
+                for c in 0..w {
+                    if grid[r][c] == 1 {
+                        sizes.push(sink_island(&mut grid, r, c));
+                    }
+                }
+            }
+            sizes
+        }
+    """,
+    rules=dict(types=["RefCell", "Cell", "Rc", "Box"], lines=6),
+    visible=[
+        T("two_islands", "grid = [[1, 1, 0], [0, 1, 0], [0, 0, 1]]", "island_sizes(vec![vec![1, 1, 0], vec![0, 1, 0], vec![0, 0, 1]])", "vec![3, 1]"),
+        T("no_land", "grid = [[0, 0], [0, 0]]", "island_sizes(vec![vec![0, 0], vec![0, 0]])", "Vec::<usize>::new()"),
+        T("empty_grid", "grid = []", "island_sizes(Vec::new())", "Vec::<usize>::new()"),
+        T("diagonals_do_not_join", "grid = [[1, 0], [0, 1]]", "island_sizes(vec![vec![1, 0], vec![0, 1]])", "vec![1, 1]"),
+        T("order_of_first_cells", "grid = [[0, 0, 1], [1, 0, 0], [1, 0, 0]]", "island_sizes(vec![vec![0, 0, 1], vec![1, 0, 0], vec![1, 0, 0]])", "vec![1, 2]"),
+    ],
+    hidden=[
+        T("single_cell", "grid = [[1]]", "island_sizes(vec![vec![1]])", "vec![1]"),
+        T("u_shape", "grid = [[1, 0, 1], [1, 0, 1], [1, 1, 1]]", "island_sizes(vec![vec![1, 0, 1], vec![1, 0, 1], vec![1, 1, 1]])", "vec![7]"),
+        T("ring_around_a_dot", "grid = 5×5 ring of 1s with a 1 in the middle",
+          "island_sizes(vec![vec![1, 1, 1, 1, 1], vec![1, 0, 0, 0, 1], vec![1, 0, 1, 0, 1], vec![1, 0, 0, 0, 1], vec![1, 1, 1, 1, 1]])", "vec![16, 1]"),
+        T("single_row", "grid = [[1, 1, 0, 1, 0, 1, 1, 1]]", "island_sizes(vec![vec![1, 1, 0, 1, 0, 1, 1, 1]])", "vec![2, 1, 3]"),
+        T("single_column", "grid = [[1], [0], [1], [1]]", "island_sizes(vec![vec![1], vec![0], vec![1], vec![1]])", "vec![1, 2]"),
+        T("rows_of_nothing", "grid = [[], []]", "island_sizes(vec![vec![], vec![]])", "Vec::<usize>::new()"),
+        T("reaches_back_up", "grid = [[0, 1], [0, 1], [1, 1]]: the island's first cell is (0, 1)", "island_sizes(vec![vec![0, 1], vec![0, 1], vec![1, 1]])", "vec![4]"),
+        T("full_50x50", "grid = 50×50 of 1", "island_sizes(vec![vec![1; 50]; 50])", "vec![2500]"),
+        T("checkerboard_50x50", "grid = 50×50 checkerboard", "island_sizes((0..50).map(|r| (0..50).map(|c| ((r + c) % 2 == 0) as u8).collect()).collect())", "vec![1; 1250]"),
+        """
+        #[test]
+        fn random_vs_breadth_first_labels() {
+            let mut rng = anneal_prelude::Rng::new(1132);
+            for _ in 0..300 {
+                let (h, w) = (rng.int(1, 8) as usize, rng.int(1, 8) as usize);
+                let grid: Vec<Vec<u8>> = (0..h).map(|_| rng.vec(w, 0, 1)).collect();
+                let mut seen = vec![vec![false; w]; h];
+                let mut want = Vec::new();
+                for r in 0..h {
+                    for c in 0..w {
+                        if grid[r][c] == 1 && !seen[r][c] {
+                            seen[r][c] = true;
+                            let mut queue = std::collections::VecDeque::from([(r, c)]);
+                            let mut size = 0;
+                            while let Some((a, b)) = queue.pop_front() {
+                                size += 1;
+                                for (x, y) in [(a.wrapping_sub(1), b), (a + 1, b), (a, b.wrapping_sub(1)), (a, b + 1)] {
+                                    if x < h && y < w && grid[x][y] == 1 && !seen[x][y] {
+                                        seen[x][y] = true;
+                                        queue.push_back((x, y));
+                                    }
+                                }
+                            }
+                            want.push(size);
+                        }
+                    }
+                }
+                check!(format!("grid = {grid:?}"), island_sizes(grid.clone()), want);
+            }
+        }
+
+        #[test]
+        fn scale_snake_50x50() {
+            // Rows of land joined at alternating ends: one island of 1275 cells, 1275 calls deep.
+            let grid: Vec<Vec<u8>> = (0..50)
+                .map(|r| (0..50).map(|c| if r % 2 == 0 || (r % 4 == 1 && c == 49) || (r % 4 == 3 && c == 0) { 1 } else { 0 }).collect())
+                .collect();
+            check!("grid = 50×50 snake", island_sizes(grid), vec![1275]);
+        }
+        """,
+    ],
+    wrong=dict(
+        eight_neighbours="""
+            /// The size of every island of 1s, in the order their first cells appear row by row.
+            pub fn island_sizes(mut grid: Vec<Vec<u8>>) -> Vec<usize> {
+                let (h, w) = (grid.len(), grid.first().map_or(0, Vec::len));
+                fn sink_island(grid: &mut [Vec<u8>], r: usize, c: usize) -> usize {
+                    if r >= grid.len() || c >= grid[r].len() || grid[r][c] == 0 {
+                        return 0;
+                    }
+                    grid[r][c] = 0;
+                    let mut size = 1;
+                    for (dr, dc) in [(-1i32, -1i32), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)] {
+                        size += sink_island(grid, (r as i32 + dr) as usize, (c as i32 + dc) as usize);
+                    }
+                    size
+                }
+                let mut sizes = Vec::new();
+                for r in 0..h {
+                    for c in 0..w {
+                        if grid[r][c] == 1 {
+                            sizes.push(sink_island(&mut grid, r, c));
+                        }
+                    }
+                }
+                sizes
+            }
+        """,
+        sorted_by_size="""
+            /// The size of every island of 1s, in the order their first cells appear row by row.
+            pub fn island_sizes(mut grid: Vec<Vec<u8>>) -> Vec<usize> {
+                let (h, w) = (grid.len(), grid.first().map_or(0, Vec::len));
+                fn sink_island(grid: &mut [Vec<u8>], r: usize, c: usize) -> usize {
+                    if r >= grid.len() || c >= grid[r].len() || grid[r][c] == 0 {
+                        return 0;
+                    }
+                    grid[r][c] = 0;
+                    1 + sink_island(grid, r + 1, c) + sink_island(grid, r.wrapping_sub(1), c) + sink_island(grid, r, c + 1) + sink_island(grid, r, c.wrapping_sub(1))
+                }
+                let mut sizes = Vec::new();
+                for r in 0..h {
+                    for c in 0..w {
+                        if grid[r][c] == 1 {
+                            sizes.push(sink_island(&mut grid, r, c));
+                        }
+                    }
+                }
+                sizes.sort_unstable_by(|a, b| b.cmp(a));
+                sizes
+            }
+        """,
+    ),
+    hints=[("rust", "Inside its own body a closure has no name, so `sink_island(..)` can't resolve (E0425). An inner `fn` can call itself, but it can't capture anything: `grid` must become a parameter."),
+           ("approach", "`fn sink_island(grid: &mut [Vec<u8>], r: usize, c: usize) -> usize`, bounds-checked with `grid.len()` and `grid[r].len()`, called as `sink_island(&mut grid, r, c)`."),
+           ("edge case", "Out-of-range steps use `wrapping_sub(1)`, which turns row 0 into `usize::MAX`: the bounds check rejects it.")],
+    notes=("A closure's captured `&mut grid` lives as long as the closure, so even a non-recursive version would block the loop's "
+           "`grid[r][c]` read (E0502). With `grid` as a parameter, each call reborrows it just for that call, and the loop is free to "
+           "read it between calls. Each cell is sunk once.", "O(rows · cols)", "O(rows · cols) recursion depth in the worst case"),
+    follow_up="When would you switch to an explicit `Vec` stack instead of recursion, and what does it cost?",
+    related=["L6", "D9"],
+))
+
 STAGES = [
     ("recursion", "Recursion", "easy"),
     ("first-backtracking", "First backtracking", "easy"),

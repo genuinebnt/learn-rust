@@ -1,0 +1,41 @@
+slug = "word-search"
+title = "Word search"
+mode = "write"
+level = "medium"
+stage = "choices-grids"
+order = 18
+status = "ready"
+tags = ["backtracking", "grid", "pruning", "Blind 75"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Uber", "Bloomberg"]
+teaches = [
+  "Grid backtracking: mark the cell as used, try the four neighbours, restore it on the way back.",
+  "Prune before searching: if the board can't supply the word's letters, don't start.",
+]
+constraints = ["1 ≤ rows, cols ≤ 6, every row the same length", "1 ≤ word.len() ≤ 40", "board and word hold ASCII letters"]
+follow_up = "How does the search change when you must find many words on the same board (Word search II, D10)?"
+related = ["D9", "D10"]
+
+[[examples]]
+input = "board = [\"ABCE\", \"SFCS\", \"ADEE\"], word = \"ABCCED\""
+output = "true"
+
+[[examples]]
+input = "board = [\"ABCE\", \"SFCS\", \"ADEE\"], word = \"ABCB\""
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "Try every starting cell. From a cell that matches `word[i]`, mark it used, try the four neighbours for `word[i + 1]`, and unmark it before returning."
+
+[[hints]]
+kind = "rust"
+text = "Copy the board into `Vec<Vec<u8>>` and pass `&mut [Vec<u8>]` to an inner `fn`. Overwrite the cell with `0` while it's on the path and put the letter back afterwards."
+
+[[hints]]
+kind = "edge case"
+text = "Before searching, count letters: if the word needs more of some letter than the board has, return `false` at once. Also start from whichever end of the word is rarer on the board."
+
+[solution]
+explanation = "Each step has at most three unvisited neighbours, so a search from one cell costs up to 3^L for a word of length L; the letter count rejects the classic worst cases (a missing or too-rare letter) before any search, and starting from the rarer end shrinks the number of starting cells."
+time = "O(rows · cols · 3^L) worst case"
+space = "O(L) recursion depth"

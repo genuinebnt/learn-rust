@@ -1,0 +1,41 @@
+slug = "different-ways-to-add-parentheses"
+title = "Different ways to add parentheses"
+mode = "write"
+level = "medium"
+stage = "choices-grids"
+order = 17
+status = "ready"
+tags = ["divide and conquer", "recursion", "parsing"]
+companies = ["Amazon", "Google", "Microsoft", "Bloomberg"]
+teaches = [
+  "Divide and conquer: pick the operator applied last, solve both sides, combine every pair.",
+  "Parse once into numbers and operators, then recurse on subslices of both.",
+]
+constraints = ["1 ≤ expression.len() ≤ 40", "numbers are 0 to 99, operators are `+`, `-`, `*`", "at most 11 operators", "every intermediate value fits in an i64"]
+follow_up = "Memoise on the subslice bounds. How much work does that save when the answer itself is Catalan(k) long?"
+related = ["D12", "D3"]
+
+[[examples]]
+input = "expression = \"2-1-1\""
+output = "[0, 2]"
+
+[[examples]]
+input = "expression = \"2*3-4*5\""
+output = "[-34, -14, -10, -10, 10]"
+
+[[hints]]
+kind = "approach"
+text = "Choose which operator is applied last. Its left side and right side are smaller expressions of the same kind: get all their values recursively and combine every pair."
+
+[[hints]]
+kind = "rust"
+text = "Parse once into `nums: Vec<i64>` and `ops: Vec<u8>`; operator `i` splits them into `(&nums[..=i], &ops[..i])` and `(&nums[i + 1..], &ops[i + 1..])`."
+
+[[hints]]
+kind = "edge case"
+text = "Numbers can have two digits, and products like 99⁵ overflow an `i32`. Keep duplicate values: each grouping counts."
+
+[solution]
+explanation = "Every full parenthesisation is a binary tree whose root is the operator applied last, so recursing on each root choice enumerates them all exactly once. With k operators there are Catalan(k) groupings. Memoising on the (start, end) of the subslice saves recomputing the same sub-expressions, though the answer itself is still Catalan-sized."
+time = "O(Catalan(k) · k) roughly, the size of the answer"
+space = "O(Catalan(k))"

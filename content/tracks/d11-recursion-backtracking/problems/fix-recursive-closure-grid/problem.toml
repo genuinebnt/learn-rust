@@ -1,0 +1,41 @@
+slug = "fix-recursive-closure-grid"
+title = "Fix: recursive closure can't borrow the grid mutably"
+mode = "fix"
+level = "medium"
+stage = "choices-grids"
+order = 21
+status = "ready"
+tags = ["closures", "inner fn", "E0425", "grid"]
+teaches = [
+  "A closure can't call itself: it has no name inside its own body.",
+  "Even if it could, a closure that mutates `grid` holds `&mut grid` for as long as it lives, so nothing else may read `grid` meanwhile (E0502).",
+  "An inner `fn` with the grid as an explicit `&mut` parameter borrows it only for each call.",
+]
+constraints = ["0 ≤ rows, cols ≤ 50, every row the same length", "cells are 0 or 1"]
+follow_up = "When would you switch to an explicit `Vec` stack instead of recursion, and what does it cost?"
+related = ["L6", "D9"]
+
+[[examples]]
+input = "grid = [[1, 1, 0], [0, 1, 0], [0, 0, 1]]"
+output = "[3, 1]"
+
+[[hints]]
+kind = "rust"
+text = "Inside its own body a closure has no name, so `sink_island(..)` can't resolve (E0425). An inner `fn` can call itself, but it can't capture anything: `grid` must become a parameter."
+
+[[hints]]
+kind = "approach"
+text = "`fn sink_island(grid: &mut [Vec<u8>], r: usize, c: usize) -> usize`, bounds-checked with `grid.len()` and `grid[r].len()`, called as `sink_island(&mut grid, r, c)`."
+
+[[hints]]
+kind = "edge case"
+text = "Out-of-range steps use `wrapping_sub(1)`, which turns row 0 into `usize::MAX`: the bounds check rejects it."
+
+[solution]
+explanation = "A closure's captured `&mut grid` lives as long as the closure, so even a non-recursive version would block the loop's `grid[r][c]` read (E0502). With `grid` as a parameter, each call reborrows it just for that call, and the loop is free to read it between calls. Each cell is sunk once."
+time = "O(rows · cols)"
+space = "O(rows · cols) recursion depth in the worst case"
+
+[rules]
+forbid_types = ["RefCell", "Cell", "Rc", "Box"]
+max_changed_lines = 6

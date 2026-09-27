@@ -122,6 +122,13 @@ def write_problem(tdir, p, order):
             t.append("forbid_unsafe = true")
         if r.get("lines") is not None:
             t.append(f"max_changed_lines = {r['lines']}")
+    if p.get("perf"):
+        # perf=dict(release=True, asm=True, allocs=True): section F's measuring (HANDOFF §5).
+        pf = p["perf"]
+        t += ["", "[perf]"]
+        for key, name in (("release", "release"), ("asm", "asm"), ("allocs", "count_allocs")):
+            if pf.get(key):
+                t.append(f"{name} = true")
     with open(os.path.join(d, "problem.toml"), "w") as f:
         f.write("\n".join(t) + "\n")
     if not ready:

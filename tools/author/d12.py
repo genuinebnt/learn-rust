@@ -2853,6 +2853,832 @@ P.append(dict(
     related=["D4"],
 ))
 
+# ---------------------------------------------------------------- Strings (medium)
+
+P.append(dict(
+    slug="longest-common-subsequence", title="Longest common subsequence", level="medium", stage="strings", tags=["2-D DP", "as_bytes", "Blind 75"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "Apple", "Bloomberg"],
+    teaches=["The classic two-string table: `dp[i][j]` answers the question for `a[..i]` and `b[..j]`.",
+             "Two rows and `std::mem::swap` instead of the full table."],
+    statement="""
+        Return the length of the longest sequence of characters that appears, in order but not
+        necessarily next to each other, in both `a` and `b`.
+    """,
+    examples=[("a = \"abcde\", b = \"ace\"", "3 (\"ace\")")],
+    constraints=["0 ≤ a.len(), b.len() ≤ 2000", "a and b are ASCII lowercase letters"],
+    starter="""
+        pub fn longest_common_subsequence(a: &str, b: &str) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn longest_common_subsequence(a: &str, b: &str) -> usize {
+            let (a, b) = (a.as_bytes(), b.as_bytes());
+            // prev[j] = LCS of a[..i] and b[..j]; cur becomes row i + 1.
+            let mut prev = vec![0usize; b.len() + 1];
+            let mut cur = vec![0usize; b.len() + 1];
+            for &x in a {
+                for (j, &y) in b.iter().enumerate() {
+                    cur[j + 1] = if x == y { prev[j] + 1 } else { prev[j + 1].max(cur[j]) };
+                }
+                std::mem::swap(&mut prev, &mut cur);
+            }
+            prev[b.len()]
+        }
+    """,
+    visible=[
+        T("leetcode_ace", "a = \"abcde\", b = \"ace\"", "longest_common_subsequence(\"abcde\", \"ace\")", "3"),
+        T("leetcode_same", "a = \"abc\", b = \"abc\"", "longest_common_subsequence(\"abc\", \"abc\")", "3"),
+        T("leetcode_nothing_shared", "a = \"abc\", b = \"def\"", "longest_common_subsequence(\"abc\", \"def\")", "0"),
+        T("empty", "a = \"\", b = \"abc\"", "longest_common_subsequence(\"\", \"abc\")", "0"),
+        T("order_matters", "a = \"abc\", b = \"cba\"", "longest_common_subsequence(\"abc\", \"cba\")", "1"),
+        T("gaps_allowed", "a = \"abcxdef\", b = \"abcydef\"", "longest_common_subsequence(\"abcxdef\", \"abcydef\")", "6"),
+    ],
+    hidden=[
+        T("both_empty", "a = \"\", b = \"\"", "longest_common_subsequence(\"\", \"\")", "0"),
+        T("second_empty", "a = \"abc\", b = \"\"", "longest_common_subsequence(\"abc\", \"\")", "0"),
+        T("single_match", "a = \"a\", b = \"a\"", "longest_common_subsequence(\"a\", \"a\")", "1"),
+        T("repeats", "a = \"aaaa\", b = \"aa\"", "longest_common_subsequence(\"aaaa\", \"aa\")", "2"),
+        T("first_match_is_wrong", "a = \"xab\", b = \"abx\"", "longest_common_subsequence(\"xab\", \"abx\")", "2"),
+        T("short_second", "a = \"bl\", b = \"yby\"", "longest_common_subsequence(\"bl\", \"yby\")", "1"),
+        T("leetcode_mixed", "a = \"ezupkr\", b = \"ubmrapg\"", "longest_common_subsequence(\"ezupkr\", \"ubmrapg\")", "2"),
+        T("leetcode_mixed_longer", "a = \"oxcpqrsvwf\", b = \"shmtulqrypy\"", "longest_common_subsequence(\"oxcpqrsvwf\", \"shmtulqrypy\")", "2"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn is_subsequence(small: &[u8], big: &[u8]) -> bool {
+                let mut it = big.iter();
+                small.iter().all(|c| it.any(|d| d == c))
+            }
+            let mut rng = anneal_prelude::Rng::new(1224);
+            for _ in 0..300 {
+                let (la, lb) = (rng.below(9), rng.below(9));
+                let a = rng.string(la, "abc");
+                let b = rng.string(lb, "abc");
+                let ab = a.as_bytes();
+                let mut want = 0;
+                for mask in 0u32..(1 << la) {
+                    let picked: Vec<u8> = (0..la).filter(|&i| mask >> i & 1 == 1).map(|i| ab[i]).collect();
+                    if is_subsequence(&picked, b.as_bytes()) {
+                        want = want.max(picked.len());
+                    }
+                }
+                check!(format!("a = {a:?}, b = {b:?}"), longest_common_subsequence(&a, &b), want);
+            }
+        }
+
+        #[test]
+        fn scale_2000() {
+            let a: String = (0..2000u64).map(|i| (b'a' + (i * 7919 % 26) as u8) as char).collect();
+            let b: String = (0..2000u64).map(|i| (b'a' + ((i * 104_729 + 13) % 26) as u8) as char).collect();
+            check!("a[i] = 'a' + (7919·i) % 26, b[i] = 'a' + (104729·i + 13) % 26, 2000 each", longest_common_subsequence(&a, &b), 615);
+        }
+        """,
+    ],
+    wrong=dict(
+        common_substring="""
+            pub fn longest_common_subsequence(a: &str, b: &str) -> usize {
+                let (a, b) = (a.as_bytes(), b.as_bytes());
+                let mut prev = vec![0usize; b.len() + 1];
+                let mut best = 0;
+                for &x in a {
+                    let mut cur = vec![0usize; b.len() + 1];
+                    for (j, &y) in b.iter().enumerate() {
+                        if x == y {
+                            cur[j + 1] = prev[j] + 1;
+                            best = best.max(cur[j + 1]);
+                        }
+                    }
+                    prev = cur;
+                }
+                best
+            }
+        """,
+        greedy_first_match="""
+            pub fn longest_common_subsequence(a: &str, b: &str) -> usize {
+                let b = b.as_bytes();
+                let (mut j, mut count) = (0, 0);
+                for &x in a.as_bytes() {
+                    if let Some(k) = b[j..].iter().position(|&y| y == x) {
+                        j += k + 1;
+                        count += 1;
+                    }
+                }
+                count
+            }
+        """,
+        plain_recursion="""
+            fn lcs(a: &[u8], b: &[u8]) -> usize {
+                match (a, b) {
+                    ([], _) | (_, []) => 0,
+                    ([x, ra @ ..], [y, rb @ ..]) if x == y => 1 + lcs(ra, rb),
+                    ([_, ra @ ..], [_, rb @ ..]) => lcs(ra, b).max(lcs(a, rb)),
+                }
+            }
+
+            pub fn longest_common_subsequence(a: &str, b: &str) -> usize {
+                lcs(a.as_bytes(), b.as_bytes())
+            }
+        """,
+    ),
+    hints=[("approach", "dp[i][j] = dp[i - 1][j - 1] + 1 if a[i - 1] == b[j - 1], else max(dp[i - 1][j], dp[i][j - 1])."),
+           ("rust", "Index `a.as_bytes()` and `b.as_bytes()`. Keep two rows of length b.len() + 1 and `std::mem::swap` them after each character of `a`."),
+           ("edge case", "Matching each character of `a` to its first occurrence in `b` is greedy and misses better pairings: \"xab\" and \"abx\" share \"ab\".")],
+    notes=("If the last characters match they end the LCS together; otherwise one of them isn't in it, so drop either and take the better. Only the previous row is needed.", "O(n × m)", "O(m)"),
+    follow_up="How would you recover the subsequence itself, and how much of the table do you need for that?",
+    related=["S2", "D2"],
+))
+
+P.append(dict(
+    slug="delete-operation-for-two-strings", title="Delete operation for two strings", level="medium", stage="strings", tags=["2-D DP", "LCS"],
+    companies=["Google", "Amazon", "Microsoft"],
+    teaches=["Reusing LCS: what survives the deletions is a common subsequence.", "Recognising when a new problem is an old table read differently."],
+    statement="""
+        In one step you delete one character from either string. Return the fewest steps that
+        make `a` and `b` equal.
+    """,
+    examples=[("a = \"sea\", b = \"eat\"", "2 (delete 's' from a and 't' from b)")],
+    constraints=["0 ≤ a.len(), b.len() ≤ 2000", "a and b are ASCII lowercase letters"],
+    starter="""
+        pub fn min_distance(a: &str, b: &str) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn min_distance(a: &str, b: &str) -> usize {
+            let (x, y) = (a.as_bytes(), b.as_bytes());
+            let mut prev = vec![0usize; y.len() + 1];
+            let mut cur = vec![0usize; y.len() + 1];
+            for &p in x {
+                for (j, &q) in y.iter().enumerate() {
+                    cur[j + 1] = if p == q { prev[j] + 1 } else { prev[j + 1].max(cur[j]) };
+                }
+                std::mem::swap(&mut prev, &mut cur);
+            }
+            // Keep the longest common subsequence; delete everything else.
+            let lcs = prev[y.len()];
+            x.len() + y.len() - 2 * lcs
+        }
+    """,
+    visible=[
+        T("leetcode_sea_eat", "a = \"sea\", b = \"eat\"", "min_distance(\"sea\", \"eat\")", "2"),
+        T("leetcode_leetcode", "a = \"leetcode\", b = \"etco\"", "min_distance(\"leetcode\", \"etco\")", "4"),
+        T("empty", "a = \"\", b = \"abc\"", "min_distance(\"\", \"abc\")", "3"),
+        T("already_equal", "a = \"abc\", b = \"abc\"", "min_distance(\"abc\", \"abc\")", "0"),
+        T("no_replacing", "a = \"a\", b = \"b\" (delete both)", "min_distance(\"a\", \"b\")", "2"),
+    ],
+    hidden=[
+        T("both_empty", "a = \"\", b = \"\"", "min_distance(\"\", \"\")", "0"),
+        T("second_empty", "a = \"abc\", b = \"\"", "min_distance(\"abc\", \"\")", "3"),
+        T("nothing_shared", "a = \"abc\", b = \"def\"", "min_distance(\"abc\", \"def\")", "6"),
+        T("reversed", "a = \"abc\", b = \"cba\"", "min_distance(\"abc\", \"cba\")", "4"),
+        T("swap", "a = \"ab\", b = \"ba\"", "min_distance(\"ab\", \"ba\")", "2"),
+        T("repeats", "a = \"aaaa\", b = \"aa\"", "min_distance(\"aaaa\", \"aa\")", "2"),
+        T("mixed", "a = \"ezupkr\", b = \"ubmrapg\"", "min_distance(\"ezupkr\", \"ubmrapg\")", "9"),
+        T("one_letter_differs", "a = \"abcxdef\", b = \"abcydef\"", "min_distance(\"abcxdef\", \"abcydef\")", "2"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn dist(a: &[u8], b: &[u8]) -> usize {
+                match (a, b) {
+                    ([], _) => b.len(),
+                    (_, []) => a.len(),
+                    ([x, ra @ ..], [y, rb @ ..]) if x == y => dist(ra, rb),
+                    ([_, ra @ ..], [_, rb @ ..]) => 1 + dist(ra, b).min(dist(a, rb)),
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1225);
+            for _ in 0..300 {
+                let (la, lb) = (rng.below(8), rng.below(8));
+                let a = rng.string(la, "abc");
+                let b = rng.string(lb, "abc");
+                check!(format!("a = {a:?}, b = {b:?}"), min_distance(&a, &b), dist(a.as_bytes(), b.as_bytes()));
+            }
+        }
+
+        #[test]
+        fn scale_2000() {
+            let a: String = (0..2000u64).map(|i| (b'a' + (i * 7919 % 26) as u8) as char).collect();
+            let b: String = (0..2000u64).map(|i| (b'a' + ((i * 104_729 + 13) % 26) as u8) as char).collect();
+            check!("a[i] = 'a' + (7919·i) % 26, b[i] = 'a' + (104729·i + 13) % 26, 2000 each", min_distance(&a, &b), 2770);
+        }
+        """,
+    ],
+    wrong=dict(
+        allows_replacing="""
+            pub fn min_distance(a: &str, b: &str) -> usize {
+                let (x, y) = (a.as_bytes(), b.as_bytes());
+                let mut prev: Vec<usize> = (0..=y.len()).collect();
+                let mut cur = vec![0usize; y.len() + 1];
+                for (i, &p) in x.iter().enumerate() {
+                    cur[0] = i + 1;
+                    for (j, &q) in y.iter().enumerate() {
+                        cur[j + 1] = if p == q { prev[j] } else { 1 + prev[j].min(prev[j + 1]).min(cur[j]) };
+                    }
+                    std::mem::swap(&mut prev, &mut cur);
+                }
+                prev[y.len()]
+            }
+        """,
+        deletes_from_one_side="""
+            pub fn min_distance(a: &str, b: &str) -> usize {
+                let (x, y) = (a.as_bytes(), b.as_bytes());
+                let mut prev = vec![0usize; y.len() + 1];
+                let mut cur = vec![0usize; y.len() + 1];
+                for &p in x {
+                    for (j, &q) in y.iter().enumerate() {
+                        cur[j + 1] = if p == q { prev[j] + 1 } else { prev[j + 1].max(cur[j]) };
+                    }
+                    std::mem::swap(&mut prev, &mut cur);
+                }
+                x.len().max(y.len()) - prev[y.len()]
+            }
+        """,
+        plain_recursion="""
+            fn dist(a: &[u8], b: &[u8]) -> usize {
+                match (a, b) {
+                    ([], _) => b.len(),
+                    (_, []) => a.len(),
+                    ([x, ra @ ..], [y, rb @ ..]) if x == y => dist(ra, rb),
+                    ([_, ra @ ..], [_, rb @ ..]) => 1 + dist(ra, b).min(dist(a, rb)),
+                }
+            }
+
+            pub fn min_distance(a: &str, b: &str) -> usize {
+                dist(a.as_bytes(), b.as_bytes())
+            }
+        """,
+    ),
+    hints=[("approach", "The characters that survive form a common subsequence, so keep the longest one: the answer is len(a) + len(b) - 2·LCS."),
+           ("rust", "Reuse the two-row LCS loop over `as_bytes()`, then do the subtraction in `usize` (it can't go negative)."),
+           ("edge case", "Only deletions count: \"a\" and \"b\" need 2 steps, not 1 replacement.")],
+    notes=("Deleting down to a common string is the same as choosing a common subsequence to keep; the longest one needs the fewest deletions. A direct DP (1 + min of deleting from either side) works too.", "O(n × m)", "O(m)"),
+    follow_up="What if deleting each character had its own cost (LeetCode 712, minimum ASCII delete sum)?",
+    related=["S2"],
+))
+
+P.append(dict(
+    slug="longest-palindromic-subsequence", title="Longest palindromic subsequence", level="medium", stage="strings", tags=["interval DP", "as_bytes"],
+    companies=["Amazon", "Google", "Meta", "Microsoft", "LinkedIn", "Uber"],
+    teaches=["Interval DP: the answer for `s[i..=j]` from the answers for shorter intervals inside it.",
+             "Iterating `i` downwards so every inner interval is ready."],
+    statement="""
+        Return the length of the longest subsequence of `s` that reads the same forwards and
+        backwards. A subsequence keeps the order but may skip characters.
+    """,
+    examples=[("s = \"bbbab\"", "4 (\"bbbb\")")],
+    constraints=["0 ≤ s.len() ≤ 2000", "s is ASCII lowercase letters"],
+    starter="""
+        pub fn longest_palindrome_subseq(s: &str) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn longest_palindrome_subseq(s: &str) -> usize {
+            let s = s.as_bytes();
+            let n = s.len();
+            // For the current i, best[j] = LPS of s[i..=j]. Before updating it holds s[i + 1..=j].
+            let mut best = vec![0usize; n];
+            for i in (0..n).rev() {
+                best[i] = 1;
+                let mut inner = 0; // LPS of s[i + 1..=j - 1]
+                for j in i + 1..n {
+                    let without_i = best[j];
+                    best[j] = if s[i] == s[j] { inner + 2 } else { without_i.max(best[j - 1]) };
+                    inner = without_i;
+                }
+            }
+            best.last().copied().unwrap_or(0)
+        }
+    """,
+    visible=[
+        T("leetcode_bbbab", "s = \"bbbab\"", "longest_palindrome_subseq(\"bbbab\")", "4"),
+        T("leetcode_cbbd", "s = \"cbbd\"", "longest_palindrome_subseq(\"cbbd\")", "2"),
+        T("empty", "s = \"\"", "longest_palindrome_subseq(\"\")", "0"),
+        T("single", "s = \"a\"", "longest_palindrome_subseq(\"a\")", "1"),
+        T("all_different", "s = \"abcde\"", "longest_palindrome_subseq(\"abcde\")", "1"),
+        T("gaps_allowed", "s = \"aebcbda\" (\"abcba\")", "longest_palindrome_subseq(\"aebcbda\")", "5"),
+    ],
+    hidden=[
+        T("empty", "s = \"\"", "longest_palindrome_subseq(\"\")", "0"),
+        T("pair", "s = \"aa\"", "longest_palindrome_subseq(\"aa\")", "2"),
+        T("different_pair", "s = \"ab\"", "longest_palindrome_subseq(\"ab\")", "1"),
+        T("all_same", "s = \"aaaa\"", "longest_palindrome_subseq(\"aaaa\")", "4"),
+        T("not_rearranged", "s = \"abab\"", "longest_palindrome_subseq(\"abab\")", "3"),
+        T("inner_skip", "s = \"agbdba\"", "longest_palindrome_subseq(\"agbdba\")", "5"),
+        T("word", "s = \"character\"", "longest_palindrome_subseq(\"character\")", "5"),
+        T("long_run", "s = \"aaa…a\" (2000)", "longest_palindrome_subseq(&\"a\".repeat(2000))", "2000"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1226);
+            for _ in 0..300 {
+                let n = rng.below(12);
+                let s = rng.string(n, "abc");
+                let b = s.as_bytes();
+                let mut want = 0;
+                for mask in 0u32..(1 << n) {
+                    let picked: Vec<u8> = (0..n).filter(|&i| mask >> i & 1 == 1).map(|i| b[i]).collect();
+                    if picked.iter().eq(picked.iter().rev()) {
+                        want = want.max(picked.len());
+                    }
+                }
+                check!(format!("s = {s:?}"), longest_palindrome_subseq(&s), want);
+            }
+        }
+
+        #[test]
+        fn scale_2000() {
+            let s: String = (0..2000u64).map(|i| (b'a' + (i * 7919 % 26) as u8) as char).collect();
+            check!("s[i] = 'a' + (7919·i) % 26, 2000 characters", longest_palindrome_subseq(&s), 153);
+        }
+        """,
+    ],
+    wrong=dict(
+        longest_palindromic_substring="""
+            pub fn longest_palindrome_subseq(s: &str) -> usize {
+                let s = s.as_bytes();
+                let n = s.len();
+                let mut best = n.min(1);
+                for center in 0..2 * n {
+                    let (mut lo, mut hi) = (center / 2, center / 2 + center % 2);
+                    while hi < n && s[lo] == s[hi] {
+                        best = best.max(hi - lo + 1);
+                        if lo == 0 {
+                            break;
+                        }
+                        lo -= 1;
+                        hi += 1;
+                    }
+                }
+                best
+            }
+        """,
+        pairs_of_letters="""
+            pub fn longest_palindrome_subseq(s: &str) -> usize {
+                let mut counts = [0usize; 26];
+                for b in s.bytes() {
+                    counts[(b - b'a') as usize] += 1;
+                }
+                let pairs: usize = counts.iter().map(|c| c / 2 * 2).sum();
+                pairs + counts.iter().any(|c| c % 2 == 1) as usize
+            }
+        """,
+        plain_recursion="""
+            fn lps(s: &[u8]) -> usize {
+                match s {
+                    [] => 0,
+                    [_] => 1,
+                    [a, mid @ .., b] if a == b => 2 + lps(mid),
+                    [_, rest @ ..] => lps(rest).max(lps(&s[..s.len() - 1])),
+                }
+            }
+
+            pub fn longest_palindrome_subseq(s: &str) -> usize {
+                lps(s.as_bytes())
+            }
+        """,
+    ),
+    hints=[("approach", "For s[i..=j]: if the ends match they wrap the best palindrome inside (2 + LPS(i + 1, j - 1)); otherwise drop one end: max(LPS(i + 1, j), LPS(i, j - 1))."),
+           ("rust", "Loop `i` from n - 1 down to 0 and `j` upwards; one `Vec` works if you save the old `best[j]` before overwriting it (it is the next j's inner interval)."),
+           ("edge case", "The characters must stay in order: \"abab\" gives 3 (\"aba\"), not 4. A subsequence, not a substring: \"aebcbda\" gives 5.")],
+    notes=("Every interval depends only on intervals strictly inside it, so filling by decreasing i and increasing j works. It also equals LCS(s, reverse(s)).", "O(n²)", "O(n)"),
+    follow_up="How would you find the fewest insertions that make s a palindrome? (n - LPS.)",
+    related=["D2", "S2"],
+))
+
+P.append(dict(
+    slug="edit-distance", title="Edit distance", level="medium", stage="strings", tags=["2-D DP", "chars", "Unicode"],
+    companies=["Google", "Amazon", "Meta", "Microsoft", "Apple", "Bloomberg", "LinkedIn"],
+    teaches=["Three moves (insert, delete, replace) as three neighbours in the table.",
+             "`chars().collect::<Vec<char>>()` when an edit means a character, not a byte."],
+    statement="""
+        In one edit you insert a character, delete a character, or replace one character with
+        another. Return the fewest edits that turn `a` into `b`.
+
+        The strings can hold any Unicode text; an edit changes one `char`, so `"café"` → `"cafe"`
+        is one edit.
+    """,
+    examples=[("a = \"horse\", b = \"ros\"", "3 (horse → rorse → rose → ros)")],
+    constraints=["0 ≤ a and b ≤ 2000 chars each"],
+    starter="""
+        pub fn edit_distance(a: &str, b: &str) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn edit_distance(a: &str, b: &str) -> usize {
+            let a: Vec<char> = a.chars().collect();
+            let b: Vec<char> = b.chars().collect();
+            // prev[j] = edits between a[..i] and b[..j]; row 0 is j inserts.
+            let mut prev: Vec<usize> = (0..=b.len()).collect();
+            let mut cur = vec![0usize; b.len() + 1];
+            for (i, &x) in a.iter().enumerate() {
+                cur[0] = i + 1; // delete all of a[..=i]
+                for (j, &y) in b.iter().enumerate() {
+                    cur[j + 1] = if x == y {
+                        prev[j]
+                    } else {
+                        1 + prev[j].min(prev[j + 1]).min(cur[j]) // replace, delete, insert
+                    };
+                }
+                std::mem::swap(&mut prev, &mut cur);
+            }
+            prev[b.len()]
+        }
+    """,
+    visible=[
+        T("leetcode_horse", "a = \"horse\", b = \"ros\"", "edit_distance(\"horse\", \"ros\")", "3"),
+        T("leetcode_intention", "a = \"intention\", b = \"execution\"", "edit_distance(\"intention\", \"execution\")", "5"),
+        T("empty_to_word", "a = \"\", b = \"abc\"", "edit_distance(\"\", \"abc\")", "3"),
+        T("word_to_empty", "a = \"abc\", b = \"\"", "edit_distance(\"abc\", \"\")", "3"),
+        T("same", "a = \"same\", b = \"same\"", "edit_distance(\"same\", \"same\")", "0"),
+        T("unicode_is_one_edit", "a = \"café\", b = \"cafe\"", "edit_distance(\"café\", \"cafe\")", "1"),
+    ],
+    hidden=[
+        T("both_empty", "a = \"\", b = \"\"", "edit_distance(\"\", \"\")", "0"),
+        T("one_replace", "a = \"a\", b = \"b\"", "edit_distance(\"a\", \"b\")", "1"),
+        T("swap", "a = \"ab\", b = \"ba\"", "edit_distance(\"ab\", \"ba\")", "2"),
+        T("kitten", "a = \"kitten\", b = \"sitting\"", "edit_distance(\"kitten\", \"sitting\")", "3"),
+        T("insert_and_replace", "a = \"abc\", b = \"yabd\"", "edit_distance(\"abc\", \"yabd\")", "2"),
+        T("plasma", "a = \"plasma\", b = \"altruism\"", "edit_distance(\"plasma\", \"altruism\")", "6"),
+        T("cjk_insert", "a = \"日本\", b = \"日本語\"", "edit_distance(\"日本\", \"日本語\")", "1"),
+        T("tilde", "a = \"ñ\", b = \"n\"", "edit_distance(\"ñ\", \"n\")", "1"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn dist(a: &[char], b: &[char]) -> usize {
+                match (a, b) {
+                    ([], _) => b.len(),
+                    (_, []) => a.len(),
+                    ([x, ra @ ..], [y, rb @ ..]) if x == y => dist(ra, rb),
+                    ([_, ra @ ..], [_, rb @ ..]) => 1 + dist(ra, rb).min(dist(ra, b)).min(dist(a, rb)),
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1227);
+            for _ in 0..300 {
+                let (la, lb) = (rng.below(7), rng.below(7));
+                let a = rng.string(la, "abé");
+                let b = rng.string(lb, "abé");
+                let (ca, cb): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+                check!(format!("a = {a:?}, b = {b:?}"), edit_distance(&a, &b), dist(&ca, &cb));
+            }
+        }
+
+        #[test]
+        fn scale_2000() {
+            let a: String = (0..2000u64).map(|i| (b'a' + (i * 7919 % 26) as u8) as char).collect();
+            let b: String = (0..2000u64).map(|i| (b'a' + ((i * 104_729 + 13) % 26) as u8) as char).collect();
+            check!("a[i] = 'a' + (7919·i) % 26, b[i] = 'a' + (104729·i + 13) % 26, 2000 each", edit_distance(&a, &b), 1847);
+        }
+        """,
+    ],
+    wrong=dict(
+        compares_bytes="""
+            pub fn edit_distance(a: &str, b: &str) -> usize {
+                let (a, b) = (a.as_bytes(), b.as_bytes());
+                let mut prev: Vec<usize> = (0..=b.len()).collect();
+                let mut cur = vec![0usize; b.len() + 1];
+                for (i, &x) in a.iter().enumerate() {
+                    cur[0] = i + 1;
+                    for (j, &y) in b.iter().enumerate() {
+                        cur[j + 1] = if x == y { prev[j] } else { 1 + prev[j].min(prev[j + 1]).min(cur[j]) };
+                    }
+                    std::mem::swap(&mut prev, &mut cur);
+                }
+                prev[b.len()]
+            }
+        """,
+        no_replace="""
+            pub fn edit_distance(a: &str, b: &str) -> usize {
+                let a: Vec<char> = a.chars().collect();
+                let b: Vec<char> = b.chars().collect();
+                let mut prev: Vec<usize> = (0..=b.len()).collect();
+                let mut cur = vec![0usize; b.len() + 1];
+                for (i, &x) in a.iter().enumerate() {
+                    cur[0] = i + 1;
+                    for (j, &y) in b.iter().enumerate() {
+                        cur[j + 1] = if x == y { prev[j] } else { 1 + prev[j + 1].min(cur[j]) };
+                    }
+                    std::mem::swap(&mut prev, &mut cur);
+                }
+                prev[b.len()]
+            }
+        """,
+        plain_recursion="""
+            fn dist(a: &[char], b: &[char]) -> usize {
+                match (a, b) {
+                    ([], _) => b.len(),
+                    (_, []) => a.len(),
+                    ([x, ra @ ..], [y, rb @ ..]) if x == y => dist(ra, rb),
+                    ([_, ra @ ..], [_, rb @ ..]) => 1 + dist(ra, rb).min(dist(ra, b)).min(dist(a, rb)),
+                }
+            }
+
+            pub fn edit_distance(a: &str, b: &str) -> usize {
+                let a: Vec<char> = a.chars().collect();
+                let b: Vec<char> = b.chars().collect();
+                dist(&a, &b)
+            }
+        """,
+    ),
+    hints=[("approach", "dp[i][j] = dp[i - 1][j - 1] if the characters match, else 1 + min(replace dp[i - 1][j - 1], delete dp[i - 1][j], insert dp[i][j - 1]). Row 0 is j, column 0 is i."),
+           ("rust", "Collect both strings into `Vec<char>` first; `as_bytes()` would count \"é\" as two edits. Two rows plus `std::mem::swap` keep it O(m) space."),
+           ("edge case", "Turning a string into \"\" (or back) costs its length, so the first row and column are 0, 1, 2, …")],
+    notes=("The last characters either match (free), or the last edit was a replace, a delete or an insert, each leaving a smaller pair of prefixes. Collecting into chars makes each edit one Unicode scalar value.", "O(n × m)", "O(m)"),
+    follow_up="Graphemes like \"é\" written as e + a combining accent are two chars. How would you make that one edit? (Grapheme clusters, e.g. the unicode-segmentation crate.)",
+    related=["S2"],
+))
+
+P.append(dict(
+    slug="interleaving-string", title="Interleaving string", level="medium", stage="strings", tags=["2-D DP", "as_bytes"],
+    companies=["Google", "Amazon", "Microsoft", "Meta", "Apple"],
+    teaches=["A boolean table over two prefixes: position `i + j` of `s3` comes from `s1[i - 1]` or `s2[j - 1]`.",
+             "Checking the lengths first so the table indices always line up."],
+    statement="""
+        Return whether `s3` can be formed by interleaving `s1` and `s2`: taking all their
+        characters, keeping each string's own order, and merging them in some way.
+    """,
+    examples=[("s1 = \"aabcc\", s2 = \"dbbca\", s3 = \"aadbbcbcac\"", "true"),
+              ("s1 = \"aabcc\", s2 = \"dbbca\", s3 = \"aadbbbaccc\"", "false")],
+    constraints=["0 ≤ s1.len(), s2.len() ≤ 1000", "0 ≤ s3.len() ≤ 2000", "ASCII lowercase letters"],
+    starter="""
+        pub fn is_interleave(s1: &str, s2: &str, s3: &str) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn is_interleave(s1: &str, s2: &str, s3: &str) -> bool {
+            let (a, b, c) = (s1.as_bytes(), s2.as_bytes(), s3.as_bytes());
+            if a.len() + b.len() != c.len() {
+                return false;
+            }
+            // ok[j] for the current i: a[..i] and b[..j] interleave into c[..i + j].
+            let mut ok = vec![false; b.len() + 1];
+            for i in 0..=a.len() {
+                for j in 0..=b.len() {
+                    ok[j] = if i == 0 && j == 0 {
+                        true
+                    } else {
+                        (i > 0 && ok[j] && a[i - 1] == c[i + j - 1]) || (j > 0 && ok[j - 1] && b[j - 1] == c[i + j - 1])
+                    };
+                }
+            }
+            ok[b.len()]
+        }
+    """,
+    visible=[
+        T("leetcode_true", "s1 = \"aabcc\", s2 = \"dbbca\", s3 = \"aadbbcbcac\"", "is_interleave(\"aabcc\", \"dbbca\", \"aadbbcbcac\")", "true"),
+        T("leetcode_false", "s1 = \"aabcc\", s2 = \"dbbca\", s3 = \"aadbbbaccc\"", "is_interleave(\"aabcc\", \"dbbca\", \"aadbbbaccc\")", "false"),
+        T("leetcode_all_empty", "s1 = \"\", s2 = \"\", s3 = \"\"", "is_interleave(\"\", \"\", \"\")", "true"),
+        T("one_side_empty", "s1 = \"a\", s2 = \"\", s3 = \"a\"", "is_interleave(\"a\", \"\", \"a\")", "true"),
+        T("length_mismatch", "s1 = \"a\", s2 = \"b\", s3 = \"abc\"", "is_interleave(\"a\", \"b\", \"abc\")", "false"),
+        T("either_string_first", "s1 = \"a\", s2 = \"b\", s3 = \"ba\"", "is_interleave(\"a\", \"b\", \"ba\")", "true"),
+    ],
+    hidden=[
+        T("too_short", "s1 = \"abc\", s2 = \"\", s3 = \"ab\"", "is_interleave(\"abc\", \"\", \"ab\")", "false"),
+        T("empty_s3", "s1 = \"a\", s2 = \"\", s3 = \"\"", "is_interleave(\"a\", \"\", \"\")", "false"),
+        T("order_kept", "s1 = \"ab\", s2 = \"\", s3 = \"ba\"", "is_interleave(\"ab\", \"\", \"ba\")", "false"),
+        T("symmetric", "s1 = \"ab\", s2 = \"ba\", s3 = \"abba\"", "is_interleave(\"ab\", \"ba\", \"abba\")", "true"),
+        T("greedy_trap", "s1 = \"aa\", s2 = \"ab\", s3 = \"abaa\"", "is_interleave(\"aa\", \"ab\", \"abaa\")", "true"),
+        T("greedy_trap_longer", "s1 = \"abc\", s2 = \"abd\", s3 = \"abdabc\"", "is_interleave(\"abc\", \"abd\", \"abdabc\")", "true"),
+        T("shared_letters", "s1 = \"db\", s2 = \"b\", s3 = \"dbb\"", "is_interleave(\"db\", \"b\", \"dbb\")", "true"),
+        T("same_letters_wrong_count", "s1 = \"aa\", s2 = \"a\", s3 = \"aab\"", "is_interleave(\"aa\", \"a\", \"aab\")", "false"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn can(a: &[u8], b: &[u8], c: &[u8]) -> bool {
+                match c {
+                    [] => a.is_empty() && b.is_empty(),
+                    [x, rest @ ..] => (a.first() == Some(x) && can(&a[1..], b, rest)) || (b.first() == Some(x) && can(a, &b[1..], rest)),
+                }
+            }
+            let mut rng = anneal_prelude::Rng::new(1228);
+            for _ in 0..400 {
+                let (l1, l2) = (rng.below(5), rng.below(5));
+                let s1 = rng.string(l1, "ab");
+                let s2 = rng.string(l2, "ab");
+                let l3 = if rng.below(8) == 0 { rng.below(9) } else { l1 + l2 };
+                let s3 = rng.string(l3, "ab");
+                check!(format!("s1 = {s1:?}, s2 = {s2:?}, s3 = {s3:?}"), is_interleave(&s1, &s2, &s3), can(s1.as_bytes(), s2.as_bytes(), s3.as_bytes()));
+            }
+        }
+
+        #[test]
+        fn scale_all_a_then_b() {
+            // Every split of the a's matches until the final b: plain recursion tries them all.
+            let s1 = "a".repeat(1000);
+            let s2 = "a".repeat(1000);
+            let s3 = format!("{}b", "a".repeat(1999));
+            check!("s1 = s2 = 1000 a's, s3 = 1999 a's then b", is_interleave(&s1, &s2, &s3), false);
+        }
+
+        #[test]
+        fn scale_real_interleave() {
+            let s1: Vec<u8> = (0..1000usize).map(|i| b'a' + (i * 7 % 3) as u8).collect();
+            let s2: Vec<u8> = (0..1000usize).map(|i| b'a' + ((i * 5 + 1) % 3) as u8).collect();
+            let mut s3 = Vec::new();
+            let (mut i, mut j, mut k) = (0, 0, 0usize);
+            while i < 1000 || j < 1000 {
+                if j >= 1000 || (i < 1000 && k * 7919 % 3 != 0) {
+                    s3.push(s1[i]);
+                    i += 1;
+                } else {
+                    s3.push(s2[j]);
+                    j += 1;
+                }
+                k += 1;
+            }
+            let (s1, s2, s3) = (String::from_utf8(s1).unwrap(), String::from_utf8(s2).unwrap(), String::from_utf8(s3).unwrap());
+            check!("s1, s2 = 1000 letters of a/b/c, s3 = one interleaving of them", is_interleave(&s1, &s2, &s3), true);
+        }
+        """,
+    ],
+    wrong=dict(
+        greedy_prefers_s1="""
+            pub fn is_interleave(s1: &str, s2: &str, s3: &str) -> bool {
+                let (a, b) = (s1.as_bytes(), s2.as_bytes());
+                let (mut i, mut j) = (0, 0);
+                for &ch in s3.as_bytes() {
+                    if i < a.len() && a[i] == ch {
+                        i += 1;
+                    } else if j < b.len() && b[j] == ch {
+                        j += 1;
+                    } else {
+                        return false;
+                    }
+                }
+                i == a.len() && j == b.len()
+            }
+        """,
+        plain_recursion="""
+            fn can(a: &[u8], b: &[u8], c: &[u8]) -> bool {
+                match c {
+                    [] => a.is_empty() && b.is_empty(),
+                    [x, rest @ ..] => (a.first() == Some(x) && can(&a[1..], b, rest)) || (b.first() == Some(x) && can(a, &b[1..], rest)),
+                }
+            }
+
+            pub fn is_interleave(s1: &str, s2: &str, s3: &str) -> bool {
+                can(s1.as_bytes(), s2.as_bytes(), s3.as_bytes())
+            }
+        """,
+        no_length_check="""
+            pub fn is_interleave(s1: &str, s2: &str, s3: &str) -> bool {
+                let (a, b, c) = (s1.as_bytes(), s2.as_bytes(), s3.as_bytes());
+                let mut ok = vec![false; b.len() + 1];
+                for i in 0..=a.len() {
+                    for j in 0..=b.len() {
+                        ok[j] = if i == 0 && j == 0 {
+                            true
+                        } else {
+                            (i > 0 && ok[j] && c.get(i + j - 1) == Some(&a[i - 1])) || (j > 0 && ok[j - 1] && c.get(i + j - 1) == Some(&b[j - 1]))
+                        };
+                    }
+                }
+                ok[b.len()]
+            }
+        """,
+    ),
+    hints=[("approach", "ok(i, j) is true if s3[..i + j] interleaves s1[..i] and s2[..j]: either s1[i - 1] == s3[i + j - 1] and ok(i - 1, j), or s2[j - 1] == s3[i + j - 1] and ok(i, j - 1)."),
+           ("rust", "Return `false` early unless `s1.len() + s2.len() == s3.len()`; then one `Vec<bool>` of width s2.len() + 1 is the whole table."),
+           ("edge case", "Taking from s1 whenever it matches is greedy and fails when both strings offer the same letter: s1 = \"aa\", s2 = \"ab\", s3 = \"abaa\".")],
+    notes=("The table has one cell per pair of prefix lengths; s3's position is always i + j, so it isn't a third dimension. Row i only needs row i - 1, hence one rolling row.", "O(n × m)", "O(m)"),
+    follow_up="How would you return which string each character of s3 came from?",
+    related=["D2"],
+))
+
+P.append(dict(
+    slug="distinct-subsequences", title="Distinct subsequences", level="hard", stage="strings", tags=["2-D DP", "u64", "wrapping"],
+    companies=["Google", "Amazon", "Microsoft", "Bloomberg"],
+    teaches=["Counting DP over two strings, updated backwards so each character of `s` is used once per subsequence.",
+             "Counts that never reach the answer can still overflow; `wrapping_add` is exact modulo 2⁶⁴."],
+    statement="""
+        Return how many different ways you can choose characters of `s`, in order, that spell
+        `t`. Two ways differ if they pick a different set of positions in `s`.
+
+        The answer fits in a `u64`, but counts for prefixes of `t` along the way may not.
+    """,
+    examples=[("s = \"rabbbit\", t = \"rabbit\"", "3 (drop any one of the three b's)")],
+    constraints=["0 ≤ s.len() ≤ 10⁴", "0 ≤ t.len() ≤ 1000", "ASCII lowercase letters", "the answer fits in a u64"],
+    starter="""
+        pub fn num_distinct(s: &str, t: &str) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn num_distinct(s: &str, t: &str) -> u64 {
+            let t = t.as_bytes();
+            // ways[j] = ways to spell t[..j] with the part of s seen so far.
+            let mut ways = vec![0u64; t.len() + 1];
+            ways[0] = 1;
+            for &c in s.as_bytes() {
+                // Backwards, so this c extends only spellings that didn't use it already.
+                for j in (1..=t.len()).rev() {
+                    if t[j - 1] == c {
+                        // Partial counts may wrap; the final answer is exact because it fits.
+                        ways[j] = ways[j].wrapping_add(ways[j - 1]);
+                    }
+                }
+            }
+            ways[t.len()]
+        }
+    """,
+    visible=[
+        T("leetcode_rabbit", "s = \"rabbbit\", t = \"rabbit\"", "num_distinct(\"rabbbit\", \"rabbit\")", "3"),
+        T("leetcode_bag", "s = \"babgbag\", t = \"bag\"", "num_distinct(\"babgbag\", \"bag\")", "5"),
+        T("empty_t", "s = \"abc\", t = \"\"", "num_distinct(\"abc\", \"\")", "1"),
+        T("empty_s", "s = \"\", t = \"a\"", "num_distinct(\"\", \"a\")", "0"),
+        T("positions_not_letters", "s = \"aaa\", t = \"aa\"", "num_distinct(\"aaa\", \"aa\")", "3"),
+    ],
+    hidden=[
+        T("both_empty", "s = \"\", t = \"\"", "num_distinct(\"\", \"\")", "1"),
+        T("single", "s = \"a\", t = \"a\"", "num_distinct(\"a\", \"a\")", "1"),
+        T("t_longer", "s = \"ab\", t = \"abc\"", "num_distinct(\"ab\", \"abc\")", "0"),
+        T("one_letter_three_times", "s = \"aaa\", t = \"a\"", "num_distinct(\"aaa\", \"a\")", "3"),
+        T("overlapping", "s = \"abab\", t = \"ab\"", "num_distinct(\"abab\", \"ab\")", "3"),
+        T("order_matters", "s = \"ba\", t = \"ab\"", "num_distinct(\"ba\", \"ab\")", "0"),
+        T("near_u64_max", "s = 64 a's, t = 32 a's", "num_distinct(&\"a\".repeat(64), &\"a\".repeat(32))", "1_832_624_140_942_590_534"),
+        T("dead_counts_overflow", "s = 200 a's, t = 100 a's then c", "num_distinct(&\"a\".repeat(200), &format!(\"{}c\", \"a\".repeat(100)))", "0"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1229);
+            for _ in 0..300 {
+                let (ls, lt) = (rng.below(12), rng.below(4));
+                let s = rng.string(ls, "ab");
+                let t = rng.string(lt, "ab");
+                let sb = s.as_bytes();
+                let mut want = 0u64;
+                for mask in 0u32..(1 << ls) {
+                    let picked: Vec<u8> = (0..ls).filter(|&i| mask >> i & 1 == 1).map(|i| sb[i]).collect();
+                    want += (picked == t.as_bytes()) as u64;
+                }
+                check!(format!("s = {s:?}, t = {t:?}"), num_distinct(&s, &t), want);
+            }
+        }
+
+        #[test]
+        fn scale_10k() {
+            let s: String = (0..10_000u64).map(|i| (b'a' + (i * 7919 % 26) as u8) as char).collect();
+            let t: String = (0..9u64).map(|i| (b'a' + ((i * 104_729 + 5) % 26) as u8) as char).collect();
+            check!(format!("s[i] = 'a' + (7919·i) % 26 (10000 letters), t = {t:?}"), num_distinct(&s, &t), 536_473_971_710_831_440);
+        }
+        """,
+    ],
+    wrong=dict(
+        plain_add="""
+            pub fn num_distinct(s: &str, t: &str) -> u64 {
+                let t = t.as_bytes();
+                let mut ways = vec![0u64; t.len() + 1];
+                ways[0] = 1;
+                for &c in s.as_bytes() {
+                    for j in (1..=t.len()).rev() {
+                        if t[j - 1] == c {
+                            ways[j] += ways[j - 1];
+                        }
+                    }
+                }
+                ways[t.len()]
+            }
+        """,
+        forwards_reuses_a_char="""
+            pub fn num_distinct(s: &str, t: &str) -> u64 {
+                let t = t.as_bytes();
+                let mut ways = vec![0u64; t.len() + 1];
+                ways[0] = 1;
+                for &c in s.as_bytes() {
+                    for j in 1..=t.len() {
+                        if t[j - 1] == c {
+                            ways[j] = ways[j].wrapping_add(ways[j - 1]);
+                        }
+                    }
+                }
+                ways[t.len()]
+            }
+        """,
+        plain_recursion="""
+            fn count(s: &[u8], t: &[u8]) -> u64 {
+                match (s, t) {
+                    (_, []) => 1,
+                    ([], _) => 0,
+                    ([x, rs @ ..], [y, rt @ ..]) => count(rs, t) + if x == y { count(rs, rt) } else { 0 },
+                }
+            }
+
+            pub fn num_distinct(s: &str, t: &str) -> u64 {
+                count(s.as_bytes(), t.as_bytes())
+            }
+        """,
+    ),
+    hints=[("approach", "ways(i, j) = ways(i - 1, j) + (s[i - 1] == t[j - 1] ? ways(i - 1, j - 1) : 0): skip this character of s, or use it for t's j-th letter. ways(i, 0) = 1."),
+           ("rust", "One `Vec<u64>` over t, updated for each byte of s with j running backwards, so `ways[j - 1]` is still the value from before this byte."),
+           ("edge case", "Counts for prefixes of t that never finish can pass 2⁶⁴ (200 a's against 100 a's then 'c'); a plain `+` panics in debug. `wrapping_add` is exact modulo 2⁶⁴, and the real answer fits.")],
+    notes=("Each position of s either extends spellings of t[..j - 1] into t[..j] or is skipped. Updating j backwards is the 0/1-knapsack trick: each character is used at most once per spelling. All arithmetic is modulo 2⁶⁴, which is exact for the final count.", "O(|s| × |t|)", "O(|t|)"),
+    follow_up="If the answer were only needed modulo 10⁹ + 7, what changes? And why is wrapping safe here but not for a minimum or maximum?",
+    related=["D11"],
+))
+
 STAGES = [
     ("1d-basics", "1-D basics", "easy"),
     ("1d-choices", "1-D choices", "medium"),

@@ -1,0 +1,41 @@
+slug = "interleaving-string"
+title = "Interleaving string"
+mode = "write"
+level = "medium"
+stage = "strings"
+order = 28
+status = "ready"
+tags = ["2-D DP", "as_bytes"]
+companies = ["Google", "Amazon", "Microsoft", "Meta", "Apple"]
+teaches = [
+  "A boolean table over two prefixes: position `i + j` of `s3` comes from `s1[i - 1]` or `s2[j - 1]`.",
+  "Checking the lengths first so the table indices always line up.",
+]
+constraints = ["0 ≤ s1.len(), s2.len() ≤ 1000", "0 ≤ s3.len() ≤ 2000", "ASCII lowercase letters"]
+follow_up = "How would you return which string each character of s3 came from?"
+related = ["D2"]
+
+[[examples]]
+input = "s1 = \"aabcc\", s2 = \"dbbca\", s3 = \"aadbbcbcac\""
+output = "true"
+
+[[examples]]
+input = "s1 = \"aabcc\", s2 = \"dbbca\", s3 = \"aadbbbaccc\""
+output = "false"
+
+[[hints]]
+kind = "approach"
+text = "ok(i, j) is true if s3[..i + j] interleaves s1[..i] and s2[..j]: either s1[i - 1] == s3[i + j - 1] and ok(i - 1, j), or s2[j - 1] == s3[i + j - 1] and ok(i, j - 1)."
+
+[[hints]]
+kind = "rust"
+text = "Return `false` early unless `s1.len() + s2.len() == s3.len()`; then one `Vec<bool>` of width s2.len() + 1 is the whole table."
+
+[[hints]]
+kind = "edge case"
+text = "Taking from s1 whenever it matches is greedy and fails when both strings offer the same letter: s1 = \"aa\", s2 = \"ab\", s3 = \"abaa\"."
+
+[solution]
+explanation = "The table has one cell per pair of prefix lengths; s3's position is always i + j, so it isn't a third dimension. Row i only needs row i - 1, hence one rolling row."
+time = "O(n × m)"
+space = "O(m)"

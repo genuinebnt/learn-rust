@@ -1,0 +1,37 @@
+slug = "distinct-subsequences"
+title = "Distinct subsequences"
+mode = "write"
+level = "hard"
+stage = "strings"
+order = 29
+status = "ready"
+tags = ["2-D DP", "u64", "wrapping"]
+companies = ["Google", "Amazon", "Microsoft", "Bloomberg"]
+teaches = [
+  "Counting DP over two strings, updated backwards so each character of `s` is used once per subsequence.",
+  "Counts that never reach the answer can still overflow; `wrapping_add` is exact modulo 2⁶⁴.",
+]
+constraints = ["0 ≤ s.len() ≤ 10⁴", "0 ≤ t.len() ≤ 1000", "ASCII lowercase letters", "the answer fits in a u64"]
+follow_up = "If the answer were only needed modulo 10⁹ + 7, what changes? And why is wrapping safe here but not for a minimum or maximum?"
+related = ["D11"]
+
+[[examples]]
+input = "s = \"rabbbit\", t = \"rabbit\""
+output = "3 (drop any one of the three b's)"
+
+[[hints]]
+kind = "approach"
+text = "ways(i, j) = ways(i - 1, j) + (s[i - 1] == t[j - 1] ? ways(i - 1, j - 1) : 0): skip this character of s, or use it for t's j-th letter. ways(i, 0) = 1."
+
+[[hints]]
+kind = "rust"
+text = "One `Vec<u64>` over t, updated for each byte of s with j running backwards, so `ways[j - 1]` is still the value from before this byte."
+
+[[hints]]
+kind = "edge case"
+text = "Counts for prefixes of t that never finish can pass 2⁶⁴ (200 a's against 100 a's then 'c'); a plain `+` panics in debug. `wrapping_add` is exact modulo 2⁶⁴, and the real answer fits."
+
+[solution]
+explanation = "Each position of s either extends spellings of t[..j - 1] into t[..j] or is skipped. Updating j backwards is the 0/1-knapsack trick: each character is used at most once per spelling. All arithmetic is modulo 2⁶⁴, which is exact for the final count."
+time = "O(|s| × |t|)"
+space = "O(|t|)"

@@ -1,0 +1,37 @@
+slug = "delete-operation-for-two-strings"
+title = "Delete operation for two strings"
+mode = "write"
+level = "medium"
+stage = "strings"
+order = 25
+status = "ready"
+tags = ["2-D DP", "LCS"]
+companies = ["Google", "Amazon", "Microsoft"]
+teaches = [
+  "Reusing LCS: what survives the deletions is a common subsequence.",
+  "Recognising when a new problem is an old table read differently.",
+]
+constraints = ["0 ≤ a.len(), b.len() ≤ 2000", "a and b are ASCII lowercase letters"]
+follow_up = "What if deleting each character had its own cost (LeetCode 712, minimum ASCII delete sum)?"
+related = ["S2"]
+
+[[examples]]
+input = "a = \"sea\", b = \"eat\""
+output = "2 (delete 's' from a and 't' from b)"
+
+[[hints]]
+kind = "approach"
+text = "The characters that survive form a common subsequence, so keep the longest one: the answer is len(a) + len(b) - 2·LCS."
+
+[[hints]]
+kind = "rust"
+text = "Reuse the two-row LCS loop over `as_bytes()`, then do the subtraction in `usize` (it can't go negative)."
+
+[[hints]]
+kind = "edge case"
+text = "Only deletions count: \"a\" and \"b\" need 2 steps, not 1 replacement."
+
+[solution]
+explanation = "Deleting down to a common string is the same as choosing a common subsequence to keep; the longest one needs the fewest deletions. A direct DP (1 + min of deleting from either side) works too."
+time = "O(n × m)"
+space = "O(m)"

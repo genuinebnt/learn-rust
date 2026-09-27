@@ -1,0 +1,45 @@
+slug = "repeated-substring-pattern"
+title = "Repeated substring pattern"
+mode = "write"
+level = "medium"
+stage = "string-algorithms"
+order = 13
+status = "ready"
+tags = ["KMP", "&str"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "The border table answers periodicity: `s` is `t` repeated when `n - border[n - 1]` is a proper divisor of `n`.",
+  "Working on bytes is safe here: a repetition of a whole string always splits on character boundaries.",
+]
+constraints = ["0 ≤ s.len() ≤ 2·10⁵ bytes"]
+follow_up = "Return the shortest repeating unit itself, as a slice of `s`."
+related = ["S2"]
+
+[[examples]]
+input = "s = \"abab\""
+output = "true"
+
+[[examples]]
+input = "s = \"aba\""
+output = "false"
+
+[[examples]]
+input = "s = \"abcabcabcabc\""
+output = "true"
+
+[[hints]]
+kind = "approach"
+text = "Build the KMP border table of `s`. Its last entry gives the smallest period `p = n - border[n - 1]`: `s` repeats a unit exactly when `p < n` and `p` divides `n`."
+
+[[hints]]
+kind = "rust"
+text = "`s.as_bytes()` is fine: the first byte of the repeated unit is the first byte of a character, so a period found on bytes never splits a character."
+
+[[hints]]
+kind = "edge case"
+text = "`\"abcabcab\"` has period 3 but length 8; a unit that doesn't divide the length doesn't count. The doubled-string trick needs its first and last characters removed: `(s + s)[1..2n-1]` contains `s`."
+
+[solution]
+explanation = "If `s` has a border of length `b`, it has period `n - b`, and the longest border gives the smallest period. A string is a whole number of copies of some unit exactly when its smallest period divides its length. The other classic answer checks whether `s` occurs inside `s + s` with the first and last characters cut off; with a linear search that's also O(n). Trying only divisors of `n` is O(n · d(n)), fine in practice; trying every period is O(n²)."
+time = "O(n)"
+space = "O(n)"

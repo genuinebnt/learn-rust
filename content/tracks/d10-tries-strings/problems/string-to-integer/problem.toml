@@ -1,0 +1,49 @@
+slug = "string-to-integer"
+title = "String to integer (atoi)"
+mode = "write"
+level = "medium"
+stage = "string-algorithms"
+order = 16
+status = "ready"
+tags = ["parsing", "checked arithmetic", "i32"]
+companies = ["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs"]
+teaches = [
+  "Accumulate towards the sign with `checked_mul`/`checked_sub`: `i32::MIN` has no positive twin in `i32`.",
+  "`trim_start` and `char::is_numeric` accept more than this format does; match the spec's exact bytes.",
+]
+constraints = ["0 ≤ s.len() ≤ 10⁶ bytes, any Unicode"]
+follow_up = "How would you return an error that says why parsing failed (no digits, overflow) instead of 0 or a clamped value?"
+related = ["S1", "S2", "L8"]
+
+[[examples]]
+input = "s = \"42\""
+output = "42"
+
+[[examples]]
+input = "s = \"   -042\""
+output = "-42"
+
+[[examples]]
+input = "s = \"1337c0d3\""
+output = "1337"
+
+[[examples]]
+input = "s = \"words and 987\""
+output = "0"
+
+[[hints]]
+kind = "approach"
+text = "Walk the string once: skip spaces, read at most one sign, then digits. Stop at the first byte that doesn't fit the step you're on."
+
+[[hints]]
+kind = "rust"
+text = "`trim_start_matches(' ')` skips only spaces, and `strip_prefix('-')` returns the rest if the sign is there. Accumulate with `checked_mul(10)` then `checked_add`/`checked_sub` so an overflow shows up as `None` and you clamp."
+
+[[hints]]
+kind = "edge case"
+text = "A wider accumulator (`i64`) only delays the overflow: 30 nines don't fit either. Also, `\"-2147483648\"` is valid, but its magnitude doesn't fit in `i32`, so build negative numbers downwards."
+
+[solution]
+explanation = "One pass, constant space. The traps are in the edges of the format: `trim_start` also skips tabs and Unicode spaces, `char::is_numeric` accepts non-ASCII digits, a second sign ends the number, and any fixed-width accumulator overflows on a long enough digit string, so the clamp has to happen as soon as the value leaves `i32`. Building the number on its sign's side of zero makes `i32::MIN` reachable."
+time = "O(n)"
+space = "O(1)"

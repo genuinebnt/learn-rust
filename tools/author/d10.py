@@ -1972,6 +1972,915 @@ P.append(dict(
     related=["S4"],
 ))
 
+# ---------------------------------------------------------------- string algorithms (medium)
+
+P.append(dict(
+    slug="find-the-first-occurrence", title="Find the first occurrence (KMP)", level="medium", stage="string-algorithms", tags=["KMP", "generics", "slices"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "Adobe"],
+    teaches=["The KMP failure table: after a mismatch, fall back to the longest border of what already matched instead of restarting.",
+             "Generic over `T: PartialEq`: slices have no linear-time `find` for a sub-slice (`str::find` does), so here you write it."],
+    statement="""
+        Return the index of the first place `needle` occurs in `haystack`, or `None` if it never does.
+        An empty `needle` occurs at index 0.
+
+        Both are slices of any comparable type: bytes, characters, numbers. `str::find` is not available on slices,
+        and checking every window is too slow for the largest inputs.
+    """,
+    examples=[("haystack = b\"sadbutsad\", needle = b\"sad\"", "Some(0)"), ("haystack = b\"leetcode\", needle = b\"leeto\"", "None")],
+    constraints=["0 ≤ haystack.len(), needle.len() ≤ 10⁶"],
+    starter="""
+        pub fn find_first<T: PartialEq>(haystack: &[T], needle: &[T]) -> Option<usize> {
+            todo!()
+        }
+    """,
+    solution="""
+        /// `border[i]`: length of the longest proper prefix of `needle[..=i]` that is also a suffix of it.
+        fn borders<T: PartialEq>(needle: &[T]) -> Vec<usize> {
+            let mut border = vec![0; needle.len()];
+            let mut k = 0;
+            for i in 1..needle.len() {
+                while k > 0 && needle[i] != needle[k] {
+                    k = border[k - 1];
+                }
+                if needle[i] == needle[k] {
+                    k += 1;
+                }
+                border[i] = k;
+            }
+            border
+        }
+
+        pub fn find_first<T: PartialEq>(haystack: &[T], needle: &[T]) -> Option<usize> {
+            if needle.is_empty() {
+                return Some(0);
+            }
+            let border = borders(needle);
+            // `k` items of the needle are matched so far; a mismatch falls back to a shorter border, never re-reads the haystack.
+            let mut k = 0;
+            for (i, x) in haystack.iter().enumerate() {
+                while k > 0 && *x != needle[k] {
+                    k = border[k - 1];
+                }
+                if *x == needle[k] {
+                    k += 1;
+                    if k == needle.len() {
+                        return Some(i + 1 - k);
+                    }
+                }
+            }
+            None
+        }
+    """,
+    visible=[
+        T("leetcode_sadbutsad", "haystack = b\"sadbutsad\", needle = b\"sad\"", 'find_first(b"sadbutsad", b"sad")', "Some(0)"),
+        T("leetcode_leeto", "haystack = b\"leetcode\", needle = b\"leeto\"", 'find_first(b"leetcode", b"leeto")', "None"),
+        T("empty_needle", "haystack = b\"abc\", needle = b\"\"", 'find_first(b"abc", b"")', "Some(0)"),
+        T("empty_haystack", "haystack = b\"\", needle = b\"a\"", 'find_first(b"", b"a")', "None"),
+        T("first_of_several", "haystack = b\"abcabc\", needle = b\"bc\"", 'find_first(b"abcabc", b"bc")', "Some(1)"),
+        T("mismatch_must_not_skip_a_start", "haystack = b\"aaab\", needle = b\"aab\" (the match starts inside the failed attempt)", 'find_first(b"aaab", b"aab")', "Some(1)"),
+        T("numbers", "haystack = [1, 2, 1, 2, 3], needle = [1, 2, 3]", "find_first(&[1, 2, 1, 2, 3], &[1, 2, 3])", "Some(2)"),
+    ],
+    hidden=[
+        T("needle_longer", "haystack = b\"ab\", needle = b\"abc\"", 'find_first(b"ab", b"abc")', "None"),
+        T("equal", "haystack = b\"abc\", needle = b\"abc\"", 'find_first(b"abc", b"abc")', "Some(0)"),
+        T("both_empty", "haystack = b\"\", needle = b\"\"", 'find_first(b"", b"")', "Some(0)"),
+        T("at_the_end", "haystack = b\"xxxxy\", needle = b\"xy\"", 'find_first(b"xxxxy", b"xy")', "Some(3)"),
+        T("overlapping_border", "haystack = b\"abababca\", needle = b\"ababca\"", 'find_first(b"abababca", b"ababca")', "Some(2)"),
+        T("fallback_chain", "haystack = b\"aabaaabaaac\", needle = b\"aabaaac\"", 'find_first(b"aabaaabaaac", b"aabaaac")', "Some(4)"),
+        T("chars", "haystack = chars of \"héllo wörld\", needle = chars of \"wö\"", "find_first(&h, &n)", "Some(6)",
+          setup='let h: Vec<char> = "héllo wörld".chars().collect();\nlet n: Vec<char> = "wö".chars().collect();'),
+        T("negatives", "haystack = [-1, -1, -2], needle = [-1, -2]", "find_first(&[-1, -1, -2], &[-1, -2])", "Some(1)"),
+        T("strings_as_items", "haystack = [\"a\", \"b\", \"a\", \"c\"], needle = [\"a\", \"c\"]", 'find_first(&["a", "b", "a", "c"], &["a", "c"])', "Some(2)"),
+        T("single_miss", "haystack = b\"a\", needle = b\"b\"", 'find_first(b"a", b"b")', "None"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1012);
+            for _ in 0..400 {
+                let (hl, nl) = (rng.below(14), rng.below(5));
+                let h: Vec<u8> = rng.vec(hl, 0, 1);
+                let n: Vec<u8> = rng.vec(nl, 0, 1);
+                let want = if n.is_empty() { Some(0) } else { h.windows(n.len()).position(|w| w == n.as_slice()) };
+                check!(format!("haystack = {h:?}, needle = {n:?}"), find_first(&h, &n), want);
+            }
+        }
+
+        #[test]
+        fn scale_million_words() {
+            // A phrase search over words. Every window matches all but the needle's last word, so checking windows one by one is quadratic.
+            let mut h = vec!["to"; 1_000_000];
+            h.push("be");
+            let mut n = vec!["to"; 100_000];
+            n.push("be");
+            check!("haystack = [\\"to\\"; 10⁶] + [\\"be\\"], needle = [\\"to\\"; 10⁵] + [\\"be\\"]", find_first(&h, &n), Some(900_000));
+        }
+        """,
+    ],
+    wrong=dict(
+        every_window="""
+            pub fn find_first<T: PartialEq>(haystack: &[T], needle: &[T]) -> Option<usize> {
+                if needle.is_empty() {
+                    return Some(0);
+                }
+                haystack.windows(needle.len()).position(|w| w == needle)
+            }
+        """,
+        restart_without_fallback="""
+            pub fn find_first<T: PartialEq>(haystack: &[T], needle: &[T]) -> Option<usize> {
+                if needle.is_empty() {
+                    return Some(0);
+                }
+                let mut k = 0;
+                for (i, x) in haystack.iter().enumerate() {
+                    if *x == needle[k] {
+                        k += 1;
+                        if k == needle.len() {
+                            return Some(i + 1 - k);
+                        }
+                    } else {
+                        k = 0;
+                    }
+                }
+                None
+            }
+        """,
+    ),
+    hints=[("approach", "Precompute, for each prefix of the needle, the length of its longest proper prefix that is also its suffix (its border). On a mismatch after matching k items, the next useful attempt has already matched `border[k - 1]` items."),
+           ("rust", "Keep one counter `k` of matched items and walk the haystack once with `iter().enumerate()`; the fallback is a `while k > 0 && x != needle[k]` loop. `T: PartialEq` is all you need."),
+           ("edge case", "Resetting `k` to 0 on a mismatch skips matches: in `aaab` the needle `aab` starts at 1, inside the attempt that failed.")],
+    notes=("KMP never moves backwards in the haystack: each mismatch shortens the current match to a border, and the total number of fallbacks is bounded by the number of advances, so it's linear. The border table is the same idea run on the needle against itself. `windows(m).position(..)` is O(n·m) in the worst case; `str::find` uses the Two-Way algorithm, linear with O(1) extra space, but only for strings.", "O(n + m)", "O(m)"),
+    follow_up="How would you return every occurrence, including overlapping ones, and what changes after a full match?",
+    related=["S2", "S3", "L5"],
+))
+
+P.append(dict(
+    slug="repeated-substring-pattern", title="Repeated substring pattern", level="medium", stage="string-algorithms", tags=["KMP", "&str"],
+    companies=["Amazon", "Google", "Microsoft"],
+    teaches=["The border table answers periodicity: `s` is `t` repeated when `n - border[n - 1]` is a proper divisor of `n`.",
+             "Working on bytes is safe here: a repetition of a whole string always splits on character boundaries."],
+    statement="""
+        Return `true` if `s` is some shorter string repeated two or more times (`"abcabc"` is `"abc"` twice).
+        The empty string and a single character are not repetitions.
+
+        `s` can hold any Unicode text.
+    """,
+    examples=[("s = \"abab\"", "true"), ("s = \"aba\"", "false"), ("s = \"abcabcabcabc\"", "true")],
+    constraints=["0 ≤ s.len() ≤ 2·10⁵ bytes"],
+    starter="""
+        pub fn repeated_substring_pattern(s: &str) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn repeated_substring_pattern(s: &str) -> bool {
+            let b = s.as_bytes();
+            let n = b.len();
+            if n < 2 {
+                return false;
+            }
+            // KMP border table: border[i] is the longest proper prefix of b[..=i] that is also its suffix.
+            let mut border = vec![0; n];
+            let mut k = 0;
+            for i in 1..n {
+                while k > 0 && b[i] != b[k] {
+                    k = border[k - 1];
+                }
+                if b[i] == b[k] {
+                    k += 1;
+                }
+                border[i] = k;
+            }
+            // The smallest period of s; s is a repetition exactly when that period divides n (and isn't n itself).
+            let period = n - border[n - 1];
+            period < n && n % period == 0
+        }
+    """,
+    visible=[
+        T("leetcode_abab", "s = \"abab\"", 'repeated_substring_pattern("abab")', "true"),
+        T("leetcode_aba", "s = \"aba\"", 'repeated_substring_pattern("aba")', "false"),
+        T("leetcode_abc_four_times", "s = \"abcabcabcabc\"", 'repeated_substring_pattern("abcabcabcabc")', "true"),
+        T("single_character", "s = \"a\"", 'repeated_substring_pattern("a")', "false"),
+        T("empty", "s = \"\"", 'repeated_substring_pattern("")', "false"),
+        T("must_cover_the_whole_string", "s = \"abcabcab\" (\"abc\" repeats, but doesn't fill the string)", 'repeated_substring_pattern("abcabcab")', "false"),
+        T("three_copies", "s = \"xyzxyzxyz\"", 'repeated_substring_pattern("xyzxyzxyz")', "true"),
+    ],
+    hidden=[
+        T("two_same_letters", "s = \"zz\"", 'repeated_substring_pattern("zz")', "true"),
+        T("two_different_letters", "s = \"ab\"", 'repeated_substring_pattern("ab")', "false"),
+        T("border_but_no_period", "s = \"abaab\"", 'repeated_substring_pattern("abaab")', "false"),
+        T("unit_with_inner_repeat", "s = \"abaababaab\" (\"abaab\" twice)", 'repeated_substring_pattern("abaababaab")', "true"),
+        T("almost", "s = \"abcabcabd\"", 'repeated_substring_pattern("abcabcabd")', "false"),
+        T("accented", "s = \"éaéa\"", 'repeated_substring_pattern("éaéa")', "true"),
+        T("cjk", "s = \"日本日本日本\"", 'repeated_substring_pattern("日本日本日本")', "true"),
+        T("single_multibyte_char", "s = \"é\" (2 bytes, 1 character)", 'repeated_substring_pattern("é")', "false"),
+        T("same_letter_many_times", "s = 'q' × 7", 'repeated_substring_pattern(&"q".repeat(7))', "true"),
+        T("prime_length_mixed", "s = \"aabaa\"", 'repeated_substring_pattern("aabaa")', "false"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1013);
+            for _ in 0..400 {
+                let s = if rng.bool() {
+                    let (ul, k) = (1 + rng.below(3), 1 + rng.below(4));
+                    rng.string(ul, "ab").repeat(k)
+                } else {
+                    let len = rng.below(10);
+                    rng.string(len, "ab")
+                };
+                let n = s.len();
+                let want = (1..n).any(|p| n % p == 0 && s[..p].repeat(n / p) == s);
+                check!(format!("s = {s:?}"), repeated_substring_pattern(&s), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            // Every candidate period matches until the very last byte.
+            let no = format!("{}b", "a".repeat(199_999));
+            let yes = format!("{}b", "a".repeat(99_999)).repeat(2);
+            check!("s = 'a' × 199999 + \\"b\\"; s = ('a' × 99999 + \\"b\\") × 2", (repeated_substring_pattern(&no), repeated_substring_pattern(&yes)), (false, true));
+        }
+        """,
+    ],
+    wrong=dict(
+        halves_only="""
+            pub fn repeated_substring_pattern(s: &str) -> bool {
+                let n = s.len();
+                n >= 2 && n % 2 == 0 && s[..n / 2] == s[n / 2..]
+            }
+        """,
+        doubled_contains_itself="""
+            pub fn repeated_substring_pattern(s: &str) -> bool {
+                s.len() >= 2 && format!("{s}{s}").contains(s)
+            }
+        """,
+        every_period="""
+            pub fn repeated_substring_pattern(s: &str) -> bool {
+                let b = s.as_bytes();
+                let n = b.len();
+                (1..=n / 2).any(|p| (p..n).all(|i| b[i] == b[i - p]) && n % p == 0)
+            }
+        """,
+    ),
+    hints=[("approach", "Build the KMP border table of `s`. Its last entry gives the smallest period `p = n - border[n - 1]`: `s` repeats a unit exactly when `p < n` and `p` divides `n`."),
+           ("rust", "`s.as_bytes()` is fine: the first byte of the repeated unit is the first byte of a character, so a period found on bytes never splits a character."),
+           ("edge case", "`\"abcabcab\"` has period 3 but length 8; a unit that doesn't divide the length doesn't count. The doubled-string trick needs its first and last characters removed: `(s + s)[1..2n-1]` contains `s`.")],
+    notes=("If `s` has a border of length `b`, it has period `n - b`, and the longest border gives the smallest period. A string is a whole number of copies of some unit exactly when its smallest period divides its length. The other classic answer checks whether `s` occurs inside `s + s` with the first and last characters cut off; with a linear search that's also O(n). Trying only divisors of `n` is O(n · d(n)), fine in practice; trying every period is O(n²).", "O(n)", "O(n)"),
+    follow_up="Return the shortest repeating unit itself, as a slice of `s`.",
+    related=["S2"],
+))
+
+P.append(dict(
+    slug="longest-palindromic-substring", title="Longest palindromic substring", level="medium", stage="string-algorithms", tags=["palindrome", "chars", "Blind 75"],
+    companies=["Meta", "Apple", "Amazon", "Google", "Microsoft", "Adobe", "Bloomberg"],
+    teaches=["Expand around each of the 2n − 1 centres: a palindrome grows outwards while both ends match.",
+             "Work on characters, return a byte slice: keep each character's byte offset so the answer is `&s[a..b]`."],
+    statement="""
+        Return the longest substring of `s` that reads the same forwards and backwards, as a slice of `s`.
+        If several have that length, return the one that starts first. The empty string gives `""`.
+
+        `s` can hold any Unicode text; palindromes are made of whole characters.
+    """,
+    examples=[("s = \"babad\"", "\"bab\""), ("s = \"cbbd\"", "\"bb\"")],
+    constraints=["0 ≤ number of characters ≤ 5000"],
+    starter="""
+        pub fn longest_palindrome(s: &str) -> &str {
+            todo!()
+        }
+    """,
+    solution="""
+        /// Grows the palindrome `chars[l..r]` outwards while both ends match.
+        fn expand(chars: &[char], mut l: usize, mut r: usize) -> (usize, usize) {
+            while l > 0 && r < chars.len() && chars[l - 1] == chars[r] {
+                l -= 1;
+                r += 1;
+            }
+            (l, r)
+        }
+
+        pub fn longest_palindrome(s: &str) -> &str {
+            let chars: Vec<char> = s.chars().collect();
+            // Byte offset of every character, plus the end, so a char range maps back to a slice of `s`.
+            let offsets: Vec<usize> = s.char_indices().map(|(i, _)| i).chain([s.len()]).collect();
+            let (mut lo, mut hi) = (0, 0);
+            for i in 0..chars.len() {
+                // Odd length: centred on char i. Even length: centred on the gap before char i.
+                for (l, r) in [expand(&chars, i, i + 1), expand(&chars, i, i)] {
+                    // Strictly longer only, so the earliest start wins a tie.
+                    if r - l > hi - lo {
+                        (lo, hi) = (l, r);
+                    }
+                }
+            }
+            &s[offsets[lo]..offsets[hi]]
+        }
+    """,
+    visible=[
+        T("leetcode_babad", "s = \"babad\" (\"aba\" is as long, but \"bab\" starts first)", 'longest_palindrome("babad")', '"bab"'),
+        T("leetcode_cbbd", "s = \"cbbd\"", 'longest_palindrome("cbbd")', '"bb"'),
+        T("single", "s = \"a\"", 'longest_palindrome("a")', '"a"'),
+        T("empty", "s = \"\"", 'longest_palindrome("")', '""'),
+        T("no_repeat_takes_the_first_letter", "s = \"ac\"", 'longest_palindrome("ac")', '"a"'),
+        T("unicode", "s = \"ñoño\"", 'longest_palindrome("ñoño")', '"ñoñ"'),
+    ],
+    hidden=[
+        T("reverse_is_not_the_answer", "s = \"abacdfgdcaba\" (\"abacd\" appears reversed too, but isn't a palindrome)", 'longest_palindrome("abacdfgdcaba")', '"aba"'),
+        T("all_same", "s = \"aaaa\"", 'longest_palindrome("aaaa")', '"aaaa"'),
+        T("even_at_the_end", "s = \"abb\"", 'longest_palindrome("abb")', '"bb"'),
+        T("long_even", "s = \"forgeeksskeegfor\"", 'longest_palindrome("forgeeksskeegfor")', '"geeksskeeg"'),
+        T("lone_multibyte", "s = \"é\"", 'longest_palindrome("é")', '"é"'),
+        T("emoji", "s = \"🦀a🦀\"", 'longest_palindrome("🦀a🦀")', '"🦀a🦀"'),
+        T("distinct_letters", "s = \"abcde\"", 'longest_palindrome("abcde")', '"a"'),
+        T("spaces_count", "s = \"ab ba\"", 'longest_palindrome("ab ba")', '"ab ba"'),
+        T("case_sensitive", "s = \"Aa\"", 'longest_palindrome("Aa")', '"A"'),
+        T("at_the_start", "s = \"xabax yz\"", 'longest_palindrome("xabax yz")', '"xabax"'),
+        T("slice_of_the_input", "the answer points into s", "std::ptr::eq(got.as_ptr(), s[1..].as_ptr())", "true",
+          setup='let s = String::from("xracecary");\nlet got = longest_palindrome(&s);'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1014);
+            for _ in 0..400 {
+                let len = rng.below(12);
+                let s = rng.string(len, "abé");
+                let cs: Vec<char> = s.chars().collect();
+                let mut want: Vec<char> = Vec::new();
+                for i in 0..cs.len() {
+                    for j in i + 1..=cs.len() {
+                        let w = &cs[i..j];
+                        if w.iter().eq(w.iter().rev()) && w.len() > want.len() {
+                            want = w.to_vec();
+                        }
+                    }
+                }
+                check!(format!("s = {s:?}"), longest_palindrome(&s).to_string(), want.iter().collect::<String>());
+            }
+        }
+
+        #[test]
+        fn scale_5000_same_letter() {
+            let s = "a".repeat(5000);
+            check!("s = 'a' × 5000", longest_palindrome(&s).len(), 5000);
+        }
+
+        #[test]
+        fn scale_5000_two_blocks() {
+            // The answer is the block of b's at the end.
+            let s = format!("{}{}", "abc".repeat(1000), "b".repeat(2000));
+            let got = longest_palindrome(&s);
+            check!("s = \\"abc\\" × 1000 + 'b' × 2000", (got.len(), std::ptr::eq(got.as_ptr(), s[3000..].as_ptr())), (2000, true));
+        }
+        """,
+    ],
+    wrong=dict(
+        bytes_not_chars="""
+            pub fn longest_palindrome(s: &str) -> &str {
+                let b = s.as_bytes();
+                let (mut lo, mut hi) = (0, 0);
+                for i in 0..b.len() {
+                    for (mut l, mut r) in [(i, i + 1), (i, i)] {
+                        while l > 0 && r < b.len() && b[l - 1] == b[r] {
+                            l -= 1;
+                            r += 1;
+                        }
+                        if r - l > hi - lo {
+                            (lo, hi) = (l, r);
+                        }
+                    }
+                }
+                &s[lo..hi]
+            }
+        """,
+        last_on_a_tie="""
+            pub fn longest_palindrome(s: &str) -> &str {
+                let chars: Vec<char> = s.chars().collect();
+                let offsets: Vec<usize> = s.char_indices().map(|(i, _)| i).chain([s.len()]).collect();
+                let (mut lo, mut hi) = (0, 0);
+                for i in 0..chars.len() {
+                    for (mut l, mut r) in [(i, i + 1), (i, i)] {
+                        while l > 0 && r < chars.len() && chars[l - 1] == chars[r] {
+                            l -= 1;
+                            r += 1;
+                        }
+                        if r - l >= hi - lo {
+                            (lo, hi) = (l, r);
+                        }
+                    }
+                }
+                &s[offsets[lo]..offsets[hi]]
+            }
+        """,
+        check_every_substring="""
+            pub fn longest_palindrome(s: &str) -> &str {
+                let chars: Vec<char> = s.chars().collect();
+                let offsets: Vec<usize> = s.char_indices().map(|(i, _)| i).chain([s.len()]).collect();
+                let (mut lo, mut hi) = (0, 0);
+                for i in 0..chars.len() {
+                    for j in i + 1..=chars.len() {
+                        let w = &chars[i..j];
+                        if w.iter().eq(w.iter().rev()) && j - i > hi - lo {
+                            (lo, hi) = (i, j);
+                        }
+                    }
+                }
+                &s[offsets[lo]..offsets[hi]]
+            }
+        """,
+    ),
+    hints=[("approach", "Every palindrome has a centre: a character (odd length) or the gap between two (even length). From each of the 2n − 1 centres, grow outwards while the ends match, and keep the longest."),
+           ("rust", "Collect `chars()` into a `Vec<char>` to index characters, and keep `char_indices()` offsets (plus `s.len()`) to turn the best char range back into `&s[a..b]`."),
+           ("edge case", "Comparing bytes breaks on `\"é\"`: a one-byte \"palindrome\" there ends inside the character, and slicing it panics.")],
+    notes=("Expanding from a centre costs the length of the palindrome found, so the total is O(n²) in the worst case (`\"aaaa…\"`) and much less on typical text. Checking every substring is O(n³). Manacher's algorithm reuses the mirror image of palindromes already found to get O(n). Replacing strictly-longer with longer-or-equal returns the last of the tied answers instead of the first.", "O(n²)", "O(n) for the characters"),
+    follow_up="Manacher's algorithm finds the answer in O(n). What does it reuse from palindromes already found?",
+    related=["D12", "S2"],
+))
+
+P.append(dict(
+    slug="palindromic-substrings", title="Palindromic substrings", level="medium", stage="string-algorithms", tags=["palindrome", "chars", "Blind 75"],
+    companies=["Meta", "Amazon", "Google", "Microsoft"],
+    teaches=["Counting reuses the expand-around-centre loop: every step outwards is one more palindrome.",
+             "Substrings at different positions count separately, even when they're equal."],
+    statement="""
+        Count the substrings of `s` that are palindromes. Substrings at different positions count separately,
+        so `"aaa"` has six: three `"a"`, two `"aa"` and one `"aaa"`.
+
+        `s` can hold any Unicode text; count substrings of whole characters.
+    """,
+    examples=[("s = \"abc\"", "3"), ("s = \"aaa\"", "6")],
+    constraints=["0 ≤ number of characters ≤ 5000"],
+    starter="""
+        pub fn count_substrings(s: &str) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn count_substrings(s: &str) -> usize {
+            let chars: Vec<char> = s.chars().collect();
+            let n = chars.len();
+            let mut count = 0;
+            for i in 0..n {
+                // Odd palindromes centred on char i, then even ones centred on the gap after it.
+                for (mut l, mut r) in [(i, i), (i, i + 1)] {
+                    while r < n && chars[l] == chars[r] {
+                        count += 1;
+                        if l == 0 {
+                            break;
+                        }
+                        l -= 1;
+                        r += 1;
+                    }
+                }
+            }
+            count
+        }
+    """,
+    visible=[
+        T("leetcode_abc", "s = \"abc\"", 'count_substrings("abc")', "3"),
+        T("leetcode_aaa", "s = \"aaa\" (a, a, a, aa, aa, aaa)", 'count_substrings("aaa")', "6"),
+        T("empty", "s = \"\"", 'count_substrings("")', "0"),
+        T("single", "s = \"a\"", 'count_substrings("a")', "1"),
+        T("even_length", "s = \"abba\" (a, b, b, a, bb, abba)", 'count_substrings("abba")', "6"),
+        T("characters_not_bytes", "s = \"éé\" (é, é, éé)", 'count_substrings("éé")', "3"),
+    ],
+    hidden=[
+        T("four_same", "s = \"aaaa\"", 'count_substrings("aaaa")', "10"),
+        T("odd_nested", "s = \"abcba\"", 'count_substrings("abcba")', "7"),
+        T("alternating", "s = \"abab\"", 'count_substrings("abab")', "6"),
+        T("racecar", "s = \"racecar\"", 'count_substrings("racecar")', "10"),
+        T("emoji", "s = \"🦀🦀\"", 'count_substrings("🦀🦀")', "3"),
+        T("case_sensitive", "s = \"Aa\"", 'count_substrings("Aa")', "2"),
+        T("palindrome_then_noise", "s = \"abcdcbaxyz\"", 'count_substrings("abcdcbaxyz")', "13"),
+        T("two_different", "s = \"ab\"", 'count_substrings("ab")', "2"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1015);
+            for _ in 0..400 {
+                let len = rng.below(12);
+                let s = rng.string(len, "abé");
+                let cs: Vec<char> = s.chars().collect();
+                let mut want = 0;
+                for i in 0..cs.len() {
+                    for j in i + 1..=cs.len() {
+                        let w = &cs[i..j];
+                        want += w.iter().eq(w.iter().rev()) as usize;
+                    }
+                }
+                check!(format!("s = {s:?}"), count_substrings(&s), want);
+            }
+        }
+
+        #[test]
+        fn scale_5000_same_letter() {
+            let s = "a".repeat(5000);
+            check!("s = 'a' × 5000", count_substrings(&s), 5000 * 5001 / 2);
+        }
+        """,
+    ],
+    wrong=dict(
+        distinct_only="""
+            use std::collections::HashSet;
+
+            pub fn count_substrings(s: &str) -> usize {
+                let chars: Vec<char> = s.chars().collect();
+                let mut seen: HashSet<&[char]> = HashSet::new();
+                for i in 0..chars.len() {
+                    for (mut l, mut r) in [(i, i), (i, i + 1)] {
+                        while r < chars.len() && chars[l] == chars[r] {
+                            seen.insert(&chars[l..=r]);
+                            if l == 0 {
+                                break;
+                            }
+                            l -= 1;
+                            r += 1;
+                        }
+                    }
+                }
+                seen.len()
+            }
+        """,
+        odd_centres_only="""
+            pub fn count_substrings(s: &str) -> usize {
+                let chars: Vec<char> = s.chars().collect();
+                let mut count = 0;
+                for i in 0..chars.len() {
+                    let (mut l, mut r) = (i, i);
+                    while r < chars.len() && chars[l] == chars[r] {
+                        count += 1;
+                        if l == 0 {
+                            break;
+                        }
+                        l -= 1;
+                        r += 1;
+                    }
+                }
+                count
+            }
+        """,
+        check_every_substring="""
+            pub fn count_substrings(s: &str) -> usize {
+                let chars: Vec<char> = s.chars().collect();
+                let mut count = 0;
+                for i in 0..chars.len() {
+                    for j in i + 1..=chars.len() {
+                        let w = &chars[i..j];
+                        count += w.iter().eq(w.iter().rev()) as usize;
+                    }
+                }
+                count
+            }
+        """,
+    ),
+    hints=[("approach", "Expand around each centre as in the longest-palindrome problem, but count every step: each time both ends match, that's one more palindrome."),
+           ("rust", "Index a `Vec<char>`, not the bytes. With `usize` indices, check `l == 0` before `l -= 1` instead of letting it underflow."),
+           ("edge case", "There are two kinds of centre: a character (`\"aba\"`) and the gap between two (`\"abba\"`). Missing the gaps undercounts.")],
+    notes=("Each expansion step finds a new palindrome, so the work equals the answer plus 2n − 1 failed steps: O(n²) worst case (all one letter, n(n+1)/2 palindromes), and the answer itself can be that big. Checking every substring is O(n³). Manacher's algorithm gives every centre's radius in O(n), and the count is the sum of the radii.", "O(n²)", "O(n) for the characters"),
+    follow_up="With Manacher's radii, how do you get the count in O(n)?",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="string-to-integer", title="String to integer (atoi)", level="medium", stage="string-algorithms", tags=["parsing", "checked arithmetic", "i32"],
+    companies=["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg", "Goldman Sachs"],
+    teaches=["Accumulate towards the sign with `checked_mul`/`checked_sub`: `i32::MIN` has no positive twin in `i32`.",
+             "`trim_start` and `char::is_numeric` accept more than this format does; match the spec's exact bytes."],
+    statement="""
+        Read an `i32` from the start of `s`, the way C's `atoi` does:
+
+        1. skip leading spaces (only `' '`, no other whitespace);
+        2. read one optional sign, `'+'` or `'-'`;
+        3. read ASCII digits until the first non-digit or the end, skipping leading zeros;
+        4. clamp the result to `i32::MIN..=i32::MAX`.
+
+        If no digits were read, the answer is 0. Anything after the digits is ignored.
+    """,
+    examples=[("s = \"42\"", "42"), ("s = \"   -042\"", "-42"), ("s = \"1337c0d3\"", "1337"), ("s = \"words and 987\"", "0")],
+    constraints=["0 ≤ s.len() ≤ 10⁶ bytes, any Unicode"],
+    starter="""
+        pub fn my_atoi(s: &str) -> i32 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn my_atoi(s: &str) -> i32 {
+            let s = s.trim_start_matches(' ');
+            let (negative, digits) = match s.strip_prefix('-') {
+                Some(rest) => (true, rest),
+                None => (false, s.strip_prefix('+').unwrap_or(s)),
+            };
+            // Build the value on the sign's side of zero, so i32::MIN is reachable without overflowing.
+            let mut n: i32 = 0;
+            for b in digits.bytes().take_while(u8::is_ascii_digit) {
+                let d = i32::from(b - b'0');
+                let next = n.checked_mul(10).and_then(|n| if negative { n.checked_sub(d) } else { n.checked_add(d) });
+                match next {
+                    Some(v) => n = v,
+                    None => return if negative { i32::MIN } else { i32::MAX },
+                }
+            }
+            n
+        }
+    """,
+    visible=[
+        T("leetcode_42", "s = \"42\"", 'my_atoi("42")', "42"),
+        T("leetcode_spaces_sign_zero", "s = \"   -042\"", 'my_atoi("   -042")', "-42"),
+        T("leetcode_stops_at_letter", "s = \"1337c0d3\"", 'my_atoi("1337c0d3")', "1337"),
+        T("leetcode_zero_then_minus", "s = \"0-1\"", 'my_atoi("0-1")', "0"),
+        T("leetcode_words_first", "s = \"words and 987\"", 'my_atoi("words and 987")', "0"),
+        T("clamps_below", "s = \"-91283472332\"", 'my_atoi("-91283472332")', "i32::MIN"),
+        T("empty", "s = \"\"", 'my_atoi("")', "0"),
+    ],
+    hidden=[
+        T("max", "s = \"2147483647\"", 'my_atoi("2147483647")', "i32::MAX"),
+        T("one_past_max", "s = \"2147483648\"", 'my_atoi("2147483648")', "i32::MAX"),
+        T("exact_min", "s = \"-2147483648\"", 'my_atoi("-2147483648")', "i32::MIN"),
+        T("one_past_min", "s = \"-2147483649\"", 'my_atoi("-2147483649")', "i32::MIN"),
+        T("two_signs", "s = \"+-12\"", 'my_atoi("+-12")', "0"),
+        T("plus", "s = \"+1\"", 'my_atoi("+1")', "1"),
+        T("tab_is_not_a_space", "s = \"\\t42\"", 'my_atoi("\\t42")', "0"),
+        T("space_after_sign", "s = \" - 1\"", 'my_atoi(" - 1")', "0"),
+        T("space_inside_digits", "s = \"   +0 123\"", 'my_atoi("   +0 123")', "0"),
+        T("many_leading_zeros", "s = \"00000000000012345678\"", 'my_atoi("00000000000012345678")', "12345678"),
+        T("thirty_nines", "s = '9' × 30", 'my_atoi(&"9".repeat(30))', "i32::MAX"),
+        T("negative_thirty_nines", "s = \"-\" + '9' × 30", 'my_atoi(&format!("-{}", "9".repeat(30)))', "i32::MIN"),
+        T("sign_only", "s = \"-\"", 'my_atoi("-")', "0"),
+        T("only_spaces", "s = \"   \"", 'my_atoi("   ")', "0"),
+        T("fullwidth_digits", "s = \"１２\" (not ASCII digits)", 'my_atoi("１２")', "0"),
+        T("arabic_indic_digit", "s = \"٣\"", 'my_atoi("٣")', "0"),
+        T("decimal_point", "s = \"3.14\"", 'my_atoi("3.14")', "3"),
+        T("negative_zero", "s = \"-0\"", 'my_atoi("-0")', "0"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(1016);
+            for _ in 0..400 {
+                let len = rng.below(14);
+                let s = rng.string(len, " +-0123456789a9");
+                // Reference: collect the digits, then do the arithmetic in i128 (at most 14 digits fit easily).
+                let t = s.trim_start_matches(' ');
+                let (sign, rest) = match t.as_bytes().first() {
+                    Some(b'-') => (-1i128, &t[1..]),
+                    Some(b'+') => (1i128, &t[1..]),
+                    _ => (1i128, t),
+                };
+                let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+                let v = if digits.is_empty() { 0 } else { sign * digits.parse::<i128>().unwrap() };
+                let want = v.clamp(i128::from(i32::MIN), i128::from(i32::MAX)) as i32;
+                check!(format!("s = {s:?}"), my_atoi(&s), want);
+            }
+        }
+
+        #[test]
+        fn long_inputs() {
+            let zeros = format!("{}42", "0".repeat(1_000_000));
+            let spaces = format!("{}-7", " ".repeat(1_000_000));
+            let nines = "9".repeat(1_000_000);
+            check!("s = '0' × 10⁶ + \\"42\\"; ' ' × 10⁶ + \\"-7\\"; '9' × 10⁶", (my_atoi(&zeros), my_atoi(&spaces), my_atoi(&nines)), (42, -7, i32::MAX));
+        }
+        """,
+    ],
+    wrong=dict(
+        trim_and_parse="""
+            pub fn my_atoi(s: &str) -> i32 {
+                let s = s.trim_start();
+                let end = s.char_indices().position(|(i, c)| !(c.is_ascii_digit() || (i == 0 && (c == '+' || c == '-')))).unwrap_or(s.len());
+                s[..end].parse::<i64>().map(|v| v.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32).unwrap_or(0)
+            }
+        """,
+        signs_skipped_with_spaces="""
+            pub fn my_atoi(s: &str) -> i32 {
+                let negative = s.trim_start_matches(' ').starts_with('-');
+                let digits = s.trim_start_matches([' ', '+', '-']);
+                let mut n: i32 = 0;
+                for b in digits.bytes().take_while(u8::is_ascii_digit) {
+                    let d = i32::from(b - b'0');
+                    let next = n.checked_mul(10).and_then(|n| if negative { n.checked_sub(d) } else { n.checked_add(d) });
+                    match next {
+                        Some(v) => n = v,
+                        None => return if negative { i32::MIN } else { i32::MAX },
+                    }
+                }
+                n
+            }
+        """,
+        i64_accumulator="""
+            pub fn my_atoi(s: &str) -> i32 {
+                let s = s.trim_start_matches(' ');
+                let (negative, digits) = match s.strip_prefix('-') {
+                    Some(rest) => (true, rest),
+                    None => (false, s.strip_prefix('+').unwrap_or(s)),
+                };
+                let mut n: i64 = 0;
+                for b in digits.bytes().take_while(u8::is_ascii_digit) {
+                    n = n * 10 + i64::from(b - b'0');
+                }
+                let n = if negative { -n } else { n };
+                n.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32
+            }
+        """,
+    ),
+    hints=[("approach", "Walk the string once: skip spaces, read at most one sign, then digits. Stop at the first byte that doesn't fit the step you're on."),
+           ("rust", "`trim_start_matches(' ')` skips only spaces, and `strip_prefix('-')` returns the rest if the sign is there. Accumulate with `checked_mul(10)` then `checked_add`/`checked_sub` so an overflow shows up as `None` and you clamp."),
+           ("edge case", "A wider accumulator (`i64`) only delays the overflow: 30 nines don't fit either. Also, `\"-2147483648\"` is valid, but its magnitude doesn't fit in `i32`, so build negative numbers downwards.")],
+    notes=("One pass, constant space. The traps are in the edges of the format: `trim_start` also skips tabs and Unicode spaces, `char::is_numeric` accepts non-ASCII digits, a second sign ends the number, and any fixed-width accumulator overflows on a long enough digit string, so the clamp has to happen as soon as the value leaves `i32`. Building the number on its sign's side of zero makes `i32::MIN` reachable.", "O(n)", "O(1)"),
+    follow_up="How would you return an error that says why parsing failed (no digits, overflow) instead of 0 or a clamped value?",
+    related=["S1", "S2", "L8"],
+))
+
+P.append(dict(
+    slug="repeated-dna-sequences", title="Repeated DNA sequences", level="medium", stage="string-algorithms", tags=["rolling hash", "HashMap", "bits"],
+    companies=["Amazon", "Google", "LinkedIn"],
+    teaches=["A rolling hash updates in O(1) per step: drop the outgoing letter's weight, multiply by the base, add the new letter.",
+             "With 4 letters and k ≤ 32, a base-4 key fits in a `u64` exactly, so equal keys mean equal windows."],
+    statement="""
+        `s` is a DNA string over the letters `A`, `C`, `G` and `T`. Return every sequence of length `k` that occurs
+        more than once in `s` (occurrences may overlap), each once, as slices of `s`, ordered by where each first appears.
+
+        LeetCode fixes `k` at 10; here it's a parameter from 1 to 32.
+    """,
+    examples=[("s = \"AAAAACCCCCAAAAACCCCCCAAAAAGGGTTT\", k = 10", "[\"AAAAACCCCC\", \"CCCCCAAAAA\"]"), ("s = \"AAAAAAAAAAAAA\", k = 10", "[\"AAAAAAAAAA\"]")],
+    constraints=["0 ≤ s.len() ≤ 10⁵, letters A, C, G, T only", "1 ≤ k ≤ 32"],
+    starter="""
+        pub fn find_repeated_dna_sequences(s: &str, k: usize) -> Vec<&str> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::HashMap;
+
+        fn code(b: u8) -> u64 {
+            match b {
+                b'A' => 0,
+                b'C' => 1,
+                b'G' => 2,
+                _ => 3,
+            }
+        }
+
+        pub fn find_repeated_dna_sequences(s: &str, k: usize) -> Vec<&str> {
+            let b = s.as_bytes();
+            if k > b.len() {
+                return Vec::new();
+            }
+            // The window as a base-4 number. 4^k ≤ 2^64 for k ≤ 32, so different windows get different keys.
+            let top = 4u64.pow(k as u32 - 1); // weight of the window's first letter
+            let mut key = 0u64;
+            // key -> (where it first starts, how many times it was seen)
+            let mut seen: HashMap<u64, (usize, u32)> = HashMap::new();
+            for i in 0..b.len() {
+                if i >= k {
+                    key -= code(b[i - k]) * top;
+                }
+                key = key * 4 + code(b[i]);
+                if i + 1 >= k {
+                    seen.entry(key).or_insert((i + 1 - k, 0)).1 += 1;
+                }
+            }
+            let mut starts: Vec<usize> = seen.into_values().filter(|&(_, n)| n >= 2).map(|(start, _)| start).collect();
+            starts.sort_unstable();
+            starts.into_iter().map(|i| &s[i..i + k]).collect()
+        }
+    """,
+    visible=[
+        T("leetcode_two_sequences", "s = \"AAAAACCCCCAAAAACCCCCCAAAAAGGGTTT\", k = 10", 'find_repeated_dna_sequences("AAAAACCCCCAAAAACCCCCCAAAAAGGGTTT", 10)', 'vec!["AAAAACCCCC", "CCCCCAAAAA"]'),
+        T("leetcode_overlapping", "s = \"AAAAAAAAAAAAA\", k = 10 (four overlapping copies, reported once)", 'find_repeated_dna_sequences("AAAAAAAAAAAAA", 10)', 'vec!["AAAAAAAAAA"]'),
+        T("k_longer_than_s", "s = \"ACGT\", k = 10", 'find_repeated_dna_sequences("ACGT", 10)', "Vec::<&str>::new()"),
+        T("empty", "s = \"\", k = 1", 'find_repeated_dna_sequences("", 1)', "Vec::<&str>::new()"),
+        T("order_of_first_appearance", "s = \"ACGTCGAC\", k = 2 (AC first appears before CG, though CG repeats sooner)", 'find_repeated_dna_sequences("ACGTCGAC", 2)', 'vec!["AC", "CG"]'),
+        T("single_letters", "s = \"AAAAAA\", k = 1", 'find_repeated_dna_sequences("AAAAAA", 1)', 'vec!["A"]'),
+    ],
+    hidden=[
+        T("no_repeat", "s = \"ACGT\", k = 1", 'find_repeated_dna_sequences("ACGT", 1)', "Vec::<&str>::new()"),
+        T("k_equals_len", "s = \"ACGT\", k = 4", 'find_repeated_dna_sequences("ACGT", 4)', "Vec::<&str>::new()"),
+        T("k_32_repeat", "s = 'A' × 33, k = 32", "find_repeated_dna_sequences(&s, 32)", 'vec!["A".repeat(32)]', setup='let s = "A".repeat(33);'),
+        T("k_32_first_letter_differs", "s = \"C\" + 'A' × 32, k = 32 (the two windows differ only in their first letter)", "find_repeated_dna_sequences(&s, 32)", "Vec::<&str>::new()",
+          setup='let s = format!("C{}", "A".repeat(32));'),
+        T("k_32_last_letter_differs", "s = 'T' × 32 + \"G\", k = 32", "find_repeated_dna_sequences(&s, 32)", "Vec::<&str>::new()", setup='let s = format!("{}G", "T".repeat(32));'),
+        T("k_32_period_4", "s = \"ACGT\" × 16, k = 32", "find_repeated_dna_sequences(&s, 32)",
+          'vec!["ACGT".repeat(8), "CGTA".repeat(8), "GTAC".repeat(8), "TACG".repeat(8)]', setup='let s = "ACGT".repeat(16);'),
+        T("three_copies_once", "s = \"ACACAC\", k = 2", 'find_repeated_dna_sequences("ACACAC", 2)', 'vec!["AC", "CA"]'),
+        T("all_t", "s = \"TTTT\", k = 3", 'find_repeated_dna_sequences("TTTT", 3)', 'vec!["TTT"]'),
+        T("slices_of_s", "the answers point into s", "std::ptr::eq(got[0].as_ptr(), s.as_ptr())", "true",
+          setup='let s = String::from("GATTGA");\nlet got = find_repeated_dna_sequences(&s, 2);'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            use std::collections::HashMap;
+            let mut rng = anneal_prelude::Rng::new(1017);
+            for _ in 0..400 {
+                let len = rng.below(20);
+                let s = if rng.bool() { rng.string(len, "AC") } else { rng.string(len, "ACGT") };
+                let k = 1 + rng.below(6);
+                let mut count: HashMap<&str, usize> = HashMap::new();
+                let mut order: Vec<&str> = Vec::new();
+                for i in 0..(s.len() + 1).saturating_sub(k) {
+                    let w = &s[i..i + k];
+                    let c = count.entry(w).or_insert(0);
+                    if *c == 0 {
+                        order.push(w);
+                    }
+                    *c += 1;
+                }
+                let want: Vec<&str> = order.into_iter().filter(|w| count[w] >= 2).collect();
+                check!(format!("s = {s:?}, k = {k}"), find_repeated_dna_sequences(&s, k), want);
+            }
+        }
+
+        #[test]
+        fn scale_100k() {
+            use std::collections::HashMap;
+            // Pseudo-random DNA with a planted 32-letter block repeated 5 times, plus a run of A's.
+            let mut x: u64 = 12345;
+            let mut dna: Vec<u8> = (0..100_000)
+                .map(|_| {
+                    x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                    b"ACGT"[(x >> 60) as usize & 3]
+                })
+                .collect();
+            let block: Vec<u8> = dna[500..532].to_vec();
+            for at in [20_000, 40_000, 60_000, 80_000] {
+                dna[at..at + 32].copy_from_slice(&block);
+            }
+            dna[90_000..90_100].fill(b'A');
+            let s = String::from_utf8(dna).unwrap();
+            let mut count: HashMap<&str, (usize, usize)> = HashMap::new();
+            for i in 0..=s.len() - 32 {
+                count.entry(&s[i..i + 32]).or_insert((i, 0)).1 += 1;
+            }
+            let mut want: Vec<(usize, &str)> = count.into_iter().filter(|(_, (_, c))| *c >= 2).map(|(w, (i, _))| (i, w)).collect();
+            want.sort_unstable();
+            let want: Vec<&str> = want.into_iter().map(|(_, w)| w).collect();
+            check!("s = 10⁵ pseudo-random letters with a 32-letter block planted 5 times and 100 A's, k = 32", find_repeated_dna_sequences(&s, 32), want);
+        }
+        """,
+    ],
+    wrong=dict(
+        mask_with_shift="""
+            use std::collections::HashMap;
+
+            pub fn find_repeated_dna_sequences(s: &str, k: usize) -> Vec<&str> {
+                let b = s.as_bytes();
+                if k > b.len() {
+                    return Vec::new();
+                }
+                let mask = (1u64 << (2 * k)) - 1;
+                let mut key = 0u64;
+                let mut seen: HashMap<u64, (usize, u32)> = HashMap::new();
+                for i in 0..b.len() {
+                    let c = match b[i] {
+                        b'A' => 0,
+                        b'C' => 1,
+                        b'G' => 2,
+                        _ => 3,
+                    };
+                    key = ((key << 2) | c) & mask;
+                    if i + 1 >= k {
+                        seen.entry(key).or_insert((i + 1 - k, 0)).1 += 1;
+                    }
+                }
+                let mut starts: Vec<usize> = seen.into_values().filter(|&(_, n)| n >= 2).map(|(start, _)| start).collect();
+                starts.sort_unstable();
+                starts.into_iter().map(|i| &s[i..i + k]).collect()
+            }
+        """,
+        order_of_second_copy="""
+            use std::collections::HashMap;
+
+            pub fn find_repeated_dna_sequences(s: &str, k: usize) -> Vec<&str> {
+                let mut count: HashMap<&str, usize> = HashMap::new();
+                let mut out = Vec::new();
+                for i in 0..(s.len() + 1).saturating_sub(k) {
+                    let w = &s[i..i + k];
+                    let c = count.entry(w).or_insert(0);
+                    *c += 1;
+                    if *c == 2 {
+                        out.push(w);
+                    }
+                }
+                out
+            }
+        """,
+        search_rest_for_each_window="""
+            pub fn find_repeated_dna_sequences(s: &str, k: usize) -> Vec<&str> {
+                let mut out: Vec<&str> = Vec::new();
+                for i in 0..(s.len() + 1).saturating_sub(k) {
+                    let w = &s[i..i + k];
+                    if !s[..i + k - 1].contains(w) && s[i + 1..].contains(w) {
+                        out.push(w);
+                    }
+                }
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Give each letter a 2-bit code and treat the window as a base-4 number. Sliding the window by one drops the first letter's term, shifts everything up one place, and adds the new letter: O(1) per step. Count keys in a `HashMap`."),
+           ("rust", "Remember the first start of each key (`entry(key).or_insert((start, 0))`), then sort the repeated ones by start and slice `&s[i..i + k]`. For `k = 32`, `1u64 << 64` overflows (a panic in a debug build), so don't build a mask that way."),
+           ("edge case", "A sequence seen three times is still reported once, and the order is by first appearance, not by when it first repeats.")],
+    notes=("Each step updates the key in O(1), so the scan is O(n) plus hashing. With 4 letters, a window of k ≤ 32 letters is a base-4 number below 4^32 = 2^64: a perfect hash, no collisions to check. Hashing the `&str` windows directly also works at O(n·k). For longer windows or bigger alphabets you'd use a polynomial hash modulo 2^64 (`wrapping_mul`), and then equal hashes no longer prove equal windows: compare the slices on a hit. Thue–Morse strings make every base collide modulo 2^64.", "O(n)", "O(n)"),
+    follow_up="Allow any k up to 10⁵. Which hash would you use, and how do you stay correct when two windows share a hash?",
+    related=["S4", "D13"],
+))
+
 STAGES = [
     ("first-tries", "First tries", "easy"),
     ("tries-at-work", "Tries at work", "medium"),

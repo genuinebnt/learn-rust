@@ -1,0 +1,33 @@
+slug = "counting-bits"
+title = "Counting bits"
+mode = "write"
+level = "easy"
+stage = "1d-basics"
+order = 5
+status = "ready"
+tags = ["bits", "1-D DP"]
+companies = ["Amazon", "Apple", "Microsoft", "Adobe"]
+teaches = [
+  "Reusing an earlier answer: `bits(i) = bits(i >> 1) + (i & 1)`.",
+  "Building a `Vec` whose entries read earlier entries.",
+]
+constraints = ["0 ≤ n ≤ 10⁶"]
+follow_up = "Which other recurrences work here? (`i & (i - 1)` removes the lowest set bit; the highest power of two gives another.)"
+related = ["D13"]
+
+[[examples]]
+input = "n = 5"
+output = "[0, 1, 1, 2, 1, 2]"
+
+[[hints]]
+kind = "approach"
+text = "Shifting `i` right by one drops its lowest bit, and `i >> 1 < i`, so its count is already known."
+
+[[hints]]
+kind = "rust"
+text = "`bits[i] = bits[i >> 1] + (i & 1) as u32` fills the `Vec` left to right. `i & (i - 1)` (clear the lowest set bit) works too."
+
+[solution]
+explanation = "Every number is a smaller number with one bit appended, so each entry is one lookup and one add."
+time = "O(n)"
+space = "O(n) for the output"

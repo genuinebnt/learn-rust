@@ -1,0 +1,37 @@
+slug = "house-robber"
+title = "House robber"
+mode = "write"
+level = "medium"
+stage = "1d-basics"
+order = 6
+status = "ready"
+tags = ["1-D DP", "Blind 75"]
+companies = ["Amazon", "Google", "Meta", "Apple", "Microsoft", "Adobe", "Bloomberg", "Uber"]
+teaches = [
+  "Take-or-skip: the best up to house i is the better of skipping it or taking it plus the best up to i - 2.",
+  "Two rolling totals are the whole table.",
+]
+constraints = ["0 ≤ nums.len() ≤ 10⁶", "0 ≤ nums[i] ≤ 10⁴"]
+follow_up = "How would you return which houses to rob, not just the total?"
+related = ["D11"]
+
+[[examples]]
+input = "nums = [2, 7, 9, 3, 1]"
+output = "12 (houses 0, 2 and 4)"
+
+[[hints]]
+kind = "approach"
+text = "At house i you either skip it (keep the best up to i - 1) or rob it (its money plus the best up to i - 2)."
+
+[[hints]]
+kind = "rust"
+text = "Two `u64`s, `best_before` and `best`, updated with a destructuring assignment in one `for &x in nums` loop."
+
+[[hints]]
+kind = "edge case"
+text = "The best plan can skip two houses in a row, so \"all even or all odd houses\" is not enough: [2, 1, 1, 2] → 4."
+
+[solution]
+explanation = "best(i) = max(best(i - 1), best(i - 2) + nums[i]). Only the last two values are live, so the table collapses to two variables."
+time = "O(n)"
+space = "O(1)"

@@ -1,0 +1,41 @@
+slug = "fibonacci"
+title = "Fibonacci (memo vs table)"
+mode = "write"
+level = "easy"
+stage = "1d-basics"
+order = 1
+status = "ready"
+tags = ["memoization", "tabulation"]
+companies = ["Amazon", "Apple", "Google", "Microsoft", "Adobe"]
+teaches = [
+  "The same recurrence written top-down (recursion + a memo) and bottom-up (a loop over a table).",
+  "Two rolling variables replace the whole table when a state only looks back two steps.",
+]
+constraints = ["0 ≤ n ≤ 93"]
+follow_up = "How would you compute F(n) mod m for n = 10¹⁸? (Matrix exponentiation or fast doubling, O(log n).)"
+related = ["D11", "L6"]
+
+[[examples]]
+input = "n = 10"
+output = "55"
+
+[[examples]]
+input = "n = 0"
+output = "0"
+
+[[hints]]
+kind = "approach"
+text = "Top-down: before recursing, look `k` up in a `Vec<Option<u64>>`; store the result after. Bottom-up: start from F(0) and F(1) and add forwards."
+
+[[hints]]
+kind = "rust"
+text = "A nested `fn go(k: usize, memo: &mut [Option<u64>]) -> u64` keeps the memo out of the public signature. `(prev, cur) = (cur, prev + cur)` is a destructuring assignment."
+
+[[hints]]
+kind = "edge case"
+text = "F(94) overflows a `u64`. A loop that always computes one value ahead panics at n = 93 in a debug build."
+
+[solution]
+explanation = "Both versions compute each F(k) once. The memo version stores the answers on the way back up the recursion; the table version fills them from the bottom, and since each value needs only the two before it, two variables are enough."
+time = "O(n)"
+space = "O(n) for the memo (and its recursion), O(1) for the rolling loop"

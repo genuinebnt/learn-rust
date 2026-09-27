@@ -2865,6 +2865,1153 @@ P.append(dict(
     related=["S3", "D13"],
 ))
 
+# ---------------------------------------------------------------- hard greedy
+
+P.append(dict(
+    slug="hand-of-straights", title="Hand of straights", level="medium", stage="hard-greedy", tags=["greedy", "BTreeMap", "sorting"],
+    companies=["Amazon", "Google"],
+    teaches=["A `BTreeMap<_, usize>` is a sorted multiset: `first_key_value()` gives the smallest card left.", "`card + 1` can overflow at `i32::MAX`; widen the key to `i64`."],
+    statement="""
+        Split the cards in `hand` into groups of exactly `group_size` cards, where each group is a run of
+        consecutive values such as 3, 4, 5. Every card must be used. Return `true` if that's possible.
+        Card values are any `i32`.
+    """,
+    examples=[("hand = [1, 2, 3, 6, 2, 3, 4, 7, 8], group_size = 3", "true"), ("hand = [1, 2, 3, 4, 5], group_size = 4", "false")],
+    constraints=["0 ≤ hand.len() ≤ 2·10⁵", "hand[i] is any i32", "1 ≤ group_size ≤ 2·10⁵"],
+    starter="""
+        pub fn is_n_straight_hand(hand: &[i32], group_size: usize) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::BTreeMap;
+
+        pub fn is_n_straight_hand(hand: &[i32], group_size: usize) -> bool {
+            if hand.len() % group_size != 0 {
+                return false;
+            }
+            let mut counts: BTreeMap<i64, usize> = BTreeMap::new();
+            for &card in hand {
+                *counts.entry(card as i64).or_insert(0) += 1;
+            }
+            // The smallest card left must start a run; all `n` copies of it start `n` runs.
+            while let Some((&first, &n)) = counts.first_key_value() {
+                for card in first..first + group_size as i64 {
+                    match counts.get_mut(&card) {
+                        Some(c) if *c >= n => {
+                            *c -= n;
+                            if *c == 0 {
+                                counts.remove(&card);
+                            }
+                        }
+                        _ => return false,
+                    }
+                }
+            }
+            true
+        }
+    """,
+    visible=[
+        T("leetcode_three_runs", "hand = [1, 2, 3, 6, 2, 3, 4, 7, 8], group_size = 3", "is_n_straight_hand(&[1, 2, 3, 6, 2, 3, 4, 7, 8], 3)", "true"),
+        T("leetcode_wrong_size", "hand = [1, 2, 3, 4, 5], group_size = 4", "is_n_straight_hand(&[1, 2, 3, 4, 5], 4)", "false"),
+        T("empty_hand", "hand = [], group_size = 3", "is_n_straight_hand(&[], 3)", "true"),
+        T("groups_of_one", "hand = [5, 5, 1], group_size = 1", "is_n_straight_hand(&[5, 5, 1], 1)", "true"),
+        T("duplicates_make_two_runs", "hand = [1, 1, 2, 2, 3, 3], group_size = 3", "is_n_straight_hand(&[1, 1, 2, 2, 3, 3], 3)", "true"),
+        T("gap_breaks_the_run", "hand = [1, 2, 4], group_size = 3", "is_n_straight_hand(&[1, 2, 4], 3)", "false"),
+    ],
+    hidden=[
+        T("not_divisible", "hand = [1, 2, 3, 4], group_size = 3", "is_n_straight_hand(&[1, 2, 3, 4], 3)", "false"),
+        T("top_of_i32", "hand = [2147483646, 2147483647], group_size = 2", "is_n_straight_hand(&[i32::MAX - 1, i32::MAX], 2)", "true"),
+        T("run_past_i32_max", "hand = [2147483647, 2147483647], group_size = 2", "is_n_straight_hand(&[i32::MAX, i32::MAX], 2)", "false"),
+        T("bottom_of_i32", "hand = [-2147483648, -2147483647], group_size = 2", "is_n_straight_hand(&[i32::MIN, i32::MIN + 1], 2)", "true"),
+        T("negatives", "hand = [0, -1, -3, -2], group_size = 2", "is_n_straight_hand(&[0, -1, -3, -2], 2)", "true"),
+        T("duplicate_start_short", "hand = [1, 1, 2, 2, 3, 4], group_size = 3", "is_n_straight_hand(&[1, 1, 2, 2, 3, 4], 3)", "false"),
+        T("spaced_out", "hand = [8, 10, 12], group_size = 3", "is_n_straight_hand(&[8, 10, 12], 3)", "false"),
+        T("group_bigger_than_hand", "hand = [1, 2], group_size = 3", "is_n_straight_hand(&[1, 2], 3)", "false"),
+        T("one_group_of_all", "hand = [3, 1, 2], group_size = 3", "is_n_straight_hand(&[3, 1, 2], 3)", "true"),
+        T("three_runs_of_four", "hand = [5, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12], group_size = 4", "is_n_straight_hand(&[5, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12], 4)", "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(823);
+            for _ in 0..400 {
+                let size = 1 + rng.below(4);
+                let groups = rng.below(4);
+                let mut hand: Vec<i32> = Vec::new();
+                for _ in 0..groups {
+                    let start = rng.int(-3, 5) as i32;
+                    hand.extend(start..start + size as i32);
+                }
+                if rng.bool() && !hand.is_empty() {
+                    let i = rng.below(hand.len());
+                    hand[i] = rng.int(-3, 8) as i32;
+                }
+                rng.shuffle(&mut hand);
+                // Remove the smallest card's run one card at a time from a sorted Vec.
+                let mut left = hand.clone();
+                left.sort_unstable();
+                let mut want = left.len() % size == 0;
+                while want && !left.is_empty() {
+                    let first = left[0];
+                    for card in first..first + size as i32 {
+                        match left.iter().position(|&c| c == card) {
+                            Some(i) => {
+                                left.remove(i);
+                            }
+                            None => {
+                                want = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                check!(format!("hand = {hand:?}, group_size = {size}"), is_n_straight_hand(&hand, size), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let distinct: Vec<i32> = (0..200_000).rev().collect();
+            let mut broken = distinct.clone();
+            broken[0] = 0;
+            let stacked: Vec<i32> = (0..200_000).map(|i| i % 1000).collect();
+            check!(
+                "199999 down to 0 in runs of 1000; the same with 199999 swapped for 0; 0..1000 two hundred times in runs of 1000",
+                (is_n_straight_hand(&distinct, 1000), is_n_straight_hand(&broken, 1000), is_n_straight_hand(&stacked, 1000)),
+                (true, false, true)
+            );
+        }
+        """,
+    ],
+    wrong=dict(
+        sorted_vec_search="""
+            pub fn is_n_straight_hand(hand: &[i32], group_size: usize) -> bool {
+                let mut cards = hand.to_vec();
+                cards.sort_unstable();
+                while let Some(&first) = cards.first() {
+                    for k in 0..group_size as i64 {
+                        match cards.iter().position(|&c| c as i64 == first as i64 + k) {
+                            Some(i) => {
+                                cards.remove(i);
+                            }
+                            None => return false,
+                        }
+                    }
+                }
+                true
+            }
+        """,
+        i32_keys="""
+            use std::collections::BTreeMap;
+
+            pub fn is_n_straight_hand(hand: &[i32], group_size: usize) -> bool {
+                if hand.len() % group_size != 0 {
+                    return false;
+                }
+                let mut counts: BTreeMap<i32, usize> = BTreeMap::new();
+                for &card in hand {
+                    *counts.entry(card).or_insert(0) += 1;
+                }
+                while let Some((&first, &n)) = counts.first_key_value() {
+                    for card in first..first + group_size as i32 {
+                        match counts.get_mut(&card) {
+                            Some(c) if *c >= n => {
+                                *c -= n;
+                                if *c == 0 {
+                                    counts.remove(&card);
+                                }
+                            }
+                            _ => return false,
+                        }
+                    }
+                }
+                true
+            }
+        """,
+        ignores_copies="""
+            use std::collections::BTreeSet;
+
+            pub fn is_n_straight_hand(hand: &[i32], group_size: usize) -> bool {
+                if hand.len() % group_size != 0 {
+                    return false;
+                }
+                let cards: BTreeSet<i64> = hand.iter().map(|&c| c as i64).collect();
+                cards.iter().all(|&c| cards.contains(&(c + 1)) || cards.contains(&(c - 1)) || group_size == 1)
+            }
+        """,
+    ),
+    hints=[("approach", "The smallest card left can only be the start of a run, so that run is forced: it needs the next `group_size - 1` values too. Take it and repeat."),
+           ("rust", "Count cards in a `BTreeMap<i64, usize>`. If the smallest key has count `n`, subtract `n` from each of the next `group_size` keys at once, removing keys that reach 0."),
+           ("edge case", "A run starting near `i32::MAX` needs values past it; `i32` arithmetic overflows there, `i64` keys don't.")],
+    notes=("The smallest remaining card can't be in the middle of a run, so the run it starts is forced. With counts in a BTreeMap, each successful lookup removes at least one card, so the work is O(n log n).", "O(n log n)", "O(n)"),
+    follow_up="Can you avoid the sorted map, starting runs only from values whose predecessor is missing from a `HashMap`?",
+    related=["S4", "D7"],
+))
+
+P.append(dict(
+    slug="remove-k-digits", title="Remove K digits", level="medium", stage="hard-greedy", tags=["greedy", "monotonic stack", "strings"],
+    companies=["Amazon", "Google", "Microsoft"],
+    teaches=["A monotonic stack drops each digit the moment a smaller one follows it.", "`Vec<u8>` as the stack, `truncate` for leftover removals, and a byte slice back to `&str`."],
+    statement="""
+        `num` is a non-negative integer written in decimal, with no leading zeros unless it is `"0"`. Remove
+        exactly `k` digits so the number left is as small as possible, and return it without leading zeros.
+        If no digits are left, return `"0"`.
+    """,
+    examples=[("num = \"1432219\", k = 3", "\"1219\""), ("num = \"10200\", k = 1", "\"200\""), ("num = \"10\", k = 2", "\"0\"")],
+    constraints=["1 ≤ num.len() ≤ 2·10⁵", "0 ≤ k ≤ num.len()", "num holds only ASCII digits"],
+    starter="""
+        pub fn remove_kdigits(num: &str, k: usize) -> String {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn remove_kdigits(num: &str, k: usize) -> String {
+            let mut k = k;
+            let mut stack: Vec<u8> = Vec::with_capacity(num.len());
+            for b in num.bytes() {
+                // A bigger digit before a smaller one should go.
+                while k > 0 && stack.last().is_some_and(|&top| top > b) {
+                    stack.pop();
+                    k -= 1;
+                }
+                stack.push(b);
+            }
+            // What's left is non-decreasing: drop any remaining removals from the end.
+            stack.truncate(stack.len() - k);
+            let start = stack.iter().position(|&b| b != b'0').unwrap_or(stack.len());
+            match std::str::from_utf8(&stack[start..]).unwrap() {
+                "" => "0".to_string(),
+                digits => digits.to_string(),
+            }
+        }
+    """,
+    visible=[
+        T("leetcode_1219", 'num = "1432219", k = 3', 'remove_kdigits("1432219", 3)', '"1219"'),
+        T("leetcode_leading_zero", 'num = "10200", k = 1', 'remove_kdigits("10200", 1)', '"200"'),
+        T("leetcode_nothing_left", 'num = "10", k = 2', 'remove_kdigits("10", 2)', '"0"'),
+        T("remove_none", 'num = "123", k = 0', 'remove_kdigits("123", 0)', '"123"'),
+        T("rising_drops_the_end", 'num = "12345", k = 2', 'remove_kdigits("12345", 2)', '"123"'),
+        T("single_digit_removed", 'num = "9", k = 1', 'remove_kdigits("9", 1)', '"0"'),
+    ],
+    hidden=[
+        T("repeat_then_rise", 'num = "112", k = 1', 'remove_kdigits("112", 1)', '"11"'),
+        T("falling", 'num = "54321", k = 2', 'remove_kdigits("54321", 2)', '"321"'),
+        T("only_zeros_left", 'num = "100", k = 1', 'remove_kdigits("100", 1)', '"0"'),
+        T("all_but_one", 'num = "1234567890", k = 9', 'remove_kdigits("1234567890", 9)', '"0"'),
+        T("all_same", 'num = "1111", k = 2', 'remove_kdigits("1111", 2)', '"11"'),
+        T("zeros_inside", 'num = "10001", k = 1', 'remove_kdigits("10001", 1)', '"1"'),
+        T("two_peaks", 'num = "43214321", k = 4', 'remove_kdigits("43214321", 4)', '"1321"'),
+        T("zero_alone", 'num = "0", k = 0', 'remove_kdigits("0", 0)', '"0"'),
+        T("equal_digits_stay", 'num = "5337", k = 2', 'remove_kdigits("5337", 2)', '"33"'),
+        T("peak_later", 'num = "1173", k = 2', 'remove_kdigits("1173", 2)', '"11"'),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(824);
+            for _ in 0..400 {
+                let len = 1 + rng.below(9);
+                let mut num = rng.string(len, "0012349");
+                if len > 1 && num.starts_with('0') {
+                    num.replace_range(0..1, "1");
+                }
+                let k = rng.below(len + 1);
+                // Try every set of kept positions and keep the smallest value.
+                let b = num.as_bytes();
+                let mut want: Option<String> = None;
+                for mask in 0u32..1 << len {
+                    if mask.count_ones() as usize != len - k {
+                        continue;
+                    }
+                    let kept: String = (0..len).filter(|&i| mask >> i & 1 == 1).map(|i| b[i] as char).collect();
+                    let trimmed = kept.trim_start_matches('0');
+                    let value = if trimmed.is_empty() { "0".to_string() } else { trimmed.to_string() };
+                    if want.as_ref().map_or(true, |w| (value.len(), &value) < (w.len(), w)) {
+                        want = Some(value);
+                    }
+                }
+                check!(format!("num = {num:?}, k = {k}"), remove_kdigits(&num, k), want.unwrap());
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let rising = format!("{}{}", "1".repeat(100_000), "9".repeat(100_000));
+            let zeros = format!("1{}", "0".repeat(199_999));
+            check!(
+                "'1' × 100000 then '9' × 100000, k = 100000; '1' then '0' × 199999, k = 1",
+                (remove_kdigits(&rising, 100_000) == "1".repeat(100_000), remove_kdigits(&zeros, 1)),
+                (true, "0".to_string())
+            );
+        }
+        """,
+    ],
+    wrong=dict(
+        remove_first_peak_k_times="""
+            pub fn remove_kdigits(num: &str, k: usize) -> String {
+                let mut digits: Vec<u8> = num.bytes().collect();
+                for _ in 0..k {
+                    let i = (0..digits.len() - 1).find(|&i| digits[i] > digits[i + 1]).unwrap_or(digits.len() - 1);
+                    digits.remove(i);
+                }
+                let s: String = digits.iter().map(|&b| b as char).collect();
+                let s = s.trim_start_matches('0');
+                if s.is_empty() { "0".to_string() } else { s.to_string() }
+            }
+        """,
+        keeps_leading_zeros="""
+            pub fn remove_kdigits(num: &str, k: usize) -> String {
+                let mut k = k;
+                let mut stack: Vec<u8> = Vec::new();
+                for b in num.bytes() {
+                    while k > 0 && stack.last().is_some_and(|&top| top > b) {
+                        stack.pop();
+                        k -= 1;
+                    }
+                    stack.push(b);
+                }
+                stack.truncate(stack.len() - k);
+                if stack.is_empty() { "0".to_string() } else { String::from_utf8(stack).unwrap() }
+            }
+        """,
+        forgets_leftover_k="""
+            pub fn remove_kdigits(num: &str, k: usize) -> String {
+                let mut k = k;
+                let mut stack: Vec<u8> = Vec::new();
+                for b in num.bytes() {
+                    while k > 0 && stack.last().is_some_and(|&top| top > b) {
+                        stack.pop();
+                        k -= 1;
+                    }
+                    stack.push(b);
+                }
+                let start = stack.iter().position(|&b| b != b'0').unwrap_or(stack.len());
+                match std::str::from_utf8(&stack[start..]).unwrap() {
+                    "" => "0".to_string(),
+                    digits => digits.to_string(),
+                }
+            }
+        """,
+    ),
+    hints=[("approach", "The leftmost digits matter most. Scanning left to right, a digit followed by a smaller one should be removed. Keep a stack and pop while the top is bigger than the incoming digit and removals remain."),
+           ("rust", "A `Vec<u8>` stack with `stack.last().is_some_and(|&top| top > b)`; `truncate(len - k)` for leftovers; start the answer at the first byte that isn't `b'0'`."),
+           ("edge case", "Strip leading zeros, and return `\"0\"` when nothing is left. If removals remain after the scan, the stack is non-decreasing, so take them from the end.")],
+    notes=("To make the number smallest, make the first digit as small as possible, then the second, and so on. The stack removes each digit the first time a smaller digit follows it, so what stays is the smallest prefix available; leftover removals come off the non-decreasing tail. Each digit is pushed and popped at most once.", "O(n)", "O(n)"),
+    follow_up="How would you keep exactly m digits to make the largest number instead, or merge the best picks from two numbers (Create maximum number)?",
+    related=["D3", "S2"],
+))
+
+P.append(dict(
+    slug="candy", title="Candy", level="hard", stage="hard-greedy", tags=["greedy", "arrays"],
+    companies=["Amazon", "Google", "Microsoft"],
+    teaches=["Two one-sided passes, combined with `max`, satisfy a rule that looks both ways.", "`(0..n.saturating_sub(1)).rev()` walks backwards without underflow on an empty slice."],
+    statement="""
+        Children stand in a row and `ratings[i]` is child `i`'s rating. Give every child at least one candy, and
+        give each child more candy than any neighbour with a lower rating. Neighbours with equal ratings have
+        no rule between them. Return the fewest candies in total.
+    """,
+    examples=[("ratings = [1, 0, 2]", "5"), ("ratings = [1, 2, 2]", "4")],
+    constraints=["0 ≤ ratings.len() ≤ 2·10⁵", "ratings[i] is any i32"],
+    starter="""
+        pub fn candy(ratings: &[i32]) -> u64 {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn candy(ratings: &[i32]) -> u64 {
+            let n = ratings.len();
+            let mut give = vec![1u64; n];
+            // More than a lower-rated left neighbour...
+            for i in 1..n {
+                if ratings[i] > ratings[i - 1] {
+                    give[i] = give[i - 1] + 1;
+                }
+            }
+            // ...and more than a lower-rated right neighbour, keeping the first rule.
+            for i in (0..n.saturating_sub(1)).rev() {
+                if ratings[i] > ratings[i + 1] {
+                    give[i] = give[i].max(give[i + 1] + 1);
+                }
+            }
+            give.iter().sum()
+        }
+    """,
+    visible=[
+        T("leetcode_valley", "ratings = [1, 0, 2]", "candy(&[1, 0, 2])", "5"),
+        T("leetcode_equal_neighbours", "ratings = [1, 2, 2]", "candy(&[1, 2, 2])", "4"),
+        T("nobody", "ratings = []", "candy(&[])", "0"),
+        T("one_child", "ratings = [7]", "candy(&[7])", "1"),
+        T("falling", "ratings = [3, 2, 1]", "candy(&[3, 2, 1])", "6"),
+        T("all_equal", "ratings = [2, 2, 2]", "candy(&[2, 2, 2])", "3"),
+    ],
+    hidden=[
+        T("peak_then_plateau", "ratings = [1, 3, 2, 2, 1]", "candy(&[1, 3, 2, 2, 1])", "7"),
+        T("mountain", "ratings = [1, 2, 3, 2, 1]", "candy(&[1, 2, 3, 2, 1])", "9"),
+        T("long_rise_short_fall", "ratings = [1, 3, 4, 5, 2]", "candy(&[1, 3, 4, 5, 2])", "11"),
+        T("fall_rise_fall", "ratings = [5, 4, 3, 5, 6, 2]", "candy(&[5, 4, 3, 5, 6, 2])", "12"),
+        T("short_rise_long_fall", "ratings = [1, 6, 10, 8, 7, 3, 2]", "candy(&[1, 6, 10, 8, 7, 3, 2])", "18"),
+        T("plateau_top", "ratings = [1, 2, 87, 87, 87, 2, 1]", "candy(&[1, 2, 87, 87, 87, 2, 1])", "13"),
+        T("negatives", "ratings = [-5, -10, -10, 3]", "candy(&[-5, -10, -10, 3])", "6"),
+        T("i32_extremes", "ratings = [-2147483648, 2147483647, -2147483648]", "candy(&[i32::MIN, i32::MAX, i32::MIN])", "4"),
+        T("two_rising", "ratings = [1, 2]", "candy(&[1, 2])", "3"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(825);
+            for _ in 0..400 {
+                let n = rng.below(10);
+                let ratings: Vec<i32> = rng.vec(n, -2, 3);
+                // Raise any child that breaks a rule until nobody does.
+                let mut give = vec![1u64; n];
+                loop {
+                    let mut changed = false;
+                    for i in 0..n {
+                        for j in [i.wrapping_sub(1), i + 1] {
+                            if j < n && ratings[i] > ratings[j] && give[i] <= give[j] {
+                                give[i] = give[j] + 1;
+                                changed = true;
+                            }
+                        }
+                    }
+                    if !changed {
+                        break;
+                    }
+                }
+                check!(format!("ratings = {ratings:?}"), candy(&ratings), give.iter().sum::<u64>());
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let falling: Vec<i32> = (0..200_000).rev().collect();
+            let rising: Vec<i32> = (0..200_000).collect();
+            check!("199999 down to 0; 0 up to 199999", (candy(&falling), candy(&rising)), (20_000_100_000, 20_000_100_000));
+        }
+        """,
+    ],
+    wrong=dict(
+        relax_until_stable="""
+            pub fn candy(ratings: &[i32]) -> u64 {
+                let n = ratings.len();
+                let mut give = vec![1u64; n];
+                let mut changed = true;
+                while changed {
+                    changed = false;
+                    for i in 0..n {
+                        if i > 0 && ratings[i] > ratings[i - 1] && give[i] <= give[i - 1] {
+                            give[i] = give[i - 1] + 1;
+                            changed = true;
+                        }
+                        if i + 1 < n && ratings[i] > ratings[i + 1] && give[i] <= give[i + 1] {
+                            give[i] = give[i + 1] + 1;
+                            changed = true;
+                        }
+                    }
+                }
+                give.iter().sum()
+            }
+        """,
+        left_pass_only="""
+            pub fn candy(ratings: &[i32]) -> u64 {
+                let n = ratings.len();
+                let mut give = vec![1u64; n];
+                for i in 1..n {
+                    if ratings[i] > ratings[i - 1] {
+                        give[i] = give[i - 1] + 1;
+                    }
+                }
+                give.iter().sum()
+            }
+        """,
+        u32_total="""
+            pub fn candy(ratings: &[i32]) -> u64 {
+                let n = ratings.len();
+                let mut give = vec![1u32; n];
+                for i in 1..n {
+                    if ratings[i] > ratings[i - 1] {
+                        give[i] = give[i - 1] + 1;
+                    }
+                }
+                for i in (0..n.saturating_sub(1)).rev() {
+                    if ratings[i] > ratings[i + 1] {
+                        give[i] = give[i].max(give[i + 1] + 1);
+                    }
+                }
+                give.iter().sum::<u32>() as u64
+            }
+        """,
+    ),
+    hints=[("approach", "Split the rule in two. A left-to-right pass makes each child beat a lower-rated left neighbour; a right-to-left pass does the same for the right neighbour."),
+           ("rust", "`vec![1u64; n]`; in the second pass use `give[i].max(give[i + 1] + 1)` so the first pass's result survives."),
+           ("edge case", "A sorted row of 2·10⁵ children needs about 2·10¹⁰ candies, more than a `u32` holds.")],
+    notes=("After both passes, each child's count is the longer of the strictly rising runs reaching it from the left and from the right. Any valid assignment needs at least that much, so the total is the minimum.", "O(n)", "O(n)"),
+    follow_up="Can you do it in O(1) extra space by counting the lengths of rising and falling slopes as you go?",
+    related=["D12", "D1"],
+))
+
+P.append(dict(
+    slug="minimum-interval-to-include-each-query", title="Minimum interval to include each query", level="hard", stage="hard-greedy", tags=["intervals", "heap", "sorting", "offline queries"],
+    companies=["Amazon", "Google"],
+    teaches=["Offline queries: sort query indices, answer in sorted order, write answers back by index.", "Lazy deletion from a `BinaryHeap<Reverse<_>>`: only discard stale tops when you look at them."],
+    statement="""
+        Each interval `(left, right)` is closed and has size `right - left + 1`. For each query `q`, find the
+        size of the smallest interval containing `q`, or `None` if no interval does. Return the answers in the
+        same order as `queries`.
+    """,
+    examples=[("intervals = [(1, 4), (2, 4), (3, 6), (4, 4)], queries = [2, 3, 4, 5]", "[Some(3), Some(3), Some(1), Some(4)]"),
+              ("intervals = [(2, 3), (2, 5), (1, 8), (20, 25)], queries = [2, 19, 5, 22]", "[Some(2), None, Some(4), Some(6)]")],
+    constraints=["0 ≤ intervals.len(), queries.len() ≤ 10⁵", "left ≤ right, both any i32", "queries[i] is any i32"],
+    starter="""
+        pub fn min_interval(intervals: &[(i32, i32)], queries: &[i32]) -> Vec<Option<u64>> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
+
+        pub fn min_interval(intervals: &[(i32, i32)], queries: &[i32]) -> Vec<Option<u64>> {
+            let mut sorted = intervals.to_vec();
+            sorted.sort_unstable();
+            let mut order: Vec<usize> = (0..queries.len()).collect();
+            order.sort_unstable_by_key(|&i| queries[i]);
+            // (size, right) of every interval that starts at or before the current query.
+            let mut open: BinaryHeap<Reverse<(u64, i32)>> = BinaryHeap::new();
+            let mut answers = vec![None; queries.len()];
+            let mut next = 0;
+            for i in order {
+                let q = queries[i];
+                while next < sorted.len() && sorted[next].0 <= q {
+                    let (left, right) = sorted[next];
+                    open.push(Reverse(((right as i64 - left as i64 + 1) as u64, right)));
+                    next += 1;
+                }
+                // An interval that ended before q ended before every later query too.
+                while open.peek().is_some_and(|Reverse((_, right))| *right < q) {
+                    open.pop();
+                }
+                answers[i] = open.peek().map(|Reverse((size, _))| *size);
+            }
+            answers
+        }
+    """,
+    visible=[
+        T("leetcode_four", "intervals = [(1, 4), (2, 4), (3, 6), (4, 4)], queries = [2, 3, 4, 5]", "min_interval(&[(1, 4), (2, 4), (3, 6), (4, 4)], &[2, 3, 4, 5])", "vec![Some(3), Some(3), Some(1), Some(4)]"),
+        T("leetcode_with_miss", "intervals = [(2, 3), (2, 5), (1, 8), (20, 25)], queries = [2, 19, 5, 22]", "min_interval(&[(2, 3), (2, 5), (1, 8), (20, 25)], &[2, 19, 5, 22])", "vec![Some(2), None, Some(4), Some(6)]"),
+        T("no_intervals", "intervals = [], queries = [1]", "min_interval(&[], &[1])", "vec![None]"),
+        T("no_queries", "intervals = [(1, 2)], queries = []", "min_interval(&[(1, 2)], &[])", "Vec::<Option<u64>>::new()"),
+        T("ends_are_included", "intervals = [(1, 1)], queries = [1]", "min_interval(&[(1, 1)], &[1])", "vec![Some(1)]"),
+        T("answers_in_query_order", "intervals = [(0, 10), (5, 6)], queries = [6, 0, 20]", "min_interval(&[(0, 10), (5, 6)], &[6, 0, 20])", "vec![Some(2), Some(11), None]"),
+    ],
+    hidden=[
+        T("whole_i32", "intervals = [(-2147483648, 2147483647)], queries = [0]", "min_interval(&[(i32::MIN, i32::MAX)], &[0])", "vec![Some(4_294_967_296)]"),
+        T("query_at_i32_edges", "intervals = [(-2147483648, -2147483648), (2147483647, 2147483647)], queries = [2147483647, -2147483648, 0]", "min_interval(&[(i32::MIN, i32::MIN), (i32::MAX, i32::MAX)], &[i32::MAX, i32::MIN, 0])", "vec![Some(1), Some(1), None]"),
+        T("negatives", "intervals = [(-5, -1), (-3, 3), (0, 0)], queries = [-4, -3, 0, 1, 4]", "min_interval(&[(-5, -1), (-3, 3), (0, 0)], &[-4, -3, 0, 1, 4])", "vec![Some(5), Some(5), Some(1), Some(7), None]"),
+        T("nested", "intervals = [(1, 10), (2, 9), (3, 8), (4, 7)], queries = [5, 1, 9, 11]", "min_interval(&[(1, 10), (2, 9), (3, 8), (4, 7)], &[5, 1, 9, 11])", "vec![Some(4), Some(10), Some(8), None]"),
+        T("repeated_queries", "intervals = [(1, 3)], queries = [2, 2, 2]", "min_interval(&[(1, 3)], &[2, 2, 2])", "vec![Some(3); 3]"),
+        T("small_one_ends_first", "intervals = [(1, 2), (1, 100)], queries = [3, 2]", "min_interval(&[(1, 2), (1, 100)], &[3, 2])", "vec![Some(100), Some(2)]"),
+        T("same_interval_twice", "intervals = [(4, 6), (4, 6)], queries = [5, 7]", "min_interval(&[(4, 6), (4, 6)], &[5, 7])", "vec![Some(3), None]"),
+        T("before_everything", "intervals = [(10, 20)], queries = [9, 10, 20, 21]", "min_interval(&[(10, 20)], &[9, 10, 20, 21])", "vec![None, Some(11), Some(11), None]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(826);
+            for _ in 0..400 {
+                let n = rng.below(7);
+                let intervals: Vec<(i32, i32)> = (0..n)
+                    .map(|_| {
+                        let left = rng.int(-5, 10) as i32;
+                        let len = rng.int(0, 5) as i32;
+                        (left, left + len)
+                    })
+                    .collect();
+                let m = rng.below(7);
+                let queries: Vec<i32> = rng.vec(m, -6, 16);
+                let want: Vec<Option<u64>> = queries
+                    .iter()
+                    .map(|&q| intervals.iter().filter(|&&(l, r)| l <= q && q <= r).map(|&(l, r)| (r - l + 1) as u64).min())
+                    .collect();
+                check!(format!("intervals = {intervals:?}, queries = {queries:?}"), min_interval(&intervals, &queries), want);
+            }
+        }
+
+        #[test]
+        fn scale_100k() {
+            let mut intervals: Vec<(i32, i32)> = (0..99_999).rev().map(|i| (2 * i, 2 * i + 1)).collect();
+            intervals.push((0, 200_005));
+            let queries: Vec<i32> = (0..100_000).rev().map(|j| 3 * j).collect();
+            let out = min_interval(&intervals, &queries);
+            let count = |v: Option<u64>| out.iter().filter(|&&x| x == v).count();
+            check!(
+                "(2i, 2i + 1) for i in 0..99999 plus (0, 200005); queries 3j for j from 99999 down to 0",
+                (count(Some(2)), count(Some(200_006)), count(None), out[0], out[99_999]),
+                (66_666, 3, 33_331, None, Some(2))
+            );
+        }
+        """,
+    ],
+    wrong=dict(
+        every_pair="""
+            pub fn min_interval(intervals: &[(i32, i32)], queries: &[i32]) -> Vec<Option<u64>> {
+                queries
+                    .iter()
+                    .map(|&q| intervals.iter().filter(|&&(l, r)| l <= q && q <= r).map(|&(l, r)| (r as i64 - l as i64 + 1) as u64).min())
+                    .collect()
+            }
+        """,
+        size_off_by_one="""
+            use std::cmp::Reverse;
+            use std::collections::BinaryHeap;
+
+            pub fn min_interval(intervals: &[(i32, i32)], queries: &[i32]) -> Vec<Option<u64>> {
+                let mut sorted = intervals.to_vec();
+                sorted.sort_unstable();
+                let mut order: Vec<usize> = (0..queries.len()).collect();
+                order.sort_unstable_by_key(|&i| queries[i]);
+                let mut open: BinaryHeap<Reverse<(u64, i32)>> = BinaryHeap::new();
+                let mut answers = vec![None; queries.len()];
+                let mut next = 0;
+                for i in order {
+                    let q = queries[i];
+                    while next < sorted.len() && sorted[next].0 <= q {
+                        let (left, right) = sorted[next];
+                        open.push(Reverse(((right as i64 - left as i64) as u64, right)));
+                        next += 1;
+                    }
+                    while open.peek().is_some_and(|Reverse((_, right))| *right < q) {
+                        open.pop();
+                    }
+                    answers[i] = open.peek().map(|Reverse((size, _))| *size);
+                }
+                answers
+            }
+        """,
+        answers_in_sorted_order="""
+            use std::cmp::Reverse;
+            use std::collections::BinaryHeap;
+
+            pub fn min_interval(intervals: &[(i32, i32)], queries: &[i32]) -> Vec<Option<u64>> {
+                let mut sorted = intervals.to_vec();
+                sorted.sort_unstable();
+                let mut qs = queries.to_vec();
+                qs.sort_unstable();
+                let mut open: BinaryHeap<Reverse<(u64, i32)>> = BinaryHeap::new();
+                let mut answers = Vec::new();
+                let mut next = 0;
+                for q in qs {
+                    while next < sorted.len() && sorted[next].0 <= q {
+                        let (left, right) = sorted[next];
+                        open.push(Reverse(((right as i64 - left as i64 + 1) as u64, right)));
+                        next += 1;
+                    }
+                    while open.peek().is_some_and(|Reverse((_, right))| *right < q) {
+                        open.pop();
+                    }
+                    answers.push(open.peek().map(|Reverse((size, _))| *size));
+                }
+                answers
+            }
+        """,
+    ),
+    hints=[("approach", "Answer the queries from smallest to largest. Add each interval once its left end is at or before the query, keep them in a min-heap by size, and pop from the top any interval whose right end is already behind the query."),
+           ("rust", "Sort indices with `order.sort_unstable_by_key(|&i| queries[i])` so answers go back to `answers[i]`; `BinaryHeap<Reverse<(u64, i32)>>` is a min-heap by size."),
+           ("edge case", "`(i32::MIN, i32::MAX)` has size 2³², which doesn't fit a `u32`: compute `right as i64 - left as i64 + 1`.")],
+    notes=("Offline processing: with queries sorted, an interval whose right end is behind the current query is behind every later one, so dropping it from the heap top is safe; intervals buried lower are dropped when they surface. Each interval is pushed and popped at most once.", "O(n log n + q log q)", "O(n + q)"),
+    follow_up="How would you answer the queries online, one at a time as they arrive?",
+    related=["D7", "S5", "D4"],
+))
+
+P.append(dict(
+    slug="employee-free-time", title="Employee free time", level="hard", stage="hard-greedy", tags=["intervals", "heap", "k-way merge"],
+    companies=["Amazon", "Google", "Airbnb", "Uber"],
+    teaches=["k-way merge of sorted lists with a `BinaryHeap<Reverse<(start, list, index)>>`.", "Merge intervals, but keep the gaps instead of the merged blocks."],
+    statement="""
+        `schedule[e]` lists employee `e`'s working intervals `(start, end)`, sorted and not overlapping; each
+        covers the time from `start` up to but not including `end`. Return the free time every employee shares:
+        the gaps of positive length between the first start and the last end, sorted.
+    """,
+    examples=[("schedule = [[(1, 2), (5, 6)], [(1, 3)], [(4, 10)]]", "[(3, 4)]"), ("schedule = [[(1, 3), (6, 7)], [(2, 4)], [(2, 5), (9, 12)]]", "[(5, 6), (7, 9)]")],
+    constraints=["0 ≤ total number of intervals ≤ 2·10⁵", "start < end, both any i32", "each employee's list is sorted and non-overlapping"],
+    starter="""
+        pub fn employee_free_time(schedule: &[Vec<(i32, i32)>]) -> Vec<(i32, i32)> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
+
+        pub fn employee_free_time(schedule: &[Vec<(i32, i32)>]) -> Vec<(i32, i32)> {
+            // One entry per employee: (start, employee, index) of their next interval.
+            let mut heap = BinaryHeap::new();
+            for (e, list) in schedule.iter().enumerate() {
+                if let Some(&(start, _)) = list.first() {
+                    heap.push(Reverse((start, e, 0usize)));
+                }
+            }
+            let mut free = Vec::new();
+            let mut busy_until: Option<i32> = None;
+            while let Some(Reverse((start, e, i))) = heap.pop() {
+                let end = schedule[e][i].1;
+                busy_until = Some(match busy_until {
+                    Some(b) if start > b => {
+                        free.push((b, start));
+                        end
+                    }
+                    Some(b) => b.max(end),
+                    None => end,
+                });
+                if let Some(&(next, _)) = schedule[e].get(i + 1) {
+                    heap.push(Reverse((next, e, i + 1)));
+                }
+            }
+            free
+        }
+    """,
+    visible=[
+        T("leetcode_one_gap", "schedule = [[(1, 2), (5, 6)], [(1, 3)], [(4, 10)]]", "employee_free_time(&[vec![(1, 2), (5, 6)], vec![(1, 3)], vec![(4, 10)]])", "vec![(3, 4)]"),
+        T("leetcode_two_gaps", "schedule = [[(1, 3), (6, 7)], [(2, 4)], [(2, 5), (9, 12)]]", "employee_free_time(&[vec![(1, 3), (6, 7)], vec![(2, 4)], vec![(2, 5), (9, 12)]])", "vec![(5, 6), (7, 9)]"),
+        T("no_employees", "schedule = []", "employee_free_time(&[])", "Vec::<(i32, i32)>::new()"),
+        T("one_employee", "schedule = [[(1, 2), (3, 4)]]", "employee_free_time(&[vec![(1, 2), (3, 4)]])", "vec![(2, 3)]"),
+        T("touching_is_not_free", "schedule = [[(1, 2)], [(2, 3)]]", "employee_free_time(&[vec![(1, 2)], vec![(2, 3)]])", "Vec::<(i32, i32)>::new()"),
+        T("employee_with_no_work", "schedule = [[], [(1, 2), (4, 5)]]", "employee_free_time(&[vec![], vec![(1, 2), (4, 5)]])", "vec![(2, 4)]"),
+    ],
+    hidden=[
+        T("nested", "schedule = [[(1, 10)], [(2, 3), (5, 6)]]", "employee_free_time(&[vec![(1, 10)], vec![(2, 3), (5, 6)]])", "Vec::<(i32, i32)>::new()"),
+        T("long_then_short", "schedule = [[(1, 5), (20, 30)], [(2, 3), (6, 7)]]", "employee_free_time(&[vec![(1, 5), (20, 30)], vec![(2, 3), (6, 7)]])", "vec![(5, 6), (7, 20)]"),
+        T("negatives", "schedule = [[(-10, -5), (0, 2)], [(-7, -6), (3, 4)]]", "employee_free_time(&[vec![(-10, -5), (0, 2)], vec![(-7, -6), (3, 4)]])", "vec![(-5, 0), (2, 3)]"),
+        T("i32_extremes", "schedule = [[(-2147483648, -1)], [(1, 2147483647)]]", "employee_free_time(&[vec![(i32::MIN, -1)], vec![(1, i32::MAX)]])", "vec![(-1, 1)]"),
+        T("all_lists_empty", "schedule = [[], []]", "employee_free_time(&[vec![], vec![]])", "Vec::<(i32, i32)>::new()"),
+        T("single_interval", "schedule = [[(0, 1)]]", "employee_free_time(&[vec![(0, 1)]])", "Vec::<(i32, i32)>::new()"),
+        T("same_hours_for_all", "schedule = [[(1, 3), (5, 6)], [(1, 3), (5, 6)], [(1, 3), (5, 6)]]", "employee_free_time(&[vec![(1, 3), (5, 6)], vec![(1, 3), (5, 6)], vec![(1, 3), (5, 6)]])", "vec![(3, 5)]"),
+        T("relay_across_employees", "schedule = [[(1, 2), (3, 4), (5, 6)], [(2, 3)], [(6, 8), (10, 11)]]", "employee_free_time(&[vec![(1, 2), (3, 4), (5, 6)], vec![(2, 3)], vec![(6, 8), (10, 11)]])", "vec![(4, 5), (8, 10)]"),
+        T("touching_within_one_list", "schedule = [[(1, 2), (2, 3), (5, 6)]]", "employee_free_time(&[vec![(1, 2), (2, 3), (5, 6)]])", "vec![(3, 5)]"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(827);
+            for _ in 0..400 {
+                let k = rng.below(4);
+                let mut schedule: Vec<Vec<(i32, i32)>> = Vec::new();
+                for _ in 0..k {
+                    let count = rng.below(4);
+                    let mut list = Vec::new();
+                    let mut t = rng.int(0, 4) as i32;
+                    for _ in 0..count {
+                        let len = rng.int(1, 4) as i32;
+                        list.push((t, t + len));
+                        let gap = rng.int(0, 4) as i32;
+                        t += len + gap;
+                    }
+                    schedule.push(list);
+                }
+                // Mark each busy unit [t, t + 1) on a small grid and read off the gaps.
+                let mut busy = vec![false; 64];
+                for &(s, e) in schedule.iter().flatten() {
+                    for t in s..e {
+                        busy[t as usize] = true;
+                    }
+                }
+                let mut want = Vec::new();
+                if let (Some(first), Some(last)) = (busy.iter().position(|&b| b), busy.iter().rposition(|&b| b)) {
+                    let mut t = first;
+                    while t <= last {
+                        if busy[t] {
+                            t += 1;
+                        } else {
+                            let start = t;
+                            while !busy[t] {
+                                t += 1;
+                            }
+                            want.push((start as i32, t as i32));
+                        }
+                    }
+                }
+                check!(format!("schedule = {schedule:?}"), employee_free_time(&schedule), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            // Employee e works (e + 2000k, e + 2000k + 1): together busy 2000k..2000k + 1000, free after.
+            let schedule: Vec<Vec<(i32, i32)>> = (0..1000).map(|e| (0..200).map(|k| (e + 2000 * k, e + 2000 * k + 1)).collect()).collect();
+            let free = employee_free_time(&schedule);
+            check!("1000 employees; employee e works (e + 2000k, e + 2000k + 1) for k in 0..200", (free.len(), free[0], free[198]), (199, (1000, 2000), (397_000, 398_000)));
+        }
+        """,
+    ],
+    wrong=dict(
+        check_each_end="""
+            pub fn employee_free_time(schedule: &[Vec<(i32, i32)>]) -> Vec<(i32, i32)> {
+                let all: Vec<(i32, i32)> = schedule.iter().flatten().copied().collect();
+                let mut free = Vec::new();
+                for &(_, end) in &all {
+                    // Free from `end` if nobody works at `end` and somebody starts later.
+                    if all.iter().any(|&(s, e)| s <= end && end < e) {
+                        continue;
+                    }
+                    if let Some(next) = all.iter().map(|&(s, _)| s).filter(|&s| s > end).min() {
+                        free.push((end, next));
+                    }
+                }
+                free.sort_unstable();
+                free.dedup();
+                free
+            }
+        """,
+        keeps_empty_gaps="""
+            pub fn employee_free_time(schedule: &[Vec<(i32, i32)>]) -> Vec<(i32, i32)> {
+                let mut all: Vec<(i32, i32)> = schedule.iter().flatten().copied().collect();
+                all.sort_unstable();
+                let mut free = Vec::new();
+                let mut busy_until: Option<i32> = None;
+                for (start, end) in all {
+                    busy_until = Some(match busy_until {
+                        Some(b) if start >= b => {
+                            free.push((b, start));
+                            end
+                        }
+                        Some(b) => b.max(end),
+                        None => end,
+                    });
+                }
+                free
+            }
+        """,
+        end_not_max="""
+            pub fn employee_free_time(schedule: &[Vec<(i32, i32)>]) -> Vec<(i32, i32)> {
+                let mut all: Vec<(i32, i32)> = schedule.iter().flatten().copied().collect();
+                all.sort_unstable();
+                let mut free = Vec::new();
+                for w in all.windows(2) {
+                    if w[1].0 > w[0].1 {
+                        free.push((w[0].1, w[1].0));
+                    }
+                }
+                free
+            }
+        """,
+    ),
+    hints=[("approach", "Treat all intervals as one stream sorted by start, tracking the latest end seen so far. A start after that end opens a free gap."),
+           ("rust", "Each list is already sorted, so merge them with a `BinaryHeap<Reverse<(i32, usize, usize)>>` holding each employee's next interval. Flattening and sorting also works in O(N log N)."),
+           ("edge case", "Keep the max end: one long interval can cover several later ones. A gap must have positive length, so `(1, 2)` then `(2, 3)` leaves no free time.")],
+    notes=("This is merge intervals across every employee, keeping the gaps between merged blocks. The heap holds one interval per employee, so N intervals from k employees cost O(N log k).", "O(N log k)", "O(k) for the heap, plus the output"),
+    follow_up="If each calendar were a live stream of new meetings, how would you report shared free time as soon as it is certain?",
+    related=["D7", "S5"],
+))
+
+P.append(dict(
+    slug="minimum-number-of-refueling-stops", title="Minimum number of refueling stops", level="hard", stage="hard-greedy", tags=["greedy", "heap"],
+    companies=["Amazon", "Google"],
+    teaches=["Defer the decision: remember every station you passed and take the best one only when you must.", "`passed.pop()?` in a function returning `Option` exits with `None` when the heap is empty."],
+    statement="""
+        A car drives east from position 0 to `target`, using one unit of fuel per unit of distance. It starts with
+        `start_fuel` and its tank has no limit. `stations[i] = (position, fuel)`, sorted by position; stopping
+        there adds all of that fuel. Return the fewest stops needed to reach `target`, or `None`. Arriving
+        anywhere with exactly 0 fuel left still counts.
+    """,
+    examples=[("target = 1, start_fuel = 1, stations = []", "Some(0)"), ("target = 100, start_fuel = 1, stations = [(10, 100)]", "None"),
+              ("target = 100, start_fuel = 10, stations = [(10, 60), (20, 30), (30, 30), (60, 40)]", "Some(2)")],
+    constraints=["1 ≤ target ≤ 10¹²", "0 ≤ start_fuel ≤ 10¹²", "0 ≤ stations.len() ≤ 2·10⁵", "0 < position < target, strictly increasing", "1 ≤ fuel ≤ 10⁹"],
+    starter="""
+        pub fn min_refuel_stops(target: u64, start_fuel: u64, stations: &[(u64, u64)]) -> Option<usize> {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::BinaryHeap;
+
+        pub fn min_refuel_stops(target: u64, start_fuel: u64, stations: &[(u64, u64)]) -> Option<usize> {
+            // Fuel of every station passed but not used yet; a max-heap.
+            let mut passed = BinaryHeap::new();
+            let mut reach = start_fuel;
+            let (mut stops, mut next) = (0, 0);
+            while reach < target {
+                while next < stations.len() && stations[next].0 <= reach {
+                    passed.push(stations[next].1);
+                    next += 1;
+                }
+                // Out of fuel: we should have stopped at the richest station behind us.
+                reach += passed.pop()?;
+                stops += 1;
+            }
+            Some(stops)
+        }
+    """,
+    visible=[
+        T("leetcode_already_there", "target = 1, start_fuel = 1, stations = []", "min_refuel_stops(1, 1, &[])", "Some(0)"),
+        T("leetcode_cannot_reach", "target = 100, start_fuel = 1, stations = [(10, 100)]", "min_refuel_stops(100, 1, &[(10, 100)])", "None"),
+        T("leetcode_two_stops", "target = 100, start_fuel = 10, stations = [(10, 60), (20, 30), (30, 30), (60, 40)]", "min_refuel_stops(100, 10, &[(10, 60), (20, 30), (30, 30), (60, 40)])", "Some(2)"),
+        T("exact_fuel_no_stations", "target = 10, start_fuel = 10, stations = []", "min_refuel_stops(10, 10, &[])", "Some(0)"),
+        T("arrive_empty_at_a_station", "target = 100, start_fuel = 50, stations = [(50, 50)]", "min_refuel_stops(100, 50, &[(50, 50)])", "Some(1)"),
+        T("richest_not_farthest", "target = 100, start_fuel = 50, stations = [(10, 50), (50, 10)]", "min_refuel_stops(100, 50, &[(10, 50), (50, 10)])", "Some(1)"),
+    ],
+    hidden=[
+        T("no_fuel_no_stations", "target = 5, start_fuel = 0, stations = []", "min_refuel_stops(5, 0, &[])", "None"),
+        T("no_fuel_to_first_station", "target = 5, start_fuel = 0, stations = [(1, 10)]", "min_refuel_stops(5, 0, &[(1, 10)])", "None"),
+        T("station_out_of_reach", "target = 10, start_fuel = 1, stations = [(2, 100)]", "min_refuel_stops(10, 1, &[(2, 100)])", "None"),
+        T("forced_every_stop", "target = 100, start_fuel = 25, stations = [(25, 25), (50, 50)]", "min_refuel_stops(100, 25, &[(25, 25), (50, 50)])", "Some(2)"),
+        T("leetcode_ten_none", "target = 1000, start_fuel = 83, stations = [(25, 27), (36, 187), (140, 186), (378, 6), (492, 202), (517, 89), (579, 234), (673, 86), (808, 53), (954, 49)]", "min_refuel_stops(1000, 83, &[(25, 27), (36, 187), (140, 186), (378, 6), (492, 202), (517, 89), (579, 234), (673, 86), (808, 53), (954, 49)])", "None"),
+        T("leetcode_ten_four", "target = 1000, start_fuel = 299, stations = [(13, 21), (26, 115), (100, 47), (225, 99), (299, 141), (444, 198), (608, 190), (636, 157), (647, 255), (841, 123)]", "min_refuel_stops(1000, 299, &[(13, 21), (26, 115), (100, 47), (225, 99), (299, 141), (444, 198), (608, 190), (636, 157), (647, 255), (841, 123)])", "Some(4)"),
+        T("reach_past_u32", "target = 10¹², start_fuel = 10⁹, stations = (k·10⁹, 10⁹) for k in 1..1000", "min_refuel_stops(1_000_000_000_000, 1_000_000_000, &(1..1000u64).map(|k| (k * 1_000_000_000, 1_000_000_000)).collect::<Vec<_>>())", "Some(999)"),
+        T("plenty_of_fuel", "target = 50, start_fuel = 100, stations = [(10, 5), (20, 5)]", "min_refuel_stops(50, 100, &[(10, 5), (20, 5)])", "Some(0)"),
+        T("one_short", "target = 100, start_fuel = 50, stations = [(50, 49)]", "min_refuel_stops(100, 50, &[(50, 49)])", "None"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(828);
+            for _ in 0..400 {
+                let target = rng.int(1, 30) as u64;
+                let start_fuel = rng.int(0, 12) as u64;
+                let n = rng.below(8);
+                let mut stations = Vec::new();
+                let mut pos = 0u64;
+                for _ in 0..n {
+                    pos += rng.int(1, 5) as u64;
+                    if pos >= target {
+                        break;
+                    }
+                    let fuel = rng.int(1, 10) as u64;
+                    stations.push((pos, fuel));
+                }
+                // Every set of stops, driven in order.
+                let mut want: Option<usize> = None;
+                for mask in 0u32..1 << stations.len() {
+                    let mut reach = start_fuel;
+                    for (i, &(pos, fuel)) in stations.iter().enumerate() {
+                        if pos > reach {
+                            break;
+                        }
+                        if mask >> i & 1 == 1 {
+                            reach += fuel;
+                        }
+                    }
+                    if reach >= target {
+                        let c = mask.count_ones() as usize;
+                        want = Some(want.map_or(c, |w| w.min(c)));
+                    }
+                }
+                check!(format!("target = {target}, start_fuel = {start_fuel}, stations = {stations:?}"), min_refuel_stops(target, start_fuel, &stations), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let stations: Vec<(u64, u64)> = (1..=200_000).map(|p| (p, 1)).collect();
+            check!(
+                "stations (p, 1) for p in 1..=200000, start_fuel = 1, target = 200001 and 200002",
+                (min_refuel_stops(200_001, 1, &stations), min_refuel_stops(200_002, 1, &stations)),
+                (Some(200_000), None)
+            );
+        }
+        """,
+    ],
+    wrong=dict(
+        quadratic_dp="""
+            pub fn min_refuel_stops(target: u64, start_fuel: u64, stations: &[(u64, u64)]) -> Option<usize> {
+                let n = stations.len();
+                // far[t]: the farthest position reachable with t stops.
+                let mut far = vec![0u64; n + 1];
+                far[0] = start_fuel;
+                for (i, &(pos, fuel)) in stations.iter().enumerate() {
+                    for t in (0..=i).rev() {
+                        if far[t] >= pos {
+                            far[t + 1] = far[t + 1].max(far[t] + fuel);
+                        }
+                    }
+                }
+                (0..=n).find(|&t| far[t] >= target)
+            }
+        """,
+        stop_at_farthest="""
+            pub fn min_refuel_stops(target: u64, start_fuel: u64, stations: &[(u64, u64)]) -> Option<usize> {
+                let mut used = vec![false; stations.len()];
+                let mut reach = start_fuel;
+                let mut stops = 0;
+                while reach < target {
+                    let pick = (0..stations.len()).rev().find(|&i| !used[i] && stations[i].0 <= reach)?;
+                    used[pick] = true;
+                    reach += stations[pick].1;
+                    stops += 1;
+                }
+                Some(stops)
+            }
+        """,
+        needs_fuel_left="""
+            use std::collections::BinaryHeap;
+
+            pub fn min_refuel_stops(target: u64, start_fuel: u64, stations: &[(u64, u64)]) -> Option<usize> {
+                let mut passed = BinaryHeap::new();
+                let mut reach = start_fuel;
+                let (mut stops, mut next) = (0, 0);
+                while reach < target {
+                    while next < stations.len() && stations[next].0 < reach {
+                        passed.push(stations[next].1);
+                        next += 1;
+                    }
+                    reach += passed.pop()?;
+                    stops += 1;
+                }
+                Some(stops)
+            }
+        """,
+    ),
+    hints=[("approach", "Drive as far as your fuel allows, remembering the fuel of every station you pass. When you can't reach the target, pretend you had stopped at the passed station with the most fuel."),
+           ("rust", "`BinaryHeap<u64>` is already a max-heap; `reach += passed.pop()?;` returns `None` from the function when no passed station is left."),
+           ("edge case", "Reaching a station or the target with exactly 0 fuel is fine, so compare positions with `<=`.")],
+    notes=("When fuel runs out, any passed station could have been a stop, and the one with the most fuel reaches at least as far as any other single choice. Deferring each choice until it's needed never uses more stops. Each station enters and leaves the heap once.", "O(n log n)", "O(n)"),
+    follow_up="If each stop also took time proportional to the fuel pumped, how would you minimise total travel time instead?",
+    related=["D7", "D12", "S5"],
+))
+
+P.append(dict(
+    slug="course-schedule-iii", title="Course schedule III", level="hard", stage="hard-greedy", tags=["greedy", "heap", "sorting"],
+    companies=["Amazon", "Google"],
+    teaches=["Sort by deadline, keep a max-heap of what you've taken, and swap out the longest when you run late.", "Track the running total in `u64`: two `u32` durations can overflow."],
+    statement="""
+        Course `(duration, last_day)` takes `duration` days and must be finished by day `last_day`. Courses run
+        one at a time, back to back, starting on day 1, so a course that starts after `t` days of earlier courses
+        finishes on day `t + duration`. Return the most courses you can finish.
+    """,
+    examples=[("courses = [(100, 200), (200, 1300), (1000, 1250), (2000, 3200)]", "3"), ("courses = [(1, 2)]", "1"), ("courses = [(3, 2), (4, 3)]", "0")],
+    constraints=["0 ≤ courses.len() ≤ 2·10⁵", "1 ≤ duration, last_day ≤ 2³² − 1"],
+    starter="""
+        pub fn schedule_course(courses: &[(u32, u32)]) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        use std::collections::BinaryHeap;
+
+        pub fn schedule_course(courses: &[(u32, u32)]) -> usize {
+            let mut by_deadline = courses.to_vec();
+            by_deadline.sort_unstable_by_key(|&(_, last_day)| last_day);
+            // Durations of the courses taken so far; a max-heap.
+            let mut taken = BinaryHeap::new();
+            let mut time = 0u64;
+            for (duration, last_day) in by_deadline {
+                taken.push(duration);
+                time += duration as u64;
+                if time > last_day as u64 {
+                    // Too late: drop the longest course (maybe this one).
+                    if let Some(longest) = taken.pop() {
+                        time -= longest as u64;
+                    }
+                }
+            }
+            taken.len()
+        }
+    """,
+    visible=[
+        T("leetcode_three", "courses = [(100, 200), (200, 1300), (1000, 1250), (2000, 3200)]", "schedule_course(&[(100, 200), (200, 1300), (1000, 1250), (2000, 3200)])", "3"),
+        T("leetcode_one", "courses = [(1, 2)]", "schedule_course(&[(1, 2)])", "1"),
+        T("leetcode_none_fit", "courses = [(3, 2), (4, 3)]", "schedule_course(&[(3, 2), (4, 3)])", "0"),
+        T("no_courses", "courses = []", "schedule_course(&[])", "0"),
+        T("finish_on_the_last_day", "courses = [(5, 5)]", "schedule_course(&[(5, 5)])", "1"),
+        T("swap_long_for_short", "courses = [(4, 4), (1, 5), (1, 5), (1, 5)]", "schedule_course(&[(4, 4), (1, 5), (1, 5), (1, 5)])", "3"),
+    ],
+    hidden=[
+        T("too_long_alone", "courses = [(6, 5)]", "schedule_course(&[(6, 5)])", "0"),
+        T("same_deadline", "courses = [(2, 2), (2, 2)]", "schedule_course(&[(2, 2), (2, 2)])", "1"),
+        T("back_to_back", "courses = [(1, 2), (2, 3)]", "schedule_course(&[(1, 2), (2, 3)])", "2"),
+        T("shorter_pair_wins", "courses = [(5, 5), (4, 6), (2, 6)]", "schedule_course(&[(5, 5), (4, 6), (2, 6)])", "2"),
+        T("leetcode_eight", "courses = [(5, 15), (3, 19), (6, 7), (2, 10), (5, 16), (8, 14), (10, 11), (2, 19)]", "schedule_course(&[(5, 15), (3, 19), (6, 7), (2, 10), (5, 16), (8, 14), (10, 11), (2, 19)])", "5"),
+        T("leetcode_seven", "courses = [(7, 17), (3, 12), (10, 20), (9, 10), (5, 20), (10, 19), (4, 18)]", "schedule_course(&[(7, 17), (3, 12), (10, 20), (9, 10), (5, 20), (10, 19), (4, 18)])", "4"),
+        T("time_past_u32", "courses = [(4294967295, 4294967295), (4294967295, 4294967295)]", "schedule_course(&[(u32::MAX, u32::MAX), (u32::MAX, u32::MAX)])", "1"),
+        T("unsorted_input", "courses = [(2, 10), (9, 9)]", "schedule_course(&[(2, 10), (9, 9)])", "1"),
+        T("duration_order_trap", "courses = [(1, 100), (99, 99), (1, 2)]", "schedule_course(&[(1, 100), (99, 99), (1, 2)])", "2"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(829);
+            for _ in 0..300 {
+                let n = rng.below(9);
+                let courses: Vec<(u32, u32)> = (0..n).map(|_| (rng.int(1, 6) as u32, rng.int(1, 15) as u32)).collect();
+                // A set fits exactly when it fits in deadline order.
+                let mut want = 0;
+                for mask in 0u32..1 << n {
+                    let mut chosen: Vec<(u32, u32)> = (0..n).filter(|&i| mask >> i & 1 == 1).map(|i| courses[i]).collect();
+                    chosen.sort_unstable_by_key(|c| c.1);
+                    let mut t = 0;
+                    if chosen.iter().all(|&(d, last)| {
+                        t += d;
+                        t <= last
+                    }) {
+                        want = want.max(chosen.len());
+                    }
+                }
+                check!(format!("courses = {courses:?}"), schedule_course(&courses), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let same = vec![(1u32, 100_000u32); 200_000];
+            let spread: Vec<(u32, u32)> = (0..200_000u32).rev().map(|i| (2, 2 * i + 2)).collect();
+            check!("(1, 100000) × 200000; (2, 2i + 2) for i in 0..200000", (schedule_course(&same), schedule_course(&spread)), (100_000, 200_000));
+        }
+        """,
+    ],
+    wrong=dict(
+        scan_for_longest="""
+            pub fn schedule_course(courses: &[(u32, u32)]) -> usize {
+                let mut by_deadline = courses.to_vec();
+                by_deadline.sort_unstable_by_key(|&(_, last_day)| last_day);
+                let mut taken: Vec<u32> = Vec::new();
+                let mut time = 0u64;
+                for (duration, last_day) in by_deadline {
+                    taken.push(duration);
+                    time += duration as u64;
+                    if time > last_day as u64 {
+                        let longest = (0..taken.len()).max_by_key(|&i| taken[i]).unwrap();
+                        time -= taken.swap_remove(longest) as u64;
+                    }
+                }
+                taken.len()
+            }
+        """,
+        skip_when_late="""
+            pub fn schedule_course(courses: &[(u32, u32)]) -> usize {
+                let mut by_deadline = courses.to_vec();
+                by_deadline.sort_unstable_by_key(|&(_, last_day)| last_day);
+                let (mut time, mut count) = (0u64, 0);
+                for (duration, last_day) in by_deadline {
+                    if time + duration as u64 <= last_day as u64 {
+                        time += duration as u64;
+                        count += 1;
+                    }
+                }
+                count
+            }
+        """,
+        u32_time="""
+            use std::collections::BinaryHeap;
+
+            pub fn schedule_course(courses: &[(u32, u32)]) -> usize {
+                let mut by_deadline = courses.to_vec();
+                by_deadline.sort_unstable_by_key(|&(_, last_day)| last_day);
+                let mut taken = BinaryHeap::new();
+                let mut time = 0u32;
+                for (duration, last_day) in by_deadline {
+                    taken.push(duration);
+                    time += duration;
+                    if time > last_day {
+                        if let Some(longest) = taken.pop() {
+                            time -= longest;
+                        }
+                    }
+                }
+                taken.len()
+            }
+        """,
+    ),
+    hints=[("approach", "Take courses in order of deadline. If adding one makes you late, drop the longest course taken so far (possibly the new one): the count stays the same and the finish time drops as far as it can."),
+           ("rust", "A `BinaryHeap<u32>` of the durations taken, with the running total in `u64`."),
+           ("edge case", "Dropping a course never makes an earlier one late: everything taken so far has a deadline no later than the current course's.")],
+    notes=("In deadline order, the heap always holds a largest set of courses that fits, and among those the one with the smallest total time. Swapping the longest course out for the new one keeps the count and lowers the total, which only helps later courses.", "O(n log n)", "O(n)"),
+    follow_up="If each course had a value and you wanted the most total value, would the heap still work? (No: that needs a knapsack-style DP.)",
+    related=["D7", "D12", "D9"],
+))
+
 STAGES = [
     ("first-greedy", "First greedy", "easy"),
     ("intervals", "Intervals", "medium"),

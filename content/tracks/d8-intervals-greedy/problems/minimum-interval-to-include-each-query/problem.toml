@@ -1,0 +1,41 @@
+slug = "minimum-interval-to-include-each-query"
+title = "Minimum interval to include each query"
+mode = "write"
+level = "hard"
+stage = "hard-greedy"
+order = 26
+status = "ready"
+tags = ["intervals", "heap", "sorting", "offline queries"]
+companies = ["Amazon", "Google"]
+teaches = [
+  "Offline queries: sort query indices, answer in sorted order, write answers back by index.",
+  "Lazy deletion from a `BinaryHeap<Reverse<_>>`: only discard stale tops when you look at them.",
+]
+constraints = ["0 ≤ intervals.len(), queries.len() ≤ 10⁵", "left ≤ right, both any i32", "queries[i] is any i32"]
+follow_up = "How would you answer the queries online, one at a time as they arrive?"
+related = ["D7", "S5", "D4"]
+
+[[examples]]
+input = "intervals = [(1, 4), (2, 4), (3, 6), (4, 4)], queries = [2, 3, 4, 5]"
+output = "[Some(3), Some(3), Some(1), Some(4)]"
+
+[[examples]]
+input = "intervals = [(2, 3), (2, 5), (1, 8), (20, 25)], queries = [2, 19, 5, 22]"
+output = "[Some(2), None, Some(4), Some(6)]"
+
+[[hints]]
+kind = "approach"
+text = "Answer the queries from smallest to largest. Add each interval once its left end is at or before the query, keep them in a min-heap by size, and pop from the top any interval whose right end is already behind the query."
+
+[[hints]]
+kind = "rust"
+text = "Sort indices with `order.sort_unstable_by_key(|&i| queries[i])` so answers go back to `answers[i]`; `BinaryHeap<Reverse<(u64, i32)>>` is a min-heap by size."
+
+[[hints]]
+kind = "edge case"
+text = "`(i32::MIN, i32::MAX)` has size 2³², which doesn't fit a `u32`: compute `right as i64 - left as i64 + 1`."
+
+[solution]
+explanation = "Offline processing: with queries sorted, an interval whose right end is behind the current query is behind every later one, so dropping it from the heap top is safe; intervals buried lower are dropped when they surface. Each interval is pushed and popped at most once."
+time = "O(n log n + q log q)"
+space = "O(n + q)"

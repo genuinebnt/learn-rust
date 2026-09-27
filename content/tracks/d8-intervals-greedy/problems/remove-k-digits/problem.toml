@@ -1,0 +1,45 @@
+slug = "remove-k-digits"
+title = "Remove K digits"
+mode = "write"
+level = "medium"
+stage = "hard-greedy"
+order = 24
+status = "ready"
+tags = ["greedy", "monotonic stack", "strings"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "A monotonic stack drops each digit the moment a smaller one follows it.",
+  "`Vec<u8>` as the stack, `truncate` for leftover removals, and a byte slice back to `&str`.",
+]
+constraints = ["1 ≤ num.len() ≤ 2·10⁵", "0 ≤ k ≤ num.len()", "num holds only ASCII digits"]
+follow_up = "How would you keep exactly m digits to make the largest number instead, or merge the best picks from two numbers (Create maximum number)?"
+related = ["D3", "S2"]
+
+[[examples]]
+input = "num = \"1432219\", k = 3"
+output = "\"1219\""
+
+[[examples]]
+input = "num = \"10200\", k = 1"
+output = "\"200\""
+
+[[examples]]
+input = "num = \"10\", k = 2"
+output = "\"0\""
+
+[[hints]]
+kind = "approach"
+text = "The leftmost digits matter most. Scanning left to right, a digit followed by a smaller one should be removed. Keep a stack and pop while the top is bigger than the incoming digit and removals remain."
+
+[[hints]]
+kind = "rust"
+text = "A `Vec<u8>` stack with `stack.last().is_some_and(|&top| top > b)`; `truncate(len - k)` for leftovers; start the answer at the first byte that isn't `b'0'`."
+
+[[hints]]
+kind = "edge case"
+text = "Strip leading zeros, and return `\"0\"` when nothing is left. If removals remain after the scan, the stack is non-decreasing, so take them from the end."
+
+[solution]
+explanation = "To make the number smallest, make the first digit as small as possible, then the second, and so on. The stack removes each digit the first time a smaller digit follows it, so what stays is the smallest prefix available; leftover removals come off the non-decreasing tail. Each digit is pushed and popped at most once."
+time = "O(n)"
+space = "O(n)"

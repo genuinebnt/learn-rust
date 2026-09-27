@@ -1,0 +1,41 @@
+slug = "candy"
+title = "Candy"
+mode = "write"
+level = "hard"
+stage = "hard-greedy"
+order = 25
+status = "ready"
+tags = ["greedy", "arrays"]
+companies = ["Amazon", "Google", "Microsoft"]
+teaches = [
+  "Two one-sided passes, combined with `max`, satisfy a rule that looks both ways.",
+  "`(0..n.saturating_sub(1)).rev()` walks backwards without underflow on an empty slice.",
+]
+constraints = ["0 ≤ ratings.len() ≤ 2·10⁵", "ratings[i] is any i32"]
+follow_up = "Can you do it in O(1) extra space by counting the lengths of rising and falling slopes as you go?"
+related = ["D12", "D1"]
+
+[[examples]]
+input = "ratings = [1, 0, 2]"
+output = "5"
+
+[[examples]]
+input = "ratings = [1, 2, 2]"
+output = "4"
+
+[[hints]]
+kind = "approach"
+text = "Split the rule in two. A left-to-right pass makes each child beat a lower-rated left neighbour; a right-to-left pass does the same for the right neighbour."
+
+[[hints]]
+kind = "rust"
+text = "`vec![1u64; n]`; in the second pass use `give[i].max(give[i + 1] + 1)` so the first pass's result survives."
+
+[[hints]]
+kind = "edge case"
+text = "A sorted row of 2·10⁵ children needs about 2·10¹⁰ candies, more than a `u32` holds."
+
+[solution]
+explanation = "After both passes, each child's count is the longer of the strictly rising runs reaching it from the left and from the right. Any valid assignment needs at least that much, so the total is the minimum."
+time = "O(n)"
+space = "O(n)"

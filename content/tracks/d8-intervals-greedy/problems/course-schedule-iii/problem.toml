@@ -1,0 +1,45 @@
+slug = "course-schedule-iii"
+title = "Course schedule III"
+mode = "write"
+level = "hard"
+stage = "hard-greedy"
+order = 29
+status = "ready"
+tags = ["greedy", "heap", "sorting"]
+companies = ["Amazon", "Google"]
+teaches = [
+  "Sort by deadline, keep a max-heap of what you've taken, and swap out the longest when you run late.",
+  "Track the running total in `u64`: two `u32` durations can overflow.",
+]
+constraints = ["0 ≤ courses.len() ≤ 2·10⁵", "1 ≤ duration, last_day ≤ 2³² − 1"]
+follow_up = "If each course had a value and you wanted the most total value, would the heap still work? (No: that needs a knapsack-style DP.)"
+related = ["D7", "D12", "D9"]
+
+[[examples]]
+input = "courses = [(100, 200), (200, 1300), (1000, 1250), (2000, 3200)]"
+output = "3"
+
+[[examples]]
+input = "courses = [(1, 2)]"
+output = "1"
+
+[[examples]]
+input = "courses = [(3, 2), (4, 3)]"
+output = "0"
+
+[[hints]]
+kind = "approach"
+text = "Take courses in order of deadline. If adding one makes you late, drop the longest course taken so far (possibly the new one): the count stays the same and the finish time drops as far as it can."
+
+[[hints]]
+kind = "rust"
+text = "A `BinaryHeap<u32>` of the durations taken, with the running total in `u64`."
+
+[[hints]]
+kind = "edge case"
+text = "Dropping a course never makes an earlier one late: everything taken so far has a deadline no later than the current course's."
+
+[solution]
+explanation = "In deadline order, the heap always holds a largest set of courses that fits, and among those the one with the smallest total time. Swapping the longest course out for the new one keeps the count and lowers the total, which only helps later courses."
+time = "O(n log n)"
+space = "O(n)"

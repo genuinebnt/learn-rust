@@ -1,0 +1,41 @@
+slug = "non-overlapping-intervals"
+title = "Non-overlapping intervals"
+mode = "write"
+level = "medium"
+stage = "intervals"
+order = 9
+status = "ready"
+tags = ["intervals", "greedy", "Blind 75"]
+companies = ["Meta", "Amazon", "Google"]
+teaches = [
+  "Sort by end time: finishing early leaves the most room (the activity-selection argument).",
+  "`Option<i32>` as \"nothing kept yet\" instead of a magic minimum.",
+]
+constraints = ["0 ≤ intervals.len() ≤ 2·10⁵", "start < end, both any i32"]
+follow_up = "If each interval had a weight and you wanted to keep the most total weight, does greedy still work? (No: weighted interval scheduling is a DP with binary search.)"
+related = ["D12", "D4"]
+
+[[examples]]
+input = "intervals = [(1, 2), (2, 3), (3, 4), (1, 3)]"
+output = "1"
+
+[[examples]]
+input = "intervals = [(1, 2), (1, 2), (1, 2)]"
+output = "2"
+
+[[hints]]
+kind = "approach"
+text = "Flip it: keep as many intervals as possible. Of all intervals that could come first, keep the one that ends earliest."
+
+[[hints]]
+kind = "rust"
+text = "`sort_unstable_by_key(|iv| iv.1)`, then keep an interval when its start is `>=` the last kept end."
+
+[[hints]]
+kind = "edge case"
+text = "Sorting by start and keeping the first one fails on `[(1, 10), (2, 3), (4, 5)]`."
+
+[solution]
+explanation = "Exchange argument: in any best solution, swapping the first kept interval for the one with the earliest end keeps it valid. So sort by end and keep greedily; the answer is n minus the number kept."
+time = "O(n log n)"
+space = "O(n) for the sorted copy"

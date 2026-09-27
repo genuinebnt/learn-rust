@@ -1,0 +1,41 @@
+slug = "minimum-number-of-arrows-to-burst-balloons"
+title = "Minimum number of arrows to burst balloons"
+mode = "write"
+level = "medium"
+stage = "intervals"
+order = 10
+status = "ready"
+tags = ["intervals", "greedy"]
+companies = ["Meta", "Amazon"]
+teaches = [
+  "Sort by end and shoot at the end: the same activity-selection idea as non-overlapping intervals.",
+  "Compare with `cmp`/`sort_by_key`, never by subtracting `i32`s (overflow).",
+]
+constraints = ["0 ≤ points.len() ≤ 2·10⁵", "start ≤ end, both any i32"]
+follow_up = "How does this relate to Non-overlapping intervals? Can you get one answer from the other?"
+related = ["D12"]
+
+[[examples]]
+input = "points = [(10, 16), (2, 8), (1, 6), (7, 12)]"
+output = "2"
+
+[[examples]]
+input = "points = [(1, 2), (2, 3), (3, 4), (4, 5)]"
+output = "2"
+
+[[hints]]
+kind = "approach"
+text = "The balloon that ends first must be hit by some arrow; shooting at its end hits as many others as possible."
+
+[[hints]]
+kind = "rust"
+text = "`sort_unstable_by_key(|p| p.1)` compares safely; a comparator like `a.1 - b.1` overflows at the `i32` extremes."
+
+[[hints]]
+kind = "edge case"
+text = "Balloons are closed: one arrow at 2 bursts both `(1, 2)` and `(2, 3)`."
+
+[solution]
+explanation = "Sorted by end, shoot at the first unburst balloon's end; every balloon starting at or before that point is burst too. It's the same greedy as non-overlapping intervals with closed ends."
+time = "O(n log n)"
+space = "O(n) for the sorted copy"

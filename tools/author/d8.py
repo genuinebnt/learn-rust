@@ -740,6 +740,941 @@ P.append(dict(
     related=["D12", "D2"],
 ))
 
+# ---------------------------------------------------------------- intervals
+
+# Merges closed intervals on a small grid by marking 2·start..=2·end, so touching intervals join and
+# (1, 2), (3, 4) stay apart. Used as the brute force in several hidden tests.
+GRID_MERGE = """
+    fn grid_merge(intervals: &[(i32, i32)]) -> Vec<(i32, i32)> {
+        let mut marked = vec![false; 64];
+        for &(s, e) in intervals {
+            for x in 2 * s..=2 * e {
+                marked[x as usize] = true;
+            }
+        }
+        let mut out = Vec::new();
+        let mut x = 0;
+        while x < marked.len() {
+            if marked[x] {
+                let start = x;
+                while x + 1 < marked.len() && marked[x + 1] {
+                    x += 1;
+                }
+                out.push((start as i32 / 2, x as i32 / 2));
+            }
+            x += 1;
+        }
+        out
+    }
+"""
+
+P.append(dict(
+    slug="merge-intervals", title="Merge intervals", level="medium", stage="intervals", tags=["intervals", "sorting", "Blind 75"],
+    companies=["Meta", "Apple", "Amazon", "Google", "Microsoft", "Bloomberg"],
+    teaches=["Sort tuples, then fold into the output with `last_mut()`.", "A match guard `Some(last) if start <= last.1` merges in place."],
+    statement="""
+        Each `(start, end)` is a closed interval with `start ≤ end`. Merge every group of overlapping intervals
+        and return the result sorted by start. Intervals that share an endpoint, like `(1, 4)` and `(4, 5)`, overlap.
+    """,
+    examples=[("intervals = [(1, 3), (2, 6), (8, 10), (15, 18)]", "[(1, 6), (8, 10), (15, 18)]"), ("intervals = [(1, 4), (4, 5)]", "[(1, 5)]")],
+    constraints=["0 ≤ intervals.len() ≤ 2·10⁵", "start ≤ end, both any i32"],
+    starter="""
+        pub fn merge(intervals: &[(i32, i32)]) -> Vec<(i32, i32)> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn merge(intervals: &[(i32, i32)]) -> Vec<(i32, i32)> {
+            let mut sorted = intervals.to_vec();
+            sorted.sort_unstable();
+            let mut out: Vec<(i32, i32)> = Vec::with_capacity(sorted.len());
+            for (start, end) in sorted {
+                match out.last_mut() {
+                    Some(last) if start <= last.1 => last.1 = last.1.max(end),
+                    _ => out.push((start, end)),
+                }
+            }
+            out
+        }
+    """,
+    visible=[
+        T("leetcode_four", "intervals = [(1, 3), (2, 6), (8, 10), (15, 18)]", "merge(&[(1, 3), (2, 6), (8, 10), (15, 18)])", "vec![(1, 6), (8, 10), (15, 18)]"),
+        T("leetcode_touching", "intervals = [(1, 4), (4, 5)]", "merge(&[(1, 4), (4, 5)])", "vec![(1, 5)]"),
+        T("leetcode_unsorted", "intervals = [(4, 7), (1, 4)]", "merge(&[(4, 7), (1, 4)])", "vec![(1, 7)]"),
+        T("empty", "intervals = []", "merge(&[])", "Vec::<(i32, i32)>::new()"),
+        T("single", "intervals = [(2, 3)]", "merge(&[(2, 3)])", "vec![(2, 3)]"),
+        T("contained", "intervals = [(1, 10), (2, 3)]", "merge(&[(1, 10), (2, 3)])", "vec![(1, 10)]"),
+        T("output_sorted", "intervals = [(8, 10), (1, 3), (2, 6)]", "merge(&[(8, 10), (1, 3), (2, 6)])", "vec![(1, 6), (8, 10)]"),
+    ],
+    hidden=[
+        T("points", "intervals = [(5, 5), (5, 5)]", "merge(&[(5, 5), (5, 5)])", "vec![(5, 5)]"),
+        T("gap_of_one_stays_apart", "intervals = [(1, 2), (3, 4)]", "merge(&[(1, 2), (3, 4)])", "vec![(1, 2), (3, 4)]"),
+        T("negatives", "intervals = [(-3, -1), (-2, 0)]", "merge(&[(-3, -1), (-2, 0)])", "vec![(-3, 0)]"),
+        T("i32_extremes", "intervals = [(i32::MIN, 0), (0, i32::MAX)]", "merge(&[(i32::MIN, 0), (0, i32::MAX)])", "vec![(i32::MIN, i32::MAX)]"),
+        T("contained_then_longer", "intervals = [(1, 10), (2, 3), (4, 11)]", "merge(&[(1, 10), (2, 3), (4, 11)])", "vec![(1, 11)]"),
+        T("chain", "intervals = [(3, 4), (1, 2), (2, 3)]", "merge(&[(3, 4), (1, 2), (2, 3)])", "vec![(1, 4)]"),
+        T("duplicates", "intervals = [(1, 3), (1, 3)]", "merge(&[(1, 3), (1, 3)])", "vec![(1, 3)]"),
+        T("long_one_last", "intervals = [(2, 3), (5, 6), (1, 10)]", "merge(&[(2, 3), (5, 6), (1, 10)])", "vec![(1, 10)]"),
+        GRID_MERGE,
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(807);
+            for _ in 0..400 {
+                let n = rng.below(8);
+                let intervals: Vec<(i32, i32)> = (0..n)
+                    .map(|_| {
+                        let s = rng.int(0, 25) as i32;
+                        let len = rng.int(0, 5) as i32;
+                        (s, s + len)
+                    })
+                    .collect();
+                check!(format!("intervals = {intervals:?}"), merge(&intervals), grid_merge(&intervals));
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            // 199999 separate intervals in reverse order, plus one that joins the first two.
+            let mut intervals: Vec<(i32, i32)> = (0..199_999).rev().map(|i| (3 * i, 3 * i + 1)).collect();
+            intervals.push((1, 3));
+            let out = merge(&intervals);
+            check!("(3i, 3i + 1) for i in 0..199999, reversed, plus (1, 3)", (out.len(), out[0], out[1], out[out.len() - 1]), (199_998, (0, 4), (6, 7), (599_994, 599_995)));
+        }
+        """,
+    ],
+    wrong=dict(
+        scan_all_output="""
+            pub fn merge(intervals: &[(i32, i32)]) -> Vec<(i32, i32)> {
+                let mut sorted = intervals.to_vec();
+                sorted.sort_unstable();
+                let mut out: Vec<(i32, i32)> = Vec::new();
+                for (start, end) in sorted {
+                    match out.iter_mut().find(|m| start <= m.1 && m.0 <= end) {
+                        Some(m) => m.1 = m.1.max(end),
+                        None => out.push((start, end)),
+                    }
+                }
+                out
+            }
+        """,
+        end_not_max="""
+            pub fn merge(intervals: &[(i32, i32)]) -> Vec<(i32, i32)> {
+                let mut sorted = intervals.to_vec();
+                sorted.sort_unstable();
+                let mut out: Vec<(i32, i32)> = Vec::new();
+                for (start, end) in sorted {
+                    match out.last_mut() {
+                        Some(last) if start <= last.1 => last.1 = end,
+                        _ => out.push((start, end)),
+                    }
+                }
+                out
+            }
+        """,
+        touching_apart="""
+            pub fn merge(intervals: &[(i32, i32)]) -> Vec<(i32, i32)> {
+                let mut sorted = intervals.to_vec();
+                sorted.sort_unstable();
+                let mut out: Vec<(i32, i32)> = Vec::new();
+                for (start, end) in sorted {
+                    match out.last_mut() {
+                        Some(last) if start < last.1 => last.1 = last.1.max(end),
+                        _ => out.push((start, end)),
+                    }
+                }
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Sort by start. Each interval either overlaps the last merged one (extend it) or starts a new one."),
+           ("rust", "`match out.last_mut() { Some(last) if start <= last.1 => last.1 = last.1.max(end), _ => out.push((start, end)) }`"),
+           ("edge case", "Take the max of the ends: an interval can sit entirely inside the last merged one.")],
+    notes=("After sorting by start, an interval can only overlap the most recent merged interval, so one pass with `last_mut()` merges everything.", "O(n log n)", "O(n)"),
+    follow_up="How would you merge intervals arriving one at a time from a stream, keeping the merged set queryable? (Think `BTreeMap`.)",
+    related=["S3", "S4"],
+))
+
+P.append(dict(
+    slug="insert-interval", title="Insert interval", level="medium", stage="intervals", tags=["intervals", "Blind 75"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "LinkedIn"],
+    teaches=["Three phases in one pass: copy what ends before, absorb what overlaps, copy the rest.", "`extend_from_slice(&intervals[i..])` copies the tail at once."],
+    statement="""
+        `intervals` holds closed intervals sorted by start with no two overlapping or touching. Insert `new`,
+        merging it with every interval it overlaps or touches, and return the list, still sorted and non-overlapping.
+    """,
+    examples=[("intervals = [(1, 3), (6, 9)], new = (2, 5)", "[(1, 5), (6, 9)]")],
+    constraints=["0 ≤ intervals.len() ≤ 2·10⁵", "start ≤ end, both any i32"],
+    starter="""
+        pub fn insert(intervals: &[(i32, i32)], new: (i32, i32)) -> Vec<(i32, i32)> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn insert(intervals: &[(i32, i32)], new: (i32, i32)) -> Vec<(i32, i32)> {
+            let mut out = Vec::with_capacity(intervals.len() + 1);
+            let (mut lo, mut hi) = new;
+            let mut i = 0;
+            while i < intervals.len() && intervals[i].1 < lo {
+                out.push(intervals[i]);
+                i += 1;
+            }
+            while i < intervals.len() && intervals[i].0 <= hi {
+                lo = lo.min(intervals[i].0);
+                hi = hi.max(intervals[i].1);
+                i += 1;
+            }
+            out.push((lo, hi));
+            out.extend_from_slice(&intervals[i..]);
+            out
+        }
+    """,
+    visible=[
+        T("leetcode_one_overlap", "intervals = [(1, 3), (6, 9)], new = (2, 5)", "insert(&[(1, 3), (6, 9)], (2, 5))", "vec![(1, 5), (6, 9)]"),
+        T("leetcode_three_overlaps", "intervals = [(1, 2), (3, 5), (6, 7), (8, 10), (12, 16)], new = (4, 8)", "insert(&[(1, 2), (3, 5), (6, 7), (8, 10), (12, 16)], (4, 8))", "vec![(1, 2), (3, 10), (12, 16)]"),
+        T("into_empty", "intervals = [], new = (5, 7)", "insert(&[], (5, 7))", "vec![(5, 7)]"),
+        T("goes_last", "intervals = [(1, 2)], new = (5, 6)", "insert(&[(1, 2)], (5, 6))", "vec![(1, 2), (5, 6)]"),
+        T("goes_first", "intervals = [(5, 6)], new = (1, 2)", "insert(&[(5, 6)], (1, 2))", "vec![(1, 2), (5, 6)]"),
+        T("touching_merges", "intervals = [(1, 3)], new = (3, 4)", "insert(&[(1, 3)], (3, 4))", "vec![(1, 4)]"),
+    ],
+    hidden=[
+        T("covers_all", "intervals = [(1, 2), (4, 5), (7, 8)], new = (0, 10)", "insert(&[(1, 2), (4, 5), (7, 8)], (0, 10))", "vec![(0, 10)]"),
+        T("inside_one", "intervals = [(1, 10)], new = (3, 4)", "insert(&[(1, 10)], (3, 4))", "vec![(1, 10)]"),
+        T("in_a_gap", "intervals = [(1, 2), (8, 9)], new = (4, 5)", "insert(&[(1, 2), (8, 9)], (4, 5))", "vec![(1, 2), (4, 5), (8, 9)]"),
+        T("touches_both_sides", "intervals = [(1, 3), (5, 7)], new = (3, 5)", "insert(&[(1, 3), (5, 7)], (3, 5))", "vec![(1, 7)]"),
+        T("point_in_gap", "intervals = [(1, 3), (5, 7)], new = (4, 4)", "insert(&[(1, 3), (5, 7)], (4, 4))", "vec![(1, 3), (4, 4), (5, 7)]"),
+        T("touches_left_neighbour", "intervals = [(1, 3), (8, 9)], new = (3, 5)", "insert(&[(1, 3), (8, 9)], (3, 5))", "vec![(1, 5), (8, 9)]"),
+        T("i32_extremes_apart", "intervals = [(i32::MIN, -1), (1, i32::MAX)], new = (0, 0)", "insert(&[(i32::MIN, -1), (1, i32::MAX)], (0, 0))", "vec![(i32::MIN, -1), (0, 0), (1, i32::MAX)]"),
+        T("i32_extremes_join", "intervals = [(i32::MIN, -1), (1, i32::MAX)], new = (-1, 1)", "insert(&[(i32::MIN, -1), (1, i32::MAX)], (-1, 1))", "vec![(i32::MIN, i32::MAX)]"),
+        T("same_as_existing", "intervals = [(2, 4)], new = (2, 4)", "insert(&[(2, 4)], (2, 4))", "vec![(2, 4)]"),
+        GRID_MERGE,
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(808);
+            for _ in 0..400 {
+                let n = rng.below(7);
+                let raw: Vec<(i32, i32)> = (0..n)
+                    .map(|_| {
+                        let s = rng.int(0, 25) as i32;
+                        let len = rng.int(0, 3) as i32;
+                        (s, s + len)
+                    })
+                    .collect();
+                let intervals = grid_merge(&raw);
+                let s = rng.int(0, 25) as i32;
+                let len = rng.int(0, 5) as i32;
+                let new = (s, s + len);
+                let mut all = intervals.clone();
+                all.push(new);
+                check!(format!("intervals = {intervals:?}, new = {new:?}"), insert(&intervals, new), grid_merge(&all));
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let intervals: Vec<(i32, i32)> = (0..200_000).map(|i| (3 * i, 3 * i + 1)).collect();
+            let out = insert(&intervals, (1, 300_000));
+            check!("(3i, 3i + 1) for i in 0..200000, new = (1, 300000)", (out.len(), out[0], out[1]), (100_000, (0, 300_001), (300_003, 300_004)));
+        }
+        """,
+    ],
+    wrong=dict(
+        touching_stays_apart="""
+            pub fn insert(intervals: &[(i32, i32)], new: (i32, i32)) -> Vec<(i32, i32)> {
+                let mut out = Vec::new();
+                let (mut lo, mut hi) = new;
+                let mut i = 0;
+                while i < intervals.len() && intervals[i].1 <= lo {
+                    out.push(intervals[i]);
+                    i += 1;
+                }
+                while i < intervals.len() && intervals[i].0 < hi {
+                    lo = lo.min(intervals[i].0);
+                    hi = hi.max(intervals[i].1);
+                    i += 1;
+                }
+                out.push((lo, hi));
+                out.extend_from_slice(&intervals[i..]);
+                out
+            }
+        """,
+        end_not_max="""
+            pub fn insert(intervals: &[(i32, i32)], new: (i32, i32)) -> Vec<(i32, i32)> {
+                let mut out = Vec::new();
+                let (mut lo, mut hi) = new;
+                let mut i = 0;
+                while i < intervals.len() && intervals[i].1 < lo {
+                    out.push(intervals[i]);
+                    i += 1;
+                }
+                while i < intervals.len() && intervals[i].0 <= hi {
+                    lo = lo.min(intervals[i].0);
+                    hi = intervals[i].1;
+                    i += 1;
+                }
+                out.push((lo, hi));
+                out.extend_from_slice(&intervals[i..]);
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "The list is already sorted: copy intervals that end before `new` starts, absorb every interval that starts before `new` ends, then copy the rest."),
+           ("rust", "Two `while` loops over one index `i`, then `out.extend_from_slice(&intervals[i..])`."),
+           ("edge case", "Touching counts: `(1, 3)` and `(3, 4)` merge, so compare with `<` and `<=` carefully.")],
+    notes=("Because the input is sorted and disjoint, the intervals that overlap `new` form one contiguous run; everything before and after is copied unchanged.", "O(n)", "O(n) for the output"),
+    follow_up="If you had to insert many intervals one after another, what structure would keep each insert fast?",
+    related=["S3", "D4"],
+))
+
+P.append(dict(
+    slug="non-overlapping-intervals", title="Non-overlapping intervals", level="medium", stage="intervals", tags=["intervals", "greedy", "Blind 75"],
+    companies=["Meta", "Amazon", "Google"],
+    teaches=["Sort by end time: finishing early leaves the most room (the activity-selection argument).", "`Option<i32>` as \"nothing kept yet\" instead of a magic minimum."],
+    statement="""
+        Each `(start, end)` has `start < end` and covers the time from `start` up to but not including `end`, so
+        intervals that only touch don't overlap. Return the fewest intervals to remove so the rest don't overlap.
+    """,
+    examples=[("intervals = [(1, 2), (2, 3), (3, 4), (1, 3)]", "1"), ("intervals = [(1, 2), (1, 2), (1, 2)]", "2")],
+    constraints=["0 ≤ intervals.len() ≤ 2·10⁵", "start < end, both any i32"],
+    starter="""
+        pub fn erase_overlap_intervals(intervals: &[(i32, i32)]) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn erase_overlap_intervals(intervals: &[(i32, i32)]) -> usize {
+            let mut sorted = intervals.to_vec();
+            sorted.sort_unstable_by_key(|iv| iv.1);
+            let mut kept = 0;
+            let mut last_end: Option<i32> = None;
+            for (start, end) in sorted {
+                if last_end.map_or(true, |e| start >= e) {
+                    kept += 1;
+                    last_end = Some(end);
+                }
+            }
+            intervals.len() - kept
+        }
+    """,
+    visible=[
+        T("leetcode_one", "intervals = [(1, 2), (2, 3), (3, 4), (1, 3)]", "erase_overlap_intervals(&[(1, 2), (2, 3), (3, 4), (1, 3)])", "1"),
+        T("leetcode_copies", "intervals = [(1, 2), (1, 2), (1, 2)]", "erase_overlap_intervals(&[(1, 2), (1, 2), (1, 2)])", "2"),
+        T("leetcode_touching", "intervals = [(1, 2), (2, 3)]", "erase_overlap_intervals(&[(1, 2), (2, 3)])", "0"),
+        T("empty", "intervals = []", "erase_overlap_intervals(&[])", "0"),
+        T("single", "intervals = [(4, 9)]", "erase_overlap_intervals(&[(4, 9)])", "0"),
+        T("drop_the_long_one", "intervals = [(1, 100), (1, 2), (3, 4), (5, 6)]", "erase_overlap_intervals(&[(1, 100), (1, 2), (3, 4), (5, 6)])", "1"),
+    ],
+    hidden=[
+        T("nested", "intervals = [(1, 10), (2, 3)]", "erase_overlap_intervals(&[(1, 10), (2, 3)])", "1"),
+        T("staircase", "intervals = [(0, 2), (1, 3), (2, 4), (3, 5)]", "erase_overlap_intervals(&[(0, 2), (1, 3), (2, 4), (3, 5)])", "2"),
+        T("negatives", "intervals = [(-3, -1), (-2, 0), (-1, 1)]", "erase_overlap_intervals(&[(-3, -1), (-2, 0), (-1, 1)])", "1"),
+        T("i32_extremes", "intervals = [(MIN, MAX), (MIN, 0), (0, MAX)]", "erase_overlap_intervals(&[(i32::MIN, i32::MAX), (i32::MIN, 0), (0, i32::MAX)])", "1"),
+        T("earliest_start_is_a_trap", "intervals = [(1, 10), (2, 3), (4, 5)]", "erase_overlap_intervals(&[(1, 10), (2, 3), (4, 5)])", "1"),
+        T("same_end", "intervals = [(1, 3), (2, 3), (0, 3)]", "erase_overlap_intervals(&[(1, 3), (2, 3), (0, 3)])", "2"),
+        T("disjoint_unsorted", "intervals = [(5, 6), (1, 2), (3, 4)]", "erase_overlap_intervals(&[(5, 6), (1, 2), (3, 4)])", "0"),
+        T("leetcode_mixed", "intervals = [(-52, 31), (-73, -26), (82, 97), (-65, -11), (-62, -49), (95, 99), (58, 95), (-31, 49), (66, 98), (-63, 2), (30, 47), (-40, -26)]", "erase_overlap_intervals(&[(-52, 31), (-73, -26), (82, 97), (-65, -11), (-62, -49), (95, 99), (58, 95), (-31, 49), (66, 98), (-63, 2), (30, 47), (-40, -26)])", "7"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(809);
+            for _ in 0..300 {
+                let n = rng.below(9);
+                let intervals: Vec<(i32, i32)> = (0..n)
+                    .map(|_| {
+                        let s = rng.int(-5, 15) as i32;
+                        let len = rng.int(1, 6) as i32;
+                        (s, s + len)
+                    })
+                    .collect();
+                let mut most = 0;
+                for mask in 0u32..1 << n {
+                    let kept: Vec<(i32, i32)> = (0..n).filter(|&i| mask >> i & 1 == 1).map(|i| intervals[i]).collect();
+                    let ok = (0..kept.len()).all(|i| (i + 1..kept.len()).all(|j| kept[i].1 <= kept[j].0 || kept[j].1 <= kept[i].0));
+                    if ok {
+                        most = most.max(kept.len());
+                    }
+                }
+                check!(format!("intervals = {intervals:?}"), erase_overlap_intervals(&intervals), n - most);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            // Pairs (2i, 2i + 2) and (2i + 1, 2i + 3): the (2i, 2i + 2) ones can all be kept.
+            let intervals: Vec<(i32, i32)> = (0..100_000).rev().flat_map(|i| [(2 * i + 1, 2 * i + 3), (2 * i, 2 * i + 2)]).collect();
+            check!("(2i, 2i + 2) and (2i + 1, 2i + 3) for i in 0..100000", erase_overlap_intervals(&intervals), 100_000);
+        }
+        """,
+    ],
+    wrong=dict(
+        quadratic_dp="""
+            pub fn erase_overlap_intervals(intervals: &[(i32, i32)]) -> usize {
+                let mut sorted = intervals.to_vec();
+                sorted.sort_unstable();
+                let n = sorted.len();
+                // best[i]: most intervals kept among 0..=i when interval i is kept.
+                let mut best = vec![1usize; n];
+                for i in 0..n {
+                    for j in 0..i {
+                        if sorted[j].1 <= sorted[i].0 {
+                            best[i] = best[i].max(best[j] + 1);
+                        }
+                    }
+                }
+                n - best.into_iter().max().unwrap_or(0)
+            }
+        """,
+        keep_earliest_start="""
+            pub fn erase_overlap_intervals(intervals: &[(i32, i32)]) -> usize {
+                let mut sorted = intervals.to_vec();
+                sorted.sort_unstable();
+                let mut kept = 0;
+                let mut last_end: Option<i32> = None;
+                for (start, end) in sorted {
+                    if last_end.map_or(true, |e| start >= e) {
+                        kept += 1;
+                        last_end = Some(end);
+                    }
+                }
+                intervals.len() - kept
+            }
+        """,
+        touching_overlaps="""
+            pub fn erase_overlap_intervals(intervals: &[(i32, i32)]) -> usize {
+                let mut sorted = intervals.to_vec();
+                sorted.sort_unstable_by_key(|iv| iv.1);
+                let mut kept = 0;
+                let mut last_end: Option<i32> = None;
+                for (start, end) in sorted {
+                    if last_end.map_or(true, |e| start > e) {
+                        kept += 1;
+                        last_end = Some(end);
+                    }
+                }
+                intervals.len() - kept
+            }
+        """,
+    ),
+    hints=[("approach", "Flip it: keep as many intervals as possible. Of all intervals that could come first, keep the one that ends earliest."),
+           ("rust", "`sort_unstable_by_key(|iv| iv.1)`, then keep an interval when its start is `>=` the last kept end."),
+           ("edge case", "Sorting by start and keeping the first one fails on `[(1, 10), (2, 3), (4, 5)]`.")],
+    notes=("Exchange argument: in any best solution, swapping the first kept interval for the one with the earliest end keeps it valid. So sort by end and keep greedily; the answer is n minus the number kept.", "O(n log n)", "O(n) for the sorted copy"),
+    follow_up="If each interval had a weight and you wanted to keep the most total weight, does greedy still work? (No: weighted interval scheduling is a DP with binary search.)",
+    related=["D12", "D4"],
+))
+
+P.append(dict(
+    slug="minimum-number-of-arrows-to-burst-balloons", title="Minimum number of arrows to burst balloons", level="medium", stage="intervals", tags=["intervals", "greedy"],
+    companies=["Meta", "Amazon"],
+    teaches=["Sort by end and shoot at the end: the same activity-selection idea as non-overlapping intervals.", "Compare with `cmp`/`sort_by_key`, never by subtracting `i32`s (overflow)."],
+    statement="""
+        Each balloon spans the closed range `(start, end)` on the x-axis, `start ≤ end`. An arrow shot at `x`
+        bursts every balloon with `start ≤ x ≤ end`. Return the fewest arrows that burst every balloon.
+    """,
+    examples=[("points = [(10, 16), (2, 8), (1, 6), (7, 12)]", "2"), ("points = [(1, 2), (2, 3), (3, 4), (4, 5)]", "2")],
+    constraints=["0 ≤ points.len() ≤ 2·10⁵", "start ≤ end, both any i32"],
+    starter="""
+        pub fn find_min_arrow_shots(points: &[(i32, i32)]) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn find_min_arrow_shots(points: &[(i32, i32)]) -> usize {
+            let mut sorted = points.to_vec();
+            sorted.sort_unstable_by_key(|p| p.1);
+            let mut arrows = 0;
+            let mut last: Option<i32> = None;
+            for (start, end) in sorted {
+                if last.map_or(true, |x| start > x) {
+                    arrows += 1;
+                    last = Some(end);
+                }
+            }
+            arrows
+        }
+    """,
+    visible=[
+        T("leetcode_two", "points = [(10, 16), (2, 8), (1, 6), (7, 12)]", "find_min_arrow_shots(&[(10, 16), (2, 8), (1, 6), (7, 12)])", "2"),
+        T("leetcode_apart", "points = [(1, 2), (3, 4), (5, 6), (7, 8)]", "find_min_arrow_shots(&[(1, 2), (3, 4), (5, 6), (7, 8)])", "4"),
+        T("leetcode_touching", "points = [(1, 2), (2, 3), (3, 4), (4, 5)]", "find_min_arrow_shots(&[(1, 2), (2, 3), (3, 4), (4, 5)])", "2"),
+        T("no_balloons", "points = []", "find_min_arrow_shots(&[])", "0"),
+        T("one_balloon", "points = [(3, 7)]", "find_min_arrow_shots(&[(3, 7)])", "1"),
+        T("nested", "points = [(1, 10), (3, 4)]", "find_min_arrow_shots(&[(1, 10), (3, 4)])", "1"),
+    ],
+    hidden=[
+        T("touch_once", "points = [(1, 2), (2, 3)]", "find_min_arrow_shots(&[(1, 2), (2, 3)])", "1"),
+        T("points_only", "points = [(5, 5), (5, 5)]", "find_min_arrow_shots(&[(5, 5), (5, 5)])", "1"),
+        T("i32_whole_line", "points = [(MIN, MAX), (MAX, MAX)]", "find_min_arrow_shots(&[(i32::MIN, i32::MAX), (i32::MAX, i32::MAX)])", "1"),
+        T("i32_far_ends", "points = [(MIN, MIN), (MAX, MAX)]", "find_min_arrow_shots(&[(i32::MIN, i32::MIN), (i32::MAX, i32::MAX)])", "2"),
+        T("leetcode_overflow", "points = [(-2147483646, -2147483645), (2147483646, 2147483647)]", "find_min_arrow_shots(&[(-2147483646, -2147483645), (2147483646, 2147483647)])", "2"),
+        T("start_sort_trap", "points = [(1, 10), (2, 3), (4, 5)]", "find_min_arrow_shots(&[(1, 10), (2, 3), (4, 5)])", "2"),
+        T("negatives", "points = [(-5, -3), (-4, 0), (1, 2)]", "find_min_arrow_shots(&[(-5, -3), (-4, 0), (1, 2)])", "2"),
+        T("duplicates", "points = [(1, 3), (1, 3), (1, 3), (4, 4)]", "find_min_arrow_shots(&[(1, 3), (1, 3), (1, 3), (4, 4)])", "2"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(810);
+            for _ in 0..300 {
+                let n = rng.below(8);
+                let points: Vec<(i32, i32)> = (0..n)
+                    .map(|_| {
+                        let s = rng.int(-5, 15) as i32;
+                        let len = rng.int(0, 5) as i32;
+                        (s, s + len)
+                    })
+                    .collect();
+                // Some best set of arrows sits at balloon ends: try every subset of ends.
+                let mut want = n;
+                for mask in 0u32..1 << n {
+                    let shots: Vec<i32> = (0..n).filter(|&i| mask >> i & 1 == 1).map(|i| points[i].1).collect();
+                    if points.iter().all(|&(s, e)| shots.iter().any(|&x| s <= x && x <= e)) {
+                        want = want.min(shots.len());
+                    }
+                }
+                check!(format!("points = {points:?}"), find_min_arrow_shots(&points), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let points: Vec<(i32, i32)> = (0..200_000).rev().map(|i| (2 * i, 2 * i + 1)).collect();
+            check!("(2i, 2i + 1) for i in 0..200000, reversed", find_min_arrow_shots(&points), 200_000);
+        }
+        """,
+    ],
+    wrong=dict(
+        retain_per_arrow="""
+            pub fn find_min_arrow_shots(points: &[(i32, i32)]) -> usize {
+                let mut left = points.to_vec();
+                left.sort_unstable_by_key(|p| p.1);
+                let mut arrows = 0;
+                while let Some(&(_, x)) = left.first() {
+                    arrows += 1;
+                    left.retain(|&(s, _)| s > x);
+                }
+                arrows
+            }
+        """,
+        start_sort_no_shrink="""
+            pub fn find_min_arrow_shots(points: &[(i32, i32)]) -> usize {
+                let mut sorted = points.to_vec();
+                sorted.sort_unstable();
+                let mut arrows = 0;
+                let mut last: Option<i32> = None;
+                for (start, end) in sorted {
+                    if last.map_or(true, |x| start > x) {
+                        arrows += 1;
+                        last = Some(end);
+                    }
+                }
+                arrows
+            }
+        """,
+        touching_needs_two="""
+            pub fn find_min_arrow_shots(points: &[(i32, i32)]) -> usize {
+                let mut sorted = points.to_vec();
+                sorted.sort_unstable_by_key(|p| p.1);
+                let mut arrows = 0;
+                let mut last: Option<i32> = None;
+                for (start, end) in sorted {
+                    if last.map_or(true, |x| start >= x) {
+                        arrows += 1;
+                        last = Some(end);
+                    }
+                }
+                arrows
+            }
+        """,
+    ),
+    hints=[("approach", "The balloon that ends first must be hit by some arrow; shooting at its end hits as many others as possible."),
+           ("rust", "`sort_unstable_by_key(|p| p.1)` compares safely; a comparator like `a.1 - b.1` overflows at the `i32` extremes."),
+           ("edge case", "Balloons are closed: one arrow at 2 bursts both `(1, 2)` and `(2, 3)`.")],
+    notes=("Sorted by end, shoot at the first unburst balloon's end; every balloon starting at or before that point is burst too. It's the same greedy as non-overlapping intervals with closed ends.", "O(n log n)", "O(n) for the sorted copy"),
+    follow_up="How does this relate to Non-overlapping intervals? Can you get one answer from the other?",
+    related=["D12"],
+))
+
+P.append(dict(
+    slug="meeting-rooms-ii", title="Meeting rooms II", level="medium", stage="intervals", tags=["intervals", "sweep line", "Blind 75"],
+    companies=["Meta", "Amazon", "Google", "Microsoft", "Bloomberg", "Uber"],
+    teaches=["Sweep line: sort the starts and the ends separately and walk them together.", "A min-heap of end times (`BinaryHeap<Reverse<i32>>`) is the other classic way."],
+    statement="""
+        Each meeting is `(start, end)` with `start < end`, covering the time from `start` up to but not including
+        `end`. Return the fewest rooms needed to hold every meeting. A room freed at time `t` can host a meeting
+        starting at `t`.
+    """,
+    examples=[("meetings = [(0, 30), (5, 10), (15, 20)]", "2"), ("meetings = [(7, 10), (2, 4)]", "1")],
+    constraints=["0 ≤ meetings.len() ≤ 2·10⁵", "start < end, both any i32"],
+    starter="""
+        pub fn min_meeting_rooms(meetings: &[(i32, i32)]) -> usize {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn min_meeting_rooms(meetings: &[(i32, i32)]) -> usize {
+            let mut starts: Vec<i32> = meetings.iter().map(|m| m.0).collect();
+            let mut ends: Vec<i32> = meetings.iter().map(|m| m.1).collect();
+            starts.sort_unstable();
+            ends.sort_unstable();
+            let (mut in_use, mut most, mut j) = (0usize, 0usize, 0usize);
+            for &s in &starts {
+                // Every meeting that ended by `s` has freed its room.
+                while ends[j] <= s {
+                    in_use -= 1;
+                    j += 1;
+                }
+                in_use += 1;
+                most = most.max(in_use);
+            }
+            most
+        }
+    """,
+    visible=[
+        T("leetcode_two", "meetings = [(0, 30), (5, 10), (15, 20)]", "min_meeting_rooms(&[(0, 30), (5, 10), (15, 20)])", "2"),
+        T("leetcode_one", "meetings = [(7, 10), (2, 4)]", "min_meeting_rooms(&[(7, 10), (2, 4)])", "1"),
+        T("no_meetings", "meetings = []", "min_meeting_rooms(&[])", "0"),
+        T("single", "meetings = [(1, 2)]", "min_meeting_rooms(&[(1, 2)])", "1"),
+        T("back_to_back_share", "meetings = [(1, 5), (5, 10)]", "min_meeting_rooms(&[(1, 5), (5, 10)])", "1"),
+        T("all_at_once", "meetings = [(1, 5), (1, 5), (1, 5)]", "min_meeting_rooms(&[(1, 5), (1, 5), (1, 5)])", "3"),
+    ],
+    hidden=[
+        T("nested", "meetings = [(1, 10), (2, 9), (3, 8)]", "min_meeting_rooms(&[(1, 10), (2, 9), (3, 8)])", "3"),
+        T("chain", "meetings = [(1, 3), (2, 4), (3, 5)]", "min_meeting_rooms(&[(1, 3), (2, 4), (3, 5)])", "2"),
+        T("negatives", "meetings = [(-10, -5), (-6, 0), (-5, 1)]", "min_meeting_rooms(&[(-10, -5), (-6, 0), (-5, 1)])", "2"),
+        T("i32_extremes", "meetings = [(MIN, MAX), (0, 1), (1, 2)]", "min_meeting_rooms(&[(i32::MIN, i32::MAX), (0, 1), (1, 2)])", "2"),
+        T("i32_touching", "meetings = [(MIN, 0), (0, MAX)]", "min_meeting_rooms(&[(i32::MIN, 0), (0, i32::MAX)])", "1"),
+        T("leetcode_unsorted", "meetings = [(9, 10), (4, 9), (4, 17)]", "min_meeting_rooms(&[(9, 10), (4, 9), (4, 17)])", "2"),
+        T("leetcode_shared_end", "meetings = [(2, 11), (6, 16), (11, 16)]", "min_meeting_rooms(&[(2, 11), (6, 16), (11, 16)])", "2"),
+        T("classic_six", "meetings = [(1, 10), (2, 7), (3, 19), (8, 12), (10, 20), (11, 30)]", "min_meeting_rooms(&[(1, 10), (2, 7), (3, 19), (8, 12), (10, 20), (11, 30)])", "4"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(811);
+            for _ in 0..400 {
+                let n = rng.below(9);
+                let meetings: Vec<(i32, i32)> = (0..n)
+                    .map(|_| {
+                        let s = rng.int(-5, 15) as i32;
+                        let len = rng.int(1, 6) as i32;
+                        (s, s + len)
+                    })
+                    .collect();
+                // The busiest moment is always some meeting's start.
+                let want = meetings.iter().map(|&(t, _)| meetings.iter().filter(|&&(s, e)| s <= t && t < e).count()).max().unwrap_or(0);
+                check!(format!("meetings = {meetings:?}"), min_meeting_rooms(&meetings), want);
+            }
+        }
+
+        #[test]
+        fn scale_200k() {
+            let meetings: Vec<(i32, i32)> = (0..200_000).rev().map(|i| (i, i + 1000)).collect();
+            check!("(i, i + 1000) for i in 0..200000", min_meeting_rooms(&meetings), 1000);
+        }
+        """,
+    ],
+    wrong=dict(
+        count_at_each_start="""
+            pub fn min_meeting_rooms(meetings: &[(i32, i32)]) -> usize {
+                meetings.iter().map(|&(t, _)| meetings.iter().filter(|&&(s, e)| s <= t && t < e).count()).max().unwrap_or(0)
+            }
+        """,
+        touching_needs_new_room="""
+            pub fn min_meeting_rooms(meetings: &[(i32, i32)]) -> usize {
+                let mut starts: Vec<i32> = meetings.iter().map(|m| m.0).collect();
+                let mut ends: Vec<i32> = meetings.iter().map(|m| m.1).collect();
+                starts.sort_unstable();
+                ends.sort_unstable();
+                let (mut in_use, mut most, mut j) = (0usize, 0usize, 0usize);
+                for &s in &starts {
+                    while ends[j] < s {
+                        in_use -= 1;
+                        j += 1;
+                    }
+                    in_use += 1;
+                    most = most.max(in_use);
+                }
+                most
+            }
+        """,
+    ),
+    hints=[("approach", "Only the number of meetings running at once matters. Walk the start times in order and free a room for every meeting that has ended by then."),
+           ("rust", "Collect and sort `starts` and `ends` separately; one index into `ends` follows the loop over `starts`. Or keep a `BinaryHeap<Reverse<i32>>` of end times."),
+           ("edge case", "Free rooms with `end <= start`, so a meeting ending at 5 frees its room for one starting at 5.")],
+    notes=("The rooms needed equal the most meetings running at any moment. Sorting starts and ends separately and sweeping counts that without tracking which meeting is in which room.", "O(n log n)", "O(n)"),
+    follow_up="How would you also report which room each meeting goes to?",
+    related=["D7", "S5"],
+))
+
+P.append(dict(
+    slug="interval-list-intersections", title="Interval list intersections", level="medium", stage="intervals", tags=["intervals", "two pointers"],
+    companies=["Meta", "Amazon", "Google"],
+    teaches=["Two pointers over two sorted lists: always advance the interval that ends first.", "The overlap of two closed intervals is `(max of starts, min of ends)` when that's non-empty."],
+    statement="""
+        `a` and `b` are lists of closed intervals, each sorted by start with no two intervals in the same list
+        overlapping. Return every intersection of an interval from `a` with one from `b`, sorted by start.
+        A single shared point, like `(5, 5)`, counts.
+    """,
+    examples=[("a = [(0, 2), (5, 10), (13, 23), (24, 25)], b = [(1, 5), (8, 12), (15, 24), (25, 26)]", "[(1, 2), (5, 5), (8, 10), (15, 23), (24, 24), (25, 25)]")],
+    constraints=["0 ≤ a.len(), b.len() ≤ 10⁵", "start ≤ end, both any i32"],
+    starter="""
+        pub fn interval_intersection(a: &[(i32, i32)], b: &[(i32, i32)]) -> Vec<(i32, i32)> {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn interval_intersection(a: &[(i32, i32)], b: &[(i32, i32)]) -> Vec<(i32, i32)> {
+            let mut out = Vec::new();
+            let (mut i, mut j) = (0, 0);
+            while i < a.len() && j < b.len() {
+                let lo = a[i].0.max(b[j].0);
+                let hi = a[i].1.min(b[j].1);
+                if lo <= hi {
+                    out.push((lo, hi));
+                }
+                if a[i].1 < b[j].1 {
+                    i += 1;
+                } else {
+                    j += 1;
+                }
+            }
+            out
+        }
+    """,
+    visible=[
+        T("leetcode_mixed", "a = [(0, 2), (5, 10), (13, 23), (24, 25)], b = [(1, 5), (8, 12), (15, 24), (25, 26)]", "interval_intersection(&[(0, 2), (5, 10), (13, 23), (24, 25)], &[(1, 5), (8, 12), (15, 24), (25, 26)])", "vec![(1, 2), (5, 5), (8, 10), (15, 23), (24, 24), (25, 25)]"),
+        T("leetcode_one_empty", "a = [(1, 3), (5, 9)], b = []", "interval_intersection(&[(1, 3), (5, 9)], &[])", "Vec::<(i32, i32)>::new()"),
+        T("both_empty", "a = [], b = []", "interval_intersection(&[], &[])", "Vec::<(i32, i32)>::new()"),
+        T("shared_point", "a = [(1, 5)], b = [(5, 8)]", "interval_intersection(&[(1, 5)], &[(5, 8)])", "vec![(5, 5)]"),
+        T("one_covers_many", "a = [(0, 10)], b = [(1, 2), (4, 5)]", "interval_intersection(&[(0, 10)], &[(1, 2), (4, 5)])", "vec![(1, 2), (4, 5)]"),
+        T("no_overlap", "a = [(1, 2)], b = [(3, 4)]", "interval_intersection(&[(1, 2)], &[(3, 4)])", "Vec::<(i32, i32)>::new()"),
+    ],
+    hidden=[
+        T("identical", "a = [(1, 2), (4, 6)], b = [(1, 2), (4, 6)]", "interval_intersection(&[(1, 2), (4, 6)], &[(1, 2), (4, 6)])", "vec![(1, 2), (4, 6)]"),
+        T("negatives", "a = [(-5, -2), (0, 3)], b = [(-3, 1)]", "interval_intersection(&[(-5, -2), (0, 3)], &[(-3, 1)])", "vec![(-3, -2), (0, 1)]"),
+        T("i32_extremes", "a = [(MIN, MAX)], b = [(MIN, MIN), (MAX, MAX)]", "interval_intersection(&[(i32::MIN, i32::MAX)], &[(i32::MIN, i32::MIN), (i32::MAX, i32::MAX)])", "vec![(i32::MIN, i32::MIN), (i32::MAX, i32::MAX)]"),
+        T("points_meet", "a = [(3, 3)], b = [(3, 3)]", "interval_intersection(&[(3, 3)], &[(3, 3)])", "vec![(3, 3)]"),
+        T("interleaved", "a = [(1, 3), (5, 7), (9, 11)], b = [(2, 6), (8, 10)]", "interval_intersection(&[(1, 3), (5, 7), (9, 11)], &[(2, 6), (8, 10)])", "vec![(2, 3), (5, 6), (9, 10)]"),
+        T("swapped_arguments", "a = [(2, 6), (8, 10)], b = [(1, 3), (5, 7), (9, 11)]", "interval_intersection(&[(2, 6), (8, 10)], &[(1, 3), (5, 7), (9, 11)])", "vec![(2, 3), (5, 6), (9, 10)]"),
+        T("same_end", "a = [(1, 4), (6, 7)], b = [(2, 4), (5, 7)]", "interval_intersection(&[(1, 4), (6, 7)], &[(2, 4), (5, 7)])", "vec![(2, 4), (6, 7)]"),
+        T("first_list_empty", "a = [], b = [(1, 2)]", "interval_intersection(&[], &[(1, 2)])", "Vec::<(i32, i32)>::new()"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            fn list(rng: &mut anneal_prelude::Rng) -> Vec<(i32, i32)> {
+                let n = rng.below(6);
+                let mut out = Vec::new();
+                let mut pos = rng.int(-3, 3) as i32;
+                for _ in 0..n {
+                    let len = rng.int(0, 4) as i32;
+                    out.push((pos, pos + len));
+                    let gap = rng.int(1, 4) as i32;
+                    pos += len + gap;
+                }
+                out
+            }
+            let mut rng = anneal_prelude::Rng::new(812);
+            for _ in 0..400 {
+                let a = list(&mut rng);
+                let b = list(&mut rng);
+                let mut want = Vec::new();
+                for &(s1, e1) in &a {
+                    for &(s2, e2) in &b {
+                        if s1.max(s2) <= e1.min(e2) {
+                            want.push((s1.max(s2), e1.min(e2)));
+                        }
+                    }
+                }
+                want.sort_unstable();
+                check!(format!("a = {a:?}, b = {b:?}"), interval_intersection(&a, &b), want);
+            }
+        }
+
+        #[test]
+        fn scale_100k_each() {
+            let a: Vec<(i32, i32)> = (0..100_000).map(|i| (4 * i, 4 * i + 2)).collect();
+            let b: Vec<(i32, i32)> = (0..100_000).map(|i| (4 * i + 1, 4 * i + 3)).collect();
+            let out = interval_intersection(&a, &b);
+            check!("a = (4i, 4i + 2), b = (4i + 1, 4i + 3) for i in 0..100000", (out.len(), out[0], out[99_999]), (100_000, (1, 2), (399_997, 399_998)));
+        }
+        """,
+    ],
+    wrong=dict(
+        all_pairs="""
+            pub fn interval_intersection(a: &[(i32, i32)], b: &[(i32, i32)]) -> Vec<(i32, i32)> {
+                let mut out = Vec::new();
+                for &(s1, e1) in a {
+                    for &(s2, e2) in b {
+                        if s1.max(s2) <= e1.min(e2) {
+                            out.push((s1.max(s2), e1.min(e2)));
+                        }
+                    }
+                }
+                out.sort_unstable();
+                out
+            }
+        """,
+        drops_points="""
+            pub fn interval_intersection(a: &[(i32, i32)], b: &[(i32, i32)]) -> Vec<(i32, i32)> {
+                let mut out = Vec::new();
+                let (mut i, mut j) = (0, 0);
+                while i < a.len() && j < b.len() {
+                    let lo = a[i].0.max(b[j].0);
+                    let hi = a[i].1.min(b[j].1);
+                    if lo < hi {
+                        out.push((lo, hi));
+                    }
+                    if a[i].1 < b[j].1 {
+                        i += 1;
+                    } else {
+                        j += 1;
+                    }
+                }
+                out
+            }
+        """,
+        advance_later_end="""
+            pub fn interval_intersection(a: &[(i32, i32)], b: &[(i32, i32)]) -> Vec<(i32, i32)> {
+                let mut out = Vec::new();
+                let (mut i, mut j) = (0, 0);
+                while i < a.len() && j < b.len() {
+                    let lo = a[i].0.max(b[j].0);
+                    let hi = a[i].1.min(b[j].1);
+                    if lo <= hi {
+                        out.push((lo, hi));
+                    }
+                    if a[i].0 < b[j].0 {
+                        i += 1;
+                    } else {
+                        j += 1;
+                    }
+                }
+                out
+            }
+        """,
+    ),
+    hints=[("approach", "Keep one index in each list. Record the overlap of the two current intervals, then move past whichever ends first: it can't meet anything later."),
+           ("rust", "`let lo = a[i].0.max(b[j].0); let hi = a[i].1.min(b[j].1);` and push `(lo, hi)` when `lo <= hi`."),
+           ("edge case", "Closed intervals: `(1, 5)` and `(5, 8)` intersect in `(5, 5)`.")],
+    notes=("The interval that ends first can't overlap anything after the other list's current interval, so dropping it is safe. Each step advances one index.", "O(n + m)", "O(1) besides the output"),
+    follow_up="How would you intersect k lists at once?",
+    related=["D2", "D7"],
+))
+
+P.append(dict(
+    slug="car-pooling", title="Car pooling", level="medium", stage="intervals", tags=["sweep line", "sorting"],
+    companies=["Amazon", "Google"],
+    teaches=["Turn intervals into `(position, change)` events and sort them.", "Sorting tuples puts drop-offs (negative change) before pick-ups at the same stop."],
+    statement="""
+        A car drives east with room for `capacity` passengers. Trip `(passengers, from, to)` picks up that many
+        people at `from` and drops them at `to` (`from < to`). At any stop, passengers get off before new ones
+        get on. Return `true` if every trip fits.
+    """,
+    examples=[("trips = [(2, 1, 5), (3, 3, 7)], capacity = 4", "false"), ("trips = [(2, 1, 5), (3, 3, 7)], capacity = 5", "true")],
+    constraints=["0 ≤ trips.len() ≤ 10⁵", "1 ≤ passengers ≤ 1000", "0 ≤ from < to ≤ 2·10⁹", "0 ≤ capacity ≤ 10⁹"],
+    starter="""
+        pub fn car_pooling(trips: &[(u32, u32, u32)], capacity: u32) -> bool {
+            todo!()
+        }
+    """,
+    solution="""
+        pub fn car_pooling(trips: &[(u32, u32, u32)], capacity: u32) -> bool {
+            let mut events: Vec<(u32, i64)> = Vec::with_capacity(2 * trips.len());
+            for &(people, from, to) in trips {
+                events.push((from, people as i64));
+                events.push((to, -(people as i64)));
+            }
+            // At the same stop, the negative (drop-off) changes sort first.
+            events.sort_unstable();
+            let mut load = 0i64;
+            for (_, change) in events {
+                load += change;
+                if load > capacity as i64 {
+                    return false;
+                }
+            }
+            true
+        }
+    """,
+    visible=[
+        T("leetcode_too_many", "trips = [(2, 1, 5), (3, 3, 7)], capacity = 4", "car_pooling(&[(2, 1, 5), (3, 3, 7)], 4)", "false"),
+        T("leetcode_fits", "trips = [(2, 1, 5), (3, 3, 7)], capacity = 5", "car_pooling(&[(2, 1, 5), (3, 3, 7)], 5)", "true"),
+        T("leetcode_three", "trips = [(3, 2, 7), (3, 7, 9), (8, 3, 9)], capacity = 11", "car_pooling(&[(3, 2, 7), (3, 7, 9), (8, 3, 9)], 11)", "true"),
+        T("no_trips", "trips = [], capacity = 0", "car_pooling(&[], 0)", "true"),
+        T("one_trip_too_big", "trips = [(5, 0, 1)], capacity = 4", "car_pooling(&[(5, 0, 1)], 4)", "false"),
+        T("drop_off_first", "trips = [(3, 1, 5), (3, 5, 9)], capacity = 3", "car_pooling(&[(3, 1, 5), (3, 5, 9)], 3)", "true"),
+    ],
+    hidden=[
+        T("exactly_full", "trips = [(4, 0, 10)], capacity = 4", "car_pooling(&[(4, 0, 10)], 4)", "true"),
+        T("zero_capacity", "trips = [(1, 0, 1)], capacity = 0", "car_pooling(&[(1, 0, 1)], 0)", "false"),
+        T("far_stops", "trips = [(1, 0, 1000000000), (1, 999999999, 1000000000)], capacity = 1", "car_pooling(&[(1, 0, 1_000_000_000), (1, 999_999_999, 1_000_000_000)], 1)", "false"),
+        T("three_at_one_point", "trips = [(1, 0, 10), (1, 5, 6), (1, 5, 7)], capacity = 2", "car_pooling(&[(1, 0, 10), (1, 5, 6), (1, 5, 7)], 2)", "false"),
+        T("relay", "trips = [(2, 0, 3), (2, 3, 6), (2, 6, 9)], capacity = 2", "car_pooling(&[(2, 0, 3), (2, 3, 6), (2, 6, 9)], 2)", "true"),
+        T("unsorted_trips", "trips = [(2, 6, 9), (3, 0, 7)], capacity = 4", "car_pooling(&[(2, 6, 9), (3, 0, 7)], 4)", "false"),
+        T("same_trip_twice", "trips = [(2, 1, 4), (2, 1, 4)], capacity = 4", "car_pooling(&[(2, 1, 4), (2, 1, 4)], 4)", "true"),
+        T("big_capacity", "trips = [(1000, 0, 1); 1000], capacity = 1000000", "car_pooling(&vec![(1000, 0, 1); 1000], 1_000_000)", "true"),
+        """
+        #[test]
+        fn random_vs_brute_force() {
+            let mut rng = anneal_prelude::Rng::new(813);
+            for _ in 0..400 {
+                let n = rng.below(7);
+                let trips: Vec<(u32, u32, u32)> = (0..n)
+                    .map(|_| {
+                        let people = rng.int(1, 5) as u32;
+                        let from = rng.int(0, 10) as u32;
+                        let len = rng.int(1, 5) as u32;
+                        (people, from, from + len)
+                    })
+                    .collect();
+                let capacity = rng.int(0, 12) as u32;
+                let want = (0..=15u32).all(|x| trips.iter().filter(|t| t.1 <= x && x < t.2).map(|t| t.0).sum::<u32>() <= capacity);
+                check!(format!("trips = {trips:?}, capacity = {capacity}"), car_pooling(&trips, capacity), want);
+            }
+        }
+
+        #[test]
+        fn scale_100k() {
+            let trips: Vec<(u32, u32, u32)> = (0..100_000u32).rev().map(|i| (1, i * 10_000, i * 10_000 + 5_000_000)).collect();
+            check!("(1, 10000i, 10000i + 5000000) for i in 0..100000, capacity 500 and 499", (car_pooling(&trips, 500), car_pooling(&trips, 499)), (true, false));
+        }
+        """,
+    ],
+    wrong=dict(
+        check_every_start="""
+            pub fn car_pooling(trips: &[(u32, u32, u32)], capacity: u32) -> bool {
+                trips.iter().all(|&(_, x, _)| {
+                    trips.iter().filter(|t| t.1 <= x && x < t.2).map(|t| t.0 as u64).sum::<u64>() <= capacity as u64
+                })
+            }
+        """,
+        pick_up_first="""
+            pub fn car_pooling(trips: &[(u32, u32, u32)], capacity: u32) -> bool {
+                let mut events: Vec<(u32, i64)> = Vec::new();
+                for &(people, from, to) in trips {
+                    events.push((from, people as i64));
+                    events.push((to, -(people as i64)));
+                }
+                events.sort_unstable_by_key(|&(at, change)| (at, -change));
+                let mut load = 0i64;
+                for (_, change) in events {
+                    load += change;
+                    if load > capacity as i64 {
+                        return false;
+                    }
+                }
+                true
+            }
+        """,
+    ),
+    hints=[("approach", "Only the load at each stop matters. Make an event `(from, +people)` and `(to, -people)` for each trip, sort them, and keep a running total."),
+           ("rust", "A `Vec<(u32, i64)>` sorts by stop, then by change, so at the same stop the drop-offs (negative) come first for free."),
+           ("edge case", "Stops go up to 2·10⁹, so a difference array indexed by stop would be too big here; sort the events instead.")],
+    notes=("The load only changes at pick-ups and drop-offs. Sorting the 2n events and summing them checks the load at every stop.", "O(n log n)", "O(n)"),
+    follow_up="If stops were at most 1000, how would a difference array make this O(n + 1000)?",
+    related=["D1", "S3"],
+))
+
 STAGES = [
     ("first-greedy", "First greedy", "easy"),
     ("intervals", "Intervals", "medium"),

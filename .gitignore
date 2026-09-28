@@ -6,3 +6,4 @@ web/dist
 /docker/deps/target
 __pycache__/
 /.dev.pid
+/deploy/.env

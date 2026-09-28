@@ -1,0 +1,15 @@
+# Build context for the production image (Dockerfile). The runner image builds from docker/ with its own ignore file.
+.git
+.github
+target
+web/node_modules
+web/dist
+**/*.tsbuildinfo
+docker/deps/target
+docs
+tools
+deploy
+scripts
+.dev.pid
+**/.DS_Store
+**/__pycache__

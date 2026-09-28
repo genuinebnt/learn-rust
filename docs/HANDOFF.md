@@ -147,6 +147,13 @@ ANNEAL_SANDBOX=host cargo run -p anneal-api  # after `cd web && npm run build`; 
 export CHROME=/opt/pw-browsers/chromium-*/chrome-linux/chrome   # for tools/ui-check.mjs
 ```
 
+### Production
+
+**Every push to `master` is deployed to https://anneal.genuinebasil.dev** once CI passes (clippy with
+`-D warnings`, `cargo test`, `anneal validate`, the web build). Keep master green: run those locally before
+pushing, and don't push half-finished work to master. The pipeline, the server layout, rollbacks and the secrets are
+in [DEPLOY.md](DEPLOY.md). Never commit secrets: the repo is public.
+
 ### Checking UI without screenshots
 
 `node tools/ui-check.mjs <url> "<js expression>" [width]` loads a page in headless Chrome and prints the

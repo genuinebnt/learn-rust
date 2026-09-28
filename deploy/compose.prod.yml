@@ -1,0 +1,67 @@
+# Production stack on the Hetzner VM (see docs/DEPLOY.md). CI builds the images and runs deploy/deploy.sh, which
+# pulls them and applies this file. Secrets live in deploy/.env on the server only (template: deploy/.env.example).
+#
+# TLS and routing come from the shared gateway Caddy (genuinebnt/genuine.dev), which reaches the app as
+# anneal-app:8787 over the external `edge` network.
+name: anneal
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: anneal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in deploy/.env}
+      POSTGRES_DB: anneal
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anneal"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 256m
+    restart: unless-stopped
+
+  app:
+    image: ghcr.io/genuinebnt/anneal:${ANNEAL_TAG:-latest}
+    container_name: anneal-app
+    # The deploy user, plus the host's docker group so the API can start sandbox containers. Sandboxes run as the
+    # owner of their work directory, so they are unprivileged too.
+    user: "${DEPLOY_UID:-1000}:${DEPLOY_GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:?set in deploy/.env}"
+    environment:
+      ANNEAL_DATABASE_URL: postgres://anneal:${POSTGRES_PASSWORD}@postgres:5432/anneal
+      ANNEAL_PASSPHRASE_HASH: ${ANNEAL_PASSPHRASE_HASH:?set in deploy/.env (anneal passphrase)}
+      ANNEAL_RUNNER_IMAGE: ghcr.io/genuinebnt/anneal-runner:${ANNEAL_TAG:-latest}
+      # Sandbox mounts are resolved by the host's Docker daemon, so the work root has the same path on both sides.
+      ANNEAL_WORK_ROOT: /srv/anneal/work
+      CARGO_HOME: /srv/anneal/cargo
+      HOME: /srv/anneal/home
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /srv/anneal/work:/srv/anneal/work
+      - /srv/anneal/cargo:/srv/anneal/cargo
+      - /srv/anneal/home:/srv/anneal/home
+    healthcheck:
+      # No curl in the image; bash's /dev/tcp is enough for one request.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8787 && printf 'GET /api/health HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - edge
+    mem_limit: 1536m
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+networks:
+  edge:
+    external: true

@@ -56,6 +56,11 @@ A problem may use crates from the fixed set in [docker/deps/Cargo.toml](docker/d
 offline; host runs fetch from crates.io. To change the set, edit the manifest, run `cargo generate-lockfile` in
 `docker/deps`, and rebuild the image.
 
+## Production
+
+https://anneal.genuinebasil.dev, deployed from `master` by CI on every green push. See
+[docs/DEPLOY.md](docs/DEPLOY.md).
+
 ## Content
 
 Problems live in `content/tracks/<track>/problems/<slug>/` as a `problem.toml`, `statement.md`,

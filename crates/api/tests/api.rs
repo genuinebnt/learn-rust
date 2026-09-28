@@ -83,6 +83,7 @@ fn test_app_full(db: PgPool, content: &Path, auth: AuthConfig, web_dist: Option<
                 Path::new(env!("CARGO_TARGET_TMPDIR")).join("anneal-api"),
             ),
             auth,
+            ai: None,
         },
         web_dist,
     )
@@ -754,4 +755,23 @@ fn editor_settings_default_to_live_clippy_without_format_on_pause() {
         serde_json::from_value(json!({ "font_size": 14, "font_family": "Fira Code", "vim": true })).unwrap();
     assert!(old.live_clippy);
     assert!(!old.format_on_pause);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn ai_routes_explain_themselves_when_no_key_is_set(db: PgPool) {
+    let app = test_app(db);
+    let (status, body) = call(&app, Method::GET, "/api/ai/status", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["enabled"], false);
+    let (status, body) = call(&app, Method::POST, "/api/ai/chat/d1-running-sum", Some(json!({ "message": "hi" }))).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["error"], "ai_off");
+    assert!(body["message"].as_str().unwrap().contains("GEMINI_API_KEY"));
+    let (status, body) = call(&app, Method::GET, "/api/ai/patterns", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, Value::Null);
+    // History works without a key (it's just stored messages).
+    let (status, body) = call(&app, Method::GET, "/api/ai/chat/d1-running-sum", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, json!([]));
 }

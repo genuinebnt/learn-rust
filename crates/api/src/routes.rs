@@ -111,7 +111,7 @@ pub async fn track(
     Ok(Json(views::track_detail(t, &progress)))
 }
 
-fn find<'a>(s: &'a AppState, id: &str) -> ApiResult<(&'a Track, &'a Problem)> {
+pub(crate) fn find<'a>(s: &'a AppState, id: &str) -> ApiResult<(&'a Track, &'a Problem)> {
     s.catalog
         .problem(id)
         .ok_or_else(|| ApiError::NotFound(format!("problem {id}")))
@@ -247,6 +247,8 @@ async fn execute(s: &AppState, id: &str, code: &str, with_hidden: bool) -> ApiRe
         if newly {
             let outcome = if attempt.assisted { Outcome::Assisted } else { Outcome::Unassisted };
             store::record_solve(&s.db, id, outcome, attempt.kind == "resolve").await?;
+            // The assistant learns from the new solve (embedding it takes a moment; it runs in the background).
+            crate::ai::refresh_in_background(s);
         }
     }
     let solved_ever = store::ever_solved(&s.db, id).await?;

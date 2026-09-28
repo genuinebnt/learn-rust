@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/content", "crates/runner", "crates/rules", "crates/cli", "crates/api"]
+members = ["crates/content", "crates/runner", "crates/rules", "crates/cli", "crates/api", "crates/ai"]
 
 [workspace.package]
 version = "0.1.0"
@@ -11,6 +11,7 @@ license = "MIT"
 anneal-content = { path = "crates/content" }
 anneal-runner = { path = "crates/runner" }
 anneal-rules = { path = "crates/rules" }
+anneal-ai = { path = "crates/ai" }
 anyhow = "1"
 argon2 = "0.5"
 # OsRng for argon2 salts and session tokens.

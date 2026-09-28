@@ -13,7 +13,7 @@ use anneal_content::Catalog;
 use sqlx::PgPool;
 
 /// Tables whose rows belong to a problem.
-const PROBLEM_TABLES: [&str; 6] = ["attempts", "runs", "drafts", "reviews", "focus_time", "scratch"];
+const PROBLEM_TABLES: [&str; 7] = ["attempts", "runs", "drafts", "reviews", "focus_time", "scratch", "ai_messages"];
 
 /// Moves progress from old problem ids to current ones. Idempotent: once moved, nothing matches the old id.
 pub async fn apply_renames(db: &PgPool, catalog: &Catalog) -> sqlx::Result<u64> {
@@ -21,7 +21,7 @@ pub async fn apply_renames(db: &PgPool, catalog: &Catalog) -> sqlx::Result<u64> 
     let mut tx = db.begin().await?;
     for (old, new) in catalog.renames() {
         // History tables: every row moves.
-        for table in ["attempts", "runs"] {
+        for table in ["attempts", "runs", "ai_messages"] {
             let q = format!("UPDATE {table} SET problem_id = $2 WHERE problem_id = $1");
             moved += sqlx::query(&q).bind(old).bind(new).execute(&mut *tx).await?.rows_affected();
         }

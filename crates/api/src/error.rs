@@ -18,6 +18,12 @@ pub enum ApiError {
     Unauthorized,
     #[error("wrong passphrase")]
     WrongPassphrase,
+    /// No AI provider key is set on the server.
+    #[error("the AI assistant is off: set GEMINI_API_KEY (or OPENAI_API_KEY / ANTHROPIC_API_KEY) on the server")]
+    AiOff,
+    /// The model provider failed or refused.
+    #[error("the AI provider failed: {0}")]
+    Ai(String),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
     #[error(transparent)]
@@ -33,6 +39,8 @@ impl IntoResponse for ApiError {
             ApiError::Busy(_) => (StatusCode::TOO_MANY_REQUESTS, "busy"),
             ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized"),
             ApiError::WrongPassphrase => (StatusCode::UNAUTHORIZED, "wrong_passphrase"),
+            ApiError::AiOff => (StatusCode::CONFLICT, "ai_off"),
+            ApiError::Ai(_) => (StatusCode::BAD_GATEWAY, "ai_failed"),
             ApiError::Db(_) | ApiError::Runner(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal")
             }

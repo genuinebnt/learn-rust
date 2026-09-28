@@ -42,6 +42,14 @@ services:
       ANNEAL_DATABASE_URL: postgres://anneal:${POSTGRES_PASSWORD}@postgres:5432/anneal
       ANNEAL_PASSPHRASE_HASH: ${ANNEAL_PASSPHRASE_HASH:?set in deploy/.env (anneal passphrase)}
       ANNEAL_RUNNER_IMAGE: ghcr.io/genuinebnt/anneal-runner:${ANNEAL_TAG:-latest}
+      # The AI assistant (docs/AI.md): on when one of these keys is set in deploy/.env.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANNEAL_AI_PROVIDER: ${ANNEAL_AI_PROVIDER:-}
+      ANNEAL_AI_MODEL: ${ANNEAL_AI_MODEL:-}
+      ANNEAL_AI_EMBED_PROVIDER: ${ANNEAL_AI_EMBED_PROVIDER:-}
+      ANNEAL_AI_EMBED_MODEL: ${ANNEAL_AI_EMBED_MODEL:-}
       # Sandbox mounts are resolved by the host's Docker daemon, so the work root has the same path on both sides.
       ANNEAL_WORK_ROOT: /srv/anneal/work
       CARGO_HOME: /srv/anneal/cargo

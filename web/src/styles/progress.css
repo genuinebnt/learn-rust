@@ -53,3 +53,31 @@
 .pempty{margin:0;padding:18px 0;font-size:13.5px;color:var(--dim)}
 .resolve-bar{display:flex;align-items:center;gap:12px;padding:8px 20px;border-bottom:1px solid var(--line2);background:var(--vio-bg);font:500 12px var(--mono);color:var(--fg)}
 .resolve-bar b{color:var(--vio);letter-spacing:.14em}
+
+/* ---------- Your patterns (AI report) ---------- */
+.pat-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 62ch; color: var(--mut); line-height: 1.6; }
+.pat-empty p { margin: 0; }
+.pat-wrap { display: flex; flex-direction: column; gap: 16px; }
+.pat-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pat-sum { margin: 0; flex: 1 1 420px; color: var(--mut); line-height: 1.6; max-width: 80ch; }
+.pat-meta { font: 500 11px var(--mono); color: var(--dim); }
+.pat-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 900px) { .pat-grid { grid-template-columns: 1fr; } }
+.pat-side { display: flex; flex-direction: column; gap: 18px; }
+.pat-card { border: 1px solid var(--line2); border-radius: 10px; background: var(--panel); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.pat-lab { font: 600 10.5px var(--mono); letter-spacing: .14em; color: var(--dim); }
+.pat { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--line2); }
+.pat-lab + .pat { border-top: 0; }
+.pat .w { font: 600 12px var(--mono); }
+.pat .t { font-size: 13.5px; color: var(--fg); font-weight: 600; }
+.pat .n { font: 500 11px var(--mono); color: var(--dim); text-align: right; }
+.pat p { grid-column: 2 / -1; margin: 0; color: var(--mut); font-size: 13px; line-height: 1.55; }
+.pat-bar { display: flex; flex-direction: column; gap: 6px; }
+.pat-bar .kv { display: flex; justify-content: space-between; font-size: 13px; color: var(--mut); }
+.pat-bar .kv b { font: 600 12px var(--mono); color: var(--fg); }
+.pat-bar .bar { height: 6px; border-radius: 3px; background: var(--raise); overflow: hidden; }
+.pat-bar .bar i { display: block; height: 100%; border-radius: 3px; }
+.pat-next { display: flex; flex-direction: column; gap: 6px; }
+.pat-next a { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--line2); border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 13px; }
+.pat-next a:hover { border-color: var(--acc); }
+.pat-next a small { font: 500 11px var(--mono); color: var(--dim); }

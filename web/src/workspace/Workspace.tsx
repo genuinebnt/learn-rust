@@ -8,6 +8,7 @@ import { BAND_LABEL, LEVEL_COLOR, modeColor, pad2 } from "../components/bits";
 import { NAV_SECTIONS, SECTION_NAMES, type NavArea } from "../curriculum";
 import { Editor, GOTO_EVENT } from "./Editor";
 import { EditorSettingsButton } from "./EditorSettings";
+import { AiPanel } from "./AiPanel";
 import { useEditorSettings } from "../settings";
 import { changedLines } from "./diff";
 import { deriveLanes } from "./lanes";
@@ -84,6 +85,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
   const lanesOn = editorSettings.borrow_lanes;
   const setLanesOn = (on: boolean) => saveEditor({ ...editorSettings, borrow_lanes: on });
   const [selected, setSelected] = useState<number | null>(null);
+  const [rightTab, setRightTab] = useState<"tests" | "ai">("tests");
   const [open, setOpen] = useState<string | null>(null);
   const [cursor, setCursor] = useState([1, 1]);
   const [confirm, setConfirm] = useState<"reset" | "solution" | null>(null);
@@ -249,11 +251,13 @@ function Loaded({ p }: { p: ProblemDetail }) {
   const doRun = () => {
     if (busy || p.status !== "ready") return;
     setRightOpen(1);
+    setRightTab("tests");
     run.mutate();
   };
   const doSubmit = () => {
     if (busy || p.status !== "ready") return;
     setRightOpen(1);
+    setRightTab("tests");
     submit.mutate();
   };
   const failure = run.error ?? submit.error ?? scratch.error;
@@ -760,10 +764,19 @@ function Loaded({ p }: { p: ProblemDetail }) {
             <section className="pane r">
               <div className="rgrip" onPointerDown={(e) => dragWidth(e, rightW, setRightW, -1)} title="Drag to resize" aria-hidden="true" />
               <div className="tabs" style={{ padding: "0 18px" }} role="tablist">
-                <button role="tab" className="on" aria-selected="true">
+                <button role="tab" className={rightTab === "tests" ? "on" : ""} aria-selected={rightTab === "tests"} onClick={() => setRightTab("tests")}>
                   {shown && shown.tests.length ? `Tests ${shown.passed}/${shown.total}` : "Tests"}
                 </button>
+                <button role="tab" className={`tab-ai${rightTab === "ai" ? " on" : ""}`} aria-selected={rightTab === "ai"} onClick={() => setRightTab("ai")}>
+                  <svg className="spark" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 1.5l1.6 4.2 4.4 1.3-4.4 1.3L8 12.5 6.4 8.3 2 7l4.4-1.3z" fill="currentColor" />
+                  </svg>
+                  AI
+                </button>
               </div>
+              {rightTab === "ai" ? (
+                <AiPanel problemId={p.id} code={code} solved={p.attempt.solved} />
+              ) : (
               <div className="pbody" style={{ padding: 18 }}>
                 {p.attempt.solved && (
                   <div className="solved">
@@ -783,6 +796,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 )}
                 <TestsPanel run={shown} cases={cases} hiddenCases={hiddenCases} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
               </div>
+              )}
               <div className="acts">
                 <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"} title="Run the visible and hidden tests (⇧⌘↵)">
                   {submit.isPending && <span className="spin" aria-hidden="true" />}

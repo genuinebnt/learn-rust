@@ -18,6 +18,14 @@ cd "$(dirname "$0")/.."
 # Hooks in .githooks reinstall web dependencies after a pull that changes them.
 git config core.hooksPath .githooks
 
+# Local secrets such as GEMINI_API_KEY (docs/AI.md) live in .env.local, which git ignores.
+if [ -f .env.local ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env.local
+  set +a
+fi
+
 in_use() { lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
 free_port() { python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])'; }
 pick() {

@@ -37,7 +37,12 @@ VM
   those paths. So the work root is `/srv/anneal/work` both inside the app container and on the host.
   `/srv/anneal/cargo` (crate downloads for rust-analyzer) and `/srv/anneal/home` persist across deploys.
 - **Disk hygiene:** `deploy.sh` removes dangling layers and every anneal image except the deployed one after each
-  deploy.
+  deploy. Container logs use Docker's `local` driver (5 × 10 MB, compressed) instead of the unbounded default.
+- **Caching:** the app sends `Cache-Control: public, max-age=31536000, immutable` for `/assets/*` (content-hashed
+  by Vite, so browsers and Cloudflare never re-ask) and `no-cache` for pages, so a deploy shows up on the next load.
+  A missing asset is a 404, never the SPA fallback.
+- **Host tuning:** `vm.swappiness = 10` (`/etc/sysctl.d/60-swappiness.conf`), so idle memory isn't swapped out while
+  RAM is free.
 
 ## Everyday operations (on the VM, in `~/anneal`)
 

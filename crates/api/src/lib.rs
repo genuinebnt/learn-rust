@@ -18,7 +18,10 @@ use std::sync::Arc;
 use anneal_content::Catalog;
 use anneal_runner::Runner;
 use axum::Router;
-use axum::middleware;
+use axum::extract::Request;
+use axum::http::{HeaderValue, header};
+use axum::middleware::{self, Next};
+use axum::response::Response;
 use axum::routing::{get, post, put};
 use sqlx::PgPool;
 use tower_http::services::{ServeDir, ServeFile};
@@ -74,10 +77,32 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .with_state(state);
     let mut router = Router::new().nest("/api", api);
     if let Some(dist) = web_dist.filter(|d| d.join("index.html").is_file()) {
-        // Client-side routes all load index.html.
-        router = router.fallback_service(
-            ServeDir::new(dist).fallback(ServeFile::new(dist.join("index.html"))),
-        );
+        // Vite names everything under /assets by content hash, so those files never change: browsers and
+        // Cloudflare may keep them for a year without asking again. A missing one is a plain 404, never the
+        // index.html fallback, so a stale page can't get HTML cached under an asset's name.
+        let assets = Router::new()
+            .nest_service("/assets", ServeDir::new(dist.join("assets")))
+            .layer(middleware::from_fn(cache_for_a_year));
+        // Client-side routes all load index.html, which must be revalidated so a deploy shows up at once.
+        let pages = Router::new()
+            .fallback_service(ServeDir::new(dist).fallback(ServeFile::new(dist.join("index.html"))))
+            .layer(middleware::from_fn(revalidate));
+        router = router.merge(assets).merge(pages);
     }
     router.layer(TraceLayer::new_for_http())
+}
+
+async fn cache_for_a_year(req: Request, next: Next) -> Response {
+    with_cache_control(next.run(req).await, "public, max-age=31536000, immutable")
+}
+
+async fn revalidate(req: Request, next: Next) -> Response {
+    with_cache_control(next.run(req).await, "no-cache")
+}
+
+fn with_cache_control(mut res: Response, value: &'static str) -> Response {
+    if res.status().is_success() {
+        res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static(value));
+    }
+    res
 }

@@ -63,6 +63,10 @@ fn test_app_with(db: PgPool, content: &Path) -> Router {
 }
 
 fn test_app_auth(db: PgPool, content: &Path, auth: AuthConfig) -> Router {
+    test_app_full(db, content, auth, None)
+}
+
+fn test_app_full(db: PgPool, content: &Path, auth: AuthConfig, web_dist: Option<&Path>) -> Router {
     let loaded = Catalog::load(content).expect("content");
     assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
     let runner = Runner::new(RunnerConfig::new(
@@ -80,7 +84,7 @@ fn test_app_auth(db: PgPool, content: &Path, auth: AuthConfig) -> Router {
             ),
             auth,
         },
-        None,
+        web_dist,
     )
 }
 
@@ -609,4 +613,39 @@ async fn run_builds_and_runs_the_scratch_main(db: PgPool) {
     // Both buffers were saved; Run isn't recorded as a test run.
     let (_, p) = call(&app, Method::GET, &format!("/api/problems/{NDT}"), None).await;
     assert_eq!((p["scratch"].as_str(), p["runs"].as_array().map(Vec::len)), (Some(main), Some(0)));
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn built_app_is_served_with_cache_headers(db: PgPool) {
+    let dist = tempfile::tempdir().unwrap();
+    std::fs::create_dir(dist.path().join("assets")).unwrap();
+    std::fs::write(dist.path().join("index.html"), "<!doctype html>").unwrap();
+    std::fs::write(dist.path().join("assets/index-abc123.js"), "console.log(1)").unwrap();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let app = test_app_full(db, &root.join("content"), AuthConfig::disabled(), Some(dist.path()));
+    let get = |path: &str| {
+        let app = app.clone();
+        let req = Request::builder().uri(path).body(Body::empty()).unwrap();
+        async move { app.oneshot(req).await.unwrap() }
+    };
+    let cache = |res: &axum::response::Response| res.headers().get("cache-control").map(|v| v.to_str().unwrap().to_owned());
+
+    // Hashed assets never change.
+    let asset = get("/assets/index-abc123.js").await;
+    assert_eq!(asset.status(), StatusCode::OK);
+    assert_eq!(cache(&asset).as_deref(), Some("public, max-age=31536000, immutable"));
+    // A missing asset is a real 404, uncached, not the SPA's index.html.
+    let missing = get("/assets/index-gone.js").await;
+    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    assert_eq!(cache(&missing), None);
+    // Pages (client-side routes) get index.html and must be revalidated.
+    for path in ["/", "/rust", "/p/d1-running-sum"] {
+        let page = get(path).await;
+        assert_eq!(page.status(), StatusCode::OK, "{path}");
+        assert_eq!(cache(&page).as_deref(), Some("no-cache"), "{path}");
+    }
+    // The API is untouched.
+    let api = get("/api/health").await;
+    assert_eq!(api.status(), StatusCode::OK);
+    assert_eq!(cache(&api), None);
 }

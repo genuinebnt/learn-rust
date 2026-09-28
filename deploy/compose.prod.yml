@@ -5,6 +5,13 @@
 # anneal-app:8787 over the external `edge` network.
 name: anneal
 
+# Docker's default json-file logs grow forever; the local driver rotates (5 × 10 MB) and compresses.
+x-logging: &logging
+  driver: local
+  options:
+    max-size: 10m
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:18-alpine
@@ -20,6 +27,7 @@ services:
       timeout: 3s
       retries: 20
     mem_limit: 256m
+    logging: *logging
     restart: unless-stopped
 
   app:
@@ -57,6 +65,7 @@ services:
       - default
       - edge
     mem_limit: 1536m
+    logging: *logging
     restart: unless-stopped
 
 volumes:

@@ -48,7 +48,8 @@ export function connectRa(problemId: string, on: RaCallbacks, clippy: boolean): 
       signatureHelp(),
       keymap.of([...jumpToDefinitionKeymap, ...signatureKeymap]),
       // rust-analyzer reports when indexing is done through this experimental notification.
-      { clientCapabilities: { experimental: { serverStatusNotification: true } } },
+      // colorDiagnosticOutput: rust-analyzer passes rustc's rendered message with ANSI colours in `data.rendered`.
+      { clientCapabilities: { experimental: { serverStatusNotification: true, colorDiagnosticOutput: true } } },
     ],
     notificationHandlers: {
       "experimental/serverStatus": (_c, params: { quiescent: boolean; health: string; message?: string }) => {
@@ -112,6 +113,8 @@ interface LspDiagnostic {
   source?: string;
   message: string;
   relatedInformation?: { location: { uri: string; range: LspRange }; message: string }[];
+  /** rust-analyzer's copy of rustc's full rendered message (coloured, as asked for in the client capabilities). */
+  data?: { rendered?: string };
 }
 
 const LEVELS: Level[] = ["error", "warning", "note", "help"];
@@ -137,7 +140,7 @@ function toDiagnostic(item: LspDiagnostic, uri: string): Diagnostic {
     level: LEVELS[(item.severity ?? 1) - 1] ?? "error",
     code: code && /^\d{4}$/.test(code) ? `E${code}` : code,
     message: message ?? item.message,
-    rendered: item.message,
+    rendered: item.data?.rendered ?? item.message,
     spans: [span(item.range, true, rest.join(" ").trim() || null), ...related.filter((r) => r.location.uri === uri).map((r) => span(r.location.range, false, r.message))],
     notes: related.filter((r) => r.location.uri !== uri).map((r) => r.message),
   };

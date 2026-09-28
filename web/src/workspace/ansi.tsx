@@ -40,3 +40,36 @@ export function Ansi({ text }: { text: string }) {
 
 /** Text with ANSI escapes removed. */
 export const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
+
+/** The same rendering into plain DOM, for CodeMirror widgets and tooltips that aren't React. */
+export function appendAnsi(parent: HTMLElement, text: string) {
+  let color: string | undefined;
+  let bold = false;
+  const re = /\x1b\[([0-9;]*)m/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  const push = (chunk: string) => {
+    if (!chunk) return;
+    if (!color && !bold) {
+      parent.append(chunk);
+      return;
+    }
+    const span = document.createElement("span");
+    if (color) span.style.color = color;
+    if (bold) span.style.fontWeight = "600";
+    span.textContent = chunk;
+    parent.append(span);
+  };
+  while ((m = re.exec(text))) {
+    push(text.slice(last, m.index));
+    last = re.lastIndex;
+    for (const code of (m[1] || "0").split(";").map(Number)) {
+      if (code === 0) [color, bold] = [undefined, false];
+      else if (code === 1) bold = true;
+      else if (code === 22) bold = false;
+      else if (code === 39) color = undefined;
+      else if (COLOURS[code]) color = COLOURS[code];
+    }
+  }
+  push(text.slice(last));
+}

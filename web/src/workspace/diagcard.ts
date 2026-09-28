@@ -1,6 +1,7 @@
 // The rustc-style diagnostic card: `error[E0502] message`, the labelled spans with their code, and a footer.
 // The inline lens after a run and the hover over a rust-analyzer squiggle both use it, so they look the same.
 import type { Diagnostic, Level } from "../api";
+import { appendAnsi, stripAnsi } from "./ansi";
 
 const LEVEL_COLOUR: Record<Level, string> = { error: "var(--bad)", warning: "var(--warn)", note: "var(--dim)", help: "var(--grn)" };
 
@@ -40,6 +41,44 @@ export function diagCard(d: Diagnostic, lines: string[], file = "src/lib.rs"): H
     s.textContent = text;
     foot.append(s);
   }
-  if (foot.childElementCount) el.append(foot);
+  // The whole of rustc's message: every label, note and help line, coloured like the console.
+  const body = fullOutput(d);
+  if (body) {
+    const more = document.createElement("pre");
+    more.className = "lens-full";
+    more.hidden = true;
+    appendAnsi(more, body);
+    const toggle = document.createElement("button");
+    toggle.className = "lens-more";
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.textContent = "▸ full output";
+    // mousedown, not click: inside the editor a click would move the cursor first.
+    const flip = () => {
+      more.hidden = !more.hidden;
+      toggle.setAttribute("aria-expanded", String(!more.hidden));
+      toggle.textContent = more.hidden ? "▸ full output" : "▾ full output";
+    };
+    toggle.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      flip();
+    });
+    // Enter or Space on the focused button (a mouse click was already handled on mousedown).
+    toggle.addEventListener("click", (e) => {
+      if (e.detail === 0) flip();
+    });
+    foot.append(toggle);
+    el.append(foot, more);
+  } else if (foot.childElementCount) {
+    el.append(foot);
+  }
   return el;
+}
+
+/** rustc's rendered message without its first line (the card's header already says it), or null if it adds nothing. */
+function fullOutput(d: Diagnostic): string | null {
+  const lines = d.rendered.replace(/\s+$/, "").split("\n");
+  if (lines.length <= 1) return null;
+  const rest = lines.slice(1).join("\n");
+  return stripAnsi(rest).trim() ? rest : null;
 }

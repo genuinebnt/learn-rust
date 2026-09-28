@@ -108,15 +108,15 @@ async fn main() -> anyhow::Result<()> {
         None => bail!("set ANNEAL_PASSPHRASE_HASH (from `anneal passphrase`) before listening on {addr}"),
     };
 
-    // The AI assistant, when a provider key is set (GEMINI_API_KEY, OPENAI_API_KEY or ANTHROPIC_API_KEY).
-    let ai = match anneal_ai::Ai::from_env().context("AI configuration")? {
+    // The AI assistant: a key saved in the app's settings, or one in the environment (GEMINI_API_KEY, …).
+    let ai = match anneal_api::ai::configure(&db).await.context("AI configuration")? {
         Some(ai) => {
             tracing::info!(provider = ?ai.info.provider, model = %ai.info.model, embeddings = ?ai.info.embeddings, "AI assistant on");
-            Some(anneal_api::ai::AiState::new(ai))
+            anneal_api::ai::AiSlot::new(Some(anneal_api::ai::AiState::new(ai)))
         }
         None => {
             tracing::info!("AI assistant off: no provider key set");
-            None
+            anneal_api::ai::AiSlot::new(None)
         }
     };
 

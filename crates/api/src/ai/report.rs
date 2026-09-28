@@ -70,7 +70,7 @@ pub async fn get_patterns(State(s): State<AppState>) -> ApiResult<Json<Option<Re
 }
 
 pub async fn refresh_patterns(State(s): State<AppState>) -> ApiResult<Json<Report>> {
-    let ai = s.ai.clone().ok_or(ApiError::AiOff)?;
+    let ai = s.ai.get().await.ok_or(ApiError::AiOff)?;
     let rows = store::activity(&s.db).await?;
     let runs = store::run_stats(&s.db).await?;
     let focus = store::focus(&s.db).await?;
@@ -118,7 +118,7 @@ pub async fn refresh_patterns(State(s): State<AppState>) -> ApiResult<Json<Repor
             max_tokens: 3000,
         })
         .await
-        .map_err(|e| ApiError::Ai(format!("{e:#}")))?;
+        .map_err(|e| ApiError::Ai(ai.ai.redact(&format!("{e:#}"))))?;
 
     let generated: Generated = parse_json(&text).map_err(|e| ApiError::Ai(format!("the model's report wasn't valid JSON: {e}")))?;
     let next = generated

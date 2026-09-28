@@ -5,13 +5,18 @@ is `design_handoff_anneal/designs/ai-assistant.html`. It's built on [rig](https:
 
 ## Turning it on
 
-The assistant is on when a provider key is set **on the server**. Keys never reach the browser, and with no key
-everything else works as before (the AI tab explains how to enable it).
+**In the app:** open the AI tab on any problem (or Progress → Your patterns), choose a provider, paste the key and
+press **Test & save**. The server checks it with a tiny request, stores it in the `settings` table under `ai`, and
+switches the assistant on without a restart. The browser never gets the key back, only its last four characters;
+**key** in the AI tab's header changes or removes it. Errors are scrubbed of keys before they're shown or logged
+(Gemini sends its key in the URL).
+
+**Or on the server:** a key in the environment works as a fallback when none is saved in the app.
 
 | Where | How |
 |---|---|
-| Local (`scripts/dev.sh`) | put `GEMINI_API_KEY=…` in `.env.local` at the repo root (git-ignored), then restart |
-| Production | add `GEMINI_API_KEY=…` to `~/anneal/deploy/.env` on the VM and redeploy |
+| Local (`scripts/dev.sh`) | `GEMINI_API_KEY=…` in `.env.local` at the repo root (git-ignored), then restart |
+| Production | `GEMINI_API_KEY=…` in `~/anneal/deploy/.env` on the VM, then redeploy |
 
 | Variable | Meaning |
 |---|---|

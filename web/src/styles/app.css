@@ -433,3 +433,22 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ai-off b { color: var(--fg); }
 .ai-off p { margin: 0; }
 .ai-off code { font: 12px var(--mono); color: var(--fg); background: var(--raise); padding: 1px 5px; border-radius: 3px; }
+.aihead .ai-tools { margin-left: auto; display: flex; gap: 10px; flex: none; }
+.aihead .ai-tools button { color: var(--dim); font: 500 11px var(--mono); }
+.aihead .ai-tools button:hover { color: var(--fg); }
+/* the provider and key form (AiKeyForm) */
+.aikey { display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--mut); }
+.aikey b { color: var(--fg); font-size: 13.5px; }
+.aikey p { margin: 0; }
+.aikey-now { font: 500 11.5px var(--mono); color: var(--dim); }
+.aikey-seg { display: inline-flex; align-self: flex-start; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.aikey-seg button { padding: 5px 12px; font: 500 12px var(--sans); color: var(--dim); }
+.aikey-seg button + button { border-left: 1px solid var(--line); }
+.aikey-seg button.on { background: var(--acc-bg); color: var(--acc); }
+.aikey label { display: flex; flex-direction: column; gap: 4px; }
+.aikey label span { font: 600 10px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.aikey input { height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: 12.5px var(--mono); outline: none; }
+.aikey input:focus { border-color: var(--acc); }
+.aikey-note { font-size: 12px; color: var(--dim); line-height: 1.5; }
+.aikey-row { display: flex; gap: 8px; align-items: center; }
+.aikey-cancel { margin-left: auto; color: var(--dim); font: 500 12px var(--sans); }

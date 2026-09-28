@@ -5,6 +5,7 @@
 mod context;
 mod index;
 mod report;
+mod settings;
 
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -32,11 +33,38 @@ impl AiState {
     }
 }
 
+/// The current assistant, if any. Saving or removing a key in the settings swaps it without a restart.
+#[derive(Default)]
+pub struct AiSlot(RwLock<Option<Arc<AiState>>>);
+
+impl AiSlot {
+    pub fn new(ai: Option<Arc<AiState>>) -> Arc<Self> {
+        Arc::new(AiSlot(RwLock::new(ai)))
+    }
+
+    pub async fn get(&self) -> Option<Arc<AiState>> {
+        self.0.read().await.clone()
+    }
+
+    async fn set(&self, ai: Option<Arc<AiState>>) {
+        *self.0.write().await = ai;
+    }
+}
+
+/// Where the assistant's configuration comes from: a key saved in the settings wins over the environment.
+pub async fn configure(db: &sqlx::PgPool) -> anyhow::Result<Option<anneal_ai::Ai>> {
+    if let Some(saved) = settings::load(db).await? {
+        return Ok(Some(anneal_ai::Ai::new(saved.config())?));
+    }
+    anneal_ai::Ai::from_env()
+}
+
 /// Embeds new or changed problems and attempts, then swaps in the fresh index. Runs at startup and after a solve.
 pub fn refresh_in_background(s: &AppState) {
-    let Some(ai) = s.ai.clone() else { return };
+    let slot = s.ai.clone();
     let (db, catalog) = (s.db.clone(), s.catalog.clone());
     tokio::spawn(async move {
+        let Some(ai) = slot.get().await else { return };
         match index::refresh(&db, &catalog, &ai.ai).await {
             Ok(fresh) => *ai.index.write().await = fresh,
             Err(e) => tracing::warn!(error = %e, "AI index refresh failed"),
@@ -61,8 +89,8 @@ pub(crate) fn strip_ansi(s: &str) -> String {
     out
 }
 
-fn ai(s: &AppState) -> ApiResult<Arc<AiState>> {
-    s.ai.clone().ok_or(ApiError::AiOff)
+async fn ai(s: &AppState) -> ApiResult<Arc<AiState>> {
+    s.ai.get().await.ok_or(ApiError::AiOff)
 }
 
 // ---------------------------------------------------------------- status
@@ -77,7 +105,7 @@ pub struct Status {
 }
 
 pub async fn status(State(s): State<AppState>) -> Json<Status> {
-    match &s.ai {
+    match &s.ai.get().await {
         None => Json(Status { enabled: false, info: None, indexed_problems: 0, indexed_attempts: 0 }),
         Some(ai) => {
             let (problems, attempts) = ai.index.read().await.counts();
@@ -117,7 +145,7 @@ pub async fn chat(
     Path(id): Path<String>,
     Json(body): Json<ChatBody>,
 ) -> ApiResult<Sse<impl Stream<Item = Result<Event, Infallible>>>> {
-    let ai = ai(&s)?;
+    let ai = ai(&s).await?;
     let (track, problem) = crate::routes::find(&s, &id)?;
     let prompt = match body.action.as_deref() {
         Some(a) => context::action_prompt(a).ok_or_else(|| ApiError::BadRequest(format!("unknown action {a:?}")))?.to_owned(),
@@ -141,7 +169,7 @@ pub async fn chat(
         let index = ai.index.read().await;
         context::build(&s.db, &s.catalog, &index, context::Ask { track, problem, code: body.code.clone(), query_vector })
             .await
-            .map_err(|e| ApiError::Ai(e.to_string()))?
+            .map_err(|e| ApiError::Ai(ai.ai.redact(&e.to_string())))?
     };
     let history: Vec<(anneal_ai::Role, String)> = store::ai_messages(&s.db, &id)
         .await?
@@ -163,11 +191,12 @@ pub async fn chat(
         context: grounding.documents,
         max_tokens: 2048,
     };
-    let mut model = ai.ai.stream(request).await.map_err(|e| ApiError::Ai(format!("{e:#}")))?;
+    let mut model = ai.ai.stream(request).await.map_err(|e| ApiError::Ai(ai.ai.redact(&format!("{e:#}"))))?;
 
     let (tx, rx) = mpsc::channel::<Event>(64);
     let db = s.db.clone();
     let action = body.action.clone();
+    let scrub = ai.clone();
     tokio::spawn(async move {
         let _ = tx.send(Event::default().event("sources").data(sources.to_string())).await;
         if assisted_now {
@@ -181,7 +210,7 @@ pub async fn chat(
                     let _ = tx.send(Event::default().event("chunk").data(serde_json::to_string(&text).unwrap_or_default())).await;
                 }
                 Err(e) => {
-                    let _ = tx.send(Event::default().event("error").data(format!("{e:#}"))).await;
+                    let _ = tx.send(Event::default().event("error").data(scrub.ai.redact(&format!("{e:#}")))).await;
                     break;
                 }
             }
@@ -209,7 +238,7 @@ pub struct Similar {
 }
 
 pub async fn similar(State(s): State<AppState>, Path(id): Path<String>) -> ApiResult<Json<Vec<Similar>>> {
-    let ai = ai(&s)?;
+    let ai = ai(&s).await?;
     crate::routes::find(&s, &id)?;
     let index = ai.index.read().await;
     Ok(Json(
@@ -227,3 +256,4 @@ pub async fn similar(State(s): State<AppState>, Path(id): Path<String>) -> ApiRe
 // ---------------------------------------------------------------- patterns
 
 pub use report::{get_patterns, refresh_patterns};
+pub use settings::{delete_config, get_config, put_config};

@@ -42,7 +42,7 @@ pub struct AppState {
     pub lsp: lsp::LspConfig,
     pub auth: auth::AuthConfig,
     /// The AI assistant, when a provider key is set; `None` turns every AI route off.
-    pub ai: Option<std::sync::Arc<ai::AiState>>,
+    pub ai: std::sync::Arc<ai::AiSlot>,
 }
 
 /// The API under `/api`. If `web_dist` is a built web app, it's served for every other path.
@@ -71,6 +71,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/settings", get(settings::get))
         .route("/format", post(format::format))
         .route("/ai/status", get(ai::status))
+        .route("/ai/config", get(ai::get_config).put(ai::put_config).delete(ai::delete_config))
         .route("/ai/chat/{id}", get(ai::history).post(ai::chat).delete(ai::clear))
         .route("/ai/similar/{id}", get(ai::similar))
         .route("/ai/patterns", get(ai::get_patterns).post(ai::refresh_patterns))

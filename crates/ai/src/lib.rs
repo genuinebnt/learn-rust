@@ -14,14 +14,14 @@
 use anyhow::{Context, anyhow, bail};
 use futures_util::StreamExt;
 use futures_util::stream::BoxStream;
-use rig_core::client::{CompletionClient, EmbeddingsClient, ProviderClient};
+use rig_core::client::{CompletionClient, EmbeddingsClient};
 use rig_core::completion::{CompletionModel, Document, Message};
 use rig_core::embeddings::EmbeddingModel;
 use rig_core::providers::{anthropic, gemini, openai};
 use rig_core::streaming::StreamedAssistantContent;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Provider {
     Gemini,
@@ -33,7 +33,7 @@ pub enum Provider {
 impl Provider {
     const ALL: [Provider; 3] = [Provider::Gemini, Provider::OpenAi, Provider::Anthropic];
 
-    fn parse(s: &str) -> anyhow::Result<Self> {
+    pub fn parse(s: &str) -> anyhow::Result<Self> {
         match s.to_ascii_lowercase().as_str() {
             "gemini" => Ok(Provider::Gemini),
             "openai" => Ok(Provider::OpenAi),
@@ -96,6 +96,8 @@ enum Embed {
 pub struct Ai {
     chat: Chat,
     embed: Option<(Embed, String)>,
+    /// The keys in use, so error messages can be scrubbed of them (Gemini's key travels in the URL).
+    secrets: Vec<String>,
     pub info: Info,
 }
 
@@ -116,11 +118,45 @@ pub struct Request {
     pub max_tokens: u64,
 }
 
-impl Ai {
-    /// Reads the configuration from the environment. `Ok(None)` when no provider key is set.
-    pub fn from_env() -> anyhow::Result<Option<Ai>> {
-        let var = |k: &str| std::env::var(k).ok().filter(|v| !v.trim().is_empty());
-        let provider = match var("ANNEAL_AI_PROVIDER") {
+/// Everything needed to build an [`Ai`]: from the app's settings, or from the environment.
+#[derive(Clone)]
+pub struct Config {
+    pub provider: Provider,
+    pub api_key: String,
+    /// The chat model; `None` for the provider's default.
+    pub model: Option<String>,
+    /// Where embeddings come from; `None` for no embeddings (similarity falls back to tags).
+    pub embed: Option<EmbedConfig>,
+}
+
+#[derive(Clone)]
+pub struct EmbedConfig {
+    pub provider: Provider,
+    pub api_key: String,
+    pub model: Option<String>,
+}
+
+impl std::fmt::Debug for Config {
+    // Never print keys.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config").field("provider", &self.provider).field("model", &self.model).finish_non_exhaustive()
+    }
+}
+
+fn env_var(k: &str) -> Option<String> {
+    std::env::var(k).ok().filter(|v| !v.trim().is_empty())
+}
+
+impl Provider {
+    fn env_key(self) -> Option<String> {
+        env_var(self.key_env())
+    }
+}
+
+impl Config {
+    /// The configuration in the environment (see the module docs), or `None` when no key is set.
+    pub fn from_env() -> anyhow::Result<Option<Config>> {
+        let provider = match env_var("ANNEAL_AI_PROVIDER") {
             Some(p) => {
                 let p = Provider::parse(&p)?;
                 if !p.has_key() {
@@ -133,14 +169,7 @@ impl Ai {
                 None => return Ok(None),
             },
         };
-        let model = var("ANNEAL_AI_MODEL").unwrap_or_else(|| provider.default_model().to_owned());
-        let chat = match provider {
-            Provider::Gemini => Chat::Gemini(gemini::Client::from_env().context("gemini client")?),
-            Provider::OpenAi => Chat::OpenAi(openai::Client::from_env().context("openai client")?),
-            Provider::Anthropic => Chat::Anthropic(anthropic::Client::from_env().context("anthropic client")?),
-        };
-
-        let embed_provider = match var("ANNEAL_AI_EMBED_PROVIDER").as_deref() {
+        let embed_provider = match env_var("ANNEAL_AI_EMBED_PROVIDER").as_deref() {
             Some("none") => None,
             Some(p) => Some(Provider::parse(p)?),
             None if provider.default_embed_model().is_some() => Some(provider),
@@ -148,25 +177,98 @@ impl Ai {
         };
         let embed = match embed_provider {
             None => None,
-            Some(p) => {
-                let model = match var("ANNEAL_AI_EMBED_MODEL") {
+            Some(p) => Some(EmbedConfig {
+                provider: p,
+                api_key: p.env_key().ok_or_else(|| anyhow!("{} is not set for embeddings", p.key_env()))?,
+                model: env_var("ANNEAL_AI_EMBED_MODEL"),
+            }),
+        };
+        Ok(Some(Config {
+            provider,
+            api_key: provider.env_key().expect("checked above"),
+            model: env_var("ANNEAL_AI_MODEL"),
+            embed,
+        }))
+    }
+
+    /// A configuration for one provider and key: embeddings from the same provider when it has them, otherwise from
+    /// the environment's Gemini or OpenAI key if there is one.
+    pub fn single(provider: Provider, api_key: String, model: Option<String>) -> Config {
+        let embed = if provider.default_embed_model().is_some() {
+            Some(EmbedConfig { provider, api_key: api_key.clone(), model: None })
+        } else {
+            [Provider::Gemini, Provider::OpenAi]
+                .into_iter()
+                .find_map(|p| p.env_key().map(|k| EmbedConfig { provider: p, api_key: k, model: None }))
+        };
+        Config { provider, api_key, model, embed }
+    }
+}
+
+impl Ai {
+    /// The assistant configured in the environment, or `None` when no key is set.
+    pub fn from_env() -> anyhow::Result<Option<Ai>> {
+        Config::from_env()?.map(Ai::new).transpose()
+    }
+
+    pub fn new(cfg: Config) -> anyhow::Result<Ai> {
+        let model = cfg.model.clone().unwrap_or_else(|| cfg.provider.default_model().to_owned());
+        let key = cfg.api_key.clone();
+        let mut secrets = vec![cfg.api_key.clone()];
+        if let Some(e) = &cfg.embed {
+            secrets.push(e.api_key.clone());
+        }
+        let chat = match cfg.provider {
+            Provider::Gemini => Chat::Gemini(gemini::Client::new(key).context("gemini client")?),
+            Provider::OpenAi => Chat::OpenAi(openai::Client::new(key).context("openai client")?),
+            Provider::Anthropic => Chat::Anthropic(anthropic::Client::new(key).context("anthropic client")?),
+        };
+        let embed = match cfg.embed {
+            None => None,
+            Some(e) => {
+                let model = match e.model {
                     Some(m) => m,
-                    None => p.default_embed_model().ok_or_else(|| anyhow!("{p:?} has no embeddings API"))?.to_owned(),
+                    None => e.provider.default_embed_model().ok_or_else(|| anyhow!("{:?} has no embeddings API", e.provider))?.to_owned(),
                 };
-                let client = match p {
-                    Provider::Gemini => Embed::Gemini(gemini::Client::from_env().context("gemini client")?),
-                    Provider::OpenAi => Embed::OpenAi(openai::Client::from_env().context("openai client")?),
-                    Provider::Anthropic => bail!("anthropic has no embeddings API; set ANNEAL_AI_EMBED_PROVIDER"),
+                let client = match e.provider {
+                    Provider::Gemini => Embed::Gemini(gemini::Client::new(e.api_key).context("gemini client")?),
+                    Provider::OpenAi => Embed::OpenAi(openai::Client::new(e.api_key).context("openai client")?),
+                    Provider::Anthropic => bail!("anthropic has no embeddings API"),
                 };
-                Some((client, model, p))
+                Some((client, model, e.provider))
             }
         };
         let info = Info {
-            provider,
+            provider: cfg.provider,
             model: model.clone(),
             embeddings: embed.as_ref().map(|(_, m, p)| format!("{}/{m}", serde_label(*p))),
         };
-        Ok(Some(Ai { chat, embed: embed.map(|(c, m, _)| (c, m)), info }))
+        Ok(Ai { chat, embed: embed.map(|(c, m, _)| (c, m)), secrets, info })
+    }
+
+    /// `text` with any key in use replaced by `••••`. Use it on every error that leaves this crate.
+    pub fn redact(&self, text: &str) -> String {
+        self.secrets.iter().filter(|k| k.len() >= 8).fold(text.to_owned(), |t, k| t.replace(k.as_str(), "••••"))
+    }
+
+    /// A tiny request to check the key and model work, used before saving a key from the settings.
+    pub async fn check(&self) -> anyhow::Result<()> {
+        let reply = self
+            .complete(Request {
+                system: "Reply with the single word OK.".into(),
+                history: Vec::new(),
+                prompt: "Say OK.".into(),
+                context: Vec::new(),
+                max_tokens: 16,
+            })
+            .await?;
+        if reply.trim().is_empty() {
+            bail!("the model returned an empty answer");
+        }
+        if self.can_embed() {
+            self.embed(vec!["ok".into()]).await.context("embeddings")?;
+        }
+        Ok(())
     }
 
     /// Streams the answer as text chunks.

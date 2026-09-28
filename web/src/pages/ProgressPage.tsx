@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { ApiError, api, type AiPattern, type Counted, type PatternsReport, type ProgressOverview, type ProgressStats, type ReviewsView } from "../api";
 import { Header } from "../components/Header";
+import { AiKeyForm } from "../workspace/AiKeyForm";
 import { LEVEL_COLOR, pctColor } from "../components/bits";
 import { SECTION_NAMES } from "../curriculum";
 
@@ -503,9 +504,10 @@ function Patterns() {
   if (status.isPending) return null;
   if (!status.data?.enabled)
     return (
-      <p className="note">
-        Your patterns come from the AI assistant, which is off: set <code>GEMINI_API_KEY</code> (or <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>) on the server. See docs/AI.md.
-      </p>
+      <div className="pat-empty">
+        <p>Your patterns come from the AI assistant. Add an API key to turn it on.</p>
+        <AiKeyForm />
+      </div>
     );
   const error = refresh.error instanceof ApiError ? refresh.error.message : refresh.error ? "The report couldn't be generated." : null;
   const button = (

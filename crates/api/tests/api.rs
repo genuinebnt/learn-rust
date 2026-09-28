@@ -83,7 +83,7 @@ fn test_app_full(db: PgPool, content: &Path, auth: AuthConfig, web_dist: Option<
                 Path::new(env!("CARGO_TARGET_TMPDIR")).join("anneal-api"),
             ),
             auth,
-            ai: None,
+            ai: anneal_api::ai::AiSlot::new(None),
         },
         web_dist,
     )
@@ -774,4 +774,28 @@ async fn ai_routes_explain_themselves_when_no_key_is_set(db: PgPool) {
     let (status, body) = call(&app, Method::GET, "/api/ai/chat/d1-running-sum", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, json!([]));
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn ai_key_setting_never_returns_the_key(db: PgPool) {
+    let app = test_app(db.clone());
+    let (status, body) = call(&app, Method::GET, "/api/ai/config", None).await;
+    assert_eq!(status, StatusCode::OK);
+    // The test process may have a key in its environment; either way the key itself never comes back.
+    assert!(body.get("api_key").is_none());
+    let (status, body) = call(&app, Method::PUT, "/api/ai/config", Some(json!({ "provider": "gemini" }))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert!(body["message"].as_str().unwrap().contains("API key"));
+    // A saved key shows only its last four characters.
+    sqlx::query("INSERT INTO settings (key, value) VALUES ('ai', '{\"provider\": \"gemini\", \"api_key\": \"secret-key-9Qk\"}')")
+        .execute(&db)
+        .await
+        .unwrap();
+    let body = call(&app, Method::GET, "/api/ai/config", None).await.1;
+    assert_eq!(body["source"], "settings");
+    assert_eq!(body["key_hint"], "…-9Qk");
+    assert!(!body.to_string().contains("secret-key"));
+    let (status, body) = call(&app, Method::DELETE, "/api/ai/config", None).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_ne!(body["source"], "settings");
 }

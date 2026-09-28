@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, aiChat, api, type AiAction, type AiMessage, type AiSource } from "../api";
 import { aiMarkdown } from "./aimd";
+import { AiKeyForm } from "./AiKeyForm";
 
 const ACTIONS: { action: AiAction; label: string; title?: string }[] = [
   { action: "explain_error", label: "Explain this error" },
@@ -26,6 +27,7 @@ export function AiPanel({ problemId, code, solved }: { problemId: string; code: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [assistedNow, setAssistedNow] = useState(false);
+  const [settings, setSettings] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const thread = useRef<HTMLDivElement>(null);
 
@@ -100,8 +102,14 @@ export function AiPanel({ problemId, code, solved }: { problemId: string; code: 
   if (!status.data?.enabled)
     return (
       <div className="ai-off">
-        <b>The AI assistant is off.</b>
-        <p>It turns on when a model key is set on the server: <code>GEMINI_API_KEY</code> (or <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>). Locally, put it in <code>.env.local</code> and restart; in production, in <code>deploy/.env</code>. docs/AI.md has the details.</p>
+        <p>Add an API key to turn on the assistant: answers grounded in this problem, your code, your runs and your history.</p>
+        <AiKeyForm />
+      </div>
+    );
+  if (settings)
+    return (
+      <div className="ai-off">
+        <AiKeyForm onDone={() => setSettings(false)} />
       </div>
     );
 
@@ -116,11 +124,16 @@ export function AiPanel({ problemId, code, solved }: { problemId: string; code: 
         <span className="ctx" title="What answers are grounded in">
           problem · code · last run{solved ? " · reference" : ""} · similar · your stats
         </span>
-        {shown.length > 0 && (
-          <button className="ai-clear" onClick={() => clear.mutate()} disabled={busy} title="Clear this problem's conversation">
-            clear
+        <span className="ai-tools">
+          {shown.length > 0 && (
+            <button onClick={() => clear.mutate()} disabled={busy} title="Clear this problem's conversation">
+              clear
+            </button>
+          )}
+          <button onClick={() => setSettings(true)} disabled={busy} title="Provider, model and API key">
+            key
           </button>
-        )}
+        </span>
       </div>
       <div className="chips">
         {ACTIONS.filter((a) => a.action !== "review" || solved).map((a) => (

@@ -327,6 +327,15 @@ export interface AiStatus {
   indexed_attempts: number;
 }
 
+/** What the browser may know about the assistant's key: never the key itself. */
+export interface AiConfig {
+  source: "settings" | "environment" | "none";
+  provider: AiInfo["provider"] | null;
+  model: string | null;
+  /** The key's last four characters, e.g. "…x9Qk". */
+  key_hint: string | null;
+}
+
 export interface AiSource {
   kind: "problem" | "code" | "run" | "reference" | "similar" | "attempt" | "stats";
   label: string;
@@ -443,6 +452,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   tracks: () => request<TrackSummary[]>("GET", "/tracks"),
   aiStatus: () => request<AiStatus>("GET", "/ai/status"),
+  aiConfig: () => request<AiConfig>("GET", "/ai/config"),
+  aiSaveConfig: (body: { provider: AiInfo["provider"]; api_key?: string; model?: string }) => request<AiConfig>("PUT", "/ai/config", body),
+  aiDeleteConfig: () => request<AiConfig>("DELETE", "/ai/config"),
   aiHistory: (id: string) => request<AiMessage[]>("GET", `/ai/chat/${id}`),
   aiClear: (id: string) => request<void>("DELETE", `/ai/chat/${id}`),
   aiPatterns: () => request<PatternsReport | null>("GET", "/ai/patterns"),

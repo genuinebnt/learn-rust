@@ -22,7 +22,7 @@ switches the assistant on without a restart. The browser never gets the key back
 |---|---|
 | `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | a provider's key; any one turns the assistant on |
 | `ANNEAL_AI_PROVIDER` | `gemini`, `openai` or `anthropic`; default: the first of those with a key |
-| `ANNEAL_AI_MODEL` | chat model; defaults `gemini-2.5-flash`, `gpt-5.5`, `claude-sonnet-4-6` |
+| `ANNEAL_AI_MODEL` | chat model; defaults `gemini-3.8-flash`, `gpt-5.5`, `claude-sonnet-4-6` |
 | `ANNEAL_AI_EMBED_PROVIDER` | `gemini`, `openai` or `none`; default: the chat provider if it has embeddings (Anthropic doesn't), else another with a key |
 | `ANNEAL_AI_EMBED_MODEL` | defaults `gemini-embedding-001`, `text-embedding-3-small` |
 

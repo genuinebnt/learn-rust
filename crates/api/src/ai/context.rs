@@ -40,7 +40,9 @@ Answer in Markdown and keep it tight: short paragraphs, ```rust code blocks, no 
 documents you're given (the problem, their code, their last run, their history and stats) and say so when you use them, \
 e.g. \"your last run\" or \"you hit this in D9\". Explain Rust in terms of ownership, borrowing and lifetimes when it \
 applies. Unless the request explicitly asks for a full solution, prefer the next step or the smallest change over \
-writing the whole answer. If the reference solution is not in the documents, don't pretend to know it.";
+writing the whole answer. If the reference solution is not in the documents, don't pretend to know it. Refer to the documents naturally \
+(\"your code\", \"your last run\"), never by their ids. Write complexity as inline code like `O(n log n)`, never LaTeX \
+or dollar signs.";
 
 /// The prompts behind the quick-action chips.
 pub fn action_prompt(action: &str) -> Option<&'static str> {

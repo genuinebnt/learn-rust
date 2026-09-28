@@ -121,9 +121,13 @@ pub async fn refresh(db: &PgPool, catalog: &Catalog, ai: &anneal_ai::Ai) -> anyh
         wanted.iter().filter(|(k, r, text)| stored.get(&(k.to_string(), r.clone())) != Some(&hash(text))).collect();
     if !todo.is_empty() {
         tracing::info!(count = todo.len(), %model, "embedding new or changed items");
-        let vectors = ai.embed(todo.iter().map(|(_, _, text)| text.clone()).collect()).await?;
+    }
+    // Small batches, each saved as soon as it's embedded: free tiers limit texts per minute, so a first index of
+    // hundreds of problems takes a few minutes, and an interruption loses at most one batch.
+    for batch in todo.chunks(32) {
+        let vectors = embed_patiently(ai, batch.iter().map(|(_, _, text)| text.clone()).collect()).await?;
         let mut tx = db.begin().await?;
-        for ((kind, r, text), v) in todo.iter().zip(vectors) {
+        for ((kind, r, text), v) in batch.iter().zip(vectors) {
             sqlx::query(
                 "INSERT INTO ai_embeddings (kind, ref_id, model, content_hash, embedding) VALUES ($1, $2, $3, $4, $5)
                  ON CONFLICT (kind, ref_id, model) DO UPDATE
@@ -144,6 +148,32 @@ pub async fn refresh(db: &PgPool, catalog: &Catalog, ai: &anneal_ai::Ai) -> anyh
     sqlx::query("DELETE FROM ai_embeddings WHERE kind = 'problem' AND NOT (ref_id = ANY($1))").bind(&current).execute(db).await?;
 
     load(db, &model).await
+}
+
+/// Embeds, waiting out rate limits (HTTP 429) as the provider asks, up to a few minutes in all.
+async fn embed_patiently(ai: &anneal_ai::Ai, texts: Vec<String>) -> anyhow::Result<Vec<Vec<f32>>> {
+    let mut waited = 0;
+    loop {
+        match ai.embed(texts.clone()).await {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                let msg = format!("{e:#}");
+                if !msg.contains("429") || waited >= 6 {
+                    return Err(e);
+                }
+                // "retryDelay": "46s" in Google's error; otherwise a minute.
+                let delay = msg
+                    .split("retryDelay")
+                    .nth(1)
+                    .and_then(|rest| rest.chars().skip_while(|c| !c.is_ascii_digit()).take_while(|c| c.is_ascii_digit()).collect::<String>().parse::<u64>().ok())
+                    .unwrap_or(60)
+                    .clamp(5, 120);
+                tracing::info!(seconds = delay, "embedding rate-limited; waiting");
+                tokio::time::sleep(std::time::Duration::from_secs(delay + 1)).await;
+                waited += 1;
+            }
+        }
+    }
 }
 
 async fn load(db: &PgPool, model: &str) -> anyhow::Result<Index> {

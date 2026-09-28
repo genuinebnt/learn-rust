@@ -151,6 +151,11 @@ ANNEAL_SANDBOX=host cargo run -p anneal-api  # after `cd web && npm run build`; 
 export CHROME=/opt/pw-browsers/chromium-*/chrome-linux/chrome   # for tools/ui-check.mjs
 ```
 
+### AI assistant
+
+The AI tab and Progress → Your patterns are described in [AI.md](AI.md). The API key is set in the app (AI tab →
+**key**) and is stored server-side; without one, the assistant is off and everything else works.
+
 ### Production
 
 **Every push to `master` is deployed to https://anneal.genuinebasil.dev** once CI passes (clippy with

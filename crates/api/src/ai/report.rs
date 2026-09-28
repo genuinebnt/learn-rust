@@ -99,7 +99,7 @@ pub async fn refresh_patterns(State(s): State<AppState>) -> ApiResult<Json<Repor
         .collect();
 
     let prompt = format!(
-        "From these facts about one engineer's Rust interview practice, write their patterns report.\n\
+        "From these facts about my Rust interview practice, write my patterns report, speaking to me as \"you\".\n\
          Facts: {facts}\nCandidate problems to practise next: {candidates}\n\n\
          Reply with only a JSON object, no Markdown fence: {{\"summary\": string (two sentences), \"patterns\": [4 to 6 \
          objects {{\"kind\": \"error\"|\"lint\"|\"strength\"|\"time\"|\"habit\", \"label\": short tag like \"E0502\", \
@@ -111,7 +111,7 @@ pub async fn refresh_patterns(State(s): State<AppState>) -> ApiResult<Json<Repor
     let text = ai
         .ai
         .complete(anneal_ai::Request {
-            system: "You analyse coding-practice data and reply with strict JSON only.".into(),
+            system: "You analyse coding-practice data and reply with strict JSON only. Address the engineer as \"you\".".into(),
             history: Vec::new(),
             prompt,
             context: Vec::new(),

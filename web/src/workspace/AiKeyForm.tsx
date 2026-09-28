@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api, type AiInfo } from "../api";
 
 const PROVIDERS: { id: AiInfo["provider"]; label: string; placeholder: string; model: string }[] = [
-  { id: "gemini", label: "Gemini", placeholder: "AIza…", model: "gemini-2.5-flash" },
+  { id: "gemini", label: "Gemini", placeholder: "AIza…", model: "gemini-3.8-flash" },
   { id: "openai", label: "OpenAI", placeholder: "sk-…", model: "gpt-5.5" },
   { id: "anthropic", label: "Claude", placeholder: "sk-ant-…", model: "claude-sonnet-4-6" },
 ];

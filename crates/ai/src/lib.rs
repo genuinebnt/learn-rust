@@ -57,7 +57,8 @@ impl Provider {
     /// The chat model used unless `ANNEAL_AI_MODEL` says otherwise.
     pub fn default_model(self) -> &'static str {
         match self {
-            Provider::Gemini => gemini::completion::GEMINI_2_5_FLASH,
+            // Newer than rig's constants: Google retired 2.5 Flash for new keys in 2026.
+            Provider::Gemini => "gemini-3.8-flash",
             Provider::OpenAi => "gpt-5.5",
             Provider::Anthropic => "claude-sonnet-4-6",
         }
@@ -259,7 +260,8 @@ impl Ai {
                 history: Vec::new(),
                 prompt: "Say OK.".into(),
                 context: Vec::new(),
-                max_tokens: 16,
+                // Room for a thinking model's reasoning before the one-word answer.
+                max_tokens: 512,
             })
             .await?;
         if reply.trim().is_empty() {
@@ -275,9 +277,15 @@ impl Ai {
     pub async fn stream(&self, req: Request) -> anyhow::Result<BoxStream<'static, anyhow::Result<String>>> {
         let model = &self.info.model;
         match &self.chat {
-            Chat::Gemini(c) => stream_with(c.completion_model(model), req).await,
-            Chat::OpenAi(c) => stream_with(c.completion_model(model), req).await,
-            Chat::Anthropic(c) => stream_with(c.completion_model(model), req).await,
+            // Gemini 3 thinks before answering, and thinking counts against the output limit; low keeps chat quick.
+            Chat::Gemini(c) => {
+                let extra = model
+                    .starts_with("gemini-3")
+                    .then(|| serde_json::json!({ "generationConfig": { "thinkingConfig": { "thinkingLevel": "low" } } }));
+                stream_with(c.completion_model(model), req, extra).await
+            }
+            Chat::OpenAi(c) => stream_with(c.completion_model(model), req, None).await,
+            Chat::Anthropic(c) => stream_with(c.completion_model(model), req, None).await,
         }
     }
 
@@ -314,7 +322,11 @@ fn serde_label(p: Provider) -> &'static str {
     }
 }
 
-async fn stream_with<M>(model: M, req: Request) -> anyhow::Result<BoxStream<'static, anyhow::Result<String>>>
+async fn stream_with<M>(
+    model: M,
+    req: Request,
+    extra: Option<serde_json::Value>,
+) -> anyhow::Result<BoxStream<'static, anyhow::Result<String>>>
 where
     M: CompletionModel + Clone + 'static,
 {
@@ -329,6 +341,7 @@ where
         .messages(history)
         .documents(documents)
         .max_tokens(req.max_tokens)
+        .additional_params_opt(extra)
         .build();
     let response = model.stream(request).await.context("starting the model's stream")?;
     Ok(response
@@ -344,7 +357,8 @@ where
 
 async fn embed_with<M: EmbeddingModel>(model: M, texts: Vec<String>) -> anyhow::Result<Vec<Vec<f32>>> {
     let mut out = Vec::with_capacity(texts.len());
-    for chunk in texts.chunks(M::MAX_DOCUMENTS.max(1)) {
+    // rig's per-provider limit is higher than Gemini accepts (100 per batch), so stay well under both.
+    for chunk in texts.chunks(M::MAX_DOCUMENTS.clamp(1, 64)) {
         let embeddings = model.embed_texts(chunk.to_vec()).await.context("embedding")?;
         out.extend(embeddings.into_iter().map(|e| e.vec.into_iter().map(|x| x as f32).collect::<Vec<f32>>()));
     }

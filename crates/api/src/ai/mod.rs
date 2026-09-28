@@ -67,7 +67,7 @@ pub fn refresh_in_background(s: &AppState) {
         let Some(ai) = slot.get().await else { return };
         match index::refresh(&db, &catalog, &ai.ai).await {
             Ok(fresh) => *ai.index.write().await = fresh,
-            Err(e) => tracing::warn!(error = %e, "AI index refresh failed"),
+            Err(e) => tracing::warn!(error = %ai.ai.redact(&format!("{e:#}")), "AI index refresh failed"),
         }
     });
 }

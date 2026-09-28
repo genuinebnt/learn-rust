@@ -649,3 +649,89 @@ async fn built_app_is_served_with_cache_headers(db: PgPool) {
     assert_eq!(api.status(), StatusCode::OK);
     assert_eq!(cache(&api), None);
 }
+
+/// A one-track catalog whose only problem, d99-new-name, used to be d99-old-name.
+fn renamed_catalog() -> (tempfile::TempDir, anneal_content::Catalog) {
+    let dir = tempfile::tempdir().unwrap();
+    let track = dir.path().join("tracks/d99-fixture");
+    std::fs::create_dir_all(track.join("problems/new-name")).unwrap();
+    std::fs::write(
+        track.join("track.toml"),
+        "code = \"D99\"\nname = \"Fixture\"\nsection = \"D\"\ntier = \"core\"\norder = 99\nsummary = \"x\"\n\n[[stages]]\nslug = \"s\"\nname = \"S\"\nband = \"easy\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        track.join("problems/new-name/problem.toml"),
+        "slug = \"new-name\"\ntitle = \"Renamed\"\nmode = \"write\"\nlevel = \"easy\"\nstage = \"s\"\norder = 1\nstatus = \"draft\"\ntags = []\nrenamed_from = [\"d99-old-name\"]\n",
+    )
+    .unwrap();
+    let loaded = Catalog::load(dir.path()).unwrap();
+    assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
+    (dir, loaded.catalog)
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn renaming_a_problem_keeps_its_progress(db: PgPool) {
+    let (_dir, catalog) = renamed_catalog();
+    // Progress under the old id: a solved attempt with a run, a draft, a review, focus time and scratch.
+    let attempt: i64 = sqlx::query_scalar(
+        "INSERT INTO attempts (problem_id, solved_at) VALUES ('d99-old-name', now()) RETURNING id",
+    )
+    .fetch_one(&db)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO runs (attempt_id, problem_id, kind, code, status, passed, total, result) VALUES ($1, 'd99-old-name', 'submit', 'x', 'passed', 1, 1, '{}')")
+        .bind(attempt)
+        .execute(&db)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO drafts (problem_id, code) VALUES ('d99-old-name', 'old draft')").execute(&db).await.unwrap();
+    sqlx::query("INSERT INTO reviews (problem_id, step, due_at, last_result) VALUES ('d99-old-name', 2, now(), 'unassisted')").execute(&db).await.unwrap();
+    sqlx::query("INSERT INTO scratch (problem_id, code) VALUES ('d99-old-name', 'fn main() {}')").execute(&db).await.unwrap();
+    // Focus time on the same day under both ids is added up.
+    sqlx::query("INSERT INTO focus_time (day, problem_id, seconds) VALUES (current_date, 'd99-old-name', 60), (current_date, 'd99-new-name', 30)")
+        .execute(&db)
+        .await
+        .unwrap();
+
+    // Before the move, preflight knows the old id through renamed_from, so the deploy may go ahead.
+    let report = anneal_api::preflight::check(&db, &catalog, &anneal_api::MIGRATOR).await.unwrap();
+    assert!(report.is_ok(), "{report:?}");
+
+    anneal_api::preflight::apply_renames(&db, &catalog).await.unwrap();
+    let count = |table: &'static str, id: &'static str| {
+        let db = db.clone();
+        async move {
+            sqlx::query_scalar::<_, i64>(&format!("SELECT count(*) FROM {table} WHERE problem_id = $1"))
+                .bind(id)
+                .fetch_one(&db)
+                .await
+                .unwrap()
+        }
+    };
+    for table in ["attempts", "runs", "drafts", "reviews", "scratch", "focus_time"] {
+        assert_eq!(count(table, "d99-old-name").await, 0, "{table} still has the old id");
+        assert_eq!(count(table, "d99-new-name").await, 1, "{table} lost the row");
+    }
+    let seconds: i32 = sqlx::query_scalar("SELECT seconds FROM focus_time WHERE problem_id = 'd99-new-name'")
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert_eq!(seconds, 90);
+    // Running it again changes nothing.
+    assert_eq!(anneal_api::preflight::apply_renames(&db, &catalog).await.unwrap(), 0);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn preflight_refuses_to_strand_progress(db: PgPool) {
+    let (_dir, catalog) = renamed_catalog();
+    sqlx::query("INSERT INTO attempts (problem_id) VALUES ('d99-deleted-without-a-trace')").execute(&db).await.unwrap();
+    let report = anneal_api::preflight::check(&db, &catalog, &anneal_api::MIGRATOR).await.unwrap();
+    assert_eq!(report.stranded, vec![("d99-deleted-without-a-trace".to_owned(), 1)]);
+    assert!(report.migrations.is_empty());
+
+    // An applied migration whose file changed is caught too.
+    sqlx::query("UPDATE _sqlx_migrations SET checksum = '\\x00' WHERE version = 1").execute(&db).await.unwrap();
+    let report = anneal_api::preflight::check(&db, &catalog, &anneal_api::MIGRATOR).await.unwrap();
+    assert_eq!(report.migrations.len(), 1, "{:?}", report.migrations);
+}

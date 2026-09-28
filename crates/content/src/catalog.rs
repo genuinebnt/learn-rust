@@ -109,6 +109,19 @@ impl Catalog {
             .iter()
             .find_map(|t| t.problems.iter().find(|p| p.id == id).map(|p| (t, p)))
     }
+    /// Every `(old id, current id)` pair declared with `renamed_from`.
+    pub fn renames(&self) -> Vec<(&str, &str)> {
+        self.tracks
+            .iter()
+            .flat_map(|t| &t.problems)
+            .flat_map(|p| p.meta.renamed_from.iter().map(move |old| (old.as_str(), p.id.as_str())))
+            .collect()
+    }
+
+    /// Whether stored progress under `id` has a home: a current problem, or one that was renamed from it.
+    pub fn knows(&self, id: &str) -> bool {
+        self.problem(id).is_some() || self.renames().iter().any(|(old, _)| *old == id)
+    }
 }
 
 impl Track {
@@ -443,6 +456,18 @@ fn check_catalog(tracks: &[Track], issues: &mut Vec<Issue>) {
         for p in &t.problems {
             if !ids.insert(p.id.as_str()) {
                 issues.push(issue(&p.dir, format!("problem id {} is used twice", p.id)));
+            }
+        }
+    }
+    // An old id must point at exactly one problem, and never at an id that exists again.
+    let mut olds = HashSet::new();
+    for p in tracks.iter().flat_map(|t| &t.problems) {
+        for old in &p.meta.renamed_from {
+            if ids.contains(old.as_str()) {
+                issues.push(issue(&p.dir, format!("renamed_from {old}: that id is a current problem")));
+            }
+            if !olds.insert(old.as_str()) {
+                issues.push(issue(&p.dir, format!("renamed_from {old}: claimed by more than one problem")));
             }
         }
     }

@@ -44,6 +44,29 @@ VM
 - **Host tuning:** `vm.swappiness = 10` (`/etc/sysctl.d/60-swappiness.conf`), so idle memory isn't swapped out while
   RAM is free.
 
+## Keeping progress safe
+
+Progress (attempts, runs, reviews, drafts, focus time, scratch) lives in the `anneal_pgdata` volume, which deploys
+never touch: only the app container is replaced. Streaks and the activity calendar come from solve dates, so they
+survive any content change. Per-problem progress is keyed by problem id, so three guards protect it:
+
+1. **Renames carry history.** A problem lists its earlier ids in `renamed_from`; at startup the API moves every
+   row stored under an old id to the current one (`preflight::apply_renames`, idempotent).
+2. **CI** (`tools/check-progress-safety.py`) fails a push that removes a problem id without a `renamed_from`, or
+   edits or deletes an applied migration.
+3. **The deploy** backs up the database, then runs `anneal-api preflight` with the *new* image against the live
+   database, before anything is replaced. If any stored progress would have no problem, or an applied migration
+   changed, the deploy stops and the running version keeps serving.
+
+**Backups:** `deploy/backup.sh` writes `pg_dump -Fc` files to `/srv/anneal/backups` before every deploy and daily
+at 03:30 UTC (cron), keeping the newest 30. They're on the same VM, so they protect against bad deploys and
+mistakes, not the VM's loss; for that, turn on Hetzner's server backups. To restore:
+
+```sh
+docker compose -f deploy/compose.prod.yml --env-file deploy/.env exec -T postgres \
+  pg_restore -U anneal -d anneal --clean --if-exists < /srv/anneal/backups/<file>.dump
+```
+
 ## Everyday operations (on the VM, in `~/anneal`)
 
 ```sh

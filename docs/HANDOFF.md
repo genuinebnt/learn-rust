@@ -151,7 +151,14 @@ export CHROME=/opt/pw-browsers/chromium-*/chrome-linux/chrome   # for tools/ui-c
 
 **Every push to `master` is deployed to https://anneal.genuinebasil.dev** once CI passes (clippy with
 `-D warnings`, `cargo test`, `anneal validate`, the web build). Keep master green: run those locally before
-pushing, and don't push half-finished work to master. The pipeline, the server layout, rollbacks and the secrets are
+pushing, and don't push half-finished work to master.
+
+**Never lose the owner's progress.** It's stored by problem id (`<track code>-<slug>`):
+- To rename a problem, change its track, or change its slug, add the old id to the problem's
+  `renamed_from = ["old-id"]`. The API moves the stored progress to the new id when it starts. Don't delete problems.
+- Migrations in `crates/api/migrations` are append-only. Add a new one; never edit or delete an applied one.
+- CI (`tools/check-progress-safety.py`) and the deploy's `anneal-api preflight` both enforce this. A deploy that
+  would strand progress stops before replacing the running version. The pipeline, the server layout, rollbacks and the secrets are
 in [DEPLOY.md](DEPLOY.md). Never commit secrets: the repo is public.
 
 ### Checking UI without screenshots

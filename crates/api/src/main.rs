@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use anneal_api::lsp::LspConfig;
 use anneal_api::auth::AuthConfig;
-use anneal_api::{AppState, MIGRATOR, app};
+use anneal_api::{AppState, MIGRATOR, app, preflight};
 use anneal_content::Catalog;
 use anneal_runner::{Runner, RunnerConfig, Sandbox};
 use anyhow::{Context, bail};
@@ -74,7 +74,26 @@ async fn main() -> anyhow::Result<()> {
         .connect(&url)
         .await
         .context("connecting to Postgres")?;
+    // `anneal-api preflight`: deploy/deploy.sh runs this with the new image before switching over. It changes nothing.
+    if std::env::args().nth(1).as_deref() == Some("preflight") {
+        let report = preflight::check(&db, &loaded.catalog, &MIGRATOR).await.context("preflight")?;
+        for (id, rows) in &report.stranded {
+            eprintln!("preflight: {rows} progress rows for {id}, which this version doesn't know; add it to the problem's renamed_from");
+        }
+        for m in &report.migrations {
+            eprintln!("preflight: migration {m}; add a new migration instead");
+        }
+        if !report.is_ok() {
+            bail!("preflight failed: deploying this version would lose progress or fail to start");
+        }
+        println!("preflight: ok ({} tracks, {} renames)", loaded.catalog.tracks.len(), loaded.catalog.renames().len());
+        return Ok(());
+    }
     MIGRATOR.run(&db).await.context("running migrations")?;
+    let moved = preflight::apply_renames(&db, &loaded.catalog).await.context("moving progress to renamed problems")?;
+    if moved > 0 {
+        tracing::info!(moved, "moved progress rows from old problem ids");
+    }
 
     let addr: SocketAddr = env("ANNEAL_ADDR", "127.0.0.1:8787")
         .parse()

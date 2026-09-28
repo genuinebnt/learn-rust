@@ -5,6 +5,7 @@ mod activity;
 pub mod auth;
 mod error;
 pub mod lsp;
+pub mod preflight;
 mod progress;
 pub mod reviews;
 mod routes;

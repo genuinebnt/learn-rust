@@ -189,6 +189,10 @@ pub struct ProblemFile {
     /// Where the problem came from in the old study packet, e.g. `"W42"`.
     #[serde(default)]
     pub source: Option<String>,
+    /// Earlier ids of this problem (`<track code>-<slug>`, e.g. `"l5-generic-stack"`). Progress stored under an old id
+    /// is moved to this problem when the API starts, so renaming or moving a problem never loses anyone's history.
+    #[serde(default)]
+    pub renamed_from: Vec<String>,
     /// Crates from the sandbox's crate set (`docker/deps/Cargo.toml`), e.g. `["tokio", "serde"]`.
     #[serde(default)]
     pub crates: Vec<String>,

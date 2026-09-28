@@ -38,6 +38,13 @@ main() {
   # The API starts the runner image itself; pull it now so the first run after a deploy doesn't wait on it.
   docker pull --quiet "ghcr.io/genuinebnt/anneal-runner:${tag}" >/dev/null
 
+  # Progress safety: a backup first, then the new version checks the live database (stranded progress, edited
+  # migrations) before anything is replaced. If preflight fails, the running version keeps serving.
+  compose up -d --wait postgres
+  deploy/backup.sh "pre-${tag:0:12}"
+  log "preflight"
+  compose run --rm --no-deps -T app anneal-api preflight
+
   log "starting"
   compose up -d --remove-orphans --wait --wait-timeout 180
 

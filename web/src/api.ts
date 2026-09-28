@@ -223,6 +223,10 @@ export interface EditorSettings {
   autocomplete: boolean;
   rust_analyzer: boolean;
   borrow_lanes: boolean;
+  /** rust-analyzer checks with clippy, so lints show while editing. */
+  live_clippy: boolean;
+  /** rustfmt after a 1.5 s pause in typing, not only on ⌘S / ⇧⌥F. */
+  format_on_pause: boolean;
 }
 
 export type Accent = "copper" | "rose" | "sky" | "teal";
@@ -352,6 +356,7 @@ export const api = {
   logout: () => request<void>("POST", "/auth/logout"),
   settings: () => request<Settings>("GET", "/settings"),
   saveEditor: (editor: EditorSettings) => request<EditorSettings>("PUT", "/settings/editor", editor),
+  format: (code: string) => request<{ code: string }>("POST", "/format", { code }).then((r) => r.code),
   saveAppearance: (appearance: AppearanceSettings) => request<AppearanceSettings>("PUT", "/settings/appearance", appearance),
   progress: () => request<ProgressOverview>("GET", "/progress"),
   stats: () => request<ProgressStats>("GET", "/stats"),

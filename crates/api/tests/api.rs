@@ -522,11 +522,11 @@ async fn editor_settings_round_trip_and_validate(db: PgPool) {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         s["editor"],
-        json!({ "font_size": 13, "font_family": "JetBrains Mono", "vim": false, "autocomplete": true, "rust_analyzer": true, "borrow_lanes": false })
+        json!({ "font_size": 13, "font_family": "JetBrains Mono", "vim": false, "autocomplete": true, "rust_analyzer": true, "borrow_lanes": false, "live_clippy": true, "format_on_pause": false })
     );
     assert!(s["font_families"].as_array().unwrap().contains(&json!("Fira Code")));
 
-    let e = json!({ "font_size": 16, "font_family": "Fira Code", "vim": true, "autocomplete": false, "rust_analyzer": false, "borrow_lanes": true });
+    let e = json!({ "font_size": 16, "font_family": "Fira Code", "vim": true, "autocomplete": false, "rust_analyzer": false, "borrow_lanes": true, "live_clippy": false, "format_on_pause": true });
     assert_eq!(call(&app, Method::PUT, "/api/settings/editor", Some(e.clone())).await.0, StatusCode::OK);
     assert_eq!(call(&app, Method::GET, "/api/settings", None).await.1["editor"], e);
 
@@ -734,4 +734,24 @@ async fn preflight_refuses_to_strand_progress(db: PgPool) {
     sqlx::query("UPDATE _sqlx_migrations SET checksum = '\\x00' WHERE version = 1").execute(&db).await.unwrap();
     let report = anneal_api::preflight::check(&db, &catalog, &anneal_api::MIGRATOR).await.unwrap();
     assert_eq!(report.migrations.len(), 1, "{:?}", report.migrations);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn format_runs_rustfmt_and_reports_parse_errors(db: PgPool) {
+    let app = test_app(db);
+    let (status, body) = call(&app, Method::POST, "/api/format", Some(json!({ "code": "pub fn  add(a:i32,b:i32)->i32{a+b}" }))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["code"], "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n");
+    let (status, body) = call(&app, Method::POST, "/api/format", Some(json!({ "code": "pub fn broken( {" }))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["message"].as_str().unwrap().starts_with("error"), "{body}");
+}
+
+#[test]
+fn editor_settings_default_to_live_clippy_without_format_on_pause() {
+    // Settings saved before these fields existed still load, with live clippy on.
+    let old: anneal_api::settings::EditorSettings =
+        serde_json::from_value(json!({ "font_size": 14, "font_family": "Fira Code", "vim": true })).unwrap();
+    assert!(old.live_clippy);
+    assert!(!old.format_on_pause);
 }

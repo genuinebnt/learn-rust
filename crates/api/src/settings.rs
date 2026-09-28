@@ -29,6 +29,12 @@ pub struct EditorSettings {
     /// Borrow lanes in the editor; off until turned on.
     #[serde(default)]
     pub borrow_lanes: bool,
+    /// rust-analyzer checks with clippy instead of `cargo check`, so lints show while editing.
+    #[serde(default = "on")]
+    pub live_clippy: bool,
+    /// Run rustfmt after a pause in typing, not only on ⌘S / ⇧⌥F.
+    #[serde(default)]
+    pub format_on_pause: bool,
 }
 
 fn on() -> bool {
@@ -37,7 +43,16 @@ fn on() -> bool {
 
 impl Default for EditorSettings {
     fn default() -> Self {
-        EditorSettings { font_size: 13, font_family: "JetBrains Mono".into(), vim: false, autocomplete: true, rust_analyzer: true, borrow_lanes: false }
+        EditorSettings {
+            font_size: 13,
+            font_family: "JetBrains Mono".into(),
+            vim: false,
+            autocomplete: true,
+            rust_analyzer: true,
+            borrow_lanes: false,
+            live_clippy: true,
+            format_on_pause: false,
+        }
     }
 }
 
@@ -60,6 +75,14 @@ pub struct Settings {
     /// What the editor settings may be set to.
     pub font_families: &'static [&'static str],
     pub font_sizes: [u8; 2],
+}
+
+/// The saved editor settings, or the defaults.
+pub async fn editor(db: &sqlx::PgPool) -> sqlx::Result<EditorSettings> {
+    let stored: Option<Jsonb<EditorSettings>> = sqlx::query_scalar("SELECT value FROM settings WHERE key = 'editor'")
+        .fetch_optional(db)
+        .await?;
+    Ok(stored.map(|j| j.0).unwrap_or_default())
 }
 
 pub async fn get(State(s): State<AppState>) -> ApiResult<Json<Settings>> {

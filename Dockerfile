@@ -30,8 +30,9 @@ RUN cargo build --release --locked -p anneal-api -p anneal-cli \
 
 # ---- runtime ----
 FROM rust:1.98-slim
-# rust-analyzer runs `cargo check` on the editor buffer, so the runtime keeps the toolchain.
-RUN rustup component add rust-analyzer rust-src \
+# rust-analyzer checks the editor buffer (cargo check, or clippy with Live clippy) and /api/format runs rustfmt,
+# so the runtime keeps the toolchain.
+RUN rustup component add rust-analyzer rust-src rustfmt clippy \
     && rm -rf /usr/local/rustup/downloads /usr/local/rustup/tmp
 # Only the Docker CLI: the daemon is the host's, reached through the mounted socket.
 COPY --from=docker:29-cli /usr/local/bin/docker /usr/local/bin/docker

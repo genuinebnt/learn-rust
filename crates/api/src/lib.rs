@@ -4,12 +4,13 @@
 mod activity;
 pub mod auth;
 mod error;
+mod format;
 pub mod lsp;
 pub mod preflight;
 mod progress;
 pub mod reviews;
 mod routes;
-mod settings;
+pub mod settings;
 mod store;
 mod views;
 
@@ -65,6 +66,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/problems/{id}/hints", post(routes::reveal_hint))
         .route("/problems/{id}/solution", post(routes::reveal_solution))
         .route("/settings", get(settings::get))
+        .route("/format", post(format::format))
         .route("/settings/editor", put(settings::put_editor))
         .route("/settings/appearance", put(settings::put_appearance))
         .route("/lsp/{id}", get(routes::lsp))

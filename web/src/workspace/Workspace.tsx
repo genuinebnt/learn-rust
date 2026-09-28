@@ -89,6 +89,14 @@ function Loaded({ p }: { p: ProblemDetail }) {
   const [confirm, setConfirm] = useState<"reset" | "solution" | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const ra = editorSettings.rust_analyzer;
+  const liveClippy = editorSettings.live_clippy;
+  // A failed ⌘S / ⇧⌥F format (rustfmt couldn't parse the code), shown in the status bar for a few seconds.
+  const [formatError, setFormatError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!formatError) return;
+    const t = setTimeout(() => setFormatError(null), 5000);
+    return () => clearTimeout(t);
+  }, [formatError]);
   const setRa = (on: boolean) => saveEditor({ ...editorSettings, rust_analyzer: on });
   const [raStatus, setRaStatus] = useState<RaStatus>("off");
   const [raDetail, setRaDetail] = useState<string | undefined>();
@@ -109,7 +117,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
         if (s === "ready") setRaEpoch((n) => n + 1);
       },
       diagnostics: (errors, warnings) => setRaDiag({ errors, warnings }),
-    });
+    }, liveClippy);
     session.ready.then(
       () => setRaSession(session),
       () => {},
@@ -119,7 +127,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
       setRaSession(null);
       setRaDiag({ errors: 0, warnings: 0 });
     };
-  }, [ra, p.id]);
+  }, [ra, liveClippy, p.id]);
 
   // Save to the server a second after typing stops so rust-analyzer's cargo check sees borrow errors.
   useEffect(() => {
@@ -604,6 +612,11 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 onRun={doRun}
                 onSubmit={doSubmit}
                 onScratch={doScratch}
+                format={api.format}
+                formatOnPause={editorSettings.format_on_pause}
+                onFormatError={setFormatError}
+                // ⌘S checks right away (with clippy when Live clippy is on) instead of after the 1 s pause.
+                onSave={(c) => raSession?.save(c)}
               />
             </div>
             <div className="edit-host" hidden={file !== "main"}>
@@ -619,6 +632,9 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 onRun={doRun}
                 onSubmit={doSubmit}
                 onScratch={doScratch}
+                format={api.format}
+                formatOnPause={editorSettings.format_on_pause}
+                onFormatError={setFormatError}
               />
             </div>
             {file === "tests" && (
@@ -655,7 +671,12 @@ function Loaded({ p }: { p: ProblemDetail }) {
                   lanes
                 </button>
               )}
-              <span className="si sb-pos" title="rustc 1.98.1 stable · clippy on test runs · sandboxed">
+              {formatError && (
+                <span className="si sb-err" title={formatError}>
+                  rustfmt: {formatError}
+                </span>
+              )}
+              <span className="si sb-pos" title={`rustc 1.98.1 stable · clippy ${liveClippy ? "while editing and " : ""}on test runs · ⌘S formats · sandboxed`}>
                 Ln {cursor[0]}, Col {cursor[1]}
               </span>
             </div>

@@ -54,6 +54,36 @@ export function EditorSettingsButton({ children }: { children?: ReactNode }) {
               <i />
             </button>
           </div>
+          <div className="eset-row">
+            <span>
+              Format on pause
+              <small className="eset-hint">rustfmt 1.5 s after typing stops · ⌘S always formats</small>
+            </span>
+            <button
+              className={`eset-switch${editor.format_on_pause ? " on" : ""}`}
+              role="switch"
+              aria-checked={editor.format_on_pause}
+              aria-label="Format on pause"
+              onClick={() => set({ ...editor, format_on_pause: !editor.format_on_pause })}
+            >
+              <i />
+            </button>
+          </div>
+          <div className="eset-row">
+            <span>
+              Live clippy
+              <small className="eset-hint">lints while you edit, not only on runs</small>
+            </span>
+            <button
+              className={`eset-switch${editor.live_clippy ? " on" : ""}`}
+              role="switch"
+              aria-checked={editor.live_clippy}
+              aria-label="Live clippy"
+              onClick={() => set({ ...editor, live_clippy: !editor.live_clippy })}
+            >
+              <i />
+            </button>
+          </div>
           <div className="eset-fonts" role="radiogroup" aria-label="Font family">
             {families.map((f) => (
               <button

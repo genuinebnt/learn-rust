@@ -44,13 +44,14 @@ impl LspConfig {
     }
 }
 
-/// Settings sent as initializationOptions and returned for workspace/configuration.
-fn settings() -> Value {
+/// Settings sent as initializationOptions and returned for workspace/configuration. With `clippy`, the check that
+/// runs on save is clippy (its lints show in the editor as you work) instead of `cargo check`.
+fn settings(clippy: bool) -> Value {
     json!({
         "cargo": { "buildScripts": { "enable": false }, "targetDir": true },
         "procMacro": { "enable": false },
         "checkOnSave": true,
-        "check": { "command": "check", "allTargets": true },
+        "check": { "command": if clippy { "clippy" } else { "check" }, "allTargets": true },
         "cachePriming": { "enable": false },
         "inlayHints": {
             "typeHints": { "enable": true },
@@ -69,6 +70,8 @@ pub struct SessionFiles {
     pub crates: Vec<String>,
     /// The problem's `[perf]`, so the prelude rust-analyzer sees has the same helpers.
     pub perf: anneal_runner::Perf,
+    /// Check with clippy rather than `cargo check` (the editor's "Live clippy" setting).
+    pub clippy: bool,
 }
 
 /// Runs one editor session until either side goes away.
@@ -110,10 +113,11 @@ pub async fn session(
     // rust-analyzer → bridge: messages for the browser, or replies we owe the server.
     let (tx, mut rx) = mpsc::channel::<FromServer>(64);
     let reader_root = real_root.clone();
+    let clippy = files.clippy;
     tokio::spawn(async move {
         let mut out = BufReader::new(stdout);
         while let Ok(Some(text)) = read_frame(&mut out).await {
-            if tx.send(from_server(&text, &reader_root)).await.is_err() {
+            if tx.send(from_server(&text, &reader_root, clippy)).await.is_err() {
                 break;
             }
         }
@@ -123,7 +127,7 @@ pub async fn session(
         tokio::select! {
             msg = socket.recv() => match msg {
                 Some(Ok(Message::Text(text))) => {
-                    if let Some(frame) = from_client(&text, &root, &real_root) {
+                    if let Some(frame) = from_client(&text, &root, &real_root, files.clippy) {
                         write_frame(&mut stdin, &frame).await?;
                     }
                 }
@@ -151,7 +155,7 @@ enum FromServer {
 }
 
 /// Rewrites a browser message for rust-analyzer, or handles it here.
-fn from_client(text: &str, root: &Path, real_root: &str) -> Option<String> {
+fn from_client(text: &str, root: &Path, real_root: &str, clippy: bool) -> Option<String> {
     let mut v: Value = serde_json::from_str(text).ok()?;
     match v["method"].as_str() {
         Some("anneal/save") => {
@@ -165,7 +169,7 @@ fn from_client(text: &str, root: &Path, real_root: &str) -> Option<String> {
             return Some(saved.to_string());
         }
         Some("initialize") => {
-            v["params"]["initializationOptions"] = settings();
+            v["params"]["initializationOptions"] = settings(clippy);
             v["params"]["rootUri"] = json!(VIRTUAL_ROOT);
             v["params"]["workspaceFolders"] = json!([{ "uri": VIRTUAL_ROOT, "name": "solution" }]);
         }
@@ -175,14 +179,14 @@ fn from_client(text: &str, root: &Path, real_root: &str) -> Option<String> {
 }
 
 /// Answers server-to-client requests; forwards everything else with paths hidden.
-fn from_server(text: &str, real_root: &str) -> FromServer {
+fn from_server(text: &str, real_root: &str, clippy: bool) -> FromServer {
     if let Ok(v) = serde_json::from_str::<Value>(text)
         && let (Some(id), Some(method)) = (v.get("id"), v["method"].as_str())
     {
         let result = match method {
             "workspace/configuration" => {
                 let n = v["params"]["items"].as_array().map_or(1, Vec::len);
-                Value::Array(vec![settings(); n])
+                Value::Array(vec![settings(clippy); n])
             }
             _ => Value::Null,
         };
@@ -236,7 +240,7 @@ mod tests {
     fn initialize_gets_settings_and_the_real_root() {
         let msg = json!({ "jsonrpc": "2.0", "id": 0, "method": "initialize", "params": { "rootUri": "file:///workspace", "capabilities": {} } });
         let out: Value = serde_json::from_str(
-            &from_client(&msg.to_string(), Path::new("/tmp/x"), "file:///tmp/x").unwrap(),
+            &from_client(&msg.to_string(), Path::new("/tmp/x"), "file:///tmp/x", true).unwrap(),
         )
         .unwrap();
         assert_eq!(out["params"]["rootUri"], "file:///tmp/x");
@@ -246,7 +250,7 @@ mod tests {
     #[test]
     fn server_requests_are_answered_not_forwarded() {
         let req = json!({ "jsonrpc": "2.0", "id": 7, "method": "workspace/configuration", "params": { "items": [{}, {}] } });
-        match from_server(&req.to_string(), "file:///tmp/x") {
+        match from_server(&req.to_string(), "file:///tmp/x", true) {
             FromServer::Reply(r) => {
                 let r: Value = serde_json::from_str(&r).unwrap();
                 assert_eq!(r["id"], 7);
@@ -255,7 +259,7 @@ mod tests {
             FromServer::Forward(_) => panic!("should be answered"),
         }
         let note = json!({ "jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": { "uri": "file:///tmp/x/src/lib.rs" } });
-        match from_server(&note.to_string(), "file:///tmp/x") {
+        match from_server(&note.to_string(), "file:///tmp/x", true) {
             FromServer::Forward(t) => assert!(t.contains("file:///workspace/src/lib.rs")),
             FromServer::Reply(_) => panic!("should be forwarded"),
         }

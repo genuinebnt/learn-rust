@@ -286,10 +286,18 @@ pub async fn reveal_solution(
 }
 
 /// Upgrades to a WebSocket running rust-analyzer on this problem. See [`crate::lsp`].
+#[derive(serde::Deserialize)]
+pub struct LspParams {
+    /// Check with clippy; defaults to the saved "Live clippy" setting. The web app sends it so a toggle takes effect
+    /// on the reconnect without racing the settings save.
+    clippy: Option<bool>,
+}
+
 pub async fn lsp(
     ws: WebSocketUpgrade,
     State(s): State<AppState>,
     Path(id): Path<String>,
+    Query(params): Query<LspParams>,
 ) -> ApiResult<Response> {
     let (_, p) = find(&s, &id)?;
     let starter = p
@@ -301,6 +309,10 @@ pub async fn lsp(
     let visible_tests = p.files.visible_tests.clone().unwrap_or_default();
     let crates = p.meta.crates.clone();
     let perf = runner_perf(p.meta.perf);
+    let clippy = match params.clippy {
+        Some(c) => c,
+        None => crate::settings::editor(&s.db).await?.live_clippy,
+    };
     let permit = s.lsp.slots.clone().try_acquire_owned().map_err(|_| {
         ApiError::Busy(
             "rust-analyzer is already running for 3 editors; close one and try again".into(),
@@ -316,6 +328,7 @@ pub async fn lsp(
                 visible_tests,
                 crates,
                 perf,
+                clippy,
             },
         )
         .await

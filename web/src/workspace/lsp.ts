@@ -27,8 +27,9 @@ export interface RaSession {
 }
 
 /** Opens a rust-analyzer session for a problem over /api/lsp/{id}. */
-export function connectRa(problemId: string, on: RaCallbacks): RaSession {
-  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/lsp/${problemId}`);
+/** `clippy`: rust-analyzer checks with clippy rather than `cargo check` (the "Live clippy" setting). */
+export function connectRa(problemId: string, on: RaCallbacks, clippy: boolean): RaSession {
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/lsp/${problemId}?clippy=${clippy}`);
   const handlers = new Set<(m: string) => void>();
   let closed = false;
   ws.onmessage = (e) => handlers.forEach((h) => h(String(e.data)));
@@ -107,6 +108,8 @@ interface LspDiagnostic {
   range: LspRange;
   severity?: number;
   code?: string | number;
+  /** "rustc", "clippy", "rust-analyzer", … */
+  source?: string;
   message: string;
   relatedInformation?: { location: { uri: string; range: LspRange }; message: string }[];
 }
@@ -127,7 +130,9 @@ function toDiagnostic(item: LspDiagnostic, uri: string): Diagnostic {
   // rust-analyzer puts the primary span's label on the lines after the message.
   const [message, ...rest] = item.message.split("\n");
   const related = (item.relatedInformation ?? []).filter((r) => r.message !== "original diagnostic");
-  const code = item.code === undefined ? null : String(item.code);
+  const raw = item.code === undefined ? null : String(item.code);
+  // Clippy's lints arrive as a bare name ("map_clone"); label them the way run output does ("clippy::map_clone").
+  const code = raw && item.source === "clippy" && !raw.startsWith("clippy::") ? `clippy::${raw}` : raw;
   return {
     level: LEVELS[(item.severity ?? 1) - 1] ?? "error",
     code: code && /^\d{4}$/.test(code) ? `E${code}` : code,

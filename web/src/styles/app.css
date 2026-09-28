@@ -369,3 +369,4 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .cc-pop { position: fixed; z-index: 60; max-width: 250px; display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 12px 32px var(--shadow); pointer-events: none; }
 .tr-empty { font: 400 13px var(--mono); color: var(--dim); }
 .conote { margin: 10px 0 0; font: 400 11.5px var(--mono); color: var(--dim); }
+.statusb .sb-err { color: var(--bad); max-width: 320px; overflow: hidden; text-overflow: ellipsis; }

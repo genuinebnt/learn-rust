@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Vim, vim } from "@replit/codemirror-vim";
-import { Compartment, EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, RangeSetBuilder, StateEffect, StateField, Transaction, type Extension } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
@@ -238,11 +238,36 @@ export interface EditorProps {
   gotoKey?: string;
   onScratch?: () => void;
   onSubmit?: () => void;
+  /** rustfmt: returns the formatted code, or throws with rustfmt's message. ⇧⌥F formats; ⌘S (or Vim's :w) formats and saves. */
+  format?: (code: string) => Promise<string>;
+  /** Also format 1.5 s after typing stops. */
+  formatOnPause?: boolean;
+  /** After ⌘S / :w, with the (formatted) buffer. */
+  onSave?: (code: string) => void;
+  /** A ⇧⌥F or ⌘S format failed, e.g. the code doesn't parse. Format on pause fails quietly. */
+  onFormatError?: (message: string) => void;
 }
 
 // Vim: leave insert mode with `jk` or `kj`, typed within insertModeEscKeysTimeout (200 ms).
 Vim.map("jk", "<Esc>", "insert");
 Vim.map("kj", "<Esc>", "insert");
+
+// Vim's :w formats and saves the editor it was typed in, like ⌘S.
+const vimSave = new WeakMap<EditorView, () => void>();
+Vim.defineEx("write", "w", (cm: { cm6?: EditorView }) => {
+  if (cm.cm6) vimSave.get(cm.cm6)?.();
+});
+
+/** Applies `next` as the smallest single change from the current text, so the cursor and undo history stay sane. */
+function replaceMinimal(v: EditorView, next: string) {
+  const prev = v.state.doc.toString();
+  if (prev === next) return;
+  let start = 0;
+  while (start < prev.length && start < next.length && prev[start] === next[start]) start++;
+  let end = 0;
+  while (end < prev.length - start && end < next.length - start && prev[prev.length - 1 - end] === next[next.length - 1 - end]) end++;
+  v.dispatch({ changes: { from: start, to: prev.length - end, insert: next.slice(start, next.length - end) }, userEvent: "format" });
+}
 
 export const EDITOR_FONT_EVENT = "anneal:editor-font";
 export const GOTO_EVENT = "anneal:goto";
@@ -292,6 +317,23 @@ export function Editor(props: EditorProps) {
       handlers.current.onScratch?.();
       return true;
     };
+    // rustfmt through the API. A result that arrives after more typing is dropped rather than applied.
+    const formatNow = async (v: EditorView, quiet: boolean) => {
+      const format = handlers.current.format;
+      if (!format || handlers.current.readOnly) return;
+      const before = v.state.doc.toString();
+      try {
+        const out = await format(before);
+        if (v.state.doc.toString() === before) replaceMinimal(v, out);
+      } catch (e) {
+        if (!quiet) handlers.current.onFormatError?.(e instanceof Error ? e.message : String(e));
+      }
+    };
+    const save = (v: EditorView) => {
+      void formatNow(v, false).then(() => handlers.current.onSave?.(v.state.doc.toString()));
+      return true;
+    };
+    let pause: ReturnType<typeof setTimeout> | undefined;
     const extensions: Extension[] = [
       // First, so its keymap wins over the others.
       vimCompartment.current.of([]),
@@ -311,12 +353,21 @@ export function Editor(props: EditorProps) {
       theme,
       lensField,
       lanesField,
-      keymap.of([{ key: "Mod-Enter", run }, { key: "Shift-Mod-Enter", run: submit }, { key: "Mod-'", run: scratch }, ...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
+      keymap.of([
+        { key: "Mod-Enter", run },
+        { key: "Shift-Mod-Enter", run: submit },
+        { key: "Mod-'", run: scratch }, ...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
       completion.current.of([]),
       lspCompartment.current.of([]),
       lanesCompartment.current.of([]),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) handlers.current.onChange?.(u.state.doc.toString());
+        // Format on pause: typing (any user edit except a format itself) restarts the 1.5 s timer.
+        const typed = u.transactions.some((t) => t.annotation(Transaction.userEvent) !== undefined && !t.isUserEvent("format"));
+        if (u.docChanged && typed && handlers.current.formatOnPause) {
+          clearTimeout(pause);
+          pause = setTimeout(() => void formatNow(u.view, true), 1500);
+        }
         if (u.selectionSet || u.docChanged) {
           const pos = u.state.selection.main.head;
           const line = u.state.doc.lineAt(pos);
@@ -327,7 +378,22 @@ export function Editor(props: EditorProps) {
     if (props.readOnly) extensions.push(EditorState.readOnly.of(true), EditorView.editable.of(false));
     const v = new EditorView({ parent: host.current!, state: EditorState.create({ doc: props.value, extensions }) });
     view.current = v;
+    vimSave.set(v, () => save(v));
+    // ⌘S (Ctrl-S) and ⇧⌥F are caught in the capture phase, before CodeMirror and Vim see them: on a Mac, ⇧⌥F types
+    // "Ï", which Vim's normal mode would take as a command. Matching the physical key works on any layout.
+    const shortcuts = (e: KeyboardEvent) => {
+      const mod = navigator.platform.startsWith("Mac") ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+      if (mod && !e.altKey && !e.shiftKey && e.code === "KeyS") save(v);
+      else if (e.altKey && e.shiftKey && !e.metaKey && !e.ctrlKey && e.code === "KeyF") void formatNow(v, false);
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    v.dom.addEventListener("keydown", shortcuts, true);
     return () => {
+      clearTimeout(pause);
+      v.dom.removeEventListener("keydown", shortcuts, true);
+      vimSave.delete(v);
       v.destroy();
       view.current = null;
     };

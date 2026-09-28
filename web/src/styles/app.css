@@ -154,7 +154,7 @@ a.tile:hover { border-color: var(--line); }
 .console-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; font-size: 13px; color: var(--mut); }
 .compiler pre.out { margin: 0 0 10px; padding: 10px 12px; border-radius: 4px; background: var(--bg); font: 400 12px/1.55 var(--mono); color: var(--fg); white-space: pre-wrap; word-break: break-word; }
 .compiler pre.out.err { color: var(--bad); }
-.ftabs { overflow: hidden; }
+.ftabs { overflow: visible; } /* the Aa popover hangs below the bar; .ftab-list scrolls the tabs itself */
 .ftabs .tools { flex: none; }
 @media (max-width: 1400px) { .ftabs .ftab small { display: none; } }
 .eset-session { display: flex; flex-direction: column; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line2); }
@@ -363,6 +363,9 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .cos { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
 .cc { font: 500 10.5px var(--mono); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--line2); color: var(--mut); white-space: nowrap; }
 .cc.faang { border-color: transparent; background: color-mix(in oklch, var(--fn) 12%, transparent); color: var(--fn); }
-.cc.more { border-style: dashed; color: var(--dim); cursor: help; }
+.cc.more { border-style: dashed; color: var(--dim); cursor: pointer; }
+.cc.more:hover, .cc.more:focus-visible { color: var(--fg); border-color: var(--line); outline: none; }
+/* the hidden companies, portalled to <body> (TrackPage MoreCompanies) */
+.cc-pop { position: fixed; z-index: 60; max-width: 250px; display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 12px 32px var(--shadow); pointer-events: none; }
 .tr-empty { font: 400 13px var(--mono); color: var(--dim); }
 .conote { margin: 10px 0 0; font: 400 11.5px var(--mono); color: var(--dim); }

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Band, type StageView } from "../api";
@@ -235,11 +236,7 @@ export function TrackPage({ slug }: { slug: string }) {
                               {c}
                             </span>
                           ))}
-                          {p.companies.length > 3 && (
-                            <span className="cc more" title={p.companies.slice(3).join(", ")}>
-                              +{p.companies.length - 3}
-                            </span>
-                          )}
+                          {p.companies.length > 3 && <MoreCompanies names={p.companies.slice(3)} highlight={(c) => faang.has(c) || c === company} />}
                         </span>
                       ) : (
                         <span className="tags">—</span>
@@ -266,6 +263,64 @@ export function TrackPage({ slug }: { slug: string }) {
           </section>
         </div>
       </main>
+    </>
+  );
+}
+
+/**
+ * The "+N" chip for companies that didn't fit. Hovering shows them, and so does clicking, which doesn't open the
+ * problem (the whole row is a link). The popover is portalled to <body>: the table scrolls sideways, which would
+ * clip anything hanging out of a row.
+ */
+function MoreCompanies({ names, highlight }: { names: string[]; highlight: (c: string) => boolean }) {
+  const chip = useRef<HTMLSpanElement>(null);
+  const [at, setAt] = useState<{ left: number; top: number } | null>(null);
+  const show = () => {
+    const r = chip.current?.getBoundingClientRect();
+    if (r) setAt({ left: Math.min(r.left, window.innerWidth - 260), top: r.bottom + 6 });
+  };
+  useEffect(() => {
+    if (!at) return;
+    const hide = () => setAt(null);
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    return () => {
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
+    };
+  }, [at]);
+  return (
+    <>
+      <span
+        ref={chip}
+        className="cc more"
+        role="button"
+        tabIndex={0}
+        aria-label={`${names.length} more: ${names.join(", ")}`}
+        onMouseEnter={show}
+        onMouseLeave={() => setAt(null)}
+        onFocus={show}
+        onBlur={() => setAt(null)}
+        onClick={(e) => {
+          // Open (a tap on a touch screen has no hover); leaving or tapping elsewhere closes it.
+          e.preventDefault();
+          e.stopPropagation();
+          show();
+        }}
+      >
+        +{names.length}
+      </span>
+      {at &&
+        createPortal(
+          <div className="cc-pop" style={{ left: at.left, top: at.top }} role="tooltip">
+            {names.map((c) => (
+              <span key={c} className={`cc${highlight(c) ? " faang" : ""}`}>
+                {c}
+              </span>
+            ))}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

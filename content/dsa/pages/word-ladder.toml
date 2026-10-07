@@ -1,0 +1,76 @@
+intuition = """
+Treat each word as a node, with an edge between words that differ by **one letter**. The shortest transformation is the **shortest path** in this unweighted graph, which is exactly what **BFS** finds: expand ring by ring, and the first time you reach `endWord` the ring number is the answer.
+
+Don't compare every pair of words to build the graph. For each word, try replacing each position with each of the 26 letters and check whether the result is in the word set. That's `L × 26` lookups per word.
+"""
+tips = [
+    "Put the word list in a **set** so the \"is this a real word?\" lookup is O(1).",
+    "Remove a word from the set (or mark it seen) when you queue it, so each word is queued once.",
+    "The answer counts **words**, not steps: `beginWord → hot → dot → dog → cog` is 5. Start the level counter at 1.",
+    "If `endWord` isn't in `wordList`, return `0` immediately.",
+    "Bidirectional BFS (searching from both ends) is the optimisation to mention if asked how to make it faster.",
+]
+
+[[approaches]]
+name = "BFS over one-letter changes"
+label = "BFS"
+idea = "From each word, generate every word reachable by changing one letter, keep the ones that are in the dictionary and not yet used, and continue ring by ring."
+time = "O(N · L² · 26)"
+space = "O(N · L)"
+note = "N words of length L; building each candidate string costs O(L)."
+code = '''from collections import deque
+
+
+class Solution:
+    def ladderLength(self, beginWord: str, endWord: str, wordList: list[str]) -> int:
+        words = set(wordList)
+        if endWord not in words:
+            return 0
+        queue = deque([(beginWord, 1)])
+        words.discard(beginWord)
+        while queue:
+            word, steps = queue.popleft()
+            if word == endWord:
+                return steps
+            for i in range(len(word)):
+                for letter in "abcdefghijklmnopqrstuvwxyz":
+                    candidate = word[:i] + letter + word[i + 1:]
+                    if candidate in words:
+                        words.remove(candidate)
+                        queue.append((candidate, steps + 1))
+        return 0
+'''
+
+[[approaches]]
+name = "Bidirectional BFS"
+label = "bidirectional"
+idea = "Search from both ends at once, always expanding the smaller frontier. The searches meet in the middle, which visits far fewer words."
+time = "O(N · L² · 26)"
+space = "O(N · L)"
+note = "Same worst case, much faster in practice."
+code = '''class Solution:
+    def ladderLength(self, beginWord: str, endWord: str, wordList: list[str]) -> int:
+        words = set(wordList)
+        if endWord not in words:
+            return 0
+        front, back = {beginWord}, {endWord}
+        words.discard(beginWord)
+        words.discard(endWord)
+        steps = 1
+        while front and back:
+            if len(front) > len(back):
+                front, back = back, front
+            steps += 1
+            next_front = set()
+            for word in front:
+                for i in range(len(word)):
+                    for letter in "abcdefghijklmnopqrstuvwxyz":
+                        candidate = word[:i] + letter + word[i + 1:]
+                        if candidate in back:
+                            return steps
+                        if candidate in words:
+                            words.remove(candidate)
+                            next_front.add(candidate)
+            front = next_front
+        return 0
+'''

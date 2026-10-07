@@ -1,0 +1,66 @@
+intuition = """
+The graph is a tree plus **one extra edge**, which creates exactly one cycle. Add the edges **in order** to a union-find structure: the first edge whose two endpoints are **already connected** is the one that closes the cycle, so it's the answer. (If several edges could be removed, the problem wants the one that appears **last** in the input; processing in order and returning the first failing edge gives exactly that.)
+"""
+tips = [
+    "Nodes are numbered from 1, so make the parent array `n + 1` long.",
+    "Union-find: `find` both endpoints; equal roots means this edge is redundant, otherwise merge them.",
+    "Return the edge as given (`[u, v]`), not just one node.",
+    "A DFS per edge (\"is there already a path from u to v?\") also works and is O(n²); union-find is the efficient answer.",
+]
+
+[[approaches]]
+name = "Union-find"
+label = "union-find"
+idea = "Process edges in order. The first one joining two nodes that are already connected is the extra edge."
+time = "O(n · α(n))"
+space = "O(n)"
+note = "One union-find operation per edge."
+code = '''class Solution:
+    def findRedundantConnection(self, edges: list[list[int]]) -> list[int]:
+        parent = list(range(len(edges) + 1))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        for a, b in edges:
+            root_a, root_b = find(a), find(b)
+            if root_a == root_b:
+                return [a, b]
+            parent[root_a] = root_b
+        return []
+'''
+
+[[approaches]]
+name = "DFS path check before each edge"
+label = "DFS"
+idea = "Before adding an edge, search for an existing path between its endpoints. If one exists, the edge is redundant."
+time = "O(n²)"
+space = "O(n)"
+note = "Fine for n ≤ 1000; it rebuilds a search for every edge."
+code = '''class Solution:
+    def findRedundantConnection(self, edges: list[list[int]]) -> list[int]:
+        graph = {}
+
+        def connected(start: int, goal: int) -> bool:
+            seen = {start}
+            stack = [start]
+            while stack:
+                node = stack.pop()
+                if node == goal:
+                    return True
+                for nxt in graph.get(node, []):
+                    if nxt not in seen:
+                        seen.add(nxt)
+                        stack.append(nxt)
+            return False
+
+        for a, b in edges:
+            if connected(a, b):
+                return [a, b]
+            graph.setdefault(a, []).append(b)
+            graph.setdefault(b, []).append(a)
+        return []
+'''

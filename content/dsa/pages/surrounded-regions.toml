@@ -1,0 +1,44 @@
+intuition = """
+An `O` region is captured unless it **touches the border** (directly, or through a chain of `O`s). So don't look for the surrounded regions; look for the **safe** ones. Start from every `O` on the border and mark everything connected to it as safe. Then flip every `O` that's not safe to `X`, and turn the safe marks back to `O`.
+"""
+tips = [
+    "Mark safe cells with a temporary letter (like `\"S\"`) so you can tell them apart from capturable `O`s without a separate `visited` set.",
+    "Three passes: mark from the border, flip the remaining `O` to `X`, restore `S` to `O`.",
+    "The function modifies `board` in place and returns nothing.",
+    "Border cells that are `O` can never be captured, no matter what's around them.",
+]
+
+[[approaches]]
+name = "Mark safe cells from the border"
+label = "border DFS"
+idea = "DFS from every border `O`, marking reachable `O`s as safe. Then capture the unmarked ones."
+time = "O(rows · cols)"
+space = "O(rows · cols)"
+note = "The stack can hold every `O` in the worst case."
+code = '''class Solution:
+    def solve(self, board: list[list[str]]) -> None:
+        """
+        Do not return anything, modify board in-place instead.
+        """
+        rows, cols = len(board), len(board[0])
+        stack = [
+            (r, c)
+            for r in range(rows)
+            for c in range(cols)
+            if (r in (0, rows - 1) or c in (0, cols - 1)) and board[r][c] == "O"
+        ]
+        for r, c in stack:
+            board[r][c] = "S"
+        while stack:
+            r, c = stack.pop()
+            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= nr < rows and 0 <= nc < cols and board[nr][nc] == "O":
+                    board[nr][nc] = "S"
+                    stack.append((nr, nc))
+        for r in range(rows):
+            for c in range(cols):
+                if board[r][c] == "O":
+                    board[r][c] = "X"
+                elif board[r][c] == "S":
+                    board[r][c] = "O"
+'''

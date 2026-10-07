@@ -1,0 +1,74 @@
+intuition = """
+Connect all points with the **minimum total edge length**, where any two points can be joined at Manhattan distance: that's a **minimum spanning tree** on a complete graph.
+
+**Prim's algorithm** grows the tree one point at a time: start anywhere, and repeatedly add the **cheapest edge to a point not yet in the tree**. With a heap of candidate edges, or with the simple O(n²) version below (since every pair is an edge, there's no need to build the edge list).
+"""
+tips = [
+    "Say \"minimum spanning tree\" first. Kruskal (sort all edges, union-find) and Prim both work.",
+    "For a complete graph with up to 1000 points, the O(n²) array version of Prim is the cleanest and uses O(n) space; Kruskal would create ~500,000 edges.",
+    "Distance is `abs(x1 - x2) + abs(y1 - y2)`, not Euclidean.",
+    "A single point costs `0`.",
+]
+
+[[approaches]]
+name = "Prim's algorithm, O(n²)"
+label = "Prim"
+idea = "Keep `best[i]`, the cheapest known edge from the tree to point i. Repeatedly add the point with the smallest `best`, then update the others with the distance to it."
+time = "O(n²)"
+space = "O(n)"
+note = "No edge list: distances are computed on the fly."
+code = '''class Solution:
+    def minCostConnectPoints(self, points: list[list[int]]) -> int:
+        n = len(points)
+        best = [float("inf")] * n
+        in_tree = [False] * n
+        best[0] = 0
+        total = 0
+        for _ in range(n):
+            u = min((i for i in range(n) if not in_tree[i]), key=lambda i: best[i])
+            in_tree[u] = True
+            total += best[u]
+            for v in range(n):
+                if not in_tree[v]:
+                    dist = abs(points[u][0] - points[v][0]) + abs(points[u][1] - points[v][1])
+                    if dist < best[v]:
+                        best[v] = dist
+        return total
+'''
+
+[[approaches]]
+name = "Kruskal with union-find"
+label = "Kruskal"
+idea = "List every pair as an edge, sort by length, and add an edge whenever it joins two different components, until n − 1 edges are used."
+time = "O(n² log n)"
+space = "O(n²)"
+note = "The edge list has about n²/2 entries."
+code = '''class Solution:
+    def minCostConnectPoints(self, points: list[list[int]]) -> int:
+        n = len(points)
+        edges = []
+        for i in range(n):
+            for j in range(i + 1, n):
+                dist = abs(points[i][0] - points[j][0]) + abs(points[i][1] - points[j][1])
+                edges.append((dist, i, j))
+        edges.sort()
+        parent = list(range(n))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        total = 0
+        used = 0
+        for dist, i, j in edges:
+            ri, rj = find(i), find(j)
+            if ri != rj:
+                parent[ri] = rj
+                total += dist
+                used += 1
+                if used == n - 1:
+                    break
+        return total
+'''

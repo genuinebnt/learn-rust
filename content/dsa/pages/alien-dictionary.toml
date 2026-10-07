@@ -1,0 +1,88 @@
+intuition = """
+The words are sorted in the alien order, so **comparing two neighbouring words** tells you about one pair of letters: the first position where they differ gives an edge `a → b` ("a comes before b"). Collect those edges for every adjacent pair, then **topologically sort** the letters. A cycle means the ordering is impossible, so return `""`.
+
+There's one invalid case that the letter edges don't show: a **longer word before its own prefix** (like `"abc"` then `"ab"`). That can't be sorted, so return `""`.
+"""
+tips = [
+    "Add **every** letter that appears to the graph, even ones with no edges, since they must still show up in the answer.",
+    "Compare each word with the **next** one only; the sorted order is transitive, so non-adjacent pairs add nothing.",
+    "Only the first differing character gives information; stop at it.",
+    "Prefix case: if `word2` is a proper prefix of `word1` and `word1` comes first, return `\"\"`.",
+    "Any valid order is accepted when several exist.",
+    "This is a Premium problem on LeetCode.",
+]
+
+[[approaches]]
+name = "Build edges, then Kahn's algorithm"
+label = "topological sort"
+idea = "For each adjacent pair of words, add an edge from the first differing letter of the first word to the other's. Run Kahn's algorithm; if not every letter is output, there is a cycle."
+time = "O(total characters)"
+space = "O(1)"
+note = "At most 26 letters and 26² edges, plus one pass over the words."
+code = '''from collections import deque
+
+
+class Solution:
+    def alienOrder(self, words: list[str]) -> str:
+        graph = {ch: set() for word in words for ch in word}
+        indegree = {ch: 0 for ch in graph}
+        for first, second in zip(words, words[1:]):
+            if len(first) > len(second) and first.startswith(second):
+                return ""
+            for a, b in zip(first, second):
+                if a != b:
+                    if b not in graph[a]:
+                        graph[a].add(b)
+                        indegree[b] += 1
+                    break
+        queue = deque(ch for ch in graph if indegree[ch] == 0)
+        order = []
+        while queue:
+            ch = queue.popleft()
+            order.append(ch)
+            for nxt in graph[ch]:
+                indegree[nxt] -= 1
+                if indegree[nxt] == 0:
+                    queue.append(nxt)
+        return "".join(order) if len(order) == len(graph) else ""
+'''
+
+[[approaches]]
+name = "Build edges, then DFS with three states"
+label = "DFS"
+idea = "The same graph, sorted by DFS post-order reversed, with a cycle check using visiting and done states."
+time = "O(total characters)"
+space = "O(1)"
+note = "Recursion depth at most 26."
+code = '''class Solution:
+    def alienOrder(self, words: list[str]) -> str:
+        graph = {ch: set() for word in words for ch in word}
+        for first, second in zip(words, words[1:]):
+            if len(first) > len(second) and first.startswith(second):
+                return ""
+            for a, b in zip(first, second):
+                if a != b:
+                    graph[a].add(b)
+                    break
+
+        state = {}  # missing = unseen, 1 = visiting, 2 = done
+        finished = []
+
+        def visit(ch: str) -> bool:
+            if state.get(ch) == 1:
+                return False
+            if state.get(ch) == 2:
+                return True
+            state[ch] = 1
+            for nxt in graph[ch]:
+                if not visit(nxt):
+                    return False
+            state[ch] = 2
+            finished.append(ch)
+            return True
+
+        for ch in graph:
+            if not visit(ch):
+                return ""
+        return "".join(reversed(finished))
+'''

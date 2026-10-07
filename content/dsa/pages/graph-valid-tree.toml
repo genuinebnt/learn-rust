@@ -1,0 +1,68 @@
+intuition = """
+An undirected graph with `n` nodes is a **tree** exactly when it is **connected and has no cycle**. For a connected graph, that's the same as having exactly **`n − 1` edges**. So: if `len(edges) != n − 1` it's not a tree; otherwise it's a tree if and only if it's connected (one component).
+
+Check connectivity with a DFS/BFS from node 0, or with **union-find**: if two endpoints of an edge are already connected, that edge closes a cycle.
+"""
+tips = [
+    "Quick reject first: `len(edges) != n - 1` means not a tree.",
+    "With exactly `n − 1` edges, no cycle ⇔ connected, so you only need to check one of the two.",
+    "In an undirected graph, don't treat the edge you came along as a cycle: pass the parent along in a DFS, or use union-find, which doesn't care.",
+    "`n = 1` with no edges is a tree (a single node).",
+    "This is a Premium problem on LeetCode.",
+]
+
+[[approaches]]
+name = "Edge count plus connectivity (BFS)"
+label = "BFS"
+idea = "Reject unless there are `n − 1` edges. Then BFS from node 0; it's a tree if every node is reached."
+time = "O(n)"
+space = "O(n)"
+note = "Building the adjacency lists and the BFS are linear in nodes plus edges."
+code = '''from collections import deque
+
+
+class Solution:
+    def validTree(self, n: int, edges: list[list[int]]) -> bool:
+        if len(edges) != n - 1:
+            return False
+        graph = [[] for _ in range(n)]
+        for a, b in edges:
+            graph[a].append(b)
+            graph[b].append(a)
+        seen = {0}
+        queue = deque([0])
+        while queue:
+            node = queue.popleft()
+            for nxt in graph[node]:
+                if nxt not in seen:
+                    seen.add(nxt)
+                    queue.append(nxt)
+        return len(seen) == n
+'''
+
+[[approaches]]
+name = "Union-find"
+label = "union-find"
+idea = "Union the endpoints of each edge. If they already share a root, the edge closes a cycle. With `n − 1` edges and no cycle, the graph is a tree."
+time = "O(n · α(n))"
+space = "O(n)"
+note = "α is the inverse Ackermann function: effectively constant."
+code = '''class Solution:
+    def validTree(self, n: int, edges: list[list[int]]) -> bool:
+        if len(edges) != n - 1:
+            return False
+        parent = list(range(n))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]  # path halving
+                x = parent[x]
+            return x
+
+        for a, b in edges:
+            root_a, root_b = find(a), find(b)
+            if root_a == root_b:
+                return False
+            parent[root_a] = root_b
+        return True
+'''

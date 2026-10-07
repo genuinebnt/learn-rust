@@ -1,0 +1,82 @@
+intuition = """
+Same graph as Course Schedule, but now you must **return an order**: a topological sort. **Kahn's algorithm** produces it directly: repeatedly take a course with no remaining prerequisites, append it to the answer, and release the courses that were waiting on it. If you end up with fewer courses than `numCourses`, there's a cycle and the answer is `[]`.
+
+A DFS gives the order too: the **reverse of the post-order** (finish order) is a topological order, with the same three-state cycle check as before.
+"""
+tips = [
+    "Edge `[a, b]` means `b → a`: `b` goes **before** `a`. Get this wrong and you return the order reversed.",
+    "Return `[]` if there's a cycle, not a partial order.",
+    "Several answers can be valid; any topological order is accepted.",
+    "Kahn's algorithm gives you the cycle check for free: compare the length of the result with `numCourses`.",
+]
+
+[[approaches]]
+name = "Kahn's algorithm"
+label = "topological sort"
+idea = "Queue the courses with in-degree 0. Take one, add it to the order, decrement its dependants' in-degrees, and queue the ones that reach 0."
+time = "O(V + E)"
+space = "O(V + E)"
+note = "Every course and prerequisite is processed once."
+code = '''from collections import deque
+
+
+class Solution:
+    def findOrder(self, numCourses: int, prerequisites: list[list[int]]) -> list[int]:
+        graph = [[] for _ in range(numCourses)]
+        indegree = [0] * numCourses
+        for course, pre in prerequisites:
+            graph[pre].append(course)
+            indegree[course] += 1
+
+        queue = deque(c for c in range(numCourses) if indegree[c] == 0)
+        order = []
+        while queue:
+            node = queue.popleft()
+            order.append(node)
+            for nxt in graph[node]:
+                indegree[nxt] -= 1
+                if indegree[nxt] == 0:
+                    queue.append(nxt)
+        return order if len(order) == numCourses else []
+'''
+
+[[approaches]]
+name = "DFS post-order, reversed"
+label = "DFS"
+idea = "Run the three-state DFS; append a course to the list when it is finished. Reversing that list is a valid order. A visiting node reached again means a cycle."
+time = "O(V + E)"
+space = "O(V + E)"
+note = "The recursion can be 2000 deep, so raise the limit."
+code = '''import sys
+
+
+class Solution:
+    def findOrder(self, numCourses: int, prerequisites: list[list[int]]) -> list[int]:
+        sys.setrecursionlimit(10_000)
+        graph = [[] for _ in range(numCourses)]
+        for course, pre in prerequisites:
+            graph[pre].append(course)
+
+        UNSEEN, VISITING, DONE = 0, 1, 2
+        state = [UNSEEN] * numCourses
+        finished = []
+
+        def visit(node: int) -> bool:
+            """Returns False if a cycle is found."""
+            if state[node] == VISITING:
+                return False
+            if state[node] == DONE:
+                return True
+            state[node] = VISITING
+            for nxt in graph[node]:
+                if not visit(nxt):
+                    return False
+            state[node] = DONE
+            finished.append(node)
+            return True
+
+        for course in range(numCourses):
+            if not visit(course):
+                return []
+        return finished[::-1]
+'''

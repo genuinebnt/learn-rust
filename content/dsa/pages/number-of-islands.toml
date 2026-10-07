@@ -1,0 +1,76 @@
+intuition = """
+An island is a **connected component** of land cells, where cells are connected up, down, left and right. Scan the grid; each time you meet land you haven't visited, that's a new island, so add one and **flood it** (DFS or BFS) to mark every cell of it as visited. Then keep scanning.
+
+Marking visited cells by changing them to `"0"` saves a separate `visited` set, at the price of changing the input.
+"""
+tips = [
+    "Grid cells are the strings `\"1\"` and `\"0\"`, not integers. A very common bug is comparing with `1`.",
+    "Check the bounds **before** reading the cell, in the same condition: `0 <= r < rows and 0 <= c < cols and grid[r][c] == \"1\"`.",
+    "Recursive DFS can go as deep as the island is big (up to 90,000 cells), which exceeds Python's recursion limit. The BFS/iterative version avoids that; say so.",
+    "If you can't modify the input, keep a `visited` set of `(row, col)` pairs instead.",
+    "This flood-fill idea is reused by Max Area of Island, Surrounded Regions, Pacific Atlantic and many more.",
+]
+
+[[approaches]]
+name = "BFS flood fill"
+label = "BFS"
+idea = "For each unvisited land cell, start a BFS that sinks every connected land cell (sets it to `\"0\"`). Count how many BFS runs you start."
+time = "O(rows · cols)"
+space = "O(min(rows, cols))"
+note = "Every cell is sunk once; the queue holds at most about one diagonal's worth of cells."
+code = '''from collections import deque
+
+
+class Solution:
+    def numIslands(self, grid: List[List[str]]) -> int:
+        rows, cols = len(grid), len(grid[0])
+        islands = 0
+        for r in range(rows):
+            for c in range(cols):
+                if grid[r][c] != "1":
+                    continue
+                islands += 1
+                grid[r][c] = "0"
+                queue = deque([(r, c)])
+                while queue:
+                    row, col = queue.popleft()
+                    for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nr, nc = row + dr, col + dc
+                        if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == "1":
+                            grid[nr][nc] = "0"
+                            queue.append((nr, nc))
+        return islands
+'''
+
+[[approaches]]
+name = "Recursive DFS"
+label = "DFS"
+idea = "The same flood fill as a recursive function. Shorter, but it needs a raised recursion limit on big islands."
+time = "O(rows · cols)"
+space = "O(rows · cols)"
+note = "The recursion can be as deep as the island is large."
+code = '''import sys
+
+
+class Solution:
+    def numIslands(self, grid: List[List[str]]) -> int:
+        sys.setrecursionlimit(100_000)
+        rows, cols = len(grid), len(grid[0])
+
+        def sink(r: int, c: int) -> None:
+            if not (0 <= r < rows and 0 <= c < cols) or grid[r][c] != "1":
+                return
+            grid[r][c] = "0"
+            sink(r + 1, c)
+            sink(r - 1, c)
+            sink(r, c + 1)
+            sink(r, c - 1)
+
+        islands = 0
+        for r in range(rows):
+            for c in range(cols):
+                if grid[r][c] == "1":
+                    islands += 1
+                    sink(r, c)
+        return islands
+'''

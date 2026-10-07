@@ -1,0 +1,67 @@
+intuition = """
+To copy a graph you need to copy each node **once**, and make the copies point at each other the way the originals do. The catch is cycles: a node can be reached by several paths, and you must not create a second copy.
+
+Keep a dictionary **old node → its copy**. When you visit a node, if it's already in the map, reuse its copy; otherwise create the copy, store it **before** exploring its neighbours (so cycles end), then clone each neighbour and attach them.
+"""
+tips = [
+    "Put the copy in the map **before** recursing into the neighbours. Otherwise a cycle recurses forever.",
+    "An empty graph (`node is None`) returns `None`.",
+    "The nodes are identified by object, not value, in your map, though values are unique (1 to n) here, so either key works.",
+    "BFS and DFS are both fine. DFS is shorter; BFS has no recursion-depth concern on a long chain of 100 nodes (the limit isn't an issue here).",
+    "`Node` is provided by LeetCode: don't redefine it in your solution.",
+]
+
+[[approaches]]
+name = "DFS with a map of copies"
+label = "DFS"
+idea = "`clone(node)` returns the copy, creating it and its neighbours' copies on first sight."
+time = "O(V + E)"
+space = "O(V)"
+note = "One copy per node; the recursion depth is at most V."
+code = '''from typing import Optional
+
+
+class Solution:
+    def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+        if node is None:
+            return None
+        copies = {}
+
+        def clone(original: 'Node') -> 'Node':
+            if original in copies:
+                return copies[original]
+            copy = Node(original.val)
+            copies[original] = copy
+            for neighbour in original.neighbors:
+                copy.neighbors.append(clone(neighbour))
+            return copy
+
+        return clone(node)
+'''
+
+[[approaches]]
+name = "BFS with a map of copies"
+label = "BFS"
+idea = "Create the first copy, then process a queue of originals: for each neighbour, create its copy if needed and link it to the current copy."
+time = "O(V + E)"
+space = "O(V)"
+note = "Same work, iterative."
+code = '''from collections import deque
+from typing import Optional
+
+
+class Solution:
+    def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+        if node is None:
+            return None
+        copies = {node: Node(node.val)}
+        queue = deque([node])
+        while queue:
+            current = queue.popleft()
+            for neighbour in current.neighbors:
+                if neighbour not in copies:
+                    copies[neighbour] = Node(neighbour.val)
+                    queue.append(neighbour)
+                copies[current].neighbors.append(copies[neighbour])
+        return copies[node]
+'''

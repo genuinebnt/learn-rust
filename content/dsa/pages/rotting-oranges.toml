@@ -1,0 +1,44 @@
+intuition = """
+Each minute, every fresh orange next to a rotten one rots. That's a BFS that spreads **in rings from all the rotten oranges at once**: the minute count is the number of rings. Count the fresh oranges at the start; if the BFS finishes and some are still fresh, they were unreachable, so the answer is `-1`.
+"""
+tips = [
+    "Start the queue with **every** rotten orange (multi-source BFS), not just the first one.",
+    "Process the queue **one level at a time** (`for _ in range(len(queue))`), so you can count minutes per ring.",
+    "Only increment the minute counter if the ring rotted something, or subtract one at the end; otherwise you'd count an extra minute.",
+    "If there are no fresh oranges at the start, the answer is `0`, even with no rotten ones at all.",
+    "Rot a neighbour by changing it to `2` when you enqueue it, so it's never queued twice.",
+]
+
+[[approaches]]
+name = "Level-by-level multi-source BFS"
+label = "multi-source BFS"
+idea = "Queue all rotten oranges. Each ring rots the fresh neighbours of the current ones; count rings and track how many oranges are still fresh."
+time = "O(rows · cols)"
+space = "O(rows · cols)"
+note = "Each orange is queued at most once."
+code = '''from collections import deque
+
+
+class Solution:
+    def orangesRotting(self, grid: list[list[int]]) -> int:
+        rows, cols = len(grid), len(grid[0])
+        queue = deque()
+        fresh = 0
+        for r in range(rows):
+            for c in range(cols):
+                if grid[r][c] == 2:
+                    queue.append((r, c))
+                elif grid[r][c] == 1:
+                    fresh += 1
+        minutes = 0
+        while queue and fresh:
+            minutes += 1
+            for _ in range(len(queue)):
+                r, c = queue.popleft()
+                for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                    if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 1:
+                        grid[nr][nc] = 2
+                        fresh -= 1
+                        queue.append((nr, nc))
+        return -1 if fresh else minutes
+'''

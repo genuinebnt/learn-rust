@@ -1,0 +1,40 @@
+intuition = """
+Water flows from a cell down to equal-or-lower neighbours. Asking "can this cell reach both oceans?" for every cell repeats a lot of work. **Reverse it**: start from each ocean's border cells and move **uphill** (to neighbours that are equal or higher). Every cell you reach can flow down to that ocean.
+
+Run it twice, once from the Pacific border (top and left) and once from the Atlantic border (bottom and right). The answer is the cells reached by **both**.
+"""
+tips = [
+    "Search **uphill**, not downhill: neighbour height must be `>=` the current cell's.",
+    "Use two `visited` sets (one per ocean) and return their intersection.",
+    "The Pacific touches the top row and left column; the Atlantic touches the bottom row and right column. Corner cells touch both.",
+    "The answer's order doesn't matter, but each cell is `[row, col]` as a list.",
+    "This \"search inward from the boundary\" trick also solves Surrounded Regions.",
+]
+
+[[approaches]]
+name = "Search uphill from each ocean"
+label = "reverse DFS"
+idea = "From every border cell of an ocean, DFS to neighbours that are at least as high. The cells reached from both oceans are the answer."
+time = "O(rows · cols)"
+space = "O(rows · cols)"
+note = "Each cell is visited at most once per ocean."
+code = '''class Solution:
+    def pacificAtlantic(self, heights: list[list[int]]) -> list[list[int]]:
+        rows, cols = len(heights), len(heights[0])
+
+        def reach(starts: list[tuple[int, int]]) -> set[tuple[int, int]]:
+            seen = set(starts)
+            stack = list(starts)
+            while stack:
+                r, c = stack.pop()
+                for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                    if (0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in seen
+                            and heights[nr][nc] >= heights[r][c]):
+                        seen.add((nr, nc))
+                        stack.append((nr, nc))
+            return seen
+
+        pacific = reach([(0, c) for c in range(cols)] + [(r, 0) for r in range(1, rows)])
+        atlantic = reach([(rows - 1, c) for c in range(cols)] + [(r, cols - 1) for r in range(rows - 1)])
+        return [[r, c] for r, c in pacific & atlantic]
+'''

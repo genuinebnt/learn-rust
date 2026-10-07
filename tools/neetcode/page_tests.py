@@ -7,6 +7,17 @@ import random
 from collections import Counter, defaultdict
 
 
+class Node:
+    """LeetCode's Node for Clone Graph."""
+
+    def __init__(self, val=0, neighbors=None):
+        self.val = val
+        self.neighbors = neighbors if neighbors is not None else []
+
+
+PROVIDED_CLASSES = {"Node": Node}
+
+
 def rng(seed=1):
     return random.Random(seed)
 
@@ -370,6 +381,448 @@ def largest_rectangle(ns):
         assert f(list(a)) == want, a
 
 
+# ---------------------------------------------------------------- graphs
+
+import copy
+import itertools
+from collections import deque
+
+
+def _grid(r, rows, cols, values, weights=None):
+    return [[r.choices(values, weights)[0] for _ in range(cols)] for _ in range(rows)]
+
+
+def _components(grid, land):
+    rows, cols = len(grid), len(grid[0])
+    seen, sizes = set(), []
+    for r0 in range(rows):
+        for c0 in range(cols):
+            if grid[r0][c0] != land or (r0, c0) in seen:
+                continue
+            seen.add((r0, c0))
+            q, n = deque([(r0, c0)]), 0
+            while q:
+                a, b = q.popleft()
+                n += 1
+                for x, y in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                    if 0 <= x < rows and 0 <= y < cols and grid[x][y] == land and (x, y) not in seen:
+                        seen.add((x, y))
+                        q.append((x, y))
+            sizes.append(n)
+    return sizes
+
+
+def number_of_islands(ns):
+    f = ns["Solution"]().numIslands
+    assert f([list("11110"), list("11010"), list("11000"), list("00000")]) == 1
+    assert f([list("11000"), list("11000"), list("00100"), list("00011")]) == 3
+    r = rng()
+    for _ in range(300):
+        g = _grid(r, r.randint(1, 6), r.randint(1, 6), ["0", "1"])
+        assert f(copy.deepcopy(g)) == len(_components(g, "1")), g
+
+
+def max_area_of_island(ns):
+    f = ns["Solution"]().maxAreaOfIsland
+    assert f([[0, 0, 0, 0, 0, 0, 0, 0]]) == 0 and f([[1, 1, 0], [0, 1, 0], [1, 0, 1]]) == 3
+    r = rng()
+    for _ in range(300):
+        g = _grid(r, r.randint(1, 6), r.randint(1, 6), [0, 1])
+        assert f(copy.deepcopy(g)) == max(_components(g, 1) + [0]), g
+
+
+def clone_graph(ns):
+    f = ns["Solution"]().cloneGraph
+    Node = ns["Node"]
+    assert f(None) is None
+    r = rng()
+    for _ in range(200):
+        n = r.randint(1, 7)
+        nodes = [Node(i + 1) for i in range(n)]
+        pairs = [r.sample(range(n), 2) for _ in range(r.randint(0, 8))] if n > 1 else []
+        edges = {(min(a, b), max(a, b)) for a, b in pairs}
+        for a, b in sorted(edges):
+            nodes[a].neighbors.append(nodes[b])
+            nodes[b].neighbors.append(nodes[a])
+
+        def shape(start):
+            seen, order, q = {start}, [], deque([start])
+            while q:
+                x = q.popleft()
+                order.append(x)
+                for y in x.neighbors:
+                    if y not in seen:
+                        seen.add(y)
+                        q.append(y)
+            return order
+
+        original = shape(nodes[0])
+        copy_root = f(nodes[0])
+        cloned = shape(copy_root)
+        assert len(cloned) == len(original)
+        assert not ({id(x) for x in cloned} & {id(x) for x in original}), "shares nodes with the original"
+        assert [(x.val, [y.val for y in x.neighbors]) for x in original] == [(x.val, [y.val for y in x.neighbors]) for x in cloned]
+
+
+def walls_and_gates(ns):
+    f = ns["Solution"]().wallsAndGates
+    INF = 2147483647
+    g = [[INF, -1, 0, INF], [INF, INF, INF, -1], [INF, -1, INF, -1], [0, -1, INF, INF]]
+    f(g)
+    assert g == [[3, -1, 0, 1], [2, 2, 1, -1], [1, -1, 2, -1], [0, -1, 3, 4]]
+    r = rng()
+    for _ in range(300):
+        g = _grid(r, r.randint(1, 5), r.randint(1, 5), [INF, -1, 0], [5, 2, 2])
+        want = copy.deepcopy(g)
+        gates = [(a, b) for a in range(len(g)) for b in range(len(g[0])) if g[a][b] == 0]
+        for a in range(len(g)):
+            for b in range(len(g[0])):
+                if g[a][b] != INF:
+                    continue
+                best = INF
+                q, seen = deque([(a, b, 0)]), {(a, b)}
+                while q:
+                    x, y, d = q.popleft()
+                    if g[x][y] == 0:
+                        best = d
+                        break
+                    for u, v in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                        if 0 <= u < len(g) and 0 <= v < len(g[0]) and g[u][v] != -1 and (u, v) not in seen:
+                            seen.add((u, v))
+                            q.append((u, v, d + 1))
+                want[a][b] = best
+        got = copy.deepcopy(g)
+        f(got)
+        assert got == want, (g, got, want)
+
+
+def rotting_oranges(ns):
+    f = ns["Solution"]().orangesRotting
+    assert f([[2, 1, 1], [1, 1, 0], [0, 1, 1]]) == 4 and f([[2, 1, 1], [0, 1, 1], [1, 0, 1]]) == -1 and f([[0, 2]]) == 0 and f([[0]]) == 0
+    r = rng()
+    for _ in range(300):
+        g = _grid(r, r.randint(1, 5), r.randint(1, 5), [0, 1, 2], [2, 4, 1])
+        cur, minutes = copy.deepcopy(g), 0
+        while True:
+            nxt = copy.deepcopy(cur)
+            changed = False
+            for a in range(len(cur)):
+                for b in range(len(cur[0])):
+                    if cur[a][b] == 1 and any(0 <= u < len(cur) and 0 <= v < len(cur[0]) and cur[u][v] == 2 for u, v in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1))):
+                        nxt[a][b] = 2
+                        changed = True
+            if not changed:
+                break
+            cur, minutes = nxt, minutes + 1
+        want = -1 if any(1 in row for row in cur) else minutes
+        assert f(copy.deepcopy(g)) == want, g
+
+
+def pacific_atlantic(ns):
+    f = ns["Solution"]().pacificAtlantic
+    h = [[1, 2, 2, 3, 5], [3, 2, 3, 4, 4], [2, 4, 5, 3, 1], [6, 7, 1, 4, 5], [5, 1, 1, 2, 4]]
+    assert sorted(f(h)) == sorted([[0, 4], [1, 3], [1, 4], [2, 2], [3, 0], [3, 1], [4, 0]]) and f([[1]]) == [[0, 0]]
+    r = rng()
+    for _ in range(200):
+        g = _grid(r, r.randint(1, 5), r.randint(1, 5), [1, 2, 3, 4])
+        R, C = len(g), len(g[0])
+
+        def reaches(a, b, ocean):
+            seen, st = {(a, b)}, [(a, b)]
+            while st:
+                x, y = st.pop()
+                if (ocean == "p" and (x == 0 or y == 0)) or (ocean == "a" and (x == R - 1 or y == C - 1)):
+                    return True
+                for u, v in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= u < R and 0 <= v < C and (u, v) not in seen and g[u][v] <= g[x][y]:
+                        seen.add((u, v))
+                        st.append((u, v))
+            return False
+
+        want = sorted([a, b] for a in range(R) for b in range(C) if reaches(a, b, "p") and reaches(a, b, "a"))
+        assert sorted(f(copy.deepcopy(g))) == want, g
+
+
+def surrounded_regions(ns):
+    f = ns["Solution"]().solve
+    b = [list("XXXX"), list("XOOX"), list("XXOX"), list("XOXX")]
+    f(b)
+    assert b == [list("XXXX"), list("XXXX"), list("XXXX"), list("XOXX")]
+    r = rng()
+    for _ in range(300):
+        g = _grid(r, r.randint(1, 6), r.randint(1, 6), ["X", "O"])
+        R, C = len(g), len(g[0])
+        safe, st = set(), [(a, c) for a in range(R) for c in range(C) if g[a][c] == "O" and (a in (0, R - 1) or c in (0, C - 1))]
+        safe.update(st)
+        while st:
+            x, y = st.pop()
+            for u, v in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if 0 <= u < R and 0 <= v < C and g[u][v] == "O" and (u, v) not in safe:
+                    safe.add((u, v))
+                    st.append((u, v))
+        want = [["O" if (a, c) in safe else "X" for c in range(C)] for a in range(R)]
+        got = copy.deepcopy(g)
+        f(got)
+        assert got == want, g
+
+
+def _has_cycle(n, prereqs):
+    reach = [[False] * n for _ in range(n)]
+    for a, b in prereqs:
+        reach[b][a] = True
+    for k in range(n):
+        for i in range(n):
+            for j in range(n):
+                if reach[i][k] and reach[k][j]:
+                    reach[i][j] = True
+    return any(reach[i][i] for i in range(n))
+
+
+def course_schedule(ns):
+    f = ns["Solution"]().canFinish
+    assert f(2, [[1, 0]]) is True and f(2, [[1, 0], [0, 1]]) is False and f(1, []) is True
+    r = rng()
+    for _ in range(400):
+        n = r.randint(1, 6)
+        pre = [[r.randrange(n), r.randrange(n)] for _ in range(r.randint(0, 8))]
+        pre = [p for p in pre if p[0] != p[1] or r.random() < 0.2]
+        assert f(n, copy.deepcopy(pre)) == (not _has_cycle(n, pre)), (n, pre)
+
+
+def course_schedule_ii(ns):
+    f = ns["Solution"]().findOrder
+    assert f(2, [[1, 0]]) == [0, 1] and f(1, []) == [0] and f(2, [[1, 0], [0, 1]]) == []
+    r = rng()
+    for _ in range(400):
+        n = r.randint(1, 6)
+        pre = [[r.randrange(n), r.randrange(n)] for _ in range(r.randint(0, 8))]
+        got = f(n, copy.deepcopy(pre))
+        if _has_cycle(n, pre):
+            assert got == [], (n, pre)
+        else:
+            assert sorted(got) == list(range(n)), (n, pre, got)
+            pos = {c: i for i, c in enumerate(got)}
+            assert all(pos[b] < pos[a] for a, b in pre), (n, pre, got)
+
+
+def _is_tree(n, edges):
+    if len(edges) != n - 1:
+        return False
+    comp = list(range(n))
+    for a, b in edges:
+        ca, cb = comp[a], comp[b]
+        comp = [ca if c == cb else c for c in comp]
+    return len(set(comp)) == 1
+
+
+def graph_valid_tree(ns):
+    f = ns["Solution"]().validTree
+    assert f(5, [[0, 1], [0, 2], [0, 3], [1, 4]]) is True and f(5, [[0, 1], [1, 2], [2, 3], [1, 3], [1, 4]]) is False and f(1, []) is True and f(2, []) is False
+    r = rng()
+    for _ in range(500):
+        n = r.randint(1, 7)
+        edges = [r.sample(range(n), 2) for _ in range(r.randint(max(0, n - 2), n)) if n > 1]
+        assert f(n, copy.deepcopy(edges)) == _is_tree(n, edges), (n, edges)
+
+
+def count_components(ns):
+    f = ns["Solution"]().countComponents
+    assert f(5, [[0, 1], [1, 2], [3, 4]]) == 2 and f(5, [[0, 1], [1, 2], [2, 3], [3, 4]]) == 1 and f(3, []) == 3
+    r = rng()
+    for _ in range(400):
+        n = r.randint(1, 8)
+        edges = [r.sample(range(n), 2) for _ in range(r.randint(0, 8)) if n > 1]
+        comp = list(range(n))
+        for a, b in edges:
+            ca, cb = comp[a], comp[b]
+            comp = [ca if c == cb else c for c in comp]
+        assert f(n, copy.deepcopy(edges)) == len(set(comp)), (n, edges)
+
+
+def redundant_connection(ns):
+    f = ns["Solution"]().findRedundantConnection
+    assert f([[1, 2], [1, 3], [2, 3]]) == [2, 3] and f([[1, 2], [2, 3], [3, 4], [1, 4], [1, 5]]) == [1, 4]
+    r = rng()
+    for _ in range(300):
+        n = r.randint(3, 8)
+        edges = [[r.randint(1, i), i + 1] for i in range(1, n)]  # a random tree on 1..n
+        a, b = r.sample(range(1, n + 1), 2)
+        if [a, b] in edges or [b, a] in edges:
+            continue
+        edges.insert(r.randint(0, len(edges)), [a, b])
+        r.shuffle(edges)
+        want = next(e for e in reversed(edges) if _is_tree(n, [x for x in edges if x is not e] and [[u - 1, v - 1] for u, v in edges if u != e[0] or v != e[1]]))
+        assert f(copy.deepcopy(edges)) == want, (n, edges)
+
+
+def word_ladder(ns):
+    f = ns["Solution"]().ladderLength
+    assert f("hit", "cog", ["hot", "dot", "dog", "lot", "log", "cog"]) == 5 and f("hit", "cog", ["hot", "dot", "dog", "lot", "log"]) == 0
+    r = rng()
+    for _ in range(300):
+        words = list({"".join(r.choice("abc") for _ in range(3)) for _ in range(r.randint(1, 10))})
+        begin = "".join(r.choice("abc") for _ in range(3))
+        end = r.choice(words)
+        if begin == end:
+            continue
+        nodes = [begin] + [w for w in words if w != begin]
+        one = lambda a, b: sum(x != y for x, y in zip(a, b)) == 1
+        dist, q = {begin: 1}, deque([begin])
+        while q:
+            u = q.popleft()
+            for w in nodes:
+                if w not in dist and one(u, w):
+                    dist[w] = dist[u] + 1
+                    q.append(w)
+        assert f(begin, end, list(words)) == dist.get(end, 0), (begin, end, words)
+
+
+def network_delay(ns):
+    f = ns["Solution"]().networkDelayTime
+    assert f([[2, 1, 1], [2, 3, 1], [3, 4, 1]], 4, 2) == 2 and f([[1, 2, 1]], 2, 1) == 1 and f([[1, 2, 1]], 2, 2) == -1
+    r = rng()
+    for _ in range(300):
+        n = r.randint(1, 6)
+        times = [[r.randint(1, n), r.randint(1, n), r.randint(0, 9)] for _ in range(r.randint(0, 10))]
+        times = [t for t in times if t[0] != t[1]]
+        k = r.randint(1, n)
+        INF = float("inf")
+        d = [[INF] * (n + 1) for _ in range(n + 1)]
+        for i in range(n + 1):
+            d[i][i] = 0
+        for u, v, w in times:
+            d[u][v] = min(d[u][v], w)
+        for m in range(1, n + 1):
+            for i in range(1, n + 1):
+                for j in range(1, n + 1):
+                    d[i][j] = min(d[i][j], d[i][m] + d[m][j])
+        far = max(d[k][1:])
+        assert f(copy.deepcopy(times), n, k) == (-1 if far == INF else far), (times, n, k)
+
+
+def reconstruct_itinerary(ns):
+    f = ns["Solution"]().findItinerary
+    assert f([["MUC", "LHR"], ["JFK", "MUC"], ["SFO", "SJC"], ["LHR", "SFO"]]) == ["JFK", "MUC", "LHR", "SFO", "SJC"]
+    assert f([["JFK", "SFO"], ["JFK", "ATL"], ["SFO", "ATL"], ["ATL", "JFK"], ["ATL", "SFO"]]) == ["JFK", "ATL", "JFK", "SFO", "ATL", "SFO"]
+    r = rng()
+    cities = ["JFK", "A", "B", "C"]
+    done = 0
+    while done < 200:
+        # a random valid trip, so an itinerary always exists
+        route = ["JFK"]
+        for _ in range(r.randint(1, 7)):
+            route.append(r.choice(cities))
+        tickets = [[a, b] for a, b in zip(route, route[1:])]
+        best = None
+        for perm in set(itertools.permutations(range(len(tickets)))):
+            path = ["JFK"]
+            ok = True
+            for i in perm:
+                if tickets[i][0] != path[-1]:
+                    ok = False
+                    break
+                path.append(tickets[i][1])
+            if ok and (best is None or path < best):
+                best = path
+        assert f(copy.deepcopy(tickets)) == best, tickets
+        done += 1
+
+
+def min_cost_connect(ns):
+    f = ns["Solution"]().minCostConnectPoints
+    assert f([[0, 0], [2, 2], [3, 10], [5, 2], [7, 0]]) == 20 and f([[3, 12], [-2, 5], [-4, 1]]) == 18 and f([[0, 0]]) == 0
+    r = rng()
+    for _ in range(200):
+        pts = [[r.randint(-6, 6), r.randint(-6, 6)] for _ in range(r.randint(1, 6))]
+        pts = [list(p) for p in {tuple(p) for p in pts}]
+        n = len(pts)
+        dist = lambda a, b: abs(a[0] - b[0]) + abs(a[1] - b[1])
+        # brute force over every spanning tree is too big; use Kruskal on a sorted edge list as the reference
+        edges = sorted((dist(pts[i], pts[j]), i, j) for i in range(n) for j in range(i + 1, n))
+        comp, total = list(range(n)), 0
+        for w, i, j in edges:
+            if comp[i] != comp[j]:
+                ci, cj = comp[i], comp[j]
+                comp = [ci if c == cj else c for c in comp]
+                total += w
+        assert f(copy.deepcopy(pts)) == total, pts
+
+
+def swim_in_water(ns):
+    f = ns["Solution"]().swimInWater
+    assert f([[0, 2], [1, 3]]) == 3 and f([[0]]) == 0
+    assert f([[0, 1, 2, 3, 4], [24, 23, 22, 21, 5], [12, 13, 14, 15, 16], [11, 17, 18, 19, 20], [10, 9, 8, 7, 6]]) == 16
+    r = rng()
+    for _ in range(300):
+        n = r.randint(1, 4)
+        vals = list(range(n * n))
+        r.shuffle(vals)
+        g = [vals[i * n : (i + 1) * n] for i in range(n)]
+        best = [[float("inf")] * n for _ in range(n)]
+        best[0][0] = g[0][0]
+        changed = True
+        while changed:
+            changed = False
+            for a in range(n):
+                for b in range(n):
+                    for u, v in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                        if 0 <= u < n and 0 <= v < n and max(best[u][v], 0) < float("inf"):
+                            cand = max(best[u][v], g[a][b])
+                            if cand < best[a][b]:
+                                best[a][b] = cand
+                                changed = True
+        assert f(copy.deepcopy(g)) == best[n - 1][n - 1], g
+
+
+def alien_dictionary(ns):
+    f = ns["Solution"]().alienOrder
+    assert f(["z", "x", "z"]) == "" and f(["abc", "ab"]) == "" and f(["z", "z"]) == "z"
+    got = f(["wrt", "wrf", "er", "ett", "rftt"])
+    assert sorted(got) == sorted("wertf") and got.index("e") < got.index("r") < got.index("t") < got.index("f") and got.index("w") < got.index("e")
+    r = rng()
+    for _ in range(300):
+        alphabet = list("abcdef")
+        r.shuffle(alphabet)
+        key = {c: i for i, c in enumerate(alphabet)}
+        words = ["".join(r.choice("abcdef") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 6))]
+        words.sort(key=lambda w: [key[c] for c in w])
+        order = f(list(words))
+        letters = set("".join(words))
+        assert sorted(order) == sorted(letters), (words, order)
+        pos = {c: i for i, c in enumerate(order)}
+        assert words == sorted(words, key=lambda w: [pos[c] for c in w]) or all(
+            [pos[c] for c in a] <= [pos[c] for c in b] for a, b in zip(words, words[1:])
+        ), (words, order)
+
+
+def cheapest_flights(ns):
+    f = ns["Solution"]().findCheapestPrice
+    assert f(4, [[0, 1, 100], [1, 2, 100], [2, 0, 100], [1, 3, 600], [2, 3, 200]], 0, 3, 1) == 700
+    assert f(3, [[0, 1, 100], [1, 2, 100], [0, 2, 500]], 0, 2, 1) == 200 and f(3, [[0, 1, 100], [1, 2, 100], [0, 2, 500]], 0, 2, 0) == 500
+    r = rng()
+    for _ in range(300):
+        n = r.randint(2, 5)
+        flights = [[r.randrange(n), r.randrange(n), r.randint(1, 9)] for _ in range(r.randint(0, 9))]
+        flights = [x for x in flights if x[0] != x[1]]
+        src, dst = r.sample(range(n), 2)
+        k = r.randint(0, 3)
+        best = float("inf")
+
+        def go(city, cost, used):
+            nonlocal best
+            if city == dst:
+                best = min(best, cost)
+                return
+            if used > k:
+                return
+            for u, v, w in flights:
+                if u == city:
+                    go(v, cost + w, used + 1)
+
+        go(src, 0, 0)
+        assert f(n, copy.deepcopy(flights), src, dst, k) == (-1 if best == float("inf") else best), (n, flights, src, dst, k)
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -397,6 +850,25 @@ CHECKS = {
     "daily-temperatures": daily_temperatures,
     "car-fleet": car_fleet,
     "largest-rectangle-in-histogram": largest_rectangle,
+    "number-of-islands": number_of_islands,
+    "max-area-of-island": max_area_of_island,
+    "clone-graph": clone_graph,
+    "walls-and-gates": walls_and_gates,
+    "rotting-oranges": rotting_oranges,
+    "pacific-atlantic-water-flow": pacific_atlantic,
+    "surrounded-regions": surrounded_regions,
+    "course-schedule": course_schedule,
+    "course-schedule-ii": course_schedule_ii,
+    "graph-valid-tree": graph_valid_tree,
+    "number-of-connected-components-in-an-undirected-graph": count_components,
+    "redundant-connection": redundant_connection,
+    "word-ladder": word_ladder,
+    "network-delay-time": network_delay,
+    "reconstruct-itinerary": reconstruct_itinerary,
+    "min-cost-to-connect-all-points": min_cost_connect,
+    "swim-in-rising-water": swim_in_water,
+    "alien-dictionary": alien_dictionary,
+    "cheapest-flights-within-k-stops": cheapest_flights,
 }
 
 

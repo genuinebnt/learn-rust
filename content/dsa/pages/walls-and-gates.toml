@@ -1,0 +1,38 @@
+intuition = """
+Every empty room wants the distance to its **nearest gate**. Searching from each room is wasteful; instead run one BFS that starts from **all gates at the same time**. BFS expands in rings of increasing distance, so the first time it reaches a room is by the shortest path.
+
+This is **multi-source BFS**: put every gate in the queue at distance 0 and expand outward. Rooms never reached (walled off) keep their "infinity" value.
+"""
+tips = [
+    "Rooms hold `2147483647` for empty, `0` for a gate and `-1` for a wall. Only update a neighbour that is still `2147483647`: that doubles as the visited check.",
+    "Start from the gates, not from the rooms. One search instead of one per room.",
+    "Update the room's value when you **add** it to the queue, so it isn't added twice.",
+    "The function modifies `rooms` in place and returns nothing.",
+    "This is a Premium problem on LeetCode.",
+]
+
+[[approaches]]
+name = "Multi-source BFS from the gates"
+label = "multi-source BFS"
+idea = "Queue all gates, then BFS: each unvisited empty neighbour gets the current distance plus one."
+time = "O(rows · cols)"
+space = "O(rows · cols)"
+note = "Each cell is added to the queue at most once."
+code = '''from collections import deque
+
+
+class Solution:
+    def wallsAndGates(self, rooms: list[list[int]]) -> None:
+        """
+        Do not return anything, modify rooms in-place instead.
+        """
+        EMPTY = 2147483647
+        rows, cols = len(rooms), len(rooms[0])
+        queue = deque((r, c) for r in range(rows) for c in range(cols) if rooms[r][c] == 0)
+        while queue:
+            r, c = queue.popleft()
+            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= nr < rows and 0 <= nc < cols and rooms[nr][nc] == EMPTY:
+                    rooms[nr][nc] = rooms[r][c] + 1
+                    queue.append((nr, nc))
+'''

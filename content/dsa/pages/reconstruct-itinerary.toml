@@ -1,0 +1,65 @@
+intuition = """
+You must use **every ticket exactly once**, starting from `"JFK"`: that's an **Eulerian path**. When several routes work, you want the **lexicographically smallest** one.
+
+**Hierholzer's algorithm** builds it: from the current airport, always take the smallest unused outgoing ticket and keep going. When you get stuck (no tickets left), that airport is the **end** of the remaining path, so add it to the route; then backtrack. Reverse the route at the end.
+
+Keep each airport's destinations in a **min-heap** (or a list sorted in reverse so `pop()` gives the smallest).
+"""
+tips = [
+    "The route is built **post-order** (airport added when stuck) and reversed at the end. That's what handles dead-end branches correctly: a greedy walk alone can strand tickets.",
+    "Sort each airport's destinations in **reverse** so `pop()` takes the smallest in O(1); or use `heapq`.",
+    "A plain backtracking search (try the smallest ticket, undo on failure) also works but can be exponential on adversarial input.",
+    "There are `len(tickets) + 1` airports in the answer.",
+    "Recursion can get as deep as the number of tickets (up to 300): fine, but raise the limit if you're nervous, or use the iterative version.",
+]
+
+[[approaches]]
+name = "Hierholzer's algorithm (iterative)"
+label = "Hierholzer"
+idea = "Walk with a stack, always following the smallest unused ticket. When an airport has no tickets left, pop it into the route. The route reversed is the itinerary."
+time = "O(E log E)"
+space = "O(E)"
+note = "Sorting the destinations dominates."
+code = '''from collections import defaultdict
+
+
+class Solution:
+    def findItinerary(self, tickets: list[list[str]]) -> list[str]:
+        graph = defaultdict(list)
+        for src, dst in sorted(tickets, reverse=True):
+            graph[src].append(dst)  # smallest destination ends up last, so pop() gives it
+        route = []
+        stack = ["JFK"]
+        while stack:
+            while graph[stack[-1]]:
+                stack.append(graph[stack[-1]].pop())
+            route.append(stack.pop())
+        return route[::-1]
+'''
+
+[[approaches]]
+name = "Recursive Hierholzer"
+label = "recursive"
+idea = "The same idea as a recursive DFS that appends an airport after it has used all its tickets."
+time = "O(E log E)"
+space = "O(E)"
+note = "Recursion depth up to the number of tickets."
+code = '''import heapq
+from collections import defaultdict
+
+
+class Solution:
+    def findItinerary(self, tickets: list[list[str]]) -> list[str]:
+        graph = defaultdict(list)
+        for src, dst in tickets:
+            heapq.heappush(graph[src], dst)
+        route = []
+
+        def visit(airport: str) -> None:
+            while graph[airport]:
+                visit(heapq.heappop(graph[airport]))
+            route.append(airport)
+
+        visit("JFK")
+        return route[::-1]
+'''

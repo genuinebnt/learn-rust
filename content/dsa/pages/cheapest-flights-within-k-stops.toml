@@ -1,0 +1,60 @@
+intuition = """
+The cheapest route that uses **at most `k` stops** (so at most `k + 1` flights). Plain Dijkstra isn't safe here, because the cheapest way to a city might use too many stops while a pricier way with fewer stops is what you need.
+
+**Bellman-Ford limited to `k + 1` rounds** fits exactly: round `i` computes the cheapest prices using at most `i` flights. Use a **copy** of the previous round's prices when relaxing, so one round can't chain two flights.
+"""
+tips = [
+    "`k` stops means `k + 1` edges. Do `k + 1` rounds.",
+    "Relax from a **copy** of the prices at the start of the round. Updating in place would let a single round use several flights and break the stop limit.",
+    "Prices start at infinity except the source at `0`. If the destination is still infinity at the end, return `-1`.",
+    "BFS by levels with a heap-free price array works too; plain Dijkstra needs the stops tracked in the state, which makes it clumsier.",
+]
+
+[[approaches]]
+name = "Bellman-Ford with k + 1 rounds"
+label = "Bellman-Ford"
+idea = "After round i, `prices[v]` is the cheapest cost to v with at most i flights. Each round relaxes every flight using the previous round's prices."
+time = "O(k · E)"
+space = "O(V)"
+note = "k + 1 passes over the flights."
+code = '''class Solution:
+    def findCheapestPrice(self, n: int, flights: list[list[int]], src: int, dst: int, k: int) -> int:
+        INF = float("inf")
+        prices = [INF] * n
+        prices[src] = 0
+        for _ in range(k + 1):
+            previous = prices[:]
+            for u, v, cost in flights:
+                if previous[u] + cost < prices[v]:
+                    prices[v] = previous[u] + cost
+        return -1 if prices[dst] == INF else prices[dst]
+'''
+
+[[approaches]]
+name = "Dijkstra with the stop count in the state"
+label = "Dijkstra"
+idea = "Heap of `(price, city, flights used)`. Keep, per city, the fewest flights seen at a cheaper-or-equal price, and skip states that can't improve."
+time = "O(E log E)"
+space = "O(V + E)"
+note = "Pruned by the best number of flights used so far at each city."
+code = '''import heapq
+
+
+class Solution:
+    def findCheapestPrice(self, n: int, flights: list[list[int]], src: int, dst: int, k: int) -> int:
+        graph = [[] for _ in range(n)]
+        for u, v, cost in flights:
+            graph[u].append((v, cost))
+        fewest = [float("inf")] * n  # fewest flights used so far to reach each city
+        heap = [(0, src, 0)]
+        while heap:
+            price, city, used = heapq.heappop(heap)
+            if city == dst:
+                return price
+            if used > k or used >= fewest[city]:
+                continue
+            fewest[city] = used
+            for nxt, cost in graph[city]:
+                heapq.heappush(heap, (price + cost, nxt, used + 1))
+        return -1
+'''

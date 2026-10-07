@@ -1,0 +1,73 @@
+intuition = """
+At time `t` you can step onto any cell with elevation `≤ t`. You want the earliest `t` at which a path from the top-left to the bottom-right exists. The time a path needs is the **highest elevation along it**, so you're looking for the path that **minimises its maximum cell**: a **bottleneck shortest path**.
+
+A Dijkstra-style search does it: always expand the cell with the **smallest "time so far"** (the max elevation on the path to it), using a heap. The first time you pop the goal, its value is the answer.
+"""
+tips = [
+    "The \"distance\" to a cell is `max(path's highest cell so far, this cell)`, not a sum. That is the one change from standard Dijkstra.",
+    "Binary search on `t` with a flood fill (\"can I reach the goal using only cells ≤ t?\") is a second solid approach, O(n² log n).",
+    "The start cell counts: if `grid[0][0]` is high, you wait for it.",
+    "Mark cells visited when you push them, or skip stale pops, to avoid reprocessing.",
+]
+
+[[approaches]]
+name = "Dijkstra on the maximum elevation"
+label = "Dijkstra"
+idea = "Heap of `(time needed, row, col)`. Pop the cell with the smallest time, and push each unvisited neighbour with `max(time, neighbour's elevation)`."
+time = "O(n² log n)"
+space = "O(n²)"
+note = "n × n grid; every cell enters the heap once."
+code = '''import heapq
+
+
+class Solution:
+    def swimInWater(self, grid: list[list[int]]) -> int:
+        n = len(grid)
+        heap = [(grid[0][0], 0, 0)]
+        seen = {(0, 0)}
+        while heap:
+            time, r, c = heapq.heappop(heap)
+            if (r, c) == (n - 1, n - 1):
+                return time
+            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= nr < n and 0 <= nc < n and (nr, nc) not in seen:
+                    seen.add((nr, nc))
+                    heapq.heappush(heap, (max(time, grid[nr][nc]), nr, nc))
+        return -1
+'''
+
+[[approaches]]
+name = "Binary search on the time"
+label = "binary search"
+idea = "Search the smallest `t` for which a flood fill from the start, only through cells ≤ t, reaches the goal."
+time = "O(n² log n)"
+space = "O(n²)"
+note = "log n² ≈ 2 log n flood fills, each O(n²)."
+code = '''class Solution:
+    def swimInWater(self, grid: list[list[int]]) -> int:
+        n = len(grid)
+
+        def reachable(t: int) -> bool:
+            if grid[0][0] > t:
+                return False
+            seen = {(0, 0)}
+            stack = [(0, 0)]
+            while stack:
+                r, c = stack.pop()
+                if (r, c) == (n - 1, n - 1):
+                    return True
+                for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                    if 0 <= nr < n and 0 <= nc < n and (nr, nc) not in seen and grid[nr][nc] <= t:
+                        seen.add((nr, nc))
+                        stack.append((nr, nc))
+            return False
+
+        low, high = grid[0][0], n * n - 1
+        while low < high:
+            mid = (low + high) // 2
+            if reachable(mid):
+                high = mid
+            else:
+                low = mid + 1
+        return low
+'''

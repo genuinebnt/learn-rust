@@ -1,0 +1,72 @@
+intuition = """
+Count the **connected components**. Union-find does it neatly: start with `n` separate components, and each edge that joins two **different** components merges them and reduces the count by one. What's left is the answer.
+
+DFS/BFS works too: scan the nodes, and every time you meet an unvisited node, that's a new component, so flood it and count one.
+"""
+tips = [
+    "Start `components = n`; subtract one only when an edge **actually merges** two roots. An edge inside a component changes nothing.",
+    "Use path compression (and union by size or rank) to keep `find` nearly constant time.",
+    "Isolated nodes (no edges) count as components of their own, which the `n` starting value handles.",
+    "This is a Premium problem on LeetCode.",
+]
+
+[[approaches]]
+name = "Union-find"
+label = "union-find"
+idea = "Start with `n` components and merge the endpoints of each edge, counting down on every successful merge."
+time = "O((n + e) · α(n))"
+space = "O(n)"
+note = "α is the inverse Ackermann function: effectively constant."
+code = '''class Solution:
+    def countComponents(self, n: int, edges: list[list[int]]) -> int:
+        parent = list(range(n))
+        size = [1] * n
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        components = n
+        for a, b in edges:
+            root_a, root_b = find(a), find(b)
+            if root_a == root_b:
+                continue
+            if size[root_a] < size[root_b]:
+                root_a, root_b = root_b, root_a
+            parent[root_b] = root_a
+            size[root_a] += size[root_b]
+            components -= 1
+        return components
+'''
+
+[[approaches]]
+name = "DFS flood fill"
+label = "DFS"
+idea = "Build adjacency lists. For each unvisited node, start a search that visits its whole component, and count the searches."
+time = "O(n + e)"
+space = "O(n + e)"
+note = "Iterative, so no recursion limit."
+code = '''class Solution:
+    def countComponents(self, n: int, edges: list[list[int]]) -> int:
+        graph = [[] for _ in range(n)]
+        for a, b in edges:
+            graph[a].append(b)
+            graph[b].append(a)
+        seen = [False] * n
+        components = 0
+        for start in range(n):
+            if seen[start]:
+                continue
+            components += 1
+            seen[start] = True
+            stack = [start]
+            while stack:
+                node = stack.pop()
+                for nxt in graph[node]:
+                    if not seen[nxt]:
+                        seen[nxt] = True
+                        stack.append(nxt)
+        return components
+'''

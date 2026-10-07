@@ -1,0 +1,58 @@
+intuition = """
+Same flood fill as Number of Islands, but instead of counting islands you **measure** each one. A DFS from a land cell returns `1 + the sizes of its unvisited land neighbours`; the answer is the largest such size over all islands.
+"""
+tips = [
+    "Mark a cell visited **when you enter it** (set it to `0`), so the recursion never counts it twice.",
+    "If there's no land at all, the answer is `0`; start `best` at `0`.",
+    "The recursion can be deep (up to 2,500 cells here). That is within Python's limit for this problem's constraints, but the iterative version is the safe habit.",
+    "Compare with Number of Islands out loud: same traversal, different thing returned.",
+]
+
+[[approaches]]
+name = "Recursive DFS returning the size"
+label = "DFS"
+idea = "`area(r, c)` sinks the cell and returns 1 plus the areas of its four neighbours. Take the maximum over all starting cells."
+time = "O(rows · cols)"
+space = "O(rows · cols)"
+note = "Each cell is entered at most once; the recursion depth is the island size."
+code = '''class Solution:
+    def maxAreaOfIsland(self, grid: list[list[int]]) -> int:
+        rows, cols = len(grid), len(grid[0])
+
+        def area(r: int, c: int) -> int:
+            if not (0 <= r < rows and 0 <= c < cols) or grid[r][c] == 0:
+                return 0
+            grid[r][c] = 0
+            return 1 + area(r + 1, c) + area(r - 1, c) + area(r, c + 1) + area(r, c - 1)
+
+        return max(area(r, c) for r in range(rows) for c in range(cols))
+'''
+
+[[approaches]]
+name = "Iterative with a stack"
+label = "stack"
+idea = "The same traversal with an explicit stack, so no recursion limit applies."
+time = "O(rows · cols)"
+space = "O(rows · cols)"
+note = "The stack can hold a whole island in the worst case."
+code = '''class Solution:
+    def maxAreaOfIsland(self, grid: list[list[int]]) -> int:
+        rows, cols = len(grid), len(grid[0])
+        best = 0
+        for r in range(rows):
+            for c in range(cols):
+                if grid[r][c] == 0:
+                    continue
+                grid[r][c] = 0
+                stack = [(r, c)]
+                size = 0
+                while stack:
+                    row, col = stack.pop()
+                    size += 1
+                    for nr, nc in ((row + 1, col), (row - 1, col), (row, col + 1), (row, col - 1)):
+                        if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 1:
+                            grid[nr][nc] = 0
+                            stack.append((nr, nc))
+                best = max(best, size)
+        return best
+'''

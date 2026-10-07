@@ -60,9 +60,14 @@ def check(slug):
                 if have.get(cls, {}).get(name) != sig:
                     problems.append(f"{where}: {cls}.{name} doesn't match LeetCode's signature")
         for node in ast.parse(code).body:
+            if not isinstance(node, (ast.Import, ast.ImportFrom, ast.ClassDef)):
+                problems.append(f"{where}: top-level code outside the class (nest helpers inside the class or the method)")
             if isinstance(node, ast.ClassDef) and node.name in PROVIDED:
                 problems.append(f"{where}: redefines {node.name}, which LeetCode provides")
+        # LeetCode runs solutions with typing's names and its own Node class available.
         ns = {}
+        exec("from typing import *", ns)
+        ns.update(page_tests.PROVIDED_CLASSES)
         try:
             exec(compile(code, where, "exec"), ns)
             page_tests.run(slug, ns)

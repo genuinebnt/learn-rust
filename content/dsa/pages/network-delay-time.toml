@@ -1,0 +1,64 @@
+intuition = """
+A signal spreads along weighted directed edges. Each node receives it at the **shortest-path distance** from `k`, and the whole network has received it when the **farthest** node has. So the answer is the **maximum shortest distance** from `k`, or `-1` if some node is unreachable.
+
+With non-negative weights, **Dijkstra's algorithm** computes all shortest distances: keep a min-heap of `(distance, node)`, always settle the closest unsettled node, and relax its outgoing edges.
+"""
+tips = [
+    "Say \"single-source shortest paths with non-negative weights, so Dijkstra\". That sentence is the key insight.",
+    "Skip stale heap entries: when you pop `(d, node)` and `d` is larger than the best known distance, ignore it.",
+    "Nodes are numbered from 1, so size the arrays `n + 1` or subtract one.",
+    "If fewer than `n` nodes get a distance, return `-1`.",
+    "Bellman-Ford also works (and handles negative edges) but is O(V·E): mention it only as the alternative.",
+]
+
+[[approaches]]
+name = "Dijkstra with a heap"
+label = "Dijkstra"
+idea = "Pop the closest unsettled node, record its distance, and push its neighbours with updated distances. The last settled distance is the answer."
+time = "O(E log V)"
+space = "O(V + E)"
+note = "Each edge can push one heap entry."
+code = '''import heapq
+
+
+class Solution:
+    def networkDelayTime(self, times: list[list[int]], n: int, k: int) -> int:
+        graph = [[] for _ in range(n + 1)]
+        for u, v, w in times:
+            graph[u].append((v, w))
+
+        dist = {}
+        heap = [(0, k)]
+        while heap:
+            d, node = heapq.heappop(heap)
+            if node in dist:
+                continue
+            dist[node] = d
+            for nxt, w in graph[node]:
+                if nxt not in dist:
+                    heapq.heappush(heap, (d + w, nxt))
+        return max(dist.values()) if len(dist) == n else -1
+'''
+
+[[approaches]]
+name = "Bellman-Ford"
+label = "Bellman-Ford"
+idea = "Relax every edge n − 1 times. Slower, but simple and works with negative weights."
+time = "O(V · E)"
+space = "O(V)"
+note = "Stop early if a full pass changes nothing."
+code = '''class Solution:
+    def networkDelayTime(self, times: list[list[int]], n: int, k: int) -> int:
+        dist = [float("inf")] * (n + 1)
+        dist[k] = 0
+        for _ in range(n - 1):
+            changed = False
+            for u, v, w in times:
+                if dist[u] + w < dist[v]:
+                    dist[v] = dist[u] + w
+                    changed = True
+            if not changed:
+                break
+        longest = max(dist[1:])
+        return -1 if longest == float("inf") else int(longest)
+'''

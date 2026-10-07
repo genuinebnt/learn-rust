@@ -1,4 +1,4 @@
-<title>anneal DSA</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"><style>/* anneal design system, copied from docs/design_handoff_anneal/designs/anneal-screens.html.
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>anneal DSA</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"><style>/* anneal design system, copied from docs/design_handoff_anneal/designs/anneal-screens.html.
    Change tokens and components there first, then copy them here. */
 /* ---------- tokens: dark first, light via data-theme or OS preference ---------- */
 :root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--grid:oklch(0.205 0.012 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--warn-bg:oklch(0.83 0.12 85 / 0.12);--on-acc:oklch(0.17 0.02 255);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--str:oklch(0.79 0.11 160);--num:oklch(0.79 0.11 45);--mac:oklch(0.79 0.09 200);--lt:oklch(0.77 0.12 340);--com:oklch(0.58 0.012 255);--inlay:oklch(0.64 0.012 255);--inlay-bg:oklch(0.235 0.013 255);--sel:oklch(0.76 0.11 55 / 0.07);--shadow:oklch(0 0 0 / 0.35);
@@ -954,7 +954,7 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .d-notes .lab{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--ca)}
 .d-notes p{margin:0;color:var(--mut);font-size:13.5px;line-height:1.6}
 @media (max-width:900px){.d-goals{grid-template-columns:1fr}.d-pcard{grid-template-columns:34px minmax(0,1fr)}.d-pside{grid-column:2;flex-direction:row;align-items:center;justify-content:space-between}}
-</style>
+</style></head><body>
 <div class="mk-bar"><b>MOCKUP</b><a class="on" href="dsa-tracker.html">1 · Home</a><a href="problem.html">2 · Problem page</a><a href="pattern.html">3 · Pattern lesson</a><span style="margin-left:auto">progress shown is example data</span></div>
 <header class="hdr">
   <a class="logo" href="#" aria-label="anneal home"><span class="mk"><span style="background:var(--acc)"></span><span style="background:var(--vio)"></span><span style="background:var(--grn)"></span><span style="box-shadow:inset 0 0 0 1px var(--line)"></span></span><b>anneal<i>.genuinebasil.dev</i></b></a>
@@ -1249,3 +1249,4 @@ document.addEventListener('mouseover', (e) => { const m = e.target.closest('[dat
 $('#thm').onclick = () => { const r = document.documentElement; r.dataset.theme = (r.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')) === 'dark' ? 'light' : 'dark'; };
 render();
 </script>
+</body></html>

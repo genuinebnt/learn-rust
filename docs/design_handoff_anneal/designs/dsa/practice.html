@@ -1,0 +1,113 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>anneal DSA practice</title><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--grid:oklch(0.205 0.012 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--warn-bg:oklch(0.83 0.12 85 / 0.12);--on-acc:oklch(0.17 0.02 255);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--str:oklch(0.79 0.11 160);--num:oklch(0.79 0.11 45);--mac:oklch(0.79 0.09 200);--lt:oklch(0.77 0.12 340);--com:oklch(0.58 0.012 255);--inlay:oklch(0.64 0.012 255);--inlay-bg:oklch(0.235 0.013 255);--sel:oklch(0.76 0.11 55 / 0.07);--shadow:oklch(0 0 0 / 0.35);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--sans:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;color-scheme:dark}
+:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--grid:oklch(0.94 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--warn-bg:oklch(0.58 0.12 75 / 0.10);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--lt:oklch(0.50 0.15 340);--com:oklch(0.56 0.012 255);--inlay:oklch(0.50 0.012 255);--inlay-bg:oklch(0.935 0.005 255);--sel:oklch(0.58 0.13 50 / 0.06);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--grid:oklch(0.94 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--warn-bg:oklch(0.58 0.12 75 / 0.10);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--lt:oklch(0.50 0.15 340);--com:oklch(0.56 0.012 255);--inlay:oklch(0.50 0.012 255);--inlay-bg:oklch(0.935 0.005 255);--sel:oklch(0.58 0.13 50 / 0.06);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;margin:0;padding-inline:16px;padding-block:24px 56px}
+button,input{font:inherit;color:inherit}button{background:none;border:0;cursor:pointer;padding:0}a{color:inherit;text-decoration:none}
+.page{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.intro h1{font-size:22px;font-weight:700;letter-spacing:-.015em;margin:0}.intro p{color:var(--mut);margin:6px 0 0;max-width:84ch;line-height:1.55}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tabs button{padding:7px 14px;border:1px solid var(--line);border-radius:7px;font:600 12.5px var(--sans);color:var(--mut);background:var(--panel)}
+.tabs button.on{border-color:var(--acc);color:var(--fg);background:var(--acc-bg)}
+.frame{border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 18px 50px var(--shadow);background:var(--bg)}
+.hdr{height:52px;display:flex;align-items:center;gap:26px;padding:0 24px;border-bottom:1px solid var(--line2);background:var(--panel)}
+.logo{font-weight:800;letter-spacing:-.02em}.logo i{font-style:normal;color:var(--dim);font-weight:500}
+.nav{display:flex;gap:20px;font-size:13.5px;font-weight:600}.nav span{color:var(--dim)}.nav .on{color:var(--acc)}
+.body{padding:22px 24px 32px;display:flex;flex-direction:column;gap:18px}
+.crumbs{font:500 11px var(--mono);letter-spacing:.14em;color:var(--dim)}.crumbs b{color:var(--acc);font-weight:500}
+h2.t{margin:0;font-size:24px;letter-spacing:-.02em}
+.ptabs{display:flex;gap:4px;border-bottom:1px solid var(--line2)}
+.ptabs button{padding:10px 16px;font:600 13px var(--sans);color:var(--dim);border-bottom:2px solid transparent;margin-bottom:-1px}
+.ptabs button.on{color:var(--fg);border-color:var(--acc)}
+.ptabs small{font:500 11px var(--mono);margin-left:6px;color:var(--dim)}
+.note{border:1px dashed var(--line);border-radius:8px;padding:12px 14px;color:var(--mut);font-size:13px;line-height:1.55;display:flex;gap:12px;align-items:flex-start}
+.note b{color:var(--fg)}
+.sum{display:flex;gap:16px;align-items:center;flex-wrap:wrap;font:500 12px var(--mono);color:var(--dim)}
+.sum .bar{flex:1;min-width:140px;max-width:320px;height:5px;border-radius:3px;background:var(--line2);overflow:hidden}.sum .bar i{display:block;height:100%;background:var(--grn)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.pc{position:relative;text-align:left;border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-height:178px}
+.pc.open{cursor:pointer}.pc.open:hover{border-color:var(--acc)}
+.pc.done{border-color:color-mix(in oklab,var(--grn) 45%,var(--line2))}
+.pc .top{display:flex;gap:8px;align-items:center;font:600 10px var(--mono);letter-spacing:.14em;color:var(--dim)}
+.pc .top .n{color:var(--dim)}
+.pc h3{margin:0;font-size:16px;letter-spacing:-.005em}
+.pc p{margin:0;color:var(--mut);font-size:13px;line-height:1.5;flex:1}
+.pc .foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:500 11px var(--mono);color:var(--dim)}
+.pill{height:20px;padding:0 8px;display:inline-flex;align-items:center;border-radius:4px;border:1px solid var(--line);font:600 9.5px var(--mono);letter-spacing:.1em;color:var(--dim)}
+.pill.ok{border-color:transparent;background:var(--grn-bg);color:var(--grn)}.pill.py{border-color:transparent;background:var(--vio-bg);color:var(--vio)}
+.lv{font:600 11px var(--mono)}
+.pc.locked{background:var(--bg);border-style:dashed}
+.pc.locked h3,.pc.locked p{opacity:.55}
+.lock{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:7px;background:var(--raise);font-size:12px;color:var(--mut)}
+.lock b{color:var(--fg);font-weight:600}.lock i{font-style:normal;color:var(--warn)}
+.pc .unl{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--mut)}.pc .unl i{font-style:normal;color:var(--grn)}
+/* workspace */
+.ws{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);min-height:560px;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+@media (max-width:900px){.ws{grid-template-columns:1fr}}
+.stm{padding:20px 22px;border-right:1px solid var(--line2);background:var(--panel);display:flex;flex-direction:column;gap:12px;min-width:0}
+.stm h3{margin:0;font-size:19px}.stm p,.stm li{color:var(--mut);font-size:13.5px;line-height:1.65;margin:0}.stm ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.stm code{font:500 12.5px var(--mono);background:var(--raise);border-radius:4px;padding:1px 5px;color:var(--fg)}
+.stm pre{margin:0;padding:10px 12px;background:var(--bg);border:1px solid var(--line2);border-radius:7px;font:400 12px/1.6 var(--mono);overflow-x:auto;color:var(--fg)}
+.hintb{border:1px solid var(--line2);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--dim);text-align:left;width:100%}.hintb:hover{border-color:var(--line);color:var(--mut)}
+.ed{display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+.edbar{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line2);background:var(--panel);flex-wrap:wrap}
+.edbar .f{font:500 12px var(--mono);color:var(--mut);margin-right:auto}
+.btn{height:30px;padding:0 14px;border-radius:6px;border:1px solid var(--line);font:600 12px var(--mono);color:var(--mut);display:inline-flex;align-items:center;gap:7px}
+.btn.go{border-color:var(--acc);background:var(--acc-bg);color:var(--acc)}.btn.sub{border-color:var(--grn);background:var(--grn-bg);color:var(--grn)}
+.code{margin:0;padding:14px 16px;flex:1;font:400 12.5px/1.7 var(--mono);color:var(--fg);overflow-x:auto;white-space:pre}
+.code .k{color:var(--kw)}.code .s{color:var(--str)}.code .c{color:var(--com);font-style:italic}.code .f{color:var(--fn)}.code .n{color:var(--num)}
+.res{border-top:1px solid var(--line2);background:var(--panel);padding:12px 14px;display:flex;flex-direction:column;gap:6px;font:500 12px var(--mono)}
+.res .h{display:flex;gap:10px;color:var(--dim);letter-spacing:.1em;font-size:10.5px}.res .h b{color:var(--grn)}
+.t{display:flex;gap:10px;align-items:baseline;color:var(--mut)}.t i{font-style:normal;width:14px;color:var(--grn)}.t.f i{color:var(--bad)}.t em{font-style:normal;color:var(--dim)}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.cmp>div{border-top:2px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:5px}.cmp .lab{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--acc)}.cmp p{margin:0;color:var(--mut);font-size:13px;line-height:1.55}
+</style></head><body><div class="page">
+<div class="intro"><h1>DSA · Practice track (Python)</h1><p>A handwritten track for each pattern, solved in anneal itself. A practice problem <b>unlocks once you've logged its LeetCode problem</b> (any grade, including "not yet"), and practice <b>never touches spaced repetition</b>: no reviews, no readiness. Graphs is the example. Try the tabs, open an unlocked card and the buttons. All progress is example data.</p></div>
+<div class="tabs" id="tabs"><button class="on" data-v="list">1 · Practice tab</button><button data-v="ws">2 · A practice problem</button><button data-v="how">3 · How it fits</button></div>
+<div class="frame"><div class="hdr"><div class="logo">anneal<i>.genuinebasil.dev</i></div><div class="nav"><span>Rust</span><span class="on">DSA</span><span>Progress</span><span>Settings</span></div></div>
+<div class="body" id="view"></div></div></div>
+<script>
+const P=[{"id": "count-the-rooms", "t": "Count the Rooms", "b": "A floor plan of walls and floor tiles: how many separate rooms are there?", "u": ["Number of Islands"], "s": "done", "l": "easy", "m": 10}, {"id": "painted-regions", "t": "Painted Regions", "b": "Paint the region under the cursor a new colour, like a paint bucket.", "u": ["Max Area of Island"], "s": "done", "l": "easy", "m": 10}, {"id": "copy-a-network", "t": "Copy a Network", "b": "Deep-copy a network of servers that point at each other, cycles included.", "u": ["Clone Graph"], "s": "open", "l": "medium", "m": 20}, {"id": "distance-to-the-exit", "t": "Distance to the Exit", "b": "Every room wants the distance to its nearest exit. One search, many sources.", "u": ["Walls and Gates", "Rotting Oranges"], "s": "open", "l": "medium", "m": 20}, {"id": "fire-spread", "t": "Fire Spread", "b": "Fires start in several places and spread each minute. When is everything burning?", "u": ["Rotting Oranges"], "s": "open", "l": "medium", "m": 20}, {"id": "water-to-both-sides", "t": "Water to Both Sides", "b": "Which cells of a heightmap drain to both the west and the east coast? Search uphill.", "u": ["Pacific Atlantic Water Flow"], "s": "locked", "l": "medium", "m": 25}, {"id": "fenced-fields", "t": "Fenced Fields", "b": "Fill every pen that isn't touching the border of the map.", "u": ["Surrounded Regions"], "s": "locked", "l": "medium", "m": 20}, {"id": "build-order", "t": "Build Order", "b": "Packages depend on other packages. Return an install order, or say it's impossible.", "u": ["Course Schedule", "Course Schedule II"], "s": "locked", "l": "medium", "m": 25}, {"id": "import-cycle", "t": "Import Cycle", "b": "Modules import each other. Find a cycle and return it.", "u": ["Course Schedule"], "s": "locked", "l": "medium", "m": 25}, {"id": "cable-network", "t": "Cable Network", "b": "Cables arrive one at a time. How many separate networks after each?", "u": ["Redundant Connection", "Number of Connected Components in an Undirected Graph"], "s": "locked", "l": "medium", "m": 25}, {"id": "fewest-moves", "t": "Fewest Moves", "b": "The fewest knight moves between two squares of a chessboard.", "u": ["Word Ladder"], "s": "locked", "l": "hard", "m": 30}];
+const LV={easy:'var(--grn)',medium:'var(--warn)',hard:'var(--bad)'};
+const $=s=>document.querySelector(s);
+const done=P.filter(p=>p.s==='done').length, open=P.filter(p=>p.s!=='locked').length;
+function head(active){return `<div class="crumbs"><b>DSA</b> / PATTERNS / GRAPHS</div><h2 class="t">Graphs</h2>
+<div class="ptabs"><button class="${active==='lessons'?'on':''}">Problems<small>13</small></button><button class="${active==='lesson'?'on':''}">Lesson</button><button class="${active==='practice'?'on':''}" >Practice<small>${open} / ${P.length} unlocked</small></button></div>`}
+function card(p,i){
+ const unl=p.u.join(' or ');
+ if(p.s==='locked')return `<div class="pc locked"><div class="top"><span class="n">${String(i+1).padStart(2,'0')}</span><span>PRACTICE</span><span class="pill py">PYTHON</span></div><h3>${p.t}</h3><p>${p.b}</p><div class="lock"><i>🔒</i><span>Log <b>${unl}</b> on LeetCode to unlock</span></div></div>`;
+ return `<button class="pc open ${p.s==='done'?'done':''}" data-open="${p.id}"><div class="top"><span class="n">${String(i+1).padStart(2,'0')}</span><span>PRACTICE</span><span class="pill py">PYTHON</span>${p.s==='done'?'<span class="pill ok">SOLVED</span>':''}</div><h3>${p.t}</h3><p>${p.b}</p><div class="unl"><i>✓</i><span>unlocked by <b>${unl}</b></span></div><div class="foot"><span class="lv" style="color:${LV[p.l]}">${p.l}</span><span>~${p.m}m</span></div></button>`}
+function list(){return head('practice')+`<div class="note"><span style="font-size:18px">⌥</span><div><b>These are not LeetCode problems.</b> They are small problems written for anneal that use the same idea in a fresh setting, to make the pattern stick. Solve them here, in Python; the tests run in the sandbox. They don't schedule reviews.</div></div>
+<div class="sum"><span><b style="color:var(--fg)">${done}</b> of ${P.length} solved</span><span class="bar"><i style="width:${done/P.length*100}%"></i></span><span>${P.length-open} locked</span></div>
+<div class="grid">${P.map(card).join('')}</div>
+<div class="note" style="border-style:solid"><span style="font-size:18px">▶</span><div><b>Practice session.</b> When the track is done (or any time you want), a session mixes this topic's practice problems in a random order, one after another, with a timer. Mocked as a single button: <button class="btn go" style="margin-left:6px">start a 3-problem session</button></div></div>`}
+function ws(){return head('practice')+`<div class="ws"><div class="stm"><div style="display:flex;gap:8px;align-items:center"><span class="pill py">PYTHON</span><span class="lv" style="color:${LV.medium}">medium</span><span style="font:500 11px var(--mono);color:var(--dim)">unlocked by Course Schedule</span></div>
+<h3>Build Order</h3><p>A project has packages, and some packages need others installed first. Given the number of packages and a list of <code>(package, needs)</code> pairs, return an order in which every package comes <b>after</b> the ones it needs. If the dependencies loop, return <code>None</code>.</p>
+<pre>build_order(3, [(1, 0), (2, 1)])  # [0, 1, 2]
+build_order(2, [(0, 1), (1, 0)])  # None</pre><ul><li>Packages are numbered <code>0 … n-1</code>.</li><li>Any valid order is accepted.</li><li><code>n</code> is at most 10,000.</li></ul>
+<button class="hintb">Hint 1 of 3 · the idea (opens when you click)</button><button class="hintb">Hint 2 of 3 · the shape of the code</button><button class="hintb">Hint 3 of 3 · the edge cases</button></div>
+<div class="ed"><div class="edbar"><span class="f">build_order.py</span><button class="btn go" id="run">▶ Run tests</button><button class="btn sub" id="sub">Submit</button></div>
+<pre class="code"><span class="k">from</span> collections <span class="k">import</span> deque
+
+
+<span class="k">def</span> <span class="f">build_order</span>(n: int, needs: list[tuple[int, int]]) -> list[int] | None:
+    <span class="c">"""Return an install order, or None if the dependencies loop."""</span>
+    ...
+</pre>
+<div class="res" id="res"><div class="h">TESTS<span>press Run tests</span></div></div></div></div>`}
+function how(){return head('practice')+`<div class="cmp">
+<div><span class="lab">UNLOCKING</span><p>Logging a LeetCode problem (✓, ½ or ✗) unlocks the practice problems tied to it. A practice problem can list more than one, and any one of them unlocks it. Locked ones show exactly which LeetCode problem opens them, so you never wonder.</p></div>
+<div><span class="lab">NO REVIEWS</span><p>Practice doesn't feed spaced repetition, the streak or readiness. It has its own solved marks and a count on the pattern card. The review schedule stays about the LeetCode problems you logged.</p></div>
+<div><span class="lab">THE WORKSPACE</span><p>The same two-pane workspace as the Rust problems: statement and hints on the left, an editor with Run and Submit on the right. Visible tests on Run, hidden tests on Submit, the solution once you've solved it. Python instead of Rust: no clippy or borrow lanes; autocomplete and format on save stay.</p></div>
+<div><span class="lab">ORDER</span><p>Per pattern: the NeetCode problems and lessons, then this practice track in Python. When every pattern has one, the same tracks are written in Rust. Graphs first, then DP, then the rest.</p></div></div>`}
+const V={list,ws,how};
+function show(v){$('#view').innerHTML=V[v]();document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
+ if(t.dataset.v)show(t.dataset.v);else if(t.dataset.open)show('ws');
+ else if(t.id==='run'||t.id==='sub'){const sub=t.id==='sub';$('#res').innerHTML=`<div class="h">${sub?'SUBMIT':'VISIBLE TESTS'} <b>${sub?'12 / 12 passed':'5 / 5 passed'}</b><span>38 ms</span></div>`+['a chain of three packages','independent packages','a package needing two others','a loop of two','a loop that is not at the start'].map(n=>`<div class="t"><i>✓</i>${n}</div>`).join('')+(sub?'<div class="t"><i>✓</i>7 hidden tests <em>· the solution is now unlocked</em></div>':'')}});
+show('list');
+</script></body></html>

@@ -1,0 +1,28 @@
+intuition = """
+Add one to the last digit, and handle the **carry** that follows. Walk from the end: a digit less than 9 simply becomes one larger and you're done. A `9` becomes `0` and the carry moves to the next digit on the left.
+
+If every digit was a 9 (like `999`), the loop ends with all zeros and a carry left over: the answer is a new leading `1` followed by those zeros.
+"""
+tips = [
+    "Stop at the first digit below 9. Everything left of it is untouched, so there is no need to carry on.",
+    "The only way to grow longer is the all-nines case; handle it after the loop with `[1] + digits`.",
+    "Don't convert to an integer and back. It works in Python, but misses what is being tested, and overflows in most other languages.",
+    "Digits are stored most significant first, so you work from the **end** of the list.",
+]
+
+[[approaches]]
+name = "Carry from the last digit"
+label = "simulation"
+idea = "From the end, turn 9s into 0s until a digit below 9 can be incremented; if none exists, prepend a 1."
+time = "O(n)"
+space = "O(1)"
+note = "O(n) only in the all-nines case, which builds a new list."
+code = '''class Solution:
+    def plusOne(self, digits: list[int]) -> list[int]:
+        for i in range(len(digits) - 1, -1, -1):
+            if digits[i] < 9:
+                digits[i] += 1
+                return digits
+            digits[i] = 0
+        return [1] + digits
+'''

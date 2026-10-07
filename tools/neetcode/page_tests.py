@@ -2403,6 +2403,375 @@ def reverse_k_group(ns):
         assert _ll_vals(f(_ll(v), k)) == want, (v, k)
 
 
+# ---- heaps ----------------------------------------------------------------------------------------------------------
+
+
+def kth_largest_stream(ns):
+    r = rng()
+    c = ns["KthLargest"](3, [4, 5, 8, 2])
+    assert [c.add(x) for x in (3, 5, 10, 9, 4)] == [4, 5, 5, 8, 8]
+    for _ in range(200):
+        k = r.randint(1, 5)
+        nums = [r.randint(-10, 10) for _ in range(r.randint(max(0, k - 1), k + 4))]
+        c, seen = ns["KthLargest"](k, nums[:]), nums[:]
+        for _ in range(r.randint(1, 20)):
+            x = r.randint(-10, 10)
+            seen.append(x)
+            assert c.add(x) == sorted(seen)[-k], (k, nums, seen)
+
+
+def last_stone_weight(ns):
+    f = ns["Solution"]().lastStoneWeight
+    assert f([2, 7, 4, 1, 8, 1]) == 1 and f([1]) == 1 and f([2, 2]) == 0 and f([3, 3, 3]) == 3
+    r = rng()
+    for _ in range(300):
+        stones = [r.randint(1, 30) for _ in range(r.randint(1, 10))]
+        left = sorted(stones)
+        while len(left) > 1:
+            y, x = left.pop(), left.pop()
+            if y != x:
+                left.append(y - x)
+                left.sort()
+        assert f(stones[:]) == (left[0] if left else 0), stones
+
+
+def k_closest(ns):
+    f = ns["Solution"]().kClosest
+    assert f([[1, 3], [-2, 2]], 1) == [[-2, 2]] and sorted(f([[3, 3], [5, -1], [-2, 4]], 2)) == [[-2, 4], [3, 3]]
+    r = rng()
+    for _ in range(300):
+        pts = [[r.randint(-9, 9), r.randint(-9, 9)] for _ in range(r.randint(1, 12))]
+        k = r.randint(1, len(pts))
+        got = f([p[:] for p in pts], k)
+        dist = lambda p: p[0] * p[0] + p[1] * p[1]  # noqa: E731
+        assert len(got) == k and sorted(map(dist, got)) == sorted(map(dist, pts))[:k], (pts, k, got)
+        pool = Counter(map(tuple, pts))
+        for p in got:
+            pool[tuple(p)] -= 1
+            assert pool[tuple(p)] >= 0, "returned a point that isn't in the input"
+
+
+def find_kth_largest(ns):
+    f = ns["Solution"]().findKthLargest
+    assert f([3, 2, 1, 5, 6, 4], 2) == 5 and f([3, 2, 3, 1, 2, 4, 5, 5, 6], 4) == 4 and f([1], 1) == 1
+    r = rng()
+    for _ in range(400):
+        nums = [r.randint(-8, 8) for _ in range(r.randint(1, 15))]
+        k = r.randint(1, len(nums))
+        assert f(nums[:], k) == sorted(nums)[-k], (nums, k)
+
+
+def least_interval(ns):
+    f = ns["Solution"]().leastInterval
+    assert f(["A", "A", "A", "B", "B", "B"], 2) == 8 and f(["A", "A", "A", "B", "B", "B"], 0) == 6
+    assert f(["A", "A", "A", "A", "A", "A", "B", "C", "D", "E", "F", "G"], 2) == 16
+
+    def best(counts, n):
+        """Fewest time units, by breadth-first search over (counts left, cooldown left per task type)."""
+        start = (tuple(counts), (0,) * len(counts))
+        frontier, seen, t = {start}, {start}, 0
+        while True:
+            t += 1
+            nxt = set()
+            for left, cool in frontier:
+                after = tuple(max(0, c - 1) for c in cool)
+                options = [(left, after)]
+                for i, c in enumerate(left):
+                    if c and cool[i] == 0:
+                        new_left = left[:i] + (c - 1,) + left[i + 1 :]
+                        new_cool = after[:i] + (n,) + after[i + 1 :]
+                        if not any(new_left):
+                            return t
+                        options.append((new_left, new_cool))
+                for o in options:
+                    if o not in seen:
+                        seen.add(o)
+                        nxt.add(o)
+            frontier = nxt
+
+    r = rng()
+    for _ in range(150):
+        counts = [r.randint(1, 3) for _ in range(r.randint(1, 3))]
+        n = r.randint(0, 3)
+        tasks = [chr(65 + i) for i, c in enumerate(counts) for _ in range(c)]
+        r.shuffle(tasks)
+        assert f(tasks, n) == best(counts, n), (tasks, n)
+    # the closed form (checked against the search above on small inputs) for a big case
+    big = ["A"] * 5000 + ["B"] * 5000 + ["C"] * 1000
+    assert f(big, 100) == max(len(big), (5000 - 1) * 101 + 2)
+
+
+def design_twitter(ns):
+    T = ns["Twitter"]
+    t = T()
+    t.postTweet(1, 5)
+    assert t.getNewsFeed(1) == [5]
+    t.follow(1, 2)
+    t.postTweet(2, 6)
+    assert t.getNewsFeed(1) == [6, 5]
+    t.unfollow(1, 2)
+    assert t.getNewsFeed(1) == [5]
+    r = rng()
+    for _ in range(100):
+        t, tweets, follows, next_id = T(), [], {u: set() for u in range(1, 5)}, 100
+        for _ in range(r.randint(5, 70)):
+            op = r.randint(0, 3)
+            u, v = r.sample(range(1, 5), 2)
+            if op == 0:
+                t.postTweet(u, next_id)
+                tweets.append((u, next_id))
+                next_id += 1
+            elif op == 1:
+                t.follow(u, v)
+                follows[u].add(v)
+            elif op == 2:
+                t.unfollow(u, v)
+                follows[u].discard(v)
+            else:
+                want = [tid for owner, tid in reversed(tweets) if owner == u or owner in follows[u]][:10]
+                assert t.getNewsFeed(u) == want, (u, want)
+
+
+def median_finder(ns):
+    r = rng()
+    m = ns["MedianFinder"]()
+    m.addNum(1)
+    m.addNum(2)
+    assert m.findMedian() == 1.5
+    m.addNum(3)
+    assert m.findMedian() == 2.0
+    for _ in range(200):
+        m, seen = ns["MedianFinder"](), []
+        for _ in range(r.randint(1, 30)):
+            x = r.randint(-20, 20)
+            m.addNum(x)
+            seen.append(x)
+            ordered = sorted(seen)
+            mid = len(ordered) // 2
+            want = ordered[mid] if len(ordered) % 2 else (ordered[mid - 1] + ordered[mid]) / 2
+            assert m.findMedian() == want, (seen, want)
+
+
+# ---- math and geometry ----------------------------------------------------------------------------------------------
+
+
+def rotate_image(ns):
+    f = ns["Solution"]().rotate
+    r = rng()
+    for n in list(range(1, 8)) * 15:
+        m = [[r.randint(-9, 9) for _ in range(n)] for _ in range(n)]
+        want = [list(row) for row in zip(*m[::-1])]
+        assert f(m) is None
+        assert m == want, (n, want)
+
+
+def spiral_matrix(ns):
+    f = ns["Solution"]().spiralOrder
+    assert f([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == [1, 2, 3, 6, 9, 8, 7, 4, 5]
+    assert f([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]) == [1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7] and f([[1]]) == [1] and f([[1, 2, 3]]) == [1, 2, 3] and f([[1], [2], [3]]) == [1, 2, 3]
+    r = rng()
+    for _ in range(300):
+        rows, cols = r.randint(1, 7), r.randint(1, 7)
+        m = [[i * cols + j for j in range(cols)] for i in range(rows)]
+        i = j = d = 0
+        seen, want = set(), []
+        for _ in range(rows * cols):
+            want.append(m[i][j])
+            seen.add((i, j))
+            di, dj = ((0, 1), (1, 0), (0, -1), (-1, 0))[d]
+            if not (0 <= i + di < rows and 0 <= j + dj < cols) or (i + di, j + dj) in seen:
+                d = (d + 1) % 4
+                di, dj = ((0, 1), (1, 0), (0, -1), (-1, 0))[d]
+            i, j = i + di, j + dj
+        assert f([row[:] for row in m]) == want, (rows, cols)
+
+
+def set_zeroes(ns):
+    f = ns["Solution"]().setZeroes
+    m = [[1, 1, 1], [1, 0, 1], [1, 1, 1]]
+    assert f(m) is None and m == [[1, 0, 1], [0, 0, 0], [1, 0, 1]]
+    m = [[0, 1, 2, 0], [3, 4, 5, 2], [1, 3, 1, 5]]
+    f(m)
+    assert m == [[0, 0, 0, 0], [0, 4, 5, 0], [0, 3, 1, 0]]
+    r = rng()
+    for _ in range(500):
+        rows, cols = r.randint(1, 6), r.randint(1, 6)
+        m = [[0 if r.random() < 0.15 else r.randint(-5, 5) or 1 for _ in range(cols)] for _ in range(rows)]
+        zr = {i for i in range(rows) for j in range(cols) if m[i][j] == 0}
+        zc = {j for i in range(rows) for j in range(cols) if m[i][j] == 0}
+        want = [[0 if i in zr or j in zc else m[i][j] for j in range(cols)] for i in range(rows)]
+        f(m)
+        assert m == want, (want, m)
+
+
+def happy_number(ns):
+    f = ns["Solution"]().isHappy
+
+    def happy(n):
+        seen = set()
+        while n != 1 and n not in seen:
+            seen.add(n)
+            n = sum(int(c) ** 2 for c in str(n))
+        return n == 1
+
+    assert f(19) is True and f(2) is False and f(1) is True
+    for n in list(range(1, 400)) + [7, 100, 1111111, 2147483647, 999999999]:
+        assert f(n) is happy(n), n
+
+
+def plus_one(ns):
+    f = ns["Solution"]().plusOne
+    assert f([1, 2, 3]) == [1, 2, 4] and f([9]) == [1, 0] and f([4, 3, 2, 9]) == [4, 3, 3, 0] and f([9, 9, 9]) == [1, 0, 0, 0] and f([0]) == [1]
+    r = rng()
+    for _ in range(400):
+        d = [r.choice([9, 9, r.randint(0, 9)]) for _ in range(r.randint(1, 12))]
+        if d[0] == 0 and len(d) > 1:
+            d[0] = r.randint(1, 9)
+        got = f(d[:])
+        assert int("".join(map(str, got))) == int("".join(map(str, d))) + 1 and (got[0] != 0 or got == [0]), d
+
+
+def my_pow(ns):
+    import signal
+
+    f = ns["Solution"]().myPow
+
+    def close(a, b):
+        return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-12)
+
+    assert close(f(2.0, 10), 1024.0) and close(f(2.1, 3), 9.261) and close(f(2.0, -2), 0.25) and f(5.0, 0) == 1.0 and f(1.0, 2**31 - 1) == 1.0
+    assert f(2.0, -(2**31)) == 0.0 and f(-1.0, 2**31 - 1) == -1.0 and f(-1.0, -(2**31)) == 1.0
+    r = rng()
+    for _ in range(500):
+        x = r.choice([r.uniform(-3, 3), float(r.randint(-3, 3)), 0.5])
+        n = r.randint(-12, 12)
+        if x == 0 and n < 0:
+            continue
+        assert close(f(x, n), x**n), (x, n)
+
+    def too_slow(*_):
+        raise AssertionError("myPow is too slow for a huge exponent (it must take O(log n) steps)")
+
+    signal.signal(signal.SIGALRM, too_slow)
+    signal.alarm(5)
+    try:
+        # repeated squaring doubles the rounding error at every step, so a huge exponent can't match to 1e-9 (LeetCode allows 1e-5)
+        assert math.isclose(f(1.0000000001, 2**31 - 1), 1.0000000001 ** (2**31 - 1), rel_tol=1e-5)
+        assert math.isclose(f(0.99999999, -(2**31) + 1), 0.99999999 ** (-(2**31) + 1), rel_tol=1e-5)
+    finally:
+        signal.alarm(0)
+
+
+def multiply_strings(ns):
+    f = ns["Solution"]().multiply
+    assert f("2", "3") == "6" and f("123", "456") == "56088" and f("0", "9133") == "0" and f("9133", "0") == "0" and f("999", "999") == "998001"
+    r = rng()
+    for _ in range(400):
+        a = "".join(r.choice("0123456789") for _ in range(r.randint(1, 30))).lstrip("0") or "0"
+        b = "".join(r.choice("0123456789") for _ in range(r.randint(1, 30))).lstrip("0") or "0"
+        assert f(a, b) == str(int(a) * int(b)), (a, b)
+
+
+def detect_squares(ns):
+    r = rng()
+    d = ns["DetectSquares"]()
+    for p in ([3, 10], [11, 2], [3, 2]):
+        d.add(p)
+    assert d.count([11, 10]) == 1 and d.count([14, 8]) == 0
+    d.add([11, 2])
+    assert d.count([11, 10]) == 2
+    for _ in range(150):
+        d, points = ns["DetectSquares"](), Counter()
+        for _ in range(r.randint(5, 50)):
+            p = (r.randint(0, 4), r.randint(0, 4))
+            if r.random() < 0.55:
+                d.add(list(p))
+                points[p] += 1
+            else:
+                x, y = p
+                want = sum(
+                    points[(a, b)] * points[(x, b)] * points[(a, y)]
+                    for (a, b) in list(points)
+                    if abs(a - x) == abs(b - y) and a != x
+                )
+                assert d.count(list(p)) == want, (p, dict(points))
+
+
+# ---- bit manipulation -----------------------------------------------------------------------------------------------
+
+
+def single_number(ns):
+    f = ns["Solution"]().singleNumber
+    assert f([2, 2, 1]) == 1 and f([4, 1, 2, 1, 2]) == 4 and f([1]) == 1
+    r = rng()
+    for _ in range(300):
+        vals = r.sample(range(-50, 50), r.randint(1, 8))
+        nums = vals + vals[1:]
+        r.shuffle(nums)
+        before = nums[:]
+        assert f(nums) == vals[0], before
+
+
+def hamming_weight(ns):
+    f = ns["Solution"]().hammingWeight
+    assert f(11) == 3 and f(128) == 1 and f(2147483645) == 30 and f(0) == 0 and f(2**31 - 1) == 31
+    r = rng()
+    for _ in range(300):
+        n = r.randint(0, 2**31 - 1)
+        assert f(n) == bin(n).count("1")
+
+
+def count_bits(ns):
+    f = ns["Solution"]().countBits
+    assert f(2) == [0, 1, 1] and f(5) == [0, 1, 1, 2, 1, 2] and f(0) == [0]
+    for n in list(range(0, 70)) + [1000, 4096, 10**5]:
+        assert f(n) == [bin(i).count("1") for i in range(n + 1)], n
+
+
+def reverse_bits(ns):
+    f = ns["Solution"]().reverseBits
+    assert f(43261596) == 964176192 and f(2147483644) == 1073741822 and f(0) == 0 and f(1) == 2**31 and f(2**32 - 1) == 2**32 - 1
+    r = rng()
+    for _ in range(300):
+        n = r.randint(0, 2**32 - 1)
+        assert f(n) == int(f"{n:032b}"[::-1], 2), n
+
+
+def missing_number(ns):
+    f = ns["Solution"]().missingNumber
+    assert f([3, 0, 1]) == 2 and f([0, 1]) == 2 and f([9, 6, 4, 2, 3, 5, 7, 0, 1]) == 8 and f([0]) == 1 and f([1]) == 0
+    r = rng()
+    for _ in range(300):
+        n = r.randint(1, 30)
+        nums = list(range(n + 1))
+        gone = nums.pop(r.randrange(n + 1))
+        r.shuffle(nums)
+        assert f(nums) == gone
+
+
+def get_sum(ns):
+    f = ns["Solution"]().getSum
+    assert f(1, 2) == 3 and f(2, 3) == 5 and f(-1, 1) == 0 and f(-2, -3) == -5 and f(0, 0) == 0 and f(-1000, 1000) == 0
+    r = rng()
+    for _ in range(600):
+        a, b = r.randint(-1000, 1000), r.randint(-1000, 1000)
+        assert f(a, b) == a + b, (a, b)
+    assert f(-(2**31), 2**31 - 1) == -1 and f(2**30, 2**30 - 1) == 2**31 - 1
+
+
+def reverse_integer(ns):
+    f = ns["Solution"]().reverse
+    assert f(123) == 321 and f(-123) == -321 and f(120) == 21 and f(0) == 0 and f(1534236469) == 0 and f(-2147483648) == 0
+    assert f(1463847412) == 2147483641 and f(-1463847412) == -2147483641 and f(2147483647) == 0
+    r = rng()
+    for _ in range(500):
+        x = r.choice([r.randint(-(2**31), 2**31 - 1), r.randint(-10**6, 10**6)])
+        sign = -1 if x < 0 else 1
+        want = sign * int(str(abs(x))[::-1])
+        want = want if -(2**31) <= want <= 2**31 - 1 else 0
+        assert f(x) == want, x
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -2532,6 +2901,28 @@ CHECKS = {
     "lru-cache": lru_cache,
     "merge-k-sorted-lists": merge_k_lists,
     "reverse-nodes-in-k-group": reverse_k_group,
+    "kth-largest-element-in-a-stream": kth_largest_stream,
+    "last-stone-weight": last_stone_weight,
+    "k-closest-points-to-origin": k_closest,
+    "kth-largest-element-in-an-array": find_kth_largest,
+    "task-scheduler": least_interval,
+    "design-twitter": design_twitter,
+    "find-median-from-data-stream": median_finder,
+    "rotate-image": rotate_image,
+    "spiral-matrix": spiral_matrix,
+    "set-matrix-zeroes": set_zeroes,
+    "happy-number": happy_number,
+    "plus-one": plus_one,
+    "powx-n": my_pow,
+    "multiply-strings": multiply_strings,
+    "detect-squares": detect_squares,
+    "single-number": single_number,
+    "number-of-1-bits": hamming_weight,
+    "counting-bits": count_bits,
+    "reverse-bits": reverse_bits,
+    "missing-number": missing_number,
+    "sum-of-two-integers": get_sum,
+    "reverse-integer": reverse_integer,
 }
 
 

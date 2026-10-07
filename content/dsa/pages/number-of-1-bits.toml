@@ -1,0 +1,43 @@
+intuition = """
+You want to count the 1 bits. The obvious way checks all 32 bits: `n & 1` tests the lowest bit, then `n >>= 1` moves on.
+
+A neat shortcut: `n & (n - 1)` **clears the lowest set bit**. (Subtracting 1 flips the lowest 1 and every 0 below it, so the AND wipes just that bit.) Repeat until `n` is 0; the number of rounds is the number of 1 bits, so it only loops as many times as there are set bits.
+"""
+tips = [
+    "`n & (n - 1)` removes the lowest set bit. Learn this one: it also tests for powers of two (`n & (n - 1) == 0`).",
+    "The loop version is O(number of 1 bits), the shifting version always takes 32 steps.",
+    "`bin(n).count(\"1\")` is fine in Python, but show the bit version in an interview.",
+    "For a signed language, use an unsigned shift (`>>>` in Java) or you'll loop forever on negative numbers.",
+]
+
+[[approaches]]
+name = "Clear the lowest set bit"
+label = "bit trick"
+idea = "n & (n - 1) drops the lowest 1; count how many times that can be done before n reaches 0."
+time = "O(k)"
+space = "O(1)"
+note = "k is the number of 1 bits."
+code = '''class Solution:
+    def hammingWeight(self, n: int) -> int:
+        count = 0
+        while n:
+            n &= n - 1
+            count += 1
+        return count
+'''
+
+[[approaches]]
+name = "Test each bit"
+label = "shifting"
+idea = "Add the lowest bit, then shift right, until nothing is left."
+time = "O(32)"
+space = "O(1)"
+note = "Always up to 32 steps."
+code = '''class Solution:
+    def hammingWeight(self, n: int) -> int:
+        count = 0
+        while n:
+            count += n & 1
+            n >>= 1
+        return count
+'''

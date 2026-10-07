@@ -1,0 +1,51 @@
+intuition = """
+Multiplying `x` by itself `n` times is too slow when `n` goes up to 2^31. Use **fast exponentiation (repeated squaring)**: `x^n = (x^2)^(n/2)` when `n` is even, and `x * x^(n-1)` when it's odd. Each step halves the exponent, so it takes about 31 steps.
+
+Iteratively, look at `n` in binary: for each bit from the lowest, if the bit is 1 multiply the result by the current `x`, then square `x` and shift `n` right. A **negative** exponent is the reciprocal: compute `(1/x)^(-n)`.
+"""
+tips = [
+    "Handle a negative `n` first by replacing `x` with `1 / x` and `n` with `-n`. In languages with 32-bit ints, `-n` overflows for `n = -2^31`; use a wider type there.",
+    "`n = 0` returns `1.0` for any `x`. The loop does that for free since the result starts at 1.",
+    "The loop runs `log2 n` times. A plain `for _ in range(n)` is O(n) and times out.",
+    "Floating-point error grows with the exponent; LeetCode's tolerance accepts the usual repeated-squaring answer.",
+]
+
+[[approaches]]
+name = "Iterative squaring over the bits of n"
+label = "iterative"
+idea = "Multiply the result by x whenever the current bit of n is 1, then square x and move to the next bit."
+time = "O(log n)"
+space = "O(1)"
+note = "About 31 iterations at most."
+code = '''class Solution:
+    def myPow(self, x: float, n: int) -> float:
+        if n < 0:
+            x, n = 1 / x, -n
+        result = 1.0
+        while n:
+            if n & 1:
+                result *= x
+            x *= x
+            n >>= 1
+        return result
+'''
+
+[[approaches]]
+name = "Recursive halving"
+label = "recursive"
+idea = "x^n is the square of x^(n/2), times one more x when n is odd."
+time = "O(log n)"
+space = "O(log n)"
+note = "Same idea, with a recursion stack of about 31 frames."
+code = '''class Solution:
+    def myPow(self, x: float, n: int) -> float:
+        def power(base: float, exponent: int) -> float:
+            if exponent == 0:
+                return 1.0
+            half = power(base, exponent // 2)
+            return half * half * (base if exponent % 2 else 1.0)
+
+        if n < 0:
+            return 1 / power(x, -n)
+        return power(x, n)
+'''

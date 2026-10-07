@@ -1,0 +1,39 @@
+intuition = """
+Treat the number as 32 bits and build the answer one bit at a time. Take the **lowest** bit of `n` (`n & 1`) and append it to the **end** of the result (`result = (result << 1) | bit`), then shift `n` right. After 32 rounds, the first bit read has become the highest bit of the result.
+
+Don't stop when `n` becomes 0: leading zeros in the input become trailing zeros in the output, so you must always do all 32 steps.
+"""
+tips = [
+    "Loop exactly 32 times, even once `n` is 0, or the result isn't shifted far enough left.",
+    "Shift the **result** left before adding the new bit. Shifting after adding drops the last bit into the wrong place.",
+    "Python integers are unbounded, so there is no sign trouble; the 32-step loop makes the width explicit.",
+    "If this is called many times, you can reverse byte by byte with a 256-entry lookup table. Mention this as the follow-up answer.",
+]
+
+[[approaches]]
+name = "Read from the low end, build from the low end"
+label = "bit by bit"
+idea = "Pop the lowest bit of n and push it onto the result 32 times."
+time = "O(32)"
+space = "O(1)"
+note = "Constant."
+code = '''class Solution:
+    def reverseBits(self, n: int) -> int:
+        result = 0
+        for _ in range(32):
+            result = (result << 1) | (n & 1)
+            n >>= 1
+        return result
+'''
+
+[[approaches]]
+name = "Reverse the binary string"
+label = "string"
+idea = "Format n as 32 binary digits, reverse the string, parse it back."
+time = "O(32)"
+space = "O(32)"
+note = "Short, but not what the problem is practising."
+code = '''class Solution:
+    def reverseBits(self, n: int) -> int:
+        return int(f"{n:032b}"[::-1], 2)
+'''

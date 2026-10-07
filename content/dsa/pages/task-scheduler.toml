@@ -1,0 +1,59 @@
+intuition = """
+The most frequent task is the bottleneck. Say task `A` appears `m` times and the cooldown is `n`. The `m` copies need at least `m - 1` gaps of `n + 1` slots between them, followed by the last `A`: that's `(m - 1) * (n + 1) + 1` slots. If several tasks share that top count (say `t` of them), they all end the schedule together, so the length is `(m - 1) * (n + 1) + t`. Other tasks fit into the idle gaps; if there are so many that the gaps overflow, nothing idles and the answer is just `len(tasks)`.
+
+So: `max(len(tasks), (m - 1) * (n + 1) + t)`.
+
+You can also simulate it: each unit of time, run the available task with the most copies left, and park it in a cooldown queue until it can run again.
+"""
+tips = [
+    "Only the maximum frequency and how many tasks tie for it matter. The other counts just need to fit in the gaps.",
+    "The `max(len(tasks), ...)` guards the case with enough different tasks to fill every gap, where idle time is zero.",
+    "In the simulation, always run the task with the most copies left. Doing otherwise can leave a big task for the end with idle time before it.",
+    "The simulation's cooldown queue is ordered by the time a task becomes ready again, so a deque works.",
+]
+
+[[approaches]]
+name = "Counting formula"
+label = "math"
+idea = "Frames of n + 1 slots for every copy of the most frequent task except the last, plus the tasks tied for the maximum."
+time = "O(n)"
+space = "O(1)"
+note = "At most 26 different tasks."
+code = '''from collections import Counter
+
+
+class Solution:
+    def leastInterval(self, tasks: list[str], n: int) -> int:
+        counts = Counter(tasks).values()
+        most = max(counts)
+        tied = sum(1 for c in counts if c == most)
+        return max(len(tasks), (most - 1) * (n + 1) + tied)
+'''
+
+[[approaches]]
+name = "Max-heap and a cooldown queue"
+label = "simulation"
+idea = "Each time unit, run the task with the most copies left; hold it in a queue until its cooldown ends, then return it to the heap."
+time = "O(T log 26)"
+space = "O(1)"
+note = "T is the total time, including idle units."
+code = '''import heapq
+from collections import Counter, deque
+
+
+class Solution:
+    def leastInterval(self, tasks: list[str], n: int) -> int:
+        heap = [-c for c in Counter(tasks).values()]
+        heapq.heapify(heap)
+        cooling = deque()
+        time = 0
+        while heap or cooling:
+            time += 1
+            if heap:
+                left = heapq.heappop(heap) + 1
+                if left:
+                    cooling.append((time + n, left))
+            if cooling and cooling[0][0] == time:
+                heapq.heappush(heap, cooling.popleft()[1])
+        return time
+'''

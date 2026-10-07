@@ -1,0 +1,60 @@
+intuition = """
+Rotating an `n x n` matrix 90° clockwise is the same as two simple moves done **in place**:
+
+1. **Transpose** it (swap `matrix[i][j]` with `matrix[j][i]`), which turns rows into columns;
+2. **Reverse each row**.
+
+Check on `[[1, 2], [3, 4]]`: transposing gives `[[1, 3], [2, 4]]`, reversing the rows gives `[[3, 1], [4, 2]]`, which is the clockwise rotation.
+
+The other way to see it is as **four-cell cycles**: the top, right, bottom and left cells of each ring move one place round, so you can rotate layer by layer with one temporary value.
+"""
+tips = [
+    "Transposing only the part above the diagonal (`j > i`) is what makes each swap happen once. Looping over every cell would swap everything back.",
+    "Clockwise = transpose, then reverse each row. Anticlockwise = transpose, then reverse the order of the rows (or reverse rows first, then transpose).",
+    "You may not return a new matrix: LeetCode wants the input changed in place and `None` returned.",
+    "Draw a 3 x 3 grid and follow where the four corners go; it makes the four-way swap easy to get right.",
+]
+
+[[approaches]]
+name = "Transpose, then reverse each row"
+label = "two steps"
+idea = "Swap across the diagonal, then flip every row."
+time = "O(n^2)"
+space = "O(1)"
+note = "In place."
+code = '''class Solution:
+    def rotate(self, matrix: list[list[int]]) -> None:
+        """
+        Do not return anything, modify matrix in-place instead.
+        """
+        n = len(matrix)
+        for i in range(n):
+            for j in range(i + 1, n):
+                matrix[i][j], matrix[j][i] = matrix[j][i], matrix[i][j]
+        for row in matrix:
+            row.reverse()
+'''
+
+[[approaches]]
+name = "Rotate four cells at a time, ring by ring"
+label = "layers"
+idea = "For each ring, move the top, right, bottom and left cells of each position one step clockwise using a temporary."
+time = "O(n^2)"
+space = "O(1)"
+note = "One pass, but harder to write without a slip."
+code = '''class Solution:
+    def rotate(self, matrix: list[list[int]]) -> None:
+        """
+        Do not return anything, modify matrix in-place instead.
+        """
+        n = len(matrix)
+        for layer in range(n // 2):
+            first, last = layer, n - 1 - layer
+            for i in range(first, last):
+                offset = i - first
+                top = matrix[first][i]
+                matrix[first][i] = matrix[last - offset][first]
+                matrix[last - offset][first] = matrix[last][last - offset]
+                matrix[last][last - offset] = matrix[i][last]
+                matrix[i][last] = top
+'''

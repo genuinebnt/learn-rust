@@ -1,0 +1,68 @@
+intuition = """
+If you zero a row or column as soon as you meet a `0`, the new zeros would trick later cells into zeroing more. So first **record** which rows and columns contain a zero, then do the zeroing.
+
+The easy record is two sets (rows to clear, columns to clear): O(m + n) extra memory. To use O(1), store the record **inside the matrix**: use the first cell of each row and column as its flag. Two extra booleans remember whether the first row and first column themselves must be cleared, since those cells now double as flags.
+"""
+tips = [
+    "Never zero while you scan; a zero you just wrote is indistinguishable from an original one.",
+    "In the O(1) version, process the interior first (flags from row 0 and column 0), and clear row 0 and column 0 **last**, using the two saved booleans.",
+    "Scan the first row and first column for zeros **before** you start using them as flags.",
+    "The sets version is the right first answer. Offer the in-place version as the follow-up.",
+]
+
+[[approaches]]
+name = "Sets of rows and columns"
+label = "sets"
+idea = "Note every row and column that contains a zero, then clear those rows and columns."
+time = "O(m · n)"
+space = "O(m + n)"
+note = "Easiest to get right."
+code = '''class Solution:
+    def setZeroes(self, matrix: list[list[int]]) -> None:
+        """
+        Do not return anything, modify matrix in-place instead.
+        """
+        rows, cols = len(matrix), len(matrix[0])
+        zero_rows, zero_cols = set(), set()
+        for i in range(rows):
+            for j in range(cols):
+                if matrix[i][j] == 0:
+                    zero_rows.add(i)
+                    zero_cols.add(j)
+        for i in range(rows):
+            for j in range(cols):
+                if i in zero_rows or j in zero_cols:
+                    matrix[i][j] = 0
+'''
+
+[[approaches]]
+name = "Flags stored in the first row and column"
+label = "in place"
+idea = "Use matrix[i][0] and matrix[0][j] as the flags, with two booleans for the first row and column themselves."
+time = "O(m · n)"
+space = "O(1)"
+note = "Clear the first row and column last."
+code = '''class Solution:
+    def setZeroes(self, matrix: list[list[int]]) -> None:
+        """
+        Do not return anything, modify matrix in-place instead.
+        """
+        rows, cols = len(matrix), len(matrix[0])
+        first_row_zero = any(matrix[0][j] == 0 for j in range(cols))
+        first_col_zero = any(matrix[i][0] == 0 for i in range(rows))
+        for i in range(1, rows):
+            for j in range(1, cols):
+                if matrix[i][j] == 0:
+                    matrix[i][0] = 0
+                    matrix[0][j] = 0
+        for i in range(1, rows):
+            for j in range(1, cols):
+                if matrix[i][0] == 0 or matrix[0][j] == 0:
+                    matrix[i][j] = 0
+        if first_row_zero:
+            for j in range(cols):
+                matrix[0][j] = 0
+        if first_col_zero:
+            for i in range(rows):
+                matrix[i][0] = 0
+'''

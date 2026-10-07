@@ -1,0 +1,67 @@
+intuition = """
+The median sits between the lower half and the upper half of the numbers. You only need the **largest of the lower half** and the **smallest of the upper half**, and a heap gives each in O(1):
+
+- a **max-heap** `low` for the smaller half,
+- a **min-heap** `high` for the larger half.
+
+Keep them balanced (`low` has the same size, or one more). Then the median is the top of `low` when the count is odd, or the average of the two tops when it's even. To add a number, push it to `low`, move `low`'s largest over to `high`, and if `high` ended up bigger, move its smallest back. That order guarantees everything in `low` is `<=` everything in `high`.
+"""
+tips = [
+    "Python has only a min-heap, so store the lower half negated.",
+    "The three-step add (push to low, move the top across, rebalance) keeps both the sizes and the ordering right without comparing against the tops by hand.",
+    "`findMedian` is O(1); `addNum` is O(log n).",
+    "Follow-ups: if all numbers are in 0..100, count them in 101 buckets. If 99% are in 0..100, bucket those and keep the few outliers aside.",
+]
+
+[[approaches]]
+name = "Two heaps"
+label = "two heaps"
+idea = "A max-heap holds the lower half and a min-heap the upper half, kept within one element of each other."
+time = "O(log n) add, O(1) median"
+space = "O(n)"
+note = "The standard answer."
+code = '''import heapq
+
+
+class MedianFinder:
+
+    def __init__(self):
+        self.low = []   # max-heap (stored negated): the smaller half, never smaller than high
+        self.high = []  # min-heap: the larger half
+
+    def addNum(self, num: int) -> None:
+        heapq.heappush(self.low, -num)
+        heapq.heappush(self.high, -heapq.heappop(self.low))
+        if len(self.high) > len(self.low):
+            heapq.heappush(self.low, -heapq.heappop(self.high))
+
+    def findMedian(self) -> float:
+        if len(self.low) > len(self.high):
+            return float(-self.low[0])
+        return (-self.low[0] + self.high[0]) / 2
+'''
+
+[[approaches]]
+name = "Sorted list with bisect"
+label = "simple"
+idea = "Insert each number in order into a sorted list and read the middle."
+time = "O(n) add, O(1) median"
+space = "O(n)"
+note = "Inserting shifts elements, so adding is linear."
+code = '''import bisect
+
+
+class MedianFinder:
+
+    def __init__(self):
+        self.values = []
+
+    def addNum(self, num: int) -> None:
+        bisect.insort(self.values, num)
+
+    def findMedian(self) -> float:
+        n = len(self.values)
+        if n % 2:
+            return float(self.values[n // 2])
+        return (self.values[n // 2 - 1] + self.values[n // 2]) / 2
+'''

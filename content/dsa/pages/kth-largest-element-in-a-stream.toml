@@ -1,0 +1,58 @@
+intuition = """
+You only ever need the **k largest** numbers seen so far, and the answer is the smallest of them. A **min-heap of size k** holds exactly that: its top is the k-th largest overall.
+
+On `add`, push the new value; if the heap now has more than `k` items, pop the smallest. Whatever is left on top is the answer. Anything smaller than the current k-th largest can never matter again, so it never needs to be stored.
+"""
+tips = [
+    "Keep a **min**-heap even though you want the largest: the top must be the smallest of the k kept values, because that is the one to throw out.",
+    "The heap never grows beyond `k + 1` entries, so `add` costs O(log k), not O(log n).",
+    "Build the starting heap from `nums` with `heapify`, then pop down to size `k`.",
+    "A sorted list works too (`bisect.insort`, answer at index `-k`), but each insert is O(n).",
+]
+
+[[approaches]]
+name = "Min-heap of the k largest"
+label = "heap"
+idea = "Keep only the k largest values in a min-heap; its smallest element is the k-th largest."
+time = "O(log k) per add"
+space = "O(k)"
+note = "Initial build is O(n)."
+code = '''import heapq
+
+
+class KthLargest:
+
+    def __init__(self, k: int, nums: list[int]):
+        self.k = k
+        self.heap = nums[:]
+        heapq.heapify(self.heap)
+        while len(self.heap) > k:
+            heapq.heappop(self.heap)
+
+    def add(self, val: int) -> int:
+        heapq.heappush(self.heap, val)
+        if len(self.heap) > self.k:
+            heapq.heappop(self.heap)
+        return self.heap[0]
+'''
+
+[[approaches]]
+name = "Sorted list with bisect"
+label = "simple"
+idea = "Keep every value in a sorted list; the k-th largest is at index -k."
+time = "O(n) per add"
+space = "O(n)"
+note = "Inserting into a Python list shifts elements."
+code = '''import bisect
+
+
+class KthLargest:
+
+    def __init__(self, k: int, nums: list[int]):
+        self.k = k
+        self.values = sorted(nums)
+
+    def add(self, val: int) -> int:
+        bisect.insort(self.values, val)
+        return self.values[-self.k]
+'''

@@ -1,0 +1,62 @@
+intuition = """
+Walk the border of the remaining rectangle, then shrink it. Keep four boundaries (`top`, `bottom`, `left`, `right`) and repeat:
+
+1. go **right** along the top row, then move `top` down;
+2. go **down** the right column, then move `right` left;
+3. go **left** along the bottom row (if a row remains), then move `bottom` up;
+4. go **up** the left column (if a column remains), then move `left` right.
+
+The two checks in steps 3 and 4 matter when the rectangle has collapsed into a single row or column; without them the middle row or column would be read twice.
+"""
+tips = [
+    "After finishing the top row and the right column, recheck `top <= bottom` and `left <= right` before the bottom row and left column. A one-row or one-column matrix breaks without those checks.",
+    "Stop the outer loop when either pair of boundaries crosses. Count-based loops (`rows * cols` steps) are an alternative.",
+    "Rectangles aren't squares: don't assume equal sizes.",
+    "A direction-vector version (turn right when you'd leave the grid or hit a visited cell) avoids the four loops but needs a visited set.",
+]
+
+[[approaches]]
+name = "Shrinking boundaries"
+label = "boundaries"
+idea = "Read the top row, right column, bottom row and left column of the remaining rectangle, then shrink it by one on every side."
+time = "O(m · n)"
+space = "O(1)"
+note = "Besides the output list."
+code = '''class Solution:
+    def spiralOrder(self, matrix: list[list[int]]) -> list[int]:
+        result = []
+        top, bottom = 0, len(matrix) - 1
+        left, right = 0, len(matrix[0]) - 1
+        while top <= bottom and left <= right:
+            for j in range(left, right + 1):
+                result.append(matrix[top][j])
+            top += 1
+            for i in range(top, bottom + 1):
+                result.append(matrix[i][right])
+            right -= 1
+            if top <= bottom:
+                for j in range(right, left - 1, -1):
+                    result.append(matrix[bottom][j])
+                bottom -= 1
+            if left <= right:
+                for i in range(bottom, top - 1, -1):
+                    result.append(matrix[i][left])
+                left += 1
+        return result
+'''
+
+[[approaches]]
+name = "Peel the top row and rotate"
+label = "peeling"
+idea = "Take the first row, then rotate what's left counterclockwise so the next side becomes the top row; repeat."
+time = "O(m · n · min(m, n))"
+space = "O(m · n)"
+note = "Short but copies the matrix at every step; it also empties the input."
+code = '''class Solution:
+    def spiralOrder(self, matrix: list[list[int]]) -> list[int]:
+        result = []
+        while matrix:
+            result += matrix.pop(0)
+            matrix = [list(row) for row in zip(*matrix)][::-1]
+        return result
+'''

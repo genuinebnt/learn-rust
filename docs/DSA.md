@@ -111,7 +111,11 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       seeded bugs were all caught).
 - [x] Tries (3) and Linked List (11) lessons (2026-10-07): 14 problems, 27 approaches; checks cover pointer identity (same nodes
       relinked, deep copy shares nothing, input array untouched) and design-class behaviour against models; 34 seeded bugs caught.
-      **Next: lessons for Heap, then Math and Bits. The Rust practice tracks and system design
+- [x] Heap (7), Math & Geometry (8) and Bit Manipulation (7) lessons (2026-10-07): 22 problems, 47 approaches, checked against
+      brute-force references (Task Scheduler against a breadth-first search over states, Detect Squares and Design Twitter
+      against models, `myPow` with a time limit for huge exponents); 57 seeded bugs, the 7 survivors are equivalent code.
+      **Every NeetCode 150 problem now has a checked page (150 of 150).**
+      **Next: the 250's must-learn problems and the pattern lessons (decision 6). The Rust practice tracks and system design
       need re-scoping under decision 24.**
-- [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
-      18 categories.
+- [ ] Content: the 250's must-learn problem pages (31 more), then the rest; pattern lessons for all 18 categories.
+      (The NeetCode 150 pages are done.)

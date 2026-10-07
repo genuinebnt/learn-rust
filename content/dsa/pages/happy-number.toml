@@ -1,0 +1,57 @@
+intuition = """
+Repeatedly replace `n` with the sum of the squares of its digits. Two things can happen: you reach `1` (happy), or you enter a **cycle** that never contains `1` (not happy). It can't grow forever, because the next number is bounded by a small multiple of the digit count.
+
+So this is cycle detection on the sequence `n -> next(n)`: either remember the numbers seen in a set and stop on a repeat, or use fast and slow pointers on the sequence itself (as in Linked List Cycle).
+"""
+tips = [
+    "Write `next_number` once (digits with `divmod(n, 10)`) and reuse it in both versions.",
+    "Stop on reaching `1` as well as on a repeat. `1` maps to itself, so a naive cycle check also stops there; just report which case you hit.",
+    "The set approach is the clear first answer. Floyd's version gets O(1) space.",
+    "Every unhappy number eventually enters the cycle `4 -> 16 -> 37 -> 58 -> 89 -> 145 -> 42 -> 20 -> 4`. Checking for `4` is a known trick, but explaining the cycle is more convincing.",
+]
+
+[[approaches]]
+name = "Set of numbers seen"
+label = "hash set"
+idea = "Keep the numbers produced so far; reaching 1 means happy, seeing a repeat means a cycle."
+time = "O(log n)"
+space = "O(log n)"
+note = "The sequence is short: the numbers fall quickly to three digits."
+code = '''class Solution:
+    def isHappy(self, n: int) -> bool:
+        def next_number(x: int) -> int:
+            total = 0
+            while x:
+                x, digit = divmod(x, 10)
+                total += digit * digit
+            return total
+
+        seen = set()
+        while n != 1 and n not in seen:
+            seen.add(n)
+            n = next_number(n)
+        return n == 1
+'''
+
+[[approaches]]
+name = "Fast and slow pointers"
+label = "two pointers"
+idea = "Treat n -> next(n) as a linked list: the fast pointer takes two steps, the slow one step; they meet in a cycle or at 1."
+time = "O(log n)"
+space = "O(1)"
+note = "No memory of earlier numbers."
+code = '''class Solution:
+    def isHappy(self, n: int) -> bool:
+        def next_number(x: int) -> int:
+            total = 0
+            while x:
+                x, digit = divmod(x, 10)
+                total += digit * digit
+            return total
+
+        slow, fast = n, next_number(n)
+        while fast != 1 and slow != fast:
+            slow = next_number(slow)
+            fast = next_number(next_number(fast))
+        return fast == 1
+'''

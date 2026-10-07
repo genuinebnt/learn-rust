@@ -1,0 +1,92 @@
+intuition = """
+`follow` and `unfollow` are set operations. `postTweet` appends a timestamped tweet to its author's list. The interesting call is `getNewsFeed`: the **10 most recent** tweets among the user and the people they follow.
+
+Each person's tweets are already in time order, so this is **merging k sorted lists** (Merge k Sorted Lists), taking the newest first. Use a max-heap (negated timestamps) that holds the newest remaining tweet of each followed user; pop the newest, then push that user's next older tweet. Stop after 10.
+"""
+tips = [
+    "Use a global counter for timestamps instead of the clock; two tweets in the same millisecond would tie.",
+    "A user always sees their own tweets, whether or not they follow themselves. Add the user to the set when building the feed rather than at `follow` time, so `unfollow(u, u)` can't hide them.",
+    "You never need more than 10 pops, so the feed costs about O(k + 10 log k) for k followed users, not the total number of tweets.",
+    "Each heap entry should carry the author and the index of the tweet, so you know which tweet of theirs to push next.",
+]
+
+[[approaches]]
+name = "Merge the followees' tweets with a heap"
+label = "heap"
+idea = "Keep per-user tweet lists in time order and merge the newest of each with a heap until 10 are collected."
+time = "O(f + 10 log f) per feed"
+space = "O(f)"
+note = "f is the number of users followed."
+code = '''import heapq
+from collections import defaultdict
+
+
+class Twitter:
+
+    def __init__(self):
+        self.clock = 0
+        self.tweets = defaultdict(list)
+        self.following = defaultdict(set)
+
+    def postTweet(self, userId: int, tweetId: int) -> None:
+        self.clock += 1
+        self.tweets[userId].append((self.clock, tweetId))
+
+    def getNewsFeed(self, userId: int) -> list[int]:
+        heap = []
+        for user in self.following[userId] | {userId}:
+            posts = self.tweets[user]
+            if posts:
+                time, tweet = posts[-1]
+                heap.append((-time, tweet, user, len(posts) - 1))
+        heapq.heapify(heap)
+        feed = []
+        while heap and len(feed) < 10:
+            _, tweet, user, i = heapq.heappop(heap)
+            feed.append(tweet)
+            if i > 0:
+                time, older = self.tweets[user][i - 1]
+                heapq.heappush(heap, (-time, older, user, i - 1))
+        return feed
+
+    def follow(self, followerId: int, followeeId: int) -> None:
+        self.following[followerId].add(followeeId)
+
+    def unfollow(self, followerId: int, followeeId: int) -> None:
+        self.following[followerId].discard(followeeId)
+'''
+
+[[approaches]]
+name = "Gather and sort"
+label = "simple"
+idea = "Collect every tweet of the user and their followees, sort by time, and return the newest 10."
+time = "O(T log T) per feed"
+space = "O(T)"
+note = "T is the total number of tweets by those users."
+code = '''from collections import defaultdict
+
+
+class Twitter:
+
+    def __init__(self):
+        self.clock = 0
+        self.tweets = defaultdict(list)
+        self.following = defaultdict(set)
+
+    def postTweet(self, userId: int, tweetId: int) -> None:
+        self.clock += 1
+        self.tweets[userId].append((self.clock, tweetId))
+
+    def getNewsFeed(self, userId: int) -> list[int]:
+        posts = []
+        for user in self.following[userId] | {userId}:
+            posts.extend(self.tweets[user])
+        posts.sort(reverse=True)
+        return [tweet for _, tweet in posts[:10]]
+
+    def follow(self, followerId: int, followeeId: int) -> None:
+        self.following[followerId].add(followeeId)
+
+    def unfollow(self, followerId: int, followeeId: int) -> None:
+        self.following[followerId].discard(followeeId)
+'''

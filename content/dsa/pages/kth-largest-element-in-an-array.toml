@@ -1,0 +1,71 @@
+intuition = """
+The k-th largest is the element at index `n - k` of the sorted array, but you don't need all of it sorted.
+
+**Heap:** keep the k largest elements in a min-heap; its top is the answer. Scan the array, replacing the top whenever a larger value comes along: O(n log k).
+
+**Quickselect:** pick a random pivot and split the numbers into smaller, equal and larger. The target index tells you which part holds the answer, so you only keep that part. Each round shrinks the data by about half on average, so the total is O(n).
+"""
+tips = [
+    "Say \"k-th largest\" means counting duplicates: in `[3, 2, 3, 1, 2, 4, 5, 5, 6]` the 4th largest is `4`, not `3`.",
+    "The target position in ascending order is `len(nums) - k`.",
+    "For the heap, start it with the first `k` elements and use `heapreplace` (pop and push in one go) for bigger ones.",
+    "Splitting into less / equal / greater makes duplicates harmless, which a plain two-way partition handles poorly.",
+]
+
+[[approaches]]
+name = "Min-heap of size k"
+label = "heap"
+idea = "Hold the k largest numbers in a min-heap; the smallest of them is the k-th largest."
+time = "O(n log k)"
+space = "O(k)"
+note = "Works on a stream."
+code = '''import heapq
+
+
+class Solution:
+    def findKthLargest(self, nums: list[int], k: int) -> int:
+        heap = nums[:k]
+        heapq.heapify(heap)
+        for x in nums[k:]:
+            if x > heap[0]:
+                heapq.heapreplace(heap, x)
+        return heap[0]
+'''
+
+[[approaches]]
+name = "Quickselect with three-way splits"
+label = "quickselect"
+idea = "Split around a random pivot into smaller, equal and larger; keep only the part that contains the target position."
+time = "O(n) average"
+space = "O(n)"
+note = "Worst case O(n^2) is vanishingly unlikely with a random pivot."
+code = '''import random
+
+
+class Solution:
+    def findKthLargest(self, nums: list[int], k: int) -> int:
+        target = len(nums) - k
+        while True:
+            pivot = random.choice(nums)
+            smaller = [x for x in nums if x < pivot]
+            equal = [x for x in nums if x == pivot]
+            if target < len(smaller):
+                nums = smaller
+            elif target < len(smaller) + len(equal):
+                return pivot
+            else:
+                target -= len(smaller) + len(equal)
+                nums = [x for x in nums if x > pivot]
+'''
+
+[[approaches]]
+name = "Sort"
+label = "sorting"
+idea = "Sort and index from the end."
+time = "O(n log n)"
+space = "O(n)"
+note = "Fine as a first answer; say why you'd improve it."
+code = '''class Solution:
+    def findKthLargest(self, nums: list[int], k: int) -> int:
+        return sorted(nums)[-k]
+'''

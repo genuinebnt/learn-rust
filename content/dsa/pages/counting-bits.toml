@@ -1,0 +1,45 @@
+intuition = """
+Counting the bits of every number from 0 to `n` one by one costs O(n log n). Do it in O(n) by **reusing earlier answers**: shifting a number right by one drops its lowest bit, so
+
+`bits(i) = bits(i >> 1) + (i & 1)`
+
+The first term is already in the table (a smaller number), and the second is the dropped bit. Fill the table from 0 upwards.
+
+Equivalent forms: `bits(i) = bits(i & (i - 1)) + 1` (clearing the lowest set bit takes you to a smaller number with one fewer bit).
+"""
+tips = [
+    "This is dynamic programming over the numbers: each answer comes from one smaller answer in the same array.",
+    "`i >> 1` is `i // 2`. Both are fine; the shift makes the bit idea explicit.",
+    "`ans[0] = 0` is the base case. Allocate `n + 1` slots, not `n`.",
+    "The brute force (`bin(i).count(\"1\")` for each `i`) is correct but O(n log n); the table removes the log.",
+]
+
+[[approaches]]
+name = "Reuse the answer for i >> 1"
+label = "dp"
+idea = "The bit count of i is the count of i shifted right once, plus the bit that was shifted out."
+time = "O(n)"
+space = "O(n)"
+note = "The output array."
+code = '''class Solution:
+    def countBits(self, n: int) -> list[int]:
+        bits = [0] * (n + 1)
+        for i in range(1, n + 1):
+            bits[i] = bits[i >> 1] + (i & 1)
+        return bits
+'''
+
+[[approaches]]
+name = "Reuse the answer after clearing the lowest bit"
+label = "dp"
+idea = "i & (i - 1) is i without its lowest set bit, a smaller number with exactly one fewer 1."
+time = "O(n)"
+space = "O(n)"
+note = "Same table, a different recurrence."
+code = '''class Solution:
+    def countBits(self, n: int) -> list[int]:
+        bits = [0] * (n + 1)
+        for i in range(1, n + 1):
+            bits[i] = bits[i & (i - 1)] + 1
+        return bits
+'''

@@ -1,0 +1,51 @@
+intuition = """
+Peel the digits off the end of `x` with `divmod(x, 10)` and push them onto the front of the result (`result * 10 + digit`). Handle the sign separately: work with the absolute value and put the sign back at the end.
+
+The twist is the **32-bit range**: if the reversed number doesn't fit in `[-2^31, 2^31 - 1]`, return 0. Python integers don't overflow, so you can test the range at the end. In a language with 32-bit integers you must check **before** the multiply: if `result > INT_MAX // 10` (or equals it with a last digit above 7), the next step would overflow.
+"""
+tips = [
+    "Trailing zeros disappear (`120` becomes `21`). The digit loop does this by itself, but string tricks need care.",
+    "Take the sign off first so `divmod` and `%` don't behave differently for negatives (Python's `%` is never negative, but C's can be).",
+    "State the overflow rule: reversed value outside `[-2^31, 2^31 - 1]` returns 0, and say why you check before multiplying in other languages.",
+    "`int(str(abs(x))[::-1])` is a valid shortcut; show the arithmetic version first.",
+]
+
+[[approaches]]
+name = "Digit by digit, check the range at the end"
+label = "math"
+idea = "Build the reversed number from the digits of |x|, restore the sign, and return 0 if it is outside the 32-bit range."
+time = "O(log x)"
+space = "O(1)"
+note = "Relies on Python's big integers."
+code = '''class Solution:
+    def reverse(self, x: int) -> int:
+        sign = -1 if x < 0 else 1
+        x = abs(x)
+        result = 0
+        while x:
+            x, digit = divmod(x, 10)
+            result = result * 10 + digit
+        result *= sign
+        return result if -(2 ** 31) <= result <= 2 ** 31 - 1 else 0
+'''
+
+[[approaches]]
+name = "Check before each multiply (no big integers)"
+label = "overflow-safe"
+idea = "Stop as soon as the next step would pass 2^31 - 1, the way you must in a language with 32-bit integers."
+time = "O(log x)"
+space = "O(1)"
+note = "A negative result can reach 2^31 in size, but its source would be above the range, so the same limit works."
+code = '''class Solution:
+    def reverse(self, x: int) -> int:
+        limit = 2 ** 31 - 1
+        sign = -1 if x < 0 else 1
+        x = abs(x)
+        result = 0
+        while x:
+            x, digit = divmod(x, 10)
+            if result > limit // 10 or (result == limit // 10 and digit > 7):
+                return 0
+            result = result * 10 + digit
+        return sign * result
+'''

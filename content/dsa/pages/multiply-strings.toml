@@ -1,0 +1,31 @@
+intuition = """
+Do long multiplication like on paper, but without converting the inputs to integers. The product of an `a`-digit and a `b`-digit number has at most `a + b` digits, so use an array of that length. The product of digit `i` of `num1` and digit `j` of `num2` lands in position `i + j + 1`, with its carry going to position `i + j`.
+
+Go through the digits from the right, add each product to what is already in its slot, keep the units digit there and add the carry one slot to the left. At the end, strip leading zeros.
+"""
+tips = [
+    "The slot for `num1[i] * num2[j]` is `i + j + 1` (and `i + j` for the carry). Draw `12 * 34` with index labels and it's easy to see.",
+    "Handle `\"0\"` up front: otherwise the result is a string of zeros that the leading-zero strip would turn into the empty string.",
+    "Add to the existing value in the slot before taking `% 10`: earlier rows have already left something there.",
+    "Python's `int()` could do this in one line, but the problem forbids converting the inputs directly, and the interviewer will ask for the digit version.",
+]
+
+[[approaches]]
+name = "Digit-by-digit with an array of positions"
+label = "long multiplication"
+idea = "Multiply every pair of digits into slot i + j + 1, carrying into slot i + j."
+time = "O(m · n)"
+space = "O(m + n)"
+note = "The result array."
+code = '''class Solution:
+    def multiply(self, num1: str, num2: str) -> str:
+        if num1 == "0" or num2 == "0":
+            return "0"
+        result = [0] * (len(num1) + len(num2))
+        for i in range(len(num1) - 1, -1, -1):
+            for j in range(len(num2) - 1, -1, -1):
+                total = int(num1[i]) * int(num2[j]) + result[i + j + 1]
+                result[i + j + 1] = total % 10
+                result[i + j] += total // 10
+        return "".join(map(str, result)).lstrip("0")
+'''

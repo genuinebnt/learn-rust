@@ -1,0 +1,38 @@
+intuition = """
+**XOR** has two properties that solve this: `a ^ a = 0` and `a ^ 0 = a`, and it doesn't matter in what order you apply it. XOR every number together: each pair cancels itself to 0, and the one number without a partner is what remains.
+
+That gives O(n) time with O(1) extra memory, which is what the problem asks for. A hash set that adds a number the first time and removes it the second also works, using O(n) memory.
+"""
+tips = [
+    "Say the two XOR facts out loud: `x ^ x = 0` and `x ^ 0 = x`. That is the whole proof.",
+    "The order of the numbers doesn't matter, because XOR is commutative and associative.",
+    "`2 * sum(set(nums)) - sum(nums)` also works (each pair is counted once in the first sum and twice in the second), but it uses O(n) memory.",
+    "The same trick appears in Missing Number, and the idea extends to finding two unique numbers.",
+]
+
+[[approaches]]
+name = "XOR everything"
+label = "xor"
+idea = "Equal numbers cancel under XOR; the unpaired number is what is left."
+time = "O(n)"
+space = "O(1)"
+note = "The expected answer."
+code = '''class Solution:
+    def singleNumber(self, nums: list[int]) -> int:
+        result = 0
+        for x in nums:
+            result ^= x
+        return result
+'''
+
+[[approaches]]
+name = "Sum of the set versus the sum of the list"
+label = "math"
+idea = "Doubling the sum of the distinct values counts every pair twice and the single number twice, so subtracting the real sum leaves the single number."
+time = "O(n)"
+space = "O(n)"
+note = "Easy to explain; the set uses memory."
+code = '''class Solution:
+    def singleNumber(self, nums: list[int]) -> int:
+        return 2 * sum(set(nums)) - sum(nums)
+'''

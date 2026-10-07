@@ -1,0 +1,75 @@
+intuition = """
+You want the `k` smallest distances. Sorting all `n` points works in O(n log n). To do better when `k` is small, keep a **max-heap of size k** of the closest points seen so far: its top is the **worst** of the k kept. When a new point is closer than that, it replaces the top.
+
+Compare **squared** distances: the square root is monotonic, so it can't change the order, and it saves floating-point work.
+"""
+tips = [
+    "Skip the square root: `x*x + y*y` ranks points exactly like the true distance.",
+    "A max-heap is needed to keep the *smallest* k: the top is the one to evict. In Python store the negative distance.",
+    "Ties are fine: the problem accepts any k closest, and the answer may be in any order.",
+    "Quickselect (partition around a random pivot, keep only the side that holds the k-th item) averages O(n) with no extra heap.",
+]
+
+[[approaches]]
+name = "Max-heap of size k"
+label = "heap"
+idea = "Keep the k closest points in a max-heap ordered by distance; evict the farthest when the heap grows past k."
+time = "O(n log k)"
+space = "O(k)"
+note = "Good when k is much smaller than n."
+code = '''import heapq
+
+
+class Solution:
+    def kClosest(self, points: list[list[int]], k: int) -> list[list[int]]:
+        heap = []
+        for x, y in points:
+            heapq.heappush(heap, (-(x * x + y * y), x, y))
+            if len(heap) > k:
+                heapq.heappop(heap)
+        return [[x, y] for _, x, y in heap]
+'''
+
+[[approaches]]
+name = "Sort by distance"
+label = "sorting"
+idea = "Sort all points by squared distance and take the first k."
+time = "O(n log n)"
+space = "O(n)"
+note = "The shortest answer."
+code = '''class Solution:
+    def kClosest(self, points: list[list[int]], k: int) -> list[list[int]]:
+        return sorted(points, key=lambda p: p[0] * p[0] + p[1] * p[1])[:k]
+'''
+
+[[approaches]]
+name = "Quickselect"
+label = "quickselect"
+idea = "Partition the points around a random pivot's distance and recurse only into the part that contains position k."
+time = "O(n) average"
+space = "O(n)"
+note = "The worst case is O(n^2) with unlucky pivots; the random pivot makes that very unlikely."
+code = '''import random
+
+
+class Solution:
+    def kClosest(self, points: list[list[int]], k: int) -> list[list[int]]:
+        def dist(p: list[int]) -> int:
+            return p[0] * p[0] + p[1] * p[1]
+
+        lo, hi = 0, len(points) - 1
+        while lo < hi:
+            pivot = dist(points[random.randint(lo, hi)])
+            part = points[lo:hi + 1]
+            less = [p for p in part if dist(p) < pivot]
+            equal = [p for p in part if dist(p) == pivot]
+            more = [p for p in part if dist(p) > pivot]
+            points[lo:hi + 1] = less + equal + more
+            if k <= lo + len(less):
+                hi = lo + len(less) - 1
+            elif k <= lo + len(less) + len(equal):
+                break
+            else:
+                lo += len(less) + len(equal)
+        return points[:k]
+'''

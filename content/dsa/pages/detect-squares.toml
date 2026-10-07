@@ -1,0 +1,68 @@
+intuition = """
+For a query point `(x, y)`, a square needs three other points. Pick the **diagonal** corner `(px, py)`: it must satisfy `|px - x| == |py - y|` and `px != x` (a real, non-empty square). The other two corners are then fixed: `(px, y)` and `(x, py)`.
+
+Duplicates count, so store a **count per point**. For each possible diagonal point, the number of squares is `count(diagonal) * count((px, y)) * count((x, py))`, and the answer is the sum over all diagonals. Looping over each distinct stored point as the diagonal candidate is enough.
+"""
+tips = [
+    "Store counts, not a set: adding the same point twice makes the answer bigger.",
+    "Loop over **distinct** points and multiply by their count, rather than over every added point.",
+    "Reject `px == x` (zero side length) as well as the unequal-distance case.",
+    "A faster layout groups points by `x`: the other point in the **same column** gives the side length directly, and the other two corners are looked up at `x ± side`.",
+]
+
+[[approaches]]
+name = "Counter of points; try each diagonal"
+label = "hash map"
+idea = "For each stored point at equal distance in x and y, multiply the counts of it and the two missing corners."
+time = "O(1) add, O(p) count"
+space = "O(p)"
+note = "p is the number of distinct points."
+code = '''from collections import Counter
+
+
+class DetectSquares:
+
+    def __init__(self):
+        self.counts = Counter()
+
+    def add(self, point: list[int]) -> None:
+        self.counts[(point[0], point[1])] += 1
+
+    def count(self, point: list[int]) -> int:
+        x, y = point
+        total = 0
+        for (px, py), c in self.counts.items():
+            if abs(px - x) == abs(py - y) and px != x:
+                total += c * self.counts[(px, y)] * self.counts[(x, py)]
+        return total
+'''
+
+[[approaches]]
+name = "Points grouped by x"
+label = "hash map"
+idea = "The side length comes from other points in the same column; look up the other two corners at x - side and x + side."
+time = "O(1) add, O(c) count"
+space = "O(p)"
+note = "c is the number of distinct y values in the query's column."
+code = '''from collections import Counter, defaultdict
+
+
+class DetectSquares:
+
+    def __init__(self):
+        self.by_x = defaultdict(Counter)
+
+    def add(self, point: list[int]) -> None:
+        self.by_x[point[0]][point[1]] += 1
+
+    def count(self, point: list[int]) -> int:
+        x, y = point
+        total = 0
+        for other_y, c in self.by_x[x].items():
+            side = other_y - y
+            if side == 0:
+                continue
+            for other_x in (x - side, x + side):
+                total += c * self.by_x[other_x][y] * self.by_x[other_x][other_y]
+        return total
+'''

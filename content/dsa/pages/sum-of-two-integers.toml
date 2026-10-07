@@ -1,0 +1,33 @@
+intuition = """
+Add without `+` by splitting the sum into two parts:
+
+- `a ^ b` is the sum **without carries** (each bit adds modulo 2);
+- `(a & b) << 1` is the **carries** (a carry appears where both bits are 1 and moves one place left).
+
+Add the two parts together by doing the same thing again: set `a` to the carry-free sum and `b` to the carries, and repeat until there are no carries left (`b == 0`).
+
+In Python integers are unbounded and negative numbers act as if they had infinitely many leading 1s, which would keep the loop from ending. So **mask to 32 bits** on each step, and at the end convert a result above `2^31 - 1` back to a negative number.
+"""
+tips = [
+    "XOR is the add, AND-then-shift is the carry. The loop ends when the carry is zero.",
+    "In Python mask with `0xFFFFFFFF` so negative numbers behave like 32-bit two's complement. In C++ or Java this happens by itself.",
+    "At the end, if the result is above `0x7FFFFFFF` it represents a negative number: `~(a ^ mask)` converts it back.",
+    "Trace `1 + 3`: xor `2`, carry `2`; then xor `0`, carry `4`; then xor `4`, carry `0`. Result 4.",
+]
+
+[[approaches]]
+name = "XOR for the sum, AND for the carry"
+label = "bit trick"
+idea = "Repeat: a becomes the carry-free sum, b the shifted carries, until no carry remains. Mask to 32 bits for negatives."
+time = "O(1)"
+space = "O(1)"
+note = "At most 32 rounds."
+code = '''class Solution:
+    def getSum(self, a: int, b: int) -> int:
+        mask = 0xFFFFFFFF
+        while b != 0:
+            carry = ((a & b) << 1) & mask
+            a = (a ^ b) & mask
+            b = carry
+        return a if a <= 0x7FFFFFFF else ~(a ^ mask)
+'''

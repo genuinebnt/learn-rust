@@ -1,0 +1,41 @@
+intuition = """
+The array holds `n` distinct numbers out of `0..n`, so exactly one is missing. Three ways to find it, all O(n) time:
+
+- **Sum:** the numbers `0..n` add up to `n * (n + 1) / 2`. Subtract what the array adds up to; the difference is the missing number.
+- **XOR:** XOR all the indexes `0..n` with all the values. Everything that appears twice cancels and the missing number stays (the same trick as Single Number).
+- **Set:** put the numbers in a set and find which of `0..n` is not in it. This needs O(n) memory.
+"""
+tips = [
+    "The range is `0..n` inclusive: `n + 1` possible values, but the array has only `n` items, which is why one is missing.",
+    "The sum formula is the simplest. Mention overflow: in languages with fixed-size ints, XOR avoids it.",
+    "For XOR, start the accumulator at `n` (the index that has no matching position), then XOR `i ^ nums[i]` for each index.",
+    "Sorting then looking for the first mismatch (`nums[i] != i`) works but costs O(n log n).",
+]
+
+[[approaches]]
+name = "Expected sum minus actual sum"
+label = "math"
+idea = "0 + 1 + ... + n is n(n + 1)/2; whatever the array is short of that is the missing number."
+time = "O(n)"
+space = "O(1)"
+note = "Python has no overflow, but other languages do."
+code = '''class Solution:
+    def missingNumber(self, nums: list[int]) -> int:
+        n = len(nums)
+        return n * (n + 1) // 2 - sum(nums)
+'''
+
+[[approaches]]
+name = "XOR the indexes and the values"
+label = "xor"
+idea = "Every present number is XORed twice (once as an index, once as a value) and cancels; the missing one is XORed once."
+time = "O(n)"
+space = "O(1)"
+note = "No overflow concerns in any language."
+code = '''class Solution:
+    def missingNumber(self, nums: list[int]) -> int:
+        result = len(nums)
+        for i, x in enumerate(nums):
+            result ^= i ^ x
+        return result
+'''

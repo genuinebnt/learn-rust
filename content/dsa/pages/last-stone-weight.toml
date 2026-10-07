@@ -1,0 +1,52 @@
+intuition = """
+Each round needs the **two heaviest** stones, and the leftover goes back into the pile. That is "repeatedly take the maximum", which is what a heap is for.
+
+Python's `heapq` is a min-heap, so store **negative** weights. Pop two, and if they differ push the difference back. When fewer than two stones remain, the answer is the last one (or 0 if none are left).
+"""
+tips = [
+    "`heapq` only has a min-heap: push `-weight` and negate again when you pop.",
+    "Equal stones vanish; unequal ones leave `y - x` (always positive since `y >= x`).",
+    "Handle the empty case at the end: no stones left means the answer is `0`.",
+    "Sorting the list after each round also works, but costs O(n log n) per round. The heap is O(log n).",
+]
+
+[[approaches]]
+name = "Max-heap by negating weights"
+label = "heap"
+idea = "Pop the two heaviest stones, push back their difference when it isn't zero, and repeat."
+time = "O(n log n)"
+space = "O(n)"
+note = "Each of at most n rounds does O(log n) heap work."
+code = '''import heapq
+
+
+class Solution:
+    def lastStoneWeight(self, stones: list[int]) -> int:
+        heap = [-s for s in stones]
+        heapq.heapify(heap)
+        while len(heap) > 1:
+            y = -heapq.heappop(heap)
+            x = -heapq.heappop(heap)
+            if y != x:
+                heapq.heappush(heap, -(y - x))
+        return -heap[0] if heap else 0
+'''
+
+[[approaches]]
+name = "Sort every round"
+label = "simple"
+idea = "Keep the stones sorted and take the last two each time."
+time = "O(n^2 log n)"
+space = "O(1)"
+note = "Fine for the small limits here; the heap is what scales."
+code = '''class Solution:
+    def lastStoneWeight(self, stones: list[int]) -> int:
+        stones = sorted(stones)
+        while len(stones) > 1:
+            y = stones.pop()
+            x = stones.pop()
+            if y != x:
+                stones.append(y - x)
+                stones.sort()
+        return stones[0] if stones else 0
+'''

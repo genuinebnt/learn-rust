@@ -1,0 +1,56 @@
+intuition = """
+**Preorder** lists a root before its subtrees, so its first element is the root. **Inorder** lists the left subtree, then the root, then the right subtree, so finding the root in the inorder list splits it into the left part and the right part.
+
+If the left part has `k` values, then the next `k` values of the preorder are the left subtree and the rest are the right subtree. Recurse on both. The values are distinct, so a hash map from value to inorder index finds each root in O(1).
+"""
+tips = [
+    "Preorder tells you **which** value is the root, inorder tells you **how big** the left subtree is. Neither is enough alone.",
+    "Build the left subtree before the right: the preorder pointer moves left to right and the left subtree's nodes come first.",
+    "Keep indexes instead of slicing lists. Slicing copies, which makes the whole thing O(n^2).",
+    "Distinct values are what make the value-to-index map valid; with duplicates the problem is ambiguous.",
+]
+
+[[approaches]]
+name = "Hash map of inorder positions"
+label = "recursive"
+idea = "Take the next preorder value as the root, find it in inorder through a map, and build the left then the right subtree on the inorder ranges either side of it."
+time = "O(n)"
+space = "O(n)"
+note = "The map and the recursion stack."
+code = '''class Solution:
+    def buildTree(self, preorder: list[int], inorder: list[int]) -> TreeNode | None:
+        position = {value: i for i, value in enumerate(inorder)}
+        next_root = 0
+
+        def build(low: int, high: int) -> TreeNode | None:
+            nonlocal next_root
+            if low > high:
+                return None
+            value = preorder[next_root]
+            next_root += 1
+            node = TreeNode(value)
+            mid = position[value]
+            node.left = build(low, mid - 1)
+            node.right = build(mid + 1, high)
+            return node
+
+        return build(0, len(inorder) - 1)
+'''
+
+[[approaches]]
+name = "Slicing the lists (simple)"
+label = "slicing"
+idea = "Same idea, splitting the two lists with slices at each step."
+time = "O(n^2)"
+space = "O(n^2)"
+note = "Copies lists at every level; fine for the idea, too slow for large inputs."
+code = '''class Solution:
+    def buildTree(self, preorder: list[int], inorder: list[int]) -> TreeNode | None:
+        if not preorder:
+            return None
+        mid = inorder.index(preorder[0])
+        node = TreeNode(preorder[0])
+        node.left = self.buildTree(preorder[1:mid + 1], inorder[:mid])
+        node.right = self.buildTree(preorder[mid + 1:], inorder[mid + 1:])
+        return node
+'''

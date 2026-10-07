@@ -1,0 +1,55 @@
+intuition = """
+An **inorder** walk of a BST (left, node, right) visits the values in increasing order. So the k-th smallest is the k-th node the inorder walk visits, and you can stop there without walking the rest.
+
+Do it iteratively with a stack: dive left as far as possible, pop a node (that is the next smallest), then move to its right child and repeat.
+"""
+tips = [
+    "Inorder = sorted order for a BST. That's the property the problem is built on.",
+    "Count as you pop and stop at `k`; there is no need to collect all values.",
+    "The simple answer collects the full inorder list and indexes `[k - 1]`: O(n) time and space. The stack version stops early and uses O(h) space.",
+    "Follow-up (frequent): if the tree is edited often and you ask for k-th smallest many times, store the size of each node's left subtree so a query walks down one path in O(h).",
+]
+
+[[approaches]]
+name = "Iterative inorder, stop at k"
+label = "inorder"
+idea = "Use a stack to walk in sorted order, counting down k as nodes are popped."
+time = "O(h + k)"
+space = "O(h)"
+note = "It walks down the left spine first, then k pops."
+code = '''class Solution:
+    def kthSmallest(self, root: TreeNode | None, k: int) -> int:
+        stack = []
+        node = root
+        while stack or node:
+            while node:
+                stack.append(node)
+                node = node.left
+            node = stack.pop()
+            k -= 1
+            if k == 0:
+                return node.val
+            node = node.right
+'''
+
+[[approaches]]
+name = "Collect the inorder list"
+label = "simple"
+idea = "Write the whole inorder sequence into a list and return the element at index k - 1."
+time = "O(n)"
+space = "O(n)"
+note = "The easiest to get right."
+code = '''class Solution:
+    def kthSmallest(self, root: TreeNode | None, k: int) -> int:
+        values = []
+
+        def inorder(node: TreeNode | None) -> None:
+            if node is None:
+                return
+            inorder(node.left)
+            values.append(node.val)
+            inorder(node.right)
+
+        inorder(root)
+        return values[k - 1]
+'''

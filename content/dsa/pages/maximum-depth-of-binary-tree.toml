@@ -1,0 +1,63 @@
+intuition = """
+The depth of a tree is `1 + max(depth of left, depth of right)`, and an empty tree has depth 0. That sentence **is** the solution: a function that trusts itself on the two subtrees and adds one for the current node.
+
+If you prefer to walk it level by level, the depth is simply the number of levels a BFS goes through.
+"""
+tips = [
+    "Depth counts nodes here (a single node has depth 1), so the empty tree is 0, not -1.",
+    "The recursive form is one line once the base case is written. Interviewers often ask for the iterative version next.",
+    "BFS by levels answers it without recursion: count how many times you refill the queue.",
+    "A skewed tree of 10^4 nodes can hit Python's recursion limit in some judges; the iterative versions can't.",
+]
+
+[[approaches]]
+name = "Recursive DFS"
+label = "recursive"
+idea = "Depth of a node = 1 plus the larger depth of its two subtrees; an empty tree is 0."
+time = "O(n)"
+space = "O(h)"
+note = "h is the height of the tree."
+code = '''class Solution:
+    def maxDepth(self, root: TreeNode | None) -> int:
+        if root is None:
+            return 0
+        return 1 + max(self.maxDepth(root.left), self.maxDepth(root.right))
+'''
+
+[[approaches]]
+name = "BFS, counting levels"
+label = "bfs"
+idea = "Process the tree one whole level at a time; the number of levels is the depth."
+time = "O(n)"
+space = "O(w)"
+note = "w is the widest level."
+code = '''class Solution:
+    def maxDepth(self, root: TreeNode | None) -> int:
+        depth = 0
+        level = [root] if root else []
+        while level:
+            depth += 1
+            level = [child for node in level for child in (node.left, node.right) if child]
+        return depth
+'''
+
+[[approaches]]
+name = "Iterative DFS with depths on the stack"
+label = "iterative"
+idea = "Keep (node, depth) pairs on a stack and track the largest depth seen."
+time = "O(n)"
+space = "O(h)"
+note = "No recursion, so a very deep tree is safe."
+code = '''class Solution:
+    def maxDepth(self, root: TreeNode | None) -> int:
+        best = 0
+        stack = [(root, 1)] if root else []
+        while stack:
+            node, depth = stack.pop()
+            best = max(best, depth)
+            if node.left:
+                stack.append((node.left, depth + 1))
+            if node.right:
+                stack.append((node.right, depth + 1))
+        return best
+'''

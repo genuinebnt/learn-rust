@@ -16,7 +16,24 @@ class Node:
         self.neighbors = neighbors if neighbors is not None else []
 
 
-PROVIDED_CLASSES = {"Node": Node}
+class TreeNode:
+    """LeetCode's TreeNode."""
+
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+
+class ListNode:
+    """LeetCode's ListNode."""
+
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+
+
+PROVIDED_CLASSES = {"Node": Node, "TreeNode": TreeNode, "ListNode": ListNode}
 
 
 def rng(seed=1):
@@ -1707,6 +1724,367 @@ def n_queens_check(ns):
             assert len({r_ - c for r_, c in enumerate(cols)}) == n and len({r_ + c for r_, c in enumerate(cols)}) == n
 
 
+# ---- binary trees -------------------------------------------------------------------------------------------------
+
+
+def _tree(values):
+    """LeetCode's level-order list ([1, None, 2, 3]) as nodes."""
+    if not values or values[0] is None:
+        return None
+    root = TreeNode(values[0])
+    q, i = deque([root]), 1
+    while q and i < len(values):
+        node = q.popleft()
+        for side in ("left", "right"):
+            if i < len(values) and values[i] is not None:
+                setattr(node, side, TreeNode(values[i]))
+                q.append(getattr(node, side))
+            i += 1
+    return root
+
+
+def _shape(t):
+    """Nested (value, left, right) tuples, so two trees compare with ==."""
+    return None if t is None else (t.val, _shape(t.left), _shape(t.right))
+
+
+def _random_tree(r, n, lo=-20, hi=20, distinct=False):
+    """A random binary tree of n nodes; splits are sometimes even, so balanced trees turn up too."""
+    vals = iter(r.sample(range(lo, hi + 1), n) if distinct else [r.randint(lo, hi) for _ in range(n)])
+
+    def make(k):
+        if k == 0:
+            return None
+        node = TreeNode(next(vals))
+        left = r.choice([(k - 1) // 2, k - 1 - (k - 1) // 2, r.randint(0, k - 1)])
+        node.left = make(left)
+        node.right = make(k - 1 - left)
+        return node
+
+    return make(n)
+
+
+def _random_bst(r, n, lo=0, hi=60):
+    root = None
+    for key in r.sample(range(lo, hi + 1), n):
+        if root is None:
+            root = TreeNode(key)
+            continue
+        cur = root
+        while True:
+            side = "left" if key < cur.val else "right"
+            if getattr(cur, side) is None:
+                setattr(cur, side, TreeNode(key))
+                break
+            cur = getattr(cur, side)
+    return root
+
+
+def _preorder(t):
+    return [] if t is None else [t] + _preorder(t.left) + _preorder(t.right)
+
+
+def _inorder_vals(t):
+    return [] if t is None else _inorder_vals(t.left) + [t.val] + _inorder_vals(t.right)
+
+
+def _height(t):
+    return 0 if t is None else 1 + max(_height(t.left), _height(t.right))
+
+
+def _levels(t):
+    out, row = [], [t] if t else []
+    while row:
+        out.append([x.val for x in row])
+        row = [c for x in row for c in (x.left, x.right) if c]
+    return out
+
+
+def _tree_copy(t):
+    return None if t is None else TreeNode(t.val, _tree_copy(t.left), _tree_copy(t.right))
+
+
+def _tree_distances(t):
+    """{(id(a), id(b)): edges between the nodes} for every pair, by BFS over the tree as a graph."""
+    adj = defaultdict(list)
+    for x in _preorder(t):
+        for c in (x.left, x.right):
+            if c:
+                adj[id(x)].append(id(c))
+                adj[id(c)].append(id(x))
+    out = {}
+    for x in _preorder(t):
+        seen, q = {id(x): 0}, deque([id(x)])
+        while q:
+            a = q.popleft()
+            for b in adj[a]:
+                if b not in seen:
+                    seen[b] = seen[a] + 1
+                    q.append(b)
+        for b, d in seen.items():
+            out[(id(x), b)] = d
+    return out
+
+
+def invert_tree(ns):
+    f = ns["Solution"]().invertTree
+
+    def mirror(t):
+        return None if t is None else (t.val, mirror(t.right), mirror(t.left))
+
+    assert f(None) is None
+    assert _shape(f(_tree([4, 2, 7, 1, 3, 6, 9]))) == _shape(_tree([4, 7, 2, 9, 6, 3, 1]))
+    assert _shape(f(_tree([2, 1, 3]))) == _shape(_tree([2, 3, 1])) and _shape(f(_tree([1, 2]))) == _shape(_tree([1, None, 2]))
+    r = rng()
+    for _ in range(300):
+        t = _random_tree(r, r.randint(0, 25))
+        want = mirror(t)
+        assert _shape(f(t)) == want
+
+
+def max_depth(ns):
+    f = ns["Solution"]().maxDepth
+    assert f(None) == 0 and f(_tree([3, 9, 20, None, None, 15, 7])) == 3 and f(_tree([1, None, 2])) == 2 and f(_tree([0])) == 1
+    r = rng()
+    for _ in range(300):
+        t = _random_tree(r, r.randint(0, 30))
+        assert f(t) == _height(t)
+    chain = TreeNode(0)
+    for i in range(1, 300):
+        chain = TreeNode(i, chain, None)
+    assert f(chain) == 300
+
+
+def diameter(ns):
+    f = ns["Solution"]().diameterOfBinaryTree
+    assert f(_tree([1, 2, 3, 4, 5])) == 3 and f(_tree([1, 2])) == 1 and f(_tree([1])) == 0
+    # the longest path can avoid the root: a deep left subtree and a small right one
+    assert f(_tree([1, 2, None, 3, 4, None, None, 5, None, 6])) == 4
+    r = rng()
+    for _ in range(300):
+        t = _random_tree(r, r.randint(1, 14))
+        assert f(t) == max(_tree_distances(t).values())
+
+
+def balanced(ns):
+    f = ns["Solution"]().isBalanced
+    assert f(None) is True and f(_tree([3, 9, 20, None, None, 15, 7])) is True
+    assert f(_tree([1, 2, 2, 3, 3, None, None, 4, 4])) is False and f(_tree([1])) is True
+    # unbalanced only deep down: the root's two sides differ by 0 but a node below is off by 2
+    assert f(_tree([1, 2, 2, 3, None, None, 3, 4, None, None, 4])) is False
+
+    def ok(t):
+        return True if t is None else abs(_height(t.left) - _height(t.right)) <= 1 and ok(t.left) and ok(t.right)
+
+    r = rng()
+    seen = set()
+    for _ in range(600):
+        t = _random_tree(r, r.randint(0, 16))
+        want = ok(t)
+        seen.add(want)
+        assert f(t) is want, _shape(t)
+    assert seen == {True, False}
+
+
+def same_tree(ns):
+    f = ns["Solution"]().isSameTree
+    assert f(None, None) is True and f(_tree([1]), None) is False and f(None, _tree([1])) is False
+    assert f(_tree([1, 2, 3]), _tree([1, 2, 3])) is True and f(_tree([1, 2]), _tree([1, None, 2])) is False
+    assert f(_tree([1, 2, 1]), _tree([1, 1, 2])) is False
+    r = rng()
+    for _ in range(400):
+        a = _random_tree(r, r.randint(0, 12), -3, 3)
+        b = _tree_copy(a)
+        kind = r.randint(0, 3)
+        nodes = _preorder(b)
+        if nodes and kind == 0:
+            r.choice(nodes).val += 1
+        elif nodes and kind == 1:
+            x = r.choice(nodes)
+            x.left, x.right = x.right, x.left
+        elif kind == 2:
+            b = _random_tree(r, r.randint(0, 12), -3, 3)
+        assert f(a, b) is (_shape(a) == _shape(b))
+
+
+def subtree(ns):
+    f = ns["Solution"]().isSubtree
+    assert f(_tree([3, 4, 5, 1, 2]), _tree([4, 1, 2])) is True
+    assert f(_tree([3, 4, 5, 1, 2, None, None, None, None, 0]), _tree([4, 1, 2])) is False
+    assert f(_tree([1, 1]), _tree([1])) is True and f(_tree([12]), _tree([2])) is False
+    r = rng()
+    seen = set()
+    for _ in range(500):
+        root = _random_tree(r, r.randint(1, 14), 0, 2)
+        nodes = _preorder(root)
+        kind = r.randint(0, 3)
+        if kind == 0:
+            sub = _tree_copy(r.choice(nodes))
+        elif kind == 1:
+            sub = _tree_copy(r.choice(nodes))
+            leaf = r.choice(_preorder(sub))
+            if leaf.left is None:
+                leaf.left = TreeNode(r.randint(0, 2))
+            else:
+                leaf.val += 1
+        else:
+            sub = _random_tree(r, r.randint(1, 4), 0, 2)
+        want = any(_shape(x) == _shape(sub) for x in nodes)
+        seen.add(want)
+        assert f(root, sub) is want
+    assert seen == {True, False}
+
+
+def lca_bst(ns):
+    f = ns["Solution"]().lowestCommonAncestor
+    root = _tree([6, 2, 8, 0, 4, 7, 9, None, None, 3, 5])
+    by = {x.val: x for x in _preorder(root)}
+    assert f(root, by[2], by[8]) is by[6] and f(root, by[2], by[4]) is by[2] and f(root, by[3], by[5]) is by[4]
+    r = rng()
+
+    def path(t, target):
+        out, cur = [], t
+        while True:
+            out.append(cur)
+            if cur is target:
+                return out
+            cur = cur.left if target.val < cur.val else cur.right
+
+    for _ in range(400):
+        t = _random_bst(r, r.randint(2, 20))
+        p, q = r.sample(_preorder(t), 2)
+        a, b = path(t, p), path(t, q)
+        want = [x for x, y in zip(a, b) if x is y][-1]
+        assert f(t, p, q) is want
+
+
+def level_order(ns):
+    f = ns["Solution"]().levelOrder
+    assert f(None) == [] and f(_tree([1])) == [[1]] and f(_tree([3, 9, 20, None, None, 15, 7])) == [[3], [9, 20], [15, 7]]
+    r = rng()
+    for _ in range(300):
+        t = _random_tree(r, r.randint(0, 25))
+        assert f(t) == _levels(t)
+
+
+def right_side_view(ns):
+    f = ns["Solution"]().rightSideView
+    assert f(None) == [] and f(_tree([1, 2, 3, None, 5, None, 4])) == [1, 3, 4] and f(_tree([1, None, 3])) == [1, 3]
+    assert f(_tree([1, 2, 3, 4])) == [1, 3, 4]
+    r = rng()
+    for _ in range(300):
+        t = _random_tree(r, r.randint(0, 25))
+        assert f(t) == [row[-1] for row in _levels(t)]
+
+
+def good_nodes(ns):
+    f = ns["Solution"]().goodNodes
+    assert f(_tree([3, 1, 4, 3, None, 1, 5])) == 4 and f(_tree([3, 3, None, 4, 2])) == 3 and f(_tree([1])) == 1
+    assert f(_tree([-1, -2, -3])) == 1
+    r = rng()
+
+    def count(t, seen):
+        if t is None:
+            return 0
+        return (all(v <= t.val for v in seen)) + count(t.left, seen + [t.val]) + count(t.right, seen + [t.val])
+
+    for _ in range(400):
+        t = _random_tree(r, r.randint(1, 25), -6, 6)
+        assert f(t) == count(t, [])
+
+
+def validate_bst(ns):
+    f = ns["Solution"]().isValidBST
+    assert f(_tree([2, 1, 3])) is True and f(_tree([5, 1, 4, None, None, 3, 6])) is False
+    assert f(_tree([5, 4, 6, None, None, 3, 7])) is False, "a node must fit every ancestor's bound, not just its parent's"
+    assert f(_tree([2, 2, 2])) is False and f(_tree([1, None, 1])) is False and f(_tree([1, 1])) is False
+    assert f(_tree([-2147483648])) is True and f(_tree([2147483647])) is True and f(_tree([2147483647, 2147483647])) is False
+    r = rng()
+    seen = set()
+    for _ in range(600):
+        if r.random() < 0.3:
+            t = _random_tree(r, r.randint(1, 8), 0, 6)
+        else:
+            t = _random_bst(r, r.randint(1, 15))
+            nodes = _preorder(t)
+            if r.random() < 0.6:
+                r.choice(nodes).val = r.randint(0, 60)
+        vals = _inorder_vals(t)
+        want = all(a < b for a, b in zip(vals, vals[1:]))
+        seen.add(want)
+        assert f(t) is want, _shape(t)
+    assert seen == {True, False}
+
+
+def kth_smallest(ns):
+    f = ns["Solution"]().kthSmallest
+    assert f(_tree([3, 1, 4, None, 2]), 1) == 1 and f(_tree([5, 3, 6, 2, 4, None, None, 1]), 3) == 3
+    r = rng()
+    for _ in range(400):
+        n = r.randint(1, 20)
+        t = _random_bst(r, n)
+        k = r.randint(1, n)
+        assert f(t, k) == _inorder_vals(t)[k - 1]
+
+
+def build_tree(ns):
+    f = ns["Solution"]().buildTree
+    assert _shape(f([3, 9, 20, 15, 7], [9, 3, 15, 20, 7])) == _shape(_tree([3, 9, 20, None, None, 15, 7]))
+    assert _shape(f([-1], [-1])) == (-1, None, None)
+    r = rng()
+    for _ in range(400):
+        t = _random_tree(r, r.randint(1, 20), -30, 30, distinct=True)
+        pre = [x.val for x in _preorder(t)]
+        assert _shape(f(pre[:], _inorder_vals(t))) == _shape(t)
+
+
+def max_path_sum(ns):
+    f = ns["Solution"]().maxPathSum
+    assert f(_tree([1, 2, 3])) == 6 and f(_tree([-10, 9, 20, None, None, 15, 7])) == 42
+    assert f(_tree([-3])) == -3 and f(_tree([-2, -1])) == -1 and f(_tree([2, -1])) == 2
+    r = rng()
+    for _ in range(300):
+        t = _random_tree(r, r.randint(1, 12), -15, 15)
+        nodes = _preorder(t)
+        adj = defaultdict(list)
+        for x in nodes:
+            for c in (x.left, x.right):
+                if c:
+                    adj[id(x)].append(c)
+                    adj[id(c)].append(x)
+        best = -10**9
+        for s in nodes:
+            stack = [(s, None, s.val)]
+            while stack:
+                x, parent, total = stack.pop()
+                best = max(best, total)
+                for y in adj[id(x)]:
+                    if y is not parent:
+                        stack.append((y, x, total + y.val))
+        assert f(t) == best, _shape(t)
+
+
+def serialize_tree(ns):
+    Codec = ns["Codec"]
+    assert Codec().deserialize(Codec().serialize(None)) is None
+    r = rng()
+    cases = [_tree([1, 2, 3, None, None, 4, 5]), _tree([1]), _tree([-1000, None, 1000]), _tree([0, 0, 0])]
+    cases += [_random_tree(r, r.randint(0, 25), -1000, 1000) for _ in range(300)]
+    chain = TreeNode(0)
+    for i in range(1, 300):
+        chain = TreeNode(i, None, chain)
+    cases.append(chain)
+    for t in cases:
+        want = _shape(t)
+        text = Codec().serialize(t)
+        assert isinstance(text, str), "serialize returns a string"
+        assert _shape(Codec().deserialize(text)) == want, want
+    # the string alone carries the tree: a fresh Codec shares nothing with the one that serialized
+    a, b = _random_tree(r, 8, 10, 99), _random_tree(r, 9, 10, 99)
+    sa, sb = Codec().serialize(a), Codec().serialize(b)
+    assert _shape(Codec().deserialize(sb)) == _shape(b) and _shape(Codec().deserialize(sa)) == _shape(a)
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -1807,6 +2185,21 @@ CHECKS = {
     "palindrome-partitioning": palindrome_partitioning_check,
     "letter-combinations-of-a-phone-number": letter_combinations_check,
     "n-queens": n_queens_check,
+    "invert-binary-tree": invert_tree,
+    "maximum-depth-of-binary-tree": max_depth,
+    "diameter-of-binary-tree": diameter,
+    "balanced-binary-tree": balanced,
+    "same-tree": same_tree,
+    "subtree-of-another-tree": subtree,
+    "lowest-common-ancestor-of-a-binary-search-tree": lca_bst,
+    "binary-tree-level-order-traversal": level_order,
+    "binary-tree-right-side-view": right_side_view,
+    "count-good-nodes-in-binary-tree": good_nodes,
+    "validate-binary-search-tree": validate_bst,
+    "kth-smallest-element-in-a-bst": kth_smallest,
+    "construct-binary-tree-from-preorder-and-inorder-traversal": build_tree,
+    "binary-tree-maximum-path-sum": max_path_sum,
+    "serialize-and-deserialize-binary-tree": serialize_tree,
 }
 
 

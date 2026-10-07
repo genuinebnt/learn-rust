@@ -1,0 +1,46 @@
+intuition = """
+Inverting a tree means every node swaps its two children. Do that at **every** node and the whole tree is mirrored, so the problem is one line of work per node plus a way to visit every node.
+
+Recursively: invert the left subtree, invert the right subtree, then swap the two. An empty tree is the base case. The order doesn't matter (swap first, or recurse first), as long as each node's children are swapped once.
+"""
+tips = [
+    "Say the base case first: `if root is None: return None`. Leaves then work for free, since swapping two `None` children changes nothing.",
+    "You can swap before or after recursing. If you swap first, recurse into the (already swapped) children; the result is the same.",
+    "Return `root` so the caller can reassign the child. LeetCode checks the returned tree.",
+    "The iterative version works with any traversal that visits each node once: a stack (DFS) or a queue (BFS). Swap at each node as you pop it.",
+]
+
+[[approaches]]
+name = "Recursive DFS: swap at every node"
+label = "recursive"
+idea = "Swap a node's children, then invert each child's subtree. An empty tree is returned as is."
+time = "O(n)"
+space = "O(h)"
+note = "h is the height: the recursion depth, up to n for a chain."
+code = '''class Solution:
+    def invertTree(self, root: TreeNode | None) -> TreeNode | None:
+        if root is None:
+            return None
+        root.left, root.right = self.invertTree(root.right), self.invertTree(root.left)
+        return root
+'''
+
+[[approaches]]
+name = "Iterative with a stack"
+label = "iterative"
+idea = "Pop a node, swap its children, push the non-empty ones. Every node is popped once."
+time = "O(n)"
+space = "O(h)"
+note = "A queue works the same way and keeps up to a level's width in memory instead."
+code = '''class Solution:
+    def invertTree(self, root: TreeNode | None) -> TreeNode | None:
+        stack = [root] if root else []
+        while stack:
+            node = stack.pop()
+            node.left, node.right = node.right, node.left
+            if node.left:
+                stack.append(node.left)
+            if node.right:
+                stack.append(node.right)
+        return root
+'''

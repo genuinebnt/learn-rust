@@ -1,0 +1,38 @@
+intuition = """
+A path goes up and then down through at most one **top** node. At each node there are two different numbers to know:
+
+- the best path **through** it: `node.val + best_left + best_right`, which may turn there (a candidate for the answer);
+- the best path **ending at** it and continuing up to the parent: `node.val + max(best_left, best_right)`, which can only use one side.
+
+Negative branches only hurt, so treat a negative `best_left` or `best_right` as 0 (skip that side). Track the maximum candidate while the DFS returns the one-sided value.
+"""
+tips = [
+    "Same structure as Diameter: return one thing upward (a path that can continue), compare another against the answer (a path that bends here).",
+    "Clamp child gains at 0 with `max(0, gain)`. A path may skip a negative subtree entirely.",
+    "Start the answer at negative infinity, not 0: with all values negative the best path is the single largest node.",
+    "A path needs at least one node, so don't clamp the node's own value.",
+]
+
+[[approaches]]
+name = "DFS returning the best downward path"
+label = "dfs"
+idea = "Each call returns the best path that starts at the node and goes down one side; the best path that bends at the node updates the global answer."
+time = "O(n)"
+space = "O(h)"
+note = "One pass over the tree."
+code = '''class Solution:
+    def maxPathSum(self, root: TreeNode | None) -> int:
+        best = float("-inf")
+
+        def gain(node: TreeNode | None) -> int:
+            nonlocal best
+            if node is None:
+                return 0
+            left = max(0, gain(node.left))
+            right = max(0, gain(node.right))
+            best = max(best, node.val + left + right)
+            return node.val + max(left, right)
+
+        gain(root)
+        return best
+'''

@@ -1,0 +1,48 @@
+intuition = """
+Two trees are the same when their roots match **and** their left subtrees are the same **and** their right subtrees are the same. Walk both trees together and compare as you go.
+
+There are three cases at a pair of positions: both empty (same), exactly one empty (different), both present (values equal and recurse on both sides).
+"""
+tips = [
+    "Both `None` is a match; one `None` is a mismatch. Handle those before touching `.val`.",
+    "Structure matters, not just values: `[1, 2]` and `[1, None, 2]` hold the same values but are different trees.",
+    "Return as soon as something differs. `and` short-circuits, so the recursive form already does.",
+    "This function is the building block for Subtree of Another Tree.",
+]
+
+[[approaches]]
+name = "Recursive comparison"
+label = "recursive"
+idea = "Compare the two roots, then the two left subtrees and the two right subtrees."
+time = "O(min(n, m))"
+space = "O(h)"
+note = "It stops at the first difference."
+code = '''class Solution:
+    def isSameTree(self, p: TreeNode | None, q: TreeNode | None) -> bool:
+        if p is None and q is None:
+            return True
+        if p is None or q is None or p.val != q.val:
+            return False
+        return self.isSameTree(p.left, q.left) and self.isSameTree(p.right, q.right)
+'''
+
+[[approaches]]
+name = "Iterative with a stack of pairs"
+label = "iterative"
+idea = "Push pairs of corresponding nodes; each popped pair must match, then push the children pairs."
+time = "O(min(n, m))"
+space = "O(h)"
+note = "Avoids recursion."
+code = '''class Solution:
+    def isSameTree(self, p: TreeNode | None, q: TreeNode | None) -> bool:
+        stack = [(p, q)]
+        while stack:
+            a, b = stack.pop()
+            if a is None and b is None:
+                continue
+            if a is None or b is None or a.val != b.val:
+                return False
+            stack.append((a.left, b.left))
+            stack.append((a.right, b.right))
+        return True
+'''

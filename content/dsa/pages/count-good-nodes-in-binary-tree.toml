@@ -1,0 +1,52 @@
+intuition = """
+A node is **good** if no node on the path from the root to it has a larger value. That depends only on the path above, so carry one number down the recursion: the **maximum value seen on the path so far**.
+
+At each node, it is good when `node.val >= max_so_far`. Then pass `max(max_so_far, node.val)` to both children. Sum the good nodes of the two subtrees.
+"""
+tips = [
+    "The state you carry **down** is the path maximum, not the whole path. One integer is enough.",
+    "Use `>=`: a node equal to the path maximum is good. The root is always good.",
+    "Start the maximum at the root's own value (or negative infinity); node values can be negative.",
+    "Compare this with Diameter: there the information flowed **up** as a return value, here it flows **down** as a parameter.",
+]
+
+[[approaches]]
+name = "DFS carrying the path maximum"
+label = "dfs"
+idea = "Pass the largest value on the path down; count a node when it is at least that large."
+time = "O(n)"
+space = "O(h)"
+note = "One integer of state per call."
+code = '''class Solution:
+    def goodNodes(self, root: TreeNode) -> int:
+        def count(node: TreeNode | None, highest: int) -> int:
+            if node is None:
+                return 0
+            good = 1 if node.val >= highest else 0
+            highest = max(highest, node.val)
+            return good + count(node.left, highest) + count(node.right, highest)
+
+        return count(root, root.val)
+'''
+
+[[approaches]]
+name = "Iterative DFS with (node, maximum)"
+label = "iterative"
+idea = "Keep the path maximum next to each node on an explicit stack."
+time = "O(n)"
+space = "O(h)"
+note = "Same traversal without recursion."
+code = '''class Solution:
+    def goodNodes(self, root: TreeNode) -> int:
+        good = 0
+        stack = [(root, root.val)]
+        while stack:
+            node, highest = stack.pop()
+            if node.val >= highest:
+                good += 1
+            highest = max(highest, node.val)
+            for child in (node.left, node.right):
+                if child:
+                    stack.append((child, highest))
+        return good
+'''

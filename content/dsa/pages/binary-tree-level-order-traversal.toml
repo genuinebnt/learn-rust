@@ -1,0 +1,62 @@
+intuition = """
+Level order means "all nodes at depth 0, then depth 1, ..." which is exactly **BFS**. A queue gives you that order, but you also need to know where each level ends.
+
+The trick: at the start of each round, the queue holds **exactly one level**. Take its current length, pop that many nodes into a row, and push their children for the next round.
+"""
+tips = [
+    "Capture `len(queue)` **before** the inner loop; the queue grows while you push children.",
+    "Use `collections.deque` and `popleft()`. `list.pop(0)` is O(n) per call.",
+    "An empty tree returns `[]`, not `[[]]`.",
+    "A DFS can do it too: pass the depth down and append to `result[depth]`, creating the row the first time you reach a depth. This is the same idea as BFS with the traversal order turned around.",
+]
+
+[[approaches]]
+name = "BFS, one level per round"
+label = "bfs"
+idea = "Each round takes the whole current level from the queue and queues up the next one."
+time = "O(n)"
+space = "O(w)"
+note = "w is the widest level."
+code = '''from collections import deque
+
+
+class Solution:
+    def levelOrder(self, root: TreeNode | None) -> list[list[int]]:
+        result = []
+        queue = deque([root] if root else [])
+        while queue:
+            row = []
+            for _ in range(len(queue)):
+                node = queue.popleft()
+                row.append(node.val)
+                if node.left:
+                    queue.append(node.left)
+                if node.right:
+                    queue.append(node.right)
+            result.append(row)
+        return result
+'''
+
+[[approaches]]
+name = "DFS with the depth"
+label = "dfs"
+idea = "Visit left before right, passing the depth; a node goes at the end of its depth's row."
+time = "O(n)"
+space = "O(h)"
+note = "Left-first order keeps each row in left-to-right order."
+code = '''class Solution:
+    def levelOrder(self, root: TreeNode | None) -> list[list[int]]:
+        result = []
+
+        def visit(node: TreeNode | None, depth: int) -> None:
+            if node is None:
+                return
+            if depth == len(result):
+                result.append([])
+            result[depth].append(node.val)
+            visit(node.left, depth + 1)
+            visit(node.right, depth + 1)
+
+        visit(root, 0)
+        return result
+'''

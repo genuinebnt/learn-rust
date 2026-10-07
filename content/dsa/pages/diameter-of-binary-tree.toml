@@ -1,0 +1,55 @@
+intuition = """
+The longest path between two nodes bends at exactly one node: it goes down the left side as far as it can and down the right side as far as it can. So at each node, the best path **through it** is `height(left) + height(right)` (in edges).
+
+The diameter is the best of that over all nodes. Computing heights is a postorder DFS, and you can record the candidate while you are returning the height, so one pass is enough. This is the first tree problem where the function **returns one thing (a height) and updates another (the answer)**.
+"""
+tips = [
+    "The path doesn't have to pass through the root. Track a running maximum over every node, not just the root's `left + right`.",
+    "Return the **height** upward (`1 + max(left, right)`), but compare **`left + right`** against the answer. They are different numbers and mixing them up is the usual bug.",
+    "Count edges, not nodes: a single node has diameter 0. Heights of an empty child are 0, so `left + right` is already in edges.",
+    "The simple version recomputes heights at every node and is O(n^2) on a chain. Say so, then show how returning the height fixes it.",
+]
+
+[[approaches]]
+name = "Height at every node (slow)"
+label = "brute force"
+idea = "For each node, the longest path through it is height(left) + height(right); recompute those heights from scratch at every node."
+time = "O(n^2)"
+space = "O(h)"
+note = "Fine to mention, then improve."
+code = '''class Solution:
+    def diameterOfBinaryTree(self, root: Optional[TreeNode]) -> int:
+        def height(node: Optional[TreeNode]) -> int:
+            if node is None:
+                return 0
+            return 1 + max(height(node.left), height(node.right))
+
+        if root is None:
+            return 0
+        through = height(root.left) + height(root.right)
+        return max(through, self.diameterOfBinaryTree(root.left), self.diameterOfBinaryTree(root.right))
+'''
+
+[[approaches]]
+name = "One DFS: return the height, track the best"
+label = "dfs"
+idea = "A postorder DFS returns each subtree's height and, on the way, checks left + right as a candidate diameter."
+time = "O(n)"
+space = "O(h)"
+note = "Each node is visited once."
+code = '''class Solution:
+    def diameterOfBinaryTree(self, root: Optional[TreeNode]) -> int:
+        best = 0
+
+        def height(node: Optional[TreeNode]) -> int:
+            nonlocal best
+            if node is None:
+                return 0
+            left = height(node.left)
+            right = height(node.right)
+            best = max(best, left + right)
+            return 1 + max(left, right)
+
+        height(root)
+        return best
+'''

@@ -106,7 +106,10 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       technique (`tools/neetcode/{problemset,similar,practice}.py` -> `content/dsa/practice.json`), the Practice tab grouped
       by technique with ✓ / ½ / ✗ logging and no reviews, "practice n/m" on pattern cards. Checked in the browser
       against a throwaway database (a ✓ writes an attempt and no review).
-      **Next: lessons for Trees, Tries, Linked List, Heap, then Math and Bits. The Rust practice tracks and system design
+- [x] Trees lessons (2026-10-07): the 15 NeetCode 150 problems, 29 approaches, checked against brute-force references on
+      random trees (`page_tests.py` gained `TreeNode`, `ListNode`, a level-order builder and random tree/BST generators; 25
+      seeded bugs were all caught).
+      **Next: lessons for Tries, Linked List, Heap, then Math and Bits. The Rust practice tracks and system design
       need re-scoping under decision 24.**
 - [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
       18 categories.

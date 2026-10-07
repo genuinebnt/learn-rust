@@ -1,0 +1,49 @@
+intuition = """
+`subRoot` is a subtree of `root` if **some node** of `root` has exactly the same tree below it. So: for every node in `root`, ask "is the tree starting here the same as `subRoot`?" using the Same Tree check.
+
+That costs O(n · m) in the worst case. If you serialize both trees to strings (with markers for empty children and a separator between values), the question becomes "is one string inside the other?", which a string search answers quickly.
+"""
+tips = [
+    "A subtree includes **everything** below its root: matching only the top part isn't enough. `[3, 4, 5, 1, 2, ..., 0]` does not contain `[4, 1, 2]` when 2 has an extra child.",
+    "Reuse Same Tree as a helper. The outer function only decides where to try it.",
+    "For the serialization trick, put a marker for empty children and a separator before each value. Without them `12` and `2` look alike, and `[1, 2]` can't be told from `[1, None, 2]`.",
+    "Mention the O(n · m) worst case (many nodes equal to `subRoot`'s root, each matching deep before failing).",
+]
+
+[[approaches]]
+name = "Try Same Tree at every node"
+label = "recursive"
+idea = "For each node of root, check whether the tree starting there equals subRoot."
+time = "O(n · m)"
+space = "O(h)"
+note = "n and m are the sizes of the two trees."
+code = '''class Solution:
+    def isSubtree(self, root: TreeNode | None, subRoot: TreeNode | None) -> bool:
+        def same(a: TreeNode | None, b: TreeNode | None) -> bool:
+            if a is None and b is None:
+                return True
+            if a is None or b is None or a.val != b.val:
+                return False
+            return same(a.left, b.left) and same(a.right, b.right)
+
+        if root is None:
+            return subRoot is None
+        return same(root, subRoot) or self.isSubtree(root.left, subRoot) or self.isSubtree(root.right, subRoot)
+'''
+
+[[approaches]]
+name = "Serialize both and search the string"
+label = "serialize"
+idea = "Write each tree as a preorder string with explicit empty markers, then test whether subRoot's string occurs inside root's."
+time = "O(n + m) typical"
+space = "O(n + m)"
+note = "Python's substring search is fast in practice; its worst case isn't strictly linear."
+code = '''class Solution:
+    def isSubtree(self, root: TreeNode | None, subRoot: TreeNode | None) -> bool:
+        def write(node: TreeNode | None) -> str:
+            if node is None:
+                return ",#"
+            return "," + str(node.val) + write(node.left) + write(node.right)
+
+        return write(subRoot) in write(root)
+'''

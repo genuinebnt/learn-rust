@@ -1,0 +1,116 @@
+intuition = """
+You need a string that fully determines the tree. A traversal of the values alone isn't enough, because it loses where the empty children are. Write a **marker for every missing child** and the shape is fixed.
+
+With a **preorder** walk (node, left, right) and a marker such as `N` for `None`, the string is read back with the same recursion: read a token; if it's `N` return `None`; otherwise build a node, then build its left and its right from the following tokens.
+
+A **level-order** (BFS) version works too and matches how LeetCode prints trees.
+"""
+tips = [
+    "Use a separator (a comma) between tokens: values can have several digits or be negative, so `\"12\"` alone can't be split back.",
+    "Preorder with null markers reads back with a single shared iterator; each call consumes exactly its own part of the string.",
+    "Serialize an empty tree too (just the marker). The decoder must handle it.",
+    "Keep no state on the Codec between calls; LeetCode uses separate objects to encode and decode.",
+]
+
+[[approaches]]
+name = "Preorder with null markers"
+label = "dfs"
+idea = "Write values in preorder with N for an empty child; read them back with the same traversal order."
+time = "O(n)"
+space = "O(n)"
+note = "The read side consumes tokens from an iterator."
+code = '''class Codec:
+
+    def serialize(self, root):
+        """Encodes a tree to a single string.
+
+        :type root: TreeNode
+        :rtype: str
+        """
+        tokens = []
+
+        def write(node):
+            if node is None:
+                tokens.append("N")
+                return
+            tokens.append(str(node.val))
+            write(node.left)
+            write(node.right)
+
+        write(root)
+        return ",".join(tokens)
+
+    def deserialize(self, data):
+        """Decodes your encoded data to tree.
+
+        :type data: str
+        :rtype: TreeNode
+        """
+        tokens = iter(data.split(","))
+
+        def read():
+            token = next(tokens)
+            if token == "N":
+                return None
+            node = TreeNode(int(token))
+            node.left = read()
+            node.right = read()
+            return node
+
+        return read()
+'''
+
+[[approaches]]
+name = "Level order (BFS) with null markers"
+label = "bfs"
+idea = "Write the nodes level by level with N for empty children; on reading, attach two tokens to each queued node in turn."
+time = "O(n)"
+space = "O(n)"
+note = "No recursion."
+code = '''from collections import deque
+
+
+class Codec:
+
+    def serialize(self, root):
+        """Encodes a tree to a single string.
+
+        :type root: TreeNode
+        :rtype: str
+        """
+        tokens = []
+        queue = deque([root])
+        while queue:
+            node = queue.popleft()
+            if node is None:
+                tokens.append("N")
+                continue
+            tokens.append(str(node.val))
+            queue.append(node.left)
+            queue.append(node.right)
+        return ",".join(tokens)
+
+    def deserialize(self, data):
+        """Decodes your encoded data to tree.
+
+        :type data: str
+        :rtype: TreeNode
+        """
+        tokens = data.split(",")
+        if tokens[0] == "N":
+            return None
+        root = TreeNode(int(tokens[0]))
+        queue = deque([root])
+        i = 1
+        while queue:
+            node = queue.popleft()
+            if tokens[i] != "N":
+                node.left = TreeNode(int(tokens[i]))
+                queue.append(node.left)
+            i += 1
+            if tokens[i] != "N":
+                node.right = TreeNode(int(tokens[i]))
+                queue.append(node.right)
+            i += 1
+        return root
+'''

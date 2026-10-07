@@ -1,0 +1,56 @@
+intuition = """
+Checking each node against its **children** isn't enough: in `[5, 4, 6, None, None, 3, 7]` every node looks fine next to its parent, but `3` sits in the right subtree of `5` and is smaller than it. Every node must fit the range set by **all** its ancestors.
+
+So carry a `(low, high)` bound down: the root may be anything; going left makes the node's value the new upper bound, going right makes it the new lower bound. A node is valid when `low < val < high` (strictly, since BST values are distinct here).
+
+Alternatively, an **inorder traversal** of a BST is strictly increasing, so walk inorder and check each value is larger than the previous one.
+"""
+tips = [
+    "Pass bounds down, not just the parent's value. Local checks miss `3` under `5` in the example above.",
+    "The inequalities are strict: `[2, 2, 2]` is not a valid BST.",
+    "Use `float('-inf')` and `float('inf')` for the initial bounds. A node holding `-2**31` or `2**31 - 1` is legal, so don't use those as sentinels.",
+    "The inorder version needs one variable (`previous`) and stops at the first value that fails to increase.",
+]
+
+[[approaches]]
+name = "Bounds passed down"
+label = "dfs"
+idea = "Each node must lie strictly between the bounds its ancestors set; going left lowers the upper bound, going right raises the lower bound."
+time = "O(n)"
+space = "O(h)"
+note = "Stops at the first violation."
+code = '''class Solution:
+    def isValidBST(self, root: TreeNode | None) -> bool:
+        def valid(node: TreeNode | None, low: float, high: float) -> bool:
+            if node is None:
+                return True
+            if not low < node.val < high:
+                return False
+            return valid(node.left, low, node.val) and valid(node.right, node.val, high)
+
+        return valid(root, float("-inf"), float("inf"))
+'''
+
+[[approaches]]
+name = "Inorder must be strictly increasing"
+label = "inorder"
+idea = "Walk the tree in order with an explicit stack and compare each value with the previous one."
+time = "O(n)"
+space = "O(h)"
+note = "Returns as soon as a value doesn't increase."
+code = '''class Solution:
+    def isValidBST(self, root: TreeNode | None) -> bool:
+        previous = float("-inf")
+        stack = []
+        node = root
+        while stack or node:
+            while node:
+                stack.append(node)
+                node = node.left
+            node = stack.pop()
+            if node.val <= previous:
+                return False
+            previous = node.val
+            node = node.right
+        return True
+'''

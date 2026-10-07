@@ -1,0 +1,60 @@
+intuition = """
+Standing on the right and looking at the tree, you see the **last node of every level**. So run a level-order BFS and keep the last value of each row.
+
+The DFS version visits the **right child first** and records a node only if its depth hasn't been seen yet, so the first node reached at each depth is the rightmost one.
+"""
+tips = [
+    "The visible node isn't always a right child: if the right side is shorter, a left-side node shows through at deeper levels (`[1, 2, 3, 4]` gives `[1, 3, 4]`).",
+    "In BFS, take the last element of each level (the loop's final iteration), not the right child of the last node.",
+    "For the DFS, right-first order plus \"first node at this depth\" is the whole trick: `depth == len(view)` means no node at this depth has been recorded yet.",
+    "An empty tree returns `[]`.",
+]
+
+[[approaches]]
+name = "BFS, last node of each level"
+label = "bfs"
+idea = "Process one level per round and keep the final node's value."
+time = "O(n)"
+space = "O(w)"
+note = "w is the widest level."
+code = '''from collections import deque
+
+
+class Solution:
+    def rightSideView(self, root: TreeNode | None) -> list[int]:
+        view = []
+        queue = deque([root] if root else [])
+        while queue:
+            for i in range(len(queue)):
+                node = queue.popleft()
+                if i == 0:
+                    view.append(node.val)
+                if node.right:
+                    queue.append(node.right)
+                if node.left:
+                    queue.append(node.left)
+        return view
+'''
+
+[[approaches]]
+name = "DFS, right child first"
+label = "dfs"
+idea = "Go right before left; the first node reached at a new depth is the one you can see."
+time = "O(n)"
+space = "O(h)"
+note = "Records a value only when the depth is new."
+code = '''class Solution:
+    def rightSideView(self, root: TreeNode | None) -> list[int]:
+        view = []
+
+        def visit(node: TreeNode | None, depth: int) -> None:
+            if node is None:
+                return
+            if depth == len(view):
+                view.append(node.val)
+            visit(node.right, depth + 1)
+            visit(node.left, depth + 1)
+
+        visit(root, 0)
+        return view
+'''

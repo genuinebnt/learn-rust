@@ -1,0 +1,55 @@
+intuition = """
+A tree is balanced when **every** node's two subtrees differ in height by at most 1. The direct translation checks that at each node by computing both heights, which repeats work down the tree.
+
+The fix is the same trick as the diameter: compute the height **bottom-up** and let a subtree report "unbalanced" in the same return value. Use `-1` as the signal: if either child is `-1` or their heights differ by more than 1, return `-1` upward; otherwise return the real height.
+"""
+tips = [
+    "Balanced is a property of **every** node, not just the root. A tree can have a perfectly even root and still be unbalanced deep down.",
+    "The top-down version (height at each node, then recurse) is O(n^2) on a chain. The bottom-up version visits each node once.",
+    "A sentinel such as `-1` lets one function return both a height and a failure. Propagate it immediately so you stop early.",
+    "The empty tree is balanced with height 0.",
+]
+
+[[approaches]]
+name = "Top-down: height at every node"
+label = "brute force"
+idea = "At each node compare the two subtree heights, then recurse into both children to check them too."
+time = "O(n^2)"
+space = "O(h)"
+note = "Heights are recomputed for each node."
+code = '''class Solution:
+    def isBalanced(self, root: TreeNode | None) -> bool:
+        def height(node: TreeNode | None) -> int:
+            if node is None:
+                return 0
+            return 1 + max(height(node.left), height(node.right))
+
+        if root is None:
+            return True
+        if abs(height(root.left) - height(root.right)) > 1:
+            return False
+        return self.isBalanced(root.left) and self.isBalanced(root.right)
+'''
+
+[[approaches]]
+name = "Bottom-up: height or -1"
+label = "dfs"
+idea = "Return a subtree's height, or -1 if anything below is unbalanced; check each node's two heights on the way up."
+time = "O(n)"
+space = "O(h)"
+note = "Each node is visited once."
+code = '''class Solution:
+    def isBalanced(self, root: TreeNode | None) -> bool:
+        def height(node: TreeNode | None) -> int:
+            if node is None:
+                return 0
+            left = height(node.left)
+            if left == -1:
+                return -1
+            right = height(node.right)
+            if right == -1 or abs(left - right) > 1:
+                return -1
+            return 1 + max(left, right)
+
+        return height(root) != -1
+'''

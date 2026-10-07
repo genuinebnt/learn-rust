@@ -1,0 +1,50 @@
+intuition = """
+In a BST everything left of a node is smaller and everything right is larger. Start at the root and compare it with `p` and `q`:
+
+- both are **smaller** than the node: the answer is in the left subtree, so go left;
+- both are **larger**: go right;
+- otherwise they are on different sides (or one of them is the node): this node is the first place the paths split, so it is the lowest common ancestor.
+
+No recursion is needed, just a loop that moves down one step at a time.
+"""
+tips = [
+    "A node counts as its own ancestor, so if `p` is an ancestor of `q` the answer is `p`. The loop handles this: neither \"both smaller\" nor \"both larger\" is true at `p`.",
+    "Use the BST order. The generic binary-tree LCA needs a full search; here you only walk one root-to-node path, O(h).",
+    "Compare `.val`s, not nodes, when deciding the direction.",
+    "The function returns a **node** (the same object that is in the tree), not a value.",
+]
+
+[[approaches]]
+name = "Walk down from the root"
+label = "iterative"
+idea = "Go left while both targets are smaller, right while both are larger; the first node that splits them is the answer."
+time = "O(h)"
+space = "O(1)"
+note = "h is the height: O(log n) if balanced, O(n) for a chain."
+code = '''class Solution:
+    def lowestCommonAncestor(self, root: 'TreeNode', p: 'TreeNode', q: 'TreeNode') -> 'TreeNode':
+        node = root
+        while node:
+            if p.val < node.val and q.val < node.val:
+                node = node.left
+            elif p.val > node.val and q.val > node.val:
+                node = node.right
+            else:
+                return node
+'''
+
+[[approaches]]
+name = "Recursive"
+label = "recursive"
+idea = "The same decision as a recursion: step into the side that holds both, otherwise return the current node."
+time = "O(h)"
+space = "O(h)"
+note = "Tail recursion; the loop version avoids the stack."
+code = '''class Solution:
+    def lowestCommonAncestor(self, root: 'TreeNode', p: 'TreeNode', q: 'TreeNode') -> 'TreeNode':
+        if p.val < root.val and q.val < root.val:
+            return self.lowestCommonAncestor(root.left, p, q)
+        if p.val > root.val and q.val > root.val:
+            return self.lowestCommonAncestor(root.right, p, q)
+        return root
+'''

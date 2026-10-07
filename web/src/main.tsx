@@ -5,6 +5,7 @@ import { Navigate, Outlet, RouterProvider, createRootRoute, createRoute, createR
 import { DsaPage } from "./pages/DsaPage";
 import { DsaPlanPage } from "./pages/DsaPlanPage";
 import { DsaProblemPage } from "./pages/DsaProblemPage";
+import { PracticePage } from "./pages/PracticePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProgressPage } from "./pages/ProgressPage";
 import { SectionPage } from "./pages/SectionPage";
@@ -24,6 +25,14 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/login", component: LoginPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/dsa", component: DsaPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/dsa/plan", component: DsaPlanPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/dsa/practice/$code",
+    component: function Practice() {
+      const { code } = practiceRoute.useParams();
+      return <PracticePage code={code} />;
+    },
+  }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/d/$slug",
@@ -51,9 +60,10 @@ const routes = [
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/progress", component: ProgressPage }),
 ] as const;
-const dsaProblemRoute = routes[4];
-const trackRoute = routes[6];
-const problemRoute = routes[7];
+const practiceRoute = routes[4];
+const dsaProblemRoute = routes[5];
+const trackRoute = routes[7];
+const problemRoute = routes[8];
 
 const router = createRouter({ routeTree: rootRoute.addChildren([...routes]) });
 

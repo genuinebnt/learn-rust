@@ -78,5 +78,12 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
 - [x] Written pages, 59 of the 150 (2026-10-07): Arrays & Hashing, Two Pointers, Sliding Window, Stack, Graphs, Advanced
       Graphs, Greedy and Intervals. Owner's order: DP next, then back to Binary Search, Linked List, Trees, Heap,
       Backtracking, Tries, Math, Bits. The six Premium templates are typed from memory (`premium_templates.json`).
+- [x] Practice tracks, machinery (2026-10-07): Python in the sandbox runner (harness, syntax/indent errors with a line,
+      check mismatches, timeouts), practice problems as section P tracks (`language = "python"`, `unlocked_by`, `warmup`),
+      locked until their LeetCode problem is logged (423 from the API), no reviews, the Practice tab
+      (`/dsa/practice/<pattern code>`) and "practice n/m" on pattern cards. The workspace and editor are language-aware:
+      Python mode, no language server, formatter, lanes or scratch file. Editor behaviour is checked in a real browser by
+      `tools/ui-keys.mjs` with `tools/ui-python-editor.json` (normal mode), `ui-python-editor-vim.json` (Vim) and
+      `ui-python-flow.json` (run, syntax error, submit); they need a throwaway database, see docs/PRACTICE.md.
 - [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
       18 categories.

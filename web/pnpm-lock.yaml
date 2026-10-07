@@ -14,6 +14,9 @@ importers:
       '@codemirror/commands':
         specifier: ^6.11.1
         version: 6.11.1
+      '@codemirror/lang-python':
+        specifier: ^6.2.1
+        version: 6.2.1
       '@codemirror/lang-rust':
         specifier: ^6.0.2
         version: 6.0.2
@@ -81,6 +84,9 @@ packages:
   '@codemirror/commands@6.11.1':
     resolution: {integrity: sha512-O/4hG3SC1YwcmQ0d2UVNDs+AsaNWd1iHVxbTeEBuqH+6bExAiPK3iS/BvpY6rZGURALv4ZD3sIgcCmRvw3ehBg==}
 
+  '@codemirror/lang-python@6.2.1':
+    resolution: {integrity: sha512-IRjC8RUBhn9mGR9ywecNhB51yePWCGgvHfY1lWN/Mrp3cKuHr0isDKia+9HnvhiWNnMpbGhWrkhuWOc09exRyw==}
+
   '@codemirror/lang-rust@6.0.2':
     resolution: {integrity: sha512-EZaGjCUegtiU7kSMvOfEZpaCReowEf3yNidYu7+vfuGTm9ow4mthAparY5hisJqOHmJowVH3Upu+eJlUji6qqA==}
 
@@ -110,6 +116,9 @@ packages:
 
   '@lezer/lr@1.4.10':
     resolution: {integrity: sha512-rnCpTIBafOx4mRp43xOxDJbFipJm/c0cia/V5TiGlhmMa+wsSdoGmUN3w5Bqrks/09Q/D4tNAmWaT8p6NRi77A==}
+
+  '@lezer/python@1.1.19':
+    resolution: {integrity: sha512-MhQIURHRytsNzP/YXnqpYKW6la6voAH3kyplTOOiCdjyFY6cWWGFVmYVdHIPrElqSDf4iCDktQCockB9FxuhzQ==}
 
   '@lezer/rust@1.0.3':
     resolution: {integrity: sha512-XxErOjZzQ7yJt1agUT4fu9qQvESZ3acgoxpPaPTPOiUx+duCjaVAtZGFIgphkHxlN05djdVAIOy/wItShMEjqQ==}
@@ -648,6 +657,14 @@ snapshots:
       '@codemirror/view': 6.43.13
       '@lezer/common': 1.5.3
 
+  '@codemirror/lang-python@6.2.1':
+    dependencies:
+      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/language': 6.12.4
+      '@codemirror/state': 6.7.6
+      '@lezer/common': 1.5.3
+      '@lezer/python': 1.1.19
+
   '@codemirror/lang-rust@6.0.2':
     dependencies:
       '@codemirror/language': 6.12.4
@@ -705,6 +722,12 @@ snapshots:
   '@lezer/lr@1.4.10':
     dependencies:
       '@lezer/common': 1.5.3
+
+  '@lezer/python@1.1.19':
+    dependencies:
+      '@lezer/common': 1.5.3
+      '@lezer/highlight': 1.2.4
+      '@lezer/lr': 1.4.10
 
   '@lezer/rust@1.0.3':
     dependencies:

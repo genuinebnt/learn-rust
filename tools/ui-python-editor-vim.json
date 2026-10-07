@@ -1,0 +1,28 @@
+[
+  {"wait": 800},
+  {"focus": ".cm-content"},
+  {"key": "Escape"}, {"type": "ggdG"}, {"type": "i"},
+  {"expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')", "equals": "", "label": "vim: gg dG empties the buffer and i enters insert mode"},
+
+  {"type": "def f(x):"}, {"key": "Enter"},
+  {"expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')", "equals": "def f(x):\n    ", "label": "vim insert: Enter after a colon indents"},
+  {"type": "if x:"}, {"key": "Enter"}, {"type": "return 1"},
+  {"key": "Escape"},
+  {"type": "o"},
+  {"expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')", "equals": "def f(x):\n    if x:\n        return 1\n        ", "label": "vim normal: o opens a line at the same indentation"},
+  {"type": "return 2"}, {"key": "Escape"},
+  {"type": "<<"},
+  {"expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')", "equals": "def f(x):\n    if x:\n        return 1\n    return 2", "label": "vim normal: << dedents by one indent unit (4 spaces)"},
+  {"type": ">>"},
+  {"expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')", "equals": "def f(x):\n    if x:\n        return 1\n        return 2", "label": "vim normal: >> indents by one indent unit"},
+
+  {"type": "i"}, {"key": "Tab"},
+  {"expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').pop()", "equals": "            return 2", "label": "vim insert: Tab adds 4 spaces of indentation"},
+  {"key": "Shift+Tab"},
+  {"expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').pop()", "equals": "        return 2", "label": "vim insert: Shift+Tab takes them off"},
+
+  {"key": "End"}, {"key": "Enter"}, {"type": "x = 1"}, {"type": "jk"},
+  {"expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').pop()", "equals": "        x = 1", "label": "vim: jk leaves insert mode without typing j or k"},
+  {"type": "ko"},
+  {"expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').length", "equals": 6, "label": "vim normal: k then o adds a line"}
+]

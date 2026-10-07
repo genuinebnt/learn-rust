@@ -71,6 +71,7 @@ export const SECTION_NAMES: Record<Section, string> = {
   C: "Concurrency & Async",
   Y: "Systems Rust",
   F: "Performance Rust",
+  P: "DSA Practice",
 };
 
 /** Which nav area each section belongs to. */

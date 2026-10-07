@@ -2,7 +2,7 @@
 
 export type Band = "easy" | "medium" | "hard";
 export type Mode = "write" | "fix" | "stage";
-export type Section = "D" | "L" | "S" | "C" | "Y" | "F";
+export type Section = "D" | "L" | "S" | "C" | "Y" | "F" | "P";
 export type Tier = "core" | "light" | "sde3";
 export type ContentStatus = "draft" | "ready";
 export type Progress = "not_started" | "started" | "solved" | "assisted";
@@ -140,11 +140,18 @@ export interface Violation {
   line: number | null;
 }
 
+export type Language = "rust" | "python";
+
 export interface ProblemDetail {
   id: string;
   slug: string;
   title: string;
   mode: Mode;
+  /** What the editor and runner speak. */
+  language: Language;
+  /** Practice problems: the DSA problems that open it, and whether it's also a warm-up for them. */
+  unlocked_by: { id: string; slug: string; title: string }[];
+  warmup: boolean;
   level: Band;
   status: ContentStatus;
   track: { code: string; slug: string; name: string; section: Section };
@@ -395,6 +402,37 @@ export interface DsaPattern {
   total: number;
   in_150: number;
   solved: number;
+  /** Practice problems for the pattern: how many, how many are open, how many solved. */
+  practice_total: number;
+  practice_open: number;
+  practice_solved: number;
+}
+
+export interface PracticeProblem {
+  id: string;
+  slug: string;
+  title: string;
+  level: Band;
+  order: number;
+  /** The first paragraph of the statement, markdown. */
+  blurb: string;
+  teaches: string[];
+  warmup: boolean;
+  ready: boolean;
+  open: boolean;
+  progress: Progress;
+  unlocked_by: { id: string; slug: string; title: string }[];
+  /** The ids in `unlocked_by` that have been logged already. */
+  logged: string[];
+}
+
+export interface PracticeTrack {
+  code: string;
+  slug: string;
+  name: string;
+  summary: string;
+  language: Language;
+  problems: PracticeProblem[];
 }
 
 export interface DsaTechnique {
@@ -492,6 +530,7 @@ export const api = {
   resolve: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/resolve`),
   dsa: () => request<DsaOverview>("GET", "/dsa"),
   dsaPage: (id: string) => request<DsaPage | null>("GET", `/dsa/problems/${id}/page`),
+  practice: (pattern: string) => request<PracticeTrack[]>("GET", `/dsa/practice/${pattern}`),
   logDsa: (id: string, grade: Grade) => request<{ id: string; due: string; ideal_days: number }>("POST", `/dsa/problems/${id}/log`, { grade }),
   startDsa: (from: string) => request<{ start: string }>("POST", "/dsa/start", { from }),
   saveSrs: (srs: SrsSettings) => request<SrsSettings>("PUT", "/settings/srs", srs),

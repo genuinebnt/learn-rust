@@ -1,0 +1,319 @@
+[
+ {
+  "wait": 800
+ },
+ {
+  "focus": ".cm-content"
+ },
+ {
+  "key": "Mod+a"
+ },
+ {
+  "key": "Backspace"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "",
+  "label": "editor opens and select-all + delete empties it"
+ },
+ {
+  "type": "def f(x):"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "def f(x):\n    ",
+  "label": "Enter after a colon indents one level"
+ },
+ {
+  "type": "if x:"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "return 1"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "def f(x):\n    if x:\n        return 1\n        ",
+  "label": "a nested block keeps its level on the next line"
+ },
+ {
+  "key": "Shift+Tab"
+ },
+ {
+  "type": "return 0"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "def f(x):\n    if x:\n        return 1\n    return 0",
+  "label": "Shift+Tab dedents the line"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "key": "Backspace"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').pop()",
+  "equals": "",
+  "label": "Backspace in leading whitespace removes a whole indent unit"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "try:"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "pass"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "except:"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').pop()",
+  "equals": "except:",
+  "label": "a bare except: lines up with its try"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').pop()",
+  "equals": "    ",
+  "label": "and the next line is indented"
+ },
+ {
+  "type": "pass"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "else:"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').pop()",
+  "equals": "else:",
+  "label": "else: dedents as it is typed"
+ },
+ {
+  "key": "Mod+a"
+ },
+ {
+  "key": "Backspace"
+ },
+ {
+  "type": "xs = [1, (2, 3"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "xs = [1, (2, 3)]",
+  "label": "brackets close themselves"
+ },
+ {
+  "type": ")]"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "xs = [1, (2, 3)]",
+  "label": "typing the closer steps over it"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "s = \"it's"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').pop()",
+  "equals": "s = \"it's\"",
+  "label": "quotes pair, and an apostrophe inside a string doesn't add one"
+ },
+ {
+  "key": "Mod+a"
+ },
+ {
+  "key": "Backspace"
+ },
+ {
+  "type": "a"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "b"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "c"
+ },
+ {
+  "key": "Mod+a"
+ },
+ {
+  "key": "Tab"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "    a\n    b\n    c",
+  "label": "Tab with several lines selected indents all of them"
+ },
+ {
+  "key": "Shift+Tab"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "a\nb\nc",
+  "label": "Shift+Tab dedents them again"
+ },
+ {
+  "key": "Mod+a"
+ },
+ {
+  "key": "Mod+a"
+ },
+ {
+  "key": "Backspace"
+ },
+ {
+  "type": "def f(a):"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "while a:"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "if a == 1:"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "a -= 1"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "key": "Shift+Tab"
+ },
+ {
+  "type": "elif a == 2:"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "a -= 2"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "key": "Shift+Tab"
+ },
+ {
+  "type": "else:"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "a = 0"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "def f(a):\n    while a:\n        if a == 1:\n            a -= 1\n        elif a == 2:\n            a -= 2\n        else:\n            a = 0",
+  "label": "if / elif / else typed inside a while inside a def each line up with their if"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "key": "Shift+Tab"
+ },
+ {
+  "key": "Shift+Tab"
+ },
+ {
+  "key": "Shift+Tab"
+ },
+ {
+  "type": "try:"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "x = 1"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "key": "Shift+Tab"
+ },
+ {
+  "type": "except ValueError as e:"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "type": "pass"
+ },
+ {
+  "key": "Enter"
+ },
+ {
+  "key": "Shift+Tab"
+ },
+ {
+  "type": "finally:"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n').split('\\n').slice(-5).join('\\n')",
+  "equals": "try:\n    x = 1\nexcept ValueError as e:\n    pass\nfinally:",
+  "label": "try / except E as e / finally line up"
+ },
+ {
+  "key": "Mod+a"
+ },
+ {
+  "key": "Backspace"
+ },
+ {
+  "type": "x = 1"
+ },
+ {
+  "key": "Mod+/"
+ },
+ {
+  "expect": "[...document.querySelectorAll('.cm-line')].map(l => l.textContent).join('\\n')",
+  "equals": "# x = 1",
+  "label": "Cmd+/ comments a line with #"
+ }
+]

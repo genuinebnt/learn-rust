@@ -18,6 +18,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { HighlightStyle, bracketMatching, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { autocompletion, closeBrackets, closeBracketsKeymap, completeAnyWord, completionKeymap } from "@codemirror/autocomplete";
 import { rust } from "@codemirror/lang-rust";
+import { pythonLanguage } from "./pythonEditing";
 import { serverCompletionSource } from "@codemirror/lsp-client";
 import { tags as t } from "@lezer/highlight";
 import type { Diagnostic } from "../api";
@@ -96,17 +97,17 @@ class LensWidget extends WidgetType {
   }
 }
 
-const setLens = StateEffect.define<Diagnostic[]>();
+const setLens = StateEffect.define<{ diagnostics: Diagnostic[]; file: string }>();
 /** Hides one diagnostic's lens (by its rendered text) until the next set of diagnostics. */
 const dismissLens = StateEffect.define<string>();
 
-function lensDecorations(state: EditorState, diagnostics: Diagnostic[]): DecorationSet {
+function lensDecorations(state: EditorState, diagnostics: Diagnostic[], file: string): DecorationSet {
   const doc = state.doc;
   const lines = doc.toString().split("\n");
   const items: { from: number; to: number; deco: Decoration }[] = [];
   const clampLine = (n: number) => doc.line(Math.min(Math.max(n, 1), doc.lines));
   for (const d of diagnostics) {
-    const primary = d.spans.find((s) => s.primary && s.file === "src/lib.rs");
+    const primary = d.spans.find((s) => s.primary && s.file === file);
     if (!primary) continue;
     const start = clampLine(primary.line_start);
     const end = clampLine(primary.line_end);
@@ -128,7 +129,7 @@ const lensField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(deco, tr) {
     for (const e of tr.effects) {
-      if (e.is(setLens)) return lensDecorations(tr.state, e.value);
+      if (e.is(setLens)) return lensDecorations(tr.state, e.value.diagnostics, e.value.file);
       if (e.is(dismissLens)) deco = deco.update({ filter: (_from, _to, d) => d.spec.diag !== e.value });
     }
     return deco.map(tr.changes);
@@ -222,7 +223,9 @@ export interface EditorProps {
   /** Vim keybindings (ignored when read-only). */
   vim?: boolean;
   autocomplete?: boolean;
-  /** Errors to show inline, for src/lib.rs. */
+  /** The language of the buffer: Rust (the default) or Python, which has no language server or formatter. */
+  language?: "rust" | "python";
+  /** Errors to show inline, for the buffer's file (`src/lib.rs` or `solution.py`). */
   diagnostics?: Diagnostic[];
   lanes?: LaneModel | null;
   showLanes?: boolean;
@@ -281,6 +284,7 @@ export function Editor(props: EditorProps) {
   const lanesCompartment = useRef(new Compartment());
   const lspCompartment = useRef(new Compartment());
   const vimCompartment = useRef(new Compartment());
+  const languageCompartment = useRef(new Compartment());
 
   // Jump to a line when the console asks (clicking a diagnostic's location).
   useEffect(() => {
@@ -348,7 +352,7 @@ export function Editor(props: EditorProps) {
       indentOnInput(),
       bracketMatching(),
       closeBrackets(),
-      rust(),
+      languageCompartment.current.of(props.language === "python" ? pythonLanguage() : rust()),
       syntaxHighlighting(highlight),
       theme,
       lensField,
@@ -408,13 +412,18 @@ export function Editor(props: EditorProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.docKey]);
 
-  // Words from the buffer, or rust-analyzer's completions once it's connected.
   useEffect(() => {
+    view.current?.dispatch({ effects: languageCompartment.current.reconfigure(props.language === "python" ? pythonLanguage() : rust()) });
+  }, [props.language]);
+
+  // Words from the buffer, or rust-analyzer's completions once it's connected. Python uses its own keywords, builtins
+  // and the names defined in the buffer (the language package supplies them).
+  useEffect(() => {
+    const python = props.language === "python";
     const source = props.lsp ? serverCompletionSource : completeAnyWord;
-    view.current?.dispatch({
-      effects: completion.current.reconfigure(props.autocomplete ? autocompletion({ override: [source], activateOnTyping: true }) : []),
-    });
-  }, [props.autocomplete, props.lsp]);
+    const config = python ? { activateOnTyping: true } : { override: [source], activateOnTyping: true };
+    view.current?.dispatch({ effects: completion.current.reconfigure(props.autocomplete ? autocompletion(config) : []) });
+  }, [props.autocomplete, props.lsp, props.language]);
 
   useEffect(() => {
     const on = !!props.vim && !props.readOnly;
@@ -431,8 +440,9 @@ export function Editor(props: EditorProps) {
   }, [props.lspEpoch]);
 
   useEffect(() => {
-    view.current?.dispatch({ effects: setLens.of((props.diagnostics ?? []).filter((d) => d.level === "error")) });
-  }, [props.diagnostics]);
+    const file = props.language === "python" ? "solution.py" : "src/lib.rs";
+    view.current?.dispatch({ effects: setLens.of({ diagnostics: (props.diagnostics ?? []).filter((d) => d.level === "error"), file }) });
+  }, [props.diagnostics, props.language]);
 
   useEffect(() => {
     view.current?.dispatch({

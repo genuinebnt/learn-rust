@@ -12,7 +12,7 @@ import { useEditorSettings } from "../settings";
 import { changedLines } from "./diff";
 import { deriveLanes } from "./lanes";
 import { Ansi } from "./ansi";
-import { type TestCase, testCases } from "./testcases";
+import { type TestCase, pythonTestCases, testCases } from "./testcases";
 import { type RaSession, type RaStatus, connectRa } from "./lsp";
 
 type LeftTab = "problem" | "hints" | "solution" | "related";
@@ -25,6 +25,7 @@ const BUDGET = { write: { easy: 10, medium: 25, hard: 40 }, fix: { easy: 5, medi
 
 const md = (s: string) => marked.parse(s, { async: false });
 const mmss = (s: number) => `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`;
+const pyTestNames = (src: string) => [...src.matchAll(/^def test_(\w+)/gm)].map((m) => m[1]!);
 const testNames = (src: string) => [...src.matchAll(/#\[test\]\s*(?:#\[[^\]]*\]\s*)*fn\s+(\w+)/g)].map((m) => m[1]!);
 const areaOf = (section: string): NavArea => (Object.keys(NAV_SECTIONS) as NavArea[]).find((a) => (NAV_SECTIONS[a] as readonly string[]).includes(section)) ?? "dsa";
 
@@ -43,7 +44,30 @@ function runLabel(r: RunView): [string, string] {
 }
 
 export function Workspace({ id }: { id: string }) {
-  const q = useQuery({ queryKey: ["problem", id], queryFn: () => api.problem(id) });
+  const q = useQuery({ queryKey: ["problem", id], queryFn: () => api.problem(id), retry: (n, e) => !(e instanceof ApiError && e.status === 423) && n < 2 });
+  if (q.error instanceof ApiError && q.error.status === 423) {
+    return (
+      <>
+        <Header area="dsa" />
+        <main className="page">
+          <div className="wrap" style={{ maxWidth: 640, paddingBlock: 48 }}>
+            <div className="dash" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="lab" style={{ color: "var(--warn)" }}>
+                LOCKED PRACTICE PROBLEM
+              </div>
+              <p style={{ margin: 0, color: "var(--fg)" }}>{q.error.message}.</p>
+              <p className="note" style={{ margin: 0 }}>
+                Practice problems open once you've logged their LeetCode problem, with any grade. Some also open while that problem is coming up next in your plan.
+              </p>
+              <Link to="/dsa" style={{ color: "var(--acc)" }}>
+                Back to DSA →
+              </Link>
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  }
   if (!q.data) {
     return (
       <>
@@ -61,6 +85,9 @@ export function Workspace({ id }: { id: string }) {
 
 function Loaded({ p }: { p: ProblemDetail }) {
   const { editor: editorSettings, set: saveEditor } = useEditorSettings();
+  // Python practice problems have no scratch file, language server, formatter or lints: the editor and panels adapt.
+  const py = p.language === "python";
+  const ext = py ? "py" : "rs";
   useFocusHeartbeat(p.id);
   const qc = useQueryClient();
   const [code, setCode] = useState(p.draft ?? p.starter);
@@ -80,8 +107,8 @@ function Loaded({ p }: { p: ProblemDetail }) {
   // The status-bar toggles are saved editor settings, so they carry across problems and reloads.
   const autocomplete = editorSettings.autocomplete;
   const setAutocomplete = (on: boolean) => saveEditor({ ...editorSettings, autocomplete: on });
-  const borrowish = p.mode === "fix" || p.tags.some((t) => /^E0[45]\d\d$/.test(t) || /borrow/.test(t));
-  const lanesOn = editorSettings.borrow_lanes;
+  const borrowish = !py && p.mode === "fix" || p.tags.some((t) => /^E0[45]\d\d$/.test(t) || /borrow/.test(t));
+  const lanesOn = editorSettings.borrow_lanes && !py;
   const setLanesOn = (on: boolean) => saveEditor({ ...editorSettings, borrow_lanes: on });
   const [selected, setSelected] = useState<number | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -106,7 +133,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
 
   // rust-analyzer: one session per open problem, closed when toggled off or on leaving.
   useEffect(() => {
-    if (!ra) {
+    if (!ra || py) {
       setRaStatus("off");
       return;
     }
@@ -127,7 +154,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
       setRaSession(null);
       setRaDiag({ errors: 0, warnings: 0 });
     };
-  }, [ra, liveClippy, p.id]);
+  }, [ra, py, liveClippy, p.id]);
 
   // Save to the server a second after typing stops so rust-analyzer's cargo check sees borrow errors.
   useEffect(() => {
@@ -156,13 +183,13 @@ function Loaded({ p }: { p: ProblemDetail }) {
   // The scratch main.rs autosaves the same way.
   const savedMain = useRef(main);
   useEffect(() => {
-    if (main === savedMain.current) return;
+    if (py || main === savedMain.current) return;
     const t = setTimeout(() => {
       savedMain.current = main;
       api.saveScratch(p.id, main).catch(() => {});
     }, 800);
     return () => clearTimeout(t);
-  }, [main, p.id]);
+  }, [main, py, p.id]);
 
   /** Jumps from a diagnostic's location to that line in the right editor tab. */
   const goto = (path: string, line: number, col: number) => {
@@ -241,7 +268,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
   });
   const busy = run.isPending || submit.isPending || scratch.isPending;
   const doScratch = () => {
-    if (busy || p.status !== "ready") return;
+    if (py || busy || p.status !== "ready") return;
     showConsole("output");
     scratch.mutate();
   };
@@ -263,11 +290,11 @@ function Loaded({ p }: { p: ProblemDetail }) {
   const shown = (selected !== null ? runs.find((r) => r.id === selected) : latest) ?? null;
   const shownIdx = shown ? runs.indexOf(shown) : -1;
   const prevRun = shownIdx > 0 ? runs[shownIdx - 1] : undefined;
-  const lanes = useMemo(() => (latest ? deriveLanes(latest.diagnostics, latest.code) : null), [latest]);
+  const lanes = useMemo(() => (latest && !py ? deriveLanes(latest.diagnostics, latest.code) : null), [latest, py]);
   const lensDiags = useMemo(() => (latest && latest.code === code ? latest.diagnostics : (latest?.diagnostics ?? [])), [latest, code]);
-  const names = useMemo(() => testNames(p.visible_tests), [p.visible_tests]);
-  const cases = useMemo(() => testCases(p.visible_tests), [p.visible_tests]);
-  const hiddenCases = useMemo(() => (p.hidden_tests ? testCases(p.hidden_tests) : null), [p.hidden_tests]);
+  const names = useMemo(() => (py ? pyTestNames(p.visible_tests) : testNames(p.visible_tests)), [p.visible_tests, py]);
+  const cases = useMemo(() => (py ? pythonTestCases(p.visible_tests) : testCases(p.visible_tests)), [p.visible_tests, py]);
+  const hiddenCases = useMemo(() => (p.hidden_tests ? (py ? pythonTestCases(p.hidden_tests) : testCases(p.hidden_tests)) : null), [p.hidden_tests, py]);
   const budget = BUDGET[p.mode][p.level];
   const area = areaOf(p.track.section);
 
@@ -305,7 +332,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
           <span className="wtitle">{p.title}</span>
           <div className="subpills">
             <span className="pill solid" style={{ background: modeColor(p.mode) }}>
-              {p.mode === "fix" ? "FIX THIS" : p.mode === "stage" ? "STAGE" : "WRITE IT"}
+              {py ? "PYTHON" : p.mode === "fix" ? "FIX THIS" : p.mode === "stage" ? "STAGE" : "WRITE IT"}
             </span>
             <span className="pill" style={{ borderColor: LEVEL_COLOR[p.level], color: LEVEL_COLOR[p.level] }}>
               {p.level.toUpperCase()}
@@ -357,7 +384,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                     ["problem", "Problem"],
                     ["hints", `Hints ${p.hints.revealed.length}/${p.hints.total}`],
                     ["solution", "Solution"],
-                    ["related", "Related"],
+                    ["related", py ? "Unlocked by" : "Related"],
                   ] as const
                 ).map(([k, label]) => (
                   <button key={k} role="tab" className={left === k ? "on" : ""} aria-selected={left === k} onClick={() => setLeft(k)}>
@@ -472,7 +499,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                         REFERENCE SOLUTION · {p.attempt.assisted ? "ASSISTED" : "UNLOCKED"}
                       </div>
                       <button className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => setFile("solution")}>
-                        {file === "solution" ? "Open in the editor ✓" : "Open solution.rs in the editor →"}
+                        {file === "solution" ? "Open in the editor ✓" : `Open the reference solution in the editor →`}
                       </button>
                       {p.solution.notes && (
                         <>
@@ -508,7 +535,22 @@ function Loaded({ p }: { p: ProblemDetail }) {
                     </div>
                   ))}
 
-                {left === "related" && (
+                {left === "related" && py && (
+                  <div className="stack" style={{ gap: 10 }}>
+                    <p className="note">
+                      This practice problem is not a LeetCode problem. It opens when you log {p.unlocked_by.length > 1 ? "any of these" : "this one"}
+                      {p.warmup ? ", and also while one of them is coming up next, so you can do it first as a warm-up" : ""}. It never schedules a review.
+                    </p>
+                    {p.unlocked_by.map((u) => (
+                      <Link key={u.id} to="/d/$slug" params={{ slug: u.slug }} className="hint" style={{ display: "block", color: "var(--fg)" }}>
+                        <span className="lab">LEETCODE</span>
+                        <br />
+                        <span style={{ fontSize: 14 }}>{u.title} ↗</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {left === "related" && !py && (
                   <div className="stack" style={{ gap: 10 }}>
                     {p.related.length === 0 && <p className="note">No related tracks listed.</p>}
                     {p.related.map((code) => (
@@ -529,23 +571,28 @@ function Loaded({ p }: { p: ProblemDetail }) {
             <div className="ftabs">
               <div className="ftab-list">
                 <button className={`ftab${file === "lib" ? " on" : ""}`} onClick={() => setFile("lib")}>
-                  src/lib.rs
+                  {py ? "solution.py" : "src/lib.rs"}
                   {code !== (latest?.code ?? p.starter) && <span className="dot" style={{ background: "var(--mut)" }} title="Changed since the last test run" />}
                 </button>
-                <button className={`ftab${file === "main" ? " on" : ""}`} onClick={() => setFile("main")} title="Scratch main: Run builds and runs it">
-                  main.rs<small>SCRATCH</small>
-                </button>
+                {!py && (
+                  <button className={`ftab${file === "main" ? " on" : ""}`} onClick={() => setFile("main")} title="Scratch main: Run builds and runs it">
+                    main.rs<small>SCRATCH</small>
+                  </button>
+                )}
                 <button className={`ftab${file === "tests" ? " on" : ""}`} onClick={() => setFile("tests")}>
-                  tests.rs<small>READ-ONLY</small>
+                  tests.{ext}
+                  <small>READ-ONLY</small>
                 </button>
                 {p.hidden_tests && (
                   <button className={`ftab${file === "hidden" ? " on" : ""}`} onClick={() => setFile("hidden")} title="Unlocked by solving">
-                    hidden.rs<small>READ-ONLY</small>
+                    hidden.{ext}
+                    <small>READ-ONLY</small>
                   </button>
                 )}
                 {p.solution.unlocked && p.solution.code && (
                   <button className={`ftab${file === "solution" ? " on" : ""}`} onClick={() => setFile("solution")} title="The reference solution">
-                    solution.rs<small>READ-ONLY</small>
+                    {py ? "reference.py" : "solution.rs"}
+                    <small>READ-ONLY</small>
                   </button>
                 )}
               </div>
@@ -583,9 +630,11 @@ function Loaded({ p }: { p: ProblemDetail }) {
             </div>
             <div className="gbar">
               <div className="fp">
-                <span style={{ color: "var(--fg)" }}>{file === "lib" ? "src/lib.rs" : file === "main" ? "src/bin/scratch.rs" : file === "solution" ? "reference solution" : file === "hidden" ? "tests/hidden.rs" : "tests/visible.rs"}</span>
-                <span>edition 2021</span>
-                <span>{p.crates.length ? `crates: ${p.crates.join(" · ")}` : "std only"}</span>
+                <span style={{ color: "var(--fg)" }}>
+                  {file === "lib" ? (py ? "solution.py" : "src/lib.rs") : file === "main" ? "src/bin/scratch.rs" : file === "solution" ? "reference solution" : file === "hidden" ? `tests/hidden.${ext}` : `tests/visible.${ext}`}
+                </span>
+                {py ? <span>Python 3 · standard library</span> : <span>edition 2021</span>}
+                {!py && <span>{p.crates.length ? `crates: ${p.crates.join(" · ")}` : "std only"}</span>}
                 <span>{file === "main" ? "⌘' runs it · tests don't run" : `${names.length} visible tests · ${hiddenCases ? `${hiddenCases.length} hidden, unlocked` : "hidden on Submit"}`}</span>
               </div>
               {lanesOn && file === "lib" && (
@@ -597,6 +646,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
             </div>
             <div className="edit-host" hidden={file !== "lib"}>
               <Editor
+                language={p.language}
                 vim={editorSettings.vim}
                 value={code}
                 docKey={docKey}
@@ -612,14 +662,14 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 onRun={doRun}
                 onSubmit={doSubmit}
                 onScratch={doScratch}
-                format={api.format}
-                formatOnPause={editorSettings.format_on_pause}
+                format={py ? undefined : api.format}
+                formatOnPause={editorSettings.format_on_pause && !py}
                 onFormatError={setFormatError}
                 // ⌘S checks right away (with clippy when Live clippy is on) instead of after the 1 s pause.
                 onSave={(c) => raSession?.save(c)}
               />
             </div>
-            <div className="edit-host" hidden={file !== "main"}>
+            {!py && <div className="edit-host" hidden={file !== "main"}>
               <Editor
                 vim={editorSettings.vim}
                 value={main}
@@ -636,30 +686,37 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 formatOnPause={editorSettings.format_on_pause}
                 onFormatError={setFormatError}
               />
-            </div>
+            </div>}
             {file === "tests" && (
               <div className="edit-host">
-                <Editor value={p.visible_tests} docKey={`${p.id}:tests`} readOnly gotoKey="tests" />
+                <Editor language={p.language} value={p.visible_tests} docKey={`${p.id}:tests`} readOnly gotoKey="tests" />
               </div>
             )}
             {file === "hidden" && p.hidden_tests && (
               <div className="edit-host">
-                <Editor value={p.hidden_tests} docKey={`${p.id}:hidden`} readOnly gotoKey="hidden" />
+                <Editor language={p.language} value={p.hidden_tests} docKey={`${p.id}:hidden`} readOnly gotoKey="hidden" />
               </div>
             )}
             {file === "solution" && p.solution.code && (
               <div className="edit-host">
-                <Editor value={p.solution.code} docKey={`${p.id}:solution`} readOnly />
+                <Editor language={p.language} value={p.solution.code} docKey={`${p.id}:solution`} readOnly />
               </div>
             )}
             <div className="statusb">
+              {py ? (
+                <span className="si" title="Tests run in the sandbox with Python 3. Syntax errors show when you run.">
+                  <span className="dot" style={{ background: "var(--grn)" }} />
+                  python 3 · sandboxed
+                </span>
+              ) : (
               <button className={`si${ra ? "" : " off"}`} onClick={() => setRa(!ra)} title={`${raDetail ? `${raDetail} · ` : ""}Click to turn rust-analyzer ${ra ? "off" : "on"}`} aria-pressed={ra}>
                 <RaStatusLine status={raStatus} errors={raDiag.errors} warnings={raDiag.warnings} />
               </button>
+              )}
               <button
                 className={`si${autocomplete ? "" : " off"}`}
                 onClick={() => setAutocomplete(!autocomplete)}
-                title={`Autocomplete${autocomplete && !raSession ? " (buffer words until rust-analyzer is ready)" : ""} · click to turn ${autocomplete ? "off" : "on"}`}
+                title={`Autocomplete${autocomplete && !raSession && !py ? " (buffer words until rust-analyzer is ready)" : ""} · click to turn ${autocomplete ? "off" : "on"}`}
                 aria-pressed={autocomplete}
               >
                 <span className="dot" style={{ background: "var(--grn)" }} />
@@ -676,7 +733,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                   rustfmt: {formatError}
                 </span>
               )}
-              <span className="si sb-pos" title={`rustc 1.98.1 stable · clippy ${liveClippy ? "while editing and " : ""}on test runs · ⌘S formats · sandboxed`}>
+              <span className="si sb-pos" title={py ? "Python 3 · Tab indents by 4 spaces · ⇧Tab dedents · sandboxed" : `rustc 1.98.1 stable · clippy ${liveClippy ? "while editing and " : ""}on test runs · ⌘S formats · sandboxed`}>
                 Ln {cursor[0]}, Col {cursor[1]}
               </span>
             </div>
@@ -699,7 +756,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                 (lastAction === "scratch" && scratchOut ? (
                   <DiagnosticsList diagnostics={scratchOut.diagnostics} busy={scratch.isPending} empty="main.rs and lib.rs compiled cleanly." onGoto={goto} />
                 ) : (
-                  <CompilerPanel run={shown} busy={run.isPending || submit.isPending} onGoto={goto} />
+                  <CompilerPanel run={shown} busy={run.isPending || submit.isPending} onGoto={goto} python={py} />
                 ))}
               {consoleTab === "output" && <OutputPanel run={shown} scratch={scratchOut} scratchBusy={scratch.isPending} />}
               {consoleTab === "timeline" && (
@@ -781,7 +838,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                     )}
                   </div>
                 )}
-                <TestsPanel run={shown} cases={cases} hiddenCases={hiddenCases} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
+                <TestsPanel python={py} run={shown} cases={cases} hiddenCases={hiddenCases} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
               </div>
               <div className="acts">
                 <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"} title="Run the visible and hidden tests (⇧⌘↵)">
@@ -888,6 +945,7 @@ function CaseRows({ c }: { c: TestCase }) {
 }
 
 function CaseCard({
+  python,
   c,
   id,
   t,
@@ -896,6 +954,7 @@ function CaseCard({
   open,
   setOpen,
 }: {
+  python?: boolean;
   c: TestCase;
   id: string;
   t: TestOutcome | undefined;
@@ -970,7 +1029,7 @@ function CaseCard({
           )}
           {c.input === undefined && !t && (
             <span className="note" style={{ gridColumn: "1 / -1" }}>
-              This test doesn't use check!; see {hidden ? "hidden.rs" : "tests.rs"}.
+              This test doesn't use {python ? "check()" : "check!"}; see {hidden ? "hidden" : "tests"}.{python ? "py" : "rs"}.
             </span>
           )}
         </div>
@@ -980,6 +1039,7 @@ function CaseCard({
 }
 
 function TestsPanel({
+  python,
   run,
   cases,
   hiddenCases,
@@ -988,6 +1048,7 @@ function TestsPanel({
   setOpen,
   runNo,
 }: {
+  python?: boolean;
   run: RunView | null;
   cases: TestCase[];
   /** Parsed hidden tests, once the problem has been solved. */
@@ -1038,7 +1099,7 @@ function TestsPanel({
               </b>
             </span>
           )}
-          <span>clippy {run.diagnostics.filter((d) => d.level === "warning").length} warnings</span>
+          {!python && <span>clippy {run.diagnostics.filter((d) => d.level === "warning").length} warnings</span>}
         </div>
       )}
       {run?.violations.length ? (
@@ -1071,11 +1132,11 @@ function TestsPanel({
       )}
       <div className="tcases">
         {cases.map((c) => (
-          <CaseCard key={c.name} c={c} id={c.name} t={busy ? undefined : byName.get("visible" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
+          <CaseCard python={python} key={c.name} c={c} id={c.name} t={busy ? undefined : byName.get("visible" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
         ))}
         {hiddenCases
           ? hiddenCases.map((c) => (
-              <CaseCard key={"h" + c.name} c={c} id={"hidden:" + c.name} hidden t={busy ? undefined : byName.get("hidden" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
+              <CaseCard python={python} key={"h" + c.name} c={c} id={"hidden:" + c.name} hidden t={busy ? undefined : byName.get("hidden" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
             ))
           : !busy &&
             hidden.map((t) => (
@@ -1096,10 +1157,10 @@ function TestsPanel({
 
 type Goto = (path: string, line: number, col: number) => void;
 
-function CompilerPanel({ run, busy, onGoto }: { run: RunView | null; busy: boolean; onGoto: Goto }) {
-  if (busy) return <Pending text="Compiling…" />;
-  if (!run) return <p className="note">Compiler errors and clippy lints show up here after a run.</p>;
-  return <DiagnosticsList diagnostics={run.diagnostics} busy={false} empty="Compiled cleanly. clippy found nothing." onGoto={onGoto} />;
+function CompilerPanel({ run, busy, onGoto, python }: { run: RunView | null; busy: boolean; onGoto: Goto; python?: boolean }) {
+  if (busy) return <Pending text={python ? "Running…" : "Compiling…"} />;
+  if (!run) return <p className="note">{python ? "Syntax and indentation errors show up here after a run." : "Compiler errors and clippy lints show up here after a run."}</p>;
+  return <DiagnosticsList diagnostics={run.diagnostics} busy={false} empty={python ? "No syntax errors." : "Compiled cleanly. clippy found nothing."} onGoto={onGoto} />;
 }
 
 function Pending({ text }: { text: string }) {

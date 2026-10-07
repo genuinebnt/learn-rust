@@ -47,10 +47,10 @@ export const defaultConfig = (): MockConfig => ({
 });
 
 /** The presets fill the problem count and the time; everything else keeps what is set. */
-export const PRESETS: { key: string; label: string; apply: (c: MockConfig) => MockConfig }[] = [
-  { key: "warm", label: "Warm-up · 1 problem · 25 min", apply: (c) => ({ ...c, anyDiff: false, mix: [0, 1, 0], total: 25, format: "total" }) },
-  { key: "std", label: "Standard · 2 problems · 45 min", apply: (c) => ({ ...c, anyDiff: false, mix: [0, 2, 0], total: 45, format: "total" }) },
-  { key: "loop", label: "Onsite loop · 3 problems · 90 min", apply: (c) => ({ ...c, anyDiff: false, mix: [0, 2, 1], total: 90, format: "total" }) },
+export const PRESETS: { key: string; name: string; detail: string; apply: (c: MockConfig) => MockConfig }[] = [
+  { key: "warm", name: "Warm-up", detail: "1 medium · 25 min", apply: (c) => ({ ...c, anyDiff: false, mix: [0, 1, 0], total: 25, format: "total" }) },
+  { key: "std", name: "Standard", detail: "2 medium · 45 min", apply: (c) => ({ ...c, anyDiff: false, mix: [0, 2, 0], total: 45, format: "total" }) },
+  { key: "loop", name: "Onsite loop", detail: "2 medium, 1 hard · 90 min", apply: (c) => ({ ...c, anyDiff: false, mix: [0, 2, 1], total: 90, format: "total" }) },
 ];
 
 export const slotsOf = (c: MockConfig): number => (c.anyDiff ? c.anyCount : c.mix[0] + c.mix[1] + c.mix[2]);

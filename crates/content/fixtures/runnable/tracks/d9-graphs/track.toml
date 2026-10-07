@@ -1,0 +1,16 @@
+code = "D9"
+name = "Graphs"
+section = "D"
+tier = "core"
+order = 7
+summary = "A slice of the old D9 track, kept as a fixture: a runnable Rust problem for the API tests."
+
+[[stages]]
+slug = "representation"
+name = "Representation"
+band = "easy"
+
+[[stages]]
+slug = "shortest-paths"
+name = "Shortest paths"
+band = "medium"

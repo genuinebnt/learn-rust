@@ -3,6 +3,7 @@
 
 mod activity;
 pub mod auth;
+mod dsa;
 pub mod dsa_next;
 mod error;
 mod format;
@@ -66,6 +67,9 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/problems/{id}/submit", post(routes::submit))
         .route("/problems/{id}/hints", post(routes::reveal_hint))
         .route("/problems/{id}/solution", post(routes::reveal_solution))
+        .route("/dsa", get(dsa::overview))
+        .route("/dsa/problems/{id}/log", post(dsa::log))
+        .route("/dsa/start", post(dsa::start))
         .route("/settings", get(settings::get))
         .route("/format", post(format::format))
         .route("/settings/editor", put(settings::put_editor))

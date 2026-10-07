@@ -232,7 +232,8 @@ async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::
         if track.is_some_and(|c| !t.code.eq_ignore_ascii_case(c) && t.slug != c) {
             continue;
         }
-        for p in t.problems.iter().filter(|p| p.meta.status == Status::Ready) {
+        // DSA problems are LeetCode links: there's nothing to run.
+        for p in t.problems.iter().filter(|p| p.meta.status == Status::Ready && p.dsa.is_none()) {
             let f = &p.files;
             let case = Case {
                 id: p.id.clone(),

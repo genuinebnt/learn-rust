@@ -1,3 +1,0 @@
-pub fn is_valid(s: &str) -> bool {
-    todo!()
-}

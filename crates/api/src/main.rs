@@ -90,6 +90,10 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
     MIGRATOR.run(&db).await.context("running migrations")?;
+    let purged = preflight::purge_retired(&db, &loaded.catalog).await.context("deleting progress of retired problems")?;
+    if purged > 0 {
+        tracing::info!(purged, "deleted progress rows of retired problems");
+    }
     let moved = preflight::apply_renames(&db, &loaded.catalog).await.context("moving progress to renamed problems")?;
     if moved > 0 {
         tracing::info!(moved, "moved progress rows from old problem ids");

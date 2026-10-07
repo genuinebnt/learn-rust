@@ -3,13 +3,16 @@
 
     python3 tools/check-progress-safety.py <base-rev>
 
-1. Every problem id at <base-rev> must still exist, or be listed in some problem's `renamed_from`. Progress is stored
-   by id (`<track code>-<slug>`), so a renamed, moved or deleted problem would otherwise vanish from every dashboard.
+1. Every problem id at <base-rev> must still exist, be listed in some problem's `renamed_from`, or be listed in
+   `content/retired.txt` (removed on purpose; its progress is deleted at startup). Progress is stored by id
+   (`<track code>-<slug>`, or `lc-<slug>` for the DSA lists), so a renamed, moved or deleted problem would otherwise
+   vanish from every dashboard.
 2. Migrations are append-only: editing or deleting an applied one makes the API refuse to start.
 
 The deploy runs the stronger check too (`anneal-api preflight` against the live database), so this is the early
 warning, not the only one.
 """
+import json
 import pathlib
 import subprocess
 import sys
@@ -32,8 +35,27 @@ def ids_at(rev):
     return ids
 
 
+def dsa_ids(text):
+    """The `lc-<slug>` ids in a content/dsa/problems.json."""
+    return {p["id"] for p in json.loads(text)["problems"]} if text else set()
+
+
+def dsa_ids_at(rev):
+    try:
+        return dsa_ids(git("show", f"{rev}:content/dsa/problems.json"))
+    except subprocess.CalledProcessError:
+        return set()
+
+
+def retired():
+    path = ROOT / "content/retired.txt"
+    lines = path.read_text().splitlines() if path.is_file() else []
+    return {l.split("#")[0].strip() for l in lines if l.split("#")[0].strip()}
+
+
 def current():
-    ids, renamed = set(), {}
+    path = ROOT / "content/dsa/problems.json"
+    ids, renamed = dsa_ids(path.read_text() if path.is_file() else ""), {}
     for track in sorted((ROOT / "content/tracks").iterdir()):
         if not (track / "track.toml").is_file():
             continue
@@ -56,10 +78,14 @@ def main():
     problems = []
 
     ids, renamed = current()
-    for gone in sorted(ids_at(base) - ids - renamed.keys()):
+    gone_on_purpose = retired()
+    for current_id in sorted(ids & gone_on_purpose):
+        problems.append(f"{current_id} is in content/retired.txt but is a current problem; remove it from the list")
+    for gone in sorted((ids_at(base) | dsa_ids_at(base)) - ids - renamed.keys() - gone_on_purpose):
         problems.append(
             f"problem {gone} disappeared. If it was renamed or moved, add renamed_from = [\"{gone}\"] to its "
-            "problem.toml; progress stored under the old id then moves to it. Deleting a problem isn't supported."
+            "problem.toml; progress stored under the old id then moves to it. To remove a problem on purpose (deleting its "
+            "progress), list its id in content/retired.txt."
         )
 
     for line in git("diff", "--name-status", base, "HEAD", "--", "crates/api/migrations").splitlines():

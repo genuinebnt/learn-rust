@@ -19,8 +19,8 @@ const LIB: &str = "file:///workspace/src/lib.rs";
 
 #[sqlx::test(migrator = "anneal_api::MIGRATOR")]
 async fn rust_analyzer_hovers_and_reports_check_errors(db: PgPool) {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let catalog = Catalog::load(&root.join("content")).unwrap().catalog;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/fixtures/runnable");
+    let catalog = Catalog::load(&root).unwrap().catalog;
     let work = Path::new(env!("CARGO_TARGET_TMPDIR")).join("anneal-lsp");
     let state = AppState {
         catalog: Arc::new(catalog),
@@ -38,7 +38,7 @@ async fn rust_analyzer_hovers_and_reports_check_errors(db: PgPool) {
             .await
             .unwrap();
     let solution = std::fs::read_to_string(
-        root.join("content/tracks/d9-graphs/problems/network-delay-time/solution.rs"),
+        root.join("tracks/d9-graphs/problems/network-delay-time/solution.rs"),
     )
     .unwrap();
 

@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::dsa::{DsaCatalog, DsaProblem};
 use crate::model::{Mode, ProblemFile, Section, StageDef, Status, Tier, TrackFile};
 
 /// Everything under `content/tracks`, loaded and validated.
@@ -9,6 +10,11 @@ use crate::model::{Mode, ProblemFile, Section, StageDef, Status, Tier, TrackFile
 pub struct Catalog {
     /// Sorted by section, then by the section's recommended order.
     pub tracks: Vec<Track>,
+    /// The DSA section's techniques and company groups (its tracks are in `tracks`).
+    pub dsa: DsaCatalog,
+    /// Ids of problems that were removed on purpose (`content/retired.txt`). Their progress is deleted at startup
+    /// instead of blocking a deploy.
+    pub retired: HashSet<String>,
 }
 
 #[derive(Debug)]
@@ -33,6 +39,8 @@ pub struct Problem {
     pub meta: ProblemFile,
     pub dir: PathBuf,
     pub files: ProblemFiles,
+    /// Set for the DSA section's LeetCode problems, which anneal doesn't run.
+    pub dsa: Option<DsaProblem>,
 }
 
 /// File contents; `None` when the file is absent (allowed for drafts).
@@ -90,10 +98,16 @@ impl Catalog {
                 tracks.push(track);
             }
         }
+        let (dsa_tracks, dsa) = crate::dsa::load(root, &mut issues);
+        tracks.extend(dsa_tracks);
         tracks.sort_by_key(|t| (section_rank(t.section), t.order));
         check_catalog(&tracks, &mut issues);
+        let retired = read_retired(root);
+        for id in tracks.iter().flat_map(|t| &t.problems).map(|p| &p.id).filter(|id| retired.contains(*id)) {
+            issues.push(Issue { path: root.join("retired.txt"), message: format!("{id} is retired but also a current problem") });
+        }
         Ok(Loaded {
-            catalog: Catalog { tracks },
+            catalog: Catalog { tracks, dsa, retired },
             issues,
         })
     }
@@ -118,9 +132,10 @@ impl Catalog {
             .collect()
     }
 
-    /// Whether stored progress under `id` has a home: a current problem, or one that was renamed from it.
+    /// Whether stored progress under `id` has a home: a current problem, one that was renamed from it, or a retired
+    /// id (whose progress is deleted at startup).
     pub fn knows(&self, id: &str) -> bool {
-        self.problem(id).is_some() || self.renames().iter().any(|(old, _)| *old == id)
+        self.problem(id).is_some() || self.retired.contains(id) || self.renames().iter().any(|(old, _)| *old == id)
     }
 }
 
@@ -128,6 +143,17 @@ impl Track {
     pub fn stage(&self, slug: &str) -> Option<&StageDef> {
         self.stages.iter().find(|s| s.slug == slug)
     }
+}
+
+/// `<root>/retired.txt`: one problem id per line; blank lines and `#` comments are ignored.
+fn read_retired(root: &Path) -> HashSet<String> {
+    fs::read_to_string(root.join("retired.txt"))
+        .unwrap_or_default()
+        .lines()
+        .map(|l| l.split('#').next().unwrap_or("").trim())
+        .filter(|l| !l.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 fn section_rank(s: Section) -> u8 {
@@ -301,6 +327,7 @@ fn load_problem(dir: &Path, track: &TrackFile, issues: &mut Vec<Issue>) -> Optio
         meta,
         dir: dir.to_path_buf(),
         files,
+        dsa: None,
     })
 }
 

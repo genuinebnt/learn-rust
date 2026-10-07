@@ -51,6 +51,23 @@ pub async fn apply_renames(db: &PgPool, catalog: &Catalog) -> sqlx::Result<u64> 
     Ok(moved)
 }
 
+/// Deletes the progress of retired problems (`content/retired.txt`): removed on purpose, so it doesn't strand
+/// anything. Idempotent. Returns how many rows went.
+pub async fn purge_retired(db: &PgPool, catalog: &Catalog) -> sqlx::Result<u64> {
+    if catalog.retired.is_empty() {
+        return Ok(0);
+    }
+    let ids: Vec<&str> = catalog.retired.iter().map(String::as_str).collect();
+    let mut tx = db.begin().await?;
+    let mut gone = 0;
+    for table in PROBLEM_TABLES {
+        let q = format!("DELETE FROM {table} WHERE problem_id = ANY($1)");
+        gone += sqlx::query(&q).bind(&ids).execute(&mut *tx).await?.rows_affected();
+    }
+    tx.commit().await?;
+    Ok(gone)
+}
+
 /// What `preflight` found. Empty lists mean the deploy is safe.
 #[derive(Debug, Default)]
 pub struct Report {

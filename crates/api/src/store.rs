@@ -290,6 +290,49 @@ pub async fn record_review(
     Ok(scheduled)
 }
 
+/// Logs a LeetCode problem done elsewhere: an attempt (solved unless the grade is `again`, assisted on `hard` and
+/// `again`) and the graded review that schedules the next one. A problem that already has a review is a re-solve.
+pub async fn log_attempt(
+    db: &PgPool,
+    problem_id: &str,
+    grade: crate::reviews::Grade,
+    settings: &crate::reviews::Settings,
+) -> sqlx::Result<crate::reviews::Scheduled> {
+    use crate::reviews::Grade;
+    let resolve: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM reviews WHERE problem_id = $1)").bind(problem_id).fetch_one(db).await?;
+    let solved = grade != Grade::Again;
+    let assisted = matches!(grade, Grade::Again | Grade::Hard);
+    sqlx::query(
+        "INSERT INTO attempts (problem_id, kind, solved_at, assisted)
+         VALUES ($1, $2, CASE WHEN $3 THEN now() END, $4)",
+    )
+    .bind(problem_id)
+    .bind(if resolve { "resolve" } else { "practice" })
+    .bind(solved)
+    .bind(assisted)
+    .execute(db)
+    .await?;
+    record_review(db, problem_id, grade, resolve, settings).await
+}
+
+/// Where "next problem" starts from (`settings.dsa_start`): a problem id, the last one logged or the first of a
+/// track the owner picked.
+pub async fn dsa_start(db: &PgPool) -> sqlx::Result<Option<String>> {
+    let stored: Option<Json<String>> = sqlx::query_scalar("SELECT value FROM settings WHERE key = 'dsa_start'").fetch_optional(db).await?;
+    Ok(stored.map(|j| j.0))
+}
+
+pub async fn set_dsa_start(db: &PgPool, problem_id: &str) -> sqlx::Result<()> {
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('dsa_start', $1)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()",
+    )
+    .bind(Json(problem_id))
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
 /// Adds active-editing seconds for a problem on a (local) day.
 pub async fn add_focus(db: &PgPool, day: chrono::NaiveDate, problem_id: &str, seconds: i32) -> sqlx::Result<()> {
     sqlx::query(

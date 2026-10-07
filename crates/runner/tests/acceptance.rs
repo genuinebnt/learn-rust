@@ -1,4 +1,5 @@
-//! End-to-end runs against real problems in `content/`.
+//! End-to-end runs against real problems: the fixtures in `crates/content/fixtures/runnable` (a slice of the old D9 Graphs track and
+//! one L2 Borrowing problem).
 //!
 //! Host tests run with plain `cargo test`. The Docker test needs the sandbox image
 //! (`docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile docker`) and runs
@@ -43,7 +44,7 @@ pub fn network_delay(times: &[(usize, usize, u32)], n: usize, k: usize) -> Optio
 "#;
 
 fn content_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/fixtures/runnable")
 }
 
 fn problem(catalog: &Catalog, id: &str) -> (String, String, String, String) {

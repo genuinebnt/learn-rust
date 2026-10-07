@@ -131,6 +131,30 @@ pub struct Settings {
     pub new_per_day: u32,
     /// When the plan should be finished, e.g. the NeetCode 150.
     pub target_date: Option<NaiveDate>,
+    /// What "finished" means: which list, and how many problems that is.
+    pub goal: Goal,
+}
+
+/// The problems the plan is counted against.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Goal {
+    /// `blind75`, `neetcode150`, `neetcode250` or `all`.
+    pub list: String,
+    /// Leave out the problems that need LeetCode Premium.
+    pub free_only: bool,
+    /// Problems beyond the list, e.g. a few from the 250.
+    pub extra: u32,
+    /// A number of problems left, typed in instead of counted from the list.
+    pub custom_left: Option<u32>,
+}
+
+pub const GOAL_LISTS: [&str; 4] = ["blind75", "neetcode150", "neetcode250", "all"];
+
+impl Default for Goal {
+    fn default() -> Self {
+        Goal { list: "neetcode150".into(), free_only: true, extra: 0, custom_left: None }
+    }
 }
 
 pub const MIN_RETENTION: f32 = 0.70;
@@ -141,7 +165,7 @@ impl Default for Settings {
         // The owner's routine: a new problem every day but Sunday; Sunday reviews the week's problems; one older
         // problem a day in between; the NeetCode 150 by the end of March.
         Settings { retention: 0.85, capacity: Capacity::default(), consolidate_on: Some("sun".into()),
-            new_days: ["mon", "tue", "wed", "thu", "fri", "sat"].map(String::from).to_vec(), new_per_day: 1, target_date: NaiveDate::from_ymd_opt(2027, 3, 31) }
+            new_days: ["mon", "tue", "wed", "thu", "fri", "sat"].map(String::from).to_vec(), new_per_day: 1, target_date: NaiveDate::from_ymd_opt(2027, 3, 31), goal: Goal::default() }
     }
 }
 
@@ -164,6 +188,12 @@ impl Settings {
         }
         if self.new_per_day > 20 {
             return Err("new problems per day must be 20 or fewer".into());
+        }
+        if !GOAL_LISTS.contains(&self.goal.list.as_str()) {
+            return Err(format!("the goal list must be one of {}", GOAL_LISTS.join(", ")));
+        }
+        if self.goal.extra > 100 || self.goal.custom_left.is_some_and(|n| n > 2000) {
+            return Err("the goal is too large".into());
         }
         let mut seen = Vec::new();
         for day in &self.new_days {

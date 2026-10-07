@@ -48,14 +48,35 @@ pub fn network_delay(times: &[(usize, usize, u32)], n: usize, k: usize) -> Optio
 /// D9's problem ids in track order, from the content the app serves: counts and positions follow the content
 /// instead of being pinned, since the track keeps growing.
 fn d9_ids() -> Vec<String> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let loaded = Catalog::load(&root.join("content")).expect("content");
+    let loaded = Catalog::load(&content_root()).expect("content");
     loaded.catalog.track("D9").expect("D9").problems.iter().map(|p| p.id.clone()).collect()
 }
 
+fn fixtures() -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/fixtures")
+}
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
+/// The content the API tests run against, `crates/content/fixtures/runnable`: a two-problem slice of the old D9 Graphs track
+/// and one L2 Borrowing problem, which the tests solve in Rust. (The DSA section's real problems are LeetCode links.)
+fn content_root() -> std::path::PathBuf {
+    fixtures().join("runnable")
+}
+
 fn test_app(db: PgPool) -> Router {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    test_app_with(db, &root.join("content"))
+    test_app_with(db, &content_root())
 }
 
 fn test_app_with(db: PgPool, content: &Path) -> Router {
@@ -115,9 +136,7 @@ async fn call(
 }
 
 fn solution() -> String {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../content/tracks/d9-graphs/problems/network-delay-time/solution.rs");
-    std::fs::read_to_string(root).unwrap()
+    std::fs::read_to_string(content_root().join("tracks/d9-graphs/problems/network-delay-time/solution.rs")).unwrap()
 }
 
 #[sqlx::test(migrator = "anneal_api::MIGRATOR")]
@@ -143,7 +162,7 @@ async fn lists_tracks_with_stage_counts(db: PgPool) {
     assert_eq!(d9["stages"][0]["band"], "easy");
     assert_eq!(
         d9["stages"].as_array().unwrap().last().unwrap()["band"],
-        "hard"
+        "medium"
     );
 }
 
@@ -384,8 +403,7 @@ async fn draft_problems_and_unknown_ids_are_refused(db: PgPool) {
 const FIX: &str = "l2-two-mutable-borrows-of-self";
 
 fn fix_file(name: &str) -> String {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../content/tracks/l2-borrowing/problems/two-mutable-borrows-of-self");
+    let dir = content_root().join("tracks/l2-borrowing/problems/two-mutable-borrows-of-self");
     std::fs::read_to_string(dir.join(name)).unwrap()
 }
 
@@ -436,7 +454,7 @@ async fn activity_picks_the_next_problem_and_counts_the_streak(db: PgPool) {
     let (status, a) = call(&app, Method::GET, "/api/activity?sections=D", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!((a["streak"].as_u64(), a["week"].as_array().map(Vec::len)), (Some(0), Some(7)));
-    assert_eq!((a["next"]["reason"].as_str(), a["next"]["track_code"].as_str()), (Some("start"), Some("D1")));
+    assert_eq!((a["next"]["reason"].as_str(), a["next"]["track_code"].as_str()), (Some("start"), Some("D9")));
     assert!(!a["next"]["excerpt"].as_str().unwrap().is_empty());
 
     let (_, out) = call(
@@ -785,4 +803,151 @@ async fn review_settings_default_to_the_routine_and_validate(db: PgPool) {
     for bad in [json!({ "retention": 0.4 }), json!({ "consolidate_on": "funday" }), json!({ "capacity": { "mon": 0, "tue": 0, "wed": 0, "thu": 0, "fri": 0, "sat": 0, "sun": 0 }, "consolidate_on": null })] {
         assert_eq!(call(&app, Method::PUT, "/api/settings/srs", Some(bad)).await.0, StatusCode::BAD_REQUEST);
     }
+}
+
+/// A content root with only the DSA fixture (and optionally a retired list), so its tracks are D1 and D2.
+fn dsa_root(retired: Option<&str>) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("tracks")).unwrap();
+    copy_dir(&fixtures().join("dsa-root/dsa"), &dir.path().join("dsa"));
+    if let Some(retired) = retired {
+        std::fs::write(dir.path().join("retired.txt"), retired).unwrap();
+    }
+    dir
+}
+
+fn problem_of<'a>(overview: &'a Value, id: &str) -> &'a Value {
+    overview["problems"].as_array().unwrap().iter().find(|p| p["id"] == id).unwrap_or_else(|| panic!("{id} missing"))
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn dsa_overview_lists_the_lists_with_their_techniques(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    let (status, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(o["patterns"].as_array().unwrap().iter().map(|p| (p["code"].as_str().unwrap(), p["total"].as_u64().unwrap())).collect::<Vec<_>>(), [("D1", 3), ("D2", 3)]);
+    assert_eq!(o["problems"].as_array().unwrap().len(), 6);
+    assert_eq!(o["techniques"].as_array().unwrap().len(), 4);
+    let two_sum_ii = problem_of(&o, "lc-two-sum-ii-input-array-is-sorted");
+    assert_eq!((two_sum_ii["role"].as_str(), two_sum_ii["practice_of"].as_str(), two_sum_ii["pattern"].as_str()), (Some("practice"), Some("lc-valid-palindrome"), Some("D2")));
+    assert_eq!(problem_of(&o, "lc-encode-and-decode-strings")["premium"], true);
+    assert_eq!(problem_of(&o, "lc-contains-duplicate")["companies"][0]["name"], "Amazon");
+    // Nothing logged yet.
+    assert_eq!((problem_of(&o, "lc-two-sum")["state"]["solved"].clone(), problem_of(&o, "lc-two-sum")["state"]["last_grade"].clone()), (json!(false), Value::Null));
+    // The goal is the NeetCode 150 without its Premium problems: 4 of the 5 in the fixture's 150.
+    assert_eq!((o["plan"]["goal_total"].as_u64(), o["plan"]["goal_done"].as_u64()), (Some(4), Some(0)));
+    assert_eq!(o["plan"]["next_up"][0], "lc-contains-duplicate");
+    assert_eq!(o["settings"]["new_days"], json!(["mon", "tue", "wed", "thu", "fri", "sat"]));
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn logging_a_dsa_problem_feeds_progress_reviews_and_next_up(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db.clone(), root.path());
+
+    let (status, out) = call(&app, Method::POST, "/api/dsa/problems/lc-two-sum/log", Some(json!({ "grade": "good" }))).await;
+    assert_eq!(status, StatusCode::OK, "{out}");
+    assert!(out["due"].is_string());
+    let (_, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    let two_sum = problem_of(&o, "lc-two-sum");
+    assert_eq!((two_sum["state"]["solved"].clone(), two_sum["state"]["assisted"].clone(), two_sum["state"]["last_grade"].clone(), two_sum["state"]["reps"].clone()), (json!(true), json!(false), json!("good"), json!(1)));
+    assert!(two_sum["state"]["due"].is_string());
+    assert_eq!((o["plan"]["goal_done"].as_u64(), o["patterns"][0]["solved"].as_u64()), (Some(1), Some(1)));
+    // The next problem follows the one just logged, skipping the Premium one outside the goal and the done one.
+    assert_eq!(o["plan"]["start"], "lc-two-sum");
+    assert_eq!(o["plan"]["next_up"], json!(["lc-valid-palindrome", "lc-two-sum-ii-input-array-is-sorted", "lc-contains-duplicate"]));
+
+    // A solve through the log counts toward the streak and the Progress pages like any other.
+    let (_, a) = call(&app, Method::GET, "/api/activity?sections=D", None).await;
+    assert_eq!((a["streak"].as_u64(), a["week_solved"].as_u64(), a["recent"][0]["problem_id"].as_str()), (Some(1), Some(1), Some("lc-two-sum")));
+    let (_, r) = call(&app, Method::GET, "/api/reviews", None).await;
+    assert_eq!(r["in_rotation"], 1);
+
+    // Needing help is "hard"; failing is "again" and doesn't count as solved.
+    call(&app, Method::POST, "/api/dsa/problems/lc-valid-palindrome/log", Some(json!({ "grade": "hard" }))).await;
+    call(&app, Method::POST, "/api/dsa/problems/lc-contains-duplicate/log", Some(json!({ "grade": "again" }))).await;
+    let (_, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!((problem_of(&o, "lc-valid-palindrome")["state"]["solved"].clone(), problem_of(&o, "lc-valid-palindrome")["state"]["assisted"].clone()), (json!(true), json!(true)));
+    let again = problem_of(&o, "lc-contains-duplicate");
+    assert_eq!((again["state"]["solved"].clone(), again["state"]["last_grade"].clone(), again["state"]["lapses"].clone()), (json!(false), json!("again"), json!(1)));
+    assert_eq!(o["plan"]["goal_done"], 2);
+
+    // Logging it again is a re-solve, and it can improve the grade.
+    call(&app, Method::POST, "/api/dsa/problems/lc-contains-duplicate/log", Some(json!({ "grade": "easy" }))).await;
+    let kinds: Vec<String> = sqlx::query_scalar("SELECT kind FROM attempts WHERE problem_id = 'lc-contains-duplicate' ORDER BY id").fetch_all(&db).await.unwrap();
+    assert_eq!(kinds, ["practice", "resolve"]);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn dsa_start_moves_where_the_next_problem_comes_from(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    let (status, out) = call(&app, Method::POST, "/api/dsa/start", Some(json!({ "from": "d2-two-pointers" }))).await;
+    assert_eq!((status, out["start"].as_str()), (StatusCode::OK, Some("lc-valid-palindrome")));
+    let (_, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    // From Two Pointers down, then back round to the top; the Premium problem is outside the goal.
+    assert_eq!(o["plan"]["next_up"], json!(["lc-valid-palindrome", "lc-two-sum-ii-input-array-is-sorted", "lc-contains-duplicate", "lc-two-sum"]));
+
+    let (status, _) = call(&app, Method::POST, "/api/dsa/start", Some(json!({ "from": "lc-two-sum" }))).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!(o["plan"]["next_up"][0], "lc-two-sum");
+    assert_eq!(call(&app, Method::POST, "/api/dsa/start", Some(json!({ "from": "nowhere" }))).await.0, StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn only_dsa_problems_can_be_logged(db: PgPool) {
+    let app = test_app(db);
+    let (status, out) = call(&app, Method::POST, &format!("/api/dsa/problems/{NDT}/log"), Some(json!({ "grade": "good" }))).await;
+    assert_eq!((status, out["error"].as_str()), (StatusCode::BAD_REQUEST, Some("bad_request")));
+    assert_eq!(call(&app, Method::POST, "/api/dsa/problems/lc-nothing/log", Some(json!({ "grade": "good" }))).await.0, StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn the_plan_follows_the_settings(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    let (_, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    let mut settings = o["settings"].clone();
+    // Solve only on Mondays and Wednesdays, two a day, with the goal widened to all lists.
+    settings["new_days"] = json!(["mon", "wed"]);
+    settings["new_per_day"] = json!(2);
+    settings["goal"] = json!({ "list": "all", "free_only": false, "extra": 0, "custom_left": null });
+    let (status, _) = call(&app, Method::PUT, "/api/settings/srs", Some(settings.clone())).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!(o["plan"]["goal_total"], 6);
+    assert_eq!(o["settings"]["new_days"], json!(["mon", "wed"]));
+
+    settings["goal"]["list"] = json!("everything");
+    assert_eq!(call(&app, Method::PUT, "/api/settings/srs", Some(settings.clone())).await.0, StatusCode::BAD_REQUEST);
+    settings["goal"]["list"] = json!("all");
+    settings["new_days"] = json!(["mon", "mon"]);
+    assert_eq!(call(&app, Method::PUT, "/api/settings/srs", Some(settings)).await.0, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn retired_problems_lose_their_progress_without_stranding_anything(db: PgPool) {
+    let root = dsa_root(Some("# removed on purpose\nd99-gone # the old one\n"));
+    let loaded = Catalog::load(root.path()).unwrap();
+    assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
+    sqlx::query("INSERT INTO attempts (problem_id, solved_at) VALUES ('d99-gone', now()), ('lc-two-sum', now())").execute(&db).await.unwrap();
+    sqlx::query("INSERT INTO focus_time (day, problem_id, seconds) VALUES (current_date, 'd99-gone', 60)").execute(&db).await.unwrap();
+    // A retired id isn't "stranded": the deploy may go ahead.
+    let report = anneal_api::preflight::check(&db, &loaded.catalog, &anneal_api::MIGRATOR).await.unwrap();
+    assert!(report.is_ok(), "{report:?}");
+
+    let gone = anneal_api::preflight::purge_retired(&db, &loaded.catalog).await.unwrap();
+    assert_eq!(gone, 2);
+    let left: Vec<String> = sqlx::query_scalar("SELECT problem_id FROM attempts").fetch_all(&db).await.unwrap();
+    assert_eq!(left, ["lc-two-sum"], "only the retired problem's progress goes");
+    assert_eq!(anneal_api::preflight::purge_retired(&db, &loaded.catalog).await.unwrap(), 0, "idempotent");
+}
+
+#[test]
+fn a_current_problem_cannot_also_be_retired() {
+    let root = dsa_root(Some("lc-two-sum\n"));
+    let loaded = Catalog::load(root.path()).unwrap();
+    assert!(loaded.issues.iter().any(|i| i.message.contains("lc-two-sum is retired but also a current problem")), "{:?}", loaded.issues);
 }

@@ -1,0 +1,18 @@
+{
+ "generated": "2026-10-07",
+ "company_groups": {"Big Tech": ["Google", "Amazon"]},
+ "techniques": [
+  {"id": "Arrays & Hashing:seen-set", "pattern": "Arrays & Hashing", "name": "Hash set for membership", "must_learn": "lc-contains-duplicate", "problems": 1},
+  {"id": "Arrays & Hashing:complement", "pattern": "Arrays & Hashing", "name": "Complement lookup in a hash map", "must_learn": "lc-two-sum", "problems": 1},
+  {"id": "Arrays & Hashing:encoding", "pattern": "Arrays & Hashing", "name": "Length-prefix encoding", "must_learn": "lc-encode-and-decode-strings", "problems": 1},
+  {"id": "Two Pointers:opposite", "pattern": "Two Pointers", "name": "Pointers from both ends", "must_learn": "lc-valid-palindrome", "problems": 2}
+ ],
+ "problems": [
+  {"id": "lc-contains-duplicate", "slug": "contains-duplicate", "number": 217, "title": "Contains Duplicate", "difficulty": "easy", "pattern": "Arrays & Hashing", "lists": ["blind75", "neetcode150", "neetcode250", "all"], "premium": false, "tags": ["Array", "Hash Table"], "companies": [{"name": "Amazon", "group": "Big Tech", "frequency": 80.0, "recent": true}], "video": "https://www.youtube.com/watch?v=3OamzN90kPg", "technique": "Arrays & Hashing:seen-set", "order": 0, "role": "must_learn", "practice_of": null},
+  {"id": "lc-two-sum", "slug": "two-sum", "number": 1, "title": "Two Sum", "difficulty": "easy", "pattern": "Arrays & Hashing", "lists": ["blind75", "neetcode150", "neetcode250", "all"], "premium": false, "tags": ["Array", "Hash Table"], "companies": [], "video": null, "technique": "Arrays & Hashing:complement", "order": 2, "role": "must_learn", "practice_of": null},
+  {"id": "lc-encode-and-decode-strings", "slug": "encode-and-decode-strings", "number": 271, "title": "Encode and Decode Strings", "difficulty": "medium", "pattern": "Arrays & Hashing", "lists": ["blind75", "neetcode150", "neetcode250", "all"], "premium": true, "tags": ["Design"], "companies": [], "video": null, "technique": "Arrays & Hashing:encoding", "order": 5, "role": "must_learn", "practice_of": null},
+  {"id": "lc-valid-palindrome", "slug": "valid-palindrome", "number": 125, "title": "Valid Palindrome", "difficulty": "easy", "pattern": "Two Pointers", "lists": ["blind75", "neetcode150", "neetcode250", "all"], "premium": false, "tags": ["Two Pointers"], "companies": [], "video": null, "technique": "Two Pointers:opposite", "order": 10, "role": "must_learn", "practice_of": null},
+  {"id": "lc-two-sum-ii-input-array-is-sorted", "slug": "two-sum-ii-input-array-is-sorted", "number": 167, "title": "Two Sum II - Input Array Is Sorted", "difficulty": "medium", "pattern": "Two Pointers", "lists": ["neetcode150", "neetcode250", "all"], "premium": false, "tags": ["Two Pointers", "Binary Search"], "companies": [], "video": null, "technique": "Two Pointers:opposite", "order": 11, "role": "practice", "practice_of": "lc-valid-palindrome"},
+  {"id": "lc-reverse-string", "slug": "reverse-string", "number": 344, "title": "Reverse String", "difficulty": "easy", "pattern": "Two Pointers", "lists": ["all"], "premium": false, "tags": ["Two Pointers"], "companies": [], "video": null, "technique": "Two Pointers:opposite", "order": 12, "role": "practice", "practice_of": "lc-valid-palindrome"}
+ ]
+}

@@ -1,0 +1,232 @@
+pattern = "Advanced Graphs"
+intro = "These are the graph algorithms you name rather than invent: shortest paths with costs, minimum spanning trees, paths that use every edge, and cuts. Each is a template you adapt. Know which question it answers and what it needs from the input (no negative edges, at most k edges, an undirected graph)."
+
+[[technique]]
+id = "Advanced Graphs:dijkstra"
+signals = [
+    "shortest path or cheapest cost where edges have different non-negative weights",
+    "time for a signal to reach every node, or the route with the least effort",
+    "BFS would be right if all the edges cost the same",
+]
+template = '''
+import heapq
+
+
+def dijkstra(n, edges, source):
+    # edges are directed (u, v, weight). Returns every node's distance.
+    graph = [[] for _ in range(n)]
+    for u, v, w in edges:
+        graph[u].append((v, w))
+    dist = [float("inf")] * n
+    dist[source] = 0
+    heap = [(0, source)]
+    while heap:
+        d, u = heapq.heappop(heap)
+        if d > dist[u]:
+            continue  # a shorter path to u was already found
+        for v, w in graph[u]:
+            if d + w < dist[v]:
+                dist[v] = d + w
+                heapq.heappush(heap, (dist[v], v))
+    return dist
+'''
+pitfalls = [
+    "Negative edges break it: use Bellman-Ford.",
+    "Skip stale heap entries (d > dist[u]). Without that check it is still correct but slower.",
+    "Unreached nodes stay at infinity. Check for that before using the answer.",
+    "To minimise something other than a sum (the largest edge on the path), the same heap works with a different combine step.",
+]
+
+[[technique]]
+id = "Advanced Graphs:euler"
+signals = [
+    "use every edge exactly once (every ticket, every road)",
+    "the lexicographically smallest valid route",
+    "an itinerary or a path that retraces nothing",
+]
+template = '''
+from collections import defaultdict
+
+
+def find_itinerary(tickets, start="JFK"):
+    graph = defaultdict(list)
+    for a, b in sorted(tickets, reverse=True):  # pop() gives the smallest
+        graph[a].append(b)
+    route = []
+
+    def visit(city):
+        while graph[city]:
+            visit(graph[city].pop())
+        route.append(city)  # added only once the city has no tickets left
+
+    visit(start)
+    return route[::-1]
+'''
+pitfalls = [
+    "Add a city to the route after exploring all its tickets (post-order), then reverse. A dead end then lands at the end.",
+    "Don't try to pick the right branch greedily: Hierholzer's algorithm fixes dead ends by itself.",
+    "Sorting the tickets in reverse lets you pop the smallest next city in O(1).",
+]
+
+[[technique]]
+id = "Advanced Graphs:mst"
+signals = [
+    "connect every point or node as cheaply as possible",
+    "choose edges so the whole graph is connected with the least total weight",
+    "no cycles are needed: n nodes need exactly n - 1 edges",
+]
+template = '''
+def min_spanning_tree(n, edges):
+    # Kruskal: take the cheapest edge that joins two separate groups.
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    total = used = 0
+    for w, u, v in sorted(edges):
+        ru, rv = find(u), find(v)
+        if ru != rv:
+            parent[ru] = rv
+            total += w
+            used += 1
+    return total if used == n - 1 else -1  # -1: the graph isn't connected
+'''
+pitfalls = [
+    "Kruskal sorts edges and uses union-find. Prim grows from one node with a heap, which suits dense graphs where edges are computed from points.",
+    "Check you used n - 1 edges. Fewer means the graph has several parts.",
+    "For points in a plane the edges are all pairs, so Prim with an array is O(n squared) and avoids building them.",
+]
+
+[[technique]]
+id = "Advanced Graphs:bellman"
+signals = [
+    "the cheapest path using at most k edges (or k stops)",
+    "edges may have negative weights",
+    "relaxing every edge k times gives paths of up to k edges",
+]
+template = '''
+def cheapest_within_k(n, flights, src, dst, k):
+    # flights are (from, to, price). At most k stops, so k + 1 flights.
+    cost = [float("inf")] * n
+    cost[src] = 0
+    for _ in range(k + 1):
+        nxt = cost[:]  # read last round's costs, so a round adds one edge
+        for u, v, w in flights:
+            if cost[u] + w < nxt[v]:
+                nxt[v] = cost[u] + w
+        cost = nxt
+    return -1 if cost[dst] == float("inf") else cost[dst]
+'''
+pitfalls = [
+    "Copy the costs each round. Updating in place lets a path use more than one new edge per round, which breaks the limit.",
+    "k stops means k + 1 edges.",
+    "Dijkstra can't enforce the edge limit on its own, because the cheapest path to a node may use too many edges.",
+]
+
+[[technique]]
+id = "Advanced Graphs:floyd"
+signals = [
+    "shortest distance between every pair of nodes",
+    "a small number of nodes (a few hundred at most)",
+    "many queries about pairs: the cost of converting one thing into another",
+]
+template = '''
+def all_pairs(n, edges):
+    INF = float("inf")
+    dist = [[0 if i == j else INF for j in range(n)] for i in range(n)]
+    for u, v, w in edges:
+        dist[u][v] = min(dist[u][v], w)
+    for k in range(n):  # allow k as an intermediate stop
+        for i in range(n):
+            for j in range(n):
+                if dist[i][k] + dist[k][j] < dist[i][j]:
+                    dist[i][j] = dist[i][k] + dist[k][j]
+    return dist
+'''
+pitfalls = [
+    "The loop over the intermediate node k must be the OUTERMOST one.",
+    "O(n cubed): fine for n up to a few hundred, too slow beyond that.",
+    "Keep the cheapest of several parallel edges, not the last one.",
+]
+
+[[technique]]
+id = "Advanced Graphs:cycles"
+signals = [
+    "every node has exactly one outgoing edge (a function from nodes to nodes)",
+    "the longest cycle, or the length of the cycle a node ends up in",
+    "following the edges from any node eventually repeats",
+]
+template = '''
+def longest_cycle(nxt):
+    # nxt[i] is the single node that i points to (or -1 for none).
+    n = len(nxt)
+    seen_at = [None] * n  # which walk first visited a node, and when
+    best = -1
+    for start in range(n):
+        if seen_at[start] is not None:
+            continue
+        node, step = start, 0
+        while node != -1 and seen_at[node] is None:
+            seen_at[node] = (start, step)
+            node, step = nxt[node], step + 1
+        if node != -1 and seen_at[node][0] == start:  # back in this walk
+            best = max(best, step - seen_at[node][1])
+    return best
+'''
+pitfalls = [
+    "Remember which walk visited a node. Reaching a node from an earlier walk means no new cycle.",
+    "Only a node reached again in the same walk closes a cycle, and the cycle's length is the step difference.",
+    "Each node is visited once overall, so it is O(n).",
+]
+
+[[technique]]
+id = "Advanced Graphs:articulation"
+signals = [
+    "which single edge or node, if removed, disconnects the graph",
+    "the minimum days or edges to split a network",
+    "critical connections, bridges or cut points",
+]
+template = '''
+def bridges_and_cut_points(n, edges):
+    graph = [[] for _ in range(n)]
+    for a, b in edges:
+        graph[a].append(b)
+        graph[b].append(a)
+    order = [-1] * n  # the time each node was first reached
+    low = [0] * n     # earliest time reachable by going down, one back edge
+    bridges, cuts, time = [], set(), [0]
+
+    def dfs(u, parent):
+        order[u] = low[u] = time[0]
+        time[0] += 1
+        children = 0
+        for v in graph[u]:
+            if v == parent:
+                continue
+            if order[v] == -1:
+                children += 1
+                dfs(v, u)
+                low[u] = min(low[u], low[v])
+                if low[v] > order[u]:
+                    bridges.append((u, v))
+                if parent != -1 and low[v] >= order[u]:
+                    cuts.add(u)
+            else:
+                low[u] = min(low[u], order[v])
+        if parent == -1 and children > 1:
+            cuts.add(u)
+
+    for s in range(n):
+        if order[s] == -1:
+            dfs(s, -1)
+    return bridges, sorted(cuts)
+'''
+pitfalls = [
+    "An edge is a bridge when the subtree below it can't reach back above (low[v] > order[u]). A node is a cut point when low[v] >= order[u] for a child.",
+    "The root is a cut point only if it has more than one DFS child.",
+    "Skip the edge back to the parent, but with parallel edges skip it only once.",
+]

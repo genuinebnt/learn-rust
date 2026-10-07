@@ -1,0 +1,106 @@
+pattern = "Intervals"
+intro = "Almost every interval problem starts with a sort. Sort by start to merge or insert, sort by end to choose the most that fit, or turn each interval into two events and sweep. Decide which sort first, and the loop that follows is short."
+
+[[technique]]
+id = "Intervals:merge"
+signals = [
+    "combine overlapping ranges, or insert a new range into a sorted list",
+    "ask what the union of the ranges looks like",
+    "sort by start, then each range either joins the last one or begins a new one",
+]
+template = '''
+def merge_intervals(intervals):
+    merged = []
+    for start, end in sorted(intervals):
+        if merged and start <= merged[-1][1]:  # overlaps the last one
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return merged
+'''
+pitfalls = [
+    "Take the larger end: a long interval can swallow a shorter one that follows it.",
+    "Decide whether touching ranges ([1, 2] and [2, 3]) overlap. Here start <= end says yes.",
+    "To insert a new interval into a sorted list, copy the ones ending before it, merge the overlapping ones into it, then copy the rest.",
+]
+
+[[technique]]
+id = "Intervals:by-end"
+signals = [
+    "keep as many non-overlapping intervals as possible, or remove as few as possible",
+    "schedule the most meetings, arrows or tasks",
+    "finishing early leaves the most room for what is left",
+]
+template = '''
+def min_removals(intervals):
+    removed, last_end = 0, float("-inf")
+    for start, end in sorted(intervals, key=lambda iv: iv[1]):
+        if start >= last_end:  # fits after the last kept interval
+            last_end = end
+        else:
+            removed += 1  # overlaps: drop it (it ends no earlier)
+    return removed
+'''
+pitfalls = [
+    "Sort by END, not by start. Sorting by start can keep a long interval that blocks many short ones.",
+    "Intervals that only touch (end equal to the next start) don't overlap.",
+    "The kept intervals are the most that fit, so the removals are the total minus the kept.",
+]
+
+[[technique]]
+id = "Intervals:calendar"
+signals = [
+    "bookings arrive one at a time and each must be checked against the existing ones",
+    "reject a booking that overlaps, or count the most overlapping at once",
+    "a sorted list of starts lets you check only the neighbours",
+]
+template = '''
+from bisect import bisect_right, insort
+
+
+class Calendar:
+    def __init__(self):
+        self.starts = []  # sorted start times
+        self.ends = {}    # start -> end
+
+    def book(self, start, end):
+        i = bisect_right(self.starts, start)
+        if i and self.ends[self.starts[i - 1]] > start:
+            return False  # the previous booking runs into this one
+        if i < len(self.starts) and self.starts[i] < end:
+            return False  # this one runs into the next booking
+        insort(self.starts, start)
+        self.ends[start] = end
+        return True
+'''
+pitfalls = [
+    "Only the neighbours before and after the new start can overlap it, because the stored ones don't overlap each other.",
+    "Intervals are half-open here: [10, 20) and [20, 30) don't overlap.",
+    "A double booking that is allowed up to a limit needs counting (a sweep over events) instead of this check.",
+]
+
+[[technique]]
+id = "Intervals:sweep"
+signals = [
+    "how many ranges overlap at the busiest moment (meeting rooms)",
+    "for each query point, the smallest range that contains it",
+    "turn each range into a start event and an end event, then process them in time order",
+]
+template = '''
+import heapq
+
+
+def min_rooms(intervals):
+    rooms = []  # a min-heap of the end times of the meetings in progress
+    for start, end in sorted(intervals):
+        if rooms and rooms[0] <= start:  # the earliest room is free again
+            heapq.heapreplace(rooms, end)
+        else:
+            heapq.heappush(rooms, end)
+    return len(rooms)
+'''
+pitfalls = [
+    "Process an end before a start at the same time, so a meeting that ends at 10 frees its room for one starting at 10.",
+    "The size of the heap at any moment is the number of overlapping meetings. Its largest size is the answer.",
+    "Sorting the starts and the ends separately and walking both with two pointers does the same without a heap.",
+]

@@ -651,3 +651,230 @@ def _(ns):
     for _ in range(300):
         s = "".join(r.choice("()*") for _ in range(r.randint(0, 9)))
         assert f(s) is brute(s), s
+
+
+# ---- intervals ------------------------------------------------------------------------------------------------------
+
+@test("Intervals:merge")
+def _(ns):
+    f = ns["merge_intervals"]
+    assert f([[1, 3], [2, 6], [8, 10], [15, 18]]) == [[1, 6], [8, 10], [15, 18]] and f([[1, 4], [4, 5]]) == [[1, 5]]
+    r = random.Random(40)
+    for _ in range(300):
+        iv = [[a, a + r.randint(0, 5)] for a in (r.randint(0, 15) for _ in range(r.randint(1, 7)))]
+        got = f([x[:] for x in iv])
+        covered = {t for a, b in iv for t in range(a * 2, b * 2 + 1)}  # half-steps, so touching ends join
+        assert {t for a, b in got for t in range(a * 2, b * 2 + 1)} == covered
+        assert all(got[i][1] < got[i + 1][0] for i in range(len(got) - 1))
+
+
+@test("Intervals:by-end")
+def _(ns):
+    f = ns["min_removals"]
+    assert f([[1, 2], [2, 3], [3, 4], [1, 3]]) == 1 and f([[1, 2], [1, 2], [1, 2]]) == 2 and f([[1, 2], [2, 3]]) == 0
+    r = random.Random(41)
+    for _ in range(300):
+        iv = [[a, a + r.randint(1, 4)] for a in (r.randint(0, 8) for _ in range(r.randint(1, 8)))]
+        best = 0
+        for m in range(1 << len(iv)):
+            ch = sorted(iv[i] for i in range(len(iv)) if m >> i & 1)
+            if all(ch[i][1] <= ch[i + 1][0] for i in range(len(ch) - 1)):
+                best = max(best, len(ch))
+        assert f([x[:] for x in iv]) == len(iv) - best
+
+
+@test("Intervals:calendar")
+def _(ns):
+    C = ns["Calendar"]
+    c = C()
+    assert [c.book(10, 20), c.book(15, 25), c.book(20, 30)] == [True, False, True]
+    r = random.Random(42)
+    for _ in range(100):
+        c, booked = C(), []
+        for _ in range(r.randint(1, 15)):
+            a = r.randint(0, 30)
+            b = a + r.randint(1, 6)
+            ok = all(b <= s or a >= e for s, e in booked)
+            assert c.book(a, b) is ok
+            if ok:
+                booked.append((a, b))
+
+
+@test("Intervals:sweep")
+def _(ns):
+    f = ns["min_rooms"]
+    assert f([[0, 30], [5, 10], [15, 20]]) == 2 and f([[7, 10], [2, 4]]) == 1 and f([[1, 5], [5, 9]]) == 1
+    r = random.Random(43)
+    for _ in range(300):
+        iv = [[a, a + r.randint(1, 6)] for a in (r.randint(0, 15) for _ in range(r.randint(1, 8)))]
+        want = max(sum(a <= t < b for a, b in iv) for t in range(0, 25))
+        assert f([x[:] for x in iv]) == want
+
+
+# ---- advanced graphs ------------------------------------------------------------------------------------------------
+
+def _random_digraph(r, n, m, lo=1, hi=9):
+    return [(r.randrange(n), r.randrange(n), r.randint(lo, hi)) for _ in range(m)]
+
+
+def _floyd(n, edges):
+    inf = float("inf")
+    d = [[0 if i == j else inf for j in range(n)] for i in range(n)]
+    for u, v, w in edges:
+        d[u][v] = min(d[u][v], w)
+    for k in range(n):
+        for i in range(n):
+            for j in range(n):
+                d[i][j] = min(d[i][j], d[i][k] + d[k][j])
+    return d
+
+
+@test("Advanced Graphs:dijkstra")
+def _(ns):
+    f = ns["dijkstra"]
+    r = random.Random(44)
+    for _ in range(200):
+        n = r.randint(1, 7)
+        edges = _random_digraph(r, n, r.randint(0, 12))
+        assert f(n, edges, 0) == _floyd(n, edges)[0]
+
+
+@test("Advanced Graphs:euler")
+def _(ns):
+    f = ns["find_itinerary"]
+    assert f([["MUC", "LHR"], ["JFK", "MUC"], ["SFO", "SJC"], ["LHR", "SFO"]]) == ["JFK", "MUC", "LHR", "SFO", "SJC"]
+    assert f([["JFK", "SFO"], ["JFK", "ATL"], ["SFO", "ATL"], ["ATL", "JFK"], ["ATL", "SFO"]]) == ["JFK", "ATL", "JFK", "SFO", "ATL", "SFO"]
+    import itertools
+
+    r = random.Random(45)
+    cities = ["JFK", "AAA", "BBB", "CCC"]
+    for _ in range(100):
+        # build a valid itinerary, so a path through all the tickets is guaranteed
+        route = ["JFK"] + [r.choice(cities) for _ in range(r.randint(1, 6))]
+        tickets = [[a, b] for a, b in zip(route, route[1:])]
+        r.shuffle(tickets)
+        best = None
+        for perm in set(itertools.permutations(map(tuple, tickets))):
+            if perm[0][0] == "JFK" and all(perm[i][1] == perm[i + 1][0] for i in range(len(perm) - 1)):
+                path = [perm[0][0]] + [t[1] for t in perm]
+                best = path if best is None or path < best else best
+        assert f([t[:] for t in tickets]) == best
+
+
+@test("Advanced Graphs:mst")
+def _(ns):
+    f = ns["min_spanning_tree"]
+    import itertools
+
+    assert f(4, [(1, 0, 1), (2, 0, 2), (3, 1, 2), (4, 2, 3)]) == 7 and f(3, [(1, 0, 1)]) == -1
+    r = random.Random(46)
+    for _ in range(100):
+        n = r.randint(2, 5)
+        edges = [(r.randint(1, 9), *r.sample(range(n), 2)) for _ in range(r.randint(1, 8))]
+        best = None
+        for combo in itertools.combinations(edges, n - 1):
+            parent = list(range(n))
+
+            def find(x):
+                while parent[x] != x:
+                    x = parent[x]
+                return x
+
+            ok = True
+            for w, u, v in combo:
+                a, b = find(u), find(v)
+                if a == b:
+                    ok = False
+                    break
+                parent[a] = b
+            if ok:
+                cost = sum(w for w, _, _ in combo)
+                best = cost if best is None else min(best, cost)
+        assert f(n, edges[:]) == (best if best is not None else -1)
+
+
+@test("Advanced Graphs:bellman")
+def _(ns):
+    f = ns["cheapest_within_k"]
+    flights = [(0, 1, 100), (1, 2, 100), (2, 0, 100), (1, 3, 600), (2, 3, 200)]
+    assert f(4, flights, 0, 3, 1) == 700 and f(4, flights, 0, 3, 0) == -1 and f(4, flights, 0, 3, 2) == 400
+    r = random.Random(47)
+
+    def brute(n, fl, s, d, k):
+        best = float("inf")
+        stack = [(s, 0, 0)]
+        while stack:
+            node, edges_used, cost = stack.pop()
+            if node == d:
+                best = min(best, cost)
+            if edges_used <= k:
+                for u, v, w in fl:
+                    if u == node:
+                        stack.append((v, edges_used + 1, cost + w))
+        return -1 if best == float("inf") else best
+
+    for _ in range(150):
+        n = r.randint(2, 5)
+        fl = _random_digraph(r, n, r.randint(1, 8))
+        k = r.randint(0, 3)
+        assert f(n, fl, 0, n - 1, k) == brute(n, fl, 0, n - 1, k)
+
+
+@test("Advanced Graphs:floyd")
+def _(ns):
+    f = ns["all_pairs"]
+    r = random.Random(48)
+    for _ in range(100):
+        n = r.randint(1, 6)
+        edges = _random_digraph(r, n, r.randint(0, 10))
+        assert f(n, edges) == _floyd(n, edges)
+    assert f(3, [(0, 1, 5), (0, 1, 2), (1, 2, 1)])[0][2] == 3
+
+
+@test("Advanced Graphs:cycles")
+def _(ns):
+    f = ns["longest_cycle"]
+    assert f([3, 3, 4, 2, 3]) == 3 and f([2, -1, 3, 1]) == -1
+    r = random.Random(49)
+    for _ in range(300):
+        n = r.randint(1, 8)
+        nxt = [r.choice([-1] + list(range(n))) for _ in range(n)]
+        best = -1
+        for s in range(n):
+            seen, node, i = {}, s, 0
+            while node != -1 and node not in seen:
+                seen[node] = i
+                node, i = nxt[node], i + 1
+            if node != -1:
+                best = max(best, i - seen[node])
+        assert f(nxt) == best, nxt
+
+
+@test("Advanced Graphs:articulation")
+def _(ns):
+    f = ns["bridges_and_cut_points"]
+    r = random.Random(50)
+
+    def components(n, edges, skip_edge=None, skip_node=None):
+        parent = list(range(n))
+
+        def find(x):
+            while parent[x] != x:
+                x = parent[x]
+            return x
+
+        for i, (a, b) in enumerate(edges):
+            if i == skip_edge or a == skip_node or b == skip_node:
+                continue
+            parent[find(a)] = find(b)
+        return len({find(x) for x in range(n) if x != skip_node})
+
+    for _ in range(200):
+        n = r.randint(2, 7)
+        edges = list({(min(a, b), max(a, b)) for a, b in (r.sample(range(n), 2) for _ in range(r.randint(1, 9)))})
+        bridges, cuts = f(n, [list(e) for e in edges])
+        base = components(n, edges)
+        want_bridges = {tuple(sorted(edges[i])) for i in range(len(edges)) if components(n, edges, skip_edge=i) > base}
+        want_cuts = [v for v in range(n) if components(n, edges, skip_node=v) > base - (1 if not any(v in e for e in edges) else 0) and any(v in e for e in edges)]
+        assert {tuple(sorted(b)) for b in bridges} == want_bridges, (n, edges)
+        assert cuts == want_cuts, (n, edges, cuts, want_cuts)

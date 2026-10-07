@@ -1,0 +1,219 @@
+pattern = "Heap / Priority Queue"
+intro = "A heap always gives you the smallest (or, negated, the largest) item in O(log n). Reach for it when you repeatedly need the best remaining thing: the k largest, the next task to run, the middle value. Python's heapq is a min-heap, so negate the numbers when you want a maximum."
+
+[[technique]]
+id = "Heap / Priority Queue:size-k"
+signals = [
+    "the k-th largest (or smallest) value in a stream",
+    "keep only the k best items seen so far",
+    "memory must be O(k), not O(n)",
+]
+template = '''
+import heapq
+
+
+class KthLargest:
+    def __init__(self, k, nums):
+        self.k = k
+        self.heap = nums[:]
+        heapq.heapify(self.heap)
+        while len(self.heap) > k:
+            heapq.heappop(self.heap)
+
+    def add(self, val):
+        heapq.heappush(self.heap, val)
+        if len(self.heap) > self.k:
+            heapq.heappop(self.heap)  # drop the smallest of the k + 1
+        return self.heap[0]  # the k-th largest
+'''
+pitfalls = [
+    "Use a MIN-heap for the k largest: the root is the smallest of the kept items, which is the one to throw out.",
+    "The heap never grows beyond k + 1 items, so each add is O(log k).",
+    "Sorting everything works but costs O(n log n) and O(n) memory.",
+]
+
+[[technique]]
+id = "Heap / Priority Queue:pool"
+signals = [
+    "repeatedly take the biggest (or smallest) item, process it, and maybe put something back",
+    "smash the two heaviest stones, pick the closest point, merge the cheapest ropes",
+    "the order changes after every step",
+]
+template = '''
+import heapq
+
+
+def last_stone_weight(stones):
+    heap = [-s for s in stones]  # negated: heapq is a min-heap
+    heapq.heapify(heap)
+    while len(heap) > 1:
+        y = -heapq.heappop(heap)  # the heaviest
+        x = -heapq.heappop(heap)
+        if y != x:
+            heapq.heappush(heap, -(y - x))
+    return -heap[0] if heap else 0
+'''
+pitfalls = [
+    "Negate on the way in and on the way out. Mixing signs is the usual bug.",
+    "heapify turns a list into a heap in O(n). Pushing one at a time is O(n log n).",
+    "Tuples compare element by element, so (priority, tie-breaker, item) avoids comparing the items themselves.",
+]
+
+[[technique]]
+id = "Heap / Priority Queue:quickselect"
+signals = [
+    "the k-th largest of an unsorted array, in O(n) on average",
+    "you don't need the whole array sorted",
+    "partition around a pivot and keep only the side that holds the answer",
+]
+template = '''
+import random
+
+
+def find_kth_largest(nums, k):
+    target = len(nums) - k  # the index in sorted (ascending) order
+    while True:
+        pivot = random.choice(nums)
+        smaller = [x for x in nums if x < pivot]
+        equal = [x for x in nums if x == pivot]
+        if target < len(smaller):
+            nums = smaller
+        elif target < len(smaller) + len(equal):
+            return pivot
+        else:
+            target -= len(smaller) + len(equal)
+            nums = [x for x in nums if x > pivot]
+'''
+pitfalls = [
+    "Splitting into smaller, equal and larger handles duplicates. A two-way partition degrades when many values are equal.",
+    "A random pivot makes the quadratic worst case very unlikely.",
+    "A heap of size k is O(n log k) and works on a stream. Quickselect needs all the data in memory.",
+]
+
+[[technique]]
+id = "Heap / Priority Queue:cooldown"
+signals = [
+    "run the most frequent task first, but the same task can't repeat for n units",
+    "a task goes into a waiting area and comes back after a delay",
+    "always pick the best available item from the heap",
+]
+template = '''
+import heapq
+from collections import Counter, deque
+
+
+def least_interval(tasks, n):
+    heap = [-c for c in Counter(tasks).values()]  # counts, negated
+    heapq.heapify(heap)
+    cooling = deque()  # (time it can run again, remaining count)
+    time = 0
+    while heap or cooling:
+        time += 1
+        if heap:
+            left = heapq.heappop(heap) + 1  # run one copy
+            if left:
+                cooling.append((time + n, left))
+        if cooling and cooling[0][0] == time:
+            heapq.heappush(heap, cooling.popleft()[1])
+    return time
+'''
+pitfalls = [
+    "A task becomes available again n units AFTER it ran, so the ready time is time + n and it returns at the end of that unit.",
+    "When the heap is empty but tasks are cooling, time still passes (an idle slot).",
+    "There is also a counting formula: max(len(tasks), (most - 1) * (n + 1) + how_many_tie_for_most).",
+]
+
+[[technique]]
+id = "Heap / Priority Queue:schedule-sim"
+signals = [
+    "events happen at given times and a single worker takes the best available job",
+    "jobs arrive over time; when the worker is free it picks by a rule (shortest first)",
+    "advance the clock to the next arrival when nothing is waiting",
+]
+template = '''
+import heapq
+
+
+def get_order(tasks):
+    # tasks[i] = [enqueue_time, processing_time]. Returns the run order.
+    jobs = sorted((t, d, i) for i, (t, d) in enumerate(tasks))
+    heap, order, time, i = [], [], 0, 0
+    while i < len(jobs) or heap:
+        if not heap and time < jobs[i][0]:
+            time = jobs[i][0]  # idle: jump to the next arrival
+        while i < len(jobs) and jobs[i][0] <= time:
+            _, duration, index = jobs[i]
+            heapq.heappush(heap, (duration, index))
+            i += 1
+        duration, index = heapq.heappop(heap)
+        time += duration
+        order.append(index)
+    return order
+'''
+pitfalls = [
+    "Add EVERY job that has arrived by now before choosing, because a job that arrived during the last run can be the best one.",
+    "Order the heap by (duration, index) so ties go to the smaller index.",
+    "Keep the original index with each job. The answer is a list of indexes.",
+]
+
+[[technique]]
+id = "Heap / Priority Queue:two-heaps"
+signals = [
+    "the running median of a stream",
+    "you need both the largest of the lower half and the smallest of the upper half",
+    "numbers keep arriving and the middle changes",
+]
+template = '''
+import heapq
+
+
+class MedianFinder:
+    def __init__(self):
+        self.low = []   # max-heap (negated): the smaller half
+        self.high = []  # min-heap: the larger half
+
+    def add_num(self, num):
+        heapq.heappush(self.low, -num)
+        heapq.heappush(self.high, -heapq.heappop(self.low))  # keep order
+        if len(self.high) > len(self.low):  # low is never the smaller
+            heapq.heappush(self.low, -heapq.heappop(self.high))
+
+    def find_median(self):
+        if len(self.low) > len(self.high):
+            return float(-self.low[0])
+        return (-self.low[0] + self.high[0]) / 2
+'''
+pitfalls = [
+    "Push to one heap, move its top to the other, then rebalance. That guarantees every item in low is at most every item in high.",
+    "Keep the sizes equal, or low one larger. The median is then the top of low, or the mean of the two tops.",
+    "Both operations are O(log n), and the median read is O(1).",
+]
+
+[[technique]]
+id = "Heap / Priority Queue:greedy-heap"
+signals = [
+    "pick at most k items; each one unlocks more choices, and you want the best each time",
+    "affordable items go into a pool, and you take the most profitable from it",
+    "items become available as a resource grows",
+]
+template = '''
+import heapq
+
+
+def find_maximized_capital(k, w, profits, capital):
+    projects = sorted(zip(capital, profits))  # cheapest to start first
+    pool, i = [], 0
+    for _ in range(k):
+        while i < len(projects) and projects[i][0] <= w:
+            heapq.heappush(pool, -projects[i][1])  # max-heap by profit
+            i += 1
+        if not pool:
+            break
+        w -= heapq.heappop(pool)  # add the best profit to the capital
+    return w
+'''
+pitfalls = [
+    "Capital only grows, so a project that was affordable stays affordable. Each project enters the pool once.",
+    "Stop early when the pool is empty: nothing more can be started.",
+    "The profit is added to your capital, and the start cost is not deducted. It is only a threshold.",
+]

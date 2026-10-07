@@ -1675,3 +1675,272 @@ def _(ns):
     for _ in range(200):
         lists = [sorted(r.randint(-5, 5) for _ in range(r.randint(0, 5))) for _ in range(r.randint(0, 6))]
         assert _ll_vals(ns["merge_k_lists"]([_ll(v) for v in lists])) == sorted(x for v in lists for x in v)
+
+
+# ---- trees ----------------------------------------------------------------------------------------------------------
+
+import page_tests as _pt  # noqa: E402
+
+
+@test("Trees:dfs")
+def _(ns):
+    r = random.Random(130)
+
+    def mirror(t):
+        return None if t is None else (t.val, mirror(t.right), mirror(t.left))
+
+    for _ in range(200):
+        t = _pt._random_tree(r, r.randint(0, 15))
+        want, h = mirror(t), _pt._height(t)
+        assert ns["max_depth"](t) == h
+        assert _shape(ns["invert_tree"](t)) == want
+
+
+@test("Trees:dfs-return")
+def _(ns):
+    r = random.Random(131)
+    for _ in range(200):
+        t = _pt._random_tree(r, r.randint(1, 12))
+        assert ns["diameter"](t) == max(_pt._tree_distances(t).values())
+
+
+@test("Trees:bst-walk")
+def _(ns):
+    f = ns["lowest_common_ancestor"]
+    r = random.Random(132)
+    for _ in range(300):
+        t = _pt._random_bst(r, r.randint(2, 15))
+        p, q = r.sample(_pt._preorder(t), 2)
+
+        def path(target):
+            out, cur = [], t
+            while True:
+                out.append(cur)
+                if cur is target:
+                    return out
+                cur = cur.left if target.val < cur.val else cur.right
+
+        a, b = path(p), path(q)
+        assert f(t, p, q) is [x for x, y in zip(a, b) if x is y][-1]
+
+
+@test("Trees:bst-edit")
+def _(ns):
+    r = random.Random(133)
+    for _ in range(300):
+        keys = r.sample(range(30), r.randint(0, 12))
+        root = None
+        for k in keys:
+            root = ns["insert"](root, k)
+        assert _pt._inorder_vals(root) == sorted(keys)
+        if keys:
+            gone = r.choice(keys)
+            root = ns["delete"](root, gone)
+            assert _pt._inorder_vals(root) == sorted(set(keys) - {gone})
+        assert ns["delete"](root, 99) is root or root is None
+
+
+@test("Trees:bfs-levels")
+def _(ns):
+    r = random.Random(134)
+    for _ in range(200):
+        t = _pt._random_tree(r, r.randint(0, 15))
+        assert ns["level_order"](t) == _pt._levels(t)
+
+
+@test("Trees:tree-as-graph")
+def _(ns):
+    f = ns["min_time_to_collect"]
+    assert f(7, [[0, 1], [0, 2], [1, 4], [1, 5], [2, 3], [2, 6]], [False, False, True, False, True, True, False]) == 8
+    assert f(7, [[0, 1], [0, 2], [1, 4], [1, 5], [2, 3], [2, 6]], [False] * 7) == 0
+    r = random.Random(135)
+    for _ in range(200):
+        n = r.randint(1, 9)
+        edges = [[r.randrange(i), i] for i in range(1, n)]
+        apples = [r.random() < 0.4 for _ in range(n)]
+        parent = {i: p for p, i in edges}
+
+        def needed(v):
+            while v in parent:
+                yield v
+                v = parent[v]
+
+        used = {v for v in range(n) if apples[v] for v in needed(v)}
+        assert f(n, edges, apples) == 2 * len(used)
+
+
+@test("Trees:dfs-carry")
+def _(ns):
+    r = random.Random(136)
+
+    def count(t, seen):
+        return 0 if t is None else (all(v <= t.val for v in seen)) + count(t.left, seen + [t.val]) + count(t.right, seen + [t.val])
+
+    for _ in range(200):
+        t = _pt._random_tree(r, r.randint(1, 14), -5, 5)
+        assert ns["good_nodes"](t) == count(t, [])
+
+
+@test("Trees:inorder")
+def _(ns):
+    r = random.Random(137)
+    for _ in range(200):
+        n = r.randint(1, 14)
+        t = _pt._random_bst(r, n)
+        k = r.randint(1, n)
+        assert ns["kth_smallest"](t, k) == _pt._inorder_vals(t)[k - 1]
+
+
+@test("Trees:from-traversals")
+def _(ns):
+    r = random.Random(138)
+    for _ in range(200):
+        t = _pt._random_tree(r, r.randint(1, 14), -30, 30, distinct=True)
+        pre = [x.val for x in _pt._preorder(t)]
+        assert _shape(ns["build_tree"](pre, _pt._inorder_vals(t))) == _shape(t)
+
+
+@test("Trees:catalan")
+def _(ns):
+    assert [ns["num_trees"](n) for n in range(1, 8)] == [1, 2, 5, 14, 42, 132, 429]
+    for n in range(1, 6):
+        trees = ns["generate_trees"](1, n)
+        assert len(trees) == ns["num_trees"](n) and len({_shape(t) for t in trees}) == len(trees)
+        assert all(_pt._inorder_vals(t) == list(range(1, n + 1)) for t in trees)
+
+
+@test("Trees:dfs-edit")
+def _(ns):
+    r = random.Random(139)
+
+    def prune(t, target):
+        if t is None:
+            return None
+        left, right = prune(t.left, target), prune(t.right, target)
+        return None if left is None and right is None and t.val == target else (t.val, left, right)
+
+    for _ in range(200):
+        t = _pt._random_tree(r, r.randint(1, 14), 1, 3)
+        target = r.randint(1, 3)
+        assert _shape(ns["remove_leaf_nodes"](t, target)) == prune(t, target)
+
+
+@test("Trees:serialize")
+def _(ns):
+    r = random.Random(140)
+    for _ in range(200):
+        t = _pt._random_tree(r, r.randint(0, 14), -1000, 1000)
+        want = _shape(t)
+        assert _shape(ns["deserialize"](ns["serialize"](t))) == want
+
+
+# ---- heap -----------------------------------------------------------------------------------------------------------
+
+@test("Heap / Priority Queue:size-k")
+def _(ns):
+    r = random.Random(150)
+    for _ in range(100):
+        k = r.randint(1, 5)
+        nums = [r.randint(-9, 9) for _ in range(r.randint(max(0, k - 1), k + 3))]
+        h, seen = ns["KthLargest"](k, nums[:]), nums[:]
+        for _ in range(15):
+            x = r.randint(-9, 9)
+            seen.append(x)
+            assert h.add(x) == sorted(seen)[-k]
+
+
+@test("Heap / Priority Queue:pool")
+def _(ns):
+    f = ns["last_stone_weight"]
+    assert f([2, 7, 4, 1, 8, 1]) == 1 and f([1]) == 1 and f([2, 2]) == 0
+    r = random.Random(151)
+    for _ in range(200):
+        s = [r.randint(1, 20) for _ in range(r.randint(1, 8))]
+        left = sorted(s)
+        while len(left) > 1:
+            y, x = left.pop(), left.pop()
+            if y != x:
+                left.append(y - x)
+                left.sort()
+        assert f(s[:]) == (left[0] if left else 0)
+
+
+@test("Heap / Priority Queue:quickselect")
+def _(ns):
+    f = ns["find_kth_largest"]
+    r = random.Random(152)
+    for _ in range(300):
+        a = [r.randint(-6, 6) for _ in range(r.randint(1, 12))]
+        k = r.randint(1, len(a))
+        assert f(a[:], k) == sorted(a)[-k]
+
+
+@test("Heap / Priority Queue:cooldown")
+def _(ns):
+    f = ns["least_interval"]
+    assert f(list("AAABBB"), 2) == 8 and f(list("AAABBB"), 0) == 6 and f(list("AAAAAABCDEFG"), 2) == 16
+    from collections import Counter
+
+    r = random.Random(153)
+    for _ in range(300):
+        tasks = [r.choice("ABCD") for _ in range(r.randint(1, 14))]
+        n = r.randint(0, 4)
+        counts = Counter(tasks).values()
+        most = max(counts)
+        want = max(len(tasks), (most - 1) * (n + 1) + sum(c == most for c in counts))
+        assert f(tasks, n) == want
+
+
+@test("Heap / Priority Queue:schedule-sim")
+def _(ns):
+    f = ns["get_order"]
+    assert f([[1, 2], [2, 4], [3, 2], [4, 1]]) == [0, 2, 3, 1] and f([[7, 10], [7, 12], [7, 5], [7, 4], [7, 2]]) == [4, 3, 2, 0, 1]
+    r = random.Random(154)
+    for _ in range(200):
+        tasks = [[r.randint(1, 12), r.randint(1, 5)] for _ in range(r.randint(1, 8))]
+        left, t, want = set(range(len(tasks))), 0, []
+        while left:
+            ready = [i for i in left if tasks[i][0] <= t]
+            if not ready:
+                t = min(tasks[i][0] for i in left)
+                continue
+            i = min(ready, key=lambda k: (tasks[k][1], k))
+            left.discard(i)
+            want.append(i)
+            t += tasks[i][1]
+        assert f([x[:] for x in tasks]) == want
+
+
+@test("Heap / Priority Queue:two-heaps")
+def _(ns):
+    r = random.Random(155)
+    for _ in range(100):
+        m, seen = ns["MedianFinder"](), []
+        for _ in range(20):
+            x = r.randint(-9, 9)
+            m.add_num(x)
+            seen.append(x)
+            s = sorted(seen)
+            mid = len(s) // 2
+            assert m.find_median() == (s[mid] if len(s) % 2 else (s[mid - 1] + s[mid]) / 2)
+
+
+@test("Heap / Priority Queue:greedy-heap")
+def _(ns):
+    f = ns["find_maximized_capital"]
+    assert f(2, 0, [1, 2, 3], [0, 1, 1]) == 4 and f(3, 0, [1, 2, 3], [0, 1, 2]) == 6
+    r = random.Random(156)
+    for _ in range(200):
+        n = r.randint(1, 8)
+        profits = [r.randint(0, 9) for _ in range(n)]
+        capital = [r.randint(0, 10) for _ in range(n)]
+        k, w = r.randint(1, 5), r.randint(0, 5)
+        money, left = w, set(range(n))
+        for _ in range(k):
+            ok = [i for i in left if capital[i] <= money]
+            if not ok:
+                break
+            i = max(ok, key=lambda x: profits[x])
+            money += profits[i]
+            left.discard(i)
+        assert f(k, w, profits[:], capital[:]) == money

@@ -1,0 +1,368 @@
+pattern = "Trees"
+intro = "A tree problem is almost always a recursion over its two children. Ask what each call needs to be told (carried down) and what it should report back (returned up). If the answer depends on levels, use a queue. If the tree is a search tree, use its order."
+
+[[technique]]
+id = "Trees:dfs"
+signals = [
+    "do the same thing at every node (invert, compare, count, find the depth)",
+    "the answer for a node comes from the answers for its two children",
+    "an empty tree is the base case",
+]
+template = '''
+def invert_tree(root):
+    if root is None:
+        return None
+    root.left, root.right = invert_tree(root.right), invert_tree(root.left)
+    return root
+
+
+def max_depth(root):
+    if root is None:
+        return 0
+    return 1 + max(max_depth(root.left), max_depth(root.right))
+'''
+pitfalls = [
+    "State the base case first: an empty node. Leaves then work without a special case.",
+    "Return the node so the caller can reattach it as a child.",
+    "A skewed tree can be 10,000 deep. Python's default recursion limit is 1000, so an iterative version may be needed.",
+]
+
+[[technique]]
+id = "Trees:dfs-return"
+signals = [
+    "the best path, longest chain or biggest difference passing through a node",
+    "what a node reports upward is different from what it records as a candidate answer",
+    "balanced, diameter, maximum path sum",
+]
+template = '''
+def diameter(root):
+    best = 0
+
+    def height(node):
+        nonlocal best
+        if node is None:
+            return 0
+        left, right = height(node.left), height(node.right)
+        best = max(best, left + right)  # a path bending at this node
+        return 1 + max(left, right)     # a path continuing up to the parent
+
+    height(root)
+    return best
+'''
+pitfalls = [
+    "Two different numbers: what you return (a path that can continue upward) and what you record (a path that bends here).",
+    "Count edges or nodes consistently. The diameter in edges is left + right.",
+    "Computing heights again at every node is O(n squared). Return the height from one pass.",
+]
+
+[[technique]]
+id = "Trees:bst-walk"
+signals = [
+    "a binary SEARCH tree: left is smaller, right is larger",
+    "find a value, a closest value or an ancestor without visiting everything",
+    "each comparison discards a whole subtree",
+]
+template = '''
+def lowest_common_ancestor(root, p, q):
+    node = root
+    while node:
+        if p.val < node.val and q.val < node.val:
+            node = node.left
+        elif p.val > node.val and q.val > node.val:
+            node = node.right
+        else:
+            return node  # p and q split here (or one of them is node)
+'''
+pitfalls = [
+    "Use the order: only one path from the root is walked, so it is O(height).",
+    "A node counts as its own ancestor, so when p is an ancestor of q the answer is p.",
+    "A binary tree that isn't a search tree needs a full search instead.",
+]
+
+[[technique]]
+id = "Trees:bst-edit"
+signals = [
+    "insert, delete or trim values in a binary search tree",
+    "the tree must stay a valid search tree afterwards",
+    "return the new root, because it may change",
+]
+template = '''
+def insert(root, val):
+    if root is None:
+        return TreeNode(val)
+    if val < root.val:
+        root.left = insert(root.left, val)
+    else:
+        root.right = insert(root.right, val)
+    return root
+
+
+def delete(root, key):
+    if root is None:
+        return None
+    if key < root.val:
+        root.left = delete(root.left, key)
+    elif key > root.val:
+        root.right = delete(root.right, key)
+    else:
+        if root.left is None:
+            return root.right
+        if root.right is None:
+            return root.left
+        heir = root.right  # the smallest value in the right subtree
+        while heir.left:
+            heir = heir.left
+        root.val = heir.val
+        root.right = delete(root.right, heir.val)
+    return root
+'''
+pitfalls = [
+    "Always reassign the child from the recursive call (root.left = ...). That is how a changed or removed child gets attached.",
+    "A node with two children takes the value of its in-order successor (or predecessor), and then that node is deleted.",
+    "Insertion can always go at a leaf, which is the simplest valid choice.",
+]
+
+[[technique]]
+id = "Trees:bfs-levels"
+signals = [
+    "level by level, or by depth",
+    "the right-side view, the average of each level, a zigzag order",
+    "the shortest distance from the root",
+]
+template = '''
+from collections import deque
+
+
+def level_order(root):
+    levels = []
+    queue = deque([root] if root else [])
+    while queue:
+        level = []
+        for _ in range(len(queue)):  # exactly the nodes of this level
+            node = queue.popleft()
+            level.append(node.val)
+            if node.left:
+                queue.append(node.left)
+            if node.right:
+                queue.append(node.right)
+        levels.append(level)
+    return levels
+'''
+pitfalls = [
+    "Read len(queue) BEFORE the inner loop. The queue grows as you add children.",
+    "Use a deque. list.pop(0) is O(n).",
+    "A DFS that passes the depth down and appends to levels[depth] builds the same result.",
+]
+
+[[technique]]
+id = "Trees:tree-as-graph"
+signals = [
+    "the tree is given as a list of edges, not as nodes",
+    "a cost or time depends on which branches matter (those that hold apples, targets)",
+    "walk from a root and decide for each child whether it is worth visiting",
+]
+template = '''
+def min_time_to_collect(n, edges, has_apple):
+    graph = [[] for _ in range(n)]
+    for a, b in edges:
+        graph[a].append(b)
+        graph[b].append(a)
+
+    def cost(node, parent):
+        # Time to walk this subtree and back: 0 if nothing to collect.
+        total = 0
+        for child in graph[node]:
+            if child != parent:
+                total += cost(child, node)
+        if total or has_apple[node]:
+            # Add the edge up to the parent, walked twice (not the root).
+            return total + (2 if parent != -1 else 0)
+        return 0
+
+    return cost(0, -1)
+'''
+pitfalls = [
+    "Pass the parent down, so you never walk back along the edge you came from.",
+    "A subtree that holds nothing costs nothing: skip it, don't count its edges.",
+    "The root has no edge above it, so it adds no 2.",
+]
+
+[[technique]]
+id = "Trees:dfs-carry"
+signals = [
+    "the answer for a node depends on the path from the root to it",
+    "count nodes that are bigger than everything above them, or whose path sums to a target",
+    "pass information DOWN as an argument",
+]
+template = '''
+def good_nodes(root):
+    def count(node, highest):
+        if node is None:
+            return 0
+        good = 1 if node.val >= highest else 0
+        highest = max(highest, node.val)  # what the children must beat
+        return good + count(node.left, highest) + count(node.right, highest)
+
+    return count(root, root.val)
+'''
+pitfalls = [
+    "State carried down is a parameter. Information coming back up is a return value.",
+    "Pass a number, not a growing list, when one value is enough (the path maximum, the remaining sum).",
+    "Use >= when an equal value still counts.",
+]
+
+[[technique]]
+id = "Trees:inorder"
+signals = [
+    "the k-th smallest value, or a check that a tree is a valid search tree",
+    "an in-order walk of a search tree visits values in sorted order",
+    "stop early once you have what you need",
+]
+template = '''
+def kth_smallest(root, k):
+    stack, node = [], root
+    while stack or node:
+        while node:  # go as far left as possible
+            stack.append(node)
+            node = node.left
+        node = stack.pop()
+        k -= 1
+        if k == 0:
+            return node.val
+        node = node.right
+'''
+pitfalls = [
+    "In-order is left, node, right. For a search tree that is sorted order.",
+    "The explicit stack stops as soon as the k-th node is reached, and avoids deep recursion.",
+    "To validate a search tree, check that each value is greater than the previous one in this walk.",
+]
+
+[[technique]]
+id = "Trees:from-traversals"
+signals = [
+    "rebuild a tree from two traversals (preorder and inorder, or inorder and postorder)",
+    "the first preorder value is the root, and inorder splits the left from the right",
+    "all values are distinct",
+]
+template = '''
+def build_tree(preorder, inorder):
+    position = {v: i for i, v in enumerate(inorder)}
+    next_root = 0
+
+    def build(lo, hi):  # the slice inorder[lo:hi + 1]
+        nonlocal next_root
+        if lo > hi:
+            return None
+        node = TreeNode(preorder[next_root])
+        next_root += 1
+        mid = position[node.val]
+        node.left = build(lo, mid - 1)  # preorder lists the left first
+        node.right = build(mid + 1, hi)
+        return node
+
+    return build(0, len(inorder) - 1)
+'''
+pitfalls = [
+    "Preorder says WHICH value is the root. Inorder says how big the left subtree is.",
+    "Build the left subtree before the right, because preorder lists it first.",
+    "Pass index bounds, not sliced lists. Slicing copies and turns this into O(n squared).",
+]
+
+[[technique]]
+id = "Trees:catalan"
+signals = [
+    "count or build all binary search trees with n distinct keys",
+    "choose a root, and the left and right subtrees are independent smaller problems",
+    "the counts multiply: ways(left) times ways(right)",
+]
+template = '''
+def num_trees(n):
+    ways = [1, 1] + [0] * (n - 1)  # ways[k]: shapes of a tree with k nodes
+    for size in range(2, n + 1):
+        for left in range(size):
+            ways[size] += ways[left] * ways[size - 1 - left]
+    return ways[n]
+
+
+def generate_trees(lo, hi):
+    # Every search tree using the keys lo..hi.
+    if lo > hi:
+        return [None]
+    trees = []
+    for root in range(lo, hi + 1):
+        for left in generate_trees(lo, root - 1):
+            for right in generate_trees(root + 1, hi):
+                trees.append(TreeNode(root, left, right))
+    return trees
+'''
+pitfalls = [
+    "An empty range counts as one way (the empty tree), or the products collapse to 0.",
+    "The answers are Catalan numbers: 1, 1, 2, 5, 14, 42, ...",
+    "Building all the trees is exponential. Only count if the problem asks for a count.",
+]
+
+[[technique]]
+id = "Trees:dfs-edit"
+signals = [
+    "remove nodes, and removing one can make its parent removable too",
+    "prune subtrees that are empty or don't satisfy a rule",
+    "children must be fixed BEFORE you decide about the node (post-order)",
+]
+template = '''
+def remove_leaf_nodes(root, target):
+    if root is None:
+        return None
+    root.left = remove_leaf_nodes(root.left, target)
+    root.right = remove_leaf_nodes(root.right, target)
+    if root.left is None and root.right is None and root.val == target:
+        return None  # now a leaf with the target value: remove it
+    return root
+'''
+pitfalls = [
+    "Post-order: clean the children first. A node may only become a leaf after its children are gone.",
+    "Reassign root.left and root.right from the calls. Returning None is how a node disappears.",
+    "The whole tree may vanish: the function can return None.",
+]
+
+[[technique]]
+id = "Trees:serialize"
+signals = [
+    "turn a tree into a string and back",
+    "the string must carry the shape, including where children are missing",
+    "values can be negative or have several digits",
+]
+template = '''
+def serialize(root):
+    tokens = []
+
+    def walk(node):
+        if node is None:
+            tokens.append("N")
+            return
+        tokens.append(str(node.val))
+        walk(node.left)
+        walk(node.right)
+
+    walk(root)
+    return ",".join(tokens)
+
+
+def deserialize(data):
+    tokens = iter(data.split(","))
+
+    def build():
+        token = next(tokens)
+        if token == "N":
+            return None
+        node = TreeNode(int(token))
+        node.left = build()  # preorder: the left subtree's tokens come next
+        node.right = build()
+        return node
+
+    return build()
+'''
+pitfalls = [
+    "Write a marker for every missing child. Values alone don't fix the shape.",
+    "Separate tokens with a delimiter, since values can be several digits long or negative.",
+    "One iterator shared by every call keeps the position in the token stream.",
+]

@@ -1,0 +1,31 @@
+slug = "dice-totals"
+title = "Dice Totals"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-coin-change-ii", "lc-target-sum"]
+warmup = false
+level = "medium"
+stage = "choices"
+order = 7
+status = "ready"
+teaches = [
+    "**Counting with a table over (items used, total)**: each item adds one choice to every total reached before it",
+]
+follow_up = "How would you get the whole distribution of totals at once? How would you handle 1000 dice?"
+
+[[hints]]
+kind = "approach"
+text = "Roll the dice one at a time. The number of ways to reach a total with `k` dice comes from the ways to reach `total - face` with `k - 1` dice, for each face."
+
+[[hints]]
+kind = "python"
+text = "`ways[t]` for the dice so far. Rolling one more die makes `new[t] = sum(ways[t - f] for f in 1..faces)`. Start with `ways = [1, 0, 0, ...]` (zero dice make total 0 in one way)."
+
+[[hints]]
+kind = "edge case"
+text = "Zero dice (total 0 is 1 way, any other total 0 ways), a total that is too small or too big."
+
+[solution]
+explanation = "A table of ways per total, updated one die at a time: the new count for a total adds the old counts for the totals one face away."
+time = "O(dice · total · faces)"
+space = "O(total)"

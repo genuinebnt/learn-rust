@@ -1,0 +1,31 @@
+slug = "hopscotch"
+title = "Hopscotch"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-climbing-stairs", "lc-min-cost-climbing-stairs"]
+warmup = true
+level = "easy"
+stage = "recurrences"
+order = 1
+status = "ready"
+teaches = [
+    "**A recurrence over positions**: the ways to reach a spot are the sum of the ways to reach the spots you could have hopped from",
+]
+follow_up = "What if some stones are missing? What if you want the number of ways modulo 1,000,000,007 for 10^9 stones?"
+
+[[hints]]
+kind = "approach"
+text = "To land on stone `n` your last hop started on stone `n-1`, `n-2` or `n-3`. So the ways to reach `n` are the sum of the ways to reach those three."
+
+[[hints]]
+kind = "python"
+text = "Start from the bank: `ways[0] = 1`. Then `ways[n] = ways[n-1] + ways[n-2] + ways[n-3]`, ignoring terms that would be negative. You only need the last three values."
+
+[[hints]]
+kind = "edge case"
+text = "Zero stones: you are already there (1 way). One stone: only one hop works."
+
+[solution]
+explanation = "The number of ways to reach stone n is the sum over the last hop (1, 2 or 3 stones): `ways[n] = ways[n-1] + ways[n-2] + ways[n-3]`, with `ways[0] = 1`. Keep the last three values."
+time = "O(n)"
+space = "O(1)"

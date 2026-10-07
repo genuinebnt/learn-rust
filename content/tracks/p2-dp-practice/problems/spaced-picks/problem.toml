@@ -1,0 +1,31 @@
+slug = "spaced-picks"
+title = "Spaced Picks"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-house-robber", "lc-house-robber-ii"]
+warmup = true
+level = "medium"
+stage = "choices"
+order = 4
+status = "ready"
+teaches = [
+    "**Take it or leave it**: at each item either skip it, or take it and jump back to the last allowed earlier item",
+]
+follow_up = "What if each item also has a weight limit? How would you list which items to pick?"
+
+[[hints]]
+kind = "approach"
+text = "At item `i` you can skip it (best so far) or take it, which forces your previous pick to be at least `gap` positions earlier."
+
+[[hints]]
+kind = "python"
+text = "`best[i] = max(best[i-1], values[i] + best[i-gap])`, where a negative index means \"nothing earlier\" and counts as 0. Use `i + 1` style indexing with a leading zero to avoid negative indexes."
+
+[[hints]]
+kind = "edge case"
+text = "`gap = 1` allows every item. An empty list. A gap longer than the list."
+
+[solution]
+explanation = "`best[i]` is the most value from the first `i` items. Either skip item `i - 1` (`best[i-1]`) or take it and add the best from items up to `i - gap`."
+time = "O(n)"
+space = "O(n)"

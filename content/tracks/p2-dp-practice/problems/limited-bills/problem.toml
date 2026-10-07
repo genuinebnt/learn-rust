@@ -1,0 +1,31 @@
+slug = "limited-bills"
+title = "Limited Bills"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-coin-change", "lc-partition-equal-subset-sum"]
+warmup = false
+level = "medium"
+stage = "choices"
+order = 6
+status = "ready"
+teaches = [
+    "**Bounded knapsack**: like coin change, but each denomination can be used only a limited number of times",
+]
+follow_up = "How would you do it when the counts are huge (a million of each)? How would you list which bills to use?"
+
+[[hints]]
+kind = "approach"
+text = "It is Coin Change with a limit on how many of each bill you have. Process the denominations one at a time, and for each decide how many of it to use (0 up to its count)."
+
+[[hints]]
+kind = "python"
+text = "`fewest[a]` is the fewest bills for amount `a` using the denominations handled so far. For a denomination `(value, count)`, build a new table: `new[a] = min(fewest[a - k*value] + k for k in 0..count)`."
+
+[[hints]]
+kind = "edge case"
+text = "Amount 0 needs 0 bills. A denomination with count 0. Amounts that can't be made (-1)."
+
+[solution]
+explanation = "A table of the fewest bills per amount, updated one denomination at a time: for each amount, try using `k` bills of the denomination (up to its count) on top of the best for the remaining amount."
+time = "O(amount · total bills)"
+space = "O(amount)"

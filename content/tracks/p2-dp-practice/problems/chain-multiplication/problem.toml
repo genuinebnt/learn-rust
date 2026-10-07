@@ -1,0 +1,31 @@
+slug = "chain-multiplication"
+title = "Chain Multiplication"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-burst-balloons"]
+warmup = false
+level = "hard"
+stage = "intervals"
+order = 13
+status = "ready"
+teaches = [
+    "**Interval DP**: the best way to handle a range is the best over where it splits, combining the best of the two halves",
+]
+follow_up = "How would you recover the best bracketing? Why is the greedy \"multiply the cheapest pair first\" wrong?"
+
+[[hints]]
+kind = "approach"
+text = "Multiplying a chain means choosing the **last** multiplication, which splits the chain into a left part and a right part, each multiplied on its own first. Try every split point."
+
+[[hints]]
+kind = "python"
+text = "`cost[i][j]` = cheapest way to multiply matrices `i..j`. For `i == j` it is 0. Otherwise `min over k of cost[i][k] + cost[k+1][j] + dims[i] * dims[k+1] * dims[j+1]`. Fill by increasing chain length."
+
+[[hints]]
+kind = "edge case"
+text = "Fewer than two matrices (0), exactly two (the one product), dimensions of 1."
+
+[solution]
+explanation = "`cost[i][j]` is the minimum over split points `k` of the cost of the two halves plus the cost of multiplying the two results, `dims[i] * dims[k+1] * dims[j+1]`. Fill by increasing length."
+time = "O(n³)"
+space = "O(n²)"

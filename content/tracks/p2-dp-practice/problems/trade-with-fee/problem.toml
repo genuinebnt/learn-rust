@@ -1,0 +1,31 @@
+slug = "trade-with-fee"
+title = "Trade With a Fee"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-best-time-to-buy-and-sell-stock-with-cooldown"]
+warmup = true
+level = "medium"
+stage = "choices"
+order = 8
+status = "ready"
+teaches = [
+    "**State machines**: a few named states, with the best profit tracked for each as the days pass",
+]
+follow_up = "How would you allow at most `k` trades? What if the fee depends on the price?"
+
+[[hints]]
+kind = "approach"
+text = "On each day you are either **holding** a share or **not**. Track the best profit for each of those two states and update both every day."
+
+[[hints]]
+kind = "python"
+text = "`cash` (not holding) and `hold`. New `cash = max(cash, hold + price - fee)` (sell), new `hold = max(hold, cash - price)` (buy). Use yesterday's values for both."
+
+[[hints]]
+kind = "edge case"
+text = "Prices that only fall (0), a fee bigger than any profit, a single day."
+
+[solution]
+explanation = "Two states each day: `cash` and `hold`. Selling pays the fee. Update both from the previous day's values, and the answer is `cash` at the end."
+time = "O(n)"
+space = "O(1)"

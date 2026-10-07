@@ -1,0 +1,31 @@
+slug = "palindrome-cuts"
+title = "Palindrome Cuts"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-palindromic-substrings", "lc-longest-palindromic-substring"]
+warmup = false
+level = "medium"
+stage = "sequences"
+order = 11
+status = "ready"
+teaches = [
+    "**Two layers of DP**: a table of which substrings are palindromes, then a recurrence over cut positions that uses it",
+]
+follow_up = "How would you return the actual pieces? How would you do it in O(n²) time and O(n) space?"
+
+[[hints]]
+kind = "approach"
+text = "The last piece of a good split is a palindrome `s[j:i]`; the rest `s[:j]` is split optimally. So `cuts[i] = 1 + min(cuts[j])` over `j` where `s[j:i]` is a palindrome (and 0 if the whole prefix is one)."
+
+[[hints]]
+kind = "python"
+text = "First build `is_pal[j][i]` (or expand around centers to fill it). Then `cuts[i] = 0 if s[:i] is a palindrome else min(cuts[j] + 1 for j < i if is_pal[j][i-1])`."
+
+[[hints]]
+kind = "edge case"
+text = "A string that is already a palindrome (0), an empty string (0), all different letters (n - 1)."
+
+[solution]
+explanation = "`cuts[i]` is the fewest cuts for the first `i` characters: zero if they form a palindrome, otherwise one more than the best `cuts[j]` for a palindromic last piece `s[j:i]`."
+time = "O(n²)"
+space = "O(n²)"

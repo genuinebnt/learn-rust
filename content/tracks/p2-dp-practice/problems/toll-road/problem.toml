@@ -1,0 +1,31 @@
+slug = "toll-road"
+title = "Toll Road"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-min-cost-climbing-stairs", "lc-climbing-stairs"]
+warmup = true
+level = "easy"
+stage = "recurrences"
+order = 2
+status = "ready"
+teaches = [
+    "**Minimising over the last move**: the cheapest way to stand on a stop is its toll plus the cheapest way to stand on a stop you could have come from",
+]
+follow_up = "How would you recover which stops you stopped at? What if you could also drive backwards?"
+
+[[hints]]
+kind = "approach"
+text = "The cheapest way to stand on stop `i` costs its toll plus the cheapest way to stand on stop `i-1`, `i-2` or `i-3`."
+
+[[hints]]
+kind = "python"
+text = "`cost[0] = tolls[0]`. The trip ends once you move **past** the last stop, so the answer is the cheapest of the last three stops (the ones within 3 stops of the end)."
+
+[[hints]]
+kind = "edge case"
+text = "No stops (0), a single stop, and tolls of zero."
+
+[solution]
+explanation = "`cost[i] = tolls[i] + min(cost[i-1], cost[i-2], cost[i-3])`. You can leave the road from any of the last three stops, so the answer is the minimum of their costs."
+time = "O(n)"
+space = "O(n)"

@@ -1,0 +1,31 @@
+slug = "message-splits"
+title = "Message Splits"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-decode-ways"]
+warmup = true
+level = "medium"
+stage = "choices"
+order = 5
+status = "ready"
+teaches = [
+    "**Counting ways to cut a string** into valid pieces, where the number of ways for a prefix sums over the last piece",
+]
+follow_up = "What if you must return all the splits, not just count them? What if pieces may have a leading zero?"
+
+[[hints]]
+kind = "approach"
+text = "The last piece of a split of the first `i` digits is some `digits[j:i]`. If that piece is valid, every split of the first `j` digits can be followed by it."
+
+[[hints]]
+kind = "python"
+text = "`ways[0] = 1` for the empty prefix. `ways[i] = sum(ways[j] for j < i if digits[j:i] is valid)`. A piece is valid if it does not start with `0` and its value is at most `biggest`. A piece can be at most as long as `biggest` has digits."
+
+[[hints]]
+kind = "edge case"
+text = "An empty string (1 way), a `0` anywhere that can't be the start of a piece, `biggest` of 9 (single digits only)."
+
+[solution]
+explanation = "`ways[i]` sums `ways[j]` over every `j` where `digits[j:i]` is a valid piece (no leading zero, value between 1 and `biggest`). Only pieces up to `len(str(biggest))` digits need checking."
+time = "O(n · len(str(biggest)))"
+space = "O(n)"

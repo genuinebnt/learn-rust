@@ -1,0 +1,31 @@
+slug = "paths-around-rocks"
+title = "Paths Around Rocks"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-unique-paths"]
+warmup = true
+level = "easy"
+stage = "recurrences"
+order = 3
+status = "ready"
+teaches = [
+    "**Counting paths in a grid**: each cell is reached from the one above or the one to the left; a rock simply has zero paths",
+]
+follow_up = "What if you could also move diagonally? How would you find the path count modulo a prime for a 10,000 x 10,000 grid with no rocks?"
+
+[[hints]]
+kind = "approach"
+text = "The number of ways to reach a cell is the number of ways to reach the cell above plus the number to the left. A rock cell can't be stood on, so it has 0 ways."
+
+[[hints]]
+kind = "python"
+text = "Fill row by row. The start has 1 way (unless it is a rock). Keep a single row of counts and update it in place."
+
+[[hints]]
+kind = "edge case"
+text = "A rock on the start or the goal (0), a rock that blocks the whole first row, an empty plan."
+
+[solution]
+explanation = "`paths[r][c] = 0` for a rock, otherwise the paths from above plus from the left, with the start counted as 1. One row of counts is enough."
+time = "O(rows · cols)"
+space = "O(cols)"

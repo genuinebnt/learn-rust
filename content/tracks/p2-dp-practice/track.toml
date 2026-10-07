@@ -1,0 +1,27 @@
+code = "P2"
+name = "Dynamic programming practice"
+section = "P"
+tier = "core"
+order = 2
+summary = "Thirteen small problems that use the dynamic-programming ideas from the NeetCode DP problems in new settings: hops, tolls, grids with rocks, gaps, splits, limited coins, dice, fees, subset sums, string tables, nested boxes and interval choices."
+pattern = "1-D Dynamic Programming"
+
+[[stages]]
+slug = "recurrences"
+name = "Recurrences"
+band = "easy"
+
+[[stages]]
+slug = "choices"
+name = "Choices and counting"
+band = "medium"
+
+[[stages]]
+slug = "sequences"
+name = "Sequences and strings"
+band = "hard"
+
+[[stages]]
+slug = "intervals"
+name = "Intervals"
+band = "hard"

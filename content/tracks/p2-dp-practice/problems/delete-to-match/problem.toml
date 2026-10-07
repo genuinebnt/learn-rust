@@ -1,0 +1,31 @@
+slug = "delete-to-match"
+title = "Delete to Match"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-longest-common-subsequence", "lc-edit-distance"]
+warmup = false
+level = "medium"
+stage = "sequences"
+order = 10
+status = "ready"
+teaches = [
+    "**The two-string table**: what you keep in common is a longest common subsequence; everything else is deleted",
+]
+follow_up = "What if replacing a character counts as one step? (That is edit distance.) How would you print the common part?"
+
+[[hints]]
+kind = "approach"
+text = "The letters you keep must appear in the same order in both strings, so they form a common subsequence. Keeping the **longest** one deletes the fewest letters."
+
+[[hints]]
+kind = "python"
+text = "Compute the length of the longest common subsequence `L` with a table over prefixes of both strings. The answer is `len(a) + len(b) - 2 * L`."
+
+[[hints]]
+kind = "edge case"
+text = "Equal strings (0), no letters in common (delete everything), an empty string."
+
+[solution]
+explanation = "The characters that survive form a common subsequence, so delete everything else: `len(a) + len(b) - 2 * LCS(a, b)`."
+time = "O(len(a) · len(b))"
+space = "O(len(b))"

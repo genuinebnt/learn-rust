@@ -92,6 +92,11 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       union-find, knight moves). `anneal verify P1` passes (solution passes, starter fails, every wrong solution is
       rejected). All 11 solutions were typed by hand into the real editor in headless Chrome and solved through the
       sandbox. Also checked: Python inside the Docker sandbox (no network, read-only root, timeouts).
-      **Next: DP lessons, then the DP practice track in Python, then the rest, then Rust.**
+- [x] DP practice track in Python (2026-10-07): `content/tracks/p2-dp-practice`, 13 problems (Hopscotch, Toll Road, Paths Around
+      Rocks, Spaced Picks, Message Splits, Limited Bills, Dice Totals, Trade With a Fee, Fair Shares, Delete to Match,
+      Palindrome Cuts, Box Chain, Chain Multiplication). `anneal verify P2` passes. Each is opened by logging its LeetCode
+      problem(s); the ones marked warm-up also open while that problem is next up.
+      **Next: Binary Search, Linked List, Trees, Heap, Backtracking, Tries (and Math, Bits), each as lessons then a Python
+      practice track, then the Rust practice tracks.**
 - [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
       18 categories.

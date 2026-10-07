@@ -79,7 +79,12 @@ async function typeCode(source) {
     const lines = source.replace(/\n+$/, "").split("\n");
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (line.trim() !== "") {
+        if (/^\s*[)\]}]+,?$/.test(line)) {
+            // The editor closed this bracket when the opener was typed, and put it on its own line; a person moves
+            // down onto it rather than typing it again.
+            await press("ArrowDown");
+            await press("End");
+        } else if (line.trim() !== "") {
             const want = line.length - line.trimStart().length;
             for (let guard = 0; guard < 12; guard++) {
                 const have = await cursorIndent();
@@ -88,7 +93,8 @@ async function typeCode(source) {
             }
             for (const ch of line.trimStart()) await send("Input.dispatchKeyEvent", { type: "keyDown", key: ch, text: ch, unmodifiedText: ch });
         }
-        if (i < lines.length - 1) await press("Enter");
+        // No Enter before a line that only closes a bracket the editor already closed: the next step moves down onto it.
+        if (i < lines.length - 1 && !/^\s*[)\]}]+,?$/.test(lines[i + 1])) await press("Enter");
     }
 }
 

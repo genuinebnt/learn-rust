@@ -1,0 +1,31 @@
+slug = "fair-shares"
+title = "Fair Shares"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-partition-equal-subset-sum", "lc-target-sum"]
+warmup = false
+level = "medium"
+stage = "choices"
+order = 9
+status = "ready"
+teaches = [
+    "**Subset sums as a reachability table**: which totals can some subset of the items make?",
+]
+follow_up = "How would you split into three groups? How would you also return the two groups?"
+
+[[hints]]
+kind = "approach"
+text = "If one group has total `s`, the other has `total - s`, and the difference is `|total - 2s|`. So you want the reachable subset sum `s` closest to half the total."
+
+[[hints]]
+kind = "python"
+text = "Build the set of reachable sums (or a bitset): start with `{0}`, and for each item add `s + item` for every sum `s` so far. Then scan for the one nearest `total / 2`."
+
+[[hints]]
+kind = "edge case"
+text = "No items (difference 0), a single item (the item itself), many equal items."
+
+[solution]
+explanation = "Compute every reachable subset sum; the best split has one group at the reachable sum closest to half the total, and the difference is `total - 2 * that sum`."
+time = "O(n · total)"
+space = "O(total)"

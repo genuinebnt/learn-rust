@@ -1,0 +1,31 @@
+slug = "box-chain"
+title = "Box Chain"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-longest-increasing-subsequence"]
+warmup = false
+level = "hard"
+stage = "sequences"
+order = 12
+status = "ready"
+teaches = [
+    "**Reducing a two-dimensional order to a one-dimensional LIS** by sorting cleverly, then using the O(n log n) tails trick",
+]
+follow_up = "How would you allow rotating the boxes? How would you print the chain?"
+
+[[hints]]
+kind = "approach"
+text = "A box fits inside another only if **both** its width and its height are strictly smaller. Sort so that you only have to think about one dimension, then find a longest increasing subsequence in the other."
+
+[[hints]]
+kind = "python"
+text = "Sort by width ascending, and **height descending for equal widths** (so two boxes of equal width can never chain). Then the answer is the length of the longest strictly increasing subsequence of the heights; use the `bisect_left` tails method."
+
+[[hints]]
+kind = "edge case"
+text = "No boxes (0), identical boxes (they do not fit in each other), boxes with the same width but different heights."
+
+[solution]
+explanation = "Sort by width ascending and, on ties, height descending. A chain is then a strictly increasing run of heights, so the answer is the LIS of the heights, found with binary search in O(n log n)."
+time = "O(n log n)"
+space = "O(n)"

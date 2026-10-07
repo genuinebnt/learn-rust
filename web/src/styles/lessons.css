@@ -23,3 +23,5 @@
 .l-pt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .l-more{font:600 11.5px var(--mono);color:var(--ca)}
 .l-more:hover{text-decoration:underline}
+.l-lft .d-code pre{padding-top:36px}
+@media (max-width:600px){.l-lft .d-code pre{font-size:11.5px}}

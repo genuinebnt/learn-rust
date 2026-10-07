@@ -1,0 +1,45 @@
+intuition = """
+A stack where `pop` removes the **most frequent** element, and on a tie the one pushed **most recently**. Keep:
+
+- `count[x]`: how many times `x` is currently in the stack,
+- `groups[f]`: a stack of the values that have reached frequency `f`, in the order they reached it,
+- `max_freq`: the highest frequency present.
+
+On `push(x)`, raise `count[x]` to `f` and append `x` to `groups[f]`. On `pop`, take the top of `groups[max_freq]`, lower its count, and if that group is now empty lower `max_freq`. A value appears in several groups, once for each frequency it has passed.
+"""
+tips = [
+    "A value pushed three times sits in `groups[1]`, `groups[2]` and `groups[3]`. Popping it removes only the top level.",
+    "Within a group the order of insertion is the order of recency, so a list used as a stack breaks ties correctly.",
+    "When `groups[max_freq]` becomes empty, the next highest frequency is simply `max_freq - 1`.",
+]
+
+[[approaches]]
+name = "One stack per frequency"
+label = "design"
+idea = "Group values by the frequency they reached, so the top of the highest group is always the answer to pop."
+time = "O(1) per call"
+space = "O(n)"
+note = "Each push adds one entry."
+code = '''from collections import defaultdict
+
+
+class FreqStack:
+
+    def __init__(self):
+        self.count = defaultdict(int)
+        self.groups = defaultdict(list)  # frequency -> values, in the order they reached it
+        self.max_freq = 0
+
+    def push(self, val: int) -> None:
+        self.count[val] += 1
+        f = self.count[val]
+        self.max_freq = max(self.max_freq, f)
+        self.groups[f].append(val)
+
+    def pop(self) -> int:
+        val = self.groups[self.max_freq].pop()
+        self.count[val] -= 1
+        if not self.groups[self.max_freq]:
+            self.max_freq -= 1
+        return val
+'''

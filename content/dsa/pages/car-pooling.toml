@@ -1,0 +1,34 @@
+intuition = """
+Passengers get on at `from` and off at `to`. The car is over capacity if, at **some moment**, more are on board than it holds. So record the **change** in passengers at each stop (`+n` at the pick-up, `-n` at the drop-off), sweep the stops in order keeping a running total, and check it never exceeds the capacity.
+
+This is the sweep-line idea from Meeting Rooms II, with weights.
+"""
+tips = [
+    "Drop-offs and pick-ups at the same stop: the passengers get off before the new ones get on, which a running sum over the net change at that stop handles correctly.",
+    "A difference array over positions (the stops go up to 1000) works as well as sorting events.",
+    "Stop and return `False` as soon as the total goes over.",
+]
+
+[[approaches]]
+name = "Sweep over the net change at each stop"
+label = "sweep line"
+idea = "Add each trip's passengers at its start and remove them at its end; the running total is the load."
+time = "O(n log n)"
+space = "O(n)"
+note = "Sorting the stops dominates."
+code = '''from collections import defaultdict
+
+
+class Solution:
+    def carPooling(self, trips: list[list[int]], capacity: int) -> bool:
+        change = defaultdict(int)
+        for passengers, start, end in trips:
+            change[start] += passengers
+            change[end] -= passengers
+        load = 0
+        for stop in sorted(change):
+            load += change[stop]
+            if load > capacity:
+                return False
+        return True
+'''

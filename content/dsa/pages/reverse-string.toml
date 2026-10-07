@@ -1,0 +1,27 @@
+intuition = """
+Reverse a list of characters **in place**: two pointers, one at each end, swap and move inward until they meet. Each pair is swapped once, and the middle character (for an odd length) stays where it is.
+"""
+tips = [
+    "Loop while `left < right`. When they meet, the array is done.",
+    "A tuple assignment swaps two items without a temporary variable.",
+    "`s.reverse()` is the built-in, which is fine in practice but skips the point of the exercise.",
+]
+
+[[approaches]]
+name = "Swap from both ends"
+label = "two pointers"
+idea = "Exchange the outermost pair, then the next pair in, until the pointers meet."
+time = "O(n)"
+space = "O(1)"
+note = "In place."
+code = '''class Solution:
+    def reverseString(self, s: list[str]) -> None:
+        """
+        Do not return anything, modify s in-place instead.
+        """
+        left, right = 0, len(s) - 1
+        while left < right:
+            s[left], s[right] = s[right], s[left]
+            left += 1
+            right -= 1
+'''

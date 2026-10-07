@@ -1,0 +1,40 @@
+intuition = """
+Simulate the booking. Process the meetings in order of start time. Keep two heaps of rooms: the **free** rooms (smallest number first) and the **busy** rooms as `(time it frees up, room number)`.
+
+For a meeting starting at `start`: first release every busy room that is free by then. If a room is free, take the lowest-numbered one. If none is, the meeting waits for the **earliest** room to free up and runs in it for the same duration (so it ends at `free_time + duration`). Count the meetings per room, and return the busiest, the lowest number on a tie.
+"""
+tips = [
+    "A delayed meeting keeps its length: it ends at `earliest_end + (end - start)`.",
+    "The busy heap is ordered by `(end time, room number)`, so ties go to the lower room.",
+    "Return `counts.index(max(counts))`, which gives the lowest room number among the busiest.",
+]
+
+[[approaches]]
+name = "Two heaps: free rooms and busy rooms"
+label = "heap simulation"
+idea = "Give each meeting the lowest free room, or delay it to the earliest room that frees up."
+time = "O(m log m + m log n)"
+space = "O(n)"
+note = "m is the number of meetings, n the rooms."
+code = '''import heapq
+
+
+class Solution:
+    def mostBooked(self, n: int, meetings: list[list[int]]) -> int:
+        meetings.sort()
+        free = list(range(n))
+        busy = []  # (time the room frees up, room number)
+        counts = [0] * n
+        for start, end in meetings:
+            while busy and busy[0][0] <= start:
+                _, room = heapq.heappop(busy)
+                heapq.heappush(free, room)
+            if free:
+                room = heapq.heappop(free)
+                heapq.heappush(busy, (end, room))
+            else:
+                free_at, room = heapq.heappop(busy)
+                heapq.heappush(busy, (free_at + end - start, room))
+            counts[room] += 1
+        return counts.index(max(counts))
+'''

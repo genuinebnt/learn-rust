@@ -1,0 +1,29 @@
+intuition = """
+Post-order is **left, right, node**: a node comes after both its children. A neat trick builds it from the pre-order code: visit **node, right, left** (pre-order with the children swapped), then **reverse** the result. Reversing `node, right, left` gives `left, right, node`, which is exactly post-order.
+"""
+tips = [
+    "Do a pre-order that pushes the left child first and the right child second, then reverse the list at the end.",
+    "A node must be recorded after its children, which is why a direct stack version needs extra state, and the reverse trick avoids it.",
+    "The recursive version is three lines, and is worth writing first.",
+]
+
+[[approaches]]
+name = "Reversed (node, right, left)"
+label = "iterative"
+idea = "Walk node, right, left with a stack and reverse the output to get left, right, node."
+time = "O(n)"
+space = "O(h)"
+note = "The reverse is O(n)."
+code = '''class Solution:
+    def postorderTraversal(self, root: TreeNode | None) -> list[int]:
+        result = []
+        stack = [root] if root else []
+        while stack:
+            node = stack.pop()
+            result.append(node.val)
+            if node.left:
+                stack.append(node.left)
+            if node.right:
+                stack.append(node.right)
+        return result[::-1]
+'''

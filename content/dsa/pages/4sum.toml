@@ -1,0 +1,43 @@
+intuition = """
+3Sum with one more number: **sort**, fix the first two numbers with two nested loops, and find the other two with the two-pointer sweep. As in 3Sum, skip repeated values at every level so each quadruple appears once. The two-pointer step looks at the sum of the other two and moves the pointer that can improve it.
+
+The pattern generalises to k-Sum: sort, fix k - 2 numbers by loops or recursion, finish with two pointers.
+"""
+tips = [
+    "Skip a value equal to the previous one at the first loop, the second loop, and after each hit for the left pointer.",
+    "Sums can pass 32 bits in other languages, but Python integers don't overflow.",
+    "Early exits (the smallest possible sum is already above the target) are optional speed-ups.",
+]
+
+[[approaches]]
+name = "Sort, two loops, then two pointers"
+label = "two pointers"
+idea = "Fix the first two numbers, sweep the rest from both ends, and skip duplicates at each level."
+time = "O(n^3)"
+space = "O(1)"
+note = "Besides the output."
+code = '''class Solution:
+    def fourSum(self, nums: list[int], target: int) -> list[list[int]]:
+        nums.sort()
+        n = len(nums)
+        result = []
+        for i in range(n - 3):
+            if i and nums[i] == nums[i - 1]:
+                continue
+            for j in range(i + 1, n - 2):
+                if j > i + 1 and nums[j] == nums[j - 1]:
+                    continue
+                lo, hi = j + 1, n - 1
+                while lo < hi:
+                    total = nums[i] + nums[j] + nums[lo] + nums[hi]
+                    if total < target:
+                        lo += 1
+                    elif total > target:
+                        hi -= 1
+                    else:
+                        result.append([nums[i], nums[j], nums[lo], nums[hi]])
+                        lo += 1
+                        while lo < hi and nums[lo] == nums[lo - 1]:
+                            lo += 1
+        return result
+'''

@@ -1,0 +1,37 @@
+intuition = """
+Maximum Subarray, but the array is circular, so the best run may wrap from the end back to the start. There are two cases:
+
+1. The best subarray does **not** wrap: ordinary Kadane.
+2. It **wraps**: then what is left out is a contiguous block in the middle, and to make the wrapped part as large as possible you leave out the **smallest** block. The wrapped sum is `total - (minimum subarray sum)`.
+
+The answer is the larger of the two. One catch: if every number is negative, the minimum subarray is the whole array, and `total - total = 0` would wrongly claim an empty subarray. In that case return the plain maximum.
+"""
+tips = [
+    "Run Kadane twice: once for the maximum, once for the minimum.",
+    "If the maximum is negative, return it. The wrapped case would otherwise give 0 (an empty subarray).",
+    "The two cases cover everything, because a wrapped run's complement is a normal subarray.",
+]
+
+[[approaches]]
+name = "Best of the straight run and total minus the worst run"
+label = "kadane"
+idea = "Compute the maximum and the minimum subarray in one pass; the circular best is total minus the minimum."
+time = "O(n)"
+space = "O(1)"
+note = "One pass tracks all three."
+code = '''class Solution:
+    def maxSubarraySumCircular(self, nums: list[int]) -> int:
+        total = 0
+        best_max = cur_max = nums[0]
+        best_min = cur_min = nums[0]
+        for i, x in enumerate(nums):
+            total += x
+            if i:
+                cur_max = max(x, cur_max + x)
+                cur_min = min(x, cur_min + x)
+                best_max = max(best_max, cur_max)
+                best_min = min(best_min, cur_min)
+        if best_max < 0:
+            return best_max  # every number is negative
+        return max(best_max, total - best_min)
+'''

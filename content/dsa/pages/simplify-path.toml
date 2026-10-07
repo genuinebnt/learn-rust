@@ -1,0 +1,33 @@
+intuition = """
+Turn a Unix path into its canonical form. Split on `/` and walk the pieces with a **stack** of directory names:
+
+- an empty piece or `.` means "stay here": skip it,
+- `..` means "go up": pop the stack if it isn't empty (the root has no parent),
+- anything else (including `...`) is a real name: push it.
+
+Join the stack with `/` and put a `/` in front.
+"""
+tips = [
+    "`...` and similar are ordinary names, not special.",
+    "`..` at the root does nothing, so check the stack isn't empty before popping.",
+    "The result has no trailing slash, and the root alone is `/`.",
+]
+
+[[approaches]]
+name = "A stack of directory names"
+label = "stack"
+idea = "Push names, pop on '..', ignore '.' and empty pieces."
+time = "O(n)"
+space = "O(n)"
+note = "n is the length of the path."
+code = '''class Solution:
+    def simplifyPath(self, path: str) -> str:
+        stack = []
+        for part in path.split("/"):
+            if part == "..":
+                if stack:
+                    stack.pop()
+            elif part and part != ".":
+                stack.append(part)
+        return "/" + "/".join(stack)
+'''

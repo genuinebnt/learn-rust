@@ -1,0 +1,27 @@
+intuition = """
+Read the numeral left to right and add each symbol's value, with one rule: a symbol that is **smaller than the one after it** is subtracted instead (`IV` is 5 - 1, `XC` is 100 - 10). That one comparison covers all six subtractive pairs (IV, IX, XL, XC, CD, CM).
+"""
+tips = [
+    "Compare each value with its right neighbour. If it is smaller, subtract, otherwise add.",
+    "The last symbol has no right neighbour, so it is always added.",
+    "A dictionary of the seven symbols is all the data you need.",
+]
+
+[[approaches]]
+name = "Add, or subtract when the next is bigger"
+label = "simulation"
+idea = "Look one symbol ahead: a smaller value before a larger one is subtractive."
+time = "O(n)"
+space = "O(1)"
+note = "One pass."
+code = '''class Solution:
+    def romanToInt(self, s: str) -> int:
+        value = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+        total = 0
+        for i, ch in enumerate(s):
+            if i + 1 < len(s) and value[ch] < value[s[i + 1]]:
+                total -= value[ch]
+            else:
+                total += value[ch]
+        return total
+'''

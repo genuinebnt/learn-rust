@@ -1,0 +1,41 @@
+intuition = """
+Rearrange the letters so no two equal letters touch. It is possible exactly when the most frequent letter appears at most `(n + 1) // 2` times. To build it, repeatedly take the **two most frequent** remaining letters and place them next to each other. That keeps the supply of the common letters balanced, so they never run out of different neighbours.
+
+A max-heap of `(count, letter)` pairs gives the two most frequent in O(log k) each time.
+"""
+tips = [
+    "Check feasibility first: the most common letter must satisfy `count <= (n + 1) // 2`.",
+    "Take two letters per round, so the same letter is never placed twice in a row.",
+    "If one letter is left at the end, it has count 1 (the feasibility check guarantees it), so append it.",
+]
+
+[[approaches]]
+name = "Heap: place the two most frequent each round"
+label = "heap"
+idea = "Pop the two commonest letters, append both, and push them back with one less remaining."
+time = "O(n log k)"
+space = "O(k)"
+note = "k is the number of distinct letters, at most 26."
+code = '''import heapq
+from collections import Counter
+
+
+class Solution:
+    def reorganizeString(self, s: str) -> str:
+        heap = [(-count, ch) for ch, count in Counter(s).items()]
+        heapq.heapify(heap)
+        if -heap[0][0] > (len(s) + 1) // 2:
+            return ""
+        out = []
+        while len(heap) >= 2:
+            c1, ch1 = heapq.heappop(heap)
+            c2, ch2 = heapq.heappop(heap)
+            out += [ch1, ch2]
+            if c1 + 1:
+                heapq.heappush(heap, (c1 + 1, ch1))
+            if c2 + 1:
+                heapq.heappush(heap, (c2 + 1, ch2))
+        if heap:
+            out.append(heap[0][1])
+        return "".join(out)
+'''

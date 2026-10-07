@@ -1,0 +1,39 @@
+intuition = """
+Serve customers in order, each paying 5, 10 or 20 for a 5-dollar lemonade, and give correct change using only the bills you have taken. Track how many **5s** and **10s** you hold. Change for a 10 is one 5. Change for a 20 is either a 10 and a 5, or three 5s, and the 10-and-5 way is better, because 10s can't help with anything else but 5s can.
+
+That choice is the greedy part: always prefer giving a 10 over three 5s when you can.
+"""
+tips = [
+    "You never keep 20s: they can't be used as change.",
+    "Prefer a 10 plus a 5 for a 20, since 5s are the more valuable bill (they make change for both 10 and 20).",
+    "Return `False` the moment you can't make change, without reading the rest.",
+]
+
+[[approaches]]
+name = "Count the 5s and 10s"
+label = "greedy"
+idea = "Keep two counters; for a 20 give a 10 and a 5 when possible, otherwise three 5s."
+time = "O(n)"
+space = "O(1)"
+note = "A running balance with a preference."
+code = '''class Solution:
+    def lemonadeChange(self, bills: list[int]) -> bool:
+        fives = tens = 0
+        for bill in bills:
+            if bill == 5:
+                fives += 1
+            elif bill == 10:
+                if not fives:
+                    return False
+                fives -= 1
+                tens += 1
+            else:
+                if tens and fives:
+                    tens -= 1
+                    fives -= 1
+                elif fives >= 3:
+                    fives -= 3
+                else:
+                    return False
+        return True
+'''

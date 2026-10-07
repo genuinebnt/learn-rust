@@ -1,0 +1,45 @@
+intuition = """
+Represent a square grid of 0s and 1s as a quad tree. If every cell in the square is the same, it is a **leaf** holding that value. Otherwise split the square into four quadrants (top-left, top-right, bottom-left, bottom-right), build each recursively, and make an internal node from the four.
+
+A small tidy-up makes the tree minimal: after building the four children, if they are all leaves with the **same value**, return a single leaf instead.
+"""
+tips = [
+    "The base case is a 1 by 1 square: a leaf with that cell's value.",
+    "Pass the top-left corner and the size, not sliced lists.",
+    "An internal node's `val` doesn't matter. Merging four equal leaves is what keeps the tree small.",
+]
+
+[[approaches]]
+name = "Recursive split into quadrants"
+label = "dfs"
+idea = "Build the four quadrants; if all are equal leaves, replace them with one leaf."
+time = "O(n^2 log n)"
+space = "O(log n)"
+note = "The grid has n squared cells, split to depth log n."
+code = '''# Definition for a QuadTree node.
+# class Node:
+#     def __init__(self, val, isLeaf, topLeft, topRight, bottomLeft, bottomRight):
+#         self.val = val
+#         self.isLeaf = isLeaf
+#         self.topLeft = topLeft
+#         self.topRight = topRight
+#         self.bottomLeft = bottomLeft
+#         self.bottomRight = bottomRight
+
+class Solution:
+    def construct(self, grid: List[List[int]]) -> 'Node':
+        def build(r: int, c: int, size: int) -> 'Node':
+            if size == 1:
+                return Node(grid[r][c] == 1, True)
+            half = size // 2
+            tl = build(r, c, half)
+            tr = build(r, c + half, half)
+            bl = build(r + half, c, half)
+            br = build(r + half, c + half, half)
+            kids = (tl, tr, bl, br)
+            if all(k.isLeaf for k in kids) and len({k.val for k in kids}) == 1:
+                return Node(tl.val, True)
+            return Node(True, False, tl, tr, bl, br)
+
+        return build(0, 0, len(grid))
+'''

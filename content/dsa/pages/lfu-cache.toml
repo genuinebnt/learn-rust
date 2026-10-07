@@ -1,0 +1,70 @@
+intuition = """
+LRU Cache evicts the item used **longest ago**. LFU evicts the item used **least often**, and among ties the one used longest ago. Everything must still be O(1).
+
+Keep:
+
+- `values` and `freq`: each key's value and how many times it has been used,
+- `buckets[f]`: an ordered dictionary of the keys with frequency `f`, oldest first (so the first key in a bucket is the least recently used among them),
+- `min_freq`: the smallest frequency in the cache.
+
+A `get` or an update moves the key from its bucket to the next one. To evict, pop the oldest key from `buckets[min_freq]`. A newly added key starts at frequency 1, so `min_freq` becomes 1.
+"""
+tips = [
+    "Moving a key up a frequency also counts as a use, so it goes to the END of the new bucket.",
+    "When the `min_freq` bucket empties because its last key moved up, `min_freq` goes up by one.",
+    "A capacity of 0 stores nothing.",
+]
+
+[[approaches]]
+name = "Frequency buckets of ordered keys"
+label = "design"
+idea = "Group keys by use count, each group ordered by recency, and always evict from the lowest count's oldest end."
+time = "O(1) per call"
+space = "O(capacity)"
+note = "OrderedDict gives O(1) removal from either end and by key."
+code = '''from collections import OrderedDict, defaultdict
+
+
+class LFUCache:
+
+    def __init__(self, capacity: int):
+        self.capacity = capacity
+        self.values = {}
+        self.freq = {}
+        self.buckets = defaultdict(OrderedDict)  # use count -> keys, oldest first
+        self.min_freq = 0
+
+    def _touch(self, key: int) -> None:
+        f = self.freq[key]
+        del self.buckets[f][key]
+        if not self.buckets[f]:
+            del self.buckets[f]
+            if self.min_freq == f:
+                self.min_freq = f + 1
+        self.freq[key] = f + 1
+        self.buckets[f + 1][key] = None
+
+    def get(self, key: int) -> int:
+        if key not in self.values:
+            return -1
+        self._touch(key)
+        return self.values[key]
+
+    def put(self, key: int, value: int) -> None:
+        if self.capacity == 0:
+            return
+        if key in self.values:
+            self.values[key] = value
+            self._touch(key)
+            return
+        if len(self.values) == self.capacity:
+            oldest, _ = self.buckets[self.min_freq].popitem(last=False)
+            if not self.buckets[self.min_freq]:
+                del self.buckets[self.min_freq]
+            del self.values[oldest]
+            del self.freq[oldest]
+        self.values[key] = value
+        self.freq[key] = 1
+        self.buckets[1][key] = None
+        self.min_freq = 1
+'''

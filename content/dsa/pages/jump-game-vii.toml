@@ -1,0 +1,40 @@
+intuition = """
+From index `i` you may jump to any `j` with `i + minJump <= j <= i + maxJump` where `s[j]` is `'0'`. Can you reach the last index? A BFS over indexes would visit each range of up to `maxJump - minJump + 1` positions again and again, giving O(n squared).
+
+The fix: remember `farthest`, the furthest index already looked at. Each new position's jump range starts from `max(i + minJump, farthest + 1)`, so no index is examined twice and the whole search is O(n).
+"""
+tips = [
+    "The last character must be `'0'`, or the end can never be reached.",
+    "`farthest` only ever moves right, because the ranges are processed in increasing order of `i`.",
+    "A prefix-count DP (how many reachable positions fall in the window behind `i`) is the other classic solution.",
+]
+
+[[approaches]]
+name = "BFS that never rescans an index"
+label = "bfs"
+idea = "Each reachable index marks the new part of its jump window, and the window's left edge never moves back."
+time = "O(n)"
+space = "O(n)"
+note = "Each index is enqueued once."
+code = '''from collections import deque
+
+
+class Solution:
+    def canReach(self, s: str, minJump: int, maxJump: int) -> bool:
+        n = len(s)
+        if s[-1] == "1":
+            return False
+        queue = deque([0])
+        farthest = 0  # the largest index already examined
+        while queue:
+            i = queue.popleft()
+            start = max(i + minJump, farthest + 1)
+            end = min(i + maxJump, n - 1)
+            for j in range(start, end + 1):
+                if s[j] == "0":
+                    if j == n - 1:
+                        return True
+                    queue.append(j)
+            farthest = max(farthest, end)
+        return False
+'''

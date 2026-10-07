@@ -1,0 +1,36 @@
+intuition = """
+Rotate the array right by `k` places, in place. Three reversals do it with no extra array: **reverse the whole array**, then reverse the first `k` items, then reverse the rest. Check with `[1..7]`, `k = 3`: the whole reversal gives `[7,6,5,4,3,2,1]`; reversing the first three gives `[5,6,7,...]`; reversing the last four gives `[5,6,7,1,2,3,4]`.
+
+Reduce `k` modulo the length first, because rotating by the length changes nothing.
+"""
+tips = [
+    "Use `k %= n` first. `k` can be larger than the array.",
+    "Reverse in place with two pointers moving inward.",
+    "Slicing (`nums[:] = nums[-k:] + nums[:-k]`) is the short answer, but it builds a copy, so it isn't O(1) extra space.",
+]
+
+[[approaches]]
+name = "Reverse all, then each part"
+label = "two pointers"
+idea = "Reversing the whole array and then the two parts puts every element where the rotation sends it."
+time = "O(n)"
+space = "O(1)"
+note = "Three in-place reversals."
+code = '''class Solution:
+    def rotate(self, nums: list[int], k: int) -> None:
+        """
+        Do not return anything, modify nums in-place instead.
+        """
+        n = len(nums)
+        k %= n
+
+        def reverse(lo: int, hi: int) -> None:
+            while lo < hi:
+                nums[lo], nums[hi] = nums[hi], nums[lo]
+                lo += 1
+                hi -= 1
+
+        reverse(0, n - 1)
+        reverse(0, k - 1)
+        reverse(k, n - 1)
+'''

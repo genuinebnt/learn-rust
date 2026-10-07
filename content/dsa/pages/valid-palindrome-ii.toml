@@ -1,0 +1,34 @@
+intuition = """
+Valid Palindrome, but you may delete **at most one** character. Walk two pointers inward as usual. At the first mismatch, the only hope is to delete one of the two mismatching characters, so check both options: is `s[left + 1 .. right]` a palindrome, or is `s[left .. right - 1]`? Either one succeeding makes the answer true. There is no need to try deleting anywhere else, because everything outside the mismatch already matched.
+"""
+tips = [
+    "Only one skip is allowed, so the inner check is a plain palindrome test with no more skipping.",
+    "The two options are skipping the left character or skipping the right character.",
+    "If the string has no mismatch it is already a palindrome, and the answer is true.",
+]
+
+[[approaches]]
+name = "Two pointers with one skip at the first mismatch"
+label = "two pointers"
+idea = "On the first mismatch, test the string without the left character and without the right character."
+time = "O(n)"
+space = "O(1)"
+note = "At most two extra scans."
+code = '''class Solution:
+    def validPalindrome(self, s: str) -> bool:
+        def is_palindrome(lo: int, hi: int) -> bool:
+            while lo < hi:
+                if s[lo] != s[hi]:
+                    return False
+                lo += 1
+                hi -= 1
+            return True
+
+        lo, hi = 0, len(s) - 1
+        while lo < hi:
+            if s[lo] != s[hi]:
+                return is_palindrome(lo + 1, hi) or is_palindrome(lo, hi - 1)
+            lo += 1
+            hi -= 1
+        return True
+'''

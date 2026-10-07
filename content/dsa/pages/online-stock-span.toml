@@ -1,0 +1,28 @@
+intuition = """
+The span of today's price is how many consecutive days, counting today and going backwards, have a price **at most** today's. A monotonic stack of `(price, span)` pairs does it in amortised O(1): when a new price arrives, pop every stack entry whose price is `<=` it and add their spans to today's span, then push `(price, span)`. The stack stays strictly decreasing in price, and each popped entry is already summarised by its span.
+"""
+tips = [
+    "Store the span with each price. Popping an entry then absorbs everything that entry had already absorbed.",
+    "Use `<=` so equal prices extend the span.",
+    "Each entry is pushed and popped once, so `next` is amortised O(1).",
+]
+
+[[approaches]]
+name = "Monotonic stack of (price, span)"
+label = "monotonic stack"
+idea = "Merge in the spans of all earlier prices that are no higher than today's."
+time = "O(1) amortised per call"
+space = "O(n)"
+note = "The stack holds strictly decreasing prices."
+code = '''class StockSpanner:
+
+    def __init__(self):
+        self.stack = []  # (price, span), prices strictly decreasing
+
+    def next(self, price: int) -> int:
+        span = 1
+        while self.stack and self.stack[-1][0] <= price:
+            span += self.stack.pop()[1]
+        self.stack.append((price, span))
+        return span
+'''

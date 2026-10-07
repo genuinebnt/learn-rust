@@ -1,0 +1,27 @@
+intuition = """
+Contains Duplicate, but the two equal values must be at most `k` positions apart. Keep a **set of the last `k` values** (the sliding window). For each new number, if it is already in the window, you have a close duplicate. Otherwise add it, and when the window has more than `k` items, drop the oldest one.
+"""
+tips = [
+    "The window holds the previous `k` values, so `nums[i - k]` leaves it when `nums[i]` enters.",
+    "A dictionary from value to its last index is the alternative: check `i - last[x] <= k`.",
+    "`k = 0` finds nothing, so make sure removing from the set can't fail on a value that isn't there.",
+]
+
+[[approaches]]
+name = "A set of the last k values"
+label = "sliding window"
+idea = "Check the new value against the window, then slide the window forward by one."
+time = "O(n)"
+space = "O(k)"
+note = "The set never holds more than k items."
+code = '''class Solution:
+    def containsNearbyDuplicate(self, nums: list[int], k: int) -> bool:
+        window = set()
+        for i, x in enumerate(nums):
+            if x in window:
+                return True
+            window.add(x)
+            if len(window) > k:
+                window.remove(nums[i - k])
+        return False
+'''

@@ -1,0 +1,28 @@
+intuition = """
+Between every pair of neighbouring nodes, insert a new node holding their greatest common divisor. Walk the list holding the current node and the next one; create the new node, link it between them, and then jump past it to the next original node. The gcd is `math.gcd`, or the Euclidean algorithm from the Math lessons.
+"""
+tips = [
+    "Read `node.next` before you insert, and move to the original next node afterwards, or you will loop over your own insertions.",
+    "A list with one node has no pairs, so it is returned unchanged.",
+    "No dummy node is needed. The head never changes.",
+]
+
+[[approaches]]
+name = "Insert a gcd node after each node"
+label = "splice"
+idea = "For each node with a successor, link in a node holding gcd(node, successor) and skip over it."
+time = "O(n log m)"
+space = "O(1)"
+note = "m is the largest value."
+code = '''from math import gcd
+
+
+class Solution:
+    def insertGreatestCommonDivisors(self, head: Optional[ListNode]) -> Optional[ListNode]:
+        node = head
+        while node and node.next:
+            following = node.next
+            node.next = ListNode(gcd(node.val, following.val), following)
+            node = following
+        return head
+'''

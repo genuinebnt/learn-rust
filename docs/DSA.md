@@ -116,7 +116,7 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       brute-force references (Task Scheduler against a breadth-first search over states, Detect Squares and Design Twitter
       against models, `myPow` with a time limit for huge exponents); 57 seeded bugs, the 7 survivors are equivalent code.
       **Every NeetCode 150 problem now has a checked page (150 of 150).**
-      **Next: look the lessons over in the browser and tell me what to change; then the 69 practice problems of the 250. The Rust practice
+      **Next: your call. Look over the lessons and the mock screen, and say what to change. Open items below. The Rust practice
       tracks and system design need re-scoping under decision 24.**
 - [x] The NeetCode 250's 31 must-learn problems (2026-10-07): 31 pages, 61 approaches, same checking (Mountain Array with a
       100-call limit, Word Break II with a no-answer case that needs memoizing, Matchsticks with a hard negative). Every
@@ -127,5 +127,8 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       pitfalls), `tools/neetcode/check_lessons.py` (the template parses, has no undefined names, lines fit, and runs its test in
       `lesson_tests.py`), `GET /api/dsa/patterns/{code}`, the Patterns tab (`/dsa/patterns/<code>`, linked from the pattern
       cards and the Problems / Practice tabs). All 162 techniques have a lesson, each template run by a behaviour test (32 seeded bugs: the survivors were equivalent or speed-only).
-- [ ] Content: the 69 practice problems of the 250 (short pages, decision 12), then the rest; pattern lessons for all 18
-      categories.
+- [x] The NeetCode 250's 69 practice problems (2026-10-07): short pages with a checked solution and the twist against the problem
+      they practise, same checking as the others (36 seeded bugs, the 3 survivors are equivalent code). **All 250 NeetCode
+      problems now have a checked page (250 of 250), and all 162 techniques a lesson.**
+- [ ] Content: pages for the rest of the 943 (the problems only in NeetCode All, 693 of them), if you want them. They are
+      practice-level and the Practice tab already points at LeetCode problems, so this is optional.

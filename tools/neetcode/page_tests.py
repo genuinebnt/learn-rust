@@ -4079,6 +4079,553 @@ def minimum_array_end(ns):
     assert f(10**8, 2**30 - 1) > 2**30
 
 
+def lemonade_change(ns):
+    f = ns["Solution"]().lemonadeChange
+    assert f([5, 5, 5, 10, 20]) is True and f([5, 5, 10, 10, 20]) is False and f([10]) is False
+    r = rng()
+
+    def brute(bills, i, fives, tens):
+        if i == len(bills):
+            return True
+        b = bills[i]
+        if b == 5:
+            return brute(bills, i + 1, fives + 1, tens)
+        if b == 10:
+            return fives > 0 and brute(bills, i + 1, fives - 1, tens + 1)
+        ok = tens > 0 and fives > 0 and brute(bills, i + 1, fives - 1, tens - 1)
+        return ok or (fives >= 3 and brute(bills, i + 1, fives - 3, tens))
+
+    for _ in range(300):
+        bills = [r.choice([5, 5, 10, 20]) for _ in range(r.randint(1, 9))]
+        assert f(bills[:]) is brute(bills, 0, 0, 0), bills
+
+
+def max_circular_subarray(ns):
+    f = ns["Solution"]().maxSubarraySumCircular
+    assert f([1, -2, 3, -2]) == 3 and f([5, -3, 5]) == 10 and f([-3, -2, -3]) == -2
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(-6, 6) for _ in range(r.randint(1, 8))]
+        n = len(a)
+        want = max(sum(a[(i + k) % n] for k in range(length)) for i in range(n) for length in range(1, n + 1))
+        assert f(a[:]) == want, a
+
+
+def max_turbulence(ns):
+    f = ns["Solution"]().maxTurbulenceSize
+    assert f([9, 4, 2, 10, 7, 8, 8, 1, 9]) == 5 and f([4, 8, 12, 16]) == 2 and f([100]) == 1 and f([9, 9]) == 1
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(0, 4) for _ in range(r.randint(1, 10))]
+        best = 1
+        for i in range(len(a)):
+            for j in range(i, len(a)):
+                seg = a[i:j + 1]
+                signs = [(seg[k + 1] > seg[k]) - (seg[k + 1] < seg[k]) for k in range(len(seg) - 1)]
+                if all(sg != 0 for sg in signs) and all(signs[k] != signs[k + 1] for k in range(len(signs) - 1)):
+                    best = max(best, len(seg))
+        assert f(a[:]) == best, a
+
+
+def jump_game_vii(ns):
+    f = ns["Solution"]().canReach
+    assert f("011010", 2, 3) is True and f("01101110", 2, 3) is False
+    r = rng()
+    for _ in range(300):
+        n = r.randint(2, 12)
+        s = "0" + "".join(r.choice("0001") for _ in range(n - 2)) + r.choice("01")
+        lo = r.randint(1, 4)
+        hi = r.randint(lo, 6)
+        ok = [False] * n
+        ok[0] = True
+        for i in range(1, n):
+            ok[i] = s[i] == "0" and any(ok[j] for j in range(max(0, i - hi), i - lo + 1))
+        assert f(s, lo, hi) is ok[n - 1], (s, lo, hi)
+
+
+def candy_check(ns):
+    f = ns["Solution"]().candy
+    assert f([1, 0, 2]) == 5 and f([1, 2, 2]) == 4 and f([1]) == 1
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 9))]
+        c = [1] * len(a)
+        changed = True
+        while changed:
+            changed = False
+            for i in range(len(a)):
+                for j in (i - 1, i + 1):
+                    if 0 <= j < len(a) and a[i] > a[j] and c[i] <= c[j]:
+                        c[i] = c[j] + 1
+                        changed = True
+        assert f(a[:]) == sum(c), a
+
+
+def reorganize_string(ns):
+    f = ns["Solution"]().reorganizeString
+    assert f("aab") in ("aba",) and f("aaab") == ""
+    r = rng()
+    for _ in range(300):
+        s = "".join(r.choice("aab") if r.random() < 0.6 else r.choice("abc") for _ in range(r.randint(1, 10)))
+        got = f(s)
+        if max(Counter(s).values()) > (len(s) + 1) // 2:
+            assert got == ""
+        else:
+            assert sorted(got) == sorted(s) and all(got[i] != got[i + 1] for i in range(len(got) - 1)), (s, got)
+
+
+def longest_diverse_string(ns):
+    from functools import lru_cache
+
+    f = ns["Solution"]().longestDiverseString
+    assert len(f(1, 1, 7)) == 8 and len(f(7, 1, 0)) == 5 and f(0, 0, 0) == ""
+
+    @lru_cache(maxsize=None)
+    def best(a, b, c, last, run):
+        out = 0
+        for i, left in enumerate((a, b, c)):
+            if left and not (i == last and run == 2):
+                nxt = [a, b, c]
+                nxt[i] -= 1
+                out = max(out, 1 + best(*nxt, i, run + 1 if i == last else 1))
+        return out
+
+    r = rng()
+    for _ in range(150):
+        a, b, c = r.randint(0, 5), r.randint(0, 5), r.randint(0, 5)
+        got = f(a, b, c)
+        assert len(got) == best(a, b, c, -1, 0), (a, b, c, got)
+        assert "aaa" not in got and "bbb" not in got and "ccc" not in got and got.count("a") <= a and got.count("b") <= b and got.count("c") <= c and set(got) <= set("abc")
+
+
+def car_pooling(ns):
+    f = ns["Solution"]().carPooling
+    assert f([[2, 1, 5], [3, 3, 7]], 4) is False and f([[2, 1, 5], [3, 3, 7]], 5) is True
+    r = rng()
+    for _ in range(300):
+        trips = []
+        for _ in range(r.randint(1, 6)):
+            a = r.randint(0, 8)
+            trips.append([r.randint(1, 4), a, a + r.randint(1, 5)])
+        cap = r.randint(1, 8)
+        want = all(sum(p for p, a, b in trips if a <= t < b) <= cap for t in range(0, 15))
+        assert f([t[:] for t in trips], cap) is want, (trips, cap)
+
+
+def most_booked(ns):
+    f = ns["Solution"]().mostBooked
+    assert f(2, [[0, 10], [1, 5], [2, 7], [3, 4]]) == 0 and f(3, [[1, 20], [2, 10], [3, 5], [4, 9], [6, 8]]) == 1
+    r = rng()
+    for _ in range(300):
+        n = r.randint(1, 4)
+        starts = r.sample(range(0, 30), r.randint(1, 8))
+        meetings = [[a, a + r.randint(1, 9)] for a in starts]
+        free_at, count = [0] * n, [0] * n
+        for a, b in sorted(meetings):
+            ready = [i for i in range(n) if free_at[i] <= a]
+            if ready:
+                i = ready[0]
+                free_at[i] = b
+            else:
+                i = min(range(n), key=lambda k: (free_at[k], k))
+                free_at[i] += b - a
+            count[i] += 1
+        assert f(n, [m[:] for m in meetings]) == count.index(max(count)), (n, meetings)
+
+
+def reverse_between(ns):
+    f = ns["Solution"]().reverseBetween
+    assert _ll_vals(f(_ll([1, 2, 3, 4, 5]), 2, 4)) == [1, 4, 3, 2, 5] and _ll_vals(f(_ll([5]), 1, 1)) == [5]
+    r = rng()
+    for _ in range(300):
+        v = [r.randint(0, 9) for _ in range(r.randint(1, 9))]
+        left = r.randint(1, len(v))
+        right = r.randint(left, len(v))
+        assert _ll_vals(f(_ll(v), left, right)) == v[:left - 1] + v[left - 1:right][::-1] + v[right:]
+
+
+def lfu_cache(ns):
+    L = ns["LFUCache"]
+    c = L(2)
+    c.put(1, 1)
+    c.put(2, 2)
+    assert c.get(1) == 1
+    c.put(3, 3)
+    assert c.get(2) == -1 and c.get(3) == 3
+    c.put(4, 4)
+    assert c.get(1) == -1 and c.get(3) == 3 and c.get(4) == 4
+    r = rng()
+    for _ in range(150):
+        cap = r.randint(1, 3)
+        cache, model, tick = L(cap), {}, 0  # model: key -> [value, uses, last tick]
+        for _ in range(60):
+            tick += 1
+            k = r.randint(0, 5)
+            if r.random() < 0.5:
+                v = r.randint(0, 99)
+                cache.put(k, v)
+                if k in model:
+                    model[k][0], model[k][1], model[k][2] = v, model[k][1] + 1, tick
+                else:
+                    if len(model) == cap:
+                        gone = min(model, key=lambda x: (model[x][1], model[x][2]))
+                        del model[gone]
+                    model[k] = [v, 1, tick]
+            else:
+                want = model[k][0] if k in model else -1
+                assert cache.get(k) == want, (cap, k, model)
+                if k in model:
+                    model[k][1] += 1
+                    model[k][2] = tick
+
+
+def roman_to_int(ns):
+    f = ns["Solution"]().romanToInt
+    assert f("III") == 3 and f("LVIII") == 58 and f("MCMXCIV") == 1994
+
+    def roman(n):
+        out = ""
+        for v, sym in ((1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"), (50, "L"), (40, "XL"), (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")):
+            while n >= v:
+                out, n = out + sym, n - v
+        return out
+
+    for n in range(1, 4000):
+        assert f(roman(n)) == n, n
+
+
+def insert_gcds(ns):
+    import math
+
+    f = ns["Solution"]().insertGreatestCommonDivisors
+    assert _ll_vals(f(_ll([18, 6, 10, 3]))) == [18, 6, 6, 2, 10, 1, 3] and _ll_vals(f(_ll([7]))) == [7]
+    r = rng()
+    for _ in range(200):
+        v = [r.randint(1, 60) for _ in range(r.randint(1, 8))]
+        want = []
+        for i, x in enumerate(v):
+            want.append(x)
+            if i + 1 < len(v):
+                want.append(math.gcd(x, v[i + 1]))
+        assert _ll_vals(f(_ll(v))) == want
+
+
+def min_sub_array_len(ns):
+    f = ns["Solution"]().minSubArrayLen
+    assert f(7, [2, 3, 1, 2, 4, 3]) == 2 and f(4, [1, 4, 4]) == 1 and f(11, [1, 1, 1, 1, 1, 1, 1, 1]) == 0
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(1, 6) for _ in range(r.randint(1, 10))]
+        t = r.randint(1, 30)
+        want = min((j - i for i in range(len(a)) for j in range(i + 1, len(a) + 1) if sum(a[i:j]) >= t), default=0)
+        assert f(t, a[:]) == want
+
+
+def contains_nearby_duplicate(ns):
+    f = ns["Solution"]().containsNearbyDuplicate
+    assert f([1, 2, 3, 1], 3) is True and f([1, 0, 1, 1], 1) is True and f([1, 2, 3, 1, 2, 3], 2) is False
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 10))]
+        k = r.randint(1, 5)
+        want = any(a[i] == a[j] and j - i <= k for i in range(len(a)) for j in range(i + 1, len(a)))
+        assert f(a[:], k) is want
+
+
+def simplify_path(ns):
+    import posixpath
+
+    f = ns["Solution"]().simplifyPath
+    assert f("/home/") == "/home" and f("/home//foo/") == "/home/foo" and f("/home/user/Documents/../Pictures") == "/home/user/Pictures" and f("/../") == "/" and f("/.../a/../b/c/../d/./") == "/.../b/d"
+    r = rng()
+    for _ in range(400):
+        parts = [r.choice(["a", "b", "..", ".", "", "...", "c"]) for _ in range(r.randint(0, 8))]
+        path = "/" + "/".join(parts) + r.choice(["", "/"])
+        want = posixpath.normpath("/" + "/".join(p for p in path.split("/") if p))
+        assert f(path) == want, path
+
+
+def my_queue(ns):
+    Q = ns["MyQueue"]
+    r = rng()
+    q, model = Q(), []
+    for _ in range(600):
+        op = r.randint(0, 3)
+        if op == 0 or not model:
+            v = r.randint(0, 99)
+            q.push(v)
+            model.append(v)
+        elif op == 1:
+            assert q.pop() == model.pop(0)
+        elif op == 2:
+            assert q.peek() == model[0]
+        else:
+            assert q.empty() is False
+    while model:
+        assert q.pop() == model.pop(0)
+    assert q.empty() is True
+
+
+def asteroid_collision_check(ns):
+    f = ns["Solution"]().asteroidCollision
+    assert f([5, 10, -5]) == [5, 10] and f([8, -8]) == [] and f([10, 2, -5]) == [10] and f([-2, -1, 1, 2]) == [-2, -1, 1, 2]
+    r = rng()
+
+    def brute(a):
+        a = a[:]
+        changed = True
+        while changed:
+            changed = False
+            for i in range(len(a) - 1):
+                if a[i] > 0 > a[i + 1]:
+                    if a[i] > -a[i + 1]:
+                        del a[i + 1]
+                    elif a[i] < -a[i + 1]:
+                        del a[i]
+                    else:
+                        del a[i:i + 2]
+                    changed = True
+                    break
+        return a
+
+    for _ in range(300):
+        a = [r.choice([-1, 1]) * r.randint(1, 6) for _ in range(r.randint(1, 9))]
+        assert f(a[:]) == brute(a), a
+
+
+def freq_stack(ns):
+    F = ns["FreqStack"]
+    r = rng()
+    for _ in range(100):
+        fs, items = F(), []
+        for _ in range(40):
+            if r.random() < 0.6 or not items:
+                v = r.randint(0, 4)
+                fs.push(v)
+                items.append(v)
+            else:
+                counts = Counter(items)
+                top = max(counts.values())
+                want = next(x for x in reversed(items) if counts[x] == top)
+                assert fs.pop() == want
+                del items[len(items) - 1 - items[::-1].index(want)]
+
+
+def stock_spanner(ns):
+    S = ns["StockSpanner"]
+    s = S()
+    assert [s.next(p) for p in (100, 80, 60, 70, 60, 75, 85)] == [1, 1, 1, 2, 1, 4, 6]
+    r = rng()
+    for _ in range(100):
+        s, seen = S(), []
+        for _ in range(30):
+            p = r.randint(1, 9)
+            seen.append(p)
+            span = 1
+            while span < len(seen) and seen[-1 - span] <= p:
+                span += 1
+            assert s.next(p) == span
+
+
+def _traversal(order):
+    def go(t):
+        if t is None:
+            return []
+        if order == "in":
+            return go(t.left) + [t.val] + go(t.right)
+        if order == "pre":
+            return [t.val] + go(t.left) + go(t.right)
+        return go(t.left) + go(t.right) + [t.val]
+
+    return go
+
+
+def inorder_traversal(ns):
+    f = ns["Solution"]().inorderTraversal
+    assert f(_tree([1, None, 2, 3])) == [1, 3, 2] and f(None) == []
+    r = rng()
+    for _ in range(200):
+        t = _random_tree(r, r.randint(0, 15))
+        assert f(t) == _traversal("in")(t)
+
+
+def preorder_traversal(ns):
+    f = ns["Solution"]().preorderTraversal
+    assert f(_tree([1, None, 2, 3])) == [1, 2, 3] and f(None) == []
+    r = rng()
+    for _ in range(200):
+        t = _random_tree(r, r.randint(0, 15))
+        assert f(t) == _traversal("pre")(t)
+
+
+def postorder_traversal(ns):
+    f = ns["Solution"]().postorderTraversal
+    assert f(_tree([1, None, 2, 3])) == [3, 2, 1] and f(None) == []
+    r = rng()
+    for _ in range(200):
+        t = _random_tree(r, r.randint(0, 15))
+        assert f(t) == _traversal("post")(t)
+
+
+def house_robber_iii(ns):
+    f = ns["Solution"]().rob
+    assert f(_tree([3, 2, 3, None, 3, None, 1])) == 7 and f(_tree([3, 4, 5, 1, 3, None, 1])) == 9 and f(_tree([5])) == 5
+    r = rng()
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 10), 0, 9)
+        nodes = _preorder(t)
+        index = {id(x): i for i, x in enumerate(nodes)}
+        pairs = [(index[id(x)], index[id(c)]) for x in nodes for c in (x.left, x.right) if c]
+        best = max(sum(nodes[i].val for i in range(len(nodes)) if m >> i & 1) for m in range(1 << len(nodes)) if all(not (m >> a & 1 and m >> b & 1) for a, b in pairs))
+        assert f(t) == best
+
+
+class _QuadNode:
+    """LeetCode's Node for Construct Quad Tree."""
+
+    def __init__(self, val=False, isLeaf=False, topLeft=None, topRight=None, bottomLeft=None, bottomRight=None):
+        self.val, self.isLeaf = val, isLeaf
+        self.topLeft, self.topRight, self.bottomLeft, self.bottomRight = topLeft, topRight, bottomLeft, bottomRight
+
+
+def construct_quad_tree(ns):
+    ns["Node"] = _QuadNode
+    f = ns["Solution"]().construct
+
+    def expect(g, r, c, size):
+        vals = {g[i][j] for i in range(r, r + size) for j in range(c, c + size)}
+        if len(vals) == 1:
+            return (bool(vals.pop()), True)
+        h = size // 2
+        return (None, False, expect(g, r, c, h), expect(g, r, c + h, h), expect(g, r + h, c, h), expect(g, r + h, c + h, h))
+
+    def shape(n):
+        if n.isLeaf:
+            return (bool(n.val), True)
+        return (None if not n.isLeaf and False else None, False, shape(n.topLeft), shape(n.topRight), shape(n.bottomLeft), shape(n.bottomRight))
+
+    assert shape(f([[1, 1], [1, 1]])) == (True, True) and shape(f([[0, 1], [1, 0]]))[1] is False
+    r = rng()
+    for _ in range(100):
+        size = r.choice([1, 2, 4, 8])
+        g = [[1 if r.random() < 0.8 else 0 for _ in range(size)] for _ in range(size)]
+        assert shape(f([row[:] for row in g])) == expect(g, 0, 0, size)
+
+
+def delete_node_bst(ns):
+    f = ns["Solution"]().deleteNode
+    r = rng()
+    for _ in range(300):
+        keys = r.sample(range(0, 30), r.randint(0, 12))
+        root = None
+        for k in keys:
+            if root is None:
+                root = TreeNode(k)
+                continue
+            cur = root
+            while True:
+                side = "left" if k < cur.val else "right"
+                if getattr(cur, side) is None:
+                    setattr(cur, side, TreeNode(k))
+                    break
+                cur = getattr(cur, side)
+        key = r.randint(0, 32)
+        got = f(root, key)
+        want = sorted(set(keys) - {key})
+        assert _inorder_vals(got) == want and len(_preorder(got)) == len(want), (keys, key)
+
+
+def min_extra_char(ns):
+    f = ns["Solution"]().minExtraChar
+    assert f("leetscode", ["leet", "code", "leetcode"]) == 1 and f("sayhelloworld", ["hello", "world"]) == 3
+    r = rng()
+
+    def brute(s, words):
+        if not s:
+            return 0
+        best = 1 + brute(s[1:], words)
+        for w in words:
+            if s.startswith(w):
+                best = min(best, brute(s[len(w):], words))
+        return best
+
+    for _ in range(300):
+        words = list({"".join(r.choice("ab") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 4))})
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 9)))
+        assert f(s, words[:]) == brute(s, words), (s, words)
+
+
+def four_sum(ns):
+    f = ns["Solution"]().fourSum
+    assert sorted(map(sorted, f([1, 0, -1, 0, -2, 2], 0))) == [[-2, -1, 1, 2], [-2, 0, 0, 2], [-1, 0, 0, 1]] and f([2, 2, 2, 2, 2], 8) == [[2, 2, 2, 2]]
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(-4, 4) for _ in range(r.randint(0, 9))]
+        t = r.randint(-6, 6)
+        want = sorted({tuple(sorted(c)) for c in itertools.combinations(a, 4) if sum(c) == t})
+        got = f(a[:], t)
+        assert sorted(tuple(sorted(x)) for x in got) == want and len(got) == len(want), (a, t)
+
+
+def remove_duplicates_sorted(ns):
+    f = ns["Solution"]().removeDuplicates
+    r = rng()
+    for _ in range(300):
+        a = sorted(r.randint(0, 5) for _ in range(r.randint(1, 10)))
+        want = sorted(set(a))
+        b = a[:]
+        k = f(b)
+        assert k == len(want) and b[:k] == want
+
+
+def merge_sorted_array(ns):
+    f = ns["Solution"]().merge
+    a = [1, 2, 3, 0, 0, 0]
+    assert f(a, 3, [2, 5, 6], 3) is None and a == [1, 2, 2, 3, 5, 6]
+    r = rng()
+    for _ in range(300):
+        x = sorted(r.randint(-5, 9) for _ in range(r.randint(0, 6)))
+        y = sorted(r.randint(-5, 9) for _ in range(r.randint(0, 6)))
+        n1 = x + [0] * len(y)
+        f(n1, len(x), y[:], len(y))
+        assert n1 == sorted(x + y)
+
+
+def rotate_array(ns):
+    f = ns["Solution"]().rotate
+    a = [1, 2, 3, 4, 5, 6, 7]
+    assert f(a, 3) is None and a == [5, 6, 7, 1, 2, 3, 4]
+    r = rng()
+    for _ in range(300):
+        v = [r.randint(0, 9) for _ in range(r.randint(1, 9))]
+        k = r.randint(0, 25)
+        want = v[-(k % len(v)):] + v[:-(k % len(v))] if k % len(v) else v[:]
+        f(v, k)
+        assert v == want
+
+
+def reverse_string_check(ns):
+    f = ns["Solution"]().reverseString
+    a = list("hello")
+    assert f(a) is None and a == list("olleh")
+    r = rng()
+    for _ in range(100):
+        v = [r.choice("abc") for _ in range(r.randint(1, 10))]
+        want = v[::-1]
+        f(v)
+        assert v == want
+
+
+def valid_palindrome_ii(ns):
+    f = ns["Solution"]().validPalindrome
+    assert f("aba") is True and f("abca") is True and f("abc") is False
+    r = rng()
+    for _ in range(400):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 8)))
+        want = s == s[::-1] or any((s[:i] + s[i + 1:]) == (s[:i] + s[i + 1:])[::-1] for i in range(len(s)))
+        assert f(s) is want, s
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -4297,6 +4844,39 @@ CHECKS = {
     "add-binary": add_binary,
     "bitwise-and-of-numbers-range": range_bitwise_and,
     "minimum-array-end": minimum_array_end,
+    "lemonade-change": lemonade_change,
+    "maximum-sum-circular-subarray": max_circular_subarray,
+    "longest-turbulent-subarray": max_turbulence,
+    "jump-game-vii": jump_game_vii,
+    "candy": candy_check,
+    "reorganize-string": reorganize_string,
+    "longest-happy-string": longest_diverse_string,
+    "car-pooling": car_pooling,
+    "meeting-rooms-iii": most_booked,
+    "reverse-linked-list-ii": reverse_between,
+    "lfu-cache": lfu_cache,
+    "roman-to-integer": roman_to_int,
+    "insert-greatest-common-divisors-in-linked-list": insert_gcds,
+    "minimum-size-subarray-sum": min_sub_array_len,
+    "contains-duplicate-ii": contains_nearby_duplicate,
+    "simplify-path": simplify_path,
+    "implement-queue-using-stacks": my_queue,
+    "asteroid-collision": asteroid_collision_check,
+    "maximum-frequency-stack": freq_stack,
+    "online-stock-span": stock_spanner,
+    "binary-tree-inorder-traversal": inorder_traversal,
+    "binary-tree-preorder-traversal": preorder_traversal,
+    "binary-tree-postorder-traversal": postorder_traversal,
+    "house-robber-iii": house_robber_iii,
+    "construct-quad-tree": construct_quad_tree,
+    "delete-node-in-a-bst": delete_node_bst,
+    "extra-characters-in-a-string": min_extra_char,
+    "4sum": four_sum,
+    "remove-duplicates-from-sorted-array": remove_duplicates_sorted,
+    "merge-sorted-array": merge_sorted_array,
+    "rotate-array": rotate_array,
+    "reverse-string": reverse_string_check,
+    "valid-palindrome-ii": valid_palindrome_ii,
 }
 
 

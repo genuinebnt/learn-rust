@@ -1,0 +1,41 @@
+intuition = """
+Implement a queue with two stacks. Pushed items go onto an **inbox** stack. For `pop` and `peek`, you need the oldest item, which is at the bottom of the inbox, so pour the inbox into an **outbox** stack: that reverses the order, and the oldest item ends on top. Only pour when the outbox is **empty**, and then each item moves at most once, so every operation is O(1) amortised.
+"""
+tips = [
+    "Never pour while the outbox still has items, or the order breaks.",
+    "`empty` must check both stacks.",
+    "Each element is pushed and popped at most twice in its life, which is why the cost averages out to O(1).",
+]
+
+[[approaches]]
+name = "Inbox and outbox stacks"
+label = "design"
+idea = "Push on the inbox; when the outbox is empty, move everything over so the oldest is on top."
+time = "O(1) amortised per call"
+space = "O(n)"
+note = "A single pop can cost O(n), but never twice in a row."
+code = '''class MyQueue:
+
+    def __init__(self):
+        self.inbox = []
+        self.outbox = []
+
+    def push(self, x: int) -> None:
+        self.inbox.append(x)
+
+    def _move(self) -> None:
+        if not self.outbox:
+            while self.inbox:
+                self.outbox.append(self.inbox.pop())
+
+    def pop(self) -> int:
+        self._move()
+        return self.outbox.pop()
+
+    def peek(self) -> int:
+        self._move()
+        return self.outbox[-1]
+
+    def empty(self) -> bool:
+        return not self.inbox and not self.outbox
+'''

@@ -1,0 +1,31 @@
+intuition = """
+A turbulent subarray alternates: up, down, up, ... (or the other way round). Track two lengths ending at the current position: `up`, a turbulent run whose last step went **up**, and `down`, one whose last step went **down**. A step up extends the run that last went down (`up = down + 1`), a step down extends the one that last went up, and an equal pair breaks both back to 1.
+
+It is Kadane's algorithm with two states instead of one.
+"""
+tips = [
+    "Equal neighbours reset both lengths to 1, because they are neither up nor down.",
+    "Update both from the old values at once. A tuple assignment does that.",
+    "A single element has length 1, so the answer starts at 1.",
+]
+
+[[approaches]]
+name = "Two running lengths: ending in an up step, ending in a down step"
+label = "kadane"
+idea = "An up step continues a run that last went down, and vice versa; track the longest of either."
+time = "O(n)"
+space = "O(1)"
+note = "One pass."
+code = '''class Solution:
+    def maxTurbulenceSize(self, arr: list[int]) -> int:
+        best = up = down = 1
+        for i in range(1, len(arr)):
+            if arr[i] > arr[i - 1]:
+                up, down = down + 1, 1
+            elif arr[i] < arr[i - 1]:
+                up, down = 1, up + 1
+            else:
+                up = down = 1
+            best = max(best, up, down)
+        return best
+'''

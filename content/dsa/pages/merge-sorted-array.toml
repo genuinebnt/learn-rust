@@ -1,0 +1,31 @@
+intuition = """
+Merge two sorted arrays into the first one, which has spare room at its end. Merging from the front would overwrite values of `nums1` you haven't used yet, so merge from the **back**: place the largest remaining value at the last free position. Keep three pointers: the last real item of `nums1`, the last item of `nums2`, and the write position. When `nums2` is used up, the rest of `nums1` is already in place.
+"""
+tips = [
+    "Fill from the back. The write position is always at or ahead of both read pointers, so nothing unread is overwritten.",
+    "Stop when `nums2` is exhausted. There is nothing to do for the leftover `nums1` items.",
+    "Take from `nums2` when `nums1`'s pointer has run out as well.",
+]
+
+[[approaches]]
+name = "Three pointers, filling from the back"
+label = "two pointers"
+idea = "Compare the largest unplaced items of the two arrays and write the bigger one at the end."
+time = "O(m + n)"
+space = "O(1)"
+note = "In place."
+code = '''class Solution:
+    def merge(self, nums1: list[int], m: int, nums2: list[int], n: int) -> None:
+        """
+        Do not return anything, modify nums1 in-place instead.
+        """
+        i, j, k = m - 1, n - 1, m + n - 1
+        while j >= 0:
+            if i >= 0 and nums1[i] > nums2[j]:
+                nums1[k] = nums1[i]
+                i -= 1
+            else:
+                nums1[k] = nums2[j]
+                j -= 1
+            k -= 1
+'''

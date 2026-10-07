@@ -1,0 +1,34 @@
+intuition = """
+Split `s` into dictionary words and leftover characters, leaving as **few leftover characters** as possible. Word Break asked whether a split exists. This asks for the best split, so use the same prefix idea with a minimum. Let `dp[i]` be the fewest extra characters in `s[i:]`:
+
+- treat `s[i]` as extra: `1 + dp[i + 1]`,
+- or, for every word starting at `i`: `dp[i + len(word)]`.
+
+Take the minimum, filling `i` from the end of the string to the start. A trie could look up the words that start at `i` without slicing, but a set of words and a bounded slice length is fine at this size.
+"""
+tips = [
+    "`dp[n] = 0`: nothing left means nothing extra.",
+    "Going from the right means `dp[i + len(word)]` is already known.",
+    "A word that matches costs 0 extra, so you compare it with 'skip one character' (cost 1).",
+]
+
+[[approaches]]
+name = "Right-to-left DP over start positions"
+label = "dp"
+idea = "dp[i] is the smaller of skipping s[i] and jumping over any dictionary word that starts at i."
+time = "O(n · L)"
+space = "O(n)"
+note = "L is the longest word."
+code = '''class Solution:
+    def minExtraChar(self, s: str, dictionary: List[str]) -> int:
+        words = set(dictionary)
+        longest = max(map(len, dictionary))
+        n = len(s)
+        dp = [0] * (n + 1)
+        for i in range(n - 1, -1, -1):
+            dp[i] = 1 + dp[i + 1]  # s[i] is an extra character
+            for end in range(i + 1, min(n, i + longest) + 1):
+                if s[i:end] in words:
+                    dp[i] = min(dp[i], dp[end])
+        return dp[0]
+'''

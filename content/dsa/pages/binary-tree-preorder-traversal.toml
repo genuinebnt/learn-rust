@@ -1,0 +1,29 @@
+intuition = """
+Pre-order is **node, left, right**. Iteratively, use a stack: pop a node, record it, then push its **right** child first and its left child second, so the left child is popped (and so visited) next. No other bookkeeping is needed, because a node is recorded the moment it is popped.
+"""
+tips = [
+    "Push right before left. The stack reverses the order, so the left child comes out first.",
+    "Skip empty children rather than pushing `None`.",
+    "This is a depth-first search where the order of the pushes sets the order of the visits.",
+]
+
+[[approaches]]
+name = "Iterative with a stack"
+label = "iterative"
+idea = "Pop, record, then push the right child and the left child."
+time = "O(n)"
+space = "O(h)"
+note = "The stack never holds more than about the height plus one."
+code = '''class Solution:
+    def preorderTraversal(self, root: TreeNode | None) -> list[int]:
+        result = []
+        stack = [root] if root else []
+        while stack:
+            node = stack.pop()
+            result.append(node.val)
+            if node.right:
+                stack.append(node.right)
+            if node.left:
+                stack.append(node.left)
+        return result
+'''

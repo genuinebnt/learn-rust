@@ -1,0 +1,30 @@
+intuition = """
+Reverse Linked List, but only the nodes at positions `left` to `right`. Walk to the node just **before** the range (a dummy head makes that always exist, even when `left` is 1). Then repeat `right - left` times: take the node after the current first node of the range and move it to the front of the range. After that, the range is reversed and already linked to what follows.
+"""
+tips = [
+    "A dummy node before the head means reversing from position 1 needs no special case.",
+    "`before` stays put. `current` is the node that began the range and ends up last, and each step moves `current.next` to just after `before`.",
+    "One pass, constant extra memory.",
+]
+
+[[approaches]]
+name = "Move each next node to the front of the range"
+label = "in place"
+idea = "After reaching the node before the range, repeatedly pull the node after the range's first node to the front."
+time = "O(n)"
+space = "O(1)"
+note = "Single pass."
+code = '''class Solution:
+    def reverseBetween(self, head: ListNode | None, left: int, right: int) -> ListNode | None:
+        dummy = ListNode(0, head)
+        before = dummy
+        for _ in range(left - 1):
+            before = before.next
+        current = before.next
+        for _ in range(right - left):
+            moved = current.next
+            current.next = moved.next
+            moved.next = before.next
+            before.next = moved
+        return dummy.next
+'''

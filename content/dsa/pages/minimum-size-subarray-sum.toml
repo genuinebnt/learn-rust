@@ -1,0 +1,28 @@
+intuition = """
+The **shortest** window whose sum is at least `target`, with positive numbers. Grow the window by moving the right end; as soon as the sum reaches the target, shrink from the left as far as the sum stays at least `target`, recording the length each time. Because all numbers are positive, shrinking can only lower the sum, so each pointer only moves forward and the scan is O(n).
+"""
+tips = [
+    "This relies on positive numbers. With negatives a sliding window doesn't work (use prefix sums and a deque).",
+    "Record the length inside the shrinking loop, so the shortest valid window is seen.",
+    "Return 0 if no window ever reaches the target.",
+]
+
+[[approaches]]
+name = "Variable window: shortest valid"
+label = "sliding window"
+idea = "Expand until the sum is enough, then shrink from the left while it stays enough."
+time = "O(n)"
+space = "O(1)"
+note = "Each index enters and leaves once."
+code = '''class Solution:
+    def minSubArrayLen(self, target: int, nums: list[int]) -> int:
+        best = float("inf")
+        left = total = 0
+        for right, x in enumerate(nums):
+            total += x
+            while total >= target:
+                best = min(best, right - left + 1)
+                total -= nums[left]
+                left += 1
+        return 0 if best == float("inf") else best
+'''

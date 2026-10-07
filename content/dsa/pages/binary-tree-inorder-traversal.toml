@@ -1,0 +1,42 @@
+intuition = """
+In-order is **left, node, right**. The recursive version is three lines; the follow-up is to do it without recursion. Use a stack: go as far left as you can, pushing each node on the way down. When you can't go left, pop a node, record it, and step to its right child, then repeat. This is the same loop as Kth Smallest in a BST, collecting every value instead of stopping at k.
+"""
+tips = [
+    "The stack holds the nodes you have passed on the way down but haven't visited yet.",
+    "After visiting a node, move to its right child, then go left again from there.",
+    "The loop condition is `stack or node`: the stack may be empty while a node is still in hand.",
+]
+
+[[approaches]]
+name = "Iterative with a stack"
+label = "iterative"
+idea = "Go left as far as possible, visit the top of the stack, then continue from its right child."
+time = "O(n)"
+space = "O(h)"
+note = "h is the height of the tree."
+code = '''class Solution:
+    def inorderTraversal(self, root: TreeNode | None) -> list[int]:
+        result, stack, node = [], [], root
+        while stack or node:
+            while node:
+                stack.append(node)
+                node = node.left
+            node = stack.pop()
+            result.append(node.val)
+            node = node.right
+        return result
+'''
+
+[[approaches]]
+name = "Recursive"
+label = "recursive"
+idea = "Visit the left subtree, the node, then the right subtree."
+time = "O(n)"
+space = "O(h)"
+note = "The recursion depth is the height."
+code = '''class Solution:
+    def inorderTraversal(self, root: TreeNode | None) -> list[int]:
+        if root is None:
+            return []
+        return self.inorderTraversal(root.left) + [root.val] + self.inorderTraversal(root.right)
+'''

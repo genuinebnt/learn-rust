@@ -1,0 +1,32 @@
+intuition = """
+Asteroids move along a line: positive ones right, negative ones left, all at the same speed. Two collide only when a right-mover is **immediately before** a left-mover, and then the smaller one explodes (both, if equal). Process the asteroids in order with a stack of survivors. A new left-moving asteroid fights the stack's top while that top is a right-mover: it removes smaller ones, dies if the top is larger, and both die if equal.
+"""
+tips = [
+    "Only a right-mover on the stack and a left-mover arriving can collide. Everything else passes freely.",
+    "One incoming asteroid can destroy several in a row, so use a loop.",
+    "Equal sizes destroy both. Handle that as its own case.",
+]
+
+[[approaches]]
+name = "Stack of survivors"
+label = "stack"
+idea = "Each left-mover keeps colliding with right-movers on the stack until it dies or the way is clear."
+time = "O(n)"
+space = "O(n)"
+note = "Each asteroid is pushed and popped at most once."
+code = '''class Solution:
+    def asteroidCollision(self, asteroids: list[int]) -> list[int]:
+        stack = []
+        for a in asteroids:
+            while a < 0 and stack and stack[-1] > 0:
+                if stack[-1] < -a:
+                    stack.pop()  # the one on the stack is smaller: it explodes
+                    continue
+                if stack[-1] == -a:
+                    stack.pop()  # both explode
+                a = 0  # the new asteroid is gone
+                break
+            if a:
+                stack.append(a)
+        return stack
+'''

@@ -1,18 +1,16 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { ApiError, api, type AiPattern, type Counted, type PatternsReport, type ProgressOverview, type ProgressStats, type ReviewsView } from "../api";
+import { api, type Counted, type ProgressOverview, type ProgressStats, type ReviewsView } from "../api";
 import { Header } from "../components/Header";
-import { AiKeyForm } from "../workspace/AiKeyForm";
 import { LEVEL_COLOR, pctColor } from "../components/bits";
 import { SECTION_NAMES } from "../curriculum";
 
-type Tab = "overview" | "rust" | "reviews" | "patterns";
+type Tab = "overview" | "rust" | "reviews";
 const TABS: [Tab, string][] = [
   ["overview", "Overview"],
   ["rust", "Rust stats"],
   ["reviews", "Reviews"],
-  ["patterns", "Your patterns"],
 ];
 
 const AREA_COLOR = { dsa: "var(--acc)", rust: "var(--vio)", build: "var(--grn)" } as const;
@@ -491,103 +489,6 @@ function Reviews({ r }: { r: ReviewsView }) {
 
 // ---------------------------------------------------------------- page
 
-// ---------------------------------------------------------------- your patterns (AI)
-
-const PATTERN_COLOR: Record<AiPattern["kind"], string> = { error: "var(--bad)", lint: "var(--warn)", strength: "var(--grn)", time: "var(--vio)", habit: "var(--acc)" };
-const SPLIT_COLOR = ["var(--bad)", "var(--warn)", "var(--vio)", "var(--acc)"];
-
-function Patterns() {
-  const qc = useQueryClient();
-  const status = useQuery({ queryKey: ["ai-status"], queryFn: api.aiStatus, staleTime: 60_000 });
-  const report = useQuery({ queryKey: ["ai-patterns"], queryFn: api.aiPatterns, enabled: !!status.data?.enabled });
-  const refresh = useMutation({ mutationFn: api.aiRefreshPatterns, onSuccess: (r) => qc.setQueryData(["ai-patterns"], r) });
-  if (status.isPending) return null;
-  if (!status.data?.enabled)
-    return (
-      <div className="pat-empty">
-        <p>Your patterns come from the AI assistant. Add an API key to turn it on.</p>
-        <AiKeyForm />
-      </div>
-    );
-  const error = refresh.error instanceof ApiError ? refresh.error.message : refresh.error ? "The report couldn't be generated." : null;
-  const button = (
-    <button className="btn sm" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
-      {refresh.isPending ? "Reading your history…" : report.data ? "Refresh" : "Generate my patterns"}
-    </button>
-  );
-  if (!report.data)
-    return (
-      <div className="pat-empty">
-        <p>A report of how you solve: the errors and lints you repeat and where, your strengths, where your time goes, and what to practise next. Built from your attempts and runs.</p>
-        {button}
-        {error && <p className="notice bad">{error}</p>}
-      </div>
-    );
-  const r: PatternsReport = report.data;
-  return (
-    <div className="pat-wrap">
-      <div className="pat-top">
-        <p className="pat-sum">{r.summary}</p>
-        <span className="pat-meta">
-          {new Date(r.generated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} · {r.model}
-        </span>
-        {button}
-      </div>
-      {error && <p className="notice bad">{error}</p>}
-      <div className="pat-grid">
-        <div className="pat-card">
-          <span className="pat-lab">
-            YOUR PATTERNS · FROM {r.based_on.attempts} ATTEMPTS AND {r.based_on.runs} RUNS
-          </span>
-          {r.patterns.map((p, i) => (
-            <div className="pat" key={i}>
-              <span className="w" style={{ color: PATTERN_COLOR[p.kind] ?? "var(--mut)" }}>
-                {p.label}
-              </span>
-              <span className="t">{p.title}</span>
-              <span className="n">{p.evidence}</span>
-              <p>{p.detail}</p>
-            </div>
-          ))}
-        </div>
-        <div className="pat-side">
-          {r.time_split.length > 0 && (
-            <div className="pat-card">
-              <span className="pat-lab">WHERE THE FAILING RUNS WENT</span>
-              {r.time_split.map((t, i) => (
-                <div key={t.label} className="pat-bar">
-                  <div className="kv">
-                    <span>{t.label}</span>
-                    <b>{t.percent}%</b>
-                  </div>
-                  <div className="bar">
-                    <i style={{ width: `${t.percent}%`, background: SPLIT_COLOR[i % SPLIT_COLOR.length] }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {r.next.length > 0 && (
-            <div className="pat-card">
-              <span className="pat-lab">SUGGESTED NEXT · PICKED FOR YOUR PATTERNS</span>
-              <div className="pat-next">
-                {r.next.map((n) => (
-                  <Link key={n.problem_id} to="/p/$id" params={{ id: n.problem_id }}>
-                    <span>
-                      {n.track} · {n.title}
-                    </span>
-                    <small>{n.reason}</small>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function ProgressPage() {
   const [tab, setTab] = useState<Tab>(() => {
     const h = location.hash.slice(1);
@@ -637,7 +538,6 @@ export function ProgressPage() {
           {tab === "overview" && overview.data && <Overview o={overview.data} />}
           {tab === "rust" && stats.data && <RustStats s={stats.data} />}
           {tab === "reviews" && reviews.data && <Reviews r={reviews.data} />}
-          {tab === "patterns" && <Patterns />}
         </div>
       </main>
     </>

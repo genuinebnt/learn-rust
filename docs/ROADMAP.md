@@ -14,7 +14,7 @@ The requests it covers:
 6. Everyday Rust coverage: async/futures/pinning, threads, channels, the std functions you use daily, I/O,
    strings/bytes/slices, bits, matrices and math, common traits and generics, popular crates, CLI parsing,
    event loops and sockets (§9).
-7. An AI assistant (Gemini API): complexity analysis, suggestions, related content and similarity search (§11).
+7. ~~An AI assistant (Gemini API)~~: built, then removed on 2026-10-07 (§11).
 
 ---
 
@@ -281,7 +281,7 @@ This is the "microservices" portfolio piece, and every stage is testable.
 | 2 | ✅ Spaced repetition + Progress (overview, Rust stats, reviews), built 2026-09-27 · Today and Readiness pages still to build | With ~300 problems written, keeping them matters more than adding more. Reviews make the platform "anneal" |
 | 2a | **Test hardening** of all written problems: ≥5 visible (LeetCode's examples included) and ≥8 hidden tests, edge checklists, seeded randomized brute-force comparisons, scale tests, `wrong/*.rs` solutions the verifier requires to fail · **in progress:** verifier + `Rng` prelude built, D1 done 2026-09-27; D2 onward next | Every later step leans on "passes" meaning correct |
 | 2b | **Q concept cards** (card mode: mockup → build) + the §10.2 additions to L4, L5, S4, S6, S7 | The spoken half of interviews; reuses the review queue (§10) |
-| 2c | **AI assistant** (§11), in the order of §11.3 | Needs the hardened tests (2a) so the AI reviews correct code, and the review queue (2) for the assisted flag |
+| 2c | ~~AI assistant~~ (§11): removed by the owner on 2026-10-07 | |
 | 3 | ~~6.1 vendored crates~~ done | Unblocked the concurrency/backend half of the curriculum |
 | 3b | **F · Performance Rust** (CURRICULUM §6.1), agreed 2026-09-27: first the runner support (`[perf]` in problem.toml, release builds, counting allocator, timing helpers, assembly checks, new crates), then F2 and F4 (exact checks), then F1, F3, F5–F7 | Owner's request: HPC, compilers, databases, kernels |
 | 4 | C1–C4, B1–B6, M1–M2 content; shortline project | The backend SDE-2/SDE-3 core |
@@ -487,7 +487,10 @@ the other screens.
 
 ---
 
-## 11. AI assistant (Gemini)
+## 11. AI assistant (Gemini): removed
+
+**Removed by the owner on 2026-10-07** after being built and deployed: anneal has no AI features. The plan below is
+kept only as a record.
 
 Requested 2026-09-27: AI help in the workspace (complexity analysis, suggestions) plus related content and
 similarity search, using the user's Gemini AI Studio API key.

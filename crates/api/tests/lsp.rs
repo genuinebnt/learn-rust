@@ -28,7 +28,6 @@ async fn rust_analyzer_hovers_and_reports_check_errors(db: PgPool) {
         db,
         lsp: LspConfig::new("rust-analyzer", &work),
         auth: AuthConfig::disabled(),
-        ai: anneal_api::ai::AiSlot::new(None),
     };
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

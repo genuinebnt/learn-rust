@@ -2,7 +2,6 @@
 //! progress lives in Postgres, and code runs through [`anneal_runner`].
 
 mod activity;
-pub mod ai;
 pub mod auth;
 mod error;
 mod format;
@@ -41,8 +40,6 @@ pub struct AppState {
     pub db: PgPool,
     pub lsp: lsp::LspConfig,
     pub auth: auth::AuthConfig,
-    /// The AI assistant, when a provider key is set; `None` turns every AI route off.
-    pub ai: std::sync::Arc<ai::AiSlot>,
 }
 
 /// The API under `/api`. If `web_dist` is a built web app, it's served for every other path.
@@ -70,11 +67,6 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/problems/{id}/solution", post(routes::reveal_solution))
         .route("/settings", get(settings::get))
         .route("/format", post(format::format))
-        .route("/ai/status", get(ai::status))
-        .route("/ai/config", get(ai::get_config).put(ai::put_config).delete(ai::delete_config))
-        .route("/ai/chat/{id}", get(ai::history).post(ai::chat).delete(ai::clear))
-        .route("/ai/similar/{id}", get(ai::similar))
-        .route("/ai/patterns", get(ai::get_patterns).post(ai::refresh_patterns))
         .route("/settings/editor", put(settings::put_editor))
         .route("/settings/appearance", put(settings::put_appearance))
         .route("/lsp/{id}", get(routes::lsp))

@@ -108,18 +108,6 @@ async fn main() -> anyhow::Result<()> {
         None => bail!("set ANNEAL_PASSPHRASE_HASH (from `anneal passphrase`) before listening on {addr}"),
     };
 
-    // The AI assistant: a key saved in the app's settings, or one in the environment (GEMINI_API_KEY, …).
-    let ai = match anneal_api::ai::configure(&db).await.context("AI configuration")? {
-        Some(ai) => {
-            tracing::info!(provider = ?ai.info.provider, model = %ai.info.model, embeddings = ?ai.info.embeddings, "AI assistant on");
-            anneal_api::ai::AiSlot::new(Some(anneal_api::ai::AiState::new(ai)))
-        }
-        None => {
-            tracing::info!("AI assistant off: no provider key set");
-            anneal_api::ai::AiSlot::new(None)
-        }
-    };
-
     let web_dist = PathBuf::from(env("ANNEAL_WEB_DIST", "web/dist"));
     let state = AppState {
         catalog: Arc::new(loaded.catalog),
@@ -127,9 +115,7 @@ async fn main() -> anyhow::Result<()> {
         db,
         lsp,
         auth,
-        ai,
     };
-    anneal_api::ai::refresh_in_background(&state);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .with_context(|| format!("binding {addr}"))?;

@@ -7,4 +7,3 @@ web/dist
 __pycache__/
 /.dev.pid
 /deploy/.env
-/.env.local

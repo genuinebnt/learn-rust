@@ -311,117 +311,6 @@ export interface ScratchResult {
   duration_ms: number;
 }
 
-// ---------------------------------------------------------------- AI assistant
-
-export interface AiInfo {
-  provider: "gemini" | "openai" | "anthropic";
-  model: string;
-  /** `provider/model`, or null when no embedding provider is configured. */
-  embeddings: string | null;
-}
-
-export interface AiStatus {
-  enabled: boolean;
-  info?: AiInfo;
-  indexed_problems: number;
-  indexed_attempts: number;
-}
-
-/** What the browser may know about the assistant's key: never the key itself. */
-export interface AiConfig {
-  source: "settings" | "environment" | "none";
-  provider: AiInfo["provider"] | null;
-  model: string | null;
-  /** The key's last four characters, e.g. "…x9Qk". */
-  key_hint: string | null;
-}
-
-export interface AiSource {
-  kind: "problem" | "code" | "run" | "reference" | "similar" | "attempt" | "stats";
-  label: string;
-  problem_id?: string;
-}
-
-export interface AiMessage {
-  id: number;
-  role: "user" | "assistant";
-  content: string;
-  action: string | null;
-  sources: AiSource[];
-  created_at: string;
-}
-
-export type AiAction = "explain_error" | "hint" | "complexity" | "similar" | "review";
-
-export interface AiPattern {
-  kind: "error" | "lint" | "strength" | "time" | "habit";
-  label: string;
-  title: string;
-  detail: string;
-  evidence: string;
-}
-
-export interface PatternsReport {
-  summary: string;
-  patterns: AiPattern[];
-  time_split: { label: string; percent: number }[];
-  next: { problem_id: string; title: string; track: string; reason: string }[];
-  based_on: { attempts: number; runs: number };
-  generated_at: string;
-  model: string;
-}
-
-export interface AiChatEvents {
-  sources?: (s: AiSource[]) => void;
-  /** This question marked the attempt assisted. */
-  assisted?: () => void;
-  chunk: (text: string) => void;
-  done?: () => void;
-}
-
-/** Streams an answer (server-sent events over a POST, which EventSource can't do). */
-export async function aiChat(
-  id: string,
-  body: { message?: string; action?: AiAction; code?: string },
-  on: AiChatEvents,
-  signal?: AbortSignal,
-): Promise<void> {
-  const res = await fetch(`/api/ai/chat/${id}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok || !res.body) {
-    const err = await res.json().catch(() => ({ error: "unknown", message: res.statusText }));
-    throw new ApiError(res.status, err.error ?? "unknown", err.message ?? res.statusText);
-  }
-  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += value;
-    let cut: number;
-    while ((cut = buffer.indexOf("\n\n")) >= 0) {
-      const block = buffer.slice(0, cut);
-      buffer = buffer.slice(cut + 2);
-      let event = "message";
-      const data: string[] = [];
-      for (const line of block.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) data.push(line.slice(5).replace(/^ /, ""));
-      }
-      const payload = data.join("\n");
-      if (event === "sources") on.sources?.(JSON.parse(payload) as AiSource[]);
-      else if (event === "assisted") on.assisted?.();
-      else if (event === "chunk") on.chunk(JSON.parse(payload) as string);
-      else if (event === "done") on.done?.();
-      else if (event === "error") throw new ApiError(502, "ai_failed", payload);
-    }
-  }
-}
-
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -451,14 +340,6 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   tracks: () => request<TrackSummary[]>("GET", "/tracks"),
-  aiStatus: () => request<AiStatus>("GET", "/ai/status"),
-  aiConfig: () => request<AiConfig>("GET", "/ai/config"),
-  aiSaveConfig: (body: { provider: AiInfo["provider"]; api_key?: string; model?: string }) => request<AiConfig>("PUT", "/ai/config", body),
-  aiDeleteConfig: () => request<AiConfig>("DELETE", "/ai/config"),
-  aiHistory: (id: string) => request<AiMessage[]>("GET", `/ai/chat/${id}`),
-  aiClear: (id: string) => request<void>("DELETE", `/ai/chat/${id}`),
-  aiPatterns: () => request<PatternsReport | null>("GET", "/ai/patterns"),
-  aiRefreshPatterns: () => request<PatternsReport>("POST", "/ai/patterns"),
   activity: (sections: readonly Section[]) => request<Activity>("GET", `/activity?sections=${sections.join(",")}`),
   track: (slug: string) => request<TrackDetail>("GET", `/tracks/${slug}`),
   problem: (id: string) => request<ProblemDetail>("GET", `/problems/${id}`),

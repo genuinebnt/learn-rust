@@ -151,11 +151,6 @@ ANNEAL_SANDBOX=host cargo run -p anneal-api  # after `cd web && npm run build`; 
 export CHROME=/opt/pw-browsers/chromium-*/chrome-linux/chrome   # for tools/ui-check.mjs
 ```
 
-### AI assistant
-
-The AI tab and Progress → Your patterns are described in [AI.md](AI.md). The API key is set in the app (AI tab →
-**key**) and is stored server-side; without one, the assistant is off and everything else works.
-
 ### Production
 
 **Every push to `master` is deployed to https://anneal.genuinebasil.dev** once CI passes (clippy with
@@ -383,8 +378,7 @@ Plan (approved):
 
   Track outlines are in CURRICULUM.md. Include the §10.2 additions for L4, L5, S4, S6 and S7.
 - **Step 2b, Q concept cards** (ROADMAP §10.3): needs a card-mode mockup first.
-- **Step 2c, AI assistant with Gemini** (ROADMAP §11): the key stays server-side, and AI help before a solve marks the
-  attempt assisted. Build in the order of §11.3. New UI needs mockups.
+- ~~Step 2c, AI assistant~~: built, then removed by the owner on 2026-10-07. Don't re-add AI features.
 - Designed screens still to build: Today, Readiness, Library, Mock interview, project pages.
 
 ## 7. Known rough edges

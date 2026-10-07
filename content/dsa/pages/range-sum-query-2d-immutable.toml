@@ -1,0 +1,35 @@
+intuition = """
+Range Sum Query in 2-D: many queries, and the matrix never changes. Precompute **prefix sums**, where `prefix[r][c]` is the sum of the rectangle from the top-left corner to just before row `r` and column `c`. Any rectangle is then four lookups by inclusion–exclusion:
+
+`sum = P[r2+1][c2+1] - P[r1][c2+1] - P[r2+1][c1] + P[r1][c1]`
+
+The corner `P[r1][c1]` is subtracted twice, so it is added back once.
+"""
+tips = [
+    "Make the prefix table one row and one column larger, with a zero border, so the formula needs no edge cases.",
+    "Build it with `P[r+1][c+1] = matrix[r][c] + P[r][c+1] + P[r+1][c] - P[r][c]`.",
+    "Each query is O(1), so building once in the constructor is what pays off.",
+]
+
+[[approaches]]
+name = "2-D prefix sums"
+label = "prefix sum"
+idea = "Store the sum of every rectangle anchored at the top-left corner; answer any rectangle by inclusion and exclusion."
+time = "O(m · n) to build, O(1) per query"
+space = "O(m · n)"
+note = "The zero border removes the boundary checks."
+code = '''class NumMatrix:
+
+    def __init__(self, matrix: list[list[int]]):
+        rows, cols = len(matrix), len(matrix[0])
+        self.prefix = [[0] * (cols + 1) for _ in range(rows + 1)]
+        for r in range(rows):
+            for c in range(cols):
+                self.prefix[r + 1][c + 1] = (
+                    matrix[r][c] + self.prefix[r][c + 1] + self.prefix[r + 1][c] - self.prefix[r][c]
+                )
+
+    def sumRegion(self, row1: int, col1: int, row2: int, col2: int) -> int:
+        p = self.prefix
+        return p[row2 + 1][col2 + 1] - p[row1][col2 + 1] - p[row2 + 1][col1] + p[row1][col1]
+'''

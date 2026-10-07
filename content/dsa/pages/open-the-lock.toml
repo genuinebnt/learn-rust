@@ -1,0 +1,40 @@
+intuition = """
+Word Ladder without a word list: the graph is the 10,000 lock combinations, each connected to the 8 combinations one wheel-turn away (each of 4 wheels, up or down, wrapping 9 to 0). You want the **fewest turns** from `0000` to the target, so it is a BFS, with the dead ends simply never visited.
+
+If `0000` itself is a dead end the lock can't even start: the answer is -1.
+"""
+tips = [
+    "Generate neighbours instead of building a graph: change one digit by +1 or -1, modulo 10.",
+    "Put the dead ends in a set and treat them as already visited.",
+    "Check the start before searching. A dead `0000` means -1, and a target of `0000` means 0.",
+]
+
+[[approaches]]
+name = "BFS over the 10,000 combinations"
+label = "bfs"
+idea = "Each state's neighbours are the 8 one-turn changes; the first time the target is dequeued gives the fewest turns."
+time = "O(10^4 · 8)"
+space = "O(10^4)"
+note = "The state space is bounded, whatever the dead ends are."
+code = '''from collections import deque
+
+
+class Solution:
+    def openLock(self, deadends: list[str], target: str) -> int:
+        dead = set(deadends)
+        if "0000" in dead:
+            return -1
+        seen = {"0000"}
+        queue = deque([("0000", 0)])
+        while queue:
+            code, turns = queue.popleft()
+            if code == target:
+                return turns
+            for i in range(4):
+                for d in (1, -1):
+                    nxt = code[:i] + str((int(code[i]) + d) % 10) + code[i + 1:]
+                    if nxt not in seen and nxt not in dead:
+                        seen.add(nxt)
+                        queue.append((nxt, turns + 1))
+        return -1
+'''

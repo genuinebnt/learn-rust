@@ -1,0 +1,34 @@
+intuition = """
+Add two binary numbers given as strings: schoolbook addition from the right, with a carry. At each position add the two bits and the carry; the digit to write is `total % 2` and the new carry is `total // 2`. Keep going while either string has digits left **or** a carry remains, and reverse the digits at the end.
+
+Python lets you cheat with `bin(int(a, 2) + int(b, 2))[2:]`, which is correct. The loop is what other languages need, and what interviewers want to see.
+"""
+tips = [
+    "The loop ends only when both strings are used up and the carry is 0.",
+    "Walk from the end of each string, so strings of different lengths need no padding.",
+    "Digits come out last-first. Collect them in a list and reverse, or build from the left with `insert`.",
+]
+
+[[approaches]]
+name = "Add from the right with a carry"
+label = "simulation"
+idea = "Add the two current bits and the carry, write the low bit, carry the high bit."
+time = "O(max(m, n))"
+space = "O(max(m, n))"
+note = "Linear in the length."
+code = '''class Solution:
+    def addBinary(self, a: str, b: str) -> str:
+        out = []
+        i, j, carry = len(a) - 1, len(b) - 1, 0
+        while i >= 0 or j >= 0 or carry:
+            total = carry
+            if i >= 0:
+                total += int(a[i])
+                i -= 1
+            if j >= 0:
+                total += int(b[j])
+                j -= 1
+            out.append(str(total % 2))
+            carry = total // 2
+        return "".join(reversed(out))
+'''

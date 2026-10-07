@@ -1,0 +1,31 @@
+intuition = """
+You don't need a flood fill to measure the island. Each land cell has 4 sides, and a side only counts toward the perimeter if the cell next to it is **water or outside the grid**. Equivalently, every land cell adds 4, and every pair of land cells that touch removes 2 (one side from each).
+
+Count land cells and touching pairs (only look right and down, so each pair is counted once): `perimeter = 4 * land - 2 * pairs`.
+"""
+tips = [
+    "No visited set and no recursion. One scan of the grid is enough.",
+    "Look only at the right and the down neighbour, so each shared edge is counted once.",
+    "The grid has a single island, which is why simply counting over the whole grid is correct.",
+]
+
+[[approaches]]
+name = "Four sides per cell, minus shared edges"
+label = "counting"
+idea = "Add 4 for every land cell and subtract 2 for every touching pair."
+time = "O(m · n)"
+space = "O(1)"
+note = "A single pass."
+code = '''class Solution:
+    def islandPerimeter(self, grid: list[list[int]]) -> int:
+        perimeter = 0
+        for r, row in enumerate(grid):
+            for c, cell in enumerate(row):
+                if cell:
+                    perimeter += 4
+                    if r + 1 < len(grid) and grid[r + 1][c]:
+                        perimeter -= 2
+                    if c + 1 < len(row) and row[c + 1]:
+                        perimeter -= 2
+        return perimeter
+'''

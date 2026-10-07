@@ -3452,6 +3452,633 @@ def stone_game_iii(ns):
     assert seen == {"Alice", "Bob", "Tie"}
 
 
+# ---- the NeetCode 250's practice problems -----------------------------------------------------------------------------
+
+
+def tribonacci(ns):
+    f = ns["Solution"]().tribonacci
+
+    def brute(n):
+        return n if n < 2 else 1 if n == 2 else brute(n - 1) + brute(n - 2) + brute(n - 3)
+
+    assert f(4) == 4 and f(25) == 1389537 and f(0) == 0 and f(1) == 1 and f(2) == 1
+    for n in range(0, 15):
+        assert f(n) == brute(n)
+    assert f(37) == 2082876103
+
+
+def combination_sum_iv(ns):
+    f = ns["Solution"]().combinationSum4
+    assert f([1, 2, 3], 4) == 7 and f([9], 3) == 0
+    r = rng()
+
+    def brute(nums, t):
+        return 1 if t == 0 else sum(brute(nums, t - x) for x in nums if x <= t)
+
+    for _ in range(100):
+        nums = r.sample(range(1, 6), r.randint(1, 3))
+        t = r.randint(1, 9)
+        assert f(nums[:], t) == brute(nums, t)
+    assert f([1, 2, 3], 200) > 10**20, "counts can be huge: Python integers don't overflow"
+
+
+def perfect_squares(ns):
+    f = ns["Solution"]().numSquares
+    assert f(12) == 3 and f(13) == 2 and f(1) == 1
+    for n in range(1, 120):
+        level, seen, steps = {0}, {0}, 0
+        while n not in level:
+            level = {x + k * k for x in level for k in range(1, 11) if x + k * k <= n} - seen
+            seen |= level
+            steps += 1
+        assert f(n) == steps, n
+    assert f(9999) == 4
+
+
+def integer_break(ns):
+    f = ns["Solution"]().integerBreak
+    assert f(2) == 1 and f(10) == 36
+
+    def brute(n, parts):
+        if n == 0:
+            return 1 if parts >= 2 else 0
+        return max((k * brute(n - k, parts + 1) for k in range(1, n + 1)), default=0)
+
+    for n in range(2, 16):
+        assert f(n) == brute(n, 0), n
+
+
+def unique_paths_ii(ns):
+    f = ns["Solution"]().uniquePathsWithObstacles
+    assert f([[0, 0, 0], [0, 1, 0], [0, 0, 0]]) == 2 and f([[0, 1], [0, 0]]) == 1 and f([[1]]) == 0 and f([[0]]) == 1
+    r = rng()
+
+    def brute(g, i=0, j=0):
+        if i >= len(g) or j >= len(g[0]) or g[i][j]:
+            return 0
+        if i == len(g) - 1 and j == len(g[0]) - 1:
+            return 1
+        return brute(g, i + 1, j) + brute(g, i, j + 1)
+
+    for _ in range(150):
+        rows, cols = r.randint(1, 5), r.randint(1, 5)
+        g = [[1 if r.random() < 0.25 else 0 for _ in range(cols)] for _ in range(rows)]
+        assert f([row[:] for row in g]) == brute(g)
+
+
+def min_path_sum(ns):
+    f = ns["Solution"]().minPathSum
+    assert f([[1, 3, 1], [1, 5, 1], [4, 2, 1]]) == 7 and f([[1, 2, 3], [4, 5, 6]]) == 12
+    r = rng()
+
+    def brute(g, i=0, j=0):
+        if i == len(g) - 1 and j == len(g[0]) - 1:
+            return g[i][j]
+        opts = []
+        if i + 1 < len(g):
+            opts.append(brute(g, i + 1, j))
+        if j + 1 < len(g[0]):
+            opts.append(brute(g, i, j + 1))
+        return g[i][j] + min(opts)
+
+    for _ in range(150):
+        rows, cols = r.randint(1, 5), r.randint(1, 5)
+        g = [[r.randint(0, 9) for _ in range(cols)] for _ in range(rows)]
+        assert f([row[:] for row in g]) == brute(g)
+
+
+def last_stone_weight_ii(ns):
+    f = ns["Solution"]().lastStoneWeightII
+    assert f([2, 7, 4, 1, 8, 1]) == 1 and f([31, 26, 33, 21, 40]) == 5 and f([1]) == 1
+    r = rng()
+    for _ in range(200):
+        s = [r.randint(1, 12) for _ in range(r.randint(1, 9))]
+        total = sum(s)
+        best = min(abs(total - 2 * sum(s[i] for i in range(len(s)) if m >> i & 1)) for m in range(1 << len(s)))
+        assert f(s[:]) == best
+
+
+def stone_game(ns):
+    f = ns["Solution"]().stoneGame
+    assert f([5, 3, 4, 5]) is True and f([3, 7, 2, 3]) is True
+    r = rng()
+
+    def lead(p, lo, hi):
+        if lo > hi:
+            return 0
+        return max(p[lo] - lead(p, lo + 1, hi), p[hi] - lead(p, lo, hi - 1))
+
+    for _ in range(150):
+        n = r.choice([2, 4, 6, 8])
+        p = r.sample(range(1, 40), n)
+        if sum(p) % 2 == 0:  # the problem promises an odd total, so there is no tie
+            p[0] += 1 if p[0] + 1 not in p else 2
+            if sum(p) % 2 == 0:
+                continue
+        assert f(p[:]) is (lead(p, 0, n - 1) > 0)
+
+
+def stone_game_ii(ns):
+    f = ns["Solution"]().stoneGameII
+    assert f([2, 7, 9, 4, 4]) == 10 and f([1, 2, 3, 4, 5, 100]) == 104
+    r = rng()
+
+    def best(p, i, m):  # most the mover can still collect from p[i:]
+        if i >= len(p):
+            return 0
+        total = sum(p[i:])
+        return max(total - best(p, i + x, max(m, x)) for x in range(1, min(2 * m, len(p) - i) + 1))
+
+    for _ in range(150):
+        p = [r.randint(1, 20) for _ in range(r.randint(1, 8))]
+        assert f(p[:]) == best(p, 0, 1), p
+
+
+def _random_connected(r, n, extra=2):
+    """Edges of a random connected undirected graph on 0..n-1 (a tree plus a few more)."""
+    edges = {(r.randrange(i), i) for i in range(1, n)}
+    for _ in range(extra):
+        if n > 1:
+            a, b = sorted(r.sample(range(n), 2))
+            edges.add((a, b))
+    return sorted(edges)
+
+
+def min_effort_path(ns):
+    f = ns["Solution"]().minimumEffortPath
+    assert f([[1, 2, 2], [3, 8, 2], [5, 3, 5]]) == 2 and f([[1, 2, 3], [3, 8, 4], [5, 3, 5]]) == 1 and f([[10]]) == 0
+    r = rng()
+    for _ in range(150):
+        rows, cols = r.randint(1, 4), r.randint(1, 4)
+        h = [[r.randint(1, 9) for _ in range(cols)] for _ in range(rows)]
+        inf = float("inf")
+        best = [[inf] * cols for _ in range(rows)]
+        best[0][0] = 0
+        changed = True
+        while changed:  # relax every cell until nothing improves
+            changed = False
+            for i in range(rows):
+                for j in range(cols):
+                    for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+                        if 0 <= a < rows and 0 <= b < cols:
+                            cand = max(best[a][b], abs(h[i][j] - h[a][b]))
+                            if cand < best[i][j]:
+                                best[i][j] = cand
+                                changed = True
+        assert f([row[:] for row in h]) == best[rows - 1][cols - 1], h
+
+
+def critical_edges(ns):
+    f = ns["Solution"]().findCriticalAndPseudoCriticalEdges
+    got = f(5, [[0, 1, 1], [1, 2, 1], [2, 3, 2], [0, 3, 2], [0, 4, 3], [3, 4, 3], [1, 4, 6]])
+    assert sorted(got[0]) == [0, 1] and sorted(got[1]) == [2, 3, 4, 5]
+    r = rng()
+    for _ in range(120):
+        n = r.randint(2, 5)
+        edges = [[a, b, r.randint(1, 4)] for a, b in _random_connected(r, n, r.randint(0, 3))]
+        trees = []
+        for combo in itertools.combinations(range(len(edges)), n - 1):
+            parent = list(range(n))
+
+            def find(x):
+                while parent[x] != x:
+                    x = parent[x]
+                return x
+
+            ok = True
+            for i in combo:
+                a, b = find(edges[i][0]), find(edges[i][1])
+                if a == b:
+                    ok = False
+                    break
+                parent[a] = b
+            if ok:
+                trees.append((sum(edges[i][2] for i in combo), set(combo)))
+        low = min(w for w, _ in trees)
+        msts = [t for w, t in trees if w == low]
+        critical = sorted(i for i in range(len(edges)) if all(i in t for t in msts))
+        pseudo = sorted(i for i in range(len(edges)) if any(i in t for t in msts) and i not in critical)
+        got = f(n, [e[:] for e in edges])
+        assert sorted(got[0]) == critical and sorted(got[1]) == pseudo, (n, edges)
+
+
+def build_matrix(ns):
+    f = ns["Solution"]().buildMatrix
+
+    def orders(k, conds):
+        return [p for p in itertools.permutations(range(1, k + 1)) if all(p.index(a) < p.index(b) for a, b in conds)]
+
+    r = rng()
+    for _ in range(150):
+        k = r.randint(1, 4)
+        rc = [r.sample(range(1, k + 1), 2) for _ in range(r.randint(0, 4))] if k > 1 else []
+        cc = [r.sample(range(1, k + 1), 2) for _ in range(r.randint(0, 4))] if k > 1 else []
+        got = f(k, [c[:] for c in rc], [c[:] for c in cc])
+        if not orders(k, rc) or not orders(k, cc):
+            assert got == [], (k, rc, cc)
+            continue
+        assert len(got) == k and all(len(row) == k for row in got)
+        pos = {}
+        for i, row in enumerate(got):
+            for j, v in enumerate(row):
+                if v:
+                    pos[v] = (i, j)
+        assert sorted(pos) == list(range(1, k + 1)) and sum(map(bool, (v for row in got for v in row))) == k
+        assert all(pos[a][0] < pos[b][0] for a, b in rc) and all(pos[a][1] < pos[b][1] for a, b in cc), (k, rc, cc, got)
+
+
+def gcd_traversal(ns):
+    import math
+
+    f = ns["Solution"]().canTraverseAllPairs
+    assert f([2, 3, 6]) is True and f([3, 9, 5]) is False and f([4, 3, 12, 8]) is True and f([1]) is True and f([1, 1]) is False
+    r = rng()
+    for _ in range(300):
+        nums = [r.randint(1, 30) for _ in range(r.randint(1, 7))]
+        n = len(nums)
+        seen, stack = {0}, [0]
+        while stack:
+            i = stack.pop()
+            for j in range(n):
+                if j not in seen and math.gcd(nums[i], nums[j]) > 1:
+                    seen.add(j)
+                    stack.append(j)
+        assert f(nums[:]) is (len(seen) == n), nums
+
+
+def island_perimeter(ns):
+    f = ns["Solution"]().islandPerimeter
+    assert f([[0, 1, 0, 0], [1, 1, 1, 0], [0, 1, 0, 0], [1, 1, 0, 0]]) == 16 and f([[1]]) == 4 and f([[1, 0]]) == 4
+    r = rng()
+    for _ in range(200):
+        rows, cols = r.randint(1, 5), r.randint(1, 5)
+        g = [[r.randint(0, 1) for _ in range(cols)] for _ in range(rows)]
+        if not any(map(any, g)):
+            g[0][0] = 1
+        # keep a single island: sink everything not connected to the first land cell
+        start = next((i, j) for i in range(rows) for j in range(cols) if g[i][j])
+        seen, stack = {start}, [start]
+        while stack:
+            i, j = stack.pop()
+            for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+                if 0 <= a < rows and 0 <= b < cols and g[a][b] and (a, b) not in seen:
+                    seen.add((a, b))
+                    stack.append((a, b))
+        g = [[1 if (i, j) in seen else 0 for j in range(cols)] for i in range(rows)]
+        want = sum(1 for (i, j) in seen for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)) if (a, b) not in seen)
+        assert f([row[:] for row in g]) == want
+
+
+def open_the_lock(ns):
+    f = ns["Solution"]().openLock
+    assert f(["0201", "0101", "0102", "1212", "2002"], "0202") == 6 and f(["8888"], "0009") == 1
+    assert f(["8887", "8889", "8878", "8898", "8788", "8988", "7888", "9888"], "8888") == -1 and f(["0000"], "8888") == -1
+    r = rng()
+    for _ in range(40):
+        dead = {"".join(r.choice("0123456789") for _ in range(4)) for _ in range(r.randint(0, 300))}
+        target = "".join(r.choice("0123456789") for _ in range(4))
+        if "0000" in dead:
+            want = -1
+        else:
+            seen, level, steps, want = {"0000"}, ["0000"], 0, -1
+            while level:
+                if target in level:
+                    want = steps
+                    break
+                nxt = []
+                for code in level:
+                    for i in range(4):
+                        for d in (-1, 1):
+                            new = code[:i] + str((int(code[i]) + d) % 10) + code[i + 1:]
+                            if new not in seen and new not in dead:
+                                seen.add(new)
+                                nxt.append(new)
+                level, steps = nxt, steps + 1
+        assert f(list(dead), target) == want, (dead, target)
+
+
+def course_prereq_queries(ns):
+    f = ns["Solution"]().checkIfPrerequisite
+    assert f(2, [[1, 0]], [[0, 1], [1, 0]]) == [False, True] and f(2, [], [[1, 0], [0, 1]]) == [False, False]
+    assert f(3, [[1, 2], [1, 0], [2, 0]], [[1, 0], [1, 2]]) == [True, True]
+    r = rng()
+    for _ in range(200):
+        n = r.randint(1, 6)
+        pre = [[a, b] for a in range(n) for b in range(a + 1, n) if r.random() < 0.3]
+        pre = [[b, a] if r.random() < 0.5 else [a, b] for a, b in pre]  # still acyclic (edges go either way between a < b)
+        # make it acyclic by a fixed order: only a -> b with a < b
+        pre = [[a, b] for a, b in pre if a < b] or []
+        reach = [[i == j for j in range(n)] for i in range(n)]
+        for a, b in pre:
+            reach[a][b] = True
+        for k in range(n):
+            for i in range(n):
+                for j in range(n):
+                    reach[i][j] = reach[i][j] or (reach[i][k] and reach[k][j])
+        if n < 2:
+            continue
+        qs = [r.sample(range(n), 2) for _ in range(6)]
+        assert f(n, [p[:] for p in pre], qs) == [reach[a][b] for a, b in qs], (n, pre, qs)
+
+
+def accounts_merge(ns):
+    f = ns["Solution"]().accountsMerge
+    got = f([["John", "johnsmith@mail.com", "john_newyork@mail.com"], ["John", "johnsmith@mail.com", "john00@mail.com"], ["Mary", "mary@mail.com"], ["John", "johnnybravo@mail.com"]])
+    assert sorted(map(lambda a: [a[0]] + sorted(a[1:]), got)) == sorted([["John", "john00@mail.com", "john_newyork@mail.com", "johnsmith@mail.com"], ["Mary", "mary@mail.com"], ["John", "johnnybravo@mail.com"]])
+    r = rng()
+    for _ in range(200):
+        emails = [f"e{i}@x" for i in range(r.randint(1, 8))]
+        accounts = [["N" + str(r.randint(0, 2))] + r.sample(emails, r.randint(1, min(3, len(emails)))) for _ in range(r.randint(1, 6))]
+        # components of emails by shared membership
+        parent = {}
+
+        def find(x):
+            parent.setdefault(x, x)
+            while parent[x] != x:
+                x = parent[x]
+            return x
+
+        for a in accounts:
+            for e in a[2:]:
+                parent[find(a[1])] = find(e)
+            find(a[1])
+        groups = {}
+        for a in accounts:
+            for e in a[1:]:
+                groups.setdefault(find(e), set()).add(e)
+        got = f([a[:] for a in accounts])
+        # every merged account lists sorted, unique emails; the email sets are exactly the components
+        assert all(g[1:] == sorted(set(g[1:])) for g in got)
+        assert sorted(tuple(g[1:]) for g in got) == sorted(tuple(sorted(v)) for v in groups.values())
+
+
+def min_height_trees(ns):
+    f = ns["Solution"]().findMinHeightTrees
+    assert sorted(f(4, [[1, 0], [1, 2], [1, 3]])) == [1] and sorted(f(6, [[3, 0], [3, 1], [3, 2], [3, 4], [5, 4]])) == [3, 4] and f(1, []) == [0]
+    r = rng()
+    for _ in range(200):
+        n = r.randint(1, 9)
+        edges = [list(e) for e in _random_connected(r, n, 0)]
+        adj = defaultdict(list)
+        for a, b in edges:
+            adj[a].append(b)
+            adj[b].append(a)
+
+        def height(root):
+            seen, level, h = {root}, [root], -1
+            while level:
+                h += 1
+                level = [w for v in level for w in adj[v] if w not in seen and not seen.add(w)]
+            return h
+
+        hs = [height(v) for v in range(n)]
+        assert sorted(f(n, [e[:] for e in edges])) == [v for v in range(n) if hs[v] == min(hs)], (n, edges)
+
+
+def longest_common_prefix(ns):
+    f = ns["Solution"]().longestCommonPrefix
+    assert f(["flower", "flow", "flight"]) == "fl" and f(["dog", "racecar", "car"]) == "" and f(["a"]) == "a" and f(["", "b"]) == ""
+    r = rng()
+    for _ in range(300):
+        words = ["".join(r.choice("ab") for _ in range(r.randint(0, 6))) for _ in range(r.randint(1, 5))]
+        want = ""
+        for i in range(min(map(len, words))):
+            if len({w[i] for w in words}) > 1:
+                break
+            want += words[0][i]
+        assert f(words[:]) == want
+
+
+def design_hashmap(ns):
+    M = ns["MyHashMap"]
+    m = M()
+    m.put(1, 1)
+    m.put(2, 2)
+    assert m.get(1) == 1 and m.get(3) == -1
+    m.put(2, 1)
+    assert m.get(2) == 1
+    m.remove(2)
+    assert m.get(2) == -1
+    r = rng()
+    for _ in range(80):
+        m, model = M(), {}
+        keys = [0, 1, 1000, 1001, 10**6, r.randint(0, 10**6)]
+        for _ in range(60):
+            k, op = r.choice(keys), r.randint(0, 2)
+            if op == 0:
+                v = r.randint(0, 10**6)
+                m.put(k, v)
+                model[k] = v
+            elif op == 1:
+                m.remove(k)
+                model.pop(k, None)
+            else:
+                assert m.get(k) == model.get(k, -1), (k, model)
+
+
+def sort_colors(ns):
+    f = ns["Solution"]().sortColors
+    a = [2, 0, 2, 1, 1, 0]
+    assert f(a) is None and a == [0, 0, 1, 1, 2, 2]
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(0, 2) for _ in range(r.randint(1, 12))]
+        want = sorted(a)
+        f(a)
+        assert a == want
+
+
+def num_matrix(ns):
+    M = ns["NumMatrix"]
+    m = M([[3, 0, 1, 4, 2], [5, 6, 3, 2, 1], [1, 2, 0, 1, 5], [4, 1, 0, 1, 7], [1, 0, 3, 0, 5]])
+    assert m.sumRegion(2, 1, 4, 3) == 8 and m.sumRegion(1, 1, 2, 2) == 11 and m.sumRegion(1, 2, 2, 4) == 12
+    r = rng()
+    for _ in range(100):
+        rows, cols = r.randint(1, 5), r.randint(1, 5)
+        g = [[r.randint(-5, 9) for _ in range(cols)] for _ in range(rows)]
+        m = M([row[:] for row in g])
+        for _ in range(10):
+            r1, r2 = sorted((r.randrange(rows), r.randrange(rows)))
+            c1, c2 = sorted((r.randrange(cols), r.randrange(cols)))
+            assert m.sumRegion(r1, c1, r2, c2) == sum(g[i][j] for i in range(r1, r2 + 1) for j in range(c1, c2 + 1))
+
+
+def majority_element_ii(ns):
+    f = ns["Solution"]().majorityElement
+    assert sorted(f([3, 2, 3])) == [3] and f([1]) == [1] and sorted(f([1, 2])) == [1, 2]
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(0, 4) for _ in range(r.randint(1, 12))]
+        want = sorted(v for v, c in Counter(a).items() if c > len(a) // 3)
+        assert sorted(f(a[:])) == want, a
+
+
+def subset_xor_sum(ns):
+    f = ns["Solution"]().subsetXORSum
+    assert f([1, 3]) == 6 and f([5, 1, 6]) == 28 and f([3, 4, 5, 6, 7, 8]) == 480
+    r = rng()
+    for _ in range(100):
+        a = [r.randint(1, 20) for _ in range(r.randint(1, 8))]
+        total = 0
+        for m in range(1 << len(a)):
+            x = 0
+            for i in range(len(a)):
+                if m >> i & 1:
+                    x ^= a[i]
+            total += x
+        assert f(a[:]) == total
+
+
+def combinations_check(ns):
+    f = ns["Solution"]().combine
+    assert sorted(map(sorted, f(4, 2))) == [[1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]] and f(1, 1) == [[1]]
+    for n in range(1, 8):
+        for k in range(1, n + 1):
+            got = f(n, k)
+            assert sorted(map(tuple, got)) == list(itertools.combinations(range(1, n + 1), k)) and len(got) == len(set(map(tuple, got)))
+
+
+def permutations_ii(ns):
+    f = ns["Solution"]().permuteUnique
+    assert sorted(f([1, 1, 2])) == [[1, 1, 2], [1, 2, 1], [2, 1, 1]]
+    r = rng()
+    for _ in range(150):
+        a = [r.randint(1, 3) for _ in range(r.randint(1, 6))]
+        got = f(a[:])
+        assert sorted(map(tuple, got)) == sorted(set(itertools.permutations(a))) and len(got) == len(set(map(tuple, got)))
+
+
+def partition_k_subsets(ns):
+    f = ns["Solution"]().canPartitionKSubsets
+    assert f([4, 3, 2, 3, 5, 2, 1], 4) is True and f([1, 2, 3, 4], 3) is False
+    r = rng()
+    for _ in range(200):
+        k = r.randint(1, 3)
+        a = [r.randint(1, 5) for _ in range(r.randint(k, 8))]
+        total = sum(a)
+        want = False
+        if total % k == 0:
+            side = total // k
+            want = any(all(sum(a[i] for i in range(len(a)) if g[i] == t) == side for t in range(k)) for g in itertools.product(range(k), repeat=len(a)))
+        assert f(a[:], k) is want, (a, k)
+    with _time_limit(3, "canPartitionKSubsets on a hard negative"):
+        assert f([2, 2, 2, 2, 3, 4, 5], 4) is False and f([4, 4, 6, 2, 3, 8, 10, 2, 10, 7], 4) is True
+
+
+def n_queens_ii(ns):
+    f = ns["Solution"]().totalNQueens
+    assert [f(n) for n in range(1, 10)] == [1, 0, 0, 2, 10, 4, 40, 92, 352]
+
+
+def guess_number(ns):
+    f = ns["Solution"]().guessNumber
+    r = rng()
+    for n, pick in ((10, 6), (1, 1), (2, 1), (2, 2), (2**31 - 1, 2**31 - 1), (2**31 - 1, 1), (2**31 - 1, 1234567890)):
+        calls = [0]
+
+        def guess(num, pick=pick, calls=calls):
+            calls[0] += 1
+            return 0 if num == pick else (-1 if num > pick else 1)
+
+        ns["guess"] = guess
+        assert f(n) == pick and calls[0] <= 32, (n, pick, calls[0])
+    for _ in range(100):
+        n = r.randint(1, 500)
+        pick = r.randint(1, n)
+        ns["guess"] = lambda num, pick=pick: 0 if num == pick else (-1 if num > pick else 1)
+        assert f(n) == pick
+
+
+def my_sqrt(ns):
+    import math
+
+    f = ns["Solution"]().mySqrt
+    assert f(4) == 2 and f(8) == 2 and f(0) == 0 and f(1) == 1 and f(2**31 - 1) == 46340
+    for x in list(range(0, 200)) + [r * r + d for r in (999, 46340, 46341) for d in (-1, 0, 1)]:
+        assert f(x) == math.isqrt(x), x
+
+
+def ship_within_days(ns):
+    f = ns["Solution"]().shipWithinDays
+    assert f([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5) == 15 and f([3, 2, 2, 4, 1, 4], 3) == 6 and f([1, 2, 3, 1, 1], 4) == 3
+    r = rng()
+
+    def days(w, cap):
+        d, cur = 1, 0
+        for x in w:
+            if cur + x > cap:
+                d, cur = d + 1, 0
+            cur += x
+        return d
+
+    for _ in range(200):
+        w = [r.randint(1, 10) for _ in range(r.randint(1, 8))]
+        d = r.randint(1, len(w))
+        want = next(c for c in range(max(w), sum(w) + 1) if days(w, c) <= d)
+        assert f(w[:], d) == want
+
+
+def search_rotated_ii(ns):
+    f = ns["Solution"]().search
+    assert f([2, 5, 6, 0, 0, 1, 2], 0) is True and f([2, 5, 6, 0, 0, 1, 2], 3) is False and f([1, 0, 1, 1, 1], 0) is True
+    r = rng()
+    for _ in range(400):
+        a = sorted(r.randint(0, 4) for _ in range(r.randint(1, 9)))
+        k = r.randrange(len(a))
+        rot = a[k:] + a[:k]
+        t = r.randint(-1, 5)
+        assert f(rot[:], t) is (t in rot), (rot, t)
+
+
+def split_array_largest_sum(ns):
+    f = ns["Solution"]().splitArray
+    assert f([7, 2, 5, 10, 8], 2) == 18 and f([1, 2, 3, 4, 5], 2) == 9 and f([1, 4, 4], 3) == 4
+    r = rng()
+    for _ in range(150):
+        a = [r.randint(0, 9) for _ in range(r.randint(1, 8))]
+        k = r.randint(1, len(a))
+        best = min(max(sum(a[i:j]) for i, j in zip((0,) + cuts, cuts + (len(a),))) for cuts in itertools.combinations(range(1, len(a)), k - 1))
+        assert f(a[:], k) == best, (a, k)
+
+
+def add_binary(ns):
+    f = ns["Solution"]().addBinary
+    assert f("11", "1") == "100" and f("1010", "1011") == "10101" and f("0", "0") == "0"
+    r = rng()
+    for _ in range(300):
+        a = "".join(r.choice("01") for _ in range(r.randint(1, 12)))
+        b = "".join(r.choice("01") for _ in range(r.randint(1, 12)))
+        a, b = (a.lstrip("0") or "0"), (b.lstrip("0") or "0")
+        assert f(a, b) == bin(int(a, 2) + int(b, 2))[2:]
+    assert f("1" * 200, "1") == "1" + "0" * 200
+
+
+def range_bitwise_and(ns):
+    f = ns["Solution"]().rangeBitwiseAnd
+    assert f(5, 7) == 4 and f(0, 0) == 0 and f(1, 2147483647) == 0
+    r = rng()
+    for _ in range(300):
+        left = r.randint(0, 300)
+        right = left + r.randint(0, 40)
+        want = left
+        for x in range(left, right + 1):
+            want &= x
+        assert f(left, right) == want
+    with _time_limit(3, "rangeBitwiseAnd must not loop over the range"):
+        assert f(2**30, 2**31 - 1) == 2**30
+
+
+def minimum_array_end(ns):
+    f = ns["Solution"]().minEnd
+    assert f(3, 4) == 6 and f(2, 7) == 15 and f(1, 5) == 5
+    for x in list(range(1, 40)) + [2**20 + 5]:
+        supers = [y for y in range(x, x + 400 * max(1, x)) if y & x == x][:60] if x < 40 else None
+        for n in range(1, 60):
+            if supers:
+                assert f(n, x) == supers[n - 1], (n, x)
+    assert f(10**8, 2**30 - 1) > 2**30
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -3634,6 +4261,42 @@ CHECKS = {
     "merge-strings-alternately": merge_alternately,
     "boats-to-save-people": boats,
     "stone-game-iii": stone_game_iii,
+    "n-th-tribonacci-number": tribonacci,
+    "combination-sum-iv": combination_sum_iv,
+    "perfect-squares": perfect_squares,
+    "integer-break": integer_break,
+    "unique-paths-ii": unique_paths_ii,
+    "minimum-path-sum": min_path_sum,
+    "last-stone-weight-ii": last_stone_weight_ii,
+    "stone-game": stone_game,
+    "stone-game-ii": stone_game_ii,
+    "path-with-minimum-effort": min_effort_path,
+    "find-critical-and-pseudo-critical-edges-in-minimum-spanning-tree": critical_edges,
+    "build-a-matrix-with-conditions": build_matrix,
+    "greatest-common-divisor-traversal": gcd_traversal,
+    "island-perimeter": island_perimeter,
+    "open-the-lock": open_the_lock,
+    "course-schedule-iv": course_prereq_queries,
+    "accounts-merge": accounts_merge,
+    "minimum-height-trees": min_height_trees,
+    "longest-common-prefix": longest_common_prefix,
+    "design-hashmap": design_hashmap,
+    "sort-colors": sort_colors,
+    "range-sum-query-2d-immutable": num_matrix,
+    "majority-element-ii": majority_element_ii,
+    "sum-of-all-subset-xor-totals": subset_xor_sum,
+    "combinations": combinations_check,
+    "permutations-ii": permutations_ii,
+    "partition-to-k-equal-sum-subsets": partition_k_subsets,
+    "n-queens-ii": n_queens_ii,
+    "guess-number-higher-or-lower": guess_number,
+    "sqrtx": my_sqrt,
+    "capacity-to-ship-packages-within-d-days": ship_within_days,
+    "search-in-rotated-sorted-array-ii": search_rotated_ii,
+    "split-array-largest-sum": split_array_largest_sum,
+    "add-binary": add_binary,
+    "bitwise-and-of-numbers-range": range_bitwise_and,
+    "minimum-array-end": minimum_array_end,
 }
 
 

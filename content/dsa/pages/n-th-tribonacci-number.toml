@@ -1,0 +1,25 @@
+intuition = """
+Climbing Stairs with one more term: each value is the sum of the **three** before it, starting `0, 1, 1`. Only the last three values are ever needed, so keep three variables and slide them along instead of storing a table.
+"""
+tips = [
+    "Handle `n < 2` first (the answer is `n` itself), since the loop starts from the third value.",
+    "Slide with a tuple assignment: `a, b, c = b, c, a + b + c` updates all three from the old values.",
+    "n goes up to 37, so the answer fits in 32 bits, but nothing overflows in Python anyway.",
+]
+
+[[approaches]]
+name = "Three rolling values"
+label = "dp"
+idea = "Keep the last three terms and replace them by their next values n - 2 times."
+time = "O(n)"
+space = "O(1)"
+note = "The same loop as Fibonacci with a third variable."
+code = '''class Solution:
+    def tribonacci(self, n: int) -> int:
+        if n < 2:
+            return n
+        a, b, c = 0, 1, 1
+        for _ in range(n - 2):
+            a, b, c = b, c, a + b + c
+        return c
+'''

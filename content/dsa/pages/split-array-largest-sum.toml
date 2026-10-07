@@ -1,0 +1,38 @@
+intuition = """
+Split the array into `k` consecutive parts so that the **largest part sum is as small as possible**. Ask the reverse question: given a limit `L`, what is the fewest parts needed so that no part sums above `L`? Greedy answers it in one pass (start a new part when the next number would go over). A bigger limit never needs more parts, so binary search on `L`.
+
+The limit is at least the largest single number, and at most the total.
+"""
+tips = [
+    "This is Capacity to Ship Packages again: parts are days, the limit is the capacity.",
+    "The check is monotone: if a limit works for at most `k` parts, any larger limit does too.",
+    "A DP over (items, parts) also works but is O(n squared times k), far slower for n up to 1000.",
+]
+
+[[approaches]]
+name = "Binary search on the largest sum"
+label = "binary search on answer"
+idea = "Find the smallest limit for which a greedy pass needs at most k parts."
+time = "O(n log(sum))"
+space = "O(1)"
+note = "The same template as Capacity to Ship Packages."
+code = '''class Solution:
+    def splitArray(self, nums: list[int], k: int) -> int:
+        def parts_needed(limit: int) -> int:
+            parts, current = 1, 0
+            for x in nums:
+                if current + x > limit:
+                    parts += 1
+                    current = 0
+                current += x
+            return parts
+
+        lo, hi = max(nums), sum(nums)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if parts_needed(mid) <= k:
+                hi = mid
+            else:
+                lo = mid + 1
+        return lo
+'''

@@ -1,0 +1,38 @@
+intuition = """
+Koko Eating Bananas with a different check. Pick a ship capacity and ask: **how many days does it take?** Load packages in order, and start a new day when the next package would overflow. A bigger capacity never takes more days, so the answer is the smallest capacity whose day count is at most `days`: a binary search on the answer.
+
+The capacity can't be below the heaviest package (it must fit on some day) and never needs to exceed the total weight.
+"""
+tips = [
+    "The search range is `[max(weights), sum(weights)]`.",
+    "Packages must be shipped in the given order, so the day count is a simple left-to-right greedy.",
+    "`days_needed(capacity) <= days` flips from false to true as the capacity grows, which is why binary search applies.",
+]
+
+[[approaches]]
+name = "Binary search on the capacity"
+label = "binary search on answer"
+idea = "For a candidate capacity count the days with a greedy pass; find the smallest capacity that is fast enough."
+time = "O(n log(sum))"
+space = "O(1)"
+note = "Each check is one pass."
+code = '''class Solution:
+    def shipWithinDays(self, weights: list[int], days: int) -> int:
+        def days_needed(capacity: int) -> int:
+            used, load = 1, 0
+            for w in weights:
+                if load + w > capacity:
+                    used += 1
+                    load = 0
+                load += w
+            return used
+
+        lo, hi = max(weights), sum(weights)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if days_needed(mid) <= days:
+                hi = mid
+            else:
+                lo = mid + 1
+        return lo
+'''

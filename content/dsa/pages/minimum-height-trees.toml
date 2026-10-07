@@ -1,0 +1,39 @@
+intuition = """
+Picking each node as a root and measuring the height would work but takes O(n squared). Think of the tree as an onion instead: the best roots sit in the **middle**. Repeatedly peel off all the leaves (nodes with one neighbour) at once, which removes one layer from every direction. When two or fewer nodes remain, they are the centre, and that is the answer (a tree has one or two centres).
+
+This is the same idea as Kahn's algorithm, with degree 1 playing the role of in-degree 0.
+"""
+tips = [
+    "Handle `n <= 2` first: every node is a centre.",
+    "Remove leaves in rounds, not one by one, so both ends of a long path shrink together.",
+    "Stop when at most 2 nodes remain, not when the queue is empty, or you peel the centre away too.",
+]
+
+[[approaches]]
+name = "Peel the leaves layer by layer"
+label = "topological trim"
+idea = "Remove every current leaf, which may turn its neighbour into a new leaf, until two or fewer nodes are left."
+time = "O(n)"
+space = "O(n)"
+note = "Each node is removed at most once."
+code = '''class Solution:
+    def findMinHeightTrees(self, n: int, edges: list[list[int]]) -> list[int]:
+        if n <= 2:
+            return list(range(n))
+        graph = [set() for _ in range(n)]
+        for a, b in edges:
+            graph[a].add(b)
+            graph[b].add(a)
+        leaves = [v for v in range(n) if len(graph[v]) == 1]
+        remaining = n
+        while remaining > 2:
+            remaining -= len(leaves)
+            next_leaves = []
+            for leaf in leaves:
+                neighbour = graph[leaf].pop()
+                graph[neighbour].remove(leaf)
+                if len(graph[neighbour]) == 1:
+                    next_leaves.append(neighbour)
+            leaves = next_leaves
+        return leaves
+'''

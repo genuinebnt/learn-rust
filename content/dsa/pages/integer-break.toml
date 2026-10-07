@@ -1,0 +1,45 @@
+intuition = """
+Split `n` into at least two positive integers to maximise their product. For each first piece `j`, the rest `n - j` is either kept whole or split further, so `dp[i] = max(j * (i - j), j * dp[i - j])` over `j`.
+
+The pattern behind it: use as many **3s** as possible (a 2 and a 1 are worse than a 3 on its own, and 4 splits no better than 2 + 2). The DP discovers that; the formula is a shortcut.
+"""
+tips = [
+    "You must split at least once, so for `i` the unsplit value `i` itself is not an option when picking the answer for `n`. That is why `j * (i - j)` appears next to `j * dp[i - j]`.",
+    "`dp[1] = 1` as a base: a 1 contributes a factor of 1.",
+    "Look at the table for small `n` and the 3s pattern shows up.",
+]
+
+[[approaches]]
+name = "DP over the first piece"
+label = "dp"
+idea = "dp[i] is the best product from i, trying each first piece j and either stopping or splitting the rest."
+time = "O(n^2)"
+space = "O(n)"
+note = "n is at most 58."
+code = '''class Solution:
+    def integerBreak(self, n: int) -> int:
+        dp = [0] * (n + 1)
+        dp[1] = 1
+        for i in range(2, n + 1):
+            for j in range(1, i):
+                dp[i] = max(dp[i], j * (i - j), j * dp[i - j])
+        return dp[n]
+'''
+
+[[approaches]]
+name = "Use as many 3s as possible"
+label = "math"
+idea = "Peel off 3s while more than 4 remains, then multiply by what is left."
+time = "O(n)"
+space = "O(1)"
+note = "Handle 2 and 3 first, since they must be split."
+code = '''class Solution:
+    def integerBreak(self, n: int) -> int:
+        if n <= 3:
+            return n - 1
+        product = 1
+        while n > 4:
+            product *= 3
+            n -= 3
+        return product * n
+'''

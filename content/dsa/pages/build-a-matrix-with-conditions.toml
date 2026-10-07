@@ -1,0 +1,49 @@
+intuition = """
+The two sets of conditions are independent. "`a` above `b`" only constrains the **rows**, and "`a` left of `b`" only constrains the **columns**. So run Course Schedule II twice: one topological order for the rows and one for the columns. If either has a cycle, return `[]`.
+
+Then every number `v` goes at (its position in the row order, its position in the column order). Every row and every column holds exactly one number, since both orders are permutations of `1..k`.
+"""
+tips = [
+    "Two topological sorts, no search over placements.",
+    "A topological order that returns fewer than `k` numbers means a cycle: the answer is the empty list.",
+    "Numbers not mentioned in any condition still belong in the order. Start the queue with every number of in-degree 0.",
+]
+
+[[approaches]]
+name = "Topological order for rows and for columns"
+label = "topological sort"
+idea = "Order the numbers by the row conditions and again by the column conditions, then place each at its two positions."
+time = "O(k^2 + conditions)"
+space = "O(k^2)"
+note = "The matrix itself is k by k."
+code = '''from collections import deque
+
+
+class Solution:
+    def buildMatrix(self, k: int, rowConditions: list[list[int]], colConditions: list[list[int]]) -> list[list[int]]:
+        def order(conditions: list[list[int]]) -> list[int]:
+            graph = [[] for _ in range(k + 1)]
+            indegree = [0] * (k + 1)
+            for a, b in conditions:
+                graph[a].append(b)
+                indegree[b] += 1
+            queue = deque(v for v in range(1, k + 1) if indegree[v] == 0)
+            out = []
+            while queue:
+                v = queue.popleft()
+                out.append(v)
+                for w in graph[v]:
+                    indegree[w] -= 1
+                    if indegree[w] == 0:
+                        queue.append(w)
+            return out if len(out) == k else []
+
+        rows, cols = order(rowConditions), order(colConditions)
+        if not rows or not cols:
+            return []
+        column_of = {v: i for i, v in enumerate(cols)}
+        matrix = [[0] * k for _ in range(k)]
+        for r, v in enumerate(rows):
+            matrix[r][column_of[v]] = v
+        return matrix
+'''

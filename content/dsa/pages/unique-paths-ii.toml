@@ -1,0 +1,31 @@
+intuition = """
+Unique Paths with obstacles. The number of ways to reach a cell is the ways to reach the one above plus the one to the left, **except** that an obstacle cell has zero ways, which also blocks everything that would have come through it.
+
+Keep a single row: `dp[c]` is the number of ways to reach column `c` in the current row, and `dp[c]` before the update is the cell above.
+"""
+tips = [
+    "If the start or the finish is an obstacle, the answer is 0.",
+    "Set `dp[c] = 0` when the cell is an obstacle. Otherwise add the left neighbour to it.",
+    "The first column has no left neighbour, so it only carries down from above.",
+]
+
+[[approaches]]
+name = "One row of path counts"
+label = "dp"
+idea = "Reuse a single row: an obstacle zeroes its cell, a free cell adds the count from its left."
+time = "O(m · n)"
+space = "O(n)"
+note = "The row holds the previous row's values until updated."
+code = '''class Solution:
+    def uniquePathsWithObstacles(self, obstacleGrid: list[list[int]]) -> int:
+        cols = len(obstacleGrid[0])
+        dp = [0] * cols
+        dp[0] = 1 if obstacleGrid[0][0] == 0 else 0
+        for row in obstacleGrid:
+            for c in range(cols):
+                if row[c] == 1:
+                    dp[c] = 0
+                elif c:
+                    dp[c] += dp[c - 1]
+        return dp[-1]
+'''

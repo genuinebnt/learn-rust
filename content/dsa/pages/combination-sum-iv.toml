@@ -1,0 +1,27 @@
+intuition = """
+Despite the name, this counts **ordered** sequences: `[1, 2]` and `[2, 1]` are different answers. Let `dp[t]` be the number of sequences that add up to `t`. The last number in a sequence can be any `x` in `nums`, and what is before it is a sequence adding up to `t - x`, so `dp[t] = sum(dp[t - x])`.
+
+The twist against Coin Change II (combinations): the loop over the **targets** is on the outside and the loop over the numbers is on the inside. Swapping them would count each set once.
+"""
+tips = [
+    "`dp[0] = 1`: there is exactly one way to make 0, the empty sequence.",
+    "Outer loop on the target, inner on the numbers, to count orderings. The other way round counts combinations.",
+    "Skip numbers larger than the current target.",
+]
+
+[[approaches]]
+name = "Count sequences by their last number"
+label = "dp"
+idea = "dp[t] adds dp[t - x] for each number x that fits, with dp[0] = 1."
+time = "O(target · n)"
+space = "O(target)"
+note = "The answer can be huge, but Python integers are unbounded."
+code = '''class Solution:
+    def combinationSum4(self, nums: list[int], target: int) -> int:
+        dp = [1] + [0] * target
+        for t in range(1, target + 1):
+            for x in nums:
+                if x <= t:
+                    dp[t] += dp[t - x]
+        return dp[target]
+'''

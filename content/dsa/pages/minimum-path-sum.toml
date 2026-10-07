@@ -1,0 +1,27 @@
+intuition = """
+Unique Paths with costs: instead of counting paths, take the **cheapest** one. The cheapest way to reach a cell is its own cost plus the smaller of the cheapest ways to reach the cell above and the cell to its left. Fill row by row and keep only one row.
+"""
+tips = [
+    "The first row and first column have only one neighbour to come from.",
+    "A single row suffices: the value in the array is the cell above until you overwrite it.",
+    "You can overwrite the grid itself if changing the input is allowed.",
+]
+
+[[approaches]]
+name = "One row of cheapest costs"
+label = "dp"
+idea = "dp[c] = cost + min(above, left), updated in place along each row."
+time = "O(m · n)"
+space = "O(n)"
+note = "Moves are only right and down, so no cell depends on a later one."
+code = '''class Solution:
+    def minPathSum(self, grid: list[list[int]]) -> int:
+        cols = len(grid[0])
+        dp = [float("inf")] * cols
+        dp[0] = 0
+        for row in grid:
+            for c in range(cols):
+                left = dp[c - 1] if c else float("inf")
+                dp[c] = min(dp[c], left) + row[c]
+        return dp[-1]
+'''

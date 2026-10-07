@@ -1,0 +1,29 @@
+intuition = """
+Unlike Last Stone Weight, you may smash the stones in any order, and the heaviest-first greedy no longer works. The key view: whatever the order, each stone ends up with a plus or a minus sign, and the final weight is `|sum of the plus group - sum of the minus group|`. So the task is to split the stones into two groups whose sums are as **close** as possible.
+
+That is the 0/1 subset-sum problem from Partition Equal Subset Sum: find the achievable subset sum closest to `total / 2` from below, and the answer is `total - 2 * that sum`.
+"""
+tips = [
+    "Think in terms of signs, not smashes. Every arrangement of smashes is one assignment of + and - to the stones.",
+    "Only sums up to `total // 2` matter, since the smaller group is at most half.",
+    "A Python integer used as a bitset (`bits |= bits << x`) does the whole subset-sum in a few lines.",
+]
+
+[[approaches]]
+name = "Subset sum closest to half"
+label = "bitset dp"
+idea = "Track every reachable subset sum in the bits of an integer, then take the largest one not above half the total."
+time = "O(n · total / 64)"
+space = "O(total)"
+note = "The bit i of `bits` says whether some subset adds up to i."
+code = '''class Solution:
+    def lastStoneWeightII(self, stones: list[int]) -> int:
+        total = sum(stones)
+        bits = 1  # only the empty subset: sum 0
+        for x in stones:
+            bits |= bits << x
+        half = total // 2
+        while not (bits >> half) & 1:
+            half -= 1
+        return total - 2 * half
+'''

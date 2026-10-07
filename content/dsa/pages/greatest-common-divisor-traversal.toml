@@ -1,0 +1,56 @@
+intuition = """
+Two indexes are connected when their numbers share a prime factor, and the question is whether everything ends up in one group. Comparing every pair is far too slow for 10^5 numbers. Instead, connect through the **primes**: factorise each number, and join the index to the first index that had each of its primes (Union-Find). Two numbers that share a prime are then in one group, directly or through a chain.
+
+The special cases: a single number is trivially connected, and any `1` can't connect to anything (its gcd with everything is 1).
+"""
+tips = [
+    "Build a smallest-prime-factor table once with a sieve up to the maximum value. Factorising each number is then a few divisions.",
+    "Keep a map prime -> the first index seen with that prime, and union later indexes with it.",
+    "Check for a `1` (when there is more than one number) before anything else.",
+]
+
+[[approaches]]
+name = "Union-Find through shared primes"
+label = "union find"
+idea = "Join each index to the first index holding each of its prime factors; connected means one group."
+time = "O(max · log log max + n log max)"
+space = "O(max)"
+note = "The sieve dominates for large values."
+code = '''class Solution:
+    def canTraverseAllPairs(self, nums: List[int]) -> bool:
+        n = len(nums)
+        if n == 1:
+            return True
+        if 1 in nums:
+            return False
+        top = max(nums)
+        spf = list(range(top + 1))  # smallest prime factor of each value
+        for i in range(2, int(top ** 0.5) + 1):
+            if spf[i] == i:
+                for j in range(i * i, top + 1, i):
+                    if spf[j] == j:
+                        spf[j] = i
+        parent = list(range(n))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        groups = n
+        owner = {}  # prime -> the first index that has it
+        for i, x in enumerate(nums):
+            while x > 1:
+                p = spf[x]
+                while x % p == 0:
+                    x //= p
+                if p in owner:
+                    a, b = find(i), find(owner[p])
+                    if a != b:
+                        parent[a] = b
+                        groups -= 1
+                else:
+                    owner[p] = i
+        return groups == 1
+'''

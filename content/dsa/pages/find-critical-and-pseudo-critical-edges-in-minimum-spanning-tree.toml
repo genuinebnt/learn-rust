@@ -1,0 +1,59 @@
+intuition = """
+First find the weight of a minimum spanning tree (Kruskal). Then test each edge on its own:
+
+- **Critical:** the graph without this edge has a heavier minimum spanning tree (or isn't connected). Every cheapest tree needs the edge.
+- **Pseudo-critical:** not critical, but some cheapest tree **contains** it. Force the edge in first, then finish with Kruskal: if the total still equals the minimum, it qualifies.
+
+Everything else is in no cheapest tree. With at most 100 edges, running Kruskal twice per edge is fast enough.
+"""
+tips = [
+    "Keep the original index of each edge: the answer is a list of indexes, but Kruskal needs them sorted by weight.",
+    "Check critical first. A critical edge is in every cheapest tree, so it must not also be reported as pseudo-critical.",
+    "To force an edge, union its endpoints and count its weight before processing the sorted list.",
+]
+
+[[approaches]]
+name = "Kruskal without and with each edge"
+label = "kruskal"
+idea = "Compare the cheapest tree without an edge, and with that edge forced in, against the plain cheapest tree."
+time = "O(E^2 · α(V))"
+space = "O(V + E)"
+note = "E is at most 200 here."
+code = '''class Solution:
+    def findCriticalAndPseudoCriticalEdges(self, n: int, edges: list[list[int]]) -> list[list[int]]:
+        order = sorted(range(len(edges)), key=lambda i: edges[i][2])
+
+        def build(skip: int, force: int) -> float:
+            parent = list(range(n))
+
+            def find(x: int) -> int:
+                while parent[x] != x:
+                    parent[x] = parent[parent[x]]
+                    x = parent[x]
+                return x
+
+            total = used = 0
+            if force != -1:
+                a, b, w = edges[force]
+                parent[find(a)] = find(b)
+                total, used = w, 1
+            for i in order:
+                if i == skip:
+                    continue
+                a, b, w = edges[i]
+                ra, rb = find(a), find(b)
+                if ra != rb:
+                    parent[ra] = rb
+                    total += w
+                    used += 1
+            return total if used == n - 1 else float("inf")
+
+        base = build(-1, -1)
+        critical, pseudo = [], []
+        for i in range(len(edges)):
+            if build(i, -1) > base:
+                critical.append(i)
+            elif build(-1, i) == base:
+                pseudo.append(i)
+        return [critical, pseudo]
+'''

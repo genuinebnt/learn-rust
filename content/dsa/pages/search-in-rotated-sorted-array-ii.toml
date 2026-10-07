@@ -1,0 +1,40 @@
+intuition = """
+Search in Rotated Sorted Array, but the array may contain **duplicates**. That breaks the key step: to know which half is sorted you compare `nums[lo]` with `nums[mid]`, and with duplicates they can be equal, which says nothing (for `[1, 0, 1, 1, 1]` the pivot could be on either side).
+
+When `nums[lo] == nums[mid] == nums[hi]` you can't decide, so just discard one end (`lo += 1`, `hi -= 1`) and continue. Otherwise it is the same logic as before. The worst case, an array of mostly equal values, degrades to O(n).
+"""
+tips = [
+    "Only when all three of `nums[lo]`, `nums[mid]`, `nums[hi]` are equal do you need the shrink step.",
+    "The answer is a boolean: does the target exist?",
+    "Mention that the duplicates make O(n) the worst case, and why no algorithm can do better than that in general.",
+]
+
+[[approaches]]
+name = "Binary search, shrinking when it is ambiguous"
+label = "binary search"
+idea = "Find the sorted half as usual; when the ends and the middle are equal, drop both ends."
+time = "O(log n) typical, O(n) worst case"
+space = "O(1)"
+note = "Many equal values force the slow case."
+code = '''class Solution:
+    def search(self, nums: list[int], target: int) -> bool:
+        lo, hi = 0, len(nums) - 1
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            if nums[mid] == target:
+                return True
+            if nums[lo] == nums[mid] == nums[hi]:
+                lo += 1
+                hi -= 1  # can't tell which half is sorted
+            elif nums[lo] <= nums[mid]:  # the left half is sorted
+                if nums[lo] <= target < nums[mid]:
+                    hi = mid - 1
+                else:
+                    lo = mid + 1
+            else:  # the right half is sorted
+                if nums[mid] < target <= nums[hi]:
+                    lo = mid + 1
+                else:
+                    hi = mid - 1
+        return False
+'''

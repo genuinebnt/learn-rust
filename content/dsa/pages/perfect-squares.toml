@@ -1,0 +1,28 @@
+intuition = """
+Coin Change where the coins are the perfect squares `1, 4, 9, 16, ...` and you want the **fewest** that add up to `n`. Let `dp[i]` be the fewest squares for `i`: try every square `k * k <= i` as the last one, `dp[i] = 1 + min(dp[i - k * k])`.
+
+Every `n` is the sum of at most four squares (Lagrange's theorem), so the answer is always between 1 and 4.
+"""
+tips = [
+    "Same shape as unbounded Coin Change. The 'coins' are just generated on the fly.",
+    "`dp[0] = 0`. Every other cell starts at infinity, or at `i` (using only 1s), which is a valid upper bound.",
+    "A BFS over remainders gives the same answer, with each level being one more square.",
+]
+
+[[approaches]]
+name = "DP over the total"
+label = "dp"
+idea = "dp[i] is one more than the best dp[i - k * k] over all squares that fit."
+time = "O(n √n)"
+space = "O(n)"
+note = "About a million steps for n = 10,000."
+code = '''class Solution:
+    def numSquares(self, n: int) -> int:
+        dp = list(range(n + 1))  # worst case: i ones
+        for i in range(1, n + 1):
+            k = 1
+            while k * k <= i:
+                dp[i] = min(dp[i], dp[i - k * k] + 1)
+                k += 1
+        return dp[n]
+'''

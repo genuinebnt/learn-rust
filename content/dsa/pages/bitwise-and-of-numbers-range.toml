@@ -1,0 +1,27 @@
+intuition = """
+ANDing every number from `left` to `right` would be far too slow for a range near 2^31. Think about the bits instead. As the numbers count up from `left` to `right`, any bit position where they differ flips from 0 to 1 somewhere in the range, so the AND clears it, and so does every bit below it. What survives is the **common prefix** of the binary forms of `left` and `right`.
+
+Shift both numbers right until they are equal (that drops the differing low bits and counts the shifts), then shift the common prefix back left.
+"""
+tips = [
+    "The answer is the longest shared leading bits of `left` and `right`, followed by zeros.",
+    "Another way: `right &= right - 1` clears the lowest set bit; repeat while `right > left`.",
+    "If `left == right` the answer is just that number.",
+]
+
+[[approaches]]
+name = "Shift out the differing low bits"
+label = "bit trick"
+idea = "Shift both numbers right until they agree, then shift back by the same amount."
+time = "O(log right)"
+space = "O(1)"
+note = "At most 31 shifts."
+code = '''class Solution:
+    def rangeBitwiseAnd(self, left: int, right: int) -> int:
+        shift = 0
+        while left != right:
+            left >>= 1
+            right >>= 1
+            shift += 1
+        return left << shift
+'''

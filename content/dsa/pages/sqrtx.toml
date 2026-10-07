@@ -1,0 +1,28 @@
+intuition = """
+The integer square root is the **largest** `r` with `r * r <= x`. The squares grow with `r`, so "does `r * r <= x`?" is true for small `r` and false for large `r`: binary search for the last true. Search `[0, x]` (or `[0, x // 2 + 1]` for `x >= 2`), and keep the best `r` that passes.
+"""
+tips = [
+    "Compare `mid * mid <= x`, not `mid <= x / mid` with floats.",
+    "When the test passes, remember `mid` as the answer so far and look right for a larger one.",
+    "`math.isqrt` exists, but this problem is asking for the search.",
+]
+
+[[approaches]]
+name = "Binary search on the root"
+label = "binary search on answer"
+idea = "Find the largest r whose square does not exceed x."
+time = "O(log x)"
+space = "O(1)"
+note = "About 16 steps for the largest input."
+code = '''class Solution:
+    def mySqrt(self, x: int) -> int:
+        lo, hi, best = 0, x, 0
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            if mid * mid <= x:
+                best = mid
+                lo = mid + 1
+            else:
+                hi = mid - 1
+        return best
+'''

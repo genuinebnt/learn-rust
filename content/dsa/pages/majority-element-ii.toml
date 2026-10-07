@@ -1,0 +1,51 @@
+intuition = """
+Majority Element asks for the value above `n / 2`, and at most one value can qualify. Here the bar is `n / 3`, so **at most two** values can qualify. Boyer–Moore extends directly: keep **two** candidates with two counts. A number that matches a candidate adds to its count. Otherwise, if a count is zero it takes that slot, and if both are in use the number cancels one from each (decrement both).
+
+The survivors are only candidates. Unlike the n / 2 version, nothing guarantees they truly appear more than `n / 3` times, so a second pass counts them.
+"""
+tips = [
+    "Test the matches before the empty slots, or a number can occupy both candidate slots.",
+    "Always run the verification pass. The candidates after the first pass can be wrong.",
+    "A Counter with a filter for counts above `len(nums) // 3` is the O(n)-memory version, and a fine first answer.",
+]
+
+[[approaches]]
+name = "Boyer–Moore with two candidates"
+label = "voting"
+idea = "Cancel groups of three different numbers; whatever more than a third of the numbers survives as a candidate, then verify by counting."
+time = "O(n)"
+space = "O(1)"
+note = "Two passes."
+code = '''class Solution:
+    def majorityElement(self, nums: list[int]) -> list[int]:
+        a = b = None
+        count_a = count_b = 0
+        for x in nums:
+            if x == a:
+                count_a += 1
+            elif x == b:
+                count_b += 1
+            elif count_a == 0:
+                a, count_a = x, 1
+            elif count_b == 0:
+                b, count_b = x, 1
+            else:
+                count_a -= 1
+                count_b -= 1
+        return [c for c in (a, b) if c is not None and nums.count(c) > len(nums) // 3]
+'''
+
+[[approaches]]
+name = "Count with a dictionary"
+label = "hash map"
+idea = "Count every value and keep those that appear more than n / 3 times."
+time = "O(n)"
+space = "O(n)"
+note = "The easy answer."
+code = '''from collections import Counter
+
+
+class Solution:
+    def majorityElement(self, nums: list[int]) -> list[int]:
+        return [x for x, c in Counter(nums).items() if c > len(nums) // 3]
+'''

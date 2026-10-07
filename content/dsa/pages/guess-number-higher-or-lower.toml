@@ -1,0 +1,38 @@
+intuition = """
+Binary search where the **comparison** comes from an API: `guess(num)` returns `-1` if your guess is too high, `1` if too low and `0` if correct. Search the range `1..n`: guess the middle, and move to the half the answer must be in.
+
+Note the direction of the API: `-1` means the picked number is **lower** than your guess.
+"""
+tips = [
+    "`guess(mid) == -1` means the answer is smaller, so move `hi` down. `1` means move `lo` up.",
+    "Use `lo <= hi` with `mid + 1` and `mid - 1`, since the answer is guaranteed to be in range.",
+    "n can be 2^31 - 1. In Python there is no overflow, but in other languages compute the middle as `lo + (hi - lo) / 2`.",
+]
+
+[[approaches]]
+name = "Binary search using guess"
+label = "binary search"
+idea = "Ask guess about the middle and discard the half it rules out."
+time = "O(log n)"
+space = "O(1)"
+note = "At most 31 calls."
+code = '''# The guess API is already defined for you.
+# @param num, your guess
+# @return -1 if num is higher than the picked number
+#          1 if num is lower than the picked number
+#          otherwise return 0
+# def guess(num: int) -> int:
+
+class Solution:
+    def guessNumber(self, n: int) -> int:
+        lo, hi = 1, n
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            result = guess(mid)
+            if result == 0:
+                return mid
+            if result < 0:
+                hi = mid - 1
+            else:
+                lo = mid + 1
+'''

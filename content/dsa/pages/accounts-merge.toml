@@ -1,0 +1,43 @@
+intuition = """
+Two accounts belong to the same person when they share **any** email, and sharing is transitive (A shares with B, B shares with C, so all three are one person). That is Union-Find over the accounts: for each email, remember the first account that owned it and union every later account that lists it.
+
+After that, collect every email under its group's root, sort each group's emails, and put the name in front.
+"""
+tips = [
+    "Union the **accounts**, not the emails: a map `email -> first account index` tells you what to union with.",
+    "Names alone aren't identities: two different people can share a name, so never merge by name.",
+    "Sort the emails inside each result and keep one name per group (all accounts in a group share the name).",
+]
+
+[[approaches]]
+name = "Union-Find on the accounts"
+label = "union find"
+idea = "Union each account with the first account that listed each of its emails, then group the emails by root."
+time = "O(n · k · α(n) + e log e)"
+space = "O(n · k)"
+note = "k is the number of emails per account, e the total number of emails."
+code = '''from collections import defaultdict
+
+
+class Solution:
+    def accountsMerge(self, accounts: list[list[str]]) -> list[list[str]]:
+        parent = list(range(len(accounts)))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        owner = {}  # email -> the first account that has it
+        for i, (_, *emails) in enumerate(accounts):
+            for e in emails:
+                if e in owner:
+                    parent[find(i)] = find(owner[e])
+                else:
+                    owner[e] = i
+        groups = defaultdict(set)
+        for e, i in owner.items():
+            groups[find(i)].add(e)
+        return [[accounts[root][0]] + sorted(emails) for root, emails in groups.items()]
+'''

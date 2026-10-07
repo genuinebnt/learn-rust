@@ -1,0 +1,65 @@
+intuition = """
+N-Queens, but only the **number** of solutions is needed, so there is no board to build. Place one queen per row, tracking which columns and diagonals are taken. Squares on one diagonal share `row - col`, and squares on one anti-diagonal share `row + col`. Count a solution each time the last row is filled.
+
+Bitmasks make the three sets very fast: one integer each for columns, diagonals and anti-diagonals, shifting the diagonal masks by one at each row.
+"""
+tips = [
+    "No need to store the boards. A counter replaces the result list.",
+    "Add to all three sets before recursing and remove after, or the sets go stale.",
+    "The bitmask version is the same search with the sets packed into integers.",
+]
+
+[[approaches]]
+name = "Sets of columns and diagonals"
+label = "backtracking"
+idea = "Place a queen per row in a column no earlier queen attacks, counting each full placement."
+time = "O(n!)"
+space = "O(n)"
+note = "Heavily pruned in practice."
+code = '''class Solution:
+    def totalNQueens(self, n: int) -> int:
+        cols, diagonals, anti = set(), set(), set()
+
+        def place(r: int) -> int:
+            if r == n:
+                return 1
+            count = 0
+            for c in range(n):
+                if c in cols or r - c in diagonals or r + c in anti:
+                    continue
+                cols.add(c)
+                diagonals.add(r - c)
+                anti.add(r + c)
+                count += place(r + 1)
+                cols.remove(c)
+                diagonals.remove(r - c)
+                anti.remove(r + c)
+            return count
+
+        return place(0)
+'''
+
+[[approaches]]
+name = "Bitmasks"
+label = "bit trick"
+idea = "Keep the attacked columns and diagonals as bits; the free squares of a row are the bits not attacked."
+time = "O(n!)"
+space = "O(n)"
+note = "Faster by a constant factor."
+code = '''class Solution:
+    def totalNQueens(self, n: int) -> int:
+        full = (1 << n) - 1
+
+        def place(cols: int, diagonals: int, anti: int) -> int:
+            if cols == full:
+                return 1
+            count = 0
+            free = full & ~(cols | diagonals | anti)
+            while free:
+                bit = free & -free  # the lowest free square
+                free ^= bit
+                count += place(cols | bit, ((diagonals | bit) << 1) & full, (anti | bit) >> 1)
+            return count
+
+        return place(0, 0, 0)
+'''

@@ -1,0 +1,40 @@
+intuition = """
+Design HashSet, now with a **value** per key. The same hash table with chaining: an array of buckets, a key goes into bucket `key % size`, and each bucket is a short list of `[key, value]` pairs. `put` updates the pair if the key is there and appends otherwise, `get` scans one bucket, and `remove` deletes the pair from its bucket.
+"""
+tips = [
+    "`put` on an existing key must replace the value, not add a second pair.",
+    "`get` returns `-1` for a missing key.",
+    "A prime bucket count (like 1009) spreads out patterned keys better than a power of two.",
+]
+
+[[approaches]]
+name = "Buckets of key-value pairs"
+label = "hash table"
+idea = "Hash the key to a bucket; scan that small list to read, update or delete the pair."
+time = "O(1) average per call"
+space = "O(buckets + keys)"
+note = "Collisions share a bucket (separate chaining)."
+code = '''class MyHashMap:
+
+    def __init__(self):
+        self.size = 1009
+        self.buckets = [[] for _ in range(self.size)]
+
+    def put(self, key: int, value: int) -> None:
+        bucket = self.buckets[key % self.size]
+        for pair in bucket:
+            if pair[0] == key:
+                pair[1] = value
+                return
+        bucket.append([key, value])
+
+    def get(self, key: int) -> int:
+        for k, v in self.buckets[key % self.size]:
+            if k == key:
+                return v
+        return -1
+
+    def remove(self, key: int) -> None:
+        bucket = self.buckets[key % self.size]
+        bucket[:] = [pair for pair in bucket if pair[0] != key]
+'''

@@ -1,0 +1,42 @@
+intuition = """
+The direct way is Subsets with a running XOR: for each of the `2^n` subsets compute the XOR of its elements and add them up. With `n <= 12` that is at most 4,096 subsets, so backtracking is fine.
+
+A shortcut exists: look at one **bit position**. If any number has that bit set, then exactly half of all the subsets have an odd count of numbers with that bit, so the bit contributes in `2^(n-1)` subsets. So the answer is `(OR of all the numbers) * 2^(n-1)`.
+"""
+tips = [
+    "Include-or-skip each number, carrying the XOR down instead of storing the subset.",
+    "For the shortcut, think per bit: each bit that appears anywhere is set in the XOR of exactly half the subsets.",
+    "Start from `total = 0` with the empty subset: its XOR is 0 and adds nothing.",
+]
+
+[[approaches]]
+name = "Include or skip, carrying the XOR"
+label = "backtracking"
+idea = "At each number, branch on taking it (XOR it in) or skipping it; every leaf is one subset's XOR."
+time = "O(2^n)"
+space = "O(n)"
+note = "n is at most 12."
+code = '''class Solution:
+    def subsetXORSum(self, nums: list[int]) -> int:
+        def total(i: int, xor: int) -> int:
+            if i == len(nums):
+                return xor
+            return total(i + 1, xor ^ nums[i]) + total(i + 1, xor)
+
+        return total(0, 0)
+'''
+
+[[approaches]]
+name = "OR of everything, times 2^(n - 1)"
+label = "bit trick"
+idea = "Each bit set in any number is set in the XOR of exactly half of the subsets."
+time = "O(n)"
+space = "O(1)"
+note = "Needs the per-bit argument to explain."
+code = '''class Solution:
+    def subsetXORSum(self, nums: list[int]) -> int:
+        combined = 0
+        for x in nums:
+            combined |= x
+        return combined << (len(nums) - 1)
+'''

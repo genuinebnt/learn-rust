@@ -1,0 +1,36 @@
+intuition = """
+Stone Game with a moving limit: on your turn you may take the first `x` piles with `1 <= x <= 2M`, then `M` becomes `max(M, x)`. The state is `(i, M)`: the index of the first remaining pile and the current `M`.
+
+Let `best(i, M)` be the most stones the player to move can still get from `piles[i:]`. Whatever they take, the opponent then plays the same game on what is left, so: `best(i, M) = suffix[i] - min over x of best(i + x, max(M, x))`, because the mover gets everything in the suffix **except** what the opponent collects. Memoise on `(i, M)`.
+"""
+tips = [
+    "A suffix-sum array gives the total remaining in O(1).",
+    "If `i + 2M >= n`, the mover can take everything left, so `best = suffix[i]`.",
+    "`M` never needs to exceed `n`, which bounds the number of states.",
+]
+
+[[approaches]]
+name = "Memoised game on (start, M)"
+label = "memoization"
+idea = "The mover takes the whole suffix minus the opponent's best result from the position each choice leaves."
+time = "O(n^3)"
+space = "O(n^2)"
+note = "n is at most 100, so about a million states."
+code = '''from functools import lru_cache
+
+
+class Solution:
+    def stoneGameII(self, piles: list[int]) -> int:
+        n = len(piles)
+        suffix = [0] * (n + 1)
+        for i in range(n - 1, -1, -1):
+            suffix[i] = suffix[i + 1] + piles[i]
+
+        @lru_cache(maxsize=None)
+        def best(i: int, m: int) -> int:
+            if i + 2 * m >= n:
+                return suffix[i]  # take everything that is left
+            return suffix[i] - min(best(i + x, max(m, x)) for x in range(1, 2 * m + 1))
+
+        return best(0, 1)
+'''

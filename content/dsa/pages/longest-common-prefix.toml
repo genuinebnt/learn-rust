@@ -1,0 +1,27 @@
+intuition = """
+Compare the strings **column by column**: take the first string as the candidate, and for each position check that every other string has the same character there. The first position where one string is shorter or differs ends the prefix.
+
+Looking at one column across all the strings (a vertical scan) stops at the first mismatch, so it never reads more characters than the prefix itself needs plus one per string.
+"""
+tips = [
+    "Check the index against each string's length before reading it, since strings can be shorter or empty.",
+    "An empty string anywhere makes the answer empty, and the vertical scan handles it with no special case.",
+    "Sorting the list and comparing only the first and last strings also works: the common prefix of those two is the prefix of all.",
+]
+
+[[approaches]]
+name = "Scan column by column"
+label = "simulation"
+idea = "For each index of the first string, stop at the first string that is too short or has a different character."
+time = "O(total characters)"
+space = "O(1)"
+note = "In the worst case it reads every character once."
+code = '''class Solution:
+    def longestCommonPrefix(self, strs: list[str]) -> str:
+        first = strs[0]
+        for i, ch in enumerate(first):
+            for other in strs[1:]:
+                if i == len(other) or other[i] != ch:
+                    return first[:i]
+        return first
+'''

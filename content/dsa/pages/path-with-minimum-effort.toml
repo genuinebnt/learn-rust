@@ -1,0 +1,42 @@
+intuition = """
+Network Delay Time asks for the path with the smallest **sum** of edge weights. Here the cost of a path is its **largest** single step (the biggest height difference between neighbouring cells), and you want the path where that largest step is smallest.
+
+Dijkstra still works, because "the worst step so far" can only grow as you extend a path. Pop the cell with the smallest worst-step, and for each neighbour the new cost is `max(cost so far, this step)`. The first time the bottom-right cell is popped, its cost is the answer.
+"""
+tips = [
+    "Change only the combining rule: `max(effort, step)` instead of `distance + weight`. The heap and the stale-entry check stay the same.",
+    "Stop as soon as the target is popped.",
+    "The alternative is binary search on the effort with a BFS that only crosses steps up to that size.",
+]
+
+[[approaches]]
+name = "Dijkstra with the largest step as the cost"
+label = "dijkstra"
+idea = "The cost of reaching a cell is the smallest possible 'worst step' on any path to it; extend with max instead of sum."
+time = "O(m · n · log(m · n))"
+space = "O(m · n)"
+note = "Each cell is settled once."
+code = '''import heapq
+
+
+class Solution:
+    def minimumEffortPath(self, heights: list[list[int]]) -> int:
+        rows, cols = len(heights), len(heights[0])
+        best = [[float("inf")] * cols for _ in range(rows)]
+        best[0][0] = 0
+        heap = [(0, 0, 0)]  # (effort so far, row, column)
+        while heap:
+            effort, r, c = heapq.heappop(heap)
+            if (r, c) == (rows - 1, cols - 1):
+                return effort
+            if effort > best[r][c]:
+                continue
+            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < rows and 0 <= nc < cols:
+                    step = max(effort, abs(heights[nr][nc] - heights[r][c]))
+                    if step < best[nr][nc]:
+                        best[nr][nc] = step
+                        heapq.heappush(heap, (step, nr, nc))
+        return 0
+'''

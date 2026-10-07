@@ -1,0 +1,40 @@
+intuition = """
+Permutations, but the numbers may repeat, and the answer must list each distinct permutation once. Sort first so equal numbers sit together. Then use the `used` array from Permutations, with one extra rule: skip a number if it equals the previous one **and the previous one hasn't been used in the current path**. That forces equal numbers to be taken in their sorted order, so each distinct arrangement is generated exactly once.
+"""
+tips = [
+    "The skip rule is `i > 0 and nums[i] == nums[i - 1] and not used[i - 1]`.",
+    "Sorting is required for the rule to work: duplicates must be neighbours.",
+    "A set of tuples of all permutations gives the same answer, but wastes work generating duplicates.",
+]
+
+[[approaches]]
+name = "Sort, used flags and a duplicate skip"
+label = "backtracking"
+idea = "Equal numbers may only be placed in their sorted order, so a repeated arrangement is never generated twice."
+time = "O(n · n!)"
+space = "O(n)"
+note = "At most n! results."
+code = '''class Solution:
+    def permuteUnique(self, nums: list[int]) -> list[list[int]]:
+        nums.sort()
+        result, path = [], []
+        used = [False] * len(nums)
+
+        def go() -> None:
+            if len(path) == len(nums):
+                result.append(path[:])
+                return
+            for i in range(len(nums)):
+                if used[i]:
+                    continue
+                if i and nums[i] == nums[i - 1] and not used[i - 1]:
+                    continue  # the same value was just tried at this position
+                used[i] = True
+                path.append(nums[i])
+                go()
+                path.pop()
+                used[i] = False
+
+        go()
+        return result
+'''

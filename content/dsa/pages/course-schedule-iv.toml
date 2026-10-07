@@ -1,0 +1,32 @@
+intuition = """
+Course Schedule asks whether an order exists. Here you are asked, for many pairs `(u, v)`, whether `u` is a prerequisite of `v` **directly or through a chain**. That is reachability in a directed graph, and with `numCourses <= 100` you can compute it for every pair up front and then answer each query by lookup.
+
+Floyd–Warshall does it in a few lines: `reach[i][j]` becomes true if there is a `k` with `reach[i][k]` and `reach[k][j]`.
+"""
+tips = [
+    "Precompute once, then each query is O(1).",
+    "Put the intermediate node `k` in the OUTERMOST loop, as in any Floyd–Warshall.",
+    "A topological sort that merges the set of ancestors at each node is the alternative, and scales better for sparse graphs.",
+]
+
+[[approaches]]
+name = "Transitive closure with Floyd–Warshall"
+label = "floyd"
+idea = "reach[i][j] is true when a chain of prerequisites leads from i to j; compute all pairs, then answer the queries."
+time = "O(n^3 + q)"
+space = "O(n^2)"
+note = "Fine for n up to 100."
+code = '''class Solution:
+    def checkIfPrerequisite(self, numCourses: int, prerequisites: list[list[int]], queries: list[list[int]]) -> list[bool]:
+        n = numCourses
+        reach = [[False] * n for _ in range(n)]
+        for a, b in prerequisites:
+            reach[a][b] = True
+        for k in range(n):
+            for i in range(n):
+                if reach[i][k]:
+                    for j in range(n):
+                        if reach[k][j]:
+                            reach[i][j] = True
+        return [reach[u][v] for u, v in queries]
+'''

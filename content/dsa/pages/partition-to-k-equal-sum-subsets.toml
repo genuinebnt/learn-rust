@@ -1,0 +1,45 @@
+intuition = """
+Matchsticks to Square with `k` groups instead of four. Each group must sum to `total / k`, so first check that the total divides evenly and no number is larger than the target. Then place the numbers one at a time into `k` buckets, never letting a bucket go over the target.
+
+The same two prunings keep it fast: sort the numbers in **descending** order so the big ones are placed first, and skip a bucket whose current total equals one already tried at this level (they are interchangeable).
+"""
+tips = [
+    "Rule out the cheap failures first: total not divisible by `k`, or a number above the target.",
+    "Descending order makes impossible placements fail early.",
+    "The 'tried this total already' set at each level avoids exploring the same arrangement `k` times over.",
+]
+
+[[approaches]]
+name = "Place numbers into k buckets"
+label = "backtracking"
+idea = "Put each number in a bucket that still has room, trying each distinct bucket total only once per step."
+time = "O(k^n) worst case, much less pruned"
+space = "O(n)"
+note = "Same structure as Matchsticks to Square."
+code = '''class Solution:
+    def canPartitionKSubsets(self, nums: list[int], k: int) -> bool:
+        total = sum(nums)
+        if total % k:
+            return False
+        target = total // k
+        nums = sorted(nums, reverse=True)
+        if nums[0] > target:
+            return False
+        buckets = [0] * k
+
+        def place(i: int) -> bool:
+            if i == len(nums):
+                return True
+            tried = set()
+            for b in range(k):
+                if buckets[b] + nums[i] > target or buckets[b] in tried:
+                    continue
+                tried.add(buckets[b])
+                buckets[b] += nums[i]
+                if place(i + 1):
+                    return True
+                buckets[b] -= nums[i]
+            return False
+
+        return place(0)
+'''

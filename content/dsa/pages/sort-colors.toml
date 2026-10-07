@@ -1,0 +1,59 @@
+intuition = """
+Only three values (0, 1, 2), sorted **in place** in one pass: the **Dutch national flag**. Keep three regions: everything before `low` is 0, everything from `high + 1` on is 2, and the unknown middle runs from `mid` to `high`. Look at `nums[mid]`:
+
+- **0**: swap it into the zero region and advance both `low` and `mid`.
+- **1**: it is already in the right place, advance `mid`.
+- **2**: swap it to the end region and shrink `high`, but do **not** advance `mid`, because the value swapped in is unchecked.
+"""
+tips = [
+    "Don't advance `mid` after swapping with `high`: the new `nums[mid]` hasn't been looked at yet.",
+    "After swapping with `low`, `mid` can advance, because everything at `low` and before has already been checked and is 0 or 1.",
+    "Counting how many of each there are, then rewriting the array, is a simple two-pass alternative.",
+]
+
+[[approaches]]
+name = "Three-way partition in one pass"
+label = "two pointers"
+idea = "Grow a block of 0s on the left and a block of 2s on the right, with the unsorted middle shrinking until it is gone."
+time = "O(n)"
+space = "O(1)"
+note = "Each element is looked at once."
+code = '''class Solution:
+    def sortColors(self, nums: list[int]) -> None:
+        """
+        Do not return anything, modify nums in-place instead.
+        """
+        low, mid, high = 0, 0, len(nums) - 1
+        while mid <= high:
+            if nums[mid] == 0:
+                nums[low], nums[mid] = nums[mid], nums[low]
+                low += 1
+                mid += 1
+            elif nums[mid] == 1:
+                mid += 1
+            else:
+                nums[mid], nums[high] = nums[high], nums[mid]
+                high -= 1
+'''
+
+[[approaches]]
+name = "Count, then rewrite"
+label = "counting"
+idea = "Count the 0s, 1s and 2s, then overwrite the array with that many of each in order."
+time = "O(n)"
+space = "O(1)"
+note = "Two passes but very simple."
+code = '''class Solution:
+    def sortColors(self, nums: list[int]) -> None:
+        """
+        Do not return anything, modify nums in-place instead.
+        """
+        counts = [0, 0, 0]
+        for x in nums:
+            counts[x] += 1
+        i = 0
+        for colour, count in enumerate(counts):
+            for _ in range(count):
+                nums[i] = colour
+                i += 1
+'''

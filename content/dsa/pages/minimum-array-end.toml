@@ -1,0 +1,31 @@
+intuition = """
+You need `n` increasing numbers whose AND is exactly `x`, and you want the last one to be as small as possible. Every number must contain all the 1 bits of `x` (otherwise the AND would lose one). So the numbers are just `x` with some of its **zero** bits switched on, and you want the `n`-th smallest such number: the first is `x` itself.
+
+Counting up through those numbers is the same as counting up in binary but only through the zero positions of `x`. So write `n - 1` in binary and **pour its bits, lowest first, into the zero positions of x**. The result is `x` with those bits set.
+"""
+tips = [
+    "`n - 1` because the first number in the array is `x` itself, with no extra bits.",
+    "Walk the bits of `x` from the lowest. At a zero bit, take the next bit of `n - 1`. At a one bit, leave it alone.",
+    "Check with `n = 3, x = 4` (binary 100): `n - 1 = 2` is `10`, poured into the two free low positions gives `110`, which is 6.",
+]
+
+[[approaches]]
+name = "Pour the bits of n - 1 into the zero bits of x"
+label = "bit trick"
+idea = "The i-th smallest number containing x's bits uses the bits of i in x's free positions."
+time = "O(log n + log x)"
+space = "O(1)"
+note = "Up to about 60 bits for the largest inputs."
+code = '''class Solution:
+    def minEnd(self, n: int, x: int) -> int:
+        result = x
+        remaining = n - 1
+        bit = 1
+        while remaining:
+            if not (x & bit):  # a free position
+                if remaining & 1:
+                    result |= bit
+                remaining >>= 1
+            bit <<= 1
+        return result
+'''

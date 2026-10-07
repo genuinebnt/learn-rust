@@ -108,7 +108,6 @@
 .m-tbar span{font:500 11px var(--mono);color:var(--dim)}
 .m-rs{font:700 16px var(--mono)}
 .m-rs.ok{color:var(--grn)}.m-rs.half{color:var(--warn)}.m-rs.no{color:var(--bad)}.m-rs.skip{color:var(--dim)}
-.m-mixc .p-step{align-self:flex-start}
 
 /* ---- layout and controls, second pass ---- */
 .m-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
@@ -155,3 +154,16 @@ button.m-preset,.m-preset .body{display:flex;flex-direction:column;gap:3px;paddi
 .m-step{border-style:solid;border-color:var(--line2)}
 .m-step.here{border-color:var(--acc);background:var(--acc-bg)}
 .m-step.later{border-style:dashed;opacity:.85}
+
+/* ---- stepper: centred glyphs, a divided value cell, hover and disabled states ---- */
+.m-stepper{display:inline-flex;align-items:stretch;height:38px;border:1px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden}
+.m-stepper.wide{display:flex;width:100%}
+.m-stepper button{flex:none;width:38px;display:grid;place-items:center;color:var(--mut);text-align:center}
+.m-stepper button svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
+.m-stepper button:hover:not(:disabled){background:var(--raise);color:var(--fg)}
+.m-stepper button:active:not(:disabled){background:var(--acc-bg);color:var(--acc)}
+.m-stepper button:disabled{opacity:.3;cursor:default}
+.m-stepper b{min-width:52px;padding-inline:8px;display:flex;align-items:baseline;justify-content:center;gap:4px;align-self:center;height:100%;align-items:center;border-inline:1px solid var(--line2);font:600 14px var(--mono);color:var(--fg)}
+.m-stepper.wide b{flex:1}
+.m-stepper b small{font:500 10.5px var(--mono);color:var(--dim)}
+.m-mixc .m-stepper{margin-top:2px}

@@ -147,12 +147,19 @@ function MockApp({ data }: { data: MockData }) {
 
 // ---------------------------------------------------------------- setup
 
-function Step({ value, onChange, min, max, step = 1, label }: { value: number; onChange: (n: number) => void; min: number; max: number; step?: number; label: string }) {
+function Step({ value, onChange, min, max, step = 1, label, wide, unit }: { value: number; onChange: (n: number) => void; min: number; max: number; step?: number; label: string; wide?: boolean; unit?: string }) {
   return (
-    <span className="p-step">
-      <button aria-label={`less ${label}`} onClick={() => onChange(Math.max(min, value - step))}>−</button>
-      <b>{value}</b>
-      <button aria-label={`more ${label}`} onClick={() => onChange(Math.min(max, value + step))}>+</button>
+    <span className={`m-stepper${wide ? " wide" : ""}`} role="group" aria-label={label}>
+      <button aria-label={`less ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))}>
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" /></svg>
+      </button>
+      <b aria-live="polite">
+        {value}
+        {unit && <small>{unit}</small>}
+      </b>
+      <button aria-label={`more ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))}>
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8M6 2v8" /></svg>
+      </button>
     </span>
   );
 }
@@ -366,7 +373,7 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                         <span className={`m-${band[0]}`}>{band.toUpperCase()}</span>
                         <span>{have[i]} can be drawn</span>
                       </div>
-                      <Step label={band} value={k} min={0} max={4} onChange={(n) => edit((cur) => ({ ...cur, mix: cur.mix.map((x, j) => (j === i ? n : x)) as MockConfig["mix"] }))} />
+                      <Step wide label={band} value={k} min={0} max={4} onChange={(n) => edit((cur) => ({ ...cur, mix: cur.mix.map((x, j) => (j === i ? n : x)) as MockConfig["mix"] }))} />
                     </div>
                   );
                 })}
@@ -399,13 +406,13 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                 {c.format === "total" && (
                   <div className="p-fld">
                     <span>ROUND LENGTH, MINUTES</span>
-                    <Step label="minutes" value={c.total} min={10} max={180} step={5} onChange={(total) => edit((cur) => ({ ...cur, total }))} />
+                    <Step label="minutes" unit="min" value={c.total} min={10} max={180} step={5} onChange={(total) => edit((cur) => ({ ...cur, total }))} />
                   </div>
                 )}
                 {BANDS.map((band, i) => (
                   <div key={band} className="p-fld">
                     <span>{c.format === "total" ? "SUGGESTED, " : ""}{band.toUpperCase()} MIN</span>
-                    <Step label={`${band} minutes`} value={c.per[i] ?? 0} min={3} max={90} onChange={(n) => edit((cur) => ({ ...cur, per: cur.per.map((x, j) => (j === i ? n : x)) as MockConfig["per"] }))} />
+                    <Step label={`${band} minutes`} unit="min" value={c.per[i] ?? 0} min={3} max={90} onChange={(n) => edit((cur) => ({ ...cur, per: cur.per.map((x, j) => (j === i ? n : x)) as MockConfig["per"] }))} />
                   </div>
                 ))}
               </div>

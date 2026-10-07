@@ -14,10 +14,10 @@ Sources:
   (the second covers companies the first doesn't, e.g. Anthropic, Plaid, Figma, Cockroach Labs). Limited to the
   companies in COMPANIES. Elastic, Redis and ClickHouse aren't in either, so they can't be tagged.
 
-Must learn vs practice: problems that LeetCode lists as similar and NeetCode files under the same pattern share an
-idea. Within each such pair the one from the more central list (Blind 75, then 150, then 250, then All; then the lower
-LeetCode number) teaches it; the other is practice of it. A problem with no such link to a more central one is
-"must learn": it brings a new idea.
+Must learn vs practice: every problem is assigned to one technique (the ideas the pattern lessons teach), by hand for
+the NeetCode 150 (techniques.py) and for the rest (assign_rest.py), with LeetCode's similar-question links as the
+fallback for new problems. The first problem of a technique (NeetCode 150 first, then the 250, then All; a free problem
+before a Premium one in the same list; then NeetCode's own order) is its must learn; every other problem using it is practice of that one.
 """
 import csv
 import io
@@ -27,7 +27,11 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from collections import Counter
 from pathlib import Path
+
+from assign_rest import REST
+from techniques import ASSIGN_150, TECHNIQUES
 
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / "cache"
@@ -187,38 +191,59 @@ def main():
             "similar": q["similar"],
         })
 
-    # Must learn vs practice.
+    # Techniques, then must learn vs practice (tools/neetcode/techniques.py, docs/DSA.md decision 7).
     by_slug = {p["slug"]: p for p in problems}
-    rank = lambda p: (LIST_RANK[p["lists"][0]], p["number"])
+    position = {slug_of(p): i for i, p in enumerate(nc)}  # NeetCode's own order
+    qualify = lambda pattern, key: key if ":" in key else f"{pattern}:{key}"
+    technique = {s: qualify(by_slug[s]["pattern"], k) for s, k in {**ASSIGN_150, **REST}.items() if s in by_slug}
+    # Anything still unplaced takes the technique of a similar question in the same pattern.
+    changed = True
+    while changed:
+        changed = False
+        for p in problems:
+            if p["slug"] in technique:
+                continue
+            near = {s for s in p["similar"] if s in by_slug} | {q["slug"] for q in problems if p["slug"] in q["similar"]}
+            votes = Counter(technique[s] for s in near if s in technique and by_slug[s]["pattern"] == p["pattern"])
+            if votes:
+                technique[p["slug"]] = votes.most_common(1)[0][0]
+                changed = True
+    unplaced = [p["slug"] for p in problems if p["slug"] not in technique]
+    if unplaced:
+        sys.exit(f"{len(unplaced)} problems have no technique (add them to tools/neetcode/assign_rest.py): {unplaced[:10]}")
+    names = {f"{pattern}:{key}": (pattern, name) for pattern, items in TECHNIQUES.items() for key, name in items}
+    unknown = sorted({t for t in technique.values() if t not in names})
+    if unknown:
+        sys.exit(f"unknown techniques: {unknown}")
+    tier = lambda p: 0 if "neetcode150" in p["lists"] else 1 if "neetcode250" in p["lists"] else 2
+    first = {}
     for p in problems:
-        neighbours = {s for s in p["similar"] if s in by_slug}
-        neighbours |= {q["slug"] for q in problems if p["slug"] in q["similar"]}
-        teachers = [by_slug[s] for s in neighbours if by_slug[s]["pattern"] == p["pattern"] and rank(by_slug[s]) < rank(p)]
-        if teachers:
-            best = min(teachers, key=rank)
-            p["role"] = "practice"
-            p["practice_of"] = best["id"]
-        else:
+        t = technique[p["slug"]]
+        if t not in first or (tier(p), p["premium"], position[p["slug"]]) < (tier(first[t]), first[t]["premium"], position[first[t]["slug"]]):
+            first[t] = p
+    for p in problems:
+        t = technique[p["slug"]]
+        p["technique"] = t
+        p["order"] = position[p["slug"]]
+        if first[t] is p:
             p["role"] = "must_learn"
-    for p in problems:
+        else:
+            p["role"] = "practice"
+            p["practice_of"] = first[t]["id"]
         del p["similar"]
-    # A practice problem's teacher should itself be a must-learn; follow the chain to it.
-    ids = {p["id"]: p for p in problems}
-    for p in problems:
-        seen = set()
-        while p.get("practice_of") and ids[p["practice_of"]].get("practice_of") and p["practice_of"] not in seen:
-            seen.add(p["practice_of"])
-            p["practice_of"] = ids[p["practice_of"]]["practice_of"]
-
+    techniques = sorted(
+        ({"id": t, "pattern": names[t][0], "name": names[t][1], "must_learn": p["id"],
+          "problems": sum(technique[q["slug"]] == t for q in problems)} for t, p in first.items()),
+        key=lambda t: (position[first[t["id"]]["slug"]]))
     problems.sort(key=lambda p: (LIST_RANK[p["lists"][0]], p["pattern"], p["number"]))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({
         "generated": time.strftime("%Y-%m-%d"),
         "sources": ["neetcode.io", "leetcode.com/graphql", "github.com/liquidslr/leetcode-company-wise-problems"],
         "company_groups": {g: [DISPLAY.get(c, c) for c in names] for g, names in COMPANIES.items()},
+        "techniques": techniques,
         "problems": problems,
     }, indent=1) + "\n")
-    from collections import Counter
     print(f"{len(problems)} problems → {OUT}")
     print("lists:", Counter(l for p in problems for l in p["lists"]))
     print("roles:", Counter(p["role"] for p in problems), "· must learn by list:",

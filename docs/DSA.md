@@ -13,7 +13,7 @@ the progress; update it as work lands.
 | 4 | **Remove the old DSA content and its progress:** tracks D1–D12 (303 problems) and their history (2 solves and 2 reviews in production, both from 2026-09-29). Rust tracks are unaffected. |
 | 5 | **Each problem links to LeetCode** (to solve it) and to NeetCode's video, and has a **problem page in anneal**: the LeetCode statement and hints (prefilled from LeetCode), intuition, tips and pitfalls, every useful approach (e.g. DFS *and* topological sort) with **Python** solutions and complexity, and the practice problems that share its idea. |
 | 6 | **Pattern lessons per category** (e.g. Graphs: DFS recursive vs iterative, BFS, flood fill, multi-source BFS, topological sort, union-find, bipartite; Two Pointers: opposite ends, fast and slow, …): the signals that call for it, a Python template, pitfalls, and its problems with progress. |
-| 7 | **Must learn vs practice (owner's definition, 2026-10-07).** *Must learn* is the **first problem that teaches a particular pattern or algorithm**: one per technique. *Practice* is every other problem that uses the same idea **with a twist**. So classification is by *technique* (e.g. topological sort, union-find, fast and slow pointers), not by LeetCode's "similar questions". The techniques are the pattern lessons (decision 6); each has one must-learn problem, and every practice problem points at it. This replaces my first rule, which marked 702 of 943 as must-learn. |
+| 7 | **Must learn vs practice (owner's definition, 2026-10-07).** *Must learn* is the **first problem that teaches a particular pattern or algorithm**: one per technique. *Practice* is every other problem that uses the same idea **with a twist**. So classification is by *technique* (e.g. topological sort, union-find, fast and slow pointers), not by LeetCode's "similar questions". The techniques are the pattern lessons (decision 6); each has one must-learn problem, and every practice problem points at it. This replaces my first rule, which marked 702 of 943 as must-learn. | **Built (2026-10-07):** 162 techniques across the 18 patterns; every problem belongs to exactly one. 100 of them are first met in the NeetCode 150 (45 + the 55 in Blind 75), 31 more in the rest of the 250 (its new ideas), 31 only in All. The 150 therefore has 100 must-learn and 50 practice problems; the 250 adds 31 must-learn. A free problem is preferred over a Premium one as a must-learn (only Encode and Decode Strings stays Premium, the only member of its technique in the 150). Assignments: `tools/neetcode/techniques.py` (taxonomy, the 150 by hand) and `assign_rest.py` (the other 793, by hand; similar-question links only place problems added later). `problems.json` gains `technique`, `order` (NeetCode's order) and a top-level `techniques` list.
 | 8 | **Tags:** LeetCode's topic tags, and company tags limited to four groups: Big Tech, Databases & infra, Trading, Top tech. Companies come from LeetCode Premium's lists as published in two public datasets, merged (liquidslr and snehasishroy). Elastic, Redis and ClickHouse aren't in either, so they can't be tagged. "Recent" means asked in the last six months. |
 | 9 | **Progress and spaced repetition:** solve on LeetCode, then log it in anneal: on my own, with help, or couldn't yet. That feeds the existing review ladder (3 → 7 → 21 → 60 days), the streak and the Progress pages. |
 | 10 | **Cascading filters in their own panel**, in anneal's style: list, status, idea (must learn / practice), difficulty, pattern, company group → company, LeetCode tags, hide Premium, group by idea. Each option shows the count the other filters leave. |
@@ -44,8 +44,7 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
 - [x] AI features removed (2026-10-07, `a0164bf`).
 - [x] Data builder: NeetCode lists, LeetCode tags and similar questions, merged company tags, must learn vs practice.
 - [x] Data: `content/dsa/problems.json` built (943 problems: Blind 75, NeetCode 150/250/All; no JavaScript or SQL; 161 need
-      LeetCode Premium; 921 carry a company tag). The must-learn rule marks 702 of 943 as must learn, which is probably
-      too many for the "All" list: revisit it with the owner before the content is written.
+      LeetCode Premium; 921 carry a company tag). Must learn vs practice now follows decision 7's technique rule (162 must learn, 781 practice).
 - [x] Spaced repetition: FSRS-6 engine, capacity per weekday, Sunday consolidation, settings, tests and a simulated-learner
       battle test (2026-10-07; docs/SPACED_REPETITION.md). Still to build: the daily plan endpoint and screens, the
       fourth ("easy") log button, quick-recall review mode.
@@ -60,6 +59,8 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       date (`reviews::pace`), and the track-order rule (`dsa_next::next_up`), both pure and tested. Mockup
       `docs/design_handoff_anneal/designs/dsa/plan.html` (live numbers, track order with a start-here pick).
       **Plan screen awaiting approval.** Still to build: the API for these and the screen.
+- [x] Technique classification (2026-10-07): 162 techniques, all 943 problems assigned, must learn = first problem of a
+      technique (decision 7).
 - [ ] Build: content loader and API for the lists, logging and reviews; remove D1–D12 and their progress (`retired`
       ids so the progress guard allows it).
 - [ ] Build: list page, problem page, pattern pages.

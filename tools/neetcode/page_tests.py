@@ -2772,6 +2772,687 @@ def reverse_integer(ns):
         assert f(x) == want, x
 
 
+# ---- the 250's must-learn problems ------------------------------------------------------------------------------------
+
+
+def _time_limit(seconds, what):
+    """Context manager: raises AssertionError if the block runs longer than `seconds` (Unix; checks run in the main thread)."""
+    import contextlib
+    import signal
+
+    @contextlib.contextmanager
+    def limit():
+        def too_slow(*_):
+            raise AssertionError(f"{what}: too slow")
+
+        old = signal.signal(signal.SIGALRM, too_slow)
+        signal.alarm(seconds)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old)
+
+    return limit()
+
+
+def concatenation_of_array(ns):
+    f = ns["Solution"]().getConcatenation
+    assert f([1, 2, 1]) == [1, 2, 1, 1, 2, 1] and f([1, 3, 2, 1]) == [1, 3, 2, 1, 1, 3, 2, 1] and f([5]) == [5, 5]
+    r = rng()
+    for _ in range(100):
+        a = [r.randint(1, 1000) for _ in range(r.randint(1, 30))]
+        before = a[:]
+        assert f(a) == before + before
+
+
+def remove_element(ns):
+    f = ns["Solution"]().removeElement
+    nums = [3, 2, 2, 3]
+    k = f(nums, 3)
+    assert k == 2 and sorted(nums[:k]) == [2, 2]
+    r = rng()
+    for _ in range(400):
+        nums = [r.randint(0, 5) for _ in range(r.randint(0, 20))]
+        val = r.randint(0, 5)
+        keep = sorted(x for x in nums if x != val)
+        k = f(nums, val)
+        assert k == len(keep) and sorted(nums[:k]) == keep, (nums, val)
+
+
+def majority_element(ns):
+    f = ns["Solution"]().majorityElement
+    assert f([3, 2, 3]) == 3 and f([2, 2, 1, 1, 1, 2, 2]) == 2 and f([1]) == 1
+    r = rng()
+    for _ in range(400):
+        n = r.randint(1, 25)
+        major = r.randint(-5, 5)
+        nums = [major] * (n // 2 + 1) + [r.randint(-5, 5) for _ in range(n - n // 2 - 1)]
+        r.shuffle(nums)
+        assert f(nums) == major, nums
+
+
+def design_hashset(ns):
+    S = ns["MyHashSet"]
+    s = S()
+    s.add(1)
+    s.add(2)
+    assert s.contains(1) is True and s.contains(3) is False
+    s.add(2)
+    assert s.contains(2) is True
+    s.remove(2)
+    assert s.contains(2) is False
+    s.remove(77)  # removing something absent is fine
+    r = rng()
+    for _ in range(100):
+        s, model = S(), set()
+        keys = [r.randint(0, 10**6) for _ in range(6)] + [0, 10**6, 1000, 1001]
+        for _ in range(r.randint(1, 60)):
+            k, op = r.choice(keys), r.randint(0, 2)
+            if op == 0:
+                s.add(k)
+                model.add(k)
+            elif op == 1:
+                s.remove(k)
+                model.discard(k)
+            else:
+                assert s.contains(k) is (k in model), (k, model)
+
+
+def sort_an_array(ns):
+    f = ns["Solution"]().sortArray
+    assert f([5, 2, 3, 1]) == [1, 2, 3, 5] and f([5, 1, 1, 2, 0, 0]) == [0, 0, 1, 1, 2, 5] and f([1]) == [1]
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(-50, 50) for _ in range(r.randint(1, 30))]
+        assert f(a[:]) == sorted(a)
+    with _time_limit(10, "sortArray on 50000 numbers and on adversarial orders"):
+        for a in (
+            [r.randint(-50000, 50000) for _ in range(50000)],
+            list(range(2000)),
+            list(range(2000, 0, -1)),
+            [7] * 2000,
+            [r.randint(0, 3) for _ in range(20000)],
+        ):
+            assert f(a[:]) == sorted(a)
+
+
+def best_time_ii(ns):
+    f = ns["Solution"]().maxProfit
+    assert f([7, 1, 5, 3, 6, 4]) == 7 and f([1, 2, 3, 4, 5]) == 4 and f([7, 6, 4, 3, 1]) == 0 and f([5]) == 0
+    r = rng()
+
+    def best(prices, i, holding):
+        if i == len(prices):
+            return 0
+        skip = best(prices, i + 1, holding)
+        act = prices[i] + best(prices, i + 1, False) if holding else -prices[i] + best(prices, i + 1, True)
+        return max(skip, act)
+
+    for _ in range(300):
+        prices = [r.randint(0, 9) for _ in range(r.randint(1, 10))]
+        assert f(prices) == best(prices, 0, False), prices
+
+
+def subarray_sum_k(ns):
+    f = ns["Solution"]().subarraySum
+    assert f([1, 1, 1], 2) == 2 and f([1, 2, 3], 3) == 2 and f([1], 0) == 0 and f([0, 0, 0], 0) == 6
+    assert f([1, -1, 0], 0) == 3, "negative numbers and zeros need a prefix-sum map, not a sliding window"
+    r = rng()
+    for _ in range(500):
+        nums = [r.randint(-3, 3) for _ in range(r.randint(1, 30))]
+        k = r.randint(-5, 5)
+        want = sum(sum(nums[i : j + 1]) == k for i in range(len(nums)) for j in range(i, len(nums)))
+        assert f(nums, k) == want, (nums, k)
+    with _time_limit(5, "subarraySum on 20000 zeros"):
+        assert f([0] * 20000, 0) == 20000 * 20001 // 2
+
+
+def first_missing_positive(ns):
+    f = ns["Solution"]().firstMissingPositive
+    assert f([1, 2, 0]) == 3 and f([3, 4, -1, 1]) == 2 and f([7, 8, 9, 11, 12]) == 1 and f([1]) == 2 and f([2147483647]) == 1
+    r = rng()
+    for _ in range(600):
+        nums = [r.randint(-4, 14) for _ in range(r.randint(1, 14))]
+        have = set(nums)
+        want = next(i for i in range(1, 100) if i not in have)
+        assert f(nums[:]) == want, nums
+
+
+def makesquare(ns):
+    f = ns["Solution"]().makesquare
+    assert f([1, 1, 2, 2, 2]) is True and f([3, 3, 3, 3, 4]) is False and f([5, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 3]) is True
+
+    def exact(sticks):
+        total = sum(sticks)
+        if total % 4 or max(sticks) > total // 4:
+            return False
+        side, n = total // 4, len(sticks)
+        reach = [False] * (1 << n)
+        reach[0] = True
+        used = [0] * (1 << n)
+        for mask in range(1 << n):
+            if not reach[mask]:
+                continue
+            for i in range(n):
+                if not mask >> i & 1 and used[mask] % side + sticks[i] <= side:
+                    nxt = mask | 1 << i
+                    reach[nxt] = True
+                    used[nxt] = used[mask] + sticks[i]
+        return reach[-1]
+
+    r = rng()
+    seen = set()
+    for _ in range(300):
+        n = r.randint(4, 11)
+        if r.random() < 0.5:
+            side = r.randint(2, 9)
+            sticks = []
+            for _ in range(4):
+                left = side
+                while left:
+                    x = r.randint(1, left)
+                    sticks.append(x)
+                    left -= x
+            sticks = sticks[:12]
+        else:
+            sticks = [r.randint(1, 8) for _ in range(n)]
+        r.shuffle(sticks)
+        want = exact(sticks)
+        seen.add(want)
+        assert f(sticks[:]) is want, sticks
+    assert seen == {True, False}
+    with _time_limit(5, "makesquare on a hard negative case"):
+        assert f([1] * 14 + [2]) is False and f([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]) is False
+
+
+def word_break_ii(ns):
+    f = ns["Solution"]().wordBreak
+    assert sorted(f("catsanddog", ["cat", "cats", "and", "sand", "dog"])) == ["cat sand dog", "cats and dog"]
+    assert sorted(f("pineapplepenapple", ["apple", "pen", "applepen", "pine", "pineapple"])) == ["pine apple pen apple", "pine applepen apple", "pineapple pen apple"]
+    assert f("catsandog", ["cats", "dog", "sand", "and", "cat"]) == []
+    r = rng()
+
+    def every(s, words):
+        if not s:
+            return [[]]
+        return [[w] + rest for w in words if s.startswith(w) for rest in every(s[len(w) :], words)]
+
+    for _ in range(300):
+        words = sorted({"".join(r.choice("ab") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 5))})
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 9)))
+        want = sorted(" ".join(x) for x in every(s, words))
+        assert sorted(f(s, words[:])) == want, (s, words)
+    with _time_limit(5, "wordBreak on a string that has no segmentation"):
+        assert f("a" * 40 + "b", ["a", "aa", "aaa", "aaaa"]) == []
+        assert len(f("a" * 14, ["a", "aa", "aaa"])) == 1705
+
+
+def search_insert(ns):
+    f = ns["Solution"]().searchInsert
+    assert f([1, 3, 5, 6], 5) == 2 and f([1, 3, 5, 6], 2) == 1 and f([1, 3, 5, 6], 7) == 4 and f([1, 3, 5, 6], 0) == 0 and f([1], 1) == 0
+    import bisect
+
+    r = rng()
+    for _ in range(400):
+        nums = sorted(r.sample(range(-30, 30), r.randint(1, 15)))
+        t = r.randint(-32, 32)
+        assert f(nums, t) == bisect.bisect_left(nums, t)
+    class_ = type("Seq", (), {"__len__": lambda self: 10**18, "__getitem__": lambda self, i: i})
+    with _time_limit(5, "searchInsert over a huge range"):
+        assert f(class_(), 12345678901234) == 12345678901234
+
+
+class _Mountain:
+    """LeetCode's MountainArray: only get() and length() are allowed, and get() may be called at most 100 times."""
+
+    def __init__(self, values):
+        self.values = values
+        self.calls = 0
+
+    def get(self, index):
+        self.calls += 1
+        assert self.calls <= 100, "more than 100 calls to MountainArray.get"
+        return self.values[index]
+
+    def length(self):
+        return len(self.values)
+
+
+def find_in_mountain_array(ns):
+    f = ns["Solution"]().findInMountainArray
+    assert f(3, _Mountain([1, 2, 3, 4, 5, 3, 1])) == 2 and f(3, _Mountain([0, 1, 2, 4, 2, 1])) == -1
+    r = rng()
+
+    def make(n):
+        peak = r.randint(1, n - 2)
+        up = sorted(r.sample(range(0, 10**9), peak))
+        top = up[-1] + r.randint(1, 100)
+        down = sorted(r.sample(range(0, top), n - peak - 1), reverse=True)
+        return up + [top] + down
+
+    for _ in range(300):
+        arr = make(r.randint(3, 40))
+        for t in {r.choice(arr), r.randint(0, arr[0] + 5), arr[-1], arr[0]}:
+            want = next((i for i, v in enumerate(arr) if v == t), -1)
+            assert f(t, _Mountain(arr)) == want, (arr, t)
+    big = make(10000)
+    for t in (big[0], big[-1], max(big), big[5000], big[9000], -1, big[3] + 1):
+        want = next((i for i, v in enumerate(big) if v == t), -1)
+        assert f(t, _Mountain(big)) == want, t
+
+
+def alien_sorted(ns):
+    f = ns["Solution"]().isAlienSorted
+    assert f(["hello", "leetcode"], "hlabcdefgijkmnopqrstuvwxyz") is True and f(["word", "world", "row"], "worldabcefghijkmnpqstuvxyz") is False
+    assert f(["apple", "app"], "abcdefghijklmnopqrstuvwxyz") is False and f(["app", "apple"], "abcdefghijklmnopqrstuvwxyz") is True
+    r = rng()
+    seen = set()
+    for _ in range(500):
+        order = list("abcdefghijklmnopqrstuvwxyz")
+        r.shuffle(order)
+        rank = {c: i for i, c in enumerate(order)}
+        words = ["".join(r.choice(order[:3]) for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 5))]
+        if r.random() < 0.5:
+            words.sort(key=lambda w: [rank[c] for c in w])
+        want = all([rank[c] for c in a] <= [rank[c] for c in b] for a, b in zip(words, words[1:]))
+        seen.add(want)
+        assert f(words, "".join(order)) is want, (words, order)
+    assert seen == {True, False}
+
+
+def find_judge(ns):
+    f = ns["Solution"]().findJudge
+    assert f(2, [[1, 2]]) == 2 and f(3, [[1, 3], [2, 3]]) == 3 and f(3, [[1, 3], [2, 3], [3, 1]]) == -1 and f(1, []) == 1 and f(3, [[1, 2], [2, 3]]) == -1
+    r = rng()
+    for _ in range(500):
+        n = r.randint(1, 6)
+        pairs = {(a, b) for a in range(1, n + 1) for b in range(1, n + 1) if a != b}
+        if r.random() < 0.6:
+            judge = r.randint(1, n)
+            trust = [(a, judge) for a in range(1, n + 1) if a != judge and r.random() < 0.95]
+            trust += [(a, b) for (a, b) in pairs if a != judge and b != judge and r.random() < 0.2]
+        else:
+            trust = [pr for pr in pairs if r.random() < 0.3]
+        trust = sorted(set(trust))
+        r.shuffle(trust)
+        judges = [j for j in range(1, n + 1) if all(a != j for a, _ in trust) and sum(b == j for _, b in trust) == n - 1]
+        want = judges[0] if judges else -1
+        assert f(n, [list(t) for t in trust]) == want, (n, trust)
+
+
+def eval_division(ns):
+    f = ns["Solution"]().calcEquation
+    assert [round(x, 4) for x in f([["a", "b"], ["b", "c"]], [2.0, 3.0], [["a", "c"], ["b", "a"], ["a", "e"], ["a", "a"], ["x", "x"]])] == [6.0, 0.5, -1.0, 1.0, -1.0]
+    assert f([["a", "b"]], [0.5], [["a", "b"], ["b", "a"], ["a", "c"], ["x", "y"]]) == [0.5, 2.0, -1.0, -1.0]
+    r = rng()
+    for _ in range(300):
+        names = [f"v{i}" for i in range(r.randint(2, 8))]
+        group = {v: r.randint(0, 2) for v in names}
+        value = {v: r.choice([0.5, 1.0, 2.0, 3.0, 4.0, 0.25, 8.0]) for v in names}
+        eqs, vals = [], []
+        for _ in range(r.randint(1, 8)):
+            a, b = r.sample(names, 2)
+            if group[a] == group[b]:
+                eqs.append([a, b])
+                vals.append(value[a] / value[b])
+        if not eqs:
+            continue
+        known = {x for e in eqs for x in e}
+        # components are decided by the equations themselves
+        parent = {v: v for v in known}
+
+        def find(x):
+            while parent[x] != x:
+                x = parent[x]
+            return x
+
+        # values are consistent only within a group, so link equations into components
+        for a, b in eqs:
+            parent[find(a)] = find(b)
+        queries, want = [], []
+        for _ in range(8):
+            a, b = r.choice(names + ["zz"]), r.choice(names + ["zz"])
+            queries.append([a, b])
+            if a in known and b in known and find(a) == find(b):
+                want.append(value[a] / value[b])
+            else:
+                want.append(-1.0)
+        got = f([e[:] for e in eqs], vals[:], [q[:] for q in queries])
+        assert len(got) == len(want) and all(math.isclose(g, w, rel_tol=1e-6) for g, w in zip(got, want)), (eqs, vals, queries, got, want)
+
+
+def dota2_senate(ns):
+    f = ns["Solution"]().predictPartyVictory
+    assert f("RD") == "Radiant" and f("RDD") == "Dire" and f("R") == "Radiant" and f("DDRRR") == "Dire"
+    r = rng()
+    for _ in range(500):
+        senate = "".join(r.choice("RD") for _ in range(r.randint(1, 14)))
+        line = list(senate)
+        i = 0
+        while len(set(line)) > 1:
+            # senator i bans the next opposing senator in voting order
+            n = len(line)
+            me = line[i]
+            j = next(k for k in (((i + d) % n) for d in range(1, n)) if line[k] != me)
+            if j < i:
+                i -= 1
+            line.pop(j)
+            i = (i + 1) % len(line)
+        assert f(senate) == ("Radiant" if line[0] == "R" else "Dire"), senate
+
+
+def single_threaded_cpu(ns):
+    f = ns["Solution"]().getOrder
+    assert f([[1, 2], [2, 4], [3, 2], [4, 1]]) == [0, 2, 3, 1] and f([[7, 10], [7, 12], [7, 5], [7, 4], [7, 2]]) == [4, 3, 2, 0, 1]
+    r = rng()
+    for _ in range(300):
+        tasks = [[r.randint(1, 15), r.randint(1, 6)] for _ in range(r.randint(1, 10))]
+        left, t, want = set(range(len(tasks))), 0, []
+        while left:
+            ready = [i for i in left if tasks[i][0] <= t]
+            if not ready:
+                t = min(tasks[i][0] for i in left)
+                continue
+            i = min(ready, key=lambda k: (tasks[k][1], k))
+            left.discard(i)
+            want.append(i)
+            t += tasks[i][1]
+        assert f([x[:] for x in tasks]) == want, tasks
+
+
+def ipo(ns):
+    f = ns["Solution"]().findMaximizedCapital
+    assert f(2, 0, [1, 2, 3], [0, 1, 1]) == 4 and f(3, 0, [1, 2, 3], [0, 1, 2]) == 6 and f(1, 0, [1], [5]) == 0
+    r = rng()
+    for _ in range(400):
+        n = r.randint(1, 10)
+        profits = [r.randint(0, 9) for _ in range(n)]
+        capital = [r.randint(0, 12) for _ in range(n)]
+        k, w = r.randint(1, 6), r.randint(0, 6)
+        money, left = w, set(range(n))
+        for _ in range(k):
+            ok = [i for i in left if capital[i] <= money]
+            if not ok:
+                break
+            i = max(ok, key=lambda x: profits[x])
+            money += profits[i]
+            left.discard(i)
+        assert f(k, w, profits[:], capital[:]) == money, (k, w, profits, capital)
+
+
+def design_circular_queue(ns):
+    Q = ns["MyCircularQueue"]
+    q = Q(3)
+    assert [q.enQueue(1), q.enQueue(2), q.enQueue(3), q.enQueue(4)] == [True, True, True, False]
+    assert q.Rear() == 3 and q.isFull() is True and q.deQueue() is True and q.enQueue(4) is True and q.Rear() == 4 and q.Front() == 2
+    r = rng()
+    for _ in range(150):
+        k = r.randint(1, 5)
+        q, model = Q(k), []
+        for _ in range(r.randint(1, 60)):
+            op = r.randint(0, 5)
+            if op == 0:
+                v = r.randint(0, 99)
+                ok = len(model) < k
+                assert q.enQueue(v) is ok
+                if ok:
+                    model.append(v)
+            elif op == 1:
+                assert q.deQueue() is bool(model)
+                if model:
+                    model.pop(0)
+            elif op == 2:
+                assert q.Front() == (model[0] if model else -1)
+            elif op == 3:
+                assert q.Rear() == (model[-1] if model else -1)
+            elif op == 4:
+                assert q.isEmpty() is (not model)
+            else:
+                assert q.isFull() is (len(model) == k)
+
+
+def excel_title(ns):
+    f = ns["Solution"]().convertToTitle
+    assert f(1) == "A" and f(26) == "Z" and f(27) == "AA" and f(28) == "AB" and f(52) == "AZ" and f(701) == "ZY" and f(703) == "AAA" and f(2147483647) == "FXSHRXW"
+
+    def number(title):
+        n = 0
+        for c in title:
+            n = n * 26 + ord(c) - 64
+        return n
+
+    for n in list(range(1, 2000)) + [18278, 18279, 456976, 2**31 - 1]:
+        got = f(n)
+        assert got.isalpha() and got.isupper() and number(got) == n, (n, got)
+
+
+def gcd_of_strings(ns):
+    f = ns["Solution"]().gcdOfStrings
+    assert f("ABCABC", "ABC") == "ABC" and f("ABABAB", "ABAB") == "AB" and f("LEET", "CODE") == "" and f("AAAAAB", "AAA") == ""
+    r = rng()
+    for _ in range(500):
+        if r.random() < 0.6:
+            base = "".join(r.choice("AB") for _ in range(r.randint(1, 3)))
+            a, b = base * r.randint(1, 6), base * r.randint(1, 6)
+        else:
+            a, b = ("".join(r.choice("AB") for _ in range(r.randint(1, 8))) for _ in range(2))
+        want = ""
+        for length in range(min(len(a), len(b)), 0, -1):
+            cand = a[:length]
+            if len(a) % length == 0 and len(b) % length == 0 and cand * (len(a) // length) == a and cand * (len(b) // length) == b:
+                want = cand
+                break
+        assert f(a, b) == want, (a, b)
+
+
+def transpose_matrix(ns):
+    f = ns["Solution"]().transpose
+    assert f([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == [[1, 4, 7], [2, 5, 8], [3, 6, 9]] and f([[1, 2, 3], [4, 5, 6]]) == [[1, 4], [2, 5], [3, 6]] and f([[1]]) == [[1]]
+    r = rng()
+    for _ in range(200):
+        rows, cols = r.randint(1, 6), r.randint(1, 6)
+        m = [[r.randint(-9, 9) for _ in range(cols)] for _ in range(rows)]
+        assert f([row[:] for row in m]) == [[m[i][j] for i in range(rows)] for j in range(cols)]
+
+
+def find_k_closest(ns):
+    f = ns["Solution"]().findClosestElements
+    assert f([1, 2, 3, 4, 5], 4, 3) == [1, 2, 3, 4] and f([1, 1, 2, 3, 4, 5], 4, -1) == [1, 1, 2, 3] and f([1, 3], 1, 2) == [1]
+    r = rng()
+    for _ in range(600):
+        arr = sorted(r.randint(-15, 15) for _ in range(r.randint(1, 15)))
+        k, x = r.randint(1, len(arr)), r.randint(-20, 20)
+        want = sorted(sorted(arr, key=lambda v: (abs(v - x), v))[:k])
+        assert f(arr[:], k, x) == want, (arr, k, x)
+    big = list(range(0, 2 * 10**5, 2))
+    with _time_limit(5, "findClosestElements on 100000 numbers"):
+        for _ in range(2000):
+            k, x = r.randint(1, 50), r.randint(-10, 2 * 10**5 + 10)
+            got = f(big, k, x)
+            assert len(got) == k and got == sorted(got)
+
+
+def baseball_game(ns):
+    f = ns["Solution"]().calPoints
+    assert f(["5", "2", "C", "D", "+"]) == 30 and f(["5", "-2", "4", "C", "D", "9", "+", "+"]) == 27 and f(["1", "C"]) == 0
+    r = rng()
+    for _ in range(300):
+        ops, scores = [], []
+        for _ in range(r.randint(1, 20)):
+            options = ["n"] + (["C", "D"] if scores else []) + (["+"] if len(scores) > 1 else [])
+            o = r.choice(options)
+            if o == "n":
+                v = r.randint(-30, 30)
+                ops.append(str(v))
+                scores.append(v)
+            elif o == "C":
+                ops.append("C")
+                scores.pop()
+            elif o == "D":
+                ops.append("D")
+                scores.append(2 * scores[-1])
+            else:
+                ops.append("+")
+                scores.append(scores[-1] + scores[-2])
+        assert f(ops[:]) == sum(scores), ops
+
+
+def stack_using_queues(ns):
+    S = ns["MyStack"]
+    s = S()
+    s.push(1)
+    s.push(2)
+    assert s.top() == 2 and s.pop() == 2 and s.empty() is False and s.pop() == 1 and s.empty() is True
+    r = rng()
+    for _ in range(150):
+        s, model = S(), []
+        for _ in range(r.randint(1, 60)):
+            op = r.randint(0, 3)
+            if op == 0 or not model:
+                v = r.randint(0, 99)
+                s.push(v)
+                model.append(v)
+            elif op == 1:
+                assert s.pop() == model.pop()
+            elif op == 2:
+                assert s.top() == model[-1]
+            else:
+                assert s.empty() is False
+        assert s.empty() is (not model)
+
+
+def decode_string(ns):
+    f = ns["Solution"]().decodeString
+    assert f("3[a]2[bc]") == "aaabcbc" and f("3[a2[c]]") == "accaccacc" and f("2[abc]3[cd]ef") == "abcabccdcdcdef" and f("abc") == "abc" and f("10[a]") == "a" * 10
+    r = rng()
+
+    def gen(depth):
+        text, out = "", ""
+        for _ in range(r.randint(1, 3)):
+            if depth < 3 and r.random() < 0.5:
+                k = r.choice([1, 2, 3, 10, 12])
+                inner_text, inner_out = gen(depth + 1)
+                text += f"{k}[{inner_text}]"
+                out += inner_out * k
+            else:
+                letters = "".join(r.choice("abcxyz") for _ in range(r.randint(1, 3)))
+                text += letters
+                out += letters
+        return text, out
+
+    for _ in range(300):
+        text, out = gen(0)
+        assert f(text) == out, text
+
+
+def insert_into_bst(ns):
+    f = ns["Solution"]().insertIntoBST
+    assert _shape(f(None, 5)) == (5, None, None)
+    r = rng()
+    for _ in range(400):
+        keys = r.sample(range(0, 60), r.randint(0, 15) + 1)
+        val, keys = keys[0], keys[1:]
+        root = None
+        for key in keys:
+            node, parent = root, None
+            while node:
+                parent, node = node, node.left if key < node.val else node.right
+            new = TreeNode(key)
+            if parent is None:
+                root = new
+            elif key < parent.val:
+                parent.left = new
+            else:
+                parent.right = new
+        got = f(root, val)
+        assert _inorder_vals(got) == sorted(keys + [val]), (keys, val)
+        assert len(_preorder(got)) == len(keys) + 1
+
+
+def remove_leaf_nodes(ns):
+    f = ns["Solution"]().removeLeafNodes
+    assert _shape(f(_tree([1, 2, 3, 2, None, 2, 4]), 2)) == _shape(_tree([1, None, 3, None, 4]))
+    assert _shape(f(_tree([1, 3, 3, 3, 2]), 3)) == _shape(_tree([1, 3, None, None, 2])) and f(_tree([1, 2, None, 2, None, 2]), 2) is not None
+    assert f(_tree([2, 2, 2]), 2) is None and _shape(f(_tree([1, 1, 1]), 1)) is None
+    r = rng()
+
+    def prune(t, target):
+        if t is None:
+            return None
+        left, right = prune(t.left, target), prune(t.right, target)
+        if left is None and right is None and t.val == target:
+            return None
+        return (t.val, left, right)
+
+    for _ in range(400):
+        t = _random_tree(r, r.randint(1, 15), 1, 3)
+        target = r.randint(1, 3)
+        want = prune(t, target)
+        assert _shape(f(t, target)) == want, (_shape(t), target)
+
+
+def merge_alternately(ns):
+    f = ns["Solution"]().mergeAlternately
+    assert f("abc", "pqr") == "apbqcr" and f("ab", "pqrs") == "apbqrs" and f("abcd", "pq") == "apbqcd" and f("a", "b") == "ab"
+    import itertools
+
+    r = rng()
+    for _ in range(200):
+        a, b = ("".join(r.choice("abcxyz") for _ in range(r.randint(1, 8))) for _ in range(2))
+        assert f(a, b) == "".join(x + y for x, y in itertools.zip_longest(a, b, fillvalue=""))
+
+
+def boats(ns):
+    f = ns["Solution"]().numRescueBoats
+    assert f([1, 2], 3) == 1 and f([3, 2, 2, 1], 3) == 3 and f([3, 5, 3, 4], 5) == 4
+
+    def exact(people, limit):
+        n = len(people)
+        best = [0] + [10**9] * ((1 << n) - 1)
+        for mask in range(1, 1 << n):
+            i = (mask & -mask).bit_length() - 1
+            rest = mask & ~(1 << i)
+            best[mask] = best[rest] + 1
+            for j in range(i + 1, n):
+                if rest >> j & 1 and people[i] + people[j] <= limit:
+                    best[mask] = min(best[mask], best[rest & ~(1 << j)] + 1)
+        return best[-1]
+
+    r = rng()
+    for _ in range(300):
+        limit = r.randint(3, 10)
+        people = [r.randint(1, limit) for _ in range(r.randint(1, 9))]
+        assert f(people[:], limit) == exact(people, limit), (people, limit)
+
+
+def stone_game_iii(ns):
+    f = ns["Solution"]().stoneGameIII
+    assert f([1, 2, 3, 7]) == "Bob" and f([1, 2, 3, -9]) == "Alice" and f([1, 2, 3, 6]) == "Tie" and f([-1, -2, -3]) == "Tie"
+
+    def play(values, i, a, b, alice):
+        if i == len(values):
+            return a - b
+        results = []
+        total = 0
+        for k in range(1, 4):
+            if i + k > len(values):
+                break
+            total += values[i + k - 1]
+            results.append(play(values, i + k, a + total if alice else a, b if alice else b + total, not alice))
+        return max(results) if alice else min(results)
+
+    r = rng()
+    seen = set()
+    for _ in range(150):
+        values = [r.randint(-6, 6) for _ in range(r.randint(1, 9))]
+        diff = play(values, 0, 0, 0, True)
+        want = "Alice" if diff > 0 else "Bob" if diff < 0 else "Tie"
+        seen.add(want)
+        assert f(values[:]) == want, values
+    assert seen == {"Alice", "Bob", "Tie"}
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -2923,6 +3604,37 @@ CHECKS = {
     "missing-number": missing_number,
     "sum-of-two-integers": get_sum,
     "reverse-integer": reverse_integer,
+    "concatenation-of-array": concatenation_of_array,
+    "remove-element": remove_element,
+    "majority-element": majority_element,
+    "design-hashset": design_hashset,
+    "sort-an-array": sort_an_array,
+    "best-time-to-buy-and-sell-stock-ii": best_time_ii,
+    "subarray-sum-equals-k": subarray_sum_k,
+    "first-missing-positive": first_missing_positive,
+    "matchsticks-to-square": makesquare,
+    "word-break-ii": word_break_ii,
+    "search-insert-position": search_insert,
+    "find-in-mountain-array": find_in_mountain_array,
+    "verifying-an-alien-dictionary": alien_sorted,
+    "find-the-town-judge": find_judge,
+    "evaluate-division": eval_division,
+    "dota2-senate": dota2_senate,
+    "single-threaded-cpu": single_threaded_cpu,
+    "ipo": ipo,
+    "design-circular-queue": design_circular_queue,
+    "excel-sheet-column-title": excel_title,
+    "greatest-common-divisor-of-strings": gcd_of_strings,
+    "transpose-matrix": transpose_matrix,
+    "find-k-closest-elements": find_k_closest,
+    "baseball-game": baseball_game,
+    "implement-stack-using-queues": stack_using_queues,
+    "decode-string": decode_string,
+    "insert-into-a-binary-search-tree": insert_into_bst,
+    "delete-leaves-with-a-given-value": remove_leaf_nodes,
+    "merge-strings-alternately": merge_alternately,
+    "boats-to-save-people": boats,
+    "stone-game-iii": stone_game_iii,
 }
 
 

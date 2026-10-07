@@ -23,6 +23,8 @@ the progress; update it as work lands.
 | 14 | **No Build section.** The Backend (B1–B6) and Design-in-Rust (M1–M2) tracks were only planned and are dropped; the nav is DSA, Rust and Progress. |
 | 15 | **The overall plan:** DSA in Python (this tracker) and Rust for interviews (the Rust tracks) now. A system design section (LLD, HLD, API design) and behavioral prep come later; they're **deferred**, not started. |
 | 16 | **Ship after every batch.** After each batch of work: run the checks, commit, push to `master`, and let CI deploy it to the VPS (https://anneal.genuinebasil.dev). Don't let finished work pile up locally. |
+| 19 | **Solutions follow LeetCode's template only.** Every solution is `class Solution` with the method signature exactly as LeetCode's Python 3 template gives it (name, parameters and annotations as LeetCode writes them today, e.g. `list[list[int]]`), so it pastes straight into LeetCode. Helpers go inside the method as nested functions or alongside it in the class; imports go at the top as LeetCode allows; the data structures LeetCode defines (`ListNode`, `TreeNode`, `Node`) are not redefined. The template is fetched from LeetCode per problem, and the build checks each solution's signature against it. |
+| 20 | **Spaced repetition is the core, so it is FSRS-6** (the official `fsrs` crate), capacity-aware and shaped to the owner's routine: a new problem Mon–Sat, Sunday reviews the week's problems, one older review a weekday, a little practice on Saturday, and never overwhelming (no day above 12). March 2027 is an ideal, not a deadline. Everything is in docs/SPACED_REPETITION.md. |
 | 17 | **The DSA home keeps the existing catalog design** (hero with stats, Next up card, grid of cards, right rail). The cramped table is dropped. Additions: the goal cards (NeetCode 150, new ideas in the 250, All) under the hero, doubling as list switches; **pattern cards** in the existing card style; and a **problems view of long cards** where each must-learn card carries its practice problems underneath. |
 | 18 | **Filters swap with the rail.** A Filters button (or `f`) replaces the Activity boxes (This week, Recent, Re-solve due, Readiness) with one long card per filter: status, idea, difficulty, pattern, companies (group, then company, plus "asked in the last 6 months"), LeetCode tags (searchable), Premium. Counts account for the other filters. Activity brings the boxes back. |
 
@@ -42,6 +44,9 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
 - [x] Data: `content/dsa/problems.json` built (943 problems: Blind 75, NeetCode 150/250/All; no JavaScript or SQL; 161 need
       LeetCode Premium; 921 carry a company tag). The must-learn rule marks 702 of 943 as must learn, which is probably
       too many for the "All" list: revisit it with the owner before the content is written.
+- [x] Spaced repetition: FSRS-6 engine, capacity per weekday, Sunday consolidation, settings, tests and a simulated-learner
+      battle test (2026-10-07; docs/SPACED_REPETITION.md). Still to build: the daily plan endpoint and screens, the
+      fourth ("easy") log button, quick-recall review mode.
 - [x] Build section removed from the nav, routes, planned tracks and Progress areas (2026-10-07).
 - [x] Mockup: list with cascading filters, problem page (Course Schedule), pattern lesson (Graphs), built from the real
       data: https://claude.ai/artifact/UsnLenfPBi3rm5nUkihWFL (files `dsa-tracker.html`, `problem.html`,

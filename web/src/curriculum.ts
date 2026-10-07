@@ -62,14 +62,6 @@ export const PLANNED: PlannedTrack[] = [
   { code: "F5", name: "CPU-level tricks", planned: 14, tier: "sde3" },
   { code: "F6", name: "Concurrency performance", planned: 16, tier: "sde3" },
   { code: "F7", name: "I/O & serialization", planned: 10, tier: "sde3" },
-  { code: "B1", name: "HTTP with axum", planned: 16, tier: "core" },
-  { code: "B2", name: "Tower & middleware", planned: 12, tier: "core" },
-  { code: "B3", name: "Databases with sqlx", planned: 14, tier: "core" },
-  { code: "B4", name: "Networking & protocols", planned: 14, tier: "core" },
-  { code: "B5", name: "Resilience", planned: 12, tier: "core" },
-  { code: "B6", name: "Observability", planned: 12, tier: "core" },
-  { code: "M1", name: "Idioms & patterns", planned: 12, tier: "core" },
-  { code: "M2", name: "Machine coding", planned: 12, tier: "core" },
 ];
 
 export const SECTION_NAMES: Record<Section, string> = {
@@ -79,15 +71,12 @@ export const SECTION_NAMES: Record<Section, string> = {
   C: "Concurrency & Async",
   Y: "Systems Rust",
   F: "Performance Rust",
-  B: "Backend Rust",
-  M: "Design in Rust",
 };
 
 /** Which nav area each section belongs to. */
 export const NAV_SECTIONS = {
   dsa: ["D"],
   rust: ["L", "S", "C", "Y", "F"],
-  build: ["B", "M"],
 } as const satisfies Record<string, Section[]>;
 
 export type NavArea = keyof typeof NAV_SECTIONS;
@@ -147,14 +136,6 @@ export const BLURB: Record<string, string> = {
   F5: "Branchless code, SWAR, auto-vectorization and std::arch intrinsics.",
   F6: "False sharing, sharded counters, and lock-free structures that actually scale.",
   F7: "Zero-copy parsing, compact encodings and write-ahead logs.",
-  B1: "Extractors, state and error mapping in axum.",
-  B2: "Service and Layer: how every middleware in the ecosystem works.",
-  B3: "Transactions, pools, and turning database errors into status codes.",
-  B4: "Framing, timeouts and parsers that survive hostile input.",
-  B5: "Retries, idempotency and circuit breakers that don't make outages worse.",
-  B6: "Tracing across .await, metrics, and shutting down cleanly.",
-  M1: "Rust-shaped patterns: builders, newtypes, RAII, typestate.",
-  M2: "A working, tested design in 60 to 90 minutes, then the follow-ups.",
 };
 
 /** DSA tracks in the order CURRICULUM.md recommends (graphs before heaps and greedy). */

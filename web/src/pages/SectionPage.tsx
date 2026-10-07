@@ -25,12 +25,6 @@ const COPY: Record<NavArea, { eyebrow: string; color: string; title: [string, st
     title: ["The Rust interviewers ", "actually probe."],
     lead: "Language, standard library, concurrency and systems. Each track climbs from using the API, to understanding why it behaves that way, to building a small version yourself.",
   },
-  build: {
-    eyebrow: "BUILD",
-    color: "grn",
-    title: ["Services and systems, ", "built from tests."],
-    lead: "Backend tracks drill axum, tower, sqlx and resilience patterns. Machine coding gives you 60 to 90 minutes and a test suite.",
-  },
 };
 
 const TIER: Record<Tier, string> = { core: "CORE", light: "LIGHT", sde3: "SDE-3" };

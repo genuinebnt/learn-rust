@@ -1,5 +1,8 @@
 # anneal — curriculum plan
 
+> **2026-10-07:** the Build section (Backend B1–B6, Design M1–M2) was dropped and DSA became a NeetCode tracker; see
+> [DSA.md](DSA.md). System design (LLD, HLD, API design) and behavioral are deferred.
+
 What to study, in what order, and how to know you're ready for **SDE-2 and SDE-3 Rust backend loops**.
 The platform is organised as **sections → tracks → stages → problems**. Every track climbs from easy to hard,
 and every problem is written for how Rust does it, not ported from another language.

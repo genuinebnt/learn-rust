@@ -1,5 +1,9 @@
 # anneal · roadmap and analysis
 
+> **2026-10-07:** the owner dropped the Build section (B, M tracks) and AI features, and DSA became a NeetCode
+> tracker; see [DSA.md](DSA.md). System design (LLD, HLD, API design) and behavioral are deferred. Plans below that
+> involve B/M tracks or custom DSA content are superseded.
+
 Written 2026-09-27 to capture requests that go beyond the current plan, so none of them get lost.
 [PLAN.md](PLAN.md) holds the decisions and architecture, [CURRICULUM.md](CURRICULUM.md) the track-by-track content.
 This file covers what comes next, why, and in what order.

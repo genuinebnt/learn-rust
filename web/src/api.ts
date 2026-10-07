@@ -2,7 +2,7 @@
 
 export type Band = "easy" | "medium" | "hard";
 export type Mode = "write" | "fix" | "stage";
-export type Section = "D" | "L" | "S" | "C" | "Y" | "F" | "B" | "M";
+export type Section = "D" | "L" | "S" | "C" | "Y" | "F";
 export type Tier = "core" | "light" | "sde3";
 export type ContentStatus = "draft" | "ready";
 export type Progress = "not_started" | "started" | "solved" | "assisted";
@@ -255,7 +255,7 @@ export interface ProgressOverview {
   focus_week_seconds: number;
   focus_quarter_seconds: number;
   weekly: { week_start: string; easy: number; medium: number; hard: number }[];
-  readiness_trend: { area: "dsa" | "rust" | "build"; points: (number | null)[] }[];
+  readiness_trend: { area: "dsa" | "rust"; points: (number | null)[] }[];
   this_week: { date: string; solved: number; unassisted: number; focus_seconds: number }[];
   by_section: { section: Section; solved: number; written: number; readiness: number | null }[];
 }

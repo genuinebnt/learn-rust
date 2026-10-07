@@ -20,6 +20,8 @@ the progress; update it as work lands.
 | 11 | **Goal:** finish the NeetCode 150, then cover the 250's new ideas (its must-learn problems outside the 150), then the rest of All. |
 | 12 | **Writing order:** full problem pages for the NeetCode 150 first, then the 250's must-learn problems, then the rest. Practice problems get a short page (the twist versus the problem it practises, plus a solution). |
 | 13 | **Mockup first.** The list, problem page and pattern lesson are mocked up for approval before the UI is built. |
+| 14 | **No Build section.** The Backend (B1–B6) and Design-in-Rust (M1–M2) tracks were only planned and are dropped; the nav is DSA, Rust and Progress. |
+| 15 | **The overall plan:** DSA in Python (this tracker) and Rust for interviews (the Rust tracks) now. A system design section (LLD, HLD, API design) and behavioral prep come later; they're **deferred**, not started. |
 
 ## Data
 
@@ -34,6 +36,7 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
 
 - [x] AI features removed (2026-10-07, `a0164bf`).
 - [x] Data builder: NeetCode lists, LeetCode tags and similar questions, merged company tags, must learn vs practice.
+- [x] Build section removed from the nav, routes, planned tracks and Progress areas (2026-10-07).
 - [ ] Mockup: list with cascading filters, problem page (Course Schedule), pattern lesson (Graphs). **Awaiting approval.**
 - [ ] Build: content loader and API for the lists, logging and reviews; remove D1–D12 and their progress (`retired`
       ids so the progress guard allows it).

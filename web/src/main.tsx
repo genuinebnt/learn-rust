@@ -20,7 +20,6 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/login", component: LoginPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/dsa", component: () => <SectionPage area="dsa" /> }),
   createRoute({ getParentRoute: () => rootRoute, path: "/rust", component: () => <SectionPage area="rust" /> }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/build", component: () => <SectionPage area="build" /> }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/t/$track",
@@ -39,8 +38,8 @@ const routes = [
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/progress", component: ProgressPage }),
 ] as const;
-const trackRoute = routes[5];
-const problemRoute = routes[6];
+const trackRoute = routes[4];
+const problemRoute = routes[5];
 
 const router = createRouter({ routeTree: rootRoute.addChildren([...routes]) });
 

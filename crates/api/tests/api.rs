@@ -1082,3 +1082,164 @@ fn practice_problems_must_be_free_known_and_not_already_listed() {
     assert!(issues.iter().any(|m| m.contains("lc-two-sum: is already in the NeetCode lists")), "{issues:?}");
     assert!(issues.iter().any(|m| m.contains("unknown technique Nope:technique")), "{issues:?}");
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn the_mock_page_gets_every_problem_and_keeps_its_settings_and_history(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db.clone(), root.path());
+    let (status, m) = call(&app, Method::GET, "/api/dsa/mock", None).await;
+    assert_eq!(status, StatusCode::OK, "{m}");
+    // The six NeetCode problems and the three practice ones, each with how it stands.
+    let ids: Vec<&str> = m["problems"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids.len(), 9, "{ids:?}");
+    for practice in [
+        "lc-contains-duplicate-ii",
+        "lc-valid-palindrome-ii",
+        "lc-3sum-closest",
+    ] {
+        assert!(ids.contains(&practice), "{practice} missing");
+    }
+    assert_eq!(
+        (
+            m["patterns"].as_array().unwrap().len(),
+            m["saved"].clone(),
+            m["rounds"].as_array().unwrap().len()
+        ),
+        (2, Value::Null, 0)
+    );
+
+    // A practice problem logged ✓ stands as solved; a NeetCode one logged ✗ stands as attempted.
+    call(
+        &app,
+        Method::POST,
+        "/api/dsa/problems/lc-3sum-closest/log",
+        Some(json!({ "grade": "good" })),
+    )
+    .await;
+    call(
+        &app,
+        Method::POST,
+        "/api/dsa/problems/lc-two-sum/log",
+        Some(json!({ "grade": "again" })),
+    )
+    .await;
+    let (_, m) = call(&app, Method::GET, "/api/dsa/mock", None).await;
+    let by = |id: &str| {
+        m["problems"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["id"] == id)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(
+        (
+            by("lc-3sum-closest")["state"]["solved"].clone(),
+            by("lc-3sum-closest")["state"]["last_grade"].clone()
+        ),
+        (json!(true), json!("good"))
+    );
+    assert_eq!(
+        (
+            by("lc-two-sum")["state"]["solved"].clone(),
+            by("lc-two-sum")["state"]["last_grade"].clone()
+        ),
+        (json!(false), json!("again"))
+    );
+
+    // The settings come back as they were saved, and only an object of reasonable size is accepted.
+    let saved = json!({ "last": { "lists": ["neetcode150"], "total": 45 }, "presets": [] });
+    assert_eq!(
+        call(
+            &app,
+            Method::PUT,
+            "/api/dsa/mock/config",
+            Some(saved.clone())
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        call(
+            &app,
+            Method::PUT,
+            "/api/dsa/mock/config",
+            Some(json!([1, 2]))
+        )
+        .await
+        .0,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        call(
+            &app,
+            Method::PUT,
+            "/api/dsa/mock/config",
+            Some(json!({ "x": "y".repeat(40_000) }))
+        )
+        .await
+        .0,
+        StatusCode::BAD_REQUEST
+    );
+
+    // A finished round is kept, newest first.
+    let round = json!({ "config": saved["last"], "seconds": 2292, "items": [{ "id": "lc-two-sum", "grade": "good", "seconds": 1300 }, { "id": "lc-valid-palindrome", "grade": null, "seconds": 992 }] });
+    let (status, out) = call(
+        &app,
+        Method::POST,
+        "/api/dsa/mock/rounds",
+        Some(round.clone()),
+    )
+    .await;
+    assert_eq!(
+        (status, out["id"].is_number()),
+        (StatusCode::OK, true),
+        "{out}"
+    );
+    let mut second = round.clone();
+    second["seconds"] = json!(100);
+    call(&app, Method::POST, "/api/dsa/mock/rounds", Some(second)).await;
+    let (_, m) = call(&app, Method::GET, "/api/dsa/mock", None).await;
+    assert_eq!(
+        (
+            m["saved"].clone(),
+            m["rounds"].as_array().unwrap().len(),
+            m["rounds"][0]["seconds"].clone(),
+            m["rounds"][1]["items"][0]["id"].clone()
+        ),
+        (saved, 2, json!(100), json!("lc-two-sum"))
+    );
+
+    // Unknown problems, a bad grade and an empty round are refused.
+    let mut bad = round.clone();
+    bad["items"][0]["id"] = json!("lc-nothing");
+    assert_eq!(
+        call(&app, Method::POST, "/api/dsa/mock/rounds", Some(bad))
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    let mut bad = round.clone();
+    bad["items"][0]["grade"] = json!("great");
+    assert_eq!(
+        call(&app, Method::POST, "/api/dsa/mock/rounds", Some(bad))
+            .await
+            .0,
+        StatusCode::BAD_REQUEST
+    );
+    let mut bad = round;
+    bad["items"] = json!([]);
+    assert_eq!(
+        call(&app, Method::POST, "/api/dsa/mock/rounds", Some(bad))
+            .await
+            .0,
+        StatusCode::BAD_REQUEST
+    );
+}

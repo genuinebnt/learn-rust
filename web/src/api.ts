@@ -354,7 +354,7 @@ export interface DsaStanding {
   retrievability: number | null;
 }
 
-export type DsaListName = "blind75" | "neetcode150" | "neetcode250" | "all";
+export type DsaListName = "blind75" | "neetcode150" | "neetcode250" | "all" | "practice";
 
 export interface DsaProblem {
   id: string;
@@ -464,6 +464,68 @@ export interface DsaOverview {
   plan: DsaPlan;
 }
 
+/** What a mock interview round is drawn from and how it is timed (docs/DSA.md, decision 25). */
+export interface MockConfig {
+  /** `neetcode150`, `neetcode250`, `all` or `practice`. */
+  lists: string[];
+  status: "all" | "unseen" | "attempted" | "solved" | "due";
+  /** Pattern code to 1 (include) or -1 (exclude). */
+  topics: Record<string, 1 | -1>;
+  /** How many easy, medium and hard problems. */
+  mix: [number, number, number];
+  anyDiff: boolean;
+  anyCount: number;
+  /** Company group names and company names; a problem needs one of them. */
+  groups: string[];
+  companies: string[];
+  recent: boolean;
+  format: "total" | "per" | "up";
+  /** Round length in minutes (`total`). */
+  total: number;
+  /** Suggested minutes for an easy, medium and hard problem (`per` and the pace shown for the others). */
+  per: [number, number, number];
+  strict: boolean;
+  blind: boolean;
+  auto: boolean;
+  warns: boolean;
+  favour: "random" | "weak" | "asked";
+}
+
+export interface MockPreset {
+  name: string;
+  config: MockConfig;
+}
+
+export interface MockSaved {
+  last?: MockConfig;
+  presets?: MockPreset[];
+}
+
+export interface MockItem {
+  id: string;
+  /** None when the problem was never logged. */
+  grade: Grade | null;
+  seconds: number;
+}
+
+export interface MockRound {
+  id: number;
+  finished_at: string;
+  config: MockConfig;
+  items: MockItem[];
+  seconds: number;
+}
+
+export interface MockData {
+  today: string;
+  patterns: { code: string; name: string }[];
+  company_groups: { name: string; companies: string[] }[];
+  /** Every DSA problem, the practice ones too. */
+  problems: DsaProblem[];
+  saved: MockSaved | null;
+  rounds: MockRound[];
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -519,6 +581,9 @@ export const api = {
   dsaPage: (id: string) => request<DsaPage | null>("GET", `/dsa/problems/${id}/page`),
   practice: (pattern: string) => request<PracticeList>("GET", `/dsa/practice/${pattern}`),
   logDsa: (id: string, grade: Grade) => request<{ id: string; due: string | null; ideal_days: number | null }>("POST", `/dsa/problems/${id}/log`, { grade }),
+  mock: () => request<MockData>("GET", "/dsa/mock"),
+  saveMock: (saved: MockSaved) => request<MockSaved>("PUT", "/dsa/mock/config", saved),
+  finishMock: (round: { config: MockConfig; items: MockItem[]; seconds: number }) => request<{ id: number }>("POST", "/dsa/mock/rounds", round),
   startDsa: (from: string) => request<{ start: string }>("POST", "/dsa/start", { from }),
   saveSrs: (srs: SrsSettings) => request<SrsSettings>("PUT", "/settings/srs", srs),
   focus: (id: string, seconds: number) => request<void>("POST", `/problems/${id}/focus`, { seconds }),

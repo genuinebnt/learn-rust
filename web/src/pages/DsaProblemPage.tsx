@@ -157,7 +157,7 @@ export function DsaProblemPage({ slug }: { slug: string }) {
           <Companies companies={p.companies} limit={40} />
         </section>
       )}
-      <p className="rempty">Part of: {p.lists.map((l) => ({ blind75: "Blind 75", neetcode150: "NeetCode 150", neetcode250: "NeetCode 250", all: "NeetCode All" })[l]).join(", ")}.</p>
+      <p className="rempty">Part of: {p.lists.map((l) => ({ blind75: "Blind 75", neetcode150: "NeetCode 150", neetcode250: "NeetCode 250", all: "NeetCode All", practice: "Practice" })[l]).join(", ")}.</p>
     </>,
   );
 }

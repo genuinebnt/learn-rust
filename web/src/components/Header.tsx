@@ -10,7 +10,7 @@ const AREAS = [
 ] as const;
 
 /** Nav items whose screens are designed but not built yet. */
-const LATER = ["Library", "Mock interview"];
+const LATER = ["Library"];
 
 function toggleTheme() {
   const root = document.documentElement;
@@ -56,6 +56,9 @@ export function Header({ area }: { area?: "dsa" | "rust" }) {
             {l}
           </span>
         ))}
+        <Link to="/dsa/mock" className={path.startsWith("/dsa/mock") ? "on" : ""} style={{ color: path.startsWith("/dsa/mock") ? "var(--fg)" : "var(--dim)" }}>
+          Mock interview
+        </Link>
         <Link to="/progress" className={path.startsWith("/progress") ? "on" : ""} style={{ color: path.startsWith("/progress") ? "var(--fg)" : "var(--dim)" }}>
           Progress
         </Link>

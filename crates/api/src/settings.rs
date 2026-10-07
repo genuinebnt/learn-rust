@@ -123,7 +123,7 @@ pub async fn put_appearance(State(s): State<AppState>, Json(a): Json<AppearanceS
     Ok(Json(a))
 }
 
-async fn store<T: Serialize>(s: &AppState, key: &str, value: &T) -> ApiResult<()> {
+pub(crate) async fn store<T: Serialize>(s: &AppState, key: &str, value: &T) -> ApiResult<()> {
     sqlx::query(
         "INSERT INTO settings (key, value) VALUES ($1, $2)
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()",

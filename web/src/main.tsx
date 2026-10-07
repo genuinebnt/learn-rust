@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Outlet, RouterProvider, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { DsaPage } from "./pages/DsaPage";
 import { DsaPlanPage } from "./pages/DsaPlanPage";
+import { MockPage } from "./pages/MockPage";
 import { DsaProblemPage } from "./pages/DsaProblemPage";
 import { PracticePage } from "./pages/PracticePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -16,6 +17,7 @@ import "./styles/app.css";
 import "./styles/catalog.css";
 import "./styles/progress.css";
 import "./styles/dsa.css";
+import "./styles/mock.css";
 
 const rootRoute = createRootRoute({ component: Outlet });
 
@@ -25,6 +27,7 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/login", component: LoginPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/dsa", component: DsaPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/dsa/plan", component: DsaPlanPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/dsa/mock", component: MockPage }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/dsa/practice/$code",
@@ -60,10 +63,10 @@ const routes = [
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/progress", component: ProgressPage }),
 ] as const;
-const practiceRoute = routes[4];
-const dsaProblemRoute = routes[5];
-const trackRoute = routes[7];
-const problemRoute = routes[8];
+const practiceRoute = routes[5];
+const dsaProblemRoute = routes[6];
+const trackRoute = routes[8];
+const problemRoute = routes[9];
 
 const router = createRouter({ routeTree: rootRoute.addChildren([...routes]) });
 

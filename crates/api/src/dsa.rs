@@ -43,7 +43,7 @@ struct PatternRow<'a> {
 }
 
 #[derive(Serialize)]
-struct ProblemRow<'a> {
+pub(crate) struct ProblemRow<'a> {
     id: &'a str,
     slug: &'a str,
     number: u32,
@@ -62,12 +62,12 @@ struct ProblemRow<'a> {
     order: u32,
     /// A written lesson exists for it.
     has_page: bool,
-    state: Standing,
+    pub(crate) state: Standing,
 }
 
 /// How a problem stands: nothing yet, or the latest review's grade.
 #[derive(Serialize)]
-struct Standing {
+pub(crate) struct Standing {
     /// Solved at least once.
     solved: bool,
     /// The latest attempt needed help.
@@ -104,7 +104,7 @@ fn local(t: chrono::DateTime<chrono::Utc>) -> NaiveDate {
     t.with_timezone(&chrono::Local).date_naive()
 }
 
-fn dsa_tracks(catalog: &Catalog) -> impl Iterator<Item = &Track> {
+pub(crate) fn dsa_tracks(catalog: &Catalog) -> impl Iterator<Item = &Track> {
     catalog.tracks.iter().filter(|t| t.section == Section::Dsa)
 }
 
@@ -130,7 +130,7 @@ fn state_of(progress: Option<&ProgressRow>, review: Option<&ReviewRow>, today: N
     }
 }
 
-fn row<'a>(t: &'a Track, p: &'a Problem, progress: &HashMap<String, ProgressRow>, reviews: &HashMap<&str, &ReviewRow>, today: NaiveDate) -> ProblemRow<'a> {
+pub(crate) fn row<'a>(t: &'a Track, p: &'a Problem, progress: &HashMap<String, ProgressRow>, reviews: &HashMap<&str, &ReviewRow>, today: NaiveDate) -> ProblemRow<'a> {
     let d = dsa_of(p);
     ProblemRow {
         id: &p.id,
@@ -210,7 +210,7 @@ async fn plan(s: &AppState, settings: &Settings, progress: &HashMap<String, Prog
 }
 
 /// The reviews that belong to DSA problems.
-fn dsa_reviews(catalog: &Catalog, rows: Vec<ReviewRow>) -> Vec<ReviewRow> {
+pub(crate) fn dsa_reviews(catalog: &Catalog, rows: Vec<ReviewRow>) -> Vec<ReviewRow> {
     rows.into_iter().filter(|r| catalog.problem(&r.problem_id).is_some_and(|(_, p)| p.dsa.is_some())).collect()
 }
 
@@ -340,7 +340,7 @@ pub struct PracticeList<'a> {
 }
 
 /// How a practice problem stands, from its latest attempt (they have no review to read it from).
-fn practice_state(progress: Option<&ProgressRow>) -> Standing {
+pub(crate) fn practice_state(progress: Option<&ProgressRow>) -> Standing {
     let grade = progress.map(|r| match (r.solved, r.assisted) {
         (true, false) => "good",
         (true, true) => "hard",

@@ -600,7 +600,7 @@ function ProblemGroups({ o, model, pickCompany, picked, uncapped, openGroups, op
 function ProblemCard({ p, o, model, log, pickCompany, picked }: { p: DsaProblem; o: DsaOverview; model: Model; log: ReturnType<typeof useLogger>["log"]; pickCompany: (name: string) => void; picked: ReadonlySet<string> }) {
   const status = statusOf(p, o.today);
   const teacher = p.practice_of ? model.byId.get(p.practice_of) : undefined;
-  const lists = p.lists.filter((l) => l !== "all").map((l) => ({ blind75: "B75", neetcode150: "150", neetcode250: "250", all: "" })[l]);
+  const lists = p.lists.filter((l) => l !== "all").map((l) => ({ blind75: "B75", neetcode150: "150", neetcode250: "250", all: "", practice: "practice" })[l]);
   const when =
     status === "due" ? (
       <span className="d-when due">review due {p.state.due && p.state.due < o.today ? "now" : "today"}</span>

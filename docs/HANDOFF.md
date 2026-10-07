@@ -70,7 +70,7 @@ and what's next, in order.
 - **Verifier:** `anneal verify` runs each problem's `wrong/*.rs` and fails if one passes or doesn't compile; the test
   prelude has a seeded `anneal_prelude::Rng` for randomized brute-force comparisons.
 
-**Designed but not built** (all in `anneal-screens.html`): Today, Library, Mock interview, Readiness, the project pages.
+**Designed but not built** (all in `anneal-screens.html`): Today, Library, Readiness, the project pages. The DSA mock interview is built (docs/DSA.md decision 25); its Rust round is not.
 
 **Workspace layout as of the last session** (each point was a separate request from the owner; keep them):
 - Left panel: Problem, Hints, Solution, Related. Centre: the editor, with the console under it. Right panel: Tests only, with Submit at the bottom.
@@ -379,7 +379,7 @@ Plan (approved):
   Track outlines are in CURRICULUM.md. Include the §10.2 additions for L4, L5, S4, S6 and S7.
 - **Step 2b, Q concept cards** (ROADMAP §10.3): needs a card-mode mockup first.
 - ~~Step 2c, AI assistant~~: built, then removed by the owner on 2026-10-07. Don't re-add AI features.
-- Designed screens still to build: Today, Readiness, Library, Mock interview, project pages.
+- Designed screens still to build: Today, Readiness, Library, project pages (a Rust mock round later; the DSA mock exists).
 
 ## 7. Known rough edges
 

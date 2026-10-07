@@ -1,0 +1,396 @@
+pattern = "Arrays & Hashing"
+intro = "Most array and string problems become short once you know what to remember while scanning: a set of what you have seen, a count of each value, a map from a value to where it was, or a running total. A dictionary lookup is O(1), so each of these turns a nested loop into a single pass."
+
+[[technique]]
+id = "Arrays & Hashing:simulation"
+signals = [
+    "the problem tells you exactly what to build, step by step",
+    "no clever idea is needed: follow the rules and build the result",
+    "the work is in getting the indices and edge cases right",
+]
+template = '''
+def get_concatenation(nums):
+    n = len(nums)
+    ans = [0] * (2 * n)  # allocate the whole answer, then fill by index
+    for i, x in enumerate(nums):
+        ans[i] = ans[i + n] = x
+    return ans
+'''
+pitfalls = [
+    "Don't hunt for a trick. Write the direct version first and check it on the examples.",
+    "Decide whether to build a new list or change the input. The problem usually says which.",
+    "Empty input and a single element are the usual edge cases.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:seen-set"
+signals = [
+    "have I seen this value before?",
+    "find a duplicate, or check that all values are distinct",
+    "order does not matter, only membership",
+]
+template = '''
+def contains_duplicate(nums):
+    seen = set()
+    for x in nums:
+        if x in seen:
+            return True
+        seen.add(x)
+    return False
+'''
+pitfalls = [
+    "Check before adding. Adding first makes every value look like a duplicate.",
+    "A set gives O(n) time with O(n) memory. Sorting first gives O(n log n) with no extra memory.",
+    "len(set(nums)) != len(nums) is a one-line version that always reads the whole list.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:counting"
+signals = [
+    "compare the contents of two strings or lists regardless of order (anagrams)",
+    "how many times does each value occur?",
+    "the alphabet is small and fixed, so an array of 26 counts works",
+]
+template = '''
+from collections import Counter
+
+
+def is_anagram(s, t):
+    return Counter(s) == Counter(t)
+
+
+def is_anagram_fixed_alphabet(s, t):
+    counts = [0] * 26
+    for a, b in zip(s, t):
+        counts[ord(a) - 97] += 1
+        counts[ord(b) - 97] -= 1
+    return len(s) == len(t) and not any(counts)
+'''
+pitfalls = [
+    "Check the lengths first. With different lengths they can't be anagrams.",
+    "For lowercase letters an array of 26 is faster than a dictionary and uses constant memory.",
+    "With any characters (Unicode), use a Counter or dictionary instead of an array.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:complement"
+signals = [
+    "find two items that add up to a target",
+    "for each item you know exactly which partner would complete it",
+    "a dictionary from value to index finds the partner in O(1)",
+]
+template = '''
+def two_sum(nums, target):
+    index = {}  # value -> position where it was seen
+    for i, x in enumerate(nums):
+        if target - x in index:
+            return [index[target - x], i]
+        index[x] = i
+    return []
+'''
+pitfalls = [
+    "Look up the complement before storing the current value, so an item can't pair with itself.",
+    "Duplicates work: [3, 3] with target 6 finds the first 3 when it reaches the second.",
+    "If the array is sorted, two pointers use no extra memory.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:string-match"
+signals = [
+    "find a pattern inside a longer text, possibly many times",
+    "compare many substrings of the same length",
+    "an O(n times m) comparison is too slow",
+]
+template = '''
+def find_all(text, pattern, base=256, mod=1_000_000_007):
+    n, m = len(text), len(pattern)
+    if m == 0 or m > n:
+        return []
+    high = pow(base, m - 1, mod)  # the weight of the leftmost character
+    want = window = 0
+    for i in range(m):
+        want = (want * base + ord(pattern[i])) % mod
+        window = (window * base + ord(text[i])) % mod
+    found = []
+    for i in range(n - m + 1):
+        # Confirm a hash match: different strings can share a hash.
+        if window == want and text[i:i + m] == pattern:
+            found.append(i)
+        if i + m < n:  # slide: drop text[i], add text[i + m]
+            window = (window - ord(text[i]) * high) * base
+            window = (window + ord(text[i + m])) % mod
+    return found
+'''
+pitfalls = [
+    "Equal hashes don't prove equal strings. Compare the actual substrings when the hashes match.",
+    "Keep the arithmetic modulo a large prime so numbers stay small.",
+    "When you only need one answer, Python's `in` and str.find already do the job. The rolling hash is for many comparisons.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:signature"
+signals = [
+    "group items that are equivalent in some sense (anagrams, same shape)",
+    "two items are equal when a canonical form of each matches",
+    "the canonical form can be computed per item and used as a dictionary key",
+]
+template = '''
+from collections import defaultdict
+
+
+def group_anagrams(words):
+    groups = defaultdict(list)
+    for word in words:
+        key = tuple(sorted(word))  # same letters, same key
+        groups[key].append(word)
+    return list(groups.values())
+'''
+pitfalls = [
+    "Keys must be hashable: use a tuple or string, not a list.",
+    "Sorting each word costs O(k log k). For lowercase words a tuple of 26 counts makes it O(k).",
+    "Choose a key that equal items share and different items don't.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:majority-vote"
+signals = [
+    "an element that appears more than half the time (or more than n / 3)",
+    "constant extra memory is required",
+    "pair off different elements: the majority survives the cancelling",
+]
+template = '''
+def majority_element(nums):
+    candidate, count = None, 0
+    for x in nums:
+        if count == 0:
+            candidate = x
+        count += 1 if x == candidate else -1
+    return candidate
+'''
+pitfalls = [
+    "This only returns the right value when a majority is guaranteed. Otherwise verify the candidate with a second pass.",
+    "For elements above n / 3 keep two candidates and two counts, then verify both.",
+    "Each cancelled pair removes one majority element and one other, so the majority stays above half.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:design-hash"
+signals = [
+    "implement a data structure (a set, a map, a cache, a counter) with fast operations",
+    "built-in dictionaries are not allowed, or you must combine two structures",
+    "add, remove and lookup should take O(1) on average",
+]
+template = '''
+class MyHashSet:
+    def __init__(self, buckets=1009):
+        self.size = buckets
+        self.table = [[] for _ in range(buckets)]  # chaining: a list each
+
+    def add(self, key):
+        bucket = self.table[key % self.size]
+        if key not in bucket:
+            bucket.append(key)
+
+    def remove(self, key):
+        bucket = self.table[key % self.size]
+        if key in bucket:
+            bucket.remove(key)
+
+    def contains(self, key):
+        return key in self.table[key % self.size]
+'''
+pitfalls = [
+    "Choose a prime number of buckets so patterned keys spread out.",
+    "Handle collisions (chaining here) and make add idempotent: adding twice must not store twice.",
+    "Removing a key that isn't there must do nothing.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:sorting"
+signals = [
+    "sort without the built-in, or sort by a custom rule",
+    "need O(n log n) in the worst case, or a stable sort",
+    "equal keys must keep their order",
+]
+template = '''
+def merge_sort(a):
+    if len(a) <= 1:
+        return a
+    mid = len(a) // 2
+    left, right = merge_sort(a[:mid]), merge_sort(a[mid:])
+    out, i, j = [], 0, 0
+    while i < len(left) and j < len(right):
+        if left[i] <= right[j]:  # <= keeps equal items in their order
+            out.append(left[i])
+            i += 1
+        else:
+            out.append(right[j])
+            j += 1
+    return out + left[i:] + right[j:]
+'''
+pitfalls = [
+    "A quicksort with a fixed pivot goes quadratic on sorted or all-equal input.",
+    "Python's sorted() is stable and takes a key. Reach for it first unless the problem forbids it.",
+    "When the values lie in a small range, counting sort is O(n + range).",
+]
+
+[[technique]]
+id = "Arrays & Hashing:top-k"
+signals = [
+    "the k most frequent values",
+    "counts are bounded by the length of the array",
+    "a heap would be O(n log k), but buckets can do O(n)",
+]
+template = '''
+from collections import Counter
+
+
+def top_k_frequent(nums, k):
+    buckets = [[] for _ in range(len(nums) + 1)]  # index = frequency
+    for value, freq in Counter(nums).items():
+        buckets[freq].append(value)
+    out = []
+    for freq in range(len(buckets) - 1, 0, -1):  # most frequent first
+        for value in buckets[freq]:
+            out.append(value)
+            if len(out) == k:
+                return out
+    return out
+'''
+pitfalls = [
+    "A frequency can't exceed n, so n + 1 buckets are enough.",
+    "heapq.nlargest(k, counts, key=counts.get) is the short O(n log k) version.",
+    "Counter.most_common(k) is the shortest, and fine when the library is allowed.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:encoding"
+signals = [
+    "turn a list of strings into one string and back",
+    "the strings can contain any character, including your separator",
+    "a delimiter alone is unsafe",
+]
+template = '''
+def encode(strs):
+    return "".join(f"{len(s)}#{s}" for s in strs)  # "4#leet4#code"
+
+
+def decode(data):
+    out, i = [], 0
+    while i < len(data):
+        j = data.index("#", i)  # the first # after the length digits
+        length = int(data[i:j])
+        out.append(data[j + 1:j + 1 + length])
+        i = j + 1 + length
+    return out
+'''
+pitfalls = [
+    "Read the length up to the FIRST # after the position. A # inside a word comes later and is skipped by the length.",
+    "The empty string encodes as 0# and decodes correctly. The empty list encodes as nothing.",
+    "A length prefix works for any characters, which is why it beats a separator.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:prefix"
+signals = [
+    "for each position, combine everything to its left and everything to its right",
+    "the product or sum of all the others",
+    "division is not allowed, or zeros are possible",
+]
+template = '''
+def product_except_self(nums):
+    n = len(nums)
+    out = [1] * n
+    left = 1
+    for i in range(n):  # out[i] = product of everything to the left
+        out[i] = left
+        left *= nums[i]
+    right = 1
+    for i in range(n - 1, -1, -1):  # multiply in everything to the right
+        out[i] *= right
+        right *= nums[i]
+    return out
+'''
+pitfalls = [
+    "Store the left product first, then multiply it by the item. Doing it the other way includes the item itself.",
+    "Reusing the output array for the first pass keeps extra memory at O(1).",
+    "Dividing by the total fails when a zero is present.",
+]
+
+[[technique]]
+id = "Arrays & Hashing:consecutive"
+signals = [
+    "the longest run of consecutive values, in any order, in O(n)",
+    "sorting would work but is O(n log n)",
+    "only the start of a run needs work",
+]
+template = '''
+def longest_consecutive(nums):
+    values = set(nums)
+    best = 0
+    for x in values:
+        if x - 1 not in values:  # x starts a run
+            length = 1
+            while x + length in values:
+                length += 1
+            best = max(best, length)
+    return best
+'''
+pitfalls = [
+    "Start counting only at a run's first element (x - 1 not in the set), or each run is counted from every member.",
+    "Loop over the set, not the list, so duplicates are skipped.",
+    "The inner while looks O(n squared), but every run is walked once, so the total is O(n).",
+]
+
+[[technique]]
+id = "Arrays & Hashing:prefix-map"
+signals = [
+    "count the subarrays whose sum equals k, with negative numbers allowed",
+    "a sliding window fails because the sum isn't monotonic",
+    "the sum of a subarray is the difference of two prefix sums",
+]
+template = '''
+from collections import defaultdict
+
+
+def subarray_sum(nums, k):
+    seen = defaultdict(int)
+    seen[0] = 1  # the empty prefix
+    running = count = 0
+    for x in nums:
+        running += x
+        count += seen[running - k]  # earlier prefixes that leave exactly k
+        seen[running] += 1
+    return count
+'''
+pitfalls = [
+    "Seed the map with {0: 1}, or subarrays that start at index 0 are missed.",
+    "Look up running - k before recording running, so a subarray is never empty.",
+    "The same shape counts subarrays with a given remainder (store running % m).",
+]
+
+[[technique]]
+id = "Arrays & Hashing:index-marks"
+signals = [
+    "the answer is a number between 1 and n, and the array has n slots",
+    "constant extra memory, and the array may be changed",
+    "use the array itself as the hash table",
+]
+template = '''
+def first_missing_positive(nums):
+    n = len(nums)
+    for i in range(n):
+        # Send each value v in 1..n to index v - 1.
+        while 1 <= nums[i] <= n and nums[nums[i] - 1] != nums[i]:
+            j = nums[i] - 1
+            nums[i], nums[j] = nums[j], nums[i]
+    for i in range(n):
+        if nums[i] != i + 1:
+            return i + 1
+    return n + 1
+'''
+pitfalls = [
+    "Guard the swap with nums[v - 1] != v. Without it, duplicates make the loop run forever.",
+    "The answer is always in 1..n + 1, so values outside 1..n can be ignored.",
+    "Each swap puts one value in its final place, so the whole thing is O(n).",
+]

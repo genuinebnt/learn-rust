@@ -1,0 +1,218 @@
+pattern = "Two Pointers"
+intro = "Two indexes move through the data so one pass does the work of a nested loop. They either start at the two ends and move toward each other, or one reads ahead while the other writes behind. The skill is knowing which pointer to move, and why moving it can't skip the answer."
+
+[[technique]]
+id = "Two Pointers:in-place"
+signals = [
+    "remove or compact items inside the array, using no extra array",
+    "keep the first occurrence, drop a value, or move zeros to the end",
+    "return the new length, and only the first part of the array matters",
+]
+template = '''
+def remove_duplicates(nums):
+    # nums is sorted. Keep one of each value, in place; return the count.
+    write = 0
+    for read in range(len(nums)):
+        if write == 0 or nums[read] != nums[write - 1]:
+            nums[write] = nums[read]
+            write += 1
+    return write
+'''
+pitfalls = [
+    "read is always at or ahead of write, so you never overwrite something you still need.",
+    "Compare with the last item KEPT (nums[write - 1]), not with nums[read - 1].",
+    "Return the length. The tail beyond it can hold anything.",
+]
+
+[[technique]]
+id = "Two Pointers:opposite"
+signals = [
+    "a palindrome, or a pair that depends on both ends",
+    "the array is sorted and you want a pair with some property",
+    "move the left pointer right or the right pointer left, depending on a comparison",
+]
+template = '''
+def is_palindrome(s):
+    lo, hi = 0, len(s) - 1
+    while lo < hi:
+        if not s[lo].isalnum():
+            lo += 1
+        elif not s[hi].isalnum():
+            hi -= 1
+        elif s[lo].lower() != s[hi].lower():
+            return False
+        else:
+            lo, hi = lo + 1, hi - 1
+    return True
+'''
+pitfalls = [
+    "Use lo < hi. When they meet, the middle character matches itself.",
+    "Skip characters you must ignore before comparing, and keep the bounds check in every step.",
+    "For a sorted pair-sum, move lo up when the sum is too small and hi down when it is too big. Neither move can skip an answer.",
+]
+
+[[technique]]
+id = "Two Pointers:merge-sorted"
+signals = [
+    "combine two sorted arrays or strings into one",
+    "the first array has spare space at its end, so fill it from the back",
+    "take whichever front item is smaller, then advance that pointer",
+]
+template = '''
+def merge(nums1, m, nums2, n):
+    # nums1 has m values then n spare slots; merge nums2 into it, in place.
+    i, j, k = m - 1, n - 1, m + n - 1
+    while j >= 0:
+        if i >= 0 and nums1[i] > nums2[j]:
+            nums1[k] = nums1[i]
+            i -= 1
+        else:
+            nums1[k] = nums2[j]
+            j -= 1
+        k -= 1
+'''
+pitfalls = [
+    "Fill from the back so you don't overwrite values of nums1 you haven't moved yet.",
+    "Stop when nums2 is used up. What is left of nums1 is already in place.",
+    "To merge strings alternately, advance both pointers each step instead of comparing.",
+]
+
+[[technique]]
+id = "Two Pointers:simulate"
+signals = [
+    "build a new string or list by following two sequences together",
+    "one pointer walks the input, another walks the list of edits",
+    "insert, replace or skip at given positions",
+]
+template = '''
+def add_spaces(s, spaces):
+    # spaces is sorted: insert a space before s[i] for each i in it.
+    out, j = [], 0
+    for i, ch in enumerate(s):
+        if j < len(spaces) and spaces[j] == i:
+            out.append(" ")
+            j += 1
+        out.append(ch)
+    return "".join(out)
+'''
+pitfalls = [
+    "Build in a list and join once. Repeated string concatenation copies each time.",
+    "Check j < len(spaces) before reading spaces[j].",
+    "Two pointers over two sorted sequences is the same shape as a merge.",
+]
+
+[[technique]]
+id = "Two Pointers:ksum"
+signals = [
+    "find all unique pairs, triples or quadruples that sum to a target",
+    "sort, fix one item, and find the rest with two pointers",
+    "duplicates in the answer must be avoided",
+]
+template = '''
+def three_sum(nums):
+    nums.sort()
+    out = []
+    for i in range(len(nums) - 2):
+        if i and nums[i] == nums[i - 1]:
+            continue  # same first value as before: skip
+        lo, hi = i + 1, len(nums) - 1
+        while lo < hi:
+            total = nums[i] + nums[lo] + nums[hi]
+            if total < 0:
+                lo += 1
+            elif total > 0:
+                hi -= 1
+            else:
+                out.append([nums[i], nums[lo], nums[hi]])
+                lo += 1
+                while lo < hi and nums[lo] == nums[lo - 1]:
+                    lo += 1
+    return out
+'''
+pitfalls = [
+    "Skip repeated values for the fixed item and, after a hit, for the left pointer. That removes duplicate triples.",
+    "After sorting, a small sum means move lo up, a big sum means move hi down.",
+    "For four numbers add another loop around this one. The pattern is: sort, fix k - 2 items, two pointers.",
+]
+
+[[technique]]
+id = "Two Pointers:pair-count"
+signals = [
+    "count subsets or pairs whose smallest and largest satisfy a condition",
+    "once sorted, only the minimum and maximum of a group matter",
+    "everything between them can be included or not",
+]
+template = '''
+def num_subseq(nums, target):
+    # Count non-empty subsequences whose min + max <= target.
+    nums.sort()
+    MOD = 10**9 + 7
+    powers = [1] * (len(nums) + 1)
+    for i in range(1, len(powers)):
+        powers[i] = powers[i - 1] * 2 % MOD
+    count, lo, hi = 0, 0, len(nums) - 1
+    while lo <= hi:
+        if nums[lo] + nums[hi] <= target:
+            count += powers[hi - lo]  # items between lo and hi: in or out
+            lo += 1
+        else:
+            hi -= 1
+    return count % MOD
+'''
+pitfalls = [
+    "Fix the smallest element at lo. Every subset of the items between lo and hi can be added, which is 2 to the power hi - lo.",
+    "Precompute the powers of 2, because pow in a loop is slower and the numbers get huge.",
+    "Order within a subsequence doesn't matter for min and max, so sorting is safe.",
+]
+
+[[technique]]
+id = "Two Pointers:greedy-pair"
+signals = [
+    "pair the heaviest with the lightest, or the biggest with the smallest",
+    "each group holds at most two items under a limit",
+    "the fewest groups",
+]
+template = '''
+def num_boats(people, limit):
+    people = sorted(people)
+    lo, hi, boats = 0, len(people) - 1, 0
+    while lo <= hi:
+        if people[lo] + people[hi] <= limit:
+            lo += 1  # the lightest rides along with the heaviest
+        hi -= 1
+        boats += 1
+    return boats
+'''
+pitfalls = [
+    "The heaviest person always takes a boat. Only the lightest is optional.",
+    "If the heaviest can't pair with the lightest, they can't pair with anyone.",
+    "Use lo <= hi so a single person left in the middle still gets a boat.",
+]
+
+[[technique]]
+id = "Two Pointers:running-max"
+signals = [
+    "the amount each position can hold depends on the tallest item on each side",
+    "two scans (left maxima, right maxima) would work, and you want one pass",
+    "the smaller of the two sides decides the answer at that end",
+]
+template = '''
+def trap(height):
+    lo, hi = 0, len(height) - 1
+    left_max = right_max = water = 0
+    while lo < hi:
+        if height[lo] < height[hi]:  # the right side is tall enough
+            left_max = max(left_max, height[lo])
+            water += left_max - height[lo]
+            lo += 1
+        else:
+            right_max = max(right_max, height[hi])
+            water += right_max - height[hi]
+            hi -= 1
+    return water
+'''
+pitfalls = [
+    "Move the pointer at the SMALLER side. That side's water level is fixed by its own maximum, since the other side is taller.",
+    "Update the running maximum before adding the water, so the water is never negative.",
+    "The version with two arrays (left_max[i], right_max[i]) is easier to explain. Offer it first.",
+]

@@ -1,0 +1,273 @@
+pattern = "Stack"
+intro = "A stack gives you the most recent unfinished thing. Use it when something is waiting for a later item to resolve it: an open bracket waits for its closer, a day waits for a warmer one, an operator waits for its operand. Say what each stack entry is waiting for, and when it can be removed."
+
+[[technique]]
+id = "Stack:simulate-stack"
+signals = [
+    "items arrive in order and each can cancel, collide with or undo the previous one",
+    "undo, remove adjacent duplicates, asteroids colliding",
+    "the result is whatever is left on the stack",
+]
+template = '''
+def asteroid_collision(asteroids):
+    stack = []
+    for a in asteroids:
+        alive = True
+        while alive and a < 0 and stack and stack[-1] > 0:
+            if stack[-1] < -a:
+                stack.pop()  # the one on the stack is smaller: it explodes
+            else:
+                alive = stack[-1] != -a  # equal sizes: both explode
+                if not alive:
+                    stack.pop()
+                break
+        else:
+            if alive:
+                stack.append(a)
+    return stack
+'''
+pitfalls = [
+    "Only a right-moving asteroid on the stack and a left-moving one arriving collide.",
+    "Loop: the new asteroid can destroy several in a row.",
+    "Equal sizes destroy both. Handle that case separately from a smaller or larger one.",
+]
+
+[[technique]]
+id = "Stack:matching"
+signals = [
+    "brackets, tags or any open and close pairs",
+    "each closer must match the most recent unmatched opener",
+    "valid if the stack ends empty",
+]
+template = '''
+def is_valid(s):
+    pairs = {")": "(", "]": "[", "}": "{"}
+    stack = []
+    for ch in s:
+        if ch in pairs:
+            if not stack or stack.pop() != pairs[ch]:
+                return False
+        else:
+            stack.append(ch)
+    return not stack
+'''
+pitfalls = [
+    "A closer with an empty stack is invalid, so check for empty before popping.",
+    "At the end the stack must be empty. '((' ends with openers left over.",
+    "Map closers to openers, so the check is one dictionary lookup.",
+]
+
+[[technique]]
+id = "Stack:design-queue-stack"
+signals = [
+    "build a queue from stacks, or a stack from queues",
+    "reverse the order once to get first-in first-out",
+    "amortised O(1) is acceptable",
+]
+template = '''
+class MyQueue:
+    def __init__(self):
+        self.inbox, self.outbox = [], []
+
+    def push(self, x):
+        self.inbox.append(x)
+
+    def _fill(self):
+        if not self.outbox:  # only refill when it is empty
+            while self.inbox:
+                self.outbox.append(self.inbox.pop())
+
+    def pop(self):
+        self._fill()
+        return self.outbox.pop()
+
+    def peek(self):
+        self._fill()
+        return self.outbox[-1]
+
+    def empty(self):
+        return not self.inbox and not self.outbox
+'''
+pitfalls = [
+    "Move items to the outbox only when it is empty. Moving earlier breaks the order.",
+    "Each item moves at most once, so the amortised cost per operation is O(1).",
+    "empty() must check both stacks.",
+]
+
+[[technique]]
+id = "Stack:aux-stack"
+signals = [
+    "a stack that also answers 'what is the minimum (or maximum) right now?' in O(1)",
+    "keep extra information next to each pushed item",
+    "popping must restore the previous answer",
+]
+template = '''
+class MinStack:
+    def __init__(self):
+        self.items = []  # (value, minimum of everything up to here)
+
+    def push(self, x):
+        low = min(x, self.items[-1][1]) if self.items else x
+        self.items.append((x, low))
+
+    def pop(self):
+        self.items.pop()
+
+    def top(self):
+        return self.items[-1][0]
+
+    def get_min(self):
+        return self.items[-1][1]
+'''
+pitfalls = [
+    "Store the running minimum with each item, so popping restores the earlier minimum for free.",
+    "A single 'current min' variable breaks on pop, because you don't know the previous minimum.",
+    "The same trick tracks a running maximum, or a frequency.",
+]
+
+[[technique]]
+id = "Stack:expression"
+signals = [
+    "evaluate an expression in postfix (reverse Polish) form",
+    "operands first, then the operator that applies to the last two",
+    "push numbers, apply operators to the top two",
+]
+template = '''
+def eval_rpn(tokens):
+    stack = []
+    for t in tokens:
+        if t in "+-*/" and len(t) == 1:
+            b, a = stack.pop(), stack.pop()  # b came last
+            if t == "+":
+                stack.append(a + b)
+            elif t == "-":
+                stack.append(a - b)
+            elif t == "*":
+                stack.append(a * b)
+            else:
+                stack.append(int(a / b))  # truncate toward zero
+        else:
+            stack.append(int(t))
+    return stack[0]
+'''
+pitfalls = [
+    "Pop the right operand first (b), then the left (a). Subtraction and division care.",
+    "Division truncates toward zero: int(a / b), not a // b, for negative numbers.",
+    "A token like '-5' is a number, not an operator. Check the length as well.",
+]
+
+[[technique]]
+id = "Stack:mono-stack"
+signals = [
+    "for each item, the next greater (or smaller) item to its right or left",
+    "how many days until a warmer day, or the nearest taller building",
+    "keep the stack in sorted order, and pop what the new item resolves",
+]
+template = '''
+def daily_temperatures(temps):
+    answer = [0] * len(temps)
+    stack = []  # indexes whose warmer day hasn't come yet
+    for i, t in enumerate(temps):
+        while stack and temps[stack[-1]] < t:
+            j = stack.pop()
+            answer[j] = i - j  # day i is the first warmer day for j
+        stack.append(i)
+    return answer
+'''
+pitfalls = [
+    "Store indexes so you can compute distances.",
+    "Items left on the stack at the end have no answer and keep the default of 0.",
+    "The stack stays sorted (decreasing here). Choose strict or non-strict comparison to match the problem's wording.",
+]
+
+[[technique]]
+id = "Stack:nested"
+signals = [
+    "an encoded or nested structure like 3[a2[c]]",
+    "each opening symbol starts a new level and each closing one ends it",
+    "save the state when you enter a level and restore it when you leave",
+]
+template = '''
+def decode_string(s):
+    stack = []
+    text, count = "", 0
+    for ch in s:
+        if ch.isdigit():
+            count = count * 10 + int(ch)  # numbers can have several digits
+        elif ch == "[":
+            stack.append((text, count))  # save this level
+            text, count = "", 0
+        elif ch == "]":
+            before, times = stack.pop()
+            text = before + text * times
+        else:
+            text += ch
+    return text
+'''
+pitfalls = [
+    "Digits can be multi-digit: build the number with count * 10 + digit.",
+    "At '[' save the text so far and the repeat count, then start fresh inside.",
+    "Letters outside brackets just extend the current text.",
+]
+
+[[technique]]
+id = "Stack:calculator"
+signals = [
+    "evaluate an expression with + - * / and operator precedence",
+    "multiplication and division bind tighter than addition and subtraction",
+    "numbers can have several digits",
+]
+template = '''
+def calculate(s):
+    stack, num, op = [], 0, "+"
+    for i, ch in enumerate(s + "+"):  # the sentinel flushes the last number
+        if ch.isdigit():
+            num = num * 10 + int(ch)
+        elif ch != " ":
+            if op == "+":
+                stack.append(num)
+            elif op == "-":
+                stack.append(-num)
+            elif op == "*":
+                stack.append(stack.pop() * num)
+            else:
+                stack.append(int(stack.pop() / num))
+            op, num = ch, 0
+    return sum(stack)
+'''
+pitfalls = [
+    "Apply * and / to the top of the stack right away. Push + and - terms and add them up at the end.",
+    "The operator being applied is the PREVIOUS one, which is why the code keeps `op` and updates it after.",
+    "Append a sentinel operator to the string so the last number is processed.",
+    "Division truncates toward zero: int(a / b).",
+]
+
+[[technique]]
+id = "Stack:mono-contrib"
+signals = [
+    "sum over all subarrays of their minimum (or maximum)",
+    "count how many subarrays an item is the minimum of",
+    "the nearest smaller item on each side bounds that count",
+]
+template = '''
+def sum_subarray_mins(arr):
+    MOD = 10**9 + 7
+    n = len(arr)
+    left = [0] * n   # distance to the previous strictly smaller item
+    right = [0] * n  # distance to the next smaller-or-equal item
+    stack = []
+    for i in range(n):
+        while stack and arr[stack[-1]] > arr[i]:
+            j = stack.pop()
+            right[j] = i - j
+        left[i] = i - stack[-1] if stack else i + 1
+        stack.append(i)
+    for j in stack:
+        right[j] = n - j
+    return sum(a * l * r for a, l, r in zip(arr, left, right)) % MOD
+'''
+pitfalls = [
+    "Break ties on ONE side only (strict on one, non-strict on the other), or equal minimums are counted twice.",
+    "arr[i] is the minimum of left[i] * right[i] subarrays: choose a start on the left and an end on the right.",
+    "Items still on the stack at the end have no smaller item to their right: use n - j.",
+]

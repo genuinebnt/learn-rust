@@ -878,3 +878,565 @@ def _(ns):
         want_cuts = [v for v in range(n) if components(n, edges, skip_node=v) > base - (1 if not any(v in e for e in edges) else 0) and any(v in e for e in edges)]
         assert {tuple(sorted(b)) for b in bridges} == want_bridges, (n, edges)
         assert cuts == want_cuts, (n, edges, cuts, want_cuts)
+
+
+# ---- arrays and hashing ---------------------------------------------------------------------------------------------
+
+@test("Arrays & Hashing:simulation")
+def _(ns):
+    f = ns["get_concatenation"]
+    assert f([1, 2, 1]) == [1, 2, 1, 1, 2, 1] and f([]) == []
+
+
+@test("Arrays & Hashing:seen-set")
+def _(ns):
+    f = ns["contains_duplicate"]
+    r = random.Random(60)
+    for _ in range(200):
+        a = [r.randint(0, 9) for _ in range(r.randint(0, 9))]
+        assert f(a) is (len(set(a)) != len(a))
+
+
+@test("Arrays & Hashing:counting")
+def _(ns):
+    r = random.Random(61)
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(0, 6)))
+        t = "".join(r.choice("abc") for _ in range(r.randint(0, 6)))
+        want = sorted(s) == sorted(t)
+        assert ns["is_anagram"](s, t) is want and ns["is_anagram_fixed_alphabet"](s, t) is want
+
+
+@test("Arrays & Hashing:complement")
+def _(ns):
+    f = ns["two_sum"]
+    r = random.Random(62)
+    for _ in range(300):
+        a = [r.randint(-5, 9) for _ in range(r.randint(0, 8))]
+        t = r.randint(-5, 15)
+        got = f(a, t)
+        pairs = [(i, j) for i in range(len(a)) for j in range(i + 1, len(a)) if a[i] + a[j] == t]
+        if pairs:
+            assert len(got) == 2 and got[0] != got[1] and a[got[0]] + a[got[1]] == t
+        else:
+            assert got == []
+
+
+@test("Arrays & Hashing:string-match")
+def _(ns):
+    f = ns["find_all"]
+    assert f("abababa", "aba") == [0, 2, 4] and f("abc", "d") == [] and f("a", "abc") == []
+    r = random.Random(63)
+    for _ in range(300):
+        text = "".join(r.choice("ab") for _ in range(r.randint(0, 14)))
+        pat = "".join(r.choice("ab") for _ in range(r.randint(1, 4)))
+        assert f(text, pat) == [i for i in range(len(text) - len(pat) + 1) if text[i:i + len(pat)] == pat]
+
+
+@test("Arrays & Hashing:signature")
+def _(ns):
+    f = ns["group_anagrams"]
+    got = f(["eat", "tea", "tan", "ate", "nat", "bat"])
+    assert sorted(sorted(g) for g in got) == [["ate", "eat", "tea"], ["bat"], ["nat", "tan"]] and f([""]) == [[""]]
+
+
+@test("Arrays & Hashing:majority-vote")
+def _(ns):
+    f = ns["majority_element"]
+    r = random.Random(64)
+    for _ in range(300):
+        n = r.randint(1, 15)
+        major = r.randint(0, 3)
+        a = [major] * (n // 2 + 1) + [r.randint(0, 3) for _ in range(n - n // 2 - 1)]
+        r.shuffle(a)
+        assert f(a) == major
+
+
+@test("Arrays & Hashing:design-hash")
+def _(ns):
+    S = ns["MyHashSet"]
+    s = S()
+    r = random.Random(65)
+    model = set()
+    for _ in range(500):
+        k = r.choice([0, 1, 1009, 2018, 10**6, r.randint(0, 10**6)])
+        op = r.randint(0, 2)
+        if op == 0:
+            s.add(k)
+            model.add(k)
+        elif op == 1:
+            s.remove(k)
+            model.discard(k)
+        else:
+            assert s.contains(k) is (k in model)
+
+
+@test("Arrays & Hashing:sorting")
+def _(ns):
+    f = ns["merge_sort"]
+    r = random.Random(66)
+    for _ in range(200):
+        a = [r.randint(-9, 9) for _ in range(r.randint(0, 20))]
+        assert f(a[:]) == sorted(a)
+    pairs = [(1, "a"), (0, "b"), (1, "c"), (0, "d")]
+    class K:
+        def __init__(self, v):
+            self.v = v[0]
+            self.tag = v[1]
+        def __le__(self, other):
+            return self.v <= other.v
+    assert [x.tag for x in f([K(p) for p in pairs])] == ["b", "d", "a", "c"], "equal keys keep their order"
+
+
+@test("Arrays & Hashing:top-k")
+def _(ns):
+    f = ns["top_k_frequent"]
+    assert sorted(f([1, 1, 1, 2, 2, 3], 2)) == [1, 2] and f([1], 1) == [1]
+    r = random.Random(67)
+    from collections import Counter
+
+    for _ in range(200):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 15))]
+        k = r.randint(1, len(set(a)))
+        counts = Counter(a)
+        got = f(a, k)
+        assert len(got) == k and sorted(counts[x] for x in got) == sorted(counts.values())[-k:] or sorted((counts[x] for x in got), reverse=True) == sorted(counts.values(), reverse=True)[:k]
+
+
+@test("Arrays & Hashing:encoding")
+def _(ns):
+    enc, dec = ns["encode"], ns["decode"]
+    r = random.Random(68)
+    for _ in range(300):
+        strs = ["".join(r.choice("ab#1 4") for _ in range(r.randint(0, 6))) for _ in range(r.randint(0, 5))]
+        assert dec(enc(strs)) == strs, strs
+    assert dec(enc(["", ""])) == ["", ""]
+
+
+@test("Arrays & Hashing:prefix")
+def _(ns):
+    f = ns["product_except_self"]
+    assert f([1, 2, 3, 4]) == [24, 12, 8, 6] and f([-1, 1, 0, -3, 3]) == [0, 0, 9, 0, 0]
+    r = random.Random(69)
+    for _ in range(200):
+        a = [r.randint(-3, 3) for _ in range(r.randint(2, 7))]
+        want = []
+        for i in range(len(a)):
+            p = 1
+            for j, x in enumerate(a):
+                if j != i:
+                    p *= x
+            want.append(p)
+        assert f(a[:]) == want
+
+
+@test("Arrays & Hashing:consecutive")
+def _(ns):
+    f = ns["longest_consecutive"]
+    assert f([100, 4, 200, 1, 3, 2]) == 4 and f([0, 3, 7, 2, 5, 8, 4, 6, 0, 1]) == 9 and f([]) == 0
+    r = random.Random(70)
+    for _ in range(200):
+        a = [r.randint(0, 12) for _ in range(r.randint(0, 10))]
+        s, best = set(a), 0
+        for x in s:
+            n = 0
+            while x + n in s:
+                n += 1
+            best = max(best, n)
+        assert f(a) == best
+
+
+@test("Arrays & Hashing:prefix-map")
+def _(ns):
+    f = ns["subarray_sum"]
+    assert f([1, 1, 1], 2) == 2 and f([1, -1, 0], 0) == 3
+    r = random.Random(71)
+    for _ in range(300):
+        a = [r.randint(-3, 3) for _ in range(r.randint(1, 10))]
+        k = r.randint(-4, 4)
+        assert f(a, k) == sum(sum(a[i:j]) == k for i in range(len(a)) for j in range(i + 1, len(a) + 1))
+
+
+@test("Arrays & Hashing:index-marks")
+def _(ns):
+    f = ns["first_missing_positive"]
+    assert f([3, 4, -1, 1]) == 2 and f([7, 8, 9]) == 1 and f([1, 2, 0]) == 3
+    r = random.Random(72)
+    for _ in range(300):
+        a = [r.randint(-3, 12) for _ in range(r.randint(1, 10))]
+        have = set(a)
+        want = next(i for i in range(1, 50) if i not in have)
+        assert f(a[:]) == want
+
+
+# ---- two pointers ---------------------------------------------------------------------------------------------------
+
+@test("Two Pointers:in-place")
+def _(ns):
+    f = ns["remove_duplicates"]
+    r = random.Random(80)
+    for _ in range(200):
+        a = sorted(r.randint(0, 5) for _ in range(r.randint(0, 10)))
+        want = sorted(set(a))
+        b = a[:]
+        k = f(b)
+        assert k == len(want) and b[:k] == want
+
+
+@test("Two Pointers:opposite")
+def _(ns):
+    f = ns["is_palindrome"]
+    assert f("A man, a plan, a canal: Panama") is True and f("race a car") is False and f(" ") is True
+    r = random.Random(81)
+    for _ in range(300):
+        s = "".join(r.choice("aAb ,") for _ in range(r.randint(0, 8)))
+        t = "".join(c.lower() for c in s if c.isalnum())
+        assert f(s) is (t == t[::-1])
+
+
+@test("Two Pointers:merge-sorted")
+def _(ns):
+    f = ns["merge"]
+    r = random.Random(82)
+    for _ in range(200):
+        a = sorted(r.randint(0, 9) for _ in range(r.randint(0, 6)))
+        b = sorted(r.randint(0, 9) for _ in range(r.randint(0, 6)))
+        n1 = a + [0] * len(b)
+        f(n1, len(a), b[:], len(b))
+        assert n1 == sorted(a + b)
+
+
+@test("Two Pointers:simulate")
+def _(ns):
+    f = ns["add_spaces"]
+    assert f("LeetcodeHelpsMeLearn", [8, 13, 15]) == "Leetcode Helps Me Learn" and f("abc", []) == "abc" and f("abc", [0]) == " abc"
+
+
+@test("Two Pointers:ksum")
+def _(ns):
+    f = ns["three_sum"]
+    import itertools
+
+    r = random.Random(83)
+    for _ in range(300):
+        a = [r.randint(-4, 4) for _ in range(r.randint(0, 9))]
+        want = sorted({tuple(sorted(c)) for c in itertools.combinations(a, 3) if sum(c) == 0})
+        got = f(a[:])
+        assert sorted(tuple(t) for t in got) == want and len(got) == len(want), a
+
+
+@test("Two Pointers:pair-count")
+def _(ns):
+    f = ns["num_subseq"]
+    assert f([3, 5, 6, 7], 9) == 4 and f([3, 3, 6, 8], 10) == 6 and f([2, 3, 3, 4, 6, 7], 12) == 61
+    r = random.Random(84)
+    for _ in range(200):
+        a = [r.randint(1, 8) for _ in range(r.randint(1, 9))]
+        t = r.randint(2, 16)
+        want = sum(1 for m in range(1, 1 << len(a)) if min(a[i] for i in range(len(a)) if m >> i & 1) + max(a[i] for i in range(len(a)) if m >> i & 1) <= t)
+        assert f(a[:], t) == want % (10**9 + 7)
+
+
+@test("Two Pointers:greedy-pair")
+def _(ns):
+    f = ns["num_boats"]
+    assert f([1, 2], 3) == 1 and f([3, 2, 2, 1], 3) == 3 and f([3, 5, 3, 4], 5) == 4
+    r = random.Random(85)
+
+    def exact(p, limit):
+        n = len(p)
+        best = [0] + [99] * ((1 << n) - 1)
+        for mask in range(1, 1 << n):
+            i = (mask & -mask).bit_length() - 1
+            rest = mask & ~(1 << i)
+            best[mask] = best[rest] + 1
+            for j in range(i + 1, n):
+                if rest >> j & 1 and p[i] + p[j] <= limit:
+                    best[mask] = min(best[mask], best[rest & ~(1 << j)] + 1)
+        return best[-1]
+
+    for _ in range(200):
+        limit = r.randint(3, 9)
+        p = [r.randint(1, limit) for _ in range(r.randint(1, 8))]
+        assert f(p[:], limit) == exact(p, limit)
+
+
+@test("Two Pointers:running-max")
+def _(ns):
+    f = ns["trap"]
+    assert f([0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]) == 6 and f([4, 2, 0, 3, 2, 5]) == 9 and f([]) == 0
+    r = random.Random(86)
+    for _ in range(300):
+        h = [r.randint(0, 6) for _ in range(r.randint(0, 10))]
+        want = sum(max(0, min(max(h[:i + 1]), max(h[i:])) - h[i]) for i in range(len(h)))
+        assert f(h) == want
+
+
+# ---- sliding window -------------------------------------------------------------------------------------------------
+
+@test("Sliding Window:running-best")
+def _(ns):
+    f = ns["max_profit"]
+    assert f([7, 1, 5, 3, 6, 4]) == 5 and f([7, 6, 4, 3, 1]) == 0
+    r = random.Random(90)
+    for _ in range(200):
+        p = [r.randint(0, 9) for _ in range(r.randint(1, 9))]
+        assert f(p) == max([0] + [p[j] - p[i] for i in range(len(p)) for j in range(i + 1, len(p))])
+
+
+@test("Sliding Window:fixed-sum")
+def _(ns):
+    f = ns["count_windows_at_least"]
+    assert f([2, 2, 2, 2, 5, 5, 5, 8], 3, 4) == 3
+    r = random.Random(91)
+    for _ in range(200):
+        a = [r.randint(0, 9) for _ in range(r.randint(3, 12))]
+        k = r.randint(1, 3)
+        t = r.randint(0, 9)
+        assert f(a, k, t) == sum(sum(a[i:i + k]) >= k * t for i in range(len(a) - k + 1))
+
+
+@test("Sliding Window:window-max")
+def _(ns):
+    f = ns["longest_unique"]
+    assert f("abcabcbb") == 3 and f("bbbbb") == 1 and f("pwwkew") == 3 and f("") == 0 and f("abba") == 2
+    r = random.Random(92)
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(0, 10)))
+        assert f(s) == max([0] + [j - i for i in range(len(s)) for j in range(i, len(s) + 1) if len(set(s[i:j])) == j - i])
+
+
+@test("Sliding Window:fixed-window")
+def _(ns):
+    f = ns["check_inclusion"]
+    assert f("ab", "eidbaooo") is True and f("ab", "eidboaoo") is False
+    r = random.Random(93)
+    for _ in range(300):
+        p = "".join(r.choice("abc") for _ in range(r.randint(1, 3)))
+        t = "".join(r.choice("abc") for _ in range(r.randint(0, 8)))
+        want = any(sorted(t[i:i + len(p)]) == sorted(p) for i in range(len(t) - len(p) + 1))
+        assert f(p, t) is want
+
+
+@test("Sliding Window:at-most-k")
+def _(ns):
+    f = ns["longest_at_most_k_distinct"]
+    assert f([1, 2, 1], 2) == 3 and f([0, 1, 2, 2], 2) == 3 and f([1, 2, 3], 1) == 1
+    r = random.Random(94)
+    for _ in range(300):
+        a = [r.randint(0, 3) for _ in range(r.randint(0, 10))]
+        k = r.randint(0, 3)
+        want = max([0] + [j - i for i in range(len(a)) for j in range(i, len(a) + 1) if len(set(a[i:j])) <= k])
+        assert f(a, k) == want
+
+
+@test("Sliding Window:window-sort")
+def _(ns):
+    f = ns["closest_k"]
+    assert f([1, 2, 3, 4, 5], 4, 3) == [1, 2, 3, 4] and f([1, 1, 2, 3, 4, 5], 4, -1) == [1, 1, 2, 3]
+    r = random.Random(95)
+    for _ in range(300):
+        a = sorted(r.randint(-9, 9) for _ in range(r.randint(1, 12)))
+        k = r.randint(1, len(a))
+        x = r.randint(-12, 12)
+        assert f(a, k, x) == sorted(sorted(a, key=lambda v: (abs(v - x), v))[:k])
+
+
+@test("Sliding Window:count-windows")
+def _(ns):
+    f = ns["subarrays_with_k_distinct"]
+    assert f([1, 2, 1, 2, 3], 2) == 7 and f([1, 2, 1, 3, 4], 3) == 3
+    r = random.Random(96)
+    for _ in range(300):
+        a = [r.randint(0, 3) for _ in range(r.randint(1, 10))]
+        k = r.randint(1, 3)
+        assert f(a, k) == sum(len(set(a[i:j])) == k for i in range(len(a)) for j in range(i + 1, len(a) + 1))
+
+
+@test("Sliding Window:window-min")
+def _(ns):
+    f = ns["min_window"]
+    assert f("ADOBECODEBANC", "ABC") == "BANC" and f("a", "a") == "a" and f("a", "aa") == ""
+    r = random.Random(97)
+    from collections import Counter
+
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 10)))
+        t = "".join(r.choice("abc") for _ in range(r.randint(1, 3)))
+        need = Counter(t)
+        best = min((len(s[i:j]) for i in range(len(s)) for j in range(i + 1, len(s) + 1) if not need - Counter(s[i:j])), default=None)
+        got = f(s, t)
+        if best is None:
+            assert got == ""
+        else:
+            assert len(got) == best and not need - Counter(got) and got in s
+
+
+@test("Sliding Window:mono-deque")
+def _(ns):
+    f = ns["max_sliding_window"]
+    assert f([1, 3, -1, -3, 5, 3, 6, 7], 3) == [3, 3, 5, 5, 6, 7] and f([1], 1) == [1]
+    r = random.Random(98)
+    for _ in range(300):
+        a = [r.randint(-5, 5) for _ in range(r.randint(1, 12))]
+        k = r.randint(1, len(a))
+        assert f(a, k) == [max(a[i:i + k]) for i in range(len(a) - k + 1)]
+
+
+# ---- stack ----------------------------------------------------------------------------------------------------------
+
+@test("Stack:simulate-stack")
+def _(ns):
+    f = ns["asteroid_collision"]
+    assert f([5, 10, -5]) == [5, 10] and f([8, -8]) == [] and f([10, 2, -5]) == [10] and f([-2, -1, 1, 2]) == [-2, -1, 1, 2]
+    r = random.Random(100)
+
+    def brute(a):
+        a = a[:]
+        changed = True
+        while changed:
+            changed = False
+            for i in range(len(a) - 1):
+                if a[i] > 0 > a[i + 1]:
+                    if a[i] > -a[i + 1]:
+                        del a[i + 1]
+                    elif a[i] < -a[i + 1]:
+                        del a[i]
+                    else:
+                        del a[i:i + 2]
+                    changed = True
+                    break
+        return a
+
+    for _ in range(300):
+        a = [r.choice([-1, 1]) * r.randint(1, 6) for _ in range(r.randint(0, 9))]
+        assert f(a) == brute(a), a
+
+
+@test("Stack:matching")
+def _(ns):
+    f = ns["is_valid"]
+    assert f("()[]{}") is True and f("(]") is False and f("([)]") is False and f("{[]}") is True and f("((") is False and f(")") is False
+    r = random.Random(101)
+    for _ in range(300):
+        s = "".join(r.choice("()[]{}") for _ in range(r.randint(0, 8)))
+        t = s
+        while True:
+            u = t.replace("()", "").replace("[]", "").replace("{}", "")
+            if u == t:
+                break
+            t = u
+        assert f(s) is (t == "")
+
+
+@test("Stack:design-queue-stack")
+def _(ns):
+    Q = ns["MyQueue"]
+    r = random.Random(102)
+    q, model = Q(), []
+    for _ in range(500):
+        op = r.randint(0, 3)
+        if op == 0 or not model:
+            v = r.randint(0, 99)
+            q.push(v)
+            model.append(v)
+        elif op == 1:
+            assert q.pop() == model.pop(0)
+        elif op == 2:
+            assert q.peek() == model[0]
+        else:
+            assert q.empty() is False
+    while model:
+        assert q.pop() == model.pop(0)
+    assert q.empty() is True
+
+
+@test("Stack:aux-stack")
+def _(ns):
+    S = ns["MinStack"]
+    r = random.Random(103)
+    s, model = S(), []
+    for _ in range(500):
+        op = r.randint(0, 2)
+        if op == 0 or not model:
+            v = r.randint(-9, 9)
+            s.push(v)
+            model.append(v)
+        elif op == 1:
+            s.pop()
+            model.pop()
+        if model:
+            assert s.top() == model[-1] and s.get_min() == min(model)
+
+
+@test("Stack:expression")
+def _(ns):
+    f = ns["eval_rpn"]
+    assert f(["2", "1", "+", "3", "*"]) == 9 and f(["4", "13", "5", "/", "+"]) == 6 and f(["3", "-4", "/"]) == 0
+    assert f(["10", "6", "9", "3", "+", "-11", "*", "/", "*", "17", "+", "5", "+"]) == 22
+    r = random.Random(104)
+
+    def gen(depth):
+        if depth == 0 or r.random() < 0.3:
+            v = r.randint(-9, 9)
+            return [str(v)], v
+        a, av = gen(depth - 1)
+        b, bv = gen(depth - 1)
+        op = r.choice("+-*/")
+        if op == "/" and bv == 0:
+            op = "+"
+        value = {"+": av + bv, "-": av - bv, "*": av * bv, "/": int(av / bv) if bv else 0}[op]
+        return a + b + [op], value
+
+    for _ in range(300):
+        tokens, value = gen(3)
+        assert f(tokens) == value, tokens
+
+
+@test("Stack:mono-stack")
+def _(ns):
+    f = ns["daily_temperatures"]
+    assert f([73, 74, 75, 71, 69, 72, 76, 73]) == [1, 1, 4, 2, 1, 1, 0, 0]
+    r = random.Random(105)
+    for _ in range(300):
+        t = [r.randint(30, 40) for _ in range(r.randint(1, 12))]
+        want = [next((j - i for j in range(i + 1, len(t)) if t[j] > t[i]), 0) for i in range(len(t))]
+        assert f(t) == want
+
+
+@test("Stack:nested")
+def _(ns):
+    f = ns["decode_string"]
+    assert f("3[a]2[bc]") == "aaabcbc" and f("3[a2[c]]") == "accaccacc" and f("2[abc]3[cd]ef") == "abcabccdcdcdef" and f("10[a]") == "a" * 10
+
+
+@test("Stack:calculator")
+def _(ns):
+    f = ns["calculate"]
+    assert f("3+2*2") == 7 and f(" 3/2 ") == 1 and f(" 3+5 / 2 ") == 5 and f("14-3/2") == 13 and f("42") == 42
+    r = random.Random(106)
+    for _ in range(300):
+        nums = [r.randint(1, 20) for _ in range(r.randint(1, 5))]
+        ops = [r.choice("+-*/") for _ in range(len(nums) - 1)]
+        text = str(nums[0]) + "".join(f"{o}{n}" for o, n in zip(ops, nums[1:]))
+        terms, cur, sign = [], nums[0], 1
+        for o, n in zip(ops, nums[1:]):
+            if o == "*":
+                cur *= n
+            elif o == "/":
+                cur = int(cur / n)
+            else:
+                terms.append(sign * cur)
+                cur, sign = n, 1 if o == "+" else -1
+        terms.append(sign * cur)
+        assert f(text) == sum(terms), text
+
+
+@test("Stack:mono-contrib")
+def _(ns):
+    f = ns["sum_subarray_mins"]
+    assert f([3, 1, 2, 4]) == 17 and f([11, 81, 94, 43, 3]) == 444
+    r = random.Random(107)
+    for _ in range(300):
+        a = [r.randint(1, 5) for _ in range(r.randint(1, 9))]
+        assert f(a) == sum(min(a[i:j]) for i in range(len(a)) for j in range(i + 1, len(a) + 1)) % (10**9 + 7)

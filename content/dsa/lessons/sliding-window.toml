@@ -1,0 +1,248 @@
+pattern = "Sliding Window"
+intro = "A window is a stretch of the array between two indexes. Slide it by moving the right end forward, and move the left end only to repair the window when it breaks a rule. Each index enters and leaves once, so the whole scan is O(n). Decide what the window must satisfy and what you keep as its summary (a sum, a count map, a set)."
+
+[[technique]]
+id = "Sliding Window:running-best"
+signals = [
+    "a single pass tracking the best seen so far (the lowest price, the highest score)",
+    "choose a start and a later end to maximise a difference",
+    "the window is simply 'everything so far'",
+]
+template = '''
+def max_profit(prices):
+    lowest, best = float("inf"), 0
+    for price in prices:
+        lowest = min(lowest, price)  # the best day to have bought so far
+        best = max(best, price - lowest)
+    return best
+'''
+pitfalls = [
+    "Update the lowest price first, so selling on the day you buy gives 0, not a negative.",
+    "Start best at 0: not trading is allowed.",
+    "No nested loop: the best buy day for a sell day is the lowest price before it.",
+]
+
+[[technique]]
+id = "Sliding Window:fixed-sum"
+signals = [
+    "every window of exactly k items",
+    "a sum or average over each block of k",
+    "add the item entering and subtract the one leaving",
+]
+template = '''
+def count_windows_at_least(nums, k, threshold):
+    total = sum(nums[:k])
+    count = 1 if total >= k * threshold else 0
+    for i in range(k, len(nums)):
+        total += nums[i] - nums[i - k]  # slide by one
+        if total >= k * threshold:
+            count += 1
+    return count
+'''
+pitfalls = [
+    "Compare sums (total >= k * threshold) instead of averages to avoid floating point.",
+    "Initialise the first window separately, then slide.",
+    "If k is larger than the array there are no windows.",
+]
+
+[[technique]]
+id = "Sliding Window:window-max"
+signals = [
+    "the LONGEST stretch with some property (no repeats, at most k replacements)",
+    "grow the window to the right, shrink from the left only when it becomes invalid",
+    "the answer is the largest window size seen",
+]
+template = '''
+def longest_unique(s):
+    last = {}  # character -> its most recent index
+    left = best = 0
+    for right, ch in enumerate(s):
+        if ch in last and last[ch] >= left:
+            left = last[ch] + 1  # jump past the repeat
+        last[ch] = right
+        best = max(best, right - left + 1)
+    return best
+'''
+pitfalls = [
+    "Only move left forward (max with the old value). A repeat before the window start doesn't count.",
+    "Record the window size after the window is valid again.",
+    "Moving left one step at a time with a set works too, and is easier to get right first.",
+]
+
+[[technique]]
+id = "Sliding Window:fixed-window"
+signals = [
+    "find a window of a fixed length that has the same letters as a pattern",
+    "compare character counts of each window with a target",
+    "the window moves one step: one character in, one out",
+]
+template = '''
+from collections import Counter
+
+
+def check_inclusion(pattern, text):
+    k = len(pattern)
+    need = Counter(pattern)
+    window = Counter(text[:k])
+    if window == need:
+        return True
+    for i in range(k, len(text)):
+        window[text[i]] += 1
+        window[text[i - k]] -= 1
+        if window[text[i - k]] == 0:
+            del window[text[i - k]]  # so equality with need works
+        if window == need:
+            return True
+    return False
+'''
+pitfalls = [
+    "Delete counts that reach zero. Counter equality treats a key with 0 as different from a missing key.",
+    "Comparing two 26-slot arrays is constant time. Comparing dictionaries is bounded by the alphabet too.",
+    "Handle a pattern longer than the text before sliding.",
+]
+
+[[technique]]
+id = "Sliding Window:at-most-k"
+signals = [
+    "the longest window with at most k distinct values (or kinds)",
+    "keep a count map for the window, and shrink while it has too many kinds",
+    "fruit baskets, at most two distinct letters, at most k colours",
+]
+template = '''
+def longest_at_most_k_distinct(items, k):
+    counts = {}
+    left = best = 0
+    for right, x in enumerate(items):
+        counts[x] = counts.get(x, 0) + 1
+        while len(counts) > k:  # too many kinds: shrink from the left
+            counts[items[left]] -= 1
+            if counts[items[left]] == 0:
+                del counts[items[left]]
+            left += 1
+        best = max(best, right - left + 1)
+    return best
+'''
+pitfalls = [
+    "Remove a kind from the map when its count hits zero, or len(counts) never shrinks.",
+    "A while loop is needed to shrink. One removal can leave it still too wide.",
+    "k = 0 returns 0 because no window is valid.",
+]
+
+[[technique]]
+id = "Sliding Window:window-sort"
+signals = [
+    "choose k elements of a SORTED array nearest to a value",
+    "the answer is one contiguous block, so only its start is unknown",
+    "binary search on the start, or shrink from both ends",
+]
+template = '''
+def closest_k(arr, k, x):
+    lo, hi = 0, len(arr) - k  # the window starts somewhere in [0, n - k]
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if x - arr[mid] > arr[mid + k] - x:  # the right edge is closer
+            lo = mid + 1
+        else:
+            hi = mid
+    return arr[lo:lo + k]
+'''
+pitfalls = [
+    "Search over the window's start, not over values.",
+    "On a tie the smaller element wins, which the strict > already gives.",
+    "Shrinking from both ends (drop the farther one) is O(n) and simpler to explain.",
+]
+
+[[technique]]
+id = "Sliding Window:count-windows"
+signals = [
+    "count the subarrays with EXACTLY k of something",
+    "counting 'at most k' with a window is easy, 'exactly k' is not",
+    "exactly k equals (at most k) minus (at most k - 1)",
+]
+template = '''
+def subarrays_with_k_distinct(nums, k):
+    def at_most(limit):
+        counts, left, total = {}, 0, 0
+        for right, x in enumerate(nums):
+            counts[x] = counts.get(x, 0) + 1
+            while len(counts) > limit:
+                counts[nums[left]] -= 1
+                if counts[nums[left]] == 0:
+                    del counts[nums[left]]
+                left += 1
+            total += right - left + 1  # every window ending at right
+        return total
+
+    return at_most(k) - at_most(k - 1)
+'''
+pitfalls = [
+    "A window [left, right] contributes right - left + 1 subarrays: one for each start that still works.",
+    "Run the same counting function twice with different limits.",
+    "at_most(0) is 0, so k = 1 works without a special case.",
+]
+
+[[technique]]
+id = "Sliding Window:window-min"
+signals = [
+    "the SHORTEST window that contains everything required",
+    "grow right until the window is valid, then shrink left while it stays valid",
+    "track how many required items are still missing",
+]
+template = '''
+from collections import Counter
+
+
+def min_window(s, t):
+    need = Counter(t)
+    missing = len(t)  # characters of t not yet covered
+    best, left = (0, 0), 0
+    for right, ch in enumerate(s, 1):
+        if need[ch] > 0:
+            missing -= 1
+        need[ch] -= 1
+        if missing == 0:  # valid: shrink while it stays valid
+            while need[s[left]] < 0:
+                need[s[left]] += 1
+                left += 1
+            if best == (0, 0) or right - left < best[1] - best[0]:
+                best = (left, right)
+            need[s[left]] += 1  # give up s[left] and keep searching
+            missing += 1
+            left += 1
+    return s[best[0]:best[1]]
+'''
+pitfalls = [
+    "Keep a single 'missing' counter, so checking validity is O(1) and not a comparison of two maps.",
+    "A count below zero in need means the window holds more than required of that letter, so it can be dropped.",
+    "Return the empty string when no window works.",
+]
+
+[[technique]]
+id = "Sliding Window:mono-deque"
+signals = [
+    "the maximum (or minimum) of every window of size k",
+    "a heap works but is O(n log n); a deque does it in O(n)",
+    "an item that is smaller than a later item can never be the maximum again",
+]
+template = '''
+from collections import deque
+
+
+def max_sliding_window(nums, k):
+    dq = deque()  # indexes, with their values in decreasing order
+    out = []
+    for i, x in enumerate(nums):
+        while dq and nums[dq[-1]] <= x:
+            dq.pop()  # dominated by x: can never win again
+        dq.append(i)
+        if dq[0] <= i - k:
+            dq.popleft()  # fell out of the window
+        if i >= k - 1:
+            out.append(nums[dq[0]])
+    return out
+'''
+pitfalls = [
+    "Store indexes, not values, so you can tell when the front has left the window.",
+    "The front of the deque is the maximum of the current window.",
+    "Each index is pushed and popped at most once, so the total is O(n).",
+]

@@ -23,6 +23,8 @@ the progress; update it as work lands.
 | 14 | **No Build section.** The Backend (B1–B6) and Design-in-Rust (M1–M2) tracks were only planned and are dropped; the nav is DSA, Rust and Progress. |
 | 15 | **The overall plan:** DSA in Python (this tracker) and Rust for interviews (the Rust tracks) now. A system design section (LLD, HLD, API design) and behavioral prep come later; they're **deferred**, not started. |
 | 16 | **Ship after every batch.** After each batch of work: run the checks, commit, push to `master`, and let CI deploy it to the VPS (https://anneal.genuinebasil.dev). Don't let finished work pile up locally. |
+| 17 | **The DSA home keeps the existing catalog design** (hero with stats, Next up card, grid of cards, right rail). The cramped table is dropped. Additions: the goal cards (NeetCode 150, new ideas in the 250, All) under the hero, doubling as list switches; **pattern cards** in the existing card style; and a **problems view of long cards** where each must-learn card carries its practice problems underneath. |
+| 18 | **Filters swap with the rail.** A Filters button (or `f`) replaces the Activity boxes (This week, Recent, Re-solve due, Readiness) with one long card per filter: status, idea, difficulty, pattern, companies (group, then company, plus "asked in the last 6 months"), LeetCode tags (searchable), Premium. Counts account for the other filters. Activity brings the boxes back. |
 
 ## Data
 
@@ -42,9 +44,11 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       too many for the "All" list: revisit it with the owner before the content is written.
 - [x] Build section removed from the nav, routes, planned tracks and Progress areas (2026-10-07).
 - [x] Mockup: list with cascading filters, problem page (Course Schedule), pattern lesson (Graphs), built from the real
-      data: https://claude.ai/artifact/UsnLenfPBi3rm5nUkihWFL (also `docs/design_handoff_anneal/designs/dsa-tracker.html`).
-      **Awaiting approval.** Its progress states are made-up examples; its Graphs lessons list only problems that exist
-      in the NeetCode lists.
+      data: https://claude.ai/artifact/UsnLenfPBi3rm5nUkihWFL (files `dsa-tracker.html`, `problem.html`,
+      `pattern.html` in `docs/design_handoff_anneal/designs/dsa/`; the generator is `tools/neetcode/mockup_home.py`).
+      Version 3 (2026-10-07) follows decisions 17 and 18; the problem and pattern pages were approved as they were.
+      **Home awaiting approval.** Progress states are made-up examples; the Graphs lesson lists only problems that exist
+      in the NeetCode lists; at 1180px and narrower the rail drops below the list, so there Filters should open as a drawer.
 - [ ] Build: content loader and API for the lists, logging and reviews; remove D1–D12 and their progress (`retired`
       ids so the progress guard allows it).
 - [ ] Build: list page, problem page, pattern pages.

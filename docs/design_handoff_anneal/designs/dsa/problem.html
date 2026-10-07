@@ -1,0 +1,296 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>anneal DSA problem</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"><style>
+:root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--grid:oklch(0.205 0.012 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--warn-bg:oklch(0.83 0.12 85 / 0.12);--on-acc:oklch(0.17 0.02 255);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--str:oklch(0.79 0.11 160);--num:oklch(0.79 0.11 45);--mac:oklch(0.79 0.09 200);--lt:oklch(0.77 0.12 340);--com:oklch(0.58 0.012 255);--inlay:oklch(0.64 0.012 255);--inlay-bg:oklch(0.235 0.013 255);--sel:oklch(0.76 0.11 55 / 0.07);--shadow:oklch(0 0 0 / 0.35);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--sans:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;color-scheme:dark}
+:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--grid:oklch(0.94 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--warn-bg:oklch(0.58 0.12 75 / 0.10);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--lt:oklch(0.50 0.15 340);--com:oklch(0.56 0.012 255);--inlay:oklch(0.50 0.012 255);--inlay-bg:oklch(0.935 0.005 255);--sel:oklch(0.58 0.13 50 / 0.06);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--grid:oklch(0.94 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--warn-bg:oklch(0.58 0.12 75 / 0.10);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--lt:oklch(0.50 0.15 340);--com:oklch(0.56 0.012 255);--inlay:oklch(0.50 0.012 255);--inlay-bg:oklch(0.935 0.005 255);--sel:oklch(0.58 0.13 50 / 0.06);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;margin:0;padding-inline:16px;padding-block:24px 56px}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;padding:0}
+.page{max-width:1360px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.intro h1{font-size:22px;font-weight:700;letter-spacing:-.015em;margin:0}
+.intro p{color:var(--mut);margin:6px 0 0;max-width:80ch;line-height:1.55}
+.frame{border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 18px 50px var(--shadow);background:var(--bg)}
+.app{min-width:1180px}
+.frame{overflow-x:auto;scrollbar-width:none}.frame::-webkit-scrollbar{display:none}
+.hdr{height:52px;display:flex;align-items:center;gap:26px;padding:0 24px;border-bottom:1px solid var(--line2);background:var(--panel)}
+.logo{font-weight:800;letter-spacing:-.02em}.logo i{font-style:normal;color:var(--dim);font-weight:500}
+.nav{display:flex;gap:20px;font-size:13.5px;font-weight:600}.nav span{color:var(--dim)}.nav .on{color:var(--acc)}
+/* goal strip */
+.goal{display:grid;grid-template-columns:repeat(3,1fr) 230px;gap:14px;padding:18px 24px;border-bottom:1px solid var(--line2)}
+.g{border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:12px 14px;display:flex;flex-direction:column;gap:7px}
+.g span{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--dim)}
+.g b{font:700 22px var(--mono)}.g b small{font:500 12px var(--mono);color:var(--dim);margin-left:4px}
+.g .bar{height:6px;border-radius:3px;background:var(--raise);overflow:hidden;display:flex}
+.g .bar i{height:100%}
+.g em{font:500 11px var(--mono);color:var(--dim);font-style:normal}
+.g.due{border-color:color-mix(in oklab,var(--vio) 45%,var(--line2))}
+.g.due b{color:var(--vio)}
+/* body */
+.body{display:grid;grid-template-columns:272px minmax(0,1fr)}
+.filters{border-right:1px solid var(--line2);background:var(--panel);padding:16px 16px 28px;display:flex;flex-direction:column;gap:18px}
+.fh{display:flex;align-items:center;justify-content:space-between}
+.fh b{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--dim)}
+.fh button{font:500 11px var(--mono);color:var(--acc)}
+.search{height:34px;border:1px solid var(--line);border-radius:7px;background:var(--bg);padding:0 10px;font-size:13px;width:100%;outline:none}
+.search:focus{border-color:var(--acc)}
+.facet{display:flex;flex-direction:column;gap:4px}
+.facet>.lab{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:4px;display:flex;justify-content:space-between}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{padding:6px 0;font:600 11px var(--mono);color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:1px}
+.seg button small{font-weight:500;font-size:10px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--acc-bg);color:var(--acc)}
+.opt{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:5px;font-size:12.5px;color:var(--mut);text-align:left;width:100%}
+.opt:hover{background:var(--raise);color:var(--fg)}
+.opt .box{width:14px;height:14px;border:1.5px solid var(--line);border-radius:4px;flex:none;display:grid;place-items:center}
+.opt.on .box{background:var(--acc);border-color:var(--acc)}
+.opt.on .box::after{content:"";width:6px;height:6px;border-radius:1px;background:var(--on-acc)}
+.opt.on{color:var(--fg)}
+.opt .c{margin-left:auto;font:500 11px var(--mono);color:var(--dim)}
+.opt.zero{opacity:.35;pointer-events:none}
+.opt .sw{width:8px;height:8px;border-radius:2px;flex:none}
+.sub{margin-left:22px;display:flex;flex-direction:column;gap:2px;border-left:1px dashed var(--line2);padding-left:8px}
+.more{font:500 11px var(--mono);color:var(--acc);align-self:flex-start;padding:2px 6px}
+.toggle{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--mut)}
+.sw2{width:30px;height:17px;border-radius:9px;background:var(--line);position:relative;flex:none}
+.sw2::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--fg);transition:left .15s}
+.sw2.on{background:var(--acc)}.sw2.on::after{left:15px;background:var(--on-acc)}
+/* list */
+.main{padding:16px 24px 28px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.active{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:26px}
+.active .lab{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--dim);margin-right:4px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 6px 3px 9px;border:1px solid var(--line);border-radius:999px;font:500 11.5px var(--sans);color:var(--fg);background:var(--panel)}
+.chip button{color:var(--dim);font-size:13px;line-height:1}
+.chip button:hover{color:var(--fg)}
+.count{margin-left:auto;font:500 12px var(--mono);color:var(--dim)}
+.grp{border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:var(--panel)}
+.gh{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line2);font-weight:700;font-size:13.5px}
+.gh .pb{flex:0 0 120px;height:5px;border-radius:3px;background:var(--raise);overflow:hidden}
+.gh .pb i{display:block;height:100%;background:var(--grn)}
+.gh small{font:500 11px var(--mono);color:var(--dim);font-weight:500}
+.row{display:grid;grid-template-columns:22px 48px minmax(150px,1.5fr) 62px minmax(100px,.9fr) minmax(90px,.8fr) minmax(120px,1fr) 150px;gap:10px;align-items:center;padding:9px 14px;border-top:1px solid var(--line2);font-size:13px}
+.row:first-of-type{border-top:0}
+.row:hover{background:color-mix(in oklab,var(--raise) 55%,transparent)}
+.row.child{background:color-mix(in oklab,var(--bg) 40%,var(--panel))}
+.row.child .ti{padding-left:16px;position:relative}
+.row.child .ti::before{content:"↳";position:absolute;left:0;color:var(--dim)}
+.st{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--line)}
+.st.solo{background:var(--grn);border-color:var(--grn)}
+.st.help{background:color-mix(in oklab,var(--grn) 45%,transparent);border-color:var(--grn)}
+.st.fail{border-color:var(--bad);background:var(--bad-bg)}
+.num{font:500 11.5px var(--mono);color:var(--dim)}
+.ti{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ti a{color:var(--fg);text-decoration:none;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ti a:hover{color:var(--acc)}
+.ti a .ext{color:var(--dim);font-weight:500;margin-left:4px;font-size:11px}
+.ti .of{font:500 11px var(--mono);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv{font:600 11.5px var(--mono)}
+.badges{display:flex;gap:4px;flex-wrap:wrap}
+.bdg{font:600 9.5px var(--mono);letter-spacing:.06em;padding:2px 5px;border-radius:4px;border:1px solid var(--line);color:var(--dim)}
+.bdg.ml{border-color:transparent;background:var(--acc-bg);color:var(--acc)}
+.bdg.pq{color:var(--dim)}
+.bdg.prem{border-color:color-mix(in oklab,var(--warn) 50%,var(--line));color:var(--warn)}
+.tags{font:500 11px var(--mono);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cos{display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden}
+.cc{font:500 10.5px var(--mono);padding:2px 6px;border-radius:4px;border:1px solid var(--line2);color:var(--mut);white-space:nowrap}
+.cc.hot{border-color:transparent;background:color-mix(in oklch,var(--fn) 12%,transparent);color:var(--fn)}
+.acts{display:flex;gap:4px;justify-content:flex-end;align-items:center}
+.acts button{height:24px;padding:0 7px;border:1px solid var(--line);border-radius:5px;font:600 11px var(--mono);color:var(--mut)}
+.acts button:hover{color:var(--fg);border-color:var(--acc)}
+.acts .due{font:500 10.5px var(--mono);color:var(--vio);margin-right:2px;white-space:nowrap}
+.acts .when{font:500 10.5px var(--mono);color:var(--dim);margin-right:2px;white-space:nowrap}
+.vid{color:var(--dim);font-size:12px;text-decoration:none}.vid:hover{color:var(--acc)}
+.empty{padding:28px;text-align:center;color:var(--dim)}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.note{border-top:2px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.note .lab{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--acc)}
+.note p{margin:0;color:var(--mut);font-size:13.5px;line-height:1.6}
+.screens{display:flex;gap:6px;align-items:center}
+.screens b{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--dim);margin-right:6px}
+.screens button{padding:6px 12px;border:1px solid var(--line);border-radius:7px;font:600 12.5px var(--sans);color:var(--mut);background:var(--panel)}
+.screens button.on{border-color:var(--acc);color:var(--fg);background:var(--acc-bg)}
+.ti a.open{color:var(--fg)}
+.ti .lc{color:var(--dim);font-weight:500;font-size:11px;margin-left:6px;text-decoration:none}
+.ti .lc:hover{color:var(--acc)}
+/* problem page */
+.pp{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0}
+.pmain{padding:22px 28px 36px;display:flex;flex-direction:column;gap:22px;min-width:0}
+.crumbs{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--dim);display:flex;gap:8px}
+.crumbs a{color:var(--acc);text-decoration:none}
+.ptitle{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ptitle h2{margin:0;font-size:24px;letter-spacing:-.015em}
+.ptitle .num{font-size:14px}
+.prow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn2{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border:1px solid var(--line);border-radius:7px;font:600 13px var(--sans);color:var(--fg);text-decoration:none;background:var(--panel)}
+.btn2.go{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+.btn2:hover{border-color:var(--acc)}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec>h3{margin:0;font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--dim);display:flex;gap:10px;align-items:center}
+.sec>h3 .src{font-weight:500;letter-spacing:0;color:var(--dim)}
+.stmt{font-size:14px;line-height:1.7;color:var(--mut);max-width:78ch}
+.stmt p{margin:0 0 10px}.stmt code{font:12.5px var(--mono);color:var(--fg);background:var(--raise);padding:1px 5px;border-radius:3px}
+.stmt pre{font:12.5px/1.6 var(--mono);background:var(--panel);border:1px solid var(--line2);border-radius:7px;padding:10px 12px;color:var(--fg);white-space:pre-wrap}
+.stmt ul{padding-left:20px;margin:0 0 10px}.stmt strong{color:var(--fg)}
+.hint{border:1px dashed var(--line);border-radius:7px;padding:9px 12px;font-size:13.5px;color:var(--mut);line-height:1.55}
+.hint.locked{color:var(--dim);cursor:pointer}
+.hint.locked:hover{border-color:var(--acc);color:var(--fg)}
+.intu{font-size:14.5px;line-height:1.7;color:var(--fg);max-width:78ch;padding:14px 16px;border-left:3px solid var(--acc);background:color-mix(in oklab,var(--acc) 5%,var(--panel));border-radius:0 8px 8px 0}
+.intu code,.tipl code,.ap-idea code{font:12.5px var(--mono);background:var(--raise);padding:1px 5px;border-radius:3px}
+.tipl{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--mut);font-size:13.5px;line-height:1.6;max-width:80ch}
+.tipl b,.ap-idea b{color:var(--fg)}
+.aptabs{display:flex;gap:6px;flex-wrap:wrap}
+.aptabs button{padding:6px 12px;border:1px solid var(--line);border-radius:7px;font:600 12.5px var(--sans);color:var(--mut)}
+.aptabs button.on{border-color:var(--acc);color:var(--fg);background:var(--acc-bg)}
+.aptabs button small{font:500 10.5px var(--mono);color:var(--dim);margin-left:6px}
+.ap{display:flex;flex-direction:column;gap:10px}
+.ap-idea{font-size:13.5px;line-height:1.65;color:var(--mut);max-width:80ch;margin:0}
+.code{margin:0;padding:14px 16px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);font:12.5px/1.65 var(--mono);color:var(--fg);overflow-x:auto;scrollbar-width:none;white-space:pre}
+.code::-webkit-scrollbar{display:none}
+.k{color:var(--kw)}.s{color:var(--str)}.c{color:var(--com);font-style:italic}.n{color:var(--num)}.f{color:var(--fn)}.b{color:var(--ty)}
+.cx{display:flex;gap:18px;font:500 12px var(--mono);color:var(--mut);align-items:baseline;flex-wrap:wrap}
+.cx b{color:var(--fg);font-size:14px}
+.cx em{font-style:normal;color:var(--dim);font-family:var(--sans)}
+.side{border-left:1px solid var(--line2);background:var(--panel);padding:20px 18px;display:flex;flex-direction:column;gap:18px}
+.side h4{margin:0;font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--dim)}
+.box2{display:flex;flex-direction:column;gap:8px}
+.logbtns{display:grid;grid-template-columns:1fr;gap:6px}
+.logbtns button{height:34px;border:1px solid var(--line);border-radius:7px;font:600 12.5px var(--sans);color:var(--fg);display:flex;align-items:center;gap:8px;padding:0 12px}
+.logbtns button:hover{border-color:var(--acc)}
+.logbtns i{font-style:normal;width:18px;text-align:center}
+.kv2{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12.5px;color:var(--mut)}
+.kv2 b{font:500 11.5px var(--mono);color:var(--dim)}
+.plist{display:flex;flex-direction:column;gap:2px}
+.plist a{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;color:var(--mut);text-decoration:none;font-size:12.5px}
+.plist a:hover{background:var(--raise);color:var(--fg)}
+.plist a span:first-child{flex:none}
+.plist a .lv{margin-left:auto;font-size:10.5px}
+/* pattern lesson */
+.lesson{padding:22px 28px 36px;display:flex;flex-direction:column;gap:18px}
+.lhead{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.lhead h2{margin:0;font-size:24px;letter-spacing:-.015em}
+.lhead p{margin:0;color:var(--mut);max-width:70ch;line-height:1.6;font-size:14px}
+.subnav{display:flex;gap:6px;flex-wrap:wrap}
+.subnav a{padding:5px 10px;border:1px solid var(--line);border-radius:999px;font:500 12px var(--sans);color:var(--mut);text-decoration:none}
+.subnav a:hover{border-color:var(--acc);color:var(--fg)}
+.pat{border:1px solid var(--line2);border-radius:12px;background:var(--panel);display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);overflow:hidden}
+.pat .lft{padding:16px 18px;display:flex;flex-direction:column;gap:12px;border-right:1px solid var(--line2);min-width:0}
+.pat .rgt{padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.pat h3{margin:0;font-size:16px;display:flex;align-items:center;gap:10px}
+.pat h3 .pb{flex:0 0 90px;height:5px;border-radius:3px;background:var(--raise);overflow:hidden}
+.pat h3 .pb i{display:block;height:100%;background:var(--grn)}
+.pat h3 small{font:500 11px var(--mono);color:var(--dim)}
+.when{display:flex;flex-wrap:wrap;gap:6px}
+.when span{font:500 11.5px var(--sans);padding:3px 8px;border-radius:999px;background:var(--acc-bg);color:var(--acc)}
+.pit{margin:0;padding-left:16px;color:var(--mut);font-size:12.5px;line-height:1.55;display:flex;flex-direction:column;gap:4px}
+.mini-lab{font:600 10px var(--mono);letter-spacing:.14em;color:var(--dim)}
+.tip{position:fixed;pointer-events:none;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:500 11px var(--mono);color:var(--fg);box-shadow:0 8px 20px var(--shadow);z-index:20;max-width:300px}
+.screens{display:flex;gap:6px;align-items:center;padding:10px 16px}.screens b{font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--dim);margin-right:6px}.screens a{padding:6px 12px;border:1px solid var(--line);border-radius:7px;font:600 12.5px var(--sans);color:var(--mut);background:var(--panel);text-decoration:none}.screens a.on{border-color:var(--acc);color:var(--fg);background:var(--acc-bg)}</style></head><body><div class="screens"><b>MOCKUP</b><a class="" href="dsa-tracker.html">1 · Home</a><a class="on" href="problem.html">2 · Problem page</a><a class="" href="pattern.html">3 · Pattern lesson</a></div><div class="frame" style="border-radius:0;border-inline:0;box-shadow:none"><div class="app"><div class="hdr"><span class="logo">anneal<i>.genuinebasil.dev</i></span><nav class="nav"><span class="on">DSA</span><span>Rust</span><span>Progress</span></nav></div><div class="pp"><div class="pmain">
+  <div class="crumbs"><a href="dsa-tracker.html">DSA</a><span>/</span><a href="pattern.html">GRAPHS</a><span>/</span><span>TOPOLOGICAL SORT</span></div>
+  <div class="ptitle"><span class="num">#207</span><h2>Course Schedule</h2><span class="lv" style="color:var(--warn)">Medium</span><span class="badges"><span class="bdg ml">MUST LEARN</span><span class="bdg">150</span><span class="bdg">B75</span><span class="bdg">250</span></span></div>
+  <div class="prow"><a class="btn2 go" href="https://leetcode.com/problems/course-schedule/" target="_blank" rel="noreferrer">Solve on LeetCode ↗</a><a class="btn2" href="https://youtu.be/EgI5nU9etnU" target="_blank" rel="noreferrer">▶ NeetCode video</a><span class="tags">Depth-First Search · Breadth-First Search · Graph Theory · Topological Sort · Directed Acyclic Graph</span></div>
+  <div class="prow"><span class="cc hot">TikTok</span><span class="cc hot">ByteDance</span><span class="cc hot">Cloudflare</span><span class="cc hot">Amazon</span><span class="cc hot">Apple</span><span class="cc hot">Snowflake</span><span class="cc hot">Meta</span><span class="cc">Roblox</span><span class="cc hot">Uber</span><span class="cc">Oracle</span></div>
+  <section class="sec"><h3>PROBLEM <span class="src">from LeetCode</span></h3><div class="stmt"><p>There are a total of <code>numCourses</code> courses you have to take, labeled from <code>0</code> to <code>numCourses - 1</code>. You are given an array <code>prerequisites</code> where <code>prerequisites[i] = [a<sub>i</sub>, b<sub>i</sub>]</code> indicates that you <strong>must</strong> take course <code>b<sub>i</sub></code> first if you want to take course <code>a<sub>i</sub></code>.</p>
+
+<ul>
+	<li>For example, the pair <code>[0, 1]</code>, indicates that to take course <code>0</code> you have to first take course <code>1</code>.</li>
+</ul>
+
+<p>Return <code>true</code> if you can finish all courses. Otherwise, return <code>false</code>.</p>
+
+<p>&nbsp;</p>
+<p><strong class="example">Example 1:</strong></p>
+
+<pre>
+<strong>Input:</strong> numCourses = 2, prerequisites = [[1,0]]
+<strong>Output:</strong> true
+<strong>Explanation:</strong> There are a total of 2 courses to take. 
+To take course 1 you should have finished course 0. So it is possible.
+</pre>
+
+<p><strong class="example">Example 2:</strong></p>
+
+<pre>
+<strong>Input:</strong> numCourses = 2, prerequisites = [[1,0],[0,1]]
+<strong>Output:</strong> false
+<strong>Explanation:</strong> There are a total of 2 courses to take. 
+To take course 1 you should have finished course 0, and to take course 0 you should also have finished course 1. So it is impossible.
+</pre>
+
+<p>&nbsp;</p>
+<p><strong>Constraints:</strong></p>
+
+<ul>
+	<li><code>1 &lt;= numCourses &lt;= 2000</code></li>
+	<li><code>0 &lt;= prerequisites.length &lt;= 5000</code></li>
+	<li><code>prerequisites[i].length == 2</code></li>
+	<li><code>0 &lt;= a<sub>i</sub>, b<sub>i</sub> &lt; numCourses</code></li>
+	<li>All the pairs prerequisites[i] are <strong>unique</strong>.</li>
+</ul>
+</div></section>
+  <section class="sec"><h3>HINTS <span class="src">LeetCode's, one at a time</span></h3><div class="hint locked" data-text="This problem is equivalent to finding if a cycle exists in a directed graph. If a cycle exists, no topological ordering exists and therefore it will be impossible to take all courses.">Hint 1 · click to reveal</div><div class="hint locked" data-text="&lt;a href=&quot;https://www.cs.princeton.edu/~wayne/kleinberg-tardos/pdf/03Graphs.pdf&quot; target=&quot;_blank&quot;&gt;Topological Sort via DFS&lt;/a&gt; - A great tutorial explaining the basic concepts of Topological Sort.">Hint 2 · click to reveal</div><div class="hint locked" data-text="Topological sort could also be done via &lt;a href=&quot;http://en.wikipedia.org/wiki/Topological_sorting#Algorithms&quot; target=&quot;_blank&quot;&gt;BFS&lt;/a&gt;.">Hint 3 · click to reveal</div></section>
+  <section class="sec"><h3>INTUITION</h3><div class="intu">Each course is a node and each prerequisite <code>[a, b]</code> is an edge <code>b → a</code>: b has to come before a. You can finish everything unless some courses wait on each other in a loop, and a loop is exactly a <b>cycle</b> in that directed graph. So the question is really: <i>does this directed graph have a cycle?</i></div></section>
+  <section class="sec"><h3>TIPS AND PITFALLS</h3><ul class="tipl"><li>Get the edge direction right: <code>[a, b]</code> means <code>b → a</code>. Reversing every edge still gives the right answer here, but not in Course Schedule II, where you return the order.</li><li>The graph can be disconnected: start a search from <b>every</b> course, not just course 0.</li><li>A plain <code>visited</code> set isn't enough for directed graphs. A diamond (0→1, 0→2, 1→3, 2→3) reaches 3 twice without any cycle. Use three states: unseen, on the current path, done.</li><li><code>numCourses</code> goes up to 2000, deeper than Python's default recursion limit of 1000. Raise it with <code>sys.setrecursionlimit</code>, or use Kahn's algorithm, which needs no recursion.</li><li>In an interview, say the reduction out loud first: "this is cycle detection in a directed graph". It's most of the credit.</li></ul></section>
+  <section class="sec"><h3>APPROACHES <span class="src">2 ways · Python</span></h3><div class="aptabs"><button class="on" data-ap="0">DFS with three states<small>classic DFS</small></button><button class="" data-ap="1">Kahn&#x27;s algorithm (BFS topological sort)<small>topological sort</small></button></div><div class="ap" data-ap="0" ><p class="ap-idea">Walk from each course. Mark a node <b>visiting</b> while it's on the current path and <b>done</b> once everything after it is explored. Meeting a <b>visiting</b> node again means you've come back around: a cycle.</p><pre class="code">import sys
+
+class Solution:
+    def canFinish(self, numCourses: int, prerequisites: list[list[int]]) -&gt; bool:
+        sys.setrecursionlimit(10_000)  # up to 2000 courses deep
+        graph = [[] for _ in range(numCourses)]
+        for course, pre in prerequisites:
+            graph[pre].append(course)
+
+        UNSEEN, VISITING, DONE = 0, 1, 2
+        state = [UNSEEN] * numCourses
+
+        def has_cycle(node: int) -&gt; bool:
+            if state[node] == VISITING:
+                return True   # back on our own path: a cycle
+            if state[node] == DONE:
+                return False  # already proven cycle-free
+            state[node] = VISITING
+            if any(has_cycle(nxt) for nxt in graph[node]):
+                return True
+            state[node] = DONE
+            return False
+
+        return not any(has_cycle(c) for c in range(numCourses))</pre><div class="cx"><span>time <b>O(V + E)</b></span><span>space <b>O(V + E)</b></span><em>Each course and prerequisite is visited once; the graph and the recursion stack take the space.</em></div></div><div class="ap" data-ap="1" hidden><p class="ap-idea">Repeatedly take a course with no remaining prerequisites (in-degree 0) and remove its outgoing edges. If every course gets taken, there's an order; if some are left, they're stuck in a cycle.</p><pre class="code">from collections import deque
+
+class Solution:
+    def canFinish(self, numCourses: int, prerequisites: list[list[int]]) -&gt; bool:
+        graph = [[] for _ in range(numCourses)]
+        indegree = [0] * numCourses
+        for course, pre in prerequisites:
+            graph[pre].append(course)
+            indegree[course] += 1
+
+        queue = deque(c for c in range(numCourses) if indegree[c] == 0)
+        taken = 0
+        while queue:
+            node = queue.popleft()
+            taken += 1
+            for nxt in graph[node]:
+                indegree[nxt] -= 1
+                if indegree[nxt] == 0:
+                    queue.append(nxt)
+        return taken == numCourses</pre><div class="cx"><span>time <b>O(V + E)</b></span><span>space <b>O(V + E)</b></span><em>No recursion, and the dequeue order <i>is</i> a valid course order, which is all Course Schedule II adds.</em></div></div></section>
+</div>
+<aside class="side">
+  <div class="box2"><h4>LOG YOUR SOLVE</h4><div class="logbtns"><button><i style="color:var(--grn)">✓</i>Solved on my own</button><button><i style="color:var(--warn)">½</i>Solved with help</button><button><i style="color:var(--bad)">✗</i>Couldn't yet</button></div></div>
+  <div class="box2"><h4>YOUR HISTORY</h4><div class="kv2"><b>status</b><span>solved on your own, 12 days ago</span><b>review</b><span style="color:var(--vio)">due in 9 days (step 2 of 4)</span><b>attempts</b><span>2</span></div></div>
+  <div class="box2"><h4>PATTERN</h4><div class="plist"><a href="pattern.html"><span>◆</span><span>Graphs → Topological sort and directed cycles</span></a></div></div>
+  <div class="box2"><h4>PRACTICE THIS IDEA · 6</h4><div class="plist"><a href="https://leetcode.com/problems/graph-valid-tree/" target="_blank" rel="noreferrer"><span class="st"></span><span>Graph Valid Tree</span><span class="lv" style="color:var(--warn)">Medium · PREM</span></a><a href="https://leetcode.com/problems/course-schedule-ii/" target="_blank" rel="noreferrer"><span class="st"></span><span>Course Schedule II</span><span class="lv" style="color:var(--warn)">Medium</span></a><a href="https://leetcode.com/problems/minimum-height-trees/" target="_blank" rel="noreferrer"><span class="st"></span><span>Minimum Height Trees</span><span class="lv" style="color:var(--warn)">Medium</span></a><a href="https://leetcode.com/problems/parallel-courses/" target="_blank" rel="noreferrer"><span class="st"></span><span>Parallel Courses</span><span class="lv" style="color:var(--warn)">Medium · PREM</span></a><a href="https://leetcode.com/problems/parallel-courses-iii/" target="_blank" rel="noreferrer"><span class="st"></span><span>Parallel Courses III</span><span class="lv" style="color:var(--bad)">Hard</span></a><a href="https://leetcode.com/problems/find-all-possible-recipes-from-given-supplies/" target="_blank" rel="noreferrer"><span class="st"></span><span>Find All Possible Recipes from Given Supplies</span><span class="lv" style="color:var(--warn)">Medium</span></a></div></div>
+</aside></div></div></div><script>
+document.querySelectorAll('.hint.locked').forEach((h) => (h.onclick = () => { h.classList.remove('locked'); h.innerHTML = h.dataset.text; }));
+document.querySelectorAll('.aptabs button').forEach((b) => (b.onclick = () => {
+  document.querySelectorAll('.aptabs button').forEach((x) => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.ap').forEach((a) => (a.hidden = a.dataset.ap !== b.dataset.ap));
+}));
+const KW = 'def|class|return|if|elif|else|for|while|in|not|and|or|is|None|True|False|import|from|as|with|yield|lambda|try|except|finally|raise|pass|break|continue|global|nonlocal';
+const BI = 'range|len|set|dict|list|deque|sum|any|all|min|max|enumerate|zip|sorted|print|int|str|self';
+const RE = new RegExp(`(#[^\\n]*)|("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*')|\\b(${KW})\\b|\\b(${BI})\\b|\\b(\\d[\\d_]*)\\b|(\\w+)(?=\\()`, 'g');
+document.querySelectorAll('pre.code').forEach((pre) => {
+  const esc = pre.textContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  pre.innerHTML = esc.replace(RE, (m, c, s, k, b, n, f) => c ? `<span class="c">${c}</span>` : s ? `<span class="s">${s}</span>` : k ? `<span class="k">${k}</span>` : b ? `<span class="b">${b}</span>` : n ? `<span class="n">${n}</span>` : `<span class="f">${f}</span>`);
+});
+</script></body></html>

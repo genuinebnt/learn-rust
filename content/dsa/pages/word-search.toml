@@ -1,0 +1,66 @@
+intuition = """
+Start a search from every cell that matches the first letter. At each step, extend the match to a neighbouring cell (up, down, left, right) that holds the **next letter**, and never reuse a cell on the same path. That's DFS with backtracking: **mark the cell as used before recursing and unmark it afterwards**, so other paths can still pass through it.
+
+Marking in place (replace the letter with `#`, then restore it) avoids a separate `visited` set.
+"""
+tips = [
+    "Restore the cell after exploring: that undo is what makes it backtracking and not plain DFS.",
+    "Prune early: return `False` the moment a cell doesn't match the letter you need.",
+    "If the board doesn't have enough of some letter (compare `Counter`s), you can answer `False` immediately; also try searching for the reversed word if its last letter is rarer, for speed.",
+    "The recursion depth is at most the word length (15), so no recursion-limit concerns.",
+]
+
+[[approaches]]
+name = "DFS from every cell, marking in place"
+label = "DFS + backtrack"
+idea = "Match the word letter by letter, marking the current cell so it isn't reused on this path and restoring it on the way back."
+time = "O(m · n · 4^L)"
+space = "O(L)"
+note = "L is the word length; each step has at most three new directions."
+code = '''class Solution:
+    def exist(self, board: list[list[str]], word: str) -> bool:
+        rows, cols = len(board), len(board[0])
+
+        def match(r: int, c: int, k: int) -> bool:
+            if k == len(word):
+                return True
+            if not (0 <= r < rows and 0 <= c < cols) or board[r][c] != word[k]:
+                return False
+            saved = board[r][c]
+            board[r][c] = "#"
+            found = (
+                match(r + 1, c, k + 1)
+                or match(r - 1, c, k + 1)
+                or match(r, c + 1, k + 1)
+                or match(r, c - 1, k + 1)
+            )
+            board[r][c] = saved
+            return found
+
+        return any(match(r, c, 0) for r in range(rows) for c in range(cols))
+'''
+
+[[approaches]]
+name = "DFS with a visited set"
+label = "visited set"
+idea = "The same search, tracking the cells on the current path in a set instead of editing the board."
+time = "O(m · n · 4^L)"
+space = "O(L)"
+note = "Doesn't modify the input."
+code = '''class Solution:
+    def exist(self, board: list[list[str]], word: str) -> bool:
+        rows, cols = len(board), len(board[0])
+        on_path = set()
+
+        def match(r: int, c: int, k: int) -> bool:
+            if k == len(word):
+                return True
+            if not (0 <= r < rows and 0 <= c < cols) or (r, c) in on_path or board[r][c] != word[k]:
+                return False
+            on_path.add((r, c))
+            found = any(match(r + dr, c + dc, k + 1) for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+            on_path.remove((r, c))
+            return found
+
+        return any(match(r, c, 0) for r in range(rows) for c in range(cols))
+'''

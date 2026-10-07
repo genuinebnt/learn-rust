@@ -1,0 +1,76 @@
+intuition = """
+Now each candidate can be used **at most once**, and the list **has duplicates**, but the answer must not contain the same combination twice. Sort first so equal numbers are neighbours. Then:
+
+- recurse with `i + 1` (each element used once), and
+- **skip a number equal to the previous one at the same depth**: `if i > start and candidates[i] == candidates[i-1]: continue`. Using the first of a run of equal numbers already covers choosing any of them.
+"""
+tips = [
+    "The duplicate skip is `i > start`, not `i > 0`: a repeat is only redundant among the choices at the **same** level, not when it extends the path.",
+    "Sort the list first; without it the skip rule doesn't work.",
+    "Stop the loop once `candidates[i] > remaining`; with sorting everything after is too large.",
+    "A set of tuples would dedupe too but wastes work generating duplicates just to throw them away.",
+]
+
+[[approaches]]
+name = "Sort, then skip repeated choices at the same level"
+label = "backtracking"
+idea = "Choose from `start` onwards, move to `i + 1` after picking, and skip any candidate equal to the one just tried at this level."
+time = "O(2^n)"
+space = "O(n)"
+note = "Pruned by the target and the duplicate skip."
+code = '''class Solution:
+    def combinationSum2(self, candidates: list[int], target: int) -> list[list[int]]:
+        candidates = sorted(candidates)
+        result = []
+        path = []
+
+        def search(start: int, remaining: int) -> None:
+            if remaining == 0:
+                result.append(path[:])
+                return
+            for i in range(start, len(candidates)):
+                if i > start and candidates[i] == candidates[i - 1]:
+                    continue
+                if candidates[i] > remaining:
+                    break
+                path.append(candidates[i])
+                search(i + 1, remaining - candidates[i])
+                path.pop()
+
+        search(0, target)
+        return result
+'''
+
+[[approaches]]
+name = "Count each value, then choose how many"
+label = "counts"
+idea = "Group equal numbers into `(value, count)`. For each value choose to use 0 up to `count` copies. Duplicates cannot arise because values are distinct."
+time = "O(2^n)"
+space = "O(n)"
+note = "No skipping rule needed."
+code = '''from collections import Counter
+
+
+class Solution:
+    def combinationSum2(self, candidates: list[int], target: int) -> list[list[int]]:
+        items = sorted(Counter(candidates).items())
+        result = []
+        path = []
+
+        def search(i: int, remaining: int) -> None:
+            if remaining == 0:
+                result.append(path[:])
+                return
+            if i == len(items) or items[i][0] > remaining:
+                return
+            value, count = items[i]
+            for used in range(count + 1):
+                if used * value > remaining:
+                    break
+                path.extend([value] * used)
+                search(i + 1, remaining - used * value)
+                del path[len(path) - used:]
+
+        search(0, target)
+        return result
+'''

@@ -1,0 +1,60 @@
+intuition = """
+Build the string one character at a time, and only make **valid** moves, so you never have to filter afterwards. You can add `(` while you have fewer than `n` open brackets, and you can add `)` only while there are **more opens than closes** so far. When the string has length `2n`, it is a valid sequence.
+
+That rule (`open < n`, `close < open`) is the whole algorithm; it also produces exactly the Catalan number of answers with no duplicates.
+"""
+tips = [
+    "State the two rules before coding: `(` while `opened < n`; `)` while `closed < opened`.",
+    "Using a list of characters and `pop()` after the recursive call, or passing the string as an argument, are both fine.",
+    "Filtering all `2^(2n)` strings for validity works but is far slower.",
+    "There are `C(n) = (2n choose n) / (n + 1)` results: 14 for n = 4, 1430 for n = 8.",
+]
+
+[[approaches]]
+name = "Backtracking with open and close counts"
+label = "backtracking"
+idea = "Add `(` if fewer than `n` have been used, and `)` if fewer closes than opens; record the string when it reaches `2n` characters."
+time = "O(4^n / √n)"
+space = "O(n)"
+note = "The Catalan count of results, each of length 2n."
+code = '''class Solution:
+    def generateParenthesis(self, n: int) -> list[str]:
+        result = []
+        path = []
+
+        def build(opened: int, closed: int) -> None:
+            if len(path) == 2 * n:
+                result.append("".join(path))
+                return
+            if opened < n:
+                path.append("(")
+                build(opened + 1, closed)
+                path.pop()
+            if closed < opened:
+                path.append(")")
+                build(opened, closed + 1)
+                path.pop()
+
+        build(0, 0)
+        return result
+'''
+
+[[approaches]]
+name = "Combine smaller answers"
+label = "divide and conquer"
+idea = "Every valid string is `(` + a valid string + `)` + a valid string, with the inner and outer parts using `n − 1` pairs in total."
+time = "O(4^n / √n)"
+space = "O(4^n / √n)"
+note = "Builds each size from the smaller sizes."
+code = '''class Solution:
+    def generateParenthesis(self, n: int) -> list[str]:
+        by_pairs = [[""]]
+        for pairs in range(1, n + 1):
+            current = []
+            for inside in range(pairs):
+                for left in by_pairs[inside]:
+                    for right in by_pairs[pairs - 1 - inside]:
+                        current.append("(" + left + ")" + right)
+            by_pairs.append(current)
+        return by_pairs[n]
+'''

@@ -1,0 +1,53 @@
+intuition = """
+Every subset is the result of a yes/no decision for each number: **include it or leave it out**. That is a binary decision tree of depth `n`, and each leaf is one subset (`2^n` of them).
+
+Backtracking walks that tree: at index `i`, first take `nums[i]` and recurse, then **undo** it (pop) and recurse without it. At the bottom (`i == n`) record a copy of the current choice list.
+
+Another way to see it: start with `[[]]` and for each number add a copy of every existing subset with that number appended.
+"""
+tips = [
+    "Record a **copy** (`path[:]` or `list(path)`) of the current subset. Appending `path` itself stores one list that keeps changing.",
+    "The two branches are \"include `nums[i]`\" (append, recurse, **pop**) and \"skip it\". Forgetting the pop is the classic bug.",
+    "The answer has `2^n` subsets, so the running time is O(n · 2^n): there's no way to do better since you must output them all.",
+    "The iterative \"double the list at each number\" version has no recursion at all and is just as correct.",
+]
+
+[[approaches]]
+name = "Backtracking: include or skip each number"
+label = "backtracking"
+idea = "At each index, either take the number (and later undo it) or skip it; record the current choices when the indexes run out."
+time = "O(n · 2^n)"
+space = "O(n)"
+note = "Extra space is the recursion and the current path, besides the output."
+code = '''class Solution:
+    def subsets(self, nums: list[int]) -> list[list[int]]:
+        result = []
+        path = []
+
+        def choose(i: int) -> None:
+            if i == len(nums):
+                result.append(path[:])
+                return
+            path.append(nums[i])
+            choose(i + 1)
+            path.pop()
+            choose(i + 1)
+
+        choose(0)
+        return result
+'''
+
+[[approaches]]
+name = "Build up by doubling"
+label = "iterative"
+idea = "Start with the empty subset. For each number, add a copy of every subset so far with that number appended."
+time = "O(n · 2^n)"
+space = "O(1) beyond the output"
+note = "No recursion."
+code = '''class Solution:
+    def subsets(self, nums: list[int]) -> list[list[int]]:
+        result = [[]]
+        for x in nums:
+            result += [subset + [x] for subset in result]
+        return result
+'''

@@ -1,0 +1,71 @@
+intuition = """
+Cut the string into pieces that are **all palindromes**, and list every way. Backtracking over the cut positions: from index `start`, try every end `i` such that `s[start:i+1]` is a palindrome, add that piece, and recurse from `i + 1`. When `start` reaches the end, the pieces form a full partition.
+
+Checking each candidate piece for being a palindrome repeats work; a precomputed table (`is_pal[i][j]`) makes each check O(1).
+"""
+tips = [
+    "Only recurse on pieces that are palindromes; that prunes most of the search.",
+    "Record `path[:]` (a copy) when `start == len(s)`.",
+    "Precompute `is_pal` with DP (`s[i] == s[j] and is_pal[i+1][j-1]`) so each check is O(1); simple slicing (`piece == piece[::-1]`) is fine at length 16.",
+    "The number of partitions can be exponential (`\"aaaa…\"` has 2^(n-1)), so O(n · 2^n) is expected.",
+]
+
+[[approaches]]
+name = "Backtracking over cut positions"
+label = "backtracking"
+idea = "From each start index, try every palindromic piece, add it, and recurse on the rest."
+time = "O(n · 2^n)"
+space = "O(n)"
+note = "Palindrome checks by slicing and comparing."
+code = '''class Solution:
+    def partition(self, s: str) -> list[list[str]]:
+        result = []
+        path = []
+
+        def cut(start: int) -> None:
+            if start == len(s):
+                result.append(path[:])
+                return
+            for end in range(start + 1, len(s) + 1):
+                piece = s[start:end]
+                if piece == piece[::-1]:
+                    path.append(piece)
+                    cut(end)
+                    path.pop()
+
+        cut(0)
+        return result
+'''
+
+[[approaches]]
+name = "With a palindrome table"
+label = "DP table + backtracking"
+idea = "Fill a table of which substrings are palindromes first, so backtracking checks each piece in O(1)."
+time = "O(n · 2^n)"
+space = "O(n²)"
+note = "Pays off when the string is longer or the checks are expensive."
+code = '''class Solution:
+    def partition(self, s: str) -> list[list[str]]:
+        n = len(s)
+        is_pal = [[False] * n for _ in range(n)]
+        for i in range(n - 1, -1, -1):
+            for j in range(i, n):
+                if s[i] == s[j] and (j - i < 2 or is_pal[i + 1][j - 1]):
+                    is_pal[i][j] = True
+
+        result = []
+        path = []
+
+        def cut(start: int) -> None:
+            if start == n:
+                result.append(path[:])
+                return
+            for end in range(start, n):
+                if is_pal[start][end]:
+                    path.append(s[start:end + 1])
+                    cut(end + 1)
+                    path.pop()
+
+        cut(0)
+        return result
+'''

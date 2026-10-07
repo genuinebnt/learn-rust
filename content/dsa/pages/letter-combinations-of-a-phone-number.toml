@@ -1,0 +1,57 @@
+intuition = """
+Each digit offers a few letters, and you pick **one letter per digit**, in order: a product of choices. Backtracking: at digit `k`, try each letter for that digit, append it, recurse to `k + 1`, undo. When you've chosen a letter for every digit, record the word.
+
+`itertools.product` does the same thing in one line, but write the recursion.
+"""
+tips = [
+    "No digits means **no** combinations (return `[]`), not `[\"\"]`.",
+    "Keep the keypad as a dict from digit to letters: `\"2\": \"abc\"`, ..., `\"9\": \"wxyz\"`.",
+    "The answer has at most `4^4 = 256` words here, so there is no performance concern.",
+    "A BFS-style version (extend each partial word by every letter of the next digit) has no recursion.",
+]
+
+[[approaches]]
+name = "Backtracking over digits"
+label = "backtracking"
+idea = "Choose a letter for the current digit, recurse on the next digit, undo, and record the word after the last digit."
+time = "O(4^n · n)"
+space = "O(n)"
+note = "n is the number of digits."
+code = '''class Solution:
+    def letterCombinations(self, digits: str) -> list[str]:
+        if not digits:
+            return []
+        keypad = {"2": "abc", "3": "def", "4": "ghi", "5": "jkl", "6": "mno", "7": "pqrs", "8": "tuv", "9": "wxyz"}
+        result = []
+        path = []
+
+        def choose(k: int) -> None:
+            if k == len(digits):
+                result.append("".join(path))
+                return
+            for letter in keypad[digits[k]]:
+                path.append(letter)
+                choose(k + 1)
+                path.pop()
+
+        choose(0)
+        return result
+'''
+
+[[approaches]]
+name = "Extend the words one digit at a time"
+label = "iterative"
+idea = "Start with the empty word and, for each digit, replace every word by all its extensions."
+time = "O(4^n · n)"
+space = "O(4^n · n)"
+note = "No recursion."
+code = '''class Solution:
+    def letterCombinations(self, digits: str) -> list[str]:
+        if not digits:
+            return []
+        keypad = {"2": "abc", "3": "def", "4": "ghi", "5": "jkl", "6": "mno", "7": "pqrs", "8": "tuv", "9": "wxyz"}
+        words = [""]
+        for digit in digits:
+            words = [word + letter for word in words for letter in keypad[digit]]
+        return words
+'''

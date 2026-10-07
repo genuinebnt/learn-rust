@@ -1,0 +1,66 @@
+intuition = """
+Find all multisets of the candidates that add up to `target`, where a candidate may be used **any number of times**. Build a combination left to right, but only ever choose candidates **at or after the current index**: that forces a fixed order, so `[2, 3]` and `[3, 2]` aren't both produced.
+
+At each step: stop with a result if the remaining target is 0, stop without one if it's negative; otherwise try each candidate from index `start`, recursing with the **same** `start` index for that candidate (so it can repeat).
+"""
+tips = [
+    "Pass a `start` index and loop `for i in range(start, n)`. Recursing with `i` (not `i + 1`) is what allows reuse.",
+    "Sort the candidates and `break` as soon as one exceeds the remaining target: everything after it is bigger too.",
+    "Copy the path when you record it, and pop after each recursive call.",
+    "Candidates are distinct here (the duplicate-handling version is Combination Sum II).",
+]
+
+[[approaches]]
+name = "Backtracking with a start index"
+label = "backtracking"
+idea = "Choose a candidate at or after `start`, subtract it from the target, and recurse from the same index (so it can repeat)."
+time = "O(2^target) in the worst case"
+space = "O(target)"
+note = "The depth is at most `target / min(candidates)`."
+code = '''class Solution:
+    def combinationSum(self, candidates: list[int], target: int) -> list[list[int]]:
+        candidates = sorted(candidates)
+        result = []
+        path = []
+
+        def search(start: int, remaining: int) -> None:
+            if remaining == 0:
+                result.append(path[:])
+                return
+            for i in range(start, len(candidates)):
+                if candidates[i] > remaining:
+                    break
+                path.append(candidates[i])
+                search(i, remaining - candidates[i])
+                path.pop()
+
+        search(0, target)
+        return result
+'''
+
+[[approaches]]
+name = "Include or skip"
+label = "include / skip"
+idea = "At index `i`, either use the candidate again (stay on `i`) or move on to `i + 1`."
+time = "O(2^target) in the worst case"
+space = "O(target)"
+note = "The same search with a binary choice instead of a loop."
+code = '''class Solution:
+    def combinationSum(self, candidates: list[int], target: int) -> list[list[int]]:
+        result = []
+        path = []
+
+        def search(i: int, remaining: int) -> None:
+            if remaining == 0:
+                result.append(path[:])
+                return
+            if i == len(candidates) or remaining < 0:
+                return
+            path.append(candidates[i])
+            search(i, remaining - candidates[i])
+            path.pop()
+            search(i + 1, remaining)
+
+        search(0, target)
+        return result
+'''

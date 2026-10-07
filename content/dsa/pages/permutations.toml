@@ -1,0 +1,66 @@
+intuition = """
+A permutation fills `n` positions, each with a number not yet used. Backtracking: at position `k`, try every number that is **not already in the path**, recurse, and undo. When the path has `n` numbers, record it.
+
+Track the used numbers with a boolean list (O(1) check) instead of testing `x in path` (O(n)). There are `n!` permutations, so the running time is O(n · n!).
+"""
+tips = [
+    "Use a `used` array indexed by position in `nums`, so it also works if `nums` could repeat (it doesn't here).",
+    "Record `path[:]`, a copy, at the leaf.",
+    "The swap-in-place version needs no `used` array: swap `nums[k]` with each later element, recurse, swap back.",
+    "`itertools.permutations` exists; mention it, but write the backtracking.",
+]
+
+[[approaches]]
+name = "Backtracking with a used array"
+label = "used array"
+idea = "Fill positions left to right with any number not yet used, undoing each choice after exploring it."
+time = "O(n · n!)"
+space = "O(n)"
+note = "n! results of length n."
+code = '''class Solution:
+    def permute(self, nums: list[int]) -> list[list[int]]:
+        result = []
+        path = []
+        used = [False] * len(nums)
+
+        def build() -> None:
+            if len(path) == len(nums):
+                result.append(path[:])
+                return
+            for i, x in enumerate(nums):
+                if used[i]:
+                    continue
+                used[i] = True
+                path.append(x)
+                build()
+                path.pop()
+                used[i] = False
+
+        build()
+        return result
+'''
+
+[[approaches]]
+name = "Swap in place"
+label = "swapping"
+idea = "To fix position `k`, swap each later element into it, recurse on the rest, and swap back."
+time = "O(n · n!)"
+space = "O(n)"
+note = "No extra used array."
+code = '''class Solution:
+    def permute(self, nums: list[int]) -> list[list[int]]:
+        result = []
+        items = nums[:]
+
+        def arrange(k: int) -> None:
+            if k == len(items):
+                result.append(items[:])
+                return
+            for i in range(k, len(items)):
+                items[k], items[i] = items[i], items[k]
+                arrange(k + 1)
+                items[k], items[i] = items[i], items[k]
+
+        arrange(0)
+        return result
+'''

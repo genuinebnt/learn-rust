@@ -1,0 +1,74 @@
+intuition = """
+Place one queen per row. For row `r`, try each column `c`, but only if no earlier queen **attacks** it: same column, same diagonal (`r - c` equal), or same anti-diagonal (`r + c` equal). Keep three sets (columns, diagonals, anti-diagonals) so each check is O(1). Place, recurse to the next row, then remove the queen (backtrack).
+
+When all `n` rows are filled, build the board from the column chosen in each row.
+"""
+tips = [
+    "Two squares share a diagonal when `r - c` is equal, and an anti-diagonal when `r + c` is equal. Those two numbers are the set keys.",
+    "One queen per row is guaranteed by construction, so you never check rows.",
+    "Add to all three sets before recursing and remove from all three after.",
+    "The number of solutions is small (92 for n = 8), but the search tree before pruning is huge; the three sets are what keep it fast.",
+]
+
+[[approaches]]
+name = "Row by row with column and diagonal sets"
+label = "backtracking"
+idea = "Place a queen in each row at a column that no earlier queen attacks, tracking attacked columns and both diagonals in sets."
+time = "O(n!)"
+space = "O(n)"
+note = "Heavily pruned in practice."
+code = '''class Solution:
+    def solveNQueens(self, n: int) -> list[list[str]]:
+        result = []
+        cols = []  # cols[r]: the column of the queen in row r
+        taken_cols, diagonals, anti_diagonals = set(), set(), set()
+
+        def place(r: int) -> None:
+            if r == n:
+                result.append(["." * c + "Q" + "." * (n - c - 1) for c in cols])
+                return
+            for c in range(n):
+                if c in taken_cols or r - c in diagonals or r + c in anti_diagonals:
+                    continue
+                taken_cols.add(c)
+                diagonals.add(r - c)
+                anti_diagonals.add(r + c)
+                cols.append(c)
+                place(r + 1)
+                cols.pop()
+                taken_cols.remove(c)
+                diagonals.remove(r - c)
+                anti_diagonals.remove(r + c)
+
+        place(0)
+        return result
+'''
+
+[[approaches]]
+name = "Bitmasks for the attacked squares"
+label = "bitmasks"
+idea = "Keep the attacked columns and diagonals as three integers whose bits are set; shifting them moves the diagonals down a row."
+time = "O(n!)"
+space = "O(n)"
+note = "The fastest way in Python; harder to read."
+code = '''class Solution:
+    def solveNQueens(self, n: int) -> list[list[str]]:
+        result = []
+        cols = []
+        full = (1 << n) - 1
+
+        def place(r: int, taken: int, down_left: int, down_right: int) -> None:
+            if r == n:
+                result.append(["." * c + "Q" + "." * (n - c - 1) for c in cols])
+                return
+            free = full & ~(taken | down_left | down_right)
+            while free:
+                bit = free & -free
+                free ^= bit
+                cols.append(bit.bit_length() - 1)
+                place(r + 1, taken | bit, ((down_left | bit) << 1) & full, (down_right | bit) >> 1)
+                cols.pop()
+
+        place(0, 0, 0, 0)
+        return result
+'''

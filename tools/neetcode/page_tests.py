@@ -1533,6 +1533,180 @@ def median_two_sorted(ns):
     assert f(big_a, big_b) == 999_999.5
 
 
+# ---------------------------------------------------------------- backtracking
+
+
+def _same_sets(got, want):
+    """Whether two lists of lists hold the same lists (order of lists irrelevant, no repeats)."""
+    got_t = sorted(tuple(x) for x in got)
+    want_t = sorted(tuple(x) for x in want)
+    return got_t == want_t
+
+
+def subsets_check(ns):
+    f = ns["Solution"]().subsets
+    assert _same_sets(f([1, 2, 3]), [[], [1], [2], [3], [1, 2], [1, 3], [2, 3], [1, 2, 3]]) and f([0]) in ([[], [0]], [[0], []])
+    r = rng()
+    for _ in range(100):
+        a = r.sample(range(-5, 6), r.randint(0, 8))
+        want = [list(c) for k in range(len(a) + 1) for c in itertools.combinations(a, k)]
+        got = f(list(a))
+        assert len(got) == len(want) and sorted(sorted(x) for x in got) == sorted(sorted(x) for x in want), a
+
+
+def combination_sum_check(ns):
+    f = ns["Solution"]().combinationSum
+
+    def want(c, t):
+        out = []
+
+        def go(i, rem, path):
+            if rem == 0:
+                out.append(path[:])
+                return
+            if i == len(c) or rem < 0:
+                return
+            path.append(c[i])
+            go(i, rem - c[i], path)
+            path.pop()
+            go(i + 1, rem, path)
+
+        go(0, t, [])
+        return out
+
+    assert _same_sets([sorted(x) for x in f([2, 3, 6, 7], 7)], [[2, 2, 3], [7]]) and f([2], 1) == [] and _same_sets([sorted(x) for x in f([2, 3, 5], 8)], [[2, 2, 2, 2], [2, 3, 3], [3, 5]])
+    r = rng()
+    for _ in range(150):
+        c = r.sample(range(1, 9), r.randint(1, 4))
+        t = r.randint(1, 14)
+        got = [tuple(sorted(x)) for x in f(list(c), t)]
+        assert len(got) == len(set(got)) and sorted(got) == sorted(tuple(sorted(x)) for x in want(c, t)), (c, t)
+
+
+def combination_sum_ii_check(ns):
+    f = ns["Solution"]().combinationSum2
+    assert _same_sets([sorted(x) for x in f([10, 1, 2, 7, 6, 1, 5], 8)], [[1, 1, 6], [1, 2, 5], [1, 7], [2, 6]]) and _same_sets([sorted(x) for x in f([2, 5, 2, 1, 2], 5)], [[1, 2, 2], [5]])
+    r = rng()
+    for _ in range(200):
+        c = [r.randint(1, 6) for _ in range(r.randint(1, 8))]
+        t = r.randint(1, 12)
+        want = set()
+        for k in range(len(c) + 1):
+            for idx in itertools.combinations(range(len(c)), k):
+                if sum(c[i] for i in idx) == t:
+                    want.add(tuple(sorted(c[i] for i in idx)))
+        got = [tuple(sorted(x)) for x in f(list(c), t)]
+        assert len(got) == len(set(got)) and set(got) == want, (c, t)
+
+
+def permutations_check(ns):
+    f = ns["Solution"]().permute
+    assert _same_sets(f([1, 2, 3]), list(map(list, itertools.permutations([1, 2, 3])))) and f([1]) == [[1]] and _same_sets(f([0, 1]), [[0, 1], [1, 0]])
+    r = rng()
+    for _ in range(60):
+        a = r.sample(range(-9, 10), r.randint(1, 6))
+        got = f(list(a))
+        assert len(got) == len(set(map(tuple, got))) and _same_sets(got, list(map(list, itertools.permutations(a)))), a
+
+
+def subsets_ii_check(ns):
+    f = ns["Solution"]().subsetsWithDup
+    assert _same_sets([sorted(x) for x in f([1, 2, 2])], [[], [1], [2], [1, 2], [2, 2], [1, 2, 2]]) and f([0]) in ([[], [0]], [[0], []])
+    r = rng()
+    for _ in range(200):
+        a = [r.randint(0, 3) for _ in range(r.randint(0, 7))]
+        want = {tuple(sorted(c)) for k in range(len(a) + 1) for c in itertools.combinations(a, k)}
+        got = [tuple(sorted(x)) for x in f(list(a))]
+        assert len(got) == len(set(got)) and set(got) == want, a
+
+
+def generate_parentheses_check(ns):
+    f = ns["Solution"]().generateParenthesis
+    assert sorted(f(3)) == sorted(["((()))", "(()())", "(())()", "()(())", "()()()"]) and f(1) == ["()"]
+    from math import comb
+
+    for n in range(1, 9):
+        got = f(n)
+        assert len(got) == comb(2 * n, n) // (n + 1) and len(set(got)) == len(got)
+        for s_ in got:
+            depth = 0
+            for ch in s_:
+                depth += 1 if ch == "(" else -1
+                assert depth >= 0
+            assert depth == 0 and len(s_) == 2 * n
+
+
+def word_search_check(ns):
+    f = ns["Solution"]().exist
+    b = [list("ABCE"), list("SFCS"), list("ADEE")]
+    assert f([r_[:] for r_ in b], "ABCCED") is True and f([r_[:] for r_ in b], "SEE") is True and f([r_[:] for r_ in b], "ABCB") is False and f([["a"]], "a") is True and f([["a"]], "b") is False
+    r = rng()
+
+    def brute(board, word):
+        rows, cols = len(board), len(board[0])
+
+        def go(i, j, k, seen):
+            if k == len(word):
+                return True
+            if not (0 <= i < rows and 0 <= j < cols) or (i, j) in seen or board[i][j] != word[k]:
+                return False
+            seen = seen | {(i, j)}
+            return any(go(i + a, j + c, k + 1, seen) for a, c in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+
+        return any(go(i, j, 0, frozenset()) for i in range(rows) for j in range(cols))
+
+    for _ in range(400):
+        rows, cols = r.randint(1, 4), r.randint(1, 4)
+        board = [[r.choice("ab") for _ in range(cols)] for _ in range(rows)]
+        word = "".join(r.choice("ab") for _ in range(r.randint(1, 6)))
+        before = [row[:] for row in board]
+        assert f([row[:] for row in board], word) == brute(before, word), (board, word)
+
+
+def palindrome_partitioning_check(ns):
+    f = ns["Solution"]().partition
+    assert _same_sets(f("aab"), [["a", "a", "b"], ["aa", "b"]]) and f("a") == [["a"]]
+    r = rng()
+
+    def brute(s_):
+        if not s_:
+            return [[]]
+        out = []
+        for i in range(1, len(s_) + 1):
+            if s_[:i] == s_[:i][::-1]:
+                out += [[s_[:i]] + rest for rest in brute(s_[i:])]
+        return out
+
+    for _ in range(200):
+        s_ = "".join(r.choice("ab") for _ in range(r.randint(1, 9)))
+        got = f(s_)
+        assert len(got) == len(set(map(tuple, got))) and _same_sets(got, brute(s_)), s_
+
+
+def letter_combinations_check(ns):
+    f = ns["Solution"]().letterCombinations
+    assert sorted(f("23")) == sorted(["ad", "ae", "af", "bd", "be", "bf", "cd", "ce", "cf"]) and f("") == [] and sorted(f("2")) == ["a", "b", "c"]
+    keypad = {"2": "abc", "3": "def", "4": "ghi", "5": "jkl", "6": "mno", "7": "pqrs", "8": "tuv", "9": "wxyz"}
+    r = rng()
+    for _ in range(100):
+        digits = "".join(r.choice("23456789") for _ in range(r.randint(1, 4)))
+        want = ["".join(c) for c in itertools.product(*(keypad[d] for d in digits))]
+        got = f(digits)
+        assert len(got) == len(set(got)) and sorted(got) == sorted(want), digits
+
+
+def n_queens_check(ns):
+    f = ns["Solution"]().solveNQueens
+    assert f(1) == [["Q"]] and f(2) == [] and f(3) == [] and sorted(map(tuple, f(4))) == sorted([(".Q..", "...Q", "Q...", "..Q."), ("..Q.", "Q...", "...Q", ".Q..")])
+    for n, count in ((5, 10), (6, 4), (7, 40), (8, 92)):
+        boards = f(n)
+        assert len(boards) == count and len(set(map(tuple, boards))) == count
+        for b in boards:
+            cols = [row.index("Q") for row in b]
+            assert all(row.count("Q") == 1 and len(row) == n for row in b) and len(set(cols)) == n
+            assert len({r_ - c for r_, c in enumerate(cols)}) == n and len({r_ + c for r_, c in enumerate(cols)}) == n
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -1623,6 +1797,16 @@ CHECKS = {
     "search-in-rotated-sorted-array": search_rotated,
     "time-based-key-value-store": time_map,
     "median-of-two-sorted-arrays": median_two_sorted,
+    "subsets": subsets_check,
+    "combination-sum": combination_sum_check,
+    "combination-sum-ii": combination_sum_ii_check,
+    "permutations": permutations_check,
+    "subsets-ii": subsets_ii_check,
+    "generate-parentheses": generate_parentheses_check,
+    "word-search": word_search_check,
+    "palindrome-partitioning": palindrome_partitioning_check,
+    "letter-combinations-of-a-phone-number": letter_combinations_check,
+    "n-queens": n_queens_check,
 }
 
 

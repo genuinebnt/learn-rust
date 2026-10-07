@@ -1,0 +1,363 @@
+pattern = "Math & Geometry"
+intro = "These problems are less about a data structure and more about careful arithmetic and indexing: converting number systems, counting with a formula, moving things around a matrix. The edge cases (zero, negatives, overflow, one row or column) are where they are won or lost. Work a tiny example by hand before coding."
+
+[[technique]]
+id = "Math & Geometry:number-format"
+signals = [
+    "convert between a number and a string in some base or format (Excel columns, Roman numerals)",
+    "digits are built from the right using a remainder, then reversed",
+    "a numbering system with no zero digit",
+]
+template = '''
+def convert_to_title(n):
+    # 1 -> A, 26 -> Z, 27 -> AA. Base 26 with digits 1..26 (no zero).
+    letters = []
+    while n:
+        n, remainder = divmod(n - 1, 26)  # subtract 1 FIRST
+        letters.append(chr(ord("A") + remainder))
+    return "".join(reversed(letters))
+
+
+def title_to_number(title):
+    n = 0
+    for ch in title:
+        n = n * 26 + (ord(ch) - ord("A") + 1)
+    return n
+'''
+pitfalls = [
+    "A system with no zero digit needs n - 1 before dividing and taking the remainder. Plain base conversion gives 26 -> empty.",
+    "Digits come out last-first, so reverse (or build the string from the left).",
+    "Check the boundaries by hand: 26, 27, 52, 701, 702, 703.",
+]
+
+[[technique]]
+id = "Math & Geometry:number-theory"
+signals = [
+    "greatest common divisor, least common multiple, divisibility",
+    "primes up to n, or whether a number is prime",
+    "a repeated pattern whose length divides both lengths",
+]
+template = '''
+def gcd(a, b):
+    while b:
+        a, b = b, a % b
+    return a
+
+
+def sieve(n):
+    # All primes up to and including n.
+    is_prime = [True] * (n + 1)
+    is_prime[:2] = [False] * min(2, n + 1)
+    for p in range(2, int(n**0.5) + 1):
+        if is_prime[p]:
+            for multiple in range(p * p, n + 1, p):
+                is_prime[multiple] = False
+    return [i for i, ok in enumerate(is_prime) if ok]
+
+
+def gcd_of_strings(a, b):
+    if a + b != b + a:
+        return ""
+    return a[:gcd(len(a), len(b))]
+'''
+pitfalls = [
+    "The least common multiple is a * b // gcd(a, b). Divide before multiplying in languages with fixed-size integers.",
+    "In the sieve, start crossing off at p * p. Smaller multiples were crossed off by smaller primes.",
+    "To test one number for primality, trial-divide up to its square root.",
+]
+
+[[technique]]
+id = "Math & Geometry:formula"
+signals = [
+    "count how many numbers in a range have some property, with a huge range",
+    "looping would be too slow, but the count follows a pattern",
+    "work it out for small ranges and look for the formula",
+]
+template = '''
+def count_odds(low, high):
+    # Odd numbers in [low, high]: odds up to high, minus those below low.
+    return (high + 1) // 2 - low // 2
+'''
+pitfalls = [
+    "Count 'up to x' as a function, then subtract two of them for a range. That handles both ends the same way.",
+    "Floor division with negative numbers rounds down, which can be wrong by one. Check negatives separately.",
+    "Test the formula against a brute-force loop for small inputs. It is the only reliable check.",
+]
+
+[[technique]]
+id = "Math & Geometry:matrix-sim"
+signals = [
+    "build a new matrix from the old one by following a rule (transpose, flip, diagonals)",
+    "the answer is a function of (row, column) indexes",
+    "the matrix may not be square",
+]
+template = '''
+def transpose(matrix):
+    rows, cols = len(matrix), len(matrix[0])
+    result = [[0] * rows for _ in range(cols)]  # cols rows of length rows
+    for r in range(rows):
+        for c in range(cols):
+            result[c][r] = matrix[r][c]
+    return result
+'''
+pitfalls = [
+    "A transpose of an m by n matrix is n by m. Build the new shape; don't reuse the old one.",
+    "zip(*matrix) transposes in one expression in Python.",
+    "Write the rule as new[i][j] = old[f(i, j)] and let the loops follow.",
+]
+
+[[technique]]
+id = "Math & Geometry:matrix-inplace"
+signals = [
+    "rotate or flip a square matrix without a second matrix",
+    "swap values in groups of four, or compose two simple flips",
+    "constant extra memory",
+]
+template = '''
+def rotate(matrix):
+    # 90 degrees clockwise: transpose, then reverse each row.
+    n = len(matrix)
+    for i in range(n):
+        for j in range(i + 1, n):  # above the diagonal: each pair once
+            matrix[i][j], matrix[j][i] = matrix[j][i], matrix[i][j]
+    for row in matrix:
+        row.reverse()
+'''
+pitfalls = [
+    "Swap only the part above the diagonal. Looping over the whole matrix swaps every pair twice, undoing it.",
+    "Clockwise is transpose then reverse each row. Anticlockwise is transpose then reverse the order of the rows.",
+    "Modify the matrix and return nothing, if the problem says in place.",
+]
+
+[[technique]]
+id = "Math & Geometry:spiral"
+signals = [
+    "visit a matrix in spiral order, or fill one",
+    "four sides, and the rectangle shrinks after each pass",
+    "keep four boundaries: top, bottom, left, right",
+]
+template = '''
+def spiral_order(matrix):
+    out = []
+    top, bottom = 0, len(matrix) - 1
+    left, right = 0, len(matrix[0]) - 1
+    while top <= bottom and left <= right:
+        out += matrix[top][left:right + 1]  # the top row, left to right
+        top += 1
+        out += [matrix[r][right] for r in range(top, bottom + 1)]
+        right -= 1
+        if top <= bottom:
+            out += matrix[bottom][left:right + 1][::-1]
+            bottom -= 1
+        if left <= right:
+            out += [matrix[r][left] for r in range(bottom, top - 1, -1)]
+            left += 1
+    return out
+'''
+pitfalls = [
+    "After the top row and the right column, check top <= bottom and left <= right again before the other two sides. A single row or column otherwise gets read twice.",
+    "Matrices need not be square. Use separate row and column bounds.",
+    "A direction-vector version (turn at the edge or at a visited cell) avoids the four loops but needs a visited grid.",
+]
+
+[[technique]]
+id = "Math & Geometry:markers"
+signals = [
+    "mark rows or columns in place, without extra memory",
+    "an action on a cell would confuse later checks if done immediately",
+    "use the first row and column as the notes",
+]
+template = '''
+def set_zeroes(matrix):
+    rows, cols = len(matrix), len(matrix[0])
+    first_row = any(matrix[0][c] == 0 for c in range(cols))
+    first_col = any(matrix[r][0] == 0 for r in range(rows))
+    for r in range(1, rows):  # note zeros in the first row and column
+        for c in range(1, cols):
+            if matrix[r][c] == 0:
+                matrix[r][0] = matrix[0][c] = 0
+    for r in range(1, rows):
+        for c in range(1, cols):
+            if matrix[r][0] == 0 or matrix[0][c] == 0:
+                matrix[r][c] = 0
+    if first_row:
+        matrix[0] = [0] * cols
+    if first_col:
+        for r in range(rows):
+            matrix[r][0] = 0
+'''
+pitfalls = [
+    "Record first whether the first row and column themselves had a zero, because they are about to be used as notes.",
+    "Handle the first row and column LAST. Clearing them early destroys the notes.",
+    "A pair of sets (rows and columns to clear) is the O(m + n) version, and the easier one to get right.",
+]
+
+[[technique]]
+id = "Math & Geometry:number-cycle"
+signals = [
+    "repeat a step on a number until it reaches a goal or loops forever",
+    "the sequence is deterministic, so a repeat means a cycle",
+    "detect the cycle without remembering every value",
+]
+template = '''
+def is_happy(n):
+    def step(x):
+        total = 0
+        while x:
+            x, digit = divmod(x, 10)
+            total += digit * digit
+        return total
+
+    slow, fast = n, step(n)
+    while fast != 1 and slow != fast:
+        slow, fast = step(slow), step(step(fast))
+    return fast == 1
+'''
+pitfalls = [
+    "The sequence either reaches 1 or enters a cycle. It can't grow without bound, because the next value stays small.",
+    "A set of seen values is the simplest version. Fast and slow pointers do it in constant space.",
+    "Stop at 1 as well as at a repeat. 1 maps to itself.",
+]
+
+[[technique]]
+id = "Math & Geometry:digits"
+signals = [
+    "add one to, or add two, numbers stored as digit lists or strings",
+    "carry from the least significant digit",
+    "the result may be one digit longer",
+]
+template = '''
+def plus_one(digits):
+    for i in range(len(digits) - 1, -1, -1):
+        if digits[i] < 9:
+            digits[i] += 1
+            return digits
+        digits[i] = 0  # 9 + 1 carries
+    return [1] + digits  # every digit was 9
+
+
+def add_strings(a, b):
+    out, carry = [], 0
+    i, j = len(a) - 1, len(b) - 1
+    while i >= 0 or j >= 0 or carry:
+        total = carry
+        if i >= 0:
+            total += int(a[i])
+            i -= 1
+        if j >= 0:
+            total += int(b[j])
+            j -= 1
+        carry, digit = divmod(total, 10)
+        out.append(str(digit))
+    return "".join(reversed(out))
+'''
+pitfalls = [
+    "Loop while there are digits or a carry left. A final carry becomes a new leading digit.",
+    "Stop plus_one at the first digit below 9: nothing further left changes.",
+    "Don't convert to an integer and back: it hides the point, and overflows in many languages.",
+]
+
+[[technique]]
+id = "Math & Geometry:fast-pow"
+signals = [
+    "x to the power n for a huge n",
+    "multiplying n times is too slow",
+    "square the base and halve the exponent",
+]
+template = '''
+def my_pow(x, n):
+    if n < 0:
+        x, n = 1 / x, -n
+    result = 1.0
+    while n:
+        if n & 1:  # this bit of n is set: multiply it in
+            result *= x
+        x *= x
+        n >>= 1
+    return result
+'''
+pitfalls = [
+    "A negative exponent is the reciprocal: invert x and use -n.",
+    "About log2(n) steps: 31 at most for a 32-bit exponent.",
+    "The same loop computes a power modulo m if you reduce after every multiplication.",
+]
+
+[[technique]]
+id = "Math & Geometry:point-counts"
+signals = [
+    "count shapes (squares, rectangles) formed by stored points",
+    "the other corners are fixed once you pick two of them",
+    "keep a count of how many times each point was added",
+]
+template = '''
+from collections import Counter
+
+
+class DetectSquares:
+    def __init__(self):
+        self.counts = Counter()  # (x, y) -> how many times it was added
+
+    def add(self, point):
+        self.counts[tuple(point)] += 1
+
+    def count(self, point):
+        x, y = point
+        total = 0
+        for (px, py), n in list(self.counts.items()):
+            # (px, py) is the opposite corner of a square of side |px - x|.
+            if abs(px - x) == abs(py - y) and px != x:
+                total += n * self.counts[(px, y)] * self.counts[(x, py)]
+        return total
+'''
+pitfalls = [
+    "Store counts, not a set: the same point added twice makes more squares.",
+    "Require px != x so the side isn't zero, and equal horizontal and vertical distances so it is a square.",
+    "Counter returns 0 for a missing key without adding it.",
+]
+
+[[technique]]
+id = "Math & Geometry:median"
+signals = [
+    "make all numbers equal by adding or subtracting a fixed step, with the fewest moves",
+    "the best target minimises the total distance to every value",
+    "that target is the median",
+]
+template = '''
+def min_operations(grid, x):
+    values = sorted(v for row in grid for v in row)
+    if any((v - values[0]) % x for v in values):
+        return -1  # the values can't all land on the same number
+    median = values[len(values) // 2]
+    return sum(abs(v - median) // x for v in values)
+'''
+pitfalls = [
+    "Check that every value has the same remainder modulo the step. If not, it is impossible.",
+    "The median minimises the sum of absolute differences. The mean does not.",
+    "For an even count either middle value gives the same total.",
+]
+
+[[technique]]
+id = "Math & Geometry:lex-order"
+signals = [
+    "numbers in dictionary order (1, 10, 100, 11, ...) rather than numeric order",
+    "generate them without sorting strings",
+    "go deeper first (times 10), then move across, then back up",
+]
+template = '''
+def lexical_order(n):
+    out, cur = [], 1
+    for _ in range(n):
+        out.append(cur)
+        if cur * 10 <= n:
+            cur *= 10  # go deeper: 1 -> 10 -> 100
+        else:
+            while cur % 10 == 9 or cur + 1 > n:
+                cur //= 10  # back up when the row is finished
+            cur += 1
+    return out
+'''
+pitfalls = [
+    "Try to go deeper first. Otherwise move to the next sibling, and back up when you run out of siblings (a 9, or past n).",
+    "sorted(range(1, n + 1), key=str) is the one-liner, but it uses O(n log n) time and O(n) strings.",
+    "This is a pre-order walk of a tree whose children of k are 10k to 10k + 9.",
+]

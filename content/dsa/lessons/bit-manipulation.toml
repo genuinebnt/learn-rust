@@ -1,0 +1,146 @@
+pattern = "Bit Manipulation"
+intro = "Bit tricks treat a number as a row of switches. A few identities do most of the work: x ^ x is 0, x & (x - 1) clears the lowest set bit, and shifting left or right multiplies or divides by 2. In Python integers are unbounded, so negative numbers and overflow need a mask when a problem assumes 32 bits."
+
+[[technique]]
+id = "Bit Manipulation:xor"
+signals = [
+    "every value appears twice except one (or one is missing)",
+    "constant memory, one pass",
+    "equal values cancel under XOR",
+]
+template = '''
+def single_number(nums):
+    result = 0
+    for x in nums:
+        result ^= x  # pairs cancel, the single one remains
+    return result
+
+
+def missing_number(nums):
+    # nums holds 0..n with one missing. XOR every index and every value.
+    result = len(nums)
+    for i, x in enumerate(nums):
+        result ^= i ^ x
+    return result
+'''
+pitfalls = [
+    "x ^ x == 0 and x ^ 0 == x, and XOR is order independent. That is the whole idea.",
+    "For the missing number a sum formula n * (n + 1) // 2 also works, and overflows in other languages. XOR doesn't.",
+    "It only works when everything else appears an even number of times.",
+]
+
+[[technique]]
+id = "Bit Manipulation:bit-count"
+signals = [
+    "count the 1 bits in a number, or in every number up to n",
+    "reuse the count of a smaller number",
+    "x & (x - 1) removes the lowest set bit",
+]
+template = '''
+def hamming_weight(n):
+    count = 0
+    while n:
+        n &= n - 1  # drop the lowest 1 bit
+        count += 1
+    return count
+
+
+def count_bits(n):
+    bits = [0] * (n + 1)
+    for i in range(1, n + 1):
+        bits[i] = bits[i >> 1] + (i & 1)  # shift off the last bit, add it
+    return bits
+'''
+pitfalls = [
+    "n & (n - 1) loops once per set bit. Shifting and testing the lowest bit loops once per bit position.",
+    "Counting every number up to n is dynamic programming: bits[i] reuses bits[i >> 1].",
+    "x & (x - 1) == 0 tests whether x is a power of two (or zero).",
+]
+
+[[technique]]
+id = "Bit Manipulation:shift"
+signals = [
+    "reverse or rotate the bits of a number",
+    "build the result one bit at a time from the end",
+    "the word size (32 bits) is part of the problem",
+]
+template = '''
+def reverse_bits(n):
+    result = 0
+    for _ in range(32):  # always 32 steps, even when n runs out of bits
+        result = (result << 1) | (n & 1)  # push n's last bit onto result
+        n >>= 1
+    return result
+'''
+pitfalls = [
+    "Loop exactly 32 times. Leading zeros in the input become trailing zeros in the output.",
+    "Shift the result left BEFORE adding the new bit.",
+    "For many calls, reverse byte by byte with a 256-entry lookup table.",
+]
+
+[[technique]]
+id = "Bit Manipulation:add-bits"
+signals = [
+    "add two integers without using + or -",
+    "XOR adds without carrying, AND then shift left finds the carries",
+    "repeat until no carry is left",
+]
+template = '''
+def get_sum(a, b):
+    mask = 0xFFFFFFFF  # emulate 32-bit integers
+    while b:
+        carry = ((a & b) << 1) & mask
+        a = (a ^ b) & mask
+        b = carry
+    return a if a <= 0x7FFFFFFF else ~(a ^ mask)  # negative again
+'''
+pitfalls = [
+    "In Python, negative numbers have infinitely many leading 1 bits, so mask to 32 bits or the loop never ends.",
+    "At the end, a result above 0x7FFFFFFF represents a negative number: ~(a ^ mask) converts it.",
+    "Trace 1 + 3 by hand: xor 2, carry 2; then xor 0, carry 4; then xor 4, carry 0. The answer is 4.",
+]
+
+[[technique]]
+id = "Bit Manipulation:digit-extract"
+signals = [
+    "reverse the digits of an integer",
+    "the result must fit in 32 bits, otherwise return 0",
+    "peel digits with % 10 and // 10",
+]
+template = '''
+def reverse_integer(x):
+    sign = -1 if x < 0 else 1
+    x = abs(x)
+    result = 0
+    while x:
+        x, digit = divmod(x, 10)
+        result = result * 10 + digit
+    result *= sign
+    return result if -(2**31) <= result <= 2**31 - 1 else 0
+'''
+pitfalls = [
+    "Python has no overflow, so check the range at the end. In other languages check BEFORE multiplying by 10.",
+    "Take the sign off first. Remainders of negative numbers behave differently between languages.",
+    "Trailing zeros vanish (120 becomes 21). The loop handles that without extra code.",
+]
+
+[[technique]]
+id = "Bit Manipulation:prefix-xor"
+signals = [
+    "XOR of a range (a subarray) answered many times",
+    "XOR undoes itself, so a range is the difference of two prefixes",
+    "precompute once, answer each query in O(1)",
+]
+template = '''
+def xor_queries(arr, queries):
+    prefix = [0]
+    for x in arr:
+        prefix.append(prefix[-1] ^ x)  # prefix[i] = XOR of arr[:i]
+    # XOR of arr[l..r] = prefix[r + 1] ^ prefix[l]: the shared part cancels.
+    return [prefix[r + 1] ^ prefix[l] for l, r in queries]
+'''
+pitfalls = [
+    "Use a leading 0 in the prefix array so a range starting at index 0 needs no special case.",
+    "Prefix XOR works like prefix sums, but with XOR as its own inverse.",
+    "Combine with a dictionary of prefix values to count subarrays whose XOR equals k.",
+]

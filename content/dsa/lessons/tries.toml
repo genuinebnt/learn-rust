@@ -1,0 +1,123 @@
+pattern = "Tries"
+intro = "A trie stores words letter by letter, so words with a shared start share a path. Use it for prefix questions (does any word start with this?) and when many words are searched against the same text. Each node is a dictionary from a letter to the next node, plus a flag that a word ends here."
+
+[[technique]]
+id = "Tries:trie"
+signals = [
+    "does this word, or any word with this prefix, exist?",
+    "insert words and check prefixes over and over",
+    "a hash set can't answer prefix questions quickly",
+]
+template = '''
+class Trie:
+    def __init__(self):
+        self.root = {}
+
+    def insert(self, word):
+        node = self.root
+        for ch in word:
+            node = node.setdefault(ch, {})
+        node["$"] = True  # a word ends here
+
+    def _walk(self, text):
+        node = self.root
+        for ch in text:
+            if ch not in node:
+                return None
+            node = node[ch]
+        return node
+
+    def search(self, word):
+        node = self._walk(word)
+        return node is not None and "$" in node
+
+    def starts_with(self, prefix):
+        return self._walk(prefix) is not None
+'''
+pitfalls = [
+    "The end-of-word marker is what separates search('app') from starts_with('app') after inserting only 'apple'.",
+    "One helper that walks a string and returns the node makes search and starts_with one line each.",
+    "Each operation costs O(length of the word), whatever the number of stored words.",
+]
+
+[[technique]]
+id = "Tries:trie-dfs"
+signals = [
+    "search with wildcards: a '.' that matches any one letter",
+    "at a wildcard, every child could match",
+    "the search branches, so it recurses over the trie",
+]
+template = '''
+class WordDictionary:
+    def __init__(self):
+        self.root = {}
+
+    def add_word(self, word):
+        node = self.root
+        for ch in word:
+            node = node.setdefault(ch, {})
+        node["$"] = True
+
+    def search(self, word):
+        def match(node, i):
+            if i == len(word):
+                return "$" in node
+            ch = word[i]
+            if ch == ".":
+                return any(match(child, i + 1)
+                           for key, child in node.items() if key != "$")
+            return ch in node and match(node[ch], i + 1)
+
+        return match(self.root, 0)
+'''
+pitfalls = [
+    "Only the wildcard branches. A search with no dots is the plain walk.",
+    "Skip the end marker when trying every child, since it is not a letter.",
+    "Reaching the end of the pattern needs the end-of-word flag as well.",
+]
+
+[[technique]]
+id = "Tries:trie-grid"
+signals = [
+    "find many words in a grid of letters",
+    "searching for each word separately repeats the same walks",
+    "the words share prefixes, so share the search",
+]
+template = '''
+def find_words(board, words):
+    root = {}
+    for word in words:
+        node = root
+        for ch in word:
+            node = node.setdefault(ch, {})
+        node["$"] = word  # store the whole word at its end node
+
+    rows, cols = len(board), len(board[0])
+    found = []
+
+    def explore(r, c, parent):
+        ch = board[r][c]
+        node = parent[ch]
+        word = node.pop("$", None)  # take it once: no repeats
+        if word:
+            found.append(word)
+        board[r][c] = "#"
+        for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < rows and 0 <= nc < cols and board[nr][nc] in node:
+                explore(nr, nc, node)
+        board[r][c] = ch
+        if not node:
+            del parent[ch]  # prune: nothing more to find below here
+
+    for r in range(rows):
+        for c in range(cols):
+            if board[r][c] in root:
+                explore(r, c, root)
+    return found
+'''
+pitfalls = [
+    "Search the board once, walking the trie alongside, instead of once per word.",
+    "Only step to a neighbour if the trie has a child for its letter. That is what prunes the search.",
+    "Delete exhausted branches of the trie. Later searches then skip them.",
+]

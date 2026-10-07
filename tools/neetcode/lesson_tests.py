@@ -1046,6 +1046,17 @@ def _(ns):
                 n += 1
             best = max(best, n)
         assert f(a) == best
+    import signal
+
+    def too_slow(*_):
+        raise AssertionError("longest_consecutive on one long run is too slow")
+
+    signal.signal(signal.SIGALRM, too_slow)
+    signal.alarm(3)
+    try:
+        assert f(list(range(30000))) == 30000, "only a run's first element may start counting"
+    finally:
+        signal.alarm(0)
 
 
 @test("Arrays & Hashing:prefix-map")
@@ -1944,3 +1955,409 @@ def _(ns):
             money += profits[i]
             left.discard(i)
         assert f(k, w, profits[:], capital[:]) == money
+
+
+# ---- backtracking ---------------------------------------------------------------------------------------------------
+
+import itertools as _it  # noqa: E402
+
+
+@test("Backtracking:include-exclude")
+def _(ns):
+    for n in range(0, 7):
+        got = ns["subsets"](list(range(n)))
+        assert len(got) == 2**n and len({tuple(g) for g in got}) == 2**n
+
+
+@test("Backtracking:reuse")
+def _(ns):
+    f = ns["combination_sum"]
+    assert sorted(map(sorted, f([2, 3, 6, 7], 7))) == [[2, 2, 3], [7]]
+    r = random.Random(160)
+    for _ in range(100):
+        c = sorted(r.sample(range(1, 8), r.randint(1, 4)))
+        t = r.randint(1, 12)
+        want = {tuple(sorted(x)) for k in range(1, t + 1) for x in _it.combinations_with_replacement(c, k) if sum(x) == t}
+        got = f(c[:], t)
+        assert {tuple(sorted(x)) for x in got} == want and len(got) == len(want)
+
+
+@test("Backtracking:skip-dups")
+def _(ns):
+    f = ns["combination_sum2"]
+    assert sorted(f([10, 1, 2, 7, 6, 1, 5], 8)) == [[1, 1, 6], [1, 2, 5], [1, 7], [2, 6]]
+    r = random.Random(161)
+    for _ in range(150):
+        c = [r.randint(1, 5) for _ in range(r.randint(1, 8))]
+        t = r.randint(1, 10)
+        want = {tuple(sorted(x)) for k in range(1, len(c) + 1) for x in _it.combinations(c, k) if sum(x) == t}
+        got = f(c[:], t)
+        assert {tuple(x) for x in got} == want and len(got) == len(want)
+
+
+@test("Backtracking:permute")
+def _(ns):
+    f = ns["permutations"]
+    for n in range(0, 6):
+        got = f(list(range(n)))
+        assert sorted(map(tuple, got)) == sorted(_it.permutations(range(n)))
+
+
+@test("Backtracking:construct")
+def _(ns):
+    f = ns["generate_parentheses"]
+    assert sorted(f(3)) == sorted(["((()))", "(()())", "(())()", "()(())", "()()()"])
+    assert [len(f(n)) for n in range(1, 8)] == [1, 2, 5, 14, 42, 132, 429]
+
+
+@test("Backtracking:grid")
+def _(ns):
+    f = ns["exist"]
+    b = [["A", "B", "C", "E"], ["S", "F", "C", "S"], ["A", "D", "E", "E"]]
+    assert f([r[:] for r in b], "ABCCED") is True and f([r[:] for r in b], "SEE") is True and f([r[:] for r in b], "ABCB") is False
+    r = random.Random(162)
+
+    def brute(g, w):
+        rows, cols = len(g), len(g[0])
+
+        def go(i, j, k, used):
+            if g[i][j] != w[k]:
+                return False
+            if k == len(w) - 1:
+                return True
+            return any(0 <= a < rows and 0 <= c < cols and (a, c) not in used and go(a, c, k + 1, used | {(i, j)}) for a, c in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)))
+
+        return any(go(i, j, 0, frozenset()) for i in range(rows) for j in range(cols))
+
+    for _ in range(150):
+        g = [[r.choice("ab") for _ in range(r.randint(1, 3))]]
+        g = [[r.choice("ab") for _ in range(len(g[0]))] for _ in range(r.randint(1, 3))]
+        w = "".join(r.choice("ab") for _ in range(r.randint(1, 5)))
+        assert f([row[:] for row in g], w) is brute(g, w)
+
+
+@test("Backtracking:partition-k")
+def _(ns):
+    f = ns["can_make_square"]
+    assert f([1, 1, 2, 2, 2]) is True and f([3, 3, 3, 3, 4]) is False
+    assert f([6, 3, 2, 2, 8, 9, 6, 12, 1, 12, 12, 12, 3, 6, 6]) is False
+    r = random.Random(163)
+    for _ in range(150):
+        s = [r.randint(1, 6) for _ in range(r.randint(4, 9))]
+        want = False
+        total = sum(s)
+        if total % 4 == 0:
+            side = total // 4
+            want = any(all(sum(s[i] for i in range(len(s)) if a[i] == g) == side for g in range(4)) for a in _it.product(range(4), repeat=len(s)))
+        assert f(s[:]) is want
+
+
+@test("Backtracking:n-queens")
+def _(ns):
+    f = ns["solve_n_queens"]
+    assert [len(f(n)) for n in range(1, 8)] == [1, 0, 0, 2, 10, 4, 40]
+    for board in f(6):
+        cols = [row.index("Q") for row in board]
+        assert len(set(cols)) == 6 and len({r - c for r, c in enumerate(cols)}) == 6 and len({r + c for r, c in enumerate(cols)}) == 6
+
+
+@test("Backtracking:split-memo")
+def _(ns):
+    f = ns["word_break"]
+    assert sorted(f("catsanddog", ["cat", "cats", "and", "sand", "dog"])) == ["cat sand dog", "cats and dog"]
+    r = random.Random(164)
+
+    def every(s, words):
+        if not s:
+            return [[]]
+        return [[w] + rest for w in words if s.startswith(w) for rest in every(s[len(w):], words)]
+
+    for _ in range(150):
+        words = sorted({"".join(r.choice("ab") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 4))})
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 8)))
+        assert sorted(f(s, words)) == sorted(" ".join(x) for x in every(s, words))
+    assert f("a" * 40 + "b", ["a", "aa", "aaa"]) == []
+
+
+# ---- tries ----------------------------------------------------------------------------------------------------------
+
+@test("Tries:trie")
+def _(ns):
+    r = random.Random(170)
+    for _ in range(100):
+        t, words = ns["Trie"](), set()
+        for _ in range(30):
+            w = "".join(r.choice("abc") for _ in range(r.randint(1, 4)))
+            op = r.randint(0, 2)
+            if op == 0:
+                t.insert(w)
+                words.add(w)
+            elif op == 1:
+                assert t.search(w) is (w in words)
+            else:
+                assert t.starts_with(w) is any(x.startswith(w) for x in words)
+
+
+@test("Tries:trie-dfs")
+def _(ns):
+    r = random.Random(171)
+
+    def matches(p, w):
+        return len(p) == len(w) and all(a in (".", b) for a, b in zip(p, w))
+
+    for _ in range(100):
+        d, words = ns["WordDictionary"](), []
+        for _ in range(30):
+            if r.random() < 0.4:
+                w = "".join(r.choice("abc") for _ in range(r.randint(1, 4)))
+                d.add_word(w)
+                words.append(w)
+            else:
+                q = "".join(r.choice("abc.") for _ in range(r.randint(1, 4)))
+                assert d.search(q) is any(matches(q, w) for w in words)
+
+
+@test("Tries:trie-grid")
+def _(ns):
+    f = ns["find_words"]
+    board = [["o", "a", "a", "n"], ["e", "t", "a", "e"], ["i", "h", "k", "r"], ["i", "f", "l", "v"]]
+    assert sorted(f(board, ["oath", "pea", "eat", "rain"])) == ["eat", "oath"]
+    r = random.Random(172)
+
+    def has(g, w):
+        rows, cols = len(g), len(g[0])
+
+        def go(i, j, k, used):
+            if g[i][j] != w[k]:
+                return False
+            if k == len(w) - 1:
+                return True
+            return any(0 <= a < rows and 0 <= c < cols and (a, c) not in used and go(a, c, k + 1, used | {(i, j)}) for a, c in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)))
+
+        return any(go(i, j, 0, frozenset()) for i in range(rows) for j in range(cols))
+
+    for _ in range(150):
+        g = [[r.choice("abc") for _ in range(r.randint(1, 3))]]
+        g = [[r.choice("abc") for _ in range(len(g[0]))] for _ in range(r.randint(1, 3))]
+        words = sorted({"".join(r.choice("abc") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 6))})
+        got = f([row[:] for row in g], words[:])
+        assert sorted(got) == [w for w in words if has(g, w)]
+
+
+# ---- math and geometry ----------------------------------------------------------------------------------------------
+
+@test("Math & Geometry:number-format")
+def _(ns):
+    f, g = ns["convert_to_title"], ns["title_to_number"]
+    assert f(1) == "A" and f(26) == "Z" and f(27) == "AA" and f(701) == "ZY" and f(703) == "AAA" and f(2**31 - 1) == "FXSHRXW"
+    for n in range(1, 3000):
+        assert g(f(n)) == n
+
+
+@test("Math & Geometry:number-theory")
+def _(ns):
+    import math
+
+    r = random.Random(180)
+    for _ in range(300):
+        a, b = r.randint(0, 200), r.randint(0, 200)
+        assert ns["gcd"](a, b) == math.gcd(a, b)
+    for n in (0, 1, 2, 3, 30, 100, 541):
+        assert ns["sieve"](n) == [p for p in range(2, n + 1) if all(p % d for d in range(2, p))]
+    assert ns["gcd_of_strings"]("ABCABC", "ABC") == "ABC" and ns["gcd_of_strings"]("LEET", "CODE") == ""
+
+
+@test("Math & Geometry:formula")
+def _(ns):
+    f = ns["count_odds"]
+    for low in range(0, 20):
+        for high in range(low, 25):
+            assert f(low, high) == sum(x % 2 for x in range(low, high + 1))
+
+
+@test("Math & Geometry:matrix-sim")
+def _(ns):
+    f = ns["transpose"]
+    assert f([[1, 2, 3], [4, 5, 6]]) == [[1, 4], [2, 5], [3, 6]] and f([[1]]) == [[1]]
+
+
+@test("Math & Geometry:matrix-inplace")
+def _(ns):
+    r = random.Random(181)
+    for n in range(1, 7):
+        m = [[r.randint(0, 9) for _ in range(n)] for _ in range(n)]
+        want = [list(row) for row in zip(*m[::-1])]
+        assert ns["rotate"](m) is None and m == want
+
+
+@test("Math & Geometry:spiral")
+def _(ns):
+    f = ns["spiral_order"]
+    assert f([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == [1, 2, 3, 6, 9, 8, 7, 4, 5] and f([[1, 2, 3, 4]]) == [1, 2, 3, 4] and f([[1], [2], [3]]) == [1, 2, 3]
+    r = random.Random(182)
+    for _ in range(200):
+        rows, cols = r.randint(1, 6), r.randint(1, 6)
+        m = [[i * cols + j for j in range(cols)] for i in range(rows)]
+        got = f([row[:] for row in m])
+        assert sorted(got) == list(range(rows * cols))
+        assert got[:cols] == m[0]
+
+
+@test("Math & Geometry:markers")
+def _(ns):
+    r = random.Random(183)
+    for _ in range(300):
+        rows, cols = r.randint(1, 5), r.randint(1, 5)
+        m = [[0 if r.random() < 0.2 else r.randint(1, 9) for _ in range(cols)] for _ in range(rows)]
+        zr = {i for i in range(rows) for j in range(cols) if m[i][j] == 0}
+        zc = {j for i in range(rows) for j in range(cols) if m[i][j] == 0}
+        want = [[0 if i in zr or j in zc else m[i][j] for j in range(cols)] for i in range(rows)]
+        ns["set_zeroes"](m)
+        assert m == want
+
+
+@test("Math & Geometry:number-cycle")
+def _(ns):
+    f = ns["is_happy"]
+
+    def happy(n):
+        seen = set()
+        while n != 1 and n not in seen:
+            seen.add(n)
+            n = sum(int(c) ** 2 for c in str(n))
+        return n == 1
+
+    for n in list(range(1, 400)) + [2147483647]:
+        assert f(n) is happy(n)
+
+
+@test("Math & Geometry:digits")
+def _(ns):
+    r = random.Random(184)
+    for _ in range(300):
+        d = [r.choice([9, 9, r.randint(0, 9)]) for _ in range(r.randint(1, 8))]
+        if d[0] == 0 and len(d) > 1:
+            d[0] = 1
+        assert int("".join(map(str, ns["plus_one"](d[:])))) == int("".join(map(str, d))) + 1
+        a, b = str(r.randint(0, 10**9)), str(r.randint(0, 10**9))
+        assert ns["add_strings"](a, b) == str(int(a) + int(b))
+
+
+@test("Math & Geometry:fast-pow")
+def _(ns):
+    import math
+
+    f = ns["my_pow"]
+    assert f(2.0, 10) == 1024.0 and f(2.0, -2) == 0.25 and f(5.0, 0) == 1.0
+    r = random.Random(185)
+    for _ in range(300):
+        x, n = r.choice([0.5, 1.5, 2.0, -2.0, 3.0]), r.randint(-10, 10)
+        assert math.isclose(f(x, n), x**n, rel_tol=1e-9)
+    assert math.isclose(f(1.0000000001, 2**31 - 1), 1.0000000001 ** (2**31 - 1), rel_tol=1e-5)
+
+
+@test("Math & Geometry:point-counts")
+def _(ns):
+    D = ns["DetectSquares"]
+    d = D()
+    for p in ([3, 10], [11, 2], [3, 2]):
+        d.add(p)
+    assert d.count([11, 10]) == 1 and d.count([14, 8]) == 0
+    d.add([11, 2])
+    assert d.count([11, 10]) == 2
+
+
+@test("Math & Geometry:median")
+def _(ns):
+    f = ns["min_operations"]
+    assert f([[2, 4], [6, 8]], 2) == 4 and f([[1, 5], [2, 3]], 1) == 5 and f([[1, 2], [3, 4]], 2) == -1
+    r = random.Random(186)
+    for _ in range(200):
+        x = r.randint(1, 3)
+        g = [[r.randint(0, 9) for _ in range(r.randint(1, 3))]]
+        g = [[r.randint(0, 9) for _ in range(len(g[0]))] for _ in range(r.randint(1, 3))]
+        vals = [v for row in g for v in row]
+        best = None
+        for t in range(0, 10):
+            if all((v - t) % x == 0 for v in vals):
+                cost = sum(abs(v - t) // x for v in vals)
+                best = cost if best is None else min(best, cost)
+        assert f(g, x) == (best if best is not None else -1)
+
+
+@test("Math & Geometry:lex-order")
+def _(ns):
+    f = ns["lexical_order"]
+    assert f(13) == [1, 10, 11, 12, 13, 2, 3, 4, 5, 6, 7, 8, 9]
+    for n in list(range(1, 200)) + [5000]:
+        assert f(n) == sorted(range(1, n + 1), key=str)
+
+
+# ---- bit manipulation -----------------------------------------------------------------------------------------------
+
+@test("Bit Manipulation:xor")
+def _(ns):
+    r = random.Random(190)
+    for _ in range(200):
+        vals = r.sample(range(-50, 50), r.randint(1, 8))
+        nums = vals + vals[1:]
+        r.shuffle(nums)
+        assert ns["single_number"](nums) == vals[0]
+        n = r.randint(1, 20)
+        arr = list(range(n + 1))
+        gone = arr.pop(r.randrange(n + 1))
+        r.shuffle(arr)
+        assert ns["missing_number"](arr) == gone
+
+
+@test("Bit Manipulation:bit-count")
+def _(ns):
+    r = random.Random(191)
+    for _ in range(200):
+        n = r.randint(0, 2**31 - 1)
+        assert ns["hamming_weight"](n) == bin(n).count("1")
+    assert ns["count_bits"](5) == [0, 1, 1, 2, 1, 2] and ns["count_bits"](0) == [0]
+
+
+@test("Bit Manipulation:shift")
+def _(ns):
+    f = ns["reverse_bits"]
+    assert f(43261596) == 964176192 and f(1) == 2**31 and f(0) == 0
+    r = random.Random(192)
+    for _ in range(200):
+        n = r.randint(0, 2**32 - 1)
+        assert f(n) == int(f"{n:032b}"[::-1], 2)
+
+
+@test("Bit Manipulation:add-bits")
+def _(ns):
+    f = ns["get_sum"]
+    r = random.Random(193)
+    for _ in range(500):
+        a, b = r.randint(-1000, 1000), r.randint(-1000, 1000)
+        assert f(a, b) == a + b
+    assert f(-(2**31), 2**31 - 1) == -1
+
+
+@test("Bit Manipulation:digit-extract")
+def _(ns):
+    f = ns["reverse_integer"]
+    assert f(123) == 321 and f(-123) == -321 and f(120) == 21 and f(1534236469) == 0 and f(-2147483648) == 0
+    r = random.Random(194)
+    for _ in range(300):
+        x = r.randint(-(2**31), 2**31 - 1)
+        want = (-1 if x < 0 else 1) * int(str(abs(x))[::-1])
+        assert f(x) == (want if -(2**31) <= want <= 2**31 - 1 else 0)
+
+
+@test("Bit Manipulation:prefix-xor")
+def _(ns):
+    f = ns["xor_queries"]
+    assert f([1, 3, 4, 8], [[0, 1], [1, 2], [0, 3], [3, 3]]) == [2, 7, 14, 8]
+    r = random.Random(195)
+    for _ in range(200):
+        a = [r.randint(0, 31) for _ in range(r.randint(1, 8))]
+        qs = [sorted((r.randrange(len(a)), r.randrange(len(a)))) for _ in range(5)]
+        from functools import reduce
+
+        assert f(a, qs) == [reduce(lambda x, y: x ^ y, a[l:r_ + 1]) for l, r_ in qs]

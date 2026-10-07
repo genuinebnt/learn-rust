@@ -1,0 +1,297 @@
+pattern = "Backtracking"
+intro = "Backtracking builds an answer one choice at a time and undoes the choice to try the next. Picture a tree of decisions: at each node you choose, recurse, and un-choose. What changes between problems is what a choice is, when a branch is dead (prune early), and when the path so far is a complete answer."
+
+[[technique]]
+id = "Backtracking:include-exclude"
+signals = [
+    "all subsets, or all selections from a list",
+    "for each item the choice is: take it, or skip it",
+    "the number of results is 2 to the power n",
+]
+template = '''
+def subsets(nums):
+    result, path = [], []
+
+    def choose(i):
+        if i == len(nums):
+            result.append(path[:])  # a copy: path keeps changing
+            return
+        path.append(nums[i])  # take it
+        choose(i + 1)
+        path.pop()  # undo, then skip it
+        choose(i + 1)
+
+    choose(0)
+    return result
+'''
+pitfalls = [
+    "Append a COPY of the path (path[:]). Appending the list itself stores one list that keeps changing.",
+    "Every append needs a matching pop, or later branches inherit stale choices.",
+    "The output has 2 to the n subsets, so O(n times 2 to the n) is the best possible.",
+]
+
+[[technique]]
+id = "Backtracking:reuse"
+signals = [
+    "combinations that add up to a target, where an item may be used many times",
+    "pass a start index so each combination is built in one order",
+    "stop a branch when the remaining target goes negative",
+]
+template = '''
+def combination_sum(candidates, target):
+    result, path = [], []
+
+    def go(start, remaining):
+        if remaining == 0:
+            result.append(path[:])
+            return
+        for i in range(start, len(candidates)):
+            if candidates[i] > remaining:
+                continue  # too big (sort first and break to prune harder)
+            path.append(candidates[i])
+            go(i, remaining - candidates[i])  # i, not i + 1: reuse allowed
+            path.pop()
+
+    go(0, target)
+    return result
+'''
+pitfalls = [
+    "Recurse with i (not i + 1) to allow reuse, and loop from start (not 0) so [2, 3] and [3, 2] aren't both produced.",
+    "Sort the candidates and break at the first one that is too big to cut whole branches.",
+    "The start index is what makes these combinations and not permutations.",
+]
+
+[[technique]]
+id = "Backtracking:skip-dups"
+signals = [
+    "the input has repeated values, but the answer must not repeat a combination",
+    "each item can be used once",
+    "sort, then skip a value equal to the previous one at the same depth",
+]
+template = '''
+def combination_sum2(candidates, target):
+    candidates.sort()
+    result, path = [], []
+
+    def go(start, remaining):
+        if remaining == 0:
+            result.append(path[:])
+            return
+        for i in range(start, len(candidates)):
+            if i > start and candidates[i] == candidates[i - 1]:
+                continue  # same value already tried at this level
+            if candidates[i] > remaining:
+                break
+            path.append(candidates[i])
+            go(i + 1, remaining - candidates[i])  # each item used once
+            path.pop()
+
+    go(0, target)
+    return result
+'''
+pitfalls = [
+    "The check is i > start, not i > 0. A duplicate is only skipped at the SAME level, so [1, 1, 6] can still use both ones.",
+    "Sorting first puts equal values next to each other.",
+    "The same trick removes duplicates from subsets and permutations of a list with repeated values.",
+]
+
+[[technique]]
+id = "Backtracking:permute"
+signals = [
+    "all orderings of the items",
+    "every position gets one of the items not yet used",
+    "n factorial results",
+]
+template = '''
+def permutations(nums):
+    result, path = [], []
+    used = [False] * len(nums)
+
+    def go():
+        if len(path) == len(nums):
+            result.append(path[:])
+            return
+        for i in range(len(nums)):
+            if not used[i]:
+                used[i] = True
+                path.append(nums[i])
+                go()
+                path.pop()
+                used[i] = False
+
+    go()
+    return result
+'''
+pitfalls = [
+    "Track which items are used, by index, not by value. Values may repeat.",
+    "Unmark on the way out, in the reverse order you marked.",
+    "The swap-in-place version needs no used array but is harder to get right the first time.",
+]
+
+[[technique]]
+id = "Backtracking:construct"
+signals = [
+    "build every valid string or sequence under a rule (balanced brackets, a phone-number mapping)",
+    "at each step there are a few legal next characters",
+    "prune the moment a prefix can no longer become valid",
+]
+template = '''
+def generate_parentheses(n):
+    result = []
+
+    def build(prefix, opened, closed):
+        if len(prefix) == 2 * n:
+            result.append(prefix)
+            return
+        if opened < n:
+            build(prefix + "(", opened + 1, closed)
+        if closed < opened:  # only close what is open
+            build(prefix + ")", opened, closed + 1)
+
+    build("", 0, 0)
+    return result
+'''
+pitfalls = [
+    "Only generate legal prefixes (never close more than you opened). Then every leaf is valid and no filtering is needed.",
+    "Passing the prefix as a string makes each call independent, so no undo step is needed.",
+    "The count of results is a Catalan number, so the work is proportional to the output.",
+]
+
+[[technique]]
+id = "Backtracking:grid"
+signals = [
+    "find a path of cells in a grid that spells a word or satisfies a rule",
+    "a cell can't be used twice in the same path",
+    "try each of four directions, and un-mark the cell when you back out",
+]
+template = '''
+def exist(board, word):
+    rows, cols = len(board), len(board[0])
+
+    def go(r, c, k):
+        if k == len(word):
+            return True
+        if not (0 <= r < rows and 0 <= c < cols) or board[r][c] != word[k]:
+            return False
+        letter, board[r][c] = board[r][c], "#"  # mark this cell as used
+        found = any(go(r + dr, c + dc, k + 1)
+                    for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+        board[r][c] = letter  # put it back for other paths
+        return found
+
+    return any(go(r, c, 0) for r in range(rows) for c in range(cols))
+'''
+pitfalls = [
+    "Restore the cell after exploring. Forgetting makes later paths see it as used.",
+    "Check the bounds before indexing, and the letter before recursing.",
+    "Find the word's rarest letter, or the shorter end, to start from when the grid is large.",
+]
+
+[[technique]]
+id = "Backtracking:partition-k"
+signals = [
+    "split items into k groups with equal sums",
+    "put each item into one of k buckets, without any bucket overflowing",
+    "sort in descending order so the awkward items are placed first",
+]
+template = '''
+def can_make_square(sticks):
+    total = sum(sticks)
+    if total % 4:
+        return False
+    side = total // 4
+    sticks = sorted(sticks, reverse=True)  # big sticks first: fail early
+    if sticks[0] > side:
+        return False
+    sides = [0] * 4
+
+    def place(i):
+        if i == len(sticks):
+            return True
+        tried = set()
+        for s in range(4):
+            if sides[s] + sticks[i] > side or sides[s] in tried:
+                continue
+            tried.add(sides[s])  # equal sides are interchangeable
+            sides[s] += sticks[i]
+            if place(i + 1):
+                return True
+            sides[s] -= sticks[i]
+        return False
+
+    return place(0)
+'''
+pitfalls = [
+    "Two prunings matter: sort descending, and skip a bucket whose current total equals one already tried at this level.",
+    "Check the total is divisible by k and no item is bigger than the target first.",
+    "For up to about 16 items a bitmask DP over which items are used is the alternative.",
+]
+
+[[technique]]
+id = "Backtracking:n-queens"
+signals = [
+    "place pieces on a board so none attack each other",
+    "one piece per row, so the only choice is the column",
+    "track which columns and diagonals are taken in sets",
+]
+template = '''
+def solve_n_queens(n):
+    result, cols = [], []  # cols[r] is the column of the queen in row r
+    taken_cols, diag, anti = set(), set(), set()
+
+    def place(r):
+        if r == n:
+            result.append(["." * c + "Q" + "." * (n - c - 1) for c in cols])
+            return
+        for c in range(n):
+            if c in taken_cols or r - c in diag or r + c in anti:
+                continue
+            for s, v in ((taken_cols, c), (diag, r - c), (anti, r + c)):
+                s.add(v)
+            cols.append(c)
+            place(r + 1)
+            cols.pop()
+            for s, v in ((taken_cols, c), (diag, r - c), (anti, r + c)):
+                s.remove(v)
+
+    place(0)
+    return result
+'''
+pitfalls = [
+    "Squares on one diagonal share r - c. Squares on one anti-diagonal share r + c. Those two numbers are the set keys.",
+    "Placing one queen per row guarantees no two share a row, so rows are never checked.",
+    "Add to all three sets before recursing and remove from all three after.",
+]
+
+[[technique]]
+id = "Backtracking:split-memo"
+signals = [
+    "split a string into words from a dictionary, and list every way",
+    "from each position, try every word that matches there",
+    "the same suffix is reached many times, so cache its results",
+]
+template = '''
+def word_break(s, words):
+    words = set(words)
+    lengths = {len(w) for w in words}
+    memo = {}
+
+    def sentences(i):  # every way to split s[i:]
+        if i == len(s):
+            return [""]
+        if i not in memo:
+            memo[i] = [
+                s[i:i + n] + (" " + rest if rest else "")
+                for n in lengths
+                if s[i:i + n] in words
+                for rest in sentences(i + n)
+            ]
+        return memo[i]
+
+    return sentences(0)
+'''
+pitfalls = [
+    "Memoise on the start index. Without it, a string with many dead ends takes exponential time.",
+    "The base case returns [''] (one way: nothing left), so the join step can leave out the extra space.",
+    "Looping over the distinct word lengths is cheaper than testing every word at each position.",
+]

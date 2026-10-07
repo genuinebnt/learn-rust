@@ -5,7 +5,7 @@ import { api, type Activity, type Band, type DsaOverview, type DsaProblem, type 
 import { Companies, Mark, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
 import { pad2, pctColor } from "../components/bits";
-import { BLURB, DIFF, GRADES, LISTS, MINUTES, STATUS_LABEL, daysUntil, hours, inList, leetcode, niceDate, statusOf, videoUrl, type ListKey, type Status } from "../dsa";
+import { BLURB, DIFF, REVIEW_GRADES, LISTS, MINUTES, STATUS_LABEL, daysUntil, hours, inList, leetcode, niceDate, statusOf, videoUrl, type ListKey, type Status } from "../dsa";
 
 type Role = "must_learn" | "practice";
 type View = "patterns" | "problems";
@@ -96,6 +96,7 @@ export function DsaPage() {
         search.current?.focus();
       }
       if (e.key === "f") setF((cur) => ({ ...cur, rail: cur.rail === "filters" ? "activity" : "filters" }));
+      if (e.key === "Escape") setF((cur) => (cur.rail === "filters" ? { ...cur, rail: "activity" } : cur));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -204,7 +205,12 @@ export function DsaPage() {
                 )}
               </div>
             </div>
-            <aside className="cat-rail" aria-label="Activity and filters">
+            {f.rail === "filters" && <button className="d-backdrop" aria-label="Close filters" tabIndex={-1} onClick={() => update({ rail: "activity" })} />}
+            <aside className={`cat-rail${f.rail === "filters" ? " drawer" : ""}`} aria-label="Activity and filters">
+              <div className="d-drawer-head">
+                <b>Filters</b>
+                <button onClick={() => update({ rail: "activity" })}>Show {model.items.length} problems</button>
+              </div>
               <div className="d-railtabs" role="tablist">
                 <button className={f.rail === "activity" ? "on" : ""} role="tab" aria-selected={f.rail === "activity"} onClick={() => update({ rail: "activity" })}>
                   Activity
@@ -665,7 +671,7 @@ function ProblemCard({ p, o, model, log, pickCompany, picked }: { p: DsaProblem;
               ▶
             </a>
           )}
-          {GRADES.map((g) => (
+          {REVIEW_GRADES.map((g) => (
             <button key={g.grade} className={g.cls} title={g.label} onClick={() => log(p, g.grade)}>
               {g.glyph}
             </button>

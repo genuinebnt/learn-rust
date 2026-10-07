@@ -72,6 +72,9 @@ export const GRADES: { grade: Grade; glyph: string; label: string; cls: string }
   { grade: "again", glyph: "✗", label: "Couldn't solve it yet", cls: "fail" },
 ];
 
+/** The log buttons on a problem that is reviewed: the three above plus "instant" (the whole approach recalled at once). */
+export const REVIEW_GRADES: typeof GRADES = [...GRADES, { grade: "easy", glyph: "⚡", label: "Instant: recalled the whole approach at once", cls: "solo" }];
+
 export const hours = (m: number) => (m >= 600 ? `~${Math.round(m / 60)}h` : `~${(m / 60).toFixed(1).replace(/\.0$/, "")}h`);
 
 export const leetcode = (slug: string) => `https://leetcode.com/problems/${slug}/`;

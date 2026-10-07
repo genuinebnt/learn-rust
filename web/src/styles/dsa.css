@@ -241,3 +241,17 @@ button.d-co.hot{background:color-mix(in oklch,var(--fn) 13%,transparent)}
 .d-done{color:var(--grn)}
 .d-prow{grid-template-columns:38px minmax(0,1fr) auto}
 .d-sum2 .d-clear{margin-left:auto}
+
+/* The instant button reads a little wider than the others */
+.d-acts .solo[title^="Instant"]{min-width:34px}
+/* Filters: a drawer from the right at 1180px and narrower, where the rail would otherwise be far down the page */
+.d-backdrop,.d-drawer-head{display:none}
+@media (max-width:1180px){
+  .d-backdrop{display:block;position:fixed;inset:0;z-index:55;background:oklch(0 0 0 / .5);cursor:default}
+  .cat-rail.drawer{position:fixed;top:0;right:0;bottom:0;z-index:60;display:flex;flex-direction:column;gap:16px;width:min(420px,100vw);padding:16px 18px 28px;overflow-y:auto;scrollbar-width:none;background:var(--bg);border-left:1px solid var(--line);box-shadow:-18px 0 50px var(--shadow,oklch(0 0 0 / .35));animation:d-slide .18s ease-out}
+  .cat-rail.drawer::-webkit-scrollbar{display:none}
+  .cat-rail.drawer .d-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:-16px;z-index:1;margin:-16px -18px 0;padding:14px 18px;background:var(--bg);border-bottom:1px solid var(--line2)}
+  .cat-rail.drawer .d-drawer-head b{font-size:15px}
+  .cat-rail.drawer .d-drawer-head button{height:34px;padding:0 14px;border-radius:7px;background:var(--ca);color:var(--on-acc);font:600 12.5px var(--sans)}
+}
+@keyframes d-slide{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}

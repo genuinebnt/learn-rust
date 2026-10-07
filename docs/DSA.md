@@ -130,5 +130,7 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
 - [x] The NeetCode 250's 69 practice problems (2026-10-07): short pages with a checked solution and the twist against the problem
       they practise, same checking as the others (36 seeded bugs, the 3 survivors are equivalent code). **All 250 NeetCode
       problems now have a checked page (250 of 250), and all 162 techniques a lesson.**
+- [x] The fourth log button and the Filters drawer (2026-10-07): ⚡ "instant" (grade easy) beside ✓ ½ ✗ on the home cards (review problems only; practice
+      problems have no reviews), and Filters open as a drawer from the right at 1180px and narrower (Esc or the button closes it).
 - [ ] Content: pages for the rest of the 943 (the problems only in NeetCode All, 693 of them), if you want them. They are
       practice-level and the Practice tab already points at LeetCode problems, so this is optional.

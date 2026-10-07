@@ -69,5 +69,10 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       plan (`/dsa/plan`, saved to `settings.srs`). **Usable now.** Not built yet: the written problem pages (LeetCode
       statement and hints fetched at runtime, intuition, Python approaches), the pattern lessons, the fourth "easy"
       button on the home cards (it is on the problem page as "Instant"), Filters as a drawer at 1180px and narrower.
+- [x] Written pages, first pattern (2026-10-07): Arrays & Hashing's nine NeetCode 150 problems (`content/dsa/pages/<slug>.toml`:
+      intuition, tips, approaches in Python with complexity). `tools/neetcode/check_pages.py` checks every solution against
+      LeetCode's real Python 3 template (`templates.py` fetches it; Premium templates are typed in
+      `premium_templates.json`) and runs it against brute-force references (`page_tests.py`). Shown on the problem page
+      with approach tabs, highlighting and a copy button. Company pills filter the list and "+n" expands in place.
 - [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
       18 categories.

@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { api } from "../api";
-import { Companies, Mark, useLogger } from "../components/dsaBits";
+import { Companies, Md, Mark, PyCode, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
 import { DIFF, GRADES, MINUTES, leetcode, niceDate, statusOf, videoUrl } from "../dsa";
 
@@ -12,6 +12,8 @@ export function DsaProblemPage({ slug }: { slug: string }) {
   const o = overview.data;
   const { log, toast } = useLogger(o?.today);
   const p = o?.problems.find((x) => x.slug === slug);
+  const lesson = useQuery({ queryKey: ["dsa-page", p?.id], queryFn: () => api.dsaPage(p!.id), enabled: !!p?.has_page });
+  const [tab, setTab] = useState(0);
   const frame = (body: React.ReactNode) => (
     <>
       <Header area="dsa" />
@@ -104,6 +106,50 @@ export function DsaProblemPage({ slug }: { slug: string }) {
           </div>
         )}
       </section>
+
+      {lesson.data && (
+        <>
+          <section className="rbox" style={{ marginBottom: 18 }}>
+            <h4><span>INTUITION</span></h4>
+            <Md text={lesson.data.intuition} />
+          </section>
+          <section className="rbox" style={{ marginBottom: 18 }}>
+            <h4><span>APPROACHES</span><span style={{ color: "var(--dim)" }}>Python, pastes into LeetCode</span></h4>
+            <div className="seg d-aptabs" role="tablist">
+              {lesson.data.approaches.map((a, i) => (
+                <button key={a.name} role="tab" aria-selected={i === tab} className={i === tab ? "on" : ""} onClick={() => setTab(i)}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+            {lesson.data.approaches.map((a, i) =>
+              i === tab ? (
+                <div key={a.name} className="d-ap">
+                  <h3>{a.name}</h3>
+                  <Md text={a.idea} />
+                  <PyCode code={a.code} />
+                  <div className="d-cx">
+                    <span>time <b>{a.time}</b></span>
+                    <span>space <b>{a.space}</b></span>
+                    <span className="d-cxnote"><Md inline text={a.note} /></span>
+                  </div>
+                </div>
+              ) : null,
+            )}
+          </section>
+          <section className="rbox" style={{ marginBottom: 18 }}>
+            <h4><span>TIPS AND PITFALLS</span></h4>
+            <ul className="d-tips">
+              {lesson.data.tips.map((t) => (
+                <li key={t}><Md inline text={t} /></li>
+              ))}
+            </ul>
+          </section>
+        </>
+      )}
+      {!p.has_page && (
+        <p className="rempty" style={{ marginBottom: 18 }}>The written lesson for this problem isn't written yet. Solve it on LeetCode and log how it went.</p>
+      )}
 
       {p.companies.length > 0 && (
         <section className="rbox" style={{ marginBottom: 18 }}>

@@ -1,0 +1,40 @@
+intuition = """
+Two strings are anagrams when they use **exactly the same letters the same number of times**. So compare letter counts: if the lengths differ you can stop immediately, otherwise count `s` up and `t` down and check that everything returns to zero.
+
+Sorting both strings and comparing is the shortest answer, but counting is O(n) instead of O(n log n).
+"""
+tips = [
+    "Check `len(s) != len(t)` first. It rules out most non-anagrams without counting anything.",
+    "The constraints say lowercase English letters, so a fixed array of 26 counters beats a dictionary. If the follow-up says \"Unicode\", switch to `collections.Counter` or a dict.",
+    "Counting up for `s` and down for `t` with one array means a single pass and one early exit when a count goes negative.",
+]
+
+[[approaches]]
+name = "Count letters"
+label = "counting"
+idea = "One array of 26 counters: add one for each letter of `s`, subtract one for each letter of `t`. If a counter ever goes below zero, `t` has a letter `s` doesn't have enough of."
+time = "O(n)"
+space = "O(1)"
+note = "The array has 26 slots no matter how long the strings are."
+code = '''class Solution:
+    def isAnagram(self, s: str, t: str) -> bool:
+        if len(s) != len(t):
+            return False
+        counts = [0] * 26
+        for a, b in zip(s, t):
+            counts[ord(a) - ord("a")] += 1
+            counts[ord(b) - ord("a")] -= 1
+        return not any(counts)
+'''
+
+[[approaches]]
+name = "Sort both"
+label = "sorting"
+idea = "Anagrams are the same letters in a different order, so sorting each string gives identical results."
+time = "O(n log n)"
+space = "O(n)"
+note = "Fine for an interview opener; say that counting beats it."
+code = '''class Solution:
+    def isAnagram(self, s: str, t: str) -> bool:
+        return sorted(s) == sorted(t)
+'''

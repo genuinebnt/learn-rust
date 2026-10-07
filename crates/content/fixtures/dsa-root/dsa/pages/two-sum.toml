@@ -1,0 +1,11 @@
+intuition = "Look for the partner of each number in a map of what you've seen."
+tips = ["Check before inserting."]
+
+[[approaches]]
+name = "One-pass hash map"
+label = "hash map"
+idea = "Map value to index."
+time = "O(n)"
+space = "O(n)"
+note = "One pass."
+code = "class Solution:\n    pass\n"

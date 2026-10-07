@@ -57,6 +57,8 @@ struct ProblemRow<'a> {
     role: Role,
     practice_of: Option<&'a str>,
     order: u32,
+    /// A written lesson exists for it.
+    has_page: bool,
     state: Standing,
 }
 
@@ -138,6 +140,7 @@ fn row<'a>(t: &'a Track, p: &'a Problem, progress: &HashMap<String, ProgressRow>
         role: d.role,
         practice_of: d.practice_of.as_deref(),
         order: p.meta.order,
+        has_page: d.page.is_some(),
         state: state_of(progress.get(&p.id), reviews.get(p.id.as_str()).copied(), today),
     }
 }
@@ -225,6 +228,13 @@ pub async fn overview(State(s): State<AppState>) -> ApiResult<Json<serde_json::V
     };
     // Plain data, so serializing can't fail; the value only exists to end the borrow of the catalog.
     Ok(Json(serde_json::to_value(&overview).expect("overview is plain data")))
+}
+
+/// The written lesson for a problem, if one has been written.
+pub async fn page(State(s): State<AppState>, Path(id): Path<String>) -> ApiResult<Json<Option<anneal_content::Page>>> {
+    let (_, p) = s.catalog.problem(&id).ok_or_else(|| ApiError::NotFound(format!("problem {id}")))?;
+    let dsa = p.dsa.as_ref().ok_or_else(|| ApiError::BadRequest(format!("{id} isn't a DSA problem")))?;
+    Ok(Json(dsa.page.clone()))
 }
 
 #[derive(Deserialize)]

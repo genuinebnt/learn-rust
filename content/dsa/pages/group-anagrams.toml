@@ -1,0 +1,50 @@
+intuition = """
+Anagrams are interchangeable, so give every word a **canonical key** that's the same for all of its anagrams, then group words by key in a dictionary.
+
+The simplest key is the word with its letters sorted: `"eat"`, `"tea"` and `"ate"` all become `"aet"`. A faster key is the letter-count tuple, which skips the sort.
+"""
+tips = [
+    "`defaultdict(list)` removes the \"does this key exist yet?\" branch.",
+    "A list can't be a dictionary key, but a tuple or a string can. Convert a count array with `tuple(...)` before using it.",
+    "Counting costs O(n·k) for n words of length k; sorting costs O(n·k log k). For short words they're close, so the clearer one (sorting) is a fine first answer.",
+    "The order of the groups, and of the words inside a group, doesn't matter in this problem.",
+]
+
+[[approaches]]
+name = "Sorted word as the key"
+label = "sorted key"
+idea = "Sort each word's letters and use the result as the dictionary key."
+time = "O(n · k log k)"
+space = "O(n · k)"
+note = "n words of length at most k; every word is stored once in the groups."
+code = '''from collections import defaultdict
+
+
+class Solution:
+    def groupAnagrams(self, strs: list[str]) -> list[list[str]]:
+        groups = defaultdict(list)
+        for word in strs:
+            groups["".join(sorted(word))].append(word)
+        return list(groups.values())
+'''
+
+[[approaches]]
+name = "Letter counts as the key"
+label = "count key"
+idea = "Count the 26 letters of each word and use that tuple as the key. Same idea, no sorting."
+time = "O(n · k)"
+space = "O(n · k)"
+note = "Each word is scanned once; the key is always 26 numbers."
+code = '''from collections import defaultdict
+
+
+class Solution:
+    def groupAnagrams(self, strs: list[str]) -> list[list[str]]:
+        groups = defaultdict(list)
+        for word in strs:
+            counts = [0] * 26
+            for ch in word:
+                counts[ord(ch) - ord("a")] += 1
+            groups[tuple(counts)].append(word)
+        return list(groups.values())
+'''

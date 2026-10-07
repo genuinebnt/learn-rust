@@ -1,0 +1,53 @@
+intuition = """
+Sorting makes consecutive numbers adjacent, but it costs O(n log n). The trick for O(n): put everything in a **set**, and only start counting from a number that is the **start of a run**, meaning `x - 1` is not in the set.
+
+From each start, walk up `x + 1`, `x + 2`, … while they're in the set. Every number is then walked over once in total, because it belongs to exactly one run and only that run's start does the walking.
+"""
+tips = [
+    "The `if x - 1 not in nums` check is the whole trick. Without it you restart a count from every number in a run and the solution degrades to O(n²).",
+    "Duplicates don't matter: iterate over the **set**, not the list.",
+    "The empty array has a longest run of `0`; the loop never runs, so `best = 0` handles it.",
+    "A union-find solution exists, but the set approach is simpler and is what's expected.",
+]
+
+[[approaches]]
+name = "Set, count from run starts"
+label = "hash set"
+idea = "Put all numbers in a set. For each number that has no predecessor in the set, count how far the run of successors goes and keep the longest."
+time = "O(n)"
+space = "O(n)"
+note = "The inner `while` runs once per number across the whole algorithm, so the total is linear."
+code = '''class Solution:
+    def longestConsecutive(self, nums: list[int]) -> int:
+        values = set(nums)
+        best = 0
+        for x in values:
+            if x - 1 in values:
+                continue  # not the start of a run
+            length = 1
+            while x + length in values:
+                length += 1
+            best = max(best, length)
+        return best
+'''
+
+[[approaches]]
+name = "Sort and scan"
+label = "sorting"
+idea = "Sort the distinct values and walk through them, extending the current run when a number is exactly one more than the previous."
+time = "O(n log n)"
+space = "O(n)"
+note = "Simple, but the sort makes it slower than the set version; mention it as the first idea."
+code = '''class Solution:
+    def longestConsecutive(self, nums: list[int]) -> int:
+        ordered = sorted(set(nums))
+        best = 0
+        run = 0
+        for i, x in enumerate(ordered):
+            if i > 0 and x == ordered[i - 1] + 1:
+                run += 1
+            else:
+                run = 1
+            best = max(best, run)
+        return best
+'''

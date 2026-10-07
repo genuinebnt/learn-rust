@@ -200,7 +200,7 @@ export function DsaPage() {
                     }}
                   />
                 ) : (
-                  <ProblemGroups o={o} model={model} uncapped={f.patterns.size > 0} openGroups={openGroups} openGroup={(code) => setOpenGroups(new Set([...openGroups, code]))} log={log} clearAll={clearAll} />
+                  <ProblemGroups o={o} model={model} pickCompany={(name) => flip("companies", name)} picked={f.companies} uncapped={f.patterns.size > 0} openGroups={openGroups} openGroup={(code) => setOpenGroups(new Set([...openGroups, code]))} log={log} clearAll={clearAll} />
                 )}
               </div>
             </div>
@@ -552,7 +552,7 @@ function PatternGrid({ o, f, model, open }: { o: DsaOverview; f: Filters; model:
   );
 }
 
-function ProblemGroups({ o, model, uncapped, openGroups, openGroup, log, clearAll }: { o: DsaOverview; uncapped: boolean; model: Model; openGroups: Set<string>; openGroup: (code: string) => void; log: ReturnType<typeof useLogger>["log"]; clearAll: () => void }) {
+function ProblemGroups({ o, model, pickCompany, picked, uncapped, openGroups, openGroup, log, clearAll }: { o: DsaOverview; pickCompany: (name: string) => void; picked: ReadonlySet<string>; uncapped: boolean; model: Model; openGroups: Set<string>; openGroup: (code: string) => void; log: ReturnType<typeof useLogger>["log"]; clearAll: () => void }) {
   const { items } = model;
   if (!items.length)
     return (
@@ -577,7 +577,7 @@ function ProblemGroups({ o, model, uncapped, openGroups, openGroup, log, clearAl
             </div>
             <div className="d-plist" style={{ marginTop: 14 }}>
               {roots.slice(0, cap).map((p) => (
-                <ProblemCard key={p.id} p={p} o={o} model={model} log={log} />
+                <ProblemCard key={p.id} p={p} o={o} model={model} log={log} pickCompany={pickCompany} picked={picked} />
               ))}
               {roots.length > cap && (
                 <button className="d-more" onClick={() => openGroup(pat.code)}>
@@ -592,7 +592,7 @@ function ProblemGroups({ o, model, uncapped, openGroups, openGroup, log, clearAl
   );
 }
 
-function ProblemCard({ p, o, model, log }: { p: DsaProblem; o: DsaOverview; model: Model; log: ReturnType<typeof useLogger>["log"] }) {
+function ProblemCard({ p, o, model, log, pickCompany, picked }: { p: DsaProblem; o: DsaOverview; model: Model; log: ReturnType<typeof useLogger>["log"]; pickCompany: (name: string) => void; picked: ReadonlySet<string> }) {
   const status = statusOf(p, o.today);
   const teacher = p.practice_of ? model.byId.get(p.practice_of) : undefined;
   const lists = p.lists.filter((l) => l !== "all").map((l) => ({ blind75: "B75", neetcode150: "150", neetcode250: "250", all: "" })[l]);
@@ -621,6 +621,11 @@ function ProblemCard({ p, o, model, log }: { p: DsaProblem; o: DsaOverview; mode
               PREMIUM
             </span>
           )}
+          {p.has_page && (
+            <Link className="d-lc" to="/d/$slug" params={{ slug: p.slug }} title="Intuition, approaches and tips">
+              lesson ›
+            </Link>
+          )}
         </div>
         <div className="d-pmeta">
           <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>
@@ -642,7 +647,7 @@ function ProblemCard({ p, o, model, log }: { p: DsaProblem; o: DsaOverview; mode
             </span>
           )}
         </div>
-        <Companies companies={p.companies} />
+        <Companies companies={p.companies} onPick={pickCompany} picked={picked} />
       </div>
       <div className="d-pside">
         {when}

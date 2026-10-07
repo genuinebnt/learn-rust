@@ -32,6 +32,29 @@ pub struct Company {
     pub recent: bool,
 }
 
+/// The written lesson for a problem (`content/dsa/pages/<slug>.toml`): the intuition, tips, and Python solutions that
+/// paste into LeetCode. Text is markdown. `tools/neetcode/check_pages.py` checks the code.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Page {
+    pub intuition: String,
+    pub tips: Vec<String>,
+    pub approaches: Vec<Approach>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Approach {
+    pub name: String,
+    /// A two-word tag for the tab, e.g. "hash map".
+    pub label: String,
+    pub idea: String,
+    pub code: String,
+    pub time: String,
+    pub space: String,
+    pub note: String,
+}
+
 /// What a DSA problem has beyond a Rust one.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DsaProblem {
@@ -50,6 +73,9 @@ pub struct DsaProblem {
     pub role: Role,
     /// For a practice problem, the must-learn problem that teaches its technique.
     pub practice_of: Option<String>,
+    /// The written lesson, when there is one. Served by its own endpoint, not with the lists.
+    #[serde(skip)]
+    pub page: Option<Page>,
 }
 
 /// One idea a pattern lesson teaches.
@@ -160,6 +186,7 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> (Vec<Track>, DsaCata
         }
     }
     patterns.sort_by_key(|&(_, first)| first);
+    let pages = load_pages(root, &by_id, issues);
     let names: BTreeMap<&str, &str> = file.techniques.iter().map(|t| (t.id.as_str(), t.name.as_str())).collect();
 
     let tracks = patterns
@@ -171,7 +198,7 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> (Vec<Track>, DsaCata
                 .problems
                 .iter()
                 .filter(|p| p.pattern == *pattern)
-                .map(|p| problem(p, &names, root))
+                .map(|p| problem(p, &names, root, pages.get(p.slug.as_str())))
                 .collect();
             problems.sort_by_key(|p| p.meta.order);
             Track {
@@ -193,7 +220,7 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> (Vec<Track>, DsaCata
     (tracks, DsaCatalog { techniques: file.techniques, company_groups: file.company_groups })
 }
 
-fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path) -> Problem {
+fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path, page: Option<&Page>) -> Problem {
     Problem {
         id: p.id.clone(),
         meta: ProblemFile {
@@ -231,8 +258,33 @@ fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path) -> Problem {
             technique: p.technique.clone(),
             role: p.role,
             practice_of: p.practice_of.clone(),
+            page: page.cloned(),
         }),
     }
+}
+
+/// `<root>/dsa/pages/<slug>.toml`, by slug. A page for a problem that isn't in the lists is reported.
+fn load_pages(root: &Path, by_id: &BTreeMap<&str, &Raw>, issues: &mut Vec<Issue>) -> BTreeMap<String, Page> {
+    let dir = root.join("dsa").join("pages");
+    let mut pages = BTreeMap::new();
+    let Ok(entries) = std::fs::read_dir(&dir) else { return pages };
+    let mut files: Vec<_> = entries.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "toml")).collect();
+    files.sort();
+    for path in files {
+        let slug = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        if !by_id.contains_key(format!("lc-{slug}").as_str()) {
+            issues.push(Issue { path, message: format!("{slug} isn't a problem in the NeetCode lists") });
+            continue;
+        }
+        match std::fs::read_to_string(&path).map_err(|e| e.to_string()).and_then(|t| toml::from_str::<Page>(&t).map_err(|e| e.message().to_owned())) {
+            Ok(page) if page.approaches.is_empty() => issues.push(Issue { path, message: "a page needs at least one approach".into() }),
+            Ok(page) => {
+                pages.insert(slug, page);
+            }
+            Err(message) => issues.push(Issue { path, message }),
+        }
+    }
+    pages
 }
 
 fn band_name(band: Band) -> &'static str {

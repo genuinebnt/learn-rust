@@ -1,0 +1,50 @@
+intuition = """
+The answer at `i` is **(product of everything left of i) × (product of everything right of i)**. Both halves can be built in one pass each: a running product from the left, and a running product from the right.
+
+Division would be the obvious shortcut, but the problem forbids it, and zeros break it anyway.
+"""
+tips = [
+    "Write the output array first with the **prefix** products, then sweep from the right multiplying in the **suffix** products. That gives O(1) extra space beyond the output, which is the follow-up.",
+    "Don't use the total product divided by `nums[i]`: zeros make it divide by zero or give the wrong answer.",
+    "Start both running products at `1`, so the first element has an empty left side and the last has an empty right side.",
+    "The output array doesn't count as extra space in this problem.",
+]
+
+[[approaches]]
+name = "Prefix and suffix arrays"
+label = "prefix + suffix"
+idea = "Build `prefix[i]` (product of everything before i) and `suffix[i]` (product of everything after i), then multiply them."
+time = "O(n)"
+space = "O(n)"
+note = "Two helper arrays of length n."
+code = '''class Solution:
+    def productExceptSelf(self, nums: list[int]) -> list[int]:
+        n = len(nums)
+        prefix = [1] * n
+        suffix = [1] * n
+        for i in range(1, n):
+            prefix[i] = prefix[i - 1] * nums[i - 1]
+        for i in range(n - 2, -1, -1):
+            suffix[i] = suffix[i + 1] * nums[i + 1]
+        return [prefix[i] * suffix[i] for i in range(n)]
+'''
+
+[[approaches]]
+name = "Two passes, one output array"
+label = "O(1) extra space"
+idea = "Fill the output with prefix products, then sweep from the right keeping a running suffix product in one variable and multiplying it into the output."
+time = "O(n)"
+space = "O(1)"
+note = "Only the output array and one running product, so no extra space beyond the answer."
+code = '''class Solution:
+    def productExceptSelf(self, nums: list[int]) -> list[int]:
+        n = len(nums)
+        result = [1] * n
+        for i in range(1, n):
+            result[i] = result[i - 1] * nums[i - 1]
+        suffix = 1
+        for i in range(n - 1, -1, -1):
+            result[i] *= suffix
+            suffix *= nums[i]
+        return result
+'''

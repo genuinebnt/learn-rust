@@ -68,6 +68,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/problems/{id}/hints", post(routes::reveal_hint))
         .route("/problems/{id}/solution", post(routes::reveal_solution))
         .route("/dsa", get(dsa::overview))
+        .route("/dsa/problems/{id}/page", get(dsa::page))
         .route("/dsa/problems/{id}/log", post(dsa::log))
         .route("/dsa/start", post(dsa::start))
         .route("/settings", get(settings::get))

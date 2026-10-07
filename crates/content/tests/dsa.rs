@@ -74,3 +74,21 @@ fn retired_ids_are_known_but_cannot_be_current() {
     assert!(c.knows("d1-old") && c.knows("d2-older") && !c.knows("d3-new"));
     assert_eq!(c.retired.len(), 2);
 }
+
+#[test]
+fn pages_must_belong_to_a_listed_problem_and_parse() {
+    let dir = root_with(&std::fs::read_to_string(fixture().join("dsa/problems.json")).unwrap());
+    std::fs::create_dir_all(dir.path().join("dsa/pages")).unwrap();
+    std::fs::write(dir.path().join("dsa/pages/not-a-problem.toml"), "intuition = \"x\"\n").unwrap();
+    std::fs::write(dir.path().join("dsa/pages/two-sum.toml"), "intuition = \"x\"\n").unwrap(); // no tips, no approaches
+    let issues: Vec<String> = Catalog::load(dir.path()).unwrap().issues.into_iter().map(|i| i.message).collect();
+    assert!(issues.iter().any(|m| m.contains("not-a-problem isn't a problem in the NeetCode lists")), "{issues:?}");
+    assert!(issues.iter().any(|m| m.contains("missing field")), "{issues:?}");
+
+    std::fs::copy(fixture().join("dsa/pages/two-sum.toml"), dir.path().join("dsa/pages/two-sum.toml")).unwrap();
+    std::fs::remove_file(dir.path().join("dsa/pages/not-a-problem.toml")).unwrap();
+    let loaded = Catalog::load(dir.path()).unwrap();
+    assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
+    let (_, p) = loaded.catalog.problem("lc-two-sum").unwrap();
+    assert_eq!(p.dsa.as_ref().unwrap().page.as_ref().unwrap().approaches.len(), 1);
+}

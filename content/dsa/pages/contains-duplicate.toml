@@ -1,0 +1,43 @@
+intuition = """
+You're asking "have I seen this value before?" while walking the array once. A **hash set** answers that in O(1), so the whole problem is one pass: if the value is already in the set, return `True`; otherwise add it.
+
+Sorting is the no-extra-memory alternative: equal values end up next to each other, so you only compare neighbours.
+"""
+tips = [
+    "Say the trade-off out loud: the set costs O(n) memory to save a sort's O(n log n) time. Interviewers usually want you to offer both.",
+    "`len(set(nums)) != len(nums)` is a fine one-liner, but it always builds the whole set. The loop version stops at the first repeat.",
+    "Empty and single-element arrays have no duplicates; both approaches handle them without a special case.",
+]
+
+[[approaches]]
+name = "Hash set"
+label = "hash set"
+idea = "Keep every value you've seen in a set. The first value that's already there is the duplicate."
+time = "O(n)"
+space = "O(n)"
+note = "One pass; the set can grow to n values."
+code = '''class Solution:
+    def containsDuplicate(self, nums: list[int]) -> bool:
+        seen = set()
+        for n in nums:
+            if n in seen:
+                return True
+            seen.add(n)
+        return False
+'''
+
+[[approaches]]
+name = "Sort, then compare neighbours"
+label = "sorting"
+idea = "After sorting, duplicates sit side by side, so one scan of adjacent pairs finds them. It sorts a copy, so the input isn't changed."
+time = "O(n log n)"
+space = "O(n)"
+note = "Python's sort needs O(n) scratch space; sorting in place (`nums.sort()`) would need only O(1) extra but changes the input."
+code = '''class Solution:
+    def containsDuplicate(self, nums: list[int]) -> bool:
+        ordered = sorted(nums)
+        for i in range(1, len(ordered)):
+            if ordered[i] == ordered[i - 1]:
+                return True
+        return False
+'''

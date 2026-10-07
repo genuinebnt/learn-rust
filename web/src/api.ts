@@ -366,7 +366,26 @@ export interface DsaProblem {
   role: "must_learn" | "practice";
   practice_of: string | null;
   order: number;
+  /** A written lesson exists. */
+  has_page: boolean;
   state: DsaStanding;
+}
+
+export interface DsaApproach {
+  name: string;
+  label: string;
+  idea: string;
+  code: string;
+  time: string;
+  space: string;
+  note: string;
+}
+
+/** The written lesson for a problem. Text is markdown. */
+export interface DsaPage {
+  intuition: string;
+  tips: string[];
+  approaches: DsaApproach[];
 }
 
 export interface DsaPattern {
@@ -472,6 +491,7 @@ export const api = {
   reviews: () => request<ReviewsView>("GET", "/reviews"),
   resolve: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/resolve`),
   dsa: () => request<DsaOverview>("GET", "/dsa"),
+  dsaPage: (id: string) => request<DsaPage | null>("GET", `/dsa/problems/${id}/page`),
   logDsa: (id: string, grade: Grade) => request<{ id: string; due: string; ideal_days: number }>("POST", `/dsa/problems/${id}/log`, { grade }),
   startDsa: (from: string) => request<{ start: string }>("POST", "/dsa/start", { from }),
   saveSrs: (srs: SrsSettings) => request<SrsSettings>("PUT", "/settings/srs", srs),

@@ -1,0 +1,45 @@
+intuition = """
+For each number `x` you need its partner `target - x`. Looking for that partner in the rest of the array is a scan, but if you remember the numbers you've **already passed** in a hash map (value → index), the partner check is O(1).
+
+So walk once: for each `x`, ask "is `target - x` in the map?" If yes, you have the pair. If not, record `x` and move on. Checking *before* inserting means an element is never paired with itself.
+"""
+tips = [
+    "Start by stating the brute force (two nested loops, O(n²)) and then say what repeated work the map removes.",
+    "Check for the complement **before** adding the current number. Otherwise `nums = [3, 2, 4]`, `target = 6` would pair the 3 with itself.",
+    "Duplicates are fine: `[3, 3]` with target 6 works because the first 3 is already in the map when the second arrives.",
+    "The map stores indices, not counts. That's what you return.",
+]
+
+[[approaches]]
+name = "Brute force"
+label = "brute force"
+idea = "Try every pair. Correct and tiny, but quadratic: say it, then improve it."
+time = "O(n²)"
+space = "O(1)"
+note = "Fine for a few thousand elements, too slow beyond that."
+code = '''class Solution:
+    def twoSum(self, nums: list[int], target: int) -> list[int]:
+        for i in range(len(nums)):
+            for j in range(i + 1, len(nums)):
+                if nums[i] + nums[j] == target:
+                    return [i, j]
+        return []
+'''
+
+[[approaches]]
+name = "One-pass hash map"
+label = "hash map"
+idea = "Map each value to its index as you go. For each number, look up `target - number`; the first hit is the answer."
+time = "O(n)"
+space = "O(n)"
+note = "Each number is looked up and inserted once."
+code = '''class Solution:
+    def twoSum(self, nums: list[int], target: int) -> list[int]:
+        index_of = {}
+        for i, x in enumerate(nums):
+            need = target - x
+            if need in index_of:
+                return [index_of[need], i]
+            index_of[x] = i
+        return []
+'''

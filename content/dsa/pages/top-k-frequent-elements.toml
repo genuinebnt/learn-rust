@@ -1,0 +1,59 @@
+intuition = """
+Two steps: **count** how often each number appears, then **pick the k biggest counts**.
+
+Sorting the counts works, but you don't need a full order. A count can't exceed `len(nums)`, so put each number in a **bucket indexed by its count** and read the buckets from the highest count down until you have k numbers. That's linear.
+
+A **min-heap of size k** is the other standard answer: keep the k best seen so far and throw out the smallest whenever it grows past k.
+"""
+tips = [
+    "`Counter(nums)` does step one in a line. Say that you know what it does underneath.",
+    "Buckets need `len(nums) + 1` slots because a count can equal `len(nums)`.",
+    "The heap version is the one that survives the follow-up \"what if the data doesn't fit in memory?\": you only ever hold k items.",
+    "`Counter.most_common(k)` is a valid answer in practice, but interviewers will ask you to build it.",
+]
+
+[[approaches]]
+name = "Bucket sort by frequency"
+label = "bucket sort"
+idea = "Count the numbers, then put each one in `buckets[count]`. Walk the buckets from the largest count down and collect numbers until you have k."
+time = "O(n)"
+space = "O(n)"
+note = "Counting, filling the buckets and reading them back each touch every number once."
+code = '''from collections import Counter
+
+
+class Solution:
+    def topKFrequent(self, nums: list[int], k: int) -> list[int]:
+        buckets = [[] for _ in range(len(nums) + 1)]
+        for value, count in Counter(nums).items():
+            buckets[count].append(value)
+
+        result = []
+        for count in range(len(buckets) - 1, 0, -1):
+            for value in buckets[count]:
+                result.append(value)
+                if len(result) == k:
+                    return result
+        return result
+'''
+
+[[approaches]]
+name = "Min-heap of size k"
+label = "heap"
+idea = "Push `(count, value)` pairs on a min-heap. When it holds more than k, pop the smallest, so what's left is the k most frequent."
+time = "O(n log k)"
+space = "O(n)"
+note = "Counting is O(n) and takes O(n) space; each of the up-to-n pushes costs O(log k)."
+code = '''import heapq
+from collections import Counter
+
+
+class Solution:
+    def topKFrequent(self, nums: list[int], k: int) -> list[int]:
+        heap = []
+        for value, count in Counter(nums).items():
+            heapq.heappush(heap, (count, value))
+            if len(heap) > k:
+                heapq.heappop(heap)
+        return [value for _, value in heap]
+'''

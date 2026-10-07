@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { marked } from "marked";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, type DsaCompany, type DsaProblem, type Grade } from "../api";
 import { MARK_GLYPH, markOf, niceDate } from "../dsa";
@@ -46,22 +47,78 @@ export function Mark({ p, today }: { p: DsaProblem; today: string }) {
   );
 }
 
-/** Company pills, the ones asked in the last six months highlighted, the rest behind a "+n" you can hover. */
-export function Companies({ companies, limit = 5 }: { companies: DsaCompany[]; limit?: number }) {
+/** Company pills: the ones asked in the last six months highlighted, and "+n" opens the rest in place.
+ *  With `onPick`, a pill filters the list by that company. */
+export function Companies({ companies, limit = 5, onPick, picked }: { companies: DsaCompany[]; limit?: number; onPick?: (name: string) => void; picked?: ReadonlySet<string> }) {
+  const [all, setAll] = useState(false);
   if (!companies.length) return null;
-  const rest = companies.slice(limit);
+  const shown = all ? companies : companies.slice(0, limit);
+  const rest = companies.length - limit;
   return (
     <div className="d-cos">
-      {companies.slice(0, limit).map((c) => (
-        <span key={c.name} className={`d-co${c.recent ? " hot" : ""}`} title={c.recent ? `${c.name}: asked in the last six months` : c.name}>
-          {c.name}
-        </span>
-      ))}
-      {rest.length > 0 && (
-        <span className="d-co more" title={rest.map((c) => c.name).join(", ")}>
-          +{rest.length}
-        </span>
+      {shown.map((c) => {
+        const cls = `d-co${c.recent ? " hot" : ""}${picked?.has(c.name) ? " on" : ""}`;
+        const title = `${c.recent ? `${c.name}: asked in the last six months` : c.name}${onPick ? " · click to filter" : ""}`;
+        return onPick ? (
+          <button key={c.name} className={cls} title={title} onClick={() => onPick(c.name)}>
+            {c.name}
+          </button>
+        ) : (
+          <span key={c.name} className={cls} title={title}>
+            {c.name}
+          </span>
+        );
+      })}
+      {rest > 0 && (
+        <button className="d-co more" aria-expanded={all} title={all ? "Show fewer" : companies.slice(limit).map((c) => c.name).join(", ")} onClick={() => setAll(!all)}>
+          {all ? "show fewer" : `+${rest}`}
+        </button>
       )}
+    </div>
+  );
+}
+
+/** Markdown from the content files (ours, so it's trusted), as inline or block HTML. */
+export function Md({ text, inline }: { text: string; inline?: boolean }) {
+  const html = inline ? marked.parseInline(text, { async: false }) : marked.parse(text, { async: false });
+  return inline ? <span dangerouslySetInnerHTML={{ __html: html }} /> : <div className="d-md" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+const KEYWORDS = "def|class|return|if|elif|else|for|while|in|not|and|or|is|None|True|False|import|from|as|with|yield|lambda|try|except|finally|raise|pass|break|continue|global|nonlocal";
+const BUILTINS = "range|len|set|dict|list|tuple|deque|sum|any|all|min|max|enumerate|zip|sorted|print|int|str|self|Counter|defaultdict";
+const TOKEN = new RegExp(`(#[^\\n]*)|("""[\\s\\S]*?"""|"(?:[^"\\\\\\n]|\\\\.)*"|'(?:[^'\\\\\\n]|\\\\.)*')|\\b(${KEYWORDS})\\b|\\b(${BUILTINS})\\b|\\b(\\d[\\d_]*)\\b|(\\w+)(?=\\()`, "g");
+
+/** Python with light highlighting and a copy button. */
+export function PyCode({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const m of code.matchAll(TOKEN)) {
+    const at = m.index ?? 0;
+    if (at > last) parts.push(code.slice(last, at));
+    const [text, comment, str, kw, builtin, num] = m;
+    const cls = comment ? "c" : str ? "s" : kw ? "k" : builtin ? "b" : num ? "n" : "f";
+    parts.push(<span key={at} className={`py-${cls}`}>{text}</span>);
+    last = at + text.length;
+  }
+  parts.push(code.slice(last));
+  return (
+    <div className="d-code">
+      <button
+        className="d-copy"
+        onClick={() => {
+          navigator.clipboard.writeText(code).then(
+            () => {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1600);
+            },
+            () => undefined,
+          );
+        }}
+      >
+        {copied ? "copied" : "copy"}
+      </button>
+      <pre>{parts}</pre>
     </div>
   );
 }

@@ -1,0 +1,40 @@
+intuition = """
+You only have to check that **no digit repeats in a row, a column or a 3×3 box**; you don't have to solve the board. Keep one set per row, per column and per box, and for every filled cell ask whether its digit is already in any of its three sets.
+
+The only fiddly part is the box number: the cell `(r, c)` is in box `(r // 3, c // 3)`.
+"""
+tips = [
+    "Skip the `\".\"` cells. They're empty, not duplicates of each other.",
+    "Key the box sets by the tuple `(r // 3, c // 3)`; a `defaultdict(set)` for each of the three removes the setup.",
+    "Return `False` the moment you find a repeat. You never need to look at the whole board once it's invalid.",
+    "The board is always 9×9, so every approach is O(1) in the problem's terms. Say O(n²) for an n×n board to show you understand the shape.",
+]
+
+[[approaches]]
+name = "Three kinds of sets, one pass"
+label = "hash sets"
+idea = "Walk the board once. For each digit, check its row set, column set and box set; if it's in none, add it to all three."
+time = "O(81) = O(1)"
+space = "O(81) = O(1)"
+note = "A fixed 9×9 board; for an n×n board this would be O(n²) time and space."
+code = '''from collections import defaultdict
+
+
+class Solution:
+    def isValidSudoku(self, board: list[list[str]]) -> bool:
+        rows = defaultdict(set)
+        cols = defaultdict(set)
+        boxes = defaultdict(set)
+        for r in range(9):
+            for c in range(9):
+                digit = board[r][c]
+                if digit == ".":
+                    continue
+                box = (r // 3, c // 3)
+                if digit in rows[r] or digit in cols[c] or digit in boxes[box]:
+                    return False
+                rows[r].add(digit)
+                cols[c].add(digit)
+                boxes[box].add(digit)
+        return True
+'''

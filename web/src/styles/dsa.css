@@ -177,3 +177,27 @@
 .d-plan-link{white-space:normal}
 .nextup .pills{flex-wrap:wrap}
 @media (max-width:700px){.cat-stats{flex-wrap:wrap;gap:16px}.d-fbtn kbd{display:none}.cat-tools{flex-wrap:wrap}}
+/* ---- company pills that filter, and "+n" that expands ---- */
+button.d-co{background:none;cursor:pointer;font-family:inherit}
+button.d-co:hover{border-color:var(--ca);color:var(--ca)}
+button.d-co.hot{background:color-mix(in oklch,var(--fn) 13%,transparent)}
+.d-co.on{border-color:var(--ca);background:var(--cab);color:var(--ca)}
+.d-co.more:hover{color:var(--ca)}
+/* ---- the written lesson ---- */
+.d-md{font-size:14.5px;line-height:1.7;color:var(--mut);max-width:72ch}
+.d-md p{margin:0 0 10px}.d-md p:last-child{margin:0}
+.d-md code,.d-tips code,.d-cxnote code{font:500 12.5px var(--mono);background:var(--raise);border-radius:4px;padding:1px 5px;color:var(--fg)}
+.d-md strong,.d-tips strong{color:var(--fg)}
+.d-aptabs{align-self:flex-start;flex-wrap:wrap}
+.d-ap{display:flex;flex-direction:column;gap:12px;padding-top:6px}
+.d-ap h3{margin:0;font-size:16px}
+.d-code{position:relative;border:1px solid var(--line2);border-radius:8px;background:var(--bg);overflow:hidden}
+.d-code pre{margin:0;padding:14px 16px;overflow-x:auto;font:400 12.5px/1.65 var(--mono);color:var(--fg);scrollbar-width:none}
+.d-code pre::-webkit-scrollbar{display:none}
+.d-copy{position:absolute;top:8px;right:8px;height:24px;padding:0 9px;border:1px solid var(--line);border-radius:5px;background:var(--panel);font:500 11px var(--mono);color:var(--dim)}
+.d-copy:hover{color:var(--ca);border-color:var(--ca)}
+.py-k{color:var(--kw)}.py-s{color:var(--str)}.py-c{color:var(--com);font-style:italic}.py-b{color:var(--ty)}.py-n{color:var(--num)}.py-f{color:var(--fn)}
+.d-cx{display:flex;gap:18px;flex-wrap:wrap;font:500 12px var(--mono);color:var(--dim)}
+.d-cx b{color:var(--fg);font-weight:600;margin-left:4px}
+.d-cxnote{flex:1 1 260px;font:400 12.5px var(--sans);color:var(--dim)}
+.d-tips{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.65;color:var(--mut);max-width:76ch}

@@ -880,6 +880,19 @@ async fn logging_a_dsa_problem_feeds_progress_reviews_and_next_up(db: PgPool) {
 }
 
 #[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn written_lessons_are_served_per_problem(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    let (_, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!((problem_of(&o, "lc-two-sum")["has_page"].clone(), problem_of(&o, "lc-valid-palindrome")["has_page"].clone()), (json!(true), json!(false)));
+    let (status, page) = call(&app, Method::GET, "/api/dsa/problems/lc-two-sum/page", None).await;
+    assert_eq!((status, page["approaches"][0]["name"].as_str(), page["tips"][0].as_str()), (StatusCode::OK, Some("One-pass hash map"), Some("Check before inserting.")));
+    let (status, none) = call(&app, Method::GET, "/api/dsa/problems/lc-valid-palindrome/page", None).await;
+    assert_eq!((status, none), (StatusCode::OK, Value::Null));
+    assert_eq!(call(&app, Method::GET, "/api/dsa/problems/lc-nothing/page", None).await.0, StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
 async fn dsa_start_moves_where_the_next_problem_comes_from(db: PgPool) {
     let root = dsa_root(None);
     let app = test_app_with(db, root.path());

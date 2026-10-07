@@ -22,6 +22,7 @@ the progress; update it as work lands.
 | 13 | **Mockup first.** The list, problem page and pattern lesson are mocked up for approval before the UI is built. |
 | 14 | **No Build section.** The Backend (B1–B6) and Design-in-Rust (M1–M2) tracks were only planned and are dropped; the nav is DSA, Rust and Progress. |
 | 15 | **The overall plan:** DSA in Python (this tracker) and Rust for interviews (the Rust tracks) now. A system design section (LLD, HLD, API design) and behavioral prep come later; they're **deferred**, not started. |
+| 16 | **Ship after every batch.** After each batch of work: run the checks, commit, push to `master`, and let CI deploy it to the VPS (https://anneal.genuinebasil.dev). Don't let finished work pile up locally. |
 
 ## Data
 
@@ -36,6 +37,9 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
 
 - [x] AI features removed (2026-10-07, `a0164bf`).
 - [x] Data builder: NeetCode lists, LeetCode tags and similar questions, merged company tags, must learn vs practice.
+- [x] Data: `content/dsa/problems.json` built (943 problems: Blind 75, NeetCode 150/250/All; no JavaScript or SQL; 161 need
+      LeetCode Premium; 921 carry a company tag). The must-learn rule marks 702 of 943 as must learn, which is probably
+      too many for the "All" list: revisit it with the owner before the content is written.
 - [x] Build section removed from the nav, routes, planned tracks and Progress areas (2026-10-07).
 - [ ] Mockup: list with cascading filters, problem page (Course Schedule), pattern lesson (Graphs). **Awaiting approval.**
 - [ ] Build: content loader and API for the lists, logging and reviews; remove D1–D12 and their progress (`retired`

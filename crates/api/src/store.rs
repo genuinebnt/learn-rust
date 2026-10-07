@@ -291,13 +291,15 @@ pub async fn record_review(
 }
 
 /// Logs a LeetCode problem done elsewhere: an attempt (solved unless the grade is `again`, assisted on `hard` and
-/// `again`) and the graded review that schedules the next one. A problem that already has a review is a re-solve.
+/// `again`) and, when `schedule` is set, the graded review that schedules the next one. A problem that already has a
+/// review is a re-solve. Practice problems are logged without a review (decision 24).
 pub async fn log_attempt(
     db: &PgPool,
     problem_id: &str,
     grade: crate::reviews::Grade,
     settings: &crate::reviews::Settings,
-) -> sqlx::Result<crate::reviews::Scheduled> {
+    schedule: bool,
+) -> sqlx::Result<Option<crate::reviews::Scheduled>> {
     use crate::reviews::Grade;
     let resolve: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM reviews WHERE problem_id = $1)").bind(problem_id).fetch_one(db).await?;
     let solved = grade != Grade::Again;
@@ -312,7 +314,10 @@ pub async fn log_attempt(
     .bind(assisted)
     .execute(db)
     .await?;
-    record_review(db, problem_id, grade, resolve, settings).await
+    if !schedule {
+        return Ok(None);
+    }
+    record_review(db, problem_id, grade, resolve, settings).await.map(Some)
 }
 
 /// The DSA problems (`lc-…`) that have any attempt logged, with any grade.

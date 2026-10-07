@@ -12,6 +12,10 @@ pub struct Catalog {
     pub tracks: Vec<Track>,
     /// The DSA section's techniques and company groups (its tracks are in `tracks`).
     pub dsa: DsaCatalog,
+    /// The DSA patterns again, each holding only the extra LeetCode practice problems (`content/dsa/practice.json`).
+    /// Kept apart from `tracks` so they never count toward the lists, readiness or reviews, but [`Catalog::problem`]
+    /// finds them, so they can be logged.
+    pub practice_tracks: Vec<Track>,
     /// Ids of problems that were removed on purpose (`content/retired.txt`). Their progress is deleted at startup
     /// instead of blocking a deploy.
     pub retired: HashSet<String>,
@@ -100,8 +104,9 @@ impl Catalog {
                 tracks.push(track);
             }
         }
-        let (dsa_tracks, dsa) = crate::dsa::load(root, &mut issues);
-        tracks.extend(dsa_tracks);
+        let dsa_loaded = crate::dsa::load(root, &mut issues);
+        let (dsa, practice_tracks) = (dsa_loaded.catalog, dsa_loaded.practice_tracks);
+        tracks.extend(dsa_loaded.tracks);
         tracks.sort_by_key(|t| (section_rank(t.section), t.order));
         check_catalog(&tracks, &mut issues);
         check_unlocks(&tracks, &mut issues);
@@ -110,7 +115,7 @@ impl Catalog {
             issues.push(Issue { path: root.join("retired.txt"), message: format!("{id} is retired but also a current problem") });
         }
         Ok(Loaded {
-            catalog: Catalog { tracks, dsa, retired },
+            catalog: Catalog { tracks, dsa, practice_tracks, retired },
             issues,
         })
     }
@@ -124,6 +129,7 @@ impl Catalog {
     pub fn problem(&self, id: &str) -> Option<(&Track, &Problem)> {
         self.tracks
             .iter()
+            .chain(&self.practice_tracks)
             .find_map(|t| t.problems.iter().find(|p| p.id == id).map(|p| (t, p)))
     }
     /// Every `(old id, current id)` pair declared with `renamed_from`.

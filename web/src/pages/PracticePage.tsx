@@ -1,23 +1,22 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import type { CSSProperties } from "react";
-import { api, type PracticeProblem, type PracticeTrack } from "../api";
-import { Md } from "../components/dsaBits";
+import { useState, type CSSProperties } from "react";
+import { api, type DsaProblem, type PracticeTechnique } from "../api";
+import { Companies, Mark, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
-import { pad2 } from "../components/bits";
-import { DIFF, MINUTES } from "../dsa";
+import { DIFF, GRADES, MINUTES, leetcode } from "../dsa";
 
-const LANGUAGE: Record<PracticeTrack["language"], string> = { python: "PYTHON", rust: "RUST" };
-
-/** A pattern's practice tracks: handwritten problems that make the idea stick, opened by logging LeetCode problems. */
+/** A pattern's practice: for each technique, LeetCode problems beyond the NeetCode lists that drill it. */
 export function PracticePage({ code }: { code: string }) {
   const overview = useQuery({ queryKey: ["dsa"], queryFn: api.dsa });
   const practice = useQuery({ queryKey: ["practice", code], queryFn: () => api.practice(code) });
+  const { log, toast } = useLogger(overview.data?.today);
+  const [hidden, setHidden] = useState<"none" | "done">("none");
   const pattern = overview.data?.patterns.find((p) => p.code.toLowerCase() === code.toLowerCase() || p.slug === code);
-  const tracks = practice.data ?? [];
-  const all = tracks.flatMap((t) => t.problems);
-  const solved = all.filter((p) => p.progress === "solved" || p.progress === "assisted").length;
-  const open = all.filter((p) => p.open).length;
+  const techniques = practice.data?.techniques ?? [];
+  const all = techniques.flatMap((t) => t.problems);
+  const solved = all.filter((p) => p.state.solved).length;
+  const today = overview.data?.today ?? "";
   return (
     <>
       <Header area="dsa" />
@@ -30,7 +29,7 @@ export function PracticePage({ code }: { code: string }) {
             <span>/</span>
             <span>PATTERNS</span>
             <span>/</span>
-            <span>{pattern?.name.toUpperCase() ?? code.toUpperCase()}</span>
+            <span>{(pattern?.name ?? code).toUpperCase()}</span>
           </div>
           <h1 className="h1 md">{pattern?.name ?? "Practice"}</h1>
           <div className="d-ptabs" role="tablist">
@@ -40,23 +39,23 @@ export function PracticePage({ code }: { code: string }) {
             <span role="tab" aria-selected="true" className="on">
               Practice
               <small>
-                {open} / {all.length} unlocked
+                {solved} / {all.length} solved
               </small>
             </span>
           </div>
-          {practice.isError && <p className="notice bad">Couldn't load the practice track: {(practice.error as Error).message}</p>}
-          {practice.isSuccess && tracks.length === 0 && (
+          {practice.isError && <p className="notice bad">Couldn't load the practice list: {(practice.error as Error).message}</p>}
+          {practice.isSuccess && techniques.length === 0 && (
             <div className="d-note">
               <div>
-                <b>No practice track for {pattern?.name ?? "this pattern"} yet.</b> They're written one pattern at a time: Graphs first, then dynamic programming, then the rest.
+                <b>No practice list for {pattern?.name ?? "this pattern"} yet.</b>
               </div>
             </div>
           )}
-          {tracks.length > 0 && (
+          {techniques.length > 0 && (
             <>
               <div className="d-note">
                 <div>
-                  <b>These are not LeetCode problems.</b> They are small problems written for anneal that use the same idea in a new setting, to make the pattern stick. Solve them here; the tests run in the sandbox. They never schedule reviews.
+                  <b>More LeetCode problems for the same ideas.</b> They aren't in the NeetCode lists, so they never count toward your goal, and they schedule no reviews. Solve them on LeetCode, then log how it went. Each group says which NeetCode problem teaches the idea.
                 </div>
               </div>
               <div className="d-sum2">
@@ -66,76 +65,78 @@ export function PracticePage({ code }: { code: string }) {
                 <span className="bar">
                   <i style={{ width: `${all.length ? (solved / all.length) * 100 : 0}%` }} />
                 </span>
-                <span>{all.length - open} locked</span>
+                <button className={`d-clear${hidden === "done" ? " on" : ""}`} onClick={() => setHidden(hidden === "done" ? "none" : "done")} aria-pressed={hidden === "done"}>
+                  {hidden === "done" ? "show solved" : "hide solved"}
+                </button>
               </div>
             </>
           )}
-          {tracks.map((t) => (
-            <section key={t.code} className="d-pgrid-wrap">
-              {tracks.length > 1 && (
-                <div className="flabel">
-                  {t.name.toUpperCase()} · {LANGUAGE[t.language]}
-                </div>
-              )}
-              <div className="d-pgrid">
-                {t.problems.map((p, i) => (
-                  <PracticeCard key={p.id} p={p} n={i + 1} language={t.language} />
-                ))}
-              </div>
-            </section>
+          {techniques.map((t) => (
+            <Technique key={t.id} t={t} today={today} hideSolved={hidden === "done"} log={log} />
           ))}
         </div>
       </main>
+      {toast}
     </>
   );
 }
 
-function PracticeCard({ p, n, language }: { p: PracticeProblem; n: number; language: PracticeTrack["language"] }) {
-  const solved = p.progress === "solved" || p.progress === "assisted";
-  const head = (
-    <div className="top">
-      <span className="n">{pad2(n)}</span>
-      <span>PRACTICE</span>
-      <span className="pill py">{LANGUAGE[language]}</span>
-      {solved && <span className="pill ok">SOLVED</span>}
-      {p.warmup && p.open && !p.logged.length && <span className="pill">WARM-UP</span>}
-    </div>
+function Technique({ t, today, hideSolved, log }: { t: PracticeTechnique; today: string; hideSolved: boolean; log: ReturnType<typeof useLogger>["log"] }) {
+  const rows = hideSolved ? t.problems.filter((p) => !p.state.solved) : t.problems;
+  return (
+    <section className="d-tech">
+      <div className="d-th">
+        <h2>{t.name}</h2>
+        <span className="d-tcount">
+          {t.solved} / {t.problems.length}
+        </span>
+      </div>
+      <div className="d-tfrom">
+        learn it from{" "}
+        <Link to="/d/$slug" params={{ slug: t.must_learn.slug }}>
+          #{t.must_learn.number} {t.must_learn.title}
+        </Link>
+        {t.must_learn.solved ? <span className="d-done"> ✓ done</span> : null}
+      </div>
+      <div className="d-plist">
+        {rows.map((p) => (
+          <PracticeRow key={p.id} p={p} today={today} log={log} />
+        ))}
+        {rows.length === 0 && <p className="rempty">All solved here.</p>}
+      </div>
+    </section>
   );
-  const names = p.unlocked_by.map((u) => u.title).join(" or ");
-  if (!p.open) {
-    return (
-      <div className="pc locked" aria-disabled="true">
-        {head}
-        <h3>{p.title}</h3>
-        <p>
-          <Md inline text={p.blurb} />
-        </p>
-        <div className="lock">
-          <i aria-hidden="true">🔒</i>
-          <span>
-            Log <b>{names}</b> on LeetCode to unlock{p.warmup ? ", or it opens when it's next up" : ""}
+}
+
+function PracticeRow({ p, today, log }: { p: DsaProblem; today: string; log: ReturnType<typeof useLogger>["log"] }) {
+  return (
+    <article className="d-pcard d-prow">
+      <Mark p={p} today={today} />
+      <div className="d-pbody">
+        <div className="d-ph">
+          <span className="d-pnum">#{p.number}</span>
+          <a className="d-ptitle" href={leetcode(p.slug)} target="_blank" rel="noreferrer">
+            {p.title} ↗
+          </a>
+        </div>
+        <div className="d-pmeta">
+          <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>
+            {DIFF[p.difficulty][0]}
           </span>
+          <span>~{MINUTES[p.difficulty]}m</span>
+          <span>{p.tags.slice(0, 3).join(" · ")}</span>
+        </div>
+        <Companies companies={p.companies} limit={4} />
+      </div>
+      <div className="d-pside">
+        <div className="d-acts">
+          {GRADES.map((g) => (
+            <button key={g.grade} className={g.cls} title={g.label} onClick={() => log(p, g.grade)}>
+              {g.glyph}
+            </button>
+          ))}
         </div>
       </div>
-    );
-  }
-  return (
-    <Link to="/p/$id" params={{ id: p.id }} className={`pc open${solved ? " done" : ""}`}>
-      {head}
-      <h3>{p.title}</h3>
-      <p>
-        <Md inline text={p.blurb} />
-      </p>
-      <div className="unl">
-        <i aria-hidden="true">{p.logged.length ? "✓" : "▸"}</i>
-        <span>{p.logged.length ? `unlocked by ${names}` : `warm-up for ${names}, which is coming up`}</span>
-      </div>
-      <div className="foot">
-        <span className="lv" style={{ color: DIFF[p.level][1] }}>
-          {p.level}
-        </span>
-        <span>~{MINUTES[p.level]}m</span>
-      </div>
-    </Link>
+    </article>
   );
 }

@@ -136,16 +136,3 @@ pub async fn for_pattern(State(s): State<AppState>, Path(code): Path<String>) ->
         .collect();
     Ok(Json(tracks))
 }
-
-/// Practice counts for one pattern's card: how many problems, how many are open, how many solved.
-pub(crate) fn counts(s: &AppState, pattern: &str, open: &HashSet<String>, progress: &HashMap<String, ProgressRow>) -> (usize, usize, usize) {
-    let problems: Vec<&Problem> = s
-        .catalog
-        .tracks
-        .iter()
-        .filter(|t| t.section == Section::Practice && t.pattern.as_deref() == Some(pattern))
-        .flat_map(|t| &t.problems)
-        .filter(|p| p.meta.status == Status::Ready)
-        .collect();
-    (problems.len(), problems.iter().filter(|p| open.contains(&p.id)).count(), problems.iter().filter(|p| Progress::of(progress.get(&p.id)).solved()).count())
-}

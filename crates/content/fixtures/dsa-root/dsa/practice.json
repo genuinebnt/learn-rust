@@ -1,0 +1,94 @@
+{
+ "generated": "2026-10-07",
+ "problems": [
+  {
+   "id": "lc-contains-duplicate-ii",
+   "slug": "contains-duplicate-ii",
+   "number": 219,
+   "title": "Contains Duplicate II",
+   "difficulty": "easy",
+   "pattern": "Arrays & Hashing",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Hash Table",
+    "Sliding Window"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 50.0,
+     "recent": true
+    }
+   ],
+   "video": null,
+   "technique": "Arrays & Hashing:seen-set",
+   "order": 100001,
+   "role": "practice",
+   "practice_of": "lc-contains-duplicate"
+  },
+  {
+   "id": "lc-valid-palindrome-ii",
+   "slug": "valid-palindrome-ii",
+   "number": 680,
+   "title": "Valid Palindrome II",
+   "difficulty": "easy",
+   "pattern": "Two Pointers",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Two Pointers",
+    "String",
+    "Greedy"
+   ],
+   "companies": [
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 50.0,
+     "recent": true
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 50.0,
+     "recent": true
+    }
+   ],
+   "video": null,
+   "technique": "Two Pointers:opposite",
+   "order": 100001,
+   "role": "practice",
+   "practice_of": "lc-valid-palindrome"
+  },
+  {
+   "id": "lc-3sum-closest",
+   "slug": "3sum-closest",
+   "number": 16,
+   "title": "3Sum Closest",
+   "difficulty": "medium",
+   "pattern": "Two Pointers",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Two Pointers",
+    "Sorting"
+   ],
+   "companies": [],
+   "video": null,
+   "technique": "Two Pointers:opposite",
+   "order": 100002,
+   "role": "practice",
+   "practice_of": "lc-valid-palindrome"
+  }
+ ]
+}

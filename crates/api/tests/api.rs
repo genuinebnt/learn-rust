@@ -974,7 +974,7 @@ fn practice_solution() -> String {
 async fn practice_problems_unlock_by_logging_or_by_being_a_warmup_for_what_is_next(db: PgPool) {
     let root = dsa_root(None);
     let app = test_app_with(db.clone(), root.path());
-    let (status, tracks) = call(&app, Method::GET, "/api/dsa/practice/D2", None).await;
+    let (status, tracks) = call(&app, Method::GET, "/api/dsa/handwritten/D2", None).await;
     assert_eq!(status, StatusCode::OK);
     let problems = &tracks[0]["problems"];
     assert_eq!((tracks[0]["language"].as_str(), problems.as_array().unwrap().len()), (Some("python"), 2));
@@ -991,8 +991,6 @@ async fn practice_problems_unlock_by_logging_or_by_being_a_warmup_for_what_is_ne
     assert_eq!(status, StatusCode::LOCKED);
 
     // Logging the LeetCode problem, even as "not yet", opens it.
-    let (_, ov) = call(&app, Method::GET, "/api/dsa", None).await;
-    assert_eq!((ov["patterns"][1]["practice_total"].clone(), ov["patterns"][1]["practice_open"].clone(), ov["patterns"][0]["practice_total"].clone()), (json!(2), json!(1), json!(0)));
     call(&app, Method::POST, "/api/dsa/problems/lc-two-sum-ii-input-array-is-sorted/log", Some(json!({ "grade": "again" }))).await;
     let (status, p) = call(&app, Method::GET, "/api/problems/p1-mirror-check", None).await;
     assert_eq!((status, p["language"].as_str(), p["starter"].as_str()), (StatusCode::OK, Some("python"), Some("def is_mirror(items: list[int]) -> bool:\n    ...\n")));
@@ -1023,10 +1021,64 @@ async fn python_practice_runs_tests_and_never_schedules_reviews(db: PgPool) {
     let (_, r) = call(&app, Method::GET, "/api/reviews", None).await;
     assert_eq!((r["in_rotation"].as_u64(), r["due_today"].as_u64()), (Some(0), Some(0)));
     let (_, ov) = call(&app, Method::GET, "/api/dsa", None).await;
-    assert_eq!(ov["patterns"][1]["practice_solved"], 1);
     // No readiness from it either: the DSA lists are untouched.
     assert_eq!(ov["plan"]["goal_done"], 0);
     // There is no rust-analyzer for Python.
     let (status, _) = call(&app, Method::POST, &format!("/api/problems/{id}/scratch/run"), Some(json!({ "lib": "", "main": "" }))).await;
     assert_ne!(status, StatusCode::OK);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn leetcode_practice_is_grouped_by_technique_and_schedules_no_reviews(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db.clone(), root.path());
+
+    // Two Pointers is the second pattern (D2) and has one technique with two practice problems.
+    let (status, p) = call(&app, Method::GET, "/api/dsa/practice/D2", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!((p["pattern"].as_str(), p["techniques"].as_array().unwrap().len()), (Some("Two Pointers"), 1));
+    let t = &p["techniques"][0];
+    assert_eq!((t["id"].as_str(), t["must_learn"]["title"].as_str(), t["must_learn"]["solved"].clone(), t["solved"].clone()), (Some("Two Pointers:opposite"), Some("Valid Palindrome"), json!(false), json!(0)));
+    let titles: Vec<&str> = t["problems"].as_array().unwrap().iter().map(|x| x["title"].as_str().unwrap()).collect();
+    assert_eq!(titles, ["Valid Palindrome II", "3Sum Closest"]);
+    assert_eq!(t["problems"][0]["companies"][0]["name"], "Meta");
+
+    // The extras are not part of the NeetCode lists or the pattern counts the home uses.
+    let (_, ov) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!(ov["problems"].as_array().unwrap().len(), 6);
+    assert_eq!((ov["patterns"][1]["total"].clone(), ov["patterns"][1]["practice_total"].clone(), ov["patterns"][1]["practice_solved"].clone()), (json!(3), json!(2), json!(0)));
+    assert_eq!(ov["plan"]["goal_total"], 4);
+
+    // Logging a practice problem records the attempt, schedules no review, and doesn't move the plan.
+    let (status, out) = call(&app, Method::POST, "/api/dsa/problems/lc-valid-palindrome-ii/log", Some(json!({ "grade": "good" }))).await;
+    assert_eq!((status, out["due"].clone(), out["ideal_days"].clone()), (StatusCode::OK, Value::Null, Value::Null));
+    let reviews: i64 = sqlx::query_scalar("SELECT count(*) FROM reviews").fetch_one(&db).await.unwrap();
+    assert_eq!(reviews, 0, "practice schedules no reviews");
+    call(&app, Method::POST, "/api/dsa/problems/lc-3sum-closest/log", Some(json!({ "grade": "again" }))).await;
+    let (_, p) = call(&app, Method::GET, "/api/dsa/practice/D2", None).await;
+    let rows = p["techniques"][0]["problems"].as_array().unwrap();
+    assert_eq!((rows[0]["state"]["last_grade"].clone(), rows[0]["state"]["solved"].clone(), rows[1]["state"]["last_grade"].clone(), rows[1]["state"]["solved"].clone()), (json!("good"), json!(true), json!("again"), json!(false)));
+    assert_eq!(p["techniques"][0]["solved"], 1);
+    let (_, ov) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!((ov["patterns"][1]["practice_solved"].clone(), ov["plan"]["goal_done"].clone(), ov["plan"]["start"].clone()), (json!(1), json!(0), Value::Null));
+    // They count in activity like any solve.
+    let (_, a) = call(&app, Method::GET, "/api/activity?sections=D", None).await;
+    assert_eq!((a["streak"].as_u64(), a["recent"][0]["problem_id"].as_str()), (Some(1), Some("lc-3sum-closest")));
+    let (_, r) = call(&app, Method::GET, "/api/reviews", None).await;
+    assert_eq!(r["in_rotation"], 0);
+}
+
+#[test]
+fn practice_problems_must_be_free_known_and_not_already_listed() {
+    let dir = dsa_root(None);
+    let good = std::fs::read_to_string(dir.path().join("dsa/practice.json")).unwrap();
+    let bad = good
+        .replace(r#""id": "lc-3sum-closest""#, r#""id": "lc-two-sum""#)
+        .replace(r#""technique": "Two Pointers:opposite",
+   "order": 100001"#, r#""technique": "Nope:technique",
+   "order": 100001"#);
+    std::fs::write(dir.path().join("dsa/practice.json"), bad).unwrap();
+    let issues: Vec<String> = Catalog::load(dir.path()).unwrap().issues.into_iter().map(|i| i.message).collect();
+    assert!(issues.iter().any(|m| m.contains("lc-two-sum: is already in the NeetCode lists")), "{issues:?}");
+    assert!(issues.iter().any(|m| m.contains("unknown technique Nope:technique")), "{issues:?}");
 }

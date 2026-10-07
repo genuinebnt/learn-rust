@@ -543,7 +543,7 @@ function PatternGrid({ o, f, model, open }: { o: DsaOverview; f: Filters; model:
                 <span className="tc-acts">
                   {pat.practice_total > 0 && (
                     <Link className="tc-go ghost" to="/dsa/practice/$code" params={{ code: pat.code }} onClick={(e) => e.stopPropagation()} title="The practice track for this pattern">
-                      practice {pat.practice_open}/{pat.practice_total}
+                      practice {pat.practice_solved}/{pat.practice_total}
                     </Link>
                   )}
                   <span className="tc-go">problems ›</span>

@@ -231,3 +231,13 @@ button.d-co.hot{background:color-mix(in oklch,var(--fn) 13%,transparent)}
 .pc .lock b{color:var(--fg);font-weight:600}
 .pc .unl{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--mut)}
 .pc .unl i{font-style:normal;color:var(--grn)}
+/* ---- practice groups (LeetCode problems that drill a technique) ---- */
+.d-tech{display:flex;flex-direction:column;gap:10px}
+.d-th{display:flex;align-items:baseline;gap:12px}
+.d-th h2{margin:0;font-size:17px;letter-spacing:-.005em}
+.d-tcount{font:500 11.5px var(--mono);color:var(--dim)}
+.d-tfrom{font:500 12px var(--mono);color:var(--dim)}
+.d-tfrom a{color:var(--ca)}
+.d-done{color:var(--grn)}
+.d-prow{grid-template-columns:38px minmax(0,1fr) auto}
+.d-sum2 .d-clear{margin-left:auto}

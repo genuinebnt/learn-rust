@@ -402,37 +402,24 @@ export interface DsaPattern {
   total: number;
   in_150: number;
   solved: number;
-  /** Practice problems for the pattern: how many, how many are open, how many solved. */
+  /** LeetCode practice problems for the pattern: how many, and how many are solved. */
   practice_total: number;
-  practice_open: number;
   practice_solved: number;
 }
 
-export interface PracticeProblem {
+/** One technique's practice: the NeetCode problem that teaches it, and LeetCode problems that drill it. */
+export interface PracticeTechnique {
   id: string;
-  slug: string;
-  title: string;
-  level: Band;
-  order: number;
-  /** The first paragraph of the statement, markdown. */
-  blurb: string;
-  teaches: string[];
-  warmup: boolean;
-  ready: boolean;
-  open: boolean;
-  progress: Progress;
-  unlocked_by: { id: string; slug: string; title: string }[];
-  /** The ids in `unlocked_by` that have been logged already. */
-  logged: string[];
+  name: string;
+  must_learn: { id: string; slug: string; number: number; title: string; solved: boolean };
+  solved: number;
+  problems: DsaProblem[];
 }
 
-export interface PracticeTrack {
+export interface PracticeList {
+  pattern: string;
   code: string;
-  slug: string;
-  name: string;
-  summary: string;
-  language: Language;
-  problems: PracticeProblem[];
+  techniques: PracticeTechnique[];
 }
 
 export interface DsaTechnique {
@@ -530,8 +517,8 @@ export const api = {
   resolve: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/resolve`),
   dsa: () => request<DsaOverview>("GET", "/dsa"),
   dsaPage: (id: string) => request<DsaPage | null>("GET", `/dsa/problems/${id}/page`),
-  practice: (pattern: string) => request<PracticeTrack[]>("GET", `/dsa/practice/${pattern}`),
-  logDsa: (id: string, grade: Grade) => request<{ id: string; due: string; ideal_days: number }>("POST", `/dsa/problems/${id}/log`, { grade }),
+  practice: (pattern: string) => request<PracticeList>("GET", `/dsa/practice/${pattern}`),
+  logDsa: (id: string, grade: Grade) => request<{ id: string; due: string | null; ideal_days: number | null }>("POST", `/dsa/problems/${id}/log`, { grade }),
   startDsa: (from: string) => request<{ start: string }>("POST", "/dsa/start", { from }),
   saveSrs: (srs: SrsSettings) => request<SrsSettings>("PUT", "/settings/srs", srs),
   focus: (id: string, seconds: number) => request<void>("POST", `/problems/${id}/focus`, { seconds }),

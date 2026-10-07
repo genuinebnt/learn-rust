@@ -1,3 +1,7 @@
+> **Archived (decision 24, 2026-10-07).** The in-app practice is now a list of LeetCode problems per technique
+> (`content/dsa/practice.json`, built by `tools/neetcode/practice.py`). The handwritten tracks below (P1 Graphs, P2 DP,
+> P3 Binary Search) still load and verify but are no longer linked from the DSA pages.
+
 # Practice tracks
 
 Handwritten problems per NeetCode pattern (docs/DSA.md, decision 23). Python first, then Rust. Not part of spaced

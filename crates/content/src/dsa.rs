@@ -123,10 +123,12 @@ struct Raw {
     premium: bool,
     tags: Vec<String>,
     companies: Vec<Company>,
+    #[serde(default)]
     video: Option<String>,
     technique: String,
     order: u32,
     role: Role,
+    #[serde(default)]
     practice_of: Option<String>,
 }
 
@@ -149,17 +151,36 @@ fn ordered_groups<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<CompanyG
     d.deserialize_map(Groups)
 }
 
-/// Reads `<root>/dsa/problems.json`. Absent means no DSA section; a broken file is reported, not fatal.
-pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> (Vec<Track>, DsaCatalog) {
+/// What `load` produces: the pattern tracks (the NeetCode lists), the same patterns holding only their practice
+/// problems, and the lists around them.
+pub(crate) struct Loaded {
+    pub tracks: Vec<Track>,
+    pub practice_tracks: Vec<Track>,
+    pub catalog: DsaCatalog,
+}
+
+impl Loaded {
+    fn empty() -> Self {
+        Loaded { tracks: Vec::new(), practice_tracks: Vec::new(), catalog: DsaCatalog::default() }
+    }
+}
+
+#[derive(Deserialize)]
+struct PracticeFile {
+    problems: Vec<Raw>,
+}
+
+/// Reads `<root>/dsa/problems.json` and `practice.json`. Absent means no DSA section; a broken file is reported, not fatal.
+pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
     let path = root.join("dsa").join("problems.json");
     let Ok(text) = std::fs::read_to_string(&path) else {
-        return (Vec::new(), DsaCatalog::default());
+        return Loaded::empty();
     };
     let file: File = match serde_json::from_str(&text) {
         Ok(f) => f,
         Err(e) => {
             issues.push(Issue { path, message: format!("invalid JSON: {e}") });
-            return (Vec::new(), DsaCatalog::default());
+            return Loaded::empty();
         }
     };
     let by_id: BTreeMap<&str, &Raw> = file.problems.iter().map(|p| (p.id.as_str(), p)).collect();
@@ -189,7 +210,7 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> (Vec<Track>, DsaCata
     let pages = load_pages(root, &by_id, issues);
     let names: BTreeMap<&str, &str> = file.techniques.iter().map(|t| (t.id.as_str(), t.name.as_str())).collect();
 
-    let tracks = patterns
+    let tracks: Vec<Track> = patterns
         .iter()
         .enumerate()
         .map(|(i, (pattern, _))| {
@@ -218,7 +239,66 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> (Vec<Track>, DsaCata
             }
         })
         .collect();
-    (tracks, DsaCatalog { techniques: file.techniques, company_groups: file.company_groups })
+    let practice_tracks = load_practice(root, &file, &tracks, &names, issues);
+    Loaded { tracks, practice_tracks, catalog: DsaCatalog { techniques: file.techniques, company_groups: file.company_groups } }
+}
+
+/// `<root>/dsa/practice.json`: LeetCode problems **outside** the NeetCode lists that drill a technique (decision 24).
+/// They load as problems in a hidden copy of each pattern's track, so they can be logged and show in activity, but never
+/// count toward the lists, a track's readiness or the review schedule.
+fn load_practice(root: &Path, main: &File, tracks: &[Track], names: &BTreeMap<&str, &str>, issues: &mut Vec<Issue>) -> Vec<Track> {
+    let path = root.join("dsa").join("practice.json");
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return Vec::new();
+    };
+    let file: PracticeFile = match serde_json::from_str(&text) {
+        Ok(f) => f,
+        Err(e) => {
+            issues.push(Issue { path, message: format!("invalid JSON: {e}") });
+            return Vec::new();
+        }
+    };
+    let known: std::collections::HashSet<&str> = main.problems.iter().map(|p| p.id.as_str()).collect();
+    let techniques: BTreeMap<&str, &Technique> = main.techniques.iter().map(|t| (t.id.as_str(), t)).collect();
+    let mut seen = std::collections::HashSet::new();
+    let mut by_pattern: BTreeMap<&str, Vec<Problem>> = BTreeMap::new();
+    for p in &file.problems {
+        let problem_issue = |message: String| Issue { path: path.clone(), message: format!("{}: {message}", p.id) };
+        if known.contains(p.id.as_str()) {
+            issues.push(problem_issue("is already in the NeetCode lists".into()));
+        } else if !seen.insert(p.id.as_str()) {
+            issues.push(problem_issue("is listed twice".into()));
+        } else if p.premium {
+            issues.push(problem_issue("needs LeetCode Premium; practice problems are free ones".into()));
+        } else if !techniques.contains_key(p.technique.as_str()) {
+            issues.push(problem_issue(format!("unknown technique {}", p.technique)));
+        } else if techniques[p.technique.as_str()].pattern != p.pattern {
+            issues.push(problem_issue(format!("technique {} belongs to {}, not {}", p.technique, techniques[p.technique.as_str()].pattern, p.pattern)));
+        } else if !tracks.iter().any(|t| t.name == p.pattern) {
+            issues.push(problem_issue(format!("unknown pattern {}", p.pattern)));
+        } else {
+            by_pattern.entry(p.pattern.as_str()).or_default().push(problem(p, names, root, None));
+        }
+    }
+    tracks
+        .iter()
+        .filter_map(|t| {
+            let mut problems = by_pattern.remove(t.name.as_str())?;
+            problems.sort_by_key(|p| p.meta.order);
+            Some(Track {
+                slug: t.slug.clone(),
+                code: t.code.clone(),
+                name: t.name.clone(),
+                section: Section::Dsa,
+                tier: t.tier,
+                order: t.order,
+                summary: String::new(),
+                pattern: None,
+                stages: t.stages.clone(),
+                problems,
+            })
+        })
+        .collect()
 }
 
 fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path, page: Option<&Page>) -> Problem {

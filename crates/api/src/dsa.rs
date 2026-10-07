@@ -37,9 +37,8 @@ struct PatternRow<'a> {
     total: usize,
     in_150: usize,
     solved: usize,
-    /// Practice problems for the pattern: how many, how many are open, how many solved.
+    /// LeetCode practice problems for the pattern: how many, and how many are solved.
     practice_total: usize,
-    practice_open: usize,
     practice_solved: usize,
 }
 
@@ -107,6 +106,11 @@ fn local(t: chrono::DateTime<chrono::Utc>) -> NaiveDate {
 
 fn dsa_tracks(catalog: &Catalog) -> impl Iterator<Item = &Track> {
     catalog.tracks.iter().filter(|t| t.section == Section::Dsa)
+}
+
+/// A LeetCode problem outside the NeetCode lists, there to drill a technique (`content/dsa/practice.json`).
+pub(crate) fn is_practice(p: &Problem) -> bool {
+    p.dsa.as_ref().is_some_and(|d| d.lists.iter().all(|l| l == "practice"))
 }
 
 fn dsa_of(p: &Problem) -> &DsaProblem {
@@ -217,10 +221,11 @@ pub async fn overview(State(s): State<AppState>) -> ApiResult<Json<serde_json::V
     let reviews = dsa_reviews(&s.catalog, store::reviews(&s.db).await?);
     let by_problem: HashMap<&str, &ReviewRow> = reviews.iter().map(|r| (r.problem_id.as_str(), r)).collect();
 
-    let open = crate::practice::open_ids(&s).await?;
     let patterns = dsa_tracks(&s.catalog)
         .map(|t| {
-            let (practice_total, practice_open, practice_solved) = crate::practice::counts(&s, &t.name, &open, &progress);
+            let extras = s.catalog.practice_tracks.iter().find(|x| x.code == t.code).map(|x| x.problems.as_slice()).unwrap_or_default();
+            let practice_total = extras.len();
+            let practice_solved = extras.iter().filter(|p| progress.get(&p.id).is_some_and(|r| r.solved)).count();
             PatternRow {
             code: &t.code,
             slug: &t.slug,
@@ -229,7 +234,6 @@ pub async fn overview(State(s): State<AppState>) -> ApiResult<Json<serde_json::V
             in_150: t.problems.iter().filter(|p| dsa_of(p).lists.iter().any(|l| l == "neetcode150")).count(),
             solved: t.problems.iter().filter(|p| progress.get(&p.id).is_some_and(|r| r.solved)).count(),
             practice_total,
-            practice_open,
             practice_solved,
             }
         })
@@ -264,10 +268,10 @@ pub struct LogBody {
 #[derive(Serialize)]
 pub struct Logged {
     id: String,
-    /// When it comes back for review.
-    due: NaiveDate,
+    /// When it comes back for review. Absent for practice problems, which schedule no reviews.
+    due: Option<NaiveDate>,
     /// Days until then, before it was moved to a day with room.
-    ideal_days: f32,
+    ideal_days: Option<f32>,
 }
 
 /// Records how a problem went: `again` (couldn't yet), `hard` (with help), `good` (on my own) or `easy`.
@@ -277,10 +281,13 @@ pub async fn log(State(s): State<AppState>, Path(id): Path<String>, Json(body): 
         return Err(ApiError::BadRequest(format!("{id} isn't a DSA problem; solve it in the workspace")));
     }
     let settings = crate::settings::srs(&s.db).await?;
-    let scheduled = store::log_attempt(&s.db, &id, body.grade, &settings).await?;
-    // The next problem follows from the one just done.
-    store::set_dsa_start(&s.db, &id).await?;
-    Ok(Json(Logged { id, due: scheduled.due, ideal_days: scheduled.ideal_days }))
+    let practice = is_practice(p);
+    let scheduled = store::log_attempt(&s.db, &id, body.grade, &settings, !practice).await?;
+    // The next problem follows from the one just done, unless it was practice, which isn't part of the plan.
+    if !practice {
+        store::set_dsa_start(&s.db, &id).await?;
+    }
+    Ok(Json(Logged { id, due: scheduled.as_ref().map(|x| x.due), ideal_days: scheduled.map(|x| x.ideal_days) }))
 }
 
 #[derive(Deserialize)]
@@ -302,4 +309,90 @@ pub async fn start(State(s): State<AppState>, Json(body): Json<StartBody>) -> Ap
     };
     store::set_dsa_start(&s.db, &id).await?;
     Ok(Json(serde_json::json!({ "start": id })))
+}
+
+// ---------------------------------------------------------------- practice: LeetCode problems that drill a technique
+
+#[derive(Serialize)]
+pub struct PracticeTechnique<'a> {
+    id: &'a str,
+    name: &'a str,
+    /// The NeetCode problem that teaches the technique.
+    must_learn: PracticeRef<'a>,
+    solved: usize,
+    problems: Vec<ProblemRow<'a>>,
+}
+
+#[derive(Serialize)]
+struct PracticeRef<'a> {
+    id: &'a str,
+    slug: &'a str,
+    number: u32,
+    title: &'a str,
+    solved: bool,
+}
+
+#[derive(Serialize)]
+pub struct PracticeList<'a> {
+    pattern: &'a str,
+    code: &'a str,
+    techniques: Vec<PracticeTechnique<'a>>,
+}
+
+/// How a practice problem stands, from its latest attempt (they have no review to read it from).
+fn practice_state(progress: Option<&ProgressRow>) -> Standing {
+    let grade = progress.map(|r| match (r.solved, r.assisted) {
+        (true, false) => "good",
+        (true, true) => "hard",
+        (false, _) => "again",
+    });
+    Standing {
+        solved: progress.is_some_and(|r| r.solved),
+        assisted: progress.is_some_and(|r| r.assisted),
+        last_grade: grade.map(str::to_owned),
+        reps: 0,
+        lapses: 0,
+        last_review: None,
+        due: None,
+        retrievability: None,
+    }
+}
+
+/// A pattern's practice problems, grouped by the technique they drill (decision 24).
+pub async fn practice(State(s): State<AppState>, Path(code): Path<String>) -> ApiResult<Json<serde_json::Value>> {
+    let pattern = dsa_tracks(&s.catalog)
+        .find(|t| t.code.eq_ignore_ascii_case(&code) || t.slug == code)
+        .ok_or_else(|| ApiError::NotFound(format!("pattern {code}")))?;
+    let progress = store::progress(&s.db).await?;
+    let today = crate::activity::today();
+    let no_reviews = HashMap::new();
+    let empty: &[Problem] = &[];
+    let extras = s.catalog.practice_tracks.iter().find(|x| x.code == pattern.code).map_or(empty, |x| x.problems.as_slice());
+    let mut techniques = Vec::new();
+    for t in s.catalog.dsa.techniques.iter().filter(|t| t.pattern == pattern.name) {
+        let Some((track, teacher)) = s.catalog.problem(&t.must_learn) else { continue };
+        let problems: Vec<ProblemRow> = extras
+            .iter()
+            .filter(|p| dsa_of(p).technique == t.id)
+            .map(|p| {
+                let mut r = row(&s.catalog.practice_tracks[0], p, &progress, &no_reviews, today);
+                r.pattern = &track.code;
+                r.state = practice_state(progress.get(&p.id));
+                r
+            })
+            .collect();
+        if problems.is_empty() {
+            continue;
+        }
+        let d = dsa_of(teacher);
+        techniques.push(PracticeTechnique {
+            id: &t.id,
+            name: &t.name,
+            must_learn: PracticeRef { id: &teacher.id, slug: &d.slug, number: d.number, title: &teacher.meta.title, solved: progress.get(&teacher.id).is_some_and(|r| r.solved) },
+            solved: problems.iter().filter(|p| p.state.solved).count(),
+            problems,
+        });
+    }
+    let list = PracticeList { pattern: &pattern.name, code: &pattern.code, techniques };
+    Ok(Json(serde_json::to_value(&list).expect("practice list is plain data")))
 }

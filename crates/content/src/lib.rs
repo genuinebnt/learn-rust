@@ -8,5 +8,5 @@ mod dsa;
 pub mod model;
 
 pub use catalog::{Catalog, Issue, LoadError, Loaded, Problem, ProblemFiles, Track};
-pub use dsa::{Approach, Company, CompanyGroup, DsaCatalog, DsaProblem, Page, Role, Technique};
+pub use dsa::{Approach, Company, CompanyGroup, DsaCatalog, DsaProblem, Lesson, Page, Role, Technique};
 pub use model::{Band, COMPANIES, Language, Mode, Perf, Rules, Section, Status, Tier};

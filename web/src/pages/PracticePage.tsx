@@ -36,6 +36,9 @@ export function PracticePage({ code }: { code: string }) {
             <Link to="/dsa" role="tab" aria-selected="false">
               Problems<small>{pattern?.total ?? ""}</small>
             </Link>
+            <Link to="/dsa/patterns/$code" params={{ code }} role="tab" aria-selected="false">
+              Patterns<small>{overview.data ? "" : ""}</small>
+            </Link>
             <span role="tab" aria-selected="true" className="on">
               Practice
               <small>

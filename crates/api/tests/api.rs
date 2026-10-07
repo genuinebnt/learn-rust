@@ -1243,3 +1243,24 @@ async fn the_mock_page_gets_every_problem_and_keeps_its_settings_and_history(db:
         StatusCode::BAD_REQUEST
     );
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn a_pattern_lists_its_techniques_with_lessons_and_progress(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    call(&app, Method::POST, "/api/dsa/problems/lc-valid-palindrome/log", Some(json!({ "grade": "good" }))).await;
+    call(&app, Method::POST, "/api/dsa/problems/lc-valid-palindrome-ii/log", Some(json!({ "grade": "good" }))).await;
+    let (status, p) = call(&app, Method::GET, "/api/dsa/patterns/D2", None).await;
+    assert_eq!(status, StatusCode::OK, "{p}");
+    assert_eq!((p["pattern"].as_str(), p["code"].as_str(), p["total"].as_u64()), (Some("Two Pointers"), Some("D2"), Some(3)));
+    assert!(p["intro"].as_str().unwrap().starts_with("Two indexes"));
+    let t = &p["techniques"][0];
+    assert_eq!((t["id"].as_str(), t["lesson"]["signals"].as_array().unwrap().len()), (Some("Two Pointers:opposite"), 2));
+    // Must-learn first, with the pattern's practice problems counted apart.
+    assert_eq!((t["problems"][0]["id"].as_str(), t["problems"].as_array().unwrap().len(), t["solved"].as_u64()), (Some("lc-valid-palindrome"), 3, Some(1)));
+    assert_eq!((t["practice_total"].as_u64(), t["practice_solved"].as_u64()), (Some(2), Some(1)));
+    // A technique with no lesson written still lists its problems.
+    let (_, a) = call(&app, Method::GET, "/api/dsa/patterns/D1", None).await;
+    assert_eq!((a["techniques"][0]["lesson"].clone(), a["intro"].clone()), (Value::Null, Value::Null));
+    assert_eq!(call(&app, Method::GET, "/api/dsa/patterns/D99", None).await.0, StatusCode::NOT_FOUND);
+}

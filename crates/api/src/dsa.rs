@@ -396,3 +396,51 @@ pub async fn practice(State(s): State<AppState>, Path(code): Path<String>) -> Ap
     let list = PracticeList { pattern: &pattern.name, code: &pattern.code, techniques };
     Ok(Json(serde_json::to_value(&list).expect("practice list is plain data")))
 }
+
+// ---------------------------------------------------------------- pattern lessons (decision 6)
+
+#[derive(Serialize)]
+struct LessonTechnique<'a> {
+    id: &'a str,
+    name: &'a str,
+    /// The lesson text, if it has been written.
+    lesson: Option<&'a anneal_content::Lesson>,
+    solved: usize,
+    /// Problems in the NeetCode lists that use it, must-learn first.
+    problems: Vec<ProblemRow<'a>>,
+    practice_total: usize,
+    practice_solved: usize,
+}
+
+/// A pattern's lessons: each technique with when to use it, a template, its traps, and its problems with progress.
+pub async fn pattern(State(s): State<AppState>, Path(code): Path<String>) -> ApiResult<Json<serde_json::Value>> {
+    let track = dsa_tracks(&s.catalog).find(|t| t.code.eq_ignore_ascii_case(&code) || t.slug == code).ok_or_else(|| ApiError::NotFound(format!("pattern {code}")))?;
+    let today = crate::activity::today();
+    let progress = store::progress(&s.db).await?;
+    let reviews = dsa_reviews(&s.catalog, store::reviews(&s.db).await?);
+    let by_problem: HashMap<&str, &ReviewRow> = reviews.iter().map(|r| (r.problem_id.as_str(), r)).collect();
+    let extras = s.catalog.practice_tracks.iter().find(|x| x.code == track.code).map(|x| x.problems.as_slice()).unwrap_or_default();
+    let mut techniques = Vec::new();
+    for t in s.catalog.dsa.techniques.iter().filter(|t| t.pattern == track.name) {
+        let mut problems: Vec<ProblemRow> = track.problems.iter().filter(|p| dsa_of(p).technique == t.id).map(|p| row(track, p, &progress, &by_problem, today)).collect();
+        problems.sort_by_key(|p| (p.role != Role::MustLearn, p.premium, p.order));
+        let practice: Vec<&Problem> = extras.iter().filter(|p| dsa_of(p).technique == t.id).collect();
+        techniques.push(LessonTechnique {
+            id: &t.id,
+            name: &t.name,
+            lesson: s.catalog.dsa.lessons.get(&t.id),
+            solved: problems.iter().filter(|p| p.state.solved).count(),
+            problems,
+            practice_total: practice.len(),
+            practice_solved: practice.iter().filter(|p| progress.get(&p.id).is_some_and(|r| r.solved)).count(),
+        });
+    }
+    let value = serde_json::json!({
+        "code": track.code,
+        "pattern": track.name,
+        "intro": s.catalog.dsa.lesson_intros.get(&track.name),
+        "total": track.problems.len(),
+        "techniques": techniques,
+    });
+    Ok(Json(value))
+}

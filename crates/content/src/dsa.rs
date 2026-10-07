@@ -101,6 +101,33 @@ pub struct DsaCatalog {
     pub techniques: Vec<Technique>,
     /// In display order.
     pub company_groups: Vec<CompanyGroup>,
+    /// The pattern lessons, by technique id (`content/dsa/lessons/<pattern>.toml`).
+    pub lessons: BTreeMap<String, Lesson>,
+    /// A sentence or two introducing each pattern's lessons, by pattern name.
+    pub lesson_intros: BTreeMap<String, String>,
+}
+
+/// What a pattern lesson says about one technique: when to reach for it, a Python template to adapt, and the usual traps.
+/// `tools/neetcode/check_lessons.py` runs the template.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Lesson {
+    /// The technique id, e.g. `Graphs:topo`.
+    pub id: String,
+    /// The signals in a problem that call for it.
+    pub signals: Vec<String>,
+    pub template: String,
+    pub pitfalls: Vec<String>,
+}
+
+/// `<root>/dsa/lessons/<pattern>.toml`: the lessons of one pattern.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LessonFile {
+    /// The pattern's name, as in `problems.json`.
+    pattern: String,
+    intro: String,
+    technique: Vec<Lesson>,
 }
 
 #[derive(Deserialize)]
@@ -240,7 +267,8 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
         })
         .collect();
     let practice_tracks = load_practice(root, &file, &tracks, &names, issues);
-    Loaded { tracks, practice_tracks, catalog: DsaCatalog { techniques: file.techniques, company_groups: file.company_groups } }
+    let (lessons, lesson_intros) = load_lessons(root, &file.techniques, issues);
+    Loaded { tracks, practice_tracks, catalog: DsaCatalog { techniques: file.techniques, company_groups: file.company_groups, lessons, lesson_intros } }
 }
 
 /// `<root>/dsa/practice.json`: LeetCode problems **outside** the NeetCode lists that drill a technique (decision 24).
@@ -345,6 +373,49 @@ fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path, page: Option<&Pag
             page: page.cloned(),
         }),
     }
+}
+
+/// `<root>/dsa/lessons/*.toml`: the pattern lessons. A lesson for an unknown technique, one filed under the wrong pattern,
+/// a duplicate or an empty one is reported. Techniques without a lesson are allowed (the page says so).
+fn load_lessons(root: &Path, techniques: &[Technique], issues: &mut Vec<Issue>) -> (BTreeMap<String, Lesson>, BTreeMap<String, String>) {
+    let dir = root.join("dsa").join("lessons");
+    let mut lessons = BTreeMap::new();
+    let mut intros = BTreeMap::new();
+    let Ok(entries) = std::fs::read_dir(&dir) else { return (lessons, intros) };
+    let mut files: Vec<_> = entries.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "toml")).collect();
+    files.sort();
+    for path in files {
+        let file: LessonFile = match std::fs::read_to_string(&path).map_err(|e| e.to_string()).and_then(|t| toml::from_str(&t).map_err(|e| e.message().to_owned())) {
+            Ok(f) => f,
+            Err(message) => {
+                issues.push(Issue { path, message });
+                continue;
+            }
+        };
+        if !techniques.iter().any(|t| t.pattern == file.pattern) {
+            issues.push(Issue { path, message: format!("unknown pattern {}", file.pattern) });
+            continue;
+        }
+        if file.intro.trim().is_empty() {
+            issues.push(Issue { path: path.clone(), message: "the intro is empty".into() });
+        }
+        intros.insert(file.pattern.clone(), file.intro);
+        for lesson in file.technique {
+            let problem = |message: String| Issue { path: path.clone(), message: format!("{}: {message}", lesson.id) };
+            match techniques.iter().find(|t| t.id == lesson.id) {
+                None => issues.push(problem("isn't a technique".into())),
+                Some(t) if t.pattern != file.pattern => issues.push(problem(format!("belongs to {}, not {}", t.pattern, file.pattern))),
+                Some(_) if lessons.contains_key(&lesson.id) => issues.push(problem("has two lessons".into())),
+                Some(_) if lesson.signals.is_empty() || lesson.pitfalls.is_empty() || lesson.template.trim().is_empty() => {
+                    issues.push(problem("needs signals, a template and pitfalls".into()));
+                }
+                Some(_) => {
+                    lessons.insert(lesson.id.clone(), lesson);
+                }
+            }
+        }
+    }
+    (lessons, intros)
 }
 
 /// `<root>/dsa/pages/<slug>.toml`, by slug. A page for a problem that isn't in the lists is reported.

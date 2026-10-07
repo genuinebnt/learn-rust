@@ -422,6 +422,34 @@ export interface PracticeList {
   techniques: PracticeTechnique[];
 }
 
+/** What a pattern lesson says about one technique. */
+export interface TechniqueLesson {
+  id: string;
+  signals: string[];
+  template: string;
+  pitfalls: string[];
+}
+
+export interface PatternTechnique {
+  id: string;
+  name: string;
+  /** None until the lesson is written. */
+  lesson: TechniqueLesson | null;
+  solved: number;
+  /** In the NeetCode lists, must-learn first. */
+  problems: DsaProblem[];
+  practice_total: number;
+  practice_solved: number;
+}
+
+export interface PatternLessons {
+  code: string;
+  pattern: string;
+  intro: string | null;
+  total: number;
+  techniques: PatternTechnique[];
+}
+
 export interface DsaTechnique {
   id: string;
   pattern: string;
@@ -579,6 +607,7 @@ export const api = {
   resolve: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/resolve`),
   dsa: () => request<DsaOverview>("GET", "/dsa"),
   dsaPage: (id: string) => request<DsaPage | null>("GET", `/dsa/problems/${id}/page`),
+  patternLessons: (pattern: string) => request<PatternLessons>("GET", `/dsa/patterns/${pattern}`),
   practice: (pattern: string) => request<PracticeList>("GET", `/dsa/practice/${pattern}`),
   logDsa: (id: string, grade: Grade) => request<{ id: string; due: string | null; ideal_days: number | null }>("POST", `/dsa/problems/${id}/log`, { grade }),
   mock: () => request<MockData>("GET", "/dsa/mock"),

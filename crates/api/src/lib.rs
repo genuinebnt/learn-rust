@@ -74,6 +74,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/dsa/problems/{id}/log", post(dsa::log))
         .route("/dsa/start", post(dsa::start))
         .route("/dsa/practice/{pattern}", get(dsa::practice))
+        .route("/dsa/patterns/{pattern}", get(dsa::pattern))
         .route("/dsa/mock", get(mock::get))
         .route("/dsa/mock/config", put(mock::put_config))
         .route("/dsa/mock/rounds", post(mock::post_round))

@@ -1,0 +1,397 @@
+pattern = "Graphs"
+intro = "Twelve ideas cover almost every graph problem. First decide what the graph is (grid cells, courses, words, people), then which question it asks: reach everything, fewest steps, an order, or which group. The template for each is short; the work is in recognising the shape."
+
+[[technique]]
+id = "Graphs:simulation"
+signals = [
+    "the rules are given as an order, a mapping or a procedure you can follow directly",
+    "no search is needed: check each pair of neighbours, or follow each step",
+    "the input already is the structure (a sorted list under a custom alphabet, a list of moves)",
+]
+template = '''
+def is_sorted_by(order, items):
+    # Sorted under a custom alphabet? Check each neighbouring pair.
+    rank = {c: i for i, c in enumerate(order)}
+    key = lambda word: [rank[c] for c in word]
+    return all(key(a) <= key(b) for a, b in zip(items, items[1:]))
+'''
+pitfalls = [
+    "Sortedness is transitive, so only neighbouring pairs need checking.",
+    "A shorter word that is a prefix of a longer one must come first. Comparing lists of ranks handles that for free.",
+]
+
+[[technique]]
+id = "Graphs:degree"
+signals = [
+    "who is trusted, followed or pointed at by everyone, or by no one",
+    "a celebrity, judge, source or sink in a directed graph",
+    "counting edges in and out of each node answers the question without any traversal",
+]
+template = '''
+def find_judge(n, trust):
+    """The judge is trusted by everyone else (n - 1) and trusts nobody."""
+    score = [0] * (n + 1)
+    for a, b in trust:
+        score[a] -= 1  # a trusts someone: an edge out
+        score[b] += 1  # b is trusted: an edge in
+    return next((p for p in range(1, n + 1) if score[p] == n - 1), -1)
+'''
+pitfalls = [
+    "One net score (in minus out) captures both conditions, because any outgoing edge drops you below n - 1.",
+    "Nodes are often numbered from 1: size the array n + 1.",
+    "n = 1 with no edges: the lone node qualifies.",
+]
+
+[[technique]]
+id = "Graphs:flood"
+signals = [
+    "a 2-D grid of cells",
+    "islands, regions, enclosed areas, connected cells of the same kind",
+    "count the groups, or measure the biggest one",
+]
+template = '''
+DIRS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
+
+def count_islands(grid):
+    rows, cols = len(grid), len(grid[0])
+
+    def sink(r, c):
+        # Iterative, so a big grid can't hit Python's recursion limit.
+        stack = [(r, c)]
+        grid[r][c] = "0"  # mark when pushed: the grid is the visited set
+        while stack:
+            r, c = stack.pop()
+            for dr, dc in DIRS:
+                nr, nc = r + dr, c + dc
+                inside = 0 <= nr < rows and 0 <= nc < cols
+                if inside and grid[nr][nc] == "1":
+                    grid[nr][nc] = "0"
+                    stack.append((nr, nc))
+
+    islands = 0
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] == "1":
+                islands += 1
+                sink(r, c)
+    return islands
+'''
+pitfalls = [
+    "Check the bounds before reading the cell.",
+    "Mark a cell as seen when you push it, not when you pop it, or it can be pushed many times.",
+    "Overwriting the grid is fine in an interview if you say so. Otherwise keep a seen set.",
+    "A recursive version is shorter but fails on a 300 by 300 grid of land in Python (the recursion limit is 1000).",
+]
+
+[[technique]]
+id = "Graphs:clone"
+signals = [
+    "copy a graph or a linked structure where nodes point at each other",
+    "the copy must not share any node with the original",
+    "cycles are possible, so a node can be reached twice",
+]
+template = '''
+def clone_graph(node):
+    if node is None:
+        return None
+    copies = {node: Node(node.val)}  # original node -> its copy
+    stack = [node]
+    while stack:
+        cur = stack.pop()
+        for nxt in cur.neighbors:
+            if nxt not in copies:
+                copies[nxt] = Node(nxt.val)
+                stack.append(nxt)
+            copies[cur].neighbors.append(copies[nxt])
+    return copies[node]
+'''
+pitfalls = [
+    "Register the copy in the map before following its edges, or a cycle recurses forever.",
+    "The map from original to copy is the visited set. A separate seen set is redundant.",
+    "Each edge is appended once per direction because every node is expanded once.",
+]
+
+[[technique]]
+id = "Graphs:multi-bfs"
+signals = [
+    "distance from the nearest of many sources",
+    "something spreads outward from several places at once (rot, fire, water)",
+    "how many minutes until everything is reached",
+]
+template = '''
+from collections import deque
+
+
+def spread(grid, sources):
+    # Distance from the nearest source to every cell (-1 if unreachable).
+    rows, cols = len(grid), len(grid[0])
+    dist = [[-1] * cols for _ in range(rows)]
+    queue = deque()
+    for r, c in sources:  # all sources start together, at distance 0
+        dist[r][c] = 0
+        queue.append((r, c))
+    while queue:
+        r, c = queue.popleft()
+        for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < rows and 0 <= nc < cols and dist[nr][nc] == -1:
+                dist[nr][nc] = dist[r][c] + 1
+                queue.append((nr, nc))
+    return dist
+'''
+pitfalls = [
+    "Starting a separate BFS from each source costs O(k times n). Seed one queue with all of them.",
+    "The last distance reached is the time for everything to be covered. Cells never reached stay at -1.",
+    "Mark distance when you enqueue, so a cell is never queued twice.",
+]
+
+[[technique]]
+id = "Graphs:border"
+signals = [
+    "which cells can reach (or are cut off from) the border or an ocean",
+    "enclosed, surrounded, or flows to both edges",
+    "searching from every cell would repeat the same walks",
+]
+template = '''
+def reach_from(border_cells, heights):
+    # Cells that can flow down to the start cells, found by walking uphill.
+    rows, cols = len(heights), len(heights[0])
+    seen = set(border_cells)
+    stack = list(border_cells)
+    while stack:
+        r, c = stack.pop()
+        for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nr, nc = r + dr, c + dc
+            if not (0 <= nr < rows and 0 <= nc < cols) or (nr, nc) in seen:
+                continue
+            if heights[nr][nc] >= heights[r][c]:
+                seen.add((nr, nc))
+                stack.append((nr, nc))
+    return seen
+'''
+pitfalls = [
+    "Reverse the question. Start at the border and ask what reaches it, instead of searching outward from every cell.",
+    "When you walk backwards, flip the condition: flow goes downhill, so the reverse walk goes uphill (>=).",
+    "For two borders (two oceans), run the walk once per border and intersect the results.",
+]
+
+[[technique]]
+id = "Graphs:tree-walk"
+signals = [
+    "n nodes and n - 1 edges: it is a tree, just given as a list of edges",
+    "everything hangs from one root (a capital, a CEO, node 0)",
+    "an edge has a direction you may need to flip, or a cost to count",
+]
+template = '''
+def min_flips_to_reach_zero(n, connections):
+    # connections: directed (a, b) edges of a tree. Flip as few as needed
+    # so that every city can reach city 0.
+    graph = [[] for _ in range(n)]
+    for a, b in connections:
+        graph[a].append((b, 1))  # a -> b points away from 0: costs a flip
+        graph[b].append((a, 0))  # b -> a already points toward 0
+    flips, stack, seen = 0, [0], {0}
+    while stack:
+        city = stack.pop()
+        for nxt, cost in graph[city]:
+            if nxt not in seen:
+                seen.add(nxt)
+                flips += cost
+                stack.append(nxt)
+    return flips
+'''
+pitfalls = [
+    "Store each edge in both directions with a flag for how it was given, then walk away from the root.",
+    "In a tree there is exactly one path to each node, so a seen set is all the cycle protection needed.",
+    "Don't confuse the direction you walk with the direction the edge points. That is the whole puzzle here.",
+]
+
+[[technique]]
+id = "Graphs:topo"
+signals = [
+    "prerequisites, dependencies, build order",
+    "is there a valid order? or return one",
+    "a cycle means it is impossible",
+]
+template = '''
+from collections import deque
+
+
+def topo_order(n, edges):
+    # edges are (before, after) pairs. Returns an order, or [] on a cycle.
+    graph = [[] for _ in range(n)]
+    indegree = [0] * n
+    for a, b in edges:
+        graph[a].append(b)
+        indegree[b] += 1
+    queue = deque(v for v in range(n) if indegree[v] == 0)
+    order = []
+    while queue:
+        v = queue.popleft()
+        order.append(v)
+        for w in graph[v]:
+            indegree[w] -= 1
+            if indegree[w] == 0:
+                queue.append(w)
+    return order if len(order) == n else []
+'''
+pitfalls = [
+    "A visited set alone can't find directed cycles. Count what you ordered: fewer than n means a cycle.",
+    "Mind the direction the problem gives you. A [course, prerequisite] pair is the edge prerequisite -> course.",
+    "Nodes with no edges at all still belong in the order.",
+]
+
+[[technique]]
+id = "Graphs:dsu"
+signals = [
+    "merge groups and ask whether two things are in the same group",
+    "edges arrive one at a time, or you only need to know the number of groups",
+    "an edge that joins two nodes already connected closes a cycle (redundant connection)",
+]
+template = '''
+class DSU:
+    def __init__(self, n):
+        self.parent = list(range(n))
+        self.size = [1] * n
+        self.groups = n
+
+    def find(self, x):
+        while self.parent[x] != x:
+            self.parent[x] = self.parent[self.parent[x]]  # path halving
+            x = self.parent[x]
+        return x
+
+    def union(self, a, b):
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb:
+            return False  # already connected: this edge closes a cycle
+        if self.size[ra] < self.size[rb]:
+            ra, rb = rb, ra
+        self.parent[rb] = ra
+        self.size[ra] += self.size[rb]
+        self.groups -= 1
+        return True
+'''
+pitfalls = [
+    "Without path compression and union by size, a find can take O(n).",
+    "union returning False is the signal for a redundant edge. Use it instead of a separate cycle check.",
+    "Map names (strings, emails) to integer ids first, or use a dict for the parent array.",
+]
+
+[[technique]]
+id = "Graphs:bipartite"
+signals = [
+    "split the nodes into two groups so that no edge joins two nodes of the same group",
+    "two teams, two colours, or someone who must not share a side with a neighbour",
+    "an odd-length cycle makes it impossible",
+]
+template = '''
+from collections import deque
+
+
+def is_bipartite(graph):
+    # graph[v] lists v's neighbours. Two-colour each component; a clash
+    # between neighbours means an odd cycle.
+    colour = {}
+    for start in range(len(graph)):
+        if start in colour:
+            continue
+        colour[start] = 0
+        queue = deque([start])
+        while queue:
+            v = queue.popleft()
+            for w in graph[v]:
+                if w not in colour:
+                    colour[w] = 1 - colour[v]
+                    queue.append(w)
+                elif colour[w] == colour[v]:
+                    return False
+    return True
+'''
+pitfalls = [
+    "The graph may be disconnected. Start a search from every node that has no colour yet.",
+    "Only edges between equal colours are a problem, so an unseen neighbour just gets the opposite colour.",
+    "Self-loops make a graph non-bipartite (the neighbour has the same colour as the node).",
+]
+
+[[technique]]
+id = "Graphs:weighted"
+signals = [
+    "relationships with a ratio or a multiplier between pairs (a / b = 2.0)",
+    "answer a query by combining the relationships along a path",
+    "the same pair in reverse gives the reciprocal",
+]
+template = '''
+from collections import defaultdict, deque
+
+
+def solve_queries(equations, values, queries):
+    # equations[i] = [a, b] means a / b = values[i].
+    # A query [x, y] asks x / y, or -1.0 if it cannot be known.
+    graph = defaultdict(dict)
+    for (a, b), v in zip(equations, values):
+        graph[a][b] = v
+        graph[b][a] = 1 / v
+
+    def ratio(src, dst):
+        if src not in graph or dst not in graph:
+            return -1.0
+        seen = {src}
+        queue = deque([(src, 1.0)])
+        while queue:
+            node, product = queue.popleft()
+            if node == dst:
+                return product
+            for nxt, w in graph[node].items():
+                if nxt not in seen:
+                    seen.add(nxt)
+                    queue.append((nxt, product * w))
+        return -1.0
+
+    return [ratio(x, y) for x, y in queries]
+'''
+pitfalls = [
+    "Store both directions: a -> b with the value and b -> a with its reciprocal.",
+    "x / x is 1.0 only if x appears in some equation. An unknown variable is -1.0 even against itself.",
+    "The weights multiply along the path instead of adding. It is the same search as for distances.",
+]
+
+[[technique]]
+id = "Graphs:bfs-implicit"
+signals = [
+    "fewest moves, steps or changes to get from one state to another",
+    "the graph is never given: you generate each state's neighbours",
+    "one move changes one thing (a letter, a wheel digit, a square)",
+]
+template = '''
+from collections import defaultdict, deque
+
+
+def ladder_length(begin, end, words):
+    # Fewest words in a chain from begin to end, one letter changed at a
+    # time (0 if there is no chain).
+    if end not in words:
+        return 0
+    groups = defaultdict(list)  # "h*t" -> the words that match it
+    for w in set(words) | {begin}:
+        for i in range(len(w)):
+            groups[w[:i] + "*" + w[i + 1:]].append(w)
+    seen = {begin}
+    queue = deque([(begin, 1)])
+    while queue:
+        word, steps = queue.popleft()
+        if word == end:
+            return steps
+        for i in range(len(word)):
+            for nxt in groups[word[:i] + "*" + word[i + 1:]]:
+                if nxt not in seen:
+                    seen.add(nxt)
+                    queue.append((nxt, steps + 1))
+    return 0
+'''
+pitfalls = [
+    "Comparing every pair of words is O(n squared times length). Bucket words by wildcard pattern instead.",
+    "BFS gives the fewest steps only when every move costs the same. Different costs call for Dijkstra.",
+    "Mark states seen when you enqueue them. Check whether the target is reachable at all before searching.",
+]

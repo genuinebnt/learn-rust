@@ -1,0 +1,25 @@
+/* Pattern lessons (docs/DSA.md, decision 6): one card per technique. */
+.l-intro{margin:0;max-width:78ch;font-size:15.5px;line-height:1.65;color:var(--mut)}
+.l-soon{margin:0;font-size:13px;color:var(--dim);line-height:1.5}
+.l-jump{display:flex;flex-wrap:wrap;gap:6px}
+.l-jump a{height:30px;display:inline-flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;font-weight:500;color:var(--mut);background:var(--bg)}
+.l-jump a:hover{border-color:var(--dim);color:var(--fg)}
+.l-pat{border:1px solid var(--line2);border-radius:12px;background:var(--panel);display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);overflow:hidden;scroll-margin-top:72px}
+@media (max-width:900px){.l-pat{grid-template-columns:1fr}.l-pat .l-lft{border-right:0;border-bottom:1px solid var(--line2)}}
+.l-lft,.l-rgt{padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.l-lft{border-right:1px solid var(--line2)}
+.l-pat h3{margin:0;font-size:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.l-pat h3 small{font:500 11px var(--mono);color:var(--dim)}
+.l-pb{flex:0 0 90px;height:5px;border-radius:3px;background:var(--raise);overflow:hidden}
+.l-pb i{display:block;height:100%;background:var(--grn)}
+.l-lab{font:600 10px var(--mono);letter-spacing:.16em;color:var(--dim)}
+.l-when{display:flex;flex-direction:column;gap:6px}
+.l-when span{position:relative;padding-left:14px;font-size:13.5px;line-height:1.5;color:var(--fg)}
+.l-when span::before{content:"";position:absolute;left:0;top:.62em;width:5px;height:5px;border-radius:50%;background:var(--ca)}
+.l-pit{margin:0;padding-left:16px;color:var(--mut);font-size:12.5px;line-height:1.55;display:flex;flex-direction:column;gap:4px}
+.l-plist{display:flex;flex-direction:column;gap:4px}
+.l-prow{display:flex;align-items:center;gap:8px;min-height:34px;padding:4px 8px;border:1px solid var(--line2);border-radius:7px;background:var(--bg);font-size:13px;min-width:0}
+.l-prow:hover{border-color:var(--line)}
+.l-pt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.l-more{font:600 11.5px var(--mono);color:var(--ca)}
+.l-more:hover{text-decoration:underline}

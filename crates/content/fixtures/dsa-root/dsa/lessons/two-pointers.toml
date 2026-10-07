@@ -1,0 +1,13 @@
+pattern = "Two Pointers"
+intro = "Two indexes walking an array so one pass does the work of two loops."
+
+[[technique]]
+id = "Two Pointers:opposite"
+signals = ["a sorted array and a pair or a palindrome to find", "compare the two ends and move the one that can improve"]
+template = '''
+def opposite(a):
+    lo, hi = 0, len(a) - 1
+    while lo < hi:
+        lo, hi = lo + 1, hi - 1
+'''
+pitfalls = ["Use lo < hi, not lo <= hi, when the pair needs two different positions."]

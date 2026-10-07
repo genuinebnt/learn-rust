@@ -92,3 +92,30 @@ fn pages_must_belong_to_a_listed_problem_and_parse() {
     let (_, p) = loaded.catalog.problem("lc-two-sum").unwrap();
     assert_eq!(p.dsa.as_ref().unwrap().page.as_ref().unwrap().approaches.len(), 1);
 }
+
+#[test]
+fn lessons_belong_to_a_technique_of_their_pattern_and_are_complete() {
+    let dir = root_with(&std::fs::read_to_string(fixture().join("dsa/problems.json")).unwrap());
+    std::fs::create_dir_all(dir.path().join("dsa/lessons")).unwrap();
+    let good = std::fs::read_to_string(fixture().join("dsa/lessons/two-pointers.toml")).unwrap();
+    let write = |name: &str, text: &str| std::fs::write(dir.path().join("dsa/lessons").join(name), text).unwrap();
+    let issues = |dir: &std::path::Path| -> Vec<String> { Catalog::load(dir).unwrap().issues.into_iter().map(|i| i.message).collect() };
+
+    write("two-pointers.toml", &good);
+    let loaded = Catalog::load(dir.path()).unwrap();
+    assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
+    assert_eq!(loaded.catalog.dsa.lessons["Two Pointers:opposite"].signals.len(), 2);
+    assert!(loaded.catalog.dsa.lesson_intros["Two Pointers"].starts_with("Two indexes"));
+
+    // The same technique filed under another pattern, one that doesn't exist, a duplicate and an empty lesson.
+    write("wrong-pattern.toml", &good.replace("pattern = \"Two Pointers\"", "pattern = \"Arrays & Hashing\""));
+    write("no-pattern.toml", &good.replace("pattern = \"Two Pointers\"", "pattern = \"Cooking\""));
+    write("empty.toml", "pattern = \"Arrays & Hashing\"\nintro = \"x\"\n[[technique]]\nid = \"Arrays & Hashing:seen-set\"\nsignals = []\ntemplate = \"\"\npitfalls = []\n");
+    let found = issues(dir.path());
+    assert!(found.iter().any(|m| m.contains("Two Pointers:opposite: belongs to Two Pointers, not Arrays & Hashing")), "{found:?}");
+    assert!(found.iter().any(|m| m.contains("unknown pattern Cooking")), "{found:?}");
+    assert!(found.iter().any(|m| m.contains("Arrays & Hashing:seen-set: needs signals, a template and pitfalls")), "{found:?}");
+    std::fs::remove_file(dir.path().join("dsa/lessons/wrong-pattern.toml")).unwrap();
+    write("dup.toml", &good);
+    assert!(issues(dir.path()).iter().any(|m| m.contains("has two lessons")));
+}

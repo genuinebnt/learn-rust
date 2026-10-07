@@ -5,7 +5,7 @@ import { api, type Activity, type Band, type DsaOverview, type DsaProblem, type 
 import { Companies, Mark, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
 import { pad2, pctColor } from "../components/bits";
-import { BLURB, DIFF, GRADES, LISTS, MINUTES, STATUS_LABEL, daysUntil, hours, inList, leetcode, markOf, niceDate, statusOf, videoUrl, type ListKey, type Status } from "../dsa";
+import { BLURB, DIFF, GRADES, LISTS, MINUTES, STATUS_LABEL, daysUntil, hours, inList, leetcode, niceDate, statusOf, videoUrl, type ListKey, type Status } from "../dsa";
 
 type Role = "must_learn" | "practice";
 type View = "patterns" | "problems";
@@ -200,7 +200,7 @@ export function DsaPage() {
                     }}
                   />
                 ) : (
-                  <ProblemGroups o={o} model={model} openGroups={openGroups} openGroup={(code) => setOpenGroups(new Set([...openGroups, code]))} log={log} clearAll={clearAll} />
+                  <ProblemGroups o={o} model={model} uncapped={f.patterns.size > 0} openGroups={openGroups} openGroup={(code) => setOpenGroups(new Set([...openGroups, code]))} log={log} clearAll={clearAll} />
                 )}
               </div>
             </div>
@@ -552,7 +552,7 @@ function PatternGrid({ o, f, model, open }: { o: DsaOverview; f: Filters; model:
   );
 }
 
-function ProblemGroups({ o, model, openGroups, openGroup, log, clearAll }: { o: DsaOverview; model: Model; openGroups: Set<string>; openGroup: (code: string) => void; log: ReturnType<typeof useLogger>["log"]; clearAll: () => void }) {
+function ProblemGroups({ o, model, uncapped, openGroups, openGroup, log, clearAll }: { o: DsaOverview; uncapped: boolean; model: Model; openGroups: Set<string>; openGroup: (code: string) => void; log: ReturnType<typeof useLogger>["log"]; clearAll: () => void }) {
   const { items } = model;
   if (!items.length)
     return (
@@ -563,15 +563,13 @@ function ProblemGroups({ o, model, openGroups, openGroup, log, clearAll }: { o: 
         </button>
       </div>
     );
-  const ids = new Set(items.map((p) => p.id));
-  const roleRank = (p: DsaProblem) => (p.role === "must_learn" ? 0 : 1);
   return (
     <>
       {o.patterns.map((pat) => {
         const inPat = items.filter((p) => p.pattern === pat.code);
         if (!inPat.length) return null;
-        const roots = inPat.filter((p) => !(p.practice_of && ids.has(p.practice_of))).sort((a, b) => roleRank(a) - roleRank(b) || a.order - b.order);
-        const cap = openGroups.has(pat.code) ? roots.length : 8;
+        const roots = [...inPat].sort((a, b) => a.order - b.order);
+        const cap = openGroups.has(pat.code) || uncapped ? roots.length : 15;
         return (
           <div className="d-group" key={pat.code}>
             <div className="flabel d-flabel">
@@ -579,7 +577,7 @@ function ProblemGroups({ o, model, openGroups, openGroup, log, clearAll }: { o: 
             </div>
             <div className="d-plist" style={{ marginTop: 14 }}>
               {roots.slice(0, cap).map((p) => (
-                <ProblemCard key={p.id} p={p} items={items} o={o} model={model} log={log} />
+                <ProblemCard key={p.id} p={p} o={o} model={model} log={log} />
               ))}
               {roots.length > cap && (
                 <button className="d-more" onClick={() => openGroup(pat.code)}>
@@ -594,10 +592,9 @@ function ProblemGroups({ o, model, openGroups, openGroup, log, clearAll }: { o: 
   );
 }
 
-function ProblemCard({ p, items, o, model, log, child }: { p: DsaProblem; items: DsaProblem[]; o: DsaOverview; model: Model; log: ReturnType<typeof useLogger>["log"]; child?: boolean }) {
+function ProblemCard({ p, o, model, log }: { p: DsaProblem; o: DsaOverview; model: Model; log: ReturnType<typeof useLogger>["log"] }) {
   const status = statusOf(p, o.today);
   const teacher = p.practice_of ? model.byId.get(p.practice_of) : undefined;
-  const kids = child ? [] : items.filter((c) => c.practice_of === p.id);
   const lists = p.lists.filter((l) => l !== "all").map((l) => ({ blind75: "B75", neetcode150: "150", neetcode250: "250", all: "" })[l]);
   const when =
     status === "due" ? (
@@ -636,7 +633,14 @@ function ProblemCard({ p, items, o, model, log, child }: { p: DsaProblem; items:
             </span>
           )}
           <span>{p.tags.slice(0, 3).join(" · ")}</span>
-          {teacher && !child && !items.includes(teacher) && <span className="d-of">· practice of {teacher.title}</span>}
+          {teacher && (
+            <span className="d-of">
+              · practice of{" "}
+              <Link to="/d/$slug" params={{ slug: teacher.slug }} style={{ color: "var(--mut)" }}>
+                {teacher.title}
+              </Link>
+            </span>
+          )}
         </div>
         <Companies companies={p.companies} />
       </div>
@@ -655,18 +659,6 @@ function ProblemCard({ p, items, o, model, log, child }: { p: DsaProblem; items:
           ))}
         </div>
       </div>
-      {kids.length > 0 && (
-        <div className="d-prac">
-          <span>PRACTICE THIS IDEA · {kids.length}</span>
-          {kids.map((c) => (
-            <Link key={c.id} className="d-pp" to="/d/$slug" params={{ slug: c.slug }} title={`${c.title} · ${DIFF[c.difficulty][0]}`}>
-              <i className={markOf(c)} />
-              {c.title}
-              <small style={{ color: DIFF[c.difficulty][1] }}>{DIFF[c.difficulty][0][0]}</small>
-            </Link>
-          ))}
-        </div>
-      )}
     </article>
   );
 }

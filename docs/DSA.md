@@ -41,7 +41,10 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       LeetCode Premium; 921 carry a company tag). The must-learn rule marks 702 of 943 as must learn, which is probably
       too many for the "All" list: revisit it with the owner before the content is written.
 - [x] Build section removed from the nav, routes, planned tracks and Progress areas (2026-10-07).
-- [ ] Mockup: list with cascading filters, problem page (Course Schedule), pattern lesson (Graphs). **Awaiting approval.**
+- [x] Mockup: list with cascading filters, problem page (Course Schedule), pattern lesson (Graphs), built from the real
+      data: https://claude.ai/artifact/UsnLenfPBi3rm5nUkihWFL (also `docs/design_handoff_anneal/designs/dsa-tracker.html`).
+      **Awaiting approval.** Its progress states are made-up examples; its Graphs lessons list only problems that exist
+      in the NeetCode lists.
 - [ ] Build: content loader and API for the lists, logging and reviews; remove D1–D12 and their progress (`retired`
       ids so the progress guard allows it).
 - [ ] Build: list page, problem page, pattern pages.

@@ -1,0 +1,54 @@
+intuition = """
+Two facts make this linear. **First:** if the total gas is less than the total cost, no start works, so return `-1`. **Second:** if you start at station `s` and first run out of gas at station `t`, then **no station between `s` and `t` can be a valid start either** (each of them would reach `t` with even less gas than you had), so the next candidate is `t + 1`.
+
+So sweep once, keep a running tank, and whenever it goes negative reset the start to the next station and the tank to zero. If the totals pass the first check, the final start is the answer.
+"""
+tips = [
+    "Do the global check (`sum(gas) >= sum(cost)`) separately. Without it the reset trick can return a start that can't complete the loop.",
+    "The answer is unique if it exists, so you can return the first start that survives.",
+    "`gas[i] - cost[i]` is the net gain at station `i`; working with that single array makes the logic clearer.",
+    "Brute force (try every start and simulate a lap) is O(n²).",
+]
+
+[[approaches]]
+name = "One pass with a reset"
+label = "greedy reset"
+idea = "Track the tank from the current start. When it goes negative, no earlier station could have worked, so restart at the next one. Check the total balance at the end."
+time = "O(n)"
+space = "O(1)"
+note = "One loop."
+code = '''class Solution:
+    def canCompleteCircuit(self, gas: list[int], cost: list[int]) -> int:
+        if sum(gas) < sum(cost):
+            return -1
+        start = 0
+        tank = 0
+        for i in range(len(gas)):
+            tank += gas[i] - cost[i]
+            if tank < 0:
+                start = i + 1
+                tank = 0
+        return start
+'''
+
+[[approaches]]
+name = "Brute force"
+label = "brute force"
+idea = "Try each station as the start and drive the whole circle."
+time = "O(n²)"
+space = "O(1)"
+note = "Fine to say first; too slow for 100,000 stations."
+code = '''class Solution:
+    def canCompleteCircuit(self, gas: list[int], cost: list[int]) -> int:
+        n = len(gas)
+        for start in range(n):
+            tank = 0
+            for step in range(n):
+                i = (start + step) % n
+                tank += gas[i] - cost[i]
+                if tank < 0:
+                    break
+            else:
+                return start
+        return -1
+'''

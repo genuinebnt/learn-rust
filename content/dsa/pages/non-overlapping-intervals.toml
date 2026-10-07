@@ -1,0 +1,51 @@
+intuition = """
+Removing the **fewest** intervals so none overlap is the same as **keeping the most** intervals that don't overlap. The classic greedy: sort by **end time** and always keep the interval that **ends earliest** among those that fit. An earlier end leaves the most room for the intervals that follow, so it's never worse than any other choice.
+
+Count how many intervals you keep; the answer is `n − kept`. Equivalently, count a removal whenever the next interval starts before the previous kept one ends.
+"""
+tips = [
+    "Sort by **end**, not start. That ordering is what makes the greedy choice safe.",
+    "Intervals that touch (`[1,2]`, `[2,3]`) don't overlap, so the conflict test is `start < previous_end`, with a strict `<`.",
+    "When there's a conflict you **drop the new interval** (it ends later or at the same time); you keep the previous one, so `previous_end` doesn't change.",
+    "The sort-by-start version (keep the smaller end on conflict) works too and shows the same idea.",
+]
+
+[[approaches]]
+name = "Greedy by earliest end"
+label = "sort by end"
+idea = "Sort by end time. Keep an interval if it starts at or after the end of the last kept one; otherwise count it as removed."
+time = "O(n log n)"
+space = "O(1)"
+note = "Besides the sort."
+code = '''class Solution:
+    def eraseOverlapIntervals(self, intervals: list[list[int]]) -> int:
+        removed = 0
+        last_end = float("-inf")
+        for start, end in sorted(intervals, key=lambda x: x[1]):
+            if start >= last_end:
+                last_end = end
+            else:
+                removed += 1
+        return removed
+'''
+
+[[approaches]]
+name = "Sort by start, keep the smaller end on a clash"
+label = "sort by start"
+idea = "Sort by start. When two intervals overlap, remove the one that ends later and keep the one that ends sooner."
+time = "O(n log n)"
+space = "O(1)"
+note = "The same greedy argument from the other sort order."
+code = '''class Solution:
+    def eraseOverlapIntervals(self, intervals: list[list[int]]) -> int:
+        removed = 0
+        intervals = sorted(intervals)
+        prev_end = intervals[0][1]
+        for start, end in intervals[1:]:
+            if start < prev_end:
+                removed += 1
+                prev_end = min(prev_end, end)
+            else:
+                prev_end = end
+        return removed
+'''

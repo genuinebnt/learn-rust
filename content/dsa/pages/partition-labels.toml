@@ -1,0 +1,29 @@
+intuition = """
+Each letter must end up in **one** part, so a part has to stretch at least from the first to the last occurrence of every letter in it. Record the **last index** of each letter. Then sweep: keep the **furthest last-index** of any letter seen in the current part. When the sweep index reaches that furthest end, the part is complete: cut it there.
+"""
+tips = [
+    "Compute `last[ch]` first with one pass (a dictionary, or `{c: i for i, c in enumerate(s)}`, which keeps the final index of each letter).",
+    "The part's end is the **maximum** of `last[ch]` over the letters inside it so far, and it can grow as you see new letters.",
+    "Cut when `i == end`, record the size `end - start + 1`, and start the next part at `i + 1`.",
+    "This is a close cousin of Merge Intervals: each letter is an interval `[first, last]`, and you merge the overlapping ones.",
+]
+
+[[approaches]]
+name = "Last occurrences and a growing end"
+label = "greedy"
+idea = "Record where each letter last appears. Extend the current part's end to the furthest last occurrence of the letters inside it, and cut when the sweep reaches that end."
+time = "O(n)"
+space = "O(1)"
+note = "At most 26 letters in the map."
+code = '''class Solution:
+    def partitionLabels(self, s: str) -> list[int]:
+        last = {ch: i for i, ch in enumerate(s)}
+        sizes = []
+        start = end = 0
+        for i, ch in enumerate(s):
+            end = max(end, last[ch])
+            if i == end:
+                sizes.append(end - start + 1)
+                start = i + 1
+        return sizes
+'''

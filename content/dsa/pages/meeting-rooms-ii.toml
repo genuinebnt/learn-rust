@@ -1,0 +1,56 @@
+intuition = """
+The answer is the **largest number of meetings happening at the same moment**. Two common ways to find it:
+
+**Min-heap of end times:** sort by start; for each meeting, if the earliest-ending room is free by the time this one starts, reuse it (pop it); then push this meeting's end. The heap's final size is the number of rooms.
+
+**Sweep line:** split every meeting into a start event (+1) and an end event (−1), sort the events, and track the running count. Its peak is the answer.
+"""
+tips = [
+    "When a meeting ends at the exact time another starts, they **don't** overlap, so the room is reusable: `heap[0] <= start`.",
+    "In the sweep, process **ends before starts at the same time** (sort by time, and put `−1` before `+1`), or you'll count one extra room.",
+    "Two sorted arrays of starts and ends with two pointers is the allocation-light version of the sweep.",
+    "This is a Premium problem on LeetCode.",
+]
+
+[[approaches]]
+name = "Min-heap of end times"
+label = "heap"
+idea = "Sort by start. The heap holds the end time of every room in use. If the earliest end is at or before this start, reuse that room; either way push the new end."
+time = "O(n log n)"
+space = "O(n)"
+note = "The heap's size at the end is the number of rooms."
+code = '''import heapq
+
+
+class Solution:
+    def minMeetingRooms(self, intervals: list[list[int]]) -> int:
+        ends = []
+        for start, end in sorted(intervals):
+            if ends and ends[0] <= start:
+                heapq.heapreplace(ends, end)
+            else:
+                heapq.heappush(ends, end)
+        return len(ends)
+'''
+
+[[approaches]]
+name = "Sweep line over start and end times"
+label = "sweep line"
+idea = "Sort all start times and all end times separately and walk both with two pointers: a start before the next end needs one more room; otherwise a room frees up."
+time = "O(n log n)"
+space = "O(n)"
+note = "Tracks the peak overlap directly."
+code = '''class Solution:
+    def minMeetingRooms(self, intervals: list[list[int]]) -> int:
+        starts = sorted(i[0] for i in intervals)
+        ends = sorted(i[1] for i in intervals)
+        rooms = best = 0
+        end = 0
+        for start in starts:
+            if start < ends[end]:
+                rooms += 1
+            else:
+                end += 1
+            best = max(best, rooms)
+        return best
+'''

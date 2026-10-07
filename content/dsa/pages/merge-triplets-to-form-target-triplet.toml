@@ -1,0 +1,30 @@
+intuition = """
+Merging takes the **element-wise maximum**, so a merge can only make values bigger. Any triplet with a value **larger than the target** in some position can never be used (it would overshoot and the maximum can't come back down). Among the remaining "safe" triplets, check that for **each of the three positions** some safe triplet reaches the target value there.
+
+The order of merging doesn't matter: maximum is commutative, so if each target value is provided by some safe triplet, merging them all gives the target.
+"""
+tips = [
+    "Filter first: skip a triplet if any of its three values exceeds the target's.",
+    "Then you only need three booleans, one per position, that become true when a safe triplet matches the target there.",
+    "You don't have to track which triplets form the merge; the question is only whether it's possible.",
+    "A set of matching positions that reaches size 3 is a compact way to write the same thing.",
+]
+
+[[approaches]]
+name = "Keep only safe triplets, check each position"
+label = "filter + match"
+idea = "Ignore triplets that overshoot the target anywhere. The target is reachable exactly when each of its three values is matched by some remaining triplet."
+time = "O(n)"
+space = "O(1)"
+note = "One pass over the triplets."
+code = '''class Solution:
+    def mergeTriplets(self, triplets: list[list[int]], target: list[int]) -> bool:
+        matched = set()
+        for triplet in triplets:
+            if any(value > want for value, want in zip(triplet, target)):
+                continue
+            for i, (value, want) in enumerate(zip(triplet, target)):
+                if value == want:
+                    matched.add(i)
+        return len(matched) == 3
+'''

@@ -1,0 +1,47 @@
+intuition = """
+Now you want the **fewest jumps**. Think in **levels** like BFS: the indices reachable with 1 jump, then with 2 jumps, and so on. Each level is a contiguous range, so you don't need a queue: track the **end of the current level** and the **furthest reach** from anywhere inside it. When you walk past the end of the level, you must take another jump, and the new level ends at the furthest reach you found.
+"""
+tips = [
+    "You're guaranteed the end is reachable, so there's no failure case to handle.",
+    "Loop to `len(nums) - 1` **exclusive**: when you're standing on the last index you don't need another jump.",
+    "Increase `jumps` exactly when `i == level_end`, then set `level_end = furthest`.",
+    "This is greedy BFS: say \"each jump extends the reachable window; I take the next jump only when I run out of window\".",
+]
+
+[[approaches]]
+name = "Greedy by levels"
+label = "greedy levels"
+idea = "Keep the end of the current jump's range and the furthest index reachable from within it. When you reach the end of the range, count a jump and extend the range to the furthest."
+time = "O(n)"
+space = "O(1)"
+note = "A single pass."
+code = '''class Solution:
+    def jump(self, nums: list[int]) -> int:
+        jumps = 0
+        level_end = 0
+        furthest = 0
+        for i in range(len(nums) - 1):
+            furthest = max(furthest, i + nums[i])
+            if i == level_end:
+                jumps += 1
+                level_end = furthest
+        return jumps
+'''
+
+[[approaches]]
+name = "Dynamic programming"
+label = "DP"
+idea = "`best[i]` is the fewest jumps to reach index i; relax every index reachable from each position. Correct but quadratic."
+time = "O(n²)"
+space = "O(n)"
+note = "Fine to mention as the starting point before the greedy."
+code = '''class Solution:
+    def jump(self, nums: list[int]) -> int:
+        n = len(nums)
+        best = [float("inf")] * n
+        best[0] = 0
+        for i in range(n):
+            for j in range(i + 1, min(n, i + nums[i] + 1)):
+                best[j] = min(best[j], best[i] + 1)
+        return best[-1]
+'''

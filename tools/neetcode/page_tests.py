@@ -823,6 +823,247 @@ def cheapest_flights(ns):
         assert f(n, copy.deepcopy(flights), src, dst, k) == (-1 if best == float("inf") else best), (n, flights, src, dst, k)
 
 
+# ---------------------------------------------------------------- greedy and intervals
+
+
+def maximum_subarray(ns):
+    f = ns["Solution"]().maxSubArray
+    assert f([-2, 1, -3, 4, -1, 2, 1, -5, 4]) == 6 and f([1]) == 1 and f([5, 4, -1, 7, 8]) == 23 and f([-3, -1, -2]) == -1
+    r = rng()
+    for _ in range(400):
+        a = [r.randint(-6, 6) for _ in range(r.randint(1, 10))]
+        want = max(sum(a[i : j + 1]) for i in range(len(a)) for j in range(i, len(a)))
+        assert f(list(a)) == want, a
+
+
+def jump_game(ns):
+    f = ns["Solution"]().canJump
+    assert f([2, 3, 1, 1, 4]) is True and f([3, 2, 1, 0, 4]) is False and f([0]) is True and f([0, 1]) is False
+    r = rng()
+    for _ in range(500):
+        a = [r.randint(0, 3) for _ in range(r.randint(1, 9))]
+        reach = [False] * len(a)
+        reach[0] = True
+        for i in range(len(a)):
+            if reach[i]:
+                for j in range(i + 1, min(len(a), i + a[i] + 1)):
+                    reach[j] = True
+        assert f(list(a)) == reach[-1], a
+
+
+def jump_game_ii(ns):
+    f = ns["Solution"]().jump
+    assert f([2, 3, 1, 1, 4]) == 2 and f([2, 3, 0, 1, 4]) == 2 and f([0]) == 0 and f([1, 2, 3]) == 2
+    r = rng()
+    n_checked = 0
+    for _ in range(800):
+        a = [r.randint(0, 4) for _ in range(r.randint(1, 9))]
+        best = [float("inf")] * len(a)
+        best[0] = 0
+        for i in range(len(a)):
+            for j in range(i + 1, min(len(a), i + a[i] + 1)):
+                best[j] = min(best[j], best[i] + 1)
+        if best[-1] == float("inf"):
+            continue  # the problem guarantees the end is reachable
+        assert f(list(a)) == best[-1], a
+        n_checked += 1
+    assert n_checked > 100
+
+
+def gas_station(ns):
+    f = ns["Solution"]().canCompleteCircuit
+    assert f([1, 2, 3, 4, 5], [3, 4, 5, 1, 2]) == 3 and f([2, 3, 4], [3, 4, 3]) == -1 and f([5], [4]) == 0
+    r = rng()
+    for _ in range(500):
+        n = r.randint(1, 7)
+        gas = [r.randint(0, 6) for _ in range(n)]
+        cost = [r.randint(0, 6) for _ in range(n)]
+        ok = []
+        for s in range(n):
+            tank = 0
+            for k in range(n):
+                i = (s + k) % n
+                tank += gas[i] - cost[i]
+                if tank < 0:
+                    break
+            else:
+                ok.append(s)
+        if len(ok) > 1:
+            continue  # the problem guarantees a unique answer
+        assert f(list(gas), list(cost)) == (ok[0] if ok else -1), (gas, cost)
+
+
+def hand_of_straights(ns):
+    f = ns["Solution"]().isNStraightHand
+    assert f([1, 2, 3, 6, 2, 3, 4, 7, 8], 3) is True and f([1, 2, 3, 4, 5], 4) is False and f([1], 1) is True and f([1, 1, 2, 2, 3, 3], 3) is True
+    r = rng()
+    for _ in range(500):
+        size = r.randint(1, 3)
+        hand = [r.randint(0, 6) for _ in range(size * r.randint(1, 3))]
+        pool = Counter(hand)
+        ok = True
+        while pool:
+            lo = min(pool)
+            for c in range(lo, lo + size):
+                if pool[c] <= 0:
+                    ok = False
+                    break
+                pool[c] -= 1
+                if pool[c] == 0:
+                    del pool[c]
+            if not ok:
+                break
+        assert f(list(hand), size) == ok, (hand, size)
+
+
+def merge_triplets(ns):
+    f = ns["Solution"]().mergeTriplets
+    assert f([[2, 5, 3], [1, 8, 4], [1, 7, 5]], [2, 7, 5]) is True and f([[3, 4, 5], [4, 5, 6]], [3, 2, 5]) is False
+    assert f([[2, 5, 3], [2, 3, 4], [1, 2, 5], [5, 2, 3]], [5, 5, 5]) is True
+    r = rng()
+    for _ in range(500):
+        ts = [[r.randint(1, 4) for _ in range(3)] for _ in range(r.randint(1, 5))]
+        target = [r.randint(1, 4) for _ in range(3)]
+        best = False
+        for mask in range(1, 1 << len(ts)):
+            cur = [0, 0, 0]
+            for i, t in enumerate(ts):
+                if mask >> i & 1:
+                    cur = [max(a, b) for a, b in zip(cur, t)]
+            if cur == target:
+                best = True
+                break
+        assert f([list(t) for t in ts], list(target)) == best, (ts, target)
+
+
+def partition_labels(ns):
+    f = ns["Solution"]().partitionLabels
+    assert f("ababcbacadefegdehijhklij") == [9, 7, 8] and f("eccbbbbdec") == [10] and f("a") == [1]
+    r = rng()
+    for _ in range(400):
+        s = "".join(r.choice("abcd") for _ in range(r.randint(1, 10)))
+        got = f(s)
+        assert sum(got) == len(s)
+        parts, i = [], 0
+        for size in got:
+            parts.append(s[i : i + size])
+            i += size
+        assert all(not (set(a) & set(b)) for a, b in itertools.combinations(parts, 2)), (s, got)
+        # the most parts possible: one more cut anywhere would split a letter
+        cuts = [i for i in range(1, len(s)) if not (set(s[:i]) & set(s[i:]))]
+        assert len(got) == len(cuts) + 1, (s, got)
+
+
+def valid_parenthesis_string(ns):
+    f = ns["Solution"]().checkValidString
+    assert f("()") is True and f("(*)") is True and f("(*))") is True and f(")(") is False and f("(") is False and f("*") is True
+    assert f("(((*)") is False and f("((*)") is True and f("((**") is True and f("**((") is False
+    r = rng()
+
+    def ref(s, i=0, open_=0):
+        if open_ < 0:
+            return False
+        if i == len(s):
+            return open_ == 0
+        c = s[i]
+        if c == "(":
+            return ref(s, i + 1, open_ + 1)
+        if c == ")":
+            return ref(s, i + 1, open_ - 1)
+        return ref(s, i + 1, open_ + 1) or ref(s, i + 1, open_ - 1) or ref(s, i + 1, open_)
+
+    for _ in range(800):
+        s = "".join(r.choice("()*") for _ in range(r.randint(1, 10)))
+        assert f(s) == ref(s), s
+
+
+def _merged(iv):
+    out = []
+    for a, b in sorted(iv):
+        if out and a <= out[-1][1]:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([a, b])
+    return out
+
+
+def _rand_intervals(r, n=6, hi=12, min_len=0):
+    out = []
+    for _ in range(r.randint(1, n)):
+        a = r.randint(0, hi)
+        out.append([a, a + r.randint(min_len, 4)])
+    return out
+
+
+def insert_interval(ns):
+    f = ns["Solution"]().insert
+    assert f([[1, 3], [6, 9]], [2, 5]) == [[1, 5], [6, 9]]
+    assert f([[1, 2], [3, 5], [6, 7], [8, 10], [12, 16]], [4, 8]) == [[1, 2], [3, 10], [12, 16]] and f([], [5, 7]) == [[5, 7]]
+    r = rng()
+    for _ in range(400):
+        base = _merged(_rand_intervals(r))
+        base = [x for x in base]
+        # the problem's input is sorted and non-overlapping (touching intervals are merged, so use the merged form)
+        new = [r.randint(0, 14)] * 2
+        new[1] += r.randint(0, 4)
+        want = _merged(base + [new])
+        assert f([list(x) for x in base], list(new)) == want, (base, new)
+
+
+def merge_intervals(ns):
+    f = ns["Solution"]().merge
+    assert f([[1, 3], [2, 6], [8, 10], [15, 18]]) == [[1, 6], [8, 10], [15, 18]] and f([[1, 4], [4, 5]]) == [[1, 5]] and f([[1, 10], [2, 3]]) == [[1, 10]]
+    r = rng()
+    for _ in range(400):
+        iv = _rand_intervals(r)
+        assert f([list(x) for x in iv]) == _merged(iv), iv
+
+
+def non_overlapping(ns):
+    f = ns["Solution"]().eraseOverlapIntervals
+    assert f([[1, 2], [2, 3], [3, 4], [1, 3]]) == 1 and f([[1, 2], [1, 2], [1, 2]]) == 2 and f([[1, 2], [2, 3]]) == 0
+    r = rng()
+    for _ in range(300):
+        iv = _rand_intervals(r, 7, 10, min_len=1)
+        best = 0
+        for mask in range(1 << len(iv)):
+            kept = sorted(iv[i] for i in range(len(iv)) if mask >> i & 1)
+            if all(kept[i][1] <= kept[i + 1][0] for i in range(len(kept) - 1)):
+                best = max(best, len(kept))
+        assert f([list(x) for x in iv]) == len(iv) - best, iv
+
+
+def meeting_rooms(ns):
+    f = ns["Solution"]().canAttendMeetings
+    assert f([[0, 30], [5, 10], [15, 20]]) is False and f([[7, 10], [2, 4]]) is True and f([]) is True and f([[1, 2], [2, 3]]) is True
+    r = rng()
+    for _ in range(400):
+        iv = _rand_intervals(r, 6, 10, min_len=1)
+        ok = all(a[1] <= b[0] or b[1] <= a[0] for a, b in itertools.combinations(iv, 2))
+        assert f([list(x) for x in iv]) == ok, iv
+
+
+def meeting_rooms_ii(ns):
+    f = ns["Solution"]().minMeetingRooms
+    assert f([[0, 30], [5, 10], [15, 20]]) == 2 and f([[7, 10], [2, 4]]) == 1 and f([[1, 2], [2, 3]]) == 1
+    r = rng()
+    for _ in range(400):
+        iv = _rand_intervals(r, 8, 10, min_len=1)
+        want = max(sum(1 for a, b in iv if a <= t < b) for t in range(0, 20))
+        assert f([list(x) for x in iv]) == want, iv
+
+
+def min_interval(ns):
+    f = ns["Solution"]().minInterval
+    assert f([[1, 4], [2, 4], [3, 6], [4, 4]], [2, 3, 4, 5]) == [3, 3, 1, 4] and f([[2, 3], [2, 5], [1, 8], [20, 25]], [2, 19, 5, 22]) == [2, -1, 4, 6]
+    r = rng()
+    for _ in range(300):
+        iv = _rand_intervals(r, 6, 12)
+        qs = [r.randint(0, 18) for _ in range(r.randint(1, 6))]
+        want = [min([b - a + 1 for a, b in iv if a <= q <= b], default=-1) for q in qs]
+        assert f([list(x) for x in iv], list(qs)) == want, (iv, qs)
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -869,6 +1110,20 @@ CHECKS = {
     "swim-in-rising-water": swim_in_water,
     "alien-dictionary": alien_dictionary,
     "cheapest-flights-within-k-stops": cheapest_flights,
+    "maximum-subarray": maximum_subarray,
+    "jump-game": jump_game,
+    "jump-game-ii": jump_game_ii,
+    "gas-station": gas_station,
+    "hand-of-straights": hand_of_straights,
+    "merge-triplets-to-form-target-triplet": merge_triplets,
+    "partition-labels": partition_labels,
+    "valid-parenthesis-string": valid_parenthesis_string,
+    "insert-interval": insert_interval,
+    "merge-intervals": merge_intervals,
+    "non-overlapping-intervals": non_overlapping,
+    "meeting-rooms": meeting_rooms,
+    "meeting-rooms-ii": meeting_rooms_ii,
+    "minimum-interval-to-include-each-query": min_interval,
 }
 
 

@@ -1,0 +1,63 @@
+intuition = """
+For each query `q` you want the **smallest interval that contains it**. Process queries in **increasing order** and intervals in order of start. For a query `q`:
+
+1. Add to a **min-heap** every interval with `start <= q`, keyed by its **size** (`end − start + 1`).
+2. Pop from the top of the heap any interval whose `end < q`: it ended before `q` and can never help a later (larger) query either.
+3. The heap's top, if any, is the smallest interval that contains `q`.
+
+Answers are stored by the **original** query position, since you sorted the queries.
+"""
+tips = [
+    "Sort the queries together with their original indexes, so you can put each answer back in the right place.",
+    "Lazy deletion is the trick: you only discard an expired interval when it reaches the top of the heap, never searching inside it.",
+    "Because queries are processed in increasing order, an interval that has ended for `q` has ended for every later query.",
+    "No interval containing `q` gives `-1`.",
+    "Size is `end - start + 1` (both ends inclusive).",
+]
+
+[[approaches]]
+name = "Sort both, sweep with a min-heap of sizes"
+label = "sweep + heap"
+idea = "Walk queries in increasing order, pushing intervals that have started onto a min-heap by size and popping those that have ended. The top is the answer."
+time = "O((n + q) log n)"
+space = "O(n + q)"
+note = "Each interval is pushed and popped at most once."
+code = '''import heapq
+
+
+class Solution:
+    def minInterval(self, intervals: list[list[int]], queries: list[int]) -> list[int]:
+        intervals = sorted(intervals)
+        answer = [-1] * len(queries)
+        heap = []  # (size, end)
+        i = 0
+        for q, index in sorted((q, pos) for pos, q in enumerate(queries)):
+            while i < len(intervals) and intervals[i][0] <= q:
+                start, end = intervals[i]
+                heapq.heappush(heap, (end - start + 1, end))
+                i += 1
+            while heap and heap[0][1] < q:
+                heapq.heappop(heap)
+            if heap:
+                answer[index] = heap[0][0]
+        return answer
+'''
+
+[[approaches]]
+name = "Brute force"
+label = "brute force"
+idea = "For each query, scan all intervals for the smallest one containing it."
+time = "O(n · q)"
+space = "O(q)"
+note = "Fine to state, too slow at 100,000 each."
+code = '''class Solution:
+    def minInterval(self, intervals: list[list[int]], queries: list[int]) -> list[int]:
+        answer = []
+        for q in queries:
+            best = -1
+            for start, end in intervals:
+                if start <= q <= end and (best == -1 or end - start + 1 < best):
+                    best = end - start + 1
+            answer.append(best)
+        return answer
+'''

@@ -1,0 +1,69 @@
+intuition = """
+`*` can be `(`, `)` or empty. Instead of trying all choices, track the **range of possible counts of unmatched `(`** as you scan: `low` (the fewest it could be) and `high` (the most).
+
+- `(` raises both by one.
+- `)` lowers both by one.
+- `*` could be `)` (lower `low`), empty, or `(` (raise `high`), so `low -= 1` and `high += 1`.
+
+If `high` ever goes negative, there are too many `)`: invalid. Keep `low` from going below `0` (you can't have a negative count of open parentheses; some `*` just acted as empty). At the end the string is valid if `low == 0`: zero open parentheses is achievable.
+"""
+tips = [
+    "`high < 0` at any point means even turning every `*` into `(` can't save it: return `False` immediately.",
+    "Clamp `low` at `0` with `max(low, 0)`, because a negative lower bound would mean a count that's impossible.",
+    "At the end you need `low == 0`, not `high == 0`: some `*` can be turned into empty or `)` to bring the count down.",
+    "The two-stack approach (indices of `(` and `*`) is the other classic; the range trick is shorter and O(1) space.",
+]
+
+[[approaches]]
+name = "Range of open counts"
+label = "greedy range"
+idea = "Track the smallest and largest number of unmatched `(` possible. Fail if the largest goes negative; succeed if the smallest ends at zero."
+time = "O(n)"
+space = "O(1)"
+note = "A single pass with two integers."
+code = '''class Solution:
+    def checkValidString(self, s: str) -> bool:
+        low = high = 0
+        for ch in s:
+            if ch == "(":
+                low += 1
+                high += 1
+            elif ch == ")":
+                low -= 1
+                high -= 1
+            else:
+                low -= 1
+                high += 1
+            if high < 0:
+                return False
+            low = max(low, 0)
+        return low == 0
+'''
+
+[[approaches]]
+name = "Two stacks of indices"
+label = "two stacks"
+idea = "Keep the indices of unmatched `(` and of `*`. Match each `)` with a `(` if possible, otherwise a `*`. Afterwards each leftover `(` needs a `*` that comes **after** it."
+time = "O(n)"
+space = "O(n)"
+note = "Position matters: a `*` can only close a `(` that is to its left."
+code = '''class Solution:
+    def checkValidString(self, s: str) -> bool:
+        opens, stars = [], []
+        for i, ch in enumerate(s):
+            if ch == "(":
+                opens.append(i)
+            elif ch == "*":
+                stars.append(i)
+            else:
+                if opens:
+                    opens.pop()
+                elif stars:
+                    stars.pop()
+                else:
+                    return False
+        while opens and stars:
+            if opens.pop() > stars.pop():
+                return False
+        return not opens
+'''

@@ -1,0 +1,68 @@
+intuition = """
+Groups of `groupSize` **consecutive** cards. The **smallest** card left can only start a group (nothing smaller remains to pull it into an earlier one), so greedily build a group starting from the smallest card: it must be followed by `+1, +2, …`. Remove them and repeat. If any needed card is missing, the answer is `False`.
+
+Count the cards, and always take the smallest remaining value as the next group's start.
+"""
+tips = [
+    "If `len(hand) % groupSize != 0` you can return `False` immediately.",
+    "A `Counter` plus a **min-heap of the distinct values** (or iterating over sorted keys) finds the smallest remaining card quickly.",
+    "When building a group from `start`, decrease each count in `start … start + groupSize − 1`; if a count is `0`, fail.",
+    "With a heap, pop a value only when its count reaches zero, and check it is the heap's top when you decrement it (otherwise a gap was left behind).",
+]
+
+[[approaches]]
+name = "Counter and sorted start values"
+label = "counter + sort"
+idea = "Process the distinct values in increasing order. For a value that still has cards, start that many groups of consecutive values."
+time = "O(n log n)"
+space = "O(n)"
+note = "Sorting the distinct values dominates."
+code = '''from collections import Counter
+
+
+class Solution:
+    def isNStraightHand(self, hand: list[int], groupSize: int) -> bool:
+        if len(hand) % groupSize:
+            return False
+        counts = Counter(hand)
+        for start in sorted(counts):
+            groups = counts[start]
+            if groups == 0:
+                continue
+            for card in range(start, start + groupSize):
+                if counts[card] < groups:
+                    return False
+                counts[card] -= groups
+        return True
+'''
+
+[[approaches]]
+name = "Min-heap of values"
+label = "heap"
+idea = "Keep a heap of distinct values. Always start a group from the heap's smallest value and consume the next `groupSize − 1` consecutive values."
+time = "O(n log n)"
+space = "O(n)"
+note = "The same greedy with a heap instead of sorting up front."
+code = '''import heapq
+from collections import Counter
+
+
+class Solution:
+    def isNStraightHand(self, hand: list[int], groupSize: int) -> bool:
+        if len(hand) % groupSize:
+            return False
+        counts = Counter(hand)
+        heap = list(counts)
+        heapq.heapify(heap)
+        while heap:
+            start = heap[0]
+            for card in range(start, start + groupSize):
+                if counts[card] == 0:
+                    return False
+                counts[card] -= 1
+                if counts[card] == 0:
+                    if card != heap[0]:
+                        return False
+                    heapq.heappop(heap)
+        return True
+'''

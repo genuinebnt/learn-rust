@@ -1,0 +1,28 @@
+intuition = """
+Sort the intervals by **start**. Then overlapping intervals are neighbours: walk through, and if the next interval starts at or before the end of the last merged one, **extend** that end (to the larger of the two); otherwise it starts a new group.
+"""
+tips = [
+    "Sort by start time: `intervals.sort(key=lambda x: x[0])`.",
+    "Take the **maximum** of the ends when merging: the later interval can be completely inside the earlier one (`[1,10]` and `[2,3]`).",
+    "Intervals that only touch (`[1,4]`, `[4,5]`) are merged: the test is `start <= last_end`.",
+    "Don't mutate the input intervals if the caller might still use them: copy each as you add it to the result.",
+    "This sort-then-sweep pattern is the base of Insert Interval, Meeting Rooms and Non-overlapping Intervals.",
+]
+
+[[approaches]]
+name = "Sort by start, then sweep"
+label = "sort + sweep"
+idea = "After sorting, compare each interval with the last merged one: extend it if they overlap, otherwise start a new merged interval."
+time = "O(n log n)"
+space = "O(n)"
+note = "Sorting dominates; the sweep is linear."
+code = '''class Solution:
+    def merge(self, intervals: list[list[int]]) -> list[list[int]]:
+        merged = []
+        for start, end in sorted(intervals, key=lambda x: x[0]):
+            if merged and start <= merged[-1][1]:
+                merged[-1][1] = max(merged[-1][1], end)
+            else:
+                merged.append([start, end])
+        return merged
+'''

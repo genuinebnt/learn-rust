@@ -1,0 +1,53 @@
+intuition = """
+Walk through the array keeping the **best sum of a subarray ending here**. At each number you have two choices: **extend** the previous subarray, or **start fresh** from this number. Extending only helps if the running sum so far is positive; if it's negative, drop it and start over. That's Kadane's algorithm, and the answer is the best running sum seen.
+"""
+tips = [
+    "Initialise with `nums[0]`, not `0`: an array of all negatives must return its **largest** (least negative) element, not `0`.",
+    "State the recurrence: `current = max(x, current + x)`. It's the one line the whole solution rests on.",
+    "Equivalent: reset the running sum to `0` whenever it goes negative.",
+    "A divide-and-conquer solution (best in left, best in right, best crossing the middle) exists and is O(n log n); mention it if asked for a different approach.",
+]
+
+[[approaches]]
+name = "Kadane's algorithm"
+label = "Kadane"
+idea = "`current` is the best subarray sum ending at this element: either extend the previous one or start again at this element."
+time = "O(n)"
+space = "O(1)"
+note = "A single pass, two variables."
+code = '''class Solution:
+    def maxSubArray(self, nums: list[int]) -> int:
+        current = best = nums[0]
+        for x in nums[1:]:
+            current = max(x, current + x)
+            best = max(best, current)
+        return best
+'''
+
+[[approaches]]
+name = "Divide and conquer"
+label = "divide and conquer"
+idea = "The best subarray is entirely in the left half, entirely in the right half, or crosses the middle. Solve both halves recursively and compute the best crossing sum directly."
+time = "O(n log n)"
+space = "O(log n)"
+note = "Not better than Kadane, but shows the recursion; interviewers ask for it as a follow-up."
+code = '''class Solution:
+    def maxSubArray(self, nums: list[int]) -> int:
+        def best(lo: int, hi: int) -> int:
+            if lo == hi:
+                return nums[lo]
+            mid = (lo + hi) // 2
+            left_sum = float("-inf")
+            total = 0
+            for i in range(mid, lo - 1, -1):
+                total += nums[i]
+                left_sum = max(left_sum, total)
+            right_sum = float("-inf")
+            total = 0
+            for i in range(mid + 1, hi + 1):
+                total += nums[i]
+                right_sum = max(right_sum, total)
+            return max(best(lo, mid), best(mid + 1, hi), left_sum + right_sum)
+
+        return best(0, len(nums) - 1)
+'''

@@ -85,5 +85,11 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       Python mode, no language server, formatter, lanes or scratch file. Editor behaviour is checked in a real browser by
       `tools/ui-keys.mjs` with `tools/ui-python-editor.json` (normal mode), `ui-python-editor-vim.json` (Vim) and
       `ui-python-flow.json` (run, syntax error, submit); they need a throwaway database, see docs/PRACTICE.md.
+- [x] Graphs practice track in Python (2026-10-07): `content/tracks/p1-graphs-practice`, 11 problems (flood fill, painting,
+      copying a network, multi-source BFS, fire spread, border search, enclosed lakes, topological order, import cycles,
+      union-find, knight moves). `anneal verify P1` passes (solution passes, starter fails, every wrong solution is
+      rejected). All 11 solutions were typed by hand into the real editor in headless Chrome and solved through the
+      sandbox. Also checked: Python inside the Docker sandbox (no network, read-only root, timeouts).
+      **Next: DP lessons, then the DP practice track in Python, then the rest, then Rust.**
 - [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
       18 categories.

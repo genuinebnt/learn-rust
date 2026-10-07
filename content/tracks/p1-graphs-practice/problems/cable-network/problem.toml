@@ -1,0 +1,31 @@
+slug = "cable-network"
+title = "Cable Network"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-redundant-connection", "lc-number-of-connected-components-in-an-undirected-graph", "lc-graph-valid-tree"]
+warmup = true
+level = "medium"
+stage = "order-and-groups"
+order = 10
+status = "ready"
+teaches = [
+    "**Union-find** (disjoint sets): merging groups as connections arrive, and noticing a connection that joins nothing new",
+]
+follow_up = "How would you answer \"are computers a and b connected?\" after each cable? How would you also support unplugging a cable?"
+
+[[hints]]
+kind = "approach"
+text = "Each cable either joins two separate networks (the count drops by one) or connects two computers that are already in the same network (the count does not change). You need to know quickly which network a computer is in."
+
+[[hints]]
+kind = "python"
+text = "Union-find: `parent[x]` points toward a representative, `find` follows it (compress the path as you go). For a cable `(a, b)`, if `find(a) != find(b)` merge them and decrement the count."
+
+[[hints]]
+kind = "edge case"
+text = "A cable between a computer and itself, the same cable twice, and `n = 0`."
+
+[solution]
+explanation = "Start with `n` one-computer networks. For each cable, find the representatives of both ends; if they differ, merge them and lose one network. Record the count after every cable."
+time = "O((n + cables) · α(n))"
+space = "O(n)"

@@ -1,0 +1,31 @@
+slug = "import-cycle"
+title = "Import Cycle"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-course-schedule"]
+warmup = false
+level = "medium"
+stage = "order-and-groups"
+order = 9
+status = "ready"
+teaches = [
+    "**Cycle detection in a directed graph** with three states, and recovering the cycle itself",
+]
+follow_up = "How would you find **all** the cycles? What is the smallest set of imports to remove to break them all?"
+
+[[hints]]
+kind = "approach"
+text = "Walk the imports depth-first. A module is **on the current path** while you are exploring what it imports. If you reach a module that is on the current path, you have found a cycle."
+
+[[hints]]
+kind = "python"
+text = "Keep three states per module: unseen, on the path, done. Keep the path itself in a list so that when you hit a module already on it you can slice out the cycle: `path[path.index(m):]`. Start a search from every module, not just the first."
+
+[[hints]]
+kind = "edge case"
+text = "A module that imports itself is a cycle of length one. A cycle that is not reachable from the first module. Modules that are imported but never defined as keys."
+
+[solution]
+explanation = "DFS with an explicit path. A module met again while it is still on the path closes a cycle, which is the slice of the path from its first occurrence. Modules finished without finding one are cycle-free and are skipped later."
+time = "O(modules + imports)"
+space = "O(modules)"

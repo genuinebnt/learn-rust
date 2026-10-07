@@ -1,0 +1,31 @@
+slug = "fire-spread"
+title = "Fire Spread"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-rotting-oranges"]
+warmup = false
+level = "medium"
+stage = "traversal"
+order = 5
+status = "ready"
+teaches = [
+    "**BFS by levels**: counting the rings of a search gives a time",
+]
+follow_up = "What if walls burn away after a few minutes? What if the fire can jump over one wall?"
+
+[[hints]]
+kind = "approach"
+text = "Fire spreads one step in every direction each minute, all fires at the same time. That is a breadth-first search that starts from every fire, and the answer is the number of rings it takes."
+
+[[hints]]
+kind = "python"
+text = "Process the queue one ring at a time: `for _ in range(len(queue))`. Count a minute only when the ring burned something new."
+
+[[hints]]
+kind = "edge case"
+text = "Floor the fire can never reach (-1). A plan with nothing to burn (0). Fires already everywhere."
+
+[solution]
+explanation = "Queue every fire. Each round burns the floor tiles next to the current ring; the number of rounds that burned something is the time, and any floor tile left unburned means -1."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

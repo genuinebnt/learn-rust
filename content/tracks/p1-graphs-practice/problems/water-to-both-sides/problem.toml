@@ -1,0 +1,31 @@
+slug = "water-to-both-sides"
+title = "Water to Both Sides"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-pacific-atlantic-water-flow"]
+warmup = false
+level = "medium"
+stage = "traversal"
+order = 6
+status = "ready"
+teaches = [
+    "**Searching inward from the border**: run the search backwards from the goals instead of forwards from every cell",
+]
+follow_up = "What if water could also flow to the north and south coasts? How would you find the cells that reach all four?"
+
+[[hints]]
+kind = "approach"
+text = "Asking \"can this cell reach the west coast?\" for every cell repeats work. Ask the reverse: from the west coast, which cells can water reach **backwards**, going uphill?"
+
+[[hints]]
+kind = "python"
+text = "Run one flood from the left column and one from the right column, moving to a neighbour whose height is `>=` the current cell. The answer is the cells in both sets."
+
+[[hints]]
+kind = "edge case"
+text = "Equal heights count as flowing. A one-column map touches both coasts everywhere."
+
+[solution]
+explanation = "Water flows to equal or lower neighbours, so going backwards from a coast you may step to equal or higher neighbours. Flood from the west column and from the east column; the cells in both floods drain to both coasts."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

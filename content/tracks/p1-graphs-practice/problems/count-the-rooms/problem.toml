@@ -1,0 +1,31 @@
+slug = "count-the-rooms"
+title = "Count the Rooms"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-number-of-islands"]
+warmup = true
+level = "easy"
+stage = "flood-fill"
+order = 1
+status = "ready"
+teaches = [
+    "**Flood fill**: finding connected groups of cells by spreading from one cell to its neighbours",
+]
+follow_up = "What changes if rooms also connect through diagonal gaps? What if the plan is too big to hold in memory?"
+
+[[hints]]
+kind = "approach"
+text = "A room is a group of floor tiles that touch up, down, left or right. Visit every tile once; each time you meet an unvisited floor tile you have found a new room."
+
+[[hints]]
+kind = "python"
+text = "Keep a `seen` set of `(row, col)`, or sink visited tiles. Use a stack or a deque rather than recursion: a big room is thousands of tiles deep."
+
+[[hints]]
+kind = "edge case"
+text = "An empty plan, a plan with no floor, and rooms that touch the border of the plan."
+
+[solution]
+explanation = "Scan every tile. At an unvisited floor tile, count one room and flood it with a stack, marking each tile seen, so no tile is visited twice."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

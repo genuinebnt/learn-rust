@@ -1,0 +1,31 @@
+slug = "painted-regions"
+title = "Painted Regions"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-number-of-islands", "lc-max-area-of-island"]
+warmup = true
+level = "easy"
+stage = "flood-fill"
+order = 2
+status = "ready"
+teaches = [
+    "**Flood fill** that changes the cells it reaches, without touching the input",
+]
+follow_up = "How would you undo the paint, or paint a region and report its size in the same pass?"
+
+[[hints]]
+kind = "approach"
+text = "Starting from the clicked cell, spread to every neighbour that has the **same colour as the start**, and paint each one."
+
+[[hints]]
+kind = "python"
+text = "Copy the grid first (`[row[:] for row in grid]`), then flood the copy. If the new colour equals the old one there is nothing to do, and a naive flood would never stop."
+
+[[hints]]
+kind = "edge case"
+text = "Painting with the colour that is already there; a one-cell grid; a click on the edge of the grid."
+
+[solution]
+explanation = "Remember the start colour. If it already equals the new colour, return the copy. Otherwise flood outward from the start over cells with the old colour, painting each as it is visited so it is never visited twice."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

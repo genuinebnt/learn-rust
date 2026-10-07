@@ -1,0 +1,31 @@
+slug = "distance-to-the-exit"
+title = "Distance to the Exit"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-walls-and-gates", "lc-rotting-oranges"]
+warmup = true
+level = "medium"
+stage = "traversal"
+order = 4
+status = "ready"
+teaches = [
+    "**Multi-source BFS**: start the search from every source at once instead of once per cell",
+]
+follow_up = "What if the exits open and close over time? What if moving through a door costs 3 steps instead of 1?"
+
+[[hints]]
+kind = "approach"
+text = "Searching from every floor tile to its nearest exit repeats a lot of work. Turn it around: start from **all** the exits at once and spread outward one step at a time."
+
+[[hints]]
+kind = "python"
+text = "Put every exit in a `deque` at distance 0. Pop a cell, and give each unvisited floor neighbour `distance + 1`. The first time a cell is reached is the shortest way."
+
+[[hints]]
+kind = "edge case"
+text = "Floor tiles that no exit can reach (walled off) get -1, and so do walls. A plan with no exit at all."
+
+[solution]
+explanation = "Breadth-first search from all exits together. Cells are reached in order of distance, so the first distance written for a cell is its shortest."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

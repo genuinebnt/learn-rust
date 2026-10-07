@@ -1,0 +1,31 @@
+slug = "build-order"
+title = "Build Order"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-course-schedule", "lc-course-schedule-ii"]
+warmup = true
+level = "medium"
+stage = "order-and-groups"
+order = 8
+status = "ready"
+teaches = [
+    "**Topological order** (Kahn's algorithm): repeatedly take what has nothing left to wait for",
+]
+follow_up = "How would you list **every** valid order? How would you build in parallel with several workers?"
+
+[[hints]]
+kind = "approach"
+text = "A package can be built once everything it needs is built. So repeatedly take a package that has **no unbuilt needs left**, build it, and tell the packages waiting on it."
+
+[[hints]]
+kind = "python"
+text = "Count each package's unbuilt needs (`indegree`) and keep a list of who waits on whom. Start a `deque` with the packages that need nothing; when you build one, decrement its dependants and queue the ones that reach 0."
+
+[[hints]]
+kind = "edge case"
+text = "A loop (a needs b, b needs a) means some packages are never ready: return `None`. Packages with no needs at all, and `n = 0`."
+
+[solution]
+explanation = "Kahn's algorithm: build every package whose needs are all built, and release the ones waiting on it. If the order ends up shorter than `n`, the rest are stuck in a loop."
+time = "O(n + needs)"
+space = "O(n + needs)"

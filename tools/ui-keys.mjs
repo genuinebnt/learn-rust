@@ -2,7 +2,9 @@
 //   node tools/ui-keys.mjs <url> <steps.json> [width]
 // steps.json is a list: {"focus": "css selector"}, {"type": "text"}, {"key": "Enter"} (also Tab, Backspace, Escape,
 // ArrowUp/Down/Left/Right, and modifiers: "Shift+Tab", "Mod+a", "Mod+Enter"), {"click": "css selector"},
-// {"wait": ms}, {"eval": "js expression"} (result is printed), {"expect": "js expression", "equals": value}.
+// {"wait": ms}, {"eval": "js expression"} (result is printed), {"expect": "js expression", "equals": value},
+// {"code": "source text"}: types a whole file line by line like a person would, pressing Enter and letting the editor
+// indent, then pressing Tab or Shift+Tab only where the indentation it chose differs from the file's.
 // Exits non-zero when an expect fails. CHROME overrides the browser binary.
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
@@ -70,6 +72,26 @@ async function press(spec) {
     await send("Input.dispatchKeyEvent", { type: "keyUp", modifiers, key: k.key, code: k.code, windowsVirtualKeyCode: k.vk });
 }
 
+/** Leading spaces of the line the cursor is on. */
+const cursorIndent = () => evaluate(`(document.querySelector('.cm-activeLine')?.textContent.match(/^ */) ?? [''])[0].length`);
+
+async function typeCode(source) {
+    const lines = source.replace(/\n+$/, "").split("\n");
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim() !== "") {
+            const want = line.length - line.trimStart().length;
+            for (let guard = 0; guard < 12; guard++) {
+                const have = await cursorIndent();
+                if (have === want) break;
+                await press(have > want ? "Shift+Tab" : "Tab");
+            }
+            for (const ch of line.trimStart()) await send("Input.dispatchKeyEvent", { type: "keyDown", key: ch, text: ch, unmodifiedText: ch });
+        }
+        if (i < lines.length - 1) await press("Enter");
+    }
+}
+
 await send("Emulation.setDeviceMetricsOverride", { width: Number(width), height: 900, deviceScaleFactor: 1, mobile: false });
 await send("Page.navigate", { url });
 await sleep(3500);
@@ -79,6 +101,7 @@ for (const step of steps) {
     if (step.focus) await evaluate(`document.querySelector(${JSON.stringify(step.focus)}).focus()`);
     else if (step.click) await evaluate(`document.querySelector(${JSON.stringify(step.click)}).click()`);
     else if (step.type !== undefined) for (const ch of step.type) await send("Input.dispatchKeyEvent", { type: "keyDown", key: ch, text: ch, unmodifiedText: ch });
+    else if (step.code !== undefined) await typeCode(step.code);
     else if (step.key) for (let n = 0; n < (step.times ?? 1); n++) await press(step.key);
     else if (step.wait) await sleep(step.wait);
     else if (step.eval) console.log(JSON.stringify(await evaluate(step.eval)));

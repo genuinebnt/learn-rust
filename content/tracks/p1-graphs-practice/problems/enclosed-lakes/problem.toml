@@ -1,0 +1,31 @@
+slug = "enclosed-lakes"
+title = "Enclosed Lakes"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-surrounded-regions"]
+warmup = false
+level = "medium"
+stage = "traversal"
+order = 7
+status = "ready"
+teaches = [
+    "**Searching inward from the border** to find what is cut off, instead of testing each region",
+]
+follow_up = "How would you list each lake separately with its size?"
+
+[[hints]]
+kind = "approach"
+text = "Water that touches the map border can drain away; a lake is \"enclosed\" only if none of its water connects to the border. Find the water that **does** reach the border, and count the rest."
+
+[[hints]]
+kind = "python"
+text = "Flood from every border water tile through water tiles. Enclosed = total water tiles minus the flooded ones."
+
+[[hints]]
+kind = "edge case"
+text = "A map with no water, and water on the border of a one-row or one-column map (all of it is border)."
+
+[solution]
+explanation = "Flood the water that is connected to the border; every water tile that was not reached is enclosed, so the answer is total water minus reached water."
+time = "O(rows · cols)"
+space = "O(rows · cols)"

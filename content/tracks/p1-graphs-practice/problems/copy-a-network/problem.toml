@@ -1,0 +1,31 @@
+slug = "copy-a-network"
+title = "Copy a Network"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-clone-graph"]
+warmup = true
+level = "medium"
+stage = "traversal"
+order = 3
+status = "ready"
+teaches = [
+    "**Traversal with a memo**: a map from each original node to its copy keeps cycles from looping forever",
+]
+follow_up = "How would you copy a network with a million servers without recursion?"
+
+[[hints]]
+kind = "approach"
+text = "Copy a server, then copy the servers it links to. The trouble is a cycle: you must never copy the same server twice, or you will chase links forever."
+
+[[hints]]
+kind = "python"
+text = "Keep a dict from original server to its copy, and put the copy in it **before** you copy its links. Then a server you meet again is simply looked up."
+
+[[hints]]
+kind = "edge case"
+text = "`None` (no network), a server that links to itself, and two servers that link to each other."
+
+[solution]
+explanation = "A dictionary maps each original server to its copy. Create the copy and register it first, then copy its links through the same dictionary, so a server reached twice is reused and cycles end."
+time = "O(servers + links)"
+space = "O(servers)"

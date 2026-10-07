@@ -1,0 +1,27 @@
+code = "P1"
+name = "Graphs practice"
+section = "P"
+tier = "core"
+order = 1
+summary = "Eleven small problems that use the graph ideas from the NeetCode Graphs problems in new settings: flood fill, multi-source BFS, borders, topological order, cycles, union-find and BFS over positions."
+pattern = "Graphs"
+
+[[stages]]
+slug = "flood-fill"
+name = "Flood fill"
+band = "easy"
+
+[[stages]]
+slug = "traversal"
+name = "Searching a grid and a network"
+band = "medium"
+
+[[stages]]
+slug = "order-and-groups"
+name = "Order, cycles and groups"
+band = "medium"
+
+[[stages]]
+slug = "state-space"
+name = "Search over positions"
+band = "hard"

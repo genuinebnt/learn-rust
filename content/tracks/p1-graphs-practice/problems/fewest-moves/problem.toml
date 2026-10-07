@@ -1,0 +1,31 @@
+slug = "fewest-moves"
+title = "Fewest Moves"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-word-ladder"]
+warmup = false
+level = "hard"
+stage = "state-space"
+order = 11
+status = "ready"
+teaches = [
+    "**BFS over a state space**: the nodes are positions (or words), the edges are legal moves, and BFS finds the fewest moves",
+]
+follow_up = "What if some squares are blocked? What if you search from both ends at once?"
+
+[[hints]]
+kind = "approach"
+text = "Treat each square as a node and each knight jump as an edge. The fewest moves is the length of the shortest path, which breadth-first search finds ring by ring."
+
+[[hints]]
+kind = "python"
+text = "Keep a `deque` of `(square, moves)` and a `seen` set. A knight has up to 8 jumps `(±1, ±2)` and `(±2, ±1)`; skip squares off the board."
+
+[[hints]]
+kind = "edge case"
+text = "Start equals goal (0 moves); a corner square (only 2 jumps); a 1×1 board where nothing can move."
+
+[solution]
+explanation = "BFS from the start square over knight jumps. Squares are first reached by their fewest-move paths, so the moves recorded when the goal is first reached is the answer; unreachable goals give -1."
+time = "O(size²)"
+space = "O(size²)"

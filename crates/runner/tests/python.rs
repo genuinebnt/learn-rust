@@ -101,3 +101,25 @@ async fn hidden_tests_run_only_on_submit() {
     assert_eq!((submit.total, submit.status), (5, RunStatus::Passed));
     assert!(submit.tests.iter().any(|t| t.suite == anneal_runner::Suite::Hidden));
 }
+
+/// The same checks inside the Docker sandbox (no network, read-only root, unprivileged user). Needs Docker and an image
+/// with `python3`: the runner image once it's built (`docker build -t anneal-runner:1.98 -f docker/runner.Dockerfile
+/// docker`), or any Python image, e.g. `ANNEAL_PY_IMAGE=python:3.12-slim cargo test -p anneal-runner --test python -- --ignored`.
+#[tokio::test]
+#[ignore = "needs Docker and an image with python3"]
+async fn docker_sandbox_runs_python() {
+    let image = std::env::var("ANNEAL_PY_IMAGE").unwrap_or_else(|_| "anneal-runner:1.98".into());
+    let mut cfg = RunnerConfig::new(Sandbox::docker(image), Path::new(env!("CARGO_TARGET_TMPDIR")).join("anneal-py-docker"));
+    cfg.test_timeout = Duration::from_secs(60);
+    let docker = Runner::new(cfg);
+    let good = "def double(x):\n    return x * 2\n\n\ndef order(xs):\n    return sorted(xs)\n";
+    let r = docker.run_python(&PySubmission { code: good, visible_tests: TESTS, hidden_tests: None }).await.expect("runner");
+    assert_eq!((r.status, r.passed, r.total), (RunStatus::Passed, 4, 4), "{:?} {:?}", r.diagnostics, r.tests);
+    // Nothing leaves the sandbox: the network is off, and the root file system is read-only.
+    let probe = "import socket\n\n\ndef double(x):\n    try:\n        socket.create_connection(('1.1.1.1', 53), timeout=2)\n    except OSError:\n        return x * 2\n    return -1\n\n\ndef order(xs):\n    try:\n        open('/etc/anneal-probe', 'w')\n    except OSError:\n        return sorted(xs)\n    return []\n";
+    let r = docker.run_python(&PySubmission { code: probe, visible_tests: TESTS, hidden_tests: None }).await.expect("runner");
+    assert_eq!(r.status, RunStatus::Passed, "{:?}", r.tests);
+    let slow = "def double(x):\n    while True:\n        pass\n\n\ndef order(xs):\n    return xs\n";
+    let r = docker.run_python(&PySubmission { code: slow, visible_tests: TESTS, hidden_tests: None }).await.expect("runner");
+    assert_eq!(r.status, RunStatus::Timeout);
+}

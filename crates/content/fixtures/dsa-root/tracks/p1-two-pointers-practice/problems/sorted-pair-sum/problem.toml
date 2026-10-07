@@ -1,0 +1,21 @@
+slug = "sorted-pair-sum"
+title = "Sorted Pair Sum"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-valid-palindrome"]
+warmup = true
+level = "easy"
+stage = "warm-up"
+order = 1
+status = "ready"
+teaches = ["Pointers from both ends"]
+follow_up = "What if the numbers aren't sorted?"
+
+[[hints]]
+kind = "approach"
+text = "Start one pointer at each end."
+
+[solution]
+explanation = "Move the pointer on the wrong side."
+time = "O(n)"
+space = "O(1)"

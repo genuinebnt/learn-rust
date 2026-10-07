@@ -76,7 +76,7 @@ pub async fn reviews(State(s): State<AppState>) -> ApiResult<Json<Reviews>> {
 
 /// Starts a scheduled re-solve of a problem you've solved before.
 pub async fn resolve(State(s): State<AppState>, Path(id): Path<String>) -> ApiResult<Json<ProblemDetail>> {
-    let (_, p) = find(&s, &id)?;
+    let (_, p) = find_open(&s, &id).await?;
     if p.meta.status != Status::Ready {
         return Err(ApiError::NotReady(id));
     }
@@ -117,8 +117,15 @@ fn find<'a>(s: &'a AppState, id: &str) -> ApiResult<(&'a Track, &'a Problem)> {
         .ok_or_else(|| ApiError::NotFound(format!("problem {id}")))
 }
 
+/// `find`, then refuse a practice problem that isn't open yet.
+async fn find_open<'a>(s: &'a AppState, id: &str) -> ApiResult<(&'a Track, &'a Problem)> {
+    let found = find(s, id)?;
+    crate::practice::ensure_open(s, found.1).await?;
+    Ok(found)
+}
+
 async fn detail(s: &AppState, id: &str) -> ApiResult<ProblemDetail> {
-    let (t, p) = find(s, id)?;
+    let (t, p) = find_open(s, id).await?;
     let attempt = store::latest_attempt(&s.db, id).await?;
     let runs = match &attempt {
         Some(a) => store::runs(&s.db, a.id).await?,
@@ -127,7 +134,9 @@ async fn detail(s: &AppState, id: &str) -> ApiResult<ProblemDetail> {
     let draft = store::draft(&s.db, id).await?;
     let scratch = store::scratch(&s.db, id).await?;
     let solved_ever = store::ever_solved(&s.db, id).await?;
-    Ok(views::problem_detail(t, p, attempt.as_ref(), draft, scratch, runs, solved_ever))
+    let mut view = views::problem_detail(t, p, attempt.as_ref(), draft, scratch, runs, solved_ever);
+    view.unlocked_by = crate::practice::unlock_refs(s, p);
+    Ok(view)
 }
 
 pub async fn problem(
@@ -152,7 +161,7 @@ pub async fn save_draft(
     Path(id): Path<String>,
     Json(body): Json<CodeBody>,
 ) -> ApiResult<StatusCode> {
-    find(&s, &id)?;
+    find_open(&s, &id).await?;
     check_code(&body.code)?;
     store::save_draft(&s.db, &id, &body.code).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -163,13 +172,13 @@ pub async fn reset(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<ProblemDetail>> {
-    find(&s, &id)?;
+    find_open(&s, &id).await?;
     store::delete_draft(&s.db, &id).await?;
     Ok(Json(detail(&s, &id).await?))
 }
 
 pub async fn save_scratch(State(s): State<AppState>, Path(id): Path<String>, Json(body): Json<CodeBody>) -> ApiResult<StatusCode> {
-    find(&s, &id)?;
+    find_open(&s, &id).await?;
     check_code(&body.code)?;
     store::save_scratch(&s.db, &id, &body.code).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -177,7 +186,10 @@ pub async fn save_scratch(State(s): State<AppState>, Path(id): Path<String>, Jso
 
 /// Run: builds the scratch `main.rs` against the lib.rs buffer and runs it. Not recorded as a run.
 pub async fn run_scratch(State(s): State<AppState>, Path(id): Path<String>, Json(body): Json<ScratchBody>) -> ApiResult<Json<anneal_runner::ScratchResult>> {
-    let (_, p) = find(&s, &id)?;
+    let (_, p) = find_open(&s, &id).await?;
+    if p.meta.language != anneal_content::Language::Rust {
+        return Err(ApiError::BadRequest(format!("{id} has no scratch file: Run runs its tests")));
+    }
     check_code(&body.lib)?;
     check_code(&body.main)?;
     if p.meta.status != Status::Ready {
@@ -210,7 +222,7 @@ pub async fn submit(
 
 /// Run: visible tests only. Submit: visible and hidden; all passing, with no rule broken, solves the problem.
 async fn execute(s: &AppState, id: &str, code: &str, with_hidden: bool) -> ApiResult<RunOutcome> {
-    let (_, p) = find(s, id)?;
+    let (track, p) = find_open(s, id).await?;
     check_code(code)?;
     if p.meta.status != Status::Ready {
         return Err(ApiError::NotReady(id.to_owned()));
@@ -218,19 +230,23 @@ async fn execute(s: &AppState, id: &str, code: &str, with_hidden: bool) -> ApiRe
     let visible = p.files.visible_tests.as_deref().unwrap_or_default();
     let hidden = with_hidden.then(|| p.files.hidden_tests.as_deref().unwrap_or_default());
     store::save_draft(&s.db, id, code).await?;
-    let result = s
-        .runner
-        .run(
-            id,
-            &Submission {
-                lib_rs: code,
-                visible_tests: visible,
-                hidden_tests: hidden,
-                crates: &p.meta.crates,
-                perf: runner_perf(p.meta.perf),
-            },
-        )
-        .await?;
+    let result = match p.meta.language {
+        anneal_content::Language::Python => s.runner.run_python(&anneal_runner::PySubmission { code, visible_tests: visible, hidden_tests: hidden }).await?,
+        anneal_content::Language::Rust => {
+            s.runner
+                .run(
+                    id,
+                    &Submission {
+                        lib_rs: code,
+                        visible_tests: visible,
+                        hidden_tests: hidden,
+                        crates: &p.meta.crates,
+                        perf: runner_perf(p.meta.perf),
+                    },
+                )
+                .await?
+        }
+    };
 
     // Fix-this rules are checked against the source; the tests still run so you see both.
     let violations = match (&p.meta.rules, &p.files.starter) {
@@ -244,7 +260,8 @@ async fn execute(s: &AppState, id: &str, code: &str, with_hidden: bool) -> ApiRe
     if with_hidden && result.status == RunStatus::Passed && violations.is_empty() {
         let newly = attempt.solved_at.is_none();
         attempt = store::mark_solved(&s.db, attempt.id).await?;
-        if newly {
+        // Practice never schedules reviews (decision 23).
+        if newly && track.section != anneal_content::Section::Practice {
             let outcome = if attempt.assisted { Outcome::Assisted } else { Outcome::Unassisted };
             let srs = crate::settings::srs(&s.db).await?;
             store::record_review(&s.db, id, outcome.grade(), attempt.kind == "resolve", &srs).await?;
@@ -262,7 +279,7 @@ pub async fn reveal_hint(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<ProblemDetail>> {
-    let (_, p) = find(&s, &id)?;
+    let (_, p) = find_open(&s, &id).await?;
     if p.meta.hints.is_empty() {
         return Err(ApiError::BadRequest(format!("{id} has no hints")));
     }
@@ -277,7 +294,7 @@ pub async fn reveal_solution(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<ProblemDetail>> {
-    let (_, p) = find(&s, &id)?;
+    let (_, p) = find_open(&s, &id).await?;
     if p.files.solution.is_none() {
         return Err(ApiError::NotReady(id));
     }
@@ -300,7 +317,10 @@ pub async fn lsp(
     Path(id): Path<String>,
     Query(params): Query<LspParams>,
 ) -> ApiResult<Response> {
-    let (_, p) = find(&s, &id)?;
+    let (_, p) = find_open(&s, &id).await?;
+    if p.meta.language != anneal_content::Language::Rust {
+        return Err(ApiError::BadRequest(format!("{id} isn't a Rust problem: there is no language server for it")));
+    }
     let starter = p
         .files
         .starter

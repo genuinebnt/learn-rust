@@ -37,6 +37,10 @@ struct PatternRow<'a> {
     total: usize,
     in_150: usize,
     solved: usize,
+    /// Practice problems for the pattern: how many, how many are open, how many solved.
+    practice_total: usize,
+    practice_open: usize,
+    practice_solved: usize,
 }
 
 #[derive(Serialize)]
@@ -151,6 +155,24 @@ fn in_goal(p: &Problem, settings: &Settings) -> bool {
     d.lists.contains(&settings.goal.list) && !(settings.goal.free_only && d.premium)
 }
 
+/// The next problems in order, and where the sequence starts from. The goal's list first; once it's done, the 250, then
+/// everything (see decision 22).
+pub(crate) async fn next_up_ids(s: &AppState, settings: &Settings, progress: &HashMap<String, ProgressRow>, count: usize) -> ApiResult<(Vec<String>, Option<String>)> {
+    let solved = |p: &Problem| progress.get(&p.id).is_some_and(|r| r.solved);
+    let all: Vec<&Problem> = dsa_tracks(&s.catalog).flat_map(|t| &t.problems).collect();
+    let goal: Vec<&Problem> = all.iter().copied().filter(|p| in_goal(p, settings)).collect();
+    let scope = |list: &str| -> Vec<&Problem> { all.iter().copied().filter(|p| dsa_of(p).lists.iter().any(|l| l == list)).collect() };
+    let start = store::dsa_start(&s.db).await?;
+    for pool in [goal, scope("neetcode250"), scope("all")] {
+        let entries: Vec<Entry> = pool.iter().map(|p| Entry { id: &p.id, done: solved(p) }).collect();
+        let next: Vec<String> = dsa_next::next_up(&entries, start.as_deref(), count).into_iter().map(str::to_owned).collect();
+        if !next.is_empty() {
+            return Ok((next, start));
+        }
+    }
+    Ok((Vec::new(), start))
+}
+
 async fn plan(s: &AppState, settings: &Settings, progress: &HashMap<String, ProgressRow>, reviews: &[ReviewRow], today: NaiveDate) -> ApiResult<Plan> {
     let solved = |p: &Problem| progress.get(&p.id).is_some_and(|r| r.solved);
     let all: Vec<&Problem> = dsa_tracks(&s.catalog).flat_map(|t| &t.problems).collect();
@@ -163,17 +185,7 @@ async fn plan(s: &AppState, settings: &Settings, progress: &HashMap<String, Prog
     let goal_total = goal.len() as u32 + settings.goal.extra;
     let remaining = settings.goal.custom_left.unwrap_or_else(|| goal_total.saturating_sub(goal_done + extra_done));
 
-    // "Next problem" walks the goal's list; once it's done, the 250, then everything.
-    let scope = |list: &str| -> Vec<&Problem> { all.iter().copied().filter(|p| dsa_of(p).lists.iter().any(|l| l == list)).collect() };
-    let start = store::dsa_start(&s.db).await?;
-    let mut next_up = Vec::new();
-    for pool in [goal.clone(), scope("neetcode250"), scope("all")] {
-        let entries: Vec<Entry> = pool.iter().map(|p| Entry { id: &p.id, done: solved(p) }).collect();
-        next_up = dsa_next::next_up(&entries, start.as_deref(), 5).into_iter().map(str::to_owned).collect();
-        if !next_up.is_empty() {
-            break;
-        }
-    }
+    let (next_up, start) = next_up_ids(s, settings, progress, 5).await?;
 
     let cards: Vec<(String, fsrs::MemoryState, NaiveDate, NaiveDate)> =
         reviews.iter().map(|r| (r.problem_id.clone(), r.memory(), local(r.last_review), local(r.due_at))).collect();
@@ -205,14 +217,21 @@ pub async fn overview(State(s): State<AppState>) -> ApiResult<Json<serde_json::V
     let reviews = dsa_reviews(&s.catalog, store::reviews(&s.db).await?);
     let by_problem: HashMap<&str, &ReviewRow> = reviews.iter().map(|r| (r.problem_id.as_str(), r)).collect();
 
+    let open = crate::practice::open_ids(&s).await?;
     let patterns = dsa_tracks(&s.catalog)
-        .map(|t| PatternRow {
+        .map(|t| {
+            let (practice_total, practice_open, practice_solved) = crate::practice::counts(&s, &t.name, &open, &progress);
+            PatternRow {
             code: &t.code,
             slug: &t.slug,
             name: &t.name,
             total: t.problems.len(),
             in_150: t.problems.iter().filter(|p| dsa_of(p).lists.iter().any(|l| l == "neetcode150")).count(),
             solved: t.problems.iter().filter(|p| progress.get(&p.id).is_some_and(|r| r.solved)).count(),
+            practice_total,
+            practice_open,
+            practice_solved,
+            }
         })
         .collect();
     let problems = dsa_tracks(&s.catalog).flat_map(|t| t.problems.iter().map(move |p| (t, p))).map(|(t, p)| row(t, p, &progress, &by_problem, today)).collect();

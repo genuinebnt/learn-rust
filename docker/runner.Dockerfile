@@ -4,6 +4,11 @@
 # /opt/anneal-vendor. The network is only used here, at build time, to download that set.
 FROM rust:1.98-slim
 
+# Python for the practice tracks: tests run with the system interpreter, nothing is installed with pip.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN rustup component add clippy \
     && rm -rf /usr/local/rustup/downloads /usr/local/rustup/tmp
 

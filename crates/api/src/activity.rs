@@ -190,7 +190,7 @@ fn next_up(
 }
 
 /// The first prose paragraph of a statement.
-fn excerpt(statement: &str) -> String {
+pub(crate) fn excerpt(statement: &str) -> String {
     statement
         .split("\n\n")
         .map(str::trim)
@@ -211,6 +211,7 @@ pub fn parse_sections(s: &str) -> Vec<Section> {
             "F" => Some(Section::Performance),
             "B" => Some(Section::Backend),
             "M" => Some(Section::Design),
+            "P" => Some(Section::Practice),
             _ => None,
         })
         .collect()

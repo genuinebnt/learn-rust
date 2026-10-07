@@ -1,0 +1,2 @@
+def is_mirror(items: list[int]) -> bool:
+    return True

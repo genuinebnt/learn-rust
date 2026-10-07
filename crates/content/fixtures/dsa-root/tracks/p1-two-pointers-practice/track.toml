@@ -1,0 +1,17 @@
+code = "P1"
+name = "Two Pointers practice"
+section = "P"
+tier = "core"
+order = 1
+summary = "A fixture practice track."
+pattern = "Two Pointers"
+
+[[stages]]
+slug = "warm-up"
+name = "Warm-up"
+band = "easy"
+
+[[stages]]
+slug = "core"
+name = "Core"
+band = "medium"

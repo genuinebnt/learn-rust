@@ -20,6 +20,7 @@ mod deps;
 mod exec;
 mod parse;
 mod project;
+mod python;
 mod result;
 
 use std::fs::File;
@@ -28,6 +29,7 @@ use std::time::{Duration, Instant};
 
 pub use deps::{VENDOR_DIR, known_crates};
 pub use project::write as write_project;
+pub use python::{PySubmission, SOLUTION_FILE as PYTHON_FILE};
 pub use result::{
     Check, Diagnostic, Level, Outcome, RunResult, RunStatus, Span, Suite, TestOutcome,
 };

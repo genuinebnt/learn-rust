@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use anneal_content::model::{Example, Hint, SolutionNotes};
-use anneal_content::{Band, Mode, Problem, Rules, Section, Status, Tier, Track};
+use anneal_content::{Band, Language, Mode, Problem, Rules, Section, Status, Tier, Track};
 use anneal_rules::Violation;
 use anneal_runner::{Check, Diagnostic, Outcome, RunResult, RunStatus, Suite, TestOutcome};
 use chrono::{DateTime, Utc};
@@ -203,12 +203,25 @@ pub fn track_detail(t: &Track, progress: &HashMap<String, ProgressRow>) -> Track
     }
 }
 
+/// A DSA problem that opens a practice problem.
+#[derive(Debug, Clone, Serialize)]
+pub struct UnlockRef {
+    pub id: String,
+    pub slug: String,
+    pub title: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct ProblemDetail {
     pub id: String,
     pub slug: String,
     pub title: String,
     pub mode: Mode,
+    /// What the editor and runner speak.
+    pub language: Language,
+    /// Practice problems: the DSA problems that open it, and whether it is a warm-up.
+    pub unlocked_by: Vec<UnlockRef>,
+    pub warmup: bool,
     pub level: Band,
     pub status: Status,
     pub track: TrackRef,
@@ -399,6 +412,9 @@ pub fn problem_detail(
         slug: p.meta.slug.clone(),
         title: p.meta.title.clone(),
         mode: p.meta.mode,
+        language: p.meta.language,
+        unlocked_by: Vec::new(), // filled in by the route, which can see the whole catalog
+        warmup: p.meta.warmup,
         level: p.meta.level,
         status: p.meta.status,
         track: TrackRef {
@@ -437,7 +453,7 @@ pub fn problem_detail(
         crates: p.meta.crates.clone(),
         rules: p.meta.rules.clone(),
         draft: draft.filter(|d| *d != starter),
-        scratch: scratch.unwrap_or_else(|| SCRATCH_TEMPLATE.to_owned()),
+        scratch: if p.meta.language == Language::Python { String::new() } else { scratch.unwrap_or_else(|| SCRATCH_TEMPLATE.to_owned()) },
         starter,
         visible_tests: p.files.visible_tests.clone().unwrap_or_default(),
         hidden_tests: if solved_ever { p.files.hidden_tests.clone() } else { None },

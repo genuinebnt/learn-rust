@@ -10,7 +10,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::catalog::{Issue, Problem, ProblemFiles, Track};
-use crate::model::{Band, Mode, ProblemFile, Section, StageDef, Status, Tier};
+use crate::model::{Band, Language, Mode, ProblemFile, Section, StageDef, Status, Tier};
 
 /// Whether a problem introduces its technique or practises one introduced elsewhere.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -209,6 +209,7 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> (Vec<Track>, DsaCata
                 tier: Tier::Core,
                 order: number as u32,
                 summary: String::new(),
+                pattern: None,
                 stages: [Band::Easy, Band::Medium, Band::Hard]
                     .into_iter()
                     .map(|band| StageDef { slug: band_name(band).into(), name: capitalized(band_name(band)), band })
@@ -227,6 +228,9 @@ fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path, page: Option<&Pag
             slug: p.slug.clone(),
             title: p.title.clone(),
             mode: Mode::Write,
+            language: Language::Python,
+            unlocked_by: Vec::new(),
+            warmup: false,
             level: p.difficulty,
             stage: band_name(p.difficulty).into(),
             order: p.order,

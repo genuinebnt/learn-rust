@@ -1,0 +1,19 @@
+slug = "mirror-check"
+title = "Mirror Check"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-two-sum-ii-input-array-is-sorted"]
+level = "medium"
+stage = "core"
+order = 2
+status = "ready"
+follow_up = "What about a linked list?"
+
+[[hints]]
+kind = "approach"
+text = "Compare the ends."
+
+[solution]
+explanation = "Compare from both ends."
+time = "O(n)"
+space = "O(1)"

@@ -14,6 +14,9 @@ pub enum ApiError {
     BadRequest(String),
     #[error("{0}")]
     Busy(String),
+    /// A practice problem whose LeetCode problem hasn't been attempted yet.
+    #[error("{0}")]
+    Locked(String),
     #[error("sign in first")]
     Unauthorized,
     #[error("wrong passphrase")]
@@ -30,6 +33,7 @@ impl IntoResponse for ApiError {
             ApiError::NotFound(_) => (StatusCode::NOT_FOUND, "not_found"),
             ApiError::NotReady(_) => (StatusCode::CONFLICT, "not_ready"),
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request"),
+            ApiError::Locked(_) => (StatusCode::LOCKED, "locked"),
             ApiError::Busy(_) => (StatusCode::TOO_MANY_REQUESTS, "busy"),
             ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized"),
             ApiError::WrongPassphrase => (StatusCode::UNAUTHORIZED, "wrong_passphrase"),

@@ -810,6 +810,7 @@ fn dsa_root(retired: Option<&str>) -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join("tracks")).unwrap();
     copy_dir(&fixtures().join("dsa-root/dsa"), &dir.path().join("dsa"));
+    copy_dir(&fixtures().join("dsa-root/tracks"), &dir.path().join("tracks"));
     if let Some(retired) = retired {
         std::fs::write(dir.path().join("retired.txt"), retired).unwrap();
     }
@@ -963,4 +964,69 @@ fn a_current_problem_cannot_also_be_retired() {
     let root = dsa_root(Some("lc-two-sum\n"));
     let loaded = Catalog::load(root.path()).unwrap();
     assert!(loaded.issues.iter().any(|i| i.message.contains("lc-two-sum is retired but also a current problem")), "{:?}", loaded.issues);
+}
+
+fn practice_solution() -> String {
+    std::fs::read_to_string(fixtures().join("dsa-root/tracks/p1-two-pointers-practice/problems/sorted-pair-sum/solution.py")).unwrap()
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn practice_problems_unlock_by_logging_or_by_being_a_warmup_for_what_is_next(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db.clone(), root.path());
+    let (status, tracks) = call(&app, Method::GET, "/api/dsa/practice/D2", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let problems = &tracks[0]["problems"];
+    assert_eq!((tracks[0]["language"].as_str(), problems.as_array().unwrap().len()), (Some("python"), 2));
+    // The warm-up opens because Valid Palindrome is among the next three; the other waits to be logged.
+    let by_id = |id: &str| problems.as_array().unwrap().iter().find(|p| p["id"] == id).unwrap().clone();
+    assert_eq!((by_id("p1-sorted-pair-sum")["open"].clone(), by_id("p1-mirror-check")["open"].clone()), (json!(true), json!(false)));
+    assert_eq!(by_id("p1-mirror-check")["unlocked_by"][0]["title"], "Two Sum II - Input Array Is Sorted");
+    assert!(by_id("p1-sorted-pair-sum")["blurb"].as_str().unwrap().starts_with("Given a **sorted** list"));
+
+    let (status, locked) = call(&app, Method::GET, "/api/problems/p1-mirror-check", None).await;
+    assert_eq!((status, locked["error"].as_str()), (StatusCode::LOCKED, Some("locked")));
+    assert!(locked["message"].as_str().unwrap().contains("Two Sum II"), "{locked}");
+    let (status, _) = call(&app, Method::POST, "/api/problems/p1-mirror-check/submit", Some(json!({ "code": "x = 1" }))).await;
+    assert_eq!(status, StatusCode::LOCKED);
+
+    // Logging the LeetCode problem, even as "not yet", opens it.
+    let (_, ov) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!((ov["patterns"][1]["practice_total"].clone(), ov["patterns"][1]["practice_open"].clone(), ov["patterns"][0]["practice_total"].clone()), (json!(2), json!(1), json!(0)));
+    call(&app, Method::POST, "/api/dsa/problems/lc-two-sum-ii-input-array-is-sorted/log", Some(json!({ "grade": "again" }))).await;
+    let (status, p) = call(&app, Method::GET, "/api/problems/p1-mirror-check", None).await;
+    assert_eq!((status, p["language"].as_str(), p["starter"].as_str()), (StatusCode::OK, Some("python"), Some("def is_mirror(items: list[int]) -> bool:\n    ...\n")));
+    assert_eq!(p["unlocked_by"][0]["slug"], "two-sum-ii-input-array-is-sorted");
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn python_practice_runs_tests_and_never_schedules_reviews(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db.clone(), root.path());
+    let id = "p1-sorted-pair-sum";
+
+    // A broken program is a compile error with a span in solution.py; the editor reads the file name.
+    let (_, out) = call(&app, Method::POST, &format!("/api/problems/{id}/run"), Some(json!({ "code": "def pair_sum(nums, target):\nreturn None\n" }))).await;
+    assert_eq!(out["run"]["status"], "compile_error");
+    assert_eq!((out["run"]["diagnostics"][0]["spans"][0]["file"].as_str(), out["run"]["diagnostics"][0]["spans"][0]["line_start"].as_u64()), (Some("solution.py"), Some(2)));
+
+    // The starter fails its tests; Run shows visible ones and a check mismatch.
+    let (_, p) = call(&app, Method::GET, &format!("/api/problems/{id}"), None).await;
+    let (_, out) = call(&app, Method::POST, &format!("/api/problems/{id}/run"), Some(json!({ "code": p["starter"] }))).await;
+    assert_eq!((out["run"]["status"].as_str(), out["run"]["total"].as_u64()), (Some("failed"), Some(5)));
+
+    // The solution solves it on Submit; hidden tests are now revealed, and no review is scheduled.
+    let (_, out) = call(&app, Method::POST, &format!("/api/problems/{id}/submit"), Some(json!({ "code": practice_solution() }))).await;
+    assert_eq!((out["run"]["status"].as_str(), out["run"]["total"].as_u64(), out["attempt"]["solved"].clone()), (Some("passed"), Some(13), json!(true)));
+    let reviews: i64 = sqlx::query_scalar("SELECT count(*) FROM reviews").fetch_one(&db).await.unwrap();
+    assert_eq!(reviews, 0, "practice schedules no reviews");
+    let (_, r) = call(&app, Method::GET, "/api/reviews", None).await;
+    assert_eq!((r["in_rotation"].as_u64(), r["due_today"].as_u64()), (Some(0), Some(0)));
+    let (_, ov) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!(ov["patterns"][1]["practice_solved"], 1);
+    // No readiness from it either: the DSA lists are untouched.
+    assert_eq!(ov["plan"]["goal_done"], 0);
+    // There is no rust-analyzer for Python.
+    let (status, _) = call(&app, Method::POST, &format!("/api/problems/{id}/scratch/run"), Some(json!({ "lib": "", "main": "" }))).await;
+    assert_ne!(status, StatusCode::OK);
 }

@@ -41,6 +41,9 @@ pub enum Section {
     Backend,
     #[serde(rename = "M")]
     Design,
+    /// Handwritten practice tracks, one per DSA pattern. Not part of spaced repetition or readiness.
+    #[serde(rename = "P")]
+    Practice,
 }
 
 impl Section {
@@ -54,6 +57,26 @@ impl Section {
             Section::Performance => 'F',
             Section::Backend => 'B',
             Section::Design => 'M',
+            Section::Practice => 'P',
+        }
+    }
+}
+
+/// The language a problem is solved in.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    #[default]
+    Rust,
+    Python,
+}
+
+impl Language {
+    /// The file extension of source files, and so of `starter`, `solution` and the tests.
+    pub fn ext(self) -> &'static str {
+        match self {
+            Language::Rust => "rs",
+            Language::Python => "py",
         }
     }
 }
@@ -96,6 +119,9 @@ pub struct TrackFile {
     pub order: u32,
     #[serde(default)]
     pub summary: String,
+    /// For a practice track: the NeetCode pattern it practises, e.g. `Graphs`.
+    #[serde(default)]
+    pub pattern: Option<String>,
     pub stages: Vec<StageDef>,
 }
 
@@ -159,6 +185,17 @@ pub struct ProblemFile {
     pub slug: String,
     pub title: String,
     pub mode: Mode,
+    /// Rust unless the problem says `language = "python"`.
+    #[serde(default)]
+    pub language: Language,
+    /// Practice problems only: the DSA problem ids (`lc-<slug>`) that unlock it. Logging any one of them, with any
+    /// grade, opens the problem.
+    #[serde(default)]
+    pub unlocked_by: Vec<String>,
+    /// Practice problems only: it works as a prerequisite, so it also opens while one of its `unlocked_by` problems
+    /// is coming up next (in the next few of the plan's order), not only after one has been logged.
+    #[serde(default)]
+    pub warmup: bool,
     pub level: Band,
     pub stage: String,
     /// Position within the track; unique per track.

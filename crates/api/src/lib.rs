@@ -8,6 +8,7 @@ pub mod dsa_next;
 mod error;
 mod format;
 pub mod lsp;
+pub mod practice;
 pub mod preflight;
 mod progress;
 pub mod reviews;
@@ -71,6 +72,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/dsa/problems/{id}/page", get(dsa::page))
         .route("/dsa/problems/{id}/log", post(dsa::log))
         .route("/dsa/start", post(dsa::start))
+        .route("/dsa/practice/{pattern}", get(practice::for_pattern))
         .route("/settings", get(settings::get))
         .route("/format", post(format::format))
         .route("/settings/editor", put(settings::put_editor))

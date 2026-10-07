@@ -212,6 +212,7 @@ async fn main() -> anyhow::Result<ExitCode> {
 struct Case {
     id: String,
     mode: Mode,
+    language: anneal_content::Language,
     starter: String,
     solution: String,
     visible: String,
@@ -238,6 +239,7 @@ async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::
             let case = Case {
                 id: p.id.clone(),
                 mode: p.meta.mode,
+                language: p.meta.language,
                 starter: f.starter.clone().unwrap_or_default(),
                 solution: f.solution.clone().unwrap_or_default(),
                 visible: f.visible_tests.clone().unwrap_or_default(),
@@ -277,7 +279,8 @@ async fn verify(catalog: &Catalog, track: Option<&str>, jobs: usize) -> anyhow::
 
 async fn verify_one(runner: &Runner, c: &Case) -> Vec<String> {
     let mut issues = Vec::new();
-    let count = |src: &str| src.matches("#[test]").count();
+    let marker = if c.language == anneal_content::Language::Python { "\ndef test_" } else { "#[test]" };
+    let count = |src: &str| format!("\n{src}").matches(marker).count();
     // The bar from the test-hardening pass (HANDOFF §6.1): enough visible tests to explain the problem, enough
     // hidden ones to check it, and at least one wrong solution the tests are shown to reject.
     if count(&c.visible) < 5 {
@@ -287,7 +290,7 @@ async fn verify_one(runner: &Runner, c: &Case) -> Vec<String> {
         issues.push(format!("only {} hidden tests; want at least 8", count(&c.hidden)));
     }
     if c.wrong.is_empty() {
-        issues.push("no wrong/<name>.rs; add a plausible wrong solution the tests reject".into());
+        issues.push(format!("no wrong/<name>.{}; add a plausible wrong solution the tests reject", c.language.ext()));
     }
     let broken = |code: &str| c.rules.as_ref().map(|r| anneal_rules::check(code, &c.starter, r)).unwrap_or_default();
 
@@ -317,19 +320,22 @@ async fn verify_one(runner: &Runner, c: &Case) -> Vec<String> {
     for (name, code) in &c.wrong {
         match submit(runner, c, code).await {
             Ok(r) if r.status == anneal_runner::RunStatus::CompileError => {
-                issues.push(format!("wrong/{name}.rs doesn't compile{}", first_problem(&r)));
+                issues.push(format!("wrong/{name}.{} doesn't compile{}", c.language.ext(), first_problem(&r)));
             }
             Ok(r) if r.status == anneal_runner::RunStatus::Passed && broken(code).is_empty() => {
-                issues.push(format!("wrong/{name}.rs passes every test; add a test that catches it"));
+                issues.push(format!("wrong/{name}.{} passes every test; add a test that catches it", c.language.ext()));
             }
             Ok(_) => {}
-            Err(e) => issues.push(format!("wrong/{name}.rs: runner error {e}")),
+            Err(e) => issues.push(format!("wrong/{name}.{}: runner error {e}", c.language.ext())),
         }
     }
     issues
 }
 
 async fn submit(runner: &Runner, c: &Case, code: &str) -> Result<RunResult, anneal_runner::RunnerError> {
+    if c.language == anneal_content::Language::Python {
+        return runner.run_python(&anneal_runner::PySubmission { code, visible_tests: &c.visible, hidden_tests: Some(&c.hidden) }).await;
+    }
     runner.run(&c.id, &Submission { lib_rs: code, visible_tests: &c.visible, hidden_tests: Some(&c.hidden), crates: &c.crates, perf: c.perf }).await
 }
 

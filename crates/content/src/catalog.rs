@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::dsa::{DsaCatalog, DsaProblem};
-use crate::model::{Mode, ProblemFile, Section, StageDef, Status, Tier, TrackFile};
+use crate::model::{Language, Mode, ProblemFile, Section, StageDef, Status, Tier, TrackFile};
 
 /// Everything under `content/tracks`, loaded and validated.
 #[derive(Debug, Default)]
@@ -27,6 +27,8 @@ pub struct Track {
     pub tier: Tier,
     pub order: u32,
     pub summary: String,
+    /// For a practice track: the NeetCode pattern it practises.
+    pub pattern: Option<String>,
     pub stages: Vec<StageDef>,
     /// Sorted by `order`.
     pub problems: Vec<Problem>,
@@ -102,6 +104,7 @@ impl Catalog {
         tracks.extend(dsa_tracks);
         tracks.sort_by_key(|t| (section_rank(t.section), t.order));
         check_catalog(&tracks, &mut issues);
+        check_unlocks(&tracks, &mut issues);
         let retired = read_retired(root);
         for id in tracks.iter().flat_map(|t| &t.problems).map(|p| &p.id).filter(|id| retired.contains(*id)) {
             issues.push(Issue { path: root.join("retired.txt"), message: format!("{id} is retired but also a current problem") });
@@ -166,6 +169,7 @@ fn section_rank(s: Section) -> u8 {
         Section::Performance => 5,
         Section::Backend => 6,
         Section::Design => 7,
+        Section::Practice => 8,
     }
 }
 
@@ -206,13 +210,13 @@ fn read_optional(path: &Path) -> Option<String> {
     fs::read_to_string(path).ok()
 }
 
-/// Every `<name>.rs` in `dir`, sorted by name; empty when the folder is absent.
-fn read_wrong(dir: &Path) -> Vec<(String, String)> {
+/// Every `<name>.<ext>` in `dir`, sorted by name; empty when the folder is absent.
+fn read_wrong(dir: &Path, ext: &str) -> Vec<(String, String)> {
     let Ok(entries) = fs::read_dir(dir) else { return Vec::new() };
     let mut out: Vec<(String, String)> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|x| x == "rs"))
+        .filter(|p| p.extension().is_some_and(|x| x == ext))
         .filter_map(|p| Some((p.file_stem()?.to_string_lossy().into_owned(), fs::read_to_string(&p).ok()?)))
         .collect();
     out.sort();
@@ -254,6 +258,7 @@ fn load_track(dir: &Path, issues: &mut Vec<Issue>) -> Result<Option<Track>, Load
         tier: meta.tier,
         order: meta.order,
         summary: meta.summary,
+        pattern: meta.pattern,
         stages: meta.stages,
         problems,
     }))
@@ -313,13 +318,14 @@ fn check_track(slug: &str, meta: &TrackFile, file: &Path, issues: &mut Vec<Issue
 fn load_problem(dir: &Path, track: &TrackFile, issues: &mut Vec<Issue>) -> Option<Problem> {
     let file = dir.join("problem.toml");
     let meta = read_toml::<ProblemFile>(&file, issues)?;
+    let ext = meta.language.ext();
     let files = ProblemFiles {
         statement: read_optional(&dir.join("statement.md")),
-        starter: read_optional(&dir.join("starter.rs")),
-        solution: read_optional(&dir.join("solution.rs")),
-        visible_tests: read_optional(&dir.join("tests/visible.rs")),
-        hidden_tests: read_optional(&dir.join("tests/hidden.rs")),
-        wrong: read_wrong(&dir.join("wrong")),
+        starter: read_optional(&dir.join(format!("starter.{ext}"))),
+        solution: read_optional(&dir.join(format!("solution.{ext}"))),
+        visible_tests: read_optional(&dir.join(format!("tests/visible.{ext}"))),
+        hidden_tests: read_optional(&dir.join(format!("tests/hidden.{ext}"))),
+        wrong: read_wrong(&dir.join("wrong"), ext),
     };
     check_problem(dir, &meta, &files, track, &file, issues);
     Some(Problem {
@@ -365,16 +371,30 @@ fn check_problem(
     if meta.rules.is_some() && meta.mode != Mode::Fix {
         issues.push(issue(file, "rules only apply to fix-this problems"));
     }
+    if meta.language == Language::Python && (meta.mode != Mode::Write || meta.rules.is_some() || !meta.crates.is_empty() || meta.perf.is_some()) {
+        issues.push(issue(file, "Python problems are write-it problems: no rules, crates or [perf]"));
+    }
+    if track.section == Section::Practice {
+        if meta.unlocked_by.is_empty() {
+            issues.push(issue(file, "a practice problem needs unlocked_by: the DSA problem ids that open it"));
+        }
+        if track.pattern.is_none() {
+            issues.push(issue(dir, "a practice track needs `pattern` in track.toml"));
+        }
+    } else if !meta.unlocked_by.is_empty() || meta.warmup {
+        issues.push(issue(file, "unlocked_by and warmup only apply to practice problems"));
+    }
     check_perf(meta, files, file, issues);
     if meta.status == Status::Draft {
         return;
     }
+    let ext = meta.language.ext();
     let required = [
-        ("statement.md", &files.statement),
-        ("starter.rs", &files.starter),
-        ("solution.rs", &files.solution),
-        ("tests/visible.rs", &files.visible_tests),
-        ("tests/hidden.rs", &files.hidden_tests),
+        ("statement.md".to_owned(), &files.statement),
+        (format!("starter.{ext}"), &files.starter),
+        (format!("solution.{ext}"), &files.solution),
+        (format!("tests/visible.{ext}"), &files.visible_tests),
+        (format!("tests/hidden.{ext}"), &files.hidden_tests),
     ];
     for (name, content) in required {
         if content.as_deref().is_none_or(|c| c.trim().is_empty()) {
@@ -466,6 +486,27 @@ fn check_problem_order(
                 file,
                 format!("problem {:?} ({:?}) comes after {:?} ({:?}) in stage {:?}; problems in a stage must run easy → hard", b.slug, b.level, a.slug, a.level, a.stage),
             ));
+        }
+    }
+}
+
+/// Every id a practice problem is unlocked by must be a DSA problem, and the track's pattern must exist.
+fn check_unlocks(tracks: &[Track], issues: &mut Vec<Issue>) {
+    let dsa: HashSet<&str> = tracks.iter().filter(|t| t.section == Section::Dsa).flat_map(|t| &t.problems).map(|p| p.id.as_str()).collect();
+    let patterns: HashSet<&str> = tracks.iter().filter(|t| t.section == Section::Dsa).map(|t| t.name.as_str()).collect();
+    for t in tracks.iter().filter(|t| t.section == Section::Practice) {
+        if let Some(pattern) = &t.pattern
+            && !dsa.is_empty()
+            && !patterns.contains(pattern.as_str())
+        {
+            issues.push(Issue { path: PathBuf::from(&t.slug), message: format!("pattern {pattern:?} isn't a DSA pattern") });
+        }
+        for p in &t.problems {
+            for id in &p.meta.unlocked_by {
+                if !dsa.contains(id.as_str()) && !dsa.is_empty() {
+                    issues.push(issue(&p.dir, format!("unlocked_by {id}: not a DSA problem")));
+                }
+            }
         }
     }
 }

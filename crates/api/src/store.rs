@@ -315,6 +315,11 @@ pub async fn log_attempt(
     record_review(db, problem_id, grade, resolve, settings).await
 }
 
+/// The DSA problems (`lc-…`) that have any attempt logged, with any grade.
+pub async fn attempted_dsa(db: &PgPool) -> sqlx::Result<Vec<String>> {
+    sqlx::query_scalar("SELECT DISTINCT problem_id FROM attempts WHERE problem_id LIKE 'lc-%'").fetch_all(db).await
+}
+
 /// Where "next problem" starts from (`settings.dsa_start`): a problem id, the last one logged or the first of a
 /// track the owner picked.
 pub async fn dsa_start(db: &PgPool) -> sqlx::Result<Option<String>> {

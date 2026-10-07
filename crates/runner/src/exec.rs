@@ -27,6 +27,8 @@ pub(crate) enum Program<'a> {
     Cargo,
     /// e.g. `debug/scratch`, relative to the target directory.
     Built(&'a str),
+    /// `python3`, for practice problems.
+    Python,
 }
 
 pub(crate) async fn cargo(
@@ -53,6 +55,7 @@ pub(crate) async fn run(
             let mut c = match program {
                 Program::Cargo => Command::new("cargo"),
                 Program::Built(rel) => Command::new(target.join(rel)),
+                Program::Python => Command::new("python3"),
             };
             c.args(args)
                 .current_dir(work)
@@ -105,6 +108,10 @@ pub(crate) async fn run(
                 .args([
                     "-e",
                     "CARGO_TARGET_DIR=/target",
+                    "-e",
+                    "PYTHONDONTWRITEBYTECODE=1",
+                    "-e",
+                    "PYTHONUNBUFFERED=1",
                     "-w",
                     "/work",
                     image,
@@ -112,6 +119,7 @@ pub(crate) async fn run(
                 .arg(match program {
                     Program::Cargo => "cargo".to_owned(),
                     Program::Built(rel) => format!("/target/{rel}"),
+                    Program::Python => "python3".to_owned(),
                 })
                 .args(args);
             container = Some((name, context.clone()));

@@ -1,0 +1,251 @@
+pattern = "Binary Search"
+intro = "Binary search works whenever a yes/no question flips exactly once as you move along an ordered range: false, false, false, true, true. The array can be sorted values, a rotated array, or just the numbers 1 to n with a test function. Decide what the question is, then find where it flips."
+
+[[technique]]
+id = "Binary Search:classic"
+signals = [
+    "find a value in a sorted array",
+    "return its index, or -1 when it isn't there",
+    "the input is sorted and large",
+]
+template = '''
+def search(nums, target):
+    lo, hi = 0, len(nums) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return -1
+'''
+pitfalls = [
+    "lo <= hi with lo = mid + 1 and hi = mid - 1: always move past mid, or the loop can stall.",
+    "mid = (lo + hi) // 2 is safe in Python. In languages with fixed-size integers use lo + (hi - lo) // 2.",
+    "A 2-D matrix that is sorted row by row is a 1-D array in disguise: index i is (i // cols, i % cols).",
+]
+
+[[technique]]
+id = "Binary Search:insert-pos"
+signals = [
+    "where would this value go to keep the array sorted?",
+    "the first element that is at least the target (or greater than it)",
+    "count how many elements are smaller than a value",
+]
+template = '''
+def lower_bound(nums, target):
+    # The first index whose value is >= target (len(nums) if none).
+    lo, hi = 0, len(nums)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if nums[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+
+def upper_bound(nums, target):
+    # The first index whose value is > target.
+    lo, hi = 0, len(nums)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if nums[mid] <= target:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+'''
+pitfalls = [
+    "Start hi at len(nums), not len(nums) - 1: inserting at the very end is a valid answer.",
+    "lo < hi with hi = mid shrinks the range every time. This is the shape for 'first index where it becomes true'.",
+    "The count of a value is upper_bound minus lower_bound. This is the same as bisect_left and bisect_right.",
+]
+
+[[technique]]
+id = "Binary Search:by-count"
+signals = [
+    "the largest k such that some formula in k still fits (staircase rows, a square root)",
+    "no array is given, only a number and a monotone test",
+    "binary search over 1..n with a test function",
+]
+template = '''
+def arrange_coins(n):
+    # The largest k with 1 + 2 + ... + k <= n.
+    lo, hi = 0, n
+    while lo < hi:
+        mid = (lo + hi + 1) // 2  # round UP, because we keep lo = mid
+        if mid * (mid + 1) // 2 <= n:
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo
+'''
+pitfalls = [
+    "When the loop keeps lo = mid, round mid up. Rounding down makes lo = mid stall forever.",
+    "Write the test as a function of mid first, then pick which half to keep.",
+    "A closed form (a square root) exists here, but the binary search generalises when there isn't one.",
+]
+
+[[technique]]
+id = "Binary Search:on-answer"
+signals = [
+    "the smallest value that makes something possible (a speed, a capacity, a time)",
+    "you can check a guess quickly, and bigger guesses are never worse",
+    "minimise the maximum, or maximise the minimum",
+]
+template = '''
+def min_eating_speed(piles, hours):
+    def can_finish(speed):
+        needed = sum(-(-p // speed) for p in piles)  # ceil(p / speed)
+        return needed <= hours
+
+    lo, hi = 1, max(piles)  # the answer is in [1, the biggest pile]
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if can_finish(mid):
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+'''
+pitfalls = [
+    "Search over the ANSWER's range, not over the input. Bounds come from the problem (at least 1, at most the biggest item).",
+    "can_finish must be monotone: once true for a speed it stays true for every faster one.",
+    "Ceiling division without floats: -(-a // b).",
+]
+
+[[technique]]
+id = "Binary Search:rotated"
+signals = [
+    "a sorted array that was rotated at some unknown point",
+    "find the minimum, or search for a target",
+    "one half around mid is always sorted",
+]
+template = '''
+def find_min(nums):
+    lo, hi = 0, len(nums) - 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if nums[mid] > nums[hi]:  # the drop is to the right of mid
+            lo = mid + 1
+        else:
+            hi = mid
+    return nums[lo]
+
+
+def search_rotated(nums, target):
+    lo, hi = 0, len(nums) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[lo] <= nums[mid]:  # the left half is sorted
+            if nums[lo] <= target < nums[mid]:
+                hi = mid - 1
+            else:
+                lo = mid + 1
+        else:  # the right half is sorted
+            if nums[mid] < target <= nums[hi]:
+                lo = mid + 1
+            else:
+                hi = mid - 1
+    return -1
+'''
+pitfalls = [
+    "Compare with nums[hi], not nums[lo], to find the minimum. It works for an array that was never rotated.",
+    "To search, first decide which half is sorted, then check if the target lies inside it.",
+    "With duplicates the sorted half can't always be told apart. That needs a linear step when nums[lo] == nums[mid] == nums[hi].",
+]
+
+[[technique]]
+id = "Binary Search:weighted"
+signals = [
+    "pick a random index with probability proportional to a weight",
+    "turn weights into cumulative sums, then find where a random number lands",
+    "a prefix sum array is sorted, so bisect works",
+]
+template = '''
+import random
+from bisect import bisect_right
+from itertools import accumulate
+
+
+class WeightedPicker:
+    def __init__(self, weights):
+        self.prefix = list(accumulate(weights))  # [3, 4, 9] for [3, 1, 5]
+        self.total = self.prefix[-1]
+
+    def pick(self, r=None):
+        if r is None:
+            r = random.randrange(self.total)  # 0 .. total - 1
+        return bisect_right(self.prefix, r)  # the first prefix above r
+'''
+pitfalls = [
+    "A number r in [0, total) falls in the first bucket whose prefix is greater than r, so use bisect_right.",
+    "Weight w[i] owns w[i] of the numbers, which makes its probability w[i] / total.",
+    "Build the prefix sums once in the constructor. Each pick is then O(log n).",
+]
+
+[[technique]]
+id = "Binary Search:partition"
+signals = [
+    "the median or k-th item of two sorted arrays in O(log n)",
+    "split both arrays so that the left parts together hold the lower half",
+    "binary search over how many items come from the shorter array",
+]
+template = '''
+def find_median(a, b):
+    if len(a) > len(b):
+        a, b = b, a  # search the shorter one
+    half = (len(a) + len(b) + 1) // 2
+    lo, hi = 0, len(a)
+    inf = float("inf")
+    while lo <= hi:
+        i = (lo + hi) // 2  # items taken from a
+        j = half - i        # items taken from b
+        a_left = a[i - 1] if i else -inf
+        a_right = a[i] if i < len(a) else inf
+        b_left = b[j - 1] if j else -inf
+        b_right = b[j] if j < len(b) else inf
+        if a_left > b_right:
+            hi = i - 1
+        elif b_left > a_right:
+            lo = i + 1
+        else:  # a valid split
+            if (len(a) + len(b)) % 2:
+                return max(a_left, b_left)
+            return (max(a_left, b_left) + min(a_right, b_right)) / 2
+'''
+pitfalls = [
+    "Use infinity for the missing neighbours at either end of an array.",
+    "A split is valid when each left item is no bigger than the opposite right item (a_left <= b_right and b_left <= a_right).",
+    "Search the shorter array so j can never go out of range.",
+]
+
+[[technique]]
+id = "Binary Search:peak"
+signals = [
+    "a peak or a turning point in an array that goes up then down",
+    "compare an element with its neighbour to know which side the peak is on",
+    "the array isn't sorted, but it has a direction",
+]
+template = '''
+def find_peak(nums):
+    # Any index that is larger than its neighbours (the ends count as -inf).
+    lo, hi = 0, len(nums) - 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if nums[mid] < nums[mid + 1]:  # still climbing: peak is right
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+'''
+pitfalls = [
+    "Compare mid with mid + 1. The slope tells you which side must contain a peak.",
+    "hi = mid, not mid - 1: mid itself may be the peak.",
+    "For a mountain array with a target, find the peak first, then binary search each side separately.",
+]

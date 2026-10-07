@@ -6,6 +6,8 @@ from collections import deque
 
 TESTS = {}
 
+from page_tests import ListNode, TreeNode, _ll, _ll_vals, _shape, _tree  # noqa: E402,F401
+
 
 def test(technique):
     def register(fn):
@@ -1440,3 +1442,236 @@ def _(ns):
     for _ in range(300):
         a = [r.randint(1, 5) for _ in range(r.randint(1, 9))]
         assert f(a) == sum(min(a[i:j]) for i in range(len(a)) for j in range(i + 1, len(a) + 1)) % (10**9 + 7)
+
+
+# ---- binary search --------------------------------------------------------------------------------------------------
+
+@test("Binary Search:classic")
+def _(ns):
+    f = ns["search"]
+    r = random.Random(110)
+    for _ in range(300):
+        a = sorted(r.sample(range(-20, 20), r.randint(0, 12)))
+        t = r.randint(-22, 22)
+        assert f(a, t) == (a.index(t) if t in a else -1)
+
+
+@test("Binary Search:insert-pos")
+def _(ns):
+    import bisect
+
+    r = random.Random(111)
+    for _ in range(300):
+        a = sorted(r.randint(0, 9) for _ in range(r.randint(0, 12)))
+        t = r.randint(-1, 10)
+        assert ns["lower_bound"](a, t) == bisect.bisect_left(a, t) and ns["upper_bound"](a, t) == bisect.bisect_right(a, t)
+
+
+@test("Binary Search:by-count")
+def _(ns):
+    f = ns["arrange_coins"]
+    assert [f(n) for n in (0, 1, 2, 5, 8, 10)] == [0, 1, 1, 2, 3, 4]
+    for n in list(range(0, 300)) + [2**31 - 1]:
+        k = 0
+        while (k + 1) * (k + 2) // 2 <= n:
+            k += 1
+        assert f(n) == k, n
+
+
+@test("Binary Search:on-answer")
+def _(ns):
+    f = ns["min_eating_speed"]
+    assert f([3, 6, 7, 11], 8) == 4 and f([30, 11, 23, 4, 20], 5) == 30 and f([30, 11, 23, 4, 20], 6) == 23
+    r = random.Random(112)
+    for _ in range(200):
+        piles = [r.randint(1, 20) for _ in range(r.randint(1, 6))]
+        h = r.randint(len(piles), len(piles) + 12)
+        want = next(k for k in range(1, 21) if sum(-(-p // k) for p in piles) <= h)
+        assert f(piles, h) == want
+
+
+@test("Binary Search:rotated")
+def _(ns):
+    r = random.Random(113)
+    for _ in range(300):
+        a = sorted(r.sample(range(-15, 15), r.randint(1, 10)))
+        k = r.randrange(len(a))
+        rot = a[k:] + a[:k]
+        assert ns["find_min"](rot) == min(a)
+        t = r.randint(-16, 16)
+        got = ns["search_rotated"](rot, t)
+        assert got == (rot.index(t) if t in rot else -1)
+
+
+@test("Binary Search:weighted")
+def _(ns):
+    P = ns["WeightedPicker"]
+    p = P([3, 1, 5])
+    assert [p.pick(r) for r in range(9)] == [0, 0, 0, 1, 2, 2, 2, 2, 2]
+    seen = {p.pick() for _ in range(200)}
+    assert seen == {0, 1, 2}
+
+
+@test("Binary Search:partition")
+def _(ns):
+    f = ns["find_median"]
+    r = random.Random(114)
+    for _ in range(300):
+        a = sorted(r.randint(-9, 9) for _ in range(r.randint(0, 7)))
+        b = sorted(r.randint(-9, 9) for _ in range(r.randint(0 if a else 1, 7)))
+        m = sorted(a + b)
+        n = len(m)
+        want = m[n // 2] if n % 2 else (m[n // 2 - 1] + m[n // 2]) / 2
+        assert f(a, b) == want, (a, b)
+
+
+@test("Binary Search:peak")
+def _(ns):
+    f = ns["find_peak"]
+    r = random.Random(115)
+    for _ in range(300):
+        a = [r.randint(0, 9) for _ in range(r.randint(1, 10))]
+        a = [x * 2 + (i % 2) for i, x in enumerate(a)]
+        a = [v for i, v in enumerate(a) if i == 0 or v != a[i - 1]] or [0]
+        i = f(a)
+        assert (i == 0 or a[i - 1] < a[i]) and (i == len(a) - 1 or a[i] > a[i + 1]), (a, i)
+
+
+# ---- linked list ----------------------------------------------------------------------------------------------------
+
+@test("Linked List:reverse")
+def _(ns):
+    r = random.Random(120)
+    for _ in range(200):
+        v = [r.randint(0, 9) for _ in range(r.randint(0, 9))]
+        assert _ll_vals(ns["reverse_list"](_ll(v))) == v[::-1]
+    for _ in range(200):
+        v = [r.randint(0, 9) for _ in range(r.randint(1, 9))]
+        left = r.randint(1, len(v))
+        right = r.randint(left, len(v))
+        want = v[:left - 1] + v[left - 1:right][::-1] + v[right:]
+        assert _ll_vals(ns["reverse_between"](_ll(v), left, right)) == want
+
+
+@test("Linked List:dummy-merge")
+def _(ns):
+    r = random.Random(121)
+    for _ in range(200):
+        a = sorted(r.randint(0, 9) for _ in range(r.randint(0, 6)))
+        b = sorted(r.randint(0, 9) for _ in range(r.randint(0, 6)))
+        assert _ll_vals(ns["merge_two_lists"](_ll(a), _ll(b))) == sorted(a + b)
+
+
+@test("Linked List:fast-slow")
+def _(ns):
+    r = random.Random(122)
+    for _ in range(300):
+        n = r.randint(1, 10)
+        nodes = [ListNode(i) for i in range(n)]
+        for a, b in zip(nodes, nodes[1:]):
+            a.next = b
+        pos = r.randint(-1, n - 1)
+        if pos >= 0:
+            nodes[-1].next = nodes[pos]
+        assert ns["has_cycle"](nodes[0]) is (pos >= 0)
+        assert ns["cycle_start"](nodes[0]) is (nodes[pos] if pos >= 0 else None)
+        if pos < 0:
+            assert ns["middle"](nodes[0]) is nodes[n // 2]
+
+
+@test("Linked List:splice")
+def _(ns):
+    r = random.Random(123)
+    for _ in range(300):
+        v = [r.randint(0, 3) for _ in range(r.randint(0, 9))]
+        x = r.randint(0, 3)
+        assert _ll_vals(ns["remove_elements"](_ll(v), x)) == [y for y in v if y != x]
+
+
+@test("Linked List:gap")
+def _(ns):
+    r = random.Random(124)
+    for _ in range(300):
+        v = [r.randint(0, 9) for _ in range(r.randint(1, 10))]
+        n = r.randint(1, len(v))
+        assert _ll_vals(ns["remove_nth_from_end"](_ll(v), n)) == v[:len(v) - n] + v[len(v) - n + 1:]
+
+
+@test("Linked List:clone-map")
+def _(ns):
+    class N:
+        def __init__(self, x, next=None, random=None):
+            self.val, self.next, self.random = x, next, random
+
+    ns["Node"] = N
+    r = random.Random(125)
+    for _ in range(200):
+        n = r.randint(1, 8)
+        nodes = [N(r.randint(0, 9)) for _ in range(n)]
+        for a, b in zip(nodes, nodes[1:]):
+            a.next = b
+        picks = [r.choice([None] + list(range(n))) for _ in range(n)]
+        for node, k in zip(nodes, picks):
+            node.random = None if k is None else nodes[k]
+        copy = ns["copy_random_list"](nodes[0])
+        cs = []
+        while copy:
+            cs.append(copy)
+            copy = copy.next
+        assert len(cs) == n and not ({id(c) for c in cs} & {id(x) for x in nodes})
+        assert [None if c.random is None else cs.index(c.random) for c in cs] == picks
+
+
+@test("Linked List:design-list")
+def _(ns):
+    Q = ns["RingQueue"]
+    r = random.Random(126)
+    for _ in range(100):
+        k = r.randint(1, 5)
+        q, model = Q(k), []
+        for _ in range(60):
+            op = r.randint(0, 3)
+            if op == 0:
+                v = r.randint(0, 99)
+                ok = len(model) < k
+                assert q.enqueue(v) is ok
+                if ok:
+                    model.append(v)
+            elif op == 1:
+                assert q.dequeue() is bool(model)
+                if model:
+                    model.pop(0)
+            elif op == 2:
+                assert q.front() == (model[0] if model else -1)
+            else:
+                assert q.rear() == (model[-1] if model else -1)
+
+
+@test("Linked List:lru")
+def _(ns):
+    L = ns["LRUCache"]
+    r = random.Random(127)
+    for _ in range(100):
+        cap = r.randint(1, 4)
+        c, order = L(cap), []
+        for _ in range(60):
+            k = r.randint(0, 6)
+            if r.random() < 0.5:
+                v = r.randint(0, 99)
+                c.put(k, v)
+                order = [(a, b) for a, b in order if a != k] + [(k, v)]
+                if len(order) > cap:
+                    order.pop(0)
+            else:
+                want = next((b for a, b in order if a == k), -1)
+                assert c.get(k) == want
+                if want != -1:
+                    order = [(a, b) for a, b in order if a != k] + [(k, want)]
+
+
+@test("Linked List:kway-merge")
+def _(ns):
+    r = random.Random(128)
+    for _ in range(200):
+        lists = [sorted(r.randint(-5, 5) for _ in range(r.randint(0, 5))) for _ in range(r.randint(0, 6))]
+        assert _ll_vals(ns["merge_k_lists"]([_ll(v) for v in lists])) == sorted(x for v in lists for x in v)

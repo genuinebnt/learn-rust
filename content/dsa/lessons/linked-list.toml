@@ -1,0 +1,303 @@
+pattern = "Linked List"
+intro = "Linked list problems are pointer bookkeeping. A few habits remove most of the bugs: draw the nodes, save next before you overwrite it, and put a dummy node in front so the head is never special. Then it is one of a handful of moves: reverse, merge, two speeds, a gap, or a copy map."
+
+[[technique]]
+id = "Linked List:reverse"
+signals = [
+    "reverse a list, or a part of it",
+    "every node's next must point at the node before it",
+    "reorder by reversing a half",
+]
+template = '''
+def reverse_list(head):
+    prev = None
+    while head:
+        head.next, prev, head = prev, head, head.next
+    return prev
+
+
+def reverse_between(head, left, right):
+    # Reverse the nodes at positions left..right (1-based).
+    dummy = ListNode(0, head)
+    before = dummy
+    for _ in range(left - 1):
+        before = before.next
+    cur = before.next
+    for _ in range(right - left):  # pull the next node to the front
+        nxt = cur.next
+        cur.next = nxt.next
+        nxt.next = before.next
+        before.next = nxt
+    return dummy.next
+'''
+pitfalls = [
+    "Save head.next before you change it, or you lose the rest of the list. The tuple assignment above does that safely.",
+    "prev starts as None because the old head becomes the new tail.",
+    "A dummy node before the head makes reversing a range that includes the head the same as any other range.",
+]
+
+[[technique]]
+id = "Linked List:dummy-merge"
+signals = [
+    "build a new list from existing nodes, in order",
+    "merge two sorted lists, or add two numbers digit by digit",
+    "the first node of the result is not known in advance",
+]
+template = '''
+def merge_two_lists(a, b):
+    dummy = tail = ListNode()
+    while a and b:
+        if a.val <= b.val:
+            tail.next, a = a, a.next
+        else:
+            tail.next, b = b, b.next
+        tail = tail.next
+    tail.next = a or b  # attach whatever is left
+    return dummy.next
+'''
+pitfalls = [
+    "A dummy head removes the 'is the result still empty?' case. Return dummy.next.",
+    "When one list runs out, link the rest of the other directly. No copying is needed.",
+    "Use <= so that equal items keep their original order (a stable merge).",
+]
+
+[[technique]]
+id = "Linked List:fast-slow"
+signals = [
+    "does the list have a cycle, and where does it start?",
+    "find the middle of the list in one pass",
+    "two pointers moving at different speeds",
+]
+template = '''
+def has_cycle(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+        if slow is fast:
+            return True
+    return False
+
+
+def cycle_start(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+        if slow is fast:  # they met inside the cycle
+            slow = head
+            while slow is not fast:  # same speed: meet at the entrance
+                slow, fast = slow.next, fast.next
+            return slow
+    return None
+
+
+def middle(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+    return slow  # the second of the two middles for an even length
+'''
+pitfalls = [
+    "Check fast and fast.next before stepping twice, or you dereference None.",
+    "Compare nodes with `is`, not values. Different nodes often hold equal values.",
+    "The restart-from-head trick works because the distance from the head to the entrance equals the distance from the meeting point onward.",
+]
+
+[[technique]]
+id = "Linked List:splice"
+signals = [
+    "remove, insert or reorder nodes in place",
+    "delete every node with a given value, or remove duplicates",
+    "the node to change might be the head",
+]
+template = '''
+def remove_elements(head, val):
+    dummy = ListNode(0, head)
+    prev = dummy
+    while prev.next:
+        if prev.next.val == val:
+            prev.next = prev.next.next  # unlink it; prev stays put
+        else:
+            prev = prev.next
+    return dummy.next
+'''
+pitfalls = [
+    "Look at prev.next, the node AFTER the one you hold, so you can unlink it.",
+    "Don't advance prev after an unlink: the new next might need removing too.",
+    "With a dummy node the head is removed like any other node.",
+]
+
+[[technique]]
+id = "Linked List:gap"
+signals = [
+    "the n-th node from the END, in one pass",
+    "two pointers that keep a fixed distance apart",
+    "you don't know the length in advance",
+]
+template = '''
+def remove_nth_from_end(head, n):
+    dummy = ListNode(0, head)
+    lead = trail = dummy
+    for _ in range(n):  # open a gap of n nodes
+        lead = lead.next
+    while lead.next:  # move both until lead is on the last node
+        lead, trail = lead.next, trail.next
+    trail.next = trail.next.next  # trail is just before the target
+    return dummy.next
+'''
+pitfalls = [
+    "Both pointers start at the dummy, so removing the head (n equal to the length) needs no special case.",
+    "Stop when lead.next is None. Then trail sits at the node BEFORE the one to delete.",
+    "Counting the length first is also fine, but takes two passes.",
+]
+
+[[technique]]
+id = "Linked List:clone-map"
+signals = [
+    "copy a list whose nodes have an extra pointer (random, parent)",
+    "the extra pointer may point forwards, to a node that has no copy yet",
+    "a map from original to copy answers 'which copy goes there?'",
+]
+template = '''
+def copy_random_list(head):
+    copies = {None: None}  # original -> copy; None maps to None
+    node = head
+    while node:  # first pass: make a copy of every node
+        copies[node] = Node(node.val)
+        node = node.next
+    node = head
+    while node:  # second pass: wire the pointers through the map
+        copies[node].next = copies[node.next]
+        copies[node].random = copies[node.random]
+        node = node.next
+    return copies[head]
+'''
+pitfalls = [
+    "Two passes: create every copy first, then connect them. Linking while creating fails for pointers that go forward.",
+    "Mapping None to None removes the empty-pointer checks.",
+    "An O(1) memory version weaves each copy right after its original, then separates the two lists.",
+]
+
+[[technique]]
+id = "Linked List:design-list"
+signals = [
+    "implement a queue, deque or stack on a fixed amount of space",
+    "enqueue and dequeue in O(1)",
+    "reuse freed slots instead of shifting items",
+]
+template = '''
+class RingQueue:
+    def __init__(self, capacity):
+        self.items = [0] * capacity
+        self.head = self.size = 0
+
+    def enqueue(self, value):
+        if self.size == len(self.items):
+            return False
+        self.items[(self.head + self.size) % len(self.items)] = value
+        self.size += 1
+        return True
+
+    def dequeue(self):
+        if not self.size:
+            return False
+        self.head = (self.head + 1) % len(self.items)
+        self.size -= 1
+        return True
+
+    def front(self):
+        return self.items[self.head] if self.size else -1
+
+    def rear(self):
+        last = (self.head + self.size - 1) % len(self.items)
+        return self.items[last] if self.size else -1
+'''
+pitfalls = [
+    "Keep a size counter. With only a head and a tail index, 'empty' and 'full' look the same.",
+    "The write position is (head + size) % capacity, and the last item is at (head + size - 1) % capacity.",
+    "A linked list with head, tail and a count is the alternative, and needs no modulo.",
+]
+
+[[technique]]
+id = "Linked List:lru"
+signals = [
+    "a cache that evicts the least recently used entry",
+    "get and put must both be O(1), and a get counts as a use",
+    "a hash map finds entries but has no order; a list has order but can't find",
+]
+template = '''
+class LRUCache:
+    class Entry:
+        def __init__(self, key=0, value=0):
+            self.key, self.value = key, value
+            self.prev = self.next = None
+
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.entries = {}  # key -> Entry
+        self.head, self.tail = self.Entry(), self.Entry()  # sentinels
+        self.head.next, self.tail.prev = self.tail, self.head
+
+    def _unlink(self, e):
+        e.prev.next, e.next.prev = e.next, e.prev
+
+    def _push_back(self, e):  # the most recently used sit before the tail
+        last = self.tail.prev
+        last.next = e
+        e.prev, e.next = last, self.tail
+        self.tail.prev = e
+
+    def get(self, key):
+        e = self.entries.get(key)
+        if e is None:
+            return -1
+        self._unlink(e)
+        self._push_back(e)
+        return e.value
+
+    def put(self, key, value):
+        e = self.entries.get(key)
+        if e:
+            e.value = value
+            self._unlink(e)
+        else:
+            if len(self.entries) == self.capacity:
+                oldest = self.head.next
+                self._unlink(oldest)
+                del self.entries[oldest.key]
+            e = self.entries[key] = self.Entry(key, value)
+        self._push_back(e)
+'''
+pitfalls = [
+    "Store the key inside each node: evicting a node also needs to remove its key from the map.",
+    "put on an existing key updates the value and refreshes it. It must not evict anything.",
+    "Sentinel nodes at both ends remove every empty-list case from the linking code.",
+]
+
+[[technique]]
+id = "Linked List:kway-merge"
+signals = [
+    "merge k sorted lists (or k sorted streams) into one",
+    "the next item overall is the smallest of the k current fronts",
+    "a heap of the fronts finds that smallest in O(log k)",
+]
+template = '''
+import heapq
+
+
+def merge_k_lists(lists):
+    heap = [(node.val, i, node) for i, node in enumerate(lists) if node]
+    heapq.heapify(heap)
+    dummy = tail = ListNode()
+    while heap:
+        _, i, node = heapq.heappop(heap)
+        tail.next = node
+        tail = node
+        if node.next:
+            heapq.heappush(heap, (node.next.val, i, node.next))
+    return dummy.next
+'''
+pitfalls = [
+    "Put the list index in the tuple, so ties never compare two ListNode objects (which can't be ordered).",
+    "Push only non-empty lists, and push a node's successor right after popping it.",
+    "Merging in pairs (like merge sort) is the alternative, with the same O(n log k) cost.",
+]

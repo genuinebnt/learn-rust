@@ -1,0 +1,159 @@
+pattern = "2-D Dynamic Programming"
+intro = "A 2-D DP has two things that change at once: a row and a column, two positions in two strings, or the two ends of an interval. Draw the table, say what each cell means, and see which neighbouring cells it needs. That also tells you the order to fill it and which rows you can throw away."
+
+[[technique]]
+id = "2-D Dynamic Programming:grid-dp"
+signals = [
+    "move through a grid, usually only right and down",
+    "count the paths, or find the cheapest path, from one corner to another",
+    "each cell's answer comes from the cell above and the cell to the left",
+]
+template = '''
+def min_path_sum(grid):
+    rows, cols = len(grid), len(grid[0])
+    dp = [float("inf")] * cols  # one row at a time: dp[c] is the cell above
+    dp[0] = 0
+    for r in range(rows):
+        for c in range(cols):
+            left = dp[c - 1] if c else float("inf")
+            dp[c] = min(dp[c], left) + grid[r][c]
+    return dp[-1]
+'''
+pitfalls = [
+    "Fill the first row and first column carefully: they have only one neighbour to come from.",
+    "A blocked cell (an obstacle) simply gets 0 ways, or infinite cost.",
+    "Keeping one row is enough because a cell only needs the row above and the cell to its left.",
+]
+
+[[technique]]
+id = "2-D Dynamic Programming:two-string"
+signals = [
+    "compare two strings or two arrays position by position",
+    "longest common subsequence, edit distance, or interleaving",
+    "dp[i][j] is the answer for the first i of one and the first j of the other",
+]
+template = '''
+def lcs_length(a, b):
+    # dp[i][j]: longest common subsequence of a[:i] and b[:j].
+    dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]
+    for i in range(1, len(a) + 1):
+        for j in range(1, len(b) + 1):
+            if a[i - 1] == b[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return dp[-1][-1]
+'''
+pitfalls = [
+    "The table has one extra row and column for the empty prefix. Characters are a[i - 1] and b[j - 1].",
+    "A match uses the diagonal. A mismatch drops a character from one string or the other.",
+    "Edit distance has the same table: the three neighbours become insert, delete and replace, each plus one.",
+]
+
+[[technique]]
+id = "2-D Dynamic Programming:pair-dp"
+signals = [
+    "a subsequence where each element is decided by the previous two",
+    "the state is the last two chosen positions (j, k)",
+    "a hash map from value to index finds the earlier element in O(1)",
+]
+template = '''
+def longest_fib_subseq(arr):
+    index = {x: i for i, x in enumerate(arr)}
+    # dp[(j, k)]: length of the longest chain ending with arr[j], arr[k].
+    dp = {}
+    best = 0
+    for k in range(len(arr)):
+        for j in range(k):
+            i = index.get(arr[k] - arr[j], -1)  # the element before arr[j]
+            if 0 <= i < j:
+                dp[(j, k)] = dp.get((i, j), 2) + 1
+                best = max(best, dp[(j, k)])
+    return best
+'''
+pitfalls = [
+    "A chain of two is always valid, so a missing entry defaults to length 2.",
+    "Require i < j so the elements stay in order.",
+    "Return 0 when no chain of three exists. best only changes when one is found.",
+]
+
+[[technique]]
+id = "2-D Dynamic Programming:state-machine"
+signals = [
+    "buy and sell with a rule: a cooldown, a fee, or a limited number of trades",
+    "you are always in one of a few named states (holding, sold, resting)",
+    "each day moves you between the states",
+]
+template = '''
+def max_profit_with_cooldown(prices):
+    hold = float("-inf")  # owning a share
+    sold = 0              # just sold today: must rest tomorrow
+    rest = 0              # free to buy
+    for p in prices:
+        hold, sold, rest = max(hold, rest - p), hold + p, max(rest, sold)
+    return max(sold, rest)
+'''
+pitfalls = [
+    "Name the states and draw the arrows between them before writing code.",
+    "Update all states from yesterday's values at once. A tuple assignment does that.",
+    "The answer is a state where you hold nothing, never hold.",
+]
+
+[[technique]]
+id = "2-D Dynamic Programming:dfs-memo"
+signals = [
+    "the best path in a grid where you can move in any of four directions",
+    "moves are only allowed under a rule (strictly increasing) so there are no cycles",
+    "the answer from a cell does not depend on how you got there",
+]
+template = '''
+from functools import lru_cache
+
+
+def longest_increasing_path(matrix):
+    rows, cols = len(matrix), len(matrix[0])
+
+    @lru_cache(maxsize=None)
+    def longest_from(r, c):
+        best = 1
+        for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < rows and 0 <= nc < cols:
+                if matrix[nr][nc] > matrix[r][c]:
+                    best = max(best, 1 + longest_from(nr, nc))
+        return best
+
+    return max(longest_from(r, c) for r in range(rows) for c in range(cols))
+'''
+pitfalls = [
+    "Memoise on the cell. Without it each cell is re-explored from every path that reaches it.",
+    "The strictly increasing rule means no cycles, so no visited set is needed.",
+    "Recursion depth can reach rows times columns. Raise the limit or sort cells by value and fill in order.",
+]
+
+[[technique]]
+id = "2-D Dynamic Programming:interval"
+signals = [
+    "remove or merge items from a line, and the cost depends on the neighbours at that moment",
+    "the answer for a range [i, j] is built from two smaller ranges",
+    "think about the last item removed, not the first",
+]
+template = '''
+def max_coins(nums):
+    nums = [1] + nums + [1]  # imaginary balloons at both ends
+    n = len(nums)
+    # dp[i][j]: best total from bursting everything between i and j.
+    dp = [[0] * n for _ in range(n)]
+    for length in range(2, n):
+        for i in range(n - length):
+            j = i + length
+            for k in range(i + 1, j):  # k is the LAST one burst in (i, j)
+                gain = nums[i] * nums[k] * nums[j]
+                dp[i][j] = max(dp[i][j], dp[i][k] + gain + dp[k][j])
+    return dp[0][n - 1]
+'''
+pitfalls = [
+    "Choose the last item to remove in the range. Then its neighbours are fixed (i and j), and the two sides are independent.",
+    "Loop by increasing range length so the smaller ranges are ready.",
+    "Pad the ends with a neutral value so there are no special cases at the borders.",
+]

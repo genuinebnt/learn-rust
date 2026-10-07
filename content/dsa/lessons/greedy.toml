@@ -1,0 +1,317 @@
+pattern = "Greedy"
+intro = "A greedy solution makes the locally best choice at each step and never looks back. It is only correct when that choice can't hurt later, so the real work is the argument for why. For each idea below, the one-line reason is in the pitfalls. If you can't state it, try a small counter-example before trusting the greedy."
+
+[[technique]]
+id = "Greedy:scan-balance"
+signals = [
+    "one pass over the data keeping a running total, a balance or a count",
+    "every rise (or deposit) is worth collecting on its own",
+    "decisions at each step don't depend on what comes later",
+]
+template = '''
+def max_profit_unlimited(prices):
+    # Buy and sell as often as you like: collect every rise.
+    profit = 0
+    for today, yesterday in zip(prices[1:], prices):
+        profit += max(0, today - yesterday)
+    return profit
+'''
+pitfalls = [
+    "A long rise from a to b is the sum of its day-to-day rises, so splitting it into one-day trades loses nothing.",
+    "This works because there is no limit on trades. With a fee or a cooldown you need a DP.",
+    "Name what the running value means (profit, change in hand, open brackets) and check it stays valid after each step.",
+]
+
+[[technique]]
+id = "Greedy:sort-pick"
+signals = [
+    "choose as many items as possible under a budget, or the best few of a list",
+    "the order of the items does not matter, only their values",
+    "after sorting, the best choice at each step is obvious",
+]
+template = '''
+def max_items(costs, budget):
+    taken = 0
+    for cost in sorted(costs):  # cheapest first
+        if cost > budget:
+            break
+        budget -= cost
+        taken += 1
+    return taken
+'''
+pitfalls = [
+    "Sorting by cost is right for the most items. Maximising total value under a budget is a knapsack, not a greedy.",
+    "Stop at the first item you can't afford: every later item costs at least as much.",
+    "Sorting costs O(n log n). If the values are small integers, counting them is O(n).",
+]
+
+[[technique]]
+id = "Greedy:swap-greedy"
+signals = [
+    "rearrange digits or characters to make the largest or smallest result",
+    "one or two swaps are allowed, or any rearrangement",
+    "the leftmost positions matter most",
+]
+template = '''
+def max_odd_binary(s):
+    # Largest odd binary number from the same bits: the last bit must be 1,
+    # and the remaining ones go as far left as possible.
+    ones = s.count("1")
+    return "1" * (ones - 1) + "0" * (len(s) - ones) + "1"
+'''
+pitfalls = [
+    "Fix the constraint first (an odd number ends in 1), then maximise what is left.",
+    "For the largest number from one swap, swap the leftmost digit that has a larger digit later with the largest such digit, taking its last occurrence.",
+    "Leftmost positions weigh more, so improve those first.",
+]
+
+[[technique]]
+id = "Greedy:count-greedy"
+signals = [
+    "the answer depends on how many of each thing there is, not on where they are",
+    "check whether strings can be made equal, rearranged, or matched",
+    "mismatches can be counted and compared",
+]
+template = '''
+def one_swap_makes_equal(a, b):
+    # Can swapping two letters of one string make the strings equal?
+    diff = [i for i in range(len(a)) if a[i] != b[i]]
+    if not diff:
+        return True
+    return (len(diff) == 2
+            and a[diff[0]] == b[diff[1]] and a[diff[1]] == b[diff[0]])
+'''
+pitfalls = [
+    "Equal strings are already fine: a swap of two identical letters changes nothing.",
+    "Exactly two mismatches that cross over (a[i] == b[j] and a[j] == b[i]) is the only fixable case, besides none.",
+    "Counting first (letters, mismatches) usually avoids trying every swap.",
+]
+
+[[technique]]
+id = "Greedy:flip-window"
+signals = [
+    "flip a block of k consecutive items, and the goal is the fewest flips",
+    "scanning left to right, the leftmost wrong item can only be fixed by a flip that starts there",
+    "a flip affects the next k items",
+]
+template = '''
+from collections import deque
+
+
+def min_k_flips(bits, k):
+    # Fewest flips of k consecutive bits to make every bit 1, or -1.
+    flips = 0
+    ends = deque()  # positions where an active flip stops
+    for i, bit in enumerate(bits):
+        while ends and ends[0] <= i:
+            ends.popleft()
+        if (bit + len(ends)) % 2 == 0:  # the bit now reads as 0
+            if i + k > len(bits):
+                return -1
+            flips += 1
+            ends.append(i + k)
+    return flips
+'''
+pitfalls = [
+    "The first wrong item has only one way to be fixed (a flip starting there), so the choice is forced.",
+    "Track how many active flips cover the current position instead of flipping k items each time, which would cost O(n times k).",
+    "A flip that would run past the end is impossible: report -1.",
+]
+
+[[technique]]
+id = "Greedy:kadane"
+signals = [
+    "the best contiguous subarray (sum, product, or a circular version)",
+    "a prefix with a negative total can never help what comes after it",
+    "one pass, constant memory",
+]
+template = '''
+def max_subarray(nums):
+    best = cur = nums[0]
+    for x in nums[1:]:
+        cur = max(x, cur + x)  # extend the run, or start again here
+        best = max(best, cur)
+    return best
+'''
+pitfalls = [
+    "Start from nums[0], not 0, so an all-negative array returns its largest element.",
+    "Restarting at x is the same as dropping a run whose sum went negative.",
+    "For a circular array, the answer is the larger of the normal best and (total minus the minimum subarray), unless every element is negative.",
+]
+
+[[technique]]
+id = "Greedy:reach"
+signals = [
+    "can you get to the end when each position says how far you may jump?",
+    "the minimum number of jumps",
+    "only the furthest reachable position matters, not which route got there",
+]
+template = '''
+def can_reach_end(jumps):
+    furthest = 0
+    for i, jump in enumerate(jumps):
+        if i > furthest:
+            return False  # a gap nothing could cross
+        furthest = max(furthest, i + jump)
+    return True
+'''
+pitfalls = [
+    "Everything up to the furthest reachable index is reachable too, so one number summarises all the routes.",
+    "For the fewest jumps, count a jump each time you pass the end of the current range, then extend the range to the furthest seen.",
+    "Check i > furthest before using position i.",
+]
+
+[[technique]]
+id = "Greedy:surplus"
+signals = [
+    "a circular route where each stop adds some and costs some",
+    "find the starting point from which you can complete the loop",
+    "if you run out at a stop, none of the stops before it could have been the start",
+]
+template = '''
+def can_complete_circuit(gas, cost):
+    if sum(gas) < sum(cost):
+        return -1
+    start = tank = 0
+    for i in range(len(gas)):
+        tank += gas[i] - cost[i]
+        if tank < 0:  # failed before reaching i + 1: start further on
+            start, tank = i + 1, 0
+    return start
+'''
+pitfalls = [
+    "Check the total first. If the total is negative no start works, and if it is not, the last reset point does.",
+    "When the tank goes negative at i, every start between the old one and i would have failed there too.",
+    "No second pass around the circle is needed once the total check has passed.",
+]
+
+[[technique]]
+id = "Greedy:group-smallest"
+signals = [
+    "split items into groups of a given size, each a run of consecutive values",
+    "the smallest remaining value has to start a group",
+    "counts of each value can be tracked in a map",
+]
+template = '''
+from collections import Counter
+
+
+def can_split_consecutive(hand, size):
+    if len(hand) % size:
+        return False
+    counts = Counter(hand)
+    for start in sorted(counts):
+        need = counts[start]
+        if need:
+            for value in range(start, start + size):
+                if counts[value] < need:
+                    return False
+                counts[value] -= need
+    return True
+'''
+pitfalls = [
+    "The smallest remaining card can't join any group that starts lower, so it must start a group. The choice is forced.",
+    "Take the whole count at once (need) instead of one group at a time.",
+    "Check that the hand size is divisible by the group size first.",
+]
+
+[[technique]]
+id = "Greedy:simulate-greedy"
+signals = [
+    "players or items act in turn, each removing or blocking an opponent",
+    "the best move is always against the opponent who acts soonest",
+    "queues of positions model who goes next",
+]
+template = '''
+from collections import deque
+
+
+def winner(senate):
+    radiant, dire = deque(), deque()
+    for i, party in enumerate(senate):
+        (radiant if party == "R" else dire).append(i)
+    n = len(senate)
+    while radiant and dire:
+        r, d = radiant.popleft(), dire.popleft()
+        if r < d:
+            radiant.append(r + n)  # acts again next round, after everyone
+        else:
+            dire.append(d + n)
+    return "Radiant" if radiant else "Dire"
+'''
+pitfalls = [
+    "Compare positions to see who acts first. That one removes the other.",
+    "Adding n to the winner's position puts it after everyone from this round, preserving the order.",
+    "Each step removes one person, so the loop is O(n).",
+]
+
+[[technique]]
+id = "Greedy:filter"
+signals = [
+    "pick items so that a combined result (a maximum, an OR) equals a target",
+    "any item that overshoots the target in some position can never be used",
+    "after filtering, check whether the remaining items can reach each target value",
+]
+template = '''
+def can_merge_to_target(triplets, target):
+    got = [False] * 3
+    for t in triplets:
+        if all(t[i] <= target[i] for i in range(3)):  # never overshoots
+            for i in range(3):
+                if t[i] == target[i]:
+                    got[i] = True
+    return all(got)
+'''
+pitfalls = [
+    "Taking a maximum can only raise values, so one overshoot ruins that position for good. Drop the item.",
+    "Among the safe items, the maximum per position is the best you can do, so just check each target is hit.",
+    "No need to find which items to merge. Existence is enough.",
+]
+
+[[technique]]
+id = "Greedy:last-seen"
+signals = [
+    "split a string into as many parts as possible so that each letter appears in only one part",
+    "each part must reach at least as far as its letters' last occurrences",
+    "record the last index of every letter first",
+]
+template = '''
+def partition_labels(s):
+    last = {c: i for i, c in enumerate(s)}
+    sizes, start, end = [], 0, 0
+    for i, c in enumerate(s):
+        end = max(end, last[c])  # this part must reach c's last position
+        if i == end:
+            sizes.append(end - start + 1)
+            start = i + 1
+    return sizes
+'''
+pitfalls = [
+    "Cut only when the index reaches the furthest last-occurrence seen so far. Cutting earlier splits a letter.",
+    "Two passes: one to record last indices, one to cut.",
+    "The same idea merges intervals: end is the furthest end among the intervals so far.",
+]
+
+[[technique]]
+id = "Greedy:paren-range"
+signals = [
+    "brackets with wildcards that can be an open, a close, or nothing",
+    "you can't track a single count, but you can track the smallest and largest possible",
+    "valid if some choice keeps the count from going below zero and ends at zero",
+]
+template = '''
+def check_valid_string(s):
+    lo = hi = 0  # fewest and most open brackets the prefix can have
+    for c in s:
+        lo += 1 if c == "(" else -1
+        hi += 1 if c != ")" else -1
+        if hi < 0:
+            return False  # too many closers even if every * opens
+        lo = max(lo, 0)  # a * can always avoid going negative
+    return lo == 0
+'''
+pitfalls = [
+    "Two numbers are enough: the wildcard widens the range of possible open counts.",
+    "Clamp lo at 0. A negative count is never a real state, because you can choose differently.",
+    "Fail as soon as hi < 0. At the end the count 0 must be inside the range, which means lo == 0.",
+]

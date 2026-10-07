@@ -4,9 +4,9 @@
 //! problem went (it feeds streaks, readiness and the review schedule like any solve), and `POST /api/dsa/start`
 //! moves where "next problem" starts from.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
-use anneal_content::{Band, Catalog, Company, DsaProblem, Problem, Role, Section, Technique, Track};
+use anneal_content::{Band, Catalog, Company, CompanyGroup, DsaProblem, Problem, Role, Section, Technique, Track};
 use axum::Json;
 use axum::extract::{Path, State};
 use chrono::NaiveDate;
@@ -24,7 +24,7 @@ pub struct Overview<'a> {
     settings: Settings,
     patterns: Vec<PatternRow<'a>>,
     techniques: &'a [Technique],
-    company_groups: &'a BTreeMap<String, Vec<String>>,
+    company_groups: &'a [CompanyGroup],
     problems: Vec<ProblemRow<'a>>,
     plan: Plan,
 }

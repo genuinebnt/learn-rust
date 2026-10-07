@@ -63,17 +63,24 @@ pub struct Technique {
     pub problems: u32,
 }
 
+/// A group of companies the filters offer together, e.g. Big Tech.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CompanyGroup {
+    pub name: String,
+    pub companies: Vec<String>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct DsaCatalog {
     pub techniques: Vec<Technique>,
-    /// Group name to company names, in display order.
-    pub company_groups: BTreeMap<String, Vec<String>>,
+    /// In display order.
+    pub company_groups: Vec<CompanyGroup>,
 }
 
 #[derive(Deserialize)]
 struct File {
-    #[serde(default)]
-    company_groups: BTreeMap<String, Vec<String>>,
+    #[serde(default, deserialize_with = "ordered_groups")]
+    company_groups: Vec<CompanyGroup>,
     techniques: Vec<Technique>,
     problems: Vec<Raw>,
 }
@@ -95,6 +102,25 @@ struct Raw {
     order: u32,
     role: Role,
     practice_of: Option<String>,
+}
+
+/// A JSON object read as a list, keeping the file's order (a map would sort the keys).
+fn ordered_groups<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<CompanyGroup>, D::Error> {
+    struct Groups;
+    impl<'de> serde::de::Visitor<'de> for Groups {
+        type Value = Vec<CompanyGroup>;
+        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            f.write_str("an object of company groups")
+        }
+        fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+            let mut groups = Vec::new();
+            while let Some((name, companies)) = map.next_entry::<String, Vec<String>>()? {
+                groups.push(CompanyGroup { name, companies });
+            }
+            Ok(groups)
+        }
+    }
+    d.deserialize_map(Groups)
 }
 
 /// Reads `<root>/dsa/problems.json`. Absent means no DSA section; a broken file is reported, not fatal.

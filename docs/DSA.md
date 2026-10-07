@@ -61,8 +61,13 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       **Plan screen awaiting approval.** Still to build: the API for these and the screen.
 - [x] Technique classification (2026-10-07): 162 techniques, all 943 problems assigned, must learn = first problem of a
       technique (decision 7).
-- [ ] Build: content loader and API for the lists, logging and reviews; remove D1–D12 and their progress (`retired`
-      ids so the progress guard allows it).
-- [ ] Build: list page, problem page, pattern pages.
+- [x] Build, backend (2026-10-07, `7fbdd01`): the lists load as 18 tracks (`lc-<slug>`), D1-D12 removed and listed in
+      `content/retired.txt` (progress purged at startup; preflight and the safety script allow it), `GET /api/dsa`,
+      `POST /api/dsa/problems/{id}/log`, `POST /api/dsa/start`, plan settings with a goal.
+- [x] Build, screens (2026-10-07): the home as mocked up (`/dsa`: goals, next up, patterns/problems, Activity|Filters rail,
+      `f`), a problem page (`/d/<slug>`: LeetCode and video links, the idea, practice, companies, log buttons) and the
+      plan (`/dsa/plan`, saved to `settings.srs`). **Usable now.** Not built yet: the written problem pages (LeetCode
+      statement and hints fetched at runtime, intuition, Python approaches), the pattern lessons, the fourth "easy"
+      button on the home cards (it is on the problem page as "Instant"), Filters as a drawer at 1180px and narrower.
 - [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
       18 categories.

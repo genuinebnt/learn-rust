@@ -36,7 +36,7 @@ fn the_lists_load_as_one_track_per_pattern() {
     assert_eq!(p.meta.stage, "medium");
     assert_eq!(t.stages.iter().map(|s| s.slug.as_str()).collect::<Vec<_>>(), ["easy", "medium", "hard"]);
     assert_eq!(c.dsa.techniques.len(), 4);
-    assert_eq!(c.dsa.company_groups["Big Tech"], ["Google", "Amazon"]);
+    assert_eq!((c.dsa.company_groups[0].name.as_str(), c.dsa.company_groups[0].companies.as_slice()), ("Big Tech", ["Google".to_owned(), "Amazon".to_owned()].as_slice()));
     assert!(c.knows("lc-two-sum") && !c.knows("lc-nope"));
 }
 

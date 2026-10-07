@@ -2,6 +2,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Outlet, RouterProvider, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { DsaPage } from "./pages/DsaPage";
+import { DsaPlanPage } from "./pages/DsaPlanPage";
+import { DsaProblemPage } from "./pages/DsaProblemPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProgressPage } from "./pages/ProgressPage";
 import { SectionPage } from "./pages/SectionPage";
@@ -11,6 +14,7 @@ import "./styles/design.css";
 import "./styles/app.css";
 import "./styles/catalog.css";
 import "./styles/progress.css";
+import "./styles/dsa.css";
 
 const rootRoute = createRootRoute({ component: Outlet });
 
@@ -18,7 +22,16 @@ const routes = [
   // Today is designed but needs the review queue (a later phase); start on DSA until then.
   createRoute({ getParentRoute: () => rootRoute, path: "/", component: () => <Navigate to="/dsa" /> }),
   createRoute({ getParentRoute: () => rootRoute, path: "/login", component: LoginPage }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/dsa", component: () => <SectionPage area="dsa" /> }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/dsa", component: DsaPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/dsa/plan", component: DsaPlanPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/d/$slug",
+    component: function DsaProblem() {
+      const { slug } = dsaProblemRoute.useParams();
+      return <DsaProblemPage slug={slug} />;
+    },
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: "/rust", component: () => <SectionPage area="rust" /> }),
   createRoute({
     getParentRoute: () => rootRoute,
@@ -38,8 +51,9 @@ const routes = [
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/progress", component: ProgressPage }),
 ] as const;
-const trackRoute = routes[4];
-const problemRoute = routes[5];
+const dsaProblemRoute = routes[4];
+const trackRoute = routes[6];
+const problemRoute = routes[7];
 
 const router = createRouter({ routeTree: rootRoute.addChildren([...routes]) });
 

@@ -235,9 +235,26 @@ export interface AppearanceSettings {
   accent: Accent;
 }
 
+export type Grade = "again" | "hard" | "good" | "easy";
+export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+/** Review scheduling and the DSA plan (`settings.srs`). */
+export interface SrsSettings {
+  retention: number;
+  /** Reviews each weekday can take. */
+  capacity: Record<Weekday, number>;
+  consolidate_on: Weekday | null;
+  /** The weekdays a new problem is solved on; the other days are practice or rest. */
+  new_days: Weekday[];
+  new_per_day: number;
+  target_date: string | null;
+  goal: { list: "blind75" | "neetcode150" | "neetcode250" | "all"; free_only: boolean; extra: number; custom_left: number | null };
+}
+
 export interface Settings {
   editor: EditorSettings;
   appearance: AppearanceSettings;
+  srs: SrsSettings;
   accents: Accent[];
   font_families: string[];
   font_sizes: [number, number];
@@ -311,6 +328,98 @@ export interface ScratchResult {
   duration_ms: number;
 }
 
+export interface DsaCompany {
+  name: string;
+  group: string;
+  frequency: number;
+  recent: boolean;
+}
+
+export interface DsaStanding {
+  /** Solved at least once. */
+  solved: boolean;
+  assisted: boolean;
+  last_grade: Grade | null;
+  reps: number;
+  lapses: number;
+  last_review: string | null;
+  due: string | null;
+  retrievability: number | null;
+}
+
+export type DsaListName = "blind75" | "neetcode150" | "neetcode250" | "all";
+
+export interface DsaProblem {
+  id: string;
+  slug: string;
+  number: number;
+  title: string;
+  difficulty: Band;
+  /** The pattern's track code, e.g. D7. */
+  pattern: string;
+  lists: DsaListName[];
+  premium: boolean;
+  tags: string[];
+  companies: DsaCompany[];
+  video: string | null;
+  technique: string;
+  role: "must_learn" | "practice";
+  practice_of: string | null;
+  order: number;
+  state: DsaStanding;
+}
+
+export interface DsaPattern {
+  code: string;
+  slug: string;
+  name: string;
+  total: number;
+  in_150: number;
+  solved: number;
+}
+
+export interface DsaTechnique {
+  id: string;
+  pattern: string;
+  name: string;
+  must_learn: string;
+  problems: number;
+}
+
+export interface DsaPace {
+  remaining: number;
+  solve_days_left: number;
+  per_solve_day: number | null;
+  per_week: number | null;
+  finish_at_current: string | null;
+  days_vs_target: number | null;
+}
+
+export interface DsaPlan {
+  goal_total: number;
+  goal_done: number;
+  pace: DsaPace;
+  /** The next problems in order, from `start`. */
+  next_up: string[];
+  start: string | null;
+  solve_day: boolean;
+  capacity: number;
+  /** Today's reviews, most forgotten first. */
+  review_ids: string[];
+  due: number;
+  overdue: number;
+}
+
+export interface DsaOverview {
+  today: string;
+  settings: SrsSettings;
+  patterns: DsaPattern[];
+  techniques: DsaTechnique[];
+  company_groups: { name: string; companies: string[] }[];
+  problems: DsaProblem[];
+  plan: DsaPlan;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -362,5 +471,9 @@ export const api = {
   stats: () => request<ProgressStats>("GET", "/stats"),
   reviews: () => request<ReviewsView>("GET", "/reviews"),
   resolve: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/resolve`),
+  dsa: () => request<DsaOverview>("GET", "/dsa"),
+  logDsa: (id: string, grade: Grade) => request<{ id: string; due: string; ideal_days: number }>("POST", `/dsa/problems/${id}/log`, { grade }),
+  startDsa: (from: string) => request<{ start: string }>("POST", "/dsa/start", { from }),
+  saveSrs: (srs: SrsSettings) => request<SrsSettings>("PUT", "/settings/srs", srs),
   focus: (id: string, seconds: number) => request<void>("POST", `/problems/${id}/focus`, { seconds }),
 };

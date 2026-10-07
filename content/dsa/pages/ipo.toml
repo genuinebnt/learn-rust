@@ -1,0 +1,40 @@
+intuition = """
+You can pick at most `k` projects, each needing `capital[i]` to start and giving `profits[i]` back (added to your capital `w`). Greedy works: **at every step, do the most profitable project you can currently afford**. More capital never hurts, and a project that is affordable now stays affordable later, so taking the largest profit first can't block a better one.
+
+To do that quickly:
+
+1. sort the projects by the capital they need,
+2. keep a **max-heap of profits** for the projects you can afford,
+3. repeat `k` times: add every project whose capital is `<= w` to the heap, then pop the biggest profit and add it to `w`. If the heap is empty, stop.
+"""
+tips = [
+    "Because `w` only grows, the pointer through the sorted projects only moves forward. Each project enters the heap once.",
+    "The heap is a **max**-heap of profits: negate the values in `heapq`.",
+    "Stop early when no project is affordable; more rounds can't change anything.",
+    "The profit isn't the net gain after the cost: `capital[i]` is only the minimum you must have, and it isn't spent.",
+]
+
+[[approaches]]
+name = "Sorted by capital, max-heap of affordable profits"
+label = "greedy + heap"
+idea = "Each round, move every newly affordable project into a max-heap by profit, then take the best."
+time = "O(n log n + k log n)"
+space = "O(n)"
+note = "Projects enter the heap in order of required capital."
+code = '''import heapq
+
+
+class Solution:
+    def findMaximizedCapital(self, k: int, w: int, profits: list[int], capital: list[int]) -> int:
+        projects = sorted(zip(capital, profits))
+        affordable = []
+        i = 0
+        for _ in range(k):
+            while i < len(projects) and projects[i][0] <= w:
+                heapq.heappush(affordable, -projects[i][1])
+                i += 1
+            if not affordable:
+                break
+            w -= heapq.heappop(affordable)
+        return w
+'''

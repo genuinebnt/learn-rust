@@ -1,0 +1,40 @@
+intuition = """
+The transpose swaps rows and columns: `result[j][i] = matrix[i][j]`. The matrix is not necessarily square, so you can't swap in place: the result has `cols` rows of `rows` entries each, a different shape. Build a new matrix.
+
+In Python `zip(*matrix)` does exactly this: it groups the first elements of every row, then the second, and so on.
+"""
+tips = [
+    "A non-square matrix changes shape (`2 x 3` becomes `3 x 2`), so an in-place swap isn't possible. That's different from Rotate Image.",
+    "The new matrix has `len(matrix[0])` rows and `len(matrix)` columns.",
+    "`zip(*matrix)` yields tuples; convert each to a list for the expected output type.",
+    "Loop order doesn't matter for correctness, but reading rows and writing down columns is natural.",
+]
+
+[[approaches]]
+name = "Build the new matrix by index"
+label = "indexing"
+idea = "Allocate cols rows of rows entries and copy matrix[i][j] to result[j][i]."
+time = "O(m · n)"
+space = "O(m · n)"
+note = "The output."
+code = '''class Solution:
+    def transpose(self, matrix: list[list[int]]) -> list[list[int]]:
+        rows, cols = len(matrix), len(matrix[0])
+        result = [[0] * rows for _ in range(cols)]
+        for i in range(rows):
+            for j in range(cols):
+                result[j][i] = matrix[i][j]
+        return result
+'''
+
+[[approaches]]
+name = "zip(*matrix)"
+label = "library"
+idea = "zip pairs up the i-th element of every row, which is the i-th column."
+time = "O(m · n)"
+space = "O(m · n)"
+note = "A one-liner."
+code = '''class Solution:
+    def transpose(self, matrix: list[list[int]]) -> list[list[int]]:
+        return [list(column) for column in zip(*matrix)]
+'''

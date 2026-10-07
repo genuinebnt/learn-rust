@@ -1,0 +1,77 @@
+intuition = """
+Implement a sort without calling one, in O(n log n) time. **Merge sort** is the dependable choice: split in half, sort each half, merge the two sorted halves. The depth is log n, each level does O(n) work, and the worst case is the same as the average. It can't be tricked by already-sorted or all-equal input.
+
+**Heap sort** reaches O(n log n) with O(1) extra space. A **counting sort** is O(n + range) when the values lie in a small range: `-5 * 10^4 <= nums[i] <= 5 * 10^4` here, so it works, and it is a good alternative to know.
+"""
+tips = [
+    "A quicksort with a fixed pivot (first or last element) goes quadratic on sorted or all-equal input, and recurses too deep. Pick a random pivot or use merge sort.",
+    "Merge sort is stable and predictable. State its O(n) extra space and why it's acceptable.",
+    "In the merge, take from the left half on ties (`<=`) to keep the sort stable.",
+    "The value range is only 100,001 wide, so counting sort is simple here: count each value, then write them back in order.",
+]
+
+[[approaches]]
+name = "Merge sort"
+label = "divide and conquer"
+idea = "Sort the two halves recursively and merge them by repeatedly taking the smaller front element."
+time = "O(n log n)"
+space = "O(n)"
+note = "Same cost on every input."
+code = '''class Solution:
+    def sortArray(self, nums: list[int]) -> list[int]:
+        def merge_sort(a: list[int]) -> list[int]:
+            if len(a) <= 1:
+                return a
+            mid = len(a) // 2
+            left, right = merge_sort(a[:mid]), merge_sort(a[mid:])
+            merged = []
+            i = j = 0
+            while i < len(left) and j < len(right):
+                if left[i] <= right[j]:
+                    merged.append(left[i])
+                    i += 1
+                else:
+                    merged.append(right[j])
+                    j += 1
+            merged.extend(left[i:])
+            merged.extend(right[j:])
+            return merged
+
+        return merge_sort(nums)
+'''
+
+[[approaches]]
+name = "Counting sort over the value range"
+label = "counting"
+idea = "Count how many times each value occurs, then write the values back in increasing order."
+time = "O(n + R)"
+space = "O(R)"
+note = "R is the range of values (100,001 here); not suitable for huge ranges."
+code = '''class Solution:
+    def sortArray(self, nums: list[int]) -> list[int]:
+        offset = 50000
+        counts = [0] * (2 * offset + 1)
+        for x in nums:
+            counts[x + offset] += 1
+        result = []
+        for value, count in enumerate(counts):
+            result.extend([value - offset] * count)
+        return result
+'''
+
+[[approaches]]
+name = "Heap sort"
+label = "heap"
+idea = "Build a min-heap of all values and pop them in order."
+time = "O(n log n)"
+space = "O(n)"
+note = "Using heapq; an in-place heap sort would use O(1) extra space."
+code = '''import heapq
+
+
+class Solution:
+    def sortArray(self, nums: list[int]) -> list[int]:
+        heap = nums[:]
+        heapq.heapify(heap)
+        return [heapq.heappop(heap) for _ in range(len(heap))]
+'''

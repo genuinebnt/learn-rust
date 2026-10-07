@@ -1,0 +1,46 @@
+intuition = """
+A string `t` "divides" `s` if `s` is `t` repeated some number of times. A common divisor of `str1` and `str2` can only exist if `str1 + str2 == str2 + str1`: if both are repetitions of the same block, the order of concatenation doesn't matter. If that holds, the answer is the prefix of length `gcd(len(str1), len(str2))`.
+
+So the problem reduces to a check plus an ordinary numeric GCD. You can also run the Euclidean algorithm directly on the strings: strip `str2` off the front of `str1` repeatedly.
+"""
+tips = [
+    "`str1 + str2 != str2 + str1` means no common divisor, so return `\"\"`.",
+    "When they commute, the longest common divisor has length `gcd(len(str1), len(str2))`, and it is the prefix of either string.",
+    "The brute-force alternative tries every prefix length that divides both lengths, longest first, and checks it. It's easy to explain and fine for 1000 characters.",
+    "`math.gcd` is available. Euclid's algorithm is `while b: a, b = b, a % b`.",
+]
+
+[[approaches]]
+name = "Concatenation check, then gcd of the lengths"
+label = "math"
+idea = "If the two orders of concatenation differ there is no divisor; otherwise take the prefix whose length is gcd of the lengths."
+time = "O(n + m)"
+space = "O(n + m)"
+note = "Short and exact."
+code = '''from math import gcd
+
+
+class Solution:
+    def gcdOfStrings(self, str1: str, str2: str) -> str:
+        if str1 + str2 != str2 + str1:
+            return ""
+        return str1[:gcd(len(str1), len(str2))]
+'''
+
+[[approaches]]
+name = "Try each possible length"
+label = "brute force"
+idea = "For each length that divides both string lengths, longest first, test whether that prefix repeated rebuilds both."
+time = "O((n + m) · d)"
+space = "O(n + m)"
+note = "d is the number of candidate lengths."
+code = '''class Solution:
+    def gcdOfStrings(self, str1: str, str2: str) -> str:
+        for length in range(min(len(str1), len(str2)), 0, -1):
+            if len(str1) % length or len(str2) % length:
+                continue
+            base = str1[:length]
+            if base * (len(str1) // length) == str1 and base * (len(str2) // length) == str2:
+                return base
+        return ""
+'''

@@ -1,0 +1,46 @@
+intuition = """
+The CPU picks, among the tasks that have **already arrived**, the one with the shortest processing time (ties: smallest index). When nothing is available, it jumps ahead to the next arrival.
+
+That is two orderings at once, so use two structures:
+
+1. the tasks **sorted by enqueue time**, with a pointer to the next one that hasn't arrived,
+2. a **min-heap** of the arrived tasks keyed by `(processing time, index)`.
+
+Loop: move every task whose enqueue time is `<=` the current time into the heap. If the heap is empty, jump the clock to the next task's enqueue time. Otherwise pop the best task, record its index and add its processing time to the clock.
+"""
+tips = [
+    "Store the original index with each task before sorting, because the answer is a list of indexes.",
+    "When the heap is empty, set `time = max(time, next_enqueue)` rather than counting idle seconds one at a time.",
+    "Heap entries are `(processing_time, index, ...)`, so ties on time resolve by the smaller index without extra code.",
+    "Add **all** tasks that have arrived to the heap before choosing. A task that arrived while another was running can be the next best one.",
+]
+
+[[approaches]]
+name = "Sort by arrival, heap by processing time"
+label = "heap simulation"
+idea = "Feed arrived tasks into a heap ordered by (processing time, index) and always run the heap's top; jump the clock forward when it is empty."
+time = "O(n log n)"
+space = "O(n)"
+note = "Every task is pushed and popped once."
+code = '''import heapq
+
+
+class Solution:
+    def getOrder(self, tasks: list[list[int]]) -> list[int]:
+        arrivals = sorted((enqueue, duration, i) for i, (enqueue, duration) in enumerate(tasks))
+        heap = []
+        order = []
+        time = 0
+        i = 0
+        while i < len(arrivals) or heap:
+            if not heap and time < arrivals[i][0]:
+                time = arrivals[i][0]
+            while i < len(arrivals) and arrivals[i][0] <= time:
+                _, duration, index = arrivals[i]
+                heapq.heappush(heap, (duration, index))
+                i += 1
+            duration, index = heapq.heappop(heap)
+            time += duration
+            order.append(index)
+        return order
+'''

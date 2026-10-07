@@ -1,0 +1,79 @@
+intuition = """
+You must return **every** way to split `s` into dictionary words. Think from each position `i`: for each word that matches at `i`, the sentence is that word followed by any sentence that segments `s[i + len(word):]`. That is a recursion on the suffix.
+
+The same suffix is reached again and again by different earlier choices, so **memoize** the list of sentences for each start index. Without it, a string like `"aaaa...ab"` with the words `a, aa, aaa` explores an exponential number of dead ends before concluding there's no answer.
+
+An alternative is to first compute, from the right, which suffixes can be segmented at all (Word Break I), then run the plain DFS and only ever step into suffixes that are known to succeed. Then no path is wasted.
+"""
+tips = [
+    "The memo key is just the start index `i`: the answer depends only on the suffix `s[i:]`.",
+    "Return `[\"\"]` for the empty suffix, so the join step (`word + \" \" + rest`) can omit the space when `rest` is empty.",
+    "The number of sentences can be huge, so the output size sets the cost. Memoizing removes the *wasted* work, not the output work.",
+    "Looping over the distinct word lengths (at most 10 here) is cheaper than testing every dictionary word at each position.",
+]
+
+[[approaches]]
+name = "Memoized recursion on the suffix"
+label = "memoization"
+idea = "sentences(i) lists every segmentation of s[i:], built from each dictionary word that matches at i; cache the list per i."
+time = "O(n · output)"
+space = "O(n · output)"
+note = "Output-sensitive: cost grows with the number of sentences returned."
+code = '''class Solution:
+    def wordBreak(self, s: str, wordDict: list[str]) -> list[str]:
+        words = set(wordDict)
+        lengths = {len(w) for w in words}
+        memo = {}
+
+        def sentences(i: int) -> list[str]:
+            if i == len(s):
+                return [""]
+            if i in memo:
+                return memo[i]
+            result = []
+            for length in lengths:
+                word = s[i:i + length]
+                if len(word) == length and word in words:
+                    for rest in sentences(i + length):
+                        result.append(word + (" " + rest if rest else ""))
+            memo[i] = result
+            return result
+
+        return sentences(0)
+'''
+
+[[approaches]]
+name = "Feasible suffixes first, then plain DFS"
+label = "dp + backtracking"
+idea = "Mark every start index from which the rest can be segmented; the DFS then only follows words that lead to such an index."
+time = "O(n · output + n · L)"
+space = "O(n)"
+note = "Every branch the DFS takes ends in a valid sentence."
+code = '''class Solution:
+    def wordBreak(self, s: str, wordDict: list[str]) -> list[str]:
+        words = set(wordDict)
+        lengths = sorted({len(w) for w in words})
+        n = len(s)
+        can = [False] * (n + 1)
+        can[n] = True
+        for i in range(n - 1, -1, -1):
+            can[i] = any(i + length <= n and can[i + length] and s[i:i + length] in words for length in lengths)
+
+        result = []
+        parts = []
+
+        def build(i: int) -> None:
+            if i == n:
+                result.append(" ".join(parts))
+                return
+            for length in lengths:
+                j = i + length
+                if j <= n and can[j] and s[i:j] in words:
+                    parts.append(s[i:j])
+                    build(j)
+                    parts.pop()
+
+        if can[0]:
+            build(0)
+        return result
+'''

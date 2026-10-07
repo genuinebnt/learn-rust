@@ -1,0 +1,48 @@
+intuition = """
+The `k` closest elements of a **sorted** array form a contiguous window, so the problem is choosing where the window starts. Binary search over the start `lo` in `[0, n - k]`: compare the two candidates at the edges, the element at `mid` (the window's left end) and the element at `mid + k` (just beyond its right end). If `x` is closer to the one on the right (`x - arr[mid] > arr[mid + k] - x`), the window should slide right: `lo = mid + 1`. Otherwise keep it as is or slide left: `hi = mid`.
+
+On a tie the **smaller** element wins, which the strict `>` already gives you. An alternative is a two-pointer shrink: start with the whole array and drop whichever end is farther from `x` until `k` remain.
+"""
+tips = [
+    "Search over the **window start**, not over values. The range is `[0, n - k]`, so `mid + k` is always a valid index.",
+    "The comparison uses distances `x - arr[mid]` and `arr[mid + k] - x`. You don't need `abs`, because the window logic already says which side is which.",
+    "Ties go to the smaller value, so slide right only when the left end is **strictly** farther.",
+    "The two-pointer shrink is O(n - k), the binary search O(log(n - k) + k). Both return `arr[lo:lo + k]`.",
+]
+
+[[approaches]]
+name = "Binary search on the window start"
+label = "binary search"
+idea = "Compare arr[mid] and arr[mid + k] against x to decide whether the window starts further right."
+time = "O(log(n - k) + k)"
+space = "O(1)"
+note = "Plus k to copy the answer."
+code = '''class Solution:
+    def findClosestElements(self, arr: List[int], k: int, x: int) -> List[int]:
+        lo, hi = 0, len(arr) - k
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if x - arr[mid] > arr[mid + k] - x:
+                lo = mid + 1
+            else:
+                hi = mid
+        return arr[lo:lo + k]
+'''
+
+[[approaches]]
+name = "Shrink from both ends"
+label = "two pointers"
+idea = "Start with the whole array and discard whichever end is farther from x (the larger one on a tie) until k elements remain."
+time = "O(n - k)"
+space = "O(1)"
+note = "Easy to explain."
+code = '''class Solution:
+    def findClosestElements(self, arr: List[int], k: int, x: int) -> List[int]:
+        lo, hi = 0, len(arr) - 1
+        while hi - lo + 1 > k:
+            if x - arr[lo] <= arr[hi] - x:
+                hi -= 1
+            else:
+                lo += 1
+        return arr[lo:hi + 1]
+'''

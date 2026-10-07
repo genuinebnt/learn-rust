@@ -1,0 +1,52 @@
+intuition = """
+Let `prefix[j]` be the sum of the first `j` numbers. The sum of the subarray `i..j` is `prefix[j] - prefix[i]`, so it equals `k` exactly when `prefix[i] = prefix[j] - k`.
+
+So walk through the array keeping a running sum, and for each position ask: **how many earlier prefix sums equal `running - k`?** Each of those is the start of a subarray that ends here and adds up to `k`. A dictionary counting how often each prefix sum has appeared answers that in O(1). Seed it with `{0: 1}` for the empty prefix, so subarrays that start at index 0 are counted.
+"""
+tips = [
+    "A sliding window does **not** work here: with negative numbers the window sum isn't monotonic. This is why a prefix-sum map is needed.",
+    "Seed the map with `0: 1`. Without it, subarrays starting at the first element are missed.",
+    "Look up `running - k` **before** adding the current prefix to the map, so a subarray never counts the empty range (matters when `k = 0`).",
+    "The brute force is O(n^2) with a running sum from every start. Mention it and why the map improves it.",
+]
+
+[[approaches]]
+name = "Prefix sums in a hash map"
+label = "prefix sum"
+idea = "For each running sum, add how many earlier prefix sums equal running - k, then record the current sum."
+time = "O(n)"
+space = "O(n)"
+note = "Handles negative numbers and zeros."
+code = '''from collections import defaultdict
+
+
+class Solution:
+    def subarraySum(self, nums: List[int], k: int) -> int:
+        seen = defaultdict(int)
+        seen[0] = 1
+        running = count = 0
+        for x in nums:
+            running += x
+            count += seen[running - k]
+            seen[running] += 1
+        return count
+'''
+
+[[approaches]]
+name = "Try every start"
+label = "brute force"
+idea = "From each start index, extend the subarray and count the ends where the sum is k."
+time = "O(n^2)"
+space = "O(1)"
+note = "Fine for small inputs; too slow for 20,000 numbers."
+code = '''class Solution:
+    def subarraySum(self, nums: List[int], k: int) -> int:
+        count = 0
+        for start in range(len(nums)):
+            total = 0
+            for end in range(start, len(nums)):
+                total += nums[end]
+                if total == k:
+                    count += 1
+        return count
+'''

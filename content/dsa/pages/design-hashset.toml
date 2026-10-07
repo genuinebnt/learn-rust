@@ -1,0 +1,60 @@
+intuition = """
+You can't use the built-in `set`, so build a **hash table**: an array of buckets, where a key goes into bucket `key % size`. Keys that land in the same bucket (a collision) are kept in a small list, and a lookup only scans that one bucket.
+
+With a decent number of buckets (a prime such as 1009) and at most 10^6 distinct keys, each bucket stays short, so `add`, `remove` and `contains` are O(1) on average. Since keys are integers in `0..10^6`, you could also use a plain array of booleans indexed by key, which is simple but wastes memory when there are few keys.
+"""
+tips = [
+    "`add` must not create duplicates: check the bucket for the key first.",
+    "`remove` of a key that isn't there must do nothing, without raising an error.",
+    "Choose the bucket count to be a prime near the expected load, not a power of two, so patterned keys don't all collide.",
+    "Say how collisions are handled (separate chaining here). Open addressing is the other classic answer.",
+]
+
+[[approaches]]
+name = "Buckets with chaining"
+label = "hash table"
+idea = "An array of small lists; the key's remainder picks the bucket and collisions share it."
+time = "O(1) average per call"
+space = "O(buckets + keys)"
+note = "A bucket holds only the keys that hash to it."
+code = '''class MyHashSet:
+
+    def __init__(self):
+        self.size = 1009
+        self.buckets = [[] for _ in range(self.size)]
+
+    def add(self, key: int) -> None:
+        bucket = self.buckets[key % self.size]
+        if key not in bucket:
+            bucket.append(key)
+
+    def remove(self, key: int) -> None:
+        bucket = self.buckets[key % self.size]
+        if key in bucket:
+            bucket.remove(key)
+
+    def contains(self, key: int) -> bool:
+        return key in self.buckets[key % self.size]
+'''
+
+[[approaches]]
+name = "One flag per possible key"
+label = "direct address"
+idea = "Keys are at most 10^6, so a boolean per key works with no hashing at all."
+time = "O(1) per call"
+space = "O(10^6) always"
+note = "Wastes memory when few keys are stored."
+code = '''class MyHashSet:
+
+    def __init__(self):
+        self.present = bytearray(10**6 + 1)
+
+    def add(self, key: int) -> None:
+        self.present[key] = 1
+
+    def remove(self, key: int) -> None:
+        self.present[key] = 0
+
+    def contains(self, key: int) -> bool:
+        return bool(self.present[key])
+'''

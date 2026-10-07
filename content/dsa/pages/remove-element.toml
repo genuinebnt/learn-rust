@@ -1,0 +1,47 @@
+intuition = """
+Remove every `val` **in place** and return how many elements are left; only the first `k` slots matter afterwards. Use two pointers: `write` marks where the next kept element goes, and a `read` pointer scans every element. When `nums[read]` isn't `val`, copy it to `nums[write]` and advance `write`.
+
+If the elements you keep are few and the ones you remove are many, you can instead swap each `val` with the last element and shrink the array, which writes less.
+"""
+tips = [
+    "The slow/fast (write/read) pointer pattern is the same one used by Remove Duplicates from Sorted Array.",
+    "You return `write`, the new length. What's stored beyond it doesn't matter.",
+    "The swap-with-last version doesn't preserve order. That's allowed here, but not in other problems.",
+    "When swapping with the last element, don't advance `i` right after the swap: the element you moved in still needs checking.",
+]
+
+[[approaches]]
+name = "Read and write pointers"
+label = "two pointers"
+idea = "Copy every element that isn't val to the next write position."
+time = "O(n)"
+space = "O(1)"
+note = "Keeps the order of the kept elements."
+code = '''class Solution:
+    def removeElement(self, nums: list[int], val: int) -> int:
+        write = 0
+        for x in nums:
+            if x != val:
+                nums[write] = x
+                write += 1
+        return write
+'''
+
+[[approaches]]
+name = "Swap with the last element"
+label = "two pointers"
+idea = "When nums[i] is val, overwrite it with the last element and shrink the array by one; otherwise move on."
+time = "O(n)"
+space = "O(1)"
+note = "Fewer writes when val is rare; the order isn't kept."
+code = '''class Solution:
+    def removeElement(self, nums: list[int], val: int) -> int:
+        i, n = 0, len(nums)
+        while i < n:
+            if nums[i] == val:
+                nums[i] = nums[n - 1]
+                n -= 1
+            else:
+                i += 1
+        return n
+'''

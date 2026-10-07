@@ -1,0 +1,80 @@
+intuition = """
+You can form a square only if the total is divisible by 4, and then every side must be exactly `side = total / 4` long, with no stick longer than that. The question is whether the sticks can be split into four groups that each sum to `side`.
+
+Search for it: place the sticks one at a time, trying each of the four sides, and undo (backtrack) when a side would go over `side`. Two prunings make it fast:
+
+- **Sort the sticks from longest to shortest**, so the big, awkward ones are placed first and dead ends show up early.
+- If two sides currently have the **same length**, putting the stick on either gives the same result, so try only one of them.
+
+When every stick is placed and none overflowed, all four sides are exactly `side`, because the total is `4 * side`.
+"""
+tips = [
+    "Rule out the easy failures first: total not divisible by 4, or a stick longer than `side`.",
+    "Sorting in descending order is the biggest speedup. Without it, the search can waste time on small sticks before it learns the big ones don't fit.",
+    "The symmetry prune (skip a side whose length you already tried at this level) avoids exploring the same arrangement four times over.",
+    "There are at most 15 sticks, so a bitmask DP over which sticks are used (`2^15` states) is the other classic answer.",
+]
+
+[[approaches]]
+name = "Backtracking onto four sides"
+label = "backtracking"
+idea = "Place the longest sticks first; try each side that still fits, skipping sides whose current length was already tried."
+time = "O(4^n) worst case, much less pruned"
+space = "O(n)"
+note = "Sorting and the duplicate-side skip are what keep it fast."
+code = '''class Solution:
+    def makesquare(self, matchsticks: list[int]) -> bool:
+        total = sum(matchsticks)
+        if total % 4:
+            return False
+        side = total // 4
+        sticks = sorted(matchsticks, reverse=True)
+        if sticks[0] > side:
+            return False
+        sides = [0] * 4
+
+        def place(i: int) -> bool:
+            if i == len(sticks):
+                return True
+            tried = set()
+            for s in range(4):
+                if sides[s] + sticks[i] > side or sides[s] in tried:
+                    continue
+                tried.add(sides[s])
+                sides[s] += sticks[i]
+                if place(i + 1):
+                    return True
+                sides[s] -= sticks[i]
+            return False
+
+        return place(0)
+'''
+
+[[approaches]]
+name = "Bitmask DP over used sticks"
+label = "dp"
+idea = "reach[mask] says whether the sticks in mask can be laid out filling whole sides plus one partial side; extend by any unused stick that still fits the current side."
+time = "O(n · 2^n)"
+space = "O(2^n)"
+note = "Fine for up to 15 sticks."
+code = '''class Solution:
+    def makesquare(self, matchsticks: list[int]) -> bool:
+        total = sum(matchsticks)
+        if total % 4 or max(matchsticks) > total // 4:
+            return False
+        side, n = total // 4, len(matchsticks)
+        reach = [False] * (1 << n)
+        used = [0] * (1 << n)
+        reach[0] = True
+        for mask in range(1 << n):
+            if not reach[mask]:
+                continue
+            for i in range(n):
+                if mask >> i & 1:
+                    continue
+                if used[mask] % side + matchsticks[i] <= side:
+                    nxt = mask | 1 << i
+                    reach[nxt] = True
+                    used[nxt] = used[mask] + matchsticks[i]
+        return reach[-1]
+'''

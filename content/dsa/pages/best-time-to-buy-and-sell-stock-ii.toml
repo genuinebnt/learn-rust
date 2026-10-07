@@ -1,0 +1,42 @@
+intuition = """
+With as many transactions as you like (one share at a time), you can **collect every upward step**. If tomorrow's price is higher than today's, you could have bought today and sold tomorrow for the difference. The total profit is the sum of all positive day-to-day differences.
+
+That works because any longer rise `a -> b` is exactly the sum of its daily rises, so splitting it into one-day trades loses nothing. The same answer comes from a small state machine: the best profit while **holding** a share and the best profit while **not holding** one.
+"""
+tips = [
+    "Add `max(0, prices[i] - prices[i - 1])` for each day. You never need to find the actual buy and sell days.",
+    "This differs from Best Time to Buy and Sell Stock I, where one transaction means finding the best single pair.",
+    "A decreasing sequence gives 0: you simply don't trade.",
+    "The hold / not-hold DP is the form that extends to the cooldown and transaction-fee variants. Know both.",
+]
+
+[[approaches]]
+name = "Sum every rise"
+label = "greedy"
+idea = "Take the profit of each day-to-day increase."
+time = "O(n)"
+space = "O(1)"
+note = "The simplest correct answer."
+code = '''class Solution:
+    def maxProfit(self, prices: list[int]) -> int:
+        profit = 0
+        for i in range(1, len(prices)):
+            if prices[i] > prices[i - 1]:
+                profit += prices[i] - prices[i - 1]
+        return profit
+'''
+
+[[approaches]]
+name = "Hold and free states"
+label = "dp"
+idea = "Track the best profit when holding a share and when not holding one, updating both each day."
+time = "O(n)"
+space = "O(1)"
+note = "The form that generalises to cooldowns and fees."
+code = '''class Solution:
+    def maxProfit(self, prices: list[int]) -> int:
+        hold, free = float("-inf"), 0
+        for price in prices:
+            hold, free = max(hold, free - price), max(free, hold + price)
+        return free
+'''

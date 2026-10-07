@@ -1,0 +1,65 @@
+intuition = """
+`MountainArray` only lets you call `get(i)`, at most **100 times**, so a linear scan is out. A mountain rises to one peak then falls. Do three binary searches, each O(log n):
+
+1. **Find the peak:** compare `get(mid)` with `get(mid + 1)`. If it is still rising, the peak is to the right (`lo = mid + 1`); otherwise it's at `mid` or to the left (`hi = mid`).
+2. **Search the rising side** `[0, peak]` for `target` with an ordinary binary search.
+3. **Only if not found,** search the falling side `[peak + 1, n - 1]`, where the comparison is reversed.
+
+Searching the left side first matters: the problem asks for the **smallest** index, and the left side has the smaller indexes.
+"""
+tips = [
+    "Count your calls: the peak search needs about 2 per step, the two searches about 1 per step. About 60 for 10,000 elements, safely below 100.",
+    "Cache each `get(i)` result in a dict. You'll often ask for the same index twice (`mid + 1` becomes the next `mid`).",
+    "On the falling side the comparison flips: a bigger value means you should move **right** to find a smaller one.",
+    "Return the left-side index if the target exists on both sides. Check the falling side only on a miss.",
+]
+
+[[approaches]]
+name = "Find the peak, then search both slopes"
+label = "binary search"
+idea = "Binary search for the peak, then binary search the rising part, then the falling part, caching every get."
+time = "O(log n)"
+space = "O(log n)"
+note = "The cache holds at most the indexes probed, about 60."
+code = '''class Solution:
+    def findInMountainArray(self, target: int, mountainArr: 'MountainArray') -> int:
+        cache = {}
+
+        def get(i: int) -> int:
+            if i not in cache:
+                cache[i] = mountainArr.get(i)
+            return cache[i]
+
+        n = mountainArr.length()
+        lo, hi = 0, n - 1
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if get(mid) < get(mid + 1):
+                lo = mid + 1
+            else:
+                hi = mid
+        peak = lo
+
+        lo, hi = 0, peak
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            value = get(mid)
+            if value == target:
+                return mid
+            if value < target:
+                lo = mid + 1
+            else:
+                hi = mid - 1
+
+        lo, hi = peak + 1, n - 1
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            value = get(mid)
+            if value == target:
+                return mid
+            if value > target:
+                lo = mid + 1
+            else:
+                hi = mid - 1
+        return -1
+'''

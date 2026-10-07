@@ -1,0 +1,45 @@
+intuition = """
+Take one letter from each word in turn, and when one word runs out, append the rest of the other. Two indexes (or a loop to the longer length with bounds checks) do it. `itertools.zip_longest` pairs the letters and pads the shorter word with an empty string, which does the whole thing in one line.
+"""
+tips = [
+    "Start with `word1`'s letter, then `word2`'s, for each position.",
+    "Build the result in a list and `join` once. Repeated `+=` on strings copies each time.",
+    "Don't forget the tail: when the words differ in length, the rest of the longer one is added at the end.",
+    "`zip` alone stops at the shorter word, so you'd need to append the leftover by hand.",
+]
+
+[[approaches]]
+name = "Two pointers"
+label = "two pointers"
+idea = "Alternate taking a letter from each word while both have letters, then append whatever is left."
+time = "O(n + m)"
+space = "O(n + m)"
+note = "The output."
+code = '''class Solution:
+    def mergeAlternately(self, word1: str, word2: str) -> str:
+        merged = []
+        i = j = 0
+        while i < len(word1) and j < len(word2):
+            merged.append(word1[i])
+            merged.append(word2[j])
+            i += 1
+            j += 1
+        merged.append(word1[i:])
+        merged.append(word2[j:])
+        return "".join(merged)
+'''
+
+[[approaches]]
+name = "zip_longest"
+label = "library"
+idea = "Pair up the letters, padding the shorter word with empty strings, and join everything."
+time = "O(n + m)"
+space = "O(n + m)"
+note = "A one-liner."
+code = '''from itertools import zip_longest
+
+
+class Solution:
+    def mergeAlternately(self, word1: str, word2: str) -> str:
+        return "".join(a + b for a, b in zip_longest(word1, word2, fillvalue=""))
+'''

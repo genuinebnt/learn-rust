@@ -1,0 +1,56 @@
+intuition = """
+The majority element appears more than `n / 2` times. Pair each occurrence of it with a **different** element and cancel the pair: because it is more than half, some copies are left over. That's the **Boyer-Moore voting** idea: keep a candidate and a count. If the count is 0, take the current number as the candidate. Matching the candidate adds one to the count, a different number subtracts one.
+
+At the end the candidate is the majority element (the problem promises one exists). It uses O(1) memory and one pass.
+"""
+tips = [
+    "The guarantee that a majority element exists is what makes the voting trick correct. Without it you need a second pass to verify the candidate.",
+    "A counter dictionary is the first answer (O(n) memory). Sorting and taking the middle element also works (`nums[n // 2]`), because the majority takes up more than half the positions.",
+    "Say why cancellation works: each cancelled pair removes one majority and one non-majority element, so the majority is still more than half of what remains.",
+    "This is the warm-up for Majority Element II, which keeps two candidates.",
+]
+
+[[approaches]]
+name = "Boyer-Moore voting"
+label = "voting"
+idea = "Keep a candidate and a count; matching numbers add to it, different ones cancel it, and a count of 0 picks a new candidate."
+time = "O(n)"
+space = "O(1)"
+note = "Relies on a majority element existing."
+code = '''class Solution:
+    def majorityElement(self, nums: list[int]) -> int:
+        candidate, count = 0, 0
+        for x in nums:
+            if count == 0:
+                candidate = x
+            count += 1 if x == candidate else -1
+        return candidate
+'''
+
+[[approaches]]
+name = "Count with a dictionary"
+label = "hash map"
+idea = "Count every value and return the one that appears more than n / 2 times."
+time = "O(n)"
+space = "O(n)"
+note = "The first answer to give."
+code = '''from collections import Counter
+
+
+class Solution:
+    def majorityElement(self, nums: list[int]) -> int:
+        value, _ = Counter(nums).most_common(1)[0]
+        return value
+'''
+
+[[approaches]]
+name = "Sort and take the middle"
+label = "sorting"
+idea = "A value that fills more than half the array must sit at the middle index once sorted."
+time = "O(n log n)"
+space = "O(n)"
+note = "Short, but slower than voting."
+code = '''class Solution:
+    def majorityElement(self, nums: list[int]) -> int:
+        return sorted(nums)[len(nums) // 2]
+'''

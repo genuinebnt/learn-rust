@@ -1,0 +1,47 @@
+intuition = """
+Words are sorted in the alien order if every **adjacent pair** is in order, since sortedness is transitive. Compare two words letter by letter at the first position where they differ, using each letter's position in `order`. If one word is a prefix of the other, the **shorter one must come first** (`"app"` before `"apple"`).
+
+Translate each letter to its rank in `order`, and the comparison becomes an ordinary list or tuple comparison, which already treats a prefix as smaller.
+"""
+tips = [
+    "Only adjacent pairs need checking. If `a <= b` and `b <= c`, then `a <= c` follows.",
+    "The prefix rule is the classic trap: `[\"apple\", \"app\"]` is **not** sorted, however the letters are ordered.",
+    "Build `rank = {letter: index}` once, then compare ranks, not letters.",
+    "Comparing lists of ranks handles the prefix case by itself (a shorter list that matches the start of a longer one is smaller).",
+]
+
+[[approaches]]
+name = "Map letters to ranks and compare neighbours"
+label = "simulation"
+idea = "Turn each word into a list of ranks and check that each word's list is at most the next one's."
+time = "O(total letters)"
+space = "O(1) plus the converted words"
+note = "The alphabet is 26 letters."
+code = '''class Solution:
+    def isAlienSorted(self, words: list[str], order: str) -> bool:
+        rank = {letter: i for i, letter in enumerate(order)}
+        ranked = [[rank[c] for c in word] for word in words]
+        return all(a <= b for a, b in zip(ranked, ranked[1:]))
+'''
+
+[[approaches]]
+name = "Explicit letter-by-letter comparison"
+label = "simulation"
+idea = "For each adjacent pair, find the first differing letter and compare ranks; if none differs, the longer word must not come first."
+time = "O(total letters)"
+space = "O(1)"
+note = "What the one-liner does under the hood."
+code = '''class Solution:
+    def isAlienSorted(self, words: list[str], order: str) -> bool:
+        rank = {letter: i for i, letter in enumerate(order)}
+        for a, b in zip(words, words[1:]):
+            for x, y in zip(a, b):
+                if x != y:
+                    if rank[x] > rank[y]:
+                        return False
+                    break
+            else:
+                if len(a) > len(b):
+                    return False
+        return True
+'''

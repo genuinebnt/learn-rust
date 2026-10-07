@@ -1,0 +1,73 @@
+intuition = """
+A queue gives first-in first-out, a stack gives last-in first-out. To make a queue behave like a stack, make the **newest item sit at the front** of the queue. With a single queue: after appending a new item, rotate the queue by moving every older item (`len - 1` of them) from the front to the back. The new item is now at the front, so `pop` and `top` are the queue's `popleft` and front.
+
+That makes `push` O(n) and the rest O(1). You can instead make `pop` the expensive one, or use two queues; the cost is the same.
+"""
+tips = [
+    "Only `push` rotates in this design. `pop`, `top` and `empty` are constant time.",
+    "Rotate `len(queue) - 1` times after appending (not `len`), so the new item stays at the front.",
+    "Use `collections.deque`: `popleft` is O(1), while `list.pop(0)` is O(n).",
+    "Follow-up: with a single queue it's amortised no better, but you can do O(1) `top` with a stored top value.",
+]
+
+[[approaches]]
+name = "One queue, rotate on push"
+label = "queue"
+idea = "After each push, cycle the older items behind the new one so the newest is at the front."
+time = "O(n) push, O(1) others"
+space = "O(n)"
+note = "One structure."
+code = '''from collections import deque
+
+
+class MyStack:
+
+    def __init__(self):
+        self.queue = deque()
+
+    def push(self, x: int) -> None:
+        self.queue.append(x)
+        for _ in range(len(self.queue) - 1):
+            self.queue.append(self.queue.popleft())
+
+    def pop(self) -> int:
+        return self.queue.popleft()
+
+    def top(self) -> int:
+        return self.queue[0]
+
+    def empty(self) -> bool:
+        return not self.queue
+'''
+
+[[approaches]]
+name = "Two queues"
+label = "queue"
+idea = "Put the new item into an empty queue, then pour the old queue in behind it and swap the two."
+time = "O(n) push, O(1) others"
+space = "O(n)"
+note = "What the problem statement hints at."
+code = '''from collections import deque
+
+
+class MyStack:
+
+    def __init__(self):
+        self.main = deque()
+        self.spare = deque()
+
+    def push(self, x: int) -> None:
+        self.spare.append(x)
+        while self.main:
+            self.spare.append(self.main.popleft())
+        self.main, self.spare = self.spare, self.main
+
+    def pop(self) -> int:
+        return self.main.popleft()
+
+    def top(self) -> int:
+        return self.main[0]
+
+    def empty(self) -> bool:
+        return not self.main
+'''

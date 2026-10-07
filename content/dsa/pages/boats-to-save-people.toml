@@ -1,0 +1,31 @@
+intuition = """
+Each boat carries at most **two** people with total weight at most `limit`. To use the fewest boats, pair the **heaviest** remaining person with the **lightest** one if they fit together; if they don't, the heaviest person can't share with anyone (even the lightest is too much), so they go alone.
+
+Sort the weights and use two pointers, `light` at the start and `heavy` at the end. Each round the heavy person boards, and the light person joins if `people[light] + people[heavy] <= limit`. One boat per round.
+"""
+tips = [
+    "Sorting is what makes the greedy rule easy to apply: the lightest and heaviest are at the two ends.",
+    "The heavy person always boards. Only the light one is optional.",
+    "If the heaviest can't pair with the lightest, they can't pair with anyone, so sending them alone loses nothing.",
+    "Loop `while light <= heavy` so a single person left in the middle still gets a boat.",
+]
+
+[[approaches]]
+name = "Sort, then pair the heaviest with the lightest"
+label = "greedy two pointers"
+idea = "Each boat takes the heaviest remaining person, plus the lightest if both fit under the limit."
+time = "O(n log n)"
+space = "O(n)"
+note = "The sort dominates."
+code = '''class Solution:
+    def numRescueBoats(self, people: list[int], limit: int) -> int:
+        people = sorted(people)
+        light, heavy = 0, len(people) - 1
+        boats = 0
+        while light <= heavy:
+            if people[light] + people[heavy] <= limit:
+                light += 1
+            heavy -= 1
+            boats += 1
+        return boats
+'''

@@ -1,0 +1,73 @@
+intuition = """
+Both players play perfectly and each wants the larger score. Instead of tracking two scores, track **how much better the player to move can do than the other**: let `dp[i]` be (score of the player to move) minus (score of the opponent) for the stones from index `i` on.
+
+From `i` you take 1, 2 or 3 stones (sum `take`), and then the opponent faces `i + k`, where they gain `dp[i + k]` over you. So your advantage is `take - dp[i + k]`, and you choose the best `k`:
+
+`dp[i] = max over k in 1..3 of (sum(values[i : i + k]) - dp[i + k])`, with `dp[n] = 0`.
+
+At the end `dp[0]` is Alice's lead: positive means Alice wins, negative Bob, zero a tie.
+"""
+tips = [
+    "Work backwards from the end: `dp[i]` depends only on larger indexes.",
+    "Taking `k` stones can't go past the end (`i + k <= n`). Stop the loop there.",
+    "Stone values can be negative, so taking more isn't always better. The `max` over `k` handles it.",
+    "Only the next three `dp` values are needed, so memory can drop to O(1).",
+]
+
+[[approaches]]
+name = "DP on the score difference"
+label = "dp"
+idea = "dp[i] is the best lead for the player to move from stone i; try taking one, two or three stones."
+time = "O(n)"
+space = "O(n)"
+note = "Three choices per index."
+code = '''class Solution:
+    def stoneGameIII(self, stoneValue: list[int]) -> str:
+        n = len(stoneValue)
+        dp = [0] * (n + 1)
+        for i in range(n - 1, -1, -1):
+            best = float("-inf")
+            take = 0
+            for k in range(1, 4):
+                if i + k > n:
+                    break
+                take += stoneValue[i + k - 1]
+                best = max(best, take - dp[i + k])
+            dp[i] = best
+        if dp[0] > 0:
+            return "Alice"
+        if dp[0] < 0:
+            return "Bob"
+        return "Tie"
+'''
+
+[[approaches]]
+name = "Top-down with memoization"
+label = "memoization"
+idea = "The same recurrence written as a recursion over the start index, cached with lru_cache."
+time = "O(n)"
+space = "O(n)"
+note = "Each index is solved once."
+code = '''from functools import lru_cache
+
+
+class Solution:
+    def stoneGameIII(self, stoneValue: list[int]) -> str:
+        n = len(stoneValue)
+
+        @lru_cache(maxsize=None)
+        def lead(i: int) -> int:
+            if i >= n:
+                return 0
+            best = float("-inf")
+            take = 0
+            for k in range(1, 4):
+                if i + k > n:
+                    break
+                take += stoneValue[i + k - 1]
+                best = max(best, take - lead(i + k))
+            return best
+
+        diff = lead(0)
+        return "Alice" if diff > 0 else "Bob" if diff < 0 else "Tie"
+'''

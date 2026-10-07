@@ -1,0 +1,69 @@
+intuition = """
+Each senator, when their turn comes, should ban the **next opposing senator who would act soonest**: that does the most harm to the other party. Simulate this with two queues holding the **positions** of each party's senators.
+
+Each step, take the front of each queue. The one with the smaller position acts first and bans the other (the banned one is simply dropped). The winner goes to the back of its queue for the next round, with its position increased by `n` so it sits after everyone from this round. When one queue is empty, the other party wins.
+"""
+tips = [
+    "Compare positions to see who acts first, and the earlier one eliminates the other.",
+    "Re-queue the winner with `index + n`. That places it after every senator of the current round while keeping the relative order of the next one.",
+    "Banning the *next opposing* senator is optimal, because the one about to act soonest is the one who could ban you first.",
+    "Each step removes one senator, so the loop runs at most `n` times.",
+]
+
+[[approaches]]
+name = "Two queues of positions"
+label = "greedy simulation"
+idea = "Pop the front of each queue; the earlier senator bans the other and rejoins its queue for the next round."
+time = "O(n)"
+space = "O(n)"
+note = "Each step removes one senator."
+code = '''from collections import deque
+
+
+class Solution:
+    def predictPartyVictory(self, senate: str) -> str:
+        radiant, dire = deque(), deque()
+        for i, party in enumerate(senate):
+            (radiant if party == "R" else dire).append(i)
+        n = len(senate)
+        while radiant and dire:
+            r, d = radiant.popleft(), dire.popleft()
+            if r < d:
+                radiant.append(r + n)
+            else:
+                dire.append(d + n)
+        return "Radiant" if radiant else "Dire"
+'''
+
+[[approaches]]
+name = "Rounds with pending-ban counters"
+label = "greedy simulation"
+idea = "Walk the line each round; a senator is skipped if a ban is waiting for their party, otherwise they add a ban against the other party."
+time = "O(n · rounds)"
+space = "O(n)"
+note = "Bans left over at the end of a round carry into the next."
+code = '''class Solution:
+    def predictPartyVictory(self, senate: str) -> str:
+        people = list(senate)
+        ban_r = ban_d = 0
+        while True:
+            survivors = []
+            for party in people:
+                if party == "R":
+                    if ban_r:
+                        ban_r -= 1
+                    else:
+                        ban_d += 1
+                        survivors.append("R")
+                else:
+                    if ban_d:
+                        ban_d -= 1
+                    else:
+                        ban_r += 1
+                        survivors.append("D")
+            if "R" not in survivors:
+                return "Dire"
+            if "D" not in survivors:
+                return "Radiant"
+            people = survivors
+'''

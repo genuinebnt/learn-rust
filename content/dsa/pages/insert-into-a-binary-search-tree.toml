@@ -1,0 +1,55 @@
+intuition = """
+A new value always ends up as a **leaf**: walk down from the root as if searching for it, going left when it's smaller and right when it's larger, until you reach an empty child. That empty spot is where the value belongs. Attach a new node there.
+
+The values are distinct, so there's never a tie. If the tree is empty, the new node is the whole tree.
+"""
+tips = [
+    "You don't need to rebuild or rebalance anything: any valid BST containing the old values plus the new one is accepted, and inserting at a leaf is the simplest.",
+    "Handle the empty tree first (`root is None` returns the new node).",
+    "The loop version needs no recursion and no parent pointer: stop at the node whose chosen child is empty.",
+    "Cost is the height of the tree: O(log n) if balanced, O(n) in the worst case.",
+]
+
+[[approaches]]
+name = "Walk down and attach a leaf"
+label = "iterative"
+idea = "Go left or right by comparison until the chosen child is empty, then put the new node there."
+time = "O(h)"
+space = "O(1)"
+note = "h is the tree height."
+code = '''class Solution:
+    def insertIntoBST(self, root: TreeNode | None, val: int) -> TreeNode | None:
+        if root is None:
+            return TreeNode(val)
+        node = root
+        while True:
+            if val < node.val:
+                if node.left is None:
+                    node.left = TreeNode(val)
+                    break
+                node = node.left
+            else:
+                if node.right is None:
+                    node.right = TreeNode(val)
+                    break
+                node = node.right
+        return root
+'''
+
+[[approaches]]
+name = "Recursive"
+label = "recursive"
+idea = "Insert into the correct subtree and reconnect the result as that child."
+time = "O(h)"
+space = "O(h)"
+note = "Short; the stack depth equals the height."
+code = '''class Solution:
+    def insertIntoBST(self, root: TreeNode | None, val: int) -> TreeNode | None:
+        if root is None:
+            return TreeNode(val)
+        if val < root.val:
+            root.left = self.insertIntoBST(root.left, val)
+        else:
+            root.right = self.insertIntoBST(root.right, val)
+        return root
+'''

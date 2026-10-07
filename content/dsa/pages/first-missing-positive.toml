@@ -1,0 +1,47 @@
+intuition = """
+The answer is in `1..n+1` (with `n` numbers, at best `1..n` are all present and the answer is `n + 1`). So the array itself can serve as a hash set: put each value `v` in `1..n` at **index `v - 1`**. Then scan: the first index `i` where `nums[i] != i + 1` means `i + 1` is missing.
+
+To place the numbers, **cyclic sort**: while `nums[i]` is in range and isn't already in its home slot, swap it into place. Each swap puts one value at its final position, so the total work is O(n). That uses O(1) extra space and changes the array, which the problem allows.
+"""
+tips = [
+    "Only values in `1..n` are useful. Negatives, zeros and numbers above `n` can be ignored.",
+    "Guard the swap with `nums[nums[i] - 1] != nums[i]`. It stops an endless loop on duplicates (`[1, 1]`) and skips values already in place.",
+    "The answer is always between `1` and `n + 1`, so the scan after sorting needs no extra cases.",
+    "A set of the numbers and a loop counting up from 1 is the easy O(n)-space answer. The constraint (O(1) space) is what makes this a hard problem.",
+]
+
+[[approaches]]
+name = "Cyclic sort: each value to its own index"
+label = "in place"
+idea = "Swap every value v in 1..n into position v - 1, then the first position holding the wrong value reveals the missing number."
+time = "O(n)"
+space = "O(1)"
+note = "Each swap puts one number in its final place."
+code = '''class Solution:
+    def firstMissingPositive(self, nums: list[int]) -> int:
+        n = len(nums)
+        for i in range(n):
+            while 1 <= nums[i] <= n and nums[nums[i] - 1] != nums[i]:
+                j = nums[i] - 1
+                nums[i], nums[j] = nums[j], nums[i]
+        for i in range(n):
+            if nums[i] != i + 1:
+                return i + 1
+        return n + 1
+'''
+
+[[approaches]]
+name = "Set and count up"
+label = "hash set"
+idea = "Put everything in a set and return the first positive integer that is not in it."
+time = "O(n)"
+space = "O(n)"
+note = "Breaks the O(1) space requirement."
+code = '''class Solution:
+    def firstMissingPositive(self, nums: list[int]) -> int:
+        seen = set(nums)
+        candidate = 1
+        while candidate in seen:
+            candidate += 1
+        return candidate
+'''

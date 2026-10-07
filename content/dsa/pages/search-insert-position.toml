@@ -1,0 +1,45 @@
+intuition = """
+You want the index of `target` if present, or where it would go to keep the array sorted: the position of the **first element that is `>= target`**. That is a *lower bound* binary search.
+
+Keep `lo` and `hi` as a half-open range `[lo, hi)`, starting with `hi = len(nums)` (the answer can be one past the end). If `nums[mid] < target`, the answer is to the right: `lo = mid + 1`. Otherwise `mid` could be the answer, so `hi = mid`. When `lo == hi` you are done.
+"""
+tips = [
+    "Start `hi` at `len(nums)`, not `len(nums) - 1`: inserting after the last element is a valid answer.",
+    "This \"first index where the condition holds\" shape is the template for almost every binary search on the answer.",
+    "`while lo < hi` with `hi = mid` can't loop forever, because `mid < hi` always holds. No `+ 1` or `- 1` fiddling at the upper end.",
+    "`bisect.bisect_left` is exactly this function. Know the loop version and mention the library one.",
+]
+
+[[approaches]]
+name = "Lower-bound binary search"
+label = "binary search"
+idea = "Narrow a half-open range to the first index whose value is at least target."
+time = "O(log n)"
+space = "O(1)"
+note = "Handles a target that is absent, smaller than everything or larger than everything."
+code = '''class Solution:
+    def searchInsert(self, nums: list[int], target: int) -> int:
+        lo, hi = 0, len(nums)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if nums[mid] < target:
+                lo = mid + 1
+            else:
+                hi = mid
+        return lo
+'''
+
+[[approaches]]
+name = "bisect_left"
+label = "library"
+idea = "The standard library function finds the same insertion point."
+time = "O(log n)"
+space = "O(1)"
+note = "Fine once you can explain what it does."
+code = '''import bisect
+
+
+class Solution:
+    def searchInsert(self, nums: list[int], target: int) -> int:
+        return bisect.bisect_left(nums, target)
+'''

@@ -1,0 +1,74 @@
+intuition = """
+Encoded strings nest: `3[a2[c]]`. Handling nesting is a job for a **stack** (or recursion). Read the string one character at a time while keeping the text built so far and the number just read:
+
+- a **digit** extends the number (it can be several digits: `10[a]`),
+- `[`: **push** the text so far and the number onto the stack, then start fresh for the inside,
+- `]`: **pop** them; the inside text repeated that many times is appended to the text from before,
+- a **letter** is appended to the current text.
+
+When the string ends, the current text is the answer.
+"""
+tips = [
+    "Digits can be multi-digit, so build the number with `k = k * 10 + digit`, not by replacing it.",
+    "At `[`, save the text *before* the bracket and the repeat count, then reset both. At `]`, combine them as `previous + current * count`.",
+    "Letters before or after a bracket group (`2[abc]3[cd]ef`) just extend the current text.",
+    "The recursive version has the same shape: a function that parses until it sees `]` and returns the text, called whenever it meets `[`.",
+]
+
+[[approaches]]
+name = "Stack of (text so far, repeat count)"
+label = "stack"
+idea = "Push the current text and count at each [, and on ] repeat the inner text and attach it to the saved text."
+time = "O(output length)"
+space = "O(output length)"
+note = "Output size dominates."
+code = '''class Solution:
+    def decodeString(self, s: str) -> str:
+        stack = []
+        current = ""
+        count = 0
+        for ch in s:
+            if ch.isdigit():
+                count = count * 10 + int(ch)
+            elif ch == "[":
+                stack.append((current, count))
+                current, count = "", 0
+            elif ch == "]":
+                previous, times = stack.pop()
+                current = previous + current * times
+            else:
+                current += ch
+        return current
+'''
+
+[[approaches]]
+name = "Recursive descent"
+label = "recursive"
+idea = "parse() builds text until it meets a closing bracket; on an opening bracket it calls itself and repeats the result."
+time = "O(output length)"
+space = "O(depth)"
+note = "The nesting depth is small (at most 30 here)."
+code = '''class Solution:
+    def decodeString(self, s: str) -> str:
+        i = 0
+
+        def parse() -> str:
+            nonlocal i
+            parts = []
+            count = 0
+            while i < len(s):
+                ch = s[i]
+                i += 1
+                if ch.isdigit():
+                    count = count * 10 + int(ch)
+                elif ch == "[":
+                    parts.append(parse() * count)
+                    count = 0
+                elif ch == "]":
+                    break
+                else:
+                    parts.append(ch)
+            return "".join(parts)
+
+        return parse()
+'''

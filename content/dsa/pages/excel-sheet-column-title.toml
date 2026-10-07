@@ -1,0 +1,43 @@
+intuition = """
+Excel columns are like base 26, but with **no zero digit**: `A` is 1 and `Z` is 26, then `AA` is 27. That is "bijective base 26". With a normal base conversion you would take `n % 26` as the last digit; here the digits are `1..26`, so shift by one first: use `(n - 1) % 26` to get the letter (`0` means `A`, `25` means `Z`), then divide `(n - 1) // 26` to move on.
+
+Build the title from the right (last letter first), then reverse it.
+"""
+tips = [
+    "Subtract one **before** both the remainder and the division: `n -= 1`, `letter = chr(ord('A') + n % 26)`, `n //= 26`.",
+    "Check the boundaries: `26 -> \"Z\"`, `27 -> \"AA\"`, `52 -> \"AZ\"`, `701 -> \"ZY\"`, `703 -> \"AAA\"`.",
+    "Naive base 26 gives `n = 26` the digit 0 and an empty or wrong letter. That is the whole trap.",
+    "The result is built backwards, so reverse it at the end (or prepend each letter).",
+]
+
+[[approaches]]
+name = "Bijective base 26"
+label = "math"
+idea = "Subtract one, take the remainder as the next letter from the right, divide by 26 and repeat."
+time = "O(log n)"
+space = "O(log n)"
+note = "At most 7 letters for the largest input."
+code = '''class Solution:
+    def convertToTitle(self, columnNumber: int) -> str:
+        letters = []
+        while columnNumber:
+            columnNumber -= 1
+            columnNumber, remainder = divmod(columnNumber, 26)
+            letters.append(chr(ord("A") + remainder))
+        return "".join(reversed(letters))
+'''
+
+[[approaches]]
+name = "Recursive"
+label = "recursive"
+idea = "The title of n is the title of (n - 1) // 26 followed by the letter for (n - 1) % 26."
+time = "O(log n)"
+space = "O(log n)"
+note = "The same arithmetic, written as a recursion."
+code = '''class Solution:
+    def convertToTitle(self, columnNumber: int) -> str:
+        if columnNumber == 0:
+            return ""
+        columnNumber -= 1
+        return self.convertToTitle(columnNumber // 26) + chr(ord("A") + columnNumber % 26)
+'''

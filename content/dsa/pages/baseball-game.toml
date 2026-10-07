@@ -1,0 +1,64 @@
+intuition = """
+Each operation looks at the most recent scores and may remove one, which is what a **stack** is for. Keep the list of recorded scores:
+
+- a number: push it,
+- `+`: push the sum of the last two,
+- `D`: push double the last one,
+- `C`: pop the last one.
+
+The answer is the sum of what's on the stack at the end.
+"""
+tips = [
+    "`C` removes a score from the record. It isn't an undo of the previous *operation*, but of the previous *score*.",
+    "`+` and `D` use recorded scores, so they work on the stack's top, not on the original operation list.",
+    "Negative numbers are valid scores: `int(op)` handles `\"-2\"`.",
+    "You can also keep a running total and adjust it on each push or pop, which avoids the final sum.",
+]
+
+[[approaches]]
+name = "Stack of scores"
+label = "stack"
+idea = "Push, derive or pop scores according to the operation, then add up the stack."
+time = "O(n)"
+space = "O(n)"
+note = "The direct reading of the rules."
+code = '''class Solution:
+    def calPoints(self, operations: list[str]) -> int:
+        scores = []
+        for op in operations:
+            if op == "+":
+                scores.append(scores[-1] + scores[-2])
+            elif op == "D":
+                scores.append(2 * scores[-1])
+            elif op == "C":
+                scores.pop()
+            else:
+                scores.append(int(op))
+        return sum(scores)
+'''
+
+[[approaches]]
+name = "Stack with a running total"
+label = "stack"
+idea = "Update a total as each score is pushed or popped, so no final pass is needed."
+time = "O(n)"
+space = "O(n)"
+note = "Same stack, one less pass."
+code = '''class Solution:
+    def calPoints(self, operations: list[str]) -> int:
+        scores = []
+        total = 0
+        for op in operations:
+            if op == "C":
+                total -= scores.pop()
+                continue
+            if op == "+":
+                value = scores[-1] + scores[-2]
+            elif op == "D":
+                value = 2 * scores[-1]
+            else:
+                value = int(op)
+            scores.append(value)
+            total += value
+        return total
+'''

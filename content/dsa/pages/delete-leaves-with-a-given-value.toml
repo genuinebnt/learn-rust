@@ -1,0 +1,29 @@
+intuition = """
+Deleting a leaf can turn its parent into a new leaf, which may need deleting too, repeatedly. So the children must be cleaned **before** deciding about the node itself: a **postorder** traversal.
+
+At each node: first clean the left and right subtrees (and reattach whatever they return). Then, if this node is now a leaf (both children gone) and its value equals `target`, return `None` so its own parent removes it. Otherwise return the node.
+"""
+tips = [
+    "Postorder is the key: children first, then the node. Preorder would check the node before its children had a chance to be removed.",
+    "Reassign `root.left` and `root.right` from the recursive calls. That is how a deleted child actually disappears.",
+    "Test the leaf condition **after** cleaning the children: a node that had children may be a leaf now.",
+    "A tree where everything is removed returns `None`, which is allowed.",
+]
+
+[[approaches]]
+name = "Postorder: clean children, then the node"
+label = "dfs"
+idea = "Recurse into both children and reattach the results; return None for a node that is now a leaf with the target value."
+time = "O(n)"
+space = "O(h)"
+note = "Each node is visited once."
+code = '''class Solution:
+    def removeLeafNodes(self, root: TreeNode | None, target: int) -> TreeNode | None:
+        if root is None:
+            return None
+        root.left = self.removeLeafNodes(root.left, target)
+        root.right = self.removeLeafNodes(root.right, target)
+        if root.left is None and root.right is None and root.val == target:
+            return None
+        return root
+'''

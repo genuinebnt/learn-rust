@@ -2962,8 +2962,8 @@ def makesquare(ns):
         seen.add(want)
         assert f(sticks[:]) is want, sticks
     assert seen == {True, False}
-    with _time_limit(5, "makesquare on a hard negative case"):
-        assert f([1] * 14 + [2]) is False and f([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]) is False
+    with _time_limit(2, "makesquare on a hard negative case (needs sorting and skipping equal sides)"):
+        assert f([6, 3, 2, 2, 8, 9, 6, 12, 1, 12, 12, 12, 3, 6, 6]) is False and f([1] * 14 + [2]) is True
 
 
 def word_break_ii(ns):
@@ -2985,7 +2985,7 @@ def word_break_ii(ns):
         assert sorted(f(s, words[:])) == want, (s, words)
     with _time_limit(5, "wordBreak on a string that has no segmentation"):
         assert f("a" * 40 + "b", ["a", "aa", "aaa", "aaaa"]) == []
-        assert len(f("a" * 14, ["a", "aa", "aaa"])) == 1705
+        assert len(f("a" * 14, ["a", "aa", "aaa"])) == 3136
 
 
 def search_insert(ns):
@@ -3265,12 +3265,11 @@ def find_k_closest(ns):
         k, x = r.randint(1, len(arr)), r.randint(-20, 20)
         want = sorted(sorted(arr, key=lambda v: (abs(v - x), v))[:k])
         assert f(arr[:], k, x) == want, (arr, k, x)
-    big = list(range(0, 2 * 10**5, 2))
-    with _time_limit(5, "findClosestElements on 100000 numbers"):
-        for _ in range(2000):
-            k, x = r.randint(1, 50), r.randint(-10, 2 * 10**5 + 10)
-            got = f(big, k, x)
-            assert len(got) == k and got == sorted(got)
+    big = sorted(r.randint(-10**4, 10**4) for _ in range(10**4))  # LeetCode's limit is 10^4 numbers
+    with _time_limit(10, "findClosestElements on 10000 numbers"):
+        for _ in range(100):
+            k, x = r.randint(1, 200), r.randint(-10**4 - 50, 10**4 + 50)
+            assert f(big[:], k, x) == sorted(sorted(big, key=lambda v: (abs(v - x), v))[:k])
 
 
 def baseball_game(ns):

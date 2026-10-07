@@ -1,0 +1,38 @@
+intuition = """
+The answer is just the array followed by a copy of itself: `ans[i] = nums[i]` and `ans[i + n] = nums[i]`. In Python, list addition does exactly that.
+
+This is a warm-up for the "build an output list" pattern: allocate or build once, then fill by index.
+"""
+tips = [
+    "`nums + nums` creates a new list of length `2n`. `nums * 2` does the same thing.",
+    "Don't modify `nums` in place: the function should return a new array.",
+    "If you fill by index (`ans[i + n] = nums[i]`), allocate `2 * n` slots first.",
+]
+
+[[approaches]]
+name = "List concatenation"
+label = "simple"
+idea = "Return the list added to itself."
+time = "O(n)"
+space = "O(n)"
+note = "The output."
+code = '''class Solution:
+    def getConcatenation(self, nums: list[int]) -> list[int]:
+        return nums + nums
+'''
+
+[[approaches]]
+name = "Fill by index"
+label = "indexing"
+idea = "Allocate 2n slots and write each value at i and at i + n."
+time = "O(n)"
+space = "O(n)"
+note = "The version you would write in a language without list addition."
+code = '''class Solution:
+    def getConcatenation(self, nums: list[int]) -> list[int]:
+        n = len(nums)
+        ans = [0] * (2 * n)
+        for i, x in enumerate(nums):
+            ans[i] = ans[i + n] = x
+        return ans
+'''

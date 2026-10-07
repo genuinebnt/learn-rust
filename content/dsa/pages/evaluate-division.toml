@@ -1,0 +1,89 @@
+intuition = """
+Each equation `a / b = v` is an **edge** between `a` and `b`: store `a -> b` with weight `v` and `b -> a` with weight `1 / v`. A query `x / y` asks for the **product of the weights along any path** from `x` to `y`. If there's no path (or a variable never appears), the answer is `-1.0`.
+
+So build the graph, then for each query run a BFS or DFS from `x`, carrying the running product, until you reach `y`.
+
+A **weighted union-find** is the alternative: keep, for each variable, its ratio to its component's root, and merge components while preserving the ratios. Queries then take almost constant time.
+"""
+tips = [
+    "`x / x` is `1.0` only if `x` appears in some equation. An unknown variable gives `-1.0`, even against itself.",
+    "Add both directions of every equation: `a -> b` with `v` and `b -> a` with `1 / v`.",
+    "Use a visited set per query so the search doesn't loop on cycles. Any path gives the same product when the input is consistent.",
+    "This is graph traversal where the edge weights multiply along the way instead of adding up.",
+]
+
+[[approaches]]
+name = "Graph with BFS per query"
+label = "bfs"
+idea = "Store a weighted edge in each direction for every equation; answer a query by searching from the numerator to the denominator, multiplying weights."
+time = "O(q · (V + E))"
+space = "O(V + E)"
+note = "q queries, each a search over the graph."
+code = '''from collections import defaultdict, deque
+
+
+class Solution:
+    def calcEquation(self, equations: List[List[str]], values: List[float], queries: List[List[str]]) -> List[float]:
+        graph = defaultdict(dict)
+        for (a, b), value in zip(equations, values):
+            graph[a][b] = value
+            graph[b][a] = 1 / value
+
+        def solve(src: str, dst: str) -> float:
+            if src not in graph or dst not in graph:
+                return -1.0
+            seen = {src}
+            queue = deque([(src, 1.0)])
+            while queue:
+                node, product = queue.popleft()
+                if node == dst:
+                    return product
+                for neighbour, weight in graph[node].items():
+                    if neighbour not in seen:
+                        seen.add(neighbour)
+                        queue.append((neighbour, product * weight))
+            return -1.0
+
+        return [solve(a, b) for a, b in queries]
+'''
+
+[[approaches]]
+name = "Weighted union-find"
+label = "union find"
+idea = "Each variable stores its ratio to its root; merging two components adjusts one root's ratio so all stored ratios stay consistent."
+time = "O((E + q) · α(V))"
+space = "O(V)"
+note = "Almost constant per operation."
+code = '''class Solution:
+    def calcEquation(self, equations: List[List[str]], values: List[float], queries: List[List[str]]) -> List[float]:
+        parent = {}
+        ratio = {}  # ratio[x] = x / parent[x]
+
+        def find(x: str) -> str:
+            if parent[x] != x:
+                p = parent[x]
+                parent[x] = find(p)
+                ratio[x] *= ratio[p]
+            return parent[x]
+
+        def union(a: str, b: str, value: float) -> None:
+            for x in (a, b):
+                if x not in parent:
+                    parent[x] = x
+                    ratio[x] = 1.0
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
+                ratio[ra] = value * ratio[b] / ratio[a]
+
+        for (a, b), value in zip(equations, values):
+            union(a, b, value)
+
+        answers = []
+        for a, b in queries:
+            if a not in parent or b not in parent or find(a) != find(b):
+                answers.append(-1.0)
+            else:
+                answers.append(ratio[a] / ratio[b])
+        return answers
+'''

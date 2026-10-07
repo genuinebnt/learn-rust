@@ -1,0 +1,63 @@
+intuition = """
+This is the plain trie, plus a search where `.` matches **any one letter**. A normal letter follows one child. A `.` has to try **every** child, so the search branches: it succeeds if any branch matches the rest of the pattern.
+
+That makes `search` a DFS over the trie with the position in the pattern as its state. It reaches the end of the pattern at a node, which must be marked as a word end.
+"""
+tips = [
+    "Only the dot branches. A pattern with no dots is the ordinary trie walk.",
+    "Reaching the end of the pattern is not enough: the node must be the end of an inserted word (`\"b\"` shouldn't match after adding only `\"bad\"`).",
+    "When trying all children for a dot, skip the end-of-word marker key. It isn't a letter.",
+    "Worst case is a pattern of all dots, which visits every node of that depth. That's why this problem is a trie plus DFS, not just a trie.",
+]
+
+[[approaches]]
+name = "Trie with a DFS for the dots"
+label = "trie-dfs"
+idea = "Follow letters directly; on a dot, try every child and succeed if any of them matches the rest."
+time = "O(L) add, up to O(26^L) search"
+space = "O(total letters)"
+note = "Search is bounded by the number of nodes at each depth, usually far below the worst case."
+code = '''class WordDictionary:
+
+    def __init__(self):
+        self.root = {}
+
+    def addWord(self, word: str) -> None:
+        node = self.root
+        for ch in word:
+            node = node.setdefault(ch, {})
+        node["$"] = True
+
+    def search(self, word: str) -> bool:
+        def match(node: dict, i: int) -> bool:
+            if i == len(word):
+                return "$" in node
+            ch = word[i]
+            if ch == ".":
+                return any(match(child, i + 1) for key, child in node.items() if key != "$")
+            return ch in node and match(node[ch], i + 1)
+
+        return match(self.root, 0)
+'''
+
+[[approaches]]
+name = "Words grouped by length"
+label = "simple"
+idea = "Keep the words in lists by length and compare a pattern with every word of the same length."
+time = "O(1) add, O(n · L) search"
+space = "O(total letters)"
+note = "Easy and fine for small inputs, but a search scans every word of that length."
+code = '''class WordDictionary:
+
+    def __init__(self):
+        self.by_length = {}
+
+    def addWord(self, word: str) -> None:
+        self.by_length.setdefault(len(word), []).append(word)
+
+    def search(self, word: str) -> bool:
+        return any(
+            all(p == "." or p == c for p, c in zip(word, candidate))
+            for candidate in self.by_length.get(len(word), [])
+        )
+'''

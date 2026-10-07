@@ -1,0 +1,70 @@
+intuition = """
+A **trie** stores words letter by letter along a path from the root, so words that share a prefix share the start of their path. To insert a word, follow (or create) one child per letter and mark the last node as "a word ends here". To look something up, follow its letters; if a letter has no child, there is no such word or prefix.
+
+`search` and `startsWith` are the same walk. They differ only at the end: `search` also needs the end-of-word marker, `startsWith` just needs the walk to succeed.
+"""
+tips = [
+    "Write one helper that walks a string and returns the node it ends on (or `None`). `search` and `startsWith` are then one line each.",
+    "The end-of-word marker is what separates `search(\"app\")` from `startsWith(\"app\")` after inserting only `\"apple\"`.",
+    "A dict per node (letter to child) is the easiest representation in Python; an array of 26 slots is the usual choice in languages without a handy dict.",
+    "Each operation costs O(L) for a word of length L, independent of how many words are stored. That is the point of a trie over scanning a list.",
+]
+
+[[approaches]]
+name = "Trie of nested dicts"
+label = "trie"
+idea = "Each node is a dict from a letter to the child node; a special key marks the end of a word."
+time = "O(L) per call"
+space = "O(total letters)"
+note = "L is the length of the word or prefix."
+code = '''class Trie:
+
+    def __init__(self):
+        self.root = {}
+
+    def insert(self, word: str) -> None:
+        node = self.root
+        for ch in word:
+            node = node.setdefault(ch, {})
+        node["$"] = True
+
+    def _walk(self, text: str) -> dict | None:
+        node = self.root
+        for ch in text:
+            if ch not in node:
+                return None
+            node = node[ch]
+        return node
+
+    def search(self, word: str) -> bool:
+        node = self._walk(word)
+        return node is not None and "$" in node
+
+    def startsWith(self, prefix: str) -> bool:
+        return self._walk(prefix) is not None
+'''
+
+[[approaches]]
+name = "Sets of words and prefixes"
+label = "simple"
+idea = "Keep one set of whole words and one of every prefix of every inserted word."
+time = "O(L) per call"
+space = "O(total letters · L)"
+note = "Simple and quick to write, but each word stores all its prefixes in full."
+code = '''class Trie:
+
+    def __init__(self):
+        self.words = set()
+        self.prefixes = set()
+
+    def insert(self, word: str) -> None:
+        self.words.add(word)
+        for i in range(1, len(word) + 1):
+            self.prefixes.add(word[:i])
+
+    def search(self, word: str) -> bool:
+        return word in self.words
+
+    def startsWith(self, prefix: str) -> bool:
+        return prefix in self.prefixes
+'''

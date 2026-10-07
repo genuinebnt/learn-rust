@@ -1,0 +1,54 @@
+intuition = """
+To delete the n-th node from the end in **one pass**, keep two pointers `n` nodes apart. Move the leading pointer `n` steps ahead, then move both together; when the leading one reaches the last node, the trailing one is right before the node to delete.
+
+A **dummy head** in front of the list means the trailing pointer can stand "before the first node", so removing the head needs no special case.
+"""
+tips = [
+    "Start both pointers at the dummy. After the leading one has moved `n` times, stop when `lead.next` is `None`, so the trailing one is the node **before** the target.",
+    "Without a dummy, deleting the head (`n` equal to the length) is a special case and a common source of bugs.",
+    "The two-pass alternative counts the length first and then walks `length - n` steps. It's easy to explain; the gap pointer does it in one pass.",
+    "Delete with `trail.next = trail.next.next`. You never need the removed node itself.",
+]
+
+[[approaches]]
+name = "Two pointers n apart, with a dummy head"
+label = "two pointers"
+idea = "Advance the leading pointer n steps, then move both until it reaches the end; the trailing one sits just before the node to remove."
+time = "O(L)"
+space = "O(1)"
+note = "L is the list length; one pass."
+code = '''class Solution:
+    def removeNthFromEnd(self, head: ListNode | None, n: int) -> ListNode | None:
+        dummy = ListNode(0, head)
+        lead = dummy
+        for _ in range(n):
+            lead = lead.next
+        trail = dummy
+        while lead.next:
+            lead = lead.next
+            trail = trail.next
+        trail.next = trail.next.next
+        return dummy.next
+'''
+
+[[approaches]]
+name = "Count the length, then walk"
+label = "two passes"
+idea = "Count the nodes, then walk length - n steps from the dummy to reach the node before the target."
+time = "O(L)"
+space = "O(1)"
+note = "Two passes over the list."
+code = '''class Solution:
+    def removeNthFromEnd(self, head: ListNode | None, n: int) -> ListNode | None:
+        length = 0
+        node = head
+        while node:
+            length += 1
+            node = node.next
+        dummy = ListNode(0, head)
+        node = dummy
+        for _ in range(length - n):
+            node = node.next
+        node.next = node.next.next
+        return dummy.next
+'''

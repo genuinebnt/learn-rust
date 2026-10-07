@@ -1,0 +1,36 @@
+intuition = """
+The digits are stored in **reverse** order, so the heads are the ones place, which is exactly where schoolbook addition starts. Walk both lists together, add the two digits and the carry, write `total % 10` as the next digit, and carry `total // 10`.
+
+Keep going while either list has digits **or** there's a carry left, so a final carry becomes a new last digit (`99 + 1 = 100`). A dummy head makes building the result list simple.
+"""
+tips = [
+    "The loop condition is `l1 or l2 or carry`. Forgetting the `carry` loses the last digit of cases like `5 + 5`.",
+    "Treat a finished list as the digit 0 instead of branching on which list is longer.",
+    "`carry, digit = divmod(total, 10)` does both steps.",
+    "Don't convert to integers and back: it works in Python, but it hides the point of the exercise, and in most other languages the numbers overflow.",
+]
+
+[[approaches]]
+name = "Digit by digit with a carry"
+label = "simulation"
+idea = "Add the two current digits plus the carry, append the units digit, carry the rest; continue while any digits or carry remain."
+time = "O(max(n, m))"
+space = "O(max(n, m))"
+note = "The output list; no extra memory besides it."
+code = '''class Solution:
+    def addTwoNumbers(self, l1: ListNode | None, l2: ListNode | None) -> ListNode | None:
+        dummy = tail = ListNode()
+        carry = 0
+        while l1 or l2 or carry:
+            total = carry
+            if l1:
+                total += l1.val
+                l1 = l1.next
+            if l2:
+                total += l2.val
+                l2 = l2.next
+            carry, digit = divmod(total, 10)
+            tail.next = ListNode(digit)
+            tail = tail.next
+        return dummy.next
+'''

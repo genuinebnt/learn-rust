@@ -1,0 +1,60 @@
+intuition = """
+Merging two sorted lists is easy; with `k` lists, the next node of the result is the smallest among the `k` current fronts. A **min-heap** of the fronts finds that smallest in O(log k): pop it, append it to the result, and push its successor.
+
+Or merge **in pairs**: merge lists 0 and 1, 2 and 3, and so on, then repeat on the results, like the levels of a merge sort. Each round halves the number of lists, and every node is touched once per round, so O(n log k) too.
+"""
+tips = [
+    "Heap entries need a tie-breaker: Python compares the next tuple item when values are equal, and `ListNode` can't be compared. Put the list index in the tuple: `(val, index, node)`.",
+    "Don't push empty lists. The heap only ever holds one node per non-empty list.",
+    "The cost is O(n log k) for `n` total nodes. Merging the lists one after another is O(n · k), which is the answer to avoid.",
+    "A dummy head keeps the output building simple, as in Merge Two Sorted Lists.",
+]
+
+[[approaches]]
+name = "Min-heap of the list fronts"
+label = "heap"
+idea = "Keep the current front of each list in a heap; repeatedly pop the smallest and push the node after it."
+time = "O(n log k)"
+space = "O(k)"
+note = "n is the total number of nodes."
+code = '''import heapq
+
+
+class Solution:
+    def mergeKLists(self, lists: list[ListNode | None]) -> ListNode | None:
+        heap = [(node.val, i, node) for i, node in enumerate(lists) if node]
+        heapq.heapify(heap)
+        dummy = tail = ListNode()
+        while heap:
+            _, i, node = heapq.heappop(heap)
+            tail.next = node
+            tail = node
+            if node.next:
+                heapq.heappush(heap, (node.next.val, i, node.next))
+        return dummy.next
+'''
+
+[[approaches]]
+name = "Merge in pairs"
+label = "divide and conquer"
+idea = "Merge neighbouring lists two at a time; repeat until a single list is left."
+time = "O(n log k)"
+space = "O(1) beyond the recursion-free merges"
+note = "Each round halves the list count."
+code = '''class Solution:
+    def mergeKLists(self, lists: list[ListNode | None]) -> ListNode | None:
+        def merge(a: ListNode | None, b: ListNode | None) -> ListNode | None:
+            dummy = tail = ListNode()
+            while a and b:
+                if a.val <= b.val:
+                    tail.next, a = a, a.next
+                else:
+                    tail.next, b = b, b.next
+                tail = tail.next
+            tail.next = a or b
+            return dummy.next
+
+        while len(lists) > 1:
+            lists = [merge(lists[i], lists[i + 1] if i + 1 < len(lists) else None) for i in range(0, len(lists), 2)]
+        return lists[0] if lists else None
+'''

@@ -1,0 +1,54 @@
+intuition = """
+There are `n + 1` numbers in `1..n`, and you may not modify the array or use more than constant extra space. Look at the array as a **linked list**: from index `i`, the next index is `nums[i]`. Since values are in `1..n`, every step stays inside the array, and because two indexes hold the same value, two different places point to the same next index. So the walk **must enter a cycle**, and the duplicate is the node where the cycle begins.
+
+That is Linked List Cycle II: find where fast and slow meet, then restart one pointer from the beginning and move both one step at a time; they meet at the cycle's entrance, which is the duplicate.
+
+Another way that uses the **value range**: binary search on the answer. For a guess `mid`, count how many numbers are `<= mid`. If the count is more than `mid`, the duplicate is in `1..mid`; otherwise it is above.
+"""
+tips = [
+    "Start from index `0` (not from a value): since no value is `0`, nothing points back to index 0, so it's outside the cycle and the entrance is well defined.",
+    "Phase one finds a meeting point inside the cycle; phase two (restart one pointer at 0, step both by one) finds the entrance. Say why: the distances work out to be equal.",
+    "Sorting or a set are the first ideas, but the constraints forbid them (no changes to the array, constant extra space).",
+    "The binary search version runs in O(n log n) and is easier to justify with the pigeonhole principle.",
+]
+
+[[approaches]]
+name = "Floyd's cycle detection on the index graph"
+label = "fast and slow"
+idea = "Treat i -> nums[i] as a linked list; find where the fast and slow pointers meet, then restart one at the beginning to find the cycle's entrance."
+time = "O(n)"
+space = "O(1)"
+note = "Doesn't modify the array."
+code = '''class Solution:
+    def findDuplicate(self, nums: list[int]) -> int:
+        slow = fast = 0
+        while True:
+            slow = nums[slow]
+            fast = nums[nums[fast]]
+            if slow == fast:
+                break
+        slow = 0
+        while slow != fast:
+            slow = nums[slow]
+            fast = nums[fast]
+        return slow
+'''
+
+[[approaches]]
+name = "Binary search on the value"
+label = "binary search"
+idea = "Count how many numbers are at most mid; more than mid means the duplicate is in 1..mid."
+time = "O(n log n)"
+space = "O(1)"
+note = "Each count is a full pass."
+code = '''class Solution:
+    def findDuplicate(self, nums: list[int]) -> int:
+        low, high = 1, len(nums) - 1
+        while low < high:
+            mid = (low + high) // 2
+            if sum(x <= mid for x in nums) > mid:
+                high = mid
+            else:
+                low = mid + 1
+        return low
+'''

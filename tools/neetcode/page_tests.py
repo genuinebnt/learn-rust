@@ -2085,6 +2085,324 @@ def serialize_tree(ns):
     assert _shape(Codec().deserialize(sb)) == _shape(b) and _shape(Codec().deserialize(sa)) == _shape(a)
 
 
+# ---- tries ----------------------------------------------------------------------------------------------------------
+
+
+def trie_check(ns):
+    r = rng()
+    for _ in range(150):
+        trie, words = ns["Trie"](), set()
+        for _ in range(r.randint(1, 40)):
+            w = "".join(r.choice("abc") for _ in range(r.randint(1, 5)))
+            op = r.randint(0, 2)
+            if op == 0:
+                trie.insert(w)
+                words.add(w)
+            elif op == 1:
+                assert trie.search(w) is (w in words), (w, words)
+            else:
+                assert trie.startsWith(w) is any(x.startswith(w) for x in words), (w, words)
+    t = ns["Trie"]()
+    t.insert("apple")
+    assert t.search("apple") is True and t.search("app") is False and t.startsWith("app") is True
+    t.insert("app")
+    assert t.search("app") is True
+
+
+def word_dictionary_check(ns):
+    def matches(pattern, w):
+        return len(pattern) == len(w) and all(a in (".", b) for a, b in zip(pattern, w))
+
+    r = rng()
+    for _ in range(150):
+        d, words = ns["WordDictionary"](), []
+        for _ in range(r.randint(1, 40)):
+            if r.random() < 0.4:
+                w = "".join(r.choice("abc") for _ in range(r.randint(1, 5)))
+                d.addWord(w)
+                words.append(w)
+            else:
+                q = "".join(r.choice("abc.") for _ in range(r.randint(1, 5)))
+                assert d.search(q) is any(matches(q, w) for w in words), (q, words)
+    d = ns["WordDictionary"]()
+    for w in ("bad", "dad", "mad"):
+        d.addWord(w)
+    assert [d.search(x) for x in ("pad", "bad", ".ad", "b..", "b.", "...", "....")] == [False, True, True, True, False, True, False]
+
+
+def word_search_ii(ns):
+    f = ns["Solution"]().findWords
+    board = [["o", "a", "a", "n"], ["e", "t", "a", "e"], ["i", "h", "k", "r"], ["i", "f", "l", "v"]]
+    assert sorted(f(board, ["oath", "pea", "eat", "rain"])) == ["eat", "oath"]
+    assert f([["a", "b"], ["c", "d"]], ["abcb"]) == []
+    r = rng()
+
+    def found(grid, word):
+        rows, cols = len(grid), len(grid[0])
+
+        def go(i, j, k, used):
+            if grid[i][j] != word[k]:
+                return False
+            if k == len(word) - 1:
+                return True
+            used.add((i, j))
+            ok = any(0 <= a < rows and 0 <= b < cols and (a, b) not in used and go(a, b, k + 1, used) for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)))
+            used.discard((i, j))
+            return ok
+
+        return any(go(i, j, 0, set()) for i in range(rows) for j in range(cols))
+
+    for _ in range(300):
+        rows, cols = r.randint(1, 4), r.randint(1, 4)
+        grid = [[r.choice("abc") for _ in range(cols)] for _ in range(rows)]
+        words = {"".join(r.choice("abc") for _ in range(r.randint(1, 6))) for _ in range(r.randint(1, 10))}
+        # also words that are real paths, so some are found
+        for _ in range(3):
+            i, j = r.randrange(rows), r.randrange(cols)
+            w, seen = grid[i][j], {(i, j)}
+            for _ in range(r.randint(0, 4)):
+                nxt = [(a, b) for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)) if 0 <= a < rows and 0 <= b < cols and (a, b) not in seen]
+                if not nxt:
+                    break
+                i, j = r.choice(nxt)
+                seen.add((i, j))
+                w += grid[i][j]
+            words.add(w)
+        words = sorted(words)
+        got = f([row[:] for row in grid], words[:])
+        assert sorted(got) == [w for w in words if found(grid, w)] and len(got) == len(set(got)), (grid, words, got)
+
+
+# ---- linked lists ---------------------------------------------------------------------------------------------------
+
+
+def _ll(values):
+    head = None
+    for v in reversed(values):
+        head = ListNode(v, head)
+    return head
+
+
+def _ll_vals(head, limit=100000):
+    out = []
+    while head:
+        out.append(head.val)
+        head = head.next
+        assert len(out) <= limit, "the list never ends (a cycle?)"
+    return out
+
+
+def _ll_nodes(head):
+    out = []
+    while head:
+        out.append(head)
+        head = head.next
+        assert len(out) < 100000, "the list never ends (a cycle?)"
+    return out
+
+
+def reverse_list(ns):
+    f = ns["Solution"]().reverseList
+    assert f(None) is None and _ll_vals(f(_ll([1]))) == [1] and _ll_vals(f(_ll([1, 2, 3, 4, 5]))) == [5, 4, 3, 2, 1]
+    r = rng()
+    for _ in range(200):
+        v = [r.randint(-9, 9) for _ in range(r.randint(0, 15))]
+        assert _ll_vals(f(_ll(v))) == v[::-1]
+
+
+def merge_two_lists(ns):
+    f = ns["Solution"]().mergeTwoLists
+    assert f(None, None) is None and _ll_vals(f(None, _ll([0]))) == [0] and _ll_vals(f(_ll([1, 2, 4]), _ll([1, 3, 4]))) == [1, 1, 2, 3, 4, 4]
+    r = rng()
+    for _ in range(300):
+        a = sorted(r.randint(-6, 6) for _ in range(r.randint(0, 8)))
+        b = sorted(r.randint(-6, 6) for _ in range(r.randint(0, 8)))
+        assert _ll_vals(f(_ll(a), _ll(b))) == sorted(a + b)
+
+
+def has_cycle(ns):
+    f = ns["Solution"]().hasCycle
+    assert f(None) is False
+    r = rng()
+    seen = set()
+    for _ in range(400):
+        n = r.randint(1, 12)
+        nodes = [ListNode(i) for i in range(n)]
+        for a, b in zip(nodes, nodes[1:]):
+            a.next = b
+        pos = r.randint(-1, n - 1)
+        if pos >= 0:
+            nodes[-1].next = nodes[pos]
+        seen.add(pos >= 0)
+        assert f(nodes[0]) is (pos >= 0), (n, pos)
+    assert seen == {True, False}
+    # a long list: the check can't recurse or copy per step
+    nodes = [ListNode(0) for _ in range(20000)]
+    for a, b in zip(nodes, nodes[1:]):
+        a.next = b
+    assert f(nodes[0]) is False
+    nodes[-1].next = nodes[7]
+    assert f(nodes[0]) is True
+
+
+def reorder_list(ns):
+    f = ns["Solution"]().reorderList
+    r = rng()
+    for n in list(range(1, 12)) * 20:
+        v = [r.randint(0, 99) for _ in range(n)]
+        head = _ll(v)
+        ids = sorted(id(x) for x in _ll_nodes(head))
+        assert f(head) is None
+        want = []
+        lo, hi = 0, n - 1
+        while lo <= hi:
+            want.append(v[lo])
+            if lo != hi:
+                want.append(v[hi])
+            lo, hi = lo + 1, hi - 1
+        assert _ll_vals(head, n + 1) == want, (v, _ll_vals(head, n + 1))
+        assert sorted(id(x) for x in _ll_nodes(head)) == ids, "the same nodes, relinked in place"
+
+
+def remove_nth(ns):
+    f = ns["Solution"]().removeNthFromEnd
+    assert f(_ll([1]), 1) is None and _ll_vals(f(_ll([1, 2]), 1)) == [1] and _ll_vals(f(_ll([1, 2]), 2)) == [2]
+    assert _ll_vals(f(_ll([1, 2, 3, 4, 5]), 2)) == [1, 2, 3, 5]
+    r = rng()
+    for _ in range(300):
+        v = [r.randint(0, 9) for _ in range(r.randint(1, 12))]
+        n = r.randint(1, len(v))
+        assert _ll_vals(f(_ll(v), n)) == v[: len(v) - n] + v[len(v) - n + 1 :]
+
+
+class _RandomNode:
+    """LeetCode's Node for Copy List with Random Pointer."""
+
+    def __init__(self, x, next=None, random=None):
+        self.val = int(x)
+        self.next = next
+        self.random = random
+
+
+def copy_random_list(ns):
+    ns["Node"] = _RandomNode  # LeetCode's Node for this problem differs from Clone Graph's
+    f = ns["Solution"]().copyRandomList
+    assert f(None) is None
+    r = rng()
+    for _ in range(300):
+        n = r.randint(1, 10)
+        nodes = [_RandomNode(r.randint(-5, 5)) for _ in range(n)]
+        for a, b in zip(nodes, nodes[1:]):
+            a.next = b
+        pointers = [r.choice([None] + list(range(n))) for _ in range(n)]
+        for node, k in zip(nodes, pointers):
+            node.random = None if k is None else nodes[k]
+        copy_head = f(nodes[0])
+        copies = _ll_nodes(copy_head)
+        assert len(copies) == n and not ({id(c) for c in copies} & {id(x) for x in nodes}), "must be new nodes"
+        assert [c.val for c in copies] == [x.val for x in nodes]
+        index = {id(c): i for i, c in enumerate(copies)}
+        assert [None if c.random is None else index[id(c.random)] for c in copies] == pointers, "random pointers must point into the copy"
+        assert [None if x.random is None else nodes.index(x.random) for x in nodes] == pointers and _ll_nodes(nodes[0]) == nodes, "the original must be unchanged"
+
+
+def add_two_numbers(ns):
+    f = ns["Solution"]().addTwoNumbers
+    assert _ll_vals(f(_ll([2, 4, 3]), _ll([5, 6, 4]))) == [7, 0, 8] and _ll_vals(f(_ll([0]), _ll([0]))) == [0]
+    assert _ll_vals(f(_ll([9, 9, 9, 9, 9, 9, 9]), _ll([9, 9, 9, 9]))) == [8, 9, 9, 9, 0, 0, 0, 1]
+    r = rng()
+
+    def number(digits):
+        return int("".join(map(str, reversed(digits))))
+
+    for _ in range(400):
+        a = [r.choice([0, 9, r.randint(0, 9)]) for _ in range(r.randint(1, 14))]
+        b = [r.choice([0, 9, r.randint(0, 9)]) for _ in range(r.randint(1, 14))]
+        if a[-1] == 0 and len(a) > 1:
+            a[-1] = r.randint(1, 9)
+        if b[-1] == 0 and len(b) > 1:
+            b[-1] = r.randint(1, 9)
+        got = _ll_vals(f(_ll(a), _ll(b)))
+        assert number(got) == number(a) + number(b) and (got[-1] != 0 or got == [0]), (a, b, got)
+
+
+def find_duplicate(ns):
+    f = ns["Solution"]().findDuplicate
+    assert f([1, 3, 4, 2, 2]) == 2 and f([3, 1, 3, 4, 2]) == 3 and f([3, 3, 3, 3, 3]) == 3 and f([1, 1]) == 1
+    r = rng()
+    for _ in range(400):
+        n = r.randint(1, 30)
+        d = r.randint(1, n)
+        copies = r.choice([2, 2, 2, r.randint(2, n + 1)]) if n > 1 else 2
+        others = r.sample([x for x in range(1, n + 1) if x != d], n + 1 - copies) if n + 1 - copies > 0 else []
+        nums = [d] * copies + others
+        r.shuffle(nums)
+        before = nums[:]
+        assert f(nums) == d, before
+        assert nums == before, "the array must not be modified"
+
+
+def lru_cache(ns):
+    LRU = ns["LRUCache"]
+    c = LRU(2)
+    c.put(1, 1)
+    c.put(2, 2)
+    assert c.get(1) == 1
+    c.put(3, 3)
+    assert c.get(2) == -1
+    c.put(4, 4)
+    assert c.get(1) == -1 and c.get(3) == 3 and c.get(4) == 4
+    r = rng()
+    for _ in range(200):
+        cap = r.randint(1, 4)
+        cache, order = LRU(cap), []  # order: oldest first; model of (key, value)
+        for _ in range(r.randint(1, 60)):
+            k = r.randint(0, 6)
+            if r.random() < 0.5:
+                v = r.randint(0, 99)
+                cache.put(k, v)
+                order = [(a, b) for a, b in order if a != k] + [(k, v)]
+                if len(order) > cap:
+                    order.pop(0)
+            else:
+                want = next((b for a, b in order if a == k), -1)
+                assert cache.get(k) == want, (cap, k, order)
+                if want != -1:
+                    order = [(a, b) for a, b in order if a != k] + [(k, want)]
+    # an update of an existing key refreshes it and doesn't evict anything
+    c = LRU(2)
+    c.put(1, 1)
+    c.put(2, 2)
+    c.put(1, 10)
+    c.put(3, 3)
+    assert c.get(2) == -1 and c.get(1) == 10 and c.get(3) == 3
+
+
+def merge_k_lists(ns):
+    f = ns["Solution"]().mergeKLists
+    assert f([]) is None and f([None]) is None and _ll_vals(f([_ll([1, 4, 5]), _ll([1, 3, 4]), _ll([2, 6])])) == [1, 1, 2, 3, 4, 4, 5, 6]
+    r = rng()
+    for _ in range(300):
+        lists = [sorted(r.randint(-8, 8) for _ in range(r.randint(0, 6))) for _ in range(r.randint(0, 8))]
+        got = f([_ll(v) for v in lists])
+        assert _ll_vals(got) == sorted(x for v in lists for x in v)
+
+
+def reverse_k_group(ns):
+    f = ns["Solution"]().reverseKGroup
+    assert _ll_vals(f(_ll([1, 2, 3, 4, 5]), 2)) == [2, 1, 4, 3, 5] and _ll_vals(f(_ll([1, 2, 3, 4, 5]), 3)) == [3, 2, 1, 4, 5]
+    assert _ll_vals(f(_ll([1]), 1)) == [1]
+    r = rng()
+    for _ in range(300):
+        v = [r.randint(0, 99) for _ in range(r.randint(1, 16))]
+        k = r.randint(1, len(v))
+        want = []
+        for i in range(0, len(v), k):
+            chunk = v[i : i + k]
+            want += chunk[::-1] if len(chunk) == k else chunk
+        assert _ll_vals(f(_ll(v), k)) == want, (v, k)
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -2200,6 +2518,20 @@ CHECKS = {
     "construct-binary-tree-from-preorder-and-inorder-traversal": build_tree,
     "binary-tree-maximum-path-sum": max_path_sum,
     "serialize-and-deserialize-binary-tree": serialize_tree,
+    "implement-trie-prefix-tree": trie_check,
+    "design-add-and-search-words-data-structure": word_dictionary_check,
+    "word-search-ii": word_search_ii,
+    "reverse-linked-list": reverse_list,
+    "merge-two-sorted-lists": merge_two_lists,
+    "linked-list-cycle": has_cycle,
+    "reorder-list": reorder_list,
+    "remove-nth-node-from-end-of-list": remove_nth,
+    "copy-list-with-random-pointer": copy_random_list,
+    "add-two-numbers": add_two_numbers,
+    "find-the-duplicate-number": find_duplicate,
+    "lru-cache": lru_cache,
+    "merge-k-sorted-lists": merge_k_lists,
+    "reverse-nodes-in-k-group": reverse_k_group,
 }
 
 

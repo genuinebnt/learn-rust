@@ -1,0 +1,47 @@
+intuition = """
+Reversing a list means every node's `next` must point at the node **before** it. Walk the list once, carrying the previous node: at each step, remember the next node, point the current node back at `prev`, then move both forward.
+
+The recursive way says the same: reverse everything after the head, then make the old second node point back at the head and cut the head's own `next`.
+"""
+tips = [
+    "Save `node.next` **before** you overwrite it. Losing it is the classic way to cut the list in half.",
+    "`prev` starts as `None` because the old head becomes the new tail. When the loop ends, `prev` is the new head, not `node`.",
+    "Draw three boxes (`prev`, `node`, `next`) and move them one step at a time. This pointer shuffle is reused by Reorder List and Reverse Nodes in k-Group.",
+    "An empty or one-node list needs no special case in the loop version.",
+]
+
+[[approaches]]
+name = "Iterative: flip each pointer"
+label = "iterative"
+idea = "Walk the list keeping the previous node; point each node back at it and step forward."
+time = "O(n)"
+space = "O(1)"
+note = "The expected answer."
+code = '''class Solution:
+    def reverseList(self, head: ListNode | None) -> ListNode | None:
+        prev = None
+        node = head
+        while node:
+            following = node.next
+            node.next = prev
+            prev = node
+            node = following
+        return prev
+'''
+
+[[approaches]]
+name = "Recursive"
+label = "recursive"
+idea = "Reverse the rest of the list, then hook the head onto the end of that reversed part."
+time = "O(n)"
+space = "O(n)"
+note = "The recursion depth equals the list length."
+code = '''class Solution:
+    def reverseList(self, head: ListNode | None) -> ListNode | None:
+        if head is None or head.next is None:
+            return head
+        new_head = self.reverseList(head.next)
+        head.next.next = head
+        head.next = None
+        return new_head
+'''

@@ -1,0 +1,68 @@
+intuition = """
+Reverse the list in blocks of `k`; a final block with fewer than `k` nodes stays as it is. For each block:
+
+1. Walk `k` steps from the node before the block to find the block's last node. If you run out of list, stop: the rest is shorter than `k`.
+2. Reverse the `k` nodes (the same pointer flipping as Reverse Linked List), making the first one point to whatever follows the block.
+3. Hook the block's old first node on as the **tail** of the reversed block, which is also the "node before" for the next block.
+
+A dummy head in front of the list handles the first block like any other.
+"""
+tips = [
+    "Check there are `k` nodes **before** reversing. Reversing first and un-reversing a short tail is slower and error-prone.",
+    "While reversing a block, start `prev` at the node **after** the block (not `None`), so the block's old first node ends up pointing to the rest.",
+    "After a block is reversed, its old first node is its last: it becomes the new `group_prev` for the next round.",
+    "`k = 1` leaves the list as is. The code should not need a special case for it.",
+]
+
+[[approaches]]
+name = "Reverse each block in place"
+label = "iterative"
+idea = "Find each block's end, reverse the block with its tail linked to the rest, and move on from the block's new last node."
+time = "O(n)"
+space = "O(1)"
+note = "Every node is visited a constant number of times."
+code = '''class Solution:
+    def reverseKGroup(self, head: ListNode | None, k: int) -> ListNode | None:
+        dummy = ListNode(0, head)
+        group_prev = dummy
+        while True:
+            kth = group_prev
+            for _ in range(k):
+                kth = kth.next
+                if kth is None:
+                    return dummy.next
+            group_next = kth.next
+            prev, node = group_next, group_prev.next
+            while node is not group_next:
+                following = node.next
+                node.next = prev
+                prev = node
+                node = following
+            first = group_prev.next
+            group_prev.next = kth
+            group_prev = first
+'''
+
+[[approaches]]
+name = "Recursive"
+label = "recursive"
+idea = "If at least k nodes remain, reverse the first k so they point at the already-reversed rest, and return the new head."
+time = "O(n)"
+space = "O(n / k)"
+note = "One recursion level per block."
+code = '''class Solution:
+    def reverseKGroup(self, head: ListNode | None, k: int) -> ListNode | None:
+        node = head
+        for _ in range(k):
+            if node is None:
+                return head
+            node = node.next
+        prev = self.reverseKGroup(node, k)
+        node = head
+        for _ in range(k):
+            following = node.next
+            node.next = prev
+            prev = node
+            node = following
+        return prev
+'''

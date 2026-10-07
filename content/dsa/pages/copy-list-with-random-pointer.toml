@@ -1,0 +1,66 @@
+intuition = """
+You must build a deep copy where each new node's `next` **and** `random` point at **new** nodes. The trouble is `random`: the node it points to might not exist yet in the copy. A dictionary from each original node to its copy solves it:
+
+1. First pass: create a copy of every node (no links yet) and store `original -> copy`.
+2. Second pass: set each copy's `next` and `random` by looking up the targets in the dictionary.
+
+Map `None` to `None` so empty pointers need no special case.
+"""
+tips = [
+    "Two passes are the key: create all nodes first, link them second. Linking while creating fails when `random` points forward.",
+    "Seed the map with `None: None`, then `copies[node.next]` and `copies[node.random]` work even when the pointer is empty.",
+    "The O(1)-space trick weaves each copy right after its original (`A, A', B, B'`), so `A'.random = A.random.next`, then unweaves the two lists.",
+    "The nodes are used as dictionary keys by identity. That's fine here since `Node` doesn't define equality.",
+]
+
+[[approaches]]
+name = "Hash map from original to copy"
+label = "hash map"
+idea = "Create a copy of every node, then link each copy's next and random through the map."
+time = "O(n)"
+space = "O(n)"
+note = "The map holds one entry per node."
+code = '''class Solution:
+    def copyRandomList(self, head: 'Optional[Node]') -> 'Optional[Node]':
+        copies = {None: None}
+        node = head
+        while node:
+            copies[node] = Node(node.val)
+            node = node.next
+        node = head
+        while node:
+            copies[node].next = copies[node.next]
+            copies[node].random = copies[node.random]
+            node = node.next
+        return copies[head]
+'''
+
+[[approaches]]
+name = "Interleave copies, then separate"
+label = "O(1) space"
+idea = "Put each copy right after its original, set copy.random from original.random.next, then split the two lists apart."
+time = "O(n)"
+space = "O(1)"
+note = "Besides the copy itself. Temporarily modifies the input, then restores it."
+code = '''class Solution:
+    def copyRandomList(self, head: 'Optional[Node]') -> 'Optional[Node]':
+        if head is None:
+            return None
+        node = head
+        while node:
+            node.next = Node(node.val, node.next)
+            node = node.next.next
+        node = head
+        while node:
+            if node.random:
+                node.next.random = node.random.next
+            node = node.next.next
+        copy_head = head.next
+        node = head
+        while node:
+            copy = node.next
+            node.next = copy.next
+            copy.next = copy.next.next if copy.next else None
+            node = node.next
+        return copy_head
+'''

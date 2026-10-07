@@ -1,0 +1,48 @@
+intuition = """
+If the list has a cycle, walking forever never reaches `None`. Two pointers detect it without any memory: a **slow** one moves one step at a time and a **fast** one moves two. Inside a cycle the fast pointer gains one step on the slow one each round, so it must eventually land on it. If there is no cycle, the fast pointer reaches the end first.
+
+The simple alternative remembers every node seen in a set and reports a cycle when it meets one again.
+"""
+tips = [
+    "Check `fast and fast.next` before stepping twice; otherwise a list of odd or even length crashes on `None.next`.",
+    "Compare the **nodes** (`slow is fast`), not their values. Equal values appear all the time.",
+    "Fast/slow pointers use O(1) memory. The set uses O(n). Mention both, and say why the first works (the gap closes by 1 per round).",
+    "The same pair of pointers finds the middle of a list, and, with one more step, the start of the cycle (used in Find the Duplicate Number).",
+]
+
+[[approaches]]
+name = "Fast and slow pointers"
+label = "two pointers"
+idea = "Advance one pointer by one and the other by two; they meet if and only if there is a cycle."
+time = "O(n)"
+space = "O(1)"
+note = "Floyd's cycle detection."
+code = '''class Solution:
+    def hasCycle(self, head: Optional[ListNode]) -> bool:
+        slow = fast = head
+        while fast and fast.next:
+            slow = slow.next
+            fast = fast.next.next
+            if slow is fast:
+                return True
+        return False
+'''
+
+[[approaches]]
+name = "Set of visited nodes"
+label = "hash set"
+idea = "Walk the list and remember each node; seeing one twice means a cycle."
+time = "O(n)"
+space = "O(n)"
+note = "Simple, but uses memory."
+code = '''class Solution:
+    def hasCycle(self, head: Optional[ListNode]) -> bool:
+        seen = set()
+        node = head
+        while node:
+            if node in seen:
+                return True
+            seen.add(node)
+            node = node.next
+        return False
+'''

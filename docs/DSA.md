@@ -109,7 +109,9 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
 - [x] Trees lessons (2026-10-07): the 15 NeetCode 150 problems, 29 approaches, checked against brute-force references on
       random trees (`page_tests.py` gained `TreeNode`, `ListNode`, a level-order builder and random tree/BST generators; 25
       seeded bugs were all caught).
-      **Next: lessons for Tries, Linked List, Heap, then Math and Bits. The Rust practice tracks and system design
+- [x] Tries (3) and Linked List (11) lessons (2026-10-07): 14 problems, 27 approaches; checks cover pointer identity (same nodes
+      relinked, deep copy shares nothing, input array untouched) and design-class behaviour against models; 34 seeded bugs caught.
+      **Next: lessons for Heap, then Math and Bits. The Rust practice tracks and system design
       need re-scoping under decision 24.**
 - [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
       18 categories.

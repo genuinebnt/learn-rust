@@ -1,0 +1,82 @@
+intuition = """
+Word Search I asks if **one** word is on the board. Doing that for every word repeats nearly the same walk many times: words that start with the same letters all explore the same paths.
+
+Build a **trie of all the words** and search the board **once**. From each cell, walk the board and the trie together: a step is only taken if the trie has a child for that letter. When the walk reaches a node that ends a word, record it. Words that share prefixes share the search, and any path that no word continues is cut off right away.
+"""
+tips = [
+    "Search the board once from each cell, following the trie, instead of once per word.",
+    "Mark the cell visited by overwriting it (for example with `\"#\"`) and put it back when you return. That is how you stop one path using a cell twice.",
+    "Store the **whole word** at its end node (instead of a flag) so you don't have to rebuild it from the path, then remove it once found so it isn't reported twice.",
+    "Prune: after exploring, delete a trie node that has no children left. Finished branches then cost nothing on later starts.",
+]
+
+[[approaches]]
+name = "Trie of the words, one DFS over the board"
+label = "trie-dfs"
+idea = "Walk the board and the trie together; record a word when its end node is reached and prune exhausted branches."
+time = "O(m · n · 4^L) worst case"
+space = "O(total letters)"
+note = "L is the longest word. The pruning makes it fast in practice."
+code = '''class Solution:
+    def findWords(self, board: list[list[str]], words: list[str]) -> list[str]:
+        root = {}
+        for word in words:
+            node = root
+            for ch in word:
+                node = node.setdefault(ch, {})
+            node["$"] = word
+
+        rows, cols = len(board), len(board[0])
+        found = []
+
+        def explore(i: int, j: int, parent: dict) -> None:
+            ch = board[i][j]
+            node = parent[ch]
+            word = node.pop("$", None)
+            if word is not None:
+                found.append(word)
+            board[i][j] = "#"
+            for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+                if 0 <= a < rows and 0 <= b < cols and board[a][b] in node:
+                    explore(a, b, node)
+            board[i][j] = ch
+            if not node:
+                del parent[ch]
+
+        for i in range(rows):
+            for j in range(cols):
+                if board[i][j] in root:
+                    explore(i, j, root)
+        return found
+'''
+
+[[approaches]]
+name = "Word Search I for every word"
+label = "brute force"
+idea = "Run the single-word DFS from every cell for each word."
+time = "O(w · m · n · 4^L)"
+space = "O(L)"
+note = "Correct, but it repeats the same exploration for words that share prefixes."
+code = '''class Solution:
+    def findWords(self, board: list[list[str]], words: list[str]) -> list[str]:
+        rows, cols = len(board), len(board[0])
+
+        def exists(word: str) -> bool:
+            def go(i: int, j: int, k: int) -> bool:
+                if board[i][j] != word[k]:
+                    return False
+                if k == len(word) - 1:
+                    return True
+                ch = board[i][j]
+                board[i][j] = "#"
+                ok = any(
+                    0 <= a < rows and 0 <= b < cols and go(a, b, k + 1)
+                    for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1))
+                )
+                board[i][j] = ch
+                return ok
+
+            return any(go(i, j, 0) for i in range(rows) for j in range(cols))
+
+        return [word for word in words if exists(word)]
+'''

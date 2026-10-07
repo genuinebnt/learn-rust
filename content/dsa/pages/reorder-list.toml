@@ -1,0 +1,79 @@
+intuition = """
+The result alternates between the front and the back: `L0, Ln, L1, Ln-1, ...`. A singly linked list can't walk backwards, so build the back half in reverse first. Three steps, each one a problem you already know:
+
+1. **Find the middle** with fast and slow pointers.
+2. **Reverse the second half** in place (Reverse Linked List).
+3. **Merge** the two halves, taking one node from each in turn.
+
+Everything is done by relinking nodes, so it needs O(1) extra memory.
+"""
+tips = [
+    "Cut the list in two at the middle (`slow.next = None`) before reversing, or the first half keeps pointing into the second.",
+    "Stop the middle search with `fast.next and fast.next.next` so `slow` lands on the **end of the first half**. For an odd length the extra node stays in the first half, which is the order the answer needs.",
+    "In the merge, save both `next` pointers before relinking.",
+    "If O(n) memory is fine, put the nodes in an array and link them with two indexes from the outside in. Mention it as a simpler alternative.",
+]
+
+[[approaches]]
+name = "Find the middle, reverse the half, merge"
+label = "three steps"
+idea = "Split at the middle, reverse the second half, then interleave the two halves."
+time = "O(n)"
+space = "O(1)"
+note = "Modifies the list in place."
+code = '''class Solution:
+    def reorderList(self, head: ListNode | None) -> None:
+        """
+        Do not return anything, modify head in-place instead.
+        """
+        if head is None or head.next is None:
+            return
+        slow, fast = head, head
+        while fast.next and fast.next.next:
+            slow = slow.next
+            fast = fast.next.next
+        second = slow.next
+        slow.next = None
+        prev = None
+        while second:
+            following = second.next
+            second.next = prev
+            prev = second
+            second = following
+        first, second = head, prev
+        while second:
+            first_next, second_next = first.next, second.next
+            first.next = second
+            second.next = first_next
+            first, second = first_next, second_next
+'''
+
+[[approaches]]
+name = "Array of nodes, two indexes"
+label = "array"
+idea = "Copy the nodes into a list and link them from the outside in."
+time = "O(n)"
+space = "O(n)"
+note = "Easier to get right; uses memory for the list of nodes."
+code = '''class Solution:
+    def reorderList(self, head: ListNode | None) -> None:
+        """
+        Do not return anything, modify head in-place instead.
+        """
+        nodes = []
+        node = head
+        while node:
+            nodes.append(node)
+            node = node.next
+        if not nodes:
+            return
+        i, j = 0, len(nodes) - 1
+        while i < j:
+            nodes[i].next = nodes[j]
+            i += 1
+            if i == j:
+                break
+            nodes[j].next = nodes[i]
+            j -= 1
+        nodes[i].next = None
+'''

@@ -1,0 +1,53 @@
+intuition = """
+Merging two sorted lists is the merge step of merge sort: compare the two front nodes, take the smaller, move that list forward, and repeat. When one list runs out, attach the rest of the other.
+
+A **dummy head** node makes this clean: you always append to `tail.next`, so there is no special case for the first node. Return `dummy.next`.
+"""
+tips = [
+    "A dummy node removes the \"is the result list still empty?\" branch. Reach for it whenever you build a new list.",
+    "When one list is exhausted, link the tail to the other list directly. There is no need to copy the remaining nodes.",
+    "Use `<=` (or `<`) consistently. Taking from the first list on ties keeps the merge stable.",
+    "You relink the existing nodes; nothing new is allocated apart from the dummy.",
+]
+
+[[approaches]]
+name = "Iterative with a dummy head"
+label = "iterative"
+idea = "Append the smaller front node to the result each time; when one list ends, attach the other."
+time = "O(n + m)"
+space = "O(1)"
+note = "Reuses the input nodes."
+code = '''class Solution:
+    def mergeTwoLists(self, list1: ListNode | None, list2: ListNode | None) -> ListNode | None:
+        dummy = tail = ListNode()
+        while list1 and list2:
+            if list1.val <= list2.val:
+                tail.next = list1
+                list1 = list1.next
+            else:
+                tail.next = list2
+                list2 = list2.next
+            tail = tail.next
+        tail.next = list1 or list2
+        return dummy.next
+'''
+
+[[approaches]]
+name = "Recursive"
+label = "recursive"
+idea = "The smaller head stays; its next is the merge of the rest."
+time = "O(n + m)"
+space = "O(n + m)"
+note = "Short to write; the recursion is as deep as the two lists together."
+code = '''class Solution:
+    def mergeTwoLists(self, list1: ListNode | None, list2: ListNode | None) -> ListNode | None:
+        if list1 is None:
+            return list2
+        if list2 is None:
+            return list1
+        if list1.val <= list2.val:
+            list1.next = self.mergeTwoLists(list1.next, list2)
+            return list1
+        list2.next = self.mergeTwoLists(list1, list2.next)
+        return list2
+'''

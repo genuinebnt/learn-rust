@@ -3,6 +3,7 @@
 
 mod activity;
 pub mod auth;
+pub mod dsa_next;
 mod error;
 mod format;
 pub mod lsp;

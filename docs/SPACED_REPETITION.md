@@ -92,7 +92,13 @@ rows from the ladder: stability is the interval they had been given, difficulty 
 ## Settings
 
 `GET /api/settings` returns `srs`; `PUT /api/settings/srs` saves it: `retention` (0.70–0.97), `capacity` per weekday
-(0–100), `consolidate_on` (a weekday or null), `new_per_day`, `target_date` (a soft goal).
+(0–100), `consolidate_on` (a weekday or null), `new_days` (the weekdays a new problem is solved on; the others are
+practice or rest days), `new_per_day` (new problems on a solve day), `target_date` (a soft goal).
+
+**Pace** (`reviews::pace`): from the problems left, today, the target date and the solve days it returns the solve days
+left, the problems needed per solve day (rounded up) and per week, the finish date at the chosen pace, and the days
+ahead of or behind the target. With the default routine, 143 problems from 7 Oct 2026 need 1 a solve day and finish on
+22 March 2027, 9 days early; one a day on Mon, Wed and Fri only needs 2 a day and misses March.
 
 ## Still to build
 

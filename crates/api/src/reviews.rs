@@ -124,7 +124,10 @@ pub struct Settings {
     /// The weekday (`mon` … `sun`) every problem's first review is held on, so a week's new problems are reviewed
     /// together. `None` lets the first review fall on any day with capacity.
     pub consolidate_on: Option<String>,
-    /// New problems per day, for the pace tracker.
+    /// The weekdays a new problem is solved on. Every other day is a practice day: reviews only, or a rest day when
+    /// its capacity is 0.
+    pub new_days: Vec<String>,
+    /// New problems on each solve day, for the pace tracker.
     pub new_per_day: u32,
     /// When the plan should be finished, e.g. the NeetCode 150.
     pub target_date: Option<NaiveDate>,
@@ -137,7 +140,8 @@ impl Default for Settings {
     fn default() -> Self {
         // The owner's routine: a new problem every day but Sunday; Sunday reviews the week's problems; one older
         // problem a day in between; the NeetCode 150 by the end of March.
-        Settings { retention: 0.85, capacity: Capacity::default(), consolidate_on: Some("sun".into()), new_per_day: 1, target_date: NaiveDate::from_ymd_opt(2027, 3, 31) }
+        Settings { retention: 0.85, capacity: Capacity::default(), consolidate_on: Some("sun".into()),
+            new_days: ["mon", "tue", "wed", "thu", "fri", "sat"].map(String::from).to_vec(), new_per_day: 1, target_date: NaiveDate::from_ymd_opt(2027, 3, 31) }
     }
 }
 
@@ -161,7 +165,25 @@ impl Settings {
         if self.new_per_day > 20 {
             return Err("new problems per day must be 20 or fewer".into());
         }
+        let mut seen = Vec::new();
+        for day in &self.new_days {
+            let w = weekday(day).ok_or_else(|| format!("{day:?} isn't a weekday; use mon, tue, wed, thu, fri, sat or sun"))?;
+            if seen.contains(&w) {
+                return Err(format!("{day} is listed twice in the solve days"));
+            }
+            seen.push(w);
+        }
         Ok(())
+    }
+
+    /// Whether a new problem is planned for this day. Other days are for practice (reviews) or rest.
+    pub fn is_solve_day(&self, day: NaiveDate) -> bool {
+        self.new_days.iter().filter_map(|d| weekday(d)).any(|w| w == day.weekday())
+    }
+
+    /// Solve days from `from` to `to`, both included.
+    pub fn solve_days_between(&self, from: NaiveDate, to: NaiveDate) -> u32 {
+        from.iter_days().take_while(|d| *d <= to).filter(|d| self.is_solve_day(*d)).count() as u32
     }
 
     pub fn capacity_on(&self, day: NaiveDate) -> u32 {
@@ -282,6 +304,58 @@ pub fn pick(today: NaiveDate, settings: &Settings, cards: &[(String, MemoryState
         .collect();
     due.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.cmp(b.1)));
     due.into_iter().take(settings.capacity_on(today) as usize).map(|(_, id)| id.to_owned()).collect()
+}
+
+/// What the target date asks of the owner, worked out from the problems left and the chosen solve days.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Pace {
+    pub remaining: u32,
+    /// Solve days from today to the target date, today included.
+    pub solve_days_left: u32,
+    /// New problems each solve day to finish on the target date, rounded up. `None` with no solve days left.
+    pub per_solve_day: Option<u32>,
+    /// The same, as an average per week.
+    pub per_week: Option<f32>,
+    /// The day the last problem is done at `new_per_day` on the chosen solve days. `None` with no solve days.
+    pub finish_at_current: Option<NaiveDate>,
+    /// Days the finish is after (positive) or before (negative) the target date.
+    pub days_vs_target: Option<i64>,
+}
+
+/// The pace needed to finish `remaining` problems by the target date, and the finish date at the current settings.
+/// The target is a soft goal: nothing in the schedule depends on it, this only informs the display.
+pub fn pace(remaining: u32, today: NaiveDate, settings: &Settings) -> Pace {
+    let per_day = settings.new_per_day.max(1);
+    let finish_at_current = finish_date(remaining, today, settings.new_days.len().min(7) as u32 * per_day, |d| settings.is_solve_day(d) as u32 * per_day);
+    let (solve_days_left, per_solve_day, per_week) = match settings.target_date {
+        Some(target) if target >= today => {
+            let days = settings.solve_days_between(today, target);
+            let weeks = ((target - today).num_days() + 1) as f32 / 7.0;
+            (days, (days > 0).then(|| remaining.div_ceil(days)), (remaining > 0 && days > 0).then(|| remaining as f32 / weeks))
+        }
+        _ => (0, None, None),
+    };
+    let days_vs_target = finish_at_current.zip(settings.target_date).map(|(f, t)| (f - t).num_days());
+    Pace { remaining, solve_days_left, per_solve_day, per_week, finish_at_current, days_vs_target }
+}
+
+/// The date the last of `remaining` problems is solved, doing `slots(day)` problems on each day. `None` when no day
+/// ever has a slot, or the finish is beyond ten years.
+fn finish_date(remaining: u32, today: NaiveDate, weekly_slots: u32, slots: impl Fn(NaiveDate) -> u32) -> Option<NaiveDate> {
+    if remaining == 0 {
+        return Some(today);
+    }
+    if weekly_slots == 0 {
+        return None;
+    }
+    let mut left = remaining;
+    for day in today.iter_days().take(3660) {
+        left = left.saturating_sub(slots(day));
+        if left == 0 {
+            return Some(day);
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -541,5 +615,46 @@ mod tests {
         assert!((0.78..=0.92).contains(&rate), "recall at review was {rate:.3}, wanted about 0.85");
         assert!(busiest <= 12, "a day held {busiest} reviews");
         assert!(cards.iter().all(|c| c.3 > start), "every problem has a future due date");
+    }
+
+    #[test]
+    fn solve_days_follow_the_chosen_weekdays() {
+        let routine = Settings::default();
+        assert!(routine.is_solve_day(d("2026-10-07"))); // Wednesday
+        assert!(!routine.is_solve_day(d("2026-10-11"))); // Sunday: review day
+        let weekends_off = Settings { new_days: vec!["mon".into(), "wed".into(), "fri".into()], ..Settings::default() };
+        assert_eq!(weekends_off.solve_days_between(d("2026-10-05"), d("2026-10-11")), 3);
+        assert!(Settings { new_days: vec!["mon".into(), "mon".into()], ..Settings::default() }.validate().is_err());
+        assert!(Settings { new_days: vec!["funday".into()], ..Settings::default() }.validate().is_err());
+        assert!(Settings { new_days: vec![], ..Settings::default() }.validate().is_ok());
+    }
+
+    #[test]
+    fn pace_says_how_many_a_day_the_target_needs() {
+        // 143 problems, 7 Oct 2026 to 31 Mar 2027, a problem every day but Sunday: 22 Mar finish, about 9 days early.
+        let p = pace(143, d("2026-10-07"), &Settings::default());
+        assert_eq!(p.solve_days_left, 151);
+        assert_eq!(p.per_solve_day, Some(1));
+        assert_eq!(p.finish_at_current, Some(d("2027-03-22")));
+        assert_eq!(p.days_vs_target, Some(-9));
+        // Fewer solve days push the finish out and the required rate up.
+        let three = Settings { new_days: vec!["mon".into(), "wed".into(), "fri".into()], ..Settings::default() };
+        let p = pace(143, d("2026-10-07"), &three);
+        assert_eq!(p.per_solve_day, Some(2));
+        assert!(p.days_vs_target.unwrap() > 0, "one a day on three days a week misses March");
+        // Two a day on those days gets there.
+        let p = pace(143, d("2026-10-07"), &Settings { new_per_day: 2, ..three });
+        assert!(p.days_vs_target.unwrap() <= 0);
+    }
+
+    #[test]
+    fn pace_copes_with_no_solve_days_and_a_passed_target() {
+        let paused = Settings { new_days: vec![], ..Settings::default() };
+        let p = pace(143, d("2026-10-07"), &paused);
+        assert_eq!((p.finish_at_current, p.per_solve_day), (None, None));
+        let late = Settings { target_date: Some(d("2026-01-01")), ..Settings::default() };
+        let p = pace(10, d("2026-10-07"), &late);
+        assert_eq!((p.per_solve_day, p.per_week, p.days_vs_target.is_some()), (None, None, true));
+        assert_eq!(pace(0, d("2026-10-07"), &Settings::default()).finish_at_current, Some(d("2026-10-07")));
     }
 }

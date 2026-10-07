@@ -246,7 +246,8 @@ async fn execute(s: &AppState, id: &str, code: &str, with_hidden: bool) -> ApiRe
         attempt = store::mark_solved(&s.db, attempt.id).await?;
         if newly {
             let outcome = if attempt.assisted { Outcome::Assisted } else { Outcome::Unassisted };
-            store::record_solve(&s.db, id, outcome, attempt.kind == "resolve").await?;
+            let srs = crate::settings::srs(&s.db).await?;
+            store::record_review(&s.db, id, outcome.grade(), attempt.kind == "resolve", &srs).await?;
         }
     }
     let solved_ever = store::ever_solved(&s.db, id).await?;

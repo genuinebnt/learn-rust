@@ -562,19 +562,25 @@ async fn appearance_accent_round_trips_and_validates(db: PgPool) {
 
 #[sqlx::test(migrator = "anneal_api::MIGRATOR")]
 async fn solving_schedules_reviews_and_feeds_the_dashboards(db: PgPool) {
-    let app = test_app(db);
+    let app = test_app(db.clone());
     let submit = |app: &Router| {
         let app = app.clone();
         async move { call(&app, Method::POST, &format!("/api/problems/{NDT}/submit"), Some(json!({ "code": solution() }))).await }
     };
 
-    // First, unassisted solve: one retention check in 21 days.
+    // First, unassisted solve: graded "good", with its first review held on the consolidation day (a Sunday).
     call(&app, Method::POST, &format!("/api/problems/{NDT}/focus"), Some(json!({ "seconds": 90 }))).await;
     let (_, out) = submit(&app).await;
     assert_eq!(out["run"]["status"], "passed");
     let (status, r) = call(&app, Method::GET, "/api/reviews", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!((r["due_today"].as_u64(), r["in_rotation"].as_u64()), (Some(0), Some(1)));
+    let (grade, reps, stability, due): (String, i32, f32, chrono::DateTime<chrono::Utc>) =
+        sqlx::query_as("SELECT last_grade, reps, stability, due_at FROM reviews WHERE problem_id = $1").bind(NDT).fetch_one(&db).await.unwrap();
+    assert_eq!((grade.as_str(), reps), ("good", 1));
+    assert!(stability > 1.0 && stability < 10.0, "a first good solve is remembered for days, not weeks: {stability}");
+    assert_eq!(due.with_timezone(&chrono::Local).format("%a").to_string(), "Sun");
+    assert!(due > chrono::Utc::now(), "the first review is in the future");
     let (_, stats) = call(&app, Method::GET, "/api/stats", None).await;
     assert_eq!((stats["first_run_pass"].as_f64(), stats["runs_per_solve"].as_f64()), (Some(100.0), Some(1.0)));
 
@@ -587,9 +593,14 @@ async fn solving_schedules_reviews_and_feeds_the_dashboards(db: PgPool) {
     let d9 = tracks.as_array().unwrap().iter().find(|t| t["code"] == "D9").unwrap();
     assert_eq!(d9["solved"], 1);
 
-    // An assisted re-solve resets the ladder to 3 days.
+    // A re-solve that needed a hint is graded "hard": the problem is scheduled again, with less gained than a clean one.
     call(&app, Method::POST, &format!("/api/problems/{NDT}/hints"), None).await;
     submit(&app).await;
+    let (grade, reps, history): (String, i32, serde_json::Value) =
+        sqlx::query_as("SELECT last_grade, reps, to_jsonb(history) FROM reviews WHERE problem_id = $1").bind(NDT).fetch_one(&db).await.unwrap();
+    assert_eq!((grade.as_str(), reps, history.as_array().unwrap().len()), ("hard", 2, 2));
+    assert_eq!(history[1]["grade"], "hard");
+    assert!(history[1]["recall_before"].as_f64().unwrap() > 0.5, "the history keeps the recall estimate at the time");
     let (_, r) = call(&app, Method::GET, "/api/reviews", None).await;
     assert_eq!(r["retention_30d"].as_f64(), Some(0.0));
     let (_, o) = call(&app, Method::GET, "/api/progress", None).await;
@@ -686,7 +697,7 @@ async fn renaming_a_problem_keeps_its_progress(db: PgPool) {
         .await
         .unwrap();
     sqlx::query("INSERT INTO drafts (problem_id, code) VALUES ('d99-old-name', 'old draft')").execute(&db).await.unwrap();
-    sqlx::query("INSERT INTO reviews (problem_id, step, due_at, last_result) VALUES ('d99-old-name', 2, now(), 'unassisted')").execute(&db).await.unwrap();
+    sqlx::query("INSERT INTO reviews (problem_id, step, due_at, last_result, stability, difficulty, last_review, last_grade) VALUES ('d99-old-name', 2, now(), 'unassisted', 20, 5, now(), 'good')").execute(&db).await.unwrap();
     sqlx::query("INSERT INTO scratch (problem_id, code) VALUES ('d99-old-name', 'fn main() {}')").execute(&db).await.unwrap();
     // Focus time on the same day under both ids is added up.
     sqlx::query("INSERT INTO focus_time (day, problem_id, seconds) VALUES (current_date, 'd99-old-name', 60), (current_date, 'd99-new-name', 30)")
@@ -754,4 +765,24 @@ fn editor_settings_default_to_live_clippy_without_format_on_pause() {
         serde_json::from_value(json!({ "font_size": 14, "font_family": "Fira Code", "vim": true })).unwrap();
     assert!(old.live_clippy);
     assert!(!old.format_on_pause);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn review_settings_default_to_the_routine_and_validate(db: PgPool) {
+    let app = test_app(db);
+    let s = call(&app, Method::GET, "/api/settings", None).await.1;
+    assert_eq!(s["srs"]["retention"], 0.85);
+    assert_eq!(s["srs"]["consolidate_on"], "sun");
+    assert_eq!((s["srs"]["capacity"]["mon"].as_u64(), s["srs"]["capacity"]["sat"].as_u64(), s["srs"]["capacity"]["sun"].as_u64()), (Some(1), Some(3), Some(12)));
+
+    let mut v = s["srs"].clone();
+    v["capacity"]["sun"] = json!(8);
+    v["retention"] = json!(0.8);
+    assert_eq!(call(&app, Method::PUT, "/api/settings/srs", Some(v)).await.0, StatusCode::OK);
+    let s = call(&app, Method::GET, "/api/settings", None).await.1;
+    assert_eq!((s["srs"]["capacity"]["sun"].as_u64(), s["srs"]["retention"].as_f64()), (Some(8), Some(0.8)));
+
+    for bad in [json!({ "retention": 0.4 }), json!({ "consolidate_on": "funday" }), json!({ "capacity": { "mon": 0, "tue": 0, "wed": 0, "thu": 0, "fri": 0, "sat": 0, "sun": 0 }, "consolidate_on": null })] {
+        assert_eq!(call(&app, Method::PUT, "/api/settings/srs", Some(bad)).await.0, StatusCode::BAD_REQUEST);
+    }
 }

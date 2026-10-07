@@ -441,9 +441,17 @@ pub struct ReviewItem {
     pub title: String,
     pub track: String,
     pub level: Band,
+    /// A coarse 0 to 4 level from stability.
     pub step: i32,
-    /// Days until the next step's interval would come round again, e.g. 21.
+    /// How many days the problem is remembered for: the days until recall falls to 90 %.
     pub interval_days: i64,
+    /// The chance of recalling it today, 0 to 1.
+    pub retrievability: f32,
+    pub lapses: i32,
+    /// How many times it has been graded, first solve included.
+    pub reps: i32,
+    /// again, hard, good or easy.
+    pub last_grade: String,
     pub due_at: DateTime<Utc>,
     /// Positive when overdue, 0 today, negative in the future.
     pub days_overdue: i64,
@@ -464,7 +472,11 @@ pub fn reviews(catalog: &Catalog, rows: &[ReviewRow], now: DateTime<Utc>) -> Rev
                 track: t.code.clone(),
                 level: p.meta.level,
                 step: r.step,
-                interval_days: crate::reviews::LADDER.get(r.step as usize).copied().unwrap_or(180),
+                interval_days: r.stability.round() as i64,
+                retrievability: r.retrievability(today),
+                lapses: r.lapses,
+                reps: r.reps,
+                last_grade: r.last_grade.clone(),
                 due_at: r.due_at,
                 days_overdue: days_overdue(r),
                 last_result: r.last_result.clone(),

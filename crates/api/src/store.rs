@@ -154,25 +154,33 @@ pub async fn delete_draft(db: &PgPool, problem_id: &str) -> sqlx::Result<()> {
 pub struct ProgressRow {
     pub solved: bool,
     pub assisted: bool,
-    /// Readiness multiplier from an overdue review (1.0 when not overdue); see [`crate::reviews::decay`].
+    /// Readiness credit from the chance of still recalling it (1.0 with no review on record); see [`crate::reviews::credit`].
     pub decay: f64,
 }
 
 /// Per problem: the latest solved attempt if there is one (a re-solve in progress keeps the earlier
 /// credit), otherwise the latest attempt.
 pub async fn progress(db: &PgPool) -> sqlx::Result<HashMap<String, ProgressRow>> {
-    let rows: Vec<(String, bool, bool, Option<DateTime<Utc>>)> = sqlx::query_as(
-        "SELECT DISTINCT ON (a.problem_id) a.problem_id, a.solved_at IS NOT NULL, a.assisted, r.due_at
+    /// problem id, solved, assisted, and the review's stability, difficulty and last review (none before a first solve).
+    type Row = (String, bool, bool, Option<f32>, Option<f32>, Option<DateTime<Utc>>);
+    let rows: Vec<Row> = sqlx::query_as(
+        "SELECT DISTINCT ON (a.problem_id) a.problem_id, a.solved_at IS NOT NULL, a.assisted, r.stability, r.difficulty, r.last_review
          FROM attempts a LEFT JOIN reviews r ON r.problem_id = a.problem_id
          ORDER BY a.problem_id, (a.solved_at IS NOT NULL) DESC, a.started_at DESC, a.id DESC",
     )
     .fetch_all(db)
     .await?;
-    let now = Utc::now();
+    let today = crate::activity::today();
     Ok(rows
         .into_iter()
-        .map(|(id, solved, assisted, due)| {
-            let decay = due.map_or(1.0, |d| crate::reviews::decay(d, now));
+        .map(|(id, solved, assisted, stability, difficulty, last)| {
+            let decay = match (stability, difficulty, last) {
+                (Some(stability), Some(difficulty), Some(last)) => {
+                    let elapsed = (today - last.with_timezone(&chrono::Local).date_naive()).num_days() as f32;
+                    crate::reviews::credit(fsrs::MemoryState { stability, difficulty }, elapsed)
+                }
+                _ => 1.0,
+            };
             (id, ProgressRow { solved, assisted, decay })
         })
         .collect())
@@ -196,36 +204,90 @@ pub struct ReviewRow {
     pub due_at: DateTime<Utc>,
     pub last_result: String,
     pub history: Json<Vec<serde_json::Value>>,
+    pub stability: f32,
+    pub difficulty: f32,
+    pub last_review: DateTime<Utc>,
+    pub last_grade: String,
+    pub reps: i32,
+    pub lapses: i32,
+}
+
+impl ReviewRow {
+    pub fn memory(&self) -> fsrs::MemoryState {
+        fsrs::MemoryState { stability: self.stability, difficulty: self.difficulty }
+    }
+
+    /// Chance of recalling the problem on `today` (local date).
+    pub fn retrievability(&self, today: chrono::NaiveDate) -> f32 {
+        let last = self.last_review.with_timezone(&chrono::Local).date_naive();
+        crate::reviews::retrievability(self.memory(), (today - last).num_days() as f32)
+    }
 }
 
 pub async fn reviews(db: &PgPool) -> sqlx::Result<Vec<ReviewRow>> {
-    sqlx::query_as("SELECT problem_id, step, due_at, last_result, history FROM reviews ORDER BY due_at")
-        .fetch_all(db)
-        .await
+    sqlx::query_as(
+        "SELECT problem_id, step, due_at, last_result, history, stability, difficulty, last_review, last_grade, reps, lapses
+         FROM reviews ORDER BY due_at",
+    )
+    .fetch_all(db)
+    .await
 }
 
-/// Schedules the next review after a solve.
-pub async fn record_solve(db: &PgPool, problem_id: &str, outcome: crate::reviews::Outcome, resolve: bool) -> sqlx::Result<()> {
-    let prev: Option<i32> = sqlx::query_scalar("SELECT step FROM reviews WHERE problem_id = $1")
-        .bind(problem_id)
-        .fetch_optional(db)
-        .await?;
-    let (step, days) = crate::reviews::next(prev, outcome);
-    let entry = serde_json::json!({ "at": Utc::now(), "result": outcome.as_str(), "resolve": resolve, "step": step });
+/// Grades a review (or a first solve) and schedules the next one: the FSRS memory state is updated, the due date is
+/// snapped to the owner's review days and kept off busy ones, and the result is recorded in the problem's history.
+pub async fn record_review(
+    db: &PgPool,
+    problem_id: &str,
+    grade: crate::reviews::Grade,
+    resolve: bool,
+    settings: &crate::reviews::Settings,
+) -> sqlx::Result<crate::reviews::Scheduled> {
+    let local = |t: DateTime<Utc>| t.with_timezone(&chrono::Local).date_naive();
+    let prev: Option<(f32, f32, DateTime<Utc>, i32, i32)> =
+        sqlx::query_as("SELECT stability, difficulty, last_review, reps, lapses FROM reviews WHERE problem_id = $1")
+            .bind(problem_id)
+            .fetch_optional(db)
+            .await?;
+    let planned: Vec<DateTime<Utc>> = sqlx::query_scalar("SELECT due_at FROM reviews WHERE problem_id <> $1").bind(problem_id).fetch_all(db).await?;
+    let mut load: HashMap<chrono::NaiveDate, u32> = HashMap::new();
+    for due in planned {
+        *load.entry(local(due)).or_default() += 1;
+    }
+    let today = crate::activity::today();
+    let before = prev.map(|(stability, difficulty, last, ..)| (fsrs::MemoryState { stability, difficulty }, local(last)));
+    let scheduled = crate::reviews::schedule(before, grade, today, settings, &|day| load.get(&day).copied().unwrap_or(0))
+        .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
+    let recall_before = before.map(|(m, last)| crate::reviews::retrievability(m, (today - last).num_days() as f32));
+    let due_at = chrono::TimeZone::from_local_datetime(&chrono::Local, &scheduled.due.and_hms_opt(6, 0, 0).expect("06:00 exists"))
+        .earliest()
+        .map_or_else(|| Utc::now() + chrono::TimeDelta::days(1), |t| t.with_timezone(&Utc));
+    let step = crate::reviews::level(scheduled.memory.stability);
+    let entry = serde_json::json!({
+        "at": Utc::now(), "grade": grade.as_str(), "result": grade.legacy_result(), "resolve": resolve, "step": step,
+        "recall_before": recall_before, "stability": scheduled.memory.stability, "difficulty": scheduled.memory.difficulty,
+        "ideal_days": scheduled.ideal_days, "due": scheduled.due,
+    });
+    let lapse = i32::from(grade == crate::reviews::Grade::Again);
     sqlx::query(
-        "INSERT INTO reviews (problem_id, step, due_at, last_result, history)
-         VALUES ($1, $2, now() + make_interval(days => $3), $4, jsonb_build_array($5::jsonb))
-         ON CONFLICT (problem_id) DO UPDATE SET step = EXCLUDED.step, due_at = EXCLUDED.due_at,
-             last_result = EXCLUDED.last_result, history = reviews.history || $5::jsonb, updated_at = now()",
+        "INSERT INTO reviews (problem_id, step, due_at, last_result, history, stability, difficulty, last_review, last_grade, reps, lapses)
+         VALUES ($1, $2, $3, $4, jsonb_build_array($5::jsonb), $6, $7, now(), $8, 1, $9)
+         ON CONFLICT (problem_id) DO UPDATE SET step = EXCLUDED.step, due_at = EXCLUDED.due_at, last_result = EXCLUDED.last_result,
+             history = reviews.history || $5::jsonb, stability = EXCLUDED.stability, difficulty = EXCLUDED.difficulty,
+             last_review = now(), last_grade = EXCLUDED.last_grade, reps = reviews.reps + 1,
+             lapses = reviews.lapses + $9, updated_at = now()",
     )
     .bind(problem_id)
     .bind(step)
-    .bind(days as i32)
-    .bind(outcome.as_str())
+    .bind(due_at)
+    .bind(grade.legacy_result())
     .bind(Json(entry))
+    .bind(scheduled.memory.stability)
+    .bind(scheduled.memory.difficulty)
+    .bind(grade.as_str())
+    .bind(lapse)
     .execute(db)
     .await?;
-    Ok(())
+    Ok(scheduled)
 }
 
 /// Adds active-editing seconds for a problem on a (local) day.

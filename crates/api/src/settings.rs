@@ -71,6 +71,8 @@ impl Default for AppearanceSettings {
 pub struct Settings {
     pub editor: EditorSettings,
     pub appearance: AppearanceSettings,
+    /// Review scheduling: retention, review days, the daily cap and the target date.
+    pub srs: crate::reviews::Settings,
     pub accents: &'static [&'static str],
     /// What the editor settings may be set to.
     pub font_families: &'static [&'static str],
@@ -95,6 +97,7 @@ pub async fn get(State(s): State<AppState>) -> ApiResult<Json<Settings>> {
     Ok(Json(Settings {
         editor: editor.map(|j| j.0).unwrap_or_default(),
         appearance: appearance.map(|j| j.0).unwrap_or_default(),
+        srs: srs(&s.db).await?,
         accents: ACCENTS,
         font_families: FONT_FAMILIES,
         font_sizes: [*FONT_SIZES.start(), *FONT_SIZES.end()],
@@ -130,4 +133,16 @@ async fn store<T: Serialize>(s: &AppState, key: &str, value: &T) -> ApiResult<()
     .execute(&s.db)
     .await?;
     Ok(())
+}
+
+/// The review settings (`settings.srs`), or the defaults.
+pub async fn srs(db: &sqlx::PgPool) -> sqlx::Result<crate::reviews::Settings> {
+    let stored: Option<Jsonb<crate::reviews::Settings>> = sqlx::query_scalar("SELECT value FROM settings WHERE key = 'srs'").fetch_optional(db).await?;
+    Ok(stored.map(|j| j.0).unwrap_or_default())
+}
+
+pub async fn put_srs(State(s): State<AppState>, Json(v): Json<crate::reviews::Settings>) -> ApiResult<Json<crate::reviews::Settings>> {
+    v.validate().map_err(ApiError::BadRequest)?;
+    store(&s, "srs", &v).await?;
+    Ok(Json(v))
 }

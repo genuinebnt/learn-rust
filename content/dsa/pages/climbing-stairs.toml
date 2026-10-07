@@ -1,0 +1,49 @@
+intuition = """
+To stand on step `n` you came from step `n − 1` (one step) or step `n − 2` (two steps), so the number of ways to reach `n` is the **sum of the ways to reach those two**: `ways(n) = ways(n−1) + ways(n−2)`. That's the Fibonacci recurrence.
+
+The pattern behind every DP problem: **define the state** (here, "ways to reach step i"), **write the recurrence**, **fix the base cases** (`ways(1) = 1`, `ways(2) = 2`), then compute in an order where the smaller subproblems are ready.
+"""
+tips = [
+    "Say the recurrence out loud before coding: \"ways(i) = ways(i-1) + ways(i-2)\". That is the whole problem.",
+    "Plain recursion recomputes the same values exponentially often. Memoising it, or building the answers from the bottom up, makes it linear.",
+    "You only ever need the last two values, so two variables replace the whole table (O(1) space).",
+    "`n = 1` and `n = 2` are the base cases; make sure a loop starting at 3 doesn't run past them.",
+]
+
+[[approaches]]
+name = "Top-down with memoisation"
+label = "memoised"
+idea = "Recurse on `ways(n) = ways(n-1) + ways(n-2)` and cache each result so every step is computed once."
+time = "O(n)"
+space = "O(n)"
+note = "The cache and the recursion depth are both n."
+code = '''from functools import cache
+
+
+class Solution:
+    def climbStairs(self, n: int) -> int:
+        @cache
+        def ways(step: int) -> int:
+            if step <= 2:
+                return step
+            return ways(step - 1) + ways(step - 2)
+
+        return ways(n)
+'''
+
+[[approaches]]
+name = "Bottom-up with two variables"
+label = "two variables"
+idea = "Walk up from the base cases, keeping only the ways to reach the previous two steps."
+time = "O(n)"
+space = "O(1)"
+note = "No table and no recursion."
+code = '''class Solution:
+    def climbStairs(self, n: int) -> int:
+        if n <= 2:
+            return n
+        one_back, two_back = 2, 1  # ways to reach steps n-1 and n-2
+        for _ in range(3, n + 1):
+            one_back, two_back = one_back + two_back, one_back
+        return one_back
+'''

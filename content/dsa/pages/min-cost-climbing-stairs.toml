@@ -1,0 +1,48 @@
+intuition = """
+You can start on step 0 or step 1, pay the cost of every step you stand on, and want to reach the **top** (one past the last step). The cheapest way to reach step `i` comes from step `i − 1` or `i − 2`:
+
+`best(i) = cost[i] + min(best(i-1), best(i-2))`, and the answer is `min(best(n-1), best(n-2))` because the top can be reached from either of the last two steps.
+"""
+tips = [
+    "The top is **past** the last index. You don't pay for the top, you pay for the steps you stand on.",
+    "Starting on step 0 or 1 is free of choice: the base cases are `best(0) = cost[0]` and `best(1) = cost[1]`.",
+    "Same shape as Climbing Stairs, with a `min` and a cost; two variables again suffice.",
+    "A trick: append a `0` cost for the top, then the answer is simply `best(n)`.",
+]
+
+[[approaches]]
+name = "Bottom-up with two variables"
+label = "two variables"
+idea = "Track the cheapest cost to reach the previous two steps, and combine them for the next."
+time = "O(n)"
+space = "O(1)"
+note = "One pass."
+code = '''class Solution:
+    def minCostClimbingStairs(self, cost: list[int]) -> int:
+        two_back, one_back = cost[0], cost[1]  # cheapest ways to stand on steps i-2 and i-1
+        for i in range(2, len(cost)):
+            two_back, one_back = one_back, cost[i] + min(one_back, two_back)
+        return min(one_back, two_back)
+'''
+
+[[approaches]]
+name = "Top-down with memoisation"
+label = "memoised"
+idea = "`cheapest(i)` is the cost to stand on step i; the answer is the cheaper of the last two steps."
+time = "O(n)"
+space = "O(n)"
+note = "Recursion depth n."
+code = '''from functools import cache
+
+
+class Solution:
+    def minCostClimbingStairs(self, cost: list[int]) -> int:
+        @cache
+        def cheapest(i: int) -> int:
+            if i < 2:
+                return cost[i]
+            return cost[i] + min(cheapest(i - 1), cheapest(i - 2))
+
+        n = len(cost)
+        return min(cheapest(n - 1), cheapest(n - 2))
+'''

@@ -1,0 +1,50 @@
+intuition = """
+Same idea as Longest Palindromic Substring, but instead of keeping the longest you **count** every palindrome. Expanding from a center, every step that still matches is one more palindrome, so add one for each successful expansion. Do it for all `2n − 1` centers.
+"""
+tips = [
+    "Count inside the loop: each time the two ends match, that is a new palindrome (a different substring even if the text repeats).",
+    "Substrings are counted by **position**, not by content: `\"aaa\"` has 6.",
+    "Odd and even centers again: `(i, i)` and `(i, i + 1)`.",
+    "A DP table of booleans works too and the answer is the number of `True` cells.",
+]
+
+[[approaches]]
+name = "Expand around each center"
+label = "expand around center"
+idea = "From every center, step outwards while the characters match and add one to the total for each step that matches."
+time = "O(n²)"
+space = "O(1)"
+note = "Worst case (all the same letter) is quadratic."
+code = '''class Solution:
+    def countSubstrings(self, s: str) -> int:
+        def around(left: int, right: int) -> int:
+            count = 0
+            while left >= 0 and right < len(s) and s[left] == s[right]:
+                count += 1
+                left -= 1
+                right += 1
+            return count
+
+        return sum(around(i, i) + around(i, i + 1) for i in range(len(s)))
+'''
+
+[[approaches]]
+name = "DP table"
+label = "DP table"
+idea = "Mark `is_pal[i][j]` for every substring, as in the longest-palindrome DP, and count the true cells."
+time = "O(n²)"
+space = "O(n²)"
+note = "Fills by length so the inner substring is ready."
+code = '''class Solution:
+    def countSubstrings(self, s: str) -> int:
+        n = len(s)
+        is_pal = [[False] * n for _ in range(n)]
+        count = 0
+        for length in range(1, n + 1):
+            for i in range(n - length + 1):
+                j = i + length - 1
+                if s[i] == s[j] and (length <= 2 or is_pal[i + 1][j - 1]):
+                    is_pal[i][j] = True
+                    count += 1
+        return count
+'''

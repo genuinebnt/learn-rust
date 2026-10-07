@@ -1,0 +1,55 @@
+intuition = """
+Putting `+` or `−` in front of each number splits the numbers into a **plus group** `P` and a **minus group** `N` with `sum(P) − sum(N) = target`. Since `sum(P) + sum(N) = total`, adding the two equations gives
+
+`sum(P) = (total + target) / 2`.
+
+So the question becomes: **how many subsets add up to that number?** That is 0/1 knapsack counting. (If `total + target` is odd or negative, the answer is 0.)
+"""
+tips = [
+    "The algebra turns a sign problem into a subset-sum count; say it out loud, it is the key insight.",
+    "Iterate sums **downwards** per number so each number is used once.",
+    "Zeros double the count: a `0` can take either sign. The DP handles this naturally (it adds `ways[s - 0]`).",
+    "A direct DP over `(index, running sum)` with a dictionary also works and needs no algebra.",
+]
+
+[[approaches]]
+name = "Count subsets with a given sum"
+label = "subset count"
+idea = "Reduce to counting subsets that sum to `(total + target) / 2`, using a 0/1 knapsack array."
+time = "O(n · subset sum)"
+space = "O(subset sum)"
+note = "Return 0 when the target is out of reach."
+code = '''class Solution:
+    def findTargetSumWays(self, nums: list[int], target: int) -> int:
+        total = sum(nums)
+        if abs(target) > total or (total + target) % 2:
+            return 0
+        goal = (total + target) // 2
+        ways = [1] + [0] * goal
+        for num in nums:
+            for s in range(goal, num - 1, -1):
+                ways[s] += ways[s - num]
+        return ways[goal]
+'''
+
+[[approaches]]
+name = "DP over the running sum"
+label = "dictionary DP"
+idea = "Keep a dictionary from each reachable running total to the number of ways to reach it, and extend it with `+num` and `-num` for each number."
+time = "O(n · range of sums)"
+space = "O(range of sums)"
+note = "Needs no algebra; the dictionary holds at most 2 · total + 1 keys."
+code = '''from collections import defaultdict
+
+
+class Solution:
+    def findTargetSumWays(self, nums: list[int], target: int) -> int:
+        ways = {0: 1}
+        for num in nums:
+            nxt = defaultdict(int)
+            for total, count in ways.items():
+                nxt[total + num] += count
+                nxt[total - num] += count
+            ways = nxt
+        return ways.get(target, 0)
+'''

@@ -1,0 +1,50 @@
+intuition = """
+**DP version:** `length[i]` is the longest increasing subsequence **ending at** `i`: one more than the best `length[j]` over earlier `j` with `nums[j] < nums[i]`. That's O(n²).
+
+**Faster version (patience sorting):** keep a list `tails` where `tails[k]` is the smallest possible last value of an increasing subsequence of length `k + 1`. For each number, binary-search where it fits: replace the first tail that is `>=` it, or append if it is larger than all. The length of `tails` at the end is the answer, in O(n log n).
+"""
+tips = [
+    "`tails` is **not** the subsequence itself. It only has the right length. Say that if asked to rebuild the sequence.",
+    "Strictly increasing means use `bisect_left` (a tail equal to the number is replaced, not extended).",
+    "The O(n²) DP is the first thing to write; mention the O(n log n) as the improvement.",
+    "All-equal input has length 1, and an empty list is excluded by the constraints.",
+]
+
+[[approaches]]
+name = "Smallest tail for each length"
+label = "binary search"
+idea = "Keep `tails[k]`, the smallest end of an increasing subsequence of length k + 1. Each number replaces the first tail ≥ it, or extends the list."
+time = "O(n log n)"
+space = "O(n)"
+note = "Binary search on a sorted `tails`."
+code = '''from bisect import bisect_left
+
+
+class Solution:
+    def lengthOfLIS(self, nums: list[int]) -> int:
+        tails = []
+        for x in nums:
+            i = bisect_left(tails, x)
+            if i == len(tails):
+                tails.append(x)
+            else:
+                tails[i] = x
+        return len(tails)
+'''
+
+[[approaches]]
+name = "DP over end positions"
+label = "O(n²) DP"
+idea = "`length[i]` is the longest increasing subsequence ending at i: 1 plus the best `length[j]` for earlier smaller values."
+time = "O(n²)"
+space = "O(n)"
+note = "Fine for n ≤ 2500."
+code = '''class Solution:
+    def lengthOfLIS(self, nums: list[int]) -> int:
+        length = [1] * len(nums)
+        for i in range(len(nums)):
+            for j in range(i):
+                if nums[j] < nums[i]:
+                    length[i] = max(length[i], length[j] + 1)
+        return max(length)
+'''

@@ -1,0 +1,49 @@
+intuition = """
+You can't rob two adjacent houses. At house `i` you either **skip it** (keeping the best from houses before it) or **rob it** (its money plus the best from houses up to `i − 2`):
+
+`best(i) = max(best(i-1), nums[i] + best(i-2))`
+
+The answer is the best over the whole street. As in Climbing Stairs you only need the previous two values.
+"""
+tips = [
+    "State: `best(i)` = the most money from the first `i + 1` houses. The two choices at house `i` are exactly \"skip\" and \"rob\".",
+    "Greedy (rob the biggest) fails: `[2, 7, 9, 3, 1]` needs 2 + 9 + 1 = 12, not 7 + 3.",
+    "A one-house street is just that house; an empty street is 0.",
+    "Keep two variables: `rob` (best including the previous house) and `skip` (best excluding it) works too.",
+]
+
+[[approaches]]
+name = "Two variables"
+label = "two variables"
+idea = "Track the best total two houses back and one house back. For each house, the new best is the larger of skipping it or robbing it on top of the older total."
+time = "O(n)"
+space = "O(1)"
+note = "One pass, no table."
+code = '''class Solution:
+    def rob(self, nums: list[int]) -> int:
+        two_back = one_back = 0  # best totals ending before the previous house / before this house
+        for money in nums:
+            two_back, one_back = one_back, max(one_back, two_back + money)
+        return one_back
+'''
+
+[[approaches]]
+name = "Top-down with memoisation"
+label = "memoised"
+idea = "`best(i)` looks at the street up to house i: skip it, or rob it plus the best up to i − 2."
+time = "O(n)"
+space = "O(n)"
+note = "Recursion depth n (at most 100 here)."
+code = '''from functools import cache
+
+
+class Solution:
+    def rob(self, nums: list[int]) -> int:
+        @cache
+        def best(i: int) -> int:
+            if i < 0:
+                return 0
+            return max(best(i - 1), nums[i] + best(i - 2))
+
+        return best(len(nums) - 1)
+'''

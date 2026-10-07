@@ -1,0 +1,60 @@
+intuition = """
+`s3` must be built by taking characters from `s1` and `s2` in order, each used exactly once. Let `ok[i][j]` mean "the first `i` characters of `s1` and the first `j` of `s2` can interleave to form the first `i + j` of `s3`". The next character of `s3` (`s3[i+j-1]`) must come from one of them:
+
+`ok[i][j] = (ok[i-1][j] and s1[i-1] == s3[i+j-1]) or (ok[i][j-1] and s2[j-1] == s3[i+j-1])`
+
+Start with `ok[0][0] = True`. If the lengths don't add up, it's `False` straight away.
+"""
+tips = [
+    "Check `len(s1) + len(s2) == len(s3)` first.",
+    "It's the same grid-of-two-prefixes shape as LCS and Edit Distance: rows index `s1`, columns index `s2`, and you move right or down.",
+    "A greedy \"take from whichever matches\" fails when both match: you have to keep both possibilities, which is what the table does.",
+    "One row is enough: `ok[j]` updated in place for each `i`.",
+]
+
+[[approaches]]
+name = "Table over both prefixes"
+label = "2-D table"
+idea = "`ok[i][j]` is true if the last character of the combined prefix can come from `s1[i-1]` (with `ok[i-1][j]`) or from `s2[j-1]` (with `ok[i][j-1]`)."
+time = "O(m · n)"
+space = "O(m · n)"
+note = "The standard answer."
+code = '''class Solution:
+    def isInterleave(self, s1: str, s2: str, s3: str) -> bool:
+        m, n = len(s1), len(s2)
+        if m + n != len(s3):
+            return False
+        ok = [[False] * (n + 1) for _ in range(m + 1)]
+        ok[0][0] = True
+        for i in range(m + 1):
+            for j in range(n + 1):
+                if i > 0 and ok[i - 1][j] and s1[i - 1] == s3[i + j - 1]:
+                    ok[i][j] = True
+                if j > 0 and ok[i][j - 1] and s2[j - 1] == s3[i + j - 1]:
+                    ok[i][j] = True
+        return ok[m][n]
+'''
+
+[[approaches]]
+name = "One row"
+label = "one row"
+idea = "The same recurrence, reusing a single row of length n + 1."
+time = "O(m · n)"
+space = "O(n)"
+note = "Update left to right so `ok[j - 1]` is the current row's value."
+code = '''class Solution:
+    def isInterleave(self, s1: str, s2: str, s3: str) -> bool:
+        m, n = len(s1), len(s2)
+        if m + n != len(s3):
+            return False
+        ok = [False] * (n + 1)
+        for i in range(m + 1):
+            for j in range(n + 1):
+                if i == 0 and j == 0:
+                    ok[j] = True
+                    continue
+                from_s1 = i > 0 and ok[j] and s1[i - 1] == s3[i + j - 1]
+                from_s2 = j > 0 and ok[j - 1] and s2[j - 1] == s3[i + j - 1]
+                ok[j] = from_s1 or from_s2
+        return ok[n]
+'''

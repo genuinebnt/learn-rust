@@ -1,0 +1,34 @@
+intuition = """
+The street is now a **circle**: the first and last houses are neighbours, so you can't rob both. Break the circle into two ordinary streets and take the better:
+
+1. rob among houses `0 … n-2` (the last house is out),
+2. rob among houses `1 … n-1` (the first house is out).
+
+Each is exactly House Robber. Every valid choice in the circle falls into one of these two, since it either leaves out the first house or the last (or both).
+"""
+tips = [
+    "Reuse House Robber as a helper. Don't rewrite the recurrence.",
+    "A single house is a special case: both sub-streets would be empty, so return `nums[0]`.",
+    "The two ranges are `nums[:-1]` and `nums[1:]`; slicing is fine at these sizes (n ≤ 100).",
+    "Say why two runs are enough: any valid set excludes the first house or excludes the last.",
+]
+
+[[approaches]]
+name = "Two House Robber runs"
+label = "two runs"
+idea = "Solve the street without the last house and the street without the first house, and return the larger."
+time = "O(n)"
+space = "O(1)"
+note = "Two linear passes."
+code = '''class Solution:
+    def rob(self, nums: list[int]) -> int:
+        def straight(houses: list[int]) -> int:
+            two_back = one_back = 0
+            for money in houses:
+                two_back, one_back = one_back, max(one_back, two_back + money)
+            return one_back
+
+        if len(nums) == 1:
+            return nums[0]
+        return max(straight(nums[:-1]), straight(nums[1:]))
+'''

@@ -1,0 +1,57 @@
+intuition = """
+Each day you are in one of three **states**, and the best profit in each depends on yesterday's states:
+
+- **holding** a stock: kept from yesterday, or bought today (from `rest`, since you can't buy right after selling): `max(hold, rest - price)`.
+- **sold** today: `hold + price`.
+- **rest** (no stock, free to buy): stayed resting, or came out of yesterday's cooldown: `max(rest, sold)`.
+
+The answer is the best of `sold` and `rest` on the last day. It's a small **state machine** with one number per state.
+"""
+tips = [
+    "Name the states first (`hold`, `sold`, `rest`) and draw the arrows between them. The code falls out of the picture.",
+    "Update all three from **yesterday's** values at once (tuple assignment), or you'll use today's `sold` to buy today.",
+    "The initial state is `hold = -prices[0]`, `sold = 0`, `rest = 0`.",
+    "Without the cooldown this is Best Time to Buy and Sell Stock II; the cooldown is what adds the `sold` state.",
+]
+
+[[approaches]]
+name = "State machine with three variables"
+label = "state machine"
+idea = "Track the best profit when holding a stock, just sold (cooldown tomorrow), or resting with none. Update all three each day."
+time = "O(n)"
+space = "O(1)"
+note = "One pass."
+code = '''class Solution:
+    def maxProfit(self, prices: list[int]) -> int:
+        hold, sold, rest = -prices[0], 0, 0
+        for price in prices[1:]:
+            hold, sold, rest = max(hold, rest - price), hold + price, max(rest, sold)
+        return max(sold, rest)
+'''
+
+[[approaches]]
+name = "Top-down with memoisation"
+label = "memoised"
+idea = "`best(day, holding)`: with a stock, sell (and skip the next day) or wait; without, buy or wait."
+time = "O(n)"
+space = "O(n)"
+note = "Recursion depth n (up to 5000, so raise the limit)."
+code = '''import sys
+from functools import cache
+
+
+class Solution:
+    def maxProfit(self, prices: list[int]) -> int:
+        sys.setrecursionlimit(20_000)
+
+        @cache
+        def best(day: int, holding: bool) -> int:
+            if day >= len(prices):
+                return 0
+            wait = best(day + 1, holding)
+            if holding:
+                return max(wait, prices[day] + best(day + 2, False))
+            return max(wait, -prices[day] + best(day + 1, True))
+
+        return best(0, False)
+'''

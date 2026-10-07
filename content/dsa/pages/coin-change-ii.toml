@@ -1,0 +1,50 @@
+intuition = """
+Now you **count the combinations** (order doesn't matter) that make `amount`. The trick is the **loop order**: iterate over **coins in the outer loop**, and amounts in the inner loop. Then each coin is considered once in a fixed order, so `1 + 2` and `2 + 1` aren't counted twice.
+
+`ways[a] += ways[a - coin]` for each coin, with `ways[0] = 1` (one way to make 0: take nothing).
+"""
+tips = [
+    "Coins outer, amounts inner counts **combinations**. Swap the loops and you count **permutations** (that is Combination Sum IV).",
+    "`ways[0] = 1` is the base case that everything is built from.",
+    "A 1-D array is enough because each coin only looks at smaller amounts of the same pass.",
+    "No coins can make a positive amount, and amount 0 has exactly one way.",
+]
+
+[[approaches]]
+name = "Coins outer, amounts inner"
+label = "1-D table"
+idea = "For each coin, add to every amount the number of ways to make the amount minus that coin."
+time = "O(amount · coins)"
+space = "O(amount)"
+note = "A single array."
+code = '''class Solution:
+    def change(self, amount: int, coins: list[int]) -> int:
+        ways = [1] + [0] * amount
+        for coin in coins:
+            for a in range(coin, amount + 1):
+                ways[a] += ways[a - coin]
+        return ways[amount]
+'''
+
+[[approaches]]
+name = "Top-down with memoisation"
+label = "memoised"
+idea = "`count(i, left)` is the ways to make `left` using coins from index i onwards: use coin i again, or move on to the next coin."
+time = "O(amount · coins)"
+space = "O(amount · coins)"
+note = "A 2-D memo."
+code = '''from functools import cache
+
+
+class Solution:
+    def change(self, amount: int, coins: list[int]) -> int:
+        @cache
+        def count(i: int, left: int) -> int:
+            if left == 0:
+                return 1
+            if left < 0 or i == len(coins):
+                return 0
+            return count(i, left - coins[i]) + count(i + 1, left)
+
+        return count(0, amount)
+'''

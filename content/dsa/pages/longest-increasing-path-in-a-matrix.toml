@@ -1,0 +1,59 @@
+intuition = """
+From any cell, the longest strictly increasing path **starting there** is `1 + max(longest path from each larger neighbour)`. Because every step goes to a **strictly larger** value, there are no cycles, so the recursion always ends, and the answer for each cell never changes. That makes it a perfect fit for **DFS with memoisation**.
+
+The answer is the largest value over all starting cells. Each cell is computed once, so the whole thing is O(rows · cols).
+"""
+tips = [
+    "Memoise per cell. Without it the DFS is exponential on a grid like `[[1, 2, 3], [6, 5, 4], ...]`.",
+    "No `visited` set is needed: increasing paths can't revisit a cell, so the grid is a DAG.",
+    "Recursion can go as deep as the longest path (up to 200 × 200). Raise the recursion limit, or process cells in increasing order of value (topological order) instead.",
+    "Sorting the cells by value and updating neighbours with larger values is an iterative DP; mention it as the no-recursion option.",
+]
+
+[[approaches]]
+name = "DFS with memoisation"
+label = "memoised DFS"
+idea = "`longest(r, c)` is 1 plus the best `longest` among neighbours with a larger value. Cache each cell's answer."
+time = "O(rows · cols)"
+space = "O(rows · cols)"
+note = "Each cell is solved once."
+code = '''import sys
+from functools import cache
+
+
+class Solution:
+    def longestIncreasingPath(self, matrix: list[list[int]]) -> int:
+        sys.setrecursionlimit(100_000)
+        rows, cols = len(matrix), len(matrix[0])
+
+        @cache
+        def longest(r: int, c: int) -> int:
+            best = 1
+            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= nr < rows and 0 <= nc < cols and matrix[nr][nc] > matrix[r][c]:
+                    best = max(best, 1 + longest(nr, nc))
+            return best
+
+        return max(longest(r, c) for r in range(rows) for c in range(cols))
+'''
+
+[[approaches]]
+name = "Process cells from the largest value down"
+label = "sorted DP"
+idea = "A cell's answer depends only on larger neighbours, so handle cells in decreasing order of value and no recursion is needed."
+time = "O(rows · cols · log(rows · cols))"
+space = "O(rows · cols)"
+note = "The sort dominates."
+code = '''class Solution:
+    def longestIncreasingPath(self, matrix: list[list[int]]) -> int:
+        rows, cols = len(matrix), len(matrix[0])
+        cells = sorted(((matrix[r][c], r, c) for r in range(rows) for c in range(cols)), reverse=True)
+        longest = {}
+        for value, r, c in cells:
+            best = 1
+            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= nr < rows and 0 <= nc < cols and matrix[nr][nc] > value:
+                    best = max(best, 1 + longest[(nr, nc)])
+            longest[(r, c)] = best
+        return max(longest.values())
+'''

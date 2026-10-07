@@ -1,0 +1,45 @@
+intuition = """
+A product can flip sign: a very negative running product becomes the **biggest** after multiplying by another negative. So at each number track both the **largest** and the **smallest** product of a subarray ending here. The new max is the best of `x`, `x × old max`, `x × old min`, and the new min is the worst of those three.
+
+The answer is the largest value the running max ever takes.
+"""
+tips = [
+    "Keep `high` and `low` together; update both from the **old** values (use a temporary or tuple assignment).",
+    "A zero resets both (the recurrence's `x` option handles this since `0 × anything = 0`).",
+    "Kadane's algorithm for sums only tracks a max; products need the min as well.",
+    "Start from `nums[0]`, not `0`, so an all-negative input like `[-2]` returns `-2`.",
+]
+
+[[approaches]]
+name = "Track the largest and smallest product ending here"
+label = "max and min"
+idea = "At each element, the best product ending here is the max of the element alone and the element times the previous max or min; the smallest is the min of the same three."
+time = "O(n)"
+space = "O(1)"
+note = "One pass."
+code = '''class Solution:
+    def maxProduct(self, nums: list[int]) -> int:
+        best = high = low = nums[0]
+        for x in nums[1:]:
+            high, low = max(x, x * high, x * low), min(x, x * high, x * low)
+            best = max(best, high)
+        return best
+'''
+
+[[approaches]]
+name = "Prefix and suffix products"
+label = "prefix + suffix"
+idea = "Within a stretch free of zeros, the best subarray is a prefix or a suffix of it. Scan from both ends, resetting a running product to 1 after a zero."
+time = "O(n)"
+space = "O(1)"
+note = "A neat alternative, but harder to justify out loud."
+code = '''class Solution:
+    def maxProduct(self, nums: list[int]) -> int:
+        best = nums[0]
+        forward = backward = 1
+        for i in range(len(nums)):
+            forward = (forward or 1) * nums[i]
+            backward = (backward or 1) * nums[-1 - i]
+            best = max(best, forward, backward)
+        return best
+'''

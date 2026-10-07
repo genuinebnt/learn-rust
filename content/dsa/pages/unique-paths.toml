@@ -1,0 +1,44 @@
+intuition = """
+You can only move right or down, so you reach a cell from **the cell above or the cell to its left**. The number of paths to a cell is the sum of the paths to those two:
+
+`paths[r][c] = paths[r-1][c] + paths[r][c-1]`, with the first row and column all `1` (only one way along an edge).
+
+You only ever look at the previous row, so one row of numbers is enough. (There's also a closed form: choose which `m − 1` of the `m + n − 2` moves go down.)
+"""
+tips = [
+    "State: `paths[r][c]` = ways to reach that cell. The recurrence adds the two cells you can come from.",
+    "Edges are `1`, not `0`. The first row and first column have exactly one path.",
+    "Roll the table into a single row: `row[c] += row[c-1]` as you sweep left to right.",
+    "The combinatorial answer is `comb(m + n - 2, m - 1)`: a good one-liner to mention.",
+]
+
+[[approaches]]
+name = "One rolling row"
+label = "rolling row"
+idea = "Keep one row. Going down a row, each cell becomes (cell above, already in the row) + (cell to the left, just updated)."
+time = "O(m · n)"
+space = "O(n)"
+note = "A row of n numbers."
+code = '''class Solution:
+    def uniquePaths(self, m: int, n: int) -> int:
+        row = [1] * n
+        for _ in range(1, m):
+            for c in range(1, n):
+                row[c] += row[c - 1]
+        return row[-1]
+'''
+
+[[approaches]]
+name = "Combinatorics"
+label = "formula"
+idea = "Every path is `m − 1` downs and `n − 1` rights in some order. Choose where the downs go."
+time = "O(min(m, n))"
+space = "O(1)"
+note = "`math.comb` computes it exactly with big integers."
+code = '''from math import comb
+
+
+class Solution:
+    def uniquePaths(self, m: int, n: int) -> int:
+        return comb(m + n - 2, m - 1)
+'''

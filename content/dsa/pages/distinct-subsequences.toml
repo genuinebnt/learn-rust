@@ -1,0 +1,52 @@
+intuition = """
+Count the ways `t` appears as a subsequence of `s`. Let `ways[i][j]` be the number of ways the first `j` characters of `t` appear in the first `i` of `s`.
+
+- The last character of `s[:i]` can be **skipped**: `ways[i-1][j]`.
+- If it **matches** `t[j-1]`, it can also be used: `+ ways[i-1][j-1]`.
+
+`ways[i][0] = 1` for every `i` (the empty `t` appears exactly once, by choosing nothing), and `ways[0][j] = 0` for `j > 0`.
+"""
+tips = [
+    "The base case `ways[i][0] = 1` is what the entire table is built from; forgetting it makes everything 0.",
+    "The two terms are \"don't use this character of s\" and \"use it to match this character of t\".",
+    "Compare with LCS: same grid, but you sum instead of take a maximum.",
+    "One row is enough if you update `j` from high to low (so `ways[j-1]` is still last row's value).",
+]
+
+[[approaches]]
+name = "One row of counts"
+label = "one row"
+idea = "Scan `s`; for each character, update the counts for `t` from the end back to the start so each character of `s` is used at most once per match."
+time = "O(m · n)"
+space = "O(n)"
+note = "n = len(t)."
+code = '''class Solution:
+    def numDistinct(self, s: str, t: str) -> int:
+        ways = [1] + [0] * len(t)  # ways[j]: how often t[:j] appears in the part of s seen so far
+        for ch in s:
+            for j in range(len(t), 0, -1):
+                if ch == t[j - 1]:
+                    ways[j] += ways[j - 1]
+        return ways[len(t)]
+'''
+
+[[approaches]]
+name = "Table over both prefixes"
+label = "2-D table"
+idea = "`ways[i][j]` = skip `s[i-1]`, plus (if it matches `t[j-1]`) use it."
+time = "O(m · n)"
+space = "O(m · n)"
+note = "The version to draw on the board first."
+code = '''class Solution:
+    def numDistinct(self, s: str, t: str) -> int:
+        m, n = len(s), len(t)
+        ways = [[0] * (n + 1) for _ in range(m + 1)]
+        for i in range(m + 1):
+            ways[i][0] = 1
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                ways[i][j] = ways[i - 1][j]
+                if s[i - 1] == t[j - 1]:
+                    ways[i][j] += ways[i - 1][j - 1]
+        return ways[m][n]
+'''

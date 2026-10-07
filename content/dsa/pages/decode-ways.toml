@@ -1,0 +1,61 @@
+intuition = """
+Reading the string left to right, the last piece of a decoding is either **one digit** (1–9) or **two digits** (10–26). So the number of ways to decode the first `i` characters is:
+
+`ways(i) = (ways(i-1) if s[i-1] is 1–9) + (ways(i-2) if s[i-2:i] is 10–26)`
+
+with `ways(0) = 1` (the empty prefix decodes one way). A `0` can't stand alone, which is what makes the two checks necessary.
+"""
+tips = [
+    "A leading zero (`\"06\"`) can't be decoded at all, and a `0` is only valid as the second digit of `10` or `20`.",
+    "Only two earlier values are needed, so keep two variables.",
+    "The two-digit test is `10 <= int(s[i-2:i]) <= 26`; comparing strings (`\"10\" <= pair <= \"26\"`) works too.",
+    "Think of it as Climbing Stairs where each \"step\" is only allowed when the digits form a valid letter.",
+]
+
+[[approaches]]
+name = "Bottom-up with two variables"
+label = "two variables"
+idea = "`ways(i)` adds the ways for one valid digit and the ways for one valid pair, using only the last two values."
+time = "O(n)"
+space = "O(1)"
+note = "One pass."
+code = '''class Solution:
+    def numDecodings(self, s: str) -> int:
+        two_back, one_back = 1, 1  # ways for the prefixes of length i-2 and i-1
+        if s[0] == "0":
+            return 0
+        for i in range(2, len(s) + 1):
+            current = 0
+            if s[i - 1] != "0":
+                current += one_back
+            if 10 <= int(s[i - 2:i]) <= 26:
+                current += two_back
+            two_back, one_back = one_back, current
+        return one_back
+'''
+
+[[approaches]]
+name = "Top-down with memoisation"
+label = "memoised"
+idea = "`ways(i)` is the number of ways to decode the suffix starting at i: take one digit if it isn't 0, and two digits if they make 10–26."
+time = "O(n)"
+space = "O(n)"
+note = "Recursion depth n (at most 100)."
+code = '''from functools import cache
+
+
+class Solution:
+    def numDecodings(self, s: str) -> int:
+        @cache
+        def ways(i: int) -> int:
+            if i == len(s):
+                return 1
+            if s[i] == "0":
+                return 0
+            total = ways(i + 1)
+            if i + 1 < len(s) and 10 <= int(s[i:i + 2]) <= 26:
+                total += ways(i + 2)
+            return total
+
+        return ways(0)
+'''

@@ -75,9 +75,11 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       LeetCode's real Python 3 template (`templates.py` fetches it; Premium templates are typed in
       `premium_templates.json`) and runs it against brute-force references (`page_tests.py`). Shown on the problem page
       with approach tabs, highlighting and a copy button. Company pills filter the list and "+n" expands in place.
-- [x] Written pages, 59 of the 150 (2026-10-07): Arrays & Hashing, Two Pointers, Sliding Window, Stack, Graphs, Advanced
-      Graphs, Greedy and Intervals. Owner's order: DP next, then back to Binary Search, Linked List, Trees, Heap,
-      Backtracking, Tries, Math, Bits. The six Premium templates are typed from memory (`premium_templates.json`).
+- [x] Written pages, 82 of the 150 (2026-10-07): Arrays & Hashing, Two Pointers, Sliding Window, Stack, Graphs, Advanced
+      Graphs, Greedy, Intervals, 1-D DP and 2-D DP. The owner's order is a topic's lessons, then its Python practice track,
+      then the next topic. **Next: DP practice track in Python**, then back to Binary Search, Linked List, Trees, Heap,
+      Backtracking, Tries, Math and Bits (each followed by its practice track), then the Rust practice tracks. The six
+      Premium templates are typed from memory (`premium_templates.json`).
 - [x] Practice tracks, machinery (2026-10-07): Python in the sandbox runner (harness, syntax/indent errors with a line,
       check mismatches, timeouts), practice problems as section P tracks (`language = "python"`, `unlocked_by`, `warmup`),
       locked until their LeetCode problem is logged (423 from the API), no reviews, the Practice tab

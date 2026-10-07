@@ -1,0 +1,59 @@
+intuition = """
+The fewest operations (insert, delete, replace) to turn `word1` into `word2`. Let `edits[i][j]` be the distance between `word1[:i]` and `word2[:j]`.
+
+- If the last characters match, nothing is needed for them: `edits[i-1][j-1]`.
+- Otherwise take the cheapest of: **replace** (`edits[i-1][j-1]`), **delete** from `word1` (`edits[i-1][j]`) or **insert** into `word1` (`edits[i][j-1]`), plus 1.
+
+Base cases: turning `i` characters into nothing takes `i` deletes, and nothing into `j` characters takes `j` inserts.
+"""
+tips = [
+    "Draw the three moves as arrows into a cell: diagonal (replace or match), up (delete), left (insert).",
+    "When the characters match, the diagonal costs 0; you still take the `min` only in the mismatch case, since a match is never worse.",
+    "Fill the first row and column with `0 … n` and `0 … m`.",
+    "Two rows are enough; keep the previous row and the current one.",
+]
+
+[[approaches]]
+name = "Table over both prefixes"
+label = "2-D table"
+idea = "`edits[i][j]` is the edit distance of the two prefixes, from the replace, delete and insert neighbours."
+time = "O(m · n)"
+space = "O(m · n)"
+note = "The standard table."
+code = '''class Solution:
+    def minDistance(self, word1: str, word2: str) -> int:
+        m, n = len(word1), len(word2)
+        edits = [[0] * (n + 1) for _ in range(m + 1)]
+        for i in range(m + 1):
+            edits[i][0] = i
+        for j in range(n + 1):
+            edits[0][j] = j
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if word1[i - 1] == word2[j - 1]:
+                    edits[i][j] = edits[i - 1][j - 1]
+                else:
+                    edits[i][j] = 1 + min(edits[i - 1][j - 1], edits[i - 1][j], edits[i][j - 1])
+        return edits[m][n]
+'''
+
+[[approaches]]
+name = "Two rows"
+label = "two rows"
+idea = "The same recurrence with only the previous row kept."
+time = "O(m · n)"
+space = "O(n)"
+note = "Memory proportional to one word."
+code = '''class Solution:
+    def minDistance(self, word1: str, word2: str) -> int:
+        previous = list(range(len(word2) + 1))
+        for i, a in enumerate(word1, start=1):
+            current = [i]
+            for j, b in enumerate(word2, start=1):
+                if a == b:
+                    current.append(previous[j - 1])
+                else:
+                    current.append(1 + min(previous[j - 1], previous[j], current[j - 1]))
+            previous = current
+        return previous[-1]
+'''

@@ -1,0 +1,59 @@
+intuition = """
+Thinking about which balloon to burst **first** is hard, because its neighbours change. Flip it: in a range of balloons, which one is burst **last**? Say balloon `k` is the last in the range `(left, right)`. Then when it bursts its neighbours are exactly the walls `left` and `right`, and the ranges on each side were already cleared independently:
+
+`best(left, right) = max over k of ( best(left, k) + best(k, right) + nums[left] * nums[k] * nums[right] )`
+
+Pad `nums` with a `1` on each end. This is **interval DP**: solve small ranges first, then bigger ones built from them.
+"""
+tips = [
+    "\"Burst last\" is the whole trick. State it clearly: choosing the last balloon splits the problem into two independent halves.",
+    "Pad the array with `1` at both ends, so the walls are always real values.",
+    "Ranges are **exclusive** of both ends `(left, right)`; fill by increasing range width.",
+    "Greedy (burst the smallest first) is wrong, and trying all orders is factorial.",
+]
+
+[[approaches]]
+name = "Interval DP, burst last"
+label = "interval DP"
+idea = "`coins[left][right]` is the best total from bursting everything strictly between `left` and `right`; try each `k` in between as the last to burst."
+time = "O(n³)"
+space = "O(n²)"
+note = "n ≤ 300, so about 27 million steps at most (fast enough with a tight loop)."
+code = '''class Solution:
+    def maxCoins(self, nums: list[int]) -> int:
+        balloons = [1] + nums + [1]
+        n = len(balloons)
+        coins = [[0] * n for _ in range(n)]
+        for width in range(2, n):
+            for left in range(n - width):
+                right = left + width
+                best = 0
+                for k in range(left + 1, right):
+                    best = max(best, coins[left][k] + coins[k][right] + balloons[left] * balloons[k] * balloons[right])
+                coins[left][right] = best
+        return coins[0][n - 1]
+'''
+
+[[approaches]]
+name = "Top-down with memoisation"
+label = "memoised"
+idea = "The same recurrence as a cached recursive function of the two walls."
+time = "O(n³)"
+space = "O(n²)"
+note = "Recursion depth up to n."
+code = '''from functools import cache
+
+
+class Solution:
+    def maxCoins(self, nums: list[int]) -> int:
+        balloons = [1] + nums + [1]
+
+        @cache
+        def best(left: int, right: int) -> int:
+            return max(
+                (best(left, k) + best(k, right) + balloons[left] * balloons[k] * balloons[right] for k in range(left + 1, right)),
+                default=0,
+            )
+
+        return best(0, len(balloons) - 1)
+'''

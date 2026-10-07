@@ -1,0 +1,61 @@
+intuition = """
+Every palindrome has a **center**: one character (odd length) or the gap between two (even length). Starting from each possible center, **expand outward** while the characters on both sides match. The longest expansion over all `2n − 1` centers is the answer.
+
+There's an O(n²) DP table (`is_pal[i][j]`) too, but expanding around centers is simpler, needs no table, and is the version to write in an interview.
+"""
+tips = [
+    "Try both an odd center (`i, i`) and an even center (`i, i + 1`) for every position.",
+    "Keep the start and length of the best palindrome, not the substring itself, until the end, to avoid copying.",
+    "Expanding stops at the string bounds or at the first mismatch; both are one condition in the `while`.",
+    "Manacher's algorithm does it in O(n); mention it, don't write it.",
+]
+
+[[approaches]]
+name = "Expand around each center"
+label = "expand around center"
+idea = "For every center (a character or a gap between two), move outwards while the two ends match, and keep the longest palindrome found."
+time = "O(n²)"
+space = "O(1)"
+note = "2n − 1 centers, each expanding up to n/2 steps."
+code = '''class Solution:
+    def longestPalindrome(self, s: str) -> str:
+        best_start, best_len = 0, 1
+
+        def expand(left: int, right: int) -> None:
+            nonlocal best_start, best_len
+            while left >= 0 and right < len(s) and s[left] == s[right]:
+                left -= 1
+                right += 1
+            length = right - left - 1
+            if length > best_len:
+                best_start, best_len = left + 1, length
+
+        for i in range(len(s)):
+            expand(i, i)
+            expand(i, i + 1)
+        return s[best_start:best_start + best_len]
+'''
+
+[[approaches]]
+name = "DP table"
+label = "DP table"
+idea = "`is_pal[i][j]` is true when `s[i] == s[j]` and the inside `s[i+1..j-1]` is a palindrome (or has length ≤ 1). Fill by increasing length."
+time = "O(n²)"
+space = "O(n²)"
+note = "More memory, same time."
+code = '''class Solution:
+    def longestPalindrome(self, s: str) -> str:
+        n = len(s)
+        is_pal = [[False] * n for _ in range(n)]
+        best_start, best_len = 0, 1
+        for i in range(n):
+            is_pal[i][i] = True
+        for length in range(2, n + 1):
+            for i in range(n - length + 1):
+                j = i + length - 1
+                if s[i] == s[j] and (length == 2 or is_pal[i + 1][j - 1]):
+                    is_pal[i][j] = True
+                    if length > best_len:
+                        best_start, best_len = i, length
+        return s[best_start:best_start + best_len]
+'''

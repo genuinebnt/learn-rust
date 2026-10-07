@@ -1,0 +1,61 @@
+intuition = """
+This is **unbounded knapsack**: you may use each coin as many times as you like, and you want the **fewest** coins that make `amount`.
+
+Let `fewest[a]` be the minimum number of coins for amount `a`. The last coin used is some `c`, leaving `a − c`, so
+
+`fewest[a] = 1 + min(fewest[a - c] for each coin c <= a)`, with `fewest[0] = 0`.
+
+Fill `a` from 1 up to `amount`. If no coin works, `fewest[a]` stays "infinity", and the answer is `-1`.
+"""
+tips = [
+    "Greedy (take the biggest coin first) is wrong: coins `[1, 3, 4]`, amount 6 needs 3 + 3 = 2 coins, not 4 + 1 + 1.",
+    "Initialise with `amount + 1` (an impossible count) rather than `inf` to keep the table integers.",
+    "`amount = 0` needs 0 coins.",
+    "BFS over amounts also works (each coin is an edge); the DP table is the simplest.",
+]
+
+[[approaches]]
+name = "Bottom-up table"
+label = "bottom-up"
+idea = "`fewest[a]` is one more than the best `fewest[a - coin]` over the coins that fit. Build from amount 0 upwards."
+time = "O(amount · coins)"
+space = "O(amount)"
+note = "The standard answer."
+code = '''class Solution:
+    def coinChange(self, coins: list[int], amount: int) -> int:
+        impossible = amount + 1
+        fewest = [0] + [impossible] * amount
+        for a in range(1, amount + 1):
+            for coin in coins:
+                if coin <= a:
+                    fewest[a] = min(fewest[a], 1 + fewest[a - coin])
+        return -1 if fewest[amount] == impossible else fewest[amount]
+'''
+
+[[approaches]]
+name = "BFS over amounts"
+label = "BFS"
+idea = "Each coin moves from an amount to a smaller one. The fewest coins is the fewest BFS steps from `amount` down to 0."
+time = "O(amount · coins)"
+space = "O(amount)"
+note = "Stops as soon as 0 is reached."
+code = '''from collections import deque
+
+
+class Solution:
+    def coinChange(self, coins: list[int], amount: int) -> int:
+        if amount == 0:
+            return 0
+        seen = {amount}
+        queue = deque([(amount, 0)])
+        while queue:
+            remaining, used = queue.popleft()
+            for coin in coins:
+                nxt = remaining - coin
+                if nxt == 0:
+                    return used + 1
+                if nxt > 0 and nxt not in seen:
+                    seen.add(nxt)
+                    queue.append((nxt, used + 1))
+        return -1
+'''

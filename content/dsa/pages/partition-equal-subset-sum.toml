@@ -1,0 +1,53 @@
+intuition = """
+Splitting into two subsets of equal sum is the same as finding a subset that sums to **half the total**. If the total is odd it's impossible. Otherwise this is **0/1 knapsack as a yes/no question**: `reachable[s]` says whether some subset sums to `s`. For each number, you can add it to every sum already reachable.
+
+Iterate the sums **downwards** for each number so a number is used at most once.
+"""
+tips = [
+    "Odd total → `False` immediately.",
+    "Loop `s` from `target` down to `num`: going upwards would reuse the same number several times (that is unbounded knapsack).",
+    "A set of reachable sums, or a Python integer used as a bitset (`bits |= bits << num`), are compact variants.",
+    "Early exit when `target` becomes reachable.",
+]
+
+[[approaches]]
+name = "Boolean table of reachable sums"
+label = "0/1 knapsack"
+idea = "`reachable[s]` is true if some subset adds to s. Process each number once, updating sums from high to low."
+time = "O(n · target)"
+space = "O(target)"
+note = "target is half the total (at most 100 · 200 / 2)."
+code = '''class Solution:
+    def canPartition(self, nums: list[int]) -> bool:
+        total = sum(nums)
+        if total % 2:
+            return False
+        target = total // 2
+        reachable = [True] + [False] * target
+        for num in nums:
+            for s in range(target, num - 1, -1):
+                if reachable[s - num]:
+                    reachable[s] = True
+            if reachable[target]:
+                return True
+        return reachable[target]
+'''
+
+[[approaches]]
+name = "Bitset in one integer"
+label = "bitset"
+idea = "Bit s of `bits` is set when sum s is reachable. Adding a number shifts the whole set: `bits |= bits << num`."
+time = "O(n · target / 64)"
+space = "O(target)"
+note = "Python integers are arbitrary-width, so this is very fast."
+code = '''class Solution:
+    def canPartition(self, nums: list[int]) -> bool:
+        total = sum(nums)
+        if total % 2:
+            return False
+        target = total // 2
+        bits = 1
+        for num in nums:
+            bits |= bits << num
+        return bool(bits >> target & 1)
+'''

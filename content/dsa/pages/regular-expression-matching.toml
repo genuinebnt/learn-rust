@@ -1,0 +1,60 @@
+intuition = """
+Match the **whole** string `s` against the pattern `p`, where `.` matches any one character and `x*` matches **zero or more** of `x`. Let `match(i, j)` mean `s[i:]` matches `p[j:]`.
+
+- If `p[j+1]` is `*`: either skip the starred part (`match(i, j+2)`), or, if the first character matches, consume one character of `s` and stay on the star (`match(i+1, j)`).
+- Otherwise the first characters must match (`s[i] == p[j]` or `p[j] == '.'`) and we move both on: `match(i+1, j+1)`.
+
+The base case: both are empty. Memoise `(i, j)`.
+"""
+tips = [
+    "The `*` always belongs to the character **before** it, so look one ahead of `j` (`p[j+1] == '*'`) to decide.",
+    "Don't forget the zero-copies option: `a*` can match the empty string.",
+    "When `s` is empty the pattern can still match, e.g. `a*b*` matches \"\".",
+    "Bottom-up works too: `ok[i][j]` filled from the end of both strings.",
+]
+
+[[approaches]]
+name = "Top-down with memoisation"
+label = "memoised"
+idea = "`match(i, j)` tries both meanings of a star (zero copies, or one more), and requires the first characters to match otherwise."
+time = "O(len(s) · len(p))"
+space = "O(len(s) · len(p))"
+note = "Each `(i, j)` pair is computed once."
+code = '''from functools import cache
+
+
+class Solution:
+    def isMatch(self, s: str, p: str) -> bool:
+        @cache
+        def match(i: int, j: int) -> bool:
+            if j == len(p):
+                return i == len(s)
+            first = i < len(s) and p[j] in (s[i], ".")
+            if j + 1 < len(p) and p[j + 1] == "*":
+                return match(i, j + 2) or (first and match(i + 1, j))
+            return first and match(i + 1, j + 1)
+
+        return match(0, 0)
+'''
+
+[[approaches]]
+name = "Bottom-up table"
+label = "bottom-up"
+idea = "`ok[i][j]` says whether `s[i:]` matches `p[j:]`, filled from the end of both strings backwards."
+time = "O(len(s) · len(p))"
+space = "O(len(s) · len(p))"
+note = "No recursion."
+code = '''class Solution:
+    def isMatch(self, s: str, p: str) -> bool:
+        m, n = len(s), len(p)
+        ok = [[False] * (n + 1) for _ in range(m + 1)]
+        ok[m][n] = True
+        for i in range(m, -1, -1):
+            for j in range(n - 1, -1, -1):
+                first = i < m and p[j] in (s[i], ".")
+                if j + 1 < n and p[j + 1] == "*":
+                    ok[i][j] = ok[i][j + 2] or (first and ok[i + 1][j])
+                else:
+                    ok[i][j] = first and ok[i + 1][j + 1]
+        return ok[0][0]
+'''

@@ -3,6 +3,7 @@
 Each check compares against a brute-force reference on the problem's examples and on random inputs, so a page can't
 ship a solution that only passes the sample.
 """
+import math
 import random
 from collections import Counter, defaultdict
 
@@ -1064,6 +1065,373 @@ def min_interval(ns):
         assert f([list(x) for x in iv], list(qs)) == want, (iv, qs)
 
 
+# ---------------------------------------------------------------- 1-D dynamic programming
+
+
+def climbing_stairs(ns):
+    f = ns["Solution"]().climbStairs
+    assert [f(n) for n in range(1, 8)] == [1, 2, 3, 5, 8, 13, 21] and f(45) == 1836311903
+
+    def ways(n):
+        return 1 if n <= 1 else ways(n - 1) + ways(n - 2)
+
+    for n in range(1, 15):
+        assert f(n) == ways(n), n
+
+
+def min_cost_climbing(ns):
+    f = ns["Solution"]().minCostClimbingStairs
+    assert f([10, 15, 20]) == 15 and f([1, 100, 1, 1, 1, 100, 1, 1, 100, 1]) == 6 and f([5, 5]) == 5
+    r = rng()
+    for _ in range(300):
+        c = [r.randint(0, 20) for _ in range(r.randint(2, 9))]
+        n = len(c)
+        best = None
+        for start in (0, 1):
+            cost = {start: c[start]}
+            for i in range(start + 1, n):
+                cost[i] = c[i] + min(cost.get(i - 1, 10**9), cost.get(i - 2, 10**9))
+            for last in (n - 1, n - 2):
+                if last in cost:
+                    best = cost[last] if best is None else min(best, cost[last])
+        assert f(list(c)) == best, c
+
+
+def house_robber(ns):
+    f = ns["Solution"]().rob
+    assert f([1, 2, 3, 1]) == 4 and f([2, 7, 9, 3, 1]) == 12 and f([5]) == 5 and f([2, 1]) == 2
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(0, 9) for _ in range(r.randint(1, 10))]
+        want = max(sum(a[i] for i in range(len(a)) if m >> i & 1) for m in range(1 << len(a)) if not any(m >> i & 1 and m >> (i + 1) & 1 for i in range(len(a) - 1)))
+        assert f(list(a)) == want, a
+
+
+def house_robber_ii(ns):
+    f = ns["Solution"]().rob
+    assert f([2, 3, 2]) == 3 and f([1, 2, 3, 1]) == 4 and f([1, 2, 3]) == 3 and f([5]) == 5
+    r = rng()
+    for _ in range(300):
+        a = [r.randint(0, 9) for _ in range(r.randint(1, 9))]
+        n = len(a)
+        best = 0
+        for m in range(1 << n):
+            ok = all(not (m >> i & 1 and m >> ((i + 1) % n) & 1) for i in range(n)) if n > 1 else True
+            if ok:
+                best = max(best, sum(a[i] for i in range(n) if m >> i & 1))
+        assert f(list(a)) == best, a
+
+
+def longest_palindromic_substring(ns):
+    f = ns["Solution"]().longestPalindrome
+    assert f("babad") in ("bab", "aba") and f("cbbd") == "bb" and f("a") == "a" and f("ac") in ("a", "c")
+    r = rng()
+    for _ in range(400):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 10)))
+        got = f(s)
+        assert got in s and got == got[::-1], (s, got)
+        want = max(len(s[i:j]) for i in range(len(s)) for j in range(i + 1, len(s) + 1) if s[i:j] == s[i:j][::-1])
+        assert len(got) == want, (s, got, want)
+
+
+def palindromic_substrings(ns):
+    f = ns["Solution"]().countSubstrings
+    assert f("abc") == 3 and f("aaa") == 6 and f("a") == 1
+    r = rng()
+    for _ in range(400):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 10)))
+        want = sum(1 for i in range(len(s)) for j in range(i + 1, len(s) + 1) if s[i:j] == s[i:j][::-1])
+        assert f(s) == want, s
+
+
+def decode_ways(ns):
+    f = ns["Solution"]().numDecodings
+    assert f("12") == 2 and f("226") == 3 and f("06") == 0 and f("10") == 1 and f("0") == 0 and f("27") == 1 and f("2101") == 1 and f("1") == 1
+
+    def count(s):
+        if not s:
+            return 1
+        if s[0] == "0":
+            return 0
+        total = count(s[1:])
+        if len(s) > 1 and int(s[:2]) <= 26:
+            total += count(s[2:])
+        return total
+
+    r = rng()
+    for _ in range(500):
+        s = "".join(r.choice("0123456789") if r.random() < 0.5 else r.choice("12") for _ in range(r.randint(1, 9)))
+        assert f(s) == count(s), s
+
+
+def coin_change(ns):
+    f = ns["Solution"]().coinChange
+    assert f([1, 2, 5], 11) == 3 and f([2], 3) == -1 and f([1], 0) == 0 and f([1, 3, 4], 6) == 2
+    r = rng()
+    for _ in range(300):
+        coins = sorted({r.randint(1, 7) for _ in range(r.randint(1, 4))})
+        amount = r.randint(0, 25)
+        best = [0] + [10**9] * amount
+        for a in range(1, amount + 1):
+            for c in coins:
+                if c <= a:
+                    best[a] = min(best[a], best[a - c] + 1)
+        assert f(list(coins), amount) == (-1 if best[amount] >= 10**9 else best[amount]), (coins, amount)
+
+
+def max_product_subarray(ns):
+    f = ns["Solution"]().maxProduct
+    assert f([2, 3, -2, 4]) == 6 and f([-2, 0, -1]) == 0 and f([-2]) == -2 and f([-2, 3, -4]) == 24
+    r = rng()
+    for _ in range(500):
+        a = [r.randint(-3, 3) for _ in range(r.randint(1, 8))]
+        want = max(math.prod(a[i:j]) for i in range(len(a)) for j in range(i + 1, len(a) + 1))
+        assert f(list(a)) == want, a
+
+
+def word_break(ns):
+    f = ns["Solution"]().wordBreak
+    assert f("leetcode", ["leet", "code"]) is True and f("applepenapple", ["apple", "pen"]) is True
+    assert f("catsandog", ["cats", "dog", "sand", "and", "cat"]) is False
+    r = rng()
+    for _ in range(400):
+        words = list({"".join(r.choice("ab") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 4))})
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 9)))
+
+        def can(i, memo={}):
+            if i == len(s):
+                return True
+            return any(s.startswith(w, i) and can(i + len(w), memo) for w in words)
+
+        assert f(s, list(words)) == can(0, {}), (s, words)
+    assert f("a" * 300, ["a", "aa", "aaa"]) is True
+    assert f("a" * 299 + "b", ["a", "aa", "aaa"]) is False
+
+
+def lis(ns):
+    f = ns["Solution"]().lengthOfLIS
+    assert f([10, 9, 2, 5, 3, 7, 101, 18]) == 4 and f([0, 1, 0, 3, 2, 3]) == 4 and f([7, 7, 7]) == 1 and f([5]) == 1
+    r = rng()
+    for _ in range(400):
+        a = [r.randint(-5, 9) for _ in range(r.randint(1, 10))]
+        best = [1] * len(a)
+        for i in range(len(a)):
+            for j in range(i):
+                if a[j] < a[i]:
+                    best[i] = max(best[i], best[j] + 1)
+        assert f(list(a)) == max(best), a
+
+
+def partition_equal_subset(ns):
+    f = ns["Solution"]().canPartition
+    assert f([1, 5, 11, 5]) is True and f([1, 2, 3, 5]) is False and f([1, 1]) is True and f([2]) is False
+    r = rng()
+    for _ in range(500):
+        a = [r.randint(1, 9) for _ in range(r.randint(1, 9))]
+        total = sum(a)
+        want = total % 2 == 0 and any(sum(a[i] for i in range(len(a)) if m >> i & 1) == total // 2 for m in range(1 << len(a)))
+        assert f(list(a)) == want, a
+
+
+# ---------------------------------------------------------------- 2-D dynamic programming
+
+
+def unique_paths(ns):
+    f = ns["Solution"]().uniquePaths
+    assert f(3, 7) == 28 and f(3, 2) == 3 and f(1, 1) == 1 and f(1, 9) == 1 and f(23, 12) == 193536720
+    for m in range(1, 7):
+        for n in range(1, 7):
+            grid = [[1] * n for _ in range(m)]
+            for i in range(1, m):
+                for j in range(1, n):
+                    grid[i][j] = grid[i - 1][j] + grid[i][j - 1]
+            assert f(m, n) == grid[-1][-1], (m, n)
+
+
+def lcs(ns):
+    f = ns["Solution"]().longestCommonSubsequence
+    assert f("abcde", "ace") == 3 and f("abc", "abc") == 3 and f("abc", "def") == 0
+    r = rng()
+
+    def is_subseq(a, b):
+        it = iter(b)
+        return all(c in it for c in a)
+
+    for _ in range(300):
+        a = "".join(r.choice("abc") for _ in range(r.randint(1, 7)))
+        b = "".join(r.choice("abc") for _ in range(r.randint(1, 7)))
+        want = max(len(c) for k in range(len(a) + 1) for c in map("".join, itertools.combinations(a, k)) if is_subseq(c, b))
+        assert f(a, b) == want, (a, b)
+
+
+def stock_cooldown(ns):
+    f = ns["Solution"]().maxProfit
+    assert f([1, 2, 3, 0, 2]) == 3 and f([1]) == 0 and f([2, 1]) == 0 and f([1, 2, 4]) == 3
+    r = rng()
+
+    def brute(prices, day=0, holding=False, cool=False):
+        if day == len(prices):
+            return 0
+        best = brute(prices, day + 1, holding, False)  # do nothing
+        if holding:
+            best = max(best, prices[day] + brute(prices, day + 1, False, True))
+        elif not cool:
+            best = max(best, -prices[day] + brute(prices, day + 1, True, False))
+        return best
+
+    for _ in range(400):
+        a = [r.randint(1, 8) for _ in range(r.randint(1, 9))]
+        assert f(list(a)) == brute(a), a
+
+
+def coin_change_ii(ns):
+    f = ns["Solution"]().change
+    assert f(5, [1, 2, 5]) == 4 and f(3, [2]) == 0 and f(10, [10]) == 1 and f(0, [7]) == 1
+    r = rng()
+
+    def count(amount, coins):
+        if amount == 0:
+            return 1
+        if amount < 0 or not coins:
+            return 0
+        return count(amount - coins[0], coins) + count(amount, coins[1:])
+
+    for _ in range(300):
+        coins = sorted({r.randint(1, 6) for _ in range(r.randint(1, 4))})
+        amount = r.randint(0, 14)
+        assert f(amount, list(coins)) == count(amount, coins), (amount, coins)
+
+
+def target_sum(ns):
+    f = ns["Solution"]().findTargetSumWays
+    assert f([1, 1, 1, 1, 1], 3) == 5 and f([1], 1) == 1 and f([1], 2) == 0 and f([0, 0, 0], 0) == 8
+    r = rng()
+    for _ in range(400):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 8))]
+        target = r.randint(-8, 8)
+        want = sum(1 for signs in itertools.product((1, -1), repeat=len(a)) if sum(x * y for x, y in zip(a, signs)) == target)
+        assert f(list(a), target) == want, (a, target)
+
+
+def interleaving(ns):
+    f = ns["Solution"]().isInterleave
+    assert f("aabcc", "dbbca", "aadbbcbcac") is True and f("aabcc", "dbbca", "aadbbbaccc") is False and f("", "", "") is True and f("a", "", "c") is False
+    assert f("a", "", "aa") is False and f("ab", "", "a") is False and f("", "", "a") is False and f("a", "b", "a") is False
+    r = rng()
+
+    def ok(a, b, c):
+        if not a and not b:
+            return not c
+        if not c:
+            return False
+        return (bool(a) and a[0] == c[0] and ok(a[1:], b, c[1:])) or (bool(b) and b[0] == c[0] and ok(a, b[1:], c[1:]))
+
+    for _ in range(500):
+        a = "".join(r.choice("ab") for _ in range(r.randint(0, 5)))
+        b = "".join(r.choice("ab") for _ in range(r.randint(0, 5)))
+        if r.random() < 0.6:  # build a real interleaving half of the time
+            ia, ib, c = 0, 0, ""
+            while ia < len(a) or ib < len(b):
+                if ib == len(b) or (ia < len(a) and r.random() < 0.5):
+                    c += a[ia]
+                    ia += 1
+                else:
+                    c += b[ib]
+                    ib += 1
+        else:
+            c = "".join(r.choice("ab") for _ in range(len(a) + len(b)))
+        assert f(a, b, c) == ok(a, b, c), (a, b, c)
+
+
+def longest_increasing_path(ns):
+    f = ns["Solution"]().longestIncreasingPath
+    assert f([[9, 9, 4], [6, 6, 8], [2, 1, 1]]) == 4 and f([[3, 4, 5], [3, 2, 6], [2, 2, 1]]) == 4 and f([[1]]) == 1
+    r = rng()
+
+    def brute(g, i, j):
+        best = 1
+        for x, y in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+            if 0 <= x < len(g) and 0 <= y < len(g[0]) and g[x][y] > g[i][j]:
+                best = max(best, 1 + brute(g, x, y))
+        return best
+
+    for _ in range(300):
+        g = [[r.randint(0, 6) for _ in range(3)] for _ in range(r.randint(1, 4))]
+        assert f([row[:] for row in g]) == max(brute(g, i, j) for i in range(len(g)) for j in range(3)), g
+    snake = [[i * 40 + (j if i % 2 == 0 else 39 - j) for j in range(40)] for i in range(40)]
+    assert f(snake) == 1600
+
+
+def distinct_subsequences(ns):
+    f = ns["Solution"]().numDistinct
+    assert f("rabbbit", "rabbit") == 3 and f("babgbag", "bag") == 5 and f("a", "b") == 0 and f("abc", "") == 1
+    r = rng()
+    for _ in range(400):
+        s_ = "".join(r.choice("ab") for _ in range(r.randint(1, 9)))
+        t = "".join(r.choice("ab") for _ in range(r.randint(1, 4)))
+        want = sum(1 for idx in itertools.combinations(range(len(s_)), len(t)) if "".join(s_[i] for i in idx) == t)
+        assert f(s_, t) == want, (s_, t)
+
+
+def edit_distance(ns):
+    f = ns["Solution"]().minDistance
+    assert f("horse", "ros") == 3 and f("intention", "execution") == 5 and f("", "") == 0 and f("", "abc") == 3 and f("abc", "") == 3 and f("same", "same") == 0
+    r = rng()
+
+    def lev(a, b, memo={}):
+        key = (a, b)
+        if key in memo:
+            return memo[key]
+        if not a or not b:
+            res = len(a) + len(b)
+        elif a[-1] == b[-1]:
+            res = lev(a[:-1], b[:-1])
+        else:
+            res = 1 + min(lev(a[:-1], b[:-1]), lev(a[:-1], b), lev(a, b[:-1]))
+        memo[key] = res
+        return res
+
+    for _ in range(400):
+        a = "".join(r.choice("abc") for _ in range(r.randint(0, 7)))
+        b = "".join(r.choice("abc") for _ in range(r.randint(0, 7)))
+        assert f(a, b) == lev(a, b), (a, b)
+
+
+def burst_balloons(ns):
+    f = ns["Solution"]().maxCoins
+    assert f([3, 1, 5, 8]) == 167 and f([1, 5]) == 10 and f([7]) == 7
+    r = rng()
+
+    def brute(a):
+        if not a:
+            return 0
+        best = 0
+        for i in range(len(a)):
+            left = a[i - 1] if i else 1
+            right = a[i + 1] if i + 1 < len(a) else 1
+            best = max(best, left * a[i] * right + brute(a[:i] + a[i + 1 :]))
+        return best
+
+    for _ in range(200):
+        a = [r.randint(0, 6) for _ in range(r.randint(1, 7))]
+        assert f(list(a)) == brute(a), a
+
+
+def regex_matching(ns):
+    f = ns["Solution"]().isMatch
+    assert f("aa", "a") is False and f("aa", "a*") is True and f("ab", ".*") is True and f("aab", "c*a*b") is True and f("mississippi", "mis*is*p*.") is False
+    assert f("", "a*b*") is True and f("a", "ab*") is True and f("ab", ".*c") is False
+    import re
+
+    r = rng()
+    for _ in range(1500):
+        p = ""
+        for _ in range(r.randint(1, 4)):
+            p += r.choice("ab.") + (r.choice(["", "*"]) if r.random() < 0.5 else "")
+        text = "".join(r.choice("ab") for _ in range(r.randint(0, 6)))
+        assert f(text, p) == (re.fullmatch(p, text) is not None), (text, p)
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -1124,6 +1492,29 @@ CHECKS = {
     "meeting-rooms": meeting_rooms,
     "meeting-rooms-ii": meeting_rooms_ii,
     "minimum-interval-to-include-each-query": min_interval,
+    "climbing-stairs": climbing_stairs,
+    "min-cost-climbing-stairs": min_cost_climbing,
+    "house-robber": house_robber,
+    "house-robber-ii": house_robber_ii,
+    "longest-palindromic-substring": longest_palindromic_substring,
+    "palindromic-substrings": palindromic_substrings,
+    "decode-ways": decode_ways,
+    "coin-change": coin_change,
+    "maximum-product-subarray": max_product_subarray,
+    "word-break": word_break,
+    "longest-increasing-subsequence": lis,
+    "partition-equal-subset-sum": partition_equal_subset,
+    "unique-paths": unique_paths,
+    "longest-common-subsequence": lcs,
+    "best-time-to-buy-and-sell-stock-with-cooldown": stock_cooldown,
+    "coin-change-ii": coin_change_ii,
+    "target-sum": target_sum,
+    "interleaving-string": interleaving,
+    "longest-increasing-path-in-a-matrix": longest_increasing_path,
+    "distinct-subsequences": distinct_subsequences,
+    "edit-distance": edit_distance,
+    "burst-balloons": burst_balloons,
+    "regular-expression-matching": regex_matching,
 }
 
 

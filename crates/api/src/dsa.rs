@@ -81,23 +81,23 @@ pub(crate) struct Standing {
 }
 
 #[derive(Serialize)]
-struct Plan {
+pub(crate) struct Plan {
     /// Problems the goal counts, and how many are done.
-    goal_total: u32,
-    goal_done: u32,
-    pace: Pace,
+    pub(crate) goal_total: u32,
+    pub(crate) goal_done: u32,
+    pub(crate) pace: Pace,
     /// The next problems in order, from `start`.
-    next_up: Vec<String>,
-    start: Option<String>,
+    pub(crate) next_up: Vec<String>,
+    pub(crate) start: Option<String>,
     /// Today is a day for a new problem (`new_days`).
-    solve_day: bool,
+    pub(crate) solve_day: bool,
     /// Reviews today can take.
-    capacity: u32,
+    pub(crate) capacity: u32,
     /// Today's reviews: most forgotten first, up to the capacity.
-    review_ids: Vec<String>,
+    pub(crate) review_ids: Vec<String>,
     /// Reviews due now, and how many of those are past their day.
-    due: usize,
-    overdue: usize,
+    pub(crate) due: usize,
+    pub(crate) overdue: usize,
 }
 
 fn local(t: chrono::DateTime<chrono::Utc>) -> NaiveDate {
@@ -177,7 +177,7 @@ pub(crate) async fn next_up_ids(s: &AppState, settings: &Settings, progress: &Ha
     Ok((Vec::new(), start))
 }
 
-async fn plan(s: &AppState, settings: &Settings, progress: &HashMap<String, ProgressRow>, reviews: &[ReviewRow], today: NaiveDate) -> ApiResult<Plan> {
+pub(crate) async fn plan(s: &AppState, settings: &Settings, progress: &HashMap<String, ProgressRow>, reviews: &[ReviewRow], today: NaiveDate) -> ApiResult<Plan> {
     let solved = |p: &Problem| progress.get(&p.id).is_some_and(|r| r.solved);
     let all: Vec<&Problem> = dsa_tracks(&s.catalog).flat_map(|t| &t.problems).collect();
 

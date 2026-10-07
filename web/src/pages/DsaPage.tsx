@@ -427,6 +427,11 @@ function NextUp({ o, streak }: { o: DsaOverview; streak: number }) {
             ▶ NeetCode's video
           </a>
         )}
+        {reviews > 0 && (
+          <Link className="d-plan-link" to="/dsa/review" style={{ color: "var(--vio)" }}>
+            Review {reviews} due ›
+          </Link>
+        )}
         <Link className="d-plan-link" to="/dsa/plan">
           Plan: {paceLine(o)} ›
         </Link>
@@ -754,6 +759,11 @@ function ActivityRail({ o, activity, tracks, showDue }: { o: DsaOverview; activi
           <p className="rempty">{o.plan.capacity === 0 ? "A rest day." : "Nothing due. Nice."}</p>
         )}
         {o.plan.overdue > 0 && <p className="rempty">{o.plan.overdue} overdue, in line for the next days with room.</p>}
+        {due.length > 0 && (
+          <Link to="/dsa/review" style={{ font: "600 12px var(--mono)", color: "var(--vio)" }}>
+            start the review session ›
+          </Link>
+        )}
         <Link to="/dsa/plan" style={{ font: "500 12px var(--mono)", color: "var(--ca)" }}>
           open the plan ›
         </Link>

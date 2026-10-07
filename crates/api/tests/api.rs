@@ -1264,3 +1264,36 @@ async fn a_pattern_lists_its_techniques_with_lessons_and_progress(db: PgPool) {
     assert_eq!((a["techniques"][0]["lesson"].clone(), a["intro"].clone()), (Value::Null, Value::Null));
     assert_eq!(call(&app, Method::GET, "/api/dsa/patterns/D99", None).await.0, StatusCode::NOT_FOUND);
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn the_review_queue_lists_what_is_due_with_a_preview_for_each_grade(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db.clone(), root.path());
+    let (status, q) = call(&app, Method::GET, "/api/dsa/review", None).await;
+    assert_eq!((status, q["items"].as_array().unwrap().len(), q["next_review"].clone()), (StatusCode::OK, 0, Value::Null), "{q}");
+    assert!(q["next_new"]["slug"].is_string());
+
+    // A problem logged ✓ and then made due: it is today's review, with a date for each grade.
+    call(&app, Method::POST, "/api/dsa/problems/lc-two-sum/log", Some(json!({ "grade": "good" }))).await;
+    call(&app, Method::POST, "/api/dsa/problems/lc-contains-duplicate/log", Some(json!({ "grade": "good" }))).await;
+    sqlx::query("UPDATE reviews SET due_at = now() - interval '1 day' WHERE problem_id = 'lc-two-sum'").execute(&db).await.unwrap();
+    let (_, q) = call(&app, Method::GET, "/api/dsa/review", None).await;
+    let items = q["items"].as_array().unwrap();
+    assert_eq!(items.len(), 1, "{q}");
+    let item = &items[0];
+    assert_eq!((item["problem"]["id"].as_str(), item["pattern"].as_str(), item["technique"].as_str()), (Some("lc-two-sum"), Some("Arrays & Hashing"), Some("Complement lookup in a hash map")));
+    assert!(item["recall"].as_f64().unwrap() > 0.0 && item["stability"].as_f64().unwrap() > 0.0);
+    let days = |g: &str| item["previews"][g]["days"].as_i64().unwrap();
+    assert!(["again", "hard", "good", "easy"].iter().all(|g| days(g) >= 1 && item["previews"][*g]["due"].is_string()));
+    assert!(days("easy") > days("again"), "{}", item["previews"]);
+    // Peeking changes nothing: the problem is still due and still has one review.
+    let (_, again) = call(&app, Method::GET, "/api/dsa/review", None).await;
+    assert_eq!(again["items"].as_array().unwrap().len(), 1);
+    // The other problem's review is later, so it is what comes next.
+    assert_eq!(q["next_review"]["id"], "lc-contains-duplicate");
+
+    // Grading it through the ordinary log takes it off today's queue.
+    call(&app, Method::POST, "/api/dsa/problems/lc-two-sum/log", Some(json!({ "grade": "good" }))).await;
+    let (_, after) = call(&app, Method::GET, "/api/dsa/review", None).await;
+    assert_eq!(after["items"].as_array().unwrap().len(), 0);
+}

@@ -10,6 +10,7 @@ mod format;
 pub mod lsp;
 pub mod mock;
 pub mod practice;
+pub mod review;
 pub mod preflight;
 mod progress;
 pub mod reviews;
@@ -75,6 +76,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/dsa/start", post(dsa::start))
         .route("/dsa/practice/{pattern}", get(dsa::practice))
         .route("/dsa/patterns/{pattern}", get(dsa::pattern))
+        .route("/dsa/review", get(review::queue))
         .route("/dsa/mock", get(mock::get))
         .route("/dsa/mock/config", put(mock::put_config))
         .route("/dsa/mock/rounds", post(mock::post_round))

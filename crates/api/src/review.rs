@@ -1,0 +1,71 @@
+//! The quick-recall review session (docs/DSA.md, decision 26): today's reviews one at a time.
+//!
+//! `GET /api/dsa/review` is the queue the plan picked for today (most forgotten first, up to the day's room), each
+//! with when every grade would bring it back. The grades themselves are logged through the ordinary
+//! `POST /api/dsa/problems/{id}/log`, so a review session and the ✗ ½ ✓ ⚡ buttons schedule identically.
+
+use std::collections::HashMap;
+
+use axum::Json;
+use axum::extract::State;
+use serde_json::{Value, json};
+
+use crate::AppState;
+use crate::dsa::{dsa_reviews, plan, row};
+use crate::error::ApiResult;
+use crate::reviews::Grade;
+use crate::store::{self, ReviewRow};
+
+pub async fn queue(State(s): State<AppState>) -> ApiResult<Json<Value>> {
+    let today = crate::activity::today();
+    let settings = crate::settings::srs(&s.db).await?;
+    let progress = store::progress(&s.db).await?;
+    let reviews = dsa_reviews(&s.catalog, store::reviews(&s.db).await?);
+    let plan = plan(&s, &settings, &progress, &reviews, today).await?;
+    let by_problem: HashMap<&str, &ReviewRow> = reviews.iter().map(|r| (r.problem_id.as_str(), r)).collect();
+
+    let mut items = Vec::new();
+    for id in &plan.review_ids {
+        let (Some((track, problem)), Some(review)) = (s.catalog.problem(id), by_problem.get(id.as_str())) else { continue };
+        let Some(dsa) = problem.dsa.as_ref() else { continue };
+        let mut previews = serde_json::Map::new();
+        for (grade, scheduled) in store::preview_review(&s.db, id, &settings).await? {
+            previews.insert(grade.as_str().to_owned(), json!({ "due": scheduled.due, "days": (scheduled.due - today).num_days() }));
+        }
+        let technique = s.catalog.dsa.techniques.iter().find(|t| t.id == dsa.technique).map(|t| t.name.as_str());
+        let row = serde_json::to_value(row(track, problem, &progress, &by_problem, today)).expect("a problem row is plain data");
+        items.push(json!({
+            "problem": row,
+            "pattern": track.name,
+            "technique": technique,
+            "recall": review.retrievability(today),
+            "stability": review.stability,
+            "previews": previews,
+        }));
+    }
+
+    let queued: std::collections::HashSet<&str> = plan.review_ids.iter().map(String::as_str).collect();
+    let next_review = reviews
+        .iter()
+        .filter(|r| !queued.contains(r.problem_id.as_str()))
+        .min_by_key(|r| r.due_at)
+        .and_then(|r| s.catalog.problem(&r.problem_id).and_then(|(_, p)| p.dsa.as_ref().map(|d| (r, p, d))))
+        .map(|(r, p, d)| json!({ "id": p.id, "slug": d.slug, "title": p.meta.title, "due": r.due_at.with_timezone(&chrono::Local).date_naive() }));
+    let next_new = plan
+        .next_up
+        .first()
+        .and_then(|id| s.catalog.problem(id))
+        .and_then(|(_, p)| p.dsa.as_ref().map(|d| json!({ "id": p.id, "slug": d.slug, "title": p.meta.title })));
+
+    let value = json!({
+        "today": today,
+        "capacity": plan.capacity,
+        "due": plan.due,
+        "solve_day": plan.solve_day,
+        "items": items,
+        "next_new": next_new,
+        "next_review": next_review,
+        "grades": [Grade::Again.as_str(), Grade::Hard.as_str(), Grade::Good.as_str(), Grade::Easy.as_str()],
+    });
+    Ok(Json(value))
+}

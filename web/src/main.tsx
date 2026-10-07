@@ -7,6 +7,7 @@ import { DsaPlanPage } from "./pages/DsaPlanPage";
 import { MockPage } from "./pages/MockPage";
 import { DsaProblemPage } from "./pages/DsaProblemPage";
 import { PatternPage } from "./pages/PatternPage";
+import { ReviewPage } from "./pages/ReviewPage";
 import { PracticePage } from "./pages/PracticePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProgressPage } from "./pages/ProgressPage";
@@ -20,6 +21,7 @@ import "./styles/progress.css";
 import "./styles/dsa.css";
 import "./styles/mock.css";
 import "./styles/lessons.css";
+import "./styles/review.css";
 
 const rootRoute = createRootRoute({ component: Outlet });
 
@@ -30,6 +32,7 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/dsa", component: DsaPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/dsa/plan", component: DsaPlanPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/dsa/mock", component: MockPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/dsa/review", component: ReviewPage }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/dsa/patterns/$code",
@@ -73,11 +76,11 @@ const routes = [
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/progress", component: ProgressPage }),
 ] as const;
-const patternsRoute = routes[5];
-const practiceRoute = routes[6];
-const dsaProblemRoute = routes[7];
-const trackRoute = routes[9];
-const problemRoute = routes[10];
+const patternsRoute = routes[6];
+const practiceRoute = routes[7];
+const dsaProblemRoute = routes[8];
+const trackRoute = routes[10];
+const problemRoute = routes[11];
 
 const router = createRouter({ routeTree: rootRoute.addChildren([...routes]) });
 

@@ -235,6 +235,34 @@ pub async fn reviews(db: &PgPool) -> sqlx::Result<Vec<ReviewRow>> {
 
 /// Grades a review (or a first solve) and schedules the next one: the FSRS memory state is updated, the due date is
 /// snapped to the owner's review days and kept off busy ones, and the result is recorded in the problem's history.
+/// What scheduling a review needs: the problem's memory state and last review date (none before its first), and how
+/// many reviews every other problem has planned for each day.
+async fn review_context(db: &PgPool, problem_id: &str) -> sqlx::Result<(Option<(fsrs::MemoryState, chrono::NaiveDate)>, HashMap<chrono::NaiveDate, u32>)> {
+    let local = |t: DateTime<Utc>| t.with_timezone(&chrono::Local).date_naive();
+    let prev: Option<(f32, f32, DateTime<Utc>)> = sqlx::query_as("SELECT stability, difficulty, last_review FROM reviews WHERE problem_id = $1").bind(problem_id).fetch_optional(db).await?;
+    let planned: Vec<DateTime<Utc>> = sqlx::query_scalar("SELECT due_at FROM reviews WHERE problem_id <> $1").bind(problem_id).fetch_all(db).await?;
+    let mut load: HashMap<chrono::NaiveDate, u32> = HashMap::new();
+    for due in planned {
+        *load.entry(local(due)).or_default() += 1;
+    }
+    Ok((prev.map(|(stability, difficulty, last)| (fsrs::MemoryState { stability, difficulty }, local(last))), load))
+}
+
+/// When each grade would bring the problem back, without logging anything.
+pub async fn preview_review(db: &PgPool, problem_id: &str, settings: &crate::reviews::Settings) -> sqlx::Result<Vec<(crate::reviews::Grade, crate::reviews::Scheduled)>> {
+    use crate::reviews::Grade;
+    let (before, load) = review_context(db, problem_id).await?;
+    let today = crate::activity::today();
+    [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy]
+        .into_iter()
+        .map(|g| {
+            crate::reviews::schedule(before, g, today, settings, &|day| load.get(&day).copied().unwrap_or(0))
+                .map(|s| (g, s))
+                .map_err(|e| sqlx::Error::Protocol(e.to_string()))
+        })
+        .collect()
+}
+
 pub async fn record_review(
     db: &PgPool,
     problem_id: &str,
@@ -242,19 +270,8 @@ pub async fn record_review(
     resolve: bool,
     settings: &crate::reviews::Settings,
 ) -> sqlx::Result<crate::reviews::Scheduled> {
-    let local = |t: DateTime<Utc>| t.with_timezone(&chrono::Local).date_naive();
-    let prev: Option<(f32, f32, DateTime<Utc>, i32, i32)> =
-        sqlx::query_as("SELECT stability, difficulty, last_review, reps, lapses FROM reviews WHERE problem_id = $1")
-            .bind(problem_id)
-            .fetch_optional(db)
-            .await?;
-    let planned: Vec<DateTime<Utc>> = sqlx::query_scalar("SELECT due_at FROM reviews WHERE problem_id <> $1").bind(problem_id).fetch_all(db).await?;
-    let mut load: HashMap<chrono::NaiveDate, u32> = HashMap::new();
-    for due in planned {
-        *load.entry(local(due)).or_default() += 1;
-    }
+    let (before, load) = review_context(db, problem_id).await?;
     let today = crate::activity::today();
-    let before = prev.map(|(stability, difficulty, last, ..)| (fsrs::MemoryState { stability, difficulty }, local(last)));
     let scheduled = crate::reviews::schedule(before, grade, today, settings, &|day| load.get(&day).copied().unwrap_or(0))
         .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
     let recall_before = before.map(|(m, last)| crate::reviews::retrievability(m, (today - last).num_days() as f32));

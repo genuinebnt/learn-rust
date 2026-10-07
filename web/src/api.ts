@@ -492,6 +492,35 @@ export interface DsaOverview {
   plan: DsaPlan;
 }
 
+/** When a grade would bring a problem back. */
+export interface ReviewPreview {
+  due: string;
+  /** Days from today, after moving to a day with room. */
+  days: number;
+}
+
+export interface ReviewItem {
+  problem: DsaProblem;
+  pattern: string;
+  technique: string | null;
+  /** The chance of recalling it today, 0 to 1. */
+  recall: number;
+  /** Days until recall drops to 90%. */
+  stability: number;
+  previews: Record<Grade, ReviewPreview>;
+}
+
+/** Today's review session (docs/DSA.md, decision 26). */
+export interface ReviewQueue {
+  today: string;
+  capacity: number;
+  due: number;
+  solve_day: boolean;
+  items: ReviewItem[];
+  next_new: { id: string; slug: string; title: string } | null;
+  next_review: { id: string; slug: string; title: string; due: string } | null;
+}
+
 /** What a mock interview round is drawn from and how it is timed (docs/DSA.md, decision 25). */
 export interface MockConfig {
   /** `neetcode150`, `neetcode250`, `all` or `practice`. */
@@ -610,6 +639,7 @@ export const api = {
   patternLessons: (pattern: string) => request<PatternLessons>("GET", `/dsa/patterns/${pattern}`),
   practice: (pattern: string) => request<PracticeList>("GET", `/dsa/practice/${pattern}`),
   logDsa: (id: string, grade: Grade) => request<{ id: string; due: string | null; ideal_days: number | null }>("POST", `/dsa/problems/${id}/log`, { grade }),
+  review: () => request<ReviewQueue>("GET", "/dsa/review"),
   mock: () => request<MockData>("GET", "/dsa/mock"),
   saveMock: (saved: MockSaved) => request<MockSaved>("PUT", "/dsa/mock/config", saved),
   finishMock: (round: { config: MockConfig; items: MockItem[]; seconds: number }) => request<{ id: number }>("POST", "/dsa/mock/rounds", round),

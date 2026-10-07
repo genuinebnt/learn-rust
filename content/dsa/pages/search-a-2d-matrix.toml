@@ -1,0 +1,59 @@
+intuition = """
+Each row is sorted, and each row starts after the previous one ends, so if you read the matrix row by row it is **one long sorted list** of `rows × cols` numbers. Binary search it without building it: treat an index `i` in `0 … rows*cols − 1` as the cell `(i // cols, i % cols)`.
+
+The alternative is two searches: binary search the rows for the one whose range could hold the target, then binary search inside that row. Both are O(log(rows · cols)).
+"""
+tips = [
+    "Map a flat index to a cell with `divmod(mid, cols)`.",
+    "An empty matrix, or a matrix of empty rows, has no target; guard `not matrix or not matrix[0]`.",
+    "Don't copy the matrix into a list to search it: that makes the search O(n).",
+    "If the rows were sorted but each row was **not** greater than the previous one's end, you'd need the staircase search from the top-right corner instead.",
+]
+
+[[approaches]]
+name = "One binary search over the flattened index"
+label = "flatten index"
+idea = "Treat the matrix as a sorted list of length `rows × cols` and map each middle index back to a row and column."
+time = "O(log(m · n))"
+space = "O(1)"
+note = "A single loop."
+code = '''class Solution:
+    def searchMatrix(self, matrix: list[list[int]], target: int) -> bool:
+        if not matrix or not matrix[0]:
+            return False
+        cols = len(matrix[0])
+        low, high = 0, len(matrix) * cols - 1
+        while low <= high:
+            mid = (low + high) // 2
+            row, col = divmod(mid, cols)
+            value = matrix[row][col]
+            if value == target:
+                return True
+            if value < target:
+                low = mid + 1
+            else:
+                high = mid - 1
+        return False
+'''
+
+[[approaches]]
+name = "Find the row, then search it"
+label = "two searches"
+idea = "Binary search the first column for the last row that starts at or before the target, then binary search within that row."
+time = "O(log m + log n)"
+space = "O(1)"
+note = "Same bound; two simple loops instead of an index mapping."
+code = '''from bisect import bisect_left, bisect_right
+
+
+class Solution:
+    def searchMatrix(self, matrix: list[list[int]], target: int) -> bool:
+        if not matrix or not matrix[0]:
+            return False
+        starts = [row[0] for row in matrix]
+        r = bisect_right(starts, target) - 1
+        if r < 0:
+            return False
+        c = bisect_left(matrix[r], target)
+        return c < len(matrix[r]) and matrix[r][c] == target
+'''

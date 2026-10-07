@@ -1,0 +1,31 @@
+slug = "first-bad-build"
+title = "First Bad Build"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-binary-search"]
+warmup = true
+level = "easy"
+stage = "the-flip"
+order = 1
+status = "ready"
+teaches = [
+    "**Binary search on a yes/no flip**: when a test goes from \"no\" to \"yes\" exactly once, you can find the flip in about log n tests",
+]
+follow_up = "What if each test took ten minutes? How many builds would you have to test in the worst case?"
+
+[[hints]]
+kind = "approach"
+text = "Builds before the first bad one are good, all later ones are bad. Testing the middle build tells you which half the first bad build is in."
+
+[[hints]]
+kind = "python"
+text = "Keep `low` and `high`; if `is_bad(mid)` then the answer is at `mid` or earlier (`high = mid`), otherwise it is later (`low = mid + 1`). Stop when they meet, then check that build really is bad."
+
+[[hints]]
+kind = "edge case"
+text = "No bad builds at all (-1), `n = 0`, and the very last build being the first bad one."
+
+[solution]
+explanation = "Binary search for the first `True` in a sequence of `False… True…`: if the middle is bad the answer is at or before it, otherwise after it. Finish with a check that the found build is actually bad."
+time = "O(log n)"
+space = "O(1)"

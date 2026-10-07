@@ -1,0 +1,31 @@
+slug = "find-in-table"
+title = "Find in a Table"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-search-a-2d-matrix"]
+warmup = false
+level = "medium"
+stage = "the-answer"
+order = 5
+status = "ready"
+teaches = [
+    "**Searching a grid as one sorted line**: a position `i` in the flattened order is row `i // cols`, column `i % cols`",
+]
+follow_up = "What if only each row and each column is sorted, but rows are not in order? (Start from the top-right corner.)"
+
+[[hints]]
+kind = "approach"
+text = "Read the table row after row and it is one long sorted list. You can binary search that list without building it."
+
+[[hints]]
+kind = "python"
+text = "Search indexes `0 … rows * cols - 1`. For the middle index use `divmod(mid, cols)` to get the row and the column."
+
+[[hints]]
+kind = "edge case"
+text = "An empty table, a table whose rows are empty, a single cell."
+
+[solution]
+explanation = "Binary search over the flattened index range, converting each middle index to `(row, col)` with `divmod(mid, cols)` and comparing the cell with the target."
+time = "O(log(rows · cols))"
+space = "O(1)"

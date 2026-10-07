@@ -1,0 +1,31 @@
+slug = "shipping-capacity"
+title = "Shipping Capacity"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-koko-eating-bananas"]
+warmup = false
+level = "medium"
+stage = "the-answer"
+order = 4
+status = "ready"
+teaches = [
+    "**Binary search on the answer** with a greedy feasibility check",
+]
+follow_up = "What if packages could be split? What if the days had different limits?"
+
+[[hints]]
+kind = "approach"
+text = "If a ship of capacity `c` can do the job in the given days, any bigger ship can too. So search for the smallest capacity that works."
+
+[[hints]]
+kind = "python"
+text = "The capacity is at least `max(weights)` (every package must fit) and at most `sum(weights)` (everything in one day). To test a capacity, load packages in order and start a new day when the next package would overflow; count the days."
+
+[[hints]]
+kind = "edge case"
+text = "More days than packages, one day (the answer is the sum), a single package."
+
+[solution]
+explanation = "Binary search the capacity between `max(weights)` and `sum(weights)`; a capacity is feasible if loading packages greedily in order needs at most `days` days."
+time = "O(n log sum)"
+space = "O(1)"

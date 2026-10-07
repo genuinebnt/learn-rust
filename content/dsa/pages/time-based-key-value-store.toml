@@ -1,0 +1,68 @@
+intuition = """
+For each key you keep the history of `(timestamp, value)` pairs. `set` always arrives with **increasing timestamps**, so each key's list is already sorted by time and you can just append. `get(key, t)` needs the **latest value at or before `t`**: binary search the list for the rightmost timestamp `<= t`.
+
+A dictionary from key to two parallel lists (timestamps and values) lets you use `bisect_right` on the timestamps directly.
+"""
+tips = [
+    "`bisect_right(timestamps, t)` gives the index just past the last timestamp `<= t`; subtract 1 for the match, and return `\"\"` if that is negative.",
+    "Two parallel lists per key avoid building tuples for the search, and `bisect` can search the timestamp list as is.",
+    "`set` is O(1) amortised because timestamps only grow; `get` is O(log n) for the key's history.",
+    "Return an empty string for an unknown key, or for a time before the first `set`.",
+]
+
+[[approaches]]
+name = "Per-key lists and bisect"
+label = "bisect"
+idea = "Append each `(timestamp, value)` to the key's lists (already time-ordered) and binary search the timestamps for the last one at or before the query time."
+time = "set O(1), get O(log n)"
+space = "O(n)"
+note = "n is the number of `set` calls."
+code = '''from bisect import bisect_right
+from collections import defaultdict
+
+
+class TimeMap:
+
+    def __init__(self):
+        self.times = defaultdict(list)
+        self.values = defaultdict(list)
+
+    def set(self, key: str, value: str, timestamp: int) -> None:
+        self.times[key].append(timestamp)
+        self.values[key].append(value)
+
+    def get(self, key: str, timestamp: int) -> str:
+        if key not in self.times:
+            return ""
+        i = bisect_right(self.times[key], timestamp)
+        return self.values[key][i - 1] if i else ""
+'''
+
+[[approaches]]
+name = "Hand-written binary search"
+label = "manual search"
+idea = "The same structure with the search written out, as an interviewer may ask."
+time = "set O(1), get O(log n)"
+space = "O(n)"
+note = "Finds the largest timestamp not greater than the query."
+code = '''class TimeMap:
+
+    def __init__(self):
+        self.history = {}  # key -> list of (timestamp, value), oldest first
+
+    def set(self, key: str, value: str, timestamp: int) -> None:
+        self.history.setdefault(key, []).append((timestamp, value))
+
+    def get(self, key: str, timestamp: int) -> str:
+        entries = self.history.get(key, [])
+        low, high = 0, len(entries) - 1
+        answer = ""
+        while low <= high:
+            mid = (low + high) // 2
+            if entries[mid][0] <= timestamp:
+                answer = entries[mid][1]
+                low = mid + 1
+            else:
+                high = mid - 1
+        return answer
+'''

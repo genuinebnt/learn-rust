@@ -75,7 +75,7 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       LeetCode's real Python 3 template (`templates.py` fetches it; Premium templates are typed in
       `premium_templates.json`) and runs it against brute-force references (`page_tests.py`). Shown on the problem page
       with approach tabs, highlighting and a copy button. Company pills filter the list and "+n" expands in place.
-- [x] Written pages, 82 of the 150 (2026-10-07): Arrays & Hashing, Two Pointers, Sliding Window, Stack, Graphs, Advanced
+- [x] Written pages, 89 of the 150 (2026-10-07; Binary Search added): Arrays & Hashing, Two Pointers, Sliding Window, Stack, Graphs, Advanced
       Graphs, Greedy, Intervals, 1-D DP and 2-D DP. The owner's order is a topic's lessons, then its Python practice track,
       then the next topic. **Next: DP practice track in Python**, then back to Binary Search, Linked List, Trees, Heap,
       Backtracking, Tries, Math and Bits (each followed by its practice track), then the Rust practice tracks. The six
@@ -96,7 +96,12 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       Rocks, Spaced Picks, Message Splits, Limited Bills, Dice Totals, Trade With a Fee, Fair Shares, Delete to Match,
       Palindrome Cuts, Box Chain, Chain Multiplication). `anneal verify P2` passes. Each is opened by logging its LeetCode
       problem(s); the ones marked warm-up also open while that problem is next up.
-      **Next: Binary Search, Linked List, Trees, Heap, Backtracking, Tries (and Math, Bits), each as lessons then a Python
-      practice track, then the Rust practice tracks.**
+- [x] Binary Search lessons (7) and its Python practice track (2026-10-07): `content/tracks/p3-binary-search-practice`, 10 problems
+      (First Bad Build counts your calls, Integer Square Root, Count in Range over huge ranges, Shipping Capacity, Find in
+      a Table, Rotation Count, Find a Peak, Running Balance, Fair Split, Kth of Two Lists). `anneal verify P3` passes and all
+      ten solutions were typed into the real editor and solved. Found and fixed on the way: a timeout landing in the same
+      instant a test finished could kill the Python harness (now caught and reported as a timeout).
+      **Next: Linked List, Trees, Heap, Backtracking, Tries (and Math, Bits), each as lessons then a Python practice track,
+      then the Rust practice tracks.**
 - [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
       18 categories.

@@ -1,0 +1,31 @@
+slug = "kth-of-two"
+title = "Kth of Two Lists"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-median-of-two-sorted-arrays"]
+warmup = false
+level = "hard"
+stage = "partitions"
+order = 10
+status = "ready"
+teaches = [
+    "**Binary search on a partition**: choose how many items come from each list so the left parts together hold exactly k items",
+]
+follow_up = "How would you get the k-th of **three** sorted lists? What if the lists are on different machines?"
+
+[[hints]]
+kind = "approach"
+text = "The k smallest items overall are some prefix of the first list and some prefix of the second. If you decide that `i` of them come from the first list, then `k - i` come from the second. Binary search `i`."
+
+[[hints]]
+kind = "python"
+text = "The split is right when the last item taken from each list is `<=` the first item left behind in the other list. If the first list's last taken item is too big, take fewer from it; if the second's is too big, take more from the first. Use `-inf` / `+inf` for missing neighbours."
+
+[[hints]]
+kind = "edge case"
+text = "One list empty, `k = 1`, `k` equal to the total size, and lists of very different lengths."
+
+[solution]
+explanation = "Binary search `i`, the number of items taken from the first list. A partition is valid when each side's largest taken item is no greater than the other side's smallest remaining item; the answer is then the larger of the two largest taken items."
+time = "O(log min(m, n))"
+space = "O(1)"

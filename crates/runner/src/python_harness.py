@@ -24,8 +24,13 @@ class TestTimeout(BaseException):
     pass
 
 
+armed = [False]
+
+
 def on_alarm(signum, frame):
-    raise TestTimeout()
+    if armed[0]:
+        armed[0] = False
+        raise TestTimeout()
 
 
 def solution_line(tb):
@@ -76,26 +81,33 @@ def main(suites):
             buf = io.StringIO()
             outcome, check, panic = "passed", None, None
             started = time.perf_counter()
-            signal.setitimer(signal.ITIMER_REAL, PER_TEST_SECONDS)
             try:
-                with contextlib.redirect_stdout(buf):
-                    fn()
+                try:
+                    armed[0] = True
+                    signal.setitimer(signal.ITIMER_REAL, PER_TEST_SECONDS)
+                    with contextlib.redirect_stdout(buf):
+                        fn()
+                except TestTimeout:
+                    outcome, panic = "timed_out", f"took longer than {PER_TEST_SECONDS:g} s"
+                except anneal_prelude.Mismatch as m:
+                    outcome = "failed"
+                    check = {"input": m.call, "expected": m.expected, "got": m.got}
+                    line = solution_line(m.__traceback__)
+                    panic = str(m) if line is None else f"{m}\n(solution.py line {line})"
+                except BaseException as e:  # assertion, exception in the user's code, RecursionError ...
+                    outcome = "failed"
+                    line = solution_line(e.__traceback__)
+                    text = str(e)
+                    panic = f"{type(e).__name__}: {text}" if text else type(e).__name__
+                    if line is not None:
+                        panic += f"\n(solution.py line {line})"
+                finally:
+                    # From here on a late alarm is ignored. One that lands just before this line (the test finished in the
+                    # same instant it ran out of time) is caught below and reported as a timeout.
+                    armed[0] = False
+                    signal.setitimer(signal.ITIMER_REAL, 0)
             except TestTimeout:
-                outcome, panic = "timed_out", f"took longer than {PER_TEST_SECONDS:g} s"
-            except anneal_prelude.Mismatch as m:
-                outcome = "failed"
-                check = {"input": m.call, "expected": m.expected, "got": m.got}
-                line = solution_line(m.__traceback__)
-                panic = str(m) if line is None else f"{m}\n(solution.py line {line})"
-            except BaseException as e:  # assertion, exception in the user's code, RecursionError ...
-                outcome = "failed"
-                line = solution_line(e.__traceback__)
-                text = str(e)
-                panic = f"{type(e).__name__}: {text}" if text else type(e).__name__
-                if line is not None:
-                    panic += f"\n(solution.py line {line})"
-            finally:
-                signal.setitimer(signal.ITIMER_REAL, 0)
+                outcome, panic, check = "timed_out", f"took longer than {PER_TEST_SECONDS:g} s", None
             out = buf.getvalue()
             if len(out) > OUTPUT_LIMIT:
                 out = out[:OUTPUT_LIMIT] + "\n… output cut"

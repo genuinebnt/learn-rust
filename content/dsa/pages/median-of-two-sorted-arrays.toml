@@ -1,0 +1,65 @@
+intuition = """
+Merging the two arrays and taking the middle is O(m + n). To get **O(log(min(m, n)))**, binary search for a **partition**: cut `nums1` at `i` and `nums2` at `j = half - i`, so the left parts together hold half the elements. The cut is correct when every left element is `<=` every right element, which only needs checking across the cuts:
+
+`left1 <= right2` and `left2 <= right1`.
+
+If `left1 > right2` the cut in `nums1` is too far right; if `left2 > right1` it is too far left. Binary search `i` on the **shorter** array. The median comes from the elements around the cut.
+"""
+tips = [
+    "Search the **shorter** array so `j` can never go negative or past the other array.",
+    "Use `-inf` and `+inf` for a missing neighbour when a cut is at the very start or end of an array.",
+    "Odd total: the median is the largest left element. Even total: the average of the largest left and the smallest right.",
+    "State the invariant out loud: \"left has `(m + n + 1) // 2` elements and all of them are ≤ everything on the right\".",
+    "This is a Hard problem; getting the idea (binary search on the partition, not on values) is most of the credit.",
+]
+
+[[approaches]]
+name = "Binary search on the partition"
+label = "partition search"
+idea = "Find the cut `i` in the shorter array (and the matching cut in the other) so that every left element is no greater than every right element."
+time = "O(log(min(m, n)))"
+space = "O(1)"
+note = "Only the elements next to the cuts are ever compared."
+code = '''class Solution:
+    def findMedianSortedArrays(self, nums1: list[int], nums2: list[int]) -> float:
+        if len(nums1) > len(nums2):
+            nums1, nums2 = nums2, nums1
+        m, n = len(nums1), len(nums2)
+        half = (m + n + 1) // 2
+        low, high = 0, m
+        while low <= high:
+            i = (low + high) // 2  # elements of nums1 on the left
+            j = half - i  # elements of nums2 on the left
+            left1 = nums1[i - 1] if i > 0 else float("-inf")
+            right1 = nums1[i] if i < m else float("inf")
+            left2 = nums2[j - 1] if j > 0 else float("-inf")
+            right2 = nums2[j] if j < n else float("inf")
+            if left1 > right2:
+                high = i - 1
+            elif left2 > right1:
+                low = i + 1
+            else:
+                if (m + n) % 2:
+                    return float(max(left1, left2))
+                return (max(left1, left2) + min(right1, right2)) / 2
+        raise ValueError("the inputs must be sorted")
+'''
+
+[[approaches]]
+name = "Merge and take the middle"
+label = "merge"
+idea = "Merge the two sorted lists and read the middle. Correct and simple, but linear."
+time = "O(m + n)"
+space = "O(m + n)"
+note = "A good first answer to say aloud, then improve."
+code = '''import heapq
+
+
+class Solution:
+    def findMedianSortedArrays(self, nums1: list[int], nums2: list[int]) -> float:
+        merged = list(heapq.merge(nums1, nums2))
+        n = len(merged)
+        if n % 2:
+            return float(merged[n // 2])
+        return (merged[n // 2 - 1] + merged[n // 2]) / 2
+'''

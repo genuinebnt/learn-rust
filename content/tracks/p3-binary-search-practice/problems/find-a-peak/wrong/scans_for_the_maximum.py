@@ -1,0 +1,2 @@
+def find_a_peak(values: list[int]) -> int:
+    return values.index(max(values))

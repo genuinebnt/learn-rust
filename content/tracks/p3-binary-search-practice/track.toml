@@ -1,0 +1,22 @@
+code = "P3"
+name = "Binary search practice"
+section = "P"
+tier = "core"
+order = 3
+summary = "Ten small problems that use the binary-search ideas from the NeetCode Binary Search problems in new settings: searching a yes/no flip, bounds, the answer itself, rotations, peaks, prefix sums and partitions."
+pattern = "Binary Search"
+
+[[stages]]
+slug = "the-flip"
+name = "Searching for a flip"
+band = "easy"
+
+[[stages]]
+slug = "the-answer"
+name = "Searching the answer"
+band = "medium"
+
+[[stages]]
+slug = "partitions"
+name = "Partitions"
+band = "hard"

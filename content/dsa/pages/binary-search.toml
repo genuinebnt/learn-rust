@@ -1,0 +1,48 @@
+intuition = """
+The array is sorted, so comparing the target with the **middle** element tells you which half it can be in, and you can throw the other half away. Repeat on the half that's left until you find it or run out.
+
+Keep `low` and `high` as the inclusive ends of what could still contain the target. Each step halves the range, so it takes about `log2(n)` steps.
+"""
+tips = [
+    "Decide your loop invariant once and stick to it. With inclusive ends: loop while `low <= high`, and move to `mid + 1` or `mid - 1`.",
+    "Compute the middle as `low + (high - low) // 2`. Python integers don't overflow, but it's the habit interviewers like to see.",
+    "Off-by-one errors are the whole difficulty. Test an empty array, one element, two elements, and a target smaller or bigger than everything.",
+    "`bisect_left` does this in the standard library; know it, but write the loop.",
+]
+
+[[approaches]]
+name = "Iterative with inclusive bounds"
+label = "iterative"
+idea = "Keep the range `[low, high]` that could still hold the target; compare with the middle and discard half."
+time = "O(log n)"
+space = "O(1)"
+note = "Each iteration halves the range."
+code = '''class Solution:
+    def search(self, nums: list[int], target: int) -> int:
+        low, high = 0, len(nums) - 1
+        while low <= high:
+            mid = low + (high - low) // 2
+            if nums[mid] == target:
+                return mid
+            if nums[mid] < target:
+                low = mid + 1
+            else:
+                high = mid - 1
+        return -1
+'''
+
+[[approaches]]
+name = "Lower bound with bisect"
+label = "bisect"
+idea = "`bisect_left` returns the first index whose value is at least the target; the target is present if that index holds it."
+time = "O(log n)"
+space = "O(1)"
+note = "The library version of the same loop."
+code = '''from bisect import bisect_left
+
+
+class Solution:
+    def search(self, nums: list[int], target: int) -> int:
+        i = bisect_left(nums, target)
+        return i if i < len(nums) and nums[i] == target else -1
+'''

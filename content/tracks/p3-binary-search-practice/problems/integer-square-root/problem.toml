@@ -1,0 +1,31 @@
+slug = "integer-square-root"
+title = "Integer Square Root"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-binary-search", "lc-koko-eating-bananas"]
+warmup = true
+level = "easy"
+stage = "the-flip"
+order = 2
+status = "ready"
+teaches = [
+    "**Binary search on the answer**: the answer is the largest `x` with `x * x <= n`, and \"`x * x <= n`\" flips from yes to no exactly once",
+]
+follow_up = "How would you do it for a cube root? Why does `int(n ** 0.5)` break for huge `n`?"
+
+[[hints]]
+kind = "approach"
+text = "The answer `r` is the biggest number whose square does not exceed `n`. Squares grow with the number, so `x * x <= n` is true for small `x` and false for large ones. Find where it flips."
+
+[[hints]]
+kind = "python"
+text = "Search `x` in `[0, n]` (or `[0, n // 2 + 1]` for bigger `n`). If `mid * mid <= n`, `mid` might be the answer: keep it and look higher; otherwise look lower. Python integers never overflow, so `mid * mid` is safe."
+
+[[hints]]
+kind = "edge case"
+text = "`n = 0` and `n = 1`, perfect squares, and a number one less than a perfect square."
+
+[solution]
+explanation = "Binary search for the largest `x` whose square is at most `n`, comparing with exact integer arithmetic so there is no rounding error even for numbers far beyond float precision."
+time = "O(log n)"
+space = "O(1)"

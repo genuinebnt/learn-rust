@@ -1,0 +1,31 @@
+slug = "running-balance"
+title = "Running Balance"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-time-based-key-value-store"]
+warmup = false
+level = "medium"
+stage = "the-answer"
+order = 8
+status = "ready"
+teaches = [
+    "**A time-ordered log you can binary search**, combined with prefix sums so a range question becomes one lookup",
+]
+follow_up = "How would you also answer \"total between day A and day B\"? How would you handle entries that arrive out of order?"
+
+[[hints]]
+kind = "approach"
+text = "Entries arrive with increasing days, so the log is already sorted by day. The balance on day `d` is the total of every entry up to day `d`, which is a **prefix** of the log."
+
+[[hints]]
+kind = "python"
+text = "Keep two parallel lists: the days, and the running total after each entry. `balance_on(day)`: use `bisect_right(days, day)` to count the entries up to that day, and return the total stored after the last of them (0 if none)."
+
+[[hints]]
+kind = "edge case"
+text = "A day before the first entry (0), several entries on different days, a query far in the future."
+
+[solution]
+explanation = "Store each day with the running total after it. A query binary searches the days for the last entry at or before the query day and returns its running total."
+time = "add O(1), balance_on O(log n)"
+space = "O(n)"

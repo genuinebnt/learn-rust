@@ -1,0 +1,31 @@
+slug = "rotation-count"
+title = "Rotation Count"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-find-minimum-in-rotated-sorted-array", "lc-search-in-rotated-sorted-array"]
+warmup = false
+level = "medium"
+stage = "the-answer"
+order = 6
+status = "ready"
+teaches = [
+    "**Finding the break in a rotated sorted array**: compare the middle with the end to decide which side holds the smallest element",
+]
+follow_up = "What changes if values can repeat? (Worst case O(n).)"
+
+[[hints]]
+kind = "approach"
+text = "The smallest element is where the original sorted order starts. Each move of the last item to the front pushes it one place to the right, so its **index is the number of moves**. Find the smallest element by comparing the middle with the right end."
+
+[[hints]]
+kind = "python"
+text = "If `values[mid] > values[high]` the smallest is to the right of `mid`; otherwise it is at `mid` or to its left (`high = mid`). Stop when `low == high`."
+
+[[hints]]
+kind = "edge case"
+text = "A list that was not rotated (0), a single value, and two values."
+
+[solution]
+explanation = "A rotated sorted list is two sorted runs; the smallest element starts the second run, and each move of the last item to the front pushes it one place right, so its index is the rotation count. Binary search it by comparing the middle with the right end."
+time = "O(log n)"
+space = "O(1)"

@@ -1,0 +1,56 @@
+intuition = """
+You're not searching an array; you're searching **the answer**. If Koko can finish at speed `k`, she can also finish at any faster speed, so the answers are "no, no, no, yes, yes, yes": a monotonic yes/no. Binary search the **smallest speed that works**.
+
+For a given speed `k`, the hours needed are `sum(ceil(pile / k))`. The speed is at least 1 and at most the largest pile (any faster gains nothing).
+"""
+tips = [
+    "This is the \"binary search on the answer\" pattern: you binary search a range of possible answers using a feasibility check.",
+    "`ceil(pile / k)` in integers is `(pile + k - 1) // k` or `-(-pile // k)`; avoid float division.",
+    "The lower bound is 1 (not 0, which would divide by zero), and the upper bound is `max(piles)`.",
+    "When the check says yes, keep that speed as a candidate and look lower (`high = mid`); when no, look higher.",
+]
+
+[[approaches]]
+name = "Binary search on the speed"
+label = "search the answer"
+idea = "Find the smallest `k` in `[1, max(piles)]` for which the hours needed are at most `h`."
+time = "O(n log max(piles))"
+space = "O(1)"
+note = "Each check is a pass over the piles; about 30 checks at most."
+code = '''class Solution:
+    def minEatingSpeed(self, piles: list[int], h: int) -> int:
+        def hours(speed: int) -> int:
+            return sum((pile + speed - 1) // speed for pile in piles)
+
+        low, high = 1, max(piles)
+        while low < high:
+            mid = (low + high) // 2
+            if hours(mid) <= h:
+                high = mid
+            else:
+                low = mid + 1
+        return low
+'''
+
+[[approaches]]
+name = "Start at a lower bound from the total"
+label = "tighter bounds"
+idea = "The speed can't be below `ceil(total / h)`. Starting the search there shrinks the range."
+time = "O(n log max(piles))"
+space = "O(1)"
+note = "A small constant-factor improvement; the idea is the same."
+code = '''class Solution:
+    def minEatingSpeed(self, piles: list[int], h: int) -> int:
+        def hours(speed: int) -> int:
+            return sum((pile + speed - 1) // speed for pile in piles)
+
+        low = max(1, (sum(piles) + h - 1) // h)
+        high = max(piles)
+        while low < high:
+            mid = (low + high) // 2
+            if hours(mid) <= h:
+                high = mid
+            else:
+                low = mid + 1
+        return low
+'''

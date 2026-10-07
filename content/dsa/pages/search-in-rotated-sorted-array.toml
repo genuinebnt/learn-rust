@@ -1,0 +1,67 @@
+intuition = """
+After a rotation, **at least one half around the middle is always sorted**. Find which half it is, check whether the target lies inside that sorted half, and go there; otherwise go to the other half.
+
+- If `nums[low] <= nums[mid]`, the left half is sorted. If `nums[low] <= target < nums[mid]`, search left; else search right.
+- Otherwise the right half is sorted. If `nums[mid] < target <= nums[high]`, search right; else search left.
+"""
+tips = [
+    "Use `<=` when comparing `nums[low]` with `nums[mid]`: when `low == mid` the left half is a single element and counts as sorted.",
+    "The boundaries of the \"is the target in the sorted half\" test are the part to get right; write them as a range check.",
+    "Values are distinct (the follow-up with duplicates, Search in Rotated Sorted Array II, degrades to O(n) in the worst case).",
+    "A two-step alternative is to find the rotation point first (as in Find Minimum), then do an ordinary binary search on the right part.",
+]
+
+[[approaches]]
+name = "One pass: find the sorted half"
+label = "sorted half"
+idea = "Each step, one of the halves is fully sorted. If the target is within that half's range, search it; otherwise search the other half."
+time = "O(log n)"
+space = "O(1)"
+note = "A single loop with two cases."
+code = '''class Solution:
+    def search(self, nums: list[int], target: int) -> int:
+        low, high = 0, len(nums) - 1
+        while low <= high:
+            mid = (low + high) // 2
+            if nums[mid] == target:
+                return mid
+            if nums[low] <= nums[mid]:  # the left half is sorted
+                if nums[low] <= target < nums[mid]:
+                    high = mid - 1
+                else:
+                    low = mid + 1
+            else:  # the right half is sorted
+                if nums[mid] < target <= nums[high]:
+                    low = mid + 1
+                else:
+                    high = mid - 1
+        return -1
+'''
+
+[[approaches]]
+name = "Find the pivot, then search normally"
+label = "pivot + search"
+idea = "Locate the smallest element (the rotation point), then binary search the sorted run that could contain the target."
+time = "O(log n)"
+space = "O(1)"
+note = "Two clean binary searches."
+code = '''from bisect import bisect_left
+
+
+class Solution:
+    def search(self, nums: list[int], target: int) -> int:
+        low, high = 0, len(nums) - 1
+        while low < high:
+            mid = (low + high) // 2
+            if nums[mid] > nums[high]:
+                low = mid + 1
+            else:
+                high = mid
+        pivot = low  # index of the smallest element
+        if nums[pivot] <= target <= nums[-1]:
+            start, end = pivot, len(nums)
+        else:
+            start, end = 0, pivot
+        i = bisect_left(nums, target, start, end)
+        return i if i < len(nums) and nums[i] == target else -1
+'''

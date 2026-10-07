@@ -1,0 +1,33 @@
+intuition = """
+A sorted array was rotated, so it is two sorted runs: `[4, 5, 6, 7, 0, 1, 2]`. The minimum is where the second run starts. Compare the **middle** with the **right end**:
+
+- `nums[mid] > nums[high]`: the middle is in the left (bigger) run, so the minimum is **to the right** of `mid`.
+- otherwise the middle is in the right run (or the array is already sorted), so the minimum is at `mid` or **to its left**.
+
+Narrow until `low == high`. All values are distinct, so there are no ties to break.
+"""
+tips = [
+    "Compare with `nums[high]`, not `nums[low]`. The right end always tells you which run the middle is in.",
+    "Use `low < high` and `high = mid` (not `mid - 1`): `mid` itself might be the minimum.",
+    "An unrotated array (or rotated by a full turn) is the case `nums[mid] <= nums[high]` everywhere, so it converges to index 0.",
+    "A one-element array returns that element without entering the loop.",
+]
+
+[[approaches]]
+name = "Compare the middle with the right end"
+label = "binary search"
+idea = "If the middle is greater than the right end, the minimum lies right of the middle; otherwise it is at the middle or left of it."
+time = "O(log n)"
+space = "O(1)"
+note = "Distinct values keep the comparison unambiguous."
+code = '''class Solution:
+    def findMin(self, nums: list[int]) -> int:
+        low, high = 0, len(nums) - 1
+        while low < high:
+            mid = (low + high) // 2
+            if nums[mid] > nums[high]:
+                low = mid + 1
+            else:
+                high = mid
+        return nums[low]
+'''

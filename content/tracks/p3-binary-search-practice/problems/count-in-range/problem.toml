@@ -1,0 +1,31 @@
+slug = "count-in-range"
+title = "Count in Range"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-binary-search", "lc-search-a-2d-matrix"]
+warmup = true
+level = "easy"
+stage = "the-flip"
+order = 3
+status = "ready"
+teaches = [
+    "**Lower and upper bounds**: the first index at or after a value, and the first index after it, and how their difference counts a range",
+]
+follow_up = "How would you count the elements equal to a single value? What changes if the list is stored in blocks on disk?"
+
+[[hints]]
+kind = "approach"
+text = "In a sorted list, the numbers between `low` and `high` form one block. Its start is the first index whose value is `>= low`; its end is the first index whose value is `> high`. The block's size is the difference."
+
+[[hints]]
+kind = "python"
+text = "Write one helper that finds the first index where a condition becomes true (a binary search for the flip), and call it twice. `bisect_left` and `bisect_right` are exactly these two searches."
+
+[[hints]]
+kind = "edge case"
+text = "`low > high` (zero), values all below or all above the range, and duplicates at the edges."
+
+[solution]
+explanation = "Two binary searches: the first index with value `>= low` and the first index with value `> high`; the count is their difference (never negative)."
+time = "O(log n)"
+space = "O(1)"

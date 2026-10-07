@@ -1,0 +1,9 @@
+class Ledger:
+    def __init__(self):
+        ...
+
+    def add(self, day: int, amount: int) -> None:
+        ...
+
+    def balance_on(self, day: int) -> int:
+        ...

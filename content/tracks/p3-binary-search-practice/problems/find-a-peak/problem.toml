@@ -1,0 +1,31 @@
+slug = "find-a-peak"
+title = "Find a Peak"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-search-in-rotated-sorted-array", "lc-find-minimum-in-rotated-sorted-array"]
+warmup = false
+level = "medium"
+stage = "the-answer"
+order = 7
+status = "ready"
+teaches = [
+    "**Binary search without a sorted array**: follow the slope uphill, because a peak must exist in the direction it rises",
+]
+follow_up = "How would you find a peak in a 2-D grid in O(n log n)? Why does the argument fail if neighbours can be equal?"
+
+[[hints]]
+kind = "approach"
+text = "You don't need the highest point, just any point higher than both neighbours. Look at the middle and its right neighbour: if the right one is higher, the numbers are climbing, so a peak is somewhere to the right."
+
+[[hints]]
+kind = "python"
+text = "If `values[mid] < values[mid + 1]` set `low = mid + 1`, otherwise `high = mid`. Treat the outside of the list as lower than everything, so an end can be a peak."
+
+[[hints]]
+kind = "edge case"
+text = "One value, two values, a list that only rises or only falls."
+
+[solution]
+explanation = "Compare the middle with its right neighbour: if it rises, a peak lies to the right (the ends count as peaks since outside is lower); otherwise a peak is at the middle or left. Repeat on that side."
+time = "O(log n)"
+space = "O(1)"

@@ -1432,6 +1432,107 @@ def regex_matching(ns):
         assert f(text, p) == (re.fullmatch(p, text) is not None), (text, p)
 
 
+# ---------------------------------------------------------------- binary search
+
+
+def binary_search(ns):
+    f = ns["Solution"]().search
+    assert f([-1, 0, 3, 5, 9, 12], 9) == 4 and f([-1, 0, 3, 5, 9, 12], 2) == -1 and f([5], 5) == 0 and f([5], 4) == -1 and f([], 1) == -1
+    r = rng()
+    for _ in range(500):
+        a = sorted(r.sample(range(-20, 20), r.randint(0, 12)))
+        t = r.randint(-22, 22)
+        assert f(list(a), t) == (a.index(t) if t in a else -1), (a, t)
+
+
+def search_matrix(ns):
+    f = ns["Solution"]().searchMatrix
+    m = [[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]]
+    assert f(m, 3) is True and f(m, 13) is False and f([[1]], 1) is True and f([[1]], 0) is False and f([[]], 1) is False and f([], 1) is False
+    r = rng()
+    for _ in range(400):
+        rows, cols = r.randint(1, 5), r.randint(1, 5)
+        values = sorted(r.sample(range(0, 60), rows * cols))
+        grid = [values[i * cols : (i + 1) * cols] for i in range(rows)]
+        t = r.randint(-2, 62)
+        assert f([row[:] for row in grid], t) == (t in values), (grid, t)
+
+
+def koko(ns):
+    f = ns["Solution"]().minEatingSpeed
+    assert f([3, 6, 7, 11], 8) == 4 and f([30, 11, 23, 4, 20], 5) == 30 and f([30, 11, 23, 4, 20], 6) == 23 and f([1], 1) == 1 and f([10**9], 2) == 5 * 10**8
+    r = rng()
+    for _ in range(400):
+        piles = [r.randint(1, 30) for _ in range(r.randint(1, 6))]
+        h = r.randint(len(piles), len(piles) + 12)
+        want = next(k for k in range(1, max(piles) + 1) if sum(-(-p // k) for p in piles) <= h)
+        assert f(list(piles), h) == want, (piles, h)
+
+
+def find_min_rotated(ns):
+    f = ns["Solution"]().findMin
+    assert f([3, 4, 5, 1, 2]) == 1 and f([4, 5, 6, 7, 0, 1, 2]) == 0 and f([11, 13, 15, 17]) == 11 and f([5]) == 5 and f([2, 1]) == 1
+    r = rng()
+    for _ in range(500):
+        a = sorted(r.sample(range(-30, 30), r.randint(1, 12)))
+        k = r.randint(0, len(a) - 1)
+        rot = a[k:] + a[:k]
+        assert f(list(rot)) == min(a), rot
+
+
+def search_rotated(ns):
+    f = ns["Solution"]().search
+    assert f([4, 5, 6, 7, 0, 1, 2], 0) == 4 and f([4, 5, 6, 7, 0, 1, 2], 3) == -1 and f([1], 0) == -1 and f([1], 1) == 0 and f([3, 1], 1) == 1
+    r = rng()
+    for _ in range(600):
+        a = sorted(r.sample(range(-30, 30), r.randint(1, 12)))
+        k = r.randint(0, len(a) - 1)
+        rot = a[k:] + a[:k]
+        t = r.randint(-32, 32)
+        assert f(list(rot), t) == (rot.index(t) if t in rot else -1), (rot, t)
+
+
+def time_map(ns):
+    TimeMap = ns["TimeMap"]
+    m = TimeMap()
+    m.set("foo", "bar", 1)
+    assert m.get("foo", 1) == "bar" and m.get("foo", 3) == "bar"
+    m.set("foo", "bar2", 4)
+    assert m.get("foo", 4) == "bar2" and m.get("foo", 5) == "bar2" and m.get("foo", 3) == "bar" and m.get("foo", 0) == "" and m.get("nope", 9) == ""
+    r = rng()
+    for _ in range(100):
+        m, model, t = TimeMap(), {}, 0
+        for _ in range(40):
+            t += r.randint(1, 3)
+            if r.random() < 0.5:
+                key, val = r.choice("abc"), str(r.randint(0, 99))
+                m.set(key, val, t)
+                model.setdefault(key, []).append((t, val))
+            else:
+                key, q = r.choice("abcd"), r.randint(0, t + 2)
+                want = ""
+                for ts, v in model.get(key, []):
+                    if ts <= q:
+                        want = v
+                assert m.get(key, q) == want, (key, q)
+
+
+def median_two_sorted(ns):
+    import statistics
+
+    f = ns["Solution"]().findMedianSortedArrays
+    assert f([1, 3], [2]) == 2.0 and f([1, 2], [3, 4]) == 2.5 and f([], [1]) == 1.0 and f([2], []) == 2.0 and f([0, 0], [0, 0]) == 0.0
+    r = rng()
+    for _ in range(600):
+        a = sorted(r.randint(-20, 20) for _ in range(r.randint(0, 8)))
+        b = sorted(r.randint(-20, 20) for _ in range(r.randint(0, 8)))
+        if not a and not b:
+            continue
+        assert f(list(a), list(b)) == statistics.median(a + b), (a, b)
+    big_a, big_b = list(range(0, 2_000_000, 2)), list(range(1, 2_000_001, 2))
+    assert f(big_a, big_b) == 999_999.5
+
+
 CHECKS = {
     "contains-duplicate": contains_duplicate,
     "valid-anagram": valid_anagram,
@@ -1515,6 +1616,13 @@ CHECKS = {
     "edit-distance": edit_distance,
     "burst-balloons": burst_balloons,
     "regular-expression-matching": regex_matching,
+    "binary-search": binary_search,
+    "search-a-2d-matrix": search_matrix,
+    "koko-eating-bananas": koko,
+    "find-minimum-in-rotated-sorted-array": find_min_rotated,
+    "search-in-rotated-sorted-array": search_rotated,
+    "time-based-key-value-store": time_map,
+    "median-of-two-sorted-arrays": median_two_sorted,
 }
 
 

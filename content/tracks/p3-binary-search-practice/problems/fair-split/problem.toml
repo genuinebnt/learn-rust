@@ -1,0 +1,31 @@
+slug = "fair-split"
+title = "Fair Split"
+mode = "write"
+language = "python"
+unlocked_by = ["lc-koko-eating-bananas"]
+warmup = false
+level = "hard"
+stage = "partitions"
+order = 9
+status = "ready"
+teaches = [
+    "**Minimise the maximum**: binary search the largest allowed piece, with a greedy check of how many pieces it forces",
+]
+follow_up = "What if the parts did not need to be contiguous? What if you also wanted the cut positions?"
+
+[[hints]]
+kind = "approach"
+text = "Ask a yes/no question instead: \"can I split into at most `parts` pieces so that **no piece sums to more than `limit`**?\" If yes for some limit it is yes for every larger one, so the best limit can be binary searched."
+
+[[hints]]
+kind = "python"
+text = "To check a limit, walk the list and start a new piece whenever adding the next number would exceed it, counting pieces. The limit is at least `max(values)` and at most `sum(values)`."
+
+[[hints]]
+kind = "edge case"
+text = "`parts = 1` (the total), `parts` equal to the length (the largest value), zeros."
+
+[solution]
+explanation = "Binary search the smallest limit such that a greedy left-to-right split into pieces of sum at most the limit needs no more than `parts` pieces."
+time = "O(n log sum)"
+space = "O(1)"

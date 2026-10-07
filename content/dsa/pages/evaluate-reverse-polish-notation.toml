@@ -1,0 +1,38 @@
+intuition = """
+In reverse Polish notation the operator comes **after** its two operands. Read left to right: push numbers on a stack; when you hit an operator, pop the two most recent numbers, apply it, and push the result. At the end the stack holds the one answer.
+
+The only trap is the **order** of the operands: the first popped is the *right* operand, the second popped is the *left*.
+"""
+tips = [
+    "For `a b -`, the answer is `a - b`: pop `b` first, then `a`. Subtraction and division care about this.",
+    "Division truncates toward zero. Python's `//` rounds toward negative infinity, so use `int(a / b)`.",
+    "Tell numbers from operators by checking the token against the four operator strings; negative numbers like `\"-11\"` are numbers, so don't test `token.isdigit()`.",
+    "The input is always valid, so you can assume the stack has two numbers whenever an operator arrives.",
+]
+
+[[approaches]]
+name = "Stack of operands"
+label = "stack"
+idea = "Push numbers. For an operator, pop right then left, compute, and push the result back."
+time = "O(n)"
+space = "O(n)"
+note = "Each token is processed once."
+code = '''class Solution:
+    def evalRPN(self, tokens: list[str]) -> int:
+        stack = []
+        for token in tokens:
+            if token in ("+", "-", "*", "/"):
+                right = stack.pop()
+                left = stack.pop()
+                if token == "+":
+                    stack.append(left + right)
+                elif token == "-":
+                    stack.append(left - right)
+                elif token == "*":
+                    stack.append(left * right)
+                else:
+                    stack.append(int(left / right))
+            else:
+                stack.append(int(token))
+        return stack[0]
+'''

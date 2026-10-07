@@ -1,0 +1,52 @@
+intuition = """
+Keep a **window** `[left, right]` that never contains a repeated character. Move `right` forward one character at a time. If the new character is already in the window, move `left` forward until the repeat is gone. The longest window you ever see is the answer.
+
+Remembering the **last index of each character** lets `left` jump straight past the earlier copy instead of stepping one at a time.
+"""
+tips = [
+    "When you jump `left`, never move it backwards: use `max(left, last[ch] + 1)`. A character's old position may be left of the current window.",
+    "A set plus a `while` loop that shrinks the window is the easiest version to get right; the dictionary-of-last-positions version is the optimised one.",
+    "Window length is `right - left + 1`.",
+    "The empty string gives `0`; the loop doesn't run.",
+]
+
+[[approaches]]
+name = "Window with last-seen indices"
+label = "last index map"
+idea = "Store the latest index of every character. When `s[right]` was last seen inside the window, move `left` just past it."
+time = "O(n)"
+space = "O(min(n, alphabet))"
+note = "Each character is visited once; the map holds at most one entry per distinct character."
+code = '''class Solution:
+    def lengthOfLongestSubstring(self, s: str) -> int:
+        last = {}
+        left = 0
+        best = 0
+        for right, ch in enumerate(s):
+            if ch in last and last[ch] >= left:
+                left = last[ch] + 1
+            last[ch] = right
+            best = max(best, right - left + 1)
+        return best
+'''
+
+[[approaches]]
+name = "Window with a set"
+label = "set + shrink"
+idea = "Add `s[right]` to a set. While it was already there, drop `s[left]` from the set and advance `left`."
+time = "O(n)"
+space = "O(min(n, alphabet))"
+note = "Every character enters and leaves the set at most once."
+code = '''class Solution:
+    def lengthOfLongestSubstring(self, s: str) -> int:
+        window = set()
+        left = 0
+        best = 0
+        for right, ch in enumerate(s):
+            while ch in window:
+                window.remove(s[left])
+                left += 1
+            window.add(ch)
+            best = max(best, right - left + 1)
+        return best
+'''

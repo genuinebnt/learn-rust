@@ -74,5 +74,7 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       LeetCode's real Python 3 template (`templates.py` fetches it; Premium templates are typed in
       `premium_templates.json`) and runs it against brute-force references (`page_tests.py`). Shown on the problem page
       with approach tabs, highlighting and a copy button. Company pills filter the list and "+n" expands in place.
+- [x] Written pages, 26 of the 150 (2026-10-07): Arrays & Hashing, Two Pointers, Sliding Window and Stack. Next: Binary
+      Search, Linked List, Trees, Heap, Backtracking, Tries, Graphs, Advanced Graphs, DP, Greedy, Intervals, Math, Bits.
 - [ ] Content: NeetCode 150 problem pages (Python), then the 250's must-learn, then the rest; pattern lessons for all
       18 categories.

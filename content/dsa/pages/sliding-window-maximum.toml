@@ -1,0 +1,59 @@
+intuition = """
+For each window you need the maximum, and the window moves by one each step. A heap would work but costs O(log n) per step. The O(n) answer is a **monotonic deque** of indices whose values are **decreasing**: the front is always the maximum of the current window.
+
+When a new number arrives, drop from the back every smaller value (they can never be a maximum again, since the new number is bigger and will stay in the window longer), then append it. Drop the front if it has slid out of the window.
+"""
+tips = [
+    "Store **indices** in the deque, not values: you need them to tell when the front has left the window.",
+    "Pop from the back while `nums[back] < nums[i]`. Use `<` or `<=`; both are correct, `<=` keeps the deque smaller.",
+    "Start recording answers only once the first full window exists (`i >= k - 1`).",
+    "State the invariant: the deque holds indices in increasing order whose values are in decreasing order.",
+]
+
+[[approaches]]
+name = "Monotonic deque"
+label = "monotonic deque"
+idea = "Keep indices of a decreasing run of values. The front is the window's maximum; pop the front when it leaves, and pop smaller values off the back as new numbers arrive."
+time = "O(n)"
+space = "O(k)"
+note = "Every index is appended and popped at most once."
+code = '''from collections import deque
+
+
+class Solution:
+    def maxSlidingWindow(self, nums: list[int], k: int) -> list[int]:
+        window = deque()  # indices; their values decrease from front to back
+        result = []
+        for i, x in enumerate(nums):
+            while window and nums[window[-1]] <= x:
+                window.pop()
+            window.append(i)
+            if window[0] <= i - k:
+                window.popleft()
+            if i >= k - 1:
+                result.append(nums[window[0]])
+        return result
+'''
+
+[[approaches]]
+name = "Max-heap with lazy deletion"
+label = "heap"
+idea = "Push `(-value, index)` for every number. The top of the heap is the maximum; pop it while its index is outside the window."
+time = "O(n log n)"
+space = "O(n)"
+note = "Simpler to come up with, but slower and the heap can hold stale entries."
+code = '''import heapq
+
+
+class Solution:
+    def maxSlidingWindow(self, nums: list[int], k: int) -> list[int]:
+        heap = []
+        result = []
+        for i, x in enumerate(nums):
+            heapq.heappush(heap, (-x, i))
+            while heap[0][1] <= i - k:
+                heapq.heappop(heap)
+            if i >= k - 1:
+                result.append(-heap[0][0])
+        return result
+'''

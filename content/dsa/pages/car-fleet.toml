@@ -1,0 +1,47 @@
+intuition = """
+A car can't pass the one ahead; if it catches up it joins that car's fleet and goes at its speed. So look at the cars from the one **closest to the target** backwards. Compute each car's time to reach the target as if the road were empty: `(target − position) / speed`.
+
+Going from the front, a car whose time is **greater** than the fleet ahead of it will never catch up: it starts a new fleet. A car whose time is **less or equal** catches up and merges. So the answer is the number of times the running maximum time increases.
+"""
+tips = [
+    "Sort by position **descending** (closest to the target first) so each car is compared with the fleet immediately ahead.",
+    "Compare **times**, not speeds: a fast car far behind may still never reach a slow car in time.",
+    "Equal arrival times mean they arrive together and count as one fleet, so only a **strictly larger** time starts a new fleet.",
+    "You can use a stack of fleet times (pop when the new car is not slower), but the single `slowest` variable is enough.",
+]
+
+[[approaches]]
+name = "Sort by position, count increasing arrival times"
+label = "sort + scan"
+idea = "Process cars from the closest to the target. A car that takes longer than every car ahead is the leader of a new fleet."
+time = "O(n log n)"
+space = "O(n)"
+note = "Sorting dominates."
+code = '''class Solution:
+    def carFleet(self, target: int, position: list[int], speed: list[int]) -> int:
+        fleets = 0
+        slowest = 0.0  # arrival time of the fleet just ahead
+        for pos, spd in sorted(zip(position, speed), reverse=True):
+            time = (target - pos) / spd
+            if time > slowest:
+                fleets += 1
+                slowest = time
+        return fleets
+'''
+
+[[approaches]]
+name = "Stack of fleet times"
+label = "stack"
+idea = "Push each car's arrival time; if it is not greater than the time on top it merges into that fleet, so don't push it."
+time = "O(n log n)"
+space = "O(n)"
+note = "The same logic with an explicit stack; the final stack size is the number of fleets."
+code = '''class Solution:
+    def carFleet(self, target: int, position: list[int], speed: list[int]) -> int:
+        stack = []
+        for pos, spd in sorted(zip(position, speed), reverse=True):
+            time = (target - pos) / spd
+            if not stack or time > stack[-1]:
+                stack.append(time)
+        return len(stack)
+'''

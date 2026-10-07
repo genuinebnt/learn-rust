@@ -1,0 +1,65 @@
+intuition = """
+Fix the **smallest** number of the triplet, `nums[i]`. What's left is Two Sum II: find two numbers after it that add up to `-nums[i]`, which two pointers on the **sorted** array do in O(n). Doing that for every `i` gives O(n²).
+
+The hard part is **duplicates**: the same triplet must not appear twice. Sorting puts equal values together, so you skip a value for `i` that equals the previous one, and after finding a triplet you skip repeated values on the left.
+"""
+tips = [
+    "Sort first. It enables both the two-pointer scan and the duplicate skipping.",
+    "Skip duplicates for `i` with `if i > 0 and nums[i] == nums[i - 1]: continue`. Skip them for `left` only **after** you record a triplet.",
+    "Once `nums[i] > 0`, no triplet starting here can sum to zero (everything after is larger), so you can `break`.",
+    "Don't use a set of tuples to dedupe unless you say you know it costs extra space; interviewers want the skipping logic.",
+]
+
+[[approaches]]
+name = "Sort, then two pointers for each first number"
+label = "sort + two pointers"
+idea = "For each `i`, run the two-pointer search for a pair summing to `-nums[i]` in the part of the array after `i`, skipping repeated values."
+time = "O(n²)"
+space = "O(1)"
+note = "Sorting is O(n log n); the n two-pointer scans dominate. Not counting the output list."
+code = '''class Solution:
+    def threeSum(self, nums: list[int]) -> list[list[int]]:
+        nums.sort()
+        result = []
+        for i in range(len(nums) - 2):
+            if nums[i] > 0:
+                break
+            if i > 0 and nums[i] == nums[i - 1]:
+                continue
+            left, right = i + 1, len(nums) - 1
+            while left < right:
+                total = nums[i] + nums[left] + nums[right]
+                if total < 0:
+                    left += 1
+                elif total > 0:
+                    right -= 1
+                else:
+                    result.append([nums[i], nums[left], nums[right]])
+                    left += 1
+                    while left < right and nums[left] == nums[left - 1]:
+                        left += 1
+        return result
+'''
+
+[[approaches]]
+name = "Hash set for the third number"
+label = "hash set"
+idea = "For each pair-start `i`, scan forward remembering the numbers seen, and look for the complement. It needs a set of tuples to dedupe, which is why the pointer version is preferred."
+time = "O(n²)"
+space = "O(n)"
+note = "Same time, more space, and the duplicate handling is clumsier."
+code = '''class Solution:
+    def threeSum(self, nums: list[int]) -> list[list[int]]:
+        nums.sort()
+        found = set()
+        for i in range(len(nums) - 2):
+            if i > 0 and nums[i] == nums[i - 1]:
+                continue
+            seen = set()
+            for j in range(i + 1, len(nums)):
+                need = -nums[i] - nums[j]
+                if need in seen:
+                    found.add((nums[i], need, nums[j]))
+                seen.add(nums[j])
+        return [list(t) for t in found]
+'''

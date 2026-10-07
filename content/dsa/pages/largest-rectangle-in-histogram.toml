@@ -1,0 +1,52 @@
+intuition = """
+The tallest rectangle that uses bar `i` as its **limiting (shortest) bar** extends left and right until it meets a shorter bar. If you know, for every bar, the nearest shorter bar on each side, the answer is `max(height[i] × width)`.
+
+A **monotonic stack** finds both at once. Keep indices of bars with increasing heights. When a bar shorter than the top arrives, the top's rectangle ends here: its right edge is the new bar, and its left edge is the bar below it on the stack. Pop it, compute the area, repeat.
+"""
+tips = [
+    "Add a sentinel bar of height `0` at the end (or process leftovers after the loop) so every bar gets popped and measured.",
+    "The width after popping bar `top` is `i - stack[-1] - 1` if the stack isn't empty, otherwise `i` (it reaches the left edge).",
+    "When a popped bar's left edge is not the previous index, the bars in between were taller and were already popped. That's why you use the new stack top as the left boundary.",
+    "Brute force (expand from each bar) is O(n²); a divide-and-conquer on the minimum is O(n log n) on average. The stack is the O(n) answer.",
+]
+
+[[approaches]]
+name = "Monotonic stack"
+label = "monotonic stack"
+idea = "Keep bars in increasing height order. A shorter bar closes every taller bar on top, giving each of them its widest rectangle."
+time = "O(n)"
+space = "O(n)"
+note = "Every index is pushed and popped once."
+code = '''class Solution:
+    def largestRectangleArea(self, heights: list[int]) -> int:
+        stack = []  # indices of bars with increasing heights
+        best = 0
+        for i, h in enumerate(heights + [0]):  # the 0 closes every bar left on the stack
+            while stack and heights[stack[-1]] >= h:
+                height = heights[stack.pop()]
+                left = stack[-1] if stack else -1
+                best = max(best, height * (i - left - 1))
+            stack.append(i)
+        return best
+'''
+
+[[approaches]]
+name = "Expand from every bar"
+label = "brute force"
+idea = "For each bar, walk left and right while the bars are at least as tall, and take height times width."
+time = "O(n²)"
+space = "O(1)"
+note = "Fine for a first answer; too slow for 100,000 bars."
+code = '''class Solution:
+    def largestRectangleArea(self, heights: list[int]) -> int:
+        best = 0
+        for i, h in enumerate(heights):
+            left = i
+            while left > 0 and heights[left - 1] >= h:
+                left -= 1
+            right = i
+            while right < len(heights) - 1 and heights[right + 1] >= h:
+                right += 1
+            best = max(best, h * (right - left + 1))
+        return best
+'''

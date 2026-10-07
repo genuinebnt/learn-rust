@@ -1,0 +1,47 @@
+intuition = """
+The water held by two lines is **width × the shorter height**. Start with the widest container (both ends). To get more water you'd need a taller shorter-side, since moving inward only shrinks the width. So move the pointer at the **shorter** line: moving the taller one can never help, because the shorter line still limits the height and the width just got smaller.
+
+That argument is the whole problem: each step safely discards one line, so you finish in n steps.
+"""
+tips = [
+    "State why you move the shorter side. The code is four lines; the justification is what's being graded.",
+    "When the two heights are equal, moving either side is fine.",
+    "Compute the area **before** moving, and keep the maximum as you go.",
+    "Brute force (every pair) is O(n²); mention it first so the improvement is clear.",
+]
+
+[[approaches]]
+name = "Two pointers, move the shorter side"
+label = "two pointers"
+idea = "Compute the area for the current pair, record the best, then move the pointer at the shorter line inward."
+time = "O(n)"
+space = "O(1)"
+note = "Every iteration moves a pointer inward."
+code = '''class Solution:
+    def maxArea(self, height: list[int]) -> int:
+        left, right = 0, len(height) - 1
+        best = 0
+        while left < right:
+            best = max(best, (right - left) * min(height[left], height[right]))
+            if height[left] < height[right]:
+                left += 1
+            else:
+                right -= 1
+        return best
+'''
+
+[[approaches]]
+name = "Brute force"
+label = "brute force"
+idea = "Try every pair of lines. Fine to say out loud; too slow for 100,000 lines."
+time = "O(n²)"
+space = "O(1)"
+note = "n·(n−1)/2 pairs."
+code = '''class Solution:
+    def maxArea(self, height: list[int]) -> int:
+        best = 0
+        for i in range(len(height)):
+            for j in range(i + 1, len(height)):
+                best = max(best, (j - i) * min(height[i], height[j]))
+        return best
+'''

@@ -1,0 +1,75 @@
+intuition = """
+`s2` contains a permutation of `s1` if some **window of `s2` of length `len(s1)`** has exactly the same letter counts as `s1`. So slide a fixed-size window over `s2`, keeping its letter counts up to date: add the letter that enters, remove the one that leaves, and compare the counts to `s1`'s.
+
+Comparing two 26-slot arrays is O(26), so the whole thing is linear.
+"""
+tips = [
+    "If `len(s1) > len(s2)` the answer is `False` immediately.",
+    "Build the first window from `s2[:len(s1)]`, then slide: each step adds `s2[right]` and removes `s2[right - len(s1)]`.",
+    "Comparing the full count arrays each step is simple; you can instead track how many of the 26 letters currently match to make each step O(1).",
+    "Counts are for lowercase letters only, so a 26-slot list works instead of a dictionary.",
+]
+
+[[approaches]]
+name = "Fixed window, compare counts"
+label = "fixed window"
+idea = "Count `s1`. Slide a window of the same length over `s2`, updating its count by one letter in and one letter out, and test equality of the two count arrays."
+time = "O(26 · n)"
+space = "O(1)"
+note = "n is the length of `s2`; the comparison is 26 numbers."
+code = '''class Solution:
+    def checkInclusion(self, s1: str, s2: str) -> bool:
+        if len(s1) > len(s2):
+            return False
+        need = [0] * 26
+        window = [0] * 26
+        for a, b in zip(s1, s2):
+            need[ord(a) - ord("a")] += 1
+            window[ord(b) - ord("a")] += 1
+        if window == need:
+            return True
+        for right in range(len(s1), len(s2)):
+            window[ord(s2[right]) - ord("a")] += 1
+            window[ord(s2[right - len(s1)]) - ord("a")] -= 1
+            if window == need:
+                return True
+        return False
+'''
+
+[[approaches]]
+name = "Fixed window, track matches"
+label = "match counter"
+idea = "Keep a count of how many of the 26 letters currently have the right number in the window. Each slide changes at most two letters, so each step is O(1)."
+time = "O(n)"
+space = "O(1)"
+note = "Strictly linear; a bit more bookkeeping."
+code = '''class Solution:
+    def checkInclusion(self, s1: str, s2: str) -> bool:
+        if len(s1) > len(s2):
+            return False
+        need = [0] * 26
+        window = [0] * 26
+        for ch in s1:
+            need[ord(ch) - ord("a")] += 1
+        matches = 0
+
+        def add(index: int, delta: int) -> None:
+            nonlocal matches
+            if window[index] == need[index]:
+                matches -= 1
+            window[index] += delta
+            if window[index] == need[index]:
+                matches += 1
+
+        matches = sum(1 for i in range(26) if need[i] == 0)
+        for ch in s2[: len(s1)]:
+            add(ord(ch) - ord("a"), 1)
+        if matches == 26:
+            return True
+        for right in range(len(s1), len(s2)):
+            add(ord(s2[right]) - ord("a"), 1)
+            add(ord(s2[right - len(s1)]) - ord("a"), -1)
+            if matches == 26:
+                return True
+        return False
+'''

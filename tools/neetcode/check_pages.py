@@ -42,7 +42,9 @@ def check(slug):
     template = TEMPLATES.get(slug)
     if not template:
         return [f"no LeetCode template for {slug}: run templates.py or add it to premium_templates.json"]
-    want = signatures(template.rstrip() + "\n        pass\n")
+    # The template's method bodies are empty, which doesn't parse: give each one a `pass`.
+    stubbed = "".join(line + ("\n        pass" if line.lstrip().startswith("def ") else "") + "\n" for line in template.splitlines())
+    want = signatures(stubbed)
     for ap in page.get("approaches", []):
         where = f"{slug} / {ap['name']}"
         try:

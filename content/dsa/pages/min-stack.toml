@@ -1,0 +1,66 @@
+intuition = """
+A normal stack is easy; the problem is `getMin` in O(1). When you push a value, the minimum **of everything below and including it** is already known, so store it next to the value. Then the minimum is just whatever the top entry says, and popping restores the previous minimum automatically.
+
+Store `(value, min_so_far)` pairs on one stack.
+"""
+tips = [
+    "The new `min_so_far` is `min(value, previous top's min)`; for the first push there is no previous, so it's the value itself.",
+    "A separate second stack of minimums works too. Pairs on a single stack keep the two in step and can't drift apart.",
+    "All five operations are O(1); say it, because that's the whole point.",
+    "The problem guarantees `pop`, `top` and `getMin` are only called on a non-empty stack.",
+]
+
+[[approaches]]
+name = "One stack of (value, minimum so far)"
+label = "pairs"
+idea = "Every entry remembers the smallest value at or below it, so `getMin` reads the top entry and `pop` needs no recomputation."
+time = "O(1) per operation"
+space = "O(n)"
+note = "One extra integer per element."
+code = '''class MinStack:
+
+    def __init__(self):
+        self.stack = []  # (value, smallest value in the stack up to here)
+
+    def push(self, value: int) -> None:
+        smallest = min(value, self.stack[-1][1]) if self.stack else value
+        self.stack.append((value, smallest))
+
+    def pop(self) -> None:
+        self.stack.pop()
+
+    def top(self) -> int:
+        return self.stack[-1][0]
+
+    def getMin(self) -> int:
+        return self.stack[-1][1]
+'''
+
+[[approaches]]
+name = "Two stacks"
+label = "two stacks"
+idea = "Keep a second stack that gets a new entry only when a value is less than or equal to the current minimum; pop from it when the value being popped equals its top."
+time = "O(1) per operation"
+space = "O(n)"
+note = "Saves space when the minimum rarely changes. Use `<=` so duplicates of the minimum are counted."
+code = '''class MinStack:
+
+    def __init__(self):
+        self.stack = []
+        self.mins = []
+
+    def push(self, value: int) -> None:
+        self.stack.append(value)
+        if not self.mins or value <= self.mins[-1]:
+            self.mins.append(value)
+
+    def pop(self) -> None:
+        if self.stack.pop() == self.mins[-1]:
+            self.mins.pop()
+
+    def top(self) -> int:
+        return self.stack[-1]
+
+    def getMin(self) -> int:
+        return self.mins[-1]
+'''

@@ -1,0 +1,56 @@
+intuition = """
+A window of length `L` can be turned into one repeated letter with at most `k` replacements exactly when `L − (count of the most common letter in it) ≤ k`: keep the most common letter and replace the rest.
+
+So grow a window to the right, track letter counts, and whenever `window size − max count > k`, shrink from the left. The largest window you hold is the answer.
+
+The nice trick: you never need to **lower** `max_count` when the window shrinks. A stale, too-high `max_count` can only make the window look valid when it isn't *larger* than a previous best, so the answer never over-counts.
+"""
+tips = [
+    "The validity condition `(right - left + 1) - max_count <= k` is the one line to explain clearly.",
+    "It's fine to leave `max_count` stale after shrinking. Say why: the window only grows when `max_count` truly increases, and that is the only way to beat the best so far.",
+    "Use an array of 26 counters (uppercase letters only) rather than a dictionary.",
+    "A simple `if` (not `while`) to shrink by one is enough with the stale-max trick: the window slides rather than shrinks.",
+]
+
+[[approaches]]
+name = "Sliding window with counts"
+label = "sliding window"
+idea = "Expand `right`, count letters, track the highest count seen. If the window needs more than `k` replacements, move `left` once."
+time = "O(n)"
+space = "O(1)"
+note = "Each index enters and leaves the window once; 26 counters."
+code = '''class Solution:
+    def characterReplacement(self, s: str, k: int) -> int:
+        counts = [0] * 26
+        left = 0
+        max_count = 0
+        for right, ch in enumerate(s):
+            idx = ord(ch) - ord("A")
+            counts[idx] += 1
+            max_count = max(max_count, counts[idx])
+            if (right - left + 1) - max_count > k:
+                counts[ord(s[left]) - ord("A")] -= 1
+                left += 1
+        return len(s) - left
+'''
+
+[[approaches]]
+name = "Exact maximum in each window"
+label = "exact max"
+idea = "Recompute the highest count in the window each time it's needed. Slower by a factor of 26, but you don't have to argue about a stale maximum."
+time = "O(26 · n)"
+space = "O(1)"
+note = "Easier to defend; the extra factor is a constant."
+code = '''class Solution:
+    def characterReplacement(self, s: str, k: int) -> int:
+        counts = [0] * 26
+        left = 0
+        best = 0
+        for right, ch in enumerate(s):
+            counts[ord(ch) - ord("A")] += 1
+            while (right - left + 1) - max(counts) > k:
+                counts[ord(s[left]) - ord("A")] -= 1
+                left += 1
+            best = max(best, right - left + 1)
+        return best
+'''

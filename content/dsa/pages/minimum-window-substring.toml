@@ -1,0 +1,71 @@
+intuition = """
+You want the shortest window of `s` that contains every character of `t` (with multiplicity). Grow the window to the right until it **covers** `t`; then shrink from the left as far as it still covers `t`, recording the smallest window; then grow again.
+
+Track how many of `t`'s distinct characters are currently satisfied (`have`) against how many are needed (`need`). The window is valid exactly when `have == need`, and each move updates that in O(1).
+"""
+tips = [
+    "Count `t` once into a dictionary. The window's counts only matter for characters that appear in `t`.",
+    "Increase `have` when a character's window count **reaches** its required count, and decrease it when removing a character drops it **below**. Don't recount the whole window.",
+    "Shrink with a `while have == need` loop, recording the best window **before** removing the left character.",
+    "If no window works return `\"\"`. Initialise the best length to infinity and check it at the end.",
+    "This is the standard \"expand until valid, shrink while valid\" template; the same skeleton solves Minimum Size Subarray Sum and similar problems.",
+]
+
+[[approaches]]
+name = "Expand and shrink with a satisfied-counter"
+label = "sliding window"
+idea = "Move `right` to include characters. Once every needed character is covered, move `left` to cut the window down while it stays covered, remembering the shortest."
+time = "O(|s| + |t|)"
+space = "O(|s| + |t|)"
+note = "Each index is added once and removed at most once; the count maps hold at most the distinct characters."
+code = '''from collections import Counter
+
+
+class Solution:
+    def minWindow(self, s: str, t: str) -> str:
+        if not t or len(t) > len(s):
+            return ""
+        need = Counter(t)
+        window = {}
+        have, required = 0, len(need)
+        best_len = float("inf")
+        best_start = 0
+        left = 0
+        for right, ch in enumerate(s):
+            window[ch] = window.get(ch, 0) + 1
+            if ch in need and window[ch] == need[ch]:
+                have += 1
+            while have == required:
+                if right - left + 1 < best_len:
+                    best_len = right - left + 1
+                    best_start = left
+                out = s[left]
+                window[out] -= 1
+                if out in need and window[out] < need[out]:
+                    have -= 1
+                left += 1
+        return "" if best_len == float("inf") else s[best_start:best_start + best_len]
+'''
+
+[[approaches]]
+name = "Brute force"
+label = "brute force"
+idea = "Check every substring for coverage. Worth saying for the contrast; hopeless at 100,000 characters."
+time = "O(n² · |t|)"
+space = "O(|t|)"
+note = "Quadratic substrings, each checked with a count."
+code = '''from collections import Counter
+
+
+class Solution:
+    def minWindow(self, s: str, t: str) -> str:
+        need = Counter(t)
+        best = ""
+        for i in range(len(s)):
+            for j in range(i + len(t), len(s) + 1):
+                if best and j - i >= len(best):
+                    break
+                if not need - Counter(s[i:j]):
+                    best = s[i:j]
+        return best
+'''

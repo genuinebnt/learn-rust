@@ -1,0 +1,29 @@
+intuition = """
+Brackets must close in the **reverse order** they opened: the most recent unmatched opener has to be closed first. That's exactly a **stack**. Push each opener; for each closer, the top of the stack must be its matching opener, otherwise the string is invalid. At the end the stack must be empty.
+"""
+tips = [
+    "Use a dictionary from each closer to its opener, so you don't write three separate cases.",
+    "Check that the stack isn't empty before you pop: a string like `\")\"` has a closer with nothing to match.",
+    "Return `len(stack) == 0` at the end; `\"(\"` leaves an opener unclosed.",
+    "An odd length can never be valid, so you can return `False` straight away as a quick exit.",
+]
+
+[[approaches]]
+name = "Stack of open brackets"
+label = "stack"
+idea = "Push openers. On a closer, pop and compare with the matching opener. The string is valid if nothing mismatches and the stack ends empty."
+time = "O(n)"
+space = "O(n)"
+note = "One pass; the stack can hold every character."
+code = '''class Solution:
+    def isValid(self, s: str) -> bool:
+        pairs = {")": "(", "]": "[", "}": "{"}
+        stack = []
+        for ch in s:
+            if ch in pairs:
+                if not stack or stack.pop() != pairs[ch]:
+                    return False
+            else:
+                stack.append(ch)
+        return not stack
+'''

@@ -1,0 +1,46 @@
+intuition = """
+You want the biggest `sell − buy` where the buy comes **before** the sell. Walk through the prices once while remembering the **lowest price so far**. At each day, the best you could do by selling today is `price − lowest_so_far`, so keep the largest of those.
+
+It's a "sliding window" in the loose sense: the window's left edge (the buy day) jumps forward whenever you see a new lowest price.
+"""
+tips = [
+    "Update the minimum **after** computing today's profit, or at least make sure a price can't be both the buy and the sell of the same trade. Equal-day trades give `0`, which is harmless.",
+    "If prices only fall, the answer is `0` (don't trade), so start `best` at `0`, not at a negative number.",
+    "Brute force is every pair, O(n²). The single pass is the expected answer and fits in five lines.",
+]
+
+[[approaches]]
+name = "One pass with the lowest price so far"
+label = "one pass"
+idea = "Track the minimum price seen and the best profit if you sold today."
+time = "O(n)"
+space = "O(1)"
+note = "Two variables and one loop."
+code = '''class Solution:
+    def maxProfit(self, prices: list[int]) -> int:
+        lowest = float("inf")
+        best = 0
+        for price in prices:
+            lowest = min(lowest, price)
+            best = max(best, price - lowest)
+        return best
+'''
+
+[[approaches]]
+name = "Two pointers (buy and sell)"
+label = "two pointers"
+idea = "Keep a buy pointer and a sell pointer. If the sell price is below the buy price, that sell day is the new cheapest buy; otherwise record the profit."
+time = "O(n)"
+space = "O(1)"
+note = "The sell pointer visits every day once."
+code = '''class Solution:
+    def maxProfit(self, prices: list[int]) -> int:
+        buy = 0
+        best = 0
+        for sell in range(1, len(prices)):
+            if prices[sell] < prices[buy]:
+                buy = sell
+            else:
+                best = max(best, prices[sell] - prices[buy])
+        return best
+'''

@@ -1,0 +1,53 @@
+intuition = """
+For each day you want the distance to the next **warmer** day. Scan left to right and keep a stack of days that are **still waiting** for a warmer day; their temperatures are decreasing from bottom to top. When today's temperature beats the day on top, that day has found its answer: `today − that day`. Pop it and check the next one down.
+
+This is the **monotonic stack** pattern: a stack kept in sorted order, where each element is popped exactly once, so the whole thing is linear.
+"""
+tips = [
+    "Store **indices** on the stack, not temperatures: you need them to compute the distance.",
+    "Use a strict `>` when comparing, so an equal temperature doesn't count as warmer.",
+    "Days still on the stack at the end never found a warmer day; their answer stays `0`, so initialise the result with zeros.",
+    "A brute-force scan for each day is O(n²) and times out at 100,000 days.",
+]
+
+[[approaches]]
+name = "Monotonic stack"
+label = "monotonic stack"
+idea = "Keep indices of days waiting for a warmer day. Each new day answers every colder day on top of the stack."
+time = "O(n)"
+space = "O(n)"
+note = "Every index is pushed once and popped at most once."
+code = '''class Solution:
+    def dailyTemperatures(self, temperatures: list[int]) -> list[int]:
+        answer = [0] * len(temperatures)
+        waiting = []  # indices, temperatures decreasing toward the top
+        for today, temp in enumerate(temperatures):
+            while waiting and temperatures[waiting[-1]] < temp:
+                earlier = waiting.pop()
+                answer[earlier] = today - earlier
+            waiting.append(today)
+        return answer
+'''
+
+[[approaches]]
+name = "Scan backwards, hopping by answers"
+label = "backward scan"
+idea = "Go from the right. For day i, jump ahead using the already-computed answers of the days after it until you reach a warmer one."
+time = "O(n)"
+space = "O(1)"
+note = "Amortised linear: the hops use earlier answers, so no day is rescanned from scratch. Extra space is just the output."
+code = '''class Solution:
+    def dailyTemperatures(self, temperatures: list[int]) -> list[int]:
+        n = len(temperatures)
+        answer = [0] * n
+        for i in range(n - 2, -1, -1):
+            j = i + 1
+            while j < n and temperatures[j] <= temperatures[i]:
+                if answer[j] == 0:
+                    j = n
+                    break
+                j += answer[j]
+            if j < n:
+                answer[i] = j - i
+        return answer
+'''

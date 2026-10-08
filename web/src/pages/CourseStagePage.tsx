@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { api, type CourseStagePage as Page, type CourseStageRow, type SolutionFile } from "../api";
 import { Header } from "../components/Header";
 import { DIFFICULTY_COLOR, SplitTitle } from "./CoursePage";
@@ -180,7 +180,8 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     const qc = useQueryClient();
     const nav = useNavigate();
     const key = ["course-stage", course, stage];
-    const q = useQuery({ queryKey: key, queryFn: () => api.courseStage(course, stage) });
+    // Poll while the page is open and visible: a push in the terminal shows up here within a few seconds.
+    const q = useQuery({ queryKey: key, queryFn: () => api.courseStage(course, stage), refetchInterval: 3000 });
     const set = (p: Page) => {
         qc.setQueryData(key, p);
         qc.invalidateQueries({ queryKey: ["course", course] });
@@ -189,6 +190,8 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     const sol = useMutation({ mutationFn: () => api.revealCourseSolution(course, stage), onSuccess: set });
     const p = q.data;
     const [active, setActive] = useState("s-top");
+    const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+    const seenRun = useRef<number | null>(null);
     const tabFromHash = (): Tab => {
         const h = location.hash.slice(1);
         return (["instructions", "hints", "solution", "concepts", "run"] as const).find((x) => x === h) ?? "instructions";
@@ -203,6 +206,26 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     useEffect(() => {
         window.scrollTo({ top: 0 });
     }, [stage]);
+    // A run that arrives while the page is open (or one from the last half minute) pops a result: "Tests passed, proceed" or the count.
+    const lastRun = p?.last_run ?? null;
+    useEffect(() => {
+        if (!lastRun) return;
+        const first = seenRun.current === null;
+        if (seenRun.current === lastRun.id) return;
+        seenRun.current = lastRun.id;
+        const fresh = Date.now() - new Date(lastRun.at).getTime() < 30_000;
+        if (first && !fresh) return;
+        qc.invalidateQueries({ queryKey: ["course", course] });
+        setToast(
+            lastRun.ok
+                ? { ok: true, text: "Tests passed" }
+                : { ok: false, text: lastRun.problem ? "The tests did not run" : `${lastRun.passed} of ${lastRun.total} passing` },
+        );
+        if (!lastRun.ok) {
+            const t = setTimeout(() => setToast(null), 9000);
+            return () => clearTimeout(t);
+        }
+    }, [lastRun?.id]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable]")) return;
@@ -311,6 +334,20 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                     </span>
                 </div>
             </div>
+            {toast && (
+                <div className={`cx-toast ${toast.ok ? "ok" : "bad"}`} role="status">
+                    <i>{toast.ok ? "✓" : "!"}</i>
+                    <b>{toast.text}</b>
+                    {toast.ok && p.next && (
+                        <Link to="/courses/$course/$stage" params={{ course, stage: p.next.id }} onClick={() => setToast(null)}>
+                            Proceed to {p.next.title} →
+                        </Link>
+                    )}
+                    {toast.ok && !p.next && <span>That was the last stage.</span>}
+                    {!toast.ok && <button onClick={() => { pick("run"); setToast(null); }}>see details</button>}
+                    <button className="x" aria-label="Dismiss" onClick={() => setToast(null)}>×</button>
+                </div>
+            )}
             <div className="cx" style={{ "--ca": "var(--grn)", "--cab": "var(--grn-bg)" } as React.CSSProperties}>
                 <Sidebar course={course} page={p} />
                 <div className="cx-main">

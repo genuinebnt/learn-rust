@@ -3,5 +3,5 @@ title = "Grow the file and reuse slots"
 kind = "build"
 difficulty = "medium"
 tests = ["stages_1a::s1a_11", "stages_1a::s1a_12"]
-concepts = ["slot-allocation-and-invariants"]
 learn = ["growing a file by doubling (amortised O(1))", "a free list and slot reuse", "what an I/O error leaves behind"]
+concepts = ["slot-allocation-and-invariants", "collections-as-tables"]

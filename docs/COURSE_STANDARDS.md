@@ -7,7 +7,7 @@ them. **Read this before changing anything under `courses/` or the Courses pages
 ## The decisions
 
 1. **A learning track as well as a project track.** The goal is to teach an idea and have the learner use it to solve the exercise. Every
-   stage names what it teaches (`learn = [...]` in `stage.toml`), links a concept article (`concepts = [...]`, files in `courses/<id>/concepts/`),
+   stage names what it teaches (`learn = [...]` in `stage.toml`), links at least two concept articles (`concepts = [...]`, files in `courses/<id>/concepts/`; articles are shared between stages and modules),
    and the exercise uses that concept. The concept comes first on the page ("Read first").
 2. **Stage size.** *"not too small but self contained exercises"*, *"i am not looking for one or two line change exercise"*, *"6 - 10 exercises
    is sweetspot but not a hard requirement"*. A stage is a self-contained exercise: tens of lines and a design decision, passable on its own.
@@ -42,7 +42,7 @@ them. **Read this before changing anything under `courses/` or the Courses pages
 ## How these are enforced
 
 - `anneal course lint` (content only, needs no reference): for every non-boss stage of a *published* module (`published_modules` in `course.toml`;
-  `--all` checks the rest): `learn` has 2 or more entries, at least one concept exists, a Performance section exists, at least 2 hints, and the
+  `--all` checks the rest): `learn` has 2 or more entries, at least two concepts are linked, a Performance section exists, at least 2 hints, and the
   `### Tests` text stays short (at most 4 bullets per block, 8 per stage). CI runs it.
 - `anneal course verify` also fails a non-boss stage with fewer than 5 tests.
 - A module is added to `published_modules` only when lint and verify are clean for it.

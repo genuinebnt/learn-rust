@@ -3,5 +3,5 @@ title = "Counters and the log"
 kind = "build"
 difficulty = "medium"
 tests = ["stages_1a::s1a_13", "stages_1a::s1a_14", "stages_1a::s1a_15"]
-concepts = ["atomics-ordering-and-the-log"]
 learn = ["atomic counters and memory ordering", "an append-only log and reading it by offset", "why an empty write is not a flush"]
+concepts = ["atomics-ordering-and-the-log", "rust-io-errors", "mutex-owns-its-data"]

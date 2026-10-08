@@ -865,9 +865,10 @@ async fn logging_a_dsa_problem_feeds_progress_reviews_and_next_up(db: PgPool) {
     assert_eq!((two_sum["state"]["solved"].clone(), two_sum["state"]["assisted"].clone(), two_sum["state"]["last_grade"].clone(), two_sum["state"]["reps"].clone()), (json!(true), json!(false), json!("good"), json!(1)));
     assert!(two_sum["state"]["due"].is_string());
     assert_eq!((o["plan"]["goal_done"].as_u64(), o["patterns"][0]["solved"].as_u64()), (Some(1), Some(1)));
-    // The next problem follows the one just logged, skipping the Premium one outside the goal and the done one.
+    // The plan walks on from the problem just logged, skipping the done one and the Premium one outside the goal. What
+    // was left above it in the same topic comes next, before the next topic, so a topic is finished before moving on.
     assert_eq!(o["plan"]["start"], "lc-two-sum");
-    assert_eq!(o["plan"]["next_up"], json!(["lc-valid-palindrome", "lc-two-sum-ii-input-array-is-sorted", "lc-contains-duplicate"]));
+    assert_eq!(o["plan"]["next_up"], json!(["lc-contains-duplicate", "lc-valid-palindrome", "lc-two-sum-ii-input-array-is-sorted"]));
 
     // A solve through the log counts toward the streak and the Progress pages like any other.
     let (_, a) = call(&app, Method::GET, "/api/activity?sections=D", None).await;
@@ -1418,4 +1419,118 @@ async fn my_solutions_are_kept_per_problem_and_can_be_edited_and_removed(db: PgP
     let left = list("lc-two-sum").await;
     assert_eq!(left.as_array().unwrap().len(), 1);
     assert_eq!(left[0]["id"], b["id"]);
+}
+
+fn plus(day: &str, n: i64) -> String {
+    (day.parse::<chrono::NaiveDate>().unwrap() + chrono::TimeDelta::days(n)).to_string()
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn the_plan_starts_from_the_routine_and_follows_the_owners_rules_and_calendar(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    let (status, p) = call(&app, Method::GET, "/api/plan", None).await;
+    assert_eq!(status, StatusCode::OK, "{p}");
+    let today = p["today"].as_str().unwrap().to_owned();
+    assert_eq!(p["active"], "default");
+    assert_eq!(p["plans"].as_array().unwrap().len(), 1);
+    assert_eq!(p["overrides"], json!({}));
+    let topics: Vec<&str> = p["topics"].as_array().unwrap().iter().map(|t| t["id"].as_str().unwrap()).collect();
+    assert_eq!(topics, ["D1", "D2"]);
+    assert!(p["summary"]["left"].as_u64().unwrap() >= 3 && p["summary"]["finish"].is_string(), "{}", p["summary"]);
+    assert!(p["days"].as_array().unwrap().len() > 100);
+    // Every day has a kind; a problem day carries a problem unless the list has run out.
+    let first_solve = p["days"].as_array().unwrap().iter().find(|d| d["kind"] == "solve" && d["date"].as_str().unwrap() >= today.as_str()).unwrap();
+    assert!(first_solve["new"][0]["title"].is_string());
+
+    // Making the first problem day a break moves its problem to the next problem day.
+    let day = first_solve["date"].as_str().unwrap().to_owned();
+    let first_problem = first_solve["new"][0]["id"].clone();
+    let state = json!({ "rules": p["rules"], "overrides": { day.clone(): "break" } });
+    assert_eq!(call(&app, Method::PUT, "/api/plan/state", Some(state)).await.0, StatusCode::OK);
+    let (_, q) = call(&app, Method::GET, &format!("/api/plan?from={day}&to={}", plus(&day, 10)), None).await;
+    assert_eq!(q["overrides"][&day], "break");
+    let broken = &q["days"][0];
+    assert_eq!((broken["kind"].as_str(), broken["edited"].as_bool(), broken["capacity"].as_u64()), (Some("break"), Some(true), Some(0)));
+    assert_eq!(broken["new"], json!([]));
+    let moved_to = q["days"].as_array().unwrap().iter().find(|d| d["new"][0]["id"] == first_problem).expect("the problem moved to another day");
+    assert!(moved_to["date"].as_str().unwrap() > day.as_str());
+
+    // A preview says what a change would do, and saves nothing.
+    let (_, pv) = call(&app, Method::POST, "/api/plan/preview", Some(json!({ "overrides": { plus(&day, 1): "break", plus(&day, 2): "break" } }))).await;
+    assert!(pv["diff"]["moved"].as_u64().unwrap() >= 1 && pv["diff"]["finish_days"].as_i64().unwrap() >= 1, "{pv}");
+    let (_, again) = call(&app, Method::GET, "/api/plan", None).await;
+    assert_eq!(again["overrides"].as_object().unwrap().len(), 1, "a preview doesn't save");
+
+    // Rules are checked.
+    let mut bad = p["rules"].clone();
+    bad["targets"] = json!({ "D99": plus(&today, 20) });
+    assert_eq!(call(&app, Method::PUT, "/api/plan/state", Some(json!({ "rules": bad, "overrides": {} }))).await.0, StatusCode::BAD_REQUEST);
+    let mut bad = p["rules"].clone();
+    bad["difficulty"] = json!([]);
+    assert_eq!(call(&app, Method::PUT, "/api/plan/state", Some(json!({ "rules": bad, "overrides": {} }))).await.0, StatusCode::BAD_REQUEST);
+    let mut bad = p["rules"].clone();
+    bad["topic_order"] = json!(["D1"]);
+    assert_eq!(call(&app, Method::PUT, "/api/plan/state", Some(json!({ "rules": bad, "overrides": {} }))).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(call(&app, Method::GET, &format!("/api/plan?from={today}&to={}", plus(&today, 400)), None).await.0, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn plans_can_be_saved_switched_and_deleted_each_with_its_own_calendar(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    let (_, p) = call(&app, Method::GET, "/api/plan", None).await;
+    let today = p["today"].as_str().unwrap().to_owned();
+    let day = plus(&today, 3);
+
+    // A target and a break in the default plan, then save it as another plan.
+    let mut rules = p["rules"].clone();
+    rules["targets"] = json!({ "D2": plus(&today, 40) });
+    call(&app, Method::PUT, "/api/plan/state", Some(json!({ "rules": rules, "overrides": { day.clone(): "break" } }))).await;
+    let (status, made) = call(&app, Method::POST, "/api/plans", Some(json!({ "name": "  Sprint " }))).await;
+    assert_eq!(status, StatusCode::OK, "{made}");
+    let id = made["id"].as_str().unwrap().to_owned();
+    let (_, p) = call(&app, Method::GET, "/api/plan", None).await;
+    assert_eq!(p["active"], id.as_str());
+    assert_eq!(p["plans"].as_array().unwrap().len(), 2);
+    assert_eq!(p["plans"][1]["name"], "Sprint");
+    assert_eq!(p["overrides"][&day], "break", "the copy keeps the calendar edits");
+
+    // Changing the new plan doesn't touch the default.
+    call(&app, Method::PUT, "/api/plan/state", Some(json!({ "rules": p["rules"], "overrides": {} }))).await;
+    assert_eq!(call(&app, Method::PUT, "/api/plans/active", Some(json!({ "id": "default" }))).await.0, StatusCode::OK);
+    let (_, d) = call(&app, Method::GET, "/api/plan", None).await;
+    assert_eq!(d["overrides"][&day], "break");
+    assert_eq!(d["rules"]["targets"]["D2"], plus(&today, 40));
+
+    // Refused: a blank name, an unknown plan, deleting the default. Deleting the other one works.
+    assert_eq!(call(&app, Method::POST, "/api/plans", Some(json!({ "name": "  " }))).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(call(&app, Method::PUT, "/api/plans/active", Some(json!({ "id": "nope" }))).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(call(&app, Method::DELETE, "/api/plans/default", None).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(call(&app, Method::DELETE, &format!("/api/plans/{id}"), None).await.0, StatusCode::OK);
+    let (_, d) = call(&app, Method::GET, "/api/plan", None).await;
+    assert_eq!(d["plans"].as_array().unwrap().len(), 1);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn a_break_today_means_no_reviews_and_no_new_problem(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    call(&app, Method::POST, "/api/dsa/problems/lc-two-sum/log", Some(json!({ "grade": "again" }))).await;
+    let (_, p) = call(&app, Method::GET, "/api/plan", None).await;
+    let today = p["today"].as_str().unwrap().to_owned();
+    let (_, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert!(o["plan"]["capacity"].as_u64().unwrap() >= 1);
+
+    call(&app, Method::PUT, "/api/plan/state", Some(json!({ "rules": p["rules"], "overrides": { today.clone(): "break" } }))).await;
+    let (_, o) = call(&app, Method::GET, "/api/dsa", None).await;
+    assert_eq!((o["plan"]["capacity"].as_u64(), o["plan"]["solve_day"].as_bool()), (Some(0), Some(false)));
+    assert_eq!(o["plan"]["review_ids"], json!([]));
+
+    // And a review logged now isn't scheduled onto the break.
+    let tomorrow = plus(&today, 1);
+    call(&app, Method::PUT, "/api/plan/state", Some(json!({ "rules": p["rules"], "overrides": { tomorrow.clone(): "break", plus(&today, 2): "break" } }))).await;
+    let (_, out) = call(&app, Method::POST, "/api/dsa/problems/lc-valid-palindrome/log", Some(json!({ "grade": "again" }))).await;
+    let due = out["due"].as_str().unwrap();
+    assert!(due != tomorrow && due != plus(&today, 2), "scheduled on a break: {due}");
 }

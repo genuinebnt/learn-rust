@@ -245,6 +245,10 @@ async fn review_context(db: &PgPool, problem_id: &str) -> sqlx::Result<(Option<(
     for due in planned {
         *load.entry(local(due)).or_default() += 1;
     }
+    // A day the owner made a break takes no reviews: count it as full many times over, so scheduling goes round it.
+    for day in crate::calendar::active_overrides(db).await?.into_iter().filter(|(_, k)| *k == crate::planner::Kind::Break).map(|(d, _)| d) {
+        *load.entry(day).or_default() += 1000;
+    }
     Ok((prev.map(|(stability, difficulty, last)| (fsrs::MemoryState { stability, difficulty }, local(last))), load))
 }
 

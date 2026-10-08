@@ -96,6 +96,20 @@ impl Default for Capacity {
 }
 
 impl Capacity {
+    /// The same capacities with `day`'s weekday set to `n`.
+    pub fn with(mut self, day: Weekday, n: u32) -> Capacity {
+        match day {
+            Weekday::Mon => self.mon = n,
+            Weekday::Tue => self.tue = n,
+            Weekday::Wed => self.wed = n,
+            Weekday::Thu => self.thu = n,
+            Weekday::Fri => self.fri = n,
+            Weekday::Sat => self.sat = n,
+            Weekday::Sun => self.sun = n,
+        }
+        self
+    }
+
     pub fn on(&self, day: Weekday) -> u32 {
         match day {
             Weekday::Mon => self.mon,
@@ -108,7 +122,7 @@ impl Capacity {
         }
     }
 
-    fn all(&self) -> [u32; 7] {
+    pub(crate) fn all(&self) -> [u32; 7] {
         [self.mon, self.tue, self.wed, self.thu, self.fri, self.sat, self.sun]
     }
 }
@@ -242,7 +256,7 @@ impl Settings {
     }
 }
 
-fn weekday(s: &str) -> Option<Weekday> {
+pub(crate) fn weekday(s: &str) -> Option<Weekday> {
     Some(match s {
         "mon" => Weekday::Mon,
         "tue" => Weekday::Tue,

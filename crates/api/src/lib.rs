@@ -16,6 +16,8 @@ mod progress;
 pub mod reviews;
 mod routes;
 pub mod settings;
+pub mod calendar;
+pub mod planner;
 pub mod solutions;
 pub mod statement;
 mod store;
@@ -77,6 +79,12 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/dsa/problems/{id}/log", post(dsa::log))
         .route("/dsa/problems/{id}/statement", get(statement::get))
         .route("/dsa/problems/{id}/preview", get(review::preview))
+        .route("/plan", get(calendar::get))
+        .route("/plan/preview", post(calendar::preview))
+        .route("/plan/state", put(calendar::put_state))
+        .route("/plans", post(calendar::create))
+        .route("/plans/active", put(calendar::set_active))
+        .route("/plans/{id}", axum::routing::delete(calendar::delete))
         .route("/dsa/problems/{id}/solutions", get(solutions::list).post(solutions::create))
         .route("/dsa/solutions/{sid}", put(solutions::update).delete(solutions::delete))
         .route("/dsa/start", post(dsa::start))

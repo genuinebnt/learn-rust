@@ -190,7 +190,16 @@ pub(crate) async fn plan(s: &AppState, settings: &Settings, progress: &HashMap<S
     let goal_total = goal.len() as u32 + settings.goal.extra;
     let remaining = settings.goal.custom_left.unwrap_or_else(|| goal_total.saturating_sub(goal_done + extra_done));
 
-    let (next_up, start) = next_up_ids(s, settings, progress, 5).await?;
+    let (fallback_up, start) = next_up_ids(s, settings, progress, 5).await?;
+    // The calendar decides what today is (a problem day, a practice day or a break) and what comes next.
+    let book = crate::calendar::book(&s.db).await?;
+    let overrides = crate::calendar::active_overrides(&s.db).await?;
+    let world = crate::calendar::World::build(&s.catalog, settings, progress, reviews, start.as_deref(), today);
+    let planned = world.run(&book.active_plan().rules, &overrides);
+    let next_up: Vec<String> = if planned.queue.order.is_empty() { fallback_up } else { planned.queue.order.iter().take(5).map(|i| world.ids[*i].to_owned()).collect() };
+    let kind = world.routine.kind_of(today, &overrides);
+    let capacity = world.routine.capacity_of(today, &overrides);
+    let today_settings = Settings { capacity: settings.capacity.with(chrono::Datelike::weekday(&today), capacity), ..settings.clone() };
 
     let cards: Vec<(String, fsrs::MemoryState, NaiveDate, NaiveDate)> =
         reviews.iter().map(|r| (r.problem_id.clone(), r.memory(), local(r.last_review), local(r.due_at))).collect();
@@ -202,9 +211,9 @@ pub(crate) async fn plan(s: &AppState, settings: &Settings, progress: &HashMap<S
         pace: reviews::pace(remaining, today, settings),
         next_up,
         start,
-        solve_day: settings.is_solve_day(today),
-        capacity: settings.capacity_on(today),
-        review_ids: reviews::pick(today, settings, &cards, &|id| weight_of(&s.catalog, id)),
+        solve_day: kind == crate::planner::Kind::Solve,
+        capacity,
+        review_ids: reviews::pick(today, &today_settings, &cards, &|id| weight_of(&s.catalog, id)),
         due,
         overdue,
     })

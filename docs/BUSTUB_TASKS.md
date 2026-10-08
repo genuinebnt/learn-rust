@@ -28,7 +28,7 @@ The owner practises on shipped modules while the next ones are built, so **never
 
 **Stage standards (2026-10-08): see [COURSE_STANDARDS.md](COURSE_STANDARDS.md); `anneal course lint` enforces them and CI runs it for the published modules.** In short: a self-contained exercise (not tiny, not a chapter), 6 to 10 per module (not a hard limit), a concept article and "You'll learn" lines, at least 5 tests, a Performance section, BusTub-level hints. `tools/course_merge.py` + `tools/course_merge_plan.json` regrouped the first cut of 115 tiny stages into 49 (each old stage is now a *Part* of its new stage and keeps its tests).
 
-**Published modules** (`published_modules` in `course.toml`) are all of 1a to 2b: every non-boss stage passes `anneal course lint` (learn lines, at least two concept articles, a Performance section, at least two hints, a short Tests summary) and every stage has at least 5 tests. 2b has 12 stages, above the 6 to 10 sweet spot (a note, not a failure). Concept articles live in `courses/bustub/concepts/` (35 so far, shared between stages).
+**Published modules** (`published_modules` in `course.toml`) are all of 1a to 2b: every non-boss stage passes `anneal course lint` (learn lines, at least two concept articles, a Performance section, at least two hints, a short Tests summary) and every stage has at least 5 tests. 2b has 12 stages, above the 6 to 10 sweet spot (a note, not a failure). Concept articles live in `courses/bustub/concepts/` (42, shared between stages).
 
 Lecture ids refer to `courses/bustub/lectures.toml`. "Boss" is BusTub's own test, ported.
 
@@ -56,7 +56,7 @@ Each module's stage outline lives in its `modules/<NN>-<slug>/stages/` as it is 
 
 ## Done log
 
-- 2026-10-08: **all of 1a to 2b published in the app**: hints at BusTub's level, 2+ concepts per stage (35 articles with diagrams), Performance sections, a tests-passed popup with Proceed, stages regrouped to 49 (every stage 5+ tests). `anneal course lint` clean.
+- 2026-10-08: **all of 1a to 2b published in the app**: hints at BusTub's level, 2+ concepts per stage (42 articles with diagrams), Performance sections, a tests-passed popup with Proceed, stages regrouped to 49 (every stage 5+ tests). `anneal course lint` clean.
 - 2026-10-08: **stages merged** 115 → 36 → 58 → 49 (see the stage-size rule above); web Course pages and API built; module 1a (hints, concepts, learn lines) is the first one published in the app; regrouped again to 58 self-contained stages after the owner asked for CodeCrafters-style sections of stage rows.
 - 2026-10-08: design (BUSTUB.md), CLI, module 1a (19 stages, ~100 stage tests + BusTub's 4), lecture catalogue, resource lists, C/C++ way blocks in every 1a stage. `tools/course-smoke.sh` green.
 - 2026-10-08: module 2a (13 stages, the toolkit for Project 2's pages). 93 stages verified.

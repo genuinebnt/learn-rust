@@ -30,12 +30,28 @@ git config user.name t
 "$A" course status | head -6
 if "$A" course test | grep -q "^✓ Stage .* complete"; then echo "BUG: stage 1 passed on the stub"; exit 1; fi
 
-echo "== a learner solves stage 1; the pre-push hook records it"
-"$A" course build --stage "$(sed -n 's/^id = "\(.*\)"/\1/p' "$ROOT/courses/$COURSE/modules/"*/stages/01-*/stage.toml | head -1)" "$WORK/learner" --course "$COURSE" $C >/dev/null
+echo "== only the first module is in the learner's repo"
+test ! -e src/storage/disk/disk_scheduler.rs || { echo "BUG: module 1b's file is visible at the start"; exit 1; }
+test ! -e tests/stages_1b.rs || { echo "BUG: module 1b's tests are visible at the start"; exit 1; }
+grep -q "disk_manager" src/storage/disk/mod.rs && ! grep -q "disk_scheduler" src/storage/disk/mod.rs || { echo "BUG: mod.rs names a hidden module"; exit 1; }
+cargo test --no-run 2>&1 | tail -1
+
+echo "== a learner solves module 1a stage by stage; the pre-push hook records it, and module 1b unlocks"
+LAST="$(ls "$ROOT/courses/$COURSE/modules/"01-*/stages | wc -l | tr -d ' ')"
+"$A" course build --stage "$(sed -n 's/^id = "\(.*\)"/\1/p' "$ROOT/courses/$COURSE/modules/"01-*/stages/"$(printf '%02d' "$LAST")"-*/stage.toml | head -1)" "$WORK/solved" --course "$COURSE" $C >/dev/null
+# the solved files, except mod.rs and lib.rs: those name only the modules unlocked so far
+find src tests -type f ! -name mod.rs ! -name lib.rs | while read -r f; do cp "$WORK/solved/$f" "$f"; done
 git add -A
-git commit -q -m "first stage"
-.git/hooks/pre-push
-grep -q passed .anneal/progress.json && echo "progress recorded: $(cat .anneal/progress.json | tr -d '\n ')"
+git commit -q -m "module 1a"
+for _ in $(seq 1 "$LAST"); do .git/hooks/pre-push >/dev/null; done
+grep -q passed .anneal/progress.json && echo "progress recorded: $(cat .anneal/progress.json | tr -d '\n ' | cut -c1-120)..."
+test -e src/storage/disk/disk_scheduler.rs || { echo "BUG: module 1b did not unlock"; exit 1; }
+test -e tests/stages_1b.rs || { echo "BUG: module 1b's tests did not arrive"; exit 1; }
+grep -q "disk_scheduler" src/storage/disk/mod.rs || { echo "BUG: mod.rs does not name the unlocked module"; exit 1; }
+cargo test --no-run 2>&1 | tail -1
+
+git add -A
+git commit -q -m "module 1b arrived"
 echo "== update with an unchanged template leaves the learner's work alone"
 "$A" course update --course "$COURSE" $C
 test -z "$(git status --porcelain src tests Cargo.toml)" || { echo "BUG: update changed the learner's files"; exit 1; }

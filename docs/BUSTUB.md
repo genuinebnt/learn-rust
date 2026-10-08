@@ -48,7 +48,7 @@ developer" (under 5 min, 5-10 min, 30 min to 1 hour, over 1 hour). The learner c
 | Course ("Build your own Shell") | **Course** `bustub`: "Build a DBMS: BusTub in Rust" (`courses/bustub/`) |
 | Extension (a themed group of stages) | **Module**, named by its BusTub component (1a Disk manager, 1b Disk scheduler, ...). Its last stage is **BusTub's own test** |
 | Stage with a difficulty label and a time | **Stage** `1a-07`: `very-easy` · `easy` · `medium` · `hard` (same time buckets); kind `learn` / `build` / `boss` |
-| The repo you clone | `bustub-rs`, made by `anneal course init bustub`, **mirroring BusTub's tree** with every body `todo!()` |
+| The repo you clone | `bustub-rs`, made by `anneal course init bustub`, **mirroring BusTub's tree** with every body `todo!()`; only the modules reached so far are in it (the next one arrives when you pass the last stage of the current one) |
 | `git push` runs the tester | a **pre-push git hook** runs `anneal course test` locally and records the result |
 | Stage page: task, tests, notes | `anneal course show`: see §3 |
 

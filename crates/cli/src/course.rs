@@ -15,6 +15,7 @@ use anyhow::{Context, bail};
 use clap::Subcommand;
 
 use crate::course_sync;
+use crate::course_unlock;
 use serde::{Deserialize, Serialize};
 
 #[derive(Subcommand)]
@@ -103,7 +104,7 @@ pub enum CourseCmd {
         course: String,
         #[arg(long, default_value = "courses")]
         courses: PathBuf,
-        /// Only this stage (and the regression of the stages before it).
+        /// Only this stage (and the regression of the stages before it); `unlock` checks only that every module's unlock state compiles.
         #[arg(long)]
         stage: Option<String>,
         /// Start at this stage (earlier stages are assumed fine).
@@ -147,6 +148,9 @@ struct ModuleToml {
     /// Everything else worth reading: docs, books, papers, blogs, videos, other projects' code.
     #[serde(default)]
     resources: Vec<Resource>,
+    /// Files that must arrive with this module although a later module's stage also touches them (see course_unlock.rs).
+    #[serde(default)]
+    files: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -204,12 +208,15 @@ struct Stage {
 struct Course {
     meta: CourseToml,
     stages: Vec<Stage>,
+    /// module code -> the `files` its module.toml lists.
+    module_files: BTreeMap<String, Vec<String>>,
 }
 
 impl Course {
     fn load(root: &Path) -> anyhow::Result<Course> {
         let meta: CourseToml = read_toml(&root.join("course.toml"))?;
         let mut stages = Vec::new();
+        let mut module_files = BTreeMap::new();
         let lectures: Vec<Lecture> = match fs::read_to_string(root.join("lectures.toml")) {
             Ok(t) => toml::from_str::<LecturesToml>(&t).context("parsing lectures.toml")?.lecture,
             Err(_) => Vec::new(),
@@ -258,6 +265,7 @@ impl Course {
                     rank: 0,
                 });
             }
+            module_files.insert(mt.code.clone(), mt.files.clone());
             let _ = &mt.summary;
         }
         for (i, s) in stages.iter_mut().enumerate() {
@@ -269,7 +277,7 @@ impl Course {
                 bail!("stage id {} is used twice (positions {prev} and {})", s.def.id, s.rank);
             }
         }
-        Ok(Course { meta, stages })
+        Ok(Course { meta, stages, module_files })
     }
 
     fn stage(&self, id: &str) -> anyhow::Result<&Stage> {
@@ -679,7 +687,9 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
             let c = Course::load(&root)?;
             let out = root.join("template");
             render_tree(&root.join("reference"), &out, &c.ranks(), 0)?;
-            println!("template written to {}", out.display());
+            let map = files_map_for(&c, &root.join("reference"))?;
+            fs::write(out.join(course_unlock::FILES_JSON), serde_json::to_string_pretty(&map)? + "\n")?;
+            println!("template written to {} ({} files tied to a module)", out.display(), map.len());
             Ok(ExitCode::SUCCESS)
         }
         CourseCmd::Verify { course, courses, stage, from, work } => verify(&course, &courses, stage.as_deref(), from.as_deref(), work),
@@ -704,6 +714,119 @@ fn copy_dir(from: &Path, to: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Which module first needs each reference file (see course_unlock.rs).
+fn files_map_for(course: &Course, reference: &Path) -> anyhow::Result<BTreeMap<String, String>> {
+    let stage_module: HashMap<String, String> = course.stages.iter().map(|s| (s.def.id.clone(), s.module.clone())).collect();
+    let mut boss_bins: HashMap<String, String> = HashMap::new();
+    for s in course.stages.iter().filter(|s| s.def.kind == "boss") {
+        for t in &s.def.tests {
+            boss_bins.insert(split_entry(t).0.to_owned(), s.module.clone());
+        }
+    }
+    course_unlock::file_modules(reference, &module_order(course), &stage_module, &course.module_files, &boss_bins)
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Progressive reveal (course_unlock.rs): the learner's repo shows only the modules reached so far.
+
+fn module_order(course: &Course) -> Vec<String> {
+    let mut v: Vec<String> = Vec::new();
+    for s in &course.stages {
+        if v.last() != Some(&s.module) {
+            v.push(s.module.clone());
+        }
+    }
+    v
+}
+
+/// The modules whose files the learner sees: every module up to and including the first one with an unpassed stage.
+fn unlocked_modules(course: &Course, progress: &Progress) -> Vec<String> {
+    let order = module_order(course);
+    let current = current(course, progress).map(|s| s.module.clone());
+    match current.and_then(|c| order.iter().position(|m| *m == c)) {
+        Some(i) => order[..=i].to_vec(),
+        None => order,
+    }
+}
+
+fn load_files_map(template: &Path) -> BTreeMap<String, String> {
+    fs::read_to_string(template.join(course_unlock::FILES_JSON)).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+#[derive(Debug, Default)]
+struct Sync {
+    added: usize,
+    updated: usize,
+    conflicts: Vec<PathBuf>,
+}
+
+/// Brings the visible template files into `repo`: new files are created, files you haven't edited are refreshed, files you have
+/// edited are never overwritten (the new version goes next to yours as `.new`). `base` remembers what was handed out.
+fn sync_files(repo: &Path, template: &Path, unlocked: &[String]) -> anyhow::Result<Sync> {
+    let map = load_files_map(template);
+    let files: Vec<PathBuf> = list_files(template)?;
+    let vis = course_unlock::visible(&files, &map, unlocked, &|rel| fs::read_to_string(template.join(rel)).map(|t| course_unlock::only_declares(&t)).unwrap_or(true));
+    let base = repo.join(STATE_DIR).join("base");
+    let mut report = Sync::default();
+    for rel in &vis {
+        let raw = fs::read(template.join(rel))?;
+        let new = if course_unlock::is_module_file(rel) {
+            let text = String::from_utf8_lossy(&raw).into_owned();
+            course_unlock::filter_mod(&text, rel.parent().unwrap_or(Path::new("")), &vis).into_bytes()
+        } else {
+            raw
+        };
+        let cur_path = repo.join(rel);
+        let cur = fs::read(&cur_path).ok();
+        let old = fs::read(base.join(rel)).ok();
+        let mut hand_out = true;
+        match (&cur, &old) {
+            (None, _) => {
+                fs::create_dir_all(cur_path.parent().unwrap())?;
+                fs::write(&cur_path, &new)?;
+                report.added += 1;
+            }
+            (Some(c), _) if *c == new => {}
+            (Some(c), Some(o)) if c == o => {
+                fs::write(&cur_path, &new)?;
+                report.updated += 1;
+            }
+            (Some(_), Some(o)) if *o == new => {} // the template didn't change; the edit is yours
+            (Some(_), _) => {
+                let mut name = cur_path.clone().into_os_string();
+                name.push(".new");
+                fs::write(&name, &new)?;
+                report.conflicts.push(rel.clone());
+                hand_out = false;
+            }
+        }
+        if hand_out {
+            let b = base.join(rel);
+            fs::create_dir_all(b.parent().unwrap())?;
+            fs::write(b, &new)?;
+        }
+    }
+    Ok(report)
+}
+
+/// After progress changed: brings in the files of any module that has just been reached.
+fn maybe_unlock(repo: &Path, course: &Course, progress: &Progress) -> anyhow::Result<()> {
+    let template = repo.join(STATE_DIR).join("template");
+    if !template.is_dir() {
+        return Ok(()); // a repo made before modules were revealed progressively: everything is already there
+    }
+    let unlocked = unlocked_modules(course, progress);
+    let r = sync_files(repo, &template, &unlocked)?;
+    if r.added > 0 {
+        let latest = unlocked.last().cloned().unwrap_or_default();
+        println!("\nModule {} unlocked: {} new files (stubs, and the tests for the stages in it).", latest.to_uppercase(), r.added);
+    }
+    for c in &r.conflicts {
+        println!("  you edited {}: the new version is in {}.new (merge by hand)", c.display(), c.display());
+    }
+    Ok(())
+}
+
 fn init(course_id: &str, dir: Option<PathBuf>, courses: &Path) -> anyhow::Result<ExitCode> {
     let root = courses.join(course_id);
     let course = Course::load(&root)?;
@@ -718,9 +841,9 @@ fn init(course_id: &str, dir: Option<PathBuf>, courses: &Path) -> anyhow::Result
     if dir.exists() && fs::read_dir(&dir)?.next().is_some() {
         bail!("{} already exists and isn't empty", dir.display());
     }
-    copy_dir(&template, &dir)?;
-    // The template as handed out, so `update` can tell your edits from files you haven't touched.
-    copy_dir(&template, &dir.join(STATE_DIR).join("base"))?;
+    // The whole template stays in .anneal/template; only the modules reached so far are in the working tree.
+    copy_dir(&template, &dir.join(STATE_DIR).join("template"))?;
+    sync_files(&dir, &dir.join(STATE_DIR).join("template"), &unlocked_modules(&course, &Progress::default()))?;
     // The learner's copy of the stage definitions, so the CLI works without the anneal checkout.
     let defs = dir.join(STATE_DIR).join("course");
     fs::create_dir_all(&defs)?;
@@ -775,33 +898,11 @@ fn update(course_id: &str, courses: &Path) -> anyhow::Result<ExitCode> {
     if !template.is_dir() {
         bail!("{} has no template", root.display());
     }
-    let base = repo.join(STATE_DIR).join("base");
-    let (mut added, mut updated, mut conflicts) = (0, 0, Vec::new());
-    for rel in list_files(&template)? {
-        let new = fs::read(template.join(&rel))?;
-        let cur_path = repo.join(&rel);
-        let cur = fs::read(&cur_path).ok();
-        let old = fs::read(base.join(&rel)).ok();
-        match (&cur, &old) {
-            (None, _) => {
-                fs::create_dir_all(cur_path.parent().unwrap())?;
-                fs::write(&cur_path, &new)?;
-                added += 1;
-            }
-            (Some(c), _) if *c == new => {}
-            (Some(c), Some(o)) if c == o => {
-                fs::write(&cur_path, &new)?;
-                updated += 1;
-            }
-            (Some(_), Some(o)) if *o == new => {} // the template didn't change; the edit is yours
-            (Some(_), _) => {
-                let mut name = cur_path.clone().into_os_string();
-                name.push(".new");
-                fs::write(&name, &new)?;
-                conflicts.push(rel.clone());
-            }
-        }
+    let kept = repo.join(STATE_DIR).join("template");
+    if kept.exists() {
+        fs::remove_dir_all(&kept)?;
     }
+    copy_dir(&template, &kept)?;
     // The stage definitions and the base snapshot move forward.
     let defs = repo.join(STATE_DIR).join("course");
     if defs.exists() {
@@ -813,11 +914,9 @@ fn update(course_id: &str, courses: &Path) -> anyhow::Result<ExitCode> {
         fs::copy(root.join("lectures.toml"), defs.join("lectures.toml"))?;
     }
     copy_dir(&root.join("modules"), &defs.join("modules"))?;
-    if base.exists() {
-        fs::remove_dir_all(&base)?;
-    }
-    copy_dir(&template, &base)?;
     let course = learner_course(&repo)?;
+    let progress = load_progress(&repo);
+    let Sync { added, updated, conflicts } = sync_files(&repo, &kept, &unlocked_modules(&course, &progress))?;
     println!("Updated: {added} new files, {updated} given files refreshed, {} stages in the course.", course.stages.len());
     for c in &conflicts {
         println!("  you edited {}: the new version is in {}.new (merge by hand)", c.display(), c.display());
@@ -915,6 +1014,7 @@ fn next() -> anyhow::Result<ExitCode> {
     let repo = find_repo()?;
     let course = learner_course(&repo)?;
     let progress = load_progress(&repo);
+    maybe_unlock(&repo, &course, &progress)?;
     match current(&course, &progress) {
         Some(s) => {
             print_stage(s);
@@ -987,6 +1087,7 @@ fn test(stage: Option<&str>, all: bool, hook: bool) -> anyhow::Result<ExitCode> 
         progress.passed.insert(target.def.id.clone(), Passed { at, commit: head_commit(&repo), ms });
         save_progress(&repo, &progress)?;
         println!("\n✓ Stage {} complete.", target.def.id);
+        maybe_unlock(&repo, &course, &progress)?;
         match current(&course, &progress) {
             Some(n) => println!("Next: {} · {}  (`anneal course next`)", n.def.id, n.def.title),
             None => println!("That was the last stage."),
@@ -1209,6 +1310,52 @@ fn verify(course_id: &str, courses: &Path, only: Option<&str>, from: Option<&str
             }
         }
     }
+    if (only.is_none() && from.is_none()) || only == Some("unlock") {
+        problems += verify_unlock_states(&course, &reference, &repo, &work, &target, &ranks)?;
+    }
     println!("\n{} stages, {problems} problems", course.stages.len());
     Ok(if problems == 0 { ExitCode::SUCCESS } else { ExitCode::FAILURE })
+}
+
+/// Every module's unlock state must compile (and so must its tests): the repo a learner has when they reach module k, with the
+/// stubs of module k, shows only the files of modules 1..=k. Catches a file that is revealed later than something that names it.
+fn verify_unlock_states(course: &Course, reference: &Path, full: &Path, work: &Path, target: &Path, ranks: &HashMap<String, usize>) -> anyhow::Result<usize> {
+    let map = files_map_for(course, reference)?;
+    let order = module_order(course);
+    let shown = work.join("unlock-repo");
+    let mut problems = 0;
+    for (k, code) in order.iter().enumerate() {
+        let cutoff = if k == 0 { 0 } else { course.stages.iter().filter(|s| order[..k].contains(&s.module)).map(|s| s.rank).max().unwrap_or(0) };
+        render_tree(reference, full, ranks, cutoff)?;
+        let files: Vec<PathBuf> = list_files(full)?.into_iter().filter(|p| !p.starts_with("target")).collect();
+        let vis = course_unlock::visible(&files, &map, &order[..=k], &|rel| fs::read_to_string(full.join(rel)).map(|t| course_unlock::only_declares(&t)).unwrap_or(true));
+        if shown.exists() {
+            fs::remove_dir_all(&shown)?;
+        }
+        for rel in &vis {
+            let dest = shown.join(rel);
+            fs::create_dir_all(dest.parent().unwrap())?;
+            let raw = fs::read(full.join(rel))?;
+            if course_unlock::is_module_file(rel) {
+                let text = String::from_utf8_lossy(&raw).into_owned();
+                fs::write(&dest, course_unlock::filter_mod(&text, rel.parent().unwrap_or(Path::new("")), &vis))?;
+            } else {
+                fs::write(&dest, raw)?;
+            }
+        }
+        let t0 = Instant::now();
+        let mut cmd = Command::new("cargo");
+        cmd.current_dir(&shown).args(["test", "--no-run"]).env("CARGO_TARGET_DIR", target).env("CARGO_TERM_COLOR", "never");
+        let (_, stderr, status) = run_with_timeout(cmd, Duration::from_secs(300)).map_err(|e| anyhow::anyhow!("{e}"))?;
+        if status == Some(0) {
+            println!("ok    unlock {:<4} {:>3} files visible  {:>5.1}s", code, vis.len(), t0.elapsed().as_secs_f64());
+        } else {
+            problems += 1;
+            println!("FAIL  unlock {code}: the repo a learner has on reaching this module doesn't compile");
+            for l in stderr.lines().filter(|l| l.starts_with("error")).take(6) {
+                println!("        {l}");
+            }
+        }
+    }
+    Ok(problems)
 }

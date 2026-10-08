@@ -1,4 +1,6 @@
 code = "1f"
+# The buffer pool already names the page guards (module 1g fills them in), so their file arrives with it.
+files = ["src/storage/page/page_guard.rs"]
 title = "Buffer pool manager"
 summary = "Frames, a page table, pin counts, eviction through your replacer, write-back of dirty pages, flush and delete: the cache between the database and the disk. BusTub Project 1, the buffer pool (textbook interface)."
 lectures = ["bufferpool", "storage1"]

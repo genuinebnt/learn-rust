@@ -1,5 +1,6 @@
 mod course;
 mod course_sync;
+mod course_unlock;
 
 use std::path::PathBuf;
 use std::process::ExitCode;

@@ -27,6 +27,13 @@ them. **Read this before changing anything under `courses/` or the Courses pages
 7. **Mirror BusTub; show the C/C++ way** (tables, "Port rule" callouts), link CMU lectures and verified resources, keep the learner free to
    solve it their own way (only the tests must pass), test every stage (fail before, pass after) and ship module by module.
 
+8. **Hide what the learner hasn't reached.** *"hide the modules not completed from mod.rs files"*. A learner's repo contains only the modules
+   up to the one they are on: later modules' source files and tests are absent, and `mod.rs`/`lib.rs` don't name them, so `cargo test` compiles
+   and runs only what is unlocked. Passing the last stage of a module brings in the next one (`anneal course test`, `next` or `update`). The
+   file → module map is `template/.anneal-files.json` (written by `anneal course template`); a module that must ship a file a later module
+   also touches lists it under `files = [...]` in `module.toml`. `anneal course verify` compiles every unlock state, and the smoke test
+   plays through module 1a and checks that 1b arrives (`crates/cli/src/course_unlock.rs`).
+
 ## How these are enforced
 
 - `anneal course lint` (content only, needs no reference): for every non-boss stage of a *published* module (`published_modules` in `course.toml`;

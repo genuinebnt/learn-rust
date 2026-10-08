@@ -1374,3 +1374,48 @@ async fn any_problem_previews_what_each_grade_would_schedule(db: PgPool) {
     assert_eq!(call(&app, Method::GET, "/api/dsa/problems/p1-sorted-pair-sum/preview", None).await.0, StatusCode::BAD_REQUEST);
     assert_eq!(call(&app, Method::GET, "/api/dsa/problems/lc-nothing/preview", None).await.0, StatusCode::NOT_FOUND);
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn my_solutions_are_kept_per_problem_and_can_be_edited_and_removed(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    let list = |id: &'static str| call_app(&app, id);
+    async fn call_app(app: &Router, id: &str) -> Value {
+        call(app, Method::GET, &format!("/api/dsa/problems/{id}/solutions"), None).await.1
+    }
+    assert_eq!(list("lc-two-sum").await, json!([]));
+
+    // Any number can be added, and they keep their order.
+    let (status, a) = call(&app, Method::POST, "/api/dsa/problems/lc-two-sum/solutions", Some(json!({ "label": " hash map ", "code": "class Solution:\n    pass\n", "notes": "O(n)" }))).await;
+    assert_eq!(status, StatusCode::OK, "{a}");
+    assert_eq!(a["label"], "hash map");
+    let (_, b) = call(&app, Method::POST, "/api/dsa/problems/lc-two-sum/solutions", Some(json!({ "code": "print(1)" }))).await;
+    assert_eq!(b["label"], "");
+    let all = list("lc-two-sum").await;
+    assert_eq!(all.as_array().unwrap().len(), 2);
+    assert_eq!(all[0]["id"], a["id"]);
+    assert_eq!(list("lc-valid-palindrome-ii").await, json!([]), "another problem has none");
+
+    // Editing keeps the id and the position.
+    let url = format!("/api/dsa/solutions/{}", a["id"]);
+    let (status, edited) = call(&app, Method::PUT, &url, Some(json!({ "label": "map", "code": "x = 1\n", "notes": "" }))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!((edited["label"].as_str(), edited["code"].as_str()), (Some("map"), Some("x = 1\n")));
+    assert_eq!(list("lc-two-sum").await[0]["code"], "x = 1\n");
+
+    // Refused: no code, too long, unknown or non-DSA problems, unknown solutions.
+    let blank = Some(json!({ "code": "   " }));
+    assert_eq!(call(&app, Method::POST, "/api/dsa/problems/lc-two-sum/solutions", blank).await.0, StatusCode::BAD_REQUEST);
+    let long = Some(json!({ "code": "x".repeat(100_001) }));
+    assert_eq!(call(&app, Method::POST, "/api/dsa/problems/lc-two-sum/solutions", long).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(call(&app, Method::POST, "/api/dsa/problems/lc-nothing/solutions", Some(json!({ "code": "x" }))).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(call(&app, Method::POST, "/api/dsa/problems/p1-sorted-pair-sum/solutions", Some(json!({ "code": "x" }))).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(call(&app, Method::PUT, "/api/dsa/solutions/999999", Some(json!({ "code": "x" }))).await.0, StatusCode::NOT_FOUND);
+
+    // Removing one leaves the other.
+    assert_eq!(call(&app, Method::DELETE, &url, None).await.0, StatusCode::OK);
+    assert_eq!(call(&app, Method::DELETE, &url, None).await.0, StatusCode::NOT_FOUND);
+    let left = list("lc-two-sum").await;
+    assert_eq!(left.as_array().unwrap().len(), 1);
+    assert_eq!(left[0]["id"], b["id"]);
+}

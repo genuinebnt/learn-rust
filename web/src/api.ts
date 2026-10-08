@@ -384,6 +384,17 @@ export interface DsaProblem {
   state: DsaStanding;
 }
 
+/** One of the owner's own solutions to a problem. */
+export interface MySolution {
+  id: number;
+  problem_id: string;
+  label: string;
+  code: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DsaApproach {
   name: string;
   label: string;
@@ -657,6 +668,10 @@ export const api = {
   dsa: () => request<DsaOverview>("GET", "/dsa"),
   preview: (id: string) => request<{ previews: Record<Grade, ReviewPreview> | null }>("GET", `/dsa/problems/${id}/preview`),
   statement: (id: string) => request<DsaStatement>("GET", `/dsa/problems/${id}/statement`),
+  solutions: (id: string) => request<MySolution[]>("GET", `/dsa/problems/${id}/solutions`),
+  addSolution: (id: string, body: { label: string; code: string; notes: string }) => request<MySolution>("POST", `/dsa/problems/${id}/solutions`, body),
+  saveSolution: (sid: number, body: { label: string; code: string; notes: string }) => request<MySolution>("PUT", `/dsa/solutions/${sid}`, body),
+  deleteSolution: (sid: number) => request<{ deleted: number }>("DELETE", `/dsa/solutions/${sid}`),
   dsaPage: (id: string) => request<DsaPage | null>("GET", `/dsa/problems/${id}/page`),
   patternLessons: (pattern: string) => request<PatternLessons>("GET", `/dsa/patterns/${pattern}`),
   practice: (pattern: string) => request<PracticeList>("GET", `/dsa/practice/${pattern}`),

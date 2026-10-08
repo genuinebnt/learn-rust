@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { api, type DsaProblem, type Grade } from "../api";
+import { api, type DsaProblem, type Grade, type MySolution } from "../api";
 import { Companies, Md, Mark, PyCode, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
+import { useEditorSettings } from "../settings";
+import { Editor } from "../workspace/Editor";
 import { DIFF, MINUTES, inDays, leetcode, niceDate, statusOf, videoUrl } from "../dsa";
 
 const LIST_NAME = { blind75: "Blind 75", neetcode150: "NeetCode 150", neetcode250: "NeetCode 250", all: "NeetCode All", practice: "Practice" };
@@ -17,6 +19,82 @@ const TILES: { grade: Grade; glyph: string; label: string; cls: string }[] = [
 ];
 
 const dotOf = (p: DsaProblem) => (p.state.last_grade ? (p.state.last_grade === "again" ? "fail" : p.state.last_grade === "hard" ? "help" : "solo") : "");
+
+/** The owner's own solutions: any number, kept so they can be read later. Written in the same editor as the workspace, so Vim mode works. */
+function MySolutions({ p, template }: { p: DsaProblem; template: string }) {
+    const qc = useQueryClient();
+    const { editor } = useEditorSettings();
+    const list = useQuery({ queryKey: ["dsa-solutions", p.id], queryFn: () => api.solutions(p.id) });
+    const [editing, setEditing] = useState<number | "new" | null>(null);
+    const [draft, setDraft] = useState({ label: "", code: "", notes: "" });
+    const [confirm, setConfirm] = useState<number | null>(null);
+    const done = () => {
+        void qc.invalidateQueries({ queryKey: ["dsa-solutions", p.id] });
+        setEditing(null);
+    };
+    const save = useMutation({
+        mutationFn: (code: string) => (editing === "new" ? api.addSolution(p.id, { ...draft, code }) : api.saveSolution(editing as number, { ...draft, code })),
+        onSuccess: done,
+    });
+    const remove = useMutation({ mutationFn: (sid: number) => api.deleteSolution(sid), onSuccess: () => { setConfirm(null); done(); } });
+    const open = (s: MySolution | null) => {
+        setDraft(s ? { label: s.label, code: s.code, notes: s.notes } : { label: "", code: template, notes: "" });
+        setEditing(s ? s.id : "new");
+        save.reset();
+    };
+    const solutions = list.data ?? [];
+    const when = (t: string) => new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    return (
+        <section className="pp-sec" id="pp-mine">
+            <h3><span>MY SOLUTIONS</span><em>{solutions.length ? `${solutions.length} saved` : "yours, kept here"}</em></h3>
+            {list.isError && <p className="rempty">Couldn't load your solutions.</p>}
+            {solutions.map((s, i) =>
+                editing === s.id ? null : (
+                    <div key={s.id} className="pp-mine">
+                        <div className="pp-mh">
+                            <b>{s.label || `Solution ${i + 1}`}</b>
+                            <small>{s.updated_at !== s.created_at ? `edited ${when(s.updated_at)}` : `added ${when(s.created_at)}`}</small>
+                            <span className="sp" />
+                            {confirm === s.id ? (
+                                <>
+                                    <small>Delete it?</small>
+                                    <button className="pp-link bad" onClick={() => remove.mutate(s.id)}>Yes, delete</button>
+                                    <button className="pp-link" onClick={() => setConfirm(null)}>Keep</button>
+                                </>
+                            ) : (
+                                <>
+                                    <button className="pp-link" onClick={() => open(s)}>Edit</button>
+                                    <button className="pp-link" onClick={() => setConfirm(s.id)}>Delete</button>
+                                </>
+                            )}
+                        </div>
+                        {s.notes && <Md text={s.notes} />}
+                        <PyCode code={s.code} />
+                    </div>
+                ),
+            )}
+            {editing !== null && (
+                <div className="pp-mine edit">
+                    <input className="pp-label" placeholder="Label, e.g. two pointers, or the one I wrote in the interview" maxLength={80} value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
+                    <div className="edit-host pp-ed">
+                        <Editor language="python" vim={editor.vim} value={draft.code} docKey={`mine:${p.id}:${editing}`} onChange={(code) => setDraft((d) => ({ ...d, code }))} onSave={(code) => save.mutate(code)} />
+                    </div>
+                    <textarea className="pp-notes" placeholder="Notes, in markdown: what you'd say about it, what tripped you up" rows={3} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
+                    <div className="pp-mrow">
+                        <button className="pp-save" disabled={save.isPending || !draft.code.trim()} onClick={() => save.mutate(draft.code)}>{save.isPending ? "Saving…" : editing === "new" ? "Save solution" : "Save changes"}</button>
+                        <button className="pp-link" onClick={() => setEditing(null)}>Cancel</button>
+                        <small>{editor.vim ? ":w or ⌘S also saves" : "⌘S also saves"}</small>
+                        {save.isError && <small style={{ color: "var(--bad)" }}>{(save.error as Error).message}</small>}
+                    </div>
+                </div>
+            )}
+            {editing === null && (
+                <button className="pp-add" onClick={() => open(null)}>+ {solutions.length ? "Add another solution" : "Add my solution"}</button>
+            )}
+            {!solutions.length && editing === null && !list.isLoading && <p className="rempty">Paste or write the solution you submitted, with notes if you like. It stays here for next time.</p>}
+        </section>
+    );
+}
 
 /** A NeetCode problem: the statement and lesson on the left, every action in a sticky rail on the right. */
 export function DsaProblemPage({ slug }: { slug: string }) {
@@ -37,7 +115,9 @@ export function DsaProblemPage({ slug }: { slug: string }) {
         { id: "problem", label: "Problem" },
         ...(hasHints ? [{ id: "hints", label: "Hints" }] : []),
         { id: "idea", label: "Idea" },
-        ...(hasLesson ? [{ id: "approaches", label: "Approaches" }, { id: "tips", label: "Tips" }] : []),
+        ...(hasLesson ? [{ id: "approaches", label: "Approaches" }] : []),
+        { id: "mine", label: "My solutions" },
+        ...(hasLesson ? [{ id: "tips", label: "Tips" }] : []),
     ];
     const ids = sections.map((s) => s.id).join();
 
@@ -77,6 +157,10 @@ export function DsaProblemPage({ slug }: { slug: string }) {
     const at = inPattern.findIndex((x) => x.id === p.id);
     const prev = at > 0 ? inPattern[at - 1] : undefined;
     const next = at >= 0 && at < inPattern.length - 1 ? inPattern[at + 1] : undefined;
+    // The class and method line of the first approach, as LeetCode's template gives it, so a new solution starts in the right shape.
+    const first = lesson.data?.approaches[0]?.code.split("\n") ?? [];
+    const defAt = first.findIndex((l) => l.trimStart().startsWith("def "));
+    const template = defAt >= 0 ? `${first.slice(first.findIndex((l) => l.startsWith("class ")), defAt + 1).join("\n")}\n        pass\n` : "class Solution:\n    pass\n";
     const status = statusOf(p, o.today);
     const s = p.state;
     const previews = preview.data?.previews;
@@ -216,6 +300,7 @@ export function DsaProblemPage({ slug }: { slug: string }) {
                                     ) : null,
                                 )}
                             </section>
+                            <MySolutions p={p} template={template} />
                             <section className="pp-sec" id="pp-tips">
                                 <h3><span>TIPS AND PITFALLS</span></h3>
                                 <ul className="d-tips">
@@ -226,6 +311,8 @@ export function DsaProblemPage({ slug }: { slug: string }) {
                             </section>
                         </>
                     )}
+
+                    {!lesson.data && <MySolutions p={p} template={template} />}
 
                     {(prev || next) && (
                         <div className="pp-pn">

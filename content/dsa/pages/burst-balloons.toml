@@ -18,6 +18,8 @@ label = "interval DP"
 idea = "`coins[left][right]` is the best total from bursting everything strictly between `left` and `right`; try each `k` in between as the last to burst."
 time = "O(n³)"
 space = "O(n²)"
+time_why = "There are about n² (left, right) pairs, and each one tries up to n balloons as the last to burst, so n² × n."
+space_why = "The table has one entry for each pair of walls."
 note = "n ≤ 300, so about 27 million steps at most (fast enough with a tight loop)."
 code = '''class Solution:
     def maxCoins(self, nums: list[int]) -> int:
@@ -40,6 +42,8 @@ label = "memoised"
 idea = "The same recurrence as a cached recursive function of the two walls."
 time = "O(n³)"
 space = "O(n²)"
+time_why = "The same n² states as the table, each of which tries up to n last balloons, so n² × n."
+space_why = "The cache has up to n² entries, and the recursion can go n levels deep."
 note = "Recursion depth up to n."
 code = '''from functools import cache
 

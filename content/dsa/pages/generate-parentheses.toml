@@ -16,6 +16,8 @@ label = "backtracking"
 idea = "Add `(` if fewer than `n` have been used, and `)` if fewer closes than opens; record the string when it reaches `2n` characters."
 time = "O(4^n / √n)"
 space = "O(n)"
+time_why = "The number of valid strings is the Catalan number, about 4ⁿ / (n√n), and building each takes up to 2n steps; the bound ignores the small factor."
+space_why = "The current string and the recursion are 2n deep. The output isn't counted."
 note = "The Catalan count of results, each of length 2n."
 code = '''class Solution:
     def generateParenthesis(self, n: int) -> list[str]:
@@ -45,6 +47,8 @@ label = "divide and conquer"
 idea = "Every valid string is `(` + a valid string + `)` + a valid string, with the inner and outer parts using `n − 1` pairs in total."
 time = "O(4^n / √n)"
 space = "O(4^n / √n)"
+time_why = "There are about 4ⁿ / √n strings in the answer, and the combination step has to build all of them."
+space_why = "The answers for every smaller size are kept, and together they are about as big as the answer for n."
 note = "Builds each size from the smaller sizes."
 code = '''class Solution:
     def generateParenthesis(self, n: int) -> list[str]:

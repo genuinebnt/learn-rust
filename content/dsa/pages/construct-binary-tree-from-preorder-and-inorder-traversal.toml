@@ -16,6 +16,8 @@ label = "recursive"
 idea = "Take the next preorder value as the root, find it in inorder through a map, and build the left then the right subtree on the inorder ranges either side of it."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each of the n nodes is created once, and finding its place in inorder is an O(1) lookup in the map."
+space_why = "The map has one entry for each node, and the recursion goes as deep as the tree."
 note = "The map and the recursion stack."
 code = '''class Solution:
     def buildTree(self, preorder: list[int], inorder: list[int]) -> TreeNode | None:
@@ -43,6 +45,8 @@ label = "slicing"
 idea = "Same idea, splitting the two lists with slices at each step."
 time = "O(n^2)"
 space = "O(n^2)"
+time_why = "Finding the root in the inorder list and slicing both lists is O(n) at every node, and a skewed tree has n nodes."
+space_why = "Each level copies slices of the lists, so a deep tree keeps about n + (n−1) + ... elements alive over all its levels."
 note = "Copies lists at every level; fine for the idea, too slow for large inputs."
 code = '''class Solution:
     def buildTree(self, preorder: list[int], inorder: list[int]) -> TreeNode | None:

@@ -14,6 +14,8 @@ label = "two pointers"
 idea = "Alternate taking a letter from each word while both have letters, then append whatever is left."
 time = "O(n + m)"
 space = "O(n + m)"
+time_why = "Each letter of both words is taken once."
+space_why = "The result holds every letter of both words."
 note = "The output."
 code = '''class Solution:
     def mergeAlternately(self, word1: str, word2: str) -> str:
@@ -35,6 +37,8 @@ label = "library"
 idea = "Pair up the letters, padding the shorter word with empty strings, and join everything."
 time = "O(n + m)"
 space = "O(n + m)"
+time_why = "`zip_longest` pairs up the letters once and `join` copies them once."
+space_why = "The pairs and the result string both hold every letter."
 note = "A one-liner."
 code = '''from itertools import zip_longest
 

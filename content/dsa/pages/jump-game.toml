@@ -16,6 +16,8 @@ label = "greedy"
 idea = "Walk forward tracking the furthest index you can reach. Fail if the current index is past it; succeed if it reaches the end."
 time = "O(n)"
 space = "O(1)"
+time_why = "A single pass, updating the furthest reach at each index."
+space_why = "Only the furthest reach."
 note = "One pass."
 code = '''class Solution:
     def canJump(self, nums: list[int]) -> bool:
@@ -35,6 +37,8 @@ label = "backward goal"
 idea = "Start with the goal at the last index. Going left, any index that can reach the goal becomes the new goal. You can jump if the goal ends at 0."
 time = "O(n)"
 space = "O(1)"
+time_why = "A single pass from the right, updating the goal at each index."
+space_why = "Only the goal index."
 note = "The same greedy argument, read from the other end."
 code = '''class Solution:
     def canJump(self, nums: list[int]) -> bool:

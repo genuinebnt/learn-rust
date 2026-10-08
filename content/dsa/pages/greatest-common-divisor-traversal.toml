@@ -15,6 +15,8 @@ label = "union find"
 idea = "Join each index to the first index holding each of its prime factors; connected means one group."
 time = "O(max · log log max + n log max)"
 space = "O(max)"
+time_why = "The sieve of smallest prime factors costs about max log log max. Then each number is factored in about log max steps and unioned."
+space_why = "The sieve array and the union-find, each sized by the largest value."
 note = "The sieve dominates for large values."
 code = '''class Solution:
     def canTraverseAllPairs(self, nums: List[int]) -> bool:

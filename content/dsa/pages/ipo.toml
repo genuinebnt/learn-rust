@@ -20,6 +20,8 @@ label = "greedy + heap"
 idea = "Each round, move every newly affordable project into a max-heap by profit, then take the best."
 time = "O(n log n + k log n)"
 space = "O(n)"
+time_why = "Sorting the projects costs n log n. Each of the k rounds pushes some projects on the heap and pops one, so k log n in total."
+space_why = "The sorted projects and the heap together hold up to n entries."
 note = "Projects enter the heap in order of required capital."
 code = '''import heapq
 

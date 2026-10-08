@@ -18,6 +18,8 @@ label = "2-D table"
 idea = "`ok[i][j]` is true if the last character of the combined prefix can come from `s1[i-1]` (with `ok[i-1][j]`) or from `s2[j-1]` (with `ok[i][j-1]`)."
 time = "O(m · n)"
 space = "O(m · n)"
+time_why = "Each cell of the (m + 1) × (n + 1) table is filled in constant time from two neighbours."
+space_why = "The table has a cell for every pair of prefixes."
 note = "The standard answer."
 code = '''class Solution:
     def isInterleave(self, s1: str, s2: str, s3: str) -> bool:
@@ -41,6 +43,8 @@ label = "one row"
 idea = "The same recurrence, reusing a single row of length n + 1."
 time = "O(m · n)"
 space = "O(n)"
+time_why = "Still m × n cells, each filled from the cell above and the one to the left in constant time."
+space_why = "Only one row of n + 1 values is kept."
 note = "Update left to right so `ok[j - 1]` is the current row's value."
 code = '''class Solution:
     def isInterleave(self, s1: str, s2: str, s3: str) -> bool:

@@ -16,6 +16,8 @@ label = "binary search"
 idea = "Keep `tails[k]`, the smallest end of an increasing subsequence of length k + 1. Each number replaces the first tail ≥ it, or extends the list."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Each of the n numbers does one binary search over `tails`, which costs log n."
+space_why = "`tails` can grow to hold n numbers."
 note = "Binary search on a sorted `tails`."
 code = '''from bisect import bisect_left
 
@@ -38,6 +40,8 @@ label = "O(n²) DP"
 idea = "`length[i]` is the longest increasing subsequence ending at i: 1 plus the best `length[j]` for earlier smaller values."
 time = "O(n²)"
 space = "O(n)"
+time_why = "Each of the n positions compares itself with every earlier position."
+space_why = "One length for each position."
 note = "Fine for n ≤ 2500."
 code = '''class Solution:
     def lengthOfLIS(self, nums: list[int]) -> int:

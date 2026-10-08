@@ -15,6 +15,8 @@ label = "backtracking"
 idea = "Place a queen per row in a column no earlier queen attacks, counting each full placement."
 time = "O(n!)"
 space = "O(n)"
+time_why = "Each row places a queen in one of n columns, and the checks prune most branches, but in the worst case about n! placements are explored."
+space_why = "The sets of attacked columns and diagonals and the recursion are each at most n."
 note = "Heavily pruned in practice."
 code = '''class Solution:
     def totalNQueens(self, n: int) -> int:
@@ -45,6 +47,8 @@ label = "bit trick"
 idea = "Keep the attacked columns and diagonals as bits; the free squares of a row are the bits not attacked."
 time = "O(n!)"
 space = "O(n)"
+time_why = "The same search of about n! placements, with each attack check being a single bit operation."
+space_why = "Three integers for the attacked squares and the recursion, n deep."
 note = "Faster by a constant factor."
 code = '''class Solution:
     def totalNQueens(self, n: int) -> int:

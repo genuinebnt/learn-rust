@@ -13,6 +13,8 @@ label = "stack"
 idea = "Each left-mover keeps colliding with right-movers on the stack until it dies or the way is clear."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each asteroid is pushed once and popped at most once, so the total number of stack operations is at most 2n."
+space_why = "In the worst case nobody collides and every asteroid stays on the stack."
 note = "Each asteroid is pushed and popped at most once."
 code = '''class Solution:
     def asteroidCollision(self, asteroids: list[int]) -> list[int]:

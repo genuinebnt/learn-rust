@@ -16,6 +16,8 @@ label = "brute force"
 idea = "For each node, the longest path through it is height(left) + height(right); recompute those heights from scratch at every node."
 time = "O(n^2)"
 space = "O(h)"
+time_why = "Computing a height visits a whole subtree, and doing that at every node on a skewed tree adds up to about n + (n−1) + ... + 1."
+space_why = "Only the recursion stack, as deep as the tree is tall."
 note = "Fine to mention, then improve."
 code = '''class Solution:
     def diameterOfBinaryTree(self, root: Optional[TreeNode]) -> int:
@@ -36,6 +38,8 @@ label = "dfs"
 idea = "A postorder DFS returns each subtree's height and, on the way, checks left + right as a candidate diameter."
 time = "O(n)"
 space = "O(h)"
+time_why = "Each node is visited once, and combining its two children's heights is constant work."
+space_why = "Only the recursion stack, as deep as the tree is tall."
 note = "Each node is visited once."
 code = '''class Solution:
     def diameterOfBinaryTree(self, root: Optional[TreeNode]) -> int:

@@ -16,6 +16,8 @@ label = "backtracking"
 idea = "Choose a candidate at or after `start`, subtract it from the target, and recurse from the same index (so it can repeat)."
 time = "O(2^target) in the worst case"
 space = "O(target)"
+time_why = "Each level can try many candidates and the depth can reach target / smallest candidate, so the tree of choices is exponential. The bound is loose; the target prunes most of it."
+space_why = "The current combination and the recursion, each at most target / smallest candidate deep."
 note = "The depth is at most `target / min(candidates)`."
 code = '''class Solution:
     def combinationSum(self, candidates: list[int], target: int) -> list[list[int]]:
@@ -44,6 +46,8 @@ label = "include / skip"
 idea = "At index `i`, either use the candidate again (stay on `i`) or move on to `i + 1`."
 time = "O(2^target) in the worst case"
 space = "O(target)"
+time_why = "A binary choice (use it again or move on) at every step, with a depth of up to target / smallest candidate, gives an exponential number of paths."
+space_why = "The recursion and the current combination are both at most that deep."
 note = "The same search with a binary choice instead of a loop."
 code = '''class Solution:
     def combinationSum(self, candidates: list[int], target: int) -> list[list[int]]:

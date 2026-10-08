@@ -21,6 +21,8 @@ label = "two steps"
 idea = "Swap across the diagonal, then flip every row."
 time = "O(n^2)"
 space = "O(1)"
+time_why = "The transpose touches each of the n² cells once and the row reversals touch each of them once more."
+space_why = "The matrix is changed in place, so only a few indexes are extra."
 note = "In place."
 code = '''class Solution:
     def rotate(self, matrix: list[list[int]]) -> None:
@@ -41,6 +43,8 @@ label = "layers"
 idea = "For each ring, move the top, right, bottom and left cells of each position one step clockwise using a temporary."
 time = "O(n^2)"
 space = "O(1)"
+time_why = "Each of the n² / 4 groups of four cells is rotated once, in constant time."
+space_why = "The matrix is changed in place, so only a temporary is extra."
 note = "One pass, but harder to write without a slip."
 code = '''class Solution:
     def rotate(self, matrix: list[list[int]]) -> None:

@@ -16,6 +16,8 @@ label = "hash map"
 idea = "For each stored point at equal distance in x and y, multiply the counts of it and the two missing corners."
 time = "O(1) add, O(p) count"
 space = "O(p)"
+time_why = "Adding is one counter update. A count tries every stored point as the opposite corner, with an O(1) lookup for each of the other two corners."
+space_why = "A counter with one entry for each distinct point."
 note = "p is the number of distinct points."
 code = '''from collections import Counter
 
@@ -43,6 +45,8 @@ label = "hash map"
 idea = "The side length comes from other points in the same column; look up the other two corners at x - side and x + side."
 time = "O(1) add, O(c) count"
 space = "O(p)"
+time_why = "Adding is one counter update. A count only tries the points in the query's column and does O(1) lookups for the other corners."
+space_why = "The points stored in a column map, which has one entry for each distinct point."
 note = "c is the number of distinct y values in the query's column."
 code = '''from collections import Counter, defaultdict
 

@@ -17,6 +17,8 @@ label = "multi-source BFS"
 idea = "Queue all gates, then BFS: each unvisited empty neighbour gets the current distance plus one."
 time = "O(rows · cols)"
 space = "O(rows · cols)"
+time_why = "Each cell is queued at most once and looks at four neighbours."
+space_why = "The queue can hold every cell of the grid."
 note = "Each cell is added to the queue at most once."
 code = '''from collections import deque
 

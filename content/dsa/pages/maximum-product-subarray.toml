@@ -16,6 +16,8 @@ label = "max and min"
 idea = "At each element, the best product ending here is the max of the element alone and the element times the previous max or min; the smallest is the min of the same three."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass over the array, doing a handful of multiplications and comparisons for each element."
+space_why = "Two running products, the best so far and the smallest so far."
 note = "One pass."
 code = '''class Solution:
     def maxProduct(self, nums: list[int]) -> int:
@@ -32,6 +34,8 @@ label = "prefix + suffix"
 idea = "Within a stretch free of zeros, the best subarray is a prefix or a suffix of it. Scan from both ends, resetting a running product to 1 after a zero."
 time = "O(n)"
 space = "O(1)"
+time_why = "Two passes over the array (one from each end), each with constant work per element."
+space_why = "Two running products."
 note = "A neat alternative, but harder to justify out loud."
 code = '''class Solution:
     def maxProduct(self, nums: list[int]) -> int:

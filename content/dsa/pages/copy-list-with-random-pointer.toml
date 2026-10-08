@@ -19,6 +19,8 @@ label = "hash map"
 idea = "Create a copy of every node, then link each copy's next and random through the map."
 time = "O(n)"
 space = "O(n)"
+time_why = "Two passes over the list, one to make the copies and one to link them, with O(1) map lookups."
+space_why = "The map has an entry for every node."
 note = "The map holds one entry per node."
 code = '''class Solution:
     def copyRandomList(self, head: 'Optional[Node]') -> 'Optional[Node]':
@@ -41,6 +43,8 @@ label = "O(1) space"
 idea = "Put each copy right after its original, set copy.random from original.random.next, then split the two lists apart."
 time = "O(n)"
 space = "O(1)"
+time_why = "Three passes over the list (interleave, set the random pointers, separate), each constant work per node."
+space_why = "The copies are woven into the existing list instead of being kept in a map, so no extra structure is needed."
 note = "Besides the copy itself. Temporarily modifies the input, then restores it."
 code = '''class Solution:
     def copyRandomList(self, head: 'Optional[Node]') -> 'Optional[Node]':

@@ -16,6 +16,8 @@ label = "trie"
 idea = "Each node is a dict from a letter to the child node; a special key marks the end of a word."
 time = "O(L) per call"
 space = "O(total letters)"
+time_why = "Each call follows one node per letter of the word or prefix, with a dictionary lookup (constant time) at each step."
+space_why = "One node for each distinct letter position stored, which is at most the total number of letters."
 note = "L is the length of the word or prefix."
 code = '''class Trie:
 
@@ -50,6 +52,8 @@ label = "simple"
 idea = "Keep one set of whole words and one of every prefix of every inserted word."
 time = "O(L) per call"
 space = "O(total letters · L)"
+time_why = "Each call hashes a string of up to L letters, and building the set of prefixes takes L inserts."
+space_why = "A word of length L stores L prefixes of length up to L, which is about L² letters for each word."
 note = "Simple and quick to write, but each word stores all its prefixes in full."
 code = '''class Trie:
 

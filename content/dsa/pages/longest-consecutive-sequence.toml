@@ -16,6 +16,8 @@ label = "hash set"
 idea = "Put all numbers in a set. For each number that has no predecessor in the set, count how far the run of successors goes and keep the longest."
 time = "O(n)"
 space = "O(n)"
+time_why = "Building the set takes n. Only the start of each run does the inner loop, so the loops together touch each number about once."
+space_why = "The set holds all the distinct numbers."
 note = "The inner `while` runs once per number across the whole algorithm, so the total is linear."
 code = '''class Solution:
     def longestConsecutive(self, nums: list[int]) -> int:
@@ -37,6 +39,8 @@ label = "sorting"
 idea = "Sort the distinct values and walk through them, extending the current run when a number is exactly one more than the previous."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting costs O(n log n) and the walk is a single pass."
+space_why = "The sorted list of distinct values."
 note = "Simple, but the sort makes it slower than the set version; mention it as the first idea."
 code = '''class Solution:
     def longestConsecutive(self, nums: list[int]) -> int:

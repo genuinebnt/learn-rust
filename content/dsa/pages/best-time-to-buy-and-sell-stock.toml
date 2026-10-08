@@ -15,6 +15,8 @@ label = "one pass"
 idea = "Track the minimum price seen and the best profit if you sold today."
 time = "O(n)"
 space = "O(1)"
+time_why = "One loop over the prices, doing constant work per day."
+space_why = "Only the lowest price so far and the best profit are stored."
 note = "Two variables and one loop."
 code = '''class Solution:
     def maxProfit(self, prices: list[int]) -> int:
@@ -32,6 +34,8 @@ label = "two pointers"
 idea = "Keep a buy pointer and a sell pointer. If the sell price is below the buy price, that sell day is the new cheapest buy; otherwise record the profit."
 time = "O(n)"
 space = "O(1)"
+time_why = "The sell pointer moves forward once per day, and the buy pointer only ever jumps to it, so the total movement is n."
+space_why = "Two pointers and a best profit."
 note = "The sell pointer visits every day once."
 code = '''class Solution:
     def maxProfit(self, prices: list[int]) -> int:

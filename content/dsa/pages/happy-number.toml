@@ -16,6 +16,8 @@ label = "hash set"
 idea = "Keep the numbers produced so far; reaching 1 means happy, seeing a repeat means a cycle."
 time = "O(log n)"
 space = "O(log n)"
+time_why = "The digit-square sums fall quickly (a number of up to 10 digits reaches three digits in a step or two) and then loop within a small range, so the number of steps stays near log n."
+space_why = "The set stores each number met until the sequence repeats, which is a short list."
 note = "The sequence is short: the numbers fall quickly to three digits."
 code = '''class Solution:
     def isHappy(self, n: int) -> bool:
@@ -39,6 +41,8 @@ label = "two pointers"
 idea = "Treat n -> next(n) as a linked list: the fast pointer takes two steps, the slow one step; they meet in a cycle or at 1."
 time = "O(log n)"
 space = "O(1)"
+time_why = "The two pointers meet within a short run of the sequence, and the sequence itself is short, about log n steps."
+space_why = "Just two numbers."
 note = "No memory of earlier numbers."
 code = '''class Solution:
     def isHappy(self, n: int) -> bool:

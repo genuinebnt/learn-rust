@@ -16,6 +16,8 @@ label = "pairs"
 idea = "Every entry remembers the smallest value at or below it, so `getMin` reads the top entry and `pop` needs no recomputation."
 time = "O(1) per operation"
 space = "O(n)"
+time_why = "Each operation reads or writes only the top of one stack."
+space_why = "Every element is stored with the minimum below it, so two numbers each."
 note = "One extra integer per element."
 code = '''class MinStack:
 
@@ -42,6 +44,8 @@ label = "two stacks"
 idea = "Keep a second stack that gets a new entry only when a value is less than or equal to the current minimum; pop from it when the value being popped equals its top."
 time = "O(1) per operation"
 space = "O(n)"
+time_why = "Each operation reads or writes only the top of a stack."
+space_why = "The main stack has every element and the minimum stack has at most as many."
 note = "Saves space when the minimum rarely changes. Use `<=` so duplicates of the minimum are counted."
 code = '''class MinStack:
 

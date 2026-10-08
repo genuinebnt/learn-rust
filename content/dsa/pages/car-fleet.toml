@@ -16,6 +16,8 @@ label = "sort + scan"
 idea = "Process cars from the closest to the target. A car that takes longer than every car ahead is the leader of a new fleet."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting the cars by position is O(n log n); the pass that counts fleets is O(n)."
+space_why = "The sorted list of (position, time) pairs holds every car."
 note = "Sorting dominates."
 code = '''class Solution:
     def carFleet(self, target: int, position: list[int], speed: list[int]) -> int:
@@ -35,6 +37,8 @@ label = "stack"
 idea = "Push each car's arrival time; if it is not greater than the time on top it merges into that fleet, so don't push it."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting is O(n log n), and each car is pushed or skipped once in the pass that follows."
+space_why = "The sorted pairs hold n cars, and the stack can also hold up to n times."
 note = "The same logic with an explicit stack; the final stack size is the number of fleets."
 code = '''class Solution:
     def carFleet(self, target: int, position: list[int], speed: list[int]) -> int:

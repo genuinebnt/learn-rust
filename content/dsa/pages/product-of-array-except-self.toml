@@ -16,6 +16,8 @@ label = "prefix + suffix"
 idea = "Build `prefix[i]` (product of everything before i) and `suffix[i]` (product of everything after i), then multiply them."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass for the prefix products, one for the suffix products and one to multiply them."
+space_why = "Two helper arrays of n numbers, plus the output."
 note = "Two helper arrays of length n."
 code = '''class Solution:
     def productExceptSelf(self, nums: list[int]) -> list[int]:
@@ -35,6 +37,8 @@ label = "O(1) extra space"
 idea = "Fill the output with prefix products, then sweep from the right keeping a running suffix product in one variable and multiplying it into the output."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass for the prefix products and one pass for the suffix products."
+space_why = "The output array is reused, so only one running product is extra."
 note = "Only the output array and one running product, so no extra space beyond the answer."
 code = '''class Solution:
     def productExceptSelf(self, nums: list[int]) -> list[int]:

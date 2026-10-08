@@ -16,6 +16,8 @@ label = "prefix sum"
 idea = "For each running sum, add how many earlier prefix sums equal running - k, then record the current sum."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass, with O(1) average time for each dictionary lookup and update."
+space_why = "The dictionary can hold up to n distinct prefix sums."
 note = "Handles negative numbers and zeros."
 code = '''from collections import defaultdict
 
@@ -38,6 +40,8 @@ label = "brute force"
 idea = "From each start index, extend the subarray and count the ends where the sum is k."
 time = "O(n^2)"
 space = "O(1)"
+time_why = "Each of the n starts extends over up to n positions."
+space_why = "Only the running sum and the count."
 note = "Fine for small inputs; too slow for 20,000 numbers."
 code = '''class Solution:
     def subarraySum(self, nums: List[int], k: int) -> int:

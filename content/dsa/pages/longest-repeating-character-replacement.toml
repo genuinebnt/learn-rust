@@ -18,6 +18,8 @@ label = "sliding window"
 idea = "Expand `right`, count letters, track the highest count seen. If the window needs more than `k` replacements, move `left` once."
 time = "O(n)"
 space = "O(1)"
+time_why = "Both pointers only move forward, so there are at most 2n steps."
+space_why = "A counter of 26 letters, whatever n is."
 note = "Each index enters and leaves the window once; 26 counters."
 code = '''class Solution:
     def characterReplacement(self, s: str, k: int) -> int:
@@ -40,6 +42,8 @@ label = "exact max"
 idea = "Recompute the highest count in the window each time it's needed. Slower by a factor of 26, but you don't have to argue about a stale maximum."
 time = "O(26 · n)"
 space = "O(1)"
+time_why = "Each step scans 26 letter counts to find the exact maximum, so 26 × n."
+space_why = "A counter of 26 letters, whatever n is."
 note = "Easier to defend; the extra factor is a constant."
 code = '''class Solution:
     def characterReplacement(self, s: str, k: int) -> int:

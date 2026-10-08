@@ -16,6 +16,8 @@ label = "brute force"
 idea = "Try every pair. Correct and tiny, but quadratic: say it, then improve it."
 time = "O(n²)"
 space = "O(1)"
+time_why = "Two nested loops try every pair, which is n × (n − 1) / 2 pairs."
+space_why = "Only two indexes."
 note = "Fine for a few thousand elements, too slow beyond that."
 code = '''class Solution:
     def twoSum(self, nums: list[int], target: int) -> list[int]:
@@ -32,6 +34,8 @@ label = "hash map"
 idea = "Map each value to its index as you go. For each number, look up `target - number`; the first hit is the answer."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass, with an O(1) dictionary lookup and insert for each number."
+space_why = "The dictionary can hold up to n numbers."
 note = "Each number is looked up and inserted once."
 code = '''class Solution:
     def twoSum(self, nums: list[int], target: int) -> list[int]:

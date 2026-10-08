@@ -15,6 +15,8 @@ label = "heap"
 idea = "Pop the two commonest letters, append both, and push them back with one less remaining."
 time = "O(n log k)"
 space = "O(k)"
+time_why = "Each round places two letters, with heap operations costing log k, so about n / 2 rounds of log k work."
+space_why = "The heap holds one entry for each distinct letter, at most 26."
 note = "k is the number of distinct letters, at most 26."
 code = '''import heapq
 from collections import Counter

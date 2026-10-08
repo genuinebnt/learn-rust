@@ -16,6 +16,8 @@ label = "two pointers"
 idea = "Advance one pointer by one and the other by two; they meet if and only if there is a cycle."
 time = "O(n)"
 space = "O(1)"
+time_why = "If there is no cycle the fast pointer reaches the end in n / 2 steps. If there is one, the pointers meet within a few laps of the cycle."
+space_why = "Only two pointers."
 note = "Floyd's cycle detection."
 code = '''class Solution:
     def hasCycle(self, head: Optional[ListNode]) -> bool:
@@ -34,6 +36,8 @@ label = "hash set"
 idea = "Walk the list and remember each node; seeing one twice means a cycle."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each node is visited and added to the set once."
+space_why = "The set holds every node visited."
 note = "Simple, but uses memory."
 code = '''class Solution:
     def hasCycle(self, head: Optional[ListNode]) -> bool:

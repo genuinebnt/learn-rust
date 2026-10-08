@@ -14,6 +14,8 @@ label = "greedy"
 idea = "Record where each letter last appears. Extend the current part's end to the furthest last occurrence of the letters inside it, and cut when the sweep reaches that end."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass to record the last occurrence of each letter and one pass to cut the parts."
+space_why = "A map of at most 26 letters."
 note = "At most 26 letters in the map."
 code = '''class Solution:
     def partitionLabels(self, s: str) -> list[int]:

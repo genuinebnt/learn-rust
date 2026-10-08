@@ -15,6 +15,8 @@ label = "union find"
 idea = "Union each account with the first account that listed each of its emails, then group the emails by root."
 time = "O(n · k · α(n) + e log e)"
 space = "O(n · k)"
+time_why = "Each of the n·k emails is looked up or merged in a union-find, which costs about α(n) per step (almost constant). Sorting the emails of every merged account adds the e log e."
+space_why = "The email-to-account map, the union-find parents and the grouped emails each hold up to n·k entries."
 note = "k is the number of emails per account, e the total number of emails."
 code = '''from collections import defaultdict
 

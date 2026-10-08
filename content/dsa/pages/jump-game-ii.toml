@@ -14,6 +14,8 @@ label = "greedy levels"
 idea = "Keep the end of the current jump's range and the furthest index reachable from within it. When you reach the end of the range, count a jump and extend the range to the furthest."
 time = "O(n)"
 space = "O(1)"
+time_why = "A single pass: each index is looked at once as the end of the range moves forward."
+space_why = "Three numbers: the current end, the furthest reach and the jump count."
 note = "A single pass."
 code = '''class Solution:
     def jump(self, nums: list[int]) -> int:
@@ -34,6 +36,8 @@ label = "DP"
 idea = "`best[i]` is the fewest jumps to reach index i; relax every index reachable from each position. Correct but quadratic."
 time = "O(n²)"
 space = "O(n)"
+time_why = "For each of the n positions, up to n later positions are updated."
+space_why = "One best-jumps value for each position."
 note = "Fine to mention as the starting point before the greedy."
 code = '''class Solution:
     def jump(self, nums: list[int]) -> int:

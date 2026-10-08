@@ -16,6 +16,8 @@ label = "bottom-up"
 idea = "`can[i]` is true when some split `j < i` has `can[j]` and `s[j:i]` in the dictionary."
 time = "O(n · L)"
 space = "O(n)"
+time_why = "Each of the n prefix ends checks up to L candidate word lengths (the longest word, at most 20), each a slice and a set lookup."
+space_why = "One flag for each position."
 note = "L is the longest word (at most 20), so about n · 20 slice checks."
 code = '''class Solution:
     def wordBreak(self, s: str, wordDict: list[str]) -> bool:
@@ -36,6 +38,8 @@ label = "memoised"
 idea = "`fits(i)` asks whether the suffix from i can be split; try every word that matches at i and recurse on what's left."
 time = "O(n · L)"
 space = "O(n)"
+time_why = "Each of the n start positions is solved once and tries up to L word lengths."
+space_why = "The cache has n entries and the recursion goes up to n deep."
 note = "Recursion depth up to n (300)."
 code = '''from functools import cache
 

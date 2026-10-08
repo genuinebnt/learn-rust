@@ -15,6 +15,8 @@ label = "memoization"
 idea = "The mover takes the whole suffix minus the opponent's best result from the position each choice leaves."
 time = "O(n^3)"
 space = "O(n^2)"
+time_why = "There are about n × n (start, M) states, and each tries up to n values of X."
+space_why = "The cache has an entry for each (start, M) state."
 note = "n is at most 100, so about a million states."
 code = '''from functools import lru_cache
 

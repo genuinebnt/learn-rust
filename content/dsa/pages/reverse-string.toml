@@ -13,6 +13,8 @@ label = "two pointers"
 idea = "Exchange the outermost pair, then the next pair in, until the pointers meet."
 time = "O(n)"
 space = "O(1)"
+time_why = "Each swap fixes two characters, so n / 2 swaps."
+space_why = "The string is changed in place, so only two pointers are extra."
 note = "In place."
 code = '''class Solution:
     def reverseString(self, s: list[str]) -> None:

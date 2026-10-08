@@ -15,6 +15,8 @@ label = "heap"
 idea = "Append the most frequent letter, or the second most frequent when the top one has just been used twice."
 time = "O(n log 3)"
 space = "O(1)"
+time_why = "Each step adds one letter (at most n steps) and does a heap operation over at most three letters, which is constant."
+space_why = "The heap holds at most three letters. The output isn't counted."
 note = "At most three letters, so the heap is tiny."
 code = '''import heapq
 

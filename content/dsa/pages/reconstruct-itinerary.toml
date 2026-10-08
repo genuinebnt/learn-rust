@@ -19,6 +19,8 @@ label = "Hierholzer"
 idea = "Walk with a stack, always following the smallest unused ticket. When an airport has no tickets left, pop it into the route. The route reversed is the itinerary."
 time = "O(E log E)"
 space = "O(E)"
+time_why = "Sorting the destinations costs E log E. Each ticket is then used once, and the stack operations are constant time."
+space_why = "The tickets are stored in the graph, and the stack and the route each hold up to E airports."
 note = "Sorting the destinations dominates."
 code = '''from collections import defaultdict
 
@@ -43,6 +45,8 @@ label = "recursive"
 idea = "The same idea as a recursive DFS that appends an airport after it has used all its tickets."
 time = "O(E log E)"
 space = "O(E)"
+time_why = "Sorting the destinations costs E log E, and each ticket is used once."
+space_why = "The tickets are stored in the graph, and the recursion goes up to E deep."
 note = "Recursion depth up to the number of tickets."
 code = '''import heapq
 from collections import defaultdict

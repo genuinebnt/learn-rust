@@ -16,6 +16,8 @@ label = "sorted key"
 idea = "Sort each word's letters and use the result as the dictionary key."
 time = "O(n · k log k)"
 space = "O(n · k)"
+time_why = "Sorting a word of length k costs k log k, and it is done for each of the n words."
+space_why = "Every word is stored once, in the group it belongs to."
 note = "n words of length at most k; every word is stored once in the groups."
 code = '''from collections import defaultdict
 
@@ -34,6 +36,8 @@ label = "count key"
 idea = "Count the 26 letters of each word and use that tuple as the key. Same idea, no sorting."
 time = "O(n · k)"
 space = "O(n · k)"
+time_why = "Each word is read once to count its letters, and building the 26-number key is constant time."
+space_why = "Every word is stored once, and each group has a key of 26 numbers."
 note = "Each word is scanned once; the key is always 26 numbers."
 code = '''from collections import defaultdict
 

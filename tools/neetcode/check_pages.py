@@ -73,7 +73,7 @@ def check(slug):
             page_tests.run(slug, ns)
         except Exception as e:  # noqa: BLE001
             problems.append(f"{where}: fails its checks: {type(e).__name__}: {e}")
-        for field in ("name", "label", "idea", "time", "space", "note"):
+        for field in ("name", "label", "idea", "time", "space", "time_why", "space_why", "note"):
             if not ap.get(field):
                 problems.append(f"{where}: missing {field}")
     for field in ("intuition", "tips"):

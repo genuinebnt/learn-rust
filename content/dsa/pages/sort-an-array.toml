@@ -16,6 +16,8 @@ label = "divide and conquer"
 idea = "Sort the two halves recursively and merge them by repeatedly taking the smaller front element."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "The array is halved log n times, and each level of merging touches every element once."
+space_why = "Each merge writes into an extra list, which together hold n elements."
 note = "Same cost on every input."
 code = '''class Solution:
     def sortArray(self, nums: list[int]) -> list[int]:
@@ -46,6 +48,8 @@ label = "counting"
 idea = "Count how many times each value occurs, then write the values back in increasing order."
 time = "O(n + R)"
 space = "O(R)"
+time_why = "One pass to count the n numbers and one pass over the R possible values to write them back."
+space_why = "The count array has one slot for each possible value in the range."
 note = "R is the range of values (100,001 here); not suitable for huge ranges."
 code = '''class Solution:
     def sortArray(self, nums: list[int]) -> list[int]:
@@ -65,6 +69,8 @@ label = "heap"
 idea = "Build a min-heap of all values and pop them in order."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Building the heap and popping n values each costs log n per value."
+space_why = "`heapq` copies all n values into a new heap. An in-place heap sort would need none."
 note = "Using heapq; an in-place heap sort would use O(1) extra space."
 code = '''import heapq
 

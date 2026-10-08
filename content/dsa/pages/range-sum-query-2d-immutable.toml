@@ -17,6 +17,8 @@ label = "prefix sum"
 idea = "Store the sum of every rectangle anchored at the top-left corner; answer any rectangle by inclusion and exclusion."
 time = "O(m · n) to build, O(1) per query"
 space = "O(m · n)"
+time_why = "Building the table visits each of the m × n cells once. A query is four table lookups and a few additions."
+space_why = "The prefix table has about one entry for every cell of the matrix."
 note = "The zero border removes the boundary checks."
 code = '''class NumMatrix:
 

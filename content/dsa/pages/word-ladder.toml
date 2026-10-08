@@ -17,6 +17,8 @@ label = "BFS"
 idea = "From each word, generate every word reachable by changing one letter, keep the ones that are in the dictionary and not yet used, and continue ring by ring."
 time = "O(N · L² · 26)"
 space = "O(N · L)"
+time_why = "Each of the N words is queued once, and expanding it changes each of its L letters to 26 options, building each new word costs L."
+space_why = "The word set and the queue hold up to N words of length L."
 note = "N words of length L; building each candidate string costs O(L)."
 code = '''from collections import deque
 
@@ -47,6 +49,8 @@ label = "bidirectional"
 idea = "Search from both ends at once, always expanding the smaller frontier. The searches meet in the middle, which visits far fewer words."
 time = "O(N · L² · 26)"
 space = "O(N · L)"
+time_why = "Each word is still expanded at most once, with L positions × 26 letters × L to build each candidate. Meeting in the middle makes it much faster in practice, but not in the worst case."
+space_why = "The word set and the two frontiers hold up to N words of length L."
 note = "Same worst case, much faster in practice."
 code = '''class Solution:
     def ladderLength(self, beginWord: str, endWord: str, wordList: list[str]) -> int:

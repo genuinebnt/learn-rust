@@ -13,6 +13,8 @@ label = "dp"
 idea = "Keep the last three terms and replace them by their next values n - 2 times."
 time = "O(n)"
 space = "O(1)"
+time_why = "The loop runs n − 2 times with a constant-time update."
+space_why = "Only the last three values."
 note = "The same loop as Fibonacci with a third variable."
 code = '''class Solution:
     def tribonacci(self, n: int) -> int:

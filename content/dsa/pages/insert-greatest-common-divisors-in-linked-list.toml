@@ -13,6 +13,8 @@ label = "splice"
 idea = "For each node with a successor, link in a node holding gcd(node, successor) and skip over it."
 time = "O(n log m)"
 space = "O(1)"
+time_why = "One new node for every adjacent pair (n of them), and each gcd takes about log of the larger value (Euclid's algorithm)."
+space_why = "The new nodes are the output; the loop itself keeps two pointers."
 note = "m is the largest value."
 code = '''from math import gcd
 

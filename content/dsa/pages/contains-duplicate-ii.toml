@@ -13,6 +13,8 @@ label = "sliding window"
 idea = "Check the new value against the window, then slide the window forward by one."
 time = "O(n)"
 space = "O(k)"
+time_why = "One pass, and each set lookup, insert and removal is O(1)."
+space_why = "The set is never bigger than the window of k values."
 note = "The set never holds more than k items."
 code = '''class Solution:
     def containsNearbyDuplicate(self, nums: list[int], k: int) -> bool:

@@ -16,6 +16,8 @@ label = "degree counting"
 idea = "Add one to the trusted person and subtract one from the truster; the judge is the only one who can reach n - 1."
 time = "O(n + t)"
 space = "O(n)"
+time_why = "One pass over the t trust pairs and one over the n people."
+space_why = "An array with a score for each person."
 note = "t is the number of trust pairs."
 code = '''class Solution:
     def findJudge(self, n: int, trust: list[list[int]]) -> int:
@@ -35,6 +37,8 @@ label = "degree counting"
 idea = "Count how many trust each person and whom each person trusts; the judge has n - 1 incoming and 0 outgoing."
 time = "O(n + t)"
 space = "O(n)"
+time_why = "One pass over the t trust pairs and one over the n people."
+space_why = "Two arrays, one for each person's in-degree and out-degree."
 note = "Same idea with two arrays."
 code = '''class Solution:
     def findJudge(self, n: int, trust: list[list[int]]) -> int:

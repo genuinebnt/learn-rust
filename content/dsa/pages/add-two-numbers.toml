@@ -16,6 +16,8 @@ label = "simulation"
 idea = "Add the two current digits plus the carry, append the units digit, carry the rest; continue while any digits or carry remain."
 time = "O(max(n, m))"
 space = "O(max(n, m))"
+time_why = "The loop runs once for each digit of the longer list, doing constant work per digit."
+space_why = "Only the output list is built, one node per digit. Apart from it there are just a few variables."
 note = "The output list; no extra memory besides it."
 code = '''class Solution:
     def addTwoNumbers(self, l1: ListNode | None, l2: ListNode | None) -> ListNode | None:

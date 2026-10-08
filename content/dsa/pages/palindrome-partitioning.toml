@@ -16,6 +16,8 @@ label = "backtracking"
 idea = "From each start index, try every palindromic piece, add it, and recurse on the rest."
 time = "O(n · 2^n)"
 space = "O(n)"
+time_why = "There are up to 2ⁿ⁻¹ ways to cut a string of n letters, and checking and copying each piece costs up to n."
+space_why = "The current partition and the recursion, at most n deep. The output isn't counted."
 note = "Palindrome checks by slicing and comparing."
 code = '''class Solution:
     def partition(self, s: str) -> list[list[str]]:
@@ -43,6 +45,8 @@ label = "DP table + backtracking"
 idea = "Fill a table of which substrings are palindromes first, so backtracking checks each piece in O(1)."
 time = "O(n · 2^n)"
 space = "O(n²)"
+time_why = "There are still up to 2ⁿ⁻¹ ways to cut the string, but with the table each palindrome check is O(1) (the table itself costs n²)."
+space_why = "The n × n table of which substrings are palindromes, plus the recursion."
 note = "Pays off when the string is longer or the checks are expensive."
 code = '''class Solution:
     def partition(self, s: str) -> list[list[str]]:

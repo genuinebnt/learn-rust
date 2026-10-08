@@ -20,6 +20,8 @@ label = "bottom-up"
 idea = "`fewest[a]` is one more than the best `fewest[a - coin]` over the coins that fit. Build from amount 0 upwards."
 time = "O(amount · coins)"
 space = "O(amount)"
+time_why = "Each of the amounts from 1 to the target tries every coin once."
+space_why = "One array entry per amount, from 0 to the target."
 note = "The standard answer."
 code = '''class Solution:
     def coinChange(self, coins: list[int], amount: int) -> int:
@@ -38,6 +40,8 @@ label = "BFS"
 idea = "Each coin moves from an amount to a smaller one. The fewest coins is the fewest BFS steps from `amount` down to 0."
 time = "O(amount · coins)"
 space = "O(amount)"
+time_why = "Each amount is reached at most once (it is marked as seen), and each reached amount tries every coin."
+space_why = "The seen set and the queue hold up to one entry for each amount."
 note = "Stops as soon as 0 is reached."
 code = '''from collections import deque
 

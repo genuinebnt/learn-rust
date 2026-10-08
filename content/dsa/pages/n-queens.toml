@@ -16,6 +16,8 @@ label = "backtracking"
 idea = "Place a queen in each row at a column that no earlier queen attacks, tracking attacked columns and both diagonals in sets."
 time = "O(n!)"
 space = "O(n)"
+time_why = "Each row places a queen in one of n columns, and the checks prune most branches, but in the worst case about n! placements are explored."
+space_why = "The sets of attacked columns and diagonals, the board and the recursion are each at most n. The output boards aren't counted."
 note = "Heavily pruned in practice."
 code = '''class Solution:
     def solveNQueens(self, n: int) -> list[list[str]]:
@@ -50,6 +52,8 @@ label = "bitmasks"
 idea = "Keep the attacked columns and diagonals as three integers whose bits are set; shifting them moves the diagonals down a row."
 time = "O(n!)"
 space = "O(n)"
+time_why = "The same search of about n! placements, with each attack check being a single bit operation."
+space_why = "Three integers for the attacked squares, and the recursion is n deep. The output boards aren't counted."
 note = "The fastest way in Python; harder to read."
 code = '''class Solution:
     def solveNQueens(self, n: int) -> list[list[str]]:

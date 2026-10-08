@@ -16,6 +16,8 @@ label = "simulation"
 idea = "Turn each word into a list of ranks and check that each word's list is at most the next one's."
 time = "O(total letters)"
 space = "O(1) plus the converted words"
+time_why = "Converting each word reads each of its letters once, and comparing neighbours reads each rank list once."
+space_why = "The 26-letter order map, plus the converted words, which together hold every letter again."
 note = "The alphabet is 26 letters."
 code = '''class Solution:
     def isAlienSorted(self, words: list[str], order: str) -> bool:
@@ -30,6 +32,8 @@ label = "simulation"
 idea = "For each adjacent pair, find the first differing letter and compare ranks; if none differs, the longer word must not come first."
 time = "O(total letters)"
 space = "O(1)"
+time_why = "Each pair of neighbours is compared up to the first difference, which reads every letter at most twice in total."
+space_why = "Just the 26-letter order map."
 note = "What the one-liner does under the hood."
 code = '''class Solution:
     def isAlienSorted(self, words: list[str], order: str) -> bool:

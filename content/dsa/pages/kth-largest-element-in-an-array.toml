@@ -18,6 +18,8 @@ label = "heap"
 idea = "Hold the k largest numbers in a min-heap; the smallest of them is the k-th largest."
 time = "O(n log k)"
 space = "O(k)"
+time_why = "Each of the n numbers is pushed on a heap of size k, each costing log k."
+space_why = "The heap holds at most k numbers."
 note = "Works on a stream."
 code = '''import heapq
 
@@ -38,6 +40,8 @@ label = "quickselect"
 idea = "Split around a random pivot into smaller, equal and larger; keep only the part that contains the target position."
 time = "O(n) average"
 space = "O(n)"
+time_why = "Each round scans the part still in play, and on average that part shrinks by about half, so n + n/2 + ... which is O(n)."
+space_why = "The smaller, equal and larger lists are new lists, together up to n numbers."
 note = "Worst case O(n^2) is vanishingly unlikely with a random pivot."
 code = '''import random
 
@@ -64,6 +68,8 @@ label = "sorting"
 idea = "Sort and index from the end."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting n numbers costs n log n."
+space_why = "Python's sort works on a copy of the n numbers."
 note = "Fine as a first answer; say why you'd improve it."
 code = '''class Solution:
     def findKthLargest(self, nums: list[int], k: int) -> int:

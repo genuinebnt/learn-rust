@@ -15,6 +15,8 @@ label = "simple"
 idea = "Return the list added to itself."
 time = "O(n)"
 space = "O(n)"
+time_why = "Building a list of 2n items means touching every item once."
+space_why = "The answer is a new list of 2n items."
 note = "The output."
 code = '''class Solution:
     def getConcatenation(self, nums: list[int]) -> list[int]:
@@ -27,6 +29,8 @@ label = "indexing"
 idea = "Allocate 2n slots and write each value at i and at i + n."
 time = "O(n)"
 space = "O(n)"
+time_why = "One loop over the n items, writing two values for each."
+space_why = "The answer is a new list of 2n items."
 note = "The version you would write in a language without list addition."
 code = '''class Solution:
     def getConcatenation(self, nums: list[int]) -> list[int]:

@@ -16,6 +16,8 @@ label = "queue"
 idea = "After each push, cycle the older items behind the new one so the newest is at the front."
 time = "O(n) push, O(1) others"
 space = "O(n)"
+time_why = "A push cycles every older item to the back, which is n moves; pop and top just read the front."
+space_why = "A single queue that holds every item."
 note = "One structure."
 code = '''from collections import deque
 
@@ -46,6 +48,8 @@ label = "queue"
 idea = "Put the new item into an empty queue, then pour the old queue in behind it and swap the two."
 time = "O(n) push, O(1) others"
 space = "O(n)"
+time_why = "A push pours every older item into the other queue, which is n moves; pop and top just read the front."
+space_why = "Two queues, but only one holds items at any moment."
 note = "What the problem statement hints at."
 code = '''from collections import deque
 

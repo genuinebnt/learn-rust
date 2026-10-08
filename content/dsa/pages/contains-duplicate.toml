@@ -15,6 +15,8 @@ label = "hash set"
 idea = "Keep every value you've seen in a set. The first value that's already there is the duplicate."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass, with O(1) average time for each set lookup and insert."
+space_why = "In the worst case, when there is no duplicate, the set stores all n values."
 note = "One pass; the set can grow to n values."
 code = '''class Solution:
     def containsDuplicate(self, nums: list[int]) -> bool:
@@ -32,6 +34,8 @@ label = "sorting"
 idea = "After sorting, duplicates sit side by side, so one scan of adjacent pairs finds them. It sorts a copy, so the input isn't changed."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting takes O(n log n) and the neighbour scan is a single extra pass."
+space_why = "`sorted` makes a copy of the n values."
 note = "Python's sort needs O(n) scratch space; sorting in place (`nums.sort()`) would need only O(1) extra but changes the input."
 code = '''class Solution:
     def containsDuplicate(self, nums: list[int]) -> bool:

@@ -16,6 +16,8 @@ label = "0/1 knapsack"
 idea = "`reachable[s]` is true if some subset adds to s. Process each number once, updating sums from high to low."
 time = "O(n · target)"
 space = "O(target)"
+time_why = "Each of the n numbers updates every reachable sum up to the target, which is half the total."
+space_why = "One flag for each sum from 0 to the target."
 note = "target is half the total (at most 100 · 200 / 2)."
 code = '''class Solution:
     def canPartition(self, nums: list[int]) -> bool:
@@ -39,6 +41,8 @@ label = "bitset"
 idea = "Bit s of `bits` is set when sum s is reachable. Adding a number shifts the whole set: `bits |= bits << num`."
 time = "O(n · target / 64)"
 space = "O(target)"
+time_why = "Each of the n numbers does one shift-and-or on an integer of about target bits, which is processed 64 bits at a time."
+space_why = "One integer of about target bits."
 note = "Python integers are arbitrary-width, so this is very fast."
 code = '''class Solution:
     def canPartition(self, nums: list[int]) -> bool:

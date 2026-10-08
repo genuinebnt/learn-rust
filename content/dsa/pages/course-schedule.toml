@@ -17,6 +17,8 @@ label = "DFS"
 idea = "Walk from each course. Mark a node **visiting** while it's on the current path and **done** once everything after it is explored. Reaching a visiting node means a cycle."
 time = "O(V + E)"
 space = "O(V + E)"
+time_why = "The DFS visits every course once and follows every prerequisite edge once."
+space_why = "The adjacency lists hold V + E, and the recursion goes up to V deep along a chain."
 note = "Each course and prerequisite is visited once; the graph and the recursion stack take the space."
 code = '''import sys
 
@@ -51,6 +53,8 @@ label = "topological sort"
 idea = "Repeatedly take a course with no remaining prerequisites (in-degree 0) and remove its outgoing edges. If every course gets taken, there's an order; if some are left, they're stuck in a cycle."
 time = "O(V + E)"
 space = "O(V + E)"
+time_why = "Each course is queued once and each prerequisite edge is followed once."
+space_why = "The adjacency lists hold V + E, and the in-degree array and queue hold up to V."
 note = "No recursion, so no depth limit."
 code = '''from collections import deque
 

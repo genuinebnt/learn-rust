@@ -21,6 +21,8 @@ label = "boundaries"
 idea = "Read the top row, right column, bottom row and left column of the remaining rectangle, then shrink it by one on every side."
 time = "O(m · n)"
 space = "O(1)"
+time_why = "Each cell is read exactly once."
+space_why = "Only four boundaries. The output list isn't counted."
 note = "Besides the output list."
 code = '''class Solution:
     def spiralOrder(self, matrix: list[list[int]]) -> list[int]:
@@ -51,6 +53,8 @@ label = "peeling"
 idea = "Take the first row, then rotate what's left counterclockwise so the next side becomes the top row; repeat."
 time = "O(m · n · min(m, n))"
 space = "O(m · n)"
+time_why = "Each round copies and rotates the matrix that is left, which is up to m × n cells, over about min(m, n) rounds."
+space_why = "Each rotation builds a new copy of the remaining matrix."
 note = "Short but copies the matrix at every step; it also empties the input."
 code = '''class Solution:
     def spiralOrder(self, matrix: list[list[int]]) -> list[int]:

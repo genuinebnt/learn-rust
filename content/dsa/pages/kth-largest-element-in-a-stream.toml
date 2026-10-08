@@ -16,6 +16,8 @@ label = "heap"
 idea = "Keep only the k largest values in a min-heap; its smallest element is the k-th largest."
 time = "O(log k) per add"
 space = "O(k)"
+time_why = "An add pushes on the heap and, when the heap has k + 1 values, pops one, each costing log k."
+space_why = "The heap holds at most k values."
 note = "Initial build is O(n)."
 code = '''import heapq
 
@@ -42,6 +44,8 @@ label = "simple"
 idea = "Keep every value in a sorted list; the k-th largest is at index -k."
 time = "O(n) per add"
 space = "O(n)"
+time_why = "Finding the spot with bisect is log n, but inserting into the middle of a list shifts the later items, which is O(n)."
+space_why = "The list holds every value seen."
 note = "Inserting into a Python list shifts elements."
 code = '''import bisect
 

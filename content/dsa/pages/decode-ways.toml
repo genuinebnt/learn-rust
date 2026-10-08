@@ -18,6 +18,8 @@ label = "two variables"
 idea = "`ways(i)` adds the ways for one valid digit and the ways for one valid pair, using only the last two values."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass over the digits with constant work per digit."
+space_why = "Only the last two counts are kept."
 note = "One pass."
 code = '''class Solution:
     def numDecodings(self, s: str) -> int:
@@ -40,6 +42,8 @@ label = "memoised"
 idea = "`ways(i)` is the number of ways to decode the suffix starting at i: take one digit if it isn't 0, and two digits if they make 10–26."
 time = "O(n)"
 space = "O(n)"
+time_why = "There are n positions and each is worked out once from two choices, with the cache preventing repeats."
+space_why = "The cache has up to n entries and the recursion goes n deep."
 note = "Recursion depth n (at most 100)."
 code = '''from functools import cache
 

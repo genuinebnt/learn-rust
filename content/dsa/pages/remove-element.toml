@@ -16,6 +16,8 @@ label = "two pointers"
 idea = "Copy every element that isn't val to the next write position."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass with a read pointer that visits each element once."
+space_why = "The array is changed in place, so only two pointers are extra."
 note = "Keeps the order of the kept elements."
 code = '''class Solution:
     def removeElement(self, nums: list[int], val: int) -> int:
@@ -33,6 +35,8 @@ label = "two pointers"
 idea = "When nums[i] is val, overwrite it with the last element and shrink the array by one; otherwise move on."
 time = "O(n)"
 space = "O(1)"
+time_why = "Each step either moves forward or shrinks the array by one, so at most n steps."
+space_why = "The array is changed in place, so only two pointers are extra."
 note = "Fewer writes when val is rare; the order isn't kept."
 code = '''class Solution:
     def removeElement(self, nums: list[int], val: int) -> int:

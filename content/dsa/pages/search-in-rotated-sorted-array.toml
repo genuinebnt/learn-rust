@@ -17,6 +17,8 @@ label = "sorted half"
 idea = "Each step, one of the halves is fully sorted. If the target is within that half's range, search it; otherwise search the other half."
 time = "O(log n)"
 space = "O(1)"
+time_why = "Each step finds the sorted half and discards the other half."
+space_why = "Just the bounds and the middle."
 note = "A single loop with two cases."
 code = '''class Solution:
     def search(self, nums: list[int], target: int) -> int:
@@ -44,6 +46,8 @@ label = "pivot + search"
 idea = "Locate the smallest element (the rotation point), then binary search the sorted run that could contain the target."
 time = "O(log n)"
 space = "O(1)"
+time_why = "One binary search for the pivot, then one for the target, each halving the range."
+space_why = "Just the bounds and the middle."
 note = "Two clean binary searches."
 code = '''from bisect import bisect_left
 

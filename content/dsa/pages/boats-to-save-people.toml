@@ -16,6 +16,8 @@ label = "greedy two pointers"
 idea = "Each boat takes the heaviest remaining person, plus the lightest if both fit under the limit."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting takes O(n log n), then the two-pointer loop moves one pointer inward per step, so it is n at most."
+space_why = "Python's sort makes a sorted copy of n people (an in-place sort would use O(1))."
 note = "The sort dominates."
 code = '''class Solution:
     def numRescueBoats(self, people: list[int], limit: int) -> int:

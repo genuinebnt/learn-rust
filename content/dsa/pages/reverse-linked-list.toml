@@ -16,6 +16,8 @@ label = "iterative"
 idea = "Walk the list keeping the previous node; point each node back at it and step forward."
 time = "O(n)"
 space = "O(1)"
+time_why = "Each node is visited once and its pointer flipped."
+space_why = "Only a few pointers."
 note = "The expected answer."
 code = '''class Solution:
     def reverseList(self, head: ListNode | None) -> ListNode | None:
@@ -35,6 +37,8 @@ label = "recursive"
 idea = "Reverse the rest of the list, then hook the head onto the end of that reversed part."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each node is visited once as the recursion goes down and unwinds."
+space_why = "The recursion has one frame for each node, so n deep."
 note = "The recursion depth equals the list length."
 code = '''class Solution:
     def reverseList(self, head: ListNode | None) -> ListNode | None:

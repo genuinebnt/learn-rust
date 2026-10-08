@@ -20,6 +20,8 @@ label = "three steps"
 idea = "Split at the middle, reverse the second half, then interleave the two halves."
 time = "O(n)"
 space = "O(1)"
+time_why = "Finding the middle, reversing the second half and merging the two are each a single pass."
+space_why = "The nodes are relinked in place, so only a few pointers are extra."
 note = "Modifies the list in place."
 code = '''class Solution:
     def reorderList(self, head: ListNode | None) -> None:
@@ -54,6 +56,8 @@ label = "array"
 idea = "Copy the nodes into a list and link them from the outside in."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass to copy the nodes into a list, then one pass to link them from the outside in."
+space_why = "The list holds every node."
 note = "Easier to get right; uses memory for the list of nodes."
 code = '''class Solution:
     def reorderList(self, head: ListNode | None) -> None:

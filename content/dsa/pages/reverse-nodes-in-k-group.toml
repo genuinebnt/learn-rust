@@ -20,6 +20,8 @@ label = "iterative"
 idea = "Find each block's end, reverse the block with its tail linked to the rest, and move on from the block's new last node."
 time = "O(n)"
 space = "O(1)"
+time_why = "Finding each block's end and reversing the block each take a pass over its k nodes, so each node is touched a few times in total."
+space_why = "The nodes are relinked in place, so only a few pointers are extra."
 note = "Every node is visited a constant number of times."
 code = '''class Solution:
     def reverseKGroup(self, head: ListNode | None, k: int) -> ListNode | None:
@@ -49,6 +51,8 @@ label = "recursive"
 idea = "If at least k nodes remain, reverse the first k so they point at the already-reversed rest, and return the new head."
 time = "O(n)"
 space = "O(n / k)"
+time_why = "Each node is reversed once and checked for the block's length once."
+space_why = "The recursion has one frame for each block, which is n / k deep."
 note = "One recursion level per block."
 code = '''class Solution:
     def reverseKGroup(self, head: ListNode | None, k: int) -> ListNode | None:

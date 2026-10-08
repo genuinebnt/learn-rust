@@ -16,6 +16,8 @@ label = "topological sort"
 idea = "Queue the courses with in-degree 0. Take one, add it to the order, decrement its dependants' in-degrees, and queue the ones that reach 0."
 time = "O(V + E)"
 space = "O(V + E)"
+time_why = "Each course is queued once and each prerequisite edge is followed once."
+space_why = "The adjacency lists hold all V + E edges, and the queue and in-degree counts hold up to V."
 note = "Every course and prerequisite is processed once."
 code = '''from collections import deque
 
@@ -46,6 +48,8 @@ label = "DFS"
 idea = "Run the three-state DFS; append a course to the list when it is finished. Reversing that list is a valid order. A visiting node reached again means a cycle."
 time = "O(V + E)"
 space = "O(V + E)"
+time_why = "The DFS visits each course once and follows each edge once."
+space_why = "The adjacency lists hold V + E, and the recursion can go V deep on a long chain."
 note = "The recursion can be 2000 deep, so raise the limit."
 code = '''import sys
 

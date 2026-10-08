@@ -16,6 +16,8 @@ label = "hash table"
 idea = "An array of small lists; the key's remainder picks the bucket and collisions share it."
 time = "O(1) average per call"
 space = "O(buckets + keys)"
+time_why = "Hashing picks a bucket directly. A bucket is short on average, so scanning it is constant time."
+space_why = "The bucket array plus one entry for each key stored."
 note = "A bucket holds only the keys that hash to it."
 code = '''class MyHashSet:
 
@@ -43,6 +45,8 @@ label = "direct address"
 idea = "Keys are at most 10^6, so a boolean per key works with no hashing at all."
 time = "O(1) per call"
 space = "O(10^6) always"
+time_why = "The key is used as an array index, so every operation is one read or write."
+space_why = "A flag for every possible key, 10⁶ of them, whether or not they are used."
 note = "Wastes memory when few keys are stored."
 code = '''class MyHashSet:
 

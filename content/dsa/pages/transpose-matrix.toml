@@ -16,6 +16,8 @@ label = "indexing"
 idea = "Allocate cols rows of rows entries and copy matrix[i][j] to result[j][i]."
 time = "O(m · n)"
 space = "O(m · n)"
+time_why = "Each of the m × n cells is copied once."
+space_why = "The result is a new matrix with m × n cells."
 note = "The output."
 code = '''class Solution:
     def transpose(self, matrix: list[list[int]]) -> list[list[int]]:
@@ -33,6 +35,8 @@ label = "library"
 idea = "zip pairs up the i-th element of every row, which is the i-th column."
 time = "O(m · n)"
 space = "O(m · n)"
+time_why = "`zip` reads each of the m × n cells once."
+space_why = "The result is a new matrix with m × n cells."
 note = "A one-liner."
 code = '''class Solution:
     def transpose(self, matrix: list[list[int]]) -> list[list[int]]:

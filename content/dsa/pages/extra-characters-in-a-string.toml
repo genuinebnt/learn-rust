@@ -18,6 +18,8 @@ label = "dp"
 idea = "dp[i] is the smaller of skipping s[i] and jumping over any dictionary word that starts at i."
 time = "O(n · L)"
 space = "O(n)"
+time_why = "There are n start positions and each tries only the dictionary words that begin there, which is at most L lengths."
+space_why = "One array entry for each position in the string."
 note = "L is the longest word."
 code = '''class Solution:
     def minExtraChar(self, s: str, dictionary: List[str]) -> int:

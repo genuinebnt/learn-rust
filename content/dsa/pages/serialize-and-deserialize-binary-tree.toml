@@ -18,6 +18,8 @@ label = "dfs"
 idea = "Write values in preorder with N for an empty child; read them back with the same traversal order."
 time = "O(n)"
 space = "O(n)"
+time_why = "Every node is written once, and read back once."
+space_why = "The string and the list of tokens hold every node, and the recursion goes as deep as the tree is tall."
 note = "The read side consumes tokens from an iterator."
 code = '''class Codec:
 
@@ -66,6 +68,8 @@ label = "bfs"
 idea = "Write the nodes level by level with N for empty children; on reading, attach two tokens to each queued node in turn."
 time = "O(n)"
 space = "O(n)"
+time_why = "Every node is queued, written and read back once."
+space_why = "The string and the queue hold up to n nodes."
 note = "No recursion."
 code = '''from collections import deque
 

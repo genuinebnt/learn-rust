@@ -20,6 +20,8 @@ label = "greedy range"
 idea = "Track the smallest and largest number of unmatched `(` possible. Fail if the largest goes negative; succeed if the smallest ends at zero."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass with constant work for each character."
+space_why = "Only two counts."
 note = "A single pass with two integers."
 code = '''class Solution:
     def checkValidString(self, s: str) -> bool:
@@ -46,6 +48,8 @@ label = "two stacks"
 idea = "Keep the indices of unmatched `(` and of `*`. Match each `)` with a `(` if possible, otherwise a `*`. Afterwards each leftover `(` needs a `*` that comes **after** it."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass to match brackets with the two stacks, then a pass to match what is left over."
+space_why = "The two stacks of indexes together hold up to n entries."
 note = "Position matters: a `*` can only close a `(` that is to its left."
 code = '''class Solution:
     def checkValidString(self, s: str) -> bool:

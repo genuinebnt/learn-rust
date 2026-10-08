@@ -16,6 +16,8 @@ label = "bit trick"
 idea = "n & (n - 1) drops the lowest 1; count how many times that can be done before n reaches 0."
 time = "O(k)"
 space = "O(1)"
+time_why = "Each step removes one 1 bit, so the loop runs as many times as there are 1 bits."
+space_why = "Only a counter."
 note = "k is the number of 1 bits."
 code = '''class Solution:
     def hammingWeight(self, n: int) -> int:
@@ -32,6 +34,8 @@ label = "shifting"
 idea = "Add the lowest bit, then shift right, until nothing is left."
 time = "O(32)"
 space = "O(1)"
+time_why = "The loop shifts one bit at a time and finishes when nothing is left, which is at most 32 steps."
+space_why = "Only a counter."
 note = "Always up to 32 steps."
 code = '''class Solution:
     def hammingWeight(self, n: int) -> int:

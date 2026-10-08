@@ -16,6 +16,8 @@ label = "last index map"
 idea = "Store the latest index of every character. When `s[right]` was last seen inside the window, move `left` just past it."
 time = "O(n)"
 space = "O(min(n, alphabet))"
+time_why = "The right pointer moves once over the string, and the left pointer only ever jumps forward."
+space_why = "One entry for each distinct character, which is bounded by the alphabet size."
 note = "Each character is visited once; the map holds at most one entry per distinct character."
 code = '''class Solution:
     def lengthOfLongestSubstring(self, s: str) -> int:
@@ -36,6 +38,8 @@ label = "set + shrink"
 idea = "Add `s[right]` to a set. While it was already there, drop `s[left]` from the set and advance `left`."
 time = "O(n)"
 space = "O(min(n, alphabet))"
+time_why = "Each character is added to the set once and removed at most once."
+space_why = "The set holds at most one entry per distinct character, bounded by the alphabet size."
 note = "Every character enters and leaves the set at most once."
 code = '''class Solution:
     def lengthOfLongestSubstring(self, s: str) -> int:

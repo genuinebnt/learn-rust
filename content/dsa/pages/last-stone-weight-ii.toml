@@ -15,6 +15,8 @@ label = "bitset dp"
 idea = "Track every reachable subset sum in the bits of an integer, then take the largest one not above half the total."
 time = "O(n · total / 64)"
 space = "O(total)"
+time_why = "Each of the n stones shifts a number of up to total bits, and an integer of that size is processed 64 bits at a time."
+space_why = "One integer of about total bits."
 note = "The bit i of `bits` says whether some subset adds up to i."
 code = '''class Solution:
     def lastStoneWeightII(self, stones: list[int]) -> int:

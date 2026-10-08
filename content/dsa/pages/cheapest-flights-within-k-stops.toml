@@ -16,6 +16,8 @@ label = "Bellman-Ford"
 idea = "After round i, `prices[v]` is the cheapest cost to v with at most i flights. Each round relaxes every flight using the previous round's prices."
 time = "O(k · E)"
 space = "O(V)"
+time_why = "There are k + 1 rounds and each round looks at every flight once."
+space_why = "Two price arrays of V cities, the current one and the previous one."
 note = "k + 1 passes over the flights."
 code = '''class Solution:
     def findCheapestPrice(self, n: int, flights: list[list[int]], src: int, dst: int, k: int) -> int:
@@ -36,6 +38,8 @@ label = "Dijkstra"
 idea = "Heap of `(price, city, flights used)`. Keep, per city, the fewest flights seen at a cheaper-or-equal price, and skip states that can't improve."
 time = "O(E log E)"
 space = "O(V + E)"
+time_why = "Each flight can enter the heap a limited number of times, and every push or pop costs log of the heap size, so about E log E."
+space_why = "The graph holds V + E, and the heap can hold about E entries."
 note = "Pruned by the best number of flights used so far at each city."
 code = '''import heapq
 

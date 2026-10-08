@@ -18,6 +18,8 @@ label = "heap"
 idea = "Sort by start. The heap holds the end time of every room in use. If the earliest end is at or before this start, reuse that room; either way push the new end."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting the meetings costs n log n, then each meeting does at most one push and one pop, each costing log n."
+space_why = "The heap holds one end time for each room in use, which is up to n rooms."
 note = "The heap's size at the end is the number of rooms."
 code = '''import heapq
 
@@ -39,6 +41,8 @@ label = "sweep line"
 idea = "Sort all start times and all end times separately and walk both with two pointers: a start before the next end needs one more room; otherwise a room frees up."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting the starts and the ends costs n log n each, and the two-pointer walk is linear."
+space_why = "The two sorted lists hold n times each."
 note = "Tracks the peak overlap directly."
 code = '''class Solution:
     def minMeetingRooms(self, intervals: list[list[int]]) -> int:

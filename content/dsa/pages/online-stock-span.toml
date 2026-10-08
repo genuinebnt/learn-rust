@@ -13,6 +13,8 @@ label = "monotonic stack"
 idea = "Merge in the spans of all earlier prices that are no higher than today's."
 time = "O(1) amortised per call"
 space = "O(n)"
+time_why = "Each price is pushed once and popped at most once over all calls, so the average cost per call is constant."
+space_why = "The stack can hold every price when they only fall."
 note = "The stack holds strictly decreasing prices."
 code = '''class StockSpanner:
 

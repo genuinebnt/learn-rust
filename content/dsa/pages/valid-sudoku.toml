@@ -16,6 +16,8 @@ label = "hash sets"
 idea = "Walk the board once. For each digit, check its row set, column set and box set; if it's in none, add it to all three."
 time = "O(81) = O(1)"
 space = "O(81) = O(1)"
+time_why = "The board is always 9 × 9, so there are always 81 cells and the work is a constant."
+space_why = "The 27 sets together hold at most 81 digits. For an n × n board it would grow with n²."
 note = "A fixed 9×9 board; for an n×n board this would be O(n²) time and space."
 code = '''from collections import defaultdict
 

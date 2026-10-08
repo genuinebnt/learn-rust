@@ -16,6 +16,8 @@ label = "recursive"
 idea = "Depth of a node = 1 plus the larger depth of its two subtrees; an empty tree is 0."
 time = "O(n)"
 space = "O(h)"
+time_why = "Every node is visited once, with a constant amount of work to take the larger of two depths."
+space_why = "The recursion goes as deep as the tree is tall."
 note = "h is the height of the tree."
 code = '''class Solution:
     def maxDepth(self, root: TreeNode | None) -> int:
@@ -30,6 +32,8 @@ label = "bfs"
 idea = "Process the tree one whole level at a time; the number of levels is the depth."
 time = "O(n)"
 space = "O(w)"
+time_why = "Every node is queued and dequeued once."
+space_why = "The queue holds one level at a time, so the widest level, up to about n / 2 nodes."
 note = "w is the widest level."
 code = '''class Solution:
     def maxDepth(self, root: TreeNode | None) -> int:
@@ -47,6 +51,8 @@ label = "iterative"
 idea = "Keep (node, depth) pairs on a stack and track the largest depth seen."
 time = "O(n)"
 space = "O(h)"
+time_why = "Every node is pushed and popped once."
+space_why = "The stack holds pending nodes with their depths, at most about the height of the tree."
 note = "No recursion, so a very deep tree is safe."
 code = '''class Solution:
     def maxDepth(self, root: TreeNode | None) -> int:

@@ -17,6 +17,8 @@ label = "reverse DFS"
 idea = "From every border cell of an ocean, DFS to neighbours that are at least as high. The cells reached from both oceans are the answer."
 time = "O(rows · cols)"
 space = "O(rows · cols)"
+time_why = "Each ocean's search visits each cell at most once, and each visit looks at four neighbours."
+space_why = "Two visited sets of up to one entry for each cell, plus the recursion."
 note = "Each cell is visited at most once per ocean."
 code = '''class Solution:
     def pacificAtlantic(self, heights: list[list[int]]) -> list[list[int]]:

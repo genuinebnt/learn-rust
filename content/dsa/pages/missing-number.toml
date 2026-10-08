@@ -18,6 +18,8 @@ label = "math"
 idea = "0 + 1 + ... + n is n(n + 1)/2; whatever the array is short of that is the missing number."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass to add up the array."
+space_why = "Only the running sum."
 note = "Python has no overflow, but other languages do."
 code = '''class Solution:
     def missingNumber(self, nums: list[int]) -> int:
@@ -31,6 +33,8 @@ label = "xor"
 idea = "Every present number is XORed twice (once as an index, once as a value) and cancels; the missing one is XORed once."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass, with one XOR for the index and one for the value."
+space_why = "Only the running XOR."
 note = "No overflow concerns in any language."
 code = '''class Solution:
     def missingNumber(self, nums: list[int]) -> int:

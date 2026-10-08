@@ -18,6 +18,8 @@ label = "kadane"
 idea = "Compute the maximum and the minimum subarray in one pass; the circular best is total minus the minimum."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass that tracks the total, the largest run and the smallest run."
+space_why = "A few running values."
 note = "One pass tracks all three."
 code = '''class Solution:
     def maxSubarraySumCircular(self, nums: list[int]) -> int:

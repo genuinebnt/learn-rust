@@ -17,6 +17,8 @@ label = "backtracking"
 idea = "Choose from `start` onwards, move to `i + 1` after picking, and skip any candidate equal to the one just tried at this level."
 time = "O(2^n)"
 space = "O(n)"
+time_why = "Each number is either included or skipped, so there are up to 2ⁿ combinations to look at. The sort and the target limit prune a lot of them in practice."
+space_why = "Only the current combination and the recursion stack, both at most n deep. The output isn't counted."
 note = "Pruned by the target and the duplicate skip."
 code = '''class Solution:
     def combinationSum2(self, candidates: list[int], target: int) -> list[list[int]]:
@@ -47,6 +49,8 @@ label = "counts"
 idea = "Group equal numbers into `(value, count)`. For each value choose to use 0 up to `count` copies. Duplicates cannot arise because values are distinct."
 time = "O(2^n)"
 space = "O(n)"
+time_why = "Each distinct value picks a count from 0 to its multiplicity, which is at most 2ⁿ combinations over the values."
+space_why = "The current combination and the recursion, at most n deep."
 note = "No skipping rule needed."
 code = '''from collections import Counter
 

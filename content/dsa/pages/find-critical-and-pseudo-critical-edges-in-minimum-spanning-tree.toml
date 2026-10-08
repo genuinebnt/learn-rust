@@ -18,6 +18,8 @@ label = "kruskal"
 idea = "Compare the cheapest tree without an edge, and with that edge forced in, against the plain cheapest tree."
 time = "O(E^2 · α(V))"
 space = "O(V + E)"
+time_why = "For every one of the E edges, Kruskal's algorithm is run twice (without the edge and with it forced), and each run is about E near-constant union-find steps."
+space_why = "The sorted edge list and one union-find over the V nodes."
 note = "E is at most 200 here."
 code = '''class Solution:
     def findCriticalAndPseudoCriticalEdges(self, n: int, edges: list[list[int]]) -> list[list[int]]:

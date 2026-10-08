@@ -16,6 +16,8 @@ label = "bisect"
 idea = "Append each `(timestamp, value)` to the key's lists (already time-ordered) and binary search the timestamps for the last one at or before the query time."
 time = "set O(1), get O(log n)"
 space = "O(n)"
+time_why = "`set` appends to a list, which is O(1). `get` binary-searches that key's timestamps, halving the range each step."
+space_why = "Every call to `set` is stored once."
 note = "n is the number of `set` calls."
 code = '''from bisect import bisect_right
 from collections import defaultdict
@@ -44,6 +46,8 @@ label = "manual search"
 idea = "The same structure with the search written out, as an interviewer may ask."
 time = "set O(1), get O(log n)"
 space = "O(n)"
+time_why = "`set` appends to a list, which is O(1). `get` binary-searches that key's timestamps, halving the range each step."
+space_why = "Every call to `set` is stored once."
 note = "Finds the largest timestamp not greater than the query."
 code = '''class TimeMap:
 

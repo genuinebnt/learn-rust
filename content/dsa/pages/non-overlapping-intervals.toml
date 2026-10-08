@@ -16,6 +16,8 @@ label = "sort by end"
 idea = "Sort by end time. Keep an interval if it starts at or after the end of the last kept one; otherwise count it as removed."
 time = "O(n log n)"
 space = "O(1)"
+time_why = "Sorting costs n log n and the scan is a single pass."
+space_why = "The sort works in place, so only a count and the last end are extra."
 note = "Besides the sort."
 code = '''class Solution:
     def eraseOverlapIntervals(self, intervals: list[list[int]]) -> int:
@@ -35,6 +37,8 @@ label = "sort by start"
 idea = "Sort by start. When two intervals overlap, remove the one that ends later and keep the one that ends sooner."
 time = "O(n log n)"
 space = "O(1)"
+time_why = "Sorting costs n log n and the scan is a single pass."
+space_why = "The sort works in place, so only a count and the last end are extra."
 note = "The same greedy argument from the other sort order."
 code = '''class Solution:
     def eraseOverlapIntervals(self, intervals: list[list[int]]) -> int:

@@ -16,6 +16,8 @@ label = "memoised"
 idea = "Recurse on `ways(n) = ways(n-1) + ways(n-2)` and cache each result so every step is computed once."
 time = "O(n)"
 space = "O(n)"
+time_why = "The cache means each step is computed once, in constant time, so n steps in total."
+space_why = "The cache has n entries, and the recursion goes n levels deep."
 note = "The cache and the recursion depth are both n."
 code = '''from functools import cache
 
@@ -37,6 +39,8 @@ label = "two variables"
 idea = "Walk up from the base cases, keeping only the ways to reach the previous two steps."
 time = "O(n)"
 space = "O(1)"
+time_why = "One loop from step 2 up to step n, doing constant work per step."
+space_why = "Only the last two values are remembered."
 note = "No table and no recursion."
 code = '''class Solution:
     def climbStairs(self, n: int) -> int:

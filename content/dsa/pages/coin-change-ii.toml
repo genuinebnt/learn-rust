@@ -16,6 +16,8 @@ label = "1-D table"
 idea = "For each coin, add to every amount the number of ways to make the amount minus that coin."
 time = "O(amount · coins)"
 space = "O(amount)"
+time_why = "For each of the coins, one pass over every amount up to the target."
+space_why = "A single array with one entry per amount from 0 to the target."
 note = "A single array."
 code = '''class Solution:
     def change(self, amount: int, coins: list[int]) -> int:
@@ -32,6 +34,8 @@ label = "memoised"
 idea = "`count(i, left)` is the ways to make `left` using coins from index i onwards: use coin i again, or move on to the next coin."
 time = "O(amount · coins)"
 space = "O(amount · coins)"
+time_why = "There are coins × amount states, each of which does constant work (two choices)."
+space_why = "The memo has one entry for each (coin index, amount left) pair, which is coins × amount."
 note = "A 2-D memo."
 code = '''from functools import cache
 

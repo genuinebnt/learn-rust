@@ -21,6 +21,8 @@ label = "stack"
 idea = "Push, derive or pop scores according to the operation, then add up the stack."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass over the operations with constant work each, and one pass to add the stack up."
+space_why = "The stack holds one score for each operation that wasn't a cancel."
 note = "The direct reading of the rules."
 code = '''class Solution:
     def calPoints(self, operations: list[str]) -> int:
@@ -43,6 +45,8 @@ label = "stack"
 idea = "Update a total as each score is pushed or popped, so no final pass is needed."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass over the operations. The total is updated as scores are pushed and popped, so no second pass is needed."
+space_why = "The stack still holds up to n scores."
 note = "Same stack, one less pass."
 code = '''class Solution:
     def calPoints(self, operations: list[str]) -> int:

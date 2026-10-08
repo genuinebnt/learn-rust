@@ -16,6 +16,8 @@ label = "filter + match"
 idea = "Ignore triplets that overshoot the target anywhere. The target is reachable exactly when each of its three values is matched by some remaining triplet."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass over the triplets, with a few comparisons for each."
+space_why = "Three flags, one for each position of the target."
 note = "One pass over the triplets."
 code = '''class Solution:
     def mergeTriplets(self, triplets: list[list[int]], target: list[int]) -> bool:

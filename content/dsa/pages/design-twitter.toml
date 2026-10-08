@@ -16,6 +16,8 @@ label = "heap"
 idea = "Keep per-user tweet lists in time order and merge the newest of each with a heap until 10 are collected."
 time = "O(f + 10 log f) per feed"
 space = "O(f)"
+time_why = "Collecting f lists costs f to set up, and each of the 10 tweets taken from the heap costs log f to restore it."
+space_why = "The heap holds one entry for each followed user."
 note = "f is the number of users followed."
 code = '''import heapq
 from collections import defaultdict
@@ -62,6 +64,8 @@ label = "simple"
 idea = "Collect every tweet of the user and their followees, sort by time, and return the newest 10."
 time = "O(T log T) per feed"
 space = "O(T)"
+time_why = "Every tweet of every followed user is collected and then sorted, which costs T log T."
+space_why = "A list of all T of those tweets."
 note = "T is the total number of tweets by those users."
 code = '''from collections import defaultdict
 

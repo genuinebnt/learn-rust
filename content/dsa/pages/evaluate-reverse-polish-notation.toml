@@ -16,6 +16,8 @@ label = "stack"
 idea = "Push numbers. For an operator, pop right then left, compute, and push the result back."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each token is read once and handled with a push or two pops and a push."
+space_why = "In the worst case, all the numbers come first and sit on the stack together."
 note = "Each token is processed once."
 code = '''class Solution:
     def evalRPN(self, tokens: list[str]) -> int:

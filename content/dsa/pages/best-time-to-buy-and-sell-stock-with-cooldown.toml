@@ -20,6 +20,8 @@ label = "state machine"
 idea = "Track the best profit when holding a stock, just sold (cooldown tomorrow), or resting with none. Update all three each day."
 time = "O(n)"
 space = "O(1)"
+time_why = "A single loop over the days, updating three numbers each day."
+space_why = "Three variables, one for each state, however many days there are."
 note = "One pass."
 code = '''class Solution:
     def maxProfit(self, prices: list[int]) -> int:
@@ -35,6 +37,8 @@ label = "memoised"
 idea = "`best(day, holding)`: with a stock, sell (and skip the next day) or wait; without, buy or wait."
 time = "O(n)"
 space = "O(n)"
+time_why = "There are n days × 2 holding states, and the cache means each state is worked out once, in constant time."
+space_why = "The cache has up to 2n entries, and the recursion goes up to n days deep."
 note = "Recursion depth n (up to 5000, so raise the limit)."
 code = '''import sys
 from functools import cache

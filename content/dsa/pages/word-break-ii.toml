@@ -18,6 +18,8 @@ label = "memoization"
 idea = "sentences(i) lists every segmentation of s[i:], built from each dictionary word that matches at i; cache the list per i."
 time = "O(n · output)"
 space = "O(n · output)"
+time_why = "There are n starting points and each builds the list of sentences that begins there, so the cost grows with how many sentences there are."
+space_why = "The cache keeps every sentence for every starting point."
 note = "Output-sensitive: cost grows with the number of sentences returned."
 code = '''class Solution:
     def wordBreak(self, s: str, wordDict: list[str]) -> list[str]:
@@ -48,6 +50,8 @@ label = "dp + backtracking"
 idea = "Mark every start index from which the rest can be segmented; the DFS then only follows words that lead to such an index."
 time = "O(n · output + n · L)"
 space = "O(n)"
+time_why = "A pass over the n starts marks which suffixes work (about n × L), then the DFS only builds sentences that succeed."
+space_why = "The feasibility array is n long, and the recursion is up to n deep. The output isn't counted."
 note = "Every branch the DFS takes ends in a valid sentence."
 code = '''class Solution:
     def wordBreak(self, s: str, wordDict: list[str]) -> list[str]:

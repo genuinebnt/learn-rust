@@ -18,6 +18,8 @@ label = "fast and slow"
 idea = "Treat i -> nums[i] as a linked list; find where the fast and slow pointers meet, then restart one at the beginning to find the cycle's entrance."
 time = "O(n)"
 space = "O(1)"
+time_why = "The pointers move around a cycle that has at most n + 1 nodes: finding the meeting point and then the entrance each take a number of steps proportional to n."
+space_why = "Only two pointers; the array isn't touched."
 note = "Doesn't modify the array."
 code = '''class Solution:
     def findDuplicate(self, nums: list[int]) -> int:
@@ -40,6 +42,8 @@ label = "binary search"
 idea = "Count how many numbers are at most mid; more than mid means the duplicate is in 1..mid."
 time = "O(n log n)"
 space = "O(1)"
+time_why = "The binary search tries about log n values, and each try counts the numbers at or below it in a full pass of n."
+space_why = "Just the bounds and a counter."
 note = "Each count is a full pass."
 code = '''class Solution:
     def findDuplicate(self, nums: list[int]) -> int:

@@ -17,6 +17,8 @@ label = "two pointers"
 idea = "Grow a block of 0s on the left and a block of 2s on the right, with the unsorted middle shrinking until it is gone."
 time = "O(n)"
 space = "O(1)"
+time_why = "A single pass, in which each element is looked at once and moved at most once."
+space_why = "Only three pointers; the array is sorted in place."
 note = "Each element is looked at once."
 code = '''class Solution:
     def sortColors(self, nums: list[int]) -> None:
@@ -42,6 +44,8 @@ label = "counting"
 idea = "Count the 0s, 1s and 2s, then overwrite the array with that many of each in order."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass to count and one pass to write back."
+space_why = "Only three counters."
 note = "Two passes but very simple."
 code = '''class Solution:
     def sortColors(self, nums: list[int]) -> None:

@@ -16,6 +16,8 @@ label = "greedy"
 idea = "Take the profit of each day-to-day increase."
 time = "O(n)"
 space = "O(1)"
+time_why = "A single loop over the days, comparing each price with the previous one."
+space_why = "Only a running profit is kept."
 note = "The simplest correct answer."
 code = '''class Solution:
     def maxProfit(self, prices: list[int]) -> int:
@@ -32,6 +34,8 @@ label = "dp"
 idea = "Track the best profit when holding a share and when not holding one, updating both each day."
 time = "O(n)"
 space = "O(1)"
+time_why = "A single loop over the days, updating two numbers each day."
+space_why = "Two variables, the best profit while holding and while not holding."
 note = "The form that generalises to cooldowns and fees."
 code = '''class Solution:
     def maxProfit(self, prices: list[int]) -> int:

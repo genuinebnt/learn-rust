@@ -13,6 +13,8 @@ label = "dp"
 idea = "dp[c] = cost + min(above, left), updated in place along each row."
 time = "O(m · n)"
 space = "O(n)"
+time_why = "One update for each of the m × n cells, with constant work each."
+space_why = "A single row of n values is reused for the whole grid."
 note = "Moves are only right and down, so no cell depends on a later one."
 code = '''class Solution:
     def minPathSum(self, grid: list[list[int]]) -> int:

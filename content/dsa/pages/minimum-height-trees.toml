@@ -15,6 +15,8 @@ label = "topological trim"
 idea = "Remove every current leaf, which may turn its neighbour into a new leaf, until two or fewer nodes are left."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each node is removed as a leaf once, and the removal looks at its neighbours."
+space_why = "The adjacency lists, the degrees and the current leaves all hold up to n nodes."
 note = "Each node is removed at most once."
 code = '''class Solution:
     def findMinHeightTrees(self, n: int, edges: list[list[int]]) -> list[int]:

@@ -19,6 +19,8 @@ label = "memoised"
 idea = "`match(i, j)` tries both meanings of a star (zero copies, or one more), and requires the first characters to match otherwise."
 time = "O(len(s) · len(p))"
 space = "O(len(s) · len(p))"
+time_why = "There are len(s) × len(p) pairs of positions, and each is worked out once in constant time."
+space_why = "The cache has one entry per pair of positions, and the recursion is up to len(s) + len(p) deep."
 note = "Each `(i, j)` pair is computed once."
 code = '''from functools import cache
 
@@ -43,6 +45,8 @@ label = "bottom-up"
 idea = "`ok[i][j]` says whether `s[i:]` matches `p[j:]`, filled from the end of both strings backwards."
 time = "O(len(s) · len(p))"
 space = "O(len(s) · len(p))"
+time_why = "The table has len(s) × len(p) cells and each is filled in constant time from earlier cells."
+space_why = "The table has a cell for every pair of positions."
 note = "No recursion."
 code = '''class Solution:
     def isMatch(self, s: str, p: str) -> bool:

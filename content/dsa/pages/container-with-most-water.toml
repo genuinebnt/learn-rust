@@ -16,6 +16,8 @@ label = "two pointers"
 idea = "Compute the area for the current pair, record the best, then move the pointer at the shorter line inward."
 time = "O(n)"
 space = "O(1)"
+time_why = "Each step moves one pointer inward and the pointers never cross, so there are at most n steps."
+space_why = "Two pointers and a best area."
 note = "Every iteration moves a pointer inward."
 code = '''class Solution:
     def maxArea(self, height: list[int]) -> int:
@@ -36,6 +38,8 @@ label = "brute force"
 idea = "Try every pair of lines. Fine to say out loud; too slow for 100,000 lines."
 time = "O(n²)"
 space = "O(1)"
+time_why = "Two nested loops over all pairs of lines, about n × (n − 1) / 2 pairs."
+space_why = "Only the best area is stored."
 note = "n·(n−1)/2 pairs."
 code = '''class Solution:
     def maxArea(self, height: list[int]) -> int:

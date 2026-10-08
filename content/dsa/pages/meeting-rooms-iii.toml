@@ -15,6 +15,8 @@ label = "heap simulation"
 idea = "Give each meeting the lowest free room, or delay it to the earliest room that frees up."
 time = "O(m log m + m log n)"
 space = "O(n)"
+time_why = "Sorting the meetings costs m log m and each meeting then uses heap operations over at most n rooms, each costing log n."
+space_why = "The two heaps together hold at most n rooms."
 note = "m is the number of meetings, n the rooms."
 code = '''import heapq
 

@@ -16,6 +16,8 @@ label = "binary search"
 idea = "Narrow a half-open range to the first index whose value is at least target."
 time = "O(log n)"
 space = "O(1)"
+time_why = "Each comparison halves the range."
+space_why = "Just the bounds and the middle."
 note = "Handles a target that is absent, smaller than everything or larger than everything."
 code = '''class Solution:
     def searchInsert(self, nums: list[int], target: int) -> int:
@@ -35,6 +37,8 @@ label = "library"
 idea = "The standard library function finds the same insertion point."
 time = "O(log n)"
 space = "O(1)"
+time_why = "`bisect_left` is a binary search, which halves the range at every step."
+space_why = "It keeps only a few indexes."
 note = "Fine once you can explain what it does."
 code = '''import bisect
 

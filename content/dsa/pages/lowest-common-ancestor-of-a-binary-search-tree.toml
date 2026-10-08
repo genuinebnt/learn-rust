@@ -20,6 +20,8 @@ label = "iterative"
 idea = "Go left while both targets are smaller, right while both are larger; the first node that splits them is the answer."
 time = "O(h)"
 space = "O(1)"
+time_why = "Each step goes down one level, so at most the height h steps."
+space_why = "The loop keeps only a pointer."
 note = "h is the height: O(log n) if balanced, O(n) for a chain."
 code = '''class Solution:
     def lowestCommonAncestor(self, root: 'TreeNode', p: 'TreeNode', q: 'TreeNode') -> 'TreeNode':
@@ -39,6 +41,8 @@ label = "recursive"
 idea = "The same decision as a recursion: step into the side that holds both, otherwise return the current node."
 time = "O(h)"
 space = "O(h)"
+time_why = "Each call goes down one level, so at most h calls."
+space_why = "The recursion is as deep as the path taken, at most h."
 note = "Tail recursion; the loop version avoids the stack."
 code = '''class Solution:
     def lowestCommonAncestor(self, root: 'TreeNode', p: 'TreeNode', q: 'TreeNode') -> 'TreeNode':

@@ -16,6 +16,8 @@ label = "expand around center"
 idea = "For every center (a character or a gap between two), move outwards while the two ends match, and keep the longest palindrome found."
 time = "O(n²)"
 space = "O(1)"
+time_why = "There are 2n − 1 centers, and each can expand up to n / 2 steps."
+space_why = "Only the two bounds of the best palindrome."
 note = "2n − 1 centers, each expanding up to n/2 steps."
 code = '''class Solution:
     def longestPalindrome(self, s: str) -> str:
@@ -42,6 +44,8 @@ label = "DP table"
 idea = "`is_pal[i][j]` is true when `s[i] == s[j]` and the inside `s[i+1..j-1]` is a palindrome (or has length ≤ 1). Fill by increasing length."
 time = "O(n²)"
 space = "O(n²)"
+time_why = "The table has n × n cells and each is filled in constant time from a smaller one."
+space_why = "The table has a cell for every pair of start and end positions."
 note = "More memory, same time."
 code = '''class Solution:
     def longestPalindrome(self, s: str) -> str:

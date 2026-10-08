@@ -21,6 +21,8 @@ label = "bit trick"
 idea = "Repeat: a becomes the carry-free sum, b the shifted carries, until no carry remains. Mask to 32 bits for negatives."
 time = "O(1)"
 space = "O(1)"
+time_why = "Each round pushes the carry at least one bit higher, and an integer has 32 bits, so at most 32 rounds."
+space_why = "Only a few integers."
 note = "At most 32 rounds."
 code = '''class Solution:
     def getSum(self, a: int, b: int) -> int:

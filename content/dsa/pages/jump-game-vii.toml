@@ -15,6 +15,8 @@ label = "bfs"
 idea = "Each reachable index marks the new part of its jump window, and the window's left edge never moves back."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each index is queued at most once and the window's left edge only moves forward, so the total work is linear."
+space_why = "The queue and the visited marks hold up to n indices."
 note = "Each index is enqueued once."
 code = '''from collections import deque
 

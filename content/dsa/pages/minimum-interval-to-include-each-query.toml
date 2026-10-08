@@ -21,6 +21,8 @@ label = "sweep + heap"
 idea = "Walk queries in increasing order, pushing intervals that have started onto a min-heap by size and popping those that have ended. The top is the answer."
 time = "O((n + q) log n)"
 space = "O(n + q)"
+time_why = "Sorting the intervals and the queries costs about n log n and q log q, and each interval goes in and out of the heap once, each operation costing log n."
+space_why = "The heap, the sorted queries and the answers hold up to n + q entries."
 note = "Each interval is pushed and popped at most once."
 code = '''import heapq
 
@@ -49,6 +51,8 @@ label = "brute force"
 idea = "For each query, scan all intervals for the smallest one containing it."
 time = "O(n · q)"
 space = "O(q)"
+time_why = "Each of the q queries scans all n intervals."
+space_why = "The answers, one for each query."
 note = "Fine to state, too slow at 100,000 each."
 code = '''class Solution:
     def minInterval(self, intervals: list[list[int]], queries: list[int]) -> list[int]:

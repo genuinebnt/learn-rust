@@ -16,6 +16,8 @@ label = "counter + sort"
 idea = "Process the distinct values in increasing order. For a value that still has cards, start that many groups of consecutive values."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting the distinct values costs O(n log n), and every card is then taken from the counter once."
+space_why = "The counter and the sorted list of distinct values."
 note = "Sorting the distinct values dominates."
 code = '''from collections import Counter
 
@@ -42,6 +44,8 @@ label = "heap"
 idea = "Keep a heap of distinct values. Always start a group from the heap's smallest value and consume the next `groupSize − 1` consecutive values."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Heap operations cost log n, and every card is pushed and popped at most a constant number of times."
+space_why = "The counter and the heap, each of at most n values."
 note = "The same greedy with a heap instead of sorting up front."
 code = '''import heapq
 from collections import Counter

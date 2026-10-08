@@ -16,6 +16,8 @@ label = "recursive"
 idea = "Swap a node's children, then invert each child's subtree. An empty tree is returned as is."
 time = "O(n)"
 space = "O(h)"
+time_why = "Every node is visited once and swapping its two children is constant work."
+space_why = "The recursion goes as deep as the tree is tall: n for a chain, log n for a balanced tree."
 note = "h is the height: the recursion depth, up to n for a chain."
 code = '''class Solution:
     def invertTree(self, root: TreeNode | None) -> TreeNode | None:
@@ -31,6 +33,8 @@ label = "iterative"
 idea = "Pop a node, swap its children, push the non-empty ones. Every node is popped once."
 time = "O(n)"
 space = "O(h)"
+time_why = "Every node is pushed and popped once, with one swap each."
+space_why = "The stack holds pending nodes, at most about the height of the tree."
 note = "A queue works the same way and keeps up to a level's width in memory instead."
 code = '''class Solution:
     def invertTree(self, root: TreeNode | None) -> TreeNode | None:

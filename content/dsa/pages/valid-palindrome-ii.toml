@@ -13,6 +13,8 @@ label = "two pointers"
 idea = "On the first mismatch, test the string without the left character and without the right character."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass with two pointers, and at most two extra scans after the first mismatch."
+space_why = "Only two pointers; the checks use slices as views, or indexes."
 note = "At most two extra scans."
 code = '''class Solution:
     def validPalindrome(self, s: str) -> bool:

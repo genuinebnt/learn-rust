@@ -15,6 +15,8 @@ label = "bit trick"
 idea = "The i-th smallest number containing x's bits uses the bits of i in x's free positions."
 time = "O(log n + log x)"
 space = "O(1)"
+time_why = "The loop runs once for each bit of x and of n - 1, so about 60 steps at most."
+space_why = "Only a few integers."
 note = "Up to about 60 bits for the largest inputs."
 code = '''class Solution:
     def minEnd(self, n: int, x: int) -> int:

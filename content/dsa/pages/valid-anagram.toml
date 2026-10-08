@@ -15,6 +15,8 @@ label = "counting"
 idea = "One array of 26 counters: add one for each letter of `s`, subtract one for each letter of `t`. If a counter ever goes below zero, `t` has a letter `s` doesn't have enough of."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass over each string, with an O(1) counter update for each letter."
+space_why = "The counter has 26 slots whatever the length of the strings."
 note = "The array has 26 slots no matter how long the strings are."
 code = '''class Solution:
     def isAnagram(self, s: str, t: str) -> bool:
@@ -33,6 +35,8 @@ label = "sorting"
 idea = "Anagrams are the same letters in a different order, so sorting each string gives identical results."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting each string costs n log n, and comparing the two is one pass."
+space_why = "`sorted` makes a list of n letters for each string."
 note = "Fine for an interview opener; say that counting beats it."
 code = '''class Solution:
     def isAnagram(self, s: str, t: str) -> bool:

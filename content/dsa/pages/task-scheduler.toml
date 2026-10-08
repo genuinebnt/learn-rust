@@ -18,6 +18,8 @@ label = "math"
 idea = "Frames of n + 1 slots for every copy of the most frequent task except the last, plus the tasks tied for the maximum."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass to count the tasks, then a formula over at most 26 counts."
+space_why = "A count for each of at most 26 task letters."
 note = "At most 26 different tasks."
 code = '''from collections import Counter
 
@@ -36,6 +38,8 @@ label = "simulation"
 idea = "Each time unit, run the task with the most copies left; hold it in a queue until its cooldown ends, then return it to the heap."
 time = "O(T log 26)"
 space = "O(1)"
+time_why = "Each time unit is one heap operation over at most 26 task types, and the total time is about the number of tasks plus the idle units."
+space_why = "The heap and the cooldown queue each hold at most 26 task types."
 note = "T is the total time, including idle units."
 code = '''import heapq
 from collections import Counter, deque

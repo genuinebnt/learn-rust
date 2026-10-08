@@ -18,6 +18,8 @@ label = "subset count"
 idea = "Reduce to counting subsets that sum to `(total + target) / 2`, using a 0/1 knapsack array."
 time = "O(n · subset sum)"
 space = "O(subset sum)"
+time_why = "Each of the n numbers updates every sum up to the subset total."
+space_why = "One count for each sum up to the subset total."
 note = "Return 0 when the target is out of reach."
 code = '''class Solution:
     def findTargetSumWays(self, nums: list[int], target: int) -> int:
@@ -38,6 +40,8 @@ label = "dictionary DP"
 idea = "Keep a dictionary from each reachable running total to the number of ways to reach it, and extend it with `+num` and `-num` for each number."
 time = "O(n · range of sums)"
 space = "O(range of sums)"
+time_why = "Each of the n numbers extends every running total reached so far, and there are at most 2 · total + 1 different totals."
+space_why = "The dictionary holds up to 2 · total + 1 totals."
 note = "Needs no algebra; the dictionary holds at most 2 · total + 1 keys."
 code = '''from collections import defaultdict
 

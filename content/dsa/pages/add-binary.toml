@@ -15,6 +15,8 @@ label = "simulation"
 idea = "Add the two current bits and the carry, write the low bit, carry the high bit."
 time = "O(max(m, n))"
 space = "O(max(m, n))"
+time_why = "One loop step per digit of the longer number, and each step is a constant amount of work."
+space_why = "The result holds one digit per position, plus possibly one more for a final carry."
 note = "Linear in the length."
 code = '''class Solution:
     def addBinary(self, a: str, b: str) -> str:

@@ -16,6 +16,8 @@ label = "math"
 idea = "Subtract one, take the remainder as the next letter from the right, divide by 26 and repeat."
 time = "O(log n)"
 space = "O(log n)"
+time_why = "Each pass of the loop divides n by 26, so the number of letters is log base 26 of n."
+space_why = "The output string, one letter per pass."
 note = "At most 7 letters for the largest input."
 code = '''class Solution:
     def convertToTitle(self, columnNumber: int) -> str:
@@ -33,6 +35,8 @@ label = "recursive"
 idea = "The title of n is the title of (n - 1) // 26 followed by the letter for (n - 1) % 26."
 time = "O(log n)"
 space = "O(log n)"
+time_why = "Each call divides n by 26, so there are log base 26 of n calls."
+space_why = "The recursion has one frame for each letter of the title."
 note = "The same arithmetic, written as a recursion."
 code = '''class Solution:
     def convertToTitle(self, columnNumber: int) -> str:

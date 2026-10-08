@@ -16,6 +16,8 @@ label = "greedy reset"
 idea = "Track the tank from the current start. When it goes negative, no earlier station could have worked, so restart at the next one. Check the total balance at the end."
 time = "O(n)"
 space = "O(1)"
+time_why = "A single pass over the stations; the restart only moves the starting point forward and never goes back."
+space_why = "Two running totals and a start index."
 note = "One loop."
 code = '''class Solution:
     def canCompleteCircuit(self, gas: list[int], cost: list[int]) -> int:
@@ -37,6 +39,8 @@ label = "brute force"
 idea = "Try each station as the start and drive the whole circle."
 time = "O(n²)"
 space = "O(1)"
+time_why = "Each of the n possible starts drives up to n stations."
+space_why = "Only a tank total and an index."
 note = "Fine to say first; too slow for 100,000 stations."
 code = '''class Solution:
     def canCompleteCircuit(self, gas: list[int], cost: list[int]) -> int:

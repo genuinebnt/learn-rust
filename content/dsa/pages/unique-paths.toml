@@ -18,6 +18,8 @@ label = "rolling row"
 idea = "Keep one row. Going down a row, each cell becomes (cell above, already in the row) + (cell to the left, just updated)."
 time = "O(m · n)"
 space = "O(n)"
+time_why = "One update for each of the m × n cells."
+space_why = "A single row of n counts is reused for the whole grid."
 note = "A row of n numbers."
 code = '''class Solution:
     def uniquePaths(self, m: int, n: int) -> int:
@@ -34,6 +36,8 @@ label = "formula"
 idea = "Every path is `m − 1` downs and `n − 1` rights in some order. Choose where the downs go."
 time = "O(min(m, n))"
 space = "O(1)"
+time_why = "`comb` multiplies about min(m, n) terms, because C(a, b) = C(a, a − b)."
+space_why = "Only a few integers, although the result itself can be large."
 note = "`math.comb` computes it exactly with big integers."
 code = '''from math import comb
 

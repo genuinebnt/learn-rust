@@ -15,6 +15,8 @@ label = "backtracking"
 idea = "Build the combination in increasing order; stop at size k, and don't start numbers that can't leave enough room."
 time = "O(k · C(n, k))"
 space = "O(k)"
+time_why = "There are C(n, k) combinations, and copying each one into the answer costs k."
+space_why = "The current combination holds k numbers, and the recursion is k deep."
 note = "The output size dominates."
 code = '''class Solution:
     def combine(self, n: int, k: int) -> list[list[int]]:

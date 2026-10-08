@@ -16,6 +16,8 @@ label = "backtracking"
 idea = "Choose a letter for the current digit, recurse on the next digit, undo, and record the word after the last digit."
 time = "O(4^n · n)"
 space = "O(n)"
+time_why = "Each digit has up to 4 letters, so there are up to 4ⁿ words, and writing each one out costs n."
+space_why = "The recursion and the current word are n deep. The output isn't counted."
 note = "n is the number of digits."
 code = '''class Solution:
     def letterCombinations(self, digits: str) -> list[str]:
@@ -44,6 +46,8 @@ label = "iterative"
 idea = "Start with the empty word and, for each digit, replace every word by all its extensions."
 time = "O(4^n · n)"
 space = "O(4^n · n)"
+time_why = "Each digit multiplies the number of words by up to 4, so 4ⁿ words in the end, each built with n characters of work."
+space_why = "All of the words, up to 4ⁿ of them, are kept at once."
 note = "No recursion."
 code = '''class Solution:
     def letterCombinations(self, digits: str) -> list[str]:

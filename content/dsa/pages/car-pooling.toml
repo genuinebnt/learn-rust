@@ -15,6 +15,8 @@ label = "sweep line"
 idea = "Add each trip's passengers at its start and remove them at its end; the running total is the load."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting the 2n stop events costs O(n log n), then the sweep is one pass."
+space_why = "One event for each trip start and end."
 note = "Sorting the stops dominates."
 code = '''from collections import defaultdict
 

@@ -16,6 +16,8 @@ label = "bfs"
 idea = "Each round takes the whole current level from the queue and queues up the next one."
 time = "O(n)"
 space = "O(w)"
+time_why = "Every node is queued once and dequeued once."
+space_why = "The queue holds one whole level at most, and the widest level can have about n/2 nodes."
 note = "w is the widest level."
 code = '''from collections import deque
 
@@ -43,6 +45,8 @@ label = "dfs"
 idea = "Visit left before right, passing the depth; a node goes at the end of its depth's row."
 time = "O(n)"
 space = "O(h)"
+time_why = "Every node is visited once, and appending to the end of its row is constant time."
+space_why = "The recursion goes as deep as the tree is tall. The rows are the output."
 note = "Left-first order keeps each row in left-to-right order."
 code = '''class Solution:
     def levelOrder(self, root: TreeNode | None) -> list[list[int]]:

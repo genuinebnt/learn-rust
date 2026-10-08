@@ -15,6 +15,8 @@ label = "backtracking"
 idea = "Put each number in a bucket that still has room, trying each distinct bucket total only once per step."
 time = "O(k^n) worst case, much less pruned"
 space = "O(n)"
+time_why = "Each of the n numbers can go into any of k buckets, which is kⁿ placements before pruning. Sorting and skipping equal buckets cut most of them."
+space_why = "The recursion is n deep and the k bucket totals are stored."
 note = "Same structure as Matchsticks to Square."
 code = '''class Solution:
     def canPartitionKSubsets(self, nums: list[int], k: int) -> bool:

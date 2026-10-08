@@ -20,6 +20,8 @@ label = "dp"
 idea = "dp[i] is the best lead for the player to move from stone i; try taking one, two or three stones."
 time = "O(n)"
 space = "O(n)"
+time_why = "One step for each stone, each trying three choices."
+space_why = "One value for each starting stone."
 note = "Three choices per index."
 code = '''class Solution:
     def stoneGameIII(self, stoneValue: list[int]) -> str:
@@ -47,6 +49,8 @@ label = "memoization"
 idea = "The same recurrence written as a recursion over the start index, cached with lru_cache."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each starting stone is solved once, with three choices."
+space_why = "The cache has n entries and the recursion goes n deep."
 note = "Each index is solved once."
 code = '''from functools import lru_cache
 

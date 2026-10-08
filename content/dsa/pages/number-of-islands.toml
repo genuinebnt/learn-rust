@@ -17,6 +17,8 @@ label = "BFS"
 idea = "For each unvisited land cell, start a BFS that sinks every connected land cell (sets it to `\"0\"`). Count how many BFS runs you start."
 time = "O(rows · cols)"
 space = "O(min(rows, cols))"
+time_why = "Every cell is looked at once by the outer scan, and each land cell is sunk once."
+space_why = "The queue holds the cells at the edge of the flood, which is at most about the shorter side of the grid for a square-ish island."
 note = "Every cell is sunk once; the queue holds at most about one diagonal's worth of cells."
 code = '''from collections import deque
 
@@ -48,6 +50,8 @@ label = "DFS"
 idea = "The same flood fill as a recursive function. Shorter, but it needs a raised recursion limit on big islands."
 time = "O(rows · cols)"
 space = "O(rows · cols)"
+time_why = "Every cell is looked at once by the outer scan, and each land cell is sunk once."
+space_why = "The recursion goes as deep as the island is large, which can be every cell."
 note = "The recursion can be as deep as the island is large."
 code = '''import sys
 

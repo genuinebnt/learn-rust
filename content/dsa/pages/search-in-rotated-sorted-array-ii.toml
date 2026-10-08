@@ -15,6 +15,8 @@ label = "binary search"
 idea = "Find the sorted half as usual; when the ends and the middle are equal, drop both ends."
 time = "O(log n) typical, O(n) worst case"
 space = "O(1)"
+time_why = "Usually a binary search halves the range. But when many equal values make the halves look the same, the loop can only drop one element at a time."
+space_why = "Just the bounds and the middle."
 note = "Many equal values force the slow case."
 code = '''class Solution:
     def search(self, nums: list[int], target: int) -> bool:

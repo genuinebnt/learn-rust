@@ -16,6 +16,8 @@ label = "DFS + backtrack"
 idea = "Match the word letter by letter, marking the current cell so it isn't reused on this path and restoring it on the way back."
 time = "O(m · n · 4^L)"
 space = "O(L)"
+time_why = "Each of the m × n cells starts a DFS, which has up to 4 choices for the first letter and 3 for each one after, to a depth of L."
+space_why = "Only the recursion, L deep. The board is marked in place."
 note = "L is the word length; each step has at most three new directions."
 code = '''class Solution:
     def exist(self, board: list[list[str]], word: str) -> bool:
@@ -46,6 +48,8 @@ label = "visited set"
 idea = "The same search, tracking the cells on the current path in a set instead of editing the board."
 time = "O(m · n · 4^L)"
 space = "O(L)"
+time_why = "Each of the m × n cells starts a DFS, which has up to 4 choices for the first letter and 3 for each one after, to a depth of L."
+space_why = "The recursion and the set of cells on the path, both at most L."
 note = "Doesn't modify the input."
 code = '''class Solution:
     def exist(self, board: list[list[str]], word: str) -> bool:

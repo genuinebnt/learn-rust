@@ -17,6 +17,8 @@ label = "Dijkstra"
 idea = "Pop the closest unsettled node, record its distance, and push its neighbours with updated distances. The last settled distance is the answer."
 time = "O(E log V)"
 space = "O(V + E)"
+time_why = "Each edge can push at most one entry on the heap, and each push or pop costs log of the heap size, so about E log V."
+space_why = "The graph holds V + E, and the heap holds up to E entries."
 note = "Each edge can push one heap entry."
 code = '''import heapq
 
@@ -46,6 +48,8 @@ label = "Bellman-Ford"
 idea = "Relax every edge n − 1 times. Slower, but simple and works with negative weights."
 time = "O(V · E)"
 space = "O(V)"
+time_why = "Every one of the E edges is relaxed in each of the V − 1 rounds."
+space_why = "One distance for each node."
 note = "Stop early if a full pass changes nothing."
 code = '''class Solution:
     def networkDelayTime(self, times: list[list[int]], n: int, k: int) -> int:

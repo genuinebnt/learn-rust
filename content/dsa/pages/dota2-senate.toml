@@ -16,6 +16,8 @@ label = "greedy simulation"
 idea = "Pop the front of each queue; the earlier senator bans the other and rejoins its queue for the next round."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each round removes one senator, and each step is a constant-time pop and push, so there are at most about n steps."
+space_why = "Two queues that together hold at most n positions."
 note = "Each step removes one senator."
 code = '''from collections import deque
 
@@ -41,6 +43,8 @@ label = "greedy simulation"
 idea = "Walk the line each round; a senator is skipped if a ban is waiting for their party, otherwise they add a ban against the other party."
 time = "O(n · rounds)"
 space = "O(n)"
+time_why = "Each round walks the whole line, and the number of rounds can grow with the number of senators when the parties alternate."
+space_why = "The line of senators and a couple of counters."
 note = "Bans left over at the end of a round carry into the next."
 code = '''class Solution:
     def predictPartyVictory(self, senate: str) -> str:

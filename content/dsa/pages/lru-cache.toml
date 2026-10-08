@@ -18,6 +18,8 @@ label = "ordered dict"
 idea = "OrderedDict keeps insertion order and can move a key to the end or pop from the front in O(1)."
 time = "O(1) per call"
 space = "O(capacity)"
+time_why = "An OrderedDict reads, moves to the end and pops from the front in constant time."
+space_why = "At most capacity entries."
 note = "The shortest correct answer; interviewers usually want the manual version too."
 code = '''from collections import OrderedDict
 
@@ -47,6 +49,8 @@ label = "linked list"
 idea = "The map finds a node; the doubly linked list keeps use order, with the least recent next to the head sentinel."
 time = "O(1) per call"
 space = "O(capacity)"
+time_why = "The hash map finds a node directly, and unlinking a node and putting it back at the front of a doubly linked list only changes a few pointers."
+space_why = "At most capacity nodes, each stored in the map and in the list."
 note = "What the problem is really testing."
 code = '''class LRUCache:
 

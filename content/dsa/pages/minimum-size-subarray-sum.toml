@@ -13,6 +13,8 @@ label = "sliding window"
 idea = "Expand until the sum is enough, then shrink from the left while it stays enough."
 time = "O(n)"
 space = "O(1)"
+time_why = "Both pointers only move forward over the array, so at most 2n steps."
+space_why = "Only the window sum and the two pointers."
 note = "Each index enters and leaves once."
 code = '''class Solution:
     def minSubArrayLen(self, target: int, nums: list[int]) -> int:

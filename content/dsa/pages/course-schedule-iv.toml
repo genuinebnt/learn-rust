@@ -15,6 +15,8 @@ label = "floyd"
 idea = "reach[i][j] is true when a chain of prerequisites leads from i to j; compute all pairs, then answer the queries."
 time = "O(n^3 + q)"
 space = "O(n^2)"
+time_why = "Floyd–Warshall tries every middle course for every pair, which is n × n × n; each query is then an O(1) table lookup."
+space_why = "The reachability table has one entry for every pair of courses, n × n."
 note = "Fine for n up to 100."
 code = '''class Solution:
     def checkIfPrerequisite(self, numCourses: int, prerequisites: list[list[int]], queries: list[list[int]]) -> list[bool]:

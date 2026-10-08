@@ -13,6 +13,8 @@ label = "two pointers"
 idea = "Compare the largest unplaced items of the two arrays and write the bigger one at the end."
 time = "O(m + n)"
 space = "O(1)"
+time_why = "Each step writes one element and moves a pointer, so m + n steps."
+space_why = "The merge happens in the first array, which already has the space."
 note = "In place."
 code = '''class Solution:
     def merge(self, nums1: list[int], m: int, nums2: list[int], n: int) -> None:

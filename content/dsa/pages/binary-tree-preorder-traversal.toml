@@ -13,6 +13,8 @@ label = "iterative"
 idea = "Pop, record, then push the right child and the left child."
 time = "O(n)"
 space = "O(h)"
+time_why = "Each node is pushed once and popped once."
+space_why = "Popping a node pushes its two children, so the stack holds about one node per level, the height h."
 note = "The stack never holds more than about the height plus one."
 code = '''class Solution:
     def preorderTraversal(self, root: TreeNode | None) -> list[int]:

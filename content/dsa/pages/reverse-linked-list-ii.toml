@@ -13,6 +13,8 @@ label = "in place"
 idea = "After reaching the node before the range, repeatedly pull the node after the range's first node to the front."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass to reach the range and one move for each node inside it, so at most n steps."
+space_why = "The nodes are relinked in place, so only a few pointers are extra."
 note = "Single pass."
 code = '''class Solution:
     def reverseBetween(self, head: ListNode | None, left: int, right: int) -> ListNode | None:

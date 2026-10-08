@@ -16,6 +16,8 @@ label = "sets"
 idea = "Note every row and column that contains a zero, then clear those rows and columns."
 time = "O(m · n)"
 space = "O(m + n)"
+time_why = "One pass over the m × n cells to find the zeros and one to clear the marked rows and columns."
+space_why = "A set of rows and a set of columns, up to m + n entries."
 note = "Easiest to get right."
 code = '''class Solution:
     def setZeroes(self, matrix: list[list[int]]) -> None:
@@ -41,6 +43,8 @@ label = "in place"
 idea = "Use matrix[i][0] and matrix[0][j] as the flags, with two booleans for the first row and column themselves."
 time = "O(m · n)"
 space = "O(1)"
+time_why = "One pass to mark the flags and one pass to clear, over m × n cells."
+space_why = "The flags live in the matrix itself, so only two booleans are extra."
 note = "Clear the first row and column last."
 code = '''class Solution:
     def setZeroes(self, matrix: list[list[int]]) -> None:

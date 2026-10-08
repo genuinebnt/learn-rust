@@ -15,6 +15,8 @@ label = "voting"
 idea = "Cancel groups of three different numbers; whatever more than a third of the numbers survives as a candidate, then verify by counting."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass to find the candidates and one pass to count them, each constant work per number."
+space_why = "Two candidates and their two counters."
 note = "Two passes."
 code = '''class Solution:
     def majorityElement(self, nums: list[int]) -> list[int]:
@@ -41,6 +43,8 @@ label = "hash map"
 idea = "Count every value and keep those that appear more than n / 3 times."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass counting every value, and one pass over the distinct counts."
+space_why = "The dictionary can hold up to n distinct values."
 note = "The easy answer."
 code = '''from collections import Counter
 

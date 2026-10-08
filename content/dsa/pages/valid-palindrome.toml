@@ -16,6 +16,8 @@ label = "two pointers"
 idea = "Start at both ends, skip non-alphanumerics, compare lower-cased characters, and move inward until the pointers meet."
 time = "O(n)"
 space = "O(1)"
+time_why = "The two pointers move toward each other, so every character is looked at once."
+space_why = "Only two pointers."
 note = "Each character is looked at once; nothing is copied."
 code = '''class Solution:
     def isPalindrome(self, s: str) -> bool:
@@ -38,6 +40,8 @@ label = "clean + reverse"
 idea = "Keep only the lower-cased letters and digits, then check the result equals itself reversed."
 time = "O(n)"
 space = "O(n)"
+time_why = "Cleaning the string, reversing it and comparing the two each read n characters."
+space_why = "The cleaned string and its reverse are new strings of up to n characters."
 note = "Simplest to write; it builds a cleaned copy."
 code = '''class Solution:
     def isPalindrome(self, s: str) -> bool:

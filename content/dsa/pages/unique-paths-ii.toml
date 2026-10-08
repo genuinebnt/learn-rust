@@ -15,6 +15,8 @@ label = "dp"
 idea = "Reuse a single row: an obstacle zeroes its cell, a free cell adds the count from its left."
 time = "O(m · n)"
 space = "O(n)"
+time_why = "One update for each of the m × n cells."
+space_why = "A single row of n counts is reused for the whole grid."
 note = "The row holds the previous row's values until updated."
 code = '''class Solution:
     def uniquePathsWithObstacles(self, obstacleGrid: list[list[int]]) -> int:

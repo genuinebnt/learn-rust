@@ -16,6 +16,8 @@ label = "Prim"
 idea = "Keep `best[i]`, the cheapest known edge from the tree to point i. Repeatedly add the point with the smallest `best`, then update the others with the distance to it."
 time = "O(n²)"
 space = "O(n)"
+time_why = "Each of the n rounds adds one point and then updates the distances to the n other points."
+space_why = "One best distance and one flag for each point."
 note = "No edge list: distances are computed on the fly."
 code = '''class Solution:
     def minCostConnectPoints(self, points: list[list[int]]) -> int:
@@ -42,6 +44,8 @@ label = "Kruskal"
 idea = "List every pair as an edge, sort by length, and add an edge whenever it joins two different components, until n − 1 edges are used."
 time = "O(n² log n)"
 space = "O(n²)"
+time_why = "There are about n²/2 edges, sorted at a cost of log of that, which is about n² log n. The union-find work is smaller."
+space_why = "The list of about n²/2 edges."
 note = "The edge list has about n²/2 entries."
 code = '''class Solution:
     def minCostConnectPoints(self, points: list[list[int]]) -> int:

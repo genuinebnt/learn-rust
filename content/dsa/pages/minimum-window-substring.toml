@@ -17,6 +17,8 @@ label = "sliding window"
 idea = "Move `right` to include characters. Once every needed character is covered, move `left` to cut the window down while it stays covered, remembering the shortest."
 time = "O(|s| + |t|)"
 space = "O(|s| + |t|)"
+time_why = "The right pointer moves over s once and the left pointer follows once, and building the counts of t reads t once."
+space_why = "The two count maps hold at most one entry for each distinct character."
 note = "Each index is added once and removed at most once; the count maps hold at most the distinct characters."
 code = '''from collections import Counter
 
@@ -53,6 +55,8 @@ label = "brute force"
 idea = "Check every substring for coverage. Worth saying for the contrast; hopeless at 100,000 characters."
 time = "O(n² · |t|)"
 space = "O(|t|)"
+time_why = "There are about n² / 2 substrings, and checking each one counts its letters."
+space_why = "The count of letters in t."
 note = "Quadratic substrings, each checked with a count."
 code = '''from collections import Counter
 

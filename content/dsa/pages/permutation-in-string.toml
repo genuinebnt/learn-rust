@@ -16,6 +16,8 @@ label = "fixed window"
 idea = "Count `s1`. Slide a window of the same length over `s2`, updating its count by one letter in and one letter out, and test equality of the two count arrays."
 time = "O(26 · n)"
 space = "O(1)"
+time_why = "The window slides over n positions, and at each one the two counts of 26 letters are compared."
+space_why = "Two counts of 26 letters, however long the strings are."
 note = "n is the length of `s2`; the comparison is 26 numbers."
 code = '''class Solution:
     def checkInclusion(self, s1: str, s2: str) -> bool:
@@ -42,6 +44,8 @@ label = "match counter"
 idea = "Keep a count of how many of the 26 letters currently have the right number in the window. Each slide changes at most two letters, so each step is O(1)."
 time = "O(n)"
 space = "O(1)"
+time_why = "The window slides over n positions, and each slide changes the match count by looking at two letters."
+space_why = "Two counts of 26 letters."
 note = "Strictly linear; a bit more bookkeeping."
 code = '''class Solution:
     def checkInclusion(self, s1: str, s2: str) -> bool:

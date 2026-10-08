@@ -16,6 +16,8 @@ label = "in place"
 idea = "Swap every value v in 1..n into position v - 1, then the first position holding the wrong value reveals the missing number."
 time = "O(n)"
 space = "O(1)"
+time_why = "Every swap puts one value into its final position, and each position is fixed at most once, so there are at most n swaps, plus one pass to find the gap."
+space_why = "The swaps happen inside the input array, so only a few variables are extra."
 note = "Each swap puts one number in its final place."
 code = '''class Solution:
     def firstMissingPositive(self, nums: list[int]) -> int:
@@ -36,6 +38,8 @@ label = "hash set"
 idea = "Put everything in a set and return the first positive integer that is not in it."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass to build the set and a count upward that stops at the first gap, which is at most n + 1."
+space_why = "The set holds up to n values."
 note = "Breaks the O(1) space requirement."
 code = '''class Solution:
     def firstMissingPositive(self, nums: list[int]) -> int:

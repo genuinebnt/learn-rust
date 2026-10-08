@@ -19,6 +19,8 @@ label = "one row"
 idea = "Scan `s`; for each character, update the counts for `t` from the end back to the start so each character of `s` is used at most once per match."
 time = "O(m · n)"
 space = "O(n)"
+time_why = "Every character of s updates the counts for all n positions of t, so m × n updates."
+space_why = "One row of n + 1 counts."
 note = "n = len(t)."
 code = '''class Solution:
     def numDistinct(self, s: str, t: str) -> int:
@@ -36,6 +38,8 @@ label = "2-D table"
 idea = "`ways[i][j]` = skip `s[i-1]`, plus (if it matches `t[j-1]`) use it."
 time = "O(m · n)"
 space = "O(m · n)"
+time_why = "The table has (m + 1) × (n + 1) cells and each is filled in constant time from two earlier cells."
+space_why = "The table has one cell for every pair of prefixes."
 note = "The version to draw on the board first."
 code = '''class Solution:
     def numDistinct(self, s: str, t: str) -> int:

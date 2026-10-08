@@ -16,6 +16,8 @@ label = "search the answer"
 idea = "Find the smallest `k` in `[1, max(piles)]` for which the hours needed are at most `h`."
 time = "O(n log max(piles))"
 space = "O(1)"
+time_why = "The search over speeds takes about log of the largest pile, and each tested speed adds up the hours for all n piles."
+space_why = "Just the bounds and a running hour count."
 note = "Each check is a pass over the piles; about 30 checks at most."
 code = '''class Solution:
     def minEatingSpeed(self, piles: list[int], h: int) -> int:
@@ -38,6 +40,8 @@ label = "tighter bounds"
 idea = "The speed can't be below `ceil(total / h)`. Starting the search there shrinks the range."
 time = "O(n log max(piles))"
 space = "O(1)"
+time_why = "The same binary search; starting from a higher lower bound saves a few steps but not the log factor."
+space_why = "Just the bounds and a running hour count."
 note = "A small constant-factor improvement; the idea is the same."
 code = '''class Solution:
     def minEatingSpeed(self, piles: list[int], h: int) -> int:

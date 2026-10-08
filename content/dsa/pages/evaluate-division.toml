@@ -18,6 +18,8 @@ label = "bfs"
 idea = "Store a weighted edge in each direction for every equation; answer a query by searching from the numerator to the denominator, multiplying weights."
 time = "O(q · (V + E))"
 space = "O(V + E)"
+time_why = "Each query is a graph search that can visit every variable and equation before it finds the denominator."
+space_why = "The graph holds each variable and two edges for each equation."
 note = "q queries, each a search over the graph."
 code = '''from collections import defaultdict, deque
 
@@ -53,6 +55,8 @@ label = "union find"
 idea = "Each variable stores its ratio to its root; merging two components adjusts one root's ratio so all stored ratios stay consistent."
 time = "O((E + q) · α(V))"
 space = "O(V)"
+time_why = "Each equation and each query does a find in the union-find, which is nearly constant time with path compression."
+space_why = "A parent and a ratio for each variable."
 note = "Almost constant per operation."
 code = '''class Solution:
     def calcEquation(self, equations: List[List[str]], values: List[float], queries: List[List[str]]) -> List[float]:

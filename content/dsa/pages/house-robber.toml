@@ -18,6 +18,8 @@ label = "two variables"
 idea = "Track the best total two houses back and one house back. For each house, the new best is the larger of skipping it or robbing it on top of the older total."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass over the houses, doing constant work for each."
+space_why = "Only the best total two houses back and one house back."
 note = "One pass, no table."
 code = '''class Solution:
     def rob(self, nums: list[int]) -> int:
@@ -33,6 +35,8 @@ label = "memoised"
 idea = "`best(i)` looks at the street up to house i: skip it, or rob it plus the best up to i − 2."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each of the n houses is worked out once, with the cache preventing repeats."
+space_why = "The cache has n entries and the recursion goes n deep."
 note = "Recursion depth n (at most 100 here)."
 code = '''from functools import cache
 

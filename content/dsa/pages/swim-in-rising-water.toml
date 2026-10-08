@@ -16,6 +16,8 @@ label = "Dijkstra"
 idea = "Heap of `(time needed, row, col)`. Pop the cell with the smallest time, and push each unvisited neighbour with `max(time, neighbour's elevation)`."
 time = "O(n² log n)"
 space = "O(n²)"
+time_why = "Each of the n² cells enters the heap once, and each heap operation costs log of the heap size, about log n²."
+space_why = "The visited set and the heap hold up to n² cells."
 note = "n × n grid; every cell enters the heap once."
 code = '''import heapq
 
@@ -42,6 +44,8 @@ label = "binary search"
 idea = "Search the smallest `t` for which a flood fill from the start, only through cells ≤ t, reaches the goal."
 time = "O(n² log n)"
 space = "O(n²)"
+time_why = "The binary search needs about log(n²) rounds, and each round is a flood fill over up to n² cells."
+space_why = "The visited set and the stack hold up to n² cells."
 note = "log n² ≈ 2 log n flood fills, each O(n²)."
 code = '''class Solution:
     def swimInWater(self, grid: list[list[int]]) -> int:

@@ -16,6 +16,8 @@ label = "flatten index"
 idea = "Treat the matrix as a sorted list of length `rows × cols` and map each middle index back to a row and column."
 time = "O(log(m · n))"
 space = "O(1)"
+time_why = "Each comparison halves the range, over m × n positions in total."
+space_why = "Just the bounds and the middle."
 note = "A single loop."
 code = '''class Solution:
     def searchMatrix(self, matrix: list[list[int]], target: int) -> bool:
@@ -42,6 +44,8 @@ label = "two searches"
 idea = "Binary search the first column for the last row that starts at or before the target, then binary search within that row."
 time = "O(log m + log n)"
 space = "O(1)"
+time_why = "One binary search over the m rows and one over the n columns of that row."
+space_why = "Just the bounds and the middle."
 note = "Same bound; two simple loops instead of an index mapping."
 code = '''from bisect import bisect_left, bisect_right
 

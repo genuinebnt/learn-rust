@@ -16,6 +16,8 @@ label = "math"
 idea = "If the two orders of concatenation differ there is no divisor; otherwise take the prefix whose length is gcd of the lengths."
 time = "O(n + m)"
 space = "O(n + m)"
+time_why = "Joining the strings and comparing them reads each character a constant number of times, and the gcd of the lengths takes only a few steps."
+space_why = "The two concatenated strings, which together have n + m characters."
 note = "Short and exact."
 code = '''from math import gcd
 
@@ -33,6 +35,8 @@ label = "brute force"
 idea = "For each length that divides both string lengths, longest first, test whether that prefix repeated rebuilds both."
 time = "O((n + m) · d)"
 space = "O(n + m)"
+time_why = "Each candidate length, of which there are d, rebuilds and compares strings of up to n + m characters."
+space_why = "The strings built when a prefix is repeated."
 note = "d is the number of candidate lengths."
 code = '''class Solution:
     def gcdOfStrings(self, str1: str, str2: str) -> str:

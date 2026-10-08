@@ -15,6 +15,8 @@ label = "dp"
 idea = "dp[i][j] is the mover's best lead on piles[i..j]; take either end and subtract the opponent's lead."
 time = "O(n^2)"
 space = "O(n^2)"
+time_why = "The table has n × n cells and each is filled in constant time from two smaller ones."
+space_why = "The table has a cell for every interval."
 note = "Fill by increasing interval length."
 code = '''class Solution:
     def stoneGame(self, piles: list[int]) -> bool:
@@ -35,6 +37,8 @@ label = "math"
 idea = "With an even number of piles and no ties, the first player can secure either all the even-indexed or all the odd-indexed piles, whichever total is larger."
 time = "O(1)"
 space = "O(1)"
+time_why = "The answer follows from the rules, so no loop is needed."
+space_why = "Nothing is stored."
 note = "Only valid under the stated constraints."
 code = '''class Solution:
     def stoneGame(self, piles: list[int]) -> bool:

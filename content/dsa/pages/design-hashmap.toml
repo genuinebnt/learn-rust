@@ -13,6 +13,8 @@ label = "hash table"
 idea = "Hash the key to a bucket; scan that small list to read, update or delete the pair."
 time = "O(1) average per call"
 space = "O(buckets + keys)"
+time_why = "Hashing picks a bucket directly. A bucket is short on average, so scanning it is constant time (many keys in one bucket would slow it down)."
+space_why = "The bucket array plus one pair for every key stored."
 note = "Collisions share a bucket (separate chaining)."
 code = '''class MyHashMap:
 

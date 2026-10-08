@@ -16,6 +16,8 @@ label = "iterative"
 idea = "Go left or right by comparison until the chosen child is empty, then put the new node there."
 time = "O(h)"
 space = "O(1)"
+time_why = "Each step goes down one level, and the walk ends at an empty child, so at most the height h steps."
+space_why = "The loop keeps only a pointer to the current node."
 note = "h is the tree height."
 code = '''class Solution:
     def insertIntoBST(self, root: TreeNode | None, val: int) -> TreeNode | None:
@@ -42,6 +44,8 @@ label = "recursive"
 idea = "Insert into the correct subtree and reconnect the result as that child."
 time = "O(h)"
 space = "O(h)"
+time_why = "Each call goes down one level and stops at an empty child, so at most the height h calls."
+space_why = "The recursion is as deep as the path taken, at most h."
 note = "Short; the stack depth equals the height."
 code = '''class Solution:
     def insertIntoBST(self, root: TreeNode | None, val: int) -> TreeNode | None:

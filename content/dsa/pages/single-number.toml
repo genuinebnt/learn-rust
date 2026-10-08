@@ -16,6 +16,8 @@ label = "xor"
 idea = "Equal numbers cancel under XOR; the unpaired number is what is left."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass with a single XOR for each number."
+space_why = "Only the running XOR."
 note = "The expected answer."
 code = '''class Solution:
     def singleNumber(self, nums: list[int]) -> int:
@@ -31,6 +33,8 @@ label = "math"
 idea = "Doubling the sum of the distinct values counts every pair twice and the single number twice, so subtracting the real sum leaves the single number."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass to build the set and one to add up each of the two collections."
+space_why = "The set holds the distinct values, about half of the numbers."
 note = "Easy to explain; the set uses memory."
 code = '''class Solution:
     def singleNumber(self, nums: list[int]) -> int:

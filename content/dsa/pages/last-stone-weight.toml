@@ -16,6 +16,8 @@ label = "heap"
 idea = "Pop the two heaviest stones, push back their difference when it isn't zero, and repeat."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Each round pops two stones and pushes at most one back, each costing log n, and there are at most n rounds."
+space_why = "The heap holds all the stones."
 note = "Each of at most n rounds does O(log n) heap work."
 code = '''import heapq
 
@@ -38,6 +40,8 @@ label = "simple"
 idea = "Keep the stones sorted and take the last two each time."
 time = "O(n^2 log n)"
 space = "O(1)"
+time_why = "Each round sorts the stones (n log n) and there are up to n rounds."
+space_why = "The stones are sorted in place."
 note = "Fine for the small limits here; the heap is what scales."
 code = '''class Solution:
     def lastStoneWeight(self, stones: list[int]) -> int:

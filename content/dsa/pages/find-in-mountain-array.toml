@@ -20,6 +20,8 @@ label = "binary search"
 idea = "Binary search for the peak, then binary search the rising part, then the falling part, caching every get."
 time = "O(log n)"
 space = "O(log n)"
+time_why = "Three binary searches, each of which halves its range every step, so a few multiples of log n calls."
+space_why = "The cache stores a value for each index that was asked for, which is only about the number of probes."
 note = "The cache holds at most the indexes probed, about 60."
 code = '''class Solution:
     def findInMountainArray(self, target: int, mountainArr: 'MountainArray') -> int:

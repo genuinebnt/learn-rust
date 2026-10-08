@@ -16,6 +16,8 @@ label = "iterative"
 idea = "Keep the range `[low, high]` that could still hold the target; compare with the middle and discard half."
 time = "O(log n)"
 space = "O(1)"
+time_why = "Each comparison throws away half of the remaining range, so after about log₂ n steps the range is empty."
+space_why = "The loop keeps just the two bounds and the middle."
 note = "Each iteration halves the range."
 code = '''class Solution:
     def search(self, nums: list[int], target: int) -> int:
@@ -37,6 +39,8 @@ label = "bisect"
 idea = "`bisect_left` returns the first index whose value is at least the target; the target is present if that index holds it."
 time = "O(log n)"
 space = "O(1)"
+time_why = "`bisect_left` is a binary search, which halves the range at every step."
+space_why = "It keeps only a few indices and builds nothing."
 note = "The library version of the same loop."
 code = '''from bisect import bisect_left
 

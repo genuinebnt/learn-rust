@@ -21,6 +21,8 @@ label = "backtracking"
 idea = "Place the longest sticks first; try each side that still fits, skipping sides whose current length was already tried."
 time = "O(4^n) worst case, much less pruned"
 space = "O(n)"
+time_why = "Each of the n sticks can go on any of 4 sides, so there are 4ⁿ placements in the worst case. Putting the longest sticks first and skipping equal sides cuts almost all of them."
+space_why = "The recursion is n deep and the four side lengths are stored."
 note = "Sorting and the duplicate-side skip are what keep it fast."
 code = '''class Solution:
     def makesquare(self, matchsticks: list[int]) -> bool:
@@ -56,6 +58,8 @@ label = "dp"
 idea = "reach[mask] says whether the sticks in mask can be laid out filling whole sides plus one partial side; extend by any unused stick that still fits the current side."
 time = "O(n · 2^n)"
 space = "O(2^n)"
+time_why = "There are 2ⁿ sets of used sticks, and each one tries up to n unused sticks to add."
+space_why = "A flag for each of the 2ⁿ sets of sticks."
 note = "Fine for up to 15 sticks."
 code = '''class Solution:
     def makesquare(self, matchsticks: list[int]) -> bool:

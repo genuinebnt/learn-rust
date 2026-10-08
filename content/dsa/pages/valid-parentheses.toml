@@ -14,6 +14,8 @@ label = "stack"
 idea = "Push openers. On a closer, pop and compare with the matching opener. The string is valid if nothing mismatches and the stack ends empty."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass, with a push or a pop for each character."
+space_why = "The stack holds every open bracket, up to n when the string is all openers."
 note = "One pass; the stack can hold every character."
 code = '''class Solution:
     def isValid(self, s: str) -> bool:

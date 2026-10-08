@@ -17,6 +17,8 @@ label = "DFS"
 idea = "`clone(node)` returns the copy, creating it and its neighbours' copies on first sight."
 time = "O(V + E)"
 space = "O(V)"
+time_why = "Each node is cloned once, and each edge is followed once while its neighbours are linked."
+space_why = "The map holds one copy for each node, and the recursion can go as deep as V."
 note = "One copy per node; the recursion depth is at most V."
 code = '''from typing import Optional
 
@@ -45,6 +47,8 @@ label = "BFS"
 idea = "Create the first copy, then process a queue of originals: for each neighbour, create its copy if needed and link it to the current copy."
 time = "O(V + E)"
 space = "O(V)"
+time_why = "Each node is queued once and each edge examined once."
+space_why = "The map has one entry for each node, and the queue holds up to V nodes."
 note = "Same work, iterative."
 code = '''from collections import deque
 from typing import Optional

@@ -19,6 +19,8 @@ label = "partition search"
 idea = "Find the cut `i` in the shorter array (and the matching cut in the other) so that every left element is no greater than every right element."
 time = "O(log(min(m, n)))"
 space = "O(1)"
+time_why = "The binary search halves the cut positions in the shorter array each step."
+space_why = "A few indexes and values, nothing stored."
 note = "Only the elements next to the cuts are ever compared."
 code = '''class Solution:
     def findMedianSortedArrays(self, nums1: list[int], nums2: list[int]) -> float:
@@ -51,6 +53,8 @@ label = "merge"
 idea = "Merge the two sorted lists and read the middle. Correct and simple, but linear."
 time = "O(m + n)"
 space = "O(m + n)"
+time_why = "Merging reads every element of both arrays once."
+space_why = "The merged list holds all m + n elements."
 note = "A good first answer to say aloud, then improve."
 code = '''import heapq
 

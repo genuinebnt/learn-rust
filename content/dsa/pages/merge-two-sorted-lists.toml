@@ -16,6 +16,8 @@ label = "iterative"
 idea = "Append the smaller front node to the result each time; when one list ends, attach the other."
 time = "O(n + m)"
 space = "O(1)"
+time_why = "Each step moves one node onto the result, so n + m steps."
+space_why = "The existing nodes are relinked in place, so only a few pointers are extra."
 note = "Reuses the input nodes."
 code = '''class Solution:
     def mergeTwoLists(self, list1: ListNode | None, list2: ListNode | None) -> ListNode | None:
@@ -38,6 +40,8 @@ label = "recursive"
 idea = "The smaller head stays; its next is the merge of the rest."
 time = "O(n + m)"
 space = "O(n + m)"
+time_why = "Each call places one node, so n + m calls."
+space_why = "The recursion has one frame for each node placed, so n + m deep."
 note = "Short to write; the recursion is as deep as the two lists together."
 code = '''class Solution:
     def mergeTwoLists(self, list1: ListNode | None, list2: ListNode | None) -> ListNode | None:

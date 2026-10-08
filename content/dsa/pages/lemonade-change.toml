@@ -15,6 +15,8 @@ label = "greedy"
 idea = "Keep two counters; for a 20 give a 10 and a 5 when possible, otherwise three 5s."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass over the bills, with constant work for each."
+space_why = "Two counters, however many customers there are."
 note = "A running balance with a preference."
 code = '''class Solution:
     def lemonadeChange(self, bills: list[int]) -> bool:

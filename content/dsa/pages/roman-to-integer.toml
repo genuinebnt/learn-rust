@@ -13,6 +13,8 @@ label = "simulation"
 idea = "Look one symbol ahead: a smaller value before a larger one is subtractive."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass over the symbols with a lookup and a comparison for each."
+space_why = "Only the total, and the table of seven symbols."
 note = "One pass."
 code = '''class Solution:
     def romanToInt(self, s: str) -> int:

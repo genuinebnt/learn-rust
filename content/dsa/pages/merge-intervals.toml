@@ -15,6 +15,8 @@ label = "sort + sweep"
 idea = "After sorting, compare each interval with the last merged one: extend it if they overlap, otherwise start a new merged interval."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting costs n log n and the sweep is a single pass."
+space_why = "The merged list holds up to n intervals, which is the output."
 note = "Sorting dominates; the sweep is linear."
 code = '''class Solution:
     def merge(self, intervals: list[list[int]]) -> list[list[int]]:

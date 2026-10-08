@@ -21,6 +21,8 @@ label = "heap simulation"
 idea = "Feed arrived tasks into a heap ordered by (processing time, index) and always run the heap's top; jump the clock forward when it is empty."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting the tasks costs n log n, and each task is pushed and popped from the heap once, each costing log n."
+space_why = "The sorted tasks and the heap hold up to n entries."
 note = "Every task is pushed and popped once."
 code = '''import heapq
 

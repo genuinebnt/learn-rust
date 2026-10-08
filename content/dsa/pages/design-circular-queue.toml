@@ -18,6 +18,8 @@ label = "ring buffer"
 idea = "Store items in a fixed array; the front is at head, the next free slot is head + size, both modulo capacity."
 time = "O(1) per operation"
 space = "O(k)"
+time_why = "Each operation moves an index with a modulo and touches one array slot."
+space_why = "A fixed array of k slots."
 note = "k is the capacity."
 code = '''class MyCircularQueue:
 
@@ -60,6 +62,8 @@ label = "linked list"
 idea = "Append at the tail, remove from the head, and refuse new items once the count reaches the capacity."
 time = "O(1) per operation"
 space = "O(k)"
+time_why = "Each operation touches the head, the tail or the count, never walking the list."
+space_why = "One node for each item currently in the queue, up to the capacity k."
 note = "Not a real ring, but the same behaviour from outside."
 code = '''class MyCircularQueue:
 

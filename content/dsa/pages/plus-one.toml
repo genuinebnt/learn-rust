@@ -16,6 +16,8 @@ label = "simulation"
 idea = "From the end, turn 9s into 0s until a digit below 9 can be incremented; if none exists, prepend a 1."
 time = "O(n)"
 space = "O(1)"
+time_why = "The loop goes from the end and stops at the first digit below 9, so it only passes the whole array when every digit is 9."
+space_why = "The digits are changed in place. Only the all-nines case builds a new list, one digit longer."
 note = "O(n) only in the all-nines case, which builds a new list."
 code = '''class Solution:
     def plusOne(self, digits: list[int]) -> list[int]:

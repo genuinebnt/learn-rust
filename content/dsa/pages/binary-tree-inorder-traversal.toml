@@ -13,6 +13,8 @@ label = "iterative"
 idea = "Go left as far as possible, visit the top of the stack, then continue from its right child."
 time = "O(n)"
 space = "O(h)"
+time_why = "Every node is pushed on the stack once and popped once."
+space_why = "The stack holds the left spine of the tree, so at most the height h. That's n for a skewed tree and about log n for a balanced one."
 note = "h is the height of the tree."
 code = '''class Solution:
     def inorderTraversal(self, root: TreeNode | None) -> list[int]:
@@ -33,6 +35,8 @@ label = "recursive"
 idea = "Visit the left subtree, the node, then the right subtree."
 time = "O(n)"
 space = "O(h)"
+time_why = "Every node is visited exactly once."
+space_why = "The recursion stack is as deep as the tree is tall (n at worst, log n when balanced). The output list isn't counted."
 note = "The recursion depth is the height."
 code = '''class Solution:
     def inorderTraversal(self, root: TreeNode | None) -> list[int]:

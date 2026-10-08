@@ -19,6 +19,8 @@ label = "bst"
 idea = "Find the node; replace it with its only child, or with the smallest value of its right subtree."
 time = "O(h)"
 space = "O(h)"
+time_why = "Finding the node walks one path down the tree, and finding the successor walks another, so at most about twice the height."
+space_why = "The recursion goes as deep as the tree is tall."
 note = "h is the height of the tree."
 code = '''class Solution:
     def deleteNode(self, root: TreeNode | None, key: int) -> TreeNode | None:

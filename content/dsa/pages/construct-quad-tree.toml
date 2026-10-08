@@ -15,6 +15,8 @@ label = "dfs"
 idea = "Build the four quadrants; if all are equal leaves, replace them with one leaf."
 time = "O(n^2 log n)"
 space = "O(log n)"
+time_why = "Every cell of the n × n grid is looked at at each of the log n levels of splitting, as the quadrants shrink by half each time."
+space_why = "The recursion is log n deep; the tree being built is the output."
 note = "The grid has n squared cells, split to depth log n."
 code = '''# Definition for a QuadTree node.
 # class Node:

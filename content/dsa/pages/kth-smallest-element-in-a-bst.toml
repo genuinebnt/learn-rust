@@ -16,6 +16,8 @@ label = "inorder"
 idea = "Use a stack to walk in sorted order, counting down k as nodes are popped."
 time = "O(h + k)"
 space = "O(h)"
+time_why = "The walk first goes down the left spine (up to h steps), then pops k nodes, each popped once."
+space_why = "The stack holds the path down the left side, at most the height h."
 note = "It walks down the left spine first, then k pops."
 code = '''class Solution:
     def kthSmallest(self, root: TreeNode | None, k: int) -> int:
@@ -38,6 +40,8 @@ label = "simple"
 idea = "Write the whole inorder sequence into a list and return the element at index k - 1."
 time = "O(n)"
 space = "O(n)"
+time_why = "Every node is visited once to build the whole inorder list."
+space_why = "The list holds all n values, and the recursion goes up to h deep."
 note = "The easiest to get right."
 code = '''class Solution:
     def kthSmallest(self, root: TreeNode | None, k: int) -> int:

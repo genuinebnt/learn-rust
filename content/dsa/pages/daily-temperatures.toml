@@ -16,6 +16,8 @@ label = "monotonic stack"
 idea = "Keep indices of days waiting for a warmer day. Each new day answers every colder day on top of the stack."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each day is pushed once and popped at most once, so there are at most 2n stack operations."
+space_why = "If the temperatures only fall, no day is popped and the stack holds all n days."
 note = "Every index is pushed once and popped at most once."
 code = '''class Solution:
     def dailyTemperatures(self, temperatures: list[int]) -> list[int]:
@@ -35,6 +37,8 @@ label = "backward scan"
 idea = "Go from the right. For day i, jump ahead using the already-computed answers of the days after it until you reach a warmer one."
 time = "O(n)"
 space = "O(1)"
+time_why = "A hop skips over days whose answers are already known, so no day is scanned many times; the total hopping adds up to a constant number of visits per day."
+space_why = "Besides the answer array there are only a few variables, and no stack."
 note = "Amortised linear: the hops use earlier answers, so no day is rescanned from scratch. Extra space is just the output."
 code = '''class Solution:
     def dailyTemperatures(self, temperatures: list[int]) -> list[int]:

@@ -16,6 +16,8 @@ label = "monotonic stack"
 idea = "Keep bars in increasing height order. A shorter bar closes every taller bar on top, giving each of them its widest rectangle."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each bar is pushed once and popped at most once, so at most 2n stack operations."
+space_why = "For rising bars, every index stays on the stack."
 note = "Every index is pushed and popped once."
 code = '''class Solution:
     def largestRectangleArea(self, heights: list[int]) -> int:
@@ -36,6 +38,8 @@ label = "brute force"
 idea = "For each bar, walk left and right while the bars are at least as tall, and take height times width."
 time = "O(n²)"
 space = "O(1)"
+time_why = "Each of the n bars expands left and right over up to n bars."
+space_why = "Only the best area so far."
 note = "Fine for a first answer; too slow for 100,000 bars."
 code = '''class Solution:
     def largestRectangleArea(self, heights: list[int]) -> int:

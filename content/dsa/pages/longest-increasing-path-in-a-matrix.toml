@@ -16,6 +16,8 @@ label = "memoised DFS"
 idea = "`longest(r, c)` is 1 plus the best `longest` among neighbours with a larger value. Cache each cell's answer."
 time = "O(rows · cols)"
 space = "O(rows · cols)"
+time_why = "Each cell is solved once and looks at four neighbours."
+space_why = "The cache has a cell for every cell of the grid, and the recursion can go as deep as the longest path."
 note = "Each cell is solved once."
 code = '''import sys
 from functools import cache
@@ -43,6 +45,8 @@ label = "sorted DP"
 idea = "A cell's answer depends only on larger neighbours, so handle cells in decreasing order of value and no recursion is needed."
 time = "O(rows · cols · log(rows · cols))"
 space = "O(rows · cols)"
+time_why = "Sorting all cells costs m·n log(m·n), then each cell is processed once with four neighbour lookups."
+space_why = "The sorted list and the table of answers each hold every cell."
 note = "The sort dominates."
 code = '''class Solution:
     def longestIncreasingPath(self, matrix: list[list[int]]) -> int:

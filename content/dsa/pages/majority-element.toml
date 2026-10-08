@@ -16,6 +16,8 @@ label = "voting"
 idea = "Keep a candidate and a count; matching numbers add to it, different ones cancel it, and a count of 0 picks a new candidate."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass that updates a candidate and a count with constant work per number."
+space_why = "One candidate and one count."
 note = "Relies on a majority element existing."
 code = '''class Solution:
     def majorityElement(self, nums: list[int]) -> int:
@@ -33,6 +35,8 @@ label = "hash map"
 idea = "Count every value and return the one that appears more than n / 2 times."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass counting every value with O(1) dictionary updates."
+space_why = "The dictionary can hold up to n distinct values."
 note = "The first answer to give."
 code = '''from collections import Counter
 
@@ -49,6 +53,8 @@ label = "sorting"
 idea = "A value that fills more than half the array must sit at the middle index once sorted."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting costs n log n, and reading the middle is constant."
+space_why = "Python's `sorted` makes a copy of the n numbers."
 note = "Short, but slower than voting."
 code = '''class Solution:
     def majorityElement(self, nums: list[int]) -> int:

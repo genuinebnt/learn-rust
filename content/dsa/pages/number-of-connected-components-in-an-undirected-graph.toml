@@ -16,6 +16,8 @@ label = "union-find"
 idea = "Start with `n` components and merge the endpoints of each edge, counting down on every successful merge."
 time = "O((n + e) · α(n))"
 space = "O(n)"
+time_why = "Each edge does two finds and at most one union, which are nearly constant time with path compression."
+space_why = "A parent and a rank for each of the n nodes."
 note = "α is the inverse Ackermann function: effectively constant."
 code = '''class Solution:
     def countComponents(self, n: int, edges: list[list[int]]) -> int:
@@ -47,6 +49,8 @@ label = "DFS"
 idea = "Build adjacency lists. For each unvisited node, start a search that visits its whole component, and count the searches."
 time = "O(n + e)"
 space = "O(n + e)"
+time_why = "Each node is visited once and each edge followed twice (once from each end)."
+space_why = "The adjacency lists hold n + e, and the visited set and stack hold up to n."
 note = "Iterative, so no recursion limit."
 code = '''class Solution:
     def countComponents(self, n: int, edges: list[list[int]]) -> int:

@@ -14,6 +14,8 @@ label = "union-find"
 idea = "Process edges in order. The first one joining two nodes that are already connected is the extra edge."
 time = "O(n · α(n))"
 space = "O(n)"
+time_why = "Each edge does two finds and at most one union, which are nearly constant time with path compression."
+space_why = "A parent and a rank for each of the n nodes."
 note = "One union-find operation per edge."
 code = '''class Solution:
     def findRedundantConnection(self, edges: list[list[int]]) -> list[int]:
@@ -39,6 +41,8 @@ label = "DFS"
 idea = "Before adding an edge, search for an existing path between its endpoints. If one exists, the edge is redundant."
 time = "O(n²)"
 space = "O(n)"
+time_why = "For each of the n edges, a search over the graph so far visits up to n nodes."
+space_why = "The graph and the search's visited set, each up to n."
 note = "Fine for n ≤ 1000; it rebuilds a search for every edge."
 code = '''class Solution:
     def findRedundantConnection(self, edges: list[list[int]]) -> list[int]:

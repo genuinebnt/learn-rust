@@ -19,6 +19,8 @@ label = "stack"
 idea = "Push names, pop on '..', ignore '.' and empty pieces."
 time = "O(n)"
 space = "O(n)"
+time_why = "Splitting the path and handling each piece is one pass over the n characters."
+space_why = "The stack holds up to one name for each directory in the path."
 note = "n is the length of the path."
 code = '''class Solution:
     def simplifyPath(self, path: str) -> str:

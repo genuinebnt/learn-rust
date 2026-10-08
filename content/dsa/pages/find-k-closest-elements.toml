@@ -16,6 +16,8 @@ label = "binary search"
 idea = "Compare arr[mid] and arr[mid + k] against x to decide whether the window starts further right."
 time = "O(log(n - k) + k)"
 space = "O(1)"
+time_why = "The binary search halves the possible window starts each step. Copying the final window of k elements adds k."
+space_why = "No extra structure; the answer window of k elements is the output."
 note = "Plus k to copy the answer."
 code = '''class Solution:
     def findClosestElements(self, arr: List[int], k: int, x: int) -> List[int]:
@@ -35,6 +37,8 @@ label = "two pointers"
 idea = "Start with the whole array and discard whichever end is farther from x (the larger one on a tie) until k elements remain."
 time = "O(n - k)"
 space = "O(1)"
+time_why = "Each step removes one element from either end until only k are left, which is n − k steps."
+space_why = "Only two pointers; the answer is a slice of the input."
 note = "Easy to explain."
 code = '''class Solution:
     def findClosestElements(self, arr: List[int], k: int, x: int) -> List[int]:

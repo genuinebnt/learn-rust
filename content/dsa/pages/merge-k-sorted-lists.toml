@@ -16,6 +16,8 @@ label = "heap"
 idea = "Keep the current front of each list in a heap; repeatedly pop the smallest and push the node after it."
 time = "O(n log k)"
 space = "O(k)"
+time_why = "Every one of the n nodes is pushed and popped once, and each heap operation costs log k."
+space_why = "The heap holds one node from each of the k lists."
 note = "n is the total number of nodes."
 code = '''import heapq
 
@@ -40,6 +42,8 @@ label = "divide and conquer"
 idea = "Merge neighbouring lists two at a time; repeat until a single list is left."
 time = "O(n log k)"
 space = "O(1) beyond the recursion-free merges"
+time_why = "Merging in pairs takes log k rounds, and each round touches all n nodes once."
+space_why = "The nodes are relinked in place, so only a few pointers are extra."
 note = "Each round halves the list count."
 code = '''class Solution:
     def mergeKLists(self, lists: list[ListNode | None]) -> ListNode | None:

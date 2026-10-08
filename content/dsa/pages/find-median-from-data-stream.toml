@@ -19,6 +19,8 @@ label = "two heaps"
 idea = "A max-heap holds the lower half and a min-heap the upper half, kept within one element of each other."
 time = "O(log n) add, O(1) median"
 space = "O(n)"
+time_why = "Adding a number pushes onto one heap and may move one item between the two, each of those costing log n. The median is read from the top of the heaps."
+space_why = "Every number added is stored in one of the two heaps."
 note = "The standard answer."
 code = '''import heapq
 
@@ -47,6 +49,8 @@ label = "simple"
 idea = "Insert each number in order into a sorted list and read the middle."
 time = "O(n) add, O(1) median"
 space = "O(n)"
+time_why = "Finding the spot is a binary search (log n), but inserting into the middle of a list shifts everything after it, which is O(n). The median is a direct read."
+space_why = "Every number added is stored in the list."
 note = "Inserting shifts elements, so adding is linear."
 code = '''import bisect
 

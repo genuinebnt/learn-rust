@@ -16,6 +16,8 @@ label = "heap"
 idea = "Keep the k closest points in a max-heap ordered by distance; evict the farthest when the heap grows past k."
 time = "O(n log k)"
 space = "O(k)"
+time_why = "Each of the n points is pushed on the heap, and when it has more than k points one is popped, each costing log k."
+space_why = "The heap never holds more than k + 1 points."
 note = "Good when k is much smaller than n."
 code = '''import heapq
 
@@ -36,6 +38,8 @@ label = "sorting"
 idea = "Sort all points by squared distance and take the first k."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Sorting n points costs n log n."
+space_why = "The sort works on a copy of the n points."
 note = "The shortest answer."
 code = '''class Solution:
     def kClosest(self, points: list[list[int]], k: int) -> list[list[int]]:
@@ -48,6 +52,8 @@ label = "quickselect"
 idea = "Partition the points around a random pivot's distance and recurse only into the part that contains position k."
 time = "O(n) average"
 space = "O(n)"
+time_why = "Each partition scans the points still in play, and on average the part we keep is a constant fraction of the last one, so the total is about n + n/2 + n/4 + ... which is O(n)."
+space_why = "The lists of points on each side of the pivot are new lists, together up to n points."
 note = "The worst case is O(n^2) with unlucky pivots; the random pivot makes that very unlikely."
 code = '''import random
 

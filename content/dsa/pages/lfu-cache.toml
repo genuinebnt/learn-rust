@@ -21,6 +21,8 @@ label = "design"
 idea = "Group keys by use count, each group ordered by recency, and always evict from the lowest count's oldest end."
 time = "O(1) per call"
 space = "O(capacity)"
+time_why = "Every operation is a few dictionary operations and moves between ordered buckets, and each of those is constant time."
+space_why = "At most capacity keys, each stored in the key map and one frequency bucket."
 note = "OrderedDict gives O(1) removal from either end and by key."
 code = '''from collections import OrderedDict, defaultdict
 

@@ -17,6 +17,8 @@ label = "length prefix"
 idea = "Encode each string as `<length>#<string>` and concatenate. Decode by reading the length, skipping the `#`, and slicing exactly that many characters."
 time = "O(n)"
 space = "O(n)"
+time_why = "Encoding adds a few characters for each string and decoding reads each character once, so both are linear in the total length."
+space_why = "The encoded string, and the list of strings that decoding rebuilds."
 note = "n is the total number of characters; both directions touch each character once."
 code = '''class Codec:
     def encode(self, strs: list[str]) -> str:

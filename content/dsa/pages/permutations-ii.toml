@@ -13,6 +13,8 @@ label = "backtracking"
 idea = "Equal numbers may only be placed in their sorted order, so a repeated arrangement is never generated twice."
 time = "O(n · n!)"
 space = "O(n)"
+time_why = "There are up to n! arrangements, and writing each out costs n."
+space_why = "The used flags and the current permutation, both n long, and the recursion n deep. The output isn't counted."
 note = "At most n! results."
 code = '''class Solution:
     def permuteUnique(self, nums: list[int]) -> list[list[int]]:

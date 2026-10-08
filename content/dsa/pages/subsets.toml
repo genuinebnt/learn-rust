@@ -18,6 +18,8 @@ label = "backtracking"
 idea = "At each index, either take the number (and later undo it) or skip it; record the current choices when the indexes run out."
 time = "O(n · 2^n)"
 space = "O(n)"
+time_why = "Each of the n numbers is included or skipped, so 2ⁿ subsets, and copying each one into the answer costs up to n."
+space_why = "The current path and the recursion, n deep. The output isn't counted."
 note = "Extra space is the recursion and the current path, besides the output."
 code = '''class Solution:
     def subsets(self, nums: list[int]) -> list[list[int]]:
@@ -43,6 +45,8 @@ label = "iterative"
 idea = "Start with the empty subset. For each number, add a copy of every subset so far with that number appended."
 time = "O(n · 2^n)"
 space = "O(1) beyond the output"
+time_why = "The list of subsets doubles with every number, so it ends at 2ⁿ, and copying them all adds up to about n × 2ⁿ."
+space_why = "Only the output list itself."
 note = "No recursion."
 code = '''class Solution:
     def subsets(self, nums: list[int]) -> list[list[int]]:

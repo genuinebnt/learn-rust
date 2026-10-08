@@ -19,6 +19,8 @@ label = "2-D table"
 idea = "`edits[i][j]` is the edit distance of the two prefixes, from the replace, delete and insert neighbours."
 time = "O(m · n)"
 space = "O(m · n)"
+time_why = "The table has (m + 1) × (n + 1) cells, each filled from three neighbours in constant time."
+space_why = "The table has one cell for every pair of prefixes."
 note = "The standard table."
 code = '''class Solution:
     def minDistance(self, word1: str, word2: str) -> int:
@@ -43,6 +45,8 @@ label = "two rows"
 idea = "The same recurrence with only the previous row kept."
 time = "O(m · n)"
 space = "O(n)"
+time_why = "The table still needs m × n steps, but each step only reads the row above it and the cell to its left."
+space_why = "Only the previous row and the current one, each of n + 1 cells."
 note = "Memory proportional to one word."
 code = '''class Solution:
     def minDistance(self, word1: str, word2: str) -> int:

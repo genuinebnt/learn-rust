@@ -19,6 +19,8 @@ label = "design"
 idea = "Group values by the frequency they reached, so the top of the highest group is always the answer to pop."
 time = "O(1) per call"
 space = "O(n)"
+time_why = "Both push and pop touch one stack, a frequency counter and the highest frequency, each in constant time."
+space_why = "Every value pushed is stored once in the stack for each frequency it reached, so at most n entries."
 note = "Each push adds one entry."
 code = '''from collections import defaultdict
 

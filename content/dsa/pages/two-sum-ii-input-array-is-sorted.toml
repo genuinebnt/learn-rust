@@ -16,6 +16,8 @@ label = "two pointers"
 idea = "Compare the sum of the two ends with the target and move the end that is on the wrong side."
 time = "O(n)"
 space = "O(1)"
+time_why = "Each step moves one pointer inward and the pointers never cross, so at most n steps."
+space_why = "Only two pointers."
 note = "Every iteration moves a pointer inward, so at most n iterations."
 code = '''class Solution:
     def twoSum(self, numbers: list[int], target: int) -> list[int]:
@@ -37,6 +39,8 @@ label = "binary search"
 idea = "For each number, binary-search the rest of the array for `target - number`. Correct, but slower than the pointers."
 time = "O(n log n)"
 space = "O(1)"
+time_why = "For each of the n numbers, one binary search over the rest of the array, which costs log n."
+space_why = "Just the bounds of the search."
 note = "n binary searches of O(log n) each."
 code = '''from bisect import bisect_left
 

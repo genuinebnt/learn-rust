@@ -16,6 +16,8 @@ label = "sort + two pointers"
 idea = "For each `i`, run the two-pointer search for a pair summing to `-nums[i]` in the part of the array after `i`, skipping repeated values."
 time = "O(n²)"
 space = "O(1)"
+time_why = "Sorting costs O(n log n). Then each of the n choices of first number runs a two-pointer sweep that moves inward over at most n elements, so n × n dominates."
+space_why = "The sort happens in place and the sweep needs only two pointers. The output list isn't counted."
 note = "Sorting is O(n log n); the n two-pointer scans dominate. Not counting the output list."
 code = '''class Solution:
     def threeSum(self, nums: list[int]) -> list[list[int]]:
@@ -47,6 +49,8 @@ label = "hash set"
 idea = "For each pair-start `i`, scan forward remembering the numbers seen, and look for the complement. It needs a set of tuples to dedupe, which is why the pointer version is preferred."
 time = "O(n²)"
 space = "O(n)"
+time_why = "Each of the n first numbers scans the numbers after it once, with O(1) set lookups, so n × n."
+space_why = "The set of values seen during a scan can hold up to n numbers, and the set of result triples used to dedupe grows with the output."
 note = "Same time, more space, and the duplicate handling is clumsier."
 code = '''class Solution:
     def threeSum(self, nums: list[int]) -> list[list[int]]:

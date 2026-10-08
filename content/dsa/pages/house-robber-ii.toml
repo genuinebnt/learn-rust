@@ -19,6 +19,8 @@ label = "two runs"
 idea = "Solve the street without the last house and the street without the first house, and return the larger."
 time = "O(n)"
 space = "O(1)"
+time_why = "Two passes of the one-street House Robber, each linear, so 2n."
+space_why = "Each pass keeps only the best two totals."
 note = "Two linear passes."
 code = '''class Solution:
     def rob(self, nums: list[int]) -> int:

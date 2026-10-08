@@ -16,6 +16,8 @@ label = "used array"
 idea = "Fill positions left to right with any number not yet used, undoing each choice after exploring it."
 time = "O(n · n!)"
 space = "O(n)"
+time_why = "There are n! arrangements, and writing each out costs n."
+space_why = "The used flags and the current permutation, both n long, and the recursion n deep. The output isn't counted."
 note = "n! results of length n."
 code = '''class Solution:
     def permute(self, nums: list[int]) -> list[list[int]]:
@@ -46,6 +48,8 @@ label = "swapping"
 idea = "To fix position `k`, swap each later element into it, recurse on the rest, and swap back."
 time = "O(n · n!)"
 space = "O(n)"
+time_why = "There are n! arrangements, and copying each one costs n."
+space_why = "Only the recursion, n deep. The output isn't counted."
 note = "No extra used array."
 code = '''class Solution:
     def permute(self, nums: list[int]) -> list[list[int]]:

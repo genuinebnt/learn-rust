@@ -16,6 +16,8 @@ label = "two pointers"
 idea = "Advance the leading pointer n steps, then move both until it reaches the end; the trailing one sits just before the node to remove."
 time = "O(L)"
 space = "O(1)"
+time_why = "The leading pointer walks the whole list once, and the trailing pointer follows it."
+space_why = "Only two pointers and a dummy node."
 note = "L is the list length; one pass."
 code = '''class Solution:
     def removeNthFromEnd(self, head: ListNode | None, n: int) -> ListNode | None:
@@ -37,6 +39,8 @@ label = "two passes"
 idea = "Count the nodes, then walk length - n steps from the dummy to reach the node before the target."
 time = "O(L)"
 space = "O(1)"
+time_why = "One pass to count the nodes and a second pass to walk to the target, so at most 2L steps."
+space_why = "Only a counter and a pointer."
 note = "Two passes over the list."
 code = '''class Solution:
     def removeNthFromEnd(self, head: ListNode | None, n: int) -> ListNode | None:

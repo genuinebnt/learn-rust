@@ -13,6 +13,8 @@ label = "design"
 idea = "Push on the inbox; when the outbox is empty, move everything over so the oldest is on top."
 time = "O(1) amortised per call"
 space = "O(n)"
+time_why = "A pop can move every item to the outbox, but each item is moved at most once in its life, so the cost per call averages out to constant."
+space_why = "Every item sits in one of the two stacks."
 note = "A single pop can cost O(n), but never twice in a row."
 code = '''class MyQueue:
 

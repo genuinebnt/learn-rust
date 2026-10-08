@@ -19,6 +19,8 @@ label = "binary search"
 idea = "If the middle is greater than the right end, the minimum lies right of the middle; otherwise it is at the middle or left of it."
 time = "O(log n)"
 space = "O(1)"
+time_why = "Each comparison discards half of the remaining range."
+space_why = "Just the two bounds and the middle."
 note = "Distinct values keep the comparison unambiguous."
 code = '''class Solution:
     def findMin(self, nums: list[int]) -> int:

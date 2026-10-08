@@ -16,6 +16,8 @@ label = "trie-dfs"
 idea = "Walk the board and the trie together; record a word when its end node is reached and prune exhausted branches."
 time = "O(m · n · 4^L) worst case"
 space = "O(total letters)"
+time_why = "Each of the m × n cells starts a DFS that can go four ways at each of up to L steps, and the trie cuts the paths that no word follows."
+space_why = "The trie holds every letter of every word."
 note = "L is the longest word. The pruning makes it fast in practice."
 code = '''class Solution:
     def findWords(self, board: list[list[str]], words: list[str]) -> list[str]:
@@ -56,6 +58,8 @@ label = "brute force"
 idea = "Run the single-word DFS from every cell for each word."
 time = "O(w · m · n · 4^L)"
 space = "O(L)"
+time_why = "The whole word-search DFS is run for each of the w words."
+space_why = "Only the recursion, as deep as the longest word."
 note = "Correct, but it repeats the same exploration for words that share prefixes."
 code = '''class Solution:
     def findWords(self, board: list[list[str]], words: list[str]) -> list[str]:

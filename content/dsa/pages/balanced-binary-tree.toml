@@ -16,6 +16,8 @@ label = "brute force"
 idea = "At each node compare the two subtree heights, then recurse into both children to check them too."
 time = "O(n^2)"
 space = "O(h)"
+time_why = "The height function is O(n) in the worst case, and it is called again at every node, so a skewed tree of n nodes does about n + (n−1) + ... + 1 work."
+space_why = "Only the recursion stack is used, as deep as the tree is tall."
 note = "Heights are recomputed for each node."
 code = '''class Solution:
     def isBalanced(self, root: TreeNode | None) -> bool:
@@ -37,6 +39,8 @@ label = "dfs"
 idea = "Return a subtree's height, or -1 if anything below is unbalanced; check each node's two heights on the way up."
 time = "O(n)"
 space = "O(h)"
+time_why = "Each node is visited once, and it combines its two children's answers in constant time."
+space_why = "Only the recursion stack is used, as deep as the tree is tall."
 note = "Each node is visited once."
 code = '''class Solution:
     def isBalanced(self, root: TreeNode | None) -> bool:

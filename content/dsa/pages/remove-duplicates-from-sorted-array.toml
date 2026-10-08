@@ -13,6 +13,8 @@ label = "two pointers"
 idea = "Copy a value forward only when it is different from the last one copied."
 time = "O(n)"
 space = "O(1)"
+time_why = "One pass with a read pointer that visits each element once."
+space_why = "The array is changed in place, so only two pointers are extra."
 note = "One pass."
 code = '''class Solution:
     def removeDuplicates(self, nums: list[int]) -> int:

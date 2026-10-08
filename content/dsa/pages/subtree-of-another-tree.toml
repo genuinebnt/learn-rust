@@ -16,6 +16,8 @@ label = "recursive"
 idea = "For each node of root, check whether the tree starting there equals subRoot."
 time = "O(n · m)"
 space = "O(h)"
+time_why = "Up to n nodes of root are each used as a starting point, and each comparison can read up to m nodes."
+space_why = "The recursion goes as deep as the trees are tall."
 note = "n and m are the sizes of the two trees."
 code = '''class Solution:
     def isSubtree(self, root: TreeNode | None, subRoot: TreeNode | None) -> bool:
@@ -37,6 +39,8 @@ label = "serialize"
 idea = "Write each tree as a preorder string with explicit empty markers, then test whether subRoot's string occurs inside root's."
 time = "O(n + m) typical"
 space = "O(n + m)"
+time_why = "Serialising both trees reads every node once, and the substring search is close to linear in practice."
+space_why = "The two strings hold every node of both trees."
 note = "Python's substring search is fast in practice; its worst case isn't strictly linear."
 code = '''class Solution:
     def isSubtree(self, root: TreeNode | None, subRoot: TreeNode | None) -> bool:

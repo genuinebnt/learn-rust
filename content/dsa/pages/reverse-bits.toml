@@ -16,6 +16,8 @@ label = "bit by bit"
 idea = "Pop the lowest bit of n and push it onto the result 32 times."
 time = "O(32)"
 space = "O(1)"
+time_why = "The loop runs exactly 32 times, whatever the number is."
+space_why = "Only the result and the number being read."
 note = "Constant."
 code = '''class Solution:
     def reverseBits(self, n: int) -> int:
@@ -32,6 +34,8 @@ label = "string"
 idea = "Format n as 32 binary digits, reverse the string, parse it back."
 time = "O(32)"
 space = "O(32)"
+time_why = "Formatting, reversing and parsing a 32-character string are each 32 steps."
+space_why = "A string of 32 characters, which is a constant."
 note = "Short, but not what the problem is practising."
 code = '''class Solution:
     def reverseBits(self, n: int) -> int:

@@ -16,6 +16,8 @@ label = "monotonic deque"
 idea = "Keep indices of a decreasing run of values. The front is the window's maximum; pop the front when it leaves, and pop smaller values off the back as new numbers arrive."
 time = "O(n)"
 space = "O(k)"
+time_why = "Every index is added to the deque once and removed at most once."
+space_why = "The deque holds at most the k indexes in the current window."
 note = "Every index is appended and popped at most once."
 code = '''from collections import deque
 
@@ -41,6 +43,8 @@ label = "heap"
 idea = "Push `(-value, index)` for every number. The top of the heap is the maximum; pop it while its index is outside the window."
 time = "O(n log n)"
 space = "O(n)"
+time_why = "Every number is pushed on the heap once, costing log n, and each old entry is popped once."
+space_why = "The heap can hold every number, including old ones that have left the window."
 note = "Simpler to come up with, but slower and the heap can hold stale entries."
 code = '''import heapq
 

@@ -18,6 +18,8 @@ label = "greedy"
 idea = "Satisfy the left-neighbour rule, then the right-neighbour rule, keeping the larger requirement."
 time = "O(n)"
 space = "O(n)"
+time_why = "Two passes over the children, one in each direction, with constant work per child."
+space_why = "An array of n candy counts."
 note = "The extra array of candies."
 code = '''class Solution:
     def candy(self, ratings: list[int]) -> int:

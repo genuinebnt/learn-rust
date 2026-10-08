@@ -16,6 +16,8 @@ label = "two pointers"
 idea = "Keep `left_max` and `right_max`. Whichever is smaller decides the water level on its side, so advance that pointer and add `max - height`."
 time = "O(n)"
 space = "O(1)"
+time_why = "The two pointers move toward each other and never back, so at most n steps."
+space_why = "Only two pointers and two maxima."
 note = "One pass, two integers."
 code = '''class Solution:
     def trap(self, height: list[int]) -> int:
@@ -40,6 +42,8 @@ label = "prefix + suffix"
 idea = "Precompute the tallest bar to the left and to the right of every position, then sum `min(...) - height`."
 time = "O(n)"
 space = "O(n)"
+time_why = "One pass for each of the two maxima arrays and one to add up the water."
+space_why = "Two helper arrays of n numbers."
 note = "The clearest version; two helper arrays."
 code = '''class Solution:
     def trap(self, height: list[int]) -> int:
@@ -63,6 +67,8 @@ label = "stack"
 idea = "Keep a stack of bar indices with decreasing heights. When a taller bar arrives, each popped bar is the floor of a basin; its water is bounded by the new bar and the one below it on the stack."
 time = "O(n)"
 space = "O(n)"
+time_why = "Each bar is pushed once and popped at most once."
+space_why = "The stack can hold every bar when the heights only fall."
 note = "Each index is pushed and popped once."
 code = '''class Solution:
     def trap(self, height: list[int]) -> int:

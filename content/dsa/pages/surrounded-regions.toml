@@ -14,6 +14,8 @@ label = "border DFS"
 idea = "DFS from every border `O`, marking reachable `O`s as safe. Then capture the unmarked ones."
 time = "O(rows · cols)"
 space = "O(rows · cols)"
+time_why = "The border scan and the flood fills visit each cell a constant number of times."
+space_why = "The stack can hold every `O` of the grid, and the safe marks use one entry per cell."
 note = "The stack can hold every `O` in the worst case."
 code = '''class Solution:
     def solve(self, board: list[list[str]]) -> None:

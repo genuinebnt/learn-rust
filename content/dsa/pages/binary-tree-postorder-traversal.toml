@@ -13,6 +13,8 @@ label = "iterative"
 idea = "Walk node, right, left with a stack and reverse the output to get left, right, node."
 time = "O(n)"
 space = "O(h)"
+time_why = "Each node is pushed and popped once, and reversing the output list is a further pass of n."
+space_why = "The stack holds at most the height of the tree. The output list isn't counted."
 note = "The reverse is O(n)."
 code = '''class Solution:
     def postorderTraversal(self, root: TreeNode | None) -> list[int]:

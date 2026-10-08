@@ -16,6 +16,8 @@ label = "backtracking"
 idea = "Record the path at every node, then extend it with each number from `start`, skipping a value equal to the previous one at this level."
 time = "O(n · 2^n)"
 space = "O(n)"
+time_why = "There are up to 2ⁿ subsets, and copying each one into the answer costs up to n."
+space_why = "The current path and the recursion, n deep. The output isn't counted."
 note = "Each subset is generated exactly once."
 code = '''class Solution:
     def subsetsWithDup(self, nums: list[int]) -> list[list[int]]:
@@ -42,6 +44,8 @@ label = "counts"
 idea = "Group equal numbers; for each distinct value take 0 up to its count of copies."
 time = "O(n · 2^n)"
 space = "O(n)"
+time_why = "There are up to 2ⁿ subsets, and copying each one into the answer costs up to n."
+space_why = "The current path and the recursion, n deep. The output isn't counted."
 note = "Distinct values mean no duplicate subsets can appear."
 code = '''from collections import Counter
 

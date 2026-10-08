@@ -21,6 +21,8 @@ label = "stack"
 idea = "Push the current text and count at each [, and on ] repeat the inner text and attach it to the saved text."
 time = "O(output length)"
 space = "O(output length)"
+time_why = "Each character of the input is handled once, and the repeated text is built into the output, so the work follows the output length."
+space_why = "The output string, plus a stack that holds at most the pieces still waiting for their closing bracket."
 note = "Output size dominates."
 code = '''class Solution:
     def decodeString(self, s: str) -> str:
@@ -47,6 +49,8 @@ label = "recursive"
 idea = "parse() builds text until it meets a closing bracket; on an opening bracket it calls itself and repeats the result."
 time = "O(output length)"
 space = "O(depth)"
+time_why = "Each input character is read once and the repeated text is built once, so the work follows the output length."
+space_why = "Only the recursion, which is as deep as the brackets nest, plus the strings being built."
 note = "The nesting depth is small (at most 30 here)."
 code = '''class Solution:
     def decodeString(self, s: str) -> str:

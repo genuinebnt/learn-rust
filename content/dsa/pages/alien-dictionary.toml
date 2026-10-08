@@ -18,6 +18,8 @@ label = "topological sort"
 idea = "For each adjacent pair of words, add an edge from the first differing letter of the first word to the other's. Run Kahn's algorithm; if not every letter is output, there is a cycle."
 time = "O(total characters)"
 space = "O(1)"
+time_why = "Comparing neighbouring words reads each character at most once. The graph has at most 26 letters, so Kahn's algorithm over it is constant work."
+space_why = "The graph is capped at 26 letters and 26 × 26 edges, however long the word list is."
 note = "At most 26 letters and 26² edges, plus one pass over the words."
 code = '''from collections import deque
 
@@ -53,6 +55,8 @@ label = "DFS"
 idea = "The same graph, sorted by DFS post-order reversed, with a cycle check using visiting and done states."
 time = "O(total characters)"
 space = "O(1)"
+time_why = "The word comparison reads each character once, and the DFS visits at most 26 letters and their edges."
+space_why = "The graph and the visited states are bounded by the alphabet. The recursion is at most 26 deep."
 note = "Recursion depth at most 26."
 code = '''class Solution:
     def alienOrder(self, words: list[str]) -> str:

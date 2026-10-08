@@ -16,6 +16,8 @@ label = "iterative"
 idea = "Multiply the result by x whenever the current bit of n is 1, then square x and move to the next bit."
 time = "O(log n)"
 space = "O(1)"
+time_why = "Each pass halves n (it reads one bit), so log₂ n passes."
+space_why = "Only the result and the current power of x."
 note = "About 31 iterations at most."
 code = '''class Solution:
     def myPow(self, x: float, n: int) -> float:
@@ -36,6 +38,8 @@ label = "recursive"
 idea = "x^n is the square of x^(n/2), times one more x when n is odd."
 time = "O(log n)"
 space = "O(log n)"
+time_why = "Each call halves n, so log₂ n calls."
+space_why = "The recursion goes log₂ n deep."
 note = "Same idea, with a recursion stack of about 31 frames."
 code = '''class Solution:
     def myPow(self, x: float, n: int) -> float:

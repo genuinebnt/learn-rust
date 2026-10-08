@@ -18,6 +18,8 @@ label = "bucket sort"
 idea = "Count the numbers, then put each one in `buckets[count]`. Walk the buckets from the largest count down and collect numbers until you have k."
 time = "O(n)"
 space = "O(n)"
+time_why = "Counting, filling the buckets and reading them back each touch every number once."
+space_why = "The counts and the n + 1 buckets hold at most n entries."
 note = "Counting, filling the buckets and reading them back each touch every number once."
 code = '''from collections import Counter
 
@@ -43,6 +45,8 @@ label = "heap"
 idea = "Push `(count, value)` pairs on a min-heap. When it holds more than k, pop the smallest, so what's left is the k most frequent."
 time = "O(n log k)"
 space = "O(n)"
+time_why = "Counting takes n, then each of the up to n distinct values is pushed on a heap of size k, each push costing log k."
+space_why = "The counts can hold n distinct values, and the heap holds k."
 note = "Counting is O(n) and takes O(n) space; each of the up-to-n pushes costs O(log k)."
 code = '''import heapq
 from collections import Counter

@@ -1,5 +1,0 @@
-id = "2b-08"
-title = "incr_global_depth: double the directory"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_2b::s2b_08"]

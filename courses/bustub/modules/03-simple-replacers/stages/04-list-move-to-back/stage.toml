@@ -1,5 +1,0 @@
-id = "1c-04"
-title = "IndexList::move_to_back"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1c::s1c_04"]

@@ -1,4 +1,5 @@
 mod course;
+mod course_sync;
 
 use std::path::PathBuf;
 use std::process::ExitCode;

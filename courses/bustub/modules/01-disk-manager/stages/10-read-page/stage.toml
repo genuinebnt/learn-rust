@@ -1,5 +1,0 @@
-id = "1a-10"
-title = "read_page: unknown pages read as zeros"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1a::s1a_10"]

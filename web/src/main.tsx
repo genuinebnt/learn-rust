@@ -15,6 +15,8 @@ import { LoginPage } from "./pages/LoginPage";
 import { ProgressPage } from "./pages/ProgressPage";
 import { SectionPage } from "./pages/SectionPage";
 import { TrackPage } from "./pages/TrackPage";
+import { COURSE_ID, CoursePage } from "./pages/CoursePage";
+import { CourseStagePage } from "./pages/CourseStagePage";
 import { Workspace } from "./workspace/Workspace";
 import "./styles/design.css";
 import "./styles/app.css";
@@ -26,6 +28,7 @@ import "./styles/lessons.css";
 import "./styles/review.css";
 import "./styles/problem.css";
 import "./styles/calendar.css";
+import "./styles/course.css";
 
 const rootRoute = createRootRoute({ component: Outlet });
 
@@ -80,6 +83,23 @@ const routes = [
     },
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/progress", component: ProgressPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/courses", component: () => <CoursePage course={COURSE_ID} /> }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/courses/$course",
+    component: function CourseRoute() {
+      const { course } = courseRoute.useParams();
+      return <CoursePage course={course} />;
+    },
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/courses/$course/$stage",
+    component: function CourseStageRoute() {
+      const { course, stage } = courseStageRoute.useParams();
+      return <CourseStagePage key={stage} course={course} stage={stage} />;
+    },
+  }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/dsa/patterns/$code/problems",
@@ -94,7 +114,9 @@ const practiceRoute = routes[8];
 const dsaProblemRoute = routes[9];
 const trackRoute = routes[11];
 const problemRoute = routes[12];
-const patternProblemsRoute = routes[14];
+const courseRoute = routes[15];
+const courseStageRoute = routes[16];
+const patternProblemsRoute = routes[17];
 
 const router = createRouter({ routeTree: rootRoute.addChildren([...routes]) });
 

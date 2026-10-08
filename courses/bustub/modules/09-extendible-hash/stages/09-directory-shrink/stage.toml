@@ -1,5 +1,0 @@
-id = "2b-09"
-title = "can_shrink and decr_global_depth"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_2b::s2b_09"]

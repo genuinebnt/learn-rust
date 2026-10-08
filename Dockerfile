@@ -38,11 +38,14 @@ RUN rustup component add rust-analyzer rust-src rustfmt clippy \
 COPY --from=docker:29-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=build /usr/local/bin/anneal-api /usr/local/bin/anneal /usr/local/bin/
 COPY content /app/content
+# Course definitions for the Courses pages. The reference solution is not in git and is excluded by .dockerignore.
+COPY courses /app/courses
 COPY --from=web /web/dist /app/web/dist
 
 WORKDIR /app
 ENV ANNEAL_ADDR=0.0.0.0:8787 \
     ANNEAL_CONTENT=/app/content \
+    ANNEAL_COURSES=/app/courses \
     ANNEAL_WEB_DIST=/app/web/dist \
     ANNEAL_SANDBOX=docker \
     ANNEAL_DOCKER_CONTEXT= \

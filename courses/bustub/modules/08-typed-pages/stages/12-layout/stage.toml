@@ -1,5 +1,0 @@
-id = "2a-12"
-title = "Layouts as constants: repr(C), offset_of!, const assertions"
-kind = "learn"
-difficulty = "medium"
-tests = ["stages_2a::s2a_12"]

@@ -1,5 +1,0 @@
-id = "1a-17"
-title = "DiskManagerMemory: a disk of fixed size"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1a::s1a_17"]

@@ -17,6 +17,7 @@ pub mod reviews;
 mod routes;
 pub mod settings;
 pub mod calendar;
+pub mod course;
 pub mod planner;
 pub mod solutions;
 pub mod statement;
@@ -49,6 +50,7 @@ pub struct AppState {
     pub db: PgPool,
     pub lsp: lsp::LspConfig,
     pub auth: auth::AuthConfig,
+    pub courses: Arc<Vec<anneal_content::course::Course>>,
 }
 
 /// The API under `/api`. If `web_dist` is a built web app, it's served for every other path.
@@ -95,6 +97,12 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/dsa/mock/config", put(mock::put_config))
         .route("/dsa/mock/rounds", post(mock::post_round))
         .route("/dsa/handwritten/{pattern}", get(practice::for_pattern))
+        .route("/courses/{course}", get(course::overview))
+        .route("/courses/{course}/stages/{id}", get(course::stage))
+        .route("/courses/{course}/stages/{id}/hints", post(course::reveal_hint))
+        .route("/courses/{course}/stages/{id}/solution", post(course::reveal_solution))
+        .route("/courses/{course}/runs", post(course::post_run))
+        .route("/courses/{course}/solutions", put(course::put_solutions))
         .route("/settings", get(settings::get))
         .route("/format", post(format::format))
         .route("/settings/editor", put(settings::put_editor))

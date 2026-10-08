@@ -1,5 +1,0 @@
-id = "2b-04"
-title = "hash_to_directory_index: the top bits"
-kind = "learn"
-difficulty = "easy"
-tests = ["stages_2b::s2b_04"]

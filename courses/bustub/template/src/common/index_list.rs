@@ -75,22 +75,22 @@ impl<T> IndexList<T> {
 
     /// Unlinks node `index` and frees it. The caller knows it is in the list.
     fn unlink(&mut self, index: usize) -> T {
-        todo!("1c-02: join the neighbours (or move head/tail), then free the node: take its value, bump its generation, put its index on the free list")
+        todo!("1c-01: join the neighbours (or move head/tail), then free the node: take its value, bump its generation, put its index on the free list")
     }
 
     /// Removes and returns the first element.
     pub fn pop_front(&mut self) -> Option<T> {
-        todo!("1c-02: unlink the head, if there is one")
+        todo!("1c-01: unlink the head, if there is one")
     }
 
     /// Removes the element `handle` names. `None` if it was already removed (even if its node has been reused since).
     pub fn remove(&mut self, handle: Handle) -> Option<T> {
-        todo!("1c-03: find the node (checking the generation), then unlink it")
+        todo!("1c-01: find the node (checking the generation), then unlink it")
     }
 
     /// Moves the element to the back without changing its handle. Returns false if the handle is stale.
     pub fn move_to_back(&mut self, handle: Handle) -> bool {
-        todo!("1c-04: if the node isn't already the tail, detach it from its place and link it after the tail; keep its generation")
+        todo!("1c-01: if the node isn't already the tail, detach it from its place and link it after the tail; keep its generation")
     }
 }
 

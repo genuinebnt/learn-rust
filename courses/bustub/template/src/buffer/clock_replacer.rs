@@ -23,18 +23,18 @@ impl ClockReplacer {
 
 impl Replacer for ClockReplacer {
     fn unpin(&mut self, frame: FrameId) {
-        todo!("1c-08: a frame already on the ring gets its reference bit set; a new one is added at the end of the ring with its bit set")
+        todo!("1c-02: a frame already on the ring gets its reference bit set; a new one is added at the end of the ring with its bit set")
     }
 
     fn size(&self) -> usize {
-        todo!("1c-08: how many frames are on the ring")
+        todo!("1c-02: how many frames are on the ring")
     }
 
     fn pin(&mut self, frame: FrameId) {
-        todo!("1c-10: take the frame off the ring; the hand must keep pointing at the same frame it did (wrapping to 0 past the end)")
+        todo!("1c-02: take the frame off the ring; the hand must keep pointing at the same frame it did (wrapping to 0 past the end)")
     }
 
     fn victim(&mut self) -> Option<FrameId> {
-        todo!("1c-09: sweep the hand: clear set bits and move on, evict the first frame whose bit is clear")
+        todo!("1c-02: sweep the hand: clear set bits and move on, evict the first frame whose bit is clear")
     }
 }

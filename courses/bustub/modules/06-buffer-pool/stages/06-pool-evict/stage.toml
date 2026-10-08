@@ -1,5 +1,0 @@
-id = "1f-06"
-title = "Evict an unpinned page when no frame is free"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1f::s1f_06"]

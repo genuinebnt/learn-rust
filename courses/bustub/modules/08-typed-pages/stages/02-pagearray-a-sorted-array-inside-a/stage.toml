@@ -1,0 +1,5 @@
+id = "2a-02"
+title = "PageArray: a sorted array inside a page"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2a::s2a_08", "stages_2a::s2a_09", "stages_2a::s2a_10", "stages_2a::s2a_11"]

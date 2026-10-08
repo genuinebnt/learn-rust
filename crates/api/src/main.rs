@@ -18,6 +18,7 @@ use tracing_subscriber::EnvFilter;
 /// | `ANNEAL_DATABASE_URL` | set in `.cargo/config.toml` for local development |
 /// | `ANNEAL_CONTENT` | `content` |
 /// | `ANNEAL_WEB_DIST` | `web/dist` |
+/// | `ANNEAL_COURSES` | `courses` |
 /// | `ANNEAL_SANDBOX` | `docker` (or `host`, for development without Docker) |
 /// | `ANNEAL_RUNNER_IMAGE` | `anneal-runner:1.98` |
 /// | `ANNEAL_DOCKER_CONTEXT` | `orbstack` (empty = the current Docker context) |
@@ -112,6 +113,18 @@ async fn main() -> anyhow::Result<()> {
         None => bail!("set ANNEAL_PASSPHRASE_HASH (from `anneal passphrase`) before listening on {addr}"),
     };
 
+    // Courses (courses/<id>/course.toml) are optional: a deploy without them just has no Courses section.
+    let courses_dir = PathBuf::from(env("ANNEAL_COURSES", "courses"));
+    let mut courses = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&courses_dir) {
+        let mut dirs: Vec<_> = entries.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.join("course.toml").is_file()).collect();
+        dirs.sort();
+        for d in dirs {
+            courses.push(anneal_content::course::Course::load(&d).with_context(|| format!("loading course {}", d.display()))?);
+        }
+    }
+    tracing::info!(courses = courses.len(), stages = courses.iter().map(|c| c.stages().count()).sum::<usize>(), "courses loaded");
+
     let web_dist = PathBuf::from(env("ANNEAL_WEB_DIST", "web/dist"));
     let state = AppState {
         catalog: Arc::new(loaded.catalog),
@@ -119,6 +132,7 @@ async fn main() -> anyhow::Result<()> {
         db,
         lsp,
         auth,
+        courses: Arc::new(courses),
     };
     let listener = tokio::net::TcpListener::bind(addr)
         .await

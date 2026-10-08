@@ -7,6 +7,7 @@ import { ACCENTS, useAppearance } from "../settings";
 const AREAS = [
   { to: "/dsa", label: "DSA", color: "var(--acc)", match: ["/dsa"] },
   { to: "/rust", label: "Rust", color: "var(--vio)", match: ["/rust"] },
+  { to: "/courses", label: "Courses", color: "var(--grn)", match: ["/courses"] },
 ] as const;
 
 /** Nav items whose screens are designed but not built yet. */
@@ -24,7 +25,7 @@ function toggleTheme() {
   }
 }
 
-export function Header({ area }: { area?: "dsa" | "rust" }) {
+export function Header({ area }: { area?: "dsa" | "rust" | "courses" }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const tracks = useQuery({ queryKey: ["tracks"], queryFn: api.tracks });
   const solved = tracks.data?.reduce((n, t) => n + t.solved, 0);

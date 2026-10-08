@@ -1,5 +1,0 @@
-id = "1a-07"
-title = "Read a slot, zero-filling what the file lacks"
-kind = "learn"
-difficulty = "easy"
-tests = ["stages_1a::s1a_07"]

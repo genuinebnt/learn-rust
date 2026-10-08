@@ -1,5 +1,0 @@
-id = "1d-04"
-title = "set_evictable: which frames may go"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1d::s1d_04"]

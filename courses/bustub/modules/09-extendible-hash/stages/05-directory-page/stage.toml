@@ -1,5 +1,0 @@
-id = "2b-05"
-title = "The directory page: init and accessors"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_2b::s2b_05"]

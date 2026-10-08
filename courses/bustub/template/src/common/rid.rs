@@ -30,11 +30,11 @@ impl Rid {
 
     /// The whole rid as one `i64`: the page id in the high 32 bits, the slot in the low 32. (BusTub's `Get()`.)
     pub fn get(&self) -> i64 {
-        todo!("2a-03: page id in the upper half, slot number in the lower half; mind the sign of the page id")
+        todo!("2a-01: page id in the upper half, slot number in the lower half; mind the sign of the page id")
     }
 
     /// The inverse of [`Rid::get`]. (BusTub's `RID(int64_t)` constructor.)
     pub fn from_i64(rid: i64) -> Rid {
-        todo!("2a-03: split the i64 back into page id and slot number")
+        todo!("2a-01: split the i64 back into page id and slot number")
     }
 }

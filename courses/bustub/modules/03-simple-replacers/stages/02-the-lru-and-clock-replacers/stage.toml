@@ -1,0 +1,5 @@
+id = "1c-02"
+title = "The LRU and CLOCK replacers"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1c::s1c_05", "stages_1c::s1c_06", "stages_1c::s1c_07", "stages_1c::s1c_08", "stages_1c::s1c_09", "stages_1c::s1c_10"]

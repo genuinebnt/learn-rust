@@ -1,0 +1,47 @@
+{
+ "1a": [
+  {"from": 1, "to": 7, "title": "Open the database file; write and read pages"},
+  {"from": 8, "to": 12, "title": "Allocate pages: the page table and the free list"},
+  {"from": 13, "to": 18, "title": "Count the I/O, write the log, and put disks behind a trait"},
+  {"from": 19, "to": 19}],
+ "1b": [
+  {"from": 1, "to": 6, "title": "Channel and Promise: the two primitives"},
+  {"from": 7, "to": 12, "title": "DiskScheduler: requests, a worker and a clean shutdown"},
+  {"from": 13, "to": 14, "title": "ReaderWriterLatch and a sharded scheduler"},
+  {"from": 15, "to": 15}],
+ "1c": [
+  {"from": 1, "to": 4, "title": "IndexList: a linked list inside a Vec"},
+  {"from": 5, "to": 10, "title": "The LRU and CLOCK replacers"},
+  {"from": 11, "to": 11}],
+ "1d": [
+  {"from": 1, "to": 7, "title": "The LRU-K replacer"},
+  {"from": 8, "to": 8},
+  {"from": 9, "to": 9}],
+ "1e": [
+  {"from": 1, "to": 3, "title": "The ARC replacer: four lists and eviction"},
+  {"from": 4, "to": 8, "title": "The ARC replacer: adaptation, ghosts and removal"},
+  {"from": 9, "to": 9}],
+ "1f": [
+  {"from": 1, "to": 4, "title": "The buffer pool manager: frames, new_page and fetch_page"},
+  {"from": 5, "to": 9, "title": "The buffer pool manager: unpin, eviction, write-back, flush and delete"},
+  {"from": 10, "to": 10}],
+ "1g": [
+  {"from": 1, "to": 5, "title": "Page guards: RAII for pins and latches"},
+  {"from": 6, "to": 6},
+  {"from": 7, "to": 7}],
+ "2a": [
+  {"from": 1, "to": 7, "title": "Integers, ids, keys and comparators in raw bytes"},
+  {"from": 8, "to": 11, "title": "PageArray: a sorted array inside a page"},
+  {"from": 12, "to": 12},
+  {"from": 13, "to": 13}],
+ "2b": [
+  {"from": 1, "to": 2, "title": "MurmurHash3 and the hash function"},
+  {"from": 3, "to": 7, "title": "The header and directory pages: layout, indexes and depths"},
+  {"from": 8, "to": 10, "title": "Directory growth, shrinking and integrity"},
+  {"from": 11, "to": 13, "title": "The bucket page"},
+  {"from": 14, "to": 14},
+  {"from": 15, "to": 17, "title": "The table: new, lookup and insert"},
+  {"from": 18, "to": 18},
+  {"from": 19, "to": 21, "title": "remove: merge buckets and shrink the directory"},
+  {"from": 22, "to": 22}]
+}

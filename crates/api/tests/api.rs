@@ -104,6 +104,7 @@ fn test_app_full(db: PgPool, content: &Path, auth: AuthConfig, web_dist: Option<
                 Path::new(env!("CARGO_TARGET_TMPDIR")).join("anneal-api"),
             ),
             auth,
+            courses: Arc::new(vec![anneal_content::course::Course::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../courses/bustub")).expect("courses/bustub")]),
         },
         web_dist,
     )
@@ -1533,4 +1534,54 @@ async fn a_break_today_means_no_reviews_and_no_new_problem(db: PgPool) {
     let (_, out) = call(&app, Method::POST, "/api/dsa/problems/lc-valid-palindrome/log", Some(json!({ "grade": "again" }))).await;
     let due = out["due"].as_str().unwrap();
     assert!(due != tomorrow && due != plus(&today, 2), "scheduled on a break: {due}");
+}
+
+// ---- courses ----------------------------------------------------------------------------------------------------
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn course_tree_stage_page_runs_and_solutions(db: PgPool) {
+    let app = test_app(db);
+    let (status, tree) = call(&app, Method::GET, "/api/courses/bustub", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(tree["done"], 0);
+    assert_eq!(tree["current"], "1a-01");
+    let planned = tree["projects"].as_array().unwrap().iter().filter(|p| p["planned"] == true).count();
+    assert!(planned >= 1, "planned projects are listed");
+
+    // a stage page: markdown parts, no hints written yet, no solution uploaded yet
+    let (status, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(st["state"], "todo");
+    assert_eq!(st["solution"]["available"], false);
+    assert!(st["stage"]["sections"].as_array().unwrap().len() >= 2);
+    assert_eq!(st["next"]["id"], "1a-02");
+    assert!(call(&app, Method::GET, "/api/courses/bustub/stages/nope", None).await.0 == StatusCode::NOT_FOUND);
+    assert!(call(&app, Method::GET, "/api/courses/nope", None).await.0 == StatusCode::NOT_FOUND);
+
+    // a failing run leaves the stage unsolved; the solution can't be opened before it is uploaded
+    let fail = json!({ "stage_id": "1a-01", "tests": [{"name": "a", "ok": true}, {"name": "b", "ok": false, "detail": "left: 1, right: 2"}] });
+    let (status, r) = call(&app, Method::POST, "/api/courses/bustub/runs", Some(fail)).await;
+    assert_eq!((status, r["ok"].as_bool()), (StatusCode::OK, Some(false)));
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
+    assert_eq!(st["state"], "todo");
+    assert_eq!(st["last_run"]["passed"], 1);
+    assert_eq!(call(&app, Method::POST, "/api/courses/bustub/stages/1a-01/solution", None).await.0, StatusCode::NOT_FOUND);
+
+    // upload a solution; opening it before passing marks the stage assisted
+    let up = json!({ "stages": { "1a-01": [{"path": "src/x.rs", "lines": [" fn f() {", "+    1", "-    todo!()", " }"]}] } });
+    assert_eq!(call(&app, Method::PUT, "/api/courses/bustub/solutions", Some(up)).await.0, StatusCode::OK);
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
+    assert_eq!((st["solution"]["available"].as_bool(), st["solution"]["open"].as_bool()), (Some(true), Some(false)));
+    assert!(st["solution"]["files"].is_null(), "the solution stays hidden until it is opened");
+    let (_, st) = call(&app, Method::POST, "/api/courses/bustub/stages/1a-01/solution", None).await;
+    assert_eq!(st["solution"]["files"][0]["path"], "src/x.rs");
+
+    // passing now counts as solved, but assisted
+    let pass = json!({ "stage_id": "1a-01", "tests": [{"name": "a", "ok": true}, {"name": "b", "ok": true}] });
+    let (_, r) = call(&app, Method::POST, "/api/courses/bustub/runs", Some(pass)).await;
+    assert_eq!(r["ok"], true);
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
+    assert_eq!(st["state"], "assisted");
+    let (_, tree) = call(&app, Method::GET, "/api/courses/bustub", None).await;
+    assert_eq!((tree["done"].as_u64(), tree["current"].as_str()), (Some(1), Some("1a-02")));
 }

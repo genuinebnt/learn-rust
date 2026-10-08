@@ -1,5 +1,0 @@
-id = "2b-20"
-title = "An empty bucket merges with its split image"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_2b::s2b_20"]

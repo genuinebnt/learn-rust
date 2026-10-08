@@ -1,5 +1,0 @@
-id = "1b-01"
-title = "Channel::put: add an element and wake a getter"
-kind = "learn"
-difficulty = "very-easy"
-tests = ["stages_1b::s1b_01"]

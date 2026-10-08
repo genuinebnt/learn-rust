@@ -1,4 +1,4 @@
-//! Tests for the page guard stages (1g-01 … 1g-07). A test named `s1g_03_…` belongs to stage 1g-03.
+//! Tests for the page guard stages (1g-01 … 1g-03). A test named `s1g_03_…` belongs to stage 1g-01.
 
 use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -87,7 +87,7 @@ fn s1g_01_no_guard_when_every_frame_is_pinned() {
     assert!(bpm.checked_read_page(c).is_none());
 }
 
-// ---- 1g-02 · dropping a read guard -------------------------------------------------------------------------------------------
+// ---- 1g-01 · dropping a read guard -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1g_02_dropping_a_read_guard_unpins_the_page() {
@@ -156,7 +156,7 @@ fn s1g_02_each_guard_releases_only_its_own_pin() {
     assert_eq!(bpm.get_pin_count(page), Some(0));
 }
 
-// ---- 1g-03 · write guards ---------------------------------------------------------------------------------------------------
+// ---- 1g-01 · write guards ---------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1g_03_a_write_guard_changes_the_page_and_the_change_is_seen() {
@@ -244,7 +244,7 @@ fn s1g_03_deref_mut_works_like_get_data_mut() {
     assert_eq!(guard[0], 7);
 }
 
-// ---- 1g-04 · read_page and write_page --------------------------------------------------------------------------------------------
+// ---- 1g-01 · read_page and write_page --------------------------------------------------------------------------------------------
 
 #[test]
 fn s1g_04_they_return_a_guard_when_there_is_room() {
@@ -273,7 +273,7 @@ fn s1g_04_write_page_panics_when_nothing_can_be_evicted() {
     let _gb = bpm.write_page(b);
 }
 
-// ---- 1g-05 · flush through a guard --------------------------------------------------------------------------------------------------
+// ---- 1g-01 · flush through a guard --------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1g_05_a_write_guard_can_flush_its_page() {
@@ -330,7 +330,7 @@ fn s1g_05_flushing_while_holding_the_latch_does_not_deadlock() {
     t.join().unwrap();
 }
 
-// ---- 1g-06 · flush_page must not hold the pool lock while it waits for a latch -----------------------------------------------------
+// ---- 1g-02 · flush_page must not hold the pool lock while it waits for a latch -----------------------------------------------------
 
 #[test]
 fn s1g_06_a_blocked_flush_does_not_block_the_rest_of_the_pool() {
@@ -384,7 +384,7 @@ fn s1g_06_a_flushed_page_is_not_left_pinned_so_it_can_be_evicted() {
     assert!(bpm.checked_read_page(b).is_some(), "a is unpinned again: its frame can be reused");
 }
 
-// ---- 1g-07 · the module as a whole -------------------------------------------------------------------------------------------------
+// ---- 1g-03 · the module as a whole -------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1g_07_guards_moved_into_a_vec_keep_their_pages_pinned_until_dropped() {

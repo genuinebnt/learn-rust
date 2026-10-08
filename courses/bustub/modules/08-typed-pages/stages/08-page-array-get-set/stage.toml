@@ -1,5 +1,0 @@
-id = "2a-08"
-title = "PageArray: an array of entries inside a page"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_2a::s2a_08"]

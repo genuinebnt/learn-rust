@@ -1,5 +1,0 @@
-id = "1b-06"
-title = "A dropped promise must not hang the future"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1b::s1b_06"]

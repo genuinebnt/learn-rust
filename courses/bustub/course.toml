@@ -1,3 +1,29 @@
 id = "bustub"
 title = "Build a DBMS: BusTub in Rust"
 repo_name = "bustub-rs"
+# The web app shows only these modules until the rest are rewritten and checked.
+published_modules = ["1a"]
+
+# Projects group modules by their code's leading number (1a, 1b → project 1). Planned ones show in the tree before they're written.
+[[project]]
+number = 1
+title = "Buffer pool"
+
+[[project]]
+number = 2
+title = "Indexes"
+
+[[project]]
+number = 3
+title = "Query execution"
+planned = true
+
+[[project]]
+number = 4
+title = "Concurrency control"
+planned = true
+
+[[project]]
+number = 5
+title = "Recovery"
+planned = true

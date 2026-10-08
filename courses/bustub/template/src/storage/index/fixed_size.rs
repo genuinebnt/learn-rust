@@ -18,50 +18,50 @@ pub trait FixedSize: Sized {
 impl FixedSize for i32 {
     const SIZE: usize = 4;
     fn encode(&self, out: &mut [u8]) {
-        todo!("2a-04: the little-endian bytes")
+        todo!("2a-01: the little-endian bytes")
     }
     fn decode(bytes: &[u8]) -> i32 {
-        todo!("2a-04: from little-endian bytes")
+        todo!("2a-01: from little-endian bytes")
     }
 }
 
 impl FixedSize for u32 {
     const SIZE: usize = 4;
     fn encode(&self, out: &mut [u8]) {
-        todo!("2a-04: the little-endian bytes")
+        todo!("2a-01: the little-endian bytes")
     }
     fn decode(bytes: &[u8]) -> u32 {
-        todo!("2a-04: from little-endian bytes")
+        todo!("2a-01: from little-endian bytes")
     }
 }
 
 impl FixedSize for i64 {
     const SIZE: usize = 8;
     fn encode(&self, out: &mut [u8]) {
-        todo!("2a-04: the little-endian bytes")
+        todo!("2a-01: the little-endian bytes")
     }
     fn decode(bytes: &[u8]) -> i64 {
-        todo!("2a-04: from little-endian bytes")
+        todo!("2a-01: from little-endian bytes")
     }
 }
 
 impl FixedSize for PageId {
     const SIZE: usize = 4;
     fn encode(&self, out: &mut [u8]) {
-        todo!("2a-04: a page id is its i32")
+        todo!("2a-01: a page id is its i32")
     }
     fn decode(bytes: &[u8]) -> PageId {
-        todo!("2a-04: a page id is its i32")
+        todo!("2a-01: a page id is its i32")
     }
 }
 
 impl FixedSize for Rid {
     const SIZE: usize = 8;
     fn encode(&self, out: &mut [u8]) {
-        todo!("2a-04: a rid is its i64")
+        todo!("2a-01: a rid is its i64")
     }
     fn decode(bytes: &[u8]) -> Rid {
-        todo!("2a-04: a rid is its i64")
+        todo!("2a-01: a rid is its i64")
     }
 }
 
@@ -69,14 +69,14 @@ impl FixedSize for Rid {
 impl<A: FixedSize, B: FixedSize> FixedSize for (A, B) {
     const SIZE: usize = A::SIZE + B::SIZE;
     fn encode(&self, out: &mut [u8]) {
-        todo!("2a-07: encode the first value into the first A::SIZE bytes and the second into the rest (split_at_mut gives you both halves at once)")
+        todo!("2a-01: encode the first value into the first A::SIZE bytes and the second into the rest (split_at_mut gives you both halves at once)")
     }
     fn decode(bytes: &[u8]) -> (A, B) {
-        todo!("2a-07: decode a pair from its two halves")
+        todo!("2a-01: decode a pair from its two halves")
     }
 }
 
 /// How many entries of `entry_size` bytes fit in a page after `metadata_size` bytes of header. BusTub's `HTableBucketArraySize`.
 pub const fn array_size(metadata_size: usize, entry_size: usize) -> usize {
-    0 // TODO(2a-07): the space left after the metadata, divided by the entry size
+    0 // TODO(2a-01): the space left after the metadata, divided by the entry size
 }

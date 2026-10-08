@@ -36,13 +36,13 @@ impl<'a> ReadPageGuard<'a> {
 
     /// Writes the page to disk now. The guard keeps its pin and latch.
     pub fn flush(&mut self) {
-        todo!("1g-05: write the bytes you hold to disk, without taking the frame latch again (you already hold it)")
+        todo!("1g-01: write the bytes you hold to disk, without taking the frame latch again (you already hold it)")
     }
 
     /// Unlatches and unpins the page. Does nothing if the guard was already released. (BusTub's `Drop()`; in Rust `drop(guard)`
     /// also works, but it moves the guard, so there is no "drop it twice"; this is the idempotent form.)
     pub fn release(&mut self) {
-        todo!("1g-02: if the guard still holds its latch: release the latch, then unpin the page; a second call does nothing")
+        todo!("1g-01: if the guard still holds its latch: release the latch, then unpin the page; a second call does nothing")
     }
 }
 
@@ -55,7 +55,7 @@ impl Deref for ReadPageGuard<'_> {
 
 impl Drop for ReadPageGuard<'_> {
     fn drop(&mut self) {
-        // TODO(1g-02): dropping a guard releases it
+        // TODO(1g-01): dropping a guard releases it
     }
 }
 
@@ -78,12 +78,12 @@ impl<'a> WritePageGuard<'a> {
     }
 
     pub fn get_data(&self) -> &PageData {
-        todo!("1g-03: the bytes behind the write latch")
+        todo!("1g-01: the bytes behind the write latch")
     }
 
     /// The page's bytes for modification. Marks the page dirty.
     pub fn get_data_mut(&mut self) -> &mut PageData {
-        todo!("1g-03: remember that the page is dirty, then hand out the bytes mutably")
+        todo!("1g-01: remember that the page is dirty, then hand out the bytes mutably")
     }
 
     /// True if `get_data_mut` was called since the last flush.
@@ -93,11 +93,11 @@ impl<'a> WritePageGuard<'a> {
 
     /// Writes the page to disk now, keeping the pin and the latch, and marks it clean.
     pub fn flush(&mut self) {
-        todo!("1g-05: write the bytes you hold to disk, without taking the frame latch again; the page is now clean")
+        todo!("1g-01: write the bytes you hold to disk, without taking the frame latch again; the page is now clean")
     }
 
     pub fn release(&mut self) {
-        todo!("1g-03: if the guard still holds its latch: release it, then unpin the page, passing on whether it was dirtied; a second call does nothing")
+        todo!("1g-01: if the guard still holds its latch: release it, then unpin the page, passing on whether it was dirtied; a second call does nothing")
     }
 }
 
@@ -116,6 +116,6 @@ impl DerefMut for WritePageGuard<'_> {
 
 impl Drop for WritePageGuard<'_> {
     fn drop(&mut self) {
-        // TODO(1g-03): dropping a guard releases it
+        // TODO(1g-01): dropping a guard releases it
     }
 }

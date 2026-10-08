@@ -13,6 +13,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, bail};
 use clap::Subcommand;
+
+use crate::course_sync;
 use serde::{Deserialize, Serialize};
 
 #[derive(Subcommand)]
@@ -26,6 +28,24 @@ pub enum CourseCmd {
         /// The directory holding the courses.
         #[arg(long, default_value = "courses")]
         courses: PathBuf,
+    },
+    /// Sign in to the anneal web app, so runs are reported there and its stage pages show your progress.
+    Login {
+        /// The app's address, e.g. https://anneal.genuinebasil.dev (or http://127.0.0.1:8787 locally).
+        url: String,
+    },
+    /// Authoring: upload each stage's solution diff (from reference/) to the web app you signed in to.
+    Solutions {
+        #[arg(long, default_value = "bustub")]
+        course: String,
+        /// The directory holding the courses.
+        #[arg(long, default_value = "courses")]
+        courses: PathBuf,
+        /// Write the diffs to this JSON file instead of uploading them.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// Only these stage ids.
+        stages: Vec<String>,
     },
     /// Where you are: the current module and stage, and what's done.
     Status,
@@ -610,6 +630,11 @@ fn head_commit(repo: &Path) -> String {
 pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
     match cmd {
         CourseCmd::Init { course, dir, courses } => init(&course, dir, &courses),
+        CourseCmd::Login { url } => {
+            course_sync::login(&url)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        CourseCmd::Solutions { course, courses, out, stages } => solutions(&course, &courses, out, &stages),
         CourseCmd::Status => status(),
         CourseCmd::Show { stage } => show(stage.as_deref()),
         CourseCmd::Test { stage, all } => test(stage.as_deref(), all, false),
@@ -911,6 +936,10 @@ fn test(stage: Option<&str>, all: bool, hook: bool) -> anyhow::Result<ExitCode> 
     let report = run_entries(&repo, &target.def.tests, None, Duration::from_secs(180));
     print_report(&report);
     let ok = report.passed();
+    {
+        let tests: Vec<(String, bool, String)> = report.tests.iter().map(|t| (t.name.clone(), t.ok, t.detail.lines().filter(|l| !l.trim().is_empty()).take(6).collect::<Vec<_>>().join("\n"))).collect();
+        course_sync::report_run(&course.meta.id, &target.def.id, &tests, report.problem.as_deref(), &head_commit(&repo), started.elapsed().as_millis() as u64);
+    }
     if !ok {
         println!("\nNot yet. `anneal course show {}` has the task and hints.", target.def.id);
         return Ok(if hook && cfg.block_on_fail { ExitCode::FAILURE } else { ExitCode::SUCCESS });
@@ -972,6 +1001,53 @@ fn print_report(r: &RunReport) {
     if let Some(p) = &r.problem {
         println!("\n{p}");
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Authoring: solutions
+
+/// Renders every text file of the reference for each stage and uploads (or writes) the per-stage diffs.
+fn solutions(course_id: &str, courses: &Path, out: Option<PathBuf>, only: &[String]) -> anyhow::Result<ExitCode> {
+    let root = courses.join(course_id);
+    let course = Course::load(&root)?;
+    let ranks = course.ranks();
+    let reference = root.join("reference");
+    if !reference.is_dir() {
+        bail!("{} has no reference/ (it is kept out of the public repo; see docs/BUSTUB.md §7)", root.display());
+    }
+    fn files(base: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> anyhow::Result<()> {
+        let mut entries: Vec<_> = fs::read_dir(dir)?.filter_map(|e| e.ok()).collect();
+        entries.sort_by_key(|e| e.file_name());
+        for e in entries {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if matches!(name.as_str(), "target" | ".git" | ".DS_Store") {
+                continue;
+            }
+            let p = e.path();
+            if p.is_dir() {
+                files(base, &p, out)?;
+            } else if p.extension().is_some_and(|x| x == "rs") && !p.strip_prefix(base)?.starts_with("tests") {
+                out.push(p.strip_prefix(base)?.to_path_buf());
+            }
+        }
+        Ok(())
+    }
+    let mut paths = Vec::new();
+    files(&reference, &reference, &mut paths)?;
+    let texts: Vec<(String, String)> =
+        paths.iter().filter_map(|p| fs::read_to_string(reference.join(p)).ok().filter(|t| t.contains("@begin ")).map(|t| (p.display().to_string(), t))).collect();
+    let render = |cutoff: usize| -> anyhow::Result<BTreeMap<String, String>> {
+        texts.iter().map(|(name, t)| Ok((name.clone(), render_text(t, &ranks, cutoff, name)?))).collect()
+    };
+    let diffs = course_sync::solution_diffs(&ranks, &render)?;
+    match out {
+        Some(path) => {
+            fs::write(&path, serde_json::to_string_pretty(&diffs)? + "\n")?;
+            println!("Wrote {} stage solutions to {}", diffs.values().filter(|v| !v.is_empty()).count(), path.display());
+        }
+        None => course_sync::push_solutions(&course.meta.id, &diffs, if only.is_empty() { None } else { Some(only) })?,
+    }
+    Ok(ExitCode::SUCCESS)
 }
 
 // ---------------------------------------------------------------------------------------------------------------

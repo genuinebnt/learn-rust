@@ -1,5 +1,0 @@
-id = "2a-01"
-title = "Read and write integers at an offset"
-kind = "learn"
-difficulty = "very-easy"
-tests = ["stages_2a::s2a_01"]

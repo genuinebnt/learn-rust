@@ -28,7 +28,7 @@ cd "$WORK/learner"
 git config user.email t@example.com
 git config user.name t
 "$A" course status | head -6
-if "$A" course test | grep -q "complete"; then echo "BUG: stage 1 passed on the stub"; exit 1; fi
+if "$A" course test | grep -q "^✓ Stage .* complete"; then echo "BUG: stage 1 passed on the stub"; exit 1; fi
 
 echo "== a learner solves stage 1; the pre-push hook records it"
 "$A" course build --stage "$(sed -n 's/^id = "\(.*\)"/\1/p' "$ROOT/courses/$COURSE/modules/"*/stages/01-*/stage.toml | head -1)" "$WORK/learner" --course "$COURSE" $C >/dev/null

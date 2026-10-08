@@ -1,0 +1,5 @@
+id = "1e-02"
+title = "The ARC replacer: adaptation, ghosts and removal"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1e::s1e_04", "stages_1e::s1e_05", "stages_1e::s1e_06", "stages_1e::s1e_07", "stages_1e::s1e_08"]

@@ -1,5 +1,0 @@
-id = "1e-08"
-title = "remove: delete without leaving a ghost"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1e::s1e_08"]

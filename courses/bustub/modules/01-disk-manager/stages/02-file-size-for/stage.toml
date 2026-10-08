@@ -1,5 +1,0 @@
-id = "1a-02"
-title = "Size a file for N pages"
-kind = "learn"
-difficulty = "very-easy"
-tests = ["stages_1a::s1a_02"]

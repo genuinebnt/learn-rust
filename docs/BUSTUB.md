@@ -1,6 +1,6 @@
 # Build a DBMS: BusTub in Rust (a CodeCrafters-style course)
 
-Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1g (Project 1), 2a and 2b (115 stages) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
+Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1g (Project 1), 2a and 2b (36 stages, merged from 115 tiny ones) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
 writing a module: [authoring/write-course-module.md](authoring/write-course-module.md). The C/C++ → Rust reference every stage leans
 on: [PORTING.md](PORTING.md). This course replaces the BusTub parts of SYSTEMS.md (K17–K20, P6); the general systems tracks come after.
 
@@ -29,6 +29,11 @@ In order, kept close to their words so nobody has to re-ask:
    correct, and the BusTub tests ensure the solutions *I* provide are correct.**"*
 9. *"you can also **mention the C/C++ way of the things we are learning**, so it helps me convert C/C++ code to Rust in the future. Come up
    with the design first and **document all of this and the progress too**."*
+10. (2026-10-08, web pages) *"the hints and the content should not be trivial or basic things … bustub is a serious exercise"* and *"i am not
+    looking for one or two line change exercise in bustub"*. So: a stage is a real piece of work (tens of lines, a design decision), the first
+    cut of 115 tiny stages was merged into 36 (`tools/course_merge.py`), and hints are written at BusTub's level (design, then the trap, then the
+    invariant to check), never "which shift keeps the top bits". The stage page follows the layout the owner picked (Learn C++ Through Projects'
+    walkthrough, CodeCrafters' stage flow, anneal's own design); the mockup is `docs/design_handoff_anneal/designs/course-page.html`.
 
 ## 1. The shape, copied from CodeCrafters
 

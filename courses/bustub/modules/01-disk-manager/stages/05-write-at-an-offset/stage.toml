@@ -1,5 +1,0 @@
-id = "1a-05"
-title = "Write a page at a slot with write_all_at"
-kind = "learn"
-difficulty = "easy"
-tests = ["stages_1a::s1a_05"]

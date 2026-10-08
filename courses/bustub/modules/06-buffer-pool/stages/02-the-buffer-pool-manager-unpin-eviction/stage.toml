@@ -1,0 +1,5 @@
+id = "1f-02"
+title = "The buffer pool manager: unpin, eviction, write-back, flush and delete"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1f::s1f_05", "stages_1f::s1f_06", "stages_1f::s1f_07", "stages_1f::s1f_08", "stages_1f::s1f_09"]

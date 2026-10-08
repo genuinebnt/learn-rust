@@ -1,5 +1,0 @@
-id = "1a-01"
-title = "Compute a slot's byte offset"
-kind = "learn"
-difficulty = "very-easy"
-tests = ["stages_1a::s1a_01"]

@@ -1,5 +1,0 @@
-id = "1c-03"
-title = "IndexList::remove: by handle, and reuse freed slots"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1c::s1c_03"]

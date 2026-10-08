@@ -1,5 +1,0 @@
-id = "2a-10"
-title = "remove_at: close the gap"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_2a::s2a_10"]

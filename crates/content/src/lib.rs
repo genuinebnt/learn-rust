@@ -4,6 +4,7 @@
 //! content as an [`Issue`], so `anneal validate` can list them all at once.
 
 mod catalog;
+pub mod course;
 mod dsa;
 pub mod model;
 

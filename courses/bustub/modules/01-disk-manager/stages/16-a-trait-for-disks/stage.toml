@@ -1,5 +1,0 @@
-id = "1a-16"
-title = "A trait for disks: DiskIo"
-kind = "learn"
-difficulty = "medium"
-tests = ["stages_1a::s1a_16"]

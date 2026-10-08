@@ -1,5 +1,0 @@
-id = "2a-03"
-title = "Rid: where a tuple lives"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_2a::s2a_03"]

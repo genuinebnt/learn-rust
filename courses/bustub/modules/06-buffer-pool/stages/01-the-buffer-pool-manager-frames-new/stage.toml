@@ -1,0 +1,5 @@
+id = "1f-01"
+title = "The buffer pool manager: frames, new_page and fetch_page"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1f::s1f_01", "stages_1f::s1f_02", "stages_1f::s1f_03", "stages_1f::s1f_04"]

@@ -1,5 +1,5 @@
-//! Tests for the disk manager stages (1a-01 … 1a-19). Each test name starts with its stage: `s1a_04_…` belongs to
-//! stage 1a-04, and `anneal course test` runs just those.
+//! Tests for the disk manager stages (1a-01 … 1a-04). Each test name starts with its stage: `s1a_04_…` belongs to
+//! stage 1a-01, and `anneal course test` runs just those.
 
 mod common;
 
@@ -44,7 +44,7 @@ fn s1a_01_offsets_past_four_gigabytes_dont_overflow() {
     assert_eq!(slot_offset(1_000_000), 8_192_000_000);
 }
 
-// ---- 1a-02 · file_size_for ---------------------------------------------------------------------------------------
+// ---- 1a-01 · file_size_for ---------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_02_file_size_has_one_spare_page() {
@@ -58,7 +58,7 @@ fn s1a_02_file_size_doubles_with_capacity() {
     assert_eq!(file_size_for(32) - file_size_for(16), 16 * 8192);
 }
 
-// ---- 1a-03 · DiskManager::new ------------------------------------------------------------------------------------
+// ---- 1a-01 · DiskManager::new ------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_03_creates_the_db_file() {
@@ -114,7 +114,7 @@ fn s1a_03_a_path_that_is_a_directory_is_an_error() {
     assert!(DiskManager::new(dir.dir()).is_err());
 }
 
-// ---- 1a-04 · pre-size the file -----------------------------------------------------------------------------------
+// ---- 1a-01 · pre-size the file -----------------------------------------------------------------------------------
 
 #[test]
 fn s1a_04_a_new_db_file_has_room_for_the_default_pages() {
@@ -159,7 +159,7 @@ fn s1a_04_contents_inside_the_room_survive_reopening() {
     assert!(bytes[100..].iter().all(|&b| b == 0));
 }
 
-// ---- 1a-05 · write_slot ------------------------------------------------------------------------------------------
+// ---- 1a-01 · write_slot ------------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_05_writes_at_the_slots_offset() {
@@ -231,7 +231,7 @@ fn s1a_05_a_read_only_file_is_an_error() {
     assert!(write_slot(&file, 0, &page_of(1)).is_err());
 }
 
-// ---- 1a-06 · read_full_at ----------------------------------------------------------------------------------------
+// ---- 1a-01 · read_full_at ----------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_06_read_full_at_says_how_many_bytes_it_got() {
@@ -279,7 +279,7 @@ fn s1a_06_big_reads_arrive_complete() {
     assert!(buf == data);
 }
 
-// ---- 1a-07 · read_slot -------------------------------------------------------------------------------------------
+// ---- 1a-01 · read_slot -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_07_reads_back_what_write_slot_wrote() {
@@ -322,7 +322,7 @@ fn s1a_07_a_slot_that_ends_exactly_at_the_end_needs_no_filling() {
     assert!(buf == page_of(5));
 }
 
-// ---- 1a-08 · allocate_slot (fresh slots) -------------------------------------------------------------------------
+// ---- 1a-02 · allocate_slot (fresh slots) -------------------------------------------------------------------------
 
 #[test]
 fn s1a_08_the_first_slot_is_zero() {
@@ -363,7 +363,7 @@ fn s1a_08_threads_never_get_the_same_slot() {
     assert_eq!(all, (0..100).collect::<Vec<_>>());
 }
 
-// ---- 1a-09 · write_page ------------------------------------------------------------------------------------------
+// ---- 1a-02 · write_page ------------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_09_page_ids_need_not_be_dense() {
@@ -431,7 +431,7 @@ fn s1a_09_writing_the_invalid_page_id_panics() {
     let _ = new_dm(&dir).write_page(PageId::INVALID, &page_of(1));
 }
 
-// ---- 1a-10 · read_page -------------------------------------------------------------------------------------------
+// ---- 1a-02 · read_page -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_10_a_page_reads_back_what_was_written() {
@@ -478,7 +478,7 @@ fn s1a_10_reading_does_not_allocate() {
     assert_eq!(dm.allocate_slot().unwrap(), 0);
 }
 
-// ---- 1a-11 · growing the file ------------------------------------------------------------------------------------
+// ---- 1a-02 · growing the file ------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_11_the_file_keeps_its_size_while_slots_fit() {
@@ -550,7 +550,7 @@ fn s1a_11_the_size_is_always_a_power_of_two_of_pages_plus_one() {
     }
 }
 
-// ---- 1a-12 · delete_page and the free list -----------------------------------------------------------------------
+// ---- 1a-02 · delete_page and the free list -----------------------------------------------------------------------
 
 #[test]
 fn s1a_12_a_deleted_page_reads_as_zeros_again() {
@@ -632,7 +632,7 @@ fn s1a_12_recycling_slots_keeps_the_file_from_growing() {
     assert_eq!(dm.get_db_file_size(), size);
 }
 
-// ---- 1a-13 · counters --------------------------------------------------------------------------------------------
+// ---- 1a-03 · counters --------------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_13_counters_start_at_zero() {
@@ -693,7 +693,7 @@ fn s1a_13_counting_works_from_many_threads() {
     assert_eq!(dm.get_num_writes(), 400);
 }
 
-// ---- 1a-14 · write_log -------------------------------------------------------------------------------------------
+// ---- 1a-03 · write_log -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_14_an_empty_write_is_not_a_flush() {
@@ -765,7 +765,7 @@ impl DiskIo for CountingDisk {
     }
 }
 
-// ---- 1a-15 · read_log --------------------------------------------------------------------------------------------
+// ---- 1a-03 · read_log --------------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_15_a_log_record_reads_back() {
@@ -835,7 +835,7 @@ fn s1a_15_the_log_survives_reopening_and_keeps_appending() {
     assert_eq!(&buf, b"onetwo");
 }
 
-// ---- 1a-16 · the DiskIo trait ------------------------------------------------------------------------------------
+// ---- 1a-03 · the DiskIo trait ------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_16_a_disk_manager_works_through_the_trait() {
@@ -913,7 +913,7 @@ fn s1a_18_copy_page_works_on_a_memory_disk() {
     assert!(buf == pattern(3));
 }
 
-// ---- 1a-17 · DiskManagerMemory -----------------------------------------------------------------------------------
+// ---- 1a-03 · DiskManagerMemory -----------------------------------------------------------------------------------
 
 #[test]
 fn s1a_17_pages_read_back() {
@@ -990,7 +990,7 @@ fn s1a_17_it_works_as_a_dyn_disk() {
     assert!(buf == page_of(4));
 }
 
-// ---- 1a-18 · DiskManagerUnlimitedMemory --------------------------------------------------------------------------
+// ---- 1a-03 · DiskManagerUnlimitedMemory --------------------------------------------------------------------------
 
 #[test]
 fn s1a_18_pages_read_back_whatever_their_id() {
@@ -1085,7 +1085,7 @@ fn s1a_18_the_invalid_page_id_panics() {
     let _ = disk.read_page(PageId::INVALID, &mut buf);
 }
 
-// ---- 1a-19 · shut_down -------------------------------------------------------------------------------------------
+// ---- 1a-04 · shut_down -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1a_19_shut_down_succeeds_and_the_data_is_still_there() {

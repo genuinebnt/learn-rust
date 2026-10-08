@@ -1,5 +1,0 @@
-id = "1g-02"
-title = "Dropping a read guard: unlatch, then unpin"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1g::s1g_02"]

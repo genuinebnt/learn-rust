@@ -1,5 +1,0 @@
-id = "2a-09"
-title = "insert_at: open a gap with copy_within"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_2a::s2a_09"]

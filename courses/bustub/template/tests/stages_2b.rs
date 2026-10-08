@@ -1,4 +1,4 @@
-//! Tests for the extendible hash table stages (2b-01 … 2b-22). A test named `s2b_05_…` belongs to stage 2b-05.
+//! Tests for the extendible hash table stages (2b-01 … 2b-09). A test named `s2b_05_…` belongs to stage 2b-02.
 //! The hash values come from running BusTub's own MurmurHash3.cpp (compiled with clang) on the same bytes.
 
 use std::collections::HashMap;
@@ -123,7 +123,7 @@ fn s2b_01_known_strings() {
     assert_eq!(murmur_hash3_x64_128(b"0123456789abcdefX", 0), [14838185036522510071, 10336343437188549415]);
 }
 
-// ---- 2b-02 · HashFunction -----------------------------------------------------------------------------------------------------
+// ---- 2b-01 · HashFunction -----------------------------------------------------------------------------------------------------
 
 const INTS: &[(i32, u64)] = &[
     (0, 0xcfa0f7ddd84c76bc),
@@ -181,7 +181,7 @@ fn s2b_02_the_low_bits_spread_small_integers() {
     }
 }
 
-// ---- 2b-03 · header page: init and accessors ---------------------------------------------------------------------------------------
+// ---- 2b-02 · header page: init and accessors ---------------------------------------------------------------------------------------
 
 #[test]
 fn s2b_03_init_sets_the_depth_and_empties_every_slot() {
@@ -241,7 +241,7 @@ fn s2b_03_a_depth_above_nine_does_not_fit() {
     Header::new(&mut page[..]).init(10);
 }
 
-// ---- 2b-04 · header page: the directory index of a hash --------------------------------------------------------------------------------
+// ---- 2b-02 · header page: the directory index of a hash --------------------------------------------------------------------------------
 
 #[test]
 fn s2b_04_the_top_bits_choose_the_directory() {
@@ -295,7 +295,7 @@ fn s2b_04_the_low_bits_are_ignored() {
     }
 }
 
-// ---- 2b-05 · directory page: init and accessors ------------------------------------------------------------------------------------
+// ---- 2b-02 · directory page: init and accessors ------------------------------------------------------------------------------------
 
 fn directory(max_depth: u32) -> Vec<u8> {
     let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
@@ -355,7 +355,7 @@ fn s2b_05_a_max_depth_above_nine_does_not_fit() {
     Directory::new(&mut page[..]).init(10);
 }
 
-// ---- 2b-06 · directory page: masks and indexes ---------------------------------------------------------------------------------------
+// ---- 2b-02 · directory page: masks and indexes ---------------------------------------------------------------------------------------
 
 #[test]
 fn s2b_06_masks_have_as_many_ones_as_the_depth() {
@@ -412,7 +412,7 @@ fn s2b_06_a_bucket_of_depth_zero_is_its_own_split_image() {
     assert_eq!(dir.get_split_image_index(0), 0);
 }
 
-// ---- 2b-07 · directory page: local depths ----------------------------------------------------------------------------------------------
+// ---- 2b-02 · directory page: local depths ----------------------------------------------------------------------------------------------
 
 #[test]
 fn s2b_07_local_depths_are_set_and_read() {
@@ -458,7 +458,7 @@ fn s2b_07_a_slot_past_max_size_is_a_bug() {
     Directory::new(&mut page[..]).set_local_depth(2, 0);
 }
 
-// ---- 2b-08 · directory page: growing ---------------------------------------------------------------------------------------------------
+// ---- 2b-03 · directory page: growing ---------------------------------------------------------------------------------------------------
 
 #[test]
 fn s2b_08_growing_copies_the_lower_half_into_the_upper_half() {
@@ -535,7 +535,7 @@ fn s2b_08_growing_to_the_largest_size() {
     assert!((0..512).all(|i| dir.get_bucket_page_id(i) == PageId(1)));
 }
 
-// ---- 2b-09 · directory page: shrinking -------------------------------------------------------------------------------------------------
+// ---- 2b-03 · directory page: shrinking -------------------------------------------------------------------------------------------------
 
 #[test]
 fn s2b_09_a_directory_cannot_shrink_while_a_bucket_uses_every_bit() {
@@ -607,7 +607,7 @@ fn s2b_09_only_slots_in_use_count() {
     assert!(dir.can_shrink(), "slots 4..8 still say depth 2, but they are no longer part of the directory");
 }
 
-// ---- 2b-10 · directory page: verify_integrity ----------------------------------------------------------------------------------------------
+// ---- 2b-03 · directory page: verify_integrity ----------------------------------------------------------------------------------------------
 
 /// A correct depth-2 directory: slots 0 and 2 have their own buckets (depth 2), slots 1 and 3 share one (depth 1).
 fn good_directory() -> Vec<u8> {
@@ -661,7 +661,7 @@ fn s2b_10_one_bucket_with_two_depths_is_caught() {
     Directory::new(&page[..]).verify_integrity();
 }
 
-// ---- 2b-11 · bucket page: basics ----------------------------------------------------------------------------------------------------------
+// ---- 2b-04 · bucket page: basics ----------------------------------------------------------------------------------------------------------
 
 type Entry = (GenericKey<8>, Rid);
 type BucketPage<'a> = Bucket<&'a mut [u8], GenericKey<8>, Rid>;
@@ -719,7 +719,7 @@ fn s2b_11_entries_past_the_size_are_not_there() {
     BucketPage::new(&mut page[..]).entry_at(0);
 }
 
-// ---- 2b-12 · bucket page: lookup and insert -------------------------------------------------------------------------------------------------
+// ---- 2b-04 · bucket page: lookup and insert -------------------------------------------------------------------------------------------------
 
 #[test]
 fn s2b_12_insert_then_lookup() {
@@ -799,7 +799,7 @@ fn s2b_12_ints_work_too() {
     assert_eq!(bucket.lookup(&1000, &IntComparator), Some(2000));
 }
 
-// ---- 2b-13 · bucket page: remove -------------------------------------------------------------------------------------------------------------
+// ---- 2b-04 · bucket page: remove -------------------------------------------------------------------------------------------------------------
 
 fn filled(n: i64) -> Vec<u8> {
     let mut page = new_bucket(10);
@@ -871,7 +871,7 @@ fn s2b_13_remove_at_past_the_size_is_a_bug() {
     BucketPage::new(&mut page[..]).remove_at(2);
 }
 
-// ---- 2b-14 · BusTub's page samples -------------------------------------------------------------------------------------------------------
+// ---- 2b-05 · BusTub's page samples -------------------------------------------------------------------------------------------------------
 
 #[test]
 fn s2b_14_the_bucket_sample_end_to_end() {
@@ -899,7 +899,7 @@ fn s2b_14_the_bucket_sample_end_to_end() {
     assert!(bucket.is_empty());
 }
 
-// ---- 2b-15 · the table: new, get_value on an empty table, verify_integrity -----------------------------------------------------------------
+// ---- 2b-06 · the table: new, get_value on an empty table, verify_integrity -----------------------------------------------------------------
 
 type IntTable<'a> = DiskExtendibleHashTable<'a, i32, i32, IntComparator>;
 type KeyTable<'a> = DiskExtendibleHashTable<'a, GenericKey<8>, Rid, GenericComparator<8>>;
@@ -952,7 +952,7 @@ fn s2b_15_reading_an_empty_table_pins_nothing() {
     assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0));
 }
 
-// ---- 2b-16 · insert: the first key creates a directory and a bucket -----------------------------------------------------------------------
+// ---- 2b-06 · insert: the first key creates a directory and a bucket -----------------------------------------------------------------------
 
 /// The page ids reachable from the header: (directory page id, its bucket page ids).
 fn page_ids(bpm: &BufferPoolManager, ht: &IntTable<'_>) -> Vec<(PageId, Vec<PageId>)> {
@@ -1024,7 +1024,7 @@ fn s2b_16_the_table_passes_its_own_integrity_check_after_the_first_insert() {
     ht.verify_integrity();
 }
 
-// ---- 2b-17 · insert into an existing bucket, and get_value --------------------------------------------------------------------------------
+// ---- 2b-06 · insert into an existing bucket, and get_value --------------------------------------------------------------------------------
 
 #[test]
 fn s2b_17_inserted_values_can_be_read_back() {
@@ -1086,7 +1086,7 @@ fn s2b_17_lookups_leave_nothing_pinned_or_latched() {
     assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0));
 }
 
-// ---- 2b-18 · splitting a full bucket, and growing the directory ---------------------------------------------------------------------------
+// ---- 2b-07 · splitting a full bucket, and growing the directory ---------------------------------------------------------------------------
 
 #[test]
 fn s2b_18_eight_well_spread_keys_fit_a_ninth_does_not() {
@@ -1215,7 +1215,7 @@ fn s2b_18_splitting_does_not_leak_pins() {
     }
 }
 
-// ---- 2b-19 · remove -------------------------------------------------------------------------------------------------------------------------
+// ---- 2b-08 · remove -------------------------------------------------------------------------------------------------------------------------
 
 #[test]
 fn s2b_19_remove_takes_a_key_out() {
@@ -1291,7 +1291,7 @@ fn s2b_19_bustubs_remove_test_1() {
     ht.verify_integrity();
 }
 
-// ---- 2b-20 · merging empty buckets -------------------------------------------------------------------------------------------------------------
+// ---- 2b-08 · merging empty buckets -------------------------------------------------------------------------------------------------------------
 
 fn bucket_count(bpm: &BufferPoolManager, ht: &IntTable<'_>) -> usize {
     let mut distinct: Vec<PageId> = page_ids(bpm, ht).into_iter().flat_map(|(_, b)| b).collect();
@@ -1381,7 +1381,7 @@ fn s2b_20_the_table_works_after_everything_was_removed() {
     }
 }
 
-// ---- 2b-21 · shrinking the directory -------------------------------------------------------------------------------------------------------------
+// ---- 2b-08 · shrinking the directory -------------------------------------------------------------------------------------------------------------
 
 fn global_depth(bpm: &BufferPoolManager, ht: &IntTable<'_>) -> u32 {
     let guard = bpm.read_page(ht.get_header_page_id());
@@ -1462,7 +1462,7 @@ fn s2b_21_a_model_with_random_inserts_and_removes() {
     }
 }
 
-// ---- 2b-22 · the module as a whole -------------------------------------------------------------------------------------------------------------
+// ---- 2b-09 · the module as a whole -------------------------------------------------------------------------------------------------------------
 
 fn gk(n: i64) -> GenericKey<8> {
     key(n)

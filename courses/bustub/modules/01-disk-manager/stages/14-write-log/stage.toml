@@ -1,5 +1,0 @@
-id = "1a-14"
-title = "write_log: append to the log file"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1a::s1a_14"]

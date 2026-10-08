@@ -1,5 +1,0 @@
-id = "1g-05"
-title = "flush() through a guard"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1g::s1g_05"]

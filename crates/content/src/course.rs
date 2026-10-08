@@ -1,0 +1,341 @@
+//! A course (courses/<id>): projects of modules of stages, loaded from `course.toml`, `lectures.toml`, `modules/*/module.toml`
+//! and `modules/*/stages/*/{stage.toml,stage.md}`. The web app reads it through the API; `anneal course` has its own loader for
+//! learner repos and keeps the same file formats.
+
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, thiserror::Error)]
+pub enum CourseError {
+    #[error("{0}")]
+    Invalid(String),
+}
+
+type Result<T> = std::result::Result<T, CourseError>;
+
+fn bad<T>(m: impl Into<String>) -> Result<T> {
+    Err(CourseError::Invalid(m.into()))
+}
+
+#[derive(Debug, Deserialize)]
+struct CourseToml {
+    id: String,
+    title: String,
+    #[serde(default)]
+    project: Vec<ProjectToml>,
+    /// Modules the web app shows. Unset: all of them. Modules ship one at a time, so a half-written one stays hidden.
+    #[serde(default)]
+    published_modules: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ProjectToml {
+    number: u32,
+    title: String,
+    /// Not written yet: shown in the tree as "planned".
+    #[serde(default)]
+    planned: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModuleToml {
+    code: String,
+    title: String,
+    #[serde(default)]
+    summary: String,
+    #[serde(default)]
+    lectures: Vec<String>,
+    #[serde(default)]
+    bustub: Vec<String>,
+    #[serde(default)]
+    resources: Vec<Resource>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Resource {
+    /// docs · book · paper · blog · video · code · man
+    pub kind: String,
+    pub title: String,
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct LecturesToml {
+    #[serde(default)]
+    lecture: Vec<Lecture>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Lecture {
+    pub id: String,
+    pub title: String,
+    pub term: String,
+    pub slides: String,
+    pub notes: Option<String>,
+    pub video: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StageToml {
+    id: String,
+    title: String,
+    kind: String,
+    difficulty: String,
+    tests: Vec<String>,
+}
+
+/// One `## Heading` of a stage's markdown, with its body.
+#[derive(Debug, Clone, Serialize)]
+pub struct Section {
+    pub id: String,
+    pub title: String,
+    pub md: String,
+}
+
+/// One `### Heading` under a stage's `## Hints`. Hints are written for the stage, deepest last: a nudge about the design,
+/// then the trap, then the invariant to check. Shown one at a time and counted as assistance.
+#[derive(Debug, Clone, Serialize)]
+pub struct Hint {
+    pub title: String,
+    pub md: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Stage {
+    pub id: String,
+    pub title: String,
+    /// learn · build · boss
+    pub kind: String,
+    /// very-easy · easy · medium · hard
+    pub difficulty: String,
+    pub tests: Vec<String>,
+    pub module: String,
+    /// 1-based position in the whole course.
+    pub rank: usize,
+    /// The markdown before the first `##`.
+    pub intro: String,
+    pub sections: Vec<Section>,
+    pub hints: Vec<Hint>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Module {
+    pub code: String,
+    pub title: String,
+    pub summary: String,
+    pub project: u32,
+    pub lectures: Vec<Lecture>,
+    /// BusTub's own files this module ports, as GitHub URLs.
+    pub bustub: Vec<String>,
+    pub resources: Vec<Resource>,
+    pub stages: Vec<Stage>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Project {
+    pub number: u32,
+    pub title: String,
+    pub planned: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Course {
+    pub id: String,
+    pub title: String,
+    pub projects: Vec<Project>,
+    pub modules: Vec<Module>,
+}
+
+impl Course {
+    pub fn load(root: &Path) -> Result<Course> {
+        let meta: CourseToml = read_toml(&root.join("course.toml"))?;
+        let lectures: Vec<Lecture> = match fs::read_to_string(root.join("lectures.toml")) {
+            Ok(t) => toml::from_str::<LecturesToml>(&t).map_err(|e| CourseError::Invalid(format!("lectures.toml: {e}")))?.lecture,
+            Err(_) => Vec::new(),
+        };
+        let mut modules = Vec::new();
+        let mut rank = 0;
+        let mut seen: HashMap<String, usize> = HashMap::new();
+        for dir in sorted_dirs(&root.join("modules"))? {
+            let mt: ModuleToml = read_toml(&dir.join("module.toml"))?;
+            let project: u32 = mt.code.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse().map_err(|_| {
+                CourseError::Invalid(format!("module code {:?} must start with its project number, like 2b", mt.code))
+            })?;
+            let mut mod_lectures = Vec::new();
+            for id in &mt.lectures {
+                match lectures.iter().find(|l| &l.id == id) {
+                    Some(l) => mod_lectures.push(l.clone()),
+                    None => return bad(format!("module {}: no lecture {id:?} in lectures.toml", mt.code)),
+                }
+            }
+            let mut stages = Vec::new();
+            for sdir in sorted_dirs(&dir.join("stages"))? {
+                let def: StageToml = read_toml(&sdir.join("stage.toml"))?;
+                let md = fs::read_to_string(sdir.join("stage.md"))
+                    .map_err(|e| CourseError::Invalid(format!("{}: reading stage.md: {e}", sdir.display())))?;
+                if !matches!(def.kind.as_str(), "learn" | "build" | "boss") {
+                    return bad(format!("{}: kind must be learn, build or boss", def.id));
+                }
+                if !matches!(def.difficulty.as_str(), "very-easy" | "easy" | "medium" | "hard") {
+                    return bad(format!("{}: difficulty must be very-easy, easy, medium or hard", def.id));
+                }
+                rank += 1;
+                if let Some(prev) = seen.insert(def.id.clone(), rank) {
+                    return bad(format!("stage id {} is used twice (positions {prev} and {rank})", def.id));
+                }
+                let (intro, mut sections) = split_sections(&md);
+                let hints = match sections.iter().position(|x| x.id == "hints") {
+                    Some(i) => split_hints(&sections.remove(i).md),
+                    None => Vec::new(),
+                };
+                stages.push(Stage {
+                    id: def.id,
+                    title: def.title,
+                    kind: def.kind,
+                    difficulty: def.difficulty,
+                    tests: def.tests,
+                    module: mt.code.clone(),
+                    rank,
+                    intro,
+                    sections,
+                    hints,
+                });
+            }
+            modules.push(Module {
+                code: mt.code,
+                title: mt.title,
+                summary: mt.summary,
+                project,
+                lectures: mod_lectures,
+                bustub: mt.bustub.iter().map(|f| format!("https://github.com/cmu-db/bustub/blob/master/{f}")).collect(),
+                resources: mt.resources,
+                stages,
+            });
+        }
+        if let Some(only) = &meta.published_modules {
+            modules.retain(|m| only.contains(&m.code));
+            let mut rank = 0;
+            for st in modules.iter_mut().flat_map(|m| m.stages.iter_mut()) {
+                rank += 1;
+                st.rank = rank;
+            }
+        }
+        let projects = meta.project.into_iter().map(|p| Project { number: p.number, title: p.title, planned: p.planned }).collect();
+        Ok(Course { id: meta.id, title: meta.title, projects, modules })
+    }
+
+    pub fn stages(&self) -> impl Iterator<Item = &Stage> {
+        self.modules.iter().flat_map(|m| m.stages.iter())
+    }
+
+    pub fn stage(&self, id: &str) -> Option<&Stage> {
+        self.stages().find(|s| s.id == id)
+    }
+
+    pub fn module(&self, code: &str) -> Option<&Module> {
+        self.modules.iter().find(|m| m.code == code)
+    }
+}
+
+/// Splits stage markdown at its `## ` headings (ignoring any inside code fences).
+fn split_sections(md: &str) -> (String, Vec<Section>) {
+    let mut intro = String::new();
+    let mut sections: Vec<Section> = Vec::new();
+    let mut fence = false;
+    for line in md.lines() {
+        if line.trim_start().starts_with("```") {
+            fence = !fence;
+        }
+        if !fence && let Some(title) = line.strip_prefix("## ") {
+            let title = title.trim().to_owned();
+            let id: String = title.to_lowercase().chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
+            sections.push(Section { id: id.trim_matches('-').to_owned(), title, md: String::new() });
+            continue;
+        }
+        let target = sections.last_mut().map(|s| &mut s.md).unwrap_or(&mut intro);
+        target.push_str(line);
+        target.push('\n');
+    }
+    for s in &mut sections {
+        s.md = s.md.trim().to_owned();
+    }
+    (intro.trim().to_owned(), sections)
+}
+
+/// The `### ` blocks of a hints section.
+fn split_hints(md: &str) -> Vec<Hint> {
+    let mut hints: Vec<Hint> = Vec::new();
+    let mut fence = false;
+    for line in md.lines() {
+        if line.trim_start().starts_with("```") {
+            fence = !fence;
+        }
+        if !fence && let Some(title) = line.strip_prefix("### ") {
+            hints.push(Hint { title: title.trim().to_owned(), md: String::new() });
+            continue;
+        }
+        if let Some(h) = hints.last_mut() {
+            h.md.push_str(line);
+            h.md.push('\n');
+        }
+    }
+    for h in &mut hints {
+        h.md = h.md.trim().to_owned();
+    }
+    hints
+}
+
+fn read_toml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T> {
+    let text = fs::read_to_string(path).map_err(|e| CourseError::Invalid(format!("reading {}: {e}", path.display())))?;
+    toml::from_str(&text).map_err(|e| CourseError::Invalid(format!("parsing {}: {e}", path.display())))
+}
+
+fn sorted_dirs(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut v: Vec<PathBuf> = fs::read_dir(dir)
+        .map_err(|e| CourseError::Invalid(format!("reading {}: {e}", dir.display())))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.is_dir())
+        .collect();
+    v.sort();
+    Ok(v)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn splits_at_headings_but_not_inside_code() {
+        let md = "Intro line.\n\n## The task\n\nDo it.\n\n```sh\n## not a heading\n```\n\n## Notes\n\nA note.\n";
+        let (intro, sections) = split_sections(md);
+        assert_eq!(intro, "Intro line.");
+        assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0].id, "the-task");
+        assert!(sections[0].md.contains("## not a heading"));
+        assert_eq!(sections[1].md, "A note.");
+    }
+
+    #[test]
+    fn hints_come_out_of_the_hints_section() {
+        let md = "Intro.\n\n## The task\n\nDo it.\n\n## Hints\n\n### Mind the order\n\nLatch the parent first.\n\n### The trap\n\nDon't hold two.\n";
+        let (_, mut sections) = split_sections(md);
+        let i = sections.iter().position(|s| s.id == "hints").unwrap();
+        let hints = split_hints(&sections.remove(i).md);
+        assert_eq!(hints.len(), 2);
+        assert_eq!(hints[0].title, "Mind the order");
+        assert_eq!(hints[1].md, "Don't hold two.");
+        assert_eq!(sections.len(), 1);
+    }
+
+    #[test]
+    fn the_shipped_course_loads() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../courses/bustub");
+        let c = Course::load(&root).expect("courses/bustub loads");
+        assert!(c.stages().count() >= 4, "{} stages", c.stages().count());
+        assert!(c.stage("1a-01").is_some_and(|s| !s.sections.is_empty()));
+    }
+}

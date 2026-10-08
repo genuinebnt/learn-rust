@@ -758,6 +758,100 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
 
+
+// ---- courses (crates/api/src/course.rs) ----
+
+export type StageState = "todo" | "solved" | "assisted";
+export type StageKind = "learn" | "build" | "boss";
+export type StageDifficulty = "very-easy" | "easy" | "medium" | "hard";
+
+export interface CourseStageRow {
+  id: string;
+  title: string;
+  kind: StageKind;
+  difficulty: StageDifficulty;
+  rank: number;
+  state: StageState;
+  runs?: number;
+}
+
+export interface CourseModuleRow {
+  code: string;
+  title: string;
+  summary: string;
+  stages: CourseStageRow[];
+}
+
+export interface CourseOverview {
+  id: string;
+  title: string;
+  total: number;
+  done: number;
+  /** The first stage not passed yet. */
+  current: string | null;
+  projects: { number: number; title: string; planned: boolean; modules: CourseModuleRow[] }[];
+}
+
+export interface CourseSection {
+  id: string;
+  title: string;
+  md: string;
+}
+
+export interface CourseLecture {
+  id: string;
+  title: string;
+  term: string;
+  slides: string;
+  notes: string | null;
+  video: string | null;
+}
+
+export interface CourseRunTest {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+export interface CourseRun {
+  id: number;
+  ok: boolean;
+  passed: number;
+  total: number;
+  tests: CourseRunTest[];
+  problem: string | null;
+  commit_sha: string | null;
+  duration_ms: number;
+  at: string;
+}
+
+export interface SolutionFile {
+  path: string;
+  /** Diff lines: a leading ' ', '+' or '-'. */
+  lines: string[];
+}
+
+export interface CourseStagePage {
+  course: { id: string; title: string; total: number };
+  stage: { id: string; title: string; kind: StageKind; difficulty: StageDifficulty; tests: string[]; rank: number; intro: string; sections: CourseSection[] };
+  module: {
+    code: string;
+    title: string;
+    summary: string;
+    project: number;
+    stages: CourseStageRow[];
+    lectures: CourseLecture[];
+    bustub: string[];
+    resources: { kind: string; title: string; url: string }[];
+  };
+  prev: { id: string; title: string; rank: number } | null;
+  next: { id: string; title: string; rank: number } | null;
+  state: StageState;
+  hints: { total: number; revealed: { title: string; md: string }[]; titles: string[] };
+  solution: { available: boolean; open: boolean; files: SolutionFile[] | null };
+  last_run: CourseRun | null;
+}
+
 export const api = {
   tracks: () => request<TrackSummary[]>("GET", "/tracks"),
   activity: (sections: readonly Section[]) => request<Activity>("GET", `/activity?sections=${sections.join(",")}`),
@@ -806,4 +900,8 @@ export const api = {
   startDsa: (from: string) => request<{ start: string }>("POST", "/dsa/start", { from }),
   saveSrs: (srs: SrsSettings) => request<SrsSettings>("PUT", "/settings/srs", srs),
   focus: (id: string, seconds: number) => request<void>("POST", `/problems/${id}/focus`, { seconds }),
+  course: (id: string) => request<CourseOverview>("GET", `/courses/${id}`),
+  courseStage: (course: string, id: string) => request<CourseStagePage>("GET", `/courses/${course}/stages/${id}`),
+  revealCourseHint: (course: string, id: string) => request<CourseStagePage>("POST", `/courses/${course}/stages/${id}/hints`),
+  revealCourseSolution: (course: string, id: string) => request<CourseStagePage>("POST", `/courses/${course}/stages/${id}/solution`),
 };

@@ -1,4 +1,4 @@
-//! Tests for the disk scheduler stages (1b-01 … 1b-15). A test named `s1b_04_…` belongs to stage 1b-04.
+//! Tests for the disk scheduler stages (1b-01 … 1b-04). A test named `s1b_04_…` belongs to stage 1b-01.
 
 use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -123,7 +123,7 @@ fn s1b_01_put_never_blocks_and_works_from_many_threads() {
     assert_eq!(ch.len(), 100);
 }
 
-// ---- 1b-02 · Channel::get ----------------------------------------------------------------------------------------------
+// ---- 1b-01 · Channel::get ----------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_02_get_returns_elements_in_the_order_they_were_put() {
@@ -202,7 +202,7 @@ fn s1b_02_each_producers_elements_stay_in_order() {
     }
 }
 
-// ---- 1b-03 · consume ---------------------------------------------------------------------------------------------------
+// ---- 1b-01 · consume ---------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_03_consume_calls_f_on_each_element_in_order() {
@@ -267,7 +267,7 @@ fn s1b_03_f_may_keep_state_between_calls() {
     assert_eq!(sums, [0, 1, 3, 6]);
 }
 
-// ---- 1b-04 · Promise::set ----------------------------------------------------------------------------------------------
+// ---- 1b-01 · Promise::set ----------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_04_a_future_is_not_ready_before_the_value_is_set() {
@@ -301,7 +301,7 @@ fn s1b_04_pairs_are_independent() {
     assert!(!f2.is_ready());
 }
 
-// ---- 1b-05 · Future::get -----------------------------------------------------------------------------------------------
+// ---- 1b-01 · Future::get -----------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_05_get_returns_the_value() {
@@ -349,7 +349,7 @@ fn s1b_05_a_hundred_promises_through_a_channel() {
     assert_eq!(got, (0..100).map(|n| n * n).collect::<Vec<_>>());
 }
 
-// ---- 1b-06 · broken promises -------------------------------------------------------------------------------------------
+// ---- 1b-01 · broken promises -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_06_dropping_the_promise_breaks_the_future() {
@@ -397,7 +397,7 @@ fn s1b_06_a_promise_inside_a_dropped_channel_breaks() {
     assert_eq!(wait(f), Err(BrokenPromise));
 }
 
-// ---- 1b-07 · DiskRequest -----------------------------------------------------------------------------------------------
+// ---- 1b-02 · DiskRequest -----------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_07_a_read_request_has_a_zeroed_buffer() {
@@ -433,7 +433,7 @@ fn s1b_07_dropping_a_request_breaks_its_future() {
     assert_eq!(wait(fut).err(), Some(BrokenPromise), "a dropped request has no result");
 }
 
-// ---- 1b-08 · execute ---------------------------------------------------------------------------------------------------
+// ---- 1b-02 · execute ---------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_08_a_write_then_a_read_round_trip() {
@@ -501,7 +501,7 @@ fn s1b_08_a_successful_read_from_a_disk_that_fills_the_buffer() {
     assert!(wait(f).unwrap().unwrap().iter().all(|&b| b == 7));
 }
 
-// ---- 1b-09 · DiskScheduler::new and schedule -----------------------------------------------------------------------------
+// ---- 1b-02 · DiskScheduler::new and schedule -----------------------------------------------------------------------------
 
 #[test]
 fn s1b_09_a_scheduled_write_and_read() {
@@ -574,7 +574,7 @@ fn s1b_09_an_empty_batch_is_fine() {
     sched.schedule(Vec::new());
 }
 
-// ---- 1b-10 · shutting down -----------------------------------------------------------------------------------------------
+// ---- 1b-02 · shutting down -----------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_10_dropping_the_scheduler_finishes_the_scheduled_work_first() {
@@ -617,7 +617,7 @@ fn s1b_10_many_schedulers_can_come_and_go() {
     assert_eq!(Arc::strong_count(&disk), 1);
 }
 
-// ---- 1b-11 · a panicking disk does not kill the worker ---------------------------------------------------------------------
+// ---- 1b-02 · a panicking disk does not kill the worker ---------------------------------------------------------------------
 
 #[test]
 fn s1b_11_a_panic_becomes_an_error_for_that_request() {
@@ -655,7 +655,7 @@ fn s1b_11_requests_that_dont_panic_are_unchanged() {
     assert!(wait(f).unwrap().is_ok_and_page(4));
 }
 
-// ---- 1b-12 · create_promise and deallocate_page ----------------------------------------------------------------------------
+// ---- 1b-02 · create_promise and deallocate_page ----------------------------------------------------------------------------
 
 #[test]
 fn s1b_12_create_promise_gives_a_working_pair() {
@@ -684,7 +684,7 @@ fn s1b_12_a_request_can_be_built_by_hand_with_a_created_promise() {
     assert!(wait(future).unwrap().is_ok());
 }
 
-// ---- 1b-13 · ReaderWriterLatch ---------------------------------------------------------------------------------------------
+// ---- 1b-03 · ReaderWriterLatch ---------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_13_the_latch_guards_its_value() {
@@ -766,7 +766,7 @@ fn s1b_13_a_panic_while_latched_does_not_lock_everyone_out() {
     assert_eq!(*latch.read(), 2);
 }
 
-// ---- 1b-14 · ShardedDiskScheduler -----------------------------------------------------------------------------------------
+// ---- 1b-03 · ShardedDiskScheduler -----------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_14_requests_for_one_page_stay_in_order() {
@@ -845,7 +845,7 @@ fn s1b_14_no_workers_is_a_bug() {
     let _ = ShardedDiskScheduler::new(memory_disk(), 0);
 }
 
-// ---- 1b-15 · the module as a whole -----------------------------------------------------------------------------------------
+// ---- 1b-04 · the module as a whole -----------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_15_eight_threads_hammer_one_scheduler() {

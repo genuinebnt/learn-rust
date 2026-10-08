@@ -1,5 +1,0 @@
-id = "1a-06"
-title = "Read until the buffer is full: read_full_at"
-kind = "learn"
-difficulty = "medium"
-tests = ["stages_1a::s1a_06"]

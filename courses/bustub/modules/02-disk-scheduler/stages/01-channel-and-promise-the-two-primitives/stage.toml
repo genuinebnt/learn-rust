@@ -1,0 +1,5 @@
+id = "1b-01"
+title = "Channel and Promise: the two primitives"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1b::s1b_01", "stages_1b::s1b_02", "stages_1b::s1b_03", "stages_1b::s1b_04", "stages_1b::s1b_05", "stages_1b::s1b_06"]

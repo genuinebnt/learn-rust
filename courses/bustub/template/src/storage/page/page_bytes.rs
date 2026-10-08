@@ -24,19 +24,19 @@ pub fn write_u64(page: &mut [u8], offset: usize, value: u64) {
 
 /// The page id stored at `offset`. On disk "no page" is `-1` (`INVALID_PAGE_ID`), which `PageId::INVALID` is.
 pub fn read_page_id(page: &[u8], offset: usize) -> PageId {
-    todo!("2a-02: an i32 (signed: -1 must survive) from 4 little-endian bytes")
+    todo!("2a-01: an i32 (signed: -1 must survive) from 4 little-endian bytes")
 }
 
 pub fn write_page_id(page: &mut [u8], offset: usize, id: PageId) {
-    todo!("2a-02: the id's i32 as 4 little-endian bytes")
+    todo!("2a-01: the id's i32 as 4 little-endian bytes")
 }
 
 /// The page id at `offset`, or `None` if it holds `INVALID`.
 pub fn read_optional_page_id(page: &[u8], offset: usize) -> Option<PageId> {
-    todo!("2a-02: read_page_id, but INVALID (-1) becomes None")
+    todo!("2a-01: read_page_id, but INVALID (-1) becomes None")
 }
 
 /// Stores `id`, or `INVALID` for `None`.
 pub fn write_optional_page_id(page: &mut [u8], offset: usize, id: Option<PageId>) {
-    todo!("2a-02: write the id, or INVALID for None")
+    todo!("2a-01: write the id, or INVALID for None")
 }

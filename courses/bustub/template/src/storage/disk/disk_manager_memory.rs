@@ -18,7 +18,7 @@ pub struct DiskManagerMemory {
 
 impl DiskManagerMemory {
     pub fn new(capacity: usize) -> DiskManagerMemory {
-        todo!("1a-17: a zeroed buffer of capacity pages")
+        todo!("1a-03: a zeroed buffer of capacity pages")
     }
 
     pub fn get_num_writes(&self) -> usize {
@@ -28,11 +28,11 @@ impl DiskManagerMemory {
 
 impl DiskIo for DiskManagerMemory {
     fn read_page(&self, page_id: PageId, buf: &mut PageData) -> io::Result<()> {
-        todo!("1a-17: copy the page's bytes out of the buffer")
+        todo!("1a-03: copy the page's bytes out of the buffer")
     }
 
     fn write_page(&self, page_id: PageId, data: &PageData) -> io::Result<()> {
-        todo!("1a-17: copy data into the page's bytes and count the write")
+        todo!("1a-03: copy data into the page's bytes and count the write")
     }
 
     /// Nothing to reclaim in memory.
@@ -42,7 +42,7 @@ impl DiskIo for DiskManagerMemory {
 impl DiskManagerMemory {
     /// The byte range of a page; panics for an id outside `0..capacity`.
     fn range(&self, page_id: PageId, what: &str) -> std::ops::Range<usize> {
-        todo!("1a-17: assert the id is in 0..capacity (a message that says the disk ran out of space), then the page's byte range")
+        todo!("1a-03: assert the id is in 0..capacity (a message that says the disk ran out of space), then the page's byte range")
     }
 }
 
@@ -64,7 +64,7 @@ impl DiskManagerUnlimitedMemory {
 
     /// Bytes of page data held: one page for each page id that has been written.
     pub fn get_memory_usage(&self) -> usize {
-        todo!("1a-18: count the pages that exist; each takes BUSTUB_PAGE_SIZE bytes")
+        todo!("1a-03: count the pages that exist; each takes BUSTUB_PAGE_SIZE bytes")
     }
 }
 
@@ -77,12 +77,12 @@ impl Default for DiskManagerUnlimitedMemory {
 impl DiskIo for DiskManagerUnlimitedMemory {
     fn read_page(&self, page_id: PageId, buf: &mut PageData) -> io::Result<()> {
         assert!(page_id.is_valid(), "read of invalid page id {}", page_id.0);
-        todo!("1a-18: copy the page out if it exists, otherwise zero the buffer")
+        todo!("1a-03: copy the page out if it exists, otherwise zero the buffer")
     }
 
     fn write_page(&self, page_id: PageId, data: &PageData) -> io::Result<()> {
         assert!(page_id.is_valid(), "write of invalid page id {}", page_id.0);
-        todo!("1a-18: grow the list of pages if needed, create the page if it doesn't exist, copy data in, count the write")
+        todo!("1a-03: grow the list of pages if needed, create the page if it doesn't exist, copy data in, count the write")
     }
 
     fn delete_page(&self, _page_id: PageId) {}

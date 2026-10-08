@@ -1,5 +1,0 @@
-id = "1d-01"
-title = "LruKNode::record: keep the last k accesses"
-kind = "learn"
-difficulty = "very-easy"
-tests = ["stages_1d::s1d_01"]

@@ -1,5 +1,0 @@
-id = "1g-06"
-title = "A flush must not wait for a latch while holding the pool's lock"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_1g::s1g_06"]

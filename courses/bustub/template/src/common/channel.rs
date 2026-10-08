@@ -33,7 +33,7 @@ impl<T> Channel<T> {
 
     /// Takes the element at the front, waiting for one if the queue is empty.
     pub fn get(&self) -> T {
-        todo!("1b-02: wait while the queue is empty, then pop the front")
+        todo!("1b-01: wait while the queue is empty, then pop the front")
     }
 }
 
@@ -46,5 +46,5 @@ impl<T> Default for Channel<T> {
 /// The worker loop of the disk scheduler: BusTub stops a worker by putting `std::nullopt` in the queue, so the elements are
 /// `Option<T>` and `None` means "stop". Calls `f` on each element until it gets a `None`, which it consumes.
 pub fn consume<T>(channel: &Channel<Option<T>>, mut f: impl FnMut(T)) {
-    todo!("1b-03: get elements and call f on each, until a None arrives")
+    todo!("1b-01: get elements and call f on each, until a None arrives")
 }

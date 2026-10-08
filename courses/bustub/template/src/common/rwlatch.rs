@@ -15,11 +15,11 @@ impl<T> ReaderWriterLatch<T> {
 
     /// Takes a read latch (BusTub's `RLock`); it is released when the guard is dropped (`RUnlock`).
     pub fn read(&self) -> RwLockReadGuard<'_, T> {
-        todo!("1b-13: take the read lock; a poisoned lock still gives its guard (see the notes)")
+        todo!("1b-03: take the read lock; a poisoned lock still gives its guard (see the notes)")
     }
 
     /// Takes the write latch (BusTub's `WLock`); it is released when the guard is dropped (`WUnlock`).
     pub fn write(&self) -> RwLockWriteGuard<'_, T> {
-        todo!("1b-13: take the write lock; a poisoned lock still gives its guard")
+        todo!("1b-03: take the write lock; a poisoned lock still gives its guard")
     }
 }

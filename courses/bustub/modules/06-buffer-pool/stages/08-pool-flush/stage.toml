@@ -1,5 +1,0 @@
-id = "1f-08"
-title = "flush_page and flush_all_pages"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1f::s1f_08"]

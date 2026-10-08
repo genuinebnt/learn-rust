@@ -1,0 +1,5 @@
+id = "1g-01"
+title = "Page guards: RAII for pins and latches"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1g::s1g_01", "stages_1g::s1g_02", "stages_1g::s1g_03", "stages_1g::s1g_04", "stages_1g::s1g_05"]

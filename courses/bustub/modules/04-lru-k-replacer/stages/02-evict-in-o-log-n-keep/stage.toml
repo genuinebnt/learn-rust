@@ -1,0 +1,5 @@
+id = "1d-02"
+title = "Evict in O(log n): keep the frames in order"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_1d::s1d_08"]

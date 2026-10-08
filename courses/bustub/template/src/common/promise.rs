@@ -40,13 +40,13 @@ pub fn promise<T>() -> (Promise<T>, Future<T>) {
 impl<T> Promise<T> {
     /// Gives the future its value and wakes it.
     pub fn set(self, value: T) {
-        todo!("1b-04: store the value as Ready, then wake whoever waits on `changed`")
+        todo!("1b-01: store the value as Ready, then wake whoever waits on `changed`")
     }
 }
 
 impl<T> Drop for Promise<T> {
     fn drop(&mut self) {
-        // TODO(1b-06): if no value was ever set, mark the promise Broken and wake the future
+        // TODO(1b-01): if no value was ever set, mark the promise Broken and wake the future
     }
 }
 
@@ -58,6 +58,6 @@ impl<T> Future<T> {
 
     /// Waits for the value. `Err(BrokenPromise)` if the promise was dropped without setting one.
     pub fn get(self) -> Result<T, BrokenPromise> {
-        todo!("1b-05: wait while the state is Pending, then take the state out and return the value")
+        todo!("1b-01: wait while the state is Pending, then take the state out and return the value")
     }
 }

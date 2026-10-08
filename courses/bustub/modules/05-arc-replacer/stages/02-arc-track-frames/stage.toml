@@ -1,5 +1,0 @@
-id = "1e-02"
-title = "record_access (new pages) and set_evictable"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1e::s1e_02"]

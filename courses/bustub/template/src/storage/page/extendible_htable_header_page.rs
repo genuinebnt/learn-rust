@@ -23,32 +23,32 @@ impl<B> ExtendibleHTableHeaderPage<B> {
 
 impl<B: AsRef<[u8]>> ExtendibleHTableHeaderPage<B> {
     pub fn max_depth(&self) -> u32 {
-        todo!("2b-03: the max depth field")
+        todo!("2b-02: the max depth field")
     }
 
     /// How many directory slots the header uses: 2^max_depth.
     pub fn max_size(&self) -> u32 {
-        todo!("2b-03: 2 to the max depth")
+        todo!("2b-02: 2 to the max depth")
     }
 
     /// The directory page id in slot `directory_idx` (`PageId::INVALID` if there isn't one yet).
     pub fn get_directory_page_id(&self, directory_idx: u32) -> PageId {
-        todo!("2b-03: panic for a slot past max_size; otherwise the id stored in that slot")
+        todo!("2b-02: panic for a slot past max_size; otherwise the id stored in that slot")
     }
 
     /// Which directory a hash belongs to: its **top** `max_depth` bits. With max depth 0 there is one directory, index 0.
     pub fn hash_to_directory_index(&self, hash: u32) -> u32 {
-        todo!("2b-04: shift the hash right so only its top max_depth bits remain; max depth 0 must give 0 (a shift by 32 is not allowed)")
+        todo!("2b-02: shift the hash right so only its top max_depth bits remain; max depth 0 must give 0 (a shift by 32 is not allowed)")
     }
 }
 
 impl<B: AsRef<[u8]> + AsMut<[u8]>> ExtendibleHTableHeaderPage<B> {
     /// Formats a fresh page: the given max depth, and every directory slot empty (`INVALID`). Panics if `max_depth` is more than 9.
     pub fn init(&mut self, max_depth: u32) {
-        todo!("2b-03: store the max depth (at most 9), and mark every slot INVALID: a fresh page is zeros, and 0 is a real page id")
+        todo!("2b-02: store the max depth (at most 9), and mark every slot INVALID: a fresh page is zeros, and 0 is a real page id")
     }
 
     pub fn set_directory_page_id(&mut self, directory_idx: u32, directory_page_id: PageId) {
-        todo!("2b-03: panic for a slot past max_size; otherwise store the id in that slot")
+        todo!("2b-02: panic for a slot past max_size; otherwise store the id in that slot")
     }
 }

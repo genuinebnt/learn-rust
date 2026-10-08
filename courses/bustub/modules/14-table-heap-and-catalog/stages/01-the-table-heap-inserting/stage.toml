@@ -1,0 +1,7 @@
+id = "3c-01"
+title = "The table heap: inserting"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_3c::s3c_01"]
+learn = ["a table as a chain of pages with an append point", "holding a lock across several page latches", "an error for a value that can never fit"]
+concepts = ["heap-files", "raii-guards-and-lifetimes", "coarse-and-fine-grained-locking"]

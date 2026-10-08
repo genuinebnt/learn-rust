@@ -1,0 +1,7 @@
+id = "3c-02"
+title = "Getting and updating tuples"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3c::s3c_02"]
+learn = ["reading and writing under the right page latch", "running a caller's check under the latch", "errors for ids that name nothing"]
+concepts = ["heap-files", "errors-as-values-with-result", "raii-guards-and-lifetimes"]

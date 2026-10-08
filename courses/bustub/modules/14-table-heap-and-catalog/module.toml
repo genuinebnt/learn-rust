@@ -1,0 +1,56 @@
+code = "3c"
+title = "Table heap, iterator and catalog"
+summary = "A table as a linked list of pages in the buffer pool, a scan that stops where it started, indexes over tuples (key bytes, a column-wise comparator, a B+ tree behind a trait), and the catalog that names tables and indexes. BusTub Project 3, the storage layer the executors stand on."
+lectures = ["storage2", "storage3", "indexes1"]
+bustub = ["src/include/storage/table/table_heap.h", "src/storage/table/table_heap.cpp", "src/include/storage/table/table_iterator.h", "src/storage/table/table_iterator.cpp", "src/include/storage/index/index.h", "src/include/storage/index/generic_key.h", "src/storage/index/b_plus_tree_index.cpp", "src/include/catalog/catalog.h", "test/table/tuple_test.cpp"]
+files = []
+
+[[resources]]
+kind = "docs"
+title = "std::sync::Mutex"
+url = "https://doc.rust-lang.org/std/sync/struct.Mutex.html"
+
+[[resources]]
+kind = "book"
+title = "The Rust Book: validating references with lifetimes"
+url = "https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html"
+
+[[resources]]
+kind = "book"
+title = "The Rust Book: trait objects"
+url = "https://doc.rust-lang.org/book/ch18-02-trait-objects.html"
+
+[[resources]]
+kind = "docs"
+title = "std::collections::HashMap"
+url = "https://doc.rust-lang.org/std/collections/struct.HashMap.html"
+
+[[resources]]
+kind = "docs"
+title = "std::sync::Arc"
+url = "https://doc.rust-lang.org/std/sync/struct.Arc.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: system catalogs (pg_class and friends)"
+url = "https://www.postgresql.org/docs/current/catalogs.html"
+
+[[resources]]
+kind = "docs"
+title = "SQLite: the schema table (sqlite_schema)"
+url = "https://www.sqlite.org/schematab.html"
+
+[[resources]]
+kind = "blog"
+title = "Halloween Problem (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Halloween_Problem"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: heap-only tuples and the free space map"
+url = "https://www.postgresql.org/docs/current/storage-fsm.html"
+
+[[resources]]
+kind = "code"
+title = "BusTub's catalog and table heap"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/catalog/catalog.h"

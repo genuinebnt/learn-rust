@@ -5,6 +5,7 @@
   "src/buffer/lru_k_replacer.rs": "1d",
   "src/buffer/lru_replacer.rs": "1c",
   "src/buffer/traced_buffer_pool_manager.rs": "2c",
+  "src/catalog/catalog.rs": "3c",
   "src/catalog/column.rs": "3b",
   "src/catalog/schema.rs": "3b",
   "src/common/channel.rs": "1b",
@@ -22,6 +23,7 @@
   "src/storage/index/b_plus_tree.rs": "2c",
   "src/storage/index/fixed_size.rs": "2a",
   "src/storage/index/generic_key.rs": "2a",
+  "src/storage/index/index.rs": "3c",
   "src/storage/index/index_iterator.rs": "2c",
   "src/storage/index/int_comparator.rs": "2a",
   "src/storage/page/b_plus_tree_header_page.rs": "2c",
@@ -36,6 +38,8 @@
   "src/storage/page/page_bytes.rs": "2a",
   "src/storage/page/page_guard.rs": "1f",
   "src/storage/page/table_page.rs": "3b",
+  "src/storage/table/table_heap.rs": "3c",
+  "src/storage/table/table_iterator.rs": "3c",
   "src/storage/table/tuple.rs": "3b",
   "src/types/type_id.rs": "3a",
   "src/types/value.rs": "3a",
@@ -73,6 +77,8 @@
   "tests/stages_2d.rs": "2d",
   "tests/stages_3a.rs": "3a",
   "tests/stages_3b.rs": "3b",
+  "tests/stages_3c.rs": "3c",
   "tests/table_page_test.rs": "3b",
+  "tests/tuple_test.rs": "3c",
   "tests/type_test.rs": "3a"
 }

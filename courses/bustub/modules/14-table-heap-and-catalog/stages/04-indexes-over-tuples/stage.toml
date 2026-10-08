@@ -1,0 +1,7 @@
+id = "3c-04"
+title = "Indexes over tuples"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_3c::s3c_04"]
+learn = ["turning a key tuple into the fixed-size key of the B+ tree", "a comparator that reads columns from key bytes", "a trait object over a generic implementation"]
+concepts = ["trait-objects-and-the-disk-seam", "tuple-layout-fixed-and-variable-parts", "lifetimes-in-structs"]

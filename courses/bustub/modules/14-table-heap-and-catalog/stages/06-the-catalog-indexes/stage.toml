@@ -1,0 +1,7 @@
+id = "3c-06"
+title = "The catalog: indexes"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_3c::s3c_06"]
+learn = ["building an index from the rows a table already has", "choosing a generic key size at run time", "Result for real errors and Option for \"nothing to do\""]
+concepts = ["the-catalog", "trait-objects-and-the-disk-seam", "model-based-testing"]

@@ -1,0 +1,6 @@
+id = "3c-07"
+title = "Boss: BusTub's TableHeapTest"
+kind = "boss"
+difficulty = "medium"
+tests = ["tuple_test"]
+retest = true

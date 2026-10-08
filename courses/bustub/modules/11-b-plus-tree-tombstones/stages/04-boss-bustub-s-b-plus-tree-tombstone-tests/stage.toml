@@ -1,0 +1,6 @@
+id = "2d-04"
+title = "Boss: BusTub's tombstone tests"
+kind = "boss"
+difficulty = "hard"
+tests = ["b_plus_tree_tombstone_test", "b_plus_tree_tombstone_variants_test"]
+retest = true

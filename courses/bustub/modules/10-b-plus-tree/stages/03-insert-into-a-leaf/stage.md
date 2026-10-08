@@ -71,6 +71,8 @@ let mut leaf = Leaf::<_, K, V>::new(&mut leaf_guard[..]);                      /
 
 ### Notes
 
+**About `TOMBS`.** The template's `BPlusTree`, `IndexIterator` and leaf page carry a const generic `TOMBS` (default 0) for module 2d. Write `Leaf::<_, K, V>::new(..)` for now: it means `TOMBS = 0`, which is what every test of this module uses. Module 2d changes it to `Leaf::<_, K, V, TOMBS>`.
+
 **Why a stack of guards.** Later a split needs the parent, and the parent's parent: the operation must still hold them when it gets there, so it keeps every guard it takes in the order it took them. `Vec<WritePageGuard>` is that stack, and dropping it (or clearing it) releases every latch.
 
 **The empty-tree race.** Two threads inserting into an empty tree must not both create a root. Holding the header's **write** latch while checking `root == INVALID` and while storing the new root is what prevents it.

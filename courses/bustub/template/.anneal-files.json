@@ -38,6 +38,8 @@
   "tests/b_plus_tree_delete_test.rs": "2c",
   "tests/b_plus_tree_insert_test.rs": "2c",
   "tests/b_plus_tree_sequential_scale_test.rs": "2c",
+  "tests/b_plus_tree_tombstone_test.rs": "2d",
+  "tests/b_plus_tree_tombstone_variants_test.rs": "2d",
   "tests/b_plus_tree_utils/mod.rs": "2c",
   "tests/buffer_pool_manager_classic_test.rs": "1f",
   "tests/buffer_pool_manager_test.rs": "1g",
@@ -60,5 +62,6 @@
   "tests/stages_1g.rs": "1g",
   "tests/stages_2a.rs": "2a",
   "tests/stages_2b.rs": "2b",
-  "tests/stages_2c.rs": "2c"
+  "tests/stages_2c.rs": "2c",
+  "tests/stages_2d.rs": "2d"
 }

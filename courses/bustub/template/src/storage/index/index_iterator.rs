@@ -13,7 +13,7 @@ use crate::common::config::PageId;
 use crate::storage::index::fixed_size::FixedSize;
 use crate::storage::page::b_plus_tree_leaf_page::BPlusTreeLeafPage;
 
-pub struct IndexIterator<'a, K, V> {
+pub struct IndexIterator<'a, K, V, const TOMBS: usize = 0> {
     bpm: &'a BufferPoolManager,
     /// The leaf holding the current pair; `None` once the scan is past the last pair (the end).
     page_id: Option<PageId>,
@@ -22,15 +22,15 @@ pub struct IndexIterator<'a, K, V> {
     _entry: PhantomData<(K, V)>,
 }
 
-impl<'a, K: FixedSize + Clone, V: FixedSize + Clone> IndexIterator<'a, K, V> {
+impl<'a, K: FixedSize + Clone, V: FixedSize + Clone, const TOMBS: usize> IndexIterator<'a, K, V, TOMBS> {
     /// The end: past the last pair of the last leaf.
-    pub fn end(bpm: &'a BufferPoolManager) -> IndexIterator<'a, K, V> {
+    pub fn end(bpm: &'a BufferPoolManager) -> IndexIterator<'a, K, V, TOMBS> {
         todo!("2c-06: an iterator with no leaf")
     }
 
     /// An iterator at slot `index` of leaf `page_id`, moved forward to the first slot that exists if `index` is past the leaf's end
     /// (the next leaf's first pair, and so on; the end if there are none). The tree creates iterators with this.
-    pub fn at(bpm: &'a BufferPoolManager, page_id: PageId, index: u32) -> IndexIterator<'a, K, V> {
+    pub fn at(bpm: &'a BufferPoolManager, page_id: PageId, index: u32) -> IndexIterator<'a, K, V, TOMBS> {
         todo!("2c-06: remember the position, then move on to the next leaf while the slot is past the end of its leaf")
     }
 
@@ -44,7 +44,7 @@ impl<'a, K: FixedSize + Clone, V: FixedSize + Clone> IndexIterator<'a, K, V> {
     }
 }
 
-impl<K: FixedSize + Clone, V: FixedSize + Clone> Iterator for IndexIterator<'_, K, V> {
+impl<K: FixedSize + Clone, V: FixedSize + Clone, const TOMBS: usize> Iterator for IndexIterator<'_, K, V, TOMBS> {
     type Item = (K, V);
 
     /// The current pair, and move to the next one.
@@ -54,7 +54,7 @@ impl<K: FixedSize + Clone, V: FixedSize + Clone> Iterator for IndexIterator<'_, 
 }
 
 /// Two iterators are equal when they are at the same place. (BusTub: `operator==`.)
-impl<K, V> PartialEq for IndexIterator<'_, K, V> {
+impl<K, V, const TOMBS: usize> PartialEq for IndexIterator<'_, K, V, TOMBS> {
     fn eq(&self, other: &Self) -> bool {
         todo!("2c-06: the same leaf and the same slot")
     }

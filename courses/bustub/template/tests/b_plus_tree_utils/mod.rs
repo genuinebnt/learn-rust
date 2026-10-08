@@ -15,7 +15,7 @@ use bustub::storage::page::page_guard::ReadPageGuard;
 
 pub type Key = GenericKey<8>;
 pub type Cmp = GenericComparator<8>;
-pub type Tree<'a> = BPlusTree<'a, Key, Rid, Cmp>;
+pub type Tree<'a, const T: usize = 0> = BPlusTree<'a, Key, Rid, Cmp, T>;
 
 pub fn index_key(key: i64) -> Key {
     let mut k = Key::default();
@@ -29,37 +29,42 @@ pub fn rid_of(key: i64) -> Rid {
 }
 
 pub fn new_tree<'a>(bpm: &'a BufferPoolManager, leaf_max_size: u32, internal_max_size: u32) -> Tree<'a> {
+    new_tree_t::<0>(bpm, leaf_max_size, internal_max_size)
+}
+
+/// A tree whose leaves have a tombstone buffer of `T` keys (BusTub's `NumTombs`).
+pub fn new_tree_t<'a, const T: usize>(bpm: &'a BufferPoolManager, leaf_max_size: u32, internal_max_size: u32) -> Tree<'a, T> {
     let header_page_id = bpm.new_page();
     BPlusTree::new("foo_pk", header_page_id, bpm, GenericComparator::<8>, leaf_max_size, internal_max_size)
 }
 
 /// Inserts `key` with the rid BusTub's tests use. Returns what the tree answered.
-pub fn insert(tree: &Tree, key: i64) -> bool {
+pub fn insert<const T: usize>(tree: &Tree<T>, key: i64) -> bool {
     tree.insert(&index_key(key), &rid_of(key))
 }
 
-pub fn remove(tree: &Tree, key: i64) {
+pub fn remove<const T: usize>(tree: &Tree<T>, key: i64) {
     tree.remove(&index_key(key));
 }
 
-pub fn get(tree: &Tree, key: i64) -> Vec<Rid> {
+pub fn get<const T: usize>(tree: &Tree<T>, key: i64) -> Vec<Rid> {
     tree.get_value(&index_key(key))
 }
 
 /// All keys in order, by following the iterator.
-pub fn keys_by_scan(tree: &Tree) -> Vec<i64> {
+pub fn keys_by_scan<const T: usize>(tree: &Tree<T>) -> Vec<i64> {
     tree.begin().map(|(k, _)| k.get_as_integer()).collect()
 }
 
 // ---- IsTreeValid ----------------------------------------------------------------------------------------------------------------
 
 #[allow(clippy::too_many_arguments)]
-fn is_tree_valid_impl(node_page_id: PageId, bpm: &BufferPoolManager, cmp: &Cmp, mut lower_bound: Key, upper_bound: Key, mut is_lower_neg_inf: bool, is_upper_inf: bool) -> bool {
+fn is_tree_valid_impl<const T: usize>(node_page_id: PageId, bpm: &BufferPoolManager, cmp: &Cmp, mut lower_bound: Key, upper_bound: Key, mut is_lower_neg_inf: bool, is_upper_inf: bool) -> bool {
     let guard = bpm.read_page(node_page_id);
     let page = Page::new(&guard[..]);
     let mut is_valid = true;
     if page.is_leaf_page() {
-        let leaf = Leaf::<_, Key, Rid>::new(&guard[..]);
+        let leaf = Leaf::<_, Key, Rid, T>::new(&guard[..]);
         if leaf.size() == 0 {
             return false;
         }
@@ -97,25 +102,29 @@ fn is_tree_valid_impl(node_page_id: PageId, bpm: &BufferPoolManager, cmp: &Cmp, 
                 is_valid = false;
                 break;
             }
-            if !is_tree_valid_impl(internal.value_at(i - 1), bpm, cmp, lower_bound, internal.key_at(i), is_lower_neg_inf, false) {
+            if !is_tree_valid_impl::<T>(internal.value_at(i - 1), bpm, cmp, lower_bound, internal.key_at(i), is_lower_neg_inf, false) {
                 is_valid = false;
                 break;
             }
             lower_bound = internal.key_at(i);
             is_lower_neg_inf = false;
         }
-        is_valid = is_valid && is_tree_valid_impl(internal.value_at(internal.size() - 1), bpm, cmp, lower_bound, upper_bound, is_lower_neg_inf, is_upper_inf);
+        is_valid = is_valid && is_tree_valid_impl::<T>(internal.value_at(internal.size() - 1), bpm, cmp, lower_bound, upper_bound, is_lower_neg_inf, is_upper_inf);
     }
     is_valid
 }
 
 /// BusTub's `IsTreeValid`: every leaf is non-empty and every key lies within the range its ancestors' keys allow.
 pub fn is_tree_valid(root_page_id: PageId, bpm: &BufferPoolManager) -> bool {
-    is_tree_valid_impl(root_page_id, bpm, &GenericComparator::<8>, Key::default(), Key::default(), true, true)
+    is_tree_valid_t::<0>(root_page_id, bpm)
+}
+
+pub fn is_tree_valid_t<const T: usize>(root_page_id: PageId, bpm: &BufferPoolManager) -> bool {
+    is_tree_valid_impl::<T>(root_page_id, bpm, &GenericComparator::<8>, Key::default(), Key::default(), true, true)
 }
 
 /// BusTub's `TreeValuesMatch`: every inserted key has exactly one value, every deleted key has none.
-pub fn tree_values_match(tree: &Tree, inserted: &[i64], deleted: &[i64]) -> bool {
+pub fn tree_values_match<const T: usize>(tree: &Tree<T>, inserted: &[i64], deleted: &[i64]) -> bool {
     inserted.iter().all(|&k| get(tree, k).len() == 1) && deleted.iter().all(|&k| get(tree, k).is_empty())
 }
 
@@ -133,13 +142,20 @@ pub fn get_leftmost_leaf_page_id(root_page_id: PageId, bpm: &BufferPoolManager) 
 }
 
 /// BusTub's `IndexLeaves`: walks the leaf pages left to right. Each item is the leaf's read guard.
-pub struct IndexLeaves<'a> {
+pub struct IndexLeaves<'a, const T: usize = 0> {
     bpm: &'a BufferPoolManager,
     guard: Option<ReadPageGuard<'a>>,
 }
 
-impl<'a> IndexLeaves<'a> {
-    pub fn new(root_page_id: PageId, bpm: &'a BufferPoolManager) -> IndexLeaves<'a> {
+impl<'a> IndexLeaves<'a, 0> {
+    pub fn new(root_page_id: PageId, bpm: &'a BufferPoolManager) -> IndexLeaves<'a, 0> {
+        IndexLeaves::with_tombstones(root_page_id, bpm)
+    }
+}
+
+impl<'a, const T: usize> IndexLeaves<'a, T> {
+    /// The leaves of a tree whose leaves have a tombstone buffer of `T` keys.
+    pub fn with_tombstones(root_page_id: PageId, bpm: &'a BufferPoolManager) -> IndexLeaves<'a, T> {
         let page_id = get_leftmost_leaf_page_id(root_page_id, bpm);
         IndexLeaves { bpm, guard: Some(bpm.read_page(page_id)) }
     }
@@ -149,7 +165,7 @@ impl<'a> IndexLeaves<'a> {
     }
 
     /// The current leaf.
-    pub fn leaf(&self) -> Leaf<&[u8], Key, Rid> {
+    pub fn leaf(&self) -> Leaf<&[u8], Key, Rid, T> {
         Leaf::new(&self.guard.as_ref().expect("invalid iterator")[..])
     }
 
@@ -160,8 +176,8 @@ impl<'a> IndexLeaves<'a> {
     }
 }
 
-pub fn get_num_leaves(tree: &Tree, bpm: &BufferPoolManager) -> usize {
-    let mut leaves = IndexLeaves::new(tree.get_root_page_id(), bpm);
+pub fn get_num_leaves<const T: usize>(tree: &Tree<T>, bpm: &BufferPoolManager) -> usize {
+    let mut leaves = IndexLeaves::<T>::with_tombstones(tree.get_root_page_id(), bpm);
     let mut count = 0;
     while leaves.valid() {
         count += 1;
@@ -189,6 +205,12 @@ pub struct Shape {
 /// whose separators are copied up from leaves, a separator may also be a key since deleted: only the range is checked); and the
 /// chain of `next_page_id`s visits exactly the leaves, left to right.
 pub fn check_structure(bpm: &BufferPoolManager, root_page_id: PageId) -> Result<Shape, String> {
+    check_structure_t::<0>(bpm, root_page_id)
+}
+
+/// `check_structure` for a tree whose leaves have a tombstone buffer of `T` keys: also checks the buffers (at most `T` keys, no
+/// duplicates, every tombstoned key still physically in its leaf). `Shape::keys` counts the pairs in the pages, tombstoned or not.
+pub fn check_structure_t<const T: usize>(bpm: &BufferPoolManager, root_page_id: PageId) -> Result<Shape, String> {
     if !root_page_id.is_valid() {
         return Ok(Shape { height: 0, leaves: 0, internals: 0, keys: 0 });
     }
@@ -199,12 +221,12 @@ pub fn check_structure(bpm: &BufferPoolManager, root_page_id: PageId) -> Result<
         internals: usize,
         keys: usize,
     }
-    fn walk(bpm: &BufferPoolManager, cmp: &Cmp, page_id: PageId, depth: usize, is_root: bool, lo: Option<Key>, hi: Option<Key>, w: &mut Walk) -> Result<(), String> {
+    fn walk<const T: usize>(bpm: &BufferPoolManager, cmp: &Cmp, page_id: PageId, depth: usize, is_root: bool, lo: Option<Key>, hi: Option<Key>, w: &mut Walk) -> Result<(), String> {
         let guard = bpm.read_page(page_id);
         let page = Page::new(&guard[..]);
         let in_range = |k: &Key| lo.as_ref().is_none_or(|lo| cmp.compare(k, lo).is_ge()) && hi.as_ref().is_none_or(|hi| cmp.compare(k, hi).is_lt());
         if page.is_leaf_page() {
-            let leaf = Leaf::<_, Key, Rid>::new(&guard[..]);
+            let leaf = Leaf::<_, Key, Rid, T>::new(&guard[..]);
             let (size, max, min) = (leaf.size(), leaf.max_size(), leaf.min_size());
             if size == 0 || size >= max {
                 return Err(format!("leaf {page_id:?} has {size} pairs; a leaf holds 1..{max} pairs at rest"));
@@ -219,6 +241,19 @@ pub fn check_structure(bpm: &BufferPoolManager, root_page_id: PageId) -> Result<
                 }
                 if i > 0 && cmp.compare(&leaf.key_at(i - 1), &k).is_ge() {
                     return Err(format!("leaf {page_id:?}: keys are not strictly increasing at slot {i}"));
+                }
+            }
+            // (a tree without tombstones never calls the buffer functions: they belong to module 2d)
+            let tombs = if T > 0 { leaf.tombstones() } else { vec![] };
+            if tombs.len() > T {
+                return Err(format!("leaf {page_id:?} has {} tombstones but a buffer of {T}", tombs.len()));
+            }
+            for (i, t) in tombs.iter().enumerate() {
+                if leaf.find(t, cmp).is_none() {
+                    return Err(format!("leaf {page_id:?}: tombstone {} has no pair in the page", t.get_as_integer()));
+                }
+                if tombs[..i].iter().any(|u| u == t) {
+                    return Err(format!("leaf {page_id:?}: tombstone {} is buffered twice", t.get_as_integer()));
                 }
             }
             match w.leaf_depth {
@@ -255,13 +290,13 @@ pub fn check_structure(bpm: &BufferPoolManager, root_page_id: PageId) -> Result<
             for i in 0..size {
                 let child_lo = if i == 0 { lo } else { Some(node.key_at(i)) };
                 let child_hi = if i + 1 < size { Some(node.key_at(i + 1)) } else { hi };
-                walk(bpm, cmp, node.value_at(i), depth + 1, false, child_lo, child_hi, w)?;
+                walk::<T>(bpm, cmp, node.value_at(i), depth + 1, false, child_lo, child_hi, w)?;
             }
             Ok(())
         }
     }
     let mut w = Walk { leaf_ids: vec![], leaf_depth: None, internals: 0, keys: 0 };
-    walk(bpm, &cmp, root_page_id, 1, true, None, None, &mut w)?;
+    walk::<T>(bpm, &cmp, root_page_id, 1, true, None, None, &mut w)?;
     // the leaf chain
     let mut chain = vec![];
     let mut next = Some(w.leaf_ids[0]);
@@ -270,7 +305,7 @@ pub fn check_structure(bpm: &BufferPoolManager, root_page_id: PageId) -> Result<
         if chain.len() > w.leaf_ids.len() {
             break;
         }
-        next = Leaf::<_, Key, Rid>::new(&bpm.read_page(id)[..]).next_page_id();
+        next = Leaf::<_, Key, Rid, T>::new(&bpm.read_page(id)[..]).next_page_id();
     }
     if chain != w.leaf_ids {
         return Err(format!("the next-leaf chain {chain:?} is not the leaves left to right {:?}", w.leaf_ids));
@@ -281,21 +316,27 @@ pub fn check_structure(bpm: &BufferPoolManager, root_page_id: PageId) -> Result<
 /// The tree's shape as text, for exact comparisons: a leaf is `[1,2]`; an internal page is `{k1,k2 child child child}`, listing its
 /// keys (not the unused first one) and then its children. A lone root leaf is `[1,2]`; an empty tree is `empty`.
 pub fn shape(bpm: &BufferPoolManager, root_page_id: PageId) -> String {
-    fn go(bpm: &BufferPoolManager, page_id: PageId) -> String {
+    shape_t::<0>(bpm, root_page_id)
+}
+
+/// `shape` with tombstones: a leaf is `[1,2,3~2]` (keys, then `~` and the tombstoned keys, oldest first).
+pub fn shape_t<const T: usize>(bpm: &BufferPoolManager, root_page_id: PageId) -> String {
+    fn go<const T: usize>(bpm: &BufferPoolManager, page_id: PageId) -> String {
         let guard = bpm.read_page(page_id);
         if Page::new(&guard[..]).is_leaf_page() {
-            let leaf = Leaf::<_, Key, Rid>::new(&guard[..]);
+            let leaf = Leaf::<_, Key, Rid, T>::new(&guard[..]);
             let keys: Vec<String> = (0..leaf.size()).map(|i| leaf.key_at(i).get_as_integer().to_string()).collect();
-            format!("[{}]", keys.join(","))
+            let tombs: Vec<String> = if T > 0 { leaf.tombstones().iter().map(|k| k.get_as_integer().to_string()).collect() } else { vec![] };
+            if tombs.is_empty() { format!("[{}]", keys.join(",")) } else { format!("[{}~{}]", keys.join(","), tombs.join(",")) }
         } else {
             let node = Internal::<_, Key>::new(&guard[..]);
             let keys: Vec<String> = (1..node.size()).map(|i| node.key_at(i).get_as_integer().to_string()).collect();
-            let children: Vec<String> = (0..node.size()).map(|i| go(bpm, node.value_at(i))).collect();
+            let children: Vec<String> = (0..node.size()).map(|i| go::<T>(bpm, node.value_at(i))).collect();
             format!("{{{} {}}}", keys.join(","), children.join(" "))
         }
     }
     if root_page_id.is_valid() {
-        go(bpm, root_page_id)
+        go::<T>(bpm, root_page_id)
     } else {
         "empty".to_owned()
     }

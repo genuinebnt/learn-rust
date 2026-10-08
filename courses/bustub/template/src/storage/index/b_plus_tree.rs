@@ -53,7 +53,7 @@ impl<'a> Context<'a> {
     }
 }
 
-pub struct BPlusTree<'a, K, V, C> {
+pub struct BPlusTree<'a, K, V, C, const TOMBS: usize = 0> {
     index_name: String,
     /// Public, like BusTub's `bpm_`: tests read how many pages the tree latched.
     pub bpm: TracedBufferPoolManager<'a>,
@@ -64,7 +64,7 @@ pub struct BPlusTree<'a, K, V, C> {
     _entry: PhantomData<(K, V)>,
 }
 
-impl<'a, K, V, C> BPlusTree<'a, K, V, C>
+impl<'a, K, V, C, const TOMBS: usize> BPlusTree<'a, K, V, C, TOMBS>
 where
     K: FixedSize + Clone,
     V: FixedSize + Clone,
@@ -78,7 +78,7 @@ where
 
     /// As many pairs as fit in a leaf page.
     pub fn default_leaf_max_size() -> u32 {
-        Leaf::<&[u8], K, V>::capacity() as u32
+        Leaf::<&[u8], K, V, TOMBS>::capacity() as u32
     }
 
     /// As many children as fit in an internal page.
@@ -201,17 +201,17 @@ where
     // ------------------------------------------------------------------------------------------------------------------------
 
     /// An iterator at the smallest key.
-    pub fn begin(&self) -> IndexIterator<'a, K, V> {
+    pub fn begin(&self) -> IndexIterator<'a, K, V, TOMBS> {
         todo!("2c-06: the leftmost leaf, slot 0; an empty tree has no leaf, so its begin is its end")
     }
 
     /// An iterator at the first key that is not less than `key`.
-    pub fn begin_at(&self, key: &K) -> IndexIterator<'a, K, V> {
+    pub fn begin_at(&self, key: &K) -> IndexIterator<'a, K, V, TOMBS> {
         todo!("2c-06: the leaf for the key, at the first slot whose key is not less than it (IndexIterator::at moves on if that is past the leaf's end)")
     }
 
     /// The iterator past the last pair.
-    pub fn end(&self) -> IndexIterator<'a, K, V> {
+    pub fn end(&self) -> IndexIterator<'a, K, V, TOMBS> {
         todo!("2c-06: IndexIterator::end")
     }
 }

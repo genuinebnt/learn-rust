@@ -1,0 +1,7 @@
+id = "2d-01"
+title = "The tombstone buffer in the leaf page"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2d::s2d_01"]
+learn = ["const generics: a page layout that depends on a number", "a fixed-size buffer inside a page, oldest first", "keeping a type's old layout when the new feature is off"]
+concepts = ["const-generics-for-page-layouts", "tombstones-and-lazy-deletion", "bytes-endianness-and-views"]

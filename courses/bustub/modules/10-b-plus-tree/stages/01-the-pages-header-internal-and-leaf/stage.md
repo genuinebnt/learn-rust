@@ -119,7 +119,7 @@ self.entries().get(index as usize)                                       // -> (
 ### The task
 
 In `src/storage/page/b_plus_tree_leaf_page.rs`:
-- `capacity()`: pairs that fit after the 16-byte header; `init(max_size)` (type `Leaf`, size 0, **no next leaf**);
+- `capacity()`: pairs that fit after the header: `array_size(Self::ENTRIES_AT, <(K, V)>::SIZE)`, where the given constant `ENTRIES_AT` is 16 here (module 2d puts a tombstone buffer in front of the entries and changes it; the `TOMBS` const generic on the struct is for that module, leave it at its default); `init(max_size)` (type `Leaf`, size 0, **no next leaf**);
 - `next_page_id()` returning `Option<PageId>` and `set_next_page_id(Option<PageId>)` (on disk `None` is `-1`, so page 0 stays usable);
 - `entry_at(i)` (panic past `size`), `key_at`, `value_at`, and `set_entry_at(i, key, value)` (does not change the size).
 

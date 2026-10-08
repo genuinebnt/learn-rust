@@ -1,0 +1,36 @@
+code = "2d"
+title = "B+ tree tombstones"
+summary = "A tombstone buffer in every leaf page: deletes mark instead of shift, the oldest tombstone is removed for real when the buffer is full, inserts bring deleted keys back, scans skip them, and splits, borrows and merges carry them along. BusTub Project 2, the lazy-delete leaderboard feature."
+lectures = ["indexes2", "indexconcurrency"]
+bustub = ["src/include/storage/page/b_plus_tree_leaf_page.h", "src/storage/page/b_plus_tree_leaf_page.cpp", "src/include/storage/index/b_plus_tree_debug.h", "test/storage/b_plus_tree_tombstone_test.cpp", "test/storage/b_plus_tree_delete_test.cpp", "test/storage/b_plus_tree_concurrent_test.cpp"]
+files = ["tests/b_plus_tree_tombstone_test.rs"]
+
+[[resources]]
+kind = "docs"
+title = "Const generics (the Rust reference)"
+url = "https://doc.rust-lang.org/reference/items/generics.html#const-generics"
+
+[[resources]]
+kind = "book"
+title = "Designing Data-Intensive Applications, ch. 3: LSM-trees and SSTables (deletes as tombstones)"
+url = "https://dataintensive.net/"
+
+[[resources]]
+kind = "docs"
+title = "RocksDB wiki: DeleteRange implementation (range tombstones)"
+url = "https://github.com/facebook/rocksdb/wiki/DeleteRange-Implementation"
+
+[[resources]]
+kind = "docs"
+title = "Cassandra: compaction (where tombstoned data is finally dropped)"
+url = "https://cassandra.apache.org/doc/latest/cassandra/managing/operating/compaction/overview.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL nbtree README: how dead index entries are deleted lazily"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/access/nbtree/README"
+
+[[resources]]
+kind = "docs"
+title = "std::array and [T; N]"
+url = "https://doc.rust-lang.org/std/primitive.array.html"

@@ -827,8 +827,19 @@ fn maybe_unlock(repo: &Path, course: &Course, progress: &Progress) -> anyhow::Re
     Ok(())
 }
 
+/// Where the course files are: `courses/<id>` here, else the checkout this binary was built from, so `anneal course init bustub` works
+/// from any directory after `cargo install --path crates/cli`.
+fn course_root(courses: &Path, id: &str) -> PathBuf {
+    let here = courses.join(id);
+    if here.join("course.toml").exists() {
+        return here;
+    }
+    let built_from = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../courses").join(id);
+    if built_from.join("course.toml").exists() { built_from } else { here }
+}
+
 fn init(course_id: &str, dir: Option<PathBuf>, courses: &Path) -> anyhow::Result<ExitCode> {
-    let root = courses.join(course_id);
+    let root = course_root(courses, course_id);
     let course = Course::load(&root)?;
     if course.meta.id != course_id {
         bail!("{} says its id is {:?}", root.join("course.toml").display(), course.meta.id);
@@ -893,7 +904,7 @@ fn list_files(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
 /// `anneal course update`: new stages and files arrive; your edited files are never overwritten.
 fn update(course_id: &str, courses: &Path) -> anyhow::Result<ExitCode> {
     let repo = find_repo()?;
-    let root = courses.join(course_id);
+    let root = course_root(courses, course_id);
     let template = root.join("template");
     if !template.is_dir() {
         bail!("{} has no template", root.display());

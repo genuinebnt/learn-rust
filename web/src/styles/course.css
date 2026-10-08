@@ -208,3 +208,51 @@
 .cx-leadmd p{margin:0 0 10px}
 .cx-leadmd{max-width:640px;font-size:17px;line-height:1.65;color:var(--mut)}
 .cx-h1{margin-bottom:0!important}
+
+/* ---- rendered stage markdown: code, tables, callouts (pages/courseMd.ts) ---- */
+.cx-prose .cx-hl{margin:20px 0;border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:var(--bg)}
+.cx-hl-h{display:flex;align-items:center;justify-content:space-between;gap:12px;height:34px;padding:0 10px 0 18px;border-bottom:1px solid var(--line2);background:var(--panel)}
+.cx-lang{display:inline-flex;align-items:center;gap:8px;font:600 10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.cx-lang::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.cx-hl.rust .cx-lang{color:var(--grn)}.cx-hl.rust .cx-lang::before{background:var(--grn)}
+.cx-hl.cpp .cx-lang{color:var(--warn)}.cx-hl.cpp .cx-lang::before{background:var(--warn)}
+.cx-hl.shell .cx-lang{color:var(--fn)}.cx-hl.shell .cx-lang::before{background:var(--fn)}
+.cx-copy{height:22px;padding:0 8px;border:1px solid transparent;border-radius:4px;font:500 11px var(--mono);color:var(--dim);opacity:0;transition:opacity .12s}
+.cx-hl:hover .cx-copy,.cx-copy:focus-visible{opacity:1}.cx-copy:hover{color:var(--fg);border-color:var(--line2)}
+.cx-prose .cx-hl pre{margin:0;padding:14px 18px;border:0;border-radius:0;background:none;font:400 13.5px/1.7 var(--mono);white-space:pre;overflow-x:auto}
+.cx-prose .cx-hl pre code{font-size:inherit}
+.t-f{color:var(--fn)}.t-s{color:var(--str)}.t-n{color:var(--num)}.t-l{color:var(--lt)}
+.cx-prose .cx-tbl{margin:20px 0;border:1px solid var(--line2);border-radius:8px;overflow-x:auto;background:var(--panel)}
+.cx-prose .cx-tbl table{display:table;width:100%;margin:0;border-collapse:collapse;font-size:14.5px}
+.cx-prose .cx-tbl th,.cx-prose .cx-tbl td{padding:10px 16px;border:0;border-top:1px solid var(--line2);text-align:left;vertical-align:top}
+.cx-prose .cx-tbl thead th{border-top:0;background:var(--raise);font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.cx-prose .cx-tbl th.c{color:var(--warn);box-shadow:inset 0 -2px 0 var(--warn)}
+.cx-prose .cx-tbl th.rust{color:var(--grn);box-shadow:inset 0 -2px 0 var(--grn)}
+.cx-prose .cx-tbl td.c{background:color-mix(in oklab,var(--warn) 5%,transparent)}
+.cx-prose .cx-tbl td.rust{background:color-mix(in oklab,var(--grn) 6%,transparent)}
+.cx-prose .cx-tbl.versus th+th,.cx-prose .cx-tbl.versus td+td{border-left:1px solid var(--line2)}
+.cx-prose .cx-tbl td.key{width:34%;color:var(--fg)}
+.cx-prose .cx-tbl tbody tr:hover td{background:color-mix(in oklab,var(--fg) 4%,transparent)}
+.cx-prose .cx-tbl td code{white-space:pre-wrap;overflow-wrap:anywhere}
+.cx-co{margin:20px 0;padding:14px 18px;border:1px solid var(--line2);border-left:3px solid var(--c);border-radius:8px;background:color-mix(in oklab,var(--c) 6%,var(--panel))}
+.cx-co-t{margin-bottom:6px;font:600 10.5px var(--mono);letter-spacing:.16em;color:var(--c)}
+.cx-co-b p{margin:0 0 8px;font-size:15px;line-height:1.7}.cx-co-b p:last-child{margin-bottom:0}
+.cx-co-b pre,.cx-co-b .cx-hl{margin:10px 0 4px}
+.cx-co.cx-k-tip{--c:var(--grn)}.cx-co.cx-k-note,.cx-co.cx-k-fit{--c:var(--dim)}.cx-co.cx-k-warn{--c:var(--warn)}
+.cx-co.cx-k-port{--c:var(--fn)}.cx-co.cx-k-why{--c:var(--vio)}.cx-co.cx-k-bustub{--c:var(--acc)}
+.cx-co.cx-k-fit{background:none}
+.cx-prose blockquote{margin:18px 0}
+
+/* ---- side panels: the workspace's panel pattern (22px gutters, panel background, ruled header) ---- */
+.cx-side{background:var(--panel)}
+.cx-sh{padding:20px 22px 18px;border-bottom:1px solid var(--line2)}
+.cx-sh b{margin-top:8px}
+.cx-sh .cx-prog{margin-top:14px}
+.cx-tree{padding:14px 12px 20px}
+.cx-node{padding:0 10px}
+.cx-toc{top:96px;height:calc(100vh - 96px);overflow:auto;padding:22px;gap:26px;background:var(--panel);border-left:1px solid var(--line2);scrollbar-width:none}
+.cx-toc::-webkit-scrollbar{display:none}
+.cx-toc a{padding:6px 0 6px 12px}
+.cx-toc h4{margin-bottom:10px}
+.cx-bar{padding-inline:22px}
+.cx-leadmd{max-width:none}.cx-leadmd>div>p{max-width:640px}

@@ -2,6 +2,9 @@ Pages have ids; the file has slots. This stage is the mapping between the two an
 
 It is the first stage with an invariant to protect rather than a function to compute. A slot is either in the page table or on the free list, never both and never neither, and three different methods change that. The hints below are about holding that invariant while threads write concurrently.
 
+> [!TIP] Check the invariant in debug builds
+> Write a private `fn check(&self)` that asserts every slot below `num_slots` is in exactly one of `pages` or `free_slots`, and call it under `debug_assert!` at the end of every method that changes either. A leaked slot never fails a plain test; this finds it the moment it happens.
+
 Work through the parts in order; they build on each other, and every test in the stage has to pass.
 
 ## Part 1 · Hand out fresh slots

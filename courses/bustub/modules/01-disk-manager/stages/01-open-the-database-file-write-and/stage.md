@@ -2,6 +2,9 @@ You are building the bottom of the database: one file that holds fixed-size page
 
 The seven parts are one idea at increasing risk: *where* a page lives (offsets), *how big* the file is, *what can fail* when opening it, and then the I/O primitives and their one real hazard, the short read. The tests are strict about the edges (a page past the end of the file reads as zeros, a short read reports exactly how many bytes the file had) because every layer above assumes them.
 
+> [!TIP] Look at the bytes
+> Open the file you are writing: `xxd -l 64 test.db` shows the first bytes, and `ls -ls test.db` prints the *allocated* size next to the apparent size, so you can see that `set_len` makes a sparse file (blocks are only allocated when written). `cargo test s1a_06 -- --nocapture` keeps the tests' own `println!` output.
+
 Work through the parts in order; they build on each other, and every test in the stage has to pass.
 
 ## Part 1 · Compute a slot's byte offset

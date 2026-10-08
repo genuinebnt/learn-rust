@@ -2,6 +2,9 @@ Observability, the log, and a seam. You add the lock-free counters the tests and
 
 None of it is hard to type; the work is in the contracts. Count *when*, append *atomically*, and decide what each disk does when it is asked for something it cannot do.
 
+> [!TIP] Watch the syscalls
+> `strace -f -e trace=pwrite64,write,pread64 cargo test s1a_ …` (Linux) shows what each call really does: positional writes carry their offset, and the log's `write` carries no offset at all because `O_APPEND` chooses it. On macOS use `sudo fs_usage -w -f filesys <pid>`.
+
 Work through the parts in order; they build on each other, and every test in the stage has to pass.
 
 ## Part 1 · Count the I/O with atomics

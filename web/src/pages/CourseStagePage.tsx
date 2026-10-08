@@ -1,17 +1,31 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { marked } from "marked";
 import { Fragment, useEffect, useState } from "react";
 import { api, type CourseStagePage as Page, type CourseStageRow, type SolutionFile } from "../api";
 import { Header } from "../components/Header";
 import { DIFFICULTY_COLOR, SplitTitle } from "./CoursePage";
+import { renderMd } from "./courseMd";
 
-/** Markdown tables here have no header row (`| | |`): drop the empty one marked would render. */
-const md = (s: string) => marked.parse(s, { async: false }).replace(/<thead>\s*<tr>(?:\s*<th[^>]*>\s*<\/th>)+\s*<\/tr>\s*<\/thead>/g, "");
+const md = renderMd;
 const DIFFICULTY_LABEL = { "very-easy": "VERY EASY", easy: "EASY", medium: "MEDIUM", hard: "HARD" } as const;
 
+/** Copies a code block when its copy button is clicked (the HTML is static, so the click is caught here). */
+function copyFromBlock(e: React.MouseEvent) {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".cx-copy");
+    if (!b) return;
+    const done = () => {
+        b.textContent = "copied";
+        setTimeout(() => (b.textContent = "copy"), 1200);
+    };
+    try {
+        navigator.clipboard.writeText(b.dataset.code ?? "").then(done, done);
+    } catch {
+        done();
+    }
+}
+
 function Prose({ text }: { text: string }) {
-    return <div dangerouslySetInnerHTML={{ __html: md(text) }} />;
+    return <div onClick={copyFromBlock} dangerouslySetInnerHTML={{ __html: md(text) }} />;
 }
 
 /** Splits markdown at its `### ` headings (not inside code fences): [title | null, body]. */

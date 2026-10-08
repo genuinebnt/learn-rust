@@ -43,3 +43,14 @@ SHIPPING
 
 REPORT: the stage list with difficulties, the test counts, what you changed from BusTub's behaviour on purpose (and the stage page where you said so), and the
 verify and smoke output lines.
+
+
+## Stage pages in the app: what the markdown can use
+
+The web app renders each `stage.md` (`web/src/pages/courseMd.ts`), so plain markdown gets structure:
+
+- **Code** is syntax-highlighted by fence language: ` ```rust `, ` ```cpp `, ` ```sh ` (a bare fence that has `$ ` lines is treated as a shell session), ` ```toml `. Rust blocks get a green label, C++ blocks an amber one, so the two are never confused.
+- **C/C++ vs Rust tables** are colour-coded by their header: a column headed `C / C++`, `C++`, `C` or `BusTub` is amber, `Rust` or `here` is green. A table with an empty header row (`| | |`) shows its first column as the key.
+- **Callouts**: `> [!TIP] Optional title`, `[!WARNING]`, `[!PORT]`, `[!WHY]`, `[!NOTE]`, `[!BUSTUB]`, then the body on the following `>` lines. Paragraphs that start with a bold `**Port rule:**`, `**Where this fits.**`, `**Pitfall…**`, `**The classic bug…**` or `**Why …**` become callouts by themselves.
+- **Hints** go in a `## Hints` section, one `### title` per hint. Write them at BusTub's level (the design choice, then the trap, then the invariant to check), never as a restatement of the task.
+- **Tips and tricks** are `> [!TIP]` callouts: the tool that shows the learner what the code actually did (`xxd`, `strace`, `--nocapture`, a `debug_assert!` checker).

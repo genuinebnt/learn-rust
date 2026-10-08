@@ -1,0 +1,7 @@
+id = "2c-01"
+title = "The pages: header, internal and leaf"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2c::s2c_01"]
+learn = ["the layout of a B+ tree's three kinds of page", "min and max sizes, and why a node's minimum is not half its maximum", "building typed views from the 2a toolkit"]
+concepts = ["b-plus-tree-anatomy", "bytes-endianness-and-views", "repr-c-layouts-and-const-asserts"]

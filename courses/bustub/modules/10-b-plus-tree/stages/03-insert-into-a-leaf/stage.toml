@@ -1,0 +1,7 @@
+id = "2c-03"
+title = "Insert into a leaf"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2c::s2c_03"]
+learn = ["growing a tree from empty: the first leaf is the root", "write-latching a whole path with a stack of guards", "keeping a page sorted while inserting"]
+concepts = ["the-root-and-the-header-page", "raii-guards-and-lifetimes", "checking-invariants"]

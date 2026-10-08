@@ -1,0 +1,7 @@
+id = "2c-06"
+title = "The iterator: scan the leaves"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2c::s2c_06"]
+learn = ["range scans along the leaf chain", "an iterator that holds no latch between calls", "implementing std::iter::Iterator and PartialEq for a cursor"]
+concepts = ["range-scans-and-the-leaf-chain", "pin-counts-and-dirty-pages"]

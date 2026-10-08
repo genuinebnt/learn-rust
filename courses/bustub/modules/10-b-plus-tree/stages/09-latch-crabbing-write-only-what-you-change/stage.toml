@@ -1,0 +1,7 @@
+id = "2c-09"
+title = "Latch crabbing: write only what you change"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_2c::s2c_09"]
+learn = ["safe nodes: when a child cannot change its parent", "an optimistic descent that write-latches only the leaf", "proving a concurrent tree correct with counters and stress tests"]
+concepts = ["latch-crabbing-and-safe-nodes", "optimistic-latching", "reader-writer-latches", "deadlock-and-lock-ordering"]

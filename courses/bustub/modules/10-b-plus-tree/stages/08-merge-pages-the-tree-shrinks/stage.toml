@@ -1,0 +1,7 @@
+id = "2c-08"
+title = "Merge pages; the tree shrinks"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_2c::s2c_08"]
+learn = ["merging two pages and removing a separator from the parent", "underflow that cascades up to the root", "collapsing a root with a single child"]
+concepts = ["underflow-borrow-and-merge", "the-root-and-the-header-page", "model-based-testing"]

@@ -24,10 +24,15 @@ them. **Read this before changing anything under `courses/` or the Courses pages
    page with tabs (Instructions, Hints, Solution, Concepts, Last run); a concept is its own page. Everything uses anneal's design (the /rust
    catalog's styles and components), with callouts, highlighted code and colour-coded C/C++ vs Rust tables. Mockups come before big UI changes
    (CLAUDE.md) and are built from the real reference, not from memory.
-7. **Mirror BusTub; show the C/C++ way** (tables, "Port rule" callouts), link CMU lectures and verified resources, keep the learner free to
+7. **Explain with pictures where they help.** *"you can show svg visualizations animations tables graphs diagrams etc to explain things"*. Concept
+   articles and stage pages take inline SVG (an ```svg fence, optionally starting with `caption: ...`), CSS animations, tables and graphs. They are
+   drawn with the app's own classes in `web/src/styles/course.css` (`box`, `live`, `free`, `hot`, `blue`, `ln`, `flow`, `pulse`, ...) so they follow
+   the theme; animations must respect `prefers-reduced-motion` (the stylesheet turns them off). Draw what is hard to see in prose: layouts,
+   state machines, timelines, cost curves. Module 1a's four concept articles are the examples.
+8. **Mirror BusTub; show the C/C++ way** (tables, "Port rule" callouts), link CMU lectures and verified resources, keep the learner free to
    solve it their own way (only the tests must pass), test every stage (fail before, pass after) and ship module by module.
 
-8. **Hide what the learner hasn't reached.** *"hide the modules not completed from mod.rs files"*. A learner's repo contains only the modules
+9. **Hide what the learner hasn't reached.** *"hide the modules not completed from mod.rs files"*. A learner's repo contains only the modules
    up to the one they are on: later modules' source files and tests are absent, and `mod.rs`/`lib.rs` don't name them, so `cargo test` compiles
    and runs only what is unlocked. Passing the last stage of a module brings in the next one (`anneal course test`, `next` or `update`). The
    file → module map is `template/.anneal-files.json` (written by `anneal course template`); a module that must ship a file a later module

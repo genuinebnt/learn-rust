@@ -4,6 +4,8 @@
 //   > [!TIP] An optional title        a GitHub-style alert; types: TIP, NOTE, WARNING, PORT, WHY, BUSTUB
 //   **Port rule:** …                  a paragraph that starts with one of the known bold leads becomes a callout
 //   a table whose header says "C / C++", "C++", "BusTub" or "Rust", "here"   columns are tinted to match
+//   ```svg                            a diagram: inline SVG, optionally starting with a `caption: …` line
+//   (raw HTML works too: animated figures, small interactive demos)
 
 import { rust } from "@codemirror/lang-rust";
 import { highlightTree, tagHighlighter, tags as t } from "@lezer/highlight";
@@ -112,7 +114,16 @@ const LANGS: Record<string, { label: string; kind: "rust" | "cpp" | "shell" | "p
     text: { label: "Text", kind: "plain", fn: esc },
 };
 
+/** A diagram: an ```svg fence holds inline SVG (trusted: it comes from the repo). An optional first line `caption: …` becomes the
+ *  figure caption. Diagrams use the classes in course.css (box, live, free, hot, ln, dim, grow, …) so they follow the theme. */
+function diagram(text: string): string {
+    const m = /^caption:\s*(.*)\n/.exec(text);
+    const svg = m ? text.slice(m[0].length) : text;
+    return `<figure class="cx-diagram">${svg}${m ? `<figcaption>${esc(m[1] ?? "")}</figcaption>` : ""}</figure>`;
+}
+
 function codeBlock(text: string, lang: string | undefined): string {
+    if (lang?.toLowerCase() === "svg") return diagram(text);
     const code = text.replace(/\n$/, "");
     let spec = lang ? LANGS[lang.toLowerCase().split(/\s/)[0] ?? ""] : undefined;
     // A bare fence that is a shell session ("$ cargo test") reads as one.

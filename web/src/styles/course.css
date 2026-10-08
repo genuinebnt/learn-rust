@@ -219,7 +219,7 @@
 .cx-hl.shell .cx-lang{color:var(--fn)}.cx-hl.shell .cx-lang::before{background:var(--fn)}
 .cx-copy{height:22px;padding:0 8px;border:1px solid transparent;border-radius:4px;font:500 11px var(--mono);color:var(--dim);opacity:0;transition:opacity .12s}
 .cx-hl:hover .cx-copy,.cx-copy:focus-visible{opacity:1}.cx-copy:hover{color:var(--fg);border-color:var(--line2)}
-.cx-prose .cx-hl pre{margin:0;padding:14px 18px;border:0;border-radius:0;background:none;font:400 13.5px/1.7 var(--mono);white-space:pre;overflow-x:auto}
+.cx-prose .cx-hl pre{margin:0;padding:14px 18px;border:0;border-radius:0;background:none;font:400 13.5px/1.7 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto}
 .cx-prose .cx-hl pre code{font-size:inherit}
 .t-f{color:var(--fn)}.t-s{color:var(--str)}.t-n{color:var(--num)}.t-l{color:var(--lt)}
 .cx-prose .cx-tbl{margin:20px 0;border:1px solid var(--line2);border-radius:8px;overflow-x:auto;background:var(--panel)}
@@ -315,3 +315,31 @@
 .cx-srow.plan{opacity:.65;pointer-events:none}.cx-now.dim{color:var(--dim)}
 .cx-readfirst{margin-bottom:20px}
 .cx-leadmd{font-size:16px;line-height:1.7;margin-bottom:6px}
+
+/* ---- diagrams (```svg fences): drawn with the app's own colours, so they follow the theme ---- */
+.cx-prose .cx-diagram{margin:24px 0;border:1px solid var(--line2);border-radius:8px;background:var(--bg);overflow:hidden}
+.cx-diagram svg{display:block;width:100%;height:auto}
+.cx-diagram figcaption{padding:9px 18px;border-top:1px solid var(--line2);background:var(--panel);font-size:13.5px;line-height:1.5;color:var(--dim)}
+.cx-diagram text{font:500 12px var(--mono);fill:var(--mut)}
+.cx-diagram .big{font-size:13.5px;fill:var(--fg)}.cx-diagram .sm{font-size:10.5px}
+.cx-diagram .dim{fill:var(--dim)}.cx-diagram .fg{fill:var(--fg)}
+.cx-diagram .t-g{fill:var(--grn)}.cx-diagram .t-w{fill:var(--warn)}.cx-diagram .t-a{fill:var(--acc)}.cx-diagram .t-b{fill:var(--fn)}.cx-diagram .t-v{fill:var(--vio)}.cx-diagram .t-r{fill:var(--bad)}
+.cx-diagram .mid{text-anchor:middle}.cx-diagram .end{text-anchor:end}
+.cx-diagram .box{fill:var(--panel);stroke:var(--line);stroke-width:1.2}
+.cx-diagram .live{fill:var(--grn-bg);stroke:var(--grn);stroke-width:1.4}
+.cx-diagram .free{fill:var(--warn-bg);stroke:var(--warn);stroke-width:1.4}
+.cx-diagram .hot{fill:var(--acc-bg);stroke:var(--acc);stroke-width:1.4}
+.cx-diagram .blue{fill:color-mix(in oklab,var(--fn) 13%,transparent);stroke:var(--fn);stroke-width:1.4}
+.cx-diagram .violet{fill:var(--vio-bg);stroke:var(--vio);stroke-width:1.4}
+.cx-diagram .bad{fill:var(--bad-bg);stroke:var(--bad);stroke-width:1.4}
+.cx-diagram .never{fill:none;stroke:var(--line);stroke-width:1.2;stroke-dasharray:4 4}
+.cx-diagram .ln{stroke:var(--dim);stroke-width:1.3;fill:none}
+.cx-diagram .ln-g{stroke:var(--grn);stroke-width:1.6;fill:none}.cx-diagram .ln-w{stroke:var(--warn);stroke-width:1.6;fill:none}
+.cx-diagram .ln-b{stroke:var(--fn);stroke-width:1.6;fill:none}.cx-diagram .ln-v{stroke:var(--vio);stroke-width:1.6;fill:none}
+.cx-diagram .grid{stroke:var(--line2);stroke-width:1}
+.cx-diagram .dash{stroke-dasharray:5 4}
+@keyframes cx-flow{to{stroke-dashoffset:-18}}
+.cx-diagram .flow{stroke-dasharray:6 6;animation:cx-flow 1.2s linear infinite}
+@keyframes cx-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.cx-diagram .pulse{animation:cx-pulse 1.8s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.cx-diagram *{animation:none!important}}

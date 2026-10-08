@@ -39,6 +39,25 @@ pub fn copy_page(disk: &dyn DiskIo, from: PageId, to: PageId) -> io::Result<()> 
 
 A trait is *only* an interface: no data, no inheritance of an implementation. The three disks are unrelated types that each promise the same three methods. `&dyn DiskIo` is a **fat pointer**: two words, a pointer to the value and a pointer to its vtable for `DiskIo`. The vtable is built by the compiler for each `(type, trait)` pair, and a call through it is the same indirect jump as in C++.
 
+```svg
+caption: A &dyn DiskIo is two words: a pointer to the value and a pointer to the vtable the compiler built for (DiskManager, DiskIo). A method call loads the function pointer from the vtable and jumps through it.
+<svg viewBox="0 0 760 320" role="img" aria-label="A fat pointer with a data pointer to a DiskManager value and a vtable pointer to a table of function pointers">
+<defs><marker id="vt-a" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" style="fill:var(--dim)"/></marker></defs>
+<text class="dim sm" x="20" y="34">disk: &amp;dyn DiskIo</text>
+<rect class="hot" x="20" y="44" width="200" height="40" rx="4"/><text class="mid fg" x="120" y="69">data ptr</text>
+<rect class="violet" x="20" y="84" width="200" height="40" rx="4"/><text class="mid fg" x="120" y="109">vtable ptr</text>
+<rect class="box" x="290" y="30" width="220" height="74" rx="4"/><text class="t-a" x="304" y="54">DiskManager</text>
+<text class="dim sm" x="304" y="74">db_io: Mutex&lt;DbIo&gt;</text><text class="dim sm" x="304" y="90">log_io, counters ...</text>
+<path class="ln" d="M220 64 H288" marker-end="url(#vt-a)"/>
+<path class="ln" d="M220 104 H254 V155 H288" marker-end="url(#vt-a)"/>
+<text class="t-v sm" x="290" y="130">vtable for (DiskManager, DiskIo)</text>
+<rect class="box" x="290" y="142" width="220" height="26"/><text class="dim" x="304" y="160">drop_in_place</text><rect class="box" x="290" y="168" width="220" height="26"/><text class="dim" x="304" y="186">size</text><rect class="box" x="290" y="194" width="220" height="26"/><text class="dim" x="304" y="212">align</text><rect class="blue" x="290" y="220" width="220" height="26"/><text class="t-b" x="304" y="238">read_page</text><rect class="blue" x="290" y="246" width="220" height="26"/><text class="t-b" x="304" y="264">write_page</text><rect class="blue" x="290" y="272" width="220" height="26"/><text class="t-b" x="304" y="290">delete_page</text>
+<text class="big" x="548" y="168">disk.write_page(id, &amp;buf)</text>
+<text class="dim sm" x="548" y="192">1. load the vtable pointer</text><text class="dim sm" x="548" y="208">2. load write_page from it</text><text class="dim sm" x="548" y="224">3. call it with the data ptr</text>
+<text class="dim sm" x="548" y="256">the layout is a compiler</text><text class="dim sm" x="548" y="272">detail, not a promise</text>
+</svg>
+```
+
 | C++ | Rust |
 |---|---|
 | `class Base { virtual void f(); }` | `trait Base { fn f(&self); }` |

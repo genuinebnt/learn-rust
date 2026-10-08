@@ -28,12 +28,37 @@ C++'s `std::atomic<T>::fetch_add(1)` with no argument is `memory_order_seq_cst`:
 **When `Relaxed` is wrong** is when the atomic is a *flag* for other data:
 
 ```rust
-// Thread A                                // Thread B
-data.store(42, Ordering::Relaxed);         while !ready.load(Ordering::Relaxed) {}
-ready.store(true, Ordering::Relaxed);      assert_eq!(data.load(Ordering::Relaxed), 42);   // may fail!
+// Thread A
+data.store(42, Ordering::Relaxed);
+ready.store(true, Ordering::Relaxed);
+
+// Thread B
+while !ready.load(Ordering::Relaxed) {}
+assert_eq!(data.load(Ordering::Relaxed), 42);   // may fail!
 ```
 
 Nothing orders the `data` store before the `ready` store as seen by B. The fix is `Release` on the `ready` store and `Acquire` on the load: that pair creates a *happens-before* edge. You will meet the pattern again in the buffer pool's pin counts and in latches.
+
+```svg
+caption: A release store and an acquire load that reads its value create a happens-before edge: everything thread A wrote before the release is visible to thread B after the acquire. With Relaxed on both there is no edge, and B may still see data == 0.
+<svg viewBox="0 0 760 270" role="img" aria-label="Two thread timelines joined by a synchronizes-with arrow from a release store to an acquire load">
+<defs><marker id="hb-a" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" style="fill:var(--fn)"/></marker>
+<marker id="hb-b" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" style="fill:var(--dim)"/></marker></defs>
+<text class="big" x="20" y="18">thread A</text><text class="big" x="20" y="262">thread B</text>
+<rect class="box" x="60" y="40" width="230" height="40" rx="4"/><text class="mid fg" x="175" y="65">data.store(42, Relaxed)</text>
+<rect class="blue" x="400" y="40" width="270" height="40" rx="4"/><text class="mid t-b" x="535" y="65">ready.store(true, Release)</text>
+<rect class="blue" x="400" y="190" width="270" height="40" rx="4"/><text class="mid t-b" x="535" y="215">ready.load(Acquire) &#8594; true</text>
+<rect class="live" x="60" y="190" width="230" height="40" rx="4"/><text class="mid t-g" x="175" y="215">data.load(Relaxed) &#8594; 42</text>
+<path class="ln" d="M290 60 H398" marker-end="url(#hb-b)"/>
+<text class="dim sm" x="296" y="52">program order</text>
+<path class="ln" d="M398 210 H292" marker-end="url(#hb-b)"/>
+<text class="dim sm" x="296" y="238">program order</text>
+<path class="ln-b" d="M535 82 V188" marker-end="url(#hb-a)"/>
+<text class="t-b sm" x="547" y="140">synchronizes-with</text>
+<path class="ln-g dash" d="M175 82 V188" marker-end="url(#hb-b)"/>
+<text class="t-g sm" x="187" y="140">so B must see 42</text>
+</svg>
+```
 
 > [!TIP] Counting after success
 > Increment *after* the operation succeeded: `write_all_at(…)?; num_writes.fetch_add(1, Relaxed)`. A failing write must not inflate the count, and an early return with `?` skips the increment for free. Counting before is the more natural-looking code and the one that makes a failure test report the wrong number.

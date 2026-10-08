@@ -1,6 +1,0 @@
-id = "1b-04"
-title = "Boss: BusTub's disk_scheduler_test and rwlatch_test"
-kind = "boss"
-difficulty = "easy"
-tests = ["stages_1b::s1b_15", "disk_scheduler_test", "rwlatch_test"]
-retest = true

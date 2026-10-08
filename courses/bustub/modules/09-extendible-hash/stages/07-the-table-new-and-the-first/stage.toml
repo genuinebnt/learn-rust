@@ -1,0 +1,5 @@
+id = "2b-07"
+title = "The table: new and the first insert"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2b::s2b_15", "stages_2b::s2b_16"]

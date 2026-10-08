@@ -1,5 +1,0 @@
-id = "2b-02"
-title = "The header and directory pages: layout, indexes and depths"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_2b::s2b_03", "stages_2b::s2b_04", "stages_2b::s2b_05", "stages_2b::s2b_06", "stages_2b::s2b_07"]

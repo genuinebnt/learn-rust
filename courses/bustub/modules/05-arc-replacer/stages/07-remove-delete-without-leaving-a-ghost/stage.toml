@@ -1,0 +1,5 @@
+id = "1e-07"
+title = "remove: delete without leaving a ghost"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1e::s1e_08"]

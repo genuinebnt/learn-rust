@@ -1,0 +1,7 @@
+id = "1a-03"
+title = "write_page and read_page: the page table"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1a::s1a_08", "stages_1a::s1a_09", "stages_1a::s1a_10"]
+concepts = ["slot-allocation-and-invariants"]
+learn = ["an id-to-slot page table", "invariants: what must always be true", "one critical section per decision"]

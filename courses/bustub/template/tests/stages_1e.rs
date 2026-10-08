@@ -1,4 +1,4 @@
-//! Tests for the ARC stages (1e-01 … 1e-03). A test named `s1e_05_…` belongs to stage 1e-02.
+//! Tests for the ARC stages (1e-01 … 1e-08). A test named `s1e_05_…` belongs to stage 1e-05.
 //!
 //! Notation in the comments (BusTub's): `(a, fb)` is page a on frame b, `(a, _)` a ghost page, `p(a, fb)` a pinned page;
 //! `[mru_ghost][mru]![mfu][mfu_ghost] p=x` with the freshest entries next to the `!`.
@@ -28,7 +28,7 @@ fn s1e_01_a_new_replacer_has_nothing_to_evict() {
     assert_eq!(ArcReplacer::new(0).size(), 0);
 }
 
-// ---- 1e-01 · record_access (new pages) and set_evictable -------------------------------------------------------------------
+// ---- 1e-02 · record_access (new pages) and set_evictable -------------------------------------------------------------------
 
 #[test]
 fn s1e_02_recorded_frames_start_out_not_evictable() {
@@ -81,7 +81,7 @@ fn s1e_02_many_new_pages_are_fine() {
     assert_eq!(r.size(), 100);
 }
 
-// ---- 1e-01 · evict ----------------------------------------------------------------------------------------------------
+// ---- 1e-03 · evict ----------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1e_03_the_oldest_evictable_frame_goes_first() {
@@ -129,7 +129,7 @@ fn s1e_03_an_evicted_frame_can_hold_another_page() {
     assert_eq!(r.evict(), Some(f(1)));
 }
 
-// ---- 1e-02 · a hit on a live frame ----------------------------------------------------------------------------------------
+// ---- 1e-04 · a hit on a live frame ----------------------------------------------------------------------------------------
 
 #[test]
 fn s1e_04_a_second_access_moves_a_frame_to_the_frequent_side() {
@@ -183,7 +183,7 @@ fn s1e_04_the_bustub_sample_start() {
     assert_eq!(r.size(), 2);
 }
 
-// ---- 1e-02 · a hit on mru_ghost: the target grows ----------------------------------------------------------------------------
+// ---- 1e-05 · a hit on mru_ghost: the target grows ----------------------------------------------------------------------------
 
 #[test]
 fn s1e_05_a_ghost_hit_brings_the_page_back_on_the_frequent_side() {
@@ -250,7 +250,7 @@ fn s1e_05_when_the_preferred_side_has_nothing_evictable_the_other_side_is_used()
     assert_eq!(r.evict(), Some(f(2)));
 }
 
-// ---- 1e-02 · a hit on mfu_ghost: the target shrinks ----------------------------------------------------------------------------
+// ---- 1e-06 · a hit on mfu_ghost: the target shrinks ----------------------------------------------------------------------------
 
 #[test]
 fn s1e_06_a_hit_on_mfu_ghost_lowers_the_target() {
@@ -292,7 +292,7 @@ fn s1e_06_the_target_stops_at_zero() {
     assert_eq!(r.evict(), Some(f(2)));
 }
 
-// ---- 1e-02 · keeping the ghost lists bounded --------------------------------------------------------------------------------------
+// ---- 1e-06 · keeping the ghost lists bounded --------------------------------------------------------------------------------------
 
 #[test]
 fn s1e_07_a_new_page_pushes_out_the_oldest_mru_ghost_when_mru_and_its_ghosts_fill_c() {
@@ -426,7 +426,7 @@ fn s1e_07_four_lists_at_twice_the_capacity_shrink_the_mfu_ghost_list() {
     assert_eq!(Some(f(1)), r.evict());
 }
 
-// ---- 1e-02 · remove -------------------------------------------------------------------------------------------------------------
+// ---- 1e-07 · remove -------------------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1e_08_remove_drops_a_frame_and_keeps_the_order_of_the_rest() {
@@ -494,7 +494,7 @@ fn s1e_08_removing_a_pinned_frame_is_a_bug() {
     r.remove(f(0));
 }
 
-// ---- 1e-03 · the module as a whole -------------------------------------------------------------------------------------------------
+// ---- 1e-08 · the module as a whole -------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1e_09_the_size_always_matches_a_recount() {

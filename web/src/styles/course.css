@@ -263,3 +263,55 @@
 .cx-concept small{color:var(--vio)!important}
 .cx-reads a{text-decoration:none}
 .cx-reads a>span{display:block;color:var(--dim);font-size:13px;line-height:1.5;margin-top:2px}
+
+/* ---- course overview: sections of stage rows, like CodeCrafters' course page ---- */
+.cx-sec{display:flex;flex-direction:column;gap:12px}
+.cx-sech{display:flex;align-items:center;gap:18px;font-size:15px}
+.cx-sech::before,.cx-sech::after{content:"";height:1px;background:var(--line2)}
+.cx-sech::before{width:28px;flex:none}.cx-sech::after{flex:1}
+.cx-sech b{font-weight:700;letter-spacing:-.005em}
+.cx-sech span{order:3;font:500 11px var(--mono);color:var(--dim);white-space:nowrap}
+.cx-sech::after{order:2}
+.cx-secp{margin:0;padding-left:46px;max-width:68ch;font-size:14px;line-height:1.6;color:var(--dim)}
+.cx-srows{display:flex;flex-direction:column;border:1px solid var(--line2);border-radius:10px;background:var(--panel);overflow:hidden}
+.cx-srow{display:grid;grid-template-columns:22px 28px minmax(0,1fr) auto auto;align-items:center;gap:12px;min-height:50px;padding:0 20px 0 16px;font-size:15px;color:var(--fg)}
+.cx-srow+.cx-srow{border-top:1px solid var(--line2)}
+.cx-srow:hover{background:var(--raise)}
+.cx-srow.cur{box-shadow:inset 3px 0 0 var(--grn)}
+.cx-sdot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:9px;color:var(--on-acc)}
+.cx-sdot.solved{background:var(--grn);border-color:var(--grn)}.cx-sdot.assisted{background:var(--warn);border-color:var(--warn)}
+.cx-sno{font:500 11px var(--mono);color:var(--dim)}
+.cx-stt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx-stt em{margin-left:10px;padding:1px 6px;border:1px solid var(--line);border-radius:4px;font:600 9.5px var(--mono);font-style:normal;letter-spacing:.12em;color:var(--warn);vertical-align:2px}
+.cx-now{font:600 10px var(--mono);letter-spacing:.14em;color:var(--grn)}
+.cx-dm{display:inline-flex;align-items:flex-end;gap:5px;font:600 11px var(--mono);letter-spacing:.1em;white-space:nowrap}
+.cx-dm i{display:inline-block;width:4px;height:12px;border-radius:1px;background:var(--line2);margin-left:0}
+.cx-dm i:nth-of-type(1){height:7px}.cx-dm i:nth-of-type(2){height:10px}
+.cx-dm i+i{margin-left:-2px}
+.cx-dm i.on{background:currentColor}
+.cx-cmds{display:flex;flex-direction:column;gap:6px}
+.cx-cmds code{display:block;padding:7px 10px;border:1px solid var(--line2);border-radius:6px;background:var(--bg);font:500 12px var(--mono);color:var(--fg);overflow-wrap:anywhere}
+@media (max-width:760px){.cx-srow{grid-template-columns:18px minmax(0,1fr) auto;padding:10px 12px}.cx-sno,.cx-now{display:none}.cx-secp{padding-left:0}}
+
+/* ---- stage tabs (CodeCrafters: Instructions / Code examples / Concepts) ---- */
+.cx-tabs{display:flex;gap:26px;margin:26px 0 0;border-bottom:1px solid var(--line2);overflow-x:auto;scrollbar-width:none}
+.cx-tabs::-webkit-scrollbar{display:none}
+.cx-tabs button{display:inline-flex;align-items:center;gap:8px;height:42px;font-size:14.5px;color:var(--dim);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.cx-tabs button:hover{color:var(--fg)}
+.cx-tabs button.on{color:var(--fg);border-color:var(--grn)}
+.cx-tabs small{font:500 10.5px var(--mono);color:var(--dim);padding:1px 6px;border:1px solid var(--line2);border-radius:99px}
+.cx-tabs button.on small{color:var(--grn);border-color:var(--grn)}
+.cx-tabs+.cx-prose{padding-top:6px}
+.cx-bar button{margin-left:auto}
+
+.cx-learn{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:18px}
+.cx-learn .lab{margin-right:4px}
+.cx-readfirst{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;width:100%;margin:6px 0 4px;padding:12px 18px;border:1px solid color-mix(in oklab,var(--vio) 45%,var(--line2));border-radius:8px;background:color-mix(in oklab,var(--vio) 6%,var(--panel));text-align:left;font-size:14.5px;color:var(--fg)}
+.cx-readfirst b{font:600 10.5px var(--mono);letter-spacing:.16em;color:var(--vio)}
+.cx-readfirst em{margin-left:8px;font:500 11px var(--mono);font-style:normal;color:var(--dim)}
+.cx-readfirst i{font:600 12px var(--mono);font-style:normal;color:var(--vio)}
+.cx-readfirst:hover{border-color:var(--vio)}
+
+.cx-srow.plan{opacity:.65;pointer-events:none}.cx-now.dim{color:var(--dim)}
+.cx-readfirst{margin-bottom:20px}
+.cx-leadmd{font-size:16px;line-height:1.7;margin-bottom:6px}

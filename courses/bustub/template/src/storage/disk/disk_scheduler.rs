@@ -62,29 +62,29 @@ pub struct DiskScheduler {
 impl DiskScheduler {
     /// Starts the worker thread.
     pub fn new(disk: Arc<dyn DiskIo>) -> DiskScheduler {
-        todo!("1b-02: create the queue, spawn the worker (consume the queue, execute each request on the disk), build the scheduler")
+        todo!("1b-03: create the queue, spawn the worker (consume the queue, execute each request on the disk), build the scheduler")
     }
 
     /// Queues the requests, in order. Returns at once; the futures say when they are done.
     pub fn schedule(&self, requests: Vec<DiskRequest>) {
-        todo!("1b-02: put each request on the queue, in order")
+        todo!("1b-03: put each request on the queue, in order")
     }
 
     /// A promise and its future for a request's callback. (BusTub's `CreatePromise()`.)
     pub fn create_promise(&self) -> (Promise<DiskResult>, Future<DiskResult>) {
-        todo!("1b-02: a fresh promise/future pair")
+        todo!("1b-03: a fresh promise/future pair")
     }
 
     /// Frees a page on the disk. (BusTub's `DeallocatePage()`.)
     pub fn deallocate_page(&self, page_id: PageId) {
-        todo!("1b-02: ask the disk to delete the page")
+        todo!("1b-03: ask the disk to delete the page")
     }
 }
 
 impl Drop for DiskScheduler {
     /// Stops the worker after it has finished everything already scheduled, and waits for it.
     fn drop(&mut self) {
-        // TODO(1b-02): put the stop signal in the queue, then join the worker thread
+        // TODO(1b-03): put the stop signal in the queue, then join the worker thread
     }
 }
 
@@ -97,16 +97,16 @@ pub struct ShardedDiskScheduler {
 
 impl ShardedDiskScheduler {
     pub fn new(disk: Arc<dyn DiskIo>, workers: usize) -> ShardedDiskScheduler {
-        todo!("1b-03: one queue and one worker thread per worker, like DiskScheduler::new but `workers` times")
+        todo!("1b-04: one queue and one worker thread per worker, like DiskScheduler::new but `workers` times")
     }
 
     pub fn schedule(&self, requests: Vec<DiskRequest>) {
-        todo!("1b-03: put each request on the queue of its page's shard (page id modulo the number of workers)")
+        todo!("1b-04: put each request on the queue of its page's shard (page id modulo the number of workers)")
     }
 }
 
 impl Drop for ShardedDiskScheduler {
     fn drop(&mut self) {
-        // TODO(1b-03): stop and join every worker
+        // TODO(1b-04): stop and join every worker
     }
 }

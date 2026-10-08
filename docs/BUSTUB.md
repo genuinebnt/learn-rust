@@ -1,6 +1,6 @@
 # Build a DBMS: BusTub in Rust (a CodeCrafters-style course)
 
-Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1g (Project 1), 2a and 2b (36 stages, merged from 115 tiny ones) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
+Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1g (Project 1), 2a and 2b (58 stages, regrouped from 115 tiny ones) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
 writing a module: [authoring/write-course-module.md](authoring/write-course-module.md). The C/C++ → Rust reference every stage leans
 on: [PORTING.md](PORTING.md). This course replaces the BusTub parts of SYSTEMS.md (K17–K20, P6); the general systems tracks come after.
 
@@ -34,6 +34,8 @@ In order, kept close to their words so nobody has to re-ask:
     cut of 115 tiny stages was merged into 36 (`tools/course_merge.py`), and hints are written at BusTub's level (design, then the trap, then the
     invariant to check), never "which shift keeps the top bits". The stage page follows the layout the owner picked (Learn C++ Through Projects'
     walkthrough, CodeCrafters' stage flow, anneal's own design); the mockup is `docs/design_handoff_anneal/designs/course-page.html`.
+
+**The standing rules for stages and pages live in [COURSE_STANDARDS.md](COURSE_STANDARDS.md). Read it before changing the course.**
 
 ## 1. The shape, copied from CodeCrafters
 

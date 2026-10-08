@@ -88,6 +88,9 @@ struct StageToml {
     /// Concept pages (courses/<id>/concepts/<id>.md) worth reading before or while doing this stage.
     #[serde(default)]
     concepts: Vec<String>,
+    /// What the learner takes away: short phrases shown as "You'll learn" under the stage title.
+    #[serde(default)]
+    learn: Vec<String>,
 }
 
 /// One `## Heading` of a stage's markdown, with its body.
@@ -109,6 +112,7 @@ pub struct Hint {
 #[derive(Debug, Clone, Serialize)]
 pub struct Stage {
     pub concepts: Vec<String>,
+    pub learn: Vec<String>,
     pub id: String,
     pub title: String,
     /// learn · build · boss
@@ -166,7 +170,17 @@ pub struct Course {
 }
 
 impl Course {
+    /// The course as the web app shows it: only the modules in `published_modules`, if that is set.
     pub fn load(root: &Path) -> Result<Course> {
+        Course::load_with(root, true)
+    }
+
+    /// Every module, published or not (for `anneal course lint --all`).
+    pub fn load_all(root: &Path) -> Result<Course> {
+        Course::load_with(root, false)
+    }
+
+    fn load_with(root: &Path, only_published: bool) -> Result<Course> {
         let meta: CourseToml = read_toml(&root.join("course.toml"))?;
         let lectures: Vec<Lecture> = match fs::read_to_string(root.join("lectures.toml")) {
             Ok(t) => toml::from_str::<LecturesToml>(&t).map_err(|e| CourseError::Invalid(format!("lectures.toml: {e}")))?.lecture,
@@ -209,6 +223,7 @@ impl Course {
                 };
                 stages.push(Stage {
                     concepts: def.concepts,
+                    learn: def.learn,
                     id: def.id,
                     title: def.title,
                     kind: def.kind,
@@ -232,7 +247,7 @@ impl Course {
                 stages,
             });
         }
-        if let Some(only) = &meta.published_modules {
+        if let Some(only) = meta.published_modules.as_ref().filter(|_| only_published) {
             modules.retain(|m| only.contains(&m.code));
             let mut rank = 0;
             for st in modules.iter_mut().flat_map(|m| m.stages.iter_mut()) {

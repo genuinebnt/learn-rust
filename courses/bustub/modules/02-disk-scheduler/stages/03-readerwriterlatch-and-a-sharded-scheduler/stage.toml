@@ -1,5 +1,0 @@
-id = "1b-03"
-title = "ReaderWriterLatch and a sharded scheduler"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_1b::s1b_13", "stages_1b::s1b_14"]

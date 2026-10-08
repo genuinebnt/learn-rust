@@ -1,0 +1,5 @@
+id = "2a-01"
+title = "FixedSize: what a value looks like in a page"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2a::s2a_01", "stages_2a::s2a_02", "stages_2a::s2a_03", "stages_2a::s2a_04"]

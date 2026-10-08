@@ -71,7 +71,7 @@ impl LruKReplacer {
 
     /// Marks `frame` evictable or not. Unknown frames are ignored.
     pub fn set_evictable(&mut self, frame: FrameId, evictable: bool) {
-        todo!("1d-01: ignore unknown frames; change the flag and keep the count of evictable frames right")
+        todo!("1d-02: ignore unknown frames; change the flag and keep the count of evictable frames right")
     }
 
     /// How many frames are evictable.
@@ -81,23 +81,23 @@ impl LruKReplacer {
 
     /// The best victim among the evictable frames by a scan of all of them (O(n)).
     fn pick_victim(&self) -> Option<FrameId> {
-        todo!("1d-01: among the evictable frames, the one whose backward k-distance is largest")
+        todo!("1d-02: among the evictable frames, the one whose backward k-distance is largest")
     }
 
     /// Evicts the frame with the largest backward k-distance among the evictable frames, forgetting its history.
     /// `None` if no frame is evictable.
     pub fn evict(&mut self) -> Option<FrameId> {
-        todo!("1d-01: pick the victim, drop its node, keep the count right, return it")
+        todo!("1d-02: pick the victim, drop its node, keep the count right, return it")
     }
 
     /// Forgets `frame`'s node (and its place in the eviction order).
     fn remove_node(&mut self, frame: FrameId) {
-        todo!("1d-01: drop the node; if it was evictable the count of evictable frames goes down")
+        todo!("1d-02: drop the node; if it was evictable the count of evictable frames goes down")
     }
 
     /// Removes an evictable frame and its history, whatever its distance. Unknown frames are ignored.
     /// Panics if the frame is not evictable.
     pub fn remove(&mut self, frame: FrameId) {
-        todo!("1d-01: ignore unknown frames; panic for a frame that is not evictable; otherwise drop it")
+        todo!("1d-03: ignore unknown frames; panic for a frame that is not evictable; otherwise drop it")
     }
 }

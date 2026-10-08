@@ -1,0 +1,5 @@
+id = "2b-02"
+title = "The hash function and the header page"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_02", "stages_2b::s2b_03", "stages_2b::s2b_04"]

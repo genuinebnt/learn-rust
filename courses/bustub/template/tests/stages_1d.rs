@@ -1,4 +1,4 @@
-//! Tests for the LRU-K stages (1d-01 … 1d-03). A test named `s1d_05_…` belongs to stage 1d-01.
+//! Tests for the LRU-K stages (1d-01 … 1d-05). A test named `s1d_05_…` belongs to stage 1d-02.
 
 use std::time::{Duration, Instant};
 
@@ -150,7 +150,7 @@ fn s1d_03_k_of_zero_is_a_bug() {
     let _ = LruKReplacer::new(5, 0);
 }
 
-// ---- 1d-01 · set_evictable ---------------------------------------------------------------------------------------------
+// ---- 1d-02 · set_evictable ---------------------------------------------------------------------------------------------
 
 #[test]
 fn s1d_04_size_counts_the_evictable_frames_only() {
@@ -203,7 +203,7 @@ fn s1d_04_further_accesses_keep_the_evictable_flag() {
     assert_eq!(r.size(), 1);
 }
 
-// ---- 1d-01 · evict: frames with fewer than k accesses --------------------------------------------------------------------
+// ---- 1d-02 · evict: frames with fewer than k accesses --------------------------------------------------------------------
 
 #[test]
 fn s1d_05_with_one_access_each_the_oldest_goes_first() {
@@ -269,7 +269,7 @@ fn s1d_05_ties_break_on_the_first_access_not_the_latest() {
     assert_eq!(r.evict(), Some(f(1)), "frame 1's FIRST access (time 0) is older than frame 2's (time 1)");
 }
 
-// ---- 1d-01 · evict: the k-th access counts ------------------------------------------------------------------------------
+// ---- 1d-03 · evict: the k-th access counts ------------------------------------------------------------------------------
 
 #[test]
 fn s1d_06_frames_below_k_go_before_frames_with_k_accesses() {
@@ -369,7 +369,7 @@ fn s1d_06_a_model_agrees_on_random_workloads() {
     }
 }
 
-// ---- 1d-01 · remove ----------------------------------------------------------------------------------------------------
+// ---- 1d-03 · remove ----------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1d_07_remove_drops_an_evictable_frame() {
@@ -422,7 +422,7 @@ fn s1d_07_removing_every_frame_leaves_an_empty_replacer() {
     assert_eq!(r.evict(), None);
 }
 
-// ---- 1d-02 · evict in O(log n) -----------------------------------------------------------------------------------------
+// ---- 1d-04 · evict in O(log n) -----------------------------------------------------------------------------------------
 
 #[test]
 fn s1d_08_a_hundred_thousand_frames_evict_quickly_and_in_order() {
@@ -478,7 +478,7 @@ fn s1d_08_marking_frames_not_evictable_and_back_keeps_the_order() {
     }
 }
 
-// ---- 1d-03 · the module as a whole -------------------------------------------------------------------------------------
+// ---- 1d-05 · the module as a whole -------------------------------------------------------------------------------------
 
 #[test]
 fn s1d_09_scans_do_not_flush_the_hot_pages() {

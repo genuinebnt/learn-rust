@@ -1,0 +1,5 @@
+id = "1f-02"
+title = "fetch_page: bring a page into a free frame"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1f::s1f_03"]

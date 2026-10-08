@@ -1,0 +1,7 @@
+id = "1a-07"
+title = "The in-memory disks"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1a::s1a_17", "stages_1a::s1a_18"]
+concepts = ["trait-objects-and-the-disk-seam"]
+learn = ["test doubles: disks that live in memory", "failing loudly at a capacity limit", "Vec<Option<Box<T>>> for sparse storage"]

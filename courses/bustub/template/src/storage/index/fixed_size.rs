@@ -69,14 +69,14 @@ impl FixedSize for Rid {
 impl<A: FixedSize, B: FixedSize> FixedSize for (A, B) {
     const SIZE: usize = A::SIZE + B::SIZE;
     fn encode(&self, out: &mut [u8]) {
-        todo!("2a-01: encode the first value into the first A::SIZE bytes and the second into the rest (split_at_mut gives you both halves at once)")
+        todo!("2a-02: encode the first value into the first A::SIZE bytes and the second into the rest (split_at_mut gives you both halves at once)")
     }
     fn decode(bytes: &[u8]) -> (A, B) {
-        todo!("2a-01: decode a pair from its two halves")
+        todo!("2a-02: decode a pair from its two halves")
     }
 }
 
 /// How many entries of `entry_size` bytes fit in a page after `metadata_size` bytes of header. BusTub's `HTableBucketArraySize`.
 pub const fn array_size(metadata_size: usize, entry_size: usize) -> usize {
-    0 // TODO(2a-01): the space left after the metadata, divided by the entry size
+    0 // TODO(2a-02): the space left after the metadata, divided by the entry size
 }

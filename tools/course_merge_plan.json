@@ -1,47 +1,286 @@
 {
  "1a": [
-  {"from": 1, "to": 7, "title": "Open the database file; write and read pages"},
-  {"from": 8, "to": 12, "title": "Allocate pages: the page table and the free list"},
-  {"from": 13, "to": 18, "title": "Count the I/O, write the log, and put disks behind a trait"},
-  {"from": 19, "to": 19}],
+  {
+   "from": 1,
+   "to": 4,
+   "title": "Open the database file"
+  },
+  {
+   "from": 5,
+   "to": 7,
+   "title": "Read and write one slot"
+  },
+  {
+   "from": 8,
+   "to": 10,
+   "title": "write_page and read_page: the page table"
+  },
+  {
+   "from": 11,
+   "to": 12,
+   "title": "Grow the file and reuse slots"
+  },
+  {
+   "from": 13,
+   "to": 15,
+   "title": "Counters and the log"
+  },
+  {
+   "from": 16,
+   "to": 16,
+   "title": "A trait for disks: DiskIo"
+  },
+  {
+   "from": 17,
+   "to": 18,
+   "title": "The in-memory disks"
+  },
+  {
+   "from": 19,
+   "to": 19
+  }
+ ],
  "1b": [
-  {"from": 1, "to": 6, "title": "Channel and Promise: the two primitives"},
-  {"from": 7, "to": 12, "title": "DiskScheduler: requests, a worker and a clean shutdown"},
-  {"from": 13, "to": 14, "title": "ReaderWriterLatch and a sharded scheduler"},
-  {"from": 15, "to": 15}],
+  {
+   "from": 1,
+   "to": 5,
+   "title": "Future::get: wait for the value"
+  },
+  {
+   "from": 6,
+   "to": 8,
+   "title": "execute: run one request on a disk"
+  },
+  {
+   "from": 9,
+   "to": 13,
+   "title": "DiskScheduler: start the worker and schedule requests"
+  },
+  {
+   "from": 14,
+   "to": 14
+  },
+  {
+   "from": 15,
+   "to": 15
+  }
+ ],
  "1c": [
-  {"from": 1, "to": 4, "title": "IndexList: a linked list inside a Vec"},
-  {"from": 5, "to": 10, "title": "The LRU and CLOCK replacers"},
-  {"from": 11, "to": 11}],
+  {
+   "from": 1,
+   "to": 2,
+   "title": "IndexList::pop_front: unlink and free a node"
+  },
+  {
+   "from": 3,
+   "to": 4,
+   "title": "IndexList::move_to_back"
+  },
+  {
+   "from": 5,
+   "to": 7,
+   "title": "LruReplacer: unpin and size"
+  },
+  {
+   "from": 8,
+   "to": 9,
+   "title": "ClockReplacer::victim: the sweep"
+  },
+  {
+   "from": 10,
+   "to": 10
+  },
+  {
+   "from": 11,
+   "to": 11
+  }
+ ],
  "1d": [
-  {"from": 1, "to": 7, "title": "The LRU-K replacer"},
-  {"from": 8, "to": 8},
-  {"from": 9, "to": 9}],
+  {
+   "from": 1,
+   "to": 3,
+   "title": "LruKReplacer: new, record_access, size"
+  },
+  {
+   "from": 4,
+   "to": 5,
+   "title": "evict: the least recently used among the infinite"
+  },
+  {
+   "from": 6,
+   "to": 7,
+   "title": "evict: infinite distances first, then the oldest k-th access"
+  },
+  {
+   "from": 8,
+   "to": 8
+  },
+  {
+   "from": 9,
+   "to": 9
+  }
+ ],
  "1e": [
-  {"from": 1, "to": 3, "title": "The ARC replacer: four lists and eviction"},
-  {"from": 4, "to": 8, "title": "The ARC replacer: adaptation, ghosts and removal"},
-  {"from": 9, "to": 9}],
+  {
+   "from": 1,
+   "to": 1
+  },
+  {
+   "from": 2,
+   "to": 2
+  },
+  {
+   "from": 3,
+   "to": 3
+  },
+  {
+   "from": 4,
+   "to": 4
+  },
+  {
+   "from": 5,
+   "to": 5
+  },
+  {
+   "from": 6,
+   "to": 7,
+   "title": "Keep the ghost lists bounded"
+  },
+  {
+   "from": 8,
+   "to": 8
+  },
+  {
+   "from": 9,
+   "to": 9
+  }
+ ],
  "1f": [
-  {"from": 1, "to": 4, "title": "The buffer pool manager: frames, new_page and fetch_page"},
-  {"from": 5, "to": 9, "title": "The buffer pool manager: unpin, eviction, write-back, flush and delete"},
-  {"from": 10, "to": 10}],
+  {
+   "from": 1,
+   "to": 2,
+   "title": "BufferPoolManager: frames and a free list"
+  },
+  {
+   "from": 3,
+   "to": 3
+  },
+  {
+   "from": 4,
+   "to": 5,
+   "title": "unpin_page: release a pin, remember the dirt"
+  },
+  {
+   "from": 6,
+   "to": 7,
+   "title": "Write dirty victims back before reusing their frame"
+  },
+  {
+   "from": 8,
+   "to": 9,
+   "title": "delete_page"
+  },
+  {
+   "from": 10,
+   "to": 10
+  }
+ ],
  "1g": [
-  {"from": 1, "to": 5, "title": "Page guards: RAII for pins and latches"},
-  {"from": 6, "to": 6},
-  {"from": 7, "to": 7}],
+  {
+   "from": 1,
+   "to": 3,
+   "title": "WritePageGuard: the write latch and the dirty flag"
+  },
+  {
+   "from": 4,
+   "to": 6,
+   "title": "A flush must not wait for a latch while holding the pool's lock"
+  },
+  {
+   "from": 7,
+   "to": 7
+  }
+ ],
  "2a": [
-  {"from": 1, "to": 7, "title": "Integers, ids, keys and comparators in raw bytes"},
-  {"from": 8, "to": 11, "title": "PageArray: a sorted array inside a page"},
-  {"from": 12, "to": 12},
-  {"from": 13, "to": 13}],
+  {
+   "from": 1,
+   "to": 4,
+   "title": "FixedSize: what a value looks like in a page"
+  },
+  {
+   "from": 5,
+   "to": 7,
+   "title": "GenericKey: an index key of N opaque bytes"
+  },
+  {
+   "from": 8,
+   "to": 10,
+   "title": "PageArray: an array of entries inside a page"
+  },
+  {
+   "from": 11,
+   "to": 12,
+   "title": "Layouts as constants: repr(C), offset_of!, const assertions"
+  },
+  {
+   "from": 13,
+   "to": 13
+  }
+ ],
  "2b": [
-  {"from": 1, "to": 2, "title": "MurmurHash3 and the hash function"},
-  {"from": 3, "to": 7, "title": "The header and directory pages: layout, indexes and depths"},
-  {"from": 8, "to": 10, "title": "Directory growth, shrinking and integrity"},
-  {"from": 11, "to": 13, "title": "The bucket page"},
-  {"from": 14, "to": 14},
-  {"from": 15, "to": 17, "title": "The table: new, lookup and insert"},
-  {"from": 18, "to": 18},
-  {"from": 19, "to": 21, "title": "remove: merge buckets and shrink the directory"},
-  {"from": 22, "to": 22}]
+  {
+   "from": 1,
+   "to": 1
+  },
+  {
+   "from": 2,
+   "to": 4,
+   "title": "The hash function and the header page"
+  },
+  {
+   "from": 5,
+   "to": 7,
+   "title": "The directory page"
+  },
+  {
+   "from": 8,
+   "to": 10,
+   "title": "Directory growth, shrinking and integrity"
+  },
+  {
+   "from": 11,
+   "to": 13,
+   "title": "The bucket page"
+  },
+  {
+   "from": 14,
+   "to": 14
+  },
+  {
+   "from": 15,
+   "to": 16,
+   "title": "The table: new and the first insert"
+  },
+  {
+   "from": 17,
+   "to": 17
+  },
+  {
+   "from": 18,
+   "to": 18
+  },
+  {
+   "from": 19,
+   "to": 19
+  },
+  {
+   "from": 20,
+   "to": 21,
+   "title": "Merge empty buckets and shrink the directory"
+  },
+  {
+   "from": 22,
+   "to": 22
+  }
+ ]
 }

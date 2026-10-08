@@ -1,5 +1,0 @@
-id = "1d-01"
-title = "The LRU-K replacer"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1d::s1d_01", "stages_1d::s1d_02", "stages_1d::s1d_03", "stages_1d::s1d_04", "stages_1d::s1d_05", "stages_1d::s1d_06", "stages_1d::s1d_07"]

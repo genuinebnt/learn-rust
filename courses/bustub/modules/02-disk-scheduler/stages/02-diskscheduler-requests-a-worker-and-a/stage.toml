@@ -1,5 +1,0 @@
-id = "1b-02"
-title = "DiskScheduler: requests, a worker and a clean shutdown"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1b::s1b_07", "stages_1b::s1b_08", "stages_1b::s1b_09", "stages_1b::s1b_10", "stages_1b::s1b_11", "stages_1b::s1b_12"]

@@ -1,5 +1,0 @@
-id = "2b-08"
-title = "remove: merge buckets and shrink the directory"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_2b::s2b_19", "stages_2b::s2b_20", "stages_2b::s2b_21"]

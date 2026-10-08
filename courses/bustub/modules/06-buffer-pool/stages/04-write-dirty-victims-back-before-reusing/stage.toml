@@ -1,0 +1,5 @@
+id = "1f-04"
+title = "Write dirty victims back before reusing their frame"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1f::s1f_06", "stages_1f::s1f_07"]

@@ -1,6 +1,0 @@
-id = "1e-03"
-title = "Boss: BusTub's arc_replacer_test and performance test"
-kind = "boss"
-difficulty = "medium"
-tests = ["stages_1e::s1e_09", "arc_replacer_test", "arc_replacer_performance_test"]
-retest = true

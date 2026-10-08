@@ -1,6 +1,0 @@
-id = "1a-01"
-title = "Open the database file; write and read pages"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1a::s1a_01", "stages_1a::s1a_02", "stages_1a::s1a_03", "stages_1a::s1a_04", "stages_1a::s1a_05", "stages_1a::s1a_06", "stages_1a::s1a_07"]
-concepts = ["positional-io-and-short-reads"]

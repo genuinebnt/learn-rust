@@ -85,12 +85,12 @@ impl<T> IndexList<T> {
 
     /// Removes the element `handle` names. `None` if it was already removed (even if its node has been reused since).
     pub fn remove(&mut self, handle: Handle) -> Option<T> {
-        todo!("1c-01: find the node (checking the generation), then unlink it")
+        todo!("1c-02: find the node (checking the generation), then unlink it")
     }
 
     /// Moves the element to the back without changing its handle. Returns false if the handle is stale.
     pub fn move_to_back(&mut self, handle: Handle) -> bool {
-        todo!("1c-01: if the node isn't already the tail, detach it from its place and link it after the tail; keep its generation")
+        todo!("1c-02: if the node isn't already the tail, detach it from its place and link it after the tail; keep its generation")
     }
 }
 

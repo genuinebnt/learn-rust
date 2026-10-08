@@ -1,0 +1,5 @@
+id = "2b-11"
+title = "Merge empty buckets and shrink the directory"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_2b::s2b_20", "stages_2b::s2b_21"]

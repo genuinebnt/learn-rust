@@ -36,7 +36,7 @@ impl<'a> ReadPageGuard<'a> {
 
     /// Writes the page to disk now. The guard keeps its pin and latch.
     pub fn flush(&mut self) {
-        todo!("1g-01: write the bytes you hold to disk, without taking the frame latch again (you already hold it)")
+        todo!("1g-02: write the bytes you hold to disk, without taking the frame latch again (you already hold it)")
     }
 
     /// Unlatches and unpins the page. Does nothing if the guard was already released. (BusTub's `Drop()`; in Rust `drop(guard)`
@@ -93,7 +93,7 @@ impl<'a> WritePageGuard<'a> {
 
     /// Writes the page to disk now, keeping the pin and the latch, and marks it clean.
     pub fn flush(&mut self) {
-        todo!("1g-01: write the bytes you hold to disk, without taking the frame latch again; the page is now clean")
+        todo!("1g-02: write the bytes you hold to disk, without taking the frame latch again; the page is now clean")
     }
 
     pub fn release(&mut self) {

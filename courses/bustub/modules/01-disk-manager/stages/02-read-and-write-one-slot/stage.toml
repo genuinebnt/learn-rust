@@ -1,0 +1,7 @@
+id = "1a-02"
+title = "Read and write one slot"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1a::s1a_05", "stages_1a::s1a_06", "stages_1a::s1a_07"]
+concepts = ["positional-io-and-short-reads"]
+learn = ["positional reads and writes (pread/pwrite)", "why read can return less than you asked for", "zero-filling what a file does not have"]

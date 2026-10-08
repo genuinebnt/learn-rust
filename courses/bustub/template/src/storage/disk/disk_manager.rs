@@ -26,18 +26,18 @@ pub fn file_size_for(capacity: usize) -> u64 {
 
 /// Writes `data` into slot `slot` of `file`, extending the file if the slot is past its end.
 pub fn write_slot(file: &File, slot: usize, data: &PageData) -> io::Result<()> {
-    todo!("1a-01: write the whole page at the slot's byte offset, without moving any cursor")
+    todo!("1a-02: write the whole page at the slot's byte offset, without moving any cursor")
 }
 
 /// Reads into `buf` starting at byte `offset`, until `buf` is full or the file ends. Returns how many bytes it read.
 /// A single `read_at` may return fewer bytes than asked for even when more are there, so this keeps asking.
 pub fn read_full_at(file: &File, buf: &mut [u8], offset: u64) -> io::Result<usize> {
-    todo!("1a-01: loop on read_at until the buffer is full or read_at returns 0 (end of file)")
+    todo!("1a-02: loop on read_at until the buffer is full or read_at returns 0 (end of file)")
 }
 
 /// Reads slot `slot` into `buf`. Whatever part of the slot the file doesn't have yet reads as zeros.
 pub fn read_slot(file: &File, slot: usize, buf: &mut PageData) -> io::Result<()> {
-    todo!("1a-01: read_full_at, then zero-fill the rest of the buffer")
+    todo!("1a-02: read_full_at, then zero-fill the rest of the buffer")
 }
 
 /// Everything the db file's latch protects: the file itself and the bookkeeping that says where pages are.
@@ -57,7 +57,7 @@ impl DbIo {
     /// A slot for a new page: a freed one if there is one, otherwise a fresh slot at the end, growing the file
     /// (doubling `page_capacity`) when the fresh slot would not fit.
     fn allocate_slot(&mut self) -> io::Result<usize> {
-        todo!("1a-02: the next fresh slot; remember that you have handed it out")
+        todo!("1a-03: the next fresh slot; remember that you have handed it out")
     }
 }
 
@@ -82,7 +82,7 @@ impl DiskManager {
 
     /// Syncs both files to disk and releases the disk manager's hold on them. (BusTub's `ShutDown()`.)
     pub fn shut_down(&self) -> io::Result<()> {
-        todo!("1a-04: sync_all both files")
+        todo!("1a-08: sync_all both files")
     }
 
     pub fn db_file_name(&self) -> &Path {
@@ -112,41 +112,41 @@ impl DiskManager {
     /// Writes a page. A page the disk manager hasn't seen gets a slot first.
     pub fn write_page(&self, page_id: PageId, data: &PageData) -> io::Result<()> {
         assert!(page_id.is_valid(), "write of invalid page id {}", page_id.0);
-        todo!("1a-02: find the page's slot (allocating one for a new page, and remembering it), then write_slot")
+        todo!("1a-03: find the page's slot (allocating one for a new page, and remembering it), then write_slot")
     }
 
     /// Reads a page into `buf`. A page that was never written reads as zeros.
     pub fn read_page(&self, page_id: PageId, buf: &mut PageData) -> io::Result<()> {
         assert!(page_id.is_valid(), "read of invalid page id {}", page_id.0);
-        todo!("1a-02: read_slot if the page has a slot, otherwise zero the buffer")
+        todo!("1a-03: read_slot if the page has a slot, otherwise zero the buffer")
     }
 
     /// Forgets a page and frees its slot for reuse. Deleting a page that doesn't exist does nothing.
     pub fn delete_page(&self, page_id: PageId) {
-        todo!("1a-02: remove the page from the page table and free its slot; do nothing if it isn't there")
+        todo!("1a-04: remove the page from the page table and free its slot; do nothing if it isn't there")
     }
 
     /// Appends `data` to the log file and counts a flush. An empty `data` does nothing.
     pub fn write_log(&self, data: &[u8]) -> io::Result<()> {
-        todo!("1a-03: append data to the log file and count a flush; an empty write does nothing")
+        todo!("1a-05: append data to the log file and count a flush; an empty write does nothing")
     }
 
     /// Reads up to `buf.len()` bytes of the log starting at byte `offset`. Returns `false` if `offset` is at or past
     /// the end of the log (then `buf` is untouched); otherwise `true`, with whatever the log doesn't have zero-filled.
     pub fn read_log(&self, buf: &mut [u8], offset: u64) -> io::Result<bool> {
-        todo!("1a-03: false past the end of the log; otherwise read_full_at and zero-fill the rest")
+        todo!("1a-05: false past the end of the log; otherwise read_full_at and zero-fill the rest")
     }
 
     pub fn get_num_flushes(&self) -> usize {
-        todo!("1a-03: load the counter")
+        todo!("1a-05: load the counter")
     }
 
     pub fn get_num_writes(&self) -> usize {
-        todo!("1a-03: load the counter")
+        todo!("1a-05: load the counter")
     }
 
     pub fn get_num_deletes(&self) -> usize {
-        todo!("1a-03: load the counter")
+        todo!("1a-05: load the counter")
     }
 }
 
@@ -161,19 +161,19 @@ pub trait DiskIo: Send + Sync {
 
 impl DiskIo for DiskManager {
     fn read_page(&self, page_id: PageId, buf: &mut PageData) -> io::Result<()> {
-        todo!("1a-03: call DiskManager's own read_page")
+        todo!("1a-06: call DiskManager's own read_page")
     }
     
     fn write_page(&self, page_id: PageId, data: &PageData) -> io::Result<()> {
-        todo!("1a-03: call DiskManager's own write_page")
+        todo!("1a-06: call DiskManager's own write_page")
     }
     
     fn delete_page(&self, page_id: PageId) {
-        todo!("1a-03: call DiskManager's own delete_page")
+        todo!("1a-06: call DiskManager's own delete_page")
     }
 }
 
 /// Copies page `from` to page `to` through any disk.
 pub fn copy_page(disk: &dyn DiskIo, from: PageId, to: PageId) -> io::Result<()> {
-    todo!("1a-03: read page `from` into a buffer, write the buffer as page `to`")
+    todo!("1a-06: read page `from` into a buffer, write the buffer as page `to`")
 }

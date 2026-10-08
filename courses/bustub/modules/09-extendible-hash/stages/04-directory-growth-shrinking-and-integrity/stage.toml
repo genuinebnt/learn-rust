@@ -1,0 +1,5 @@
+id = "2b-04"
+title = "Directory growth, shrinking and integrity"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2b::s2b_08", "stages_2b::s2b_09", "stages_2b::s2b_10"]

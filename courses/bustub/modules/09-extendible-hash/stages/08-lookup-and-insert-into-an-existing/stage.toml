@@ -1,0 +1,5 @@
+id = "2b-08"
+title = "Lookup and insert into an existing bucket"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2b::s2b_17"]

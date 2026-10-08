@@ -7,6 +7,7 @@ import { DIFFICULTY_COLOR, SplitTitle } from "./CoursePage";
 import { renderMd } from "./courseMd";
 
 const md = renderMd;
+type Tab = "instructions" | "hints" | "solution" | "concepts" | "run";
 const DIFFICULTY_LABEL = { "very-easy": "VERY EASY", easy: "EASY", medium: "MEDIUM", hard: "HARD" } as const;
 
 /** Copies a code block when its copy button is clicked (the HTML is static, so the click is caught here). */
@@ -188,6 +189,16 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     const sol = useMutation({ mutationFn: () => api.revealCourseSolution(course, stage), onSuccess: set });
     const p = q.data;
     const [active, setActive] = useState("s-top");
+    const tabFromHash = (): Tab => {
+        const h = location.hash.slice(1);
+        return (["instructions", "hints", "solution", "concepts", "run"] as const).find((x) => x === h) ?? "instructions";
+    };
+    const [tab, setTab] = useState<Tab>(tabFromHash);
+    const pick = (k: Tab) => {
+        setTab(k);
+        history.replaceState(null, "", k === "instructions" ? location.pathname : `#${k}`);
+        window.scrollTo({ top: 0 });
+    };
 
     useEffect(() => {
         window.scrollTo({ top: 0 });
@@ -201,7 +212,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [p, course, nav]);
-    const ids = p ? ["s-top", ...p.stage.sections.map((s) => `sec-${s.id}`), "s-hints", "s-solution", "s-run", "s-deeper"] : [];
+    const ids = p ? ["s-top", ...p.stage.sections.map((s) => `sec-${s.id}`)] : [];
     useEffect(() => {
         const onScroll = () => {
             let cur = ids[0] ?? "s-top";
@@ -244,14 +255,13 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     const inModule = p.module.stages.findIndex((s) => s.id === p.stage.id);
     const run = p.last_run;
     const nextHint = p.hints.revealed.length < p.hints.total ? p.hints.titles[p.hints.revealed.length] : null;
-    const toc: [string, string][] = [
-        ["s-top", "Overview"],
-        ...p.stage.sections.map((s): [string, string] => [`sec-${s.id}`, s.title]),
-        ...(p.concepts.length ? ([["s-concepts", "Concepts"]] as [string, string][]) : []),
-        ...(p.hints.total ? ([["s-hints", "Hints"]] as [string, string][]) : []),
-        ["s-solution", "Our answer"],
-        ["s-run", "Your last run"],
-        ["s-deeper", "Go deeper"],
+    const toc: [string, string][] = [["s-top", "Overview"], ...p.stage.sections.map((s): [string, string] => [`sec-${s.id}`, s.title])];
+    const tabs: [Tab, string, string][] = [
+        ["instructions", "Instructions", ""],
+        ["hints", "Hints", p.hints.total ? `${p.hints.revealed.length}/${p.hints.total}` : ""],
+        ["solution", "Solution", ""],
+        ["concepts", "Concepts", String(p.concepts.length || "")],
+        ["run", "Last run", run ? (run.ok ? "✓" : `${run.passed}/${run.total}`) : ""],
     ];
     return (
         <>
@@ -318,115 +328,176 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                             <h1 className="cx-h1">
                                 <SplitTitle title={p.stage.title} />
                             </h1>
-                            {p.stage.intro && (
-                                <div className="cx-lead cx-leadmd">
-                                    <Prose text={p.stage.intro} />
+                            {p.stage.learn.length > 0 && (
+                                <div className="cx-learn">
+                                    <span className="lab">YOU'LL LEARN</span>
+                                    {p.stage.learn.map((l) => (
+                                        <span className="cpill" key={l}>
+                                            {l}
+                                        </span>
+                                    ))}
                                 </div>
                             )}
-                            {p.concepts.length > 0 && (
+                            <div className="cx-tabs" role="tablist" aria-label="Stage">
+                                {tabs.map(([k, label, n]) => (
+                                    <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => pick(k)}>
+                                        {label}
+                                        {n !== "" && <small>{n}</small>}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {tab === "instructions" && (
                                 <div className="cx-prose">
-                                    <div className="cx-part" id="s-concepts">
-                                        <b>READ FIRST</b>
-                                        CONCEPTS FOR THIS STAGE
+                                    {p.concepts.length > 0 && (
+                                        <button className="cx-readfirst" onClick={() => pick("concepts")}>
+                                            <b>READ FIRST</b>
+                                            <span>
+                                                {p.concepts.map((k) => k.title).join(" · ")} <em>~{p.concepts.reduce((n, k) => n + k.minutes, 0)} min</em>
+                                            </span>
+                                            <i>open ›</i>
+                                        </button>
+                                    )}
+                                    {p.stage.intro && (
+                                        <div className="cx-leadmd">
+                                            <Prose text={p.stage.intro} />
+                                        </div>
+                                    )}
+                                    {p.stage.sections.map((s, i) => {
+                                        const part = /^Part (\d+) · (.*)$/.exec(s.title);
+                                        return (
+                                            <section key={s.id} id={`sec-${s.id}`}>
+                                                <div className="cx-part">
+                                                    <b>{part ? `PART ${part[1]}` : String(i + 1).padStart(2, "0")}</b>
+                                                    {part ? "" : s.title.toUpperCase()}
+                                                </div>
+                                                {part && <h2>{part[2]}</h2>}
+                                                <Body text={s.md} />
+                                            </section>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {tab === "hints" && (
+                                <div className="cx-prose">
+                                    {p.hints.total === 0 ? (
+                                        <div className="cx-empty">No hints written for this stage yet.</div>
+                                    ) : (
+                                        <>
+                                            <p className="cx-quiet" style={{ margin: "0 0 4px" }}>
+                                                {p.hints.revealed.length} of {p.hints.total} opened. Each hint opened before the stage passes marks it as assisted. They get deeper: the first nudges the design, the last names the invariant to check.
+                                            </p>
+                                            {p.hints.revealed.map((h, i) => (
+                                                <details className="cx-box vio" key={i} open>
+                                                    <summary>
+                                                        <span className="cx-bl">Hint {i + 1}</span>
+                                                        <span className="cx-bt">{h.title}</span>
+                                                        <span className="cx-chev" aria-hidden="true" />
+                                                    </summary>
+                                                    <div className="cx-bb">
+                                                        <Prose text={h.md} />
+                                                    </div>
+                                                </details>
+                                            ))}
+                                            {nextHint !== null && (
+                                                <div className="cx-locked vio">
+                                                    <b>HINT {p.hints.revealed.length + 1}</b>
+                                                    <span>{p.state === "todo" ? "Opening it marks this stage as assisted." : "Locked until you open it."}</span>
+                                                    <button onClick={() => hint.mutate()} disabled={hint.isPending}>
+                                                        open hint {p.hints.revealed.length + 1} of {p.hints.total}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
+                            {tab === "solution" && (
+                                <div className="cx-prose">
+                                    {p.solution.open && p.solution.files ? (
+                                        <>
+                                            <p className="cx-quiet" style={{ margin: 0 }}>
+                                                One way to write it, as a diff against your starter code. Yours only has to pass the tests.
+                                            </p>
+                                            <DiffView files={p.solution.files} />
+                                        </>
+                                    ) : !p.solution.available ? (
+                                        <div className="cx-locked fn">
+                                            <b>OUR ANSWER</b>
+                                            <span>
+                                                Not uploaded to this app yet. From your clone of the repo: <code>anneal course login {location.origin}</code>, then <code>anneal course solutions</code>.
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div className="cx-locked fn">
+                                            <b>OUR ANSWER</b>
+                                            <span>{p.state === "todo" ? "Opening it before the stage passes marks it as assisted." : "Unlocked once the stage has passed."}</span>
+                                            <button onClick={() => sol.mutate()} disabled={sol.isPending}>
+                                                show the solution
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {tab === "concepts" && (
+                                <div className="cx-prose">
+                                    {p.concepts.length > 0 && (
+                                        <>
+                                            <div className="cx-part">
+                                                <b>CONCEPTS</b>
+                                                SHORT ARTICLES FOR THIS STAGE
+                                            </div>
+                                            <div className="cx-reads">
+                                                {p.concepts.map((k) => (
+                                                    <Link key={k.id} to="/courses/$course/concept/$id" params={{ course, id: k.id }} className="cx-concept">
+                                                        <small>CONCEPT · ~{k.minutes} MIN</small>
+                                                        {k.title}
+                                                        <span>{k.summary}</span>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                    <div className="cx-part">
+                                        <b>FURTHER READING</b>
+                                        {p.module.code.toUpperCase()} · {p.module.title.toUpperCase()}
                                     </div>
                                     <div className="cx-reads">
-                                        {p.concepts.map((k) => (
-                                            <Link key={k.id} to="/courses/$course/concept/$id" params={{ course, id: k.id }} className="cx-concept">
-                                                <small>CONCEPT · ~{k.minutes} MIN</small>
-                                                {k.title}
-                                                <span>{k.summary}</span>
-                                            </Link>
+                                        {p.module.lectures.map((l) => (
+                                            <a key={l.id} href={l.video ?? l.slides} target="_blank" rel="noreferrer">
+                                                <small>CMU 15-445 LECTURE · {l.term.toUpperCase()}</small>
+                                                {l.title}
+                                                <span>{[l.slides && "slides", l.notes && "notes", l.video && "video"].filter(Boolean).join(" · ")}</span>
+                                            </a>
+                                        ))}
+                                        {p.module.resources.map((r) => (
+                                            <a key={r.url} href={r.url} target="_blank" rel="noreferrer">
+                                                <small>{r.kind.toUpperCase()}</small>
+                                                {r.title}
+                                            </a>
+                                        ))}
+                                        {p.module.bustub.map((u) => (
+                                            <a key={u} href={u} target="_blank" rel="noreferrer">
+                                                <small>BUSTUB SOURCE</small>
+                                                {u.split("/").slice(-1)[0]}
+                                                <span>{u.replace("https://github.com/cmu-db/bustub/blob/master/", "")}</span>
+                                            </a>
                                         ))}
                                     </div>
                                 </div>
                             )}
-                            <div className="cx-prose">
-                                {p.stage.sections.map((s, i) => {
-                                    const part = /^Part (\d+) · (.*)$/.exec(s.title);
-                                    return (
-                                        <section key={s.id} id={`sec-${s.id}`}>
-                                            <div className="cx-part">
-                                                <b>{part ? `PART ${part[1]}` : String(i + 1).padStart(2, "0")}</b>
-                                                {part ? "" : s.title.toUpperCase()}
-                                            </div>
-                                            {part && <h2>{part[2]}</h2>}
-                                            <Body text={s.md} />
-                                        </section>
-                                    );
-                                })}
 
-                                {p.hints.total > 0 && (
-                                    <section id="s-hints">
-                                        <div className="cx-part">
-                                            <b>HINTS</b>
-                                            {p.hints.revealed.length} OF {p.hints.total} OPENED
-                                        </div>
-                                        <p className="cx-quiet" style={{ margin: "14px 0 0" }}>
-                                            Each hint opened before the stage passes marks it as assisted. They get deeper: the first nudges the design, the last names the invariant to check.
-                                        </p>
-                                        {p.hints.revealed.map((h, i) => (
-                                            <details className="cx-box vio" key={i} open>
-                                                <summary>
-                                                    <span className="cx-bl">Hint {i + 1}</span>
-                                                    <span className="cx-bt">{h.title}</span>
-                                                    <span className="cx-chev" aria-hidden="true" />
-                                                </summary>
-                                                <div className="cx-bb">
-                                                    <Prose text={h.md} />
-                                                </div>
-                                            </details>
-                                        ))}
-                                        {nextHint !== null && (
-                                            <div className="cx-locked vio">
-                                                <b>HINT {p.hints.revealed.length + 1}</b>
-                                                <span>{p.state === "todo" ? "Opening it marks this stage as assisted." : "Locked until you open it."}</span>
-                                                <button onClick={() => hint.mutate()} disabled={hint.isPending}>
-                                                    open hint {p.hints.revealed.length + 1} of {p.hints.total}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </section>
-                                )}
-
-                                {(
-                                    <section id="s-solution">
-                                        <div className="cx-part">
-                                            <b>OUR ANSWER</b>
-                                            {p.solution.open ? "OPENED" : "LOCKED"}
-                                        </div>
-                                        {p.solution.open && p.solution.files ? (
-                                            <>
-                                                <p className="cx-quiet" style={{ margin: "14px 0 0" }}>
-                                                    One way to write it, as a diff against your starter code. Yours only has to pass the tests.
-                                                </p>
-                                                <DiffView files={p.solution.files} />
-                                            </>
-                                        ) : !p.solution.available ? (
-                                            <div className="cx-locked fn">
-                                                <b>OUR ANSWER</b>
-                                                <span>
-                                                    Not uploaded to this app yet. From your clone of the repo: <code>anneal course login {location.origin}</code>, then <code>anneal course solutions</code>.
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <div className="cx-locked fn">
-                                                <b>OUR ANSWER</b>
-                                                <span>{p.state === "todo" ? "Opening it before the stage passes marks it as assisted." : "Unlocked once the stage has passed."}</span>
-                                                <button onClick={() => sol.mutate()} disabled={sol.isPending}>
-                                                    show the solution
-                                                </button>
-                                            </div>
-                                        )}
-                                    </section>
-                                )}
-
-                                <section id="s-run">
-                                    <div className="cx-part">
-                                        <b>YOUR LAST RUN</b>
-                                        {run ? ago(run.at).toUpperCase() : ""}
-                                    </div>
+                            {tab === "run" && (
+                                <div className="cx-prose">
                                     {run ? (
                                         <>
+                                            <p className="cx-quiet" style={{ margin: 0 }}>
+                                                {ago(run.at)}
+                                                {run.commit_sha ? ` · commit ${run.commit_sha.slice(0, 7)}` : ""} · {(run.duration_ms / 1000).toFixed(1)}s
+                                            </p>
                                             {run.problem && (
                                                 <div className="cx-test bad" style={{ margin: "14px 0 0", padding: 0 }}>
                                                     <span className="cx-sq" />
@@ -460,39 +531,8 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                             No run yet. In your repo, run <code>anneal course test</code>, or commit and push: each run is reported here.
                                         </div>
                                     )}
-                                </section>
-
-                                <section id="s-deeper">
-                                    <div className="cx-part">
-                                        <b>GO DEEPER</b>
-                                        {p.module.code.toUpperCase()} · {p.module.title.toUpperCase()}
-                                    </div>
-                                    <div className="cx-reads">
-                                        {p.module.lectures.map((l) => (
-                                            <a key={l.id} href={l.video ?? l.slides} target="_blank" rel="noreferrer">
-                                                <small>CMU 15-445 LECTURE · {l.term.toUpperCase()}</small>
-                                                {l.title}
-                                                <span>
-                                                    {[l.slides && "slides", l.notes && "notes", l.video && "video"].filter(Boolean).join(" · ")}
-                                                </span>
-                                            </a>
-                                        ))}
-                                        {p.module.resources.map((r) => (
-                                            <a key={r.url} href={r.url} target="_blank" rel="noreferrer">
-                                                <small>{r.kind.toUpperCase()}</small>
-                                                {r.title}
-                                            </a>
-                                        ))}
-                                        {p.module.bustub.map((u) => (
-                                            <a key={u} href={u} target="_blank" rel="noreferrer">
-                                                <small>BUSTUB SOURCE</small>
-                                                {u.split("/").slice(-1)[0]}
-                                                <span>{u.replace("https://github.com/cmu-db/bustub/blob/master/", "")}</span>
-                                            </a>
-                                        ))}
-                                    </div>
-                                </section>
-                            </div>
+                                </div>
+                            )}
                             <nav className="cx-pn">
                                 {p.prev ? (
                                     <Link to="/courses/$course/$stage" params={{ course, stage: p.prev.id }}>
@@ -531,6 +571,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                     run · {ago(run.at)}
                                     {run.commit_sha ? ` · ${run.commit_sha.slice(0, 7)}` : ""}
                                 </span>
+                                <button onClick={() => pick("run")}>show logs</button>
                             </>
                         ) : (
                             <>
@@ -544,6 +585,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                     </div>
                 </div>
                 <aside className="cx-toc">
+                    {tab === "instructions" && (
                     <div>
                         <h4>ON THIS PAGE</h4>
                         {toc.map(([id, label]) => (
@@ -552,6 +594,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                             </a>
                         ))}
                     </div>
+                    )}
                     <div>
                         <h4>SHORTCUTS</h4>
                         <p>

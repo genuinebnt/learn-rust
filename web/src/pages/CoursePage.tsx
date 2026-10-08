@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties } from "react";
-import { api, type CourseModuleRow, type CourseOverview, type StageDifficulty } from "../api";
+import { api, type CourseOverview, type CourseStageRow, type StageDifficulty } from "../api";
 import { Header } from "../components/Header";
 
 /** The course the Courses nav item opens. */
@@ -25,52 +25,34 @@ export function SplitTitle({ title }: { title: string }) {
     );
 }
 
-function ModuleCard({ course, project, m, current }: { course: string; project: number; m: CourseModuleRow; current: string | null }) {
-    const done = m.stages.filter((s) => s.state !== "todo").length;
-    const next = m.stages.find((s) => s.state === "todo");
-    const isCurrent = m.stages.some((s) => s.id === current);
-    const finished = done === m.stages.length && m.stages.length > 0;
-    const target = next ?? m.stages[0];
-    if (!target) return null;
+const BARS: Record<StageDifficulty, number> = { "very-easy": 1, easy: 1, medium: 2, hard: 3 };
+const LABEL: Record<StageDifficulty, string> = { "very-easy": "VERY EASY", easy: "EASY", medium: "MEDIUM", hard: "HARD" };
+
+/** The three-bar difficulty mark CodeCrafters uses next to every stage. */
+export function DifficultyMark({ d }: { d: StageDifficulty }) {
     return (
-        <Link className={`tcard ${isCurrent ? "cur" : ""}`} to="/courses/$course/$stage" params={{ course, stage: target.id }}>
-            <div className="tc-top">
-                <span className="tc-num">{m.code}</span>
-                <span className="tc-kind">MODULE / PROJECT {project}</span>
-                {isCurrent && <span className="tc-badge" style={{ background: "var(--grn-bg)", color: "var(--grn)" }}>NOW ON</span>}
-                {finished && <span className="tc-badge" style={{ background: "var(--grn-bg)", color: "var(--grn)" }}>DONE</span>}
-            </div>
-            <h3>{m.title}</h3>
-            <p>{m.summary}</p>
-            <div className="tc-meta">
-                <b>{m.stages.length}</b> stages · {m.stages.filter((s) => s.kind === "boss").length} BusTub test{m.stages.filter((s) => s.kind === "boss").length === 1 ? "" : "s"}
-            </div>
-            <div className="tc-tags">
-                {m.stages.slice(0, 3).map((s) => (
-                    <span className="cpill" key={s.id}>
-                        {s.title}
-                    </span>
-                ))}
-            </div>
-            <div className="tc-prog">
-                <span>progress</span>
-                <span>
-                    <b>
-                        {done} / {m.stages.length}
-                    </b>
-                </span>
-            </div>
-            <div className="tc-bar">
-                {m.stages.map((s) => (
-                    <span key={s.id} style={{ flex: 1 }}>
-                        <i style={{ width: s.state === "todo" ? 0 : "100%", background: DIFFICULTY_COLOR[s.difficulty] }} />
-                    </span>
-                ))}
-            </div>
-            <div className="tc-foot">
-                <span>{finished ? "all stages passed" : `${done ? "resume" : "start"} · ${next?.title ?? ""}`}</span>
-                <span className="tc-go">{finished ? "review ›" : done ? "resume ›" : "start ›"}</span>
-            </div>
+        <span className="cx-dm" style={{ color: DIFFICULTY_COLOR[d] }}>
+            {LABEL[d]}
+            <i className={BARS[d] >= 1 ? "on" : ""} />
+            <i className={BARS[d] >= 2 ? "on" : ""} />
+            <i className={BARS[d] >= 3 ? "on" : ""} />
+        </span>
+    );
+}
+
+function StageRow({ course, s, current }: { course: string; s: CourseStageRow; current: boolean }) {
+    return (
+        <Link className={`cx-srow${current ? " cur" : ""}`} to="/courses/$course/$stage" params={{ course, stage: s.id }}>
+            <span className={`cx-sdot ${s.state}`} aria-label={s.state === "todo" ? "not passed" : "passed"}>
+                {s.state === "todo" ? "" : "✓"}
+            </span>
+            <span className="cx-sno">{s.id.split("-")[1]}</span>
+            <span className="cx-stt">
+                {s.title}
+                {s.kind === "boss" && <em>BUSTUB TEST</em>}
+            </span>
+            {current && <span className="cx-now">UP NEXT</span>}
+            <DifficultyMark d={s.difficulty} />
         </Link>
     );
 }
@@ -116,7 +98,8 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                     </section>
                     {q.isError && <p className="notice bad">Couldn't load the course: {(q.error as Error).message}</p>}
                     {c && (
-                        <div className="cat-main" style={{ paddingTop: 32 }}>
+                      <div className="cat-body">
+                        <div className="cat-main">
                             {current && (
                                 <Link className="cx-cont" to="/courses/$course/$stage" params={{ course: c.id, stage: current.id }}>
                                     <span className="cx-contk">{c.done ? "CONTINUE" : "START HERE"} · STAGE {current.rank} OF {c.total}</span>
@@ -124,45 +107,94 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                     <span className="tc-go">open stage ›</span>
                                 </Link>
                             )}
-                            {c.projects.filter((p) => p.modules.length > 0).map((p) => {
-                                const stages = p.modules.flatMap((m) => m.stages);
-                                const done = stages.filter((s) => s.state !== "todo").length;
-                                return (
+                            {c.projects
+                                .filter((p) => p.modules.length > 0)
+                                .map((p) => (
                                     <div key={p.number} style={{ display: "contents" }}>
-                                        <div className="flabel">
-                                            PROJECT {p.number} · {p.title.toUpperCase()}
-                                            {stages.length ? ` · ${done} / ${stages.length}` : ""}
-                                        </div>
-                                        <div className="tgrid">
-                                            {p.modules.map((m) => (
-                                                <ModuleCard key={m.code} course={c.id} project={p.number} m={m} current={c.current} />
-                                            ))}
-                                        </div>
+                                        <div className="flabel">PROJECT {p.number} · {p.title.toUpperCase()}</div>
+                                        {p.modules.map((m) => {
+                                            const done = m.stages.filter((x) => x.state !== "todo").length;
+                                            return (
+                                                <section className="cx-sec" key={m.code}>
+                                                    <div className="cx-sech">
+                                                        <b>
+                                                            {m.code.toUpperCase()} · {m.title}
+                                                        </b>
+                                                        <span>
+                                                            {done} / {m.stages.length} stages
+                                                        </span>
+                                                    </div>
+                                                    {m.summary && <p className="cx-secp">{m.summary}</p>}
+                                                    <div className="cx-srows">
+                                                        {m.stages.map((x) => (
+                                                            <StageRow key={x.id} course={c.id} s={x} current={x.id === c.current} />
+                                                        ))}
+                                                    </div>
+                                                </section>
+                                            );
+                                        })}
                                     </div>
-                                );
-                            })}
+                                ))}
                             {c.projects.some((p) => p.modules.length === 0) && (
                                 <div style={{ display: "contents" }}>
                                     <div className="flabel">PLANNED</div>
-                                    <div className="tlist">
+                                    <div className="cx-srows">
                                         {c.projects
                                             .filter((p) => p.modules.length === 0)
                                             .map((p) => (
-                                                <div className="trow" key={p.number} aria-disabled="true" style={{ opacity: 0.7 }}>
-                                                    <span className="n">{p.number}</span>
-                                                    <span className="t">
-                                                        {p.title}
-                                                        <small>PROJECT {p.number} · NOT WRITTEN YET</small>
-                                                    </span>
-                                                    <span className="x hide" />
-                                                    <span className="hide" />
-                                                    <span className="x">planned</span>
+                                                <div className="cx-srow plan" key={p.number} aria-disabled="true">
+                                                    <span className="cx-sdot" />
+                                                    <span className="cx-sno">P{p.number}</span>
+                                                    <span className="cx-stt">{p.title}</span>
+                                                    <span className="cx-now dim">PLANNED</span>
+                                                    <span />
                                                 </div>
                                             ))}
                                     </div>
                                 </div>
                             )}
                         </div>
+                        <aside className="cat-rail" aria-label="Course">
+                            <div className="rbox">
+                                <h4>
+                                    <span>GET STARTED</span>
+                                </h4>
+                                <div className="cx-cmds">
+                                    <code>anneal course init {c.id}</code>
+                                    <code>cd {c.id}-rs</code>
+                                    <code>anneal course login {location.origin}</code>
+                                    <code>anneal course test</code>
+                                </div>
+                                <p className="note" style={{ marginTop: 10 }}>
+                                    Edit the stubs in your own repo. <code>git push</code> runs the tests and reports each run here.
+                                </p>
+                            </div>
+                            <div className="rbox">
+                                <h4>
+                                    <span>PROGRESS</span>
+                                    <span style={{ color: "var(--ca)" }}>
+                                        {c.done} / {c.total}
+                                    </span>
+                                </h4>
+                                {c.projects.map((p) => {
+                                    const st = p.modules.flatMap((m) => m.stages);
+                                    const done = st.filter((x) => x.state !== "todo").length;
+                                    const pct = st.length ? Math.round((100 * done) / st.length) : null;
+                                    return (
+                                        <div className="rmeter" key={p.number} style={{ marginBottom: 6 }}>
+                                            <span>
+                                                Project {p.number} · {p.title}
+                                            </span>
+                                            <em style={{ color: pct === null ? "var(--dim)" : "var(--grn)" }}>{pct === null ? "—" : `${pct}%`}</em>
+                                            <i>
+                                                <b style={{ width: `${pct ?? 0}%`, background: "var(--grn)" }} />
+                                            </i>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </aside>
+                      </div>
                     )}
                 </div>
             </main>

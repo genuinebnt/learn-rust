@@ -1,5 +1,0 @@
-id = "1e-01"
-title = "The ARC replacer: four lists and eviction"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1e::s1e_01", "stages_1e::s1e_02", "stages_1e::s1e_03"]

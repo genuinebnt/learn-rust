@@ -34,6 +34,16 @@ pub enum CourseCmd {
         /// The app's address, e.g. https://anneal.genuinebasil.dev (or http://127.0.0.1:8787 locally).
         url: String,
     },
+    /// Authoring: check the course against docs/COURSE_STANDARDS.md (learn lines, concepts, a Performance section, hints, a short Tests summary).
+    Lint {
+        #[arg(long, default_value = "bustub")]
+        course: String,
+        #[arg(long, default_value = "courses")]
+        courses: PathBuf,
+        /// Check every module, not only the published ones.
+        #[arg(long)]
+        all: bool,
+    },
     /// Authoring: upload each stage's solution diff (from reference/) to the web app you signed in to.
     Solutions {
         #[arg(long, default_value = "bustub")]
@@ -634,6 +644,7 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
             course_sync::login(&url)?;
             Ok(ExitCode::SUCCESS)
         }
+        CourseCmd::Lint { course, courses, all } => lint(&course, &courses, all),
         CourseCmd::Solutions { course, courses, out, stages } => solutions(&course, &courses, out, &stages),
         CourseCmd::Status => status(),
         CourseCmd::Show { stage } => show(stage.as_deref()),
@@ -1004,6 +1015,80 @@ fn print_report(r: &RunReport) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Authoring: lint (docs/COURSE_STANDARDS.md)
+
+/// The bullet count of each `### Tests` block in a stage's markdown (outside code fences).
+fn tests_bullets(md: &str) -> Vec<usize> {
+    let (mut in_tests, mut fence, mut n) = (false, false, 0);
+    let mut blocks = Vec::new();
+    for line in md.lines() {
+        if line.trim_start().starts_with("```") {
+            fence = !fence;
+        }
+        if fence {
+            continue;
+        }
+        if let Some(h) = line.strip_prefix("## ").or_else(|| line.strip_prefix("### ")) {
+            if in_tests {
+                blocks.push(n);
+            }
+            n = 0;
+            in_tests = h.trim().to_lowercase() == "tests";
+            continue;
+        }
+        if in_tests && (line.starts_with("- ") || line.starts_with("* ")) {
+            n += 1;
+        }
+    }
+    if in_tests {
+        blocks.push(n);
+    }
+    blocks
+}
+
+fn lint(course_id: &str, courses: &Path, all: bool) -> anyhow::Result<ExitCode> {
+    use anneal_content::course::Course as Def;
+    let root = courses.join(course_id);
+    let def = if all { Def::load_all(&root) } else { Def::load(&root) }.map_err(|e| anyhow::anyhow!("{e}"))?;
+    let mut problems = Vec::new();
+    let mut checked = 0;
+    for m in &def.modules {
+        if !(6..=10).contains(&m.stages.len()) {
+            println!("note  {}: {} stages (6 to 10 is the sweet spot; not a hard limit)", m.code, m.stages.len());
+        }
+        for st in &m.stages {
+            if st.kind == "boss" {
+                continue;
+            }
+            checked += 1;
+            let id = &st.id;
+            if st.learn.len() < 2 {
+                problems.push(format!("{id}: `learn` needs at least 2 entries (what this stage teaches)"));
+            }
+            if st.concepts.is_empty() {
+                problems.push(format!("{id}: link at least one concept article (`concepts = [...]`)"));
+            }
+            if !st.sections.iter().any(|s| s.id == "performance") {
+                problems.push(format!("{id}: add a `## Performance` section"));
+            }
+            if st.hints.len() < 2 {
+                problems.push(format!("{id}: {} hint(s); write at least 2 (design, then the trap, then the invariant)", st.hints.len()));
+            }
+            let blocks: Vec<usize> = std::iter::once(st.intro.as_str()).chain(st.sections.iter().map(|s| s.md.as_str())).flat_map(tests_bullets).collect();
+            let total: usize = blocks.iter().sum();
+            if blocks.iter().any(|&b| b > 4) || total > 8 {
+                problems.push(format!("{id}: Tests text has {total} bullets ({blocks:?}); summarise the key behaviours: at most 4 per Tests block and 8 per stage (every test is listed by name in Last run)"));
+            }
+        }
+    }
+    for p in &problems {
+        println!("FAIL  {p}");
+    }
+    println!("\n{checked} stages checked, {} problems", problems.len());
+    Ok(if problems.is_empty() { ExitCode::SUCCESS } else { ExitCode::FAILURE })
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Authoring: solutions
 
 /// Renders every text file of the reference for each stage and uploads (or writes) the per-stage diffs.
@@ -1092,6 +1177,9 @@ fn verify(course_id: &str, courses: &Path, only: Option<&str>, from: Option<&str
                 "tests fail with the solution: {}",
                 after.problem.clone().unwrap_or_else(|| after.tests.iter().filter(|t| !t.ok).map(|t| t.name.clone()).collect::<Vec<_>>().join(", "))
             ));
+        }
+        if s.def.kind != "boss" && after.tests.len() < 5 {
+            notes.push(format!("{} test(s); a stage needs at least 5, each checking a distinct behaviour (docs/COURSE_STANDARDS.md)", after.tests.len()));
         }
         if !s.def.retest && before.problem.is_none() && !before.tests.is_empty() && before.tests.iter().all(|t| t.ok) {
             notes.push("all tests already pass before the stage (the stub isn't doing its job)".into());

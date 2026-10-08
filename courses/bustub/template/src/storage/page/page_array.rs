@@ -27,29 +27,29 @@ impl<B: AsRef<[u8]>, T: FixedSize> PageArray<B, T> {
 
     /// The entry at `index`. Panics if `index` is past the capacity.
     pub fn get(&self, index: usize) -> T {
-        todo!("2a-02: panic past the capacity; otherwise decode the T::SIZE bytes at index * T::SIZE")
+        todo!("2a-03: panic past the capacity; otherwise decode the T::SIZE bytes at index * T::SIZE")
     }
 
     /// The first index in `0..len` whose entry is not `Less` than the target, according to `cmp` (which compares an entry with the
     /// target); `len` if every entry is less. The entries `0..len` must be sorted.
     pub fn lower_bound(&self, len: usize, mut cmp: impl FnMut(&T) -> Ordering) -> usize {
-        todo!("2a-02: binary search for the first entry that is not less than the target")
+        todo!("2a-04: binary search for the first entry that is not less than the target")
     }
 }
 
 impl<B: AsRef<[u8]> + AsMut<[u8]>, T: FixedSize> PageArray<B, T> {
     /// Stores `value` as entry `index`. Panics if `index` is past the capacity.
     pub fn set(&mut self, index: usize, value: &T) {
-        todo!("2a-02: panic past the capacity; otherwise encode the value into the T::SIZE bytes at index * T::SIZE")
+        todo!("2a-03: panic past the capacity; otherwise encode the value into the T::SIZE bytes at index * T::SIZE")
     }
 
     /// Inserts `value` at `index`, shifting entries `index..len` one place to the right. The array must have room for `len + 1`.
     pub fn insert_at(&mut self, index: usize, len: usize, value: &T) {
-        todo!("2a-02: move the bytes of entries index..len one entry to the right (copy_within handles the overlap), then set the entry")
+        todo!("2a-03: move the bytes of entries index..len one entry to the right (copy_within handles the overlap), then set the entry")
     }
 
     /// Removes entry `index`, shifting entries `index + 1..len` one place to the left.
     pub fn remove_at(&mut self, index: usize, len: usize) {
-        todo!("2a-02: move the bytes of entries index + 1..len one entry to the left")
+        todo!("2a-03: move the bytes of entries index + 1..len one entry to the left")
     }
 }

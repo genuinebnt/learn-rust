@@ -1,5 +1,0 @@
-id = "1c-01"
-title = "IndexList: a linked list inside a Vec"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1c::s1c_01", "stages_1c::s1c_02", "stages_1c::s1c_03", "stages_1c::s1c_04"]

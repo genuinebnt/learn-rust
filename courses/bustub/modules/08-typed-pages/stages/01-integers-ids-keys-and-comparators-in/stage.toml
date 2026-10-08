@@ -1,5 +1,0 @@
-id = "2a-01"
-title = "Integers, ids, keys and comparators in raw bytes"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_2a::s2a_01", "stages_2a::s2a_02", "stages_2a::s2a_03", "stages_2a::s2a_04", "stages_2a::s2a_05", "stages_2a::s2a_06", "stages_2a::s2a_07"]

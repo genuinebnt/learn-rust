@@ -1,5 +1,0 @@
-id = "2b-06"
-title = "The table: new, lookup and insert"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_2b::s2b_15", "stages_2b::s2b_16", "stages_2b::s2b_17"]

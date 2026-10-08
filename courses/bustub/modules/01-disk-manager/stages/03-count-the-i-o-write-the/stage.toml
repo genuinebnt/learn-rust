@@ -1,6 +1,0 @@
-id = "1a-03"
-title = "Count the I/O, write the log, and put disks behind a trait"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1a::s1a_13", "stages_1a::s1a_14", "stages_1a::s1a_15", "stages_1a::s1a_16", "stages_1a::s1a_17", "stages_1a::s1a_18"]
-concepts = ["atomics-ordering-and-the-log", "trait-objects-and-the-disk-seam"]

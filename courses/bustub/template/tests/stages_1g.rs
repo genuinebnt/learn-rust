@@ -244,7 +244,7 @@ fn s1g_03_deref_mut_works_like_get_data_mut() {
     assert_eq!(guard[0], 7);
 }
 
-// ---- 1g-01 · read_page and write_page --------------------------------------------------------------------------------------------
+// ---- 1g-02 · read_page and write_page --------------------------------------------------------------------------------------------
 
 #[test]
 fn s1g_04_they_return_a_guard_when_there_is_room() {
@@ -273,7 +273,7 @@ fn s1g_04_write_page_panics_when_nothing_can_be_evicted() {
     let _gb = bpm.write_page(b);
 }
 
-// ---- 1g-01 · flush through a guard --------------------------------------------------------------------------------------------------
+// ---- 1g-02 · flush through a guard --------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1g_05_a_write_guard_can_flush_its_page() {

@@ -14,3 +14,4 @@ The rules that matter most:
 - No visible scrollbars. 4-space indent. Don't run prettier (there's no config; match the surrounding style).
 - Check content with `cargo run -q -p anneal-cli -- verify <track>`, which works without Docker.
 - End commit messages with the `Co-Authored-By` line for your model.
+- Courses (`courses/`, the Courses pages): read [docs/COURSE_STANDARDS.md](docs/COURSE_STANDARDS.md) first and run `anneal course lint`. Do not rebuild from memory what the owner has already decided.

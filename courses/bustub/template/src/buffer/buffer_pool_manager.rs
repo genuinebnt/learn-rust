@@ -70,44 +70,44 @@ impl BufferPoolManager {
 
     /// Reads a page from disk into `frame`. The caller holds the pool's latch and has the frame to itself.
     fn load(&self, page_id: PageId, frame: FrameId) {
-        todo!("1f-01: schedule a read request, wait for the future, copy the bytes into the frame")
+        todo!("1f-02: schedule a read request, wait for the future, copy the bytes into the frame")
     }
 
     /// Writes the bytes of `frame` to disk as page `page_id`. The caller holds the pool's latch; nobody has the frame latched.
     fn store(&self, page_id: PageId, frame: FrameId) {
-        todo!("1f-02: copy the frame's bytes into a Box, schedule a write request, wait for it")
+        todo!("1f-04: copy the frame's bytes into a Box, schedule a write request, wait for it")
     }
 
     /// Pins `page_id`, bringing it into memory if needed, and returns its frame. `None` if every frame is pinned.
     /// Each successful call must be matched by an `unpin_page`.
     pub fn fetch_page(&self, page_id: PageId) -> Option<FrameId> {
-        todo!("1f-01: a page not in memory goes into a free frame: read it from disk, pin it once, note it in the page table and the replacer")
+        todo!("1f-02: a page not in memory goes into a free frame: read it from disk, pin it once, note it in the page table and the replacer")
     }
 
     /// Releases one pin. `is_dirty` says the caller modified the page. `false` if the page isn't in memory or wasn't pinned.
     pub fn unpin_page(&self, page_id: PageId, is_dirty: bool) -> bool {
-        todo!("1f-02: drop one pin; remember the dirt; when the last pin goes, the frame may be evicted")
+        todo!("1f-03: drop one pin; remember the dirt; when the last pin goes, the frame may be evicted")
     }
 
     /// The page's pin count, or `None` if the page isn't in memory.
     pub fn get_pin_count(&self, page_id: PageId) -> Option<usize> {
-        todo!("1f-01: the pin count of the frame holding the page, if there is one")
+        todo!("1f-03: the pin count of the frame holding the page, if there is one")
     }
 
     /// Writes the page to disk (whether or not it is dirty) and clears its dirty flag. `false` if it isn't in memory.
     pub fn flush_page(&self, page_id: PageId) -> bool {
-        todo!("1f-02: write the page out and mark it clean")
+        todo!("1f-05: write the page out and mark it clean")
     }
 
     /// Flushes every page in memory.
     pub fn flush_all_pages(&self) {
-        todo!("1f-02: flush every resident page")
+        todo!("1f-05: flush every resident page")
     }
 
     /// Removes the page from memory and frees its disk space. `false` if somebody has it pinned; `true` otherwise (also when it
     /// wasn't in memory). A dirty page is simply dropped: it is being deleted.
     pub fn delete_page(&self, page_id: PageId) -> bool {
-        todo!("1f-02: refuse if pinned; otherwise take the page out of the page table and the replacer, free its frame, and tell the disk")
+        todo!("1f-05: refuse if pinned; otherwise take the page out of the page table and the replacer, free its frame, and tell the disk")
     }
 
     /// Pins `page_id` and takes its read latch. `None` if every frame is pinned.
@@ -122,16 +122,16 @@ impl BufferPoolManager {
 
     /// Like `checked_read_page`, but panics if the page can't be brought in.
     pub fn read_page(&self, page_id: PageId) -> ReadPageGuard<'_> {
-        todo!("1g-01: checked_read_page, but a failure is a panic")
+        todo!("1g-02: checked_read_page, but a failure is a panic")
     }
 
     /// Like `checked_write_page`, but panics if the page can't be brought in.
     pub fn write_page(&self, page_id: PageId) -> WritePageGuard<'_> {
-        todo!("1g-01: checked_write_page, but a failure is a panic")
+        todo!("1g-02: checked_write_page, but a failure is a panic")
     }
 
     /// Writes `data` to disk as page `page_id` without touching the pool's state. For guards that already hold the page's latch.
     pub fn write_page_data(&self, page_id: PageId, data: &PageData) {
-        todo!("1g-01: copy the bytes into a Box, schedule a write, wait for it; no locks needed")
+        todo!("1g-02: copy the bytes into a Box, schedule a write, wait for it; no locks needed")
     }
 }

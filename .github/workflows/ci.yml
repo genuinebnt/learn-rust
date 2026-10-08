@@ -51,6 +51,9 @@ jobs:
       - run: cargo test --workspace --locked
       - name: Validate content
         run: cargo run -q --locked -p anneal-cli -- validate
+      # The published course modules meet the owner's stage standards (docs/COURSE_STANDARDS.md).
+      - name: Course standards
+        run: cargo run -q --locked -p anneal-cli -- course lint
       - name: Run the pattern lesson templates
         run: python3 tools/neetcode/check_lessons.py
 

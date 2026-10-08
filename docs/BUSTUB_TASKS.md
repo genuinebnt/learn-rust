@@ -26,21 +26,23 @@ The owner practises on shipped modules while the next ones are built, so **never
 
 ## Content: modules in BusTub order (each = a track of stages; counts are planned)
 
-**Stage size (2026-10-08, owner's rule):** a stage is a real piece of work (tens of lines and a design decision), never a one- or two-line change. The first cut had 115 tiny stages; `tools/course_merge.py` + `tools/course_merge_plan.json` merged them into 36 (each old stage is now a *Part* of its new stage, and keeps its tests). New modules (2c on) are written at this size from the start, with **hints at BusTub's level** (`## Hints` in `stage.md`, one `### title` per hint: design, then the trap, then the invariant).
+**Stage standards (2026-10-08): see [COURSE_STANDARDS.md](COURSE_STANDARDS.md); `anneal course lint` enforces them and CI runs it for the published modules.** In short: a self-contained exercise (not tiny, not a chapter), 6 to 10 per module (not a hard limit), a concept article and "You'll learn" lines, at least 5 tests, a Performance section, BusTub-level hints. `tools/course_merge.py` + `tools/course_merge_plan.json` regrouped the first cut of 115 tiny stages into 58 (each old stage is now a *Part* of its new stage and keeps its tests).
+
+**Before publishing a module** (add it to `published_modules` in `course.toml`): `anneal course lint --all` clean for it, `verify` clean, and these gaps closed. Known gaps today: 1d-04, 1e-01, 1e-03..06 and 1f-02 have fewer than 5 tests (verify flags them), and every module except 1a still lacks Performance sections, `learn` lines, concept articles and hints.
 
 Lecture ids refer to `courses/bustub/lectures.toml`. "Boss" is BusTub's own test, ported.
 
 | Module | Stages | Lectures | Boss | Status |
 |---|---|---|---|---|
-| **1a Disk manager** | 4 | storage1 | `disk_manager_test` ×4 | **done, verified, shipped** |
-| **1b Disk scheduler** (`Channel`, one-shot promise/future, worker thread, `RwLatch`, sharded workers) | 4 | storage1, bufferpool | `disk_scheduler_test`, `rwlatch_test` | **done, verified, shipped** |
-| **1c Simple replacers** (generational `IndexList`, LRU, CLOCK) | 3 | bufferpool | `lru_replacer_test`, `clock_replacer_test` | **done, verified, shipped** |
-| **1d LRU-K replacer** | 3 | bufferpool | `lru_k_replacer_test` | **done, verified, shipped** |
-| **1e ARC replacer** (four lists, ghosts, adaptive target) | 3 | bufferpool | `arc_replacer_test` ×3, `arc_replacer_performance_test` | **done, verified, shipped** |
-| **1f Buffer pool manager** (textbook `fetch_page`/`unpin_page` interface) | 3 | bufferpool, storage1 | classic `BinaryDataTest`/`SampleTest` + a stress test | **done, verified, shipped** |
+| **1a Disk manager** | 8 | storage1 | `disk_manager_test` ×4 | **done, verified, shipped** |
+| **1b Disk scheduler** (`Channel`, one-shot promise/future, worker thread, `RwLatch`, sharded workers) | 5 | storage1, bufferpool | `disk_scheduler_test`, `rwlatch_test` | **done, verified, shipped** |
+| **1c Simple replacers** (generational `IndexList`, LRU, CLOCK) | 6 | bufferpool | `lru_replacer_test`, `clock_replacer_test` | **done, verified, shipped** |
+| **1d LRU-K replacer** | 5 | bufferpool | `lru_k_replacer_test` | **done, verified, shipped** |
+| **1e ARC replacer** (four lists, ghosts, adaptive target) | 8 | bufferpool | `arc_replacer_test` ×3, `arc_replacer_performance_test` | **done, verified, shipped** |
+| **1f Buffer pool manager** (textbook `fetch_page`/`unpin_page` interface) | 6 | bufferpool, storage1 | classic `BinaryDataTest`/`SampleTest` + a stress test | **done, verified, shipped** |
 | **1g Page guards** (`ReadPageGuard`/`WritePageGuard`, `Drop`, move, flush; the deadlock lesson) | 3 | bufferpool, indexconcurrency | `buffer_pool_manager_test` ×7, `page_guard_test` ×2 | **done, verified, shipped — Project 1 complete** |
-| **2a Typed pages** (ints at offsets, optional page ids, `Rid`, `FixedSize`, `GenericKey`, `PageArray` with insert/remove/search, `repr(C)` layouts) | 4 | storage2, indexes1 | (own tests; BusTub has none for these) | **done, verified, shipped** |
-| **2b Extendible hash table** (MurmurHash3, header/directory/bucket pages, insert with split, remove with merge and shrink, concurrency) | 9 | hashtables | `extendible_htable_page_test`, `…_test`, `…_concurrent_test` | **done, verified, shipped** |
+| **2a Typed pages** (ints at offsets, optional page ids, `Rid`, `FixedSize`, `GenericKey`, `PageArray` with insert/remove/search, `repr(C)` layouts) | 5 | storage2, indexes1 | (own tests; BusTub has none for these) | **done, verified, shipped** |
+| **2b Extendible hash table** (MurmurHash3, header/directory/bucket pages, insert with split, remove with merge and shrink, concurrency) | 12 | hashtables | `extendible_htable_page_test`, `…_test`, `…_concurrent_test` | **done, verified, shipped** |
 | 2c B+ tree (pages, search, insert/split, delete/borrow/merge, iterator, crabbing, tombstones) | ~10 | indexes1, indexes2, indexconcurrency | `b_plus_tree_*_test` ×5 | |
 | 3a Types, tuples, table pages and heap, catalog | ~25 | storage2, storage3 | `type_test`, `tuple_test`, `tmp_tuple_page_test` | |
 | 3b Executors (expressions, scan, insert/update/delete, agg, joins, sort/top-N, window, external sort) | ~45 | queryexecution1/2, sorting, joins | `p3.*.slt` | needs FRONT-1 |
@@ -54,7 +56,7 @@ Each module's stage outline lives in its `modules/<NN>-<slug>/stages/` as it is 
 
 ## Done log
 
-- 2026-10-08: **stages merged** 115 → 36 (see the stage-size rule above); web Course pages and API built; module 1a (with written hints) is the first one published in the app. 36 stages verified, 0 problems.
+- 2026-10-08: **stages merged** 115 → 36 → 58 (see the stage-size rule above); web Course pages and API built; module 1a (hints, concepts, learn lines) is the first one published in the app; regrouped again to 58 self-contained stages after the owner asked for CodeCrafters-style sections of stage rows.
 - 2026-10-08: design (BUSTUB.md), CLI, module 1a (19 stages, ~100 stage tests + BusTub's 4), lecture catalogue, resource lists, C/C++ way blocks in every 1a stage. `tools/course-smoke.sh` green.
 - 2026-10-08: module 2a (13 stages, the toolkit for Project 2's pages). 93 stages verified.
 - 2026-10-08: module 2b (22 stages, extendible hash table; ports BusTub's three hash table tests). 115 stages verified.

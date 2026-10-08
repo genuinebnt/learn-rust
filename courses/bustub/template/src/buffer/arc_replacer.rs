@@ -66,28 +66,28 @@ impl ArcReplacer {
 
     /// `frame` now holds (or is accessed as) `page_id`.
     pub fn record_access(&mut self, frame: FrameId, page_id: PageId) {
-        todo!("1e-01: a new frame goes to the newest end of mru and is not evictable until marked")
+        todo!("1e-02: a new frame goes to the newest end of mru and is not evictable until marked")
     }
 
     /// Marks a live frame evictable or not. Unknown frames are ignored.
     pub fn set_evictable(&mut self, frame: FrameId, evictable: bool) {
-        todo!("1e-01: ignore unknown frames; change the flag and keep the count right")
+        todo!("1e-02: ignore unknown frames; change the flag and keep the count right")
     }
 
     /// The oldest evictable frame on `mru` or `mfu`.
     fn oldest_evictable(&self, status: ArcStatus) -> Option<FrameId> {
-        todo!("1e-01: walk the list from the oldest end for the first evictable frame")
+        todo!("1e-03: walk the list from the oldest end for the first evictable frame")
     }
 
     /// Evicts a frame: from `mru` if it holds at least `p` frames, else from `mfu` (and from the other list if the first has no
     /// evictable frame). The victim's page becomes a ghost. `None` if no frame is evictable.
     pub fn evict(&mut self) -> Option<FrameId> {
-        todo!("1e-01: take the oldest evictable frame, forget its frame, remember its page as a ghost of the same side")
+        todo!("1e-03: take the oldest evictable frame, forget its frame, remember its page as a ghost of the same side")
     }
 
     /// Removes an evictable frame without leaving a ghost (the page was deleted, not evicted). Unknown frames are ignored.
     /// Panics if the frame is not evictable.
     pub fn remove(&mut self, frame: FrameId) {
-        todo!("1e-02: ignore unknown frames; panic for a frame that is not evictable; drop it from its list and the map; no ghost")
+        todo!("1e-07: ignore unknown frames; panic for a frame that is not evictable; drop it from its list and the map; no ghost")
     }
 }

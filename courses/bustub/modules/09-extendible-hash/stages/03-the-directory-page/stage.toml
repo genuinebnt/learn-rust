@@ -1,0 +1,5 @@
+id = "2b-03"
+title = "The directory page"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_05", "stages_2b::s2b_06", "stages_2b::s2b_07"]

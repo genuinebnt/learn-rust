@@ -1,4 +1,4 @@
-//! Tests for the disk scheduler stages (1b-01 … 1b-04). A test named `s1b_04_…` belongs to stage 1b-01.
+//! Tests for the disk scheduler stages (1b-01 … 1b-05). A test named `s1b_04_…` belongs to stage 1b-01.
 
 use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -349,7 +349,7 @@ fn s1b_05_a_hundred_promises_through_a_channel() {
     assert_eq!(got, (0..100).map(|n| n * n).collect::<Vec<_>>());
 }
 
-// ---- 1b-01 · broken promises -------------------------------------------------------------------------------------------
+// ---- 1b-02 · broken promises -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_06_dropping_the_promise_breaks_the_future() {
@@ -501,7 +501,7 @@ fn s1b_08_a_successful_read_from_a_disk_that_fills_the_buffer() {
     assert!(wait(f).unwrap().unwrap().iter().all(|&b| b == 7));
 }
 
-// ---- 1b-02 · DiskScheduler::new and schedule -----------------------------------------------------------------------------
+// ---- 1b-03 · DiskScheduler::new and schedule -----------------------------------------------------------------------------
 
 #[test]
 fn s1b_09_a_scheduled_write_and_read() {
@@ -574,7 +574,7 @@ fn s1b_09_an_empty_batch_is_fine() {
     sched.schedule(Vec::new());
 }
 
-// ---- 1b-02 · shutting down -----------------------------------------------------------------------------------------------
+// ---- 1b-03 · shutting down -----------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_10_dropping_the_scheduler_finishes_the_scheduled_work_first() {
@@ -617,7 +617,7 @@ fn s1b_10_many_schedulers_can_come_and_go() {
     assert_eq!(Arc::strong_count(&disk), 1);
 }
 
-// ---- 1b-02 · a panicking disk does not kill the worker ---------------------------------------------------------------------
+// ---- 1b-03 · a panicking disk does not kill the worker ---------------------------------------------------------------------
 
 #[test]
 fn s1b_11_a_panic_becomes_an_error_for_that_request() {
@@ -655,7 +655,7 @@ fn s1b_11_requests_that_dont_panic_are_unchanged() {
     assert!(wait(f).unwrap().is_ok_and_page(4));
 }
 
-// ---- 1b-02 · create_promise and deallocate_page ----------------------------------------------------------------------------
+// ---- 1b-03 · create_promise and deallocate_page ----------------------------------------------------------------------------
 
 #[test]
 fn s1b_12_create_promise_gives_a_working_pair() {
@@ -766,7 +766,7 @@ fn s1b_13_a_panic_while_latched_does_not_lock_everyone_out() {
     assert_eq!(*latch.read(), 2);
 }
 
-// ---- 1b-03 · ShardedDiskScheduler -----------------------------------------------------------------------------------------
+// ---- 1b-04 · ShardedDiskScheduler -----------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_14_requests_for_one_page_stay_in_order() {
@@ -845,7 +845,7 @@ fn s1b_14_no_workers_is_a_bug() {
     let _ = ShardedDiskScheduler::new(memory_disk(), 0);
 }
 
-// ---- 1b-04 · the module as a whole -----------------------------------------------------------------------------------------
+// ---- 1b-05 · the module as a whole -----------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_15_eight_threads_hammer_one_scheduler() {

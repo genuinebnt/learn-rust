@@ -1,0 +1,5 @@
+id = "2b-05"
+title = "The bucket page"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2b::s2b_11", "stages_2b::s2b_12", "stages_2b::s2b_13"]

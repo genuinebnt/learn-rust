@@ -1,0 +1,6 @@
+id = "1d-05"
+title = "Boss: BusTub's lru_k_replacer_test"
+kind = "boss"
+difficulty = "easy"
+tests = ["stages_1d::s1d_09", "lru_k_replacer_test"]
+retest = true

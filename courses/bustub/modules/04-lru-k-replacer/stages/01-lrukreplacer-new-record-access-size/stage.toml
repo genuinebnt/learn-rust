@@ -1,0 +1,5 @@
+id = "1d-01"
+title = "LruKReplacer: new, record_access, size"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1d::s1d_01", "stages_1d::s1d_02", "stages_1d::s1d_03"]

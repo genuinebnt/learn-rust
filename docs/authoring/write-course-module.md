@@ -1,3 +1,5 @@
+> **First read [../COURSE_STANDARDS.md](../COURSE_STANDARDS.md)**: stage size (6-10 per module, self-contained), a concept per stage, at least 5 tests, a Performance section, BusTub-level hints. `anneal course lint` enforces it.
+
 You are writing one module of anneal's "Build a DBMS: BusTub in Rust" course, in the repo at {REPO}.
 
 READ FIRST: docs/BUSTUB.md (all of it: requirements log §0, the CodeCrafters model §1, mirroring rules §2, stage anatomy §3, authoring §5, testing §6),

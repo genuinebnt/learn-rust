@@ -1,0 +1,5 @@
+id = "2a-04"
+title = "Layouts as constants: repr(C), offset_of!, const assertions"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2a::s2a_11", "stages_2a::s2a_12"]

@@ -71,3 +71,110 @@ Only the **last K** timestamps matter, so each node keeps a `VecDeque<usize>` an
 
 > [!NOTE] What LRU-K does not fix
 > A page referenced twice by a scan (a join that revisits a block) looks hot. And LRU-K's tuning knob K is fixed: ARC (module 1e) adapts to the workload without one.
+
+## In real code
+
+### Using it: a complete, runnable LRU-K
+
+The whole policy in about forty lines. The one trick is that `history.front()` is *both* the earliest access (when the frame has fewer than K) and the K-th most recent (when it has exactly K), so one expression gives the key for both cases.
+
+```rust test
+use std::collections::{BTreeSet, HashMap, VecDeque};
+
+type FrameId = u32;
+
+struct Node { history: VecDeque<usize>, evictable: bool }
+
+struct LruK {
+    k: usize,
+    clock: usize,                                   // the logical clock: one tick per recorded access
+    nodes: HashMap<FrameId, Node>,
+    order: BTreeSet<(u8, usize, FrameId)>,          // evictable frames only; the smallest key is the victim
+}
+
+impl LruK {
+    fn new(k: usize) -> Self { LruK { k, clock: 0, nodes: HashMap::new(), order: BTreeSet::new() } }
+
+    fn key(&self, fid: FrameId) -> (u8, usize, FrameId) {
+        let n = &self.nodes[&fid];
+        let infinite = n.history.len() < self.k;                 // fewer than K accesses: infinite backward k-distance
+        (if infinite { 0 } else { 1 }, *n.history.front().unwrap(), fid)
+    }
+
+    fn record_access(&mut self, fid: FrameId) {
+        let now = self.clock;
+        self.clock += 1;
+        self.nodes.entry(fid).or_insert(Node { history: VecDeque::new(), evictable: false });
+        if self.nodes[&fid].evictable { let old = self.key(fid); self.order.remove(&old); }   // 1. remove under the OLD key
+        let k = self.k;
+        let n = self.nodes.get_mut(&fid).unwrap();
+        n.history.push_back(now);                                                              // 2. change the node
+        if n.history.len() > k { n.history.pop_front(); }
+        if self.nodes[&fid].evictable { let new = self.key(fid); self.order.insert(new); }    // 3. insert under the NEW key
+    }
+
+    fn set_evictable(&mut self, fid: FrameId, on: bool) {
+        let Some(n) = self.nodes.get(&fid) else { return };
+        if n.evictable == on { return; }
+        if on { let key = self.key(fid); self.order.insert(key); } else { let key = self.key(fid); self.order.remove(&key); }
+        self.nodes.get_mut(&fid).unwrap().evictable = on;
+    }
+
+    fn evict(&mut self) -> Option<FrameId> {
+        let (_, _, fid) = self.order.pop_first()?;               // O(log n)
+        self.nodes.remove(&fid);                                  // the history is forgotten
+        Some(fid)
+    }
+
+    fn size(&self) -> usize { self.order.len() }
+}
+
+#[test]
+fn the_worked_example_from_the_figure() {
+    let mut r = LruK::new(2);
+    for fid in [1, 2, 1, 3, 2] { r.record_access(fid); }          // A=1 B=2 C=3: t0:A t1:B t2:A t3:C t4:B
+    for fid in [1, 2, 3] { r.set_evictable(fid, true); }
+    assert_eq!(r.evict(), Some(3));                               // C: one access, infinite distance
+    assert_eq!(r.evict(), Some(1));                               // A: 2nd most recent is t0 (distance 5)
+    assert_eq!(r.evict(), Some(2));                               // B: 2nd most recent is t1 (distance 4)
+    assert_eq!(r.evict(), None);
+}
+
+#[test]
+fn a_scan_does_not_flush_the_hot_set_but_k_equal_one_does() {
+    fn run(k: usize) -> Vec<FrameId> {
+        let mut r = LruK::new(k);
+        for _ in 0..2 { for hot in [1, 2] { r.record_access(hot); } }   // two hot frames, touched twice each
+        for scan in 100..110 { r.record_access(scan); }                  // a scan, once each, AFTER the hot frames
+        for fid in r.nodes.keys().copied().collect::<Vec<_>>() { r.set_evictable(fid, true); }
+        (0..4).map(|_| r.evict().unwrap()).collect()                     // the first four victims
+    }
+    assert_eq!(run(2), vec![100, 101, 102, 103]);                         // LRU-2: the scan leaves first
+    assert_eq!(run(1), vec![1, 2, 100, 101]);                             // LRU-1 = LRU: the hot set goes first
+}
+
+#[test]
+fn pinned_frames_are_never_victims_and_size_counts_only_evictable() {
+    let mut r = LruK::new(2);
+    for fid in 0..4 { r.record_access(fid); r.set_evictable(fid, true); }
+    r.set_evictable(0, false);                                            // pinned
+    assert_eq!(r.size(), 3);
+    assert_eq!(r.evict(), Some(1));                                       // 0 is oldest but pinned
+    r.record_access(2);                                                   // key changes while evictable: remove-old / insert-new
+    assert_eq!(r.evict(), Some(3));                                       // 2 now has two accesses (finite), 3 has one (infinite)
+    assert_eq!(r.size(), 1);
+}
+```
+
+### In the exercises
+
+- **1d-01 (`LruKNode` and the bookkeeping):** the `VecDeque` of the last K timestamps and `record_access` with its logical clock (see *Logical clocks and timestamps* for why a counter and not `Instant`). `kth_timestamp` is the `history.front()` trick when the deque is full.
+- **1d-02 (`set_evictable`, `evict`, `remove`):** the ordering rule: infinite distances first (oldest first access first), then the oldest K-th access. The first test above is the trace to reproduce.
+- **1d-03 (O(log n)):** replace the scan with the `BTreeSet` shown here; see *Ordered sets as priority queues*.
+- **1f-02:** the buffer pool calls `record_access` on every hit and `set_evictable(false)` while a frame is pinned.
+
+### Where it is used
+
+- **Research and teaching systems**: it is the policy BusTub asks for; the original paper evaluated it on database buffer traces.
+- **Descendants of the idea**: 2Q and MySQL InnoDB's midpoint insertion (a new page enters the middle of the LRU list, so a scan never reaches the hot end) are cheaper ways to demand "seen more than once"; **TinyLFU** in the Java Caffeine cache and Rust's `moka` keeps approximate frequency counts for the same reason.
+- **Any cache in front of scan-heavy work**: log processing, analytics queries and backups all read each page once; a policy that tells that from reuse protects the interactive working set.

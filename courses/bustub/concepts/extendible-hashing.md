@@ -71,3 +71,130 @@ A bug in any split or merge breaks one of these first, long before a lookup retu
 
 > [!NOTE] Why three levels here
 > BusTub's table has a **header page** above the directories so that one table can use many directory pages (up to 512), each growing independently: the top bits of the hash choose the directory, the low bits the bucket. A single-directory extendible hash table has the same logic with the header removed.
+
+## In real code
+
+### Using it: a complete, runnable extendible hash table
+
+The algorithm in one file, in memory, with the same operations and invariants the course's disk version has (a `Vec` of buckets stands in for pages). Read it next to the diagram above; the stages are this code split across pages.
+
+```rust test
+use std::collections::HashMap;
+
+struct Bucket { depth: u32, items: Vec<(u32, u32)> }                  // (key, value); local depth
+
+struct Table {
+    global_depth: u32,
+    dir: Vec<usize>,                                                  // slot -> index into `buckets`
+    buckets: Vec<Bucket>,
+    max_size: usize,                                                  // entries per bucket
+}
+
+fn hash(key: u32) -> u32 { key.wrapping_mul(2654435761) ^ (key >> 7) }    // any decent hash; the real one is MurmurHash3
+
+impl Table {
+    fn new(max_size: usize) -> Table {
+        Table { global_depth: 0, dir: vec![0], buckets: vec![Bucket { depth: 0, items: vec![] }], max_size }
+    }
+    fn slot(&self, h: u32) -> usize { (h & ((1u32 << self.global_depth) - 1)) as usize }      // the LOW global_depth bits
+
+    fn get(&self, key: u32) -> Option<u32> {
+        let b = &self.buckets[self.dir[self.slot(hash(key))]];
+        b.items.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)
+    }
+
+    fn insert(&mut self, key: u32, value: u32) -> bool {
+        loop {
+            let slot = self.slot(hash(key));
+            let b = self.dir[slot];
+            if self.buckets[b].items.iter().any(|(k, _)| *k == key) { return false; }          // duplicate
+            if self.buckets[b].items.len() < self.max_size {
+                self.buckets[b].items.push((key, value));
+                return true;
+            }
+            self.split(slot);                                          // full: split, then retry (it may still be full)
+        }
+    }
+
+    fn split(&mut self, slot: usize) {
+        let old = self.dir[slot];
+        if self.buckets[old].depth == self.global_depth {              // no spare bit: double the directory (copy the first half)
+            let copy = self.dir.clone();
+            self.dir.extend(copy);
+            self.global_depth += 1;
+        }
+        let d = self.buckets[old].depth;                               // the bit that has just become significant
+        let new = self.buckets.len();
+        self.buckets.push(Bucket { depth: d + 1, items: vec![] });
+        self.buckets[old].depth = d + 1;
+        let moved: Vec<(u32, u32)> = std::mem::take(&mut self.buckets[old].items);
+        for (k, v) in moved {                                          // redistribute by bit d of the HASH
+            let target = if hash(k) & (1 << d) != 0 { new } else { old };
+            self.buckets[target].items.push((k, v));
+        }
+        for s in 0..self.dir.len() {                                   // repoint: slots that referenced `old` and have bit d set
+            if self.dir[s] == old && (s & (1 << d)) != 0 { self.dir[s] = new; }
+        }
+    }
+
+    /// The invariants the course's verify_integrity checks.
+    fn verify(&self) {
+        let mut refs: HashMap<usize, usize> = HashMap::new();
+        for &b in &self.dir { *refs.entry(b).or_default() += 1; }
+        for (b, n) in refs {
+            let d = self.buckets[b].depth;
+            assert!(d <= self.global_depth, "local depth above global");
+            assert_eq!(n, 1 << (self.global_depth - d), "bucket {b}: wrong number of directory slots");
+        }
+    }
+}
+
+#[test]
+fn grow_one_bucket_at_a_time() {
+    let mut t = Table::new(2);
+    for k in 0..100 {
+        assert!(t.insert(k, k * 10));
+        t.verify();                                                    // after EVERY operation
+    }
+    assert!(!t.insert(5, 0));                                          // duplicates are refused
+    for k in 0..100 {
+        assert_eq!(t.get(k), Some(k * 10));
+    }
+    assert_eq!(t.get(1000), None);
+    assert!(t.global_depth >= 5);                                      // 100 keys in buckets of 2 need at least 50 buckets
+    assert!(t.buckets.len() >= 50);
+}
+
+#[test]
+fn the_directory_only_doubles_when_a_full_bucket_has_no_spare_bit_and_matches_a_hashmap() {
+    let mut t = Table::new(2);
+    assert_eq!((t.global_depth, t.dir.len()), (0, 1));
+    // find three keys whose hashes share bit 0 pattern so the first split is forced: just insert until the first doubling
+    let mut k = 0;
+    while t.global_depth == 0 { t.insert(k, k); k += 1; }
+    assert_eq!((t.global_depth, t.dir.len()), (1, 2), "the first split doubles the directory exactly once");
+    t.verify();
+    // a split of a bucket whose local depth is below the global depth does NOT double the directory
+    let before = t.global_depth;
+    let mut model = HashMap::new();
+    for key in 0..500u32 { if t.insert(key, key + 1) { model.insert(key, key + 1); } }
+    for (&key, &value) in &model { assert_eq!(t.get(key), Some(value)); }
+    assert!(t.global_depth >= before);
+    t.verify();
+    // some bucket must still have a local depth below the global depth: the directory has shared slots
+    assert!(t.buckets.iter().any(|b| b.depth < t.global_depth) || t.buckets.len() == t.dir.len());
+}
+```
+
+### In the exercises
+
+- **2b-02 to 2b-04:** the directory's `slot` (low bits), `global_depth`, doubling (`dir.extend(copy)`) and `verify` are the directory page's methods over bytes.
+- **2b-05:** `Bucket` is the bucket page: sorted, with `max_size`, `insert` refusing duplicates and a full page.
+- **2b-09:** `split` above: the order is *double if needed, allocate, bump depths, redistribute by bit `d` of the hash, repoint slots*, and `insert`'s `loop` is the retry.
+- **2b-11:** the inverse: merge an empty bucket with its split image `slot ^ (1 << (d - 1))` when both have the same depth, repoint, lower depths, then shrink while no bucket has depth equal to the global depth.
+
+### Where it is used
+
+- **Disk-based hash indexes**: extendible hashing is the textbook design (Berkeley DB's hash access method is in this family; PostgreSQL's hash index uses the sibling technique, *linear hashing*), and ext3/ext4's HTree directory index is a hash-indexed tree for the same reason: grow by local splits, not by rehashing everything.
+- **Distributed systems**: *consistent hashing* and Cassandra's token ranges share the "split a range when it is too full" idea.
+- **Why not a B+ tree?** A hash index answers equality in one or two page reads and has no ordering; B+ trees (module 2c) also answer ranges and are the default index almost everywhere.

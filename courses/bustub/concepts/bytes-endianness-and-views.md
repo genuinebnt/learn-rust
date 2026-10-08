@@ -84,3 +84,76 @@ The *read* methods exist for any `B` that can be viewed as bytes; the *write* me
 
 > [!WARNING] Alignment is not your problem here, but it is C's
 > Copying through `from_le_bytes` makes alignment irrelevant: you never form a `&u32` into the buffer. The moment you cast the buffer to `*const u32` you must prove it is 4-byte aligned. `Box<[u8; 8192]>` is only guaranteed 1-byte aligned.
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `x.to_le_bytes()` / `to_be_bytes()` / `to_ne_bytes()` | the integer as a byte array | writing |
+| `u32::from_le_bytes([a, b, c, d])` | the integer from a byte array | reading |
+| `slice.try_into::<[u8; 4]>()` | a `&[u8]` of length 4 into `[u8; 4]` (`Result`) | the glue for `from_le_bytes` |
+| `&page[off..off + 4]` / `&mut page[..]` | a bounds-checked view | addressing a field |
+| `dst.copy_from_slice(&bytes)` | write bytes | `encode` |
+| `impl AsRef<[u8]>` / `AsMut<[u8]>` | "anything that can be seen as bytes" | one view type, read or write |
+| `u32::from_be_bytes`, `i32::swap_bytes`, `u32::to_be` | endianness conversions | network order |
+
+```rust test
+fn read_u32(page: &[u8], offset: usize) -> u32 {
+    u32::from_le_bytes(page[offset..offset + 4].try_into().expect("4 bytes"))
+}
+fn write_u32(page: &mut [u8], offset: usize, value: u32) {
+    page[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+}
+
+#[test]
+fn a_field_at_an_offset() {
+    let mut page = vec![0u8; 8192];
+    write_u32(&mut page, 4, 258);
+    assert_eq!(&page[4..8], &[2, 1, 0, 0]);                      // little-endian: least significant byte first
+    assert_eq!(read_u32(&page, 4), 258);
+    assert_eq!(u32::from_be_bytes([0, 0, 1, 2]), 258);           // the same number in big-endian order
+    assert_eq!((-1i32).to_le_bytes(), [0xFF; 4]);
+}
+
+#[test]
+#[should_panic]
+fn a_field_past_the_end_panics() {
+    let page = vec![0u8; 8];
+    read_u32(&page, 6);                                          // 6..10 is out of range: a bounds-check panic, not a wild read
+}
+```
+
+```rust test
+// One view type, usable over &[u8] (read-only) and &mut [u8] (read-write): the page views of this course.
+struct Header<B> { page: B }
+
+impl<B: AsRef<[u8]>> Header<B> {
+    fn max_depth(&self) -> u32 { u32::from_le_bytes(self.page.as_ref()[0..4].try_into().unwrap()) }
+}
+impl<B: AsRef<[u8]> + AsMut<[u8]>> Header<B> {
+    fn set_max_depth(&mut self, d: u32) { self.page.as_mut()[0..4].copy_from_slice(&d.to_le_bytes()); }
+}
+
+#[test]
+fn read_only_views_cannot_write() {
+    let mut bytes = vec![0u8; 16];
+    Header { page: &mut bytes[..] }.set_max_depth(3);            // a &mut [u8] view: reads and writes
+    let ro = Header { page: &bytes[..] };                        // a &[u8] view: only reads exist
+    assert_eq!(ro.max_depth(), 3);
+    // ro.set_max_depth(4);                                      // does not compile: the method needs AsMut<[u8]>
+}
+```
+
+### In the exercises
+
+- **2a-01 Part 1:** `read_u32`, `write_u32` (and the `i32`/`i64` siblings) are the first example. Test them at offset 0, at the last four bytes of the page, and with `u32::MAX`.
+- **2a-01 Part 4:** `FixedSize::encode` / `decode` for `i32`, `u32`, `i64`, `PageId` and `Rid` are one line each with `to_le_bytes` / `from_le_bytes`.
+- **2b-02, 2b-03, 2b-05:** the header, directory and bucket pages are `Header<B>`-style views (second example): reads for any `B: AsRef<[u8]>`, writes only for `B: AsMut<[u8]>`. A `ReadPageGuard` hands you a read-only view, so the compiler enforces "no writes under a read latch".
+
+### Where it is used
+
+- **File and wire formats**: SQLite's file header, PostgreSQL's page headers, Parquet footers, TLS records: fixed-width integers at known offsets with a stated byte order (network protocols are big-endian; most on-disk database formats are little-endian).
+- **Zero-copy parsing**: crates like `zerocopy`, `bytemuck` and `scroll` give the same views with the `unsafe` proven for you.
+- **Interop**: reading data written by a C or C++ program means matching its struct layout and byte order exactly, which is what this course's golden-value tests check.

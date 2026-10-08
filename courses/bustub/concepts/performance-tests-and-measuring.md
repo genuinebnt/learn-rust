@@ -49,3 +49,117 @@ Before measuring, **predict**. For a stage's code, write down: how many system c
 
 > [!TIP] A cheap profiler
 > `cargo build --release` then `perf record -g ./target/release/...` and `perf report` (Linux), or Instruments' Time Profiler (macOS), shows where the time goes in minutes. Look for the *one* function that dominates before optimising anything.
+
+## In real code
+
+### Using it: count the work, then time it generously
+
+Time is noisy; **counts are not**. These tests count comparisons and allocations on the current thread, so they are exact and cannot flake, then add one timing guard with a generous limit.
+
+```rust test
+use std::cell::Cell;
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
+
+thread_local! { static COMPARISONS: Cell<u64> = const { Cell::new(0) }; }     // thread-local: parallel tests do not disturb each other
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+struct Counted(u64);
+impl PartialOrd for Counted { fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) } }
+impl Ord for Counted {
+    fn cmp(&self, o: &Self) -> Ordering { COMPARISONS.with(|c| c.set(c.get() + 1)); self.0.cmp(&o.0) }
+}
+
+fn comparisons<R>(f: impl FnOnce() -> R) -> u64 {
+    COMPARISONS.with(|c| c.set(0));
+    let _ = f();
+    COMPARISONS.with(|c| c.get())
+}
+
+fn evict_all_by_scan(n: u64) -> u64 {
+    comparisons(|| {
+        let mut frames: Vec<Counted> = (0..n).map(|i| Counted((i * 7919) % n)).collect();
+        while !frames.is_empty() {                                        // the O(n) evict: scan for the minimum, n times
+            let mut best = 0;
+            for i in 1..frames.len() { if frames[i] < frames[best] { best = i; } }
+            frames.swap_remove(best);
+        }
+    })
+}
+
+fn evict_all_by_tree(n: u64) -> u64 {
+    comparisons(|| {
+        let mut set: BTreeSet<Counted> = (0..n).map(|i| Counted((i * 7919) % n)).collect();
+        while set.pop_first().is_some() {}                                // O(log n) each
+    })
+}
+
+#[test]
+fn the_asymptotics_show_up_as_counts_without_any_clock() {
+    let (s1, s2) = (evict_all_by_scan(1000), evict_all_by_scan(2000));
+    let (t1, t2) = (evict_all_by_tree(1000), evict_all_by_tree(2000));
+    assert!(s2 as f64 / s1 as f64 > 3.5, "scan: doubling n should ~quadruple the work ({s1} -> {s2})");
+    assert!((t2 as f64 / t1 as f64) < 2.6, "tree: doubling n should ~double the work ({t1} -> {t2})");
+    assert!(s2 > 20 * t2, "at n = 2000 the scan already does {}x the comparisons", s2 / t2);
+}
+```
+
+```rust test
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
+use std::hint::black_box;
+use std::time::{Duration, Instant};
+
+struct CountingAlloc;
+thread_local! { static ALLOCS: Cell<usize> = const { Cell::new(0) }; }
+unsafe impl GlobalAlloc for CountingAlloc {
+    unsafe fn alloc(&self, l: Layout) -> *mut u8 { ALLOCS.with(|a| a.set(a.get() + 1)); unsafe { System.alloc(l) } }
+    unsafe fn dealloc(&self, p: *mut u8, l: Layout) { unsafe { System.dealloc(p, l) } }
+}
+#[global_allocator]
+static A: CountingAlloc = CountingAlloc;
+
+fn allocations<R>(f: impl FnOnce() -> R) -> usize {
+    let before = ALLOCS.with(|a| a.get());
+    let r = f();
+    black_box(r);
+    ALLOCS.with(|a| a.get()) - before
+}
+
+#[test]
+fn count_allocations_to_check_a_no_allocation_claim() {
+    let grown = allocations(|| { let mut v = Vec::new(); for i in 0..1000u32 { v.push(i); } v });
+    let reserved = allocations(|| { let mut v = Vec::with_capacity(1000); for i in 0..1000u32 { v.push(i); } v });
+    assert_eq!(reserved, 1, "with_capacity: one allocation for the whole loop");
+    assert!(grown > 5, "push-and-regrow allocates every time the capacity doubles ({grown})");
+}
+
+fn median(mut v: Vec<Duration>) -> Duration { v.sort(); v[v.len() / 2] }
+
+#[test]
+fn a_timing_guard_with_a_generous_limit_and_a_median() {
+    let runs: Vec<Duration> = (0..5).map(|_| {
+        let start = Instant::now();
+        let mut s = std::collections::BTreeSet::new();
+        for i in 0..100_000u64 { s.insert(black_box(i.wrapping_mul(2654435761) % 1_000_003)); }   // black_box: the optimiser may not delete the work
+        while s.pop_first().is_some() {}
+        start.elapsed()
+    }).collect();
+    let m = median(runs);
+    assert!(m < Duration::from_secs(5), "median {m:?}: something is quadratic, not a slow laptop");   // 100x margin; prints the measurement
+}
+```
+
+### In the exercises
+
+- **1b-04 (sharded scheduler):** the stage's "Measure it": 200,000 writes over a disk that sleeps per I/O, with 1, 2, 4 and 8 workers, then all to the same page; predict the shape first, then measure.
+- **1d-03 (evict in O(log n)):** the 100,000-eviction test; count comparisons as in the first test to see the n versus n log n gap without a clock.
+- **1g-02 (a flush that cannot deadlock):** run the deadlock test under a 5-second watchdog on the unfixed code, then the fixed code under load while checking that every pin count returns to zero.
+- Every stage's **Performance** section ends with a "Measure it" paragraph; the helpers above are what you paste in.
+
+### Where it is used
+
+- **Benchmark harnesses**: `criterion` and `divan` do warm-up, repetition and outlier analysis; `iai`/`callgrind` count instructions instead of time for exactly the reason in the first test.
+- **Profilers**: `perf` and `cargo flamegraph` on Linux, Instruments on macOS, and `heaptrack`/`dhat` for allocations (the counting allocator above is a ten-line version).
+- **The Rust Performance Book** and the compiler's own `rustc-perf` suite track instruction counts per commit, since wall time on shared CI machines is too noisy to gate on.
+- **Regression gates in CI**: generous time limits for catching accidents, exact counters for catching drift.

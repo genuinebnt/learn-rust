@@ -75,3 +75,119 @@ When a new page arrives and the first bound would break, drop the oldest `mru_gh
 
 > [!NOTE] BusTub's version
 > BusTub's description differs from the paper in details (the ghost-hit step sizes and the list-maintenance on a miss); this course follows BusTub's, and the stage tests pin each rule.
+
+## In real code
+
+### Using it: the four lists as runnable code
+
+A compact model of the rules above. Lists are `VecDeque`s with linear lookups so the logic is readable; the stages ask for O(1) with maps from page to position, which is a data-structure change, not a rule change. The driver evicts before admitting a page when the cache is full, and the test replays the traces you can check by hand.
+
+```rust test
+use std::collections::VecDeque;
+
+type Page = u32;
+
+struct Arc { c: usize, p: usize, mru: VecDeque<Page>, mfu: VecDeque<Page>, mru_ghost: VecDeque<Page>, mfu_ghost: VecDeque<Page> }
+
+fn take(list: &mut VecDeque<Page>, page: Page) -> bool {
+    match list.iter().position(|&x| x == page) { Some(i) => { list.remove(i); true } None => false }
+}
+
+impl Arc {
+    fn new(c: usize) -> Self { Arc { c, p: 0, mru: Default::default(), mfu: Default::default(), mru_ghost: Default::default(), mfu_ghost: Default::default() } }
+    fn live(&self) -> usize { self.mru.len() + self.mfu.len() }
+
+    fn evict(&mut self) {
+        let from_mru = !self.mru.is_empty() && (self.mru.len() >= self.p || self.mfu.is_empty());
+        if from_mru { let v = self.mru.pop_front().unwrap(); self.mru_ghost.push_back(v); }
+        else        { let v = self.mfu.pop_front().unwrap(); self.mfu_ghost.push_back(v); }
+    }
+
+    fn access(&mut self, page: Page) {
+        if self.mru.contains(&page) || self.mfu.contains(&page) {          // rule 1: a hit
+            take(&mut self.mru, page); take(&mut self.mfu, page);
+            self.mfu.push_back(page);
+            return;
+        }
+        if self.live() == self.c { self.evict(); }                         // make room in the live lists first
+        if self.mru_ghost.contains(&page) {                                // rule 2: recency was undervalued
+            let step = if self.mfu_ghost.len() > self.mru_ghost.len() { self.mfu_ghost.len() / self.mru_ghost.len() } else { 1 };
+            self.p = (self.p + step).min(self.c);
+            take(&mut self.mru_ghost, page);
+            self.mfu.push_back(page);
+        } else if self.mfu_ghost.contains(&page) {                         // rule 3: frequency was undervalued
+            let step = if self.mru_ghost.len() > self.mfu_ghost.len() { self.mru_ghost.len() / self.mfu_ghost.len() } else { 1 };
+            self.p = self.p.saturating_sub(step);
+            take(&mut self.mfu_ghost, page);
+            self.mfu.push_back(page);
+        } else {                                                           // rule 4: a new page; bound the ghosts first
+            if self.mru.len() + self.mru_ghost.len() >= self.c { self.mru_ghost.pop_front(); }
+            else if self.mru.len() + self.mfu.len() + self.mru_ghost.len() + self.mfu_ghost.len() >= 2 * self.c { self.mfu_ghost.pop_front(); }
+            self.mru.push_back(page);
+        }
+    }
+
+    fn check(&self) {
+        assert!(self.live() <= self.c);
+        assert!(self.mru.len() + self.mru_ghost.len() <= self.c);
+        assert!(self.live() + self.mru_ghost.len() + self.mfu_ghost.len() <= 2 * self.c);
+        assert!(self.p <= self.c);
+        let mut all: Vec<_> = self.mru.iter().chain(&self.mfu).chain(&self.mru_ghost).chain(&self.mfu_ghost).collect();
+        let n = all.len();
+        all.sort(); all.dedup();
+        assert_eq!(all.len(), n, "a page is in two lists at once");
+    }
+}
+
+#[test]
+fn ghost_hits_move_the_target() {
+    let v = |l: &VecDeque<Page>| l.iter().copied().collect::<Vec<_>>();
+    let mut a = Arc::new(3);
+    a.access(9); a.access(9);                                  // 9 is seen twice: it lives in mfu
+    for page in [1, 2, 3] { a.access(page); }                  // 3 evicts 1 from mru; 1 becomes a ghost
+    assert_eq!((v(&a.mru), v(&a.mru_ghost), v(&a.mfu)), (vec![2, 3], vec![1], vec![9]));
+    a.access(1);                                               // ghost hit in mru_ghost: p goes 0 -> 1, page 1 re-enters in mfu
+    assert_eq!((a.p, v(&a.mfu)), (1, vec![9, 1]));
+    a.access(2);                                               // another one: p goes to 2
+    assert_eq!(a.p, 2);
+    a.check();
+    a.access(4);                                               // new page; mru is smaller than p, so the victim comes from mfu
+    assert_eq!(v(&a.mfu_ghost), vec![9]);
+    a.access(9);                                               // ghost hit in mfu_ghost: frequency was undervalued, p goes DOWN
+    assert_eq!(a.p, 1);
+    a.check();
+}
+
+#[test]
+fn a_scan_does_not_flush_the_frequent_pages() {
+    let mut a = Arc::new(4);
+    for _ in 0..2 { for hot in [1, 2] { a.access(hot); } }     // 1 and 2 reach mfu
+    for scan in 100..140 { a.access(scan); a.check(); }
+    assert!(a.mfu.contains(&1) && a.mfu.contains(&2), "the scan evicted the frequent pages");
+}
+
+#[test]
+fn the_bounds_hold_on_a_random_workload() {
+    let mut a = Arc::new(8);
+    let mut x = 12345u64;
+    for _ in 0..5000 {
+        x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        let page = if (x >> 60) < 6 { ((x >> 33) % 6) as u32 } else { ((x >> 33) % 40) as u32 };   // skewed: a hot set and a long tail
+        a.access(page);
+        a.check();
+    }
+}
+```
+
+### In the exercises
+
+- **1e-01 (four lists, new pages):** the lists, the target `p` and rule 4's admission of a new page.
+- **1e-02 (eviction, and hits that move frames to mfu):** `evict` (oldest *evictable* frame, leaving a ghost) and rule 1; in the real stage frames can be pinned, so the fallback to the other list matters.
+- **1e-03 (ghost hits, the adaptive target, bounded ghosts, `remove`):** rules 2 and 3 with the integer-division step sizes, and the two bounds that `check` asserts; the first test above is the kind of trace to reproduce by hand.
+- **1f-02:** the buffer pool can use `ArcReplacer`; a scan workload is where the hit ratio differs from LRU.
+
+### Where it is used
+
+- **ZFS** uses ARC as its main read cache (the Linux ZFS module reports it as the "ARC size" in `arc_summary`); some storage controllers (IBM's) use it for the same reason.
+- **PostgreSQL 8.0** shipped an ARC buffer manager and replaced it within a release because of the patent; the clock-sweep it has today descends from that decision.
+- **The ghost-list idea** (remember what you evicted, and treat a re-request as feedback) appears in CAR, CLOCK-Pro, and in many modern caches' admission policies.

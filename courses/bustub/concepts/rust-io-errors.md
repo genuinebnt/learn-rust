@@ -74,3 +74,90 @@ The standard-library convention, and BusTub's: **an `Err` is for things the envi
 
 > [!WHY] Why not just `unwrap()` everywhere?
 > `unwrap()` turns an `Err` into a panic, which is right for a test and for "this cannot fail" (say it in a comment). In library code it hides a decision: you have decided, on behalf of every caller, that this failure is a bug. The disk manager returns `io::Result` so that the buffer pool above it can decide.
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `io::Result<T>` = `Result<T, io::Error>` | the return type of anything that touches the OS | every I/O function |
+| `expr?` | return the `Err` early (and convert it with `From`) | propagating |
+| `e.kind()` → `ErrorKind::{NotFound, PermissionDenied, Interrupted, UnexpectedEof, ..}` | what happened, portably | deciding to retry or recover |
+| `e.raw_os_error()` | the `errno` number | logging |
+| `io::Error::new(kind, "msg")` / `io::Error::other("msg")` | make your own | wrapping a failure |
+| `result.map_err(\|e\| ..)` / `.ok_or(..)` / `.ok_or_else(..)` | change an error, or turn an `Option` into a `Result` | adapting |
+| `result.unwrap_or_else(\|e\| ..)` / `.unwrap_or_default()` | a fallback value | when you can continue |
+
+```rust test
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Read, Write};
+use std::path::Path;
+
+fn read_config(path: &Path) -> io::Result<String> {
+    let mut s = String::new();
+    File::open(path)?.read_to_string(&mut s)?;                // two fallible steps, one `?` each
+    Ok(s)
+}
+
+fn read_or_default(path: &Path) -> io::Result<String> {
+    match read_config(path) {
+        Ok(s) => Ok(s),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(String::from("defaults")),     // an expected failure: recover
+        Err(e) => Err(e),                                      // anything else is not ours to hide
+    }
+}
+
+#[test]
+fn recover_from_not_found_only() {
+    let dir = std::env::temp_dir().join("anneal-io-errors-1");
+    fs::create_dir_all(&dir).unwrap();
+    let missing = dir.join("nope.conf");
+    assert_eq!(read_or_default(&missing).unwrap(), "defaults");
+
+    let real = dir.join("real.conf");
+    fs::write(&real, "x=1").unwrap();
+    assert_eq!(read_or_default(&real).unwrap(), "x=1");
+
+    let err = read_or_default(&dir).unwrap_err();             // a directory is not a file: a different kind, so it propagates
+    assert_ne!(err.kind(), io::ErrorKind::NotFound);
+}
+```
+
+```rust test
+use std::io;
+
+#[derive(Debug)]
+enum DbError { Io(io::Error), BadPage(u32) }
+
+impl From<io::Error> for DbError {
+    fn from(e: io::Error) -> Self { DbError::Io(e) }          // this is what `?` uses to convert
+}
+
+fn read_page(id: u32) -> Result<[u8; 4], DbError> {
+    if id > 100 { return Err(DbError::BadPage(id)); }
+    let bytes = std::fs::read("/definitely/not/here")?;       // io::Error becomes DbError::Io through From
+    Ok(bytes.try_into().unwrap_or([0; 4]))
+}
+
+#[test]
+fn your_own_error_type_and_question_mark() {
+    assert!(matches!(read_page(500), Err(DbError::BadPage(500))));
+    assert!(matches!(read_page(1), Err(DbError::Io(_))));
+    let e = io::Error::other("the disk panicked");
+    assert_eq!(e.kind(), io::ErrorKind::Other);
+    assert_eq!(e.to_string(), "the disk panicked");
+}
+```
+
+### In the exercises
+
+- **1a-01 Part 3 (`DiskManager::new`):** open the log, then the db file, then `set_len`, each with `?` (the `read_config` shape). The test with a path in a missing directory expects `ErrorKind::NotFound`; one that is a directory expects *an* error.
+- **1a-02 (`read_full_at`):** retry `ErrorKind::Interrupted`, return every other error: `Err(e) if e.kind() == io::ErrorKind::Interrupted => continue`.
+- **1b-02:** a failing disk's `io::Error` travels back through the promise (`DiskResult = io::Result<Box<PageData>>`); the panicking-disk case uses `io::Error::other("the disk panicked")`.
+
+### Where it is used
+
+- **Every program that touches files, sockets or processes**: the `io::Error` kind decides between retry (`Interrupted`, `WouldBlock`), recover (`NotFound`) and give up.
+- **Library error types**: `thiserror`/`anyhow` (and your own `enum` with `From<io::Error>`, the second example) are conveniences over the same `?` mechanism.
+- **Databases**: a failed `write` or `fsync` is the most dangerous error there is (the data may not be durable); production engines treat it as fatal rather than retry, because the page cache state after a failed `fsync` is undefined (the "fsyncgate" episode in PostgreSQL).

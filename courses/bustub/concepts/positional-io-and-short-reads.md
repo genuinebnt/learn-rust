@@ -132,3 +132,99 @@ Note what Rust does *not* have: a user-space buffer inside `File`. In C++, `std:
 | `O_APPEND` | `app` | `.append(true)` |
 
 The two to remember: **never truncate the database file when opening it** (an existing database must survive a restart), and **open the log in append mode**, so that the *kernel* chooses the offset of each write atomically. An append-mode write goes to the end of the file no matter what any other writer is doing; that single property is what lets two threads append log records without overwriting each other.
+
+## In real code
+
+### The API you will use
+
+| call (from `std::os::unix::fs::FileExt`) | what it does | when |
+|---|---|---|
+| `f.read_at(&mut buf, offset)` | one `pread`: returns how many bytes it read (may be fewer than asked) | the primitive |
+| `f.read_exact_at(&mut buf, offset)` | loops until `buf` is full; `Err(UnexpectedEof)` if the file ends first | when a short file is an error |
+| `f.write_at(&buf, offset)` / `f.write_all_at(&buf, offset)` | one `pwrite` / loop until everything is written | the primitive / what you want |
+| `f.set_len(n)` | grow (sparse) or shrink | pre-allocating |
+| `buf[n..].fill(0)` | zero the part the file did not have | padding a short read |
+
+```rust test
+use std::fs::OpenOptions;
+use std::io;
+use std::os::unix::fs::FileExt;
+
+/// Keep asking until the buffer is full or the file ends. Returns how many bytes it got.
+fn read_full_at(file: &std::fs::File, buf: &mut [u8], offset: u64) -> io::Result<usize> {
+    let mut filled = 0;
+    while filled < buf.len() {
+        match file.read_at(&mut buf[filled..], offset + filled as u64) {
+            Ok(0) => break,                                                    // end of file
+            Ok(n) => filled += n,
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,      // a signal: just ask again
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(filled)
+}
+
+#[test]
+fn short_reads_report_how_much_arrived() {
+    let path = std::env::temp_dir().join("anneal-posio-1.db");
+    let f = OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).unwrap();
+    f.write_all_at(b"0123456789", 0).unwrap();                  // a 10-byte file
+
+    let mut buf = [0xFFu8; 4];
+    assert_eq!(read_full_at(&f, &mut buf, 0).unwrap(), 4);
+    assert_eq!(&buf, b"0123");
+
+    let mut buf = [0xFFu8; 4];
+    assert_eq!(read_full_at(&f, &mut buf, 8).unwrap(), 2);      // only 2 bytes left: the answer says so
+    assert_eq!(&buf[..2], b"89");
+    assert_eq!(buf[2..], [0xFF, 0xFF]);                          // untouched: padding is the caller's policy
+    assert_eq!(read_full_at(&f, &mut buf, 1000).unwrap(), 0);    // past the end
+}
+```
+
+```rust test
+use std::fs::OpenOptions;
+use std::os::unix::fs::FileExt;
+
+const PAGE: usize = 8192;
+
+fn read_slot(f: &std::fs::File, slot: usize, buf: &mut [u8; PAGE]) -> std::io::Result<()> {
+    let mut n = 0;
+    while n < PAGE {
+        match f.read_at(&mut buf[n..], (slot * PAGE + n) as u64)? {
+            0 => break,
+            k => n += k,
+        }
+    }
+    buf[n..].fill(0);                                           // whatever the file does not have reads as zeros
+    Ok(())
+}
+
+#[test]
+fn a_page_never_written_reads_as_zeros() {
+    let path = std::env::temp_dir().join("anneal-posio-2.db");
+    let f = OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).unwrap();
+    f.set_len(PAGE as u64 * 4).unwrap();                        // sparse: nothing is written yet
+    f.write_all_at(&[7u8; 100], PAGE as u64).unwrap();          // slot 1 gets 100 bytes
+
+    let mut buf = [0xFFu8; PAGE];
+    read_slot(&f, 1, &mut buf).unwrap();
+    assert_eq!(&buf[..100], &[7u8; 100][..]);
+    assert!(buf[100..].iter().all(|&b| b == 0));                // the file had zeros there (a hole)
+    read_slot(&f, 9, &mut buf).unwrap();                        // slot 9 is past the end of the file
+    assert!(buf.iter().all(|&b| b == 0));
+}
+```
+
+### In the exercises
+
+- **1a-02 Part 1 (`write_slot`):** `file.write_all_at(data, slot_offset(slot))`.
+- **1a-02 Part 2 (`read_full_at`):** the first example, nearly verbatim; the stage's tests probe a 10-byte file read at offsets 0, 8, 10 and 1000, plus a 3 MB read.
+- **1a-02 Part 3 (`read_slot`):** call `read_full_at`, then `buf[n..].fill(0)` (the second example).
+- **1a-05 Part 3:** `read_log` uses the same `read_full_at` and returns `false` at or past the end, `true` with a zero-padded tail otherwise.
+
+### Where it is used
+
+- **Every storage engine**: SQLite's pager, PostgreSQL's smgr and RocksDB's `RandomAccessFile` all read by offset with `pread` so concurrent readers do not share a cursor.
+- **Memory-mapped alternatives**: LMDB and others `mmap` the file instead; the trade-off is losing control over when pages are written back (and the 2022 CIDR paper "Are You Sure You Want to Use MMAP in Your DBMS?" is the case against).
+- **Network code**: `read` on a socket also returns fewer bytes than asked; the same loop (`read_exact`) turns a byte stream into messages.

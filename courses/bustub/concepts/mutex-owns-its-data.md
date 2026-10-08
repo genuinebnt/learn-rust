@@ -85,3 +85,101 @@ When code needs two locks, every thread must take them in the same order, or two
 | forgot to lock | compiles; a data race | does not compile |
 | reader/writer | `std::shared_mutex` | `RwLock<T>` |
 | a thread died holding it | lock released, data possibly torn | the mutex is poisoned |
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `Mutex::new(v)` | wraps `v`; the only way to reach it is `lock()` | construction |
+| `m.lock().unwrap()` | blocks until the lock is free; returns a `MutexGuard<T>` | the normal case |
+| `m.try_lock()` | returns at once: `Ok(guard)` or `Err(WouldBlock)` | back off instead of waiting |
+| `m.get_mut()` | `&mut T` **without locking**, if you hold `&mut Mutex<T>` | setup and teardown: no one else can see it |
+| `m.into_inner()` | consumes the mutex, returns the `T` | finishing a shared computation |
+| `Arc<Mutex<T>>` | shared ownership of a mutex across threads | the shape of almost every shared state |
+| `lock().unwrap_or_else(PoisonError::into_inner)` | use the data even if a thread panicked holding it | when no invariant spans the data |
+
+```rust test
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+#[test]
+fn eight_threads_share_a_counter() {
+    let counter = Arc::new(Mutex::new(0u32));
+    let handles: Vec<_> = (0..8)
+        .map(|_| {
+            let counter = Arc::clone(&counter);          // one clone per thread
+            thread::spawn(move || {
+                for _ in 0..1000 {
+                    *counter.lock().unwrap() += 1;       // the guard is a temporary: the lock is held for this statement only
+                }
+            })
+        })
+        .collect();
+    for h in handles {
+        h.join().unwrap();
+    }
+    assert_eq!(*counter.lock().unwrap(), 8000);
+}
+```
+
+The guard derefs to `&mut T`, so `*guard += 1` and `guard.push(x)` work. The lock is released when the guard is dropped: at the end of the statement here, or at the end of a block you open on purpose.
+
+```rust test
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+struct PageTable {
+    inner: Mutex<HashMap<u32, usize>>,
+}
+
+impl PageTable {
+    // One critical section: look up AND insert under the same lock, so two threads cannot both think the page is missing.
+    fn frame_for(&self, page: u32, next_frame: &mut usize) -> usize {
+        let mut map = self.inner.lock().unwrap();
+        *map.entry(page).or_insert_with(|| {
+            let f = *next_frame;
+            *next_frame += 1;
+            f
+        })
+    }
+}
+
+#[test]
+fn decide_and_act_under_one_lock() {
+    let t = PageTable { inner: Mutex::new(HashMap::new()) };
+    let mut next = 0;
+    assert_eq!(t.frame_for(7, &mut next), 0);
+    assert_eq!(t.frame_for(9, &mut next), 1);
+    assert_eq!(t.frame_for(7, &mut next), 0);        // already there: same frame, no new one handed out
+}
+```
+
+```rust test
+use std::sync::Mutex;
+
+#[test]
+fn try_lock_and_into_inner() {
+    let m = Mutex::new(vec![1, 2, 3]);
+    {
+        let _held = m.lock().unwrap();
+        assert!(m.try_lock().is_err());                  // someone (here: us) holds it: WouldBlock, no waiting
+    }
+    assert!(m.try_lock().is_ok());                        // the guard was dropped at the end of the block
+    assert_eq!(m.into_inner().unwrap(), vec![1, 2, 3]);   // we own the mutex now: take the data out
+}
+```
+
+### In the exercises
+
+- **1a-03 (write_page, read_page):** the file and the page table live in one `Mutex<DbIo>`. Use `lock().unwrap()` once at the top of each method, do "have I seen this page? if not, allocate a slot" inside that one guard (the second example above is exactly this shape), and let the guard drop at the end.
+- **1a-05 (counters and the log):** the log file sits in its own `Mutex<File>`; `write_log` takes the lock, appends, increments the flush counter. Counters themselves are atomics, not mutexes.
+- **1a-06:** `DiskIo: Send + Sync` is what lets an `Arc<dyn DiskIo>` carry these mutexes to other threads.
+
+### Where it is used
+
+- **Every database latch.** PostgreSQL protects its buffer mapping table with partitioned lightweight locks; InnoDB guards its buffer pool's page hash and LRU list with mutexes. The shape is always the same: a small structure, a short critical section.
+- **Caches and registries** in Rust servers: `Arc<Mutex<HashMap<K, V>>>` for a connection pool or a session table (and `RwLock` or a sharded map when reads dominate).
+- **Counters and flags that need more than one field updated together** (an atomic handles one word; a mutex handles "increment this and append to that").
+- Not for: a single counter (use an atomic), or data only one thread touches (no lock needed: move it).

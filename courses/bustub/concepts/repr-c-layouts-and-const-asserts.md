@@ -76,3 +76,76 @@ An `assert!` in a `const` item is evaluated **at compile time**: if it fails, th
 
 > [!WARNING] Padding bytes and serialisation
 > Writing a `#[repr(C)]` struct's memory to disk includes its padding bytes, which are *uninitialised* (and a source of nondeterministic files and information leaks). Writing field by field at explicit offsets, as the views do, writes exactly the bytes you mean.
+
+## In real code
+
+### The API you will use
+
+| syntax | what it does | when |
+|---|---|---|
+| `#[repr(C)]` | declaration-order fields with C padding rules | a layout you can name |
+| `std::mem::size_of::<T>()` / `align_of::<T>()` | size and alignment, a `const fn` | fitting a page |
+| `std::mem::offset_of!(T, field)` | a field's byte offset, a constant | where a field starts |
+| `const X: usize = offset_of!(..);` | a named constant for it | page views |
+| `const _: () = assert!(cond, "msg");` | a compile-time check | pinning every fact |
+| `#[repr(C, packed)]` / `#[repr(align(64))]` | no padding / a minimum alignment | wire formats / cache lines |
+| `#[repr(u8)]` on an `enum` | the discriminant's type | page-type bytes |
+
+```rust test
+use std::mem::{align_of, offset_of, size_of};
+
+#[repr(C)]
+struct DirectoryPage {
+    max_depth: u32,
+    global_depth: u32,
+    local_depths: [u8; 512],
+    bucket_page_ids: [i32; 512],
+}
+
+const LOCAL_DEPTHS_OFFSET: usize = offset_of!(DirectoryPage, local_depths);
+const BUCKET_IDS_OFFSET: usize = offset_of!(DirectoryPage, bucket_page_ids);
+const _: () = assert!(size_of::<DirectoryPage>() <= 8192, "the directory must fit a page");
+const _: () = assert!(BUCKET_IDS_OFFSET == 520, "BusTub's layout");
+
+#[test]
+fn the_compiler_computes_the_offsets() {
+    assert_eq!(offset_of!(DirectoryPage, max_depth), 0);
+    assert_eq!(offset_of!(DirectoryPage, global_depth), 4);
+    assert_eq!(LOCAL_DEPTHS_OFFSET, 8);
+    assert_eq!(BUCKET_IDS_OFFSET, 520);                           // 8 + 512, already a multiple of 4: no padding
+    assert_eq!(size_of::<DirectoryPage>(), 2568);
+    assert_eq!(align_of::<DirectoryPage>(), 4);
+}
+```
+
+```rust test
+use std::mem::{offset_of, size_of};
+
+#[repr(C)]
+struct WithPadding { a: u8, b: u32, c: u8 }                       // a at 0, then 3 padding bytes, b at 4, c at 8, then 3 more
+#[repr(C, packed)]
+struct Packed { a: u8, b: u32, c: u8 }                            // no padding: fields may be misaligned (never take references to them)
+
+#[test]
+fn padding_and_packing() {
+    assert_eq!(offset_of!(WithPadding, b), 4);
+    assert_eq!(size_of::<WithPadding>(), 12);                     // rounded up to a multiple of 4
+    assert_eq!(size_of::<Packed>(), 6);
+    let p = Packed { a: 1, b: 2, c: 3 };
+    let b = p.b;                                                  // copy out: a reference `&p.b` would be misaligned
+    assert_eq!(b, 2);
+}
+```
+
+### In the exercises
+
+- **2a-04 Part 2:** write `DirectoryPage` and `HeaderPage` exactly as above in `layout.rs`, derive every `*_OFFSET` constant with `offset_of!`, and add the `const _: () = assert!(..)` lines for each fact the tests rely on (520, the sizes, "fits the page").
+- **2b-03:** the directory view reads `local_depths[i]` at `LOCAL_DEPTHS_OFFSET + i` and `bucket_page_ids[i]` at `BUCKET_IDS_OFFSET + 4*i` (little-endian `i32`).
+- **2b-02:** the header's ids start at offset 0 and `max_depth` follows the 512 ids.
+
+### Where it is used
+
+- **FFI and C interop**: every Rust struct passed to C is `#[repr(C)]`; `bindgen` generates them from C headers with the same `offset_of`-style tests.
+- **Protocol and file headers**: kernel structs, network packet headers (`packed`), database page headers.
+- **Performance**: `#[repr(align(64))]` keeps two hot counters from sharing a cache line (false sharing).
+- **Compile-time checks**: Linux's `BUILD_BUG_ON` and Rust's `const _: () = assert!(..)` are the same idea: break the build, not the data.

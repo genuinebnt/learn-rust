@@ -52,3 +52,96 @@ A ported hash that is *almost* right is useless: it still hashes, still distribu
 
 > [!WHY] Why not use `std`'s hasher?
 > `HashMap`'s default `RandomState` is seeded randomly per process, and `DefaultHasher` makes no promise to stay the same between Rust versions: a key's hash could change between runs, so a page written yesterday could not be read today. A hash that determines **on-disk placement** must be stable across runs, machines and versions of your code: it is part of the file format.
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `x.wrapping_mul(c)` / `wrapping_add` | arithmetic modulo 2<sup>64</sup> | every step of a hash |
+| `x.rotate_left(r)` | rotate | mixing bits |
+| `x ^ (x >> 33)` | xor-shift | finalisation (`fmix64`) |
+| `u64::from_le_bytes(chunk.try_into().unwrap())` | read a block | the input loop |
+| `bytes.chunks_exact(16)` / `.remainder()` | full 16-byte blocks and the leftover tail | block/tail split |
+| `std::hash::{Hash, Hasher}` | the trait for hashing any type (and `DefaultHasher`: SipHash, not stable across Rust versions) | in-memory maps only |
+| a golden-value test | `assert_eq!(hash(b"abc"), 0x...)` from the C++ | proving a port |
+
+```rust test
+const C1: u64 = 0x87c3_7b91_1142_53d5;
+const C2: u64 = 0x4cf5_ad43_2745_937f;
+
+fn fmix64(mut k: u64) -> u64 {
+    k ^= k >> 33;
+    k = k.wrapping_mul(0xff51_afd7_ed55_8ccd);
+    k ^= k >> 33;
+    k = k.wrapping_mul(0xc4ce_b9fe_1a85_ec53);
+    k ^ (k >> 33)
+}
+
+/// The shape of MurmurHash3's block loop for one 16-byte block (the real function adds the tail and the final mix of two lanes).
+fn mix_block(h1: u64, h2: u64, block: &[u8; 16]) -> (u64, u64) {
+    let k1 = u64::from_le_bytes(block[..8].try_into().unwrap());
+    let k2 = u64::from_le_bytes(block[8..].try_into().unwrap());
+    let h1 = (h1 ^ k1.wrapping_mul(C1).rotate_left(31).wrapping_mul(C2)).rotate_left(27).wrapping_add(h2).wrapping_mul(5).wrapping_add(0x52dc_e729);
+    let h2 = (h2 ^ k2.wrapping_mul(C2).rotate_left(33).wrapping_mul(C1)).rotate_left(31).wrapping_add(h1).wrapping_mul(5).wrapping_add(0x3849_5ab5);
+    (h1, h2)
+}
+
+#[test]
+fn avalanche_flipping_one_input_bit_changes_about_half_the_output() {
+    let base = fmix64(0x1234_5678);
+    let mut total = 0;
+    for bit in 0..32 {
+        total += (base ^ fmix64(0x1234_5678 ^ (1 << bit))).count_ones();
+    }
+    let avg = total as f64 / 32.0;
+    assert!(avg > 24.0 && avg < 40.0, "average flipped output bits: {avg}");      // 32 of 64 is the ideal
+}
+
+#[test]
+fn blocks_and_tails() {
+    let data = [7u8; 37];
+    let chunks = data.chunks_exact(16);
+    assert_eq!(chunks.len(), 2);                                 // two full blocks...
+    assert_eq!(chunks.remainder().len(), 5);                      // ...and a 5-byte tail
+    let (a, b) = mix_block(0, 0, data[..16].try_into().unwrap());
+    assert_ne!((a, b), (0, 0));
+}
+```
+
+```rust test
+const BUCKETS: usize = 64;
+
+fn fmix64(mut k: u64) -> u64 {
+    k ^= k >> 33; k = k.wrapping_mul(0xff51_afd7_ed55_8ccd); k ^= k >> 33; k = k.wrapping_mul(0xc4ce_b9fe_1a85_ec53); k ^ (k >> 33)
+}
+
+#[test]
+fn sequential_keys_spread_over_the_low_bits() {
+    let mut counts = [0usize; BUCKETS];
+    for key in 0..64_000u64 {
+        counts[(fmix64(key) as usize) & (BUCKETS - 1)] += 1;      // the directory index: the LOW bits of the hash
+    }
+    let (min, max) = (counts.iter().min().unwrap(), counts.iter().max().unwrap());
+    assert!(*max < 1100 && *min > 900, "min {min}, max {max} (ideal 1000)");
+
+    // The identity "hash" does not:
+    let mut ident = [0usize; BUCKETS];
+    for key in (0..64_000u64).step_by(64) {
+        ident[(key as usize) & (BUCKETS - 1)] += 1;               // stride-64 keys all land in bucket 0
+    }
+    assert_eq!(ident[0], 1000);
+}
+```
+
+### In the exercises
+
+- **2b-01:** port `MurmurHash3_x64_128` completely: the block loop (`chunks_exact(16)`), the tail (a loop over `remainder()`), and the finalisation with `fmix64`. Every `*` and `+` is `wrapping_*`. The stage's golden values come from compiling the C++; test lengths 0, 1, 15, 16, 17 and a long input.
+- **2b-02:** `HashFunction::get_hash(&key)` encodes the key to bytes (`FixedSize::encode`) and takes the first 64-bit lane of the 128-bit result.
+
+### Where it is used
+
+- **Hash tables and partitioning**: Cassandra (`Murmur3Partitioner`) and Kafka's default partitioner (the murmur2 variant) place keys with MurmurHash; PostgreSQL uses its own `hash_bytes` (Bob Jenkins' lookup3).
+- **Bloom filters and sketches**: two Murmur hashes generate all `k` filter positions (double hashing).
+- **Why not SipHash or SHA-256?** SipHash resists hash-flooding of untrusted keys (Rust's default); SHA is cryptographic and far slower. A database hashing its own keys wants speed and a **stable** result: placement is on disk.

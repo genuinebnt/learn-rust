@@ -73,3 +73,92 @@ The **pin** stands in for the lock: it promises the frame will not be reused, so
 ## Deadlock detection (a preview)
 
 Module 4's lock manager cannot always order its locks (transactions choose their own), so it **detects** deadlocks instead: build a *waits-for graph* (an edge from each waiting transaction to the one holding what it wants) and abort a transaction on a cycle. The same four conditions, a different lever.
+
+## In real code
+
+### The API you will use
+
+| tool | what it does | when |
+|---|---|---|
+| `m.try_lock()` / `l.try_read()` / `try_write()` | never waits: `Err(WouldBlock)` | back off instead of deadlocking |
+| `cv.wait_timeout(..)` / `rx.recv_timeout(d)` / `handle.join()` + a watchdog thread | a deadline on a wait | turn a hang into a failure |
+| `std::ptr::eq(a, b)` / `Arc::as_ptr(&a)` | a stable address to order locks by | a total order over *any* pair of locks |
+| a fixed acquisition order (documented) | the actual fix | always |
+| `drop(guard)` / an inner `{ .. }` block | release before waiting | "do not wait while holding" |
+| `gdb -p <pid> -batch -ex "thread apply all bt"` / `sample <pid>` (macOS) | stacks of every thread | diagnosing a live hang |
+
+```rust test
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+
+/// Always lock the lower address first, so two threads taking the same pair in opposite argument order cannot deadlock.
+fn lock_both<'a, T>(a: &'a Mutex<T>, b: &'a Mutex<T>) -> (std::sync::MutexGuard<'a, T>, std::sync::MutexGuard<'a, T>) {
+    if (a as *const _ as usize) < (b as *const _ as usize) {
+        let ga = a.lock().unwrap();
+        let gb = b.lock().unwrap();
+        (ga, gb)
+    } else {
+        let gb = b.lock().unwrap();
+        let ga = a.lock().unwrap();
+        (ga, gb)
+    }
+}
+
+#[test]
+fn opposite_argument_order_same_lock_order() {
+    let x = Arc::new(Mutex::new(0));
+    let y = Arc::new(Mutex::new(0));
+    thread::scope(|s| {
+        s.spawn(|| for _ in 0..2000 { let (mut a, mut b) = lock_both(&x, &y); *a += 1; *b += 1; });
+        s.spawn(|| for _ in 0..2000 { let (mut b, mut a) = lock_both(&y, &x); *a += 1; *b += 1; });   // asks in the other order
+    });
+    assert_eq!((*x.lock().unwrap(), *y.lock().unwrap()), (4000, 4000));
+}
+
+#[test]
+fn try_lock_and_back_off() {
+    let a = Mutex::new(1);
+    let b = Mutex::new(2);
+    let ga = a.lock().unwrap();
+    let got = loop {
+        match b.try_lock() {
+            Ok(gb) => break Some(*gb),                           // got the second lock: proceed
+            Err(_) => { drop(ga); break None; }                  // could not: release what we hold and retry later (no hold-and-wait)
+        }
+    };
+    assert_eq!(got, Some(2));
+}
+```
+
+```rust test
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+
+#[test]
+fn a_watchdog_turns_a_deadlock_into_a_failure() {
+    let (done_tx, done_rx) = mpsc::channel();
+    let m = Arc::new(Mutex::new(0));
+    let m2 = Arc::clone(&m);
+    thread::spawn(move || {
+        let _g = m2.lock().unwrap();
+        done_tx.send(()).unwrap();                               // pretend the real work finished
+    });
+    done_rx.recv_timeout(Duration::from_secs(2)).expect("the worker is stuck: a deadlock?");   // a hang becomes a failing test with a message
+}
+```
+
+### In the exercises
+
+- **1g-02:** reproduce the flush deadlock (a writer holding a page latch while another thread, holding the pool lock, waits for it) with a test that has a watchdog (third example), then fix `flush_page`: pin under the pool lock, release the lock, *then* wait for the page latch. The first example is the general-purpose fix; yours removes hold-and-wait.
+- **1g-01:** release order inside a guard (unlatch, then unpin) is a lock-ordering rule: never hold a pin without the right to the latch, never the reverse.
+- **2b-08 and 2b-11:** a fixed order of page latches (header, directory, bucket; lower slot first for two buckets).
+
+### Where it is used
+
+- **Databases**: PostgreSQL documents a lock-ordering hierarchy for its lightweight locks; MySQL/InnoDB detect row-lock deadlocks with a waits-for graph and abort a victim (module 4).
+- **Operating systems**: Linux's `lockdep` records the order of every lock acquisition and warns on a possible cycle *before* it ever deadlocks.
+- **Application code**: the classic bank-transfer problem (lock both accounts in id order).
+- **Tooling**: Rust has `parking_lot`'s `deadlock` feature and `loom` to explore interleavings; Java has `jstack` deadlock detection.

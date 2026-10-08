@@ -63,3 +63,82 @@ caption: The hand starts at A. A and B have their bit set, so the hand clears ea
 | used in | many textbook buffer pools | operating-system page replacement, many embedded caches |
 
 BusTub's classic replacer assignment asks for both so that you meet the trade-off yourself: LRU is simplest to reason about, CLOCK is the one that scales.
+
+## In real code
+
+### Using it: a complete, runnable CLOCK replacer
+
+```rust test
+struct Clock {
+    ring: Vec<(u32, bool)>,                                           // (frame, reference bit), in ring order
+    hand: usize,
+    capacity: usize,
+}
+
+impl Clock {
+    fn new(capacity: usize) -> Self { Clock { ring: vec![], hand: 0, capacity } }
+
+    fn unpin(&mut self, frame: u32) {                                 // "evictable now, and it was just used"
+        match self.ring.iter_mut().find(|(f, _)| *f == frame) {
+            Some(slot) => slot.1 = true,                              // already on the ring: only set the bit
+            None => { assert!(self.ring.len() < self.capacity); self.ring.push((frame, true)); }
+        }
+    }
+
+    fn pin(&mut self, frame: u32) {                                   // "in use: not evictable"
+        let Some(at) = self.ring.iter().position(|(f, _)| *f == frame) else { return };
+        self.ring.remove(at);
+        if at < self.hand { self.hand -= 1; }                         // the three hand cases
+        if self.hand >= self.ring.len() { self.hand = 0; }
+    }
+
+    fn victim(&mut self) -> Option<u32> {
+        if self.ring.is_empty() { return None; }
+        loop {                                                        // terminates: each pass clears a bit
+            if self.ring[self.hand].1 {
+                self.ring[self.hand].1 = false;                       // second chance
+                self.hand = (self.hand + 1) % self.ring.len();
+            } else {
+                let (f, _) = self.ring.remove(self.hand);
+                if self.hand >= self.ring.len() { self.hand = 0; }
+                return Some(f);
+            }
+        }
+    }
+}
+
+#[test]
+fn the_worked_example_from_the_figure() {
+    let mut c = Clock::new(6);
+    for f in 0..6 { c.unpin(f); }                                     // A..F enter with their bits set
+    c.ring[2].1 = false;                                              // frame 2 ("C") was not used since the hand last passed
+    assert_eq!(c.victim(), Some(2));                                  // A and B get a second chance; C is the victim
+    assert_eq!(c.ring.iter().map(|(f, b)| (*f, *b)).collect::<Vec<_>>(),
+               vec![(0, false), (1, false), (3, true), (4, true), (5, true)]);
+}
+
+#[test]
+fn pin_moves_the_hand_correctly() {
+    let mut c = Clock::new(4);
+    for f in 0..4 { c.unpin(f); }
+    c.hand = 2;
+    c.pin(0);                                                         // removed before the hand: the hand index moves down so it still points at frame 2
+    assert_eq!(c.ring[c.hand].0, 2);
+    c.pin(3);                                                         // the last element
+    assert!(c.hand < c.ring.len());
+    assert_eq!(c.victim().is_some(), true);
+}
+```
+
+### In the exercises
+
+- **1c-03 Part 1:** `unpin`/`size` and the ring (`Vec<(FrameId, bool)>`), asserting the capacity.
+- **1c-03 Part 2:** `victim`: the loop above; the stage tests include "all bits set" (a full revolution) and an empty ring.
+- **1c-03 Part 3:** `pin`: removal with the three hand cases; the worked tests move the hand over every position.
+
+### Where it is used
+
+- **Operating-system kernels**: BSD, Linux (as the "second chance" for the inactive list) and Windows' working-set trimming use CLOCK variants because a hit is a bit-set with no lock.
+- **PostgreSQL's buffer manager**: a *clock sweep* over `usage_count`s (a multi-bit generalisation: decrement on each pass, evict at zero).
+- **WiredTiger and other embedded stores** use CLOCK-style eviction for cache pages.
+- **Hardware**: many CPU caches' "not recently used" bits.

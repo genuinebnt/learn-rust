@@ -54,6 +54,9 @@ jobs:
       # The published course modules meet the owner's stage standards (docs/COURSE_STANDARDS.md).
       - name: Course standards
         run: cargo run -q --locked -p anneal-cli -- course lint
+      # Every ```rust test example in the course's concept articles compiles and passes.
+      - name: Course concept examples
+        run: python3 tools/course_snippets.py
       - name: Run the pattern lesson templates
         run: python3 tools/neetcode/check_lessons.py
 

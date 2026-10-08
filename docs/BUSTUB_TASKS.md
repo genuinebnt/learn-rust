@@ -63,6 +63,7 @@ Each module's stage outline lives in its `modules/<NN>-<slug>/stages/` as it is 
 - 2026-10-08: module 2b (22 stages, extendible hash table; ports BusTub's three hash table tests). 115 stages verified.
 - 2026-10-08: module 1g (7 stages): BusTub Project 1 is complete (80 stages, all BusTub P1 tests ported and green).
 - 2026-10-08: modules 1b-1f (54 stages: scheduler, LRU/CLOCK, LRU-K, ARC, buffer pool) with BusTub's ported tests; nested stage regions and plain `todo!()` stubs (the learner's freedom); `anneal course update`; `tools/check_course_links.py` (293 URLs checked). 73 stages verified.
+- 2026-10-08: **concepts teach usable code**: all 42 concept articles end with a tested "In real code" section (API tour or full algorithm, worked traces, `### In the exercises`, `### Where it is used`); `tools/course_snippets.py` runs the ~116 examples and CI runs it; lint enforces the structure.
 
 ## How a new agent picks up a module
 

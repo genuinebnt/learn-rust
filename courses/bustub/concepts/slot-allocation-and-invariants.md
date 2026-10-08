@@ -140,3 +140,129 @@ The same question applies to `num_slots += 1` before the growth: if growth fails
 
 > [!WHY] Why this matters later
 > The buffer pool in project 1 has the same shape (a table plus a free list, protected by one latch), the B+ tree has it with page ids, and the lock manager in project 4 has it with lock requests. If you learn to name the invariant and write the checker now, every later stage gets a debugging tool you have already built.
+
+## In real code
+
+### Using it: a complete, runnable slot table
+
+A page table, a free list and a growing "file" (a counter here), with the checker, the fallible-first growth and a concurrency test. Everything the disk-manager stages exercise, without touching the filesystem.
+
+```rust test
+use std::collections::HashMap;
+
+struct Slots {
+    pages: HashMap<u64, usize>,        // page id -> slot
+    free: Vec<usize>,                  // freed slots, reused LIFO
+    num_slots: usize,                  // slots ever handed out
+    capacity: usize,                   // slots the "file" has room for
+    set_len_calls: usize,
+    fail_grow: bool,                   // test hook: make the next growth fail
+}
+
+impl Slots {
+    fn new(capacity: usize) -> Self { Slots { pages: HashMap::new(), free: vec![], num_slots: 0, capacity, set_len_calls: 0, fail_grow: false } }
+
+    fn grow(&mut self) -> Result<(), String> {
+        let new_capacity = self.capacity * 2;
+        if self.fail_grow { return Err("disk full".into()); }       // the fallible step FIRST...
+        self.set_len_calls += 1;
+        self.capacity = new_capacity;                               // ...bookkeeping only after it succeeded
+        Ok(())
+    }
+
+    fn allocate_slot(&mut self) -> Result<usize, String> {
+        if let Some(s) = self.free.pop() { return Ok(s); }
+        if self.num_slots == self.capacity { self.grow()?; }        // on error nothing has changed yet
+        self.num_slots += 1;
+        Ok(self.num_slots - 1)
+    }
+
+    fn write_page(&mut self, page: u64) -> Result<usize, String> {  // one decision, one critical section (the caller holds the lock)
+        if let Some(&s) = self.pages.get(&page) { return Ok(s); }
+        let s = self.allocate_slot()?;
+        self.pages.insert(page, s);
+        Ok(s)
+    }
+
+    fn delete_page(&mut self, page: u64) {
+        if let Some(s) = self.pages.remove(&page) { self.free.push(s); }
+    }
+
+    fn check(&self) {
+        let mut seen = vec![false; self.num_slots];
+        for &s in self.pages.values().chain(self.free.iter()) {
+            assert!(s < self.num_slots, "slot {s} was never handed out");
+            assert!(!seen[s], "slot {s} is both live and free, or live twice");
+            seen[s] = true;
+        }
+        assert!(seen.iter().all(|&b| b), "a slot is neither live nor free: leaked");
+        assert!(self.num_slots <= self.capacity);
+    }
+}
+
+#[test]
+fn reuse_growth_and_the_invariant() {
+    let mut t = Slots::new(4);
+    for p in 1..=5 { t.write_page(p).unwrap(); t.check(); }
+    assert_eq!((t.capacity, t.set_len_calls), (8, 1));              // fifth page grew 4 -> 8 once
+    let slot_of_2 = t.pages[&2];
+    t.delete_page(2);
+    t.check();
+    assert_eq!(t.write_page(99).unwrap(), slot_of_2);               // the freed slot is reused (LIFO)
+    assert!(!t.pages.contains_key(&2));                             // ...but page id 2 is not resurrected
+    t.check();
+}
+
+#[test]
+fn a_failed_growth_leaves_a_consistent_table() {
+    let mut t = Slots::new(2);
+    t.write_page(1).unwrap();
+    t.write_page(2).unwrap();
+    t.fail_grow = true;
+    assert!(t.write_page(3).is_err());
+    t.check();                                                      // nothing leaked, nothing half-recorded
+    assert_eq!((t.num_slots, t.capacity, t.pages.len()), (2, 2, 2));
+    t.fail_grow = false;
+    assert_eq!(t.write_page(3).unwrap(), 2);                        // and the retry just works
+    t.check();
+}
+
+#[test]
+fn doubling_makes_log_n_calls() {
+    let mut t = Slots::new(16);
+    for p in 0..200 { t.write_page(p).unwrap(); }
+    assert_eq!(t.set_len_calls, 4);                                 // 16 -> 32 -> 64 -> 128 -> 256
+    t.check();
+}
+
+#[test]
+fn concurrent_writers_with_one_lock_keep_the_invariant() {
+    use std::sync::{Arc, Mutex};
+    let t = Arc::new(Mutex::new(Slots::new(4)));
+    let handles: Vec<_> = (0..4u64).map(|w| {
+        let t = Arc::clone(&t);
+        std::thread::spawn(move || {
+            for i in 0..100 {
+                let page = (w * 50 + i) % 150;                      // overlapping page ids between threads
+                t.lock().unwrap().write_page(page).unwrap();        // the lookup AND the insert under one guard
+                if i % 7 == 0 { t.lock().unwrap().delete_page(page); }
+            }
+        })
+    }).collect();
+    for h in handles { h.join().unwrap(); }
+    t.lock().unwrap().check();
+}
+```
+
+### In the exercises
+
+- **1a-03 (`write_page` and `read_page`):** `write_page` is the lookup-then-allocate shape above (Part 2); `read_page` of an unknown page returns zeros without allocating (Part 3).
+- **1a-04 (grow the file and reuse slots):** `grow` doubles with the fallible step first (Part 1); `delete_page` pushes the slot onto the free list (Part 2).
+- **Debugging tool:** paste `check()` into your `DiskManager` under `#[cfg(debug_assertions)]` and call it at the end of each method that changes the table, the free list or the counters.
+
+### Where it is used
+
+- **Filesystems and allocators**: the same "free list or bitmap, never both" invariant is what ext4's block bitmap, `malloc`'s free lists and slab allocators protect.
+- **Databases**: SQLite's freelist of reusable pages and PostgreSQL's free space map track exactly which pages in the file are reusable.
+- **`Vec` and `HashMap`**: `Vec` growth is the same amortised doubling; `slab::Slab` and `slotmap` are in-memory versions of this table, with the free list threaded through the vacant slots.
+- **Error-safe mutation** (do the fallible step first) shows up anywhere a structure is updated through `?`: `Vec::try_reserve` before pushing, or building a new value and swapping it in.

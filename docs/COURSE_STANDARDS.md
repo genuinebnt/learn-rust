@@ -39,10 +39,19 @@ them. **Read this before changing anything under `courses/` or the Courses pages
    also touches lists it under `files = [...]` in `module.toml`. `anneal course verify` compiles every unlock state, and the smoke test
    plays through module 1a and checks that 1b arrives (`crates/cli/src/course_unlock.rs`).
 
+10. **Concepts teach code the learner can use.** *"concepts teach code. if we are talking about a datastructure or a struct then showcase its
+   methods, functions, way to use them, common usecase in real code ... if its an algorithm explain it and show how to use it and where its used
+   ... i am using concepts to fill gap between what i know and what i need to know to solve each exercise, plus additional learning that will
+   be useful"*. Every concept linked from a stage ends with `## In real code`: (a) the API or algorithm in use, as complete runnable code with
+   a worked trace, in two or more ```` ```rust test ```` examples (`#[test]` functions that `python3 tools/course_snippets.py` compiles and
+   runs, and CI runs); (b) `### In the exercises`: which stage (by id and Part) uses which tool, and how; (c) `### Where it is used`: real
+   systems and libraries, stated only when sure. Stage ids in (b) are checked against the course by hand: use the ids in `stage.toml`.
+
 ## How these are enforced
 
 - `anneal course lint` (content only, needs no reference): for every non-boss stage of a *published* module (`published_modules` in `course.toml`;
   `--all` checks the rest): `learn` has 2 or more entries, at least two concepts are linked, a Performance section exists, at least 2 hints, and the
-  `### Tests` text stays short (at most 4 bullets per block, 8 per stage). CI runs it.
+  `### Tests` text stays short (at most 4 bullets per block, 8 per stage); every linked concept has an `In real code` section with two or
+  more `#[test]` examples, `### In the exercises` and `### Where it is used`. CI runs it, and runs `tools/course_snippets.py` on the examples.
 - `anneal course verify` also fails a non-boss stage with fewer than 5 tests.
 - A module is added to `published_modules` only when lint and verify are clean for it.

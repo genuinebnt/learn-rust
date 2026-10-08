@@ -68,3 +68,65 @@ Hashing wants `wrapping_*` (the algorithm is defined modulo 2<sup>32</sup>); a s
 
 > [!PORT] Porting rule
 > Every integer expression in C++ that mixes types is a place where Rust will ask a question. Answer it with the widest type involved, convert the *operands* (not the result), and prefer `From` to `as`. A bare `as` in ported code should always have a comment saying which of widen, truncate or reinterpret it is.
+
+## In real code
+
+### The API you will use
+
+| expression | meaning | when |
+|---|---|---|
+| `x as u64` | cast: widens, truncates or reinterprets, never fails | widening, or truncation on purpose |
+| `u64::from(x)` / `x.into()` | lossless conversion; only compiles if it cannot lose data | the default for widening |
+| `u8::try_from(x)` / `x.try_into()` | `Result`: `Err` if the value does not fit | values from outside |
+| `a.checked_add(b)` / `checked_mul` / `checked_sub` | `Option`: `None` on overflow | lengths and offsets from disk |
+| `a.wrapping_add(b)` / `wrapping_mul` | wrap modulo 2<sup>n</sup>, on purpose | hashing |
+| `a.saturating_sub(b)` | stops at 0 or `MAX` | counters that must not go below zero |
+| `a.overflowing_add(b)` | `(wrapped, overflowed)` | multi-word arithmetic |
+| `u32::MAX`, `i32::MIN`, `u32::BITS` | the limits | edge cases |
+| `a.rem_euclid(n)`, `a.div_ceil(n)`, `a.next_power_of_two()` | non-negative remainder, rounding up | shard indexes, page counts |
+
+```rust test
+use std::convert::TryFrom;
+
+fn slot_offset(slot: usize, page_size: usize) -> u64 {
+    slot as u64 * page_size as u64                            // widen BOTH operands first, then multiply
+}
+
+#[test]
+fn offsets_past_four_gigabytes() {
+    assert_eq!(slot_offset(1_000_000, 8192), 8_192_000_000);   // would overflow if multiplied as 32-bit
+    assert_eq!(u64::from(7u32), 7);                           // lossless: From
+    assert!(u8::try_from(300i32).is_err());                   // checked: it does not fit
+    assert_eq!(300i32 as u8, 44);                             // a cast truncates silently: 300 mod 256
+    assert_eq!(-1i32 as u32, u32::MAX);                       // the same bits read as unsigned
+}
+```
+
+```rust test
+#[test]
+fn overflow_on_purpose_and_by_mistake() {
+    assert_eq!(250u8.checked_add(10), None);                  // for a length read from disk: refuse
+    assert_eq!(250u8.wrapping_add(10), 4);                    // for a hash: wrap
+    assert_eq!(250u8.saturating_add(10), 255);                // for a clamp
+    assert_eq!(250u8.overflowing_add(10), (4, true));
+
+    let free: usize = 3;
+    assert_eq!(free.saturating_sub(5), 0);                    // `free - 5` would panic in debug, wrap to a huge number in release
+    assert_eq!((-7i32).rem_euclid(3), 2);                     // `-7 % 3` is -1
+    assert_eq!(10usize.div_ceil(4), 3);                       // pages needed for 10 entries, 4 per page
+    assert_eq!(17usize.next_power_of_two(), 32);              // the doubling in the file-growth stage
+}
+```
+
+### In the exercises
+
+- **1a-01 Part 1 and 2:** `slot_offset` and `file_size_for` return `u64` and widen with `as u64` before multiplying (the first example). A stage test checks slot 1 000 000.
+- **1a-04:** the file grows by doubling: `capacity * 2` can be written `checked_mul` if you want it to fail loudly; the tests expect `(next_power_of_two(max(n, 16)) + 1)` pages.
+- **2a-01 and 2a-02:** `u32::from_le_bytes`, `i32` page ids that are `-1` on disk, and `const fn array_size` with `usize` arithmetic.
+- **2b-01 (MurmurHash3):** every multiply and add on the state is `wrapping_mul` / `wrapping_add`, and `rotate_left` for rotations.
+
+### Where it is used
+
+- **File formats and network protocols**: every length field is validated with `try_from` / `checked_*` before it is used to index or allocate (a classic source of security bugs when skipped).
+- **Hashing, checksums, PRNGs**: wrapping arithmetic is the whole algorithm.
+- **Time and sizes**: `saturating_sub` for elapsed time that must not go negative; `div_ceil` for "how many blocks".

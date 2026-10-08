@@ -91,3 +91,85 @@ The invariant: **everything before `lo` is Less; everything from `hi` on is not 
 | `std::memcpy` (no overlap) | `dst.copy_from_slice(src)` |
 | `std::lower_bound(first, last, key)` | `slice.partition_point(\|x\| x < key)` / this function |
 | `std::copy_backward` | `copy_within` (handles direction) |
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `&buf[a..b]` / `&mut buf[a..b]` | a sub-slice (bounds-checked) | views of a page |
+| `s.copy_within(src_range, dest)` | `memmove` inside one slice, overlap allowed | open or close a gap |
+| `dst.copy_from_slice(src)` | `memcpy` between different slices (same length or it panics) | writing an entry |
+| `s.split_at_mut(i)` | two disjoint `&mut` halves | writing two fields at once |
+| `s.chunks(n)` / `chunks_exact(n)` / `chunks_mut(n)` | iterate fixed-size pieces | entries of `SIZE` bytes |
+| `s.binary_search(&x)` / `binary_search_by(\|e\| ..)` / `partition_point(\|e\| ..)` | search a **sorted** slice: `Result<usize, usize>` / the first index where the predicate turns false | when you have a real `[T]` |
+| `s.fill(0)` / `s.iter().all(..)` / `s.rotate_left(k)` | fill, test, rotate | zeroing, checking |
+
+```rust test
+#[test]
+fn shifting_entries_inside_a_byte_array() {
+    const SIZE: usize = 4;                                       // 4-byte entries
+    let mut page = [0u8; 8 * SIZE];
+    for (i, v) in [2u32, 4, 8, 9].iter().enumerate() {
+        page[i * SIZE..(i + 1) * SIZE].copy_from_slice(&v.to_le_bytes());
+    }
+    let len = 4;
+    let at = 2;                                                  // insert 7 before 8
+    page.copy_within(at * SIZE..len * SIZE, (at + 1) * SIZE);    // overlapping move: memmove, not memcpy
+    page[at * SIZE..(at + 1) * SIZE].copy_from_slice(&7u32.to_le_bytes());
+    let got: Vec<u32> = page.chunks_exact(SIZE).take(len + 1).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
+    assert_eq!(got, vec![2, 4, 7, 8, 9]);
+
+    page.copy_within((1 + 1) * SIZE..(len + 1) * SIZE, 1 * SIZE);     // remove entry 1: the tail moves down
+    let got: Vec<u32> = page.chunks_exact(SIZE).take(len).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
+    assert_eq!(got, vec![2, 7, 8, 9]);
+}
+```
+
+```rust test
+use std::cmp::Ordering;
+
+/// First index whose entry is not Less than the target: the position an insert goes to, and where a lookup looks.
+fn lower_bound(len: usize, mut cmp: impl FnMut(usize) -> Ordering) -> usize {
+    let (mut lo, mut hi) = (0, len);
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        if cmp(mid) == Ordering::Less { lo = mid + 1 } else { hi = mid }
+    }
+    lo
+}
+
+#[test]
+fn lower_bound_matches_partition_point() {
+    let keys = [2, 4, 4, 8, 9];
+    for target in 0..12 {
+        let mine = lower_bound(keys.len(), |i| keys[i].cmp(&target));
+        let std = keys.partition_point(|&k| k < target);          // the standard library's version of the same search
+        assert_eq!(mine, std, "target {target}");
+    }
+    assert_eq!(lower_bound(5, |i| [2, 4, 4, 8, 9][i].cmp(&4)), 1);       // the FIRST of the equal keys
+    assert_eq!(lower_bound(0, |_| unreachable!()), 0);                    // empty array: position 0, no probes
+}
+
+#[test]
+fn std_binary_search_variants() {
+    let v = [1, 3, 5, 7];
+    assert_eq!(v.binary_search(&5), Ok(2));
+    assert_eq!(v.binary_search(&4), Err(2));                      // Err carries the insertion point
+    assert_eq!(v.binary_search_by_key(&7, |&x| x), Ok(3));
+}
+```
+
+### In the exercises
+
+- **2a-03 (`PageArray::insert_at` / `remove_at`):** the first example is the whole technique: `copy_within(index*S .. len*S, (index+1)*S)` to open a gap, then write the entry; the mirror image to close it.
+- **2a-04 (`lower_bound`):** the second example is the algorithm, with a closure instead of an index so the real version can decode the entry at `mid`. Compare against `partition_point` in your own test.
+- **2b-05 (bucket page):** insert at `lower_bound(key)`, reject an equal key found there, `remove` finds then shifts down; the stage's model test checks the entries stay strictly increasing.
+
+### Where it is used
+
+- **B-tree and B+ tree nodes** keep sorted keys in a contiguous array and binary-search it (SQLite, PostgreSQL's nbtree, RocksDB's blocks).
+- **LSM trees**: every SSTable block has a sorted array of keys with a restart-point index searched by binary search.
+- **Any ordered lookup in a flat array**: `std`'s `binary_search`, Postgres's `bsearch`, Linux's `bsearch()`.
+- **Memmove-based insertion** is how `Vec::insert` works; the cost (O(n) shift) is why a node holds hundreds of entries and not millions.

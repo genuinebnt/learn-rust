@@ -65,3 +65,87 @@ Rules for using it well:
 
 > [!WHY] Is catching a panic honest?
 > It trades a crash for a degraded service. That is right for a database worker thread (a bad request should fail, not stop all I/O) and wrong for code that has lost its invariants (a corrupted page table). Decide which one your worker is, and write the decision in a comment above the `catch_unwind`.
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `panic!("msg {x}")` / `assert!` / `unwrap()` / `expect("why")` | start a panic | a bug, a violated assumption |
+| `std::panic::catch_unwind(AssertUnwindSafe(\|\| f()))` | run `f`, return `Err(payload)` if it panicked | a boundary you own: a worker's request loop |
+| `std::panic::resume_unwind(payload)` | continue a caught panic | re-raise after cleanup |
+| `handle.join()` | `Err(payload)` when a thread panicked | collecting a worker's outcome |
+| `err.downcast_ref::<&str>()` / `::<String>()` | read the panic message | reporting |
+| `std::panic::set_hook(..)` | change what is printed | tests, services |
+| `#[should_panic(expected = "text")]` | a test that must panic with that text | pinning a contract |
+
+```rust test
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
+fn risky(x: u32) -> u32 {
+    if x == 0 { panic!("zero is not allowed") }
+    100 / x
+}
+
+#[test]
+fn a_boundary_turns_a_panic_into_an_error() {
+    let ok = catch_unwind(|| risky(4));
+    assert_eq!(ok.unwrap(), 25);
+
+    let bad = catch_unwind(|| risky(0));
+    let payload = bad.unwrap_err();
+    assert_eq!(payload.downcast_ref::<&str>(), Some(&"zero is not allowed"));
+}
+
+#[test]
+fn worker_loop_survives_one_bad_request() {
+    let mut results = Vec::new();
+    for x in [4, 0, 5] {
+        let mut acc = 0u32;                                       // state the closure mutates: AssertUnwindSafe says "I accept that"
+        let r = catch_unwind(AssertUnwindSafe(|| { acc = risky(x); acc }));
+        results.push(r.map_err(|_| "failed".to_string()));
+    }
+    assert_eq!(results, vec![Ok(25), Err("failed".to_string()), Ok(20)]);   // the loop went on after the panic
+}
+```
+
+```rust test
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+#[test]
+fn a_panic_with_a_guard_poisons_the_mutex() {
+    let m = Arc::new(Mutex::new(1));
+    let m2 = Arc::clone(&m);
+    let _ = thread::spawn(move || {
+        let _g = m2.lock().unwrap();
+        panic!("died holding the lock");
+    })
+    .join();
+    assert!(m.is_poisoned());
+    let value = *m.lock().unwrap_or_else(|e| e.into_inner());     // recover the data if you can prove it is consistent
+    assert_eq!(value, 1);
+}
+
+#[test]
+#[should_panic(expected = "ran out of disk space")]
+fn a_contract_pinned_by_should_panic() {
+    let capacity = 4;
+    let page = 9;
+    assert!(page < capacity, "page {page} on a disk of {capacity}: ran out of disk space");
+}
+```
+
+### In the exercises
+
+- **1b-03 Part 2:** wrap the disk call in `catch_unwind(AssertUnwindSafe(..))`, map a panic to `Err(io::Error::other("the disk panicked"))` and `set` it on the request's promise (the second test above is the loop you need).
+- **1a-07:** `DiskManagerMemory` panics with "ran out of disk space"; the stage tests use `#[should_panic(expected = ...)]` as in the last example, so your message must contain that text.
+- **Every stage with a `remove` or an out-of-range id:** decide panic versus `None` as in the contract above and make the message name the offender.
+
+### Where it is used
+
+- **Servers**: a request handler runs inside a catch boundary so one bad request returns a 500 instead of killing the process (web frameworks do this for you).
+- **Thread pools**: a panicking task must not kill the pool thread; Rayon and Tokio catch it and surface it through the join handle.
+- **Tests**: the harness itself catches each test's panic and reports a failure; `should_panic` is `catch_unwind` with an assertion.
+- **FFI boundaries**: a panic must not unwind into C code; a catch at the boundary turns it into an error code.

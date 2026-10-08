@@ -68,3 +68,100 @@ The concurrency tests run several threads inserting and reading at once and chec
 
 > [!TIP] Pin counts as a leak detector
 > After any test, every page's pin count should be zero (`get_pin_count`). A path that returns early while still holding a guard shows up there immediately, long before it starves the pool.
+
+## In real code
+
+### Using it: crabbing down a three-level path, runnable
+
+A miniature of the table's latching, with real `RwLock`s standing in for page latches. The point is the **order and overlap** of acquire and release, which you copy into the stages.
+
+```rust test
+use std::sync::{Arc, RwLock};
+use std::thread;
+
+struct Bucket { items: Vec<(u32, u32)>, cap: usize }
+struct Directory { buckets: Vec<Arc<RwLock<Bucket>>> }                       // slot -> bucket page
+struct Header { directories: Vec<Arc<RwLock<Directory>>> }
+
+fn get_value(header: &RwLock<Header>, key: u32) -> Option<u32> {
+    let h = header.read().unwrap();                                           // 1. latch the header (shared)
+    let dir = h.directories[(key >> 31) as usize].clone();
+    let dir_guard = dir.read().unwrap();                                      // 2. latch the child BEFORE letting go of the parent
+    drop(h);                                                                  //    now the header is free for other threads
+    let bucket = dir_guard.buckets[(key & 1) as usize].clone();
+    let b = bucket.read().unwrap();
+    drop(dir_guard);                                                          //    lookups never modify the directory: release it
+    b.items.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)
+}
+
+fn insert(header: &RwLock<Header>, key: u32, value: u32) -> bool {
+    let h = header.read().unwrap();
+    let dir = h.directories[(key >> 31) as usize].clone();
+    let dir_guard = dir.write().unwrap();                                     // WRITE: a split would modify the directory
+    drop(h);
+    let bucket = dir_guard.buckets[(key & 1) as usize].clone();
+    let mut b = bucket.write().unwrap();
+    if b.items.iter().any(|(k, _)| *k == key) || b.items.len() >= b.cap {
+        return false;                                                         // every exit path drops the guards: RAII
+    }
+    b.items.push((key, value));
+    true
+}
+
+#[test]
+fn readers_and_writers_on_a_three_level_path() {
+    let mk = || Arc::new(RwLock::new(Bucket { items: vec![], cap: 100 }));
+    let dir = Arc::new(RwLock::new(Directory { buckets: vec![mk(), mk()] }));
+    let header = RwLock::new(Header { directories: vec![dir.clone(), dir] });
+    thread::scope(|s| {
+        for t in 0..4u32 {
+            let header = &header;
+            s.spawn(move || {
+                for i in 0..20 {
+                    assert!(insert(header, t * 100 + i, i));
+                    assert!(get_value(header, t * 100 + i).is_some());
+                }
+            });
+        }
+    });
+    assert_eq!(get_value(&header, 3), Some(3));
+}
+```
+
+```rust test
+use std::sync::{Arc, RwLock};
+use std::thread;
+
+#[test]
+fn a_consistent_order_never_deadlocks() {
+    // Two buckets latched together (a merge) are always taken lower slot first, whichever thread asks.
+    let a = Arc::new(RwLock::new(0));
+    let b = Arc::new(RwLock::new(0));
+    let both = |first: &RwLock<i32>, second: &RwLock<i32>| {
+        let mut x = first.write().unwrap();
+        let mut y = second.write().unwrap();
+        *x += 1;
+        *y += 1;
+    };
+    thread::scope(|s| {
+        for _ in 0..4 {
+            s.spawn(|| for _ in 0..500 { both(&a, &b) });                      // every thread: a then b
+        }
+    });
+    assert_eq!((*a.read().unwrap(), *b.read().unwrap()), (2000, 2000));
+}
+```
+
+### In the exercises
+
+- **2b-07 (`get_value` and `new`):** `get_value` is the first function above with page guards instead of `RwLock` guards: `bpm.read_page(header)`, then `bpm.read_page(directory)` **before** `drop(header_guard)`.
+- **2b-08 (`insert`):** the second function: the directory in *write* mode from the start, the header dropped once it is held, the bucket in write mode, early `return false` handled by the guards.
+- **2b-10 (`remove`):** the same path; **drop the bucket guard before the merge**, because `delete_page` refuses a pinned page.
+- **2b-11:** when you merge two buckets, take their guards in the same slot order every time (the second example).
+- **Tests:** the concurrent stage test runs several threads of inserts and lookups with a timeout; any ordering mistake shows up as a hang.
+
+### Where it is used
+
+- **B+ tree traversal** in PostgreSQL's nbtree, InnoDB and BusTub (module 2c): the same *latch the child, then release the parent* step, with "safe node" rules to release more than one ancestor.
+- **Lock-coupled linked lists and trees** in kernels and concurrent collections (hand-over-hand locking).
+- **Filesystems**: path lookup takes a directory's lock, then the child's, then releases the parent.

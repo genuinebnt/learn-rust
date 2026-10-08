@@ -57,3 +57,94 @@ A **trait bound** says what a generic type must provide, once, and the compiler 
 
 > [!NOTE] Limits worth knowing
 > `const SIZE` has no default that varies with a generic parameter in an array length (yet), and a trait with an associated `const` is not object safe: you cannot write `&dyn FixedSize`. Neither matters here, because the page views are generic and monomorphised.
+
+## In real code
+
+### The API you will use
+
+| syntax | what it does | when |
+|---|---|---|
+| `trait T { const SIZE: usize; }` | a constant every implementor must define | sizes, ids, limits |
+| `impl T for X { const SIZE: usize = 4; }` | define it | each type |
+| `X::SIZE` / `<X as T>::SIZE` / `T::SIZE` (inside `impl<T: Trait>`) | read it, at compile time | generic code |
+| `impl<A: T, B: T> T for (A, B) { const SIZE: usize = A::SIZE + B::SIZE; }` | derive a constant from parts | composing sizes |
+| `const fn f(a: usize) -> usize { .. }` | a function the compiler can run at compile time | capacities |
+| `const _: () = assert!(cond);` | a compile-time assertion | layout facts |
+| `PhantomData<T>` | "this struct is generic over `T` but stores none" | typed views over bytes |
+| `trait T: Sized` / `where K: FixedSize` | bounds | requiring the capability |
+
+```rust test
+trait FixedSize: Sized {
+    const SIZE: usize;
+    fn encode(&self, out: &mut [u8]);
+    fn decode(bytes: &[u8]) -> Self;
+}
+
+impl FixedSize for u32 {
+    const SIZE: usize = 4;
+    fn encode(&self, out: &mut [u8]) { out.copy_from_slice(&self.to_le_bytes()); }
+    fn decode(b: &[u8]) -> u32 { u32::from_le_bytes(b.try_into().unwrap()) }
+}
+impl FixedSize for i64 {
+    const SIZE: usize = 8;
+    fn encode(&self, out: &mut [u8]) { out.copy_from_slice(&self.to_le_bytes()); }
+    fn decode(b: &[u8]) -> i64 { i64::from_le_bytes(b.try_into().unwrap()) }
+}
+impl<A: FixedSize, B: FixedSize> FixedSize for (A, B) {
+    const SIZE: usize = A::SIZE + B::SIZE;
+    fn encode(&self, out: &mut [u8]) { let (a, b) = out.split_at_mut(A::SIZE); self.0.encode(a); self.1.encode(b); }
+    fn decode(bytes: &[u8]) -> (A, B) { let (a, b) = bytes.split_at(A::SIZE); (A::decode(a), B::decode(b)) }
+}
+
+const fn array_size(metadata: usize, entry: usize) -> usize { (8192 - metadata) / entry }
+const CAPACITY: usize = array_size(8, <(u32, i64)>::SIZE);
+const _: () = assert!(8 + CAPACITY * <(u32, i64)>::SIZE <= 8192);      // the layout fits, or the build fails
+
+#[test]
+fn sizes_compose_at_compile_time() {
+    assert_eq!(<(u32, i64)>::SIZE, 12);
+    assert_eq!(CAPACITY, 682);                                          // 8184 / 12
+    let mut buf = [0u8; 12];
+    (7u32, -2i64).encode(&mut buf);
+    assert_eq!(<(u32, i64)>::decode(&buf), (7, -2));
+}
+```
+
+```rust test
+use std::marker::PhantomData;
+
+trait FixedSize: Sized { const SIZE: usize; fn decode(b: &[u8]) -> Self; }
+impl FixedSize for u16 { const SIZE: usize = 2; fn decode(b: &[u8]) -> u16 { u16::from_le_bytes(b.try_into().unwrap()) } }
+
+/// A typed array over any bytes: it stores no `T`, so PhantomData ties the type parameter to the struct.
+struct Array<B, T> { bytes: B, _t: PhantomData<T> }
+
+impl<B: AsRef<[u8]>, T: FixedSize> Array<B, T> {
+    fn new(bytes: B) -> Self { Array { bytes, _t: PhantomData } }
+    fn capacity(&self) -> usize { self.bytes.as_ref().len() / T::SIZE }
+    fn get(&self, i: usize) -> T {
+        assert!(i < self.capacity(), "entry {i} is past the capacity {}", self.capacity());
+        T::decode(&self.bytes.as_ref()[i * T::SIZE..(i + 1) * T::SIZE])
+    }
+}
+
+#[test]
+fn generic_over_the_entry_type() {
+    let a: Array<_, u16> = Array::new([1u8, 0, 2, 0, 3, 0]);
+    assert_eq!(a.capacity(), 3);
+    assert_eq!(a.get(2), 3);
+}
+```
+
+### In the exercises
+
+- **2a-01 Part 4:** write `FixedSize` for `i32`, `u32`, `i64`, `PageId` and `Rid` as in the first example (`PageId` and `Rid` delegate to the integer impls).
+- **2a-02:** the pair impl `(A, B)` and `array_size(metadata, entry)` as a `const fn`; the test checks a bucket of `(GenericKey<8>, Rid)` holds 511 entries.
+- **2a-03:** `PageArray<B, T>` is the second example plus `set`, `insert_at` and `remove_at`.
+- **2b-05:** the bucket page is `PageArray<B, (K, V)>` with `K: FixedSize, V: FixedSize`.
+
+### Where it is used
+
+- **Typed storage layers**: `rkyv`, `zerocopy`, `bincode`'s fixed-size mode and RocksDB's comparator + slice design all separate "how many bytes" from "what value".
+- **Embedded and kernel Rust**: `const` sizes and `const _: () = assert!(..)` replace `static_assert` for register maps and ABIs.
+- **`std::mem::size_of::<T>()`** is the compiler's version of this; your own `SIZE` is for a *file format*, which must not change when the compiler's layout does.

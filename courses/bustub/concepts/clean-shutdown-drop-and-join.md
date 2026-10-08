@@ -57,3 +57,94 @@ caption: Shutdown, in order. The owner puts the stop signal behind whatever is q
 ## Scoped threads: no handle to manage
 
 When the threads do not need to outlive a function, `std::thread::scope` makes shutdown automatic: all threads spawned in the scope are joined before it returns, and they may *borrow* local variables (no `'static` and no `Arc` needed). The tests use it so that a test cannot end with a thread still running. A long-lived worker like the scheduler's cannot be scoped, which is why it needs `Drop`.
+
+## In real code
+
+### The API you will use
+
+| tool | what it does | when |
+|---|---|---|
+| `impl Drop for T { fn drop(&mut self) }` | runs when the value goes out of scope | stopping what the type started |
+| `Option<T>::take()` | move a value out of `&mut self`, leaving `None` | consuming a handle in `drop` |
+| `handle.join()` | wait for a thread to finish | the last step of shutdown |
+| `drop(x)` | drop early, on purpose | releasing a guard or a scheduler before the end of scope |
+| `std::mem::ManuallyDrop` | suppress the automatic drop | rare: FFI and unsafe code |
+
+```rust test
+use std::sync::mpsc::{channel, Sender};
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
+
+struct Scheduler {
+    tx: Option<Sender<u32>>,
+    worker: Option<JoinHandle<()>>,
+}
+
+impl Scheduler {
+    fn new(log: Arc<Mutex<Vec<u32>>>) -> Scheduler {
+        let (tx, rx) = channel::<u32>();
+        let worker = thread::spawn(move || {
+            for x in rx {                                         // ends when every Sender is dropped
+                thread::sleep(std::time::Duration::from_millis(2));
+                log.lock().unwrap().push(x);
+            }
+        });
+        Scheduler { tx: Some(tx), worker: Some(worker) }
+    }
+    fn schedule(&self, x: u32) {
+        self.tx.as_ref().unwrap().send(x).unwrap();
+    }
+}
+
+impl Drop for Scheduler {
+    fn drop(&mut self) {
+        drop(self.tx.take());                                     // 1. close the queue: the worker will see the end after the queued work
+        if let Some(w) = self.worker.take() {
+            let _ = w.join();                                     // 2. wait for it
+        }
+    }
+}
+
+#[test]
+fn dropping_the_scheduler_finishes_the_queue() {
+    let log = Arc::new(Mutex::new(Vec::new()));
+    {
+        let s = Scheduler::new(Arc::clone(&log));
+        for x in 1..=5 {
+            s.schedule(x);
+        }
+    }                                                             // drop runs here, and does not return before the work is done
+    assert_eq!(*log.lock().unwrap(), vec![1, 2, 3, 4, 5]);
+}
+```
+
+```rust test
+use std::sync::Mutex;
+
+struct Guard<'a>(&'a Mutex<Vec<&'static str>>, &'static str);
+impl Drop for Guard<'_> {
+    fn drop(&mut self) { self.0.lock().unwrap().push(self.1); }
+}
+
+#[test]
+fn fields_drop_in_declaration_order() {
+    let log = Mutex::new(Vec::new());
+    struct Pair<'a> { first: Guard<'a>, second: Guard<'a> }
+    {
+        let _p = Pair { first: Guard(&log, "first"), second: Guard(&log, "second") };
+    }
+    assert_eq!(*log.lock().unwrap(), vec!["first", "second"]);   // declaration order (C++ destroys members in the reverse order)
+}
+```
+
+### In the exercises
+
+- **1b-03 Part 1:** `impl Drop for DiskScheduler` is the first example, with the course's `Channel<Option<_>>` and a `None` sentinel where the example closes a channel. Check with a test that schedules work, drops the scheduler, and asserts the work ran.
+- **1b-04:** the sharded scheduler's `Drop` repeats this for every queue and every worker: signal all, then join all.
+- **1g-01 (guards):** the same `Drop` shape releases a latch and a pin; the field order decides what is released first (second example).
+
+### Where it is used
+
+- **Every owner of a background thread or a connection**: HTTP servers, database connection pools, log writers: `Drop` (or an explicit `shutdown()`) signals and joins.
+- **Flush-on-close**: `BufWriter` flushes in `drop`; a database flushes dirty pages in its shutdown path.
+- **Tests**: a test that spawns workers should drop its subject before asserting, so no thread is still running when the next test starts.

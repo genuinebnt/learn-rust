@@ -91,3 +91,89 @@ For the disk, one indirect call per page I/O is noise next to the system call it
 
 > [!NOTE] Object safety
 > A trait can be used as `dyn Trait` only if its methods can be called without knowing `Self`: no generic methods, no `Self` in return position, no `where Self: Sized` methods you rely on. `DiskIo` obeys this by being a plain set of three methods. When you add a generic helper to a trait you plan to use as `dyn`, expect the compiler to refuse.
+
+## In real code
+
+### The API you will use
+
+| syntax | meaning | when |
+|---|---|---|
+| `trait DiskIo: Send + Sync { fn read_page(&self, ..) -> io::Result<()>; }` | an interface; `Send + Sync` are supertraits | defining the seam |
+| `impl DiskIo for DiskManager { .. }` | one implementation | each concrete disk |
+| `&dyn DiskIo` / `Box<dyn DiskIo>` / `Arc<dyn DiskIo>` | a trait object: any implementor, dispatched at run time | when the type must not spread |
+| `fn f<D: DiskIo>(d: &D)` / `impl DiskIo` | static dispatch: one copy of `f` per type | hot paths |
+| `dyn Any` + `downcast_ref::<T>()` | recover the concrete type | rare: tests and plugins |
+| `Box::new(x) as Box<dyn Trait>` | coerce a concrete value | building a collection of mixed types |
+
+```rust test
+use std::io;
+use std::sync::{Arc, Mutex};
+
+trait Disk: Send + Sync {
+    fn write(&self, page: usize, data: &[u8]) -> io::Result<()>;
+    fn read(&self, page: usize) -> io::Result<Vec<u8>>;
+}
+
+struct MemoryDisk { pages: Mutex<Vec<Vec<u8>>> }
+
+impl Disk for MemoryDisk {
+    fn write(&self, page: usize, data: &[u8]) -> io::Result<()> {
+        let mut pages = self.pages.lock().unwrap();
+        if pages.len() <= page { pages.resize(page + 1, Vec::new()); }
+        pages[page] = data.to_vec();
+        Ok(())
+    }
+    fn read(&self, page: usize) -> io::Result<Vec<u8>> {
+        Ok(self.pages.lock().unwrap().get(page).cloned().unwrap_or_default())
+    }
+}
+
+// Works for ANY disk: the function never names a concrete type.
+fn copy_page(disk: &dyn Disk, from: usize, to: usize) -> io::Result<()> {
+    let data = disk.read(from)?;
+    disk.write(to, &data)
+}
+
+#[test]
+fn one_function_every_disk() {
+    let disk: Arc<dyn Disk> = Arc::new(MemoryDisk { pages: Mutex::new(Vec::new()) });
+    disk.write(0, b"hello").unwrap();
+    copy_page(&*disk, 0, 3).unwrap();
+    assert_eq!(disk.read(3).unwrap(), b"hello");
+}
+```
+
+```rust test
+use std::fmt::Debug;
+
+trait Replacer { fn victim(&mut self) -> Option<u32>; fn name(&self) -> &'static str; }
+struct Fifo(Vec<u32>);
+struct Lifo(Vec<u32>);
+impl Replacer for Fifo { fn victim(&mut self) -> Option<u32> { if self.0.is_empty() { None } else { Some(self.0.remove(0)) } } fn name(&self) -> &'static str { "fifo" } }
+impl Replacer for Lifo { fn victim(&mut self) -> Option<u32> { self.0.pop() } fn name(&self) -> &'static str { "lifo" } }
+
+// Static dispatch: the compiler writes one copy per concrete type. Dynamic dispatch: one copy, one indirect call.
+fn evict_all_static<R: Replacer>(mut r: R) -> Vec<u32> { std::iter::from_fn(|| r.victim()).collect() }
+fn evict_all_dyn(r: &mut dyn Replacer) -> Vec<u32> { std::iter::from_fn(|| r.victim()).collect() }
+
+#[test]
+fn static_versus_dynamic_dispatch() {
+    assert_eq!(evict_all_static(Fifo(vec![1, 2, 3])), vec![1, 2, 3]);
+    let mut policies: Vec<Box<dyn Replacer>> = vec![Box::new(Fifo(vec![1, 2, 3])), Box::new(Lifo(vec![1, 2, 3]))];
+    let out: Vec<(&str, Vec<u32>)> = policies.iter_mut().map(|p| (p.name(), evict_all_dyn(p.as_mut()))).collect();
+    assert_eq!(out, vec![("fifo", vec![1, 2, 3]), ("lifo", vec![3, 2, 1])]);
+}
+```
+
+### In the exercises
+
+- **1a-06:** define `DiskIo` as above (three methods, `Send + Sync`), implement it for `DiskManager` by forwarding to its inherent methods, and write `copy_page(disk: &dyn DiskIo, ..)` exactly like the first example.
+- **1a-07:** `DiskManagerMemory` and `DiskManagerUnlimitedMemory` are two more `impl DiskIo` blocks; the stage test builds an `Arc<dyn DiskIo>` from each.
+- **1b-02:** the scheduler stores an `Arc<dyn DiskIo>` and the worker's closure clones it; this is why the disk's concrete type never appears in the scheduler's signature.
+
+### Where it is used
+
+- **Plug-in architectures**: a database's storage engine, a logging backend or a filesystem driver behind one trait (MySQL's storage-engine API, `log::Log`, `std::io::Write`).
+- **Test doubles**: swap the real network or disk for an in-memory fake that records calls.
+- **Heterogeneous collections**: a `Vec<Box<dyn Executor>>` is the shape of a query plan, a tree of operators with different types (module 3).
+- **Where not**: tight inner loops (use generics so the call can be inlined).

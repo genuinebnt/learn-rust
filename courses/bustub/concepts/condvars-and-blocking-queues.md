@@ -82,3 +82,108 @@ caption: A consumer calls get on an empty queue and sleeps (the mutex is release
 | you hold | a `unique_lock` you pass in | the `MutexGuard`, which `wait` takes and gives back |
 
 Note the last row: in Rust the guard is **moved into** `wait` and returned, so you cannot forget that the lock is released while you sleep, and you cannot touch the data without the lock afterwards.
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `Condvar::new()` | creates the wake-up half; always paired with a `Mutex` that holds the state | construction |
+| `cv.wait(guard)` | releases the lock, sleeps, re-acquires on wake; returns the guard | the raw primitive: put it in a `while` loop |
+| `cv.wait_while(guard, \|s\| cond)` | the loop for you: sleeps while `cond` is true | **prefer this** |
+| `cv.wait_timeout_while(guard, dur, \|s\| cond)` | same with a deadline; tells you if it timed out | never wait forever |
+| `cv.notify_one()` / `notify_all()` | wake one / every waiter | after changing the state under the lock |
+| `std::sync::mpsc::channel()` | std's ready-made multi-producer, single-consumer queue | when one consumer is enough |
+
+```rust test
+use std::collections::VecDeque;
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+struct Channel<T> {
+    queue: Mutex<VecDeque<T>>,
+    ready: Condvar,
+}
+
+impl<T> Channel<T> {
+    fn new() -> Self {
+        Channel { queue: Mutex::new(VecDeque::new()), ready: Condvar::new() }
+    }
+    fn put(&self, x: T) {
+        self.queue.lock().unwrap().push_back(x);
+        self.ready.notify_one();
+    }
+    fn get(&self) -> T {
+        let mut q = self.ready.wait_while(self.queue.lock().unwrap(), |q| q.is_empty()).unwrap();
+        q.pop_front().unwrap()
+    }
+}
+
+#[test]
+fn a_getter_waits_for_the_putter() {
+    let ch = Arc::new(Channel::new());
+    let consumer = {
+        let ch = Arc::clone(&ch);
+        thread::spawn(move || (ch.get(), ch.get()))          // starts first, finds the queue empty, sleeps
+    };
+    thread::sleep(std::time::Duration::from_millis(20));
+    ch.put("a");
+    ch.put("b");
+    assert_eq!(consumer.join().unwrap(), ("a", "b"));
+}
+```
+
+```rust test
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use std::time::Duration;
+
+#[test]
+fn wait_with_a_deadline() {
+    let state = Arc::new((Mutex::new(false), Condvar::new()));       // the (flag, condvar) pair is the classic shape
+    let (lock, cv) = &*state;
+    let (guard, timeout) = cv.wait_timeout_while(lock.lock().unwrap(), Duration::from_millis(30), |done| !*done).unwrap();
+    assert!(timeout.timed_out());                                      // nobody set the flag
+    assert!(!*guard);
+
+    drop(guard);
+    let s2 = Arc::clone(&state);
+    thread::spawn(move || {
+        *s2.0.lock().unwrap() = true;
+        s2.1.notify_all();
+    });
+    let done = cv.wait_while(lock.lock().unwrap(), |done| !*done).unwrap();
+    assert!(*done);
+}
+```
+
+```rust test
+use std::sync::mpsc;
+use std::thread;
+
+#[test]
+fn std_channel_when_you_do_not_need_your_own() {
+    let (tx, rx) = mpsc::channel::<u32>();
+    let producers: Vec<_> = (0..3).map(|i| { let tx = tx.clone(); thread::spawn(move || tx.send(i).unwrap()) }).collect();
+    drop(tx);                                             // when every sender is gone, recv() returns Err: the stop signal
+    for p in producers { p.join().unwrap(); }
+    let mut got: Vec<u32> = rx.iter().collect();
+    got.sort();
+    assert_eq!(got, vec![0, 1, 2]);
+}
+```
+
+### In the exercises
+
+- **1b-01 Part 1 and 2 (`Channel::put` / `get`):** the first example is the whole exercise in miniature. `put` pushes under the lock and `notify_one`s; `get` uses `wait_while(..., |q| q.is_empty())` so a getter that arrives early sleeps and one that is woken too late goes back to sleep.
+- **1b-01 Part 3 (`consume`):** a loop of `channel.get()` that stops when it receives `None`: the `Option` is the stop signal (see the worker-threads concept).
+- **Part 5 (`Future::get`):** the same pair with a state enum instead of a queue; you need `wait_while(.., |s| matches!(s, State::Pending))` and `notify_all`.
+- **Tests you can write yourself:** start the consumer thread first and sleep before putting, as the first example does; it fails if `get` spins or loses a wake-up.
+
+### Where it is used
+
+- **Every thread pool and task queue**: Tokio's blocking pool, Rayon's job queue, a database's connection pool all park idle workers on a condvar or a futex.
+- **The log writer in a database**: transactions append to a buffer and wait on a condvar until the flusher thread has made their record durable (*group commit*).
+- **Lock managers**: a transaction that cannot get a row lock sleeps on a condvar tied to that lock's queue (module 4).
+- **Backpressure**: a bounded queue makes `put` wait on a second condvar while full: producers slow to the consumer's pace.

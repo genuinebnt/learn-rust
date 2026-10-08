@@ -67,3 +67,142 @@ Every public method is a transition on that diagram:
 
 > [!NOTE] Textbook interface, then guards
 > This module's interface is the textbook's: `fetch_page` and `unpin_page`, which you must pair by hand. It is also the interface that leaks: forget an unpin and the pool slowly fills with pinned pages and starts returning `None`. Module 1g wraps it in RAII guards so the pairing cannot be forgotten; the pool underneath is the same code.
+
+## In real code
+
+### Using it: a complete miniature pool
+
+All five pieces of state and the six methods, with a `Vec<u8>` for a disk and a FIFO list of evictable frames as the replacer (swap in LRU-K or ARC and nothing else changes). Frames are 8 bytes so a test can print them.
+
+```rust test
+use std::collections::{HashMap, VecDeque};
+
+type PageId = u64;
+type FrameId = usize;
+
+#[derive(Default)]
+struct Disk { pages: HashMap<PageId, [u8; 8]>, reads: usize, writes: usize }
+impl Disk {
+    fn read(&mut self, id: PageId) -> [u8; 8] { self.reads += 1; self.pages.get(&id).copied().unwrap_or([0; 8]) }   // unknown page: zeros
+    fn write(&mut self, id: PageId, data: [u8; 8]) { self.writes += 1; self.pages.insert(id, data); }
+}
+
+#[derive(Clone, Copy, Default)]
+struct Meta { page_id: Option<PageId>, pin_count: usize, dirty: bool }
+
+struct Pool {
+    frames: Vec<[u8; 8]>,                       // the memory
+    meta: Vec<Meta>,                            // per-frame page id, pin count, dirty flag
+    table: HashMap<PageId, FrameId>,            // page table
+    free: Vec<FrameId>,                         // frames holding nothing
+    evictable: VecDeque<FrameId>,               // the replacer (FIFO here)
+    next_page_id: PageId,
+    disk: Disk,
+}
+
+impl Pool {
+    fn new(n: usize) -> Self {
+        Pool { frames: vec![[0; 8]; n], meta: vec![Meta::default(); n], table: HashMap::new(), free: (0..n).rev().collect(),
+               evictable: VecDeque::new(), next_page_id: 0, disk: Disk::default() }
+    }
+
+    fn new_page(&mut self) -> PageId { self.next_page_id += 1; self.next_page_id - 1 }      // an id, no frame yet
+
+    fn fetch_page(&mut self, id: PageId) -> Option<FrameId> {
+        if let Some(&f) = self.table.get(&id) {                                 // hit: pin it, it is no longer evictable
+            self.meta[f].pin_count += 1;
+            self.evictable.retain(|&x| x != f);
+            return Some(f);
+        }
+        let f = match self.free.pop() {                                         // miss: a free frame, else evict one
+            Some(f) => f,
+            None => {
+                let f = self.evictable.pop_front()?;                            // every frame pinned: None, nothing changed
+                let old = self.meta[f].page_id.take().unwrap();
+                if self.meta[f].dirty { self.disk.write(old, self.frames[f]); } // write back BEFORE reading over it
+                self.table.remove(&old);
+                f
+            }
+        };
+        self.frames[f] = self.disk.read(id);
+        self.meta[f] = Meta { page_id: Some(id), pin_count: 1, dirty: false };
+        self.table.insert(id, f);
+        Some(f)
+    }
+
+    fn unpin_page(&mut self, id: PageId, dirty: bool) -> bool {
+        let Some(&f) = self.table.get(&id) else { return false };
+        if self.meta[f].pin_count == 0 { return false; }
+        self.meta[f].pin_count -= 1;
+        self.meta[f].dirty |= dirty;
+        if self.meta[f].pin_count == 0 { self.evictable.push_back(f); }
+        true
+    }
+
+    fn flush_page(&mut self, id: PageId) -> bool {
+        let Some(&f) = self.table.get(&id) else { return false };
+        self.disk.write(id, self.frames[f]);                                    // regardless of the dirty flag
+        self.meta[f].dirty = false;
+        true
+    }
+
+    fn delete_page(&mut self, id: PageId) -> bool {
+        if let Some(&f) = self.table.get(&id) {
+            if self.meta[f].pin_count > 0 { return false; }
+            self.table.remove(&id);
+            self.evictable.retain(|&x| x != f);
+            self.meta[f] = Meta::default();
+            self.free.push(f);
+        }
+        self.disk.pages.remove(&id);
+        true
+    }
+}
+
+#[test]
+fn a_page_goes_to_disk_and_comes_back() {
+    let mut p = Pool::new(2);
+    let (a, b, c) = (p.new_page(), p.new_page(), p.new_page());
+    let fa = p.fetch_page(a).unwrap();
+    p.frames[fa][0] = 42;
+    p.unpin_page(a, true);                                  // modified, no longer in use
+    p.fetch_page(b).unwrap();
+    assert!(p.fetch_page(c).is_some());                     // pool full: evicts a (the only evictable), writing it back
+    assert_eq!((p.disk.writes, p.table.contains_key(&a)), (1, false));
+    assert!(p.fetch_page(a).is_none(), "b and c are pinned: nothing can be evicted");
+    p.unpin_page(b, false);
+    let fa2 = p.fetch_page(a).unwrap();                     // evicts b (clean: no write), reads a back
+    assert_eq!(p.frames[fa2][0], 42);
+    assert_eq!(p.disk.writes, 1, "a clean eviction writes nothing");
+}
+
+#[test]
+fn pins_count_flush_ignores_dirty_and_delete_refuses_pinned() {
+    let mut p = Pool::new(2);
+    let a = p.new_page();
+    let f = p.fetch_page(a).unwrap();
+    assert_eq!(p.fetch_page(a), Some(f));                   // a hit: same frame, second pin
+    assert_eq!(p.meta[f].pin_count, 2);
+    p.unpin_page(a, false);
+    assert!(p.evictable.is_empty(), "one pin left: still not evictable");
+    assert!(!p.delete_page(a), "pinned pages cannot be deleted");
+    p.unpin_page(a, false);
+    assert_eq!(p.evictable.len(), 1);
+    assert!(p.flush_page(a));                               // clean page, flushed anyway
+    assert_eq!(p.disk.writes, 1);
+    assert!(p.delete_page(a));
+    assert_eq!((p.free.len(), p.table.len()), (2, 0));
+}
+```
+
+### In the exercises
+
+- **1f-01 (frames, `new_page`, `fetch_page`):** the struct above with `RwLock`-wrapped frames and `ArcReplacer`; the first miss path takes a frame from the free list.
+- **1f-02 (hits, unpin, eviction):** `get_pin_count`, `unpin_page` and the evict branch of `fetch_page`; the first test above is the trace to match, including "all pinned returns `None` and changes nothing".
+- **1f-03 (write-back, `flush_page`, `delete_page`):** the I/O counts: a clean eviction writes nothing, a dirty one writes once, `flush_page` writes whatever the flag says.
+
+### Where it is used
+
+- **Every disk-based database**: PostgreSQL's `shared_buffers` (buffer descriptors with a refcount and dirty flag, a hash table from tag to buffer), MySQL InnoDB's buffer pool, SQLite's pager cache (`PCache`).
+- **Operating systems**: the page cache is a buffer pool whose "page table" is the file's radix tree, with pins as page references and a dirty bit written back by flusher threads.
+- **Application caches with write-back**: any cache that tracks `dirty` and must write before reusing an entry has the same shape, from a filesystem's block cache to an LSM tree's memtable flush.

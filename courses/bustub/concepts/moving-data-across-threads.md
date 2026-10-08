@@ -72,3 +72,93 @@ Two marker traits, implemented automatically by the compiler, say which values m
 
 > [!WHY] Why not share the page behind a lock?
 > A `Mutex<Page>` would work and is what you may build later for *resident* pages (the buffer pool's frames). A request is different: it is a one-way hand-off with a clear end, and ownership transfer needs no lock at all and cannot deadlock.
+
+## In real code
+
+### The API you will use
+
+| tool | what it does | when |
+|---|---|---|
+| `thread::spawn(move \|\| ..)` | runs a closure on a new thread; everything captured must be `Send + 'static` | a long-lived worker |
+| `thread::scope(\|s\| { s.spawn(..); })` | threads that may **borrow** locals and are joined before it returns | tests, fork-join |
+| `Arc<T>` / `Arc::clone(&a)` | shared ownership across threads | read-only sharing |
+| `Box<T>` moved into a closure | ownership hand-off | a buffer going to a worker |
+| `mpsc::channel()` | move values between threads | the queue itself |
+| `std::mem::take` / `replace` | take a value out of `&mut` leaving a default | handing off a field |
+
+```rust test
+use std::sync::mpsc;
+use std::thread;
+
+const PAGE: usize = 8192;
+
+struct Request { page_id: u32, data: Box<[u8; PAGE]>, done: mpsc::Sender<Box<[u8; PAGE]>> }
+
+#[test]
+fn the_buffer_moves_there_and_back() {
+    let (to_worker, requests) = mpsc::channel::<Request>();
+    let worker = thread::spawn(move || {
+        for mut r in requests {
+            r.data[0] = r.page_id as u8;                          // the worker owns the buffer: no one else can touch it
+            r.done.send(r.data).unwrap();                         // hand it back
+        }
+    });
+
+    let (done_tx, done_rx) = mpsc::channel();
+    let buffer = Box::new([0u8; PAGE]);
+    to_worker.send(Request { page_id: 7, data: buffer, done: done_tx }).unwrap();
+    // `buffer` is moved: using it here would not compile
+    let back = done_rx.recv().unwrap();
+    assert_eq!(back[0], 7);
+
+    drop(to_worker);
+    worker.join().unwrap();
+}
+```
+
+```rust test
+use std::thread;
+
+#[test]
+fn scoped_threads_borrow_without_arc() {
+    let mut pages = vec![0u32; 4];
+    thread::scope(|s| {
+        for (i, chunk) in pages.chunks_mut(2).enumerate() {      // disjoint &mut slices: the borrow checker allows it
+            s.spawn(move || {
+                for p in chunk { *p = i as u32 + 1; }
+            });
+        }
+    });                                                           // all joined here
+    assert_eq!(pages, vec![1, 1, 2, 2]);
+}
+```
+
+```rust test
+use std::rc::Rc;
+use std::sync::Arc;
+
+fn assert_send<T: Send>() {}
+fn assert_sync<T: Sync>() {}
+
+#[test]
+fn send_and_sync_in_practice() {
+    assert_send::<Box<[u8; 8192]>>();
+    assert_send::<Arc<std::sync::Mutex<Vec<u8>>>>();
+    assert_sync::<std::sync::Mutex<Vec<u8>>>();
+    assert_sync::<std::sync::atomic::AtomicUsize>();
+    // assert_send::<Rc<u8>>();      // does not compile: Rc's count is not atomic, so it must stay on one thread
+    let _ = Rc::new(1);
+}
+```
+
+### In the exercises
+
+- **1b-02 (`DiskRequest`):** the first example is the design: a request *owns* a `Box<PageData>` and a way to answer (here a `Sender`, in the course a `Promise`). `DiskRequest::read` makes an empty buffer, `write` takes the page by value.
+- **1b-02 (`DiskScheduler::new`):** the worker's closure needs the queue and the disk, both `Arc`, cloned and `move`d in.
+- **Tests (every threaded stage):** the second example (`thread::scope`) is how the stage tests run several callers at once and guarantee none outlives the test.
+
+### Where it is used
+
+- **Any producer/consumer system**: ownership of a message moves with the message, so no lock is needed around its contents (Rust's answer to "share memory by communicating").
+- **Parallel data processing**: Rayon splits a slice into `&mut` chunks exactly as the second example does.
+- **I/O buffers**: a network server hands a buffer to a worker thread and gets it back when the write completes (io_uring-style APIs make this explicit).

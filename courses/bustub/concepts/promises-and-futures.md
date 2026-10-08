@@ -64,3 +64,96 @@ Rust also has `std::future::Future`, a different thing: a *poll-based* state mac
 | wait | `f.get()` (rethrows a stored exception) | `f.get()` returns `Result<T, BrokenPromise>` |
 | a dropped promise | stores a `broken_promise` error | `Drop` marks the state `Broken` |
 | the value is taken | `f.get()` once, then `valid() == false` | `get(self)` consumes the future |
+
+## In real code
+
+### The API (this course's own)
+
+| call | what it does |
+|---|---|
+| `let (p, f) = promise::<T>();` | a connected pair, nothing set yet |
+| `p.set(value)` | completes the future; consumes `p`, so it can happen once |
+| `f.get()` | blocks until completed: `Ok(value)` or `Err(BrokenPromise)`; consumes `f` |
+| `f.is_ready()` | true if `get` would not block |
+| drop `p` without `set` | the future's `get` returns `Err(BrokenPromise)` instead of hanging |
+
+The standard library has no blocking promise, but `std::sync::mpsc` gives you the same hand-off with a channel of one element, which is the quickest way to see the pattern in real code:
+
+```rust test
+use std::sync::mpsc;
+use std::thread;
+
+fn spawn_read(page: u32) -> mpsc::Receiver<Result<Vec<u8>, String>> {
+    let (tx, rx) = mpsc::channel();                           // tx plays the promise, rx the future
+    thread::spawn(move || {
+        let data = if page == 13 { Err("bad page".to_string()) } else { Ok(vec![page as u8; 4]) };
+        let _ = tx.send(data);                                // set
+    });
+    rx
+}
+
+#[test]
+fn a_one_shot_result_through_a_channel() {
+    let f1 = spawn_read(7);
+    let f2 = spawn_read(13);
+    // both reads are running at once; we wait only when we need the answer
+    assert_eq!(f1.recv().unwrap().unwrap(), vec![7, 7, 7, 7]);
+    assert_eq!(f2.recv().unwrap(), Err("bad page".to_string()));
+}
+
+#[test]
+fn a_dropped_sender_ends_the_wait() {
+    let (tx, rx) = mpsc::channel::<u32>();
+    drop(tx);                                                 // the "promise" died without setting a value
+    assert!(rx.recv().is_err());                              // recv returns an error instead of hanging: BrokenPromise
+}
+```
+
+A hand-written promise is a `Mutex<State>` plus a `Condvar`, exactly the structure in the previous concept; this is its use:
+
+```rust test
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+enum State<T> { Pending, Ready(T), Taken }
+
+struct Shared<T> { state: Mutex<State<T>>, changed: Condvar }
+
+fn promise<T>() -> (impl FnOnce(T), impl FnOnce() -> T) {
+    let shared = Arc::new(Shared { state: Mutex::new(State::Pending), changed: Condvar::new() });
+    let s2 = Arc::clone(&shared);
+    let set = move |v: T| {
+        *s2.state.lock().unwrap() = State::Ready(v);
+        s2.changed.notify_all();
+    };
+    let get = move || {
+        let mut st = shared.changed.wait_while(shared.state.lock().unwrap(), |s| matches!(s, State::Pending)).unwrap();
+        match std::mem::replace(&mut *st, State::Taken) {
+            State::Ready(v) => v,
+            _ => unreachable!("the wait ended, and a future is read once"),
+        }
+    };
+    (set, get)
+}
+
+#[test]
+fn set_on_one_thread_get_on_another() {
+    let (set, get) = promise::<&'static str>();
+    let worker = thread::spawn(move || set("done"));
+    assert_eq!(get(), "done");
+    worker.join().unwrap();
+}
+```
+
+### In the exercises
+
+- **1b-01 Parts 4 to 6:** `Promise::set(self, v)`, `Future::get(self)` and `Drop for Promise` are the third example plus the `Broken` state (the first example's second test shows the behaviour you must reproduce).
+- **1b-02:** a `DiskRequest` carries a `Promise<DiskResult>`; the worker calls `callback.set(result)`.
+- **1f-01 (`load`):** `DiskRequest::read` gives you a future; the pool `schedule`s the request and calls `future.get()` to wait for the page.
+
+### Where it is used
+
+- **Async I/O in databases**: BusTub's disk scheduler returns a future per request so the buffer pool can start several reads and wait for each when it needs the page.
+- **Request/response across threads**: an actor or worker pool answers a caller through a one-shot channel (Tokio's `oneshot` is the async version; `crossbeam`'s `bounded(1)` the blocking one).
+- **Parallel fan-out**: spawn N tasks, keep N futures, collect the results in order.
+- **Group commit**: each committing transaction holds a future that the log flusher completes when its record is durable.

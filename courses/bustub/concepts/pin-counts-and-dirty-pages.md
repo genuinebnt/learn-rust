@@ -75,3 +75,105 @@ Nearly every real system is **steal / no-force**: it is the fastest, and it make
 
 > [!WHY] Why `flush_page` ignores the dirty flag
 > It is for **durability points**: the caller (a checkpoint, a test) wants the bytes on disk now, whatever the flag says; and it then clears the flag, because the disk is up to date.
+
+## In real code
+
+### Using it: the flags in isolation, a leak, and the guard that prevents it
+
+```rust test
+#[derive(Default)]
+struct Meta { pin_count: usize, dirty: bool }
+
+impl Meta {
+    fn unpin(&mut self, is_dirty: bool) -> Option<bool> {            // Some(became_evictable)
+        if self.pin_count == 0 { return None; }                      // unbalanced unpin: report, do not underflow
+        self.pin_count -= 1;
+        self.dirty |= is_dirty;                                      // sticky: OR, never assign
+        Some(self.pin_count == 0)
+    }
+}
+
+#[test]
+fn the_dirty_flag_is_sticky() {
+    let mut m = Meta { pin_count: 2, dirty: false };                 // user A and user B both hold the page
+    assert_eq!(m.unpin(true), Some(false));                          // A modified it
+    assert_eq!(m.unpin(false), Some(true));                          // B only read: it must not erase A's change
+    assert!(m.dirty, "assigning instead of OR-ing would lose A's modification on eviction");
+    assert_eq!(m.unpin(false), None, "an extra unpin is a caller bug, not an underflow");
+}
+
+#[test]
+fn a_pin_leak_starves_the_pool() {
+    let frames = 3;
+    let mut pinned = 0;                                              // each "leak" is a fetch whose unpin never happens
+    let mut fetch = || if pinned < frames { pinned += 1; true } else { false };
+    for _ in 0..3 { assert!(fetch()); }
+    assert!(!fetch(), "no free frame and nothing evictable: the next fetch fails, far from the code that leaked");
+}
+```
+
+```rust test
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::collections::HashMap;
+
+struct Pins(RefCell<HashMap<u32, usize>>);
+
+struct PinGuard { pins: Rc<Pins>, page: u32, dirty: bool }
+
+impl PinGuard {
+    fn fetch(pins: &Rc<Pins>, page: u32) -> PinGuard {
+        *pins.0.borrow_mut().entry(page).or_default() += 1;
+        PinGuard { pins: Rc::clone(pins), page, dirty: false }
+    }
+    fn mark_dirty(&mut self) { self.dirty = true; }
+}
+
+impl Drop for PinGuard {                                              // the unpin can no longer be forgotten or skipped by an early return
+    fn drop(&mut self) {
+        *self.pins.0.borrow_mut().get_mut(&self.page).unwrap() -= 1;
+    }
+}
+
+fn read_or_bail(pins: &Rc<Pins>, fail: bool) -> Result<u8, &'static str> {
+    let _g = PinGuard::fetch(pins, 7);
+    if fail { return Err("early return"); }                           // with fetch/unpin pairs this path leaks a pin
+    Ok(1)
+}
+
+#[test]
+fn guards_unpin_on_every_path() {
+    let pins = Rc::new(Pins(RefCell::new(HashMap::new())));
+    assert!(read_or_bail(&pins, true).is_err());
+    assert!(read_or_bail(&pins, false).is_ok());
+    assert_eq!(pins.0.borrow()[&7], 0);                               // balanced on both paths
+    let mut a = PinGuard::fetch(&pins, 7);
+    a.mark_dirty();
+    let b = PinGuard::fetch(&pins, 7);
+    assert_eq!(pins.0.borrow()[&7], 2);                               // pins count: two users
+    drop(b);
+    assert_eq!(pins.0.borrow()[&7], 1);
+    assert!(a.dirty);
+}
+
+#[test]
+fn the_write_ahead_rule_for_a_dirty_page() {
+    // A dirty page may be written back only when the log up to its page_lsn is already durable.
+    fn may_write_back(page_lsn: u64, flushed_lsn: u64) -> bool { page_lsn <= flushed_lsn }
+    assert!(!may_write_back(120, 100), "the log record for this change is not on disk yet: flush the log first");
+    assert!(may_write_back(100, 100));
+}
+```
+
+### In the exercises
+
+- **1f-01, 1f-02:** `FrameMeta` and its transitions: `fetch_page` pins (and removes the frame from the replacer), `unpin_page` ORs the flag and re-adds the frame at zero pins; `get_pin_count` is how tests see the balance.
+- **1f-03:** `flush_page` writes regardless of the flag and clears it; eviction writes only when dirty.
+- **1g-01 (page guards):** the `Drop` impl above is the stage's shape: dropping a guard unlatches, then unpins with the guard's dirty flag. `WritePageGuard` marks the page dirty.
+
+### Where it is used
+
+- **PostgreSQL**: `PinBuffer`/`UnpinBuffer` and `MarkBufferDirty`; a pin leak is reported at transaction end as "buffer refcount leak".
+- **Rust's own types**: `Rc`/`Arc` strong counts are pin counts; `RefCell`'s borrow flag is a pin with a mode; `Drop` is how all of them are released on every path.
+- **Write-back caches** (CPU caches use a dirty bit per line, the OS page cache a dirty bit per page): the same "OR, clear on write-back" flag.
+- **Recovery systems** (ARIES): the dirty page table and `page_lsn` rule in the last test are the reason a buffer pool and a log must cooperate.

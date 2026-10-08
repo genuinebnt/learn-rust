@@ -65,3 +65,99 @@ Two locks used together must always be taken in the **same order** by every thre
 
 > [!NOTE] Real systems
 > Production buffer pools shard the page table and free list into many partitions (a latch per partition) and use per-frame state words updated with atomics, so that a hit takes no global lock at all. The structure here is the first rung of that ladder.
+
+## In real code
+
+### Using it: one pool latch for metadata, one `RwLock` per frame
+
+The hold-time rule in code: pin under the pool latch, *release it*, then take the frame latch. The tests check that the data is right and that the pins balance, and one test would deadlock if the frame latch were exclusive.
+
+```rust test
+use std::collections::HashMap;
+use std::sync::{Barrier, Mutex, RwLock};
+use std::sync::Arc;
+
+struct Inner { table: HashMap<u32, usize>, pin: Vec<usize> }
+
+struct Pool { inner: Mutex<Inner>, frames: Vec<RwLock<[u8; 8]>> }
+
+impl Pool {
+    fn new(pages: u32) -> Self {
+        Pool {
+            inner: Mutex::new(Inner { table: (0..pages).map(|p| (p, p as usize)).collect(), pin: vec![0; pages as usize] }),
+            frames: (0..pages).map(|_| RwLock::new([0; 8])).collect(),
+        }
+    }
+
+    fn pin(&self, page: u32) -> usize {
+        let mut inner = self.inner.lock().unwrap();               // coarse latch: microseconds
+        let frame = inner.table[&page];
+        inner.pin[frame] += 1;                                     // the pin keeps the frame from being reused...
+        frame
+    }                                                              // ...so the latch can be released here
+
+    fn unpin(&self, frame: usize) { self.inner.lock().unwrap().pin[frame] -= 1; }
+
+    fn with_write<R>(&self, page: u32, f: impl FnOnce(&mut [u8; 8]) -> R) -> R {
+        let frame = self.pin(page);
+        let r = { let mut guard = self.frames[frame].write().unwrap(); f(&mut guard) };   // fine latch: held while the caller works
+        self.unpin(frame);                                        // drop the page latch, THEN take the pool latch
+        r
+    }
+
+    fn with_read<R>(&self, page: u32, f: impl FnOnce(&[u8; 8]) -> R) -> R {
+        let frame = self.pin(page);
+        let r = { let guard = self.frames[frame].read().unwrap(); f(&guard) };
+        self.unpin(frame);
+        r
+    }
+}
+
+#[test]
+fn writers_to_one_page_are_exclusive_and_pins_balance() {
+    let pool = Arc::new(Pool::new(4));
+    let handles: Vec<_> = (0..4).map(|_| {
+        let pool = Arc::clone(&pool);
+        std::thread::spawn(move || for _ in 0..250 { pool.with_write(0, |b| b[0] = b[0].wrapping_add(1)); })
+    }).collect();
+    for h in handles { h.join().unwrap(); }
+    assert_eq!(pool.with_read(0, |b| b[0]), (1000u32 % 256) as u8);              // 1000 increments, none lost
+    assert!(pool.inner.lock().unwrap().pin.iter().all(|&p| p == 0));
+}
+
+#[test]
+fn readers_share_a_frame_latch() {
+    let pool = Arc::new(Pool::new(1));
+    let barrier = Arc::new(Barrier::new(2));
+    let handles: Vec<_> = (0..2).map(|_| {
+        let (pool, barrier) = (Arc::clone(&pool), Arc::clone(&barrier));
+        std::thread::spawn(move || pool.with_read(0, |_| { barrier.wait(); }))     // both hold the read latch at the same moment
+    }).collect();
+    for h in handles { h.join().unwrap(); }                                         // with an exclusive latch this would deadlock
+}
+
+#[test]
+fn different_pages_do_not_block_each_other() {
+    let pool = Arc::new(Pool::new(2));
+    let barrier = Arc::new(Barrier::new(2));
+    let handles: Vec<_> = (0..2u32).map(|page| {
+        let (pool, barrier) = (Arc::clone(&pool), Arc::clone(&barrier));
+        std::thread::spawn(move || pool.with_write(page, |b| { barrier.wait(); b[0] = page as u8 + 1; }))   // both hold WRITE latches at once
+    }).collect();
+    for h in handles { h.join().unwrap(); }
+    assert_eq!((pool.with_read(0, |b| b[0]), pool.with_read(1, |b| b[0])), (1, 2));
+}
+```
+
+### In the exercises
+
+- **1f-01, 1f-03:** the pool's `Mutex<Inner>` is the coarse latch; every `BufferPoolManager` method takes it first.
+- **1g-02 Part 3 (a flush must not wait for a latch while holding the pool's lock):** the fix is exactly `pin`, release the pool latch, then take the frame latch, as in `with_write` above.
+- **1g-01:** guards hold the frame latch for as long as the user holds the guard, and take the pool latch only briefly in `Drop` to unpin.
+
+### Where it is used
+
+- **Sharded maps**: `dashmap` and Java's `ConcurrentHashMap` split one big lock into many partitions (the coarse-to-fine step).
+- **Databases**: PostgreSQL protects the buffer mapping hash table with partitioned LWLocks and each buffer with a content lock plus a header spinlock; InnoDB has a latch per block and a mutex per buffer pool instance.
+- **Filesystems and kernels**: Linux's per-inode locks over a global dcache lock, and the rule "take the table lock, take a reference, drop the table lock, then block on the object".
+- **Application code with a shared registry**: look up under the registry mutex, clone an `Arc` to the entry, release the mutex, then lock the entry: the same pin-then-release pattern.

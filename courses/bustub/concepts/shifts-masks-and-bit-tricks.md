@@ -71,3 +71,78 @@ At depth 0 there is no bit to flip, and `1 << (0 - 1)` would underflow: the same
 
 > [!PORT] Signedness
 > `>>` on a **signed** integer is an *arithmetic* shift (it copies the sign bit in) in Rust, and implementation-defined in C++ before C++20. A hash is a bit pattern, not a number: use `u32`/`u64`, and cast with `as u32` *before* shifting if you start from an `i32`.
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `x >> n` / `x << n` | shift (panics in debug if `n >= BITS`) | fixed, known shifts |
+| `x.checked_shr(n)` / `checked_shl(n)` | `None` if `n >= BITS` | data-dependent shifts |
+| `x.wrapping_shr(n)` | masks `n` to the bit width | when you want the hardware behaviour |
+| `(1u32 << k) - 1` | a mask of `k` ones | keep the low `k` bits with `&` |
+| `x & mask` / `x \| bit` / `x ^ bit` / `!x` | keep / set / flip / invert | bit manipulation |
+| `x.count_ones()` / `leading_zeros()` / `trailing_zeros()` | population count, zero runs | depth of a power of two, `log2` |
+| `x.rotate_left(n)` | rotate, no bits lost | hash functions |
+| `x.is_power_of_two()` / `next_power_of_two()` | | sizing |
+
+```rust test
+fn top_bits(hash: u32, k: u32) -> u32 {
+    hash.checked_shr(32 - k).unwrap_or(0)                          // k == 0 is a shift by 32: None, so the answer is 0
+}
+fn low_bits(hash: u32, k: u32) -> u32 {
+    hash & ((1u32 << k) - 1)                                       // k <= 31 here; k == 32 would overflow the shift
+}
+fn split_image(slot: u32, local_depth: u32) -> u32 {
+    match local_depth { 0 => slot, d => slot ^ (1 << (d - 1)) }
+}
+
+#[test]
+fn the_three_operations_of_an_extendible_table() {
+    assert_eq!(top_bits(0xA000_0000, 3), 0b101);
+    assert_eq!(top_bits(u32::MAX, 0), 0);                          // the edge that is undefined behaviour in C
+    assert_eq!(low_bits(0b1011_0110, 3), 0b110);
+    assert_eq!(low_bits(0xFFFF_FFFF, 0), 0);
+    assert_eq!(split_image(0b01, 2), 0b11);                        // flip bit 1
+    assert_eq!(split_image(0b101, 3), 0b001);                      // flip bit 2
+    assert_eq!(split_image(5, 0), 5);                              // depth 0: no sibling
+}
+```
+
+```rust test
+#[test]
+fn bit_helpers() {
+    assert_eq!(0b1011u32.count_ones(), 3);
+    assert_eq!(1u32.leading_zeros(), 31);
+    assert_eq!(8u32.trailing_zeros(), 3);                           // log2 of a power of two
+    assert!(64u32.is_power_of_two() && !65u32.is_power_of_two());
+    assert_eq!(0x8000_0001u32.rotate_left(1), 0b11);               // the high bit wraps to the bottom
+    assert_eq!(0b0110u32 & !0b0010, 0b0100);                       // clear bit 1
+    assert_eq!(0b0100u32 | (1 << 0), 0b0101);                      // set bit 0
+    let x: u32 = 0b1000;
+    assert!(x & (1 << 3) != 0);                                    // test bit 3
+}
+
+#[test]
+#[should_panic(expected = "overflow")]
+fn shifting_by_the_full_width_panics_in_debug() {
+    let n = std::hint::black_box(32u32);                           // hide the constant so the compiler cannot reject it
+    let _ = 1u32 << n;
+}
+```
+
+### In the exercises
+
+- **2b-02 (`hash_to_directory_index`):** `top_bits` above. Test `max_depth` 0, 1, 9 and `u32::MAX`.
+- **2b-03:** the masks are `(1 << depth) - 1`; `hash_to_bucket_index` is `hash & global_mask`; `get_split_image_index` is `split_image` above.
+- **2b-04:** growing the directory copies slots `[0, n)` to `[n, 2n)`; `can_shrink` is "no local depth equals the global depth".
+- **2b-09:** the entries that move to the new bucket are those with bit `d` of their *hash* set: `hash & (1 << d) != 0`.
+- **2b-01:** rotations (`rotate_left`) and shifts of `u64` in MurmurHash3's finalisation.
+
+### Where it is used
+
+- **Hash tables of every kind**: power-of-two table sizes turn `hash % n` into `hash & (n - 1)`; Linux's `hlist`, Java's `HashMap` and `std`'s SwissTable all rely on it.
+- **Bitmaps and bloom filters**: set, test and count bits for free-space maps, visibility maps and membership tests.
+- **Compression and codecs**: varints, bit-packed integers, Huffman codes.
+- **Allocators**: finding the first free slot with `trailing_zeros` on a bitmap word.

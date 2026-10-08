@@ -48,3 +48,112 @@ The failure appears *later and elsewhere*: `evict` returns a frame whose page is
 
 > [!TIP] Invariants, preconditions, postconditions
 > A **precondition** is what the caller must guarantee (`remove` requires the frame to be evictable), a **postcondition** is what the method guarantees (the victim is no longer live), and an **invariant** is what holds between every pair of calls. `assert!` the first at the top of the method, `assert!` the second at the bottom, and `check()` the third.
+
+## In real code
+
+### Using it: an invariant as a `Result`, and a checker that catches a planted bug
+
+Returning `Result<(), String>` instead of asserting inside makes the checker usable three ways: `assert!(x.verify().is_ok())` in tests, `debug_assert!` inside the structure, and a public `verify_integrity()` a test can call. This one is the extendible hash table's directory rule, the same one the 2b stages ask you to implement.
+
+```rust test
+/// Directory invariants of an extendible hash table:
+///  1. the directory has exactly 2^global_depth entries,
+///  2. every local depth is <= global depth,
+///  3. all entries pointing at one bucket carry the same local depth,
+///  4. a bucket of local depth d is pointed at by exactly 2^(global-d) entries.
+fn verify_integrity(global_depth: u32, local_depths: &[u32], bucket_ids: &[u32]) -> Result<(), String> {
+    use std::collections::HashMap;
+    let size = 1usize << global_depth;
+    if local_depths.len() != size || bucket_ids.len() != size {
+        return Err(format!("directory has {} entries, expected 2^{} = {}", bucket_ids.len(), global_depth, size));
+    }
+    let mut seen: HashMap<u32, (u32, usize)> = HashMap::new();          // bucket -> (local depth, entries pointing at it)
+    for i in 0..size {
+        let (b, d) = (bucket_ids[i], local_depths[i]);
+        if d > global_depth { return Err(format!("entry {i}: local depth {d} exceeds global depth {global_depth}")); }
+        let e = seen.entry(b).or_insert((d, 0));
+        if e.0 != d { return Err(format!("entry {i}: bucket {b} has local depth {d} here but {} elsewhere", e.0)); }
+        e.1 += 1;
+    }
+    for (b, (d, count)) in seen {
+        let want = 1usize << (global_depth - d);
+        if count != want { return Err(format!("bucket {b} (local depth {d}) is pointed at by {count} entries, expected {want}")); }
+    }
+    Ok(())
+}
+
+#[test]
+fn a_valid_directory_passes() {
+    // global depth 2: buckets 10 and 11 hold two entries each (local depth 1); 12 and 13 one each (local depth 2)
+    assert_eq!(verify_integrity(2, &[1, 1, 2, 2], &[10, 10, 12, 13]), Ok(()));
+    assert_eq!(verify_integrity(0, &[0], &[10]), Ok(()));
+}
+
+#[test]
+fn each_violation_names_the_rule_it_broke() {
+    let e = |g, l: &[u32], b: &[u32]| verify_integrity(g, l, b).unwrap_err();
+    assert!(e(2, &[0, 0, 0], &[1, 1, 1]).contains("expected 2^2"));                            // wrong size
+    assert!(e(1, &[2, 2], &[1, 2]).contains("exceeds global depth"));                           // local > global
+    assert!(e(2, &[1, 2, 1, 1], &[5, 5, 6, 6]).contains("elsewhere"));                          // one bucket, two depths
+    assert!(e(2, &[2, 2, 1, 1], &[5, 5, 6, 6]).contains("pointed at by 2 entries, expected 1")); // depth says 1 entry, 2 point at it
+}
+```
+
+```rust test
+use std::collections::HashMap;
+
+struct Slots { pages: HashMap<u32, usize>, free: Vec<usize>, num_slots: usize }
+
+impl Slots {
+    fn new() -> Self { Slots { pages: HashMap::new(), free: vec![], num_slots: 0 } }
+
+    fn check(&self) {
+        let mut seen = vec![false; self.num_slots];
+        for &s in self.pages.values().chain(&self.free) {
+            assert!(!seen[s], "slot {s} is live twice, or both live and free");
+            seen[s] = true;
+        }
+        assert!(seen.iter().all(|&b| b), "a slot is neither live nor free: leaked");
+    }
+
+    fn insert(&mut self, page: u32) {
+        let slot = self.free.pop().unwrap_or_else(|| { self.num_slots += 1; self.num_slots - 1 });
+        self.pages.insert(page, slot);
+        #[cfg(debug_assertions)] self.check();                       // after every mutation: the failure points at the cause
+    }
+
+    fn delete_buggy(&mut self, page: u32) {
+        self.pages.remove(&page);                                    // forgot to push the slot onto the free list
+        #[cfg(debug_assertions)] self.check();
+    }
+}
+
+#[test]
+fn a_correct_sequence_never_trips_the_check() {
+    let mut s = Slots::new();
+    for p in 0..10 { s.insert(p); }
+    s.check();
+}
+
+#[test]
+#[should_panic(expected = "leaked")]
+fn the_checker_stops_at_the_operation_that_broke_the_rule() {
+    let mut s = Slots::new();
+    s.insert(1);
+    s.delete_buggy(1);                                               // panics HERE with "leaked", not 10,000 operations later
+}
+```
+
+### In the exercises
+
+- **1c-01 and 1c-03:** write a `check()` for `IndexList` (every live node reachable from `head` exactly once, `len` matches the walk) and for the CLOCK ring (the hand is in range); the stages' queue and model tests then run against a structure that polices itself.
+- **1d-02, 1d-03:** "the set holds exactly the evictable frames, each under its current key" is the invariant to assert after every step of the model test.
+- **1e-01, 1e-03:** ARC's bounds and the disjointness of the four lists, as in the ARC concept's `check`.
+- **2a-03, 2a-04:** a page array's entries are sorted and `len <= capacity`; binary search is stated as a loop invariant.
+- **2b-04 Part 3 (`verify_integrity`):** the same three rules as the first example above; the stage's version panics with a message naming the slot or bucket. The table's own tests (from 2b-07 on) call it after every phase.
+
+### Where it is used
+
+- **Databases**: PostgreSQL's `amcheck` (`bt_index_check`) validates every B-tree invariant on a live index; SQLite has `PRAGMA integrity_check`; filesystems ship `fsck`. BusTub's own `VerifyIntegrity` and the B+ tree's `IsTreeValid` (module 2c) are the same idea.
+- **Rust's ecosystem**: `debug_assert!` inside collections (`hashbrown`, `std`) and `#[cfg(debug_assertions)]` checkers in unsafe-heavy crates; `Result`-returning validators are the pattern behind `serde`'s and parsers' error positions as well.
+- **Design by contract** (Eiffel, `contracts` crates): pre- and postconditions plus an invariant checked around every public method.

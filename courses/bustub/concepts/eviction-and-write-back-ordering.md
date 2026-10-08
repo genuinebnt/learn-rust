@@ -66,3 +66,110 @@ In this pool, steps 2 and 4 run while holding the pool latch (`inner`), so every
 
 > [!TIP] Count the I/O
 > `DiskManagerUnlimitedMemory::get_num_writes()` lets a test assert that evicting a *clean* page writes nothing and a *dirty* one writes exactly once. That one assertion catches both "forgot the dirty flag" and "wrote every page".
+
+## In real code
+
+### Using it: the five steps on a one-frame pool, with injected failures
+
+A pool with one frame needs a miss for every other page, which makes the ordering visible. The disk can be told to fail its next read, and a `buggy_fetch` shows the wrong order.
+
+```rust test
+use std::collections::HashMap;
+
+struct OneFrame {
+    frame: [u8; 4],
+    page: Option<u64>,
+    dirty: bool,
+    disk: HashMap<u64, [u8; 4]>,
+    writes: usize,
+    fail_next_read: bool,
+}
+
+impl OneFrame {
+    fn new() -> Self { OneFrame { frame: [0; 4], page: None, dirty: false, disk: HashMap::new(), writes: 0, fail_next_read: false } }
+
+    fn store(&mut self, id: u64) { self.disk.insert(id, self.frame); self.writes += 1; }
+
+    fn load(&mut self, id: u64) -> Result<(), String> {
+        if std::mem::take(&mut self.fail_next_read) { return Err("read failed".into()); }
+        self.frame = self.disk.get(&id).copied().unwrap_or([0; 4]);
+        Ok(())
+    }
+
+    /// 1. choose (the only frame)  2. write back if dirty  3. unmap  4. read  5. map
+    fn fetch(&mut self, id: u64) -> Result<(), String> {
+        if self.page == Some(id) { return Ok(()); }
+        if let Some(old) = self.page {
+            if self.dirty { self.store(old); self.dirty = false; }       // 2: with the OLD id, before the frame is touched
+            self.page = None;                                            // 3: nothing maps to this frame any more
+        }
+        self.load(id)?;                                                  // 4: if this fails the frame is simply empty
+        self.page = Some(id);                                            // 5: publish the mapping last
+        Ok(())
+    }
+
+    /// The wrong order: read first, then write back whatever is in the frame.
+    fn buggy_fetch(&mut self, id: u64) {
+        let old = self.page;
+        self.frame = self.disk.get(&id).copied().unwrap_or([0; 4]);     // the read destroys the dirty bytes...
+        if let (Some(old), true) = (old, self.dirty) { self.store(old); } // ...so this "writes back" the NEW page's bytes under the old id
+        self.page = Some(id);
+        self.dirty = false;
+    }
+}
+
+#[test]
+fn write_back_then_read_keeps_the_data() {
+    let mut p = OneFrame::new();
+    p.fetch(1).unwrap();
+    p.frame[0] = 99; p.dirty = true;
+    p.fetch(2).unwrap();                                                 // evicts 1
+    assert_eq!(p.disk[&1][0], 99);
+    p.fetch(1).unwrap();
+    assert_eq!(p.frame[0], 99);
+}
+
+#[test]
+fn the_wrong_order_loses_the_change() {
+    let mut p = OneFrame::new();
+    p.fetch(1).unwrap();
+    p.frame[0] = 99; p.dirty = true;
+    p.buggy_fetch(2);
+    assert_ne!(p.disk.get(&1).map(|d| d[0]), Some(99), "page 1's change was overwritten by the read before it was saved");
+}
+
+#[test]
+fn a_failed_read_leaves_a_state_you_can_describe() {
+    let mut p = OneFrame::new();
+    p.fetch(1).unwrap();
+    p.frame[0] = 7; p.dirty = true;
+    p.fail_next_read = true;
+    assert!(p.fetch(2).is_err());
+    assert_eq!(p.page, None, "page 1 was written back and unmapped; nothing claims the frame");
+    assert_eq!(p.disk[&1][0], 7, "and its change is safe on disk");
+    p.fetch(2).unwrap();                                                 // the retry works from that state
+    assert_eq!(p.page, Some(2));
+}
+
+#[test]
+fn count_the_writes() {
+    let mut p = OneFrame::new();
+    p.fetch(1).unwrap();
+    p.fetch(2).unwrap();                                                 // page 1 was clean
+    assert_eq!(p.writes, 0, "evicting a clean page writes nothing");
+    p.frame[0] = 1; p.dirty = true;
+    p.fetch(3).unwrap();
+    assert_eq!(p.writes, 1, "a dirty page is written exactly once");
+}
+```
+
+### In the exercises
+
+- **1f-02 Part 3 (evict an unpinned page when no frame is free):** the miss path of `fetch_page`; "every frame pinned returns `None` and changes nothing" is the check before step 2.
+- **1f-03 Part 1 (write dirty victims back):** step 2, with the *old* page id, before the frame is reused; the tests count writes like `count_the_writes`.
+
+### Where it is used
+
+- **Databases and kernels** all have this sequence: Linux's page reclaim writes back a dirty page before reusing its frame; PostgreSQL's `BufferAlloc` flushes the victim buffer (after making sure its WAL is flushed) before the buffer is re-tagged.
+- **Write-back caches in storage stacks** (SSD controllers, ZFS's ARC with the ZIL) rely on the same rule: persist, then forget.
+- **Rust code that swaps state**: `mem::replace`/`mem::take` followed by a fallible step, with the invariant that the structure is valid between the steps.

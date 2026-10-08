@@ -62,3 +62,89 @@ A page in the buffer pool has one of these latches, and the B+ tree in module 2c
 | write | `std::unique_lock l(m);` | `let g = lock.write().unwrap();` |
 | try without blocking | `try_lock_shared()` | `try_read()` |
 | protects the data | no, by convention | yes: the data is inside |
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `RwLock::new(v)` | wraps `v` | construction |
+| `l.read().unwrap()` | shared guard (`Deref<Target = T>`); many at once | reading |
+| `l.write().unwrap()` | exclusive guard (`DerefMut`); waits for all readers | modifying |
+| `l.try_read()` / `l.try_write()` | no waiting: `Err(WouldBlock)` if unavailable | back off or skip |
+| `l.get_mut()` / `l.into_inner()` | access without locking when you own it | setup and teardown |
+| `Arc<RwLock<T>>` | the shared form | configuration, caches, indexes |
+
+```rust test
+use std::sync::{Arc, RwLock};
+use std::thread;
+
+#[test]
+fn many_readers_one_writer() {
+    let table = Arc::new(RwLock::new(vec![1, 2, 3]));
+    let readers: Vec<_> = (0..4)
+        .map(|_| {
+            let t = Arc::clone(&table);
+            thread::spawn(move || t.read().unwrap().iter().sum::<i32>())     // shared: these run at the same time
+        })
+        .collect();
+    for r in readers {
+        assert_eq!(r.join().unwrap(), 6);
+    }
+    table.write().unwrap().push(4);                                          // exclusive: waits for any reader still in
+    assert_eq!(table.read().unwrap().len(), 4);
+}
+```
+
+```rust test
+use std::sync::RwLock;
+
+#[test]
+fn try_variants_and_the_upgrade_trap() {
+    let l = RwLock::new(0);
+    let r1 = l.read().unwrap();
+    let r2 = l.read().unwrap();                         // a second reader: fine
+    assert!(l.try_write().is_err());                    // a writer would have to wait for r1 and r2
+    drop((r1, r2));
+    assert!(l.try_write().is_ok());
+
+    // "Upgrading" means giving up the read latch first, and the data may change in the gap. Re-check after you re-acquire.
+    let seen = *l.read().unwrap();
+    *l.write().unwrap() += 1;                           // not atomic with the read above
+    assert_eq!(*l.read().unwrap(), seen + 1);
+}
+```
+
+```rust test
+use std::sync::{PoisonError, RwLock};
+use std::thread;
+use std::sync::Arc;
+
+#[test]
+fn a_writer_that_panics_poisons_the_latch() {
+    let l = Arc::new(RwLock::new(5));
+    let l2 = Arc::clone(&l);
+    let _ = thread::spawn(move || {
+        let _g = l2.write().unwrap();
+        panic!("died holding the write latch");
+    })
+    .join();
+    assert!(l.read().is_err());                                     // poisoned
+    let v = *l.read().unwrap_or_else(PoisonError::into_inner);       // the page-latch choice: use the bytes anyway
+    assert_eq!(v, 5);
+}
+```
+
+### In the exercises
+
+- **1b-03 (`ReaderWriterLatch`):** a thin wrapper over `RwLock<T>` whose `read()` and `write()` ignore poisoning with `unwrap_or_else(PoisonError::into_inner)` (the third example), because the data is plain page bytes.
+- **1g-01 (page guards):** `ReadPageGuard` holds an `RwLockReadGuard`, `WritePageGuard` an `RwLockWriteGuard`. You will store each in an `Option`, so `release()` can `take()` and drop it *before* unpinning.
+- **2b-08 and 2b-10 (insert and remove):** the directory is taken with `write_page` from the start, because you cannot upgrade a read latch (see the second example).
+
+### Where it is used
+
+- **Page latches in every buffer pool**: PostgreSQL's per-buffer content lock and InnoDB's block latches let many readers scan a page while one writer excludes them.
+- **B+ tree traversal** (module 2c): readers hold shared latches down the path; inserts take exclusive latches only where they might split.
+- **Read-mostly shared state** in services: routing tables, feature flags, schema catalogs (read on every request, rewritten rarely).
+- Not for: write-heavy data (readers and writers fight; use a mutex or shard the data), and not as a way to get a "free" upgrade.

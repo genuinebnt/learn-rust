@@ -1193,6 +1193,36 @@ fn lint(course_id: &str, courses: &Path, all: bool) -> anyhow::Result<ExitCode> 
             }
         }
     }
+    // Concepts teach code you can use: each one linked from a checked stage needs an "In real code" section with two or more runnable
+    // examples (#[test] functions in ```rust test fences, which tools/course_snippets.py compiles and runs) and a "Where it is used" part.
+    let mut seen = std::collections::BTreeSet::new();
+    for m in &def.modules {
+        for st in m.stages.iter().filter(|st| st.kind != "boss") {
+            for id in &st.concepts {
+                if !seen.insert(id.clone()) {
+                    continue;
+                }
+                let Some(k) = def.concept(id) else { continue };
+                match k.sections.iter().find(|x| x.id == "in-real-code") {
+                    None => problems.push(format!("concept {id}: add a `## In real code` section (the API, examples, where it is used)")),
+                    Some(x) => {
+                        // Examples are counted as #[test] functions inside ```rust test fences: one fence may hold a whole
+                        // implementation with several tests, which is the best kind of example.
+                        let tests: usize = x.md.split("```rust test").skip(1).map(|b| b.split("```").next().unwrap_or("").matches("#[test]").count()).sum();
+                        if tests < 2 {
+                            problems.push(format!("concept {id}: `In real code` needs at least 2 runnable examples (#[test] functions in ```rust test fences)"));
+                        }
+                        if !x.md.contains("### In the exercises") {
+                            problems.push(format!("concept {id}: `In real code` needs a `### In the exercises` part: which stage uses which tool, and how"));
+                        }
+                        if !x.md.contains("Where it is used") {
+                            problems.push(format!("concept {id}: `In real code` needs a `### Where it is used` part (beyond the exercises)"));
+                        }
+                    }
+                }
+            }
+        }
+    }
     for p in &problems {
         println!("FAIL  {p}");
     }

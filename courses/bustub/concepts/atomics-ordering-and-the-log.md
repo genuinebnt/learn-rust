@@ -80,3 +80,85 @@ write(4, "..."..., 32) = 32                    # the log: no offset, O_APPEND ch
 ```
 
 A **flush** here means "one `write_log` call that wrote bytes": an empty write is not counted, because it did nothing. Note that it is *not* an `fsync`: the log is in the page cache after `write_log` returns. Making it durable (and deciding when to) is the subject of module 5.
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `AtomicUsize::new(0)` | an atomic integer (also `AtomicU64`, `AtomicBool`, `AtomicI32`, ...) | counters, flags, ids |
+| `a.load(ord)` / `a.store(v, ord)` | read / write | flags, reading a counter |
+| `a.fetch_add(n, ord)` | add and return the **old** value | counters, unique ids |
+| `a.swap(v, ord)` | store and return the old value | taking a flag |
+| `a.compare_exchange(old, new, succ, fail)` | store `new` only if the value is still `old` | lock-free updates, claiming something once |
+| `a.fetch_update(s, f, \|x\| Some(..))` | a compare-exchange loop for you | "update by a function" |
+| `Ordering::Relaxed` | atomic and nothing else | statistics |
+| `Ordering::{Acquire, Release}` | publish data with a flag | a "ready" flag |
+
+```rust test
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
+
+#[test]
+fn counters_need_only_relaxed() {
+    let writes = AtomicUsize::new(0);
+    thread::scope(|s| {
+        for _ in 0..8 {
+            s.spawn(|| {
+                for _ in 0..1000 {
+                    writes.fetch_add(1, Ordering::Relaxed);
+                }
+            });
+        }
+    });
+    assert_eq!(writes.load(Ordering::Relaxed), 8000);       // atomicity is all a statistic needs
+}
+```
+
+```rust test
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+#[test]
+fn release_acquire_publishes_data() {
+    let data = Arc::new(AtomicU32::new(0));
+    let ready = Arc::new(AtomicBool::new(false));
+    let (d, r) = (Arc::clone(&data), Arc::clone(&ready));
+    let writer = thread::spawn(move || {
+        d.store(42, Ordering::Relaxed);
+        r.store(true, Ordering::Release);                    // everything above becomes visible to whoever acquires `ready`
+    });
+    while !ready.load(Ordering::Acquire) {}                  // spin: fine in a test
+    assert_eq!(data.load(Ordering::Relaxed), 42);            // guaranteed by the release/acquire pair
+    writer.join().unwrap();
+}
+```
+
+```rust test
+use std::sync::atomic::{AtomicU64, Ordering};
+
+#[test]
+fn compare_exchange_claims_once() {
+    let owner = AtomicU64::new(0);                           // 0 = nobody
+    assert!(owner.compare_exchange(0, 7, Ordering::AcqRel, Ordering::Acquire).is_ok());      // thread 7 wins
+    assert_eq!(owner.compare_exchange(0, 9, Ordering::AcqRel, Ordering::Acquire), Err(7));   // thread 9 loses and learns who won
+    let old = owner.fetch_update(Ordering::AcqRel, Ordering::Acquire, |x| Some(x + 1)).unwrap();
+    assert_eq!((old, owner.load(Ordering::Relaxed)), (7, 8));
+}
+```
+
+### In the exercises
+
+- **1a-05 Part 1:** `num_writes`, `num_flushes` and `num_deletes` are `AtomicUsize` fields read by `get_*`. Use `fetch_add(1, Relaxed)` *after* the operation succeeded and `load(Relaxed)` in the getters (the first example). The stage tests run eight threads at once and expect exactly 400.
+- **1a-05 Part 2 and 3:** `write_log` appends and counts one flush; `read_log` reads at an offset. The log's own `Mutex<File>` is what keeps two appends from interleaving.
+- **Later, 1d-01:** the replacer's logical clock is a plain `usize` because the replacer takes `&mut self`; a concurrent clock would be `AtomicU64::fetch_add(1, Relaxed)`.
+
+### Where it is used
+
+- **Statistics everywhere**: PostgreSQL's `pg_stat_*` counters, RocksDB's tickers, a web server's request count. Relaxed increments, summed on read.
+- **Reference counts**: `Arc` itself is an atomic count (`fetch_add` on clone, `fetch_sub` on drop, with an acquire fence on the last drop).
+- **Lock-free queues and ID generators**: a global `fetch_add` hands out transaction ids and log sequence numbers.
+- **Stop flags**: an `AtomicBool` a worker polls (with `Acquire`) so a shutdown request is seen promptly.
+- **Spinlocks and `Once`**: built from `compare_exchange` and `swap`.

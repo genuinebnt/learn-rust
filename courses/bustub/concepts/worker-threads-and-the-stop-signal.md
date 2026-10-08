@@ -69,3 +69,93 @@ Because the queue is first-in-first-out, **everything scheduled before the `None
 
 > [!PORT] `std::thread` versus `JoinHandle`
 > In C++, destroying a joinable `std::thread` calls `std::terminate`, so every owner needs a destructor that joins (or you use C++20's `std::jthread`, which joins for you). In Rust a dropped handle detaches silently, so the burden is the other way: if you need the work finished, you must `join`.
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `thread::spawn(f)` → `JoinHandle<T>` | start a thread; `f: FnOnce() -> T + Send + 'static` | background workers |
+| `handle.join()` | wait; `Err(payload)` if the thread panicked | shutdown, collecting results |
+| `thread::Builder::new().name("disk-worker".into()).spawn(f)` | a named thread (shows in panics and profilers) | production code |
+| `thread::current().id()` / `.name()` | which thread am I | logging |
+| `Option<JoinHandle<()>>` + `.take()` | store a handle you must consume in `Drop` | the standard idiom |
+
+```rust test
+use std::collections::VecDeque;
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread::{self, JoinHandle};
+
+struct Pool {
+    queue: Arc<(Mutex<VecDeque<Option<u32>>>, Condvar)>,      // None = stop
+    worker: Option<JoinHandle<Vec<u32>>>,
+}
+
+impl Pool {
+    fn new() -> Pool {
+        let queue = Arc::new((Mutex::new(VecDeque::new()), Condvar::new()));
+        let q = Arc::clone(&queue);
+        let worker = thread::Builder::new().name("worker".into()).spawn(move || {
+            let mut done = Vec::new();
+            loop {
+                let item = {
+                    let (m, cv) = &*q;
+                    let mut g = cv.wait_while(m.lock().unwrap(), |g| g.is_empty()).unwrap();
+                    g.pop_front().unwrap()
+                };
+                match item {
+                    Some(x) => done.push(x * 2),
+                    None => return done,                          // the sentinel: stop after everything queued before it
+                }
+            }
+        });
+        Pool { queue, worker: Some(worker.unwrap()) }
+    }
+    fn submit(&self, x: u32) {
+        self.queue.0.lock().unwrap().push_back(Some(x));
+        self.queue.1.notify_one();
+    }
+    fn finish(mut self) -> Vec<u32> {
+        self.queue.0.lock().unwrap().push_back(None);
+        self.queue.1.notify_one();
+        self.worker.take().unwrap().join().unwrap()
+    }
+}
+
+#[test]
+fn work_queued_before_the_stop_signal_runs() {
+    let pool = Pool::new();
+    for x in 1..=3 {
+        pool.submit(x);
+    }
+    assert_eq!(pool.finish(), vec![2, 4, 6]);
+}
+```
+
+```rust test
+use std::thread;
+
+#[test]
+fn join_reports_a_panic() {
+    let h = thread::spawn(|| -> u32 { panic!("worker bug") });
+    let err = h.join().unwrap_err();                              // the panic payload
+    assert_eq!(err.downcast_ref::<&str>(), Some(&"worker bug"));
+
+    let ok = thread::spawn(|| 7).join().unwrap();
+    assert_eq!(ok, 7);
+}
+```
+
+### In the exercises
+
+- **1b-02 (`DiskScheduler::new`):** spawn the worker with `move`, giving it clones of the queue `Arc` and the disk `Arc`; store `Some(handle)` in the scheduler. The first example is the same structure in miniature.
+- **1b-01 (`consume`):** the loop `while let Some(item) = channel.get() { f(item) }` is the worker body: `None` ends it.
+- **1b-03 (`Drop`):** `put(None)`, then `self.background_thread.take()` and `join()`: the `finish` method above, written as `Drop`.
+- **1b-04:** one such worker *per shard*, each with its own queue and its own sentinel.
+
+### Where it is used
+
+- **Thread pools** (Rayon, Tokio's blocking pool, a web server's workers) are N of these with a shared queue.
+- **Background services in databases**: the log flusher, the checkpointer, the page cleaner and the deadlock detector are each one worker thread with a stop signal.
+- **Graceful shutdown of any service**: stop accepting new work, put the sentinel behind what is queued, wait for the join.

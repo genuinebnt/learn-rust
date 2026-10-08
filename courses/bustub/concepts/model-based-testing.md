@@ -77,3 +77,104 @@ When the models disagree, the output is a seed and a step number. To *understand
 
 > [!TIP] The model is also documentation
 > If you cannot write the model in ten lines, you do not yet understand the specification. Writing it first, before the clever version, is a good way to find that out.
+
+## In real code
+
+### Using it: a hand-written ring buffer against a `Vec`, and shrinking a failure
+
+A ring buffer is simple to describe and easy to get subtly wrong at the wrap-around: exactly the kind of structure this method is for. The model is a `Vec` with a capacity check. `run` compares both after every operation and reports the first step that differs; `shrink` deletes operations until the failure is as small as it gets.
+
+```rust test
+#[derive(Clone, Copy, Debug)]
+enum Op { Push(u32), Pop }
+
+struct Ring { buf: Vec<Option<u32>>, head: usize, len: usize, bug: bool }
+
+impl Ring {
+    fn new(cap: usize, bug: bool) -> Self { Ring { buf: vec![None; cap], head: 0, len: 0, bug } }
+    fn push(&mut self, v: u32) -> bool {
+        if self.len == self.buf.len() { return false; }
+        let at = (self.head + self.len) % self.buf.len();
+        self.buf[at] = Some(v);
+        self.len += 1;
+        true
+    }
+    fn pop(&mut self) -> Option<u32> {
+        if self.len == 0 { return None; }
+        let v = self.buf[self.head].take();
+        let wrapped = self.head + 1 == self.buf.len();
+        self.head = (self.head + 1) % self.buf.len();
+        if !(self.bug && wrapped) { self.len -= 1; }                  // the planted bug: forgets to count the pop that wraps
+        v
+    }
+}
+
+struct Model { items: Vec<u32>, cap: usize }                          // obviously correct, slow
+impl Model {
+    fn push(&mut self, v: u32) -> bool { if self.items.len() == self.cap { false } else { self.items.push(v); true } }
+    fn pop(&mut self) -> Option<u32> { if self.items.is_empty() { None } else { Some(self.items.remove(0)) } }
+}
+
+/// The first step at which the ring and the model disagree, if any.
+fn run(ops: &[Op], cap: usize, bug: bool) -> Option<usize> {
+    let (mut ring, mut model) = (Ring::new(cap, bug), Model { items: vec![], cap });
+    for (step, op) in ops.iter().enumerate() {
+        let same = match *op {
+            Op::Push(v) => ring.push(v) == model.push(v),
+            Op::Pop => ring.pop() == model.pop(),
+        };
+        if !same || ring.len != model.items.len() { return Some(step); }   // compare after EVERY step
+    }
+    None
+}
+
+/// Delete operations one at a time while the run still fails.
+fn shrink(mut ops: Vec<Op>, cap: usize, bug: bool) -> Vec<Op> {
+    let mut i = 0;
+    while i < ops.len() {
+        let mut candidate = ops.clone();
+        candidate.remove(i);
+        if run(&candidate, cap, bug).is_some() { ops = candidate; } else { i += 1; }
+    }
+    ops
+}
+
+struct Lcg(u64);
+impl Lcg { fn next(&mut self) -> u64 { self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407); self.0 >> 33 } }
+
+fn random_ops(seed: u64, n: usize) -> Vec<Op> {
+    let mut rng = Lcg(seed);                                           // a fixed seed: the run is reproducible
+    (0..n).map(|i| if rng.next() % 2 == 0 { Op::Push(i as u32) } else { Op::Pop }).collect()
+}
+
+#[test]
+fn the_correct_ring_agrees_with_the_model_over_many_seeds() {
+    for seed in 0..50 { assert_eq!(run(&random_ops(seed, 400), 4, false), None, "seed {seed}"); }
+}
+
+#[test]
+fn the_planted_bug_is_found_and_shrunk_to_a_readable_case() {
+    let ops = random_ops(1000, 400);
+    let step = run(&ops, 3, true).expect("a wrap-around bug must show up in 400 random operations");
+    let small = shrink(ops[..=step].to_vec(), 3, true);
+    assert!(small.len() <= 8, "shrunk to {} operations: {small:?}", small.len());
+    assert!(run(&small, 3, true).is_some());
+    // What is left is: fill the ring, drain it past the wrap, and the length is off. Short enough to read.
+}
+```
+
+### In the exercises
+
+- **1c-01:** the stage's own tests are model tests: 2000 random pushes and pops against a `VecDeque`, 3000 pushes and removes against a `Vec`.
+- **1d-02, 1d-03:** the LRU-K replacer against the naive scan model, with the seed and step in the failure message.
+- **1e-03:** ARC against a simple model for the ghost rules, plus the bound checks after each step.
+- **1f-03:** a buffer pool is easy to model with a `HashMap<PageId, bytes>` of "what each page should contain"; whatever was last written is what a fetch must return, however often pages were evicted.
+- **2a-03:** `PageArray` against `Vec::insert`/`remove` (64 and 500 random operations, comparing only `0..len`).
+- **2b-01:** MurmurHash3 against vectors recorded from the C++ original: a model that is a different implementation of the same spec.
+
+### Where it is used
+
+- **Property-testing libraries**: `proptest` (including its state-machine testing), `quickcheck`, and Python's Hypothesis stateful tests all generate operation sequences, compare to a model and shrink the failure.
+- **Databases**: SQLite's `sqllogictest` compares SQLite's answers to other engines' on millions of queries; FoundationDB and TigerBeetle run whole clusters in deterministic simulation with a fixed seed so every failure replays.
+- **Concurrent code**: the same loop with a sequential specification as the model is how linearizability checkers (Jepsen's Knossos/Elle) test databases; `loom` explores thread interleavings against the model.
+- **Refactoring**: keep the old slow implementation as the model while you write the fast one; delete it when the fast one has survived a million steps.

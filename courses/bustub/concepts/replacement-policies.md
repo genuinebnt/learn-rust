@@ -53,3 +53,88 @@ BusTub's replacers do not own pages. They are told when a frame becomes evictabl
 
 > [!TIP] Reproduce the table
 > Write the reference string and each policy as a small test: a `Vec` of resident pages, a loop over the accesses, a fault counter. If your numbers are not 9/10, 10/8 and 7/6, the policy is wrong. It also makes a good property test for your replacer later: replay a random trace through your LRU and through this naive one and compare victims.
+
+## In real code
+
+### Using it: simulate the policies and reproduce the numbers
+
+Policies are easiest to understand by replaying a trace. This simulator counts faults for FIFO, LRU and the unreachable ideal, OPT, on the reference string from the figure, and is the harness you can reuse to check your own replacers against a model.
+
+```rust test
+fn faults(trace: &[u32], frames: usize, mut choose_victim: impl FnMut(&[u32], usize, &[u32]) -> usize, on_hit: impl Fn(&mut Vec<u32>, usize)) -> usize {
+    let mut resident: Vec<u32> = Vec::new();                       // order = the policy's order (oldest first)
+    let mut faults = 0;
+    for (t, &page) in trace.iter().enumerate() {
+        if let Some(pos) = resident.iter().position(|&p| p == page) {
+            on_hit(&mut resident, pos);                            // a hit: LRU refreshes, FIFO ignores
+            continue;
+        }
+        faults += 1;
+        if resident.len() == frames {
+            let v = choose_victim(&resident, t, trace);
+            resident.remove(v);
+        }
+        resident.push(page);
+    }
+    faults
+}
+
+fn fifo(trace: &[u32], n: usize) -> usize { faults(trace, n, |_, _, _| 0, |_, _| {}) }
+fn lru(trace: &[u32], n: usize) -> usize {
+    faults(trace, n, |_, _, _| 0, |r, pos| { let p = r.remove(pos); r.push(p); })                // move the hit page to the newest end
+}
+fn opt(trace: &[u32], n: usize) -> usize {
+    faults(trace, n, |resident, t, trace| {
+        // evict the page whose NEXT use is farthest away (or never)
+        (0..resident.len()).max_by_key(|&i| trace[t + 1..].iter().position(|&p| p == resident[i]).unwrap_or(usize::MAX)).unwrap()
+    }, |_, _| {})
+}
+
+#[test]
+fn the_reference_string() {
+    let trace = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5];
+    assert_eq!((fifo(&trace, 3), fifo(&trace, 4)), (9, 10));         // Belady's anomaly: more memory, MORE faults
+    assert_eq!((lru(&trace, 3), lru(&trace, 4)), (10, 8));
+    assert_eq!((opt(&trace, 3), opt(&trace, 4)), (7, 6));            // the unreachable lower bound
+}
+
+#[test]
+fn lru_never_gets_worse_with_more_memory() {
+    // LRU and OPT are stack algorithms: the set kept with n frames is a subset of the set kept with n+1.
+    let mut x = 1u32;
+    let trace: Vec<u32> = (0..300).map(|_| { x = x.wrapping_mul(1103515245).wrapping_add(12345); (x >> 16) % 12 }).collect();
+    for n in 1..11 {
+        assert!(lru(&trace, n + 1) <= lru(&trace, n), "n = {n}");
+    }
+}
+```
+
+```rust test
+#[test]
+fn a_scan_flushes_lru_but_not_a_frequency_aware_policy() {
+    // A hot set {0, 1, 2} is used again and again; then one long scan touches 50 pages once each.
+    let hot = [0u32, 1, 2];
+    let mut lru: Vec<u32> = vec![];
+    let frames = 4;
+    let touch = |lru: &mut Vec<u32>, p: u32| {
+        if let Some(i) = lru.iter().position(|&x| x == p) { lru.remove(i); } else if lru.len() == frames { lru.remove(0); }
+        lru.push(p);
+    };
+    for _ in 0..10 { for &p in &hot { touch(&mut lru, p); } }
+    for p in 100..150 { touch(&mut lru, p); }                         // the scan
+    assert!(hot.iter().all(|h| !lru.contains(h)), "LRU lost the hot set: {lru:?}");   // the scan evicted everything useful
+}
+```
+
+### In the exercises
+
+- **1c-02 and 1c-03:** implement LRU and CLOCK behind one `Replacer` interface; the simulator above is how to check them: replay a trace through your replacer and through a naive model and compare the victims.
+- **1d and 1e:** LRU-K and ARC exist because of the last test: a scan defeats plain LRU.
+- **1f-02:** the buffer pool calls the replacer on every hit and miss; the hit ratio you measure there is the `faults` count above, over the number of accesses.
+
+### Where it is used
+
+- **Operating systems**: Linux's page cache uses a two-list "active/inactive" approximation of LRU (a CLOCK-like second chance), because exact LRU is too expensive on every access.
+- **Database buffer pools**: InnoDB's LRU has a midpoint so a scan enters at the old end; PostgreSQL uses a clock sweep (usage counts) over its buffers.
+- **CPU caches and TLBs** use pseudo-LRU in hardware; **CDNs and Redis** use approximate LRU/LFU (`maxmemory-policy`).
+- **Memoisation and `lru` caches** in application code: the `lru` crate's `LruCache` is this policy in a few lines of API.

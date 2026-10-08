@@ -61,3 +61,83 @@ The alternatives are worth knowing by name: a **shared queue with a lock per pag
 
 > [!TIP] Measure the speed-up
 > Time 100 000 writes to distinct pages with 1, 2, 4 and 8 workers against `DiskManagerUnlimitedMemory`. If the time does not fall, the disk's own lock is the bottleneck (the in-memory disks lock their whole table). That is the lesson of Amdahl's law: the serial fraction caps the speed-up, however many workers you add.
+
+## In real code
+
+### The API you will use
+
+| call | what it does | when |
+|---|---|---|
+| `key.rem_euclid(n)` | remainder that is never negative | shard index from a signed id |
+| `(hash(key) % n as u64) as usize` | a shard from any key | non-numeric keys |
+| `std::hash::{Hash, Hasher}` + `DefaultHasher` | hash any `Hash` value (not stable across runs) | in-memory sharding only |
+| `Vec<Arc<Channel<T>>>` | one queue per shard | routing |
+| `thread::scope` | run several shards' workers and join them | tests |
+
+```rust test
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+fn shard_of_page(page_id: i32, shards: usize) -> usize {
+    page_id.rem_euclid(shards as i32) as usize
+}
+
+fn shard_of_key<K: Hash>(key: &K, shards: usize) -> usize {
+    let mut h = DefaultHasher::new();
+    key.hash(&mut h);
+    (h.finish() % shards as u64) as usize
+}
+
+#[test]
+fn routing_by_key() {
+    assert_eq!(shard_of_page(7, 3), 1);
+    assert_eq!(shard_of_page(-1, 3), 2);                 // -1 % 3 would be -1: rem_euclid stays in 0..3
+    assert_eq!(shard_of_key(&"users", 8), shard_of_key(&"users", 8));   // the same key always lands on the same shard
+    assert!(shard_of_key(&"users", 8) < 8);
+}
+```
+
+```rust test
+use std::sync::mpsc;
+use std::thread;
+
+#[test]
+fn per_key_order_with_cross_key_parallelism() {
+    let shards = 3;
+    let (txs, rxs): (Vec<_>, Vec<_>) = (0..shards).map(|_| mpsc::channel::<(i32, u32)>()).unzip();      // (page, sequence)
+    let seen = std::sync::Mutex::new(Vec::new());
+    thread::scope(|s| {
+        for (i, rx) in rxs.into_iter().enumerate() {
+            let seen = &seen;
+            s.spawn(move || {
+                for (page, seq) in rx {
+                    seen.lock().unwrap().push((i, page, seq));         // one worker per queue
+                }
+            });
+        }
+        for seq in 0..6u32 {
+            for page in [3i32, 4, 5] {
+                txs[page.rem_euclid(shards as i32) as usize].send((page, seq)).unwrap();
+            }
+        }
+        drop(txs);                                                     // ends every worker after its queue drains
+    });
+    let seen = seen.into_inner().unwrap();
+    for page in [3, 4, 5] {
+        let order: Vec<u32> = seen.iter().filter(|(_, p, _)| *p == page).map(|(_, _, s)| *s).collect();
+        assert_eq!(order, vec![0, 1, 2, 3, 4, 5], "page {page} must stay in order");
+    }
+}
+```
+
+### In the exercises
+
+- **1b-04 (`ShardedDiskScheduler`):** `schedule` computes `page_id.0.rem_euclid(self.queues.len() as i32)` for each request and `put`s `Some(request)` in that queue; `new` spawns one worker per queue; `Drop` puts a `None` in every queue and joins every worker. The second example is the whole design with `mpsc`.
+- **Tests:** the stage tests check per-page order with many threads and distinct pages; a version that uses one shared queue passes the distinct-pages test and fails the order test.
+
+### Where it is used
+
+- **Sharded caches and maps**: RocksDB's block cache, `DashMap`, Caffeine and Guava split the key space so threads contend on one shard, not the whole.
+- **Partitioned logs and streams**: Kafka orders messages *within a partition*, and the producer picks the partition from the key: the same idea.
+- **Actor systems and per-user queues**: all events for one entity go to one worker, so no lock per entity is needed.
+- **Database buffer pools**: PostgreSQL partitions its buffer mapping table into 128 lock partitions by hash of the buffer tag.

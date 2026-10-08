@@ -1,9 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import type { CSSProperties } from "react";
 import { api, type PatternTechnique } from "../api";
 import { Mark, PyCode } from "../components/dsaBits";
-import { Header } from "../components/Header";
+import { PatternShell } from "../components/PatternShell";
 import { DIFF } from "../dsa";
 
 /** A pattern's lessons: for each technique, the signals that call for it, a template, the traps, and its problems. */
@@ -11,35 +10,10 @@ export function PatternPage({ code }: { code: string }) {
   const overview = useQuery({ queryKey: ["dsa"], queryFn: api.dsa });
   const lessons = useQuery({ queryKey: ["patterns", code], queryFn: () => api.patternLessons(code) });
   const today = overview.data?.today ?? "";
-  const pattern = overview.data?.patterns.find((p) => p.code.toLowerCase() === code.toLowerCase() || p.slug === code);
   const d = lessons.data;
   const written = d?.techniques.filter((t) => t.lesson).length ?? 0;
   return (
-    <>
-      <Header area="dsa" />
-      <main className="page" style={{ "--ca": "var(--acc)", "--cab": "var(--acc-bg)" } as CSSProperties}>
-        <div className="wrap" style={{ paddingBlock: 28, display: "flex", flexDirection: "column", gap: 18 }}>
-          <div className="eyebrow">
-            <Link to="/dsa" style={{ color: "var(--ca)" }}>DSA</Link>
-            <span>/</span>
-            <span>PATTERNS</span>
-            <span>/</span>
-            <span>{(d?.pattern ?? pattern?.name ?? code).toUpperCase()}</span>
-          </div>
-          <h1 className="h1 md">{d?.pattern ?? pattern?.name ?? "Patterns"}</h1>
-          <div className="d-ptabs" role="tablist">
-            <Link to="/dsa" role="tab" aria-selected="false">
-              Problems<small>{pattern?.total ?? ""}</small>
-            </Link>
-            <span role="tab" aria-selected="true" className="on">
-              Patterns<small>{d ? `${d.techniques.length} techniques` : ""}</small>
-            </span>
-            {pattern && pattern.practice_total > 0 && (
-              <Link to="/dsa/practice/$code" params={{ code: pattern.code }} role="tab" aria-selected="false">
-                Practice<small>{pattern.practice_solved} / {pattern.practice_total} solved</small>
-              </Link>
-            )}
-          </div>
+    <PatternShell code={code} tab="learn">
           {lessons.isError && <p className="notice bad">Couldn't load the lessons: {(lessons.error as Error).message}</p>}
           {d && (
             <>
@@ -60,9 +34,7 @@ export function PatternPage({ code }: { code: string }) {
               ))}
             </>
           )}
-        </div>
-      </main>
-    </>
+    </PatternShell>
   );
 }
 

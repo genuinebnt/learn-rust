@@ -101,3 +101,31 @@
 .rempty{margin:0;font-size:13px;color:var(--dim)}
 .cat-search input::-webkit-search-cancel-button{display:none}
 .tcard p code{font:500 12.5px var(--mono);color:var(--fg)}
+
+/* pattern navigation (docs/DSA.md, decision 31) */
+.seg .vn{font:600 10px var(--mono);margin-left:8px;padding:1px 7px;border-radius:999px;background:var(--raise);color:var(--dim)}.seg .on .vn{background:var(--ca);color:var(--on-acc)}
+.tc-next{font:500 12px var(--mono);color:var(--dim);padding-top:12px;margin-top:4px;border-top:1px solid var(--line2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-doors{display:grid;grid-template-columns:repeat(3,1fr);margin:10px -18px -16px;border-top:1px solid var(--line2);cursor:default}
+.tc-doors a,.tc-doors .off{padding:11px 14px;display:flex;flex-direction:column;gap:2px;color:var(--mut);min-width:0}
+.tc-doors a+a,.tc-doors a+.off{border-left:1px solid var(--line2)}
+.tc-doors b{display:flex;justify-content:space-between;font:700 12.5px var(--sans)}.tc-doors b i{font-style:normal;color:var(--dim);font-weight:500}
+.tc-doors small{font:500 10.5px var(--mono);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-doors a:hover{background:var(--raise);color:var(--fg)}.tc-doors a:last-child{border-radius:0 0 12px 0}.tc-doors a:first-child{border-radius:0 0 0 12px}
+.tc-doors .off{opacity:.45}
+.pg-hint{margin:-6px 0 4px;color:var(--dim);font-size:12.5px;line-height:1.5;max-width:70ch}
+.pg-group{display:flex;flex-direction:column;gap:8px}
+.pg-group h4{margin:8px 0 2px;display:flex;justify-content:space-between;align-items:baseline;font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim)}.pg-group h4 a{color:var(--ca);letter-spacing:0}
+.pg-row{display:flex;flex-direction:column;gap:4px}.pg-row small{font:500 11px var(--mono);color:var(--dim);padding-left:6px}.pg-row small a{color:var(--ca)}
+.ps-wrap{padding-block:28px 56px;display:flex;flex-direction:column;gap:18px}
+.ps-strip{display:flex;gap:8px;align-items:center;border:1px solid var(--line2);border-radius:14px;background:var(--panel);padding:8px;overflow-x:auto;scrollbar-width:none}.ps-strip::-webkit-scrollbar{display:none}
+.ps-strip .arr{flex:none;width:34px;height:40px;border-radius:9px;border:1px solid var(--line);display:grid;place-items:center;font:600 15px var(--mono);color:var(--mut);text-decoration:none}.ps-strip .arr:hover{border-color:var(--dim);color:var(--fg)}
+.ps-strip .pchip{flex:none;display:flex;align-items:center;gap:9px;height:40px;padding:0 13px 0 8px;border-radius:10px;border:1px solid transparent;font:700 12.5px var(--sans);color:var(--mut);white-space:nowrap;text-decoration:none}
+.ps-strip .pchip:hover{background:var(--raise);color:var(--fg)}.ps-strip .pchip.on{border-color:var(--acc);background:var(--acc-bg);color:var(--fg)}
+.ringm{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--grn) var(--p,0%),var(--raise) 0);font:700 9px var(--mono)}.ringm span{width:20px;height:20px;border-radius:50%;background:var(--panel);display:grid;place-items:center;color:var(--dim)}.pchip.on .ringm span{background:var(--bg)}
+.ps-tabs{display:flex;gap:6px;border-bottom:1px solid var(--line2);align-items:center;flex-wrap:wrap}
+.ps-tabs a,.ps-tabs .off{padding:12px 18px 13px;font:700 14px var(--sans);color:var(--dim);border-bottom:3px solid transparent;margin-bottom:-1px;display:flex;gap:10px;align-items:center;text-decoration:none}
+.ps-tabs small{font:600 11px var(--mono);background:var(--raise);border-radius:999px;padding:1px 9px;color:var(--dim)}
+.ps-tabs a.on{color:var(--fg);border-color:var(--acc)}.ps-tabs a.on small{background:var(--acc-bg);color:var(--acc)}.ps-tabs a:hover:not(.on){color:var(--fg)}.ps-tabs .off{opacity:.4}
+.ps-tabs kbd,.ps-tabs .hintkeys kbd{font:600 10px var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--dim);background:var(--bg)}
+.ps-tabs .hintkeys{margin-left:auto;font:500 11.5px var(--mono);color:var(--dim)}
+@media (max-width:640px){.ps-tabs .hintkeys{display:none}.ps-tabs a,.ps-tabs .off{padding-inline:12px}.ps-tabs kbd{display:none}.seg .vn{display:none}}

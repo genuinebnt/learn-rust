@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { api, type DsaProblem, type PracticeTechnique } from "../api";
 import { Companies, Mark, useLogger } from "../components/dsaBits";
-import { Header } from "../components/Header";
+import { PatternShell } from "../components/PatternShell";
 import { DIFF, GRADES, MINUTES, leetcode } from "../dsa";
 
 /** A pattern's practice: for each technique, LeetCode problems beyond the NeetCode lists that drill it. */
@@ -18,34 +18,7 @@ export function PracticePage({ code }: { code: string }) {
   const solved = all.filter((p) => p.state.solved).length;
   const today = overview.data?.today ?? "";
   return (
-    <>
-      <Header area="dsa" />
-      <main className="page" style={{ "--ca": "var(--acc)", "--cab": "var(--acc-bg)" } as CSSProperties}>
-        <div className="wrap" style={{ paddingBlock: 28, display: "flex", flexDirection: "column", gap: 18 }}>
-          <div className="eyebrow">
-            <Link to="/dsa" style={{ color: "var(--ca)" }}>
-              DSA
-            </Link>
-            <span>/</span>
-            <span>PATTERNS</span>
-            <span>/</span>
-            <span>{(pattern?.name ?? code).toUpperCase()}</span>
-          </div>
-          <h1 className="h1 md">{pattern?.name ?? "Practice"}</h1>
-          <div className="d-ptabs" role="tablist">
-            <Link to="/dsa" role="tab" aria-selected="false">
-              Problems<small>{pattern?.total ?? ""}</small>
-            </Link>
-            <Link to="/dsa/patterns/$code" params={{ code }} role="tab" aria-selected="false">
-              Patterns<small>{overview.data ? "" : ""}</small>
-            </Link>
-            <span role="tab" aria-selected="true" className="on">
-              Practice
-              <small>
-                {solved} / {all.length} solved
-              </small>
-            </span>
-          </div>
+    <PatternShell code={code} tab="practice">
           {practice.isError && <p className="notice bad">Couldn't load the practice list: {(practice.error as Error).message}</p>}
           {practice.isSuccess && techniques.length === 0 && (
             <div className="d-note">
@@ -77,10 +50,8 @@ export function PracticePage({ code }: { code: string }) {
           {techniques.map((t) => (
             <Technique key={t.id} t={t} today={today} hideSolved={hidden === "done"} log={log} />
           ))}
-        </div>
-      </main>
       {toast}
-    </>
+    </PatternShell>
   );
 }
 
@@ -111,7 +82,7 @@ function Technique({ t, today, hideSolved, log }: { t: PracticeTechnique; today:
   );
 }
 
-function PracticeRow({ p, today, log }: { p: DsaProblem; today: string; log: ReturnType<typeof useLogger>["log"] }) {
+export function PracticeRow({ p, today, log }: { p: DsaProblem; today: string; log: ReturnType<typeof useLogger>["log"] }) {
   return (
     <article className="d-pcard d-prow">
       <Mark p={p} today={today} />

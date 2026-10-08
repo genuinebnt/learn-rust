@@ -1,14 +1,15 @@
-import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { api, type Activity, type Band, type DsaOverview, type DsaProblem, type TrackSummary } from "../api";
 import { Companies, Mark, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
+import { PracticeRow } from "./PracticePage";
 import { pad2, pctColor } from "../components/bits";
 import { BLURB, DIFF, REVIEW_GRADES, LISTS, MINUTES, STATUS_LABEL, daysUntil, hours, inList, leetcode, niceDate, statusOf, videoUrl, type ListKey, type Status } from "../dsa";
 
 type Role = "must_learn" | "practice";
-type View = "patterns" | "problems";
+type View = "patterns" | "problems" | "practice";
 type RailTab = "activity" | "filters";
 
 interface Filters {
@@ -100,6 +101,10 @@ export function DsaPage() {
         search.current?.focus();
       }
       if (e.key === "f") setF((cur) => ({ ...cur, rail: cur.rail === "filters" ? "activity" : "filters" }));
+      if (e.key === "1" || e.key === "2" || e.key === "3") {
+        setView((["patterns", "problems", "practice"] as const)[Number(e.key) - 1]!);
+        setDrill(null);
+      }
       if (e.key === "Escape") setF((cur) => (cur.rail === "filters" ? { ...cur, rail: "activity" } : cur));
     };
     window.addEventListener("keydown", onKey);
@@ -166,7 +171,7 @@ export function DsaPage() {
                   <kbd>/</kbd>
                 </label>
                 <div className="seg" role="group" aria-label="View">
-                  {(["patterns", "problems"] as const).map((v) => (
+                  {(["patterns", "problems", "practice"] as const).map((v) => (
                     <button
                       key={v}
                       className={shown === v ? "on" : ""}
@@ -176,7 +181,8 @@ export function DsaPage() {
                         setDrill(null);
                       }}
                     >
-                      {v === "patterns" ? "▦ patterns" : "☰ problems"}
+                      {v === "patterns" ? "▦ patterns" : v === "problems" ? "☰ problems" : "✎ practice"}
+                      <small className="vn">{v === "patterns" ? o.patterns.length : v === "problems" ? model.items.length : o.patterns.reduce((n, p) => n + p.practice_total, 0)}</small>
                     </button>
                   ))}
                 </div>
@@ -185,28 +191,25 @@ export function DsaPage() {
                   <kbd>f</kbd>
                 </button>
               </div>
-              <div className="flabel">LIST</div>
-              <div className="fchips">
-                {LISTS.map(([k, label]) => (
-                  <button key={k} className={`fchip${f.list === k ? " on" : ""}`} aria-pressed={f.list === k} onClick={() => update({ list: k })}>
-                    {label}
-                    <small>{model.listCounts[k]}</small>
-                  </button>
-                ))}
-              </div>
-              <ActiveChips f={f} o={o} flip={flip} update={update} clearAll={clearAll} />
+              {shown !== "practice" && (
+                <>
+                <div className="flabel">LIST</div>
+                <div className="fchips">
+                  {LISTS.map(([k, label]) => (
+                    <button key={k} className={`fchip${f.list === k ? " on" : ""}`} aria-pressed={f.list === k} onClick={() => update({ list: k })}>
+                      {label}
+                      <small>{model.listCounts[k]}</small>
+                    </button>
+                  ))}
+                </div>
+                <ActiveChips f={f} o={o} flip={flip} update={update} clearAll={clearAll} />
+                </>
+              )}
               <div id="content" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                 {shown === "patterns" ? (
-                  <PatternGrid
-                    o={o}
-                    f={f}
-                    model={model}
-                    open={(code) => {
-                      setDrill("problems");
-                      setF((cur) => ({ ...cur, patterns: new Set([code]), rail: "filters" }));
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                  />
+                  <PatternGrid o={o} f={f} model={model} />
+                ) : shown === "practice" ? (
+                  <PracticeGrid o={o} log={log} />
                 ) : (
                   <ProblemGroups o={o} model={model} pickCompany={(name) => flip("companies", name)} picked={f.companies} uncapped={f.patterns.size > 0} openGroups={openGroups} openGroup={(code) => setOpenGroups(new Set([...openGroups, code]))} log={log} clearAll={clearAll} />
                 )}
@@ -499,7 +502,40 @@ function ActiveChips({ f, o, flip, update, clearAll }: { f: Filters; o: DsaOverv
 
 // ---------------------------------------------------------------- pattern cards and problem cards
 
-function PatternGrid({ o, f, model, open }: { o: DsaOverview; f: Filters; model: Model; open: (code: string) => void }) {
+/** Practice as a grid of its own: for each pattern, the next LeetCode problems that drill its techniques. */
+function PracticeGrid({ o, log }: { o: DsaOverview; log: ReturnType<typeof useLogger>["log"] }) {
+  const withPractice = o.patterns.filter((p) => p.practice_total > 0);
+  const lists = useQueries({ queries: withPractice.map((p) => ({ queryKey: ["practice", p.code], queryFn: () => api.practice(p.code), staleTime: 60_000 })) });
+  return (
+    <>
+      <div className="flabel">PRACTICE · THE NEXT PROBLEMS FOR EACH PATTERN</div>
+      <p className="pg-hint">More LeetCode problems for the same ideas. They never count toward your goal and schedule no reviews. Each one says which NeetCode problem teaches its idea.</p>
+      {withPractice.map((pat, i) => {
+        const techniques = lists[i]?.data?.techniques ?? [];
+        const next = techniques.flatMap((t) => t.problems.filter((p) => !p.state.solved).slice(0, 2).map((p) => ({ p, from: t.must_learn }))).slice(0, 3);
+        return (
+          <section key={pat.code} className="pg-group">
+            <h4>
+              <span>{pat.name.toUpperCase()} · {pat.practice_solved}/{pat.practice_total}</span>
+              <Link to="/dsa/practice/$code" params={{ code: pat.code }}>open the pattern ›</Link>
+            </h4>
+            {lists[i]?.isLoading && <p className="rempty">Loading…</p>}
+            {next.map(({ p, from }) => (
+              <div key={p.id} className="pg-row">
+                <PracticeRow p={p} today={o.today} log={log} />
+                <small>practises <Link to="/d/$slug" params={{ slug: from.slug }}>{from.title}</Link></small>
+              </div>
+            ))}
+            {lists[i]?.isSuccess && next.length === 0 && <p className="rempty">All solved here.</p>}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+function PatternGrid({ o, f, model }: { o: DsaOverview; f: Filters; model: Model }) {
+  const navigate = useNavigate();
   const listName = LISTS.find(([k]) => k === f.list)?.[1] ?? "";
   const filtered = model.active > 0;
   return (
@@ -517,7 +553,7 @@ function PatternGrid({ o, f, model, open }: { o: DsaOverview; f: Filters; model:
           const isNow = o.plan.next_up[0] ? model.byId.get(o.plan.next_up[0])?.pattern === pat.code : false;
           const state = done === scope.length ? "done" : isNow ? "cur" : "";
           return (
-            <div key={pat.code} className={`tcard ${state}${filtered && !match.length ? " dim" : ""}`} tabIndex={0} role="button" aria-label={`${pat.name}: show its problems`} onClick={() => open(pat.code)} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), open(pat.code))}>
+            <div key={pat.code} className={`tcard ${state}${filtered && !match.length ? " dim" : ""}`} tabIndex={0} role="button" aria-label={`${pat.name}: open the lesson`} onClick={() => void navigate({ to: "/dsa/patterns/$code", params: { code: pat.code } })} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), void navigate({ to: "/dsa/patterns/$code", params: { code: pat.code } }))}>
               <div className="tc-top">
                 <span className="tc-num">{pad2(i + 1)}</span>
                 <span className="tc-kind">PATTERN · {listName.toUpperCase()}</span>
@@ -556,19 +592,24 @@ function PatternGrid({ o, f, model, open }: { o: DsaOverview; f: Filters; model:
                   ) : null;
                 })}
               </div>
-              <div className="tc-foot">
-                <span>{next ? `next · ${next.title}` : "all solved · reviews keep it fresh"}</span>
-                <span className="tc-acts">
-                  <Link className="tc-go ghost" to="/dsa/patterns/$code" params={{ code: pat.code }} onClick={(e) => e.stopPropagation()} title="When to use each technique, with a template">
-                    patterns
+              <div className="tc-next">{next ? `next · ${next.title}` : "all solved · reviews keep it fresh"}</div>
+              <div className="tc-doors" onClick={(e) => e.stopPropagation()}>
+                <Link to="/dsa/patterns/$code" params={{ code: pat.code }} title="When to use each technique, with a template">
+                  <b>Learn<i>›</i></b>
+                  <small>{techs.length ? `${o.techniques.filter((t) => t.pattern === pat.name).length} techniques` : "lesson"}</small>
+                </Link>
+                <Link to="/dsa/patterns/$code/problems" params={{ code: pat.code }} title="This pattern's NeetCode problems">
+                  <b>Problems<i>›</i></b>
+                  <small>{done} / {scope.length} solved</small>
+                </Link>
+                {pat.practice_total > 0 ? (
+                  <Link to="/dsa/practice/$code" params={{ code: pat.code }} title="More LeetCode problems for this pattern">
+                    <b>Practice<i>›</i></b>
+                    <small>{pat.practice_solved} / {pat.practice_total}</small>
                   </Link>
-                  {pat.practice_total > 0 && (
-                    <Link className="tc-go ghost" to="/dsa/practice/$code" params={{ code: pat.code }} onClick={(e) => e.stopPropagation()} title="The practice track for this pattern">
-                      practice {pat.practice_solved}/{pat.practice_total}
-                    </Link>
-                  )}
-                  <span className="tc-go">problems ›</span>
-                </span>
+                ) : (
+                  <span className="off"><b>Practice</b><small>none yet</small></span>
+                )}
               </div>
             </div>
           );

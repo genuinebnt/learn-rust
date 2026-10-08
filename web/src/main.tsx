@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Outlet, RouterProvider, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { DsaPage } from "./pages/DsaPage";
+import { PatternProblems } from "./pages/PatternProblems";
 import { CalendarPage } from "./pages/CalendarPage";
 import { DsaPlanPage } from "./pages/DsaPlanPage";
 import { MockPage } from "./pages/MockPage";
@@ -79,12 +80,21 @@ const routes = [
     },
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/progress", component: ProgressPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/dsa/patterns/$code/problems",
+    component: function PatternProblemsRoute() {
+      const { code } = patternProblemsRoute.useParams();
+      return <PatternProblems code={code} />;
+    },
+  }),
 ] as const;
 const patternsRoute = routes[7];
 const practiceRoute = routes[8];
 const dsaProblemRoute = routes[9];
 const trackRoute = routes[11];
 const problemRoute = routes[12];
+const patternProblemsRoute = routes[14];
 
 const router = createRouter({ routeTree: rootRoute.addChildren([...routes]) });
 

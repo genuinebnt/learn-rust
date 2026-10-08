@@ -1,0 +1,5 @@
+id = "2a-05"
+title = "GenericKey: an index key of N opaque bytes"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2a::s2a_05"]

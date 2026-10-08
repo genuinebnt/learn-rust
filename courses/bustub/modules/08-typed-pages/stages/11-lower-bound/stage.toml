@@ -1,0 +1,5 @@
+id = "2a-11"
+title = "lower_bound: binary search inside the page"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2a::s2a_11"]

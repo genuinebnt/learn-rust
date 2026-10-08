@@ -1,0 +1,5 @@
+id = "2a-02"
+title = "Page ids on disk: -1 means none"
+kind = "learn"
+difficulty = "very-easy"
+tests = ["stages_2a::s2a_02"]

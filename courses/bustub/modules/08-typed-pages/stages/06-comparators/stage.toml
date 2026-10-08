@@ -1,0 +1,5 @@
+id = "2a-06"
+title = "KeyComparator: ordering keys"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2a::s2a_06"]

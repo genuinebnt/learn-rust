@@ -1,6 +1,6 @@
 # Build a DBMS: BusTub in Rust (a CodeCrafters-style course)
 
-Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1g (Project 1, 80 stages) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
+Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1g (Project 1) and 2a (93 stages) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
 writing a module: [authoring/write-course-module.md](authoring/write-course-module.md). The C/C++ → Rust reference every stage leans
 on: [PORTING.md](PORTING.md). This course replaces the BusTub parts of SYSTEMS.md (K17–K20, P6); the general systems tracks come after.
 
@@ -209,8 +209,8 @@ Boss: `trie_test` ×14, `trie_store_test`, `skiplist_test`, `count_min_sketch_te
 - **1g Page guards (7) ✓:** `ReadPageGuard`/`WritePageGuard` with `Deref` and `Drop` (unlatch, then unpin) → moves → flush → latch order and the deadlock test →
   contention and evictable tests → boss `buffer_pool_manager_test` ×7, `page_guard_test` ×2.
 
-### P2 · Indexes (planned, ~90 stages)
-- **2a Typed pages (~14):** little-endian ints at offsets, header views, fixed arrays in a page (`const fn` capacity), keys and comparators, sorted-array insert/remove with `copy_within`.
+### P2 · Indexes (planned, ~90 stages; 2a built)
+- **2a Typed pages (13) ✓:** little-endian ints at offsets, header views, fixed arrays in a page (`const fn` capacity), keys and comparators, sorted-array insert/remove with `copy_within`.
 - **2b Extendible hash table (~30):** hash and bit masks, bucket/directory/header pages, insert with split, remove with merge and shrink, concurrency with guards.
   Boss: `extendible_htable_page_test`, `…_test`, `…_concurrent_test`.
 - **2c B+ tree (~48):** pages, search, insert/split, delete/borrow/merge, the iterator, latch crabbing, tombstones. Boss: `b_plus_tree_{insert,delete,sequential_scale,concurrent,tombstone}_test`.

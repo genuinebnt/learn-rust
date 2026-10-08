@@ -1,0 +1,195 @@
+code = "2a"
+title = "Typed pages"
+summary = "Safe views over page bytes: integers at offsets, optional page ids, record ids, fixed-size keys and entries, an array view with insert/remove/search, and layouts checked at compile time. The toolkit BusTub Project 2's pages are built from."
+lectures = ["storage2", "indexes1"]
+bustub = ["src/include/common/rid.h", "src/include/storage/index/generic_key.h", "src/include/storage/index/int_comparator.h", "src/include/storage/page/extendible_htable_bucket_page.h", "src/include/storage/page/extendible_htable_directory_page.h", "src/include/storage/page/extendible_htable_header_page.h"]
+
+[[resources]]
+kind = "docs"
+title = "u32::from_le_bytes / to_le_bytes (and the be/ne variants)"
+url = "https://doc.rust-lang.org/std/primitive.u32.html#method.from_le_bytes"
+
+[[resources]]
+kind = "docs"
+title = "TryInto: slice to array"
+url = "https://doc.rust-lang.org/std/convert/trait.TryInto.html"
+
+[[resources]]
+kind = "docs"
+title = "slice::copy_within (memmove)"
+url = "https://doc.rust-lang.org/std/primitive.slice.html#method.copy_within"
+
+[[resources]]
+kind = "docs"
+title = "slice::split_at_mut"
+url = "https://doc.rust-lang.org/std/primitive.slice.html#method.split_at_mut"
+
+[[resources]]
+kind = "docs"
+title = "slice::partition_point and binary_search_by"
+url = "https://doc.rust-lang.org/std/primitive.slice.html#method.partition_point"
+
+[[resources]]
+kind = "docs"
+title = "PhantomData"
+url = "https://doc.rust-lang.org/std/marker/struct.PhantomData.html"
+
+[[resources]]
+kind = "docs"
+title = "AsRef and AsMut"
+url = "https://doc.rust-lang.org/std/convert/trait.AsRef.html"
+
+[[resources]]
+kind = "docs"
+title = "mem::offset_of!"
+url = "https://doc.rust-lang.org/std/mem/macro.offset_of.html"
+
+[[resources]]
+kind = "docs"
+title = "mem::size_of and align_of"
+url = "https://doc.rust-lang.org/std/mem/fn.size_of.html"
+
+[[resources]]
+kind = "docs"
+title = "cmp::Ordering"
+url = "https://doc.rust-lang.org/std/cmp/enum.Ordering.html"
+
+[[resources]]
+kind = "docs"
+title = "bytemuck: safe casts between plain-old-data types and bytes"
+url = "https://docs.rs/bytemuck"
+
+[[resources]]
+kind = "docs"
+title = "zerocopy: zero-copy parsing with compile-time checks"
+url = "https://docs.rs/zerocopy"
+
+[[resources]]
+kind = "docs"
+title = "C++ reinterpret_cast"
+url = "https://en.cppreference.com/w/cpp/language/reinterpret_cast"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::bit_cast"
+url = "https://en.cppreference.com/w/cpp/numeric/bit_cast"
+
+[[resources]]
+kind = "docs"
+title = "C++ static_assert"
+url = "https://en.cppreference.com/w/cpp/language/static_assert"
+
+[[resources]]
+kind = "docs"
+title = "C++ offsetof"
+url = "https://en.cppreference.com/w/cpp/types/offsetof"
+
+[[resources]]
+kind = "docs"
+title = "C++ templates"
+url = "https://en.cppreference.com/w/cpp/language/templates"
+
+[[resources]]
+kind = "docs"
+title = "C++ memmove and memcpy"
+url = "https://en.cppreference.com/w/cpp/string/byte/memmove"
+
+[[resources]]
+kind = "book"
+title = "The Reference: type layout"
+url = "https://doc.rust-lang.org/reference/type-layout.html"
+
+[[resources]]
+kind = "book"
+title = "The Rustonomicon: repr(C) and other representations"
+url = "https://doc.rust-lang.org/nomicon/other-reprs.html"
+
+[[resources]]
+kind = "book"
+title = "The Rustonomicon: data layout (repr(Rust))"
+url = "https://doc.rust-lang.org/nomicon/repr-rust.html"
+
+[[resources]]
+kind = "book"
+title = "The Reference: const generics"
+url = "https://doc.rust-lang.org/reference/items/generics.html#const-generics"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: generic types"
+url = "https://doc.rust-lang.org/book/ch10-01-syntax.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: traits"
+url = "https://doc.rust-lang.org/book/ch10-02-traits.html"
+
+[[resources]]
+kind = "blog"
+title = "Endianness (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Endianness"
+
+[[resources]]
+kind = "blog"
+title = "Data structure alignment (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Data_structure_alignment"
+
+[[resources]]
+kind = "blog"
+title = "What is the strict aliasing rule and why do we care? (Shafik Yaghmour)"
+url = "https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8"
+
+[[resources]]
+kind = "blog"
+title = "Joshua Bloch: nearly all binary searches and mergesorts are broken"
+url = "https://research.google/blog/extra-extra-read-all-about-it-nearly-all-binary-searches-and-mergesorts-are-broken/"
+
+[[resources]]
+kind = "blog"
+title = "PostgreSQL: database page layout"
+url = "https://www.postgresql.org/docs/current/storage-page-layout.html"
+
+[[resources]]
+kind = "blog"
+title = "SQLite: B-tree pages in the file format"
+url = "https://www.sqlite.org/fileformat2.html#b_tree_pages"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL bufpage.h: the page header and line pointers"
+url = "https://github.com/postgres/postgres/blob/master/src/include/storage/bufpage.h"
+
+[[resources]]
+kind = "code"
+title = "SQLite btreeInt.h: the B-tree page structure"
+url = "https://github.com/sqlite/sqlite/blob/master/src/btreeInt.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub rid.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/common/rid.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub generic_key.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/storage/index/generic_key.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub int_comparator.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/storage/index/int_comparator.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub extendible_htable_bucket_page.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/storage/page/extendible_htable_bucket_page.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub extendible_htable_directory_page.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/storage/page/extendible_htable_directory_page.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub extendible_htable_header_page.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/storage/page/extendible_htable_header_page.h"

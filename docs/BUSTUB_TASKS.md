@@ -37,7 +37,7 @@ Lecture ids refer to `courses/bustub/lectures.toml`. "Boss" is BusTub's own test
 | **1e ARC replacer** (four lists, ghosts, adaptive target) | 9 | bufferpool | `arc_replacer_test` ×3, `arc_replacer_performance_test` | **done, verified, shipped** |
 | **1f Buffer pool manager** (textbook `fetch_page`/`unpin_page` interface) | 10 | bufferpool, storage1 | classic `BinaryDataTest`/`SampleTest` + a stress test | **done, verified, shipped** |
 | **1g Page guards** (`ReadPageGuard`/`WritePageGuard`, `Drop`, move, flush; the deadlock lesson) | 7 | bufferpool, indexconcurrency | `buffer_pool_manager_test` ×7, `page_guard_test` ×2 | **done, verified, shipped — Project 1 complete** |
-| 2a Typed pages (ints at offsets, header views, fixed arrays in a page, keys and comparators, sorted-array ops) | ~14 | storage2, indexes1 | (own tests) | |
+| **2a Typed pages** (ints at offsets, optional page ids, `Rid`, `FixedSize`, `GenericKey`, `PageArray` with insert/remove/search, `repr(C)` layouts) | 13 | storage2, indexes1 | (own tests; BusTub has none for these) | **done, verified, shipped** |
 | 2b Extendible hash table (bucket, directory, header pages; insert/split, remove/merge/shrink; concurrency) | ~30 | hashtables | `extendible_htable_page_test`, `…_test`, `…_concurrent_test` | |
 | 2c B+ tree (pages, search, insert/split, delete/borrow/merge, iterator, crabbing, tombstones) | ~48 | indexes1, indexes2, indexconcurrency | `b_plus_tree_*_test` ×5 | |
 | 3a Types, tuples, table pages and heap, catalog | ~25 | storage2, storage3 | `type_test`, `tuple_test`, `tmp_tuple_page_test` | |
@@ -53,6 +53,7 @@ Each module's stage outline lives in its `modules/<NN>-<slug>/stages/` as it is 
 ## Done log
 
 - 2026-10-08: design (BUSTUB.md), CLI, module 1a (19 stages, ~100 stage tests + BusTub's 4), lecture catalogue, resource lists, C/C++ way blocks in every 1a stage. `tools/course-smoke.sh` green.
+- 2026-10-08: module 2a (13 stages, the toolkit for Project 2's pages). 93 stages verified.
 - 2026-10-08: module 1g (7 stages): BusTub Project 1 is complete (80 stages, all BusTub P1 tests ported and green).
 - 2026-10-08: modules 1b-1f (54 stages: scheduler, LRU/CLOCK, LRU-K, ARC, buffer pool) with BusTub's ported tests; nested stage regions and plain `todo!()` stubs (the learner's freedom); `anneal course update`; `tools/check_course_links.py` (293 URLs checked). 73 stages verified.
 

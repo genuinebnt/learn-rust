@@ -359,6 +359,11 @@ pub async fn get(State(s): State<AppState>, Query(q): Query<RangeQuery>) -> ApiR
             day["reviews"] = json!(reviews);
             let flags: Vec<&str> = rules.targets.iter().filter(|(_, date)| **date == d).map(|(t, _)| w.topic_name(t)).collect();
             day["flags"] = json!(flags);
+            if d == today {
+                // What has been done today, next to what is still planned.
+                let solves = hist.solves.get(&d).map(|v| v.iter().map(|(i, g)| json!({ "problem": w.item_ref(*i), "grade": g })).collect::<Vec<_>>()).unwrap_or_default();
+                day["done"] = json!({ "problems": solves, "reviews": hist.reviews.get(&d).copied().unwrap_or(0) });
+            }
         } else {
             let solves = hist.solves.get(&d);
             let done_reviews = hist.reviews.get(&d).copied().unwrap_or(0);
@@ -455,6 +460,7 @@ pub async fn get(State(s): State<AppState>, Query(q): Query<RangeQuery>) -> ApiR
 
     Ok(Json(json!({
         "today": today, "active": active.id, "rules": rules, "overrides": ov, "topics": topics, "days": days,
+        "solve_days": w.routine.solve_days.iter().map(|d| d.num_days_from_monday()).collect::<Vec<_>>(),
         "summary": summary, "plans": plans, "suggestion": suggestion, "history": history,
         "companies": companies(&w), "free_only": w.settings.goal.free_only,
     })))

@@ -384,6 +384,123 @@ export interface DsaProblem {
   state: DsaStanding;
 }
 
+/** The plan and calendar (docs/DSA.md, decision 28). */
+export type DayKind = "solve" | "practice" | "break";
+export type PlanDiff = "E" | "M" | "H";
+
+export interface PlanRules {
+  /** null follows the goal's free-only setting. */
+  premium: boolean | null;
+  practice: "none" | "targeted" | "all";
+  topics: string[] | null;
+  companies: string[];
+  recent_only: boolean;
+  difficulty: PlanDiff[];
+  order: "curriculum" | "ramp" | "company" | "important";
+  topic_order: string[] | null;
+  /** Topic code to date. A target also covers the topics before it, from where you started. */
+  targets: Record<string, string>;
+  /** null follows the target date in the review settings. */
+  finish_by: string | null;
+}
+
+export interface PlanItem {
+  id: string;
+  slug: string;
+  title: string;
+  topic: string;
+  practice: boolean;
+  premium: boolean;
+  difficulty: Band;
+  companies: { name: string; recent: boolean }[];
+}
+
+export interface PlanDay {
+  date: string;
+  kind: DayKind;
+  edited: boolean;
+  capacity: number;
+  /** Today and later. */
+  new?: PlanItem[];
+  reviews?: { problem: PlanItem; n: number }[];
+  flags?: string[];
+  /** Today only: what has been done so far. */
+  done?: { problems: { problem: PlanItem; grade: Grade }[]; reviews: number };
+  /** Before today. */
+  past?: { state: "solved" | "break" | "missed" | "reviews" | "rest"; problems?: { problem: PlanItem; grade: Grade }[]; reviews: number };
+}
+
+export interface PlanTopicStatus {
+  n: number;
+  start: string | null;
+  end: string | null;
+  due: string | null;
+  /** Days after its due date; 0 is on time, 9999 means it doesn't fit. */
+  late: number;
+  slack: number | null;
+  targeted: boolean;
+}
+
+export interface PlanTopic {
+  id: string;
+  name: string;
+  done_earlier: boolean;
+  status: PlanTopicStatus | null;
+  target: string | null;
+  covered: boolean;
+}
+
+export interface PlanSuggestion {
+  topic: string;
+  name: string;
+  late: number;
+  due: string | null;
+  remedy: { kind: "add_days"; days: string[]; end: string } | { kind: "not_enough"; end: string | null };
+}
+
+export interface PlanView {
+  today: string;
+  active: string;
+  rules: PlanRules;
+  overrides: Record<string, DayKind>;
+  /** Weekdays that are problem days in the routine, Monday = 0. */
+  solve_days: number[];
+  topics: PlanTopic[];
+  days: PlanDay[];
+  summary: {
+    finish: string | null;
+    baseline_finish: string | null;
+    finish_by: string | null;
+    left: number;
+    main: number;
+    practice: number;
+    left_out_of_horizon: number;
+    per_week: number;
+    solve_days_28: number;
+    premium: boolean;
+    late: number;
+  };
+  plans: { id: string; name: string; problems: number; finish: string | null; late: number; rules: PlanRules }[];
+  suggestion: PlanSuggestion | null;
+  history: {
+    weeks: { start: string; problems: number; reviews: number }[];
+    streak: number;
+    problems: number;
+    kept_percent: number | null;
+    clean_percent: number | null;
+    mix: Record<string, number>;
+  };
+  companies: string[];
+  free_only: boolean;
+}
+
+export interface PlanPreview {
+  diff: { moved: number; reviews_moved: number; finish_days: number; added: number; dropped: number };
+  finish: string | null;
+  late: number;
+  left: number;
+}
+
 /** One of the owner's own solutions to a problem. */
 export interface MySolution {
   id: number;
@@ -668,6 +785,12 @@ export const api = {
   dsa: () => request<DsaOverview>("GET", "/dsa"),
   preview: (id: string) => request<{ previews: Record<Grade, ReviewPreview> | null }>("GET", `/dsa/problems/${id}/preview`),
   statement: (id: string) => request<DsaStatement>("GET", `/dsa/problems/${id}/statement`),
+  plan: (from: string, to: string) => request<PlanView>("GET", `/plan?from=${from}&to=${to}`),
+  planPreview: (body: { rules?: PlanRules; overrides?: Record<string, DayKind | null> }) => request<PlanPreview>("POST", "/plan/preview", body),
+  savePlanState: (body: { rules: PlanRules; overrides: Record<string, DayKind> }) => request<{ saved: boolean }>("PUT", "/plan/state", body),
+  createPlan: (name: string) => request<{ id: string }>("POST", "/plans", { name }),
+  setActivePlan: (id: string) => request<{ active: string }>("PUT", "/plans/active", { id }),
+  deletePlan: (id: string) => request<{ deleted: string }>("DELETE", `/plans/${id}`),
   solutions: (id: string) => request<MySolution[]>("GET", `/dsa/problems/${id}/solutions`),
   addSolution: (id: string, body: { label: string; code: string; notes: string }) => request<MySolution>("POST", `/dsa/problems/${id}/solutions`, body),
   saveSolution: (sid: number, body: { label: string; code: string; notes: string }) => request<MySolution>("PUT", `/dsa/solutions/${sid}`, body),

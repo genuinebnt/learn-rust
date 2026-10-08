@@ -56,6 +56,9 @@ export function Header({ area }: { area?: "dsa" | "rust" }) {
             {l}
           </span>
         ))}
+        <Link to="/dsa/calendar" className={path.startsWith("/dsa/calendar") ? "on" : ""} style={{ color: path.startsWith("/dsa/calendar") ? "var(--fg)" : "var(--dim)" }}>
+          Calendar
+        </Link>
         <Link to="/dsa/mock" className={path.startsWith("/dsa/mock") ? "on" : ""} style={{ color: path.startsWith("/dsa/mock") ? "var(--fg)" : "var(--dim)" }}>
           Mock interview
         </Link>

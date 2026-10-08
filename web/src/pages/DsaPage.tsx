@@ -439,7 +439,7 @@ function NextUp({ o, streak }: { o: DsaOverview; streak: number }) {
             Review {reviews} due ›
           </Link>
         )}
-        <Link className="d-plan-link" to="/dsa/plan">
+        <Link className="d-plan-link" to="/dsa/calendar">
           Plan: {paceLine(o)} ›
         </Link>
       </div>
@@ -771,8 +771,8 @@ function ActivityRail({ o, activity, tracks, showDue }: { o: DsaOverview; activi
             start the review session ›
           </Link>
         )}
-        <Link to="/dsa/plan" style={{ font: "500 12px var(--mono)", color: "var(--ca)" }}>
-          open the plan ›
+        <Link to="/dsa/calendar" style={{ font: "500 12px var(--mono)", color: "var(--ca)" }}>
+          open the calendar ›
         </Link>
       </div>
       <div className="rbox">

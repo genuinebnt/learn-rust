@@ -164,6 +164,8 @@ pub struct Ctx<'a> {
 #[derive(Debug, Clone, Serialize)]
 pub struct TopicStatus {
     pub n: usize,
+    /// The first day a problem of the topic is scheduled.
+    pub start: Option<NaiveDate>,
     pub end: Option<NaiveDate>,
     pub due: Option<NaiveDate>,
     /// Days after its due date the topic finishes; 0 is on time, and [`NEVER`] means it doesn't fit at all.
@@ -346,13 +348,14 @@ pub fn build_queue(rules: &Rules, ctx: &Ctx) -> Queue {
         let days: Vec<Option<NaiveDate>> = list.iter().map(|i| q.day_of.get(i).copied()).collect();
         let end = if days.iter().all(Option::is_some) { days.iter().flatten().max().copied() } else { None };
         let due = dl.get(t).copied();
+        let start = days.iter().flatten().min().copied();
         let late = match (due, end) {
             (Some(d), Some(e)) => (e - d).num_days().max(0),
             (Some(_), None) => NEVER,
             _ => 0,
         };
         let slack = due.zip(end).map(|(d, e)| (d - e).num_days());
-        q.status.insert(t.clone(), TopicStatus { n: list.len(), end, due, late, slack, targeted: explicit.contains(t) });
+        q.status.insert(t.clone(), TopicStatus { n: list.len(), start, end, due, late, slack, targeted: explicit.contains(t) });
     }
     q
 }

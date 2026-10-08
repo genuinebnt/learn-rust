@@ -1,0 +1,7 @@
+id = "1e-03"
+title = "Ghost hits, the adaptive target, bounded ghost lists and remove"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1e::s1e_05", "stages_1e::s1e_06", "stages_1e::s1e_07", "stages_1e::s1e_08"]
+learn = ["feedback: a cache that tunes its own parameter", "integer step sizes, clamping and saturating arithmetic", "bounding metadata with the two ARC invariants"]
+concepts = ["adaptive-replacement-cache", "checking-invariants", "model-based-testing", "replacement-policies"]

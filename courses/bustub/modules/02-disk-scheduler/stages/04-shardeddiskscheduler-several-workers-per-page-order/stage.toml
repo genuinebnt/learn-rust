@@ -3,3 +3,5 @@ title = "ShardedDiskScheduler: several workers, per-page order"
 kind = "build"
 difficulty = "hard"
 tests = ["stages_1b::s1b_14"]
+learn = ["sharding work by key", "per-key FIFO with cross-key parallelism", "signed remainders (rem_euclid) and routing"]
+concepts = ["sharding-and-per-key-ordering", "worker-threads-and-the-stop-signal", "performance-tests-and-measuring"]

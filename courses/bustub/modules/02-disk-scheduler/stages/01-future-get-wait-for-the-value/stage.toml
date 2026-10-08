@@ -1,5 +1,0 @@
-id = "1b-01"
-title = "Future::get: wait for the value"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1b::s1b_01", "stages_1b::s1b_02", "stages_1b::s1b_03", "stages_1b::s1b_04", "stages_1b::s1b_05"]

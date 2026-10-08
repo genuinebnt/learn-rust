@@ -1,5 +1,0 @@
-id = "1c-01"
-title = "IndexList::pop_front: unlink and free a node"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1c::s1c_01", "stages_1c::s1c_02"]

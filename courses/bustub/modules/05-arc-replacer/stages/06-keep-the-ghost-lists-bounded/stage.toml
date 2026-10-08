@@ -1,5 +1,0 @@
-id = "1e-06"
-title = "Keep the ghost lists bounded"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1e::s1e_06", "stages_1e::s1e_07"]

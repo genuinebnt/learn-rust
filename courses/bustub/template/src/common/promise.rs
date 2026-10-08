@@ -46,7 +46,7 @@ impl<T> Promise<T> {
 
 impl<T> Drop for Promise<T> {
     fn drop(&mut self) {
-        // TODO(1b-02): if no value was ever set, mark the promise Broken and wake the future
+        // TODO(1b-01): if no value was ever set, mark the promise Broken and wake the future
     }
 }
 

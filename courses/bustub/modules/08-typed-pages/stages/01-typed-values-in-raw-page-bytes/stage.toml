@@ -1,0 +1,7 @@
+id = "2a-01"
+title = "Typed values in raw page bytes"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2a::s2a_01", "stages_2a::s2a_02", "stages_2a::s2a_03", "stages_2a::s2a_04"]
+learn = ["little-endian encoding and from_le_bytes", "Option<PageId> in memory and -1 on disk", "a trait with an associated const as a sizing contract"]
+concepts = ["bytes-endianness-and-views", "traits-with-associated-consts", "integers-and-casts", "repr-c-layouts-and-const-asserts"]

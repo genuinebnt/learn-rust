@@ -1,0 +1,7 @@
+id = "1b-03"
+title = "A clean shutdown, a panicking disk and the page latch"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1b::s1b_10", "stages_1b::s1b_11", "stages_1b::s1b_12", "stages_1b::s1b_13"]
+learn = ["stopping a worker with a sentinel and joining it", "panics, unwinding and catch_unwind at a boundary", "reader-writer locks and poisoning"]
+concepts = ["clean-shutdown-drop-and-join", "panics-unwinding-and-catch-unwind", "reader-writer-latches", "worker-threads-and-the-stop-signal"]

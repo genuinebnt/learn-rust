@@ -1,0 +1,7 @@
+id = "1g-02"
+title = "read_page, write_page and a flush that cannot deadlock"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_1g::s1g_04", "stages_1g::s1g_05", "stages_1g::s1g_06"]
+learn = ["reproducing and fixing a lock-ordering deadlock", "pinning as a substitute for holding a lock", "panic versus None as an API contract"]
+concepts = ["deadlock-and-lock-ordering", "coarse-and-fine-grained-locking", "raii-guards-and-lifetimes", "performance-tests-and-measuring"]

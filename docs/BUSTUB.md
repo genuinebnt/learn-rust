@@ -1,6 +1,6 @@
 # Build a DBMS: BusTub in Rust (a CodeCrafters-style course)
 
-Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1g (Project 1), 2a and 2b (58 stages, regrouped from 115 tiny ones) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
+Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1g (Project 1), 2a and 2b (49 stages, regrouped from 115 tiny ones) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
 writing a module: [authoring/write-course-module.md](authoring/write-course-module.md). The C/C++ → Rust reference every stage leans
 on: [PORTING.md](PORTING.md). This course replaces the BusTub parts of SYSTEMS.md (K17–K20, P6); the general systems tracks come after.
 

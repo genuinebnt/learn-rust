@@ -10,8 +10,7 @@ BusTub's disks are polymorphic: the real file-backed manager, and in-memory ones
 
 ## Tests
 
-- A `DiskManager` used as `&dyn DiskIo` writes, reads and deletes for real (its counters move).
-- `Arc<dyn DiskIo>` can be handed to four threads that each write a page.
+- A `DiskManager` used as `&dyn DiskIo` writes, reads and deletes for real (its counters move). `Arc<dyn DiskIo>` can be handed to four threads that each write a page.
 - `copy_page` copies; copying a never-written page writes zeros; it does exactly one read and one write on a test double.
 
 ## Syntax and methods

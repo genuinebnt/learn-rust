@@ -3,3 +3,5 @@ title = "remove"
 kind = "build"
 difficulty = "easy"
 tests = ["stages_2b::s2b_19"]
+learn = ["the remove path and its latching", "reporting presence correctly", "holding the right guards across a later merge"]
+concepts = ["latching-a-hash-table", "raii-guards-and-lifetimes", "reader-writer-latches", "checking-invariants"]

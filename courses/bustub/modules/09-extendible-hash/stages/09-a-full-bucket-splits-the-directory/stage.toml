@@ -3,3 +3,5 @@ title = "A full bucket splits; the directory grows"
 kind = "build"
 difficulty = "hard"
 tests = ["stages_2b::s2b_18"]
+learn = ["splitting a bucket and redistributing by one bit", "repointing directory slots between two buckets", "retrying until it fits, and when to give up"]
+concepts = ["extendible-hashing", "shifts-masks-and-bit-tricks", "latching-a-hash-table", "checking-invariants"]

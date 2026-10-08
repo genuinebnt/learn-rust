@@ -1,0 +1,7 @@
+id = "1f-01"
+title = "The buffer pool: frames, new_page and fetch_page"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1f::s1f_01", "stages_1f::s1f_02", "stages_1f::s1f_03"]
+learn = ["the five pieces of buffer pool state", "one latch for metadata, one per frame for bytes", "bringing a page in through the disk scheduler"]
+concepts = ["buffer-pool-anatomy", "coarse-and-fine-grained-locking", "promises-and-futures", "pin-counts-and-dirty-pages"]

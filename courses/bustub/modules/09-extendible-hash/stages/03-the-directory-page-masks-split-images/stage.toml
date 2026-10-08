@@ -1,0 +1,7 @@
+id = "2b-03"
+title = "The directory page: masks, split images and depths"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_05", "stages_2b::s2b_06", "stages_2b::s2b_07"]
+learn = ["masks of k ones and indexing by low bits", "the split image: flip bit (local depth - 1)", "depths as state that must stay consistent"]
+concepts = ["extendible-hashing", "shifts-masks-and-bit-tricks", "bytes-endianness-and-views", "repr-c-layouts-and-const-asserts"]

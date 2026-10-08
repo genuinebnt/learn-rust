@@ -1,0 +1,6 @@
+id = "1c-04"
+title = "Boss: BusTub's lru_replacer_test and clock_replacer_test"
+kind = "boss"
+difficulty = "easy"
+tests = ["stages_1c::s1c_11", "lru_replacer_test", "clock_replacer_test"]
+retest = true

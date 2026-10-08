@@ -1,4 +1,4 @@
-//! Tests for the simple replacer stages (1c-01 … 1c-06): the index list, LRU and CLOCK. A test named `s1c_04_…` belongs to stage 1c-02.
+//! Tests for the simple replacer stages (1c-01 … 1c-04): the index list, LRU and CLOCK. A test named `s1c_04_…` belongs to stage 1c-01.
 
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
@@ -141,7 +141,7 @@ fn s1c_02_a_queue_model() {
     assert_eq!(all(&list), model.into_iter().collect::<Vec<_>>());
 }
 
-// ---- 1c-02 · remove and slot reuse -------------------------------------------------------------------------------------
+// ---- 1c-01 · remove and slot reuse -------------------------------------------------------------------------------------
 
 #[test]
 fn s1c_03_remove_from_the_middle_head_and_tail() {
@@ -224,7 +224,7 @@ fn s1c_03_a_model_with_random_removals() {
     assert_eq!(list.len(), model.len());
 }
 
-// ---- 1c-02 · move_to_back ---------------------------------------------------------------------------------------------
+// ---- 1c-01 · move_to_back ---------------------------------------------------------------------------------------------
 
 #[test]
 fn s1c_04_the_head_goes_to_the_back() {
@@ -302,7 +302,7 @@ fn s1c_04_links_stay_consistent_under_many_moves() {
     assert_eq!(count, 50);
 }
 
-// ---- 1c-03 · LruReplacer: unpin and size --------------------------------------------------------------------------------
+// ---- 1c-02 · LruReplacer: unpin and size --------------------------------------------------------------------------------
 
 #[test]
 fn s1c_05_a_new_replacer_holds_nothing() {
@@ -343,7 +343,7 @@ fn s1c_05_it_can_be_used_through_the_trait() {
     assert_eq!(lru.size(), 1);
 }
 
-// ---- 1c-03 · LruReplacer::victim ----------------------------------------------------------------------------------------
+// ---- 1c-02 · LruReplacer::victim ----------------------------------------------------------------------------------------
 
 #[test]
 fn s1c_06_the_victim_is_the_frame_unpinned_longest_ago() {
@@ -392,7 +392,7 @@ fn s1c_06_a_victim_can_be_unpinned_again_and_goes_to_the_back() {
     assert_eq!(lru.victim(), Some(f(1)));
 }
 
-// ---- 1c-03 · LruReplacer::pin -------------------------------------------------------------------------------------------
+// ---- 1c-02 · LruReplacer::pin -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1c_07_a_pinned_frame_is_not_a_victim() {
@@ -460,7 +460,7 @@ fn s1c_07_two_hundred_thousand_frames_stay_fast() {
     assert!(start.elapsed() < Duration::from_secs(5), "took {:?}", start.elapsed());
 }
 
-// ---- 1c-04 · ClockReplacer: unpin and size ------------------------------------------------------------------------------
+// ---- 1c-03 · ClockReplacer: unpin and size ------------------------------------------------------------------------------
 
 #[test]
 fn s1c_08_unpin_adds_frames_to_the_ring() {
@@ -489,7 +489,7 @@ fn s1c_08_more_frames_than_the_capacity_is_a_bug() {
     clock.unpin(f(2));
 }
 
-// ---- 1c-04 · ClockReplacer::victim --------------------------------------------------------------------------------------
+// ---- 1c-03 · ClockReplacer::victim --------------------------------------------------------------------------------------
 
 #[test]
 fn s1c_09_with_every_bit_set_the_sweep_starts_over_at_the_first_frame() {
@@ -538,7 +538,7 @@ fn s1c_09_a_single_frame_with_its_bit_set_is_still_evicted() {
     assert_eq!(clock.victim(), Some(f(5)));
 }
 
-// ---- 1c-05 · ClockReplacer::pin ----------------------------------------------------------------------------------------
+// ---- 1c-03 · ClockReplacer::pin ----------------------------------------------------------------------------------------
 
 #[test]
 fn s1c_10_a_pinned_frame_leaves_the_ring() {
@@ -613,7 +613,7 @@ fn s1c_10_unpin_after_pin_adds_the_frame_with_its_bit_set() {
     assert_eq!(clock.victim(), Some(f(2)));
 }
 
-// ---- 1c-06 · both replacers on the BusTub scenario ---------------------------------------------------------------------------
+// ---- 1c-04 · both replacers on the BusTub scenario ---------------------------------------------------------------------------
 
 fn bustub_scenario(r: &mut dyn Replacer) -> Vec<Option<FrameId>> {
     for n in [1, 2, 3, 4, 5, 6, 1] {

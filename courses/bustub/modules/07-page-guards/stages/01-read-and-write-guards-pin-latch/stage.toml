@@ -1,0 +1,7 @@
+id = "1g-01"
+title = "Read and write guards: pin, latch and the dirty flag"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1g::s1g_01", "stages_1g::s1g_02", "stages_1g::s1g_03"]
+learn = ["RAII: a scope as the lifetime of a pin and a latch", "lifetimes that stop a guard outliving its pool", "Deref/DerefMut as the view of the page, and DerefMut marking it dirty"]
+concepts = ["raii-guards-and-lifetimes", "reader-writer-latches", "pin-counts-and-dirty-pages", "deadlock-and-lock-ordering"]

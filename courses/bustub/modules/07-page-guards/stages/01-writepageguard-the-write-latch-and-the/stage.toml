@@ -1,5 +1,0 @@
-id = "1g-01"
-title = "WritePageGuard: the write latch and the dirty flag"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1g::s1g_01", "stages_1g::s1g_02", "stages_1g::s1g_03"]

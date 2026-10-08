@@ -1,4 +1,6 @@
-This stage has 3 parts. Work through them in order; they build on each other, and every test in the stage has to pass.
+The top of the table: a **hash function wrapper** that hashes a key's bytes, and the **header page**, which maps the *top* `max_depth` bits of a hash to one of up to 512 directory pages. The header is the smallest of the three page types and introduces the pattern all of them follow: a *view* over page bytes (`&[u8]` to read, `&mut [u8]` to write), a layout fixed by constants, and accessors that check their bounds.
+
+The one real idea is in `hash_to_directory_index`: the header uses the opposite end of the hash from the directory, so the two levels never compete for the same bits.
 
 ## Part 1 · HashFunction: hash a key's bytes
 
@@ -143,3 +145,25 @@ auto ExtendibleHTableHeaderPage::HashToDirectoryIndex(uint32_t hash) const -> ui
 
 ### Learn more
 - [`u32::checked_shr`](https://doc.rust-lang.org/std/primitive.u32.html#method.checked_shr) · [Arithmetic overflow in the Reference](https://doc.rust-lang.org/reference/expressions/operator-expr.html#overflow) · CMU 15-445 "Hash Tables"
+
+## Performance
+
+Every header operation is O(1): `hash_to_directory_index` is one shift, and the accessors are an offset computation, a bounds check and a 4-byte copy. The hash function dominates the cost of a table operation (a few tens of nanoseconds for a short key); the header lookup adds almost nothing. What matters at this level is **how many pages a lookup touches**: header, directory, bucket: three, and the header is the page *every* operation reads, so it stays in the buffer pool permanently and its read latch is the most contended in the system.
+
+That contention is why the header is only read-latched on the common path and released as soon as the directory is latched.
+
+**Measure it.** Time 10 million `hash_to_directory_index` calls (should be about a nanosecond each) and count how a million hashes spread across the 512 header slots at `max_depth` 9 (expect about 1 950 per slot). Then, in the table stages, count the header's read-latch acquisitions per operation.
+
+## Hints
+
+### Why does a fresh header need an explicit initialisation?
+
+A page that was never written is **all zeros**, and `0` is a valid page id. If `init` did not fill every directory slot with `INVALID` (`-1`), a freshly allocated header would claim page 0 as the directory for every slot. `init` must write the max depth (at most 9, a panic otherwise), then all 512 slots. A test that inits a page full of `0xFF` and one full of zeros and compares them catches a partial init.
+
+### Top bits, and the depth-0 edge
+
+`hash >> (32 - max_depth)` keeps the top `max_depth` bits, and at `max_depth == 0` it is a shift by 32: a panic in debug and undefined behaviour in the C++. The single directory case must return 0. Use a `match` arm or `checked_shr`, and say in a comment *why* the header and directory read opposite ends of the hash (a doubling directory appends to its low end).
+
+### Bounds belong to the view
+
+`get_directory_page_id(i)` for `i >= max_size()` is a caller bug; the page itself has room for 512 slots, so reading slot 600 would not fail on its own and would return garbage from the next field. Assert against `max_size() = 1 << max_depth`, not against the array's capacity, so a table with `max_depth = 2` rejects slot 4.

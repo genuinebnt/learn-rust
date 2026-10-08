@@ -1,4 +1,6 @@
-This stage has 3 parts. Work through them in order; they build on each other, and every test in the stage has to pass.
+The bucket page holds the actual (key, value) pairs of an extendible hash table, in a **sorted array** (the `PageArray` from module 2a), with a small header that records the current size and the maximum. This stage builds its life cycle: `init`, `lookup`, `insert` (keep the array sorted, reject duplicates, refuse when full), `remove`, and `entry_at` for a split to enumerate entries.
+
+It is the stage where the earlier pieces come together: keys and comparators, `PageArray`, binary search, and a page whose own bookkeeping (size, max size) must stay consistent with the array it manages.
 
 ## Part 1 · The bucket page: init and accessors
 
@@ -127,3 +129,25 @@ auto Remove(const KeyType &key, const KeyComparator &cmp) -> bool;   void Remove
 
 ### Learn more
 - [`Vec::swap_remove`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.swap_remove) vs [`Vec::remove`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.remove)
+
+## Performance
+
+`lookup` is **O(log n)** (a `lower_bound` over at most 511 entries for 8-byte keys: 9 probes). `insert` and `remove` are O(log n) to find the position plus O(n) to shift the tail with one `memmove`: for 511 entries of 16 bytes the average shift is about 4 KiB, around 100 ns. Nothing allocates; the page is mutated in place and written back by the buffer pool when it is evicted or flushed.
+
+The size of the bucket is a **tuning decision** the table makes with `bucket_max_size`: small buckets split often and make the directory large; large buckets make each shift and search slower and make a split move more data. The tests use buckets of 2 to 4 entries so splits happen immediately, which exaggerates the structure; real pages use hundreds.
+
+**Measure it.** Fill a bucket to capacity with random keys and time `lookup`, `insert` and `remove` per operation at `bucket_max_size` 8, 64 and 511; count the bytes `copy_within` moves per insert on average (about half the array).
+
+## Hints
+
+### The stored size and the array are one structure
+
+The page header stores `size`; the array region stores the entries. Every mutation changes both: `insert` shifts and writes an entry *and* increments the size, `remove` shifts *and* decrements. If you update the size first and the array operation panics (a full array), the page is left claiming an entry it does not have. Do the checks (duplicate? full?), then the array change, then the size, in that order.
+
+### Sorted order is what makes lookup possible
+
+Insert at `lower_bound(key)`, never at the end: the array must stay sorted by the comparator at all times, or `lookup` silently misses keys. A duplicate is detected by the entry *at* the lower bound comparing Equal; reject it before shifting anything. Test by inserting keys in random order and checking that `entry_at(0..size)` is strictly increasing after every operation.
+
+### What does "full" mean?
+
+A bucket is full when `size == max_size`, where `max_size` is chosen by the table (it may be far smaller than the page's physical capacity). `insert` into a full bucket returns `false` and changes nothing; the **table** decides to split. Keep that division: the bucket page enforces its own limit and reports it, the table reacts. `remove` of an absent key returns `false`, and `is_empty()` must be exact because the merge logic depends on it.

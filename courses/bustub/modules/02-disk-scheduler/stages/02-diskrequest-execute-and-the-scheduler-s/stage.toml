@@ -1,0 +1,7 @@
+id = "1b-02"
+title = "DiskRequest, execute and the scheduler's worker"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1b::s1b_07", "stages_1b::s1b_08", "stages_1b::s1b_09"]
+learn = ["ownership hand-off instead of a shared pointer", "starting a worker thread with a move closure", "Arc and the Send + Sync bounds"]
+concepts = ["moving-data-across-threads", "worker-threads-and-the-stop-signal", "promises-and-futures", "trait-objects-and-the-disk-seam"]

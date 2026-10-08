@@ -390,7 +390,8 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                         <button className="cx-readfirst" onClick={() => pick("concepts")}>
                                             <b>READ FIRST</b>
                                             <span>
-                                                {p.concepts.map((k) => k.title).join(" · ")} <em>~{p.concepts.reduce((n, k) => n + k.minutes, 0)} min</em>
+                                                {p.concepts[0]?.title}
+                                                {p.concepts.length > 1 && <> · and {p.concepts.length - 1} more</>} <em>~{p.concepts.reduce((n, k) => n + k.minutes, 0)} min</em>
                                             </span>
                                             <i>open ›</i>
                                         </button>
@@ -409,7 +410,21 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                                     {part ? "" : s.title.toUpperCase()}
                                                 </div>
                                                 {part && <h2>{part[2]}</h2>}
-                                                <Body text={s.md} />
+                                                {s.title === "The task" ? (
+                                                    <div className="cx-task">
+                                                        <div className="cx-th">
+                                                            <b>YOUR TURN</b>
+                                                            <span>
+                                                                run <kbd>anneal course test</kbd> or push
+                                                            </span>
+                                                        </div>
+                                                        <div className="cx-tb cx-prose">
+                                                            <Prose text={s.md} />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <Body text={s.md} />
+                                                )}
                                             </section>
                                         );
                                     })}

@@ -62,12 +62,12 @@ pub struct DiskScheduler {
 impl DiskScheduler {
     /// Starts the worker thread.
     pub fn new(disk: Arc<dyn DiskIo>) -> DiskScheduler {
-        todo!("1b-03: create the queue, spawn the worker (consume the queue, execute each request on the disk), build the scheduler")
+        todo!("1b-02: create the queue, spawn the worker (consume the queue, execute each request on the disk), build the scheduler")
     }
 
     /// Queues the requests, in order. Returns at once; the futures say when they are done.
     pub fn schedule(&self, requests: Vec<DiskRequest>) {
-        todo!("1b-03: put each request on the queue, in order")
+        todo!("1b-02: put each request on the queue, in order")
     }
 
     /// A promise and its future for a request's callback. (BusTub's `CreatePromise()`.)

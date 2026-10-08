@@ -1,0 +1,7 @@
+id = "1c-02"
+title = "The LRU replacer"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1c::s1c_05", "stages_1c::s1c_06", "stages_1c::s1c_07"]
+learn = ["LRU as a list plus a map of handles", "the replacer protocol: unpin, pin and victim", "keeping size, list and map consistent"]
+concepts = ["replacement-policies", "arenas-and-generational-handles", "collections-as-tables"]

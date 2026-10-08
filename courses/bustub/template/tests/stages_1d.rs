@@ -1,4 +1,4 @@
-//! Tests for the LRU-K stages (1d-01 … 1d-05). A test named `s1d_05_…` belongs to stage 1d-02.
+//! Tests for the LRU-K stages (1d-01 … 1d-04). A test named `s1d_05_…` belongs to stage 1d-02.
 
 use std::time::{Duration, Instant};
 
@@ -269,7 +269,7 @@ fn s1d_05_ties_break_on_the_first_access_not_the_latest() {
     assert_eq!(r.evict(), Some(f(1)), "frame 1's FIRST access (time 0) is older than frame 2's (time 1)");
 }
 
-// ---- 1d-03 · evict: the k-th access counts ------------------------------------------------------------------------------
+// ---- 1d-02 · evict: the k-th access counts ------------------------------------------------------------------------------
 
 #[test]
 fn s1d_06_frames_below_k_go_before_frames_with_k_accesses() {
@@ -369,7 +369,7 @@ fn s1d_06_a_model_agrees_on_random_workloads() {
     }
 }
 
-// ---- 1d-03 · remove ----------------------------------------------------------------------------------------------------
+// ---- 1d-02 · remove ----------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1d_07_remove_drops_an_evictable_frame() {
@@ -422,7 +422,7 @@ fn s1d_07_removing_every_frame_leaves_an_empty_replacer() {
     assert_eq!(r.evict(), None);
 }
 
-// ---- 1d-04 · evict in O(log n) -----------------------------------------------------------------------------------------
+// ---- 1d-03 · evict in O(log n) -----------------------------------------------------------------------------------------
 
 #[test]
 fn s1d_08_a_hundred_thousand_frames_evict_quickly_and_in_order() {
@@ -478,7 +478,113 @@ fn s1d_08_marking_frames_not_evictable_and_back_keeps_the_order() {
     }
 }
 
-// ---- 1d-05 · the module as a whole -------------------------------------------------------------------------------------
+/// A deliberately naive LRU-K to compare against: the same rules, one linear scan per eviction.
+struct NaiveLruK {
+    k: usize,
+    now: usize,
+    /// frame -> (the last k access times, oldest first; evictable)
+    frames: std::collections::HashMap<usize, (Vec<usize>, bool)>,
+}
+
+impl NaiveLruK {
+    fn new(k: usize) -> NaiveLruK {
+        NaiveLruK { k, now: 0, frames: Default::default() }
+    }
+    fn record(&mut self, frame: usize) {
+        let k = self.k;
+        let entry = self.frames.entry(frame).or_insert((Vec::new(), false));
+        entry.0.push(self.now);
+        if entry.0.len() > k {
+            entry.0.remove(0);
+        }
+        self.now += 1;
+    }
+    fn size(&self) -> usize {
+        self.frames.values().filter(|(_, e)| *e).count()
+    }
+    fn evict(&mut self) -> Option<usize> {
+        let k = self.k;
+        let victim = self
+            .frames
+            .iter()
+            .filter(|(_, (_, e))| *e)
+            .min_by_key(|(&fr, (h, _))| if h.len() < k { (0, h[0], fr) } else { (1, h[0], fr) })
+            .map(|(&fr, _)| fr)?;
+        self.frames.remove(&victim);
+        Some(victim)
+    }
+}
+
+struct Lcg8(u64);
+impl Lcg8 {
+    fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.0 >> 33
+    }
+}
+
+#[test]
+fn s1d_08_it_agrees_with_a_naive_scan_on_random_operations() {
+    // The fast version must pick the same victim as a linear scan over the same history, for several values of k.
+    for k in [1usize, 2, 3, 5] {
+        let mut fast = LruKReplacer::new(48, k);
+        let mut slow = NaiveLruK::new(k);
+        let mut rng = Lcg8(1000 + k as u64);
+        for step in 0..4000 {
+            let frame = (rng.next() % 48) as usize;
+            match rng.next() % 10 {
+                0..=4 => {
+                    fast.record_access(f(frame));
+                    slow.record(frame);
+                }
+                5..=7 => {
+                    let on = rng.next() % 2 == 0;
+                    fast.set_evictable(f(frame), on);
+                    if let Some(e) = slow.frames.get_mut(&frame) {
+                        e.1 = on;
+                    }
+                }
+                _ => {
+                    assert_eq!(fast.evict().map(|x| x.0), slow.evict(), "k={k}, step {step}: the two disagree about the victim");
+                }
+            }
+            assert_eq!(fast.size(), slow.size(), "k={k}, step {step}: the evictable counts differ");
+        }
+    }
+}
+
+#[test]
+fn s1d_08_a_removed_frame_starts_over_at_the_back_of_the_order() {
+    let mut r = LruKReplacer::new(10, 2);
+    for n in 0..4 {
+        r.record_access(f(n));
+        r.set_evictable(f(n), true);
+    }
+    r.remove(f(0));
+    r.record_access(f(0)); // forgotten, then seen again: a brand-new single access, newer than 1, 2 and 3
+    r.set_evictable(f(0), true);
+    let order: Vec<usize> = std::iter::from_fn(|| r.evict().map(|x| x.0)).collect();
+    assert_eq!(order, vec![1, 2, 3, 0]);
+}
+
+#[test]
+fn s1d_08_frames_with_k_accesses_are_ordered_by_their_kth_most_recent() {
+    let mut r = LruKReplacer::new(10, 2);
+    // access times: t0:f0 t1:f1 t2:f0 t3:f1 t4:f2 t5:f2 -> f0 has {0,2}, f1 has {1,3}, f2 has {4,5}
+    for n in [0, 1, 0, 1, 2, 2] {
+        r.record_access(f(n));
+    }
+    for n in 0..3 {
+        r.set_evictable(f(n), true);
+    }
+    r.record_access(f(0)); // t6: f0's last two are now {2, 6}: its 2nd most recent access moved from t0 to t2
+    // 2nd most recent access times: f1 at t1, f0 at t2, f2 at t4: the largest backward distance goes first
+    assert_eq!(r.evict(), Some(f(1)));
+    assert_eq!(r.evict(), Some(f(0)));
+    assert_eq!(r.evict(), Some(f(2)));
+}
+
+// ---- 1d-04 · the module as a whole -------------------------------------------------------------------------------------
 
 #[test]
 fn s1d_09_scans_do_not_flush_the_hot_pages() {

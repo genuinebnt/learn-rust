@@ -349,7 +349,7 @@ fn s1b_05_a_hundred_promises_through_a_channel() {
     assert_eq!(got, (0..100).map(|n| n * n).collect::<Vec<_>>());
 }
 
-// ---- 1b-02 · broken promises -------------------------------------------------------------------------------------------
+// ---- 1b-01 · broken promises -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1b_06_dropping_the_promise_breaks_the_future() {
@@ -501,7 +501,7 @@ fn s1b_08_a_successful_read_from_a_disk_that_fills_the_buffer() {
     assert!(wait(f).unwrap().unwrap().iter().all(|&b| b == 7));
 }
 
-// ---- 1b-03 · DiskScheduler::new and schedule -----------------------------------------------------------------------------
+// ---- 1b-02 · DiskScheduler::new and schedule -----------------------------------------------------------------------------
 
 #[test]
 fn s1b_09_a_scheduled_write_and_read() {

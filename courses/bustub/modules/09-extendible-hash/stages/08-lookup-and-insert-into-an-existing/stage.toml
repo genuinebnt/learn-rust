@@ -3,3 +3,5 @@ title = "Lookup and insert into an existing bucket"
 kind = "build"
 difficulty = "medium"
 tests = ["stages_2b::s2b_17"]
+learn = ["latch crabbing on a read-modify path", "write mode when a split might follow", "duplicate keys and bucket-full as separate outcomes"]
+concepts = ["latching-a-hash-table", "reader-writer-latches", "deadlock-and-lock-ordering", "raii-guards-and-lifetimes"]

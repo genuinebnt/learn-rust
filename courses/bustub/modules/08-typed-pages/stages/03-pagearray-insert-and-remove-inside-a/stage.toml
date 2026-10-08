@@ -1,0 +1,7 @@
+id = "2a-03"
+title = "PageArray: insert and remove inside a page"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2a::s2a_08", "stages_2a::s2a_09", "stages_2a::s2a_10"]
+learn = ["memmove-style shifting with copy_within", "bounds and capacity as preconditions", "a view generic over &[u8] and &mut [u8]"]
+concepts = ["slices-copy-within-and-binary-search", "bytes-endianness-and-views", "traits-with-associated-consts", "checking-invariants"]

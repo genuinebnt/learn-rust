@@ -1,4 +1,6 @@
-This stage has 3 parts. Work through them in order; they build on each other, and every test in the stage has to pass.
+A directory can **grow**: doubling its global depth copies the first half of the slots into the second, so every bucket is now referenced by twice as many slots without any bucket moving. It can **shrink** when no bucket uses the full depth. And `verify_integrity` checks every invariant the table relies on, which you will call after almost every operation from here on.
+
+The checker is the most useful code in the module: it turns a subtle corruption (a stale pointer, a depth off by one) into an immediate, specific failure at the operation that caused it.
 
 ## Part 1 · incr_global_depth: double the directory
 
@@ -125,3 +127,25 @@ The three invariants say: depths make sense (1), the pointer counts add up (2), 
 
 ### Learn more
 - [`HashMap::entry`](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.entry) · SQLite [`PRAGMA integrity_check`](https://www.sqlite.org/pragma.html#pragma_integrity_check) · PostgreSQL [`amcheck`](https://www.postgresql.org/docs/current/amcheck.html)
+
+## Performance
+
+Doubling is **O(directory size)**: copy up to 256 bucket ids and 256 depth bytes; no bucket page is read or written, so it is cheap next to a split's I/O. `can_shrink` is a scan of the local depths, O(2^global_depth); shrinking is a decrement (the second half is simply no longer considered). `verify_integrity` is O(directory size) plus a pass to count references per bucket: fine in tests, too slow to leave in a hot path, so keep it behind `debug_assert!` or a test-only call.
+
+The structural point: because only the *directory* doubles, the cost of growth does not depend on how many keys the table holds. A conventional hash table rehashes all `n` keys when it resizes.
+
+**Measure it.** Double a depth-0 directory to depth 9 and time it (microseconds), then compare with rehashing 100 000 keys into a table twice the size. Run `verify_integrity` on a directory with 512 slots 1 000 000 times and note it is well under a microsecond per slot.
+
+## Hints
+
+### What exactly gets copied when the directory doubles?
+
+Slots `[0, n)` stay; slots `[n, 2n)` become copies of them, **bucket id and local depth both**. The new slot `i + n` must point at the same bucket as `i` because until a split distinguishes them, they differ only in a bit the bucket does not look at. After the copy `global_depth` is incremented. Test the invariant directly: for every `i < n`, slot `i + n` equals slot `i`. Also decide what doubling at the maximum depth does (a panic: the caller must check first).
+
+### `can_shrink` is about local depths, not about being empty
+
+The directory may halve exactly when **no bucket has local depth equal to the global depth**: then every pair `(i, i + n/2)` is a duplicate. A directory with several empty buckets at full depth cannot shrink; a directory with no empty buckets at all can. Do not confuse the two. And `decr_global_depth` must keep slot data in the first half intact (nothing is copied) and refuse to go below 0.
+
+### Write the invariants as a list before writing the checker
+
+For each slot below `2^global`: the bucket page id is valid; the local depth is at most the global depth; and, per bucket, the number of slots pointing to it is exactly `2^(global - local)`, *all with the same local depth*. Implement the third check by counting references in a map from page id to count and comparing, and make each panic message say which slot and which bucket. Then break the directory deliberately in a test (change one depth by hand) and check you get the right message.

@@ -43,7 +43,7 @@ export function DifficultyMark({ d }: { d: StageDifficulty }) {
 function StageRow({ course, s, current }: { course: string; s: CourseStageRow; current: boolean }) {
     return (
         <Link className={`cx-srow${current ? " cur" : ""}`} to="/courses/$course/$stage" params={{ course, stage: s.id }}>
-            <span className={`cx-sdot ${s.state}`} aria-label={s.state === "todo" ? "not passed" : "passed"}>
+            <span className={`cx-sdot${s.state === "solved" ? " ok" : s.state === "assisted" ? " asst" : ""}`} aria-label={s.state === "todo" ? "not passed" : "passed"}>
                 {s.state === "todo" ? "" : "✓"}
             </span>
             <span className="cx-sno">{s.id.split("-")[1]}</span>

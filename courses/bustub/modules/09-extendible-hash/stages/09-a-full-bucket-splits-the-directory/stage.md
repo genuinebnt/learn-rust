@@ -1,3 +1,7 @@
+The heart of extendible hashing: **splitting a full bucket**. When the target bucket is full, allocate a new one, raise the local depth, redistribute the entries by the *new* hash bit, repoint the directory slots between the two buckets, and **retry**: all the entries may have gone to the same side, so the bucket may still be full and the split repeats. When the bucket's local depth already equals the global depth, the directory **doubles** first; at the maximum depth the insert simply fails.
+
+Everything earlier was preparation for this stage: bit arithmetic, directory growth, bucket lifecycle and latching all appear in one function.
+
 **Where this fits.** The reason it's *extendible* hashing: tables grow one bucket at a time, never rehashing everything.
 
 ## The task
@@ -49,3 +53,25 @@ The project spec: "Insert: ... If the bucket is full, you must split it. If the 
 
 ## Learn more
 - Fagin et al., [Extendible Hashing](https://en.wikipedia.org/wiki/Extendible_hashing) · CMU 15-445 "Hash Tables" · BusTub [disk_extendible_hash_table.cpp](https://github.com/cmu-db/bustub/blob/master/src/container/disk/hash/disk_extendible_hash_table.cpp) (the stubs and their doc comments are the spec)
+
+## Performance
+
+A split costs **one new page** (allocation plus one write), a rewrite of the old bucket, and an update of the directory slots that pointed at it: roughly 3 page writes and O(bucket size) work to rehash and move entries (about 255 key hashes). It does not touch any other bucket, so the cost is independent of table size; a **doubling** adds a copy of the directory (a few hundred bytes).
+
+Splitting is *amortised*: for a bucket of `B` entries, one split happens per about `B/2` inserts after steady state, so the average insert pays about 6 to 12 extra entry moves. The pathological case is **many keys with equal low bits**: if more than `B` keys share their low `max_depth` bits, the bucket cannot split further and the insert fails: a property of the hash and `max_depth`, not a bug.
+
+**Measure it.** Insert 100 000 sequential keys and print the global depth, the number of buckets and the average fill after every 10 000 (expect fill around 69%, `ln 2`); count page writes per insert. Then insert keys crafted to share low bits and watch the failure at `max_depth`.
+
+## Hints
+
+### Which bit decides who moves?
+
+After the split, the old bucket has local depth `d + 1`; the entry belongs in the **new** bucket iff its hash has bit `d` set (the bit that has just become significant). Entries with the bit clear stay. Compute `new_bit = 1 << d` from the local depth you read *before* incrementing, and apply it to the **full 32-bit hash of each key**, not to the directory index (which has fewer bits).
+
+### Repoint every slot that referenced the old bucket
+
+A bucket at local depth `d` in a directory of global depth `g` is referenced by `2^(g - d)` slots. After the split, each of those slots gets local depth `d + 1`, and the ones whose index has bit `d` set point at the **new** bucket. Iterate over all slots comparing the *page id* to the old one, rather than computing which slots by formula: it is slower by nothing that matters and impossible to get off by one.
+
+### Retry, and the termination condition
+
+After a split the key may still hash to a full bucket (all entries moved to one side), so loop: re-resolve the slot, check for room, split again. The loop ends when there is room or when the bucket's local depth equals the directory's **maximum** depth and it is full: the table cannot subdivide further, and `insert` returns `false`. Do not let the loop double the directory past its maximum. Test a pathological key set that forces the failure, and test that after it the table still passes `verify_integrity`.

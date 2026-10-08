@@ -1,4 +1,6 @@
-This stage has 2 parts. Work through them in order; they build on each other, and every test in the stage has to pass.
+The inverse of a split. When a removal leaves a bucket **empty**, it is merged with its **split image** (the bucket that shares all but its newest bit), provided both have the same local depth: the empty bucket's page is deleted and every directory slot that pointed at it is repointed at the survivor, whose local depth drops by one. The merge may leave the survivor (or its new image) empty too, so it repeats. When no bucket uses the directory's full depth, the directory **halves**.
+
+This is the hardest control flow in the module: a loop with several exit conditions, mutations to the directory and deletion of a page that must not be pinned.
 
 ## Part 1 · An empty bucket merges with its split image
 
@@ -45,7 +47,7 @@ bucket_idx = (0..directory.size()).find(|&s| directory.get_bucket_page_id(s) == 
 | `std::vector<page_id_t> to_delete;` collected and deleted later | the same pattern if deleting inside the loop gets awkward |
 
 ### Learn more
-- CMU 15-445 "Hash Tables" (merge and shrink) · `BufferPoolManager::delete_page` (stage 1f-05 of this course) · [Extendible hashing](https://en.wikipedia.org/wiki/Extendible_hashing)
+- CMU 15-445 "Hash Tables" (merge and shrink) · `BufferPoolManager::delete_page` (stage 1f-03 of this course) · [Extendible hashing](https://en.wikipedia.org/wiki/Extendible_hashing)
 
 ## Part 2 · Shrink the directory
 
@@ -84,3 +86,25 @@ The spec: "Shrink the directory if possible: while `CanShrink()`, `DecrGlobalDep
 
 ### Learn more
 - [Property-based testing](https://en.wikipedia.org/wiki/Software_testing#Property_testing) · the [`proptest`](https://docs.rs/proptest) crate (shrinks failing inputs automatically) · [`quickcheck`](https://docs.rs/quickcheck)
+
+## Performance
+
+A merge deletes one page (`delete_page`: O(1), the disk space is released) and rewrites the directory slots that pointed at it: O(directory size) work, no data moves, because the survivor already holds all the live entries (the empty one held none). The loop can repeat several times (cascading merges), each one touching two buckets, so a pathological removal can cost O(depth) merges: at most 9.
+
+Merging and shrinking are what keep a table *proportional to its contents*: without them, a table that grew to a million keys and was emptied would keep tens of thousands of empty pages and a 512-slot directory.
+
+**Measure it.** Insert 100 000 keys, remove 99 990 of them in random order and print buckets, global depth and allocated pages after each 10 000; then remove all and confirm the table returns to one bucket at depth 0.
+
+## Hints
+
+### When is a merge allowed?
+
+Only when the bucket's **local depth is greater than 0** (there is a split image) **and the image has the same local depth** (if the image was split further, it stands for *several* buckets and cannot absorb this one). After a merge the survivor's depth is one lower, which can enable another merge with *its* new image: that is why it is a loop. State the three exit conditions explicitly: depth 0, image at a different depth, neither bucket empty.
+
+### Delete the page only after nothing points at it
+
+Order matters: first repoint **every** directory slot that referenced the dead bucket to the survivor, then lower the local depth of **every** slot that now references the survivor (there are twice as many as before), and only then call `delete_page`. Deleting first leaves directory slots pointing at a freed page for as long as the function runs, and `delete_page` fails outright if any guard still pins the page: drop all bucket guards before the merge.
+
+### Shrink last, and use `can_shrink`
+
+After the merges, `while directory.can_shrink() { decr_global_depth() }`. A directory can shrink repeatedly after one big merge, so a single `if` is a bug. And re-find the slot you are tracking after every merge: the bucket you started from may now be reached through a different slot. Finish with `verify_integrity` in the test, since a cascade of merges is where reference counts per bucket go wrong.

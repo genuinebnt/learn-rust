@@ -1,3 +1,7 @@
+An extendible hash table places a key by its hash, and the placement is written to disk, so the hash function is part of the **file format**: it has to produce the same 128 bits as BusTub's C++ `MurmurHash3_x64_128` for every input, on every machine, forever. This stage is a faithful port, checked against golden values produced by compiling the C++.
+
+It is a different kind of exercise from the ones before: no design freedom, an exact algorithm, and the traps are in the arithmetic: wrapping, rotation, byte order and the fall-through tail.
+
 **Where this fits.** A hash table is only as good as its hash. BusTub hashes every index key with **MurmurHash3**, and its tests are written against that function's output: to run them, you need the same function bit for bit. This stage is a small, classic C-to-Rust port: integer arithmetic that wraps, rotations, a loop over 16-byte blocks, and a `switch` that falls through.
 
 ## The task
@@ -60,3 +64,25 @@ for (i, &byte) in tail.iter().enumerate().take(8) { k1 ^= (byte as u64) << (8 * 
 ## Learn more
 - [`u64::rotate_left`](https://doc.rust-lang.org/std/primitive.u64.html#method.rotate_left) · [`wrapping_mul`](https://doc.rust-lang.org/std/primitive.u64.html#method.wrapping_mul) · [`chunks_exact`](https://doc.rust-lang.org/std/primitive.slice.html#method.chunks_exact) and [`remainder`](https://doc.rust-lang.org/std/slice/struct.ChunksExact.html#method.remainder)
 - Austin Appleby's [MurmurHash3 notes](https://github.com/aappleby/smhasher/wiki/MurmurHash3) and [source](https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp) · [`murmur3` crate](https://docs.rs/murmur3) · C++ [`[[fallthrough]]`](https://en.cppreference.com/w/cpp/language/attributes/fallthrough)
+
+## Performance
+
+MurmurHash3 x64 processes **16 bytes per round** with a handful of multiplies, rotates and xors: roughly 1 to 2 cycles per byte on a modern CPU, so hashing an 8-byte key costs a few tens of nanoseconds (the tail path plus finalisation dominate for short inputs). It does not allocate. Compared with SipHash (Rust's default `HashMap` hasher, designed to resist attackers), Murmur is typically 2 to 4 times faster on short keys and offers no protection against adversarial inputs: acceptable for a database that hashes its own keys, not for a service hashing user-supplied strings.
+
+Short inputs are dominated by the final `fmix64` and the tail `match`; long inputs by the block loop, which is what the compiler vectorises best when the arithmetic is written without early exits.
+
+**Measure it.** Hash 10 million 8-byte keys and report ns per hash for your port and for `DefaultHasher`; hash 1 million 1 KiB buffers and report bytes per cycle. Check the distribution too: hash keys 0 to 99 999 and count how many land in each of 512 buckets by the low 9 bits (expect about 195 each, and no bucket much beyond 250).
+
+## Hints
+
+### Which arithmetic must wrap?
+
+The algorithm is defined modulo 2<sup>64</sup>. In debug builds Rust's `*` and `+` **panic on overflow**, so every multiply and add on the state must be `wrapping_mul` / `wrapping_add` (the C code relies on silent unsigned wrap). Forgetting one passes every short-input test and panics on the first input long enough to overflow: write a test with a 1 KiB input first.
+
+### Reading a block and handling the tail
+
+A block is two little-endian `u64` words: `u64::from_le_bytes(chunk[0..8].try_into().unwrap())`; the C reads through a pointer cast, which on a big-endian machine would give a different hash. The **tail** (1 to 15 leftover bytes) is a `switch` with deliberate fall-through in C; in Rust, build the two lane values by looping over the remaining bytes and shifting each into place. Test every tail length 0 to 15 against the C++ golden values: each exercises a different branch of the original.
+
+### Take the first 64 bits, then what?
+
+BusTub's `HashFunction::GetHash` returns **the first of the two 64-bit lanes** of the 128-bit result (seed 0), and the table then uses the low 32 bits of that. Be explicit about which half and which bits you use, in a comment, since every directory index and bucket choice derives from it and a mismatch with the golden values would otherwise show up only as "the table behaves slightly differently".

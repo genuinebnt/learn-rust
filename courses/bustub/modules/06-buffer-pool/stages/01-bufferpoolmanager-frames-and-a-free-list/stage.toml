@@ -1,5 +1,0 @@
-id = "1f-01"
-title = "BufferPoolManager: frames and a free list"
-kind = "build"
-difficulty = "very-easy"
-tests = ["stages_1f::s1f_01", "stages_1f::s1f_02"]

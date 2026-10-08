@@ -1,0 +1,7 @@
+id = "1e-02"
+title = "Eviction, and hits that move frames to mfu"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1e::s1e_03", "stages_1e::s1e_04"]
+learn = ["evicting from the oldest evictable position", "a hit as a move between lists", "ghosts created at eviction time"]
+concepts = ["adaptive-replacement-cache", "replacement-policies", "arenas-and-generational-handles"]

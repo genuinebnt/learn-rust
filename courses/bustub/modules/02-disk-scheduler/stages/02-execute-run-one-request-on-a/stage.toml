@@ -1,5 +1,0 @@
-id = "1b-02"
-title = "execute: run one request on a disk"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1b::s1b_06", "stages_1b::s1b_07", "stages_1b::s1b_08"]

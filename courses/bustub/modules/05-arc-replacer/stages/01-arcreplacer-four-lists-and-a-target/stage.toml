@@ -1,5 +1,0 @@
-id = "1e-01"
-title = "ArcReplacer: four lists and a target"
-kind = "learn"
-difficulty = "very-easy"
-tests = ["stages_1e::s1e_01"]

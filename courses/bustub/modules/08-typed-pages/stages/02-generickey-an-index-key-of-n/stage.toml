@@ -1,5 +1,0 @@
-id = "2a-02"
-title = "GenericKey: an index key of N opaque bytes"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_2a::s2a_05", "stages_2a::s2a_06", "stages_2a::s2a_07"]

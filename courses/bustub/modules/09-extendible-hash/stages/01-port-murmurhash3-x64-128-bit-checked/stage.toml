@@ -3,3 +3,5 @@ title = "Port MurmurHash3 (x64, 128-bit), checked against the C++"
 kind = "build"
 difficulty = "hard"
 tests = ["stages_2b::s2b_01"]
+learn = ["wrapping arithmetic and bit rotation in Rust", "porting an algorithm exactly and testing it against the original", "why a hash on disk must be stable across runs"]
+concepts = ["hash-functions-and-murmur3", "shifts-masks-and-bit-tricks", "integers-and-casts", "model-based-testing"]

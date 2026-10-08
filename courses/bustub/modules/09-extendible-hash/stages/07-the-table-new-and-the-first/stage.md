@@ -1,4 +1,6 @@
-This stage has 2 parts. Work through them in order; they build on each other, and every test in the stage has to pass.
+Now the three levels become a table. `DiskExtendibleHashTable` owns a header page id and the parameters (`max_depths`, bucket size), and **creates its pages lazily**: a new table is one header page whose slots are all empty; the first insert under a header slot allocates a directory, and the first insert into a directory slot allocates a bucket. An empty table's `get_value` must answer without allocating anything.
+
+This stage is about the table's **skeleton and its first path**, written with page guards so no pin or latch can leak. The recurring lesson is the *order of acquisition*: header, then directory, then bucket, and the parent released only once the child is held.
 
 ## Part 1 · The table: new, an empty get_value, verify_integrity
 
@@ -97,3 +99,27 @@ auto InsertToNewBucket(ExtendibleHTableDirectoryPage *directory, uint32_t bucket
 
 ### Learn more
 - CMU 15-445 "Hash Tables" · [Extendible hashing](https://en.wikipedia.org/wiki/Extendible_hashing) · BusTub [disk_extendible_hash_table.cpp](https://github.com/cmu-db/bustub/blob/master/src/container/disk/hash/disk_extendible_hash_table.cpp)
+
+## Performance
+
+A lookup on an existing key reads **three pages** (header, directory, bucket); an insert that creates the first directory and bucket allocates **two new pages** and writes the header slot, directory and bucket once each. In a warm buffer pool all of these are memory accesses plus latch operations: about 3 latch acquire/release pairs and one hash, on the order of a microsecond. In a cold pool each missing page is a disk read, which dominates by 100x.
+
+`verify_integrity` reads every directory the header points to: O(directories x directory size): a testing tool, not a production call.
+
+The header is read by *every* operation: keep its read latch for as short a time as possible (just long enough to latch the directory), because its contention limits the whole table's concurrency.
+
+**Measure it.** Insert 1 000 keys with `header_max_depth` 0 and with 4 and count `bpm` page reads and writes with a counting disk (4 depth bits spread keys over 16 directories, each smaller). Verify every pin count is 0 after the run.
+
+## Hints
+
+### What does an empty table look like on disk?
+
+One header page, with every directory slot `INVALID`. `new` allocates and initialises it (through `new_page` and a write guard), and `get_value` on a key whose header slot is `INVALID` returns an empty `Vec` *without* allocating. A test that counts `new_page` calls before and after a lookup on an empty table checks that.
+
+### Allocate a page, then publish it: in that order
+
+`insert_to_new_directory` allocates a directory page, **initialises** it, and only then stores its id in the header slot, so a concurrent reader never follows a header pointer to an uninitialised page. Hold the header's write latch for that whole sequence. The same applies one level down: a new bucket is initialised before the directory slot points at it.
+
+### Guards drop at the end of their scope: use that deliberately
+
+You do not release latches by hand: you control *when* a guard drops by where you declare it and by `drop(guard)`. Write the lookup so the header guard is dropped *after* the directory guard exists and *before* the bucket is touched, and verify with `get_pin_count` that every page is at pin count 0 after the call, including after an early `return` for a missing key.

@@ -1,4 +1,4 @@
-//! Tests for the buffer pool stages (1f-01 … 1f-06). A test named `s1f_05_…` belongs to stage 1f-03.
+//! Tests for the buffer pool stages (1f-01 … 1f-04). A test named `s1f_05_…` belongs to stage 1f-02.
 
 use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -123,7 +123,7 @@ fn s1f_02_threads_never_get_the_same_id() {
     assert_eq!(all, (0..200).collect::<Vec<_>>());
 }
 
-// ---- 1f-02 · fetch_page: a page that is not in memory ----------------------------------------------------------------------
+// ---- 1f-01 · fetch_page: a page that is not in memory ----------------------------------------------------------------------
 
 #[test]
 fn s1f_03_a_new_page_arrives_zeroed() {
@@ -164,7 +164,7 @@ fn s1f_03_each_miss_reads_the_disk_once() {
     assert_eq!(disk.reads(), 5);
 }
 
-// ---- 1f-03 · pin counts and hits -------------------------------------------------------------------------------------------
+// ---- 1f-02 · pin counts and hits -------------------------------------------------------------------------------------------
 
 #[test]
 fn s1f_04_a_fetched_page_has_one_pin() {
@@ -206,7 +206,7 @@ fn s1f_04_a_hit_does_not_reload_the_page() {
     assert_eq!(bpm.frame_data(again).read().unwrap()[0], 42, "an unsaved change must still be there");
 }
 
-// ---- 1f-03 · unpin_page ------------------------------------------------------------------------------------------------------
+// ---- 1f-02 · unpin_page ------------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1f_05_unpin_releases_one_pin() {
@@ -242,7 +242,7 @@ fn s1f_05_a_page_can_be_fetched_again_after_unpinning() {
     assert_eq!(disk.reads(), 1, "still resident: no second read");
 }
 
-// ---- 1f-04 · eviction ----------------------------------------------------------------------------------------------------------
+// ---- 1f-02 · eviction ----------------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1f_06_a_full_pool_of_pinned_pages_cannot_take_another() {
@@ -321,7 +321,7 @@ fn s1f_06_clean_victims_cost_no_disk_writes() {
     assert_eq!(disk.reads(), 5);
 }
 
-// ---- 1f-04 · dirty pages are written back before their frame is reused ------------------------------------------------------
+// ---- 1f-03 · dirty pages are written back before their frame is reused ------------------------------------------------------
 
 #[test]
 fn s1f_07_a_dirty_page_survives_eviction() {
@@ -385,7 +385,7 @@ fn s1f_07_many_pages_through_a_small_pool() {
     }
 }
 
-// ---- 1f-05 · flushing ------------------------------------------------------------------------------------------------------------
+// ---- 1f-03 · flushing ------------------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1f_08_flush_page_writes_the_page_to_disk() {
@@ -453,7 +453,7 @@ fn s1f_08_flush_all_pages_writes_every_resident_page() {
     assert_eq!(disk.writes(), 8, "flushing doesn't depend on the dirty flag");
 }
 
-// ---- 1f-05 · delete_page ---------------------------------------------------------------------------------------------------------
+// ---- 1f-03 · delete_page ---------------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1f_09_a_pinned_page_cannot_be_deleted() {
@@ -518,7 +518,7 @@ fn s1f_09_the_replacer_forgets_a_deleted_frame() {
     assert_eq!(bpm.fetch_page(d), None, "b and c are pinned: nothing is evictable");
 }
 
-// ---- 1f-06 · the module as a whole -------------------------------------------------------------------------------------------------
+// ---- 1f-04 · the module as a whole -------------------------------------------------------------------------------------------------
 
 #[test]
 fn s1f_10_threads_share_a_small_pool_without_losing_updates() {

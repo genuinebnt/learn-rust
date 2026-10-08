@@ -43,18 +43,18 @@
  "1b": [
   {
    "from": 1,
-   "to": 5,
-   "title": "Future::get: wait for the value"
+   "to": 6,
+   "title": "Channel and Promise: a queue and a one-shot result"
   },
   {
-   "from": 6,
-   "to": 8,
-   "title": "execute: run one request on a disk"
+   "from": 7,
+   "to": 9,
+   "title": "DiskRequest, execute and the scheduler's worker"
   },
   {
-   "from": 9,
+   "from": 10,
    "to": 13,
-   "title": "DiskScheduler: start the worker and schedule requests"
+   "title": "A clean shutdown, a panicking disk and the page latch"
   },
   {
    "from": 14,
@@ -68,27 +68,18 @@
  "1c": [
   {
    "from": 1,
-   "to": 2,
-   "title": "IndexList::pop_front: unlink and free a node"
-  },
-  {
-   "from": 3,
    "to": 4,
-   "title": "IndexList::move_to_back"
+   "title": "IndexList: a linked list inside a Vec"
   },
   {
    "from": 5,
    "to": 7,
-   "title": "LruReplacer: unpin and size"
+   "title": "The LRU replacer"
   },
   {
    "from": 8,
-   "to": 9,
-   "title": "ClockReplacer::victim: the sweep"
-  },
-  {
-   "from": 10,
-   "to": 10
+   "to": 10,
+   "title": "The CLOCK replacer"
   },
   {
    "from": 11,
@@ -99,17 +90,12 @@
   {
    "from": 1,
    "to": 3,
-   "title": "LruKReplacer: new, record_access, size"
+   "title": "LruKNode and the replacer's bookkeeping"
   },
   {
    "from": 4,
-   "to": 5,
-   "title": "evict: the least recently used among the infinite"
-  },
-  {
-   "from": 6,
    "to": 7,
-   "title": "evict: infinite distances first, then the oldest k-th access"
+   "title": "set_evictable, evict and remove"
   },
   {
    "from": 8,
@@ -123,32 +109,18 @@
  "1e": [
   {
    "from": 1,
-   "to": 1
-  },
-  {
-   "from": 2,
-   "to": 2
+   "to": 2,
+   "title": "ArcReplacer: four lists and new pages"
   },
   {
    "from": 3,
-   "to": 3
-  },
-  {
-   "from": 4,
-   "to": 4
+   "to": 4,
+   "title": "Eviction, and hits that move frames to mfu"
   },
   {
    "from": 5,
-   "to": 5
-  },
-  {
-   "from": 6,
-   "to": 7,
-   "title": "Keep the ghost lists bounded"
-  },
-  {
-   "from": 8,
-   "to": 8
+   "to": 8,
+   "title": "Ghost hits, the adaptive target, bounded ghost lists and remove"
   },
   {
    "from": 9,
@@ -158,27 +130,18 @@
  "1f": [
   {
    "from": 1,
-   "to": 2,
-   "title": "BufferPoolManager: frames and a free list"
-  },
-  {
-   "from": 3,
-   "to": 3
+   "to": 3,
+   "title": "The buffer pool: frames, new_page and fetch_page"
   },
   {
    "from": 4,
-   "to": 5,
-   "title": "unpin_page: release a pin, remember the dirt"
+   "to": 6,
+   "title": "Hits, unpin and eviction"
   },
   {
-   "from": 6,
-   "to": 7,
-   "title": "Write dirty victims back before reusing their frame"
-  },
-  {
-   "from": 8,
+   "from": 7,
    "to": 9,
-   "title": "delete_page"
+   "title": "Write-back, flush and delete"
   },
   {
    "from": 10,
@@ -189,12 +152,12 @@
   {
    "from": 1,
    "to": 3,
-   "title": "WritePageGuard: the write latch and the dirty flag"
+   "title": "Read and write guards: pin, latch and the dirty flag"
   },
   {
    "from": 4,
    "to": 6,
-   "title": "A flush must not wait for a latch while holding the pool's lock"
+   "title": "read_page, write_page and a flush that cannot deadlock"
   },
   {
    "from": 7,
@@ -205,22 +168,22 @@
   {
    "from": 1,
    "to": 4,
-   "title": "FixedSize: what a value looks like in a page"
+   "title": "Typed values in raw page bytes"
   },
   {
    "from": 5,
    "to": 7,
-   "title": "GenericKey: an index key of N opaque bytes"
+   "title": "Keys, comparators and how many entries fit"
   },
   {
    "from": 8,
    "to": 10,
-   "title": "PageArray: an array of entries inside a page"
+   "title": "PageArray: insert and remove inside a page"
   },
   {
    "from": 11,
    "to": 12,
-   "title": "Layouts as constants: repr(C), offset_of!, const assertions"
+   "title": "Binary search and layouts as constants"
   },
   {
    "from": 13,
@@ -240,7 +203,7 @@
   {
    "from": 5,
    "to": 7,
-   "title": "The directory page"
+   "title": "The directory page: masks, split images and depths"
   },
   {
    "from": 8,

@@ -1,5 +1,0 @@
-id = "1c-04"
-title = "ClockReplacer::victim: the sweep"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1c::s1c_08", "stages_1c::s1c_09"]

@@ -1,5 +1,0 @@
-id = "1d-02"
-title = "evict: the least recently used among the infinite"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1d::s1d_04", "stages_1d::s1d_05"]

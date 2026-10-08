@@ -1,3 +1,7 @@
+The common path: the table already has a directory, and the key's bucket **has room**. Look the key up through header, directory and bucket, and insert into the bucket: unless the key is already there, in which case refuse. No splitting yet: a full bucket is the next stage's problem.
+
+The substance is the **latching discipline** on this path: which pages are held in which mode, what is held while the bucket is modified, and that the right amount is released on every exit.
+
 **Where this fits.** Most operations find an existing bucket with room. This stage is the common path.
 
 ## The task
@@ -40,3 +44,25 @@ Lecture 10 ("Index Concurrency Control") describes this protocol; the project sp
 
 ## Learn more
 - CMU 15-445 "Index Concurrency Control" (latch crabbing) · [`drop`](https://doc.rust-lang.org/std/mem/fn.drop.html) · Rust Atomics and Locks, [locking basics](https://marabos.nl/atomics/building-locks.html)
+
+## Performance
+
+An insert into a bucket with room reads the header (shared), latches the directory and bucket **exclusively**, does one `lower_bound` and one shift, and marks one page dirty: three page accesses, one page that will need writing back. Latching the directory in write mode for the *whole operation* is coarse: two inserts into the same directory serialise even when they hit different buckets. That is a deliberate simplicity: finer designs latch the bucket first and upgrade only if a split is needed, at the cost of a retry path.
+
+The common case (room in the bucket) holds the directory latch for microseconds; contention appears when many threads insert into one directory, which the header's top-bit routing spreads over up to 512 directories.
+
+**Measure it.** Run 1, 2, 4 and 8 threads inserting disjoint keys into a table with `header_max_depth` 0 (one directory) and 4 (16 directories) and compare throughput: the second should scale better.
+
+## Hints
+
+### Which mode, and for how long?
+
+Insert holds the **directory in write mode** from the moment it is latched until the operation finishes, because a split (next stage) will modify it and there is no safe way to upgrade a read latch. The header is released the moment the directory is held. The bucket is latched in write mode. Draw the three guards on a timeline, mark when each is acquired and dropped, and check no acquisition happens while an *earlier-in-order* page is waited on.
+
+### Duplicate versus full
+
+Both make `insert` return `false`, for different reasons, and the bucket page's own `insert` cannot tell the table which. Check for the key first (`lookup`) and return `false` on a duplicate; then check `is_full()`; and only then call `insert`. The next stage turns "full" into "split and retry", while a duplicate stays a refusal, so conflating them now costs you later.
+
+### A model test finds what the examples miss
+
+Compare the table against a `HashMap<key, value>` over random inserts of a small key range (many duplicates) and `get_value` after every step, with `verify_integrity` called every few operations. Seed the generator, print the seed on failure. This single test covers lookup, duplicates and placement, and it is what you will rerun after the split and merge stages.

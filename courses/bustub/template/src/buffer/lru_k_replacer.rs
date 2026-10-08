@@ -98,6 +98,6 @@ impl LruKReplacer {
     /// Removes an evictable frame and its history, whatever its distance. Unknown frames are ignored.
     /// Panics if the frame is not evictable.
     pub fn remove(&mut self, frame: FrameId) {
-        todo!("1d-03: ignore unknown frames; panic for a frame that is not evictable; otherwise drop it")
+        todo!("1d-02: ignore unknown frames; panic for a frame that is not evictable; otherwise drop it")
     }
 }

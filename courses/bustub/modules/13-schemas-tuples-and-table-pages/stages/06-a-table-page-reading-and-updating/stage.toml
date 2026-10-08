@@ -1,0 +1,7 @@
+id = "3b-06"
+title = "A table page: reading and updating"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3b::s3b_06"]
+learn = ["record ids that stay valid because tuples never move", "deleting by flag, and counting it once", "errors for bad slots instead of panics"]
+concepts = ["slotted-pages", "errors-as-values-with-result", "structs-and-accessors"]

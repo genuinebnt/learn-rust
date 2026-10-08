@@ -1,0 +1,7 @@
+id = "3b-05"
+title = "A table page: inserting tuples"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_3b::s3b_05"]
+learn = ["the slotted page: a slot array from the front, tuples from the back", "free-space arithmetic with checked subtraction", "a view over page bytes with a header"]
+concepts = ["slotted-pages", "bytes-endianness-and-views", "checking-invariants"]

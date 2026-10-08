@@ -5,6 +5,8 @@
   "src/buffer/lru_k_replacer.rs": "1d",
   "src/buffer/lru_replacer.rs": "1c",
   "src/buffer/traced_buffer_pool_manager.rs": "2c",
+  "src/catalog/column.rs": "3b",
+  "src/catalog/schema.rs": "3b",
   "src/common/channel.rs": "1b",
   "src/common/exception.rs": "3a",
   "src/common/index_list.rs": "1c",
@@ -33,6 +35,8 @@
   "src/storage/page/page_array.rs": "2a",
   "src/storage/page/page_bytes.rs": "2a",
   "src/storage/page/page_guard.rs": "1f",
+  "src/storage/page/table_page.rs": "3b",
+  "src/storage/table/tuple.rs": "3b",
   "src/types/type_id.rs": "3a",
   "src/types/value.rs": "3a",
   "tests/arc_replacer_performance_test.rs": "1e",
@@ -68,5 +72,7 @@
   "tests/stages_2c.rs": "2c",
   "tests/stages_2d.rs": "2d",
   "tests/stages_3a.rs": "3a",
+  "tests/stages_3b.rs": "3b",
+  "tests/table_page_test.rs": "3b",
   "tests/type_test.rs": "3a"
 }

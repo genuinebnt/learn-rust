@@ -1,0 +1,51 @@
+code = "3b"
+title = "Schemas, tuples and table pages"
+summary = "How a row becomes bytes: columns and a schema that lays them out, a tuple with a fixed part and a variable part, and the slotted page that stores tuples at stable slots. BusTub Project 3, storage of rows."
+lectures = ["storage2", "storage3"]
+bustub = ["src/include/catalog/column.h", "src/catalog/column.cpp", "src/include/catalog/schema.h", "src/catalog/schema.cpp", "src/include/storage/table/tuple.h", "src/storage/table/tuple.cpp", "src/include/storage/page/table_page.h", "src/storage/page/table_page.cpp"]
+files = []
+
+[[resources]]
+kind = "blog"
+title = "Page (computer memory), Wikipedia: what a page is"
+url = "https://en.wikipedia.org/wiki/Page_(computer_memory)"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: database page layout (page header, item pointers, tuples)"
+url = "https://www.postgresql.org/docs/current/storage-page-layout.html"
+
+[[resources]]
+kind = "docs"
+title = "SQLite file format: record format and B-tree cell layout"
+url = "https://www.sqlite.org/fileformat2.html"
+
+[[resources]]
+kind = "docs"
+title = "slice::copy_from_slice"
+url = "https://doc.rust-lang.org/std/primitive.slice.html#method.copy_from_slice"
+
+[[resources]]
+kind = "docs"
+title = "usize::checked_sub"
+url = "https://doc.rust-lang.org/std/primitive.usize.html#method.checked_sub"
+
+[[resources]]
+kind = "book"
+title = "The Rust Book: structs and method syntax"
+url = "https://doc.rust-lang.org/book/ch05-00-structs.html"
+
+[[resources]]
+kind = "docs"
+title = "Rust API Guidelines: naming, getters and constructors"
+url = "https://rust-lang.github.io/api-guidelines/naming.html"
+
+[[resources]]
+kind = "blog"
+title = "Row-oriented versus column-oriented storage (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Column-oriented_DBMS"
+
+[[resources]]
+kind = "code"
+title = "BusTub's storage/table and catalog directories"
+url = "https://github.com/cmu-db/bustub/tree/master/src/storage/table"

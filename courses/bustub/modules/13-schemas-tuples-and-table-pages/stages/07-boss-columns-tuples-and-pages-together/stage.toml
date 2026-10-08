@@ -1,0 +1,6 @@
+id = "3b-07"
+title = "Boss: columns, tuples and pages together"
+kind = "boss"
+difficulty = "medium"
+tests = ["table_page_test"]
+retest = true

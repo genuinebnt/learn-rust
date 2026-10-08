@@ -1,0 +1,7 @@
+id = "3b-01"
+title = "Columns"
+kind = "learn"
+difficulty = "easy"
+tests = ["stages_3b::s3b_01"]
+learn = ["a struct with private fields and accessor methods", "two constructors for two kinds of column", "a copy-with-changes method"]
+concepts = ["structs-and-accessors", "integers-and-casts"]

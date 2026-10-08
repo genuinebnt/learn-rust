@@ -5,6 +5,7 @@
 #![allow(unused_variables, unused_mut, unused_imports, unreachable_code, dead_code)]
 
 pub mod buffer;
+pub mod catalog;
 pub mod common;
 pub mod container;
 pub mod storage;

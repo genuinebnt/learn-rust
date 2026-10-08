@@ -1,0 +1,7 @@
+id = "3b-02"
+title = "Schemas and the layout of a tuple"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3b::s3b_02"]
+learn = ["computing byte offsets from a list of columns", "fixed part and variable part: why a VARCHAR takes 4 bytes in the fixed part", "building a new value from parts of an old one"]
+concepts = ["tuple-layout-fixed-and-variable-parts", "structs-and-accessors"]

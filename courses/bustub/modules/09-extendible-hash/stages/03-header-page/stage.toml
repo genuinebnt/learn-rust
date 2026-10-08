@@ -1,0 +1,5 @@
+id = "2b-03"
+title = "The header page: init and directory slots"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_03"]

@@ -1,0 +1,5 @@
+id = "2b-13"
+title = "Bucket remove"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_13"]

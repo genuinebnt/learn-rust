@@ -1,0 +1,5 @@
+id = "2b-11"
+title = "The bucket page: init and accessors"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_11"]

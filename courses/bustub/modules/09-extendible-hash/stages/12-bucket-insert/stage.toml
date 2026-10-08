@@ -1,0 +1,5 @@
+id = "2b-12"
+title = "Bucket lookup and insert"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2b::s2b_12"]

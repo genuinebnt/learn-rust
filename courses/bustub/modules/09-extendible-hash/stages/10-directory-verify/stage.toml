@@ -1,0 +1,5 @@
+id = "2b-10"
+title = "verify_integrity: check the invariants"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2b::s2b_10"]

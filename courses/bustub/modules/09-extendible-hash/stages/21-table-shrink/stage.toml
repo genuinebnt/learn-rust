@@ -1,0 +1,5 @@
+id = "2b-21"
+title = "Shrink the directory"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_21"]

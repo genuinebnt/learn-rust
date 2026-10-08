@@ -1,0 +1,5 @@
+id = "2b-15"
+title = "The table: new, an empty get_value, verify_integrity"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_15"]

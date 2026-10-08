@@ -1,0 +1,5 @@
+id = "2b-16"
+title = "insert: the first key creates a directory and a bucket"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2b::s2b_16"]

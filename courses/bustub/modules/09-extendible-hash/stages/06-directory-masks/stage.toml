@@ -1,0 +1,5 @@
+id = "2b-06"
+title = "Masks, hash_to_bucket_index and the split image"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_06"]

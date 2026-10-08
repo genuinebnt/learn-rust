@@ -1,0 +1,135 @@
+code = "2b"
+title = "Extendible hash table"
+summary = "MurmurHash3, the header/directory/bucket pages, and a concurrent three-level extendible hash table with splits, directory growth, merges and shrinking. BusTub Project 2, part 1."
+lectures = ["hashtables", "indexconcurrency"]
+bustub = ["src/include/container/hash/hash_function.h", "third_party/murmur3/MurmurHash3.cpp", "src/include/storage/page/extendible_htable_header_page.h", "src/include/storage/page/extendible_htable_directory_page.h", "src/include/storage/page/extendible_htable_bucket_page.h", "src/include/container/disk/hash/disk_extendible_hash_table.h", "src/container/disk/hash/disk_extendible_hash_table.cpp", "test/storage/extendible_htable_page_test.cpp", "test/container/disk/hash/extendible_htable_test.cpp", "test/container/disk/hash/extendible_htable_concurrent_test.cpp"]
+
+[[resources]]
+kind = "paper"
+title = "Fagin, Nievergelt, Pippenger, Strong: Extendible hashing, a fast access method for dynamic files (ACM TODS, 1979; overview)"
+url = "https://en.wikipedia.org/wiki/Extendible_hashing"
+
+[[resources]]
+kind = "blog"
+title = "Linear hashing (Wikipedia): the other dynamic hashing scheme"
+url = "https://en.wikipedia.org/wiki/Linear_hashing"
+
+[[resources]]
+kind = "blog"
+title = "MurmurHash (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/MurmurHash"
+
+[[resources]]
+kind = "blog"
+title = "Hash table (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Hash_table"
+
+[[resources]]
+kind = "blog"
+title = "MurmurHash3 notes from its author, Austin Appleby"
+url = "https://github.com/aappleby/smhasher/wiki/MurmurHash3"
+
+[[resources]]
+kind = "docs"
+title = "u64::rotate_left"
+url = "https://doc.rust-lang.org/std/primitive.u64.html#method.rotate_left"
+
+[[resources]]
+kind = "docs"
+title = "u64::wrapping_mul"
+url = "https://doc.rust-lang.org/std/primitive.u64.html#method.wrapping_mul"
+
+[[resources]]
+kind = "docs"
+title = "slice::chunks_exact and ChunksExact::remainder"
+url = "https://doc.rust-lang.org/std/primitive.slice.html#method.chunks_exact"
+
+[[resources]]
+kind = "docs"
+title = "std::hash::Hash and Hasher (and why they are not for persistent formats)"
+url = "https://doc.rust-lang.org/std/hash/trait.Hash.html"
+
+[[resources]]
+kind = "docs"
+title = "ahash: a fast in-memory hasher"
+url = "https://docs.rs/ahash"
+
+[[resources]]
+kind = "docs"
+title = "rustc-hash (FxHash)"
+url = "https://docs.rs/rustc-hash"
+
+[[resources]]
+kind = "docs"
+title = "murmur3 crate"
+url = "https://docs.rs/murmur3"
+
+[[resources]]
+kind = "docs"
+title = "thread::scope"
+url = "https://doc.rust-lang.org/std/thread/fn.scope.html"
+
+[[resources]]
+kind = "docs"
+title = "HashMap::entry"
+url = "https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.entry"
+
+[[resources]]
+kind = "docs"
+title = "C++ [[fallthrough]]"
+url = "https://en.cppreference.com/w/cpp/language/attributes/fallthrough"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::hash"
+url = "https://en.cppreference.com/w/cpp/utility/hash"
+
+[[resources]]
+kind = "code"
+title = "hashbrown: Rust's std HashMap (SwissTable)"
+url = "https://github.com/rust-lang/hashbrown"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL's hash index README (linear hashing on pages)"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/access/hash/README"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL dynahash.c: an in-memory dynamic hash table"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/utils/hash/dynahash.c"
+
+[[resources]]
+kind = "code"
+title = "SMHasher: MurmurHash3.cpp, the original"
+url = "https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub disk_extendible_hash_table.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/container/disk/hash/disk_extendible_hash_table.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub disk_extendible_hash_table.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/src/container/disk/hash/disk_extendible_hash_table.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub extendible_htable_test.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/test/container/disk/hash/extendible_htable_test.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub extendible_htable_concurrent_test.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/test/container/disk/hash/extendible_htable_concurrent_test.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub extendible_htable_page_test.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/test/storage/extendible_htable_page_test.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub Project 2 page"
+url = "https://15445.courses.cs.cmu.edu/fall2026/project2/"

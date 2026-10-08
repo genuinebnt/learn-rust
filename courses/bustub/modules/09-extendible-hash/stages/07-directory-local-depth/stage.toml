@@ -1,0 +1,5 @@
+id = "2b-07"
+title = "Local depths: set, incr, decr"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_2b::s2b_07"]

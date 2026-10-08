@@ -85,6 +85,9 @@ struct StageToml {
     kind: String,
     difficulty: String,
     tests: Vec<String>,
+    /// Concept pages (courses/<id>/concepts/<id>.md) worth reading before or while doing this stage.
+    #[serde(default)]
+    concepts: Vec<String>,
 }
 
 /// One `## Heading` of a stage's markdown, with its body.
@@ -105,6 +108,7 @@ pub struct Hint {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Stage {
+    pub concepts: Vec<String>,
     pub id: String,
     pub title: String,
     /// learn · build · boss
@@ -134,6 +138,17 @@ pub struct Module {
     pub stages: Vec<Stage>,
 }
 
+/// A short article that teaches one idea a stage needs (courses/<id>/concepts/<id>.md). A header between `---` lines sets
+/// `title`, `summary` and `minutes`; each `## ` heading starts a section.
+#[derive(Debug, Clone, Serialize)]
+pub struct Concept {
+    pub id: String,
+    pub title: String,
+    pub summary: String,
+    pub minutes: u32,
+    pub sections: Vec<Section>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Project {
     pub number: u32,
@@ -147,6 +162,7 @@ pub struct Course {
     pub title: String,
     pub projects: Vec<Project>,
     pub modules: Vec<Module>,
+    pub concepts: Vec<Concept>,
 }
 
 impl Course {
@@ -192,6 +208,7 @@ impl Course {
                     None => Vec::new(),
                 };
                 stages.push(Stage {
+                    concepts: def.concepts,
                     id: def.id,
                     title: def.title,
                     kind: def.kind,
@@ -224,7 +241,13 @@ impl Course {
             }
         }
         let projects = meta.project.into_iter().map(|p| Project { number: p.number, title: p.title, planned: p.planned }).collect();
-        Ok(Course { id: meta.id, title: meta.title, projects, modules })
+        let concepts = load_concepts(&root.join("concepts"))?;
+        for st in modules.iter().flat_map(|m| m.stages.iter()) {
+            if let Some(missing) = st.concepts.iter().find(|c| !concepts.iter().any(|x| &x.id == *c)) {
+                return bad(format!("stage {}: no concept {missing:?} in concepts/", st.id));
+            }
+        }
+        Ok(Course { id: meta.id, title: meta.title, projects, modules, concepts })
     }
 
     pub fn stages(&self) -> impl Iterator<Item = &Stage> {
@@ -233,6 +256,10 @@ impl Course {
 
     pub fn stage(&self, id: &str) -> Option<&Stage> {
         self.stages().find(|s| s.id == id)
+    }
+
+    pub fn concept(&self, id: &str) -> Option<&Concept> {
+        self.concepts.iter().find(|c| c.id == id)
     }
 
     pub fn module(&self, code: &str) -> Option<&Module> {
@@ -263,6 +290,31 @@ fn split_sections(md: &str) -> (String, Vec<Section>) {
         s.md = s.md.trim().to_owned();
     }
     (intro.trim().to_owned(), sections)
+}
+
+fn load_concepts(dir: &Path) -> Result<Vec<Concept>> {
+    let Ok(entries) = fs::read_dir(dir) else { return Ok(Vec::new()) };
+    let mut files: Vec<PathBuf> = entries.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "md")).collect();
+    files.sort();
+    let mut out = Vec::new();
+    for f in files {
+        let id = f.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_owned();
+        let text = fs::read_to_string(&f).map_err(|e| CourseError::Invalid(format!("{}: {e}", f.display())))?;
+        let (head, body) = match text.strip_prefix("---\n").and_then(|r| r.split_once("\n---\n")) {
+            Some((h, b)) => (h, b),
+            None => return bad(format!("{}: a concept starts with a --- header giving title, summary and minutes", f.display())),
+        };
+        let field = |k: &str| head.lines().find_map(|l| l.strip_prefix(&format!("{k}:")).map(|v| v.trim().trim_matches('"').to_owned()));
+        let title = field("title").ok_or_else(|| CourseError::Invalid(format!("{}: no title", f.display())))?;
+        let summary = field("summary").unwrap_or_default();
+        let minutes = field("minutes").and_then(|m| m.parse().ok()).unwrap_or(5);
+        let (intro, mut sections) = split_sections(body);
+        if !intro.is_empty() {
+            sections.insert(0, Section { id: "intro".into(), title: "Overview".into(), md: intro });
+        }
+        out.push(Concept { id, title, summary, minutes, sections });
+    }
+    Ok(out)
 }
 
 /// The `### ` blocks of a hints section.

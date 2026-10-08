@@ -3,3 +3,4 @@ title = "Allocate pages: the page table and the free list"
 kind = "build"
 difficulty = "medium"
 tests = ["stages_1a::s1a_08", "stages_1a::s1a_09", "stages_1a::s1a_10", "stages_1a::s1a_11", "stages_1a::s1a_12"]
+concepts = ["slot-allocation-and-invariants"]

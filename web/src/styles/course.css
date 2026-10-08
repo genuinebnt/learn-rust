@@ -256,3 +256,10 @@
 .cx-toc h4{margin-bottom:10px}
 .cx-bar{padding-inline:22px}
 .cx-leadmd{max-width:none}.cx-leadmd>div>p{max-width:640px}
+
+.cx-two{grid-template-columns:minmax(0,1fr) 232px}
+@media (max-width:1300px){.cx-two{grid-template-columns:minmax(0,1fr)}}
+.cx-concept{border-color:color-mix(in oklab,var(--vio) 40%,var(--line2))!important}
+.cx-concept small{color:var(--vio)!important}
+.cx-reads a{text-decoration:none}
+.cx-reads a>span{display:block;color:var(--dim);font-size:13px;line-height:1.5;margin-top:2px}

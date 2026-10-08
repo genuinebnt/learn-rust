@@ -247,8 +247,9 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     const toc: [string, string][] = [
         ["s-top", "Overview"],
         ...p.stage.sections.map((s): [string, string] => [`sec-${s.id}`, s.title]),
+        ...(p.concepts.length ? ([["s-concepts", "Concepts"]] as [string, string][]) : []),
         ...(p.hints.total ? ([["s-hints", "Hints"]] as [string, string][]) : []),
-        ...(p.solution.available ? ([["s-solution", "Our answer"]] as [string, string][]) : []),
+        ["s-solution", "Our answer"],
         ["s-run", "Your last run"],
         ["s-deeper", "Go deeper"],
     ];
@@ -322,6 +323,23 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                     <Prose text={p.stage.intro} />
                                 </div>
                             )}
+                            {p.concepts.length > 0 && (
+                                <div className="cx-prose">
+                                    <div className="cx-part" id="s-concepts">
+                                        <b>READ FIRST</b>
+                                        CONCEPTS FOR THIS STAGE
+                                    </div>
+                                    <div className="cx-reads">
+                                        {p.concepts.map((k) => (
+                                            <Link key={k.id} to="/courses/$course/concept/$id" params={{ course, id: k.id }} className="cx-concept">
+                                                <small>CONCEPT · ~{k.minutes} MIN</small>
+                                                {k.title}
+                                                <span>{k.summary}</span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                             <div className="cx-prose">
                                 {p.stage.sections.map((s, i) => {
                                     const part = /^Part (\d+) · (.*)$/.exec(s.title);
@@ -370,7 +388,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                     </section>
                                 )}
 
-                                {p.solution.available && (
+                                {(
                                     <section id="s-solution">
                                         <div className="cx-part">
                                             <b>OUR ANSWER</b>
@@ -383,6 +401,13 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                                 </p>
                                                 <DiffView files={p.solution.files} />
                                             </>
+                                        ) : !p.solution.available ? (
+                                            <div className="cx-locked fn">
+                                                <b>OUR ANSWER</b>
+                                                <span>
+                                                    Not uploaded to this app yet. From your clone of the repo: <code>anneal course login {location.origin}</code>, then <code>anneal course solutions</code>.
+                                                </span>
+                                            </div>
                                         ) : (
                                             <div className="cx-locked fn">
                                                 <b>OUR ANSWER</b>

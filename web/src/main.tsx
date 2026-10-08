@@ -17,6 +17,7 @@ import { SectionPage } from "./pages/SectionPage";
 import { TrackPage } from "./pages/TrackPage";
 import { COURSE_ID, CoursePage } from "./pages/CoursePage";
 import { CourseStagePage } from "./pages/CourseStagePage";
+import { CourseConceptPage } from "./pages/CourseConceptPage";
 import { Workspace } from "./workspace/Workspace";
 import "./styles/design.css";
 import "./styles/app.css";
@@ -102,6 +103,14 @@ const routes = [
   }),
   createRoute({
     getParentRoute: () => rootRoute,
+    path: "/courses/$course/concept/$id",
+    component: function CourseConceptRoute() {
+      const { course, id } = courseConceptRoute.useParams();
+      return <CourseConceptPage key={id} course={course} id={id} />;
+    },
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
     path: "/dsa/patterns/$code/problems",
     component: function PatternProblemsRoute() {
       const { code } = patternProblemsRoute.useParams();
@@ -116,7 +125,8 @@ const trackRoute = routes[11];
 const problemRoute = routes[12];
 const courseRoute = routes[15];
 const courseStageRoute = routes[16];
-const patternProblemsRoute = routes[17];
+const courseConceptRoute = routes[17];
+const patternProblemsRoute = routes[18];
 
 const router = createRouter({ routeTree: rootRoute.addChildren([...routes]) });
 

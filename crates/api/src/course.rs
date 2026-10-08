@@ -145,6 +145,7 @@ pub async fn stage(State(s): State<AppState>, Path((course, id)): Path<(String, 
                    "intro": x.intro, "sections": x.sections },
         "module": { "code": m.code, "title": m.title, "summary": m.summary, "project": m.project, "stages": module_stages,
                     "lectures": m.lectures, "bustub": m.bustub, "resources": m.resources },
+        "concepts": x.concepts.iter().filter_map(|id| c.concept(id)).map(|k| json!({ "id": k.id, "title": k.title, "summary": k.summary, "minutes": k.minutes })).collect::<Vec<_>>(),
         "prev": pn(at.checked_sub(1)),
         "next": pn(Some(at + 1)),
         "state": status(me),
@@ -154,6 +155,18 @@ pub async fn stage(State(s): State<AppState>, Path((course, id)): Path<(String, 
                       "files": if solution_open { stored.map(|r| r.0) } else { None } },
         "last_run": last,
     })))
+}
+
+/// `GET /api/courses/{course}/concepts/{id}`: one concept page, with the stages that point to it.
+pub async fn concept(State(s): State<AppState>, Path((course, id)): Path<(String, String)>) -> ApiResult<Json<Value>> {
+    let c = find(&s, &course)?;
+    let k = c.concept(&id).ok_or_else(|| ApiError::NotFound(format!("concept {id}")))?;
+    let used_in: Vec<Value> = c
+        .stages()
+        .filter(|x| x.concepts.contains(&id))
+        .map(|x| json!({ "id": x.id, "title": x.title, "rank": x.rank, "module": x.module }))
+        .collect();
+    Ok(Json(json!({ "course": { "id": c.id, "title": c.title }, "concept": k, "used_in": used_in })))
 }
 
 /// `POST …/hints`: opens the next hint (marks the stage assisted unless it has already passed).

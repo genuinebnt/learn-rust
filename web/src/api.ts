@@ -831,6 +831,19 @@ export interface SolutionFile {
   lines: string[];
 }
 
+export interface CourseConceptRef {
+  id: string;
+  title: string;
+  summary: string;
+  minutes: number;
+}
+
+export interface CourseConceptPage {
+  course: { id: string; title: string };
+  concept: { id: string; title: string; summary: string; minutes: number; sections: CourseSection[] };
+  used_in: { id: string; title: string; rank: number; module: string }[];
+}
+
 export interface CourseStagePage {
   course: { id: string; title: string; total: number };
   stage: { id: string; title: string; kind: StageKind; difficulty: StageDifficulty; tests: string[]; rank: number; intro: string; sections: CourseSection[] };
@@ -844,6 +857,7 @@ export interface CourseStagePage {
     bustub: string[];
     resources: { kind: string; title: string; url: string }[];
   };
+  concepts: CourseConceptRef[];
   prev: { id: string; title: string; rank: number } | null;
   next: { id: string; title: string; rank: number } | null;
   state: StageState;
@@ -902,6 +916,7 @@ export const api = {
   focus: (id: string, seconds: number) => request<void>("POST", `/problems/${id}/focus`, { seconds }),
   course: (id: string) => request<CourseOverview>("GET", `/courses/${id}`),
   courseStage: (course: string, id: string) => request<CourseStagePage>("GET", `/courses/${course}/stages/${id}`),
+  courseConcept: (course: string, id: string) => request<CourseConceptPage>("GET", `/courses/${course}/concepts/${id}`),
   revealCourseHint: (course: string, id: string) => request<CourseStagePage>("POST", `/courses/${course}/stages/${id}/hints`),
   revealCourseSolution: (course: string, id: string) => request<CourseStagePage>("POST", `/courses/${course}/stages/${id}/solution`),
 };

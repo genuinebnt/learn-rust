@@ -800,7 +800,17 @@ async fn review_settings_default_to_the_routine_and_validate(db: PgPool) {
     let s = call(&app, Method::GET, "/api/settings", None).await.1;
     assert_eq!((s["srs"]["capacity"]["sun"].as_u64(), s["srs"]["retention"].as_f64()), (Some(8), Some(0.8)));
 
-    for bad in [json!({ "retention": 0.4 }), json!({ "consolidate_on": "funday" }), json!({ "capacity": { "mon": 0, "tue": 0, "wed": 0, "thu": 0, "fri": 0, "sat": 0, "sun": 0 }, "consolidate_on": null })] {
+    // Importance ordering is on and Premium is left out by default; both, and the core retention, can be changed.
+    assert_eq!((s["srs"]["prioritise"].as_bool(), s["srs"]["core_retention"].is_null(), s["srs"]["goal"]["free_only"].as_bool()), (Some(true), true, Some(true)));
+    let mut v = s["srs"].clone();
+    v["prioritise"] = json!(false);
+    v["core_retention"] = json!(0.92);
+    v["goal"]["free_only"] = json!(false);
+    assert_eq!(call(&app, Method::PUT, "/api/settings/srs", Some(v)).await.0, StatusCode::OK);
+    let s = call(&app, Method::GET, "/api/settings", None).await.1;
+    assert_eq!((s["srs"]["prioritise"].as_bool(), s["srs"]["core_retention"].as_f64(), s["srs"]["goal"]["free_only"].as_bool()), (Some(false), Some(0.92), Some(false)));
+
+    for bad in [json!({ "core_retention": 0.5 }), json!({ "retention": 0.9, "core_retention": 0.99 }), json!({ "retention": 0.4 }), json!({ "consolidate_on": "funday" }), json!({ "capacity": { "mon": 0, "tue": 0, "wed": 0, "thu": 0, "fri": 0, "sat": 0, "sun": 0 }, "consolidate_on": null })] {
         assert_eq!(call(&app, Method::PUT, "/api/settings/srs", Some(bad)).await.0, StatusCode::BAD_REQUEST);
     }
 }

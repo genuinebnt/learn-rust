@@ -387,6 +387,9 @@ export interface DsaApproach {
   code: string;
   time: string;
   space: string;
+  /** Why the time and space are what they are. Optional. */
+  time_why?: string;
+  space_why?: string;
   note: string;
 }
 
@@ -648,6 +651,7 @@ export const api = {
   reviews: () => request<ReviewsView>("GET", "/reviews"),
   resolve: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/resolve`),
   dsa: () => request<DsaOverview>("GET", "/dsa"),
+  preview: (id: string) => request<{ previews: Record<Grade, ReviewPreview> | null }>("GET", `/dsa/problems/${id}/preview`),
   statement: (id: string) => request<DsaStatement>("GET", `/dsa/problems/${id}/statement`),
   dsaPage: (id: string) => request<DsaPage | null>("GET", `/dsa/problems/${id}/page`),
   patternLessons: (pattern: string) => request<PatternLessons>("GET", `/dsa/patterns/${pattern}`),

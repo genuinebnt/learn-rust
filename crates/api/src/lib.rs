@@ -75,6 +75,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/dsa/problems/{id}/page", get(dsa::page))
         .route("/dsa/problems/{id}/log", post(dsa::log))
         .route("/dsa/problems/{id}/statement", get(statement::get))
+        .route("/dsa/problems/{id}/preview", get(review::preview))
         .route("/dsa/start", post(dsa::start))
         .route("/dsa/practice/{pattern}", get(dsa::practice))
         .route("/dsa/patterns/{pattern}", get(dsa::pattern))

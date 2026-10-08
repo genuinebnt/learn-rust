@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { api, type Grade, type ReviewItem, type ReviewQueue } from "../api";
 import { Header } from "../components/Header";
 import { Md, PyCode } from "../components/dsaBits";
-import { DIFF, leetcode, niceDate, videoUrl } from "../dsa";
+import { DIFF, inDays, leetcode, niceDate, videoUrl } from "../dsa";
 import { mmss } from "../mock";
 
 const GRADES: { grade: Grade; name: string; key: string; hint: string }[] = [
@@ -13,14 +13,6 @@ const GRADES: { grade: Grade; name: string; key: string; hint: string }[] = [
   { grade: "good", name: "Good", key: "3", hint: "on my own" },
   { grade: "easy", name: "Easy", key: "4", hint: "instantly" },
 ];
-
-/** "tomorrow", "in 6 days", "in 5 weeks", "in 3 months". */
-export function inDays(days: number): string {
-  if (days <= 1) return "tomorrow";
-  if (days < 14) return `in ${days} days`;
-  if (days < 60) return `in ${Math.round(days / 7)} weeks`;
-  return `in ${Math.round(days / 30)} months`;
-}
 
 interface Result {
   id: string;

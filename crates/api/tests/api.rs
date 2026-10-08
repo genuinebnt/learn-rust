@@ -1347,3 +1347,20 @@ async fn a_statement_is_fetched_once_cleaned_and_kept(db: PgPool) {
     assert_eq!(call(&app, Method::GET, "/api/dsa/problems/p1-sorted-pair-sum/statement", None).await.0, StatusCode::BAD_REQUEST);
     assert_eq!(call(&app, Method::GET, "/api/dsa/problems/lc-nothing/statement", None).await.0, StatusCode::NOT_FOUND);
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn any_problem_previews_what_each_grade_would_schedule(db: PgPool) {
+    let root = dsa_root(None);
+    let app = test_app_with(db, root.path());
+    // A problem never logged: the first review is held for the consolidation day, so every grade gives a date.
+    let (status, p) = call(&app, Method::GET, "/api/dsa/problems/lc-two-sum/preview", None).await;
+    assert_eq!(status, StatusCode::OK, "{p}");
+    for g in ["again", "hard", "good", "easy"] {
+        assert!(p["previews"][g]["days"].as_i64().unwrap() >= 1 && p["previews"][g]["due"].is_string(), "{g}: {p}");
+    }
+    // Practice problems schedule nothing; non-DSA and unknown problems are refused.
+    let (_, practice) = call(&app, Method::GET, "/api/dsa/problems/lc-valid-palindrome-ii/preview", None).await;
+    assert_eq!(practice["previews"], Value::Null);
+    assert_eq!(call(&app, Method::GET, "/api/dsa/problems/p1-sorted-pair-sum/preview", None).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(call(&app, Method::GET, "/api/dsa/problems/lc-nothing/preview", None).await.0, StatusCode::NOT_FOUND);
+}

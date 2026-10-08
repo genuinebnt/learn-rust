@@ -74,7 +74,11 @@ export function DsaPage() {
   const o = overview.data;
   const { log, toast } = useLogger(o?.today);
   const [f, setF] = useState<Filters>(() => fresh());
+  // `view` is the saved choice, changed only by the toggle. Shortcuts that open the list (a pattern's problems, the due
+  // reviews) borrow it for this visit through `drill`, so they never overwrite what was chosen.
   const [view, setView] = useStored<View>("anneal-dsa-view", "patterns");
+  const [drill, setDrill] = useState<View | null>(null);
+  const shown = drill ?? view;
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   const search = useRef<HTMLInputElement>(null);
   const update = (patch: Partial<Filters>) => setF((cur) => ({ ...cur, ...patch }));
@@ -165,9 +169,12 @@ export function DsaPage() {
                   {(["patterns", "problems"] as const).map((v) => (
                     <button
                       key={v}
-                      className={view === v ? "on" : ""}
-                      aria-pressed={view === v}
-                      onClick={() => setView(v)}
+                      className={shown === v ? "on" : ""}
+                      aria-pressed={shown === v}
+                      onClick={() => {
+                        setView(v);
+                        setDrill(null);
+                      }}
                     >
                       {v === "patterns" ? "▦ patterns" : "☰ problems"}
                     </button>
@@ -189,13 +196,13 @@ export function DsaPage() {
               </div>
               <ActiveChips f={f} o={o} flip={flip} update={update} clearAll={clearAll} />
               <div id="content" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-                {view === "patterns" ? (
+                {shown === "patterns" ? (
                   <PatternGrid
                     o={o}
                     f={f}
                     model={model}
                     open={(code) => {
-                      setView("problems");
+                      setDrill("problems");
                       setF((cur) => ({ ...cur, patterns: new Set([code]), rail: "filters" }));
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
@@ -225,7 +232,7 @@ export function DsaPage() {
                   activity={activity.data}
                   tracks={tracks.data ?? []}
                   showDue={() => {
-                    setView("problems");
+                    setDrill("problems");
                     update({ status: new Set<Status>(["due"]), rail: "filters" });
                   }}
                 />

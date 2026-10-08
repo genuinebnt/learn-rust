@@ -149,3 +149,11 @@ export function goalRemaining(o: DsaOverview, goal: SrsSettings["goal"]): { tota
   const total = list.length + goal.extra;
   return { total, done: done + extraDone, remaining: Math.max(0, total - done - extraDone) };
 }
+
+/** "tomorrow", "in 6 days", "in 5 weeks", "in 3 months". */
+export function inDays(days: number): string {
+  if (days <= 1) return "tomorrow";
+  if (days < 14) return `in ${days} days`;
+  if (days < 60) return `in ${Math.round(days / 7)} weeks`;
+  return `in ${Math.round(days / 30)} months`;
+}

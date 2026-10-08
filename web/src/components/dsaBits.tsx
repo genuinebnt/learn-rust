@@ -21,7 +21,7 @@ export function useLogger(today: string | undefined): { log: (p: DsaProblem, gra
     mutationFn: ({ p, grade }: { p: DsaProblem; grade: Grade }) => api.logDsa(p.id, grade),
     onSuccess: (r, { p, grade }) => {
       say(r.due ? `${p.title}: ${SAID[grade]}. Back for review ${today ? niceDate(r.due, today) : r.due}.` : `${p.title}: ${SAID[grade]}. Practice schedules no review.`);
-      for (const key of ["dsa", "practice", "activity", "tracks", "reviews", "progress", "stats"]) void qc.invalidateQueries({ queryKey: [key] });
+      for (const key of ["dsa", "dsa-preview", "practice", "activity", "tracks", "reviews", "progress", "stats"]) void qc.invalidateQueries({ queryKey: [key] });
     },
     onError: (e: Error) => say(`Couldn't log it: ${e.message}`),
   });

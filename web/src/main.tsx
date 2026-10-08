@@ -22,6 +22,7 @@ import "./styles/dsa.css";
 import "./styles/mock.css";
 import "./styles/lessons.css";
 import "./styles/review.css";
+import "./styles/problem.css";
 
 const rootRoute = createRootRoute({ component: Outlet });
 
@@ -54,7 +55,7 @@ const routes = [
     path: "/d/$slug",
     component: function DsaProblem() {
       const { slug } = dsaProblemRoute.useParams();
-      return <DsaProblemPage slug={slug} />;
+      return <DsaProblemPage key={slug} slug={slug} />;
     },
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/rust", component: () => <SectionPage area="rust" /> }),

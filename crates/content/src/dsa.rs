@@ -52,6 +52,11 @@ pub struct Approach {
     pub code: String,
     pub time: String,
     pub space: String,
+    /// Why the time and space are what they are, in a sentence or two each. Optional while the pages are being filled in.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub time_why: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub space_why: String,
     pub note: String,
 }
 

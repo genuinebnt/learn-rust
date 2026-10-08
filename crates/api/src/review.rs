@@ -7,14 +7,37 @@
 use std::collections::HashMap;
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Path, State};
 use serde_json::{Value, json};
 
 use crate::AppState;
 use crate::dsa::{dsa_reviews, plan, row};
-use crate::error::ApiResult;
+use crate::error::{ApiError, ApiResult};
 use crate::reviews::Grade;
 use crate::store::{self, ReviewRow};
+
+/// When each grade would bring a problem back, as `{again: {due, days}, ...}`.
+async fn previews(s: &AppState, id: &str, settings: &crate::reviews::Settings, today: chrono::NaiveDate) -> ApiResult<serde_json::Map<String, Value>> {
+    let mut out = serde_json::Map::new();
+    for (grade, scheduled) in store::preview_review(&s.db, id, settings).await? {
+        out.insert(grade.as_str().to_owned(), json!({ "due": scheduled.due, "days": (scheduled.due - today).num_days() }));
+    }
+    Ok(out)
+}
+
+/// `GET /api/dsa/problems/{id}/preview`: what each grade would schedule for this problem, for the log buttons on its
+/// page. Practice problems schedule nothing, so they get `null`.
+pub async fn preview(State(s): State<AppState>, Path(id): Path<String>) -> ApiResult<Json<Value>> {
+    let (_, problem) = s.catalog.problem(&id).ok_or_else(|| ApiError::NotFound(format!("problem {id}")))?;
+    if problem.dsa.is_none() {
+        return Err(ApiError::BadRequest(format!("{id} isn't a DSA problem")));
+    }
+    if crate::dsa::is_practice(problem) {
+        return Ok(Json(json!({ "previews": null })));
+    }
+    let settings = crate::settings::srs(&s.db).await?;
+    Ok(Json(json!({ "previews": previews(&s, &id, &settings, crate::activity::today()).await? })))
+}
 
 pub async fn queue(State(s): State<AppState>) -> ApiResult<Json<Value>> {
     let today = crate::activity::today();
@@ -28,10 +51,7 @@ pub async fn queue(State(s): State<AppState>) -> ApiResult<Json<Value>> {
     for id in &plan.review_ids {
         let (Some((track, problem)), Some(review)) = (s.catalog.problem(id), by_problem.get(id.as_str())) else { continue };
         let Some(dsa) = problem.dsa.as_ref() else { continue };
-        let mut previews = serde_json::Map::new();
-        for (grade, scheduled) in store::preview_review(&s.db, id, &settings).await? {
-            previews.insert(grade.as_str().to_owned(), json!({ "due": scheduled.due, "days": (scheduled.due - today).num_days() }));
-        }
+        let previews = previews(&s, id, &settings, today).await?;
         let technique = s.catalog.dsa.techniques.iter().find(|t| t.id == dsa.technique).map(|t| t.name.as_str());
         let row = serde_json::to_value(row(track, problem, &progress, &by_problem, today)).expect("a problem row is plain data");
         items.push(json!({

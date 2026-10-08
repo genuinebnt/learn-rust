@@ -1,0 +1,7 @@
+id = "3d-02"
+title = "Comparisons"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_3d::s3d_02"]
+learn = ["dispatching on an enum to the right method", "comparisons that answer true, false or unknown", "evaluating children first, then combining"]
+concepts = ["expression-trees", "sql-types-and-three-valued-logic", "enums-with-data-and-match"]

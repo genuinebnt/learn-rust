@@ -1,0 +1,114 @@
+code = "3d"
+title = "Expressions and the SQL front end"
+summary = "How a SQL string becomes values: the parser, binder, planner and optimizer BusTub gives you (so you can type SQL from the first minute), and the expression tree you write: constants, columns, comparisons, arithmetic, AND/OR with NULLs, lower and upper. BusTub Project 3 starts here."
+lectures = ["queryexecution1", "modernsql", "relationalmodel"]
+bustub = ["src/include/execution/expressions/abstract_expression.h", "src/include/execution/expressions/constant_value_expression.h", "src/include/execution/expressions/column_value_expression.h", "src/include/execution/expressions/comparison_expression.h", "src/include/execution/expressions/arithmetic_expression.h", "src/include/execution/expressions/logic_expression.h", "src/include/execution/expressions/string_expression.h", "src/planner/plan_func_call.cpp", "src/planner/expression_factory.cpp", "test/sql/p0.01-lower-upper.slt", "test/sql/p0.02-function-error.slt", "test/sql/p0.03-string-scan.slt", "test/sql/baby_arithmetic.slt"]
+files = [
+    "src/binder/binder.rs",
+    "src/binder/bound_expression.rs",
+    "src/binder/bound_order_by.rs",
+    "src/binder/bound_statement.rs",
+    "src/binder/bound_table_ref.rs",
+    "src/bin/bustub_shell.rs",
+    "src/catalog/table_generator.rs",
+    "src/common/bustub_instance.rs",
+    "src/common/result_writer.rs",
+    "src/execution/check_options.rs",
+    "src/execution/execution_engine.rs",
+    "src/execution/executor_context.rs",
+    "src/execution/executor_factory.rs",
+    "src/execution/executors/abstract_executor.rs",
+    "src/execution/executors/filter_executor.rs",
+    "src/execution/executors/init_check_executor.rs",
+    "src/execution/executors/mock_scan_executor.rs",
+    "src/execution/executors/projection_executor.rs",
+    "src/execution/executors/values_executor.rs",
+    "src/execution/expressions/abstract_expression.rs",
+    "src/execution/plans/plan_node.rs",
+    "src/optimizer/optimizer.rs",
+    "src/planner/planner.rs",
+    "src/sql/ast.rs",
+    "src/sql/lexer.rs",
+    "src/sql/parser.rs",
+    "tests/slt/mod.rs",
+    "tests/sql/baby_arithmetic.slt",
+    "tests/sql/intro.slt",
+    "tests/sql/p0.01-lower-upper.slt",
+    "tests/sql/p0.02-function-error.slt",
+    "tests/sql/p0.03-string-scan.slt",
+]
+
+[[resources]]
+kind = "docs"
+title = "The Rust Book: trait objects"
+url = "https://doc.rust-lang.org/book/ch18-02-trait-objects.html"
+
+[[resources]]
+kind = "docs"
+title = "std::any::Any (downcasting a trait object)"
+url = "https://doc.rust-lang.org/std/any/trait.Any.html"
+
+[[resources]]
+kind = "docs"
+title = "std::sync::Arc"
+url = "https://doc.rust-lang.org/std/sync/struct.Arc.html"
+
+[[resources]]
+kind = "docs"
+title = "str::to_lowercase and to_uppercase"
+url = "https://doc.rust-lang.org/std/primitive.str.html#method.to_lowercase"
+
+[[resources]]
+kind = "docs"
+title = "i32::checked_add"
+url = "https://doc.rust-lang.org/std/primitive.i32.html#method.checked_add"
+
+[[resources]]
+kind = "book"
+title = "Crafting Interpreters: evaluating expressions"
+url = "https://craftinginterpreters.com/evaluating-expressions.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: logical operators and three-valued logic"
+url = "https://www.postgresql.org/docs/current/functions-logical.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: string functions"
+url = "https://www.postgresql.org/docs/current/functions-string.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: lexical structure of SQL"
+url = "https://www.postgresql.org/docs/current/sql-syntax-lexical.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: EXPLAIN"
+url = "https://www.postgresql.org/docs/current/sql-explain.html"
+
+[[resources]]
+kind = "blog"
+title = "Unicode FAQ: case mappings"
+url = "https://www.unicode.org/faq/casemap_charprop.html"
+
+[[resources]]
+kind = "docs"
+title = "sqllogictest: the test file format"
+url = "https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki"
+
+[[resources]]
+kind = "code"
+title = "BusTub's expressions"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/execution/expressions/abstract_expression.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub's planner"
+url = "https://github.com/cmu-db/bustub/blob/master/src/planner/planner.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub's sqllogictest runner"
+url = "https://github.com/cmu-db/bustub/blob/master/tools/sqllogictest/sqllogictest.cpp"

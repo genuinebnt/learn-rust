@@ -1,0 +1,7 @@
+id = "3d-05"
+title = "lower and upper"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_3d::s3d_05"]
+learn = ["case mapping is not a byte operation", "a NULL string stays a NULL string", "why the argument type is checked up front"]
+concepts = ["unicode-and-case-mapping", "enums-with-data-and-match", "errors-as-values-with-result"]

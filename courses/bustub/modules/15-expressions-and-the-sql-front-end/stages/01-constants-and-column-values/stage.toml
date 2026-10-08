@@ -1,0 +1,7 @@
+id = "3d-01"
+title = "Constants and column values"
+kind = "learn"
+difficulty = "easy"
+tests = ["stages_3d::s3d_01"]
+learn = ["an expression as a tree evaluated against a row", "a trait object behind Arc: BusTub's virtual base class", "two inputs: the left and right side of a join"]
+concepts = ["expression-trees", "structs-and-accessors", "trait-objects-and-the-disk-seam"]

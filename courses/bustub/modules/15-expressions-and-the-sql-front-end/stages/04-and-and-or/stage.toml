@@ -1,0 +1,7 @@
+id = "3d-04"
+title = "AND and OR"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3d::s3d_04"]
+learn = ["SQL's three-valued truth tables", "why FALSE AND NULL is FALSE", "a short-circuit-free evaluation of both sides"]
+concepts = ["sql-types-and-three-valued-logic", "expression-trees", "checking-invariants"]

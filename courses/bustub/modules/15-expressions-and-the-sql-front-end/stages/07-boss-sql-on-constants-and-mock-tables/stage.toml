@@ -1,0 +1,8 @@
+id = "3d-07"
+title = "Boss: SQL on constants and mock tables"
+kind = "boss"
+difficulty = "hard"
+tests = ["slt_expressions_test"]
+learn = ["the sqllogictest format that BusTub's tests use", "a whole query going through parser, binder, planner and executors", "reading a failing .slt diff"]
+concepts = ["the-sql-pipeline", "model-based-testing"]
+retest = true

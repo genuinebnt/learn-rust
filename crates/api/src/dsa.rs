@@ -165,7 +165,8 @@ pub(crate) async fn next_up_ids(s: &AppState, settings: &Settings, progress: &Ha
     let solved = |p: &Problem| progress.get(&p.id).is_some_and(|r| r.solved);
     let all: Vec<&Problem> = dsa_tracks(&s.catalog).flat_map(|t| &t.problems).collect();
     let goal: Vec<&Problem> = all.iter().copied().filter(|p| in_goal(p, settings)).collect();
-    let scope = |list: &str| -> Vec<&Problem> { all.iter().copied().filter(|p| dsa_of(p).lists.iter().any(|l| l == list)).collect() };
+    // Premium problems can't be done without a subscription, so a free-only plan never queues them, whichever list it falls back to.
+    let scope = |list: &str| -> Vec<&Problem> { all.iter().copied().filter(|p| dsa_of(p).lists.iter().any(|l| l == list) && !(settings.goal.free_only && dsa_of(p).premium)).collect() };
     let start = store::dsa_start(&s.db).await?;
     for pool in [goal, scope("neetcode250"), scope("all")] {
         let entries: Vec<Entry> = pool.iter().map(|p| Entry { id: &p.id, done: solved(p) }).collect();
@@ -203,10 +204,21 @@ pub(crate) async fn plan(s: &AppState, settings: &Settings, progress: &HashMap<S
         start,
         solve_day: settings.is_solve_day(today),
         capacity: settings.capacity_on(today),
-        review_ids: reviews::pick(today, settings, &cards),
+        review_ids: reviews::pick(today, settings, &cards, &|id| weight_of(&s.catalog, id)),
         due,
         overdue,
     })
+}
+
+/// How much a DSA problem matters for review ranking; 1.0 for anything else.
+pub(crate) fn weight_of(catalog: &Catalog, id: &str) -> f32 {
+    catalog.problem(id).and_then(|(_, p)| p.dsa.as_ref().map(|d| reviews::importance(&d.lists, d.role == Role::MustLearn, d.companies.len(), d.companies.iter().filter(|c| c.recent).count()))).unwrap_or(1.0)
+}
+
+/// The settings to schedule this problem with: core problems get the higher retention target when one is set.
+pub(crate) fn settings_for(catalog: &Catalog, id: &str, settings: &Settings) -> Settings {
+    let core = catalog.problem(id).and_then(|(_, p)| p.dsa.as_ref()).is_some_and(|d| reviews::is_core(&d.lists, d.role == Role::MustLearn));
+    settings.for_problem(core)
 }
 
 /// The reviews that belong to DSA problems.
@@ -282,7 +294,7 @@ pub async fn log(State(s): State<AppState>, Path(id): Path<String>, Json(body): 
     }
     let settings = crate::settings::srs(&s.db).await?;
     let practice = is_practice(p);
-    let scheduled = store::log_attempt(&s.db, &id, body.grade, &settings, !practice).await?;
+    let scheduled = store::log_attempt(&s.db, &id, body.grade, &settings_for(&s.catalog, &id, &settings), !practice).await?;
     // The next problem follows from the one just done, unless it was practice, which isn't part of the plan.
     if !practice {
         store::set_dsa_start(&s.db, &id).await?;

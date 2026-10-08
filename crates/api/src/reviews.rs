@@ -131,6 +131,12 @@ pub struct Settings {
     pub new_per_day: u32,
     /// When the plan should be finished, e.g. the NeetCode 150.
     pub target_date: Option<NaiveDate>,
+    /// When more is due than a day can take, put the important problems first (see [`importance`]). Off: the most
+    /// forgotten goes first, whatever it is.
+    pub prioritise: bool,
+    /// A higher retention target for the core problems (Blind 75 and the must-learn ones), so they come back a little
+    /// sooner. `None` gives every problem `retention`.
+    pub core_retention: Option<f32>,
     /// What "finished" means: which list, and how many problems that is.
     pub goal: Goal,
 }
@@ -165,7 +171,7 @@ impl Default for Settings {
         // The owner's routine: a new problem every day but Sunday; Sunday reviews the week's problems; one older
         // problem a day in between; the NeetCode 150 by the end of March.
         Settings { retention: 0.85, capacity: Capacity::default(), consolidate_on: Some("sun".into()),
-            new_days: ["mon", "tue", "wed", "thu", "fri", "sat"].map(String::from).to_vec(), new_per_day: 1, target_date: NaiveDate::from_ymd_opt(2027, 3, 31), goal: Goal::default() }
+            new_days: ["mon", "tue", "wed", "thu", "fri", "sat"].map(String::from).to_vec(), new_per_day: 1, target_date: NaiveDate::from_ymd_opt(2027, 3, 31), prioritise: true, core_retention: None, goal: Goal::default() }
     }
 }
 
@@ -173,6 +179,9 @@ impl Settings {
     pub fn validate(&self) -> Result<(), String> {
         if !(MIN_RETENTION..=MAX_RETENTION).contains(&self.retention) {
             return Err(format!("retention must be between {MIN_RETENTION} and {MAX_RETENTION}"));
+        }
+        if self.core_retention.is_some_and(|r| !(self.retention..=MAX_RETENTION).contains(&r)) {
+            return Err(format!("the core retention must be between the retention and {MAX_RETENTION}"));
         }
         if self.capacity.all().iter().all(|&c| c == 0) {
             return Err("give at least one weekday room for reviews".into());
@@ -214,6 +223,14 @@ impl Settings {
     /// Solve days from `from` to `to`, both included.
     pub fn solve_days_between(&self, from: NaiveDate, to: NaiveDate) -> u32 {
         from.iter_days().take_while(|d| *d <= to).filter(|d| self.is_solve_day(*d)).count() as u32
+    }
+
+    /// These settings for one problem: a core problem uses the higher retention target, when one is set.
+    pub fn for_problem(&self, core: bool) -> Settings {
+        match self.core_retention {
+            Some(r) if core => Settings { retention: r, ..self.clone() },
+            _ => self.clone(),
+        }
     }
 
     pub fn capacity_on(&self, day: NaiveDate) -> u32 {
@@ -324,15 +341,43 @@ fn snap(ideal: NaiveDate, today: NaiveDate, interval: f32, settings: &Settings, 
     best.map_or(ideal, |(_, d)| d)
 }
 
-/// What one review day should hold: the problems due by `today`, most forgotten first, up to the day's capacity.
-/// `cards` are `(id, memory, last review, due)`; the rest stay overdue and are first in line next time.
-pub fn pick(today: NaiveDate, settings: &Settings, cards: &[(String, MemoryState, NaiveDate, NaiveDate)]) -> Vec<String> {
+/// How much a problem matters for an interview, from 1.0 (the long tail) to 1.6. The tier of the narrowest list it is
+/// in counts most (Blind 75, then the NeetCode 150, then the 250); being the problem that teaches a technique and the
+/// number of companies that ask it (the recent ones counting three times as much) add a little. It only ranks reviews
+/// when a day can't take them all: it never changes an interval.
+pub fn importance(lists: &[String], must_learn: bool, companies: usize, recent: usize) -> f32 {
+    let tier = if lists.iter().any(|l| l == "blind75") {
+        0.30
+    } else if lists.iter().any(|l| l == "neetcode150") {
+        0.20
+    } else if lists.iter().any(|l| l == "neetcode250") {
+        0.10
+    } else {
+        0.0
+    };
+    let asked = (0.015 * recent as f32 + 0.005 * companies.saturating_sub(recent) as f32).min(0.20);
+    1.0 + tier + if must_learn { 0.10 } else { 0.0 } + asked
+}
+
+/// Core problems: the Blind 75 and the ones that teach a technique. They get `core_retention` when it is set.
+pub fn is_core(lists: &[String], must_learn: bool) -> bool {
+    must_learn || lists.iter().any(|l| l == "blind75")
+}
+
+/// What one review day should hold: the problems due by `today`, up to the day's capacity. Ranked by how forgotten
+/// each is, times its `weight` (1.0 for all when `prioritise` is off), so an important problem goes ahead of a slightly
+/// more forgotten unimportant one. The rest stay overdue and are first in line next time.
+/// `cards` are `(id, memory, last review, due)`.
+pub fn pick(today: NaiveDate, settings: &Settings, cards: &[(String, MemoryState, NaiveDate, NaiveDate)], weight: &dyn Fn(&str) -> f32) -> Vec<String> {
     let mut due: Vec<(f32, &str)> = cards
         .iter()
         .filter(|c| c.3 <= today)
-        .map(|c| (retrievability(c.1, (today - c.2).num_days() as f32), c.0.as_str()))
+        .map(|c| {
+            let w = if settings.prioritise { weight(&c.0) } else { 1.0 };
+            ((1.0 - retrievability(c.1, (today - c.2).num_days() as f32)) * w, c.0.as_str())
+        })
         .collect();
-    due.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.cmp(b.1)));
+    due.sort_by(|a, b| b.0.total_cmp(&a.0).then_with(|| a.1.cmp(b.1)));
     due.into_iter().take(settings.capacity_on(today) as usize).map(|(_, id)| id.to_owned()).collect()
 }
 
@@ -562,13 +607,56 @@ mod tests {
         ];
         let settings = routine();
         // A Wednesday has room for one: the most forgotten of those due.
-        assert_eq!(pick(d("2026-11-11"), &settings, &cards), ["rusty"]);
+        assert_eq!(pick(d("2026-11-11"), &settings, &cards, &|_| 1.0), ["rusty"]);
         // A Sunday has room for them all (but not what isn't due), most forgotten first.
-        assert_eq!(pick(d("2026-11-15"), &settings, &cards), ["rusty", "so-so", "fresh"]);
+        assert_eq!(pick(d("2026-11-15"), &settings, &cards, &|_| 1.0), ["rusty", "so-so", "fresh"]);
         // A day with no capacity holds nothing, and nothing is dropped: it's still due next time.
         let closed = Settings { capacity: cap(0, 0, 0, 0, 0, 0, 12), consolidate_on: None, ..settings };
-        assert!(pick(d("2026-11-11"), &closed, &cards).is_empty());
-        assert_eq!(pick(d("2026-11-15"), &closed, &cards).len(), 3);
+        assert!(pick(d("2026-11-11"), &closed, &cards, &|_| 1.0).is_empty());
+        assert_eq!(pick(d("2026-11-15"), &closed, &cards, &|_| 1.0).len(), 3);
+    }
+
+    #[test]
+    fn an_important_problem_goes_ahead_of_a_slightly_more_forgotten_one() {
+        let mem = |days: f32| MemoryState { stability: 5.0 * days, difficulty: 5.0 };
+        let cards = vec![
+            ("tail".to_owned(), mem(1.0), d("2026-10-01"), d("2026-10-05")),
+            ("core".to_owned(), mem(1.0), d("2026-10-03"), d("2026-10-07")),
+        ];
+        let weight = |id: &str| if id == "core" { 1.6 } else { 1.0 };
+        // Wednesday has room for one. `tail` is more forgotten, but `core` matters more.
+        let wed = d("2026-10-14");
+        assert_eq!(pick(wed, &routine(), &cards, &|_| 1.0), ["tail"]);
+        assert_eq!(pick(wed, &routine(), &cards, &weight), ["core"]);
+        // With prioritising off the weights are ignored.
+        let off = Settings { prioritise: false, ..routine() };
+        assert_eq!(pick(wed, &off, &cards, &weight), ["tail"]);
+    }
+
+    #[test]
+    fn importance_follows_the_tier_and_stays_in_range() {
+        let l = |s: &[&str]| s.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        let blind = importance(&l(&["blind75", "neetcode150", "neetcode250", "all"]), true, 40, 30);
+        let c150 = importance(&l(&["neetcode150", "neetcode250", "all"]), false, 5, 2);
+        let c250 = importance(&l(&["neetcode250", "all"]), false, 5, 2);
+        let tail = importance(&l(&["all"]), false, 0, 0);
+        assert!(blind > c150 && c150 > c250 && c250 > tail, "{blind} {c150} {c250} {tail}");
+        assert_eq!(tail, 1.0);
+        assert!(blind <= 1.6 + 1e-6, "{blind}");
+        // A well-asked problem outranks a barely asked one in the same list.
+        assert!(importance(&l(&["neetcode150"]), false, 30, 20) > importance(&l(&["neetcode150"]), false, 1, 0));
+        assert!(is_core(&l(&["blind75"]), false) && is_core(&l(&["all"]), true) && !is_core(&l(&["neetcode150"]), false));
+    }
+
+    #[test]
+    fn core_problems_come_back_sooner_when_a_higher_retention_is_set() {
+        let s = Settings { core_retention: Some(0.92), ..Settings::default() };
+        assert!(s.validate().is_ok());
+        let days = |core: bool| schedule(None, Grade::Good, d("2026-10-05"), &s.for_problem(core), &|_: NaiveDate| 0).unwrap().ideal_days;
+        assert!(days(true) < days(false), "{} vs {}", days(true), days(false));
+        assert_eq!(Settings::default().for_problem(true).retention, 0.85);
+        assert!(Settings { core_retention: Some(0.80), ..Settings::default() }.validate().is_err());
+        assert!(Settings { core_retention: Some(0.99), ..Settings::default() }.validate().is_err());
     }
 
     #[test]
@@ -626,7 +714,7 @@ mod tests {
                 let s = schedule(None, grade, today, &settings, &|day| load_of(&cards, day)).unwrap();
                 cards.push((cards.len().to_string(), s.memory, today, s.due));
             }
-            let todo = pick(today, &settings, &cards);
+            let todo = pick(today, &settings, &cards, &|_| 1.0);
             assert!(todo.len() <= settings.capacity_on(today) as usize, "{today}: {} reviews", todo.len());
             busiest = busiest.max(todo.len());
             for id in todo {

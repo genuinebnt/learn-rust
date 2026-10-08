@@ -257,6 +257,10 @@ export interface SrsSettings {
   new_days: Weekday[];
   new_per_day: number;
   target_date: string | null;
+  /** When more is due than a day takes, the important problems go first. */
+  prioritise: boolean;
+  /** A higher retention target for the Blind 75 and must-learn problems; null gives everything `retention`. */
+  core_retention: number | null;
   goal: { list: "blind75" | "neetcode150" | "neetcode250" | "all"; free_only: boolean; extra: number; custom_left: number | null };
 }
 

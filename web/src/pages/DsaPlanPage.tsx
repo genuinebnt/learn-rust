@@ -118,7 +118,16 @@ function Editor({ o }: { o: DsaOverview }) {
               <div className="p-fld"><span>Problems left</span><Stepper value={s.goal.custom_left ?? 40} min={1} max={943} step={5} onChange={(custom_left) => setS({ ...s, goal: { ...s.goal, custom_left } })} /></div>
             )}
           </div>
-          <p className="p-hint">{goal.remaining} left of {goal.total}. Solved problems come off on their own.</p>
+          <div className="p-row" style={{ alignItems: "center" }}>
+            <div className="p-fld">
+              <span>Premium problems</span>
+              <div className="seg" role="group" aria-label="Premium problems">
+                <button className={s.goal.free_only ? "on" : ""} onClick={() => setS({ ...s, goal: { ...s.goal, free_only: true } })}>Left out</button>
+                <button className={s.goal.free_only ? "" : "on"} onClick={() => setS({ ...s, goal: { ...s.goal, free_only: false } })}>Included</button>
+              </div>
+            </div>
+          </div>
+          <p className="p-hint">{goal.remaining} left of {goal.total}. Solved problems come off on their own. Premium problems need a LeetCode subscription, so the plan and the calendar leave them out unless you include them.</p>
         </section>
 
         <section className="p-card">
@@ -149,6 +158,23 @@ function Editor({ o }: { o: DsaOverview }) {
               </select>
             </label>
           </div>
+          <div className="p-row" style={{ alignItems: "center" }}>
+            <div className="p-fld">
+              <span>When a day is full</span>
+              <div className="seg" role="group" aria-label="Review order">
+                <button className={s.prioritise ? "on" : ""} onClick={() => setS({ ...s, prioritise: true })}>Important first</button>
+                <button className={s.prioritise ? "" : "on"} onClick={() => setS({ ...s, prioritise: false })}>Most forgotten first</button>
+              </div>
+            </div>
+            <label className="p-fld">
+              <span>Remember core problems to</span>
+              <select value={s.core_retention ?? ""} onChange={(e) => setS({ ...s, core_retention: e.target.value ? Number(e.target.value) : null })}>
+                <option value="">the same as the rest ({Math.round(s.retention * 100)}%)</option>
+                {[0.9, 0.92, 0.95].filter((r) => r > s.retention).map((r) => <option key={r} value={r}>{Math.round(r * 100)}%, a few more reviews</option>)}
+              </select>
+            </label>
+          </div>
+          <p className="p-hint">Important means the Blind 75 first, then the NeetCode 150 and the 250, plus the problems that teach a technique and the ones many companies ask. It only decides which reviews a full day keeps; it never moves an interval. The core retention target does: Blind 75 and must-learn problems come back a little sooner.</p>
           <p className="p-hint">A problem's first review waits for the review day, so the week's problems come back together. The numbers under each day are how many reviews it can take; the rest wait for the next day with room, so a missed day never piles up.</p>
         </section>
       </div>

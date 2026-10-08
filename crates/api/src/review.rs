@@ -19,7 +19,7 @@ use crate::store::{self, ReviewRow};
 /// When each grade would bring a problem back, as `{again: {due, days}, ...}`.
 async fn previews(s: &AppState, id: &str, settings: &crate::reviews::Settings, today: chrono::NaiveDate) -> ApiResult<serde_json::Map<String, Value>> {
     let mut out = serde_json::Map::new();
-    for (grade, scheduled) in store::preview_review(&s.db, id, settings).await? {
+    for (grade, scheduled) in store::preview_review(&s.db, id, &crate::dsa::settings_for(&s.catalog, id, settings)).await? {
         out.insert(grade.as_str().to_owned(), json!({ "due": scheduled.due, "days": (scheduled.due - today).num_days() }));
     }
     Ok(out)

@@ -17,6 +17,9 @@ pub enum ApiError {
     /// A practice problem whose LeetCode problem hasn't been attempted yet.
     #[error("{0}")]
     Locked(String),
+    /// Something outside anneal (LeetCode) didn't answer.
+    #[error("{0}")]
+    Upstream(String),
     #[error("sign in first")]
     Unauthorized,
     #[error("wrong passphrase")]
@@ -34,6 +37,7 @@ impl IntoResponse for ApiError {
             ApiError::NotReady(_) => (StatusCode::CONFLICT, "not_ready"),
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request"),
             ApiError::Locked(_) => (StatusCode::LOCKED, "locked"),
+            ApiError::Upstream(_) => (StatusCode::BAD_GATEWAY, "upstream"),
             ApiError::Busy(_) => (StatusCode::TOO_MANY_REQUESTS, "busy"),
             ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized"),
             ApiError::WrongPassphrase => (StatusCode::UNAUTHORIZED, "wrong_passphrase"),

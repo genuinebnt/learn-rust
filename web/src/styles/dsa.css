@@ -255,3 +255,24 @@ button.d-co.hot{background:color-mix(in oklch,var(--fn) 13%,transparent)}
   .cat-rail.drawer .d-drawer-head button{height:34px;padding:0 14px;border-radius:7px;background:var(--ca);color:var(--on-acc);font:600 12.5px var(--sans)}
 }
 @keyframes d-slide{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+
+/* LeetCode's statement and hints on the problem page (HTML cleaned by the server) */
+.d-statement{font-size:14px;line-height:1.7;color:var(--fg);overflow-wrap:anywhere}
+.d-statement p{margin:0 0 12px}
+.d-statement p:last-child{margin-bottom:0}
+.d-statement ul,.d-statement ol{margin:0 0 12px;padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.d-statement code{font:500 12.5px var(--mono);background:var(--raise);border-radius:4px;padding:1px 5px}
+.d-statement pre{margin:0 0 12px;padding:12px 14px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);font:12.5px/1.65 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.d-statement pre code{background:none;padding:0}
+.d-statement img{max-width:100%;height:auto;border-radius:6px;background:#fff}
+.d-statement table{border-collapse:collapse;margin-bottom:12px}
+.d-statement th,.d-statement td{border:1px solid var(--line2);padding:5px 9px}
+.d-statement strong{font-weight:700}
+.d-statement a{color:var(--ca)}
+.d-hints{display:flex;flex-direction:column;gap:8px}
+.d-hint{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px dashed var(--line);border-radius:9px;padding:10px 14px;text-align:left;width:100%;background:var(--bg)}
+.d-hint b{font-size:13px}
+.d-hint span{font:500 11.5px var(--mono);color:var(--dim)}
+.d-hint:hover:not(:disabled){border-color:var(--ca)}
+.d-hint:disabled{opacity:.5;cursor:default}
+.d-hint.open{display:flex;flex-direction:column;align-items:stretch;gap:6px;border-style:solid;border-color:var(--line2)}

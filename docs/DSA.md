@@ -70,9 +70,7 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       `POST /api/dsa/problems/{id}/log`, `POST /api/dsa/start`, plan settings with a goal.
 - [x] Build, screens (2026-10-07): the home as mocked up (`/dsa`: goals, next up, patterns/problems, Activity|Filters rail,
       `f`), a problem page (`/d/<slug>`: LeetCode and video links, the idea, practice, companies, log buttons) and the
-      plan (`/dsa/plan`, saved to `settings.srs`). **Usable now.** Not built yet: the written problem pages (LeetCode
-      statement and hints fetched at runtime, intuition, Python approaches), the pattern lessons, the fourth "easy"
-      button on the home cards (it is on the problem page as "Instant"), Filters as a drawer at 1180px and narrower.
+      plan (`/dsa/plan`, saved to `settings.srs`). **Usable now.** The written pages, pattern lessons, statement and hints, the fourth button and the Filters drawer were built later (below).
 - [x] Written pages, first pattern (2026-10-07): Arrays & Hashing's nine NeetCode 150 problems (`content/dsa/pages/<slug>.toml`:
       intuition, tips, approaches in Python with complexity). `tools/neetcode/check_pages.py` checks every solution against
       LeetCode's real Python 3 template (`templates.py` fetches it; Premium templates are typed in
@@ -134,5 +132,9 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
 - [x] The fourth log button and the Filters drawer (2026-10-07): ⚡ "instant" (grade easy) beside ✓ ½ ✗ on the home cards (review problems only; practice
       problems have no reviews), and Filters open as a drawer from the right at 1180px and narrower (Esc or the button closes it).
 - [x] Quick-recall review session (decision 26, 2026-10-07): `/dsa/review`, one due problem at a time with recall first, the approach on request, four grades with their next dates, a summary; checked in a browser against a throwaway database.
+- [x] LeetCode statement and hints on the problem page (decision 5, 2026-10-07): `GET /api/dsa/problems/{id}/statement` fetches them from LeetCode
+      the first time (`ANNEAL_LEETCODE_URL` overrides the endpoint for tests), cleans the HTML (`ammonia`), keeps it in `dsa_statements`
+      for 30 days and serves an older copy if LeetCode is unreachable; Premium problems say so. The page shows PROBLEM and
+      HINTS (one at a time) above the idea.
 - [ ] Content: pages for the rest of the 943 (the problems only in NeetCode All, 693 of them), if you want them. They are
       practice-level and the Practice tab already points at LeetCode problems, so this is optional.

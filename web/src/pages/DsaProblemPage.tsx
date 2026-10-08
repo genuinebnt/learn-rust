@@ -13,7 +13,9 @@ export function DsaProblemPage({ slug }: { slug: string }) {
   const { log, toast } = useLogger(o?.today);
   const p = o?.problems.find((x) => x.slug === slug);
   const lesson = useQuery({ queryKey: ["dsa-page", p?.id], queryFn: () => api.dsaPage(p!.id), enabled: !!p?.has_page });
+  const statement = useQuery({ queryKey: ["dsa-statement", p?.id], queryFn: () => api.statement(p!.id), enabled: !!p, staleTime: Infinity, retry: false });
   const [tab, setTab] = useState(0);
+  const [hintsShown, setHintsShown] = useState(0);
   const frame = (body: React.ReactNode) => (
     <>
       <Header area="dsa" />
@@ -80,6 +82,49 @@ export function DsaProblemPage({ slug }: { slug: string }) {
             : "Solve it on LeetCode, then log how it went. The next review is scheduled for you."}
         </p>
       </section>
+
+      <section className="rbox" style={{ marginBottom: 18 }}>
+        <h4>
+          <span>PROBLEM</span>
+          <span style={{ color: "var(--dim)" }}>from LeetCode{statement.data?.stale ? ", an older copy" : ""}</span>
+        </h4>
+        {statement.isLoading && <p className="rempty">Fetching the statement from LeetCode…</p>}
+        {statement.isError && (
+          <p className="rempty">
+            Couldn't fetch the statement from LeetCode right now. <a href={leetcode(p.slug)} target="_blank" rel="noreferrer" style={{ color: "var(--ca)" }}>Read it on LeetCode ↗</a>
+          </p>
+        )}
+        {statement.data?.locked && (
+          <p className="rempty">
+            This is a LeetCode Premium problem, so LeetCode doesn't share its statement. <a href={leetcode(p.slug)} target="_blank" rel="noreferrer" style={{ color: "var(--ca)" }}>Open it on LeetCode ↗</a>
+          </p>
+        )}
+        {statement.data?.html && <div className="d-statement" dangerouslySetInnerHTML={{ __html: statement.data.html }} />}
+      </section>
+
+      {statement.data && statement.data.hints.length > 0 && (
+        <section className="rbox" style={{ marginBottom: 18 }}>
+          <h4>
+            <span>HINTS</span>
+            <span style={{ color: "var(--dim)" }}>LeetCode's, one at a time</span>
+          </h4>
+          <div className="d-hints">
+            {statement.data.hints.map((h, i) =>
+              i < hintsShown ? (
+                <div key={i} className="d-hint open">
+                  <b>Hint {i + 1}</b>
+                  <div className="d-statement" dangerouslySetInnerHTML={{ __html: h }} />
+                </div>
+              ) : (
+                <button key={i} className="d-hint" disabled={i > hintsShown} onClick={() => setHintsShown(i + 1)}>
+                  <b>Hint {i + 1}</b>
+                  <span>{i === hintsShown ? "click to reveal" : "reveal the one before first"}</span>
+                </button>
+              ),
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="rbox" style={{ marginBottom: 18 }}>
         <h4><span>THE IDEA</span></h4>

@@ -16,6 +16,7 @@ mod progress;
 pub mod reviews;
 mod routes;
 pub mod settings;
+pub mod statement;
 mod store;
 mod views;
 
@@ -73,6 +74,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/dsa", get(dsa::overview))
         .route("/dsa/problems/{id}/page", get(dsa::page))
         .route("/dsa/problems/{id}/log", post(dsa::log))
+        .route("/dsa/problems/{id}/statement", get(statement::get))
         .route("/dsa/start", post(dsa::start))
         .route("/dsa/practice/{pattern}", get(dsa::practice))
         .route("/dsa/patterns/{pattern}", get(dsa::pattern))

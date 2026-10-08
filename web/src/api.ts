@@ -492,6 +492,17 @@ export interface DsaOverview {
   plan: DsaPlan;
 }
 
+/** LeetCode's statement and hints for a problem. The HTML is cleaned by the server. */
+export interface DsaStatement {
+  html: string | null;
+  hints: string[];
+  /** A Premium problem: LeetCode doesn't share its statement. */
+  locked: boolean;
+  fetched_at: string;
+  /** An older copy, because LeetCode couldn't be reached. */
+  stale: boolean;
+}
+
 /** When a grade would bring a problem back. */
 export interface ReviewPreview {
   due: string;
@@ -635,6 +646,7 @@ export const api = {
   reviews: () => request<ReviewsView>("GET", "/reviews"),
   resolve: (id: string) => request<ProblemDetail>("POST", `/problems/${id}/resolve`),
   dsa: () => request<DsaOverview>("GET", "/dsa"),
+  statement: (id: string) => request<DsaStatement>("GET", `/dsa/problems/${id}/statement`),
   dsaPage: (id: string) => request<DsaPage | null>("GET", `/dsa/problems/${id}/page`),
   patternLessons: (pattern: string) => request<PatternLessons>("GET", `/dsa/patterns/${pattern}`),
   practice: (pattern: string) => request<PracticeList>("GET", `/dsa/practice/${pattern}`),

@@ -1297,3 +1297,53 @@ async fn the_review_queue_lists_what_is_due_with_a_preview_for_each_grade(db: Pg
     let (_, after) = call(&app, Method::GET, "/api/dsa/review", None).await;
     assert_eq!(after["items"].as_array().unwrap().len(), 0);
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn a_statement_is_fetched_once_cleaned_and_kept(db: PgPool) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static REQUESTS: AtomicUsize = AtomicUsize::new(0);
+    // A stand-in for LeetCode's GraphQL endpoint.
+    let fake = Router::new().route(
+        "/graphql",
+        axum::routing::post(|axum::Json(body): axum::Json<Value>| async move {
+            REQUESTS.fetch_add(1, Ordering::SeqCst);
+            let paid = body["variables"]["s"] == "encode-and-decode-strings";
+            axum::Json(json!({ "data": { "question": {
+                "content": if paid { Value::Null } else { json!("<p>Given <code>nums</code>.</p><script>alert(1)</script>") },
+                "hints": ["<p>Use a hash map.</p>"], "isPaidOnly": paid } } }))
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/graphql", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, fake).await.unwrap() });
+    unsafe { std::env::set_var("ANNEAL_LEETCODE_URL", &url) };
+
+    let root = dsa_root(None);
+    let app = test_app_with(db.clone(), root.path());
+    let (status, st) = call(&app, Method::GET, "/api/dsa/problems/lc-two-sum/statement", None).await;
+    assert_eq!(status, StatusCode::OK, "{st}");
+    assert_eq!((st["locked"].clone(), st["stale"].clone(), st["hints"][0].as_str()), (json!(false), json!(false), Some("<p>Use a hash map.</p>")));
+    let html = st["html"].as_str().unwrap();
+    assert!(html.contains("<code>nums</code>") && !html.contains("script"), "{html}");
+
+    // The second read comes from the table, not from LeetCode.
+    call(&app, Method::GET, "/api/dsa/problems/lc-two-sum/statement", None).await;
+    assert_eq!(REQUESTS.load(Ordering::SeqCst), 1);
+
+    // A Premium problem has no public statement.
+    let (_, paid) = call(&app, Method::GET, "/api/dsa/problems/lc-encode-and-decode-strings/statement", None).await;
+    assert_eq!((paid["locked"].clone(), paid["html"].clone()), (json!(true), Value::Null));
+
+    // LeetCode goes away: an old copy is still served, marked stale; a problem never fetched is an upstream error.
+    unsafe { std::env::set_var("ANNEAL_LEETCODE_URL", "http://127.0.0.1:9/graphql") };
+    sqlx::query("UPDATE dsa_statements SET fetched_at = now() - interval '40 days'").execute(&db).await.unwrap();
+    let (status, old) = call(&app, Method::GET, "/api/dsa/problems/lc-two-sum/statement", None).await;
+    assert_eq!((status, old["stale"].clone()), (StatusCode::OK, json!(true)));
+    let (status, err) = call(&app, Method::GET, "/api/dsa/problems/lc-valid-palindrome/statement", None).await;
+    assert_eq!((status, err["error"].as_str()), (StatusCode::BAD_GATEWAY, Some("upstream")));
+
+    // Only DSA problems have a LeetCode statement.
+    assert_eq!(call(&app, Method::GET, "/api/dsa/problems/p1-sorted-pair-sum/statement", None).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(call(&app, Method::GET, "/api/dsa/problems/lc-nothing/statement", None).await.0, StatusCode::NOT_FOUND);
+}

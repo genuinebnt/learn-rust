@@ -1,0 +1,201 @@
+# CMU 15-445/645 Intro to Database Systems lectures (Andy Pavlo): slides, notes and videos, copied from the course's own schedule pages
+# (https://15445.courses.cs.cmu.edu/fall2026/schedule.html and fall2025). Modules refer to them by id.
+
+[[lecture]]
+id = "relationalmodel"
+title = "Relational Model & Algebra"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/01-relationalmodel.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/01-relationalmodel.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=805c3d46-3954-4fe0-92d7-b4b00146fc02"
+
+[[lecture]]
+id = "modernsql"
+title = "Modern SQL"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/02-modernsql.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/02-modernsql.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=9ba5e5c5-5ed8-4775-9494-b4b20151f088"
+
+[[lecture]]
+id = "storage1"
+title = "Database Storage I"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/03-storage1.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/03-storage1.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=2a9812a2-6dd7-48bb-ba3a-b4b70143e308"
+
+[[lecture]]
+id = "bufferpool"
+title = "Memory Management"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/04-bufferpool.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/04-bufferpool.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=39b08b26-2e62-4dc3-92c6-b4b901454828"
+
+[[lecture]]
+id = "storage2"
+title = "Database Storage II"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/05-storage2.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/05-storage2.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=dd028701-c4e7-4a0c-bf6e-b4c00151675f"
+
+[[lecture]]
+id = "storage3"
+title = "Storage Models & Compression"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/06-storage3.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/06-storage3.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=887d4841-2e20-4c8d-9c4b-b4c50145d006"
+
+[[lecture]]
+id = "hashtables"
+title = "Hash Tables"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/07-hashtables.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/07-hashtables.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=27e93b16-dcc5-4cec-871c-b4c7014f4d4b"
+
+[[lecture]]
+id = "indexes1"
+title = "Indexes & Filters I"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/08-indexes1.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/08-indexes1.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=e53e7ea4-f26d-4e55-80f5-b4cc0149ee01"
+
+[[lecture]]
+id = "indexes2"
+title = "Indexes & Filters II"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/09-indexes2.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/09-indexes2.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=ff87696b-4cb3-4d13-b32a-b4ce0168dee1&start=0"
+
+[[lecture]]
+id = "indexconcurrency"
+title = "Index Concurrency Control"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/10-indexconcurrency.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/10-indexconcurrency.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=78117acb-2dce-41c6-a942-b4d40076f867"
+
+[[lecture]]
+id = "sorting"
+title = "Sorting & Aggregations Algorithms"
+term = "fall2026"
+slides = "https://15445.courses.cs.cmu.edu/fall2026/slides/11-sorting.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2026/notes/11-sorting.pdf"
+video = "https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=473ed941-fc57-4b3d-ba07-b4d70061111f"
+
+[[lecture]]
+id = "joins"
+title = "Joins Algorithms"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/12-joins.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/12-joins.pdf"
+video = "https://www.youtube.com/watch?v=YIdIaPopfpk&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=12"
+
+[[lecture]]
+id = "queryexecution1"
+title = "Query Execution I"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/13-queryexecution1.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/13-queryexecution1.pdf"
+video = "https://www.youtube.com/watch?v=E-UUd6cB57w&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=13"
+
+[[lecture]]
+id = "queryexecution2"
+title = "Query Execution II"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/14-queryexecution2.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/14-queryexecution2.pdf"
+video = "https://www.youtube.com/watch?v=Kzf1hGjtZOU&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=14"
+
+[[lecture]]
+id = "optimization1"
+title = "Query Planning & Optimization I"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/15-optimization1.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/15-optimization1.pdf"
+video = "https://www.youtube.com/watch?v=b53huOGcsZ8&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=15"
+
+[[lecture]]
+id = "optimization2"
+title = "Query Planning & Optimization II"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/16-optimization2.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/16-optimization2.pdf"
+video = "https://www.youtube.com/watch?v=azTHRpzl10o&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=16"
+
+[[lecture]]
+id = "concurrencycontrol"
+title = "Concurrency Control Theory"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/17-concurrencycontrol.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/17-concurrencycontrol.pdf"
+video = "https://www.youtube.com/watch?v=tMFAgvDViAI&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=17"
+
+[[lecture]]
+id = "twophaselocking"
+title = "Two-Phase Locking Concurrency Control"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/18-twophaselocking.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/18-twophaselocking.pdf"
+video = "https://www.youtube.com/watch?v=drStlhNbfHI&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=18"
+
+[[lecture]]
+id = "timestampordering"
+title = "Timestamp Ordering Concurrency Control"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/19-timestampordering.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/19-timestampordering.pdf"
+video = "https://www.youtube.com/watch?v=risHwKeWbBM&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=19"
+
+[[lecture]]
+id = "multiversioning"
+title = "Multi-Version Concurrency Control"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/20-multiversioning.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/20-multiversioning.pdf"
+video = "https://www.youtube.com/watch?v=tUFha9-DuSk&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=20"
+
+[[lecture]]
+id = "logging"
+title = "Database Logging"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/21-logging.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/21-logging.pdf"
+video = "https://www.youtube.com/watch?v=CedEy54pe3g&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=21"
+
+[[lecture]]
+id = "recovery"
+title = "Database Recovery"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/22-recovery.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/22-recovery.pdf"
+video = "https://www.youtube.com/watch?v=X2jc4qalNy0&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=22"
+
+[[lecture]]
+id = "distributed1"
+title = "Distributed Database Systems I"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/23-distributed1.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/23-distributed1.pdf"
+video = "https://www.youtube.com/watch?v=IFLQBWY6dlE&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=23"
+
+[[lecture]]
+id = "distributed2"
+title = "Distributed Database Systems II"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/24-distributed2.pdf"
+notes = "https://15445.courses.cs.cmu.edu/fall2025/notes/24-distributed2.pdf"
+video = "https://www.youtube.com/watch?v=pQh5fka3FC0&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=24"
+
+[[lecture]]
+id = "potpourri"
+title = "Final Review + Systems Potpourri"
+term = "fall2025"
+slides = "https://15445.courses.cs.cmu.edu/fall2025/slides/25-potpourri.pdf"
+video = "https://www.youtube.com/watch?v=qiVUf9X6ItM&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5&index=25"

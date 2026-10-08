@@ -1,0 +1,5 @@
+id = "1a-11"
+title = "Grow the file by doubling"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1a::s1a_11"]

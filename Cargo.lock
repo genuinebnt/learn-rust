@@ -82,8 +82,10 @@ dependencies = [
  "clap",
  "rand_core 0.6.4",
  "rpassword",
+ "serde",
  "serde_json",
  "tokio",
+ "toml",
 ]
 
 [[package]]

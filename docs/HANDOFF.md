@@ -246,6 +246,12 @@ before a problem that uses them runs in the Docker sandbox. Host runs (and `veri
 
 ## 6. What's next, in order (ROADMAP §7)
 
+### 6.0a The BusTub course (owner's priority from 2026-10-08)
+
+A CodeCrafters-style course: **clone a repo, finish stages, `git push` runs the tests** ("Build a DBMS: BusTub in Rust"). Design and the owner's
+requirements: [BUSTUB.md](BUSTUB.md). Board and pick-up steps: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Module 1a (disk manager, 19 stages) is shipped; the
+next modules are on the board. The reference solution is **not** in the repo (`courses/bustub/reference`, gitignored; BUSTUB.md §8). Check with `tools/course-smoke.sh`.
+
 ### 6.0 Pending work: start here
 
 Updated 2026-09-27 after D9, D12, L4, L5 and S1 were finished. Everything that passed `anneal verify` is committed on

@@ -1,0 +1,5 @@
+id = "1a-03"
+title = "Open (or create) the db file and the log file"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1a::s1a_03"]

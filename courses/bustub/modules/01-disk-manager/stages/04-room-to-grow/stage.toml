@@ -1,0 +1,5 @@
+id = "1a-04"
+title = "Give the db file room with set_len"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1a::s1a_04"]

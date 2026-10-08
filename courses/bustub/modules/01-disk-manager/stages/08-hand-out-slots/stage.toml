@@ -1,0 +1,5 @@
+id = "1a-08"
+title = "Hand out fresh slots"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1a::s1a_08"]

@@ -1,0 +1,5 @@
+id = "1a-09"
+title = "write_page: the page table"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1a::s1a_09"]

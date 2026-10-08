@@ -1,0 +1,13 @@
+[package]
+name = "bustub"
+version = "0.1.0"
+edition = "2021"
+description = "BusTub (CMU 15-445) in Rust: built stage by stage with `anneal course`."
+
+# This repo is its own workspace, not part of any parent directory's.
+[workspace]
+
+[dependencies]
+
+[profile.test]
+opt-level = 1

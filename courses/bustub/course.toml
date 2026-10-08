@@ -1,0 +1,3 @@
+id = "bustub"
+title = "Build a DBMS: BusTub in Rust"
+repo_name = "bustub-rs"

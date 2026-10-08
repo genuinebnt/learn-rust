@@ -1,3 +1,5 @@
+mod course;
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -26,6 +28,9 @@ enum Command {
     Validate,
     /// Prompt for a login passphrase and print the ANNEAL_PASSPHRASE_HASH value for it.
     Passphrase,
+    /// CodeCrafters-style courses (docs/BUSTUB.md): create a repo, run a stage's tests, and the git hooks.
+    #[command(subcommand)]
+    Course(course::CourseCmd),
     /// List tracks, or the problems in one track.
     List { track: Option<String> },
     /// Check every ready problem end to end: the reference solution passes every test
@@ -74,10 +79,15 @@ async fn main() -> anyhow::Result<ExitCode> {
     if let Command::Passphrase = cli.command {
         return passphrase();
     }
+    // Courses run on the learner's machine, without the content directory.
+    let cli = match cli.command {
+        Command::Course(cmd) => return course::run(cmd),
+        _ => cli,
+    };
     let Loaded { catalog, issues } = Catalog::load(&cli.content)
         .with_context(|| format!("loading {}", cli.content.display()))?;
     match cli.command {
-        Command::Passphrase => unreachable!("handled before loading content"),
+        Command::Passphrase | Command::Course(_) => unreachable!("handled before loading content"),
         Command::Validate => {
             let problems: usize = catalog.tracks.iter().map(|t| t.problems.len()).sum();
             let mut issues: Vec<String> = issues.iter().map(ToString::to_string).collect();

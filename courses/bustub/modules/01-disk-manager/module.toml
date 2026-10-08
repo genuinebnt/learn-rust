@@ -1,0 +1,170 @@
+code = "1a"
+title = "Disk manager"
+summary = "Pages on disk: page-sized reads and writes at slot offsets, a page table, a free list, a log file. BusTub Project 1, first half."
+lectures = ["storage1"]
+bustub = ["src/storage/disk/disk_manager.cpp", "src/include/storage/disk/disk_manager.h", "src/storage/disk/disk_manager_memory.cpp", "test/storage/disk_manager_test.cpp"]
+
+[[resources]]
+kind = "docs"
+title = "std::fs::File (set_len, sync_all, metadata)"
+url = "https://doc.rust-lang.org/std/fs/struct.File.html"
+
+[[resources]]
+kind = "docs"
+title = "std::os::unix::fs::FileExt (read_at, write_all_at)"
+url = "https://doc.rust-lang.org/std/os/unix/fs/trait.FileExt.html"
+
+[[resources]]
+kind = "docs"
+title = "std::io: Read, Write, ErrorKind"
+url = "https://doc.rust-lang.org/std/io/index.html"
+
+[[resources]]
+kind = "docs"
+title = "std::sync::atomic"
+url = "https://doc.rust-lang.org/std/sync/atomic/index.html"
+
+[[resources]]
+kind = "docs"
+title = "HashMap"
+url = "https://doc.rust-lang.org/std/collections/struct.HashMap.html"
+
+[[resources]]
+kind = "docs"
+title = "cargo test: filters and flags"
+url = "https://doc.rust-lang.org/cargo/commands/cargo-test.html"
+
+[[resources]]
+kind = "docs"
+title = "memmap2, the crate for the mmap alternative (not used here)"
+url = "https://docs.rs/memmap2"
+
+[[resources]]
+kind = "docs"
+title = "rustix::io::pread, the safe wrapper over the syscall behind read_at"
+url = "https://docs.rs/rustix/latest/rustix/io/fn.pread.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: error handling"
+url = "https://doc.rust-lang.org/book/ch09-00-error-handling.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: shared-state concurrency (Mutex)"
+url = "https://doc.rust-lang.org/book/ch16-03-shared-state.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: traits"
+url = "https://doc.rust-lang.org/book/ch10-02-traits.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: trait objects"
+url = "https://doc.rust-lang.org/book/ch18-02-trait-objects.html"
+
+[[resources]]
+kind = "book"
+title = "Rust by Example: file I/O"
+url = "https://doc.rust-lang.org/rust-by-example/std_misc/file.html"
+
+[[resources]]
+kind = "book"
+title = "The Rustonomicon: atomics"
+url = "https://doc.rust-lang.org/nomicon/atomics.html"
+
+[[resources]]
+kind = "man"
+title = "pwrite(2): positional write"
+url = "https://man7.org/linux/man-pages/man2/pwrite.2.html"
+
+[[resources]]
+kind = "man"
+title = "fsync(2): what \"on disk\" means"
+url = "https://man7.org/linux/man-pages/man2/fsync.2.html"
+
+[[resources]]
+kind = "man"
+title = "ftruncate(2): what set_len calls"
+url = "https://man7.org/linux/man-pages/man2/ftruncate.2.html"
+
+[[resources]]
+kind = "paper"
+title = "Architecture of a Database System (Hellerstein, Stonebraker, Hamilton): the storage manager"
+url = "https://dsf.berkeley.edu/papers/fntdb07-architecture.pdf"
+
+[[resources]]
+kind = "paper"
+title = "Are You Sure You Want to Use MMAP in Your Database Management System? (Crotty, Leis, Pavlo, CIDR 2022)"
+url = "https://db.cs.cmu.edu/mmap-cidr2022/"
+
+[[resources]]
+kind = "blog"
+title = "Dan Luu: Files are hard (why fsync and rename matter)"
+url = "https://danluu.com/file-consistency/"
+
+[[resources]]
+kind = "blog"
+title = "Evan Jones: Durability: Linux file APIs"
+url = "https://www.evanjones.ca/durability-filesystem.html"
+
+[[resources]]
+kind = "blog"
+title = "LWN: Ensuring data reaches disk"
+url = "https://lwn.net/Articles/457667/"
+
+[[resources]]
+kind = "blog"
+title = "Sparse files (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Sparse_file"
+
+[[resources]]
+kind = "blog"
+title = "PostgreSQL: database page layout"
+url = "https://www.postgresql.org/docs/current/storage-page-layout.html"
+
+[[resources]]
+kind = "blog"
+title = "SQLite: the database file format"
+url = "https://www.sqlite.org/fileformat2.html"
+
+[[resources]]
+kind = "video"
+title = "Jon Gjengset, Crust of Rust: Atomics and Memory Ordering"
+url = "https://www.youtube.com/watch?v=rMGWeSjctlY"
+
+[[resources]]
+kind = "video"
+title = "CMU 15-445 lecture playlist (Fall 2025)"
+url = "https://www.youtube.com/playlist?list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5"
+
+[[resources]]
+kind = "code"
+title = "SQLite os_unix.c: how a real database does pread/pwrite and fsync"
+url = "https://github.com/sqlite/sqlite/blob/master/src/os_unix.c"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL md.c: the storage manager that maps blocks to files"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/storage/smgr/md.c"
+
+[[resources]]
+kind = "code"
+title = "redb: an embedded database in Rust, with its own page store"
+url = "https://github.com/cberner/redb"
+
+[[resources]]
+kind = "code"
+title = "Turso (Limbo): SQLite rewritten in Rust"
+url = "https://github.com/tursodatabase/turso"
+
+[[resources]]
+kind = "code"
+title = "sled: an embedded database in Rust"
+url = "https://github.com/spacejam/sled"
+
+[[resources]]
+kind = "code"
+title = "BusTub project 1 page"
+url = "https://15445.courses.cs.cmu.edu/fall2026/project1/"

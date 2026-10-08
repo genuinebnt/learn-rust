@@ -1,0 +1,6 @@
+id = "3a-07"
+title = "Boss: BusTub's type_test"
+kind = "boss"
+difficulty = "easy"
+tests = ["type_test"]
+retest = true

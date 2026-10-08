@@ -1,0 +1,61 @@
+code = "3a"
+title = "Values and types"
+summary = "SQL's types as Rust: a Value that is a number, a boolean, a string or a typed NULL, with range-checked casts, three-valued comparison, checked arithmetic with BusTub's promotion rules, and a byte encoding that reserves a number for NULL. BusTub Project 3, the type system."
+lectures = ["storage1", "queryexecution1"]
+bustub = ["src/include/type/type_id.h", "src/include/type/type.h", "src/type/type.cpp", "src/include/type/value.h", "src/type/value.cpp", "src/include/type/limits.h", "src/type/integer_type.cpp", "src/include/type/integer_parent_type.h", "src/type/decimal_type.cpp", "src/type/boolean_type.cpp", "src/type/varlen_type.cpp", "src/type/timestamp_type.cpp", "test/type/type_test.cpp"]
+files = ["src/common/exception.rs"]
+
+[[resources]]
+kind = "docs"
+title = "std::result::Result and the ? operator"
+url = "https://doc.rust-lang.org/std/result/index.html"
+
+[[resources]]
+kind = "book"
+title = "The Rust Book: error handling"
+url = "https://doc.rust-lang.org/book/ch09-00-error-handling.html"
+
+[[resources]]
+kind = "book"
+title = "The Rust Book: enums and pattern matching"
+url = "https://doc.rust-lang.org/book/ch06-00-enums.html"
+
+[[resources]]
+kind = "docs"
+title = "i64::checked_add and the other checked_, wrapping_, saturating_ and overflowing_ methods"
+url = "https://doc.rust-lang.org/std/primitive.i64.html#method.checked_add"
+
+[[resources]]
+kind = "docs"
+title = "std::cmp::Ordering"
+url = "https://doc.rust-lang.org/std/cmp/enum.Ordering.html"
+
+[[resources]]
+kind = "docs"
+title = "f64::to_le_bytes (and the integer versions)"
+url = "https://doc.rust-lang.org/std/primitive.f64.html#method.to_le_bytes"
+
+[[resources]]
+kind = "docs"
+title = "std::fmt::Display"
+url = "https://doc.rust-lang.org/std/fmt/trait.Display.html"
+
+[[resources]]
+kind = "blog"
+title = "Three-valued logic (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Three-valued_logic"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: Comparison functions and operators (NULL handling)"
+url = "https://www.postgresql.org/docs/current/functions-comparison.html"
+
+[[resources]]
+kind = "blog"
+title = "IEEE 754 (Wikipedia): why a double can be NaN, infinite or the lowest value"
+url = "https://en.wikipedia.org/wiki/IEEE_754"
+
+[[resources]]
+kind = "code"
+title = "BusTub's src/type directory"
+url = "https://github.com/cmu-db/bustub/tree/master/src/type"

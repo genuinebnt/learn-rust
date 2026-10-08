@@ -1,0 +1,7 @@
+id = "3a-03"
+title = "Casting between types"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3a::s3a_03"]
+learn = ["range-checked conversions between integer widths and decimals", "parsing the number at the start of a string", "a conversion table written as code"]
+concepts = ["parsing-numbers-from-text", "integers-and-casts", "errors-as-values-with-result"]

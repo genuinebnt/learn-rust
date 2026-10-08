@@ -6,6 +6,7 @@
   "src/buffer/lru_replacer.rs": "1c",
   "src/buffer/traced_buffer_pool_manager.rs": "2c",
   "src/common/channel.rs": "1b",
+  "src/common/exception.rs": "3a",
   "src/common/index_list.rs": "1c",
   "src/common/promise.rs": "1b",
   "src/common/rid.rs": "2a",
@@ -32,6 +33,8 @@
   "src/storage/page/page_array.rs": "2a",
   "src/storage/page/page_bytes.rs": "2a",
   "src/storage/page/page_guard.rs": "1f",
+  "src/types/type_id.rs": "3a",
+  "src/types/value.rs": "3a",
   "tests/arc_replacer_performance_test.rs": "1e",
   "tests/arc_replacer_test.rs": "1e",
   "tests/b_plus_tree_concurrent_test.rs": "2c",
@@ -63,5 +66,7 @@
   "tests/stages_2a.rs": "2a",
   "tests/stages_2b.rs": "2b",
   "tests/stages_2c.rs": "2c",
-  "tests/stages_2d.rs": "2d"
+  "tests/stages_2d.rs": "2d",
+  "tests/stages_3a.rs": "3a",
+  "tests/type_test.rs": "3a"
 }

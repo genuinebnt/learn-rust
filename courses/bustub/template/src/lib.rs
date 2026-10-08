@@ -8,3 +8,4 @@ pub mod buffer;
 pub mod common;
 pub mod container;
 pub mod storage;
+pub mod types;

@@ -1,0 +1,7 @@
+id = "3a-02"
+title = "Constructing values, and NULL"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3a::s3a_02"]
+learn = ["a value that is one of several types, or NULL of a type", "reserved numbers as an encoding of NULL, and the trap it sets", "Display for text output; limits as constants"]
+concepts = ["enums-with-data-and-match", "sql-types-and-three-valued-logic", "integers-and-casts"]

@@ -1,0 +1,5 @@
+id = "1g-01"
+title = "ReadPageGuard: pin the page, then take its read latch"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1g::s1g_01"]

@@ -1,6 +1,6 @@
 # Build a DBMS: BusTub in Rust (a CodeCrafters-style course)
 
-Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1f (73 stages) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
+Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1g (Project 1, 80 stages) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
 writing a module: [authoring/write-course-module.md](authoring/write-course-module.md). The C/C++ → Rust reference every stage leans
 on: [PORTING.md](PORTING.md). This course replaces the BusTub parts of SYSTEMS.md (K17–K20, P6); the general systems tracks come after.
 
@@ -193,7 +193,7 @@ Module codes follow BusTub's projects (`1x` = Project 1, ...). A module is a run
 Copy-on-write trie and trie store (`Arc`, `make_mut`, `Box<dyn Any>`) · skip list · count-min sketch · HyperLogLog · ORSet (a CRDT) · Robin Hood hash set.
 Boss: `trie_test` ×14, `trie_store_test`, `skiplist_test`, `count_min_sketch_test` ×13, `hyperloglog_test`, `orset_test`, `robin_hood_hash_set_test`.
 
-### P1 · Storage (73 stages built; 1g to come)
+### P1 · Storage (80 stages, complete ✓)
 - **1a Disk manager (19) ✓:** slot offsets → open/create → `set_len` → positional write/read (short reads, zero-fill) → fresh slots → page table
   (`write_page`/`read_page`) → growth by doubling → `delete_page` + free list → atomic counters → log append/read → `trait DiskIo` → memory disks → boss `disk_manager_test` ×4.
 - **1b Disk scheduler (15) ✓:** `Channel` (`Mutex` + `Condvar`) → the `None` stop signal → one-shot promise/future (broken promises) → `DiskRequest` and buffer
@@ -206,7 +206,7 @@ Boss: `trie_test` ×14, `trie_store_test`, `skiplist_test`, `count_min_sketch_te
   `arc_replacer_test` ×3 + the 256K-frame performance test.
 - **1f Buffer pool (10) ✓:** frames and free list → `new_page` → `fetch_page` (miss) → hits and pin counts → `unpin_page` → eviction → dirty write-back → flush →
   `delete_page` → boss: BusTub's classic tests + a threaded stress test.
-- **1g Page guards (~10):** `ReadPageGuard`/`WritePageGuard` with `Deref` and `Drop` (unlatch, then unpin) → moves → flush → latch order and the deadlock test →
+- **1g Page guards (7) ✓:** `ReadPageGuard`/`WritePageGuard` with `Deref` and `Drop` (unlatch, then unpin) → moves → flush → latch order and the deadlock test →
   contention and evictable tests → boss `buffer_pool_manager_test` ×7, `page_guard_test` ×2.
 
 ### P2 · Indexes (planned, ~90 stages)

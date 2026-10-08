@@ -1,0 +1,5 @@
+id = "1g-04"
+title = "read_page and write_page: panic when there is no room"
+kind = "learn"
+difficulty = "very-easy"
+tests = ["stages_1g::s1g_04"]

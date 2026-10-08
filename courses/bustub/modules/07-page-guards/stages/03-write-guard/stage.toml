@@ -1,0 +1,5 @@
+id = "1g-03"
+title = "WritePageGuard: the write latch and the dirty flag"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1g::s1g_03"]

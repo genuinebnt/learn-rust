@@ -1,0 +1,120 @@
+code = "1g"
+title = "Page guards"
+summary = "RAII handles on buffer pool pages: pin and latch in the constructor, unlatch and unpin in Drop; moves, flush, and the deadlock lesson. BusTub Project 1 complete."
+lectures = ["bufferpool", "indexconcurrency"]
+bustub = ["src/include/storage/page/page_guard.h", "src/storage/page/page_guard.cpp", "test/storage/page_guard_test.cpp", "test/buffer/buffer_pool_manager_test.cpp"]
+
+[[resources]]
+kind = "docs"
+title = "RwLock, RwLockReadGuard, RwLockWriteGuard"
+url = "https://doc.rust-lang.org/std/sync/struct.RwLock.html"
+
+[[resources]]
+kind = "docs"
+title = "Deref and DerefMut"
+url = "https://doc.rust-lang.org/std/ops/trait.Deref.html"
+
+[[resources]]
+kind = "docs"
+title = "Drop"
+url = "https://doc.rust-lang.org/std/ops/trait.Drop.html"
+
+[[resources]]
+kind = "docs"
+title = "thread::scope"
+url = "https://doc.rust-lang.org/std/thread/fn.scope.html"
+
+[[resources]]
+kind = "docs"
+title = "parking_lot (locks that never poison, and a deadlock detector)"
+url = "https://docs.rs/parking_lot"
+
+[[resources]]
+kind = "docs"
+title = "parking_lot::deadlock"
+url = "https://docs.rs/parking_lot/latest/parking_lot/deadlock/index.html"
+
+[[resources]]
+kind = "docs"
+title = "loom: exhaustive interleaving tests for concurrent Rust"
+url = "https://github.com/tokio-rs/loom"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::shared_lock"
+url = "https://en.cppreference.com/w/cpp/thread/shared_lock"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::shared_mutex"
+url = "https://en.cppreference.com/w/cpp/thread/shared_mutex"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::unique_lock"
+url = "https://en.cppreference.com/w/cpp/thread/unique_lock"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: lifetime annotations in struct definitions"
+url = "https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html#lifetime-annotations-in-struct-definitions"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: the Drop trait"
+url = "https://doc.rust-lang.org/book/ch15-03-drop.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Reference: destructors and drop scopes"
+url = "https://doc.rust-lang.org/reference/destructors.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Atomics and Locks: building our own locks (guards)"
+url = "https://marabos.nl/atomics/building-locks.html"
+
+[[resources]]
+kind = "blog"
+title = "Deadlock (Wikipedia): necessary conditions"
+url = "https://en.wikipedia.org/wiki/Deadlock#Necessary_conditions"
+
+[[resources]]
+kind = "blog"
+title = "RAII (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization"
+
+[[resources]]
+kind = "video"
+title = "Jon Gjengset: Crust of Rust: Atomics and Memory Ordering"
+url = "https://www.youtube.com/watch?v=rMGWeSjctlY"
+
+[[resources]]
+kind = "code"
+title = "BusTub page_guard.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/storage/page/page_guard.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub page_guard.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/src/storage/page/page_guard.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub page_guard_test.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/test/storage/page_guard_test.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub buffer_pool_manager_test.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/test/buffer/buffer_pool_manager_test.cpp"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL: LWLock, the lightweight lock behind buffer content latches"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/storage/lmgr/lwlock.c"
+
+[[resources]]
+kind = "code"
+title = "BusTub project 1 page"
+url = "https://15445.courses.cs.cmu.edu/fall2026/project1/"

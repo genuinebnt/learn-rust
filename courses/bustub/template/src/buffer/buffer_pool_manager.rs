@@ -14,6 +14,7 @@ use super::arc_replacer::ArcReplacer;
 use crate::common::config::{FrameId, PageData, PageId, BUSTUB_PAGE_SIZE};
 use crate::storage::disk::disk_manager::DiskIo;
 use crate::storage::disk::disk_scheduler::{DiskRequest, DiskScheduler};
+use crate::storage::page::page_guard::{ReadPageGuard, WritePageGuard};
 
 /// What the pool knows about a frame besides its bytes.
 struct FrameMeta {
@@ -107,5 +108,30 @@ impl BufferPoolManager {
     /// wasn't in memory). A dirty page is simply dropped: it is being deleted.
     pub fn delete_page(&self, page_id: PageId) -> bool {
         todo!("1f-09: refuse if pinned; otherwise take the page out of the page table and the replacer, free its frame, and tell the disk")
+    }
+
+    /// Pins `page_id` and takes its read latch. `None` if every frame is pinned.
+    pub fn checked_read_page(&self, page_id: PageId) -> Option<ReadPageGuard<'_>> {
+        todo!("1g-01: pin the page (fetch_page), then take the frame's read latch, then build the guard")
+    }
+
+    /// Pins `page_id` and takes its write latch. `None` if every frame is pinned.
+    pub fn checked_write_page(&self, page_id: PageId) -> Option<WritePageGuard<'_>> {
+        todo!("1g-03: like checked_read_page, with the write latch")
+    }
+
+    /// Like `checked_read_page`, but panics if the page can't be brought in.
+    pub fn read_page(&self, page_id: PageId) -> ReadPageGuard<'_> {
+        todo!("1g-04: checked_read_page, but a failure is a panic")
+    }
+
+    /// Like `checked_write_page`, but panics if the page can't be brought in.
+    pub fn write_page(&self, page_id: PageId) -> WritePageGuard<'_> {
+        todo!("1g-04: checked_write_page, but a failure is a panic")
+    }
+
+    /// Writes `data` to disk as page `page_id` without touching the pool's state. For guards that already hold the page's latch.
+    pub fn write_page_data(&self, page_id: PageId, data: &PageData) {
+        todo!("1g-05: copy the bytes into a Box, schedule a write, wait for it; no locks needed")
     }
 }

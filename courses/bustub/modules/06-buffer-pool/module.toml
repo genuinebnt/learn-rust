@@ -1,0 +1,145 @@
+code = "1f"
+title = "Buffer pool manager"
+summary = "Frames, a page table, pin counts, eviction through your replacer, write-back of dirty pages, flush and delete: the cache between the database and the disk. BusTub Project 1, the buffer pool (textbook interface)."
+lectures = ["bufferpool", "storage1"]
+bustub = ["src/include/buffer/buffer_pool_manager.h", "src/buffer/buffer_pool_manager.cpp", "test/buffer/buffer_pool_manager_test.cpp"]
+
+[[resources]]
+kind = "paper"
+title = "Hellerstein, Stonebraker, Hamilton: Architecture of a Database System (section on buffer management)"
+url = "https://www.nowpublishers.com/article/Details/DBS-002"
+
+[[resources]]
+kind = "paper"
+title = "Crotty, Leis, Pavlo: Are You Sure You Want to Use MMAP in Your DBMS? (CIDR 2022)"
+url = "https://db.cs.cmu.edu/mmap-cidr2022/"
+
+[[resources]]
+kind = "paper"
+title = "Megiddo, Modha: ARC (the replacement policy this pool uses)"
+url = "https://www.usenix.org/legacy/events/fast03/tech/full_papers/megiddo/megiddo.pdf"
+
+[[resources]]
+kind = "docs"
+title = "RwLock"
+url = "https://doc.rust-lang.org/std/sync/struct.RwLock.html"
+
+[[resources]]
+kind = "docs"
+title = "Mutex"
+url = "https://doc.rust-lang.org/std/sync/struct.Mutex.html"
+
+[[resources]]
+kind = "docs"
+title = "Arc"
+url = "https://doc.rust-lang.org/std/sync/struct.Arc.html"
+
+[[resources]]
+kind = "docs"
+title = "AtomicI32"
+url = "https://doc.rust-lang.org/std/sync/atomic/type.AtomicI32.html"
+
+[[resources]]
+kind = "docs"
+title = "slice::copy_from_slice"
+url = "https://doc.rust-lang.org/std/primitive.slice.html#method.copy_from_slice"
+
+[[resources]]
+kind = "docs"
+title = "Option::take"
+url = "https://doc.rust-lang.org/std/option/enum.Option.html#method.take"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::mutex"
+url = "https://en.cppreference.com/w/cpp/thread/mutex"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::lock_guard"
+url = "https://en.cppreference.com/w/cpp/thread/lock_guard"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: shared-state concurrency"
+url = "https://doc.rust-lang.org/book/ch16-03-shared-state.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: interior mutability"
+url = "https://doc.rust-lang.org/book/ch15-05-interior-mutability.html"
+
+[[resources]]
+kind = "book"
+title = "The Rustonomicon: splitting borrows"
+url = "https://doc.rust-lang.org/nomicon/borrow-splitting.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Atomics and Locks (Mara Bos), chapter 2: atomics"
+url = "https://marabos.nl/atomics/atomics.html"
+
+[[resources]]
+kind = "blog"
+title = "The Internals of PostgreSQL, chapter 8: Buffer Manager"
+url = "https://www.interdb.jp/pg/pgsql08.html"
+
+[[resources]]
+kind = "blog"
+title = "Page cache (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Page_cache"
+
+[[resources]]
+kind = "blog"
+title = "Cache write policies (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Cache_(computing)#Writing_policies"
+
+[[resources]]
+kind = "blog"
+title = "Deadlock (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Deadlock"
+
+[[resources]]
+kind = "video"
+title = "CMU 15-445 Fall 2025 lecture playlist"
+url = "https://www.youtube.com/playlist?list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL buffer manager README"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/storage/buffer/README"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL bufmgr.c"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/storage/buffer/bufmgr.c"
+
+[[resources]]
+kind = "code"
+title = "SQLite pager.c: the page cache and journal"
+url = "https://github.com/sqlite/sqlite/blob/master/src/pager.c"
+
+[[resources]]
+kind = "code"
+title = "redb cached_file.rs: a Rust embedded database's page cache"
+url = "https://github.com/cberner/redb/blob/master/src/tree_store/page_store/cached_file.rs"
+
+[[resources]]
+kind = "code"
+title = "BusTub buffer_pool_manager.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/buffer/buffer_pool_manager.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub buffer_pool_manager.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/src/buffer/buffer_pool_manager.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub buffer_pool_manager_test.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/test/buffer/buffer_pool_manager_test.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub Project 1 page"
+url = "https://15445.courses.cs.cmu.edu/fall2026/project1/"

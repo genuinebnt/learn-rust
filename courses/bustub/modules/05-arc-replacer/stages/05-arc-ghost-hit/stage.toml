@@ -1,0 +1,5 @@
+id = "1e-05"
+title = "A ghost hit raises the target, and eviction obeys it"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1e::s1e_05"]

@@ -1,0 +1,5 @@
+id = "1b-03"
+title = "consume: the worker loop and the stop signal"
+kind = "learn"
+difficulty = "easy"
+tests = ["stages_1b::s1b_03"]

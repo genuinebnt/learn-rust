@@ -1,0 +1,5 @@
+id = "1b-07"
+title = "DiskRequest: who owns the buffer?"
+kind = "learn"
+difficulty = "easy"
+tests = ["stages_1b::s1b_07"]

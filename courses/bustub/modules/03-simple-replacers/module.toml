@@ -1,0 +1,110 @@
+code = "1c"
+title = "Simple replacers: LRU and CLOCK"
+summary = "A generational index list, an O(1) LRU replacer, and the CLOCK replacer: how a buffer pool decides which frame to evict. BusTub Project 1, replacement policies (first part)."
+lectures = ["bufferpool"]
+bustub = ["src/include/buffer/replacer.h", "src/include/buffer/lru_replacer.h", "src/include/buffer/clock_replacer.h", "test/buffer/lru_replacer_test.cpp", "test/buffer/clock_replacer_test.cpp"]
+
+[[resources]]
+kind = "docs"
+title = "VecDeque"
+url = "https://doc.rust-lang.org/std/collections/struct.VecDeque.html"
+
+[[resources]]
+kind = "docs"
+title = "LinkedList (std), and why it has no handles"
+url = "https://doc.rust-lang.org/std/collections/struct.LinkedList.html"
+
+[[resources]]
+kind = "docs"
+title = "HashMap"
+url = "https://doc.rust-lang.org/std/collections/struct.HashMap.html"
+
+[[resources]]
+kind = "docs"
+title = "slotmap: generational arenas, the production version of IndexList"
+url = "https://docs.rs/slotmap"
+
+[[resources]]
+kind = "docs"
+title = "generational-arena"
+url = "https://docs.rs/generational-arena"
+
+[[resources]]
+kind = "docs"
+title = "lru: a ready-made LRU cache"
+url = "https://docs.rs/lru"
+
+[[resources]]
+kind = "docs"
+title = "hashlink / linked-hash-map: a hash map that keeps insertion order"
+url = "https://docs.rs/hashlink"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::list (cppreference)"
+url = "https://en.cppreference.com/w/cpp/container/list"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::list::splice"
+url = "https://en.cppreference.com/w/cpp/container/list/splice"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::unordered_map"
+url = "https://en.cppreference.com/w/cpp/container/unordered_map"
+
+[[resources]]
+kind = "book"
+title = "Learning Rust With Entirely Too Many Linked Lists"
+url = "https://rust-unofficial.github.io/too-many-lists/"
+
+[[resources]]
+kind = "book"
+title = "Operating Systems: Three Easy Pieces, Beyond physical memory: policies (LRU, CLOCK, ...)"
+url = "https://pages.cs.wisc.edu/~remzi/OSTEP/vm-beyondphys-policy.pdf"
+
+[[resources]]
+kind = "blog"
+title = "Niko Matsakis: Modeling graphs in Rust using vector indices"
+url = "https://smallcultfollowing.com/babysteps/blog/2015/04/06/modeling-graphs-in-rust-using-vector-indices/"
+
+[[resources]]
+kind = "blog"
+title = "Page replacement algorithms (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Page_replacement_algorithm"
+
+[[resources]]
+kind = "blog"
+title = "Cache replacement policies (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Cache_replacement_policies"
+
+[[resources]]
+kind = "blog"
+title = "The ABA problem (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/ABA_problem"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL buffer manager README: pins, usage counts, the clock sweep"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/storage/buffer/README"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL freelist.c: StrategyGetBuffer, the clock sweep"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/storage/buffer/freelist.c"
+
+[[resources]]
+kind = "code"
+title = "Linux mm/workingset.c: page-cache eviction"
+url = "https://github.com/torvalds/linux/blob/master/mm/workingset.c"
+
+[[resources]]
+kind = "code"
+title = "Rust std LinkedList source"
+url = "https://github.com/rust-lang/rust/blob/master/library/alloc/src/collections/linked_list.rs"
+
+[[resources]]
+kind = "code"
+title = "BusTub replacer.h, lru_replacer.h, clock_replacer.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/buffer/replacer.h"

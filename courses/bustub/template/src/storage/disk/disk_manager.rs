@@ -57,10 +57,7 @@ impl DbIo {
     /// A slot for a new page: a freed one if there is one, otherwise a fresh slot at the end, growing the file
     /// (doubling `page_capacity`) when the fresh slot would not fit.
     fn allocate_slot(&mut self) -> io::Result<usize> {
-        // TODO(1a-12): reuse a freed slot before taking a fresh one
-        let slot: usize = todo!("1a-08: the next fresh slot; remember that you've handed it out");
-        // TODO(1a-11): when the slot doesn't fit, double page_capacity and resize the file to match
-        Ok(slot)
+        todo!("1a-08: the next fresh slot; remember that you have handed it out")
     }
 }
 
@@ -80,26 +77,7 @@ impl DiskManager {
     /// Opens the database file `db_file`, creating it if it doesn't exist, and the log file next to it
     /// (`db_file` with its extension replaced by `.log`, also created). Fails if either can't be opened.
     pub fn new(db_file: impl AsRef<Path>) -> io::Result<DiskManager> {
-        let db_file_name = db_file.as_ref().to_path_buf();
-        let log_file_name: PathBuf = todo!("1a-03: db_file_name with the extension replaced by .log");
-        let log_io: File = todo!("1a-03: open (creating) the log file for reading and appending");
-        let db: File = todo!("1a-03: open (creating, not truncating) the db file for reading and writing");
-        // TODO(1a-04): give the db file room for DEFAULT_DB_IO_SIZE pages (plus the spare one)
-        Ok(DiskManager {
-            db_file_name,
-            log_file_name,
-            db_io: Mutex::new(DbIo {
-                file: db,
-                pages: HashMap::new(),
-                free_slots: Vec::new(),
-                num_slots: 0,
-                page_capacity: DEFAULT_DB_IO_SIZE,
-            }),
-            log_io: Mutex::new(log_io),
-            num_flushes: AtomicUsize::new(0),
-            num_writes: AtomicUsize::new(0),
-            num_deletes: AtomicUsize::new(0),
-        })
+        todo!("1a-03: open (creating) the db file and the log file, and build the DiskManager")
     }
 
     /// Syncs both files to disk and releases the disk manager's hold on them. (BusTub's `ShutDown()`.)
@@ -134,40 +112,28 @@ impl DiskManager {
     /// Writes a page. A page the disk manager hasn't seen gets a slot first.
     pub fn write_page(&self, page_id: PageId, data: &PageData) -> io::Result<()> {
         assert!(page_id.is_valid(), "write of invalid page id {}", page_id.0);
-        let mut io = self.db_io.lock().unwrap();
-        todo!("1a-09: find the page's slot (allocating one for a new page, and remembering it), then write_slot");
-        // TODO(1a-13): count this write
-        Ok(())
+        todo!("1a-09: find the page's slot (allocating one for a new page, and remembering it), then write_slot")
     }
 
     /// Reads a page into `buf`. A page that was never written reads as zeros.
     pub fn read_page(&self, page_id: PageId, buf: &mut PageData) -> io::Result<()> {
         assert!(page_id.is_valid(), "read of invalid page id {}", page_id.0);
-        let io = self.db_io.lock().unwrap();
         todo!("1a-10: read_slot if the page has a slot, otherwise zero the buffer")
     }
 
     /// Forgets a page and frees its slot for reuse. Deleting a page that doesn't exist does nothing.
     pub fn delete_page(&self, page_id: PageId) {
-        let mut io = self.db_io.lock().unwrap();
-        // TODO(1a-12): remove the page from the page table and free its slot; return early if it isn't there
-        // TODO(1a-13): count this delete
+        todo!("1a-12: remove the page from the page table and free its slot; do nothing if it isn't there")
     }
 
     /// Appends `data` to the log file and counts a flush. An empty `data` does nothing.
     pub fn write_log(&self, data: &[u8]) -> io::Result<()> {
-        if data.is_empty() {
-            return Ok(());
-        }
-        let mut log = self.log_io.lock().unwrap();
-        todo!("1a-14: append data to the log file and count a flush");
-        Ok(())
+        todo!("1a-14: append data to the log file and count a flush; an empty write does nothing")
     }
 
     /// Reads up to `buf.len()` bytes of the log starting at byte `offset`. Returns `false` if `offset` is at or past
     /// the end of the log (then `buf` is untouched); otherwise `true`, with whatever the log doesn't have zero-filled.
     pub fn read_log(&self, buf: &mut [u8], offset: u64) -> io::Result<bool> {
-        let log = self.log_io.lock().unwrap();
         todo!("1a-15: false past the end of the log; otherwise read_full_at and zero-fill the rest")
     }
 

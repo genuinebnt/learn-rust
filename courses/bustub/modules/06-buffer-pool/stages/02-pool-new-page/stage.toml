@@ -1,0 +1,5 @@
+id = "1f-02"
+title = "new_page: hand out page ids"
+kind = "learn"
+difficulty = "very-easy"
+tests = ["stages_1f::s1f_02"]

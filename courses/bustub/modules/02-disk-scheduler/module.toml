@@ -1,0 +1,160 @@
+code = "1b"
+title = "Disk scheduler"
+summary = "A blocking channel, a one-shot promise/future, a background worker that runs disk requests in order, a reader-writer latch, and a sharded scheduler. BusTub Project 1, second part."
+lectures = ["storage1", "bufferpool"]
+bustub = ["src/include/common/channel.h", "src/include/storage/disk/disk_scheduler.h", "src/storage/disk/disk_scheduler.cpp", "src/include/common/rwlatch.h", "test/storage/disk_scheduler_test.cpp", "test/common/rwlatch_test.cpp"]
+
+[[resources]]
+kind = "docs"
+title = "Condvar (wait, wait_while, notify_one/all)"
+url = "https://doc.rust-lang.org/std/sync/struct.Condvar.html"
+
+[[resources]]
+kind = "docs"
+title = "Mutex, and its poisoning rules"
+url = "https://doc.rust-lang.org/std/sync/struct.Mutex.html#poisoning"
+
+[[resources]]
+kind = "docs"
+title = "RwLock"
+url = "https://doc.rust-lang.org/std/sync/struct.RwLock.html"
+
+[[resources]]
+kind = "docs"
+title = "thread::spawn and JoinHandle"
+url = "https://doc.rust-lang.org/std/thread/fn.spawn.html"
+
+[[resources]]
+kind = "docs"
+title = "panic::catch_unwind"
+url = "https://doc.rust-lang.org/std/panic/fn.catch_unwind.html"
+
+[[resources]]
+kind = "docs"
+title = "std::sync::mpsc and sync_channel (the standard library's own channels)"
+url = "https://doc.rust-lang.org/std/sync/mpsc/index.html"
+
+[[resources]]
+kind = "docs"
+title = "crossbeam-channel, the fast MPMC channel"
+url = "https://docs.rs/crossbeam-channel"
+
+[[resources]]
+kind = "docs"
+title = "parking_lot, locks that never poison"
+url = "https://docs.rs/parking_lot"
+
+[[resources]]
+kind = "docs"
+title = "threadpool and rayon: ready-made worker pools"
+url = "https://docs.rs/threadpool"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: using threads"
+url = "https://doc.rust-lang.org/book/ch16-01-threads.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: message passing"
+url = "https://doc.rust-lang.org/book/ch16-02-message-passing.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: shared-state concurrency"
+url = "https://doc.rust-lang.org/book/ch16-03-shared-state.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Atomics and Locks (Mara Bos), building our own channel"
+url = "https://marabos.nl/atomics/building-channels.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Atomics and Locks, building our own locks"
+url = "https://marabos.nl/atomics/building-locks.html"
+
+[[resources]]
+kind = "book"
+title = "The Rustonomicon: unwinding"
+url = "https://doc.rust-lang.org/nomicon/unwinding.html"
+
+[[resources]]
+kind = "man"
+title = "pthread_cond_wait(3p): why the wait is always in a loop"
+url = "https://man7.org/linux/man-pages/man3/pthread_cond_wait.3p.html"
+
+[[resources]]
+kind = "man"
+title = "pthread_rwlock_rdlock(3p)"
+url = "https://man7.org/linux/man-pages/man3/pthread_rwlock_rdlock.3p.html"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::condition_variable (cppreference)"
+url = "https://en.cppreference.com/w/cpp/thread/condition_variable"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::promise and std::future (cppreference)"
+url = "https://en.cppreference.com/w/cpp/thread/promise"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::shared_mutex (cppreference)"
+url = "https://en.cppreference.com/w/cpp/thread/shared_mutex"
+
+[[resources]]
+kind = "blog"
+title = "Futures and promises (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Futures_and_promises"
+
+[[resources]]
+kind = "blog"
+title = "Spurious wakeups (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Spurious_wakeup"
+
+[[resources]]
+kind = "blog"
+title = "I/O scheduling (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/I/O_scheduling"
+
+[[resources]]
+kind = "video"
+title = "Jon Gjengset, Crust of Rust: Channels"
+url = "https://www.youtube.com/watch?v=b4mS5UPHh20"
+
+[[resources]]
+kind = "code"
+title = "BusTub channel.h: the C++ queue you are porting"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/common/channel.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub disk_scheduler.h/.cpp and test"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/storage/disk/disk_scheduler.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub rwlatch.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/common/rwlatch.h"
+
+[[resources]]
+kind = "code"
+title = "Rust std's own MPMC channel (library/std/src/sync/mpmc)"
+url = "https://github.com/rust-lang/rust/blob/master/library/std/src/sync/mpmc/mod.rs"
+
+[[resources]]
+kind = "code"
+title = "crossbeam-channel source"
+url = "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-channel"
+
+[[resources]]
+kind = "code"
+title = "tokio's oneshot channel (a production promise/future)"
+url = "https://github.com/tokio-rs/tokio/blob/master/tokio/src/sync/oneshot.rs"
+
+[[resources]]
+kind = "code"
+title = "BusTub project 1 page"
+url = "https://15445.courses.cs.cmu.edu/fall2026/project1/"

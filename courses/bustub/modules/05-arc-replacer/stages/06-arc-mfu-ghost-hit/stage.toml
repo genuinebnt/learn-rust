@@ -1,0 +1,5 @@
+id = "1e-06"
+title = "A hit on mfu_ghost lowers the target"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1e::s1e_06"]

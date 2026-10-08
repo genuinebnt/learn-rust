@@ -10,8 +10,12 @@ C="--courses $ROOT/courses"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-echo "== every stage fails before it and passes after it; earlier stages stay green (regression)"
-"$A" course verify --course "$COURSE" $C | tail -4
+if [ -z "${SKIP_VERIFY:-}" ]; then
+    echo "== every stage fails before it and passes after it; earlier stages stay green (regression)"
+    "$A" course verify --course "$COURSE" $C | tail -4
+else
+    echo "== (verify skipped: SKIP_VERIFY is set)"
+fi
 
 echo "== the whole solution passes every test in the repo (integration)"
 "$A" course build --full "$WORK/full" --course "$COURSE" $C

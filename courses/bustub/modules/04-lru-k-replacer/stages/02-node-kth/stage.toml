@@ -1,0 +1,5 @@
+id = "1d-02"
+title = "LruKNode::kth_timestamp: backward k-distance"
+kind = "learn"
+difficulty = "very-easy"
+tests = ["stages_1d::s1d_02"]

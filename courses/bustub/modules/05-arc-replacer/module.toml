@@ -1,0 +1,115 @@
+code = "1e"
+title = "ARC replacer"
+summary = "The Adaptive Replacement Cache: four lists, ghost entries, a self-tuning target size, remove, and an O(1) hot path. BusTub Project 1's replacement policy."
+lectures = ["bufferpool"]
+bustub = ["src/include/buffer/arc_replacer.h", "src/buffer/arc_replacer.cpp", "test/buffer/arc_replacer_test.cpp", "test/buffer/arc_replacer_performance_test.cpp"]
+
+[[resources]]
+kind = "paper"
+title = "Megiddo and Modha: ARC, a self-tuning, low overhead replacement cache (FAST 2003)"
+url = "https://www.usenix.org/legacy/events/fast03/tech/full_papers/megiddo/megiddo.pdf"
+
+[[resources]]
+kind = "paper"
+title = "The ARC paper's page at USENIX (slides and talk)"
+url = "https://www.usenix.org/legacy/events/fast03/tech/megiddo.html"
+
+[[resources]]
+kind = "paper"
+title = "O'Neil, O'Neil, Weikum: LRU-K (SIGMOD 1993), the policy ARC competes with"
+url = "https://www.cs.cmu.edu/~natassa/courses/15-721/papers/p297-o_neil.pdf"
+
+[[resources]]
+kind = "blog"
+title = "Adaptive replacement cache (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Adaptive_replacement_cache"
+
+[[resources]]
+kind = "blog"
+title = "Cache replacement policies (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Cache_replacement_policies"
+
+[[resources]]
+kind = "docs"
+title = "IndexList's cousins: slotmap"
+url = "https://docs.rs/slotmap"
+
+[[resources]]
+kind = "docs"
+title = "Iterator::find"
+url = "https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.find"
+
+[[resources]]
+kind = "docs"
+title = "usize::saturating_sub"
+url = "https://doc.rust-lang.org/std/primitive.usize.html#method.saturating_sub"
+
+[[resources]]
+kind = "docs"
+title = "Ord::min"
+url = "https://doc.rust-lang.org/std/cmp/trait.Ord.html#method.min"
+
+[[resources]]
+kind = "docs"
+title = "Instant (a monotonic clock)"
+url = "https://doc.rust-lang.org/std/time/struct.Instant.html"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::shared_ptr"
+url = "https://en.cppreference.com/w/cpp/memory/shared_ptr"
+
+[[resources]]
+kind = "docs"
+title = "C++ enum class"
+url = "https://en.cppreference.com/w/cpp/language/enum"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: integer overflow"
+url = "https://doc.rust-lang.org/book/ch03-02-data-types.html#integer-overflow"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: references and borrowing"
+url = "https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html"
+
+[[resources]]
+kind = "book"
+title = "The Rustonomicon: splitting borrows"
+url = "https://doc.rust-lang.org/nomicon/borrow-splitting.html"
+
+[[resources]]
+kind = "code"
+title = "OpenZFS arc.c: ARC in a production file system"
+url = "https://github.com/openzfs/zfs/blob/master/module/zfs/arc.c"
+
+[[resources]]
+kind = "code"
+title = "SQLite pcache1.c: the page cache"
+url = "https://github.com/sqlite/sqlite/blob/master/src/pcache1.c"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL bufmgr.c"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/storage/buffer/bufmgr.c"
+
+[[resources]]
+kind = "code"
+title = "Linux mm/workingset.c"
+url = "https://github.com/torvalds/linux/blob/master/mm/workingset.c"
+
+[[resources]]
+kind = "code"
+title = "BusTub arc_replacer.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/buffer/arc_replacer.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub arc_replacer_test.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/test/buffer/arc_replacer_test.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub arc_replacer_performance_test.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/test/buffer/arc_replacer_performance_test.cpp"

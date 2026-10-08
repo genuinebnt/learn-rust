@@ -1,0 +1,5 @@
+id = "1c-05"
+title = "LruReplacer: unpin and size"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1c::s1c_05"]

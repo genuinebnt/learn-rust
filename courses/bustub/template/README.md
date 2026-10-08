@@ -11,6 +11,8 @@ anneal course next        # the next stage
 git commit -am "..." && git push    # the pre-push hook runs `anneal course test` and records the result
 ```
 
+**Your way.** The tests call only the public API each stage names. How you build the inside is up to you: the structs and helpers in the template are a starting point, not a contract. Change them, replace them, write it your own way; what has to hold is that the tests pass.
+
 Work in `src/`. Every function you have to write is `todo!()` until its stage. `tests/` holds the stage tests (`stages_*.rs`) and
 BusTub's own tests, ported (`*_test.rs`); they are yours to read. macOS and Linux only (the disk manager uses `pread`/`pwrite`).
 

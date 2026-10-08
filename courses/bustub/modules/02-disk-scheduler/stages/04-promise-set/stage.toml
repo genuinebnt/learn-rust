@@ -1,0 +1,5 @@
+id = "1b-04"
+title = "Promise::set: complete a one-shot"
+kind = "learn"
+difficulty = "easy"
+tests = ["stages_1b::s1b_04"]

@@ -1,0 +1,5 @@
+id = "1b-13"
+title = "ReaderWriterLatch: many readers or one writer"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1b::s1b_13"]

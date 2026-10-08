@@ -1,0 +1,5 @@
+id = "1f-04"
+title = "Hits, and get_pin_count"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1f::s1f_04"]

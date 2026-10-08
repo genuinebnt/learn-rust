@@ -1,0 +1,5 @@
+id = "1c-06"
+title = "LruReplacer::victim"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1c::s1c_06"]

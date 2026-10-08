@@ -1,0 +1,5 @@
+id = "1b-10"
+title = "Drop: finish the work, stop the worker, join it"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1b::s1b_10"]

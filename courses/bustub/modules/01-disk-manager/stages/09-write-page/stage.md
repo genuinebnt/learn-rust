@@ -2,7 +2,7 @@
 
 ## The task
 
-`DbIo::pages: HashMap<PageId, usize>` maps a page id to its slot. Implement `write_page(page_id, data)` in `src/storage/disk/disk_manager.rs` (the lock `io` and the invalid-id check are given):
+`DbIo::pages: HashMap<PageId, usize>` maps a page id to its slot. Implement `write_page(page_id, data)` in `src/storage/disk/disk_manager.rs` (the invalid-id check is given):
 
 - if the page has a slot, overwrite that slot;
 - otherwise get a fresh slot from `io.allocate_slot()`, **remember it in the page table**, then write.

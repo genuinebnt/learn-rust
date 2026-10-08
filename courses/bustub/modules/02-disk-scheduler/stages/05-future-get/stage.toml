@@ -1,0 +1,5 @@
+id = "1b-05"
+title = "Future::get: wait for the value"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1b::s1b_05"]

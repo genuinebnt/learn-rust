@@ -1,7 +1,6 @@
 # Build a DBMS: BusTub in Rust (a CodeCrafters-style course)
 
-Started 2026-10-08 at the owner's request. **Status: design done; the CLI and module 1a (disk manager, 19 stages) are built and
-verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
+Started 2026-10-08 at the owner's request. **Status: design done; the CLI and modules 1a-1f (73 stages) are built and verified; everything else is on the board.** Progress and who-does-what: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Agent prompt for
 writing a module: [authoring/write-course-module.md](authoring/write-course-module.md). The C/C++ → Rust reference every stage leans
 on: [PORTING.md](PORTING.md). This course replaces the BusTub parts of SYSTEMS.md (K17–K20, P6); the general systems tracks come after.
 
@@ -79,6 +78,13 @@ BusTub's list of test cases was read from the 2026-09 `cmu-db/bustub` master (`/
 - `(char *p, size_t n)` → a slice; a fixed buffer → `&[u8; N]`; `reinterpret_cast` of page bytes → a typed view, no `unsafe` unless a stage says so.
 - `shared_ptr` → `Arc` only where ownership really is shared, else `Box`/borrow; `mutex` + fields → `Mutex<Inner>`; RAII guards stay RAII (`Drop`).
 - Abstract base classes → traits; templates → generics with the same parameter roles.
+
+**Creative freedom (owner, 2026-10-08: "just like CodeCrafters I should have the creative freedom to write my own way, and just the tests have to pass, but still show the necessary skills and tools").**
+The contract of a stage is its **public API and its tests**, nothing else. Consequences for authors:
+- Stubs are plain `todo!()` bodies; they never declare typed local variables or dictate the shape of the code (`@begin`/`@end` regions may nest, so a stage that extends a function written by an earlier stage sits *inside* that function's region).
+- Given structs, helper functions and fields are a *starting point*; the stage text says so. Tests never reach into private state. Where a test needs to observe something, it uses a public accessor that is part of the stage's stated API (e.g. `slot_of`), and the stage says so.
+- The stage page teaches the tools (types, methods, patterns, the C/C++ equivalents) but prescribes no algorithm beyond what the behaviour requires.
+- `anneal course show` ends every stage with "Your way: ...".
 
 ## 3. Anatomy of a stage (what `anneal course show` prints)
 
@@ -177,3 +183,46 @@ Order of modules: BusTub's (1a → 1e → 2a → 2c → 3 → 4 → 5), with the
 4. **SQL front end** (BusTub gives students a parser/binder/planner) must be written once (FRONT-1) before the `.slt` bosses of module 3 can run.
 5. **Scale:** ~400 stages. 1a took 19 stages / ~100 tests; expect the same density. Modules ship independently.
 6. **Windows:** not supported by the disk stages (they use `std::os::unix`). A `cfg(windows)` shim is a deferred task.
+
+## 9. The modules and their stages (what exists, what is planned)
+
+Module codes follow BusTub's projects (`1x` = Project 1, ...). A module is a run of stages ending in BusTub's own test. Lecture ids are from
+`courses/bustub/lectures.toml`. ✓ = built, verified (`anneal course verify`) and shipped.
+
+### P0 · Primer (optional; planned, ~40 stages, authored last)
+Copy-on-write trie and trie store (`Arc`, `make_mut`, `Box<dyn Any>`) · skip list · count-min sketch · HyperLogLog · ORSet (a CRDT) · Robin Hood hash set.
+Boss: `trie_test` ×14, `trie_store_test`, `skiplist_test`, `count_min_sketch_test` ×13, `hyperloglog_test`, `orset_test`, `robin_hood_hash_set_test`.
+
+### P1 · Storage (73 stages built; 1g to come)
+- **1a Disk manager (19) ✓:** slot offsets → open/create → `set_len` → positional write/read (short reads, zero-fill) → fresh slots → page table
+  (`write_page`/`read_page`) → growth by doubling → `delete_page` + free list → atomic counters → log append/read → `trait DiskIo` → memory disks → boss `disk_manager_test` ×4.
+- **1b Disk scheduler (15) ✓:** `Channel` (`Mutex` + `Condvar`) → the `None` stop signal → one-shot promise/future (broken promises) → `DiskRequest` and buffer
+  ownership → `execute` → worker thread + `schedule` → `Drop` shuts down → a panicking disk doesn't kill the worker → `ReaderWriterLatch` → sharded workers with
+  per-page order → boss `disk_scheduler_test`, `rwlatch_test`.
+- **1c Simple replacers (11) ✓:** a generational index-linked list (`push_back`, `pop_front`, `remove`, `move_to_back`) → LRU → CLOCK → boss `lru_replacer_test`, `clock_replacer_test`.
+- **1d LRU-K (9) ✓:** bounded history → backward k-distance → `record_access`/`set_evictable` → `evict` (below k, then the k-th access) → `remove` → O(log n) eviction
+  with a `BTreeSet` → boss `lru_k_replacer_test`.
+- **1e ARC (9) ✓:** four lists → new pages → `evict` and ghosts → hits promote to MFU → ghost hits adapt the target → trimming ghost lists → `remove` → boss
+  `arc_replacer_test` ×3 + the 256K-frame performance test.
+- **1f Buffer pool (10) ✓:** frames and free list → `new_page` → `fetch_page` (miss) → hits and pin counts → `unpin_page` → eviction → dirty write-back → flush →
+  `delete_page` → boss: BusTub's classic tests + a threaded stress test.
+- **1g Page guards (~10):** `ReadPageGuard`/`WritePageGuard` with `Deref` and `Drop` (unlatch, then unpin) → moves → flush → latch order and the deadlock test →
+  contention and evictable tests → boss `buffer_pool_manager_test` ×7, `page_guard_test` ×2.
+
+### P2 · Indexes (planned, ~90 stages)
+- **2a Typed pages (~14):** little-endian ints at offsets, header views, fixed arrays in a page (`const fn` capacity), keys and comparators, sorted-array insert/remove with `copy_within`.
+- **2b Extendible hash table (~30):** hash and bit masks, bucket/directory/header pages, insert with split, remove with merge and shrink, concurrency with guards.
+  Boss: `extendible_htable_page_test`, `…_test`, `…_concurrent_test`.
+- **2c B+ tree (~48):** pages, search, insert/split, delete/borrow/merge, the iterator, latch crabbing, tombstones. Boss: `b_plus_tree_{insert,delete,sequential_scale,concurrent,tombstone}_test`.
+
+### P3 · Query execution (planned, ~85 stages)
+- **3a Types, tuples, table pages and heap, catalog (~25):** `Value`/`Type`, `Tuple` (de)serialisation, `TablePage`, `TableHeap`, iterator. Boss: `type_test`, `tuple_test`, `tmp_tuple_page_test`.
+- **3b Executors (~45):** expressions, seq scan, insert/update/delete, index scan, aggregation, nested-loop/hash/index joins, sort, limit, top-N, window functions, external merge sort. Boss: `test/sql/p3.*.slt` (needs FRONT-1).
+- **3c Optimizer (~14):** rewrite rules (NLJ → hash join, sort+limit → top-N, seq scan → index scan, ...). Boss: optimizer `.slt` files.
+
+### P4 · Concurrency control (planned, ~55 stages)
+- **4a MVCC (~30):** `Watermark`, timestamps and `TransactionManager`, undo logs and version chains, snapshot reads, write-write conflicts, GC, serializable validation. Boss: `txn_*_test`.
+- **4b Lock manager (~25):** lock modes and the compatibility matrix, request queues with `Condvar`, upgrades, 2PL, deadlock detection. Boss: lock manager and deadlock tests.
+
+### P5 · Logging and recovery (planned, ~15 stages)
+`LogRecord` encode/decode → `LogManager` buffer and flush → write-ahead rule in the buffer pool → checkpoints → recovery (analysis, redo, undo). Boss: `recovery_test`.

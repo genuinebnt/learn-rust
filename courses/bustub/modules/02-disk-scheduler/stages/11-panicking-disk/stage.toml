@@ -1,0 +1,5 @@
+id = "1b-11"
+title = "A panicking disk must not kill the worker"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1b::s1b_11"]

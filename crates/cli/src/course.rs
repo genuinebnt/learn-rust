@@ -273,59 +273,65 @@ fn sorted_dirs(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
 // ---------------------------------------------------------------------------------------------------------------
 // Rendering the reference: @begin / @end regions
 
-/// What a region's stage means for the rendered state: `Done` keeps the solution, `Todo` swaps in the stub.
+/// Renders one file for the state "stages up to `cutoff` are done".
+///
+/// A region is `// @begin <stage>` … `// @end`. Inside it, plain lines are the solution and `//~ ` lines are the stub that stands in
+/// for it. A done region keeps its solution lines; a region that isn't done keeps its stub lines (with the `//~` removed).
+/// Regions may nest (a stage that adds three lines inside a function another stage wrote): when the outer region isn't done,
+/// everything inside it, nested regions included, is replaced by the outer stub.
 fn render_text(text: &str, ranks: &HashMap<String, usize>, cutoff: usize, name: &str) -> anyhow::Result<String> {
+    struct Frame {
+        done: bool,
+        id: String,
+        at: usize,
+    }
     let mut out = String::with_capacity(text.len());
-    // Some((done, saw_stub)) while inside a region.
-    let mut region: Option<(bool, String, usize)> = None;
+    let mut stack: Vec<Frame> = Vec::new();
     for (n, line) in text.split_inclusive('\n').enumerate() {
         let body = line.trim_start();
-        let marker = body
-            .strip_prefix("//")
-            .or_else(|| body.strip_prefix('#'))
-            .map(|r| r.trim_start());
+        let marker = body.strip_prefix("//").or_else(|| body.strip_prefix('#')).map(|r| r.trim_start());
         if let Some(m) = marker {
             if let Some(id) = m.strip_prefix("@begin ") {
                 let id = id.trim();
-                if region.is_some() {
-                    bail!("{name}:{}: @begin inside a region", n + 1);
-                }
-                let rank = *ranks
-                    .get(id)
-                    .with_context(|| format!("{name}:{}: unknown stage {id:?}", n + 1))?;
-                region = Some((rank <= cutoff, id.to_owned(), n + 1));
+                let rank = *ranks.get(id).with_context(|| format!("{name}:{}: unknown stage {id:?}", n + 1))?;
+                stack.push(Frame { done: rank <= cutoff, id: id.to_owned(), at: n + 1 });
                 continue;
             }
             if m.trim_end() == "@end" {
-                if region.take().is_none() {
+                if stack.pop().is_none() {
                     bail!("{name}:{}: @end without @begin", n + 1);
                 }
                 continue;
             }
         }
-        match &region {
-            None => out.push_str(line),
-            Some((done, _, _)) => {
-                // Stub lines: `//~ text` (or `#~ text`), keeping the marker's indentation.
-                let indent = &line[..line.len() - body.len()];
-                let stub = body
-                    .strip_prefix("//~")
-                    .or_else(|| body.strip_prefix("#~"))
-                    .map(|r| r.strip_prefix(' ').unwrap_or(r));
-                match (stub, done) {
-                    (Some(s), false) => {
-                        out.push_str(indent);
-                        out.push_str(s);
-                    }
-                    (Some(_), true) => {}
-                    (None, true) => out.push_str(line),
-                    (None, false) => {}
+        // Which frame decides what this line becomes: the outermost region that isn't done, else the innermost one.
+        let Some(top) = stack.last() else {
+            out.push_str(line);
+            continue;
+        };
+        let first_undone = stack.iter().position(|f| !f.done);
+        let indent = &line[..line.len() - body.len()];
+        let stub = body.strip_prefix("//~").or_else(|| body.strip_prefix("#~")).map(|r| r.strip_prefix(' ').unwrap_or(r));
+        match first_undone {
+            // Everything in the stack is done: the solution lines of the innermost region.
+            None => {
+                if stub.is_none() {
+                    out.push_str(line);
                 }
             }
+            // The innermost region is the first undone one: its stub lines. Deeper than that, the line is replaced.
+            Some(i) if i == stack.len() - 1 => {
+                if let Some(s) = stub {
+                    out.push_str(indent);
+                    out.push_str(s);
+                }
+            }
+            Some(_) => {}
         }
+        let _ = top;
     }
-    if let Some((_, id, at)) = region {
-        bail!("{name}:{at}: region {id} is never closed");
+    if let Some(f) = stack.last() {
+        bail!("{name}:{}: region {} is never closed", f.at, f.id);
     }
     Ok(out)
 }
@@ -862,6 +868,7 @@ fn difficulty_label(d: &str) -> &'static str {
 fn print_stage(s: &Stage) {
     println!("{} · {}\nStage {}: {}\n{}  [{}]\n", s.module, s.module_title, s.def.id, s.def.title, difficulty_label(&s.def.difficulty), s.def.kind);
     println!("{}", s.readme.trim_end());
+    println!("\nYour way: the tests call only the public items named above. How you build the inside is up to you; change the given structs and helpers if you want a different design.");
     if !s.resources.is_empty() {
         println!("\nModule resources\n{}", s.resources.trim_end());
     }

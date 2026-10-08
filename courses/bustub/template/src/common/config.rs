@@ -21,3 +21,8 @@ impl PageId {
         self.0 >= 0
     }
 }
+
+/// The index of a frame (a slot in the buffer pool's memory). BusTub's `frame_id_t` is an `int32_t` with `INVALID_FRAME_ID = -1`;
+/// here it is a `usize` newtype, and "no frame" is `None`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FrameId(pub usize);

@@ -4,7 +4,7 @@
 
 `DbIo` (given, in `src/storage/disk/disk_manager.rs`) is everything the db file's lock protects: the file, the page table, the free list and two counters. The disk manager keeps it in a `Mutex<DbIo>`, so one thread at a time touches any of it.
 
-Implement the first part of `DbIo::allocate_slot`: always take a fresh slot at the end. `num_slots` counts how many have been handed out, so the next fresh slot **is** `num_slots`; hand it out and move the counter on. (Stages 11 and 12 add growing the file and reusing freed slots to this same function; the stub marks the places.) `DiskManager::allocate_slot` is given: it takes the lock and calls yours.
+Implement the first part of `DbIo::allocate_slot`: always take a fresh slot at the end. `num_slots` counts how many have been handed out, so the next fresh slot **is** `num_slots`; hand it out and move the counter on. (Stages 11 and 12 add growing the file and reusing freed slots to this same function.) `DiskManager::allocate_slot` is given: it takes the lock and calls yours.
 
 ## Tests
 

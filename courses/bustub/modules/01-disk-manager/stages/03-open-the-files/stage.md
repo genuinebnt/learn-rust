@@ -4,7 +4,7 @@
 
 `DiskManager::new(db_file)` opens `db_file` for reading and writing, **creating it if it isn't there and keeping its contents if it is**. It also opens a log file next to it: the same path with the extension replaced by `.log` (`test.bustub` → `test.log`), opened for reading and **appending**. If either can't be opened, `new` returns the `io::Error`; it does not panic.
 
-The struct and the rest of `new` are given. In `src/storage/disk/disk_manager.rs`, the stub declares three variables with `todo!()`; give them real values: `log_file_name`, `log_io` (the log file) and `db` (the db file).
+`new` is yours to write whole, in `src/storage/disk/disk_manager.rs`: open both files and build the `DiskManager`. The struct and its fields are given as a starting point: keep them, or change them if you prefer another design. The tests only call `new`, `db_file_name()` and `log_file_name()` (and, later, the other public methods).
 
 ## Tests
 

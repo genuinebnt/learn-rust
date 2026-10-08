@@ -2,7 +2,7 @@
 
 ## The task
 
-Implement `read_log(buf, offset)` in `src/storage/disk/disk_manager.rs` (the lock is given). It reads `buf.len()` bytes of the log starting at byte `offset`:
+Implement `read_log(buf, offset)` in `src/storage/disk/disk_manager.rs` It reads `buf.len()` bytes of the log starting at byte `offset`:
 - if `offset` is **at or past the end** of the log: return `Ok(false)` and leave `buf` untouched;
 - otherwise return `Ok(true)`; whatever the log doesn't have (a read running off the end) is **zero-filled**.
 

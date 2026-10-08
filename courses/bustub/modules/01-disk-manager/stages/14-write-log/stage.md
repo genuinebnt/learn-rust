@@ -2,7 +2,7 @@
 
 ## The task
 
-Implement `write_log(data)` in `src/storage/disk/disk_manager.rs` (the empty check and the lock are given): append `data` to the log file, and count one flush.
+Implement `write_log(data)` in `src/storage/disk/disk_manager.rs`: append `data` to the log file and count one flush; an empty `data` does nothing at all.
 
 ## Tests
 

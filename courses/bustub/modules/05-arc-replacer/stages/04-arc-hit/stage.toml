@@ -1,0 +1,5 @@
+id = "1e-04"
+title = "A hit on a live frame moves it to mfu"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1e::s1e_04"]

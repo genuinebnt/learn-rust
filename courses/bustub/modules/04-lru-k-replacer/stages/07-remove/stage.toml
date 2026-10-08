@@ -1,0 +1,5 @@
+id = "1d-07"
+title = "remove: take a frame out of the replacer"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_1d::s1d_07"]

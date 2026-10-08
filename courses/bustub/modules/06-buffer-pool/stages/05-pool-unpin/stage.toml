@@ -1,0 +1,5 @@
+id = "1f-05"
+title = "unpin_page: release a pin, remember the dirt"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1f::s1f_05"]

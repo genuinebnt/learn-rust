@@ -1,0 +1,5 @@
+id = "1d-06"
+title = "evict: infinite distances first, then the oldest k-th access"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1d::s1d_06"]

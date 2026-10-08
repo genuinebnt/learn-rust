@@ -45,4 +45,4 @@ auto DiskManager::GetNumWrites() const -> int { return num_writes_; }   // read 
 **Port rule:** every shared counter that C++ wrote as a plain `int` and "protected by convention" is either `Atomic*` or inside the `Mutex`. Pick `Relaxed` only when the number does not order other memory.
 
 ## Learn more
-- [`AtomicUsize`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html) · [`Ordering`](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html)
+- [`AtomicUsize`](https://doc.rust-lang.org/std/sync/atomic/type.AtomicUsize.html) · [`Ordering`](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html)

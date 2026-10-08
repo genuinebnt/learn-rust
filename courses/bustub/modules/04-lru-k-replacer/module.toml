@@ -1,0 +1,110 @@
+code = "1d"
+title = "LRU-K replacer"
+summary = "The LRU-K eviction policy: a bounded access history per frame, backward k-distance, the exact tie-breaks, remove, and an O(log n) eviction order. BusTub Project 1, replacement policies (second part)."
+lectures = ["bufferpool"]
+bustub = ["src/include/buffer/lru_k_replacer.h", "src/buffer/lru_k_replacer.cpp", "test/buffer/lru_k_replacer_test.cpp"]
+
+[[resources]]
+kind = "paper"
+title = "O'Neil, O'Neil, Weikum: The LRU-K page replacement algorithm for database disk buffering (SIGMOD 1993)"
+url = "https://www.cs.cmu.edu/~natassa/courses/15-721/papers/p297-o_neil.pdf"
+
+[[resources]]
+kind = "docs"
+title = "VecDeque"
+url = "https://doc.rust-lang.org/std/collections/struct.VecDeque.html"
+
+[[resources]]
+kind = "docs"
+title = "HashMap::entry and Entry::or_insert_with"
+url = "https://doc.rust-lang.org/std/collections/hash_map/enum.Entry.html"
+
+[[resources]]
+kind = "docs"
+title = "Iterator::min_by_key"
+url = "https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.min_by_key"
+
+[[resources]]
+kind = "docs"
+title = "BTreeSet (first, pop_first, ordered iteration)"
+url = "https://doc.rust-lang.org/std/collections/struct.BTreeSet.html"
+
+[[resources]]
+kind = "docs"
+title = "BTreeMap"
+url = "https://doc.rust-lang.org/std/collections/struct.BTreeMap.html"
+
+[[resources]]
+kind = "docs"
+title = "Ord and lexicographic tuple ordering"
+url = "https://doc.rust-lang.org/std/cmp/trait.Ord.html"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::deque"
+url = "https://en.cppreference.com/w/cpp/container/deque"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::set"
+url = "https://en.cppreference.com/w/cpp/container/set"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::map"
+url = "https://en.cppreference.com/w/cpp/container/map"
+
+[[resources]]
+kind = "docs"
+title = "C++ std::min_element"
+url = "https://en.cppreference.com/w/cpp/algorithm/min_element"
+
+[[resources]]
+kind = "docs"
+title = "moka: a high-performance concurrent cache for Rust"
+url = "https://github.com/moka-rs/moka"
+
+[[resources]]
+kind = "docs"
+title = "priority-queue: a heap with changeable priorities"
+url = "https://docs.rs/priority-queue"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: hash maps"
+url = "https://doc.rust-lang.org/book/ch08-03-hash-maps.html"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: the Option enum"
+url = "https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html#the-option-enum-and-its-advantages-over-null-values"
+
+[[resources]]
+kind = "book"
+title = "Rust Book: to panic! or not to panic!"
+url = "https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html"
+
+[[resources]]
+kind = "blog"
+title = "Cache replacement policies (Wikipedia): LRU, LRU-K, ARC and friends"
+url = "https://en.wikipedia.org/wiki/Cache_replacement_policies"
+
+[[resources]]
+kind = "code"
+title = "lru-rs: an LRU cache in Rust"
+url = "https://github.com/jeromefroe/lru-rs"
+
+[[resources]]
+kind = "code"
+title = "BusTub lru_k_replacer.h"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/buffer/lru_k_replacer.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub lru_k_replacer_test.cpp"
+url = "https://github.com/cmu-db/bustub/blob/master/test/buffer/lru_k_replacer_test.cpp"
+
+[[resources]]
+kind = "code"
+title = "PostgreSQL buffer manager README (usage counts, clock sweep)"
+url = "https://github.com/postgres/postgres/blob/master/src/backend/storage/buffer/README"

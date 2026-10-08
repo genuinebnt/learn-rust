@@ -1,0 +1,5 @@
+id = "1b-02"
+title = "Channel::get: wait for an element"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1b::s1b_02"]

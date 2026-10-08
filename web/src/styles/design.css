@@ -15,6 +15,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 input{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 code{font-family:var(--mono);font-size:.92em;color:var(--fg)}
+/* Code reads literally: no ligatures, or != is drawn as ≠ and <= as ⩽ */
+code,pre,kbd,.m,textarea{font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0}
 .m{font-family:var(--mono)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 

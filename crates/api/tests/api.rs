@@ -540,11 +540,11 @@ async fn editor_settings_round_trip_and_validate(db: PgPool) {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         s["editor"],
-        json!({ "font_size": 13, "font_family": "JetBrains Mono", "vim": false, "autocomplete": true, "rust_analyzer": true, "borrow_lanes": false, "live_clippy": true, "format_on_pause": false })
+        json!({ "font_size": 13, "font_family": "JetBrains Mono", "vim": false, "autocomplete": true, "rust_analyzer": true, "borrow_lanes": false, "live_clippy": true, "format_on_pause": false, "ligatures": false })
     );
     assert!(s["font_families"].as_array().unwrap().contains(&json!("Fira Code")));
 
-    let e = json!({ "font_size": 16, "font_family": "Fira Code", "vim": true, "autocomplete": false, "rust_analyzer": false, "borrow_lanes": true, "live_clippy": false, "format_on_pause": true });
+    let e = json!({ "font_size": 16, "font_family": "Fira Code", "vim": true, "autocomplete": false, "rust_analyzer": false, "borrow_lanes": true, "live_clippy": false, "format_on_pause": true, "ligatures": true });
     assert_eq!(call(&app, Method::PUT, "/api/settings/editor", Some(e.clone())).await.0, StatusCode::OK);
     assert_eq!(call(&app, Method::GET, "/api/settings", None).await.1["editor"], e);
 

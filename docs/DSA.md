@@ -136,5 +136,7 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       the first time (`ANNEAL_LEETCODE_URL` overrides the endpoint for tests), cleans the HTML (`ammonia`), keeps it in `dsa_statements`
       for 30 days and serves an older copy if LeetCode is unreachable; Premium problems say so. The page shows PROBLEM and
       HINTS (one at a time) above the idea.
+- [x] Editor ligatures (2026-10-08): off by default (they flickered while typing and the cursor is placed per character), with a Ligatures
+      switch in the editor settings (`ligatures` in `settings.editor`); static code (`code`, `pre`, `kbd`) never uses them, so `!=` is no longer drawn as ≠.
 - [ ] Content: pages for the rest of the 943 (the problems only in NeetCode All, 693 of them), if you want them. They are
       practice-level and the Practice tab already points at LeetCode problems, so this is optional.

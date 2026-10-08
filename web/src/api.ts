@@ -226,6 +226,8 @@ export interface EditorSettings {
   font_size: number;
   font_family: string;
   vim: boolean;
+  /** Programming ligatures in the editor. Off by default. */
+  ligatures: boolean;
   /** Workspace status-bar toggles. */
   autocomplete: boolean;
   rust_analyzer: boolean;

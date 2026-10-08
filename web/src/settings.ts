@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Accent, type EditorSettings, type Settings } from "./api";
 
-export const DEFAULT_EDITOR: EditorSettings = { font_size: 13, font_family: "JetBrains Mono", vim: false, autocomplete: true, rust_analyzer: true, borrow_lanes: false, live_clippy: true, format_on_pause: false };
+export const DEFAULT_EDITOR: EditorSettings = { font_size: 13, font_family: "JetBrains Mono", vim: false, autocomplete: true, rust_analyzer: true, borrow_lanes: false, live_clippy: true, format_on_pause: false, ligatures: false };
 
 const STACK: Record<string, string> = {
   system: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
@@ -38,6 +38,9 @@ export function applyEditor(e: EditorSettings) {
   root.setProperty("--editor-font", stack(e.font_family));
   root.setProperty("--editor-size", `${e.font_size}px`);
   root.setProperty("--editor-line", `${Math.round(e.font_size * 1.55)}px`);
+  // Ligatures come from the fonts' contextual alternates; both properties are set so every browser agrees.
+  root.setProperty("--editor-ligatures", e.ligatures ? "normal" : "none");
+  root.setProperty("--editor-features", e.ligatures ? "normal" : '"liga" 0, "calt" 0');
   window.dispatchEvent(new Event("anneal:editor-font"));
   // A newly loaded web font changes glyph widths once it arrives.
   document.fonts?.ready.then(() => window.dispatchEvent(new Event("anneal:editor-font")));
@@ -59,7 +62,7 @@ export function useEditorSettings() {
       if (prev) qc.setQueryData(["settings"], prev);
     },
   });
-  useEffect(() => applyEditor(editor), [editor.font_family, editor.font_size]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => applyEditor(editor), [editor.font_family, editor.font_size, editor.ligatures]); // eslint-disable-line react-hooks/exhaustive-deps
   return {
     editor,
     families: settings.data?.font_families ?? [DEFAULT_EDITOR.font_family],

@@ -41,7 +41,7 @@ const highlight = HighlightStyle.define([
 const theme = EditorView.theme({
   // Font settings come from the user's editor settings (settings.ts), as CSS variables.
   "&": { height: "100%", backgroundColor: "var(--bg)", color: "var(--fg)", fontSize: "var(--editor-size, 13px)" },
-  ".cm-scroller": { fontFamily: "var(--editor-font, var(--mono))", lineHeight: "var(--editor-line, 20px)", position: "relative" },
+  ".cm-scroller": { fontFamily: "var(--editor-font, var(--mono))", fontVariantLigatures: "var(--editor-ligatures, none)", fontFeatureSettings: "var(--editor-features, '\"liga\" 0, \"calt\" 0')", lineHeight: "var(--editor-line, 20px)", position: "relative" },
   ".cm-content": { padding: "12px 0", caretColor: "var(--acc)" },
   ".cm-gutters": { backgroundColor: "var(--bg)", border: "none", color: "var(--dim)" },
   ".cm-lineNumbers .cm-gutterElement": { padding: "0 16px 0 12px", minWidth: "48px" },

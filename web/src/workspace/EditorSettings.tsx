@@ -84,6 +84,21 @@ export function EditorSettingsButton({ children }: { children?: ReactNode }) {
               <i />
             </button>
           </div>
+          <div className="eset-row">
+            <span>
+              Ligatures
+              <small className="eset-hint">draw -&gt; and != as one glyph; can flicker while typing</small>
+            </span>
+            <button
+              className={`eset-switch${editor.ligatures ? " on" : ""}`}
+              role="switch"
+              aria-checked={editor.ligatures}
+              aria-label="Ligatures"
+              onClick={() => set({ ...editor, ligatures: !editor.ligatures })}
+            >
+              <i />
+            </button>
+          </div>
           <div className="eset-fonts" role="radiogroup" aria-label="Font family">
             {families.map((f) => (
               <button
@@ -97,8 +112,8 @@ export function EditorSettingsButton({ children }: { children?: ReactNode }) {
               </button>
             ))}
           </div>
-          {(editor.font_size !== DEFAULT_EDITOR.font_size || editor.font_family !== DEFAULT_EDITOR.font_family || editor.vim !== DEFAULT_EDITOR.vim) && (
-            <button className="eset-reset" onClick={() => set({ ...editor, font_size: DEFAULT_EDITOR.font_size, font_family: DEFAULT_EDITOR.font_family, vim: DEFAULT_EDITOR.vim })}>
+          {(editor.font_size !== DEFAULT_EDITOR.font_size || editor.font_family !== DEFAULT_EDITOR.font_family || editor.vim !== DEFAULT_EDITOR.vim || editor.ligatures !== DEFAULT_EDITOR.ligatures) && (
+            <button className="eset-reset" onClick={() => set({ ...editor, font_size: DEFAULT_EDITOR.font_size, font_family: DEFAULT_EDITOR.font_family, vim: DEFAULT_EDITOR.vim, ligatures: DEFAULT_EDITOR.ligatures })}>
               Reset to defaults
             </button>
           )}

@@ -35,6 +35,10 @@ pub struct EditorSettings {
     /// Run rustfmt after a pause in typing, not only on ⌘S / ⇧⌥F.
     #[serde(default)]
     pub format_on_pause: bool,
+    /// Programming ligatures in the editor (`->` drawn as one arrow). Off by default: they form and un-form as you
+    /// type, and the cursor and selection are placed per character.
+    #[serde(default)]
+    pub ligatures: bool,
 }
 
 fn on() -> bool {
@@ -52,6 +56,7 @@ impl Default for EditorSettings {
             borrow_lanes: false,
             live_clippy: true,
             format_on_pause: false,
+            ligatures: false,
         }
     }
 }

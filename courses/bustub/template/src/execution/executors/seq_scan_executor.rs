@@ -8,9 +8,9 @@ use crate::catalog::catalog::TableInfo;
 use crate::catalog::schema::Schema;
 use crate::common::exception::{Exception, ExceptionType, Result};
 use crate::common::rid::Rid;
-use crate::concurrency::transaction::Transaction;
+use crate::concurrency::transaction::{IsolationLevel, Transaction};
 use crate::concurrency::transaction_manager::{get_tuple_and_undo_link, TransactionManager};
-use crate::execution::execution_common::{collect_undo_logs, reconstruct_tuple};
+use crate::execution::execution_common::{collect_undo_logs, reconstruct_tuple, true_predicate};
 use crate::execution::executor_context::ExecutorContext;
 use crate::execution::expressions::abstract_expression::ExprRef;
 use crate::execution::plans::plan_node::{PlanKind, PlanRef};
@@ -44,6 +44,7 @@ impl<'e> SeqScanExecutor<'e> {
 
 impl Executor for SeqScanExecutor<'_> {
     fn init(&mut self) -> Result<()> {
+        // 4b-08: a serializable transaction remembers what it scans with: txn.append_scan_predicate(table oid, the filter predicate, or true_predicate() if the scan has none)
         todo!("3e-01: start a table iterator (module 3c: the one that stops where the table ended when the scan began)")
     }
 

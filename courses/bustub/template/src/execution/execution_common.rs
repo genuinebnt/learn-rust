@@ -166,3 +166,67 @@ pub fn txn_mgr_dbg(info: &str, txn_mgr: &TransactionManager, table: &crate::cata
         }
     }
 }
+
+// ---- Project 4: writing versions ----------------------------------------------------------------------------------------------------------
+
+use std::sync::Arc;
+
+use crate::catalog::catalog::TableInfo;
+use crate::common::exception::{Exception, ExceptionType};
+use crate::concurrency::transaction_manager::{get_tuple_and_undo_link, update_tuple_and_undo_link};
+
+/// Would `txn` collide with another transaction by writing a tuple whose metadata is `meta`? Yes if the tuple's version is neither
+/// the transaction's own write nor one it can see: it carries another transaction's temporary timestamp (uncommitted), or a commit
+/// timestamp after `txn`'s read timestamp (committed since `txn` began). Both are larger than the read timestamp.
+pub fn is_write_write_conflict(meta: &TupleMeta, txn: &Transaction) -> bool {
+    todo!("4b-02: a conflict if the tuple's ts is not this transaction's own temporary timestamp and is newer than its read timestamp")
+}
+
+/// Taints `txn` and makes the error to return from the statement. Given.
+pub fn write_write_conflict(txn: &Transaction) -> Exception {
+    txn.set_tainted();
+    Exception::new(ExceptionType::Execution, "write-write conflict")
+}
+
+/// The transaction already holds an undo log for this tuple (the head of its chain is the transaction's own): widen it for this new
+/// change instead of adding another (`generate_updated_undo_log`) and store it back with `Transaction::modify_undo_log`.
+fn update_own_undo_log(txn: &Transaction, schema: &Schema, own: UndoLink, base: Option<&Tuple>, target: Option<&Tuple>) {
+    todo!("4b-03: read the transaction's log own.prev_log_idx, generate the updated log for this change, and store it back")
+}
+
+/// Changes the tuple at `rid` inside `txn`: to `target`, or deletes it if `target` is `None`. The tuple is updated **in place** (an
+/// update needs a target of the same length) with the transaction's temporary timestamp, an undo log leaves the old version for
+/// readers, and the rid joins the write set. Fails with a write-write conflict (and taints the transaction) if another transaction
+/// wrote the tuple first.
+pub fn modify_tuple(txn: &Arc<Transaction>, txn_mgr: &TransactionManager, table: &TableInfo<'_>, rid: Rid, target: Option<&Tuple>) -> Result<()> {
+    let schema = &table.schema;
+    let (meta, base_tuple, link) = get_tuple_and_undo_link(txn_mgr, table, rid)?;
+    todo!("4b-02: read the tuple with its link (above); conflict check (taint and Err); the first change appends generate_new_undo_log (prev = the old head link), a tuple this transaction wrote already keeps its link (4b-03: its log is widened); write the meta (temp ts; deleted if target is None), the new bytes (a delete keeps the old ones) and the link with update_tuple_and_undo_link, whose check repeats the conflict test; then add the rid to the write set")
+}
+
+/// The version of the tuple at `rid` that `txn` may see, with its metadata; `None` if it did not exist for `txn`. Reads the tuple and
+/// its link together, collects the logs and reconstructs, as the sequential scan does. Given: the index scan uses it.
+pub fn read_visible_version(txn: &Transaction, txn_mgr: &TransactionManager, table: &TableInfo<'_>, rid: Rid) -> Result<Option<Tuple>> {
+    let (meta, base_tuple, link) = get_tuple_and_undo_link(txn_mgr, table, rid)?;
+    let Some(logs) = collect_undo_logs(rid, &meta, &base_tuple, link, txn, txn_mgr) else { return Ok(None) };
+    Ok(reconstruct_tuple(&table.schema, &base_tuple, &meta, &logs).map(|mut t| {
+        t.set_rid(rid);
+        t
+    }))
+}
+
+/// The predicate "true", recorded by a serializable scan that has no filter (it read everything). Given.
+pub fn true_predicate() -> crate::execution::expressions::abstract_expression::ExprRef {
+    use crate::execution::expressions::constant_value_expression::ConstantValueExpression;
+    Arc::new(ConstantValueExpression::new(Value::boolean(true)))
+}
+
+/// Inserts `tuple` into `table` inside `txn`. A table with a primary-key index goes through the index: an existing live tuple under the
+/// key is a duplicate (the transaction is tainted and the statement fails); a tombstone under the key is **reused** (the same rid
+/// becomes live again, as a normal in-place change, [`modify_tuple`]); a new key gets a new tuple and then its entry, and if the entry
+/// cannot be added (another transaction took the key first) the new tuple is buried and the statement fails. Without a primary key the
+/// tuple is simply added. The tuple carries the transaction's temporary timestamp and its rid joins the write set.
+pub fn insert_mvcc(txn: &Arc<Transaction>, txn_mgr: &TransactionManager, table: &TableInfo<'_>, indexes: &[Arc<crate::catalog::catalog::IndexInfo<'_>>], tuple: &Tuple) -> Result<()> {
+    // 4b-06: with a primary-key index in indexes: look the key up (scan_key); a live tuple at its rid: taint and fail (write_write_conflict); a deleted one: reuse the rid with modify_tuple(.., Some(tuple)); no entry: insert the tuple (temp ts), add it to the write set, insert_entry, and if that fails bury the tuple (update_tuple_meta with is_deleted) and fail
+    todo!("4b-01: insert the tuple with this transaction's temporary timestamp (not deleted) and add the rid to the write set")
+}

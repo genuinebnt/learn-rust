@@ -1,0 +1,7 @@
+id = "4b-04"
+title = "Abort"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_4b::s4b_04"]
+learn = ["undoing in-place writes with the undo logs", "what to restore for each kind of change", "doing a read-modify-write under one page latch"]
+concepts = ["rolling-back-with-undo-logs", "version-chains-and-undo-logs"]

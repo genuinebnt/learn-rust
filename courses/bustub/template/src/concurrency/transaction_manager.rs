@@ -5,16 +5,17 @@
 //! owned by the transaction manager: page id, then slot, then [`UndoLink`]. A tuple and its link are always changed together while the
 //! page is write-latched ([`update_tuple_and_undo_link`]), and read together under the read latch ([`get_tuple_and_undo_link`]).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
-use super::transaction::{IsolationLevel, Timestamp, Transaction, TransactionState, TxnId, UndoLink, UndoLog, TXN_START_ID};
+use super::transaction::{INVALID_TXN_ID, IsolationLevel, Timestamp, Transaction, TransactionState, TxnId, UndoLink, UndoLog, TXN_START_ID};
 use super::watermark::Watermark;
 use crate::catalog::catalog::{Catalog, TableInfo};
 use crate::common::config::PageId;
 use crate::common::exception::{Exception, ExceptionType, Result};
 use crate::common::rid::Rid;
+use crate::execution::execution_common::{collect_undo_logs, reconstruct_tuple};
 use crate::storage::table::tuple::{Tuple, TupleMeta};
 
 pub struct TransactionManager {
@@ -89,12 +90,19 @@ impl TransactionManager {
         if !matches!(txn.state(), TransactionState::Running | TransactionState::Tainted) {
             return Err(Exception::new(ExceptionType::Execution, "txn not in running / tainted state"));
         }
+        // 4b-04: for every rid in the write set (the table from the catalog), under the page's write latch (with_page_mut): if the tuple's head link is this transaction's own log, rebuild the old version with reconstruct_tuple from that one log and write it with meta ts = the log's ts (is_deleted if the log says so), then set the link to the log's prev_version (None if invalid); with no own log the tuple was created by this transaction: make it a deleted tuple with ts 0
         todo!("4a-03: mark the transaction aborted and remove its read timestamp from the watermark")
     }
 
     /// Serializable validation (module 4b); until then every transaction passes.
     fn verify_txn(&self, txn: &Arc<Transaction>) -> bool {
-        true
+        true // 4b-08: a transaction with no writes or no scans passes. Otherwise for every transaction that committed after txn.read_ts(), for each tuple in its write set, rebuild the tuple as of commit_ts - 1 and as of commit_ts (a throwaway Transaction with that read ts and collect_undo_logs + reconstruct_tuple); if one of txn's predicates on that table is true for either version, fail
+    }
+
+    /// Stop-the-world garbage collection: call it when no transaction is executing. Forgets every finished transaction whose undo logs no
+    /// reader can still need.
+    pub fn garbage_collection(&self) {
+        // 4b-05: watermark = get_watermark(); for every tuple of every table (the catalog's table names, make_eager_iterator): a tuple at or below the watermark needs no chain (clear its link); otherwise walk the chain collecting the owner of each log, stopping after the first log whose ts <= watermark. Then txn_map.retain: keep running and tainted transactions and those collected as needed
     }
 
     // ---- version chains (given) ------------------------------------------------------------------------------------------------

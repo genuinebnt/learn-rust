@@ -90,6 +90,11 @@ impl BusTubInstance {
     }
 
     fn execute_sql_in(&self, sql: &str, writer: &mut dyn ResultWriter, check_options: Option<&CheckOptions>, txn: Option<&Arc<Transaction>>) -> Result<bool> {
+        if let Some(txn) = txn {
+            if txn.state() != crate::concurrency::transaction::TransactionState::Running {
+                return Err(Exception::new(ExceptionType::Execution, "the transaction is not running"));
+            }
+        }
         if sql.starts_with('\\') {
             return self.execute_command(sql, writer);
         }

@@ -8,6 +8,9 @@ use crate::catalog::catalog::{IndexInfo, TableInfo};
 use crate::catalog::schema::Schema;
 use crate::common::exception::{Exception, ExceptionType, Result};
 use crate::common::rid::Rid;
+use crate::concurrency::transaction::Transaction;
+use crate::concurrency::transaction_manager::TransactionManager;
+use crate::execution::execution_common::insert_mvcc;
 use crate::execution::executor_context::ExecutorContext;
 use crate::execution::plans::plan_node::{PlanKind, PlanRef};
 use crate::storage::table::tuple::{Tuple, TupleMeta};
@@ -20,6 +23,8 @@ pub struct InsertExecutor<'e> {
     child: ExecutorBox<'e>,
     /// The count has been produced.
     done: bool,
+    /// The transaction the statement runs in (module 4b), with its manager.
+    txn: Option<(Arc<Transaction>, &'e TransactionManager)>,
 }
 
 impl<'e> InsertExecutor<'e> {
@@ -27,7 +32,8 @@ impl<'e> InsertExecutor<'e> {
         let PlanKind::Insert { table_oid } = &plan.kind else { unreachable!("an InsertExecutor needs an Insert plan") };
         let table_info = ctx.catalog.table_info(*table_oid).ok_or_else(|| Exception::new(ExceptionType::Execution, "the table of an insert does not exist"))?;
         let indexes = ctx.catalog.get_table_indexes(&table_info.name);
-        Ok(InsertExecutor { plan, table_info, indexes, child, done: false })
+        let txn = ctx.txn().cloned().zip(ctx.txn_mgr());
+        Ok(InsertExecutor { plan, table_info, indexes, child, done: false, txn })
     }
 
     /// Adds the tuple stored at `rid` to every index of the table. A key that is already in an index is ignored (BusTub's indexes keep
@@ -45,6 +51,7 @@ impl Executor for InsertExecutor<'_> {
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, _batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
+        // 4b-01: when self.txn is Some: as below, but insert each tuple with insert_mvcc (in execution_common.rs) instead of the heap and the indexes directly
         todo!("3e-03: once: pull every batch from the child, insert each tuple into the heap (a TupleMeta with ts 0 and is_deleted false), call insert_into_indexes with the new rid, count them; answer with one tuple holding the count; every later call returns false")
     }
 

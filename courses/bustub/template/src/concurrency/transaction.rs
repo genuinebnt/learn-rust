@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicI64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::common::rid::Rid;
 use crate::execution::expressions::abstract_expression::ExprRef;
@@ -178,7 +178,12 @@ impl Transaction {
 
     /// Remembers a predicate this transaction scanned a table with (for serializable validation).
     pub fn append_scan_predicate(&self, table: TableOid, predicate: ExprRef) {
-        self.inner.lock().unwrap().scan_predicates.entry(table).or_default().push(predicate);
+        let mut inner = self.inner.lock().unwrap();
+        let predicates = inner.scan_predicates.entry(table).or_default();
+        // a scan that is initialised again (the inner side of a join) records its predicate once
+        if !predicates.iter().any(|p| Arc::ptr_eq(p, &predicate)) {
+            predicates.push(predicate);
+        }
     }
 
     pub fn scan_predicates(&self) -> HashMap<TableOid, Vec<ExprRef>> {

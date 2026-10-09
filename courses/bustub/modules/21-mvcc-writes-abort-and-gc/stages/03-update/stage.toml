@@ -1,0 +1,7 @@
+id = "4b-03"
+title = "Update in place"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_4b::s4b_03"]
+learn = ["updating a row in place while keeping the old version reachable", "one growing undo log per tuple per transaction", "collecting changes before applying them"]
+concepts = ["version-chains-and-undo-logs", "snapshot-isolation"]

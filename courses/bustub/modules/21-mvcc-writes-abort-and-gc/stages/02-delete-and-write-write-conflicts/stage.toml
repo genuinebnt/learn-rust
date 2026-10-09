@@ -1,0 +1,7 @@
+id = "4b-02"
+title = "Delete and write-write conflicts"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_4b::s4b_02"]
+learn = ["first-updater-wins conflict detection", "the first change of a tuple: a full undo log, a link, a tombstone", "tainting a transaction"]
+concepts = ["snapshot-isolation", "tombstones-and-lazy-deletion", "version-chains-and-undo-logs"]

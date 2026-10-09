@@ -1,0 +1,7 @@
+id = "4b-05"
+title = "Garbage collection"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_4b::s4b_05"]
+learn = ["deciding reachability from the watermark", "walking every chain of every table", "forgetting transactions safely"]
+concepts = ["watermarks-and-garbage-collection", "multi-version-concurrency-control"]

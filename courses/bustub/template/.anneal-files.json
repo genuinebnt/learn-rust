@@ -169,6 +169,7 @@
   "tests/stages_3g.rs": "3g",
   "tests/stages_3h.rs": "3h",
   "tests/stages_4a.rs": "4a",
+  "tests/stages_4b.rs": "4b",
   "tests/table_page_test.rs": "3b",
   "tests/tuple_test.rs": "3c",
   "tests/type_test.rs": "3a"

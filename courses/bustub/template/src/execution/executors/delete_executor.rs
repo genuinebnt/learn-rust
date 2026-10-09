@@ -8,6 +8,9 @@ use crate::catalog::catalog::{IndexInfo, TableInfo};
 use crate::catalog::schema::Schema;
 use crate::common::exception::{Exception, ExceptionType, Result};
 use crate::common::rid::Rid;
+use crate::concurrency::transaction::Transaction;
+use crate::concurrency::transaction_manager::TransactionManager;
+use crate::execution::execution_common::modify_tuple;
 use crate::execution::executor_context::ExecutorContext;
 use crate::execution::plans::plan_node::{PlanKind, PlanRef};
 use crate::storage::table::tuple::{Tuple, TupleMeta};
@@ -19,6 +22,8 @@ pub struct DeleteExecutor<'e> {
     indexes: Vec<Arc<IndexInfo<'e>>>,
     child: ExecutorBox<'e>,
     done: bool,
+    /// The transaction the statement runs in (module 4b), with its manager.
+    txn: Option<(Arc<Transaction>, &'e TransactionManager)>,
 }
 
 impl<'e> DeleteExecutor<'e> {
@@ -26,7 +31,8 @@ impl<'e> DeleteExecutor<'e> {
         let PlanKind::Delete { table_oid } = &plan.kind else { unreachable!("a DeleteExecutor needs a Delete plan") };
         let table_info = ctx.catalog.table_info(*table_oid).ok_or_else(|| Exception::new(ExceptionType::Execution, "the table of a delete does not exist"))?;
         let indexes = ctx.catalog.get_table_indexes(&table_info.name);
-        Ok(DeleteExecutor { plan, table_info, indexes, child, done: false })
+        let txn = ctx.txn().cloned().zip(ctx.txn_mgr());
+        Ok(DeleteExecutor { plan, table_info, indexes, child, done: false, txn })
     }
 
     /// Removes the entries of `tuple` from every index of the table.
@@ -43,6 +49,7 @@ impl Executor for DeleteExecutor<'_> {
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, _batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
+        // 4b-02: when self.txn is Some: once, for every rid of the child call modify_tuple(.., None) (index entries stay), count, and answer with one tuple holding the count
         todo!("3e-05: once: for every tuple (and rid) of the child mark the heap tuple deleted (update_tuple_meta with is_deleted: true), remove its index entries (delete_from_indexes) and count it; answer with one tuple holding the count; every later call returns false")
     }
 

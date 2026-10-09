@@ -1,0 +1,8 @@
+id = "4b-09"
+title = "Boss: BusTub's executor, index and concurrency tests"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_4b::s4b_09"]
+learn = ["testing a transactional engine under real concurrency", "reading a failing multi-transaction scenario"]
+concepts = ["snapshot-isolation", "rolling-back-with-undo-logs"]
+retest = true

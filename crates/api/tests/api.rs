@@ -1545,8 +1545,8 @@ async fn course_tree_stage_page_runs_and_solutions(db: PgPool) {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(tree["done"], 0);
     assert_eq!(tree["current"], "1a-01");
-    let planned = tree["projects"].as_array().unwrap().iter().filter(|p| p["planned"] == true).count();
-    assert!(planned >= 1, "planned projects are listed");
+    let projects = tree["projects"].as_array().unwrap();
+    assert!(!projects.is_empty() && projects.iter().all(|p| p["planned"].is_boolean()), "every project says whether it is only planned");
 
     // a stage page: markdown parts, no hints written yet, no solution uploaded yet
     let (status, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;

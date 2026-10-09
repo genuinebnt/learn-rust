@@ -1,0 +1,26 @@
+code = "4b"
+title = "MVCC writes, abort, garbage collection and serializability"
+summary = "Insert, delete and update inside a transaction: tuples updated in place with undo logs behind them, write-write conflicts that taint the loser, abort that restores the old versions, garbage collection driven by the watermark, a primary-key index that reuses tombstones, and serializable validation by predicates. BusTub Project 4, tasks 2 to 4."
+lectures = ["multiversioning", "timestampordering", "concurrencycontrol"]
+bustub = ["src/include/execution/execution_common.h", "src/execution/execution_common.cpp", "src/concurrency/transaction_manager.cpp", "src/concurrency/transaction_manager_impl.cpp", "src/include/concurrency/transaction_manager.h", "src/execution/insert_executor.cpp", "src/execution/delete_executor.cpp", "src/execution/update_executor.cpp", "src/execution/index_scan_executor.cpp", "test/txn/txn_executor_test.cpp", "test/txn/txn_index_test.cpp", "test/txn/txn_index_concurrent_test.cpp", "test/txn/txn_abort_serializable_test.cpp", "test/txn/txn_common.h"]
+files = []
+
+[[resources]]
+kind = "paper"
+title = "Fast Serializable Multi-Version Concurrency Control for Main-Memory Database Systems (HyPer, SIGMOD 2015)"
+url = "https://db.in.tum.de/~muehlbau/papers/mvcc.pdf"
+
+[[resources]]
+kind = "paper"
+title = "A Critique of ANSI SQL Isolation Levels (Berenson et al., SIGMOD 1995)"
+url = "https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-95-51.pdf"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: Transaction Isolation"
+url = "https://www.postgresql.org/docs/current/transaction-iso.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: Routine Vacuuming"
+url = "https://www.postgresql.org/docs/current/routine-vacuuming.html"

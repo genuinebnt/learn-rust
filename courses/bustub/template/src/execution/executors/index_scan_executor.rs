@@ -9,6 +9,9 @@ use crate::catalog::catalog::{IndexInfo, TableInfo};
 use crate::catalog::schema::Schema;
 use crate::common::exception::{Exception, ExceptionType, Result};
 use crate::common::rid::Rid;
+use crate::concurrency::transaction::{IsolationLevel, Transaction};
+use crate::concurrency::transaction_manager::TransactionManager;
+use crate::execution::execution_common::{read_visible_version, true_predicate};
 use crate::execution::executor_context::ExecutorContext;
 use crate::execution::expressions::abstract_expression::ExprRef;
 use crate::execution::plans::plan_node::{PlanKind, PlanRef};
@@ -23,6 +26,8 @@ pub struct IndexScanExecutor<'e> {
     /// The rids to visit, in the order to visit them; `cursor` is how many were visited.
     rids: Vec<Rid>,
     cursor: usize,
+    /// The transaction to read as, with its manager (module 4b).
+    txn: Option<(Arc<Transaction>, &'e TransactionManager)>,
 }
 
 impl<'e> IndexScanExecutor<'e> {
@@ -31,7 +36,7 @@ impl<'e> IndexScanExecutor<'e> {
         let table_info = ctx.catalog.table_info(*table_oid).ok_or_else(|| Exception::new(ExceptionType::Execution, "the table of an index scan does not exist"))?;
         let index_info = ctx.catalog.get_index_by_oid(*index_oid).ok_or_else(|| Exception::new(ExceptionType::Execution, "the index of an index scan does not exist"))?;
         let (filter_predicate, pred_keys) = (filter_predicate.clone(), pred_keys.clone());
-        Ok(IndexScanExecutor { plan, table_info, index_info, filter_predicate, pred_keys, rids: vec![], cursor: 0 })
+        Ok(IndexScanExecutor { plan, table_info, index_info, filter_predicate, pred_keys, rids: vec![], cursor: 0, txn: ctx.txn().cloned().zip(ctx.txn_mgr()) })
     }
 
     /// The rids this scan visits: with `pred_keys`, the rid under each key (in the order of the keys); without, every rid of the index in
@@ -43,12 +48,14 @@ impl<'e> IndexScanExecutor<'e> {
 
 impl Executor for IndexScanExecutor<'_> {
     fn init(&mut self) -> Result<()> {
+        // 4b-08: a serializable transaction remembers what it scans with: append_scan_predicate(table oid, the filter predicate, or true_predicate())
         todo!("3e-07: remember the rids to visit (collect_rids) and start at the first")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
+        // 4b-06: when self.txn is Some: for each rid use read_visible_version (given) instead of the heap's tuple, skip None, apply the filter as below
         todo!("3e-07: fill the batch from the rids: fetch each tuple from the heap (get_tuple), skip deleted ones and those for which the filter predicate (if any) is not TRUE; true if the batch is not empty")
     }
 

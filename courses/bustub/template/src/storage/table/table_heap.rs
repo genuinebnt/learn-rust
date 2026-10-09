@@ -58,6 +58,18 @@ impl<'a> TableHeap<'a> {
         todo!("3c-02: write-latch the page; read the old tuple; if there is no check or the check approves, overwrite in place and say true; otherwise false")
     }
 
+    /// Runs `f` on the table page of `rid` while holding its **read** latch (module 4a: reading a tuple and its version link together).
+    pub fn with_page<R>(&self, rid: Rid, f: impl FnOnce(&TablePage<&[u8]>) -> R) -> R {
+        let guard = self.bpm.read_page(rid.page_id());
+        f(&TablePage::new(&guard[..]))
+    }
+
+    /// Runs `f` on the table page of `rid` while holding its **write** latch (module 4a: changing a tuple and its version link together).
+    pub fn with_page_mut<R>(&self, rid: Rid, f: impl FnOnce(&mut TablePage<&mut [u8]>) -> R) -> R {
+        let mut guard = self.bpm.write_page(rid.page_id());
+        f(&mut TablePage::new(&mut guard[..]))
+    }
+
     /// An iterator over the table as it is **now**: it stops at the last tuple that exists when it is created, so a statement that inserts
     /// into the table it scans (the "Halloween problem") does not see its own output. BusTub's `MakeIterator`.
     pub fn make_iterator(&self) -> TableIterator<'_> {

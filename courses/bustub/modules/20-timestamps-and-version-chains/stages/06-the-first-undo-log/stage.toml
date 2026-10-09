@@ -1,0 +1,7 @@
+id = "4a-06"
+title = "The first undo log of a tuple"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_4a::s4a_06"]
+learn = ["computing a delta between two tuples", "NULL-aware equality", "building a partial tuple under a partial schema"]
+concepts = ["version-chains-and-undo-logs", "tuple-layout-fixed-and-variable-parts"]

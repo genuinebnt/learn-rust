@@ -17,6 +17,8 @@ use crate::buffer::buffer_pool_manager::BufferPoolManager;
 use crate::catalog::catalog::Catalog;
 use crate::catalog::schema::Schema;
 use crate::catalog::table_generator::generate_test_tables;
+use crate::concurrency::transaction::Transaction;
+use crate::concurrency::transaction_manager::TransactionManager;
 use crate::common::exception::{Exception, ExceptionType, Result};
 use crate::common::result_writer::ResultWriter;
 use crate::execution::check_options::CheckOptions;
@@ -31,7 +33,9 @@ use crate::storage::disk::disk_manager_memory::DiskManagerUnlimitedMemory;
 
 pub struct BusTubInstance {
     pub buffer_pool_manager: &'static BufferPoolManager,
-    pub catalog: RwLock<Catalog<'static>>,
+    /// Leaked like the buffer pool: the transaction manager needs the catalog for as long as the instance lives.
+    pub catalog: &'static RwLock<Catalog<'static>>,
+    pub txn_manager: TransactionManager,
     session_variables: Mutex<HashMap<String, String>>,
 }
 
@@ -48,7 +52,8 @@ impl BusTubInstance {
 
     fn from_disk(bpm_size: usize, disk: Arc<dyn crate::storage::disk::disk_manager::DiskIo>) -> BusTubInstance {
         let bpm: &'static BufferPoolManager = Box::leak(Box::new(BufferPoolManager::new(bpm_size, disk)));
-        BusTubInstance { buffer_pool_manager: bpm, catalog: RwLock::new(Catalog::new(bpm)), session_variables: Mutex::new(HashMap::new()) }
+        let catalog: &'static RwLock<Catalog<'static>> = Box::leak(Box::new(RwLock::new(Catalog::new(bpm))));
+        BusTubInstance { buffer_pool_manager: bpm, catalog, txn_manager: TransactionManager::new(catalog), session_variables: Mutex::new(HashMap::new()) }
     }
 
     /// Creates the `__mock_*` tables (their rows are made up on the fly by the mock scan).
@@ -76,6 +81,15 @@ impl BusTubInstance {
     /// Runs the SQL (possibly several statements, separated by `;`) and writes each result to `writer`. Returns whether every statement
     /// executed successfully (a statement that fails with an `Execution` error returns `false`; any other error is an `Err`).
     pub fn execute_sql(&self, sql: &str, writer: &mut dyn ResultWriter, check_options: Option<&CheckOptions>) -> Result<bool> {
+        self.execute_sql_in(sql, writer, check_options, None)
+    }
+
+    /// Runs the SQL inside `txn` (module 4): reads see the versions `txn` can see, writes leave versions behind for the others.
+    pub fn execute_sql_txn(&self, sql: &str, writer: &mut dyn ResultWriter, txn: &Arc<Transaction>) -> Result<bool> {
+        self.execute_sql_in(sql, writer, None, Some(txn))
+    }
+
+    fn execute_sql_in(&self, sql: &str, writer: &mut dyn ResultWriter, check_options: Option<&CheckOptions>, txn: Option<&Arc<Transaction>>) -> Result<bool> {
         if sql.starts_with('\\') {
             return self.execute_command(sql, writer);
         }
@@ -122,6 +136,9 @@ impl BusTubInstance {
             let mut ctx = ExecutorContext::new(&catalog, self.buffer_pool_manager, is_modify);
             if let Some(options) = check_options {
                 ctx = ctx.with_check_options(options.clone());
+            }
+            if let Some(txn) = txn {
+                ctx = ctx.with_txn(txn.clone(), &self.txn_manager);
             }
             let (ok, result_set) = ExecutionEngine::execute(&optimized, &ctx)?;
             is_successful &= ok;

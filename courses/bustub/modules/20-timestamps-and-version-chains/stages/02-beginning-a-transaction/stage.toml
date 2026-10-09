@@ -1,0 +1,7 @@
+id = "4a-02"
+title = "Beginning a transaction"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_4a::s4a_02"]
+learn = ["a read timestamp is a snapshot of the commit counter", "taking two readings atomically under one lock", "temporary timestamps"]
+concepts = ["logical-clocks-and-timestamps", "multi-version-concurrency-control", "deadlock-and-lock-ordering"]

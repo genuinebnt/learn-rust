@@ -1,0 +1,7 @@
+id = "4a-07"
+title = "Updating the undo log of a changed tuple"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_4a::s4a_07"]
+learn = ["merging two deltas", "keeping the oldest value of a column", "an invariant: one log per tuple per transaction"]
+concepts = ["version-chains-and-undo-logs", "tombstones-and-lazy-deletion"]

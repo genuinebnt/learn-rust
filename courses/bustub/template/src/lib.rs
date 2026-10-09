@@ -8,6 +8,7 @@ pub mod binder;
 pub mod buffer;
 pub mod catalog;
 pub mod common;
+pub mod concurrency;
 pub mod container;
 pub mod execution;
 pub mod optimizer;

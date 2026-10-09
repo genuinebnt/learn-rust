@@ -1,11 +1,16 @@
 //! Port of `seq_scan_executor.cpp`: reads every row of a table, in the order they are stored, skipping the deleted ones and (when the
 //! optimizer merged a filter into the scan) the rows that do not satisfy the plan's `filter_predicate`.
 
+use std::sync::Arc;
+
 use super::abstract_executor::Executor;
 use crate::catalog::catalog::TableInfo;
 use crate::catalog::schema::Schema;
 use crate::common::exception::{Exception, ExceptionType, Result};
 use crate::common::rid::Rid;
+use crate::concurrency::transaction::Transaction;
+use crate::concurrency::transaction_manager::{get_tuple_and_undo_link, TransactionManager};
+use crate::execution::execution_common::{collect_undo_logs, reconstruct_tuple};
 use crate::execution::executor_context::ExecutorContext;
 use crate::execution::expressions::abstract_expression::ExprRef;
 use crate::execution::plans::plan_node::{PlanKind, PlanRef};
@@ -17,6 +22,8 @@ pub struct SeqScanExecutor<'e> {
     table_info: &'e TableInfo<'e>,
     filter_predicate: Option<ExprRef>,
     iter: Option<TableIterator<'e>>,
+    /// The transaction to read as, with the manager that holds the version chains (module 4).
+    txn: Option<(Arc<Transaction>, &'e TransactionManager)>,
 }
 
 /// Does `tuple` pass the scan's filter predicate? No predicate keeps everything; otherwise only the rows for which the predicate is
@@ -30,7 +37,8 @@ impl<'e> SeqScanExecutor<'e> {
         let PlanKind::SeqScan { table_oid, filter_predicate, .. } = &plan.kind else { unreachable!("a SeqScanExecutor needs a SeqScan plan") };
         let table_info = ctx.catalog.table_info(*table_oid).ok_or_else(|| Exception::new(ExceptionType::Execution, "the table of a scan does not exist"))?;
         let filter_predicate = filter_predicate.clone();
-        Ok(SeqScanExecutor { plan, table_info, filter_predicate, iter: None })
+        let txn = ctx.txn().cloned().zip(ctx.txn_mgr());
+        Ok(SeqScanExecutor { plan, table_info, filter_predicate, iter: None, txn })
     }
 }
 
@@ -42,6 +50,7 @@ impl Executor for SeqScanExecutor<'_> {
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
+        // 4a-08: when self.txn is Some, scan with versions: for each rid, read the tuple, its meta and its undo link together (get_tuple_and_undo_link), collect_undo_logs for the transaction, reconstruct_tuple, skip the rids that are None, then filter and push as below
         todo!("3e-01: fill the batch from the iterator: skip deleted tuples, keep those for which passes_filter(..) is true, stop at batch_size or the end; true if the batch is not empty")
     }
 

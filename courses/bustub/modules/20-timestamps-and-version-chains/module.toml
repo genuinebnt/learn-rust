@@ -1,0 +1,26 @@
+code = "4a"
+title = "Timestamps, transactions and version chains"
+summary = "Multi-version concurrency control from the ground up: the watermark, transactions with read and commit timestamps, and the undo logs that let a reader rebuild an older version of a tuple. The module ends with a sequential scan that reads a consistent snapshot. BusTub Project 4, tasks 1 to 3."
+lectures = ["multiversioning", "timestampordering", "concurrencycontrol"]
+bustub = ["src/include/concurrency/transaction.h", "src/include/concurrency/transaction_manager.h", "src/include/concurrency/watermark.h", "src/concurrency/watermark.cpp", "src/concurrency/transaction_manager.cpp", "src/concurrency/transaction_manager_impl.cpp", "src/include/execution/execution_common.h", "src/execution/execution_common.cpp", "src/execution/seq_scan_executor.cpp", "test/txn/txn_timestamp_test.cpp", "test/txn/txn_scan_test.cpp"]
+files = []
+
+[[resources]]
+kind = "paper"
+title = "Fast Serializable Multi-Version Concurrency Control for Main-Memory Database Systems (HyPer, SIGMOD 2015)"
+url = "https://db.in.tum.de/~muehlbau/papers/mvcc.pdf"
+
+[[resources]]
+kind = "paper"
+title = "An Empirical Evaluation of In-Memory Multi-Version Concurrency Control (Wu et al., VLDB 2017)"
+url = "https://www.vldb.org/pvldb/vol10/p781-Wu.pdf"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: Concurrency Control (MVCC)"
+url = "https://www.postgresql.org/docs/current/mvcc-intro.html"
+
+[[resources]]
+kind = "docs"
+title = "MySQL InnoDB: Multi-Versioning"
+url = "https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html"

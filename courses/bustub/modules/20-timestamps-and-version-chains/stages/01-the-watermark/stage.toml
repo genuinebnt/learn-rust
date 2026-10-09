@@ -1,0 +1,7 @@
+id = "4a-01"
+title = "The watermark"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_4a::s4a_01"]
+learn = ["a multiset as an ordered map of counts", "the smallest read timestamp as the garbage boundary", "logarithmic-time updates"]
+concepts = ["watermarks-and-garbage-collection", "ordered-sets-as-priority-queues"]

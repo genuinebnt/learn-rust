@@ -23,6 +23,9 @@
   "src/common/result_writer.rs": "3d",
   "src/common/rid.rs": "2a",
   "src/common/rwlatch.rs": "1b",
+  "src/concurrency/transaction.rs": "3d",
+  "src/concurrency/transaction_manager.rs": "3d",
+  "src/concurrency/watermark.rs": "3d",
   "src/container/disk/hash/disk_extendible_hash_table.rs": "2b",
   "src/container/hash/hash_function.rs": "2b",
   "src/container/hash/murmur3.rs": "2b",
@@ -165,6 +168,7 @@
   "tests/stages_3f.rs": "3f",
   "tests/stages_3g.rs": "3g",
   "tests/stages_3h.rs": "3h",
+  "tests/stages_4a.rs": "4a",
   "tests/table_page_test.rs": "3b",
   "tests/tuple_test.rs": "3c",
   "tests/type_test.rs": "3a"

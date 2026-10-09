@@ -154,8 +154,7 @@ fn a_consistent_order_never_deadlocks() {
 
 ### In the exercises
 
-- **2b-07 (`get_value` and `new`):** `get_value` is the first function above with page guards instead of `RwLock` guards: `bpm.read_page(header)`, then `bpm.read_page(directory)` **before** `drop(header_guard)`.
-- **2b-08 (`insert`):** the second function: the directory in *write* mode from the start, the header dropped once it is held, the bucket in write mode, early `return false` handled by the guards.
+- **2b-02, 2b-04:** `get_value` read-latches header, directory and bucket, releasing each parent once its child is held; `insert` and `remove` take the directory in write mode from the start and drop the header as soon as the directory is latched.
 - **2b-10 (`remove`):** the same path; **drop the bucket guard before the merge**, because `delete_page` refuses a pinned page.
 - **2b-11:** when you merge two buckets, take their guards in the same slot order every time (the second example).
 - **Tests:** the concurrent stage test runs several threads of inserts and lookups with a timeout; any ordering mistake shows up as a hang.

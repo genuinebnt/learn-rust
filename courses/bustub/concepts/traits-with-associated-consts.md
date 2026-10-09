@@ -138,10 +138,9 @@ fn generic_over_the_entry_type() {
 
 ### In the exercises
 
-- **2a-01 Part 4:** write `FixedSize` for `i32`, `u32`, `i64`, `PageId` and `Rid` as in the first example (`PageId` and `Rid` delegate to the integer impls).
-- **2a-02:** the pair impl `(A, B)` and `array_size(metadata, entry)` as a `const fn`; the test checks a bucket of `(GenericKey<8>, Rid)` holds 511 entries.
+- **2a-01, 2a-02:** `FixedSize` for the basic types, `GenericKey<N>`, pairs and the `const fn array_size`.
 - **2a-03:** `PageArray<B, T>` is the second example plus `set`, `insert_at` and `remove_at`.
-- **2b-05:** the bucket page is `PageArray<B, (K, V)>` with `K: FixedSize, V: FixedSize`.
+- **2b-02:** a bucket's capacity is computed from `K::SIZE + V::SIZE` of the `FixedSize` bound.
 
 ### Where it is used
 

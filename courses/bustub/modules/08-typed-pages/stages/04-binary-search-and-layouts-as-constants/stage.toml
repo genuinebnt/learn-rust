@@ -1,7 +1,0 @@
-id = "2a-04"
-title = "Binary search and layouts as constants"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_2a::s2a_11", "stages_2a::s2a_12"]
-learn = ["lower_bound and its loop invariant", "repr(C), offset_of! and size_of", "const assertions as compile-time checks of a file format"]
-concepts = ["slices-copy-within-and-binary-search", "repr-c-layouts-and-const-asserts", "checking-invariants", "integers-and-casts"]

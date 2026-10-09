@@ -145,7 +145,7 @@ fn the_borrow_checker_ends_a_guard_with_its_pool() {
 
 - **1g-01:** `ReadPageGuard<'a>` and `WritePageGuard<'a>` have the first example's shape, with real parts: `bpm: &'a BufferPoolManager`, `Option<RwLockWriteGuard<..>>` for the latch (so `release` can `take()` it), `is_dirty`, `Deref`/`DerefMut`. `release()` drops the latch then calls `unpin_page(page_id, is_dirty)`; `Drop` calls `release()`.
 - **1g-02:** `read_page` / `write_page` wrap `checked_*`; `flush()` copies the bytes out and writes them while the guard keeps its pin and latch.
-- **2b-07, 08, 10:** the table's code holds guards in local variables; their scope *is* the critical section, and `drop(guard)` marks where it ends.
+- **2b-02 to 2b-04:** the table's code holds guards in local variables; their scope *is* the critical section, and an early `return` releases them.
 
 ### Where it is used
 

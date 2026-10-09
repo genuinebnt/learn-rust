@@ -1,7 +1,0 @@
-id = "2b-04"
-title = "Directory growth, shrinking and integrity"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_2b::s2b_08", "stages_2b::s2b_09", "stages_2b::s2b_10"]
-learn = ["growing a table by copying a half", "when a directory can shrink", "invariants as an executable check"]
-concepts = ["extendible-hashing", "checking-invariants", "shifts-masks-and-bit-tricks", "model-based-testing", "property-testing-and-fuzzing"]

@@ -139,9 +139,8 @@ fn padding_and_packing() {
 
 ### In the exercises
 
-- **2a-04 Part 2:** write `DirectoryPage` and `HeaderPage` exactly as above in `layout.rs`, derive every `*_OFFSET` constant with `offset_of!`, and add the `const _: () = assert!(..)` lines for each fact the tests rely on (520, the sizes, "fits the page").
-- **2b-03:** the directory view reads `local_depths[i]` at `LOCAL_DEPTHS_OFFSET + i` and `bucket_page_ids[i]` at `BUCKET_IDS_OFFSET + 4*i` (little-endian `i32`).
-- **2b-02:** the header's ids start at offset 0 and `max_depth` follows the 512 ids.
+- **2b:** the hash table's header, directory and bucket pages are laid out with `#[repr(C)]` structs and `offset_of!`; `layout.rs` is given as an example of the technique.
+- **2b-02:** if you lay the pages out as `#[repr(C)]` structs, `offset_of!` and `size_of` give the offsets and a `const` assertion keeps the page within 8 KiB; plain offsets work as well.
 
 ### Where it is used
 

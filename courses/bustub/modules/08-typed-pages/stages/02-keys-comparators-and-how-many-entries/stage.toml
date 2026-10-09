@@ -1,7 +1,0 @@
-id = "2a-02"
-title = "Keys, comparators and how many entries fit"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_2a::s2a_05", "stages_2a::s2a_06", "stages_2a::s2a_07"]
-learn = ["opaque keys and a separate comparator", "Ordering as a total order (and the -1/0/1 convention)", "const fn and compile-time capacities"]
-concepts = ["traits-with-associated-consts", "integers-and-casts", "repr-c-layouts-and-const-asserts", "bytes-endianness-and-views"]

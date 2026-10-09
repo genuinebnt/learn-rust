@@ -119,3 +119,32 @@ pub fn pool(frames: usize) -> (BufferPoolManager, Arc<MemDisk>) {
     pool_with(Policy::Fifo, frames)
 }
 
+
+/// A `FifoReplacer` the test can also look at: the pool owns one handle, the test keeps the other.
+#[derive(Clone, Default)]
+pub struct SharedFifo(pub Arc<Mutex<FifoReplacer>>);
+
+impl FrameReplacer for SharedFifo {
+    fn record_access(&mut self, frame: FrameId, page: PageId) {
+        self.0.lock().unwrap().record_access(frame, page)
+    }
+    fn set_evictable(&mut self, frame: FrameId, evictable: bool) {
+        self.0.lock().unwrap().set_evictable(frame, evictable)
+    }
+    fn evict(&mut self) -> Option<FrameId> {
+        self.0.lock().unwrap().evict()
+    }
+    fn remove(&mut self, frame: FrameId) {
+        self.0.lock().unwrap().remove(frame)
+    }
+    fn size(&self) -> usize {
+        self.0.lock().unwrap().size()
+    }
+}
+
+/// A pool on a `SharedFifo`, plus the handle to look at the replacer.
+pub fn pool_with_spy(frames: usize) -> (BufferPoolManager, Arc<MemDisk>, SharedFifo) {
+    let disk = MemDisk::new();
+    let spy = SharedFifo::default();
+    (BufferPoolManager::with_replacer(frames, disk.clone(), Box::new(spy.clone())), disk, spy)
+}

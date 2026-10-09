@@ -150,7 +150,7 @@ fn the_checker_stops_at_the_operation_that_broke_the_rule() {
 - **1d-02, 1d-03:** "the set holds exactly the evictable frames, each under its current key" is the invariant to assert after every step of a random run.
 - **1e-01, 1e-03:** ARC's bounds and the disjointness of the four lists, as in the ARC concept's `check`.
 - **2a-03, 2a-04:** a page array's entries are sorted and `len <= capacity`; binary search is stated as a loop invariant.
-- **2b-04 Part 3 (`verify_integrity`):** the same three rules as the first example above; the stage's version panics with a message naming the slot or bucket. The table's own tests (from 2b-07 on) call it after every phase.
+- **2b-02 to 2b-04:** `verify_integrity` is written by you and called after every operation by the tests; the three rules of the first example (depths, slot counts, key placement) are the usual ones.
 
 ### Where it is used
 

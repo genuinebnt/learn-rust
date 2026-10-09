@@ -1,6 +1,0 @@
-id = "2b-06"
-title = "Boss: BusTub's extendible_htable_page_test"
-kind = "boss"
-difficulty = "easy"
-tests = ["stages_2b::s2b_14", "extendible_htable_page_test"]
-retest = true

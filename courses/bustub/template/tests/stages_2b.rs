@@ -1,22 +1,27 @@
-//! Tests for the extendible hash table stages (2b-01 … 2b-12). A test named `s2b_05_…` belongs to stage 2b-03.
-//! The hash values come from running BusTub's own MurmurHash3.cpp (compiled with clang) on the same bytes.
+//! Tests for module 2b, the extendible hash table. A test name starts with its stage: `s2b_03_…` belongs to stage 2b-03, and
+//! `anneal course test` runs just those.
+//!
+//! The tests use only the public items: `murmur_hash3_x64_128`, `HashFunction` and `DiskExtendibleHashTable`. Pages are yours.
+//! The table is run against a `HashMap` on random operation sequences, with `verify_integrity` after every step and a check that
+//! no guard is leaked. Whether an insert can fail is decided by the keys alone: a key fails when it is already present, or when the
+//! keys already in the table that share its header slot and its low `directory_max_depth` hash bits fill a whole bucket (nothing
+//! can split them further), and the model computes exactly that with the table's own hash function.
+//! The hash values in the first stage come from running BusTub's MurmurHash3.cpp (compiled with clang) on the same bytes.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::thread;
 
 use bustub::buffer::buffer_pool_manager::BufferPoolManager;
-use bustub::common::config::{PageId, BUSTUB_PAGE_SIZE};
-use bustub::common::rid::Rid;
+use bustub::common::config::PageId;
 use bustub::container::disk::hash::disk_extendible_hash_table::DiskExtendibleHashTable;
 use bustub::container::hash::hash_function::HashFunction;
 use bustub::container::hash::murmur3::murmur_hash3_x64_128;
-use bustub::storage::disk::disk_manager_memory::DiskManagerUnlimitedMemory;
-use bustub::storage::index::generic_key::{GenericComparator, GenericKey};
+use bustub::storage::index::generic_key::GenericKey;
 use bustub::storage::index::int_comparator::IntComparator;
-use bustub::storage::page::extendible_htable_bucket_page::ExtendibleHTableBucketPage as Bucket;
-use bustub::storage::page::extendible_htable_directory_page::ExtendibleHTableDirectoryPage as Directory;
-use bustub::storage::page::extendible_htable_header_page::ExtendibleHTableHeaderPage as Header;
+use common::pool::{pool_with, Policy};
+use proptest::prelude::*;
+
+mod common;
 
 struct Lcg(u64);
 impl Lcg {
@@ -24,10 +29,6 @@ impl Lcg {
         self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
         ((self.0 >> 33) as usize) % n
     }
-}
-
-fn bpm(frames: usize) -> BufferPoolManager {
-    BufferPoolManager::new(frames, Arc::new(DiskManagerUnlimitedMemory::new()))
 }
 
 // ---- 2b-01 · MurmurHash3 -------------------------------------------------------------------------------------------------------
@@ -123,7 +124,7 @@ fn s2b_01_known_strings() {
     assert_eq!(murmur_hash3_x64_128(b"0123456789abcdefX", 0), [14838185036522510071, 10336343437188549415], "known strings");
 }
 
-// ---- 2b-02 · HashFunction -----------------------------------------------------------------------------------------------------
+// ---- 2b-01 · HashFunction -----------------------------------------------------------------------------------------------------
 
 const INTS: &[(i32, u64)] = &[
     (0, 0xcfa0f7ddd84c76bc),
@@ -147,7 +148,7 @@ const KEYS: &[(i64, u64)] = &[
 ];
 
 #[test]
-fn s2b_02_an_int_is_hashed_by_its_four_bytes() {
+fn s2b_01_an_int_is_hashed_by_its_four_bytes() {
     let hash = HashFunction::<i32>::new();
     for &(i, want) in INTS {
         assert_eq!(hash.get_hash(&i), want, "key {i}");
@@ -155,7 +156,7 @@ fn s2b_02_an_int_is_hashed_by_its_four_bytes() {
 }
 
 #[test]
-fn s2b_02_a_generic_key_is_hashed_by_its_eight_bytes() {
+fn s2b_01_a_generic_key_is_hashed_by_its_eight_bytes() {
     let hash = HashFunction::<GenericKey<8>>::new();
     for &(n, want) in KEYS {
         let mut key = GenericKey::<8>::default();
@@ -165,14 +166,14 @@ fn s2b_02_a_generic_key_is_hashed_by_its_eight_bytes() {
 }
 
 #[test]
-fn s2b_02_only_the_first_half_of_the_128_bits_is_kept() {
+fn s2b_01_only_the_first_half_of_the_128_bits_is_kept() {
     let hash = HashFunction::<i32>::new();
     assert_eq!(hash.get_hash(&0), 14961230494313510588, "only the first half of the 128 bits is kept");
     assert_eq!(hash.get_hash(&1), 9841952836289088254, "only the first half of the 128 bits is kept");
 }
 
 #[test]
-fn s2b_02_the_low_bits_spread_small_integers() {
+fn s2b_01_the_low_bits_spread_small_integers() {
     // The table uses the low bits for buckets: 0..16 must not all share them.
     let hash = HashFunction::<i32>::new();
     let low_two: Vec<u64> = (0..16).map(|i| hash.get_hash(&i) & 3).collect();
@@ -181,1436 +182,492 @@ fn s2b_02_the_low_bits_spread_small_integers() {
     }
 }
 
-// ---- 2b-02 · header page: init and accessors ---------------------------------------------------------------------------------------
 
-#[test]
-fn s2b_03_init_sets_the_depth_and_empties_every_slot() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut header = Header::new(&mut page[..]);
-    header.init(2);
-    assert_eq!(header.max_depth(), 2, "init sets the depth and empties every slot");
-    assert_eq!(header.max_size(), 4, "init sets the depth and empties every slot");
-    for i in 0..4 {
-        assert_eq!(header.get_directory_page_id(i), PageId::INVALID, "a fresh slot is INVALID, not page 0");
+// ---- The table under test ---------------------------------------------------------------------------------------------------
+
+type Table<'a> = DiskExtendibleHashTable<'a, i32, i32, IntComparator>;
+
+#[derive(Clone, Copy, Debug)]
+struct Shape {
+    header_depth: u32,
+    directory_depth: u32,
+    bucket_size: u32,
+}
+
+fn hash32(key: i32) -> u32 {
+    HashFunction::<i32>::new().get_hash(&key) as u32
+}
+
+/// Keys fall in the same "class" when no amount of splitting can separate them: same header slot, same low `directory_depth` bits.
+fn class_of(shape: Shape, key: i32) -> (u32, u32) {
+    let h = hash32(key);
+    let header = if shape.header_depth == 0 { 0 } else { h >> (32 - shape.header_depth) };
+    (header, h & ((1u32 << shape.directory_depth) - 1))
+}
+
+/// Whether inserting a new `key` into a table holding `model` must succeed.
+fn insert_must_succeed(shape: Shape, model: &HashMap<i32, i32>, key: i32) -> bool {
+    let class = class_of(shape, key);
+    model.keys().filter(|&&k| class_of(shape, k) == class).count() < shape.bucket_size as usize
+}
+
+fn table<'a>(bpm: &'a BufferPoolManager, shape: Shape) -> Table<'a> {
+    DiskExtendibleHashTable::new("test", bpm, IntComparator, HashFunction::new(), shape.header_depth, shape.directory_depth, shape.bucket_size)
+}
+
+/// No page may stay pinned between operations: every guard the table took has been dropped.
+fn assert_nothing_pinned(bpm: &BufferPoolManager) {
+    for id in 0..300 {
+        assert!(matches!(bpm.get_pin_count(PageId(id)), None | Some(0)), "page {id} is still pinned between operations: a guard was kept");
     }
 }
 
-#[test]
-fn s2b_03_slots_hold_directory_page_ids() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut header = Header::new(&mut page[..]);
-    header.init(3);
-    header.set_directory_page_id(0, PageId(10));
-    header.set_directory_page_id(7, PageId(77));
-    assert_eq!(header.get_directory_page_id(0), PageId(10), "slots hold directory page ids");
-    assert_eq!(header.get_directory_page_id(7), PageId(77), "slots hold directory page ids");
-    assert_eq!(header.get_directory_page_id(3), PageId::INVALID, "slots hold directory page ids");
-}
-
-#[test]
-fn s2b_03_the_layout_matches_bustubs() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut header = Header::new(&mut page[..]);
-    header.init(2);
-    header.set_directory_page_id(1, PageId(5));
-    assert_eq!(&page[4..8], &[5, 0, 0, 0], "slot 1 is at byte 4");
-    assert_eq!(&page[2048..2052], &[2, 0, 0, 0], "max depth is at byte 2048");
-}
-
-#[test]
-fn s2b_03_a_read_only_view_works() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    Header::new(&mut page[..]).init(1);
-    let view = Header::new(&page[..]);
-    assert_eq!(view.max_size(), 2, "a read only view works");
-}
-
-#[test]
-#[should_panic(expected = "out of range")]
-fn s2b_03_a_slot_past_max_size_is_a_bug() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut header = Header::new(&mut page[..]);
-    header.init(2);
-    header.get_directory_page_id(4);
-}
-
-#[test]
-#[should_panic(expected = "does not fit")]
-fn s2b_03_a_depth_above_nine_does_not_fit() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    Header::new(&mut page[..]).init(10);
-}
-
-// ---- 2b-02 · header page: the directory index of a hash --------------------------------------------------------------------------------
-
-#[test]
-fn s2b_04_the_top_bits_choose_the_directory() {
-    // BusTub's HeaderDirectoryPageSampleTest: with max depth 2 the top two bits of these hashes are 00, 01, 10, 11.
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut header = Header::new(&mut page[..]);
-    header.init(2);
-    let hashes = [32768u32, 1073774592, 2147516416, 3221258240];
-    for (i, h) in hashes.iter().enumerate() {
-        assert_eq!(header.hash_to_directory_index(*h), i as u32, "the top bits choose the directory");
-    }
-}
-
-#[test]
-fn s2b_04_a_depth_of_zero_means_one_directory() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut header = Header::new(&mut page[..]);
-    header.init(0);
-    for h in [0u32, 1, 0x8000_0000, u32::MAX] {
-        assert_eq!(header.hash_to_directory_index(h), 0, "a depth of zero means one directory");
-    }
-}
-
-#[test]
-fn s2b_04_depth_one_looks_at_the_top_bit_only() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut header = Header::new(&mut page[..]);
-    header.init(1);
-    assert_eq!(header.hash_to_directory_index(0x7FFF_FFFF), 0, "depth one looks at the top bit only");
-    assert_eq!(header.hash_to_directory_index(0x8000_0000), 1, "depth one looks at the top bit only");
-    assert_eq!(header.hash_to_directory_index(u32::MAX), 1, "depth one looks at the top bit only");
-}
-
-#[test]
-fn s2b_04_the_largest_depth() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut header = Header::new(&mut page[..]);
-    header.init(9);
-    assert_eq!(header.hash_to_directory_index(u32::MAX), 511, "the largest depth");
-    assert_eq!(header.hash_to_directory_index(0), 0, "the largest depth");
-    assert_eq!(header.hash_to_directory_index(0x0080_0000), 1, "the largest depth");
-}
-
-#[test]
-fn s2b_04_the_low_bits_are_ignored() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut header = Header::new(&mut page[..]);
-    header.init(3);
-    for low in [0u32, 1, 0xFFFF, 0x1FFF_FFFF] {
-        assert_eq!(header.hash_to_directory_index(0xA000_0000 | low), 5, "the low bits are ignored");
-    }
-}
-
-// ---- 2b-03 · directory page: init and accessors ------------------------------------------------------------------------------------
-
-fn directory(max_depth: u32) -> Vec<u8> {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    Directory::new(&mut page[..]).init(max_depth);
-    page
-}
-
-#[test]
-fn s2b_05_a_fresh_directory_has_one_unassigned_slot() {
-    let mut page = directory(3);
-    let dir = Directory::new(&mut page[..]);
-    assert_eq!((dir.get_max_depth(), dir.get_global_depth(), dir.size(), dir.max_size()), (3, 0, 1, 8), "a fresh directory has one unassigned slot");
-    assert_eq!(dir.get_bucket_page_id(0), PageId::INVALID, "a fresh directory has one unassigned slot");
-    assert_eq!(dir.get_local_depth(0), 0, "a fresh directory has one unassigned slot");
-}
-
-#[test]
-fn s2b_05_every_slot_starts_invalid_and_at_depth_zero() {
-    let mut page = vec![0xFFu8; BUSTUB_PAGE_SIZE]; // garbage first: init must overwrite it
-    let mut dir = Directory::new(&mut page[..]);
-    dir.init(9);
-    for i in 0..512 {
-        assert_eq!(dir.get_bucket_page_id(i), PageId::INVALID, "slot {i}");
-        assert_eq!(dir.get_local_depth(i), 0, "slot {i}");
-    }
-}
-
-#[test]
-fn s2b_05_bucket_page_ids_are_stored_per_slot() {
-    let mut page = directory(4);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.set_bucket_page_id(0, PageId(3));
-    dir.set_bucket_page_id(15, PageId(9));
-    assert_eq!((dir.get_bucket_page_id(0), dir.get_bucket_page_id(15), dir.get_bucket_page_id(1)), (PageId(3), PageId(9), PageId::INVALID), "bucket page ids are stored per slot");
-}
-
-#[test]
-fn s2b_05_the_layout_matches_bustubs() {
-    let mut page = directory(3);
-    Directory::new(&mut page[..]).set_bucket_page_id(2, PageId(7));
-    assert_eq!(&page[0..4], &[3, 0, 0, 0], "max depth at byte 0");
-    assert_eq!(&page[4..8], &[0, 0, 0, 0], "global depth at byte 4");
-    assert_eq!(&page[520 + 8..520 + 12], &[7, 0, 0, 0], "bucket page ids start at byte 520");
-}
-
-#[test]
-#[should_panic(expected = "out of range")]
-fn s2b_05_a_slot_past_max_size_is_a_bug() {
-    let mut page = directory(2);
-    Directory::new(&mut page[..]).get_bucket_page_id(4);
-}
-
-#[test]
-#[should_panic(expected = "does not fit")]
-fn s2b_05_a_max_depth_above_nine_does_not_fit() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    Directory::new(&mut page[..]).init(10);
-}
-
-// ---- 2b-03 · directory page: masks and indexes ---------------------------------------------------------------------------------------
-
-#[test]
-fn s2b_06_masks_have_as_many_ones_as_the_depth() {
-    let mut page = directory(5);
-    bustub::storage::page::page_bytes::write_u32(&mut page, 4, 3); // global depth 3
-    page[8] = 2; // local depths start at byte 8; slot 0 gets depth 2
-    let dir = Directory::new(&page[..]);
-    assert_eq!(dir.get_global_depth_mask(), 0b111, "masks have as many ones as the depth");
-    assert_eq!(dir.get_local_depth_mask(0), 0b11, "masks have as many ones as the depth");
-    assert_eq!(dir.get_local_depth_mask(1), 0, "masks have as many ones as the depth");
-}
-
-#[test]
-fn s2b_06_a_hash_maps_to_its_low_bits() {
-    let mut page = directory(5);
-    bustub::storage::page::page_bytes::write_u32(&mut page, 4, 2);
-    let dir = Directory::new(&page[..]);
-    for h in 0..100u32 {
-        assert_eq!(dir.hash_to_bucket_index(h), h % 4, "a hash maps to its low bits");
-    }
-    assert_eq!(dir.hash_to_bucket_index(0xFFFF_FFFF), 3, "a hash maps to its low bits");
-}
-
-#[test]
-fn s2b_06_depth_zero_maps_everything_to_slot_zero() {
-    let page = directory(5);
-    let dir = Directory::new(&page[..]);
-    assert_eq!(dir.get_global_depth_mask(), 0, "depth zero maps everything to slot zero");
-    for h in [0u32, 1, 12345, u32::MAX] {
-        assert_eq!(dir.hash_to_bucket_index(h), 0, "depth zero maps everything to slot zero");
-    }
-}
-
-#[test]
-fn s2b_06_the_split_image_flips_the_top_distinguished_bit() {
-    let mut page = directory(5);
-    bustub::storage::page::page_bytes::write_u32(&mut page, 4, 3);
-    for (slot, depth) in [(0usize, 1u8), (1, 1), (2, 2), (3, 3), (4, 3), (5, 2), (6, 3), (7, 3)] {
-        page[8 + slot] = depth; // local depths start at byte 8
-    }
-    let dir = Directory::new(&page[..]);
-    assert_eq!(dir.get_split_image_index(0), 1, "depth 1: flip bit 0");
-    assert_eq!(dir.get_split_image_index(1), 0, "the split image flips the top distinguished bit");
-    assert_eq!(dir.get_split_image_index(2), 0, "depth 2: flip bit 1");
-    assert_eq!(dir.get_split_image_index(5), 7, "5 = 101, depth 2: flip bit 1 -> 111");
-    assert_eq!(dir.get_split_image_index(3), 7, "depth 3: flip bit 2 -> 111");
-    assert_eq!(dir.get_split_image_index(4), 0, "the split image flips the top distinguished bit");
-}
-
-#[test]
-fn s2b_06_a_bucket_of_depth_zero_is_its_own_split_image() {
-    let page = directory(5);
-    let dir = Directory::new(&page[..]);
-    assert_eq!(dir.get_split_image_index(0), 0, "a bucket of depth zero is its own split image");
-}
-
-// ---- 2b-03 · directory page: local depths ----------------------------------------------------------------------------------------------
-
-#[test]
-fn s2b_07_local_depths_are_set_and_read() {
-    let mut page = directory(4);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.set_local_depth(3, 2);
-    dir.set_local_depth(15, 4);
-    assert_eq!((dir.get_local_depth(3), dir.get_local_depth(15), dir.get_local_depth(4)), (2, 4, 0), "local depths are set and read");
-}
-
-#[test]
-fn s2b_07_incr_and_decr_move_one_step() {
-    let mut page = directory(4);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.incr_local_depth(1);
-    dir.incr_local_depth(1);
-    assert_eq!(dir.get_local_depth(1), 2, "incr and decr move one step");
-    dir.decr_local_depth(1);
-    assert_eq!(dir.get_local_depth(1), 1, "incr and decr move one step");
-    assert_eq!(dir.get_local_depth(0), 0, "other slots are untouched");
-}
-
-#[test]
-#[should_panic(expected = "max depth")]
-fn s2b_07_a_local_depth_cannot_pass_the_max_depth() {
-    let mut page = directory(2);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.set_local_depth(0, 2);
-    dir.incr_local_depth(0);
-}
-
-#[test]
-#[should_panic(expected = "already 0")]
-fn s2b_07_a_local_depth_cannot_go_below_zero() {
-    let mut page = directory(2);
-    Directory::new(&mut page[..]).decr_local_depth(0);
-}
-
-#[test]
-#[should_panic(expected = "out of range")]
-fn s2b_07_a_slot_past_max_size_is_a_bug() {
-    let mut page = directory(1);
-    Directory::new(&mut page[..]).set_local_depth(2, 0);
-}
-
-// ---- 2b-04 · directory page: growing ---------------------------------------------------------------------------------------------------
-
-#[test]
-fn s2b_08_growing_copies_the_lower_half_into_the_upper_half() {
-    let mut page = directory(3);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.set_bucket_page_id(0, PageId(7));
-    dir.incr_global_depth();
-    assert_eq!((dir.get_global_depth(), dir.size()), (1, 2), "growing copies the lower half into the upper half");
-    assert_eq!(dir.get_bucket_page_id(1), PageId(7), "both slots point at the one bucket until it splits");
-    assert_eq!(dir.get_local_depth(1), 0, "growing copies the lower half into the upper half");
-}
-
-#[test]
-fn s2b_08_depths_are_copied_too() {
-    let mut page = directory(3);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.set_bucket_page_id(0, PageId(1));
-    dir.incr_global_depth();
-    dir.set_local_depth(0, 1);
-    dir.set_bucket_page_id(1, PageId(2));
-    dir.set_local_depth(1, 1);
-    dir.incr_global_depth();
-    assert_eq!((0..4).map(|i| dir.get_bucket_page_id(i).0).collect::<Vec<_>>(), [1, 2, 1, 2], "depths are copied too");
-    assert_eq!((0..4).map(|i| dir.get_local_depth(i)).collect::<Vec<_>>(), [1, 1, 1, 1], "depths are copied too");
-}
-
-#[test]
-fn s2b_08_bustubs_directory_walkthrough() {
-    // The first half of HeaderDirectoryPageSampleTest.
-    let mut page = directory(3);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.set_bucket_page_id(0, PageId(2));
-    assert_eq!(dir.size(), 1, "bustubs directory walkthrough");
-    dir.set_local_depth(0, 1);
-    dir.incr_global_depth();
-    dir.set_bucket_page_id(1, PageId(3));
-    dir.set_local_depth(1, 1);
-    assert_eq!((dir.get_bucket_page_id(0), dir.get_bucket_page_id(1)), (PageId(2), PageId(3)), "bustubs directory walkthrough");
-    for i in 0..100 {
-        assert_eq!(dir.hash_to_bucket_index(i), i % 2, "bustubs directory walkthrough");
-    }
-    dir.set_local_depth(0, 2);
-    dir.incr_global_depth();
-    dir.set_bucket_page_id(2, PageId(4));
-    assert_eq!(dir.size(), 4, "bustubs directory walkthrough");
-    assert_eq!((0..4).map(|i| dir.get_bucket_page_id(i).0).collect::<Vec<_>>(), [2, 3, 4, 3], "bustubs directory walkthrough");
-    dir.set_local_depth(0, 3);
-    dir.incr_global_depth();
-    dir.set_bucket_page_id(4, PageId(5));
-    assert_eq!((0..8).map(|i| dir.get_bucket_page_id(i).0).collect::<Vec<_>>(), [2, 3, 4, 3, 5, 3, 4, 3], "bustubs directory walkthrough");
-    for i in 0..100 {
-        assert_eq!(dir.hash_to_bucket_index(i), i % 8, "bustubs directory walkthrough");
-    }
-}
-
-#[test]
-#[should_panic(expected = "max depth")]
-fn s2b_08_growing_past_the_max_depth_is_a_bug() {
-    let mut page = directory(1);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.incr_global_depth();
-    dir.incr_global_depth();
-}
-
-#[test]
-fn s2b_08_growing_to_the_largest_size() {
-    let mut page = directory(9);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.set_bucket_page_id(0, PageId(1));
-    for _ in 0..9 {
-        dir.incr_global_depth();
-    }
-    assert_eq!(dir.size(), 512, "growing to the largest size");
-    assert!((0..512).all(|i| dir.get_bucket_page_id(i) == PageId(1)), "growing to the largest size: expected `(0..512).all(|i| dir.get_bucket_page_id(i) == PageId(1))`");
-}
-
-// ---- 2b-04 · directory page: shrinking -------------------------------------------------------------------------------------------------
-
-#[test]
-fn s2b_09_a_directory_cannot_shrink_while_a_bucket_uses_every_bit() {
-    let mut page = directory(3);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.incr_global_depth();
-    dir.incr_global_depth();
-    dir.set_local_depth(0, 2);
-    assert!(!dir.can_shrink(), "a directory cannot shrink while a bucket uses every bit: expected `!dir.can_shrink()`");
-}
-
-#[test]
-fn s2b_09_it_can_when_every_local_depth_is_below_the_global_depth() {
-    let mut page = directory(3);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.incr_global_depth();
-    dir.incr_global_depth();
-    dir.incr_global_depth();
-    for i in 0..8 {
-        dir.set_local_depth(i, 2);
-    }
-    assert!(dir.can_shrink(), "it can when every local depth is below the global depth: expected `dir.can_shrink()`");
-    dir.decr_global_depth();
-    assert_eq!((dir.get_global_depth(), dir.size()), (2, 4), "it can when every local depth is below the global depth");
-}
-
-#[test]
-fn s2b_09_a_directory_of_depth_zero_cannot_shrink() {
-    let page = directory(3);
-    assert!(!Directory::new(&page[..]).can_shrink(), "a directory of depth zero cannot shrink: expected `!Directory::new(&page[..]).can_shrink()`");
-}
-
-#[test]
-fn s2b_09_one_slot_at_full_depth_blocks_the_shrink() {
-    let mut page = directory(3);
-    let mut dir = Directory::new(&mut page[..]);
-    for _ in 0..3 {
-        dir.incr_global_depth();
-    }
-    for i in 0..8 {
-        dir.set_local_depth(i, 2);
-    }
-    dir.set_local_depth(5, 3);
-    assert!(!dir.can_shrink(), "one slot at full depth blocks the shrink: expected `!dir.can_shrink()`");
-}
-
-#[test]
-#[should_panic(expected = "depth 0")]
-fn s2b_09_shrinking_below_zero_is_a_bug() {
-    let mut page = directory(3);
-    Directory::new(&mut page[..]).decr_global_depth();
-}
-
-#[test]
-fn s2b_09_only_slots_in_use_count() {
-    // After shrinking, slots beyond the new size hold stale depths; they must not block a second shrink.
-    let mut page = directory(3);
-    let mut dir = Directory::new(&mut page[..]);
-    for _ in 0..3 {
-        dir.incr_global_depth();
-    }
-    for i in 0..8 {
-        dir.set_local_depth(i, 2);
-    }
-    dir.decr_global_depth();
-    for i in 0..4 {
-        dir.set_local_depth(i, 1);
-    }
-    assert!(dir.can_shrink(), "slots 4..8 still say depth 2, but they are no longer part of the directory");
-}
-
-// ---- 2b-04 · directory page: verify_integrity ----------------------------------------------------------------------------------------------
-
-/// A correct depth-2 directory: slots 0 and 2 have their own buckets (depth 2), slots 1 and 3 share one (depth 1).
-fn good_directory() -> Vec<u8> {
-    let mut page = directory(3);
-    let mut dir = Directory::new(&mut page[..]);
-    dir.incr_global_depth();
-    dir.incr_global_depth();
-    for (slot, id, depth) in [(0, 10, 2), (1, 11, 1), (2, 12, 2), (3, 11, 1)] {
-        dir.set_bucket_page_id(slot, PageId(id));
-        dir.set_local_depth(slot, depth);
-    }
-    page
-}
-
-#[test]
-fn s2b_10_a_correct_directory_verifies() {
-    let page = good_directory();
-    Directory::new(&page[..]).verify_integrity();
-}
-
-#[test]
-fn s2b_10_a_fresh_directory_with_one_bucket_verifies() {
-    let mut page = directory(3);
-    Directory::new(&mut page[..]).set_bucket_page_id(0, PageId(4));
-    Directory::new(&page[..]).verify_integrity();
-}
-
-#[test]
-#[should_panic(expected = "above the global depth")]
-fn s2b_10_a_local_depth_above_the_global_depth_is_caught() {
-    let mut page = good_directory();
-    Directory::new(&mut page[..]).set_local_depth(0, 3);
-    Directory::new(&page[..]).verify_integrity();
-}
-
-#[test]
-#[should_panic(expected = "slots")]
-fn s2b_10_a_bucket_with_the_wrong_number_of_pointers_is_caught() {
-    let mut page = good_directory();
-    let mut dir = Directory::new(&mut page[..]);
-    dir.set_bucket_page_id(2, PageId(11)); // bucket 11 (depth 1) now has three pointers where 2^(2-1) = 2 are allowed
-    dir.set_local_depth(2, 1);
-    Directory::new(&page[..]).verify_integrity();
-}
-
-#[test]
-#[should_panic(expected = "two different local depths")]
-fn s2b_10_one_bucket_with_two_depths_is_caught() {
-    let mut page = good_directory();
-    Directory::new(&mut page[..]).set_local_depth(3, 2);
-    Directory::new(&page[..]).verify_integrity();
-}
-
-// ---- 2b-05 · bucket page: basics ----------------------------------------------------------------------------------------------------------
-
-type Entry = (GenericKey<8>, Rid);
-type BucketPage<'a> = Bucket<&'a mut [u8], GenericKey<8>, Rid>;
-
-fn key(n: i64) -> GenericKey<8> {
-    let mut k = GenericKey::<8>::default();
-    k.set_from_integer(n);
-    k
-}
-
-fn rid(n: i64) -> Rid {
-    Rid::new(PageId(n as i32), n as u32)
-}
-
-fn new_bucket(max_size: u32) -> Vec<u8> {
-    let mut page = vec![0xEEu8; BUSTUB_PAGE_SIZE];
-    BucketPage::new(&mut page[..]).init(max_size);
-    page
-}
-
-#[test]
-fn s2b_11_a_fresh_bucket_is_empty() {
-    let mut page = new_bucket(10);
-    let bucket = BucketPage::new(&mut page[..]);
-    assert_eq!((bucket.size(), bucket.max_size()), (0, 10), "a fresh bucket is empty");
-    assert!(bucket.is_empty(), "a fresh bucket is empty: expected `bucket.is_empty()`");
-    assert!(!bucket.is_full(), "a fresh bucket is empty: expected `!bucket.is_full()`");
-}
-
-#[test]
-fn s2b_11_a_page_holds_511_pairs_of_a_key_and_a_rid() {
-    assert_eq!(Bucket::<&[u8], GenericKey<8>, Rid>::capacity(), 511);
-    assert_eq!(Bucket::<&[u8], i32, i32>::capacity(), 1023);
-}
-
-#[test]
-fn s2b_11_the_layout_matches_bustubs() {
-    let mut page = new_bucket(10);
-    assert_eq!(&page[0..4], &[0, 0, 0, 0], "size at byte 0");
-    assert_eq!(&page[4..8], &[10, 0, 0, 0], "max size at byte 4");
-    let _ = &mut page;
-}
-
-#[test]
-#[should_panic(expected = "do not fit")]
-fn s2b_11_a_max_size_that_does_not_fit_is_a_bug() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    BucketPage::new(&mut page[..]).init(512);
-}
-
-#[test]
-#[should_panic(expected = "past the bucket's size")]
-fn s2b_11_entries_past_the_size_are_not_there() {
-    let mut page = new_bucket(10);
-    BucketPage::new(&mut page[..]).entry_at(0);
-}
-
-// ---- 2b-05 · bucket page: lookup and insert -------------------------------------------------------------------------------------------------
-
-#[test]
-fn s2b_12_insert_then_lookup() {
-    let mut page = new_bucket(10);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    let cmp = GenericComparator::<8>;
-    for i in 0..5 {
-        assert!(bucket.insert(&key(i), &rid(i), &cmp), "insert then lookup: expected `bucket.insert(&key(i), &rid(i), &cmp)`");
-    }
-    assert_eq!(bucket.size(), 5, "insert then lookup");
-    for i in 0..5 {
-        assert_eq!(bucket.lookup(&key(i), &cmp), Some(rid(i)), "insert then lookup");
-    }
-    assert_eq!(bucket.lookup(&key(99), &cmp), None, "insert then lookup");
-}
-
-#[test]
-fn s2b_12_the_entries_are_where_the_accessors_say() {
-    let mut page = new_bucket(10);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    let cmp = GenericComparator::<8>;
-    bucket.insert(&key(7), &rid(70), &cmp);
-    bucket.insert(&key(3), &rid(30), &cmp);
-    assert_eq!(bucket.entry_at(0), (key(7), rid(70)), "the entries are where the accessors say");
-    assert_eq!((bucket.key_at(1), bucket.value_at(1)), (key(3), rid(30)), "the entries are where the accessors say");
-}
-
-#[test]
-fn s2b_12_a_full_bucket_refuses_more() {
-    let mut page = new_bucket(10);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    let cmp = GenericComparator::<8>;
-    for i in 0..10 {
-        assert!(bucket.insert(&key(i), &rid(i), &cmp), "a full bucket refuses more: expected `bucket.insert(&key(i), &rid(i), &cmp)`");
-    }
-    assert!(bucket.is_full(), "a full bucket refuses more: expected `bucket.is_full()`");
-    assert!(!bucket.insert(&key(11), &rid(11), &cmp), "a full bucket refuses more: expected `!bucket.insert(&key(11), &rid(11), &cmp)`");
-    assert_eq!(bucket.size(), 10, "a full bucket refuses more");
-}
-
-#[test]
-fn s2b_12_a_key_that_is_already_there_is_refused() {
-    let mut page = new_bucket(10);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    let cmp = GenericComparator::<8>;
-    assert!(bucket.insert(&key(1), &rid(1), &cmp), "a key that is already there is refused: expected `bucket.insert(&key(1), &rid(1), &cmp)`");
-    assert!(!bucket.insert(&key(1), &rid(2), &cmp), "a key that is already there is refused: expected `!bucket.insert(&key(1), &rid(2), &cmp)`");
-    assert_eq!(bucket.lookup(&key(1), &cmp), Some(rid(1)), "the old value stays");
-    assert_eq!(bucket.size(), 1, "a key that is already there is refused");
-}
-
-#[test]
-fn s2b_12_keys_are_compared_by_the_comparator_not_by_bytes() {
-    // Two keys whose bytes differ beyond the first 8 compare equal under GenericComparator<16>.
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut bucket = Bucket::<&mut [u8], GenericKey<16>, i32>::new(&mut page[..]);
-    bucket.init(4);
-    let (mut a, mut b) = (GenericKey::<16>::default(), GenericKey::<16>::default());
-    a.set_from_integer(5);
-    b.set_from_integer(5);
-    b.data[12] = 9;
-    let cmp = GenericComparator::<16>;
-    assert!(bucket.insert(&a, &1, &cmp), "keys are compared by the comparator not by bytes: expected `bucket.insert(&a, &1, &cmp)`");
-    assert!(!bucket.insert(&b, &2, &cmp), "equal under the comparator: a duplicate");
-    assert_eq!(bucket.lookup(&b, &cmp), Some(1), "keys are compared by the comparator not by bytes");
-}
-
-#[test]
-fn s2b_12_ints_work_too() {
-    let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
-    let mut bucket = Bucket::<&mut [u8], i32, i32>::new(&mut page[..]);
-    bucket.init(1023);
-    for i in 0..1023 {
-        assert!(bucket.insert(&i, &(i * 2), &IntComparator), "ints work too: expected `bucket.insert(&i, &(i * 2), &IntComparator)`");
-    }
-    assert!(bucket.is_full(), "ints work too: expected `bucket.is_full()`");
-    assert_eq!(bucket.lookup(&1000, &IntComparator), Some(2000), "ints work too");
-}
-
-// ---- 2b-05 · bucket page: remove -------------------------------------------------------------------------------------------------------------
-
-fn filled(n: i64) -> Vec<u8> {
-    let mut page = new_bucket(10);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    for i in 0..n {
-        assert!(bucket.insert(&key(i), &rid(i), &GenericComparator::<8>), "in helper `filled`: expected `bucket.insert(&key(i), &rid(i), &GenericComparator::<8>)`");
-    }
-    page
-}
-
-#[test]
-fn s2b_13_remove_takes_a_pair_out() {
-    let mut page = filled(5);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    let cmp = GenericComparator::<8>;
-    assert!(bucket.remove(&key(2), &cmp), "remove takes a pair out: expected `bucket.remove(&key(2), &cmp)`");
-    assert_eq!(bucket.size(), 4, "remove takes a pair out");
-    assert_eq!(bucket.lookup(&key(2), &cmp), None, "remove takes a pair out");
-    assert_eq!(bucket.lookup(&key(3), &cmp), Some(rid(3)), "remove takes a pair out");
-}
-
-#[test]
-fn s2b_13_remove_keeps_the_order_of_the_rest() {
-    let mut page = filled(5);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    bucket.remove(&key(1), &GenericComparator::<8>);
-    assert_eq!((0..4).map(|i| bucket.key_at(i).get_as_integer()).collect::<Vec<_>>(), [0, 2, 3, 4], "remove keeps the order of the rest");
-}
-
-#[test]
-fn s2b_13_removing_a_missing_key_says_so() {
-    let mut page = filled(3);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    let cmp = GenericComparator::<8>;
-    assert!(!bucket.remove(&key(99), &cmp), "removing a missing key says so: expected `!bucket.remove(&key(99), &cmp)`");
-    assert!(bucket.remove(&key(1), &cmp), "removing a missing key says so: expected `bucket.remove(&key(1), &cmp)`");
-    assert!(!bucket.remove(&key(1), &cmp), "the second removal finds nothing");
-    assert_eq!(bucket.size(), 2, "removing a missing key says so");
-}
-
-#[test]
-fn s2b_13_remove_at_by_slot() {
-    let mut page = filled(4);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    bucket.remove_at(0);
-    assert_eq!(bucket.key_at(0).get_as_integer(), 1, "remove at by slot");
-    assert_eq!(bucket.size(), 3, "remove at by slot");
-}
-
-#[test]
-fn s2b_13_a_bucket_can_be_emptied_and_refilled() {
-    let mut page = filled(10);
-    let mut bucket = BucketPage::new(&mut page[..]);
-    let cmp = GenericComparator::<8>;
-    for i in 0..10 {
-        assert!(bucket.remove(&key(i), &cmp), "a bucket can be emptied and refilled: expected `bucket.remove(&key(i), &cmp)`");
-    }
-    assert!(bucket.is_empty(), "a bucket can be emptied and refilled: expected `bucket.is_empty()`");
-    for i in 20..30 {
-        assert!(bucket.insert(&key(i), &rid(i), &cmp), "a bucket can be emptied and refilled: expected `bucket.insert(&key(i), &rid(i), &cmp)`");
-    }
-    assert!(bucket.is_full(), "a bucket can be emptied and refilled: expected `bucket.is_full()`");
-}
-
-#[test]
-#[should_panic(expected = "past the bucket's size")]
-fn s2b_13_remove_at_past_the_size_is_a_bug() {
-    let mut page = filled(2);
-    BucketPage::new(&mut page[..]).remove_at(2);
-}
-
-// ---- 2b-06 · BusTub's page samples -------------------------------------------------------------------------------------------------------
-
-#[test]
-fn s2b_14_the_bucket_sample_end_to_end() {
-    // BusTub's BucketPageSampleTest, through a real page of the buffer pool.
-    let bpm = bpm(5);
-    let page_id = bpm.new_page();
-    let mut guard = bpm.write_page(page_id);
-    let mut bucket = BucketPage::new(&mut guard.get_data_mut()[..]);
-    bucket.init(10);
-    let cmp = GenericComparator::<8>;
-    for i in 0..10 {
-        assert!(bucket.insert(&key(i), &rid(i), &cmp), "the bucket sample end to end: expected `bucket.insert(&key(i), &rid(i), &cmp)`");
-    }
-    assert!(bucket.is_full(), "the bucket sample end to end: expected `bucket.is_full()`");
-    assert!(!bucket.insert(&key(11), &rid(11), &cmp), "the bucket sample end to end: expected `!bucket.insert(&key(11), &rid(11), &cmp)`");
-    for i in 0..10 {
-        assert_eq!(bucket.lookup(&key(i), &cmp), Some(rid(i)), "the bucket sample end to end");
-    }
-    for i in (1..10).step_by(2) {
-        assert!(bucket.remove(&key(i), &cmp), "the bucket sample end to end: expected `bucket.remove(&key(i), &cmp)`");
-    }
-    for i in 0..10 {
-        assert_eq!(bucket.remove(&key(i), &cmp), i % 2 == 0, "key {i}");
-    }
-    assert!(bucket.is_empty(), "the bucket sample end to end: expected `bucket.is_empty()`");
-}
-
-// ---- 2b-07 · the table: new, get_value on an empty table, verify_integrity -----------------------------------------------------------------
-
-type IntTable<'a> = DiskExtendibleHashTable<'a, i32, i32, IntComparator>;
-type KeyTable<'a> = DiskExtendibleHashTable<'a, GenericKey<8>, Rid, GenericComparator<8>>;
-
-fn int_table(bpm: &BufferPoolManager, header: u32, directory: u32, bucket: u32) -> IntTable<'_> {
-    DiskExtendibleHashTable::new("test", bpm, IntComparator, HashFunction::new(), header, directory, bucket)
-}
-
-#[test]
-fn s2b_15_a_new_table_has_a_formatted_header() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 2, 3, 4);
-    let guard = bpm.read_page(ht.get_header_page_id());
-    let header = Header::new(&guard[..]);
-    assert_eq!(header.max_depth(), 2, "a new table has a formatted header");
-    for i in 0..4 {
-        assert_eq!(header.get_directory_page_id(i), PageId::INVALID, "a new table has a formatted header");
-    }
-}
-
-#[test]
-fn s2b_15_an_empty_table_has_no_values() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 0, 3, 4);
-    for k in 0..20 {
-        assert!(ht.get_value(&k).is_empty(), "an empty table has no values: expected `ht.get_value(&k).is_empty()`");
-    }
-}
-
-#[test]
-fn s2b_15_an_empty_table_verifies() {
-    let bpm = bpm(10);
-    int_table(&bpm, 3, 3, 4).verify_integrity();
-}
-
-#[test]
-fn s2b_15_the_defaults_fill_a_page() {
-    assert_eq!(IntTable::default_bucket_max_size(), 1023, "the defaults fill a page");
-    assert_eq!(KeyTable::default_bucket_max_size(), 511, "the defaults fill a page");
-    assert_eq!(IntTable::default_header_max_depth(), 9, "the defaults fill a page");
-    assert_eq!(IntTable::default_directory_max_depth(), 9, "the defaults fill a page");
-}
-
-#[test]
-fn s2b_15_reading_an_empty_table_pins_nothing() {
-    let bpm = bpm(2);
-    let ht = int_table(&bpm, 0, 3, 4);
-    ht.get_value(&1);
-    ht.verify_integrity();
-    assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0), "reading an empty table pins nothing");
-}
-
-// ---- 2b-07 · insert: the first key creates a directory and a bucket -----------------------------------------------------------------------
-
-/// The page ids reachable from the header: (directory page id, its bucket page ids).
-fn page_ids(bpm: &BufferPoolManager, ht: &IntTable<'_>) -> Vec<(PageId, Vec<PageId>)> {
-    let header_guard = bpm.read_page(ht.get_header_page_id());
-    let header = Header::new(&header_guard[..]);
-    let mut out = Vec::new();
-    for i in 0..header.max_size() {
-        let dir_id = header.get_directory_page_id(i);
-        if dir_id.is_valid() {
-            let dir_guard = bpm.read_page(dir_id);
-            let dir = Directory::new(&dir_guard[..]);
-            out.push((dir_id, (0..dir.size()).map(|s| dir.get_bucket_page_id(s)).collect()));
-        }
-    }
-    out
-}
-
-#[test]
-fn s2b_16_the_first_insert_makes_a_directory_and_a_bucket() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 0, 3, 4);
-    assert!(ht.insert(&5, &50), "the first insert makes a directory and a bucket: expected `ht.insert(&5, &50)`");
-    let ids = page_ids(&bpm, &ht);
-    assert_eq!(ids.len(), 1, "the first insert makes a directory and a bucket");
-    let (dir_id, buckets) = &ids[0];
-    assert_eq!(buckets.len(), 1, "the first insert makes a directory and a bucket");
-    let dir_guard = bpm.read_page(*dir_id);
-    let dir = Directory::new(&dir_guard[..]);
-    assert_eq!((dir.get_global_depth(), dir.get_local_depth(0), dir.get_max_depth()), (0, 0, 3), "the first insert makes a directory and a bucket");
-    let bucket_guard = bpm.read_page(buckets[0]);
-    let bucket = Bucket::<_, i32, i32>::new(&bucket_guard[..]);
-    assert_eq!((bucket.size(), bucket.max_size()), (1, 4), "the first insert makes a directory and a bucket");
-    assert_eq!(bucket.entry_at(0), (5, 50), "the first insert makes a directory and a bucket");
-}
-
-#[test]
-fn s2b_16_keys_with_different_top_bits_get_different_directories() {
-    let bpm = bpm(20);
-    let ht = int_table(&bpm, 2, 3, 4);
-    let hash = HashFunction::<i32>::new();
-    let header_guard = bpm.read_page(ht.get_header_page_id());
-    let header_idx = |k: i32| Header::new(&header_guard[..]).hash_to_directory_index(hash.get_hash(&k) as u32);
-    // pick keys in two different directory slots
-    let a = 0;
-    let b = (1..200).find(|&k| header_idx(k) != header_idx(a)).expect("some key lands elsewhere");
-    drop(header_guard);
-    assert!(ht.insert(&a, &1), "keys with different top bits get different directories: expected `ht.insert(&a, &1)`");
-    assert!(ht.insert(&b, &2), "keys with different top bits get different directories: expected `ht.insert(&b, &2)`");
-    assert_eq!(page_ids(&bpm, &ht).len(), 2, "keys with different top bits get different directories");
-}
-
-#[test]
-fn s2b_16_inserting_leaves_nothing_pinned() {
-    let bpm = bpm(4);
-    let ht = int_table(&bpm, 0, 3, 4);
-    assert!(ht.insert(&1, &1), "inserting leaves nothing pinned: expected `ht.insert(&1, &1)`");
-    assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0), "inserting leaves nothing pinned");
-    for (dir_id, buckets) in page_ids(&bpm, &ht) {
-        assert_eq!(bpm.get_pin_count(dir_id), Some(0), "inserting leaves nothing pinned");
-        assert!(buckets.iter().all(|b| bpm.get_pin_count(*b) == Some(0)), "inserting leaves nothing pinned: expected `buckets.iter().all(|b| bpm.get_pin_count(*b) == Some(0))`");
-    }
-}
-
-#[test]
-fn s2b_16_the_table_passes_its_own_integrity_check_after_the_first_insert() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 1, 3, 4);
-    ht.insert(&3, &3);
-    ht.verify_integrity();
-}
-
-// ---- 2b-08 · insert into an existing bucket, and get_value --------------------------------------------------------------------------------
-
-#[test]
-fn s2b_17_inserted_values_can_be_read_back() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 0, 3, 8);
-    for i in 0..8 {
-        assert!(ht.insert(&i, &(i * 10)), "inserted values can be read back: expected `ht.insert(&i, &(i * 10))`");
-        assert_eq!(ht.get_value(&i), vec![i * 10], "inserted values can be read back");
-    }
-    for i in 0..8 {
-        assert_eq!(ht.get_value(&i), vec![i * 10], "inserted values can be read back");
-    }
-}
-
-#[test]
-fn s2b_17_missing_keys_have_no_value() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 0, 3, 8);
-    for i in 0..5 {
-        ht.insert(&i, &i);
-    }
-    for i in 5..10 {
-        assert!(ht.get_value(&i).is_empty(), "missing keys have no value: expected `ht.get_value(&i).is_empty()`");
-    }
-}
-
-#[test]
-fn s2b_17_a_duplicate_key_is_refused() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 0, 3, 8);
-    assert!(ht.insert(&1, &10), "a duplicate key is refused: expected `ht.insert(&1, &10)`");
-    assert!(!ht.insert(&1, &20), "a duplicate key is refused: expected `!ht.insert(&1, &20)`");
-    assert_eq!(ht.get_value(&1), vec![10], "a duplicate key is refused");
-}
-
-#[test]
-fn s2b_17_several_directories_work_side_by_side() {
-    let bpm = bpm(30);
-    let ht = int_table(&bpm, 2, 3, 16);
-    for i in 0..12 {
-        assert!(ht.insert(&i, &(i + 100)), "several directories work side by side: expected `ht.insert(&i, &(i + 100))`");
-    }
-    for i in 0..12 {
-        assert_eq!(ht.get_value(&i), vec![i + 100], "key {i}");
-    }
-    assert!(page_ids(&bpm, &ht).len() > 1, "12 keys should reach more than one of the 4 directories");
-}
-
-#[test]
-fn s2b_17_lookups_leave_nothing_pinned_or_latched() {
-    let bpm = bpm(4);
-    let ht = int_table(&bpm, 0, 3, 8);
-    ht.insert(&1, &1);
-    for _ in 0..50 {
-        ht.get_value(&1);
-        ht.get_value(&2);
-    }
-    ht.insert(&2, &2); // would hang on a stuck latch
-    assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0), "lookups leave nothing pinned or latched");
-}
-
-// ---- 2b-09 · splitting a full bucket, and growing the directory ---------------------------------------------------------------------------
-
-#[test]
-fn s2b_18_eight_well_spread_keys_fit_a_ninth_does_not() {
-    // BusTub's InsertTest1 (directory max depth 2, buckets of 2) assumes keys 0..8 land two to a bucket. With BusTub's own
-    // MurmurHash3 they don't: 0, 2, 4 and 6 all end in the bits 00, so no correct table can hold them. This test picks keys that
-    // do spread (two per value of the low two bits of the hash), which is the property the original meant.
-    let bpm = bpm(50);
-    let ht = int_table(&bpm, 0, 2, 2);
-    let hash = HashFunction::<i32>::new();
-    let mut per_class = [0; 4];
-    let mut keys = Vec::new();
-    for k in 0.. {
-        let class = (hash.get_hash(&k) & 3) as usize;
-        if per_class[class] < 2 {
-            per_class[class] += 1;
-            keys.push(k);
-        }
-        if keys.len() == 8 {
-            break;
-        }
-    }
-    for k in &keys {
-        assert!(ht.insert(k, k), "key {k}");
-        assert_eq!(ht.get_value(k), vec![*k], "eight well spread keys fit a ninth does not");
-    }
-    ht.verify_integrity();
-    let ninth = (0..).find(|k| !keys.contains(k)).unwrap();
-    assert!(!ht.insert(&ninth, &ninth), "every bucket is full and the directory can't grow");
-}
-
-#[test]
-fn s2b_18_bustubs_key_0_to_7_do_not_all_fit_with_murmur() {
-    // The same test with BusTub's literal keys: four of them share their low bits, so the fifth of those is refused.
-    let bpm = bpm(50);
-    let ht = int_table(&bpm, 0, 2, 2);
-    let accepted = (0..8).filter(|k| ht.insert(k, k)).count();
-    assert_eq!(accepted, 5, "keys 0 and 2 fit in the 00 bucket (4 and 6 don't), 1 in the 10 bucket, 3 and 5 in the 11 bucket (7 doesn't)");
-    ht.verify_integrity();
-}
-
-#[test]
-fn s2b_18_a_split_distributes_the_entries_by_the_new_bit() {
-    let bpm = bpm(20);
-    let ht = int_table(&bpm, 0, 4, 2);
-    let hash = HashFunction::<i32>::new();
-    // find three keys that share their lowest hash bit, so the third forces a split of a depth-0 bucket
-    let keys: Vec<i32> = (0..100).filter(|k| hash.get_hash(k) & 1 == 0).take(3).collect();
-    for k in &keys {
-        assert!(ht.insert(k, k), "a split distributes the entries by the new bit: expected `ht.insert(k, k)`");
-    }
-    let ids = page_ids(&bpm, &ht);
-    let (dir_id, buckets) = &ids[0];
-    let dir_guard = bpm.read_page(*dir_id);
-    let dir = Directory::new(&dir_guard[..]);
-    assert!(dir.get_global_depth() >= 1, "the directory grew");
-    assert!(buckets.len() >= 2, "a split distributes the entries by the new bit: expected `buckets.len() >= 2`");
-    dir.verify_integrity();
-    for k in &keys {
-        assert_eq!(ht.get_value(k), vec![*k], "a split distributes the entries by the new bit");
-    }
-}
-
-#[test]
-fn s2b_18_many_keys_survive_many_splits() {
-    let bpm = bpm(60);
-    let ht = int_table(&bpm, 0, 9, 4);
-    for i in 0..400 {
-        assert!(ht.insert(&i, &(i * 3)), "key {i}");
-    }
-    ht.verify_integrity();
-    for i in 0..400 {
-        assert_eq!(ht.get_value(&i), vec![i * 3], "key {i}");
-    }
-    assert!(ht.get_value(&400).is_empty(), "many keys survive many splits: expected `ht.get_value(&400).is_empty()`");
-}
-
-#[test]
-fn s2b_18_the_directory_stops_growing_at_its_max_depth() {
-    let bpm = bpm(60);
-    let ht = int_table(&bpm, 0, 3, 2); // 8 slots x 2 = at most 16 keys
-    let mut inserted = 0;
-    for i in 0..100 {
-        if ht.insert(&i, &i) {
-            inserted += 1;
-        }
-    }
-    assert!(inserted <= 16, "the directory stops growing at its max depth: expected `inserted <= 16`");
-    assert!(inserted >= 8, "a decent hash gets at least half the capacity: {inserted}");
-    ht.verify_integrity();
-    let guard = bpm.read_page(ht.get_header_page_id());
-    let dir_id = Header::new(&guard[..]).get_directory_page_id(0);
-    drop(guard);
-    let dir_guard = bpm.read_page(dir_id);
-    assert_eq!(Directory::new(&dir_guard[..]).get_global_depth(), 3, "the directory stops growing at its max depth");
-}
-
-#[test]
-fn s2b_18_a_model_with_random_keys() {
-    let bpm = bpm(100);
-    let ht = int_table(&bpm, 1, 9, 8);
+#[derive(Clone, Copy, Debug)]
+enum Op {
+    Insert(i32, i32),
+    Get(i32),
+    Remove(i32),
+}
+
+fn ops(keys: i32, with_remove: bool) -> impl Strategy<Value = Vec<Op>> {
+    let remove = if with_remove { 4 } else { 0 };
+    prop::collection::vec(
+        prop_oneof![
+            6 => (0..keys, any::<i32>()).prop_map(|(k, v)| Op::Insert(k, v)),
+            3 => (0..keys).prop_map(Op::Get),
+            remove => (0..keys).prop_map(Op::Remove),
+        ],
+        1..250,
+    )
+}
+
+fn shapes() -> impl Strategy<Value = Shape> {
+    (0u32..=2, 0u32..=4, 1u32..=4).prop_map(|(header_depth, directory_depth, bucket_size)| Shape { header_depth, directory_depth, bucket_size })
+}
+
+fn run_model(shape: Shape, ops: &[Op], frames: usize) -> Result<(), TestCaseError> {
+    let (bpm, _disk) = pool_with(Policy::Fifo, frames);
+    let ht = table(&bpm, shape);
     let mut model: HashMap<i32, i32> = HashMap::new();
-    let mut rng = Lcg(11);
-    for _ in 0..600 {
-        let k = rng.next(500) as i32;
-        let v = rng.next(1000) as i32;
-        let expect_new = !model.contains_key(&k);
-        assert_eq!(ht.insert(&k, &v), expect_new, "key {k}");
-        model.entry(k).or_insert(v);
+    for (step, op) in ops.iter().enumerate() {
+        match *op {
+            Op::Insert(k, v) => {
+                let want = !model.contains_key(&k) && insert_must_succeed(shape, &model, k);
+                prop_assert_eq!(ht.insert(&k, &v), want, "step {}: insert({}) with {:?}: {}", step, k, shape, if model.contains_key(&k) { "the key is already there" } else { "its class is full or has room" });
+                if want {
+                    model.insert(k, v);
+                }
+            }
+            Op::Get(k) => prop_assert_eq!(ht.get_value(&k), model.get(&k).map(|&v| vec![v]).unwrap_or_default(), "step {}: get_value({})", step, k),
+            Op::Remove(k) => prop_assert_eq!(ht.remove(&k), model.remove(&k).is_some(), "step {}: remove({})", step, k),
+        }
+        ht.verify_integrity();
+        assert_nothing_pinned(&bpm);
     }
+    for k in 0..64 {
+        prop_assert_eq!(ht.get_value(&k), model.get(&k).map(|&v| vec![v]).unwrap_or_default(), "final get_value({})", k);
+    }
+    Ok(())
+}
+
+fn config() -> ProptestConfig {
+    ProptestConfig { cases: 48, max_shrink_iters: 3000, ..ProptestConfig::default() }
+}
+
+// ---- 2b-02 · Lookups and inserts without splits -------------------------------------------------------------------------
+
+#[test]
+fn s2b_02_an_empty_table_has_no_values() {
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let ht = table(&bpm, Shape { header_depth: 2, directory_depth: 3, bucket_size: 4 });
+    assert!(ht.get_value(&7).is_empty(), "nothing was inserted");
     ht.verify_integrity();
-    for (k, v) in &model {
-        assert_eq!(ht.get_value(k), vec![*v], "key {k}");
-    }
+    assert_eq!(ht.index_name(), "test");
+    assert!(ht.get_header_page_id().is_valid());
 }
 
 #[test]
-fn s2b_18_splitting_does_not_leak_pins() {
-    let bpm = bpm(8);
-    let ht = int_table(&bpm, 0, 9, 2);
-    for i in 0..100 {
-        ht.insert(&i, &i);
-    }
-    for (dir_id, buckets) in page_ids(&bpm, &ht) {
-        assert_eq!(bpm.get_pin_count(dir_id), Some(0), "splitting does not leak pins");
-        assert!(buckets.iter().all(|b| bpm.get_pin_count(*b).unwrap_or(0) == 0), "splitting does not leak pins: expected `buckets.iter().all(|b| bpm.get_pin_count(*b).unwrap_or(0) == 0)`");
-    }
-}
-
-// ---- 2b-10 · remove -------------------------------------------------------------------------------------------------------------------------
-
-#[test]
-fn s2b_19_remove_takes_a_key_out() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 0, 3, 8);
-    for i in 0..5 {
-        ht.insert(&i, &i);
-    }
-    assert!(ht.remove(&2), "remove takes a key out: expected `ht.remove(&2)`");
-    assert!(ht.get_value(&2).is_empty(), "remove takes a key out: expected `ht.get_value(&2).is_empty()`");
-    assert_eq!(ht.get_value(&3), vec![3], "remove takes a key out");
-}
-
-#[test]
-fn s2b_19_removing_a_missing_key_is_false() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 0, 3, 8);
-    assert!(!ht.remove(&1), "an empty table has nothing to remove");
-    ht.insert(&1, &1);
-    assert!(!ht.remove(&2), "removing a missing key is false: expected `!ht.remove(&2)`");
-    assert!(ht.remove(&1), "removing a missing key is false: expected `ht.remove(&1)`");
-    assert!(!ht.remove(&1), "the second removal finds nothing");
-}
-
-#[test]
-fn s2b_19_a_removed_key_can_be_inserted_again() {
-    let bpm = bpm(10);
-    let ht = int_table(&bpm, 0, 3, 8);
-    ht.insert(&1, &10);
-    ht.remove(&1);
-    assert!(ht.insert(&1, &20), "a removed key can be inserted again: expected `ht.insert(&1, &20)`");
-    assert_eq!(ht.get_value(&1), vec![20], "a removed key can be inserted again");
-}
-
-#[test]
-fn s2b_19_removing_from_a_grown_table() {
-    let bpm = bpm(60);
-    let ht = int_table(&bpm, 1, 9, 4);
-    for i in 0..200 {
-        ht.insert(&i, &i);
-    }
-    for i in (0..200).step_by(2) {
-        assert!(ht.remove(&i), "key {i}");
-    }
-    ht.verify_integrity();
-    for i in 0..200 {
-        assert_eq!(ht.get_value(&i).len(), (i % 2) as usize, "key {i}");
-    }
-}
-
-#[test]
-fn s2b_19_bustubs_remove_test_1() {
-    let bpm = bpm(50);
-    let ht = int_table(&bpm, 2, 3, 2);
-    let n = 5;
-    for i in 0..n {
-        assert!(ht.insert(&i, &i), "bustubs remove test 1: expected `ht.insert(&i, &i)`");
-        assert_eq!(ht.get_value(&i), vec![i], "bustubs remove test 1");
-    }
-    ht.verify_integrity();
-    for i in n..2 * n {
-        assert!(ht.get_value(&i).is_empty(), "bustubs remove test 1: expected `ht.get_value(&i).is_empty()`");
-    }
-    for i in 0..n {
-        assert!(ht.remove(&i), "bustubs remove test 1: expected `ht.remove(&i)`");
-        assert!(ht.get_value(&i).is_empty(), "bustubs remove test 1: expected `ht.get_value(&i).is_empty()`");
-    }
-    ht.verify_integrity();
-    for i in n..2 * n {
-        assert!(!ht.remove(&i), "bustubs remove test 1: expected `!ht.remove(&i)`");
-        assert!(ht.get_value(&i).is_empty(), "bustubs remove test 1: expected `ht.get_value(&i).is_empty()`");
-    }
+fn s2b_02_an_inserted_key_is_found_with_its_value() {
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let ht = table(&bpm, Shape { header_depth: 0, directory_depth: 3, bucket_size: 10 });
+    assert!(ht.insert(&5, &50));
+    assert_eq!(ht.get_value(&5), vec![50]);
+    assert!(ht.get_value(&6).is_empty());
     ht.verify_integrity();
 }
 
-// ---- 2b-11 · merging empty buckets -------------------------------------------------------------------------------------------------------------
-
-fn bucket_count(bpm: &BufferPoolManager, ht: &IntTable<'_>) -> usize {
-    let mut distinct: Vec<PageId> = page_ids(bpm, ht).into_iter().flat_map(|(_, b)| b).collect();
-    distinct.sort();
-    distinct.dedup();
-    distinct.len()
+#[test]
+fn s2b_02_a_duplicate_key_is_refused_and_keeps_its_value() {
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let ht = table(&bpm, Shape { header_depth: 0, directory_depth: 3, bucket_size: 10 });
+    assert!(ht.insert(&5, &50));
+    assert!(!ht.insert(&5, &99), "keys are unique");
+    assert_eq!(ht.get_value(&5), vec![50]);
 }
 
 #[test]
-fn s2b_20_emptying_a_bucket_merges_it_with_its_split_image() {
-    let bpm = bpm(30);
-    let ht = int_table(&bpm, 0, 4, 2);
-    for i in 0..16 {
-        ht.insert(&i, &i);
+fn s2b_02_keys_in_different_header_slots_do_not_disturb_each_other() {
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let shape = Shape { header_depth: 2, directory_depth: 2, bucket_size: 8 };
+    let ht = table(&bpm, shape);
+    // find keys that land in each of the four header slots
+    let mut by_slot: HashMap<u32, Vec<i32>> = HashMap::new();
+    for k in 0..400 {
+        by_slot.entry(class_of(shape, k).0).or_default().push(k);
     }
-    let before = bucket_count(&bpm, &ht);
-    assert!(before >= 4, "emptying a bucket merges it with its split image: expected `before >= 4`");
-    for i in 0..16 {
-        ht.remove(&i);
+    assert_eq!(by_slot.len(), 4, "the test hash spreads keys over all four header slots");
+    for keys in by_slot.values() {
+        for &k in &keys[..3] {
+            assert!(ht.insert(&k, &(k * 2)));
+        }
     }
-    ht.verify_integrity();
-    assert!(bucket_count(&bpm, &ht) < before, "empty buckets must be merged away");
-}
-
-#[test]
-fn s2b_20_a_merged_bucket_page_is_deleted_from_the_pool() {
-    let bpm = bpm(30);
-    let ht = int_table(&bpm, 0, 4, 2);
-    for i in 0..16 {
-        ht.insert(&i, &i);
-    }
-    let all: Vec<PageId> = page_ids(&bpm, &ht).into_iter().flat_map(|(_, b)| b).collect();
-    for i in 0..16 {
-        ht.remove(&i);
-    }
-    let alive: Vec<PageId> = page_ids(&bpm, &ht).into_iter().flat_map(|(_, b)| b).collect();
-    // every page that left the directory is gone from the pool (deleted, not just unreferenced)
-    for page in all.iter().filter(|p| !alive.contains(p)) {
-        assert_eq!(bpm.get_pin_count(*page), None, "page {page:?} should have been deleted");
-    }
-}
-
-#[test]
-fn s2b_20_merging_keeps_every_remaining_key_findable() {
-    let bpm = bpm(60);
-    let ht = int_table(&bpm, 0, 9, 4);
-    for i in 0..300 {
-        ht.insert(&i, &i);
-    }
-    for i in 0..300 {
-        if i % 3 != 0 {
-            assert!(ht.remove(&i), "merging keeps every remaining key findable: expected `ht.remove(&i)`");
+    for keys in by_slot.values() {
+        for &k in &keys[..3] {
+            assert_eq!(ht.get_value(&k), vec![k * 2]);
         }
     }
     ht.verify_integrity();
-    for i in 0..300 {
-        assert_eq!(ht.get_value(&i).len(), (i % 3 == 0) as usize, "key {i}");
-    }
 }
 
 #[test]
-fn s2b_20_a_table_emptied_completely_is_one_bucket_again() {
-    let bpm = bpm(60);
-    let ht = int_table(&bpm, 0, 9, 4);
-    for i in 0..200 {
-        ht.insert(&i, &i);
-    }
-    for i in 0..200 {
-        assert!(ht.remove(&i), "a table emptied completely is one bucket again: expected `ht.remove(&i)`");
-    }
-    ht.verify_integrity();
-    assert_eq!(bucket_count(&bpm, &ht), 1, "a table emptied completely is one bucket again");
+fn s2b_02_the_default_sizes_describe_what_a_page_holds() {
+    assert_eq!(Table::default_header_max_depth(), 9);
+    assert_eq!(Table::default_directory_max_depth(), 9);
+    let n = Table::default_bucket_max_size();
+    assert!((400..=1100).contains(&n), "a bucket of (i32, i32) pairs holds hundreds in an 8 KiB page, not {n}");
 }
 
 #[test]
-fn s2b_20_the_table_works_after_everything_was_removed() {
-    let bpm = bpm(60);
-    let ht = int_table(&bpm, 0, 9, 4);
-    for round in 0..3 {
-        for i in 0..150 {
-            assert!(ht.insert(&i, &(i + round)), "round {round} key {i}");
+fn s2b_02_a_page_worth_of_keys_fit_without_any_splitting() {
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let ht = DiskExtendibleHashTable::<i32, i32, IntComparator>::new("big", &bpm, IntComparator, HashFunction::new(), 0, 0, Table::default_bucket_max_size());
+    for k in 0..300 {
+        assert!(ht.insert(&k, &(k + 1)));
+    }
+    for k in 0..300 {
+        assert_eq!(ht.get_value(&k), vec![k + 1]);
+    }
+    assert_nothing_pinned(&bpm);
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Buckets big enough that nothing ever splits: the table is a map.
+    #[test]
+    fn s2b_02_a_table_with_roomy_buckets_behaves_like_a_hashmap(header_depth in 0u32..=2, ops in ops(48, false)) {
+        run_model(Shape { header_depth, directory_depth: 3, bucket_size: 60 }, &ops, 5)?;
+    }
+}
+
+// ---- 2b-03 · Full buckets split and the directory grows --------------------------------------------------------------------
+
+/// `n` keys that share their header slot and their low `depth` bits, found by scanning.
+fn colliding_keys(shape: Shape, n: usize) -> Vec<i32> {
+    let mut by_class: HashMap<(u32, u32), Vec<i32>> = HashMap::new();
+    for k in 0..20_000 {
+        let v = by_class.entry(class_of(shape, k)).or_default();
+        v.push(k);
+        if v.len() == n {
+            return v.clone();
         }
-        for i in 0..150 {
-            assert!(ht.remove(&i), "the table works after everything was removed: expected `ht.remove(&i)`");
+    }
+    panic!("no {n} colliding keys found");
+}
+
+#[test]
+fn s2b_03_a_full_bucket_splits_so_every_key_is_still_found() {
+    let (bpm, _) = pool_with(Policy::Fifo, 8);
+    let ht = table(&bpm, Shape { header_depth: 0, directory_depth: 9, bucket_size: 2 });
+    for k in 0..100 {
+        assert!(ht.insert(&k, &(k * 3)), "key {k} should fit after splitting");
+        ht.verify_integrity();
+    }
+    for k in 0..100 {
+        assert_eq!(ht.get_value(&k), vec![k * 3], "key {k} after all the splits");
+    }
+    assert_nothing_pinned(&bpm);
+}
+
+#[test]
+fn s2b_03_the_directory_doubles_as_buckets_fill() {
+    let (bpm, _) = pool_with(Policy::Fifo, 8);
+    let ht = table(&bpm, Shape { header_depth: 0, directory_depth: 9, bucket_size: 2 });
+    assert_eq!(ht.global_depth(&0), None, "no directory before the first insert");
+    ht.insert(&0, &0);
+    assert_eq!(ht.global_depth(&0), Some(0), "one bucket needs a directory of one slot");
+    let mut last = 0;
+    for k in 1..100 {
+        ht.insert(&k, &k);
+        let depth = ht.global_depth(&0).unwrap();
+        assert!(depth >= last, "the directory never shrinks while only inserting");
+        last = depth;
+    }
+    assert!(last >= 5, "100 keys in buckets of 2 need at least 50 buckets, so a directory of 64 slots or more (depth >= 6), not depth {last}");
+    assert!(last <= 9);
+}
+
+#[test]
+fn s2b_03_keys_that_cannot_be_separated_make_the_insert_fail() {
+    let shape = Shape { header_depth: 0, directory_depth: 2, bucket_size: 2 };
+    let keys = colliding_keys(shape, 3);
+    let (bpm, _) = pool_with(Policy::Fifo, 8);
+    let ht = table(&bpm, shape);
+    assert!(ht.insert(&keys[0], &1));
+    assert!(ht.insert(&keys[1], &2));
+    assert!(!ht.insert(&keys[2], &3), "three keys with the same low 2 bits cannot fit in a bucket of 2 at directory depth 2");
+    assert_eq!(ht.get_value(&keys[0]), vec![1]);
+    assert_eq!(ht.get_value(&keys[1]), vec![2]);
+    assert!(ht.get_value(&keys[2]).is_empty());
+    ht.verify_integrity();
+}
+
+#[test]
+fn s2b_03_a_directory_that_may_not_grow_is_full_when_its_bucket_is() {
+    let shape = Shape { header_depth: 0, directory_depth: 0, bucket_size: 3 };
+    let (bpm, _) = pool_with(Policy::Fifo, 8);
+    let ht = table(&bpm, shape);
+    for k in 0..3 {
+        assert!(ht.insert(&k, &k));
+    }
+    assert!(!ht.insert(&3, &3), "one bucket, three slots, no room to split");
+}
+
+#[test]
+fn s2b_03_failed_inserts_leave_the_table_as_it_was() {
+    let shape = Shape { header_depth: 1, directory_depth: 3, bucket_size: 2 };
+    let (bpm, _) = pool_with(Policy::Fifo, 8);
+    let ht = table(&bpm, shape);
+    let mut model = HashMap::new();
+    for k in 0..200 {
+        if ht.insert(&k, &k) {
+            model.insert(k, k);
         }
         ht.verify_integrity();
     }
-}
-
-// ---- 2b-11 · shrinking the directory -------------------------------------------------------------------------------------------------------------
-
-fn global_depth(bpm: &BufferPoolManager, ht: &IntTable<'_>) -> u32 {
-    let guard = bpm.read_page(ht.get_header_page_id());
-    let dir_id = Header::new(&guard[..]).get_directory_page_id(0);
-    drop(guard);
-    let dir_guard = bpm.read_page(dir_id);
-    Directory::new(&dir_guard[..]).get_global_depth()
-}
-
-#[test]
-fn s2b_21_a_table_that_was_emptied_shrinks_to_global_depth_zero() {
-    let bpm = bpm(60);
-    let ht = int_table(&bpm, 0, 9, 4);
-    for i in 0..200 {
-        ht.insert(&i, &i);
-    }
-    assert!(global_depth(&bpm, &ht) >= 3, "a table that was emptied shrinks to global depth zero: expected `global_depth(&bpm, &ht) >= 3`");
-    for i in 0..200 {
-        ht.remove(&i);
-    }
-    assert_eq!(global_depth(&bpm, &ht), 0, "a table that was emptied shrinks to global depth zero");
-}
-
-#[test]
-fn s2b_21_the_directory_shrinks_as_buckets_merge_not_only_at_the_end() {
-    let bpm = bpm(60);
-    let ht = int_table(&bpm, 0, 9, 2);
-    for i in 0..64 {
-        ht.insert(&i, &i);
-    }
-    let full = global_depth(&bpm, &ht);
-    for i in 0..48 {
-        ht.remove(&i);
-    }
-    let after = global_depth(&bpm, &ht);
-    assert!(after < full, "{after} should be below {full}");
-    ht.verify_integrity();
-    for i in 48..64 {
-        assert_eq!(ht.get_value(&i), vec![i], "the directory shrinks as buckets merge not only at the end");
+    assert!(model.len() < 200 && model.len() > 8, "some inserts fail and many succeed: {}", model.len());
+    for k in 0..200 {
+        assert_eq!(ht.get_value(&k), model.get(&k).map(|&v| vec![v]).unwrap_or_default(), "key {k}");
     }
 }
 
 #[test]
-fn s2b_21_a_directory_that_cannot_shrink_keeps_its_depth() {
-    let bpm = bpm(60);
-    let ht = int_table(&bpm, 0, 9, 2);
-    for i in 0..64 {
-        ht.insert(&i, &i);
+fn s2b_03_a_small_pool_is_enough_because_guards_are_released() {
+    let (bpm, _) = pool_with(Policy::Fifo, 4);
+    let ht = table(&bpm, Shape { header_depth: 2, directory_depth: 9, bucket_size: 3 });
+    for k in 0..500 {
+        assert!(ht.insert(&k, &k));
     }
-    let depth = global_depth(&bpm, &ht);
-    ht.remove(&0);
-    assert!(global_depth(&bpm, &ht) <= depth, "a directory that cannot shrink keeps its depth: expected `global_depth(&bpm, &ht) <= depth`");
-    ht.verify_integrity();
+    assert_nothing_pinned(&bpm);
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Any table shape, inserts and lookups: success is decided by the keys' hash classes alone, and everything inserted is found.
+    #[test]
+    fn s2b_03_inserts_succeed_exactly_when_the_hash_classes_have_room(shape in shapes(), ops in ops(64, false)) {
+        run_model(shape, &ops, 6)?;
+    }
+}
+
+// ---- 2b-04 · Remove, merge and shrink ---------------------------------------------------------------------------------------------
+
+#[test]
+fn s2b_04_remove_says_whether_the_key_was_there() {
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let ht = table(&bpm, Shape { header_depth: 1, directory_depth: 4, bucket_size: 3 });
+    assert!(!ht.remove(&1), "removing from an empty table");
+    ht.insert(&1, &10);
+    ht.insert(&2, &20);
+    assert!(ht.remove(&1));
+    assert!(!ht.remove(&1), "a second remove");
+    assert!(ht.get_value(&1).is_empty());
+    assert_eq!(ht.get_value(&2), vec![20]);
 }
 
 #[test]
-fn s2b_21_a_model_with_random_inserts_and_removes() {
-    let bpm = bpm(100);
-    let ht = int_table(&bpm, 0, 9, 4);
-    let mut model: HashMap<i32, i32> = HashMap::new();
-    let mut rng = Lcg(2024);
-    for step in 0..2000 {
-        let k = rng.next(300) as i32;
-        if rng.next(2) == 0 {
-            let expect = !model.contains_key(&k);
-            assert_eq!(ht.insert(&k, &step), expect, "step {step} insert {k}");
-            model.entry(k).or_insert(step);
-        } else {
-            assert_eq!(ht.remove(&k), model.remove(&k).is_some(), "step {step} remove {k}");
+fn s2b_04_removing_everything_leaves_a_table_that_still_works() {
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let ht = table(&bpm, Shape { header_depth: 2, directory_depth: 9, bucket_size: 2 });
+    for round in 0..3 {
+        for k in 0..150 {
+            assert!(ht.insert(&k, &(k + round)), "round {round}: insert {k}");
         }
-        if step % 100 == 0 {
+        for k in 0..150 {
+            assert!(ht.remove(&k), "round {round}: remove {k}");
+            ht.verify_integrity();
+        }
+        for k in 0..150 {
+            assert!(ht.get_value(&k).is_empty());
+        }
+    }
+    assert_nothing_pinned(&bpm);
+}
+
+#[test]
+fn s2b_04_the_directory_shrinks_back_when_the_buckets_are_gone() {
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let ht = table(&bpm, Shape { header_depth: 0, directory_depth: 9, bucket_size: 2 });
+    for k in 0..100 {
+        ht.insert(&k, &k);
+    }
+    let grown = ht.global_depth(&0).unwrap();
+    assert!(grown >= 5);
+    for k in 0..100 {
+        ht.remove(&k);
+    }
+    assert_eq!(ht.global_depth(&0), Some(0), "an emptied table's directory has shrunk back to one slot (it grew to depth {grown})");
+    for k in 0..40 {
+        assert!(ht.insert(&k, &k), "and it grows again");
+    }
+}
+
+#[test]
+fn s2b_04_empty_buckets_are_given_back_to_the_pool() {
+    let (bpm, disk) = pool_with(Policy::Fifo, 6);
+    let ht = table(&bpm, Shape { header_depth: 0, directory_depth: 9, bucket_size: 2 });
+    for k in 0..100 {
+        ht.insert(&k, &k);
+    }
+    assert!(disk.deletes.lock().unwrap().is_empty(), "nothing is deleted while the table only grows");
+    for k in 0..100 {
+        ht.remove(&k);
+    }
+    assert!(disk.deletes.lock().unwrap().len() >= 20, "after removing every key most of the ~50 bucket pages must have been deleted, only {} were", disk.deletes.lock().unwrap().len());
+}
+
+#[test]
+fn s2b_04_removing_one_key_does_not_disturb_its_neighbours_in_a_merged_bucket() {
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let ht = table(&bpm, Shape { header_depth: 0, directory_depth: 9, bucket_size: 2 });
+    for k in 0..40 {
+        ht.insert(&k, &(k * 7));
+    }
+    for k in (0..40).step_by(2) {
+        assert!(ht.remove(&k));
+    }
+    for k in 0..40 {
+        let want = if k % 2 == 0 { vec![] } else { vec![k * 7] };
+        assert_eq!(ht.get_value(&k), want, "key {k}");
+    }
+    ht.verify_integrity();
+}
+
+#[test]
+fn s2b_04_merging_makes_room_for_keys_that_could_not_be_inserted_before() {
+    let shape = Shape { header_depth: 0, directory_depth: 2, bucket_size: 2 };
+    let keys = colliding_keys(shape, 3);
+    let (bpm, _) = pool_with(Policy::Fifo, 6);
+    let ht = table(&bpm, shape);
+    ht.insert(&keys[0], &0);
+    ht.insert(&keys[1], &1);
+    assert!(!ht.insert(&keys[2], &2));
+    assert!(ht.remove(&keys[0]));
+    assert!(ht.insert(&keys[2], &2), "a slot freed by a remove can be used");
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// The full model: inserts, lookups and removals on any table shape.
+    #[test]
+    fn s2b_04_a_table_with_removals_agrees_with_the_model(shape in shapes(), ops in ops(64, true)) {
+        run_model(shape, &ops, 6)?;
+    }
+}
+
+// ---- 2b-05 · Boss: many threads --------------------------------------------------------------------------------------------------
+
+#[test]
+fn s2b_05_threads_on_disjoint_keys_lose_nothing() {
+    let (bpm, _) = pool_with(Policy::Arc, 40);
+    let ht = table(&bpm, Shape { header_depth: 2, directory_depth: 9, bucket_size: 8 });
+    thread::scope(|scope| {
+        for t in 0..4 {
+            let ht = &ht;
+            scope.spawn(move || {
+                for i in 0..300 {
+                    let k = t * 1000 + i;
+                    assert!(ht.insert(&k, &(k + 1)), "thread {t}: insert {k}");
+                }
+            });
+        }
+    });
+    ht.verify_integrity();
+    for t in 0..4 {
+        for i in 0..300 {
+            let k = t * 1000 + i;
+            assert_eq!(ht.get_value(&k), vec![k + 1], "key {k}");
+        }
+    }
+    assert_nothing_pinned(&bpm);
+}
+
+#[test]
+fn s2b_05_inserts_removes_and_lookups_at_the_same_time() {
+    let (bpm, _) = pool_with(Policy::Arc, 40);
+    let ht = table(&bpm, Shape { header_depth: 1, directory_depth: 9, bucket_size: 8 });
+    for k in 10_000..10_200 {
+        assert!(ht.insert(&k, &k)); // keys the readers expect to find throughout
+    }
+    thread::scope(|scope| {
+        for t in 0..3 {
+            let ht = &ht;
+            scope.spawn(move || {
+                let mut model = HashMap::new();
+                let mut rng = Lcg(5 + t as u64);
+                for _ in 0..1500 {
+                    let k = t * 1000 + rng.next(200) as i32;
+                    if rng.next(2) == 0 {
+                        assert_eq!(ht.insert(&k, &k), !model.contains_key(&k), "thread {t}: insert {k}");
+                        model.insert(k, k);
+                    } else {
+                        assert_eq!(ht.remove(&k), model.remove(&k).is_some(), "thread {t}: remove {k}");
+                    }
+                }
+                for k in t * 1000..t * 1000 + 200 {
+                    assert_eq!(ht.get_value(&k), model.get(&k).map(|&v| vec![v]).unwrap_or_default(), "thread {t}: final {k}");
+                }
+            });
+        }
+        for _ in 0..2 {
+            let ht = &ht;
+            scope.spawn(move || {
+                for round in 0..20 {
+                    for k in 10_000..10_200 {
+                        assert_eq!(ht.get_value(&k), vec![k], "reader, round {round}: the stable key {k} must always be found");
+                    }
+                }
+            });
+        }
+    });
+    ht.verify_integrity();
+    assert_nothing_pinned(&bpm);
+}
+
+#[test]
+fn s2b_05_a_long_single_threaded_run_agrees_with_a_hashmap() {
+    let shape = Shape { header_depth: 2, directory_depth: 6, bucket_size: 4 };
+    let (bpm, _) = pool_with(Policy::Arc, 8);
+    let ht = table(&bpm, shape);
+    let mut model: HashMap<i32, i32> = HashMap::new();
+    let mut rng = Lcg(77);
+    for step in 0..20_000 {
+        let k = rng.next(300) as i32;
+        match rng.next(5) {
+            0 | 1 => {
+                let want = !model.contains_key(&k) && insert_must_succeed(shape, &model, k);
+                assert_eq!(ht.insert(&k, &step), want, "step {step}: insert {k}");
+                if want {
+                    model.insert(k, step);
+                }
+            }
+            2 => assert_eq!(ht.remove(&k), model.remove(&k).is_some(), "step {step}: remove {k}"),
+            _ => assert_eq!(ht.get_value(&k), model.get(&k).map(|&v| vec![v]).unwrap_or_default(), "step {step}: get {k}"),
+        }
+        if step % 1000 == 0 {
             ht.verify_integrity();
         }
     }
-    ht.verify_integrity();
-    for k in 0..300 {
-        assert_eq!(ht.get_value(&k), model.get(&k).map(|v| vec![*v]).unwrap_or_default(), "key {k}");
-    }
-}
-
-// ---- 2b-12 · the module as a whole -------------------------------------------------------------------------------------------------------------
-
-fn gk(n: i64) -> GenericKey<8> {
-    key(n)
-}
-
-fn key_table(bpm: &BufferPoolManager) -> KeyTable<'_> {
-    DiskExtendibleHashTable::new("blah", bpm, GenericComparator::<8>, HashFunction::new(), 9, 9, KeyTable::default_bucket_max_size())
-}
-
-fn insert_keys(ht: &KeyTable<'_>, keys: &[i64]) {
-    for &k in keys {
-        ht.insert(&gk(k), &Rid::new(PageId((k >> 32) as i32), (k & 0xFFFF_FFFF) as u32));
-    }
-}
-
-#[test]
-fn s2b_22_two_threads_insert_the_same_keys() {
-    let bpm = bpm(50);
-    let ht = key_table(&bpm);
-    let keys: Vec<i64> = (1..100).collect();
-    thread::scope(|s| {
-        for _ in 0..2 {
-            s.spawn(|| insert_keys(&ht, &keys));
-        }
-    });
-    for &k in &keys {
-        let found = ht.get_value(&gk(k));
-        assert_eq!(found.len(), 1, "key {k}");
-        assert_eq!(found[0].slot_num() as i64, k & 0xFFFF_FFFF, "two threads insert the same keys");
-    }
-}
-
-#[test]
-fn s2b_22_two_threads_insert_disjoint_keys() {
-    let bpm = bpm(50);
-    let ht = key_table(&bpm);
-    let keys: Vec<i64> = (1..100).collect();
-    thread::scope(|s| {
-        for t in 0..2i64 {
-            let (ht, keys) = (&ht, &keys);
-            s.spawn(move || {
-                let mine: Vec<i64> = keys.iter().copied().filter(|k| k % 2 == t).collect();
-                insert_keys(ht, &mine);
-            });
-        }
-    });
-    for &k in &keys {
-        assert_eq!(ht.get_value(&gk(k)).len(), 1, "key {k}");
-    }
-}
-
-#[test]
-fn s2b_22_two_threads_delete_the_same_keys() {
-    let bpm = bpm(50);
-    let ht = key_table(&bpm);
-    insert_keys(&ht, &[1, 2, 3, 4, 5]);
-    thread::scope(|s| {
-        for _ in 0..2 {
-            s.spawn(|| {
-                for k in [1, 5, 3, 4] {
-                    ht.remove(&gk(k));
-                }
-            });
-        }
-    });
-    for k in 1..=5 {
-        assert_eq!(ht.get_value(&gk(k)).len(), (k == 2) as usize, "key {k}");
-    }
-}
-
-#[test]
-fn s2b_22_two_threads_delete_disjoint_keys() {
-    let bpm = bpm(50);
-    let ht = key_table(&bpm);
-    insert_keys(&ht, &(1..=10).collect::<Vec<_>>());
-    thread::scope(|s| {
-        for t in 0..2i64 {
-            let ht = &ht;
-            s.spawn(move || {
-                for k in [1, 4, 3, 2, 5, 6] {
-                    if k % 2 == t {
-                        ht.remove(&gk(k));
-                    }
-                }
-            });
-        }
-    });
-    for k in 1..=10 {
-        assert_eq!(ht.get_value(&gk(k)).len(), (k > 6) as usize, "key {k}");
-    }
-}
-
-#[test]
-fn s2b_22_inserts_deletes_and_lookups_at_once() {
-    // BusTub's MixTest2: preserved keys (multiples of 5) must always be findable while others are inserted and deleted.
-    let bpm = bpm(50);
-    let ht = key_table(&bpm);
-    let (preserved, dynamic): (Vec<i64>, Vec<i64>) = (1..=50).partition(|k| k % 5 == 0);
-    insert_keys(&ht, &preserved);
-    thread::scope(|s| {
-        for i in 0..6 {
-            let (ht, preserved, dynamic) = (&ht, &preserved, &dynamic);
-            s.spawn(move || match i % 3 {
-                0 => insert_keys(ht, dynamic),
-                1 => {
-                    for &k in dynamic {
-                        ht.remove(&gk(k));
-                    }
-                }
-                _ => {
-                    for &k in preserved {
-                        assert_eq!(ht.get_value(&gk(k)).len(), 1, "preserved key {k} must always be there");
-                    }
-                }
-            });
-        }
-    });
-    for &k in &preserved {
-        assert_eq!(ht.get_value(&gk(k)).len(), 1, "inserts deletes and lookups at once");
-    }
-}
-
-#[test]
-fn s2b_22_a_heavy_concurrent_workload_keeps_the_table_consistent() {
-    let bpm = bpm(100);
-    let ht = int_table(&bpm, 2, 9, 4);
-    thread::scope(|s| {
-        for t in 0..4 {
-            let ht = &ht;
-            s.spawn(move || {
-                let mut rng = Lcg(100 + t);
-                for _ in 0..1500 {
-                    let k = (rng.next(200) * 4) as i32 + t as i32; // each thread owns its residue class
-                    match rng.next(3) {
-                        0 => {
-                            ht.insert(&k, &k);
-                        }
-                        1 => {
-                            ht.remove(&k);
-                        }
-                        _ => {
-                            let v = ht.get_value(&k);
-                            assert!(v.is_empty() || v == vec![k], "a heavy concurrent workload keeps the table consistent: expected `v.is_empty() || v == vec![k]`");
-                        }
-                    }
-                }
-            });
-        }
-    });
-    ht.verify_integrity();
 }

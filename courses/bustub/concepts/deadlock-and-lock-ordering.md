@@ -154,7 +154,7 @@ fn a_watchdog_turns_a_deadlock_into_a_failure() {
 
 - **1g-02:** the flush deadlock (a writer holding a page latch while another thread, holding the pool lock, waits for it) and a test with a watchdog that turns it into a failure.
 - **1g-01:** release order inside a guard (unlatch, then unpin) is a lock-ordering rule: never hold a pin without the right to the latch, never the reverse.
-- **2b-08 and 2b-11:** a fixed order of page latches (header, directory, bucket; lower slot first for two buckets).
+- **2b-02, 2b-04, 2b-05:** a fixed order of page latches (header, directory, bucket; one bucket at a time in a merge) is what keeps splits and merges from deadlocking with readers.
 
 ### Where it is used
 

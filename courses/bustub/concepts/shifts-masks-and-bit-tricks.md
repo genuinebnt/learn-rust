@@ -134,11 +134,7 @@ fn shifting_by_the_full_width_panics_in_debug() {
 
 ### In the exercises
 
-- **2b-02 (`hash_to_directory_index`):** `top_bits` above. Test `max_depth` 0, 1, 9 and `u32::MAX`.
-- **2b-03:** the masks are `(1 << depth) - 1`; `hash_to_bucket_index` is `hash & global_mask`; `get_split_image_index` is `split_image` above.
-- **2b-04:** growing the directory copies slots `[0, n)` to `[n, 2n)`; `can_shrink` is "no local depth equals the global depth".
-- **2b-09:** the entries that move to the new bucket are those with bit `d` of their *hash* set: `hash & (1 << d) != 0`.
-- **2b-01:** rotations (`rotate_left`) and shifts of `u64` in MurmurHash3's finalisation.
+- **2b-01 to 2b-03:** rotations and shifts in MurmurHash3; the top bits choose the directory, the low bits the bucket (`hash & ((1 << g) - 1)`); a split moves the entries whose hash has bit `d` set; doubling copies slots `[0, n)` to `[n, 2n)`.
 
 ### Where it is used
 

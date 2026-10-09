@@ -1,8 +1,0 @@
-id = "2b-07"
-title = "The table: new and the first insert"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_2b::s2b_15", "stages_2b::s2b_16"]
-learn = ["a table that builds its pages lazily", "guards that hold the header, directory and bucket", "verify_integrity across every directory"]
-concepts = ["latching-a-hash-table", "extendible-hashing", "raii-guards-and-lifetimes", "pin-counts-and-dirty-pages"]
-concepts_optional = ["checking-invariants"]

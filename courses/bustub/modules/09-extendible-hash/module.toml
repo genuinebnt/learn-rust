@@ -2,7 +2,7 @@ code = "2b"
 title = "Extendible hash table"
 summary = "MurmurHash3, the header/directory/bucket pages, and a concurrent three-level extendible hash table with splits, directory growth, merges and shrinking. BusTub Project 2, part 1."
 lectures = ["hashtables", "indexconcurrency"]
-bustub = ["src/include/container/hash/hash_function.h", "third_party/murmur3/MurmurHash3.cpp", "src/include/storage/page/extendible_htable_header_page.h", "src/include/storage/page/extendible_htable_directory_page.h", "src/include/storage/page/extendible_htable_bucket_page.h", "src/include/container/disk/hash/disk_extendible_hash_table.h", "src/container/disk/hash/disk_extendible_hash_table.cpp", "test/storage/extendible_htable_page_test.cpp", "test/container/disk/hash/extendible_htable_test.cpp", "test/container/disk/hash/extendible_htable_concurrent_test.cpp"]
+bustub = ["src/include/container/hash/hash_function.h", "third_party/murmur3/MurmurHash3.cpp", "src/include/storage/page/extendible_htable_header_page.h", "src/include/storage/page/extendible_htable_directory_page.h", "src/include/storage/page/extendible_htable_bucket_page.h", "src/include/container/disk/hash/disk_extendible_hash_table.h", "src/container/disk/hash/disk_extendible_hash_table.cpp", "test/container/disk/hash/extendible_htable_test.cpp", "test/container/disk/hash/extendible_htable_concurrent_test.cpp"]
 
 [[resources]]
 kind = "paper"

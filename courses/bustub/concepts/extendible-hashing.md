@@ -188,9 +188,7 @@ fn the_directory_only_doubles_when_a_full_bucket_has_no_spare_bit_and_matches_a_
 
 ### In the exercises
 
-- **2b-02 to 2b-04:** the directory's `slot` (low bits), `global_depth`, doubling (`dir.extend(copy)`) and `verify` are the directory page's methods over bytes.
-- **2b-05:** `Bucket` is the bucket page: sorted, with `max_size`, `insert` refusing duplicates and a full page.
-- **2b-09:** `split` above: the order is *double if needed, allocate, bump depths, redistribute by bit `d` of the hash, repoint slots*, and `insert`'s `loop` is the retry.
+- **2b-02 to 2b-04:** the three levels, the directory's `slot` (low bits), `global_depth`, doubling, the split (double if needed, allocate, bump depths, redistribute by the new hash bit) and the merge with the split image. The stage pages state the rules; the layout and the checker are yours.
 - **2b-11:** the inverse: merge an empty bucket with its split image `slot ^ (1 << (d - 1))` when both have the same depth, repoint, lower depths, then shrink while no bucket has depth equal to the global depth.
 
 ### Where it is used

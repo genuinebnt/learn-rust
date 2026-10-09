@@ -148,9 +148,8 @@ fn read_only_views_cannot_write() {
 
 ### In the exercises
 
-- **2a-01 Part 1:** `read_u32`, `write_u32` (and the `i32`/`i64` siblings) are the first example. Test them at offset 0, at the last four bytes of the page, and with `u32::MAX`.
-- **2a-01 Part 4:** `FixedSize::encode` / `decode` for `i32`, `u32`, `i64`, `PageId` and `Rid` are one line each with `to_le_bytes` / `from_le_bytes`.
-- **2b-02, 2b-03, 2b-05:** the header, directory and bucket pages are `Header<B>`-style views (second example): reads for any `B: AsRef<[u8]>`, writes only for `B: AsMut<[u8]>`. A `ReadPageGuard` hands you a read-only view, so the compiler enforces "no writes under a read latch".
+- **2a-01:** `FixedSize::encode` / `decode` for the integers, `PageId` and `Rid` are one line each with `to_le_bytes` / `from_le_bytes`; the bytes around a value must stay untouched.
+- **2b-02:** the header, directory and bucket pages are views over page bytes with explicit offsets (the second example); the layout is yours.
 
 ### Where it is used
 

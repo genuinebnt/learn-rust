@@ -1,0 +1,8 @@
+id = "2b-04"
+title = "Remove, merge and shrink"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_2b::s2b_04"]
+learn = ["undoing a split: merge an empty bucket into its split image", "shrinking the directory when no bucket needs its last bit", "freeing pages the table no longer uses"]
+concepts = []
+concepts_optional = ["extendible-hashing", "checking-invariants", "model-based-testing", "deadlock-and-lock-ordering"]

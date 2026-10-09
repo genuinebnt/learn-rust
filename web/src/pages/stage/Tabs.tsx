@@ -93,6 +93,8 @@ export function SolutionTab({ page, onOpen, pending }: { page: Page; onOpen: () 
                                         <span className="k-lbl">Reveal solution</span>
                                     </button>
                                 </>
+                            ) : page.stage.kind === "boss" ? (
+                                <p>A boss stage has no code of its own to write: it runs the tests of the stages before it, and BusTub's own tests. There is no solution to reveal.</p>
                             ) : (
                                 <p>
                                     Not uploaded to this app yet. From your clone of the repo: <code>anneal course login {location.origin}</code>, then <code>anneal course solutions</code>.

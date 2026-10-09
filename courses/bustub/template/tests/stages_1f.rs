@@ -29,7 +29,8 @@ fn config() -> ProptestConfig {
     ProptestConfig { cases: 48, max_shrink_iters: 2000, ..ProptestConfig::default() }
 }
 
-use common::pool::{pool, pool_with, MemDisk, Policy};
+use bustub::buffer::replacer::FrameReplacer;
+use common::pool::{pool, pool_with, pool_with_spy, MemDisk, Policy};
 
 /// Fetches a page, writes `text` at the start of its frame, and unpins it dirty (or clean).
 fn write_text(bpm: &BufferPoolManager, page: PageId, text: &str, dirty: bool) {
@@ -338,6 +339,25 @@ fn s1f_02_dirt_accumulates_across_pins() {
 }
 
 #[test]
+fn s1f_02_the_pool_tells_the_replacer_when_a_page_is_in_use_and_when_it_is_not() {
+    let (bpm, _, spy) = pool_with_spy(3);
+    let (a, b) = (bpm.new_page(), bpm.new_page());
+    bpm.fetch_page(a).unwrap();
+    bpm.fetch_page(a).unwrap();
+    bpm.fetch_page(b).unwrap();
+    assert_eq!(spy.size(), 0, "pinned pages are not evictable");
+    bpm.unpin_page(a, false);
+    assert_eq!(spy.size(), 0, "a is still pinned once");
+    bpm.unpin_page(a, false);
+    assert_eq!(spy.size(), 1, "the last unpin of a makes its frame evictable");
+    bpm.fetch_page(a).unwrap();
+    assert_eq!(spy.size(), 0, "fetching an unpinned page that is in memory makes it non-evictable again");
+    bpm.unpin_page(a, false);
+    bpm.unpin_page(b, false);
+    assert_eq!(spy.size(), 2);
+}
+
+#[test]
 fn s1f_02_many_pages_pass_through_a_small_pool() {
     let (bpm, _) = pool(3);
     let pages: Vec<PageId> = (0..100).map(|_| bpm.new_page()).collect();
@@ -449,6 +469,17 @@ fn s1f_03_a_pinned_page_cannot_be_deleted_but_an_unpinned_one_can_and_its_frame_
     assert_eq!(bpm.get_pin_count(a), None, "a deleted page is not in memory");
     assert!(bpm.fetch_page(b).is_some(), "and its frame can be used again");
     assert!(disk.deletes.lock().unwrap().contains(&a.0), "the disk is told to free the page");
+}
+
+#[test]
+fn s1f_03_deleting_a_page_makes_the_replacer_forget_its_frame() {
+    let (bpm, _, spy) = pool_with_spy(2);
+    let a = bpm.new_page();
+    bpm.fetch_page(a).unwrap();
+    bpm.unpin_page(a, false);
+    assert_eq!(spy.size(), 1);
+    assert!(bpm.delete_page(a));
+    assert_eq!(spy.size(), 0, "the frame is free now, so it must not be offered as a victim any more");
 }
 
 #[test]

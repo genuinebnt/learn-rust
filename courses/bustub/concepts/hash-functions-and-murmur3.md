@@ -137,8 +137,7 @@ fn sequential_keys_spread_over_the_low_bits() {
 
 ### In the exercises
 
-- **2b-01:** port `MurmurHash3_x64_128` completely: the block loop (`chunks_exact(16)`), the tail (a loop over `remainder()`), and the finalisation with `fmix64`. Every `*` and `+` is `wrapping_*`. The stage's golden values come from compiling the C++; test lengths 0, 1, 15, 16, 17 and a long input.
-- **2b-02:** `HashFunction::get_hash(&key)` encodes the key to bytes (`FixedSize::encode`) and takes the first 64-bit lane of the 128-bit result.
+- **2b-01:** port `MurmurHash3_x64_128` completely (the block loop, the tail, the finalisation); `HashFunction::get_hash` encodes the key with `FixedSize::encode` and keeps the first half.
 
 ### Where it is used
 

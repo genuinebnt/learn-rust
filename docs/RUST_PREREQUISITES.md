@@ -40,7 +40,7 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | D4 Binary search | `d4-binary-search` | planned | core | 2a |
 | D5 Linked lists | `d5-linked-lists` | planned | core | 1c, 0b |
 | D6 Trees & BSTs | `d6-trees-bsts` | planned | core | 2c |
-| D13 Matrix, bits & math | `d13-matrix-bits-math` | planned | core | 3a |
+| D13 Matrix, bits & math | `d13-matrix-bits-math` | planned | core | 2b, 3a |
 | P3 Binary search practice | `p3-binary-search-practice` | written | core | 2a |
 
 Not used by the course: L9 Modules, crates & Cargo, L10 Macros, S10 Time, env & processes, C4 Async & Tokio, C5 Async internals, C6 Data parallelism, Y3 FFI, F6 Concurrency performance. (They matter for other goals, not for BusTub.)
@@ -170,12 +170,13 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `Eq` + `Hash` consistency | the module |
-| [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) *(planned)* | Hashing | SipHash vs Fx vs identity hashers, `BuildHasher`, why low bits matter | the module |
-| [F2 Data layout](/t/f2-data-layout) | Size it | `repr(C)` pages and `offset_of!` | the module |
-| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | latch crabbing: take the child, then let go of the parent | the module |
-| [L5 Generics & associated types](/t/l5-generics) | Bounds & associated types | `K: FixedSize + Clone`, a generic table over key and value | the module |
-| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it | an invariant checker run after every operation | the module |
+| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `Eq` + `Hash` consistency | 2b-02 |
+| [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) *(planned)* | Hashing | SipHash vs Fx vs identity hashers, `BuildHasher`, why low bits matter | 2b-01 |
+| [D13 Matrix, bits & math](/t/d13-matrix-bits-math) *(planned)* | Matrix, bits & math | `wrapping_*`, rotations, masks | 2b-01 |
+| [F2 Data layout](/t/f2-data-layout) | Size it | `repr(C)` pages and `offset_of!` | 2b-02 |
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | latch crabbing: take the child, then let go of the parent; lock ordering | 2b-02, 2b-04, 2b-05 |
+| [L5 Generics & associated types](/t/l5-generics) | Bounds & associated types | `K: FixedSize + Clone`, a generic table over key and value | 2b-02 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it | an invariant checker run after every operation; scoped threads for a stress test | 2b-02, 2b-04, 2b-05 |
 
 ### 2C · B+ tree index
 
@@ -368,9 +369,9 @@ The planned tracks, sorted by the first module that needs them (then by how many
 | 15 | [S11 mem, ptr & alloc](/t/s11-mem-ptr-alloc) | 2A | 1 modules |
 | 16 | [D4 Binary search](/t/d4-binary-search) | 2A | 1 modules |
 | 17 | [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) | 2B | 4 modules |
-| 18 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | 2C | 8 modules |
-| 19 | [D6 Trees & BSTs](/t/d6-trees-bsts) | 2C | 1 modules |
-| 20 | [D13 Matrix, bits & math](/t/d13-matrix-bits-math) | 3A | 1 modules |
+| 18 | [D13 Matrix, bits & math](/t/d13-matrix-bits-math) | 2B | 2 modules |
+| 19 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | 2C | 8 modules |
+| 20 | [D6 Trees & BSTs](/t/d6-trees-bsts) | 2C | 1 modules |
 | 21 | [C3 Atomics & lock-free](/t/c3-atomics-lock-free) | 4A | 1 modules |
 | 22 | [Y2 Unsafe Rust](/t/y2-unsafe-rust) | 0B | 1 modules |
 | 23 | [F5 CPU-level tricks](/t/f5-cpu-tricks) | 0C | 2 modules |

@@ -163,9 +163,8 @@ fn std_binary_search_variants() {
 
 ### In the exercises
 
-- **2a-03 (`PageArray::insert_at` / `remove_at`):** the first example is the whole technique: `copy_within(index*S .. len*S, (index+1)*S)` to open a gap, then write the entry; the mirror image to close it.
-- **2a-04 (`lower_bound`):** the second example is the algorithm, with a closure instead of an index so the real version can decode the entry at `mid`. Compare against `partition_point` in your own test.
-- **2b-05 (bucket page):** insert at `lower_bound(key)`, reject an equal key found there, `remove` finds then shifts down; the stage's model test checks the entries stay strictly increasing.
+- **2a-03, 2a-04:** shifting a range inside one buffer with `copy_within`, and a binary search that takes a comparison closure and returns a position (the second example is the algorithm).
+- **2b-02:** a bucket page may be sorted (insert at `lower_bound`, reject an equal key) or unsorted; both are valid.
 
 ### Where it is used
 

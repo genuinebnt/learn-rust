@@ -459,6 +459,24 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .kv2{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--line2);font-size:13px;color:var(--mut)}.kv2:first-of-type{border-top:0}.kv2 b{font:600 12px var(--mono);color:var(--fg)}
 .hl2{display:flex;gap:6px;margin-top:2px}.hl2 i{flex:1;height:6px;border-radius:3px;background:var(--line2)}.hl2 i.on{background:var(--acc)}
 .rc .toc{padding:0}
+
+/* rich sidenotes (code, lists) and asides */
+.sn p{margin:6px 0 0;color:inherit}.sn ul{margin:6px 0 0;padding-left:16px}.sn li{margin:2px 0}
+.sn pre.sc,.asd pre.sc{margin:8px 0 0;padding:10px 12px;border-radius:8px;background:var(--panel);border:1px solid var(--line2);font:400 11.5px/1.6 var(--code);overflow-x:auto;color:var(--fg);scrollbar-width:none;white-space:pre}
+.sn pre.sc::-webkit-scrollbar,.asd pre.sc::-webkit-scrollbar{display:none}
+.sc .st5{color:var(--str,oklch(0.79 0.11 160))}.sc .nm{color:var(--num,oklch(0.79 0.11 45))}
+.sx{margin-top:8px;font:600 10.5px var(--mono);letter-spacing:.1em;color:var(--dim);padding:3px 8px;border:1px solid var(--line2);border-radius:5px;transition:color .2s,border-color .2s}.sx:hover{color:var(--fg);border-color:var(--line)}
+.snr.wide{grid-template-columns:minmax(0,1fr)}
+.snr.wide .sn.rich{border:1px solid var(--line2);border-left:3px solid var(--grn);border-radius:10px;padding:14px 16px;background:color-mix(in oklab,var(--grn) 5%,var(--panel));font-size:14px;color:var(--mut);animation:fade .35s var(--ease)}
+.snr.wide .sn.rich pre.sc{font-size:12.5px}
+.asd{margin:20px 0;border:1px solid color-mix(in oklab,oklch(0.79 0.10 235) 40%,var(--line2));border-radius:12px;background:color-mix(in oklab,oklch(0.79 0.10 235) 5%,var(--panel));overflow:hidden}
+.asd .ah{display:flex;align-items:center;gap:12px;width:100%;padding:13px 16px;text-align:left}
+.asd .ah b{font-size:15px}.asd .ah .r{margin-left:auto;display:flex;gap:10px;align-items:center;font:500 11px var(--mono);color:var(--dim)}
+.badge2.as{color:oklch(0.79 0.10 235);background:color-mix(in oklab,oklch(0.79 0.10 235) 14%,transparent)}
+.asd .ab{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}.asd.open .ab{grid-template-rows:1fr}.asd .ab>div{overflow:hidden}
+.asd .in3{padding:4px 18px 18px;border-top:1px solid var(--line2);color:var(--mut);font-size:14.5px}.asd .in3 p{margin:12px 0 0;max-width:68ch}
+.asd .chev{transition:transform .3s var(--ease)}.asd.open .chev{transform:rotate(90deg)}
+.asd table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13.5px}.asd th{text-align:left;padding:8px 12px;font:600 10.5px var(--mono);letter-spacing:.12em;color:var(--dim);background:var(--raise)}.asd td{padding:8px 12px;border-top:1px solid var(--line2)}.asd td code{font:400 12.5px var(--code);color:var(--fg)}
 </style>
 </head>
 <body>
@@ -546,6 +564,15 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
         <a class="read-first"><b>READ FIRST</b><span>Durability: when a write is really on disk · and 2 more</span><em>~27 min</em></a>
         <div class="snr"><p style="color:var(--mut);max-width:62ch">A page-sized file grows one page at a time<span class="snm" data-sn="1">1</span>. When a page is deleted its slot goes on a free list<span class="snm" data-sn="2">2</span> so the next allocation reuses it instead of growing the file again.</p>
           <div><aside class="sn" data-sn="1"><b>1</b>A page is <code>PAGE_SIZE</code> bytes (4096 here), so the file length is always a multiple of it.</aside><aside class="sn" data-sn="2" style="margin-top:14px"><b>2</b>BusTub calls this <code>free_slots_</code>. Why a stack and not a queue? See the check-yourself question below.</aside></div></div>
+        <div class="snr"><p style="color:var(--mut);max-width:62ch">The free list is a plain <code>Vec</code> used as a stack<span class="snm" data-sn="3">3</span>: push a page id when it is deleted, pop one when you need a page.</p>
+          <div><aside class="sn rich" data-sn="3"><b>3</b>Push on delete, pop on allocate:
+<pre class="sc"><span class="kw">pub fn</span> <span class="fnn">free</span>(&amp;<span class="kw">mut</span> self, id: <span class="ty">PageId</span>) {
+    self.free.<span class="fnn">push</span>(id);
+}
+<span class="kw">pub fn</span> <span class="fnn">alloc</span>(&amp;<span class="kw">mut</span> self) -&gt; <span class="ty">Option</span>&lt;<span class="ty">PageId</span>&gt; {
+    self.free.<span class="fnn">pop</span>() <span class="cm">// LIFO: last freed, first reused</span>
+}</pre><button class="sx">EXPAND ⤢</button></aside></div></div>
+
         <div class="sh" id="a1"><b>01</b>THE TASK</div>
         <div class="task"><div class="th">YOUR TURN<span>run  anneal course test 1a-04</span></div><div class="tb"><ul><li>grow the file by exactly one page when no slot is free;</li><li>push a deleted page's slot on the free list;</li><li>pop that slot before growing again.</li></ul></div></div>
         <div class="sh" id="a2"><b>02</b>TESTS</div>
@@ -559,6 +586,14 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
         <div class="co bus"><span class="ic">B</span><div><b class="t0">IN BUSTUB</b><p>BusTub's <code>DiskManager::AllocatePage</code> does the same with a <code>std::vector&lt;page_id_t&gt;</code> free list.</p></div></div>
         <div class="co rule"><span class="ic">⇄</span><div><b class="t0">PORT RULE</b><p>Every <code>std::vector::pop_back</code> becomes <code>Vec::pop</code>, which returns an <code>Option</code>.</p></div></div>
 
+        <div class="asd" id="asd"><button class="ah" aria-expanded="false"><span class="badge2 as">ASIDE</span><b>Why a stack and not a queue?</b><span class="r"><span>optional · 2 min</span><span class="chev">›</span></span></button><div class="ab"><div><div class="in3">
+          <p>A <b>queue</b> would reuse the page freed <em>longest ago</em>; a <b>stack</b> reuses the one freed <em>most recently</em>. The stack keeps the working set small and warm: that page is likely still in the buffer pool.</p>
+<pre class="sc"><span class="kw">let mut</span> free: <span class="ty">Vec</span>&lt;<span class="ty">PageId</span>&gt; = <span class="ty">Vec</span>::<span class="fnn">new</span>();
+free.<span class="fnn">push</span>(<span class="nm">3</span>);
+free.<span class="fnn">push</span>(<span class="nm">7</span>);
+<span class="fnn">assert_eq!</span>(free.<span class="fnn">pop</span>(), <span class="ty">Some</span>(<span class="nm">7</span>)); <span class="cm">// most recent first</span></pre>
+          <table><thead><tr><th>STRUCTURE</th><th>NEXT REUSED</th><th>COST</th></tr></thead><tbody><tr><td><code>Vec</code> as stack</td><td>freed last</td><td>O(1)</td></tr><tr><td><code>VecDeque</code> as queue</td><td>freed first</td><td>O(1)</td></tr></tbody></table>
+          <p>Either passes the tests here; BusTub itself uses a stack-like <code>free_slots_</code>.</p></div></div></div></div>
         <div class="sh" id="a4"><b>04</b>CODE</div>
         <div class="code" id="cd"><div class="ch"><div class="tb" id="ctb"><button class="on" data-l="rs">Rust</button><button data-l="cpp">C++</button><span class="ul2"></span></div><span class="fn" id="cfn">disk_manager.rs</span><button class="copy fx" data-c="allocate_page">COPY</button></div>
           <div class="cb" id="cbd"><div class="ln" id="cln"></div><pre id="cpre"></pre></div></div>
@@ -848,6 +883,10 @@ $$('.snm').forEach(m=>m.onclick=()=>{const n=m.closest('.snr').querySelector(`.s
       h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up)});
     h.addEventListener('dblclick',()=>{w[k]=320;apply();save()})})})();
 $('#tbars').innerHTML=TESTS.map(t=>`<i class="${t[1]==='bad'?'f':''}"></i>`).join('');
+
+/* rich sidenotes expand, aside toggle */
+$$('.sx').forEach(b=>b.onclick=()=>{const r=b.closest('.snr');r.classList.toggle('wide');b.textContent=r.classList.contains('wide')?'COLLAPSE ⤡':'EXPAND ⤢'});
+$('#asd .ah').onclick=function(){const o=$('#asd');o.classList.toggle('open');this.setAttribute('aria-expanded',o.classList.contains('open'))};
 addEventListener('resize',()=>{thumb(flt);slide()});
 addEventListener('load',()=>{if(!reduce&&!location.hash.startsWith('#static')){document.body.classList.add('motion')}else{$('#mot').classList.remove('on');$('#mot').textContent='MOTION OFF';document.body.classList.add('motion-off')}thumb(flt);slide();fills();count();if(location.hash==='#stage'||location.hash==='#static-stage')show(2);if(location.hash==='#kit'||location.hash==='#static-kit')show(3);if(location.hash==='#static-win'){show(2);openOv('ovWin')}kitFill()});
 </script>

@@ -555,8 +555,8 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .fm button{font:600 8.5px var(--mono);letter-spacing:.08em;color:var(--dim);padding:3px 6px;border-radius:5px;transition:background .2s,color .2s}.fm button.on{background:var(--raise);color:var(--fg)}
 .fbody{display:flex;align-items:center;gap:16px}
 .fring{--p:0;width:92px;height:92px;flex:none;border-radius:50%;background:conic-gradient(var(--fc) calc(var(--p)*1%),var(--line2) 0);display:grid;place-items:center;transition:filter .4s;position:relative}
-.fring span{width:76px;height:76px;border-radius:50%;background:var(--panel);display:grid;place-content:center;text-align:center}
-.fring b{font:600 21px var(--mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums}.fring small{display:block;font:500 8.5px var(--mono);letter-spacing:.14em;color:var(--dim);margin-top:2px}
+.fring span{width:78px;height:78px;border-radius:50%;background:var(--panel);display:grid;place-content:center;text-align:center}
+.fring b{font:600 21px var(--mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums}.fring small{display:block;font:500 7.5px var(--mono);letter-spacing:.06em;color:var(--dim);margin-top:2px;white-space:nowrap}
 .fring.run::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--fc);opacity:0;animation:fp 2s ease-out infinite}
 @keyframes fp{0%{opacity:.5;transform:scale(.96)}100%{opacity:0;transform:scale(1.12)}}
 @media (prefers-reduced-motion:reduce){.fring.run::after{animation:none}}
@@ -566,6 +566,11 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .fset{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}.fset.open{grid-template-rows:1fr}.fset>div{overflow:hidden}.fset .rng{min-width:0;margin-top:8px}
 .fsum{margin-top:10px;font:500 11px var(--mono);color:var(--dim)}.fsum b{color:var(--fg)}
 .focus.hide-dots .fdots{display:none}
+
+/* panel = scrolling cards + a timer footer that never overlaps them */
+.toc{display:flex;flex-direction:column;gap:0;padding:22px 0 0 14px;overflow:hidden}
+.tscroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:14px;padding:0 20px 16px 0;scrollbar-width:none}.tscroll::-webkit-scrollbar{display:none}
+.toc .rcard.focus{position:static;flex:none;margin:0 20px 16px 0;box-shadow:0 -10px 24px -16px var(--shadow)}
 </style>
 </head>
 <body>
@@ -739,12 +744,13 @@ free.<span class="fnn">push</span>(<span class="nm">7</span>);
     </main>
     <aside class="toc" id="tocN">
       <span class="rz r" id="rzr" title="Drag to resize · double-click to reset"><span class="grip"></span></span>
+      <div class="tscroll">
       <div class="rcard"><h6>ON THIS PAGE <button class="sbtn" id="rt" aria-label="Hide sidebar" title="Hide (⌘.)">»</button></h6><div id="toc" style="position:relative;border-left:1px solid var(--line2)"><span class="mk" id="mk"></span><a href="#a1" class="on">The task</a><a href="#a2">Tests</a><a href="#a3">Notes</a><a href="#a4">Code</a><a href="#a5">The C/C++ way</a><a href="#a6">Optional: performance</a><a href="#a7">Check yourself</a></div></div>
       <div class="rcard" id="notesCard"><h6>NOTES <span class="pin" id="nCount">3</span></h6><div id="nlist"></div></div>
       <div class="rcard"><h6>CONCEPTS <span class="pin req" id="pcn">1 / 3</span></h6><div id="pconc"></div></div>
       <div class="rcard"><h6>THIS STAGE <span class="pin">PINNED</span></h6><div class="pincmd"><span>anneal course test 1a-04</span><button class="copy fx" data-c="anneal course test 1a-04">COPY</button></div>
         <div class="kv2"><span>Last run</span><b>4 / 6 · 2 min ago</b></div><div class="kv2"><span>Hints used</span><b>0 / 3</b></div><div class="hl2"><i></i><i></i><i></i></div></div>
-    
+      </div>
       <div class="rcard focus" id="focus"><h6>FOCUS <span class="fm" id="fmode"><button class="on" data-m="pom">POMODORO</button><button data-m="timer">TIMER</button><button data-m="sw">STOPWATCH</button></span></h6>
         <div class="fbody"><div class="fring" id="fring" style="--p:0"><span><b id="ftime">25:00</b><small id="flab">FOCUS 1 / 4</small></span></div>
           <div class="fctl"><button class="cta sm fx" id="fgo"><span class="lbl">Start</span></button><div class="fbtns"><button class="sbtn fx" id="frst" aria-label="Reset" title="Reset">↺</button><button class="sbtn fx" id="fskip" aria-label="Skip" title="Skip to the next phase">⏭</button><button class="sbtn fx" id="fset" aria-label="Settings" title="Settings">⚙</button></div></div></div>

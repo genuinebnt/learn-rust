@@ -838,7 +838,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
                     )}
                   </div>
                 )}
-                <TestsPanel python={py} run={shown} cases={cases} hiddenCases={hiddenCases} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} />
+                <TestsPanel python={py} run={shown} cases={cases} hiddenCases={hiddenCases} busy={run.isPending || submit.isPending} open={open} setOpen={setOpen} runNo={shownIdx + 1} onRun={doRun} canRun={p.status === "ready"} />
               </div>
               <div className="acts">
                 <button className="go" onClick={doSubmit} disabled={busy || p.status !== "ready"} title="Run the visible and hidden tests (⇧⌘↵)">
@@ -944,6 +944,28 @@ function CaseRows({ c }: { c: TestCase }) {
   );
 }
 
+/** A case that ran and did not pass: these are listed first. */
+function failedCase(t: TestOutcome | undefined): boolean {
+  return !!t && t.outcome !== "passed";
+}
+
+/** Tick, cross or dashed ring: the outcome without relying on colour. */
+function CaseIcon({ t, waiting }: { t: TestOutcome | undefined; waiting: boolean }) {
+  const ok = t?.outcome === "passed";
+  const colour = !t ? (waiting ? "var(--acc)" : "var(--dim)") : ok ? "var(--grn)" : "var(--bad)";
+  return (
+    <svg className="cicon" viewBox="0 0 16 16" width="13" height="13" style={{ color: colour }} aria-hidden="true">
+      {!t ? (
+        <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 3" />
+      ) : ok ? (
+        <path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      )}
+    </svg>
+  );
+}
+
 function CaseCard({
   python,
   c,
@@ -951,6 +973,7 @@ function CaseCard({
   t,
   run,
   hidden = false,
+  busy = false,
   open,
   setOpen,
 }: {
@@ -960,17 +983,17 @@ function CaseCard({
   t: TestOutcome | undefined;
   run: RunView | null;
   hidden?: boolean;
+  busy?: boolean;
   open: string | null;
   setOpen: (n: string | null) => void;
 }) {
   const ok = t?.outcome === "passed";
   const failed = t && !ok;
   const expanded = open === id || (failed && open === null);
-  const colour = !t ? "var(--line)" : ok ? "var(--grn)" : "var(--bad)";
   return (
     <div className={`tcase${failed ? " bad" : ""}`}>
       <button className="tcase-h" onClick={() => setOpen(expanded ? "" : id)} aria-expanded={expanded}>
-        <span className="sqr" style={{ background: colour }} />
+        <CaseIcon t={t} waiting={busy} />
         <span className="nm">
           {hidden && <span style={{ color: "var(--mut)" }}>hidden · </span>}
           {c.name}
@@ -1047,9 +1070,13 @@ function TestsPanel({
   open,
   setOpen,
   runNo,
+  onRun,
+  canRun,
 }: {
   python?: boolean;
   run: RunView | null;
+  onRun: () => void;
+  canRun: boolean;
   cases: TestCase[];
   /** Parsed hidden tests, once the problem has been solved. */
   hiddenCases: TestCase[] | null;
@@ -1063,6 +1090,17 @@ function TestsPanel({
   const hidden = run?.tests.filter((t) => t.suite === "hidden") ?? [];
   const firstError = run?.diagnostics.find((d) => d.level === "error");
   const [dismissed, setDismissed] = useState<number | null>(null);
+  // A shadow under the strip once the list has scrolled beneath it.
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const box = stripRef.current?.closest(".pbody");
+    if (!box) return;
+    const on = () => setStuck(box.scrollTop > 4);
+    on();
+    box.addEventListener("scroll", on, { passive: true });
+    return () => box.removeEventListener("scroll", on);
+  }, []);
   const status = busy
     ? (["Running…", "var(--acc)"] as const)
     : !run
@@ -1074,14 +1112,20 @@ function TestsPanel({
           : ([`${run.passed} / ${run.total} passing`, run.status === "passed" ? "var(--grn)" : "var(--fg)"] as const);
   return (
     <div className="stack" style={{ gap: 14 }}>
-      <div className="tsum">
-        <b style={{ color: status[1] }}>{status[0]}</b>
-        <span>{run && !busy ? `${run.kind} #${runNo} · ${(run.duration_ms / 1000).toFixed(1)}s` : `${cases.length} visible · ${hiddenCases ? `${hiddenCases.length} hidden` : "hidden on Submit"}`}</span>
-      </div>
-      <div className="passbar" aria-hidden="true">
-        {(run && !busy && run.tests.length ? run.tests : [...cases, ...(hiddenCases ?? [])].map(() => null)).map((t, i) => (
-          <span key={i} style={{ background: !t ? "var(--line2)" : t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }} />
-        ))}
+      <div className={`tstrip${stuck ? " stuck" : ""}`} ref={stripRef}>
+        <div className="tsum">
+          <b style={{ color: status[1] }}>{status[0]}</b>
+          <span>{run && !busy ? `${run.kind} #${runNo} · ${(run.duration_ms / 1000).toFixed(1)}s` : `${cases.length} visible · ${hiddenCases ? `${hiddenCases.length} hidden` : "hidden on Submit"}`}</span>
+          <button className="ebtn tstrip-run" onClick={onRun} disabled={busy || !canRun} title="Run the visible tests (⌘↵)">
+            {busy ? <span className="spin" aria-hidden="true" /> : null}
+            {busy ? "Testing…" : "Run tests"}
+          </button>
+        </div>
+        <div className="passbar" aria-hidden="true">
+          {(run && !busy && run.tests.length ? run.tests : [...cases, ...(hiddenCases ?? [])].map(() => null)).map((t, i) => (
+            <span key={i} className={busy ? "wait" : undefined} style={{ background: busy ? undefined : !t ? "var(--line2)" : t.outcome === "passed" ? "var(--grn)" : "var(--bad)" }} />
+          ))}
+        </div>
       </div>
       {run && !busy && run.tests.length > 0 && (
         <div className="tcounts">
@@ -1131,12 +1175,14 @@ function TestsPanel({
         </div>
       )}
       <div className="tcases">
-        {cases.map((c) => (
-          <CaseCard python={python} key={c.name} c={c} id={c.name} t={busy ? undefined : byName.get("visible" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
+        {[...cases]
+          .sort((x, y) => Number(failedCase(byName.get("visible" + y.name))) - Number(failedCase(byName.get("visible" + x.name))))
+          .map((c) => (
+          <CaseCard python={python} busy={busy} key={c.name} c={c} id={c.name} t={busy ? undefined : byName.get("visible" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
         ))}
         {hiddenCases
           ? hiddenCases.map((c) => (
-              <CaseCard python={python} key={"h" + c.name} c={c} id={"hidden:" + c.name} hidden t={busy ? undefined : byName.get("hidden" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
+              <CaseCard python={python} busy={busy} key={"h" + c.name} c={c} id={"hidden:" + c.name} hidden t={busy ? undefined : byName.get("hidden" + c.name)} run={busy ? null : run} open={open} setOpen={setOpen} />
             ))
           : !busy &&
             hidden.map((t) => (

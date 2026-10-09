@@ -272,6 +272,17 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 /* the mockup's pass bar: one segment per test */
 .passbar { display: flex; gap: 3px; height: 5px; }
 .passbar span { flex: 1; border-radius: 2px; }
+/* the run result stays at the top of the tests pane while the cases scroll beneath it (docs/mockups/web-tables-and-run-strip.html) */
+.tstrip { position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 0 -18px; padding: 12px 18px; background: color-mix(in oklab, var(--bg) 94%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line2); }
+.tstrip.stuck { box-shadow: 0 8px 14px -10px var(--shadow); }
+.tstrip .tsum { align-items: center; }
+.tstrip .tsum b { font-size: 18px; white-space: nowrap; }
+.tstrip .tsum span { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tstrip .tstrip-run { flex: none; }
+.passbar span.wait { background: var(--warn); animation: tpulse 1s infinite alternate; }
+@keyframes tpulse { to { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .passbar span.wait { animation: none; } }
+.tcase-h .cicon { flex: none; }
 
 
 /* Status bar: editor toggles as clickable items. Layout icons (.lay) sit at the right of the problem bar. */

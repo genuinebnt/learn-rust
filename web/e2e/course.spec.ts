@@ -103,14 +103,18 @@ test("a test's code opens under its result, for failed and for passed tests", as
     await page.goto(`/courses/bustub/${stage}#run`);
     const failedRow = page.locator(".k-rt.k-bad", { hasText: bad });
     await expect(failedRow).toBeVisible();
+    // a failed test shows its code under the message at once; a click on the row hides it and shows it again
+    await expect(failedRow.getByTestId("test-code")).toContainText(`fn ${bad}(`);
+    await failedRow.locator(".k-rth").click();
     await expect(failedRow.getByTestId("test-code")).toHaveCount(0);
     await failedRow.getByRole("button", { name: "show test code" }).click();
     await expect(failedRow.getByTestId("test-code")).toContainText(`fn ${bad}(`);
-    await failedRow.getByRole("button", { name: "hide test code" }).click();
-    await expect(failedRow.getByTestId("test-code")).toHaveCount(0);
     // passed tests are folded under a summary row: open it, then a test's code
     await page.locator(".k-rph").click();
     const row = page.locator(".k-rwrap", { hasText: good });
-    await row.getByRole("button", { name: "show test code" }).click();
+    await expect(row.getByTestId("test-code")).toHaveCount(0);
+    await row.locator(".k-rrow").click();
     await expect(row.getByTestId("test-code")).toContainText(`fn ${good}(`);
+    await row.locator(".k-rrow").click();
+    await expect(row.getByTestId("test-code")).toHaveCount(0);
 });

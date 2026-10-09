@@ -75,3 +75,8 @@
 .k-root .k-tcode{padding:4px 16px 14px;border-top:1px solid var(--line2)}
 .k-root .k-tcode .k-prose{margin:0}
 .k-root .k-rt .k-rth{grid-template-columns:20px minmax(0,1fr) auto auto}
+.k-root .k-planned.k-optional{opacity:.8}
+
+/* A result row with test code opens it on a click anywhere; long test names wrap instead of running under the button. */
+.k-root .k-rclick{cursor:pointer}
+.k-root .k-rth b,.k-root .k-rrow>span{overflow-wrap:anywhere;min-width:0}

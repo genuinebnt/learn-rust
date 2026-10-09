@@ -146,7 +146,13 @@ test.describe("code blocks", () => {
         ]);
         expect(numbers).toBe(lines);
         expect(numbers).toBeGreaterThan(2);
-        expect(Math.abs(gutter - code)).toBeLessThan(30); // the same height: the numbers do not run together in one line
+        expect(Math.abs(gutter - code)).toBeLessThan(6); // the same height: each number sits beside its own line
+        const [numberStep, lineStep] = await cb.evaluate((el) => {
+            const tops = (sel: string) => [...el.querySelectorAll(sel)].slice(0, 4).map((e) => e.getBoundingClientRect().top);
+            const step = (t: number[]) => t[3] - t[0];
+            return [step(tops(".k-ln span")), step(tops("pre > code > span"))];
+        });
+        expect(Math.abs(numberStep - lineStep)).toBeLessThan(1);
     });
 
     test("a short example is not folded", async ({ page }) => {

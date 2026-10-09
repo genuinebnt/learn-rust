@@ -22,13 +22,21 @@ test("planned modules are hidden until you ask, and then they carry a PLANNED ta
     await expect(page.locator(".k-mod").first()).toBeVisible();
     // finished modules are listed, planned ones are not
     for (const m of modules) await expect(page.locator(`#mod-${m.code}`)).toHaveCount(m.planned ? 0 : 1);
-    await expect(page.locator(".k-planned")).toHaveCount(0);
+    await expect(page.locator(".k-planned:not(.k-optional)")).toHaveCount(0);
     if (planned.length === 0) return;
     await page.getByRole("button", { name: `SHOW PLANNED (${planned.length})` }).click();
     for (const m of planned) await expect(page.locator(`#mod-${m.code} .k-planned`)).toHaveText("PLANNED");
     await expect(page.locator("#mod-1a .k-planned")).toHaveCount(0);
     await page.getByRole("button", { name: "HIDE PLANNED" }).click();
     await expect(page.locator(`#mod-${planned[0].code}`)).toHaveCount(0);
+});
+
+test("the optional Rust on-ramp is listed first and tagged OPTIONAL, not PLANNED", async ({ page }) => {
+    await page.goto("/courses/bustub");
+    await expect(page.locator("#mod-r .k-optional")).toHaveText("OPTIONAL");
+    await expect(page.locator("#mod-1a .k-optional")).toHaveCount(0);
+    const first = await page.locator(".k-mod").first().getAttribute("id");
+    expect(first).toBe("mod-r");
 });
 
 test("the map has a button for every module and opens the one you click", async ({ page }) => {

@@ -3,7 +3,7 @@ title = "ACID, logging and recovery"
 summary = "What happens when the power goes: a write-ahead log of changes, a store that logs before it writes, and crash recovery that repeats history and undoes the transactions that never finished. The state after any crash must be exactly the committed transactions. New in this course: BusTub's own projects stop before recovery, the lectures do not."
 lectures = ["logging", "recovery"]
 bustub = []
-files = []
+files = ["src/recovery/log_io.rs"]
 
 [[resources]]
 kind = "paper"

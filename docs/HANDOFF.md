@@ -255,8 +255,13 @@ before a problem that uses them runs in the Docker sandbox. Host runs (and `veri
 ### 6.0a The BusTub course (owner's priority from 2026-10-08)
 
 A CodeCrafters-style course: **clone a repo, finish stages, `git push` runs the tests** ("Build a DBMS: BusTub in Rust"). Design and the owner's
-requirements: [BUSTUB.md](BUSTUB.md). Board and pick-up steps: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). Module 1a (disk manager, 19 stages) is shipped; the
-next modules are on the board. The reference solution is **not** in the repo (`courses/bustub/reference`, gitignored; BUSTUB.md §8). Check with `tools/course-smoke.sh`.
+requirements: [BUSTUB.md](BUSTUB.md). Board and pick-up steps: [BUSTUB_TASKS.md](BUSTUB_TASKS.md). **State (2026-10-10): the whole course is restructured and shipped**: the optional Rust
+on-ramp `r`, modules 1a to 4c (4c, ACID and recovery, is new), and the optional primers 0a to 0d. Read
+[BUSTUB_RESTRUCTURE.md](BUSTUB_RESTRUCTURE.md) §8 for what each module became and [COURSE_STANDARDS.md](COURSE_STANDARDS.md) before touching a stage.
+Tools: `anneal course verify [--stage S | --stage unlock]` (never while editing `reference/`), `anneal course lint`, `anneal course solutions`
+(the CLI signed in to the live app uploads the solution diffs; re-run after a module ships), `tools/rust_prereqs.py --pages`.
+An untied given file that needs a later module's file goes in that module's `files = [...]`. Still open: "errors you will meet" pages,
+rewriting the older concept articles, `anneal course adopt`, and [ADVANCED_DB_COURSE.md](ADVANCED_DB_COURSE.md). The reference solution is **not** in the repo (`courses/bustub/reference`, gitignored; BUSTUB.md §8). Check with `tools/course-smoke.sh`.
 
 ### 6.0 Pending work: start here
 

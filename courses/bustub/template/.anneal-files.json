@@ -71,6 +71,7 @@
   "src/primer/skiplist.rs": "0b",
   "src/primer/trie.rs": "0a",
   "src/primer/trie_store.rs": "0a",
+  "src/recovery/log_io.rs": "4c",
   "src/recovery/log_manager.rs": "4c",
   "src/recovery/log_record.rs": "4c",
   "src/recovery/recover.rs": "4c",

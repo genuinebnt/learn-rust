@@ -35,9 +35,10 @@ What you build the latch from: the standard library's `RwLock`, a `Mutex` and a 
 
 ## If this is new
 
-- **L2 Borrowing**: what a shared and a mutable reference promise, which is exactly what a read and a write guard promise.
-- **L3 Lifetimes**: the first problems, for the `'_` in the guard's type.
-- **L5 Generics**: the first problems, for `ReaderWriterLatch<T>`.
+- [L2 Borrowing](/t/l2-borrowing): what a shared and a mutable reference promise, which is exactly what a read and a write guard promise.
+- [L3 Lifetimes](/t/l3-lifetimes): the first problems, for the `'_` in the guard's type.
+- [L5 Generics & associated types](/t/l5-generics): the first problems, for `ReaderWriterLatch<T>`.
+- [C1 Threads & shared state](/t/c1-threads-shared-state): Understand it; Build it: poisoning, `RwLock`, deadlock and lock order, a bounded blocking queue with `Condvar` (`while`, never `if`).
 
 ## Tests
 

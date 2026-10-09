@@ -31,9 +31,11 @@ How the guard writes the bytes (a pool method you add, the disk scheduler direct
 
 ## If this is new
 
-- **L1 Ownership & moves**: copying a large array versus moving a box.
-- **L2 Borrowing**: scoped blocks.
+- [L1 Ownership & moves](/t/l1-ownership-moves): copying a large array versus moving a box.
+- [L2 Borrowing](/t/l2-borrowing): scoped blocks.
 - The optional concept *deadlock and lock ordering* shows the dining-philosophers version of the problem and the standard cures.
+- [C1 Threads & shared state](/t/c1-threads-shared-state): Understand it: deadlock and lock ordering; a flush that cannot deadlock.
+- [Y5 Testing & verification](/t/y5-testing-verification): Build it: loom or a watchdog timeout for a lock bug.
 
 ## Tests
 

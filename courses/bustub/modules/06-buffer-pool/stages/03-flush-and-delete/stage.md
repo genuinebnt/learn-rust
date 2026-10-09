@@ -34,9 +34,10 @@ How you copy and write the bytes of a flush, how you mark a page clean, and in w
 
 ## If this is new
 
-- **S3 Vec & slices**: `fill`, `copy_from_slice`.
-- **S4 Maps & sets**: `keys`, `remove`, why you cannot mutate while iterating.
-- **L2 Borrowing**: the scoped-block pattern to end a borrow early.
+- [S3 Vec & slices](/t/s3-vec-slices): `fill`, `copy_from_slice`.
+- [S4 Maps & sets](/t/s4-maps-sets): `keys`, `remove`, why you cannot mutate while iterating.
+- [L2 Borrowing](/t/l2-borrowing): the scoped-block pattern to end a borrow early.
+- [F3 Memory & allocation](/t/f3-memory-allocation): Allocate less: reusing buffers, copying a page into a `Box` for a request.
 
 ## Tests
 

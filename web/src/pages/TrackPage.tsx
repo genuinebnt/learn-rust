@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { api, type Band, type StageView } from "../api";
+import { api, ApiError, type Band, type StageView } from "../api";
 import { Header } from "../components/Header";
 import { Level, ModeTag, Phase, Sech, Segs, StatusIcon, pad2, progressLabel } from "../components/bits";
-import { NAV_SECTIONS, SECTION_NAMES, type NavArea } from "../curriculum";
+import { BLURB, NAV_SECTIONS, SECTION_NAMES, type NavArea } from "../curriculum";
+import { TRACK_SLUGS } from "../trackSlugs";
 
 const BANDS: Band[] = ["easy", "medium", "hard"];
 const TIER = { core: "CORE", light: "LIGHT", sde3: "SDE-3" } as const;
@@ -35,7 +36,7 @@ function stageKind(s: StageView, isCurrent: boolean) {
 }
 
 export function TrackPage({ slug }: { slug: string }) {
-  const q = useQuery({ queryKey: ["track", slug], queryFn: () => api.track(slug) });
+  const q = useQuery({ queryKey: ["track", slug], queryFn: () => api.track(slug), retry: (n, e) => n < 2 && !(e instanceof ApiError && e.status === 404) });
   const [stage, setStage] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
   const [group, setGroup] = useState<string | null>(null);
@@ -82,7 +83,20 @@ export function TrackPage({ slug }: { slug: string }) {
         <Header />
         <main className="page">
           <div className="wrap">
-            <p className="notice">{q.isError ? `Couldn't load track ${slug}.` : "Loading…"}</p>
+            {q.isError && TRACK_SLUGS[slug] ? (
+              <div className="notice" data-testid="planned-track">
+                <b>
+                  {TRACK_SLUGS[slug].code} · {TRACK_SLUGS[slug].name}
+                </b>{" "}
+                is planned and not written yet. The BusTub course already links here, so the link will work once the track exists.
+                {BLURB[TRACK_SLUGS[slug].code] && <p>{BLURB[TRACK_SLUGS[slug].code]}</p>}
+                <p>
+                  <Link to="/rust">Back to the Rust tracks</Link>
+                </p>
+              </div>
+            ) : (
+              <p className="notice">{q.isError ? `Couldn't load track ${slug}.` : "Loading…"}</p>
+            )}
           </div>
         </main>
       </>

@@ -40,10 +40,12 @@ The fields of `DiskRequest` and `DiskScheduler`, how the worker is started and h
 
 ## If this is new
 
-- **L1 Ownership & moves**: moving a value into a struct and into a closure.
-- **L2 Borrowing**: `&mut` through a `Box`, and why two threads cannot both hold one.
-- **L4 Traits & dispatch**: `dyn Trait` and why it sits behind a pointer.
-- **S1 Option & Result**: `map`, `?`, and `io::Result`.
+- [L1 Ownership & moves](/t/l1-ownership-moves): moving a value into a struct and into a closure.
+- [L2 Borrowing](/t/l2-borrowing): `&mut` through a `Box`, and why two threads cannot both hold one.
+- [L4 Traits & dispatch](/t/l4-traits-dispatch): `dyn Trait` and why it sits behind a pointer.
+- [S1 Option & Result](/t/s1-option-result): `map`, `?`, and `io::Result`.
+- [S7 Smart pointers & interior mutability](/t/s7-smart-pointers): Use it; Understand it: `Arc`, why `Rc` cannot cross threads, shared state with two owners.
+- [L6 Closures & functional Rust](/t/l6-closures): Closure basics; Fn / FnMut / FnOnce: `move` closures, a callback that mutates state.
 
 ## Tests
 

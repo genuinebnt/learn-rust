@@ -37,9 +37,9 @@ How freed space is remembered (a stack, a queue, a set, a bitmap), the order it 
 
 ## If this is new
 
-- **S3 Vec & slices**, the `push`/`pop` problems: `Vec` as a stack.
-- **S1 Option & Result**, the `?` and `ok_or` problems, and `let ... else` (search the track for "else").
-- **S4 Maps & sets**: `remove` and `entry`.
+- [S3 Vec & slices](/t/s3-vec-slices), the `push`/`pop` problems: `Vec` as a stack.
+- [S1 Option & Result](/t/s1-option-result), the `?` and `ok_or` problems, and `let ... else` (search the track for "else").
+- [S4 Maps & sets](/t/s4-maps-sets): `remove` and `entry`.
 
 ## Tests
 

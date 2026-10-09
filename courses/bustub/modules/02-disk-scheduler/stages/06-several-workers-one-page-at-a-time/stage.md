@@ -36,10 +36,11 @@ How a page picks its worker, how queues and threads are stored, whether the new 
 
 ## If this is new
 
-- **S3 Vec & slices**: `Vec`, `iter().map().collect()`, `drain`.
-- **L1 Ownership & moves**: moving each `Arc` clone into its worker's closure.
-- **S1 Option & Result**: the stop signal you used in 1b-04.
+- [S3 Vec & slices](/t/s3-vec-slices): `Vec`, `iter().map().collect()`, `drain`.
+- [L1 Ownership & moves](/t/l1-ownership-moves): moving each `Arc` clone into its worker's closure.
+- [S1 Option & Result](/t/s1-option-result): the stop signal you used in 1b-04.
 - The *integers and casts* concept (optional) for `as`, `rem_euclid` and `usize`.
+- [C2 Message passing](/t/c2-message-passing): Use it; Understand it: a worker loop that stops when told, graceful shutdown with no lost jobs, a bounded channel from `Mutex` + `Condvar`.
 
 ## Tests
 

@@ -112,3 +112,9 @@ test("a project's progress bar opens that project's first module", async ({ page
     await page.locator(".k-pr", { hasText: "Project 2" }).click();
     await expect(page.locator("#mod-2a")).toHaveClass(/k-open/);
 });
+
+test("a link to a planned Rust track lands on a planned page, not an error", async ({ page }) => {
+    await page.goto("/t/c1-threads-shared-state");
+    await expect(page.getByTestId("planned-track")).toContainText("C1 · Threads & shared state");
+    await expect(page.getByTestId("planned-track")).toContainText("planned");
+});

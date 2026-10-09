@@ -34,10 +34,11 @@ Everything underneath: the shared slot, its lock, how a waiting future is woken.
 
 ## If this is new
 
-- **L1 Ownership & moves**: moves, and why `self` by value consumes the promise.
-- **S1 Option & Result**: matching on enums, `Result<T, E>` as the answer of `get`.
-- **L4 Traits & dispatch**: a trait is how `Drop` plugs into the language.
+- [L1 Ownership & moves](/t/l1-ownership-moves): moves, and why `self` by value consumes the promise.
+- [S1 Option & Result](/t/s1-option-result): matching on enums, `Result<T, E>` as the answer of `get`.
+- [L4 Traits & dispatch](/t/l4-traits-dispatch): a trait is how `Drop` plugs into the language.
 - There is no smart-pointer or threads track yet: the optional concepts *smart pointers (Box, Rc, Arc)* and *interior mutability* cover `Arc<Mutex<..>>`, and *ownership of files and RAII* covers `Drop`.
+- [S7 Smart pointers & interior mutability](/t/s7-smart-pointers): Use it; Understand it: `Arc`, why `Rc` cannot cross threads, shared state with two owners.
 
 ## Tests
 

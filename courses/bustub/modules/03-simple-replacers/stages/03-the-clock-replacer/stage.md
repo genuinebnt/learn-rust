@@ -39,10 +39,12 @@ How the ring and the hand are stored: a `Vec` and an index, a `VecDeque` that yo
 
 ## If this is new
 
-- **S3 Vec & slices**: `insert`, `remove`, `position`, `iter_mut`, and why indexing out of range panics.
-- **S1 Option & Result**: `let Some(x) = .. else { return }` and `?`.
-- **L2 Borrowing**: why you cannot hold `&mut self.ring[i]` while calling another method that borrows `self`.
+- [S3 Vec & slices](/t/s3-vec-slices): `insert`, `remove`, `position`, `iter_mut`, and why indexing out of range panics.
+- [S1 Option & Result](/t/s1-option-result): `let Some(x) = .. else { return }` and `?`.
+- [L2 Borrowing](/t/l2-borrowing): why you cannot hold `&mut self.ring[i]` while calling another method that borrows `self`.
 - The *CLOCK algorithm* concept (optional) walks through the sweep with pictures.
+- [S5 Queues & heaps](/t/s5-queues-heaps): Use; Understand: `VecDeque` rotation, lazy deletion.
+- [Y5 Testing & verification](/t/y5-testing-verification): Understand it: model-based tests: a four-line model of the policy.
 
 ## Tests
 

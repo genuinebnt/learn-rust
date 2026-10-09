@@ -43,9 +43,9 @@ node.evictable = evictable;
 
 ## If this is new
 
-- **S4 Maps & sets**: `HashMap`, `entry`, `get_mut`, `remove`.
-- **S1 Option & Result**: `let ... else`, `?` on options, `Option::map`.
-- **S3 Vec & slices** for `VecDeque` if you have not met it.
+- [S4 Maps & sets](/t/s4-maps-sets): `HashMap`, `entry`, `get_mut`, `remove`.
+- [S1 Option & Result](/t/s1-option-result): `let ... else`, `?` on options, `Option::map`.
+- [S3 Vec & slices](/t/s3-vec-slices) for `VecDeque` if you have not met it.
 
 ## Tests
 

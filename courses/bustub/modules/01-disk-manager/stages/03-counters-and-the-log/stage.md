@@ -35,8 +35,9 @@ Whether counters are atomics or sit under a lock, whether the log has its own lo
 
 ## If this is new
 
-- **S3 Vec & slices**: sub-slices `&buf[a..b]` and `fill`.
-- **S1 Option & Result**: returning `io::Result<bool>`: what the two layers mean.
+- [S3 Vec & slices](/t/s3-vec-slices): sub-slices `&buf[a..b]` and `fill`.
+- [S1 Option & Result](/t/s1-option-result): returning `io::Result<bool>`: what the two layers mean.
+- [S9 I/O & filesystem](/t/s9-io-filesystem): Use; Understand (I/O errors): open and create files, positional reads and writes, `io::Result`, `sync_all`.
 
 ## Tests
 

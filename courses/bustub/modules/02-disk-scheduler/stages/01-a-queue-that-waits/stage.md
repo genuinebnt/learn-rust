@@ -36,11 +36,15 @@ What holds the elements and how the lock and the condition variable are arranged
 
 ## If this is new
 
-- **L1 Ownership & moves**: what a move is, and why `put(element)` takes its argument by value.
-- **L2 Borrowing**, the first problems: why a lock guard borrows the mutex, and when it ends.
-- **S1 Option & Result**: `Option` and `?`/`unwrap`, which the stop signal and `lock()` use.
-- **S3 Vec & slices** for the queue's storage (`VecDeque` works like `Vec`).
+- [L1 Ownership & moves](/t/l1-ownership-moves): what a move is, and why `put(element)` takes its argument by value.
+- [L2 Borrowing](/t/l2-borrowing), the first problems: why a lock guard borrows the mutex, and when it ends.
+- [S1 Option & Result](/t/s1-option-result): `Option` and `?`/`unwrap`, which the stop signal and `lock()` use.
+- [S3 Vec & slices](/t/s3-vec-slices) for the queue's storage (`VecDeque` works like `Vec`).
 - There is no threads track yet: the optional concepts *condvars and blocking queues* and *mutex owns its data* carry the concurrency, and *reading compiler errors* covers the messages you will meet.
+- [C1 Threads & shared state](/t/c1-threads-shared-state): Understand it; Build it: poisoning, `RwLock`, deadlock and lock order, a bounded blocking queue with `Condvar` (`while`, never `if`).
+- [C2 Message passing](/t/c2-message-passing): Use it; Understand it: a worker loop that stops when told, graceful shutdown with no lost jobs, a bounded channel from `Mutex` + `Condvar`.
+- [S5 Queues & heaps](/t/s5-queues-heaps): Use: `VecDeque` as a queue.
+- [L6 Closures & functional Rust](/t/l6-closures): Closure basics; Fn / FnMut / FnOnce: `move` closures, a callback that mutates state.
 
 ## Tests
 

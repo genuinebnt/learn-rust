@@ -38,9 +38,11 @@ How the dirty flag is stored, where the victim's write happens relative to the l
 
 ## If this is new
 
-- **S1 Option & Result**: `take`, `?`, `expect`.
-- **S3 Vec & slices**: `copy_from_slice`.
-- **L2 Borrowing**: why `let meta = &mut inner.meta[i]; inner.replacer.set_evictable(..)` is an error (two borrows of `inner`) and how to reorder.
+- [S1 Option & Result](/t/s1-option-result): `take`, `?`, `expect`.
+- [S3 Vec & slices](/t/s3-vec-slices): `copy_from_slice`.
+- [L2 Borrowing](/t/l2-borrowing): why `let meta = &mut inner.meta[i]; inner.replacer.set_evictable(..)` is an error (two borrows of `inner`) and how to reorder.
+- [C1 Threads & shared state](/t/c1-threads-shared-state): Understand it: `Mutex<Inner>` plus a latch per frame; never wait for a latch while holding the lock; lock ordering.
+- [F3 Memory & allocation](/t/f3-memory-allocation): Allocate less: reusing buffers, copying a page into a `Box` for a request.
 
 ## Tests
 

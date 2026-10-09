@@ -1,0 +1,59 @@
+/* What the mockup's stylesheet leaves to the page it was drawn on: links styled as its rows and cards. */
+.k-root a.k-row,.k-root a.k-tl,.k-root a.k-cta,.k-root a.k-ghost,.k-root a.k-pn,.k-root a.k-crow{color:inherit;text-decoration:none}
+.k-root a.k-cta{color:var(--on-acc)}
+.k-root input{font:inherit}
+.k-root .k-tt.k-out{animation:k-tout .3s var(--ease) forwards}
+@keyframes k-tout{to{opacity:0;transform:translateX(40px)}}
+.k-root .k-tact{margin-top:6px;display:inline-block;font:600 11px var(--mono);letter-spacing:.08em;color:var(--grn)}
+.k-root .k-tstack{pointer-events:none}.k-root .k-tstack>*{pointer-events:auto}
+.k-root .k-sol pre .k-l,.k-root .k-cb pre .k-l{display:block}
+.k-root .k-sol pre .k-l.k-add{background:color-mix(in oklab,var(--grn) 14%,transparent);color:var(--fg)}
+.k-root .k-sol pre .k-l.k-del{background:color-mix(in oklab,var(--bad) 14%,transparent);color:var(--mut)}
+.k-root .k-sol .k-solf{font:500 11px var(--mono);letter-spacing:.08em;color:var(--dim);margin:-4px 0 10px}
+.k-root .k-hint .k-hbody{padding:0 18px 14px}
+.k-root .k-hint .k-hbody p{padding:0;max-width:none}
+.k-root .k-hint button.k-hh:disabled{opacity:.7;cursor:progress}
+.k-root .k-h3{margin:22px 0 8px;font-size:17px;letter-spacing:-.01em}
+.k-root .k-empty{padding:28px 22px;border:1px dashed var(--line);border-radius:12px;color:var(--mut);text-align:center}
+.k-root a.k-cp{text-decoration:none;color:inherit}
+.k-root a.k-cp:hover{color:var(--fg);border-color:var(--line)}
+.k-root a.k-cc2{color:inherit;text-decoration:none}
+.k-root .k-read2{min-width:0}
+.k-root .k-opt .k-ob .k-in2 .k-prose p{max-width:none}
+.k-root .k-toc a.k-cc2{display:grid;padding:9px 10px;color:inherit}
+.k-root .k-pane>.k-prose>p{max-width:62ch}
+.k-root .k-tfoot .k-cta{min-width:0;max-width:100%}
+.k-root .k-tfoot .k-cta .k-lbl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* the mockup's body rules, which a component library cannot put on the page body */
+.k-root{font:15px/1.55 var(--sans);color:var(--fg)}
+.k-root *,.k-root *::before,.k-root *::after{box-sizing:border-box}
+/* a concept: the reading column and an outline, without the course tree */
+.k-root .k-concept{display:grid;grid-template-columns:minmax(0,1fr) 300px;max-width:1180px;margin:0 auto}
+.k-root .k-concept .k-concept-toc{height:auto;max-height:calc(100vh - var(--k-off))}
+.k-root .k-lead{margin:0 0 26px;font-size:17px;line-height:1.6;color:var(--mut);max-width:62ch}
+@media (max-width:1100px){.k-root .k-concept{grid-template-columns:minmax(0,1fr)}.k-root .k-concept .k-concept-toc{display:none}}
+/* section page: the pieces the mockup does not draw (recent attempts, due re-solves) in its own card style, and the DSA accent */
+.s-root .s-list{display:grid;gap:2px}
+.s-root a.s-item{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 6px;margin:0 -6px;border-radius:8px;font-size:13px;color:var(--fg);transition:background .2s}
+.s-root a.s-item:hover{background:var(--raise)}
+.s-root .s-item i{width:7px;height:7px;border-radius:50%}
+.s-root .s-item span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-root .s-item small{font:500 10.5px var(--mono);color:var(--dim)}
+.s-root .s-none{margin:0;color:var(--dim);font-size:13px}
+.s-root a.s-trk,.s-root a.s-cta{text-decoration:none;color:inherit}
+.s-root a.s-cta{color:var(--on-acc)}
+.s-root .s-trk{display:flex;flex-direction:column;gap:12px}
+.s-root .s-grid{margin-top:6px}
+.s-root .s-grid.s-list{display:grid}
+.s-root .s-trk p{min-height:0}
+.s-root.s-dsa h1 em{background-image:linear-gradient(100deg,var(--s-ac),oklch(0.86 0.12 85) 55%,var(--s-ac))}
+.s-root.s-dsa .s-meter i{background:linear-gradient(90deg,var(--s-ac),oklch(0.86 0.12 85))}
+.s-root .s-sk .s-trk h4,.s-root .s-sk .s-trk .s-no{color:transparent}
+/* the app's body sets tabular figures, which widens the 0 that `ch` measures; the mockups do not */
+.k-root,.s-root,.t-root{font-variant-numeric:normal}
+.s-root .s-links{display:flex;gap:6px 16px;flex-wrap:wrap;margin-top:14px;font:500 12px var(--mono)}
+.s-root .s-links a{color:var(--mut)}
+.s-root .s-links a:hover{color:var(--fg)}
+.s-root .s-seg .vn{margin-left:6px;font:500 10.5px var(--mono);color:var(--dim)}
+.s-root .s-rail{position:static}
+.s-root .s-trk .tc-doors{margin-top:2px}

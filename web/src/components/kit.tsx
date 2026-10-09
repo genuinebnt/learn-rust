@@ -4,9 +4,10 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { getPref, setPref } from "../prefs";
+import { MockRoot } from "./mock";
 
 /** Buttons that get a ripple where they are pressed. */
-const RIPPLE = ".btn, .go, .ebtn, .chip, .kbtn, .tstrip-run, .tc-go, .sreset, .cx-cli button, .cx-rcmd button, .cx-cta, .cx-cont";
+const RIPPLE = ".btn, .go, .ebtn, .chip, .kbtn, .tstrip-run, .tc-go, .sreset, .cx-cli button, .cx-rcmd button, .cx-cta, .cx-cont, .k-fx, .k-cta, .k-copy, .k-ghost";
 
 /** Call once at start-up: a click on any of those buttons spreads a ripple from the pointer. Returns the function that removes it. */
 export function installPressEffects(): () => void {
@@ -14,11 +15,12 @@ export function installPressEffects(): () => void {
         if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
         const el = (e.target as HTMLElement | null)?.closest<HTMLElement>(RIPPLE);
         if (!el || (el as HTMLButtonElement).disabled) return;
-        el.classList.add("fx-host");
+        const mock = el.matches(".k-fx, .k-cta, .k-copy, .k-ghost");
+        if (!mock) el.classList.add("fx-host");
         const r = el.getBoundingClientRect();
         const d = Math.max(r.width, r.height) * 2;
         const rip = document.createElement("span");
-        rip.className = "fx-rip";
+        rip.className = mock ? "k-rip" : "fx-rip";
         rip.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
         el.appendChild(rip);
         setTimeout(() => rip.remove(), 650);
@@ -31,12 +33,18 @@ export function installPressEffects(): () => void {
 export const celebrateOff = () => getPref("celebrate.off", false);
 export const setCelebrateOff = (v: boolean) => setPref("celebrate.off", v);
 
-/** A dialog over the page: Esc and a click outside close it, Tab stays inside, and focus goes back to where it was. */
-export function Modal({ onClose, labelledBy, children }: { onClose: () => void; labelledBy: string; children: ReactNode }) {
+/** A dialog over the page, in the mockup's own overlay: Esc and a click outside close it, Tab stays inside, and focus goes back to where it was. */
+export function Modal({ onClose, labelledBy, children, tone = "" }: { onClose: () => void; labelledBy: string; children: ReactNode; tone?: string }) {
     const box = useRef<HTMLDivElement>(null);
+    // The overlay starts hidden and fades in on the next frame, so its entrance (seal, confetti) plays.
+    const [on, setOn] = useState(false);
+    useEffect(() => {
+        const id = requestAnimationFrame(() => setOn(true));
+        return () => cancelAnimationFrame(id);
+    }, []);
     useEffect(() => {
         const before = document.activeElement as HTMLElement | null;
-        box.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+        const t = setTimeout(() => box.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus(), 250);
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
                 e.stopPropagation();
@@ -47,21 +55,26 @@ export function Modal({ onClose, labelledBy, children }: { onClose: () => void; 
             const first = f[0];
             const last = f[f.length - 1];
             if (!first || !last) return;
+            // Focus that is still behind the dialog (it takes a moment to open) comes in on the first Tab.
+            if (!box.current.contains(document.activeElement)) return (e.preventDefault(), first.focus());
             if (e.shiftKey && document.activeElement === first) (e.preventDefault(), last.focus());
             else if (!e.shiftKey && document.activeElement === last) (e.preventDefault(), first.focus());
         };
         document.addEventListener("keydown", onKey, true);
         return () => {
+            clearTimeout(t);
             document.removeEventListener("keydown", onKey, true);
             before?.focus?.();
         };
     }, [onClose]);
     return createPortal(
-        <div className="kov" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-            <div className="kdlg" role="dialog" aria-modal="true" aria-labelledby={labelledBy} ref={box}>
-                {children}
+        <MockRoot>
+            <div className={`k-ov${on ? " k-on" : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+                <div className={`k-dlg${tone ? ` k-${tone}` : ""}`} ref={box}>
+                    {children}
+                </div>
             </div>
-        </div>,
+        </MockRoot>,
         document.body,
     );
 }
@@ -95,24 +108,24 @@ export function Celebration({ title, message, stats, next, goLabel, onGo, review
     const [off, setOff] = useState(celebrateOff);
     return (
         <Modal onClose={onClose} labelledBy={id}>
-            <div className="kconf" aria-hidden="true">
+            <div className="k-cfd" aria-hidden="true">
                 {confetti.map((c, i) => (
                     <i key={i} style={{ "--x": `${c.x}px`, "--y": `${c.y}px`, "--r": `${c.rot}deg`, "--d": c.d, background: c.c } as React.CSSProperties} />
                 ))}
             </div>
-            <button className="x" onClick={onClose} aria-label="Close">
+            <button className="k-x2" onClick={onClose} aria-label="Close">
                 ×
             </button>
-            <div className="kseal" aria-hidden="true">
-                <svg viewBox="0 0 96 96">
-                    <circle className="b" cx="48" cy="48" r="42" />
-                    <circle className="f" cx="48" cy="48" r="42" />
+            <div className="k-sealw">
+                <svg className="k-seal" viewBox="0 0 96 96" aria-hidden="true">
+                    <circle className="k-b" cx="48" cy="48" r="42" />
+                    <circle className="k-f" cx="48" cy="48" r="42" />
                     <path d="M30 50l13 13 24-27" />
                 </svg>
             </div>
-            <h2 id={id}>{title}</h2>
+            <h4 id={id}>{title}</h4>
             <p>{message}</p>
-            <div className="ksts">
+            <div className="k-sts">
                 {stats.map((s) => (
                     <div key={s.label}>
                         <b>{s.value}</b>
@@ -121,42 +134,43 @@ export function Celebration({ title, message, stats, next, goLabel, onGo, review
                 ))}
             </div>
             {next && (
-                <div className="knxt">
+                <div className="k-nxt">
                     <div style={{ flex: 1 }}>
                         <small>{next.kicker}</small>
                         <b>{next.title}</b>
                     </div>
-                    {next.badge && <span className="pill">{next.badge}</span>}
+                    {next.badge && <span className="k-bdg k-w">{next.badge}</span>}
                 </div>
             )}
-            <div className="acts">
-                <button className="kbtn lg" data-autofocus onClick={onGo}>
-                    {goLabel} <span className="ar">→</span>
+            <div className="k-acts">
+                <button className="k-cta k-lg k-fx" data-autofocus onClick={onGo}>
+                    <span className="k-lbl">{goLabel}</span>
+                    <span className="k-ar">→</span>
                 </button>
-                <div className="two">
-                    <button className="kbtn sec" onClick={onClose}>
-                        Stay here
+                <div className="k-two">
+                    <button className="k-cta k-sec k-fx" onClick={onClose}>
+                        <span className="k-lbl">Stay here</span>
                     </button>
                     {review && (
-                        <button className="kbtn sec" onClick={review.onReview}>
-                            {review.label}
+                        <button className="k-cta k-sec k-fx" onClick={review.onReview}>
+                            <span className="k-lbl">{review.label}</span>
                         </button>
                     )}
                 </div>
             </div>
-            <label className="chk">
+            <label className="k-chk">
                 <button
                     type="button"
                     role="switch"
                     aria-checked={off}
-                    className="ksw"
+                    className={`k-sw${off ? " k-on" : ""}`}
                     onClick={() => {
                         setOff(!off);
                         setCelebrateOff(!off);
                     }}
                     aria-label="Don't show this again"
                 />
-                Don't show this again, just tell me
+                Don't show this again, just continue
             </label>
         </Modal>
     );

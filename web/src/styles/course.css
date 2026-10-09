@@ -172,7 +172,6 @@
 .cx-sub{position:sticky;top:52px;z-index:25}
 .cx-st{display:inline-flex;align-items:center;gap:8px;font:500 11.5px var(--mono);color:var(--mut)}.cx-st i{width:7px;height:7px;border-radius:50%;background:var(--bad)}
 .cx-nav{display:inline-flex;align-items:center;gap:10px;margin-left:18px;font:500 12px var(--mono);color:var(--mut)}.cx-nav a{color:var(--dim)}
-.cx-main{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:56px 56px;background-position:-1px -1px}
 .cx-h1{margin:18px 0 0!important;font-size:clamp(32px,3.4vw,46px)!important;line-height:1.04!important;font-weight:800!important;letter-spacing:-.04em!important}
 .cx-lead{margin:20px 0 0;max-width:640px;font-size:17px;line-height:1.65;color:var(--mut);text-wrap:pretty}
 .cx-lead code{font-size:.86em}

@@ -11,8 +11,8 @@ export interface Panels {
     rc: boolean;
 }
 
-const DEFAULTS: Panels = { l: 320, r: 300, lc: false, rc: false };
-const LIMITS = { l: [260, 480], r: [270, 480] } as const;
+const DEFAULTS: Panels = { l: 300, r: 300, lc: false, rc: false };
+const LIMITS = { l: [250, 480], r: [270, 480] } as const;
 
 export function usePanels() {
     const [p, setP] = useState<Panels>(() => ({ ...DEFAULTS, ...getPref<Partial<Panels>>("stage.panels", {}) }));
@@ -44,11 +44,11 @@ export type PanelsApi = ReturnType<typeof usePanels>;
 
 /** The thin handle on a panel's inner edge: drag to resize, double-click to go back to the default width. */
 export function Resizer({ side, panels }: { side: "l" | "r"; panels: PanelsApi }) {
-    const { p, update, setDragging } = panels;
+    const { p, update, dragging, setDragging } = panels;
     const [lo, hi] = LIMITS[side];
     return (
         <div
-            className={`cx-rz ${side}`}
+            className={`k-rz k-${side}${dragging === side ? " k-act" : ""}`}
             role="separator"
             aria-orientation="vertical"
             aria-label={side === "l" ? "Resize the course panel" : "Resize the page panel"}
@@ -84,6 +84,8 @@ export function Resizer({ side, panels }: { side: "l" | "r"; panels: PanelsApi }
                 if (e.key === "ArrowLeft") update({ ...p, [side]: Math.max(lo, Math.min(hi, p[side] - sign * step)) });
                 if (e.key === "ArrowRight") update({ ...p, [side]: Math.max(lo, Math.min(hi, p[side] + sign * step)) });
             }}
-        />
+        >
+            <span className="k-grip" />
+        </div>
     );
 }

@@ -11,7 +11,7 @@ const report = (request: APIRequestContext, n = 4) => request.post("/api/courses
 
 test("a passing run opens the popup with the stats and the next stage; Stay here closes it", async ({ page, request }) => {
     await page.goto("/courses/bustub/4a-06");
-    await expect(page.locator(".cx-tabs")).toBeVisible();
+    await expect(page.locator(".k-tabs")).toBeVisible();
     await report(request);
     const dialog = page.getByRole("dialog", { name: "Stage passed" });
     await expect(dialog).toBeVisible({ timeout: 15_000 });
@@ -64,16 +64,16 @@ test("with \"don't show again\" on, the next pass is a toast and the choice surv
     await dialog.getByRole("switch", { name: "Don't show this again" }).click();
     await dialog.getByRole("button", { name: "Stay here" }).click();
     await page.reload();
-    await expect(page.locator(".cx-tabs")).toBeVisible();
+    await expect(page.locator(".k-tabs")).toBeVisible();
     await report(request, 10);
-    await expect(page.locator(".cx-toast.ok")).toContainText("Tests passed", { timeout: 15_000 });
+    await expect(page.locator(".k-tt.k-ok")).toContainText("Tests passed", { timeout: 15_000 });
     await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 test("a failing run does not open the popup", async ({ page, request }) => {
     await page.goto("/courses/bustub/4a-04");
     await request.post("/api/courses/bustub/runs", { data: { stage_id: "4a-04", tests: [{ name: "x", ok: false, detail: "no" }], commit: "f00", duration_ms: 100 } });
-    await expect(page.locator(".cx-toast.bad")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(".k-tt.k-er")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 

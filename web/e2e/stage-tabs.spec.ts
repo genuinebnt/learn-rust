@@ -14,70 +14,71 @@ test.describe("Last run", () => {
     });
     const open = async (page: Page) => {
         await page.goto(`/courses/bustub/${stage}#run`);
-        await expect(page.locator(".cx-rsum")).toBeVisible();
+        await expect(page.locator(".k-rsm")).toBeVisible();
     };
 
     test("the history shows the recent runs, the newest selected", async ({ page }) => {
         await open(page);
-        expect(await page.locator(".cx-hbar").count()).toBeGreaterThanOrEqual(4);
-        await expect(page.locator(".cx-hbar").last()).toHaveAttribute("aria-pressed", "true");
-        await expect(page.locator(".cx-rsum")).toContainText("3 failed");
+        expect(await page.locator(".k-rn").count()).toBeGreaterThanOrEqual(4);
+        await expect(page.locator(".k-rn").last()).toHaveAttribute("aria-pressed", "true");
+        await expect(page.locator(".k-rsm")).toContainText("3 failed");
     });
 
     test("the newest run says how it differs from the one before", async ({ page }) => {
         await open(page);
-        await expect(page.locator(".cx-rdelta")).toContainText("1 fewer passing");
-        await expect(page.locator(".cx-rdelta")).toContainText("1 newly failing");
+        await expect(page.locator(".k-dlt")).toContainText("1 fewer passing");
+        await expect(page.locator(".k-dlt")).toContainText("1 newly failing");
     });
 
     test("picking an older run shows that run and its own comparison", async ({ page }) => {
         await open(page);
-        const bars = page.locator(".cx-hbar");
+        const bars = page.locator(".k-rn");
         await bars.nth((await bars.count()) - 2).click(); // the run with 4 passed
-        await expect(page.locator(".cx-rsum")).toContainText("2 failed");
-        await expect(page.locator(".cx-rsum")).toContainText("4 passed");
-        await expect(page.locator(".cx-rdelta")).toContainText("2 more passing");
+        await expect(page.locator(".k-rsm")).toContainText("2 failed");
+        await expect(page.locator(".k-rsm")).toContainText("4 passed");
+        await expect(page.locator(".k-dlt")).toContainText("2 more passing");
     });
 
     test("the Failed and Passed filters show one side each", async ({ page }) => {
         await open(page);
-        await page.locator(".cx-rflt").getByRole("button", { name: "Failed" }).click();
-        await expect(page.locator(".cx-rfail")).toHaveCount(3);
-        await expect(page.locator(".cx-rfold")).toHaveCount(0);
-        await page.locator(".cx-rflt").getByRole("button", { name: "Passed" }).click();
-        await expect(page.locator(".cx-rfail")).toHaveCount(0);
-        await expect(page.locator(".cx-rrow")).toHaveCount(3);
+        await page.locator(".k-rtool .k-grp").getByRole("button", { name: "Failed" }).click();
+        await expect(page.locator(".k-rt.k-bad")).toHaveCount(3);
+        await expect(page.locator(".k-rpass")).toHaveCount(0);
+        await page.locator(".k-rtool .k-grp").getByRole("button", { name: "Passed" }).click();
+        await expect(page.locator(".k-rt.k-bad")).toHaveCount(0);
+        await expect(page.locator(".k-rrow")).toHaveCount(3);
     });
 
     test("compare marks what is newly failing, still failing and fixed", async ({ page }) => {
         await open(page);
         await page.getByRole("switch", { name: "Compare with the previous run" }).click();
-        await expect(page.locator(".cx-rfail", { hasText: "n3" }).locator(".cx-rtag")).toHaveText("NEWLY FAILING");
-        await expect(page.locator(".cx-rfail", { hasText: "n1" }).locator(".cx-rtag")).toHaveText("STILL FAILING");
+        await expect(page.locator(".k-rt.k-bad", { hasText: "n3" }).locator(".k-cm2")).toHaveText("NEWLY FAILING");
+        await expect(page.locator(".k-rt.k-bad", { hasText: "n1" }).locator(".k-cm2")).toHaveText("STILL FAILING");
         // the run before: its two fixed tests
-        const bars = page.locator(".cx-hbar");
+        const bars = page.locator(".k-rn");
         await bars.nth((await bars.count()) - 2).click();
-        await page.getByRole("switch", { name: "Compare with the previous run" }).click();
-        await page.locator(".cx-rfoldh").click();
-        await expect(page.locator(".cx-rrow .cx-rtag.fix")).toHaveCount(2);
+        // the compare switch stays on when another run is picked
+        await expect(page.getByRole("switch", { name: "Compare with the previous run" })).toHaveAttribute("aria-checked", "true");
+        await page.locator(".k-rph").click();
+        await expect(page.locator(".k-rrow .k-cm2.k-fix")).toHaveCount(2);
     });
 
     test("a run with a compile error is shown as one that did not run", async ({ page }) => {
         await open(page);
-        const bars = page.locator(".cx-hbar");
+        const bars = page.locator(".k-rn");
         const n = await bars.count();
         // the compile-error run is the oldest of the four seeded: three bars before the newest
         await bars.nth(n - 4).click();
-        await expect(page.locator(".cx-rsum")).toContainText("Did not run");
-        await expect(page.locator(".cx-rprob")).toContainText("error[E0308]");
+        await expect(page.locator(".k-rsm")).toContainText("Did not run");
+        await expect(page.locator(".k-rcomp")).toContainText("error[E0308]");
     });
 
     test("a run that arrives while the tab is open becomes the selected one", async ({ page, request }) => {
         await open(page);
-        const before = await page.locator(".cx-hbar").count();
+        const before = await page.locator(".k-rn").count();
         await run(request, stage, ["ok", "ok", "bad", "ok", "ok", "ok"], "5555555");
-        await expect(page.locator(".cx-rsum")).toContainText("1 failed", { timeout: 15_000 });
-        expect(await page.locator(".cx-hbar").count()).toBeGreaterThanOrEqual(Math.min(before + 1, 10));
+        await expect(page.locator(".k-rsm")).toContainText("1 failed", { timeout: 15_000 });
+        expect(await page.locator(".k-rn").count()).toBeGreaterThanOrEqual(Math.min(before + 1, 10));
     });
 });
 
@@ -88,33 +89,33 @@ test.describe("Concepts", () => {
         const st = await (await request.get(`/api/courses/bustub/stages/${stage}`)).json();
         for (const k of st.concepts) await request.put(`/api/courses/bustub/concepts/${k.id}/read`, { data: { read: false } });
         await page.goto(`/courses/bustub/${stage}#concepts`);
-        await expect(page.locator(".cx-chdr")).toBeVisible();
+        await expect(page.locator(".k-chdr")).toBeVisible();
     });
 
     test("the header counts the required reading and each concept has a card", async ({ page }) => {
-        await expect(page.locator(".cx-chdr")).toContainText("Required reading: 0 of 3 done");
-        await expect(page.locator(".cx-ccard")).toHaveCount(3);
-        await expect(page.locator(".cx-cbadge.req")).toHaveCount(3);
+        await expect(page.locator(".k-chdr")).toContainText("Required reading: 0 of 3 done");
+        await expect(page.locator(".k-ccard")).toHaveCount(3);
+        await expect(page.locator(".k-badge2.k-req")).toHaveCount(3);
         await expect(page.getByRole("tab", { name: /^Concepts/ })).toContainText("0/3");
     });
 
     test("marking one as read updates the header, the tab and the page panel, and it is kept", async ({ page }) => {
-        await page.locator(".cx-ccard").first().getByRole("button", { name: /Preview/ }).click();
-        await page.locator(".cx-ccard").first().getByRole("switch").click();
-        await expect(page.locator(".cx-chdr")).toContainText("1 of 3 done");
+        await page.locator(".k-ccard").first().getByRole("button", { name: /Preview/ }).click();
+        await page.locator(".k-ccard").first().getByRole("switch").click();
+        await expect(page.locator(".k-chdr")).toContainText("1 of 3 done");
         await expect(page.getByRole("tab", { name: /^Concepts/ })).toContainText("1/3");
-        await expect(page.locator(".cx-toc .cx-crow.read")).toHaveCount(1);
-        await expect(page.locator(".cx-ccard.read")).toHaveCount(1);
+        await expect(page.locator(".k-toc .k-cc2:not(.k-todo)")).toHaveCount(1);
+        await expect(page.locator(".k-ccard.k-isread")).toHaveCount(1);
         await page.reload();
-        await expect(page.locator(".cx-chdr")).toContainText("1 of 3 done");
+        await expect(page.locator(".k-chdr")).toContainText("1 of 3 done");
         // and it can be undone
-        await page.locator(".cx-ccard").first().getByRole("button", { name: /Preview/ }).click();
-        await page.locator(".cx-ccard").first().getByRole("switch").click();
-        await expect(page.locator(".cx-chdr")).toContainText("0 of 3 done");
+        await page.locator(".k-ccard").first().getByRole("button", { name: /Preview/ }).click();
+        await page.locator(".k-ccard").first().getByRole("switch").click();
+        await expect(page.locator(".k-chdr")).toContainText("0 of 3 done");
     });
 
     test("Preview opens a card and Read opens the article", async ({ page }) => {
-        const first = page.locator(".cx-ccard").first();
+        const first = page.locator(".k-ccard").first();
         const btn = first.getByRole("button", { name: /Preview|Close/ });
         await expect(btn).toHaveAttribute("aria-expanded", "false");
         await btn.click();
@@ -125,10 +126,10 @@ test.describe("Concepts", () => {
 
     test("marking all the required ones read says so", async ({ page }) => {
         for (let i = 0; i < 3; i++) {
-            const c = page.locator(".cx-ccard").nth(i);
+            const c = page.locator(".k-ccard").nth(i);
             await c.getByRole("button", { name: /Preview/ }).click();
             await c.getByRole("switch").click();
         }
-        await expect(page.locator(".cx-chdr")).toContainText("Required reading done");
+        await expect(page.locator(".k-chdr")).toContainText("Required reading done");
     });
 });

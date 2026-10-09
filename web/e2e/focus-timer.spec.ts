@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 // The page's other timers (polling) are real; only timers created after the clock is installed are fake, which is the timer's own.
 test.beforeEach(async ({ page }) => {
     await page.goto("/courses/bustub/4a-04");
-    await expect(page.locator(".cx-focus")).toBeVisible();
+    await expect(page.locator(".k-focus")).toBeVisible();
     await page.clock.install();
 });
 
@@ -13,9 +13,9 @@ async function jump(page: import("@playwright/test").Page, t: string) {
     await page.clock.resume();
 }
 
-const time = (page: import("@playwright/test").Page) => page.locator(".cx-focus .fring b");
-const label = (page: import("@playwright/test").Page) => page.locator(".cx-focus .fring small");
-const go = (page: import("@playwright/test").Page, name: string) => page.locator(".cx-focus").getByRole("button", { name, exact: true });
+const time = (page: import("@playwright/test").Page) => page.locator(".k-focus .k-fring b");
+const label = (page: import("@playwright/test").Page) => page.locator(".k-focus .k-fring small");
+const go = (page: import("@playwright/test").Page, name: string) => page.locator(".k-focus").getByRole("button", { name, exact: true });
 
 test("it starts at 25:00 as the first of four focus sessions", async ({ page }) => {
     await expect(time(page)).toHaveText("25:00");
@@ -38,7 +38,7 @@ test("Start counts down, Pause holds the time, Resume continues", async ({ page 
 });
 
 test("the stopwatch counts up and Reset zeroes it", async ({ page }) => {
-    await page.locator(".cx-focus .fm").getByRole("button", { name: "STOPWATCH" }).click();
+    await page.locator(".k-focus .k-fm").getByRole("button", { name: "STOPWATCH" }).click();
     await expect(time(page)).toHaveText("00:00");
     await go(page, "Start").click();
     await jump(page, "01:05");
@@ -55,13 +55,13 @@ test("Skip jumps to the break but leaves a paused timer paused", async ({ page }
 
 test("the lengths you choose and the mode are remembered after a reload", async ({ page }) => {
     await go(page, "Settings").click();
-    await page.locator(".cx-focus .fset input[type=range]").first().fill("10");
+    await page.locator(".k-focus .k-fset input[type=range]").first().fill("10");
     await expect(time(page)).toHaveText("10:00");
-    await page.locator(".cx-focus .fm").getByRole("button", { name: "TIMER" }).click();
+    await page.locator(".k-focus .k-fm").getByRole("button", { name: "TIMER" }).click();
     await page.reload();
-    await expect(page.locator(".cx-focus")).toBeVisible();
-    await expect(page.locator(".cx-focus .fm button.on")).toHaveText("TIMER");
-    await page.locator(".cx-focus .fm").getByRole("button", { name: "POMODORO" }).click();
+    await expect(page.locator(".k-focus")).toBeVisible();
+    await expect(page.locator(".k-focus .k-fm button.k-on")).toHaveText("TIMER");
+    await page.locator(".k-focus .k-fm").getByRole("button", { name: "POMODORO" }).click();
     await expect(time(page)).toHaveText("10:00");
 });
 
@@ -70,7 +70,7 @@ test.describe("with short sessions", () => {
     test.beforeEach(async ({ page }) => {
         await page.addInitScript(() => localStorage.setItem("anneal:focus.cfg", JSON.stringify({ mode: "pom", focus: 5, brk: 3, timer: 5 })));
         await page.goto("/courses/bustub/4a-04");
-        await expect(page.locator(".cx-focus")).toBeVisible();
+        await expect(page.locator(".k-focus")).toBeVisible();
         await page.clock.install();
     });
 
@@ -78,20 +78,20 @@ test.describe("with short sessions", () => {
         await go(page, "Start").click();
         await jump(page, "05:01");
         await expect(label(page)).toHaveText("BREAK");
-        await expect(page.locator(".cx-focus .fnote")).toContainText("Focus session done");
-        await expect(page.locator(".cx-focus .fdots i.done")).toHaveCount(1);
+        await expect(page.locator(".k-focus .k-fsum")).toContainText("Focus session done");
+        await expect(page.locator(".k-focus .k-fdots i.k-done")).toHaveCount(1);
         await expect(time(page)).toHaveText(/^0[23]:/);
         await jump(page, "03:01");
         await expect(label(page)).toHaveText("FOCUS 2 / 4");
     });
 
     test("the countdown stops at zero and says so", async ({ page }) => {
-        await page.locator(".cx-focus .fm").getByRole("button", { name: "TIMER" }).click();
+        await page.locator(".k-focus .k-fm").getByRole("button", { name: "TIMER" }).click();
         await expect(time(page)).toHaveText("05:00");
         await go(page, "Start").click();
         await jump(page, "05:02");
         await expect(time(page)).toHaveText("00:00");
-        await expect(page.locator(".cx-focus .fnote")).toContainText("Time is up");
+        await expect(page.locator(".k-focus .k-fsum")).toContainText("Time is up");
         await expect(go(page, "Restart")).toBeVisible();
         await go(page, "Restart").click();
         await expect(time(page)).toHaveText(/^0[45]:/);

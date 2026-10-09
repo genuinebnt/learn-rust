@@ -61,12 +61,18 @@ export function advance(s: State, dt: number, c: Cfg, mode: Mode): State {
 
 const mmss = (n: number) => `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(Math.floor(n % 60)).padStart(2, "0")}`;
 
-export function FocusTimer() {
+export function FocusTimer({ onTime }: { onTime?: (text: string) => void }) {
     const [cfg, setCfg] = useState<Cfg>(() => ({ ...DEFAULTS, ...getPref<Partial<Cfg>>("focus.cfg", {}) }));
     const [s, setS] = useState<State>(() => fresh(cfg));
     const [settings, setSettings] = useState(false);
+    // Focus time spent since this page opened (nothing about it is stored).
+    const [visit, setVisit] = useState({ focus: 0 });
+    // The phone bar shows the same time as the ring.
+    useEffect(() => onTime?.(mmss(s.secs)), [s.secs, onTime]);
     const cfgRef = useRef(cfg);
     cfgRef.current = cfg;
+    const phaseRef = useRef<Phase>("focus");
+    phaseRef.current = s.phase;
     const last = useRef(0);
 
     useEffect(() => {
@@ -77,6 +83,7 @@ export function FocusTimer() {
             const dt = (now - last.current) / 1000;
             last.current = now;
             setS((prev) => advance(prev, dt, cfgRef.current, cfgRef.current.mode));
+            if (cfgRef.current.mode !== "pom" || phaseRef.current === "focus") setVisit((v) => ({ focus: v.focus + dt }));
         }, 500);
         return () => clearInterval(id);
     }, [s.running]);
@@ -100,77 +107,98 @@ export function FocusTimer() {
     const sw = cfg.mode === "sw";
     const p = sw ? ((s.secs % 60) / 60) * 100 : s.total ? ((s.total - s.secs) / s.total) * 100 : 0;
     const frac = s.total ? s.secs / s.total : 1;
-    const tone = sw ? "" : cfg.mode === "pom" ? (s.phase === "focus" ? "" : " brk") : frac < 0.05 ? " crit" : frac < 0.2 ? " warn" : "";
+    const tone = sw ? "" : cfg.mode === "pom" ? (s.phase === "focus" ? "" : " k-brk") : frac < 0.05 ? " k-crit" : frac < 0.2 ? " k-warn" : "";
     const label = sw ? "ELAPSED" : cfg.mode === "timer" ? "REMAINING" : s.phase === "focus" ? `FOCUS ${s.cycle} / 4` : s.phase === "long" ? "LONG BREAK" : "BREAK";
     const fresh0 = sw ? s.secs === 0 : s.secs === s.total;
     // A countdown that ran out offers to start again, not to resume at zero.
     const finished = cfg.mode === "timer" && !s.running && s.secs === 0;
+    const range = (min: number, max: number, v: number) => ({ "--v": `${(100 * (v - min)) / (max - min)}%` }) as React.CSSProperties;
+    const worked = Math.floor(visit.focus / 60);
 
     return (
-        <section className={`cx-focus${tone}`} aria-label="Focus timer">
-            <h4>
-                <span>FOCUS</span>
-                <span className="fm" role="group" aria-label="Timer mode">
+        <div className={`k-rcard k-focus${tone}`} id="focus" aria-label="Focus timer">
+            <h6>
+                FOCUS{" "}
+                <span className="k-fm" role="group" aria-label="Timer mode">
                     {MODES.map(([m, l]) => (
-                        <button key={m} aria-pressed={cfg.mode === m} className={cfg.mode === m ? "on" : ""} onClick={() => setMode(m)}>
+                        <button key={m} aria-pressed={cfg.mode === m} className={cfg.mode === m ? "k-on" : ""} onClick={() => setMode(m)}>
                             {l}
                         </button>
                     ))}
                 </span>
-            </h4>
-            <div className="fbody">
-                <div className={`fring${s.running ? " run" : ""}`} style={{ "--p": p } as React.CSSProperties} role="timer" aria-label={`${label} ${mmss(s.secs)}`}>
+            </h6>
+            <div className="k-fbody">
+                <div className={`k-fring${s.running ? " k-run" : ""}`} style={{ "--p": p } as React.CSSProperties} role="timer" aria-label={`${label} ${mmss(s.secs)}`}>
                     <span>
                         <b>{mmss(s.secs)}</b>
                         <small>{label}</small>
                     </span>
                 </div>
-                <div className="fctl">
-                    <button className="kbtn sm" onClick={() => setS((x) => (finished ? { ...fresh(cfg), running: true } : { ...x, running: !x.running, note: "" }))}>
-                        {s.running ? "Pause" : finished ? "Restart" : fresh0 ? "Start" : "Resume"}
+                <div className="k-fctl">
+                    <button className="k-cta k-sm" onClick={() => setS((x) => (finished ? { ...fresh(cfg), running: true } : { ...x, running: !x.running, note: "" }))}>
+                        <span className="k-lbl">{s.running ? "Pause" : finished ? "Restart" : fresh0 ? "Start" : "Resume"}</span>
                     </button>
-                    <div className="fbtns">
-                        <button aria-label="Reset" title="Reset" onClick={() => setS(fresh(cfg))}>
+                    <div className="k-fbtns">
+                        <button className="k-sbtn" aria-label="Reset" title="Reset" onClick={() => setS(fresh(cfg))}>
                             ↺
                         </button>
-                        <button aria-label="Skip to the next phase" title="Skip to the next phase" disabled={sw || cfg.mode === "timer"} onClick={() => setS((x) => ({ ...advance({ ...x, running: true }, x.secs + 1, cfg, cfg.mode), running: x.running }))}>
+                        <button className="k-sbtn" aria-label="Skip to the next phase" title="Skip to the next phase" disabled={sw || cfg.mode === "timer"} onClick={() => setS((x) => ({ ...advance({ ...x, running: true }, x.secs + 1, cfg, cfg.mode), running: x.running }))}>
                             ⏭
                         </button>
-                        <button aria-label="Settings" aria-expanded={settings} title="Settings" onClick={() => setSettings(!settings)}>
+                        <button className="k-sbtn" aria-label="Settings" aria-expanded={settings} title="Settings" onClick={() => setSettings(!settings)}>
                             ⚙
                         </button>
                     </div>
                 </div>
             </div>
             {cfg.mode === "pom" && (
-                <div className="fdots" aria-hidden="true">
+                <div className="k-fdots" aria-hidden="true">
                     {[1, 2, 3, 4].map((i) => (
-                        <i key={i} className={i <= s.done ? "done" : i === s.cycle && s.phase === "focus" ? "cur" : ""} />
+                        <i key={i} className={i <= s.done ? "k-done" : i === s.cycle && s.phase === "focus" ? "k-cur" : ""} />
                     ))}
                 </div>
             )}
-            <div className="fnote" role="status" aria-live="polite">
-                {s.note || (cfg.mode === "pom" ? `${s.done} pomodoro${s.done === 1 ? "" : "s"} this visit` : sw ? "counts up until you pause it" : "counts down to zero")}
-            </div>
-            {settings && (
-                <div className="fset">
-                    <label>
-                        <span>Focus</span>
-                        <input type="range" min={5} max={60} step={5} value={cfg.focus} onChange={(e) => setLen("focus", +e.target.value)} />
-                        <b>{cfg.focus} min</b>
+            <div className={`k-fset${settings ? " k-open" : ""}`}>
+                <div inert={!settings}>
+                    <label className="k-rng">
+                        <span className="k-h">
+                            <span>Focus</span>
+                            <b>{cfg.focus} min</b>
+                        </span>
+                        <input type="range" min={5} max={60} step={5} value={cfg.focus} style={range(5, 60, cfg.focus)} onChange={(e) => setLen("focus", +e.target.value)} />
                     </label>
-                    <label>
-                        <span>Break</span>
-                        <input type="range" min={3} max={20} value={cfg.brk} onChange={(e) => setLen("brk", +e.target.value)} />
-                        <b>{cfg.brk} min</b>
+                    <label className="k-rng">
+                        <span className="k-h">
+                            <span>Break</span>
+                            <b>{cfg.brk} min</b>
+                        </span>
+                        <input type="range" min={3} max={20} value={cfg.brk} style={range(3, 20, cfg.brk)} onChange={(e) => setLen("brk", +e.target.value)} />
                     </label>
-                    <label>
-                        <span>Timer</span>
-                        <input type="range" min={5} max={90} step={5} value={cfg.timer} onChange={(e) => setLen("timer", +e.target.value)} />
-                        <b>{cfg.timer} min</b>
-                    </label>
+                    {cfg.mode === "timer" && (
+                        <label className="k-rng">
+                            <span className="k-h">
+                                <span>Countdown</span>
+                                <b>{cfg.timer} min</b>
+                            </span>
+                            <input type="range" min={5} max={90} step={5} value={cfg.timer} style={range(5, 90, cfg.timer)} onChange={(e) => setLen("timer", +e.target.value)} />
+                        </label>
+                    )}
                 </div>
-            )}
-        </section>
+            </div>
+            <div className="k-fsum" role="status" aria-live="polite">
+                {s.note ? (
+                    <span>{s.note}</span>
+                ) : (
+                    <>
+                        <span>
+                            this visit <b>{worked} min</b>
+                        </span>
+                        <span>
+                            <b>{s.done}</b> pomodoro{s.done === 1 ? "" : "s"}
+                        </span>
+                    </>
+                )}
+            </div>
+        </div>
     );
 }

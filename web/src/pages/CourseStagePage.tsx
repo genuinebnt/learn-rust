@@ -1,22 +1,27 @@
+// A stage of the course, built from the mockup's own components (docs/mockups/course-motion.html, screen 2): the course tree on the left, the
+// reading column with its tabs in the middle, the page panel and focus timer on the right, a run strip along the bottom, a reading-progress
+// bar across the top, a condensed header and a back-to-top ring that appear as you scroll.
+
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { api, type CourseRun, type CourseStagePage as Page, type CourseStageRow, type SolutionFile, type StageDifficulty } from "../api";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { api, type CourseStagePage as Page } from "../api";
 import { Header } from "../components/Header";
-import { DIFFICULTY_COLOR, SplitTitle } from "./CoursePage";
-import { handleCodeClick, renderMd } from "./courseMd";
-import { Celebration, CopyButton, celebrateOff } from "../components/kit";
+import { Celebration, celebrateOff } from "../components/kit";
 import { FocusTimer } from "../components/FocusTimer";
-import { Resizer, usePanels, type PanelsApi } from "./stagePanels";
+import { MockCopy, MockRoot, reducedMotion } from "../components/mock";
+import { toast } from "../components/toasts";
 import { getPref, setPref } from "../prefs";
+import { Resizer, usePanels } from "./stagePanels";
+import { ConceptsTab, HintsTab, Prose, RunTab, SolutionTab } from "./stage/Tabs";
+import { Tree } from "./stage/Tree";
+import { DIFFICULTY_LABEL, ago } from "./stage/shared";
 
-const md = renderMd;
 type Tab = "instructions" | "hints" | "solution" | "concepts" | "run";
-const DIFFICULTY_LABEL = { "very-easy": "VERY EASY", easy: "EASY", medium: "MEDIUM", hard: "HARD" } as const;
+const TAB_IDS: Tab[] = ["instructions", "hints", "solution", "concepts", "run"];
 
-function Prose({ text }: { text: string }) {
-    return <div onClick={handleCodeClick} dangerouslySetInnerHTML={{ __html: md(text) }} />;
-}
+/** Sections that go beyond what passing the stage needs; they can be hidden. */
+const OPTIONAL_SECTIONS = new Set(["performance", "learn-more"]);
 
 /** Splits markdown at its `### ` headings (not inside code fences): [title | null, body]. */
 function blocks(text: string): [string | null, string][] {
@@ -37,506 +42,34 @@ function blocks(text: string): [string | null, string][] {
     return out.filter(([t, b]) => t !== null || b.trim());
 }
 
+function TaskBox({ stageId, text }: { stageId: string; text: string }) {
+    return (
+        <div className="k-task">
+            <div className="k-th">
+                YOUR TURN<span>run  anneal course test {stageId}</span>
+            </div>
+            <div className="k-tb">
+                <Prose text={text} />
+            </div>
+        </div>
+    );
+}
+
 /** A stage part or section: prose, with "The task" lifted into the highlighted Your turn box. */
-function Body({ text }: { text: string }) {
+function Body({ text, stageId }: { text: string; stageId: string }) {
     return (
         <>
             {blocks(text).map(([title, body], i) =>
                 title === "The task" ? (
-                    <section className="cx-task" key={i}>
-                        <div className="cx-th">
-                            <b>YOUR TURN</b>
-                            <span>
-                                run <kbd>anneal course test</kbd> or push
-                            </span>
-                        </div>
-                        <div className="cx-tb cx-prose">
-                            <Prose text={body} />
-                        </div>
-                    </section>
+                    <TaskBox key={i} stageId={stageId} text={body} />
                 ) : (
                     <Fragment key={i}>
-                        {title && <h3>{title}</h3>}
+                        {title && <h3 className="k-h3">{title}</h3>}
                         <Prose text={body} />
                     </Fragment>
                 ),
             )}
         </>
-    );
-}
-
-function DiffView({ files }: { files: SolutionFile[] }) {
-    return (
-        <>
-            {files.map((f) => (
-                <figure className="cx-diff" key={f.path}>
-                    <pre>
-                        {f.lines.map((l, i) => (
-                            <span key={i} className={`cx-ln${l.startsWith("+") ? " add" : l.startsWith("-") ? " del" : ""}`}>
-                                {l || " "}
-                            </span>
-                        ))}
-                    </pre>
-                    <figcaption>{f.path}</figcaption>
-                </figure>
-            ))}
-        </>
-    );
-}
-
-function ago(iso: string) {
-    const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-    if (s < 60) return "just now";
-    if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-    return `${Math.floor(s / 86400)} d ago`;
-}
-
-/** The recent runs as bars (the tall green part is the share that passed); pick one to look at it. */
-function RunHistory({ runs, selId, onPick }: { runs: CourseRun[]; selId: number; onPick: (id: number) => void }) {
-    const shown = [...runs].reverse();
-    return (
-        <div className="cx-hist" role="group" aria-label="Recent runs">
-            {shown.map((r) => (
-                <button key={r.id} className={`cx-hbar${r.id === selId ? " on" : ""}`} aria-pressed={r.id === selId} onClick={() => onPick(r.id)} aria-label={`Run ${ago(r.at)}: ${r.problem ? "did not run" : `${r.passed} of ${r.total} passed`}`}>
-                    <span className={`bar${r.problem ? " warn" : ""}`}>
-                        <i style={{ height: r.problem ? "100%" : `${r.total ? Math.round((100 * r.passed) / r.total) : 0}%` }} />
-                    </span>
-                    <small>{r.problem ? "—" : `${r.passed}/${r.total}`}</small>
-                    <em>{ago(r.at)}</em>
-                </button>
-            ))}
-        </div>
-    );
-}
-
-/** The Last run tab: the run history, and the chosen run (the newest unless you pick another). */
-function RunTab({ runs, stageId }: { runs: CourseRun[]; stageId: string }) {
-    const [sel, setSel] = useState<number | null>(null);
-    const newest = runs[0];
-    // A run that arrives while the tab is open brings you back to the newest.
-    useEffect(() => setSel(null), [newest?.id]);
-    if (!newest) return null;
-    const run = runs.find((r) => r.id === sel) ?? newest;
-    const prev = runs[runs.findIndex((r) => r.id === run.id) + 1];
-    return (
-        <>
-            {runs.length > 1 && <RunHistory runs={runs} selId={run.id} onPick={setSel} />}
-            <RunPanel key={run.id} run={run} stageId={stageId} prev={prev} />
-        </>
-    );
-}
-
-/** The Concepts tab: the reading for the stage, with what you have read and what is optional. */
-function ConceptsTab({ course, page, queryKey }: { course: string; page: Page; queryKey: unknown[] }) {
-    const qc = useQueryClient();
-    const [flt, setFlt] = useState<"all" | "req" | "opt">("all");
-    const [open, setOpen] = useState<string | null>(null);
-    const mark = useMutation({
-        mutationFn: ({ id, read }: { id: string; read: boolean }) => api.setConceptRead(course, id, read),
-        onMutate: async ({ id, read }) => {
-            // A poll that is already on its way would bring back the old value over this change.
-            await qc.cancelQueries({ queryKey });
-            qc.setQueryData<Page>(queryKey, (old) => old && { ...old, concepts: old.concepts.map((k) => (k.id === id ? { ...k, read } : k)) });
-        },
-        onSettled: () => qc.invalidateQueries({ queryKey }),
-    });
-    const req = page.concepts.filter((k) => k.required);
-    const done = req.filter((k) => k.read).length;
-    const left = req.filter((k) => !k.read).reduce((n, k) => n + k.minutes, 0);
-    const list = page.concepts.filter((k) => flt === "all" || (flt === "req") === k.required);
-    return (
-        <>
-            <div className="cx-chdr">
-                <span className="cx-cring" style={{ "--p": req.length ? Math.round((100 * done) / req.length) : 100 } as React.CSSProperties} aria-hidden="true">
-                    <span>
-                        {done}/{req.length}
-                    </span>
-                </span>
-                <div className="cx-chm">
-                    <b>{req.length === 0 ? "Nothing required to read" : done === req.length ? "Required reading done" : `Required reading: ${done} of ${req.length} done`}</b>
-                    <span>{req.length === 0 ? "These articles are further reading." : done === req.length ? "The optional articles go deeper when you want them." : `About ${left} minutes left. You can pass the stage without it; it saves you the hints.`}</span>
-                </div>
-                {page.concepts.some((k) => !k.required) && (
-                    <div className="cx-rflt" role="group" aria-label="Show">
-                        {([["all", "All"], ["req", "Required"], ["opt", "Optional"]] as const).map(([k, l]) => (
-                            <button key={k} aria-pressed={flt === k} className={flt === k ? "on" : ""} onClick={() => setFlt(k)}>
-                                {l}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
-            {list.map((k) => (
-                <article key={k.id} className={`cx-ccard${k.read ? " read" : ""}${open === k.id ? " open" : ""}`}>
-                    <div className="cx-cch">
-                        <span className="cx-cic" aria-hidden="true">
-                            {k.read ? "✓" : page.concepts.indexOf(k) + 1}
-                        </span>
-                        <div className="cx-cbody">
-                            <h4>
-                                {k.title} <span className={`cx-cbadge ${k.required ? "req" : "opt"}`}>{k.required ? "REQUIRED" : "OPTIONAL"}</span>
-                            </h4>
-                            <p>{k.summary}</p>
-                            <div className="cx-cmeta">
-                                <span>{k.minutes} min read</span>
-                                <span>{k.read ? "read" : "not read yet"}</span>
-                            </div>
-                        </div>
-                        <div className="cx-cact">
-                            <button className="kbtn sm sec" aria-expanded={open === k.id} onClick={() => setOpen(open === k.id ? null : k.id)}>
-                                {open === k.id ? "Close" : "Preview"}
-                            </button>
-                            <Link className="kbtn sm" to="/courses/$course/concept/$id" params={{ course, id: k.id }}>
-                                {k.read ? "Open" : "Read"} <span className="ar">›</span>
-                            </Link>
-                        </div>
-                    </div>
-                    <div className="cx-cprev">
-                        <div inert={open !== k.id}>
-                            <div className="cx-cfoot">
-                                <label>
-                                    <button type="button" role="switch" aria-checked={k.read} className="ksw" aria-label={`Mark "${k.title}" as read`} onClick={() => mark.mutate({ id: k.id, read: !k.read })} />
-                                    Mark as read
-                                </label>
-                                <span>Opening the article does not mark it: you decide when you have read it.</span>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-            ))}
-        </>
-    );
-}
-
-/** The command that tests this stage, with a copy button. */
-function StageCommand({ stageId }: { stageId: string }) {
-    const [copied, setCopied] = useState(false);
-    const cmd = `anneal course test ${stageId}`;
-    const copy = () => {
-        const done = () => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
-        };
-        try {
-            navigator.clipboard.writeText(cmd).then(done, done);
-        } catch {
-            done();
-        }
-    };
-    return (
-        <div className="cx-cli">
-            <span>test this stage</span>
-            <code>{cmd}</code>
-            <button onClick={copy}>{copied ? "COPIED" : "COPY"}</button>
-        </div>
-    );
-}
-
-/** The Run tab: a summary with one segment per test, failures first and open, passes folded, compiler output in its own block. */
-function RunPanel({ run, stageId, prev }: { run: CourseRun; stageId: string; prev?: CourseRun }) {
-    const failed = run.tests.map((t, i) => ({ ...t, i })).filter((t) => !t.ok);
-    const passed = run.tests.filter((t) => t.ok);
-    const [flt, setFlt] = useState<"all" | "bad" | "ok">("all");
-    const [cmp, setCmp] = useState(false);
-    const [open, setOpen] = useState(failed.length === 0 && !run.problem);
-    const [copied, setCopied] = useState(false);
-    // How each test of this run compares with the one before it, by name.
-    const before = new Map((prev?.tests ?? []).map((t) => [t.name, t.ok]));
-    const change = (name: string, ok: boolean) => (!prev || prev.problem || !before.has(name) ? "" : before.get(name) === ok ? "same" : ok ? "fixed" : "new");
-    const prevPassed = prev && !prev.problem ? prev.passed : null;
-    const delta = prev && !run.problem ? (prev.problem ? "first run that compiled" : null) : null;
-    const newlyFailing = failed.filter((t) => change(t.name, false) === "new").length;
-    const same = new Map<string, number>();
-    for (const t of failed) same.set(t.detail.trim(), (same.get(t.detail.trim()) ?? 0) + 1);
-    const first = failed[0];
-    const cmd = run.problem ? `anneal course test ${stageId}` : first ? `anneal course test ${stageId} --only -f ${first.name}` : null;
-    const copy = () => {
-        const done = () => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
-        };
-        try {
-            navigator.clipboard.writeText(cmd ?? "").then(done, done);
-        } catch {
-            done();
-        }
-    };
-    const errors = run.problem ? (run.problem.match(/^error(\[|:)/gm) ?? []).length : 0;
-    const tone = run.problem ? "warn" : failed.length > 0 ? "bad" : "ok";
-    return (
-        <>
-            <div className={`cx-rsum ${tone}`}>
-                <div className="cx-rtop">
-                    <span className="cx-rbig">
-                        {run.problem ? (
-                            <em>Did not run</em>
-                        ) : failed.length > 0 ? (
-                            <>
-                                <em>{failed.length} failed</em> · {passed.length} passed
-                            </>
-                        ) : (
-                            <em>
-                                {run.passed} of {run.total} passed
-                            </em>
-                        )}
-                    </span>
-                    <span className="cx-rmeta">
-                        {ago(run.at)}
-                        {run.commit_sha ? ` · commit ${run.commit_sha.slice(0, 7)}` : ""} · {(run.duration_ms / 1000).toFixed(1)}s
-                    </span>
-                </div>
-                {!run.problem && run.tests.length > 0 && (
-                    <div className="cx-rbar" aria-hidden>
-                        {run.tests.map((t, i) => (
-                            <i key={i} className={t.ok ? "" : "b"} />
-                        ))}
-                    </div>
-                )}
-                {!run.problem && prev && (
-                    <div className="cx-rdelta">
-                        {delta && <span className="eq">{delta}</span>}
-                        {prevPassed !== null && run.passed > prevPassed && <span className="up">▲ {run.passed - prevPassed} more passing</span>}
-                        {prevPassed !== null && run.passed < prevPassed && <span className="dn">▼ {prevPassed - run.passed} fewer passing</span>}
-                        {prevPassed !== null && run.passed === prevPassed && <span className="eq">same result as the run before</span>}
-                        {newlyFailing > 0 && <span className="dn">{newlyFailing} newly failing</span>}
-                    </div>
-                )}
-                {cmd && (
-                    <div className="cx-rcmd">
-                        <span>{run.problem ? "compile locally" : "run again"}</span>
-                        <code>{cmd}</code>
-                        <button onClick={copy}>{copied ? "COPIED" : "COPY"}</button>
-                    </div>
-                )}
-            </div>
-
-            {!run.problem && run.tests.length > 0 && (
-                <div className="cx-rtool">
-                    <div className="cx-rflt" role="group" aria-label="Show">
-                        {([["all", "All"], ["bad", "Failed"], ["ok", "Passed"]] as const).map(([k, l]) => (
-                            <button key={k} aria-pressed={flt === k} className={flt === k ? "on" : ""} onClick={() => setFlt(k)}>
-                                {l}
-                            </button>
-                        ))}
-                    </div>
-                    {prev && !prev.problem && (
-                        <label className="cx-rcmp">
-                            <button type="button" role="switch" aria-checked={cmp} className="ksw" onClick={() => setCmp(!cmp)} aria-label="Compare with the previous run" />
-                            Compare with the previous run
-                        </label>
-                    )}
-                </div>
-            )}
-
-            {run.problem && (
-                <>
-                    <div className="cx-rsec warn">COMPILER OUTPUT</div>
-                    <div className="cx-rprob">
-                        <div className="cx-rhead">
-                            <span className="cx-sq" />
-                            <span className="cx-tn">{errors > 0 ? `${errors} error${errors === 1 ? "" : "s"}` : "no tests ran"}</span>
-                            <small>as the compiler printed it</small>
-                        </div>
-                        <pre>
-                            {run.problem.split("\n").map((l, i) => (
-                                <div key={i} className={/^error(\[|:)/.test(l) ? "er" : /^\s*-->/.test(l) ? "pt" : /^\s*(\d+\s*)?\|/.test(l) ? "dm" : undefined}>
-                                    {l || " "}
-                                </div>
-                            ))}
-                        </pre>
-                    </div>
-                </>
-            )}
-
-            {failed.length > 0 && flt !== "ok" && (
-                <>
-                    <div className="cx-rsec bad">FAILED · {failed.length}</div>
-                    {failed.map((t) => {
-                        const n = (same.get(t.detail.trim()) ?? 1) - 1;
-                        return (
-                            <div className="cx-rfail" key={t.name}>
-                                <div className="cx-rhead">
-                                    <span className="cx-sq" />
-                                    <span className="cx-tn">{t.name}</span>
-                                    {cmp && change(t.name, false) ? (
-                                        <small className={`cx-rtag ${change(t.name, false) === "new" ? "new" : "same"}`}>{change(t.name, false) === "new" ? "NEWLY FAILING" : "STILL FAILING"}</small>
-                                    ) : (
-                                        <small>
-                                            test {t.i + 1} of {run.tests.length}
-                                        </small>
-                                    )}
-                                </div>
-                                {t.detail && (
-                                    <div className="cx-rbody">
-                                        {n > 0 && (
-                                            <p className="cx-rshared">
-                                                same message as {n} other test{n === 1 ? "" : "s"}
-                                            </p>
-                                        )}
-                                        <pre>{t.detail}</pre>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </>
-            )}
-
-            {passed.length > 0 && flt !== "bad" && (
-                <>
-                    <div className="cx-rsec ok">PASSED · {passed.length}</div>
-                    <div className={`cx-rfold${open || flt === "ok" ? " open" : ""}`}>
-                        <button className="cx-rfoldh" onClick={() => setOpen(!open)} aria-expanded={open || flt === "ok"}>
-                            <span className="cx-sq" />
-                            <span className="cx-tn">
-                                {failed.length === 0 ? "all tests" : passed.length > 2 ? `${passed.slice(0, 2).map((t) => t.name).join(", ")} and ${passed.length - 2} more` : passed.map((t) => t.name).join(", ")}
-                            </span>
-                            <span className="cx-rchev">›</span>
-                        </button>
-                        {(open || flt === "ok") && (
-                            <div className="cx-rlist">
-                                {passed.map((t) => (
-                                    <div className="cx-rrow" key={t.name}>
-                                        <span className="cx-sq" />
-                                        {t.name}
-                                        {cmp && change(t.name, true) === "fixed" && <small className="cx-rtag fix">FIXED SINCE THE RUN BEFORE</small>}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </>
-            )}
-        </>
-    );
-}
-
-function Sidebar({ course, page, panels }: { course: string; page: Page; panels: PanelsApi }) {
-    const overview = useQuery({ queryKey: ["course", course], queryFn: () => api.course(course) });
-    const o = overview.data;
-    const here = page.module.code;
-    // Modules open and close on their own; the one you are in is always open when you arrive in it.
-    const [open, setOpen] = useState<Set<string>>(() => new Set([here]));
-    useEffect(() => setOpen((prev) => (prev.has(here) ? prev : new Set(prev).add(here))), [here]);
-    const [find, setFind] = useState("");
-    const needle = find.trim().toLowerCase();
-    const pct = o && o.total ? Math.round((100 * o.done) / o.total) : 0;
-    const { p: pp, update, drawer, setDrawer } = panels;
-    const toggle = (code: string) =>
-        setOpen((prev) => {
-            const next = new Set(prev);
-            if (!next.delete(code)) next.add(code);
-            return next;
-        });
-    const mine = o?.projects.flatMap((p) => p.modules).find((m) => m.code === here);
-    // Bring the current stage into view in the tree (the tree scrolls, not the page).
-    const tree = useRef<HTMLElement>(null);
-    useEffect(() => {
-        const box = tree.current;
-        const leaf = box?.querySelector<HTMLElement>(".cx-leaf.cur");
-        if (!box || !leaf) return;
-        const top = leaf.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
-        box.scrollTop = Math.max(0, top - box.clientHeight / 2);
-    }, [page.stage.id, o]);
-    return (
-        <aside className={`cx-side${pp.lc ? " rail" : ""}${drawer === "l" ? " open" : ""}`} aria-label="Course">
-            <Resizer side="l" panels={panels} />
-            <div className="cx-sh2">
-                <span className="cx-cring" style={{ "--p": pct } as React.CSSProperties} aria-hidden="true">
-                    <span>{pct}%</span>
-                </span>
-                <div className="cx-shm">
-                    <b>{page.course.title}</b>
-                    <small>{o ? `${o.done} of ${o.total} stages passed` : ""}</small>
-                </div>
-                <button className="cx-pbtn cx-collapse" aria-label={pp.lc ? "Expand the course panel" : "Collapse the course panel"} title="Collapse (Ctrl/⌘ B)" onClick={() => update({ ...pp, lc: !pp.lc })}>
-                    {pp.lc ? "»" : "«"}
-                </button>
-                <button className="cx-pbtn cx-dclose" aria-label="Close" onClick={() => setDrawer(null)}>
-                    ×
-                </button>
-            </div>
-            <label className="cx-sfind">
-                <span aria-hidden="true">⌕</span>
-                <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="filter stages…" aria-label="Filter stages" autoComplete="off" spellCheck={false} onKeyDown={(e) => e.key === "Escape" && e.currentTarget.blur()} />
-            </label>
-            <nav className="cx-tree" aria-label="Course" ref={tree}>
-                {o?.projects.map((p) => {
-                    const mods = p.modules.filter((m) => !needle || m.stages.some((s) => `${s.title} ${s.id}`.toLowerCase().includes(needle)));
-                    if (needle && mods.length === 0) return null;
-                    return (
-                        <Fragment key={p.number}>
-                            <Link className={`cx-node${p.modules.length ? "" : " dim"}`} to="/courses/$course" params={{ course }}>
-                                <span className="cx-nt">
-                                    Project {p.number} · {p.title}
-                                </span>
-                                <span className="cx-nc">{p.modules.length ? `${p.modules.flatMap((m) => m.stages).filter((s) => s.state !== "todo").length}/${p.modules.flatMap((m) => m.stages).length}` : "planned"}</span>
-                            </Link>
-                            {mods.length > 0 && (
-                                <div className="cx-kids">
-                                    {mods.map((m) => {
-                                        const isOpen = needle ? true : open.has(m.code);
-                                        const leaves = needle ? m.stages.filter((s) => `${s.title} ${s.id}`.toLowerCase().includes(needle)) : m.stages;
-                                        const done = m.stages.filter((s) => s.state !== "todo").length;
-                                        return (
-                                            <Fragment key={m.code}>
-                                                <button className="cx-node cx-mrow" aria-expanded={isOpen} onClick={() => toggle(m.code)} disabled={!!needle}>
-                                                    <span className="cx-car">{isOpen ? "▾" : "▸"}</span>
-                                                    <span className="cx-nt">
-                                                        {m.code} · {m.title}
-                                                    </span>
-                                                    <span className="cx-nc">
-                                                        {done}/{m.stages.length}
-                                                    </span>
-                                                </button>
-                                                <div className={`cx-mbody${isOpen ? " open" : ""}`}>
-                                                    <div inert={!isOpen}>
-                                                        <div className="cx-leaves">
-                                                            {leaves.map((s: CourseStageRow) => (
-                                                                <Link key={s.id} className={`cx-leaf${s.id === page.stage.id ? " cur" : ""}${s.kind === "boss" ? " boss" : ""}`} to="/courses/$course/$stage" params={{ course, stage: s.id }} onClick={() => setDrawer(null)}>
-                                                                    <span className={`cx-si${s.state !== "todo" ? " ok" : s.id === page.stage.id ? " now" : ""}${s.state === "assisted" ? " asst" : ""}`} title={s.state === "assisted" ? "passed with help" : undefined}>{s.state !== "todo" ? "✓" : ""}</span>
-                                                                    <span className="cx-ln2">{s.id.split("-")[1]}</span>
-                                                                    <span className="cx-lt">{s.title}</span>
-                                                                    <DifficultyBars d={s.difficulty} />
-                                                                </Link>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </Fragment>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </Fragment>
-                    );
-                })}
-                {needle && !o?.projects.some((p) => p.modules.some((m) => m.stages.some((s) => `${s.title} ${s.id}`.toLowerCase().includes(needle)))) && <p className="cx-snone">No stage matches that.</p>}
-            </nav>
-            <div className="cx-rail" aria-label="This module">
-                {mine?.stages.map((s) => (
-                    <Link key={s.id} className={`cx-rdot${s.id === page.stage.id ? " cur" : ""}`} to="/courses/$course/$stage" params={{ course, stage: s.id }} title={`${s.id.split("-")[1]} · ${s.title}`} aria-label={s.title}>
-                        <span className={`cx-si${s.state !== "todo" ? " ok" : s.id === page.stage.id ? " now" : ""}${s.state === "assisted" ? " asst" : ""}`}>{s.state !== "todo" ? "✓" : ""}</span>
-                    </Link>
-                ))}
-            </div>
-        </aside>
-    );
-}
-
-/** Sections that go beyond what passing the stage needs; they can be hidden. */
-const OPTIONAL_SECTIONS = new Set(["performance", "learn-more"]);
-
-/** Three small bars for the difficulty: one lit for easy, two for medium, three for hard. */
-function DifficultyBars({ d }: { d: StageDifficulty }) {
-    const n = d === "hard" ? 3 : d === "medium" ? 2 : 1;
-    return (
-        <span className="cx-dbars" style={{ color: DIFFICULTY_COLOR[d] }} title={d}>
-            <i className={n >= 1 ? "on" : ""} />
-            <i className={n >= 2 ? "on" : ""} />
-            <i className={n >= 3 ? "on" : ""} />
-        </span>
     );
 }
 
@@ -552,24 +85,29 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
         qc.invalidateQueries({ queryKey: ["course", course] });
     };
     const hint = useMutation({ mutationFn: () => api.revealCourseHint(course, stage), onSuccess: set });
-    const sol = useMutation({ mutationFn: () => api.revealCourseSolution(course, stage), onSuccess: set });
+    const sol = useMutation({
+        mutationFn: () => api.revealCourseSolution(course, stage),
+        onSuccess: (p) => {
+            set(p);
+            toast("ok", "Solution opened", "This stage will count as assisted.");
+        },
+    });
     const p = q.data;
     const [active, setActive] = useState("s-top");
-    const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
-    // The tests-passed popup (unless "don't show again" is on, then the toast below says it).
+    // The tests-passed popup (unless "don't show again" is on, then a toast says it).
     const [win, setWin] = useState(false);
     // Sidenotes written in the text (`^[...]`): shown in the page panel, numbered in the order they appear.
-    const [notes, setNotes] = useState<{ n: number; html: string }[]>([]);
+    const [notes, setNotes] = useState<{ n: number; html: string; code: boolean }[]>([]);
     const [selNote, setSelNote] = useState<number | null>(null);
-    const [curNote, setCurNote] = useState<number | null>(null);
-    // Optional sections (Performance, Learn more): shown unless you chose to hide them; each can be flipped on its own.
+    const [curNotes, setCurNotes] = useState<number[]>([]);
+    // Optional sections: hidden or shown for all stages (remembered); each one opens on its own.
     const [optHidden, setOptHidden] = useState<boolean>(() => getPref("optional.hidden", false));
     const [flipped, setFlipped] = useState<Set<string>>(() => new Set());
+    const [openOpt, setOpenOpt] = useState<Set<string>>(() => new Set());
+    const [strip, setStrip] = useState(false);
+    const [time, setTime] = useState("25:00");
     const seenRun = useRef<number | null>(null);
-    const tabFromHash = (): Tab => {
-        const h = location.hash.slice(1);
-        return (["instructions", "hints", "solution", "concepts", "run"] as const).find((x) => x === h) ?? "instructions";
-    };
+    const tabFromHash = (): Tab => TAB_IDS.find((x) => x === location.hash.slice(1)) ?? "instructions";
     const [tab, setTab] = useState<Tab>(tabFromHash);
     // Each tab keeps its own scroll position, so going to Hints and back returns to where you were reading.
     const scrolls = useRef<Partial<Record<Tab, number>>>({});
@@ -587,14 +125,36 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
         window.scrollTo({ top: restore.current });
         restore.current = null;
     }, [tab]);
-
     useEffect(() => {
         window.scrollTo({ top: 0 });
     }, [stage]);
+
+    // The sliding underline under the active tab.
+    const tabsRef = useRef<HTMLDivElement>(null);
+    const placeUnderline = () => {
+        const box = tabsRef.current;
+        const on = box?.querySelector<HTMLElement>("button.k-on");
+        const ul = box?.querySelector<HTMLElement>(".k-ul");
+        if (!on || !ul || !on.offsetWidth) return;
+        ul.style.width = `${on.offsetWidth}px`;
+        ul.style.transform = `translateX(${on.offsetLeft}px)`;
+    };
+    useLayoutEffect(placeUnderline);
+    useEffect(() => {
+        addEventListener("resize", placeUnderline);
+        // The panels slide for a moment when they open or close and the column changes width with them.
+        const t = setTimeout(placeUnderline, 450);
+        document.fonts?.ready.then(placeUnderline);
+        return () => {
+            removeEventListener("resize", placeUnderline);
+            clearTimeout(t);
+        };
+    }, [panels.p.lc, panels.p.rc, !!p]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // A run that arrives while the page is open (or one from the last half minute) pops a result: "Tests passed, proceed" or the count.
     const lastRun = p?.last_run ?? null;
     useEffect(() => {
-        if (!lastRun) return;
+        if (!lastRun || !p) return;
         const first = seenRun.current === null;
         if (seenRun.current === lastRun.id) return;
         seenRun.current = lastRun.id;
@@ -605,14 +165,10 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
             setWin(true);
             return;
         }
-        setToast(
-            lastRun.ok
-                ? { ok: true, text: "Tests passed" }
-                : { ok: false, text: lastRun.problem ? "The tests did not run" : `${lastRun.passed} of ${lastRun.total} passing` },
-        );
-        if (!lastRun.ok) {
-            const t = setTimeout(() => setToast(null), 9000);
-            return () => clearTimeout(t);
+        if (lastRun.ok) {
+            toast("ok", "Tests passed", p.next ? "Moving on is one click away." : "That was the last stage.", p.next ? { label: `PROCEED TO ${p.next.title.toUpperCase()} →`, run: () => nav({ to: "/courses/$course/$stage", params: { course, stage: p.next!.id } }) } : undefined);
+        } else {
+            toast("er", lastRun.problem ? "The tests did not run" : `${lastRun.passed} of ${lastRun.total} passing`, undefined, { label: "SEE DETAILS →", run: () => pick("run") });
         }
     }, [lastRun?.id]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
@@ -624,79 +180,149 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [p, course, nav]);
-    const ids = p ? ["s-top", ...p.stage.sections.map((s) => `sec-${s.id}`)] : [];
+
+    // What the page lists, in order: the stage's sections.
+    const entries = useMemo(() => {
+        if (!p) return [];
+        return p.stage.sections.map((s) => ({ id: `sec-${s.id}`, title: s.title, optional: OPTIONAL_SECTIONS.has(s.id), md: s.md }));
+    }, [p]);
+    const ids = ["s-top", ...entries.map((e) => e.id)];
+    const idsKey = ids.join();
+
+    // Which section the outline marks, and the marker that slides to it.
     useEffect(() => {
         const onScroll = () => {
             let cur = ids[0] ?? "s-top";
             for (const id of ids) {
                 const el = document.getElementById(id);
-                if (el && el.getBoundingClientRect().top < 200) cur = id;
+                if (el && el.getBoundingClientRect().top < 140) cur = id;
             }
             setActive(cur);
         };
         window.addEventListener("scroll", onScroll, { passive: true });
         onScroll();
         return () => window.removeEventListener("scroll", onScroll);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [p?.stage.id]);
-
-    // Number the sidenote markers on the page and collect their text for the panel.
-    useEffect(() => {
-        const found: { n: number; html: string }[] = [];
-        document.querySelectorAll<HTMLElement>(".cx-col .cx-snm").forEach((m, i) => {
-            m.textContent = String(i + 1);
-            m.dataset.sn = String(i + 1);
-            const body = m.nextElementSibling;
-            if (body instanceof HTMLElement && body.classList.contains("cx-snb")) {
-                body.dataset.sn = String(i + 1);
-                found.push({ n: i + 1, html: body.innerHTML });
-            }
-        });
-        setNotes((prev) => (JSON.stringify(prev) === JSON.stringify(found) ? prev : found));
+    }, [idsKey, tab]); // eslint-disable-line react-hooks/exhaustive-deps
+    const outline = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        const box = outline.current;
+        const mk = box?.querySelector<HTMLElement>(".k-mk");
+        const on = box?.querySelector<HTMLElement>("a.k-on");
+        if (!mk || !on) return;
+        mk.style.transform = `translateY(${on.offsetTop}px)`;
+        mk.style.height = `${on.offsetHeight}px`;
     });
-    // A marker opens its note in the panel, or under the paragraph when the panel is not on screen.
+
+    // The reading-progress bar, the condensed header and the back-to-top ring follow the scroll (written straight to the elements).
+    const barRef = useRef<HTMLDivElement>(null);
+    const pheadRef = useRef<HTMLDivElement>(null);
+    const pctRef = useRef<HTMLSpanElement>(null);
+    const topRef = useRef<HTMLButtonElement>(null);
+    const ringRef = useRef<SVGCircleElement>(null);
     useEffect(() => {
-        const open = (m: HTMLElement) => {
-            const n = Number(m.dataset.sn);
-            if (window.innerWidth > 1100 && !panels.p.rc) {
-                setSelNote((cur) => (cur === n ? null : n));
-                document.querySelector(`.cx-pnote[data-sn="${n}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-            } else {
-                const on = m.nextElementSibling?.classList.toggle("open");
-                m.setAttribute("aria-expanded", String(!!on));
-            }
-        };
-        const onClick = (e: MouseEvent) => {
-            const m = (e.target as HTMLElement).closest<HTMLElement>(".cx-snm");
-            if (m) open(m);
-        };
-        const onKey = (e: KeyboardEvent) => {
-            const m = (e.target as HTMLElement).closest<HTMLElement>(".cx-snm");
-            if (m && (e.key === "Enter" || e.key === " ")) (e.preventDefault(), open(m));
-        };
-        document.addEventListener("click", onClick);
-        document.addEventListener("keydown", onKey);
-        return () => {
-            document.removeEventListener("click", onClick);
-            document.removeEventListener("keydown", onKey);
-        };
-    }, [panels.p.rc]);
-    // The note for the text you are reading stands out in the panel.
-    useEffect(() => {
-        if (notes.length === 0) return;
         const onScroll = () => {
-            let cur: number | null = null;
-            for (const m of document.querySelectorAll<HTMLElement>(".cx-col .cx-snm")) {
-                const top = m.getBoundingClientRect().top;
-                if (top < window.innerHeight * 0.55) cur = Number(m.dataset.sn);
-                if (top >= window.innerHeight * 0.55) break;
-            }
-            setCurNote(cur);
+            const h = document.documentElement;
+            const f = Math.min(1, h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight));
+            if (barRef.current) barRef.current.style.width = `${100 * f}%`;
+            if (pctRef.current) pctRef.current.textContent = `${Math.round(100 * f)}% read`;
+            pheadRef.current?.classList.toggle("k-show", h.scrollTop > 220 && h.scrollHeight - h.clientHeight > 300);
+            topRef.current?.classList.toggle("k-show", h.scrollTop > 500);
+            if (ringRef.current) ringRef.current.style.strokeDashoffset = String(126 * (1 - f));
         };
         window.addEventListener("scroll", onScroll, { passive: true });
         onScroll();
         return () => window.removeEventListener("scroll", onScroll);
-    }, [notes.length]);
+    }, [!!p]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Number the sidenote markers on the page and collect their text for the panel.
+    useEffect(() => {
+        const found: { n: number; html: string; code: boolean }[] = [];
+        let n = 0;
+        document.querySelectorAll<HTMLElement>(".k-read2 .k-snr").forEach((row) => {
+            const marks = [...row.querySelectorAll<HTMLElement>(".k-snm")];
+            const asides = [...row.querySelectorAll<HTMLElement>(".k-sn")];
+            marks.forEach((m, i) => {
+                n++;
+                m.textContent = String(n);
+                m.dataset.sn = String(n);
+                const a = asides[i];
+                if (!a) return;
+                a.dataset.sn = String(n);
+                const b = a.querySelector("b");
+                if (b) b.textContent = String(n);
+                const body = a.cloneNode(true) as HTMLElement;
+                body.querySelector("b")?.remove();
+                found.push({ n, html: body.innerHTML, code: !!body.querySelector("pre") });
+            });
+        });
+        setNotes((prev) => (JSON.stringify(prev) === JSON.stringify(found) ? prev : found));
+    });
+    const panelOn = () => !panels.p.rc && innerWidth > 1100;
+    // A marker opens its note in the panel, or under the paragraph when the panel is not on screen.
+    useEffect(() => {
+        const open = (m: HTMLElement) => {
+            const num = Number(m.dataset.sn);
+            if (panelOn()) {
+                setSelNote((cur) => (cur === num ? null : num));
+                document.querySelector(`.k-pnote[data-sn="${num}"]`)?.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
+            } else {
+                const on = m.closest(".k-snr")?.querySelector(`.k-sn[data-sn="${num}"]`)?.classList.toggle("k-open");
+                m.setAttribute("aria-expanded", String(!!on));
+            }
+        };
+        const onClick = (e: MouseEvent) => {
+            const m = (e.target as HTMLElement).closest<HTMLElement>(".k-snm");
+            if (m) open(m);
+        };
+        const onKey = (e: KeyboardEvent) => {
+            const m = (e.target as HTMLElement).closest<HTMLElement>(".k-snm");
+            if (m && (e.key === "Enter" || e.key === " ")) (e.preventDefault(), open(m));
+        };
+        const over = (e: MouseEvent) => {
+            const m = (e.target as HTMLElement).closest<HTMLElement>(".k-snm");
+            if (m) document.querySelector(`.k-pnote[data-sn="${m.dataset.sn}"]`)?.classList.add("k-sel");
+        };
+        const out = (e: MouseEvent) => {
+            const m = (e.target as HTMLElement).closest<HTMLElement>(".k-snm");
+            if (m) document.querySelector(`.k-pnote[data-sn="${m.dataset.sn}"]`)?.classList.remove("k-sel");
+        };
+        document.addEventListener("click", onClick);
+        document.addEventListener("keydown", onKey);
+        document.addEventListener("mouseover", over);
+        document.addEventListener("mouseout", out);
+        return () => {
+            document.removeEventListener("click", onClick);
+            document.removeEventListener("keydown", onKey);
+            document.removeEventListener("mouseover", over);
+            document.removeEventListener("mouseout", out);
+        };
+    }, [panels.p.rc]); // eslint-disable-line react-hooks/exhaustive-deps
+    // The notes of the paragraph you are reading stand out in the panel.
+    useEffect(() => {
+        if (notes.length === 0) return;
+        let last = "";
+        const onScroll = () => {
+            const rows = [...document.querySelectorAll<HTMLElement>(".k-read2 .k-snr")];
+            let cur: HTMLElement | undefined;
+            for (const r of rows) {
+                const b = r.getBoundingClientRect();
+                if (b.top < 230 && b.bottom > 110) cur = r;
+            }
+            cur ??= rows.find((r) => r.getBoundingClientRect().top >= 230);
+            const nums = cur ? [...cur.querySelectorAll<HTMLElement>(".k-snm")].map((m) => Number(m.dataset.sn)) : [];
+            if (nums.join() === last) return;
+            last = nums.join();
+            setCurNotes(nums);
+            const f = nums[0];
+            if (f && panelOn()) document.querySelector(`.k-pnote[data-sn="${f}"]`)?.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
+        };
+        window.addEventListener("scroll", onScroll, { passive: true });
+        const t = setTimeout(onScroll, 100);
+        return () => {
+            window.removeEventListener("scroll", onScroll);
+            clearTimeout(t);
+        };
+    }, [notes.length, tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (q.isError) {
         return (
@@ -724,85 +350,474 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     }
     const inModule = p.module.stages.findIndex((s) => s.id === p.stage.id);
     const run = p.last_run;
-    const nextHint = p.hints.revealed.length < p.hints.total ? p.hints.titles[p.hints.revealed.length] : null;
-    const toc: [string, string][] = [["s-top", "Overview"], ...p.stage.sections.map((s): [string, string] => [`sec-${s.id}`, s.title])];
+    const cmd = `anneal course test ${p.stage.id}`;
+    const reqConcepts = p.concepts.filter((k) => k.required);
+    const reqDone = reqConcepts.filter((k) => k.read).length;
+    const failedFirst = run?.tests.find((t) => !t.ok);
+    const outlineEntries: [string, string][] = [["s-top", "Overview"], ...entries.map((e): [string, string] => [e.id, e.title])];
     const tabs: [Tab, string, string][] = [
         ["instructions", "Instructions", ""],
         ["hints", "Hints", p.hints.total ? `${p.hints.revealed.length}/${p.hints.total}` : ""],
         ["solution", "Solution", ""],
-        ["concepts", "Concepts", p.concepts.length ? `${p.concepts.filter((k) => k.required && k.read).length}/${p.concepts.filter((k) => k.required).length}` : ""],
-        ["run", "Last run", run ? (run.ok ? "✓" : `${run.passed}/${run.total}`) : ""],
+        ["concepts", "Concepts", reqConcepts.length ? `${reqDone}/${reqConcepts.length}` : p.concepts.length ? String(p.concepts.length) : ""],
+        ["run", "Last run", run ? (run.problem ? "—" : `${run.passed}/${run.total}`) : ""],
     ];
+    const hidden = (id: string) => optHidden && !flipped.has(id);
+    const flip = (id: string) =>
+        setFlipped((f) => {
+            const n = new Set(f);
+            if (!n.delete(id)) n.add(id);
+            return n;
+        });
+    const copyCmd = () => {
+        try {
+            navigator.clipboard.writeText(cmd).then(() => toast("ok", "Command copied", cmd), () => toast("in", "Run it in your repo", cmd));
+        } catch {
+            toast("in", "Run it in your repo", cmd);
+        }
+    };
+    let number = 0;
+    const part = (title: string) => /^Part (\d+) · (.*)$/.exec(title);
     return (
         <>
             <Header area="courses" />
-            <div className="subbar cx-sub">
-                <div className="crumb">
-                    <Link to="/courses" style={{ color: "var(--grn)" }}>
-                        COURSES
-                    </Link>
-                    <span>/</span>
-                    <span>PROJECT {p.module.project}</span>
-                    <span>/</span>
+            <MockRoot>
+                <div className="k-read" ref={barRef} aria-hidden="true" />
+                <div className="k-phead" ref={pheadRef}>
+                    <b>{p.stage.title}</b>
                     <span>
-                        {p.module.code.toUpperCase()} {p.module.title.toUpperCase()}
+                        {p.module.code.toUpperCase()} · stage {inModule + 1} of {p.module.stages.length}
                     </span>
+                    <span className="k-sp" />
+                    <span className="k-pct" ref={pctRef}>0% read</span>
+                    <button className="k-cta k-sm k-fx" onClick={copyCmd}>
+                        <span className="k-lbl">Run tests</span>
+                    </button>
                 </div>
-                <div className="vr" />
-                <span className="wtitle">{p.stage.title}</span>
-                <div className="subpills">
-                    <span className="pill solid" style={{ background: p.stage.kind === "boss" ? "var(--warn)" : "var(--grn)" }}>
-                        {p.stage.kind === "boss" ? "BOSS" : "STAGE"}
-                    </span>
-                    <span className="pill" style={{ borderColor: DIFFICULTY_COLOR[p.stage.difficulty], color: DIFFICULTY_COLOR[p.stage.difficulty] }}>
-                        {DIFFICULTY_LABEL[p.stage.difficulty]}
-                    </span>
-                    {p.state !== "todo" && <span className="pill">{p.state === "assisted" ? "PASSED · ASSISTED" : "PASSED"}</span>}
+                <div className="k-mbar" id="mbar">
+                    <button onClick={() => panels.setDrawer(panels.drawer === "l" ? null : "l")} aria-expanded={panels.drawer === "l"}>
+                        ☰ Stages <b>{inModule + 1}/{p.module.stages.length}</b>
+                    </button>
+                    <button onClick={() => panels.setDrawer(panels.drawer === "r" ? null : "r")} aria-expanded={panels.drawer === "r"}>
+                        ▤ Page &amp; notes <b>{notes.length}</b>
+                    </button>
+                    <span className="k-sp" />
+                    <button
+                        className="k-tm2"
+                        onClick={() => {
+                            panels.setDrawer("r");
+                            setTimeout(() => document.getElementById("focus")?.scrollIntoView({ block: "end", behavior: reducedMotion() ? "auto" : "smooth" }), 420);
+                        }}
+                    >
+                        ⏱ <span>{time}</span>
+                    </button>
                 </div>
-                <div className="sbr">
-                    {(panels.p.lc || panels.p.rc) && (
-                        <span className="cx-reopen">
-                            {panels.p.lc && (
-                                <button onClick={() => panels.update({ ...panels.p, lc: false })} aria-label="Show the course panel" title="Show the course panel (Ctrl/⌘ B)">
-                                    ☰
+                <div className={`k-dbk${panels.drawer ? " k-on" : ""}`} onClick={() => panels.setDrawer(null)} aria-hidden="true" />
+                <div
+                    className={`k-stage${panels.dragging ? " k-dragging" : ""}${panels.p.lc ? " k-lc" : ""}${panels.p.rc ? " k-rc" : ""}`}
+                    style={{ "--lw": `${panels.p.l}px`, "--rw": `${panels.p.r}px` } as React.CSSProperties}
+                >
+                    <Tree course={course} page={p} panels={panels} />
+                    <main className="k-read2" key={p.stage.id}>
+                        <div className="k-eye k-rv" style={{ "--i": 0 } as React.CSSProperties} id="s-top">
+                            <b>
+                                {p.module.code.toUpperCase()} · STAGE {inModule + 1} OF {p.module.stages.length}
+                            </b>{" "}
+                            / {DIFFICULTY_LABEL[p.stage.difficulty]} / #{p.stage.id}
+                            {p.state !== "todo" && <> / {p.state === "assisted" ? "PASSED · ASSISTED" : "PASSED"}</>}
+                        </div>
+                        <h2 className="k-ttl k-rv" style={{ "--i": 1 } as React.CSSProperties}>
+                            {p.stage.title}
+                        </h2>
+                        <div className="k-cli k-rv" style={{ "--i": 2 } as React.CSSProperties}>
+                            <span>test this stage</span>
+                            <code>{cmd}</code>
+                            <MockCopy text={cmd} />
+                        </div>
+                        {p.stage.learn.length > 0 && (
+                            <div className="k-learn k-rv" style={{ "--i": 3 } as React.CSSProperties}>
+                                <span>YOU'LL LEARN</span>
+                                {p.stage.learn.map((l) => (
+                                    <span className="k-cp" key={l}>
+                                        {l}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                        <div
+                            className="k-tabs k-rv"
+                            ref={tabsRef}
+                            style={{ "--i": 4 } as React.CSSProperties}
+                            role="tablist"
+                            aria-label="Stage"
+                            onKeyDown={(e) => {
+                                const i = TAB_IDS.indexOf(tab);
+                                const n = e.key === "ArrowRight" ? (i + 1) % 5 : e.key === "ArrowLeft" ? (i + 4) % 5 : e.key === "Home" ? 0 : e.key === "End" ? 4 : -1;
+                                if (n < 0) return;
+                                e.preventDefault();
+                                pick(TAB_IDS[n] as Tab);
+                                setTimeout(() => tabsRef.current?.querySelectorAll<HTMLElement>("[role=tab]")[n]?.focus(), 0);
+                            }}
+                        >
+                            {tabs.map(([k, label, n]) => (
+                                <button key={k} role="tab" aria-selected={tab === k} aria-controls={`pane-${k}`} tabIndex={tab === k ? 0 : -1} className={tab === k ? "k-on" : ""} onClick={() => pick(k)}>
+                                    {label}
+                                    {n !== "" && <> <small>{n}</small></>}
                                 </button>
+                            ))}
+                            <span className="k-ul" />
+                        </div>
+
+                        <section className="k-pane k-on" key={tab} id={`pane-${tab}`} role="tabpanel">
+                            {tab === "instructions" && (
+                                <>
+                                    {p.concepts.length > 0 && (
+                                        <a
+                                            className="k-read-first"
+                                            href="#concepts"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                pick("concepts");
+                                            }}
+                                        >
+                                            <b>READ FIRST</b>
+                                            <span>
+                                                {p.concepts[0]?.title}
+                                                {p.concepts.length > 1 && <> · and {p.concepts.length - 1} more</>}
+                                            </span>
+                                            <em>~{p.concepts.reduce((n, k) => n + k.minutes, 0)} min</em>
+                                        </a>
+                                    )}
+                                    {p.stage.intro && <Prose text={p.stage.intro} />}
+                                    {entries.map((e, i) => {
+                                        const nextIsOpt = e.optional && !entries[i + 1]?.optional;
+                                        if (e.optional) {
+                                            const id = e.id.replace(/^sec-/, "");
+                                            const isOpen = openOpt.has(id);
+                                            return (
+                                                <Fragment key={e.id}>
+                                                    <div className={`k-opt${isOpen ? " k-open" : ""}${hidden(id) ? " k-hid" : ""}`} id={e.id}>
+                                                        <button
+                                                            className="k-oh"
+                                                            aria-expanded={isOpen}
+                                                            onClick={() =>
+                                                                setOpenOpt((s) => {
+                                                                    const n = new Set(s);
+                                                                    if (!n.delete(id)) n.add(id);
+                                                                    return n;
+                                                                })
+                                                            }
+                                                        >
+                                                            <span className="k-badge2 k-op">OPTIONAL</span>
+                                                            <b>{e.title}</b>
+                                                            <span className="k-r">
+                                                                <span className="k-chev" style={{ transform: isOpen ? "rotate(90deg)" : undefined }}>›</span>
+                                                            </span>
+                                                        </button>
+                                                        <div className="k-ob">
+                                                            <div inert={!isOpen}>
+                                                                <div className="k-in2">
+                                                                    <Body text={e.md} stageId={p.stage.id} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {nextIsOpt && (
+                                                        <div className="k-bar2">
+                                                            <button
+                                                                className="k-cta k-xs k-sec k-fx"
+                                                                onClick={() => {
+                                                                    setOptHidden(!optHidden);
+                                                                    setPref("optional.hidden", !optHidden);
+                                                                    setFlipped(new Set());
+                                                                    toast("in", !optHidden ? "Optional sections hidden" : "Optional sections shown");
+                                                                }}
+                                                            >
+                                                                <span className="k-lbl">{optHidden ? "Show optional sections" : "Hide optional sections"}</span>
+                                                            </button>
+                                                            <span style={{ font: "500 11px var(--mono)", color: "var(--dim)" }}>remembered for next stages</span>
+                                                        </div>
+                                                    )}
+                                                </Fragment>
+                                            );
+                                        }
+                                        number++;
+                                        const pt = part(e.title);
+                                        return (
+                                            <Fragment key={e.id}>
+                                                <div className="k-sh" id={e.id}>
+                                                    <b>{pt ? `PART ${pt[1]}` : String(number).padStart(2, "0")}</b>
+                                                    {(pt ? pt[2] ?? "" : e.title).toUpperCase()}
+                                                </div>
+                                                {e.title === "The task" ? <TaskBox stageId={p.stage.id} text={e.md} /> : <Body text={e.md} stageId={p.stage.id} />}
+                                                {e.id === "sec-tests" && run && run.tests.length > 0 && (
+                                                    <div className="k-tests" style={{ marginTop: 14 }}>
+                                                        {run.tests.map((t) => (
+                                                            <div key={t.name} className={`k-t ${t.ok ? "k-ok" : "k-bad"}`}>
+                                                                <i />
+                                                                <div>
+                                                                    <div className="k-n">{t.name}</div>
+                                                                    <div className="k-d">{t.ok ? "passes" : (t.detail.split("\n").find((l) => l.trim()) ?? "fails")}</div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </Fragment>
+                                        );
+                                    })}
+                                </>
                             )}
-                            {panels.p.rc && (
-                                <button onClick={() => panels.update({ ...panels.p, rc: false })} aria-label="Show the page panel" title="Show the page panel (Ctrl/⌘ .)">
-                                    ▤
-                                </button>
+                            {tab === "hints" && <HintsTab page={p} onOpen={() => hint.mutate()} pending={hint.isPending} />}
+                            {tab === "solution" && <SolutionTab page={p} onOpen={() => sol.mutate()} pending={sol.isPending} />}
+                            {tab === "concepts" && <ConceptsTab course={course} page={p} queryKey={key} />}
+                            {tab === "run" &&
+                                (run ? (
+                                    <RunTab runs={p.runs.length ? p.runs : [run]} stageId={p.stage.id} />
+                                ) : (
+                                    <div className="k-empty">
+                                        No run yet. In your repo, run <code>anneal course test</code>, or commit and push: each run is reported here.
+                                    </div>
+                                ))}
+                            <nav className="k-pn">
+                                {p.prev ? (
+                                    <Link to="/courses/$course/$stage" params={{ course, stage: p.prev.id }}>
+                                        <small>‹ PREVIOUS</small>
+                                        {p.prev.title}
+                                    </Link>
+                                ) : (
+                                    <span />
+                                )}
+                                {p.next ? (
+                                    <Link to="/courses/$course/$stage" params={{ course, stage: p.next.id }}>
+                                        <small>NEXT ›</small>
+                                        {p.next.title}
+                                    </Link>
+                                ) : (
+                                    <span />
+                                )}
+                            </nav>
+                        </section>
+                    </main>
+
+                    <aside className={`k-toc${panels.drawer === "r" ? " k-open" : ""}`} id="tocN" aria-label="This page">
+                        <Resizer side="r" panels={panels} />
+                        <div className="k-tscroll">
+                            <div className="k-rcard">
+                                <h6>
+                                    ON THIS PAGE
+                                    <button className="k-sbtn" id="rt" aria-label="Hide sidebar" title="Hide (⌘.)" onClick={() => panels.update({ ...panels.p, rc: true })}>
+                                        »
+                                    </button>
+                                    <button className="k-drawer-x" aria-label="Close" onClick={() => panels.setDrawer(null)}>
+                                        ×
+                                    </button>
+                                </h6>
+                                <div id="toc" ref={outline} style={{ position: "relative", borderLeft: "1px solid var(--line2)" }}>
+                                    <span className="k-mk" id="mk" />
+                                    {outlineEntries.map(([id, label]) => (
+                                        <a
+                                            key={id}
+                                            href={`#${id}`}
+                                            className={active === id ? "k-on" : ""}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                panels.setDrawer(null);
+                                                if (tab !== "instructions") pick("instructions");
+                                                // a hidden optional section opens when you go to it
+                                                const sid = id.replace(/^sec-/, "");
+                                                if (OPTIONAL_SECTIONS.has(sid)) {
+                                                    if (hidden(sid)) flip(sid);
+                                                    setOpenOpt((s) => new Set(s).add(sid));
+                                                }
+                                                setTimeout(() => {
+                                                    if (id === "s-top") window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" });
+                                                    else document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" });
+                                                }, 30);
+                                            }}
+                                        >
+                                            {label}
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                            {notes.length > 0 && tab === "instructions" && (
+                                <div className="k-rcard" id="notesCard" aria-label="Notes">
+                                    <h6>
+                                        NOTES <span className="k-pin">{notes.length}</span>
+                                    </h6>
+                                    <div id="nlist">
+                                        {notes.map((n) => (
+                                            <div
+                                                key={n.n}
+                                                role="button"
+                                                tabIndex={0}
+                                                data-sn={n.n}
+                                                className={`k-pnote${curNotes.includes(n.n) ? " k-cur" : ""}${selNote === n.n ? " k-sel" : ""}`}
+                                                onClick={(e) => {
+                                                    const t = e.target as HTMLElement;
+                                                    if (t.closest("a")) return;
+                                                    const marker = document.querySelector<HTMLElement>(`.k-read2 .k-snm[data-sn="${n.n}"]`);
+                                                    if (t.closest("[data-show]")) {
+                                                        const o = marker?.closest(".k-snr")?.querySelector(`.k-sn[data-sn="${n.n}"]`);
+                                                        o?.classList.toggle("k-open");
+                                                        o?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "center" });
+                                                        return;
+                                                    }
+                                                    if (t.closest("[data-cp]")) {
+                                                        const text = (e.currentTarget as HTMLElement).querySelector("pre")?.textContent ?? "";
+                                                        try {
+                                                            navigator.clipboard.writeText(text);
+                                                        } catch {
+                                                            // no clipboard in this context
+                                                        }
+                                                        toast("ok", "Code copied");
+                                                        return;
+                                                    }
+                                                    setSelNote((cur) => (cur === n.n ? null : n.n));
+                                                    if (marker) {
+                                                        marker.classList.remove("k-flash");
+                                                        void marker.offsetWidth;
+                                                        marker.classList.add("k-flash");
+                                                        marker.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "center" });
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), (e.currentTarget as HTMLElement).click())}
+                                                onMouseEnter={() => document.querySelector(`.k-read2 .k-snm[data-sn="${n.n}"]`)?.classList.add("k-on")}
+                                                onMouseLeave={() => document.querySelector(`.k-read2 .k-snm[data-sn="${n.n}"]`)?.classList.remove("k-on")}
+                                            >
+                                                <b>{n.n}</b>
+                                                <div>
+                                                    <div className="k-pb2" dangerouslySetInnerHTML={{ __html: n.html }} />
+                                                    <div className="k-acts3">
+                                                        <button className="k-sx2" data-show>SHOW IN TEXT ↗</button>
+                                                        {n.code && <button className="k-sx2" data-cp>COPY CODE</button>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {reqConcepts.length > 0 && (
+                                <div className="k-rcard">
+                                    <h6>
+                                        CONCEPTS <span className="k-pin k-req">{reqDone} / {reqConcepts.length}</span>
+                                    </h6>
+                                    <div id="pconc">
+                                        {reqConcepts.map((k, i) => (
+                                            <Link key={k.id} className={`k-cc2${k.read ? "" : " k-todo"}`} to="/courses/$course/concept/$id" params={{ course, id: k.id }}>
+                                                <span className="k-ci">{k.read ? "✓" : i + 1}</span>
+                                                <div>
+                                                    <b>{k.title}</b>
+                                                    <small>{k.minutes} min read</small>
+                                                </div>
+                                                <span className="k-st4">{k.read ? "READ" : "TO READ"}</span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="k-rcard">
+                                <h6>
+                                    THIS STAGE <span className="k-pin">PINNED</span>
+                                </h6>
+                                <div className="k-pincmd">
+                                    <span>{cmd}</span>
+                                    <MockCopy text={cmd} className="k-copy k-fx" />
+                                </div>
+                                <div className="k-kv2">
+                                    <span>Last run</span>
+                                    <b>{run ? (run.problem ? "did not run" : `${run.passed} / ${run.total} · ${ago(run.at)}`) : "none yet"}</b>
+                                </div>
+                                <div className="k-kv2">
+                                    <span>Hints used</span>
+                                    <b>
+                                        {p.hints.revealed.length} / {p.hints.total}
+                                    </b>
+                                </div>
+                                <div className="k-hl2">
+                                    {Array.from({ length: p.hints.total }, (_, i) => (
+                                        <i key={i} className={i < p.hints.revealed.length ? "k-on" : ""} />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <FocusTimer onTime={setTime} />
+                    </aside>
+                </div>
+                {panels.p.rc && (
+                    <button className="k-sbtn" aria-label="Show the page panel" title="Show the page panel (⌘.)" onClick={() => panels.update({ ...panels.p, rc: false })} style={{ position: "fixed", right: 14, top: 66, zIndex: 40 }}>
+                        «
+                    </button>
+                )}
+
+                <div className={`k-strip${strip ? " k-open" : ""}`} id="strip">
+                    <div className="k-in">
+                        <span className="k-sd" id="sd" />
+                        <div className="k-sb" id="sb">
+                            {run?.tests.map((t) => <i key={t.name} className={t.ok ? "k-p" : "k-f"} />)}
+                        </div>
+                        <span className="k-tx" id="stx" role="status" aria-live="polite">
+                            {run ? (
+                                <>
+                                    <b>{run.ok ? "stage passed" : run.problem ? "did not run" : `${run.passed} / ${run.total} passing`}</b> · run {ago(run.at)}
+                                    {run.commit_sha ? ` · ${run.commit_sha.slice(0, 7)}` : ""}
+                                </>
+                            ) : (
+                                <>
+                                    <b>no run yet</b> · run <code>anneal course test</code> in your repo
+                                </>
                             )}
                         </span>
-                    )}
-                    <span className="cx-nav">
-                        {p.prev ? (
-                            <Link to="/courses/$course/$stage" params={{ course, stage: p.prev.id }} aria-label="Previous stage">
-                                ‹
-                            </Link>
-                        ) : (
-                            <span style={{ color: "var(--line)" }}>‹</span>
-                        )}
-                        <span>
-                            {p.stage.rank} / {p.course.total}
-                        </span>
-                        {p.next ? (
-                            <Link to="/courses/$course/$stage" params={{ course, stage: p.next.id }} aria-label="Next stage">
-                                ›
-                            </Link>
-                        ) : (
-                            <span style={{ color: "var(--line)" }}>›</span>
-                        )}
-                    </span>
+                        <button className="k-cta" id="runbtn" onClick={copyCmd}>
+                            <span className="k-spn" />
+                            <span className="k-lbl">Run tests</span>
+                            <span className="k-ar">▶</span>
+                        </button>
+                        <button className="k-copy" id="logb" onClick={() => setStrip(!strip)} aria-expanded={strip}>
+                            {strip ? "HIDE LOGS" : "SHOW LOGS"}
+                        </button>
+                    </div>
+                    <div className="k-logs">
+                        <div inert={!strip}>
+                            <pre id="logt">
+                                {!run ? (
+                                    "No run yet."
+                                ) : run.problem ? (
+                                    run.problem
+                                ) : failedFirst ? (
+                                    <>
+                                        <span className="k-er">{failedFirst.name}</span> failed{"\n"}
+                                        {failedFirst.detail}
+                                    </>
+                                ) : (
+                                    "All tests passed."
+                                )}
+                            </pre>
+                        </div>
+                    </div>
                 </div>
-            </div>
+                <button
+                    className="k-totop k-fx"
+                    ref={topRef}
+                    aria-label="Back to top"
+                    onClick={() => window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" })}
+                >
+                    <svg viewBox="0 0 44 44" aria-hidden="true">
+                        <circle className="k-a" ref={ringRef} cx="22" cy="22" r="20" />
+                    </svg>
+                    ↑
+                </button>
+            </MockRoot>
             {win && lastRun?.ok && (
                 <Celebration
                     title="Stage passed"
                     message={`All ${lastRun.total} tests pass.${p.hints.revealed.length === 0 ? " Nicely done: no hints used." : ""}`}
                     stats={[
-                        { value: `${lastRun.passed}/${lastRun.total}`, label: "tests" },
-                        { value: `${(lastRun.duration_ms / 1000).toFixed(1)}s`, label: "run time" },
-                        { value: String(p.hints.revealed.length), label: "hints" },
+                        { value: `${lastRun.passed}/${lastRun.total}`, label: "TESTS" },
+                        { value: `${(lastRun.duration_ms / 1000).toFixed(1)}s`, label: "RUN TIME" },
+                        { value: String(p.hints.revealed.length), label: "HINTS" },
                     ]}
                     next={p.next ? { kicker: "NEXT STAGE", title: p.next.title } : undefined}
                     goLabel={p.next ? "Go to next stage" : "Back to the course"}
@@ -815,402 +830,6 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                     onClose={() => setWin(false)}
                 />
             )}
-            {toast && (
-                <div className={`cx-toast ${toast.ok ? "ok" : "bad"}`} role="status">
-                    <i>{toast.ok ? "✓" : "!"}</i>
-                    <b>{toast.text}</b>
-                    {toast.ok && p.next && (
-                        <Link to="/courses/$course/$stage" params={{ course, stage: p.next.id }} onClick={() => setToast(null)}>
-                            Proceed to {p.next.title} →
-                        </Link>
-                    )}
-                    {toast.ok && !p.next && <span>That was the last stage.</span>}
-                    {!toast.ok && <button onClick={() => { pick("run"); setToast(null); }}>see details</button>}
-                    <button className="x" aria-label="Dismiss" onClick={() => setToast(null)}>×</button>
-                </div>
-            )}
-            <div className="cx-mbar">
-                <button onClick={() => panels.setDrawer(panels.drawer === "l" ? null : "l")} aria-expanded={panels.drawer === "l"}>
-                    ☰ Stages <b>{p.module.stages.findIndex((s) => s.id === p.stage.id) + 1}/{p.module.stages.length}</b>
-                </button>
-                <button onClick={() => panels.setDrawer(panels.drawer === "r" ? null : "r")} aria-expanded={panels.drawer === "r"}>
-                    ▤ This page
-                </button>
-            </div>
-            {panels.drawer && <div className="cx-dbk" onClick={() => panels.setDrawer(null)} aria-hidden="true" />}
-            <div
-                className={`cx${panels.dragging ? " dragging" : ""}${panels.p.lc ? " lc" : ""}${panels.p.rc ? " rc" : ""}`}
-                style={{ "--ca": "var(--grn)", "--cab": "var(--grn-bg)", "--cl": panels.p.lc ? "64px" : `${panels.p.l}px`, "--cr": panels.p.rc ? "0px" : `${panels.p.r}px` } as React.CSSProperties}
-            >
-                <Sidebar course={course} page={p} panels={panels} />
-                <div className="cx-main">
-                    <main className="cx-read">
-                        <div className="cx-col">
-                            <div className="eyebrow" id="s-top">
-                                <span style={{ color: "var(--grn)" }}>
-                                    {p.module.code.toUpperCase()} · STAGE {inModule + 1} OF {p.module.stages.length}
-                                </span>
-                                <span>/</span>
-                                <span>{DIFFICULTY_LABEL[p.stage.difficulty]}</span>
-                                <span>/</span>
-                                <span>#{p.stage.id}</span>
-                            </div>
-                            <h1 className="cx-h1">
-                                <SplitTitle title={p.stage.title} />
-                            </h1>
-                            <StageCommand stageId={p.stage.id} />
-                            {p.stage.learn.length > 0 && (
-                                <div className="cx-learn">
-                                    <span className="lab">YOU'LL LEARN</span>
-                                    {p.stage.learn.map((l) => (
-                                        <span className="cpill" key={l}>
-                                            {l}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                            <div className="cx-tabs" role="tablist" aria-label="Stage">
-                                {tabs.map(([k, label, n]) => (
-                                    <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => pick(k)}>
-                                        {label}
-                                        {n !== "" && <small>{n}</small>}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {tab === "instructions" && (
-                                <div className="cx-prose">
-                                    {p.concepts.length > 0 && (
-                                        <button className="cx-readfirst" onClick={() => pick("concepts")}>
-                                            <b>READ FIRST</b>
-                                            <span>
-                                                {p.concepts[0]?.title}
-                                                {p.concepts.length > 1 && <> · and {p.concepts.length - 1} more</>} <em>~{p.concepts.reduce((n, k) => n + k.minutes, 0)} min</em>
-                                            </span>
-                                            <i>open ›</i>
-                                        </button>
-                                    )}
-                                    {p.stage.intro && (
-                                        <div className="cx-leadmd">
-                                            <Prose text={p.stage.intro} />
-                                        </div>
-                                    )}
-                                    {p.stage.sections.map((s, i) => {
-                                        const part = /^Part (\d+) · (.*)$/.exec(s.title);
-                                        const optional = OPTIONAL_SECTIONS.has(s.id);
-                                        const shut = optional && optHidden !== flipped.has(s.id);
-                                        return (
-                                            <section key={s.id} id={`sec-${s.id}`}>
-                                                <div className="cx-part">
-                                                    <b>{part ? `PART ${part[1]}` : String(i + 1).padStart(2, "0")}</b>
-                                                    {part ? "" : s.title.toUpperCase()}
-                                                </div>
-                                                {part && <h2>{part[2]}</h2>}
-                                                {optional && (
-                                                    <div className="cx-oh">
-                                                        <span className="cx-obadge">OPTIONAL</span>
-                                                        <button aria-expanded={!shut} onClick={() => setFlipped((f) => { const n = new Set(f); if (!n.delete(s.id)) n.add(s.id); return n; })}>
-                                                            {shut ? "SHOW" : "HIDE"}
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                {optional ? (
-                                                    <div className={`cx-obody${shut ? " shut" : ""}`}>
-                                                        <div inert={shut}>
-                                                            <Body text={s.md} />
-                                                        </div>
-                                                    </div>
-                                                ) : s.title === "The task" ? (
-                                                    <div className="cx-task">
-                                                        <div className="cx-th">
-                                                            <b>YOUR TURN</b>
-                                                            <span>
-                                                                run <kbd>anneal course test</kbd> or push
-                                                            </span>
-                                                        </div>
-                                                        <div className="cx-tb cx-prose">
-                                                            <Prose text={s.md} />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <Body text={s.md} />
-                                                )}
-                                            </section>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {tab === "hints" && (
-                                <div className="cx-prose">
-                                    {p.hints.total === 0 ? (
-                                        <div className="cx-empty">No hints written for this stage yet.</div>
-                                    ) : (
-                                        <>
-                                            <p className="cx-quiet" style={{ margin: "0 0 4px" }}>
-                                                {p.hints.revealed.length} of {p.hints.total} opened. Each hint opened before the stage passes marks it as assisted. They get deeper: the first nudges the design, the last names the invariant to check.
-                                            </p>
-                                            {p.hints.revealed.map((h, i) => (
-                                                <details className="cx-box vio" key={i} open>
-                                                    <summary>
-                                                        <span className="cx-bl">Hint {i + 1}</span>
-                                                        <span className="cx-bt">{h.title}</span>
-                                                        <span className="cx-chev" aria-hidden="true" />
-                                                    </summary>
-                                                    <div className="cx-bb">
-                                                        <Prose text={h.md} />
-                                                    </div>
-                                                </details>
-                                            ))}
-                                            {nextHint !== null && (
-                                                <div className="cx-locked vio">
-                                                    <b>HINT {p.hints.revealed.length + 1}</b>
-                                                    <span>{p.state === "todo" ? "Opening it marks this stage as assisted." : "Locked until you open it."}</span>
-                                                    <button onClick={() => hint.mutate()} disabled={hint.isPending}>
-                                                        open hint {p.hints.revealed.length + 1} of {p.hints.total}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            )}
-
-                            {tab === "solution" && (
-                                <div className="cx-prose">
-                                    {p.solution.open && p.solution.files ? (
-                                        <>
-                                            <p className="cx-quiet" style={{ margin: 0 }}>
-                                                One way to write it, as a diff against your starter code. Yours only has to pass the tests.
-                                            </p>
-                                            <DiffView files={p.solution.files} />
-                                        </>
-                                    ) : !p.solution.available ? (
-                                        <div className="cx-locked fn">
-                                            <b>OUR ANSWER</b>
-                                            <span>
-                                                Not uploaded to this app yet. From your clone of the repo: <code>anneal course login {location.origin}</code>, then <code>anneal course solutions</code>.
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        <div className="cx-locked fn">
-                                            <b>OUR ANSWER</b>
-                                            <span>{p.state === "todo" ? "Opening it before the stage passes marks it as assisted." : "Unlocked once the stage has passed."}</span>
-                                            <button onClick={() => sol.mutate()} disabled={sol.isPending}>
-                                                show the solution
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {tab === "concepts" && (
-                                <div className="cx-prose">
-                                    {p.concepts.length > 0 && <ConceptsTab course={course} page={p} queryKey={key} />}
-                                    <div className="cx-part">
-                                        <b>FURTHER READING</b>
-                                        {p.module.code.toUpperCase()} · {p.module.title.toUpperCase()}
-                                    </div>
-                                    <div className="cx-reads">
-                                        {p.module.lectures.map((l) => (
-                                            <a key={l.id} href={l.video ?? l.slides} target="_blank" rel="noreferrer">
-                                                <small>CMU 15-445 LECTURE · {l.term.toUpperCase()}</small>
-                                                {l.title}
-                                                <span>{[l.slides && "slides", l.notes && "notes", l.video && "video"].filter(Boolean).join(" · ")}</span>
-                                            </a>
-                                        ))}
-                                        {p.module.resources.map((r) => (
-                                            <a key={r.url} href={r.url} target="_blank" rel="noreferrer">
-                                                <small>{r.kind.toUpperCase()}</small>
-                                                {r.title}
-                                            </a>
-                                        ))}
-                                        {p.module.bustub.map((u) => (
-                                            <a key={u} href={u} target="_blank" rel="noreferrer">
-                                                <small>BUSTUB SOURCE</small>
-                                                {u.split("/").slice(-1)[0]}
-                                                <span>{u.replace("https://github.com/cmu-db/bustub/blob/master/", "")}</span>
-                                            </a>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {tab === "run" && (
-                                <div className="cx-prose">
-                                    {run ? (
-                                        <RunTab runs={p.runs.length ? p.runs : [run]} stageId={p.stage.id} />
-                                    ) : (
-                                        <div className="cx-empty">
-                                            No run yet. In your repo, run <code>anneal course test</code>, or commit and push: each run is reported here.
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            <nav className="cx-pn">
-                                {p.prev ? (
-                                    <Link to="/courses/$course/$stage" params={{ course, stage: p.prev.id }}>
-                                        <small>
-                                            ‹ PREVIOUS <kbd>[</kbd>
-                                        </small>
-                                        {p.prev.title}
-                                    </Link>
-                                ) : (
-                                    <span />
-                                )}
-                                {p.next ? (
-                                    <Link to="/courses/$course/$stage" params={{ course, stage: p.next.id }}>
-                                        <small>
-                                            NEXT <kbd>]</kbd> ›
-                                        </small>
-                                        {p.next.title}
-                                    </Link>
-                                ) : (
-                                    <span />
-                                )}
-                            </nav>
-                        </div>
-                    </main>
-                    <div className="cx-bar">
-                        {run ? (
-                            <>
-                                <span className="d" style={run.ok ? { background: "var(--grn)", boxShadow: "0 0 0 3px var(--grn-bg)" } : undefined} />
-                                <b>{run.ok ? "stage passed" : run.problem ? "did not run" : `${run.passed} / ${run.total} passing`}</b>
-                                <span className="sq">
-                                    {run.tests.map((t) => (
-                                        <i key={t.name} className={t.ok ? "g" : ""} />
-                                    ))}
-                                </span>
-                                <span className="cx-ls">
-                                    run · {ago(run.at)}
-                                    {run.commit_sha ? ` · ${run.commit_sha.slice(0, 7)}` : ""}
-                                </span>
-                                <button onClick={() => pick("run")}>show logs</button>
-                            </>
-                        ) : (
-                            <>
-                                <span className="d" style={{ background: "var(--line)", boxShadow: "none" }} />
-                                <b>no run yet</b>
-                                <span className="cx-ls">
-                                    run <code>anneal course test</code> in your repo
-                                </span>
-                            </>
-                        )}
-                    </div>
-                </div>
-                <aside className={`cx-toc${panels.drawer === "r" ? " open" : ""}`} aria-label="This page">
-                    <Resizer side="r" panels={panels} />
-                    <div className="cx-tscroll">
-                        {tab === "instructions" && (
-                            <section className="cx-card">
-                                <h4>
-                                    <span>ON THIS PAGE</span>
-                                    <button className="cx-pbtn cx-collapse" aria-label="Hide the page panel" title="Hide (Ctrl/⌘ .)" onClick={() => panels.update({ ...panels.p, rc: true })}>
-                                        »
-                                    </button>
-                                    <button className="cx-pbtn cx-dclose" aria-label="Close" onClick={() => panels.setDrawer(null)}>
-                                        ×
-                                    </button>
-                                </h4>
-                                <div className="cx-outline">
-                                    {toc.map(([id, label]) => (
-                                        <a
-                                            key={id}
-                                            href={`#${id}`}
-                                            className={active === id ? "on" : ""}
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                panels.setDrawer(null);
-                                                // a hidden optional section opens when you go to it
-                                                const sid = id.replace(/^sec-/, "");
-                                                if (OPTIONAL_SECTIONS.has(sid) && optHidden !== flipped.has(sid)) setFlipped((f) => { const n = new Set(f); if (!n.delete(sid)) n.add(sid); return n; });
-                                                setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-                                            }}
-                                        >
-                                            {label}
-                                        </a>
-                                    ))}
-                                </div>
-                                {p.stage.sections.some((x) => OPTIONAL_SECTIONS.has(x.id)) && (
-                                    <button className="cx-ocontrol" onClick={() => { setOptHidden(!optHidden); setPref("optional.hidden", !optHidden); setFlipped(new Set()); }}>
-                                        {optHidden ? "SHOW OPTIONAL SECTIONS" : "HIDE OPTIONAL SECTIONS"}
-                                    </button>
-                                )}
-                            </section>
-                        )}
-                        {notes.length > 0 && tab === "instructions" && (
-                            <section className="cx-card" aria-label="Notes">
-                                <h4>
-                                    <span>NOTES</span>
-                                    <span className="cx-count">{notes.length}</span>
-                                </h4>
-                                {notes.map((n) => (
-                                    <div
-                                        key={n.n}
-                                        role="button"
-                                        tabIndex={0}
-                                        data-sn={n.n}
-                                        className={`cx-pnote${curNote === n.n ? " cur" : ""}${selNote === n.n ? " sel" : ""}`}
-                                        onClick={(e) => {
-                                            if ((e.target as HTMLElement).closest("a")) return;
-                                            setSelNote((cur) => (cur === n.n ? null : n.n));
-                                            document.querySelector(`.cx-snm[data-sn="${n.n}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-                                        }}
-                                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), (e.currentTarget as HTMLElement).click())}
-                                    >
-                                        <b>{n.n}</b>
-                                        <span dangerouslySetInnerHTML={{ __html: n.html }} />
-                                    </div>
-                                ))}
-                            </section>
-                        )}
-                        {p.concepts.length > 0 && (
-                            <section className="cx-card">
-                                <h4>
-                                    <span>CONCEPTS</span>
-                                    <button className="cx-pbtn cx-link" onClick={() => (pick("concepts"), panels.setDrawer(null))}>
-                                        {p.concepts.length} ›
-                                    </button>
-                                </h4>
-                                {p.concepts.map((k) => (
-                                    <Link key={k.id} className={`cx-crow${k.read ? " read" : ""}`} to="/courses/$course/concept/$id" params={{ course, id: k.id }}>
-                                        <b>
-                                            {k.read && <span className="cx-rtick" aria-label="read">✓ </span>}
-                                            {k.title}
-                                        </b>
-                                        <small>
-                                            {k.minutes} min read{k.required ? "" : " · optional"}
-                                        </small>
-                                    </Link>
-                                ))}
-                            </section>
-                        )}
-                        <section className="cx-card">
-                            <h4>
-                                <span>THIS STAGE</span>
-                            </h4>
-                            <div className="cx-cmdline">
-                                <code>anneal course test {p.stage.id}</code>
-                                <CopyButton text={`anneal course test ${p.stage.id}`} />
-                            </div>
-                            <div className="cx-kv">
-                                <span>Last run</span>
-                                <b>{p.last_run ? (p.last_run.problem ? "did not run" : `${p.last_run.passed} / ${p.last_run.total} · ${ago(p.last_run.at)}`) : "none yet"}</b>
-                            </div>
-                            <div className="cx-kv">
-                                <span>Hints used</span>
-                                <b>
-                                    {p.hints.revealed.length} / {p.hints.total}
-                                </b>
-                            </div>
-                            <p className="cx-keys">
-                                <kbd>[</kbd> <kbd>]</kbd> previous / next stage
-                            </p>
-                        </section>
-                    </div>
-                    <FocusTimer />
-                </aside>
-            </div>
         </>
     );
 }

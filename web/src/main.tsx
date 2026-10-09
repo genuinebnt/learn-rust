@@ -20,6 +20,8 @@ import { CourseStagePage } from "./pages/CourseStagePage";
 import { CourseConceptPage } from "./pages/CourseConceptPage";
 import { Workspace } from "./workspace/Workspace";
 import { installPressEffects } from "./components/kit";
+import { KitPage } from "./pages/KitPage";
+import { ToastHost } from "./components/toasts";
 import "./styles/design.css";
 import "./styles/app.css";
 import "./styles/catalog.css";
@@ -32,8 +34,18 @@ import "./styles/problem.css";
 import "./styles/calendar.css";
 import "./styles/kit.css";
 import "./styles/course.css";
+import "./styles/mock-course.css";
+import "./styles/mock-section.css";
+import "./styles/mock-extra.css";
 
-const rootRoute = createRootRoute({ component: Outlet });
+const rootRoute = createRootRoute({
+  component: () => (
+    <>
+      <Outlet />
+      <ToastHost />
+    </>
+  ),
+});
 
 const routes = [
   // Today is designed but needs the review queue (a later phase); start on DSA until then.
@@ -119,6 +131,7 @@ const routes = [
       return <PatternProblems code={code} />;
     },
   }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/kit", component: KitPage }),
 ] as const;
 const patternsRoute = routes[7];
 const practiceRoute = routes[8];

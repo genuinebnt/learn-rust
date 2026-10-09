@@ -190,6 +190,12 @@ psql postgres://anneal:anneal@127.0.0.1:5435/anneal -c "TRUNCATE attempts, revie
   compile, which would give away the signatures.
 - **Mockups first for new screens and big UI changes.** Publish an HTML mockup and wait for approval. Small
   requested tweaks can be built directly.
+- **The approved mockups in [mockups/](mockups/) are the UI.** The pages use the mockups' own markup and CSS, not
+  an approximation: `tools/port_mockup_css.py <mockup> <out.css> <prefix> [accent]` turns a mockup's stylesheet into
+  an app one (classes prefixed, every rule scoped under `.<prefix>root`). `course-motion.html` → `mock-course.css`
+  (`k-`: course page, stage page, `/kit`, popups, toasts), `section-page.html` → `mock-section.css` (`s-`: `/rust`
+  and the DSA home). Never edit those two files; change the mockup and re-run the tool. Pieces the mockup does not
+  draw go in `mock-extra.css`. Pages mount their markup under `MockRoot` (`components/mock.tsx`).
 - **No visible scrollbars anywhere** (app.css hides them). Content must fit without them.
 - Editor indent is **4 spaces**. The editor font, size and Vim mode are user settings.
 - **Difficulty colours:** easy = `--grn`, medium = `--warn`, hard = `--bad`. **Area colours:** DSA = `--acc`,

@@ -1,0 +1,87 @@
+import { expect, test } from "@playwright/test";
+
+const stage = "/courses/bustub/4a-04";
+
+test.beforeEach(async ({ page }) => {
+    await page.goto(stage);
+    await expect(page.locator(".k-tabs")).toBeVisible();
+});
+
+test("a reading bar across the top grows with the scroll; the condensed header and back-to-top appear", async ({ page }) => {
+    await expect(page.locator(".k-phead")).not.toHaveClass(/k-show/);
+    await expect(page.locator(".k-totop")).not.toHaveClass(/k-show/);
+    await page.evaluate(() => window.scrollTo(0, 700));
+    await expect(page.locator(".k-phead")).toHaveClass(/k-show/);
+    await expect(page.locator(".k-totop")).toHaveClass(/k-show/);
+    await expect.poll(() => page.locator(".k-read").evaluate((e) => parseFloat((e as HTMLElement).style.width))).toBeGreaterThan(0);
+    await expect(page.locator(".k-phead .k-pct")).toContainText("% read");
+    await page.locator(".k-totop").click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(5);
+});
+
+test("the tab underline sits under the active tab and slides to the next", async ({ page }) => {
+    const ul = page.locator(".k-tabs .k-ul");
+    const under = async (name: RegExp) => {
+        const tab = (await page.getByRole("tab", { name }).boundingBox())!;
+        const line = (await ul.boundingBox())!;
+        return Math.abs(line.x - tab.x) < 2 && Math.abs(line.width - tab.width) < 2;
+    };
+    await expect.poll(() => under(/^Instructions/)).toBe(true);
+    await page.getByRole("tab", { name: /^Hints/ }).click();
+    await expect.poll(() => under(/^Hints/)).toBe(true);
+});
+
+test("arrow keys move between the tabs", async ({ page }) => {
+    await page.getByRole("tab", { name: /^Instructions/ }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("tab", { name: /^Hints/ })).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("End");
+    await expect(page.getByRole("tab", { name: /^Last run/ })).toHaveAttribute("aria-selected", "true");
+});
+
+test("hints open in order: a later one is locked and says so", async ({ page }) => {
+    await page.getByRole("tab", { name: /^Hints/ }).click();
+    const h3 = page.locator("#h3");
+    await expect(h3).toContainText("open after hint 2");
+    await h3.locator(".k-hh").click();
+    await expect(page.locator(".k-tt")).toContainText("Open the previous hint first");
+});
+
+test("the solution is blurred behind a gate until it is revealed", async ({ page }) => {
+    await page.getByRole("tab", { name: /^Solution/ }).click();
+    const sol = page.locator(".k-sol").first();
+    await expect(sol).not.toHaveClass(/k-rev/);
+    expect(await sol.locator("pre").evaluate((e) => getComputedStyle(e).filter)).toContain("blur");
+    await expect(sol.locator(".k-gate")).toBeVisible();
+});
+
+test("the run strip names the last run and its logs slide open", async ({ page }) => {
+    await expect(page.locator("#stx")).toContainText("passing");
+    await expect(page.locator("#strip")).not.toHaveClass(/k-open/);
+    await page.locator("#logb").click();
+    await expect(page.locator("#strip")).toHaveClass(/k-open/);
+    await expect(page.locator("#logb")).toHaveText("HIDE LOGS");
+});
+
+test("Run tests copies the command and says so in a toast", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.locator("#runbtn").click();
+    await expect(page.locator(".k-tt.k-ok")).toContainText("Command copied");
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("anneal course test 4a-04");
+});
+
+test("the outline marker follows the section you are in", async ({ page }) => {
+    await page.locator("#toc a", { hasText: "Notes" }).click();
+    await expect(page.locator("#toc a.k-on")).toHaveText("Notes");
+});
+
+test("the pages are centred and have no grid behind them", async ({ page }) => {
+    for (const path of ["/rust", "/courses", "/dsa"]) {
+        await page.goto(path);
+        const wrap = page.locator(".s-wrap, .k-wrap").first();
+        await expect(wrap).toBeVisible();
+        const box = (await wrap.boundingBox())!;
+        expect(Math.abs(box.x + box.width / 2 - 720)).toBeLessThan(8);
+        expect(await page.evaluate(() => (() => { const m = document.querySelector("main, .page"); return m ? getComputedStyle(m).backgroundImage : "none"; })())).toBe("none");
+    }
+});

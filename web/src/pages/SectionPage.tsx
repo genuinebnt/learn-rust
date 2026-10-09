@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { marked } from "marked";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { api, type Activity, type Band, type NextUp, type ReviewItem, type Section, type Tier, type TrackSummary } from "../api";
 import { Header } from "../components/Header";
 import { LEVEL_COLOR, pad2, pctColor } from "../components/bits";
+import { MockRoot, rise, useReady } from "../components/mock";
 import { BLURB, DSA_ORDER, NAV_SECTIONS, PLANNED, SECTION_NAMES, type NavArea, sectionOf } from "../curriculum";
 import { CountUp } from "../components/kit";
 
@@ -96,36 +97,24 @@ function useStored<T extends string>(key: string, initial: T): [T, (v: T) => voi
   ];
 }
 
-function BandBar({ row }: { row: Row }) {
-  const bands = (["easy", "medium", "hard"] as const)
-    .map((b) => {
-      const ss = row.live?.stages.filter((s) => s.band === b) ?? [];
-      return { b, total: ss.reduce((n, s) => n + s.total, 0), solved: ss.reduce((n, s) => n + s.solved, 0) };
-    })
-    .filter((x) => x.total > 0);
-  if (!bands.length) return <div className="tc-bar"><span style={{ flex: 1 }} /></div>;
+const TIER_LABEL: Record<Tier, string> = TIER;
+
+/** Five segments for how far through a track you are, as the mockup draws them. */
+function Segs({ row }: { row: Row }) {
+  const live = row.live;
+  const filled = live && live.total ? Math.round((live.solved / live.total) * 5) : 0;
   return (
-    <div className="tc-bar">
-      {bands.map((x) => (
-        <span key={x.b} style={{ flex: x.total }}>
-          <i style={{ width: `${Math.round((100 * x.solved) / x.total)}%`, background: BAND_COLOR[x.b] }} />
-        </span>
-      ))}
+    <div className="s-segs" title={live ? `${live.solved} of ${live.total} solved` : undefined}>
+      {row.state === "planned" ? null : Array.from({ length: 5 }, (_, k) => <i key={k} className={k < filled ? "s-f" : ""} style={{ "--k": k } as CSSProperties} />)}
     </div>
   );
 }
 
-function Badge({ row }: { row: Row }) {
-  const style = (bg: string, fg: string): CSSProperties => ({ background: bg, color: fg });
-  if (row.state === "cur") return <span className="tc-badge" style={style("var(--cab)", "var(--ca)")}>NOW ON</span>;
-  if (row.state === "done") return <span className="tc-badge" style={style("var(--grn-bg)", "var(--grn)")}>DONE</span>;
-  if (row.state === "planned")
-    return (
-      <span className="tc-badge" style={{ border: "1px dashed var(--line)", color: "var(--dim)" }}>
-        PLANNED
-      </span>
-    );
-  if (row.tier === "sde3") return <span className="tc-badge" style={style("var(--vio-bg)", "var(--vio)")}>SDE-3</span>;
+function Tag({ row }: { row: Row }) {
+  if (row.state === "cur") return <span className="s-tag s-now">NOW ON</span>;
+  if (row.state === "done") return <span className="s-tag" style={{ color: "var(--grn)", background: "var(--grn-bg)", borderColor: "transparent" }}>DONE</span>;
+  if (row.state === "planned") return <span className="s-tag">PLANNED</span>;
+  if (row.tier === "sde3") return <span className="s-tag" style={{ color: "var(--vio)", background: "var(--vio-bg)", borderColor: "transparent" }}>SDE-3</span>;
   return null;
 }
 
@@ -136,134 +125,58 @@ function Foot({ row }: { row: Row }) {
     return (
       <>
         <span>all {live.solved} solved · re-solves keep it fresh</span>
-        <span className="tc-go">review ›</span>
+        <span className="s-ghost">review <span className="s-ar">›</span></span>
       </>
     );
   if (row.state === "ahead")
     return (
       <>
         <span>start fresh · {live.stages[0]?.name}</span>
-        <span className="tc-go">start ›</span>
+        <span className="s-ghost">start <span className="s-ar">›</span></span>
       </>
     );
   const stage = live.stages.find((s) => s.solved < s.ready);
   return (
     <>
       <span>resume · {stage?.name}</span>
-      <span className="tc-go">resume ›</span>
+      <span className="s-ghost s-solid">resume <span className="s-ar">›</span></span>
     </>
   );
 }
 
-function TrackCard({ row }: { row: Row }) {
+function TrackCard({ row, i, gone, blank }: { row: Row; i: number; gone: boolean; blank: boolean }) {
   const live = row.live;
   const total = live?.total ?? row.planned;
-  const pct = live && live.total ? Math.round((100 * live.solved) / live.total) : 0;
-  const stages = live?.stages ?? [];
+  const cls = `s-trk s-rv${row.state === "planned" ? " s-plan" : ""}${row.state === "cur" ? " s-cur" : ""}${gone ? " s-gone" : ""}`;
+  const rv = rise(Math.min(7 + i, 16));
   const body = (
     <>
-      <div className="tc-top">
-        <span className="tc-num">{pad2(row.n)}</span>
-        <span className="tc-kind">
-          TRACK / {TIER[row.tier]} · {row.code}
+      <div className="s-th">
+        <span className="s-no">{pad2(row.n)}</span>
+        <span className="s-tk">
+          TRACK / {TIER_LABEL[row.tier]} · {row.code}
         </span>
-        <Badge row={row} />
+        <Tag row={row} />
       </div>
-      <h3>{live?.name ?? row.name}</h3>
-      <p dangerouslySetInnerHTML={{ __html: marked.parseInline(live?.summary || BLURB[row.code] || "", { async: false }) }} />
-      <div className="tc-meta">
+      <h4>{live?.name ?? row.name}</h4>
+      <p dangerouslySetInnerHTML={{ __html: blank ? "" : marked.parseInline(live?.summary || BLURB[row.code] || "", { async: false }) }} />
+      <div className="s-meta s-x">
         <b>{total}</b> problems · {hours(minutesTotal(row))} · easy → hard
       </div>
-      <div className="tc-tags">
-        {stages.slice(0, 3).map((s) => (
-          <span className="cpill" key={s.slug}>
-            {s.name}
-          </span>
-        ))}
-        {stages.length > 3 && <span className="cpill">+{stages.length - 3}</span>}
-      </div>
-      <div className="tc-prog">
-        <span>progress</span>
-        <span>
-          {row.state === "planned" ? (
-            "—"
-          ) : (
-            <>
-              <b>
-                {live!.solved} / {live!.total}
-              </b>{" "}
-              · {pct}%
-            </>
-          )}
-        </span>
-      </div>
-      <BandBar row={row} />
-      <div className="tc-foot">
+      <Segs row={row} />
+      <div className="s-foot">
         <Foot row={row} />
       </div>
     </>
   );
   return live && row.state !== "planned" ? (
-    <Link className={`tcard ${row.state}`} to="/t/$track" params={{ track: live.slug }}>
+    <Link className={cls} style={rise(Math.min(7 + i, 16)).style} to="/t/$track" params={{ track: live.slug }}>
       {body}
     </Link>
   ) : (
-    <div className="tcard planned" aria-disabled="true">
+    <article className={cls} style={rv.style} aria-disabled="true">
       {body}
-    </div>
-  );
-}
-
-function TrackRow({ row }: { row: Row }) {
-  const live = row.live;
-  const pct = live && live.total ? Math.round((100 * live.solved) / live.total) : 0;
-  const inner = (
-    <>
-      <span className="n">{pad2(row.n)}</span>
-      <span className="t">
-        {live?.name ?? row.name}
-        <small>
-          {row.code} · {TIER[row.tier]}
-          {row.state === "cur" ? " · now on" : ""}
-        </small>
-      </span>
-      <span className="x hide" style={{ textAlign: "left" }}>
-        {live?.total ?? row.planned} problems · {hours(minutesLeft(row))} left
-      </span>
-      <span className="hide">
-        <BandBar row={row} />
-      </span>
-      <span className="x">{row.state === "planned" ? "planned" : `${pct}%`}</span>
-    </>
-  );
-  return live && row.state !== "planned" ? (
-    <Link className="trow" to="/t/$track" params={{ track: live.slug }}>
-      {inner}
-    </Link>
-  ) : (
-    <div className="trow" aria-disabled="true" style={{ opacity: 0.6 }}>
-      {inner}
-    </div>
-  );
-}
-
-function Ring({ days }: { days: number }) {
-  const r = 34;
-  const c = 2 * Math.PI * r;
-  const f = Math.min(1, days / 7);
-  return (
-    <div className="nu-ring">
-      <svg viewBox="0 0 78 78" aria-hidden="true">
-        <circle cx="39" cy="39" r={r} fill="none" stroke="var(--line2)" strokeWidth="5" />
-        {days > 0 && (
-          <circle cx="39" cy="39" r={r} fill="none" stroke="var(--ca)" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(c * f).toFixed(1)} ${c.toFixed(1)}`} />
-        )}
-      </svg>
-      <div>
-        <b>{days}</b>
-        <span>{days === 1 ? "DAY" : "DAYS"}</span>
-      </div>
-    </div>
+    </article>
   );
 }
 
@@ -273,66 +186,68 @@ const REASON: Record<NextUp["reason"], string> = {
   start: "It's the first unsolved problem in the recommended order.",
 };
 
-function NextUpCard({ next, streak }: { next: NextUp; streak: number }) {
-  const [mode, modeColor] = MODE_LABEL[next.mode];
-  const after = Math.min(100, next.readiness + next.gain);
+function NextUpCard({ next, streak, ready }: { next: NextUp; streak: number; ready: boolean }) {
+  const [mode] = MODE_LABEL[next.mode];
+  const readiness = Math.round(next.readiness);
   return (
-    <section className="nextup" aria-label="Next up">
-      <Ring days={streak} />
-      <div className="nu-k">
-        <i />
-        <span style={{ color: "var(--ca)" }}>NEXT UP</span>
-        <span style={{ color: "var(--dim)" }}>
-          {next.track_code} · {next.stage_name.toUpperCase()}
-        </span>
-      </div>
-      <div className="nu-sub">
-        {streak > 0 ? (
-          <>
-            <b>{streak}-day streak</b>, keep it going.
-          </>
-        ) : (
-          <>
-            <b>No streak yet.</b> Solve one today to start it.
-          </>
-        )}{" "}
-        {REASON[next.reason]}
-      </div>
-      <div className="nu-main">
-        <h2>{next.title}</h2>
-        {next.excerpt && <p dangerouslySetInnerHTML={{ __html: marked.parseInline(next.excerpt, { async: false }) }} />}
-        <div className="pills">
-          <span className="cpill" style={{ color: BAND_COLOR[next.level] }}>
-            {next.level}
-          </span>
-          <span className="cpill" style={{ color: modeColor }}>
-            {mode}
-          </span>
-          <span className="cpill">{next.track_name}</span>
-          <span className="cpill">~{MINUTES[next.level]}m</span>
+    <article className="s-card s-next s-rv" style={rise(4).style} aria-label="Next up">
+      <div className="s-nrow">
+        <div className="s-ring">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <circle className="s-t" cx="32" cy="32" r="28" />
+            <circle className="s-v" cx="32" cy="32" r="28" style={{ strokeDashoffset: ready ? 176 * (1 - Math.min(1, streak / 7)) : 176 }} />
+          </svg>
+          <span>{streak}</span>
+        </div>
+        <div>
+          <div className="s-kick">
+            <span className="s-pulse" />
+            NEXT UP · {next.track_code} · {next.stage_name.toUpperCase()}
+          </div>
+          <div style={{ marginTop: 4, color: "var(--mut)", fontSize: 14 }}>
+            {streak > 0 ? (
+              <>
+                <b style={{ color: "var(--fg)" }}>{streak}-day streak</b>, keep it going.
+              </>
+            ) : (
+              <>
+                <b style={{ color: "var(--fg)" }}>No streak yet.</b> Solve one today to start it.
+              </>
+            )}{" "}
+            {REASON[next.reason]}
+          </div>
         </div>
       </div>
-      <div className="nu-gain">
-        <span>
-          {next.track_code} READINESS · {Math.round(next.readiness)}%
+      <h3>{next.title}</h3>
+      {next.excerpt && <p dangerouslySetInnerHTML={{ __html: marked.parseInline(next.excerpt, { async: false }) }} />}
+      <div className="s-pills">
+        <span className={`s-pill${next.level === "easy" ? " s-g" : ""}`} style={next.level === "easy" ? undefined : { color: BAND_COLOR[next.level] }}>
+          {next.level}
         </span>
-        <span style={{ color: "var(--ca)" }}>+{next.gain}% IF UNASSISTED</span>
+        <span className="s-pill">{mode}</span>
+        <span className="s-pill">{next.track_name}</span>
+        <span className="s-pill">~{MINUTES[next.level]}m</span>
       </div>
-      <div className="nu-bar">
-        <span style={{ width: `${next.readiness}%`, background: "var(--ca)" }} />
-        <span style={{ width: `${after - next.readiness}%`, background: "var(--ca)", opacity: 0.4 }} />
+      <div className="s-ml">
+        <span>
+          {next.track_code} READINESS · {readiness}%
+        </span>
+        <b>+{next.gain}% IF UNASSISTED</b>
       </div>
-      <Link className="nu-go" to="/p/$id" params={{ id: next.problem_id }}>
-        Solve in the workspace →
+      <div className="s-meter">
+        <i style={{ width: ready ? `${readiness}%` : 0 }} />
+      </div>
+      <Link className="s-cta" to="/p/$id" params={{ id: next.problem_id }}>
+        Solve in the workspace <span className="s-ar">→</span>
       </Link>
-    </section>
+    </article>
   );
 }
 
 const OUTCOME_COLOR = { solved: "var(--grn)", assisted: "var(--acc)", failing: "var(--bad)", started: "var(--dim)" } as const;
 
-function Rail({ activity, sections, live, due }: { activity?: Activity; sections: readonly Section[]; live: TrackSummary[]; due: ReviewItem[] }) {
-  const shade = (n: number) => (n === 0 ? "var(--line2)" : `color-mix(in oklch, var(--ca) ${Math.min(100, 25 + n * 15)}%, transparent)`);
+function Side({ activity, sections, live, due, ready }: { activity?: Activity; sections: readonly Section[]; live: TrackSummary[]; due: ReviewItem[]; ready: boolean }) {
+  const shade = (n: number) => (n === 0 ? "var(--raise)" : `color-mix(in oklab, var(--grn) ${Math.min(100, 25 + n * 20)}%, var(--raise))`);
   const readiness = sections.map((s) => {
     const ts = live.filter((t) => t.section === s && t.ready > 0);
     const w = (t: TrackSummary) => (t.tier === "core" ? 2 : 1);
@@ -340,77 +255,75 @@ function Rail({ activity, sections, live, due }: { activity?: Activity; sections
     return { s, pct: total ? Math.round(ts.reduce((n, t) => n + t.readiness * w(t), 0) / total) : null };
   });
   return (
-    <aside className="cat-rail" aria-label="Activity">
-      <div className="rbox">
-        <h4>
-          <span>THIS WEEK</span>
-          <span style={{ color: "var(--ca)" }}>{activity?.week_solved ?? 0} SOLVED</span>
-        </h4>
-        <div className="week">
+    <aside className="s-side" aria-label="Activity">
+      <div className="s-card s-rv" style={rise(5).style}>
+        <h5>THIS WEEK</h5>
+        <div className="s-week">
           {(activity?.week ?? []).map((d) => (
-            <div key={d.date}>
-              <i style={{ background: shade(d.solved) }} title={`${d.date}: ${d.solved} solved`} />
-              {new Date(`${d.date}T00:00`).toLocaleDateString(undefined, { weekday: "narrow" })}
-            </div>
+            <i key={d.date} style={d.solved ? { background: shade(d.solved) } : undefined} title={`${d.date}: ${d.solved} solved`} />
           ))}
         </div>
-        <div className="rstat">
+        <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", font: "500 12px var(--mono)", color: "var(--dim)" }}>
           <span>unassisted</span>
-          <b>
+          <b style={{ color: "var(--fg)" }}>
             {activity?.week_unassisted ?? 0} of {activity?.week_solved ?? 0}
           </b>
         </div>
       </div>
-      <div className="rbox">
-        <h4>
-          <span>RECENT</span>
-        </h4>
+      <div className="s-card s-rv" style={rise(6).style}>
+        <h5>RECENT</h5>
         {activity?.recent.length ? (
-          activity.recent.map((r) => (
-            <Link key={r.problem_id + r.at} className="ritem" to="/p/$id" params={{ id: r.problem_id }}>
-              <i style={{ background: OUTCOME_COLOR[r.outcome] }} />
-              <span>{r.title}</span>
-              <small>
-                {r.track} · {r.detail}
-              </small>
-            </Link>
-          ))
+          <div className="s-list">
+            {activity.recent.map((r) => (
+              <Link key={r.problem_id + r.at} className="s-item" to="/p/$id" params={{ id: r.problem_id }}>
+                <i style={{ background: OUTCOME_COLOR[r.outcome] }} />
+                <span>{r.title}</span>
+                <small>
+                  {r.track} · {r.detail}
+                </small>
+              </Link>
+            ))}
+          </div>
         ) : (
-          <p className="rempty">Nothing yet. Your attempts show up here.</p>
+          <p className="s-none">Nothing yet. Your attempts show up here.</p>
         )}
       </div>
       {due.length > 0 && (
-        <div className="rbox">
-          <h4>
-            <span>RE-SOLVE DUE</span>
-            <Link to="/progress" hash="reviews" style={{ color: "var(--vio)" }}>
+        <div className="s-card s-rv" style={rise(6).style}>
+          <h5>
+            RE-SOLVE DUE
+            <Link to="/progress" hash="reviews" style={{ color: "var(--vio)", float: "right" }}>
               {due.length} →
             </Link>
-          </h4>
-          {due.slice(0, 4).map((r) => (
-            <Link key={r.problem_id} className="ritem" to="/progress" hash="reviews">
-              <i style={{ background: "var(--vio)" }} />
-              <span>{r.title}</span>
-              <small>
-                {r.track} · {r.days_overdue > 0 ? `${r.days_overdue}d late` : "today"}
-              </small>
-            </Link>
-          ))}
+          </h5>
+          <div className="s-list">
+            {due.slice(0, 4).map((r) => (
+              <Link key={r.problem_id} className="s-item" to="/progress" hash="reviews">
+                <i style={{ background: "var(--vio)" }} />
+                <span>{r.title}</span>
+                <small>
+                  {r.track} · {r.days_overdue > 0 ? `${r.days_overdue}d late` : "today"}
+                </small>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
-      <div className="rbox">
-        <h4>
-          <span>READINESS</span>
-        </h4>
-        {readiness.map(({ s, pct }) => (
-          <div className="rmeter" key={s}>
-            <span>{SECTION_NAMES[s]}</span>
-            <em style={{ color: pct === null ? "var(--dim)" : pctColor(pct) }}>{pct === null ? "—" : `${pct}%`}</em>
-            <i>
-              <b style={{ width: `${pct ?? 0}%`, background: pct === null ? "transparent" : pctColor(pct) }} />
-            </i>
-          </div>
-        ))}
+      <div className="s-card s-rv" style={rise(7).style}>
+        <h5>READINESS</h5>
+        <div className="s-rd">
+          {readiness.map(({ s, pct }) => (
+            <div key={s}>
+              <div className="s-l">
+                <span>{SECTION_NAMES[s]}</span>
+                <b style={{ color: pct === null ? "var(--dim)" : pctColor(pct) }}>{pct === null ? "—" : `${pct}%`}</b>
+              </div>
+              <div className="s-meter" style={{ margin: 0 }}>
+                <i style={{ width: ready ? `${pct ?? 0}%` : 0, background: pct === null ? "transparent" : pctColor(pct) }} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </aside>
   );
@@ -418,7 +331,7 @@ function Rail({ activity, sections, live, due }: { activity?: Activity; sections
 
 /** The soft light that follows the pointer over a track card: its position is passed to the stylesheet. */
 function pointerLight(e: React.PointerEvent<HTMLElement>) {
-  const card = (e.target as HTMLElement).closest<HTMLElement>(".tcard");
+  const card = (e.target as HTMLElement).closest<HTMLElement>(".s-trk");
   if (!card) return;
   const r = card.getBoundingClientRect();
   card.style.setProperty("--mx", `${e.clientX - r.left}px`);
@@ -436,6 +349,9 @@ export function SectionPage({ area }: { area: NavArea }) {
   const [filter, setFilter] = useState("all");
   const [view, setView] = useStored<"grid" | "list">("anneal-catalog-view", "grid");
   const search = useRef<HTMLInputElement>(null);
+  const ready = useReady();
+  const seg = useRef<HTMLDivElement>(null);
+  const loading = tracks.isPending;
 
   useEffect(() => {
     setQ("");
@@ -448,9 +364,24 @@ export function SectionPage({ area }: { area: NavArea }) {
         e.preventDefault();
         search.current?.focus();
       }
+      if (e.key === "Escape") (document.activeElement as HTMLElement | null)?.blur?.();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  // The thumb under the grid / list toggle slides to the one that is on.
+  const placeThumb = () => {
+    const box = seg.current;
+    const on = box?.querySelector<HTMLElement>("button.s-on");
+    const t = box?.querySelector<HTMLElement>(".s-thumb");
+    if (!on || !t) return;
+    t.style.width = `${on.offsetWidth}px`;
+    t.style.transform = `translateX(${on.offsetLeft - 3}px)`;
+  };
+  useLayoutEffect(placeThumb);
+  useEffect(() => {
+    addEventListener("resize", placeThumb);
+    return () => removeEventListener("resize", placeThumb);
   }, []);
 
   const live = new Map((tracks.data ?? []).map((t) => [t.code, t]));
@@ -476,26 +407,23 @@ export function SectionPage({ area }: { area: NavArea }) {
         .includes(needle));
   const problems = rows.reduce((n, r) => n + Math.max(r.planned, r.live?.total ?? 0), 0);
   const left = rows.reduce((n, r) => n + (r.state === "done" ? 0 : minutesLeft(r)), 0);
+  const visible = rows.filter(shown).length;
+  let index = 0;
 
   const groups = (sections.length > 1 ? sections : [null]).map((s) => {
-    const list = rows.filter((r) => (!s || sectionOf(r.code) === s) && shown(r));
-    if (!list.length) return null;
+    const all = rows.filter((r) => !s || sectionOf(r.code) === s);
+    const count = all.filter(shown).length;
+    if (!all.length) return null;
     return (
-      <div key={s ?? "all"} style={{ display: "contents" }}>
-        <div className="flabel">{s ? `${SECTION_NAMES[s].toUpperCase()} · ${list.length}` : "ALL TRACKS · IN RECOMMENDED ORDER"}</div>
-        {view === "grid" ? (
-          <div className="tgrid" onPointerMove={pointerLight}>
-            {list.map((r) => (
-              <TrackCard key={r.code} row={r} />
-            ))}
-          </div>
-        ) : (
-          <div className="tlist">
-            {list.map((r) => (
-              <TrackRow key={r.code} row={r} />
-            ))}
-          </div>
-        )}
+      <div key={s ?? "all"} style={{ display: count ? undefined : "none" }}>
+        <div className="s-flab" style={{ marginTop: 28 }}>
+          {s ? `${SECTION_NAMES[s].toUpperCase()} · ${count}` : `ALL TRACKS · IN RECOMMENDED ORDER · ${count}`}
+        </div>
+        <div className={`s-grid${view === "list" ? " s-list" : ""}`} onPointerMove={pointerLight}>
+          {all.map((r) => (
+            <TrackCard key={r.code} row={r} i={index++} gone={!shown(r)} blank={false} />
+          ))}
+        </div>
       </div>
     );
   });
@@ -503,22 +431,22 @@ export function SectionPage({ area }: { area: NavArea }) {
   return (
     <>
       <Header area={area} />
-      <main className="page" style={{ "--ca": `var(--${copy.color})`, "--cab": `var(--${copy.color}-bg)` } as CSSProperties}>
-        <div className="wrap">
-          <section className="cat-top">
-            <div style={{ minWidth: 0, flex: "1 1 520px" }}>
-              <div className="eyebrow">
-                <span style={{ color: "var(--ca)" }}>{copy.eyebrow}</span>
-                <span>/</span>
-                <span>TRACKS</span>
+      <MockRoot prefix="s-" className={`s-${area}`} style={{ "--s-ac": `var(--${copy.color})`, "--s-acb": `var(--${copy.color}-bg)`, "--ca": `var(--${copy.color})`, "--cab": `var(--${copy.color}-bg)` } as CSSProperties}>
+        <main className={`s-wrap${loading ? " s-sk" : ""}`} id="page">
+          <section className="s-hero">
+            <div>
+              <div className="s-eye s-rv" style={rise(0).style}>
+                <b>{copy.eyebrow}</b> / TRACKS
               </div>
-              <h1 className="h1 md">
+              <h1 className="s-rv" style={rise(1).style}>
                 {copy.title[0]}
-                <span style={{ color: "var(--ca)" }}>{copy.title[1]}</span>
+                <em>{copy.title[1]}</em>
               </h1>
-              <p className="lead">{copy.lead}</p>
+              <p className="s-lead s-rv" style={rise(2).style}>
+                {copy.lead}
+              </p>
             </div>
-            <div className="cat-stats">
+            <div className="s-stats s-rv" style={rise(3).style}>
               <div>
                 <b>
                   <CountUp value={rows.length} />
@@ -540,66 +468,70 @@ export function SectionPage({ area }: { area: NavArea }) {
             </div>
           </section>
           {tracks.isError && <p className="notice bad">Couldn't reach the API. Is `cargo run -p anneal-api` running?</p>}
-          <div className="cat-body">
-            <div className="cat-main">
-              {activity.data?.next && <NextUpCard next={activity.data.next} streak={activity.data.streak} />}
-              <div className="cat-tools">
-                <label className="cat-search">
-                  <span aria-hidden="true" style={{ color: "var(--dim)" }}>
-                    ⌕
-                  </span>
-                  <input
-                    ref={search}
-                    type="search"
-                    placeholder="search tracks, stages, topics…"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    aria-label="Search tracks"
-                  />
+          <div className="s-main">
+            <div>
+              {activity.data?.next && <NextUpCard next={activity.data.next} streak={activity.data.streak} ready={ready} />}
+              <div className="s-tools s-rv" style={rise(5).style}>
+                <label className="s-search">
+                  <span>⌕</span>
+                  <input ref={search} type="search" placeholder="search tracks, stages, topics…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tracks" autoComplete="off" spellCheck={false} />
                   <kbd>/</kbd>
                 </label>
-                <div className="seg slide" role="group" aria-label="View" style={{ "--i": view === "grid" ? 0 : 1 } as React.CSSProperties}>
+                <div className="s-seg" ref={seg} role="group" aria-label="View">
+                  <span className="s-thumb" />
                   {(["grid", "list"] as const).map((v) => (
-                    <button key={v} className={view === v ? "on" : ""} aria-pressed={view === v} onClick={() => setView(v)}>
-                      {v === "grid" ? "▦ grid" : "☰ list"}
+                    <button key={v} className={view === v ? "s-on" : ""} aria-pressed={view === v} onClick={() => setView(v)}>
+                      {v === "grid" ? "▦ grid" : "≡ list"}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="flabel">FILTER BY</div>
-              <div className="fchips">
+              <div className="s-flab s-rv" style={rise(6).style}>
+                FILTER BY
+              </div>
+              <div className="s-chips s-rv" style={rise(6).style}>
                 {FILTERS.map(([key, label, fn]) => {
                   const n = rows.filter(fn).length;
                   if (!n && key !== "all") return null;
                   return (
-                    <button key={key} className={`fchip${filter === key ? " on" : ""}`} aria-pressed={filter === key} onClick={() => setFilter(key)}>
-                      {label}
-                      <small>{n}</small>
+                    <button key={key} className={`s-chip${filter === key ? " s-on" : ""}`} aria-pressed={filter === key} onClick={() => setFilter(key)}>
+                      {label} <small>{n}</small>
                     </button>
                   );
                 })}
               </div>
-              {groups.some(Boolean) ? (
-                groups
-              ) : (
-                <div className="cat-empty">
-                  No tracks match.{" "}
-                  <button
-                    style={{ color: "var(--ca)" }}
-                    onClick={() => {
-                      setQ("");
-                      setFilter("all");
-                    }}
-                  >
-                    Clear filters
-                  </button>
+              {loading ? (
+                <div className="s-grid" style={{ marginTop: 28 }}>
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <article key={i} className="s-trk" style={{ minHeight: 220 }} aria-hidden="true">
+                      <div className="s-th">
+                        <span className="s-no">··</span>
+                      </div>
+                      <h4>Loading</h4>
+                    </article>
+                  ))}
                 </div>
+              ) : (
+                groups
               )}
+              <div className={`s-empty${visible === 0 && !loading ? " s-show" : ""}`}>
+                No track matches that.{" "}
+                <button
+                  className="s-ghost"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => {
+                    setQ("");
+                    setFilter("all");
+                  }}
+                >
+                  Clear filters
+                </button>
+              </div>
             </div>
-            <Rail activity={activity.data} sections={sections} live={tracks.data ?? []} due={due} />
+            <Side activity={activity.data} sections={sections} live={tracks.data ?? []} due={due} ready={ready} />
           </div>
-        </div>
-      </main>
+        </main>
+      </MockRoot>
     </>
   );
 }

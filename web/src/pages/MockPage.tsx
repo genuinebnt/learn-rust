@@ -152,7 +152,7 @@ type Tab = "pool" | "topics" | "companies" | "clock";
 
 function Switch({ on, onClick, title, hint, disabled }: { on: boolean; onClick: () => void; title: string; hint?: string; disabled?: boolean }) {
     return (
-        <button className={`k-tog${on ? " on" : ""}`} onClick={onClick} disabled={disabled} role="switch" aria-checked={on}>
+        <button className={`mi-tog${on ? " on" : ""}`} onClick={onClick} disabled={disabled} role="switch" aria-checked={on}>
             <i className="sw" />
             <span>
                 <b>{title}</b>
@@ -164,7 +164,7 @@ function Switch({ on, onClick, title, hint, disabled }: { on: boolean; onClick: 
 
 function Num({ value, onChange, min, max, step = 1, label, unit }: { value: number; onChange: (n: number) => void; min: number; max: number; step?: number; label: string; unit?: string }) {
     return (
-        <span className="k-num" role="group" aria-label={label}>
+        <span className="mi-num" role="group" aria-label={label}>
             <button aria-label={`less ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))}>−</button>
             <span aria-live="polite">{value}{unit && <small>{unit}</small>}</span>
             <button aria-label={`more ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))}>+</button>
@@ -174,7 +174,7 @@ function Num({ value, onChange, min, max, step = 1, label, unit }: { value: numb
 
 function Seg<T extends string>({ value, options, onPick, label }: { value: T; options: [T, string][]; onPick: (v: T) => void; label: string }) {
     return (
-        <div className="k-seg" role="group" aria-label={label}>
+        <div className="mi-seg" role="group" aria-label={label}>
             {options.map(([v, l]) => <button key={v} className={v === value ? "on" : ""} aria-pressed={v === value} onClick={() => onPick(v)}>{l}</button>)}
         </div>
     );
@@ -183,7 +183,7 @@ function Seg<T extends string>({ value, options, onPick, label }: { value: T; op
 /** The shape of a round as small bars, one per problem: green easy, amber medium, red hard. */
 function Shape({ c }: { c: MockConfig }) {
     const bars = c.anyDiff ? Array.from({ length: c.anyCount }, () => "a") : c.mix.flatMap((k, i) => Array.from({ length: k }, () => "ewh"[i]!));
-    return <span className="k-shape">{bars.map((b, i) => <i key={i} className={b} />)}</span>;
+    return <span className="mi-shape">{bars.map((b, i) => <i key={i} className={b} />)}</span>;
 }
 
 function Setup({ data, initial, onStart, error }: { data: MockData; initial: MockConfig; onStart: (c: MockConfig) => void; error: string | null }) {
@@ -259,11 +259,11 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
     const slots = c.anyDiff ? Array.from({ length: c.anyCount }, () => 1) : c.mix.flatMap((k, i) => Array.from({ length: k }, () => i));
     const perTotal = paceMinutes(c);
     const warnings: { cls: string; text: string }[] = [];
-    if (problem) warnings.push({ cls: "k-bad", text: problem });
-    if (!problem && error) warnings.push({ cls: "k-bad", text: error });
-    if (c.format === "total" && perTotal > c.total * 1.25) warnings.push({ cls: "k-warn", text: `At the suggested pace the round takes ${perTotal} min, but the clock is ${c.total}. Lengthen the round or ask for fewer problems.` });
+    if (problem) warnings.push({ cls: "mi-bad", text: problem });
+    if (!problem && error) warnings.push({ cls: "mi-bad", text: error });
+    if (c.format === "total" && perTotal > c.total * 1.25) warnings.push({ cls: "mi-warn", text: `At the suggested pace the round takes ${perTotal} min, but the clock is ${c.total}. Lengthen the round or ask for fewer problems.` });
     if (c.favour === "weak" && !pool.some((p) => p.state.last_grade === "again" || p.state.last_grade === "hard" || (p.state.due && p.state.due <= data.today))) {
-        warnings.push({ cls: "k-warn", text: "Nothing here is marked weak yet, so this will draw uniformly." });
+        warnings.push({ cls: "mi-warn", text: "Nothing here is marked weak yet, so this will draw uniformly." });
     }
     const timerName = c.format === "total" ? `Countdown, ${c.total}:00` : c.format === "per" ? "Countdown per problem" : "Stopwatch";
 
@@ -290,7 +290,7 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
     ];
 
     return (
-        <div className="k-wrap m-setup">
+        <div className="mi-wrap m-setup">
             <div className="eyebrow">
                 <Link to="/dsa" style={{ color: "var(--ca)" }}>DSA</Link>
                 <span>/</span>
@@ -298,19 +298,19 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                 <span>/</span>
                 <span>{data.rounds.length} ROUND{data.rounds.length === 1 ? "" : "S"} TAKEN</span>
             </div>
-            <h1 className="k-h1">Build your interview</h1>
-            <p className="k-sub">Pick a shape, narrow the pool, set the clock. The problems are drawn when you press start, so you never see them early.</p>
+            <h1 className="mi-h1">Build your interview</h1>
+            <p className="mi-sub">Pick a shape, narrow the pool, set the clock. The problems are drawn when you press start, so you never see them early.</p>
 
-            <div className="k-presets" role="group" aria-label="Presets">
+            <div className="mi-presets" role="group" aria-label="Presets">
                 {PRESETS.map((p) => (
-                    <button key={p.key} className={`k-pc${preset === p.key ? " on" : ""}`} aria-pressed={preset === p.key} onClick={() => { setC(p.apply(c)); setPreset(p.key); }}>
+                    <button key={p.key} className={`mi-pc${preset === p.key ? " on" : ""}`} aria-pressed={preset === p.key} onClick={() => { setC(p.apply(c)); setPreset(p.key); }}>
                         <b>{p.name}</b>
                         <Shape c={p.apply(c)} />
                         <small>{p.detail}</small>
                     </button>
                 ))}
                 {presets.map((p) => (
-                    <span key={p.name} className={`k-pc${preset === `saved:${p.name}` ? " on" : ""}`}>
+                    <span key={p.name} className={`mi-pc${preset === `saved:${p.name}` ? " on" : ""}`}>
                         <button className="body" aria-pressed={preset === `saved:${p.name}`} onClick={() => { setC(p.config); setPreset(`saved:${p.name}`); }}>
                             <b>{p.name}</b>
                             <Shape c={p.config} />
@@ -321,12 +321,12 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                 ))}
             </div>
 
-            <div className="k-cols">
-                <div className="k-stack">
-                    <div className="k-sum">
+            <div className="mi-cols">
+                <div className="mi-stack">
+                    <div className="mi-sum">
                         <span className="lab">DRAWING FROM</span>
                         {filters.map((f) => (
-                            <span key={f.key} className={`k-fc${f.exc ? " exc" : ""}`}>
+                            <span key={f.key} className={`mi-fc${f.exc ? " exc" : ""}`}>
                                 {f.exc ? "not " : ""}{f.label}
                                 <button aria-label={`Remove ${f.label}`} onClick={f.remove}>✕</button>
                             </span>
@@ -334,8 +334,8 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                         <span className="meter"><b>{pool.length}</b> can be drawn</span>
                     </div>
 
-                    <section className="k-card">
-                        <div className="k-tabs" role="tablist">
+                    <section className="mi-card">
+                        <div className="mi-tabs" role="tablist">
                             {tabs.map(([k, label, n]) => (
                                 <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{label}<small>{n}</small></button>
                             ))}
@@ -343,70 +343,70 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
 
                         {tab === "pool" && (
                             <>
-                                <div className="k-sec">
+                                <div className="mi-sec">
                                     <span className="t">WHERE PROBLEMS COME FROM <em>{c.lists.length} selected</em></span>
-                                    <div className="k-chips">
+                                    <div className="mi-chips">
                                         {MOCK_LISTS.map(([key, label]) => (
-                                            <button key={key} className={`k-chip${c.lists.includes(key) ? " on" : ""}`} aria-pressed={c.lists.includes(key)} onClick={() => edit((cur) => ({ ...cur, lists: cur.lists.includes(key) ? (cur.lists.length > 1 ? toggle(cur.lists, key) : cur.lists) : [...cur.lists, key] }))}>
+                                            <button key={key} className={`mi-chip${c.lists.includes(key) ? " on" : ""}`} aria-pressed={c.lists.includes(key)} onClick={() => edit((cur) => ({ ...cur, lists: cur.lists.includes(key) ? (cur.lists.length > 1 ? toggle(cur.lists, key) : cur.lists) : [...cur.lists, key] }))}>
                                                 {label}<small>{listCount(key)}</small>
                                             </button>
                                         ))}
                                     </div>
-                                    <p className="k-hint">Practice problems are the other LeetCode problems for each technique. They never schedule reviews. Premium problems are always left out.</p>
+                                    <p className="mi-hint">Practice problems are the other LeetCode problems for each technique. They never schedule reviews. Premium problems are always left out.</p>
                                 </div>
-                                <div className="k-sec">
+                                <div className="mi-sec">
                                     <span className="t">YOUR HISTORY <em>which of those can be drawn</em></span>
                                     <Seg label="History" value={c.status} options={MOCK_STATUS.map(([k, l]) => [k, l])} onPick={(status) => edit((cur) => ({ ...cur, status }))} />
-                                    <p className="k-hint">{MOCK_STATUS.find(([k]) => k === c.status)?.[2]}</p>
+                                    <p className="mi-hint">{MOCK_STATUS.find(([k]) => k === c.status)?.[2]}</p>
                                 </div>
-                                <div className="k-sec">
+                                <div className="mi-sec">
                                     <span className="t">HOW TO DRAW</span>
                                     <Seg label="How to draw" value={c.favour} options={FAVOUR.map(([k, l]) => [k, l])} onPick={(favour) => edit((cur) => ({ ...cur, favour }))} />
-                                    <p className="k-hint">{FAVOUR.find(([k]) => k === c.favour)?.[2]}</p>
+                                    <p className="mi-hint">{FAVOUR.find(([k]) => k === c.favour)?.[2]}</p>
                                 </div>
                             </>
                         )}
 
                         {tab === "topics" && (
-                            <div className="k-sec">
+                            <div className="mi-sec">
                                 <span className="t">TOPICS <em>{included || excluded ? `${included} included · ${excluded} excluded` : "click once to include, twice to exclude, three times to clear"}</em></span>
-                                <div className="k-chips">
+                                <div className="mi-chips">
                                     {data.patterns.map((pt) => {
                                         const v = c.topics[pt.code];
                                         return (
-                                            <button key={pt.code} className={`k-chip${v === 1 ? " on" : v === -1 ? " exc" : ""}`} onClick={() => cycleTopic(pt.code)} aria-label={`${pt.name}: ${v === 1 ? "included" : v === -1 ? "excluded" : "allowed"}`}>
+                                            <button key={pt.code} className={`mi-chip${v === 1 ? " on" : v === -1 ? " exc" : ""}`} onClick={() => cycleTopic(pt.code)} aria-label={`${pt.name}: ${v === 1 ? "included" : v === -1 ? "excluded" : "allowed"}`}>
                                                 {pt.name}<small>{byTopic.get(pt.code) ?? 0}</small>
                                             </button>
                                         );
                                     })}
                                 </div>
-                                <p className="k-hint">With no topic included, every topic is allowed except the ones you exclude.</p>
+                                <p className="mi-hint">With no topic included, every topic is allowed except the ones you exclude.</p>
                             </div>
                         )}
 
                         {tab === "companies" && (
                             <>
-                                <div className="k-sec">
+                                <div className="mi-sec">
                                     <span className="t">GROUPS</span>
-                                    <div className="k-chips">
+                                    <div className="mi-chips">
                                         {data.company_groups.map((g) => (
-                                            <button key={g.name} className={`k-chip${c.groups.includes(g.name) ? " on" : ""}`} aria-pressed={c.groups.includes(g.name)} onClick={() => edit((cur) => ({ ...cur, groups: toggle(cur.groups, g.name) }))}>
+                                            <button key={g.name} className={`mi-chip${c.groups.includes(g.name) ? " on" : ""}`} aria-pressed={c.groups.includes(g.name)} onClick={() => edit((cur) => ({ ...cur, groups: toggle(cur.groups, g.name) }))}>
                                                 {g.name}<small>{byCompany.groups.get(g.name) ?? 0}</small>
                                             </button>
                                         ))}
                                     </div>
                                 </div>
-                                <div className="k-sec">
+                                <div className="mi-sec">
                                     <span className="t">COMPANIES <em>{c.groups.length + c.companies.length ? [...c.groups, ...c.companies].slice(0, 3).join(", ") + (c.groups.length + c.companies.length > 3 ? ` +${c.groups.length + c.companies.length - 3}` : "") : "any company"}</em></span>
-                                    <div className="k-chips">
+                                    <div className="mi-chips">
                                         {shownCo.map((x) => (
-                                            <button key={x.name} className={`k-chip${c.companies.includes(x.name) ? " on" : ""}`} aria-pressed={c.companies.includes(x.name)} onClick={() => edit((cur) => ({ ...cur, companies: toggle(cur.companies, x.name) }))}>
+                                            <button key={x.name} className={`mi-chip${c.companies.includes(x.name) ? " on" : ""}`} aria-pressed={c.companies.includes(x.name)} onClick={() => edit((cur) => ({ ...cur, companies: toggle(cur.companies, x.name) }))}>
                                                 {x.name}<small>{x.n}</small>
                                             </button>
                                         ))}
-                                        {!q && matching.length > 8 && <button className="k-chip more" onClick={() => setAllCo(!allCo)}>{allCo ? "show fewer" : `+${matching.length - 8} more`}</button>}
+                                        {!q && matching.length > 8 && <button className="mi-chip more" onClick={() => setAllCo(!allCo)}>{allCo ? "show fewer" : `+${matching.length - 8} more`}</button>}
                                     </div>
-                                    <input className="k-search" value={coQuery} onChange={(e) => setCoQuery(e.target.value)} placeholder="Find a company" aria-label="Find a company" />
+                                    <input className="mi-search" value={coQuery} onChange={(e) => setCoQuery(e.target.value)} placeholder="Find a company" aria-label="Find a company" />
                                 </div>
                                 <Switch on={c.recent} onClick={() => edit((cur) => ({ ...cur, recent: !cur.recent }))} title="Asked in the last 6 months" hint="A problem can be drawn if any selected company asked it recently." />
                             </>
@@ -414,14 +414,14 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
 
                         {tab === "clock" && (
                             <>
-                                <div className="k-sec">
+                                <div className="mi-sec">
                                     <span className="t">FORMAT</span>
                                     <Seg label="Timer format" value={c.format} options={[["total", "Countdown for the round"], ["per", "Countdown per problem"], ["up", "Stopwatch only"]]} onPick={(format) => edit((cur) => ({ ...cur, format }))} />
                                 </div>
                                 {c.format === "up" ? (
-                                    <p className="k-hint">No limit. The clock counts up, and each problem shows its time against the suggested time ({c.per.join(" / ")} min for easy, medium, hard).</p>
+                                    <p className="mi-hint">No limit. The clock counts up, and each problem shows its time against the suggested time ({c.per.join(" / ")} min for easy, medium, hard).</p>
                                 ) : (
-                                    <div className="k-fields">
+                                    <div className="mi-fields">
                                         {c.format === "total" && (
                                             <div><label>ROUND LENGTH</label><Num label="minutes" unit="min" value={c.total} min={10} max={180} step={5} onChange={(total) => edit((cur) => ({ ...cur, total }))} /></div>
                                         )}
@@ -430,7 +430,7 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                                         ))}
                                     </div>
                                 )}
-                                <div className="k-togs">
+                                <div className="mi-togs">
                                     <Switch on={c.strict} onClick={() => edit((cur) => ({ ...cur, strict: !cur.strict }))} title="Strict: no pause" hint="The clock keeps running, like a real call. Turn off to allow Pause." />
                                     <Switch on={c.blind} onClick={() => edit((cur) => ({ ...cur, blind: !cur.blind }))} title="Blind mode" hint="Hide topic, tags and companies until you log the problem." />
                                     <Switch on={c.auto} disabled={c.format === "up"} onClick={() => edit((cur) => ({ ...cur, auto: !cur.auto }))} title={c.format === "per" ? "Move on at 0:00" : "End the round at 0:00"} hint={c.format === "per" ? "Off: the problem's clock turns red and counts overtime." : "Off: the clock turns red and counts overtime, and you decide when to stop."} />
@@ -441,17 +441,17 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                     </section>
 
                     {data.rounds.length > 0 && (
-                        <section className="k-card">
-                            <h3 className="k-h3"><span>PAST ROUNDS</span><em>repeat any of them</em></h3>
-                            <div className="k-tbl">
-                                <div className="k-tr th"><span>DATE</span><span>ROUND</span><span>RESULT</span><span>TIME</span><span /></div>
+                        <section className="mi-card">
+                            <h3 className="mi-h3"><span>PAST ROUNDS</span><em>repeat any of them</em></h3>
+                            <div className="mi-tbl">
+                                <div className="mi-tr th"><span>DATE</span><span>ROUND</span><span>RESULT</span><span>TIME</span><span /></div>
                                 {data.rounds.map((r) => (
-                                    <div key={r.id} className="k-tr">
+                                    <div key={r.id} className="mi-tr">
                                         <span>{new Date(r.finished_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
                                         <span>{describe(r.config, data)}</span>
                                         <span className="res">{r.items.map((i, k) => <i key={k} className={`dot ${i.grade === "good" || i.grade === "easy" ? "g" : i.grade === "hard" ? "h" : i.grade === "again" ? "f" : "s"}`}>{glyphOf(i.grade)}</i>)}</span>
                                         <span>{mmss(r.seconds)}{r.config.format === "total" ? ` / ${mmss(r.config.total * 60)}` : ""}</span>
-                                        <button className="k-ghost" onClick={() => { setC(r.config); setPreset("custom"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Repeat</button>
+                                        <button className="mi-ghost" onClick={() => { setC(r.config); setPreset("custom"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Repeat</button>
                                     </div>
                                 ))}
                             </div>
@@ -459,7 +459,7 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                     )}
                 </div>
 
-                <aside className="k-ticket">
+                <aside className="mi-ticket">
                     <div className="top">
                         <div className="big"><b>{need}</b><span>{need === 1 ? "problem" : "problems"} · {c.format === "total" ? `${c.total} min` : c.format === "per" ? "per problem" : "no limit"}</span></div>
                         <div className="bands">
@@ -468,7 +468,7 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                         </div>
                     </div>
                     <div className="slots">
-                        {slots.length === 0 && <p className="k-hint" style={{ textAlign: "center", padding: "10px 0" }}>Add at least one problem.</p>}
+                        {slots.length === 0 && <p className="mi-hint" style={{ textAlign: "center", padding: "10px 0" }}>Add at least one problem.</p>}
                         {slots.map((band, j) => (
                             <div key={j} className="slot">
                                 <i>{j + 1}</i>
@@ -495,7 +495,7 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                         <div><dt>Topic and tags</dt><dd>{c.blind ? "hidden" : "shown"}</dd></div>
                     </dl>
                     {warnings.map((w) => <div key={w.text} className={w.cls}>{w.text}</div>)}
-                    <button className="k-go" disabled={!!problem} onClick={() => onStart(c)}>Draw and start the clock →</button>
+                    <button className="mi-go" disabled={!!problem} onClick={() => onStart(c)}>Draw and start the clock →</button>
                     <div className="foot">
                         {naming ? (
                             <form
@@ -510,18 +510,18 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                                 }}
                             >
                                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name this preset" aria-label="Preset name" maxLength={40} autoFocus />
-                                <div className="row"><button className="k-ghost" type="submit" disabled={!name.trim()}>Save</button><button className="k-ghost" type="button" onClick={() => setNaming(false)}>Cancel</button></div>
+                                <div className="row"><button className="mi-ghost" type="submit" disabled={!name.trim()}>Save</button><button className="mi-ghost" type="button" onClick={() => setNaming(false)}>Cancel</button></div>
                             </form>
                         ) : (
-                            <button className="k-ghost" onClick={() => setNaming(true)}>Save as a preset</button>
+                            <button className="mi-ghost" onClick={() => setNaming(true)}>Save as a preset</button>
                         )}
-                        <p className="k-note">The settings of your last round are remembered the next time you open this page.</p>
+                        <p className="mi-note">The settings of your last round are remembered the next time you open this page.</p>
                     </div>
                 </aside>
             </div>
             <div className="m-dock">
                 <span><b>{pool.length}</b> can be drawn · {need} problem{need === 1 ? "" : "s"}</span>
-                <button className="k-go" disabled={!!problem} onClick={() => onStart(c)}>Start →</button>
+                <button className="mi-go" disabled={!!problem} onClick={() => onStart(c)}>Start →</button>
             </div>
         </div>
     );
@@ -623,7 +623,7 @@ function Live({ data, round, update, onFinish }: { data: MockData; round: Round;
         return (
             <div className="wrap" style={{ paddingBlock: 28 }}>
                 <p className="rempty">A problem in this round is no longer in the catalog.</p>
-                <button className="k-ghost" onClick={() => onFinish(round)}>End the round</button>
+                <button className="mi-ghost" onClick={() => onFinish(round)}>End the round</button>
             </div>
         );
     }
@@ -676,13 +676,13 @@ function Live({ data, round, update, onFinish }: { data: MockData; round: Round;
     const clockText = mmss(time.value);
 
     return (
-        <div className="k-wrap k-room">
-            <div className="k-rbar">
-                <div className={`k-ring${ringCls}`} aria-live="off">
+        <div className="mi-wrap mi-room">
+            <div className="mi-rbar">
+                <div className={`mi-ring${ringCls}`} aria-live="off">
                     <svg viewBox="0 0 108 108" aria-hidden="true"><circle className="bg" cx="54" cy="54" r="46" /><circle className="fg" cx="54" cy="54" r="46" strokeDasharray={C} strokeDashoffset={C * (1 - Math.min(1, Math.max(0, frac)))} /></svg>
                     <div className="c"><b className={clockText.length > 5 ? "long" : ""}>{clockText}</b><small>{clockLabel.replace("MOCK ROUND · LIVE", "LEFT")}</small></div>
                 </div>
-                <div className="k-segbar">
+                <div className="mi-segbar">
                     <div className="lab"><span>MOCK ROUND · LIVE</span><span>{mmss(total)} used · {Math.round(paceAll / 60)} min suggested</span></div>
                     <div className="segs" aria-label="Problems">
                         {round.ids.map((id, i) => {
@@ -701,23 +701,23 @@ function Live({ data, round, update, onFinish }: { data: MockData; round: Round;
                         })}
                     </div>
                 </div>
-                <div className="k-rctl">
-                    {!c.strict && <button className="k-ghost" onClick={togglePause}>{round.pausedAt == null ? "Pause" : "Resume"}</button>}
+                <div className="mi-rctl">
+                    {!c.strict && <button className="mi-ghost" onClick={togglePause}>{round.pausedAt == null ? "Pause" : "Resume"}</button>}
                     {confirmEnd ? (
                         <>
-                            <button className="k-ghost" onClick={() => onFinish(round)}>End now</button>
-                            <button className="k-ghost" onClick={() => setConfirmEnd(false)}>Keep going</button>
+                            <button className="mi-ghost" onClick={() => onFinish(round)}>End now</button>
+                            <button className="mi-ghost" onClick={() => setConfirmEnd(false)}>Keep going</button>
                         </>
                     ) : (
-                        <button className="k-ghost" onClick={() => setConfirmEnd(true)}>End round</button>
+                        <button className="mi-ghost" onClick={() => setConfirmEnd(true)}>End round</button>
                     )}
                 </div>
             </div>
-            {banner && <div className="k-banner" role="status">{banner}</div>}
-            {round.pausedAt != null && <div className="k-banner" role="status">Paused. The clock is stopped until you resume.</div>}
+            {banner && <div className="mi-banner" role="status">{banner}</div>}
+            {round.pausedAt != null && <div className="mi-banner" role="status">Paused. The clock is stopped until you resume.</div>}
 
-            <div className="k-stage">
-                <section className="k-card k-prob">
+            <div className="mi-stage">
+                <section className="mi-card mi-prob">
                     <span className="lab">PROBLEM {index + 1} OF {round.ids.length} · {DIFF[problem.difficulty][0].toUpperCase()} · SUGGESTED {Math.round(sug / 60)} MIN</span>
                     <h2 className="pt">{showMeta ? `#${problem.number} ` : ""}{problem.title}</h2>
                     <a className="open" href={leetcode(problem.slug)} target="_blank" rel="noopener noreferrer">Open on LeetCode ↗</a>
@@ -736,27 +736,27 @@ function Live({ data, round, update, onFinish }: { data: MockData; round: Round;
                     )}
                 </section>
 
-                <div className="k-side">
-                    <section className="k-card">
-                        <h3 className="k-h3"><span>LOG PROBLEM {index + 1}</span><em>same as a normal attempt</em></h3>
-                        <div className="k-log3">
+                <div className="mi-side">
+                    <section className="mi-card">
+                        <h3 className="mi-h3"><span>LOG PROBLEM {index + 1}</span><em>same as a normal attempt</em></h3>
+                        <div className="mi-log3">
                             {([["good", "✓", "on my own", "ok"], ["hard", "½", "with help", "half"], ["again", "✗", "not yet", "no"]] as const).map(([g, glyph, label, cls]) => (
                                 <button key={g} className={`lg ${cls}${mark?.grade === g && logged ? " on" : ""}`} disabled={logged || busy} onClick={() => void log(g)}>
                                     <b>{glyph}</b><span>{label}</span>
                                 </button>
                             ))}
                         </div>
-                        {error && <div className="k-bad">{error}</div>}
+                        {error && <div className="mi-bad">{error}</div>}
                         {logged && mark && mark.grade && (
-                            <div className="k-logged">Logged {glyphOf(mark.grade)}. {mark.due ? `Review ${niceDate(mark.due, data.today)}.` : "Practice problems schedule no reviews."}</div>
+                            <div className="mi-logged">Logged {glyphOf(mark.grade)}. {mark.due ? `Review ${niceDate(mark.due, data.today)}.` : "Practice problems schedule no reviews."}</div>
                         )}
-                        <button className="k-go" disabled={!logged} onClick={next}>{lastOne ? "Finish the round →" : "Next problem →"}</button>
-                        {!logged && <button className="k-ghost" onClick={skip}>Skip this problem</button>}
-                        <p className="k-note">Logging stops this problem's clock and shows its topic. Skipping logs nothing, so it doesn't change your history or reviews.</p>
+                        <button className="mi-go" disabled={!logged} onClick={next}>{lastOne ? "Finish the round →" : "Next problem →"}</button>
+                        {!logged && <button className="mi-ghost" onClick={skip}>Skip this problem</button>}
+                        <p className="mi-note">Logging stops this problem's clock and shows its topic. Skipping logs nothing, so it doesn't change your history or reviews.</p>
                     </section>
-                    <section className="k-card">
-                        <h3 className="k-h3"><span>THIS ROUND</span><em>{round.marks.filter((m) => m.grade).length} of {round.ids.length} logged</em></h3>
-                        <ol className="k-rr">
+                    <section className="mi-card">
+                        <h3 className="mi-h3"><span>THIS ROUND</span><em>{round.marks.filter((m) => m.grade).length} of {round.ids.length} logged</em></h3>
+                        <ol className="mi-rr">
                             {round.ids.map((id, i) => {
                                 const p = byId.get(id);
                                 const m = round.marks[i];
@@ -800,7 +800,7 @@ function Result({ data, round, onAgain, onChange }: { data: MockData; round: Rou
     const parts = [own ? `${own} solved on your own` : "", help ? `${help} with help` : "", failed ? `${failed} not yet` : "", skipped ? `${skipped} skipped` : ""].filter(Boolean);
     const C = 2 * Math.PI * 62;
     return (
-        <div className="k-wrap">
+        <div className="mi-wrap">
             <div className="eyebrow">
                 <Link to="/dsa" style={{ color: "var(--ca)" }}>DSA</Link>
                 <span>/</span>
@@ -808,29 +808,29 @@ function Result({ data, round, onAgain, onChange }: { data: MockData; round: Rou
                 <span>/</span>
                 <span>ROUND FINISHED</span>
             </div>
-            <div className="k-hero">
-                <div className="k-score">
+            <div className="mi-hero">
+                <div className="mi-score">
                     <svg viewBox="0 0 140 140" aria-hidden="true"><circle className="bg" cx="70" cy="70" r="62" /><circle className="fg" cx="70" cy="70" r="62" strokeDasharray={C} strokeDashoffset={C * (1 - (items.length ? own / items.length : 0))} /></svg>
                     <div className="c"><b>{own}/{items.length}</b><small>ON MY OWN</small></div>
                 </div>
                 <div>
-                    <h1 className="k-h2">{parts.length ? `${parts.join(", ")}.` : "Round ended."}</h1>
-                    <p className="k-sub" style={{ marginTop: 8 }}>
+                    <h1 className="mi-h2">{parts.length ? `${parts.join(", ")}.` : "Round ended."}</h1>
+                    <p className="mi-sub" style={{ marginTop: 8 }}>
                         {spare != null && <b style={{ color: spare >= 0 ? "var(--grn)" : "var(--warn)" }}>{spare >= 0 ? `Finished with ${mmss(spare)} to spare. ` : `${mmss(-spare)} over the time. `}</b>}
                         {describe(c, data)}
                     </p>
                 </div>
             </div>
 
-            <div className="k-stats">
+            <div className="mi-stats">
                 <div className="stat"><small>TIME USED</small><b>{mmss(seconds)}</b><span>{c.format === "total" ? `of ${mmss(c.total * 60)}` : c.format === "per" ? "per-problem countdowns" : "stopwatch"}</span></div>
                 <div className="stat"><small>SOLVED ON MY OWN</small><b>{own} / {items.length}</b><span>{help} with help, {failed} not yet{skipped ? `, ${skipped} skipped` : ""}</span></div>
                 <div className="stat"><small>AGAINST SUGGESTED</small><b style={{ color: diff <= 0 ? "var(--grn)" : "var(--warn)" }}>{diff <= 0 ? "−" : "+"}{mmss(Math.abs(diff))}</b><span>{mmss(pace)} suggested in all</span></div>
                 <div className="stat"><small>SETTINGS</small><b style={{ fontSize: 16, paddingTop: 6 }}>{c.strict ? "strict" : "pausable"} · {c.blind ? "blind" : "open"}</b><span>{c.favour === "random" ? "uniform draw" : c.favour === "weak" ? "favoured weak ones" : "favoured often-asked"}</span></div>
             </div>
 
-            <section className="k-card">
-                <h3 className="k-h3"><span>THE PROBLEMS</span><em>open any to read it on LeetCode</em></h3>
+            <section className="mi-card">
+                <h3 className="mi-h3"><span>THE PROBLEMS</span><em>open any to read it on LeetCode</em></h3>
                 {items.map((it, i) => {
                     const p = byId.get(it.id);
                     if (!p) return null;
@@ -839,7 +839,7 @@ function Result({ data, round, onAgain, onChange }: { data: MockData; round: Rou
                     const mark = round.marks[i];
                     const practice = p.lists.every((l) => l === "practice");
                     return (
-                        <div key={it.id} className="k-prow">
+                        <div key={it.id} className="mi-prow">
                             <span className={`g ${cls}`}>{glyphOf(it.grade)}</span>
                             <div>
                                 <a className="t1" href={leetcode(p.slug)} target="_blank" rel="noopener noreferrer">#{p.number} {p.title} ↗</a>
@@ -855,11 +855,11 @@ function Result({ data, round, onAgain, onChange }: { data: MockData; round: Rou
                 })}
             </section>
 
-            <div className="k-acts">
-                <button className="k-go wide" onClick={onAgain}>Another round, same settings →</button>
-                <button className="k-ghost tall" onClick={onChange}>Change settings</button>
+            <div className="mi-acts">
+                <button className="mi-go wide" onClick={onAgain}>Another round, same settings →</button>
+                <button className="mi-ghost tall" onClick={onChange}>Change settings</button>
             </div>
-            <p className="k-note">Problems you logged ½ or ✗ become more likely when you choose "Favour my weak ones".</p>
+            <p className="mi-note">Problems you logged ½ or ✗ become more likely when you choose "Favour my weak ones".</p>
         </div>
     );
 }

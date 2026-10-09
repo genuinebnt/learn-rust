@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { api, type Activity, type Band, type DsaOverview, type DsaProblem, type TrackSummary } from "../api";
 import { Companies, Mark, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
+import { MockRoot, SlidingSeg, rise, useReady } from "../components/mock";
+import { CountUp } from "../components/kit";
 import { PracticeRow } from "./PracticePage";
 import { pad2, pctColor } from "../components/bits";
 import { BLURB, DIFF, REVIEW_GRADES, LISTS, MINUTES, STATUS_LABEL, daysUntil, hours, inList, leetcode, niceDate, statusOf, videoUrl, type ListKey, type Status } from "../dsa";
@@ -127,31 +129,37 @@ export function DsaPage() {
   return (
     <>
       <Header area="dsa" />
-      <main className="page" style={{ "--ca": "var(--acc)", "--cab": "var(--acc-bg)" } as CSSProperties}>
-        <div className="wrap">
-          <section className="cat-top">
-            <div style={{ minWidth: 0, flex: "1 1 520px" }}>
-              <div className="eyebrow">
-                <span style={{ color: "var(--ca)" }}>DSA</span>
-                <span>/</span>
-                <span>NEETCODE</span>
+      <MockRoot prefix="s-" className="s-dsa" style={{ "--s-ac": "var(--acc)", "--s-acb": "var(--acc-bg)", "--ca": "var(--acc)", "--cab": "var(--acc-bg)" } as CSSProperties}>
+        <main className="s-wrap">
+          <section className="s-hero">
+            <div>
+              <div className="s-eye s-rv" style={rise(0).style}>
+                <b>DSA</b> / NEETCODE
               </div>
-              <h1 className="h1 md">
-                Every NeetCode problem, <span style={{ color: "var(--ca)" }}>tracked.</span>
+              <h1 className="s-rv" style={rise(1).style}>
+                Every NeetCode problem, <em>tracked.</em>
               </h1>
-              <p className="lead">Solve on LeetCode, log it here. Anneal keeps the schedule: reviews, streak and readiness. Learn each pattern once, then practise it.</p>
+              <p className="s-lead s-rv" style={rise(2).style}>
+                Solve on LeetCode, log it here. Anneal keeps the schedule: reviews, streak and readiness. Learn each pattern once, then practise it.
+              </p>
             </div>
-            <div className="cat-stats">
+            <div className="s-stats s-rv" style={rise(3).style}>
               <div>
-                <b>{o.patterns.length}</b>
+                <b>
+                  <CountUp value={o.patterns.length} />
+                </b>
                 <span>PATTERNS</span>
               </div>
               <div>
-                <b>{o.problems.length}</b>
+                <b>
+                  <CountUp value={o.problems.length} />
+                </b>
                 <span>PROBLEMS</span>
               </div>
               <div>
-                <b>{hours(model.minutesLeft150)}</b>
+                <b>
+                  <CountUp value={model.minutesLeft150} format={hours} />
+                </b>
                 <span>TO FINISH THE 150</span>
               </div>
             </div>
@@ -159,33 +167,32 @@ export function DsaPage() {
 
           <Goals o={o} f={f} setList={(list) => update({ list })} />
 
-          <div className="cat-body">
+          <div className="s-main">
             <div className="cat-main">
               <NextUp o={o} streak={activity.data?.streak ?? 0} />
-              <div className="cat-tools">
-                <label className="cat-search">
-                  <span aria-hidden="true" style={{ color: "var(--dim)" }}>
-                    ⌕
-                  </span>
-                  <input ref={search} type="search" placeholder="search title, number or tag…" value={f.q} onChange={(e) => update({ q: e.target.value })} aria-label="Search problems" />
+              <div className="s-tools s-rv" style={rise(5).style}>
+                <label className="s-search">
+                  <span>⌕</span>
+                  <input ref={search} type="search" placeholder="search title, number or tag…" value={f.q} onChange={(e) => update({ q: e.target.value })} aria-label="Search problems" autoComplete="off" spellCheck={false} />
                   <kbd>/</kbd>
                 </label>
-                <div className="seg" role="group" aria-label="View">
-                  {(["patterns", "problems", "practice"] as const).map((v) => (
-                    <button
-                      key={v}
-                      className={shown === v ? "on" : ""}
-                      aria-pressed={shown === v}
-                      onClick={() => {
-                        setView(v);
-                        setDrill(null);
-                      }}
-                    >
-                      {v === "patterns" ? "▦ patterns" : v === "problems" ? "☰ problems" : "✎ practice"}
-                      <small className="vn">{v === "patterns" ? o.patterns.length : v === "problems" ? model.items.length : o.patterns.reduce((n, p) => n + p.practice_total, 0)}</small>
-                    </button>
-                  ))}
-                </div>
+                <SlidingSeg
+                  label="View"
+                  value={shown}
+                  onChange={(v) => {
+                    setView(v);
+                    setDrill(null);
+                  }}
+                  options={(["patterns", "problems", "practice"] as const).map((v) => ({
+                    key: v,
+                    label: (
+                      <>
+                        {v === "patterns" ? "▦ patterns" : v === "problems" ? "≡ problems" : "✎ practice"}
+                        <small className="vn">{v === "patterns" ? o.patterns.length : v === "problems" ? model.items.length : o.patterns.reduce((n, p) => n + p.practice_total, 0)}</small>
+                      </>
+                    ),
+                  }))}
+                />
                 <button className={`d-fbtn${f.rail === "filters" ? " on" : ""}`} aria-pressed={f.rail === "filters"} onClick={() => update({ rail: f.rail === "filters" ? "activity" : "filters" })}>
                   ⚙ Filters {model.active > 0 && <i>{model.active}</i>}
                   <kbd>f</kbd>
@@ -193,12 +200,11 @@ export function DsaPage() {
               </div>
               {shown !== "practice" && (
                 <>
-                <div className="flabel">LIST</div>
-                <div className="fchips">
+                <div className="s-flab s-rv" style={rise(6).style}>LIST</div>
+                <div className="s-chips s-rv" style={rise(6).style}>
                   {LISTS.map(([k, label]) => (
-                    <button key={k} className={`fchip${f.list === k ? " on" : ""}`} aria-pressed={f.list === k} onClick={() => update({ list: k })}>
-                      {label}
-                      <small>{model.listCounts[k]}</small>
+                    <button key={k} className={`s-chip${f.list === k ? " s-on" : ""}`} aria-pressed={f.list === k} onClick={() => update({ list: k })}>
+                      {label} <small>{model.listCounts[k]}</small>
                     </button>
                   ))}
                 </div>
@@ -216,7 +222,7 @@ export function DsaPage() {
               </div>
             </div>
             {f.rail === "filters" && <button className="d-backdrop" aria-label="Close filters" tabIndex={-1} onClick={() => update({ rail: "activity" })} />}
-            <aside className={`cat-rail${f.rail === "filters" ? " drawer" : ""}`} aria-label="Activity and filters">
+            <aside className={`cat-rail s-rail${f.rail === "filters" ? " drawer" : ""}`} aria-label="Activity and filters">
               <div className="d-drawer-head">
                 <b>Filters</b>
                 <button onClick={() => update({ rail: "activity" })}>Show {model.items.length} problems</button>
@@ -244,8 +250,8 @@ export function DsaPage() {
               )}
             </aside>
           </div>
-        </div>
-      </main>
+        </main>
+      </MockRoot>
       {toast}
     </>
   );
@@ -350,6 +356,7 @@ function paceLine(o: DsaOverview): string {
 }
 
 function NextUp({ o, streak }: { o: DsaOverview; streak: number }) {
+  const ready = useReady();
   const byId = new Map(o.problems.map((p) => [p.id, p]));
   const next = o.plan.next_up[0] ? byId.get(o.plan.next_up[0]) : undefined;
   const after = o.plan.start ? byId.get(o.plan.start) : undefined;
@@ -361,74 +368,78 @@ function NextUp({ o, streak }: { o: DsaOverview; streak: number }) {
   const reviews = o.plan.review_ids.length;
   if (!next) {
     return (
-      <section className="nextup" aria-label="Next up">
-        <div className="nu-main">
-          <h2>Everything on these lists is done.</h2>
-          <p>Reviews keep it fresh. {o.plan.due} due now.</p>
-        </div>
-      </section>
+      <article className="s-card s-next s-rv" style={rise(4).style} aria-label="Next up">
+        <h3>Everything on these lists is done.</h3>
+        <p>Reviews keep it fresh. {o.plan.due} due now.</p>
+      </article>
     );
   }
   return (
-    <section className="nextup" aria-label="Next up">
-      <NuRing days={streak} />
-      <div className="nu-k">
-        <i />
-        <span style={{ color: "var(--ca)" }}>NEXT UP</span>
-        <span style={{ color: "var(--dim)" }}>
-          {patternName(next.pattern).toUpperCase()}
-          {technique ? ` · ${technique.name.toUpperCase()}` : ""}
-        </span>
-      </div>
-      <div className="nu-sub">
-        {streak > 0 ? (
-          <>
-            <b>{streak}-day streak</b>, keep it going.
-          </>
-        ) : (
-          <>
-            <b>No streak yet.</b> Log one today to start it.
-          </>
-        )}{" "}
-        {after ? <>It follows {after.title} in order. </> : <>It's the first one on the list. </>}
-        {o.plan.solve_day ? "Today is a solve day" : "Today is a practice day"}
-        {reviews ? (
-          <>
-            , with <b>{reviews}</b> review{reviews === 1 ? "" : "s"} to do.
-          </>
-        ) : (
-          <>, no reviews due.</>
-        )}
-      </div>
-      <div className="nu-main">
-        <h2>{next.title}</h2>
-        <p>{technique ? `The idea: ${technique.name.toLowerCase()}.` : BLURB[patternName(next.pattern)]}</p>
-        <div className="pills">
-          <span className="cpill" style={{ color: DIFF[next.difficulty][1] }}>
-            {next.difficulty}
-          </span>
-          <span className="cpill" style={{ color: next.role === "must_learn" ? "var(--ca)" : "var(--mut)" }}>
-            {next.role === "must_learn" ? "must learn" : "practice"}
-          </span>
-          <span className="cpill">{patternName(next.pattern)}</span>
-          <span className="cpill">~{MINUTES[next.difficulty]}m</span>
-          {next.premium && <span className="cpill" style={{ color: "var(--warn)" }}>premium</span>}
+    <article className="s-card s-next s-rv" style={rise(4).style} aria-label="Next up">
+      <div className="s-nrow">
+        <div className="s-ring">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <circle className="s-t" cx="32" cy="32" r="28" />
+            <circle className="s-v" cx="32" cy="32" r="28" style={{ strokeDashoffset: ready ? 176 * (1 - Math.min(1, streak / 7)) : 176 }} />
+          </svg>
+          <span>{streak}</span>
+        </div>
+        <div>
+          <div className="s-kick">
+            <span className="s-pulse" />
+            NEXT UP · {patternName(next.pattern).toUpperCase()}
+            {technique ? ` · ${technique.name.toUpperCase()}` : ""}
+          </div>
+          <div style={{ marginTop: 4, color: "var(--mut)", fontSize: 14 }}>
+            {streak > 0 ? (
+              <>
+                <b style={{ color: "var(--fg)" }}>{streak}-day streak</b>, keep it going.
+              </>
+            ) : (
+              <>
+                <b style={{ color: "var(--fg)" }}>No streak yet.</b> Log one today to start it.
+              </>
+            )}{" "}
+            {after ? <>It follows {after.title} in order. </> : <>It's the first one on the list. </>}
+            {o.plan.solve_day ? "Today is a solve day" : "Today is a practice day"}
+            {reviews ? (
+              <>
+                , with <b style={{ color: "var(--fg)" }}>{reviews}</b> review{reviews === 1 ? "" : "s"} to do.
+              </>
+            ) : (
+              <>, no reviews due.</>
+            )}
+          </div>
         </div>
       </div>
-      <div className="nu-gain">
-        <span>
-          GOAL · {Math.round(pct)}% DONE
+      <h3>{next.title}</h3>
+      <p>{technique ? `The idea: ${technique.name.toLowerCase()}.` : BLURB[patternName(next.pattern)]}</p>
+      <div className="s-pills">
+        <span className={`s-pill${next.difficulty === "easy" ? " s-g" : ""}`} style={next.difficulty === "easy" ? undefined : { color: DIFF[next.difficulty][1] }}>
+          {next.difficulty}
         </span>
-        <span style={{ color: "var(--ca)" }}>+{gain.toFixed(1)}% IF UNASSISTED</span>
+        <span className="s-pill" style={{ color: next.role === "must_learn" ? "var(--s-ac)" : undefined }}>
+          {next.role === "must_learn" ? "must learn" : "practice"}
+        </span>
+        <span className="s-pill">{patternName(next.pattern)}</span>
+        <span className="s-pill">~{MINUTES[next.difficulty]}m</span>
+        {next.premium && (
+          <span className="s-pill" style={{ color: "var(--warn)" }}>
+            premium
+          </span>
+        )}
       </div>
-      <div className="nu-bar">
-        <span style={{ width: `${pct}%`, background: "var(--ca)" }} />
-        <span style={{ width: `${gain}%`, background: "var(--ca)", opacity: 0.4 }} />
+      <div className="s-ml">
+        <span>GOAL · {Math.round(pct)}% DONE</span>
+        <b>+{gain.toFixed(1)}% IF UNASSISTED</b>
       </div>
-      <a className="nu-go" href={leetcode(next.slug)} target="_blank" rel="noreferrer">
-        Solve on LeetCode ↗
+      <div className="s-meter">
+        <i style={{ width: ready ? `${pct}%` : 0 }} />
+      </div>
+      <a className="s-cta" href={leetcode(next.slug)} target="_blank" rel="noreferrer">
+        Solve on LeetCode <span className="s-ar">↗</span>
       </a>
-      <div className="nu-links">
+      <div className="s-links">
         <Link to="/d/$slug" params={{ slug: next.slug }}>
           the problem page
         </Link>
@@ -446,29 +457,9 @@ function NextUp({ o, streak }: { o: DsaOverview; streak: number }) {
           Plan: {paceLine(o)} ›
         </Link>
       </div>
-    </section>
+    </article>
   );
 }
-
-function NuRing({ days }: { days: number }) {
-  const r = 34;
-  const c = 2 * Math.PI * r;
-  const frac = Math.min(1, days / 7);
-  return (
-    <div className="nu-ring">
-      <svg viewBox="0 0 78 78" aria-hidden="true">
-        <circle cx="39" cy="39" r={r} fill="none" stroke="var(--line2)" strokeWidth="5" />
-        {days > 0 && <circle cx="39" cy="39" r={r} fill="none" stroke="var(--ca)" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(c * frac).toFixed(1)} ${c.toFixed(1)}`} />}
-      </svg>
-      <div>
-        <b>{days}</b>
-        <span>{days === 1 ? "DAY" : "DAYS"}</span>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- active filter chips
 
 function ActiveChips({ f, o, flip, update, clearAll }: { f: Filters; o: DsaOverview; flip: <T>(k: SetKey, v: T) => void; update: (p: Partial<Filters>) => void; clearAll: () => void }) {
   const chips: [label: string, off: () => void][] = [];
@@ -508,7 +499,7 @@ function PracticeGrid({ o, log }: { o: DsaOverview; log: ReturnType<typeof useLo
   const lists = useQueries({ queries: withPractice.map((p) => ({ queryKey: ["practice", p.code], queryFn: () => api.practice(p.code), staleTime: 60_000 })) });
   return (
     <>
-      <div className="flabel">PRACTICE · THE NEXT PROBLEMS FOR EACH PATTERN</div>
+      <div className="s-flab">PRACTICE · THE NEXT PROBLEMS FOR EACH PATTERN</div>
       <p className="pg-hint">More LeetCode problems for the same ideas. They never count toward your goal and schedule no reviews. Each one says which NeetCode problem teaches its idea.</p>
       {withPractice.map((pat, i) => {
         const techniques = lists[i]?.data?.techniques ?? [];
@@ -540,8 +531,14 @@ function PatternGrid({ o, f, model }: { o: DsaOverview; f: Filters; model: Model
   const filtered = model.active > 0;
   return (
     <>
-      <div className="flabel">{filtered ? `PATTERNS · ${model.items.length} PROBLEMS MATCH` : "ALL PATTERNS · IN RECOMMENDED ORDER"}</div>
-      <div className="tgrid">
+      <div className="s-flab">{filtered ? `PATTERNS · ${model.items.length} PROBLEMS MATCH` : "ALL PATTERNS · IN RECOMMENDED ORDER"}</div>
+      <div className="s-grid" onPointerMove={(e) => {
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".s-trk");
+        if (!card) return;
+        const r = card.getBoundingClientRect();
+        card.style.setProperty("--mx", `${e.clientX - r.left}px`);
+        card.style.setProperty("--my", `${e.clientY - r.top}px`);
+      }}>
         {o.patterns.map((pat, i) => {
           const scope = o.problems.filter((p) => p.pattern === pat.code && model.tests.list?.(p));
           if (!scope.length) return null;
@@ -552,47 +549,30 @@ function PatternGrid({ o, f, model }: { o: DsaOverview; f: Filters; model: Model
           const techs = o.techniques.filter((t) => t.pattern === pat.name).slice(0, 4);
           const isNow = o.plan.next_up[0] ? model.byId.get(o.plan.next_up[0])?.pattern === pat.code : false;
           const state = done === scope.length ? "done" : isNow ? "cur" : "";
+          const filled = Math.round((done / scope.length) * 5);
           return (
-            <div key={pat.code} className={`tcard ${state}${filtered && !match.length ? " dim" : ""}`} tabIndex={0} role="button" aria-label={`${pat.name}: open the lesson`} onClick={() => void navigate({ to: "/dsa/patterns/$code", params: { code: pat.code } })} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), void navigate({ to: "/dsa/patterns/$code", params: { code: pat.code } }))}>
-              <div className="tc-top">
-                <span className="tc-num">{pad2(i + 1)}</span>
-                <span className="tc-kind">PATTERN · {listName.toUpperCase()}</span>
-                {state === "cur" && <span className="tc-badge" style={{ background: "var(--cab)", color: "var(--ca)" }}>NEXT</span>}
-                {state === "done" && <span className="tc-badge" style={{ background: "var(--grn-bg)", color: "var(--grn)" }}>DONE</span>}
+            <div key={pat.code} className={`s-trk s-rv${state === "cur" ? " s-cur" : ""}${filtered && !match.length ? " s-gone" : ""}`} style={rise(Math.min(7 + i, 16)).style} tabIndex={0} role="button" aria-label={`${pat.name}: open the lesson`} onClick={() => void navigate({ to: "/dsa/patterns/$code", params: { code: pat.code } })} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), void navigate({ to: "/dsa/patterns/$code", params: { code: pat.code } }))}>
+              <div className="s-th">
+                <span className="s-no">{pad2(i + 1)}</span>
+                <span className="s-tk">PATTERN · {listName.toUpperCase()}</span>
+                {state === "cur" && <span className="s-tag s-now">NEXT</span>}
+                {state === "done" && <span className="s-tag" style={{ color: "var(--grn)", background: "var(--grn-bg)", borderColor: "transparent" }}>DONE</span>}
               </div>
-              <h3>{pat.name}</h3>
+              <h4>{pat.name}</h4>
               <p>{BLURB[pat.name] ?? ""}</p>
-              <div className="tc-meta">
+              <div className="s-meta s-x">
                 <b>{scope.length}</b> problems · <b>{scope.filter((p) => p.role === "must_learn").length}</b> must learn · {hours(left)} left
                 {filtered && <> · <span className="tc-hit">{match.length} match</span></>}
               </div>
-              <div className="tc-tags">
-                {techs.map((t) => (
-                  <span className="cpill" key={t.id}>
-                    {t.name}
-                  </span>
+              <div className="s-segs" title={`${done} of ${scope.length} solved`}>
+                {Array.from({ length: 5 }, (_, k) => (
+                  <i key={k} className={k < filled ? "s-f" : ""} style={{ "--k": k } as CSSProperties} />
                 ))}
               </div>
-              <div className="tc-prog">
-                <span>progress</span>
-                <span>
-                  <b>
-                    {done} / {scope.length}
-                  </b>{" "}
-                  · {Math.round((done / scope.length) * 100)}%
-                </span>
+              <div className="s-foot">
+                <span>{next ? `next · ${next.title}` : "all solved · reviews keep it fresh"}</span>
               </div>
-              <div className="tc-bar">
-                {(["easy", "medium", "hard"] as const).map((d) => {
-                  const t = scope.filter((p) => p.difficulty === d);
-                  return t.length ? (
-                    <span key={d} style={{ flex: t.length }}>
-                      <i style={{ width: `${(t.filter((p) => p.state.solved).length / t.length) * 100}%`, background: DIFF[d][1] }} />
-                    </span>
-                  ) : null;
-                })}
-              </div>
-              <div className="tc-next">{next ? `next · ${next.title}` : "all solved · reviews keep it fresh"}</div>
+              {techs.length > 0 && <div className="s-pills" style={{ margin: 0 }}>{techs.map((t) => <span className="s-pill" key={t.id}>{t.name}</span>)}</div>}
               <div className="tc-doors" onClick={(e) => e.stopPropagation()}>
                 <Link to="/dsa/patterns/$code" params={{ code: pat.code }} title="When to use each technique, with a template">
                   <b>Learn<i>›</i></b>
@@ -639,7 +619,7 @@ function ProblemGroups({ o, model, pickCompany, picked, uncapped, openGroups, op
         const cap = openGroups.has(pat.code) || uncapped ? roots.length : 15;
         return (
           <div className="d-group" key={pat.code}>
-            <div className="flabel d-flabel">
+            <div className="s-flab d-flabel">
               {pat.name.toUpperCase()} · {inPat.length}
             </div>
             <div className="d-plist" style={{ marginTop: 14 }}>
@@ -740,96 +720,92 @@ function ProblemCard({ p, o, model, log, pickCompany, picked }: { p: DsaProblem;
 const OUTCOME_COLOR = { solved: "var(--grn)", assisted: "var(--acc)", failing: "var(--bad)", started: "var(--dim)" } as const;
 
 function ActivityRail({ o, activity, tracks, showDue }: { o: DsaOverview; activity?: Activity; tracks: TrackSummary[]; showDue: () => void }) {
-  const shade = (n: number) => (n === 0 ? "var(--line2)" : `color-mix(in oklch, var(--ca) ${Math.min(100, 25 + n * 15)}%, transparent)`);
+  const ready = useReady();
+  const shade = (n: number) => (n === 0 ? "var(--raise)" : `color-mix(in oklab, var(--grn) ${Math.min(100, 25 + n * 20)}%, var(--raise))`);
   const byId = new Map(o.problems.map((p) => [p.id, p]));
   const due = o.plan.review_ids.map((id) => byId.get(id)).filter((p): p is DsaProblem => !!p);
   const dsa = tracks.filter((t) => t.section === "D" && t.total > 0);
   const meters = [...dsa].sort((a, b) => b.readiness - a.readiness).filter((t) => t.readiness > 0).slice(0, 6);
   const shownMeters = meters.length ? meters : dsa.slice(0, 6);
   return (
-    <div className="d-rail-in">
-      <div className="rbox">
-        <h4>
-          <span>THIS WEEK</span>
-          <span style={{ color: "var(--ca)" }}>{activity?.week_solved ?? 0} SOLVED</span>
-        </h4>
-        <div className="week">
+    <div className="s-side">
+      <div className="s-card s-rv" style={rise(5).style}>
+        <h5>THIS WEEK</h5>
+        <div className="s-week">
           {(activity?.week ?? []).map((d) => (
-            <div key={d.date}>
-              <i style={{ background: shade(d.solved) }} title={`${d.date}: ${d.solved} solved`} />
-              {new Date(`${d.date}T00:00`).toLocaleDateString(undefined, { weekday: "narrow" })}
-            </div>
+            <i key={d.date} style={d.solved ? { background: shade(d.solved) } : undefined} title={`${d.date}: ${d.solved} solved`} />
           ))}
         </div>
-        <div className="rstat">
+        <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", font: "500 12px var(--mono)", color: "var(--dim)" }}>
           <span>unassisted</span>
-          <b>
+          <b style={{ color: "var(--fg)" }}>
             {activity?.week_unassisted ?? 0} of {activity?.week_solved ?? 0}
           </b>
         </div>
       </div>
-      <div className="rbox">
-        <h4>
-          <span>RECENT</span>
-        </h4>
+      <div className="s-card s-rv" style={rise(6).style}>
+        <h5>RECENT</h5>
         {activity?.recent.length ? (
-          activity.recent.map((r) => (
-            <Link key={r.problem_id + r.at} className="ritem" to="/d/$slug" params={{ slug: r.problem_id.replace(/^lc-/, "") }}>
-              <i style={{ background: OUTCOME_COLOR[r.outcome] }} />
-              <span>{r.title}</span>
-              <small>
-                {r.track} · {r.detail}
-              </small>
-            </Link>
-          ))
+          <div className="s-list">
+            {activity.recent.map((r) => (
+              <Link key={r.problem_id + r.at} className="s-item" to="/d/$slug" params={{ slug: r.problem_id.replace(/^lc-/, "") }}>
+                <i style={{ background: OUTCOME_COLOR[r.outcome] }} />
+                <span>{r.title}</span>
+                <small>
+                  {r.track} · {r.detail}
+                </small>
+              </Link>
+            ))}
+          </div>
         ) : (
-          <p className="rempty">Nothing yet. What you log shows up here.</p>
+          <p className="s-none">Nothing yet. What you log shows up here.</p>
         )}
       </div>
-      <div className="rbox">
-        <h4>
-          <span>REVIEWS TODAY</span>
-          <button style={{ color: "var(--vio)", font: "inherit" }} onClick={showDue}>
+      <div className="s-card s-rv" style={rise(6).style}>
+        <h5>
+          REVIEWS TODAY
+          <button style={{ color: "var(--vio)", font: "inherit", float: "right" }} onClick={showDue}>
             {o.plan.due} due →
           </button>
-        </h4>
+        </h5>
         {due.length ? (
-          due.slice(0, 5).map((p) => (
-            <Link key={p.id} className="ritem" to="/d/$slug" params={{ slug: p.slug }}>
-              <i style={{ background: "var(--vio)" }} />
-              <span>{p.title}</span>
-              <small>
-                {p.state.due && p.state.due < o.today ? `${-daysUntil(p.state.due, o.today)}d late` : "today"}
-              </small>
-            </Link>
-          ))
-        ) : (
-          <p className="rempty">{o.plan.capacity === 0 ? "A rest day." : "Nothing due. Nice."}</p>
-        )}
-        {o.plan.overdue > 0 && <p className="rempty">{o.plan.overdue} overdue, in line for the next days with room.</p>}
-        {due.length > 0 && (
-          <Link to="/dsa/review" style={{ font: "600 12px var(--mono)", color: "var(--vio)" }}>
-            start the review session ›
-          </Link>
-        )}
-        <Link to="/dsa/calendar" style={{ font: "500 12px var(--mono)", color: "var(--ca)" }}>
-          open the calendar ›
-        </Link>
-      </div>
-      <div className="rbox">
-        <h4>
-          <span>READINESS</span>
-          <small>by pattern</small>
-        </h4>
-        {shownMeters.map((t) => (
-          <div className="rmeter" key={t.code}>
-            <span>{t.name}</span>
-            <em style={{ color: t.readiness > 0 ? pctColor(t.readiness) : "var(--dim)" }}>{Math.round(t.readiness)}%</em>
-            <i>
-              <b style={{ width: `${t.readiness}%`, background: pctColor(t.readiness) }} />
-            </i>
+          <div className="s-list">
+            {due.slice(0, 5).map((p) => (
+              <Link key={p.id} className="s-item" to="/d/$slug" params={{ slug: p.slug }}>
+                <i style={{ background: "var(--vio)" }} />
+                <span>{p.title}</span>
+                <small>{p.state.due && p.state.due < o.today ? `${-daysUntil(p.state.due, o.today)}d late` : "today"}</small>
+              </Link>
+            ))}
           </div>
-        ))}
+        ) : (
+          <p className="s-none">{o.plan.capacity === 0 ? "A rest day." : "Nothing due. Nice."}</p>
+        )}
+        {o.plan.overdue > 0 && <p className="s-none" style={{ marginTop: 8 }}>{o.plan.overdue} overdue, in line for the next days with room.</p>}
+        <div className="s-links" style={{ marginTop: 10 }}>
+          {due.length > 0 && (
+            <Link to="/dsa/review" style={{ color: "var(--vio)" }}>
+              start the review session ›
+            </Link>
+          )}
+          <Link to="/dsa/calendar">open the calendar ›</Link>
+        </div>
+      </div>
+      <div className="s-card s-rv" style={rise(7).style}>
+        <h5>READINESS</h5>
+        <div className="s-rd">
+          {shownMeters.map((t) => (
+            <div key={t.code}>
+              <div className="s-l">
+                <span>{t.name}</span>
+                <b style={{ color: t.readiness > 0 ? pctColor(t.readiness) : "var(--dim)" }}>{Math.round(t.readiness)}%</b>
+              </div>
+              <div className="s-meter" style={{ margin: 0 }}>
+                <i style={{ width: ready ? `${t.readiness}%` : 0, background: pctColor(t.readiness) }} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

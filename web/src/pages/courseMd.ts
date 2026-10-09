@@ -122,27 +122,95 @@ function diagram(text: string): string {
     return `<figure class="cx-diagram">${svg}${m ? `<figcaption>${esc(m[1] ?? "")}</figcaption>` : ""}</figure>`;
 }
 
-/** A code block longer than this many lines starts folded. */
-const FOLD_LINES = 18;
+// ---------- code ----------
 
-function codeBlock(text: string, lang: string | undefined): string {
-    if (lang?.toLowerCase() === "svg") return diagram(text);
-    const code = text.replace(/\n$/, "");
-    let spec = lang ? LANGS[lang.toLowerCase().split(/\s/)[0] ?? ""] : undefined;
+/** A code block longer than this many lines starts folded. */
+const FOLD_LINES = 12;
+
+/** The words after the language on a fence: `hl=3,5-7` marks lines, `file=name.rs` shows a file name, `tab` joins it with the next
+ *  `tab` block into one block with a tab for each language. */
+interface Info {
+    name: string;
+    hl: Set<number>;
+    file?: string;
+    tab: boolean;
+}
+
+function parseInfo(info: string | undefined): Info {
+    const parts = (info ?? "").trim().split(/\s+/).filter(Boolean);
+    const out: Info = { name: (parts[0] ?? "").toLowerCase(), hl: new Set(), tab: false };
+    for (const w of parts.slice(1)) {
+        if (w === "tab") out.tab = true;
+        else if (w.startsWith("file=")) out.file = w.slice(5);
+        else if (w.startsWith("hl=")) {
+            for (const r of w.slice(3).split(",")) {
+                const [x, y] = r.split("-").map(Number);
+                if (x === undefined || !Number.isFinite(x)) continue;
+                for (let n = x; n <= (y !== undefined && Number.isFinite(y) ? y : x); n++) out.hl.add(n);
+            }
+        }
+    }
+    return out;
+}
+
+function specFor(info: Info, code: string) {
+    let spec = info.name ? LANGS[info.name] : undefined;
     // A bare fence that is a shell session ("$ cargo test") reads as one.
     if (!spec && /^\s*\$ /m.test(code)) spec = LANGS.sh;
-    const label = spec ? `<span class="cx-lang">${spec.label}</span>` : "";
-    const body = spec ? spec.fn(code) : esc(code);
-    const kind = spec?.kind ?? "plain";
-    // A long example starts folded: the first lines, and a button for the rest.
+    return spec;
+}
+
+/** Splits highlighted HTML into lines, closing and reopening the highlight spans that run across a line break. */
+function htmlLines(html: string): string[] {
+    const lines: string[] = [];
+    let cur = "";
+    const open: string[] = [];
+    for (const tok of html.split(/(<span[^>]*>|<\/span>|\n)/)) {
+        if (tok === "\n") {
+            lines.push(cur + "</span>".repeat(open.length));
+            cur = open.join("");
+        } else {
+            if (tok.startsWith("<span")) open.push(tok);
+            else if (tok === "</span>") open.pop();
+            cur += tok;
+        }
+    }
+    lines.push(cur + "</span>".repeat(open.length));
+    return lines;
+}
+
+/** The numbered lines of one code block: a gutter of numbers, and each line its own block so a marked line can be tinted. */
+function codeLines(code: string, info: Info, extra = ""): string {
+    const spec = specFor(info, code);
+    const lines = htmlLines(spec ? spec.fn(code) : esc(code));
+    const gutter = lines.map((_, i) => i + 1).join("\n");
+    const pre = lines.map((l, i) => `<span class="k-${info.hl.has(i + 1) ? "hl" : "l"}">${l || " "}</span>`).join("");
+    return `<div class="k-cb${extra}"><div class="k-ln" aria-hidden="true">${gutter}</div><pre><code>${pre}</code></pre></div>`;
+}
+
+function codeBlock(text: string, lang: string | undefined): string {
+    const info = parseInfo(lang);
+    if (info.name === "svg") return diagram(text);
+    const code = text.replace(/\n$/, "");
+    const spec = specFor(info, code);
     const lines = code.split("\n").length;
     const fold = lines > FOLD_LINES;
-    return `<figure class="cx-hl ${kind}${fold ? " cx-fold" : ""}"><div class="cx-hl-h">${label}<button class="cx-copy" type="button" data-code="${esc(code)}">copy</button></div><pre><code>${body}</code></pre>${fold ? `<button class="cx-more" type="button" data-lines="${lines}" aria-expanded="false">show all ${lines} lines</button>` : ""}</figure>`;
+    return `<div class="k-code${fold ? " k-folded" : ""}"><div class="k-ch"><div class="k-tb"><button class="k-on" type="button" tabindex="-1">${esc(spec?.label ?? "Code")}</button></div>${info.file ? `<span class="k-fn">${esc(info.file)}</span>` : ""}<button class="k-copy" type="button" data-c="${esc(code)}">COPY</button></div>${codeLines(code, info, fold ? " k-fold" : "")}${fold ? `<button class="k-more" type="button" data-lines="${lines}" aria-expanded="false">SHOW ALL ${lines} LINES ▾</button>` : ""}</div>`;
+}
+
+/** Fenced blocks marked `tab` that follow each other become one block with a tab for each: the C++ and the Rust of the same thing. */
+function tabGroup(blocks: { info: Info; code: string }[]): string {
+    const tabs = blocks.map((b, i) => `<button class="${i === 0 ? "k-on" : ""}" type="button" role="tab" data-i="${i}" aria-selected="${i === 0}">${esc(specFor(b.info, b.code)?.label ?? (b.info.name || "Code"))}</button>`);
+    const panels = blocks.map((b, i) => `<div class="k-tp" role="tabpanel" data-i="${i}" data-c="${esc(b.code)}"${i === 0 ? "" : " hidden"}>${codeLines(b.code, b.info)}</div>`);
+    const file = blocks.find((b) => b.info.file)?.info.file;
+    return `<div class="k-code k-tabbed"><div class="k-ch"><div class="k-tb" role="tablist">${tabs.join("")}<span class="k-ul2" aria-hidden="true"></span></div>${file ? `<span class="k-fn">${esc(file)}</span>` : ""}<button class="k-copy" type="button" data-c="${esc(blocks[0]?.code ?? "")}">COPY</button></div>${panels.join("")}</div>`;
 }
 
 // ---------- callouts ----------
 
-type CalloutKind = "tip" | "note" | "warn" | "port" | "why" | "bustub" | "fit" | "aside";
+type CalloutKind = "tip" | "note" | "warn" | "danger" | "bus" | "rule" | "aside" | "check";
+
+const ICON: Record<string, string> = { tip: "✓", note: "i", warn: "!", danger: "×", bus: "B", rule: "⇄" };
 
 const ALERTS: Record<string, [CalloutKind, string]> = {
     TIP: ["tip", "TIP"],
@@ -150,41 +218,46 @@ const ALERTS: Record<string, [CalloutKind, string]> = {
     NOTE: ["note", "NOTE"],
     WARNING: ["warn", "WATCH OUT"],
     PITFALL: ["warn", "PITFALL"],
-    PORT: ["port", "PORTING NOTE"],
-    WHY: ["why", "WHY"],
-    BUSTUB: ["bustub", "IN BUSTUB"],
+    PORT: ["rule", "PORT RULE"],
+    WHY: ["rule", "WHY"],
+    BUSTUB: ["bus", "IN BUSTUB"],
     ASIDE: ["aside", "ASIDE"],
+    DANGER: ["danger", "DON'T"],
+    CHECK: ["check", "CHECK YOURSELF"],
 };
 
 /** Bold leads at the start of a paragraph that turn it into a callout. */
 const LEADS: [RegExp, CalloutKind][] = [
-    [/^Port rule\b/i, "port"],
-    [/^Where this fits\b/i, "fit"],
-    [/^(Pitfall|The classic bug|Careful|Watch out|Don't)\b/i, "warn"],
-    [/^Why\b/i, "why"],
+    [/^Port rule\b/i, "rule"],
+    [/^Where this fits\b/i, "note"],
+    [/^Don't\b/i, "danger"],
+    [/^(Pitfall|The classic bug|Careful|Watch out)\b/i, "warn"],
+    [/^Why\b/i, "rule"],
     [/^(Tip|Trick|Tips and tricks)\b/i, "tip"],
 ];
 
 function callout(kind: CalloutKind, title: string, body: string): string {
-    return `<aside class="cx-co cx-k-${kind}"><div class="cx-co-t">${esc(title)}</div><div class="cx-co-b">${body}</div></aside>`;
+    const dismiss = kind === "danger" || kind === "bus" || kind === "rule" ? "" : `<button class="k-x" type="button" aria-label="Dismiss this note">×</button>`;
+    return `<div class="k-co k-${kind}"><span class="k-ic" aria-hidden="true">${ICON[kind] ?? "i"}</span><div><b class="k-t0">${esc(title)}</b>${body}</div>${dismiss}</div>`;
 }
 
 /** An aside: a longer tangent (prose, code, a table) that opens when asked. `> [!ASIDE] Its title`, then the body. */
 function aside(title: string, body: string): string {
-    return `<details class="cx-co cx-k-aside"><summary><span class="cx-co-t">ASIDE</span><b>${esc(title || "More on this")}</b><i aria-hidden="true">›</i></summary><div class="cx-co-b">${body}</div></details>`;
+    return `<div class="k-asd"><button class="k-ah" type="button" aria-expanded="false"><span class="k-badge2 k-as">ASIDE</span><b>${esc(title || "More on this")}</b><span class="k-r"><span>optional</span><span class="k-chev" aria-hidden="true">›</span></span></button><div class="k-ab"><div><div class="k-in3">${body}</div></div></div></div>`;
 }
 
-// ---------- tables ----------
-
-type Col = "c" | "rust" | "other";
-
-function columnKind(head: string): Col {
-    const h = head.trim().toLowerCase();
-    if (/^(c\s*\/\s*c\+\+|c\+\+|c|c \(.*\)|bustub|c\+\+ \(.*\))$/.test(h)) return "c";
-    if (/^(rust|here|rust \(.*\))$/.test(h)) return "rust";
-    return "other";
+/** A question to try before looking: `> [!CHECK] The question`, then the answer in `||spoiler||` marks, then a list of nudges that open one at a time. */
+function check(question: string, answerHtml: string, nudges: string[]): string {
+    const ladder = nudges.length ? `<div class="k-lad" aria-hidden="true">${nudges.map(() => `<span class="k-st2"></span>`).join("")}<button class="k-cta k-xs k-sec k-nb" type="button" data-nudges="${esc(JSON.stringify(nudges))}" data-used="0" style="margin-left:6px">Need a nudge?</button></div><div class="k-nudge" role="status"></div>` : "";
+    return `<div class="k-rev2"><div class="k-q">${esc(question)}</div><div>${answerHtml}</div>${ladder}</div>`;
 }
 
+// ---------- sidenotes, spoilers ----------
+
+/** The notes of the paragraph being rendered; the paragraph renderer puts them next to it. */
+let paraNotes: string[] = [];
+/** Rich sidenotes of the current render: the HTML of each `> [!SIDENOTE]` block, put into its note by the renderer. */
+let noteBlocks: string[] = [];
 
 /** `^[a short note]` in a paragraph: a numbered marker in the text and the note itself, which the stage page shows in its side panel (or under the
  *  paragraph on a narrow screen). The numbers are given after rendering, in the order the markers appear on the page. */
@@ -198,28 +271,62 @@ const sidenote: TokenizerAndRendererExtension = {
         return { type: "sidenote", raw: m[0], text: m[1] ?? "", tokens: this.lexer.inlineTokens(m[1] ?? "") };
     },
     renderer(this, token) {
-        return `<sup class="cx-snm" tabindex="0" role="button" aria-expanded="false" aria-label="Show the note">•</sup><span class="cx-snb">${this.parser.parseInline(token.tokens ?? [])}</span>`;
+        const html = this.parser.parseInline(token.tokens ?? []).replace(/%%CXSN(\d+)%%/g, (_, k) => noteBlocks[Number(k)] ?? "");
+        paraNotes.push(html);
+        const n = paraNotes.length;
+        return `<span class="k-snm" data-sn="${n}" tabindex="0" role="button" aria-expanded="false" aria-label="Show the note">${n}</span>`;
     },
 };
 
+/** `||the answer||`: hidden until it is clicked. */
+const spoiler: TokenizerAndRendererExtension = {
+    name: "spoiler",
+    level: "inline",
+    start: (src: string) => src.indexOf("||"),
+    tokenizer(this, src: string) {
+        const m = /^\|\|([^|]+)\|\|/.exec(src);
+        if (!m) return undefined;
+        return { type: "spoiler", raw: m[0], text: m[1] ?? "", tokens: this.lexer.inlineTokens(m[1] ?? "") };
+    },
+    renderer(this, token) {
+        return `<span class="k-spoil" role="button" tabindex="0" aria-pressed="false" title="Click to show">${this.parser.parseInline(token.tokens ?? [])}</span>`;
+    },
+};
+
+// ---------- tables ----------
+
+type Col = "c" | "rust" | "other";
+
+function columnKind(head: string): Col {
+    const h = head.trim().toLowerCase();
+    if (/^(c\s*\/\s*c\+\+|c\+\+|c|c \(.*\)|bustub|c\+\+ \(.*\))$/.test(h)) return "c";
+    if (/^(rust|here|rust \(.*\))$/.test(h)) return "rust";
+    return "other";
+}
+
 const marked: Marked = new Marked({
-    extensions: [sidenote],
+    extensions: [sidenote, spoiler],
     gfm: true,
     renderer: {
         code({ text, lang }: Tokens.Code) {
             return codeBlock(text, lang);
         },
-        blockquote(this: { parser: { parse: (t: Tokens.Generic[]) => string } }, { tokens }: Tokens.Blockquote): string {
+        blockquote(this: { parser: { parse: (t: Tokens.Generic[]) => string; parseInline: (t: Tokens.Generic[]) => string } }, { tokens }: Tokens.Blockquote): string {
             const first = tokens[0];
             const m = first?.type === "paragraph" ? /^\[!(\w+)\][ \t]*(.*)(?:\n|$)/.exec((first as Tokens.Paragraph).text) : null;
             const alert = m ? ALERTS[(m[1] ?? "").toUpperCase()] : undefined;
             if (m && alert && first) {
                 const rest = (first as Tokens.Paragraph).text.slice(m[0].length).trim();
-                if (alert[0] === "aside") {
-                    const inner = (rest ? [{ type: "paragraph", raw: rest, text: rest, tokens: Lexer.lexInline(rest) } as Tokens.Paragraph] : []).concat(tokens.slice(1) as Tokens.Paragraph[]);
-                    return aside(m[2] ?? "", this.parser.parse(inner));
+                const para = (text: string) => ({ type: "paragraph", raw: text, text, tokens: Lexer.lexInline(text) }) as Tokens.Paragraph;
+                if (alert[0] === "aside") return aside(m[2] ?? "", this.parser.parse((rest ? [para(rest)] : []).concat(tokens.slice(1) as Tokens.Paragraph[])));
+                if (alert[0] === "check") {
+                    const list = tokens.slice(1).find((t) => t.type === "list") as Tokens.List | undefined;
+                    const others = tokens.slice(1).filter((t) => t.type !== "list");
+                    const nudges = (list?.items ?? []).map((it) => this.parser.parseInline(it.tokens.flatMap((t) => ("tokens" in t && t.tokens ? (t.tokens as Tokens.Generic[]) : [t as Tokens.Generic]))));
+                    const answer = this.parser.parse((rest ? [para(rest)] : []).concat(others as Tokens.Paragraph[]));
+                    return check(m[2] ?? "", answer.replace(/^<p>/, "<p>Answer: "), nudges);
                 }
-                const body: string = (m[2] ? `<p><strong>${esc(m[2])}</strong></p>` : "") + this.parser.parse(rest ? [{ type: "paragraph", raw: rest, text: rest, tokens: Lexer.lexInline(rest) } as Tokens.Paragraph, ...tokens.slice(1)] : tokens.slice(1));
+                const body: string = (m[2] ? `<p><strong>${esc(m[2])}</strong></p>` : "") + this.parser.parse(rest ? [para(rest), ...tokens.slice(1)] : tokens.slice(1));
                 return callout(alert[0], alert[1], body);
             }
             return `<blockquote>${this.parser.parse(tokens)}</blockquote>`;
@@ -235,7 +342,13 @@ const marked: Marked = new Marked({
                     }
                 }
             }
-            return `<p>${this.parser.parseInline(tokens)}</p>\n`;
+            paraNotes = [];
+            const html = this.parser.parseInline(tokens);
+            if (paraNotes.length === 0) return `<p>${html}</p>\n`;
+            // a paragraph with notes: the notes wait next to it, numbered once the page is assembled
+            const notes = paraNotes.map((n, i) => `<aside class="k-sn" data-sn="${i + 1}"><b>${i + 1}</b>${n}</aside>`).join("");
+            paraNotes = [];
+            return `<div class="k-snr"><p>${html}</p><div>${notes}</div></div>\n`;
         },
         table(this: { parser: { parseInline: (t: Tokens.Generic[]) => string } }, token: Tokens.Table): string {
             const heads = token.header.map((h) => h.text);
@@ -248,46 +361,210 @@ const marked: Marked = new Marked({
                 const kind = kinds[i];
                 if (versus && only?.type === "codespan" && (kind === "c" || kind === "rust")) {
                     const src = only.raw.replace(/^`+ ?/, "").replace(/ ?`+$/, "");
-                    return `<code class="src">${(kind === "c" ? highlightCpp : highlightRust)(src)}</code><button class="cx-copy" type="button" data-code="${esc(src)}">copy</button>`;
+                    return `<code>${(kind === "c" ? highlightCpp : highlightRust)(src)}</code>${kind === "rust" ? `<button class="k-copy" type="button" data-c="${esc(src)}">COPY</button>` : ""}`;
                 }
                 return this.parser.parseInline(c.tokens);
             };
             const cls = (i: number) => {
                 const k = kinds[i] ?? "other";
-                return k === "other" ? (headless && i === 0 ? "key" : "") : k;
+                return k === "other" ? (headless && i === 0 ? "w" : "") : k === "rust" ? "r" : k;
             };
-            const thead = headless ? "" : `<thead><tr>${token.header.map((h, i) => `<th class="${cls(i)}">${cell(h)}</th>`).join("")}</tr></thead>`;
-            const rows = token.rows.map((r) => `<tr>${r.map((c, i) => `<td class="${cls(i)}">${cell(c, i)}</td>`).join("")}</tr>`).join("");
-            return `<div class="cx-tbl${versus ? " versus" : ""}"><table>${thead}<tbody>${rows}</tbody></table></div>`;
+            const thead = headless ? "" : `<thead><tr>${token.header.map((h, i) => `<th class="${cls(i) ? `k-${cls(i)}` : ""}">${cell(h)}</th>`).join("")}</tr></thead>`;
+            const rows = token.rows.map((r) => `<tr>${r.map((c, i) => `<td class="${cls(i) && cls(i) !== "r" ? `k-${cls(i)}` : ""}">${cell(c, i)}</td>`).join("")}</tr>`).join("");
+            return `<div class="k-vt"><table>${thead}<tbody>${rows}</tbody></table></div>`;
         },
     },
 });
 
-/** Renders stage markdown to HTML (trusted content: it comes from the repo, like the rest of the app's markdown). */
-export function renderMd(md: string): string {
-    return marked.parse(md, { async: false });
+/** Rich sidenotes and tabbed code need to be found in the markdown before it is parsed. */
+function pullSidenoteBlocks(md: string, blocks: string[]): string {
+    const lines = md.split("\n");
+    const out: string[] = [];
+    let fence = false;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i] ?? "";
+        if (/^\s*```/.test(line)) fence = !fence;
+        if (!fence && /^>\s*\[!SIDENOTE\]/i.test(line)) {
+            const body: string[] = [];
+            for (; i < lines.length && /^>/.test(lines[i] ?? ""); i++) {
+                const l = (lines[i] ?? "").replace(/^>\s?/, "");
+                body.push(body.length === 0 ? l.replace(/^\[!SIDENOTE\][ \t]*/i, "") : l);
+            }
+            i--;
+            const title = (body[0] ?? "").trim();
+            blocks.push(marked.parse(`${title ? `${title}\n\n` : ""}${body.slice(1).join("\n")}`, { async: false }));
+            // attach to the closest non-empty line above (the end of its paragraph)
+            let k = out.length - 1;
+            while (k >= 0 && (out[k] ?? "").trim() === "") k--;
+            if (k >= 0) out[k] = `${out[k]}^[%%CXSN${blocks.length - 1}%%]`;
+            continue;
+        }
+        out.push(line);
+    }
+    return out.join("\n");
 }
 
-/** A click inside rendered course markdown: the COPY button of a code block, or the button that unfolds a long one (the HTML is static, so
- *  the click is caught by the element that holds it). */
+function pullTabs(md: string, groups: string[]): string {
+    const lines = md.split("\n");
+    const out: string[] = [];
+    let i = 0;
+    const readBlock = (at: number): { info: Info; code: string; end: number } | null => {
+        const open = /^```(.*)$/.exec(lines[at] ?? "");
+        if (!open) return null;
+        const info = parseInfo(open[1]);
+        if (!info.tab) return null;
+        let j = at + 1;
+        const body: string[] = [];
+        while (j < lines.length && !/^```\s*$/.test(lines[j] ?? "")) body.push(lines[j++] ?? "");
+        return { info, code: body.join("\n"), end: j + 1 };
+    };
+    while (i < lines.length) {
+        const first = readBlock(i);
+        if (!first) {
+            out.push(lines[i] ?? "");
+            i++;
+            continue;
+        }
+        const blocks = [first];
+        let end = first.end;
+        for (;;) {
+            let next = end;
+            while (next < lines.length && (lines[next] ?? "").trim() === "") next++;
+            const b = readBlock(next);
+            if (!b) break;
+            blocks.push(b);
+            end = b.end;
+        }
+        if (blocks.length < 2) {
+            out.push(lines[i] ?? "");
+            i++;
+            continue;
+        }
+        groups.push(tabGroup(blocks));
+        out.push("", `%%CXTABS${groups.length - 1}%%`, "");
+        i = end;
+    }
+    return out.join("\n");
+}
+
+export function renderMd(md: string): string {
+    const savedBlocks = noteBlocks;
+    const savedPara = paraNotes;
+    noteBlocks = [];
+    paraNotes = [];
+    const groups: string[] = [];
+    try {
+        const prepared = pullTabs(pullSidenoteBlocks(md, noteBlocks), groups);
+        const html = marked.parse(prepared, { async: false });
+        return html.replace(/<p>%%CXTABS(\d+)%%<\/p>/g, (_, k) => groups[Number(k)] ?? "");
+    } finally {
+        noteBlocks = savedBlocks;
+        paraNotes = savedPara;
+    }
+}
+
+// ---------- behaviour of the rendered blocks ----------
+
+/** Slides the underline of a tabbed code block under its active tab. */
+export function placeTabUnderline(code: Element) {
+    const on = code.querySelector<HTMLElement>(".k-tb .k-on");
+    const ul = code.querySelector<HTMLElement>(".k-ul2");
+    if (!on || !ul) return;
+    ul.style.width = `${on.offsetWidth}px`;
+    ul.style.transform = `translateX(${on.offsetLeft}px)`;
+}
+
+/** Call after rendered markdown is in the page: tabbed blocks get their underline. */
+export function initCodeTabs(root: ParentNode | null) {
+    root?.querySelectorAll(".k-tabbed").forEach(placeTabUnderline);
+}
+
+function toggleSpoiler(el: HTMLElement) {
+    el.setAttribute("aria-pressed", String(el.classList.toggle("k-on")));
+}
+
+/** A click inside rendered course markdown: copy, unfold a long block, switch a code tab, dismiss a note, open an aside, ask for a nudge or
+ *  show a spoiler (the HTML is static, so the click is caught by the element that holds it). */
 export function handleCodeClick(e: { target: EventTarget | null }) {
     const el = e.target as HTMLElement | null;
-    const more = el?.closest<HTMLButtonElement>(".cx-more");
-    if (more) {
-        const open = more.closest(".cx-hl")?.classList.toggle("cx-fold") === false;
-        more.setAttribute("aria-expanded", String(open));
-        more.textContent = open ? "show less" : `show all ${more.dataset.lines} lines`;
+    const tab = el?.closest<HTMLButtonElement>(".k-tb button[data-i]");
+    if (tab) {
+        const code = tab.closest(".k-code");
+        if (!code) return;
+        code.querySelectorAll<HTMLElement>(".k-tb button[data-i]").forEach((t) => {
+            t.classList.toggle("k-on", t === tab);
+            t.setAttribute("aria-selected", String(t === tab));
+        });
+        code.querySelectorAll<HTMLElement>(".k-tp").forEach((p) => {
+            p.hidden = p.dataset.i !== tab.dataset.i;
+            if (!p.hidden) code.querySelector<HTMLElement>(".k-ch > .k-copy")?.setAttribute("data-c", p.dataset.c ?? "");
+        });
+        placeTabUnderline(code);
         return;
     }
-    const b = el?.closest<HTMLButtonElement>(".cx-copy");
+    const x = el?.closest<HTMLButtonElement>(".k-co > .k-x");
+    if (x) {
+        x.parentElement?.classList.add("k-gone");
+        return;
+    }
+    const ah = el?.closest<HTMLButtonElement>(".k-ah");
+    if (ah) {
+        const open = ah.closest(".k-asd")?.classList.toggle("k-open");
+        ah.setAttribute("aria-expanded", String(!!open));
+        return;
+    }
+    const nb = el?.closest<HTMLButtonElement>(".k-nb");
+    if (nb) {
+        const list: string[] = JSON.parse(nb.dataset.nudges ?? "[]");
+        const used = Number(nb.dataset.used) + 1;
+        nb.dataset.used = String(used);
+        const box = nb.closest(".k-rev2");
+        const target = box?.querySelector<HTMLElement>(".k-nudge");
+        if (target) {
+            target.innerHTML = list[used - 1] ?? "";
+            target.classList.add("k-on");
+        }
+        box?.querySelectorAll<HTMLElement>(".k-st2").forEach((b, i) => b.classList.toggle("k-on", i < used));
+        nb.textContent = used < list.length ? `Another nudge (${used}/${list.length})` : "No more nudges";
+        nb.disabled = used >= list.length;
+        return;
+    }
+    const spoil = el?.closest<HTMLElement>(".k-spoil");
+    if (spoil) {
+        toggleSpoiler(spoil);
+        return;
+    }
+    const more = el?.closest<HTMLButtonElement>(".k-more");
+    if (more) {
+        const code = more.closest(".k-code");
+        const open = code?.querySelector(".k-cb")?.classList.toggle("k-fold") === false;
+        more.setAttribute("aria-expanded", String(open));
+        more.textContent = open ? "SHOW LESS ▴" : `SHOW ALL ${more.dataset.lines} LINES ▾`;
+        return;
+    }
+    const b = el?.closest<HTMLButtonElement>(".k-copy");
     if (!b) return;
+    const label = b.textContent;
     const done = () => {
-        b.textContent = "copied";
-        setTimeout(() => (b.textContent = "copy"), 1200);
+        b.classList.add("k-ok");
+        b.textContent = "COPIED";
+        setTimeout(() => {
+            b.classList.remove("k-ok");
+            b.textContent = label;
+        }, 1100);
     };
     try {
-        navigator.clipboard.writeText(b.dataset.code ?? "").then(done, done);
+        navigator.clipboard.writeText(b.dataset.c ?? "").then(done, done);
     } catch {
         done();
+    }
+}
+
+/** Enter or Space on a spoiler shows it. */
+export function handleCodeKey(e: { target: EventTarget | null; key: string; preventDefault: () => void }) {
+    const spoil = (e.target as HTMLElement | null)?.closest<HTMLElement>(".k-spoil");
+    if (spoil && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        toggleSpoiler(spoil);
     }
 }

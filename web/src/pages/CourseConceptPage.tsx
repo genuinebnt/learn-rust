@@ -1,15 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { Header } from "../components/Header";
-import { handleCodeClick, renderMd } from "./courseMd";
+import { MockRoot, reducedMotion } from "../components/mock";
+import { Prose } from "./stage/Tabs";
 
-/** A concept: a short article that teaches one idea a stage needs. */
+/** A concept: a short article that teaches one idea a stage needs, in the mockup's reading column and page panel. */
 export function CourseConceptPage({ course, id }: { course: string; id: string }) {
     const q = useQuery({ queryKey: ["course-concept", course, id], queryFn: () => api.courseConcept(course, id) });
     const [active, setActive] = useState("");
     const p = q.data;
+    const barRef = useRef<HTMLDivElement>(null);
+    const outline = useRef<HTMLDivElement>(null);
     useEffect(() => {
         window.scrollTo({ top: 0 });
     }, [id]);
@@ -20,15 +23,24 @@ export function CourseConceptPage({ course, id }: { course: string; id: string }
             let cur = ids[0] ?? "";
             for (const i of ids) {
                 const el = document.getElementById(i);
-                if (el && el.getBoundingClientRect().top < 200) cur = i;
+                if (el && el.getBoundingClientRect().top < 140) cur = i;
             }
             setActive(cur);
+            const h = document.documentElement;
+            if (barRef.current) barRef.current.style.width = `${(100 * Math.min(1, h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight)))}%`;
         };
         window.addEventListener("scroll", onScroll, { passive: true });
         onScroll();
         return () => window.removeEventListener("scroll", onScroll);
     }, [p]);
-    const style = { "--ca": "var(--grn)", "--cab": "var(--grn-bg)" } as CSSProperties;
+    // The marker in the outline slides to the section you are in.
+    useLayoutEffect(() => {
+        const mk = outline.current?.querySelector<HTMLElement>(".k-mk");
+        const on = outline.current?.querySelector<HTMLElement>("a.k-on");
+        if (!mk || !on) return;
+        mk.style.transform = `translateY(${on.offsetTop}px)`;
+        mk.style.height = `${on.offsetHeight}px`;
+    });
     if (q.isError || !p) {
         return (
             <>
@@ -45,90 +57,74 @@ export function CourseConceptPage({ course, id }: { course: string; id: string }
     return (
         <>
             <Header area="courses" />
-            <div className="subbar cx-sub">
-                <div className="crumb">
-                    <Link to="/courses" style={{ color: "var(--grn)" }}>
-                        COURSES
-                    </Link>
-                    <span>/</span>
-                    <span>CONCEPT</span>
-                </div>
-                <div className="vr" />
-                <span className="wtitle">{p.concept.title}</span>
-                <div className="subpills">
-                    <span className="pill solid" style={{ background: "var(--vio)" }}>
-                        CONCEPT
-                    </span>
-                    <span className="pill">~{p.concept.minutes} MIN</span>
-                </div>
-            </div>
-            <div className="cx cx-two" style={style}>
-                <div className="cx-main">
-                    <main className="cx-read">
-                        <div className="cx-col">
-                            <div className="eyebrow">
-                                <span style={{ color: "var(--vio)" }}>CONCEPT</span>
-                                <span>/</span>
-                                <span>~{p.concept.minutes} MIN READ</span>
-                                {first && (
-                                    <>
-                                        <span>/</span>
-                                        <span>USED IN {first.id.toUpperCase()}</span>
-                                    </>
-                                )}
-                            </div>
-                            <h1 className="cx-h1">{p.concept.title}</h1>
-                            <p className="cx-lead">{p.concept.summary}</p>
-                            <div className="cx-prose" onClick={handleCodeClick}>
-                                {p.concept.sections.map((s, i) => (
-                                    <section key={s.id} id={`c-${s.id}`}>
-                                        <div className="cx-part">
-                                            <b>{String(i + 1).padStart(2, "0")}</b>
-                                            {s.title.toUpperCase()}
-                                        </div>
-                                        <div dangerouslySetInnerHTML={{ __html: renderMd(s.md) }} />
-                                    </section>
-                                ))}
-                            </div>
-                            {p.used_in.length > 0 && (
-                                <>
-                                    <div className="cx-part" style={{ marginTop: 56 }}>
-                                        <b>BACK TO WORK</b>
-                                    </div>
-                                    <div className="cx-reads">
-                                        {p.used_in.map((s) => (
-                                            <Link key={s.id} to="/courses/$course/$stage" params={{ course, stage: s.id }}>
-                                                <small>
-                                                    STAGE {s.rank} · {s.module.toUpperCase()}
-                                                </small>
-                                                {s.title}
-                                            </Link>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
+            <MockRoot>
+                <div className="k-read" ref={barRef} aria-hidden="true" />
+                <div className="k-concept">
+                    <main className="k-read2">
+                        <div className="k-eye k-rv" style={{ "--i": 0 } as React.CSSProperties}>
+                            <Link to="/courses/$course" params={{ course }} style={{ color: "var(--grn)" }}>
+                                <b>COURSE</b>
+                            </Link>{" "}
+                            / CONCEPT / ~{p.concept.minutes} MIN READ{first && <> / USED IN {first.id.toUpperCase()}</>}
                         </div>
-                    </main>
-                </div>
-                <aside className="cx-toc">
-                    <div>
-                        <h4>IN THIS CONCEPT</h4>
-                        {p.concept.sections.map((s) => (
-                            <a
-                                key={s.id}
-                                href={`#c-${s.id}`}
-                                className={active === `c-${s.id}` ? "on" : ""}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    document.getElementById(`c-${s.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                                }}
-                            >
-                                {s.title}
-                            </a>
+                        <h2 className="k-ttl k-rv" style={{ "--i": 1 } as React.CSSProperties}>
+                            {p.concept.title}
+                        </h2>
+                        <p className="k-lead k-rv" style={{ "--i": 2 } as React.CSSProperties}>
+                            {p.concept.summary}
+                        </p>
+                        {p.concept.sections.map((s, i) => (
+                            <section key={s.id} id={`c-${s.id}`}>
+                                <div className="k-sh">
+                                    <b>{String(i + 1).padStart(2, "0")}</b>
+                                    {s.title.toUpperCase()}
+                                </div>
+                                <Prose text={s.md} />
+                            </section>
                         ))}
-                    </div>
-                </aside>
-            </div>
+                        {p.used_in.length > 0 && (
+                            <>
+                                <div className="k-sh" style={{ marginTop: 56 }}>
+                                    <b>BACK TO WORK</b>
+                                </div>
+                                <nav className="k-pn" style={{ marginTop: 12, gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))" }}>
+                                    {p.used_in.map((s) => (
+                                        <Link key={s.id} to="/courses/$course/$stage" params={{ course, stage: s.id }}>
+                                            <small>
+                                                STAGE {s.rank} · {s.module.toUpperCase()}
+                                            </small>
+                                            {s.title}
+                                        </Link>
+                                    ))}
+                                </nav>
+                            </>
+                        )}
+                    </main>
+                    <aside className="k-toc k-concept-toc" aria-label="This concept">
+                        <div className="k-tscroll">
+                            <div className="k-rcard">
+                                <h6>IN THIS CONCEPT</h6>
+                                <div ref={outline} style={{ position: "relative", borderLeft: "1px solid var(--line2)" }}>
+                                    <span className="k-mk" />
+                                    {p.concept.sections.map((s) => (
+                                        <a
+                                            key={s.id}
+                                            href={`#c-${s.id}`}
+                                            className={active === `c-${s.id}` ? "k-on" : ""}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                document.getElementById(`c-${s.id}`)?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" });
+                                            }}
+                                        >
+                                            {s.title}
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </MockRoot>
         </>
     );
 }

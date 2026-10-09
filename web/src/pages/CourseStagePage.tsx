@@ -103,6 +103,30 @@ function ago(iso: string) {
     return `${Math.floor(s / 86400)} d ago`;
 }
 
+/** The command that tests this stage, with a copy button. */
+function StageCommand({ stageId }: { stageId: string }) {
+    const [copied, setCopied] = useState(false);
+    const cmd = `anneal course test ${stageId}`;
+    const copy = () => {
+        const done = () => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+        };
+        try {
+            navigator.clipboard.writeText(cmd).then(done, done);
+        } catch {
+            done();
+        }
+    };
+    return (
+        <div className="cx-cli">
+            <span>test this stage</span>
+            <code>{cmd}</code>
+            <button onClick={copy}>{copied ? "COPIED" : "COPY"}</button>
+        </div>
+    );
+}
+
 /** The Run tab: a summary with one segment per test, failures first and open, passes folded, compiler output in its own block. */
 function RunPanel({ run, stageId }: { run: CourseRun; stageId: string }) {
     const failed = run.tests.map((t, i) => ({ ...t, i })).filter((t) => !t.ok);
@@ -336,10 +360,13 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
         return (["instructions", "hints", "solution", "concepts", "run"] as const).find((x) => x === h) ?? "instructions";
     };
     const [tab, setTab] = useState<Tab>(tabFromHash);
+    // Each tab keeps its own scroll position, so going to Hints and back returns to where you were reading.
+    const scrolls = useRef<Partial<Record<Tab, number>>>({});
     const pick = (k: Tab) => {
+        scrolls.current[tab] = window.scrollY;
         setTab(k);
         history.replaceState(null, "", k === "instructions" ? location.pathname : `#${k}`);
-        window.scrollTo({ top: 0 });
+        requestAnimationFrame(() => window.scrollTo({ top: scrolls.current[k] ?? 0 }));
     };
 
     useEffect(() => {
@@ -504,6 +531,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                             <h1 className="cx-h1">
                                 <SplitTitle title={p.stage.title} />
                             </h1>
+                            <StageCommand stageId={p.stage.id} />
                             {p.stage.learn.length > 0 && (
                                 <div className="cx-learn">
                                     <span className="lab">YOU'LL LEARN</span>

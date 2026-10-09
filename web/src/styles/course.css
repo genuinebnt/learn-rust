@@ -395,3 +395,13 @@
 .cx-prose .cx-tbl.versus td .cx-copy{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--panel);border-color:var(--line2)}
 .cx-prose .cx-tbl.versus td:hover .cx-copy,.cx-prose .cx-tbl.versus td .cx-copy:focus-visible{opacity:1}
 @media (hover:none){.cx-prose .cx-tbl.versus td .cx-copy{opacity:1}}
+
+/* the command that tests a stage; the module ring on the course page's continue card (docs/mockups/web-tables-and-run-strip.html) */
+.cx-cli{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 20px;font:500 12px var(--mono);color:var(--dim)}
+.cx-cli code{padding:4px 10px;border-radius:4px;background:var(--raise);color:var(--fg);font-size:12px;overflow-wrap:anywhere}
+.cx-cli button{height:24px;padding:0 9px;border:1px solid var(--line2);border-radius:4px;font:500 11px var(--mono);letter-spacing:.1em;color:var(--dim)}.cx-cli button:hover{color:var(--fg);border-color:var(--line)}
+.cx-ring{width:54px;height:54px;flex:none;border-radius:50%;background:conic-gradient(var(--grn) calc(var(--p)*1%),var(--line2) 0);display:grid;place-items:center}
+.cx-ring span{width:42px;height:42px;border-radius:50%;background:var(--panel);display:grid;place-items:center;font:600 11px var(--mono);color:var(--fg);font-variant-numeric:tabular-nums}
+.cx-contb{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cx-contb b{flex:none}
+.cx-contb small{font:500 11.5px var(--mono);color:var(--dim)}

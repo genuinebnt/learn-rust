@@ -62,6 +62,8 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
     const c: CourseOverview | undefined = q.data;
     const modules = c?.projects.reduce((n, p) => n + p.modules.length, 0) ?? 0;
     const current = c?.projects.flatMap((p) => p.modules).flatMap((m) => m.stages).find((s) => s.id === c.current);
+    const here = c?.projects.flatMap((p) => p.modules).find((m) => m.stages.some((s) => s.id === c.current));
+    const hereDone = here?.stages.filter((s) => s.state !== "todo").length ?? 0;
     const style = { "--ca": "var(--grn)", "--cab": "var(--grn-bg)" } as CSSProperties;
     return (
         <>
@@ -103,7 +105,21 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                             {current && (
                                 <Link className="cx-cont" to="/courses/$course/$stage" params={{ course: c.id, stage: current.id }}>
                                     <span className="cx-contk">{c.done ? "CONTINUE" : "START HERE"} · STAGE {current.rank} OF {c.total}</span>
-                                    <b>{current.title}</b>
+                                    {here && (
+                                        <span className="cx-ring" style={{ "--p": Math.round((100 * hereDone) / here.stages.length) } as React.CSSProperties} aria-label={`${hereDone} of ${here.stages.length} stages in this module passed`}>
+                                            <span>
+                                                {hereDone}/{here.stages.length}
+                                            </span>
+                                        </span>
+                                    )}
+                                    <span className="cx-contb">
+                                        <b>{current.title}</b>
+                                        {here && (
+                                            <small>
+                                                {here.code.toUpperCase()} · {here.title}
+                                            </small>
+                                        )}
+                                    </span>
                                     <span className="tc-go">open stage ›</span>
                                 </Link>
                             )}

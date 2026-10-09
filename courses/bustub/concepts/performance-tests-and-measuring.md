@@ -50,6 +50,15 @@ Before measuring, **predict**. For a stage's code, write down: how many system c
 > [!TIP] A cheap profiler
 > `cargo build --release` then `perf record -g ./target/release/...` and `perf report` (Linux), or Instruments' Time Profiler (macOS), shows where the time goes in minutes. Look for the *one* function that dominates before optimising anything.
 
+## Finding where the time goes: perf and flamegraphs
+
+A timing tells you *that* something is slow; a **profile** tells you *where*. Build with debug symbols in release mode (`[profile.release] debug = 1`), run a workload long enough to sample (a few seconds), and turn the samples into a **flamegraph**: a stack of boxes where width is the share of samples, so the widest boxes at the top are the hot code.
+
+- **Linux:** `perf record -F 999 -g -- ./target/release/app` then `perf script | inferno-collapse-perf | inferno-flamegraph > flame.svg`, or `cargo flamegraph` (which wraps both).
+- **macOS** (no `perf`; `cargo flamegraph` needs `sudo` for dtrace): run the program, then `sample <pid> 5 -file out.txt` and `inferno-collapse-sample out.txt | inferno-flamegraph > flame.svg`. `cargo install inferno` provides the converters.
+
+Read it from the top: a wide `malloc`/`free` band says "allocation", a wide leaf in your own code says "this loop". The workflow is always measure, profile, change one thing, measure again, in release mode: debug timings are not evidence.
+
 ## In real code
 
 ### Using it: count the work, then time it generously

@@ -52,9 +52,9 @@ bucket = (bucket + 1) % self.capacity;
 
 ## Performance
 
-At load factor 0.75, linear probing alone has some probes of hundreds of steps; Robin Hood keeps the longest probe near `log n`. The cost is the extra comparison and occasional swap on insert. Lookups of present keys are as fast as ever; lookups of absent keys here run until an empty bucket, which at load 0.75 is about 8 probes on average.
+At load factor 0.75, linear probing alone can leave some keys far from home; Robin Hood keeps the longest probe near `log n` (measured below). The cost is the extra comparison and occasional swap on insert. Lookups of present keys are as fast as ever; lookups of absent keys here run until an empty bucket, which at load 0.75 is a handful of probes.
 
-**Measure it.** Insert 200 000 keys into a table of 262 144 and print `max_probe_distance()` (stage 3).
+**Measure it.** Insert 200 000 **random** keys into a table of 262 144 and print `max_probe_distance()` (stage 3): about 18 here, close to `log2(200 000) = 17.6`, in about 5 ms; 200 000 lookups of present or absent keys take about 5 ms each (release mode). Do not measure with the keys `0..200 000`: multiplying consecutive integers by an odd constant and taking a power of two modulo is a permutation, so no two keys collide and the longest probe is 0.
 
 ## Hints
 

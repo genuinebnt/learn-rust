@@ -62,7 +62,7 @@ self.txn_map.write().unwrap().retain(|id, t| matches!(t.state(), Running | Taint
 
 One pass over every tuple of every table, plus chain walks that stop at the watermark: linear in the size of the database (plus the length of the chains still in use). That is why real systems collect per page in the background; the stop-the-world version is a stand-in for the algorithm, not a way to run a server.
 
-**Measure it.** Build a table of 100 000 rows with one committed update each, then time `garbage_collection()` with and without a long-running old reader.
+**Measure it.** With 20 000 rows each updated ten times, one `garbage_collection()` call takes about 6 ms (release mode): a pass over the table and the short chains. Time it again with a long-running old reader holding the watermark back, and see how many transactions survive.
 
 ## Hints
 

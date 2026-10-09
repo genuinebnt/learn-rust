@@ -13,6 +13,7 @@ In `src/primer/hyperloglog.rs`, `HyperLogLogPresto` (the hash is given: integers
 - Adding 0 gives all 63 remaining bits: dense 15, overflow 3.
 - A third value in register 1 with 56 trailing zeros: dense 8, and the estimate is exactly 227086569448168320.
 - A value with no trailing zeros changes nothing; `i64::MIN` and 0 with one register bit (and with none) give BusTub's numbers.
+- Eight threads adding in any order leave the registers a single thread leaves.
 - A negative size has cardinality 0; strings estimate about half the true number (see Notes).
 
 ## Syntax and methods
@@ -27,6 +28,8 @@ self.dense.lock().unwrap()[idx] = (tz & 0xF) as u8;
 ## Notes
 
 **Where the numbers come from.** With `b = 1` and value `-9151314442816847872` = 2^63 + 2^56: the top bit is 1 (register 1) and bit 56 is the lowest set bit of the rest, so the run is 56: `56 = 0b11_1000`, dense `8`, overflow `3`. The estimate is `0.79402 × 4 / (2^-63 + 2^-56)`, which is 227 086 569 448 168 320 as a `u64`. Every such expected value in the tests follows from this definition; use them to check your reading of "trailing zeros".
+
+**Check, then act, under one lock.** Raising a register is "read it, compare, write it". If the read and the write take the locks separately, two threads can both read 3, one writes 20, and the other then writes 5 over it: a larger run is lost for good. Take both locks (always dense, then overflow) before reading and release them after writing. The thread test in this stage adds the same values from eight threads and expects exactly the registers a single thread leaves.
 
 **Half the estimate.** The run here is the *number* of trailing zeros, one less than the *position* of the first 1 that plain HyperLogLog counts. Every register's `2^-r` term is therefore twice as large, and the estimate about half as large. That is a property of the specified design, kept so that BusTub's exact values hold; the string test accepts ratios between 0.35 and 0.8.
 
@@ -56,6 +59,10 @@ Dense storage is `m × 4 bits`; overflow entries exist only for registers with r
 **Measure it.** Count overflow entries after adding a million values with `b = 12`: a handful.
 
 ## Hints
+
+### Hold the locks across the whole update
+
+A `register()` call that locks, returns, and unlocks followed by a store that locks again is two critical sections. The compare must be inside the one that writes.
 
 ### Mask before counting
 

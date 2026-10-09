@@ -56,7 +56,7 @@ txn.modify_undo_log(idx, widened);
 
 An update writes one tuple in place (a latched memcpy of the tuple's bytes) and builds or widens one small log; with `k` changed columns, the log holds `k` values. Statements that update the same tuple again and again stay at one log. An update implemented as delete + insert writes two tuples, grows the heap and the indexes for every update, and makes scans walk past tombstones.
 
-**Measure it.** Update one row 10 000 times in one transaction and print the heap's tuple count and the transaction's log count: both stay at 1.
+**Measure it.** Update one row 10 000 times in one transaction and print the heap's tuple count and the transaction's log count: both stay at 1. Updating all 20 000 rows of a table takes about 14 ms in release mode, round after round, however many committed versions already sit behind them.
 
 ## Hints
 

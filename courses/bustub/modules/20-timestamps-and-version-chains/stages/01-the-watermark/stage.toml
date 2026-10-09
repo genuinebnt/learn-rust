@@ -4,4 +4,4 @@ kind = "build"
 difficulty = "medium"
 tests = ["stages_4a::s4a_01"]
 learn = ["a multiset as an ordered map of counts", "the smallest read timestamp as the garbage boundary", "logarithmic-time updates"]
-concepts = ["watermarks-and-garbage-collection", "ordered-sets-as-priority-queues"]
+concepts = ["watermarks-and-garbage-collection", "ordered-sets-as-priority-queues", "interior-mutability", "newtypes-and-type-driven-design", "designing-error-types"]

@@ -58,3 +58,36 @@ Each would follow the course rules: a tested `## In real code` (two or more `#[t
 
 Recommended first batch: 1 to 6 (they explain code the learner meets in nearly every module), then 7 and 8.
 Not started: awaiting the owner's go-ahead (CLAUDE.md: propose extras, then wait).
+
+## Status after the first batch (2026-10-09)
+
+Fifteen articles were written from items 1 to 14 above, plus one on testing concurrent code: `send-and-sync`, `smart-pointers-box-rc-arc`,
+`interior-mutability`, `lock-poisoning-and-the-unwrap-policy`, `newtypes-and-type-driven-design`, `designing-error-types`,
+`iterators-and-closures`, `option-and-result-combinators`, `generics-and-static-dispatch`, `eq-hash-ord-contracts`,
+`rust-anti-patterns-in-practice`, `allocation-and-cache-friendly-code`, `unsafe-and-its-contracts`,
+`testing-concurrent-code-with-loom-and-miri`, `modules-visibility-and-api-boundaries`. Each has two or more tested examples and is linked
+from the stages that use it.
+
+## Systems programming: what recurs, and what is covered
+
+Rust used for systems work (databases, storage engines, OS components, network services, embedded firmware) keeps returning to the same
+dozen topics. Against this course:
+
+| recurring concept | covered by | gap |
+|---|---|---|
+| ownership, RAII, `Drop`, guards (files, locks, handles) | `raii-guards-and-lifetimes`, `ownership-of-files-and-raii`, `clean-shutdown-drop-and-join` | `Drop` order and `Option::take` in `Drop` |
+| bytes, endianness, layout, `repr(C)`, alignment | `bytes-endianness-and-views`, `repr-c-layouts-and-const-asserts`, `serialization-of-values` | alignment and padding as a topic (`size_of`, `align_of`, `repr(align)`) |
+| `unsafe`, raw pointers, `MaybeUninit`, `NonNull` | `unsafe-and-its-contracts` | **FFI** (`extern "C"`, `CString`, callbacks) |
+| threads, locks, condvars, channels, atomics and memory ordering | 14 articles | **lock-free** (CAS loops, ABA), **false sharing** and cache padding |
+| file and device I/O: `Read`/`Write`/`Seek`, positional I/O | `positional-io-and-short-reads`, `rust-io-errors` | **durability**: `fsync`, write ordering, torn writes; **memory-mapped files** |
+| allocation, arenas, custom layouts | `arenas-and-generational-handles`, `allocation-and-cache-friendly-code` | **custom allocators**, `no_std` and `alloc` |
+| error handling with OS errors | `designing-error-types`, `rust-io-errors` | |
+| async I/O and the reactor | `promises-and-futures` (a one-shot) | **async/await**, `epoll`/`io_uring`, when threads are better |
+| processes and the OS: signals, `std::process`, environment, exit codes | none | **process and signal handling** |
+| testing: concurrency, UB | `testing-concurrent-code-with-loom-and-miri`, `model-based-testing`, `testing-with-fakes` | **property-based testing and fuzzing** (`proptest`, `cargo-fuzz`) |
+| profiling | `performance-tests-and-measuring` (perf, flamegraphs), `allocation-and-cache-friendly-code` | |
+| embedded: `no_std`, interrupts, peripheral ownership, static buffers | none | out of scope for BusTub; a separate track if wanted |
+
+Candidate next articles, in order of fit with a database course: **durability and fsync** (the write path every storage engine rests on),
+**lock-free basics and false sharing**, **FFI**, **property-based testing and fuzzing**, **memory-mapped files**, **async versus threads**.
+Not started.

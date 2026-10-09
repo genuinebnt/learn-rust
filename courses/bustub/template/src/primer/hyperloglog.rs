@@ -135,7 +135,7 @@ impl<K: PrestoHash> HyperLogLogPresto<K> {
     }
 
     pub fn add_elem(&self, val: &K) {
-        todo!("0d-05: the register is the top n bits of the hash; its run is the trailing zeros of the other 64 - n bits (all zero: 64 - n); if larger than the register's value store the low 4 bits densely and bits 4 to 6 in the overflow map")
+        todo!("0d-05: the register is the top n bits of the hash; its run is the trailing zeros of the other 64 - n bits (all zero: 64 - n); under both locks, held together: if larger than the register's value store the low 4 bits densely and bits 4 to 6 in the overflow map")
     }
 
     pub fn compute_cardinality(&self) {

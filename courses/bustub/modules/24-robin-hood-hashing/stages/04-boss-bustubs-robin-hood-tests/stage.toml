@@ -4,5 +4,5 @@ kind = "boss"
 difficulty = "hard"
 tests = ["stages_0c::s0c_04"]
 learn = ["concurrent stress on a lock-protected table", "reading a race from its symptoms"]
-concepts = ["robin-hood-hashing-and-open-addressing", "reader-writer-latches"]
+concepts = ["robin-hood-hashing-and-open-addressing", "reader-writer-latches", "testing-concurrent-code-with-loom-and-miri"]
 retest = true

@@ -56,7 +56,7 @@ The starter's `insert_executor.cpp` is the Project 3 executor; Project 4 changes
 
 An insert in a transaction costs what a plain one did, plus a hash-set insert into the write set (amortised constant). The write set grows with the transaction: a transaction that inserts a million rows keeps a million rids until it ends, and commit walks them all once.
 
-**Measure it.** Insert 100 000 rows in one transaction, then commit: time both steps. The commit is a latched metadata update per rid; for the same rows inserted by 100 000 separate transactions the per-commit overhead dominates.
+**Measure it.** Insert 20 000 rows in one transaction (about 20 ms in release mode, including parsing and planning), then commit (about 1 ms): the commit is a latched metadata update per rid. For the same rows inserted by 20 000 separate transactions the per-commit overhead dominates.
 
 ## Hints
 

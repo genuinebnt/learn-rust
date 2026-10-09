@@ -71,7 +71,7 @@ Its test is `TxnScanTest.TupleReconstructTest`, four scenarios A to D.
 
 Reconstruction is linear in (number of logs) x (columns), plus one tuple allocation at the end. It runs for every tuple of a scan, so a chain of length `k` makes the scan `k` times slower for old readers; the newest version (no logs) costs one tuple copy.
 
-**Measure it.** Rebuild the same tuple with 0, 10 and 1000 logs in a loop and time it; the growth is linear, which is why garbage collection (module 4b) matters.
+**Measure it.** Scan 20 000 rows after ten updates of every row: a reader at the newest snapshot takes about 5 ms, a reader that began before the updates takes about 37 ms, seven times as long (release mode, same laptop). A flamegraph of the old reader (see the *performance tests and measuring* article for the commands) shows where it goes: about half the samples are `malloc`/`free`, and `Schema::new` inside `get_undo_log_schema` (the partial schema built for every log of every tuple) is the largest piece of your own code after `collect_undo_logs`. Caching the partial schema per modified-fields pattern would cut it; the exercise leaves that as an optimisation.
 
 ## Hints
 

@@ -410,6 +410,38 @@ fn s0d_05_one_register_uses_all_64_bits() {
 }
 
 #[test]
+fn s0d_05_threads_adding_in_any_order_leave_the_same_registers_as_one_thread() {
+    let h: Arc<HyperLogLogPresto<i64>> = Arc::new(HyperLogLogPresto::new(2));
+    let values: Vec<i64> = (0..64).map(|k| 1i64 << k).chain((0..64).map(|k| (1i64 << 62) | (1i64 << k))).collect();
+    let handles: Vec<_> = (0..8)
+        .map(|t| {
+            let (h, values) = (h.clone(), values.clone());
+            std::thread::spawn(move || {
+                for round in 0..200 {
+                    for (i, v) in values.iter().enumerate() {
+                        if (i + round + t) % 2 == 0 {
+                            h.add_elem(v);
+                        }
+                    }
+                }
+            })
+        })
+        .collect();
+    handles.into_iter().for_each(|t| t.join().unwrap());
+    for v in &values {
+        h.add_elem(v);
+    }
+    let one: HyperLogLogPresto<i64> = HyperLogLogPresto::new(2);
+    for v in &values {
+        one.add_elem(v);
+    }
+    assert_eq!(h.dense_bucket(), one.dense_bucket());
+    for i in 0..4 {
+        assert_eq!(h.overflow_bucket_of(i), one.overflow_bucket_of(i));
+    }
+}
+
+#[test]
 fn s0d_05_negative_size_and_strings() {
     let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(-2);
     h.compute_cardinality();

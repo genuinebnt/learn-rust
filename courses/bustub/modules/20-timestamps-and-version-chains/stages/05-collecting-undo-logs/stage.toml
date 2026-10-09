@@ -4,4 +4,4 @@ kind = "build"
 difficulty = "hard"
 tests = ["stages_4a::s4a_05"]
 learn = ["following a linked chain until a condition holds", "the visibility rule written as code", "treating a missing link as a missing version"]
-concepts = ["version-chains-and-undo-logs", "snapshot-isolation"]
+concepts = ["version-chains-and-undo-logs", "snapshot-isolation", "option-and-result-combinators"]

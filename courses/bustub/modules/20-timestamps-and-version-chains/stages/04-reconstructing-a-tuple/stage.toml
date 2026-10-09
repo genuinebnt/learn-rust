@@ -1,7 +1,0 @@
-id = "4a-04"
-title = "Reconstructing a tuple"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_4a::s4a_04"]
-learn = ["applying deltas in order to get an older version", "partial tuples under a partial schema", "representing a deleted tuple as None"]
-concepts = ["version-chains-and-undo-logs", "tombstones-and-lazy-deletion", "allocation-and-cache-friendly-code"]

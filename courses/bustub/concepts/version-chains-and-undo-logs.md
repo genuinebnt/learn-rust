@@ -174,10 +174,10 @@ fn a_reader_older_than_every_version_sees_nothing() {
 
 ### In the exercises
 
-- **4a-04:** `reconstruct_tuple` is the apply step, with the partial schema.
-- **4a-05:** `collect_undo_logs` is the walk.
-- **4a-06 / 4a-07:** `generate_new_undo_log` and `generate_updated_undo_log` write the logs.
-- **4a-08:** the scan uses all of them for every tuple.
+- **4a-03:** `reconstruct_tuple` is the apply step, with the partial schema.
+- **4a-03:** `collect_undo_logs` is the walk.
+- **4a-04:** `generate_new_undo_log` and `generate_updated_undo_log` write the logs.
+- **4a-05:** the scan uses all of them for every tuple.
 
 ### Where it is used
 

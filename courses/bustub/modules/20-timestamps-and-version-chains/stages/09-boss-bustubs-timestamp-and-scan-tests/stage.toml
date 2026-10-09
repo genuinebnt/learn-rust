@@ -1,8 +1,0 @@
-id = "4a-09"
-title = "Boss: BusTub's timestamp and scan tests"
-kind = "boss"
-difficulty = "hard"
-tests = ["stages_4a::s4a_09"]
-learn = ["checking a whole subsystem against a reference test", "reasoning about what each transaction should see"]
-concepts = ["multi-version-concurrency-control", "version-chains-and-undo-logs"]
-retest = true

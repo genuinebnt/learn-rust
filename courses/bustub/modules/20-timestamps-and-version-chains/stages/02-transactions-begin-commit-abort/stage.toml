@@ -1,0 +1,8 @@
+id = "4a-02"
+title = "Transactions: begin, commit, abort"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_4a::s4a_02"]
+learn = ["a read timestamp taken under a lock", "a commit timestamp that stamps every tuple the transaction wrote", "tainted and aborted transactions"]
+concepts = []
+concepts_optional = ["multi-version-concurrency-control", "logical-clocks-and-timestamps", "snapshot-isolation", "interior-mutability", "model-based-testing"]

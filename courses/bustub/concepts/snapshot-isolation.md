@@ -142,8 +142,8 @@ fn a_serial_order_would_have_stopped_the_second() {
 
 ### In the exercises
 
-- **4a-03:** `commit` turns a transaction's temporary timestamps into its commit timestamp; a tainted transaction cannot commit.
-- **4a-05 / 4a-08:** `collect_undo_logs` and the scan apply the visibility rule.
+- **4a-02:** `commit` turns a transaction's temporary timestamps into its commit timestamp; a tainted transaction cannot commit.
+- **4a-03 / 4a-05:** `collect_undo_logs` and the scan apply the visibility rule.
 - **Module 4b:** the write-write conflict check in update/delete, and serializable validation.
 
 ### Where it is used

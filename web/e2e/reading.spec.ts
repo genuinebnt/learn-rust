@@ -180,7 +180,7 @@ test.describe("check yourself and the steps aside", () => {
 
     test("a task's steps are in a closed aside, with the contract above them", async ({ page }) => {
         // any stage page with a `> [!ASIDE]` block will do; re-point this when the module that holds it is rewritten
-        await page.goto("/courses/bustub/4a-03");
+        await page.goto("/courses/bustub/4a-02");
         const aside = page.locator(".k-asd", { hasText: "if you would rather not work them out" });
         await expect(aside).toBeVisible();
         await expect(aside).not.toHaveClass(/k-open/);

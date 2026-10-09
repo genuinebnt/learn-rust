@@ -264,11 +264,13 @@ MODULES = [
         ("Y5", "Build it", "equivalence: the optimised plan and the plain plan return the same rows, on random tables", ["3h-01", "3h-02", "3h-03", "3h-04"]),
     ]),
     ("4a", "Timestamps, transactions and version chains", [
-        ("S7", "Understand it", "`Arc`, `Mutex`, shared state", None),
-        ("C1", "Understand it", "`RwLock`, atomics-free sharing first", None),
-        ("C3", "Understand it", "atomic counters for timestamps", None),
-        ("S4", "Understand it", "`BTreeMap` for a watermark", None),
-        ("L7", "Patterns in depth", "undo log entries as enums", None),
+        ("S4", "Understand it", "`BTreeMap` as an ordered multiset for the watermark", ["4a-01"]),
+        ("S7", "Understand it", "`Arc<Transaction>` with `&self` setters; interior mutability", ["4a-02"]),
+        ("C1", "Understand it", "`Mutex` lock scope: a critical section is a guard's lifetime", ["4a-02"]),
+        ("C3", "Understand it", "atomic counters for timestamps and ids", ["4a-02"]),
+        ("S1", "Understand it", "`?` and `let else` on `Option`: following a chain", ["4a-03", "4a-04", "4a-05"]),
+        ("L7", "Patterns in depth", "undo log entries; `Option<Vec<_>>` as a three-way answer", ["4a-03", "4a-04"]),
+        ("Y5", "Build it", "a model of versions; random histories and sessions", ["4a-01", "4a-02", "4a-03", "4a-04", "4a-05", "4a-06"]),
     ]),
     ("4b", "MVCC writes, abort, garbage collection and serializability", [
         ("C1", "Understand it", "lock ordering and deadlock", None),

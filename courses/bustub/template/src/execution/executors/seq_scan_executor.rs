@@ -51,7 +51,7 @@ impl Executor for SeqScanExecutor<'_> {
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
-        // 4a-08: when self.txn is Some, scan with versions: for each rid, read the tuple, its meta and its undo link together (get_tuple_and_undo_link), collect_undo_logs for the transaction, reconstruct_tuple, skip the rids that are None, then filter and push as below
+        // 4a-05: when self.txn is Some, scan with versions: for each rid, read the tuple, its meta and its undo link together (get_tuple_and_undo_link), collect_undo_logs for the transaction, reconstruct_tuple, skip the rids that are None, then filter and push as below
         todo!("3e-01: fill the batch from the iterator: skip deleted tuples, keep those for which passes_filter(..) is true, stop at batch_size or the end; true if the batch is not empty")
     }
 

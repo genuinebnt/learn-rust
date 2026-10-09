@@ -130,7 +130,7 @@ fn hll_register_never_loses_the_larger_run() {
 
 - **0d-05:** the Presto register update (hold both locks across the compare and the write).
 - **0a-04:** why the store has a write lock.
-- **4a-03:** the commit publication order.
+- **4a-02:** the commit publication order.
 - **4b-02:** the conflict check under the page latch.
 - **0b-03 / 0c-04:** the concurrent stress tests; run them under `cargo +nightly miri test` with a few seeds to see them pass a stricter check.
 

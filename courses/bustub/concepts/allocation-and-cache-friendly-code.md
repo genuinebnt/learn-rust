@@ -108,7 +108,7 @@ fn a_small_vec_search_is_a_fine_map_for_a_handful_of_entries() {
 
 ### In the exercises
 
-- **4a-04 / 4a-08:** the old-reader scan, and the allocation profile above.
+- **4a-03 / 4a-05:** the old-reader scan, and the allocation profile above.
 - **0c-02:** random keys versus sequential keys: the lesson that a benchmark input can hide the behaviour.
 - **3g:** batches reuse their `Vec`s across `next` calls.
 - **0b-01:** an arena instead of per-node allocations.

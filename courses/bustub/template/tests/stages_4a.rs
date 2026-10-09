@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use proptest::prelude::*;
+
 use bustub::catalog::catalog::TableInfo;
 use bustub::catalog::column::Column;
 use bustub::catalog::schema::Schema;
@@ -223,10 +225,10 @@ fn s4a_02_a_running_transaction_is_registered_with_the_watermark() {
     assert_eq!(db.txn_manager.get_watermark(), 0, "a running transaction is registered with the watermark");
 }
 
-// ---- 4a-03: committing and aborting ---------------------------------------------------------------------------------------------------
+// ---- 4a-02: committing and aborting ---------------------------------------------------------------------------------------------------
 
 #[test]
-fn s4a_03_commit_timestamps_count_up_from_one() {
+fn s4a_02_commit_timestamps_count_up_from_one() {
     let db = new_db();
     for expected in 1..=3 {
         let t = begin(&db);
@@ -237,7 +239,7 @@ fn s4a_03_commit_timestamps_count_up_from_one() {
 }
 
 #[test]
-fn s4a_03_a_transaction_that_begins_after_a_commit_reads_it() {
+fn s4a_02_a_transaction_that_begins_after_a_commit_reads_it() {
     let db = new_db();
     let early = begin(&db);
     let t = begin(&db);
@@ -247,7 +249,7 @@ fn s4a_03_a_transaction_that_begins_after_a_commit_reads_it() {
 }
 
 #[test]
-fn s4a_03_commit_stamps_the_tuples_in_the_write_set() {
+fn s4a_02_commit_stamps_the_tuples_in_the_write_set() {
     let db = new_db();
     let table = maintable(&db);
     let t = begin(&db);
@@ -261,7 +263,7 @@ fn s4a_03_commit_stamps_the_tuples_in_the_write_set() {
 }
 
 #[test]
-fn s4a_03_commit_leaves_other_tuples_alone() {
+fn s4a_02_commit_leaves_other_tuples_alone() {
     let db = new_db();
     let table = maintable(&db);
     let t = begin(&db);
@@ -273,7 +275,7 @@ fn s4a_03_commit_leaves_other_tuples_alone() {
 }
 
 #[test]
-fn s4a_03_a_tainted_transaction_cannot_commit() {
+fn s4a_02_a_tainted_transaction_cannot_commit() {
     let db = new_db();
     let t = begin(&db);
     t.set_tainted();
@@ -283,7 +285,7 @@ fn s4a_03_a_tainted_transaction_cannot_commit() {
 }
 
 #[test]
-fn s4a_03_committing_twice_is_an_error() {
+fn s4a_02_committing_twice_is_an_error() {
     let db = new_db();
     let t = begin(&db);
     commit(&db, &t);
@@ -291,7 +293,7 @@ fn s4a_03_committing_twice_is_an_error() {
 }
 
 #[test]
-fn s4a_03_commit_moves_the_watermark() {
+fn s4a_02_commit_moves_the_watermark() {
     let db = new_db();
     let a = begin(&db);
     let b = begin(&db);
@@ -302,7 +304,7 @@ fn s4a_03_commit_moves_the_watermark() {
 }
 
 #[test]
-fn s4a_03_abort_ends_the_transaction_and_releases_its_read_timestamp() {
+fn s4a_02_abort_ends_the_transaction_and_releases_its_read_timestamp() {
     let db = new_db();
     let a = begin(&db);
     let b = begin(&db);
@@ -313,7 +315,7 @@ fn s4a_03_abort_ends_the_transaction_and_releases_its_read_timestamp() {
 }
 
 #[test]
-fn s4a_03_a_tainted_transaction_can_be_aborted_but_a_finished_one_cannot() {
+fn s4a_02_a_tainted_transaction_can_be_aborted_but_a_finished_one_cannot() {
     let db = new_db();
     let t = begin(&db);
     t.set_tainted();
@@ -325,10 +327,10 @@ fn s4a_03_a_tainted_transaction_can_be_aborted_but_a_finished_one_cannot() {
     assert!(db.txn_manager.abort(&u).is_err(), "a tainted transaction can be aborted but a finished one cannot: expected `db.txn_manager.abort(&u).is_err()`");
 }
 
-// ---- 4a-04: reconstructing a tuple ----------------------------------------------------------------------------------------------------
+// ---- 4a-03: reconstructing a tuple ----------------------------------------------------------------------------------------------------
 
 #[test]
-fn s4a_04_no_logs_gives_the_base_tuple() {
+fn s4a_03_no_logs_gives_the_base_tuple() {
     let s = abc();
     let base = Tuple::new(&[int(0), dbl(1.0), bool_null()], &s);
     let t = reconstruct_tuple(&s, &base, &meta(2333, false), &[]).unwrap();
@@ -336,14 +338,14 @@ fn s4a_04_no_logs_gives_the_base_tuple() {
 }
 
 #[test]
-fn s4a_04_a_deleted_base_with_no_logs_does_not_exist() {
+fn s4a_03_a_deleted_base_with_no_logs_does_not_exist() {
     let s = abc();
     let base = Tuple::new(&[int_null(), dbl_null(), bool_null()], &s);
     assert!(reconstruct_tuple(&s, &base, &meta(2333, true), &[]).is_none(), "a deleted base with no logs does not exist: expected `reconstruct_tuple(&s, &base, &meta(2333, true), &[]).is_none()`");
 }
 
 #[test]
-fn s4a_04_a_full_log_over_a_deleted_base_brings_the_tuple_back() {
+fn s4a_03_a_full_log_over_a_deleted_base_brings_the_tuple_back() {
     let s = abc();
     let base = Tuple::new(&[int_null(), dbl_null(), bool_null()], &s);
     let log = undo_log(false, &[true, true, true], &s, &[int(1), dbl(2.0), boolean(false)], 1, UndoLink::default());
@@ -352,7 +354,23 @@ fn s4a_04_a_full_log_over_a_deleted_base_brings_the_tuple_back() {
 }
 
 #[test]
-fn s4a_04_partial_logs_restore_only_their_columns() {
+fn s4a_03_a_tuple_that_did_not_exist_starts_from_nulls_not_from_the_stale_bytes_in_the_table() {
+    let s = abc();
+    // the slot of a deleted tuple still holds its last values; a log that brings the tuple back must not leak them
+    let stale = Tuple::new(&[int(7), dbl(7.5), boolean(true)], &s);
+    let only_a = undo_log(false, &[true, false, false], &schema_of(&[("a", TypeId::Integer)]), &[int(1)], 1, UndoLink::default());
+    let t = reconstruct_tuple(&s, &stale, &meta(2333, true), &[only_a]).unwrap();
+    verify(&s, &t, &[int(1), dbl_null(), bool_null()]);
+    // after a deleting log in the middle of a chain the same holds
+    let delete = undo_log(true, &[false, false, false], &schema_of(&[]), &[], 2, UndoLink::default());
+    let restore_c = undo_log(false, &[false, false, true], &schema_of(&[("c", TypeId::Boolean)]), &[boolean(false)], 1, UndoLink::default());
+    let live = Tuple::new(&[int(5), dbl(5.5), boolean(true)], &s);
+    let t = reconstruct_tuple(&s, &live, &meta(9, false), &[delete, restore_c]).unwrap();
+    verify(&s, &t, &[int_null(), dbl_null(), boolean(false)]);
+}
+
+#[test]
+fn s4a_03_partial_logs_restore_only_their_columns() {
     let s = abc();
     let base = Tuple::new(&[int(0), dbl(1.0), bool_null()], &s);
     let none = undo_log(false, &[false, false, false], &schema_of(&[]), &[], 1, UndoLink::default());
@@ -365,7 +383,7 @@ fn s4a_04_partial_logs_restore_only_their_columns() {
 }
 
 #[test]
-fn s4a_04_the_logs_are_applied_in_order_so_the_last_one_wins() {
+fn s4a_03_the_logs_are_applied_in_order_so_the_last_one_wins() {
     let s = abc();
     let base = Tuple::new(&[int(0), dbl(1.0), bool_null()], &s);
     let mk = |a: i32| undo_log(false, &[true, true, true], &s, &[int(a), dbl(a as f64), boolean(true)], 1, UndoLink::default());
@@ -374,7 +392,7 @@ fn s4a_04_the_logs_are_applied_in_order_so_the_last_one_wins() {
 }
 
 #[test]
-fn s4a_04_a_deleting_log_makes_the_tuple_not_exist_until_a_later_log_restores_it() {
+fn s4a_03_a_deleting_log_makes_the_tuple_not_exist_until_a_later_log_restores_it() {
     let s = abc();
     let base = Tuple::new(&[int(0), dbl(1.0), bool_null()], &s);
     let m = meta(9, false);
@@ -387,7 +405,7 @@ fn s4a_04_a_deleting_log_makes_the_tuple_not_exist_until_a_later_log_restores_it
     verify(&s, &reconstruct_tuple(&s, &base, &m, &[del.clone(), full, del, nulls]).unwrap(), &[int_null(), dbl_null(), bool_null()]);
 }
 
-// ---- 4a-05: collecting the undo logs a transaction needs ---------------------------------------------------------------------------------
+// ---- 4a-03: collecting the undo logs a transaction needs ---------------------------------------------------------------------------------
 
 /// A table row at `ts` with an optional chain of (ts, value of a) undo logs, newest first, stored in `owner`.
 fn row_with_chain(db: &BusTubInstance, table: &TableInfo<'_>, owner: &Arc<Transaction>, ts: i64, a: i32, chain: &[(i64, i32)]) -> Rid {
@@ -409,7 +427,7 @@ fn collect(db: &BusTubInstance, table: &TableInfo<'_>, rid: Rid, txn: &Transacti
 }
 
 #[test]
-fn s4a_05_a_tuple_committed_at_or_before_the_read_timestamp_needs_no_logs() {
+fn s4a_03_a_tuple_committed_at_or_before_the_read_timestamp_needs_no_logs() {
     let db = new_db();
     let table = maintable(&db);
     let owner = begin(&db);
@@ -424,7 +442,7 @@ fn s4a_05_a_tuple_committed_at_or_before_the_read_timestamp_needs_no_logs() {
 }
 
 #[test]
-fn s4a_05_a_tuple_the_transaction_wrote_itself_needs_no_logs() {
+fn s4a_03_a_tuple_the_transaction_wrote_itself_needs_no_logs() {
     let db = new_db();
     let table = maintable(&db);
     let owner = begin(&db);
@@ -434,7 +452,7 @@ fn s4a_05_a_tuple_the_transaction_wrote_itself_needs_no_logs() {
 }
 
 #[test]
-fn s4a_05_a_newer_tuple_without_a_chain_did_not_exist_yet() {
+fn s4a_03_a_newer_tuple_without_a_chain_did_not_exist_yet() {
     let db = new_db();
     let table = maintable(&db);
     let owner = begin(&db);
@@ -444,7 +462,7 @@ fn s4a_05_a_newer_tuple_without_a_chain_did_not_exist_yet() {
 }
 
 #[test]
-fn s4a_05_another_transactions_uncommitted_tuple_is_not_visible() {
+fn s4a_03_another_transactions_uncommitted_tuple_is_not_visible() {
     let db = new_db();
     let table = maintable(&db);
     let writer = begin(&db);
@@ -454,7 +472,7 @@ fn s4a_05_another_transactions_uncommitted_tuple_is_not_visible() {
 }
 
 #[test]
-fn s4a_05_the_chain_is_followed_until_a_version_old_enough() {
+fn s4a_03_the_chain_is_followed_until_a_version_old_enough() {
     let db = new_db();
     let table = maintable(&db);
     let owner = begin(&db);
@@ -474,7 +492,7 @@ fn s4a_05_the_chain_is_followed_until_a_version_old_enough() {
 }
 
 #[test]
-fn s4a_05_a_chain_of_only_newer_versions_means_the_tuple_did_not_exist() {
+fn s4a_03_a_chain_of_only_newer_versions_means_the_tuple_did_not_exist() {
     let db = new_db();
     let table = maintable(&db);
     let owner = begin(&db);
@@ -484,7 +502,7 @@ fn s4a_05_a_chain_of_only_newer_versions_means_the_tuple_did_not_exist() {
 }
 
 #[test]
-fn s4a_05_a_log_that_has_been_garbage_collected_ends_the_search() {
+fn s4a_03_a_log_that_has_been_garbage_collected_ends_the_search() {
     let db = new_db();
     let table = maintable(&db);
     let reader = begin(&db);
@@ -493,14 +511,14 @@ fn s4a_05_a_log_that_has_been_garbage_collected_ends_the_search() {
     assert!(collect(&db, &table, rid, &reader).is_none(), "a log that has been garbage collected ends the search: expected `collect(&db, &table, rid, &reader).is_none()`");
 }
 
-// ---- 4a-06: the undo log for a first change ---------------------------------------------------------------------------------------------
+// ---- 4a-04: the undo log for a first change ---------------------------------------------------------------------------------------------
 
 fn tup(s: &Schema, values: &[Value]) -> Tuple {
     Tuple::new(values, s)
 }
 
 #[test]
-fn s4a_06_changing_some_columns_logs_those_columns_with_their_old_values() {
+fn s4a_04_changing_some_columns_logs_those_columns_with_their_old_values() {
     let s = abc();
     let base = tup(&s, &[int(1), dbl(2.0), boolean(true)]);
     let target = tup(&s, &[int(1), dbl(5.0), boolean(false)]);
@@ -511,7 +529,7 @@ fn s4a_06_changing_some_columns_logs_those_columns_with_their_old_values() {
 }
 
 #[test]
-fn s4a_06_the_log_remembers_the_timestamp_and_the_previous_version() {
+fn s4a_04_the_log_remembers_the_timestamp_and_the_previous_version() {
     let s = abc();
     let base = tup(&s, &[int(1), dbl(2.0), boolean(true)]);
     let target = tup(&s, &[int(2), dbl(2.0), boolean(true)]);
@@ -521,7 +539,7 @@ fn s4a_06_the_log_remembers_the_timestamp_and_the_previous_version() {
 }
 
 #[test]
-fn s4a_06_deleting_logs_every_column() {
+fn s4a_04_deleting_logs_every_column() {
     let s = abc();
     let base = tup(&s, &[int(1), dbl_null(), boolean(true)]);
     let log = generate_new_undo_log(&s, Some(&base), None, 4, UndoLink::default());
@@ -531,7 +549,7 @@ fn s4a_06_deleting_logs_every_column() {
 }
 
 #[test]
-fn s4a_06_a_tuple_that_did_not_exist_gets_a_deleting_log() {
+fn s4a_04_a_tuple_that_did_not_exist_gets_a_deleting_log() {
     let s = abc();
     let target = tup(&s, &[int(1), dbl(2.0), boolean(true)]);
     let log = generate_new_undo_log(&s, None, Some(&target), 4, UndoLink::default());
@@ -541,7 +559,7 @@ fn s4a_06_a_tuple_that_did_not_exist_gets_a_deleting_log() {
 }
 
 #[test]
-fn s4a_06_a_null_that_stays_null_is_not_a_change() {
+fn s4a_04_a_null_that_stays_null_is_not_a_change() {
     let s = abc();
     let base = tup(&s, &[int(1), dbl_null(), boolean(true)]);
     let target = tup(&s, &[int(1), dbl_null(), boolean(true)]);
@@ -550,7 +568,7 @@ fn s4a_06_a_null_that_stays_null_is_not_a_change() {
 }
 
 #[test]
-fn s4a_06_going_to_or_from_null_is_a_change() {
+fn s4a_04_going_to_or_from_null_is_a_change() {
     let s = abc();
     let base = tup(&s, &[int_null(), dbl(1.0), bool_null()]);
     let target = tup(&s, &[int(0), dbl(1.0), boolean(false)]);
@@ -562,7 +580,7 @@ fn s4a_06_going_to_or_from_null_is_a_change() {
 }
 
 #[test]
-fn s4a_06_a_log_reconstructs_the_version_it_was_made_from() {
+fn s4a_04_a_log_reconstructs_the_version_it_was_made_from() {
     let s = abc();
     let base = tup(&s, &[int(1), dbl(2.0), boolean(true)]);
     let target = tup(&s, &[int(9), dbl(2.0), bool_null()]);
@@ -571,10 +589,10 @@ fn s4a_06_a_log_reconstructs_the_version_it_was_made_from() {
     verify(&s, &back, &[int(1), dbl(2.0), boolean(true)]);
 }
 
-// ---- 4a-07: updating the log of a tuple the transaction changed before -------------------------------------------------------------------
+// ---- 4a-04: updating the log of a tuple the transaction changed before -------------------------------------------------------------------
 
 #[test]
-fn s4a_07_a_second_change_adds_the_new_columns_and_keeps_the_old_values() {
+fn s4a_04_a_second_change_adds_the_new_columns_and_keeps_the_old_values() {
     let s = abc();
     let v0 = tup(&s, &[int(1), dbl(2.0), boolean(true)]);
     let v1 = tup(&s, &[int(5), dbl(2.0), boolean(true)]); // first change: a
@@ -586,7 +604,7 @@ fn s4a_07_a_second_change_adds_the_new_columns_and_keeps_the_old_values() {
 }
 
 #[test]
-fn s4a_07_changing_a_column_again_keeps_its_original_value() {
+fn s4a_04_changing_a_column_again_keeps_its_original_value() {
     let s = abc();
     let v0 = tup(&s, &[int(1), dbl(2.0), boolean(true)]);
     let v1 = tup(&s, &[int(5), dbl(2.0), boolean(true)]);
@@ -598,7 +616,7 @@ fn s4a_07_changing_a_column_again_keeps_its_original_value() {
 }
 
 #[test]
-fn s4a_07_the_timestamp_and_previous_version_do_not_change() {
+fn s4a_04_the_timestamp_and_previous_version_do_not_change() {
     let s = abc();
     let prev = UndoLink { prev_txn: TXN_START_ID + 1, prev_log_idx: 0 };
     let v0 = tup(&s, &[int(1), dbl(2.0), boolean(true)]);
@@ -610,7 +628,7 @@ fn s4a_07_the_timestamp_and_previous_version_do_not_change() {
 }
 
 #[test]
-fn s4a_07_deleting_after_a_partial_change_makes_the_log_cover_every_column() {
+fn s4a_04_deleting_after_a_partial_change_makes_the_log_cover_every_column() {
     let s = abc();
     let v0 = tup(&s, &[int(1), dbl(2.0), boolean(true)]);
     let v1 = tup(&s, &[int(5), dbl(2.0), boolean(true)]);
@@ -621,7 +639,7 @@ fn s4a_07_deleting_after_a_partial_change_makes_the_log_cover_every_column() {
 }
 
 #[test]
-fn s4a_07_a_log_that_says_did_not_exist_stays() {
+fn s4a_04_a_log_that_says_did_not_exist_stays() {
     let s = abc();
     let v1 = tup(&s, &[int(5), dbl(2.0), boolean(true)]);
     let v2 = tup(&s, &[int(6), dbl(2.0), boolean(true)]);
@@ -632,7 +650,7 @@ fn s4a_07_a_log_that_says_did_not_exist_stays() {
 }
 
 #[test]
-fn s4a_07_changing_a_tuple_this_transaction_deleted_leaves_the_full_log() {
+fn s4a_04_changing_a_tuple_this_transaction_deleted_leaves_the_full_log() {
     let s = abc();
     let v0 = tup(&s, &[int(1), dbl(2.0), boolean(true)]);
     let first = generate_new_undo_log(&s, Some(&v0), None, 3, UndoLink::default());
@@ -642,10 +660,10 @@ fn s4a_07_changing_a_tuple_this_transaction_deleted_leaves_the_full_log() {
     verify(&s, &second.tuple, &[int(1), dbl(2.0), boolean(true)]);
 }
 
-// ---- 4a-08: the sequential scan reads versions --------------------------------------------------------------------------------------------
+// ---- 4a-05: the sequential scan reads versions --------------------------------------------------------------------------------------------
 
 #[test]
-fn s4a_08_a_transaction_sees_tuples_committed_before_it_began() {
+fn s4a_05_a_transaction_sees_tuples_committed_before_it_began() {
     let db = new_db();
     let table = maintable(&db);
     let w = begin(&db);
@@ -657,7 +675,7 @@ fn s4a_08_a_transaction_sees_tuples_committed_before_it_began() {
 }
 
 #[test]
-fn s4a_08_a_transaction_does_not_see_tuples_committed_after_it_began() {
+fn s4a_05_a_transaction_does_not_see_tuples_committed_after_it_began() {
     let db = new_db();
     let table = maintable(&db);
     let early = begin(&db);
@@ -670,7 +688,7 @@ fn s4a_08_a_transaction_does_not_see_tuples_committed_after_it_began() {
 }
 
 #[test]
-fn s4a_08_uncommitted_tuples_are_visible_only_to_their_writer() {
+fn s4a_05_uncommitted_tuples_are_visible_only_to_their_writer() {
     let db = new_db();
     let table = maintable(&db);
     let w = begin(&db);
@@ -681,7 +699,7 @@ fn s4a_08_uncommitted_tuples_are_visible_only_to_their_writer() {
 }
 
 #[test]
-fn s4a_08_an_older_version_is_rebuilt_from_the_undo_logs() {
+fn s4a_05_an_older_version_is_rebuilt_from_the_undo_logs() {
     let db = new_db();
     let table = maintable(&db);
     let owner = begin(&db);
@@ -698,7 +716,7 @@ fn s4a_08_an_older_version_is_rebuilt_from_the_undo_logs() {
 }
 
 #[test]
-fn s4a_08_a_deleted_tuple_is_gone_only_for_those_who_see_the_delete() {
+fn s4a_05_a_deleted_tuple_is_gone_only_for_those_who_see_the_delete() {
     let db = new_db();
     let table = maintable(&db);
     let owner = begin(&db);
@@ -717,7 +735,7 @@ fn s4a_08_a_deleted_tuple_is_gone_only_for_those_who_see_the_delete() {
 }
 
 #[test]
-fn s4a_08_the_filter_sees_the_rebuilt_values() {
+fn s4a_05_the_filter_sees_the_rebuilt_values() {
     let db = new_db();
     let table = maintable(&db);
     let owner = begin(&db);
@@ -732,7 +750,7 @@ fn s4a_08_the_filter_sees_the_rebuilt_values() {
 }
 
 #[test]
-fn s4a_08_each_tuple_is_judged_on_its_own_chain() {
+fn s4a_05_each_tuple_is_judged_on_its_own_chain() {
     let db = new_db();
     let table = maintable(&db);
     let owner = begin(&db);
@@ -747,10 +765,10 @@ fn s4a_08_each_tuple_is_judged_on_its_own_chain() {
     assert_eq!(query(&db, &reader, "SELECT a FROM maintable"), vec!["1", "22"], "each tuple is judged on its own chain");
 }
 
-// ---- 4a-09: BusTub's tests ----------------------------------------------------------------------------------------------------------------
+// ---- 4a-06: BusTub's tests ----------------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s4a_09_timestamp_tracking() {
+fn s4a_06_timestamp_tracking() {
     let db = new_db();
     let m = &db.txn_manager;
     let txn0 = begin(&db);
@@ -804,7 +822,7 @@ fn s4a_09_timestamp_tracking() {
 }
 
 #[test]
-fn s4a_09_tuple_reconstruct() {
+fn s4a_06_tuple_reconstruct() {
     // BusTub's TxnScanTest.TupleReconstructTest, in the pieces of the earlier stages: here the combined chains of its cases C and D
     let s = abc();
     let base = Tuple::new(&[int(0), dbl(1.0), bool_null()], &s);
@@ -827,7 +845,7 @@ fn s4a_09_tuple_reconstruct() {
 }
 
 #[test]
-fn s4a_09_collect_undo_log_test() {
+fn s4a_06_collect_undo_log_test() {
     // BusTub's TxnScanTest.CollectUndoLogTest
     let db = new_db();
     let s = abc();
@@ -897,7 +915,7 @@ fn s4a_09_collect_undo_log_test() {
 }
 
 #[test]
-fn s4a_09_scan_test() {
+fn s4a_06_scan_test() {
     // BusTub's TxnScanTest.ScanTest. record1: txn4 (val=1) -> ts=1 in txn4 (val=2); record2: ts=3 (val=3) -> ts=2 in txn_store_3 (delete)
     // -> ts=1 in txn_store_2 (val=4); record3: ts=4 (delete) -> ts=3 in txn_store_4 (val=5); record4: txn3 (delete) -> ts=2 in txn3
     // (val=6) -> ts=1 in txn_store_2 (val=7)
@@ -958,7 +976,7 @@ fn s4a_09_scan_test() {
 }
 
 #[test]
-fn s4a_09_generate_undo_log_test() {
+fn s4a_06_generate_undo_log_test() {
     // BusTub's TxnExecutorTest.GenerateUndoLogTest: the logs the executors of module 4b will make, applied back with reconstruct_tuple
     let s = abc();
     let none = UndoLink::default();
@@ -1000,4 +1018,382 @@ fn s4a_09_generate_undo_log_test() {
     let log = generate_new_undo_log(&s, Some(&base), None, 0, none);
     let log = generate_updated_undo_log(&s, None, Some(&target), &log);
     assert!(same(&reconstruct_tuple(&s, &target, &live, &[log]).unwrap(), &base), "generate undo log test: expected `same(&reconstruct_tuple(&s, &target, &live, &[log]).unwrap(), &base)`");
+}
+
+// ---- properties: timestamps, chains and snapshots against a model of versions ------------------------------------------------------
+
+fn pconfig() -> ProptestConfig {
+    ProptestConfig { cases: 40, max_shrink_iters: 1000, ..ProptestConfig::default() }
+}
+
+/// What a watermark operation does to the model: a multiset of live read timestamps and the last commit timestamp.
+#[derive(Clone, Debug)]
+enum WmOp {
+    /// A reader at the last commit timestamp plus this much (an older one would be refused).
+    Add(i64),
+    /// Removes the n-th live reader, wrapped around.
+    Remove(usize),
+    /// A commit: the last commit timestamp goes up by one.
+    Commit,
+}
+
+fn wm_op() -> impl Strategy<Value = WmOp> {
+    prop_oneof![4 => (0i64..4).prop_map(WmOp::Add), 3 => any::<usize>().prop_map(WmOp::Remove), 3 => Just(WmOp::Commit)]
+}
+
+proptest! {
+    #![proptest_config(pconfig())]
+
+    /// After any sequence of readers arriving, leaving and commits, the watermark is the smallest live read timestamp, or the last
+    /// commit timestamp when nobody reads.
+    #[test]
+    fn s4a_01_the_watermark_is_the_minimum_of_the_live_readers(ops in prop::collection::vec(wm_op(), 0..200)) {
+        let mut w = Watermark::new(0);
+        let (mut live, mut last): (Vec<i64>, i64) = (vec![], 0);
+        for op in ops {
+            match op {
+                WmOp::Add(ahead) => { w.add_txn(last + ahead).unwrap(); live.push(last + ahead); }
+                WmOp::Remove(n) => { if !live.is_empty() { let ts = live.remove(n % live.len()); w.remove_txn(ts); } }
+                WmOp::Commit => { last += 1; w.update_commit_ts(last); }
+            }
+            prop_assert_eq!(w.get_watermark(), live.iter().copied().min().unwrap_or(last), "after {:?}", op);
+        }
+    }
+
+    /// Transactions begun, committed and aborted in any order: every id is new and counts up from 2^62, a transaction reads at the last
+    /// commit timestamp of the moment it began, commit timestamps count 1, 2, 3 in commit order, aborts take none, and the manager's
+    /// watermark is the smallest read timestamp of the running transactions.
+    #[test]
+    fn s4a_02_begin_commit_and_abort_keep_ids_timestamps_and_the_watermark_straight(ops in prop::collection::vec((0u8..3, any::<usize>()), 0..60)) {
+        let db = new_db();
+        let (mut running, mut last_commit): (Vec<Arc<Transaction>>, i64) = (vec![], 0);
+        let mut ids = vec![];
+        for (op, pick) in ops {
+            match op {
+                0 => {
+                    let t = begin(&db);
+                    prop_assert_eq!(t.read_ts(), last_commit, "a transaction reads at the last commit timestamp");
+                    prop_assert!(t.id() >= TXN_START_ID, "ids start at 2^62");
+                    prop_assert!(!ids.contains(&t.id()), "every id is new");
+                    prop_assert_eq!(t.state(), TransactionState::Running);
+                    ids.push(t.id());
+                    running.push(t);
+                }
+                1 if !running.is_empty() => {
+                    let t = running.remove(pick % running.len());
+                    commit(&db, &t);
+                    last_commit += 1;
+                    prop_assert_eq!(t.commit_ts(), last_commit, "commit timestamps count up in commit order");
+                    prop_assert_eq!(t.state(), TransactionState::Committed);
+                }
+                2 if !running.is_empty() => {
+                    let t = running.remove(pick % running.len());
+                    db.txn_manager.abort(&t).unwrap();
+                    prop_assert_eq!(t.state(), TransactionState::Aborted);
+                }
+                _ => {}
+            }
+            prop_assert_eq!(db.txn_manager.last_commit_ts(), last_commit);
+            prop_assert_eq!(db.txn_manager.get_watermark(), running.iter().map(|t| t.read_ts()).min().unwrap_or(last_commit), "the watermark");
+        }
+    }
+}
+
+type Cells = [Option<i32>; 2];
+/// A version of a row: its cells, or `None` for "deleted" (or not yet there).
+type Version = Option<Cells>;
+
+fn two() -> Schema {
+    schema_of(&[("a", TypeId::Integer), ("c", TypeId::Integer)])
+}
+
+fn cell_value(c: Option<i32>) -> Value {
+    c.map_or_else(int_null, int)
+}
+
+fn tuple_of(s: &Schema, v: &Cells) -> Tuple {
+    Tuple::new(&[cell_value(v[0]), cell_value(v[1])], s)
+}
+
+fn cells_of(s: &Schema, t: &Tuple) -> Cells {
+    [0, 1].map(|i| t.get_value(s, i).as_i64().map(|x| x as i32))
+}
+
+fn cells_text(v: &Version) -> Option<String> {
+    v.map(|c| c.iter().map(|x| x.map_or("integer_null".to_string(), |v| v.to_string())).collect::<Vec<_>>().join(" "))
+}
+
+fn version_strategy() -> impl Strategy<Value = Version> {
+    let cell = || prop_oneof![1 => Just(None), 4 => (0i32..3).prop_map(Some)];
+    prop_oneof![1 => Just(None), 5 => (cell(), cell()).prop_map(|(a, c)| Some([a, c]))]
+}
+
+/// A row with a history: committed versions (timestamp, version) oldest first with increasing timestamps (the first one exists),
+/// then optionally one uncommitted version written by `writer`. The newest version is in the table, the older ones in undo logs owned by
+/// `writer` that restore exactly the columns that differ, chained newest first.
+fn build_row(db: &BusTubInstance, table: &TableInfo<'_>, writer: &Arc<Transaction>, history: &[(i64, Version)], uncommitted: Option<Version>) -> Rid {
+    let s = &table.schema;
+    let mut all: Vec<(i64, Version)> = history.to_vec();
+    if let Some(v) = uncommitted {
+        all.push((writer.temp_ts(), v));
+    }
+    let (ts, newest) = all.last().cloned().unwrap();
+    let cells = newest.unwrap_or([None, None]);
+    let rid = table.table.insert_tuple(&meta(ts, newest.is_none()), &tuple_of(s, &cells)).unwrap();
+    let mut link = UndoLink::default();
+    for i in 0..all.len() - 1 {
+        let ((older_ts, older), (_, newer)) = (all[i], all[i + 1]);
+        let log = match older {
+            None => UndoLog { is_deleted: true, modified_fields: vec![false, false], tuple: Tuple::empty(), ts: older_ts, prev_version: link },
+            Some(o) => {
+                let modified: Vec<bool> = (0..2).map(|c| newer.is_none_or(|n| n[c] != o[c])).collect();
+                let values: Vec<Value> = (0..2).filter(|c| modified[*c]).map(|c| cell_value(o[c])).collect();
+                UndoLog { is_deleted: false, modified_fields: modified.clone(), tuple: Tuple::new(&values, &get_undo_log_schema(s, &modified)), ts: older_ts, prev_version: link }
+            }
+        };
+        link = writer.append_undo_log(log);
+    }
+    if link.is_valid() {
+        db.txn_manager.update_undo_link(rid, Some(link), None);
+    }
+    rid
+}
+
+/// Increasing timestamps for a history: `gaps` are the steps between consecutive versions.
+fn history_strategy() -> impl Strategy<Value = Vec<(i64, Version)>> {
+    (prop::collection::vec((1i64..3, version_strategy()), 1..6), (1i64..3, version_strategy().prop_filter("a row starts to exist", |v| v.is_some()))).prop_map(|(rest, (g0, first))| {
+        let mut ts = g0;
+        let mut out = vec![(ts, first)];
+        for (gap, v) in rest {
+            ts += gap;
+            out.push((ts, v));
+        }
+        out
+    })
+}
+
+/// What a reader at `read_ts` sees of a history, if it did not write anything itself.
+fn visible(history: &[(i64, Version)], read_ts: i64) -> Version {
+    history.iter().rev().find(|(ts, _)| *ts <= read_ts).and_then(|(_, v)| *v)
+}
+
+/// A transaction for every read timestamp 0..=top (committing empty transactions to move the clock).
+fn readers_up_to(db: &BusTubInstance, top: i64) -> Vec<Arc<Transaction>> {
+    let mut out = vec![];
+    for r in 0..=top {
+        while db.txn_manager.last_commit_ts() < r {
+            let t = begin(db);
+            commit(db, &t);
+        }
+        out.push(begin(db));
+    }
+    out
+}
+
+proptest! {
+    #![proptest_config(pconfig())]
+
+    /// For a row with a random history (updates, deletes, re-inserts, columns going to and from NULL), collecting the undo logs and
+    /// reconstructing the tuple gives, for a reader at every timestamp, the newest version at or before it; a reader before the first
+    /// version sees nothing; and a writer sees its own uncommitted version while everybody else sees the history.
+    #[test]
+    fn s4a_03_a_reader_sees_exactly_the_committed_prefix_of_a_row_at_its_timestamp(history in history_strategy(), uncommitted in prop::option::of(version_strategy())) {
+        let db = new_db();
+        let table = db.catalog.write().unwrap().create_table("p", &two()).unwrap();
+        let writer = begin(&db);
+        let top = history.last().unwrap().0 + 1;
+        let readers = readers_up_to(&db, top);
+        let rid = build_row(&db, &table, &writer, &history, uncommitted);
+        let s = &table.schema;
+        let see = |txn: &Transaction| {
+            let (m, base) = table.table.get_tuple(rid).unwrap();
+            let logs = collect_undo_logs(rid, &m, &base, db.txn_manager.get_undo_link(rid), txn, &db.txn_manager)?;
+            reconstruct_tuple(s, &base, &m, &logs).map(|t| cells_of(s, &t))
+        };
+        for reader in &readers {
+            prop_assert_eq!(see(reader), visible(&history, reader.read_ts()), "reader at {}", reader.read_ts());
+        }
+        if let Some(own) = uncommitted {
+            prop_assert_eq!(see(&writer), own, "the writer sees its own version");
+        }
+    }
+
+    /// The log of a change restores the version it was made from, whichever columns changed, whether or not the old version existed
+    /// or the new one does; and a chain of changes by one transaction, folded into the first log, still restores the original.
+    #[test]
+    fn s4a_04_a_log_restores_the_version_it_was_made_from_and_successive_changes_keep_the_original(versions in prop::collection::vec(version_strategy(), 2..6)) {
+        let s = two();
+        let as_tuple = |v: &Version| v.map(|c| tuple_of(&s, &c));
+        let base_meta = |v: &Version| meta(9, v.is_none());
+        let restore = |current: &Version, log: &UndoLog| {
+            let base = as_tuple(current).unwrap_or_else(|| tuple_of(&s, &[None, None]));
+            reconstruct_tuple(&s, &base, &base_meta(current), std::slice::from_ref(log)).map(|t| cells_of(&s, &t))
+        };
+        // one change
+        let first = generate_new_undo_log(&s, as_tuple(&versions[0]).as_ref(), as_tuple(&versions[1]).as_ref(), 3, UndoLink::default());
+        prop_assert_eq!(restore(&versions[1], &first), versions[0], "one change");
+        prop_assert_eq!(first.ts, 3);
+        // the same transaction goes on changing the row
+        let mut log = first;
+        for pair in versions.windows(2).skip(1) {
+            log = generate_updated_undo_log(&s, as_tuple(&pair[0]).as_ref(), as_tuple(&pair[1]).as_ref(), &log);
+            prop_assert_eq!((log.ts, log.prev_version), (3, UndoLink::default()), "the version the log restores does not change");
+        }
+        prop_assert_eq!(restore(versions.last().unwrap(), &log), versions[0], "after {} changes", versions.len() - 1);
+    }
+
+    /// A snapshot scan: several rows, each with its own random history and sometimes an uncommitted version, and a reader at every
+    /// timestamp scans them with SQL; it gets exactly the rows that exist in its snapshot (and, for the writer, its own changes).
+    #[test]
+    fn s4a_05_a_scan_returns_the_rows_that_exist_in_the_snapshot(rows in prop::collection::vec((history_strategy(), prop::option::of(version_strategy())), 1..6)) {
+        let db = new_db();
+        let table = db.catalog.write().unwrap().create_table("p", &two()).unwrap();
+        let writer = begin(&db);
+        let top = rows.iter().map(|(h, _)| h.last().unwrap().0).max().unwrap() + 1;
+        let readers = readers_up_to(&db, top);
+        for (history, uncommitted) in &rows {
+            build_row(&db, &table, &writer, history, *uncommitted);
+        }
+        for reader in &readers {
+            let mut want: Vec<String> = rows.iter().filter_map(|(h, _)| cells_text(&visible(h, reader.read_ts()))).collect();
+            want.sort();
+            prop_assert_eq!(query(&db, reader, "SELECT a, c FROM p"), want, "reader at {}", reader.read_ts());
+        }
+        let mut own: Vec<String> = rows.iter().filter_map(|(h, u)| cells_text(&match u { Some(v) => *v, None => visible(h, writer.read_ts()) })).collect();
+        own.sort();
+        prop_assert_eq!(query(&db, &writer, "SELECT a, c FROM p"), own, "the writer sees its own changes");
+    }
+}
+
+// ---- 4a-06 · boss: a hand-run MVCC session against a model -------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+enum Step {
+    Begin,
+    /// Transaction `t` (wrapped around the live ones) inserts a row.
+    Insert(usize, [Option<i32>; 2]),
+    /// Transaction `t` writes the row `r` (wrapped around the existing ones): new cells, or a delete.
+    Write(usize, usize, Version),
+    Commit(usize),
+}
+
+fn step_strategy() -> impl Strategy<Value = Step> {
+    let cell = || prop_oneof![1 => Just(None), 4 => (0i32..3).prop_map(Some)];
+    prop_oneof![
+        2 => Just(Step::Begin),
+        2 => (any::<usize>(), cell(), cell()).prop_map(|(t, a, c)| Step::Insert(t, [a, c])),
+        5 => (any::<usize>(), any::<usize>(), version_strategy()).prop_map(|(t, r, v)| Step::Write(t, r, v)),
+        2 => any::<usize>().prop_map(Step::Commit),
+    ]
+}
+
+/// The model of a row: committed versions and the uncommitted one (owner id, version).
+#[derive(Clone, Debug, Default)]
+struct RowModel {
+    committed: Vec<(i64, Version)>,
+    pending: Option<(usize, Version)>,
+}
+
+/// What `txn` (number `ti`) must see: for every row its own pending version, else the committed one at its read timestamp.
+fn expected_rows(model: &[RowModel], ti: usize, txn: &Transaction) -> Vec<String> {
+    let mut want: Vec<String> = model.iter().filter_map(|row| {
+        let mine = row.pending.filter(|(owner, _)| *owner == ti).map(|(_, v)| v);
+        cells_text(&mine.unwrap_or_else(|| visible(&row.committed, txn.read_ts())))
+    }).collect();
+    want.sort();
+    want
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 40, max_shrink_iters: 1500, ..ProptestConfig::default() })]
+
+    /// A random session, run by hand the way module 4b's executors will run it: transactions begin, insert rows, write rows (the first
+    /// write adds a new undo log with `generate_new_undo_log`, later ones fold into it with `generate_updated_undo_log`) and commit. At
+    /// the end, every transaction (committed or not) scans the table with SQL and sees exactly the committed state at its read
+    /// timestamp plus its own pending writes (a transaction that committed reads at its begin timestamp and no longer sees its own writes).
+    #[test]
+    fn s4a_06_a_session_of_hand_run_transactions_is_seen_exactly_as_the_model_says(steps in prop::collection::vec(step_strategy(), 1..40)) {
+        let db = new_db();
+        let table = db.catalog.write().unwrap().create_table("p", &two()).unwrap();
+        let s = table.schema.clone();
+        let mut txns: Vec<Arc<Transaction>> = vec![];
+        let mut done: Vec<bool> = vec![];
+        let mut model: Vec<RowModel> = vec![];
+        let mut rids: Vec<Rid> = vec![];
+        for step in &steps {
+            let live: Vec<usize> = (0..txns.len()).filter(|i| !done[*i]).collect();
+            match step {
+                Step::Begin => { txns.push(begin(&db)); done.push(false); }
+                Step::Insert(t, cells) if !live.is_empty() => {
+                    let ti = live[t % live.len()];
+                    let txn = &txns[ti];
+                    let rid = table.table.insert_tuple(&meta(txn.temp_ts(), false), &tuple_of(&s, cells)).unwrap();
+                    txn.append_write_set(table.oid, rid);
+                    rids.push(rid);
+                    model.push(RowModel { committed: vec![], pending: Some((ti, Some(*cells))) });
+                }
+                Step::Write(t, r, version) if !live.is_empty() && !rids.is_empty() => {
+                    let ti = live[t % live.len()];
+                    let ri = r % rids.len();
+                    let txn = &txns[ti];
+                    let (rid, row) = (rids[ri], &mut model[ri]);
+                    match row.pending {
+                        // somebody else is writing it: the engine would refuse; the session skips
+                        Some((owner, _)) if owner != ti => continue,
+                        Some(_) => {
+                            // a second change by the same transaction: fold into the existing log, if the row started before it
+                            let (m, base) = table.table.get_tuple(rid).unwrap();
+                            let base_tuple = if m.is_deleted { None } else { Some(base.clone()) };
+                            let target = version.map(|c| tuple_of(&s, &c));
+                            let link = db.txn_manager.get_undo_link(rid);
+                            if let Some(l) = link.filter(|l| l.is_valid() && l.prev_txn == txn.id()) {
+                                let old = txn.get_undo_log(l.prev_log_idx as usize);
+                                txn.modify_undo_log(l.prev_log_idx as usize, generate_updated_undo_log(&s, base_tuple.as_ref(), target.as_ref(), &old));
+                            }
+                            let cells = version.unwrap_or([None, None]);
+                            bustub::concurrency::transaction_manager::update_tuple_and_undo_link(&db.txn_manager, &table, rid, link, &meta(txn.temp_ts(), version.is_none()), &tuple_of(&s, &cells), None).unwrap();
+                            row.pending = Some((ti, *version));
+                        }
+                        None => {
+                            // the first change of a committed row: the old version goes into a new log
+                            let (m, base) = table.table.get_tuple(rid).unwrap();
+                            let base_tuple = if m.is_deleted { None } else { Some(base.clone()) };
+                            let target = version.map(|c| tuple_of(&s, &c));
+                            let prev = db.txn_manager.get_undo_link(rid).unwrap_or_default();
+                            let log = generate_new_undo_log(&s, base_tuple.as_ref(), target.as_ref(), m.ts, prev);
+                            let link = txn.append_undo_log(log);
+                            let cells = version.unwrap_or([None, None]);
+                            bustub::concurrency::transaction_manager::update_tuple_and_undo_link(&db.txn_manager, &table, rid, Some(link), &meta(txn.temp_ts(), version.is_none()), &tuple_of(&s, &cells), None).unwrap();
+                            txn.append_write_set(table.oid, rid);
+                            row.pending = Some((ti, *version));
+                        }
+                    }
+                }
+                Step::Commit(t) if !live.is_empty() => {
+                    let ti = live[t % live.len()];
+                    prop_assert_eq!(query(&db, &txns[ti], "SELECT a, c FROM p"), expected_rows(&model, ti, &txns[ti]), "transaction {} just before it commits", ti);
+                    commit(&db, &txns[ti]);
+                    done[ti] = true;
+                    let ts = txns[ti].commit_ts();
+                    for row in model.iter_mut() {
+                        if let Some((owner, v)) = row.pending {
+                            if owner == ti {
+                                row.committed.push((ts, v));
+                                row.pending = None;
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        for (ti, txn) in txns.iter().enumerate().filter(|(ti, _)| !done[*ti]) {
+            prop_assert_eq!(query(&db, txn, "SELECT a, c FROM p"), expected_rows(&model, ti, txn), "transaction {} (read ts {})", ti, txn.read_ts());
+        }
+        // a transaction that begins now sees every committed version and no pending one
+        let fresh = begin(&db);
+        let mut latest: Vec<String> = model.iter().filter_map(|row| cells_text(&row.committed.last().and_then(|(_, v)| *v))).collect();
+        latest.sort();
+        prop_assert_eq!(query(&db, &fresh, "SELECT a, c FROM p"), latest, "a new transaction sees the latest committed state");
+    }
 }

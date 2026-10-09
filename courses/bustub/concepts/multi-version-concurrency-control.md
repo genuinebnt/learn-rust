@@ -140,8 +140,8 @@ fn a_long_reader_is_not_disturbed_by_commits() {
 
 ### In the exercises
 
-- **4a-02 / 4a-03:** the transaction manager hands out the read timestamp (`begin`) and the commit timestamp (`commit`) that make the rule above work.
-- **4a-08:** the sequential scan applies the rule to every tuple of a table.
+- **4a-02:** the transaction manager hands out the read timestamp (`begin`) and the commit timestamp (`commit`) that make the rule above work.
+- **4a-05:** the sequential scan applies the rule to every tuple of a table.
 - **Module 4b:** writes that leave a version behind, and the garbage collector that removes versions nobody can read.
 
 ### Where it is used

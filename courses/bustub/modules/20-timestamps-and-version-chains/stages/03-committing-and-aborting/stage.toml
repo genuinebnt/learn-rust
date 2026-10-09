@@ -1,8 +1,0 @@
-id = "4a-03"
-title = "Committing and aborting"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_4a::s4a_03"]
-learn = ["publishing a commit in the right order", "stamping temporary timestamps with the commit timestamp", "state machines for transactions"]
-concepts = ["snapshot-isolation", "multi-version-concurrency-control", "deadlock-and-lock-ordering", "lock-poisoning-and-the-unwrap-policy", "testing-concurrent-code-with-loom-and-miri"]
-concepts_optional = ["watermarks-and-garbage-collection"]

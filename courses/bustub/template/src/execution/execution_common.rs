@@ -86,7 +86,7 @@ pub fn null_values(schema: &Schema) -> Vec<Value> {
 /// holds only those columns (see [`get_undo_log_schema`]). A tuple that does not exist (a deleted base, or after a deleting log) and is
 /// then restored by a log starts from all NULLs: such a log restores every column.
 pub fn reconstruct_tuple(schema: &Schema, base_tuple: &Tuple, base_meta: &TupleMeta, undo_logs: &[UndoLog]) -> Option<Tuple> {
-    todo!("4a-04: values of the base tuple; deleted = base_meta.is_deleted; for each log in order: a deleting log sets deleted; otherwise (if deleted, restart from null_values) copy the log's partial tuple into the columns it modifies. None if deleted at the end")
+    todo!("4a-03: values of the base tuple; deleted = base_meta.is_deleted; for each log in order: a deleting log sets deleted; otherwise (if deleted, restart from null_values) copy the log's partial tuple into the columns it modifies. None if deleted at the end")
 }
 
 /// The undo logs that, applied in order to the version in the table, give the version `txn` can see: the newest one written at or before
@@ -95,7 +95,7 @@ pub fn reconstruct_tuple(schema: &Schema, base_tuple: &Tuple, base_meta: &TupleM
 ///
 /// `undo_link` is the head of the tuple's version chain.
 pub fn collect_undo_logs(rid: Rid, base_meta: &TupleMeta, base_tuple: &Tuple, undo_link: Option<UndoLink>, txn: &Transaction, txn_mgr: &TransactionManager) -> Option<Vec<UndoLog>> {
-    todo!("4a-05: the table's version is visible if its ts <= read_ts or it is this transaction's own temp ts: no logs; otherwise follow the chain from undo_link, collecting logs until one has ts <= read_ts; None if the chain ends first or a log is gone")
+    todo!("4a-03: the table's version is visible if its ts <= read_ts or it is this transaction's own temp ts: no logs; otherwise follow the chain from undo_link, collecting logs until one has ts <= read_ts; None if the chain ends first or a log is gone")
 }
 
 /// The undo log for the first change a transaction makes to a tuple. `base_tuple` is the tuple before the change (`None`: it did not
@@ -104,7 +104,7 @@ pub fn collect_undo_logs(rid: Rid, base_meta: &TupleMeta, base_tuple: &Tuple, un
 ///
 /// Otherwise the log restores exactly the columns whose values differ (compare with [`same_value`]), with `base_tuple`'s values.
 pub fn generate_new_undo_log(schema: &Schema, base_tuple: Option<&Tuple>, target_tuple: Option<&Tuple>, ts: Timestamp, prev_version: UndoLink) -> UndoLog {
-    todo!("4a-06: no base: a deleting log (no fields, empty tuple); no target: every column; else the columns that differ, with the base tuple's values in a tuple under the partial schema")
+    todo!("4a-04: no base: a deleting log (no fields, empty tuple); no target: every column; else the columns that differ, with the base tuple's values in a tuple under the partial schema")
 }
 
 /// The undo log that replaces `log` when the transaction that wrote it changes the tuple **again**: the same version (`ts` and
@@ -112,7 +112,7 @@ pub fn generate_new_undo_log(schema: &Schema, base_tuple: Option<&Tuple>, target
 /// their values from before this change). A log that says "did not exist" stays as it is, and so does one for a tuple that is now
 /// deleted (`base_tuple` is `None`): a deleting change makes the log restore every column.
 pub fn generate_updated_undo_log(schema: &Schema, base_tuple: Option<&Tuple>, target_tuple: Option<&Tuple>, log: &UndoLog) -> UndoLog {
-    todo!("4a-07: keep a deleting log, and any log when base is None; else walk the columns: one the log already restores keeps its logged value; another that this change modifies (or all of them, for a delete) is added with the base tuple's value; rebuild the partial tuple")
+    todo!("4a-04: keep a deleting log, and any log when base is None; else walk the columns: one the log already restores keeps its logged value; another that this change modifies (or all of them, for a delete) is added with the base tuple's value; rebuild the partial tuple")
 }
 
 /// Prints every tuple of `table` with its version chain to stderr, the way BusTub's reference does (given). Use it in a test when a

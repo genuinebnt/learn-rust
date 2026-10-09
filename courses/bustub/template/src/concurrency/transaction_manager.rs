@@ -82,7 +82,7 @@ impl TransactionManager {
             self.abort(txn)?;
             return Ok(false);
         }
-        todo!("4a-03: commit_ts = last commit + 1; stamp every tuple in the write set with it (keep is_deleted); set the transaction's commit ts and state; then, under the watermark's lock: tell it the commit, publish last_commit_ts, remove this reader")
+        todo!("4a-02: commit_ts = last commit + 1; stamp every tuple in the write set with it (keep is_deleted); set the transaction's commit ts and state; then, under the watermark's lock: tell it the commit, publish last_commit_ts, remove this reader")
     }
 
     /// Aborts a running or tainted transaction. (Module 4b adds undoing its writes.)
@@ -91,7 +91,7 @@ impl TransactionManager {
             return Err(Exception::new(ExceptionType::Execution, "txn not in running / tainted state"));
         }
         // 4b-04: for every rid in the write set (the table from the catalog), under the page's write latch (with_page_mut): if the tuple's head link is this transaction's own log, rebuild the old version with reconstruct_tuple from that one log and write it with meta ts = the log's ts (is_deleted if the log says so), then set the link to the log's prev_version (None if invalid); with no own log the tuple was created by this transaction: make it a deleted tuple with ts 0
-        todo!("4a-03: mark the transaction aborted and remove its read timestamp from the watermark")
+        todo!("4a-02: mark the transaction aborted and remove its read timestamp from the watermark")
     }
 
     /// Serializable validation (module 4b); until then every transaction passes.

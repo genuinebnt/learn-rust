@@ -133,7 +133,7 @@ fn a_table_version_below_the_watermark_needs_no_history() {
 ### In the exercises
 
 - **4a-01:** the `Watermark` itself, with the counting ordered map above.
-- **4a-02 / 4a-03:** `begin` registers a read timestamp, `commit` and `abort` remove it.
+- **4a-02:** `begin` registers a read timestamp, `commit` and `abort` remove it.
 - **Module 4b:** `garbage_collection` applies the second rule to every tuple, and drops transactions whose logs are all gone.
 
 ### Where it is used

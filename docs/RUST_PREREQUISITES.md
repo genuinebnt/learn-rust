@@ -16,7 +16,7 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
 | L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 0a |
 | L8 Error design | `l8-error-design` | planned | core | R, 1a, 1b, 3a, 3d, 3e, 4b, 4c |
-| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e, 3h |
+| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e, 3h, 4a |
 | S2 Strings & text | `s2-strings-text` | written | core | 3a, 3b, 3d |
 | S3 Vec & slices | `s3-vec-slices` | written | core | R, 1a, 1c, 2a, 2c, 2d, 3b, 3g, 0c |
 | S4 Maps & sets | `s4-maps-sets` | written | core | 1a, 1c, 1d, 1e, 3c, 3f, 3g, 4a, 4b, 0a, 0d |
@@ -30,7 +30,7 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | C2 Message passing | `c2-message-passing` | planned | core | 1b |
 | C3 Atomics & lock-free | `c3-atomics-lock-free` | planned | sde3 | 4a |
 | Y2 Unsafe Rust | `y2-unsafe-rust` | planned | sde3 | 0b |
-| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | R, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3f, 3g, 3h, 4b, 4c, 0d |
+| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | R, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3f, 3g, 3h, 4a, 4b, 4c, 0d |
 | F1 Measure & read the machine | `f1-measure-machine` | planned | sde3 | 1a |
 | F2 Data layout | `f2-data-layout` | written | sde3 | 2a, 2b, 2c, 3b |
 | F3 Memory & allocation | `f3-memory-allocation` | planned | sde3 | 1c, 1f, 3d, 0b |
@@ -304,11 +304,13 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | `Arc`, `Mutex`, shared state | the module |
-| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | `RwLock`, atomics-free sharing first | the module |
-| [C3 Atomics & lock-free](/t/c3-atomics-lock-free) *(planned)* | Understand it | atomic counters for timestamps | the module |
-| [S4 Maps & sets](/t/s4-maps-sets) | Understand it | `BTreeMap` for a watermark | the module |
-| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Patterns in depth | undo log entries as enums | the module |
+| [S4 Maps & sets](/t/s4-maps-sets) | Understand it | `BTreeMap` as an ordered multiset for the watermark | 4a-01 |
+| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | `Arc<Transaction>` with `&self` setters; interior mutability | 4a-02 |
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | `Mutex` lock scope: a critical section is a guard's lifetime | 4a-02 |
+| [C3 Atomics & lock-free](/t/c3-atomics-lock-free) *(planned)* | Understand it | atomic counters for timestamps and ids | 4a-02 |
+| [S1 Option & Result](/t/s1-option-result) | Understand it | `?` and `let else` on `Option`: following a chain | 4a-03, 4a-04, 4a-05 |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Patterns in depth | undo log entries; `Option<Vec<_>>` as a three-way answer | 4a-03, 4a-04 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | a model of versions; random histories and sessions | 4a-01, 4a-02, 4a-03, 4a-04, 4a-05, 4a-06 |
 
 ### 4B · MVCC writes, abort, garbage collection and serializability
 
@@ -374,7 +376,7 @@ The planned tracks, sorted by the first module that needs them (then by how many
 
 | # | Track | First needed by | Used by |
 |---|---|---|---|
-| 1 | [Y5 Testing & verification](/t/y5-testing-verification) | R | 21 modules |
+| 1 | [Y5 Testing & verification](/t/y5-testing-verification) | R | 22 modules |
 | 2 | [L8 Error design](/t/l8-error-design) | R | 8 modules |
 | 3 | [S9 I/O & filesystem](/t/s9-io-filesystem) | R | 4 modules |
 | 4 | [C1 Threads & shared state](/t/c1-threads-shared-state) | 1A | 10 modules |

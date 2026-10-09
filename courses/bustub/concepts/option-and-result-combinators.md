@@ -113,8 +113,8 @@ fn filter_and_ok_or_else_turn_a_test_into_an_error() {
 ### In the exercises
 
 - **0a-01:** `get` is a chain of `?` over `Option`.
-- **4a-05:** `collect_undo_logs` uses `?`, `filter` and `let-else`.
-- **4a-08:** the scan skips invisible tuples with `let-else`.
+- **4a-03:** `collect_undo_logs` uses `?`, `filter` and `let-else`.
+- **4a-05:** the scan skips invisible tuples with `let-else`.
 - **4b-01:** the context's transaction and manager travel as `Option::zip`.
 
 ### Where it is used

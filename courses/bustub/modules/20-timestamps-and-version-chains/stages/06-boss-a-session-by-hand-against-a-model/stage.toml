@@ -1,0 +1,8 @@
+id = "4a-06"
+title = "Boss: a session by hand against a model"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_4a::s4a_06"]
+retest = true
+concepts = []
+concepts_optional = ["multi-version-concurrency-control", "snapshot-isolation", "model-based-testing", "property-testing-and-fuzzing"]

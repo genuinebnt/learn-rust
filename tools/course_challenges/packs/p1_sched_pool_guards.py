@@ -562,6 +562,16 @@ fn s1f_c1_unpinning_what_was_never_pinned_changes_nothing() {
 }
 
 #[test]
+fn s1f_c1_a_page_can_be_pinned_again_after_its_pins_reach_zero() {
+    let mut t = PinTable::new();
+    t.pin(4);
+    assert_eq!(t.unpin(4), Ok(0));
+    assert!(!t.is_pinned(4));
+    assert_eq!(t.pin(4), 1, "the count starts again from one");
+    assert_eq!(t.pinned_pages(), vec![4]);
+}
+
+#[test]
 fn s1f_c1_pages_are_independent_and_listed_in_order() {
     let mut t = PinTable::new();
     for p in [9, 2, 5, 2] {
@@ -1486,6 +1496,14 @@ fn s1g_c3_a_mix_of_releases_and_drops() {
     assert_eq!(c.get(), 0);
 }
 
+#[test]
+fn s1g_c3_releasing_the_last_guard_leaves_zero_and_the_value_returned_is_zero() {
+    let c = Cell::new(0);
+    let g = ScopedPin::new(&c);
+    assert_eq!(g.release(), 0);
+    assert_eq!(c.get(), 0, "it must stay at zero: a second uncount would underflow");
+}
+
 proptest! {
     #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
 
@@ -1660,5 +1678,186 @@ fn s1g_c4_each_release_lets_exactly_one_of_many_waiters_in() {
         h.join().unwrap();
     }
     assert_eq!(got.load(Ordering::SeqCst), 1, "one release, one grant; the others timed out");
+}
+''')))
+
+CH.append(C("1g-c5", M1G, "96-challenge-two-latches-at-once", "build", "Challenge: two latches at once", "medium", "stages_1g::s1g_c5",
+  ["taking two locks without a deadlock","a global order as the cure for the circular wait"],
+  ["deadlock-and-lock-ordering","raii-guards-and-lifetimes","condvars-and-blocking-queues"],
+  "`Slots` in `src/common/slot_pair.rs`: a table of balances, each behind its own lock. `transfer(from, to, amount)` moves `amount` between two slots **atomically** (no thread ever sees the amount in neither slot or in both), and `total()` reads every balance at one instant. Any number of threads may call them, in any order of slots, and nothing may deadlock.",
+  "A pool needs two pages at once all the time (a split holds a page and its sibling, a merge two leaves). Two threads asking for the same pair in opposite orders is the textbook circular wait, and it only shows up under load. The cure is not a smarter lock but an agreement: every thread takes locks in the same global order.",
+  ["`new(&balances)` makes one slot per balance; `balance(i)` is `None` for an unknown slot.","`transfer(from, to, amount)` is `Err(NoSuchSlot(i))` for an unknown slot (checking `from` first), `Err(Insufficient)` if `from` holds less than `amount` (nothing changes), and otherwise moves the amount. `from == to` succeeds and changes nothing.","`total()` is the sum of all balances at one instant."],
+  ["The sum of all balances never changes.","No balance goes below zero through a transfer.","Whatever the interleaving, every call returns."],
+  ["A transfer from `a` to `b` followed by one from `b` to `a` of the same amount restores every balance.","Two threads transferring in opposite directions between the same two slots both finish.","`total()` called while transfers run always equals the initial total."],
+  ["[10, 5]: transfer(0, 1, 4) -> [6, 9]; transfer(1, 0, 20) -> Err(Insufficient)","two threads: 5000 times 0->1 and 5000 times 1->0, both return"],
+  ["Moves, failures and the no-op transfer.","Opposite-order threads finish (watchdog).","Many threads on random pairs conserve the total.","`total()` is a consistent snapshot."],
+  src=("src/common/slot_pair.rs", '''
+//! A table of balances with one lock per slot.
+
+use std::sync::Mutex;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum TransferError {
+    NoSuchSlot(usize),
+    Insufficient,
+}
+
+pub struct Slots {
+    // @begin 1g-c5
+    slots: Vec<Mutex<i64>>,
+    //~ _slots: (),
+    // @end
+}
+
+impl Slots {
+    pub fn new(balances: &[i64]) -> Slots {
+        // @begin 1g-c5
+        Slots { slots: balances.iter().map(|&b| Mutex::new(b)).collect() }
+        //~ todo!("1g-c5: one lock per slot")
+        // @end
+    }
+
+    pub fn balance(&self, i: usize) -> Option<i64> {
+        // @begin 1g-c5
+        self.slots.get(i).map(|m| *m.lock().unwrap())
+        //~ todo!("1g-c5: the balance of one slot")
+        // @end
+    }
+
+    pub fn total(&self) -> i64 {
+        // @begin 1g-c5
+        let guards: Vec<_> = self.slots.iter().map(|m| m.lock().unwrap()).collect();
+        guards.iter().map(|g| **g).sum()
+        //~ todo!("1g-c5: every balance at one instant")
+        // @end
+    }
+
+    pub fn transfer(&self, from: usize, to: usize, amount: i64) -> Result<(), TransferError> {
+        // @begin 1g-c5
+        let n = self.slots.len();
+        if from >= n {
+            return Err(TransferError::NoSuchSlot(from));
+        }
+        if to >= n {
+            return Err(TransferError::NoSuchSlot(to));
+        }
+        if from == to {
+            return Ok(());
+        }
+        let (lo, hi) = if from < to { (from, to) } else { (to, from) };
+        let mut a = self.slots[lo].lock().unwrap();
+        let mut b = self.slots[hi].lock().unwrap();
+        let (src, dst) = if from < to { (&mut *a, &mut *b) } else { (&mut *b, &mut *a) };
+        if *src < amount {
+            return Err(TransferError::Insufficient);
+        }
+        *src -= amount;
+        *dst += amount;
+        Ok(())
+        //~ todo!("1g-c5: both locks, in an order every thread agrees on; then the move")
+        // @end
+    }
+}
+'''),
+  test=("tests/stages_1g.rs", '''
+use bustub::common::slot_pair::{Slots, TransferError};
+use std::sync::Arc;
+use std::time::Duration;
+
+/// Runs `f` on its own thread and fails the test if it has not returned in `secs` seconds (a deadlock would otherwise hang the run).
+fn finish_within<T: Send + 'static>(secs: u64, f: impl FnOnce() -> T + Send + 'static) -> T {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(f());
+    });
+    rx.recv_timeout(Duration::from_secs(secs)).expect("did not finish: a deadlock?")
+}
+
+#[test]
+fn s1g_c5_a_transfer_moves_the_amount_and_failures_change_nothing() {
+    let s = Slots::new(&[10, 5]);
+    assert_eq!(s.transfer(0, 1, 4), Ok(()));
+    assert_eq!((s.balance(0), s.balance(1)), (Some(6), Some(9)));
+    assert_eq!(s.transfer(1, 0, 20), Err(TransferError::Insufficient));
+    assert_eq!(s.transfer(0, 7, 1), Err(TransferError::NoSuchSlot(7)));
+    assert_eq!(s.transfer(9, 1, 1), Err(TransferError::NoSuchSlot(9)));
+    assert_eq!((s.balance(0), s.balance(1), s.total()), (Some(6), Some(9), 15));
+    assert_eq!(s.balance(2), None);
+}
+
+#[test]
+fn s1g_c5_a_transfer_to_the_same_slot_succeeds_and_does_not_lock_twice() {
+    let s = Arc::new(Slots::new(&[3, 3]));
+    let s2 = s.clone();
+    let r = finish_within(5, move || s2.transfer(1, 1, 2));
+    assert_eq!(r, Ok(()));
+    assert_eq!(s.balance(1), Some(3));
+}
+
+#[test]
+fn s1g_c5_opposite_directions_between_the_same_two_slots_both_finish() {
+    let s = Arc::new(Slots::new(&[100, 100]));
+    let (a, b) = (s.clone(), s.clone());
+    finish_within(20, move || {
+        let t1 = std::thread::spawn(move || {
+            for _ in 0..5000 {
+                let _ = a.transfer(0, 1, 1);
+            }
+        });
+        let t2 = std::thread::spawn(move || {
+            for _ in 0..5000 {
+                let _ = b.transfer(1, 0, 1);
+            }
+        });
+        t1.join().unwrap();
+        t2.join().unwrap();
+    });
+    assert_eq!(s.total(), 200);
+}
+
+#[test]
+fn s1g_c5_many_threads_on_random_pairs_conserve_the_total() {
+    let s = Arc::new(Slots::new(&[50; 6]));
+    let s2 = s.clone();
+    finish_within(30, move || {
+        let hs: Vec<_> = (0..6u64)
+            .map(|t| {
+                let s = s2.clone();
+                std::thread::spawn(move || {
+                    let mut x = t * 7919 + 1;
+                    for _ in 0..3000 {
+                        x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                        let (f, to) = ((x >> 33) as usize % 6, (x >> 17) as usize % 6);
+                        let _ = s.transfer(f, to, ((x >> 8) % 20) as i64);
+                    }
+                })
+            })
+            .collect();
+        for h in hs {
+            h.join().unwrap();
+        }
+    });
+    assert_eq!(s.total(), 300);
+    assert!((0..6).all(|i| s.balance(i).unwrap() >= 0));
+}
+
+#[test]
+fn s1g_c5_total_is_a_consistent_snapshot_while_transfers_run() {
+    let s = Arc::new(Slots::new(&[100, 100, 100]));
+    let mover = {
+        let s = s.clone();
+        std::thread::spawn(move || {
+            for i in 0..4000usize {
+                let _ = s.transfer(i % 3, (i + 1) % 3, 1);
+            }
+        })
+    };
+    let s2 = s.clone();
+    finish_within(20, move || {
+        for _ in 0..500 {
+            assert_eq!(s2.total(), 300, "a total taken in the middle of a transfer saw the amount in neither slot");
+        }
+    });
+    mover.join().unwrap();
 }
 ''')))

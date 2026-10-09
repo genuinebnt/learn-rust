@@ -260,8 +260,9 @@ on-ramp `r`, modules 1a to 4c (4c, ACID and recovery, is new), and the optional 
 [BUSTUB_RESTRUCTURE.md](BUSTUB_RESTRUCTURE.md) §8 for what each module became and [COURSE_STANDARDS.md](COURSE_STANDARDS.md) before touching a stage.
 Tools: `anneal course verify [--stage S | --stage unlock]` (never while editing `reference/`), `anneal course lint`, `anneal course solutions`
 (the CLI signed in to the live app uploads the solution diffs; re-run after a module ships), `tools/rust_prereqs.py --pages`.
-An untied given file that needs a later module's file goes in that module's `files = [...]`. Still open: "errors you will meet" pages,
-rewriting the older concept articles, `anneal course adopt`, and [ADVANCED_DB_COURSE.md](ADVANCED_DB_COURSE.md). The reference solution is **not** in the repo (`courses/bustub/reference`, gitignored; BUSTUB.md §8). Check with `tools/course-smoke.sh`.
+An untied given file that needs a later module's file goes in that module's `files = [...]`. Also built: the lock manager 4d, the "errors you will meet" pages, `anneal course adopt`, `anneal course reset`, the listening run strip, and
+**127 optional challenges** (`kind = "challenge"`; generator and packs in `tools/course_challenges/`, see [COURSE_ROADMAP.md](COURSE_ROADMAP.md) §1).
+Still open: the hybrid stage 4d-08, rewriting the older concept articles, the proposed modules in [COURSE_ROADMAP.md](COURSE_ROADMAP.md), and [ADVANCED_DB_COURSE.md](ADVANCED_DB_COURSE.md). The reference solution is **not** in the repo (`courses/bustub/reference`, gitignored; BUSTUB.md §8). Check with `tools/course-smoke.sh`.
 
 ### 6.0 Pending work: start here
 

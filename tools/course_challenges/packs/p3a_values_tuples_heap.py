@@ -962,6 +962,14 @@ fn s3b_c3_the_first_column_starts_at_zero_and_a_single_column_row_works() {
     assert_eq!(column(&b, 0), Some(&b"hello"[..]));
 }
 
+#[test]
+fn s3b_c3_empty_columns_at_the_end_and_a_row_of_only_empty_columns() {
+    let b = encode(&cols(&["x", "", ""]));
+    assert_eq!((column(&b, 0), column(&b, 1), column(&b, 2)), (Some(&b"x"[..]), Some(&b""[..]), Some(&b""[..])));
+    let e = encode(&cols(&["", ""]));
+    assert_eq!((column(&e, 0), column(&e, 1), column(&e, 2)), (Some(&b""[..]), Some(&b""[..]), None));
+}
+
 proptest! {
     #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
 
@@ -1477,6 +1485,15 @@ fn s3c_c2_rename_keeps_the_id() {
     assert_eq!(c.rename("new", "NEW"), Ok(()), "renaming to the same name in another case is fine");
 }
 
+#[test]
+fn s3c_c2_an_empty_catalog_has_no_names_and_dropping_a_missing_table_is_false() {
+    let mut c = NameCatalog::new();
+    assert!(c.names().is_empty());
+    assert_eq!(c.lookup("x"), None);
+    assert!(!c.drop("x"));
+    assert_eq!(c.create("x"), Ok(1), "a failed drop does not use up an id");
+}
+
 proptest! {
     #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
 
@@ -1586,6 +1603,13 @@ fn s3c_c3_nothing_matches_and_dead_slots_are_skipped() {
     let mut rows = vec![None, Some((1, 5000)), None];
     assert_eq!(give_raise(&mut rows, 1000, 2), 0);
     assert_eq!(rows.len(), 3, "nothing was appended");
+}
+
+#[test]
+fn s3c_c3_a_salary_at_the_limit_is_not_below_it() {
+    let mut rows = vec![Some((1, 1000)), Some((2, 999))];
+    assert_eq!(give_raise(&mut rows, 1000, 2), 1);
+    assert_eq!(live(&rows), BTreeMap::from([(1, 1000), (2, 1998)]));
 }
 
 proptest! {

@@ -6,7 +6,7 @@
 <title>Course pages: motion and components (mockup)</title>
 <style>
 :root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--vio:oklch(0.72 0.13 290);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--on-acc:oklch(0.17 0.02 255);--shadow:oklch(0 0 0 / 0.35);--mono:'JetBrains Mono',ui-monospace,Menlo,monospace;--code:'Fira Code',ui-monospace,Menlo,monospace;--sans:'Plus Jakarta Sans',system-ui,sans-serif;--ease:cubic-bezier(.22,1,.36,1);color-scheme:dark}
-:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--vio:oklch(0.52 0.17 290);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--on-acc:oklch(0.99 0.002 255);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}
+:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.54 0.13 50);--vio:oklch(0.52 0.17 290);--grn:oklch(0.515 0.12 165);--grn-bg:oklch(0.515 0.12 165 / 0.11);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.535 0.12 75);--on-acc:oklch(0.99 0.002 255);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans);padding-bottom:120px;overflow-x:hidden}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
@@ -637,7 +637,7 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 <div class="ov" id="ovLose" role="dialog" aria-modal="true"><div class="dlg bad"><button class="x2" data-close aria-label="Close">×</button><div class="ic2">!</div><h4>Reset this stage?</h4><p>Your code goes back to the starter files. Your passed runs stay recorded.</p><div class="acts"><div class="two"><button class="cta sec fx" data-close><span class="lbl">Cancel</span></button><button class="cta danger fx" data-close><span class="lbl">Reset stage</span></button></div></div></div></div>
 <div class="sheet" id="sheet"><div class="grab"></div><h4 style="margin:0 0 4px;font-size:18px">Share your run</h4><p style="margin:0 0 14px;color:var(--mut);font-size:14px">A bottom sheet for phones: drag the handle or tap outside to close.</p><div class="two" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="cta sec fx" data-sheet><span class="lbl">Copy link</span></button><button class="cta fx" data-sheet><span class="lbl">Done</span></button></div></div>
 <div class="tstack" id="tstack"></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="phead" id="phead"><b id="phT">Build a DBMS: BusTub in Rust</b><span id="phS">12 of 163 passed</span><span class="sp"></span><span class="pct" id="phP">0% read</span><button class="cta sm fx" id="phB"><span class="lbl">Resume</span></button></div>
 <button class="totop fx" id="totop" aria-label="Back to top"><svg viewBox="0 0 44 44"><circle class="a" id="tpr" cx="22" cy="22" r="20"/></svg>↑</button>
 
@@ -699,9 +699,9 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
       <h2 class="ttl rv" style="--i:1">Grow the file and reuse slots</h2>
       <div class="cli rv" style="--i:2"><span>test this stage</span><code>anneal course test 1a-04</code><button class="copy" data-c="anneal course test 1a-04">COPY</button></div>
       <div class="learn rv" style="--i:3"><span>YOU'LL LEARN</span><span class="cp">growing a file by whole pages</span><span class="cp">a free list of slots</span><span class="cp">reusing deleted space</span></div>
-      <div class="tabs rv" id="tabs" style="--i:4"><button class="on" data-t="p1">Instructions</button><button data-t="p2">Hints <small>0/3</small></button><button data-t="p3">Solution</button><button data-t="p4">Concepts <small>3</small></button><button data-t="p5">Last run <small id="lr">4/6</small></button><span class="ul"></span></div>
+      <div class="tabs rv" id="tabs" style="--i:4" role="tablist" aria-label="Stage"><button class="on" data-t="p1" role="tab">Instructions</button><button data-t="p2" role="tab">Hints <small>0/3</small></button><button data-t="p3" role="tab">Solution</button><button data-t="p4" role="tab">Concepts <small>3</small></button><button data-t="p5" role="tab">Last run <small id="lr">4/6</small></button><span class="ul"></span></div>
 
-      <section class="pane on" id="p1">
+      <section class="pane on" id="p1" role="tabpanel">
         <a class="read-first"><b>READ FIRST</b><span>Durability: when a write is really on disk · and 2 more</span><em>~27 min</em></a>
         <div class="snr"><p style="color:var(--mut);max-width:62ch">A page-sized file grows one page at a time<span class="snm" data-sn="1">1</span>. When a page is deleted its slot goes on a free list<span class="snm" data-sn="2">2</span> so the next allocation reuses it instead of growing the file again.</p>
           <div><aside class="sn" data-sn="1"><b>1</b>A page is <code>PAGE_SIZE</code> bytes (4096 here), so the file length is always a multiple of it.</aside><aside class="sn" data-sn="2" style="margin-top:14px"><b>2</b>BusTub calls this <code>free_slots_</code>. Why a stack and not a queue? See the check-yourself question below.</aside></div></div>
@@ -758,13 +758,13 @@ free.<span class="fnn">push</span>(<span class="nm">7</span>);
         <div class="pn"><a><small>‹ PREVIOUS</small>write_page and read_page</a><a><small>NEXT ›</small>Counters and the log</a></div>
       </section>
 
-      <section class="pane" id="p2">
+      <section class="pane" id="p2" role="tabpanel">
         <div class="hint" id="h1"><button class="hh"><span>Hint 1</span><span class="cost">free</span></button><div class="hb"><div><p>The file length divided by the page size tells you how many pages exist. A new page's id is that number.</p></div></div></div>
         <div class="hint" id="h2"><button class="hh"><span>Hint 2</span><span class="cost lock">🔒 open after hint 1</span></button><div class="hb"><div><p>Keep the free slots in a <code>Vec&lt;PageId&gt;</code> and <code>pop()</code> it before you call <code>set_len</code>.</p></div></div></div>
         <div class="hint" id="h3"><button class="hh"><span>Hint 3</span><span class="cost lock">🔒 open after hint 2</span></button><div class="hb"><div><p>Zero the reused page before handing it back, or the next reader sees the old bytes.</p></div></div></div>
       </section>
 
-      <section class="pane" id="p3">
+      <section class="pane" id="p3" role="tabpanel">
         <p class="prose" style="color:var(--mut);max-width:60ch">Seen it already? The solution is hidden until you ask, and opening it is recorded (assisted solve).</p>
         <div class="sol" id="sol"><pre><span class="kw">pub fn</span> <span class="fnn">allocate_page</span>(&amp;<span class="kw">mut</span> self) -&gt; <span class="ty">PageId</span> {
     <span class="kw">if let</span> <span class="ty">Some</span>(id) = self.free.<span class="fnn">pop</span>() {
@@ -776,13 +776,13 @@ free.<span class="fnn">push</span>(<span class="nm">7</span>);
     id
 }</pre><div class="gate"><p>Try the hints first. You can reveal the solution when you are ready.</p><button class="cta" id="rev" style="justify-self:center">Reveal solution</button></div></div>
       </section>
-      <section class="pane" id="p4">
+      <section class="pane" id="p4" role="tabpanel">
         <div class="chdr"><div class="cring2" id="cr2" style="--p:33"><span id="cr2t">1/3</span></div><div style="flex:1;min-width:0"><b style="font-size:17px;letter-spacing:-.01em" id="cr2h">Required reading: 1 of 3 done</b><div style="color:var(--dim);font-size:13.5px;margin-top:2px" id="cr2s">About 13 minutes left. You can pass the stage without it; it saves you the hints.</div></div>
           <div class="grp" id="cfl"><button class="on" data-f="all">All</button><button data-f="req">Required</button><button data-f="opt">Optional</button></div></div>
         <div id="clist"></div>
         <div class="flab2">RELATED</div><div class="rowf" id="crel"><button class="cp">Eviction and write-back ordering</button><button class="cp">Smart pointers: Box, Rc, Arc</button><button class="cp">Rust IO errors</button></div>
       </section>
-      <section class="pane" id="p5">
+      <section class="pane" id="p5" role="tabpanel">
         <div class="rhist"><div class="rl" id="rline"></div></div>
         <div class="rsm" id="rsm"></div>
         <div class="rtool"><div class="grp" id="rfl"><button class="on" data-f="all">All</button><button data-f="bad">Failed</button><button data-f="ok">Passed</button></div><span class="spacer"></span><label class="cmpl"><button class="sw" id="cmp" aria-label="Compare with the previous run"></button>Compare with previous run</label></div>
@@ -807,7 +807,7 @@ free.<span class="fnn">push</span>(<span class="nm">7</span>);
     </aside>
   </div>
   <div class="strip" id="strip">
-    <div class="in"><span class="sd" id="sd"></span><div class="sb" id="sb"></div><span class="tx" id="stx"><b>4 / 6 passing</b> · run just now · 4f1c9ab</span>
+    <div class="in"><span class="sd" id="sd"></span><div class="sb" id="sb"></div><span class="tx" id="stx" role="status" aria-live="polite"><b>4 / 6 passing</b> · run just now · 4f1c9ab</span>
       <button class="cta" id="runbtn"><span class="spn"></span><span class="lbl">Run tests</span><span class="ar">▶</span></button><button class="copy fx" id="simpass" title="Mockup only">SIMULATE PASS</button><button class="copy" id="logb">SHOW LOGS</button></div>
     <div class="logs"><div><pre id="logt"><span class="er">deleted_base_is_none</span> failed
   left: Some(Tuple(..))
@@ -1164,6 +1164,28 @@ drawRuns();
   setInterval(()=>{const t=$('#ftime');if(t)$('#mTime').textContent=t.textContent},500);
   if(location.hash==='#static-drawer'){show(2);setTimeout(()=>open(L),60)}
   if(location.hash==='#static-drawer-r'){show(2);setTimeout(()=>open(R),60)}
+})();
+
+/* a11y: aria-selected follows the tabs, arrow keys move between them, the current stage is marked */
+(function(){const tb=$('#tabs');const sync=()=>tb.querySelectorAll('[role=tab]').forEach(b=>{b.setAttribute('aria-selected',b.classList.contains('on'));b.tabIndex=b.classList.contains('on')?0:-1;b.setAttribute('aria-controls',b.dataset.t)});
+  sync();new MutationObserver(sync).observe(tb,{subtree:true,attributes:true,attributeFilter:['class']});
+  tb.addEventListener('keydown',e=>{const t=[...tb.querySelectorAll('[role=tab]')],i=t.indexOf(document.activeElement);if(i<0)return;let n=-1;if(e.key==='ArrowRight')n=(i+1)%t.length;if(e.key==='ArrowLeft')n=(i-1+t.length)%t.length;if(e.key==='Home')n=0;if(e.key==='End')n=t.length-1;if(n>=0){e.preventDefault();t[n].focus();t[n].click()}});
+  new MutationObserver(()=>$$('#tree .tl.cur').forEach(a=>a.setAttribute('aria-current','step'))).observe($('#tree'),{childList:true,subtree:true});$$('#tree .tl.cur').forEach(a=>a.setAttribute('aria-current','step'))})();
+/* remembered choices (this browser only; see docs/COURSE_UX_DATA_NEEDS.md for what should sync to the account) */
+const PREF={get(k,d){try{const v=localStorage.getItem('anneal:'+k);return v===null?d:JSON.parse(v)}catch(_){return d}},set(k,v){try{localStorage.setItem('anneal:'+k,JSON.stringify(v))}catch(_){}}};
+(function(){const st=$('.stage');
+  if(PREF.get('panel.left.collapsed',false))st.classList.add('lc');if(PREF.get('panel.right.collapsed',false))st.classList.add('rc');
+  new MutationObserver(()=>{PREF.set('panel.left.collapsed',st.classList.contains('lc'));PREF.set('panel.right.collapsed',st.classList.contains('rc'))}).observe(st,{attributes:true,attributeFilter:['class']});
+  if(PREF.get('optional.hidden',false)){$('#op1').classList.add('hid');$('#op2').classList.add('hid');$('#hideopt').textContent='Show optional sections'}
+  $('#hideopt').addEventListener('click',()=>PREF.set('optional.hidden',$('#op1').classList.contains('hid')));
+  if(PREF.get('celebrate.off',false))$('#swq').classList.add('on');
+  $('#swq').addEventListener('click',()=>PREF.set('celebrate.off',$('#swq').classList.contains('on')));
+  const mode=PREF.get('focus.mode','pom');if(mode!=='pom'){const b=$(`#fmode button[data-m="${mode}"]`);b&&b.click()}
+  $('#fmode').addEventListener('click',e=>{const b=e.target.closest('button');b&&PREF.set('focus.mode',b.dataset.m)});
+  [['#fr1','focus.mins'],['#fr2','break.mins'],['#fr3','timer.mins']].forEach(([id,k])=>{const i=$(id),v=PREF.get(k,null);if(v!==null){i.value=v;i.oninput()}i.addEventListener('change',()=>PREF.set(k,+i.value))});
+  const cf=PREF.get('concepts.filter','all');if(cf!=='all'){const b=$(`#cfl button[data-f="${cf}"]`);b&&b.click()}$('#cfl').addEventListener('click',e=>{const b=e.target.closest('button');b&&PREF.set('concepts.filter',b.dataset.f)});
+  $('#clist').addEventListener('click',e=>{if(e.target.closest('[data-read]'))PREF.set('concepts.read',CON.filter(c=>c.read).map(c=>c.id))});
+  const rd=PREF.get('concepts.read',null);if(rd){CON.forEach(c=>{c.read=rd.includes(c.id);if(c.read)c.pct=100});drawConcepts()}
 })();
 addEventListener('resize',()=>{thumb(flt);slide()});
 addEventListener('load',()=>{if(!reduce&&!location.hash.startsWith('#static')){document.body.classList.add('motion')}else{$('#mot').classList.remove('on');$('#mot').textContent='MOTION OFF';document.body.classList.add('motion-off')}thumb(flt);slide();fills();count();if(location.hash==='#stage'||location.hash==='#static-stage')show(2);if(location.hash==='#kit'||location.hash==='#static-kit')show(3);if(location.hash==='#static-win'){show(2);openOv('ovWin')}if(location.hash==='#static-concepts'||location.hash==='#static-run'){show(2);const t=location.hash.endsWith('concepts')?'p4':'p5';$$('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));$$('.pane').forEach(x=>x.classList.toggle('on',x.id===t));if(t==='p4')$('.ccard').classList.add('open');else{$('#cmp').click()}setTimeout(slide,50)}kitFill()});

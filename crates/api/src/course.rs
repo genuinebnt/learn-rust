@@ -129,6 +129,16 @@ pub async fn stage(State(s): State<AppState>, Path((course, id)): Path<(String, 
         .bind(&id)
         .fetch_optional(&s.db)
         .await?;
+    let read: std::collections::HashSet<String> = read_concepts(&s, &c.id).await?;
+    // The most recent runs, newest first, for the Last run tab's history.
+    let runs: Vec<RunView> = sqlx::query_as(
+        "SELECT id, ok, passed, total, tests, problem, commit_sha, duration_ms, at FROM course_runs
+         WHERE course = $1 AND stage_id = $2 ORDER BY at DESC, id DESC LIMIT 10",
+    )
+    .bind(&c.id)
+    .bind(&id)
+    .fetch_all(&s.db)
+    .await?;
     let revealed_hints = me.map_or(0, |r| r.hints_revealed.max(0) as usize).min(x.hints.len());
     let solution_open = me.is_some_and(|r| r.solution_revealed) || solved;
     let pn = |i: Option<usize>| i.and_then(|i| all.get(i)).map(|y| json!({ "id": y.id, "title": y.title, "rank": y.rank }));
@@ -143,7 +153,9 @@ pub async fn stage(State(s): State<AppState>, Path((course, id)): Path<(String, 
                    "intro": x.intro, "sections": x.sections },
         "module": { "code": m.code, "title": m.title, "summary": m.summary, "project": m.project, "stages": module_stages,
                     "lectures": m.lectures, "bustub": m.bustub, "resources": m.resources },
-        "concepts": x.concepts.iter().filter_map(|id| c.concept(id)).map(|k| json!({ "id": k.id, "title": k.title, "summary": k.summary, "minutes": k.minutes })).collect::<Vec<_>>(),
+        "concepts": x.concepts.iter().map(|id| (id, true)).chain(x.concepts_optional.iter().map(|id| (id, false)))
+            .filter_map(|(id, required)| c.concept(id).map(|k| json!({ "id": k.id, "title": k.title, "summary": k.summary, "minutes": k.minutes, "required": required, "read": read.contains(&k.id) })))
+            .collect::<Vec<_>>(),
         "prev": pn(at.checked_sub(1)),
         "next": pn(Some(at + 1)),
         "state": status(me),
@@ -152,6 +164,7 @@ pub async fn stage(State(s): State<AppState>, Path((course, id)): Path<(String, 
         "solution": { "available": stored.is_some(), "open": solution_open && stored.is_some(),
                       "files": if solution_open { stored.map(|r| r.0) } else { None } },
         "last_run": last,
+        "runs": runs,
     })))
 }
 
@@ -164,7 +177,31 @@ pub async fn concept(State(s): State<AppState>, Path((course, id)): Path<(String
         .filter(|x| x.concepts.contains(&id))
         .map(|x| json!({ "id": x.id, "title": x.title, "rank": x.rank, "module": x.module }))
         .collect();
-    Ok(Json(json!({ "course": { "id": c.id, "title": c.title }, "concept": k, "used_in": used_in })))
+    let read = read_concepts(&s, &c.id).await?.contains(&k.id);
+    Ok(Json(json!({ "course": { "id": c.id, "title": c.title }, "concept": k, "used_in": used_in, "read": read })))
+}
+
+/// The ids of the concepts marked as read.
+async fn read_concepts(s: &AppState, course: &str) -> ApiResult<std::collections::HashSet<String>> {
+    let rows: Vec<(String,)> = sqlx::query_as("SELECT concept FROM course_concept_state WHERE course = $1").bind(course).fetch_all(&s.db).await?;
+    Ok(rows.into_iter().map(|(c,)| c).collect())
+}
+
+#[derive(Deserialize)]
+pub struct ReadBody {
+    read: bool,
+}
+
+/// `PUT …/concepts/{id}/read`: marks a concept article as read, or as unread again.
+pub async fn set_concept_read(State(s): State<AppState>, Path((course, id)): Path<(String, String)>, Json(body): Json<ReadBody>) -> ApiResult<Json<Value>> {
+    let c = find(&s, &course)?;
+    c.concept(&id).ok_or_else(|| ApiError::NotFound(format!("concept {id}")))?;
+    if body.read {
+        sqlx::query("INSERT INTO course_concept_state (course, concept) VALUES ($1, $2) ON CONFLICT DO NOTHING").bind(&c.id).bind(&id).execute(&s.db).await?;
+    } else {
+        sqlx::query("DELETE FROM course_concept_state WHERE course = $1 AND concept = $2").bind(&c.id).bind(&id).execute(&s.db).await?;
+    }
+    Ok(Json(json!({ "read": body.read })))
 }
 
 /// `POST …/hints`: opens the next hint (marks the stage assisted unless it has already passed).

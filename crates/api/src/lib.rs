@@ -100,6 +100,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/courses/{course}", get(course::overview))
         .route("/courses/{course}/stages/{id}", get(course::stage))
         .route("/courses/{course}/concepts/{id}", get(course::concept))
+        .route("/courses/{course}/concepts/{id}/read", put(course::set_concept_read))
         .route("/courses/{course}/stages/{id}/hints", post(course::reveal_hint))
         .route("/courses/{course}/stages/{id}/solution", post(course::reveal_solution))
         .route("/courses/{course}/runs", post(course::post_run))

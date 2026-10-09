@@ -836,6 +836,9 @@ export interface CourseConceptRef {
   title: string;
   summary: string;
   minutes: number;
+  /** Needed for the stage; the others are further reading. */
+  required: boolean;
+  read: boolean;
 }
 
 export interface CourseConceptPage {
@@ -864,6 +867,8 @@ export interface CourseStagePage {
   hints: { total: number; revealed: { title: string; md: string }[]; titles: string[] };
   solution: { available: boolean; open: boolean; files: SolutionFile[] | null };
   last_run: CourseRun | null;
+  /** The latest runs of this stage, newest first (at most ten). */
+  runs: CourseRun[];
 }
 
 export const api = {
@@ -916,6 +921,7 @@ export const api = {
   focus: (id: string, seconds: number) => request<void>("POST", `/problems/${id}/focus`, { seconds }),
   course: (id: string) => request<CourseOverview>("GET", `/courses/${id}`),
   courseStage: (course: string, id: string) => request<CourseStagePage>("GET", `/courses/${course}/stages/${id}`),
+  setConceptRead: (course: string, id: string, read: boolean) => request<{ read: boolean }>("PUT", `/courses/${course}/concepts/${id}/read`, { read }),
   courseConcept: (course: string, id: string) => request<CourseConceptPage>("GET", `/courses/${course}/concepts/${id}`),
   revealCourseHint: (course: string, id: string) => request<CourseStagePage>("POST", `/courses/${course}/stages/${id}/hints`),
   revealCourseSolution: (course: string, id: string) => request<CourseStagePage>("POST", `/courses/${course}/stages/${id}/solution`),

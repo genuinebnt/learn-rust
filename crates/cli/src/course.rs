@@ -1555,7 +1555,7 @@ fn lint(course_id: &str, courses: &Path, all: bool) -> anyhow::Result<ExitCode> 
     let mut seen = std::collections::BTreeSet::new();
     for m in &def.modules {
         for st in m.stages.iter().filter(|st| st.kind != "boss") {
-            for id in &st.concepts {
+            for id in st.concepts.iter().chain(&st.concepts_optional) {
                 if !seen.insert(id.clone()) {
                     continue;
                 }

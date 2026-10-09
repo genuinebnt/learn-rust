@@ -1592,3 +1592,52 @@ async fn course_tree_stage_page_runs_and_solutions(db: PgPool) {
     let (_, tree) = call(&app, Method::GET, "/api/courses/bustub", None).await;
     assert_eq!((tree["done"].as_u64(), tree["current"].as_str()), (Some(1), Some("1a-02")));
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn a_stage_keeps_its_run_history_newest_first_capped_at_ten(db: PgPool) {
+    let app = test_app(db);
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-02", None).await;
+    assert_eq!(st["runs"].as_array().unwrap().len(), 0);
+    assert!(st["last_run"].is_null());
+    for n in 1..=12 {
+        let tests: Vec<_> = (0..n).map(|i| json!({ "name": format!("t{i}"), "ok": false, "detail": "no" })).collect();
+        let (status, _) = call(&app, Method::POST, "/api/courses/bustub/runs", Some(json!({ "stage_id": "1a-02", "tests": tests }))).await;
+        assert_eq!(status, StatusCode::OK);
+    }
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-02", None).await;
+    let runs = st["runs"].as_array().unwrap();
+    assert_eq!(runs.len(), 10, "only the latest ten");
+    assert_eq!(runs[0]["total"], 12, "newest first");
+    assert_eq!(runs[9]["total"], 3);
+    assert_eq!(st["last_run"]["id"], runs[0]["id"]);
+    // another stage's runs are not mixed in
+    let (_, other) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-03", None).await;
+    assert_eq!(other["runs"].as_array().unwrap().len(), 0);
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn concepts_can_be_marked_read_and_unread(db: PgPool) {
+    let app = test_app(db);
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
+    let k = st["concepts"][0]["id"].as_str().unwrap().to_owned();
+    assert_eq!(st["concepts"][0]["read"], false);
+    assert_eq!(st["concepts"][0]["required"], true, "linked concepts are required unless the stage lists them as optional");
+
+    let url = format!("/api/courses/bustub/concepts/{k}/read");
+    let (status, r) = call(&app, Method::PUT, &url, Some(json!({ "read": true }))).await;
+    assert_eq!((status, r["read"].as_bool()), (StatusCode::OK, Some(true)));
+    // twice is fine
+    assert_eq!(call(&app, Method::PUT, &url, Some(json!({ "read": true }))).await.0, StatusCode::OK);
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
+    assert_eq!(st["concepts"][0]["read"], true);
+    let (_, c) = call(&app, Method::GET, &format!("/api/courses/bustub/concepts/{k}"), None).await;
+    assert_eq!(c["read"], true);
+
+    let (_, r) = call(&app, Method::PUT, &url, Some(json!({ "read": false }))).await;
+    assert_eq!(r["read"], false);
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
+    assert_eq!(st["concepts"][0]["read"], false);
+
+    assert_eq!(call(&app, Method::PUT, "/api/courses/bustub/concepts/nope/read", Some(json!({ "read": true }))).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(call(&app, Method::PUT, "/api/courses/nope/concepts/x/read", Some(json!({ "read": true }))).await.0, StatusCode::NOT_FOUND);
+}

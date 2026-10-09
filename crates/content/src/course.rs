@@ -88,6 +88,9 @@ struct StageToml {
     /// Concept pages (courses/<id>/concepts/<id>.md) worth reading before or while doing this stage.
     #[serde(default)]
     concepts: Vec<String>,
+    /// Further reading that goes beyond what the stage needs; `concepts` stays the required list.
+    #[serde(default)]
+    concepts_optional: Vec<String>,
     /// What the learner takes away: short phrases shown as "You'll learn" under the stage title.
     #[serde(default)]
     learn: Vec<String>,
@@ -112,6 +115,8 @@ pub struct Hint {
 #[derive(Debug, Clone, Serialize)]
 pub struct Stage {
     pub concepts: Vec<String>,
+    /// Concepts that are good to read but not needed for the stage.
+    pub concepts_optional: Vec<String>,
     pub learn: Vec<String>,
     pub id: String,
     pub title: String,
@@ -223,6 +228,7 @@ impl Course {
                 };
                 stages.push(Stage {
                     concepts: def.concepts,
+                    concepts_optional: def.concepts_optional,
                     learn: def.learn,
                     id: def.id,
                     title: def.title,
@@ -258,7 +264,7 @@ impl Course {
         let projects = meta.project.into_iter().map(|p| Project { number: p.number, title: p.title, planned: p.planned }).collect();
         let concepts = load_concepts(&root.join("concepts"))?;
         for st in modules.iter().flat_map(|m| m.stages.iter()) {
-            if let Some(missing) = st.concepts.iter().find(|c| !concepts.iter().any(|x| &x.id == *c)) {
+            if let Some(missing) = st.concepts.iter().chain(&st.concepts_optional).find(|c| !concepts.iter().any(|x| &x.id == *c)) {
                 return bad(format!("stage {}: no concept {missing:?} in concepts/", st.id));
             }
         }
@@ -404,5 +410,40 @@ mod tests {
         let c = Course::load(&root).expect("courses/bustub loads");
         assert!(c.stages().count() >= 4, "{} stages", c.stages().count());
         assert!(c.stage("1a-01").is_some_and(|s| !s.sections.is_empty()));
+    }
+
+    /// A one-stage course in a temporary directory, with the given `stage.toml` lines.
+    fn tiny_course(tag: &str, stage_extra: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("anneal-course-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let stage = root.join("modules/01-m/stages/01-s");
+        fs::create_dir_all(&stage).unwrap();
+        fs::create_dir_all(root.join("concepts")).unwrap();
+        fs::write(root.join("course.toml"), "id = \"t\"\ntitle = \"T\"\n\n[[project]]\nnumber = 1\ntitle = \"One\"\n").unwrap();
+        fs::write(root.join("modules/01-m/module.toml"), "code = \"1a\"\ntitle = \"M\"\n").unwrap();
+        fs::write(stage.join("stage.toml"), format!("id = \"1a-01\"\ntitle = \"S\"\nkind = \"build\"\ndifficulty = \"easy\"\ntests = [\"t\"]\n{stage_extra}")).unwrap();
+        fs::write(stage.join("stage.md"), "Intro.\n\n## The task\n\nDo it.\n").unwrap();
+        for id in ["needed", "extra"] {
+            fs::write(root.join(format!("concepts/{id}.md")), format!("---\ntitle: {id}\nsummary: s\nminutes: 3\n---\nBody.\n")).unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn a_stage_lists_required_and_optional_concepts() {
+        let root = tiny_course("opt", "concepts = [\"needed\"]\nconcepts_optional = [\"extra\"]\n");
+        let c = Course::load(&root).expect("loads");
+        let s = c.stage("1a-01").unwrap();
+        assert_eq!(s.concepts, ["needed"]);
+        assert_eq!(s.concepts_optional, ["extra"]);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn an_optional_concept_that_does_not_exist_is_an_error() {
+        let root = tiny_course("optbad", "concepts_optional = [\"nope\"]\n");
+        let err = Course::load(&root).expect_err("a missing optional concept is refused").to_string();
+        assert!(err.contains("nope"), "{err}");
+        let _ = fs::remove_dir_all(root);
     }
 }

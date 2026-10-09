@@ -106,6 +106,123 @@ function ago(iso: string) {
     return `${Math.floor(s / 86400)} d ago`;
 }
 
+/** The recent runs as bars (the tall green part is the share that passed); pick one to look at it. */
+function RunHistory({ runs, selId, onPick }: { runs: CourseRun[]; selId: number; onPick: (id: number) => void }) {
+    const shown = [...runs].reverse();
+    return (
+        <div className="cx-hist" role="group" aria-label="Recent runs">
+            {shown.map((r) => (
+                <button key={r.id} className={`cx-hbar${r.id === selId ? " on" : ""}`} aria-pressed={r.id === selId} onClick={() => onPick(r.id)} aria-label={`Run ${ago(r.at)}: ${r.problem ? "did not run" : `${r.passed} of ${r.total} passed`}`}>
+                    <span className={`bar${r.problem ? " warn" : ""}`}>
+                        <i style={{ height: r.problem ? "100%" : `${r.total ? Math.round((100 * r.passed) / r.total) : 0}%` }} />
+                    </span>
+                    <small>{r.problem ? "—" : `${r.passed}/${r.total}`}</small>
+                    <em>{ago(r.at)}</em>
+                </button>
+            ))}
+        </div>
+    );
+}
+
+/** The Last run tab: the run history, and the chosen run (the newest unless you pick another). */
+function RunTab({ runs, stageId }: { runs: CourseRun[]; stageId: string }) {
+    const [sel, setSel] = useState<number | null>(null);
+    const newest = runs[0];
+    // A run that arrives while the tab is open brings you back to the newest.
+    useEffect(() => setSel(null), [newest?.id]);
+    if (!newest) return null;
+    const run = runs.find((r) => r.id === sel) ?? newest;
+    const prev = runs[runs.findIndex((r) => r.id === run.id) + 1];
+    return (
+        <>
+            {runs.length > 1 && <RunHistory runs={runs} selId={run.id} onPick={setSel} />}
+            <RunPanel key={run.id} run={run} stageId={stageId} prev={prev} />
+        </>
+    );
+}
+
+/** The Concepts tab: the reading for the stage, with what you have read and what is optional. */
+function ConceptsTab({ course, page, queryKey }: { course: string; page: Page; queryKey: unknown[] }) {
+    const qc = useQueryClient();
+    const [flt, setFlt] = useState<"all" | "req" | "opt">("all");
+    const [open, setOpen] = useState<string | null>(null);
+    const mark = useMutation({
+        mutationFn: ({ id, read }: { id: string; read: boolean }) => api.setConceptRead(course, id, read),
+        onMutate: async ({ id, read }) => {
+            // A poll that is already on its way would bring back the old value over this change.
+            await qc.cancelQueries({ queryKey });
+            qc.setQueryData<Page>(queryKey, (old) => old && { ...old, concepts: old.concepts.map((k) => (k.id === id ? { ...k, read } : k)) });
+        },
+        onSettled: () => qc.invalidateQueries({ queryKey }),
+    });
+    const req = page.concepts.filter((k) => k.required);
+    const done = req.filter((k) => k.read).length;
+    const left = req.filter((k) => !k.read).reduce((n, k) => n + k.minutes, 0);
+    const list = page.concepts.filter((k) => flt === "all" || (flt === "req") === k.required);
+    return (
+        <>
+            <div className="cx-chdr">
+                <span className="cx-cring" style={{ "--p": req.length ? Math.round((100 * done) / req.length) : 100 } as React.CSSProperties} aria-hidden="true">
+                    <span>
+                        {done}/{req.length}
+                    </span>
+                </span>
+                <div className="cx-chm">
+                    <b>{req.length === 0 ? "Nothing required to read" : done === req.length ? "Required reading done" : `Required reading: ${done} of ${req.length} done`}</b>
+                    <span>{req.length === 0 ? "These articles are further reading." : done === req.length ? "The optional articles go deeper when you want them." : `About ${left} minutes left. You can pass the stage without it; it saves you the hints.`}</span>
+                </div>
+                {page.concepts.some((k) => !k.required) && (
+                    <div className="cx-rflt" role="group" aria-label="Show">
+                        {([["all", "All"], ["req", "Required"], ["opt", "Optional"]] as const).map(([k, l]) => (
+                            <button key={k} aria-pressed={flt === k} className={flt === k ? "on" : ""} onClick={() => setFlt(k)}>
+                                {l}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+            {list.map((k) => (
+                <article key={k.id} className={`cx-ccard${k.read ? " read" : ""}${open === k.id ? " open" : ""}`}>
+                    <div className="cx-cch">
+                        <span className="cx-cic" aria-hidden="true">
+                            {k.read ? "✓" : page.concepts.indexOf(k) + 1}
+                        </span>
+                        <div className="cx-cbody">
+                            <h4>
+                                {k.title} <span className={`cx-cbadge ${k.required ? "req" : "opt"}`}>{k.required ? "REQUIRED" : "OPTIONAL"}</span>
+                            </h4>
+                            <p>{k.summary}</p>
+                            <div className="cx-cmeta">
+                                <span>{k.minutes} min read</span>
+                                <span>{k.read ? "read" : "not read yet"}</span>
+                            </div>
+                        </div>
+                        <div className="cx-cact">
+                            <button className="kbtn sm sec" aria-expanded={open === k.id} onClick={() => setOpen(open === k.id ? null : k.id)}>
+                                {open === k.id ? "Close" : "Preview"}
+                            </button>
+                            <Link className="kbtn sm" to="/courses/$course/concept/$id" params={{ course, id: k.id }}>
+                                {k.read ? "Open" : "Read"} <span className="ar">›</span>
+                            </Link>
+                        </div>
+                    </div>
+                    <div className="cx-cprev">
+                        <div inert={open !== k.id}>
+                            <div className="cx-cfoot">
+                                <label>
+                                    <button type="button" role="switch" aria-checked={k.read} className="ksw" aria-label={`Mark "${k.title}" as read`} onClick={() => mark.mutate({ id: k.id, read: !k.read })} />
+                                    Mark as read
+                                </label>
+                                <span>Opening the article does not mark it: you decide when you have read it.</span>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            ))}
+        </>
+    );
+}
+
 /** The command that tests this stage, with a copy button. */
 function StageCommand({ stageId }: { stageId: string }) {
     const [copied, setCopied] = useState(false);
@@ -131,11 +248,19 @@ function StageCommand({ stageId }: { stageId: string }) {
 }
 
 /** The Run tab: a summary with one segment per test, failures first and open, passes folded, compiler output in its own block. */
-function RunPanel({ run, stageId }: { run: CourseRun; stageId: string }) {
+function RunPanel({ run, stageId, prev }: { run: CourseRun; stageId: string; prev?: CourseRun }) {
     const failed = run.tests.map((t, i) => ({ ...t, i })).filter((t) => !t.ok);
     const passed = run.tests.filter((t) => t.ok);
+    const [flt, setFlt] = useState<"all" | "bad" | "ok">("all");
+    const [cmp, setCmp] = useState(false);
     const [open, setOpen] = useState(failed.length === 0 && !run.problem);
     const [copied, setCopied] = useState(false);
+    // How each test of this run compares with the one before it, by name.
+    const before = new Map((prev?.tests ?? []).map((t) => [t.name, t.ok]));
+    const change = (name: string, ok: boolean) => (!prev || prev.problem || !before.has(name) ? "" : before.get(name) === ok ? "same" : ok ? "fixed" : "new");
+    const prevPassed = prev && !prev.problem ? prev.passed : null;
+    const delta = prev && !run.problem ? (prev.problem ? "first run that compiled" : null) : null;
+    const newlyFailing = failed.filter((t) => change(t.name, false) === "new").length;
     const same = new Map<string, number>();
     for (const t of failed) same.set(t.detail.trim(), (same.get(t.detail.trim()) ?? 0) + 1);
     const first = failed[0];
@@ -182,6 +307,15 @@ function RunPanel({ run, stageId }: { run: CourseRun; stageId: string }) {
                         ))}
                     </div>
                 )}
+                {!run.problem && prev && (
+                    <div className="cx-rdelta">
+                        {delta && <span className="eq">{delta}</span>}
+                        {prevPassed !== null && run.passed > prevPassed && <span className="up">▲ {run.passed - prevPassed} more passing</span>}
+                        {prevPassed !== null && run.passed < prevPassed && <span className="dn">▼ {prevPassed - run.passed} fewer passing</span>}
+                        {prevPassed !== null && run.passed === prevPassed && <span className="eq">same result as the run before</span>}
+                        {newlyFailing > 0 && <span className="dn">{newlyFailing} newly failing</span>}
+                    </div>
+                )}
                 {cmd && (
                     <div className="cx-rcmd">
                         <span>{run.problem ? "compile locally" : "run again"}</span>
@@ -190,6 +324,24 @@ function RunPanel({ run, stageId }: { run: CourseRun; stageId: string }) {
                     </div>
                 )}
             </div>
+
+            {!run.problem && run.tests.length > 0 && (
+                <div className="cx-rtool">
+                    <div className="cx-rflt" role="group" aria-label="Show">
+                        {([["all", "All"], ["bad", "Failed"], ["ok", "Passed"]] as const).map(([k, l]) => (
+                            <button key={k} aria-pressed={flt === k} className={flt === k ? "on" : ""} onClick={() => setFlt(k)}>
+                                {l}
+                            </button>
+                        ))}
+                    </div>
+                    {prev && !prev.problem && (
+                        <label className="cx-rcmp">
+                            <button type="button" role="switch" aria-checked={cmp} className="ksw" onClick={() => setCmp(!cmp)} aria-label="Compare with the previous run" />
+                            Compare with the previous run
+                        </label>
+                    )}
+                </div>
+            )}
 
             {run.problem && (
                 <>
@@ -211,7 +363,7 @@ function RunPanel({ run, stageId }: { run: CourseRun; stageId: string }) {
                 </>
             )}
 
-            {failed.length > 0 && (
+            {failed.length > 0 && flt !== "ok" && (
                 <>
                     <div className="cx-rsec bad">FAILED · {failed.length}</div>
                     {failed.map((t) => {
@@ -221,9 +373,13 @@ function RunPanel({ run, stageId }: { run: CourseRun; stageId: string }) {
                                 <div className="cx-rhead">
                                     <span className="cx-sq" />
                                     <span className="cx-tn">{t.name}</span>
-                                    <small>
-                                        test {t.i + 1} of {run.tests.length}
-                                    </small>
+                                    {cmp && change(t.name, false) ? (
+                                        <small className={`cx-rtag ${change(t.name, false) === "new" ? "new" : "same"}`}>{change(t.name, false) === "new" ? "NEWLY FAILING" : "STILL FAILING"}</small>
+                                    ) : (
+                                        <small>
+                                            test {t.i + 1} of {run.tests.length}
+                                        </small>
+                                    )}
                                 </div>
                                 {t.detail && (
                                     <div className="cx-rbody">
@@ -241,23 +397,24 @@ function RunPanel({ run, stageId }: { run: CourseRun; stageId: string }) {
                 </>
             )}
 
-            {passed.length > 0 && (
+            {passed.length > 0 && flt !== "bad" && (
                 <>
                     <div className="cx-rsec ok">PASSED · {passed.length}</div>
-                    <div className={`cx-rfold${open ? " open" : ""}`}>
-                        <button className="cx-rfoldh" onClick={() => setOpen(!open)} aria-expanded={open}>
+                    <div className={`cx-rfold${open || flt === "ok" ? " open" : ""}`}>
+                        <button className="cx-rfoldh" onClick={() => setOpen(!open)} aria-expanded={open || flt === "ok"}>
                             <span className="cx-sq" />
                             <span className="cx-tn">
                                 {failed.length === 0 ? "all tests" : passed.length > 2 ? `${passed.slice(0, 2).map((t) => t.name).join(", ")} and ${passed.length - 2} more` : passed.map((t) => t.name).join(", ")}
                             </span>
                             <span className="cx-rchev">›</span>
                         </button>
-                        {open && (
+                        {(open || flt === "ok") && (
                             <div className="cx-rlist">
                                 {passed.map((t) => (
                                     <div className="cx-rrow" key={t.name}>
                                         <span className="cx-sq" />
                                         {t.name}
+                                        {cmp && change(t.name, true) === "fixed" && <small className="cx-rtag fix">FIXED SINCE THE RUN BEFORE</small>}
                                     </div>
                                 ))}
                             </div>
@@ -519,7 +676,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
         ["instructions", "Instructions", ""],
         ["hints", "Hints", p.hints.total ? `${p.hints.revealed.length}/${p.hints.total}` : ""],
         ["solution", "Solution", ""],
-        ["concepts", "Concepts", String(p.concepts.length || "")],
+        ["concepts", "Concepts", p.concepts.length ? `${p.concepts.filter((k) => k.required && k.read).length}/${p.concepts.filter((k) => k.required).length}` : ""],
         ["run", "Last run", run ? (run.ok ? "✓" : `${run.passed}/${run.total}`) : ""],
     ];
     return (
@@ -779,23 +936,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
 
                             {tab === "concepts" && (
                                 <div className="cx-prose">
-                                    {p.concepts.length > 0 && (
-                                        <>
-                                            <div className="cx-part">
-                                                <b>CONCEPTS</b>
-                                                SHORT ARTICLES FOR THIS STAGE
-                                            </div>
-                                            <div className="cx-reads">
-                                                {p.concepts.map((k) => (
-                                                    <Link key={k.id} to="/courses/$course/concept/$id" params={{ course, id: k.id }} className="cx-concept">
-                                                        <small>CONCEPT · ~{k.minutes} MIN</small>
-                                                        {k.title}
-                                                        <span>{k.summary}</span>
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
+                                    {p.concepts.length > 0 && <ConceptsTab course={course} page={p} queryKey={key} />}
                                     <div className="cx-part">
                                         <b>FURTHER READING</b>
                                         {p.module.code.toUpperCase()} · {p.module.title.toUpperCase()}
@@ -828,7 +969,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                             {tab === "run" && (
                                 <div className="cx-prose">
                                     {run ? (
-                                        <RunPanel run={run} stageId={p.stage.id} />
+                                        <RunTab runs={p.runs.length ? p.runs : [run]} stageId={p.stage.id} />
                                     ) : (
                                         <div className="cx-empty">
                                             No run yet. In your repo, run <code>anneal course test</code>, or commit and push: each run is reported here.
@@ -919,9 +1060,14 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                     </button>
                                 </h4>
                                 {p.concepts.map((k) => (
-                                    <Link key={k.id} className="cx-crow" to="/courses/$course/concept/$id" params={{ course, id: k.id }}>
-                                        <b>{k.title}</b>
-                                        <small>{k.minutes} min read</small>
+                                    <Link key={k.id} className={`cx-crow${k.read ? " read" : ""}`} to="/courses/$course/concept/$id" params={{ course, id: k.id }}>
+                                        <b>
+                                            {k.read && <span className="cx-rtick" aria-label="read">✓ </span>}
+                                            {k.title}
+                                        </b>
+                                        <small>
+                                            {k.minutes} min read{k.required ? "" : " · optional"}
+                                        </small>
                                     </Link>
                                 ))}
                             </section>

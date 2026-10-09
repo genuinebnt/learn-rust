@@ -88,6 +88,6 @@ dozen topics. Against this course:
 | profiling | `performance-tests-and-measuring` (perf, flamegraphs), `allocation-and-cache-friendly-code` | |
 | embedded: `no_std`, interrupts, peripheral ownership, static buffers | none | out of scope for BusTub; a separate track if wanted |
 
-Candidate next articles, in order of fit with a database course: **durability and fsync** (the write path every storage engine rests on),
-**lock-free basics and false sharing**, **FFI**, **property-based testing and fuzzing**, **memory-mapped files**, **async versus threads**.
-Not started.
+Articles written from this list (all six, each with tested snippets and linked from the stages that use them):
+**durability and fsync**, **lock-free basics and false sharing**, **FFI** (`ffi-and-extern-c`; no stage crosses into C, so it is linked from 1g-01 as background),
+**property-based testing and fuzzing**, **memory-mapped files**, **async versus threads**.

@@ -4,4 +4,4 @@ kind = "build"
 difficulty = "medium"
 tests = ["stages_1f::s1f_07", "stages_1f::s1f_08", "stages_1f::s1f_09"]
 learn = ["write-back before reuse and why the order matters", "flush as a durability point, delete as a lifetime end", "keeping the invariants under a mixed workload"]
-concepts = ["eviction-and-write-back-ordering", "pin-counts-and-dirty-pages", "coarse-and-fine-grained-locking", "model-based-testing", "durability-and-fsync"]
+concepts = ["eviction-and-write-back-ordering", "pin-counts-and-dirty-pages", "coarse-and-fine-grained-locking", "model-based-testing", "durability-and-fsync", "memory-mapped-files"]

@@ -6,6 +6,7 @@ import { api, type Activity, type Band, type NextUp, type ReviewItem, type Secti
 import { Header } from "../components/Header";
 import { LEVEL_COLOR, pad2, pctColor } from "../components/bits";
 import { BLURB, DSA_ORDER, NAV_SECTIONS, PLANNED, SECTION_NAMES, type NavArea, sectionOf } from "../curriculum";
+import { CountUp } from "../components/kit";
 
 const COPY: Record<NavArea, { eyebrow: string; color: string; title: [string, string]; lead: ReactNode }> = {
   dsa: {
@@ -415,6 +416,15 @@ function Rail({ activity, sections, live, due }: { activity?: Activity; sections
   );
 }
 
+/** The soft light that follows the pointer over a track card: its position is passed to the stylesheet. */
+function pointerLight(e: React.PointerEvent<HTMLElement>) {
+  const card = (e.target as HTMLElement).closest<HTMLElement>(".tcard");
+  if (!card) return;
+  const r = card.getBoundingClientRect();
+  card.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  card.style.setProperty("--my", `${e.clientY - r.top}px`);
+}
+
 export function SectionPage({ area }: { area: NavArea }) {
   const copy = COPY[area];
   const sections: readonly Section[] = NAV_SECTIONS[area];
@@ -474,7 +484,7 @@ export function SectionPage({ area }: { area: NavArea }) {
       <div key={s ?? "all"} style={{ display: "contents" }}>
         <div className="flabel">{s ? `${SECTION_NAMES[s].toUpperCase()} · ${list.length}` : "ALL TRACKS · IN RECOMMENDED ORDER"}</div>
         {view === "grid" ? (
-          <div className="tgrid">
+          <div className="tgrid" onPointerMove={pointerLight}>
             {list.map((r) => (
               <TrackCard key={r.code} row={r} />
             ))}
@@ -510,15 +520,21 @@ export function SectionPage({ area }: { area: NavArea }) {
             </div>
             <div className="cat-stats">
               <div>
-                <b>{rows.length}</b>
+                <b>
+                  <CountUp value={rows.length} />
+                </b>
                 <span>TRACKS</span>
               </div>
               <div>
-                <b>{problems}</b>
+                <b>
+                  <CountUp value={problems} />
+                </b>
                 <span>PROBLEMS</span>
               </div>
               <div>
-                <b>{hours(left)}</b>
+                <b>
+                  <CountUp value={left} format={hours} />
+                </b>
                 <span>TO FINISH</span>
               </div>
             </div>
@@ -542,7 +558,7 @@ export function SectionPage({ area }: { area: NavArea }) {
                   />
                   <kbd>/</kbd>
                 </label>
-                <div className="seg" role="group" aria-label="View">
+                <div className="seg slide" role="group" aria-label="View" style={{ "--i": view === "grid" ? 0 : 1 } as React.CSSProperties}>
                   {(["grid", "list"] as const).map((v) => (
                     <button key={v} className={view === v ? "on" : ""} aria-pressed={view === v} onClick={() => setView(v)}>
                       {v === "grid" ? "▦ grid" : "☰ list"}

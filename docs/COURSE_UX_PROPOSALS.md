@@ -100,10 +100,21 @@ the web app (superseded by compiling the courses into the binary), and the table
 
 ## What was built (web)
 
-Built and covered by browser tests (`web/e2e`, run in CI before every deploy): the track table (filter box, sortable headers, `j`/`k`/Enter,
-status icons, sticky header, phone cards); the pinned run strip and case icons in the Tests pane; the course Run tab (summary, failures first,
-passes folded, run-again command, compiler block); the test command under a stage title; per-tab scroll position; the module ring on the
-continue card; highlighted code and a copy button in the C++/Rust tables.
+Built and covered by browser tests (`web/e2e`, 83+ tests, run in CI before every deploy):
 
-Mocked up, waiting for the owner: everything in [mockups/course-motion.html](mockups/course-motion.html) and
-[mockups/section-page.html](mockups/section-page.html). What each needs from the data: [COURSE_UX_DATA_NEEDS.md](COURSE_UX_DATA_NEEDS.md).
+- **Track table** (`/t/<track>`): filter box (`/`), sortable headers, `j`/`k`/Enter, status icons with words, sticky header, phone cards.
+- **Tests pane** (Rust workspace): the run result pinned above the cases, failures first, tick/cross/ring icons; the tests-passed popup after a solving Submit.
+- **Courses page** (`/courses`): a course map; modules that open and close (the one you are in starts open, choices remembered); find and filter;
+  row hover effects; a copy button per command; progress rows that open their project.
+- **Stage page**: wider panels you can drag, collapse to a rail or hide (Ctrl/⌘ B and .), drawers on a phone; a tree you can filter; the page panel
+  with outline, notes, concepts, the stage's command, last run, hints used and a focus timer (pomodoro, countdown, stopwatch); the tests-passed
+  popup (go to next, stay, review solution, "don't show again"); the Last run tab with run history, comparison with the run before, filter and
+  compare; the Concepts tab with reading progress, required and optional, a read mark; sidenotes, asides, optional sections that can be hidden,
+  long code folded, callout icons.
+- **Concept articles**: highlighted code and copy buttons in the C++/Rust tables; long code folded; code names kept whole in tables.
+- **Section page** (`/rust`): count-up numbers, entrance motion, a light that follows the pointer over cards, a sliding grid/list toggle,
+  press ripples. With reduced motion none of the motion runs.
+- **Server**: the last ten runs of a stage, concept read state (`course_concept_state`), `concepts_optional` in `stage.toml`.
+
+Not applied: the DSA home page (`/dsa`) is its own page and did not get the section-page polish; per-stage minutes and time on a stage need data
+that does not exist (see [COURSE_UX_DATA_NEEDS.md](COURSE_UX_DATA_NEEDS.md)). The mockups remain in [mockups/](mockups/) as the design record.

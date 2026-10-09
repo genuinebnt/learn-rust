@@ -129,3 +129,37 @@
 .ps-tabs kbd,.ps-tabs .hintkeys kbd{font:600 10px var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--dim);background:var(--bg)}
 .ps-tabs .hintkeys{margin-left:auto;font:500 11.5px var(--mono);color:var(--dim)}
 @media (max-width:640px){.ps-tabs .hintkeys{display:none}.ps-tabs a,.ps-tabs .off{padding-inline:12px}.ps-tabs kbd{display:none}.seg .vn{display:none}}
+
+/* ---- section pages: entrance, hover light, a sliding view toggle (docs/mockups/section-page.html) ---- */
+@media (prefers-reduced-motion:no-preference){
+.cat-top>*,.nextup,.cat-tools,.cat-rail>*{animation:cat-rise .65s var(--kease,cubic-bezier(.22,1,.36,1)) both}
+.cat-top>*:nth-child(2){animation-delay:90ms}
+.nextup{animation-delay:200ms}.cat-tools{animation-delay:240ms}.cat-rail>*:nth-child(1){animation-delay:260ms}.cat-rail>*:nth-child(2){animation-delay:330ms}.cat-rail>*:nth-child(3){animation-delay:400ms}
+.tgrid>.tcard,.tgrid>a.tcard,.tlist{animation:cat-rise .6s var(--kease,cubic-bezier(.22,1,.36,1)) both}
+.tgrid>.tcard:nth-child(1),.tgrid>a.tcard:nth-child(1){animation-delay:260ms}
+.tgrid>.tcard:nth-child(2),.tgrid>a.tcard:nth-child(2){animation-delay:315ms}
+.tgrid>.tcard:nth-child(3),.tgrid>a.tcard:nth-child(3){animation-delay:370ms}
+.tgrid>.tcard:nth-child(4),.tgrid>a.tcard:nth-child(4){animation-delay:425ms}
+.tgrid>.tcard:nth-child(5),.tgrid>a.tcard:nth-child(5){animation-delay:480ms}
+.tgrid>.tcard:nth-child(6),.tgrid>a.tcard:nth-child(6){animation-delay:535ms}
+.tgrid>.tcard:nth-child(7),.tgrid>a.tcard:nth-child(7){animation-delay:590ms}
+.tgrid>.tcard:nth-child(8),.tgrid>a.tcard:nth-child(8){animation-delay:645ms}
+.tgrid>.tcard:nth-child(9),.tgrid>a.tcard:nth-child(9){animation-delay:700ms}
+.tgrid>.tcard:nth-child(10),.tgrid>a.tcard:nth-child(10){animation-delay:755ms}
+.tgrid>.tcard:nth-child(11),.tgrid>a.tcard:nth-child(11){animation-delay:810ms}
+.tgrid>.tcard:nth-child(12),.tgrid>a.tcard:nth-child(12){animation-delay:865ms}
+}
+@keyframes cat-rise{from{opacity:0;transform:translateY(14px)}}
+.tcard{--mx:50%;--my:50%;overflow:hidden;transition:transform .35s var(--kease,ease),border-color .25s,box-shadow .35s}
+.tcard::after{content:"";position:absolute;inset:0;background:radial-gradient(240px circle at var(--mx) var(--my),var(--cab,var(--acc-bg)),transparent 70%);opacity:0;transition:opacity .3s;pointer-events:none}
+a.tcard:hover,.tcard:not(.planned):hover{transform:translateY(-3px);box-shadow:0 18px 34px -22px var(--shadow)}
+.tcard:not(.planned):hover::after{opacity:1}
+.tcard.cur::before{z-index:1}
+@media (prefers-reduced-motion:reduce){.tcard,.tcard::after{transition:none}a.tcard:hover,.tcard:not(.planned):hover{transform:none}}
+.seg.slide{position:relative;display:inline-grid;grid-template-columns:repeat(2,auto)}
+.seg.slide::before{content:"";position:absolute;top:0;bottom:0;left:0;width:50%;background:var(--raise);transform:translateX(calc(var(--i)*100%));transition:transform .35s var(--kease,ease)}
+.seg.slide button{position:relative;z-index:1;transition:color .2s}.seg.slide button.on{background:none}
+@media (prefers-reduced-motion:reduce){.seg.slide::before{transition:none}}
+.nextup .go,.nextup .btn.go{position:relative;overflow:hidden;transition:transform .2s var(--kease,ease),box-shadow .25s,filter .2s}
+.nextup .go:hover{transform:translateY(-1px);box-shadow:0 10px 26px -12px var(--ca);filter:brightness(1.05)}.nextup .go:active{transform:scale(.99)}
+.fchip{transition:color .2s,border-color .2s,background .2s,transform .15s var(--kease,ease)}.fchip:hover{border-color:var(--line)}.fchip:active{transform:scale(.96)}

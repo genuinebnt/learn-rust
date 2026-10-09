@@ -188,3 +188,28 @@ export function CopyButton({ text, className = "kcopy" }: { text: string; classN
         </button>
     );
 }
+
+/** A number that counts up to `value` the first time it appears (and eases to a new value later). With reduced motion it just shows the value. */
+export function CountUp({ value, format = String }: { value: number; format?: (n: number) => string }) {
+    const reduced = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const [shown, setShown] = useState(reduced ? value : 0);
+    const from = useRef(reduced ? value : 0);
+    useEffect(() => {
+        if (reduced) {
+            setShown(value);
+            return;
+        }
+        const start = performance.now();
+        const a = from.current;
+        let raf = 0;
+        const tick = (t: number) => {
+            const k = Math.min(1, (t - start) / 900);
+            setShown(Math.round(a + (value - a) * (1 - Math.pow(1 - k, 3))));
+            if (k < 1) raf = requestAnimationFrame(tick);
+            else from.current = value;
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [value, reduced]);
+    return <>{format(shown)}</>;
+}

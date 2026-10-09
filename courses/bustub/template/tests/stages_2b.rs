@@ -18,7 +18,9 @@ use bustub::container::hash::hash_function::HashFunction;
 use bustub::container::hash::murmur3::murmur_hash3_x64_128;
 use bustub::storage::index::generic_key::GenericKey;
 use bustub::storage::index::int_comparator::IntComparator;
-use common::pool::{pool_with, Policy};
+#[path = "common/pool.rs"]
+mod pool;
+use pool::{pool_with, Policy};
 use proptest::prelude::*;
 
 mod common;

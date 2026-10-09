@@ -19,7 +19,9 @@ use std::time::Duration;
 use b_plus_tree_utils::*;
 use bustub::buffer::buffer_pool_manager::BufferPoolManager;
 use bustub::common::config::PageId;
-use common::pool::{pool_with, Policy};
+#[path = "common/pool.rs"]
+mod pool;
+use pool::{pool_with, Policy};
 use proptest::prelude::*;
 
 struct Lcg(u64);

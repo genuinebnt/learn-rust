@@ -16,7 +16,9 @@ use bustub::storage::index::generic_key::{GenericComparator, GenericKey, KeyComp
 use bustub::storage::index::int_comparator::IntComparator;
 use bustub::storage::page::layout::HTABLE_BUCKET_PAGE_METADATA_SIZE;
 use bustub::storage::page::page_array::PageArray;
-use common::pool::{pool_with, Policy};
+#[path = "common/pool.rs"]
+mod pool;
+use pool::{pool_with, Policy};
 use proptest::prelude::*;
 
 mod common;

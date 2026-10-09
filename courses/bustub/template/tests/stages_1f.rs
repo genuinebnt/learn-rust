@@ -30,7 +30,9 @@ fn config() -> ProptestConfig {
 }
 
 use bustub::buffer::replacer::FrameReplacer;
-use common::pool::{pool, pool_with, pool_with_spy, MemDisk, Policy};
+#[path = "common/pool.rs"]
+mod pool;
+use pool::{pool, pool_with, pool_with_spy, MemDisk, Policy};
 
 /// Fetches a page, writes `text` at the start of its frame, and unpins it dirty (or clean).
 fn write_text(bpm: &BufferPoolManager, page: PageId, text: &str, dirty: bool) {

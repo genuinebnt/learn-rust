@@ -14,7 +14,9 @@ use bustub::buffer::buffer_pool_manager::BufferPoolManager;
 use bustub::common::config::{PageData, BUSTUB_PAGE_SIZE};
 use bustub::storage::page::page_guard::{ReadPageGuard, WritePageGuard};
 use bustub::storage::disk::disk_manager::DiskIo;
-use common::pool::{pool_with, MemDisk, Policy};
+#[path = "common/pool.rs"]
+mod pool;
+use pool::{pool_with, MemDisk, Policy};
 use proptest::prelude::*;
 
 mod common;

@@ -21,7 +21,8 @@ use bustub::execution::expressions::column_value_expression::ColumnValueExpressi
 use bustub::execution::plans::plan_node::{AggregationType, JoinType, PlanKind, PlanNode, PlanRef};
 use bustub::types::type_id::TypeId;
 use bustub::types::value::Value;
-use common::sql_model as model;
+#[path = "common/sql_model.rs"]
+mod model;
 use proptest::prelude::*;
 
 fn int(v: i32) -> Value {

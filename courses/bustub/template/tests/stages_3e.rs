@@ -21,7 +21,8 @@ use bustub::execution::plans::plan_node::{PlanKind, PlanNode, PlanRef};
 use bustub::storage::table::tuple::{Tuple, TupleMeta};
 use bustub::types::type_id::TypeId;
 use bustub::types::value::Value;
-use common::sql_model as model;
+#[path = "common/sql_model.rs"]
+mod model;
 use model::Row;
 use proptest::prelude::*;
 

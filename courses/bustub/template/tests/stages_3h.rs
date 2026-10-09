@@ -15,7 +15,8 @@ use bustub::execution::expressions::logic_expression::{LogicExpression, LogicTyp
 use bustub::optimizer::optimizer::Optimizer;
 use bustub::types::type_id::TypeId;
 use bustub::types::value::Value;
-use common::sql_model as model;
+#[path = "common/sql_model.rs"]
+mod model;
 use proptest::prelude::*;
 
 fn new_db() -> BusTubInstance {

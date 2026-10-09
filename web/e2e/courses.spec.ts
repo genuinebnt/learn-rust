@@ -15,11 +15,17 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("modules that are being rewritten carry a PLANNED tag and the finished ones do not", async ({ page }) => {
+    const course = await (await page.request.get("/api/courses/bustub")).json();
+    const modules: { code: string; planned: boolean }[] = course.projects.flatMap((p: { modules: { code: string; planned: boolean }[] }) => p.modules);
     await page.goto("/courses/bustub");
-    await expect(page.locator("#mod-2b .k-planned")).toHaveText("PLANNED");
-    await expect(page.locator("#mod-3a .k-planned")).toHaveText("PLANNED");
+    await expect(page.locator(".k-mod").first()).toBeVisible();
+    for (const m of modules) {
+        const tag = page.locator(`#mod-${m.code} .k-planned`);
+        if (m.planned) await expect(tag).toHaveText("PLANNED");
+        else await expect(tag).toHaveCount(0);
+    }
+    // the first module is finished and stays untagged
     await expect(page.locator("#mod-1a .k-planned")).toHaveCount(0);
-    await expect(page.locator("#mod-1g .k-planned")).toHaveCount(0);
 });
 
 test("the map has a button for every module and opens the one you click", async ({ page }) => {

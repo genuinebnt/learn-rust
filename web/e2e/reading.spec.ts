@@ -179,11 +179,12 @@ test.describe("check yourself and the steps aside", () => {
     });
 
     test("a task's steps are in a closed aside, with the contract above them", async ({ page }) => {
-        await page.goto("/courses/bustub/2c-04");
+        // any stage page with a `> [!ASIDE]` block will do; re-point this when the module that holds it is rewritten
+        await page.goto("/courses/bustub/4a-03");
         const aside = page.locator(".k-asd", { hasText: "if you would rather not work them out" });
         await expect(aside).toBeVisible();
         await expect(aside).not.toHaveClass(/k-open/);
-        await expect(page.locator(".k-task", { hasText: "two leaves hold the same pairs" })).toBeVisible();
+        await expect(page.locator(".k-task", { hasText: "A committed transaction gets" })).toBeVisible();
         await aside.locator(".k-ah").click();
         await expect(aside.locator("ol li")).toHaveCount(4);
     });

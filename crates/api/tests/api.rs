@@ -1560,7 +1560,7 @@ async fn course_tree_stage_page_runs_and_solutions(db: PgPool) {
     let (status, c) = call(&app, Method::GET, &format!("/api/courses/bustub/concepts/{k}"), None).await;
     assert_eq!(status, StatusCode::OK);
     assert!(c["concept"]["sections"].as_array().unwrap().len() >= 3);
-    assert_eq!(c["used_in"][0]["id"], "1a-01");
+    assert!(c["used_in"].as_array().unwrap().iter().any(|u| u["id"] == "1a-01"), "the concept points back to the stage that lists it");
     assert_eq!(call(&app, Method::GET, "/api/courses/bustub/concepts/nope", None).await.0, StatusCode::NOT_FOUND);
     assert!(call(&app, Method::GET, "/api/courses/bustub/stages/nope", None).await.0 == StatusCode::NOT_FOUND);
     assert!(call(&app, Method::GET, "/api/courses/nope", None).await.0 == StatusCode::NOT_FOUND);

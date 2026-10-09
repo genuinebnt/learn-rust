@@ -508,7 +508,7 @@ fn run_entries(repo: &Path, entries: &[String], target_dir: Option<&Path>, timeo
     }
     let jobs: Vec<(&str, &[&str])> = bins.iter().map(|b| (*b, if whole.contains(b) { &[][..] } else { &by_bin[b][..] })).collect();
     let next = std::sync::atomic::AtomicUsize::new(0);
-    let results: std::sync::Mutex<Vec<Option<anyhow::Result<(String, String, Option<i32>)>>>> = std::sync::Mutex::new((0..jobs.len()).map(|_| None).collect());
+    let results: std::sync::Mutex<Vec<Option<RunOutput>>> = std::sync::Mutex::new((0..jobs.len()).map(|_| None).collect());
     std::thread::scope(|scope| {
         for _ in 0..3 {
             scope.spawn(|| {
@@ -553,6 +553,9 @@ fn run_entries(repo: &Path, entries: &[String], target_dir: Option<&Path>, timeo
     }
     report
 }
+
+/// What one test binary printed: stdout, stderr and the exit code, or why it could not run.
+type RunOutput = anyhow::Result<(String, String, Option<i32>)>;
 
 fn run_with_timeout(mut cmd: Command, timeout: Duration) -> anyhow::Result<(String, String, Option<i32>)> {
     cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());

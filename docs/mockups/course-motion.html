@@ -194,7 +194,7 @@ h2.ttl{margin:8px 0 12px;font-size:clamp(28px,4vw,46px);line-height:1.05;letter-
 .toast{position:fixed;top:64px;left:50%;z-index:70;transform:translate(-50%,-20px);opacity:0;pointer-events:none;display:flex;gap:10px;align-items:center;padding:10px 18px;border-radius:999px;border:1px solid var(--bad);background:var(--panel);box-shadow:0 14px 30px -14px var(--shadow);font-size:14px;transition:opacity .3s,transform .4s var(--ease)}
 .toast.show{opacity:1;transform:translate(-50%,0)}.toast.ok{border-color:var(--grn)}
 .notes{max-width:1180px;margin:60px auto 0;padding:0 24px;display:grid;gap:10px;color:var(--mut);font-size:14px}.notes h2{margin:0;font-size:19px;color:var(--fg)}.notes li{margin-left:20px}.notes b{color:var(--fg)}
-@media (max-width:1100px){.stage,.stage.lc,.stage.rc{grid-template-columns:minmax(0,1fr)}.tree,.toc,.rz{display:none}.read2{padding:28px 20px}}
+
 @media (max-width:980px){.cmain,.hero{grid-template-columns:minmax(0,1fr)}.side{position:static}}
 @media (max-width:640px){.row{grid-template-columns:22px minmax(0,1fr) auto}.row .no,.next{display:none}.sb{width:90px}.proj{grid-template-columns:1fr}.stats div{padding:12px 16px}.stats b{font-size:24px}}
 
@@ -586,6 +586,36 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .tscroll{padding-bottom:30px;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 30px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 30px),transparent)}
 .toc .rcard.focus{margin-top:6px;box-shadow:none;border-color:var(--line)}
 *{scrollbar-width:none}*::-webkit-scrollbar{display:none;width:0;height:0}
+
+/* ---------- TABLET / PHONE: panels become drawers ---------- */
+.mbar,.dbk{display:none}
+@media (max-width:1100px){
+  .stage,.stage.lc,.stage.rc{grid-template-columns:minmax(0,1fr)}
+  .rz{display:none}
+  .read2{padding:24px 20px 100px}
+  .mbar{display:flex;position:sticky;top:46px;z-index:44;gap:8px;padding:8px 16px;background:color-mix(in oklab,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line2);overflow-x:auto}
+  .mbar button{display:inline-flex;align-items:center;gap:8px;flex:none;height:36px;padding:0 14px;border:1px solid var(--line2);border-radius:999px;font:600 12px var(--mono);color:var(--mut);transition:border-color .2s,color .2s,background .2s,transform .15s var(--ease)}
+  .mbar button:hover{color:var(--fg);border-color:var(--line)}.mbar button:active{transform:scale(.96)}
+  .mbar button b{font:700 10px var(--mono);padding:1px 7px;border-radius:9px;background:var(--grn-bg);color:var(--grn)}
+  .mbar .sp{flex:1}
+  .mbar .tm2{font-variant-numeric:tabular-nums;color:var(--grn);border-color:color-mix(in oklab,var(--grn) 45%,var(--line2))}
+  .tree,.toc{display:flex;position:fixed;top:46px;bottom:62px;z-index:95;width:min(360px,90vw);height:auto;background:var(--bg);box-shadow:0 30px 60px -20px var(--shadow);transition:transform .45s var(--ease),visibility .45s;visibility:hidden}
+  .tree{left:0;transform:translateX(-104%);border-right:1px solid var(--line);align-self:auto}
+  .toc{right:0;transform:translateX(104%);border-left:1px solid var(--line);padding:18px 0 0 14px;align-self:auto}
+  .tree.open,.toc.open{transform:none;visibility:visible}
+  .lc .tree .chead>div:not(.cring),.lc .tm,.lc .tsrch,.lc .tswitch{display:revert}
+  .dbk{display:block;position:fixed;inset:46px 0 62px;z-index:92;background:color-mix(in oklab,var(--bg) 55%,transparent);backdrop-filter:blur(0);opacity:0;visibility:hidden;transition:opacity .3s,backdrop-filter .3s,visibility .3s}
+  .dbk.on{opacity:1;visibility:visible;backdrop-filter:blur(5px)}
+  #lt,#rt{display:none}
+  .drawer-x{display:grid!important}
+}
+.drawer-x{display:none;width:34px;height:34px;place-items:center;border-radius:9px;color:var(--dim);font-size:18px;margin-left:auto}.drawer-x:hover{background:var(--raise);color:var(--fg)}
+@media (max-width:640px){
+  h2.ttl{font-size:30px}.tabs{overflow-x:auto;gap:20px}.tabs button{flex:none}
+  .snr p,.prose p{font-size:15px}.pn{grid-template-columns:1fr}
+  .strip .in{padding:10px 14px;gap:10px}.sb{display:none}.strip .tx{font-size:11px}.strip #simpass,.strip #logb{display:none}
+  .co{padding:12px 14px 12px 10px}.cch{grid-template-columns:36px minmax(0,1fr)}
+}
 </style>
 </head>
 <body>
@@ -653,10 +683,12 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 
 <!-- ===================== STAGE PAGE ===================== -->
 <div class="screen" id="s2">
+  <div class="mbar" id="mbar"><button id="mStages">☰ Stages <b>4/8</b></button><button id="mPage">▤ Page &amp; notes <b>3</b></button><span class="sp"></span><button id="mFocus" class="tm2">⏱ <span id="mTime">25:00</span></button></div>
+  <div class="dbk" id="dbk"></div>
   <div class="stage">
     <nav class="tree" id="treeN">
       <span class="rz l" id="rzl" title="Drag to resize · double-click to reset"><span class="grip"></span></span>
-      <div class="chead"><div class="cring" style="--p:7"><span>7%</span></div><div style="flex:1;min-width:0"><b>Build a DBMS: BusTub in Rust</b><small>12 of 163 stages passed</small></div><button class="sbtn lt" id="lt" aria-label="Collapse sidebar" title="Collapse (⌘B)">«</button></div>
+      <div class="chead"><div class="cring" style="--p:7"><span>7%</span></div><div style="flex:1;min-width:0"><b>Build a DBMS: BusTub in Rust</b><small>12 of 163 stages passed</small></div><button class="sbtn lt" id="lt" aria-label="Collapse sidebar" title="Collapse (⌘B)">«</button><button class="drawer-x" data-drawer-close aria-label="Close">×</button></div>
       <label class="tsrch"><span>⌕</span><input id="tq" placeholder="filter stages…" autocomplete="off"></label>
       <div class="tlist" id="tree"></div>
       <div class="rail" id="rail"></div>
@@ -760,7 +792,7 @@ free.<span class="fnn">push</span>(<span class="nm">7</span>);
     <aside class="toc" id="tocN">
       <span class="rz r" id="rzr" title="Drag to resize · double-click to reset"><span class="grip"></span></span>
       <div class="tscroll">
-      <div class="rcard"><h6>ON THIS PAGE <button class="sbtn" id="rt" aria-label="Hide sidebar" title="Hide (⌘.)">»</button></h6><div id="toc" style="position:relative;border-left:1px solid var(--line2)"><span class="mk" id="mk"></span><a href="#a1" class="on">The task</a><a href="#a2">Tests</a><a href="#a3">Notes</a><a href="#a4">Code</a><a href="#a5">The C/C++ way</a><a href="#a6">Optional: performance</a><a href="#a7">Check yourself</a></div></div>
+      <div class="rcard"><h6>ON THIS PAGE <button class="sbtn" id="rt" aria-label="Hide sidebar" title="Hide (⌘.)">»</button><button class="drawer-x" data-drawer-close aria-label="Close">×</button></h6><div id="toc" style="position:relative;border-left:1px solid var(--line2)"><span class="mk" id="mk"></span><a href="#a1" class="on">The task</a><a href="#a2">Tests</a><a href="#a3">Notes</a><a href="#a4">Code</a><a href="#a5">The C/C++ way</a><a href="#a6">Optional: performance</a><a href="#a7">Check yourself</a></div></div>
       <div class="rcard" id="notesCard"><h6>NOTES <span class="pin" id="nCount">3</span></h6><div id="nlist"></div></div>
       <div class="rcard"><h6>CONCEPTS <span class="pin req" id="pcn">1 / 3</span></h6><div id="pconc"></div></div>
       <div class="rcard"><h6>THIS STAGE <span class="pin">PINNED</span></h6><div class="pincmd"><span>anneal course test 1a-04</span><button class="copy fx" data-c="anneal course test 1a-04">COPY</button></div>
@@ -1116,6 +1148,22 @@ drawRuns();
   $('#fspd').onclick=function(){this.classList.toggle('on');st.speed=this.classList.contains('on')?60:1};
   draw();
   if(location.hash==='#static-focus2'){show(2);setTimeout(()=>{$('.tscroll').scrollTop=9999},60)}if(location.hash==='#static-focus'){st.left=st.total-9*60+0;st.run=false;draw();show(2)}
+})();
+
+/* drawers on tablet and phone */
+(function(){const L=$('#treeN'),R=$('#tocN'),B=$('#dbk');
+  const close=()=>{L.classList.remove('open');R.classList.remove('open');B.classList.remove('on')};
+  const open=(el)=>{const was=el.classList.contains('open');close();if(!was){el.classList.add('open');B.classList.add('on')}};
+  $('#mStages').onclick=()=>open(L);$('#mPage').onclick=()=>open(R);
+  $('#mFocus').onclick=()=>{open(R);setTimeout(()=>$('#focus').scrollIntoView({block:'end',behavior:reduce?'auto':'smooth'}),420)};
+  B.onclick=close;$$('[data-drawer-close]').forEach(b=>b.onclick=close);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+  /* tapping an outline link or a stage closes the drawer */
+  $('#toc').addEventListener('click',e=>{if(e.target.closest('a'))close()});$('#tree').addEventListener('click',e=>{if(e.target.closest('.tl'))close()});
+  /* keep the phone bar's timer in step with the ring */
+  setInterval(()=>{const t=$('#ftime');if(t)$('#mTime').textContent=t.textContent},500);
+  if(location.hash==='#static-drawer'){show(2);setTimeout(()=>open(L),60)}
+  if(location.hash==='#static-drawer-r'){show(2);setTimeout(()=>open(R),60)}
 })();
 addEventListener('resize',()=>{thumb(flt);slide()});
 addEventListener('load',()=>{if(!reduce&&!location.hash.startsWith('#static')){document.body.classList.add('motion')}else{$('#mot').classList.remove('on');$('#mot').textContent='MOTION OFF';document.body.classList.add('motion-off')}thumb(flt);slide();fills();count();if(location.hash==='#stage'||location.hash==='#static-stage')show(2);if(location.hash==='#kit'||location.hash==='#static-kit')show(3);if(location.hash==='#static-win'){show(2);openOv('ovWin')}if(location.hash==='#static-concepts'||location.hash==='#static-run'){show(2);const t=location.hash.endsWith('concepts')?'p4':'p5';$$('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));$$('.pane').forEach(x=>x.classList.toggle('on',x.id===t));if(t==='p4')$('.ccard').classList.add('open');else{$('#cmp').click()}setTimeout(slide,50)}kitFill()});

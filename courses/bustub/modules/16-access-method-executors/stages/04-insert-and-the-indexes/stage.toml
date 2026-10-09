@@ -1,0 +1,7 @@
+id = "3e-04"
+title = "Insert and the indexes"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3e::s3e_04"]
+learn = ["an index is derived data that every write must maintain", "building a key from a row", "unique keys and what to do with a duplicate"]
+concepts = ["maintaining-indexes-on-writes", "the-catalog", "trait-objects-and-the-disk-seam"]

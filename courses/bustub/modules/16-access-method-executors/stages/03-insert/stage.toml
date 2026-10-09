@@ -1,0 +1,7 @@
+id = "3e-03"
+title = "Insert"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3e::s3e_03"]
+learn = ["a pipeline breaker: consume everything, then answer once", "returning a count as a one-row result", "errors for tuples that cannot be stored"]
+concepts = ["the-iterator-model", "errors-as-values-with-result", "heap-files"]

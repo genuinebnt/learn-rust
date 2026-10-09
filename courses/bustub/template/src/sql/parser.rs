@@ -154,7 +154,14 @@ impl Parser {
                 if !self.eat_symbol("=") {
                     self.expect_word("to")?;
                 }
-                let value = self.expr()?;
+                // PostgreSQL reads a bare word after SET as a string (`set x = yes`), and a number or string as itself
+                let value = match self.peek().cloned() {
+                    Some(Token::Word(w)) => {
+                        self.pos += 1;
+                        Expr::Str(w)
+                    }
+                    _ => self.expr()?,
+                };
                 Ok(Statement::Set { name, value })
             }
             "show" => {

@@ -1,0 +1,7 @@
+id = "3e-07"
+title = "Index scan in key order"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3e::s3e_07"]
+learn = ["reading a table through an index: rid to tuple", "ordered output without a sort", "a scan whose index and table can disagree"]
+concepts = ["access-paths-index-vs-seq-scan", "range-scans-and-the-leaf-chain", "the-iterator-model"]

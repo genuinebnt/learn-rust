@@ -66,6 +66,12 @@ impl<'a> Catalog<'a> {
         todo!("3c-05: look the oid up")
     }
 
+    /// A table by its oid, **borrowed** from the catalog (for an executor that keeps the table for as long as the catalog lives, without
+    /// cloning the `Arc`). BusTub: `GetTable(table_oid_t)` returns a `TableInfo *`.
+    pub fn table_info(&self, oid: TableOid) -> Option<&TableInfo<'a>> {
+        self.tables.get(&oid).map(|t| t.as_ref())
+    }
+
     /// The names of all tables (in no particular order).
     pub fn get_table_names(&self) -> Vec<String> {
         todo!("3c-05: every table's name")

@@ -3,9 +3,14 @@
 
 use super::executor_context::ExecutorContext;
 use super::executors::abstract_executor::ExecutorBox;
+use super::executors::delete_executor::DeleteExecutor;
 use super::executors::filter_executor::FilterExecutor;
+use super::executors::index_scan_executor::IndexScanExecutor;
+use super::executors::insert_executor::InsertExecutor;
 use super::executors::mock_scan_executor::MockScanExecutor;
 use super::executors::projection_executor::ProjectionExecutor;
+use super::executors::seq_scan_executor::SeqScanExecutor;
+use super::executors::update_executor::UpdateExecutor;
 use super::executors::values_executor::ValuesExecutor;
 use super::plans::plan_node::{PlanRef, PlanType};
 use crate::common::exception::{Exception, ExceptionType, Result};
@@ -22,6 +27,20 @@ pub fn create_executor<'e>(ctx: &'e ExecutorContext<'e>, plan: &PlanRef) -> Resu
             Ok(Box::new(FilterExecutor::new(plan.clone(), child)))
         }
         PlanType::Values => Ok(Box::new(ValuesExecutor::new(plan.clone()))),
+        PlanType::SeqScan => Ok(Box::new(SeqScanExecutor::new(ctx, plan.clone())?)),
+        PlanType::IndexScan => Ok(Box::new(IndexScanExecutor::new(ctx, plan.clone())?)),
+        PlanType::Insert => {
+            let child = create_executor(ctx, &plan.children[0])?;
+            Ok(Box::new(InsertExecutor::new(ctx, plan.clone(), child)?))
+        }
+        PlanType::Update => {
+            let child = create_executor(ctx, &plan.children[0])?;
+            Ok(Box::new(UpdateExecutor::new(ctx, plan.clone(), child)?))
+        }
+        PlanType::Delete => {
+            let child = create_executor(ctx, &plan.children[0])?;
+            Ok(Box::new(DeleteExecutor::new(ctx, plan.clone(), child)?))
+        }
         other => Err(Exception::new(ExceptionType::NotImplemented, format!("there is no executor for {other:?} plans (yet)"))),
     }
 }

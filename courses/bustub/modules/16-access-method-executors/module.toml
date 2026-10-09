@@ -1,0 +1,72 @@
+code = "3e"
+title = "Access-method executors"
+summary = "The operators that touch tables: a sequential scan (with a pushed-down predicate), insert, delete and update that keep every index in step, and an index scan that reads in key order or looks keys up. BusTub Project 3, task 1: the first queries that read and write real data."
+lectures = ["queryexecution1", "indexes1"]
+bustub = ["src/include/execution/executors/seq_scan_executor.h", "src/execution/seq_scan_executor.cpp", "src/include/execution/executors/insert_executor.h", "src/execution/insert_executor.cpp", "src/execution/update_executor.cpp", "src/execution/delete_executor.cpp", "src/execution/index_scan_executor.cpp", "src/include/execution/plans/seq_scan_plan.h", "src/include/execution/plans/index_scan_plan.h", "test/sql/p3.00-primer.slt", "test/sql/p3.01-seqscan.slt", "test/sql/p3.02-insert.slt", "test/sql/p3.03-update.slt", "test/sql/p3.04-delete.slt"]
+files = [
+    "tests/sql/p3.00-primer.slt",
+    "tests/sql/p3.01-seqscan.slt",
+    "tests/sql/p3.02-insert.slt",
+    "tests/sql/p3.03-update.slt",
+    "tests/sql/p3.04-delete.slt",
+]
+
+[[resources]]
+kind = "docs"
+title = "Option::as_mut"
+url = "https://doc.rust-lang.org/std/option/enum.Option.html#method.as_mut"
+
+[[resources]]
+kind = "docs"
+title = "std::iter::Iterator"
+url = "https://doc.rust-lang.org/std/iter/trait.Iterator.html"
+
+[[resources]]
+kind = "docs"
+title = "Vec::clear and drain"
+url = "https://doc.rust-lang.org/std/vec/struct.Vec.html#method.clear"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: using EXPLAIN"
+url = "https://www.postgresql.org/docs/current/using-explain.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: index types"
+url = "https://www.postgresql.org/docs/current/indexes-types.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: indexes and ORDER BY"
+url = "https://www.postgresql.org/docs/current/indexes-ordering.html"
+
+[[resources]]
+kind = "docs"
+title = "SQLite: the query planner"
+url = "https://www.sqlite.org/queryplanner.html"
+
+[[resources]]
+kind = "book"
+title = "Use The Index, Luke"
+url = "https://use-the-index-luke.com/"
+
+[[resources]]
+kind = "code"
+title = "BusTub's sequential scan executor"
+url = "https://github.com/cmu-db/bustub/blob/master/src/execution/seq_scan_executor.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub's insert executor"
+url = "https://github.com/cmu-db/bustub/blob/master/src/execution/insert_executor.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub's AbstractExecutor"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/execution/executors/abstract_executor.h"
+
+[[resources]]
+kind = "docs"
+title = "The Rust Book: lifetimes in struct definitions"
+url = "https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html"

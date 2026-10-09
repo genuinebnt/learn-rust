@@ -1,0 +1,7 @@
+id = "3e-06"
+title = "Update"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_3e::s3e_06"]
+learn = ["an update as delete plus insert", "target expressions see the old row", "the Halloween problem in a real statement"]
+concepts = ["halloween-problem", "maintaining-indexes-on-writes", "expression-trees"]

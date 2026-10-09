@@ -1,0 +1,52 @@
+//! Port of `delete_executor.cpp`: deletes every tuple its child produces (a filter over a scan of the table) and produces one row: how
+//! many it deleted. Deleting is marking the tuple deleted in the heap; its index entries are removed.
+
+use std::sync::Arc;
+
+use super::abstract_executor::{Executor, ExecutorBox, BUSTUB_BATCH_SIZE};
+use crate::catalog::catalog::{IndexInfo, TableInfo};
+use crate::catalog::schema::Schema;
+use crate::common::exception::{Exception, ExceptionType, Result};
+use crate::common::rid::Rid;
+use crate::execution::executor_context::ExecutorContext;
+use crate::execution::plans::plan_node::{PlanKind, PlanRef};
+use crate::storage::table::tuple::{Tuple, TupleMeta};
+use crate::types::value::Value;
+
+pub struct DeleteExecutor<'e> {
+    plan: PlanRef,
+    table_info: &'e TableInfo<'e>,
+    indexes: Vec<Arc<IndexInfo<'e>>>,
+    child: ExecutorBox<'e>,
+    done: bool,
+}
+
+impl<'e> DeleteExecutor<'e> {
+    pub fn new(ctx: &'e ExecutorContext<'e>, plan: PlanRef, child: ExecutorBox<'e>) -> Result<DeleteExecutor<'e>> {
+        let PlanKind::Delete { table_oid } = &plan.kind else { unreachable!("a DeleteExecutor needs a Delete plan") };
+        let table_info = ctx.catalog.table_info(*table_oid).ok_or_else(|| Exception::new(ExceptionType::Execution, "the table of a delete does not exist"))?;
+        let indexes = ctx.catalog.get_table_indexes(&table_info.name);
+        Ok(DeleteExecutor { plan, table_info, indexes, child, done: false })
+    }
+
+    /// Removes the entries of `tuple` from every index of the table.
+    fn delete_from_indexes(&self, tuple: &Tuple) {
+        // 3e-05: for every index, delete the entry for the key of the tuple (Tuple::key_from_tuple, as in the insert executor)
+    }
+}
+
+impl Executor for DeleteExecutor<'_> {
+    fn init(&mut self) -> Result<()> {
+        todo!("3e-05: forget that the count was produced and initialise the child")
+    }
+
+    fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, _batch_size: usize) -> Result<bool> {
+        tuple_batch.clear();
+        rid_batch.clear();
+        todo!("3e-05: once: for every tuple (and rid) of the child mark the heap tuple deleted (update_tuple_meta with is_deleted: true), remove its index entries (delete_from_indexes) and count it; answer with one tuple holding the count; every later call returns false")
+    }
+
+    fn output_schema(&self) -> &Schema {
+        &self.plan.output_schema
+    }
+}

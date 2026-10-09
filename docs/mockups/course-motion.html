@@ -417,7 +417,7 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .cta.ok2{background:var(--grn)}
 
 /* ---------- WIDER, RESIZABLE PANELS ---------- */
-.tree,.toc{position:sticky;overflow:hidden}
+.tree{position:sticky;overflow:hidden}.toc{position:sticky;overflow-y:auto;overflow-x:hidden}
 .rz{position:absolute;top:0;bottom:0;width:11px;z-index:6;cursor:col-resize;touch-action:none}
 .rz::after{content:"";position:absolute;top:0;bottom:0;left:5px;width:1px;background:transparent;transition:background .2s,width .2s,left .2s}
 .rz:hover::after,.stage.dragging .rz.act::after{background:var(--grn);width:3px;left:4px;border-radius:2px}
@@ -495,6 +495,77 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .pnote .sx2{font:600 10px var(--mono);letter-spacing:.08em;color:var(--dim);padding:3px 7px;border:1px solid var(--line2);border-radius:5px}.pnote .sx2:hover{color:var(--fg);border-color:var(--line)}
 .snm.flash{animation:flash 1s var(--ease)}@keyframes flash{0%,100%{box-shadow:0 0 0 0 transparent}30%{box-shadow:0 0 0 7px var(--grn-bg)}}
 .snm.on{background:var(--grn);color:var(--on-acc)}
+
+/* ---------- CONCEPTS TAB ---------- */
+.chdr{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:18px 20px;border:1px solid var(--line2);border-radius:14px;background:var(--panel);margin-bottom:18px}
+.cring2{--p:0;width:58px;height:58px;border-radius:50%;flex:none;background:conic-gradient(var(--grn) calc(var(--p)*1%),var(--line2) 0);display:grid;place-items:center}
+.cring2 span{width:46px;height:46px;border-radius:50%;background:var(--panel);display:grid;place-items:center;font:600 12px var(--mono)}
+.ccard{border:1px solid var(--line2);border-radius:14px;background:var(--panel);margin-bottom:12px;overflow:hidden;transition:border-color .25s,transform .3s var(--ease),box-shadow .3s}
+.ccard:hover{border-color:var(--line);transform:translateY(-1px)}.ccard.open{border-color:color-mix(in oklab,var(--grn) 40%,var(--line2))}
+.cch{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:16px;align-items:center;padding:16px 18px;cursor:pointer}
+.cic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font:700 14px var(--mono);background:var(--raise);color:var(--dim);transition:background .3s,color .3s,transform .4s var(--ease)}
+.ccard.isread .cic{background:var(--grn);color:var(--on-acc)}
+.cch h4{margin:0;font-size:16px;letter-spacing:-.01em;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.cch p{margin:3px 0 0;color:var(--mut);font-size:13.5px;max-width:64ch}
+.cmeta{display:flex;gap:12px;align-items:center;margin-top:8px;font:500 11px var(--mono);color:var(--dim);flex-wrap:wrap}
+.cmeta .mp2{width:90px;height:4px;border-radius:2px;background:var(--line2);overflow:hidden}.cmeta .mp2 i{display:block;height:100%;background:var(--grn);transition:width .6s var(--ease)}
+.cact{display:flex;gap:8px;align-items:center}
+.cprev{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}.ccard.open .cprev{grid-template-rows:1fr}.cprev>div{overflow:hidden}
+.cpi{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;padding:4px 20px 20px;border-top:1px solid var(--line2)}
+.cpi h6{margin:16px 0 10px;font:500 10px var(--mono);letter-spacing:.2em;color:var(--dim)}
+.cpi ol{margin:0;padding:0;list-style:none;display:grid;gap:2px;counter-reset:t}.cpi ol li{counter-increment:t;display:flex;gap:10px;align-items:center;padding:7px 8px;border-radius:8px;font-size:13.5px;color:var(--mut);cursor:pointer;transition:background .2s,color .2s,padding-left .25s var(--ease)}.cpi ol li::before{content:counter(t);width:20px;height:20px;border-radius:10px;background:var(--raise);display:grid;place-items:center;font:600 10px var(--mono);color:var(--dim)}.cpi ol li:hover{background:var(--raise);color:var(--fg);padding-left:12px}
+.take{display:grid;gap:8px}.take label{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border:1px solid var(--line2);border-radius:10px;font-size:13.5px;color:var(--mut);cursor:pointer;transition:border-color .2s,background .2s}.take label:hover{border-color:var(--line)}
+.take input{appearance:none;width:18px;height:18px;border-radius:5px;border:1.5px solid var(--line);flex:none;margin-top:1px;display:grid;place-items:center;cursor:pointer;transition:background .2s,border-color .2s}.take input:checked{background:var(--grn);border-color:var(--grn)}.take input:checked::after{content:"✓";color:var(--on-acc);font:800 11px var(--mono)}.take label:has(input:checked){border-color:color-mix(in oklab,var(--grn) 40%,var(--line2));color:var(--fg)}
+.used{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.used span{font:500 11px var(--mono);padding:3px 9px;border-radius:5px;background:var(--raise);color:var(--mut)}
+.cfoot{display:flex;gap:10px;align-items:center;padding:14px 20px;border-top:1px solid var(--line2);background:color-mix(in oklab,var(--bg) 40%,var(--panel))}.cfoot .spacer{flex:1}
+.flab2{margin:26px 0 10px;font:500 10.5px var(--mono);letter-spacing:.2em;color:var(--dim)}
+/* ---------- LAST RUN TAB ---------- */
+.rhist{margin-bottom:16px;padding:16px 18px;border:1px solid var(--line2);border-radius:14px;background:var(--panel)}
+.rl{display:flex;align-items:flex-end;gap:10px;position:relative}
+.rn{flex:1;display:grid;gap:8px;justify-items:center;cursor:pointer;padding:6px 0;border-radius:10px;transition:background .2s}.rn:hover{background:var(--raise)}
+.rn .bar3{width:100%;max-width:56px;height:54px;border-radius:7px;background:var(--line2);position:relative;overflow:hidden;display:flex;align-items:flex-end}
+.rn .bar3 i{display:block;width:100%;background:var(--grn);height:0;transition:height .7s var(--ease)}.rn .bar3 i.bad{background:linear-gradient(var(--bad),var(--bad))}
+.rn small{font:600 11px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}.rn em{font:500 10px var(--mono);font-style:normal;color:var(--dim)}
+.rn.on{background:var(--grn-bg)}.rn.on small{color:var(--grn)}.rn.on .bar3{box-shadow:0 0 0 2px var(--grn)}
+.rsm{display:grid;gap:14px;padding:18px 20px;border:1px solid var(--line2);border-radius:14px;background:var(--panel);margin-bottom:14px}
+.rsm.bad{border-color:color-mix(in oklab,var(--bad) 45%,var(--line2))}.rsm.ok{border-color:color-mix(in oklab,var(--grn) 50%,var(--line2))}.rsm.wr{border-color:color-mix(in oklab,var(--warn) 45%,var(--line2))}
+.rtp{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}.rbig{font:600 24px var(--sans);letter-spacing:-.015em}.rbig em{font-style:normal}.rsm.bad .rbig em{color:var(--bad)}.rsm.ok .rbig em{color:var(--grn)}.rsm.wr .rbig em{color:var(--warn)}
+.rmeta{font:500 12px var(--mono);color:var(--dim)}
+.dlt{display:flex;gap:8px;flex-wrap:wrap}.dlt span{font:600 11px var(--mono);padding:3px 9px;border-radius:999px}.dlt .up{background:var(--grn-bg);color:var(--grn)}.dlt .dn{background:var(--bad-bg);color:var(--bad)}.dlt .eq{background:var(--raise);color:var(--dim)}
+.rsb{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:3px}.rsb i{height:7px;border-radius:2px;background:var(--grn);transform-origin:left;animation:grow2 .7s var(--ease) both;animation-delay:calc(var(--k)*60ms)}.rsb i.f{background:var(--bad)}
+@keyframes grow2{from{transform:scaleX(0)}}.motion-off .rsb i{animation:none}
+.rcmd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font:500 12px var(--mono);color:var(--dim)}.rcmd code{padding:4px 10px;border-radius:5px;background:var(--raise);color:var(--fg)}
+.rtool{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:16px 0 12px}.rtool .spacer{flex:1}.cmpl{display:flex;gap:10px;align-items:center;font-size:13.5px;color:var(--mut)}
+.rt{border:1px solid var(--line2);border-radius:12px;background:var(--panel);margin-bottom:10px;overflow:hidden}.rt.bad{border-color:color-mix(in oklab,var(--bad) 40%,var(--line2))}
+.rth{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;width:100%;text-align:left}.rt.bad .rth{background:var(--bad-bg)}
+.rth b{font:500 13px var(--mono)}.rth .cm2{font:600 10px var(--mono);letter-spacing:.08em;padding:2px 8px;border-radius:999px}
+.cm2.fix{background:var(--grn-bg);color:var(--grn)}.cm2.new{background:var(--bad-bg);color:var(--bad)}.cm2.same{background:var(--raise);color:var(--dim)}
+.rtb{padding:12px 18px 14px 48px;border-top:1px solid color-mix(in oklab,var(--bad) 22%,var(--line2))}.rtb pre{margin:0;font:400 12.5px/1.6 var(--code);color:var(--fg);white-space:pre-wrap}.rtb .same2{font:500 11px var(--mono);color:var(--warn);margin-bottom:8px}
+.rpass{border:1px solid var(--line2);border-radius:12px;background:var(--panel);overflow:hidden}.rpass .rph{width:100%;display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;text-align:left}.rpass .rph span:nth-child(2){font:500 13px var(--mono);color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rpl{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}.rpass.open .rpl{grid-template-rows:1fr}.rpl>div{overflow:hidden}
+.rrow{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:12px;padding:9px 16px;border-top:1px solid var(--line2);font:500 12.5px var(--mono);color:var(--mut);align-items:center}
+.ico{width:16px;height:16px;display:grid;place-items:center;font:800 11px var(--mono)}.ico.ok{color:var(--grn)}.ico.bad{color:var(--bad)}
+.rcomp{border:1px solid color-mix(in oklab,var(--warn) 45%,var(--line2));border-radius:12px;background:var(--panel);overflow:hidden}.rcomp .rth{background:color-mix(in oklab,var(--warn) 12%,transparent)}.rcomp pre{margin:0;padding:14px 18px;font:400 12.5px/1.6 var(--code);overflow-x:auto;scrollbar-width:none}.rcomp .er{color:var(--bad)}.rcomp .pt2{color:var(--acc)}.rcomp .dm2{color:var(--dim)}
+@media (max-width:760px){.cpi{grid-template-columns:1fr}.cch{grid-template-columns:36px minmax(0,1fr)}.cact{grid-column:1/-1}}
+
+/* ---------- FOCUS TIMER (the ring, reused) ---------- */
+.toc .rcard.focus{position:sticky;bottom:0;z-index:4;background:var(--panel);--fc:var(--grn);box-shadow:0 -18px 20px -14px var(--bg)}
+.focus h6{align-items:center}
+.fm{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--line2);border-radius:7px;background:var(--bg)}
+.fm button{font:600 8.5px var(--mono);letter-spacing:.08em;color:var(--dim);padding:3px 6px;border-radius:5px;transition:background .2s,color .2s}.fm button.on{background:var(--raise);color:var(--fg)}
+.fbody{display:flex;align-items:center;gap:16px}
+.fring{--p:0;width:92px;height:92px;flex:none;border-radius:50%;background:conic-gradient(var(--fc) calc(var(--p)*1%),var(--line2) 0);display:grid;place-items:center;transition:filter .4s;position:relative}
+.fring span{width:76px;height:76px;border-radius:50%;background:var(--panel);display:grid;place-content:center;text-align:center}
+.fring b{font:600 21px var(--mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums}.fring small{display:block;font:500 8.5px var(--mono);letter-spacing:.14em;color:var(--dim);margin-top:2px}
+.fring.run::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--fc);opacity:0;animation:fp 2s ease-out infinite}
+@keyframes fp{0%{opacity:.5;transform:scale(.96)}100%{opacity:0;transform:scale(1.12)}}
+@media (prefers-reduced-motion:reduce){.fring.run::after{animation:none}}
+.fctl{flex:1;display:grid;gap:10px;min-width:0}.fctl .cta{width:100%}.fbtns{display:flex;gap:6px}.fbtns .sbtn{flex:1;width:auto;border:1px solid var(--line2);border-radius:7px;height:30px;font-size:14px}
+.focus.brk{--fc:oklch(0.79 0.10 235)}.focus.warn{--fc:var(--warn)}.focus.crit{--fc:var(--bad)}
+.fdots{display:flex;gap:6px;margin-top:12px}.fdots i{flex:1;height:5px;border-radius:3px;background:var(--line2);transition:background .3s}.fdots i.done{background:var(--grn)}.fdots i.cur{background:color-mix(in oklab,var(--grn) 45%,var(--line2))}
+.fset{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}.fset.open{grid-template-rows:1fr}.fset>div{overflow:hidden}.fset .rng{min-width:0;margin-top:8px}
+.fsum{margin-top:10px;font:500 11px var(--mono);color:var(--dim)}.fsum b{color:var(--fg)}
+.focus.hide-dots .fdots{display:none}
 </style>
 </head>
 <body>
@@ -653,19 +724,33 @@ free.<span class="fnn">push</span>(<span class="nm">7</span>);
     id
 }</pre><div class="gate"><p>Try the hints first. You can reveal the solution when you are ready.</p><button class="cta" id="rev" style="justify-self:center">Reveal solution</button></div></div>
       </section>
-      <section class="pane" id="p4"><p class="prose" style="color:var(--mut)">Durability · Atomics and the log · Mutex owns its data</p></section>
-      <section class="pane" id="p5"><p class="prose" style="color:var(--mut)">The last run is shown here: failures first, passes folded (the Run tab already built).</p></section>
+      <section class="pane" id="p4">
+        <div class="chdr"><div class="cring2" id="cr2" style="--p:33"><span id="cr2t">1/3</span></div><div style="flex:1;min-width:0"><b style="font-size:17px;letter-spacing:-.01em" id="cr2h">Required reading: 1 of 3 done</b><div style="color:var(--dim);font-size:13.5px;margin-top:2px" id="cr2s">About 13 minutes left. You can pass the stage without it; it saves you the hints.</div></div>
+          <div class="grp" id="cfl"><button class="on" data-f="all">All</button><button data-f="req">Required</button><button data-f="opt">Optional</button></div></div>
+        <div id="clist"></div>
+        <div class="flab2">RELATED</div><div class="rowf" id="crel"><button class="cp">Eviction and write-back ordering</button><button class="cp">Smart pointers: Box, Rc, Arc</button><button class="cp">Rust IO errors</button></div>
+      </section>
+      <section class="pane" id="p5">
+        <div class="rhist"><div class="rl" id="rline"></div></div>
+        <div class="rsm" id="rsm"></div>
+        <div class="rtool"><div class="grp" id="rfl"><button class="on" data-f="all">All</button><button data-f="bad">Failed</button><button data-f="ok">Passed</button></div><span class="spacer"></span><label class="cmpl"><button class="sw" id="cmp" aria-label="Compare with the previous run"></button>Compare with previous run</label></div>
+        <div id="rbody"></div>
+      </section>
     </main>
     <aside class="toc" id="tocN">
       <span class="rz r" id="rzr" title="Drag to resize · double-click to reset"><span class="grip"></span></span>
       <div class="rcard"><h6>ON THIS PAGE <button class="sbtn" id="rt" aria-label="Hide sidebar" title="Hide (⌘.)">»</button></h6><div id="toc" style="position:relative;border-left:1px solid var(--line2)"><span class="mk" id="mk"></span><a href="#a1" class="on">The task</a><a href="#a2">Tests</a><a href="#a3">Notes</a><a href="#a4">Code</a><a href="#a5">The C/C++ way</a><a href="#a6">Optional: performance</a><a href="#a7">Check yourself</a></div></div>
       <div class="rcard" id="notesCard"><h6>NOTES <span class="pin" id="nCount">3</span></h6><div id="nlist"></div></div>
-      <div class="rcard"><h6>CONCEPTS <span class="pin req">REQUIRED</span></h6>
-        <div class="cc2"><span class="ci">✓</span><div><b>Durability and fsync</b><small>9 min read</small></div><span class="st4">READ</span></div>
-        <div class="cc2 todo"><span class="ci">2</span><div><b>Atomics and the log</b><small>7 min read</small></div><span class="st4">TO READ</span></div>
-        <div class="cc2 todo"><span class="ci">3</span><div><b>Mutex owns its data</b><small>6 min read</small></div><span class="st4">TO READ</span></div></div>
+      <div class="rcard"><h6>CONCEPTS <span class="pin req" id="pcn">1 / 3</span></h6><div id="pconc"></div></div>
       <div class="rcard"><h6>THIS STAGE <span class="pin">PINNED</span></h6><div class="pincmd"><span>anneal course test 1a-04</span><button class="copy fx" data-c="anneal course test 1a-04">COPY</button></div>
         <div class="kv2"><span>Last run</span><b>4 / 6 · 2 min ago</b></div><div class="kv2"><span>Hints used</span><b>0 / 3</b></div><div class="hl2"><i></i><i></i><i></i></div></div>
+    
+      <div class="rcard focus" id="focus"><h6>FOCUS <span class="fm" id="fmode"><button class="on" data-m="pom">POMODORO</button><button data-m="timer">TIMER</button><button data-m="sw">STOPWATCH</button></span></h6>
+        <div class="fbody"><div class="fring" id="fring" style="--p:0"><span><b id="ftime">25:00</b><small id="flab">FOCUS 1 / 4</small></span></div>
+          <div class="fctl"><button class="cta sm fx" id="fgo"><span class="lbl">Start</span></button><div class="fbtns"><button class="sbtn fx" id="frst" aria-label="Reset" title="Reset">↺</button><button class="sbtn fx" id="fskip" aria-label="Skip" title="Skip to the next phase">⏭</button><button class="sbtn fx" id="fset" aria-label="Settings" title="Settings">⚙</button></div></div></div>
+        <div class="fdots" id="fdots"></div>
+        <div class="fset" id="fsetp"><div><label class="rng"><span class="h"><span>Focus</span><b id="fv1">25 min</b></span><input type="range" min="10" max="60" step="5" value="25" id="fr1"></label><label class="rng"><span class="h"><span>Break</span><b id="fv2">5 min</b></span><input type="range" min="3" max="20" step="1" value="5" id="fr2"></label><label class="rng" id="tmw" style="display:none"><span class="h"><span>Countdown</span><b id="fv3">45 min</b></span><input type="range" min="5" max="90" step="5" value="45" id="fr3"></label><label class="cmpl" style="margin-top:6px"><button class="sw" id="fspd" aria-label="Demo speed"></button>demo speed ×60 <span style="color:var(--dim);font-size:11.5px">(mockup only)</span></label></div></div>
+        <div class="fsum" id="fsum">on this stage today · <b>18 min</b> · <b>0</b> pomodoros</div></div>
     </aside>
   </div>
   <div class="strip" id="strip">
@@ -922,8 +1007,97 @@ addEventListener('scroll',noteSpy,{passive:true});setTimeout(noteSpy,100);
 /* rich sidenotes expand, aside toggle */
 $$('.sx').forEach(b=>b.onclick=()=>{const r=b.closest('.snr');r.classList.toggle('wide');b.textContent=r.classList.contains('wide')?'COLLAPSE ⤡':'EXPAND ⤢'});
 $('#asd .ah').onclick=function(){const o=$('#asd');o.classList.toggle('open');this.setAttribute('aria-expanded',o.classList.contains('open'))};
+
+/* ---------- concepts tab ---------- */
+const CON=[
+ {id:'dur',t:'Durability: when a write is really on disk',s:'What write, flush and fsync each promise, how a crash tears a page, and the three defences.',m:9,req:true,read:true,pct:100,used:['1a-05','1f-03','1a-08'],toc:['write, flush and fsync','Torn writes','C++ comparison','In real code'],take:['A successful write is not durable','fsync the file, then its directory','Order writes: log first, data later']},
+ {id:'atom',t:'Atomics and the log',s:'Counters shared between threads, and why a log needs an ordering you can reason about.',m:7,req:true,read:false,pct:40,used:['1a-05'],toc:['Relaxed, Acquire, Release','fetch_add and compare_exchange','The log and its sequence number'],take:['Use an atomic for a counter, a Mutex for a structure','Relaxed is enough for a pure counter','Acquire/Release publish data to another thread']},
+ {id:'mutex',t:'Mutex owns its data',s:'In Rust the lock owns the value it protects, so you cannot touch it without holding the guard.',m:6,req:true,read:false,pct:0,used:['1a-04','1b-03'],toc:['Mutex<T> and its guard','Poisoning','Mutex vs RwLock'],take:['The guard is the only way to the data','Drop the guard to unlock','A poisoned lock means another thread panicked']},
+ {id:'lock',t:'Lock-free basics and false sharing',s:'When atomics beat locks, and how two counters on one cache line slow each other down.',m:8,req:false,read:false,pct:0,used:['0d-01','4a-02'],toc:['CAS loops','Cache lines','Padding with #[repr(align)]'],take:['Measure before going lock-free','Pad hot counters to a cache line']}];
+let cflt='all';
+const cardHTML=c=>`<article class="ccard ${c.read?'isread':''}" data-id="${c.id}"><div class="cch"><span class="cic">${c.read?'✓':CON.indexOf(c)+1}</span><div style="min-width:0"><h4>${c.t} <span class="badge2 ${c.req?'req':'op'}">${c.req?'REQUIRED':'OPTIONAL'}</span></h4><p>${c.s}</p><div class="cmeta"><span>${c.m} min read</span><span class="mp2"><i style="width:${c.read?100:c.pct}%"></i></span><span>${c.read?'read':c.pct?c.pct+'% read':'not started'}</span><span>used in ${c.used.join(', ')}</span></div></div><div class="cact"><button class="cta sm sec fx" data-prev><span class="lbl">Preview</span></button><button class="cta sm fx" data-open><span class="lbl">${c.pct&&!c.read?'Continue':'Open'}</span><span class="ar">›</span></button></div></div>
+ <div class="cprev"><div><div class="cpi"><div><h6>IN THIS ARTICLE</h6><ol>${c.toc.map(x=>`<li>${x}</li>`).join('')}</ol><div class="used">${c.used.map(u=>`<span>stage ${u}</span>`).join('')}</div></div><div><h6>KEY TAKEAWAYS · tick as you go</h6><div class="take">${c.take.map(x=>`<label><input type="checkbox" ${c.read?'checked':''}>${x}</label>`).join('')}</div></div></div><div class="cfoot"><label style="display:flex;gap:10px;align-items:center;font-size:13.5px;color:var(--mut)"><button class="sw ${c.read?'on':''}" data-read aria-label="Mark as read"></button>Mark as read</label><span class="spacer"></span><button class="cta sm sec fx" data-prev><span class="lbl">Close</span></button><button class="cta sm fx" data-open><span class="lbl">Open article</span><span class="ar">→</span></button></div></div></div></article>`;
+function drawConcepts(){const list=CON.filter(c=>cflt==='all'||(cflt==='req')===c.req);
+  const open=new Set($$('.ccard.open').map(e=>e.dataset.id));
+  $('#clist').innerHTML=list.map(cardHTML).join('');open.forEach(id=>{const e=$(`.ccard[data-id="${id}"]`);e&&e.classList.add('open')});
+  const req=CON.filter(c=>c.req),done=req.filter(c=>c.read).length,left=req.filter(c=>!c.read).reduce((a,c)=>a+c.m,0);
+  $('#cr2').style.setProperty('--p',Math.round(100*done/req.length));$('#cr2t').textContent=done+'/'+req.length;
+  $('#cr2h').textContent=done===req.length?'Required reading done':`Required reading: ${done} of ${req.length} done`;
+  $('#cr2s').textContent=done===req.length?'Nice. The optional articles go deeper when you want them.':`About ${left} minutes left. You can pass the stage without it; it saves you the hints.`;
+  $('#pcn').textContent=done+' / '+req.length;
+  $('#pconc').innerHTML=CON.filter(c=>c.req).map((c,i)=>`<div class="cc2 ${c.read?'':'todo'}"><span class="ci">${c.read?'✓':i+1}</span><div><b>${c.t.replace(/^Durability: .*/,'Durability and fsync')}</b><small>${c.m} min read</small></div><span class="st4">${c.read?'READ':'TO READ'}</span></div>`).join('');
+  const tb=$('#tabs').querySelectorAll('button')[3];tb.innerHTML='Concepts <small>'+done+'/'+req.length+'</small><span style="display:none"></span>';
+  slide()}
+$('#clist').addEventListener('click',e=>{const c=e.target.closest('.ccard');if(!c)return;const o=CON.find(x=>x.id===c.dataset.id);
+  if(e.target.closest('[data-read]')){o.read=!o.read;if(o.read)o.pct=100;drawConcepts();toast(o.read?'Marked as read':'Marked as unread',o.read?'ok':'');return}
+  if(e.target.closest('[data-open]')){toast('Opening “'+o.t.slice(0,32)+'…”','ok');return}
+  if(e.target.closest('[data-prev]')||e.target.closest('.cch')&&!e.target.closest('.cact')){c.classList.toggle('open')}});
+$('#cfl').onclick=e=>{const b=e.target.closest('button');if(!b)return;$$('#cfl button').forEach(x=>x.classList.toggle('on',x===b));cflt=b.dataset.f;drawConcepts()};
+drawConcepts();
+/* ---------- last run tab ---------- */
+const RUNS=[
+ {n:1,at:'41 min ago',sha:'a91c0de',ms:900,problem:'error[E0308]: mismatched types\n  --> src/disk/disk_manager.rs:41:9\n   |\n41 |         Some(id)\n   |         ^^^^^^^^ expected `PageId`, found `Option<PageId>`\n'},
+ {n:2,at:'27 min ago',sha:'3be5f71',ms:1700,t:['ok','bad','bad','ok','bad','bad']},
+ {n:3,at:'12 min ago',sha:'d02a8c4',ms:1800,t:['ok','bad','ok','ok','bad','ok']},
+ {n:4,at:'2 min ago',sha:'4f1c9ab',ms:1900,t:['ok','bad','ok','ok','bad','ok']}];
+RUNS[3].t=['ok','bad','ok','ok','bad','ok'];RUNS[2].t=['ok','bad','ok','bad','bad','ok'];
+const TN=TESTS.map(t=>t[0]);const DET={reuses_a_freed_slot:'assertion `left == right` failed\n  left: 4\n right: 3',no_growth_while_slots_free:'assertion `left == right` failed\n  left: 4\n right: 3',free_list_is_lifo:'expected Some(7), got Some(3)',zeroes_a_reused_page:'page 3 byte 0 was 0xAA, expected 0',file_length_is_page_multiple:'length 4097 is not a multiple of 4096'};
+let rsel=3,rflt='all',rcmp=false;
+const passed=r=>r.t?r.t.filter(x=>x==='ok').length:0;
+function drawRuns(){const run=RUNS[rsel],prev=RUNS[rsel-1];
+  $('#rline').innerHTML=RUNS.map((r,i)=>`<div class="rn ${i===rsel?'on':''}" data-i="${i}"><div class="bar3"><i class="${r.problem?'bad':''}" style="height:${r.problem?100:Math.round(100*passed(r)/6)}%"></i></div><small>${r.problem?'—':passed(r)+'/6'}</small><em>#${r.n} · ${r.at}</em></div>`).join('');
+  const bad=run.problem?0:run.t.filter(x=>x==='bad').length,tone=run.problem?'wr':bad?'bad':'ok';
+  let delta='';if(prev&&!run.problem){const pp=prev.problem?0:passed(prev),d=passed(run)-pp;const nf=run.t.filter((x,i)=>x==='bad'&&prev.t&&prev.t[i]==='ok').length;delta=`<div class="dlt">${prev.problem?'<span class="eq">first run that compiled</span>':`${d>0?`<span class="up">▲ ${d} more passing</span>`:d<0?`<span class="dn">▼ ${-d} fewer passing</span>`:'<span class="eq">same result as #'+prev.n+'</span>'}${nf?`<span class="dn">${nf} newly failing</span>`:''}`}</div>`}
+  const cmd=run.problem?'anneal course test 1a-04':`anneal course test 1a-04 --only -f ${TN[run.t.indexOf('bad')]||''}`;
+  $('#rsm').className='rsm '+tone;
+  $('#rsm').innerHTML=`<div class="rtp"><span class="rbig">${run.problem?'<em>Did not run</em>':bad?`<em>${bad} failed</em> · ${6-bad} passed`:'<em>6 of 6 passed</em>'}</span><span class="rmeta">run #${run.n} · ${run.at} · commit ${run.sha} · ${(run.ms/1000).toFixed(1)}s</span></div>${delta}${run.problem?'':`<div class="rsb">${run.t.map((x,i)=>`<i class="${x==='bad'?'f':''}" style="--k:${i}"></i>`).join('')}</div>`}${bad||run.problem?`<div class="rcmd"><span>${run.problem?'compile locally':'run again'}</span><code>${cmd}</code><button class="copy fx" data-c="${cmd}">COPY</button></div>`:''}`;
+  let h='';
+  if(run.problem){h=`<div class="rcomp"><div class="rth"><span class="ico" style="color:var(--warn)">!</span><b>1 error</b><span class="rmeta">as the compiler printed it</span></div><pre>${run.problem.split('\n').map(l=>/^error/.test(l)?`<span class="er">${l}</span>`:/^\s*-->/.test(l)?`<span class="pt2">${l}</span>`:/^\s*(\d+\s*)?\|/.test(l)?`<span class="dm2">${l}</span>`:l).join('\n').replace(/</g,'&lt;').replace(/&lt;(\/?span)/g,'<$1')}</pre></div>`}
+  else{const items=run.t.map((x,i)=>({x,i,name:TN[i],ch:prev&&prev.t?(prev.t[i]==='bad'&&x==='ok'?'fix':prev.t[i]==='ok'&&x==='bad'?'new':'same'):''}));
+    const fails=items.filter(o=>o.x==='bad'),oks=items.filter(o=>o.x==='ok');
+    if(rflt!=='ok'&&fails.length)h+=`<div class="flab2" style="color:var(--bad);margin-top:6px">FAILED · ${fails.length}</div>`+fails.map(o=>{const n=fails.filter(f=>DET[f.name]===DET[o.name]).length-1;return `<div class="rt bad"><div class="rth"><span class="ico bad">✕</span><b>${o.name}</b>${rcmp&&o.ch?`<span class="cm2 ${o.ch}">${o.ch==='new'?'NEWLY FAILING':'STILL FAILING'}</span>`:`<span class="rmeta">test ${o.i+1} of 6</span>`}</div><div class="rtb">${n?`<div class="same2">same message as ${n} other test${n>1?'s':''}</div>`:''}<pre>${(DET[o.name]||'').replace(/</g,'&lt;')}</pre></div></div>`}).join('');
+    if(rflt!=='bad'&&oks.length)h+=`<div class="flab2" style="color:var(--grn)">PASSED · ${oks.length}</div><div class="rpass ${rflt==='ok'?'open':''}" id="rpass"><button class="rph"><span class="ico ok">✓</span><span>${rflt==='ok'?'all passing tests':oks.slice(0,2).map(o=>o.name).join(', ')+(oks.length>2?' and '+(oks.length-2)+' more':'')}</span><span class="rmeta">${rflt==='ok'?'':'show'}</span></button><div class="rpl"><div>${oks.map(o=>`<div class="rrow"><span class="ico ok">✓</span><span>${o.name}</span>${rcmp&&o.ch==='fix'?'<span class="cm2 fix">FIXED SINCE #'+prev.n+'</span>':''}</div>`).join('')}</div></div></div>`;
+    if(!fails.length&&rflt==='bad')h='<div class="rt"><div class="rth"><span class="ico ok">✓</span><b>Nothing failed in this run</b><span></span></div></div>'}
+  $('#rbody').innerHTML=h;
+  const tb=$('#tabs').querySelectorAll('button')[4];tb.innerHTML='Last run <small>'+(RUNS[3].problem?'—':passed(RUNS[3])+'/6')+'</small>';slide()}
+$('#rline').onclick=e=>{const n=e.target.closest('.rn');if(n){rsel=+n.dataset.i;drawRuns()}};
+$('#rfl').onclick=e=>{const b=e.target.closest('button');if(!b)return;$$('#rfl button').forEach(x=>x.classList.toggle('on',x===b));rflt=b.dataset.f;drawRuns()};
+$('#cmp').onclick=function(){this.classList.toggle('on');rcmp=this.classList.contains('on');drawRuns()};
+$('#rbody').addEventListener('click',e=>{const h=e.target.closest('.rph');if(h)h.parentNode.classList.toggle('open')});
+drawRuns();
+
+/* ---------- focus timer: pomodoro / countdown / stopwatch on the ring ---------- */
+(function(){const F=$('#focus'),R=$('#fring'),T=$('#ftime'),L=$('#flab'),GO=$('#fgo');
+  const st={mode:'pom',phase:'focus',run:false,left:25*60,total:25*60,cyc:1,done:0,sw:0,speed:1,mins:{f:25,b:5,t:45}};
+  const mmss=n=>String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+  function setPhase(ph){st.phase=ph;st.total=st.left=(ph==='focus'?st.mins.f:ph==='break'?st.mins.b:st.mins.t)*60}
+  function draw(){let p,txt,lab,cls='';
+    if(st.mode==='sw'){p=100*(st.sw%60)/60;txt=mmss(st.sw);lab='ELAPSED'}
+    else{p=100*(st.total-st.left)/st.total;txt=mmss(Math.ceil(st.left));
+      if(st.mode==='pom'){lab=st.phase==='focus'?`FOCUS ${st.cyc} / 4`:st.phase==='long'?'LONG BREAK':'BREAK';cls=st.phase!=='focus'?'brk':''}
+      else{lab='REMAINING';const f=st.left/st.total;cls=f<.05?'crit':f<.2?'warn':''}}
+    R.style.setProperty('--p',p);T.textContent=txt;L.textContent=lab;F.className='rcard focus '+cls;R.classList.toggle('run',st.run);
+    GO.querySelector('.lbl').textContent=st.run?'Pause':(st.mode==='pom'&&st.left===st.total||st.mode==='timer'&&st.left===st.total||st.mode==='sw'&&!st.sw)?'Start':'Resume';
+    $('#fdots').style.display=st.mode==='pom'?'flex':'none';$('#fdots').innerHTML=[1,2,3,4].map(i=>`<i class="${i<=st.done?'done':i===st.cyc&&st.phase==='focus'?'cur':''}"></i>`).join('');
+    $('#tmw').style.display=st.mode==='timer'?'grid':'none';
+    $('#fsum').innerHTML=`on this stage today · <b>${18+Math.floor(st.sw/60)+st.done*st.mins.f} min</b> · <b>${st.done}</b> pomodoro${st.done===1?'':'s'}`;
+    document.title='';}
+  function end(){if(st.mode==='pom'){if(st.phase==='focus'){st.done++;const longb=st.done%4===0;setPhase(longb?'long':'break');if(longb)st.mins.b0=st.mins.b;toast(longb?'Four done. Take a long break.':'Focus session done. Break time.','ok')}else{if(st.phase==='long'){st.done=0;st.cyc=1}else st.cyc=Math.min(4,st.cyc+1);setPhase('focus');toast('Break over. Back to it.','')}}
+    else{st.run=false;toast('Time is up','er')}draw()}
+  setInterval(()=>{if(!st.run)return;if(st.mode==='sw'){st.sw+=st.speed}else{st.left-=st.speed;if(st.left<=0){st.left=0;draw();end()}}draw()},1000);
+  GO.onclick=()=>{st.run=!st.run;draw()};
+  $('#frst').onclick=()=>{st.run=false;st.sw=0;if(st.mode==='pom'){st.cyc=1;st.done=0;setPhase('focus')}else if(st.mode==='timer')setPhase('timer');draw()};
+  $('#fskip').onclick=()=>{if(st.mode==='pom'){st.left=0;end()}else if(st.mode==='timer'){st.left=0;draw();end()}};
+  $('#fset').onclick=()=>$('#fsetp').classList.toggle('open');
+  $('#fmode').onclick=e=>{const b=e.target.closest('button');if(!b)return;$$('#fmode button').forEach(x=>x.classList.toggle('on',x===b));st.mode=b.dataset.m;st.run=false;st.sw=0;if(st.mode==='pom'){st.cyc=1;setPhase('focus')}else if(st.mode==='timer'){st.phase='timer';setPhase('timer')}draw()};
+  const sl=(id,out,key,fmt)=>{const i=$(id);i.oninput=()=>{st.mins[key]=+i.value;i.style.setProperty('--v',(100*(i.value-i.min)/(i.max-i.min))+'%');$(out).textContent=fmt(i.value);if(!st.run){setPhase(st.phase==='break'?'break':st.mode==='timer'?'timer':st.phase==='long'?'break':'focus');draw()}};i.oninput()};
+  sl('#fr1','#fv1','f',v=>v+' min');sl('#fr2','#fv2','b',v=>v+' min');sl('#fr3','#fv3','t',v=>v+' min');
+  $('#fspd').onclick=function(){this.classList.toggle('on');st.speed=this.classList.contains('on')?60:1};
+  draw();
+  if(location.hash==='#static-focus'){st.left=st.total-9*60+0;st.run=false;draw();show(2)}
+})();
 addEventListener('resize',()=>{thumb(flt);slide()});
-addEventListener('load',()=>{if(!reduce&&!location.hash.startsWith('#static')){document.body.classList.add('motion')}else{$('#mot').classList.remove('on');$('#mot').textContent='MOTION OFF';document.body.classList.add('motion-off')}thumb(flt);slide();fills();count();if(location.hash==='#stage'||location.hash==='#static-stage')show(2);if(location.hash==='#kit'||location.hash==='#static-kit')show(3);if(location.hash==='#static-win'){show(2);openOv('ovWin')}kitFill()});
+addEventListener('load',()=>{if(!reduce&&!location.hash.startsWith('#static')){document.body.classList.add('motion')}else{$('#mot').classList.remove('on');$('#mot').textContent='MOTION OFF';document.body.classList.add('motion-off')}thumb(flt);slide();fills();count();if(location.hash==='#stage'||location.hash==='#static-stage')show(2);if(location.hash==='#kit'||location.hash==='#static-kit')show(3);if(location.hash==='#static-win'){show(2);openOv('ovWin')}if(location.hash==='#static-concepts'||location.hash==='#static-run'){show(2);const t=location.hash.endsWith('concepts')?'p4':'p5';$$('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));$$('.pane').forEach(x=>x.classList.toggle('on',x.id===t));if(t==='p4')$('.ccard').classList.add('open');else{$('#cmp').click()}setTimeout(slide,50)}kitFill()});
 </script>
 </body>
 </html>
